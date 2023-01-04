@@ -9,6 +9,7 @@
 #include "UDynamicMesh.h"
 #include "Dataflow/DataflowSelection.h"
 #include "Math/MathFwd.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include "GeometryCollectionNodes.generated.h"
 
@@ -16,6 +17,7 @@
 class FGeometryCollection;
 class UGeometryCollection;
 class UStaticMesh;
+
 
 /**
  *
@@ -187,6 +189,7 @@ struct FBoundingBoxDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FBoundingBoxDataflowNode, "BoundingBox", "Utilities|Box", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FBox"), "BoundingBox")
 
 public:
 	UPROPERTY(meta = (DataflowInput))
@@ -362,6 +365,7 @@ struct FMakeBoxDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeBoxDataflowNode, "MakeBox", "Generators|Box", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FBox"), "Box")
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Box", meta = (DisplayName = "Input Data Type"));
@@ -371,13 +375,13 @@ public:
 	FVector Min = FVector(0.0);
 
 	UPROPERTY(EditAnywhere, Category = "Box", meta = (DataflowInput, EditCondition = "DataType == EMakeBoxDataTypeEnum::Dataflow_MakeBox_DataType_MinMax", EditConditionHides));
-	FVector Max = FVector(0.0);
+	FVector Max = FVector(10.0);
 
 	UPROPERTY(EditAnywhere, Category = "Box", meta = (DataflowInput, EditCondition = "DataType == EMakeBoxDataTypeEnum::Dataflow_MakeBox_DataType_CenterSize", EditConditionHides));
 	FVector Center = FVector(0.0);
 
 	UPROPERTY(EditAnywhere, Category = "Box", meta = (DataflowInput, EditCondition = "DataType == EMakeBoxDataTypeEnum::Dataflow_MakeBox_DataType_CenterSize", EditConditionHides));
-	FVector Size = FVector(0.0);
+	FVector Size = FVector(10.0);
 
 	UPROPERTY(meta = (DataflowOutput));
 	FBox Box = FBox(ForceInit);
@@ -413,7 +417,7 @@ public:
 	FVector Center = FVector(0.f);
 
 	UPROPERTY(EditAnywhere, Category = "Sphere", meta = (DataflowInput));
-	float Radius = 0.f;
+	float Radius = 10.f;
 
 	UPROPERTY(meta = (DataflowOutput));
 	FSphere Sphere = FSphere(ForceInit);
@@ -1056,7 +1060,6 @@ enum class EMathConstantsEnum : uint8
 	Dataflow_Max                UMETA(Hidden)
 };
 
-
 /**
  *
  * Offers a selection of Math constants
@@ -1231,36 +1234,59 @@ public:
 };
 
 
+UENUM(BlueprintType)
+enum class ERotationOrderEnum : uint8
+{
+	Dataflow_RotationOrder_XYZ UMETA(DisplayName = "XYZ"),
+	Dataflow_RotationOrder_YZX UMETA(DisplayName = "YZX"),
+	Dataflow_RotationOrder_ZXY UMETA(DisplayName = "ZXY"),
+	Dataflow_RotationOrder_XZY UMETA(DisplayName = "XZY"),
+	Dataflow_RotationOrder_YXZ UMETA(DisplayName = "YXZ"),
+	Dataflow_RotationOrder_ZYX UMETA(DisplayName = "ZYX"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
 /**
  *
- * Transforms a mesh
+ * Transforms a Collection
  *
  */
 USTRUCT()
-struct FTransformDataflowNode : public FDataflowNode
+struct FTransformCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FTransformDataflowNode, "Transform", "Math", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FTransformCollectionDataflowNode, "TransformCollection", "Math|Transform", "")
+	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
+	/** Output mesh */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
 	/** Translation */
 	UPROPERTY(EditAnywhere, Category = "Transform");
 	FVector Translate = FVector(0.0);
+
+	/** Rotation Order */
+	UPROPERTY(EditAnywhere, Category = "Transform");
+	ERotationOrderEnum RotationOrder = ERotationOrderEnum::Dataflow_RotationOrder_XYZ;
 
 	/** Rotation */
 	UPROPERTY(EditAnywhere, Category = "Transform");
 	FVector Rotate = FVector(0.0);
 
 	/** Scale */
-	UPROPERTY(EditAnywhere, Category = "Transform");
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (UIMin = 0.001f));
 	FVector Scale = FVector(1.0);
 
 	/** Shear */
-	UPROPERTY(EditAnywhere, Category = "Transform");
-	FVector Shear = FVector(0.0);
+//	UPROPERTY(EditAnywhere, Category = "Transform");
+//	FVector Shear = FVector(0.0);
 
 	/** Uniform scale */
-	UPROPERTY(EditAnywhere, Category = "Transform");
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (UIMin = 0.001f));
 	float UniformScale = 1.f;
 
 	/** Pivot for the rotation */
@@ -1275,15 +1301,105 @@ public:
 	UPROPERTY(EditAnywhere, Category = "General");
 	bool InvertTransformation = false;
 
+	FTransformCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Bake transforms in Collection
+ *
+ */
+USTRUCT()
+struct FBakeTransformsInCollectionDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FBakeTransformsInCollectionDataflowNode, "BakeTransformsInCollection", "Math|Transform", "")
+	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
+
+public:
+	/** Collection to bake transforms in */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	FBakeTransformsInCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Transforms a mesh
+ *
+ */
+USTRUCT()
+struct FTransformMeshDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FTransformMeshDataflowNode, "TransformMesh", "Math|Transform", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
+
+public:
 	/** Output mesh */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Mesh", DataflowIntrinsic))
 	TObjectPtr<UDynamicMesh> Mesh;
 
-	FTransformDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	/** Translation */
+	UPROPERTY(EditAnywhere, Category = "Transform");
+	FVector Translate = FVector(0.0);
+
+	/** Rotation Order */
+	UPROPERTY(EditAnywhere, Category = "Transform");
+	ERotationOrderEnum RotationOrder = ERotationOrderEnum::Dataflow_RotationOrder_XYZ;
+
+	/** Rotation */
+	UPROPERTY(EditAnywhere, Category = "Transform");
+	FVector Rotate = FVector(0.0);
+
+	/** Scale */
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (UIMin = 0.001f));
+	FVector Scale = FVector(1.0);
+
+	/** Shear */
+//	UPROPERTY(EditAnywhere, Category = "Transform");
+//	FVector Shear = FVector(0.0);
+
+	/** Uniform scale */
+	UPROPERTY(EditAnywhere, Category = "Transform", meta = (UIMin = 0.001f));
+	float UniformScale = 1.f;
+
+	/** Pivot for the rotation */
+	UPROPERTY(EditAnywhere, Category = "Pivot");
+	FVector RotatePivot = FVector(0.0);
+
+	/** Pivot for the scale */
+	UPROPERTY(EditAnywhere, Category = "Pivot");
+	FVector ScalePivot = FVector(0.0);
+
+	/** Invert the transformation */
+	UPROPERTY(EditAnywhere, Category = "General");
+	bool InvertTransformation = false;
+
+	FTransformMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Mesh);
-		RegisterOutputConnection(&Mesh);
+		RegisterOutputConnection(&Mesh, &Mesh);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

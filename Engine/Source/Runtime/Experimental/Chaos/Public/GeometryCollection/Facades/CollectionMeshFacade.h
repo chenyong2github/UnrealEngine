@@ -52,6 +52,11 @@ namespace GeometryCollection::Facades
 		 */
 //		const TArrayView<FIntVector> GetFaceVertexIndices(int32 BoneIdx) const;
 
+		/**
+		 * Bakes the transforms into the vertex positions and sets the bone transforms to identity
+		 */
+		 void BakeTransform(int32 TransformIdx, const FTransform& InTransform);
+
 		TManagedArrayAccessor<int32> TransformToGeometryIndexAttribute;
 		TManagedArrayAccessor<FVector3f> VertexAttribute;
 		TManagedArrayAccessor<FVector3f> TangentUAttribute;

@@ -999,7 +999,7 @@ namespace GeometryCollection::Facades
 
 		if (TransformIndexAttribute.IsValid() && VertexStartAttribute.IsValid() && VertexCountAttribute.IsValid())
 		{
-			const TManagedArray<int32>& TransformIndicies = TransformIndexAttribute.Get();
+			const TManagedArray<int32>& TransformIndices = TransformIndexAttribute.Get();
 			const TManagedArray<int32>& VertexStarts = VertexStartAttribute.Get();
 			const TManagedArray<int32>& VertexCounts = VertexCountAttribute.Get();
 
@@ -1014,7 +1014,7 @@ namespace GeometryCollection::Facades
 
 					if (VertexIdx >= VertexStart && VertexIdx < VertexEnd)
 					{
-						OutSelection.AddUnique(TransformIndicies[GeometryIdx]);
+						OutSelection.AddUnique(TransformIndices[GeometryIdx]);
 						break;
 					}
 				}
@@ -1030,7 +1030,7 @@ namespace GeometryCollection::Facades
 
 		if (TransformIndexAttribute.IsValid() && FaceStartAttribute.IsValid() && FaceCountAttribute.IsValid())
 		{
-			const TManagedArray<int32>& TransformIndicies = TransformIndexAttribute.Get();
+			const TManagedArray<int32>& TransformIndices = TransformIndexAttribute.Get();
 			const TManagedArray<int32>& FaceStarts = FaceStartAttribute.Get();
 			const TManagedArray<int32>& FaceCounts = FaceCountAttribute.Get();
 
@@ -1045,7 +1045,7 @@ namespace GeometryCollection::Facades
 
 					if (FaceIdx >= FaceStart && FaceIdx < FaceEnd)
 					{
-						OutSelection.AddUnique(TransformIndicies[GeometryIdx]);
+						OutSelection.AddUnique(TransformIndices[GeometryIdx]);
 						break;
 					}
 				}
@@ -1061,31 +1061,31 @@ namespace GeometryCollection::Facades
 
 		if (FaceStartAttribute.IsValid() && FaceCountAttribute.IsValid() && IndicesAttribute.IsValid())
 		{
-			// Build VertexToFaceIndicies inverse lookup
+			// Build VertexToFaceIndices inverse lookup
 			const TManagedArray<int32>& FaceStarts = FaceStartAttribute.Get();
 			const TManagedArray<int32>& FaceCounts = FaceCountAttribute.Get();
 
 			const int32 NumFaces = ConstCollection.NumElements(FGeometryCollection::FacesGroup);
 			const int32 NumVertices = ConstCollection.NumElements(FGeometryCollection::VerticesGroup);
 
-			TArray<TArray<int32>> VertexToFaceIndicies;
-			VertexToFaceIndicies.Reset(NumVertices);
+			TArray<TArray<int32>> VertexToFaceIndices;
+			VertexToFaceIndices.Reset(NumVertices);
 
-			const TManagedArray<FIntVector>& Indicies = IndicesAttribute.Get();
+			const TManagedArray<FIntVector>& Indices = IndicesAttribute.Get();
 
 			for (int32 FaceIdx = 0; FaceIdx < NumFaces; ++FaceIdx)
 			{
-				VertexToFaceIndicies[Indicies[FaceIdx].X].AddUnique(FaceIdx);
-				VertexToFaceIndicies[Indicies[FaceIdx].Y].AddUnique(FaceIdx);
-				VertexToFaceIndicies[Indicies[FaceIdx].Z].AddUnique(FaceIdx);
+				VertexToFaceIndices[Indices[FaceIdx].X].AddUnique(FaceIdx);
+				VertexToFaceIndices[Indices[FaceIdx].Y].AddUnique(FaceIdx);
+				VertexToFaceIndices[Indices[FaceIdx].Z].AddUnique(FaceIdx);
 			}
 
 			// Convert VertexSelection to FaceSelection
 			for (int32 VertexIdx : InVertexSelection)
 			{
-				for (int32 FaceIdx = 0; FaceIdx < VertexToFaceIndicies[VertexIdx].Num(); ++FaceIdx)
+				for (int32 FaceIdx = 0; FaceIdx < VertexToFaceIndices[VertexIdx].Num(); ++FaceIdx)
 				{
-					OutSelection.AddUnique(VertexToFaceIndicies[VertexIdx][FaceIdx]);
+					OutSelection.AddUnique(VertexToFaceIndices[VertexIdx][FaceIdx]);
 				}
 			}
 		}
@@ -1099,15 +1099,15 @@ namespace GeometryCollection::Facades
 
 		if (TransformIndexAttribute.IsValid() && FaceStartAttribute.IsValid() && FaceCountAttribute.IsValid())
 		{
-			const TManagedArray<int32>& TransformToGeometryIndicies = TransformToGeometryIndexAttribute.Get();
+			const TManagedArray<int32>& TransformToGeometryIndices = TransformToGeometryIndexAttribute.Get();
 			const TManagedArray<int32>& FaceStarts = FaceStartAttribute.Get();
 			const TManagedArray<int32>& FaceCounts = FaceCountAttribute.Get();
 
 			for (int32 TransformIdx : InTransformSelection)
 			{
-				const int32 FaceIdxStart = FaceStarts[TransformToGeometryIndicies[TransformIdx]];
+				const int32 FaceIdxStart = FaceStarts[TransformToGeometryIndices[TransformIdx]];
 
-				for (int32 Offset = 0; Offset < FaceCounts[TransformToGeometryIndicies[TransformIdx]]; ++Offset)
+				for (int32 Offset = 0; Offset < FaceCounts[TransformToGeometryIndices[TransformIdx]]; ++Offset)
 				{
 					const int32 FaceIdx = FaceIdxStart + Offset;
 					OutSelection.Add(FaceIdx);
@@ -1124,13 +1124,13 @@ namespace GeometryCollection::Facades
 
 		if (IndicesAttribute.IsValid())
 		{
-			const TManagedArray<FIntVector>& Indicies = IndicesAttribute.Get();
+			const TManagedArray<FIntVector>& Indices = IndicesAttribute.Get();
 
 			for (int32 FaceIdx : InFaceSelection)
 			{
-				OutSelection.AddUnique(Indicies[FaceIdx].X);
-				OutSelection.AddUnique(Indicies[FaceIdx].Y);
-				OutSelection.AddUnique(Indicies[FaceIdx].Z);
+				OutSelection.AddUnique(Indices[FaceIdx].X);
+				OutSelection.AddUnique(Indices[FaceIdx].Y);
+				OutSelection.AddUnique(Indices[FaceIdx].Z);
 			}
 		}
 
@@ -1143,15 +1143,15 @@ namespace GeometryCollection::Facades
 
 		if (TransformToGeometryIndexAttribute.IsValid() && VertexStartAttribute.IsValid() && VertexCountAttribute.IsValid())
 		{
-			const TManagedArray<int32>& TransformToGeometryIndicies = TransformToGeometryIndexAttribute.Get();
+			const TManagedArray<int32>& TransformToGeometryIndices = TransformToGeometryIndexAttribute.Get();
 			const TManagedArray<int32>& VertexStarts = VertexStartAttribute.Get();
 			const TManagedArray<int32>& VertexCounts = VertexCountAttribute.Get();
 
 			for (int32 TransformIdx : InTransformSelection)
 			{
-				const int32 VertexIndexStart = VertexStarts[TransformToGeometryIndicies[TransformIdx]];
+				const int32 VertexIndexStart = VertexStarts[TransformToGeometryIndices[TransformIdx]];
 
-				for (int32 Offset = 0; Offset < VertexCounts[TransformToGeometryIndicies[TransformIdx]]; ++Offset)
+				for (int32 Offset = 0; Offset < VertexCounts[TransformToGeometryIndices[TransformIdx]]; ++Offset)
 				{
 					const int32 VertexIdx = VertexIndexStart + Offset;
 					OutSelection.Add(VertexIdx);

@@ -8,6 +8,8 @@
 #include "GeometryCollection/Facades/CollectionExplodedVectorFacade.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "UDynamicMesh.h"
 
 namespace Dataflow
 {
@@ -17,7 +19,7 @@ namespace Dataflow
 		using namespace Dataflow;
 
 		/**
-		* DatflowNode (FGeometryCollection) Rendering
+		* DataflowNode (FGeometryCollection) Rendering
 		*
 		*		@param Type : FGeometryCollection::StaticType()
 
@@ -93,7 +95,105 @@ namespace Dataflow
 				}
 			});
 
-	}
 
+		/**
+		* DataflowNode (FDynamicMesh3) Rendering
+		*
+		*		@param Type : FName("FDynamicMesh3")
+
+		*		@param Outputs : {FDynamicMesh3 : "Mesh"}
+		*/
+		FRenderingFactory::GetInstance()->RegisterOutput(FName("FDynamicMesh3"),
+			[](GeometryCollection::Facades::FRenderingFacade& RenderCollection, const Dataflow::FGraphRenderingState& State)
+			{
+				if (State.GetRenderOutputs().Num())
+				{
+					FName PrimaryOutput = State.GetRenderOutputs()[0]; // "Mesh"
+
+					TObjectPtr<UDynamicMesh> Default;
+					if (const TObjectPtr<UDynamicMesh> Mesh = State.GetValue<TObjectPtr<UDynamicMesh>>(PrimaryOutput, Default))
+					{
+						const UE::Geometry::FDynamicMesh3& DynamicMesh = Mesh->GetMeshRef();
+
+						const int32 NumVertices = DynamicMesh.VertexCount();
+						const int32 NumTriangles = DynamicMesh.TriangleCount();
+
+						if (NumVertices > 0 && NumTriangles > 0)
+						{
+							// This will contain the valid triangles only
+							TArray<FIntVector> Tris; Tris.Reserve(DynamicMesh.TriangleCount());
+														
+							// DynamicMesh.TrianglesItr() returns the valid triangles only
+							for (UE::Geometry::FIndex3i Tri : DynamicMesh.TrianglesItr())
+							{
+								Tris.Add(FIntVector(Tri.A, Tri.B, Tri.C));
+							}
+
+							// This will contain all the vertices (invalid ones too)
+							// Otherwise the IDs need to be remaped
+							TArray<FVector3f> Vertices; Vertices.AddZeroed(DynamicMesh.MaxVertexID());
+
+							// DynamicMesh.VertexIndicesItr() returns the valid vertices only
+							for (int32 VertexID : DynamicMesh.VertexIndicesItr())
+							{
+								Vertices[VertexID] = (FVector3f)DynamicMesh.GetVertex(VertexID);
+							}
+
+							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
+						}
+					}
+				}
+			});
+
+
+		/**
+		* DataflowNode (FBox) Rendering
+		*
+		*		@param Type : FName("FBox")
+
+		*		@param Outputs : {FBox : "Box"}
+		*/
+		FRenderingFactory::GetInstance()->RegisterOutput(FName("FBox"),
+			[](GeometryCollection::Facades::FRenderingFacade& RenderCollection, const Dataflow::FGraphRenderingState& State)
+			{
+				if (State.GetRenderOutputs().Num())
+				{
+					FName PrimaryOutput = State.GetRenderOutputs()[0]; // "Box"
+
+					FBox Default;
+					const FBox& Box = State.GetValue<FBox>(PrimaryOutput, Default);
+
+					const int32 NumVertices = 8;
+					const int32 NumTriangles = 12;
+
+					TArray<FVector3f> Vertices; Vertices.AddUninitialized(NumVertices);
+					TArray<FIntVector> Tris; Tris.AddUninitialized(NumTriangles);
+
+					FVector Min = Box.Min;
+					FVector Max = Box.Max;
+
+					// Add vertices
+					Vertices[0] = FVector3f(Min);
+					Vertices[1] = FVector3f(Max.X, Min.Y, Min.Z);
+					Vertices[2] = FVector3f(Max.X, Max.Y, Min.Z);
+					Vertices[3] = FVector3f(Min.X, Max.Y, Min.Z);
+					Vertices[4] = FVector3f(Min.X, Min.Y, Max.Z);
+					Vertices[5] = FVector3f(Max.X, Min.Y, Max.Z);
+					Vertices[6] = FVector3f(Max);
+					Vertices[7] = FVector3f(Min.X, Max.Y, Max.Z);
+
+					// Add triangles
+					Tris[0] = FIntVector(0, 1, 3); Tris[1] = FIntVector(1, 2, 3);
+					Tris[2] = FIntVector(0, 4, 1); Tris[3] = FIntVector(4, 5, 1);
+					Tris[4] = FIntVector(5, 2, 1); Tris[5] = FIntVector(5, 6, 2);
+					Tris[6] = FIntVector(3, 2, 6); Tris[7] = FIntVector(7, 3, 6);
+					Tris[8] = FIntVector(0, 3, 7); Tris[9] = FIntVector(4, 0, 7);
+					Tris[10] = FIntVector(5, 4, 7); Tris[11] = FIntVector(5, 7, 6);
+
+					RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
+				}
+			});
+
+	}
 
 }

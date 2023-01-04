@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"GeometryFramework"
 				}
 			);
 			PrivateDependencyModuleNames.AddRange(
@@ -26,6 +27,8 @@ namespace UnrealBuildTool.Rules
 					"DataflowCore",
 					"DataflowEngine",
 					"Chaos",
+					"GeometryCore",
+					"DynamicMesh"
 				}
 			);
 		}

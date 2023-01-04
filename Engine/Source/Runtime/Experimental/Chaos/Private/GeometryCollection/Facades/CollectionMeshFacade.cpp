@@ -163,6 +163,29 @@ namespace GeometryCollection::Facades
 		}
 	}
 
+	void FCollectionMeshFacade::BakeTransform(int32 TransformIdx, const FTransform& InTransform)
+	{
+		const TManagedArray<int32>& TransformToGeometryIndices = TransformToGeometryIndexAttribute.Get();
+		TManagedArray<FVector3f>& Vertices = VertexAttribute.Modify();
+		const TManagedArray<int32>& VertexStarts = VertexStartAttribute.Get();
+		const TManagedArray<int32>& VertexCounts = VertexCountAttribute.Get();
+		TManagedArray<FVector3f>& Normals = NormalAttribute.Modify();
+		TManagedArray<FVector3f>& TangentUs = TangentUAttribute.Modify();
+		TManagedArray<FVector3f>& TangentVs = TangentVAttribute.Modify();
+
+		const int32 VertexIndexStart = VertexStarts[TransformToGeometryIndices[TransformIdx]];
+
+		for (int32 Offset = 0; Offset < VertexCounts[TransformToGeometryIndices[TransformIdx]]; ++Offset)
+		{
+			const int32 VertexIdx = VertexIndexStart + Offset;
+
+			Vertices[VertexIdx] = (FVector3f)InTransform.TransformPosition((FVector)Vertices[VertexIdx]);
+			Normals[VertexIdx] = (FVector3f)InTransform.TransformVector((FVector)Normals[VertexIdx]);
+			TangentUs[VertexIdx] = (FVector3f)InTransform.TransformVector((FVector)TangentUs[VertexIdx]);
+			TangentVs[VertexIdx] = (FVector3f)InTransform.TransformVector((FVector)TangentVs[VertexIdx]);
+		}
+	}
+
 };
 
 

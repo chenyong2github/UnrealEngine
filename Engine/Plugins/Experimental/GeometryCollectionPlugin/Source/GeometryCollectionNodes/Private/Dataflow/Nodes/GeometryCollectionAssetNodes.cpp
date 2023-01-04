@@ -99,7 +99,7 @@ void FGetGeometryCollectionSourcesDataflowNode::Evaluate(Dataflow::FContext& Con
 
 	TArray<FGeometryCollectionSource> OutSources;
 	
-	if (const TObjectPtr<UGeometryCollection> InAsset = GetValue(Context, &Asset))
+	if (const TObjectPtr<const UGeometryCollection> InAsset = GetValue(Context, &Asset))
 	{
 #if WITH_EDITORONLY_DATA
 		OutSources = InAsset->GeometrySource; 

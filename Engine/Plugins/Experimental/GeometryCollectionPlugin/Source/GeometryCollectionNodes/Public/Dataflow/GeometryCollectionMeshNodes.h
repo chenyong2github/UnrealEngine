@@ -6,13 +6,13 @@
 #include "Dataflow/DataflowEngine.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Dataflow/DataflowSelection.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include "GeometryCollectionMeshNodes.generated.h"
 
 class FGeometryCollection;
 class UStaticMesh;
 class UDynamicMesh;
-
 
 /**
  *
@@ -61,6 +61,7 @@ struct FBoxToMeshDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FBoxToMeshDataflowNode, "BoxToMesh", "Mesh|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
 
 public:
 	/** BoundingBox input */
@@ -155,6 +156,42 @@ public:
 
 /**
  *
+ * Converts a Collection to a DynamicMesh
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionToMeshDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionToMeshDataflowNode, "CollectionToMesh", "Mesh|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
+
+public:
+	/** Collection to convert*/
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	UPROPERTY(EditAnywhere, Category = "General", meta = (DisplayName = "Center Pivot"));
+	bool bCenterPivot = false;
+
+	/** Output DynamicMesh */
+	UPROPERTY(meta = (DataflowOutput))
+	TObjectPtr<UDynamicMesh> Mesh;
+
+	FCollectionToMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Mesh);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
  * Converts a StaticMesh into a DynamicMesh
  *
  */
@@ -163,6 +200,7 @@ struct FStaticMeshToMeshDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FStaticMeshToMeshDataflowNode, "StaticMeshToMesh", "Mesh|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
 
 public:
 	/** StaticMesh to convert */
@@ -171,7 +209,7 @@ public:
 
 	/** Output the HiRes representation, if set to true and HiRes doesn't exist it will output empty mesh */
 	UPROPERTY(EditAnywhere, Category = "StaticMesh", meta = (DisplayName = "Use HiRes"));
-	bool UseHiRes = true;
+	bool bUseHiRes = false;
 
 	/** Specifies the LOD level to use */
 	UPROPERTY(EditAnywhere, Category = "StaticMesh", meta = (DisplayName = "LOD Level"));
@@ -202,6 +240,7 @@ struct FMeshAppendDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshAppendDataflowNode, "MeshAppend", "Mesh|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
 
 public:
 	/** Mesh input */
@@ -250,6 +289,7 @@ struct FMeshBooleanDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshBooleanDataflowNode, "MeshBoolean", "Mesh|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
 
 public:
 	/** Boolean operation */
@@ -290,7 +330,8 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FMeshCopyToPointsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FMeshCopyToPointsDataflowNode, "MeshCopyToPoints", "Mesh|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshCopyToPointsDataflowNode, "MeshCopyToPoints", "Mesh|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FName("FDynamicMesh3"), "Mesh")
 
 public:
 	/** Points to copy meshes onto */

@@ -54,6 +54,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "GeometryProcessing",
+			"Enabled": true
+		},
+		{
 			"Name": "Fracture",
 			"Enabled": true
 		}

@@ -17,7 +17,7 @@ namespace GeometryCollection::Facades
 		FCollectionTransformFacade(FManagedArrayCollection& InCollection);
 		FCollectionTransformFacade(const FManagedArrayCollection& InCollection);
 
-		/** Create the facade attributes. */
+		/** Creates the facade attributes. */
 		void DefineSchema() {}
 
 		/** Valid if parent and children arrays are available */
@@ -26,32 +26,33 @@ namespace GeometryCollection::Facades
 		/** Is the facade defined constant. */
 		bool IsConst() const { return ParentAttribute.IsConst(); }
 
-		/** Get the root index */
+		/** Gets the root index */
 		TArray<int32> GetRootIndices() const;
 
 		/**
-		* Return the parent indices from the collection. Null if not initialized.
+		* Returns the parent indices from the collection. Null if not initialized.
 		*/
 		const TManagedArray< int32 >* GetParents() const { return ParentAttribute.Find(); }
 
 		/**
-		* Return the child indicesfrom the collection. Null if not initialized.
+		* Returns the child indicesfrom the collection. Null if not initialized.
 		*/
 		const TManagedArray< TSet<int32> >* FindChildren() const { return ChildrenAttribute.Find(); }
 
 		/**
-		* Return the child indicesfrom the collection. Null if not initialized.
+		* Returns the child indicesfrom the collection. Null if not initialized.
 		*/
 		const TManagedArray< FTransform >* FindTransforms() const { return TransformAttribute.Find(); }
 
 		/**
-		* Return array of transforms for transforming from bone space to collection space
-		* Vertex(inCollectionSpace) = TransformComputed.TransformPosition(Vertex(inBoneSpace));
+		* Returns array of transforms for transforming from bone space to collection space
+		* Vertex(inCollectionSpace) = TransformComputed.TransformPosition(Vertex(inBoneSpace))
 		*/
 		TArray<FTransform> ComputeCollectionSpaceTransforms() const;
 
 		/**
-		* Return the child indicesfrom the collection. Null if not initialized.
+		* Returns the transform for transforming from bone space to collection space for specified bone
+		* Vertex(inCollectionSpace) = TransformComputed.TransformPosition(Vertex(inBoneSpace))
 		*/
 		FTransform ComputeCollectionSpaceTransform(int32 BoneIdx) const;
 
@@ -63,6 +64,30 @@ namespace GeometryCollection::Facades
 
 		/** Transforms selected bones in the collection */
 		void Transform(const FTransform& InTransform, const TArray<int32>& InSelection);
+
+		/** Builds a FMatrix from all the components */
+		static FMatrix BuildMatrix(const FVector& Translate,
+			const uint8 RotationOrder,
+			const FVector& Rotate,
+			const FVector& Scale,
+			const FVector& Shear,
+			const float UniformScale,
+			const FVector& RotatePivot,
+			const FVector& ScalePivot,
+			const bool InvertTransformation);
+
+		/** Builds a FTransform from all the components */
+		static FTransform BuildTransform(const FVector& Translate,
+			const uint8 RotationOrder,
+			const FVector& Rotate,
+			const FVector& Scale,
+			const float UniformScale,
+			const FVector& RotatePivot,
+			const FVector& ScalePivot,
+			const bool InvertTransformation);
+
+		/** Sets the selected bone's transform to identity */
+		void SetBoneTransformToIdentity(int32 BoneIdx);
 
 	private:
 		TManagedArrayAccessor<int32>		ParentAttribute;

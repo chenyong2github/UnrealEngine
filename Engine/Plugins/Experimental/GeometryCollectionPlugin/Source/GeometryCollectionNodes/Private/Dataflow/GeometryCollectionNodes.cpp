@@ -33,6 +33,8 @@
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 #include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 #include "GeometryCollection/Facades/CollectionTransformFacade.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionNodes)
 
@@ -77,7 +79,9 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumArrayElementsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetBoundingBoxesFromCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCentroidsFromCollectionDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformCollectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBakeTransformsInCollectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformMeshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCompareIntDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBranchDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSchemaDataflowNode);
@@ -659,12 +663,82 @@ void FGetCentroidsFromCollectionDataflowNode::Evaluate(Dataflow::FContext& Conte
 }
 
 
-void FTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FTransformCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		FTransform NewTransform = GeometryCollection::Facades::FCollectionTransformFacade::BuildTransform(Translate,
+			(uint8)RotationOrder,
+			Rotate,
+			Scale,
+			UniformScale,
+			RotatePivot,
+			ScalePivot,
+			InvertTransformation);
+
+		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(InCollection);
+		TransformFacade.Transform(NewTransform);
+
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FBakeTransformsInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(InCollection);
+		const TArray<FTransform>& CollectionSpaceTransforms = TransformFacade.ComputeCollectionSpaceTransforms();
+
+		GeometryCollection::Facades::FCollectionMeshFacade MeshFacade(InCollection);
+
+		const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+
+		for (int32 TransformIdx = 0; TransformIdx < NumTransforms; ++TransformIdx)
+		{
+			MeshFacade.BakeTransform(TransformIdx, CollectionSpaceTransforms[TransformIdx]);
+			TransformFacade.SetBoneTransformToIdentity(TransformIdx);
+		}
+
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FTransformMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
 	{
-		// TODO: Implement this
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		if (TObjectPtr<const UDynamicMesh> InMesh = GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh))
+		{
+			// Creating a new mesh object from InMesh
+			TObjectPtr<UDynamicMesh> NewMesh = NewObject<UDynamicMesh>();
+			NewMesh->SetMesh(InMesh->GetMeshRef());
+
+			FTransform NewTransform = GeometryCollection::Facades::FCollectionTransformFacade::BuildTransform(Translate,
+				(uint8)RotationOrder,
+				Rotate,
+				Scale,
+				UniformScale,
+				RotatePivot,
+				ScalePivot,
+				InvertTransformation);
+
+			UE::Geometry::FDynamicMesh3& DynamicMesh = NewMesh->GetMeshRef();
+
+			MeshTransforms::ApplyTransform(DynamicMesh, UE::Geometry::FTransformSRT3d(NewTransform), true);
+
+			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+		}
+		else
+		{
+			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		}
 	}
 }
 
@@ -706,14 +780,28 @@ void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 {
 	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
 	{
-		if (GetValue<bool>(Context, &Condition))
+		bool InCondition = GetValue<bool>(Context, &Condition);
+
+		if (InCondition)
 		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshA), &Mesh);
+			if (TObjectPtr<UDynamicMesh> InMeshA = GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshA))
+			{
+				SetValue<TObjectPtr<UDynamicMesh>>(Context, InMeshA, &Mesh);
+
+				return;
+			}
 		}
 		else
 		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshB), &Mesh);
+			if (TObjectPtr<UDynamicMesh> InMeshB = GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshB))
+			{
+				SetValue<TObjectPtr<UDynamicMesh>>(Context, InMeshB, &Mesh);
+
+				return;
+			}
 		}
+
+		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
 	}
 }
 

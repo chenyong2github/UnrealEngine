@@ -17,6 +17,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"DataflowCore",
 					"PlanarCut",
+					"GeometryCore",
+					"DynamicMesh",
 					"Voronoi"
 				}
 				);
