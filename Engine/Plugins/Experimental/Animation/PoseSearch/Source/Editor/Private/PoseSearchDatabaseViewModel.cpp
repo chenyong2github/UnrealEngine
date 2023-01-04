@@ -25,8 +25,7 @@ namespace UE::PoseSearch
 	// FDatabasePreviewActor
 	bool FDatabasePreviewActor::IsValid() const
 	{
-		const bool bIsValid = Actor.IsValid() && Mesh.IsValid() && AnimInstance.IsValid();
-		return  bIsValid;
+		return Actor != nullptr;
 	}
 
 	void FDatabasePreviewActor::Process()
@@ -61,6 +60,24 @@ namespace UE::PoseSearch
 			ScaledTime = BlendSpaceSampler.GetPlayLength() > UE_KINDA_SMALL_NUMBER ? Time / BlendSpaceSampler.GetPlayLength() : 0.f;
 		}
 		return ScaledTime;
+	}
+
+	UDebugSkelMeshComponent* FDatabasePreviewActor::GetDebugSkelMeshComponent()
+	{
+		if (IsValid())
+		{
+			return Cast<UDebugSkelMeshComponent>(Actor->GetRootComponent());
+		}
+		return nullptr;
+	}
+
+	UAnimPreviewInstance* FDatabasePreviewActor::GetAnimPreviewInstance()
+	{
+		if (UDebugSkelMeshComponent* Mesh = GetDebugSkelMeshComponent())
+		{
+			return Mesh->PreviewInstance.Get();
+		}
+		return nullptr;
 	}
 
 	// FDatabaseViewModel
@@ -150,7 +167,7 @@ namespace UE::PoseSearch
 					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAssetIndex, BoneContainer);
 					if (PreviewActor.IsValid())
 					{
-						const UAnimationAsset* AnimationAsset = PreviewActor.AnimInstance->GetAnimationAsset();
+						const UAnimationAsset* AnimationAsset = PreviewActor.GetAnimPreviewInstance()->GetAnimationAsset();
 						if (AnimationAsset)
 						{
 							MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, AnimationAsset->GetPlayLength());
@@ -260,26 +277,30 @@ namespace UE::PoseSearch
 		PreviewActor.Actor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, Params);
 		PreviewActor.Actor->SetFlags(RF_Transient);
 
-		PreviewActor.Mesh = NewObject<UDebugSkelMeshComponent>(PreviewActor.Actor.Get());
-		PreviewActor.Mesh->RegisterComponentWithWorld(GetWorld());
+		UDebugSkelMeshComponent* Mesh = NewObject<UDebugSkelMeshComponent>(PreviewActor.Actor.Get());
+		Mesh->RegisterComponentWithWorld(GetWorld());
 
-		PreviewActor.AnimInstance = NewObject<UAnimPreviewInstance>(PreviewActor.Mesh.Get());
-		PreviewActor.Mesh->PreviewInstance = PreviewActor.AnimInstance.Get();
-		PreviewActor.AnimInstance->InitializeAnimation();
-		PreviewActor.Mesh->SetSkeletalMesh(PoseSearchDatabase->Schema->Skeleton->GetPreviewMesh(true));
-		PreviewActor.Mesh->EnablePreview(true, PreviewAsset);
-		PreviewActor.AnimInstance->SetAnimationAsset(PreviewAsset, false, 0.0f);
-		PreviewActor.AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
+		UAnimPreviewInstance* AnimInstance = NewObject<UAnimPreviewInstance>(Mesh);
+
+		Mesh->PreviewInstance = AnimInstance;
+		AnimInstance->InitializeAnimation();
+
+		Mesh->SetSkeletalMesh(PoseSearchDatabase->Schema->Skeleton->GetPreviewMesh(true));
+		Mesh->EnablePreview(true, PreviewAsset);
+		
+		AnimInstance->SetAnimationAsset(PreviewAsset, false, 0.0f);
+		AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
+		
 		if (IndexAsset.bMirrored && PoseSearchDatabase->Schema)
 		{
-			PreviewActor.AnimInstance->SetMirrorDataTable(PoseSearchDatabase->Schema->MirrorDataTable);
+			AnimInstance->SetMirrorDataTable(PoseSearchDatabase->Schema->MirrorDataTable);
 		}
 
-		PreviewActor.AnimInstance->PlayAnim(false, 0.0f);
+		AnimInstance->PlayAnim(false, 0.0f);
 
 		if (!PreviewActor.Actor->GetRootComponent())
 		{
-			PreviewActor.Actor->SetRootComponent(PreviewActor.Mesh.Get());
+			PreviewActor.Actor->SetRootComponent(Mesh);
 		}
 
 		UE_LOG(LogPoseSearchEditor, Log, TEXT("Spawned preview Actor: %s"), *GetNameSafe(PreviewActor.Actor.Get()));
@@ -322,29 +343,32 @@ namespace UE::PoseSearch
 		{
 			if (PreviewActor.IndexAssetIndex < SearchIndex.Assets.Num())
 			{
-				if (const UAnimationAsset* PreviewAsset = PreviewActor.AnimInstance->GetAnimationAsset())
+				if (const UAnimationAsset* PreviewAsset = PreviewActor.GetAnimPreviewInstance()->GetAnimationAsset())
 				{
 					if (const IAssetSampler* Sampler = PreviewActor.GetSampler())
 					{
 						float CurrentTime = 0.f;
 						FAnimationRuntime::AdvanceTime(false, PlayTime, CurrentTime, PreviewAsset->GetPlayLength());
 
-						const float CurrentScaledTime = PreviewActor.GetScaledTime(CurrentTime);
-						const float OldScaledTime = PreviewActor.AnimInstance->GetCurrentTime();
-						if (!FMath::IsNearlyEqual(CurrentScaledTime, OldScaledTime, UE_KINDA_SMALL_NUMBER))
+						FTransform RootMotion = Sampler->ExtractRootTransform(CurrentTime);
+						if (PreviewActor.GetAnimPreviewInstance()->GetMirrorDataTable())
 						{
-							FTransform RootMotion = Sampler->ExtractRootTransform(CurrentTime);
-							if (PreviewActor.AnimInstance->GetMirrorDataTable())
-							{
-								RootMotion = MirrorRootMotion(RootMotion, PreviewActor.AnimInstance->GetMirrorDataTable());
-							}
-							PreviewActor.Actor->SetActorTransform(RootMotion);
-
-							PreviewActor.AnimInstance->SetPosition(CurrentScaledTime);
-
-							const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
-							PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, SearchIndexAsset);
+							RootMotion = MirrorRootMotion(RootMotion, PreviewActor.GetAnimPreviewInstance()->GetMirrorDataTable());
 						}
+						PreviewActor.Actor->SetActorTransform(RootMotion);
+
+						const float CurrentScaledTime = PreviewActor.GetScaledTime(CurrentTime);
+						PreviewActor.GetAnimPreviewInstance()->SetPosition(CurrentScaledTime);
+
+						float PlayRate = 1.f;
+						if (FMath::IsNearlyZero(DeltaTimeMultiplier) || CurrentScaledTime <= UE_SMALL_NUMBER || CurrentScaledTime >= (PreviewAsset->GetPlayLength() - UE_SMALL_NUMBER))
+						{
+							PlayRate = 0.f;
+						}
+						PreviewActor.GetAnimPreviewInstance()->SetPlayRate(PlayRate);
+
+						const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
+						PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, SearchIndexAsset);
 					}
 				}
 			}

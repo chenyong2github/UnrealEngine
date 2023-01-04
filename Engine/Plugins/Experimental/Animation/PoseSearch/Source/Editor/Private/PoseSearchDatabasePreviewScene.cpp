@@ -59,31 +59,34 @@ namespace UE::PoseSearch
 			GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 		}
 
-		const FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
+		FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
 		const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 
 		if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All | EFeaturesDrawMode::Detailed) && !ViewModel->GetPreviewActors().IsEmpty() &&
 			FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
+			for (FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
 			{
 				if (Database->GetSearchIndex().IsValidPoseIndex(PreviewActor.CurrentPoseIndex))
 				{
-					UE::PoseSearch::FDebugDrawParams DrawParams;
-					DrawParams.RootTransform = PreviewActor.Mesh->GetComponentTransform();
-					DrawParams.Database = Database;
-					DrawParams.World = GetWorld();
-					DrawParams.DefaultLifeTime = 0.f;
-					DrawParams.PointSize = 5.f;
-					DrawParams.Mesh = PreviewActor.Mesh;
-
-					if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::Detailed))
+					if (UDebugSkelMeshComponent* Mesh = PreviewActor.GetDebugSkelMeshComponent())
 					{
-						EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawBoneNames);
-					}
+						UE::PoseSearch::FDebugDrawParams DrawParams;
+						DrawParams.RootTransform = Mesh->GetComponentTransform();
+						DrawParams.Database = Database;
+						DrawParams.World = GetWorld();
+						DrawParams.DefaultLifeTime = 0.f;
+						DrawParams.PointSize = 5.f;
+						DrawParams.Mesh = Mesh;
 
-					EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
-					DrawFeatureVector(DrawParams, PreviewActor.CurrentPoseIndex);
+						if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::Detailed))
+						{
+							EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawBoneNames);
+						}
+
+						EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
+						DrawFeatureVector(DrawParams, PreviewActor.CurrentPoseIndex);
+					}
 				}
 			}
 		}

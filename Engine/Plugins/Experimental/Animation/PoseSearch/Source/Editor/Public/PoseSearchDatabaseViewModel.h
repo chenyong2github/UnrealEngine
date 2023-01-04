@@ -42,8 +42,6 @@ namespace UE::PoseSearch
 	{
 	public:
 		TWeakObjectPtr<AActor> Actor = nullptr;
-		TWeakObjectPtr<UDebugSkelMeshComponent> Mesh = nullptr;
-		TWeakObjectPtr<UAnimPreviewInstance> AnimInstance = nullptr;
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 
@@ -55,6 +53,8 @@ namespace UE::PoseSearch
 		void Process();
 		const IAssetSampler* GetSampler() const;
 		float GetScaledTime(float Time) const;
+		UDebugSkelMeshComponent* GetDebugSkelMeshComponent();
+		UAnimPreviewInstance* GetAnimPreviewInstance();
 	};
 
 	class FDatabaseViewModel : public TSharedFromThis<FDatabaseViewModel>, public FGCObject
