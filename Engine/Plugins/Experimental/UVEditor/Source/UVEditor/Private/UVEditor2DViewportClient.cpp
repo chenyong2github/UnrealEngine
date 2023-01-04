@@ -160,6 +160,8 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 	OverrideNearClipPlane(KINDA_SMALL_NUMBER);
 
 	// Set up viewport manipulation behaviors:
+	// Note that this is only necessary because we use a perspective projection viewport 
+	// instead of a proper ortho viewport. See comment in UVEditorToolkit.cpp concerning this choice.
 
 	FEditorCameraController* CameraControllerPtr = GetCameraController();
 	CameraController->GetConfig().MovementAccelerationRate = 0.0;
