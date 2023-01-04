@@ -9,7 +9,7 @@
 /* this ALWAYS GENERATED file contains the definitions for the interfaces */
 
 
- /* File created by MIDL compiler version 8.01.0627 */
+ /* File created by MIDL compiler version 8.01.0628 */
 
 
 
@@ -242,8 +242,8 @@ typedef interface ID3D12VideoEncodeCommandList3 ID3D12VideoEncodeCommandList3;
 
 
 /* header files for imported files */
-#include "OAIdl.h"
-#include "OCIdl.h"
+#include "oaidl.h"
+#include "ocidl.h"
 #include "dxgicommon.h"
 #include "d3d12.h"
 
@@ -493,7 +493,12 @@ EXTERN_C const IID IID_ID3D12VideoDecoderHeap;
     ID3D12VideoDecoderHeap : public ID3D12Pageable
     {
     public:
+#if defined(_MSC_VER) || !defined(_WIN32)
         virtual D3D12_VIDEO_DECODER_HEAP_DESC STDMETHODCALLTYPE GetDesc( void) = 0;
+#else
+        virtual D3D12_VIDEO_DECODER_HEAP_DESC *STDMETHODCALLTYPE GetDesc( 
+            D3D12_VIDEO_DECODER_HEAP_DESC * RetVal) = 0;
+#endif
         
     };
     
@@ -550,9 +555,16 @@ EXTERN_C const IID IID_ID3D12VideoDecoderHeap;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoDecoderHeap, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_DECODER_HEAP_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoDecoderHeap * This);
+        
+#else
         D3D12_VIDEO_DECODER_HEAP_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoDecoderHeap * This,
             D3D12_VIDEO_DECODER_HEAP_DESC * RetVal);
+        
+#endif
         
         END_INTERFACE
     } ID3D12VideoDecoderHeapVtbl;
@@ -594,9 +606,14 @@ EXTERN_C const IID IID_ID3D12VideoDecoderHeap;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoDecoderHeap_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoDecoderHeap_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 #endif /* COBJMACROS */
 
@@ -762,7 +779,12 @@ EXTERN_C const IID IID_ID3D12VideoDecoder;
     ID3D12VideoDecoder : public ID3D12Pageable
     {
     public:
+#if defined(_MSC_VER) || !defined(_WIN32)
         virtual D3D12_VIDEO_DECODER_DESC STDMETHODCALLTYPE GetDesc( void) = 0;
+#else
+        virtual D3D12_VIDEO_DECODER_DESC *STDMETHODCALLTYPE GetDesc( 
+            D3D12_VIDEO_DECODER_DESC * RetVal) = 0;
+#endif
         
     };
     
@@ -819,9 +841,16 @@ EXTERN_C const IID IID_ID3D12VideoDecoder;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoDecoder, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_DECODER_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoDecoder * This);
+        
+#else
         D3D12_VIDEO_DECODER_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoDecoder * This,
             D3D12_VIDEO_DECODER_DESC * RetVal);
+        
+#endif
         
         END_INTERFACE
     } ID3D12VideoDecoderVtbl;
@@ -863,9 +892,14 @@ EXTERN_C const IID IID_ID3D12VideoDecoder;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoDecoder_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoDecoder_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 #endif /* COBJMACROS */
 
@@ -1148,7 +1182,12 @@ EXTERN_C const IID IID_ID3D12VideoProcessor;
             UINT NumInputStreamDescs,
             _Out_writes_(NumInputStreamDescs)  D3D12_VIDEO_PROCESS_INPUT_STREAM_DESC *pInputStreamDescs) = 0;
         
+#if defined(_MSC_VER) || !defined(_WIN32)
         virtual D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC STDMETHODCALLTYPE GetOutputStreamDesc( void) = 0;
+#else
+        virtual D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC *STDMETHODCALLTYPE GetOutputStreamDesc( 
+            D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC * RetVal) = 0;
+#endif
         
     };
     
@@ -1219,9 +1258,16 @@ EXTERN_C const IID IID_ID3D12VideoProcessor;
             _Out_writes_(NumInputStreamDescs)  D3D12_VIDEO_PROCESS_INPUT_STREAM_DESC *pInputStreamDescs);
         
         DECLSPEC_XFGVIRT(ID3D12VideoProcessor, GetOutputStreamDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC ( STDMETHODCALLTYPE *GetOutputStreamDesc )( 
+            ID3D12VideoProcessor * This);
+        
+#else
         D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC *( STDMETHODCALLTYPE *GetOutputStreamDesc )( 
             ID3D12VideoProcessor * This,
             D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC * RetVal);
+        
+#endif
         
         END_INTERFACE
     } ID3D12VideoProcessorVtbl;
@@ -1272,9 +1318,14 @@ EXTERN_C const IID IID_ID3D12VideoProcessor;
 
 #define ID3D12VideoProcessor_GetInputStreamDescs(This,NumInputStreamDescs,pInputStreamDescs)	\
     ( (This)->lpVtbl -> GetInputStreamDescs(This,NumInputStreamDescs,pInputStreamDescs) ) 
+#if !defined(_WIN32)
 
+#define ID3D12VideoProcessor_GetOutputStreamDesc(This)	\
+    ( (This)->lpVtbl -> GetOutputStreamDesc(This) ) 
+#else
 #define ID3D12VideoProcessor_GetOutputStreamDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetOutputStreamDesc(This,RetVal) ) 
+#endif
 
 #endif /* COBJMACROS */
 
@@ -2787,7 +2838,12 @@ EXTERN_C const IID IID_ID3D12VideoMotionEstimator;
     ID3D12VideoMotionEstimator : public ID3D12Pageable
     {
     public:
+#if defined(_MSC_VER) || !defined(_WIN32)
         virtual D3D12_VIDEO_MOTION_ESTIMATOR_DESC STDMETHODCALLTYPE GetDesc( void) = 0;
+#else
+        virtual D3D12_VIDEO_MOTION_ESTIMATOR_DESC *STDMETHODCALLTYPE GetDesc( 
+            D3D12_VIDEO_MOTION_ESTIMATOR_DESC * RetVal) = 0;
+#endif
         
         virtual HRESULT STDMETHODCALLTYPE GetProtectedResourceSession( 
             REFIID riid,
@@ -2848,9 +2904,16 @@ EXTERN_C const IID IID_ID3D12VideoMotionEstimator;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoMotionEstimator, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_MOTION_ESTIMATOR_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoMotionEstimator * This);
+        
+#else
         D3D12_VIDEO_MOTION_ESTIMATOR_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoMotionEstimator * This,
             D3D12_VIDEO_MOTION_ESTIMATOR_DESC * RetVal);
+        
+#endif
         
         DECLSPEC_XFGVIRT(ID3D12VideoMotionEstimator, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
@@ -2898,9 +2961,14 @@ EXTERN_C const IID IID_ID3D12VideoMotionEstimator;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoMotionEstimator_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoMotionEstimator_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 #define ID3D12VideoMotionEstimator_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
     ( (This)->lpVtbl -> GetProtectedResourceSession(This,riid,ppProtectedSession) ) 
@@ -2948,7 +3016,12 @@ EXTERN_C const IID IID_ID3D12VideoMotionVectorHeap;
     ID3D12VideoMotionVectorHeap : public ID3D12Pageable
     {
     public:
+#if defined(_MSC_VER) || !defined(_WIN32)
         virtual D3D12_VIDEO_MOTION_VECTOR_HEAP_DESC STDMETHODCALLTYPE GetDesc( void) = 0;
+#else
+        virtual D3D12_VIDEO_MOTION_VECTOR_HEAP_DESC *STDMETHODCALLTYPE GetDesc( 
+            D3D12_VIDEO_MOTION_VECTOR_HEAP_DESC * RetVal) = 0;
+#endif
         
         virtual HRESULT STDMETHODCALLTYPE GetProtectedResourceSession( 
             REFIID riid,
@@ -3009,9 +3082,16 @@ EXTERN_C const IID IID_ID3D12VideoMotionVectorHeap;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoMotionVectorHeap, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_MOTION_VECTOR_HEAP_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoMotionVectorHeap * This);
+        
+#else
         D3D12_VIDEO_MOTION_VECTOR_HEAP_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoMotionVectorHeap * This,
             D3D12_VIDEO_MOTION_VECTOR_HEAP_DESC * RetVal);
+        
+#endif
         
         DECLSPEC_XFGVIRT(ID3D12VideoMotionVectorHeap, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
@@ -3059,9 +3139,14 @@ EXTERN_C const IID IID_ID3D12VideoMotionVectorHeap;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoMotionVectorHeap_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoMotionVectorHeap_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 #define ID3D12VideoMotionVectorHeap_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
     ( (This)->lpVtbl -> GetProtectedResourceSession(This,riid,ppProtectedSession) ) 
@@ -3846,9 +3931,16 @@ EXTERN_C const IID IID_ID3D12VideoDecoder1;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoDecoder, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_DECODER_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoDecoder1 * This);
+        
+#else
         D3D12_VIDEO_DECODER_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoDecoder1 * This,
             D3D12_VIDEO_DECODER_DESC * RetVal);
+        
+#endif
         
         DECLSPEC_XFGVIRT(ID3D12VideoDecoder1, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
@@ -3896,9 +3988,14 @@ EXTERN_C const IID IID_ID3D12VideoDecoder1;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoDecoder1_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoDecoder1_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 
 #define ID3D12VideoDecoder1_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
@@ -3989,9 +4086,16 @@ EXTERN_C const IID IID_ID3D12VideoDecoderHeap1;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoDecoderHeap, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_DECODER_HEAP_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoDecoderHeap1 * This);
+        
+#else
         D3D12_VIDEO_DECODER_HEAP_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoDecoderHeap1 * This,
             D3D12_VIDEO_DECODER_HEAP_DESC * RetVal);
+        
+#endif
         
         DECLSPEC_XFGVIRT(ID3D12VideoDecoderHeap1, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
@@ -4039,9 +4143,14 @@ EXTERN_C const IID IID_ID3D12VideoDecoderHeap1;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoDecoderHeap1_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoDecoderHeap1_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 
 #define ID3D12VideoDecoderHeap1_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
@@ -4146,9 +4255,16 @@ EXTERN_C const IID IID_ID3D12VideoProcessor1;
             _Out_writes_(NumInputStreamDescs)  D3D12_VIDEO_PROCESS_INPUT_STREAM_DESC *pInputStreamDescs);
         
         DECLSPEC_XFGVIRT(ID3D12VideoProcessor, GetOutputStreamDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC ( STDMETHODCALLTYPE *GetOutputStreamDesc )( 
+            ID3D12VideoProcessor1 * This);
+        
+#else
         D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC *( STDMETHODCALLTYPE *GetOutputStreamDesc )( 
             ID3D12VideoProcessor1 * This,
             D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC * RetVal);
+        
+#endif
         
         DECLSPEC_XFGVIRT(ID3D12VideoProcessor1, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
@@ -4205,9 +4321,14 @@ EXTERN_C const IID IID_ID3D12VideoProcessor1;
 
 #define ID3D12VideoProcessor1_GetInputStreamDescs(This,NumInputStreamDescs,pInputStreamDescs)	\
     ( (This)->lpVtbl -> GetInputStreamDescs(This,NumInputStreamDescs,pInputStreamDescs) ) 
+#if !defined(_WIN32)
 
+#define ID3D12VideoProcessor1_GetOutputStreamDesc(This)	\
+    ( (This)->lpVtbl -> GetOutputStreamDesc(This) ) 
+#else
 #define ID3D12VideoProcessor1_GetOutputStreamDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetOutputStreamDesc(This,RetVal) ) 
+#endif
 
 
 #define ID3D12VideoProcessor1_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
@@ -4239,7 +4360,12 @@ EXTERN_C const IID IID_ID3D12VideoExtensionCommand;
     ID3D12VideoExtensionCommand : public ID3D12Pageable
     {
     public:
+#if defined(_MSC_VER) || !defined(_WIN32)
         virtual D3D12_VIDEO_EXTENSION_COMMAND_DESC STDMETHODCALLTYPE GetDesc( void) = 0;
+#else
+        virtual D3D12_VIDEO_EXTENSION_COMMAND_DESC *STDMETHODCALLTYPE GetDesc( 
+            D3D12_VIDEO_EXTENSION_COMMAND_DESC * RetVal) = 0;
+#endif
         
         virtual HRESULT STDMETHODCALLTYPE GetProtectedResourceSession( 
             REFIID riid,
@@ -4300,9 +4426,16 @@ EXTERN_C const IID IID_ID3D12VideoExtensionCommand;
             _COM_Outptr_opt_  void **ppvDevice);
         
         DECLSPEC_XFGVIRT(ID3D12VideoExtensionCommand, GetDesc)
+#if !defined(_WIN32)
+        D3D12_VIDEO_EXTENSION_COMMAND_DESC ( STDMETHODCALLTYPE *GetDesc )( 
+            ID3D12VideoExtensionCommand * This);
+        
+#else
         D3D12_VIDEO_EXTENSION_COMMAND_DESC *( STDMETHODCALLTYPE *GetDesc )( 
             ID3D12VideoExtensionCommand * This,
             D3D12_VIDEO_EXTENSION_COMMAND_DESC * RetVal);
+        
+#endif
         
         DECLSPEC_XFGVIRT(ID3D12VideoExtensionCommand, GetProtectedResourceSession)
         HRESULT ( STDMETHODCALLTYPE *GetProtectedResourceSession )( 
@@ -4350,9 +4483,14 @@ EXTERN_C const IID IID_ID3D12VideoExtensionCommand;
     ( (This)->lpVtbl -> GetDevice(This,riid,ppvDevice) ) 
 
 
+#if !defined(_WIN32)
 
+#define ID3D12VideoExtensionCommand_GetDesc(This)	\
+    ( (This)->lpVtbl -> GetDesc(This) ) 
+#else
 #define ID3D12VideoExtensionCommand_GetDesc(This,RetVal)	\
     ( (This)->lpVtbl -> GetDesc(This,RetVal) ) 
+#endif
 
 #define ID3D12VideoExtensionCommand_GetProtectedResourceSession(This,riid,ppProtectedSession)	\
     ( (This)->lpVtbl -> GetProtectedResourceSession(This,riid,ppProtectedSession) ) 
