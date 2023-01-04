@@ -3,30 +3,32 @@
 #include "VCamCoreEditorModule.h"
 
 #include "Customizations/ConnectionTargetSettingsTypeCustomization.h"
+#include "Customizations/OutputProvider/ConnectionRemapCustomization_StateSwitcher.h"
+#include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
 #include "Customizations/OutputProvider/OutputProviderLayoutCustomization.h"
+#include "Customizations/OutputProvider/OutputProviderTypeCustomization.h"
+#include "Customizations/StateSwitcher/VCamStateSwitcherWidgetCustomization.h"
+#include "Customizations/StateSwitcher/WidgetConnectionConfigTypeCustomization.h"
 #include "Customizations/VCamBaseActorCustomization.h"
 #include "Customizations/VCamInputProfileCustomization.h"
-#include "Customizations/StateSwitcher/WidgetConnectionConfigTypeCustomization.h"
-#include "UI/Switcher/WidgetConnectionConfig.h"
-#include "VCamBaseActor.h"
-#include "VCamComponent.h"
-#include "Output/VCamOutputProviderBase.h"
+#include "Customizations/VCamViewportLockerTypeCustomization.h"
+#include "Customizations/WidgetReference/ChildWidgetReferenceCustomization.h"
+#include "Customizations/WidgetReference/VCamChildWidgetReferenceCustomization.h"
 #include "LogVCamEditor.h"
 #include "Modifier/VCamModifier.h"
+#include "Output/VCamOutputProviderBase.h"
+#include "UI/Switcher/WidgetConnectionConfig.h"
+#include "UI/Switcher/VCamStateSwitcherWidget.h"
+#include "UI/VCamWidget.h"
+#include "Util/WidgetReference.h"
+#include "VCamBaseActor.h"
+#include "VCamComponent.h"
 
 #include "Interfaces/IPluginManager.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "Customizations/VCamViewportLockerTypeCustomization.h"
-#include "Customizations/OutputProvider/ConnectionRemapCustomization_StateSwitcher.h"
-#include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
-#include "Customizations/OutputProvider/OutputProviderTypeCustomization.h"
-#include "Customizations/StateSwitcher/VCamStateSwitcherWidgetCustomization.h"
-#include "Output/VCamOutputViewport.h"
-#include "UI/VCamWidget.h"
-#include "UI/Switcher/VCamStateSwitcherWidget.h"
 
 namespace UE::VCamCoreEditor::Private
 {
@@ -130,7 +132,15 @@ namespace UE::VCamCoreEditor::Private
 		PropertyModule.RegisterCustomPropertyTypeLayout(
 			FVCamViewportLocker::StaticStruct()->GetFName(), 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVCamViewportLockerTypeCustomization::MakeInstance)
-		);
+			);
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			FChildWidgetReference::StaticStruct()->GetFName(),
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FChildWidgetReferenceCustomization::MakeInstance)
+			);
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			FVCamChildWidgetReference::StaticStruct()->GetFName(),
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVCamChildWidgetReferenceCustomization::MakeInstance)
+			);
 		
 		PropertyModule.RegisterCustomClassLayout(
 			UVCamOutputProviderBase::StaticClass()->GetFName(),
@@ -167,6 +177,8 @@ namespace UE::VCamCoreEditor::Private
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FWidgetConnectionConfig::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(UVCamOutputProviderBase::StaticClass()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FVCamViewportLocker::StaticStruct()->GetFName());
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FChildWidgetReference::StaticStruct()->GetFName());
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FVCamChildWidgetReference::StaticStruct()->GetFName());
 		
 		PropertyModule.UnregisterCustomClassLayout(UVCamOutputProviderBase::StaticClass()->GetFName());
 		PropertyModule.UnregisterCustomClassLayout(AVCamBaseActor::StaticClass()->GetFName());
