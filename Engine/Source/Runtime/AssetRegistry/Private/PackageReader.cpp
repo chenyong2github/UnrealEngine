@@ -10,6 +10,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/Guid.h"
 #include "Misc/PackageName.h"
+#include "Misc/PackagePath.h"
 #include "UObject/Class.h"
 #include "UObject/Linker.h"
 #include "UObject/PackageTrailer.h"
@@ -485,6 +486,7 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 		PackageData.FileVersionUE = PackageFileSummary.GetFileVersionUE();
 		PackageData.FileVersionLicenseeUE = PackageFileSummary.GetFileVersionLicenseeUE();
 		PackageData.SetIsLicenseeVersion(PackageFileSummary.SavedByEngineVersion.IsLicenseeVersion());
+		PackageData.Extension = FPackagePath::ParseExtension(PackageFilename);
 
 		if (!SerializeImportedClasses(ImportMap, PackageData.ImportedClasses))
 		{

@@ -851,6 +851,24 @@ void FAssetPackageData::SerializeForCacheInternal(FArchive& Ar, FAssetPackageDat
 		}
 		Ar << PackageData.ImportedClasses;
 	}
+	if (Version >= FAssetRegistryVersion::AssetPackageDataHasExtension)
+	{
+		FString ExtensionText;
+		if (Ar.IsLoading())
+		{
+			Ar << ExtensionText;
+			PackageData.Extension = FPackagePath::ParseExtension(ExtensionText);
+		}
+		else
+		{
+			ExtensionText = LexToString(PackageData.Extension);
+			Ar << ExtensionText;
+		}
+	}
+	else if (Ar.IsLoading())
+	{
+		Extension = EPackageExtension::Unspecified;
+	}
 }
 
 COREUOBJECT_API void FAssetPackageData::SerializeForCache(FArchive& Ar)

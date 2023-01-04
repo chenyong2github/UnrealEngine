@@ -30,6 +30,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Optional.h"
 #include "Misc/PackageName.h"
+#include "Misc/PackagePath.h"
 #include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/Archive.h"
@@ -94,6 +95,7 @@ struct COREUOBJECT_API FAssetRegistryVersion
 		ClassPaths,							// Classes are serialized as path names rather than short object names, e.g. /Script/Engine.StaticMesh
 		RemoveAssetPathFNames,				// Asset bundles are serialized as FTopLevelAssetPath instead of FSoftObjectPath, deprecated FAssetData::ObjectPath	
 		AddedHeader,						// Added header with bFilterEditorOnlyData flag 
+		AssetPackageDataHasExtension,		// Added Extension to AssetPackageData.
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -931,11 +933,15 @@ private:
 	uint32 Flags;
 
 public:
+	EPackageExtension Extension;
+
+public:
 
 	FAssetPackageData()
 		: DiskSize(0)
 		, FileVersionLicenseeUE(-1)
 		, Flags(0)
+		, Extension(EPackageExtension::Unspecified)
 	{
 	}
 

@@ -2613,11 +2613,28 @@ bool UAssetRegistryImpl::DoesPackageExistOnDisk(FName PackageName, FString* OutC
 		}
 		if (OutExtension)
 		{
-			// TODO: Save the extension on the AssetPackageData rather than deriving it here
-			// Guessing the extension based on map vs non-map also does not support text assets and maps which have a different extension
-			TArray<FAssetData> Assets;
-			GetAssetsByPackageName(PackageName, Assets, /*bIncludeOnlyDiskAssets*/ true);
-			*OutExtension = CalculateExtension(PackageNameStr, Assets);
+			if (AssetPackageData->Extension == EPackageExtension::Unspecified || AssetPackageData->Extension == EPackageExtension::Custom)
+			{
+				FString FileName;
+				if (FPackageName::DoesPackageExist(PackageNameStr, &FileName, false /* InAllowTextFormats */))
+				{
+					check(!FileName.IsEmpty());
+					*OutExtension = FPaths::GetExtension(FileName, true /* bIncludeDot */);
+				}
+				else
+				{
+					UE_LOG(LogAssetRegistry, Error,
+						TEXT("UAssetRegistryImpl::DoesPackageExistOnDisk failed to find the extension for %s. The package exists in the AssetRegistry but does not exist on disk."),
+						*PackageNameStr);
+					TArray<FAssetData> Assets;
+					GetAssetsByPackageName(PackageName, Assets, /*bIncludeOnlyDiskAssets*/ true);
+					*OutExtension = CalculateExtension(PackageNameStr, Assets);
+				}
+			}
+			else
+			{
+				*OutExtension = LexToString(AssetPackageData->Extension);
+			}
 		}
 		return true;
 	}
