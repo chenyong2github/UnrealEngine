@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Blueprint.h"
 #include "IDetailCustomization.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/WeakFieldPtr.h"

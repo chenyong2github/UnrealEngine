@@ -5,6 +5,8 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Common/StatsCollector.h"
+
 namespace BuildPatchServices
 {
 	class FMockInstallerAnalytics

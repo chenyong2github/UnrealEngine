@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "Containers/Queue.h"
 

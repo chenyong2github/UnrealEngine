@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Components/ActorComponent.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Materials/MaterialInterface.h"

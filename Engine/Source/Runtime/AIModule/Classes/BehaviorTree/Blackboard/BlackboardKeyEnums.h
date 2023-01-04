@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 
 #include "BlackboardKeyEnums.generated.h"
 

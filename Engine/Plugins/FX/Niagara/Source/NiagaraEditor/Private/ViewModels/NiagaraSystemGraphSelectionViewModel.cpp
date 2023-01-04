@@ -20,6 +20,11 @@ void FNiagaraSystemGraphSelectionViewModel::Initialize(TSharedRef<FNiagaraSystem
 	RefreshSelectedEmitterScriptGraphs();
 }
 
+const TArray<TWeakObjectPtr<UNiagaraGraph>> FNiagaraSystemGraphSelectionViewModel::GetSelectedEmitterScriptGraphs() const
+{
+	return SelectedEmitterScriptGraphs; 
+}
+
 void FNiagaraSystemGraphSelectionViewModel::RefreshSelectedEmitterScriptGraphs()
 {
 	SelectedEmitterScriptGraphs.Reset();

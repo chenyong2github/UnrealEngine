@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #if !PLATFORM_DESKTOP // need this to fix compile issues with Win configuration.
 
 #define OPENGL_ES	1

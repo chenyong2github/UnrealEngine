@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MLDeformerMorphModelEditorModel.h"
+#include "NeuralMorphModel.h"
 
 class UNeuralMorphModel;
 

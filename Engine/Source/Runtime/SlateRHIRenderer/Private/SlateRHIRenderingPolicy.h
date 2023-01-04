@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameTime.h"
+#include "RendererInterface.h"
 #include "Rendering/RenderingCommon.h"
 #include "Rendering/ShaderResourceManager.h"
 #include "Rendering/DrawElements.h"

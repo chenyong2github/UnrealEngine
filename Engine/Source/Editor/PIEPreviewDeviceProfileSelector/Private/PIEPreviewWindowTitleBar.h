@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Framework/Application/SWindowTitleBar.h"
+#include "PIEPreviewWindow.h"
 #include "PIEPreviewWindowStyle.h"
 #include "PIEPreviewWindowCoreStyle.h"
 

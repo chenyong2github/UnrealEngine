@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "ContentBrowserAliasDataSource.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/StrongObjectPtr.h"
-
-class UContentBrowserAliasDataSource;
 
 class FContentBrowserAliasDataSourceModule : public FDefaultModuleImpl
 {

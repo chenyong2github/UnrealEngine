@@ -19,7 +19,7 @@ public:
 	FSlatePostProcessResource(int32 InRenderTargetCount);
 	~FSlatePostProcessResource();
 
-	FTexture2DRHIRef GetRenderTarget(int32 Index)
+	const FTexture2DRHIRef& GetRenderTarget(int32 Index)
 	{
 		return RenderTargets[Index]; 
 	}

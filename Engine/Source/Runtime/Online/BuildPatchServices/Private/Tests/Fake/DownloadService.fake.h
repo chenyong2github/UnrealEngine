@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Tests/Mock/Download.mock.h"
 #include "Tests/Mock/DownloadService.mock.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Async/Async.h"
@@ -8,6 +9,8 @@
 #include "Serialization/MemoryWriter.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
+
+#include "Data/ChunkData.h"
 
 namespace BuildPatchServices
 {

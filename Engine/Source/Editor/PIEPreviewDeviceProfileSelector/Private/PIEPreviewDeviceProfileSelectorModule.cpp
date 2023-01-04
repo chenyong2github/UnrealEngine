@@ -22,6 +22,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "PIEPreviewSettings.h"
+#include "PIEPreviewWindowCoreStyle.h"
 #include "Misc/CommandLine.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPIEPreviewDevice, Log, All); 

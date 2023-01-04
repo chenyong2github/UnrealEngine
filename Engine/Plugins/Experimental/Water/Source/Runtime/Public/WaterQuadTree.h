@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ConvexVolume.h"
+#include "HitProxies.h"
 #include "Templates/RefCounting.h"
 
 class FMaterialRenderProxy;

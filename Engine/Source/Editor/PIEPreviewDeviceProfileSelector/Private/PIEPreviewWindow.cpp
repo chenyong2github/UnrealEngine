@@ -2,6 +2,8 @@
 
 #include "PIEPreviewWindow.h"
 
+#if WITH_EDITOR
+
 #include "HAL/IConsoleManager.h"
 #include "ImageUtils.h"
 #include "Engine/Texture2D.h"
@@ -19,8 +21,8 @@
 #include "PIEPreviewSettings.h"
 #include "PIEPreviewDevice.h"
 #include "PIEPreviewDeviceSpecification.h"
+#include "PIEPreviewWindowTitleBar.h"
 
-#if WITH_EDITOR
 //***********************************************************************************
 //SPIEPreviewWindow Implementation
 //***********************************************************************************

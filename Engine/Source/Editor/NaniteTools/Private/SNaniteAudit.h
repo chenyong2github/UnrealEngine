@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NaniteToolsArguments.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/SCompoundWidget.h"
 #include "NaniteAuditRegistry.h"

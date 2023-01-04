@@ -6,6 +6,8 @@ public class GeometryAlgorithms : ModuleRules
 {	
 	public GeometryAlgorithms(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bEnforceIWYU = false;
+
         PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		// Note: The module purposefully doesn't have a dependency on CoreUObject.

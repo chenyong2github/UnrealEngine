@@ -20,7 +20,7 @@ public:
 
 	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 
-	const TArray<TWeakObjectPtr<UNiagaraGraph>> GetSelectedEmitterScriptGraphs() const { return SelectedEmitterScriptGraphs; };
+	const TArray<TWeakObjectPtr<UNiagaraGraph>> GetSelectedEmitterScriptGraphs() const;
 
 	FOnSelectedEmitterScriptGraphsRefreshed& GetOnSelectedEmitterScriptGraphsRefreshedDelegate() { return OnSelectedEmitterScriptGraphsRefreshedDelegate; };
 

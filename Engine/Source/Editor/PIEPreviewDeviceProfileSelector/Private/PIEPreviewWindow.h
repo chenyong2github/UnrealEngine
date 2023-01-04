@@ -5,8 +5,9 @@
 #if WITH_EDITOR
 
 #include "Widgets/SWindow.h"
-#include "PIEPreviewWindowTitleBar.h"
 #include "PIEPreviewDevice.h"
+
+class SPIEPreviewWindowTitleBar;
 
 class PIEPREVIEWDEVICEPROFILESELECTOR_API SPIEPreviewWindow
 	: public SWindow

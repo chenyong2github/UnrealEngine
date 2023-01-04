@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CSVtoSVGArguments.h"
 #include "Input/Reply.h"
 #include "Misc/NotifyHook.h"
 #include "Templates/SharedPointer.h"

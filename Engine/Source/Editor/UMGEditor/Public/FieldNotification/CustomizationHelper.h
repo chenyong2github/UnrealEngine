@@ -6,6 +6,7 @@
 #include "IDetailCustomization.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/WeakFieldPtr.h"
+#include "WidgetBlueprint.h"
 
 class IDetailLayoutBuilder;
 class IBlueprintEditor;
