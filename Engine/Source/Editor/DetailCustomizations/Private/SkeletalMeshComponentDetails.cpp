@@ -217,8 +217,9 @@ void FSkeletalMeshComponentDetails::UpdateAnimationCategory(IDetailLayoutBuilder
 
 			TAttribute<bool> AnimPickerEnabledAttr(this, &FSkeletalMeshComponentDetails::AnimPickerIsEnabled);
 
-			AnimationCategory.AddCustomRow(ChildHandle->GetPropertyDisplayName())
+			AnimationCategory.AddProperty(ChildHandle)
 				.Visibility(SingleAnimVisibility)
+				.CustomWidget()
 				.IsEnabled(AnimPickerEnabledAttr)
 				.NameContent()
 				[
