@@ -172,6 +172,7 @@ protected:
 private:
 	
 #if WITH_EDITOR
+	void PropertyArrayPasted(const FPropertyChangedEvent& InPropertyChangedEvent);
 	void PropertyValueChanged(const FPropertyChangedEvent& InPropertyChangedEvent);
 	void PropertyArrayItemAdded(const FPropertyChangedEvent& InPropertyChangedEvent);
 	void PropertyArrayItemRemoved(const FPropertyChangedEvent& InPropertyChangedEvent);
