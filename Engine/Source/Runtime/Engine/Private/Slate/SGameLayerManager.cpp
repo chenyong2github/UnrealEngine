@@ -31,6 +31,14 @@ static void HandlePerUserHitTestingToggled(IConsoleVariable* CVar)
 	FSlateApplication::Get().InvalidateAllWidgets(false);
 }
 
+static void HandleApplyDisabledEffectOnWidgetsToggled(IConsoleVariable* CVar)
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().InvalidateAllWidgets(false);
+	}
+}
+
 static int32 bEnablePerUserHitTesting = true;
 
 static FAutoConsoleVariableRef CVarEnablePerUserHitTesting(
@@ -45,7 +53,9 @@ static int32 bApplyDisabledEffectOnWidgets = 1;
 static FAutoConsoleVariableRef CVarApplyDisabledEffectOnWidgets(
 	TEXT("ApplyDisabledEffectOnWidgets"),
 	bApplyDisabledEffectOnWidgets,
-	TEXT("If true, disabled game-layer widgets will have alpha multiplied by 0.45."));
+	TEXT("If true, disabled game-layer widgets will have alpha multiplied by 0.45."),
+	FConsoleVariableDelegate::CreateStatic(&HandleApplyDisabledEffectOnWidgetsToggled)
+);
 
 #if UE_SLATE_WITH_GAMELAYER_CANVAS_VISIBILITY_COMMANDS
 namespace CanvasVisibility

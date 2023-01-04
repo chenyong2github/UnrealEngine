@@ -227,7 +227,7 @@ FWidgetProxy::FUpdateResult FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, F
 	const int32 PrevUserIndex = PaintArgs.GetHittestGrid().GetUserIndex();
 
 	PaintArgs.GetHittestGrid().SetUserIndex(MyState.IncomingUserIndex);
-	GSlateFlowDirection = MyState.IncomingFlowDirection;
+	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, MyState.IncomingFlowDirection);
 	
 	FPaintArgs UpdatedArgs = PaintArgs.WithNewParent(MyState.PaintParent.Pin().Get());
 	UpdatedArgs.SetInheritedHittestability(MyState.bInheritedHittestability);
@@ -257,7 +257,8 @@ FWidgetProxy::FUpdateResult FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, F
 		// clip index should be what it was before.  if this assert fails something internal inside the above paint call did not pop clip properly
 		check(StartingClipIndex == OutDrawElements.GetClippingIndex());
 	}
-
+	
+	OutDrawElements.SetIsInGameLayer(MyState.bIsInGameLayer);
 	return FUpdateResult{ PrevLayerId, NewLayerId };
 }
 

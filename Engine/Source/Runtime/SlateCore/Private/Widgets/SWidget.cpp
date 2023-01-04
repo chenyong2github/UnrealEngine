@@ -1478,6 +1478,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	PersistentState.IncomingUserIndex = (int8)IncomingUserIndex;
 
 	PersistentState.IncomingFlowDirection = GSlateFlowDirection;
+	PersistentState.bIsInGameLayer = OutDrawElements.GetIsInGameLayer();
 
 	FPaintArgs UpdatedArgs = Args.WithNewParent(this);
 	UpdatedArgs.SetInheritedHittestability(bOutgoingHittestability);

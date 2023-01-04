@@ -246,6 +246,7 @@ struct FSlateWidgetPersistentState
 		, bParentEnabled(true)
 		, bInheritedHittestability(false)
 		, bDeferredPainting(false)
+		, bIsInGameLayer(false)
 	{}
 
 	TWeakPtr<SWidget> PaintParent;
@@ -263,6 +264,7 @@ struct FSlateWidgetPersistentState
 	uint8 bParentEnabled : 1;
 	uint8 bInheritedHittestability : 1;
 	uint8 bDeferredPainting : 1;
+	uint8 bIsInGameLayer : 1;
 
 	static const FSlateWidgetPersistentState NoState;
 };
