@@ -643,7 +643,8 @@ namespace Horde.Build
 				}
 				services.AddHostedService(provider => provider.GetRequiredService<ConfigUpdateService>());
 				services.AddHostedService<TelemetryService>();
-				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());				
+				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
+				services.AddHostedService(provider => provider.GetRequiredService<TestDataService>());
 			}
 
 			services.AddHostedService(provider => provider.GetRequiredService<IExternalIssueService>());

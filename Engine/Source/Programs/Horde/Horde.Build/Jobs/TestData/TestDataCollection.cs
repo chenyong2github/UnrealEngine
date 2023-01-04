@@ -34,8 +34,12 @@ namespace Horde.Build.Jobs.TestData
 	/// </summary>
 	public class TestDataCollection : ITestDataCollection
 	{
+		internal interface ITestExpire
+		{
+			DateTime? LastSeenUtc { get; }		
+		}
 
-		class TestMetaDocument : ITestMeta
+		class TestMetaDocument : ITestMeta, ITestExpire
 		{
 			[BsonRequired, BsonId]
 			public TestMetaId Id { get; set; }
@@ -58,6 +62,17 @@ namespace Horde.Build.Jobs.TestData
 			[BsonRequired, BsonElement("r")]
 			public string RHI { get; set; }
 
+			[BsonElement("v")]
+			public string Variation { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("s")]
+			public DateTime? LastSeenUtc { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("vn")]
+			public int? Version { get; set; }
+
+			public static int CurrentVersion = 1;
+
 			private TestMetaDocument()
 			{
 				Platforms = new List<string>();
@@ -65,10 +80,11 @@ namespace Horde.Build.Jobs.TestData
 				BuildTargets = new List<string>();
 
 				RHI = String.Empty;
+				Variation = String.Empty;
 				ProjectName = String.Empty;
 			}
 
-			public TestMetaDocument(List<string> platforms, List<string> configurations, List<string> buildTargets, string projectName, string? rhi)
+			public TestMetaDocument(List<string> platforms, List<string> configurations, List<string> buildTargets, string projectName, string? rhi, string? variation)
 			{
 				Id = TestMetaId.GenerateNewId();
 				Platforms = platforms;
@@ -76,14 +92,17 @@ namespace Horde.Build.Jobs.TestData
 				BuildTargets = buildTargets;
 				ProjectName = projectName;
 				RHI = rhi ?? "default";
+				Variation = variation ?? "default";
+				Version = CurrentVersion;
+				LastSeenUtc = DateTime.UtcNow;
 			}
 		}
 
-		class TestDocument : ITest
+		class TestDocument : ITest, ITestExpire
 		{
 			[BsonRequired, BsonId]
 			public TestId Id { get; set; }
-			
+
 			[BsonRequired, BsonElement("n")]
 			public string Name { get; set; }
 
@@ -96,6 +115,14 @@ namespace Horde.Build.Jobs.TestData
 			[BsonRequired, BsonElement("m")]
 			public List<TestMetaId> Metadata { get; set; }
 			IReadOnlyList<TestMetaId> ITest.Metadata => Metadata;
+
+			[BsonIgnoreIfNull, BsonElement("vn")]
+			public int? Version { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("s")]
+			public DateTime? LastSeenUtc { get; set; }
+
+			public static int CurrentVersion = 1;
 
 			private TestDocument()
 			{
@@ -110,14 +137,16 @@ namespace Horde.Build.Jobs.TestData
 				Metadata = meta;
 				SuiteName = suiteName;
 				DisplayName = displayName;
+				Version = CurrentVersion;
+				LastSeenUtc = DateTime.UtcNow;
 			}
 		}
 
-		class TestSuiteDocument : ITestSuite
+		class TestSuiteDocument : ITestSuite, ITestExpire
 		{
 			[BsonRequired, BsonId]
 			public TestSuiteId Id { get; set; }
-			
+
 			[BsonRequired, BsonElement("n")]
 			public string Name { get; set; }
 
@@ -128,6 +157,14 @@ namespace Horde.Build.Jobs.TestData
 			[BsonRequired, BsonElement("t")]
 			public List<TestId> Tests { get; set; }
 			IReadOnlyList<TestId> ITestSuite.Tests => Tests;
+
+			[BsonIgnoreIfNull, BsonElement("s")]
+			public DateTime? LastSeenUtc { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("vn")]
+			public int? Version { get; set; }
+
+			public static int CurrentVersion = 1;
 
 			private TestSuiteDocument()
 			{
@@ -142,6 +179,8 @@ namespace Horde.Build.Jobs.TestData
 				Name = name;
 				Metadata = metaIds;
 				Tests = tests;
+				Version = CurrentVersion;
+				LastSeenUtc = DateTime.UtcNow;
 			}
 		}
 
@@ -559,7 +598,7 @@ namespace Horde.Build.Jobs.TestData
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, TestMetaId[]? metaIds = null)
+		public async Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, string? variation = null, TestMetaId[]? metaIds = null)
 		{
 			FilterDefinitionBuilder<TestMetaDocument> filterBuilder = Builders<TestMetaDocument>.Filter;
 			FilterDefinition<TestMetaDocument> filter = FilterDefinition<TestMetaDocument>.Empty;
@@ -624,9 +663,14 @@ namespace Horde.Build.Jobs.TestData
 				}
 			}
 
-			if (rhi != null)
+			if (rhi != null && rhi.Length > 0)
 			{
 				filter &= filterBuilder.Eq(x => x.RHI, rhi);
+			}
+
+			if (variation != null && variation.Length > 0)
+			{
+				filter &= filterBuilder.Eq(x => x.Variation, variation);
 			}
 
 			List<TestMetaDocument> result = await _testMeta.Find(filter).ToListAsync();
@@ -872,15 +916,20 @@ namespace Horde.Build.Jobs.TestData
 			metaData.TryGetValue("RHI", out rhi);
 			rhi = rhi ?? "default";
 
-			TestMetaDocument meta = new TestMetaDocument(platforms, configurations, buildTargets, projectName, rhi);
+			string? variation;
+			metaData.TryGetValue("Variation", out variation);
+			variation = variation ?? "default";
+
+			TestMetaDocument meta = new TestMetaDocument(platforms, configurations, buildTargets, projectName, rhi, variation);
 
 			FilterDefinitionBuilder<TestMetaDocument> filterBuilder = Builders<TestMetaDocument>.Filter;
 			FilterDefinition<TestMetaDocument> filter = filterBuilder.Eq(x => x.ProjectName, meta.ProjectName);
 			filter &= filterBuilder.Eq(x => x.RHI, meta.RHI);
+			filter &= filterBuilder.Eq(x => x.Variation, meta.Variation);
 			filter &= filterBuilder.Eq(x => x.Platforms, meta.Platforms);
 			filter &= filterBuilder.Eq(x => x.BuildTargets, meta.BuildTargets);
 			filter &= filterBuilder.Eq(x => x.Configurations, meta.Configurations);
-
+			
 			TestMetaDocument? result = await _testMeta.Find(filter).FirstOrDefaultAsync();
 
 			if (result == null)
@@ -888,7 +937,14 @@ namespace Horde.Build.Jobs.TestData
 				result = meta;
 				await _testMeta.InsertOneAsync(result);
 			}
-			
+			else
+			{
+				UpdateDefinitionBuilder<TestMetaDocument> updateBuilder = Builders<TestMetaDocument>.Update;
+				List<UpdateDefinition<TestMetaDocument>> updates = new List<UpdateDefinition<TestMetaDocument>>();
+				updates.Add(updateBuilder.Set(x => x.LastSeenUtc, DateTime.UtcNow));
+				await _testMeta.FindOneAndUpdateAsync(x => x.Id == result.Id, updateBuilder.Combine(updates));
+			}
+
 			return result;
 
 		}
@@ -923,17 +979,19 @@ namespace Horde.Build.Jobs.TestData
 			{
 				test = tests[0];
 
+				UpdateDefinitionBuilder<TestDocument> updateBuilder = Builders<TestDocument>.Update;
+				List<UpdateDefinition<TestDocument>> updates = new List<UpdateDefinition<TestDocument>>();
+
+				updates.Add(updateBuilder.Set(x => x.LastSeenUtc, DateTime.UtcNow));
+
 				if (!test.Metadata.Contains(metaData.Id))
 				{
 					test.Metadata.Add(metaData.Id);
 
-					FilterDefinitionBuilder<TestDocument> ebuilder = Builders<TestDocument>.Filter;
-					FilterDefinition<TestDocument> efilter = ebuilder.Eq(x => x.Id, test.Id);
-
-					UpdateDefinitionBuilder<TestDocument> updateBuilder = Builders<TestDocument>.Update;
-					UpdateDefinition<TestDocument> update = updateBuilder.Set(x => x.Metadata, test.Metadata);
-					await _tests.UpdateOneAsync(efilter, update);
+					updates.Add(updateBuilder.Set(x => x.Metadata, test.Metadata));
 				}
+
+				await _tests.FindOneAndUpdateAsync(x => x.Id == test.Id, updateBuilder.Combine(updates));
 			}
 
 			return test;
@@ -960,30 +1018,26 @@ namespace Horde.Build.Jobs.TestData
 			{
 				suite = suiteTests[0];
 
+				UpdateDefinitionBuilder<TestSuiteDocument> updateBuilder = Builders<TestSuiteDocument>.Update;
+				List<UpdateDefinition<TestSuiteDocument>> updates = new List<UpdateDefinition<TestSuiteDocument>>();
+
+				updates.Add(updateBuilder.Set(x => x.LastSeenUtc, DateTime.UtcNow));
+
 				List<TestId> newIds = suite.Tests.Union(testIds).ToList();
 
-				if (newIds.Count != suite.Tests.Count || !suite.Metadata.Contains(metaData.Id))
+				if (newIds.Count != suite.Tests.Count)
 				{
-					List<UpdateDefinition<TestSuiteDocument>> updates = new List<UpdateDefinition<TestSuiteDocument>>();
-					FilterDefinitionBuilder<TestSuiteDocument> ebuilder = Builders<TestSuiteDocument>.Filter;
-					FilterDefinition<TestSuiteDocument> efilter = ebuilder.Eq(x => x.Id, suite.Id);
-
-					UpdateDefinitionBuilder<TestSuiteDocument> updateBuilder = Builders<TestSuiteDocument>.Update;
-
-					if (newIds.Count != suite.Tests.Count)
-					{
-						suite.Tests = newIds;
-						updates.Add(updateBuilder.Set(x => x.Tests, suite.Tests));
-					}
-
-					if (!suite.Metadata.Contains(metaData.Id))
-					{
-						suite.Metadata.Add(metaData.Id);
-						updates.Add(updateBuilder.Set(x => x.Metadata, suite.Metadata));
-					}
-
-					await _testSuites.UpdateOneAsync(efilter, updateBuilder.Combine(updates));
+					suite.Tests = newIds;
+					updates.Add(updateBuilder.Set(x => x.Tests, suite.Tests));
 				}
+
+				if (!suite.Metadata.Contains(metaData.Id))
+				{
+					suite.Metadata.Add(metaData.Id);
+					updates.Add(updateBuilder.Set(x => x.Metadata, suite.Metadata));
+				}
+
+				await _testSuites.FindOneAndUpdateAsync(x => x.Id == suite.Id, updateBuilder.Combine(updates));
 
 			}
 
@@ -1045,6 +1099,319 @@ namespace Horde.Build.Jobs.TestData
 			if (sessions.Count > 0)
 			{
 				await AddTestSessionReportData(job, step, documents, sessions, tests);
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task PruneDataAsync()
+		{
+
+			HashSet<TestMetaId> metaIds = new HashSet<TestMetaId>();
+			foreach (TestMetaId metaId in await (await _testMeta.DistinctAsync(x => x.Id, Builders<TestMetaDocument>.Filter.Empty)).ToListAsync())
+			{
+				metaIds.Add(metaId);
+			}
+
+			_logger.LogInformation("Test data pruning to {MetaIdCount} meta ids", metaIds.Count);
+
+			// Update tests
+			HashSet<TestId> testIds = new HashSet<TestId>();
+			HashSet<TestId> testDeletes = new HashSet<TestId>();
+			{
+				List<TestDocument> tests = await _tests.Find(Builders<TestDocument>.Filter.Empty).ToListAsync();
+				foreach (TestDocument test in tests)
+				{
+					List<TestMetaId> metas = test.Metadata.Where(x => metaIds.Contains(x)).ToList();
+
+					if (metas.Count == 0)
+					{
+						testDeletes.Add(test.Id);
+						continue;
+					}
+					else if (metas.Count != test.Metadata.Count)
+					{
+						UpdateDefinitionBuilder<TestDocument> updateBuilder = Builders<TestDocument>.Update;
+						List<UpdateDefinition<TestDocument>> updates = new List<UpdateDefinition<TestDocument>>();
+						updates.Add(updateBuilder.Set(x => x.Metadata, metas));
+						await _tests.FindOneAndUpdateAsync(x => x.Id == test.Id, updateBuilder.Combine(updates));
+					}
+
+					testIds.Add(test.Id);
+				}
+			}
+
+			// Update suites
+			HashSet<TestSuiteId> suiteIds = new HashSet<TestSuiteId>();
+			HashSet<TestSuiteId> suiteDeletes = new HashSet<TestSuiteId>();
+			{
+				List<TestSuiteDocument> suites = await _testSuites.Find(Builders<TestSuiteDocument>.Filter.Empty).ToListAsync();
+				foreach (TestSuiteDocument suite in suites)
+				{
+					List<TestMetaId> metas = suite.Metadata.Where(x => metaIds.Contains(x)).ToList();
+					List<TestId> tests = suite.Tests.Where(x => testIds.Contains(x)).ToList();
+
+					if (metas.Count == 0 || tests.Count == 0)
+					{
+						suiteDeletes.Add(suite.Id);
+						continue;
+					}
+					else if (metas.Count != suite.Metadata.Count || tests.Count != suite.Tests.Count)
+					{
+						UpdateDefinitionBuilder<TestSuiteDocument> updateBuilder = Builders<TestSuiteDocument>.Update;
+						List<UpdateDefinition<TestSuiteDocument>> updates = new List<UpdateDefinition<TestSuiteDocument>>();
+						if (metas.Count != suite.Metadata.Count)
+						{
+							updates.Add(updateBuilder.Set(x => x.Metadata, metas));
+						}
+
+						if (tests.Count != suite.Tests.Count)
+						{
+							updates.Add(updateBuilder.Set(x => x.Tests, tests));
+						}
+
+						await _testSuites.FindOneAndUpdateAsync(x => x.Id == suite.Id, updateBuilder.Combine(updates));
+					}
+
+					suiteIds.Add(suite.Id);
+				}
+			}
+
+			if (testDeletes.Count > 0)
+			{
+				FilterDefinitionBuilder<TestDocument> filterBuilder = Builders<TestDocument>.Filter;
+				FilterDefinition<TestDocument> filter = filterBuilder.Empty;
+				filter &= filterBuilder.In(x => x.Id, testDeletes);
+				await _tests.DeleteManyAsync(filter);
+			}
+
+			if (suiteDeletes.Count > 0)
+			{
+				FilterDefinitionBuilder<TestSuiteDocument> filterBuilder = Builders<TestSuiteDocument>.Filter;
+				FilterDefinition<TestSuiteDocument> filter = filterBuilder.Empty;
+				filter &= filterBuilder.In(x => x.Id, suiteDeletes);
+				await _testSuites.DeleteManyAsync(filter);
+			}
+
+			if (testDeletes.Count > 0 || suiteDeletes.Count > 0)
+			{
+				_logger.LogInformation("Pruned {TestDeleteCount} tests and {TestSuiteCOunt} suites", testDeletes.Count, suiteDeletes.Count);
+			}
+
+			int testStreamsDeleted = 0;
+
+			// Update test streams
+			{
+				List<TestStreamDocument> testStreams = await _testStreams.Find(Builders<TestStreamDocument>.Filter.Empty).ToListAsync();
+				foreach (TestStreamDocument stream in testStreams)
+				{
+					List<TestId> tests = stream.Tests.Where(x => testIds.Contains(x)).ToList();
+					List<TestSuiteId> suites = stream.TestSuites.Where(x => suiteIds.Contains(x)).ToList();
+
+					if (tests.Count == 0 && suites.Count == 0)
+					{
+						await _testStreams.DeleteOneAsync(x => x.Id == stream.Id);
+						testStreamsDeleted++;
+					}
+					else if (tests.Count != stream.Tests.Count || suites.Count != stream.TestSuites.Count)
+					{
+						UpdateDefinitionBuilder<TestStreamDocument> updateBuilder = Builders<TestStreamDocument>.Update;
+						List<UpdateDefinition<TestStreamDocument>> updates = new List<UpdateDefinition<TestStreamDocument>>();
+
+						if (tests.Count != stream.Tests.Count)
+						{
+							updates.Add(updateBuilder.Set(x => x.Tests, tests));
+						}
+
+						if (suites.Count != stream.TestSuites.Count)
+						{
+							updates.Add(updateBuilder.Set(x => x.TestSuites, suites));
+						}
+
+						await _testStreams.FindOneAndUpdateAsync(x => x.Id == stream.Id, updateBuilder.Combine(updates));
+					}
+				}
+			}
+
+			if (testStreamsDeleted > 0)
+			{
+				_logger.LogInformation("Pruned {TestStreamDeleteCount} test streams", testStreamsDeleted);
+			}
+
+		}
+
+		static async Task<long> ExpireCollection<DocType>(IMongoCollection<DocType> collection, DateTime expireTime) where DocType : ITestExpire
+		{
+			FilterDefinitionBuilder<DocType> filterBuilder = Builders<DocType>.Filter;
+			FilterDefinition<DocType> filter = filterBuilder.Empty;
+			filter &= filterBuilder.Lte(x => x.LastSeenUtc!, expireTime);
+			DeleteResult result = await collection.DeleteManyAsync(filter);
+
+			return result.DeletedCount;
+
+		}
+
+		async Task ExpireTestData(int retainMonths)
+		{
+			if (retainMonths <= 0)
+			{
+				return;
+			}
+
+			DateTime expireTime = DateTime.Now.AddMonths(-retainMonths);
+
+			// expire and prune root test data
+			long testsExpired = await ExpireCollection(_tests, expireTime);
+			long suitesExpired = await ExpireCollection(_testSuites, expireTime);
+			long metaExpired = await ExpireCollection(_testMeta, expireTime);
+
+			// Check whether we need to prune
+			if (testsExpired > 0 || suitesExpired > 0 || metaExpired > 0)
+			{
+				_logger.LogInformation("Expired {TestsExpired} tests, {SuitesExpired} suites, {MetaExpired} meta", testsExpired, suitesExpired, metaExpired);
+				await PruneDataAsync();
+			}
+
+			// expire test data documents
+			{
+				ObjectId dataExpireTime = ObjectId.GenerateNewId(expireTime);
+
+				FilterDefinition<TestDataDocument> filter = FilterDefinition<TestDataDocument>.Empty;
+				FilterDefinitionBuilder<TestDataDocument> filterBuilder = Builders<TestDataDocument>.Filter;
+				filter &= filterBuilder.Lte(x => x.Id!, dataExpireTime);
+				DeleteResult result = await _testDataDocuments.DeleteManyAsync(filter);
+				if (result.DeletedCount > 0)
+				{
+					_logger.LogInformation("Expired {NumDeleted} test data documents", result.DeletedCount);
+				}
+			}
+
+			TestRefId refExpireTime = TestRefId.GenerateNewId(expireTime);
+
+			// expire test refs
+			{
+				FilterDefinition<TestDataRefDocument> filter = FilterDefinition<TestDataRefDocument>.Empty;
+				FilterDefinitionBuilder<TestDataRefDocument> filterBuilder = Builders<TestDataRefDocument>.Filter;
+				filter &= filterBuilder.Lte(x => x.Id!, refExpireTime);
+				DeleteResult result = await _testRefs.DeleteManyAsync(filter);
+				if (result.DeletedCount > 0)
+				{
+					_logger.LogInformation("Expired {NumDeleted} test ref documents", result.DeletedCount);
+				}
+			}
+
+			// expire test details
+			{
+				FilterDefinition<TestDataDetailsDocument> filter = FilterDefinition<TestDataDetailsDocument>.Empty;
+				FilterDefinitionBuilder<TestDataDetailsDocument> filterBuilder = Builders<TestDataDetailsDocument>.Filter;
+				filter &= filterBuilder.Lte(x => x.Id!, refExpireTime);
+				DeleteResult result = await _testDetails.DeleteManyAsync(filter);
+				if (result.DeletedCount > 0)
+				{
+					_logger.LogInformation("Expired {NumDeleted} test detail documents", result.DeletedCount);
+				}
+
+			}
+
+		}
+
+		/// <inheritdoc/>
+		public async Task<bool> UpdateAsync(int retainMonths)
+		{
+			await ExpireTestData(retainMonths);
+
+			return true;		
+		}
+
+		/// <inheritdoc/>
+		public async Task UpgradeAsync()
+		{
+			// Upgrade test meta data
+			{
+				FilterDefinition<TestMetaDocument> filter = Builders<TestMetaDocument>.Filter.Empty;
+				filter &= Builders<TestMetaDocument>.Filter.Where(x => x.Version == null || x.Version < TestMetaDocument.CurrentVersion);
+
+				List<TestMetaDocument> results = await _testMeta.Find(filter).ToListAsync();
+
+				if (results.Count > 0)
+				{
+					_logger.LogInformation("Found {Count} test meta documents to upgrade", results.Count);
+				}
+
+				foreach (TestMetaDocument meta in results)
+				{
+					// unversioned => 1
+					if (meta.Version == null && TestMetaDocument.CurrentVersion == 1)
+					{
+						UpdateDefinitionBuilder<TestMetaDocument> updateBuilder = Builders<TestMetaDocument>.Update;
+						List<UpdateDefinition<TestMetaDocument>> updates = new List<UpdateDefinition<TestMetaDocument>>();
+
+						updates.Add(updateBuilder.Set(x => x.Version, TestMetaDocument.CurrentVersion));
+						updates.Add(updateBuilder.Set(x => x.LastSeenUtc, DateTime.UtcNow));
+
+						if (meta.Variation == null || meta.Variation.Length == 0)
+						{
+							updates.Add(updateBuilder.Set(x => x.Variation, "default"));
+						}
+
+						await _testMeta.FindOneAndUpdateAsync(x => x.Id == meta.Id, updateBuilder.Combine(updates));
+					}
+				}
+			}
+
+			// Upgrade tests
+			{
+				FilterDefinition<TestDocument> filter = Builders<TestDocument>.Filter.Empty;
+				filter &= Builders<TestDocument>.Filter.Where(x => x.Version == null || x.Version < TestDocument.CurrentVersion);
+
+				List<TestDocument> results = await _tests.Find(filter).ToListAsync();
+
+				if (results.Count > 0)
+				{
+					_logger.LogInformation("Found {Count} test documents to upgrade", results.Count);
+				}
+
+				foreach (TestDocument test in results)
+				{
+					// unversioned => 1
+					if (test.Version == null && TestDocument.CurrentVersion == 1)
+					{
+						UpdateDefinitionBuilder<TestDocument> updateBuilder = Builders<TestDocument>.Update;
+						List<UpdateDefinition<TestDocument>> updates = new List<UpdateDefinition<TestDocument>>();
+
+						updates.Add(updateBuilder.Set(x => x.Version, TestDocument.CurrentVersion));
+						updates.Add(updateBuilder.Set(x => x.LastSeenUtc, DateTime.UtcNow));
+
+						await _tests.FindOneAndUpdateAsync(x => x.Id == test.Id, updateBuilder.Combine(updates));
+					}
+				}
+			}
+
+			// Upgrade test suites
+			{
+				FilterDefinition<TestSuiteDocument> filter = Builders<TestSuiteDocument>.Filter.Empty;
+				filter &= Builders<TestSuiteDocument>.Filter.Where(x => x.Version == null || x.Version < TestSuiteDocument.CurrentVersion);
+
+				List<TestSuiteDocument> results = await _testSuites.Find(filter).ToListAsync();
+
+				if (results.Count > 0)
+				{
+					_logger.LogInformation("Found {Count} test suite documents to upgrade", results.Count);
+				}
+
+				foreach (TestSuiteDocument suite in results)
+				{
+					// unversioned => 1
+					if (suite.Version == null && TestSuiteDocument.CurrentVersion == 1)
+					{
+						UpdateDefinitionBuilder<TestSuiteDocument> updateBuilder = Builders<TestSuiteDocument>.Update;
+						List<UpdateDefinition<TestSuiteDocument>> updates = new List<UpdateDefinition<TestSuiteDocument>>();
+
+						updates.Add(updateBuilder.Set(x => x.Version, TestSuiteDocument.CurrentVersion));
+						updates.Add(updateBuilder.Set(x => x.LastSeenUtc, DateTime.UtcNow));
+
+						await _testSuites.FindOneAndUpdateAsync(x => x.Id == suite.Id, updateBuilder.Combine(updates));
+					}
+				}
 			}
 		}
 

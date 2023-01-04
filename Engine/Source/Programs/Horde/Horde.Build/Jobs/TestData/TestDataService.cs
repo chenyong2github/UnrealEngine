@@ -2,10 +2,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
+using HordeCommon;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Jobs.TestData
 {
@@ -19,24 +24,75 @@ namespace Horde.Build.Jobs.TestData
 	/// <summary>
 	/// Device management service
 	/// </summary>
-	public sealed class TestDataService : IDisposable
+	public sealed class TestDataService : IHostedService, IDisposable
 	{
 		
-		readonly ITestDataCollection _testData;		
+		readonly ITestDataCollection _testData;
+		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly ITicker _ticker;
+		readonly ILogger<TestDataService> _logger;
 
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public TestDataService(ITestDataCollection testData)
+		public TestDataService(ITestDataCollection testData, IOptionsMonitor<ServerSettings> settings, IClock clock, ILogger<TestDataService> logger)
 		{
-			_testData = testData;		
+			_testData = testData;
+			_settings = settings;
+			_logger = logger;
+			_ticker = clock.AddSharedTicker<TestDataService>(TimeSpan.FromMinutes(10.0), TickAsync, logger);
+		}
+
+		/// <inheritdoc/>
+		public async Task StartAsync(CancellationToken cancellationToken)
+		{
+			await _ticker.StartAsync();
+
+			try
+			{
+				await _testData.UpgradeAsync();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Exception while upgrading test data collection: {Message}", ex.Message);
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task StopAsync(CancellationToken cancellationToken)
+		{
+			await _ticker.StopAsync();
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
-		{		
+		{
+			_ticker.Dispose();
 		}
 
+		/// <summary>
+		/// Ticks service
+		/// </summary>
+		async ValueTask TickAsync(CancellationToken stoppingToken)
+		{
+			if (!stoppingToken.IsCancellationRequested)
+			{
+				try
+				{
+					await _testData.UpdateAsync(_settings.CurrentValue.TestDataRetainMonths);					
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception while ticking test data collection: {Message}", ex.Message);
+				}
+
+			}
+		}
+
+		internal async Task TickForTestingAsync()
+		{
+			await TickAsync(CancellationToken.None);			
+		}
 
 		/// <summary>
 		/// Find test streams
@@ -77,11 +133,12 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="configurations"></param>
 		/// <param name="buildTargets"></param>
 		/// <param name="rhi"></param>
+		/// <param name="variation"></param>
 		/// <param name="metaIds"></param>
 		/// <returns></returns>
-		public async Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, TestMetaId[]? metaIds = null)
+		public async Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, string? variation = null, TestMetaId[]? metaIds = null)
 		{
-			return await _testData.FindTestMeta(projectNames, platforms, configurations, buildTargets, rhi, metaIds);
+			return await _testData.FindTestMeta(projectNames, platforms, configurations, buildTargets, rhi, variation, metaIds);
 		}
 
 		/// <summary>

@@ -357,6 +357,11 @@ namespace Horde.Build
 		public bool EnableScheduleInTestData { get; set; }
 
 		/// <summary>
+		/// The number of months to retain test data
+		/// </summary>
+		public int TestDataRetainMonths { get; set; } = 6;
+
+		/// <summary>
 		/// Interval between rebuilding the schedule queue with a DB query.
 		/// </summary>
 		public TimeSpan SchedulePollingInterval { get; set; } = TimeSpan.FromSeconds(60.0);

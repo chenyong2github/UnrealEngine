@@ -74,6 +74,12 @@ namespace Horde.Build.Jobs.TestData
 		/// The rendering hardware interface used for the test
 		/// </summary>
 		string RHI { get; }
+
+		/// <summary>
+		/// The variation of the meta data, for example address sanitizing
+		/// </summary>
+		string Variation { get; }
+
 	}
 
 	/// <summary>

@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Horde.Build.Logs;
 using System.Linq;
+using System.Threading;
 
 namespace Horde.Build.Tests
 {
@@ -160,6 +161,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task SimpleReportTest()
 		{
+			await TestDataService.StartAsync(CancellationToken.None);
 			string[] streamIds = new string[] { _mainStreamId.ToString(), _releaseStreamId.ToString() };
 
 			IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
@@ -192,6 +194,8 @@ namespace Horde.Build.Tests
 			await TestDataCollection.AddAsync(job, step, data1.ToArray());
 			await TestDataCollection.AddAsync(job2, step2, data1.ToArray());
 			await TestDataCollection.AddAsync(job3, step3, data2.ToArray());
+
+			await TestDataService.TickForTestingAsync();
 
 			ActionResult<List<GetTestMetaResponse>> metaResult = await TestDataController.GetTestMetaAsync();
 			Assert.IsNotNull(metaResult);
@@ -237,6 +241,8 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task SessionReportTest()
 		{
+			await TestDataService.StartAsync(CancellationToken.None);
+
 			string[] streamIds = new string[] { _mainStreamId.ToString(), _releaseStreamId.ToString() };
 
 			IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
@@ -276,6 +282,8 @@ namespace Horde.Build.Tests
 			await TestDataCollection.AddAsync(job2, step2, data.ToArray());
 			await TestDataCollection.AddAsync(job3, step3, data2.ToArray());
 
+			await TestDataService.TickForTestingAsync();
+
 			ActionResult<List<GetTestMetaResponse>> metaResult = await TestDataController.GetTestMetaAsync();
 			Assert.IsNotNull(metaResult);
 			Assert.IsNotNull(metaResult.Value);
@@ -290,6 +298,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual("Development", meta[0].Configurations[0]);
 			Assert.AreEqual("EngineTest", meta[0].ProjectName);
 			Assert.AreEqual("default", meta[0].RHI);
+			Assert.AreEqual("default", meta[0].Variation);
 
 			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
 			Assert.IsNotNull(streamResult);

@@ -159,6 +159,11 @@ namespace Horde.Build.Jobs.TestData
 		/// </summary>
 		public string RHI { get; set; }
 
+		/// <summary>
+		/// The varation of the test meta data, for example address sanitizing
+		/// </summary>
+		public string Variation { get; set; }
+
 		internal GetTestMetaResponse(ITestMeta meta)
 		{
 			Id = meta.Id.ToString();
@@ -166,7 +171,8 @@ namespace Horde.Build.Jobs.TestData
 			Configurations = meta.Configurations.Select(p => p).ToList();
 			BuildTargets = meta.BuildTargets.Select(p => p).ToList();
 			ProjectName = meta.ProjectName;
-			RHI = meta.RHI;	
+			RHI = meta.RHI;
+			Variation = meta.Variation;
 		}
 	}
 

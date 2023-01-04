@@ -1089,10 +1089,10 @@ export class Backend {
         });
     }
 
-    getTestMetadata(auttomationProjects?: string[], platforms?: string[], targets?: string[], configurations?: string[]): Promise<GetTestMetaResponse[]> {
+    getTestMetadata(automationProjects?: string[], platforms?: string[], targets?: string[], configurations?: string[]): Promise<GetTestMetaResponse[]> {
         return new Promise<GetTestMetaResponse[]>((resolve, reject) => {
             this.backend.get(`/api/v2/testdata/metadata`, {
-                params: { project: auttomationProjects, platform: platforms, target: targets, configuration: configurations }
+                params: { project: automationProjects, platform: platforms, target: targets, configuration: configurations }
             }).then((value) => {
                 resolve(value.data as GetTestMetaResponse[]);
             }).catch((reason) => {

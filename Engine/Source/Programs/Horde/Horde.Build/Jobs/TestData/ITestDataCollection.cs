@@ -103,9 +103,10 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="configurations"></param>
 		/// <param name="buildTargets"></param>
 		/// <param name="rhi"></param>
+		/// <param name="variation"></param>
 		/// <param name="metaIds"></param>
 		/// <returns></returns>
-		Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, TestMetaId[]? metaIds = null);
+		Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, string? variation = null, TestMetaId[]? metaIds = null);
 
 		/// <summary>
 		/// Delete the test data
@@ -113,5 +114,22 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="id">Unique id of the test data</param>
 		/// <returns>Async task</returns>
 		Task DeleteAsync(ObjectId id);
+
+		/// <summary>
+		/// Prune test data from collection
+		/// </summary>
+		/// <returns></returns>
+		public Task PruneDataAsync();
+
+		/// <summary>
+		/// Run a tick on the collection
+		/// </summary>
+		/// <returns></returns>
+		public Task<bool> UpdateAsync(int retainMonths);
+
+		/// <summary>
+		/// Upgrades the collection
+		/// </summary>
+		public Task UpgradeAsync();
 	}
 }
