@@ -55,6 +55,18 @@ static TAutoConsoleVariable<int32> CVarRectLighTranslucent(
 	TEXT("Enable rect light support for translucent surfaces. When enabled, it will add an extrat sampler to the pixel shader (limited to 16 on dx11 based system)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRectLighFilterQuality(
+	TEXT("r.RectLightAtlas.FilterQuality"),
+	1,
+	TEXT("Define the filtering quality used for filtering texture (0:Box filter, 1:Gaussian filter)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRectLighMaxTextureRatio(
+	TEXT("r.RectLightAtlas.MaxTextureRatio"),
+	2,
+	TEXT("Define the max Width/Height or Height/Width ratio that a texture can have."),
+	ECVF_RenderThreadSafe);
+
 namespace RectLightAtlas
 {
 
@@ -78,6 +90,30 @@ namespace RectLightAtlas
 
 static const uint32 InvalidSlotIndex = ~0u;
 static const FIntPoint InvalidOrigin = FIntPoint(-1, -1);
+
+FIntPoint GetSourceResolution(const FRHITexture* Tex)
+{
+	FIntPoint Out(1, 1);
+	if (Tex)
+	{
+		const FIntVector SourceOriginalResolution = Tex->GetSizeXYZ();
+		const float RatioYX = float(SourceOriginalResolution.Y) / float(SourceOriginalResolution.X);
+		const float RatioXY = float(SourceOriginalResolution.X) / float(SourceOriginalResolution.Y);
+
+		Out = FIntPoint(SourceOriginalResolution.X, SourceOriginalResolution.Y);
+		// Max Ratio of 2
+		const float RatioThreshold = FMath::Clamp(CVarRectLighMaxTextureRatio.GetValueOnAnyThread(), 1, 16);
+		if (RatioYX > RatioThreshold)
+		{
+			Out.X *= RatioYX / RatioThreshold;
+		}
+		else if (RatioXY > RatioThreshold)
+		{
+			Out.Y *= RatioXY / RatioThreshold;
+		}
+	}
+	return Out;
+}
 
 struct FAtlasRect
 {
@@ -130,6 +166,11 @@ struct FAtlasSlot
 	bool bForceRefresh = false;
 	bool IsValid() const { return SourceTexture != nullptr; }
 	FRHITexture* GetTextureRHI() const { return SourceTexture->GetReferencedTexture(); }
+
+	FIntPoint GetSourceResolution() const 
+	{ 
+		return RectLightAtlas::GetSourceResolution(SourceTexture ? SourceTexture->GetReferencedTexture() : nullptr);
+	}
 };
 
 // Store info for copying one atlas slot to another one, when a new layout is created
@@ -601,7 +642,7 @@ class FRectAtlasFilterTexturePS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, SrcAtlasResolution)
-		SHADER_PARAMETER(float, KernelSize)
+		SHADER_PARAMETER(uint32, FilterQuality)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DstSlotBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SrcSlotBuffer)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SourceAtlasSampler)
@@ -665,7 +706,7 @@ static void FilterSlotsPass(
 			FRDGBufferRef DstSlotBuffer = CreateSlotBuffer(GraphBuilder, DstMIPSlots, TEXT("RectLight.DstMIPSlotBuffer"));
 
 			FRectAtlasFilterTexturePS::FParameters* Parameters = GraphBuilder.AllocParameters<FRectAtlasFilterTexturePS::FParameters>();
-			Parameters->KernelSize			= 5;
+			Parameters->FilterQuality		= FMath::Clamp(CVarRectLighFilterQuality.GetValueOnRenderThread(), 0, 1);
 			Parameters->SrcAtlasResolution	= ToMIP(InAtlas->Desc.Extent, SrcMip);
 			Parameters->DstSlotBuffer		= GraphBuilder.CreateSRV(DstSlotBuffer, PF_R16G16B16A16_UINT);
 			Parameters->SrcSlotBuffer		= GraphBuilder.CreateSRV(SrcSlotBuffer, PF_R16G16B16A16_UINT);
@@ -1228,8 +1269,8 @@ static void PackAtlas(
 
 			// Check if the texture resolution has changed (due to streaming)
 			// If the texture resolution has change, reset the slot to be handled as a new slot
-			const FIntVector TextureResolution = ValidSlot.GetTextureRHI()->GetSizeXYZ();
-			const bool bHasTextureResolutionChanged = ValidSlot.Rect.Resolution != FIntPoint(TextureResolution.X, TextureResolution.Y);
+			const FIntPoint TextureResolution = ValidSlot.GetSourceResolution();
+			const bool bHasTextureResolutionChanged = ValidSlot.Rect.Resolution != TextureResolution;
 			if (bHasTextureResolutionChanged || ValidSlot.bForceRefresh)
 			{
 				ValidSlot.Rect.Origin = InvalidOrigin;
@@ -1335,9 +1376,9 @@ static void PackAtlas(
 					CurrentSourceTextureMIPBias++;
 					for (FAtlasSlot& Slot : ValidSlots)
 					{
-						const FRHITexture* Tex = Slot.GetTextureRHI();
+						const FIntPoint SourceResolution = Slot.GetSourceResolution();
 						Slot.Rect.Origin = InvalidOrigin;
-						Slot.Rect.Resolution = ToMIP(FIntPoint(Tex->GetSizeXYZ().X, Tex->GetSizeXYZ().Y), CurrentSourceTextureMIPBias);
+						Slot.Rect.Resolution = ToMIP(SourceResolution, CurrentSourceTextureMIPBias);
 					}
 				}
 
@@ -1395,7 +1436,7 @@ uint32 AddTexture(UTexture* In)
 			Slot->SourceTexture = In->TextureReference.TextureReferenceRHI;
 			Slot->Id = SlotIndex;
 			Slot->Rect.Origin = InvalidOrigin;
-			Slot->Rect.Resolution = FIntPoint(Tex->GetSizeXYZ().X, Tex->GetSizeXYZ().Y);
+			Slot->Rect.Resolution = GetSourceResolution(Tex);
 			Slot->RefCount = 1;
 
 			GRectLightTextureManager.bHasPendingAdds = true;
@@ -1496,11 +1537,7 @@ void UpdateAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLevel::Type 
 		{
 			if (Slot.IsValid() && Slot.GetTextureRHI())
 			{
-				FRHITexture* TextureRHI = Slot.GetTextureRHI();
-				check(TextureRHI != nullptr);
-
-				const FIntVector SourceResolution = TextureRHI->GetSizeXYZ();
-				const FIntPoint  SourceResolutionMIPed = ToMIP(FIntPoint(SourceResolution.X, SourceResolution.Y), GRectLightTextureManager.AtlasLayout.SourceTextureMIPBias);
+				const FIntPoint SourceResolutionMIPed = ToMIP(Slot.GetSourceResolution(), GRectLightTextureManager.AtlasLayout.SourceTextureMIPBias);
 				if (SourceResolutionMIPed.X > Slot.Rect.Resolution.X || SourceResolutionMIPed.Y > Slot.Rect.Resolution.Y)
 				{
 					// Invalid the slot

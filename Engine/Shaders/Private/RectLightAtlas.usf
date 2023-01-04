@@ -67,14 +67,14 @@ void MainPS(
 	float4 Color = 0;
 	switch (InId)
 	{
-	case 0: Color = InTexture0.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 1: Color = InTexture1.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 2: Color = InTexture2.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 3: Color = InTexture3.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 4: Color = InTexture4.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 5: Color = InTexture5.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 6: Color = InTexture6.Load(uint3(InCoord, InTextureMIPBias)); break;
-	case 7: Color = InTexture7.Load(uint3(InCoord, InTextureMIPBias)); break;
+	case 0: Color = InTexture0.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 1: Color = InTexture1.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 2: Color = InTexture2.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 3: Color = InTexture3.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 4: Color = InTexture4.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 5: Color = InTexture5.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 6: Color = InTexture6.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 7: Color = InTexture7.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
 	}
 
 	// Ensure there is no NaN value
@@ -115,6 +115,7 @@ void MainPS(
 #if SHADER_FILTER_TEXTURE
 
 float KernelSize;
+uint FilterQuality;
 int2 SrcAtlasResolution;
 Buffer<uint4> SrcSlotBuffer;
 Texture2D<float4> SourceAtlasTexture;
@@ -127,55 +128,59 @@ void MainPS(
 	in uint InId : RECT_ID,
 	out float4 OutTexture : SV_Target0)
 {
-#if 1
-	// 2x2 box filtering
-	const float2 SrcCoord = uint2(InCoord) * 2.f;
-	const uint4 SrcRect = SrcSlotBuffer[InId];
-	const uint2 SrcRectOffset = SrcRect.xy;
-	const uint2 SrcRectResolution = SrcRect.zw;
 
-	const float4 Color0 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(0,0), 0));
-	const float4 Color1 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(1,0), 0));
-	const float4 Color2 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(0,1), 0));
-	const float4 Color3 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(1,1), 0));
-	OutTexture = (Color0 + Color1 + Color2 + Color3) * 0.25f;
-#else
-	// 5x5 Gaussian filtering (naive, non-separable, with bilinear filtering)
-	// 
-	// Possible improvement, but probably not worth it since the filtering is done only once, when the texture is uploaded: 
-	// * Separable filter (but requires compute with border, or RT ping-pong)
-	// * Recursive sparse filter with MIP prefiltering (Deriche & co)
-	const float2 SrcCoord = InCoord * 2.f; // -> InCoord is xxx.5f, so SrcCoord is at the center of the 2x2 block
-	const uint4 SrcRect = SrcSlotBuffer[InId];
-	const uint2 SrcRectOffset = SrcRect.xy;
-	const uint2 SrcRectResolution = SrcRect.zw;
-
-	const float2 MinCoord = SrcRectOffset;
-	const float2 MaxCoord = SrcRectOffset + SrcRectResolution;
-	const float2 InvAtlasResolution = 1.0f / float2(SrcAtlasResolution);
-
-	float3 AccColor = 0;
-	float AccW = 0;
-	const float Variance = 2.0f; // std ~1.4. weight, at radius=3 ~0.01;
-	const int KernelExtent = 2;
-	for (int y = -KernelExtent; y <= KernelExtent; ++y)
-	for (int x = -KernelExtent; x <= KernelExtent; ++x
+	if (FilterQuality)
 	{
-		const float2 Offset = float2(x, y);
-		const float2 Coord = SrcRectOffset + SrcCoord + Offset;// +float2(0.5f, 0.5f);
-		if (all(Coord >= MinCoord) && all(Coord < MaxCoord))
-		{
-			const float2 UV = Coord * InvAtlasResolution;
-			const float  D2 = dot(Offset, Offset);
-			const float  W = exp(-D2 / Variance);
-			const float3 Color = SourceAtlasTexture.SampleLevel(SourceAtlasSampler, UV, 0).xyz; // MIP=0 as it is an SRV narrowed around SrcMIP
+		// 2x2 box filtering
+		const float2 SrcCoord = uint2(InCoord) * 2.f;
+		const uint4 SrcRect = SrcSlotBuffer[InId];
+		const uint2 SrcRectOffset = SrcRect.xy;
+		const uint2 SrcRectResolution = SrcRect.zw;
 
-			AccColor += W * Color;
-			AccW += W;
-		}
+		const float4 Color0 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(0,0), 0));
+		const float4 Color1 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(1,0), 0));
+		const float4 Color2 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(0,1), 0));
+		const float4 Color3 = SourceAtlasTexture.Load(uint3(SrcRectOffset + SrcCoord + float2(1,1), 0));
+		OutTexture = (Color0 + Color1 + Color2 + Color3) * 0.25f;
 	}
-	OutTexture = float4(AccColor / AccW, 1.0f);
-#endif 
+	else
+	{
+		// 5x5 Gaussian filtering (naive, non-separable, with bilinear filtering)
+		// 
+		// Possible improvement, but probably not worth it since the filtering is done only once, when the texture is uploaded: 
+		// * Separable filter (but requires compute with border, or RT ping-pong)
+		// * Recursive sparse filter with MIP prefiltering (Deriche & co)
+		const float2 SrcCoord = InCoord * 2.f; // -> InCoord is xxx.5f, so SrcCoord is at the center of the 2x2 block
+		const uint4 SrcRect = SrcSlotBuffer[InId];
+		const uint2 SrcRectOffset = SrcRect.xy;
+		const uint2 SrcRectResolution = SrcRect.zw;
+
+		const float2 MinCoord = SrcRectOffset;
+		const float2 MaxCoord = SrcRectOffset + SrcRectResolution;
+		const float2 InvAtlasResolution = 1.0f / float2(SrcAtlasResolution);
+
+		float3 AccColor = 0;
+		float AccW = 0;
+		const float Variance = 3.0f; // std ~1.4. weight, at radius=3 ~0.01;
+		const int KernelExtent = 2;
+		for (int y = -KernelExtent; y <= KernelExtent; ++y)
+		for (int x = -KernelExtent; x <= KernelExtent; ++x)
+		{
+			const float2 Offset = float2(x, y);
+			const float2 Coord = SrcRectOffset + SrcCoord + Offset;// +float2(0.5f, 0.5f);
+			if (all(Coord >= MinCoord) && all(Coord < MaxCoord))
+			{
+				const float2 UV = Coord * InvAtlasResolution;
+				const float  D2 = dot(Offset, Offset);
+				const float  W = exp(-D2 / Variance);
+				const float3 Color = SourceAtlasTexture.SampleLevel(SourceAtlasSampler, UV, 0).xyz; // MIP=0 as it is an SRV narrowed around SrcMIP
+
+				AccColor += W * Color;
+				AccW += W;
+			}
+		}
+		OutTexture = float4(AccColor / AccW, 1.0f);
+	}
 }
 
 #endif // SHADER_FILTER_TEXTURE
