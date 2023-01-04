@@ -27,6 +27,7 @@
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BrushComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "LevelEditorViewport.h"

@@ -18,6 +18,7 @@
 #include "EditorComponents.h"
 #include "Framework/Commands/Commands.h"
 #include "Editor.h"
+#include "ViewportClient.h"
 
 struct FAssetData;
 class FCachedJoystickState;

@@ -40,6 +40,7 @@
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Settings/LevelEditorMiscSettings.h"
 #include "Engine/Brush.h"
+#include "Engine/GameViewportClient.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor/EditorEngine.h"
 #include "ISourceControlModule.h"

@@ -15,6 +15,7 @@
 #include "EditorViewportCommands.h"
 #include "LevelEditorActions.h"
 #include "Components/SplineComponent.h"
+#include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
 #include "UObject/UObjectIterator.h"

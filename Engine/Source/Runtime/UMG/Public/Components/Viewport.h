@@ -13,6 +13,8 @@
 #include "Camera/CameraTypes.h"
 #include "SceneManagement.h"
 #include "Components/ContentWidget.h"
+#include "ViewportClient.h"
+
 #include "Viewport.generated.h"
 
 class FCanvas;

@@ -20,6 +20,7 @@
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversion.h"
+#include "SceneView.h"
 #include "Misc/ScopedSlowTask.h"
 #include "MeshDescription.h"
 #include "TextureCompiler.h"

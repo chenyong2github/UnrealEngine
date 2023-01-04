@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "Math/RotationMatrix.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "DynamicMeshBuilder.h"
 #include "PhysicsEngine/LevelSetElem.h"

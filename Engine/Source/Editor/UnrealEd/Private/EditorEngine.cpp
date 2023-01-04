@@ -36,6 +36,7 @@
 #include "ActorFactories/ActorFactoryCylinderVolume.h"
 #include "ActorFactories/ActorFactorySphereVolume.h"
 #include "Engine/Font.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/BrushBuilder.h"
 #include "Builders/CubeBuilder.h"
 #include "Editor/EditorPerProjectUserSettings.h"
@@ -106,6 +107,8 @@
 #include "ActorFolder.h"
 #include "Materials/MaterialInterface.h"
 #include "UncontrolledChangelistsModule.h"
+#include "SceneView.h"
+#include "StaticBoundShaderState.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"

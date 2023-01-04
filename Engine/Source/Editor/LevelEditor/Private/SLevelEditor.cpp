@@ -34,6 +34,7 @@
 #include "Kismet2/DebuggerCommands.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerModule.h"
+#include "SceneView.h"
 #include "LayersModule.h"
 #include "WorldBrowserModule.h"
 #include "DataLayerEditorModule.h"

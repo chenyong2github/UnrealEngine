@@ -3,6 +3,7 @@
 #include "LogVisualizer.h"
 #include "LogVisualizerPublic.h"
 #include "GameFramework/SpectatorPawn.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "EngineUtils.h"
 #include "LogVisualizerSettings.h"

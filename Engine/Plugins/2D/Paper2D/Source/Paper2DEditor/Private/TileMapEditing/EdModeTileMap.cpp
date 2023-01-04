@@ -10,6 +10,7 @@
 #include "PaperTileMapComponent.h"
 #include "TileMapEditing/TileMapEdModeToolkit.h"
 #include "Toolkits/ToolkitManager.h"
+#include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "CanvasTypes.h"
 #include "PaperTileMap.h"

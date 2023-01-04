@@ -45,6 +45,7 @@
 #include "Serialization/NameAsStringProxyArchive.h"
 #include "ShaderCodeLibrary.h"
 #include "ShaderPlatformCachedIniValue.h"
+#include "StaticBoundShaderState.h"
 #include "StereoRenderUtils.h"
 #include "UObject/DevObjectVersion.h"
 #include "UObject/UObjectIterator.h"

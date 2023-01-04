@@ -11,6 +11,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Selection.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "EditorModeManager.h"
 #include "GameFramework/WorldSettings.h"
 

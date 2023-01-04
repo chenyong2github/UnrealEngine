@@ -5,6 +5,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SceneView.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
 #include "ToolMenus.h"
 #include "LevelEditorMenuContext.h"

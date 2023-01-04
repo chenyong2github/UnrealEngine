@@ -11,7 +11,8 @@
 #include "Selections/GeometrySelectionUtil.h"
 
 // for debug drawing
-#include "SceneManagement.h"		
+#include "SceneManagement.h"
+#include "SceneView.h"
 #include "DynamicMeshBuilder.h"
 #include "ToolSetupUtil.h"
 

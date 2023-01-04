@@ -17,6 +17,7 @@
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "EditorModes.h"
 #include "ActorEditorUtils.h"
+#include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "Engine/LevelStreaming.h"
 #include "CanvasTypes.h"

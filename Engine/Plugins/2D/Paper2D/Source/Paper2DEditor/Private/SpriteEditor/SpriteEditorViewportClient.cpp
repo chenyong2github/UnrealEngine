@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "PaperSpriteComponent.h"
 #include "AssetEditorModeManager.h"
+#include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "GlobalRenderResources.h"
 #include "ComponentReregisterContext.h"

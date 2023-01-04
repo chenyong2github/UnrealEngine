@@ -5,6 +5,7 @@
 #include "Engine/Texture2D.h"
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
+#include "SceneView.h"
 #include "Styling/AppStyle.h"
 #include "Settings/EditorStyleSettings.h"
 #include "Materials/Material.h"

@@ -10,6 +10,7 @@
 #include "CanvasTypes.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
+#include "SceneView.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "StaticLightingSystem/StaticLightingPrivate.h"

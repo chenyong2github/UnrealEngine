@@ -9,6 +9,7 @@
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudComponent.h"
 #include "MeshDescription.h"
+#include "SceneView.h"
 #include "Selection.h"
 #include "StaticMeshAttributes.h"
 #include "AssetRegistry/AssetRegistryModule.h"

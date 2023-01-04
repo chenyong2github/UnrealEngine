@@ -13,6 +13,7 @@
 #include "EditorSupportDelegates.h"
 #include "EdMode.h"
 #include "Rendering/PositionVertexBuffer.h"
+#include "SceneView.h"
 #include "StaticMeshResources.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Framework/Application/SlateApplication.h"

@@ -9,6 +9,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "RenderUtils.h"
 #include "SceneInterface.h"
+#include "SceneView.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
 #include "Engine/DirectionalLight.h"

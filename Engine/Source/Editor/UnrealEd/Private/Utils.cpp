@@ -3,6 +3,7 @@
 
 #include "Utils.h"
 #include "EditorViewportClient.h"
+#include "SceneView.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"

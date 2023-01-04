@@ -47,6 +47,7 @@
 #include "Materials/MaterialExpressionMultiply.h"
 
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "EditorSupportDelegates.h"

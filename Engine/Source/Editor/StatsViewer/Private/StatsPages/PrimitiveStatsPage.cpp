@@ -14,6 +14,7 @@
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "UObject/UObjectIterator.h"
+#include "SceneInterface.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "LandscapeProxy.h"

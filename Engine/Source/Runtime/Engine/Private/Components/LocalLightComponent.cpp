@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Components/LocalLightComponent.h"
+#include "Engine/Scene.h"
 #include "LocalLightSceneProxy.h"
 #include "UObject/UnrealType.h"
 

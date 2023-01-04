@@ -42,6 +42,7 @@
 #include "SLevelViewportToolBar.h"
 #include "LevelViewportActions.h"
 #include "LevelEditorActions.h"
+#include "SceneView.h"
 #include "Slate/SceneViewport.h"
 #include "EditorShowFlags.h"
 #include "SLevelEditor.h"

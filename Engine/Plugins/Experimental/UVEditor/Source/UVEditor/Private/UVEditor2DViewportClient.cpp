@@ -17,6 +17,7 @@
 #include "Math/Box.h"
 #include "MathUtil.h"
 #include "CameraController.h"
+#include "SceneView.h"
 
 
 namespace FUVEditor2DViewportClientLocals {

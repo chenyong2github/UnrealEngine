@@ -23,6 +23,7 @@
 #include "UObject/Package.h"
 #include "Engine/TextureLightProfile.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Components/PointLightComponent.h"

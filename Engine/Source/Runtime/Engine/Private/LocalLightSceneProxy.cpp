@@ -7,6 +7,7 @@
 #include "LocalLightSceneProxy.h"
 #include "Components/LocalLightComponent.h"
 #include "Math/InverseRotationMatrix.h"
+#include "SceneView.h"
 
 /** Initialization constructor. */
 FLocalLightSceneProxy::FLocalLightSceneProxy(const ULocalLightComponent* Component)

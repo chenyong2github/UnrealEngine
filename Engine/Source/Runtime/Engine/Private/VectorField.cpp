@@ -30,6 +30,7 @@
 #include "Engine/Engine.h"
 #include "TextureResource.h"
 #include "GlobalRenderResources.h"
+#include "PipelineStateCache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VectorField)
 

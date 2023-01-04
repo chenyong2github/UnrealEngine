@@ -24,6 +24,7 @@
 #include "CanvasTypes.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "LevelEditorSubsystem.h"
+#include "SceneView.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //

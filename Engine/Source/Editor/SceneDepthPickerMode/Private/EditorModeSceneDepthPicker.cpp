@@ -7,6 +7,7 @@
 #include "EditorModes.h"
 #include "Editor/ActorPositioning.h"
 #include "Widgets/SWindow.h"
+#include "SceneView.h"
 
 
 #define LOCTEXT_NAMESPACE "SceneDepthPicker"

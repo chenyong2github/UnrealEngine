@@ -8,6 +8,7 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "GameTime.h"
+#include "PipelineStateCache.h"
 #include "ShaderParameterUtils.h"
 #include "RHIContext.h"
 #include "SimpleElementShaders.h"

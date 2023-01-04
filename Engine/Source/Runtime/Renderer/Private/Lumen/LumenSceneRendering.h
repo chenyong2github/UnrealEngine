@@ -8,6 +8,7 @@
 
 #include "CoreTypes.h"
 #include "MeshCardRepresentation.h"
+#include "SceneView.h"
 #include "ShaderParameterMacros.h"
 
 enum EShaderPlatform : uint16;

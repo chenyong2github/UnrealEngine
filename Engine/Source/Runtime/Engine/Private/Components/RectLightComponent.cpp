@@ -9,6 +9,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Texture2D.h"
 #include "RectLightSceneProxy.h"
+#include "SceneView.h"
 
 #include "DataDrivenShaderPlatformInfo.h"
 

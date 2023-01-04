@@ -5,6 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "EditorModeManager.h"
+#include "SceneView.h"
 #include "Selection.h"
 #include "EditorViewportClient.h"
 #include "EngineUtils.h"

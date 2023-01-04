@@ -12,6 +12,7 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "RenderingThread.h"
 #include "TextureResource.h"
 
 bool FGLTFTextureUtilities::IsAlphaless(EPixelFormat PixelFormat)

@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "UnrealWidgetFwd.h"
 #include "PaperEditorShared/AssetEditorSelectedItem.h"
 #include "SpriteEditorOnlyTypes.h"

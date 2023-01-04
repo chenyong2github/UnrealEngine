@@ -2,6 +2,7 @@
 
 
 #include "SEditorViewportViewMenu.h"
+#include "DebugViewModeHelpers.h"
 #include "SEditorViewportViewMenuContext.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"

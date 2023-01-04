@@ -18,6 +18,7 @@
 #if WITH_EDITOR
 #include "LevelEditor.h"
 #include "SLevelViewport.h"
+#include "SceneView.h"
 #endif
 
 namespace UE::VCamOutputRemoteSession::Private

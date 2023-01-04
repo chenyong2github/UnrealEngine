@@ -3,6 +3,7 @@
 #include "NiagaraBatchedElements.h"
 #include "GlobalRenderResources.h"
 #include "GlobalShader.h"
+#include "PipelineStateCache.h"
 #include "RHIStaticStates.h"
 #include "SimpleElementShaders.h"
 #include "ShaderParameterStruct.h"

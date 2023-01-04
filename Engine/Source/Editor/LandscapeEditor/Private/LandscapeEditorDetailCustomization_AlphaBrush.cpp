@@ -2,6 +2,7 @@
 
 #include "LandscapeEditorDetailCustomization_AlphaBrush.h"
 #include "UnrealClient.h"
+#include "ViewportClient.h"
 #include "Engine/Texture2D.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Modules/ModuleManager.h"

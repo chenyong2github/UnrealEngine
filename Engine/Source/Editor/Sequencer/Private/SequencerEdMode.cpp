@@ -15,6 +15,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "IKeyArea.h"
+#include "SceneView.h"
 #include "Sequencer.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"

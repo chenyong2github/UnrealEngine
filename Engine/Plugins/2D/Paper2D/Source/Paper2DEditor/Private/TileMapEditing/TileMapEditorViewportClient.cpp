@@ -4,6 +4,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "PaperTileMapComponent.h"
+#include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "CanvasItem.h"
 #include "Engine/Selection.h"

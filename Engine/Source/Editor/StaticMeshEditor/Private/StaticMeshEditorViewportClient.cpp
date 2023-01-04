@@ -4,6 +4,7 @@
 #include "EditorModeManager.h"
 #include "EngineGlobals.h"
 #include "RawIndexBuffer.h"
+#include "SceneView.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Editor.h"

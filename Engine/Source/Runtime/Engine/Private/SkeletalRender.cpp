@@ -9,6 +9,7 @@
 #include "Engine/SkinnedAssetCommon.h"
 #include "SkeletalRenderPublic.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "GPUSkinCache.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 

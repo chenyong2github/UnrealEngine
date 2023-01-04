@@ -25,6 +25,7 @@
 
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
+#include "SceneView.h"
 #include "SceneViewExtension.h"
 #include "Net/DataChannel.h"
 

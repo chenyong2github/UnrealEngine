@@ -11,6 +11,7 @@
 #include "SceneInterface.h"
 #include "TimerManager.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DecalComponent)

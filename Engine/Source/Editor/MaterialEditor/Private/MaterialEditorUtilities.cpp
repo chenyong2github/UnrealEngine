@@ -31,6 +31,7 @@
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionExecEnd.h"
 
+#include "DebugViewModeHelpers.h"
 #include "Toolkits/ToolkitManager.h"
 #include "MaterialEditor.h"
 #include "MaterialExpressionClasses.h"

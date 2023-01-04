@@ -8,6 +8,7 @@
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
 #include "EngineUtils.h"
+#include "Engine/GameViewportClient.h"
 #include "MovieSceneSection.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Sections/MovieSceneCinematicShotSection.h"

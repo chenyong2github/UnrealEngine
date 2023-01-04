@@ -4,6 +4,7 @@
 #include "UnrealWidgetFwd.h"
 #include "Materials/Material.h"
 #include "CanvasItem.h"
+#include "SceneView.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "EditorViewportClient.h"

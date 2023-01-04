@@ -27,6 +27,7 @@
 #include "HeightfieldLighting.h"
 #include "LightShaftRendering.h"
 #include "SkyAtmosphereRendering.h"
+#include "StaticBoundShaderState.h"
 #include "Templates/UniquePtr.h"
 #include "RenderGraphUtils.h"
 #include "MeshDrawCommands.h"

@@ -25,6 +25,7 @@
 #include "ImageUtils.h"
 #include "EngineUtils.h"
 #include "EngineModule.h"
+#include "RendererInterface.h"
 #include "TextureResource.h"
 
 static TAutoConsoleVariable<int32> CVarEnableVTFeedback(

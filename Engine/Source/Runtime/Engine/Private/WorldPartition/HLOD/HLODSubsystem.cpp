@@ -12,6 +12,7 @@
 #include "RenderUtils.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "SceneInterface.h"
+#include "SceneView.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "SceneManagement.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"

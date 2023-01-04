@@ -17,6 +17,7 @@
 #include "SEditorViewportViewMenu.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "Scalability.h"
+#include "SceneView.h"
 #include "SScalabilitySettings.h"
 #include "AssetEditorViewportLayout.h"
 #include "SAssetEditorViewport.h"

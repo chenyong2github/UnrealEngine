@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "TextureResource.h"
 #include "Engine/Texture.h"
+#include "StereoRendering.h"
 #if WITH_EDITOR
 #include "SceneManagement.h"
 #endif
