@@ -6,14 +6,13 @@
 
 #if RHI_RAYTRACING
 
-#include "MeshMaterialShader.h"
 #include "LightMapRendering.h"
+#include "MeshMaterialShader.h"
 #include "MeshPassProcessor.inl"
-
-enum class ERayTracingMeshCommandsMode : uint8;
-
 #include "RayTracingInstanceMask.h"
 #include "RayTracingPayloadType.h"
+
+enum class ERayTracingMeshCommandsMode : uint8;
 
 FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap);
 FRHIRayTracingShader* GetRayTracingDefaultOpaqueShader(const FGlobalShaderMap* ShaderMap);
