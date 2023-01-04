@@ -6,8 +6,6 @@
 #include "Algo/BinarySearch.h"
 #include "RigUnit_FitChainToCurve.h"
 
-#include "tinysplinecxx.h"
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSplineUnits)
 
 FRigUnit_ControlRigSplineFromPoints_Execute()
@@ -33,14 +31,12 @@ FRigUnit_SetSplinePoints_Execute()
 		return;
 	}
 	
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}	
-#endif
-	
+
 	if (Points.Num() != Spline.SplineData->GetControlPoints().Num())
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Number of input points does not match the number of point in the spline."));
@@ -58,13 +54,11 @@ FRigUnit_PositionFromControlRigSpline_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif
 	
 	Position = Spline.PositionAtParam(U);
 }
@@ -76,13 +70,11 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 	
 	FVector UpVectorNormalized = UpVector;
 	UpVectorNormalized.Normalize();
@@ -113,13 +105,11 @@ FRigUnit_TangentFromControlRigSpline_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 	
 	const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
 
@@ -148,13 +138,11 @@ FRigUnit_DrawControlRigSpline_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 
 	int32 Count = FMath::Clamp<int32>(Detail, 4, 64);
 	FRigVMDrawInstruction Instruction(ERigVMDrawSettings::LineStrip, Color, Thickness);
@@ -180,14 +168,12 @@ FRigUnit_GetLengthControlRigSpline_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		Length = 0;
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 	
 	Length = Spline.SplineData->AccumulatedLenth.Last();
 }
@@ -250,13 +236,11 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 
 	float& ChainLength = WorkData.ChainLength;
 	TArray<FVector>& ItemPositions = WorkData.ItemPositions;
@@ -673,13 +657,11 @@ FRigUnit_FitSplineCurveToChainItemArray_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 
 	if (Items.Num() < 4)
 	{
@@ -724,13 +706,11 @@ FRigUnit_ClosestParameterFromControlRigSpline_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 	
 	const int32 SampleCount = Spline.SplineData->SamplesArray.Num();
 
@@ -782,13 +762,11 @@ FRigUnit_ParameterAtPercentage_Execute()
 		return;
 	}
 
-#if !(USE_TINYSPLINE)
 	if (Spline.SplineData->Spline == nullptr)
 	{
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
-#endif	
 	
 	const int32 SampleCount = Spline.SplineData->SamplesArray.Num();
 

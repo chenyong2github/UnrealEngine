@@ -2,15 +2,8 @@
 
 #pragma once
 
-// Define to switch between spline using the thirdparty TinySpline implementation or
-// our native spline implementation
-#define USE_TINYSPLINE 0
-
 #include "CoreMinimal.h"
 #include "ControlRigDefines.h"
-#if USE_TINYSPLINE
-#include "tinysplinecxx.h"
-#endif
 #include "ControlRigSplineTypes.generated.h"
 
 class UControlRig;
@@ -30,7 +23,6 @@ enum class ESplineType : uint8
 	Max UMETA(Hidden),
 };
 
-#if !(USE_TINYSPLINE)
 // Reading material
 // 
 // https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/notes.html
@@ -86,7 +78,6 @@ public:
 
 };
 
-#endif
 
 USTRUCT()
 struct CONTROLRIGSPLINE_API FControlRigSplineImpl
@@ -96,9 +87,7 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	FControlRigSplineImpl()	
 	{
 		SplineMode = ESplineType::BSpline;
-#if !(USE_TINYSPLINE)
 		Spline = nullptr;
-#endif
 		SamplesPerSegment = 16;
 	}
 
@@ -107,20 +96,11 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	// Spline type
 	ESplineType SplineMode;
 
-#if USE_TINYSPLINE
-	// The control points to construct the spline
-	TArray<FVector> ControlPoints;
-#endif
-
 	// The initial lengths between samples
 	TArray<float> InitialLengths;
 
 	// The actual spline
-#if USE_TINYSPLINE
-	tinyspline::BSpline Spline;
-#else
 	ControlRigBaseSpline* Spline;
-#endif
 
 	// Samples per segment, where segment is the portion between two control points
 	int32 SamplesPerSegment;

@@ -8,8 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public ControlRigSpline(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "ThirdParty/TinySpline"));
-
 			PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

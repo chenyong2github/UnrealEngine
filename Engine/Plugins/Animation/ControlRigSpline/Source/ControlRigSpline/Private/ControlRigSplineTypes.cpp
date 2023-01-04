@@ -4,8 +4,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSplineTypes)
 
-#if !(USE_TINYSPLINE)
-
 ControlRigBaseSpline::ControlRigBaseSpline(const TArrayView<const FVector>& InControlPoints, const uint16 InDegree)
 : ControlPoints(InControlPoints)
 , Degree(InDegree)
@@ -170,27 +168,20 @@ FVector ControlRigHermite::GetPointAtParam(float Param)
 	FVector M2 = Tension * (P3 - P1);
 	return Hermite(P1, P2, M1, M2, T);
 }
-#endif
 
 FControlRigSplineImpl::~FControlRigSplineImpl()
 {
-#if !(USE_TINYSPLINE)
 	if (Spline)
 	{
 		delete Spline;
 		Spline = nullptr;
 	}
-#endif
 }
 
 TArray<FVector>& FControlRigSplineImpl::GetControlPoints()
 {
-#if USE_TINYSPLINE
-	return ControlPoints;
-#else
 	check(Spline);
 	return Spline->GetControlPoints();	
-#endif
 }
 
 FControlRigSpline::FControlRigSpline(const FControlRigSpline& InOther)
@@ -217,13 +208,8 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		SplineData = MakeShared<FControlRigSplineImpl>();
 	}
 
-#if USE_TINYSPLINE
-	bool bControlPointsChanged = InPoints != SplineData->GetControlPoints();
-	bool bNumControlPointsChanged = SplineData->GetControlPoints().Num() != ControlPointsCount;
-#else
 	bool bControlPointsChanged = (SplineData->Spline) ? InPoints != SplineData->GetControlPoints() : true;
 	bool bNumControlPointsChanged = (SplineData->Spline) ? SplineData->GetControlPoints().Num() != ControlPointsCount : true;
-#endif
 	bool bSplineModeChanged = SplineMode != SplineData->SplineMode;
 	bool bSamplesCountChanged = SamplesPerSegment != SplineData->SamplesPerSegment;
 	bool bStretchChanged = Stretch != SplineData->Stretch || Compression != SplineData->Compression;
@@ -232,9 +218,6 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		return;
 	}
 
-#if USE_TINYSPLINE
-	SplineData->ControlPoints = InPoints;
-#endif
 	SplineData->SplineMode = SplineMode;
 	SplineData->SamplesPerSegment = SamplesPerSegment;
 	SplineData->Compression = Compression;
@@ -243,42 +226,6 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 	// If we need to update the spline because the controls points have changed, or the spline mode has changed
 	if (bControlPointsChanged || bSplineModeChanged)
 	{	
-#if USE_TINYSPLINE
-		switch (SplineMode)
-		{
-			case ESplineType::BSpline:
-			{
-				if (bSplineModeChanged || bNumControlPointsChanged)
-				{
-					SplineData->Spline = tinyspline::BSpline(ControlPointsCount, 3);
-				}
-
-				// Update the positions of the control points
-
-				// There's no guarantee that FVector is a tightly packed array of three floats. 
-				// We have SIMD versions where we waste a dummy float to align it on a 16 byte boundary,
-				// so we need to iterate updating the points one by one.
-				for (int32 i = 0; i < ControlPointsCount; ++i)
-				{
-					FVector Point = InPoints[i];
-					ts_bspline_set_control_point_at(SplineData->Spline.data(), i, &Point.X, nullptr);
-				}
-
-				break;
-			}
-			case ESplineType::Hermite:
-			{
-				break;
-			}
-			default:
-			{
-				checkNoEntry(); // Unknown Spline Mode
-				break;
-			}
-		}
-
-#else
-
 		if (bNumControlPointsChanged || bSplineModeChanged)
 		{
 			// Delete previously created spline
@@ -312,81 +259,11 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		{
 			SplineData->Spline->SetControlPoints(InPoints);
 		}
-#endif
 	}
 
 	// If curve has changed, or sample count has changed, recompute the cache
 	if (bControlPointsChanged || bSplineModeChanged || bSamplesCountChanged || bStretchChanged)
 	{
-#if USE_TINYSPLINE
-		switch (SplineMode)
-		{
-			case ESplineType::BSpline:
-			{
-				// Cache sample positions of the spline
-				FVector::FReal* SamplesPtr = nullptr;
-				size_t ActualSamplesPerSegment = 0;
-				ts_bspline_sample(SplineData->Spline.data(), (ControlPointsCount - 1) * SamplesPerSegment, &SamplesPtr, &ActualSamplesPerSegment, nullptr);
-				SplineData->SamplesArray.SetNumUninitialized((ControlPointsCount - 1) * SamplesPerSegment, false);
-				for (int32 i = 0; i < ControlPointsCount - 1; ++i)
-				{
-					for (int32 j = 0; j < SamplesPerSegment; ++j)
-					{
-						SplineData->SamplesArray[i * SamplesPerSegment + j].X = SamplesPtr[(i * SamplesPerSegment + j) * 3];
-						SplineData->SamplesArray[i * SamplesPerSegment + j].Y = SamplesPtr[(i * SamplesPerSegment + j) * 3 + 1];
-						SplineData->SamplesArray[i * SamplesPerSegment + j].Z = SamplesPtr[(i * SamplesPerSegment + j) * 3 + 2];
-					}
-				}
-
-				// tinySpline will allocate the samples array, but does not free that memory. We need to take care of that.
-				free(SamplesPtr);
-
-				break;
-			}
-			case ESplineType::Hermite:
-			{
-				SplineData->SamplesArray.SetNumUninitialized((ControlPointsCount - 1) * SamplesPerSegment);
-				for (int32 i = 0; i < ControlPointsCount - 1; ++i)
-				{
-					const FVector P0 = (i > 0) ? InPoints[i-1] : 2*InPoints[0] - InPoints[1];
-					const FVector& P1 = InPoints[i];
-					const FVector& P2 = InPoints[i+1];
-					const FVector P3 = (i + 2 < ControlPointsCount) ? InPoints[i+2] : 2*InPoints.Last() - InPoints[ControlPointsCount-2];
-
-					// https://www.cs.cmu.edu/~fp/courses/graphics/asst5/catmullRom.pdf
-					float Tension = 0.5f;
-					FVector M1 = Tension * (P2 - P0);
-					FVector M2 = Tension * (P3 - P1);
-
-					float Dt = 1.f / (float) SamplesPerSegment;
-					if (i == ControlPointsCount - 2)
-					{
-						Dt = 1.f / (float) (SamplesPerSegment - 1);
-					}
-					for (int32 j = 0; j < SamplesPerSegment; ++j)
-					{
-						// https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull–Rom_spline
-						const float T = j  * Dt;
-						const float T2 = T*T;
-						const float T3 = T2*T;
-	
-						float H00 = 2*T3 - 3*T2 + 1;
-						float H10 = T3 - 2*T2 + T;
-						float H01 = -2*T3 + 3*T2;
-						float H11 = T3 - T2;
-
-						SplineData->SamplesArray[i * SamplesPerSegment + j] = H00*P1 + H10*M1 + H01*P2 + H11*M2;						
-					}
-				}
-				break;
-			}
-			default:
-			{
-				checkNoEntry(); // Unknown Spline Mode
-				break;
-			}
-		}
-#else
 		// Cache sample positions of the spline
 		int32 NumSamples = (ControlPointsCount-1) * SamplesPerSegment;
 		SplineData->SamplesArray.SetNumUninitialized(NumSamples, false);
@@ -397,7 +274,6 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		{
 			SplineData->SamplesArray[i] = SplineData->Spline->GetPointAtParam(U); 
 		}
-#endif
 
 		// Correct length of samples
 		if (!bSplineModeChanged && !bSamplesCountChanged && !bNumControlPointsChanged)
