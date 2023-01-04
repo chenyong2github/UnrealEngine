@@ -160,7 +160,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 	// Mimalloc is now the default allocator for editor and programs because it has shown
 	// both great performance and as much as half the memory usage of TBB after
 	// heavy editor workloads. See CL 15887498 description for benchmarks.
-#if (WITH_EDITORONLY_DATA || IS_PROGRAM) && PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+#if (WITH_EDITORONLY_DATA || IS_PROGRAM) && MIMALLOC_ENABLED
 	AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
 #endif
 
@@ -192,7 +192,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 				break;
 			}
 
-#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+#if MIMALLOC_ENABLED
 			if (FCStringAnsi::Stricmp(Arg, "-mimalloc") == 0)
 			{
 				AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
@@ -324,7 +324,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 		break;
 #endif // PLATFORM_SUPPORTS_JEMALLOC
 
-#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED && PLATFORM_BUILDS_MIMALLOC
+#if MIMALLOC_ENABLED
 	case EMemoryAllocatorToUse::Mimalloc:
 		Allocator = new FMallocMimalloc();
 		break;

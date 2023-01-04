@@ -69,7 +69,7 @@ FMalloc* FHoloLensPlatformMemory::BaseAllocator()
 {
 #if FORCE_ANSI_ALLOCATOR
 	return new FMallocAnsi();
-#elif (WITH_EDITORONLY_DATA || IS_PROGRAM) && TBB_ALLOCATOR_ALLOWED
+#elif (WITH_EDITORONLY_DATA || IS_PROGRAM) && TBBMALLOC_ENABLED
 	return new FMallocTBB();
 #else
 	return new FMallocBinned3();

@@ -129,12 +129,12 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 	// Mimalloc is now the default allocator for editor and programs because it has shown
 	// both great performance and as much as half the memory usage of TBB after
 	// heavy editor workloads. See CL 15887498 description for benchmarks.
-	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && MIMALLOC_ALLOCATOR_ALLOWED) //-V517
+	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && MIMALLOC_ENABLED) //-V517
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
 	}
 #endif
-	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && TBB_ALLOCATOR_ALLOWED) //-V517
+	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && TBBMALLOC_ENABLED) //-V517
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::TBB;
 	}
@@ -162,13 +162,13 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 		// see FPlatformMisc::GetProcessDiagnostics()
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	}
-#if TBB_ALLOCATOR_ALLOWED
+#if TBBMALLOC_ENABLED
 	else if (FCString::Stristr(CommandLine, TEXT("-tbbmalloc")))
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::TBB;
 	}
 #endif
-#if MIMALLOC_ALLOCATOR_ALLOWED
+#if MIMALLOC_ENABLED
 	else if (FCString::Stristr(CommandLine, TEXT("-mimalloc")))
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
@@ -217,7 +217,7 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 	case EMemoryAllocatorToUse::Stomp:
 		return new FMallocStomp();
 #endif
-#if TBB_ALLOCATOR_ALLOWED
+#if TBBMALLOC_ENABLED
 	case EMemoryAllocatorToUse::TBB:
 		return new FMallocTBB();
 #endif

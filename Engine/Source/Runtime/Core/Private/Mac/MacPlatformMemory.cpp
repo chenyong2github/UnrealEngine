@@ -68,7 +68,7 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	}
-	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && TBB_ALLOCATOR_ALLOWED)
+	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && TBBMALLOC_ENABLED)
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::TBB;
 	}
@@ -92,12 +92,12 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 		AllocatorToUse = EMemoryAllocatorToUse::Stomp;
 	}
 #endif // WITH_MALLOC_STOMP
-#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+#if MIMALLOC_ENABLED
 	else if (HasArg("-mimalloc"))
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
 	}
-#endif // PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+#endif // MIMALLOC_ENABLED
 
 	// Force ANSI malloc with TSAN
 #if defined(__has_feature)
@@ -114,11 +114,11 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 	case EMemoryAllocatorToUse::Stomp:
 		return new FMallocStomp();
 #endif
-#if TBB_ALLOCATOR_ALLOWED
+#if TBBMALLOC_ENABLED
 	case EMemoryAllocatorToUse::TBB:
 		return new FMallocTBB();
 #endif
-#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED && PLATFORM_BUILDS_MIMALLOC
+#if MIMALLOC_ENABLED
 	case EMemoryAllocatorToUse::Mimalloc:
 		return new FMallocMimalloc();
 #endif

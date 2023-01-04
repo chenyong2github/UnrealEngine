@@ -12,7 +12,7 @@
 #endif
 
 // Only use for supported platforms
-#if PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED
+#if TBBMALLOC_ENABLED
 
 /** Value we fill a memory block with after it is free, in UE_BUILD_DEBUG **/
 #define DEBUG_FILL_FREED (0xdd)
@@ -176,4 +176,4 @@ void FMallocTBB::Trim(bool bTrimThreadCaches)
 #undef DEBUG_FILL_FREED
 #undef DEBUG_FILL_NEW
 
-#endif // PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED
+#endif // TBBMALLOC_ENABLED
