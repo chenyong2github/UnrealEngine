@@ -14,6 +14,7 @@ namespace Metasound
 		void SMetasoundGraphEnumPin::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 		{
 			SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
+			CacheAccessType();
 		}
 
 		TSharedRef<SWidget> SMetasoundGraphEnumPin::GetDefaultValueWidget()
