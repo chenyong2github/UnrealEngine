@@ -484,6 +484,11 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->NodeHeight = ModelNode->GetSize().Y;
 					NewNode->CommentColor = ModelNode->GetNodeColor();
 					NewNode->NodeComment = CommentModelNode->GetCommentText();
+					NewNode->FontSize = CommentModelNode->GetCommentFontSize();
+					NewNode->bCommentBubbleVisible = CommentModelNode->GetCommentBubbleVisible();
+					NewNode->bCommentBubbleVisible_InDetailsPanel = CommentModelNode->GetCommentBubbleVisible();
+					NewNode->bCommentBubblePinned = CommentModelNode->GetCommentBubbleVisible();
+					NewNode->bColorCommentBubble = CommentModelNode->GetCommentColorBubble();
 					NewNode->SetFlags(RF_Transactional);
 					NewNode->GetNodesUnderComment();
 
