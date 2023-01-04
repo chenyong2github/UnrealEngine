@@ -10,6 +10,7 @@
 
 class UMediaPlayer;
 class UMediaSource;
+class UMediaTexture;
 
 /**
  * Implements an Editor toolkit for media sources.
@@ -111,6 +112,9 @@ private:
 
 	/** The media source asset being edited. */
 	TObjectPtr<UMediaSource> MediaSource;
+
+	/** The media texture to output the media to. */
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	/** Pointer to the style set to use for toolkits. */
 	TSharedRef<ISlateStyle> Style;

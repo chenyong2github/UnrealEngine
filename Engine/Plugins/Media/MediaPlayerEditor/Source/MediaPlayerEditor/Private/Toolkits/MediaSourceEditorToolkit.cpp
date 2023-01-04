@@ -8,13 +8,13 @@
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
+#include "MediaTexture.h"
 #include "Models/MediaPlayerEditorCommands.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SMediaPlayerEditorDetails.h"
-#include "Widgets/SMediaPlayerEditorInfo.h"
-#include "Widgets/SMediaPlayerEditorMedia.h"
+#include "Widgets/SMediaPlayerEditorMediaDetails.h"
 #include "Widgets/SMediaPlayerEditorPlaylist.h"
 #include "Widgets/SMediaPlayerEditorStats.h"
 #include "Widgets/SMediaPlayerEditorViewer.h"
@@ -29,7 +29,7 @@ namespace MediaSourceEditorToolkit
 {
 	static const FName AppIdentifier("MediaSourceEditorApp");
 	static const FName DetailsTabId("Details");
-	static const FName InfoTabId("Info");
+	static const FName MediaDetailsTabId("MediaDetails");
 	static const FName PlayerDetailsTabId("PlayerDetails");
 	static const FName ViewerTabId("Viewer");
 }
@@ -41,6 +41,7 @@ namespace MediaSourceEditorToolkit
 FMediaSourceEditorToolkit::FMediaSourceEditorToolkit(const TSharedRef<ISlateStyle>& InStyle)
 	: MediaPlayer(nullptr)
 	, MediaSource(nullptr)
+	, MediaTexture(nullptr)
 	, Style(InStyle)
 { }
 
@@ -74,10 +75,18 @@ void FMediaSourceEditorToolkit::Initialize(UMediaSource* InMediaSource, const ET
 	MediaPlayer->SetLooping(false);
 	MediaPlayer->PlayOnOpen = true;
 
+	MediaTexture = NewObject<UMediaTexture>(GetTransientPackage(), NAME_None, RF_Transient | RF_Public);
+	if (MediaTexture != nullptr)
+	{
+		MediaTexture->AutoClear = true;
+		MediaTexture->SetMediaPlayer(MediaPlayer);
+		MediaTexture->UpdateResource();
+	}
+
 	BindCommands();
 
 	// create tab layout
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaSourceEditor_v0.2")
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaSourceEditor_v0.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -100,7 +109,7 @@ void FMediaSourceEditorToolkit::Initialize(UMediaSource* InMediaSource, const ET
 						(
 							// Media details tab.
 							FTabManager::NewStack()
-							->AddTab(MediaSourceEditorToolkit::InfoTabId, ETabState::OpenedTab)
+							->AddTab(MediaSourceEditorToolkit::MediaDetailsTabId, ETabState::OpenedTab)
 							->SetSizeCoefficient(0.2f)
 						)
 						->Split
@@ -160,8 +169,8 @@ void FMediaSourceEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	InTabManager->RegisterTabSpawner(MediaSourceEditorToolkit::InfoTabId, FOnSpawnTab::CreateSP(this, &FMediaSourceEditorToolkit::HandleTabManagerSpawnTab, MediaSourceEditorToolkit::InfoTabId))
-		.SetDisplayName(LOCTEXT("InfoTabName", "Info"))
+	InTabManager->RegisterTabSpawner(MediaSourceEditorToolkit::MediaDetailsTabId, FOnSpawnTab::CreateSP(this, &FMediaSourceEditorToolkit::HandleTabManagerSpawnTab, MediaSourceEditorToolkit::MediaDetailsTabId))
+		.SetDisplayName(LOCTEXT("MediaDetailsTabName", "Media Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(Style->GetStyleSetName(), "MediaPlayerEditor.Tabs.Info"));
 
@@ -183,7 +192,7 @@ void FMediaSourceEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTa
 
 	InTabManager->UnregisterTabSpawner(MediaSourceEditorToolkit::ViewerTabId);
 	InTabManager->UnregisterTabSpawner(MediaSourceEditorToolkit::PlayerDetailsTabId);
-	InTabManager->UnregisterTabSpawner(MediaSourceEditorToolkit::InfoTabId);
+	InTabManager->UnregisterTabSpawner(MediaSourceEditorToolkit::MediaDetailsTabId);
 	InTabManager->UnregisterTabSpawner(MediaSourceEditorToolkit::DetailsTabId);
 }
 
@@ -222,6 +231,7 @@ void FMediaSourceEditorToolkit::AddReferencedObjects(FReferenceCollector& Collec
 {
 	Collector.AddReferencedObject(MediaPlayer);
 	Collector.AddReferencedObject(MediaSource);
+	Collector.AddReferencedObject(MediaTexture);
 }
 
 
@@ -383,9 +393,9 @@ TSharedRef<SDockTab> FMediaSourceEditorToolkit::HandleTabManagerSpawnTab(const F
 	{
 		TabWidget = SNew(SMediaSourceEditorDetails, *MediaSource, Style);
 	}
-	else if (TabIdentifier == MediaSourceEditorToolkit::InfoTabId)
+	else if (TabIdentifier == MediaSourceEditorToolkit::MediaDetailsTabId)
 	{
-		TabWidget = SNew(SMediaPlayerEditorInfo, *MediaPlayer, Style);
+		TabWidget = SNew(SMediaPlayerEditorMediaDetails, MediaPlayer, MediaTexture);
 	}
 	else if (TabIdentifier == MediaSourceEditorToolkit::PlayerDetailsTabId)
 	{
@@ -393,7 +403,7 @@ TSharedRef<SDockTab> FMediaSourceEditorToolkit::HandleTabManagerSpawnTab(const F
 	}
 	else if (TabIdentifier == MediaSourceEditorToolkit::ViewerTabId)
 	{
-		TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, nullptr, Style, true)
+		TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, Style, true)
 			.bShowUrl(false);
 	}
 
