@@ -100,7 +100,7 @@ struct FFrameNumberInterface : public INumericTypeInterface<double>
 
 			static const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
 				.SetUseGrouping(false)
-				.SetMinimumFractionalDigits(ZeroPadFramesAttr.Get())
+				.SetMinimumFractionalDigits(2)
 				.SetMaximumFractionalDigits(ZeroPadFramesAttr.Get());
 			return FastDecimalFormat::NumberToString(TimeInSeconds, ExpressionParser::GetLocalizedNumberFormattingRules(), NumberFormattingOptions);
 		}
