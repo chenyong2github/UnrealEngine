@@ -5,6 +5,7 @@
 #include "AssetDefinition.h"
 #include "ContentBrowserDataSource.h"
 #include "IAssetTools.h"
+#include "IContentBrowserDataModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetViewUtils.h"
 #include "AssetTypeActivationOpenedMethod.h"
@@ -202,6 +203,17 @@ bool CanEditItem(IAssetTools* InAssetTools, const UContentBrowserDataSource* InO
 
 bool CanEditAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, FText* OutErrorMsg)
 {
+	if (UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem())
+	{
+		const TSharedRef<FPathPermissionList>& EditableFolderFilter = ContentBrowserDataSubsystem->GetEditableFolderPermissionList();
+		FName FolderPath = InAssetPayload.GetAssetData().PackageName;
+		if (!EditableFolderFilter->PassesStartsWithFilter(FolderPath))
+		{
+			SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsNotEditable", "Content in folder '{0}' is not editable"), FText::FromName(FolderPath)));
+			return false;
+		}
+	}
+
 	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
 	{
 		return false;

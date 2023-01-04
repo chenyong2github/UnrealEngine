@@ -20,6 +20,7 @@
 #include "EditorSubsystem.h"
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/NamePermissionList.h"
 #include "Misc/StringBuilder.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
@@ -91,6 +92,7 @@ class CONTENTBROWSERDATA_API UContentBrowserDataSubsystem : public UEditorSubsys
 public:
 	friend class FScopedSuppressContentBrowserDataTick;
 
+	UContentBrowserDataSubsystem();
 	//~ UEditorSubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
@@ -332,6 +334,12 @@ public:
 	 */
 	const FString& GetAllFolderPrefix() const;
 
+	/**
+	 * Permission list that controls whether content in a given folder path can be edited.
+	 * Note: This does not control if the folder path is writable or if content can be deleted.
+	 */
+	TSharedRef<FPathPermissionList>& GetEditableFolderPermissionList();
+
 private:
 	using FNameToDataSourceMap = TSortedMap<FName, UContentBrowserDataSource*, FDefaultAllocator, FNameFastLess>;
 
@@ -461,6 +469,9 @@ private:
 	 * Prefix to use when generating virtual paths and "Show All Folder" option is enabled
 	 */
 	FString AllFolderPrefix;
+
+	/** Permission list of folder paths we can edit */
+	TSharedRef<FPathPermissionList> EditableFolderPermissionList;
 };
 
 /**

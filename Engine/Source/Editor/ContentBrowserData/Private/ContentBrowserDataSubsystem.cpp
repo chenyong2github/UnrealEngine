@@ -72,6 +72,11 @@ namespace ContentBrowserDataSubsystem
 	));
 }
 
+UContentBrowserDataSubsystem::UContentBrowserDataSubsystem()
+	: EditableFolderPermissionList(MakeShared<FPathPermissionList>())
+{
+
+}
 void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	AllFolderPrefix = TEXT("/All");
@@ -892,6 +897,11 @@ FContentBrowserGenerateVirtualPathDelegate& UContentBrowserDataSubsystem::OnGene
 const FString& UContentBrowserDataSubsystem::GetAllFolderPrefix() const
 {
 	return AllFolderPrefix;
+}
+
+TSharedRef<FPathPermissionList>& UContentBrowserDataSubsystem::GetEditableFolderPermissionList()
+{
+	return EditableFolderPermissionList;
 }
 
 EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(const FStringView InPath, FStringBuilderBase& OutPath) const

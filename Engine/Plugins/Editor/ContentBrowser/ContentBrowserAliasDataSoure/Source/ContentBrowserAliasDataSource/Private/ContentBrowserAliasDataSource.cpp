@@ -13,6 +13,7 @@
 #include "Modules/ModuleManager.h"
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
+#include "IContentBrowserDataModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserAliasDataSource)
 
@@ -670,7 +671,7 @@ bool UContentBrowserAliasDataSource::CanEditItem(const FContentBrowserItemData& 
 {
 	if (TSharedPtr<const FContentBrowserAliasItemDataPayload> AliasPayload = StaticCastSharedPtr<const FContentBrowserAliasItemDataPayload>(InItem.GetPayload()))
 	{
-		// Both the alias path and asset path must pass the writable folder filter in order to be editable
+		// Both the alias path and asset path must pass the writable folder filter and editable folder filter in order to be editable
 		const TSharedRef<FPathPermissionList>& WritableFolderFilter = AssetTools->GetWritableFolderPermissionList();
 		if (!WritableFolderFilter->PassesStartsWithFilter(AliasPayload->Alias.Value))
 		{
@@ -679,6 +680,16 @@ bool UContentBrowserAliasDataSource::CanEditItem(const FContentBrowserItemData& 
 				*OutErrorMsg = FText::Format(NSLOCTEXT("ContentBrowserAliasDataSource", "Error_FolderIsLocked", "Alias '{0}' is in a locked folder"), FText::FromName(AliasPayload->Alias.Value));
 			}
 			return false;
+		}
+
+		if (UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem())
+		{
+			const TSharedRef<FPathPermissionList>& EditableFolderFilter = ContentBrowserDataSubsystem->GetEditableFolderPermissionList();
+			if (!EditableFolderFilter->PassesStartsWithFilter(AliasPayload->Alias.Value))
+			{
+				*OutErrorMsg = FText::Format(NSLOCTEXT("ContentBrowserAliasDataSource", "Error_FolderIsNotEditable", "Content in folder '{0}' is not editable"), FText::FromName(AliasPayload->Alias.Value));
+				return false;
+			}
 		}
 	}
 	return ContentBrowserAssetData::CanEditItem(AssetTools, this, InItem, OutErrorMsg);
@@ -737,6 +748,21 @@ bool UContentBrowserAliasDataSource::SaveItem(const FContentBrowserItemData& InI
 bool UContentBrowserAliasDataSource::BulkSaveItems(TArrayView<const FContentBrowserItemData> InItems, const EContentBrowserItemSaveFlags InSaveFlags)
 {
 	return ContentBrowserAssetData::SaveItems(AssetTools, this, InItems, InSaveFlags);
+}
+
+bool UContentBrowserAliasDataSource::CanPrivatizeItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
+{
+	return ContentBrowserAssetData::CanPrivatizeItem(AssetTools, AssetRegistry, this, InItem, OutErrorMsg);
+}
+
+bool UContentBrowserAliasDataSource::PrivatizeItem(const FContentBrowserItemData& InItem)
+{
+	return ContentBrowserAssetData::PrivatizeItems(AssetTools, AssetRegistry, this, MakeArrayView(&InItem, 1));
+}
+
+bool UContentBrowserAliasDataSource::BulkPrivatizeItems(TArrayView<const FContentBrowserItemData> InItems)
+{
+	return ContentBrowserAssetData::PrivatizeItems(AssetTools, AssetRegistry, this, InItems);
 }
 
 bool UContentBrowserAliasDataSource::AppendItemReference(const FContentBrowserItemData& InItem, FString& InOutStr)
