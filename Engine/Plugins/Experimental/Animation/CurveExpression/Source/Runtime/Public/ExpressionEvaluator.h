@@ -157,6 +157,8 @@ private:
 		ParenOpen,			// '('
 		ParenClose,			// ')'
 		Comma,				// ','
+
+		Max					// Must be last
 	};
 	using FToken = TVariant<EOperatorToken, /* Identifier */ FName, /* Value */ float>;
 	
