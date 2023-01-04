@@ -13,6 +13,7 @@
 class FDMXControlConsole;
 class FDMXControlConsoleSelection;
 class SDMXControlConsoleFaderGroupRowView;
+class SDMXControlConsolePresetWidget;
 class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsole;
@@ -79,6 +80,9 @@ private:
 
 	/** Reference to the container widget of this DMX Control Console's Fader Group Rows slots */
 	TSharedPtr<SVerticalBox> FaderGroupRowsVerticalBox;
+
+	/** Widget to handle saving/loading of Control Console's data */
+	TSharedPtr<SDMXControlConsolePresetWidget> ControlConsolePresetWidget;
 
 	/** Shows DMX Control Console's details */
 	TSharedPtr<IDetailsView> ControlConsoleDetailsView;

@@ -4,27 +4,17 @@
 
 #include "DMXEditorModule.h"
 #include "DMXControlConsole.h"
+#include "DMXControlConsolePreset.h"
 #include "DMXControlConsoleSelection.h"
-#include "Commands/DMXControlConsoleCommands.h"
 
+#include "AssetToolsModule.h"
 #include "ScopedTransaction.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/Commands/UICommandList.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsole"
 
 TSharedPtr<FDMXControlConsoleManager> FDMXControlConsoleManager::Instance;
-
-FDMXControlConsoleManager::FDMXControlConsoleManager()
-{
-	ControlConsole = NewObject<UDMXControlConsole>(GetTransientPackage(), NAME_None, RF_Transactional);
-
-	FDMXControlConsoleCommands::Register();
-	ControlConsoleCommands = MakeShareable(new FUICommandList());
-
-	FCoreDelegates::OnEnginePreExit.AddRaw(this, &FDMXControlConsoleManager::Destroy);
-}
 
 FDMXControlConsoleManager::~FDMXControlConsoleManager()
 {
@@ -57,55 +47,70 @@ TSharedRef<FDMXControlConsoleSelection> FDMXControlConsoleManager::GetSelectionH
 	return SelectionHandler.ToSharedRef();
 }
 
-void FDMXControlConsoleManager::SetupCommands()
+UDMXControlConsolePreset* FDMXControlConsoleManager::CreateNewPreset(const FString& InAssetPath, const FString& InAssetName)
 {
-	if (!ensureAlwaysMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't setup commands correctly.")))
+	FString PackageName;
+	FString AssetName;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(InAssetPath / InAssetName, TEXT(""), PackageName, AssetName);
+
+	UPackage* Package = CreatePackage(*PackageName);
+	check(Package);
+	Package->FullyLoad();
+
+	UDMXControlConsolePreset* NewPreset = NewObject<UDMXControlConsolePreset>(Package, FName(AssetName), RF_Public | RF_Standalone | RF_Transactional);
+	UDMXControlConsole* CurrentControlConsole = FDMXControlConsoleManager::Get().GetDMXControlConsole();
+	NewPreset->SetControlConsole(CurrentControlConsole);
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	FAssetRegistryModule::AssetCreated(NewPreset);
+	Package->MarkPackageDirty();
+
+	return NewPreset;
+}
+
+void FDMXControlConsoleManager::LoadFromPreset(const UDMXControlConsolePreset* Preset)
+{
+	if (!Preset)
 	{
 		return;
 	}
 
-	ControlConsoleCommands->MapAction
-	(
-		FDMXControlConsoleCommands::Get().PlayDMX,
-		FExecuteAction::CreateUObject(ControlConsole, &UDMXControlConsole::PlayDMX),
-		FCanExecuteAction::CreateLambda([this]
-			{
-				return !ControlConsole->IsPlayingDMX();
-			}),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateLambda([this]
-			{
-				return !ControlConsole->IsPlayingDMX();
-			})
-	);
+	UDMXControlConsole* NewControlConsole = Preset->GetControlConsole();
+	if (!NewControlConsole || NewControlConsole == ControlConsole)
+	{
+		return;
+	}
 
-	ControlConsoleCommands->MapAction
-	(
-		FDMXControlConsoleCommands::Get().StopDMX,
-		FExecuteAction::CreateUObject(ControlConsole, &UDMXControlConsole::StopDMX),
-		FCanExecuteAction::CreateLambda([this]
-			{
-				return ControlConsole->IsPlayingDMX();
-			}),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateLambda([this]
-			{
-				return ControlConsole->IsPlayingDMX();
-			})
-	);
+	ControlConsole->StopDMX();
+	ControlConsole = NewControlConsole;
+	ControlConsole->SetForceRefresh(true);
 
-	ControlConsoleCommands->MapAction
-	(
-		FDMXControlConsoleCommands::Get().ClearAll,
-		FExecuteAction::CreateSP(this, &FDMXControlConsoleManager::ClearAll)
-	);
+	OnControlConsoleLoaded.Broadcast();
 }
 
-void FDMXControlConsoleManager::Destroy()
+void FDMXControlConsoleManager::PlayDMX()
 {
-	ControlConsole->StopDMX();
+	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't play DMX correctly.")))
+	{
+		return;
+	}
 
-	Instance.Reset();
+	ControlConsole->PlayDMX();
+}
+
+void FDMXControlConsoleManager::StopDMX()
+{
+	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
+	{
+		ControlConsole->StopDMX();
+	}
+}
+
+bool FDMXControlConsoleManager::IsPlayingDMX() const
+{
+	return IsValid(ControlConsole) && ControlConsole->IsPlayingDMX();
 }
 
 void FDMXControlConsoleManager::ClearAll()
@@ -121,6 +126,20 @@ void FDMXControlConsoleManager::ClearAll()
 	ControlConsole->Modify();
 
 	ControlConsole->Reset();
+}
+
+FDMXControlConsoleManager::FDMXControlConsoleManager()
+{
+	ControlConsole = NewObject<UDMXControlConsole>(GetTransientPackage(), NAME_None, RF_Transactional);
+
+	FCoreDelegates::OnEnginePreExit.AddRaw(this, &FDMXControlConsoleManager::Destroy);
+}
+
+void FDMXControlConsoleManager::Destroy()
+{
+	ControlConsole->StopDMX();
+
+	Instance.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

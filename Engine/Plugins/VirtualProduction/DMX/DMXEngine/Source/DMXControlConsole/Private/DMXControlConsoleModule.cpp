@@ -22,14 +22,7 @@ const FName FDMXControlConsoleModule::ControlConsoleTabName("DMXControlConsoleTa
 void FDMXControlConsoleModule::StartupModule()
 {
 	FDMXControlConsoleCommands::Register();
-
-	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	const TSharedRef<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
-
-	CommandList->MapAction(
-		FDMXControlConsoleCommands::Get().OpenControlConsole,
-		FExecuteAction::CreateStatic(&FDMXControlConsoleModule::OpenControlConsole)
-	);
+	RegisterControlConsoleActions();
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 		ControlConsoleTabName, 
@@ -43,6 +36,43 @@ void FDMXControlConsoleModule::StartupModule()
 
 void FDMXControlConsoleModule::ShutdownModule()
 {
+}
+
+void FDMXControlConsoleModule::RegisterControlConsoleActions()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	const TSharedRef<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
+
+	CommandList->MapAction(
+		FDMXControlConsoleCommands::Get().OpenControlConsole,
+		FExecuteAction::CreateStatic(&FDMXControlConsoleModule::OpenControlConsole)
+	);
+
+	FDMXControlConsoleManager& ControlConsoleManager = FDMXControlConsoleManager::Get();
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleCommands::Get().PlayDMX,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::PlayDMX),
+		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanPlayDMX),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanPlayDMX)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleCommands::Get().StopDMX,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::StopDMX),
+		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanStopDMX),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanStopDMX)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleCommands::Get().ClearAll,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::ClearAll)
+	);
 }
 
 void FDMXControlConsoleModule::RegisterDMXMenuExtender()

@@ -8,6 +8,7 @@
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsoleManager.h"
+#include "DMXControlConsolePreset.h"
 #include "DMXControlConsoleSelection.h"
 #include "Commands/DMXControlConsoleCommands.h"
 #include "Customizations/DMXControlConsoleDetails.h"
@@ -15,14 +16,16 @@
 #include "Style/DMXControlConsoleStyle.h"
 #include "Views/SDMXControlConsoleFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleAddButton.h"
+#include "Widgets/SDMXControlConsolePresetWidget.h"
 
 #include "IDetailsView.h"
-#include "ScopedTransaction.h"
+#include "LevelEditor.h"
 #include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
 #include "Application/ThrottleManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Layout/Visibility.h"
 #include "Modules/ModuleManager.h"
+#include "Layout/Visibility.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
@@ -44,7 +47,7 @@ SDMXControlConsoleView::~SDMXControlConsoleView()
 void SDMXControlConsoleView::Construct(const FArguments& InArgs)
 {
 	FDMXControlConsoleManager& ControlConsoleManager = FDMXControlConsoleManager::Get();
-	ControlConsoleManager.SetupCommands();
+	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
 
 	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
 	SelectionHandler->GetOnFaderGroupSelectionChanged().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
@@ -173,13 +176,7 @@ void SDMXControlConsoleView::Construct(const FArguments& InArgs)
 			]
 		];
 	
-	const TObjectPtr<UDMXControlConsole> ControlConsole = GetControlConsole();
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't add new fader group row correctly.")))
-	{
-		return;
-	}
-
-	ControlConsoleDetailsView->SetObject(ControlConsole);
+	UpdateDetailsViews();
 }
 
 UDMXControlConsole* SDMXControlConsoleView::GetControlConsole() const
@@ -197,7 +194,7 @@ void SDMXControlConsoleView::Tick(const FGeometry& AllottedGeometry, const doubl
 
 	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole->GetFaderGroupRows();
 
-	if (FaderGroupRows.Num() == FaderGroupRowViews.Num())
+	if (FaderGroupRows.Num() == FaderGroupRowViews.Num() && !ControlConsole->HasForceRefresh())
 	{
 		return;
 	}
@@ -210,13 +207,17 @@ void SDMXControlConsoleView::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		OnFaderGroupRowRemoved();
 	}
+
+	ControlConsole->SetForceRefresh(false);
 }
 
 TSharedRef<SWidget> SDMXControlConsoleView::GenerateToolbar()
 {
-	const TSharedPtr<FUICommandList> CommandList = FDMXControlConsoleManager::Get().GetControlConsoleCommands();
-	FSlimHorizontalToolBarBuilder ToolbarBuilder = FSlimHorizontalToolBarBuilder(CommandList, FMultiBoxCustomization::None);
+	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	const TSharedPtr<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
 
+	FSlimHorizontalToolBarBuilder ToolbarBuilder = FSlimHorizontalToolBarBuilder(CommandList, FMultiBoxCustomization::None);
+	
 	ToolbarBuilder.BeginSection("Picking");
 	{
 		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleCommands::Get().PlayDMX,
@@ -240,15 +241,30 @@ TSharedRef<SWidget> SDMXControlConsoleView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
+	ToolbarBuilder.BeginSection("Saving");
+	{
+		SAssignNew(ControlConsolePresetWidget, SDMXControlConsolePresetWidget);
+
+		ToolbarBuilder.AddWidget(ControlConsolePresetWidget.ToSharedRef());
+	}
+	ToolbarBuilder.EndSection();
+
 	return ToolbarBuilder.MakeWidget();
 }
 
 void SDMXControlConsoleView::UpdateDetailsViews()
 {
-	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
-	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroups = SelectionHandler->GetSelectedFaderGroups();
+	UDMXControlConsole* ControlConsole = GetControlConsole();
+	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't update details view correctly.")))
+	{
+		return;
+	}
 
 	constexpr bool bForceRefresh = true;
+	ControlConsoleDetailsView->SetObject(ControlConsole, bForceRefresh);
+
+	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroups = SelectionHandler->GetSelectedFaderGroups();
 	FaderGroupsDetailsView->SetObjects(SelectedFaderGroups, bForceRefresh);
 
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaders = SelectionHandler->GetSelectedFaders();

@@ -18,6 +18,8 @@ public class DMXControlConsole : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetTools",
+				"AssetRegistry",
 				"CoreUObject",
 				"DMXEditor",
 				"DMXProtocol",

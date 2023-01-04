@@ -55,6 +55,12 @@ public:
 	/** Resets the DMX Control Console to its default */
 	void Reset();
 
+	/** Sets bForceRefresh condition */
+	void SetForceRefresh(bool bRefresh);
+
+	/** True if this Control Console needs to be refreshed */
+	bool HasForceRefresh() const { return bForceRefresh; }
+
 	// Property Name getters
 	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsole, DMXLibrary); }
 	FORCEINLINE static FName GetFaderGroupRowsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsole, FaderGroupRows); }
@@ -79,11 +85,11 @@ private:
 	void ClearFaderGroupRows();
 
 	/** Library used to generate Fader Groups */
-	UPROPERTY(EditAnywhere, Category = "DMX DMX Control Console")
+	UPROPERTY(EditAnywhere, Category = "DMX Control Console")
 	TWeakObjectPtr<UDMXLibrary> DMXLibrary;
 
 	/** DMX Control Console's Fader Group Rows array */
-	UPROPERTY(VisibleAnywhere, Category = "DMX DMX Control Console")
+	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console")
 	TArray<TObjectPtr<UDMXControlConsoleFaderGroupRow>> FaderGroupRows;
 
 	/** Output ports to output dmx to */
@@ -91,4 +97,7 @@ private:
 
 	/** Shows if DMX is playing on this DMX Control Console or not */
 	bool bIsPlayingDMX = false;
+
+	/** Shows wheter this ControlConsole needs to be refreshed or not */
+	bool bForceRefresh = false;
 };

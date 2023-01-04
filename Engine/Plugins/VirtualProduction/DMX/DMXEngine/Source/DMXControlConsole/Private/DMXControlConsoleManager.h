@@ -7,8 +7,9 @@
 #include "UObject/GCObject.h"
 #include "UObject/ObjectPtr.h"
 
-class UDMXControlConsole;
 class FDMXControlConsoleSelection;
+class UDMXControlConsole;
+class UDMXControlConsolePreset;
 
 class FUICommandList;
 
@@ -39,11 +40,32 @@ public:
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleSelection> GetSelectionHandler();
 
-	/** Setups commands for this DMX Control Console */
-	void SetupCommands();
+	/** Creates a new Control Console Preset asset at the given path */
+	UDMXControlConsolePreset* CreateNewPreset(const FString& InAssetPath, const FString& InAssetName);
 
-	/** Returns DMX Control Console's command list */
-	const TSharedPtr<FUICommandList>& GetControlConsoleCommands() const { return ControlConsoleCommands; }
+	/** Loads Control Console's data from the given Preset */
+	void LoadFromPreset(const UDMXControlConsolePreset* Preset);
+
+	/** Plays DMX on the Control Console */
+	void PlayDMX();
+
+	/** Stops DMX data from the Control Console */
+	void StopDMX();
+
+	/** Gets wheter the Control Console is sending DMX data or not */
+	bool IsPlayingDMX() const;
+
+	/** True if DMX data sending can be played */
+	bool CanPlayDMX() const { return !IsPlayingDMX(); }
+
+	/** True if DMX data sending can be stopped */
+	bool CanStopDMX() const { return IsPlayingDMX(); };
+
+	/** Resets DMX Control Console */
+	void ClearAll();
+
+	/** Gets a reference to OnControlConsoleLoaded delegate */
+	FSimpleMulticastDelegate& GetOnControlConsoleLoaded() { return OnControlConsoleLoaded; }
 
 private:
 	/** Private constructor. Use FDMXControlConsoleManager::Get() instead. */
@@ -52,14 +74,11 @@ private:
 	/** Destroys the manager instance */
 	void Destroy();
 
-	/** Resets DMX Control Console */
-	void ClearAll();
+	/** Called when the Control Console is restored by a preset */
+	FSimpleMulticastDelegate OnControlConsoleLoaded;
 
 	/** Reference to the DMX Control Console */
 	TObjectPtr<UDMXControlConsole> ControlConsole;
-
-	/** List of UI commands for this toolkit.  This should be filled in by the derived class! */
-	TSharedPtr<FUICommandList> ControlConsoleCommands;
 
 	/** Selection for the DMX Control Console */
 	TSharedPtr<FDMXControlConsoleSelection> SelectionHandler;

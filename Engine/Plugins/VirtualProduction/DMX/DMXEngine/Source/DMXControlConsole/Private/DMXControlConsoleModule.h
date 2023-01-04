@@ -19,7 +19,10 @@ public:
 	//~End IModuleInterface interface
 
 private:
-	/** Registers and extender for the Level Editor Toolbar DMX Menu */
+	/** Registers Control Console actions in Level Editor Commands */
+	static void RegisterControlConsoleActions();
+
+	/** Registers an extender for the Level Editor Toolbar DMX Menu */
 	static void RegisterDMXMenuExtender();
 
 	/** Extends the the Level Editor Toolbar DMX Menu */

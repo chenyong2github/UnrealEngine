@@ -141,6 +141,11 @@ void UDMXControlConsole::Reset()
 	ClearFaderGroupRows();
 }
 
+void UDMXControlConsole::SetForceRefresh(bool bRefresh)
+{
+	bForceRefresh = bRefresh;
+}
+
 void UDMXControlConsole::PostInitProperties()
 {
 	Super::PostInitProperties();
