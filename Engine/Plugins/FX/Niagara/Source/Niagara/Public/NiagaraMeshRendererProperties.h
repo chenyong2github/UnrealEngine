@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NiagaraRendererProperties.h"
-#include "NiagaraGPUSortInfo.h"
 #include "NiagaraCommon.h"
+#include "NiagaraGPUSortInfo.h"
+#include "NiagaraRenderableMeshInterface.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraParameterBinding.h"
 #include "NiagaraMeshRendererProperties.generated.h"
 
 class UMaterialInstanceConstant;
@@ -129,9 +131,14 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TObjectPtr<UStaticMesh> Mesh;
 
-	/** Use the UStaticMesh bound to this user variable if it is set to a valid value. If this is bound to a valid value and Mesh is also set, UserParamBinding wins.*/
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FNiagaraUserParameterBinding UserParamBinding_DEPRECATED;
+#endif
+
+	/** Binding to supported mesh types. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	FNiagaraUserParameterBinding UserParamBinding;
+	FNiagaraParameterBinding MeshParameterBinding;
 
 	/** Scale of the mesh */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
@@ -149,8 +156,11 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
 
-    UStaticMesh* ResolveStaticMesh(const FNiagaraEmitterInstance* Emitter) const;
-	bool HasValidMeshProperties() const;
+	/** Resolve renderable mesh. */
+	FNiagaraRenderableMeshPtr ResolveRenderableMesh(const FNiagaraEmitterInstance* EmitterInstance) const;
+
+	/** Is the renderable mesh potentially valid or not. */
+	bool HasValidRenderableMesh() const;
 };
 
 UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
@@ -207,7 +217,7 @@ public:
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const override { return SourceMode; }
 	//UNiagaraRendererProperties Interface END
 
-	void GetUsedMeshMaterials(int32 MeshIndex, const FNiagaraEmitterInstance* Emitter, TArray<UMaterialInterface*>& OutMaterials) const;	
+	void ApplyMaterialOverrides(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& InOutMaterials) const;
 
 	/**
 	 * The static mesh(es) to be instanced when rendering mesh particles.

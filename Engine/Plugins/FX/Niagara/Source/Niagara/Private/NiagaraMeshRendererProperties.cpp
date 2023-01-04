@@ -2,7 +2,6 @@
 
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraRendererMeshes.h"
-#include "Engine/StaticMesh.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
@@ -11,6 +10,7 @@
 #include "NiagaraSystem.h"
 
 #include "MaterialDomain.h"
+#include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
 
@@ -30,11 +30,146 @@
 #include "Subsystems/ImportSubsystem.h"
 #endif
 
-
 #define LOCTEXT_NAMESPACE "UNiagaraMeshRendererProperties"
 
-
 TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> UNiagaraMeshRendererProperties::MeshRendererPropertiesToDeferredInit;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FNiagaraRenderableStaticMesh : public INiagaraRenderableMesh
+{
+public:
+	FNiagaraRenderableStaticMesh(const UStaticMesh* StaticMesh)
+	{
+		WeakStaticMesh	= StaticMesh;
+		RenderData		= StaticMesh->GetRenderData();
+		MinLOD			= StaticMesh->GetMinLODIdx();
+		LocalBounds		= StaticMesh->GetExtendedBounds().GetBox();
+	}
+
+	FBox GetLocalBounds() const override
+	{
+		return LocalBounds;
+	}
+
+	void GetLODModelData(FLODModelData& OutLODModelData) const override
+	{
+		// This should never happen, but for safety
+		if (!ensure(WeakStaticMesh.IsValid()))
+		{
+			OutLODModelData.LODIndex = INDEX_NONE;
+			return;
+		}
+
+		OutLODModelData.LODIndex = RenderData->GetCurrentFirstLODIdx(MinLOD);
+		if (!RenderData->LODResources.IsValidIndex(OutLODModelData.LODIndex))
+		{
+			OutLODModelData.LODIndex = INDEX_NONE;
+			return;
+		}
+
+		const FStaticMeshLODResources& LODResources = RenderData->LODResources[OutLODModelData.LODIndex];
+
+		OutLODModelData.NumVertices = LODResources.GetNumVertices();
+		OutLODModelData.NumIndices = LODResources.IndexBuffer.GetNumIndices();
+		OutLODModelData.Sections = MakeArrayView(LODResources.Sections);
+		OutLODModelData.IndexBuffer = &LODResources.IndexBuffer;
+		OutLODModelData.VertexFactoryUserData = RenderData->LODVertexFactories.IsValidIndex(OutLODModelData.LODIndex) ? RenderData->LODVertexFactories[OutLODModelData.LODIndex].VertexFactory.GetUniformBuffer() : nullptr;
+		OutLODModelData.RayTracingGeometry = &LODResources.RayTracingGeometry;
+
+		if (LODResources.AdditionalIndexBuffers != nullptr && LODResources.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized())
+		{
+			OutLODModelData.WireframeNumIndices = LODResources.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
+			OutLODModelData.WireframeIndexBuffer = &LODResources.AdditionalIndexBuffers->WireframeIndexBuffer;
+		}
+	}
+
+	void SetupVertexFactory(FNiagaraMeshVertexFactory& InVertexFactory, const FLODModelData& LODModelData) const override
+	{
+		FStaticMeshDataType Data;
+		const FStaticMeshLODResources& LODResources = RenderData->LODResources[LODModelData.LODIndex];
+		LODResources.VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&InVertexFactory, Data);
+		LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&InVertexFactory, Data);
+		LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTexCoordVertexBuffer(&InVertexFactory, Data, MAX_TEXCOORDS);
+		LODResources.VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&InVertexFactory, Data);
+		InVertexFactory.SetData(Data);
+	}
+
+	void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const override
+	{
+		const UStaticMesh* StaticMesh = WeakStaticMesh.Get();
+		if (!ensure(StaticMesh))
+		{
+			return;
+		}
+
+		// Retrieve a list of materials whose indices match up with the mesh, and only fill it in with materials that are used by any section of any LOD
+		for (const FStaticMeshLODResources& LODModel : RenderData->LODResources)
+		{
+			for (const FStaticMeshSection& Section : LODModel.Sections)
+			{
+				if (Section.MaterialIndex >= 0)
+				{
+					if (Section.MaterialIndex >= OutMaterials.Num())
+					{
+						OutMaterials.AddZeroed(Section.MaterialIndex - OutMaterials.Num() + 1);
+					}
+					else if (OutMaterials[Section.MaterialIndex])
+					{
+						continue;
+					}
+
+					UMaterialInterface* Material = StaticMesh->GetMaterial(Section.MaterialIndex);
+					if (!Material)
+					{
+						Material = UMaterial::GetDefaultMaterial(MD_Surface);
+					}
+					OutMaterials[Section.MaterialIndex] = Material;
+				}
+			}
+		}
+	}
+
+	TWeakObjectPtr<const UStaticMesh>	WeakStaticMesh;
+	const class FStaticMeshRenderData*	RenderData = nullptr;
+	int32								MinLOD = 0;
+	FBox								LocalBounds = FBox(ForceInitToZero);
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace NiagaraMeshRendererPropertiesInternal
+{
+	void ResolveRenderableMeshInternal(const FNiagaraMeshRendererMeshProperties& MeshProperties, const FNiagaraEmitterInstance* EmitterInstance, INiagaraRenderableMeshInterface*& OutInterface, UStaticMesh*& OutStaticMesh)
+	{
+		OutInterface = nullptr;
+		OutStaticMesh = nullptr;
+		if (EmitterInstance)
+		{
+			if (MeshProperties.MeshParameterBinding.Parameter.IsValid())
+			{
+				if (MeshProperties.MeshParameterBinding.Parameter.IsDataInterface())
+				{
+					OutInterface = Cast<INiagaraRenderableMeshInterface>(EmitterInstance->GetRendererBoundVariables().GetDataInterface(MeshProperties.MeshParameterBinding.Parameter));
+					return;
+				}
+
+				UStaticMesh* BoundMesh = Cast<UStaticMesh>(EmitterInstance->GetRendererBoundVariables().GetUObject(MeshProperties.MeshParameterBinding.Parameter));
+				if (BoundMesh && BoundMesh->GetRenderData())
+				{
+					OutStaticMesh = BoundMesh;
+					return;
+				}
+			}
+		}
+		if (MeshProperties.Mesh && MeshProperties.Mesh->GetRenderData())
+		{
+			OutStaticMesh = MeshProperties.Mesh;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FNiagaraMeshMaterialOverride::FNiagaraMeshMaterialOverride()
 	: ExplicitMat(nullptr)
@@ -54,41 +189,49 @@ bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FProp
 	return false;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FNiagaraMeshRendererMeshProperties::FNiagaraMeshRendererMeshProperties()
 	: Mesh(nullptr)
-	, UserParamBinding(FNiagaraTypeDefinition(UStaticMesh::StaticClass()))
+#if WITH_EDITORONLY_DATA
+	, UserParamBinding_DEPRECATED(FNiagaraTypeDefinition(UStaticMesh::StaticClass()))
+#endif
 	, Scale(1.0f, 1.0f, 1.0f)
 	, Rotation(FRotator::ZeroRotator)
 	, PivotOffset(ForceInitToZero)
 	, PivotOffsetSpace(ENiagaraMeshPivotOffsetSpace::Mesh)
 {
+#if WITH_EDITORONLY_DATA
+	MeshParameterBinding.SetUsage(ENiagaraParameterBindingUsage::NotParticle);
+	MeshParameterBinding.SetAllowedInterfaces({UNiagaraRenderableMeshInterface::StaticClass()});
+	MeshParameterBinding.SetAllowedObjects({UStaticMesh::StaticClass()});
+#endif
 }
 
-UStaticMesh* FNiagaraMeshRendererMeshProperties::ResolveStaticMesh(const FNiagaraEmitterInstance* Emitter) const
+FNiagaraRenderableMeshPtr FNiagaraMeshRendererMeshProperties::ResolveRenderableMesh(const FNiagaraEmitterInstance* EmitterInstance) const
 {
-	UStaticMesh* FoundMesh = nullptr;
+	INiagaraRenderableMeshInterface* RenderableMeshInterface = nullptr;
+	UStaticMesh* StaticMesh = nullptr;
+	NiagaraMeshRendererPropertiesInternal::ResolveRenderableMeshInternal(*this, EmitterInstance, RenderableMeshInterface, StaticMesh);
 
-	if (UserParamBinding.Parameter.IsValid() && Emitter)
+	if (RenderableMeshInterface)
 	{
-		UStaticMesh* TestMesh = Cast<UStaticMesh>(Emitter->GetRendererBoundVariables().GetUObject(UserParamBinding.Parameter));
-		if (TestMesh && TestMesh->GetRenderData())
+		if ( const FNiagaraSystemInstance* SystemInstance = EmitterInstance->GetParentSystemInstance() )
 		{
-			FoundMesh = TestMesh;
+			return RenderableMeshInterface->GetRenderableMesh(SystemInstance->GetId());
 		}
 	}
 
-	if (!FoundMesh && Mesh && Mesh->GetRenderData())
+	if (StaticMesh)
 	{
-		FoundMesh = Mesh;
+		return MakeShared<FNiagaraRenderableStaticMesh>(StaticMesh);
 	}
-
-	return FoundMesh;
+	return nullptr;
 }
 
-bool FNiagaraMeshRendererMeshProperties::HasValidMeshProperties() const
+bool FNiagaraMeshRendererMeshProperties::HasValidRenderableMesh() const
 {
-	return Mesh || UserParamBinding.Parameter.IsValid();
+	return Mesh || MeshParameterBinding.Parameter.IsValid();
 }
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
@@ -144,7 +287,7 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 {
 	for (const auto& MeshProperties : Meshes)
 	{
-		if (MeshProperties.ResolveStaticMesh(Emitter))
+		if (MeshProperties.HasValidRenderableMesh())
 		{
 			// There's at least one valid mesh
 			FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
@@ -442,73 +585,39 @@ bool UNiagaraMeshRendererProperties::IsSupportedVariableForBinding(const FNiagar
 }
 #endif
 
-void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const FNiagaraEmitterInstance* Emitter, TArray<UMaterialInterface*>& OutMaterials) const
+void UNiagaraMeshRendererProperties::ApplyMaterialOverrides(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& InOutMaterials) const
 {
-	check(Meshes.IsValidIndex(MeshIndex));
-
-	const UStaticMesh* Mesh = Meshes[MeshIndex].ResolveStaticMesh(Emitter);
-	check(Mesh);
-
-	const FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
-	check(RenderData);
-
-	OutMaterials.SetNum(0, false);
-
-	// Retrieve a list of materials whose indices match up with the mesh, and only fill it in with materials that are used by any section of any LOD
-	for (const FStaticMeshLODResources& LODModel : RenderData->LODResources)
-	{
-		for (const FStaticMeshSection& Section : LODModel.Sections)
-		{
-			if (Section.MaterialIndex >= 0)
-			{
-				if (Section.MaterialIndex >= OutMaterials.Num())
-				{
-					OutMaterials.AddZeroed(Section.MaterialIndex - OutMaterials.Num() + 1);
-				}
-				else if (OutMaterials[Section.MaterialIndex])
-				{
-					continue;
-				}
-
-				UMaterialInterface* Material = Mesh->GetMaterial(Section.MaterialIndex);
-				if (!Material)
-				{
-					Material = UMaterial::GetDefaultMaterial(MD_Surface);
-				}
-				OutMaterials[Section.MaterialIndex] = Material;
-			}
-		}
-	}
-
 	if (bOverrideMaterials)
 	{
-		const int32 NumOverrideMaterials = FMath::Min(OverrideMaterials.Num(), OutMaterials.Num());
+		const int32 NumOverrideMaterials = FMath::Min(OverrideMaterials.Num(), InOutMaterials.Num());
 		for (int32 OverrideIndex = 0; OverrideIndex < NumOverrideMaterials; ++OverrideIndex)
 		{
-			if (OutMaterials[OverrideIndex])
+			if (!InOutMaterials[OverrideIndex])
 			{
-				UMaterialInterface* OverrideMat = nullptr;
+				continue;
+			}
 
-				// UserParamBinding, if mapped to a real value, always wins. Otherwise, use the ExplictMat if it is set. Finally, fall
-				// back to the particle mesh material. This allows the user to effectively optionally bind to a Material binding
-				// and still have good defaults if it isn't set to anything.
-				if (Emitter && OverrideMaterials[OverrideIndex].UserParamBinding.Parameter.IsValid())
-				{
-					OverrideMat = Cast<UMaterialInterface>(Emitter->FindBinding(OverrideMaterials[OverrideIndex].UserParamBinding.Parameter));
-				}
+			UMaterialInterface* OverrideMat = nullptr;
 
-				if (!OverrideMat)
-				{
-					OverrideMat = OverrideMaterials[OverrideIndex].ExplicitMat;
-				#if WITH_EDITORONLY_DATA
-					OverrideMat = MICMaterials.IsValidIndex(OverrideIndex) && MICMaterials[OverrideIndex] ? MICMaterials[OverrideIndex] : OverrideMat;
-				#endif
-				}
+			// UserParamBinding, if mapped to a real value, always wins. Otherwise, use the ExplictMat if it is set. Finally, fall
+			// back to the particle mesh material. This allows the user to effectively optionally bind to a Material binding
+			// and still have good defaults if it isn't set to anything.
+			if (EmitterInstance && OverrideMaterials[OverrideIndex].UserParamBinding.Parameter.IsValid())
+			{
+				OverrideMat = Cast<UMaterialInterface>(EmitterInstance->FindBinding(OverrideMaterials[OverrideIndex].UserParamBinding.Parameter));
+			}
 
-				if (OverrideMat)
-				{
-					OutMaterials[OverrideIndex] = OverrideMat;
-				}
+			if (!OverrideMat)
+			{
+				OverrideMat = OverrideMaterials[OverrideIndex].ExplicitMat;
+			#if WITH_EDITORONLY_DATA
+				OverrideMat = MICMaterials.IsValidIndex(OverrideIndex) && MICMaterials[OverrideIndex] ? MICMaterials[OverrideIndex] : OverrideMat;
+			#endif
+			}
+
+			if (OverrideMat)
+			{
+				InOutMaterials[OverrideIndex] = OverrideMat;
 			}
 		}
 	}
@@ -517,10 +626,10 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 	#if WITH_EDITORONLY_DATA
 		if (MICMaterials.Num() > 0)
 		{
-			const int MaterialMax = FMath::Min(OutMaterials.Num(), MICMaterials.Num());
+			const int MaterialMax = FMath::Min(InOutMaterials.Num(), MICMaterials.Num());
 			for (int i = 0; i < MaterialMax; ++i)
 			{
-				OutMaterials[i] = MICMaterials[i] ? MICMaterials[i] : OutMaterials[i];
+				InOutMaterials[i] = MICMaterials[i] ? MICMaterials[i] : InOutMaterials[i];
 			}
 		}
 	#endif
@@ -532,20 +641,38 @@ const FVertexFactoryType* UNiagaraMeshRendererProperties::GetVertexFactoryType()
 	return &FNiagaraMeshVertexFactory::StaticType;
 }
 
-void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
+void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& OutMaterials) const
 {
+	FNiagaraSystemInstance* SystemInstance = EmitterInstance ? EmitterInstance->GetParentSystemInstance() : nullptr;
+
 	TArray<UMaterialInterface*> OrderedMeshMaterials;
-	for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); ++MeshIndex)
+	for (int32 MeshIndex=0; MeshIndex < Meshes.Num(); ++MeshIndex)
 	{
-		const UStaticMesh* Mesh = Meshes[MeshIndex].ResolveStaticMesh(InEmitter);
-		if (Mesh && Mesh->GetRenderData())
+		OrderedMeshMaterials.Reset(0);
+
+		INiagaraRenderableMeshInterface* RenderableMeshInterface = nullptr;
+		UStaticMesh* StaticMesh = nullptr;
+		NiagaraMeshRendererPropertiesInternal::ResolveRenderableMeshInternal(Meshes[MeshIndex], EmitterInstance, RenderableMeshInterface, StaticMesh);
+
+		if (RenderableMeshInterface && SystemInstance)
 		{
-			GetUsedMeshMaterials(MeshIndex, InEmitter, OrderedMeshMaterials);
-			for (UMaterialInterface* Material : OrderedMeshMaterials)
+			RenderableMeshInterface->GetUsedMaterials(SystemInstance->GetId(), OrderedMeshMaterials);
+		}
+		else if (StaticMesh)
+		{
+			FNiagaraRenderableStaticMesh(StaticMesh).GetUsedMaterials(OrderedMeshMaterials);
+		}
+
+		if (OrderedMeshMaterials.Num() > 0)
+		{
+			ApplyMaterialOverrides(EmitterInstance, OrderedMeshMaterials);
+
+			OutMaterials.Reserve(OutMaterials.Num() + OrderedMeshMaterials.Num());
+			for (UMaterialInterface* MaterialInterface : OrderedMeshMaterials)
 			{
-				if (Material)
+				if (MaterialInterface)
 				{
-					OutMaterials.AddUnique(Material);
+					OutMaterials.AddUnique(MaterialInterface);
 				}
 			}
 		}
@@ -556,22 +683,23 @@ void UNiagaraMeshRendererProperties::GetStreamingMeshInfo(const FBoxSphereBounds
 {
 	for (const FNiagaraMeshRendererMeshProperties& MeshProperties : Meshes)
 	{
-		UStaticMesh* Mesh = MeshProperties.ResolveStaticMesh(InEmitter);
+		INiagaraRenderableMeshInterface* RenderableMeshInterface = nullptr;
+		UStaticMesh* StaticMesh = nullptr;
+		NiagaraMeshRendererPropertiesInternal::ResolveRenderableMeshInternal(MeshProperties, InEmitter, RenderableMeshInterface, StaticMesh);
 
-		if (Mesh && Mesh->RenderResourceSupportsStreaming() && Mesh->GetRenderAssetType() == EStreamableRenderAssetType::StaticMesh)
+		if (StaticMesh && StaticMesh->RenderResourceSupportsStreaming() && StaticMesh->GetRenderAssetType() == EStreamableRenderAssetType::StaticMesh)
 		{
-			const FBoxSphereBounds MeshBounds = Mesh->GetBounds();
+			const FBoxSphereBounds MeshBounds = StaticMesh->GetBounds();
 			const FBoxSphereBounds StreamingBounds = FBoxSphereBounds(
 				OwnerBounds.Origin + MeshBounds.Origin,
 				MeshBounds.BoxExtent * MeshProperties.Scale,
 				MeshBounds.SphereRadius * MeshProperties.Scale.GetMax());
 			const float MeshTexelFactor = MeshBounds.SphereRadius * 2.0f;
 
-			new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Mesh, StreamingBounds, MeshTexelFactor);
+			new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(StaticMesh, StreamingBounds, MeshTexelFactor);
 		}
 	}
 }
-
 
 #if WITH_EDITORONLY_DATA
 TArray<FNiagaraVariable> UNiagaraMeshRendererProperties::GetBoundAttributes() const 
@@ -608,9 +736,9 @@ bool UNiagaraMeshRendererProperties::PopulateRequiredBindings(FNiagaraParameterS
 
 	for (FNiagaraMeshRendererMeshProperties& Binding : Meshes)
 	{
-		if (Binding.UserParamBinding.Parameter.IsValid())
+		if (Binding.MeshParameterBinding.Parameter.IsValid())
 		{
-			InParameterStore.AddParameter(Binding.UserParamBinding.Parameter, false);
+			InParameterStore.AddParameter(Binding.MeshParameterBinding.Parameter, false);
 			bAnyAdded = true;
 		}
 	}
@@ -631,7 +759,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		Mesh.PivotOffsetSpace = PivotOffsetSpace_DEPRECATED;
 	}
 
-	for (const auto& MeshProperties : Meshes)
+	for (FNiagaraMeshRendererMeshProperties& MeshProperties : Meshes)
 	{
 		if (MeshProperties.Mesh)
 		{
@@ -644,6 +772,13 @@ void UNiagaraMeshRendererProperties::PostLoad()
 			}
 #endif
 		}
+#if WITH_EDITORONLY_DATA
+		if (MeshProperties.UserParamBinding_DEPRECATED.Parameter.GetName().IsNone() == false)
+		{
+			MeshProperties.MeshParameterBinding.Parameter = MeshProperties.UserParamBinding_DEPRECATED.Parameter;
+			MeshProperties.MeshParameterBinding.AliasedParameter = MeshProperties.UserParamBinding_DEPRECATED.Parameter;
+		}
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -750,18 +885,23 @@ void UNiagaraMeshRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmi
 	{
 		const FNiagaraMeshRendererMeshProperties& MeshProperties = Meshes[MeshIndex];
 		
-		TSharedPtr<SWidget> TooltipWidget = DefaultMeshTooltip;		
+		TSharedPtr<SWidget> TooltipWidget = DefaultMeshTooltip;
+
 		// we make sure to reuse the mesh widget as a thumbnail if the mesh is valid
-		if(MeshProperties.ResolveStaticMesh(InEmitter))
+		INiagaraRenderableMeshInterface* RenderableMeshInterface = nullptr;
+		UStaticMesh* StaticMesh = nullptr;
+		NiagaraMeshRendererPropertiesInternal::ResolveRenderableMeshInternal(Meshes[MeshIndex], InEmitter, RenderableMeshInterface, StaticMesh);
+
+		if (StaticMesh)
 		{
 			TooltipWidget = RendererWidgets[MeshIndex];
 		}
 
-		// we override the previous thumbnail tooltip with a text indicating user parameter binding, if it exists
-		if(MeshProperties.UserParamBinding.Parameter.IsValid())
+		// we override the previous thumbnail tooltip with a text indicating parameter binding, if it exists
+		if(MeshProperties.MeshParameterBinding.Parameter.IsValid())
 		{
 			TooltipWidget = SNew(STextBlock)
-				.Text(FText::Format(LOCTEXT("MeshBoundTooltip", "Mesh slot is bound to user parameter {0}"), FText::FromName(MeshProperties.UserParamBinding.Parameter.GetName())));
+				.Text(FText::Format(LOCTEXT("MeshBoundTooltip", "Mesh slot is bound to parameter {0}"), FText::FromName(MeshProperties.MeshParameterBinding.Parameter.GetName())));
 		}
 		
 		OutWidgets.Add(TooltipWidget);

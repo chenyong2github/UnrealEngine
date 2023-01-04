@@ -1660,14 +1660,14 @@ struct FNiagaraVariableBase
 	i.e. MyNamespace.VarName would become VarName but Other.MyNamespace.VarName would not be modified.
 	For more complex namespace manipulation refer to FNiagaraUtilities::ResolveAliases
 	*/
-	bool RemoveRootNamespace(const FStringView& ExpectedNamespace);
+	NIAGARA_API bool RemoveRootNamespace(const FStringView& ExpectedNamespace);
 
 	/**
 	Replaces the root namespace from the variable if it matches the expected namespace with the NewNamespace.
 	i.e. Prev.VarName would become Next.VarName but Other.Prev.VarName would not be modified.
 	For more complex namespace manipulation refer to FNiagaraUtilities::ResolveAliases
 	*/
-	bool ReplaceRootNamespace(const FStringView& ExpectedNamespace, const FStringView& NewNamespace);
+	NIAGARA_API bool ReplaceRootNamespace(const FStringView& ExpectedNamespace, const FStringView& NewNamespace);
 
 	FORCEINLINE bool IsInNameSpace(const FStringView& Namespace) const
 	{

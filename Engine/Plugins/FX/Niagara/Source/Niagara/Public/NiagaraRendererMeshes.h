@@ -6,11 +6,11 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #pragma once
 
 #include "NiagaraRenderer.h"
+#include "NiagaraRenderableMeshInterface.h"
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraMeshVertexFactory.h"
 #include "NiagaraGPUSortInfo.h"
 #include "NiagaraSystemInstance.h"
-#include "StaticMeshResources.h"
 #include "NiagaraGPUSceneUtils.h"
 
 class FNiagaraDataSet;
@@ -37,8 +37,6 @@ public:
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) final override;
 #endif
 	//FNiagaraRenderer Interface END
-
-	void SetupVertexFactory(FNiagaraMeshVertexFactory& InVertexFactory, const FStaticMeshLODResources& LODResources) const;
 
 protected:
 	struct FParticleMeshRenderData
@@ -80,14 +78,12 @@ protected:
 
 	struct FMeshData
 	{
-		FStaticMeshRenderData* RenderData = nullptr;
-		int32 MinimumLOD = 0;
+		FNiagaraRenderableMeshPtr RenderableMesh;
 		uint32 SourceMeshIndex = INDEX_NONE;
 		FVector3f PivotOffset = FVector3f::ZeroVector;
 		ENiagaraMeshPivotOffsetSpace PivotOffsetSpace = ENiagaraMeshPivotOffsetSpace::Mesh;
 		FVector3f Scale = FVector3f(1.0f, 1.0f, 1.0f);
 		FQuat4f Rotation = FQuat4f::Identity;
-		FBox LocalBounds = FBox(ForceInitToZero);
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
 
@@ -120,8 +116,6 @@ protected:
 		virtual ~FGPUSceneUpdateResource() {}
 	};
 
-	int32 GetLODIndex(int32 MeshIndex) const;
-
 	void PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, const FSceneViewFamily& ViewFamily, FMeshElementCollector& Collector, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy, bool bRayTracing) const;
 	void PrepareParticleRenderBuffers(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 	void InitializeSortInfo(const FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FSceneView& View, int32 ViewIndex, bool bIsInstancedStereo, FNiagaraGPUSortInfo& OutSortInfo) const;
@@ -149,7 +143,7 @@ protected:
 		FMaterialRenderProxy& MaterialProxy,
 		const FNiagaraSceneProxy& SceneProxy,
 		const FMeshData& MeshData,
-		const FStaticMeshLODResources& LODModel,
+		const INiagaraRenderableMesh::FLODModelData& LODModel,
 		const FStaticMeshSection& Section,
 		const FSceneView& View,
 		int32 ViewIndex,
@@ -176,20 +170,19 @@ private:
 	uint32 bAccurateMotionVectors : 1;
 
 	uint32 bSubImageBlend : 1;
-	FVector2f SubImageSize;
+	FVector2f SubImageSize = FVector2f::ZeroVector;
 
-	FVector LockedAxis;
+	FVector3f LockedAxis = FVector3f::ZeroVector;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
-	FVector2f DistanceCullRange;
-	FVector2f DistanceCullRangeSquared;
+	FVector2f DistanceCullRange = FVector2f::ZeroVector;
+	FVector2f DistanceCullRangeSquared = FVector2f::ZeroVector;
 	int32 ParticleRendererVisTagOffset = INDEX_NONE;
 	int32 ParticleMeshIndexOffset = INDEX_NONE;
 	int32 RendererVisibility = 0;
 	int32 EmitterRendererVisTagOffset = INDEX_NONE;
 	int32 EmitterMeshIndexOffset = INDEX_NONE;
-	uint32 MaterialParamValidMask;
-	uint32 MaxSectionCount;
+	uint32 MaterialParamValidMask = 0;
 
 	int32 VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Num_Max];
 	uint32 bSetAnyBoundVars : 1;
