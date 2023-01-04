@@ -9,6 +9,7 @@
 enum class ERDGPassFlags : uint16;
 
 class FLumenCardTracingInputs;
+class FLumenCardTracingParameters;
 class FLumenMeshSDFGridParameters;
 class FRDGBuilder;
 class FScene;
