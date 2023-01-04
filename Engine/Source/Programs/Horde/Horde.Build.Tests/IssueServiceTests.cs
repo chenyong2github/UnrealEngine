@@ -2283,6 +2283,60 @@ namespace Horde.Build.Tests
 
 		}
 
+		[TestMethod]
+		public async Task SystemicIssuesTest()
+		{
+			// #1
+			// Scenario: Job step fails with systemic XGE error
+			// Expected: A systemic issue is created
+			{
+				string[] lines =
+				{
+					@"BUILD FAILED: Command failed (Result:1): C:\Program Files (x86)\Incredibuild\xgConsole.exe ""d:\build\++UE5\Sync\Engine\Programs\AutomationTool\Saved\Logs\UAT_XGE.xml"" /Rebuild /NoLogo /ShowAgent /ShowTime /no_watchdog_thread. See logfile for details: 'xgConsole-2023.01.03-23.39.48.txt'"
+				};
+
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+
+				IIssue issue = issues[0];
+
+				Assert.AreEqual(IssueSeverity.Error, issue.Severity);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Systemic", issue.Fingerprints[0].Type);
+			}
+
+			// #2
+			// Scenario: Job step fails at CL 120 with a linker issue, additionally there is a systemic xgConsole.exe error
+			// Expected: Creates a linker issue with severity error due to fatal warnings, does not create a systemic error
+			{
+				string[] lines =
+				{
+					@"ld: warning: direct access in function 'void Eigen::internal::evaluateProductBlockingSizesHeuristic<Eigen::half, Eigen::half, 1, long>(long&, long&, long&, long)' from file '../../EngineTest/Intermediate/Build/Mac/x86_64/EngineTest/Development/ORT/inverse.cc.o' to global weak symbol 'guard variable for Eigen::internal::manage_caching_sizes(Eigen::Action, long*, long*, long*)::m_cacheSizes' from file '../../EngineTest/Intermediate/Build/Mac/x86_64/EngineTest/Development/DynamicMesh/Module.DynamicMesh.4_of_5.cpp.o' means the weak symbol cannot be overridden at runtime. This was likely caused by different translation units being compiled with different visibility settings.",
+					@"ld: fatal warning(s) induced error (-fatal_warnings)",
+					@"clang: error: linker command failed with exit code 1 (use -v to see invocation)",
+					@"BUILD FAILED: Command failed (Result:1): C:\Program Files (x86)\Incredibuild\xgConsole.exe ""d:\build\++UE5\Sync\Engine\Programs\AutomationTool\Saved\Logs\UAT_XGE.xml"" /Rebuild /NoLogo /ShowAgent /ShowTime /no_watchdog_thread. See logfile for details: 'xgConsole-2023.01.03-23.39.48.txt'"
+				};
+
+				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+
+				IIssue issue = issues[0];
+
+				Assert.AreEqual(IssueSeverity.Error, issue.Severity);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Hashed", issue.Fingerprints[0].Type);
+			}
+		}
+
+
 
 		private async Task ParseAsync(LogId logId, string[] lines)
 		{

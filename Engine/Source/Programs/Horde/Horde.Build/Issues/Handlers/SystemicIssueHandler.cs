@@ -6,6 +6,7 @@ using EpicGames.Core;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
+using HordeCommon;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 
@@ -22,7 +23,7 @@ namespace Horde.Build.Issues.Handlers
 		public override string Type => "Systemic";
 
 		/// <inheritdoc/>
-		public override int Priority => 10;
+		public override int Priority => 255;
 
 		/// <summary>
 		///  Known systemic errors
@@ -49,12 +50,34 @@ namespace Horde.Build.Issues.Handlers
 		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
 			NewIssueFingerprint? fingerprint = null;
+			bool nonSystemicError = false;
 			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				if (stepEvent.EventId != null && MatchEvent(stepEvent.EventData))
+				if (stepEvent.EventId == null)
+				{					
+					continue;
+				}
+
+				if (MatchEvent(stepEvent.EventData))
 				{
-					fingerprint ??= new NewIssueFingerprint(Type, new[] { $"step:{job.StreamId}:{job.TemplateId}:{node.Name}" }, null, new[] { $"{NodeNameKey}={node.Name}" });
-					stepEvent.Fingerprint = fingerprint;
+					if (nonSystemicError)
+					{						
+						stepEvent.Ignored = true;
+					}
+					else
+					{
+						fingerprint ??= new NewIssueFingerprint(Type, new[] { $"step:{job.StreamId}:{job.TemplateId}:{node.Name}" }, null, new[] { $"{NodeNameKey}={node.Name}" });
+						stepEvent.Fingerprint = fingerprint;
+					}
+				}
+				else
+				{					
+					if (stepEvent.Severity == EventSeverity.Error)
+					{
+						// We've seen a non-systemic error event, so ignore this systemic event to prevent superfluous issues from being created
+						nonSystemicError = true;
+					}
+					
 				}
 			}
 		}
