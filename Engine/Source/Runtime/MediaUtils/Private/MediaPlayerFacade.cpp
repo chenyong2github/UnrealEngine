@@ -1224,8 +1224,6 @@ const TRange<FMediaTimeStamp>& FMediaPlayerFacade::FBlockOnRange::GetRange() con
 		return BlockOnRange;
 	}
 
-	RangeIsDirty = false;
-
 	if (CurrentTimeRange.IsEmpty() || !CurrentPlayer->GetControls().CanControl(EMediaControl::BlockOnFetch))
 	{
 		LastBlockOnRange = TRange<FTimespan>::Empty();
@@ -1337,6 +1335,7 @@ const TRange<FMediaTimeStamp>& FMediaPlayerFacade::FBlockOnRange::GetRange() con
 	CurrentPlayer->GetControls().SetBlockingPlaybackHint(!BlockOnRange.IsEmpty());
 
 	LastBlockOnRange = CurrentTimeRange;
+	RangeIsDirty = false;
 
 	return BlockOnRange;
 }
