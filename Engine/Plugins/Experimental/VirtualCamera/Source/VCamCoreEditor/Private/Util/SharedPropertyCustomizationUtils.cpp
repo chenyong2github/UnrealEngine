@@ -78,3 +78,5 @@ namespace UE::VCamCoreEditor::Private::StateSwitcher
 			];
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
