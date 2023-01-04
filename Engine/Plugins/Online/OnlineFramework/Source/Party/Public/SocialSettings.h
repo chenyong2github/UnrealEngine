@@ -65,6 +65,10 @@ public:
 	static int32 GetMinNicknameLength();
 	static int32 GetMaxNicknameLength();
 	static const TArray<FSocialPlatformDescription>& GetSocialPlatformDescriptions();
+
+	/** Checks if current OnlineSubsystem name is Sony specific */
+	static bool IsSonyOSS(const FName& OSSName);
+
 	/**
 	 * Get a platform description (from GetSocialPlatformDescriptions) for a specific OnlineSubsystem.
 	 * @param OnlineSubsystemName the online subsystem name to search for
@@ -116,4 +120,7 @@ private:
 
 	UPROPERTY(Config)
 	TArray<FSocialPlatformDescription> SocialPlatformDescriptions;
+
+	UPROPERTY(Config)
+	TArray<FName> SonyOSSNames;
 };

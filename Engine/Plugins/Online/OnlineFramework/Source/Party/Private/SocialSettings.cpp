@@ -109,3 +109,16 @@ const FSocialPlatformDescription* USocialSettings::GetSocialPlatformDescriptionF
 	});
 }
 
+// Static
+bool USocialSettings::IsSonyOSS(const FName& OSSName)
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	for (const FName& SonyOSS : SettingsCDO.SonyOSSNames)
+	{
+		if (SonyOSS == OSSName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
