@@ -1476,14 +1476,9 @@ namespace impl
 		// Add SkeletonData for each component
 		OperationData->InstanceUpdateData.Skeletons.AddDefaulted(ComponentCount);
 
-		// Helpers
-		TMap<FName, int16> BoneNameToIndex;
-		TArray<const char*> ParentChain;
-		TArray<bool> UsedBones;
-
 		for (int32 ComponentIndex = 0; ComponentIndex < ComponentCount; ++ComponentIndex)
 		{
-			FInstanceUpdateData::FComponent& MinLODComponent = OperationData->InstanceUpdateData.Components[MinLOD.FirstComponent+ComponentIndex];
+			FInstanceUpdateData::FComponent& MinLODComponent = OperationData->InstanceUpdateData.Components[MinLOD.FirstComponent + ComponentIndex];
 
 			// Set the ComponentIndex
 			OperationData->InstanceUpdateData.Skeletons[ComponentIndex].ComponentIndex = MinLODComponent.Id;
@@ -1492,14 +1487,11 @@ namespace impl
 			TArray<uint32>& SkeletonIds = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].SkeletonIds;
 			TArray<FName>& BoneNames = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneNames;
 			TMap<FName, FMatrix44f>& BoneMatricesWithScale = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneMatricesWithScale;
-			
+
 			// Use first valid LOD bone count as a potential total number of bones, used for pre-allocating data arrays
 			if (MinLODComponent.Mesh && MinLODComponent.Mesh->GetSkeleton())
 			{
 				const int32 TotalPossibleBones = MinLODComponent.Mesh->GetSkeleton()->GetBoneCount();
-
-				// Helpers
-				BoneNameToIndex.Empty(TotalPossibleBones);
 
 				// Out Data
 				BoneNames.Reserve(TotalPossibleBones);
@@ -1526,223 +1518,36 @@ namespace impl
 					SkeletonIds.AddUnique(Mesh->GetSkeletonID(SkeletonIndex));
 				}
 
-				const mu::Skeleton* Skeleton = Mesh->GetSkeleton().get();
-				// We don't need to check(Skeleton != nullptr) because we would've continued if (!Mesh->GetSkeleton()) above.
-				const int32 BoneCount = Skeleton->GetBoneCount();
 
+				const int32 MaxBoneIndex = Mesh->GetBonePoseCount();
+
+				// Add active bones and new names to the BoneNames array 
+				CurrentLODComponent.BoneMap.Reserve(MaxBoneIndex);
+				CurrentLODComponent.ActiveBones.Reserve(MaxBoneIndex);
+
+				for (int32 BonePoseIndex = 0; BonePoseIndex < MaxBoneIndex; ++BonePoseIndex)
 				{
-					MUTABLE_CPUPROFILER_SCOPE(PrepareSkeletonData_UsedBones);
+					const FName BoneName = Mesh->GetBonePoseName(BonePoseIndex);
+					check(BoneName != NAME_None);
 
-					const mu::FMeshBufferSet& MutableMeshVertexBuffers = Mesh->GetVertexBuffers();
-
-					const int32 NumVerticesLODModel = Mesh->GetVertexCount();
-					const int32 SurfaceCount = Mesh->GetSurfaceCount();
-
-					mu::MESH_BUFFER_FORMAT BoneIndexFormat = mu::MBF_NONE;
-					int32 BoneIndexComponents = 0;
-					int32 BoneIndexOffset = 0;
-					int32 BoneIndexBuffer = -1;
-					int32 BoneIndexChannel = -1;
-					MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, 0, &BoneIndexBuffer, &BoneIndexChannel);
-					if (BoneIndexBuffer >= 0 || BoneIndexChannel >= 0)
+					int32 BoneIndex = BoneNames.Find(BoneName);
+					if (BoneIndex == INDEX_NONE)
 					{
-						MutableMeshVertexBuffers.GetChannel(BoneIndexBuffer, BoneIndexChannel,
-							nullptr, nullptr, &BoneIndexFormat, &BoneIndexComponents, &BoneIndexOffset);
+						BoneIndex = BoneNames.Add(BoneName);
+
+						FTransform3f Transform;
+						Mesh->GetBoneTransform(BonePoseIndex, Transform);
+						BoneMatricesWithScale.Emplace(BoneName, Transform.Inverse().ToMatrixWithScale());
 					}
 
-					const int32 ElemSize = MutableMeshVertexBuffers.GetElementSize(BoneIndexBuffer);
-
-					const uint8_t* BufferStart = MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer) + BoneIndexOffset;
-
-					UsedBones.Empty(BoneCount);
-					UsedBones.AddDefaulted(BoneCount);
-
-					for (int32 Surface = 0; Surface < SurfaceCount; ++Surface)
+					if (EnumHasAnyFlags(Mesh->GetBoneUsageFlags(BonePoseIndex), mu::EBoneUsageFlags::Skinning))
 					{
-						int32 IndexStart, IndexCount, VertexStart, VertexCount;
-						Mesh->GetSurface(Surface, &VertexStart, &VertexCount, &IndexStart, &IndexCount);
-
-						if (VertexCount == 0 || IndexCount == 0)
-						{
-							continue;
-						}
-
-						const uint8_t* VertexBoneIndexPtr = BufferStart + VertexStart * ElemSize;
-
-						if (BoneIndexFormat == mu::MBF_UINT8)
-						{
-							for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
-							{
-								for (int32 Index = 0; Index < BoneIndexComponents; ++Index)
-								{
-									size_t SectionBoneIndex = VertexBoneIndexPtr[Index];
-									UsedBones[SectionBoneIndex] = true;
-								}
-								VertexBoneIndexPtr += ElemSize;
-							}
-						}
-						else if (BoneIndexFormat == mu::MBF_UINT16)
-						{
-							for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
-							{
-								for (int32 Index = 0; Index < BoneIndexComponents; ++Index)
-								{
-									size_t SectionBoneIndex = ((uint16*)VertexBoneIndexPtr)[Index];
-									UsedBones[SectionBoneIndex] = true;
-								}
-								VertexBoneIndexPtr += ElemSize;
-							}
-						}
-						else if (BoneIndexFormat == mu::MBF_UINT32)
-						{
-							for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
-							{
-								for (int32 Index = 0; Index < BoneIndexComponents; ++Index)
-								{
-									size_t SectionBoneIndex = ((uint32_t*)VertexBoneIndexPtr)[Index];
-									UsedBones[SectionBoneIndex] = true;
-								}
-								VertexBoneIndexPtr += ElemSize;
-							}
-						}
-						else
-						{
-							// Unsupported bone index format in generated mutable mesh
-							check(false);
-						}
+						CurrentLODComponent.BoneMap.Add(BoneIndex);
 					}
+
+					CurrentLODComponent.ActiveBones.Add(BoneIndex);
 				}
-
-				{
-					MUTABLE_CPUPROFILER_SCOPE(PrepareSkeletonData_ActiveBones);
-
-					TArray<uint16>& ComponentBoneMap = CurrentLODComponent.BoneMap;
-					TArray<uint16>& ComponentActiveBones = CurrentLODComponent.ActiveBones;
-
-					ComponentBoneMap.Reserve(BoneCount);
-					ComponentActiveBones.Reserve(BoneCount);
-
-					ParentChain.SetNumZeroed(BoneCount);
-
-					// Add new bones and their poses to the final hierarchy of active bones
-					auto AddBone = [&](const char* StrName) {
-
-						const FName BoneName = StrName;
-						const int16 FinalBoneIndex = BoneNames.Num();
-
-						// Add bone
-						BoneNames.Add(BoneName);
-
-						BoneNameToIndex.Add(BoneName, FinalBoneIndex);
-						ComponentActiveBones.Add(FinalBoneIndex);
-
-						// Add bone pose
-						const int32 BonePoseIndex = Mesh->FindBonePose(StrName);
-						if (BonePoseIndex != INDEX_NONE)
-						{
-							FTransform3f Transform;
-							Mesh->GetBoneTransform(BonePoseIndex, Transform);
-							BoneMatricesWithScale.Emplace(BoneName, Transform.Inverse().ToMatrixWithScale());
-						}
-
-						return FinalBoneIndex;
-					};
-
-					for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
-					{
-						const char* BoneName = Skeleton->GetBoneName(BoneIndex);
-
-						int16* FinalBoneIndexPtr = BoneNameToIndex.Find(BoneName);
-						if (!UsedBones[BoneIndex])
-						{
-							if (!FinalBoneIndexPtr)
-							{
-								// Add bone even if it doesn't have weights
-								AddBone(BoneName);
-							}
-
-							// Add root as a placeholder
-							ComponentBoneMap.Add(0);
-							continue;
-						}
-
-						if (!FinalBoneIndexPtr) // New bone!
-						{
-							// Ensure parent chain is valid
-							int16 FinalParentIndex = INDEX_NONE;
-
-							const int16 MutParentIndex = Skeleton->GetBoneParent(BoneIndex);
-							if (MutParentIndex != INDEX_NONE) // Bone has a parent, ensure the parent exists
-							{
-								// Ensure parent chain until root exists
-								uint16 ParentChainCount = 0;
-
-								// Find parents to add
-								int16 NextMutParentIndex = MutParentIndex;
-								while (NextMutParentIndex != INDEX_NONE)
-								{
-									const char* ParentName = Skeleton->GetBoneName(NextMutParentIndex);
-									if (int16* Found = BoneNameToIndex.Find(ParentName))
-									{
-										FinalParentIndex = *Found;
-										break;
-									}
-
-									ParentChain[ParentChainCount] = ParentName;
-									++ParentChainCount;
-
-									NextMutParentIndex = Skeleton->GetBoneParent(NextMutParentIndex);
-								}
-
-								// Add parent bones to the list and to the active bones array
-								for (int16 ParentChainIndex = ParentChainCount - 1; ParentChainIndex >= 0; --ParentChainIndex)
-								{
-									// Add the parent
-									AddBone(ParentChain[ParentChainIndex]);
-								}
-							}
-
-							// Add the used bone to the hierarchy
-							const int16 NewBoneIndex = AddBone(BoneName);
-							ComponentBoneMap.Add(NewBoneIndex);
-						}
-						else
-						{
-							int16 FinalBoneIndex = *FinalBoneIndexPtr;
-							ComponentBoneMap.Add(FinalBoneIndex);
-
-							if (ComponentActiveBones.Find(FinalBoneIndex) != INDEX_NONE)
-							{
-								continue;
-							}
-
-							int16 MutParentIndex = Skeleton->GetBoneParent(BoneIndex);
-							while (MutParentIndex != INDEX_NONE)
-							{
-								FName ParentName = Skeleton->GetBoneName(MutParentIndex);
-								const int16* FinalParentIndex = BoneNameToIndex.Find(ParentName);
-								check(FinalParentIndex);
-
-								if (ComponentActiveBones.Find(*FinalParentIndex) != INDEX_NONE)
-								{
-									break;
-								}
-
-								ComponentActiveBones.Add(*FinalParentIndex);
-
-								MutParentIndex = Skeleton->GetBoneParent(MutParentIndex);
-							}
-
-							ComponentActiveBones.Add(FinalBoneIndex);
-						}
-					}
-
-					ComponentBoneMap.Shrink();
-					ComponentActiveBones.Shrink();
-				}	
 			}
-
-			BoneNames.Shrink();
 		}
 	}
 
@@ -2487,7 +2292,6 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 			Private->CurrentMutableOperation = nullptr;
 		}
 	}
-	
 	// Advance the current operation
 	if (Private->CurrentMutableOperation)
 	{

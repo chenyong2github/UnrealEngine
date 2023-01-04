@@ -61,6 +61,7 @@
 #include "MuR/OpMeshReshape.h"
 #include "MuR/OpMeshSubtract.h"
 #include "MuR/OpMeshTransform.h"
+#include "MuR/OpMeshOptimizeSkinning.h"
 #include "MuR/Operations.h"
 #include "MuR/Parameters.h"
 #include "MuR/ParametersPrivate.h"
@@ -2365,6 +2366,40 @@ namespace mu
 
             break;
         }
+
+		case OP_TYPE::ME_OPTIMIZESKINNING:
+		{
+			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshOptimizeSkinningArgs>(item.At);
+			switch (item.Stage)
+			{
+			case 0:
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item));
+				}
+				else
+				{
+					GetMemory().SetMesh(item, nullptr);
+				}
+				break;
+
+			case 1:
+			{
+				Ptr<const Mesh> pSource = GetMemory().GetMesh(FCacheAddress(args.source, item));
+
+				MeshPtr pResult = MeshOptimizeSkinning(pSource.get());
+
+				GetMemory().SetMesh(item, pResult ? pResult : pSource->Clone());
+				break;
+			}
+
+			default:
+				check(false);
+			}
+
+			break;
+		}
 
         default:
             if (type!=OP_TYPE::NONE)

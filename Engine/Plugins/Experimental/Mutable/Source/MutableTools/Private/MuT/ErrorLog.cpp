@@ -301,6 +301,7 @@ namespace mu
 		TEXT("ME_APPLYSHAPE	   "),
 		TEXT("ME_CLIPDEFORM	   "),
 		TEXT("ME_MORPHRESHAPE  "),
+		TEXT("ME_OPTIMIZESKIN  "),
 
 		TEXT("IN_ADDMESH       "),
 		TEXT("IN_ADDIMAGE      "),
@@ -605,6 +606,14 @@ namespace mu
 			}
 			break;
         }
+		case OP_TYPE::ME_OPTIMIZESKINNING:
+		{
+			auto args = program.GetOpArgs<OP::MeshOptimizeSkinningArgs>(at);
+			done += mutable_snprintf(temp, 1024,
+							"source : %d",
+							args.source);
+			break;
+		}
 
 		//-----------------------------------------------------------------------------------------
 		default:

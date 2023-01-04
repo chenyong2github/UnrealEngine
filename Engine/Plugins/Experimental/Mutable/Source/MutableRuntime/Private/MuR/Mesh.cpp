@@ -522,6 +522,12 @@ void mu::Mesh::GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const
 	Transform = BoneIndex > INDEX_NONE ? BonePoses[BoneIndex].BoneTransform : FTransform3f::Identity;
 }
 
+EBoneUsageFlags Mesh::GetBoneUsageFlags(int32 BoneIndex) const
+{
+	check(BoneIndex >= 0 && BoneIndex < BonePoses.Num());
+	return BoneIndex > INDEX_NONE ? BonePoses[BoneIndex].BoneUsageFlags : EBoneUsageFlags::None;
+}
+
 
 //---------------------------------------------------------------------------------------------
 int32 Mesh::GetSkeletonIDsCount() const

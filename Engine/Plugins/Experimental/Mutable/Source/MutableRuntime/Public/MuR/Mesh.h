@@ -289,6 +289,9 @@ namespace mu
 		//! Return a matrix stored per bone. It is a set of 16-float values.
 		void GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const;
 
+		//! 
+		EBoneUsageFlags GetBoneUsageFlags(int32 BoneIndex) const;
+
 		//!
 		int32 GetSkeletonIDsCount() const;
 

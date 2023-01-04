@@ -3070,13 +3070,10 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshSkeletonData(const TShar
 				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
 			}
 
-			TArray<uint16> UniqueActiveBones;
-			for (const uint16 BoneIndex : Component.ActiveBones)
+			for (uint16& BoneIndex : Component.ActiveBones)
 			{
-				UniqueActiveBones.AddUnique(BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]]);
+				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
 			}
-
-			Exchange(Component.ActiveBones, UniqueActiveBones);
 			Component.ActiveBones.Sort();
 		}
 	}

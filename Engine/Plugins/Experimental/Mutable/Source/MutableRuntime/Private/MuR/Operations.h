@@ -313,6 +313,9 @@ namespace mu
         //! Mesh morph with Skeleton Reshape based on the morphed mesh.
         ME_MORPHRESHAPE,
 
+		//! Optimize skinning before adding a mesh to the component
+		ME_OPTIMIZESKINNING,
+
         //-----------------------------------------------------------------------------------------
         // Instance operations
         //-----------------------------------------------------------------------------------------
@@ -956,6 +959,11 @@ namespace mu
 			ADDRESS clipShape;
 
 			float clipWeightThreshold = 0.9f;
+		};
+
+		struct MeshOptimizeSkinningArgs
+		{
+			ADDRESS source;
 		};
 
 

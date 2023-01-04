@@ -30,6 +30,7 @@
 #include "MuT/ASTOpMeshRemoveMask.h"
 #include "MuT/ASTOpMeshDifference.h"
 #include "MuT/ASTOpMeshMorph.h"
+#include "MuT/ASTOpMeshOptimizeSkinning.h"
 #include "MuT/ASTOpParameter.h"
 #include "MuT/ASTOpLayoutRemoveBlocks.h"
 #include "MuT/ASTOpLayoutFromMesh.h"
@@ -1786,6 +1787,13 @@ namespace mu
                     lastMeshOp = mergeAd;
                 }
 			}
+		}
+
+		// Add op to optimize the skinning of the resulting mesh
+		{
+			Ptr<ASTOpMeshOptimizeSkinning> mop = new ASTOpMeshOptimizeSkinning();
+			mop->source = lastMeshOp;
+			lastMeshOp = mop;
 		}
 
         // Add the component mesh
