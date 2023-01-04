@@ -2041,11 +2041,13 @@ private:
 
 	TSharedPtrTS<FMultiTrackAccessUnitBuffer> GetCurrentOutputStreamBuffer(EStreamType InStreamType)
 	{
+		FScopeLock lock(&DataBuffersCriticalSection);
 		return GetStreamBuffer(InStreamType, ActiveDataOutputBuffers);
 	}
 
 	TSharedPtrTS<FMultiTrackAccessUnitBuffer> GetCurrentReceiveStreamBuffer(EStreamType InStreamType)
 	{
+		FScopeLock lock(&DataBuffersCriticalSection);
 		return GetStreamBuffer(InStreamType, CurrentDataReceiveBuffers);
 	}
 
