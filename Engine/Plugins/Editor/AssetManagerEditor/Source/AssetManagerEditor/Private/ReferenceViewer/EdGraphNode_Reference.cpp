@@ -114,12 +114,12 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 	AllocateDefaultPins();
 }
 
-void UEdGraphNode_Reference::SetReferenceNodeCollapsed(const FIntPoint& NodeLoc, int32 InNumReferencesExceedingMax)
+void UEdGraphNode_Reference::SetReferenceNodeCollapsed(const FIntPoint& NodeLoc, int32 InNumReferencesExceedingMax, const TArray<FAssetIdentifier>& NewIdentifiers)
 {
 	NodePosX = NodeLoc.X;
 	NodePosY = NodeLoc.Y;
 
-	Identifiers.Empty();
+	Identifiers = NewIdentifiers;
 	bIsCollapsed = true;
 	bUsesThumbnail = false;
 	bIsOverflow = true;

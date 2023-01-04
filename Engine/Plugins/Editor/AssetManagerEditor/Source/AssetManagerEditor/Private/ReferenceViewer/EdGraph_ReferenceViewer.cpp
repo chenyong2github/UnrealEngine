@@ -684,9 +684,10 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyCreateNodes(bool bI
 		ChildLoc.Y -= (NodeProvSize - 1) * NodeSizeY * 0.5 ;
 
 		int32 Breadth = 0;
-
-		for (const TPair<FAssetIdentifier, EDependencyPinCategory>& Pair : InNodeInfos[InAssetId].Children)
+		int32 ChildIdx = 0;
+		for (; ChildIdx < InNodeInfos[InAssetId].Children.Num(); ChildIdx++)
 		{
+			const TPair<FAssetIdentifier, EDependencyPinCategory>& Pair = InNodeInfos[InAssetId].Children[ChildIdx];
 			if (ExceedsMaxSearchBreadth(Breadth) && !InNodeInfos[InAssetId].bExpandAllChildren)
 			{
 				break;
@@ -741,7 +742,14 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyCreateNodes(bool bI
 			if ( ensure(OverflowNode) )
 			{
 				OverflowNode->SetAllowThumbnail(!Settings->IsCompactMode());
-				OverflowNode->SetReferenceNodeCollapsed(RefNodeLoc, NodeInfo.OverflowCount);
+
+				TArray<FAssetIdentifier> CollapsedNodeIdentifiers;
+				for (; ChildIdx < InNodeInfos[InAssetId].Children.Num(); ChildIdx++)
+				{
+					const TPair<FAssetIdentifier, EDependencyPinCategory>& Pair = InNodeInfos[InAssetId].Children[ChildIdx];
+					CollapsedNodeIdentifiers.Add(Pair.Key);
+				}
+				OverflowNode->SetReferenceNodeCollapsed(RefNodeLoc, NodeInfo.OverflowCount, CollapsedNodeIdentifiers);
 
 				if ( bInReferencers )
 				{
