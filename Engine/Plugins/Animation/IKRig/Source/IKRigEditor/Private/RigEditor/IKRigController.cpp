@@ -469,7 +469,7 @@ bool UIKRigController::ValidateChain(
 	const int32 EndBoneIndex = Skeleton.GetBoneIndexFromName(Chain->EndBone.BoneName);
 
 	const bool bHasStartBone = StartBoneIndex != INDEX_NONE;
-	const bool bHasEndBone = StartBoneIndex != INDEX_NONE;
+	const bool bHasEndBone = EndBoneIndex != INDEX_NONE;
 
 	// chain has neither start nor end bone
 	if (!bHasStartBone && !bHasEndBone)
