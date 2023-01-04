@@ -23,6 +23,7 @@ extern int32 GHairVisibilityComputeRaster_Debug;
 
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
+FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(const FIntPoint& Resolution, const float FOV, const uint32 SampleCount, const float OverrideStrandHairRasterizationScale);
 
 inline bool IsHairStrandsForwardRasterSupported(EShaderPlatform In) 
 { 
@@ -79,7 +80,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRasterComputeForwardCommonParameters, )
 	SHADER_PARAMETER(uint32,    NumBinners)
 	SHADER_PARAMETER(float,     RcpNumBinners)
 
-	SHADER_PARAMETER(uint32, MaxControlPointCount)
+	SHADER_PARAMETER(float,     RadiusAtDepth1)
+	SHADER_PARAMETER(uint32,    MaxControlPointCount)
+
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ControlPoints)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ControlPointCount)
 END_SHADER_PARAMETER_STRUCT()
@@ -514,6 +517,8 @@ void AddHairStrandsForwardRasterPass(
 		Common.MaxControlPointCount = InData.MaxControlPointCount;
 		Common.ControlPoints = InData.ControlPointsSRV;
 		Common.ControlPointCount = InData.ControlPointCount;
+
+		Common.RadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(FIntPoint(ViewInfo.UnconstrainedViewRect.Width(), ViewInfo.UnconstrainedViewRect.Height()), ViewInfo.FOV, 1 /*SampleCount*/, 0 /*ScaleOverride*/).Primary;
 	}
 
 	// Fill in tile depth
