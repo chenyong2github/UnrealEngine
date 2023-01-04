@@ -167,6 +167,9 @@ private:
 		ValueUnion() { FMemory::Memset( this, 0, sizeof( ValueUnion ) ); }
 	} Value;
 
+	/** Cached estimated maximum size of the value when encoded as an escaped string. */
+	mutable int CachedEstimatedMaxEscapedStringSize = 0;
+
 public:
 
 	/** Constructor */
@@ -409,6 +412,9 @@ public:
 	* @param OutData out value that receives the copied data
 	*/
 	void GetValue(TArray<TSharedPtr<class FJsonValue>>& OutData) const;
+
+	/** Returns the estimated maximum size of the value when encoded as an escaped string. */
+	int GetEstimatedMaxEscapedStringSize() const;
 
 	/**
 	 * Returns true if Type is numeric

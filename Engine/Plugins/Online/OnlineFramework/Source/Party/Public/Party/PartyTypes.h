@@ -548,6 +548,10 @@ private: //
 EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, PropertyName, PropertyAccess);	\
 EXPOSE_REP_DATA_PROPERTY_SETTER_ONLY(Owner, PropertyType, PropertyName, PropertyAccess, SetterPrivacy)
 
+/** Expose ustruct property for access without using StructProperty in the property name. */
+#define EXPOSE_USTRUCT_REP_DATA_PROPERTY_DIRECT(Owner, PropertyType, StructProperty, ChildProperty)	\
+EXPOSE_REP_DATA_PROPERTY_SETTER_ACCESS(Owner, PropertyType, ChildProperty, StructProperty.ChildProperty, public);
+
  /** 
  * Simplest option - exposes getter and events, but no default setter
  * Revised version - allows the preservation of a previous property name for making delegates and accessors which will work along-side the new names.
