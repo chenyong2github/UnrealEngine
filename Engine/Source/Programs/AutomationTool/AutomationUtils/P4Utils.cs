@@ -2069,23 +2069,35 @@ namespace AutomationTool
 			LogP4("", "unshelve " + String.Format("-s {0} ", FromCL) + String.Format("-c {0} ", ToCL) + CommandLine, SpewIsVerbose: SpewIsVerbose);
 		}
 
-        /// <summary>
-        /// Invokes p4 unshelve command.
-        /// </summary>
-        /// <param name="FromCL">Changelist to unshelve.</param>
-        /// <param name="ToCL">Changelist where the checked out files should be added.</param>
-        /// <param name="CommandLine">Commandline for the command.</param>
-        public void Shelve(int FromCL, string CommandLine = "", bool AllowSpew = true)
-        {
-            LogP4("", "shelve " + String.Format("-r -c {0} ", FromCL) + CommandLine, AllowSpew: AllowSpew);
-        }
+		/// <summary>
+		/// Invokes p4 shelve command.
+		/// </summary>
+		/// <param name="FromCL">Changelist to unshelve.</param>
+		/// <param name="ToCL">Changelist where the checked out files should be added.</param>
+		/// <param name="CommandLine">Commandline for the command.</param>
+		public void Shelve(int FromCL, string CommandLine = "", bool AllowSpew = true)
+		{
+			LogP4("", "shelve " + String.Format("-r -c {0} ", FromCL) + CommandLine, AllowSpew: AllowSpew);
+		}
 
 		/// <summary>
-        /// Deletes shelved files from a changelist
+		/// Invokes p4 shelve command, without reverting existing shelf first (overwrites any existing shelved file)
+		/// This means that any files that are already shelved, but not in the FromCL being shelved, they will still exist
 		/// </summary>
-        /// <param name="FromCL">Changelist to unshelve.</param>
-        /// <param name="CommandLine">Commandline for the command.</param>
-        public void DeleteShelvedFiles(int FromCL, bool AllowSpew = true)
+		/// <param name="FromCL">Changelist to unshelve.</param>
+		/// <param name="ToCL">Changelist where the checked out files should be added.</param>
+		/// <param name="CommandLine">Commandline for the command.</param>
+		public void ShelveNoRevert(int FromCL, string CommandLine = "", bool AllowSpew = true)
+		{
+			LogP4("", "shelve " + String.Format("-f -c {0} ", FromCL) + CommandLine, AllowSpew: AllowSpew);
+		}
+
+		/// <summary>
+		/// Deletes shelved files from a changelist
+		/// </summary>
+		/// <param name="FromCL">Changelist to unshelve.</param>
+		/// <param name="CommandLine">Commandline for the command.</param>
+		public void DeleteShelvedFiles(int FromCL, bool AllowSpew = true)
         {
 			string Output;
             if (!LogP4Output(out Output, "", String.Format("shelve -d -c {0}", FromCL), AllowSpew: AllowSpew) && !Output.StartsWith("No shelved files in changelist to delete."))
@@ -2093,6 +2105,57 @@ namespace AutomationTool
 				throw new P4Exception("Couldn't unshelve files: {0}", Output);
 			}
         }
+
+		/// <summary>
+		/// Invoke a command on a list of files, breaking up into multiple commands so as not to blow the max commandline length
+		/// </summary>
+		/// <param name="Comand">The command, like "p4 edit -c 1000"</param>
+		/// <param name="Files"></param>
+		/// <param name="AllowSpew"></param>
+		public  void BatchedCommand(string Command, List<string> Files, bool AllowSpew = true)
+		{
+			// using the limit of ProcessStartInfo.Arguments
+			const int MaxCommandLineLength = 32699;
+
+			StringBuilder CommandLine = new StringBuilder();
+			for (int Idx = 0; Idx < Files.Count; Idx++)
+			{
+				if (CommandLine.Length + Files[Idx].Length + 3 > MaxCommandLineLength)
+				{
+					LogP4("", Command + CommandLine.ToString(), AllowSpew:AllowSpew);
+					CommandLine.Clear();
+				}
+				CommandLine.AppendFormat(" \"{0}\"", Files[Idx]);
+			}
+			if (CommandLine.Length > 0)
+			{
+				LogP4("", Command + CommandLine.ToString(), AllowSpew: AllowSpew);
+			}
+		}
+
+
+		/// <summary>
+		/// Invokes p4 reopen command.
+		/// </summary>
+		/// <param name="CL">Changelist where the checked out files should be moved to.</param>
+		/// <param name="CommandLine">Commandline for the command</param>
+		public void Reopen(int CL, string CommandLine, bool AllowSpew = true)
+		{
+			LogP4("", $"reopen -c {CL} {CommandLine}", AllowSpew: AllowSpew);
+		}
+
+		/// <summary>
+		/// Invokes p4 reopen command with a list of files. IMPORTANT: because of commandline limits
+		/// the file list will be broken up across multiple commands. This will fail if a "move" operation
+		/// (that is made up of two files) is split between commandlines - they must be moved in the
+		/// same operation
+		/// </summary>
+		/// <param name="CL">Changelist where the checked out files should be moved to.</param>
+		/// <param name="Files">List of files to be moved</param>
+		public void Reopen(int CL, List<string> Files, bool AllowSpew = true)
+		{
+			BatchedCommand($"reopen -c {CL}", Files, AllowSpew: AllowSpew);
+		}
 
 		/// <summary>
 		/// Invokes p4 edit command.
@@ -2111,26 +2174,7 @@ namespace AutomationTool
 		/// <param name="CommandLine">Commandline for the command.</param>
 		public void Edit(int CL, List<string> Files, bool AllowSpew = true)
 		{
-			const int MaxCommandLineLength = 1024;
-
-			StringBuilder CommandLine = new StringBuilder();
-			for(int Idx = 0; Idx < Files.Count; Idx++)
-			{
-				if(CommandLine.Length + Files[Idx].Length + 3 > MaxCommandLineLength)
-				{
-					LogP4("", String.Format("edit -c {0} {1}", CL, CommandLine.ToString()), AllowSpew: AllowSpew);
-					CommandLine.Clear();
-				}
-				if(CommandLine.Length > 0)
-				{
-					CommandLine.Append(" ");
-				}
-				CommandLine.AppendFormat("\"{0}\"", Files[Idx]);
-			}
-			if(CommandLine.Length > 0)
-			{
-				LogP4("", String.Format("edit -c {0} {1}", CL, CommandLine.ToString()), AllowSpew: AllowSpew);
-			}
+			BatchedCommand($"edit -c {CL}", Files, AllowSpew: AllowSpew);
 		}
 
 		/// <summary>
@@ -2611,7 +2655,10 @@ namespace AutomationTool
 				int EndOffset = CmdOutput.LastIndexOf(EndStr);
 				if (Offset == 0 && Offset < EndOffset)
 				{
-					CommandUtils.LogInformation("Change {0} does not exist", CL);
+					if (AllowSpew)
+					{
+						CommandUtils.LogInformation("Change {0} does not exist", CL);
+					}
 					return false;
 				}
 
@@ -2625,7 +2672,10 @@ namespace AutomationTool
 				}
 
 				string Status = CmdOutput.Substring(StatusOffset + StatusStr.Length).TrimStart().Split('\n')[0].TrimEnd();
-				CommandUtils.LogInformation("Change {0} exists ({1})", CL, Status);
+				if (AllowSpew)
+				{
+					CommandUtils.LogInformation("Change {0} exists ({1})", CL, Status);
+				}
 				Pending = (Status == "pending");
 				return true;
 			}
