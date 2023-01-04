@@ -4210,7 +4210,7 @@ void RenderHairStrandsVisibilityBuffer(
 				RenderMode == HairVisibilityRenderMode_ComputeRaster ||
 				RenderMode == HairVisibilityRenderMode_ComputeRasterForward);
 
-			const bool bRunColorAndDepthPatching = SceneMaterial0 != nullptr && SceneMaterial1 != nullptr && SceneColorTexture != nullptr && (RenderMode != HairVisibilityRenderMode_ComputeRaster || RenderMode != HairVisibilityRenderMode_ComputeRasterForward);
+			const bool bRunColorAndDepthPatching = SceneMaterial0 != nullptr && SceneMaterial1 != nullptr && SceneColorTexture != nullptr && RenderMode != HairVisibilityRenderMode_ComputeRaster && RenderMode != HairVisibilityRenderMode_ComputeRasterForward;
 
 			FRDGTextureRef HairOnlyDepthTexture = GraphBuilder.CreateTexture(SceneDepthTexture->Desc, TEXT("Hair.HairOnlyDepthTexture"));
 			FRDGTextureRef CoverageTexture = nullptr;
