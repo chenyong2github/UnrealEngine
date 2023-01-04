@@ -25,6 +25,10 @@ class FRDGBuilder;
 class FRDGPass;
 using FRDGPassRef = FRDGPass*;
 
+class FRDGPooledBuffer;
+
+class FRDGPooledTexture;
+
 class FRDGResource;
 using FRDGResourceRef = FRDGResource*;
 

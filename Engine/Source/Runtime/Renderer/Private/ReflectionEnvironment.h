@@ -8,11 +8,10 @@
 
 #include "CoreTypes.h"
 #include "Math/Vector4.h"
+#include "RenderGraphFwd.h"
 #include "RHIFwd.h"
 #include "ShaderParameterMacros.h"
 
-class FRDGBuilder;
-class FRDGPooledBuffer;
 class FSkyLightSceneProxy;
 class FViewInfo;
 struct FEngineShowFlags;

@@ -743,8 +743,6 @@ using FRDGBufferHandle = TRDGHandle<FRDGBuffer, uint16>;
 using FRDGBufferRegistry = TRDGHandleRegistry<FRDGBufferHandle, ERDGHandleRegistryDestructPolicy::Registry>;
 using FRDGBufferBitArray = TRDGHandleBitArray<FRDGBufferHandle>;
 
-class FRDGPooledTexture;
-class FRDGPooledBuffer;
 class FRDGBufferPool;
 class FRDGTransientRenderTarget;
 
