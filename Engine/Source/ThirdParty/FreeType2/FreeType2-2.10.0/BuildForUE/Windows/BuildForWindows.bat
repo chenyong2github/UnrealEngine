@@ -18,6 +18,7 @@ set PATH_TO_PNG_DUMMY_LIB=%PATH_TO_PNG%\lib\Win32\VS2015
 REM Temporary build directories (used as working directories when running CMake)
 set VS2015_X86_PATH="%PATH_TO_CMAKE_FILE%\lib\Win32\VS2015\Build"
 set VS2015_X64_PATH="%PATH_TO_CMAKE_FILE%\lib\Win64\VS2015\Build"
+set VS2015_ARM64_PATH="%PATH_TO_CMAKE_FILE%\lib\Win64\VS2015\Build\ARM64"
 
 REM Build for VS2015 (32-bit)
 echo Generating FreeType solution for VS2015 (32-bit)...
@@ -54,5 +55,32 @@ xcopy "%VS2015_X64_PATH%\RelWithDebInfo" "%VS2015_X64_PATH%\..\RelWithDebInfo" /
 copy /B/Y "%VS2015_X64_PATH%\freetype.dir\Debug\freetype.pdb" "%VS2015_X64_PATH%\..\Debug\freetype.pdb"
 copy /B/Y "%VS2015_X64_PATH%\freetype.dir\RelWithDebInfo\freetype.pdb" "%VS2015_X64_PATH%\..\RelWithDebInfo\freetype.pdb"
 rmdir %VS2015_X64_PATH% /s/q
+
+REM Build for VS2022 (ARM64 64-bit)
+echo Generating FreeType solution for VS2022 (ARM64 64-bit)...
+if exist %VS2015_ARM64_PATH% (rmdir %VS2015_ARM64_PATH% /s/q)
+mkdir %VS2015_ARM64_PATH%
+cd %VS2015_ARM64_PATH%
+cmake -G "Visual Studio 17 2022" %PATH_TO_CMAKE_FILE%^
+    -A ARM64^
+    -DFT_WITH_ZLIB=ON^
+    -DFT_WITH_PNG=ON^
+    -DCMAKE_PREFIX_PATH="%PATH_TO_PNG_DUMMY_LIB%"^
+    -DZLIB_LIBRARY="%PATH_TO_ZLIB_DUMMY_LIB%/lib/Win32/VS2015/ARM64/zlibstatic.lib"^
+    -DZLIB_INCLUDE_DIR="%PATH_TO_ZLIB_WIN64_SRC%"^
+    -DPNG_LIBRARY="%PATH_TO_PNG%/lib/Win64/ARM64/libpng_64.lib"^
+    -DPNG_PNG_INCLUDE_DIR=%PATH_TO_PNG_SRC%^
+    -Wno-dev  
+echo Building FreeType solution for VS2015 (64-bit, Arm64, Debug)...
+devenv.exe freetype.sln /Build Debug
+echo Building FreeType solution for VS2015 (64-bit, Arm64, Release)...
+devenv.exe freetype.sln /Build Release
+echo Building FreeType solution for VS2015 (64-bit, Arm64, RelWithDebInfo)...
+devenv.exe freetype.sln /Build RelWithDebInfo
+cd %PATH_TO_CMAKE_FILE%
+xcopy "%VS2015_ARM64_PATH%\Debug" "%VS2015_X64_PATH%\..\ARM64\Debug" /i/y/q
+xcopy "%VS2015_ARM64_PATH%\Release" "%VS2015_X64_PATH%\..\ARM64\Release" /i/y/q
+xcopy "%VS2015_ARM64_PATH%\RelWithDebInfo" "%VS2015_X64_PATH%\..\ARM64\RelWithDebInfo" /i/y/q
+rmdir %VS2015_ARM64_PATH% /s/q
 
 endlocal

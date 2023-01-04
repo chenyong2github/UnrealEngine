@@ -78,6 +78,11 @@ public class FreeType2 : ModuleRules
 					"Win64",
 					"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
+			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				LibPath = Path.Combine(LibPath, Target.WindowsPlatform.GetArchitectureSubpath());
+			}
+
 			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT
 				? Path.Combine(LibPath, "Debug", "freetyped.lib")
 				: Path.Combine(LibPath, "Release", "freetype.lib");
