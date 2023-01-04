@@ -37,8 +37,7 @@ public:
 	
 private:
 	/**
-	 * For simple Asset Action's you should fill out the supported class here.  Don't bother with GetSupportedClass()
-	 * * unless you actually need to do specialized dynamic logic.
+	 * For simple Asset Action's you should fill out the supported class here.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Assets", meta=(AllowAbstract))
 	TArray<TSoftClassPtr<UObject>> SupportedClasses;

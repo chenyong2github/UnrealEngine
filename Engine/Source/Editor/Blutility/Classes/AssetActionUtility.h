@@ -14,9 +14,33 @@ namespace AssetActionUtilityTags
 	extern const FName SupportedClasses;
 	extern const FName IsActionForBlueprint;
 	extern const FName CallableFunctions;
+	extern const FName SupportedConditions;
 }
 
 struct FAssetData;
+
+USTRUCT()
+struct FAssetActionSupportCondition
+{
+	GENERATED_BODY()
+
+	/**
+	 * This is a content browser styled filter.  For example, ..._N AND VirtualTextureStreaming=FALSE, would require that
+	 * asset tag VirtualTextureStreaming be false, and the asset name end in _N.
+	 *
+	 * You can learn more about the content browser search syntax in the "Advanced Search Syntax" documentation.
+	 */
+	UPROPERTY(EditAnywhere, Category=Condition)
+	FString Filter;
+
+	/**
+	 * This is the failure reason to reply to the user with if the condition above fails.
+	 * If you leave this blank, we will hide the option.  If fill in the reason, will show the option but give the reason
+	 * it is disabled.
+	 */
+	UPROPERTY(EditAnywhere, Category=Condition, meta=(MultiLine=true))
+	FString FailureReason;
+};
 
 /** 
  * Base class for all asset action-related utilities
@@ -58,9 +82,17 @@ public:
 
 protected:
 	/**
-	 * For simple Asset Action's you should fill out the supported class here.  Don't bother with GetSupportedClass()
-	 * * unless you actually need to do specialized dynamic logic.
+	 * The supported classes controls the list of classes that may be operated on by all of the asset functions in this
+	 * utility class.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category="Assets", meta=(AllowAbstract))
+	UPROPERTY(EditDefaultsOnly, Category="Asset Support", meta=(AllowAbstract))
 	TArray<TSoftClassPtr<UObject>> SupportedClasses;
+
+	/**
+	 * The supported conditions for any asset to use these utility functions.  Note: all of these conditions must pass
+	 * in sequence.  So if you have earlier failure conditions you want to be run first, put them first in the list,
+	 * if those fail, their failure reason will be handled first.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category="Asset Support")
+	TArray<FAssetActionSupportCondition> SupportedConditions;
 };

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetActionUtility.h"
 #include "UObject/Object.h"
 #include "AssetRegistry/AssetData.h"
 #include "IEditorUtilityExtension.h"
@@ -63,6 +64,7 @@ public:
 	bool IsLatestVersion() const;
 	bool AreSupportedClassesForBlueprints() const;
 	TArray<TSoftClassPtr<UObject>> GetSupportedClasses() const;
+	TArray<FAssetActionSupportCondition> GetAssetActionSupportConditions() const;
 	TArray<FBlutilityFunctionData> GetCallableFunctions() const;
 
 	const FAssetData& GetUtilityBlueprintAsset() const { return UtilityBlueprintAsset; }
@@ -80,6 +82,7 @@ public:
 public:
 	static void AddTagsFor_Version(TArray<UObject::FAssetRegistryTag>& OutTags);
 	static void AddTagsFor_SupportedClasses(const TArray<TSoftClassPtr<UObject>>& SupportedClasses, TArray<UObject::FAssetRegistryTag>& OutTags);
+	static void AddTagsFor_SupportedConditions(const TArray<FAssetActionSupportCondition>& SupportedConditions, TArray<UObject::FAssetRegistryTag>& OutTags);
 	static void AddTagsFor_IsActionForBlueprints(bool IsActionForBlueprints, TArray<UObject::FAssetRegistryTag>& OutTags);
 	static void AddTagsFor_CallableFunctions(const UObject* FunctionsSource, TArray<UObject::FAssetRegistryTag>& OutTags);
 

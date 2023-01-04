@@ -55,7 +55,7 @@ FWarnIfAssetsLoadedInScope::~FWarnIfAssetsLoadedInScope()
 
 void FWarnIfAssetsLoadedInScope::OnAssetLoaded(UObject* InObject)
 {
-	// Don't warn people if the switch isn't enalbed.
+	// Don't warn people if the switch isn't enabled.
 	if (!IsEnabled())
 	{
 		return;

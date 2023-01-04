@@ -37,7 +37,6 @@
 #include "ClassViewerFilter.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
-#include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
 #include "AssetTypeActions/AssetTypeActions_SkeletalMesh.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
@@ -65,11 +64,6 @@
 #include "AssetTypeActions/AssetTypeActions_HapticFeedback.h"
 #include "AssetTypeActions/AssetTypeActions_ActorFoliageSettings.h"
 #include "AssetTypeActions/AssetTypeActions_LightWeightInstance.h"
-#include "AssetTypeActions/AssetTypeActions_Material.h"
-#include "AssetTypeActions/AssetTypeActions_MaterialFunction.h"
-#include "AssetTypeActions/AssetTypeActions_MaterialFunctionInstance.h"
-#include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
-#include "AssetTypeActions/AssetTypeActions_MaterialInstanceDynamic.h"
 #include "AssetTypeActions/AssetTypeActions_MirrorDataTable.h"
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
 #include "AssetTypeActions/AssetTypeActions_PhysicalMaterialMask.h"
@@ -1268,16 +1262,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ForceFeedbackEffect(InputCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ActorFoliageSettings(FoliageCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_LightWeightInstance));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Material(EAssetTypeCategories::Type::None)));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunction));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionLayer));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionLayerInstance));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionLayerBlend));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionLayerBlendInstance));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialFunctionInstance));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceConstant(EAssetTypeCategories::Type::None)));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceDynamic));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInterface));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MirrorDataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ParticleSystem));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterialMask));
@@ -1581,6 +1565,52 @@ UObject* UAssetToolsImpl::CreateAsset(const FString& AssetName, const FString& P
 	}
 
 	return NewObj;
+}
+
+void UAssetToolsImpl::CreateAssetsFrom(TConstArrayView<UObject*> SourceObjects, UClass* CreateAssetType, const FString& DefaultSuffix, TFunctionRef<UFactory*(UObject*)> FactoryConstructor, FName CallingContext)
+{
+	if ( SourceObjects.Num() == 1 )
+	{
+		if (UObject* SourceObject = SourceObjects[0])
+		{
+			// Create an appropriate and unique name 
+			FString Name;
+			FString PackageName;
+			CreateUniqueAssetName(SourceObject->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
+
+			UFactory* Factory = FactoryConstructor(SourceObject);
+
+			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+			ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackageName), CreateAssetType, Factory);
+		}
+	}
+	else
+	{
+		TArray<UObject*> ObjectsToSync;
+		for (UObject* SourceObject : SourceObjects)
+		{
+			if ( SourceObject )
+			{
+				// Determine an appropriate name
+				FString Name;
+				FString PackageName;
+				CreateUniqueAssetName(SourceObject->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
+
+				// Create the factory used to generate the asset
+				UFactory* Factory = FactoryConstructor(SourceObject);
+					
+				if (UObject* NewAsset = CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), CreateAssetType, Factory, CallingContext))
+				{
+					ObjectsToSync.Add(NewAsset);
+				}
+			}
+		}
+
+		if ( ObjectsToSync.Num() > 0 )
+		{
+			SyncBrowserToAssets(ObjectsToSync);
+		}
+	}
 }
 
 UObject* UAssetToolsImpl::CreateAssetWithDialog(UClass* AssetClass, UFactory* Factory, FName CallingContext)

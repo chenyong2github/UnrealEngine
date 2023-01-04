@@ -17,6 +17,9 @@
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_Blueprint"
 
+// Menu Extensions
+//--------------------------------------------------------------------
+
 namespace MenuExtension_Blueprint
 {
 	static bool CanExecuteNewDerivedBlueprint(const FToolMenuContext& MenuContext, const FAssetData* SelectedBlueprintPtr)

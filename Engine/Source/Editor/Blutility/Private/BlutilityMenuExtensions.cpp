@@ -17,6 +17,7 @@
 #include "EditorUtilityAssetPrototype.h"
 #include "Editor/EditorEngine.h"
 #include "EditorUtilityBlueprint.h"
+#include "FrontendFilters.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
@@ -71,6 +72,340 @@
 class IToolkitHost;
 
 #define LOCTEXT_NAMESPACE "BlutilityMenuExtensions"
+
+namespace BlutilityUtil
+{
+	/** Mapping of asset property tag aliases that can be used by text searches */
+	class FAssetPropertyTagAliases
+	{
+	public:
+		static FAssetPropertyTagAliases& Get()
+		{
+			static FAssetPropertyTagAliases Singleton;
+			return Singleton;
+		}
+
+		/** Get the source tag for the given asset data and alias, or none if there is no match */
+		FName GetSourceTagFromAlias(const FAssetData& InAssetData, const FName InAlias)
+		{
+			TSharedPtr<TMap<FName, FName>>& AliasToSourceTagMapping = ClassToAliasTagsMapping.FindOrAdd(InAssetData.AssetClassPath);
+
+			if (!AliasToSourceTagMapping.IsValid())
+			{
+				static const FName NAME_DisplayName(TEXT("DisplayName"));
+
+				AliasToSourceTagMapping = MakeShared<TMap<FName, FName>>();
+
+				UClass* AssetClass = InAssetData.GetClass();
+				if (AssetClass)
+				{
+					TMap<FName, UObject::FAssetRegistryTagMetadata> AssetTagMetaData;
+					AssetClass->GetDefaultObject()->GetAssetRegistryTagMetadata(AssetTagMetaData);
+
+					for (const auto& AssetTagMetaDataPair : AssetTagMetaData)
+					{
+						if (!AssetTagMetaDataPair.Value.DisplayName.IsEmpty())
+						{
+							const FName DisplayName = MakeObjectNameFromDisplayLabel(AssetTagMetaDataPair.Value.DisplayName.ToString(), NAME_None);
+							AliasToSourceTagMapping->Add(DisplayName, AssetTagMetaDataPair.Key);
+						}
+					}
+
+					for (const auto& KeyValuePair : InAssetData.TagsAndValues)
+					{
+						if (FProperty* Field = FindFProperty<FProperty>(AssetClass, KeyValuePair.Key))
+						{
+							if (Field->HasMetaData(NAME_DisplayName))
+							{
+								const FName DisplayName = MakeObjectNameFromDisplayLabel(Field->GetMetaData(NAME_DisplayName), NAME_None);
+								AliasToSourceTagMapping->Add(DisplayName, KeyValuePair.Key);
+							}
+						}
+					}
+				}
+			}
+
+			return AliasToSourceTagMapping.IsValid() ? AliasToSourceTagMapping->FindRef(InAlias) : NAME_None;
+		}
+
+	private:
+		/** Mapping from class name -> (alias -> source) */
+		TMap<FTopLevelAssetPath, TSharedPtr<TMap<FName, FName>>> ClassToAliasTagsMapping;
+	};
+	
+	/** Expression context to test the given asset data against the current text filter */
+	class FTextFilterExpressionContext : public ITextFilterExpressionContext
+	{
+	public:
+		typedef TRemoveReference<const FAssetData&>::Type* FAssetFilterTypePtr;
+
+		FTextFilterExpressionContext()
+			: AssetPtr(nullptr)
+			, bIncludeClassName(true)
+			, bIncludeAssetPath(false)
+			, bIncludeCollectionNames(true)
+			, NameKeyName("Name")
+			, PathKeyName("Path")
+			, ClassKeyName("Class")
+			, TypeKeyName("Type")
+			, CollectionKeyName("Collection")
+			, TagKeyName("Tag")
+		{
+		}
+
+		void SetAsset(FAssetFilterTypePtr InAsset) 
+		{
+			AssetPtr = InAsset;
+
+			if (bIncludeAssetPath)
+			{
+				// Get the full asset path, and also split it so we can compare each part in the filter
+				AssetPtr->PackageName.AppendString(AssetFullPath);
+				AssetFullPath.ParseIntoArray(AssetSplitPath, TEXT("/"));
+				AssetFullPath.ToUpperInline();
+
+				if (bIncludeClassName)
+				{
+					// Get the full export text path as people sometimes search by copying this (requires class and asset path search to be enabled in order to match)
+					AssetPtr->GetExportTextName(AssetExportTextName);
+					AssetExportTextName.ToUpperInline();
+				}
+			}
+		}
+
+		const FAssetData* GetAsset() const { return AssetPtr; }
+
+		void ClearAsset()
+		{
+			AssetPtr = nullptr;
+			AssetFullPath.Reset();
+			AssetExportTextName.Reset();
+			AssetSplitPath.Reset();
+			AssetCollectionNames.Reset();
+		}
+
+		void SetIncludeClassName(const bool InIncludeClassName)
+		{
+			bIncludeClassName = InIncludeClassName;
+		}
+
+		bool GetIncludeClassName() const
+		{
+			return bIncludeClassName;
+		}
+
+		void SetIncludeAssetPath(const bool InIncludeAssetPath)
+		{
+			bIncludeAssetPath = InIncludeAssetPath;
+		}
+
+		bool GetIncludeAssetPath() const
+		{
+			return bIncludeAssetPath;
+		}
+
+		void SetIncludeCollectionNames(const bool InIncludeCollectionNames)
+		{
+			bIncludeCollectionNames = InIncludeCollectionNames;
+		}
+
+		bool GetIncludeCollectionNames() const
+		{
+			return bIncludeCollectionNames;
+		}
+
+		virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
+		{
+			if (InValue.CompareName(AssetPtr->AssetName, InTextComparisonMode))
+			{
+				return true;
+			}
+
+			if (bIncludeAssetPath)
+			{
+				if (InValue.CompareFString(AssetFullPath, InTextComparisonMode))
+				{
+					return true;
+				}
+
+				for (const FString& AssetPathPart : AssetSplitPath)
+				{
+					if (InValue.CompareFString(AssetPathPart, InTextComparisonMode))
+					{
+						return true;
+					}
+				}
+			}
+
+			if (bIncludeClassName)
+			{
+				if (InValue.CompareFString(AssetPtr->AssetClassPath.ToString(), InTextComparisonMode))
+				{
+					return true;
+				}
+			}
+
+			if (bIncludeClassName && bIncludeAssetPath)
+			{
+				// Only test this if we're searching the class name and asset path too, as the exported text contains the type and path in the string
+				if (InValue.CompareFString(AssetExportTextName, InTextComparisonMode))
+				{
+					return true;
+				}
+			}
+
+			if (bIncludeCollectionNames)
+			{
+				for (const FName& AssetCollectionName : AssetCollectionNames)
+				{
+					if (InValue.CompareName(AssetCollectionName, InTextComparisonMode))
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
+		{
+			// Special case for the asset name, as this isn't contained within the asset registry meta-data
+			if (InKey == NameKeyName)
+			{
+				// Names can only work with Equal or NotEqual type tests
+				if (InComparisonOperation != ETextFilterComparisonOperation::Equal && InComparisonOperation != ETextFilterComparisonOperation::NotEqual)
+				{
+					return false;
+				}
+
+				const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->AssetName, InValue, InTextComparisonMode);
+				return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
+			}
+
+			// Special case for the asset path, as this isn't contained within the asset registry meta-data
+			if (InKey == PathKeyName)
+			{
+				// Paths can only work with Equal or NotEqual type tests
+				if (InComparisonOperation != ETextFilterComparisonOperation::Equal && InComparisonOperation != ETextFilterComparisonOperation::NotEqual)
+				{
+					return false;
+				}
+
+				// If the comparison mode is partial, then we only need to test the ObjectPath as that contains the other two as sub-strings
+				bool bIsMatch = false;
+				if (InTextComparisonMode == ETextFilterTextComparisonMode::Partial)
+				{
+					bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetObjectPathString(), InValue, InTextComparisonMode);
+				}
+				else
+				{
+					bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetObjectPathString(), InValue, InTextComparisonMode)
+						|| TextFilterUtils::TestBasicStringExpression(AssetPtr->PackageName, InValue, InTextComparisonMode)
+						|| TextFilterUtils::TestBasicStringExpression(AssetPtr->PackagePath, InValue, InTextComparisonMode);
+				}
+				return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
+			}
+
+			// Special case for the asset type, as this isn't contained within the asset registry meta-data
+			if (InKey == ClassKeyName || InKey == TypeKeyName)
+			{
+				// Class names can only work with Equal or NotEqual type tests
+				if (InComparisonOperation != ETextFilterComparisonOperation::Equal && InComparisonOperation != ETextFilterComparisonOperation::NotEqual)
+				{
+					return false;
+				}
+
+				const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->AssetClassPath.ToString(), InValue, InTextComparisonMode);
+				return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
+			}
+
+			// Special case for collections, as these aren't contained within the asset registry meta-data
+			if (InKey == CollectionKeyName || InKey == TagKeyName)
+			{
+				// Collections can only work with Equal or NotEqual type tests
+				if (InComparisonOperation != ETextFilterComparisonOperation::Equal && InComparisonOperation != ETextFilterComparisonOperation::NotEqual)
+				{
+					return false;
+				}
+
+				bool bFoundMatch = false;
+				for (const FName& AssetCollectionName : AssetCollectionNames)
+				{
+					if (TextFilterUtils::TestBasicStringExpression(AssetCollectionName, InValue, InTextComparisonMode))
+					{
+						bFoundMatch = true;
+						break;
+					}
+				}
+
+				return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bFoundMatch : !bFoundMatch;
+			}
+
+			// Generic handling for anything in the asset meta-data
+			{
+				auto GetMetaDataValue = [this, &InKey](FString& OutMetaDataValue) -> bool
+				{
+					// Check for a literal key
+					if (AssetPtr->GetTagValue(InKey, OutMetaDataValue))
+					{
+						return true;
+					}
+
+					// Check for an alias key
+					const FName LiteralKey = FAssetPropertyTagAliases::Get().GetSourceTagFromAlias(*AssetPtr, InKey);
+					if (!LiteralKey.IsNone() && AssetPtr->GetTagValue(LiteralKey, OutMetaDataValue))
+					{
+						return true;
+					}
+
+					return false;
+				};
+
+				FString MetaDataValue;
+				if (GetMetaDataValue(MetaDataValue))
+				{
+					return TextFilterUtils::TestComplexExpression(MetaDataValue, InValue, InComparisonOperation, InTextComparisonMode);
+				}
+			}
+
+			return false;
+		}
+
+	private:
+		/** Pointer to the asset we're currently filtering */
+		FAssetFilterTypePtr AssetPtr;
+
+		/** Full path of the current asset */
+		FString AssetFullPath;
+
+		/** The export text name of the current asset */
+		FString AssetExportTextName;
+
+		/** Split path of the current asset */
+		TArray<FString> AssetSplitPath;
+
+		/** Names of the collections that the current asset is in */
+		TArray<FName> AssetCollectionNames;
+
+		/** Are we supposed to include the class name in our basic string tests? */
+		bool bIncludeClassName;
+
+		/** Search inside the entire asset path? */
+		bool bIncludeAssetPath;
+
+		/** Search collection names? */
+		bool bIncludeCollectionNames;
+
+		/** Keys used by TestComplexExpression */
+		const FName NameKeyName;
+		const FName PathKeyName;
+		const FName ClassKeyName;
+		const FName TypeKeyName;
+		const FName CollectionKeyName;
+		const FName TagKeyName;
+	};	
+}
 
 /** Dialog widget used to display function properties */
 class SFunctionParamDialog : public SCompoundWidget
@@ -329,9 +664,6 @@ void FBlutilityMenuExtensions::OpenEditorForUtility(const FFunctionAndUtil& Func
 
 void FBlutilityMenuExtensions::ExtractFunctions(TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>>& Utils, TMap<FString, TArray<FFunctionAndUtil>>& OutCategoryFunctions)
 {
-	TSet<UClass*> ProcessedClasses;
-	const static FName NAME_CallInEditor(TEXT("CallInEditor"));
-
 	// Find the exposed functions available in each class, making sure to not list shared functions from a parent class more than once
 	for (TPair<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> UtilitySelectionPair : Utils)
 	{
@@ -357,113 +689,164 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 {
 	TMap<FString, TArray<FFunctionAndUtil>> CategoryFunctions;
 	ExtractFunctions(Utils, CategoryFunctions);
-
+	
 	auto AddFunctionEntries = [Selection, IsValidPropertyType](FMenuBuilder& SubMenuBuilder, const TArray<FFunctionAndUtil>& FunctionUtils)
 	{
+		BlutilityUtil::FTextFilterExpressionContext TextFilterContext;
+		
+		FTextFilterExpressionEvaluator TextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::Complex);
+		
 		for (const FFunctionAndUtil& FunctionAndUtil : FunctionUtils)
 		{
-			const FText TooltipText = FText::Format(LOCTEXT("AssetUtilTooltipFormat", "{0}\n(Shift-click to edit script)"), FunctionAndUtil.FunctionData.TooltipText);
+			bool PassesFilterCondition = true;
+			FString FilterFailureMessage;
+			
+			if constexpr ( std::is_same_v<FAssetData, SelectionType> )
+			{
+				TArray<FAssetActionSupportCondition> Conditions = FunctionAndUtil.Util->GetAssetActionSupportConditions();
+
+				for (const FAssetActionSupportCondition& Condition : Conditions)
+				{
+					TextFilterExpressionEvaluator.SetFilterText(FText::FromString(Condition.Filter));
+				
+					for (const int32& SelectionIndex : FunctionAndUtil.SelectionIndices)
+					{
+						const auto SelectedAsset = Selection[SelectionIndex];
+						TextFilterContext.SetAsset(&SelectedAsset);
+						if (!TextFilterExpressionEvaluator.TestTextFilter(TextFilterContext))
+						{
+							PassesFilterCondition = false;
+							FilterFailureMessage = Condition.FailureReason;
+							break;
+						}
+					}
+
+					if (!PassesFilterCondition)
+					{
+						break;
+					}
+				}
+			}
+			
+			FText TooltipText;
+
+			if (FilterFailureMessage.IsEmpty())
+			{
+				TooltipText = FText::Format(LOCTEXT("AssetUtilTooltipFormat", "{0}\n\n(Shift-click to edit script)"), FunctionAndUtil.FunctionData.TooltipText);	
+			}
+			else
+			{
+				TooltipText = FText::Format(LOCTEXT("AssetUtilTooltipWithErrorFormat", "{0}\n\n({1})\n\n(Shift-click to edit script)"), FunctionAndUtil.FunctionData.TooltipText, FText::FromString(FilterFailureMessage));
+			}
 
 			SubMenuBuilder.AddMenuEntry(
 				FunctionAndUtil.FunctionData.NameText,
 				TooltipText,
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x"),
-				FExecuteAction::CreateLambda([FunctionAndUtil, Selection, IsValidPropertyType]
-				{
-					if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+				
+				FUIAction
+				(
+					FExecuteAction::CreateLambda([FunctionAndUtil, Selection, IsValidPropertyType]
 					{
-						OpenEditorForUtility(FunctionAndUtil);
-					}
-					else
-					{
-						// We dont run this on the CDO, as bad things could occur!
-						UObject* TempObject = NewObject<UObject>(GetTransientPackage(), Cast<UObject>(FunctionAndUtil.Util->LoadUtilityAsset())->GetClass());
-						TempObject->AddToRoot(); // Some Blutility actions might run GC so the TempObject needs to be rooted to avoid getting destroyed
-
-						UFunction* Function = FunctionAndUtil.GetFunction();
-						
-						if (Function->NumParms > 0)
+						if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 						{
-							// Create a parameter struct and fill in defaults
-							TSharedRef<FStructOnScope> FuncParams = MakeShared<FStructOnScope>(Function);
-
-							FProperty* FirstParamProperty = nullptr;
-
-							int32 ParameterIndex = 0;
-							for (TFieldIterator<FProperty> It(Function); It&& It->HasAnyPropertyFlags(CPF_Parm); ++It)
-							{
-								FString Defaults;
-								if (UEdGraphSchema_K2::FindFunctionParameterDefaultValue(Function, *It, Defaults))
-								{
-									It->ImportText_Direct(*Defaults, It->ContainerPtrToValuePtr<uint8>(FuncParams->GetStructMemory()), nullptr, PPF_None);
-								}
-
-								// Check to see if the first parameter matches the selection object type, in that case we can directly forward the selection to it
-								if (ParameterIndex == 0 && IsValidPropertyType(*It))
-								{
-									FirstParamProperty = *It;
-								}
-
-								++ParameterIndex;
-							}
-
-							bool bApply = true;
-
-							if (!FirstParamProperty || ParameterIndex > 1)
-							{
-								// pop up a dialog to input params to the function
-								TSharedRef<SWindow> Window = SNew(SWindow)
-									.Title(Function->GetDisplayNameText())
-									.ClientSize(FVector2D(400, 200))
-									.SupportsMinimize(false)
-									.SupportsMaximize(false);
-
-								TSharedPtr<SFunctionParamDialog> Dialog;
-								Window->SetContent(
-									SAssignNew(Dialog, SFunctionParamDialog, Window, FuncParams, FirstParamProperty ? FirstParamProperty->GetFName() : NAME_None)
-									.OkButtonText(LOCTEXT("OKButton", "OK"))
-									.OkButtonTooltipText(Function->GetToolTipText()));
-
-								GEditor->EditorAddModalWindow(Window);
-								bApply = Dialog->bOKPressed;
-							}
-
-
-							if (bApply)
-							{
-								FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action"));
-								FEditorScriptExecutionGuard ScriptGuard;
-								const bool bForwardUserSelection = FirstParamProperty != nullptr;
-								if (bForwardUserSelection)
-								{
-									// For each user-select asset forward the selection object into the function first's parameter (if it matches)
-									const FString Path = FirstParamProperty->GetPathName(Function);
-
-									// Ensure we only process selection objects that are valid for this function/utility
-									for (const int32& SelectionIndex : FunctionAndUtil.SelectionIndices)
-									{
-										const auto SelectedAsset = Selection[SelectionIndex];
-										FirstParamProperty->CopySingleValue(FirstParamProperty->ContainerPtrToValuePtr<uint8>(FuncParams->GetStructMemory()), &SelectedAsset);
-										TempObject->ProcessEvent(Function, FuncParams->GetStructMemory());
-									}
-								}
-								else
-								{
-									// User is expected to manage the asset selection on its own
-									TempObject->ProcessEvent(Function, FuncParams->GetStructMemory());
-								}
-							}
+							OpenEditorForUtility(FunctionAndUtil);
 						}
 						else
 						{
-							FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action"));
-							FEditorScriptExecutionGuard ScriptGuard;
-							TempObject->ProcessEvent(Function, nullptr);
-						}
+							// We dont run this on the CDO, as bad things could occur!
+							UObject* TempObject = NewObject<UObject>(GetTransientPackage(), Cast<UObject>(FunctionAndUtil.Util->LoadUtilityAsset())->GetClass());
+							TempObject->AddToRoot(); // Some Blutility actions might run GC so the TempObject needs to be rooted to avoid getting destroyed
 
-						TempObject->RemoveFromRoot();
-					}
-				})
+							UFunction* Function = FunctionAndUtil.GetFunction();
+							
+							if (Function->NumParms > 0)
+							{
+								// Create a parameter struct and fill in defaults
+								TSharedRef<FStructOnScope> FuncParams = MakeShared<FStructOnScope>(Function);
+
+								FProperty* FirstParamProperty = nullptr;
+
+								int32 ParameterIndex = 0;
+								for (TFieldIterator<FProperty> It(Function); It&& It->HasAnyPropertyFlags(CPF_Parm); ++It)
+								{
+									FString Defaults;
+									if (UEdGraphSchema_K2::FindFunctionParameterDefaultValue(Function, *It, Defaults))
+									{
+										It->ImportText_Direct(*Defaults, It->ContainerPtrToValuePtr<uint8>(FuncParams->GetStructMemory()), nullptr, PPF_None);
+									}
+
+									// Check to see if the first parameter matches the selection object type, in that case we can directly forward the selection to it
+									if (ParameterIndex == 0 && IsValidPropertyType(*It))
+									{
+										FirstParamProperty = *It;
+									}
+
+									++ParameterIndex;
+								}
+
+								bool bApply = true;
+
+								if (!FirstParamProperty || ParameterIndex > 1)
+								{
+									// pop up a dialog to input params to the function
+									TSharedRef<SWindow> Window = SNew(SWindow)
+										.Title(Function->GetDisplayNameText())
+										.ClientSize(FVector2D(400, 200))
+										.SupportsMinimize(false)
+										.SupportsMaximize(false);
+
+									TSharedPtr<SFunctionParamDialog> Dialog;
+									Window->SetContent(
+										SAssignNew(Dialog, SFunctionParamDialog, Window, FuncParams, FirstParamProperty ? FirstParamProperty->GetFName() : NAME_None)
+										.OkButtonText(LOCTEXT("OKButton", "OK"))
+										.OkButtonTooltipText(Function->GetToolTipText()));
+
+									GEditor->EditorAddModalWindow(Window);
+									bApply = Dialog->bOKPressed;
+								}
+
+
+								if (bApply)
+								{
+									FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action"));
+									FEditorScriptExecutionGuard ScriptGuard;
+									const bool bForwardUserSelection = FirstParamProperty != nullptr;
+									if (bForwardUserSelection)
+									{
+										// For each user-select asset forward the selection object into the function first's parameter (if it matches)
+										const FString Path = FirstParamProperty->GetPathName(Function);
+
+										// Ensure we only process selection objects that are valid for this function/utility
+										for (const int32& SelectionIndex : FunctionAndUtil.SelectionIndices)
+										{
+											const auto SelectedAsset = Selection[SelectionIndex];
+											FirstParamProperty->CopySingleValue(FirstParamProperty->ContainerPtrToValuePtr<uint8>(FuncParams->GetStructMemory()), &SelectedAsset);
+											TempObject->ProcessEvent(Function, FuncParams->GetStructMemory());
+										}
+									}
+									else
+									{
+										// User is expected to manage the asset selection on its own
+										TempObject->ProcessEvent(Function, FuncParams->GetStructMemory());
+									}
+								}
+							}
+							else
+							{
+								FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action"));
+								FEditorScriptExecutionGuard ScriptGuard;
+								TempObject->ProcessEvent(Function, nullptr);
+							}
+
+							TempObject->RemoveFromRoot();
+						}
+					}),
+					FCanExecuteAction::CreateLambda([PassesFilterCondition]()
+					{
+						return PassesFilterCondition;
+					})
+				)
 			);
 		}
 	};

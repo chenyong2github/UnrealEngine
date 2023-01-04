@@ -84,6 +84,16 @@ const FAssetData* UContentBrowserAssetContextMenuContext::GetSingleSelectedAsset
 
 namespace UE::ContentBrowser
 {
+	TArray<UToolMenu*> ExtendToolMenu_AssetContextMenus(TConstArrayView<UClass*> AssetClasses)
+	{
+		TArray<UToolMenu*> ToolMenus;
+		for (UClass* AssetClass : AssetClasses)
+		{
+			ToolMenus.Add(ExtendToolMenu_AssetContextMenu(TSoftClassPtr<UObject>(AssetClass)));
+		}
+		return ToolMenus;
+	}
+	
 	UToolMenu* ExtendToolMenu_AssetContextMenu(UClass* AssetClass)
 	{
 		return ExtendToolMenu_AssetContextMenu(TSoftClassPtr<UObject>(AssetClass));

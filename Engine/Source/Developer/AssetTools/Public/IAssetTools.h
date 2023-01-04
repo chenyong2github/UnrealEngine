@@ -219,8 +219,8 @@ struct FMigrationOptions
 		: bPrompt(false)
 		, AssetConflict(EAssetMigrationConflict::Skip)
 	{}
-
 };
+
 
 // An array of maps each storing pairs of original object -> duplicated object
 using FDuplicatedObjects = TArray<TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>>;
@@ -293,6 +293,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual UObject* CreateAsset(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None) = 0;
+
+	/**
+	 * Creates one or more assets using the source objects as the basis for the next type.  This is a common enough operation
+	 * it needed a utility.  In the case that you only have a single SourceObject, we'll lean on the content browser
+	 * to create the asset and focus you to it so you can rename it inline.  However in the case that multiple assets
+	 * get created we'll construct each one and then sync the content browser to them.
+	 */
+	virtual void CreateAssetsFrom(TConstArrayView<UObject*> SourceObjects, UClass* CreateAssetType, const FString& DefaultSuffix, TFunctionRef<UFactory*(UObject*)> FactoryConstructor, FName CallingContext = NAME_None) = 0;
+
+	template<typename SourceObjectType, typename = typename TEnableIf<TIsDerivedFrom<SourceObjectType, UObject>::Value>::Type>
+	void CreateAssetsFrom(TConstArrayView<SourceObjectType*> SourceObjects, UClass* CreateAssetType, const FString& DefaultSuffix, TFunctionRef<UFactory*(SourceObjectType*)> FactoryConstructor, FName CallingContext = NAME_None)
+	{
+		CreateAssetsFrom(TConstArrayView<UObject*>(reinterpret_cast<UObject* const*>(SourceObjects.GetData()), SourceObjects.Num()), CreateAssetType, DefaultSuffix, [FactoryConstructor](UObject* SourceObject){ return FactoryConstructor(Cast<SourceObjectType>(SourceObject)); }, CallingContext);
+	}
 
 	/** Opens an asset picker dialog and creates an asset with the specified name and path */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
@@ -562,6 +576,7 @@ public:
 	/** Syncs the primary content browser to the specified assets, whether or not it is locked. Most syncs that come from AssetTools -feel- like they came from the content browser, so this is okay. */
 	virtual void SyncBrowserToAssets(const TArray<UObject*>& AssetsToSync) = 0;
 	virtual void SyncBrowserToAssets(const TArray<FAssetData>& AssetsToSync) = 0;
+	
 };
 
 UCLASS(transient)

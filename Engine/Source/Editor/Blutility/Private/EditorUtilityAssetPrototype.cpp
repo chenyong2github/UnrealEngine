@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityAssetPrototype.h"
+
+#include "AssetActionUtility.h"
 #include "EditorUtilityBlueprint.h"
 #include "JsonObjectConverter.h"
 #include "AssetRegistry/AssetData.h"
@@ -10,6 +12,7 @@ const FName AssetActionUtilityTags::BlutilityTagVersion(TEXT("BlutilityTagVersio
 const FName AssetActionUtilityTags::SupportedClasses(TEXT("SupportedClasses"));
 const FName AssetActionUtilityTags::IsActionForBlueprint(TEXT("IsActionForBlueprint"));
 const FName AssetActionUtilityTags::CallableFunctions(TEXT("CallableFunctions"));
+const FName AssetActionUtilityTags::SupportedConditions(TEXT("SupportedConditions"));
 
 const int32 AssetActionUtilityTags::TagVersion = 1;
 
@@ -83,6 +86,19 @@ TArray<FBlutilityFunctionData> FAssetActionUtilityPrototype::GetCallableFunction
 	return FunctionDatas;
 }
 
+TArray<FAssetActionSupportCondition> FAssetActionUtilityPrototype::GetAssetActionSupportConditions() const
+{
+	TArray<FAssetActionSupportCondition> Results;
+	
+	FString Json;
+	if (UtilityBlueprintAsset.GetTagValue(AssetActionUtilityTags::SupportedConditions, Json))
+	{
+		FJsonObjectConverter::JsonArrayStringToUStruct(Json, &Results, 0, 0);
+	}
+
+	return Results;
+}
+
 void FAssetActionUtilityPrototype::AddTagsFor_Version(TArray<UObject::FAssetRegistryTag>& OutTags)
 {
 	// Adding a version to the tags just in case we need to know 'this blutility is out of date and we can't go based off the cached data because the format isn't followed, or this is a pre-tagged version'
@@ -93,6 +109,31 @@ void FAssetActionUtilityPrototype::AddTagsFor_SupportedClasses(const TArray<TSof
 {
 	const FString SupportedClassesString = FString::JoinBy(SupportedClasses, TEXT(","), [](const TSoftClassPtr<UObject>& SupportedClass) { return SupportedClass.ToString(); });
 	OutTags.Add(UObject::FAssetRegistryTag(AssetActionUtilityTags::SupportedClasses, SupportedClassesString, UObject::FAssetRegistryTag::TT_Hidden));
+}
+
+void FAssetActionUtilityPrototype::AddTagsFor_SupportedConditions(const TArray<FAssetActionSupportCondition>& SupportedConditions, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+	TArray<TSharedPtr<FJsonValue>> SupportedConditionJsonValues;
+	for (const FAssetActionSupportCondition& Condition : SupportedConditions)
+	{
+		TSharedPtr<FJsonObject> ConditionJO = FJsonObjectConverter::UStructToJsonObject(Condition);
+		if (ConditionJO.IsValid())
+		{
+			SupportedConditionJsonValues.Add(MakeShared<FJsonValueObject>(ConditionJO));
+		}
+	}
+
+	if (SupportedConditionJsonValues.Num() > 0)
+	{
+		FString SupportedConditionsJson;
+		{
+			TSharedRef<FJsonValueArray> JsonArray = MakeShared<FJsonValueArray>(SupportedConditionJsonValues);
+			TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&SupportedConditionsJson);
+			FJsonSerializer::Serialize(JsonArray, FString(), JsonWriter);
+		}
+
+		OutTags.Add(UObject::FAssetRegistryTag(AssetActionUtilityTags::SupportedConditions, SupportedConditionsJson, UObject::FAssetRegistryTag::TT_Hidden));
+	}
 }
 
 void FAssetActionUtilityPrototype::AddTagsFor_IsActionForBlueprints(bool IsActionForBlueprints, TArray<UObject::FAssetRegistryTag>& OutTags)
@@ -128,9 +169,9 @@ void FAssetActionUtilityPrototype::AddTagsFor_CallableFunctions(const UObject* F
 	}
 
 	TArray<TSharedPtr<FJsonValue>> FunctionDataJsonValues;
-	for (const FBlutilityFunctionData& Highlight : FunctionDatas)
+	for (const FBlutilityFunctionData& FunctionData : FunctionDatas)
 	{
-		TSharedPtr<FJsonObject> FunctionDataJO = FJsonObjectConverter::UStructToJsonObject(Highlight);
+		TSharedPtr<FJsonObject> FunctionDataJO = FJsonObjectConverter::UStructToJsonObject(FunctionData);
 		if (FunctionDataJO.IsValid())
 		{
 			FunctionDataJsonValues.Add(MakeShared<FJsonValueObject>(FunctionDataJO));
@@ -141,9 +182,9 @@ void FAssetActionUtilityPrototype::AddTagsFor_CallableFunctions(const UObject* F
 	{
 		FString FunctionDataJson;
 		{
-			TSharedRef<FJsonValueArray> HighlightValuesArrayValue = MakeShared<FJsonValueArray>(FunctionDataJsonValues);
+			TSharedRef<FJsonValueArray> JsonArray = MakeShared<FJsonValueArray>(FunctionDataJsonValues);
 			TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&FunctionDataJson);
-			FJsonSerializer::Serialize(HighlightValuesArrayValue, FString(), JsonWriter);
+			FJsonSerializer::Serialize(JsonArray, FString(), JsonWriter);
 		}
 
 		OutTags.Add(UObject::FAssetRegistryTag(AssetActionUtilityTags::CallableFunctions, FunctionDataJson, UObject::FAssetRegistryTag::TT_Hidden));
