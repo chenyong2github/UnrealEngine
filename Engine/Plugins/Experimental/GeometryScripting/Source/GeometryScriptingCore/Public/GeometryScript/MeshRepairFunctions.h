@@ -55,6 +55,7 @@ public:
 	EGeometryScriptFillHolesMethod FillMethod = EGeometryScriptFillHolesMethod::Automatic;
 
 	/** Delete floating, disconnected triangles, as they produce a "hole" that cannot be filled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bDeleteIsolatedTriangles = true;
 };
 
