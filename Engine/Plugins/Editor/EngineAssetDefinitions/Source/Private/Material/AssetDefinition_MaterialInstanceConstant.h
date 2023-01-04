@@ -19,5 +19,6 @@ public:
 	virtual FLinearColor GetAssetColor() const override { return FLinearColor(FColor(0,128,0)); }
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UMaterialInstanceConstant::StaticClass(); }
 	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
+	virtual bool CanImport() const override { return true; }
 	// UAssetDefinition End
 };

@@ -3,11 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/World.h"
 #include "AssetDefinition.h"
 
 #include "AssetDefinitionDefault.generated.h"
-
 
 UCLASS(Abstract)
 class UNREALED_API UAssetDefinitionDefault : public UAssetDefinition
