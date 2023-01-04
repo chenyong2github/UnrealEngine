@@ -4066,10 +4066,10 @@ void SLevelViewport::StartPlayInEditorSession(UGameViewportClient* PlayClient, c
 
 	// register for preview feature level change
 	UEditorEngine* Editor = CastChecked<UEditorEngine>(GEngine);
-	UWorld* PIEWorld = PlayClient->GetWorld();
-	PIEPreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([PIEWorld](ERHIFeatureLevel::Type NewFeatureLevel)
+	
+	PIEPreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([PlayClient](ERHIFeatureLevel::Type NewFeatureLevel)
 		{
-			PIEWorld->GetWorld()->ChangeFeatureLevel(NewFeatureLevel);
+			PlayClient->GetWorld()->ChangeFeatureLevel(NewFeatureLevel);
 		});
 
 }
