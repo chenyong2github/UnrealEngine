@@ -912,6 +912,12 @@ void SInsightsStatusBarWidget::PopulateRecentTracesList()
 	IFileManager::Get().IterateDirectoryStat(*FPaths::ProfilingDir(), Visitor);
 
 	Algo::SortBy(Traces, [](TSharedPtr<FTraceFileInfo> TraceInfo) { return *TraceInfo; });
+
+	constexpr int32 MaxRecentTraces = 15;
+	if (Traces.Num() > MaxRecentTraces)
+	{
+		Traces.RemoveAt(MaxRecentTraces - 1, Traces.Num() - MaxRecentTraces);
+	}
 }
 
 void SInsightsStatusBarWidget::OpenTrace(int32 Index)

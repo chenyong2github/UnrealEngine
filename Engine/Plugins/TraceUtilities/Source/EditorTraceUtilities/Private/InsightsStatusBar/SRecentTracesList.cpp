@@ -85,7 +85,7 @@ void SRecentTracesListEntry::Construct(const FArguments& InArgs, TSharedPtr<FTra
 				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.OnClicked(this, &SRecentTracesListEntry::OpenContainingFolder)
 				.ToolTipText(LOCTEXT("ExploreFolderTooltip", "Open the folder containing the trace file."))
-				.Visibility_Lambda([this]() {return this->IsHovered() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([this]() {return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; })
 				.Content()
 				[
 					SNew(SImage)
