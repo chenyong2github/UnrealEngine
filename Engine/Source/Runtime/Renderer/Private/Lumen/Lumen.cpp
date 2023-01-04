@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Lumen.h"
+#include "HAL/IConsoleManager.h"
+#include "RHI.h"
+#include "SceneRendering.h"
 
 static TAutoConsoleVariable<int32> CVarLumenAsyncCompute(
 	TEXT("r.Lumen.AsyncCompute"),
