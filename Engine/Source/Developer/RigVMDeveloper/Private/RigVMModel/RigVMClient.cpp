@@ -685,6 +685,17 @@ void FRigVMClient::PostDuplicateHost(const FString& InOldPathName, const FString
 	}
 }
 
+void FRigVMClient::PreSave()
+{
+	for (URigVMNode* Node : FunctionLibrary->GetNodes())
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+		{
+			UpdateGraphFunctionSerializedGraph(LibraryNode);
+		}
+	}
+}
+
 void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
 	if (bIgnoreModelNotifications)
@@ -710,14 +721,12 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					if (GetOuter()->Implements<URigVMClientHost>())
 					{
 						FunctionStore->AddFunction(CollapseNode->GetFunctionHeader(FunctionHost), false);
-						UpdateGraphFunctionSerializedGraph(CollapseNode);
 					}
 				}
 			}
 			// A node was added into the contained graph of a function
 			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
 			{
-				UpdateGraphFunctionSerializedGraph(LibraryNode);
 				DirtyGraphFunctionCompilationData(LibraryNode);
 				if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(InSubject))
 				{
@@ -742,7 +751,6 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			// A node was added into the contained graph of a function
 			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
 			{
-				UpdateGraphFunctionSerializedGraph(LibraryNode);
 				DirtyGraphFunctionCompilationData(LibraryNode);
 				if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(InSubject))
 				{
@@ -759,7 +767,6 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		{
 			if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
 			{
-				UpdateGraphFunctionSerializedGraph(LibraryNode);
 				DirtyGraphFunctionCompilationData(LibraryNode);
 				UpdateExternalVariablesForFunction(LibraryNode);				
 			}
@@ -783,10 +790,6 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					UpdateGraphFunctionData(CollapseNode);
 				}
 			}
-			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
-			{
-				UpdateGraphFunctionSerializedGraph(LibraryNode);
-			}
 			break;	
 		}
 		case ERigVMGraphNotifType::NodeColorChanged: // A node's color has changed (Subject == URigVMNode)
@@ -801,20 +804,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					UpdateGraphFunctionData(CollapseNode);
 				}
 			}
-			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
-			{
-				UpdateGraphFunctionSerializedGraph(LibraryNode);
-			}
 			break;
-		}
-		case ERigVMGraphNotifType::NodeReferenceChanged: // A node has changed it's referenced function (Subject == URigVMFunctionReferenceNode)
-		case ERigVMGraphNotifType::LibraryTemplateChanged: // The definition of a library node's template has changed (Subject == URigVMLibraryNode)
-		{
-			if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
-			{
-				UpdateGraphFunctionSerializedGraph(LibraryNode);
-			}
-			break;	
 		}
 		
 		case ERigVMGraphNotifType::PinAdded: // A pin has been added to a given node (Subject == URigVMPin)
@@ -830,7 +820,6 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			{
 				if (URigVMLibraryNode* LibraryNode = Node->FindFunctionForNode())
 				{
-					UpdateGraphFunctionSerializedGraph(LibraryNode);
 					DirtyGraphFunctionCompilationData(LibraryNode);
 				}
 				if(Node->GetOuter()->IsA<URigVMFunctionLibrary>())
@@ -853,7 +842,6 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 				{
 					if (URigVMLibraryNode* LibraryNode = OuterNode->FindFunctionForNode())
 					{
-						UpdateGraphFunctionSerializedGraph(LibraryNode);
 						DirtyGraphFunctionCompilationData(LibraryNode);
 					}
 				}
