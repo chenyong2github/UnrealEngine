@@ -41,4 +41,5 @@ void AddHairStrandsForwardRasterPass(
 	const FIntPoint& InResolution,
 	const FHairStrandsVisibilityData& InData,
 	const FRDGTextureRef SceneDepthTexture,
-	const FRDGTextureRef SceneColorTexture);
+	const FRDGTextureRef SceneColorTexture,
+	const FRDGTextureRef SceneVelocityColorTexture);

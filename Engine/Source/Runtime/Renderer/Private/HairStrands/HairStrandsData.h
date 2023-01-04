@@ -145,6 +145,7 @@ struct FHairStrandsVisibilityData
 	uint32				MaxControlPointCount = 0;
 	FRDGBufferSRVRef	ControlPointsSRV = nullptr;
 	FRDGTextureRef		ControlPointCount = nullptr;
+	FRDGBufferSRVRef	ControlPointVelocitySRV = nullptr;
 
 	FHairStrandsTiles TileData;
 

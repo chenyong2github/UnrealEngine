@@ -488,7 +488,8 @@ static void InternalRenderHairComposition(
 			SceneDepthTexture->Desc.Extent,
 			View.HairStrandsViewData.VisibilityData,
 			SceneDepthTexture,
-			SceneColorTexture);
+			SceneColorTexture,
+			SceneVelocityTexture);
 	}
 	else
 	{

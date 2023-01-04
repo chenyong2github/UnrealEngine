@@ -812,6 +812,7 @@ struct FMaterialPassOutput
 {
 	FRDGBufferRef NodeData = nullptr;
 	FRDGBufferRef NodeVelocity = nullptr;
+	FRDGBufferSRVRef NodeVelocitySRV = nullptr;
 	FRDGTextureRef SampleLightingTexture = nullptr;
 };
 
@@ -842,6 +843,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	Output.NodeData				 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeData), MaxNodeCount), TEXT("Hair.CompactNodeData"));
 	Output.NodeVelocity			 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(VelocityFormat == PF_G16R16 ? 4 : 8, CompactNodeVis->Desc.NumElements), TEXT("Hair.CompactNodeVelocity"));
 	Output.SampleLightingTexture = AddClearLightSamplePass(GraphBuilder, ViewInfo, MaxNodeCount, CompactNodeCounter);
+	Output.NodeVelocitySRV		 = GraphBuilder.CreateSRV(Output.NodeVelocity, VelocityFormat);
 
 	const uint32 ResolutionDim = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(MaxNodeCount)));
 	const FIntPoint Resolution(ResolutionDim, ResolutionDim);
@@ -4284,6 +4286,7 @@ void RenderHairStrandsVisibilityBuffer(
 				VisibilityData.NodeIndirectArg = IndirectArgsBuffer;
 				VisibilityData.NodeCount = NodeCounter;
 				VisibilityData.ResolveMaskTexture = nullptr;
+				VisibilityData.ControlPointVelocitySRV = PassOutput.NodeVelocitySRV;
 
 				// For fully covered pixels, write: 
 				// * black color into the scene color

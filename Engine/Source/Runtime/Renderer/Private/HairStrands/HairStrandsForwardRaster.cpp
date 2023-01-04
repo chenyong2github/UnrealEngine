@@ -196,6 +196,7 @@ class FHairStrandsForwardRasterRasterizeCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeForwardCommonParameters, Common)
 		SHADER_PARAMETER(FIntPoint, SampleLightingViewportResolution)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SampleLightingTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, SampleVelocityBuffer)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTilePrims)
@@ -204,6 +205,7 @@ class FHairStrandsForwardRasterRasterizeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutHairCountTexture_ForDebug)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutHairPixelCountPerTile_ForDebug)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutSceneVelocityTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, RWWorkCounter)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -425,7 +427,8 @@ void AddHairStrandsForwardRasterPass(
 	const FIntPoint& InResolution,
 	const FHairStrandsVisibilityData& InData,
 	const FRDGTextureRef SceneDepthTexture,
-	const FRDGTextureRef SceneColorTexture)
+	const FRDGTextureRef SceneColorTexture,
+	const FRDGTextureRef SceneVelocityTexture)
 {	
 	if (!IsHairStrandsForwardRasterSupported(ViewInfo.GetShaderPlatform()))
 	{
@@ -622,10 +625,12 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->OutHairPixelCountPerTile_ForDebug = HairPixelCountPerTile_ForDebug ? GraphBuilder.CreateUAV(HairPixelCountPerTile_ForDebug) : nullptr;
 		Parameters->SampleLightingViewportResolution = InData.SampleLightingViewportResolution;
 		Parameters->SampleLightingTexture = InData.SampleLightingTexture;
+		Parameters->SampleVelocityBuffer = InData.ControlPointVelocitySRV;
 		Parameters->VisTilePrims = GraphBuilder.CreateSRV(BinData.CompactedVisTilePrims, PF_R32_UINT);
 		Parameters->VisTileArgs = GraphBuilder.CreateSRV(BinData.CompactedVisTileArgs, PF_R32_UINT);
 		Parameters->VisTileData = GraphBuilder.CreateSRV(BinData.CompactedVisTileData);
 		Parameters->OutSceneColorTexture = GraphBuilder.CreateUAV(SceneColorTexture);
+		Parameters->OutSceneVelocityTexture = GraphBuilder.CreateUAV(SceneVelocityTexture);
 		Parameters->RWWorkCounter = WorkCounterUAV;
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
