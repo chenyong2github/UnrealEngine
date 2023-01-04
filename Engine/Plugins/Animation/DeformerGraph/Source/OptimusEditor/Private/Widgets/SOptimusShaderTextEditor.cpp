@@ -3,6 +3,7 @@
 #include "SOptimusShaderTextEditor.h"
 #include "SOptimusShaderTextDocumentTab.h"
 #include "OptimusEditor.h"
+#include "OptimusNode.h"
 
 #include "IOptimusShaderTextProvider.h"
 
@@ -77,6 +78,10 @@ TArray<FName> SOptimusShaderTextEditor::GetAllTabIds()
 
 SOptimusShaderTextEditor::~SOptimusShaderTextEditor()
 {
+	if (OwningEditor.Pin())
+	{
+		OwningEditor.Pin()->UnsubscribeToGraphNotifies(OnGraphNotifyDelegate.GetHandle());
+	}	
 }
 
 void SOptimusShaderTextEditor::Construct(const FArguments& InArgs, TWeakPtr<FOptimusEditor> InEditor, const TSharedRef<SDockTab>& InShaderTextEditorHostTab)
@@ -120,6 +125,8 @@ void SOptimusShaderTextEditor::Construct(const FArguments& InArgs, TWeakPtr<FOpt
 	{
 		OwningEditor.Pin()->OnSelectedNodesChanged().AddSP(this, &SOptimusShaderTextEditor::HandleSelectedNodesChanged);
 	}
+	
+	OnGraphNotifyDelegate.BindSP(this, &SOptimusShaderTextEditor::HandleGraphNotified);
 }
 
 void SOptimusShaderTextEditor::OnHostTabClosed(TSharedRef<SDockTab> InShaderTextEditorHostTab)
@@ -148,13 +155,50 @@ void SOptimusShaderTextEditor::HandleSelectedNodesChanged(const TArray<TWeakObje
 {
 	for (const TWeakObjectPtr<UObject>& Object : InSelectedObjects)
 	{
+		TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(Object.Get());
+
+		if (TSharedPtr<SDockTab> OpenedTab = DocumentTracker->OpenDocument(Payload, FDocumentTracker::OpenNewDocument))
 		{
-			TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(Object.Get());
-			
-			if (TabManager->GetOwnerTab()->IsForeground())
+			if (UOptimusNode* Node = Cast<UOptimusNode>(Object))
 			{
-				DocumentTracker->OpenDocument(Payload, FDocumentTracker::OpenNewDocument);
+				if (ensure(OwningEditor.Pin()))
+				{
+					// Register our handler with the owning graph of each kernel node
+					// OwningEditor should detect duplicated registration 
+					OwningEditor.Pin()->SubscribeToGraphNotifies(Node->GetOwningGraph(), OnGraphNotifyDelegate);
+				}
 			}
+		}
+	}
+}
+
+void SOptimusShaderTextEditor::HandleGraphNotified(EOptimusGraphNotifyType InNotifyType, UOptimusNodeGraph* InGraph, UObject* InSubject) const
+{
+	switch (InNotifyType)
+	{
+		case EOptimusGraphNotifyType::NodeRemoved:
+		{
+			TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(InSubject);
+			DocumentTracker->CloseTab(Payload);
+			break;
+		}
+		case EOptimusGraphNotifyType::NodeDisplayNameChanged:
+		{
+			if (IOptimusShaderTextProvider* ShaderTextProvider = Cast<IOptimusShaderTextProvider>(InSubject))
+			{
+				TSharedRef<FTabPayload_UObject> Payload = FTabPayload_UObject::Make(InSubject);
+				TArray<TSharedPtr<SDockTab>> Results;
+				DocumentTracker->FindMatchingTabs(Payload,Results);
+				for (TSharedPtr<SDockTab> Tab : Results)
+				{
+					Tab->SetLabel(FText::FromString(ShaderTextProvider->GetNameForShaderTextEditor()));
+				}
+			}
+			break;
+		}
+		default:
+		{
+			break;
 		}
 	}
 }

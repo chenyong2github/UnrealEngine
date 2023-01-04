@@ -626,6 +626,34 @@ bool FOptimusEditor::CanExpandCollapsedNode() const
 	return !ModelNodes.IsEmpty();
 }
 
+void FOptimusEditor::SubscribeToGraphNotifies(UOptimusNodeGraph* Graph, const FOnGraphNotified& OnGraphNotifiedDelegate)
+{
+	if (IsValid(Graph))
+	{
+		TSet<TWeakObjectPtr<UOptimusNodeGraph>>& Graphs = GraphSubscribers.FindOrAdd(OnGraphNotifiedDelegate.GetHandle());
+		if (!Graphs.Contains(Graph))
+		{
+			Graphs.Add(Graph);
+			Graph->GetNotifyDelegate().Add(OnGraphNotifiedDelegate);
+		}
+	}
+}
+
+void FOptimusEditor::UnsubscribeToGraphNotifies(FDelegateHandle DelegateHandle)
+{
+	if (TSet<TWeakObjectPtr<UOptimusNodeGraph>>* Graphs = GraphSubscribers.Find(DelegateHandle))
+	{
+		for (TWeakObjectPtr<UOptimusNodeGraph> Graph : *Graphs)
+		{
+			if (Graph.IsValid())
+			{
+				Graph->GetNotifyDelegate().Remove(DelegateHandle);
+			}
+		}
+			
+		GraphSubscribers.Remove(DelegateHandle);
+	}
+}
 
 void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {

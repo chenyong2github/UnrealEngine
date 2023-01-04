@@ -4,11 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "OptimusEditor.h"
 
 class FOptimusEditor;
 class FDocumentTracker;
 class FTabManager;
 class SDockTab;
+class UOptimusNodeGraph;
+enum class EOptimusGraphNotifyType;
 
 
 class SOptimusShaderTextEditor : public SCompoundWidget
@@ -32,10 +35,13 @@ public:
 
 private:
 	void HandleSelectedNodesChanged(const TArray<TWeakObjectPtr<UObject>>& InSelectedObjects) const;
+	void HandleGraphNotified(EOptimusGraphNotifyType InNotifyType, UOptimusNodeGraph* InGraph, UObject* InSubject) const;
 
 	TSharedPtr<FTabManager> TabManager;
 
 	TSharedPtr<FDocumentTracker> DocumentTracker;
+
+	FOptimusEditor::FOnGraphNotified OnGraphNotifyDelegate;
 };
 
 
