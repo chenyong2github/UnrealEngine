@@ -79,4 +79,32 @@ bool FNiagaraParameterBinding::CanBindTo(FNiagaraVariableBase InVariable, FNiaga
 
 	return false;
 }
+
+void FNiagaraParameterBinding::OnRenameEmitter(FStringView EmitterName)
+{
+	if (AliasedParameter.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString))
+	{
+		Parameter = AliasedParameter;
+		Parameter.ReplaceRootNamespace(FNiagaraConstants::EmitterNamespaceString, EmitterName);
+	}
+}
+
+void FNiagaraParameterBinding::OnRenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, FStringView EmitterName)
+{
+	if (AliasedParameter.GetName() == OldVariable.GetName() && AliasedParameter.GetType() == OldVariable.GetType() && Parameter.IsInNameSpace(EmitterName))
+	{
+		AliasedParameter = NewVariable;
+		Parameter = AliasedParameter;
+		Parameter.ReplaceRootNamespace(FNiagaraConstants::EmitterNamespaceString, EmitterName);
+	}
+}
+
+void FNiagaraParameterBinding::OnRemoveVariable(const FNiagaraVariableBase& OldVariable, FStringView EmitterName)
+{
+	if (AliasedParameter.GetName() == OldVariable.GetName() && AliasedParameter.GetType() == OldVariable.GetType() && Parameter.IsInNameSpace(EmitterName))
+	{
+		AliasedParameter = FNiagaraVariableBase();
+		Parameter = FNiagaraVariableBase();
+	}
+}
 #endif

@@ -32,6 +32,10 @@ struct NIAGARA_API FNiagaraParameterBinding
 	bool CanBindTo(FNiagaraTypeDefinition TypeDefinition) const;
 	bool CanBindTo(FNiagaraVariableBase InVariable, FNiagaraVariableBase& OutAliasedVariable, FStringView EmitterName) const;
 
+	void OnRenameEmitter(FStringView EmitterName);
+	void OnRenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, FStringView EmitterName);
+	void OnRemoveVariable(const FNiagaraVariableBase& OldVariable, FStringView EmitterName);
+
 	void SetUsage(ENiagaraParameterBindingUsage InUsage) { BindingUsage = InUsage; }
 	void SetAllowedDataInterfaces(TArray<UClass*> InClasses) { AllowedDataInterfaces = InClasses; }
 	void SetAllowedObjects(TArray<UClass*> InClasses) { AllowedObjects = InClasses; }

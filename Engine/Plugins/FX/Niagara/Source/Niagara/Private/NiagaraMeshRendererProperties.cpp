@@ -151,7 +151,10 @@ namespace NiagaraMeshRendererPropertiesInternal
 				if (MeshProperties.MeshParameterBinding.Parameter.IsDataInterface())
 				{
 					OutInterface = Cast<INiagaraRenderableMeshInterface>(EmitterInstance->GetRendererBoundVariables().GetDataInterface(MeshProperties.MeshParameterBinding.Parameter));
-					return;
+					if (OutInterface != nullptr)
+					{
+						return;
+					}
 				}
 
 				UStaticMesh* BoundMesh = Cast<UStaticMesh>(EmitterInstance->GetRendererBoundVariables().GetUObject(MeshProperties.MeshParameterBinding.Parameter));
@@ -496,6 +499,13 @@ void UNiagaraMeshRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererS
 		}
 
 		SetPreviousBindings(SrcEmitter, InSourceMode);
+
+#if WITH_EDITORONLY_DATA
+		for (FNiagaraMeshRendererMeshProperties& Mesh : Meshes)
+		{
+			Mesh.MeshParameterBinding.OnRenameEmitter(SrcEmitter.Emitter->GetUniqueEmitterName());
+		}
+#endif
 	}
 }
 
@@ -1071,6 +1081,10 @@ void UNiagaraMeshRendererProperties::RenameVariable(const FNiagaraVariableBase& 
 	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
 #if WITH_EDITORONLY_DATA
 	MaterialParameters.RenameVariable(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+	for (FNiagaraMeshRendererMeshProperties& Mesh : Meshes)
+	{
+		Mesh.MeshParameterBinding.OnRenameVariable(OldVariable, NewVariable, InEmitter.Emitter->GetUniqueEmitterName());
+	}
 #endif
 }
 
@@ -1079,6 +1093,10 @@ void UNiagaraMeshRendererProperties::RemoveVariable(const FNiagaraVariableBase& 
 	Super::RemoveVariable(OldVariable, InEmitter);
 #if WITH_EDITORONLY_DATA
 	MaterialParameters.RemoveVariable(OldVariable, InEmitter, GetCurrentSourceMode());
+	for (FNiagaraMeshRendererMeshProperties& Mesh : Meshes)
+	{
+		Mesh.MeshParameterBinding.OnRemoveVariable(OldVariable, InEmitter.Emitter->GetUniqueEmitterName());
+	}
 #endif
 }
 
