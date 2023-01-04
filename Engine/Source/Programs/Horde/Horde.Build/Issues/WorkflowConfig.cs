@@ -91,6 +91,11 @@ namespace Horde.Build.Issues
 		public bool AllowMentions { get; set; } = true;
 
 		/// <summary>
+		/// Uses the admin.conversations.invite API to invite users to the channel
+		/// </summary>
+		public bool InviteUsersAsAdmin { get; set; }
+
+		/// <summary>
 		/// Additional node annotations implicit in this workflow
 		/// </summary>
 		public NodeAnnotations Annotations { get; set; } = new NodeAnnotations();

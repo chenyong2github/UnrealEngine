@@ -232,6 +232,9 @@ namespace Horde.Build.Notifications.Sinks
 		readonly HttpClient _httpClient;
 		readonly SlackClient _slackClient;
 
+		readonly HttpClient? _adminHttpClient;
+		readonly SlackClient? _adminSlackClient;
+
 		/// <summary>
 		/// Map of email address to Slack user ID.
 		/// </summary>
@@ -263,6 +266,13 @@ namespace Horde.Build.Notifications.Sinks
 			_httpClient = new HttpClient();
 			_httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.SlackToken ?? ""}");
 			_slackClient = new SlackClient(_httpClient, _logger);
+
+			if (!String.IsNullOrEmpty(_settings.SlackAdminToken))
+			{
+				_adminHttpClient = new HttpClient();
+				_adminHttpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.SlackAdminToken ?? ""}");
+				_adminSlackClient = new SlackClient(_adminHttpClient, _logger);
+			}
 
 			_jsonSerializerOptions = new JsonSerializerOptions();
 			Startup.ConfigureJsonSerializer(_jsonSerializerOptions);
@@ -858,7 +868,7 @@ namespace Horde.Build.Notifications.Sinks
 			return null;
 		}
 
-		async Task InviteUsersAsync(string channel, IEnumerable<UserId> userIds)
+		async Task InviteUsersAsync(string channel, IEnumerable<UserId> userIds, bool inviteUsersAsAdmin)
 		{
 			List<string> slackUserIds = new List<string>();
 			foreach (UserId userId in userIds)
@@ -876,7 +886,14 @@ namespace Horde.Build.Notifications.Sinks
 
 			if (slackUserIds.Count > 0)
 			{
-				await _slackClient.InviteUsersAsync(channel, slackUserIds);
+				if (inviteUsersAsAdmin && _adminSlackClient != null)
+				{
+					await _adminSlackClient.AdminInviteUsersAsync(channel, slackUserIds);
+				}
+				else
+				{
+					await _slackClient.InviteUsersAsync(channel, slackUserIds);
+				}
 			}
 		}
 
@@ -1063,7 +1080,7 @@ namespace Horde.Build.Notifications.Sinks
 
 				if (_environment.IsProduction() && workflow.AllowMentions)
 				{
-					await InviteUsersAsync(state.Channel, inviteUserIds);
+					await InviteUsersAsync(state.Channel, inviteUserIds, workflow.InviteUsersAsAdmin);
 				}
 			}
 

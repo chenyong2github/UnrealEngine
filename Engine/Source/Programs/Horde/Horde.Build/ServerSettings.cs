@@ -435,14 +435,19 @@ namespace Horde.Build
 		public string? ScheduleTimeZone { get; set; }
 
 		/// <summary>
-		/// Token for interacting with Slack
+		/// Bot token for interacting with Slack (xoxb-*)
 		/// </summary>
 		public string? SlackToken { get; set; }
 
 		/// <summary>
-		/// Token for opening a socket to slack
+		/// Token for opening a socket to slack (xapp-*)
 		/// </summary>
 		public string? SlackSocketToken { get; set; }
+
+		/// <summary>
+		/// Admin user token for Slack (xoxp-*). This is only required when using the admin endpoints to invite users.
+		/// </summary>
+		public string? SlackAdminToken { get; set; }
 
 		/// <summary>
 		/// Filtered list of slack users to send notifications to. Should be Slack user ids, separated by commas.

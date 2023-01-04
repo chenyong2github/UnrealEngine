@@ -391,6 +391,22 @@ namespace EpicGames.Slack
 			await SendRequestAsync<SlackResponse>(ConversationsInviteUrl, message, ShouldLogError);
 		}
 
+		const string AdminConversationsInviteUrl = "https://slack.com/api/admin.conversations.invite";
+
+		/// <summary>
+		/// Invite a set of users to a channel using admin powers.
+		/// </summary>
+		/// <param name="channel">Channel identifier to invite the user to</param>
+		/// <param name="userIds">The user id</param>
+		public async Task AdminInviteUsersAsync(string channel, IEnumerable<string> userIds)
+		{
+			object message = new { channel_id = channel, user_ids = String.Join(",", userIds) };
+
+			static bool ShouldLogError(SlackResponse response) => !response.Ok && !String.Equals(response.Error, "already_in_channel", StringComparison.Ordinal);
+
+			await SendRequestAsync<SlackResponse>(AdminConversationsInviteUrl, message, ShouldLogError);
+		}
+
 		#endregion
 
 		#region Users
