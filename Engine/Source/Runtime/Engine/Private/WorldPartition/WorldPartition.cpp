@@ -1438,7 +1438,10 @@ void UWorldPartition::UpdateStreamingState()
 
 	if (GetWorld()->IsGameWorld())
 	{
-		StreamingPolicy->UpdateStreamingState();
+		if (StreamingPolicy)
+		{
+			StreamingPolicy->UpdateStreamingState();
+		}
 	}
 }
 
@@ -1893,7 +1896,10 @@ void UWorldPartition::OnWorldRenamed(UWorld* RenamedWorld)
 
 void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
-	StreamingPolicy->RemapSoftObjectPath(ObjectPath);
+	if (StreamingPolicy)
+	{
+		StreamingPolicy->RemapSoftObjectPath(ObjectPath);
+	}
 }
 
 FBox UWorldPartition::GetEditorWorldBounds() const
