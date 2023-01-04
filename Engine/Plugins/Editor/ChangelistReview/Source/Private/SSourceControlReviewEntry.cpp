@@ -209,67 +209,76 @@ bool SSourceControlReviewEntry::CanDiff() const
 
 void SSourceControlReviewEntry::TryBindUAssetDiff()
 {
+	UObject* ReviewAsset = nullptr;
 	if (UPackage* ReviewFilePkg = LoadPackage(nullptr, *ChangelistFileData.ReviewFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 	{
-		if (UObject* ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData.AssetName))
+		ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData.AssetName);
+		if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
 		{
-			UPackage* PreviousFilePkg = LoadPackage(nullptr, *ChangelistFileData.PreviousFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks);
-
-			if (UObject* PreviousAsset = PreviousFilePkg ? FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.AssetName) : nullptr)
-			{
-				DiffMethod.BindLambda([this, PreviousAsset, ReviewAsset]
-				{
-					const UBlueprint* ReviewBlueprint = Cast<UBlueprint>(ReviewAsset);
-					const UBlueprint* PreviousBlueprint = Cast<UBlueprint>(PreviousAsset);
-					if ((ReviewBlueprint && !ReviewBlueprint->ParentClass) || (PreviousBlueprint && !PreviousBlueprint->ParentClass))
-					{
-						FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistNotFoundError", "This Blueprint is missing its parent class. Diff results may be incomplete.\n\nDo you need to load this file's plugin/module?\nFor more details, search 'Can't find file.' in the log"));
-					}
-					
-					FAssetToolsModule::GetModule().Get().DiffAssets(
-						PreviousAsset,
-						ReviewAsset,
-						GetPreviousFileRevisionInfo(),
-						GetReviewFileRevisionInfo()
-					);
-				});
-				
-			}
-			else
-			{
-				if (const UBlueprint* BlueprintReviewAsset = Cast<UBlueprint>(ReviewAsset))
-				{
-					DiffMethod.BindLambda([this, BlueprintReviewAsset, ReviewAsset]
-					{
-						FAssetToolsModule::GetModule().Get().DiffAssets(
-							GetOrCreateBlueprintForDiff(BlueprintReviewAsset->GeneratedClass, BlueprintReviewAsset->BlueprintType),
-							ReviewAsset,
-							GetPreviousFileRevisionInfo(),
-							GetReviewFileRevisionInfo()
-						);
-					});
-				}
-				else
-				{
-					//In case when file is not blueprint we are falling back on trying to create a UObject 
-					const FName EmptyObjectName = ReviewAsset->GetFName();
-					const UClass* EmptyObjectAssetClass = ReviewAsset->GetClass();
-					
-					if (UObject* EmptyObject = NewObject<UObject>(ReviewAsset, EmptyObjectAssetClass, EmptyObjectName, ReviewAsset->GetFlags()))
-					{
-						DiffMethod.BindLambda([this, EmptyObject, ReviewAsset]
-						{
-							FAssetToolsModule::GetModule().Get().DiffAssets(
-								EmptyObject,
-								ReviewAsset,
-								GetPreviousFileRevisionInfo(),
-								GetReviewFileRevisionInfo()
-							);
-						});
-					}
-				}
-			}
+			ReviewAsset = Cast<UObjectRedirector>(ReviewAsset)->DestinationObject;
 		}
+	}
+	UObject* PreviousAsset = nullptr;
+	if (UPackage* PreviousFilePkg = LoadPackage(nullptr, *ChangelistFileData.PreviousFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+	{
+		if (ChangelistFileData.PreviousAssetName.IsEmpty())
+		{
+			PreviousAsset = FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.AssetName);
+		}
+		else
+		{
+			PreviousAsset = FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.PreviousAssetName);
+		}
+	}
+	
+	if (!ReviewAsset && !PreviousAsset)
+	{
+		return;
+	}
+
+	auto MakeDefaultAsset = [this](UObject* OtherAsset)->UObject*
+	{
+		if (const UBlueprint* BlueprintReviewAsset = Cast<UBlueprint>(OtherAsset))
+		{
+			return GetOrCreateBlueprintForDiff(BlueprintReviewAsset->GeneratedClass, BlueprintReviewAsset->BlueprintType);
+		}
+		else
+		{
+			//In case when file is not blueprint we are falling back on trying to create a UObject 
+			const FName EmptyObjectName = OtherAsset->GetFName();
+			const UClass* EmptyObjectAssetClass = OtherAsset->GetClass();
+			return NewObject<UObject>(OtherAsset, EmptyObjectAssetClass, EmptyObjectName, OtherAsset->GetFlags());
+		}
+	};
+
+	if (!ReviewAsset)
+	{
+		ReviewAsset = MakeDefaultAsset(PreviousAsset);
+	}
+
+	if (!PreviousAsset)
+	{
+		PreviousAsset = MakeDefaultAsset(ReviewAsset);
+	}
+
+	if (ReviewAsset && PreviousAsset)
+	{
+		DiffMethod.BindLambda([this, PreviousAsset, ReviewAsset]
+		{
+			const UBlueprint* ReviewBlueprint = Cast<UBlueprint>(ReviewAsset);
+			const UBlueprint* PreviousBlueprint = Cast<UBlueprint>(PreviousAsset);
+			if ((ReviewBlueprint && !ReviewBlueprint->ParentClass) || (PreviousBlueprint && !PreviousBlueprint->ParentClass))
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistNotFoundError", "This Blueprint is missing its parent class. Diff results may be incomplete.\n\nDo you need to load this file's plugin/module?\nFor more details, search 'Can't find file.' in the log"));
+			}
+			
+			FAssetToolsModule::GetModule().Get().DiffAssets(
+				PreviousAsset,
+				ReviewAsset,
+				GetPreviousFileRevisionInfo(),
+				GetReviewFileRevisionInfo()
+			);
+		});
 	}
 }
 
@@ -289,7 +298,12 @@ FRevisionInfo SSourceControlReviewEntry::GetReviewFileRevisionInfo() const
 	ReviewFileRevisionInfo.Changelist = ChangelistFileData.ChangelistNum;
 	ReviewFileRevisionInfo.Date = ChangelistFileData.ReviewFileDateTime;
 
-	if (ChangelistFileData.ChangelistState == EChangelistState::Pending)
+	if (ChangelistFileData.FileSourceControlAction == ESourceControlAction::Delete)
+	{
+		// new revision for removed files don't exist
+		ReviewFileRevisionInfo.Revision = TEXT("Does Not Exist");
+	}
+	else if (ChangelistFileData.ChangelistState == EChangelistState::Pending)
 	{
 		ReviewFileRevisionInfo.Revision = TEXT("Pending");
 	}
@@ -305,7 +319,20 @@ FRevisionInfo SSourceControlReviewEntry::GetPreviousFileRevisionInfo() const
 {
 	//We need to have valid revision data for some DiffAssets implementations (Although for now we don't have full data on previous file we are showing correct previous revision information)
 	FRevisionInfo PreviousFileRevisionInfo;
-	PreviousFileRevisionInfo.Revision = ChangelistFileData.PreviousFileRevisionNum.IsEmpty() ? TEXT("0") : ChangelistFileData.PreviousFileRevisionNum;
+	if (ChangelistFileData.FileSourceControlAction == ESourceControlAction::Add)
+	{
+		// previous revision for added files don't exist
+		PreviousFileRevisionInfo.Revision = TEXT("Does Not Exist");
+	}
+	else if (ChangelistFileData.PreviousFileRevisionNum.IsEmpty())
+	{
+		PreviousFileRevisionInfo.Revision = TEXT("0");
+	}
+	else
+	{
+		PreviousFileRevisionInfo.Revision = ChangelistFileData.PreviousFileRevisionNum;
+	}
+	
 	return PreviousFileRevisionInfo;
 }
 
@@ -381,6 +408,14 @@ FText SSourceControlReviewEntry::GetAssetType()
 
 FText SSourceControlReviewEntry::GetAssetNameText() const
 {
+	if (!ChangelistFileData.PreviousAssetName.IsEmpty())
+	{
+		return FText::Format(
+			LOCTEXT("RenamedAssetFormat", "{0} - (Renamed from: {1})"),
+			FText::FromString(ChangelistFileData.AssetName),
+			FText::FromString(ChangelistFileData.PreviousAssetName)
+			);
+	}
 	return FText::FromString(ChangelistFileData.AssetName);
 }
 

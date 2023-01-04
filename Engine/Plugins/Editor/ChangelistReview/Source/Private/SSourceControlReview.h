@@ -9,7 +9,6 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
-class FGetChangelistDetails;
 class SSourceControlReviewEntry;
 class SChangelistEditableTextBox;
 class SProgressBar;
@@ -47,6 +46,7 @@ namespace SourceControlReview
 			: AssetName(InAssetName)
 			, ReviewFileName(InReviewFilePkgName)
 			, ReviewFileRevisionNum(InReviewFileRevisionNum)
+			, PreviousAssetName() // assume no rename by default
 			, PreviousFileName(InPreviousFilePkgName)
 			, PreviousFileRevisionNum(InPreviousFileRevisionNum)
 		{
@@ -65,6 +65,8 @@ namespace SourceControlReview
 		FString ReviewFileRevisionNum;
 
 		FDateTime ReviewFileDateTime;
+
+		FString PreviousAssetName;
 
 		FString PreviousFileName;
 
@@ -180,6 +182,7 @@ private:
 	uint32 FilesToLoad = 0;
 	uint32 FilesLoaded = 0;
 	TArray<TSharedPtr<FChangelistFileData>> ChangelistFiles;
+	TMap<FString, TWeakPtr<FChangelistFileData>> RedirectorsFound;
 	TSharedPtr<FGetChangelistDetails> GetChangelistDetailsCommand;
 	
 	TSharedPtr<SEditableTextBox> ChangelistNumWidget;

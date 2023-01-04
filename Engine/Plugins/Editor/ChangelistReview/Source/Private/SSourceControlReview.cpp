@@ -287,6 +287,7 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 	}
 
 	ChangelistFiles.Empty();
+	RedirectorsFound.Empty();
 
 	//This command runs p4 -describe (or similar for other version controls) to retrieve changelist record information
 	GetChangelistDetailsCommand = ISourceControlOperation::Create<FGetChangelistDetails>();
@@ -458,10 +459,45 @@ void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFile
 
 	LoadingProgressBar->SetPercent(FilesToLoad ? static_cast<float>(FilesLoaded) / static_cast<float>(FilesToLoad) : 1.f);
 
+	if (UPackage* ReviewFilePkg = LoadPackage(nullptr, *ChangelistFileData->ReviewFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+	{
+		const UObject* ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData->AssetName);
+		if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
+		{
+			const UPackage* RedirectedPackage = Cast<UObjectRedirector>(ReviewAsset)->DestinationObject->GetPackage();
+			const FString RedirectPath = IFileManager::Get().ConvertToRelativePath(*RedirectedPackage->GetLoadedPath().GetLocalFullPath());
+			RedirectorsFound.Add(RedirectPath, ChangelistFileData);
+		}
+	}
+
 	if (FilesToLoad == FilesLoaded)
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
 
+		// Patch up redirectors such that the renamed assets only use a single diff entry
+		ChangelistFiles.RemoveAllSwap([&RedirectorsFound = RedirectorsFound](const TSharedPtr<FChangelistFileData> &ChangelistFile)
+		{
+			if (ChangelistFile->FileSourceControlAction == ESourceControlAction::Add)
+			{
+				const FString RelativePath = IFileManager::Get().ConvertToRelativePath(*ChangelistFile->AssetFilePath);
+				if (const TWeakPtr<FChangelistFileData>* Found = RedirectorsFound.Find(RelativePath))
+				{
+					if (const TSharedPtr<FChangelistFileData>& MergedRenameEntry = Found->Pin())
+					{
+						MergedRenameEntry->ReviewFileName = ChangelistFile->ReviewFileName;
+						MergedRenameEntry->PreviousAssetName = MergedRenameEntry->AssetName;
+						MergedRenameEntry->AssetName = ChangelistFile->AssetName;
+						MergedRenameEntry->RelativeFilePath = ChangelistFile->RelativeFilePath;
+						MergedRenameEntry->AssetFilePath = ChangelistFile->AssetFilePath;
+						MergedRenameEntry->PreviousFileRevisionNum = MergedRenameEntry->ReviewFileRevisionNum;
+						MergedRenameEntry->ReviewFileRevisionNum = ChangelistFile->ReviewFileRevisionNum;
+						return true;
+					}
+				}
+			}
+			return false;
+		});
+		
 		Algo::Sort(ChangelistFiles, [](const TSharedPtr<FChangelistFileData> &A, const TSharedPtr<FChangelistFileData> &B)
 		{
 			return A->RelativeFilePath < B->RelativeFilePath;
@@ -579,6 +615,14 @@ void SSourceControlReview::SetFileSourceControlAction(TSharedPtr<FChangelistFile
 	else if (SourceControlAction == FString(TEXT("integrate")))
 	{
 		ChangelistFileData->FileSourceControlAction = ESourceControlAction::Integrate;
+	}
+	else if (SourceControlAction == FString(TEXT("move/delete")))
+	{
+		ChangelistFileData->FileSourceControlAction = ESourceControlAction::Delete;
+	}
+	else if (SourceControlAction == FString(TEXT("move/add")))
+	{
+		ChangelistFileData->FileSourceControlAction = ESourceControlAction::Add;
 	}
 	else
 	{
