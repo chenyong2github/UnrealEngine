@@ -7,6 +7,8 @@ public class OpenGLDrv : ModuleRules
 {
 	public OpenGLDrv(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bEnforceIWYU = false;
+
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"RHI",
