@@ -93,7 +93,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Uses the admin.conversations.invite API to invite users to the channel
 		/// </summary>
-		public bool InviteUsersAsAdmin { get; set; }
+		public bool InviteRestrictedUsers { get; set; }
 
 		/// <summary>
 		/// Additional node annotations implicit in this workflow

@@ -391,6 +391,23 @@ namespace EpicGames.Slack
 			await SendRequestAsync<SlackResponse>(ConversationsInviteUrl, message, ShouldLogError);
 		}
 
+		/// <summary>
+		/// Attempt to invite a set of users to a channel, returning the error code on failure
+		/// </summary>
+		/// <param name="channel">Channel identifier to invite the user to</param>
+		/// <param name="userIds">The user id</param>
+		public async Task<string?> TryInviteUsersAsync(string channel, IEnumerable<string> userIds)
+		{
+			InviteMessage message = new InviteMessage();
+			message.Channel = channel;
+			message.Users = String.Join(",", userIds);
+
+			static bool ShouldLogError(SlackResponse response) => false;
+
+			SlackResponse response = await SendRequestAsync<SlackResponse>(ConversationsInviteUrl, message, ShouldLogError);
+			return response.Ok ? null : response.Error;
+		}
+
 		const string AdminConversationsInviteUrl = "https://slack.com/api/admin.conversations.invite";
 
 		/// <summary>

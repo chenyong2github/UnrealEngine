@@ -270,7 +270,7 @@ namespace Horde.Build.Notifications.Sinks
 			if (!String.IsNullOrEmpty(_settings.SlackAdminToken))
 			{
 				_adminHttpClient = new HttpClient();
-				_adminHttpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.SlackAdminToken ?? ""}");
+				_adminHttpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.SlackAdminToken}");
 				_adminSlackClient = new SlackClient(_adminHttpClient, _logger);
 			}
 
@@ -884,15 +884,26 @@ namespace Horde.Build.Notifications.Sinks
 				}
 			}
 
-			if (slackUserIds.Count > 0)
+			foreach (string slackUserId in slackUserIds)
 			{
-				if (inviteUsersAsAdmin && _adminSlackClient != null)
+				string? errorCode = await _slackClient.TryInviteUsersAsync(channel, new[] { slackUserId });
+				if (errorCode != null)
 				{
-					await _adminSlackClient.AdminInviteUsersAsync(channel, slackUserIds);
-				}
-				else
-				{
-					await _slackClient.InviteUsersAsync(channel, slackUserIds);
+					if (errorCode.Equals("user_is_restricted", StringComparison.Ordinal) && inviteUsersAsAdmin && _adminSlackClient != null)
+					{
+						try
+						{
+							await _adminSlackClient.AdminInviteUsersAsync(channel, new[] { slackUserId });
+						}
+						catch (SlackException ex)
+						{
+							_logger.LogWarning(ex, "Unable to invite user {UserId} to {Channel} (as admin): {Error}", slackUserId, channel, ex.Code);
+						}
+					}
+					else
+					{
+						_logger.LogWarning("Unable to invite user {UserId} to {Channel}: {Error}", slackUserId, channel, errorCode);
+					}
 				}
 			}
 		}
@@ -1080,7 +1091,7 @@ namespace Horde.Build.Notifications.Sinks
 
 				if (_environment.IsProduction() && workflow.AllowMentions)
 				{
-					await InviteUsersAsync(state.Channel, inviteUserIds, workflow.InviteUsersAsAdmin);
+					await InviteUsersAsync(state.Channel, inviteUserIds, workflow.InviteRestrictedUsers);
 				}
 			}
 
