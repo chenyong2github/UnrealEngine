@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
+using System;
 
 public class Expat : ModuleRules
 {
@@ -32,14 +33,21 @@ public class Expat : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+
+			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				LibraryPath = Path.Combine(LibraryPath, Target.WindowsPlatform.GetArchitectureSubpath());
+			}
+
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "Debug");
+				LibraryPath = Path.Combine(LibraryPath, "Debug");
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libexpatdMD.lib"));
 			}
 			else
 			{
-				string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "Release");
+				LibraryPath = Path.Combine(LibraryPath, "Release");
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libexpatMD.lib"));
 			}
 		}

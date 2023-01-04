@@ -20,19 +20,37 @@ SET _msbuild=%_vsinstall%\MSBuild\Current\Bin\
 if not exist "%_msbuild%msbuild.exe" goto MSBuildMissing
 
 REM Build for 64-bit
-echo Generating Expat solution (64-bit)...
+echo Generating Expat solution (x64 64-bit)...
 if exist "%UE_BUILD_PATH%" (rmdir "%UE_BUILD_PATH%" /s/q)
 mkdir "%UE_BUILD_PATH%"
 cd "%UE_BUILD_PATH%"
 "%_vsinstall%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -G "Visual Studio 17 2022" -A x64 -T %UE_TOOLSET% -DEXPAT_BUILD_TOOLS=0 -DEXPAT_BUILD_EXAMPLES=0 -DEXPAT_BUILD_TESTS=0 -DEXPAT_SHARED_LIBS=0 %PATH_TO_CMAKE_FILE%
-echo Building Expat solution for (64-bit, Debug)...
+echo Building Expat solution for (x64 64-bit, Debug)...
 "%_msbuild%msbuild.exe" expat.vcxproj /t:build /p:Configuration=Debug
-echo Building Expat solution for (64-bit, Release)...
+echo Building Expat solution for (x64 64-bit, Release)...
 "%_msbuild%msbuild.exe" expat.vcxproj /t:build /p:Configuration=Release
 cd "%PATH_TO_CMAKE_FILE%"
 xcopy /y/s/i "%UE_BUILD_PATH%\Debug" "%UE_BUILD_PATH%\..\Debug"
 xcopy /y/s/i "%UE_BUILD_PATH%\Release" "%UE_BUILD_PATH%\..\Release"
 rmdir "%UE_BUILD_PATH%" /s/q
+
+REM Build for ARM64 64-bit
+set UE_BUILD_PATH="%PATH_TO_CMAKE_FILE%\Win64\%UE_TOOLSET_IDE%\Build\ARM64"
+
+echo Generating Expat solution (ARM64 64-bit)...
+if exist "%UE_BUILD_PATH%" (rmdir "%UE_BUILD_PATH%" /s/q)
+mkdir "%UE_BUILD_PATH%"
+cd "%UE_BUILD_PATH%"
+"%_vsinstall%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -G "Visual Studio 17 2022" -A ARM64 -DEXPAT_BUILD_TOOLS=0 -DEXPAT_BUILD_EXAMPLES=0 -DEXPAT_BUILD_TESTS=0 -DEXPAT_SHARED_LIBS=0 %PATH_TO_CMAKE_FILE%
+echo Building Expat solution for (ARM64 64-bit, Debug)...
+"%_msbuild%msbuild.exe" expat.vcxproj /t:build /p:Configuration=Debug
+echo Building Expat solution for (ARM64 64-bit, Release)...
+"%_msbuild%msbuild.exe" expat.vcxproj /t:build /p:Configuration=Release
+cd "%PATH_TO_CMAKE_FILE%"
+xcopy /y/s/i "%UE_BUILD_PATH%\Debug" "%UE_BUILD_PATH%\..\..\ARM64\Debug"
+xcopy /y/s/i "%UE_BUILD_PATH%\Release" "%UE_BUILD_PATH%\..\..\ARM64\Release"
+rmdir "%UE_BUILD_PATH%" /s/q
+
 exit /b 0
 
 :VStudioMissing
