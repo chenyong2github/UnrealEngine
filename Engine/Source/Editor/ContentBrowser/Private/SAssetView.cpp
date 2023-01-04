@@ -269,6 +269,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bShowTypeInTileView = InArgs._ShowTypeInTileView;
 	bForceShowEngineContent = InArgs._ForceShowEngineContent;
 	bForceShowPluginContent = InArgs._ForceShowPluginContent;
+	bForceHideScrollbar = InArgs._ForceHideScrollbar;
 
 	bPendingUpdateThumbnails = false;
 	bShouldNotifyNextAssetSync = true;
@@ -1671,7 +1672,8 @@ TSharedRef<SAssetTileView> SAssetView::CreateTileView()
 		.OnMouseButtonDoubleClick(this, &SAssetView::OnListMouseButtonDoubleClick)
 		.OnSelectionChanged(this, &SAssetView::AssetSelectionChanged)
 		.ItemHeight(this, &SAssetView::GetTileViewItemHeight)
-		.ItemWidth(this, &SAssetView::GetTileViewItemWidth);
+		.ItemWidth(this, &SAssetView::GetTileViewItemWidth)
+		.ScrollbarVisibility(bForceHideScrollbar ? EVisibility::Collapsed : EVisibility::Visible);
 }
 
 TSharedRef<SAssetListView> SAssetView::CreateListView()
@@ -1691,6 +1693,7 @@ TSharedRef<SAssetListView> SAssetView::CreateListView()
 		.OnMouseButtonDoubleClick(this, &SAssetView::OnListMouseButtonDoubleClick)
 		.OnSelectionChanged(this, &SAssetView::AssetSelectionChanged)
 		.ItemHeight(this, &SAssetView::GetListViewItemHeight)
+		.ScrollbarVisibility(bForceHideScrollbar ? EVisibility::Collapsed : EVisibility::Visible)
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
@@ -1735,6 +1738,7 @@ TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 		.OnMouseButtonDoubleClick(this, &SAssetView::OnListMouseButtonDoubleClick)
 		.OnSelectionChanged(this, &SAssetView::AssetSelectionChanged)
 		.Visibility(this, &SAssetView::GetColumnViewVisibility)
+		.ScrollbarVisibility(bForceHideScrollbar ? EVisibility::Collapsed : EVisibility::Visible)
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
@@ -3185,6 +3189,11 @@ void SAssetView::CreateCurrentView()
 
 TSharedRef<SWidget> SAssetView::CreateShadowOverlay( TSharedRef<STableViewBase> Table )
 {
+	if (bForceHideScrollbar)
+	{
+		return Table;
+	}
+
 	return SNew(SScrollBorder, Table)
 		[
 			Table

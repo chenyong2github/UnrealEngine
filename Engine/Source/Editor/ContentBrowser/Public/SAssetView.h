@@ -118,6 +118,7 @@ public:
 		, _ShowTypeInTileView(true)
 		, _ForceShowEngineContent(false)
 		, _ForceShowPluginContent(false)
+		, _ForceHideScrollbar(false)
 		{}
 
 		/** Called to check if an asset should be filtered out by external code */
@@ -257,6 +258,9 @@ public:
 
 		/** Should always show plugin content */
 		SLATE_ARGUMENT(bool, ForceShowPluginContent)
+
+		/** Should always hide scrollbar (Removes scrollbar) */
+		SLATE_ARGUMENT(bool, ForceHideScrollbar)
 
 		/** Called to check if an asset tag should be display in details view. */
 		SLATE_EVENT( FOnShouldDisplayAssetTag, OnAssetTagWantsToBeDisplayed )
@@ -1065,6 +1069,9 @@ private:
 
 	/** If true, plugin content is always shown */
 	bool bForceShowPluginContent;
+
+	/** If true, scrollbar is never shown, removes scroll border entirely */
+	bool bForceHideScrollbar;
 
 	/** The current selection mode used by the asset view */
 	ESelectionMode::Type SelectionMode;

@@ -178,6 +178,7 @@ void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTe
 			.FrontendFilters(TemplatesFilter)
 			.ForceShowEngineContent(true)
 			.ForceShowPluginContent(true)
+			.ForceHideScrollbar(true)
 			.ShowTypeInTileView(false)
 			.ShowViewOptions(false)
 			.HighlightedText(this, &FWidgetTemplateListViewModel::GetSearchText)
