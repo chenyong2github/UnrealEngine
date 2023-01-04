@@ -4,7 +4,12 @@
 	RHICommandList.h: RHI Command List definitions for queueing up & executing later.
 =============================================================================*/
 
+// IWYU pragma: private, include "RHI.h"
+
 #pragma once
+
+// HEADER_UNIT_SKIP - Should always be included through RHI.h (this code needs cleanup.. this file is included by RHIUtilities.h which is included in the middle of RHI.h)
+
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"

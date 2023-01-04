@@ -2513,8 +2513,8 @@ DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Pixel buffer memory"),STAT_PixelBufferMemo
 
 
 // RHI base resource types.
-#include "RHIResources.h" // IWYU pragma: export
-#include "DynamicRHI.h" // IWYU pragma: export
+#include "RHIResources.h" // IWYU pragma: keep
+#include "DynamicRHI.h" // IWYU pragma: keep
 
 /** Initializes the RHI. */
 extern RHI_API void RHIInit(bool bHasEditorToken);
@@ -2531,7 +2531,7 @@ DECLARE_DELEGATE_OneParam(FRHIPanicEvent, const FName&);
 extern RHI_API FRHIPanicEvent& RHIGetPanicDelegate();
 
 // RHI utility functions that depend on the RHI definitions.
-#include "RHIUtilities.h" // IWYU pragma: export
+#include "RHIUtilities.h" // IWYU pragma: keep
 
 inline void FRHITransition::Cleanup() const
 {

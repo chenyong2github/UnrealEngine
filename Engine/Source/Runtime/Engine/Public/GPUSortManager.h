@@ -9,7 +9,6 @@
 #include "CoreMinimal.h"
 #include "Templates/RefCounting.h"
 #include "RHI.h"
-#include "RHIResources.h"
 #include "RenderResource.h"
 
 /**

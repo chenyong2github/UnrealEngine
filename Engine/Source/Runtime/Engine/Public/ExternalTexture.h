@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "RHI.h"
-#include "RHIResources.h"
 #include "MaterialShared.h"
 #include "HAL/CriticalSection.h"
 

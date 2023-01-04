@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// IWYU pragma: private, include "RHI.h"
+
 /*=============================================================================
 DynamicRHI.h: Dynamically bound Render Hardware Interface definitions.
 =============================================================================*/

@@ -10,7 +10,6 @@ DebugViewModeInterface.h: Contains definitions for rendering debug viewmodes.
 #include "DebugViewModeHelpers.h"
 #include "Engine/EngineTypes.h"
 #include "RHI.h"
-#include "RHIResources.h"
 #include "Shader.h"
 #include "DrawDebugHelpers.h"
 
