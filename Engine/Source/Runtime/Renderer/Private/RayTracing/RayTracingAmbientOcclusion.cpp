@@ -15,6 +15,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracingMaterialHitShaders.h"
 #include "RayTracingDefinitions.h"
+#include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 
 #include "PostProcess/PostProcessing.h"

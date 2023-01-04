@@ -10,6 +10,7 @@
 #include "LevelEditorViewport.h"
 #include "Editor.h"
 #include "RectLightTextureManager.h"
+#include "RenderTargetPool.h"
 #include "IESTextureManager.h"
 #include "GPUSort.h"
 

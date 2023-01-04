@@ -2,6 +2,8 @@
 
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 
 float GLumenSkylightLeakingRoughness = 0.3f;
 FAutoConsoleVariableRef CVarLumenSkylightLeakingRoughness(

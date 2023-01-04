@@ -2,6 +2,7 @@
 
 #include "RayTracingDeferredMaterials.h"
 #include "RHIDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderCore.h"
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"

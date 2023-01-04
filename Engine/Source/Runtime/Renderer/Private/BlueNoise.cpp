@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "BlueNoise.h"
+#include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
 #include "TextureResource.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FBlueNoise, "BlueNoise");

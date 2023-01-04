@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "SceneRendering.h"
-#include "ScenePrivate.h"
+#include "RHIDefinitions.h"
 
 #if RHI_RAYTRACING
+
+#include "Math/MathFwd.h"
+
+class FPrimitiveSceneInfo;
+class FScene;
+
+struct FRayTracingCullingParameters;
 
 int32 GetRayTracingCulling();
 float GetRayTracingCullingRadius();
@@ -15,13 +21,7 @@ namespace RayTracing
 {
 
 // Tests if a primitive with the given inputs should be considered for culling.  Does NOT test configuration values.  The assumption is that the config values have already been tested.
-FORCEINLINE bool ShouldConsiderCulling(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& ObjectBounds, float MinDrawDistance)
-{
-	FVector CameraToObjectCenter = ObjectBounds.Origin - CullingParameters.ViewOrigin;
-	bool bBehindCamera = FVector::DotProduct(CullingParameters.ViewDirection, CameraToObjectCenter) < -ObjectBounds.SphereRadius;
-	bool bNearEnoughToCull = CullingParameters.bCullMinDrawDistance && (FVector::DistSquared(ObjectBounds.Origin, CullingParameters.ViewOrigin) < FMath::Square(MinDrawDistance));
-	return bBehindCamera || bNearEnoughToCull;
-}
+bool ShouldConsiderCulling(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& ObjectBounds, float MinDrawDistance);
 
 // Returns true if the primitive should be culled out due to it's ray tracing flags
 bool CullPrimitiveByFlags(const FRayTracingCullingParameters& CullingParameters, const FScene* RESTRICT Scene, int32 PrimitiveIndex);

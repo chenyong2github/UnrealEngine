@@ -6,6 +6,7 @@
 #include "PostProcess/PostProcessWeightedSampleSum.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PixelShaderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 namespace
 {

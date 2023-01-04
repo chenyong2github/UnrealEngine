@@ -18,6 +18,7 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "LightSceneInfo.h"
 #include "GlobalShader.h"
+#include "ScenePrivate.h"
 #include "SceneRenderTargetParameters.h"
 #include "ShadowRendering.h"
 #include "DeferredShadingRenderer.h"

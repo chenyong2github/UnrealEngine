@@ -6,6 +6,7 @@
 #include "RHI.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
+#include "SceneTextureParameters.h"
 #include "GPUScene.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteStreamingManager.h"

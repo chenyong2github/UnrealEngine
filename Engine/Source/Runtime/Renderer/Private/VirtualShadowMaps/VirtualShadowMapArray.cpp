@@ -12,6 +12,7 @@
 #include "Nanite/Nanite.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteResources.h"
+#include "ScenePrivate.h"
 #include "SceneTextureReductions.h"
 #include "ScreenPass.h"
 #include "ShaderPrint.h"

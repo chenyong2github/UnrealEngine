@@ -7,9 +7,11 @@
 #include "RenderCore.h"
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
+#include "RayTracing/RayTracingScene.h"
 #include "RenderGraphUtils.h"
 #include "DeferredShadingRenderer.h"
 #include "PipelineStateCache.h"
+#include "ScenePrivate.h"
 #include "ShaderCompilerCore.h"
 #include "Lumen/LumenHardwareRayTracingCommon.h"
 

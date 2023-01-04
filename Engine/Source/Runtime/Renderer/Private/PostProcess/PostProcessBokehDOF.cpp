@@ -5,6 +5,8 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "PostProcess/DiaphragmDOF.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "UnrealEngine.h"
 
 class FVisualizeDOFPS : public FGlobalShader
 {

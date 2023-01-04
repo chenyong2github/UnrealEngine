@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "ScenePrivate.h"
-#include "RenderGraph.h"
-#include "SceneTextureParameters.h"
+#include "PixelFormat.h"
+#include "RenderGraphFwd.h"
+#include "RHIFwd.h"
 
 struct FBuildHZBAsyncComputeParams
 {

@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "Math/SHMath.h"
-#include "ScenePrivate.h"
+#include "HAL/Platform.h"
+
+class FGlobalShaderMap;
+class FRDGBuilder;
+class FRDGTexture;
+class FScene;
+class FTexture;
+
+template<int32 MaxSHOrder> class TSHVectorRGB;
+typedef TSHVectorRGB<3> FSHVectorRGB3;
 
 namespace MobileReflectionEnvironmentCapture
 {

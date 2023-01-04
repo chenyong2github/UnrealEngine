@@ -17,6 +17,7 @@
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
+#include "ScenePrivate.h"
 #include "ShaderCompilerCore.h"
 
 int32 GAOScatterTileCulling = 1;

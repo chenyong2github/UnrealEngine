@@ -4,9 +4,11 @@
 #include "PostProcess/PostProcessTonemap.h"
 #include "PostProcess/PostProcessLocalExposure.h"
 #include "PostProcess/PostProcessDownsample.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GPUFastFourierTransform.h"
 #include "RendererModule.h"
 #include "Rendering/Texture2DResource.h"
+#include "ScenePrivate.h"
 
 namespace
 {

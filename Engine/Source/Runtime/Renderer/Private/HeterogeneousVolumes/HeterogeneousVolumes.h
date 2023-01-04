@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "PixelShaderUtils.h"
-#include "RayTracingDefinitions.h"
-#include "RayTracingInstance.h"
-#include "RayTracingInstanceBufferUtil.h"
-#include "RendererPrivate.h"
-#include "ScenePrivate.h"
-#include "SceneManagement.h"
+#include "CoreTypes.h"
+#include "RendererInterface.h"
+#include "ShaderParameterMacros.h"
+
+class FLightSceneInfo;
+class FPrimitiveSceneProxy;
+class FRayTracingScene;
+class FRDGBuilder;
+class FScene;
+class FSceneView;
+class FViewInfo;
+class FVirtualShadowMapArray;
+class FVisibleLightInfo;
+
+struct FRDGTextureDesc;
+struct FSceneTextures;
 
 //
 // External API
@@ -50,7 +59,7 @@ namespace HeterogeneousVolumes
 
 	// Convenience Utils
 	int GetVoxelCount(FIntVector VolumeResolution);
-	int GetVoxelCount(FRDGTextureDesc TextureDesc);
+	int GetVoxelCount(const FRDGTextureDesc& TextureDesc);
 	FIntVector GetMipVolumeResolution(FIntVector VolumeResolution, uint32 MipLevel);
 }
 

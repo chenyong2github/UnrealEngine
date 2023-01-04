@@ -25,6 +25,7 @@
 #include "SceneRendering.h"
 #include "VirtualShadowMapClipmap.h"
 #include "HairStrands/HairStrandsData.h"
+#include "BasePassRendering.h"
 #include "BlueNoise.h"
 
 #define MAX_TEST_PERMUTATION 0

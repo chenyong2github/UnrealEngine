@@ -27,6 +27,7 @@
 #include "RenderGraphUtils.h"
 #include "ShaderPrint.h"
 #include "ScreenPass.h"
+#include "ScenePrivate.h"
 
 #include "GroomVisualizationData.h"
 

@@ -7,6 +7,7 @@
 #include "Lumen.h"
 #include "LumenReflections.h"
 #include "LumenVisualize.h"
+#include "ScenePrivate.h"
 
 int32 GLumenSurfaceCacheFeedback = 1;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedback(

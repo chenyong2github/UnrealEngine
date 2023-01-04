@@ -10,6 +10,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
+#include "ScenePrivate.h"
 #include "UniformBuffer.h"
 #include "VisualizeTexture.h"
 #include "RayGenShaderUtils.h"

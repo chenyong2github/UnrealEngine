@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
- 
-=============================================================================*/
 #include "MobileReflectionEnvironmentCapture.h"
 #include "ReflectionEnvironmentCapture.h"
 #include "ShaderParameterUtils.h"

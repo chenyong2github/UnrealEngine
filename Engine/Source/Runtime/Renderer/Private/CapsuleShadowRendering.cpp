@@ -13,6 +13,7 @@
 #include "RendererInterface.h"
 #include "Shader.h"
 #include "StaticBoundShaderState.h"
+#include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "RHIStaticStates.h"
 #include "PostProcess/SceneRenderTargets.h"

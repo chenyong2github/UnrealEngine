@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "ScreenPass.h"
+#include "RenderGraphFwd.h"
+#include "RHIFwd.h"
 #include "TranslucentRendering.h"
-#include "SystemTextures.h"
-#include "ScenePrivate.h"
-#include "DeferredShadingRenderer.h"
+
+enum class EReflectionsMethod;
 
 class FSceneTextureParameters;
+class FSceneTextureUniformParameters;
+class FScreenPassVS;
+class FViewInfo;
 class FVirtualShadowMapArray;
 
 namespace Nanite

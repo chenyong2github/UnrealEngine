@@ -13,6 +13,7 @@
 #include "GlobalDistanceFieldParameters.h"
 #include "Shader.h"
 #include "StaticBoundShaderState.h"
+#include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "GlobalShader.h"

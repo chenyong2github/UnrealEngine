@@ -2,16 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "CoreTypes.h"
 #include "BlueNoise.h"
-#include "LumenRadianceCache.h"
-#include "SceneTextureParameters.h"
-#include "IndirectLightRendering.h"
-#include "ScreenSpaceRayTracing.h"
-#include "RendererPrivate.h"
-#include "ScenePrivate.h"
 #include "LumenTracingUtils.h"
+#include "ShaderParameterMacros.h"
+
+class FLumenScreenSpaceBentNormalParameters;
+class FViewInfo;
+struct FEngineShowFlags;
+
+namespace LumenRadianceCache
+{
+	class FRadianceCacheInterpolationParameters;
+	class FRadianceCacheMarkParameters;
+}
 
 extern int32 GLumenScreenProbeGatherNumMips;
 

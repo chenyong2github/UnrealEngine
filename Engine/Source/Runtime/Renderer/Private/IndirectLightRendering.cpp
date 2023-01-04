@@ -4,6 +4,8 @@
 #include "RenderGraph.h"
 #include "PixelShaderUtils.h"
 #include "AmbientCubemapParameters.h"
+#include "BasePassRendering.h"
+#include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
 #include "ScreenSpaceRayTracing.h"

@@ -2,15 +2,24 @@
 
 #pragma once
 
-#include "RendererPrivate.h"
+#include "RenderGraphFwd.h"
+#include "ScreenPass.h"
+#include "ShaderParameterMacros.h"
+#include "Math/IntPoint.h"
+
+class FScene;
+class FSceneTextureParameters;
+class FViewInfo;
+class FLumenCardTracingInputs;
+class FLumenIndirectTracingParameters;
+
+struct FLumenSceneFrameTemporaries;
 
 // r.Lumen.Visualize.Mode
 #define VISUALIZE_MODE_LUMEN_SCENE 1
 #define VISUALIZE_MODE_REFLECTION_VIEW 2
 #define VISUALIZE_MODE_SURFACE_CACHE 3
 #define VISUALIZE_MODE_OVERVIEW 4
-
-class FLumenIndirectTracingParameters;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneParameters, )
 	SHADER_PARAMETER(FIntPoint, InputViewSize)

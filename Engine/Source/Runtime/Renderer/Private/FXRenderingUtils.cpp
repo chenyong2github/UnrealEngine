@@ -3,6 +3,7 @@
 #include "FXRenderingUtils.h"
 #include "MaterialShared.h"
 #include "Lumen/LumenScreenProbeGather.h"
+#include "PrimitiveSceneProxy.h"
 
 bool FFXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	const FSceneViewFamily& ViewFamily,

@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc.All Rights Reserved.
 
 #include "RayTracingInstanceCulling.h"
-#include "Lumen/Lumen.h"
 
 #if RHI_RAYTRACING
+
+#include "Lumen/Lumen.h"
+#include "ScenePrivate.h"
 
 static TAutoConsoleVariable<int32> CVarRayTracingCulling(
 	TEXT("r.RayTracing.Culling"),
@@ -79,6 +81,14 @@ void FRayTracingCullingParameters::Init(FViewInfo& View)
 
 namespace RayTracing
 {
+bool ShouldConsiderCulling(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& ObjectBounds, float MinDrawDistance)
+{
+	FVector CameraToObjectCenter = ObjectBounds.Origin - CullingParameters.ViewOrigin;
+	bool bBehindCamera = FVector::DotProduct(CullingParameters.ViewDirection, CameraToObjectCenter) < -ObjectBounds.SphereRadius;
+	bool bNearEnoughToCull = CullingParameters.bCullMinDrawDistance && (FVector::DistSquared(ObjectBounds.Origin, CullingParameters.ViewOrigin) < FMath::Square(MinDrawDistance));
+	return bBehindCamera || bNearEnoughToCull;
+}
+
 bool CullPrimitiveByFlags(const FRayTracingCullingParameters& CullingParameters, const FScene* RESTRICT Scene, int32 PrimitiveIndex)
 {
 	if (Scene->PrimitiveRayTracingFlags[PrimitiveIndex] == ERayTracingPrimitiveFlags::UnsupportedProxyType)

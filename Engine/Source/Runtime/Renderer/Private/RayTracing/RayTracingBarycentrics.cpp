@@ -4,13 +4,16 @@
 
 #if RHI_RAYTRACING
 
+#include "BuiltInRayTracingShaders.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DeferredShadingRenderer.h"
 #include "GlobalShader.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
 #include "PipelineStateCache.h"
 #include "RayTracing/RaytracingOptions.h"
-#include "BuiltInRayTracingShaders.h"
+#include "RayTracing/RayTracingScene.h"
+#include "ScenePrivate.h"
 
 #include "Rendering/NaniteStreamingManager.h"
 

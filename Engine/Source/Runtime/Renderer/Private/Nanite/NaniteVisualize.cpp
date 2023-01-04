@@ -7,6 +7,7 @@
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "PixelShaderUtils.h"
+#include "ScenePrivate.h"
 #include "SceneTextureReductions.h"
 #include "SceneManagement.h"
 #include "Rendering/NaniteStreamingManager.h"

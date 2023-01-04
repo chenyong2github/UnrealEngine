@@ -302,7 +302,7 @@ namespace HeterogeneousVolumes
 		return VolumeResolution.X * VolumeResolution.Y * VolumeResolution.Z;
 	}
 
-	int GetVoxelCount(FRDGTextureDesc TextureDesc)
+	int GetVoxelCount(const FRDGTextureDesc& TextureDesc)
 	{
 		return TextureDesc.Extent.X * TextureDesc.Extent.Y * TextureDesc.Depth;
 	}

@@ -3,12 +3,14 @@
 #pragma once
 
 #include "RHIDefinitions.h"
+#include "CommonRenderResources.h"
 #include "SceneView.h"
 #include "SceneRendering.h"
 #include "RendererPrivateUtils.h"
 #include "Lumen.h"
 #include "LumenSceneRendering.h"
 
+class FDeferredLightUniformStruct;
 class FLumenCardRenderer;
 class FLumenLight;
 

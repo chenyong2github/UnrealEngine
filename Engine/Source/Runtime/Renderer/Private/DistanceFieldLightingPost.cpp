@@ -11,6 +11,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "PipelineStateCache.h"
+#include "ScenePrivate.h"
 
 #if WITH_MGPU
 DECLARE_GPU_STAT(AFRWaitForDistanceFieldAOHistory);

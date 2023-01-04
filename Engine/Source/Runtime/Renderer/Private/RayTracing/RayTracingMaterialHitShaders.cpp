@@ -6,6 +6,7 @@
 #include "DeferredShadingRenderer.h"
 #include "PipelineStateCache.h"
 #include "RenderCore.h"
+#include "ScenePrivate.h"
 
 #include "Nanite/NaniteRayTracing.h"
 
@@ -384,6 +385,21 @@ static bool GetRayTracingMeshProcessorShaders(
 
 	return true;
 }
+
+FRayTracingMeshProcessor::FRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, const FScene* InScene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassProcessorRenderState InPassDrawRenderState, ERayTracingMeshCommandsMode InRayTracingMeshCommandsMode)
+	:
+	CommandContext(InCommandContext),
+	Scene(InScene),
+	ViewIfDynamicMeshCommand(InViewIfDynamicMeshCommand),
+	FeatureLevel(InScene ? InScene->GetFeatureLevel() : ERHIFeatureLevel::SM5),
+	PassDrawRenderState(InPassDrawRenderState),
+	RayTracingMeshCommandsMode(InRayTracingMeshCommandsMode)
+{
+	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI());
+	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
+}
+
+FRayTracingMeshProcessor::~FRayTracingMeshProcessor() = default;
 
 bool FRayTracingMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,

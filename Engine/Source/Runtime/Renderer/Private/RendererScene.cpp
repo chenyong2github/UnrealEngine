@@ -56,6 +56,7 @@
 #include "DistanceFieldLightingShared.h"
 #include "SpeedTreeWind.h"
 #include "Components/WindDirectionalSourceComponent.h"
+#include "Lumen/LumenSceneData.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "PlanarReflectionSceneProxy.h"
 #include "Engine/StaticMesh.h"

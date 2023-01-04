@@ -41,6 +41,7 @@ namespace LumenRadianceCache
 	class FUpdateInputs;
 }
 class FRenderLightParameters;
+class FRayTracingScene;
 
 struct FSceneWithoutWaterTextures;
 struct FRayTracingReflectionOptions;
@@ -50,6 +51,9 @@ struct FTranslucencyLightingVolumeTextures;
 struct FLumenSceneFrameTemporaries;
 struct FSingleLayerWaterPrePassResult;
 struct FBuildHZBAsyncComputeParams;
+struct FForwardBasePassTextures;
+struct FTranslucentLightInjectionCollector;
+struct FRayTracingPickingFeedback;
 
 #if RHI_RAYTRACING
 struct FRayTracingRelevantPrimitiveTaskData;

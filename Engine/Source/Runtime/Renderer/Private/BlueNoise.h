@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include "UniformBuffer.h"
-#include "Engine/Engine.h"
-#include "Engine/Texture2D.h"
 #include "Math/IntVector.h"
+#include "ShaderParameterMacros.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FBlueNoise, RENDERER_API)
 	SHADER_PARAMETER(FIntVector, Dimensions)

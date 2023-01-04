@@ -982,6 +982,11 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 
 REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenCardNanitePass, CreateLumenCardNaniteMeshProcessor, EShadingPath::Deferred, EMeshPass::LumenCardNanite, EMeshPassFlags::None);
 
+bool Lumen::HasPrimitiveNaniteMeshBatches(const FPrimitiveSceneProxy* Proxy)
+{
+	return Proxy && Proxy->ShouldRenderInMainPass() && Proxy->AffectsDynamicIndirectLighting();
+}
+
 FCardPageRenderData::FCardPageRenderData(
 	const FViewInfo& InMainView,
 	const FLumenCard& InLumenCard,

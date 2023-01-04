@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "MeshMaterialShader.h"
-#include "LightMapRendering.h"
-#include "ScenePrivate.h"
-#include "MeshPassProcessor.inl"
+
+#include "RHIDefinitions.h"
 
 #if RHI_RAYTRACING
+
+#include "MeshMaterialShader.h"
+#include "LightMapRendering.h"
+#include "MeshPassProcessor.inl"
+
+enum class ERayTracingMeshCommandsMode : uint8;
 
 #include "RayTracingInstanceMask.h"
 #include "RayTracingPayloadType.h"
@@ -18,21 +22,8 @@ FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FGlobalShaderMap* S
 class RENDERER_API FRayTracingMeshProcessor
 {
 public:
-
-	FRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, const FScene* InScene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassProcessorRenderState InPassDrawRenderState, ERayTracingMeshCommandsMode InRayTracingMeshCommandsMode)
-		:
-		CommandContext(InCommandContext),
-		Scene(InScene),
-		ViewIfDynamicMeshCommand(InViewIfDynamicMeshCommand),
-		FeatureLevel(InScene ? InScene->GetFeatureLevel() : ERHIFeatureLevel::SM5),
-		PassDrawRenderState(InPassDrawRenderState),
-		RayTracingMeshCommandsMode(InRayTracingMeshCommandsMode)
-	{
-		PassDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI());
-		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	}
-
-	virtual ~FRayTracingMeshProcessor() = default;
+	FRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, const FScene* InScene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassProcessorRenderState InPassDrawRenderState, ERayTracingMeshCommandsMode InRayTracingMeshCommandsMode);
+	virtual ~FRayTracingMeshProcessor();
 
 	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
 

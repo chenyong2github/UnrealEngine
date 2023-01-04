@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "RHIDefinitions.h"
+
+#if RHI_RAYTRACING
+
 #include "GPULightmassCommon.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
@@ -11,8 +15,6 @@
 #include "IrradianceCaching.h"
 #include "RayTracingTypes.h"
 #include "RayTracingPayloadType.h"
-
-#if RHI_RAYTRACING
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingLightGrid, RENDERER_API)
 	SHADER_PARAMETER(uint32, SceneInfiniteLightCount)
@@ -28,11 +30,7 @@ END_SHADER_PARAMETER_STRUCT()
 class FLightmapRayTracingMeshProcessor : public FRayTracingMeshProcessor
 {
 public:
-	FLightmapRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, FMeshPassProcessorRenderState InPassDrawRenderState)
-		: FRayTracingMeshProcessor(InCommandContext, nullptr, nullptr, InPassDrawRenderState, ERayTracingMeshCommandsMode::LIGHTMAP_TRACING)
-	{
-		FeatureLevel = GMaxRHIFeatureLevel;
-	}
+	FLightmapRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, FMeshPassProcessorRenderState InPassDrawRenderState);
 };
 
 class FLightmapPathTracingRGS : public FGlobalShader

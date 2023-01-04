@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "PostProcess/PostProcessMaterial.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RendererModule.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"

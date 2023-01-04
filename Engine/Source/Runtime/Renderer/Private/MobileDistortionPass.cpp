@@ -10,6 +10,7 @@ MobileDistortionPass.cpp - Mobile specific rendering of primtives with refractio
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
+#include "ScenePrivate.h"
 #include "DistortionRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDistortionPassUniformParameters, RENDERER_API)

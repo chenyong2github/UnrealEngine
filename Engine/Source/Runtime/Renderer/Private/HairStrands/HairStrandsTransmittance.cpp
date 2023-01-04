@@ -7,6 +7,7 @@
 #include "HairStrandsVoxelization.h"
 #include "HairStrandsRendering.h"
 
+#include "BasePassRendering.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"

@@ -6,8 +6,8 @@
 
 #if RHI_RAYTRACING
 
-#include "ShaderParameterMacros.h"
-#include "RendererPrivate.h"
+#include "RenderGraphFwd.h"
+#include "ScreenPass.h"
 
 class FRDGBuilder;
 class FScene;

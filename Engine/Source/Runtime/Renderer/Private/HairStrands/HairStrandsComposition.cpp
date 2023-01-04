@@ -3,6 +3,7 @@
 #include "HairStrandsComposition.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "ScenePrivate.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"

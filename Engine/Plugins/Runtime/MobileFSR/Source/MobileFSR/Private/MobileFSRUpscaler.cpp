@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MobileFSRUpscaler.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "SceneRenderTargetParameters.h"
 #include "SceneRendering.h"
 #include "PostProcess/PostProcessing.h"

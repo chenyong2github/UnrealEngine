@@ -9,6 +9,7 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "DistanceFieldLightingShared.h"
+#include "ScenePrivate.h"
 #include "ScreenRendering.h"
 #include "DistanceFieldLightingPost.h"
 #include "OneColorShader.h"

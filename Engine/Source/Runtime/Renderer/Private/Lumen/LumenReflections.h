@@ -2,14 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "CoreTypes.h"
 #include "BlueNoise.h"
-#include "LumenRadianceCache.h"
-#include "SceneTextureParameters.h"
-#include "IndirectLightRendering.h"
-#include "RendererPrivate.h"
-#include "ScenePrivate.h"
+#include "ShaderParameterMacros.h"
+
+enum class ERDGPassFlags : uint16;
+
+class FLumenCardTracingInputs;
+class FLumenMeshSDFGridParameters;
+class FRDGBuilder;
+class FScene;
+class FSceneTextureParameters;
+class FSceneView;
+class FSceneViewFamily;
+class FViewInfo;
+
+struct FLumenSceneFrameTemporaries;
+struct FSceneTextures;
+
+namespace LumenRadianceCache { class FRadianceCacheInterpolationParameters; }
 
 const static int32 ReflectionThreadGroupSize2D = 8;
 

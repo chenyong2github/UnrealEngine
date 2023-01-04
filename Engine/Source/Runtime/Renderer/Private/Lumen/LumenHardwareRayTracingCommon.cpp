@@ -146,7 +146,71 @@ uint32 LumenHardwareRayTracing::GetMaxTraversalIterations()
 
 #if RHI_RAYTRACING
 
-#include "LumenHardwareRayTracingCommon.h"
+FLumenHardwareRayTracingShaderBase::FLumenHardwareRayTracingShaderBase() = default;
+FLumenHardwareRayTracingShaderBase::FLumenHardwareRayTracingShaderBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FGlobalShader(Initializer)
+{
+}
+
+void FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType, Lumen::ESurfaceCacheSampling SurfaceCacheSampling, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), SurfaceCacheSampling == Lumen::ESurfaceCacheSampling::AlwaysResidentPagesWithoutFeedback ? 0 : 1);
+	OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_HIGH_RES_PAGES"), SurfaceCacheSampling == Lumen::ESurfaceCacheSampling::HighResPages ? 1 : 0);
+	OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_RAYTRACING"), 1);
+
+	// GPU Scene definitions
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+	OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+
+	// Inline
+	const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;
+	if (bInlineRayTracing)
+	{
+		OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_INLINE_RAYTRACING"), 1);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+		OutEnvironment.CompilerFlags.Add(CFLAG_InlineRayTracing);
+	}
+}
+
+void FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironmentInternal(Lumen::ERayTracingShaderDispatchSize Size, FShaderCompilerEnvironment& OutEnvironment)
+{
+	if (DispatchSize == Lumen::ERayTracingShaderDispatchSize::DispatchSize1D)
+	{
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
+	}
+}
+
+FIntPoint FLumenHardwareRayTracingShaderBase::GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType ShaderDispatchType, Lumen::ERayTracingShaderDispatchSize ShaderDispatchSize)
+{
+	// Current inline ray tracing implementation requires 1:1 mapping between thread groups and waves and only supports wave32 mode.
+	const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;
+	if (bInlineRayTracing)
+	{
+		switch (ShaderDispatchSize)
+		{
+		case Lumen::ERayTracingShaderDispatchSize::DispatchSize2D: return FIntPoint(8, 4);
+		case Lumen::ERayTracingShaderDispatchSize::DispatchSize1D: return FIntPoint(32, 1);
+		default:
+			checkNoEntry();
+		}
+	}
+
+	return FIntPoint(1, 1);
+}
+
+bool FLumenHardwareRayTracingShaderBase::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType)
+{
+	const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;
+	if (bInlineRayTracing)
+	{
+		return IsRayTracingEnabledForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform) && RHISupportsRayTracing(Parameters.Platform) && RHISupportsInlineRayTracing(Parameters.Platform);
+	}
+	else
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+}
+
 
 namespace Lumen
 {

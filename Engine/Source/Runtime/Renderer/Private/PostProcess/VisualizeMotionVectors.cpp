@@ -2,6 +2,7 @@
 
 #include "PostProcess/VisualizeMotionVectors.h"
 #include "PostProcess/PostProcessing.h"
+#include "ScenePrivate.h"
 #include "ScreenPass.h"
 #include "PixelShaderUtils.h"
 

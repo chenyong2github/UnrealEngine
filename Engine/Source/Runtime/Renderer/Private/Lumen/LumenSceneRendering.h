@@ -6,14 +6,22 @@
 
 #pragma once
 
-#include "RHIDefinitions.h"
-#include "SceneView.h"
-#include "SceneRendering.h"
-#include "ScenePrivate.h"
-#include "LumenSceneData.h"
+#include "CoreTypes.h"
+#include "MeshCardRepresentation.h"
+#include "ShaderParameterMacros.h"
 
+enum EShaderPlatform : uint16;
+
+class FDistanceFieldSceneData;
 class FLumenSceneData;
+class FLumenCard;
 class FLumenCardScene;
+class FMeshPassDrawListContext;
+class FMeshPassProcessor;
+class FNaniteCommandInfo;
+class FViewInfo;
+
+struct FLumenSceneFrameTemporaries;
 
 bool DoesPlatformSupportLumenGI(EShaderPlatform Platform, bool bSkipProjectCheck = false);
 
@@ -78,10 +86,7 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 
 namespace Lumen
 {
-	inline bool HasPrimitiveNaniteMeshBatches(const FPrimitiveSceneProxy* Proxy)
-	{
-		return Proxy && Proxy->ShouldRenderInMainPass() && Proxy->AffectsDynamicIndirectLighting();
-	}
+	bool HasPrimitiveNaniteMeshBatches(const FPrimitiveSceneProxy* Proxy);
 };
 
 extern void UpdateLumenCardSceneUniformBuffer(FRDGBuilder& GraphBuilder, FScene* Scene, const FLumenSceneData& LumenSceneData, FLumenSceneFrameTemporaries& FrameTemporaries);
