@@ -686,6 +686,9 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 		const bool bIsMeshDescriptionValid = SourceModel.CloneMeshDescription(MeshDescription);
 		if (bIsMeshDescriptionValid)
 		{
+			FElementIDRemappings Remappings;
+			MeshDescription.Compact(Remappings);
+
 			const FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
 
 			const FStaticMeshConstAttributes Attributes(MeshDescription);
