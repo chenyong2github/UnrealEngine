@@ -60,10 +60,19 @@ public:
 
 	/**
 	 * Calculate how many inputs this input info generates for the neural network.
-	 * A single bone would take 4 inputs, while a curve takes one input.
+	 * A single bone on default takes 6 inputs.
 	 * @return THe number of input float values to the neural network.
 	 */
+	UE_DEPRECATED(5.2, "Please use the CalcNumNeuralNetInputs that takes parameters instead.")
 	virtual int32 CalcNumNeuralNetInputs() const;
+
+	/**
+	 * Calculate how many inputs this input info generates for the neural network.
+	 * @param NumFloatsPerBone The number of floats used per bone.
+	 * @param NumFloatsPerCurve The number of floats per curve. This can be used when padding is used on curve values.
+	 * @return THe number of input float values to the neural network.
+	 */
+	virtual int32 CalcNumNeuralNetInputs(int32 NumFloatsPerBone, int32 NumFloatsPerCurve) const;
 
 	/**
 	 * Get the number of bones that we trained on.
@@ -118,11 +127,21 @@ public:
 #endif
 
 	/** 
-	 * Extract the curve values for all curves we're interested in.
+	 * Extract the curve values for all curves we're interested in. Assume one float per curve.
 	 * @param SkelMeshComponent The skeletal mesh component to sample from.
 	 * @param OutValues The array to write the values to. This array will be reset/resized by this method.
 	 */
+	UE_DEPRECATED(5.2, "Please use the ExtractCurveValues method that takes the NumFloatsPerCurve parameter.")
 	virtual void ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const;
+
+	/** 
+	 * Extract the curve values for all curves we're interested in.
+	 * @param SkelMeshComponent The skeletal mesh component to sample from.
+	 * @param OutValues The array to write the values to. This array will be reset/resized by this method.
+	 * @param NumFloatsPerCurve The number of floats per curve. If larger than 1, the remaining floats (after the first one), will be set to 0.
+	 *        So if this is set to 4, you get an array like "0.75, 0, 0, 0", where 0.75 would represent the actual curve value.
+	 */
+	virtual void ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues, int32 NumFloatsPerCurve) const;
 
 	/**
 	 * Batch convert a set of transform rotation quaternions into two column vectors.

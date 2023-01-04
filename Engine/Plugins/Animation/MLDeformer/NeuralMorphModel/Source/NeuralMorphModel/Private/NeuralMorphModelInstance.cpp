@@ -5,6 +5,7 @@
 #include "NeuralMorphNetwork.h"
 #include "MLDeformerComponent.h"
 #include "MLDeformerAsset.h"
+#include "Animation/AnimInstance.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 
@@ -19,6 +20,67 @@ void UNeuralMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 	NetworkInstance = MorphNetwork ? MorphNetwork->CreateInstance() : nullptr;
 #endif
 }
+
+
+int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex)
+{
+	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
+	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
+
+	const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
+
+	int64 Index = StartIndex;
+	const int32 AssetNumCurves = InputInfo->GetNumCurves();
+	const int32 NumFloatsPerCurve = MorphNetwork->GetNumFloatsPerCurve();
+	const int32 NumCurveFloats = AssetNumCurves * NumFloatsPerCurve;
+	checkf((Index + NumCurveFloats) <= OutputBufferSize, TEXT("Writing curves past the end of the input buffer"));
+
+	if (NumCurveFloats > 1)
+	{
+		// First write all zeros.
+		for (int32 CurveIndex = 0; CurveIndex < NumCurveFloats; ++CurveIndex)
+		{
+			OutputBuffer[Index++] = 0.0f;
+		}
+
+		// Write the 
+		UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
+		if (AnimInstance)
+		{
+			for (int32 CurveIndex = 0; CurveIndex < AssetNumCurves; ++CurveIndex)
+			{
+				const FName CurveName = InputInfo->GetCurveName(CurveIndex);
+				const float CurveValue = AnimInstance->GetCurveValue(CurveName);	// Outputs 0.0 when not found.
+				OutputBuffer[StartIndex + CurveIndex * NumFloatsPerCurve] = CurveValue;
+			}
+		}
+	}
+	else
+	{
+		checkSlow(NumCurveFloats == 1);
+		UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
+		if (AnimInstance)
+		{
+			for (int32 CurveIndex = 0; CurveIndex < AssetNumCurves; ++CurveIndex)
+			{
+				const FName CurveName = InputInfo->GetCurveName(CurveIndex);
+				const float CurveValue = AnimInstance->GetCurveValue(CurveName);	// Outputs 0.0 when not found.
+				OutputBuffer[Index++] = CurveValue;
+			}
+		}
+		else
+		{
+			// Just write zeros.
+			for (int32 CurveIndex = 0; CurveIndex < NumCurveFloats; ++CurveIndex)
+			{
+				OutputBuffer[Index++] = 0.0f;
+			}
+		}
+	}
+
+	return Index;
+}
+
 
 bool UNeuralMorphModelInstance::SetupInputs()
 {
@@ -45,7 +107,9 @@ bool UNeuralMorphModelInstance::SetupInputs()
 
 	// If the neural network expects a different number of inputs, do nothing.
 	const int64 NumNeuralNetInputs = MorphNetwork->GetNumInputs();
-	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs();
+	const int32 NumFloatsPerBone = 6;
+	const int32 NumFloatsPerCurve = MorphNetwork->GetNumFloatsPerCurve();
+	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs(NumFloatsPerBone, NumFloatsPerCurve);
 	if (NumNeuralNetInputs != NumDeformerAssetInputs)
 	{
 		return false;

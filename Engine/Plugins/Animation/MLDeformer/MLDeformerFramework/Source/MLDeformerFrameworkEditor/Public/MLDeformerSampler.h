@@ -84,6 +84,15 @@ namespace UE::MLDeformer
 		SIZE_T CalcMemUsagePerFrameInBytes() const;
 		UDebugSkelMeshComponent* GetSkeletalMeshComponent() { return SkeletalMeshComponent; }
 
+		/**
+		 * Set the number of floats used per curve. Values larger than 1 will cause padding with zeros. 
+		 * The first float is always the value. Floats that come after that will contain zeros on default.
+		 */
+		void SetNumFloatsPerCurve(int32 NumFloats)						{ check(NumFloats > 0); NumFloatsPerCurve = NumFloats; }
+
+		/** Get the number of floats per curve. */
+		int32 GetNumFloatsPerCurve() const								{ return NumFloatsPerCurve; }
+
 	protected:
 		/** Create the actors used for sampling. This creates two actors, one for the base skeletal mesh and one for the target mesh. */
 		virtual void CreateActors();
@@ -167,6 +176,13 @@ namespace UE::MLDeformer
 
 		/** The animation frame we sampled the deltas for. */
 		int32 AnimFrameIndex = -1;
+
+		/**
+		 * The number of floats per curve value. If this is larger than 1, the remaining floats (after the first one) will be set to 0. 
+		 * So basically we will pad the curve values.
+		 * The CurveValues float array will contain something like : "0.75, 0.0, 0.0, 0.0" when this is set to 4.
+		 */
+		int32 NumFloatsPerCurve = 1;
 
 		/** The vertex delta space (pre or post skinning) used when calculating the deltas. */
 		EVertexDeltaSpace VertexDeltaSpace = EVertexDeltaSpace::PreSkinning;

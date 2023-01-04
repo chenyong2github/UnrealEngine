@@ -16,6 +16,7 @@ class NEURALMORPHMODEL_API UNeuralMorphModelInstance
 public:
 	// UMLDeformerModelInstance overrides.
 	virtual void Init(USkeletalMeshComponent* SkelMeshComponent) override;
+	virtual int64 SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex) override;
 	virtual bool SetupInputs() override;
 	virtual void Execute(float ModelWeight) override;
 	// ~END UMLDeformerModelInstance overrides.

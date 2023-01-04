@@ -151,7 +151,9 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 	if (NeuralNetwork && NeuralNetwork->IsLoaded() && Model->GetDeformerAsset())
 	{
 		const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensor().Num();
-		const int64 NumDeformerAssetInputs = static_cast<int64>(Model->GetInputInfo()->CalcNumNeuralNetInputs());
+		const int32 NumFloatsPerBone = 6;
+		const int32 NumFloatsPerCurve = 1;
+		const int64 NumDeformerAssetInputs = static_cast<int64>(Model->GetInputInfo()->CalcNumNeuralNetInputs(NumFloatsPerBone, NumFloatsPerCurve));
 		if (NumNeuralNetInputs != NumDeformerAssetInputs)
 		{
 			const FString InputErrorString = "The number of network inputs doesn't match the asset. Please retrain the asset."; 
@@ -228,9 +230,8 @@ int64 UMLDeformerModelInstance::SetCurveValues(float* OutputBuffer, int64 Output
 {
 	const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
 
-	// Write the weights into the output buffer.
 	int64 Index = StartIndex;
-	const int32 AssetNumCurves = InputInfo->GetNumCurves();	
+	const int32 AssetNumCurves = InputInfo->GetNumCurves();
 	checkf((Index + AssetNumCurves) <= OutputBufferSize, TEXT("Writing curves past the end of the input buffer"));
 
 	// Write the curve weights to the output buffer.
@@ -363,7 +364,9 @@ bool UMLDeformerModelInstance::SetupInputs()
 
 	// If the neural network expects a different number of inputs, do nothing.
 	const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensorForContext(NeuralNetworkInferenceHandle).Num();
-	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs();
+	const int32 NumFloatsPerBone = 6;
+	const int32 NumFloatsPerCurve = 1;
+	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs(NumFloatsPerBone, NumFloatsPerCurve);
 	if (NumNeuralNetInputs != NumDeformerAssetInputs)
 	{
 		return false;

@@ -96,6 +96,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Training Data")
 	void SetNeedsResampling(bool bNeedsResampling);
 
+	/** Set the number of floats per curve. On default this is one. */
+	UFUNCTION(BlueprintCallable, Category = "Training Data")
+	void SetNumFloatsPerCurve(int32 NumFloatsPerCurve);
+
 protected:
 	/** This updates the sample deltas, curves, and bone rotations. */
     virtual bool SampleFrame(int32 Index);

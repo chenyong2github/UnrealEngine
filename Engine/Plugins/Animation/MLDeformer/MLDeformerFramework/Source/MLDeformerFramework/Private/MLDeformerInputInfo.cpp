@@ -206,14 +206,20 @@ FString UMLDeformerInputInfo::GenerateCompatibilityErrorString(USkeletalMesh* In
 
 void UMLDeformerInputInfo::ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const
 {
+	ExtractCurveValues(SkelMeshComponent, OutValues, 1);
+}
+
+void UMLDeformerInputInfo::ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues, int32 NumFloatsPerCurve) const
+{
 	UAnimInstance* AnimInstance = SkelMeshComponent->GetAnimInstance();
 	const int32 NumCurves = CurveNames.Num();
-	OutValues.Reset(NumCurves);
-	OutValues.AddUninitialized(NumCurves);
+	const int32 NumCurveFloats = NumCurves * NumFloatsPerCurve;
+	OutValues.Reset(NumCurveFloats);
+	OutValues.AddZeroed(NumCurveFloats);
 	for (int32 Index = 0; Index < NumCurves; ++Index)
 	{
 		const FName CurveName = CurveNames[Index];
-		OutValues[Index] = AnimInstance->GetCurveValue(CurveName);
+		OutValues[Index * NumFloatsPerCurve] = AnimInstance->GetCurveValue(CurveName);
 	}
 }
 
@@ -289,9 +295,14 @@ void UMLDeformerInputInfo::ExtractBoneRotations(USkeletalMeshComponent* SkelMesh
 
 int32 UMLDeformerInputInfo::CalcNumNeuralNetInputs() const
 {
+	return CalcNumNeuralNetInputs(6, 1);
+}
+
+int32 UMLDeformerInputInfo::CalcNumNeuralNetInputs(int32 NumFloatsPerBone, int32 NumFloatsPerCurve) const
+{
 	return 
-		BoneNames.Num() * 6 +	// Six floats per bone (2 FVector3 columns of the rotation matrix).
-		CurveNames.Num();		// One float per curve.
+		BoneNames.Num() * NumFloatsPerBone +
+		CurveNames.Num() * NumFloatsPerCurve;
 }
 
 const FSoftObjectPath& UMLDeformerInputInfo::GetSkeletalMesh() const

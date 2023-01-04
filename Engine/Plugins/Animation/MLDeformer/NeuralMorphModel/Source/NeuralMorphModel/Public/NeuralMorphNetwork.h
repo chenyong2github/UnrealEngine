@@ -128,13 +128,19 @@ public:
 	 * This equals to the number of hidden layers plus one.
 	 * @return The number of network layer.
 	 */
-	const int32 GetNumLayers() const;
+	int32 GetNumLayers() const;
 
 	/**
 	 * Get a given network layer.
 	 * @return A reference to the layer, which will contain the weights and biases.
 	 */
 	UNeuralMorphNetworkLayer& GetLayer(int32 Index) const;
+
+	/** 
+	 * Get the number of floats used to represent a single curve value.
+	 * @return The number of float values per curve.
+	 */
+	int32 GetNumFloatsPerCurve() const;
 
 private:
 	/** The network weights and biases, between the different layers. */
@@ -164,6 +170,10 @@ private:
 	/** The number of curves that were input. */
 	UPROPERTY()
 	int32 NumCurves = 0;
+
+	/** The number of floats per curve. */
+	UPROPERTY()
+	int32 NumFloatsPerCurve = 1;
 };
 
 /** 

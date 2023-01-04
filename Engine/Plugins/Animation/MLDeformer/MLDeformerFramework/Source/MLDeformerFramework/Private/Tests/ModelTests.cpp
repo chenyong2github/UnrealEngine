@@ -49,6 +49,9 @@ namespace UE::MLDeformerTests
 		TestModel->UpdateCachedNumVertices();
 		UTEST_EQUAL(TEXT("Imported verts check"), TestModel->GetNumBaseMeshVerts(), ImportedVerts);
 
+		TestModel->GetInputInfo()->SetSkeletalMesh(SkeletalMesh);
+		UTEST_TRUE(TEXT("InputInfo GetSkeletalMesh check"), TestModel->GetInputInfo()->GetSkeletalMesh() == SkeletalMesh);
+
 		const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 		bool bErrorOnInvalid = false;
 		const USkeleton* ModelSkeleton = TestModel->GetSkeleton(bErrorOnInvalid, nullptr);
@@ -73,7 +76,7 @@ namespace UE::MLDeformerTests
 		// Add an ML Deformer component and activate it.
 		UMLDeformerComponent* MLDeformerComponent = NewObject<UMLDeformerComponent>(Actor);
 		MLDeformerComponent->SetDeformerAsset(DeformerAsset);
-		MLDeformerComponent->RegisterComponent();
+		MLDeformerComponent->RegisterComponent();		
 		MLDeformerComponent->Activate();
 		UTEST_EQUAL(TEXT("MLDeformerComponent weight check"), MLDeformerComponent->GetWeight(), 1.0f);
 		UTEST_TRUE(TEXT("MLDeformerComponent SkelMeshComponent check"), MLDeformerComponent->GetSkeletalMeshComponent() == SkelMeshComponent);

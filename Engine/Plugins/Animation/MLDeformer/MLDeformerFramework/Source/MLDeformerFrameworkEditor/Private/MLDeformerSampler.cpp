@@ -46,6 +46,7 @@ namespace UE::MLDeformer
 		NumImportedVertices = UMLDeformerModel::ExtractNumImportedSkinnedVertices(Model->GetSkeletalMesh());
 		AnimFrameIndex = 0;
 		SampleTime = 0.0f;
+		NumFloatsPerCurve = 1;
 
 		// Create the actors and components.
 		// This internally skips creating them if they already exist.
@@ -90,7 +91,7 @@ namespace UE::MLDeformer
 	void FMLDeformerSampler::UpdateCurveValues()
 	{
 		const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
-		InputInfo->ExtractCurveValues(SkeletalMeshComponent, CurveValues);
+		InputInfo->ExtractCurveValues(SkeletalMeshComponent, CurveValues, NumFloatsPerCurve);
 	}
 
 	void FMLDeformerSampler::Sample(int32 InAnimFrameIndex)

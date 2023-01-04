@@ -33,7 +33,7 @@ int32 UNeuralMorphNetwork::GetNumInputs() const
 
 int32 UNeuralMorphNetwork::GetNumOutputs() const
 {
-	return !Layers.IsEmpty() ? Layers[Layers.Num()-1]->NumOutputs * Layers[Layers.Num()-1]->Depth : 0;
+	return !Layers.IsEmpty() ? Layers[Layers.Num() - 1]->NumOutputs * Layers[Layers.Num() - 1]->Depth : 0;
 }
 
 bool UNeuralMorphNetwork::Load(const FString& Filename)
@@ -80,7 +80,7 @@ bool UNeuralMorphNetwork::Load(const FString& Filename)
 		return false;
 	}
 
-	if (Version != 1)
+	if (Version != 2)
 	{
 		UE_LOG(LogNeuralMorphModel, Error, TEXT("The Neural Morph Network file '%s' is of an unknown version (Version=%d)!"), *Filename, Version);
 		FileReader->Close();
@@ -99,7 +99,9 @@ bool UNeuralMorphNetwork::Load(const FString& Filename)
 		int32 NumMorphsPerBone = -1;		// The number of morph targets per bone, if set Mode == 0. Otherwise ignored.
 		int32 NumBones = -1;				// The number of bones used as input.
 		int32 NumCurves = -1;				// The number of curves used as input.
+		int32 NumFloatsPerCurve = -1;		// The number of floats per curve.
 	};
+
 	FInfoHeader Info;
 	FileReader->Serialize(&Info, sizeof(FInfoHeader));
 	if (FileReader->IsError())
@@ -110,9 +112,9 @@ bool UNeuralMorphNetwork::Load(const FString& Filename)
 		return false;
 	}
 
-	if (Info.Mode == -1 || Info.NumInputs == -1 || Info.NumHiddenLayers == -1 || Info.NumUnitsPerHiddenLayer == -1 || Info.NumOutputs == -1 || Info.NumBones == -1 || Info.NumCurves == -1)
+	if (Info.Mode == -1 || Info.NumInputs == -1 || Info.NumHiddenLayers == -1 || Info.NumUnitsPerHiddenLayer == -1 || Info.NumOutputs == -1 || Info.NumBones == -1 || Info.NumCurves == -1 || Info.NumFloatsPerCurve == -1)
 	{
-		UE_LOG(LogNeuralMorphModel, Error, TEXT("Failed to read info header for Neural Morph Network in file '%s'!"), *Filename);
+		UE_LOG(LogNeuralMorphModel, Error, TEXT("Failed to read info header for Neural Morph Network in file '%s'!"), *FileReader->GetArchiveName());
 		FileReader->Close();
 		Empty();
 		return false;
@@ -122,6 +124,7 @@ bool UNeuralMorphNetwork::Load(const FString& Filename)
 	NumMorphsPerBone = Info.NumMorphsPerBone;
 	NumBones = Info.NumBones;
 	NumCurves = Info.NumCurves;
+	NumFloatsPerCurve = Info.NumFloatsPerCurve;
 
 	// Read the input standard deviation and means.
 	InputMeans.SetNumZeroed(Info.NumInputs);
@@ -200,7 +203,7 @@ bool UNeuralMorphNetwork::Load(const FString& Filename)
 	const bool bSuccess = FileReader->Close();
 	if (bSuccess)
 	{
-		UE_LOG(LogNeuralMorphModel, Display, TEXT("Successfullly loaded neural morph network from file '%s'"), *Filename);
+		UE_LOG(LogNeuralMorphModel, Display, TEXT("Successfullly loaded neural morph network from file '%s'"), *FileReader->GetArchiveName());
 	}
 	else
 	{
@@ -248,7 +251,7 @@ const TArrayView<const float> UNeuralMorphNetwork::GetInputStds() const
 	return InputStd;
 }
 
-const int32 UNeuralMorphNetwork::GetNumLayers() const
+int32 UNeuralMorphNetwork::GetNumLayers() const
 {
 	return Layers.Num();
 }
@@ -258,6 +261,10 @@ UNeuralMorphNetworkLayer& UNeuralMorphNetwork::GetLayer(int32 Index) const
 	return *Layers[Index].Get();
 }
 
+int32 UNeuralMorphNetwork::GetNumFloatsPerCurve() const
+{
+	return NumFloatsPerCurve;
+}
 
 //--------------------------------------------------------------------------
 // UNeuralMorphNetworkInstance
@@ -313,6 +320,8 @@ void UNeuralMorphNetworkInstance::RunGlobalModel(const FRunSettings& RunSettings
 {
 	float* RESTRICT TempInputBuffer = RunSettings.TempInputBuffer;
 	float* RESTRICT TempOutputBuffer = RunSettings.TempOutputBuffer;
+
+	checkfSlow(Network->GetNumFloatsPerCurve() == 1, TEXT("Expecting the number of floats per curve to be 1 in global mode."));
 
 	const int32 NumLayers = Network->GetNumLayers();
 	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
@@ -388,12 +397,15 @@ void UNeuralMorphNetworkInstance::RunLocalModel(const FRunSettings& RunSettings)
 	float* RESTRICT TempInputBuffer = RunSettings.TempInputBuffer;
 	float* RESTRICT TempOutputBuffer = RunSettings.TempOutputBuffer;
 
+	checkfSlow(Network->GetNumFloatsPerCurve() == 6, TEXT("Expecting num floats per curve to be 6 in local mode."));
+
 	const int32 NumLayers = Network->GetNumLayers();
 	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		const UNeuralMorphNetworkLayer& CurLayer = Network->GetLayer(LayerIndex);
-		const int32 NumInputsPerBone = CurLayer.NumInputs;
-		const int32 NumBones = CurLayer.Depth;
+		const int32 NumInputsPerBlock = CurLayer.NumInputs;
+		checkSlow(NumInputsPerBlock == 6);
+		const int32 NumBlocks = CurLayer.Depth;
 
 		// Normalize inputs for the first layer inputs.
 		if (LayerIndex == 0)
@@ -401,7 +413,7 @@ void UNeuralMorphNetworkInstance::RunLocalModel(const FRunSettings& RunSettings)
 			const float* const RESTRICT NetworkInputs = RunSettings.InputBuffer;
 			const float* const RESTRICT Means = RunSettings.InputMeansBuffer;
 			const float* const RESTRICT Stds = RunSettings.InputStdsBuffer;
-			const int32 NumInputs = NumBones * NumInputsPerBone;
+			const int32 NumInputs = CurLayer.NumInputs * CurLayer.Depth;
 			for (int32 Index = 0; Index < NumInputs; ++Index)
 			{
 				TempInputBuffer[Index] = (NetworkInputs[Index] - Means[Index]) / Stds[Index];
@@ -416,31 +428,31 @@ void UNeuralMorphNetworkInstance::RunLocalModel(const FRunSettings& RunSettings)
 
 		// Init the output buffer to the bias values.
 		const float* const RESTRICT LayerBiases = CurLayer.Biases.GetData();
-		const int32 NumOutputsPerBone = CurLayer.NumOutputs;
-		const int32 NumOutputs = NumBones * NumOutputsPerBone;
+		const int32 NumOutputsPerBlock = CurLayer.NumOutputs;
+		const int32 NumOutputs = CurLayer.NumOutputs * CurLayer.Depth;
 		for (int32 Index = 0; Index < NumOutputs; ++Index)
 		{
 			TempOutputBuffer[Index] = LayerBiases[Index];
 		}
 
 		const float* const RESTRICT LayerWeights = CurLayer.Weights.GetData();
-		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		for (int32 BlockIndex = 0; BlockIndex < NumBlocks; ++BlockIndex)
 		{
-			const int32 BoneOutputOffset = BoneIndex * NumOutputsPerBone;
-			const int32 BoneInputOffset = BoneIndex * NumInputsPerBone;
+			const int32 BlockOutputOffset = BlockIndex * NumOutputsPerBlock;
+			const int32 BlockInputOffset = BlockIndex * NumInputsPerBlock;
 
 			// Multiply layer inputs with the weights.
-			const int32 WeightOffset = BoneIndex * (NumInputsPerBone * NumOutputsPerBone);
-			for (int32 InputIndex = 0; InputIndex < NumInputsPerBone; ++InputIndex)
+			const int32 WeightOffset = BlockIndex * (NumInputsPerBlock * NumOutputsPerBlock);
+			for (int32 InputIndex = 0; InputIndex < NumInputsPerBlock; ++InputIndex)
 			{
-				const float InputValue = TempInputBuffer[BoneInputOffset + InputIndex];
-				const int32 InputOffset = InputIndex * NumOutputsPerBone;
-				for (int32 OutputIndex = 0; OutputIndex < NumOutputsPerBone; ++OutputIndex)
+				const float InputValue = TempInputBuffer[BlockInputOffset + InputIndex];
+				const int32 InputOffset = InputIndex * NumOutputsPerBlock;
+				for (int32 OutputIndex = 0; OutputIndex < NumOutputsPerBlock; ++OutputIndex)
 				{
-					TempOutputBuffer[BoneOutputOffset + OutputIndex] += InputValue * LayerWeights[WeightOffset + InputOffset + OutputIndex];
+					TempOutputBuffer[BlockOutputOffset + OutputIndex] += InputValue * LayerWeights[WeightOffset + InputOffset + OutputIndex];
 				}
 			}
-		} // For all bones.
+		} // For all blocks.
 
 		// Apply ELU activation.
 		#if NEURALMORPHMODEL_USE_ISPC

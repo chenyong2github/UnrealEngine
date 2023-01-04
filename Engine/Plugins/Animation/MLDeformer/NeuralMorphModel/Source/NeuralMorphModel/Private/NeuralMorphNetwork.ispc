@@ -29,7 +29,8 @@ export void MorphNeuralNetwork_LayerForward(
 
 	foreach (Index = 0 ... NumCols)
 	{
-		Outputs[Index] = Outputs[Index] > 0.0f ? Outputs[Index] : InvExpApprox(-Outputs[Index]) - 1.0f;
+		const float X = Outputs[Index];
+		Outputs[Index] = select(X > 0.0f, X, InvExpApprox(-X) - 1.0f);
 	}
 }
 
@@ -37,6 +38,7 @@ export void MorphNeuralNetwork_Activation_ELU(uniform float InputsOutputs[], con
 {
 	foreach (Index = 0 ... Num)
 	{
-		InputsOutputs[Index] = InputsOutputs[Index] > 0.0f ? InputsOutputs[Index] : InvExpApprox(-InputsOutputs[Index]) - 1.0f;
+		const float X = InputsOutputs[Index];
+		InputsOutputs[Index] = select(X > 0.0f, X, InvExpApprox(-X) - 1.0f);
 	}
 }

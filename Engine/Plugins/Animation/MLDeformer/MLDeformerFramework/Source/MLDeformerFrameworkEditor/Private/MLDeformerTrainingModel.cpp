@@ -46,6 +46,11 @@ int32 UMLDeformerTrainingModel::GetNumberSampleDeltas() const
 	return GetModel()->GetNumBaseMeshVerts();
 }
 
+void UMLDeformerTrainingModel::SetNumFloatsPerCurve(int32 NumFloatsPerCurve)
+{
+	EditorModel->GetSampler()->SetNumFloatsPerCurve(NumFloatsPerCurve);
+}
+
 bool UMLDeformerTrainingModel::SetCurrentSampleIndex(int32 Index)
 {
 	return SampleFrame(Index);
