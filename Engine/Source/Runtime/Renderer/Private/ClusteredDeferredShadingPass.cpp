@@ -19,6 +19,7 @@
 #include "LightSceneInfo.h"
 #include "GlobalShader.h"
 #include "SceneRenderTargetParameters.h"
+#include "BasePassRendering.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
 #include "ShaderPrintParameters.h"

@@ -13,6 +13,7 @@
 #include "Lumen/Lumen.h"
 #include "RendererUtils.h"
 #include "EngineAnalytics.h"
+#include "SystemTextures.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 

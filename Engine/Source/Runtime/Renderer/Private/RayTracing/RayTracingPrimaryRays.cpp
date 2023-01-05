@@ -8,6 +8,7 @@
 #if RHI_RAYTRACING
 
 #include "ClearQuad.h"
+#include "FogRendering.h"
 #include "SceneRendering.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "RHIResources.h"

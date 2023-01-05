@@ -2,6 +2,7 @@
 
 #include "HeterogeneousVolumes.h"
 
+#include "LightRendering.h"
 #include "LocalVertexFactory.h"
 #include "PixelShaderUtils.h"
 #include "RayTracingDefinitions.h"
@@ -10,6 +11,7 @@
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneManagement.h"
+#include "VolumeLighting.h"
 #include "VolumetricFog.h"
 
 class FRenderLightingCacheWithLiveShadingCS : public FMeshMaterialShader

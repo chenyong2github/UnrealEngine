@@ -4,6 +4,7 @@
 #include "HairStrandsData.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
+#include "SystemTextures.h"
 #include "RenderGraphUtils.h"
 
 static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHairStrandsViewUniformBuffer(

@@ -11,6 +11,7 @@
 #include "DistanceFieldLightingShared.h"
 #include "ScreenRendering.h"
 #include "DistanceFieldLightingPost.h"
+#include "LightRendering.h"
 #include "OneColorShader.h"
 #include "GlobalDistanceField.h"
 #include "FXSystem.h"

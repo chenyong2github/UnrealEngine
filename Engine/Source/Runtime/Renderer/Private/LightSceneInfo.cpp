@@ -11,6 +11,7 @@
 #include "DistanceFieldLightingShared.h"
 #include "Misc/LargeWorldRenderPosition.h"
 #include "LocalLightSceneProxy.h"
+#include "ShadowRendering.h"
 
 int32 GWholeSceneShadowUnbuiltInteractionThreshold = 500;
 static FAutoConsoleVariableRef CVarWholeSceneShadowUnbuiltInteractionThreshold(

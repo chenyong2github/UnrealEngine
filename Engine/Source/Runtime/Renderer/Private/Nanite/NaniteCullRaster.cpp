@@ -10,6 +10,7 @@
 #include "GPUScene.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "SystemTextures.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "SceneTextureReductions.h"

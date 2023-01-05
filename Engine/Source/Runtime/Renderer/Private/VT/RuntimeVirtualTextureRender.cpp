@@ -18,6 +18,7 @@
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "MeshPassProcessor.inl"
 #include "RenderCaptureInterface.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 namespace RuntimeVirtualTexture
 {

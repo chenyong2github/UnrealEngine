@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "RendererPrivate.h"
+#include "LightRendering.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"

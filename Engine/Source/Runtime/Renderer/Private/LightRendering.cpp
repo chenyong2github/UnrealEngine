@@ -27,6 +27,8 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "Shadows/ShadowSceneRenderer.h"
 #include "RenderCore.h"
+#include "BasePassRendering.h"
+#include "TranslucentLighting.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.

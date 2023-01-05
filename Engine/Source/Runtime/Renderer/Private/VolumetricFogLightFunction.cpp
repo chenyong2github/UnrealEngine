@@ -12,6 +12,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessing.h"
 #include "PipelineStateCache.h"
+#include "ShadowRendering.h"
 
 int GVolumetricFogLightFunctionResolution = 128;
 FAutoConsoleVariableRef CVarVolumetricFogLightFunctionResolution(

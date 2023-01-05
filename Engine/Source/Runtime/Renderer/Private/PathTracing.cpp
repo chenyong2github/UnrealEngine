@@ -13,6 +13,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 
 #if RHI_RAYTRACING
 
+#include "BasePassRendering.h"
 #include "RendererPrivate.h"
 #include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
@@ -24,6 +25,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracing/RayTracingDecals.h"
 #include "DecalRenderingCommon.h"
+#include "FogRendering.h"
 #include "GenerateMips.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Modules/ModuleManager.h"

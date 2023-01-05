@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "LumenScreenProbeGather.h"
+#include "BasePassRendering.h"
 #include "Lumen/LumenRadianceCache.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"

@@ -28,6 +28,7 @@
 #include "ShaderCompiler.h"
 #include "Misc/FileHelper.h"
 #include "Components/ReflectionCaptureComponent.h"
+#include "ReflectionEnvironment.h"
 #include "ScenePrivate.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"

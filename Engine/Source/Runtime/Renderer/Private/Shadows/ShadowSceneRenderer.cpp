@@ -5,6 +5,7 @@
 #include "ShadowSceneRenderer.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
+#include "ShadowRendering.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 

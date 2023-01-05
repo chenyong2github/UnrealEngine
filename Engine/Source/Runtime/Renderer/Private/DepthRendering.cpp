@@ -32,6 +32,7 @@
 #include "SceneRenderingUtils.h"
 #include "DebugProbeRendering.h"
 #include "RenderCore.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),

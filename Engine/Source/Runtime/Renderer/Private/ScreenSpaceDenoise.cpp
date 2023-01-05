@@ -13,6 +13,7 @@
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "SceneTextureParameters.h"
+#include "SystemTextures.h"
 #include "Lumen/LumenSceneRendering.h"
 
 

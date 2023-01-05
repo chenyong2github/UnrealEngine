@@ -4,6 +4,7 @@
 #include "HairStrandsCluster.h"
 #include "HairStrandsUtils.h"
 #include "HairStrandsInterface.h"
+#include "HairStrandsLUT.h"
 #include "HairStrandsTile.h"
 #include "HairStrandsForwardRaster.h"
 
@@ -19,6 +20,7 @@
 #include "SceneTextureReductions.h"
 #include "PixelShaderUtils.h"
 #include "SceneManagement.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 DECLARE_GPU_STAT(HairStrandsVisibility);
 

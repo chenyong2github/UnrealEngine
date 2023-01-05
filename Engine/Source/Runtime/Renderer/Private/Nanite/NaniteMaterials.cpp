@@ -2,6 +2,7 @@
 
 #include "NaniteMaterials.h"
 #include "Async/ParallelFor.h"
+#include "Materials/Material.h"
 #include "NaniteDrawList.h"
 #include "NaniteVertexFactory.h"
 #include "NaniteVisualizationData.h"
@@ -18,6 +19,8 @@
 #include "PixelShaderUtils.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "Strata/Strata.h"
+#include "SystemTextures.h"
+#include "BasePassRendering.h"
 #include "VariableRateShadingImageManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);

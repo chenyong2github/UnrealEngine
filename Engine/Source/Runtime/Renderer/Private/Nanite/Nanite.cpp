@@ -6,6 +6,7 @@
 #include "ScenePrivate.h"
 #include "PixelShaderUtils.h"
 #include "ShaderPrintParameters.h"
+#include "ShadowRendering.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 

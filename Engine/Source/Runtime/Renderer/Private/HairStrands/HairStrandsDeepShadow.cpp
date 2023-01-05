@@ -7,6 +7,7 @@
 #include "HairStrandsData.h"
 #include "LightSceneInfo.h"
 #include "ScenePrivate.h"
+#include "SystemTextures.h"
 
 // this is temporary until we split the voxelize and DOM path
 static int32 GDeepShadowResolution = 2048;

@@ -6,7 +6,9 @@
 
 #include "LightMapDensityRendering.h"
 #include "DeferredShadingRenderer.h"
+#include "LightMap.h"
 #include "LightMapRendering.h"
+#include "Materials/Material.h"
 #include "ScenePrivate.h"
 #include "TextureResource.h"
 #include "MeshPassProcessor.inl"

@@ -3,6 +3,7 @@
 /*=============================================================================
 	SceneVisibility.cpp: Scene visibility determination.
 =============================================================================*/
+
 #include "ScenePrivate.h"
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -19,6 +20,7 @@
 #include "SceneInterface.h"
 #include "RendererInterface.h"
 #include "PrimitiveViewRelevance.h"
+#include "Materials/Material.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 #include "ScenePrivateBase.h"

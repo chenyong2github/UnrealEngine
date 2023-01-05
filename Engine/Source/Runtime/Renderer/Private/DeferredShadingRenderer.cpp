@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "DeferredShadingRenderer.h"
+#include "BasePassRendering.h"
 #include "VelocityRendering.h"
 #include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"

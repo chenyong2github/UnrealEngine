@@ -10,6 +10,7 @@
 #include "RendererUtils.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
+#include "SystemTextures.h"
 #include "VelocityRendering.h"
 #include "VisualizeTexture.h"
 #include "RenderCore.h"

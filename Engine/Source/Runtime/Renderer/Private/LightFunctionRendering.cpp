@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "EngineGlobals.h"
+#include "Materials/Material.h"
 #include "RHIDefinitions.h"
 #include "RHI.h"
 #include "ShaderParameters.h"

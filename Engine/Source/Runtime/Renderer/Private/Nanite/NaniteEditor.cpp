@@ -8,6 +8,7 @@
 #include "Rendering/NaniteStreamingManager.h"
 #include "PixelShaderUtils.h"
 #include "ScreenPass.h"
+#include "SystemTextures.h"
 
 DEFINE_GPU_STAT(NaniteEditor);
 

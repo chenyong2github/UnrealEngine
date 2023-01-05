@@ -52,6 +52,7 @@
 #include "VT/VirtualTextureFeedback.h"
 #include "VT/VirtualTextureSystem.h"
 #include "GPUSortManager.h"
+#include "MobileBasePassRendering.h"
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
 #include "InstanceCulling/InstanceCullingManager.h"

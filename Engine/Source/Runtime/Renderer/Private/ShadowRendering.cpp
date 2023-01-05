@@ -16,6 +16,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "Shadows/ShadowSceneRenderer.h"
 #include "RenderCore.h"
+#include "TranslucentLighting.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light

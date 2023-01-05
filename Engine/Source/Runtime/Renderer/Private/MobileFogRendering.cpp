@@ -13,6 +13,7 @@
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
 #include "FogRendering.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "MobileBasePassRendering.h"
 

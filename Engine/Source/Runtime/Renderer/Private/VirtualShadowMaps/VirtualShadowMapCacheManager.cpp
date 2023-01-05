@@ -14,6 +14,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "ShaderPrint.h"
 #include "RendererOnScreenNotification.h"
+#include "SystemTextures.h"
 
 #define VSM_LOG_STATIC_CACHING 0
 

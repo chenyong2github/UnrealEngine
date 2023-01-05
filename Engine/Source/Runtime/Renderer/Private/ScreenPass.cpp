@@ -5,6 +5,7 @@
 #include "ScenePrivate.h"
 #include "RendererModule.h"
 #include "RenderGraphUtils.h"
+#include "SystemTextures.h"
 
 IMPLEMENT_GLOBAL_SHADER(FScreenPassVS, "/Engine/Private/ScreenPass.usf", "ScreenPassVS", SF_Vertex);
 

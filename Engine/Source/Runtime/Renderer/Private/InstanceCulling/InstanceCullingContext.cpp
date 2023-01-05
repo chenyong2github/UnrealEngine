@@ -10,6 +10,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
+#include "SystemTextures.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "InstanceCullingLoadBalancer.h"
 #include "InstanceCullingMergedContext.h"

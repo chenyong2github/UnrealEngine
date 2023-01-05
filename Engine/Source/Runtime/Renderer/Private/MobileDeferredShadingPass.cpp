@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MobileDeferredShadingPass.h"
+#include "BasePassRendering.h"
 #include "SceneView.h"
 #include "ScenePrivate.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 #include "PlanarReflectionRendering.h"
+#include "LightRendering.h"
 #include "LocalLightSceneProxy.h"
 #include "Materials/MaterialRenderProxy.h"
 

@@ -2,6 +2,7 @@
 
 
 #include "HairStrandsEnvironment.h"
+#include "BasePassRendering.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"

@@ -6,6 +6,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
+#include "SystemTextures.h"
 
 bool FDBufferTextures::IsValid() const
 {

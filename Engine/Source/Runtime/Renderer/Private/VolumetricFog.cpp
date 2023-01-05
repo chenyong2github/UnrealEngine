@@ -5,6 +5,8 @@ VolumetricFog.cpp
 =============================================================================*/
 
 #include "VolumetricFog.h"
+#include "BasePassRendering.h"
+#include "FogRendering.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"

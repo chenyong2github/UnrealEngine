@@ -3,6 +3,8 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 
 #if RHI_RAYTRACING
+
+#include "BasePassRendering.h"
 #include "DeferredShadingRenderer.h"
 #include "PipelineStateCache.h"
 #include "RenderCore.h"

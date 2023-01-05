@@ -5,6 +5,7 @@ MeshDrawCommandSetup.cpp: Mesh draw command setup.
 =============================================================================*/
 
 #include "MeshDrawCommands.h"
+#include "BasePassRendering.h"
 #include "RendererModule.h"
 #include "ScenePrivate.h"
 #include "TranslucentRendering.h"

@@ -6,6 +6,7 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 
 #include "DebugViewModeRendering.h"
 #include "Materials/Material.h"
+#include "MobileBasePassRendering.h"
 #include "PrimitiveSceneInfo.h"
 #include "ScenePrivate.h"
 #include "PostProcess/PostProcessing.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDrawList.h"
+#include "BasePassRendering.h"
 #include "NaniteSceneProxy.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"

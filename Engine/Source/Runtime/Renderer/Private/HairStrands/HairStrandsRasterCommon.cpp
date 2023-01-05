@@ -11,6 +11,7 @@
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
 #include "RenderCore.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FHairDeepShadowRasterUniformParameters, "DeepRasterPass", SceneTextures);
 

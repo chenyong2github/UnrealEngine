@@ -7,6 +7,7 @@
 #include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
+#include "SystemTextures.h"
 #include "VariableRateShadingImageManager.h"
 
 static TAutoConsoleVariable<int32> CVarSSRQuality(

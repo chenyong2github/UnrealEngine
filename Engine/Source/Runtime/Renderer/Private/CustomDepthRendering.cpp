@@ -6,6 +6,7 @@
 #include "SceneRendering.h"
 #include "SceneCore.h"
 #include "ScenePrivate.h"
+#include "Materials/Material.h"
 #include "MeshPassProcessor.inl"
 
 static TAutoConsoleVariable<int32> CVarCustomDepth(

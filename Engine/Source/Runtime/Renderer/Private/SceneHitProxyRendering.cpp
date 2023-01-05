@@ -31,6 +31,7 @@
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "GPUMessaging.h"
 #include "HairStrands/HairStrandsData.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 static int32 GNaniteProgrammableRasterHitProxy = 1;
 static FAutoConsoleVariableRef CNaniteProgrammableRasterHitProxy(

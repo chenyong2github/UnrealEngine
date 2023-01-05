@@ -30,6 +30,7 @@
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "SceneViewExtension.h"
+#include "ShadowRendering.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
@@ -83,6 +84,7 @@
 #include "Shadows/ShadowSceneRenderer.h"
 #include "TextureResource.h"
 #include "RenderCore.h"
+#include "VolumetricCloudRendering.h"
 
 /*-----------------------------------------------------------------------------
 	Globals

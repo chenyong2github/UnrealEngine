@@ -9,6 +9,7 @@
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
 #include "Strata/Strata.h"
+#include "SystemTextures.h"
 #include "ClearQuad.h"
 #include "VariableRateShadingImageManager.h"
 

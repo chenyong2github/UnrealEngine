@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ReflectionEnvironmentCapture.h"
+#include "BasePassRendering.h"
 #include "ClearQuad.h"
 #include "MeshPassProcessor.h"
 #include "PrimitiveSceneProxy.h"
