@@ -1077,81 +1077,79 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 			//bReadOnly = true;
 		}
 
-		if (!bReadOnly)
+
+		if (FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache")))
 		{
-			if (FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache")))
+			bTouch = true; // we always touch files when running the DDC commandlet
+		}
+
+		// The command line (-ddctouch) enables touch on all filesystem backends if specified.
+		bTouch = bTouch || FParse::Param(FCommandLine::Get(), TEXT("DDCTOUCH"));
+
+		if (bTouch)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("Files in %s will be touched."), *CachePath);
+		}
+		
+		bool bClean = false;
+		bool bDeleteUnused = !bReadOnly;
+		FParse::Bool(InParams, TEXT("Clean="), bClean);
+		FParse::Bool(InParams, TEXT("DeleteUnused="), bDeleteUnused);
+		bDeleteUnused = bDeleteUnused && !FParse::Param(FCommandLine::Get(), TEXT("NODDCCLEANUP"));
+
+		if (bClean && bLocalDeactivatedForPerformance)
+		{
+			bDeactivationDeferredClean = true;
+		}
+
+		if (bClean || bDeleteUnused)
+		{
+			FFileSystemCacheStoreMaintainerParams* MaintainerParams;
+			FFileSystemCacheStoreMaintainerParams LocalMaintainerParams;
+			if (bLocalDeactivatedForPerformance)
 			{
-				bTouch = true; // we always touch files when running the DDC commandlet
+				DeactivationDeferredMaintainerParams = MakeUnique<FFileSystemCacheStoreMaintainerParams>();
+				MaintainerParams = DeactivationDeferredMaintainerParams.Get();
 			}
-
-			// The command line (-ddctouch) enables touch on all filesystem backends if specified.
-			bTouch = bTouch || FParse::Param(FCommandLine::Get(), TEXT("DDCTOUCH"));
-
-			if (bTouch)
+			else
 			{
-				UE_LOG(LogDerivedDataCache, Display, TEXT("Files in %s will be touched."), *CachePath);
+				MaintainerParams = &LocalMaintainerParams;
 			}
-
-			bool bClean = false;
-			bool bDeleteUnused = true;
-			FParse::Bool(InParams, TEXT("Clean="), bClean);
-			FParse::Bool(InParams, TEXT("DeleteUnused="), bDeleteUnused);
-			bDeleteUnused = bDeleteUnused && !FParse::Param(FCommandLine::Get(), TEXT("NODDCCLEANUP"));
-
-			if (bClean && bLocalDeactivatedForPerformance)
+			MaintainerParams->MaxFileAge = FTimespan::FromDays(DaysToDeleteUnusedFiles);
+			if (bDeleteUnused)
 			{
-				bDeactivationDeferredClean = true;
-			}
-
-			if (bClean || bDeleteUnused)
-			{
-				FFileSystemCacheStoreMaintainerParams* MaintainerParams;
-				FFileSystemCacheStoreMaintainerParams LocalMaintainerParams;
-				if (bLocalDeactivatedForPerformance)
+				if (!FParse::Value(InParams, TEXT("MaxFileChecksPerSec="), MaintainerParams->MaxScanRate))
 				{
-					DeactivationDeferredMaintainerParams = MakeUnique<FFileSystemCacheStoreMaintainerParams>();
-					MaintainerParams = DeactivationDeferredMaintainerParams.Get();
-				}
-				else
-				{
-					MaintainerParams = &LocalMaintainerParams;
-				}
-				MaintainerParams->MaxFileAge = FTimespan::FromDays(DaysToDeleteUnusedFiles);
-				if (bDeleteUnused)
-				{
-					if (!FParse::Value(InParams, TEXT("MaxFileChecksPerSec="), MaintainerParams->MaxScanRate))
+					int32 MaxFileScanRate;
+					if (GConfig->GetInt(TEXT("DDCCleanup"), TEXT("MaxFileChecksPerSec"), MaxFileScanRate, GEngineIni))
 					{
-						int32 MaxFileScanRate;
-						if (GConfig->GetInt(TEXT("DDCCleanup"), TEXT("MaxFileChecksPerSec"), MaxFileScanRate, GEngineIni))
-						{
-							MaintainerParams->MaxScanRate = uint32(MaxFileScanRate);
-						}
+						MaintainerParams->MaxScanRate = uint32(MaxFileScanRate);
 					}
-					FParse::Value(InParams, TEXT("FoldersToClean="), MaintainerParams->MaxDirectoryScanCount);
 				}
-				else
-				{
-					MaintainerParams->ScanFrequency = FTimespan::MaxValue();
-				}
-				double TimeToWaitAfterInit;
+				FParse::Value(InParams, TEXT("FoldersToClean="), MaintainerParams->MaxDirectoryScanCount);
+			}
+			else
+			{
+				MaintainerParams->ScanFrequency = FTimespan::MaxValue();
+			}
+			double TimeToWaitAfterInit;
+			if (bClean)
+			{
+				MaintainerParams->TimeToWaitAfterInit = FTimespan::Zero();
+			}
+			else if (GConfig->GetDouble(TEXT("DDCCleanup"), TEXT("TimeToWaitAfterInit"), TimeToWaitAfterInit, GEngineIni))
+			{
+				MaintainerParams->TimeToWaitAfterInit = FTimespan::FromSeconds(TimeToWaitAfterInit);
+			}
+
+			if (!bLocalDeactivatedForPerformance)
+			{
+				Maintainer = MakeUnique<FFileSystemCacheStoreMaintainer>(*MaintainerParams, CachePath);
+
 				if (bClean)
 				{
-					MaintainerParams->TimeToWaitAfterInit = FTimespan::Zero();
-				}
-				else if (GConfig->GetDouble(TEXT("DDCCleanup"), TEXT("TimeToWaitAfterInit"), TimeToWaitAfterInit, GEngineIni))
-				{
-					MaintainerParams->TimeToWaitAfterInit = FTimespan::FromSeconds(TimeToWaitAfterInit);
-				}
-
-				if (!bLocalDeactivatedForPerformance)
-				{
-					Maintainer = MakeUnique<FFileSystemCacheStoreMaintainer>(*MaintainerParams, CachePath);
-
-					if (bClean)
-					{
-						Maintainer->BoostPriority();
-						Maintainer->WaitForIdle();
-					}
+					Maintainer->BoostPriority();
+					Maintainer->WaitForIdle();
 				}
 			}
 		}
