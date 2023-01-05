@@ -151,6 +151,9 @@ UObjectBase::~UObjectBase()
 		// Validate it.
 		check(IsValidLowLevel());
 		check(GetFName() == NAME_None);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		ObjectHandle_Private::FreeObjectHandle(*this);
+#endif 
 		GUObjectArray.FreeUObjectIndex(this);
 	}
 
@@ -1055,6 +1058,9 @@ void UObjectBaseInit()
 
 	GUObjectAllocator.AllocatePermanentObjectPool(SizeOfPermanentObjectPool);
 	GUObjectArray.AllocateObjectPool(MaxUObjects, MaxObjectsNotConsideredByGC, bPreAllocateUObjectArray);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	ObjectHandle_Private::InitObjectHandles(MaxUObjects);
+#endif
 
 	void InitNoPendingKill();
 	InitNoPendingKill();

@@ -127,7 +127,10 @@ struct FPackedObjectRef
 
 inline bool IsPackedObjectRefNull(FPackedObjectRef ObjectRef) { return !ObjectRef.EncodedRef; }
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 COREUOBJECT_API FPackedObjectRef MakePackedObjectRef(const UObject* Object);
+#endif 
+
 COREUOBJECT_API FPackedObjectRef MakePackedObjectRef(const FObjectRef& ObjectRef);
 COREUOBJECT_API UObject* ResolvePackedObjectRef(FPackedObjectRef ObjectRef, uint32 LoadFlags = LOAD_None);
 COREUOBJECT_API UClass* ResolvePackedObjectRefClass(FPackedObjectRef ObjectRef, uint32 LoadFlags = LOAD_None);
@@ -137,6 +140,13 @@ COREUOBJECT_API UClass* ResolvePackedObjectRefClass(FPackedObjectRef ObjectRef, 
  * when you create a handle, it may immediately be resolved to a pointer.
  */
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+
+namespace ObjectHandle_Private
+{
+	void UpdateRenamedObject(const UObject& Obj, FName NewName, UObject* NewOuter);
+	void InitObjectHandles(int32 Size);
+	void FreeObjectHandle(const UObjectBase& Object);
+}
 
 struct FObjectHandleInternal;
 using FObjectHandle = FObjectHandleInternal;
@@ -174,7 +184,11 @@ inline FPackedObjectRef ReadObjectHandlePackedObjectRef(FObjectHandle Handle);
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 inline FObjectRef MakeObjectRef(FObjectHandle Handle);
+
+UE_DEPRECATED(5.2, "Use `bool TryMakePackedObjectRef(FObjectHandle, FPackedObjectRef&)` instead")
 inline FPackedObjectRef MakePackedObjectRef(FObjectHandle Handle);
+inline FPackedObjectRef GetPackedObjectRef(FObjectHandle Handle);
+COREUOBJECT_API FPackedObjectRef GetPackedObjectRef(const UObject& Object);
 
 struct FObjectHandleInternal
 {
@@ -182,23 +196,81 @@ struct FObjectHandleInternal
 
 	friend inline bool operator==(FObjectHandle LHS, FObjectHandle RHS)
 	{
-		if (IsObjectHandleResolved(LHS) == IsObjectHandleResolved(RHS))
+		bool LhsResolved = IsObjectHandleResolved(LHS);
+		bool RhsResolved = IsObjectHandleResolved(RHS);
+
+		//if both resolved or both unresolved compare the uintptr
+		if (LhsResolved == RhsResolved)
 		{
 			return LHS.PointerOrRef == RHS.PointerOrRef;
 		}
+		
+		//only one side can be resolved
+		if (LhsResolved)
+		{
+			//both sides can't be null as resolved status would have be true for both
+			const UObject* Obj = ReadObjectHandlePointerNoCheck(LHS);
+			if (!Obj)
+			{
+				return false;
+			}
+
+			//if packed ref empty then can't be equal as RHS is an unresolved pointer
+			FPackedObjectRef PackedLhs = GetPackedObjectRef(*Obj);
+			if (PackedLhs.EncodedRef == 0)
+			{
+				return false; 
+			}
+			return PackedLhs.EncodedRef == RHS.PointerOrRef;
+				
+		}
 		else
 		{
-			return MakePackedObjectRef(LHS) == MakePackedObjectRef(RHS);
+			//both sides can't be null as resolved status would have be true for both
+			const UObject* Obj = ReadObjectHandlePointerNoCheck(RHS);
+			if (!Obj)
+			{
+				return false;
+			}
+
+			//if packed ref empty then can't be equal as RHS is an unresolved pointer
+			FPackedObjectRef PackedRhs = GetPackedObjectRef(*Obj);
+			if (PackedRhs.EncodedRef == 0)
+			{
+				return false;
+			}
+			return PackedRhs.EncodedRef == LHS.PointerOrRef;
 		}
+		
 	}
+
 	friend inline bool operator!=(FObjectHandle LHS, FObjectHandle RHS)
 	{
 		return !(LHS == RHS);
 	}
 	friend inline uint32 GetTypeHash(FObjectHandleInternal Handle)
 	{
-		checkf(IsObjectHandleResolved(Handle), TEXT("Cannot hash an unresolved handle."));
-		return GetTypeHash(ReadObjectHandlePointerNoCheck(Handle));
+		if (Handle.PointerOrRef == 0)
+		{
+			return 0;
+		}
+
+		if (IsObjectHandleResolved(Handle))
+		{
+			const UObject* Obj = ReadObjectHandlePointerNoCheck(Handle);
+			FPackedObjectRef PackedObjectRef = GetPackedObjectRef(*Obj);
+			if (PackedObjectRef.EncodedRef == 0)
+			{
+				return GetTypeHash(Obj);
+			}
+			return GetTypeHash(PackedObjectRef.EncodedRef);
+		}
+		return GetTypeHash(Handle.PointerOrRef);
+	}
+
+	explicit inline operator bool() const
+	{
+		return PointerOrRef != 0;
 	}
 };
 #endif
@@ -296,7 +368,7 @@ struct FObjectHandlePackageDebugData
 	FMinimalName PackageName;
 	FScriptArray ObjectPaths;
 	FScriptArray DataClassDescriptors;
-	uint8 _Padding[sizeof(FRWLock) + sizeof(FScriptMap)];
+	uint8 _Padding[sizeof(FRWLock)];
 };
 
 struct FObjectHandleDataClassDescriptor
@@ -519,15 +591,4 @@ inline FObjectRef MakeObjectRef(FObjectHandle Handle)
 	}
 }
 
-inline FPackedObjectRef MakePackedObjectRef(FObjectHandle Handle)
-{
-	if (IsObjectHandleResolved(Handle))
-	{
-		return MakePackedObjectRef(ReadObjectHandlePointerNoCheck(Handle));
-	}
-	else
-	{
-		return ReadObjectHandlePackedObjectRefNoCheck(Handle);
-	}
-}
 #endif

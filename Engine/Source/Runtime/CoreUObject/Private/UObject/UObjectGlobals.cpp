@@ -1012,6 +1012,12 @@ UPackage* CreatePackage(const TCHAR* PackageName )
 			else
 			{
 				Result = NewObject<UPackage>(nullptr, NewPackageName, RF_Public);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+				if (Result->GetClass()->GetFName() != NAME_None)
+				{
+					MakePackedObjectRef(Result);
+				}
+#endif
 #if WITH_EDITOR
 				FStringView PackageMountPoint = FPathViews::GetMountPointNameFromPath(InName);
 				uint32 DefaultPackageFlags = GCreatePackageDefaultFlagsMap.Find(PackageMountPoint);

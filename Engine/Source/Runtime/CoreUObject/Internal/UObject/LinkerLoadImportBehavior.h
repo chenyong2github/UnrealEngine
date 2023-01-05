@@ -4,7 +4,6 @@
 #include "UObject/ObjectHandle.h"
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-#define UE_API COREUOBJECT_API
 
 class FLinkerLoad;
 struct FObjectImport;
@@ -32,7 +31,7 @@ EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const
 /// @return true if import was lazy loaded otherwise false
 bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectImport& Import, const FLinkerLoad& LinkerLoad, FObjectPtr& ObjectPtr);
 
-/// @brief tries to resovle an object path to a lazy loaded TObjectPtr
+/// @brief tries to resolve an object path to a lazy loaded TObjectPtr
 ///
 /// @param Class type of the object that will be resolved
 /// @param ObjectPath object path of to resolve
@@ -40,7 +39,15 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 /// @return true if was lazy loaded otherwise false
 bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObjectPtr<UObject>& OutObjectPtr);
 
+
+/// @brief Finds LoadBehavior meta data recursively
+/// @return Eager by default in not found
+EImportBehavior FindLoadBehavior(const UClass& Class);
+
+/// @brief returns true if lazy load imports is enabled via command line or config
+bool IsImportLazyLoadEnabled();
+
+
 }
 
-#undef UE_API
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE

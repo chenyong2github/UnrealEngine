@@ -9,6 +9,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "UObject/Linker.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectKey.h"
 #include "UObject/Package.h"
 
 FCriticalSection GComplexPathLock;  // Could be changed to an RWLock later if needed
@@ -37,6 +38,14 @@ struct assert_equality
 assert_equality<sizeof(TArray<FMinimalName, TInlineAllocator<3>>), 0> B;
 */
 
+namespace UE::CoreUObject::Private
+{
+	FObjectKey MakeObjectKey(int32 ObjectIndex, int32 ObjectSerialNumber)
+	{
+		return FObjectKey(ObjectIndex, ObjectSerialNumber);
+	}
+}
+
 namespace UE::ObjectPath::Private
 {
 	FStoredObjectPath::FStoredObjectPath(TConstArrayView<FMinimalName> InNames)
@@ -60,6 +69,34 @@ namespace UE::ObjectPath::Private
 		{
 			*Dest = InNames[i];
 			++Dest;
+		}
+	}
+
+	FStoredObjectPath::FStoredObjectPath(const FMinimalName* Parent, int32 NumParent, const FMinimalName* Child, int32 NumChild)
+	{
+		// Copy into storage in reverse
+		NumElements = NumParent + NumChild;
+
+		FMinimalName* Dest = nullptr;
+
+		if (NumElements > NumInlineElements)
+		{
+			Long = new FMinimalName[NumElements];
+			Dest = Long;
+		}
+		else
+		{
+			Dest = Short;
+		}
+
+		for (int32 i = 0; i < NumParent; ++i)
+		{
+			Dest[i] = Parent[i];
+		}
+
+		for (int32 i = 0; i < NumChild; ++i)
+		{
+			Dest[NumParent + i] = Child[i];
 		}
 	}
 
@@ -105,7 +142,7 @@ namespace UE::ObjectPath::Private
 }
 
 template <typename NameProducerType>
-void StoreObjectPathId(NameProducerType& NameProducer, uint64 SimplePathFlag, uint64& OutObjectPathId)
+void FObjectPathId::StoreObjectPathId(NameProducerType& NameProducer)
 {
 	FName Name = NameProducer();
 
@@ -117,14 +154,13 @@ void StoreObjectPathId(NameProducerType& NameProducer, uint64 SimplePathFlag, ui
 	FName OuterName = NameProducer();
 	if (OuterName == NAME_None)
 	{
-		int32 Number = Name.GetNumber();
-		// Check if the number is in range by left shift + right shift
-		if (static_cast<int32>((static_cast<uint32>(Number) << 1) >> 1) == Number)
+		int32 NameNumber = Name.GetNumber();
+
+		//verify that the second most significant bits are not set
+		if ( !(NameNumber & SimpleNameMask) && !(NameNumber & WeakObjectMask))
 		{
-			//Simple path scenario
-			OutObjectPathId = static_cast<uint64>(Name.GetComparisonIndex().ToUnstableInt()) << 32 |
-								static_cast<uint64>(static_cast<uint32>(static_cast<uint32>(Number) << 1)) |
-								SimplePathFlag;
+			Index = Name.GetComparisonIndex().ToUnstableInt();
+			Number = NameNumber | SimpleNameMask;
 			return;
 		}
 	}
@@ -150,14 +186,17 @@ void StoreObjectPathId(NameProducerType& NameProducer, uint64 SimplePathFlag, ui
 		uint32 PotentialPathId = It.Value();
 		if (GComplexPaths[PotentialPathId-1] == PathToStore)
 		{
-			OutObjectPathId = static_cast<uint32>(PotentialPathId << 1);
+			Index = PotentialPathId;
+			Number = 0;
 			return;
 		}
 	}
 
+	//add one because a path id of 0 indicates null
 	uint32 NewId = GComplexPaths.Emplace(MoveTemp(PathToStore)) + 1;
 	GComplexPathHashToId.Add(Key, NewId);
-	OutObjectPathId = static_cast<uint32>(NewId << 1);
+	Index = NewId;
+	Number = 0;
 	GCoreComplexObjectPathDebug = GComplexPaths.GetData();
 }
 
@@ -183,7 +222,7 @@ FObjectPathId::FObjectPathId(const UObject* Object)
 		const UObject* CurrentObject;
 	} NamePathProducer(Object);
 
-	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
+	StoreObjectPathId(NamePathProducer);
 }
 
 FObjectPathId::FObjectPathId(const FObjectImport& Import, const FLinkerTables& LinkerTables)
@@ -226,7 +265,7 @@ FName FObjectPathId::MakeImportPathIdAndPackageName(const FObjectImport& Import,
 		const FLinkerTables& LinkerTables;
 	} NamePathProducer(Import, LinkerTables);
 
-	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), OutPathId.PathId);
+	OutPathId.StoreObjectPathId(NamePathProducer);
 	return NamePathProducer.GetPackageName();
 }
 
@@ -276,13 +315,13 @@ private:
 FObjectPathId::FObjectPathId(FWideStringView StringPath)
 {
 	TStringViewNamePathProducer<WIDECHAR> NamePathProducer(StringPath);
-	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
+	StoreObjectPathId(NamePathProducer);
 }
 
 FObjectPathId::FObjectPathId(FAnsiStringView StringPath)
 {
 	TStringViewNamePathProducer<ANSICHAR> NamePathProducer(StringPath);
-	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
+	StoreObjectPathId(NamePathProducer);
 }
 
 void FObjectPathId::Resolve(ResolvedNameContainerType& OutContainer) const
@@ -294,20 +333,59 @@ void FObjectPathId::Resolve(ResolvedNameContainerType& OutContainer) const
 		return;
 	}
 
-	if (static_cast<uint64>(PathId) & static_cast<uint64>(EPathId::FlagSimple))
+	if (Number & SimpleNameMask)
 	{
-		uint32 Number = static_cast<uint32>(PathId & 0x00000000FFFFFFE) >> 1;
-		uint32 Index = static_cast<uint32>(PathId >> 32);
-		FNameEntryId EntryId = FNameEntryId::FromUnstableInt(Index);
-		OutContainer.Emplace(EntryId, EntryId, Number);
+		//truncate Path to int and shift back to get the number
+		uint32 NameNumber = Number & ~SimpleNameMask;
+		uint32 NameIndex = Index;
+		FNameEntryId EntryId = FNameEntryId::FromUnstableInt(NameIndex);
+		OutContainer.Emplace(EntryId, EntryId, NameNumber);
 		return; 
 	}
 
 	FScopeLock ComplexPathScopeLock(&GComplexPathLock);
-	const UE::ObjectPath::Private::FStoredObjectPath& FoundContainer = GComplexPaths[(PathId >> 1) - 1];
+	const UE::ObjectPath::Private::FStoredObjectPath& FoundContainer = GComplexPaths[Index - 1];
 	
 	for (FMinimalName Name : FoundContainer.GetView())
 	{
 		OutContainer.Emplace(MinimalNameToName(Name));
 	}
+}
+FMinimalName FObjectPathId::GetSimpleName() const
+{
+	check(IsSimple());
+
+	uint32 NameNumber = Number & ~SimpleNameMask;
+	uint32 NameIndex = Index;
+	FNameEntryId EntryId = FNameEntryId::FromUnstableInt(NameIndex);
+	FMinimalName Name = NameToMinimalName(FName(EntryId, EntryId, NameNumber));
+	return Name;
+}
+
+void FObjectPathId::MakeWeakObjPtr(const UObject& Object)
+{
+	int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+	int32 ObjectSerialNumber = GUObjectArray.AllocateSerialNumber(ObjectIndex);
+
+	//check that ObjectSerialNumber does not have WeakObjMask bit set
+	check(!(ObjectSerialNumber & WeakObjectMask));
+	Index = ObjectIndex;
+	Number = ObjectSerialNumber | WeakObjectMask;
+}
+
+FWeakObjectPtr FObjectPathId::GetWeakObjPtr() const
+{
+	check(IsWeakObj());
+
+	int32 ObjectIndex = Index;
+	int32 ObjectSerial = Number & ~WeakObjectMask;
+	FObjectKey Key = UE::CoreUObject::Private::MakeObjectKey(ObjectIndex, ObjectSerial);
+	return Key.ResolveObjectPtr();
+}
+
+const UE::ObjectPath::Private::FStoredObjectPath& FObjectPathId::GetStoredPath() const
+{
+	check(IsValid() && !IsNone());
+	const UE::ObjectPath::Private::FStoredObjectPath& FoundContainer = GComplexPaths[Index - 1];
+	return FoundContainer;
 }

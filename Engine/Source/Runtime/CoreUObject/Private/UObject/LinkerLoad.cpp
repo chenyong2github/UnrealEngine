@@ -5252,6 +5252,15 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		{
 			TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object);
 			Export.Object = StaticConstructObject_Internal(Params);
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+			//if lazy load is enabled construct a packed ref if possible.
+			//this is to have a reverse map of UObject to FPackedObjectRef
+			if (UE::LinkerLoad::IsImportLazyLoadEnabled())
+			{
+				MakePackedObjectRef(Export.Object);
+			}
+#endif
 		}
 
 		if (FPlatformProperties::RequiresCookedData())
@@ -6281,22 +6290,7 @@ bool FLinkerLoad::RemoveKnownMissingPackage(FName PackageName)
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 bool FLinkerLoad::IsImportLazyLoadEnabled()
 {
-	auto ImportLazyLoadEnabled = []()
-	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("LazyLoadImports")))
-		{
-			return true;
-		}
-		else if (GConfig)
-		{
-			bool bLazyLoadImportsConfig = false;
-			GConfig->GetBool(TEXT("Core.System.Experimental"), TEXT("LazyLoadImports"), bLazyLoadImportsConfig, GEngineIni);
-			return bLazyLoadImportsConfig;
-		}
-		return false;
-	};
-	static const bool bImportLazyLoadEnabled = ImportLazyLoadEnabled();
-	return bImportLazyLoadEnabled;
+	return UE::LinkerLoad::IsImportLazyLoadEnabled();
 }
 #endif
 

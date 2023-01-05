@@ -10,6 +10,7 @@
 #include "UObject/Class.h"
 #include "UObject/Linker.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
@@ -21,6 +22,10 @@ FName FObjectRef::GetFName() const
 	if (PackageName == NAME_None)
 	{
 		return NAME_None;
+	}
+	else if (ObjectPath.IsNone())
+	{
+		return PackageName;
 	}
 
 	FObjectPathId::ResolvedNameContainerType ResolvedNames;
@@ -82,6 +87,11 @@ bool operator==(const FObjectHandleDataClassDescriptor& Lhs, const FObjectHandle
 	return (Lhs.PackageName == Rhs.PackageName) && (Lhs.ClassName == Rhs.ClassName);
 }
 
+static inline FName GetNameOrNone(UObject* Object)
+{
+	return Object ? Object->GetFName() : NAME_None;
+}
+
 namespace ObjectHandle_Private
 {
 	class FPackageId
@@ -123,7 +133,7 @@ namespace ObjectHandle_Private
 	union FObjectId
 	{
 	private:
-		uint32 RawData;
+		uint32 RawData = 0;
 	public:
 		struct
 		{
@@ -136,6 +146,11 @@ namespace ObjectHandle_Private
 
 		bool operator==(EObjectId Id) { return RawData == static_cast<uint32>(Id); }
 		bool operator!=(EObjectId Id) { return RawData != static_cast<uint32>(Id); }
+
+		inline uint32 ToIndex() const
+		{
+			return Components.ObjectPathId - 1;
+		}
 	};
 
 	static_assert(sizeof(FObjectId) == sizeof(uint32), "FObjectId type must always compile to something equivalent to a uint32 size.");
@@ -145,7 +160,6 @@ namespace ObjectHandle_Private
 		FMinimalName PackageName;
 		TArray<FObjectPathId> ObjectPaths;
 		TArray<FObjectHandleDataClassDescriptor> DataClassDescriptors;
-		TMap<FObjectPathId, FObjectId> PathToObjectId;
 		FRWLock Lock;
 	};
 
@@ -159,9 +173,16 @@ namespace ObjectHandle_Private
 		FRWLock Lock; // @TODO: OBJPTR: Want to change this to a striped lock per object bucket to allow more concurrency when adding and looking up objects in a package
 		TMap<FMinimalName, FPackageId> NameToPackageId;
 		TArray<FObjectHandlePackageData> PackageData;
+
+		TArray<FPackedObjectRef> ObjectIndexToPackedObjectRef;
 	} GObjectHandleIndex;
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+
+	void InitObjectHandles(int32 MaxObjects)
+	{
+		GObjectHandleIndex.ObjectIndexToPackedObjectRef.SetNumZeroed(MaxObjects);
+	}
 
 	static FAutoConsoleCommand CmdPrintUnresolvedObjects(
 		TEXT("LazyLoad.PrintUnresolvedObjects"),
@@ -248,6 +269,7 @@ namespace ObjectHandle_Private
 		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_ReadOnly);
 		FPackageId* FoundPackageId = GObjectHandleIndex.NameToPackageId.Find(MinimalName);
 		FObjectHandlePackageData* PackageData = nullptr;
+		bool PackageCreated = false;
 		if (!FoundPackageId)
 		{
 			GlobalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
@@ -260,6 +282,7 @@ namespace ObjectHandle_Private
 				PackageData = &GObjectHandleIndex.PackageData.AddDefaulted_GetRef();
 				PackageData->PackageName = NameToMinimalName(PackageName);
 				GCoreObjectHandlePackageDebug = reinterpret_cast<FObjectHandlePackageDebugData*>(GObjectHandleIndex.PackageData.GetData());
+				PackageCreated = true;
 			}
 			else
 			{
@@ -272,43 +295,74 @@ namespace ObjectHandle_Private
 		{
 			PackageData = &GObjectHandleIndex.PackageData[FoundPackageId->ToIndex()];
 		}
-
 		OutPackageId = *FoundPackageId;
 
+		//optimization for creating a new package.
+		//since the package is new, GlobalLockScope is write locked and nothing can be added or read
+		if (PackageCreated )
+		{
+			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+			{
+				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
+				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.Add(DataClassDesc);
+				checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
+				OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
+			}
+			if (!ObjectPath.IsNone())
+			{
+				int32 PathIndex = PackageData->ObjectPaths.Add(ObjectPath);
+				checkf(((PathIndex + 1) & ~ObjectPathIdMask) == 0, TEXT("Path id overflowed space in ObjectHandle"));
+				OutObjectId.Components.ObjectPathId = PathIndex + 1;
+			}
+			return;
+		}
+		else if (ObjectPath.IsNone())
+		{
+			FRWScopeLock LocalLockScope(PackageData->Lock, SLT_ReadOnly);
+			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+			{
+				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
+				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.AddUnique(DataClassDesc);
+				checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
+				OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
+			}
+			return;
+		}
+
 		FRWScopeLock LocalLockScope(PackageData->Lock, SLT_ReadOnly);
-		FObjectId* FoundId = PackageData->PathToObjectId.Find(ObjectPath);
-
-		if (FoundId)
+		int32 PathIndex = PackageData->ObjectPaths.Find(ObjectPath); //linear search is fine as typically there is only one.
+		if (PathIndex == INDEX_NONE)
 		{
-			check(*FoundId != EObjectId::Invalid);
-			OutObjectId = *FoundId;
-			return;
+			//ObjectPaths could have been modified when the read lock was released and the write
+			//lock was acquired, so we must check and see if the ObjectPath was added in that window.
+			LocalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+			PathIndex = PackageData->ObjectPaths.AddUnique(ObjectPath);
+
+			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+			{
+				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
+				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.AddUnique(DataClassDesc);
+				checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
+				OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
+			}
+		}
+		else
+		{
+			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+			{
+				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
+				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.Find(DataClassDesc);
+				if (DataClassDescriptorIndex != INDEX_NONE)
+				{
+					checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
+					OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
+				}
+			}
 		}
 
-		LocalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-		//The PathToObjectId could have been modified when the read lock was released and the write
-		//lock was acquired, so we must check and see if the ObjectPath was added in that window.
-		FoundId = &PackageData->PathToObjectId.FindOrAdd(ObjectPath, EObjectId::Invalid);
-		if (*FoundId != EObjectId::Invalid)
-		{
-			OutObjectId = *FoundId;
-			return;
-		}
-		uint32 PathIndex = PackageData->ObjectPaths.Emplace(ObjectPath);
-		checkf(((PathIndex + 1) & ~ObjectHandle_Private::ObjectPathIdMask) == 0, TEXT("Path id overflowed space in ObjectHandle"));
-		FoundId->Components.ObjectPathId = PathIndex + 1;
-
-		if (!ClassName.IsNone() && !ClassPackageName.IsNone())
-		{
-			// @TODO: OBJPTR: This could be inefficient if there are a high number of references to blueprint data instances
-			//		or references to unique blueprints in a single package.  Evaluate whether that's likely to be
-			//		the case in practice.
-			FObjectHandleDataClassDescriptor DataClassDesc{NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName)};
-			uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.AddUnique(DataClassDesc);
-			checkf(((DataClassDescriptorIndex + 1) & ~ObjectHandle_Private::DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
-			FoundId->Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
-		}
-		OutObjectId = *FoundId;
+		checkf(((PathIndex + 1) & ~ObjectPathIdMask) == 0, TEXT("Path id overflowed space in ObjectHandle"));
+		OutObjectId.Components.ObjectPathId = PathIndex + 1;
+		return;
 	}
 
 	static inline FPackedObjectRef MakePackedObjectRef(FName PackageName, FName ClassPackageName, FName ClassName, FObjectPathId ObjectPath)
@@ -334,8 +388,9 @@ namespace ObjectHandle_Private
 			return;
 		}
 		FObjectHandlePackageData& FoundPackageData = GObjectHandleIndex.PackageData[PackageIndex];
-
 		FRWScopeLock LocalLockScope(FoundPackageData.Lock, SLT_ReadOnly);
+		OutPackageName = FoundPackageData.PackageName;
+
 		if ((ObjectId.Components.ObjectPathId >= static_cast<uint32>(FoundPackageData.ObjectPaths.Num() + 1)) ||
 			(ObjectId.Components.DataClassDescriptorId >= static_cast<uint32>(FoundPackageData.DataClassDescriptors.Num() + 1)))
 		{
@@ -343,8 +398,14 @@ namespace ObjectHandle_Private
 			return;
 		}
 
-		OutPackageName = FoundPackageData.PackageName;
-		OutPathId = FoundPackageData.ObjectPaths[ObjectId.Components.ObjectPathId - 1];
+		if (ObjectId.Components.ObjectPathId != 0)
+		{
+			OutPathId = FoundPackageData.ObjectPaths[ObjectId.Components.ObjectPathId - 1];
+		}
+		else
+		{
+			OutPathId = FObjectPathId();
+		}
 
 		if (ObjectId.Components.DataClassDescriptorId > 0)
 		{
@@ -360,6 +421,121 @@ namespace ObjectHandle_Private
 		}
 	}
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	void FreeObjectHandle(const UObjectBase& Object)
+	{
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+		FPackedObjectRef& PackedObjectRef = GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
+		PackedObjectRef.EncodedRef = 0;
+	}
+
+	void UpdateRenamedObject(const UObject& Object, FName NewName, UObject* NewOuter)
+	{
+		if (!UE::LinkerLoad::IsImportLazyLoadEnabled())
+		{
+			return;
+		}
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+		FPackedObjectRef PackedObjectRef = GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
+		if (PackedObjectRef.EncodedRef == 0)
+		{
+			return;
+		}
+
+		check(NewName != NAME_None);
+		
+		FMinimalName MinimalName = NameToMinimalName(Object.GetFName());
+		FObjectId ObjectId;
+		FPackageId PackageId;
+		Unpack(PackedObjectRef, PackageId, ObjectId);
+
+		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_Write);
+		FObjectHandlePackageData& PackageData = GObjectHandleIndex.PackageData[PackageId.ToIndex()];
+		FRWScopeLock PackageLockScope(PackageData.Lock, SLT_ReadOnly);
+		if (Object.GetClass() == UPackage::StaticClass())
+		{
+			//update the package name at existing index. existing object handles will be correct when unpacked
+			//add in the new name pointing the existing index. new object handles will resolve to the existing index
+			check(NewName != NAME_None);
+			FMinimalName MinNewName = NameToMinimalName(NewName);
+			PackageData.PackageName = MinNewName;
+			GObjectHandleIndex.NameToPackageId.Add(MinNewName, PackageId);
+			GObjectHandleIndex.NameToPackageId.Remove(MinimalName);
+			return;
+		}
+
+		//must make a copy to avoid changing data while we are comparing
+		FObjectPathId OldObjectPath = PackageData.ObjectPaths[ObjectId.ToIndex()];
+		if (OldObjectPath.IsWeakObj())
+		{
+			return;
+		}
+
+		const FMinimalName* OldObjectPathtData = nullptr;
+		int32 OldObjectPathSize = 0;
+		FMinimalName OldName;
+
+		if (OldObjectPath.IsSimple())
+		{
+			OldName = OldObjectPath.GetSimpleName();
+			OldObjectPathtData = &OldName;
+			OldObjectPathSize = 1;
+		}
+		else
+		{
+			//this isn't thread safe. if the FStoredObjectPath moves this will now point to garbage
+			const UE::ObjectPath::Private::FStoredObjectPath& StoredPath = OldObjectPath.GetStoredPath();
+			OldObjectPathtData = StoredPath.GetData();
+			OldObjectPathSize = StoredPath.NumElements;
+		}
+
+		//update all paths that start with OldObjectPath. including itself
+		for (int32 PathIndex = 0; PathIndex < PackageData.ObjectPaths.Num(); ++PathIndex)
+		{
+			auto& CurrentObjectPath = PackageData.ObjectPaths[PathIndex];
+			if (CurrentObjectPath.IsWeakObj())
+			{
+				continue;
+			}
+			else if (CurrentObjectPath == OldObjectPath)
+			{
+				CurrentObjectPath.MakeWeakObjPtr(Object);
+				continue;
+			}
+			else if (CurrentObjectPath.IsSimple())
+			{
+				//nothing to do for simple paths. they won't be an inner of the object
+				continue;
+			}
+			const UE::ObjectPath::Private::FStoredObjectPath& ThisPath = CurrentObjectPath.GetStoredPath();
+			if (OldObjectPathSize < ThisPath.NumElements && CompareItems(ThisPath.GetData(), OldObjectPathtData, OldObjectPathSize))
+			{
+				FObjectPathId::ResolvedNameContainerType ResolvedNames;
+				CurrentObjectPath.Resolve(ResolvedNames);
+
+				//resolve all object along the path and convert the object paths to weak objects
+				const UObject* CurrentObject = Object.GetPackage();
+				for (int32 ObjectPathIndex = 0; ObjectPathIndex < ResolvedNames.Num() && CurrentObject; ++ObjectPathIndex)
+				{
+					CurrentObject = StaticFindObjectFastInternal(nullptr, CurrentObject, ResolvedNames[ObjectPathIndex]);
+				}
+
+				// not sure how this could happen, null out the object path
+				if (!CurrentObject)
+				{
+					CurrentObjectPath.Index = 0;
+					CurrentObjectPath.Number = 0; 
+				}
+				else
+				{
+					CurrentObjectPath.MakeWeakObjPtr(*CurrentObject);
+				}
+			}
+		}
+
+	}
+#endif
+
 	static inline FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ObjectHandle_Private::MakeObjectRef);
@@ -373,14 +549,14 @@ namespace ObjectHandle_Private
 		FMinimalName ClassPackageName;
 		FMinimalName ClassName;
 		GetObjectDataFromId(PackageId, ObjectId, PackageName, PathId, ClassPackageName, ClassName);
-		return FObjectRef{MinimalNameToName(PackageName), MinimalNameToName(ClassPackageName), MinimalNameToName(ClassName), PathId};
+		if (PathId.IsWeakObj())
+		{
+			return MakeObjectRef(PathId.GetWeakObjPtr().Get());
+		}
+		return FObjectRef{ MinimalNameToName(PackageName), MinimalNameToName(ClassPackageName), MinimalNameToName(ClassName), PathId };
 	}
 };
 
-static inline FName GetNameOrNone(UObject* Object)
-{
-	return Object ? Object->GetFName() : NAME_None;
-}
 
 FObjectRef MakeObjectRef(const UObject* Object)
 {
@@ -389,13 +565,9 @@ FObjectRef MakeObjectRef(const UObject* Object)
 		return {NAME_None, NAME_None, NAME_None, FObjectPathId()};
 	}
 
-#if WITH_EDITORONLY_DATA	
-	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
-	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
-	return FObjectRef {GetNameOrNone(Object->GetOutermost()), GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object)};
-#else
-	return FObjectRef{ GetNameOrNone(Object->GetOutermost()), NAME_None, NAME_None, FObjectPathId(Object) };
-#endif
+	FName ClassName = Object->GetClass()->GetFName();
+	FName ClassPackageName = GetNameOrNone(Object->GetClass()->GetOuter());
+	return FObjectRef {GetNameOrNone(Object->GetOutermost()), ClassPackageName, ClassName, FObjectPathId(Object)};
 }
 
 FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
@@ -408,22 +580,40 @@ FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
 	return ObjectHandle_Private::MakeObjectRef(PackedObjectRef);
 }
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 FPackedObjectRef MakePackedObjectRef(const UObject* Object)
 {
 	if (!Object)
 	{
-		return {0};
+		return { 0 };
+	}
+
+	if (UE::LinkerLoad::FindLoadBehavior(*Object->GetClass()) == UE::LinkerLoad::EImportBehavior::Eager)
+	{
+		return { 0 };
+	}
+
+	int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
+	FPackedObjectRef& PackedObjectRef = ObjectHandle_Private::GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
+	if (PackedObjectRef.EncodedRef != 0)
+	{
+		return PackedObjectRef;
 	}
 
 	FName PackageName = GetNameOrNone(Object->GetOutermost());
-#if WITH_EDITORONLY_DATA
-	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
-	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
-	return ObjectHandle_Private::MakePackedObjectRef(PackageName, GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object));
-#else
-	return ObjectHandle_Private::MakePackedObjectRef(PackageName, NAME_None, NAME_None, FObjectPathId(Object));
-#endif
+
+	UObject* Class = Object->GetClass();
+	FName ClassPackageName = GetNameOrNone(Class->GetOutermost());
+	PackedObjectRef = ObjectHandle_Private::MakePackedObjectRef(PackageName, ClassPackageName, GetNameOrNone(Class), FObjectPathId(Object));
+	return PackedObjectRef;
 }
+
+FPackedObjectRef GetPackedObjectRef(const UObject& Object)
+{
+	int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+	return ObjectHandle_Private::GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
+}
+#endif
 
 FPackedObjectRef MakePackedObjectRef(const FObjectRef& ObjectRef)
 {

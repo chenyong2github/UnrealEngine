@@ -8,6 +8,7 @@
 #include "UObject/Package.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
@@ -16,7 +17,7 @@ namespace UE::LinkerLoad
 
 /// @brief Finds LoadBehavior meta data recursively
 /// @return Eager by default in not found
-static EImportBehavior FindLoadBehavior(const UClass& Class)
+EImportBehavior FindLoadBehavior(const UClass& Class)
 {
 	//Package class can't have meta data because of UHT
 	if (&Class == UPackage::StaticClass())
@@ -24,10 +25,10 @@ static EImportBehavior FindLoadBehavior(const UClass& Class)
 		return EImportBehavior::LazyOnDemand;
 	}
 
-	static const FName Name_LoadBehavior("LoadBehavior");
+	static const FName Name_LoadBehavior(TEXT("LoadBehavior"));
 	if (const FString* LoadBehaviorMeta = Class.FindMetaData(Name_LoadBehavior))
 	{
-		if (*LoadBehaviorMeta == "LazyOnDemand")
+		if (*LoadBehaviorMeta == TEXT("LazyOnDemand"))
 		{
 			return EImportBehavior::LazyOnDemand;
 		}
@@ -214,6 +215,30 @@ bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObject
 	}
 	FObjectPtr& ObjectPtr = reinterpret_cast<FObjectPtr&>(OutObjectPtr);
 	return TryLazyLoad(*AssetRegistry, ObjectPath, ObjectPtr);
+}
+
+bool IsImportLazyLoadEnabled()
+{
+#if WITH_LOW_LEVEL_TESTS //not ideal but need a way to force lazyload on for tests
+	return true;
+#else
+	auto ImportLazyLoadEnabled = []()
+	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("LazyLoadImports")))
+		{
+			return true;
+		}
+		else if (GConfig)
+		{
+			bool bLazyLoadImportsConfig = false;
+			GConfig->GetBool(TEXT("Core.System.Experimental"), TEXT("LazyLoadImports"), bLazyLoadImportsConfig, GEngineIni);
+			return bLazyLoadImportsConfig;
+		}
+		return false;
+	};
+	static const bool bImportLazyLoadEnabled = ImportLazyLoadEnabled();
+	return bImportLazyLoadEnabled;
+#endif
 }
 
 }
