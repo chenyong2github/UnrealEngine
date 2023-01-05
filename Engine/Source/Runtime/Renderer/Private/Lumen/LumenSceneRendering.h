@@ -20,6 +20,7 @@ class FLumenCardScene;
 class FMeshPassDrawListContext;
 class FMeshPassProcessor;
 class FNaniteCommandInfo;
+class FViewFamilyInfo;
 class FViewInfo;
 
 struct FLumenSceneFrameTemporaries;
