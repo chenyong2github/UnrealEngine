@@ -414,7 +414,14 @@ class FRectAtlasAddTexturePS : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(Texture2D, InTexture5)
 		SHADER_PARAMETER_TEXTURE(Texture2D, InTexture6)
 		SHADER_PARAMETER_TEXTURE(Texture2D, InTexture7)
-		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler0)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler1)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler2)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler3)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler4)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler5)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler6)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler7)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRectLightAtlasVS::FParameters, VS)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -481,8 +488,17 @@ static void AddSlotsPass(
 			}
 		}
 
+		FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		Parameters->InSampler0 = SamplerState;
+		Parameters->InSampler1 = SamplerState;
+		Parameters->InSampler2 = SamplerState;
+		Parameters->InSampler3 = SamplerState;
+		Parameters->InSampler4 = SamplerState;
+		Parameters->InSampler5 = SamplerState;
+		Parameters->InSampler6 = SamplerState;
+		Parameters->InSampler7 = SamplerState;
+
 		Parameters->InTextureMIPBias = TextureMIPBias;
-		Parameters->InSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		Parameters->VS.AtlasResolution = Resolution;
 		Parameters->VS.SlotBufferOffset = SlotOffset;
 		Parameters->VS.SlotBuffer = GraphBuilder.CreateSRV(SlotBuffer, PF_R16G16B16A16_UINT);

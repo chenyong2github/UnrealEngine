@@ -55,7 +55,14 @@ Texture2D<float4> InTexture5;
 Texture2D<float4> InTexture6;
 Texture2D<float4> InTexture7;
 
-SamplerState InSampler;
+SamplerState InSampler0;
+SamplerState InSampler1;
+SamplerState InSampler2;
+SamplerState InSampler3;
+SamplerState InSampler4;
+SamplerState InSampler5;
+SamplerState InSampler6;
+SamplerState InSampler7;
 
 void MainPS(
 	in float4 InPosition : SV_Position,
@@ -67,14 +74,14 @@ void MainPS(
 	float4 Color = 0;
 	switch (InId)
 	{
-	case 0: Color = InTexture0.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 1: Color = InTexture1.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 2: Color = InTexture2.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 3: Color = InTexture3.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 4: Color = InTexture4.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 5: Color = InTexture5.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 6: Color = InTexture6.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
-	case 7: Color = InTexture7.SampleLevel(InSampler, InUV, InTextureMIPBias); break;
+	case 0: Color = InTexture0.SampleLevel(InSampler0, InUV, InTextureMIPBias); break;
+	case 1: Color = InTexture1.SampleLevel(InSampler1, InUV, InTextureMIPBias); break;
+	case 2: Color = InTexture2.SampleLevel(InSampler2, InUV, InTextureMIPBias); break;
+	case 3: Color = InTexture3.SampleLevel(InSampler3, InUV, InTextureMIPBias); break;
+	case 4: Color = InTexture4.SampleLevel(InSampler4, InUV, InTextureMIPBias); break;
+	case 5: Color = InTexture5.SampleLevel(InSampler5, InUV, InTextureMIPBias); break;
+	case 6: Color = InTexture6.SampleLevel(InSampler6, InUV, InTextureMIPBias); break;
+	case 7: Color = InTexture7.SampleLevel(InSampler7, InUV, InTextureMIPBias); break;
 	}
 
 	// Ensure there is no NaN value
