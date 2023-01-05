@@ -647,6 +647,16 @@ public:
 		return FCompactPoseBoneIndex(INDEX_NONE);
 	}
 
+	/**
+	 * Returns whether or not the skeleton index is contained in the mapping used to build this container.
+	 * Note that even if the skeleton index is valid, it might not contain a valid compact pose index if
+	 * that bone isn't used due to LOD or other reasons.
+	 */
+	bool IsSkeletonPoseIndexValid(const FSkeletonPoseBoneIndex& SkeletonIndex) const
+	{
+		return SkeletonToCompactPose.IsValidIndex(SkeletonIndex.GetInt());
+	}
+
 	FMeshPoseBoneIndex MakeMeshPoseIndex(const FCompactPoseBoneIndex& BoneIndex) const
 	{
 		return FMeshPoseBoneIndex(GetBoneIndicesArray()[BoneIndex.GetInt()]);
