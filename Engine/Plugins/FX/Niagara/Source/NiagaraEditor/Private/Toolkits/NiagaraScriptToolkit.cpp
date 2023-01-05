@@ -852,7 +852,10 @@ void FNiagaraScriptToolkit::SaveAsset_Execute()
 {
 	UE_LOG(LogNiagaraEditor, Log, TEXT("Saving and Compiling NiagaraScript %s"), *GetEditingObjects()[0]->GetName());
 
-	UpdateOriginalNiagaraScript();
+	if(IsEditScriptDifferentFromOriginalScript())
+	{
+		UpdateOriginalNiagaraScript();
+	}
 
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
@@ -861,7 +864,10 @@ void FNiagaraScriptToolkit::SaveAssetAs_Execute()
 {
 	UE_LOG(LogNiagaraEditor, Log, TEXT("Saving and Compiling NiagaraScript %s"), *GetEditingObjects()[0]->GetName());
 
-	UpdateOriginalNiagaraScript();
+	if(IsEditScriptDifferentFromOriginalScript())
+	{
+		UpdateOriginalNiagaraScript();
+	}
 
 	FAssetEditorToolkit::SaveAssetAs_Execute();
 }
