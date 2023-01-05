@@ -276,7 +276,7 @@ UMovieScene3DTransformSection* FComponentConstraintChannelInterface::GetComponen
 	}
 
 	const UMovieSceneSequence* MovieSceneSequence = InSequencer ? InSequencer->GetFocusedMovieSceneSequence() : nullptr;
-	UMovieScene* MovieScene = MovieSceneSequence->GetMovieScene();
+	UMovieScene* MovieScene = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
 	if (!MovieScene)
 	{
 		return nullptr;
