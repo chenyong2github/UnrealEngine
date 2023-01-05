@@ -1612,6 +1612,7 @@ public:
 	FCaptureComponentSceneState& Add(const UReflectionCaptureComponent* Component, const FCaptureComponentSceneState& Value);
 	FCaptureComponentSceneState* AddReference(const UReflectionCaptureComponent* Component);
 	bool Remove(const UReflectionCaptureComponent* Component);
+	int32 Prune(const TSet<FGuid> KeysToKeep, TArray<int32>& ReleasedIndices);
 
 	int32 GetKeys(TArray<FGuid>& OutKeys) const;
 	int32 GetKeys(TSet<FGuid>& OutKeys) const;

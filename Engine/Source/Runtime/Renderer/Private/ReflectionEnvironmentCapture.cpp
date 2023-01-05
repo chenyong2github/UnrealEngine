@@ -863,6 +863,35 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 			}
 #endif
 
+			if (DesiredMaxCubemaps > 0)
+			{
+				// In the editor, some captures might have been marked dirty and requested new guids
+				//   So remove any probes that can no longer be referenced from the cache
+
+				TSet<FGuid> ToKeep;
+				ToKeep.Reserve(DesiredMaxCubemaps);
+				for (TSparseArray<UReflectionCaptureComponent*>::TIterator It(ReflectionSceneData.AllocatedReflectionCapturesGameThread); It; ++It)
+				{
+					if (IsValid(*It) && (*It)->MapBuildDataId.IsValid())
+					{
+						ToKeep.Add((*It)->MapBuildDataId);
+					}
+				}
+
+				FScene* Scene = this;
+				ENQUEUE_RENDER_COMMAND(PruneReflectionCaptures)(
+					[Scene, ToKeep = MoveTemp(ToKeep)](FRHICommandListImmediate& RHICmdList)
+				{
+					TArray<int32> ReleasedIndices;
+					Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Prune(ToKeep, ReleasedIndices);
+
+					for (int32 Index : ReleasedIndices)
+					{
+						Scene->ReflectionSceneData.CubemapArraySlotsUsed[Index] = false;
+					}
+				});
+			}
+
 			// If this is not the first time the scene has allocated the cubemap array, include slack to reduce reallocations
 			const float MaxCubemapsRoundUpBase = 1.5f;
 			if (ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread > 0)

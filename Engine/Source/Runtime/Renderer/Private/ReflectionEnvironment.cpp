@@ -266,7 +266,9 @@ FCaptureComponentSceneState& FReflectionCaptureCache::FindChecked(const UReflect
 
 FCaptureComponentSceneState& FReflectionCaptureCache::Add(const UReflectionCaptureComponent* Component, const FCaptureComponentSceneState& Value)
 {
-	check(IsValid(Component))
+	// During Reflection Capture Placement in editor, this is potentially not IsValid
+	//  So just check to make sure that the pointer is non-null
+	check(Component)
 
 	FCaptureComponentSceneState* Existing = AddReference(Component);
 	if (Existing != nullptr)
@@ -283,7 +285,9 @@ FCaptureComponentSceneState& FReflectionCaptureCache::Add(const UReflectionCaptu
 
 FCaptureComponentSceneState* FReflectionCaptureCache::AddReference(const UReflectionCaptureComponent* Component)
 {
-	check(IsValid(Component))
+	// During Reflection Capture Placement in editor, this is potentially not IsValid
+	//  So just check to make sure that the pointer is non-null
+	check(Component)
 
 	bool Remap = RemapRegisteredComponentMapBuildDataId(Component);
 	FReflectionCaptureCacheEntry* Found = CaptureData.Find(Component->MapBuildDataId);
@@ -313,6 +317,31 @@ void FReflectionCaptureCache::Empty()
 {
 	CaptureData.Empty();
 	RegisteredComponentMapBuildDataIds.Empty();
+}
+
+int32 FReflectionCaptureCache::Prune(const TSet<FGuid> KeysToKeep, TArray<int32>& ReleasedIndices)
+{
+	TSet<FGuid> ExistingKeys;
+	CaptureData.GetKeys(ExistingKeys);
+
+	TSet<FGuid> KeysToRemove = ExistingKeys.Difference(KeysToKeep);
+	ReleasedIndices.Empty();
+	ReleasedIndices.Reserve(KeysToRemove.Num());
+
+	for (const FGuid& Key : KeysToRemove)
+	{
+		FReflectionCaptureCacheEntry* Found = CaptureData.Find(Key);
+		if (Found == nullptr)
+			continue;
+
+		int32 CubemapIndex = Found->SceneState.CubemapIndex;
+		if (CubemapIndex != -1)
+			ReleasedIndices.Add(CubemapIndex);
+
+		CaptureData.Remove(Key);
+	}
+
+	return ReleasedIndices.Num();
 }
 
 bool FReflectionCaptureCache::Remove(const UReflectionCaptureComponent* Component)
@@ -353,6 +382,9 @@ bool FReflectionCaptureCache::RemapRegisteredComponentMapBuildDataId(const URefl
 		*OldBuildId != Component->MapBuildDataId)
 	{
 		FGuid OldBuildIdCopy = *OldBuildId;
+		const FReflectionCaptureCacheEntry* Current = CaptureData.Find(OldBuildIdCopy);
+		if (Current == nullptr)
+			return false; // No current entry to remap to, so no remap to perform
 
 		// Remap all pointers that point to the old guid to the new one.
 		int32 ReferenceCount = 0;
@@ -365,7 +397,7 @@ bool FReflectionCaptureCache::RemapRegisteredComponentMapBuildDataId(const URefl
 			}
 		}
 
-		FReflectionCaptureCacheEntry Entry = *CaptureData.Find(OldBuildIdCopy);
+		FReflectionCaptureCacheEntry Entry = *Current;
 		Entry.RefCount = ReferenceCount;
 
 		CaptureData.Remove(OldBuildIdCopy);
