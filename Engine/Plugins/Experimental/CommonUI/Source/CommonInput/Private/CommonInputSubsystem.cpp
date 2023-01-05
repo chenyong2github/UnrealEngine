@@ -12,6 +12,7 @@
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/SlateUser.h"
+#include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Widgets/SViewport.h"
 #include "CommonInputSettings.h"
