@@ -59,7 +59,7 @@ fi
 # If no arguments select a specific version, fetch the appropriate default
 if [ -z "$PSInfraTagOrBranch" ]
 then
-  PSInfraTagOrBranch=master
+  PSInfraTagOrBranch=UE5.1
   IsTag=0
 fi
 
@@ -80,12 +80,14 @@ else
 
   # Download ps-infra and follow redirects.
   curl -L https://github.com/$PSInfraOrg/$PSInfraRepo/archive/refs/$RefType/$PSInfraTagOrBranch.tar.gz > ps-infra.tar.gz
-  
+
   # Unarchive the .tar
   tar -xmf ps-infra.tar.gz || $(echo "bad archive, contents:" && head --lines=20 ps-infra.tar.gz && exit 0)
 
   # Move the server folders into the current directory (WebServers) and delete the original directory
   mv PixelStreamingInfrastructure-*/* .
+  # Copy any files and folders beginning with dot (ignored by * glob) and discard errors regarding to not being able to move "." and ".."
+  mv PixelStreamingInfrastructure-*/.* . 2>/dev/null || :
   rm -rf PixelStreamingInfrastructure-*
 
   # Delete the downloaded tar

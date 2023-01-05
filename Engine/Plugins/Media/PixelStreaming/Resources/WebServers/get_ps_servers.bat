@@ -51,7 +51,7 @@ if DEFINED UEVersion (
 
 @Rem If no arguments select a specific version, fetch the appropriate default
 if NOT DEFINED PSInfraTagOrBranch (
-    SET PSInfraTagOrBranch=master
+    SET PSInfraTagOrBranch=UE5.1
     SET IsTag=0
 )
 
