@@ -12,6 +12,9 @@ public class HeadlessChaos : TestModuleRules
 		// For LaunchEngineLoop.cpp include
 		PrivateIncludePaths.Add("Runtime/Launch/Private");
 
+		// For testing access to private Chaos classes
+		PrivateIncludePaths.Add("Runtime/Experimental/Chaos/Private");
+
 		SetupModulePhysicsSupport(Target);
 
 		PrivateDependencyModuleNames.AddRange(
