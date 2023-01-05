@@ -727,7 +727,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExt
 	PrimitiveDirtyState.Init(EPrimitiveDirtyState::None, PrimitiveDirtyState.Num());
 
 	{
-		SCOPED_NAMED_EVENT(STAT_UpdateGPUScene, FColor::Green);
+		SCOPED_NAMED_EVENT(UpdateGPUScene, FColor::Green);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScene);
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 

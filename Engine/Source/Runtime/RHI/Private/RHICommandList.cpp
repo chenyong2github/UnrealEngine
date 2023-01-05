@@ -685,7 +685,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 				FFunctionGraphTask::CreateAndDispatchWhenReady(
 					[FenceCandidates = MoveTemp(PersistentState.QueuedFenceCandidates), FenceCandidateEvent](ENamedThreads::Type, const FGraphEventRef&) mutable
 				{
-					SCOPED_NAMED_EVENT(STAT_FRHICommandListBase_SignalLockFence, FColor::Magenta);
+					SCOPED_NAMED_EVENT(FRHICommandListBase_SignalLockFence, FColor::Magenta);
 
 					for (int32 Index = FenceCandidates.Num() - 1; Index >= 0; Index--)
 					{
