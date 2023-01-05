@@ -15,7 +15,7 @@ class FContextualAnimPreviewScene;
 class FContextualAnimViewModel;
 class UContextualAnimPreviewManager;
 
-class FContextualAnimAssetEditorToolkit : public FAssetEditorToolkit, public FNotifyHook
+class FContextualAnimAssetEditorToolkit : public FAssetEditorToolkit
 {
 public:
 
@@ -58,13 +58,9 @@ private:
 
 	void ShowNewAnimSetDialog();
 
-	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
-
 	TSharedPtr<SContextualAnimViewport> ViewportWidget;
 
 	TSharedPtr<SContextualAnimAssetBrowser> AssetBrowserWidget;
-
-	TSharedPtr<IDetailsView> EditingAssetWidget;
 
 	TSharedPtr<FContextualAnimPreviewScene> PreviewScene;
 

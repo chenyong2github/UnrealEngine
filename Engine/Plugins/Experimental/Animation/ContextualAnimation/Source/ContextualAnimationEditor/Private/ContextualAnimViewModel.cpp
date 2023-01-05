@@ -40,8 +40,11 @@
 #include "UObject/Package.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
+#include "DetailCustomizations/ContextualAnimSceneAssetDetailCustom.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimViewModel"
+
+static const FName PreviewActorTag = FName(TEXT("__PreviewActor__"));
 
 FContextualAnimViewModel::FContextualAnimViewModel()
 	: SceneAsset(nullptr)
@@ -53,14 +56,7 @@ FContextualAnimViewModel::FContextualAnimViewModel()
 
 FContextualAnimViewModel::~FContextualAnimViewModel()
 {
-	if (Sequencer.IsValid())
-	{
-		Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
-		Sequencer->OnGlobalTimeChanged().RemoveAll(this);
-		Sequencer->OnPlayEvent().RemoveAll(this);
-		Sequencer->OnStopEvent().RemoveAll(this);
-		Sequencer.Reset();
-	}
+	check(!bInitialized)
 }
 
 void FContextualAnimViewModel::AddReferencedObjects(FReferenceCollector& Collector)
@@ -78,6 +74,8 @@ TSharedPtr<ISequencer> FContextualAnimViewModel::GetSequencer()
 
 void FContextualAnimViewModel::Initialize(UContextualAnimSceneAsset* InSceneAsset, const TSharedRef<FContextualAnimPreviewScene>& InPreviewScene)
 {
+	check(!bInitialized);
+
 	SceneAsset = InSceneAsset;
 	PreviewScenePtr = InPreviewScene;
 
@@ -85,7 +83,47 @@ void FContextualAnimViewModel::Initialize(UContextualAnimSceneAsset* InSceneAsse
 
 	CreateSequencer();
 
+	CreateDetailsView();
+
 	SetDefaultMode();
+
+	bInitialized = true;
+}
+
+void FContextualAnimViewModel::Shutdown()
+{
+	check(DetailsView.IsValid())
+	DetailsView->UnregisterInstancedCustomPropertyLayout(UContextualAnimSceneAsset::StaticClass());
+	DetailsView.Reset();
+
+	check(Sequencer.IsValid());
+	Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
+	Sequencer->OnGlobalTimeChanged().RemoveAll(this);
+	Sequencer->OnPlayEvent().RemoveAll(this);
+	Sequencer->OnStopEvent().RemoveAll(this);
+	Sequencer.Reset();
+
+	bInitialized = false;
+}
+
+bool FContextualAnimViewModel::CanMakeEdits() const
+{
+	return IsSimulateModeInactive();
+}
+
+void FContextualAnimViewModel::CreateDetailsView()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs Args;
+	Args.bHideSelectionTip = true;
+
+	DetailsView = PropertyModule.CreateDetailView(Args);
+	DetailsView->SetObject(SceneAsset);
+	DetailsView->OnFinishedChangingProperties().AddSP(this, &FContextualAnimViewModel::OnFinishedChangingProperties);
+	DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &FContextualAnimViewModel::CanMakeEdits));
+	DetailsView->RegisterInstancedCustomPropertyLayout(UContextualAnimSceneAsset::StaticClass(), 
+		FOnGetDetailCustomizationInstance::CreateStatic(&FContextualAnimSceneAssetDetailCustom::MakeInstance, AsShared()));
 }
 
 void FContextualAnimViewModel::CreateSequencer()
@@ -135,6 +173,11 @@ void FContextualAnimViewModel::SetActiveSection(int32 SectionIdx)
 	SetDefaultMode();
 }
 
+int32 FContextualAnimViewModel::GetActiveSection() const
+{
+	return ActiveSectionIdx;
+}
+
 void FContextualAnimViewModel::SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx)
 {
 	check(GetSceneAsset()->Sections.IsValidIndex(SectionIdx));
@@ -144,6 +187,12 @@ void FContextualAnimViewModel::SetActiveAnimSetForSection(int32 SectionIdx, int3
 	ActiveSetIdx = AnimSetIdx;
 
 	SetDefaultMode();
+}
+
+int32 FContextualAnimViewModel::GetActiveAnimSetForSection(int32 SectionIdx) const
+{
+	const int32* ActiveSetIdxPtr = ActiveAnimSetMap.Find(SectionIdx);
+	return ActiveSetIdxPtr ? *ActiveSetIdxPtr : INDEX_NONE;
 }
 
 AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& AnimTrack)
@@ -288,6 +337,7 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 		SceneActorComp->RegisterComponentWithWorld(GetWorld());
 		SceneActorComp->InitializeComponent();
 
+		PreviewActor->Tags.Add(PreviewActorTag);
 	}
 
 	return PreviewActor;
@@ -306,6 +356,8 @@ void FContextualAnimViewModel::ResetTimeline()
 
 void FContextualAnimViewModel::SetDefaultMode()
 {
+	ClearSelection();
+
 	if (EditingAnimation.IsValid())
 	{
 		EditingAnimation->UnregisterOnNotifyChanged(this);
@@ -429,9 +481,12 @@ void FContextualAnimViewModel::RefreshPreviewScene()
 		SceneInstance.Reset();
 	}
 
-	for (const FContextualAnimSceneBinding& Binding : SceneBindings)
+	// Remove preview actors from the preview scene
+	// @TODO: Investigate why GetActor from each binding in SceneBindings returns null after a Redo op
+	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
-		if (AActor* Actor = Binding.GetActor())
+		AActor* Actor = *It;
+		if(Actor && Actor->ActorHasTag(PreviewActorTag))
 		{
 			Actor->Destroy();
 		}
@@ -523,6 +578,51 @@ void FContextualAnimViewModel::AddNewAnimSet(const FContextualAnimNewAnimSetPara
 
 	// Set active AnimSet and refresh sequencer panel
 	SetActiveAnimSetForSection(SectionIdx, AnimSetIdx);
+}
+
+void FContextualAnimViewModel::RemoveSection(int32 SectionIdx)
+{
+ 	check(SceneAsset->Sections.IsValidIndex(SectionIdx));
+
+	FScopedTransaction Transaction(LOCTEXT("RemoveSection", "Remove Section"));
+	SceneAsset->Modify();
+
+ 	SceneAsset->Sections.RemoveAt(SectionIdx);
+
+	if (SceneAsset->GetNumSections() > 0)
+	{
+		SetActiveAnimSetForSection(0, 0);
+	}
+	else
+	{
+		ActiveSectionIdx = INDEX_NONE;
+		ActiveAnimSetMap.Reset();
+	}
+
+	SetDefaultMode();
+}
+
+void FContextualAnimViewModel::RemoveAnimSet(int32 SectionIdx, int32 AnimSetIdx)
+{
+	check(SceneAsset->Sections.IsValidIndex(SectionIdx));
+	check(SceneAsset->Sections[SectionIdx].AnimSets.IsValidIndex(AnimSetIdx));
+
+	FScopedTransaction Transaction(LOCTEXT("RemoveAnimSet", "Remove Anim Set"));
+	SceneAsset->Modify();
+
+	SceneAsset->Sections[SectionIdx].AnimSets.RemoveAt(AnimSetIdx);
+
+	// If there are other sets in the current section, switch to the first one
+	if (SceneAsset->Sections[SectionIdx].GetNumAnimSets() > 0)
+	{
+		SetActiveAnimSetForSection(SectionIdx, 0);
+
+		SetDefaultMode();
+	}
+	else // Otherwise, remove the section too, there is no point in having a section without sets
+	{
+		RemoveSection(SectionIdx);
+	}
 }
 
 void FContextualAnimViewModel::AddNewIKTarget(const UContextualAnimNewIKTargetParams& Params)
@@ -825,6 +925,11 @@ void FContextualAnimViewModel::AnimationModified(UAnimSequenceBase& Animation)
 	Animation.MarkPackageDirty();
 }
 
+void FContextualAnimViewModel::RefreshDetailsView()
+{
+	DetailsView->ForceRefresh();
+}
+
 void FContextualAnimViewModel::UpdateSelection(const AActor* SelectedActor)
 {
 	const FContextualAnimSceneBinding* Binding = SceneBindings.FindBindingByActor(SelectedActor);
@@ -852,11 +957,15 @@ void FContextualAnimViewModel::UpdateSelection(FName Role, int32 CriterionIdx, i
 	SelectionInfo.Role = Role;
 	SelectionInfo.Criterion.Key = CriterionIdx;
 	SelectionInfo.Criterion.Value = CriterionDataIdx;
+
+	RefreshDetailsView();
 }
 
 void FContextualAnimViewModel::ClearSelection()
 {
 	SelectionInfo.Reset();
+
+	RefreshDetailsView();
 }
 
 FContextualAnimSceneBinding* FContextualAnimViewModel::GetSelectedBinding() const
@@ -1119,14 +1228,17 @@ void FContextualAnimViewModel::OnFinishedChangingProperties(const FPropertyChang
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
-	// Refresh preview scene if the Sections array or the AnimSets array inside a section changes
+	UE_LOG(LogContextualAnim, Verbose, TEXT("FContextualAnimViewModel::OnFinishedChangingProperties MemberPropertyName: %s PropertyName: %s"), *MemberPropertyName.ToString(), *PropertyName.ToString());
+
+	// Refresh preview scene if necessary
 	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, Sections) &&
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, Sections) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(FContextualAnimSceneSection, AnimSets)))
+		 PropertyName == GET_MEMBER_NAME_CHECKED(FContextualAnimSceneSection, AnimSets) || 
+		 PropertyName == GET_MEMBER_NAME_CHECKED(FContextualAnimTrack, Animation) ||
+		 PropertyName == GET_MEMBER_NAME_CHECKED(FContextualAnimTrack, MeshToScene)))
 	{
 		SetDefaultMode();
 	}
-	// Refresh preview scene if override preview data changes
 	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, OverridePreviewData))
 	{
 		SetDefaultMode();

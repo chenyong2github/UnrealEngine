@@ -49,6 +49,8 @@ FContextualAnimAssetEditorToolkit::FContextualAnimAssetEditorToolkit()
 
 FContextualAnimAssetEditorToolkit::~FContextualAnimAssetEditorToolkit()
 {
+	check(ViewModel.IsValid());
+	ViewModel->Shutdown();
 }
 
 UContextualAnimSceneAsset* FContextualAnimAssetEditorToolkit::GetSceneAsset() const
@@ -86,20 +88,8 @@ void FContextualAnimAssetEditorToolkit::InitAssetEditor(const EToolkitMode::Type
 	ViewModel = MakeShared<FContextualAnimViewModel>();
 	ViewModel->Initialize(SceneAsset, PreviewScene.ToSharedRef());
 
-	// Create Asset Details widget
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs Args;
-	Args.bHideSelectionTip = true;
-	Args.NotifyHook = this;
-
-	EditingAssetWidget = PropertyModule.CreateDetailView(Args);
-	EditingAssetWidget->SetObject(SceneAsset);
-	EditingAssetWidget->OnFinishedChangingProperties().AddSP(this, &FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties);
-	EditingAssetWidget->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &FContextualAnimAssetEditorToolkit::CanMakeEdits));
-
 	// Define Editor Layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.10")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.13")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -188,7 +178,7 @@ bool FContextualAnimAssetEditorToolkit::IsSimulateModeActive() const
 
 bool FContextualAnimAssetEditorToolkit::CanMakeEdits() const
 {
-	return IsSimulateModeActive() == false;
+	return (ViewModel.IsValid() && ViewModel->CanMakeEdits());
 }
 
 void FContextualAnimAssetEditorToolkit::ExtendToolbar()
@@ -379,7 +369,7 @@ TSharedRef<SDockTab> FContextualAnimAssetEditorToolkit::SpawnTab_AssetDetails(co
 	return SNew(SDockTab)
 		.Label(LOCTEXT("AssetDetails_Title", "Asset Details"))
 		[
-			EditingAssetWidget.ToSharedRef()
+			ViewModel->GetDetailsView().ToSharedRef()
 		];
 }
 
@@ -411,11 +401,6 @@ TSharedRef<SDockTab> FContextualAnimAssetEditorToolkit::SpawnTab_PreviewSettings
 		];
 
 	return SpawnedTab;
-}
-
-void FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
-{
-	ViewModel->OnFinishedChangingProperties(PropertyChangedEvent);
 }
 
 #undef LOCTEXT_NAMESPACE

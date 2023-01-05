@@ -89,16 +89,16 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform MeshToScene;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults", meta = (GetOptions = "GetRoles"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
 	FName Role = NAME_None;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, Category = "Defaults")
 	int32 SectionIdx = INDEX_NONE;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, Category = "Defaults")
 	int32 AnimSetIdx = INDEX_NONE;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, Category = "Defaults")
 	int32 AnimTrackIdx = INDEX_NONE;
 
 	// DEPRECATED: Will go away soon

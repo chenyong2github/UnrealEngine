@@ -64,6 +64,7 @@ public:
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	void Initialize(UContextualAnimSceneAsset* InSceneAsset, const TSharedRef<FContextualAnimPreviewScene>& InPreviewScene);
+	void Shutdown();
 
 	void SetDefaultMode();
 	void SetNotifiesMode(const FContextualAnimTrack& AnimTrack);
@@ -79,16 +80,20 @@ public:
 	UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset; }
 	UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstance.Get(); }
 	UContextualAnimMovieSceneTrack* FindTrackByRole(const FName& Role) const;
+	TSharedPtr<IDetailsView> GetDetailsView() { return DetailsView; }
 
 	void AddNewAnimSet(const FContextualAnimNewAnimSetParams& Params);
+	void RemoveSection(int32 SectionIdx);
+	void RemoveAnimSet(int32 SectionIdx, int32 AnimSetIdx);
 
 	void AddNewIKTarget(const UContextualAnimNewIKTargetParams& Params);
 
 	void AnimationModified(UAnimSequenceBase& Animation);
 
 	void SetActiveSection(int32 SectionIdx);
-
+	int32 GetActiveSection() const;
 	void SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx);
+	int32 GetActiveAnimSetForSection(int32 SectionIdx) const;
 
 	void ToggleSimulateMode();
 	bool IsSimulateModeInactive()	const { return SimulateModeState == ESimulateModeState::Inactive; }
@@ -119,6 +124,8 @@ public:
 	void DiscardChangeToActorTransformInScene();
 
 	float GetPlaybackTime() const;
+	
+	bool CanMakeEdits() const;
 
 private:
 
@@ -201,6 +208,8 @@ private:
 	/** Selected actor when the user starts modifying its transform in the scene */
 	TWeakObjectPtr<AActor> ModifyingTransformInSceneCachedActor;
 
+	TSharedPtr<IDetailsView> DetailsView;
+
 	AActor* SpawnPreviewActor(const FContextualAnimTrack& AnimTrack);
 
 	UWorld* GetWorld() const;
@@ -219,5 +228,12 @@ private:
 
 	void CreateSequencer();
 
+	void CreateDetailsView();
+
+	void RefreshDetailsView();
+
 	bool WantsToModifyMeshToSceneForSelectedActor() const;
+
+private:
+	bool bInitialized = false;
 };
