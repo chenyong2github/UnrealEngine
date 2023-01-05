@@ -177,7 +177,7 @@ private:
 	void CreateOpTable();
 
 	/** Creates the table of what types can be promoted to others */
-	void CreatePromotionTable();
+	TMap<FName, TArray<FName>> CreatePromotionTable();
 
 	void AddOpFunction(FName OpName, UFunction* Function);
 
@@ -190,7 +190,7 @@ private:
 	FDelegateHandle OnReloadCompleteDelegateHandle;
 
 	/** A map of 'Type' to its 'available promotions'. See ctor for creation */
-	TMap<FName, TArray<FName>> PromotionTable;
+	const TMap<FName, TArray<FName>> PromotionTable;
 
 	/**
 	 * A single operator can have multiple functions associated with it; usually
@@ -198,6 +198,11 @@ private:
 	 * This is the same implementation style as the Math Expression node.
 	 */
 	typedef TArray<UFunction*> FFunctionsList;
+
+	/**
+	 * Protects internal data from multi-threaded access.
+	 */
+	mutable FCriticalSection Lock;
 
 	/**
 	 * A lookup table, mapping operator strings (like "Add", "Multiply", etc.) to a list
