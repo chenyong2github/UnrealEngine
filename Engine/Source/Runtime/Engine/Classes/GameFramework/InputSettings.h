@@ -32,7 +32,7 @@ class ENGINE_API UInputSettings
 	 * Platform specific settings for Input.
 	 * @see UInputPlatformSettings
 	 */
-	UPROPERTY(EditAnywhere, Category = "Enhanced Input")
+	UPROPERTY(EditAnywhere, Category = "Platforms")
 	FPerPlatformSettings PlatformSettings;
 
 	UPROPERTY(config, EditAnywhere, Category="Bindings", AdvancedDisplay)
