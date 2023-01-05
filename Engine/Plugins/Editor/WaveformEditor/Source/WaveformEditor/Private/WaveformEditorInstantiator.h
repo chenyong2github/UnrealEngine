@@ -21,4 +21,6 @@ private:
 	TSharedRef<FExtender> OnExtendContentBrowserAssetSelectionMenu(const TArray<FAssetData>& SelectedAssets);
 	void AddWaveformEditorMenuEntry(FMenuBuilder& MenuBuilder, TArray<FAssetData> SelectedAssets);
 	bool CanSoundWaveBeOpenedInEditor(const USoundWave* SoundWaveToEdit);
+
+	void DisplayErrorDialog(const FText& ErrorMessage) const;
 };
