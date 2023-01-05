@@ -973,8 +973,6 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 #endif
 	}
 
-	OnActorRemovedFromWorld.Broadcast(ThisActor);
-
 	// Clean up the actor's components.
 	ThisActor->UnregisterAllComponents();
 

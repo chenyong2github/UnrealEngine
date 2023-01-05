@@ -96,6 +96,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorDestroyed, AActor*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorAddedToWorld, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorRemovedFromWorld, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFeatureLevelChanged, ERHIFeatureLevel::Type);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneSequenceTick, float);
@@ -1512,16 +1513,34 @@ private:
 	FBlueprintToDebuggedObjectMap BlueprintObjectsBeingDebugged;
 #endif
 
-	/** a delegate that broadcasts a notification whenever an actor is spawned */
+	/**
+	 * Broadcasts a notification whenever an actor is spawned.
+	 * This event is only for newly created actors.
+	 */
 	mutable FOnActorSpawned OnActorSpawned;
 
-	/** a delegate that broadcasts a notification before a newly spawned actor is initialized */
+	/**
+	 * Broadcasts a notification before a newly spawned actor is initialized.
+	 * This event is only for newly created actors.
+	 */
 	mutable FOnActorSpawned OnActorPreSpawnInitialization;
 
-	/** a delegate that broadcasts a notification whenever an actor is destroyed */
+	/**
+	 * Broadcasts a notification whenever an actor is destroyed.
+	 * This event is not fired for unloaded actors.
+	 */
 	mutable FOnActorDestroyed OnActorDestroyed;
 
-	/** Broadcasts when an actor has been removed from the world. The earliest point an actor can safely be renamed and not affect replication */
+	/**
+	 * Broadcasts after an actor has been fully added to a world and its components have been registered.
+	 * This is called for both spawned and loaded actors.
+	 */
+	mutable FOnActorAddedToWorld OnActorAddedToWorld;
+
+	/**
+	 * Broadcasts when an actor has been removed from the world and its components have been unregistered.
+	 * This event is the earliest point where an actor can be safely renamed without affecting replication.
+	 */
 	mutable FOnActorRemovedFromWorld OnActorRemovedFromWorld;
 
 	/** Reset Async Trace Buffer **/
@@ -2772,11 +2791,30 @@ public:
 	/** Remove a listener for OnActorDestroyed events */
 	void RemoveOnActorDestroyededHandler(FDelegateHandle InHandle) const;
 
+	/** Add a listener for OnActorAddedToWorld events */
+	FDelegateHandle AddOnActorAddedToWorldHandler(const FOnActorAddedToWorld::FDelegate& InHandler) const;
+
+	/**
+	 * Broadcast an OnActorAddedToWorld event.
+	 * This method should only be called from internal actor and level code and never on inactive worlds.
+	 */
+	void NotifyActorAddedToWorld(AActor* Actor);
+
+	/** Remove a listener for OnActorAddedToWorld events */
+	void RemoveOnActorAddedToWorldHandler(FDelegateHandle InHandle) const;
+
 	/** Add a listener for OnActorRemovedFromWorld events */
 	FDelegateHandle AddOnActorRemovedFromWorldHandler(const FOnActorRemovedFromWorld::FDelegate& InHandler) const;
 
 	/** Remove a listener for OnActorRemovedFromWorld events */
 	void RemoveOnActorRemovedFromWorldHandler(FDelegateHandle InHandle) const;
+
+	/**
+	 * Broadcast an OnActorRemovedFromWorld event.
+	 * This method should only be called from internal actor and level code. Calls on inactive or GCing worlds are
+	 * ignored.
+	 */
+	void NotifyActorRemovedFromWorld(AActor* Actor);
 
 	/**
 	 * Returns whether the passed in actor is part of any of the loaded levels actors array.

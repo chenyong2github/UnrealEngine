@@ -5234,6 +5234,16 @@ void AActor::GetAllChildActors(TArray<AActor*>& ChildActors, bool bIncludeDescen
 
 void AActor::UnregisterAllComponents(const bool bForReregister)
 {
+	// This function may be called multiple times for each actor at different states of destruction:
+	// Use the cached all components registration flag to ensure the world is only notified once.
+	if (bHasRegisteredAllComponents)
+	{
+		if (UWorld* OwningWorld = GetWorld())
+		{
+			OwningWorld->NotifyActorRemovedFromWorld(this);
+		}
+	}
+
 	TInlineComponentArray<UActorComponent*> Components;
 	GetComponents(Components);
 
@@ -5381,6 +5391,9 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegis
 		bHasRegisteredAllComponents = true;
 		// Finally, call PostRegisterAllComponents
 		PostRegisterAllComponents();
+
+		// After all components have been registered the actor is considered fully added: notify the owning world.
+		World->NotifyActorAddedToWorld(this);
 		return true;
 	}
 	
