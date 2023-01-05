@@ -123,9 +123,6 @@ public:
 protected:
 	friend class FOptimusDeformerInstanceComponentBindingCustomization;
 
-	/** Get the actor associated with this object. Used only by details customization. */
-	AActor* GetActor() const;
-
 	/** Get a full component source binding object by binding name. Used only by details customization. */
 	UOptimusComponentSourceBinding const* GetComponentBindingByName(FName InBindingName) const;
 };

@@ -413,6 +413,7 @@ protected:
 	void ComponentsReplaced(const TMap<UObject*, UObject*>& InReplacementMap);
 	
 private:
-	using FComponentHandle = TSharedPtr<FSoftObjectPath>; 
+	TArray<FName> ComponentNames;
+	using FComponentHandle = TSharedPtr<FSoftObjectPath>;
 	TArray<FComponentHandle> ComponentHandles;
 };

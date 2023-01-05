@@ -258,12 +258,6 @@ void UOptimusDeformerInstanceSettings::GetComponentBindings(
 	}
 }
 
-AActor* UOptimusDeformerInstanceSettings::GetActor() const
-{
-	// We should be owned by an actor at some point.
-	return GetTypedOuter<AActor>();
-}
-
 UOptimusComponentSourceBinding const* UOptimusDeformerInstanceSettings::GetComponentBindingByName(FName InBindingName) const
 {
 	if (const UOptimusDeformer* DeformerResolved = Deformer.Get())

@@ -1569,43 +1569,43 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	FName BindingName;
 	BindingPropertyHandle->GetValue(BindingName);
 
-	FName ComponentName;
-	ComponentPropertyHandle->GetValue(ComponentName);
+	FName SelectedComponentName;
+	ComponentPropertyHandle->GetValue(SelectedComponentName);
 	
 	TArray<UObject*> OuterObjects;
 	InPropertyHandle->GetOuterObjects(OuterObjects);
 
-	UOptimusDeformerInstanceSettings const* BindingProvider = Cast<UOptimusDeformerInstanceSettings>(OuterObjects[0]);
-	AActor const* OwningActor = BindingProvider ? BindingProvider->GetActor() : nullptr;
+	
 
 	const UOptimusComponentSourceBinding* Binding = nullptr;
 	FComponentHandle SelectedComponentHandle;
 
-	if (BindingProvider)
+	if (UOptimusDeformerInstanceSettings const* BindingProvider = Cast<UOptimusDeformerInstanceSettings>(OuterObjects[0]))
 	{
 		Binding = BindingProvider->GetComponentBindingByName(BindingName);
 		
-		if (OwningActor && Binding)
+		if (Binding != nullptr)
 		{
 			TArray<UActorComponent*> FilteredComponents;
 
-			// Add actor components
-			OwningActor->GetComponents(Binding->GetComponentSource()->GetComponentClass(), FilteredComponents);
 			// Add unset "auto" setting.
 			FilteredComponents.Add(nullptr);
 
-			// Add blueprint components
-			if (OwningActor->HasAnyFlags(RF_ArchetypeObject))
+			// Add actor components.
+			if (AActor const* OwningActor = BindingProvider->GetTypedOuter<AActor>())
 			{
-				if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(OwningActor->GetClass()))
+				OwningActor->GetComponents(Binding->GetComponentSource()->GetComponentClass(), FilteredComponents);
+			}
+
+			// Add blueprint components.
+			if (UBlueprintGeneratedClass const* OwningBlueprint = BindingProvider->GetTypedOuter<UBlueprintGeneratedClass>())
+			{
+				const TArray<USCS_Node*>& ActorBlueprintNodes = OwningBlueprint->SimpleConstructionScript->GetAllNodes();
+				for (USCS_Node* Node : ActorBlueprintNodes)
 				{
-					const TArray<USCS_Node*>& ActorBlueprintNodes = BlueprintGeneratedClass->SimpleConstructionScript->GetAllNodes();
-					for (USCS_Node* Node : ActorBlueprintNodes)
+					if (Node->ComponentTemplate->IsA(Binding->GetComponentSource()->GetComponentClass()))
 					{
-						if (Node->ComponentTemplate->IsA(Binding->GetComponentSource()->GetComponentClass()))
-						{
-							FilteredComponents.Add(Node->ComponentTemplate);
-						}
+						FilteredComponents.Add(Node->ComponentTemplate);
 					}
 				}
 			}
@@ -1613,11 +1613,14 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 			// Add filtered components to drop down
 			for (const UActorComponent* Component : FilteredComponents)
 			{
+				// Store ComponentNames for reverse lookup from Name->Handle used for getting component icon.
+				FName Name = Component ? FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(Component) : FName();
+				ComponentNames.Add(Name);
+
 				FSoftObjectPath Path = Component ? FSoftObjectPath::GetOrCreateIDForObject(Component) : FSoftObjectPath();
 				ComponentHandles.Add(MakeShared<FSoftObjectPath>(Path));
-				
-				FName Name = Component ? FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(Component) : FName();
-				if (Name.ToString() == ComponentName.ToString())
+
+				if (Name.ToString() == SelectedComponentName.ToString())
 				{
 					SelectedComponentHandle = ComponentHandles.Last();
 				}
@@ -1673,12 +1676,14 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image_Lambda([ComponentPropertyHandle, OwningActor]()-> const FSlateBrush*
+				.Image_Lambda([this, ComponentPropertyHandle]()-> const FSlateBrush*
 				{
 					FName Name;
 					ComponentPropertyHandle->GetValue(Name);
-					UActorComponent* ComponentObject = (OwningActor == nullptr || Name.IsNone()) ? nullptr : FOptimusDeformerInstanceComponentBinding::GetActorComponent(OwningActor, Name.ToString()).Get();
-					return ComponentObject ? FSlateIconFinder::FindIconBrushForClass(ComponentObject->GetClass(), TEXT("SCS.Component")) : nullptr;
+
+					int32 Index = ComponentNames.Find(Name);
+					const UActorComponent* Component = (Index == INDEX_NONE) ? nullptr : Cast<UActorComponent>(ComponentHandles[Index]->ResolveObject());
+					return Component ? FSlateIconFinder::FindIconBrushForClass(Component->GetClass(), TEXT("SCS.Component")) : nullptr;
 				})
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
