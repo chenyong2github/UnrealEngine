@@ -28,6 +28,11 @@ namespace WorldPartitionTests
 
 		FWorldPartitionHandle Handle = FWorldPartitionHandle(ActorDescContainer, FGuid(TEXT("5D9F93BA407A811AFDDDAAB4F1CECC6A")));
 
+		{
+			FWorldPartitionHandle ActorWithChildActorComponentHandle = FWorldPartitionHandle(ActorDescContainer, FGuid(TEXT("538856174ECD465948488F9441AE9251")));
+			FWorldPartitionReference ActorWithChildActorComponentReference = ActorWithChildActorComponentHandle.ToReference();
+		}		
+
 		FWorldPartitionReference Reference;
 		{
 			LoadingContextType LoadingContext;
