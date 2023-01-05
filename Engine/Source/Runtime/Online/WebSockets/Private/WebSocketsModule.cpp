@@ -55,6 +55,12 @@ void FWebSocketsModule::ShutdownModule()
 
 FWebSocketsModule& FWebSocketsModule::Get()
 {
+	if (nullptr == Singleton)
+	{
+		check(IsInGameThread());
+		FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
+	}
+	check(Singleton);
 	return *Singleton;
 }
 
