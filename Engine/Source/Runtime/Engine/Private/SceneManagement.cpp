@@ -8,6 +8,7 @@
 #include "RHIStaticStates.h"
 #include "SceneRendering.h"
 #include "SceneCore.h"
+#include "SceneView.h"
 #include "Async/ParallelFor.h"
 #include "LightMap.h"
 #include "ShadowMap.h"
@@ -104,6 +105,27 @@ void FTemporalLODState::UpdateTemporalLODTransition(const FViewInfo& View, float
 		TemporalLODTime[1] = LastRenderTime;
 		TemporalLODLag = 0.0f;
 	}
+}
+
+FFrozenSceneViewMatricesGuard::FFrozenSceneViewMatricesGuard(FSceneView& SV)
+	: SceneView(SV)
+{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (SceneView.State)
+	{
+		SceneView.State->ActivateFrozenViewMatrices(SceneView);
+	}
+#endif
+}
+
+FFrozenSceneViewMatricesGuard::~FFrozenSceneViewMatricesGuard()
+{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (SceneView.State)
+	{
+		SceneView.State->RestoreUnfrozenViewMatrices(SceneView);
+	}
+#endif
 }
 
 

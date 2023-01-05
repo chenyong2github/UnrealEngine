@@ -8,8 +8,10 @@
 #include "EdMode.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
+#include "GenericPlatform/ICursor.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "SceneView.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "SnappingUtils.h"
 
@@ -967,4 +969,25 @@ uint32 FWidget::GetDominantAxisIndex(const FVector& InDiff, FEditorViewportClien
 bool FWidget::IsWidgetDisabled() const
 {
 	return EditorModeTools ? (EditorModeTools->IsDefaultModeActive() && GEditor->HasLockedActors()) : false;
+}
+
+HWidgetAxis::HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled, EHitProxyPriority InHitProxy)
+	: HHitProxy(InHitProxy)
+	, Axis(InAxis)
+	, bDisabled(InbDisabled)
+{
+}
+
+EMouseCursor::Type HWidgetAxis::GetMouseCursor()
+{
+	if (bDisabled)
+	{
+		return EMouseCursor::SlashedCircle;
+	}
+	return EMouseCursor::CardinalCross;
+}
+
+bool HWidgetAxis::AlwaysAllowsTranslucentPrimitives() const
+{
+	return true;
 }

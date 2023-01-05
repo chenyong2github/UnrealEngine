@@ -70,19 +70,9 @@ struct HActor : public HHitProxy
 		, MaterialIndex(InMaterialIndex)
 		{}
 
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
-	{
-		Collector.AddReferencedObject( Actor );
-		Collector.AddReferencedObject( PrimComponent );
-	}
-
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::Crosshairs;
-	}
-
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual EMouseCursor::Type GetMouseCursor() override;
 	ENGINE_API virtual FTypedElementHandle GetElementHandle() const override;
-
 	ENGINE_API bool AlwaysAllowsTranslucentPrimitives() const override;
 };
 
@@ -141,15 +131,8 @@ struct HTranslucentActor : public HActor
 		: HActor(InActor, InPrimComponent, InPriority)
 		{}
 
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::Crosshairs;
-	}
-
-	virtual bool AlwaysAllowsTranslucentPrimitives() const override
-	{
-		return true;
-	}
+	ENGINE_API virtual EMouseCursor::Type GetMouseCursor() override;
+	ENGINE_API virtual bool AlwaysAllowsTranslucentPrimitives() const override;
 };
 
 

@@ -478,18 +478,9 @@ struct HWidgetAxis : public HHitProxy
 	EAxisList::Type Axis;
 	uint32 bDisabled : 1;
 
-	HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled = false, EHitProxyPriority InHitProxy = HPP_UI)
-	    : HHitProxy(InHitProxy), Axis(InAxis), bDisabled(InbDisabled)
-	{}
+	UNREALED_API HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled = false, EHitProxyPriority InHitProxy = HPP_UI);
 
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		if (bDisabled)
-		{
-			return EMouseCursor::SlashedCircle;
-		}
-		return EMouseCursor::CardinalCross;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
 
 	/**
 	 * Method that specifies whether the hit proxy *always* allows translucent primitives to be associated with it or not,
@@ -499,8 +490,5 @@ struct HWidgetAxis : public HHitProxy
 	 *
 	 * @return	true if translucent primitives are always allowed with this hit proxy; false otherwise
 	 */
-	virtual bool AlwaysAllowsTranslucentPrimitives() const override
-	{
-		return true;
-	}
+	virtual bool AlwaysAllowsTranslucentPrimitives() const override;
 };

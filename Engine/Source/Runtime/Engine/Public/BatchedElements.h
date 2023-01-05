@@ -6,21 +6,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/RefCounting.h"
+#include "RenderResource.h"
+#include "Containers/DynamicRHIResourceArray.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "Misc/LargeWorldRenderPosition.h"
 #include "RHI.h"
-#include "RenderResource.h"
 #include "HitProxies.h"
 #include "SceneView.h"
 #include "StaticBoundShaderState.h"
 #include "PipelineStateCache.h"
-#include "Containers/DynamicRHIResourceArray.h"
+#endif
+
+class FGraphicsPipelineStateInitializer;
+class FHitProxyId;
+class FRHICommandList;
+class FSceneView;
 
 struct FBatchedPoint;
 struct FMeshPassProcessorRenderState;
 struct FRelativeViewMatrices;
+
+enum EBlendMode : int;
+enum ESimpleElementBlendMode : int;
 
 namespace EBlendModeFilter
 {
@@ -34,7 +45,7 @@ namespace EBlendModeFilter
 };
 
 /** The type used to store batched line vertices. */
-struct FSimpleElementVertex
+struct ENGINE_API FSimpleElementVertex
 {
 	// Store LWC-scale positions per-vertex
 	// Could potentially optimize this by storing a global batch offset, along with relative position per-vertex, but this would be more complicated
@@ -45,81 +56,35 @@ struct FSimpleElementVertex
 	FLinearColor Color;
 	FColor HitProxyIdColor;
 
-	FSimpleElementVertex() {}
+	FSimpleElementVertex();
 
-	FSimpleElementVertex(const FVector4f& InPosition, const FVector2f& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
-		RelativePosition(InPosition),
-		TilePosition(ForceInitToZero),
-		TextureCoordinate(InTextureCoordinate),
-		Color(InColor),
-		HitProxyIdColor(InHitProxyId.GetColor())
-	{}
+	FSimpleElementVertex(const FVector4f& InPosition, const FVector2f& InTextureCoordinate, const FLinearColor& InColor, const FColor& InHitProxyColor);
+	FSimpleElementVertex(const FVector4f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, const FColor& InHitProxyColor);
+	FSimpleElementVertex(const FVector3f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, const FColor& InHitProxyColor);
+	FSimpleElementVertex(const FVector4d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, const FColor& InHitProxyColor);
+	FSimpleElementVertex(const FVector3d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, const FColor& InHitProxyColor);
 
-	FSimpleElementVertex(const FVector4f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
-		RelativePosition(InPosition),
-		TilePosition(ForceInitToZero),
-		TextureCoordinate(InTextureCoordinate),
-		Color(InColor),
-		HitProxyIdColor(InHitProxyId.GetColor())
-	{}
-
-	FSimpleElementVertex(const FVector3f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
-		RelativePosition(InPosition),
-		TilePosition(ForceInitToZero),
-		TextureCoordinate(FVector2f(InTextureCoordinate)),
-		Color(InColor),
-		HitProxyIdColor(InHitProxyId.GetColor())
-	{}
-
-	FSimpleElementVertex(const FVector4d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
-		TextureCoordinate(InTextureCoordinate),
-		Color(InColor),
-		HitProxyIdColor(InHitProxyId.GetColor())
-	{
-		const FLargeWorldRenderPosition AbsolutePosition(InPosition);
-		RelativePosition = FVector4f(AbsolutePosition.GetOffset(), (float)InPosition.W); // Don't bother with LWC W-component
-		TilePosition = FVector4f(AbsolutePosition.GetTile(), 0.0f);
-	}
-
-	FSimpleElementVertex(const FVector3d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
-		TextureCoordinate(InTextureCoordinate),
-		Color(InColor),
-		HitProxyIdColor(InHitProxyId.GetColor())
-	{
-		const FLargeWorldRenderPosition AbsolutePosition(InPosition);
-		RelativePosition = FVector4f(AbsolutePosition.GetOffset(), 1.0f);
-		TilePosition = FVector4f(AbsolutePosition.GetTile(), 0.0f);
-	}
+	FSimpleElementVertex(const FVector4f& InPosition, const FVector2f& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId);
+	FSimpleElementVertex(const FVector4f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId);
+	FSimpleElementVertex(const FVector3f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId);
+	FSimpleElementVertex(const FVector4d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId);
+	FSimpleElementVertex(const FVector3d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId);
 };
 
 /**
 * The simple element vertex declaration resource type.
 */
-class FSimpleElementVertexDeclaration : public FRenderResource
+class ENGINE_API FSimpleElementVertexDeclaration : public FRenderResource
 {
 public:
-
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 
-	// Destructor.
-	virtual ~FSimpleElementVertexDeclaration() {}
+	FSimpleElementVertexDeclaration();
+	FSimpleElementVertexDeclaration(FSimpleElementVertexDeclaration&&);
+	virtual ~FSimpleElementVertexDeclaration();
 
-	virtual void InitRHI() override
-	{
-		FVertexDeclarationElementList Elements;
-		uint16 Stride = sizeof(FSimpleElementVertex);
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex, RelativePosition),VET_Float4,0,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex, TilePosition),VET_Float4,1,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,TextureCoordinate),VET_Float2,2,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,Color),VET_Float4,3,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,HitProxyIdColor),VET_Color,4,Stride));
-		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
-	}
-
-	virtual void ReleaseRHI() override
-	{
-		VertexDeclarationRHI.SafeRelease();
-	}
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 };
 
 /** The simple element vertex declaration. */
@@ -149,14 +114,7 @@ public:
 	/**
 	 * Constructor 
 	 */
-	FBatchedElements()
-		: WireTriVerts(/*InNeedsCPUAccess*/true) // Keep vertices on buffer creation
-		, MaxMeshIndicesAllowed(GDrawUPIndexCheckCount / sizeof(int32))
-		  // the index buffer is 2 bytes, so make sure we only address 0xFFFF vertices in the index buffer
-		, MaxMeshVerticesAllowed(FMath::Min<uint32>(0xFFFF, GDrawUPVertexCheckCount / sizeof(FSimpleElementVertex)))
-		, bEnableHDREncoding(true)
-	{
-	}
+	FBatchedElements();
 
 	/** Adds a line to the batch. Note only SE_BLEND_Opaque will be used for batched line rendering. */
 	void AddLine(const FVector& Start,const FVector& End,const FLinearColor& Color,FHitProxyId HitProxyId, float Thickness = 0.0f, float DepthBias = 0.0f, bool bScreenSpace = false);
@@ -238,8 +196,8 @@ public:
 		float UL,
 		float V,
 		float VL,
-		uint8 BlendMode = SE_BLEND_Masked,
-		float OpacityMaskRefVal = .5f
+		uint8 BlendMode,
+		float OpacityMaskRefVal
 		);
 
 	/**
@@ -304,7 +262,7 @@ private:
 		FVector Position;
 		float Size;
 		FColor Color;
-		FHitProxyId HitProxyId;
+		FColor HitProxyColor;
 	};
 	TArray<FBatchedPoint> Points;
 
@@ -322,7 +280,7 @@ private:
 		FVector End;
 		float Thickness;
 		FLinearColor Color;
-		FHitProxyId HitProxyId;
+		FColor HitProxyColor;
 		float DepthBias;
 		uint32 bScreenSpace;
 	};
@@ -335,7 +293,7 @@ private:
 		float SizeY;
 		const FTexture* Texture;
 		FLinearColor Color;
-		FHitProxyId HitProxyId;
+		FColor HitProxyColor;
 		float U;
 		float UL;
 		float V;
@@ -370,27 +328,6 @@ private:
 
 	TArray<FBatchedMeshElement,TInlineAllocator<2> > MeshElements;
 	TArray<FSimpleElementVertex,TInlineAllocator<4> > MeshVertices;
-
-	/** bound shader state for the fast path */
-	class FSimpleElementBSSContainer
-	{
-		static const uint32 NumBSS = (uint32)SE_BLEND_RGBA_MASK_START;
-		FGlobalBoundShaderState UnencodedBSS;
-		FGlobalBoundShaderState EncodedBSS[NumBSS];
-	public:
-		FGlobalBoundShaderState& GetBSS(bool bEncoded, ESimpleElementBlendMode BlendMode)
-		{
-			if (bEncoded)
-			{
-				check((uint32)BlendMode < NumBSS);
-				return EncodedBSS[BlendMode];
-			}
-			else
-			{
-				return UnencodedBSS;
-			}
-		}
-	};
 
 	/**
 	 * Sets the appropriate vertex and pixel shader.

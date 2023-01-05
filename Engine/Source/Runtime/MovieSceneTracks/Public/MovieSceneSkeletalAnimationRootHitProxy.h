@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HitProxies.h"
+#include "UObject/WeakObjectPtr.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "MovieSceneTrack.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
+#endif
 
 class UMovieSceneSkeletalAnimationSection;
 class  USkeletalMeshComponent;
@@ -16,18 +20,10 @@ struct HMovieSceneSkeletalAnimationRootHitProxy : public HHitProxy
 	DECLARE_HIT_PROXY( MOVIESCENETRACKS_API );
 
 	TWeakObjectPtr<UMovieSceneSkeletalAnimationSection> AnimSection;
-	
 	TWeakObjectPtr<USkeletalMeshComponent> SkelMeshComp;
 
-	HMovieSceneSkeletalAnimationRootHitProxy(UMovieSceneSkeletalAnimationSection* InSection, USkeletalMeshComponent* InSkelMeshComp) :
-		HHitProxy(HPP_UI),
-		AnimSection(InSection),
-		SkelMeshComp(InSkelMeshComp)
-	{}
+	MOVIESCENETRACKS_API HMovieSceneSkeletalAnimationRootHitProxy(UMovieSceneSkeletalAnimationSection* InSection, USkeletalMeshComponent* InSkelMeshComp);
 
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::CardinalCross;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
 };
 

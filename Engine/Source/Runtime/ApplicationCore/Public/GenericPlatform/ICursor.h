@@ -14,7 +14,7 @@ typedef struct tagRECT RECT;
  */
 namespace EMouseCursor
 {
-	enum Type
+	enum Type : int
 	{
 		/** Causes no mouse cursor to be visible */
 		None,

@@ -143,3 +143,8 @@ void HModel::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(Component);
 	Collector.AddReferencedObject(Model);
 }
+
+EMouseCursor::Type HModel::GetMouseCursor()
+{
+	return EMouseCursor::Crosshairs;
+}

@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HitProxies.h"
+#include "UObject/NameTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
 
 struct HIKRigEditorBoneProxy : public HHitProxy
 {
@@ -11,19 +15,10 @@ struct HIKRigEditorBoneProxy : public HHitProxy
 
 	FName BoneName;
 
-	HIKRigEditorBoneProxy(const FName& InBoneName)
-		: HHitProxy(HPP_World)
-		, BoneName(InBoneName) {}
+	HIKRigEditorBoneProxy(const FName& InBoneName);
 
-	virtual EMouseCursor::Type GetMouseCursor()
-	{
-		return EMouseCursor::Crosshairs;
-	}
-
-	virtual bool AlwaysAllowsTranslucentPrimitives() const override
-	{
-		return true;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
+	virtual bool AlwaysAllowsTranslucentPrimitives() const override;
 };
 
 struct HIKRigEditorGoalProxy : public HHitProxy
@@ -32,17 +27,8 @@ struct HIKRigEditorGoalProxy : public HHitProxy
 
 	FName GoalName;
 	
-	HIKRigEditorGoalProxy(const FName& InGoalName)
-		: HHitProxy(HPP_World)
-		, GoalName(InGoalName) {}
+	HIKRigEditorGoalProxy(const FName& InGoalName);
 
-	virtual EMouseCursor::Type GetMouseCursor()
-	{
-		return EMouseCursor::Crosshairs;
-	}
-
-	virtual bool AlwaysAllowsTranslucentPrimitives() const override
-	{
-		return true;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
+	virtual bool AlwaysAllowsTranslucentPrimitives() const override;
 };

@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HitProxies.h"
-#include "Sections/MovieScene3DTransformSection.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Sections/MovieScene3DTransformSection.h"
 #include "MovieSceneTrack.h"
+#endif
+
+class UMovieSceneTrack;
 
 struct HMovieSceneKeyProxy : public HHitProxy
 {
@@ -14,18 +20,12 @@ struct HMovieSceneKeyProxy : public HHitProxy
 
 	/** The track that contains the section */
 	TWeakObjectPtr<UMovieSceneTrack> MovieSceneTrack;
+
 	/** The trajectory key data */
 	FTrajectoryKey Key;
 
-	HMovieSceneKeyProxy(class UMovieSceneTrack* InTrack, const FTrajectoryKey& InKey) :
-		HHitProxy(HPP_UI),
-		MovieSceneTrack(InTrack),
-		Key(InKey)
-	{}
+	MOVIESCENETRACKS_API HMovieSceneKeyProxy(class UMovieSceneTrack* InTrack, const FTrajectoryKey& InKey);
 
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::Crosshairs;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
 };
 

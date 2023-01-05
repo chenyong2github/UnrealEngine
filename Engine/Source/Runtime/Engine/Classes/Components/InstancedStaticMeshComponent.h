@@ -525,11 +525,7 @@ struct HInstancedStaticMeshInstance : public HHitProxy
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FTypedElementHandle GetElementHandle() const override;
-
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::Crosshairs;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
 };
 
 /** Used to store lightmap data during RerunConstructionScripts */

@@ -6,15 +6,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/RefCounting.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "GenericPlatform/ICursor.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#endif
 
 #include "HitProxies.generated.h"
 
 class FReferenceCollector;
+struct FTypedElementHandle;
+
+namespace EMouseCursor { enum Type : int; }
 
 /**
  * The priority a hit proxy has when choosing between several hit proxies near the point the user clicked.
@@ -165,10 +171,7 @@ public:
 	/**
 		Override to change the mouse based on what it is hovering over.
 	*/
-	virtual EMouseCursor::Type GetMouseCursor()
-	{
-		return EMouseCursor::Default;
-	}
+	ENGINE_API virtual EMouseCursor::Type GetMouseCursor();
 
 	/**
 	 * Method that specifies whether the hit proxy *always* allows translucent primitives to be associated with it or not,

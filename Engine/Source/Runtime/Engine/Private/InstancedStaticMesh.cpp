@@ -236,6 +236,11 @@ FTypedElementHandle HInstancedStaticMeshInstance::GetElementHandle() const
 	return FTypedElementHandle();
 }
 
+EMouseCursor::Type HInstancedStaticMeshInstance::GetMouseCursor()
+{
+	return EMouseCursor::Crosshairs;
+}
+
 FInstanceUpdateCmdBuffer::FInstanceUpdateCmdBuffer()
 	: NumAdds(0),
 	  NumUpdates(0),

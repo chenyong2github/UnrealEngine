@@ -36,10 +36,7 @@ public:
 
 	// HHitProxy interface.
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::Crosshairs;
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
 
 	// Accessors.
 	UModelComponent* GetModelComponent() const { return Component; }

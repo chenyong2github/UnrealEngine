@@ -2,13 +2,18 @@
 
 #pragma once
 
+#include "EngineUtils.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
-#include "EngineUtils.h"
 #include "LandscapeSplinesComponent.h"
 #include "LandscapeSplineControlPoint.h"
 #include "LandscapeSplineSegment.h"
+#endif
 
+class ULandscapeSplineControlPoint;
+class ULandscapeSplinesComponent;
 class ULandscapeSplineSegment;
 
 //////////////////////////////////////////////////////////////////////////
@@ -18,48 +23,28 @@ struct HLandscapeSplineProxy : public HActor
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	HLandscapeSplineProxy(ULandscapeSplinesComponent* SplineComponent, EHitProxyPriority InPriority = HPP_Wireframe) :
-		HActor(SplineComponent->GetOwner(), SplineComponent, InPriority)
-	{
-	}
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::Crosshairs;
-	}
+	HLandscapeSplineProxy(ULandscapeSplinesComponent* SplineComponent, EHitProxyPriority InPriority = HPP_Wireframe);
+	virtual EMouseCursor::Type GetMouseCursor() override;
 };
 
 struct HLandscapeSplineProxy_Segment : public HLandscapeSplineProxy
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	class ULandscapeSplineSegment* SplineSegment;
+	ULandscapeSplineSegment* SplineSegment;
 
-	HLandscapeSplineProxy_Segment(class ULandscapeSplineSegment* InSplineSegment) :
-		HLandscapeSplineProxy(InSplineSegment->GetOuterULandscapeSplinesComponent()),
-		SplineSegment(InSplineSegment)
-	{
-	}
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
-	{
-		Collector.AddReferencedObject( SplineSegment );
-	}
+	HLandscapeSplineProxy_Segment(ULandscapeSplineSegment* InSplineSegment);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 };
 
 struct HLandscapeSplineProxy_ControlPoint : public HLandscapeSplineProxy
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	class ULandscapeSplineControlPoint* ControlPoint;
+	ULandscapeSplineControlPoint* ControlPoint;
 
-	HLandscapeSplineProxy_ControlPoint(class ULandscapeSplineControlPoint* InControlPoint) :
-		HLandscapeSplineProxy(InControlPoint->GetOuterULandscapeSplinesComponent(), HPP_Foreground),
-		ControlPoint(InControlPoint)
-	{
-	}
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
-	{
-		Collector.AddReferencedObject( ControlPoint );
-	}
+	HLandscapeSplineProxy_ControlPoint(ULandscapeSplineControlPoint* InControlPoint);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 };
 
 struct HLandscapeSplineProxy_Tangent : public HLandscapeSplineProxy
@@ -69,21 +54,9 @@ struct HLandscapeSplineProxy_Tangent : public HLandscapeSplineProxy
 	ULandscapeSplineSegment* SplineSegment;
 	uint32 End:1;
 
-	HLandscapeSplineProxy_Tangent(class ULandscapeSplineSegment* InSplineSegment, bool InEnd) :
-		HLandscapeSplineProxy(InSplineSegment->GetOuterULandscapeSplinesComponent(), HPP_UI),
-		SplineSegment(InSplineSegment),
-		End(InEnd)
-	{
-	}
+	LANDSCAPE_API HLandscapeSplineProxy_Tangent(ULandscapeSplineSegment* InSplineSegment, bool InEnd);
 	LANDSCAPE_API virtual void Serialize(FArchive& Ar);
 
-	virtual EMouseCursor::Type GetMouseCursor() override
-	{
-		return EMouseCursor::CardinalCross;
-	}
-
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
-	{
-		Collector.AddReferencedObject( SplineSegment );
-	}
+	virtual EMouseCursor::Type GetMouseCursor() override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 };

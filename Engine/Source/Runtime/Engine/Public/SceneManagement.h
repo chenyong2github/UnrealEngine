@@ -32,6 +32,7 @@
 #include "LightmapUniformShaderParameters.h"
 #include "DynamicBufferAllocator.h"
 #include "Rendering/SkyAtmosphereCommonData.h"
+#include "Math/SHMath.h"
 
 class FCanvas;
 class FGlobalDynamicIndexBuffer;
@@ -43,6 +44,7 @@ class FLightSceneInfo;
 class FLightSceneProxy;
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
+class FScene;
 class FSceneViewState;
 class FShadowMap;
 class FStaticMeshRenderData;
@@ -62,6 +64,9 @@ class ULightMapVirtualTexture2D;
 class FGPUScenePrimitiveCollector;
 class FVirtualShadowMapArrayCacheManager;
 class FRayTracingGeometry;
+struct FViewMatrices;
+struct FEngineShowFlags;
+class FViewport;
 
 namespace UE { namespace Color { class FColorSpace; } }
 
@@ -310,29 +315,11 @@ private:
 	friend class FScene;
 };
 
-class FFrozenSceneViewMatricesGuard
+class ENGINE_API FFrozenSceneViewMatricesGuard
 {
 public:
-	FFrozenSceneViewMatricesGuard(FSceneView& SV)
-		: SceneView(SV)
-	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (SceneView.State)
-		{
-			SceneView.State->ActivateFrozenViewMatrices(SceneView);
-		}
-#endif
-	}
-
-	~FFrozenSceneViewMatricesGuard()
-	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (SceneView.State)
-		{
-			SceneView.State->RestoreUnfrozenViewMatrices(SceneView);
-		}
-#endif
-	}
+	FFrozenSceneViewMatricesGuard(FSceneView& SV);
+	~FFrozenSceneViewMatricesGuard();
 
 private:
 	FSceneView& SceneView;

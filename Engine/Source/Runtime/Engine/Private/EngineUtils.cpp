@@ -14,6 +14,7 @@
 #include "Misc/EngineVersion.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
+#include "GenericPlatform/ICursor.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
@@ -38,6 +39,17 @@ IMPLEMENT_HIT_PROXY(HTranslucentActor,HActor)
 
 #define LOCTEXT_NAMESPACE "EngineUtils"
 
+void HActor::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(Actor);
+	Collector.AddReferencedObject(PrimComponent);
+}
+
+EMouseCursor::Type HActor::GetMouseCursor()
+{
+	return EMouseCursor::Crosshairs;
+}
+
 FTypedElementHandle HActor::GetElementHandle() const
 {
 #if WITH_EDITOR
@@ -60,6 +72,16 @@ bool HActor::AlwaysAllowsTranslucentPrimitives() const
 #endif
 
 	return false;
+}
+
+EMouseCursor::Type HTranslucentActor::GetMouseCursor()
+{
+	return EMouseCursor::Crosshairs;
+}
+
+bool HTranslucentActor::AlwaysAllowsTranslucentPrimitives() const
+{
+	return true;
 }
 
 #if !UE_BUILD_SHIPPING
