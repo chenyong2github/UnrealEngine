@@ -609,7 +609,9 @@ void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 		check(!GeneratedResourcesInaccessible);
 		for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 		{
-			if (GeneratedResources[ResourceIndex]->Release(bRemoveComponents, ActorsToDelete))
+			// Note: resources can be null here in some loading + bp object cases
+			UPCGManagedResource* Resource = GeneratedResources[ResourceIndex];
+			if (!Resource || Resource->Release(bRemoveComponents, ActorsToDelete))
 			{
 				GeneratedResources.RemoveAtSwap(ResourceIndex);
 			}
