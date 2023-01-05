@@ -788,6 +788,11 @@ namespace AssetRegistry
 	 */
 	ASSETREGISTRY_API const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, bool bRequireOneTopLevelAsset);
 
+	/*
+	* Returns true if the asset registry should start searching all assets on startup
+	*/
+	ASSETREGISTRY_API bool ShouldSearchAllAssetsAtStart();
+
 	// Wildcards (*) used when looking up assets in the asset registry
 	extern ASSETREGISTRY_API const FName WildcardFName;
 	extern ASSETREGISTRY_API const FTopLevelAssetPath WildcardPathName;

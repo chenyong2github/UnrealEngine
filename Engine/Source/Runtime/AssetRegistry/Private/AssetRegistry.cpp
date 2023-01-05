@@ -805,17 +805,7 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 	Utils::InitializeSerializationOptionsFromIni(SerializationOptions, FString());
 	Utils::InitializeSerializationOptionsFromIni(DevelopmentSerializationOptions, FString(), UE::AssetRegistry::ESerializationTarget::ForDevelopment);
 
-	// If in the editor or cookcommandlet, we start the GlobalGatherer now
-	// In the game or other commandlets, we do not construct it until project or commandlet code calls SearchAllAssets or ScanPathsSynchronous
-	bool bSearchAllAssetsAtStart = GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet());
-#if !UE_BUILD_SHIPPING
-	bool bCommandlineAllAssetsAtStart;
-	if (FParse::Bool(FCommandLine::Get(), TEXT("AssetGatherAll="), bCommandlineAllAssetsAtStart))
-	{
-		bSearchAllAssetsAtStart = bCommandlineAllAssetsAtStart;
-	}
-#endif
-	if (bSearchAllAssetsAtStart)
+	if (ShouldSearchAllAssetsAtStart())
 	{
 		ConstructGatherer();
 		if (!GlobalGatherer->IsSynchronous())
@@ -6823,6 +6813,21 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 
 	OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas, false);
 
+}
+
+bool ShouldSearchAllAssetsAtStart()
+{
+	// If in the editor or cookcommandlet, we start the GlobalGatherer now
+	// In the game or other commandlets, we do not construct it until project or commandlet code calls SearchAllAssets or ScanPathsSynchronous
+	bool bSearchAllAssetsAtStart = GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet());
+#if !UE_BUILD_SHIPPING
+	bool bCommandlineAllAssetsAtStart;
+	if (FParse::Bool(FCommandLine::Get(), TEXT("AssetGatherAll="), bCommandlineAllAssetsAtStart))
+	{
+		bSearchAllAssetsAtStart = bCommandlineAllAssetsAtStart;
+	}
+#endif // !UE_BUILD_SHIPPING
+	return bSearchAllAssetsAtStart;
 }
 
 } // namespace AssetRegistry
