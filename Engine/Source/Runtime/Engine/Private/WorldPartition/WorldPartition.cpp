@@ -1118,6 +1118,11 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 
 	HashActorDesc(NewActorDesc);
 
+	if (AActor* NewActor = NewActorDesc->GetActor())
+	{
+		DirtyActors.Add(FWorldPartitionReference(NewActorDesc->GetContainer(), NewActorDesc->GetGuid()), NewActor);
+	}
+
 	if (ForceLoadedActors)
 	{
 		ForceLoadedActors->AddActors({ NewActorDesc->GetGuid() });
