@@ -1198,6 +1198,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 					RayTracingInstance.DefaultUserData = PrimitiveIndex;
 					RayTracingInstance.bApplyLocalBoundsTransform = Instance.bApplyLocalBoundsTransform;
+					RayTracingInstance.LayerIndex = (uint8)(Instance.MaskAndFlags.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
 					RayTracingInstance.Mask = Instance.MaskAndFlags.Mask;
 
 					if (Instance.MaskAndFlags.bForceOpaque)
@@ -1461,7 +1462,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						continue;
 					}
 
-					const int32 NewInstanceIndex = RayTracingScene.Instances.Num();
+					checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
+					const int32 NewInstanceIndex = RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
+					FRayTracingGeometryInstance& NewInstance = RayTracingScene.Instances[NewInstanceIndex];
+
+					NewInstance.LayerIndex = (uint8)(RelevantPrimitive.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
 
 					// At the moment we only support SM & ISMs on this path
 					check(EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands));
@@ -1477,9 +1482,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						}
 					}
 
-					checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-					RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
-
 					if (bEnableInstanceDebugData)
 					{
 						RayTracingScene.AddInstanceDebugData(SceneInfo->CachedRayTracingInstance.GeometryRHI, SceneInfo->Proxy, false);
@@ -1490,8 +1492,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 					if (CullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance() && SceneInfo->CachedRayTracingInstance.NumTransforms > 1 && !bUseGroupBounds)
 					{
-						FRayTracingGeometryInstance& NewInstance = RayTracingScene.Instances.Last();
-
 						const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::FarField);
 
 						TArrayView<uint32> InstanceActivationMask = RayTracingScene.Allocate<uint32>(FMath::DivideAndRoundUp(NewInstance.NumTransforms, 32u));
@@ -1520,7 +1520,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						}
 					}
 
-					AddDebugRayTracingInstanceFlags(RayTracingScene.Instances.Last().Flags);
+					AddDebugRayTracingInstanceFlags(NewInstance.Flags);
 				}
 				else
 				{
@@ -1613,6 +1613,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 							RayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 						}
 						AddDebugRayTracingInstanceFlags(RayTracingInstance.Flags);
+
+						RayTracingInstance.LayerIndex = (uint8)(RelevantPrimitive.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
 					}
 				}
 			}

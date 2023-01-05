@@ -918,7 +918,7 @@ CHECK_RT_PAYLOAD_SIZE(FPackedMaterialClosestHitPayload)
 #define DECAL_WRITE_EMISSIVE_FLAG						(1 << 3)
 #define DECAL_WRITE_AMBIENT_OCCLUSION_FLAG				(1 << 4)
 
-#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS)
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS | RT_PAYLOAD_TYPE_MESH_DECALS)
 struct FDecalShaderParams
 {
 	float Data[15];
@@ -970,7 +970,18 @@ struct FDecalShaderParams
 	}
 	float3 GetEmissive() { return float3(Data[12], Data[13], Data[14]); }
 };
+#endif
+
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS)
 CHECK_RT_PAYLOAD_SIZE(FDecalShaderParams)
+#endif
+
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_MESH_DECALS)
+struct FRayTracingDecalPayload : FMinimalPayload
+{
+	FDecalShaderParams Params;
+};
+CHECK_RT_PAYLOAD_SIZE(FRayTracingDecalPayload)
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

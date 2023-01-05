@@ -54,6 +54,8 @@ uint SamplerType;
 uint VisualizeLightGrid;
 uint VisualizeDecalGrid;
 float DecalRoughnessCutoff;
+float MeshDecalRoughnessCutoff;
+float MeshDecalBias;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
@@ -65,6 +67,7 @@ RWTexture2D<float4> RadianceTexture;
 RWTexture2D<float4> AlbedoTexture;
 RWTexture2D<float4> NormalTexture;
 RaytracingAccelerationStructure TLAS;
+RaytracingAccelerationStructure DecalTLAS;
 uint SceneVisibleLightCount;
 
 Buffer<float> StartingExtinctionCoefficient;
@@ -368,6 +371,39 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 		// Unpack the payload
 		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray);
+
+		if (PathState.PathRoughness < MeshDecalRoughnessCutoff && HitPayload.IsDecalReceiver())
+		{
+			FRayDesc DecalRay;
+			DecalRay.Direction = HitPayload.WorldGeoNormal;
+			DecalRay.Origin = HitPayload.TranslatedWorldPos - DecalRay.Direction * MeshDecalBias;
+			DecalRay.TMin = 0.0f;
+			DecalRay.TMax = MeshDecalBias * 2;
+
+			FRayTracingDecalPayload DecalPayload = (FRayTracingDecalPayload)0;
+			DecalPayload.Params.SetInputTranslatedWorldPosition(HitPayload.TranslatedWorldPos);
+
+			TraceRay(
+				DecalTLAS,
+				RAY_FLAG_CULL_FRONT_FACING_TRIANGLES,
+				InstanceInclusionMask,
+				RAY_TRACING_SHADER_SLOT_MATERIAL,
+				RAY_TRACING_NUM_SHADER_SLOTS,
+				MissShaderIndex,
+				DecalRay.GetNativeDesc(),
+				DecalPayload);
+
+			if (!DecalPayload.IsMiss())
+			{
+				ApplyDecal(HitPayload, DecalPayload.Params);
+
+				if (ApproximateCaustics)
+				{
+					Payload.Roughness = max(Payload.Roughness, PathState.PathRoughness);
+				}
+				HitPayload.WorldNormal = AdjustShadingNormal(HitPayload.WorldNormal, HitPayload.WorldGeoNormal, PathState.Ray.Direction);
+			}
+		}
 
 #if PLATFORM_SUPPORTS_CALLABLE_SHADERS
 		if (PathState.PathRoughness < DecalRoughnessCutoff && HitPayload.IsDecalReceiver())

@@ -26,6 +26,7 @@ class FRDGBuilder;
 enum class ERayTracingSceneLayer : uint8
 {
 	Base,
+	Decals,
 
 	NUM
 };

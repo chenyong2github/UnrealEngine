@@ -23,6 +23,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "PathTracingDefinitions.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracing/RayTracingDecals.h"
+#include "DecalRenderingCommon.h"
 #include "GenerateMips.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Modules/ModuleManager.h"
@@ -280,7 +281,21 @@ TAutoConsoleVariable<int32> CVarPathTracingDecalGridVisualize(
 TAutoConsoleVariable<float> CVarPathTracingDecalRoughnessCutoff(
 	TEXT("r.PathTracing.DecalRoughnessCutoff"),
 	0.15f,
-	TEXT("Do not evaluate decals beyond this roughness level to improve performance (default=0.15)\n"),
+	TEXT("Do not evaluate decals beyond this roughness level to improve performance (default=0.15)"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> CVarPathTracingMeshDecalRoughnessCutoff(
+	TEXT("r.PathTracing.MeshDecalRoughnessCutoff"),
+	0.15f,
+	TEXT("Do not evaluate mesh decals beyond this roughness level to improve performance (default=0.15)"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> CVarPathTracingMeshDecalBias(
+	TEXT("r.PathTracing.MeshDecalBias"),
+	1.0f,
+	TEXT("Bias applied to mesh decal rays to avoid intersection with geometry (default = 1.0f)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -318,6 +333,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, FilterWidth)
 	SHADER_PARAMETER(float, AbsorptionScale)
 	SHADER_PARAMETER(float, DecalRoughnessCutoff)
+	SHADER_PARAMETER(float, MeshDecalRoughnessCutoff)
+	SHADER_PARAMETER(float, MeshDecalBias)
 	SHADER_PARAMETER(float, CameraFocusDistance)
 	SHADER_PARAMETER(FVector2f, CameraLensRadius)
 END_SHADER_PARAMETER_STRUCT()
@@ -359,6 +376,8 @@ struct FPathTracingConfig
 			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
 			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
 			PathTracingData.DecalRoughnessCutoff != Other.PathTracingData.DecalRoughnessCutoff ||
+			PathTracingData.MeshDecalRoughnessCutoff != Other.PathTracingData.MeshDecalRoughnessCutoff ||
+			PathTracingData.MeshDecalBias != Other.PathTracingData.MeshDecalBias ||
 			PathTracingData.MaxRaymarchSteps != Other.PathTracingData.MaxRaymarchSteps ||
 			ViewRect != Other.ViewRect ||
 			LightShowFlags != Other.LightShowFlags ||
@@ -533,6 +552,9 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 			Scene->ExponentialFogs[0].FogData[1].Density > 0);
 
 	PathTracingData.DecalRoughnessCutoff = PathTracing::UsesDecals(*View.Family) && View.bHasRayTracingDecals ? CVarPathTracingDecalRoughnessCutoff.GetValueOnRenderThread() : -1.0f;
+
+	PathTracingData.MeshDecalRoughnessCutoff = PathTracing::UsesDecals(*View.Family) && Scene->RayTracingScene.GetRHIRayTracingScene()->GetInitializer().NumNativeInstancesPerLayer[(uint32)ERayTracingSceneLayer::Decals] > 0 ? CVarPathTracingMeshDecalRoughnessCutoff.GetValueOnRenderThread() : -1.0f;
+	PathTracingData.MeshDecalBias = CVarPathTracingMeshDecalBias.GetValueOnRenderThread();
 
 	PathTracingData.MaxRaymarchSteps = CVarPathTracingMaxRaymarchSteps.GetValueOnRenderThread();
 }
@@ -721,7 +743,7 @@ class FPathTracingRG : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::PathTracingMaterial | ERayTracingPayloadType::Decals;
+		return ERayTracingPayloadType::PathTracingMaterial | ERayTracingPayloadType::Decals | ERayTracingPayloadType::MeshDecals;
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -729,6 +751,7 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, AlbedoTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, NormalTexture)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, DecalTLAS)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingData, PathTracingData)
@@ -1281,20 +1304,29 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 
 	const bool bUseProceduralPrimitive = MeshBatch.VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() &&
 		FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
+
+	const bool bIsDecal = MaterialResource.GetMaterialDomain() == MD_DeferredDecal;
+	FShaderType* DecalShaderType_CHS = GetRayTracingDecalMaterialShaderType(false);
+	FShaderType* DecalShaderType_CHS_AHS = GetRayTracingDecalMaterialShaderType(true);
+
 	switch (RayTracingMeshCommandsMode)
 	{
 		case ERayTracingMeshCommandsMode::PATH_TRACING:
 		{
 			if (NeedsAnyHitShader(MaterialResource))
 			{
-				if (bUseProceduralPrimitive)
+				if (bIsDecal)
+					ShaderTypes.AddShaderType(DecalShaderType_CHS_AHS);
+				else if (bUseProceduralPrimitive)
 					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
 				else
 					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
 			}
 			else
 			{
-				if (bUseProceduralPrimitive)
+				if (bIsDecal)
+					ShaderTypes.AddShaderType(DecalShaderType_CHS);
+				else if (bUseProceduralPrimitive)
 					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
 				else
 					ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
@@ -2308,6 +2340,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 						{
 							FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
 							PassParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
+							PassParameters->DecalTLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Decals);
 							PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 							PassParameters->PathTracingData = Config.PathTracingData;
 							PassParameters->StartingExtinctionCoefficient = GraphBuilder.CreateSRV(StartingExtinctionCoefficient, PF_R32_FLOAT);

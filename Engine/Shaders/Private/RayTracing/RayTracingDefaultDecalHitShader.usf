@@ -1,0 +1,25 @@
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDefaultOpaqueDecalMaterialCHS,
+	FRayTracingDecalPayload, Payload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	Payload.HitT = RayTCurrent();
+
+	Payload.Params.SetOpacity(1.0f);
+	Payload.Params.SetBaseColor(float3(0, 0, 0));
+	Payload.Params.SetFlags(DECAL_WRITE_BASE_COLOR_FLAG);
+}
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDefaultHiddenDecalMaterialCHS,
+	FRayTracingDecalPayload, Payload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+}
+
+RAY_TRACING_ENTRY_ANY_HIT(RayTracingDefaultHiddenDecalMaterialAHS,
+	FRayTracingDecalPayload, Payload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	IgnoreHit();
+}

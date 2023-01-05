@@ -15,8 +15,6 @@
 #define DecalParams RayTracingDecalParameters.DecalParams
 #define DecalWriteFlags RayTracingDecalParameters.DecalWriteFlags
 
-// DECAL_PRIMITIVE informs material templates which functions to expose when rendering decals.
-#define DECAL_PRIMITIVE 1
 #include "/Engine/Generated/Material.ush"
 
 RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Params)
@@ -96,3 +94,131 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Pa
 
 	Params.SetFlags(DecalWriteFlags);
 }
+
+#if RAYHITGROUPSHADER
+
+#ifdef NEEDS_VERTEX_FACTORY_INTERPOLATION
+#undef NEEDS_VERTEX_FACTORY_INTERPOLATION
+#endif
+// Needed for VertexFactoryInterpolate to interpolate attributes from vertices to hit point
+#define NEEDS_VERTEX_FACTORY_INTERPOLATION 1
+
+#include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
+
+#include "/Engine/Generated/VertexFactory.ush"
+
+#include "/Engine/Private/RayTracing/RayTracingCalcInterpolants.ush"
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDecalMaterialCHS,
+	FRayTracingDecalPayload, Payload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	Payload.HitT = RayTCurrent();
+
+	ResolvedView = ResolveView();
+
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+	const float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
+
+#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
+	// this is a newer codepath that is both more flexible and allows for more direct calculation compared to the other codepath
+	// TODO: implement such a method for all vertex factories
+	float3 GeoNormal = 0;
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(TranslatedWorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
+#else
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	float3 GeoNormal = 0;
+	CalcInterpolants((FRayCone)0, Attributes, Interpolants, GeoNormal);
+
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+#endif
+	FPixelMaterialInputs PixelMaterialInputs;
+
+	{
+		const float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
+
+		// #dxr_todo: UE-72130 support world position offset 
+		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
+		// #else
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+		// #endif
+	}
+	
+	Payload.Params.SetOpacity(GetMaterialOpacity(PixelMaterialInputs));
+
+	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_BASE_COLOR_FLAG)
+	{
+		Payload.Params.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs));
+	}
+
+	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_NORMAL_FLAG)
+	{
+		Payload.Params.SetWorldNormal(-MaterialParameters.WorldNormal);
+	}
+
+	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
+	{
+		Payload.Params.SetMetallic(GetMaterialMetallic(PixelMaterialInputs));
+		Payload.Params.SetSpecular(GetMaterialSpecular(PixelMaterialInputs));
+		Payload.Params.SetRoughness(GetMaterialRoughness(PixelMaterialInputs));
+	}
+
+	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
+	{
+		Payload.Params.SetAO(GetMaterialAmbientOcclusion(PixelMaterialInputs));
+	}
+
+	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_EMISSIVE_FLAG)
+	{
+		Payload.Params.SetEmissive(GetMaterialEmissive(PixelMaterialInputs));
+	}
+
+	Payload.Params.SetFlags(DECAL_PAYLOAD_FLAGS);
+
+	return;
+}
+
+RAY_TRACING_ENTRY_ANY_HIT(RayTracingDecalMaterialAHS,
+	FRayTracingDecalPayload, Payload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	ResolvedView = ResolveView();
+
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+	const float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
+
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+
+	CalcInterpolants((FRayCone)0, Attributes, Interpolants);
+
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+	FPixelMaterialInputs PixelMaterialInputs;
+
+	const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
+
+	{
+		const float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+
+		MaterialParameters.CameraVector = -WorldRayDirection();
+
+		// #dxr_todo: UE-72130 support world position offset 
+		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
+		// #else
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+		// #endif
+	}
+
+	// We don't support blending of mesh decals in ray tracing at the moment.
+	// Instead we only use alpha masking to provide some limited overlap support, especially useful when large meshes are used to render sparse decals.
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	if (Opacity <= 0.01f)
+	{
+		IgnoreHit();
+		return;
+	}
+}
+
+#endif // RAYHITGROUPSHADER
