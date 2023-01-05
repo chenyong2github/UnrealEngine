@@ -5,6 +5,8 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectPtr.h"
 
+class IMovieSceneConstrainedSection;
+struct ITransformConstraintChannelInterface;
 class UWorld;
 class UTickableConstraint;
 class ISequencer;
@@ -40,15 +42,25 @@ struct MOVIESCENETOOLS_API FMovieSceneConstraintChannelHelper
 {
 public:
 
-	/** Compensate transform on handles when a constraint switches state. 
+	/** Adds an active key if needed and does the compensation when switching. Will use the optional active and time if set. 
+	Will return true if key is actually set, may not be if the value is the same.*/
+	static bool SmartConstraintKey(
+		const TSharedPtr<ISequencer>& InSequencer,
+		UTickableTransformConstraint* InConstraint, 
+		const TOptional<bool>& InOptActive,
+		const TOptional<FFrameNumber>& InOptFrameTime);
+	
+	/** Compensate transform on handles when a constraint switches state. */
 	static void Compensate(
-		UTickableTransformConstraint* InConstraint,
-		const bool bAllTimes = false);
-		*/
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UTickableTransformConstraint* InConstraint,
+		const TOptional<FFrameNumber>& InOptTime);
+	
 	static void CompensateIfNeeded(
 		const TSharedPtr<ISequencer>& InSequencer,
-		UMovieSceneSection* Section,
-		const TOptional<FFrameNumber>& OptionalTime);
+		IMovieSceneConstrainedSection* Section,
+		const TOptional<FFrameNumber>& OptionalTime,
+		const int32 InChildHash = INDEX_NONE);
 		
 	static void HandleConstraintRemoved(
 		UTickableConstraint* InConstraint,
@@ -108,4 +120,10 @@ public:
 
 	static bool bDoNotCompensate;
 
+private:
+	/** Get the animatable interface for that handle if registered. */
+	static ITransformConstraintChannelInterface* GetHandleInterface(const UTransformableHandle* InHandle);
+	
+	/** For the given handle create any movie scene binding for it based upon the current sequencer that's open*/
+	static void CreateBindingIDForHandle(const TSharedPtr<ISequencer>& InSequencer, UTransformableHandle* InHandle);
 };

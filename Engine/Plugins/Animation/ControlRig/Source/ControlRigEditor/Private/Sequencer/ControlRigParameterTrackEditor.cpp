@@ -79,8 +79,7 @@
 #include "TransformConstraint.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/TransactionObjectEvent.h"
-#include "ConstraintChannelHelper.h"
-#include "MovieSceneConstraintChannelHelper.h"
+#include "Constraints/MovieSceneConstraintChannelHelper.h"
 #include "Constraints/ControlRigTransformableHandle.h"
 #include "PropertyEditorModule.h"
 
@@ -3473,8 +3472,7 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRigHandle(US
 
 				// compensate constraints
 				const uint32 ControlHash = UTransformableControlHandle::ComputeHash(SectionControlRig, RigControlName);
-				FConstraintChannelHelper::CompensateIfNeeded(
-					SectionControlRig->GetWorld(), GetSequencer(), ParamSection, OptionalKeyTime, ControlHash);
+				FMovieSceneConstraintChannelHelper::CompensateIfNeeded(GetSequencer(), ParamSection, OptionalKeyTime, ControlHash);
 			}
 		}
 	}

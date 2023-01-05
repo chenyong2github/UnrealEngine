@@ -45,7 +45,7 @@
 #include "EditorScriptingHelpers.h"
 #include "ConstraintsScripting.h"
 #include "Constraints/ControlRigTransformableHandle.h"
-#include "ConstraintChannelHelper.h"
+#include "Constraints/MovieSceneConstraintChannelHelper.h"
 #include "Sections/MovieSceneConstrainedSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequencerEditorLibrary)
@@ -469,7 +469,11 @@ UTickableConstraint* UControlRigSequencerEditorLibrary::AddConstraint(UWorld* Wo
 	}
 	
 	//add key
-	FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(), TOptional<FFrameNumber>());
+	const TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset();
+	if (WeakSequencer.IsValid())
+	{
+		FMovieSceneConstraintChannelHelper::SmartConstraintKey(WeakSequencer.Pin(), Constraint, TOptional<bool>(), TOptional<FFrameNumber>());
+	}
 	return Constraint;
 }
 
@@ -509,7 +513,7 @@ bool UControlRigSequencerEditorLibrary::Compensate(UTickableConstraint* InConstr
 			InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), DisplayRate, TickResolution).RoundToFrame();
 		}
 		TOptional<FFrameNumber> OptTime(InTime);
-		FConstraintChannelHelper::Compensate(Constraint, OptTime);
+		FMovieSceneConstraintChannelHelper::Compensate(Sequencer, Constraint, OptTime);
 		return true;
 	}
 	else
@@ -529,7 +533,7 @@ bool UControlRigSequencerEditorLibrary::CompensateAll(UTickableConstraint* InCon
 	}
 	if (UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint))
 	{
-		FConstraintChannelHelper::Compensate(Constraint, TOptional<FFrameNumber>());
+		FMovieSceneConstraintChannelHelper::Compensate(WeakSequencer.Pin(), Constraint, TOptional<FFrameNumber>());
 		return true;
 	}
 	else
@@ -558,7 +562,7 @@ bool UControlRigSequencerEditorLibrary::SetConstraintActiveKey(UTickableConstrai
 		{
 			InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), DisplayRate, TickResolution).RoundToFrame();
 		}
-		return FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(bActive), TOptional<FFrameNumber>(InTime));
+		return FMovieSceneConstraintChannelHelper::SmartConstraintKey(Sequencer, Constraint, TOptional<bool>(bActive), TOptional<FFrameNumber>(InTime));
 	}
 	else
 	{

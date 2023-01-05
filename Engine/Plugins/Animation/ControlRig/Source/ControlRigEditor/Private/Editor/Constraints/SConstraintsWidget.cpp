@@ -3,7 +3,7 @@
 #include "SConstraintsWidget.h"
 
 #include "ActorPickerMode.h"
-#include "ConstraintChannelHelper.h"
+#include "Constraints/MovieSceneConstraintChannelHelper.h"
 #include "ConstraintsActor.h"
 #include "ControlRigEditorStyle.h"
 #include "DetailLayoutBuilder.h"
@@ -107,6 +107,23 @@ TArray<AActor*> GetCurrentSelection()
 	{
 		return IsValid(Actor) && Actor->IsSelected();
 	});	
+}
+
+TWeakPtr<ISequencer> GetSequencerChecked()
+{
+	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
+	if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
+	{
+		return nullptr;
+	}
+	
+	const UMovieScene* MovieScene = WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!MovieScene)
+	{
+		return nullptr;
+	}
+
+	return WeakSequencer;
 }
 	
 }
@@ -301,8 +318,10 @@ void SDroppableConstraintItem::CreateConstraint(
 		return Component->HasAnySockets();
 	});
 
+	const TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
+	
 	// create constraints
-	auto CreateConstraint = [InCreationDelegate, InConstraintType](
+	auto CreateConstraint = [InCreationDelegate, InConstraintType, WeakSequencer](
 		const TArray<AActor*>& Selection, UObject* InParent, const FName& InSocketName)
 	{
 		UWorld* World = GetCurrentWorld();
@@ -321,8 +340,11 @@ void SDroppableConstraintItem::CreateConstraint(
 					FTransformConstraintUtils::CreateAndAddFromObjects(World, InParent, InSocketName, Child, NAME_None, InConstraintType);
 				if (Constraint)
 				{
-					FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(), TOptional<FFrameNumber>());
 					bCreated = true;
+					if (WeakSequencer.IsValid())
+					{
+						FMovieSceneConstraintChannelHelper::SmartConstraintKey(WeakSequencer.Pin(), Constraint, TOptional<bool>(), TOptional<FFrameNumber>());
+					}
 				}
 			}
 		}
@@ -476,6 +498,9 @@ void SEditableConstraintItem::Construct(
 	};
 	UTickableConstraint* Constraint = GetConstraint();
 
+	// sequencer
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
+	
 	// labels
 	FString ParentLabel(TEXT("undefined")), ChildLabel(TEXT("undefined"));
 	if (!InItem->Label.IsEmpty())
@@ -581,26 +606,32 @@ void SEditableConstraintItem::Construct(
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.ContentPadding(0)
-			.OnClicked_Lambda(	[Constraint]()
+			.OnClicked_Lambda(	[Constraint, WeakSequencer]()
 			{
 				if (!IsValid(Constraint))
 				{
 					return FReply::Handled();
 				}
+
+				if (!WeakSequencer.IsValid())
+				{
+					return FReply::Handled();
+				}
+				
 				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 				{
 					FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
-					FConstraintChannelHelper::SmartConstraintKey(TransformConstraint,TOptional<bool>(), TOptional<FFrameNumber>());
+					FMovieSceneConstraintChannelHelper::SmartConstraintKey(WeakSequencer.Pin(), TransformConstraint,TOptional<bool>(), TOptional<FFrameNumber>());
 				}
 				return FReply::Handled();
 			})
-			.IsEnabled_Lambda([]()
+			.IsEnabled_Lambda([WeakSequencer]()
 			{
-				return FConstraintChannelHelper::IsKeyframingAvailable();
+				return WeakSequencer.IsValid();
 			})
-			.Visibility_Lambda([]()
+			.Visibility_Lambda([WeakSequencer]()
 			{
-				const bool bIsKeyframingAvailable = FConstraintChannelHelper::IsKeyframingAvailable();
+				const bool bIsKeyframingAvailable = WeakSequencer.IsValid();
 				return bIsKeyframingAvailable ? EVisibility::Visible : EVisibility::Hidden;
 			})
 			.ToolTipText(LOCTEXT("KeyConstraintToolTip", "Add an active keyframe for that constraint."))
@@ -1042,14 +1073,8 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 				{
 					if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 					{
-						const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
-						if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
-						{
-							return;
-						}
-						const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-						const UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-						if (!MovieScene)
+						const TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
+						if (!WeakSequencer.IsValid())
 						{
 							return;
 						}
@@ -1070,7 +1095,8 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 			return TransformConstraint->bDynamicOffset;
 		});
 
-		if (!bIsLookAtConstraint)
+		TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
+		if (!bIsLookAtConstraint && WeakSequencer.IsValid())
 		{
 			MenuBuilder.BeginSection("KeyConstraint", LOCTEXT("KeyConstraintHeader", "Keys"));
 			{
@@ -1078,17 +1104,13 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 				LOCTEXT("CompensateKeyLabel", "Compensate Key"),
 				FText::Format(LOCTEXT("CompensateKeyTooltip", "Compensate transform key for {0}."), ConstraintLabel),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
+				FUIAction(FExecuteAction::CreateLambda([TransformConstraint, WeakSequencer]()
 				{
-					const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
-					if (WeakSequencer.IsValid())
-					{
-						const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-						const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-						const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
-						const FFrameNumber Time = FrameTime.GetFrame();
-						FConstraintChannelHelper::Compensate(TransformConstraint, TOptional<FFrameNumber>(Time));
-					}
+					const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+					const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+					const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+					const FFrameNumber Time = FrameTime.GetFrame();
+					FMovieSceneConstraintChannelHelper::Compensate(WeakSequencer.Pin(), TransformConstraint, TOptional<FFrameNumber>(Time));
 				}), IsCompensationEnabled),
 				NAME_None,
 				EUserInterfaceActionType::Button);
@@ -1097,9 +1119,9 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 				LOCTEXT("CompensateAllKeysLabel", "Compensate All Keys"),
 				FText::Format(LOCTEXT("CompensateAllKeysTooltip", "Compensate all transform keys for {0}."), ConstraintLabel),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
+				FUIAction(FExecuteAction::CreateLambda([TransformConstraint, WeakSequencer]()
 				{
-					FConstraintChannelHelper::Compensate(TransformConstraint, TOptional<FFrameNumber>());
+					FMovieSceneConstraintChannelHelper::Compensate(WeakSequencer.Pin(), TransformConstraint, TOptional<FFrameNumber>());
 				}), IsCompensationEnabled),
 				NAME_None,
 				EUserInterfaceActionType::Button);

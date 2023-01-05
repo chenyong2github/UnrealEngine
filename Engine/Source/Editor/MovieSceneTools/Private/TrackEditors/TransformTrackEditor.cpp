@@ -38,7 +38,7 @@
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "TransformConstraint.h"
-#include "MovieSceneConstraintChannelHelper.h"
+#include "Constraints/MovieSceneConstraintChannelHelper.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Engine/Selection.h"
 

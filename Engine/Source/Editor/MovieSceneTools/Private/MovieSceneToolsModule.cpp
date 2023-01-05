@@ -110,6 +110,10 @@
 #include "EditorAnimUtils.h"
 #include "Animation/AnimSequence.h"
 
+#include "TransformableHandle.h"
+#include "Constraints/ComponentConstraintChannelInterface.h"
+#include "Constraints/TransformConstraintChannelInterface.h"
+
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
 
 TAutoConsoleVariable<bool> CVarDuplicateLinkedAnimSequence(TEXT("Sequencer.DuplicateLinkedAnimSequence"), false, TEXT("When true when we duplicate a level sequence that has a linked anim sequence it will duplicate and link the anim sequencel, if false we leave any link alone."));
@@ -259,6 +263,10 @@ void FMovieSceneToolsModule::StartupModule()
 		NSLOCTEXT("SkeletalAnimationTrackEditorMode", "SkelAnimTrackEditMode", "Skeletal Anim Track Mode"),
 		FSlateIcon(),
 		false);
+
+	// register UTransformableComponentHandle animatable interface
+	FConstraintChannelInterfaceRegistry& ConstraintChannelInterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();
+	ConstraintChannelInterfaceRegistry.RegisterConstraintChannelInterface<UTransformableComponentHandle>(MakeUnique<FComponentConstraintChannelInterface>());
 }
 
 void FMovieSceneToolsModule::ShutdownModule()

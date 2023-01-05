@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigSpaceChannelEditors.h"
-#include "ConstraintChannelHelper.inl"
+#include "Constraints/MovieSceneConstraintChannelHelper.inl"
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequenceEditor.h"
 #include "MovieSceneEventUtils.h"

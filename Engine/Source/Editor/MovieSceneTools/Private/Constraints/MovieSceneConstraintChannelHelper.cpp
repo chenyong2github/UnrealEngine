@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MovieSceneConstraintChannelHelper.h"
-#include "ConstraintChannelHelper.inl"
+#include "Constraints/MovieSceneConstraintChannelHelper.inl"
 
 #include "ISequencer.h"
 
@@ -12,14 +11,14 @@
 #include "TransformConstraint.h"
 #include "Algo/Copy.h"
 
-//#include "Tools/BakingHelper.h"
-//#include "Tools/ConstraintBaker.h"
 #include "ScopedTransaction.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "LevelEditorViewport.h"
+#include "MovieSceneSpawnableAnnotation.h"
 #include "Sections/MovieSceneConstrainedSection.h"
 #include "MovieSceneToolsModule.h"
+#include "Constraints/TransformConstraintChannelInterface.h"
 
 
 /*
@@ -721,16 +720,83 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintKeyMoved(
 
 }
 
+bool FMovieSceneConstraintChannelHelper::SmartConstraintKey(
+	const TSharedPtr<ISequencer>& InSequencer,
+	UTickableTransformConstraint* InConstraint, 
+	const TOptional<bool>& InOptActive, 
+	const TOptional<FFrameNumber>& InOptFrameTime)
+{
+	if (!InSequencer.IsValid() || !InSequencer->GetFocusedMovieSceneSequence())
+	{
+		return false;
+	}
+	
+	ITransformConstraintChannelInterface* Interface = GetHandleInterface(InConstraint->ChildTRSHandle);
+	if (!Interface)
+	{
+		return false;
+	}
+	
+	FFrameNumber Time;
+	if (InOptFrameTime.IsSet())
+	{
+		Time = InOptFrameTime.GetValue();
+	}
+	else
+	{
+		const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+		const FFrameTime FrameTime = InSequencer->GetLocalTime().ConvertTo(TickResolution);
+		Time = FrameTime.GetFrame();
+	}
+
+	const bool bSucceeded = Interface->SmartConstraintKey(InConstraint, InOptActive, Time, InSequencer);
+
+	//todo need to revisit this to see if we need to create this even if we don't set a key, it's harmless I think either way
+	CreateBindingIDForHandle(InSequencer, InConstraint->ChildTRSHandle);
+	CreateBindingIDForHandle(InSequencer, InConstraint->ParentTRSHandle);
+
+	return bSucceeded;
+}
+
+void FMovieSceneConstraintChannelHelper::Compensate(
+	const TSharedPtr<ISequencer>& InSequencer,
+	const UTickableTransformConstraint* InConstraint,
+	const TOptional<FFrameNumber>& InOptTime)
+{
+	if (!InSequencer.IsValid() || !InSequencer->GetFocusedMovieSceneSequence())
+	{
+		return;
+	}
+
+	const TObjectPtr<UTransformableHandle>& Handle = InConstraint->ChildTRSHandle;
+	
+	ITransformConstraintChannelInterface* Interface = GetHandleInterface(Handle);
+	if (!Interface)
+	{
+		return;
+	}
+
+	IMovieSceneConstrainedSection* Section = Cast<IMovieSceneConstrainedSection>(Interface->GetHandleConstraintSection(Handle, InSequencer));
+	const UWorld* World = Interface->GetHandleWorld(Handle);
+
+	if (!Section || !IsValid(World))
+	{
+		return;
+	}
+
+	CompensateIfNeeded(InSequencer, Section, InOptTime, Handle->GetHash());
+}
+
 void FMovieSceneConstraintChannelHelper::CompensateIfNeeded(
 	const TSharedPtr<ISequencer>& InSequencer,
-	UMovieSceneSection* InSection,
-	const TOptional<FFrameNumber>& OptionalTime)
+	IMovieSceneConstrainedSection* ConstraintSection,
+	const TOptional<FFrameNumber>& OptionalTime,
+	const int32 InChildHash)
 {
 	if (bDoNotCompensate)
 	{
 		return;
 	}
-	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(InSection);
 
 	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
 
@@ -741,7 +807,7 @@ void FMovieSceneConstraintChannelHelper::CompensateIfNeeded(
 		OptionalTimeArray.Add(OptionalTime.GetValue());
 	}
 
-	auto GetSpaceTimesToCompensate = [&OptionalTimeArray](const FConstraintAndActiveChannel& Channel)->TArrayView<const FFrameNumber>
+	auto GetConstraintTimesToCompensate = [&OptionalTimeArray](const FConstraintAndActiveChannel& Channel)->TArrayView<const FFrameNumber>
 	{
 		if (OptionalTimeArray.IsEmpty())
 		{
@@ -750,23 +816,36 @@ void FMovieSceneConstraintChannelHelper::CompensateIfNeeded(
 		return OptionalTimeArray;
 	};
 
-	const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
-
-	bool bNeedsEvaluation = false;
-
-	// gather all transform constraints
+	// gather all transform constraints' channels for
+	const TArray<FConstraintAndActiveChannel>& ConstraintChannels = ConstraintSection->GetConstraintsChannels();
 	TArray<FConstraintAndActiveChannel> TransformConstraintsChannels;
-	Algo::CopyIf(ConstrainedSection->GetConstraintsChannels(), TransformConstraintsChannels,
-		[](const FConstraintAndActiveChannel& InChannel)
+	Algo::CopyIf(ConstraintChannels, TransformConstraintsChannels,
+		[InChildHash](const FConstraintAndActiveChannel& InChannel)
 		{
-			return InChannel.Constraint.IsValid() && InChannel.Constraint->IsA<UTickableTransformConstraint>();
+			if (!InChannel.Constraint.IsValid())
+			{
+				return false;
+			}
+
+			if ((InChildHash != INDEX_NONE) && (InChannel.Constraint->GetTargetHash() != InChildHash))
+			{
+				return false;
+			}
+
+			const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InChannel.Constraint.Get());
+			return Constraint && (Constraint->GetTargetHash() == InChildHash) && Constraint->NeedsCompensation();
 		}
 	);
 
-	// compensate constraints
+	// we only need to treat one single constraint per child as FCompensationEvaluator::ComputeCompensation will
+	// compensate within the last active constraint's space
+	using CompensationData = TPair< UTickableTransformConstraint*, TArray<FFrameNumber> >;
+	TArray< CompensationData > ToCompensate;
+
+	// store constraints and times where compensation is needed 
 	for (const FConstraintAndActiveChannel& Channel : TransformConstraintsChannels)
 	{
-		const TArrayView<const FFrameNumber> FramesToCompensate = GetSpaceTimesToCompensate(Channel);
+		const TArrayView<const FFrameNumber> FramesToCompensate = GetConstraintTimesToCompensate(Channel);
 		for (const FFrameNumber& Time : FramesToCompensate)
 		{
 			const FFrameNumber TimeMinusOne(Time - 1);
@@ -779,21 +858,49 @@ void FMovieSceneConstraintChannelHelper::CompensateIfNeeded(
 			{
 				UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Channel.Constraint.Get());
 
-				UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+				// is the child already in that array?
+				int32 DataIndex = ToCompensate.IndexOfByPredicate([Constraint](const CompensationData& InData)
+				{
+					return InData.Key->GetTargetHash() == Constraint->GetTargetHash();
+				});
 
+				// if not, add the constraint
+				if (DataIndex == INDEX_NONE)
+				{
+					DataIndex = ToCompensate.Emplace(Constraint, TArray<FFrameNumber>() );
+				}
+
+				// store the time it needs to be compensated at
+				TArray<FFrameNumber>& Times = ToCompensate[DataIndex].Value;
+				Times.AddUnique(Time);
+			}
+		}
+	}
+
+	// compensate
+	bool bNeedsEvaluation = false;
+	for (const CompensationData& Data: ToCompensate)
+	{
+		UTickableTransformConstraint* Constraint = Data.Key;
+		const TObjectPtr<UTransformableHandle>& Handle = Constraint->ChildTRSHandle;
+		if (ITransformConstraintChannelInterface* Interface = GetHandleInterface(Handle))
+		{
+			UWorld* World = Interface->GetHandleWorld(Handle);
+			
+			FCompensationEvaluator Evaluator(Constraint);
+			const EMovieSceneTransformChannel ChannelsToKey = Constraint->GetChannelsToKey();
+			for (const FFrameNumber& Time : Data.Value)
+			{
 				// compute transform to set
 				// if switching from active to inactive then we must add a key at T-1 in the constraint space
 				// if switching from inactive to active then we must add a key at T-1 in the previous constraint or parent space
-				FCompensationEvaluator Evaluator(Constraint);
 				Evaluator.ComputeCompensation(World, InSequencer, Time);
 				const TArray<FTransform>& LocalTransforms = Evaluator.ChildLocals;
 
-				const EMovieSceneTransformChannel ChannelsToKey = Constraint->GetChannelsToKey();
-				if (const UTransformableHandle* ControlHandle = Constraint->ChildTRSHandle)
-				{
-					ControlHandle->AddTransformKeys({ TimeMinusOne }, LocalTransforms, ChannelsToKey, TickResolution, InSection);
-					bNeedsEvaluation = true;
-				}
+				const FFrameNumber TimeMinusOne(Time - 1);
+				Interface->AddHandleTransformKeys(InSequencer, Handle, { TimeMinusOne }, LocalTransforms, ChannelsToKey);
+
+				bNeedsEvaluation = true;
 			}
 		}
 	}
@@ -804,4 +911,40 @@ void FMovieSceneConstraintChannelHelper::CompensateIfNeeded(
 	}
 }
 
+ITransformConstraintChannelInterface* FMovieSceneConstraintChannelHelper::GetHandleInterface(const UTransformableHandle* InHandle)
+{
+	if (!IsValid(InHandle) || !InHandle->IsValid())
+	{
+		return nullptr;
+	}
 
+	const FConstraintChannelInterfaceRegistry& InterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();	
+	return InterfaceRegistry.FindConstraintChannelInterface(InHandle->GetClass());
+}
+
+void FMovieSceneConstraintChannelHelper::CreateBindingIDForHandle(const TSharedPtr<ISequencer>& InSequencer, UTransformableHandle* InHandle)
+{
+	if (InHandle == nullptr || InSequencer.IsValid() == false)
+	{
+		return;
+	}
+	
+	if (const USceneComponent* SceneComponent = Cast<USceneComponent>(InHandle->GetTarget().Get()))
+	{
+		if (AActor* Actor = SceneComponent->GetTypedOuter<AActor>())
+		{
+			TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Actor);
+			if (Spawnable.IsSet())
+			{
+				// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
+				InHandle->ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(InSequencer->GetFocusedTemplateID(), Spawnable->SequenceID, Spawnable->ObjectBindingID,
+					*(InSequencer.Get()));
+			}
+			else
+			{
+				const FGuid Guid = InSequencer->GetHandleToObject(Actor, false); //don't create it???
+				InHandle->ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(Guid);
+			}
+		}
+	}
+}
