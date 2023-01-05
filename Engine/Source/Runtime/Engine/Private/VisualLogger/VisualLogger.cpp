@@ -14,6 +14,9 @@
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
+#else
+#include "Engine/Engine.h"
+#include "Serialization/CustomVersion.h"
 #endif
 
 

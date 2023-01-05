@@ -4,6 +4,11 @@
 #include "GameFramework/PlayerController.h"
 #if WITH_EDITORONLY_DATA
 #include "LevelEditorViewport.h"
+#else
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
+#include "NaniteDefinitions.h"
+#include "SceneManagement.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FNaniteVisualizationData"

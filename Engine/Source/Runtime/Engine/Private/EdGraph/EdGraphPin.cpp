@@ -15,6 +15,9 @@
 #include "Editor/Transactor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "TickableEditorObject.h"
+#else
+#include "HAL/IConsoleManager.h"
+#include "Tickable.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "EdGraph"

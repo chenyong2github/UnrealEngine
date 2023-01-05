@@ -26,6 +26,7 @@
 
 #if !UE_SERVER
 #include "IMediaModule.h"
+#include "Modules/ModuleManager.h"
 #endif
 
 //#include "SoundDefinitions.h"
@@ -43,6 +44,8 @@
 #include "Editor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "ObjectCacheEventSink.h"
+#else
+#include "TimerManager.h"
 #endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);

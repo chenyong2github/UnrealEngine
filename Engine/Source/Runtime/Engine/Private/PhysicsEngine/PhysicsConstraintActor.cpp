@@ -2,6 +2,7 @@
 
 #include "PhysicsEngine/PhysicsConstraintActor.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "PhysicsEngine/ConstraintUtils.h"

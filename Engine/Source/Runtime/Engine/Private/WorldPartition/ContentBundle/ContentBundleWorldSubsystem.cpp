@@ -15,6 +15,8 @@
 #if WITH_EDITOR
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "Editor.h"
+#else
+#include "Engine/Engine.h"
 #endif
 
 UContentBundleManager::UContentBundleManager()

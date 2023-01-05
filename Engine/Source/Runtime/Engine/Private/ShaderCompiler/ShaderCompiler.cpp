@@ -55,12 +55,13 @@
 #include "UObject/ArchiveCookContext.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
-
 #include "TextureCompiler.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
+
 #if WITH_ODSC
 #include "ODSC/ODSCManager.h"
+#include "UnrealEngine.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ShaderCompiler"

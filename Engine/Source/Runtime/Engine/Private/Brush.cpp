@@ -18,7 +18,11 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "Engine/Engine.h"
+#endif
 
+#if WITH_EDITOR
 /** Define static delegate */
 ABrush::FOnBrushRegistered ABrush::OnBrushRegistered;
 

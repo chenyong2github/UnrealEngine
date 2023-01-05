@@ -31,6 +31,9 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/EditorEngine.h"
 #include "StudioAnalytics.h"
+#else
+#include "TimerManager.h"
+#include "UObject/Package.h"
 #endif
 
 #if WITH_EDITOR

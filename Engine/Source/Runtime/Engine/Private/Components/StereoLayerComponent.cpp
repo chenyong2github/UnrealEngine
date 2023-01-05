@@ -8,6 +8,8 @@
 #include "StereoRendering.h"
 #if WITH_EDITOR
 #include "SceneManagement.h"
+#else
+#include "StereoRendering.h"
 #endif
 
 UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectInitializer)

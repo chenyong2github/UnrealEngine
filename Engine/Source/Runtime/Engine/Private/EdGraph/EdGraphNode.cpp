@@ -17,6 +17,8 @@
 #include "ScopedTransaction.h"
 #include "FindInBlueprintManager.h"
 #include "DiffResults.h"
+#else
+#include "EdGraph/EdGraphPin.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "EdGraph"

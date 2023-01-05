@@ -22,6 +22,12 @@
 #include "EventsData.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#else
+#include "Engine/Engine.h"
+#endif
+
 #if !UE_BUILD_SHIPPING
 #include "DrawDebugHelpers.h"
 
@@ -39,10 +45,6 @@ int32 GEnableKinematicDeferralStartPhysicsCondition = 1;
 FAutoConsoleVariableRef CVar_EnableKinematicDeferralStartPhysicsCondition(TEXT("p.EnableKinematicDeferralStartPhysicsCondition"), GEnableKinematicDeferralStartPhysicsCondition, TEXT("If is 1, allow kinematics to be deferred in start physics (probably only called from replication tick). If 0, no deferral in startphysics."));
 
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
-
-#if WITH_EDITOR
-#include "Editor.h"
-#endif
 
 struct FPendingAsyncPhysicsCommand
 {

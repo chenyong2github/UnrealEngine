@@ -40,6 +40,9 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#else
+#include "Engine/Engine.h"
+#include "Serialization/MemoryReader.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AssetManager"

@@ -32,6 +32,8 @@
 #include "BlueprintCompilationManager.h"
 #include "Engine/LevelScriptBlueprint.h"
 extern UNREALED_API class UEditorEngine* GEditor;
+#else
+#include "UObject/LinkerLoad.h"
 #endif //WITH_EDITOR
 
 DEFINE_STAT(STAT_PersistentUberGraphFrameMemory);

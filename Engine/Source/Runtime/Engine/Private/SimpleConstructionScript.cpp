@@ -12,6 +12,8 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#else
+#include "UObject/LinkerLoad.h"
 #endif
 
 //////////////////////////////////////////////////////////////////////////

@@ -17,6 +17,9 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "Engine/World.h"
+#include "UObject/Package.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogBlueprintUserMessages);

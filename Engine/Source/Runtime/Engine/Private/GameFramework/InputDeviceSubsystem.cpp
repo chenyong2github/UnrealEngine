@@ -11,6 +11,8 @@
 
 #if WITH_EDITOR
 #include "Editor.h"		// For PIE delegates
+#else
+#include "Engine/Engine.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogInputDeviceProperties);

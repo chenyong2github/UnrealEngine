@@ -16,6 +16,8 @@
 #if WITH_EDITOR
 #include "Engine/GameViewportClient.h"
 #include "LevelEditorViewport.h"
+#else
+#include "UnrealClient.h"
 #endif // WITH_EDITOR
 
 

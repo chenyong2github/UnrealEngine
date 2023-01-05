@@ -10,6 +10,8 @@
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
+#else
+#include "UObject/LinkerLoad.h"
 #endif // WITH_EDITOR
 
 // UInheritableComponentHandler

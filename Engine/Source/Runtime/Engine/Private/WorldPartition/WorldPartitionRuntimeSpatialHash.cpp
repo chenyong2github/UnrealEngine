@@ -34,13 +34,10 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeSpatialHash)
 
 #if WITH_EDITOR
-
-
-
-
 #include "WorldPartition/Cook/WorldPartitionCookPackage.h"
-
 extern UNREALED_API class UEditorEngine* GEditor;
+#else
+#include "Misc/Paths.h"
 #endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "WorldPartition"

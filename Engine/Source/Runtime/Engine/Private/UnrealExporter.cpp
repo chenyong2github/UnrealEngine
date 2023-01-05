@@ -21,6 +21,8 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Selection.h"
+#else
+#include "UObject/Package.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogExporter, Log, All);

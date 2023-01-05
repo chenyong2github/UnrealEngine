@@ -9,6 +9,9 @@
 #include "SceneView.h"
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "UObject/Package.h"
+#include "UObject/UObjectAnnotation.h"
 #endif
 
 UE_TRACE_CHANNEL(ObjectChannel)

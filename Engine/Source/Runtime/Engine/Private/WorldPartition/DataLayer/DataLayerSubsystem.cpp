@@ -23,6 +23,8 @@
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#else
+#include "Engine/Engine.h"
 #endif
 
 extern int32 GDrawDataLayersLoadTime;

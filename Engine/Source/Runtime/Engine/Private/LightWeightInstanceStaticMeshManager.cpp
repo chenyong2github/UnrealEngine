@@ -11,6 +11,9 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "Engine/World.h"
+#include "TimerManager.h"
 #endif // WITH_EDITOR
 
 ALightWeightInstanceStaticMeshManager::ALightWeightInstanceStaticMeshManager(const FObjectInitializer& ObjectInitializer)

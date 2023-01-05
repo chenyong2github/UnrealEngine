@@ -18,6 +18,13 @@
 #include "Math/RotationMatrix.h"
 #include "TextureResource.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Selection.h"
+#else
+#include "Engine/Engine.h"
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("CanvasTileTextureItem Time"),STAT_Canvas_TileTextureItemTime,STATGROUP_Canvas);
 DECLARE_CYCLE_STAT(TEXT("CanvasTileMaterialItem Time"),STAT_Canvas_TileMaterialItemTime,STATGROUP_Canvas);
 DECLARE_CYCLE_STAT(TEXT("CanvasTextItem Time"),STAT_Canvas_TextItemTime,STATGROUP_Canvas);
@@ -29,8 +36,6 @@ DECLARE_CYCLE_STAT(TEXT("CanvasBorderItem Time"),STAT_Canvas_BorderItemTime,STAT
 
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "Selection.h"
 
 FCanvasItemTestbed::LineVars FCanvasItemTestbed::TestLine;
 bool FCanvasItemTestbed::bTestState = false;

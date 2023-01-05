@@ -8,6 +8,7 @@
 #include "UObject/CoreObjectVersion.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "UObject/EditorObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "SkeletalMeshLegacyCustomVersions.h"
 

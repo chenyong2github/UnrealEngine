@@ -34,6 +34,8 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "Editor/EditorEngine.h"
+#else
+#include "UObject/Package.h"
 #endif // WITH_EDITOR
 
 static int32 AudioChannelCountCVar = 0;

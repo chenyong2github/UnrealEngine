@@ -42,6 +42,8 @@
 #include "WorldPartition/Cook/WorldPartitionCookPackageContextInterface.h"
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
+#else
+#include "Engine/Level.h"
 #endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "WorldPartition"

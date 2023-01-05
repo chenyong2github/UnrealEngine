@@ -24,6 +24,9 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "Engine/VolumeTexture.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#else
+#include "Engine/Texture.h"
+#include "UnrealEngine.h"
 #endif
 
 

@@ -10,7 +10,11 @@
 #include "DebugRenderSceneProxy.h"
 #include "SmartObjectPersistentCollection.h"
 #include "ObjectEditorUtils.h"
+#else
+#include "Engine/CollisionProfile.h"
+#endif
 
+#if WITH_EDITORONLY_DATA
 
 //----------------------------------------------------------------------//
 // FSOContainerRenderingSceneProxy
