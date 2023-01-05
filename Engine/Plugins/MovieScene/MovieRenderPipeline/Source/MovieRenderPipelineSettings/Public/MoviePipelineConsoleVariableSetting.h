@@ -21,6 +21,10 @@ public:
 	virtual bool IsValidOnPrimary() const override { return true; }
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override;
 	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) override;
+
+	// This needs to be higher priority than the Game Override setting so that the values the user specifies for cvars here are the ones actually applied during renders
+	// otherwise the Scalability Settings of the Game Override setting can change values away from what the user expects.
+	virtual int32 GetPriority() const override { return 1; }
 protected:
 	void ApplyCVarSettings(const bool bOverrideValues);
 

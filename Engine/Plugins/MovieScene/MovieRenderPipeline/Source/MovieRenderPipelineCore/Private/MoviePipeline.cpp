@@ -231,7 +231,9 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	}
 	
 	// Initialize all of our primary config settings. Shot specific ones will be called for their appropriate shot.
-	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
+	TArray<UMoviePipelineSetting*> Settings = GetPipelinePrimaryConfig()->GetAllSettings();
+	Algo::SortBy(Settings, [](const UMoviePipelineSetting* Setting) { return Setting->GetPriority(); });
+	for (UMoviePipelineSetting* Setting : Settings)
 	{
 		Setting->OnMoviePipelineInitialized(this);
 	}
@@ -528,8 +530,10 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			bInvalidTransition = false;
 			PipelineState = InNewState;
 
-			// Uninitialize our primary config settings.
-			for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
+			// Uninitialize our primary config settings. Reverse sorted so settings that cached values restore correctly.
+			TArray<UMoviePipelineSetting*> Settings = GetPipelinePrimaryConfig()->GetAllSettings();
+			Algo::SortBy(Settings, [](const UMoviePipelineSetting* Setting) { return Setting->GetPriority(); },  TLess<int32>());
+			for (UMoviePipelineSetting* Setting : Settings)
 			{
 				Setting->OnMoviePipelineShutdown(this);
 			}
@@ -547,7 +551,9 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 				DebugWidget = nullptr;
 			}
 
-			for (UMoviePipelineOutputBase* Setting : GetPipelinePrimaryConfig()->GetOutputContainers())
+			TArray<UMoviePipelineOutputBase*> ContainerSettings = GetPipelinePrimaryConfig()->GetOutputContainers();
+			Algo::SortBy(ContainerSettings, [](const UMoviePipelineOutputBase* Setting) { return Setting->GetPriority(); });
+			for (UMoviePipelineOutputBase* Setting : ContainerSettings)
 			{
 				Setting->OnPipelineFinished();
 			}
@@ -688,7 +694,10 @@ void UMoviePipeline::BeginFinalize()
 {
 	// Notify all of our output containers that we have finished producing and
 	// submitting all frames to them and that they should start any async flushes.
-	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
+	TArray<UMoviePipelineOutputBase*> Settings = GetPipelinePrimaryConfig()->GetOutputContainers();
+	Algo::SortBy(Settings, [](const UMoviePipelineOutputBase* Setting) { return Setting->GetPriority(); });
+
+	for (UMoviePipelineOutputBase* Container : Settings)
 	{
 		Container->BeginFinalize();
 	}
@@ -696,7 +705,9 @@ void UMoviePipeline::BeginFinalize()
 
 void UMoviePipeline::BeginExport()
 {
-	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
+	TArray<UMoviePipelineSetting*> Settings = GetPipelinePrimaryConfig()->GetAllSettings();
+	Algo::SortBy(Settings, [](const UMoviePipelineSetting* Setting) { return Setting->GetPriority(); });
+	for (UMoviePipelineSetting* Setting : Settings)
 	{
 		Setting->BeginExport();
 	}
@@ -737,7 +748,9 @@ void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 		return;
 	}
 
-	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
+	TArray<UMoviePipelineOutputBase*> Settings = GetPipelinePrimaryConfig()->GetOutputContainers();
+	Algo::SortBy(Settings, [](const UMoviePipelineOutputBase* Setting) { return Setting->GetPriority(); });
+	for (UMoviePipelineOutputBase* Container : Settings)
 	{
 		// All containers have finished processing, final shutdown.
 		Container->Finalize();
@@ -952,7 +965,9 @@ void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 	SetSoloShot(InShot);
 
 	// Loop through just our primary settings and let them know which shot we're about to start.
-	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
+	TArray<UMoviePipelineSetting*> Settings = GetPipelinePrimaryConfig()->GetAllSettings();
+	Algo::SortBy(Settings, [](const UMoviePipelineSetting* Setting) { return Setting->GetPriority(); });
+	for (UMoviePipelineSetting* Setting : Settings)
 	{
 		Setting->OnSetupForShot(InShot);
 	}
@@ -960,7 +975,9 @@ void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
-		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
+		TArray<UMoviePipelineSetting*> ShotSettings = InShot->GetShotOverrideConfiguration()->GetUserSettings();
+		Algo::SortBy(ShotSettings, [](const UMoviePipelineSetting* Setting) { return Setting->GetPriority(); });
+		for (UMoviePipelineSetting* Setting : ShotSettings)
 		{
 			Setting->OnMoviePipelineInitialized(this);
 		}
@@ -987,7 +1004,9 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 	}
 
 	// Notify our containers that the current shot has ended.
-	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
+	TArray<UMoviePipelineOutputBase*> OutputSettings = GetPipelinePrimaryConfig()->GetOutputContainers();
+	Algo::SortBy(OutputSettings, [](const UMoviePipelineOutputBase* Setting) { return Setting->GetPriority(); },  TLess<int32>());
+	for (UMoviePipelineOutputBase* Container : OutputSettings)
 	{
 		Container->OnShotFinished(InShot, IsFlushDiskWritesPerShot());
 	}
@@ -995,14 +1014,18 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides should get shutdown now.
-		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
+		TArray<UMoviePipelineOutputBase*> ShotSettings = GetPipelinePrimaryConfig()->GetOutputContainers();
+		Algo::SortBy(ShotSettings, [](const UMoviePipelineOutputBase* Setting) { return Setting->GetPriority(); },  TLess<int32>());
+		for (UMoviePipelineSetting* Setting : ShotSettings)
 		{
 			Setting->OnMoviePipelineShutdown(this);
 		}
 	}
 
 	// Loop through just our primary settings and let them know which shot we're about to end.
-	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
+	TArray<UMoviePipelineSetting*> AllSettings = GetPipelinePrimaryConfig()->GetAllSettings();
+	Algo::SortBy(AllSettings, [](const UMoviePipelineSetting* Setting) { return Setting->GetPriority(); },  TLess<int32>());
+	for (UMoviePipelineSetting* Setting : AllSettings)
 	{
 		Setting->OnTeardownForShot(InShot);
 	}

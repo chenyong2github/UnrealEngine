@@ -23,6 +23,7 @@ void UMoviePipelineGameOverrideSetting::TeardownForPipelineImpl(UMoviePipeline* 
 	ApplyCVarSettings(false);
 }
 
+
 void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideValues)
 {
 	if (bCinematicQualitySettings)
@@ -41,7 +42,9 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 		}
 		else
 		{
-			Scalability::SetQualityLevels(PreviousQualityLevels);
+			// We re-apply old scalability settings at the end of the function during teardown
+			// so that any values that are also specified in Scalability don't get overwritten
+			// with the wrong values from the ones below restoring.
 		}
 	}
 
@@ -133,6 +136,16 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 
 	// Cloth's time step smoothing messes up the change in number of simulation substeps that fixes the cloth simulation behavior when using Temporal Samples.
 	MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousChaosClothUseTimeStepSmoothing, TEXT("p.ChaosCloth.UseTimeStepSmoothing"), 0, bOverrideValues);
+
+	// Must come after the above cvars so that if one of those cvars is also specified by the Scalability level, then we restore to the value in the original scalability level
+	// not the value we cached in the Cinematic level (if applied).
+	if (bCinematicQualitySettings)
+	{
+		if (!bOverrideValues)
+		{
+			Scalability::SetQualityLevels(PreviousQualityLevels);
+		}
+	}
 }
 
 void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineArgsImpl(TArray<FString>& InOutUnrealURLParams, TArray<FString>& InOutCommandLineArgs, TArray<FString>& InOutDeviceProfileCvars, TArray<FString>& InOutExecCmds) const

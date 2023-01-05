@@ -58,11 +58,11 @@ MOVIERENDERPIPELINECORE_API void GetPassCompositeData(FMoviePipelineMergerOutput
 		if(bUseOverride) \
 		{ \
 			InOutVariable = CVar->GetInt(); \
-			CVar->Set(OverrideValue, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(OverrideValue); \
 		} \
 		else \
 		{ \
-			CVar->Set(InOutVariable, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(InOutVariable); \
 		} \
 	} \
 }
@@ -75,11 +75,11 @@ MOVIERENDERPIPELINECORE_API void GetPassCompositeData(FMoviePipelineMergerOutput
 		if(bUseOverride) \
 		{ \
 			InOutVariable = CVar->GetFloat(); \
-			CVar->Set(OverrideValue, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(OverrideValue); \
 		} \
 		else \
 		{ \
-			CVar->Set(InOutVariable, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(InOutVariable); \
 		} \
 	} \
 }
@@ -92,11 +92,11 @@ MOVIERENDERPIPELINECORE_API void GetPassCompositeData(FMoviePipelineMergerOutput
 		if(bUseOverride) \
 		{ \
 			InOutVariable = CVar->GetInt(); \
-			CVar->Set(OverrideValue, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(OverrideValue); \
 		} \
 		else \
 		{ \
-			CVar->Set(InOutVariable, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(InOutVariable); \
 		} \
 	} \
 }
@@ -109,11 +109,11 @@ MOVIERENDERPIPELINECORE_API void GetPassCompositeData(FMoviePipelineMergerOutput
 		if(bUseOverride) \
 		{ \
 			InOutVariable = CVar->GetFloat(); \
-			CVar->Set(OverrideValue, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(OverrideValue); \
 		} \
 		else \
 		{ \
-			CVar->Set(InOutVariable, EConsoleVariableFlags::ECVF_SetByConsole); \
+			CVar->SetWithCurrentPriority(InOutVariablee); \
 		} \
 	} \
 }

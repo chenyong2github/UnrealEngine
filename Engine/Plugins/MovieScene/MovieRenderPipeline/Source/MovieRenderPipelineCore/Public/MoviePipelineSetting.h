@@ -129,6 +129,11 @@ public:
 	*/
 	virtual bool IgnoreTransientFilters() const { return false; }
 
+	/**
+	* Higher priority settings are run after lower priority settings when setting up shots during rendering. This is run in reverse during teardown!
+	*/
+	virtual int32 GetPriority() const { return 0; }
+
 	// Validation
 	/** What is the result of the last validation? Only valid if the setting has had ValidateState() called on it. */
 	virtual EMoviePipelineValidationState GetValidationState() const { return ValidationState; }
