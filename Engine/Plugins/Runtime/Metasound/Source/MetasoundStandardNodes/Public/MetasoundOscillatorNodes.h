@@ -12,7 +12,7 @@
 #include "MetasoundNode.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundVertex.h"
-
+#include "MetasoundPrimitives.h"
 
 namespace Metasound
 {
