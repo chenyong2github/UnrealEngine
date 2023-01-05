@@ -537,7 +537,7 @@ bool UWorldPartitionConvertCommandlet::DetachDependantLevelPackages(ULevel* Leve
 
 	for (AActor* Actor: Level->Actors)
 	{
-		if (Actor && IsValidChecked(Actor) && Actor->IsA<ALODActor>())
+		if (IsValid(Actor) && Actor->IsA<ALODActor>())
 		{
 			Level->GetWorld()->DestroyActor(Actor);
 		}
@@ -1070,7 +1070,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		{
 			AActor* Actor = *Iter;
 
-			if (Actor && IsValidChecked(Actor))
+			if (IsValid(Actor))
 			{
 				check(Actor->GetLevel() == Level);
 
@@ -1360,7 +1360,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		for(AActor* Actor: ActorsToConvert)
 		{
-			if(Actor && IsValidChecked(Actor))
+			if(IsValid(Actor))
 			{
 				check(Actor->GetOuter() == SubLevel);
 				check(!ShouldDeleteActor(Actor, false));
@@ -1464,7 +1464,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	// Move child actors at the end of the list
 	for (AActor* Actor: MainLevel->Actors)
 	{
-		if (Actor && IsValidChecked(Actor))
+		if (IsValid(Actor))
 		{
 			check(Actor->GetLevel() == MainLevel);
 			check(Actor->GetActorGuid().IsValid());
@@ -1496,7 +1496,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		TSet<FGuid> ActorGuids;
 		for(AActor* Actor: ActorList)
 		{
-			if (!Actor || !IsValidChecked(Actor) || !Actor->SupportsExternalPackaging())
+			if (!IsValid(Actor) || !Actor->SupportsExternalPackaging())
 			{
 				continue;
 			}

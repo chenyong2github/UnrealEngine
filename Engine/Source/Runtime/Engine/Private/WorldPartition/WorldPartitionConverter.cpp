@@ -76,7 +76,7 @@ bool FWorldPartitionConverter::Convert()
 	TArray<AActor*> Actors = MainLevel->Actors;
 	for (AActor* Actor : Actors)
 	{
-		if (Actor && IsValidChecked(Actor) && ShouldDeleteActor(Actor, /*bIsMainLevel*/ true))
+		if (IsValid(Actor) && ShouldDeleteActor(Actor, /*bIsMainLevel*/ true))
 		{
 			MainWorld->EditorDestroyActor(Actor, /*bShouldModifyLevel*/ false);
 		}
@@ -115,7 +115,7 @@ bool FWorldPartitionConverter::Convert()
 			TArray<AActor*> ActorsToConvert = DuplicatedLevel->Actors;
 			for (AActor* Actor : ActorsToConvert)
 			{
-				if (Actor && IsValidChecked(Actor) && !ShouldDeleteActor(Actor, /*bIsMainLevel*/ false))
+				if (IsValid(Actor) && !ShouldDeleteActor(Actor, /*bIsMainLevel*/ false))
 				{
 					// Before changing outer, bIsCookedForEditor flag to actor package 
 					if (SourceLevelPackage->bIsCookedForEditor)
