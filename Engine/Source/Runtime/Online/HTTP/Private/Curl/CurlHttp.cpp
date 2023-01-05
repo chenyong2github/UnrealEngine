@@ -1177,7 +1177,7 @@ void FCurlHttpRequest::BroadcastNewlyReceivedHeaders()
 	check(IsInGameThread());
 	if (Response.IsValid())
 	{
-		// Process the headers received on the HTTP thread and merge them into our master list and then broadcast the new headers
+		// Process the headers received on the HTTP thread and merge them into the response's list of headers and then broadcast the new headers
 		TPair<FString, FString> NewHeader;
 		while (Response->NewlyReceivedHeaders.Dequeue(NewHeader))
 		{
