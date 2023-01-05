@@ -12,7 +12,7 @@ public class DirectSound : ModuleRules
 		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibDir = DirectXSDKDir + "/Lib/x64/";
+			LibDir = $"{DirectXSDKDir}/Lib/{Target.WindowsPlatform.GetArchitectureSubpath()}/";
 		}
 
 		if (LibDir != null)

@@ -14,7 +14,7 @@ public class DX11Input : ModuleRules
 		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibDir = DirectXSDKDir + "/Lib/x64/";
+			LibDir = $"{DirectXSDKDir}/Lib/{Target.WindowsPlatform.GetArchitectureSubpath()}/";
 		}
 
 		PublicAdditionalLibraries.AddRange(
