@@ -40,9 +40,10 @@ UThumbnailInfo* UAssetDefinition_StaticMesh::LoadThumbnailInfo(const FAssetData&
 
 EAssetCommandResult UAssetDefinition_StaticMesh::OpenAssets(const FAssetOpenArgs& OpenArgs) const
 {
+	IStaticMeshEditorModule* StaticMeshEditorModule = &FModuleManager::LoadModuleChecked<IStaticMeshEditorModule>( "StaticMeshEditor" );
+	
 	for (UStaticMesh* Mesh : OpenArgs.LoadObjects<UStaticMesh>())
 	{
-		IStaticMeshEditorModule* StaticMeshEditorModule = &FModuleManager::LoadModuleChecked<IStaticMeshEditorModule>( "StaticMeshEditor" );
 		StaticMeshEditorModule->CreateStaticMeshEditor(OpenArgs.GetToolkitMode(), OpenArgs.ToolkitHost, Mesh);
 	}
 

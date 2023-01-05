@@ -44,6 +44,7 @@ public class EngineAssetDefinitions : ModuleRules
 				"TextureEditor",
 				"MaterialEditor",
 				"PhysicsAssetEditor",
+				"FontEditor"
 			}
 		);
 
@@ -55,6 +56,7 @@ public class EngineAssetDefinitions : ModuleRules
 				"TextureEditor",
 				"MaterialEditor",
 				"PhysicsAssetEditor",
+				"FontEditor"
 			}
 		);
 	}
