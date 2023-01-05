@@ -87,6 +87,8 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
+#include "Algo/AnyOf.h"
+#include "Misc/WarnIfAssetsLoadedInScope.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -314,6 +316,8 @@ bool FAssetFileContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 
 void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 {
+	FWarnIfAssetsLoadedInScope WarnIfAssetsLoaded;
+	
 	UContentBrowserDataMenuContext_FileMenu* Context = Menu->FindContext<UContentBrowserDataMenuContext_FileMenu>();
 	const bool bCanBeModified = !Context || Context->bCanBeModified;
 
@@ -384,22 +388,12 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 	if (bCanBeModified)
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetContextMoveActions", LOCTEXT("AssetContextMoveActionsMenuHeading", "Move"));
-		bool bHasExportableAssets = false;
-		for (const FAssetData& AssetData : SelectedAssets)
+		const bool bCanExportAllSelectedAssets = !Algo::AnyOf(SelectedAssets, [](const FAssetData& AssetData)
 		{
-			const UObject* Object = AssetData.FastGetAsset();
-			if (Object)
-			{
-				const UPackage* Package = Object->GetOutermost();
-				if (!Package->HasAnyPackageFlags(EPackageFlags::PKG_DisallowExport))
-				{
-					bHasExportableAssets = true;
-					break;
-				}
-			}
-		}
+			return AssetData.HasAnyPackageFlags(EPackageFlags::PKG_DisallowExport);
+		});
 
-		if (bHasExportableAssets)
+		if (bCanExportAllSelectedAssets)
 		{
 			// Export
 			Section.AddMenuEntry(
@@ -658,6 +652,8 @@ bool FAssetFileContextMenu::CanExecuteAssetActions() const
 
 void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 {
+	FWarnIfAssetsLoadedInScope WarnIfAssetsLoaded;
+	
 	TArray<FCultureRef> CurrentCultures;
 
 	// Build up the list of cultures already used
@@ -784,14 +780,18 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 			// Show the localization ID if we have a single asset selected
 			if (SelectedAssets.Num() == 1)
 			{
-				const FString LocalizationId = TextNamespaceUtil::GetPackageNamespace(SelectedAssets[0].FastGetAsset());
+				FAssetData LocalizationAsset = SelectedAssets[0]; 
 				Section.AddMenuEntry(
 					"CopyLocalizationId",
-					FText::Format(LOCTEXT("CopyLocalizationIdFmt", "ID: {0}"), LocalizationId.IsEmpty() ? LOCTEXT("EmptyLocalizationId", "None") : FText::FromString(LocalizationId)),
-					LOCTEXT("CopyLocalizationIdTooltip", "Copy the localization ID to the clipboard."),
+					LOCTEXT("CopyLocalizationId", "Copy Localization ID"),
+					LOCTEXT("CopyLocalizationIdTooltip", "Load the asset and copy the localization ID to the clipboard."),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteCopyTextToClipboard, LocalizationId))
-					);
+					FUIAction(FExecuteAction::CreateLambda([LocalizationAsset]()
+					{
+						const FString LocalizationId = TextNamespaceUtil::GetPackageNamespace(LocalizationAsset.FastGetAsset(true));
+						FPlatformApplicationMisc::ClipboardCopy(*LocalizationId);
+					}))
+				);
 			}
 
 			// Always show the reset localization ID option
@@ -1753,11 +1753,6 @@ void FAssetFileContextMenu::ExecuteGoToDocsForAsset(UClass* SelectedClass, const
 	}
 }
 
-void FAssetFileContextMenu::ExecuteCopyTextToClipboard(FString InText)
-{
-	FPlatformApplicationMisc::ClipboardCopy(*InText);
-}
-
 void FAssetFileContextMenu::ExecuteResetLocalizationId()
 {
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -1891,7 +1886,7 @@ bool FAssetFileContextMenu::CanExecuteCreateBlueprintUsing() const
 	// Only work if you have a single asset selected
 	if(SelectedAssets.Num() == 1)
 	{
-		if (UObject* Asset = SelectedAssets[0].FastGetAsset())
+		if (UObject* Asset = SelectedAssets[0].FastGetAsset(true))
 		{
 			// See if we know how to make a component from this asset
 			TArray< TSubclassOf<UActorComponent> > ComponentClassList = FComponentAssetBrokerage::GetComponentsForAsset(Asset);

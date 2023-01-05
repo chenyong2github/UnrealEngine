@@ -24,7 +24,7 @@ public:
 		return Categories;
 	}
 	virtual bool CanImport() const override { return true; }
-	virtual UThumbnailInfo* LoadThumbnailInfo(const FAssetData& InAssetData) const;
+	virtual UThumbnailInfo* LoadThumbnailInfo(const FAssetData& InAssetData) const override;
 	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
 	// UAssetDefinition End
 };

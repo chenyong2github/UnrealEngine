@@ -155,10 +155,7 @@ private:
 
 	/** Handler for GoToAssetDocs */
 	void ExecuteGoToDocsForAsset(UClass* SelectedClass, const FString ExcerptSection);
-
-	/** Handler to copy the given text to the clipboard */
-	void ExecuteCopyTextToClipboard(FString InText);
-
+	
 	/** Handler for resetting the localization ID of the current selection */
 	void ExecuteResetLocalizationId();
 

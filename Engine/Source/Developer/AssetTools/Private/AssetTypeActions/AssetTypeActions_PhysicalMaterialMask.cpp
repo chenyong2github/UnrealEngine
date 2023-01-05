@@ -98,49 +98,4 @@ void FAssetTypeActions_PhysicalMaterialMask::ExecuteImport(TWeakObjectPtr<UPhysi
 	}
 }
 
-void FAssetTypeActions_PhysicalMaterialMask::ExecuteReimport(TArray<TWeakObjectPtr<UPhysicalMaterialMask>> SelectedMasks)
-{
-	for (TWeakObjectPtr<UPhysicalMaterialMask> SelectedMask : SelectedMasks)
-	{
-		if (UPhysicalMaterialMask* PhysMatMask = SelectedMask.Get())
-		{
-			FPhysicalMaterialMaskImport::ReimportMaskTexture(PhysMatMask);
-		}
-	}
-}
-
-void FAssetTypeActions_PhysicalMaterialMask::ExecuteReimportWithNewFile(TWeakObjectPtr<UPhysicalMaterialMask> SelectedMask)
-{
-	if (UPhysicalMaterialMask* PhysMatMask = SelectedMask.Get())
-	{
-		FPhysicalMaterialMaskImport::ReimportMaskTextureWithNewFile(PhysMatMask);
-	}
-}
-
-void FAssetTypeActions_PhysicalMaterialMask::ExecuteOpenSourceLocation(const TArray<FString> ResolvedFilePaths)
-{
-	// Open all files in the explorer
-	for (const auto& SourceFilePath : ResolvedFilePaths)
-	{
-		FPlatformProcess::ExploreFolder(*FPaths::GetPath(SourceFilePath));
-	}
-}
-
-void FAssetTypeActions_PhysicalMaterialMask::ExecuteOpenInExternalEditor(const TArray<FString> ResolvedFilePaths)
-{
-	// Open all files in their respective editor
-	for (const auto& SourceFilePath : ResolvedFilePaths)
-	{
-		FPlatformProcess::LaunchFileInDefaultExternalApplication(*SourceFilePath, NULL, ELaunchVerb::Edit);
-	}
-}
-
-void FAssetTypeActions_PhysicalMaterialMask::ExecuteDebug(TWeakObjectPtr<UPhysicalMaterialMask> SelectedMask)
-{
-	if (UPhysicalMaterialMask* PhysMatMask = SelectedMask.Get())
-	{
-		PhysMatMask->DumpMaskData();
-	}
-}
-
 #undef LOCTEXT_NAMESPACE

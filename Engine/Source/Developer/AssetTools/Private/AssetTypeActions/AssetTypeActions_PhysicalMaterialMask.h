@@ -23,19 +23,4 @@ private:
 
 	/** Handler for Import */
 	void ExecuteImport(TWeakObjectPtr<UPhysicalMaterialMask> InSelectedMask);
-
-	/** Handler for Reimport */
-	void ExecuteReimport(TArray<TWeakObjectPtr<UPhysicalMaterialMask>> InSelectedMasks);
-
-	/** Handler for ReimportWithNewFile */
-	void ExecuteReimportWithNewFile(TWeakObjectPtr<UPhysicalMaterialMask> InSelectedMask);
-
-	/** Handler for OpenSourceLocation */
-	void ExecuteOpenSourceLocation(const TArray<FString> ResolvedFilePaths);
-
-	/** Handler for OpenInExternalEditor */
-	void ExecuteOpenInExternalEditor(const TArray<FString> ResolvedFilePaths);
-
-	/** Handler for Debug */
-	void ExecuteDebug(TWeakObjectPtr<UPhysicalMaterialMask> InSelectedMask);
 };
