@@ -60,7 +60,7 @@ protected:
 
 		FRayTracingMeshCommand SharedCommand;
 
-		SetupRayTracingMeshCommandMaskAndStatus(SharedCommand, MeshBatch, *PrimitiveSceneProxy, MaterialResource, MaskMode);
+		SetupRayTracingMeshCommandMaskAndStatus(SharedCommand, MeshBatch, PrimitiveSceneProxy, MaterialResource, MaskMode);
 
 		if (GRHISupportsRayTracingShaders)
 		{
