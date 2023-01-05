@@ -374,7 +374,7 @@ void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 
 	const float3 SceneColor = ColorTexture.Load(int3(TexelPos, 0)).rgb * View.OneOverPreExposure;
 
-	float Illuminance = CalculateEyeAdaptationLuminance(SceneColor);
+	float Luminance = CalculateEyeAdaptationLuminance(SceneColor);
 
 	const float2 GBufferUV = (TexelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
 	const FGBufferData GBufferData = GetGBufferDataFromSceneTextures(GBufferUV);
@@ -391,10 +391,12 @@ void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 			bUseTranslucencyVolume = true;
 		}
 
+		float Illuminance;
+
 		if (!bUseTranslucencyVolume)
 		{
 			// Calculate approximate illuminance from SceneColor and GBufferData
-			// Illuminance ~= (SceneColor - Emissive) / (DiffuseColor + SubsurfaceColor + EnvBRDF)
+			// Illuminance ~= (SceneColorLuminance - Emissive) / (DiffuseColor + SubsurfaceColor + EnvBRDF)
 
 			float3 Denominator = 0.0f;
 
@@ -428,10 +430,10 @@ void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 
 			const float DenominatorLuminance = CalculateEyeAdaptationLuminanceWithoutMin(Denominator);
 
+			// Emissive is copied to IlluminanceTexture after base pass and before lighting pass
 			const float Emissive = RWIlluminanceTexture[OutputTexelPos] * View.OneOverPreExposure;
 
-			Illuminance = max(0.0f, Illuminance - Emissive);
-			Illuminance /= max(DenominatorLuminance, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
+			Illuminance = max(0.0f, Luminance - Emissive) / max(DenominatorLuminance, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 		}
 		else
 		{
@@ -482,10 +484,10 @@ void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 			Illuminance = CalculateEyeAdaptationLuminance(VolumeLighting.rgb);
 		}
 
-		Illuminance *= lerp(EyeAdaptation_IgnoreMaterialsLuminanceScale, 1.0f, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
+		Luminance = Illuminance * lerp(EyeAdaptation_IgnoreMaterialsLuminanceScale, 1.0f, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 	}
 	
-	RWIlluminanceTexture[OutputTexelPos] = Illuminance * View.PreExposure;
+	RWIlluminanceTexture[OutputTexelPos] = Luminance * View.PreExposure;
 }
 
 #endif // COMPUTESHADER

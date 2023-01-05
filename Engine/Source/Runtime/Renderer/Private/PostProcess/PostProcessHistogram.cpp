@@ -149,13 +149,20 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FUsePrecalculatedLuminanceDim : SHADER_PERMUTATION_BOOL("USE_PRECALCULATED_LUMINANCE");
 	class FUseApproxIlluminanceDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE");
-	class FUsePrecalculatedIlluminanceDim : SHADER_PERMUTATION_BOOL("USE_PRECALCULATED_ILLUMINANCE");
-	class FUseApproxIlluminanceDebugDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE_DEBUG");
-	using FPermutationDomain = TShaderPermutationDomain<FUseApproxIlluminanceDim, FUsePrecalculatedIlluminanceDim, FUseApproxIlluminanceDebugDim>;
+	class FUseDebugOutputDim : SHADER_PERMUTATION_BOOL("USE_DEBUG_OUTPUT");
+	using FPermutationDomain = TShaderPermutationDomain<FUsePrecalculatedLuminanceDim, FUseApproxIlluminanceDim, FUseDebugOutputDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FUsePrecalculatedLuminanceDim>() && PermutationVector.Get<FUseApproxIlluminanceDim>())
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -368,9 +375,18 @@ static FRDGTextureRef AddHistogramAtomicPass(
 		static const auto CVarUsePrecalculatedIlluminance = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.AutoExposure.IgnoreMaterials.UsePrecalculatedIlluminance"));
 
 		FHistogramAtomicCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDim>(CVarIgnoreMaterials->GetValueOnRenderThread());
-		PermutationVector.Set<FHistogramAtomicCS::FUsePrecalculatedIlluminanceDim>(CVarUsePrecalculatedIlluminance->GetValueOnRenderThread());
-		PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDebugDim>(CVarIgnoreMaterialsDebug->GetValueOnRenderThread());
+		if (CVarIgnoreMaterials->GetValueOnRenderThread())
+		{
+			if (CVarUsePrecalculatedIlluminance->GetValueOnRenderThread())
+			{
+				PermutationVector.Set<FHistogramAtomicCS::FUsePrecalculatedLuminanceDim>(true);
+			}
+			else
+			{
+				PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDim>(true);
+			}
+		}
+		PermutationVector.Set<FHistogramAtomicCS::FUseDebugOutputDim>(CVarIgnoreMaterialsDebug->GetValueOnRenderThread());
 
 		auto ComputeShader = View.ShaderMap->GetShader<FHistogramAtomicCS>(PermutationVector);
 

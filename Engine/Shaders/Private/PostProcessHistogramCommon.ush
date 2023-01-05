@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PostProcessHistogramCommon.usf: PostProcessing histogram shared functions and structures.
+	PostProcessHistogramCommon.ush: PostProcessing histogram shared functions and structures.
 =============================================================================*/
 
 float EyeAdaptation_ExposureLowPercent;
