@@ -17467,21 +17467,7 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 		FColor	Color = ULevelStreaming::GetLevelStreamingStatusColor(LevelStatus.StreamingStatus);
 		const TCHAR* StatusDisplayName = ULevelStreaming::GetLevelStreamingStatusDisplayName(LevelStatus.StreamingStatus);
 		FString LevelPackageName = LevelStatus.PackageName.ToString();
-		FString DisplayName = LevelPackageName;
-
-		if (World->IsPartitionedWorld())
-		{
-			int32 CutPos = LevelPackageName.Find(*MapShortName);
-			if (CutPos != INDEX_NONE)
-			{
-				CutPos += MapShortName.Len();
-				while (LevelPackageName[CutPos] == TEXT('_'))
-				{
-					CutPos++;
-				}
-				DisplayName = LevelPackageName.Right(LevelPackageName.Len() - CutPos);
-			}
-		}
+		FString DisplayName = UWorld::RemovePIEPrefix(FPackageName::GetShortName(LevelPackageName));
 
 		if (LevelStatus.LODIndex != INDEX_NONE)
 		{
