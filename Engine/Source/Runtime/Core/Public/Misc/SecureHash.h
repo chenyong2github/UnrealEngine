@@ -14,6 +14,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
+#include "Misc/Guid.h"
 #include "Serialization/Archive.h"
 #include "Serialization/BufferReader.h"
 #include "Serialization/MemoryLayout.h"
@@ -190,6 +191,17 @@ private:
 	friend CORE_API FString LexToString(const FMD5Hash&);
 	friend CORE_API void LexFromString(FMD5Hash& Hash, const TCHAR*);
 };
+
+/** 
+  * Construct a FGuid from a MD5Hash. This means that calling ToString on the resulting FGuid will not result in the 
+  * expected MD5 hash string, due to how FGuid outputs the string; LexToString should be used in that case.
+  */
+inline FGuid MD5HashToGuid(const FMD5Hash& Hash)
+{
+	FGuid Result;
+	FMemory::Memcpy(&Result, Hash.GetBytes(), sizeof(FGuid));
+	return Result;
+}
 
 /*-----------------------------------------------------------------------------
 	SHA-1 functions.

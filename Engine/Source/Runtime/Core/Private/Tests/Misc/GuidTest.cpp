@@ -4,6 +4,7 @@
 #include "Containers/UnrealString.h"
 #include "Misc/Guid.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/SecureHash.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -94,6 +95,17 @@ bool FGuidTest::RunTest( const FString& Parameters )
 	g4_1.Invalidate();
 
 	TestFalse(TEXT("Invalidated GUIDs must be invalid"), g4_1.IsValid());
+
+	// GUID creation from MD5 hash
+	FMD5 MD5;
+	ANSICHAR String[] = "Construct Guid from MD5 hash";
+	MD5.Update((uint8*)String, sizeof(String) - 1);
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	TestTrue(TEXT("Expected hash must match"), LexToString(Hash) == TEXT("e500d989a5db77bc696e79ee785f4a69"));
+
+	FGuid g5_1(MD5HashToGuid(Hash));
+	TestTrue(TEXT("Constructing from MD5 hash must be valid"), g5_1.ToString() == TEXT("89d900e5bc77dba5ee796e69694a5f78"));
 
 	return true;
 }
