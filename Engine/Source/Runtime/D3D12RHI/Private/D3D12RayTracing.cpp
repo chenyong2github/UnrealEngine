@@ -1597,6 +1597,11 @@ public:
 
 	void Init(uint32 NumViewDescriptors, uint32 NumSamplerDescriptors)
 	{
+		FD3D12BindlessDescriptorManager& BindlessManager = GetParentDevice()->GetBindlessDescriptorManager();
+
+		bBindlessViews = BindlessManager.HasHeapForType(ERHIDescriptorHeapType::Standard);
+		bBindlessSamplers = BindlessManager.HasHeapForType(ERHIDescriptorHeapType::Sampler);
+
 		ViewHeap.Init(NumViewDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		SamplerHeap.Init(NumSamplerDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 	}
@@ -1615,7 +1620,10 @@ public:
 		check(ViewHeap.GetParentDevice() == CommandContext.GetParentDevice());
 		check(SamplerHeap.GetParentDevice() == CommandContext.GetParentDevice());
 
-		CommandContext.StateCache.GetDescriptorCache()->OverrideLastSetHeaps(ViewHeap.D3D12Heap, SamplerHeap.D3D12Heap);
+		ID3D12DescriptorHeap* ViewHeapToSet = bBindlessViews ? nullptr : ViewHeap.D3D12Heap;
+		ID3D12DescriptorHeap* SamplerHeapToSet = bBindlessSamplers ? nullptr : SamplerHeap.D3D12Heap;
+
+		CommandContext.StateCache.GetDescriptorCache()->OverrideLastSetHeaps(ViewHeapToSet, SamplerHeapToSet);
 	}
 
 	// Returns descriptor heap base index for this descriptor table allocation or -1 if allocation failed.
@@ -1702,6 +1710,9 @@ public:
 
 	FD3D12RayTracingDescriptorHeap ViewHeap;
 	FD3D12RayTracingDescriptorHeap SamplerHeap;
+
+	bool bBindlessViews = false;
+	bool bBindlessSamplers = false;
 
 	template<typename KeyType>
 	struct TIdentityHash

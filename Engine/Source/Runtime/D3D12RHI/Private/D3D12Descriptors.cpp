@@ -179,6 +179,19 @@ FD3D12DescriptorHeap* FD3D12BindlessDescriptorManager::GetHeapForType(ERHIDescri
 	return nullptr;
 }
 
+bool FD3D12BindlessDescriptorManager::HasHeapForType(ERHIDescriptorHeapType InType) const
+{
+	for (const FD3D12DescriptorManager& Manager : Managers)
+	{
+		if (Manager.HandlesAllocation(InType))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 D3D12_GPU_DESCRIPTOR_HANDLE FD3D12BindlessDescriptorManager::GetGpuHandle(FRHIDescriptorHandle InHandle) const
 {
 	for (const FD3D12DescriptorManager& Manager : Managers)

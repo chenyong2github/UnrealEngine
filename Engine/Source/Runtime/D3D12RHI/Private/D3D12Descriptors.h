@@ -104,6 +104,7 @@ public:
 	void UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 
 	FD3D12DescriptorHeap* GetHeapForType(ERHIDescriptorHeapType InType);
+	bool HasHeapForType(ERHIDescriptorHeapType InType) const;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(FRHIDescriptorHandle InHandle) const;
 
