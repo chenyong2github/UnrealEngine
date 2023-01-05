@@ -193,8 +193,7 @@ void AWorldPartitionHLOD::PostLoad()
 		FMD5Hash MD5Hash;
 		ArMD5.GetHash(MD5Hash);
 
-		check(MD5Hash.GetSize() == sizeof(FGuid));
-		FMemory::Memcpy(&SourceCellGuid, MD5Hash.GetBytes(), sizeof(FGuid));
+		SourceCellGuid = MD5HashToGuid(MD5Hash);
 		check(SourceCellGuid.IsValid());
 	}
 

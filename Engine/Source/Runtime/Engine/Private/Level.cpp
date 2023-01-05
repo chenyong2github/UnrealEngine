@@ -3446,9 +3446,7 @@ FString ULevel::GetActorPackageName(const FString& InBaseDir, EActorPackagingSch
 	FMD5Hash MD5Hash;
 	ArMD5.GetHash(MD5Hash);
 
-	FGuid PackageGuid;
-	check(MD5Hash.GetSize() == sizeof(FGuid));
-	FMemory::Memcpy(&PackageGuid, MD5Hash.GetBytes(), sizeof(FGuid));
+	FGuid PackageGuid = MD5HashToGuid(MD5Hash);
 	check(PackageGuid.IsValid());
 
 	FString GuidBase36 = PackageGuid.ToString(EGuidFormats::Base36Encoded);
