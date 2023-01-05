@@ -47,6 +47,15 @@ public:
 		return *this;
 	}
 
+	virtual FArchive& operator<<(FWeakObjectPtr& Value) override
+	{
+		if (UObject* Object = Value.Get(true))
+		{
+			return *this << Object;
+		}
+		return *this;
+	}
+
 private:
 	void HandleObjectReference(UObject* Obj)
 	{
