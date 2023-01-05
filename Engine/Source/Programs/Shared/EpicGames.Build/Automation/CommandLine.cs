@@ -57,7 +57,7 @@ namespace UnrealBuildBase
 		public ParsedCommandLine(Dictionary<string, string> GlobalParameters, HashSet<string> IgnoredGlobalParameters)
 		{
 			this.GlobalParameters = new Dictionary<string, string>(GlobalParameters, StringComparer.InvariantCultureIgnoreCase);
-			this.IgnoredGlobalParameters = new HashSet<string>(IgnoredGlobalParameters);
+			this.IgnoredGlobalParameters = new HashSet<string>(IgnoredGlobalParameters, StringComparer.InvariantCultureIgnoreCase);
 		}
 
 		HashSet<string> GlobalParameterValues = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);

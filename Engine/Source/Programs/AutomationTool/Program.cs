@@ -261,7 +261,7 @@ namespace AutomationToolDriver
 					{"-BuildMachine", "" },
 					{"-WaitForUATMutex", "" }
 				},
-				new HashSet<string>(){ "-msbuild-verbose" }
+				new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "-msbuild-verbose", "-NoCompileUAT" }
 			);
 
 			ParseProfile(ref Arguments);
