@@ -183,59 +183,30 @@ void UCharacterMovementTrajectoryComponent::PredictTrajectory(
 	OutTrajectoryRange.SampleRate = InSampleRate;
 	const float IntegrationDelta = 1.f / static_cast<float>(InSampleRate);
 
-	if (!!Settings.Domain)
+	FTrajectorySample Sample = PresentTrajectory;
+	FTrajectorySample PreviousSample = PresentTrajectory;
+	float AccumulatedDistance = 0.f;
+	float AccumulatedTime = 0.f;
+	FRotator ControlRotationTotalDelta = FRotator::ZeroRotator;
+
+	for (int32 Step = 0; Step < InMaxSamples; ++Step)
 	{
-		FTrajectorySample Sample = PresentTrajectory;
-		FTrajectorySample PreviousSample = PresentTrajectory;
-		float AccumulatedDistance = 0.f;
-		float AccumulatedSeconds = 0.f;
-		FRotator ControlRotationTotalDelta = FRotator::ZeroRotator;
+		PreviousSample = Sample;
+		StepPrediction(IntegrationDelta, InDesiredControlRotationVelocity, ControlRotationTotalDelta, Sample);
 
-		constexpr int32 DistanceDomainMask = static_cast<int32>(ETrajectorySampleDomain::Distance);
-		constexpr int32 TimeDomainMask = static_cast<int32>(ETrajectorySampleDomain::Time);
+		AccumulatedDistance += FVector::Distance(PreviousSample.Transform.GetLocation(), Sample.Transform.GetLocation());
+		Sample.AccumulatedDistance = AccumulatedDistance;
+		AccumulatedTime += IntegrationDelta;
+		Sample.AccumulatedSeconds = AccumulatedTime;
 
-		for (int32 Step = 0; Step < InMaxSamples; ++Step)
+		OutTrajectoryRange.Samples.Add(Sample);
+
+		if (Step * IntegrationDelta >= Settings.Seconds)
 		{
-			PreviousSample = Sample;
-			StepPrediction(
-				IntegrationDelta, 
-				InDesiredControlRotationVelocity, 
-				ControlRotationTotalDelta, 
-				Sample);
-
-			AccumulatedDistance += 
-				FVector::Distance(PreviousSample.Transform.GetLocation(), Sample.Transform.GetLocation());
-			Sample.AccumulatedDistance = AccumulatedDistance;
-			AccumulatedSeconds += IntegrationDelta;
-			Sample.AccumulatedSeconds = AccumulatedSeconds;
-
-			OutTrajectoryRange.Samples.Add(Sample);
-
-			if (FMath::IsNearlyEqual(FMath::Abs(Sample.AccumulatedDistance - PreviousSample.AccumulatedDistance), SMALL_NUMBER) &&
-				Sample.Transform.RotationEquals(PreviousSample.Transform, SMALL_NUMBER))
-			{
-				break;
-			}
-
-			if (((Settings.Domain & DistanceDomainMask) == DistanceDomainMask)
-				&& (Settings.Distance > 0.f)
-				&& (Sample.AccumulatedDistance < Settings.Distance))
-			{
-				continue;
-			}
-
-			if (((Settings.Domain & TimeDomainMask) == TimeDomainMask)
-				&& (Settings.Seconds > 0.f)
-				&& (Step * IntegrationDelta < Settings.Seconds))
-			{
-				continue;
-			}
-
 			break;
 		}
 	}
 }
-
 
 // ----------- BEGIN Derived from FCharacterMovementComponentAsyncInput ----------- //
 // FCharacterMovementComponentAsyncInput::CalcVelocity() for linear motion

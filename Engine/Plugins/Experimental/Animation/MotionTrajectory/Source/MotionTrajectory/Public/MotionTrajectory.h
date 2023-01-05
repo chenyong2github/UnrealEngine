@@ -28,18 +28,9 @@ struct MOTIONTRAJECTORY_API FMotionTrajectorySettings
 {
 	GENERATED_BODY()
 
-	// Trajectory mask for specifying a time and/or distance domain
-	// Default: Time Domain of 2.0 seconds
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(Bitmask, BitmaskEnum="/Script/Engine.ETrajectorySampleDomain"))
-	int32 Domain = 1; // ETrajectorySampleDomain::Time
-
 	// Sample time horizon
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(ClampMin="0.0"))
 	float Seconds = 2.f;
-
-	// Sample distance horizon
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(ClampMin="0.0"))
-	float Distance = 0.f;
 };
 
 // Abstract component interface for the minimum Motion Trajectory prediction and history API
@@ -56,7 +47,7 @@ private:
 	// Previous frame world game time
 	float PreviousWorldGameTime = 0.f;
 
-	// A superceding "effective" time domain applied to distance and time domain history samples, which guarantees uniform decay
+	// A superseding "effective" time domain applied history samples, which guarantees uniform decay
 	float EffectiveTimeDomain = 0.f;
 
 	// Component-driven tick which decays and evicts trajectory history outside of the defined domain horizons
@@ -82,7 +73,7 @@ protected:
 	// Gets the Pawn from the owning Actor of this component
 	const APawn* TryGetOwnerPawn() const;
 
-	// Combines all trajectory samples in the past, present, and future into a unifed trajectory range
+	// Combines all trajectory samples in the past, present, and future into a unified trajectory range
 	FTrajectorySampleRange CombineHistoryPresentPrediction(bool bIncludeHistory, const FTrajectorySampleRange& Prediction) const;
 
 

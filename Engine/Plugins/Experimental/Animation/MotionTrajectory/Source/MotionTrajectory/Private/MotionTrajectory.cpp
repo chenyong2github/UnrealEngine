@@ -105,11 +105,6 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 		const FTrajectorySample FirstSample = SampleHistory.First();
 		const float FirstSampleTime = FirstSample.AccumulatedSeconds;
 
-		constexpr int32 DistanceDomainMask = static_cast<int32>(ETrajectorySampleDomain::Distance);
-		constexpr int32 TimeDomainMask = static_cast<int32>(ETrajectorySampleDomain::Time);
-		const bool bDistanceDomainEnabled = (HistorySettings.Domain & DistanceDomainMask) == DistanceDomainMask;
-		const bool bTimeDomainEnabled = (HistorySettings.Domain & TimeDomainMask) == TimeDomainMask;
-
 		// For both time and distance history domains, we compute the concept of an "effective" time horizon:
 		// This value is present to guarantee uniform history decay against a fixed anchor point in the past when there is lack of trajectory motion
 		// The anchor point is defined by the AccumulatedTime of the furthest history sample at the exact moment of zero motion
@@ -136,14 +131,8 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 					return true;
 				}
 
-				// Distance horizon
-				if (bDistanceDomainEnabled && (Sample.AccumulatedDistance < -HistorySettings.Distance))
-				{
-					return true;
-				}
-
 				// Time horizon
-				if (bTimeDomainEnabled && (Sample.AccumulatedSeconds < -HistorySettings.Seconds))
+				if (Sample.AccumulatedSeconds < -HistorySettings.Seconds)
 				{
 					return true;
 				}
