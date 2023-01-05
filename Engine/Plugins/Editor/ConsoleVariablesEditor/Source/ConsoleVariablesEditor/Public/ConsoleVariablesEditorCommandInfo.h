@@ -1,16 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
- 
-#include "ConsoleVariablesEditorModule.h"
+
+#include "Containers/UnrealString.h"
+#include "HAL/IConsoleManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/DateTime.h"
+#include "UObject/ObjectMacros.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDetectConsoleObjectUnregistered, FString)
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
-class IConsoleObject;
-
-struct FConsoleVariablesEditorCommandInfo
+struct CONSOLEVARIABLESEDITOR_API FConsoleVariablesEditorCommandInfo
 {
 	enum class EConsoleObjectType
 	{

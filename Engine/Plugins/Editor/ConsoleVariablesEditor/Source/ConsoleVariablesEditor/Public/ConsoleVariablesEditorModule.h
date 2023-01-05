@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "ConsoleVariablesAsset.h"
-#include "MultiUser/ConsoleVariableSync.h"
-
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
@@ -16,12 +13,15 @@ struct FConsoleVariablesEditorCommandInfo;
 class FConsoleVariablesEditorMainPanel;
 class FConsoleVariablesEditorToolkit;
 class ISettingsSection;
+class UConsoleVariablesAsset;
+
+enum class ERemoteCVarChangeType : uint8;
 
 class FConsoleVariablesEditorModule : public IModuleInterface, public FGCObject
 {
 public:
 	
-	static FConsoleVariablesEditorModule& Get();
+	CONSOLEVARIABLESEDITOR_API static FConsoleVariablesEditorModule& Get();
 
 	//~ Begin IModuleInterface Interface
 	virtual void StartupModule() override;
@@ -44,7 +44,7 @@ public:
 	}
 
 	/** Find a tracked console variable by the command string with optional case sensitivity. */
-	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(
+	CONSOLEVARIABLESEDITOR_API TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(
 		const FString& NameToSearch, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
 
 	/*Find all tracked console variables matching a specific search query with optional case sensitivity.
@@ -52,7 +52,7 @@ public:
 	 *Members will be tested for a space character (" "). If a space is found, a subsearch will be run.
 	 *This subsearch will be an "AllOf" or "AND" type search in which all strings, separated by a space, must be found in the search terms.
 	 */
-	TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FindCommandInfosMatchingTokens(
+	CONSOLEVARIABLESEDITOR_API TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FindCommandInfosMatchingTokens(
 		const TArray<FString>& InTokens, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
 
 	/**
@@ -60,7 +60,7 @@ public:
 	 *Note that some commands do not have an associated console object (such as 'stat unit') and will not be found with this method.
 	 *It's normally safer to use FindCommandInfoByName() instead.
 	 */
-	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByConsoleObjectReference(
+	CONSOLEVARIABLESEDITOR_API TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByConsoleObjectReference(
 		IConsoleObject* InConsoleObjectReference);
 	
 	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetPresetAsset() const;

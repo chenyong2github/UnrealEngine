@@ -3,12 +3,13 @@
 #include "ConsoleVariablesEditorCommandInfo.h"
 
 #include "ConsoleVariablesEditorLog.h"
+#include "ConsoleVariablesEditorModule.h"
+#include "MultiUser/ConsoleVariableSync.h"
 
 #include "Algo/Find.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/GameEngine.h"
-#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 

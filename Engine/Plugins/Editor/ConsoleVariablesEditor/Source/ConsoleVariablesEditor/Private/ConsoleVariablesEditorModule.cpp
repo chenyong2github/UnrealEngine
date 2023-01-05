@@ -3,6 +3,7 @@
 #include "ConsoleVariablesEditorModule.h"
 
 #include "AssetTypeActions/AssetTypeActions_ConsoleVariables.h"
+#include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorCommandInfo.h"
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorProjectSettings.h"
