@@ -100,8 +100,14 @@ public class ICU : ModuleRules
 		// Libs
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, VSVersionFolderName, UseDebugLibs ? "Debug" : "Release", "icu.lib"));
+			string LibraryPath = Path.Combine(ICULibPath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			
+			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				LibraryPath = Path.Combine(LibraryPath, Target.WindowsPlatform.GetArchitectureSubpath());
+			}
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, UseDebugLibs ? "Debug" : "Release", "icu.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
