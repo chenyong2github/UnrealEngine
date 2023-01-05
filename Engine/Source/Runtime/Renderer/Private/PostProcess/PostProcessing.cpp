@@ -1802,6 +1802,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	enum class EPass : uint32
 	{
 		Distortion,
+		TAA,
 		SunMask,
 		BloomSetup,
 		DepthOfField,
@@ -1809,7 +1810,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		EyeAdaptation,
 		SunMerge,
 		SeparateTranslucency,
-		TAA,
 		Tonemap,
 		PostProcessMaterialAfterTonemapping,
 		FXAA,
@@ -1826,6 +1826,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	static const TCHAR* PassNames[] =
 	{
 		TEXT("Distortion"),
+		TEXT("TAA"),
 		TEXT("SunMask"),
 		TEXT("BloomSetup"),
 		TEXT("DepthOfField"),
@@ -1833,7 +1834,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		TEXT("EyeAdaptation"),
 		TEXT("SunMerge"),
 		TEXT("SeparateTranslucency"),
-		TEXT("TAA"),
 		TEXT("Tonemap"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
 		TEXT("FXAA"),
@@ -1954,6 +1954,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		const FPostProcessMaterialChain PostProcessMaterialAfterTonemappingChain = GetPostProcessMaterialChain(View, BL_AfterTonemapping);
 
 		PassSequence.SetEnabled(EPass::Distortion, bUseDistortion);
+		PassSequence.SetEnabled(EPass::TAA, bUseTAA);
 		PassSequence.SetEnabled(EPass::SunMask, bUseSun || bUseDof);
 		PassSequence.SetEnabled(EPass::BloomSetup, bUseSun || bUseMobileDof || bUseBloom || bUseBasicEyeAdaptation || bUseHistogramEyeAdaptation);
 		PassSequence.SetEnabled(EPass::DepthOfField, bUseDof);
@@ -1961,7 +1962,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		PassSequence.SetEnabled(EPass::EyeAdaptation, bUseEyeAdaptation);
 		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun);
 		PassSequence.SetEnabled(EPass::SeparateTranslucency, bUseSeparateTranslucency);
-		PassSequence.SetEnabled(EPass::TAA, bUseTAA);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
 		PassSequence.SetEnabled(EPass::FXAA, View.AntiAliasingMethod == AAM_FXAA);
 		PassSequence.Finalize();
@@ -1982,6 +1982,40 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		}
 
 		AddPostProcessMaterialPass(BL_BeforeTranslucency, false);
+
+		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
+		if (PassSequence.IsEnabled(EPass::TAA))
+		{
+			PassSequence.AcceptPass(EPass::TAA);
+
+			EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+			checkSlow(TAAConfig != EMainTAAPassConfig::Disabled);
+
+			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
+
+			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
+
+			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
+			RDG_EVENT_SCOPE_CONDITIONAL(
+				GraphBuilder,
+				TAAConfig == EMainTAAPassConfig::ThirdParty,
+				"ThirdParty %s %dx%d -> %dx%d",
+				UpscalerToUse->GetDebugName(),
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
+
+			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
+			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
+			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
+			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
+
+			ITemporalUpscaler::FOutputs Outputs = UpscalerToUse->AddPasses(
+				GraphBuilder,
+				View,
+				UpscalerPassInputs);
+
+			SceneColor = Outputs.FullRes;
+		}
 
 		// Optional fixed pass processes
 		if (PassSequence.IsEnabled(EPass::SunMask))
@@ -2279,40 +2313,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		}
 
 		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
-
-		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
-		if (PassSequence.IsEnabled(EPass::TAA))
-		{
-			PassSequence.AcceptPass(EPass::TAA);
-
-			EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
-			checkSlow(TAAConfig != EMainTAAPassConfig::Disabled);
-
-			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
-
-			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
-
-			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
-			RDG_EVENT_SCOPE_CONDITIONAL(
-				GraphBuilder,
-				TAAConfig == EMainTAAPassConfig::ThirdParty,
-				"ThirdParty %s %dx%d -> %dx%d",
-				UpscalerToUse->GetDebugName(),
-				View.ViewRect.Width(), View.ViewRect.Height(),
-				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
-
-			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
-			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
-			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
-			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
-
-			ITemporalUpscaler::FOutputs Outputs = UpscalerToUse->AddPasses(
-				GraphBuilder,
-				View,
-				UpscalerPassInputs);
-
-			SceneColor = Outputs.FullRes;
-		}
 	}
 	else
 	{
