@@ -52,6 +52,11 @@ void UAbilityTask_PerformTargeting::Activate()
 
 UAbilityTask_PerformTargeting* UAbilityTask_PerformTargeting::PerformTargetingRequest(UGameplayAbility* OwningAbility, UTargetingPreset* InTargetingPreset, bool bAllowAsync)
 {
+	if (!InTargetingPreset)
+	{
+		return nullptr;
+	}
+
 	UAbilityTask_PerformTargeting* Task = NewAbilityTask<UAbilityTask_PerformTargeting>(OwningAbility);
 	Task->TargetingPreset = InTargetingPreset;
 	Task->bPerformAsync = bAllowAsync;
@@ -61,6 +66,11 @@ UAbilityTask_PerformTargeting* UAbilityTask_PerformTargeting::PerformTargetingRe
 
 UAbilityTask_PerformTargeting* UAbilityTask_PerformTargeting::PerformFilteringRequest(UGameplayAbility* OwningAbility, UTargetingPreset* InTargetingPreset, const TArray<AActor*> InTargets, bool bAllowAsync)
 {
+	if (!InTargetingPreset)
+	{
+		return nullptr;
+	}
+
 	UAbilityTask_PerformTargeting* Task = NewAbilityTask<UAbilityTask_PerformTargeting>(OwningAbility);
 	Task->TargetingPreset = InTargetingPreset;
 	Task->InitialTargets = InTargets;

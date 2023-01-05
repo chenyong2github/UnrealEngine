@@ -19,6 +19,11 @@ UAsyncAction_PerformTargeting::UAsyncAction_PerformTargeting(const FObjectInitia
 
 UAsyncAction_PerformTargeting* UAsyncAction_PerformTargeting::PerformTargetingRequest(AActor* SourceActor, UTargetingPreset* TargetingPreset, bool bUseAsyncTargeting)
 {
+	if (!TargetingPreset)
+	{
+		return nullptr;
+	}
+
 	UWorld* World = GEngine->GetWorldFromContextObject(SourceActor, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
@@ -36,6 +41,11 @@ UAsyncAction_PerformTargeting* UAsyncAction_PerformTargeting::PerformTargetingRe
 
 UAsyncAction_PerformTargeting* UAsyncAction_PerformTargeting::PerformFilteringRequest(AActor* SourceActor, UTargetingPreset* TargetingPreset, bool bUseAsyncTargeting, const TArray<AActor*> InTargets)
 {
+	if (!TargetingPreset)
+	{
+		return nullptr;
+	}
+
 	UWorld* World = GEngine->GetWorldFromContextObject(SourceActor, EGetWorldErrorMode::LogAndReturnNull);
 	if (!World)
 	{
