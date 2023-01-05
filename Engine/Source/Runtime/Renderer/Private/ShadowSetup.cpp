@@ -2387,8 +2387,8 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		Renderer.MeshCollector.ProcessTasks();
 	}
 
-	SetupMeshDrawCommandsForShadowDepth(Renderer, InstanceCullingManager);
 	SetupMeshDrawCommandsForProjectionStenciling(Renderer, InstanceCullingManager);
+	SetupMeshDrawCommandsForShadowDepth(Renderer, InstanceCullingManager);
 }
 
 void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
