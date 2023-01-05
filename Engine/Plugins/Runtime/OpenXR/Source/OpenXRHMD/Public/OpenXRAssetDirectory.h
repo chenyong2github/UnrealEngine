@@ -29,9 +29,8 @@ public:
 	OPENXRHMD_API static FSoftObjectPath OculusTouchV2Right;
 	OPENXRHMD_API static FSoftObjectPath OculusTouchV3Left;
 	OPENXRHMD_API static FSoftObjectPath OculusTouchV3Right;
-	OPENXRHMD_API static FSoftObjectPath PicoG2;
-	OPENXRHMD_API static FSoftObjectPath PicoNeo2Left;
-	OPENXRHMD_API static FSoftObjectPath PicoNeo2Right;
+	OPENXRHMD_API static FSoftObjectPath PicoNeo3Left;
+	OPENXRHMD_API static FSoftObjectPath PicoNeo3Right;
 	OPENXRHMD_API static FSoftObjectPath SamsungGearVR;
 	OPENXRHMD_API static FSoftObjectPath SamsungOdysseyLeft;
 	OPENXRHMD_API static FSoftObjectPath SamsungOdysseyRight;
