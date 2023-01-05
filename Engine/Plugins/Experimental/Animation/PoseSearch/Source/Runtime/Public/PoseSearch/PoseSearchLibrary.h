@@ -18,7 +18,6 @@ enum class EMotionMatchingFlags : uint8
 {
 	None = 0 UMETA(Hidden),
 	JumpedToPose = 1 << 0,		// Signals that motion matching has made a significant deviation in the selected sequence/pose index
-	JumpedToFollowUp = 1 << 1,	// Motion matching chose the follow up animation of the prior sequence
 };
 ENUM_CLASS_FLAGS(EMotionMatchingFlags);
 
@@ -72,10 +71,8 @@ struct POSESEARCH_API FMotionMatchingState
 	// Reset the state to a default state using the current Database
 	void Reset();
 
-	// Checks if the currently playing asset can advance and stay in bounds under the provided DeltaTime. If the 
-	// asset cannot advance but a follow up asset is provided by the database then this function will return true and 
-	// also set bAdvanceToFollowUpAsset to true, while providing the pose to jump to in the follow up asset in OutFollowUpAsset
-	bool CanAdvance(float DeltaTime, bool& bOutAdvanceToFollowUpAsset, UE::PoseSearch::FSearchResult& OutFollowUpAsset) const;
+	// Checks if the currently playing asset can advance and stay in bounds under the provided DeltaTime.
+	bool CanAdvance(float DeltaTime) const;
 
 	// Attempts to set the internal state to match the provided asset time including updating the internal DbPoseIdx. 
 	// If the provided asset time is out of bounds for the currently playing asset then this function will reset the 

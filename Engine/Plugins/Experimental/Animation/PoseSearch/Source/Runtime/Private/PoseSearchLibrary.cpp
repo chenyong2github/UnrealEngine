@@ -34,11 +34,8 @@ void FMotionMatchingState::AdjustAssetTime(float AssetTime)
 	CurrentSearchResult.Update(AssetTime);
 }
 
-bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollowUpAsset, UE::PoseSearch::FSearchResult& OutFollowUpAsset) const
+bool FMotionMatchingState::CanAdvance(float DeltaTime) const
 {
-	bOutAdvanceToFollowUpAsset = false;
-	OutFollowUpAsset = UE::PoseSearch::FSearchResult();
-
 	if (!CurrentSearchResult.IsValid())
 	{
 		return false;
@@ -61,49 +58,6 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 		if (AdvanceType != ETAA_Finished)
 		{
 			return SearchIndexAsset->SamplingInterval.Contains(SteppedTime);
-		}
-		else
-		{
-			// check if there's a follow-up that can be used
-			int32 FollowUpDbSequenceIdx = CurrentSearchResult.Database->AnimationAssets.IndexOfByPredicate(
-				[&](const FInstancedStruct& DatabaseAsset)
-				{
-					if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
-					{
-						return (DatabaseSequence->Sequence == DatabaseSequence->FollowUpSequence);
-					}
-
-					return false;
-				});
-
-			int32 FollowUpSearchIndexAssetIdx = CurrentSearchResult.Database->GetSearchIndex().Assets.IndexOfByPredicate(
-				[&](const FPoseSearchIndexAsset& Entry)
-				{
-					const bool bIsMatch =
-						Entry.SourceAssetIdx == FollowUpDbSequenceIdx &&
-						Entry.bMirrored == SearchIndexAsset->bMirrored &&
-						Entry.SamplingInterval.Contains(0.0f);
-					return bIsMatch;
-				});
-
-			if (FollowUpSearchIndexAssetIdx != INDEX_NONE)
-			{
-				bOutAdvanceToFollowUpAsset = true;
-
-				const FPoseSearchIndexAsset& FollowUpSearchIndexAsset = CurrentSearchResult.Database->GetSearchIndex().Assets[FollowUpSearchIndexAssetIdx];
-
-				// Follow up asset time will start slightly before the beginning of the sequence as 
-				// this is essentially what the matching time in the corresponding main sequence is.
-				// Here we are assuming that the tick will advance the asset player timer into the 
-				// valid region
-				const float FollowUpAssetTime = CurrentSearchResult.AssetTime - AssetLength;
-
-				// There is no correspoding pose index when we switch due to what is mentioned above
-				// so for now we just take whatever pose index is associated with the first frame.
-				OutFollowUpAsset.PoseIdx = CurrentSearchResult.Database->GetPoseIndexFromTime(FollowUpSearchIndexAsset.SamplingInterval.Min, FollowUpSearchIndexAsset);
-				OutFollowUpAsset.AssetTime = FollowUpAssetTime;
-				return true;
-			}
 		}
 	}
 	else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
@@ -301,11 +255,6 @@ static void TraceMotionMatchingState(
 		TraceState.AnimAngularVelocity = FMath::RadiansToDegrees(AnimDelta.GetRotation().GetAngle()) / DeltaTime;
 	}
 
-	if (EnumHasAnyFlags(MotionMatchingState.Flags, EMotionMatchingFlags::JumpedToFollowUp))
-	{
-		TraceState.Flags |= FTraceMotionMatchingState::EFlags::FollowupAnimation;
-	}
-
 	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Searchable);
 	TraceState.ElapsedPoseJumpTime = MotionMatchingState.ElapsedPoseJumpTime;
 	TraceState.AssetPlayerTime = MotionMatchingState.CurrentSearchResult.AssetTime;
@@ -347,10 +296,8 @@ void UpdateMotionMatchingState(
 	const FSearchResult LastResult = InOutMotionMatchingState.CurrentSearchResult;
 #endif
 
-	// Check if we can advance. Includes the case where we can advance but only by switching to a follow up asset.
-	bool bAdvanceToFollowUpAsset = false;
-	FSearchResult FollowUpAssetResult;
-	const bool bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime, bAdvanceToFollowUpAsset, FollowUpAssetResult);
+	// Check if we can advance.
+	const bool bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime);
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
 	FSearchContext SearchContext;
@@ -402,17 +349,6 @@ void UpdateMotionMatchingState(
 			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = SearchResult.ContinuingPoseCost;
 			InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = SearchResult.ComposedQuery;
 		}
-	}
-
-	// If we didn't search or it didn't find a pose to jump to, and we can 
-	// advance but only with the follow up asset, jump to that. Otherwise we 
-	// are advancing as normal, and nothing needs to be done.
-	if (!(InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose)
-		&& bCanAdvance
-		&& bAdvanceToFollowUpAsset)
-	{
-		InOutMotionMatchingState.JumpToPose(Context, Settings, FollowUpAssetResult);
-		InOutMotionMatchingState.Flags |= EMotionMatchingFlags::JumpedToFollowUp;
 	}
 
 	// Tick elapsed pose jump timer

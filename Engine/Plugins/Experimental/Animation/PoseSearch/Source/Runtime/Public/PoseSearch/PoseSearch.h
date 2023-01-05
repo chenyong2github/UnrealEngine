@@ -343,9 +343,7 @@ struct FAssetIndexingContext
 {
 	const FAssetSamplingContext* SamplingContext = nullptr;
 	const UPoseSearchSchema* Schema = nullptr;
-	const IAssetSampler* MainSampler = nullptr;
-	const IAssetSampler* LeadInSampler = nullptr;
-	const IAssetSampler* FollowUpSampler = nullptr;
+	const IAssetSampler* AssetSampler = nullptr;
 	bool bMirrored = false;
 	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
 	
@@ -869,20 +867,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 
 	UPROPERTY(EditAnywhere, Category = "Sequence")
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
-
-	// Used for sampling past pose information at the beginning of the main sequence.
-	// This setting is intended for transitions between cycles. It is optional and only used
-	// for one shot anims with past sampling. When past sampling is used without a lead in sequence,
-	// the sampling range of the main sequence will be clamped if necessary.
-	UPROPERTY(EditAnywhere, Category="Sequence")
-	TObjectPtr<UAnimSequence> LeadInSequence;
-
-	// Used for sampling future pose information at the end of the main sequence.
-	// This setting is intended for transitions between cycles. It is optional and only used
-	// for one shot anims with future sampling. When future sampling is used without a follow up sequence,
-	// the sampling range of the main sequence will be clamped if necessary.
-	UPROPERTY(EditAnywhere, Category="Sequence")
-	TObjectPtr<UAnimSequence> FollowUpSequence;
 
 	UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
 	UClass* GetAnimationAssetStaticClass() const override { return UAnimSequence::StaticClass(); }

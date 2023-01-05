@@ -631,7 +631,7 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const F
 {
 	check(InIndexingContext.Schema);
 	check(InIndexingContext.Schema->IsValid());
-	check(InIndexingContext.MainSampler);
+	check(InIndexingContext.AssetSampler);
 
 	BoneContainer = InBoneContainer;
 	IndexingContext = InIndexingContext;
@@ -650,7 +650,7 @@ bool FAssetIndexer::Process()
 {
 	check(IndexingContext.Schema);
 	check(IndexingContext.Schema->IsValid());
-	check(IndexingContext.MainSampler);
+	check(IndexingContext.AssetSampler);
 
 	FMemMark Mark(FMemStack::Get());
 
@@ -680,84 +680,37 @@ bool FAssetIndexer::Process()
 
 const float FAssetIndexer::GetSampleTimeFromDistance(float SampleDistance) const
 {
-	auto CanWrapDistanceSamples = [](const IAssetSampler* Sampler) -> bool
+	constexpr float SMALL_ROOT_DISTANCE = 1.0f;
+	const bool bCanWrap = IndexingContext.AssetSampler->IsLoopable() && IndexingContext.AssetSampler->GetTotalRootDistance() > SMALL_ROOT_DISTANCE;
+
+	float RelativeDistance = SampleDistance;
+	if (SampleDistance < 0.0f && bCanWrap)
 	{
-		constexpr float SMALL_ROOT_DISTANCE = 1.0f;
-		return Sampler->IsLoopable() && Sampler->GetTotalRootDistance() > SMALL_ROOT_DISTANCE;
-	};
-
-	float MainTotalDistance = IndexingContext.MainSampler->GetTotalRootDistance();
-	bool bMainCanWrap = CanWrapDistanceSamples(IndexingContext.MainSampler);
-
-	float SampleTime = MAX_flt;
-
-	if (!bMainCanWrap)
-	{
-		// Use the lead in anim if we would have to clamp to the beginning of the main anim
-		if (IndexingContext.LeadInSampler && (SampleDistance < 0.0f))
-		{
-			const IAssetSampler* ClipSampler = IndexingContext.LeadInSampler;
-
-			bool bLeadInCanWrap = CanWrapDistanceSamples(IndexingContext.LeadInSampler);
-			float LeadRelativeDistance = SampleDistance + ClipSampler->GetTotalRootDistance();
-			FSamplingParam SamplingParam = WrapOrClampSamplingParam(bLeadInCanWrap, ClipSampler->GetTotalRootDistance(), LeadRelativeDistance);
-
-			float ClipTime = ClipSampler->GetTimeFromRootDistance(
-				SamplingParam.WrappedParam + SamplingParam.Extrapolation);
-
-			// Make the lead in clip time relative to the main sequence again and unwrap
-			SampleTime = -((SamplingParam.NumCycles * ClipSampler->GetPlayLength()) + (ClipSampler->GetPlayLength() - ClipTime));
-		}
-
-		// Use the follow up anim if we would have clamp to the end of the main anim
-		else if (IndexingContext.FollowUpSampler && (SampleDistance > MainTotalDistance))
-		{
-			const IAssetSampler* ClipSampler = IndexingContext.FollowUpSampler;
-
-			bool bFollowUpCanWrap = CanWrapDistanceSamples(IndexingContext.FollowUpSampler);
-			float FollowRelativeDistance = SampleDistance - MainTotalDistance;
-			FSamplingParam SamplingParam = WrapOrClampSamplingParam(bFollowUpCanWrap, ClipSampler->GetTotalRootDistance(), FollowRelativeDistance);
-
-			float ClipTime = ClipSampler->GetTimeFromRootDistance(
-				SamplingParam.WrappedParam + SamplingParam.Extrapolation);
-
-			// Make the follow up clip time relative to the main sequence again and unwrap
-			SampleTime = IndexingContext.MainSampler->GetPlayLength() + SamplingParam.NumCycles * ClipSampler->GetPlayLength() + ClipTime;
-		}
+		// In this case we're sampling a loop backwards, so MainRelativeDistance must adjust so the number of cycles 
+		// is counted correctly.
+		RelativeDistance += IndexingContext.AssetSampler->GetTotalRootDistance();
 	}
 
-	// Use the main anim if we didn't use the lead-in or follow-up anims.
-	// The main anim sample may have been wrapped or clamped
-	if (SampleTime == MAX_flt)
+	const float MainTotalDistance = IndexingContext.AssetSampler->GetTotalRootDistance();
+	const FSamplingParam SamplingParam = WrapOrClampSamplingParam(bCanWrap, MainTotalDistance, RelativeDistance);
+	const float ClipTime = IndexingContext.AssetSampler->GetTimeFromRootDistance(SamplingParam.WrappedParam + SamplingParam.Extrapolation);
+
+	// Unwrap the clip time
+	float SampleTime = MAX_flt;
+	if (bCanWrap)
 	{
-		float MainRelativeDistance = SampleDistance;
-		if (SampleDistance < 0.0f && bMainCanWrap)
+		if (SampleDistance < 0.0f)
 		{
-			// In this case we're sampling a loop backwards, so MainRelativeDistance must adjust so the number of cycles 
-			// is counted correctly.
-			MainRelativeDistance += IndexingContext.MainSampler->GetTotalRootDistance();
-		}
-
-		FSamplingParam SamplingParam = WrapOrClampSamplingParam(bMainCanWrap, MainTotalDistance, MainRelativeDistance);
-		float ClipTime = IndexingContext.MainSampler->GetTimeFromRootDistance(
-			SamplingParam.WrappedParam + SamplingParam.Extrapolation);
-
-		// Unwrap the main clip time
-		if (bMainCanWrap)
-		{
-			if (SampleDistance < 0.0f)
-			{
-				SampleTime = -((SamplingParam.NumCycles * IndexingContext.MainSampler->GetPlayLength()) + (IndexingContext.MainSampler->GetPlayLength() - ClipTime));
-			}
-			else
-			{
-				SampleTime = SamplingParam.NumCycles * IndexingContext.MainSampler->GetPlayLength() + ClipTime;
-			}
+			SampleTime = -((SamplingParam.NumCycles * IndexingContext.AssetSampler->GetPlayLength()) + (IndexingContext.AssetSampler->GetPlayLength() - ClipTime));
 		}
 		else
 		{
-			SampleTime = ClipTime;
+			SampleTime = SamplingParam.NumCycles * IndexingContext.AssetSampler->GetPlayLength() + ClipTime;
 		}
+	}
+	else
+	{
+		SampleTime = ClipTime;
 	}
 
 	return SampleTime;
@@ -767,89 +720,22 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 {
 	FSampleInfo Sample;
 
-	FTransform RootMotionLast = FTransform::Identity;
-	FTransform RootMotionInitial = FTransform::Identity;
+	check(IndexingContext.AssetSampler);
 
-	float RootDistanceLast = 0.0f;
-	float RootDistanceInitial = 0.0f;
+	const float PlayLength = IndexingContext.AssetSampler->GetPlayLength();
+	const bool bCanWrap = IndexingContext.AssetSampler->IsLoopable();
 
-	check(IndexingContext.MainSampler);
-
-	const float MainPlayLength = IndexingContext.MainSampler->GetPlayLength();
-	const bool bMainCanWrap = IndexingContext.MainSampler->IsLoopable();
-
-	FSamplingParam SamplingParam;
-	if (!bMainCanWrap)
+	float MainRelativeTime = SampleTime;
+	if (SampleTime < 0.0f && bCanWrap)
 	{
-		// Use the lead in anim if we would have to clamp to the beginning of the main anim
-		if (IndexingContext.LeadInSampler && (SampleTime < 0.0f))
-		{
-			const IAssetSampler* ClipSampler = IndexingContext.LeadInSampler;
-
-			const bool bLeadInCanWrap = IndexingContext.LeadInSampler->IsLoopable();
-			const float LeadRelativeTime = SampleTime + ClipSampler->GetPlayLength();
-			SamplingParam = WrapOrClampSamplingParam(bLeadInCanWrap, ClipSampler->GetPlayLength(), LeadRelativeTime);
-
-			Sample.Clip = IndexingContext.LeadInSampler;
-
-			check(SamplingParam.Extrapolation <= 0.0f);
-			if (SamplingParam.Extrapolation < 0.0f)
-			{
-				RootMotionInitial = IndexingContext.LeadInSampler->GetTotalRootTransform().Inverse();
-				RootDistanceInitial = -IndexingContext.LeadInSampler->GetTotalRootDistance();
-			}
-			else
-			{
-				RootMotionInitial = FTransform::Identity;
-				RootDistanceInitial = 0.0f;
-			}
-
-			RootMotionLast = IndexingContext.LeadInSampler->GetTotalRootTransform();
-			RootDistanceLast = IndexingContext.LeadInSampler->GetTotalRootDistance();
-		}
-
-		// Use the follow up anim if we would have clamp to the end of the main anim
-		else if (IndexingContext.FollowUpSampler && (SampleTime > MainPlayLength))
-		{
-			const IAssetSampler* ClipSampler = IndexingContext.FollowUpSampler;
-
-			const bool bFollowUpCanWrap = IndexingContext.FollowUpSampler->IsLoopable();
-			const float FollowRelativeTime = SampleTime - MainPlayLength;
-			SamplingParam = WrapOrClampSamplingParam(bFollowUpCanWrap, ClipSampler->GetPlayLength(), FollowRelativeTime);
-
-			Sample.Clip = IndexingContext.FollowUpSampler;
-
-			RootMotionInitial = IndexingContext.MainSampler->GetTotalRootTransform();
-			RootDistanceInitial = IndexingContext.MainSampler->GetTotalRootDistance();
-
-			RootMotionLast = IndexingContext.FollowUpSampler->GetTotalRootTransform();
-			RootDistanceLast = IndexingContext.FollowUpSampler->GetTotalRootDistance();
-		}
+		// In this case we're sampling a loop backwards, so MainRelativeTime must adjust so the number of cycles is
+		// counted correctly.
+		MainRelativeTime += PlayLength;
 	}
 
-	// Use the main anim if we didn't use the lead-in or follow-up anims.
-	// The main anim sample may have been wrapped or clamped
-	if (!Sample.IsValid())
-	{
-		float MainRelativeTime = SampleTime;
-		if (SampleTime < 0.0f && bMainCanWrap)
-		{
-			// In this case we're sampling a loop backwards, so MainRelativeTime must adjust so the number of cycles is
-			// counted correctly.
-			MainRelativeTime += MainPlayLength;
-		}
+	const FSamplingParam SamplingParam = WrapOrClampSamplingParam(bCanWrap, PlayLength, MainRelativeTime);
 
-		SamplingParam = WrapOrClampSamplingParam(bMainCanWrap, MainPlayLength, MainRelativeTime);
-
-		Sample.Clip = IndexingContext.MainSampler;
-
-		RootMotionInitial = FTransform::Identity;
-		RootDistanceInitial = 0.0f;
-
-		RootMotionLast = IndexingContext.MainSampler->GetTotalRootTransform();
-		RootDistanceLast = IndexingContext.MainSampler->GetTotalRootDistance();
-	}
-
+	Sample.Clip = IndexingContext.AssetSampler;
 
 	if (FMath::Abs(SamplingParam.Extrapolation) > SMALL_NUMBER)
 	{
@@ -858,12 +744,15 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 		const FTransform ClipRootMotion = Sample.Clip->ExtractRootTransform(Sample.ClipTime);
 		const float ClipDistance = Sample.Clip->ExtractRootDistance(Sample.ClipTime);
 
-		Sample.RootTransform = ClipRootMotion * RootMotionInitial;
-		Sample.RootDistance = RootDistanceInitial + ClipDistance;
+		Sample.RootTransform = ClipRootMotion;
+		Sample.RootDistance = ClipDistance;
 	}
 	else
 	{
 		Sample.ClipTime = SamplingParam.WrappedParam;
+
+		const FTransform RootMotionLast = IndexingContext.AssetSampler->GetTotalRootTransform();
+		float RootDistanceLast = IndexingContext.AssetSampler->GetTotalRootDistance();
 
 		// Determine how to accumulate motion for every cycle of the anim. If the sample
 		// had to be clamped, this motion will end up not getting applied below.
@@ -887,8 +776,8 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 			RootDistanceRemainder = -(RootDistanceLast - RootDistanceRemainder);
 		}
 
-		Sample.RootTransform = RootMotionInitial;
-		Sample.RootDistance = RootDistanceInitial;
+		Sample.RootTransform = FTransform::Identity;
+		Sample.RootDistance = 0.f;
 
 		// Note if the sample was clamped, no motion will be applied here because NumCycles will be zero
 		int32 CyclesRemaining = SamplingParam.NumCycles;
@@ -920,7 +809,7 @@ FTransform FAssetIndexer::MirrorTransform(const FTransform& Transform) const
 
 FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 {
-	const float SequenceLength = IndexingContext.MainSampler->GetPlayLength();
+	const float SequenceLength = IndexingContext.AssetSampler->GetPlayLength();
 	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
 
 	FPoseSearchPoseMetadata Metadata;
@@ -928,7 +817,7 @@ FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 	Metadata.ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
 
 	TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
-	IndexingContext.MainSampler->ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
+	IndexingContext.AssetSampler->ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
 	for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
 	{
 		if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchBlockTransition>())
@@ -973,7 +862,7 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 			UE_LOG(LogPoseSearch,
 				Warning,
 				TEXT("Invalid BoneContainer encountered in FAssetIndexer::GetTransformAndCacheResults. Asset: %s. Schema: %s. BoneContainerAsset: %s. NumBoneIndices: %d"),
-				*GetNameSafe(IndexingContext.MainSampler->GetAsset()),
+				*GetNameSafe(IndexingContext.AssetSampler->GetAsset()),
 				*GetNameSafe(IndexingContext.Schema),
 				*GetNameSafe(BoneContainer.GetAsset()),
 				BoneContainer.GetCompactPoseNumBones());
@@ -1072,8 +961,6 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
 		{
 			AddSequenceBaseSampler(DatabaseSequence->Sequence);
-			AddSequenceBaseSampler(DatabaseSequence->LeadInSequence);
-			AddSequenceBaseSampler(DatabaseSequence->FollowUpSequence);
 		}
 		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
@@ -1154,17 +1041,15 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 		{
 			const float SequenceLength = DatabaseSequence->Sequence->GetPlayLength();
-			IndexerContext.MainSampler = GetSequenceBaseSampler(DatabaseSequence->Sequence);
-			IndexerContext.LeadInSampler = SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSequenceBaseSampler(DatabaseSequence->LeadInSequence) : nullptr;
-			IndexerContext.FollowUpSampler = SearchIndexAsset.SamplingInterval.Max == SequenceLength ? GetSequenceBaseSampler(DatabaseSequence->FollowUpSequence) : nullptr;
+			IndexerContext.AssetSampler = GetSequenceBaseSampler(DatabaseSequence->Sequence);
 		}
 		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
-			IndexerContext.MainSampler = GetSequenceBaseSampler(DatabaseAnimComposite->AnimComposite);
+			IndexerContext.AssetSampler = GetSequenceBaseSampler(DatabaseAnimComposite->AnimComposite);
 		}
 		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
-			IndexerContext.MainSampler = GetBlendSpaceSampler(DatabaseBlendSpace->BlendSpace, SearchIndexAsset.BlendParameters);
+			IndexerContext.AssetSampler = GetBlendSpaceSampler(DatabaseBlendSpace->BlendSpace, SearchIndexAsset.BlendParameters);
 		}
 
 		FAssetIndexer& Indexer = Indexers.AddDefaulted_GetRef();

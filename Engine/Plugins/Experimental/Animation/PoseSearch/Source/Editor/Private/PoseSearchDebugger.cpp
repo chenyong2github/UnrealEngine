@@ -1579,7 +1579,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 
 		Reflection->CurrentDatabaseName = CurrentDatabase->GetName();
 		Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
-		Reflection->bFollowUpAnimation = EnumHasAnyFlags(State.Flags, FTraceMotionMatchingState::EFlags::FollowupAnimation);
 
 		Reflection->AssetPlayerAssetName = "None";
 		if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentDbPoseIdx))

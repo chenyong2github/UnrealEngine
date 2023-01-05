@@ -64,23 +64,11 @@ POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatab
  */
 struct POSESEARCH_API FTraceMotionMatchingState
 {
-	/** Bitfield for various state booleans */
-	enum class EFlags : uint32
-	{
-		None = 0u,
-
-		/** Whether the last animation was a forced follow-up animation due to expended animation runway */
-		FollowupAnimation = 1u << 0
-	};
-
 	/** ObjectId of active searchable asset */
 	uint64 SearchableAssetId = 0;
 	
 	/** Amount of time since the last pose switch */
 	float ElapsedPoseJumpTime = 0.0f;
-
-	/** Storage container for state booleans */
-	EFlags Flags = EFlags::None;
 
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;
@@ -132,7 +120,6 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	
 	static const FName Name;
 };
-ENUM_CLASS_FLAGS(FTraceMotionMatchingState::EFlags)
 
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State);
 

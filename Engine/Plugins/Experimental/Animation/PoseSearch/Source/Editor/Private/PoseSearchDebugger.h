@@ -104,10 +104,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
 	float ElapsedPoseJumpTime = 0.0f;
 
-	/** Whether it is playing the loop following the expended animation runway */
-	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
-	bool bFollowUpAnimation = false;
-	
 	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
 	FString AssetPlayerAssetName = "";
 
