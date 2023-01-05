@@ -4266,11 +4266,7 @@ void FControlRigEditor::OnPinControlNameListComboBox(const TArray<TSharedPtr<FSt
 
 bool FControlRigEditor::IsConstructionModeEnabled() const
 {
-	if(ControlRig)
-	{
-		return ControlRig->IsConstructionModeEnabled();
-	}
-	return false;
+	return GetEventQueue() == ConstructionEventQueue;
 }
 
 void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
