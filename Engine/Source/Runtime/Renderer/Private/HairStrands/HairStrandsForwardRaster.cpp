@@ -170,6 +170,9 @@ class FHairStrandsForwardRasterCompactionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutPrims)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutWork)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutDataCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutWorkCount)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -205,6 +208,8 @@ class FHairStrandsForwardRasterRasterizeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTilePrims)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTileArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, VisTileWork)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, VisTileWorkCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisTileData)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutHairCountTexture_ForDebug)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutHairPixelCountPerTile_ForDebug)
@@ -480,11 +485,14 @@ void AddHairStrandsForwardRasterPass(
 		FRDGBufferRef CompactedVisTilePrims;
 		FRDGBufferRef CompactedVisTileData;
 		FRDGBufferRef CompactedVisTileArgs;
+		FRDGBufferRef CompactedVisTileWork;
+		FRDGBufferRef CompactedVisTileDataCount;
+		FRDGBufferRef CompactedVisTileWorkCount;
 	};
 
 	FBinningData BinData;
 	{
-		const uint32 BinMaxTiles = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_MaxTiles, 1024), 262144);
+		const uint32 BinMaxTiles = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_MaxTiles, 1024), 262144); //?
 
 		BinData.VisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.VisTilePrims"));
 		BinData.VisTilePrimsSRV = GraphBuilder.CreateSRV(BinData.VisTilePrims, PF_R32_UINT);
@@ -515,6 +523,9 @@ void AddHairStrandsForwardRasterPass(
 		BinData.CompactedVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.CompactedVisTilePrims"));
 		BinData.CompactedVisTileData = GraphBuilder.CreateBuffer(DescTileData, TEXT("Hair.CompactedVisTileData"));
 		BinData.CompactedVisTileArgs = GraphBuilder.CreateBuffer(VisTileArgsDesc, TEXT("Hair.CompactedVisTileArgs"));
+		BinData.CompactedVisTileWork		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.CompactedVisTileWork"));
+		BinData.CompactedVisTileDataCount	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Hair.CompactedVisTileDataCount"));
+		BinData.CompactedVisTileWorkCount	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Hair.CompactedVisTileWorkCount"));
 	}
 
 	// Create and set the uniform buffer
@@ -581,6 +592,8 @@ void AddHairStrandsForwardRasterPass(
 		AddClearUAVPass(GraphBuilder, BinData.VisTileBinningGridUAV, IndexGridClearValues);
 		AddClearUAVPass(GraphBuilder, BinData.VisTileArgsUAV, 0u);
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(BinData.CompactedVisTileArgs, PF_R32_UINT), 0u);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(BinData.CompactedVisTileDataCount, PF_R32_UINT), 0u);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(BinData.CompactedVisTileWorkCount, PF_R32_UINT), 0u);
 	}
 
 	// Binning pass
@@ -613,15 +626,19 @@ void AddHairStrandsForwardRasterPass(
 	// Compaction
 	{
 		FHairStrandsForwardRasterCompactionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterCompactionCS::FParameters>();
-		Parameters->Common = Common;
-		Parameters->ViewUniformBuffer = ViewUniformShaderParameters;
-		Parameters->InData  = BinData.VisTileDataSRV;
-		Parameters->InPrims = BinData.VisTilePrimsSRV;
-		Parameters->InDepths= BinData.VisTilePrimDepthsSRV;
-		Parameters->InArgs  = BinData.VisTileArgsSRV;
-		Parameters->OutData = GraphBuilder.CreateUAV(BinData.CompactedVisTileData);
-		Parameters->OutPrims= GraphBuilder.CreateUAV(BinData.CompactedVisTilePrims, PF_R32_UINT);
-		Parameters->OutArgs = GraphBuilder.CreateUAV(BinData.CompactedVisTileArgs, PF_R32_UINT);
+		Parameters->Common				= Common;
+		Parameters->ViewUniformBuffer	= ViewUniformShaderParameters;
+		Parameters->InData				= BinData.VisTileDataSRV;
+		Parameters->InPrims				= BinData.VisTilePrimsSRV;
+		Parameters->InDepths			= BinData.VisTilePrimDepthsSRV;
+		Parameters->InArgs				= BinData.VisTileArgsSRV;
+		Parameters->OutData				= GraphBuilder.CreateUAV(BinData.CompactedVisTileData);
+		Parameters->OutPrims			= GraphBuilder.CreateUAV(BinData.CompactedVisTilePrims, PF_R32_UINT);
+		Parameters->OutArgs 			= GraphBuilder.CreateUAV(BinData.CompactedVisTileArgs, PF_R32_UINT);
+		Parameters->OutWork				= GraphBuilder.CreateUAV(BinData.CompactedVisTileWork, PF_R32_UINT);
+		Parameters->OutDataCount		= GraphBuilder.CreateUAV(BinData.CompactedVisTileDataCount, PF_R32_UINT);
+		Parameters->OutWorkCount		= GraphBuilder.CreateUAV(BinData.CompactedVisTileWorkCount, PF_R32_UINT);
+
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
 		FHairStrandsForwardRasterCompactionCS::FPermutationDomain PermutationVector;
@@ -660,6 +677,8 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->SampleVelocityBuffer = InData.ControlPointVelocitySRV;
 		Parameters->VisTilePrims = GraphBuilder.CreateSRV(BinData.CompactedVisTilePrims, PF_R32_UINT);
 		Parameters->VisTileArgs = GraphBuilder.CreateSRV(BinData.CompactedVisTileArgs, PF_R32_UINT);
+		Parameters->VisTileWork = GraphBuilder.CreateSRV(BinData.CompactedVisTileWork, PF_R32_UINT);
+		Parameters->VisTileWorkCount = GraphBuilder.CreateSRV(BinData.CompactedVisTileWorkCount, PF_R32_UINT);
 		Parameters->VisTileData = GraphBuilder.CreateSRV(BinData.CompactedVisTileData);
 		Parameters->OutSceneColorTexture = GraphBuilder.CreateUAV(SceneColorTexture);
 		Parameters->OutSceneVelocityTexture = GraphBuilder.CreateUAV(SceneVelocityTexture);
