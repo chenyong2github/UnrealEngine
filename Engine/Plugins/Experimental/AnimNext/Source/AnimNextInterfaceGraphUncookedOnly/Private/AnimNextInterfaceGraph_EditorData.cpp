@@ -619,5 +619,3 @@ FName UAnimNextInterfaceGraph_EditorData::GetPinTypeName(const FEdGraphPinType& 
 
 	return DataType;
 }
-
-#undef LOCTEXT_NAMESPACE
