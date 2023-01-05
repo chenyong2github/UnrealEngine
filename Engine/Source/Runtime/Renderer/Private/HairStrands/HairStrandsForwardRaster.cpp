@@ -127,7 +127,10 @@ class FHairStrandsForwardRasterBinningCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeForwardCommonParameters, Common)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, VisTileBinningGrid)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVisTilePrims)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVisTilePrimDepths)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutVisTileBinningGrid)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutVisTileBinningGridMinZ)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutVisTileBinningGridMaxZ)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisTileDepthGrid)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVisTileArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutVisTileData)
@@ -162,6 +165,7 @@ class FHairStrandsForwardRasterCompactionCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeForwardCommonParameters, Common)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, InData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InPrims)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InDepths)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutPrims)
@@ -452,7 +456,10 @@ void AddHairStrandsForwardRasterPass(
 		// Binned segments
 		FRDGBufferRef VisTilePrims;
 		FRDGBufferSRVRef VisTilePrimsSRV;
-		
+
+		FRDGBufferRef VisTilePrimDepths;
+		FRDGBufferSRVRef VisTilePrimDepthsSRV;
+
 		FRDGBufferRef VisTileData;
 		FRDGBufferSRVRef VisTileDataSRV;
 
@@ -462,6 +469,12 @@ void AddHairStrandsForwardRasterPass(
 
 		FRDGTextureRef VisTileBinningGrid;
 		FRDGTextureUAVRef VisTileBinningGridUAV;
+
+		// BinZ Min/Max
+		FRDGTextureRef VisTileBinningGridMinZ;
+		FRDGTextureRef VisTileBinningGridMaxZ;
+		FRDGTextureUAVRef VisTileBinningGridMinZUAV;
+		FRDGTextureUAVRef VisTileBinningGridMaxZUAV;
 
 		// Binned & compacted segments
 		FRDGBufferRef CompactedVisTilePrims;
@@ -476,6 +489,9 @@ void AddHairStrandsForwardRasterPass(
 		BinData.VisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.VisTilePrims"));
 		BinData.VisTilePrimsSRV = GraphBuilder.CreateSRV(BinData.VisTilePrims, PF_R32_UINT);
 
+		BinData.VisTilePrimDepths = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.VisTilePrimDepths"));
+		BinData.VisTilePrimDepthsSRV = GraphBuilder.CreateSRV(BinData.VisTilePrimDepths, PF_R32_UINT);
+
 		const uint32 EntryCount = 5; // See VT_XXX in .usf: PrimOffset / PrimCount / Coord / MaxIndex / MinMaxDepth
 		FRDGBufferDesc DescTileData = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), BinMaxTiles * EntryCount * 2);
 		DescTileData.Usage = EBufferUsageFlags(DescTileData.Usage | BUF_ByteAddressBuffer);
@@ -489,6 +505,12 @@ void AddHairStrandsForwardRasterPass(
 
 		BinData.VisTileBinningGrid = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2DArray(BinTileRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource, NumBinners * 3), TEXT("Hair.VisTileBinningGrid"));
 		BinData.VisTileBinningGridUAV = GraphBuilder.CreateUAV(BinData.VisTileBinningGrid);
+
+		// BinZ Min/Max
+		BinData.VisTileBinningGridMinZ = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2DArray(BinTileRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource, NumBinners * 3), TEXT("Hair.VisTileBinningGridMinZ"));
+		BinData.VisTileBinningGridMaxZ = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2DArray(BinTileRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource, NumBinners * 3), TEXT("Hair.VisTileBinningGridMaxZ"));
+		BinData.VisTileBinningGridMinZUAV = GraphBuilder.CreateUAV(BinData.VisTileBinningGridMinZ);
+		BinData.VisTileBinningGridMaxZUAV = GraphBuilder.CreateUAV(BinData.VisTileBinningGridMaxZ);
 
 		BinData.CompactedVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.CompactedVisTilePrims"));
 		BinData.CompactedVisTileData = GraphBuilder.CreateBuffer(DescTileData, TEXT("Hair.CompactedVisTileData"));
@@ -549,6 +571,12 @@ void AddHairStrandsForwardRasterPass(
 
 	// Reset buffers
 	{
+		// BinZ Min/Max
+		uint32 IndexGridClearMinZ[4] = { 0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF };
+		uint32 IndexGridClearMaxZ[4] = { 0x0,0x0,0x0,0x0 };
+		AddClearUAVPass(GraphBuilder, BinData.VisTileBinningGridMinZUAV, IndexGridClearMinZ);
+		AddClearUAVPass(GraphBuilder, BinData.VisTileBinningGridMaxZUAV, IndexGridClearMaxZ);
+
 		uint32 IndexGridClearValues[4] = { 0x0,0x0,0x0,0x0 };
 		AddClearUAVPass(GraphBuilder, BinData.VisTileBinningGridUAV, IndexGridClearValues);
 		AddClearUAVPass(GraphBuilder, BinData.VisTileArgsUAV, 0u);
@@ -561,7 +589,10 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->Common = Common;
 		Parameters->ViewUniformBuffer = ViewUniformShaderParameters;
 		Parameters->OutVisTilePrims = GraphBuilder.CreateUAV(BinData.VisTilePrims, PF_R32_UINT);
+		Parameters->OutVisTilePrimDepths = GraphBuilder.CreateUAV(BinData.VisTilePrimDepths, PF_R32_UINT);
 		Parameters->OutVisTileBinningGrid = BinData.VisTileBinningGridUAV;
+		Parameters->OutVisTileBinningGridMinZ = BinData.VisTileBinningGridMinZUAV;
+		Parameters->OutVisTileBinningGridMaxZ = BinData.VisTileBinningGridMaxZUAV;
 		Parameters->VisTileDepthGrid = VisTileDepthGrid;
 		Parameters->OutVisTileArgs = BinData.VisTileArgsUAV;
 		Parameters->OutVisTileData = GraphBuilder.CreateUAV(BinData.VisTileData);
@@ -586,6 +617,7 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->ViewUniformBuffer = ViewUniformShaderParameters;
 		Parameters->InData  = BinData.VisTileDataSRV;
 		Parameters->InPrims = BinData.VisTilePrimsSRV;
+		Parameters->InDepths= BinData.VisTilePrimDepthsSRV;
 		Parameters->InArgs  = BinData.VisTileArgsSRV;
 		Parameters->OutData = GraphBuilder.CreateUAV(BinData.CompactedVisTileData);
 		Parameters->OutPrims= GraphBuilder.CreateUAV(BinData.CompactedVisTilePrims, PF_R32_UINT);
