@@ -355,6 +355,12 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeRenderCaptureOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bEmissiveMap = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bOpacityMap = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bSubsurfaceColorMap = true;
+
 	// These are hidden in the UI right now, we might want to expose them if they turn out to be useful for very large
 	// or very small objects (not tested yet) TODO Figure out if we want to expose these options
 
@@ -411,6 +417,18 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptRenderCaptureTextures
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bHasEmissiveMap = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	TObjectPtr<UTexture2D> OpacityMap = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bHasOpacityMap = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	TObjectPtr<UTexture2D> SubsurfaceColorMap = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bHasSubsurfaceColorMap = false;
 };
 
 UCLASS(meta = (ScriptName = "GeometryScript_Bake"))

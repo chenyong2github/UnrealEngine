@@ -117,6 +117,8 @@ struct MODELINGCOMPONENTS_API FRenderCaptureOptions
 	bool bBakeSpecular = true;
 	bool bBakeEmissive = true;
 	bool bBakeNormalMap = true;
+	bool bBakeOpacity = true;
+	bool bBakeSubsurfaceColor = true;
 	bool bBakeDeviceDepth = true;
 	
 	bool bUsePackedMRS = true;
@@ -180,6 +182,8 @@ struct MODELINGCOMPONENTS_API FRenderCaptureTextures
 	UTexture2D* RoughnessMap = nullptr;
 	UTexture2D* SpecularMap = nullptr;
 	UTexture2D* EmissiveMap = nullptr;
+	UTexture2D* OpacityMap = nullptr;
+	UTexture2D* SubsurfaceColorMap = nullptr;
 };
 
 // Note: The source data in the textures is *not* updated by this function

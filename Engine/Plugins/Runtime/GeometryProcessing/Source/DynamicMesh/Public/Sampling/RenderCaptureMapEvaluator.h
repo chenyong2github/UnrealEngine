@@ -19,7 +19,9 @@ enum class ERenderCaptureChannel
 	Emissive = 16,
 	WorldNormal = 32,
 	DeviceDepth = 64,
-	CombinedMRS = 128
+	CombinedMRS = 128,
+	Opacity = 256,
+	SubsurfaceColor = 512
 };
 
 template <typename DataType>

@@ -26,6 +26,8 @@ namespace Geometry
  *		Specular
  *		PackedMRS   (Metallic / Roughness / Specular)
  *		Emissive
+ *		Opacity
+ *		SubsurfaceColor
  *		WorldNormal
  *		DeviceDepth
  *
@@ -113,6 +115,8 @@ public:
 		FVector3f Emissive;
 		FVector3f WorldNormal;
 		float DeviceDepth;
+		float Opacity;
+		FVector3f SubsurfaceColor;
 
 		FSceneSample();
 
@@ -168,6 +172,8 @@ public:
 	const FSpatialPhotoSet3f& GetPackedMRSPhotoSet() { return PackedMRSPhotoSet; }
 	const FSpatialPhotoSet3f& GetWorldNormalPhotoSet() { return WorldNormalPhotoSet; }
 	const FSpatialPhotoSet3f& GetEmissivePhotoSet() { return EmissivePhotoSet; }
+	const FSpatialPhotoSet1f& GetOpacityPhotoSet() { return OpacityPhotoSet; }
+	const FSpatialPhotoSet3f& GetSubsurfaceColorPhotoSet() { return SubsurfaceColorPhotoSet; }
 	const FSpatialPhotoSet1f& GetDeviceDepthPhotoSet() { return DeviceDepthPhotoSet; }
 
 	/**
@@ -208,6 +214,8 @@ protected:
 	bool bEnablePackedMRS = true;
 	bool bEnableWorldNormal = true;
 	bool bEnableEmissive = true;
+	bool bEnableOpacity = true;
+	bool bEnableSubsurfaceColor = true;
 	bool bEnableDeviceDepth = true;
 
 	FSpatialPhotoSet3f BaseColorPhotoSet;
@@ -217,6 +225,8 @@ protected:
 	FSpatialPhotoSet3f PackedMRSPhotoSet;
 	FSpatialPhotoSet3f WorldNormalPhotoSet;
 	FSpatialPhotoSet3f EmissivePhotoSet;
+	FSpatialPhotoSet1f OpacityPhotoSet;
+	FSpatialPhotoSet3f SubsurfaceColorPhotoSet;
 	FSpatialPhotoSet1f DeviceDepthPhotoSet;
 
 	FRenderCaptureConfig BaseColorConfig;
@@ -226,6 +236,8 @@ protected:
 	FRenderCaptureConfig PackedMRSConfig;
 	FRenderCaptureConfig WorldNormalConfig;
 	FRenderCaptureConfig EmissiveConfig;
+	FRenderCaptureConfig OpacityConfig;
+	FRenderCaptureConfig SubsurfaceColorConfig;
 	FRenderCaptureConfig DeviceDepthConfig;
 
 	TArray<FSpatialPhotoParams> PhotoSetParams;
@@ -279,6 +291,18 @@ FVector4f FSceneCapturePhotoSet::ComputeSampleNearest(
 	{
 		FVector3f Emissive = EmissivePhotoSet.ComputeSampleNearest(PhotoIndex, PhotoCoords, DefaultSample.Emissive);
 		return FVector4f(Emissive, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::Opacity)
+	{
+		float Opacity = OpacityPhotoSet.ComputeSampleNearest(PhotoIndex, PhotoCoords, DefaultSample.Opacity);
+		return FVector4f(Opacity, Opacity, Opacity, 1.f);
+	}
+
+	if constexpr (CaptureType == ERenderCaptureType::SubsurfaceColor)
+	{
+		FVector3f SubsurfaceColor = SubsurfaceColorPhotoSet.ComputeSampleNearest(PhotoIndex, PhotoCoords, DefaultSample.SubsurfaceColor);
+		return FVector4f(SubsurfaceColor, 1.f);
 	}
 
 	if constexpr (CaptureType == ERenderCaptureType::WorldNormal)

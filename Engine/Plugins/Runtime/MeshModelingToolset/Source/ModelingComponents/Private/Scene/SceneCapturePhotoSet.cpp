@@ -17,6 +17,8 @@ FSceneCapturePhotoSet::FSceneCapturePhotoSet()
 	SpecularConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Specular);
 	EmissiveConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Emissive);
 	PackedMRSConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::CombinedMRS);
+	OpacityConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::Opacity);
+	SubsurfaceColorConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::SubsurfaceColor);
 	DeviceDepthConfig = GetDefaultRenderCaptureConfig(ERenderCaptureType::DeviceDepth);
 }
 
@@ -49,6 +51,12 @@ void FSceneCapturePhotoSet::SetCaptureConfig(ERenderCaptureType CaptureType, con
 		case ERenderCaptureType::Emissive:
 			EmissiveConfig = Config;
 			break;
+		case ERenderCaptureType::Opacity:
+			OpacityConfig = Config;
+			break;
+		case ERenderCaptureType::SubsurfaceColor:
+			SubsurfaceColorConfig = Config;
+			break;
 		case ERenderCaptureType::CombinedMRS:
 			PackedMRSConfig = Config;
 			break;
@@ -78,6 +86,10 @@ FRenderCaptureConfig FSceneCapturePhotoSet::GetCaptureConfig(ERenderCaptureType 
 			return EmissiveConfig;
 		case ERenderCaptureType::CombinedMRS:
 			return PackedMRSConfig;
+		case ERenderCaptureType::Opacity:
+			return OpacityConfig;
+		case ERenderCaptureType::SubsurfaceColor:
+			return SubsurfaceColorConfig;
 		case ERenderCaptureType::DeviceDepth:
 			return DeviceDepthConfig;
 		default:
@@ -94,6 +106,8 @@ void FSceneCapturePhotoSet::DisableAllCaptureTypes()
 	SetCaptureTypeEnabled(ERenderCaptureType::Metallic, false);
 	SetCaptureTypeEnabled(ERenderCaptureType::Specular, false);
 	SetCaptureTypeEnabled(ERenderCaptureType::Emissive, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::Opacity, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor, false);
 	SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, false);
 	SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, false);
 }
@@ -123,6 +137,12 @@ void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType
 		break;
 	case ERenderCaptureType::CombinedMRS:
 		bEnablePackedMRS = bEnabled;
+		break;
+	case ERenderCaptureType::Opacity:
+		bEnableOpacity = bEnabled;
+		break;
+	case ERenderCaptureType::SubsurfaceColor:
+		bEnableSubsurfaceColor = bEnabled;
 		break;
 	case ERenderCaptureType::DeviceDepth:
 		bEnableDeviceDepth = bEnabled;
@@ -154,6 +174,12 @@ void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType
 		case ERenderCaptureType::Emissive:
 			EmissivePhotoSet.Empty();
 			break;
+		case ERenderCaptureType::Opacity:
+			OpacityPhotoSet.Empty();
+			break;
+		case ERenderCaptureType::SubsurfaceColor:
+			SubsurfaceColorPhotoSet.Empty();
+			break;
 		case ERenderCaptureType::CombinedMRS:
 			PackedMRSPhotoSet.Empty();
 			break;
@@ -173,6 +199,8 @@ void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType
 		!bEnablePackedMRS &&
 		!bEnableWorldNormal &&
 		!bEnableEmissive &&
+		!bEnableOpacity &&
+		!bEnableSubsurfaceColor &&
 		!bEnableDeviceDepth)
 	{
 		PhotoSetParams.Empty();
@@ -195,6 +223,10 @@ bool FSceneCapturePhotoSet::GetCaptureTypeEnabled(ERenderCaptureType CaptureType
 			return bEnableSpecular;
 		case ERenderCaptureType::Emissive:
 			return bEnableEmissive;
+		case ERenderCaptureType::Opacity:
+			return bEnableOpacity;
+		case ERenderCaptureType::SubsurfaceColor:
+			return bEnableSubsurfaceColor;
 		case ERenderCaptureType::CombinedMRS:
 			return bEnablePackedMRS;
 		case ERenderCaptureType::DeviceDepth:
@@ -408,6 +440,14 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::Emissive, EmissivePhotoSet);
 		}
+		if (bEnableOpacity)
+		{
+			CaptureImageTypeFunc_1f(ERenderCaptureType::Opacity, OpacityPhotoSet);
+		}
+		if (bEnableSubsurfaceColor)
+		{
+			CaptureImageTypeFunc_3f(ERenderCaptureType::SubsurfaceColor, SubsurfaceColorPhotoSet);
+		}
 
 		// AddExteriorCaptures can be called on an FSceneCapturePhotoSet which already has some capture types computed
 		// and in this case we should not modify the existing photo sets/cached photo set parameters.
@@ -440,6 +480,8 @@ FSceneCapturePhotoSet::FSceneSample::FSceneSample()
 	Specular = 0.0f;
 	Metallic = 0.0f;
 	Emissive = FVector3f(0, 0, 0);
+	Opacity = 0.0f;
+	SubsurfaceColor = FVector3f(0, 0, 0);
 	WorldNormal = FVector3f(0, 0, 1);
 	DeviceDepth = 0.0f;
 }
@@ -460,6 +502,10 @@ FVector3f FSceneCapturePhotoSet::FSceneSample::GetValue3f(ERenderCaptureType Cap
 		return Specular * FVector3f::One();
 	case ERenderCaptureType::Emissive:
 		return Emissive;
+	case ERenderCaptureType::Opacity:
+		return Opacity * FVector3f::One();
+	case ERenderCaptureType::SubsurfaceColor:
+		return SubsurfaceColor;
 	case ERenderCaptureType::DeviceDepth:
 		return DeviceDepth * FVector3f::One();
 	default:
@@ -486,6 +532,10 @@ FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue4f(ERenderCaptureType Cap
 		return FVector4f(Metallic, Roughness, Specular, 1.0f);
 	case ERenderCaptureType::Emissive:
 		return FVector4f(Emissive.X, Emissive.Y, Emissive.Z, 1.0f);
+	case ERenderCaptureType::Opacity:
+		return FVector4f(Opacity, Opacity, Opacity, 1.0f);
+	case ERenderCaptureType::SubsurfaceColor:
+		return FVector4f(SubsurfaceColor.X, SubsurfaceColor.Y, SubsurfaceColor.Z, 1.0f);
 	case ERenderCaptureType::DeviceDepth:
 		return FVector4f(DeviceDepth, DeviceDepth, DeviceDepth, 1.0f);
 	default:
@@ -646,6 +696,18 @@ bool FSceneCapturePhotoSet::ComputeSample(
 		DefaultsInResultsOut.Emissive =
 			EmissivePhotoSet.ComputeSample(Position, Normal, VisibilityFunction, DefaultsInResultsOut.Emissive);
 		DefaultsInResultsOut.HaveValues.bEmissive = true;
+	}
+	if (SampleChannels.bOpacity)
+	{
+		DefaultsInResultsOut.Opacity =
+			OpacityPhotoSet.ComputeSample(Position, Normal, VisibilityFunction, DefaultsInResultsOut.Opacity);
+		DefaultsInResultsOut.HaveValues.bOpacity = true;
+	}
+	if (SampleChannels.bSubsurfaceColor)
+	{
+		DefaultsInResultsOut.SubsurfaceColor =
+			SubsurfaceColorPhotoSet.ComputeSample(Position, Normal, VisibilityFunction, DefaultsInResultsOut.SubsurfaceColor);
+		DefaultsInResultsOut.HaveValues.bSubsurfaceColor = true;
 	}
 	if (SampleChannels.bWorldNormal)
 	{

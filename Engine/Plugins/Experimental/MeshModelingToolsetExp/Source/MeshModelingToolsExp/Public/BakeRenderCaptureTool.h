@@ -58,6 +58,12 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
 	TObjectPtr<UTexture2D> EmissiveMap;
+
+	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
+	TObjectPtr<UTexture2D> OpacityMap;
+
+	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
+	TObjectPtr<UTexture2D> SubsurfaceColorMap;
 };
 
 
@@ -124,6 +130,14 @@ public:
 	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
 	bool bEmissiveMap = false;
 
+	// Whether to generate a texture for the Emissive property
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
+	bool bOpacityMap = false;
+
+	// Whether to generate a texture for the SubsurfaceColor property
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
+	bool bSubsurfaceColorMap = false;
+
 	// Whether to use anti-aliasing in the render captures, this may introduce artefacts if pixels at different scene depths get blended
 	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, AdvancedDisplay)
 	bool bAntiAliasing = false;
@@ -150,6 +164,8 @@ public:
 			&& bSpecularMap == Other.bSpecularMap
 			&& bPackedMRSMap == Other.bPackedMRSMap
 			&& bEmissiveMap == Other.bEmissiveMap
+			&& bOpacityMap == Other.bOpacityMap
+			&& bSubsurfaceColorMap == Other.bSubsurfaceColorMap
 			&& bAntiAliasing == Other.bAntiAliasing
 			&& CaptureFieldOfView == Other.CaptureFieldOfView
 			&& NearPlaneDist == Other.NearPlaneDist
@@ -311,6 +327,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTexture2D> EmptyEmissiveMap;
 	UPROPERTY()
+	TObjectPtr<UTexture2D> EmptyOpacityMap;
+	UPROPERTY()
+	TObjectPtr<UTexture2D> EmptySubsurfaceColorMap;
+	UPROPERTY()
 	TObjectPtr<UTexture2D> EmptyPackedMRSMap;
 	UPROPERTY()
 	TObjectPtr<UTexture2D> EmptyRoughnessMap;
@@ -322,6 +342,10 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterialRC;
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterialPackedRC;
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterialRC_Subsurface;
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterialPackedRC_Subsurface;
 	void InitializePreviewMaterials();
 
 	// TODO We currently need to compute this on the game thread because the implementation has checks for this

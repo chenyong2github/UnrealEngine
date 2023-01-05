@@ -827,6 +827,8 @@ namespace GeometryScriptBakeLocals
 			BakeOptions.bBaseColorMap ||
 			BakeOptions.bNormalMap    ||
 			BakeOptions.bEmissiveMap  ||
+			BakeOptions.bOpacityMap ||
+			BakeOptions.bSubsurfaceColorMap ||
 			BakeOptions.bPackedMRSMap ||
 			BakeOptions.bMetallicMap  ||
 			BakeOptions.bRoughnessMap ||
@@ -840,6 +842,8 @@ namespace GeometryScriptBakeLocals
 		Options.NearPlaneDist = BakeOptions.NearPlaneDist;
 		Options.bBakeBaseColor = BakeOptions.bBaseColorMap;
 		Options.bBakeEmissive = BakeOptions.bEmissiveMap;
+		Options.bBakeOpacity = BakeOptions.bOpacityMap;
+		Options.bBakeSubsurfaceColor = BakeOptions.bSubsurfaceColorMap;
 		Options.bBakeNormalMap = BakeOptions.bNormalMap;
 
 		// Enforce the PackedMRS precondition here
@@ -1166,6 +1170,14 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.EmissiveMap, FTexture2DBuilder::ETextureType::EmissiveHDR);
 	}
+	if (Options.bBakeOpacity && TexturesOut.OpacityMap)
+	{
+		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.OpacityMap, FTexture2DBuilder::ETextureType::ColorLinear);
+	}
+	if (Options.bBakeSubsurfaceColor && TexturesOut.SubsurfaceColorMap)
+	{
+		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.SubsurfaceColorMap, FTexture2DBuilder::ETextureType::Color);
+	}
 
 	FGeometryScriptRenderCaptureTextures Result;
 
@@ -1176,6 +1188,8 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 	Result.RoughnessMap = TexturesOut.RoughnessMap;
 	Result.SpecularMap  = TexturesOut.SpecularMap;
 	Result.EmissiveMap  = TexturesOut.EmissiveMap;
+	Result.OpacityMap   = TexturesOut.OpacityMap;
+	Result.SubsurfaceColorMap  = TexturesOut.SubsurfaceColorMap;
 
 	Result.bHasBaseColorMap = (Result.BaseColorMap != nullptr);
 	Result.bHasNormalMap    = (Result.NormalMap    != nullptr);
@@ -1184,6 +1198,8 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 	Result.bHasRoughnessMap = (Result.RoughnessMap != nullptr);
 	Result.bHasSpecularMap  = (Result.SpecularMap  != nullptr);
 	Result.bHasEmissiveMap  = (Result.EmissiveMap  != nullptr);
+	Result.bHasOpacityMap   = (Result.OpacityMap   != nullptr);
+	Result.bHasSubsurfaceColorMap  = (Result.SubsurfaceColorMap  != nullptr);
 
 	return Result;
 }

@@ -25,7 +25,9 @@ enum class ERenderCaptureType
 	Emissive = 16,
 	WorldNormal = 32,
 	DeviceDepth = 64,
-	CombinedMRS = 128
+	CombinedMRS = 128,
+	Opacity = 256,
+	SubsurfaceColor = 512
 };
 
 struct MODELINGCOMPONENTS_API FRenderCaptureConfig
@@ -50,9 +52,11 @@ struct MODELINGCOMPONENTS_API FRenderCaptureTypeFlags
 	bool bWorldNormal = false;
 	bool bCombinedMRS = false;
 	bool bDeviceDepth = false;
+	bool bOpacity = false;
+	bool bSubsurfaceColor = false;
 
 	/** @return FRenderCaptureTypeFlags with all types enabled/true */
-	static FRenderCaptureTypeFlags All();
+	static FRenderCaptureTypeFlags All(bool bCombinedMRS = false);
 
 	/** @return FRenderCaptureTypeFlags with all types disabled/false */
 	static FRenderCaptureTypeFlags None();

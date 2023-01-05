@@ -22,6 +22,7 @@
 #include "Sampling/MeshImageBakingCache.h"
 #include "Sampling/MeshMapBaker.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Sampling/RenderCaptureMapEvaluator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BakeRenderCaptureTool)
 
@@ -36,6 +37,8 @@ static FString RoughnessTexParamName = TEXT("Roughness");
 static FString MetallicTexParamName = TEXT("Metallic");
 static FString SpecularTexParamName = TEXT("Specular");
 static FString EmissiveTexParamName = TEXT("Emissive");
+static FString OpacityTexParamName  = TEXT("Opacity");
+static FString SubsurfaceColorTexParamName = TEXT("SubsurfaceColor");
 static FString NormalTexParamName = TEXT("NormalMap");
 static FString PackedMRSTexParamName = TEXT("PackedMRS");
 
@@ -56,6 +59,8 @@ MakeRenderCaptureOptions(
 	Options.bBakeBaseColor = RenderCaptureProperties.bBaseColorMap;
 	Options.bBakeNormalMap = RenderCaptureProperties.bNormalMap;
 	Options.bBakeEmissive =  RenderCaptureProperties.bEmissiveMap;
+	Options.bBakeOpacity = RenderCaptureProperties.bOpacityMap;
+	Options.bBakeSubsurfaceColor = RenderCaptureProperties.bSubsurfaceColorMap;
 	Options.bBakeDeviceDepth = RenderCaptureProperties.bDeviceDepthMap;
 	
 	// Enforce the PackedMRS precondition here so we don't have to check it at each usage site.  Note: We don't
@@ -217,6 +222,8 @@ void UBakeRenderCaptureTool::Setup()
 			RenderCaptureProperties->bBaseColorMap ||
 			RenderCaptureProperties->bNormalMap    ||
 			RenderCaptureProperties->bEmissiveMap  ||
+			RenderCaptureProperties->bOpacityMap   ||
+			RenderCaptureProperties->bSubsurfaceColorMap ||
 			RenderCaptureProperties->bPackedMRSMap ||
 			RenderCaptureProperties->bMetallicMap  ||
 			RenderCaptureProperties->bRoughnessMap ||
@@ -238,6 +245,8 @@ void UBakeRenderCaptureTool::Setup()
 	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->bSpecularMap, [this](bool) { OpState |= EBakeOpState::Evaluate; });
 	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->bPackedMRSMap, [this](bool) { OpState |= EBakeOpState::Evaluate; });
 	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->bEmissiveMap, [this](bool) { OpState |= EBakeOpState::Evaluate; });
+	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->bOpacityMap, [this](bool) { OpState |= EBakeOpState::Evaluate; });
+	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->bSubsurfaceColorMap, [this](bool) { OpState |= EBakeOpState::Evaluate; });
 	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->bAntiAliasing, [this](bool) { OpState |= EBakeOpState::Evaluate; });
 	// These are not exposed to the UI, but we watch them anyway because we might change that later
 	RenderCaptureProperties->WatchProperty(RenderCaptureProperties->CaptureFieldOfView, [this](float) { OpState |= EBakeOpState::Evaluate; });
@@ -258,6 +267,8 @@ void UBakeRenderCaptureTool::Setup()
 		Settings->MapPreviewNamesList.Add(RoughnessTexParamName);
 		Settings->MapPreviewNamesList.Add(SpecularTexParamName);
 		Settings->MapPreviewNamesList.Add(EmissiveTexParamName);
+		Settings->MapPreviewNamesList.Add(OpacityTexParamName);
+		Settings->MapPreviewNamesList.Add(SubsurfaceColorTexParamName);
 	}
 
 	ResultSettings = NewObject<UBakeRenderCaptureResults>(this);
@@ -301,6 +312,8 @@ void UBakeRenderCaptureTool::Render(IToolsContextRenderAPI* RenderAPI)
 	const FVector BrightnessColor(Brightness, Brightness, Brightness);
 	PreviewMaterialRC->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
 	PreviewMaterialPackedRC->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
+	PreviewMaterialRC_Subsurface->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
+	PreviewMaterialPackedRC_Subsurface->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor);
 }
 
 
@@ -382,6 +395,18 @@ void UBakeRenderCaptureTool::CreateTextureAssetsRC(UWorld* SourceWorld, UObject*
 		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::EmissiveHDR, ResultSettings->EmissiveMap);
 	}
 
+	if (RenderCaptureProperties->bOpacityMap && ResultSettings->OpacityMap != nullptr)
+	{
+		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *OpacityTexParamName);
+		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::ColorLinear, ResultSettings->OpacityMap);
+	}
+
+	if (RenderCaptureProperties->bSubsurfaceColorMap && ResultSettings->SubsurfaceColorMap != nullptr)
+	{
+		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *SubsurfaceColorTexParamName);
+		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::Color, ResultSettings->SubsurfaceColorMap);
+	}
+
 	// We need different code paths based on PackedMRS here because we don't want to uncheck the separate channels
 	// when PackedMRS is enabled to give the user a better UX (they don't have to re-check them after disabling
 	// PackedMRS). In other place we can test the PackedMRS and separate channel booleans in series and avoid the
@@ -435,6 +460,14 @@ bool UBakeRenderCaptureTool::CanAccept() const
 		return false;
 	}
 	if (RenderCaptureProperties->bEmissiveMap && ResultSettings->EmissiveMap == nullptr)
+	{
+		return false;
+	}
+	if (RenderCaptureProperties->bOpacityMap && ResultSettings->OpacityMap == nullptr)
+	{
+		return false;
+	}
+	if (RenderCaptureProperties->bSubsurfaceColorMap && ResultSettings->SubsurfaceColorMap == nullptr)
 	{
 		return false;
 	}
@@ -500,6 +533,8 @@ void UBakeRenderCaptureTool::OnMapsUpdatedRC(const TUniquePtr<FMeshMapBaker>& Ne
 	ResultSettings->RoughnessMap = TexturesOut.RoughnessMap;
 	ResultSettings->SpecularMap = TexturesOut.SpecularMap;
 	ResultSettings->EmissiveMap = TexturesOut.EmissiveMap;
+	ResultSettings->OpacityMap = TexturesOut.OpacityMap;
+	ResultSettings->SubsurfaceColorMap = TexturesOut.SubsurfaceColorMap;
 
 	GatherAnalytics(*NewResult);
 	UpdateVisualization();
@@ -516,6 +551,24 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		Builder.Initialize(FTexture2DBuilder::ETextureType::EmissiveHDR, FImageDimensions(16, 16));
 		Builder.Commit(false);
 		EmptyEmissiveMap = Builder.GetTexture2D();
+	}
+
+	{
+		FTexture2DBuilder Builder;
+		Builder.Initialize(FTexture2DBuilder::ETextureType::ColorLinear, FImageDimensions(16, 16));
+		// The Opacity texture is passed to the Material's Opacity pin as well as the Opacity Mask pin, so set white
+		// here so we see something when previewing the subsurface material when opacity is not baked
+		Builder.Clear(FColor::White);
+		Builder.Commit(false);
+		EmptyOpacityMap = Builder.GetTexture2D();
+	}
+
+	{
+		FTexture2DBuilder Builder;
+		Builder.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
+		Builder.Clear(FColor::Black);
+		Builder.Commit(false);
+		EmptySubsurfaceColorMap = Builder.GetTexture2D();
 	}
 
 	{
@@ -548,30 +601,68 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 	}
 	
 	{
-		UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/BakeRenderCapturePreviewMaterial"));
+		UMaterial* Material = LoadObject<UMaterial>(nullptr,
+			TEXT("/MeshModelingToolsetExp/Materials/BakeRenderCapturePreviewMaterial"));
 		check(Material);
 		if (Material != nullptr)
 		{
 			PreviewMaterialRC = UMaterialInstanceDynamic::Create(Material, GetToolManager());
-			PreviewMaterialRC->SetTextureParameterValue(TEXT("BaseColor"), EmptyColorMapWhite);
-			PreviewMaterialRC->SetTextureParameterValue(TEXT("Roughness"), EmptyRoughnessMap);
-			PreviewMaterialRC->SetTextureParameterValue(TEXT("Metallic"), EmptyMetallicMap);
-			PreviewMaterialRC->SetTextureParameterValue(TEXT("Specular"), EmptySpecularMap);
-			PreviewMaterialRC->SetTextureParameterValue(TEXT("Emissive"), EmptyEmissiveMap);
-			PreviewMaterialRC->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+			PreviewMaterialRC->SetTextureParameterValue(FName(*BaseColorTexParamName), EmptyColorMapWhite);
+			PreviewMaterialRC->SetTextureParameterValue(FName(*RoughnessTexParamName), EmptyRoughnessMap);
+			PreviewMaterialRC->SetTextureParameterValue(FName(*MetallicTexParamName), EmptyMetallicMap);
+			PreviewMaterialRC->SetTextureParameterValue(FName(*SpecularTexParamName), EmptySpecularMap);
+			PreviewMaterialRC->SetTextureParameterValue(FName(*EmissiveTexParamName), EmptyEmissiveMap);
+			PreviewMaterialRC->SetTextureParameterValue(FName(*NormalTexParamName), EmptyNormalMap);
 		}
 	}
-	
+
 	{
-		UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/FullMaterialBakePreviewMaterial_PackedMRS"));
+		UMaterial* Material = LoadObject<UMaterial>(nullptr,
+			TEXT("/MeshModelingToolsetExp/Materials/BakeRenderCapturePreviewSubsurfaceMaterial"));
+		check(Material);
+		if (Material != nullptr)
+		{
+			ensure(Material->GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_Subsurface));
+			PreviewMaterialRC_Subsurface = UMaterialInstanceDynamic::Create(Material, GetToolManager());
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*BaseColorTexParamName), EmptyColorMapWhite);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*RoughnessTexParamName), EmptyRoughnessMap);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*MetallicTexParamName), EmptyMetallicMap);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*SpecularTexParamName), EmptySpecularMap);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*EmissiveTexParamName), EmptyEmissiveMap);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*NormalTexParamName), EmptyNormalMap);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*OpacityTexParamName), EmptyOpacityMap);
+			PreviewMaterialRC_Subsurface->SetTextureParameterValue(FName(*SubsurfaceColorTexParamName), EmptySubsurfaceColorMap);
+		}
+	}
+
+	{
+		UMaterial* Material = LoadObject<UMaterial>(nullptr,
+			TEXT("/MeshModelingToolsetExp/Materials/FullMaterialBakePreviewMaterial_PackedMRS"));
 		check(Material);
 		if (Material != nullptr)
 		{
 			PreviewMaterialPackedRC = UMaterialInstanceDynamic::Create(Material, GetToolManager());
-			PreviewMaterialPackedRC->SetTextureParameterValue(TEXT("BaseColor"), EmptyColorMapWhite);
-			PreviewMaterialPackedRC->SetTextureParameterValue(TEXT("PackedMRS"), EmptyPackedMRSMap);
-			PreviewMaterialPackedRC->SetTextureParameterValue(TEXT("Emissive"), EmptyEmissiveMap);
-			PreviewMaterialPackedRC->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+			PreviewMaterialPackedRC->SetTextureParameterValue(FName(*BaseColorTexParamName), EmptyColorMapWhite);
+			PreviewMaterialPackedRC->SetTextureParameterValue(FName(*PackedMRSTexParamName), EmptyPackedMRSMap);
+			PreviewMaterialPackedRC->SetTextureParameterValue(FName(*EmissiveTexParamName), EmptyEmissiveMap);
+			PreviewMaterialPackedRC->SetTextureParameterValue(FName(*NormalTexParamName), EmptyNormalMap);
+		}
+	}
+
+	{
+		UMaterial* Material = LoadObject<UMaterial>(nullptr,
+			TEXT("/MeshModelingToolsetExp/Materials/FullMaterialBakePreviewSubsurfaceMaterial_PackedMRS"));
+		check(Material);
+		if (Material != nullptr)
+		{
+			ensure(Material->GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_Subsurface));
+			PreviewMaterialPackedRC_Subsurface = UMaterialInstanceDynamic::Create(Material, GetToolManager());
+			PreviewMaterialPackedRC_Subsurface->SetTextureParameterValue(FName(*BaseColorTexParamName), EmptyColorMapWhite);
+			PreviewMaterialPackedRC_Subsurface->SetTextureParameterValue(FName(*PackedMRSTexParamName), EmptyPackedMRSMap);
+			PreviewMaterialPackedRC_Subsurface->SetTextureParameterValue(FName(*EmissiveTexParamName), EmptyEmissiveMap);
+			PreviewMaterialPackedRC_Subsurface->SetTextureParameterValue(FName(*NormalTexParamName), EmptyNormalMap);
+			PreviewMaterialPackedRC_Subsurface->SetTextureParameterValue(FName(*OpacityTexParamName), EmptyOpacityMap);
+			PreviewMaterialPackedRC_Subsurface->SetTextureParameterValue(FName(*SubsurfaceColorTexParamName), EmptySubsurfaceColorMap);
 		}
 	}
 }
@@ -657,6 +748,8 @@ void UBakeRenderCaptureTool::UpdateResult()
 			RenderCaptureProperties->bSpecularMap       = ComputedRenderCaptureProperties->bSpecularMap;
 			RenderCaptureProperties->bPackedMRSMap      = ComputedRenderCaptureProperties->bPackedMRSMap;
 			RenderCaptureProperties->bEmissiveMap       = ComputedRenderCaptureProperties->bEmissiveMap;
+			RenderCaptureProperties->bOpacityMap        = ComputedRenderCaptureProperties->bOpacityMap;
+			RenderCaptureProperties->bSubsurfaceColorMap = ComputedRenderCaptureProperties->bSubsurfaceColorMap;
 			RenderCaptureProperties->bAntiAliasing      = ComputedRenderCaptureProperties->bAntiAliasing;
 			RenderCaptureProperties->bDeviceDepthMap    = ComputedRenderCaptureProperties->bDeviceDepthMap;
 			RenderCaptureProperties->CaptureFieldOfView = ComputedRenderCaptureProperties->CaptureFieldOfView;
@@ -681,6 +774,8 @@ void UBakeRenderCaptureTool::UpdateResult()
 		ComputedRenderCaptureProperties->bSpecularMap       = RenderCaptureProperties->bSpecularMap;
 		ComputedRenderCaptureProperties->bPackedMRSMap      = RenderCaptureProperties->bPackedMRSMap;
 		ComputedRenderCaptureProperties->bEmissiveMap       = RenderCaptureProperties->bEmissiveMap;
+		ComputedRenderCaptureProperties->bOpacityMap        = RenderCaptureProperties->bOpacityMap;
+		ComputedRenderCaptureProperties->bSubsurfaceColorMap = RenderCaptureProperties->bSubsurfaceColorMap;
 		ComputedRenderCaptureProperties->bAntiAliasing      = RenderCaptureProperties->bAntiAliasing;
 		ComputedRenderCaptureProperties->bDeviceDepthMap    = RenderCaptureProperties->bDeviceDepthMap;
 		ComputedRenderCaptureProperties->CaptureFieldOfView = RenderCaptureProperties->CaptureFieldOfView;
@@ -765,101 +860,81 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 		return;
 	}
 
-	if (ResultSettings->PackedMRSMap)
+	const bool bSubsurfaceMaterial = ResultSettings->SubsurfaceColorMap || ResultSettings->OpacityMap;
+	const bool bPackedMRS = ResultSettings->PackedMRSMap != nullptr;
+
+	// Choose the material
+	TObjectPtr<UMaterialInstanceDynamic> Material = bPackedMRS ? PreviewMaterialPackedRC : PreviewMaterialRC;
+	if (bSubsurfaceMaterial)
 	{
-		TObjectPtr<UMaterialInstanceDynamic> Material = PreviewMaterialPackedRC;
-		PreviewMesh->SetOverrideRenderMaterial(Material);
+		Material = bPackedMRS ? PreviewMaterialPackedRC_Subsurface : PreviewMaterialRC_Subsurface;
+		ensure(Material->GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_Subsurface));
+		ensure(Material->GetBlendMode() == EBlendMode::BLEND_Masked);
+	}
 
-		if (VisualizationProps->bPreviewAsMaterial)
+	if (VisualizationProps->bPreviewAsMaterial)
+	{
+		const auto TrySetTexture =
+			[Material](const FString& TextureName, TObjectPtr<UTexture2D> Texture, TObjectPtr<UTexture2D> Fallback, bool bMaterialHasTexture = true)
 		{
-			// We set all textures which were computed in the corresponding texture channels
-			Material->SetTextureParameterValue(FName(BaseColorTexParamName), ResultSettings->BaseColorMap ? ResultSettings->BaseColorMap : EmptyColorMapWhite);
-			Material->SetTextureParameterValue(FName(EmissiveTexParamName),  ResultSettings->EmissiveMap  ? ResultSettings->EmissiveMap  : EmptyEmissiveMap);
-			Material->SetTextureParameterValue(FName(NormalTexParamName),    ResultSettings->NormalMap    ? ResultSettings->NormalMap    : EmptyNormalMap);
-			Material->SetTextureParameterValue(FName(PackedMRSTexParamName), ResultSettings->PackedMRSMap);
-		}
-		else
-		{
-			// The BaseColor texture channel will be set according to the selected MapPreview
-			TObjectPtr<UTexture2D> BaseColorMap = EmptyColorMapWhite;
-			if (ResultSettings->BaseColorMap && Settings->MapPreview == BaseColorTexParamName)
+			if (bMaterialHasTexture)
 			{
-				BaseColorMap = ResultSettings->BaseColorMap;
+				Material->SetTextureParameterValue(FName(TextureName), Texture ? Texture : Fallback);
 			}
-			else if (ResultSettings->EmissiveMap && Settings->MapPreview == EmissiveTexParamName)
-			{
-				BaseColorMap = ResultSettings->EmissiveMap;
-			}
-			else if (ResultSettings->NormalMap && Settings->MapPreview == NormalTexParamName)
-			{
-				BaseColorMap = ResultSettings->NormalMap;
-			}
-			else if (ResultSettings->PackedMRSMap && Settings->MapPreview == PackedMRSTexParamName)
-			{
-				BaseColorMap = ResultSettings->PackedMRSMap;
-			}
-			Material->SetTextureParameterValue(FName(BaseColorTexParamName), BaseColorMap);
-			Material->SetTextureParameterValue(FName(EmissiveTexParamName),  EmptyEmissiveMap);
-			Material->SetTextureParameterValue(FName(NormalTexParamName), EmptyNormalMap);
-			Material->SetTextureParameterValue(FName(PackedMRSTexParamName), EmptyPackedMRSMap);
-		}
+		};
 
-		Material->SetScalarParameterValue(TEXT("UVChannel"), InputMeshSettings->GetTargetUVLayerIndex());
+		// Set all computed textures or fallback to the empty texture map
+		TrySetTexture(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite);
+		TrySetTexture(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap);
+		TrySetTexture(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap);
+		TrySetTexture(PackedMRSTexParamName, ResultSettings->PackedMRSMap, EmptyPackedMRSMap,  bPackedMRS);
+		TrySetTexture(RoughnessTexParamName, ResultSettings->RoughnessMap, EmptyRoughnessMap, !bPackedMRS);
+		TrySetTexture(MetallicTexParamName,  ResultSettings->MetallicMap,  EmptyMetallicMap,  !bPackedMRS);
+		TrySetTexture(SpecularTexParamName,  ResultSettings->SpecularMap,  EmptySpecularMap,  !bPackedMRS);
+		TrySetTexture(OpacityTexParamName,   ResultSettings->OpacityMap,   EmptyOpacityMap,    bSubsurfaceMaterial);
+		TrySetTexture(SubsurfaceColorTexParamName, ResultSettings->SubsurfaceColorMap, EmptySubsurfaceColorMap, bSubsurfaceMaterial);
 	}
 	else
 	{
-		TObjectPtr<UMaterialInstanceDynamic> Material = PreviewMaterialRC;
-		PreviewMesh->SetOverrideRenderMaterial(Material);
+		const auto TrySetTexture =
+			[Material, this](const FString& TextureName, TObjectPtr<UTexture2D> Texture, TObjectPtr<UTexture2D> Fallback, bool bMaterialHasTexture = true)
+		{
+			// Set the BaseColor texture to the MapPreview texture if it exists and use white otherwise
+			if (TextureName == Settings->MapPreview)
+			{
+				if (bMaterialHasTexture && Texture)
+				{
+					Material->SetTextureParameterValue(FName(BaseColorTexParamName), Texture);
+				}
+				else
+				{
+					Material->SetTextureParameterValue(FName(BaseColorTexParamName), EmptyColorMapWhite);
+				}
+			}
 
-		if (VisualizationProps->bPreviewAsMaterial)
-		{
-			// We set all textures which were computed in the corresponding texture channels
-			Material->SetTextureParameterValue(FName(BaseColorTexParamName), ResultSettings->BaseColorMap ? ResultSettings->BaseColorMap : EmptyColorMapWhite);
-			Material->SetTextureParameterValue(FName(RoughnessTexParamName), ResultSettings->RoughnessMap ? ResultSettings->RoughnessMap : EmptyRoughnessMap);
-			Material->SetTextureParameterValue(FName(MetallicTexParamName),  ResultSettings->MetallicMap  ? ResultSettings->MetallicMap  : EmptyMetallicMap);
-			Material->SetTextureParameterValue(FName(SpecularTexParamName),  ResultSettings->SpecularMap  ? ResultSettings->SpecularMap  : EmptySpecularMap);
-			Material->SetTextureParameterValue(FName(EmissiveTexParamName),  ResultSettings->EmissiveMap  ? ResultSettings->EmissiveMap  : EmptyEmissiveMap);
-			Material->SetTextureParameterValue(FName(NormalTexParamName),    ResultSettings->NormalMap    ? ResultSettings->NormalMap    : EmptyNormalMap);
-		}
-		else
-		{
-			// The BaseColor texture channel will be set according to the selected MapPreview
-			TObjectPtr<UTexture2D> BaseColorMap = EmptyColorMapWhite;
-			if (ResultSettings->BaseColorMap && Settings->MapPreview == BaseColorTexParamName)
+			// Set the non-BaseColor texture parameters to empty fallback textures
+			if (TextureName != BaseColorTexParamName)
 			{
-				BaseColorMap = ResultSettings->BaseColorMap;
+				if (bMaterialHasTexture)
+				{
+					Material->SetTextureParameterValue(FName(TextureName), Fallback);
+				}
 			}
-			else if (ResultSettings->RoughnessMap && Settings->MapPreview == RoughnessTexParamName)
-			{
-				BaseColorMap = ResultSettings->RoughnessMap;
-			}
-			else if (ResultSettings->MetallicMap && Settings->MapPreview == MetallicTexParamName)
-			{
-				BaseColorMap = ResultSettings->MetallicMap;
-			}
-			else if (ResultSettings->SpecularMap && Settings->MapPreview == SpecularTexParamName)
-			{
-				BaseColorMap = ResultSettings->SpecularMap;
-			}
-			else if (ResultSettings->EmissiveMap && Settings->MapPreview == EmissiveTexParamName)
-			{
-				BaseColorMap = ResultSettings->EmissiveMap;
-			}
-			else if (ResultSettings->NormalMap && Settings->MapPreview == NormalTexParamName)
-			{
-				BaseColorMap = ResultSettings->NormalMap;
-			}
-			Material->SetTextureParameterValue(TEXT("BaseColor"), BaseColorMap);
-			
-			Material->SetTextureParameterValue(TEXT("Roughness"), EmptyRoughnessMap);
-			Material->SetTextureParameterValue(TEXT("Metallic"),  EmptyMetallicMap);
-			Material->SetTextureParameterValue(TEXT("Specular"),  EmptySpecularMap);
-			Material->SetTextureParameterValue(TEXT("Emissive"),  EmptyEmissiveMap);
-			Material->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
-		}
-		
-		Material->SetScalarParameterValue(TEXT("UVChannel"), InputMeshSettings->GetTargetUVLayerIndex());
+		};
+
+		TrySetTexture(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite);
+		TrySetTexture(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap);
+		TrySetTexture(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap);
+		TrySetTexture(PackedMRSTexParamName, ResultSettings->PackedMRSMap, EmptyPackedMRSMap,  bPackedMRS);
+		TrySetTexture(RoughnessTexParamName, ResultSettings->RoughnessMap, EmptyRoughnessMap, !bPackedMRS);
+		TrySetTexture(MetallicTexParamName,  ResultSettings->MetallicMap,  EmptyMetallicMap,  !bPackedMRS);
+		TrySetTexture(SpecularTexParamName,  ResultSettings->SpecularMap,  EmptySpecularMap,  !bPackedMRS);
+		TrySetTexture(OpacityTexParamName,   ResultSettings->OpacityMap,   EmptyOpacityMap,    bSubsurfaceMaterial);
+		TrySetTexture(SubsurfaceColorTexParamName, ResultSettings->SubsurfaceColorMap, EmptySubsurfaceColorMap, bSubsurfaceMaterial);
 	}
+
+	Material->SetScalarParameterValue(TEXT("UVChannel"), InputMeshSettings->GetTargetUVLayerIndex());
+	PreviewMesh->SetOverrideRenderMaterial(Material);
 }
 
 
@@ -872,6 +947,8 @@ void UBakeRenderCaptureTool::InvalidateResults()
 	ResultSettings->SpecularMap = nullptr;
 	ResultSettings->PackedMRSMap = nullptr;
 	ResultSettings->EmissiveMap = nullptr;
+	ResultSettings->OpacityMap = nullptr;
+	ResultSettings->SubsurfaceColorMap = nullptr;
 	ResultSettings->NormalMap = nullptr;
 }
 
@@ -914,6 +991,8 @@ void UBakeRenderCaptureTool::RecordAnalytics() const
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.SpecularMap.Enabled"), RenderCaptureProperties->bSpecularMap));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.PackedMRSMap.Enabled"), RenderCaptureProperties->bPackedMRSMap));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.EmissiveMap.Enabled"), RenderCaptureProperties->bEmissiveMap));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.OpacityMap.Enabled"), RenderCaptureProperties->bOpacityMap));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.SubsurfaceColorMap.Enabled"), RenderCaptureProperties->bSubsurfaceColorMap));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.CaptureFieldOfView"), RenderCaptureProperties->CaptureFieldOfView));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.RenderCapture.NearPlaneDistance"), RenderCaptureProperties->NearPlaneDist));
 

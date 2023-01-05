@@ -239,6 +239,8 @@ void UE::Geometry::UpdatePhotoSet(
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::BaseColor,   Options.bBakeBaseColor);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, Options.bBakeNormalMap);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Emissive,    Options.bBakeEmissive);
+	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Opacity,     Options.bBakeOpacity);
+	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor, Options.bBakeSubsurfaceColor);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, Options.bUsePackedMRS);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Metallic,    Options.bBakeMetallic);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Roughness,   Options.bBakeRoughness);
@@ -253,7 +255,9 @@ void UE::Geometry::UpdatePhotoSet(
 	SceneCapture->SetCaptureConfig(ERenderCaptureType::Roughness,   Config);
 	SceneCapture->SetCaptureConfig(ERenderCaptureType::Specular,    Config);
 	SceneCapture->SetCaptureConfig(ERenderCaptureType::Emissive,    Config);
-	
+	SceneCapture->SetCaptureConfig(ERenderCaptureType::Opacity,     Config);
+	SceneCapture->SetCaptureConfig(ERenderCaptureType::SubsurfaceColor, Config);
+
 	SceneCapture->SetCaptureSceneActors(Actors[0]->GetWorld(), Actors);
 
 	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
@@ -294,6 +298,12 @@ MakeColorEvaluator(
 		break;
 	case ERenderCaptureType::CombinedMRS:
 		Evaluator->Channel = ERenderCaptureChannel::CombinedMRS;
+		break;
+	case ERenderCaptureType::Opacity:
+		Evaluator->Channel = ERenderCaptureChannel::Opacity;
+		break;
+	case ERenderCaptureType::SubsurfaceColor:
+		Evaluator->Channel = ERenderCaptureChannel::SubsurfaceColor;
 		break;
 	case ERenderCaptureType::DeviceDepth:
 		Evaluator->Channel = ERenderCaptureChannel::DeviceDepth;
@@ -372,8 +382,10 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	DefaultColorSample.Specular = InvalidColor.X;
 	DefaultColorSample.Metallic = InvalidColor.X;
 	DefaultColorSample.Emissive = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
+	DefaultColorSample.Opacity = InvalidColor.X;
+	DefaultColorSample.SubsurfaceColor = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
 	DefaultColorSample.WorldNormal = FVector4f((DefaultNormal + FVector3f::One()) * .5f, InvalidColor.W);
-	
+
 	// We use 0 here since this corresponds to the infinite far plane value. Also, we don't preview the depth texture
 	DefaultColorSample.DeviceDepth = 0;
 
@@ -410,6 +422,14 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	if (Options.bBakeEmissive)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Emissive>(DefaultColorSample, SceneCapture));
+	}
+	if (Options.bBakeOpacity)
+	{
+		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Opacity>(DefaultColorSample, SceneCapture));
+	}
+	if (Options.bBakeSubsurfaceColor)
+	{
+		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::SubsurfaceColor>(DefaultColorSample, SceneCapture));
 	}
 	if (Options.bBakeNormalMap)
 	{
@@ -496,6 +516,27 @@ void UE::Geometry::GetTexturesFromRenderCaptureBaker(const TUniquePtr<FMeshMapBa
 						*ImageBuilder,
 						FTexture2DBuilder::ETextureType::Color,
 						true,
+						bPopulateSourceData);
+					break;
+
+				case ERenderCaptureChannel::SubsurfaceColor:
+
+					// The SubsurfaceColor GBuffer channel is gamma encoded so:
+					// 1. Dont convert the data in ImageBuilder to sRGB, it is already gamma encoded
+					// 2. Pass the ETextureType::Color enum so the built UTexture2D will have SRGB checked
+					TexturesOut.SubsurfaceColorMap = FTexture2DBuilder::BuildTextureFromImage(
+						*ImageBuilder,
+						FTexture2DBuilder::ETextureType::Color,
+						false,
+						bPopulateSourceData);
+					break;
+
+				case ERenderCaptureChannel::Opacity:
+
+					TexturesOut.OpacityMap = FTexture2DBuilder::BuildTextureFromImage(
+						*ImageBuilder,
+						FTexture2DBuilder::ETextureType::ColorLinear,
+						false,
 						bPopulateSourceData);
 					break;
 
