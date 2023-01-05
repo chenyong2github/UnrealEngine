@@ -255,10 +255,11 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFloat : public UNiagaraDataInterface
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayFloat, float, FloatData)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<float> FloatData;
+
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayFloat, float, FloatData)
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 2D Array"), Blueprintable, BlueprintType)
@@ -266,7 +267,6 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFloat2 : public UNiagaraDataInterfac
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat2, FVector2f, FloatData)
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
@@ -275,6 +275,8 @@ public:
 
 	UPROPERTY()
 	TArray<FVector2f> InternalFloatData;
+
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat2, FVector2f, FloatData)
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector Array"), Blueprintable, BlueprintType)
@@ -282,7 +284,6 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFloat3 : public UNiagaraDataInterfac
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat3, FVector3f, FloatData)
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
@@ -291,6 +292,8 @@ public:
 
 	UPROPERTY()
 	TArray<FVector3f> InternalFloatData;
+
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat3, FVector3f, FloatData)
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Position Array"), Blueprintable, BlueprintType)
@@ -298,10 +301,11 @@ class NIAGARA_API UNiagaraDataInterfaceArrayPosition : public UNiagaraDataInterf
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayPosition, FNiagaraPosition, PositionData)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FNiagaraPosition> PositionData;
+
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayPosition, FNiagaraPosition, PositionData)
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 4 Array"), Blueprintable, BlueprintType)
@@ -309,7 +313,6 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFloat4 : public UNiagaraDataInterfac
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat4, FVector4f, FloatData)
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
@@ -318,6 +321,8 @@ public:
 
 	UPROPERTY()
 	TArray<FVector4f> InternalFloatData;
+
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat4, FVector4f, FloatData)
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Color Array"), Blueprintable, BlueprintType)
@@ -325,10 +330,11 @@ class NIAGARA_API UNiagaraDataInterfaceArrayColor : public UNiagaraDataInterface
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayColor, FLinearColor, ColorData)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FLinearColor> ColorData;
+
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayColor, FLinearColor, ColorData)
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Quaternion Array"), Blueprintable, BlueprintType)
@@ -336,7 +342,6 @@ class NIAGARA_API UNiagaraDataInterfaceArrayQuat : public UNiagaraDataInterfaceA
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayQuat, FQuat4f, QuatData)
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
@@ -345,4 +350,6 @@ public:
 
 	UPROPERTY()
 	TArray<FQuat4f> InternalQuatData;
+
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayQuat, FQuat4f, QuatData)
 };

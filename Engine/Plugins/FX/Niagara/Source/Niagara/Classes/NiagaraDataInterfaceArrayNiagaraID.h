@@ -34,9 +34,10 @@ class NIAGARA_API UNiagaraDataInterfaceArrayNiagaraID : public UNiagaraDataInter
 {
 public:
 	GENERATED_BODY()
-	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayNiagaraID, FNiagaraID, IntData)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FNiagaraID> IntData;
+
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayNiagaraID, FNiagaraID, IntData)
 };
 

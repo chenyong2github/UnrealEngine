@@ -13,27 +13,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceArrayFunctionLibrary)
 
-template<typename TArrayType, typename TDataInterace>
-void SetNiagaraVariantArray(UNiagaraComponent* NiagaraComponent, FName OverrideName, TDataInterace* ExistingDataInterface)
-{
-#if WITH_EDITOR
-	// We only need to do this for editor instances of the component as we are storing instance data on them
-	// For runtime instances they already have a unique copy of the data interface that we are modifying
-	UWorld* World = NiagaraComponent->GetWorld();
-	if (World == nullptr || World->IsGameWorld())
-	{
-		return;
-	}
-
-	TDataInterace* VariantDataInterface = CastChecked<TDataInterace>(DuplicateObject(ExistingDataInterface, NiagaraComponent));
-	auto* ExistingProxy = static_cast<typename TDataInterace::FProxyType*>(ExistingDataInterface->GetProxy());
-	auto* VariantProxy = static_cast<typename TDataInterace::FProxyType*>(VariantDataInterface->GetProxy());
-	TArray<TArrayType> TempArrayCopy = ExistingProxy->template GetArrayDataCopy<TArrayType>();
-	VariantProxy->template SetArrayData<TArrayType>(MakeArrayView<TArrayType>(TempArrayCopy.GetData(), TempArrayCopy.Num()));
-	NiagaraComponent->SetParameterOverride(FNiagaraVariableBase(FNiagaraTypeDefinition(TDataInterace::StaticClass()), OverrideName), FNiagaraVariant(VariantDataInterface));
-#endif
-}
-
 // If / when we share user parameter UObjects we will need to make this per instance which introduces some tricky things about allocating before the instance is active
 template<typename TArrayType, typename TDataInterace>
 void SetNiagaraArray(UNiagaraComponent* NiagaraComponent, FName OverrideName, TConstArrayView<TArrayType> InArray)
@@ -42,7 +21,18 @@ void SetNiagaraArray(UNiagaraComponent* NiagaraComponent, FName OverrideName, TC
 	{
 		auto* ArrayProxy = static_cast<typename TDataInterace::FProxyType*>(ArrayDI->GetProxy());
 		ArrayProxy->SetArrayData(InArray);
-		SetNiagaraVariantArray<TArrayType, TDataInterace>(NiagaraComponent, OverrideName, ArrayDI);
+#if WITH_EDITOR
+		// We only need to do this for editor instances of the component as we are storing instance data on them
+		// For runtime instances they already have a unique copy of the data interface that we are modifying
+		UWorld* World = NiagaraComponent->GetWorld();
+		if (World && !World->IsGameWorld())
+		{
+			TDataInterace* VariantDI = CastChecked<TDataInterace>(DuplicateObject(ArrayDI, NiagaraComponent));
+			ArrayDI->CopyTo(VariantDI);
+			VariantDI->SetVariantArrayData(InArray);
+			NiagaraComponent->SetParameterOverride(FNiagaraVariableBase(FNiagaraTypeDefinition(TDataInterace::StaticClass()), OverrideName), FNiagaraVariant(VariantDI));
+		}
+#endif
 	}
 }
 
@@ -64,7 +54,20 @@ void SetNiagaraArrayValue(UNiagaraComponent* NiagaraComponent, FName OverrideNam
 	{
 		auto* ArrayProxy = static_cast<typename TDataInterace::FProxyType*>(ArrayDI->GetProxy());
 		ArrayProxy->SetArrayValue(Index, Value, bSizeToFit);
-		SetNiagaraVariantArray<TArrayType, TDataInterace>(NiagaraComponent, OverrideName, ArrayDI);
+#if WITH_EDITOR
+		// We only need to do this for editor instances of the component as we are storing instance data on them
+		// For runtime instances they already have a unique copy of the data interface that we are modifying
+		UWorld* World = NiagaraComponent->GetWorld();
+		if (World && !World->IsGameWorld())
+		{
+			TDataInterace* VariantDI = CastChecked<TDataInterace>(DuplicateObject(ArrayDI, NiagaraComponent));
+			ArrayDI->CopyTo(VariantDI);
+			VariantDI->SetVariantArrayValue(Index, Value, bSizeToFit);
+			NiagaraComponent->SetParameterOverride(FNiagaraVariableBase(FNiagaraTypeDefinition(TDataInterace::StaticClass()), OverrideName), FNiagaraVariant(VariantDI));
+		}
+#endif
+
+		//-TODO:FIXME:SetNiagaraVariantArray<TArrayType, TDataInterace>(NiagaraComponent, OverrideName, ArrayDI);
 	}
 }
 
