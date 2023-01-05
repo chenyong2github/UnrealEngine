@@ -110,6 +110,9 @@ public:
 	/** Update the widget SecondarySort without removing it and readding it again. */
 	void UpdateWidget(const SWidget* InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
+	/** Check if SWidget is contained within the HitTest Grid */
+	bool ContainsWidget(const SWidget* InWidget) const;
+
 	/** Append an already existing grid that occupy the same space. */
 	UE_DEPRECATED(4.26, "Deprecated. Use the FHittestGrid::AddGrid method instead")
 	void AppendGrid(FHittestGrid& OtherGrid) {}

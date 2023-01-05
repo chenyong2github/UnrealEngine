@@ -205,9 +205,9 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	}
 
 	// If there are any custom hit testable widgets in the 3D world we need to register their custom hit test path here.
-	if ( CustomHitTestPath.IsValid() )
+	if ( CustomHitTestPath.IsValid() && Args.GetHittestGrid().ContainsWidget(this))
 	{
-		Args.InsertCustomHitTestPath(this, CustomHitTestPath.ToSharedRef());
+		Args.GetHittestGrid().InsertCustomHitTestPath(this, CustomHitTestPath.ToSharedRef());
 	}
 
 	return Layer;

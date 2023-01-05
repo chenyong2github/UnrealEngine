@@ -223,8 +223,8 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 				{
 					if (BestHitWidgetData.CustomPath.IsValid())
 					{
-						const TArray<FWidgetAndPointer> BubblePathExtension = BestHitWidgetData.CustomPath.Pin()->GetBubblePathAndVirtualCursors(FirstHitWidget->GetTickSpaceGeometry(), DesktopSpaceCoordinate, bIgnoreEnabledStatus);
-						Path.Append(BubblePathExtension);
+						TArray<FWidgetAndPointer> BubblePathExtension = BestHitWidgetData.CustomPath.Pin()->GetBubblePathAndVirtualCursors(FirstHitWidget->GetTickSpaceGeometry(), DesktopSpaceCoordinate, bIgnoreEnabledStatus);
+						Path.Append(MoveTemp(BubblePathExtension));
 					}
 				}
 	
@@ -792,6 +792,11 @@ void FHittestGrid::UpdateWidget(const SWidget* InWidget, FSlateInvalidationWidge
 	}
 }
 
+bool FHittestGrid::ContainsWidget(const SWidget* InWidget) const
+{
+	return WidgetMap.Contains(InWidget);
+}
+
 void FHittestGrid::InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath)
 {
 	InsertCustomHitTestPath(&InWidget.Get(), CustomHitTestPath);
@@ -799,9 +804,12 @@ void FHittestGrid::InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, T
 
 void FHittestGrid::InsertCustomHitTestPath(const SWidget* InWidget, const TSharedRef<ICustomHitTestPath>& CustomHitTestPath)
 {
-	int32 WidgetIndex = WidgetMap.FindChecked(InWidget);
-	FWidgetData& WidgetData = WidgetArray[WidgetIndex];
-	WidgetData.CustomPath = CustomHitTestPath;
+	int32* WidgetIndex = WidgetMap.Find(InWidget);
+	if (ensureMsgf(WidgetIndex, TEXT("The widget is not in the hittest grid.")))
+	{
+		FWidgetData& WidgetData = WidgetArray[*WidgetIndex];
+		WidgetData.CustomPath = CustomHitTestPath;
+	}
 }
 
 FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGridTestingParams& Params) const
