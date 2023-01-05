@@ -313,7 +313,7 @@ public:
 	~FShaderJobCache();
 
 	using FJobInputHash = FShaderCommonCompileJob::FInputHash;
-	using FJobCachedOutput = TArray<uint8>;
+	using FJobCachedOutput = FSharedBuffer;
 
 	/** Looks for the job in the cache, returns null if not found */
 	FJobCachedOutput* Find(const FJobInputHash& Hash, const bool bCheckDDC);
