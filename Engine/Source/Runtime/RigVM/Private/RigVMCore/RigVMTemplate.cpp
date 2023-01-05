@@ -31,7 +31,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	FString ExtendedType;
 	const FString CPPType = InProperty->GetCPPType(&ExtendedType);
 	const FName CPPTypeName = *(CPPType + ExtendedType);
-	FRigVMTemplateArgumentType Type(CPPTypeName);
+	UObject* CPPTypeObject = nullptr;
 
 	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 	{
@@ -40,18 +40,18 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
-		Type.CPPTypeObject = StructProperty->Struct;
+		CPPTypeObject = StructProperty->Struct;
 	}
 	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
 	{
-		Type.CPPTypeObject = EnumProperty->GetEnum();
+		CPPTypeObject = EnumProperty->GetEnum();
 	}
 	else if (FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
 	{
-		Type.CPPTypeObject = ByteProperty->Enum;
+		CPPTypeObject = ByteProperty->Enum;
 	}
-	Type.CPPType = *RigVMTypeUtils::PostProcessCPPType(Type.CPPType.ToString(), Type.CPPTypeObject);
 
+	const FRigVMTemplateArgumentType Type(CPPTypeName, CPPTypeObject);
 	const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().FindOrAddType_Internal(Type, true); 
 
 	TypeIndices.Add(TypeIndex);

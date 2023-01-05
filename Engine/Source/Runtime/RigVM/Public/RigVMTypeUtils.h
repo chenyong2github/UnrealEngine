@@ -167,6 +167,11 @@ namespace RigVMTypeUtils
 			TEXT("TArray<TArray<TObjectPtr<"),
 			TEXT("TScriptInterface<")
 		};
+		static const TArray<FString> PrefixesNotRequiringCPPTypeObject = {
+			TEXT("UInt"), 
+			TEXT("TArray<UInt"),
+			TEXT("TArray<TArray<UInt")
+		};
 		static const TArray<FString> CPPTypesNotRequiringCPPTypeObject = {
 			TEXT("FString"), 
 			TEXT("TArray<FString>"), 
@@ -178,6 +183,13 @@ namespace RigVMTypeUtils
 
 		if(!CPPTypesNotRequiringCPPTypeObject.Contains(InCPPType))
 		{
+			for(const FString& Prefix : PrefixesNotRequiringCPPTypeObject)
+			{
+				if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))
+				{
+					return false;
+				}
+			}
 			for(const FString& Prefix : PrefixesRequiringCPPTypeObject)
 			{
 				if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))

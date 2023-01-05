@@ -69,9 +69,10 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		// InCppType is unreliable because not all caller knows that
 		// we use generated unique names for user defined structs
 		// so here we override the CppType name with the actual name used in the registry
-		CPPType = *RigVMTypeUtils::PostProcessCPPType(CPPType.ToString(), CPPTypeObject);
+		const FString InCPPTypeString = CPPType.ToString();
+		CPPType = *RigVMTypeUtils::PostProcessCPPType(InCPPTypeString, CPPTypeObject);
 		
-		check(!CPPType.IsNone());
+		checkf(!CPPType.IsNone(), TEXT("FRigVMTemplateArgumentType(): Input CPPType '%s' could not be resolved."), *InCPPTypeString);
 	}
 
 	FRigVMTemplateArgumentType(UScriptStruct* InScriptStruct)
