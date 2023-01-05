@@ -197,6 +197,9 @@ public:
 		FMaterialShader::GetShaderBindings(Scene, FeatureLevel, MaterialRenderProxy, Material, ShaderBindings);
 
 		ShaderBindings.Add(GetUniformBufferParameter<FViewUniformShaderParameters>(), View.ViewUniformBuffer);
+		// Similar to DecalRendering::SetShader(...) uses GIdentityPrimitiveUniformBuffer
+		// We could potentially bind the actual primitive uniform buffer
+		ShaderBindings.Add(GetUniformBufferParameter<FPrimitiveUniformShaderParameters>(), GIdentityPrimitiveUniformBuffer);
 		ShaderBindings.Add(DecalParameter, DecalParameters);
 	}
 
