@@ -16,7 +16,6 @@ private:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	TSharedPtr<FAssetTypeActions_ChooserTable> AssetTypeActions_ChooserTable;
 	TSharedPtr<UE::ChooserEditor::FPropertyTypeIdentifier> InterfacePropertyTypeIdentifier;
 };
 

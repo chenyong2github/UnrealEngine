@@ -19,7 +19,7 @@ FAssetCategoryPath EAssetCategoryPaths::Texture(LOCTEXT("Texture", "Texture"));
 FAssetCategoryPath EAssetCategoryPaths::Foliage(LOCTEXT("Foliage", "Foliage"));
 FAssetCategoryPath EAssetCategoryPaths::Input(LOCTEXT("Input", "Input"));
 
-FAssetCategoryPath::FAssetCategoryPath(const FText InCategory)
+FAssetCategoryPath::FAssetCategoryPath(const FText& InCategory)
 {
 	CategoryPath = { TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory) };
 }
@@ -27,6 +27,12 @@ FAssetCategoryPath::FAssetCategoryPath(const FText InCategory)
 FAssetCategoryPath::FAssetCategoryPath(FText InCategory, FText InSubCategory)
 {
 	CategoryPath = { TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory), TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InSubCategory)), InSubCategory) };
+}
+
+FAssetCategoryPath::FAssetCategoryPath(const FAssetCategoryPath& InCategory, const FText& SubCategory)
+{
+    CategoryPath.Append(InCategory.CategoryPath);
+    CategoryPath.Add(TPair<FName, FText>(FName(*FTextInspector::GetSourceString(SubCategory)), SubCategory));
 }
 
 FAssetCategoryPath::FAssetCategoryPath(TConstArrayView<FText> InCategoryPath)

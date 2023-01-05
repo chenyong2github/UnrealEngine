@@ -2,7 +2,6 @@
 
 #include "ChooserEditorModule.h"
 #include "IAssetTools.h"
-#include "AssetTypeActions_Chooser.h"
 #include "ChooserTableEditor.h"
 #include "BoolColumnEditor.h"
 #include "EnumColumnEditor.h"
@@ -16,9 +15,6 @@ namespace UE::ChooserEditor
 
 void FModule::StartupModule()
 {
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	AssetTypeActions_ChooserTable = MakeShared<FAssetTypeActions_ChooserTable>();
-	AssetTools.RegisterAssetTypeActions(AssetTypeActions_ChooserTable.ToSharedRef());
 	FChooserTableEditor::RegisterWidgets();
 	RegisterGameplayTagWidgets();
 	RegisterFloatRangeWidgets();
@@ -34,15 +30,9 @@ void FModule::StartupModule()
 		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<UE::ChooserEditor::FInterfacePropertyTypeCustomization>(); }),
 		InterfacePropertyTypeIdentifier);
 }
-		 
 
 void FModule::ShutdownModule()
 {
-	if(FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		AssetTools.UnregisterAssetTypeActions(AssetTypeActions_ChooserTable.ToSharedRef());
-	}
 }
 
 }

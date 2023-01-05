@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AssetTools",
+					"AssetDefinition",
 					"Chooser",
 					"UnrealEd",
 					"EditorWidgets",
