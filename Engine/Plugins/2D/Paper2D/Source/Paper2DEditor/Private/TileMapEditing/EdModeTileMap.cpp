@@ -175,6 +175,7 @@ void FEdModeTileMap::Enter()
 	CursorPreviewComponent->bShowPerLayerGridWhenSelected = false;
 	CursorPreviewComponent->bShowPerLayerGridWhenUnselected = false;
 	CursorPreviewComponent->bShowOutlineWhenUnselected = false;
+	CursorPreviewComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CursorPreviewComponent->UpdateBounds();
 	CursorPreviewComponent->AddToRoot();
 	CursorPreviewComponent->RegisterComponentWithWorld(World);
