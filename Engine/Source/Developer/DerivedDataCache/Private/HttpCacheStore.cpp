@@ -643,7 +643,7 @@ FString FHttpCacheStore::FHttpOperation::GetBodyAsString() const
 	const int32 Len = IntCastChecked<int32>(ResponseBody.GetSize());
 	if (GetContentType() == EHttpMediaType::CbObject)
 	{
-		if (ValidateCompactBinary(ResponseBody, ECbValidateMode::Default) != ECbValidateError::None)
+		if (ValidateCompactBinary(ResponseBody, ECbValidateMode::Default) == ECbValidateError::None)
 		{
 			TUtf8StringBuilder<1024> JsonStringBuilder;
 			const FCbObject ResponseObject(ResponseBody);
