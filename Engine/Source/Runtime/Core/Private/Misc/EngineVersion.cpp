@@ -14,6 +14,7 @@
 #include "Serialization/StructuredArchiveNameHelpers.h"
 #include "Serialization/StructuredArchiveSlots.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "HAL/IConsoleManager.h" // for FAutoConsoleVariableRef
 
 int32 GSkipChangelistCompatibilityVersionCheck = 0;
 static FAutoConsoleVariableRef CSkipChangelistCompatibilityVersionCheck(
