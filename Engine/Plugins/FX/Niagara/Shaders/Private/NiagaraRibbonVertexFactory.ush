@@ -834,7 +834,7 @@ float3 ConstructWorldPosition(FVertexFactoryInput Input, FRibbonPositionIntermed
 {
 	const float2 SliceVertexPositions = UnpackParticleVertexPosition(Input.InterpVtxId);
 	const float3 Offset = ((Intermediates.GeoRight * SliceVertexPositions.xxx) + (Intermediates.GeoUp * SliceVertexPositions.yyy)) * Intermediates.RibbonWidth.xxx;
-	const FLWCVector3 Pos = LWCAdd(LWCAdd(Intermediates.Position, LWCPromote(Offset)), ResolvedView.PreViewTranslation);
+	const FLWCVector3 Pos = LWCAdd(LWCAdd(Intermediates.Position, LWCPromote(Offset)), PreViewTranslation);
 		
 	// Intermediates are already in world space, only need to account for the translation around view origin.
 	return LWCToFloat(Pos);
