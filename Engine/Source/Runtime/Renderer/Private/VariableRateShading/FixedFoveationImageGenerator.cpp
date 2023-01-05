@@ -30,6 +30,14 @@ static TAutoConsoleVariable<int32> CVarFixedFoveationDynamic(
 	TEXT(" 1: Enabled\n"),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarFoveatedPreview(
+	TEXT("vr.VRS.HMDFixedFoveationPreview"),
+	1,
+	TEXT("Include foveated VRS in the VRS debug overlay.")
+	TEXT(" 0: Disabled;\n")
+	TEXT(" 1: Enabled (default)\n"),
+	ECVF_RenderThreadSafe);
+
 
 /* Image generation parameters, set up by Prepare() */
 
@@ -215,6 +223,11 @@ bool FFixedFoveationImageGenerator::IsEnabledForView(const FSceneView& View) con
 	// Only enabled if we are in XR
 	bool bStereoRendering = IStereoRendering::IsStereoEyeView(View) && GEngine->XRSystem.IsValid();
 	return bStereoRendering && CVarFixedFoveationLevel.GetValueOnRenderThread() > 0;
+}
+
+FRDGTextureRef FFixedFoveationImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
+{
+	return CachedImage;
 }
 
 float FFixedFoveationImageGenerator::GetDynamicVRSAmount()

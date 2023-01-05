@@ -20,7 +20,6 @@ public:
 	{
 		return FVariableRateShadingImageManager::EVRSSourceType::ContrastAdaptiveShading;
 	}
-
-	void VRSDebugPreview(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FRDGTextureRef OutputSceneColor);
+	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo) override;
 };
 

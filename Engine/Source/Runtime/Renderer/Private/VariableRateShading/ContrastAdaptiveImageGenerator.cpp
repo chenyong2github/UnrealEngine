@@ -129,12 +129,14 @@ FAutoConsoleVariableRef CVarVRSDebugForceRate(
 	GVRSDebugForceRate,
 	TEXT("-1 : None, 0 : Force 1x1, 1 : Force 1x2, 4 : Force 2x1, 5: Force 2x2"));
 
-TAutoConsoleVariable<int32> CVarVRSPreview(
-	TEXT("r.VRS.Preview"),
-	0,
-	TEXT("Show a debug visualiation of the SRI texture.")
-	TEXT("0 - off, 1 - the SRI texture, 2- the conservative SRI texture, 3 - the unscaled SRI texture"),
+TAutoConsoleVariable<int32> CVarCASPreviewType(
+	TEXT("r.VRS.ContrastAdaptiveShading.PreviewType"),
+	1,
+	TEXT("Include CAS in the VRS debug overlay.")
+	TEXT("0 - off, 1 - the SRI texture, 2- the conservative SRI texture"),
 	ECVF_RenderThreadSafe);
+
+
 
 /**
  * Shaders
@@ -252,86 +254,6 @@ class FRescaleVariableRateShadingCS : public FGlobalShader
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRescaleVariableRateShadingCS, "/Engine/Private/VariableRateShading/VRSShadingRateReproject.usf", "RescaleVariableRateShading", SF_Compute);
-
-class FDebugVariableRateShadingCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FDebugVariableRateShadingCS);
-	SHADER_USE_PARAMETER_STRUCT(FDebugVariableRateShadingCS, FGlobalShader);
-
-	static constexpr uint32 ThreadGroupSize = 8;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, VariableRateShadingTextureIn)
-		SHADER_PARAMETER(FVector4f, ViewRect)
-		SHADER_PARAMETER(float, DynamicResolutionScale)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SceneColorOut)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSize);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSize);
-		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
-	}
-
-	static void InitParameters(
-		FParameters& Parameters,
-		FRDGTextureRef VariableRateShadingTexture,
-		const FIntRect& ViewRect,
-		float DynamicResolutionScale,
-		FRDGTextureUAVRef SceneColorUAV)
-	{
-		Parameters.VariableRateShadingTextureIn = VariableRateShadingTexture;
-		Parameters.ViewRect = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
-		Parameters.DynamicResolutionScale = DynamicResolutionScale;
-		Parameters.SceneColorOut = SceneColorUAV;
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FDebugVariableRateShadingCS, "/Engine/Private/VariableRateShading/VRSShadingRateCalculate.usf", "PreviewVariableRateShadingTextureCS", SF_Compute);
-
-//---------------------------------------------------------------------------------------------
-using FDebugVariableRateShadingVS = FScreenPassVS;
-
-//---------------------------------------------------------------------------------------------
-class FDebugVariableRateShadingPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FDebugVariableRateShadingPS);
-	SHADER_USE_PARAMETER_STRUCT(FDebugVariableRateShadingPS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 0);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, VariableRateShadingTextureIn)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-		
-	static void InitParameters(
-			FParameters& Parameters,
-			FRDGTextureRef VariableRateShadingTexture,
-			FRDGTextureRef OutputSceneColor)
-	{
-		Parameters.VariableRateShadingTextureIn = VariableRateShadingTexture;
-		Parameters.RenderTargets[0] = FRenderTargetBinding(OutputSceneColor, ERenderTargetLoadAction::ELoad);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FDebugVariableRateShadingPS, "/Engine/Private/VariableRateShading/VRSShadingRateCalculate.usf", "PreviewVariableRateShadingTexturePS", SF_Pixel);
 
 /**
  * Helper Functions and Structures
@@ -631,98 +553,6 @@ void AddPrepareImageBasedVRSPass(
 	}
 }
 
-void FContrastAdaptiveImageGenerator::VRSDebugPreview(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FRDGTextureRef OutputSceneColor)
-{
-	RDG_EVENT_SCOPE(GraphBuilder, "VariableRateShading");
-	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
-	{
-		check(ViewFamily.Views[ViewIndex]->bIsViewInfo);
-		const FViewInfo& View = *static_cast<const FViewInfo*>(ViewFamily.Views[ViewIndex]);
-		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, ViewFamily.Views.Num() > 1, "View%d", ViewIndex);
-
-		//------------------------------------------------------------------------------------------------
-		// Do some sanity checks for early out
-		if (!OutputSceneColor)
-		{
-			return;
-		}
-
-		ESRIPreviewType::Type PreviewType = static_cast<ESRIPreviewType::Type>(CVarVRSPreview.GetValueOnRenderThread());
-
-		if (PreviewType == ESRIPreviewType::Off || !FVRSTextures::IsInitialized(GraphBuilder))
-		{
-			return;
-		}
-
-		const FVRSTextures& VRSTextures = FVRSTextures::Get(GraphBuilder);
-		FRDGTextureRef PreviewTexture = nullptr;
-		switch (PreviewType)
-		{
-		case ESRIPreviewType::BeforeReprojection:
-			PreviewTexture = VRSTextures.ConstructedSRI;
-			break;
-		case ESRIPreviewType::Projected:
-			PreviewTexture = VRSTextures.ScaledSRI;
-			break;
-		case ESRIPreviewType::ProjectedConservative:
-			PreviewTexture = VRSTextures.ScaledConservativeSRI;
-			break;
-		};
-
-		if (!PreviewTexture)
-		{
-			// We never rendered to this texture this frame, so aborting
-			return;
-		}
-		// Complete early out sanity checks
-		//------------------------------------------------------------------------------------------------
-
-		auto& RHICmdList = GraphBuilder.RHICmdList;
-
-		SCOPED_DRAW_EVENT(RHICmdList, VRSDebugPreview);
-
-		bool bUseRescaledTexture = PreviewType != ESRIPreviewType::BeforeReprojection;
-
-		FIntRect SrcViewRect = bUseRescaledTexture ? View.ViewRect : GetPostProcessOutputRect(View);
-
-		const FIntRect& DestViewRect = View.UnscaledViewRect;
-
-		TShaderMapRef<FDebugVariableRateShadingVS> VertexShader(View.ShaderMap);
-		TShaderMapRef<FDebugVariableRateShadingPS> PixelShader(View.ShaderMap);
-
-		auto* PassParameters = GraphBuilder.AllocParameters<FDebugVariableRateShadingPS::FParameters>();
-
-		FDebugVariableRateShadingPS::InitParameters(
-			*PassParameters,
-			PreviewTexture,
-			OutputSceneColor);
-
-		FRHIBlendState* BlendState =
-			TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSource1Alpha>::GetRHI();
-		FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
-
-		EScreenPassDrawFlags DrawFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
-
-		FIntRect ScaledSrcRect = FIntRect::DivideAndRoundUp(SrcViewRect, FVariableRateShadingImageManager::GetSRITileSize());
-
-		const FScreenPassTextureViewport InputViewport = FScreenPassTextureViewport(PreviewTexture, ScaledSrcRect);
-		const FScreenPassTextureViewport OutputViewport(OutputSceneColor, DestViewRect);
-
-		AddDrawScreenPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("Display Debug : %s", ESRIPreviewType::GetName(PreviewType)),
-			View,
-			OutputViewport,
-			InputViewport,
-			VertexShader,
-			PixelShader,
-			BlendState,
-			DepthStencilState,
-			PassParameters,
-			DrawFlags);
-	}
-}
 
 /**
  * Interface Functions
@@ -779,5 +609,29 @@ bool FContrastAdaptiveImageGenerator::IsEnabledForView(const FSceneView& View) c
 	bool bCompatibleWithOutputType = (DisplayOutputFormat == EDisplayOutputFormat::SDR_sRGB) || IsHDR10(DisplayOutputFormat);
 
 	return IsContrastAdaptiveShadingEnabled() && !View.bIsSceneCapture && bCompatibleWithOutputType;
+}
+
+FRDGTextureRef FContrastAdaptiveImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
+{
+	if (!FVRSTextures::IsInitialized(GraphBuilder))
+	{
+		return nullptr;
+	}
+
+	const FVRSTextures& VRSTextures = FVRSTextures::Get(GraphBuilder);
+
+	ESRIPreviewType::Type PreviewType = static_cast<ESRIPreviewType::Type>(CVarCASPreviewType.GetValueOnRenderThread());
+
+	switch (PreviewType)
+	{
+	case ESRIPreviewType::BeforeReprojection:
+		return VRSTextures.ConstructedSRI;
+		break;
+	case ESRIPreviewType::Projected:
+		return VRSTextures.ScaledSRI;
+		break;
+	}
+
+	return nullptr;
 }
 

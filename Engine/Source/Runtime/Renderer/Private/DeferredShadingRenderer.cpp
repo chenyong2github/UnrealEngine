@@ -4172,7 +4172,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (ViewFamily.bResolveScene && ViewFamilyTexture)
 	{
-		GVRSImageManager.CASDebugPreview(GraphBuilder, ViewFamily, ViewFamilyTexture);
+		GVRSImageManager.DrawDebugPreview(GraphBuilder, ViewFamily, ViewFamilyTexture);
 	}
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);

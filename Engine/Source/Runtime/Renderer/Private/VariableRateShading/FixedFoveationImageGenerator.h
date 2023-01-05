@@ -20,6 +20,7 @@ public:
 	{
 		return FVariableRateShadingImageManager::EVRSSourceType::FixedFoveation;
 	}
+	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo) override;
 private:
 	FRDGTextureRef CachedImage = nullptr;
 	struct FDynamicVRSData
