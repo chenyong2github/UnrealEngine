@@ -4310,6 +4310,10 @@ export type GetTestMetaResponse = {
 
 	/// The rendering hardware interface being used with the test		
 	rhi: string;
+
+	/// The test variation identifier (or "default")
+	variation: string;
+
 }
 
 
