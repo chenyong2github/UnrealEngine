@@ -1,4 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+using System.IO;
+using System;
 using UnrealBuildTool;
 
 public class DirectShow : ModuleRules
@@ -11,7 +13,12 @@ public class DirectShow : ModuleRules
 		{
 
             string DirectShowLibPath = Target.UEThirdPartySourceDirectory
-                + "DirectShow/DirectShow-1.0.0/Lib/Win64/vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+                + "DirectShow/DirectShow-1.0.0/Lib/Win64/vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+
+			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				DirectShowLibPath = Path.Combine(DirectShowLibPath, Target.WindowsPlatform.GetArchitectureSubpath());
+			}
 
 			PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "DirectShow/DirectShow-1.0.0/src/Public");
 
@@ -21,7 +28,7 @@ public class DirectShow : ModuleRules
 				LibraryName += "d";
 			}
 			LibraryName += "_64.lib";
-			PublicAdditionalLibraries.Add(DirectShowLibPath + LibraryName);
+			PublicAdditionalLibraries.Add(DirectShowLibPath + "/" + LibraryName);
 		}
 	}
 }
