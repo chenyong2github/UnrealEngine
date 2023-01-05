@@ -229,7 +229,7 @@ namespace mu
 			}
 
 			// Look for completed streaming ops and complete the rom loading
-			for (auto& o : m_romLoadOps)
+			for (FRomLoadOp& o : m_romLoadOps)
 			{
 				if (o.m_romIndex>=0 && m_pSystem->m_pStreamInterface->IsReadCompleted(o.m_streamID))
 				{
@@ -308,7 +308,7 @@ namespace mu
 
 				// If we reached here it means we didn't find an op to wait for. Try to wait for a loading op.
 				// \todo: unify laoding ops with normal ones?
-				for (auto& o : m_romLoadOps)
+				for (FRomLoadOp& o : m_romLoadOps)
 				{
 					if (o.m_romIndex >= 0)
 					{
@@ -1248,7 +1248,7 @@ namespace mu
 			check(RomSize>0);
 
 			CodeRunner::FRomLoadOp* op = nullptr;
-			for (auto& o : runner->m_romLoadOps)
+			for (FRomLoadOp& o : runner->m_romLoadOps)
 			{
 				if (o.m_romIndex < 0)
 				{
@@ -1368,7 +1368,7 @@ namespace mu
 			check(RomSize > 0);
 
 			CodeRunner::FRomLoadOp* op = nullptr;
-			for (auto& o : runner->m_romLoadOps)
+			for (FRomLoadOp& o : runner->m_romLoadOps)
 			{
 				if (o.m_romIndex < 0)
 				{
@@ -1478,7 +1478,7 @@ namespace mu
 
 		FProgram& program = m_pModel->GetPrivate()->m_program;
 
-		auto type = program.GetOpType(item.At);
+		OP_TYPE type = program.GetOpType(item.At);
 
 		switch (type)
 		{
