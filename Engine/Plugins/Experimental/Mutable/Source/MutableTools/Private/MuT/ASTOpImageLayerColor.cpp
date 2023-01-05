@@ -3,6 +3,7 @@
 #include "MuT/ASTOpImageLayerColor.h"
 
 #include "MuT/ASTOpSwitch.h"
+#include "MuT/ASTOpImageSwizzle.h"
 #include "Containers/Map.h"
 #include "HAL/PlatformMath.h"
 #include "MuR/ModelPrivate.h"
@@ -40,7 +41,8 @@ namespace mu
 				color == Other->color &&
 				mask == Other->mask &&
 				blendType == Other->blendType &&
-				blendTypeAlpha == Other->blendTypeAlpha;
+				blendTypeAlpha == Other->blendTypeAlpha &&
+				Flags == Other->Flags;
 		}
 		return false;
 	}
@@ -66,6 +68,7 @@ namespace mu
 		n->mask = mapChild(mask.child());
 		n->blendType = blendType;
 		n->blendTypeAlpha = blendTypeAlpha;
+		n->Flags = Flags;
 		return n;
 	}
 
@@ -90,6 +93,7 @@ namespace mu
 
 			args.blendType = (uint8)blendType;
 			args.blendTypeAlpha = (uint8)blendTypeAlpha;
+			args.flags = Flags;
 
 			if (base) args.base = base->linkedAddress;
 			if (color) args.colour = color->linkedAddress;
@@ -182,9 +186,9 @@ namespace mu
 				else if (colour.Equals(FVector4f(1, 1, 1, 1), UE_SMALL_NUMBER))
 				{
 					// If the mask is white, we can remove it
-					Ptr<ASTOpImageLayerColor> nop = mu::Clone<ASTOpImageLayerColor>(this);
-					nop->mask = nullptr;
-					at = nop;
+					Ptr<ASTOpImageLayerColor> NewOp = mu::Clone<ASTOpImageLayerColor>(this);
+					NewOp->mask = nullptr;
+					at = NewOp;
 				}
 			}
 		}
@@ -205,16 +209,6 @@ namespace mu
 					ColorConst.Set(Value[0], Value[1], Value[2], Value[3]);
 				}
 
-				if (!bRGBUnchanged)
-				{
-					switch (blendType)
-					{ 
-					case EBlendType::BT_LIGHTEN: bRGBUnchanged = ColorConst.IsNearlyZero3(UE_SMALL_NUMBER); break;
-					case EBlendType::BT_MULTIPLY: bRGBUnchanged = ColorConst.Equals(FVector4f(1, 1, 1, 1)); break;
-					default: break;
-					}					
-				}
-
 				if (!bAlphaUnchanged)
 				{
 					// TODO: Update when alpha may come from alpha in the color.
@@ -225,12 +219,75 @@ namespace mu
 					default: break;
 					}
 				}
+
+				if (!bRGBUnchanged)
+				{
+					if (Flags & OP::ImageLayerArgs::FLAGS::F_BASE_RGB_FROM_ALPHA)
+					{
+						switch (blendType)
+						{
+						case EBlendType::BT_LIGHTEN: bRGBUnchanged = ColorConst[3]<UE_SMALL_NUMBER; break;
+						case EBlendType::BT_MULTIPLY: bRGBUnchanged = FMath::IsNearlyEqual(ColorConst[3],1.0f); break;
+						default: break;
+						}
+					}
+					else
+					{
+						switch (blendType)
+						{
+						case EBlendType::BT_LIGHTEN: bRGBUnchanged = ColorConst.IsNearlyZero3(UE_SMALL_NUMBER); break;
+						case EBlendType::BT_MULTIPLY: bRGBUnchanged = ColorConst.Equals(FVector4f(1, 1, 1, 1)); break;
+						default: break;
+						}
+					}
+				}
 			}
 
 			if (bRGBUnchanged && bAlphaUnchanged)
 			{
 				// Skip this operation.
 				at = base.child();
+			}
+		}
+
+
+		// Try to avoid child swizzle
+		if (!at)
+		{
+			// Is the base a swizzle getting expanding alpha from the same texture?
+			if (base.child()->GetOpType() == OP_TYPE::IM_SWIZZLE)
+			{
+				const ASTOpImageSwizzle* TypedBase = dynamic_cast<const ASTOpImageSwizzle*>(base.child().get());
+				bool bAreAllSameAlpha = true;
+				Ptr<ASTOp> Source = nullptr;
+				for (int32 c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+				{
+					Ptr<ASTOp> ThisSource = TypedBase->Sources[c].child();
+					if (!Source)
+					{
+						Source = ThisSource;
+					}
+					else if (ThisSource && ThisSource!=Source)
+					{
+						bAreAllSameAlpha = false;
+						break;
+					}
+
+
+					if (ThisSource && TypedBase->SourceChannels[c] != 3)
+					{
+						bAreAllSameAlpha = false;
+						break;
+					}
+				}
+
+				if (bAreAllSameAlpha)
+				{
+					Ptr<ASTOpImageLayerColor> NewOp = mu::Clone<ASTOpImageLayerColor>(this);
+					NewOp->Flags |= OP::ImageLayerArgs::FLAGS::F_BASE_RGB_FROM_ALPHA;
+					NewOp->base = Source;
+					at = NewOp;
+				}
 			}
 		}
 

@@ -5,6 +5,7 @@
 #include "MuT/StreamsPrivate.h"
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImageLayerColor.h"
+#include "MuT/ASTOpImageSwizzle.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/RefCounted.h"
@@ -186,7 +187,6 @@ namespace mu
 
 			const ASTOpFixed* BlendPlainColor = dynamic_cast<const ASTOpFixed*>(blendAt.get());
 
-			// \TODO: Add support for embedded alpha to image layer color.
 			if (!bUseMaskFromBlendAlpha)
 			{
 				Ptr<ASTOpImageLayerColor> NewLayerColor = new ASTOpImageLayerColor;
@@ -220,80 +220,264 @@ namespace mu
 			}
 		}
 
-		// Introduce crop if mask is constant and smaller than the base
-		FImageRect sourceMaskUsage;
-		FImageDesc maskDesc;
-		bool validUsageRect = false;
-		if (!at && maskAt)
+		// See if the mask is actually already in the alpha channel of the blended. In that case,
+		// remove the mask and enable the flag to use the alpha from blended.
+		// This sounds very specific but, experimentally, it seems to happen often.
+		if (!at && maskAt && blendAt 
+			&& 
+			Flags==0
+			)
 		{
-			//MUTABLE_CPUPROFILER_SCOPE(EvaluateAreasForCrop);
-
-			validUsageRect = maskAt->GetNonBlackRect(sourceMaskUsage);
-			if (validUsageRect)
+			bool bMatchingAlphaExpression = true;
+			Ptr<ASTOp> CurrentMask = maskAt;
+			Ptr<ASTOp> CurrentBlend = blendAt;
+			while (bMatchingAlphaExpression)
 			{
-				check(sourceMaskUsage.size[0] > 0);
-				check(sourceMaskUsage.size[1] > 0);
+				// Skip blend ops that wouldn't change the alpha
+				bool bUpdated = true;
+				while (bUpdated)
+				{
+					bUpdated = false;
+					switch (CurrentBlend->GetOpType())
+					{
+					case OP_TYPE::IM_LAYERCOLOUR:
+					{
+						const ASTOpImageLayerColor* BlendLayer = dynamic_cast<const ASTOpImageLayerColor*>(CurrentBlend.get());
+						if (BlendLayer->blendTypeAlpha == EBlendType::BT_NONE)
+						{
+							CurrentBlend = BlendLayer->base.child();
+							bUpdated = true;
+						}
+						break;
+					}
 
-				FGetImageDescContext context;
-				maskDesc = maskAt->GetImageDesc(false, &context);
+					case OP_TYPE::IM_LAYER:
+					{
+						const ASTOpImageLayer* BlendLayer = dynamic_cast<const ASTOpImageLayer*>(CurrentBlend.get());
+						if (BlendLayer->blendTypeAlpha == EBlendType::BT_NONE)
+						{
+							CurrentBlend = BlendLayer->base.child();
+							bUpdated = true;
+						}
+						break;
+					}
+
+					default:
+						break;
+					}
+				}
+
+				// Matching ops?
+				if (CurrentMask->GetOpType() != CurrentBlend->GetOpType())
+				{
+					break;
+				}
+
+				switch (CurrentMask->GetOpType())
+				{
+
+				case OP_TYPE::IM_DISPLACE:
+				{
+					const ASTOpFixed* MaskDisplace = dynamic_cast<const ASTOpFixed*>(CurrentMask.get());
+					const ASTOpFixed* BlendDisplace = dynamic_cast<const ASTOpFixed*>(CurrentBlend.get());
+					if (MaskDisplace->children[MaskDisplace->op.args.ImageDisplace.displacementMap].child()
+						==
+						BlendDisplace->children[BlendDisplace->op.args.ImageDisplace.displacementMap].child())
+					{
+						CurrentMask = MaskDisplace->children[MaskDisplace->op.args.ImageDisplace.source].child();
+						CurrentBlend = BlendDisplace->children[BlendDisplace->op.args.ImageDisplace.source].child();
+					}
+					break;
+				}
+
+				case OP_TYPE::IM_RASTERMESH:
+				{
+					const ASTOpFixed* MaskRaster = dynamic_cast<const ASTOpFixed*>(CurrentMask.get());
+					const ASTOpFixed* BlendRaster = dynamic_cast<const ASTOpFixed*>(CurrentBlend.get());
+					if (MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.mesh].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.mesh].child()
+						&&
+						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.projector].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.projector].child()
+						&&
+						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.mask].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.mask].child()
+						&&
+						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.angleFadeProperties].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.angleFadeProperties].child()
+						&&
+						MaskRaster->op.args.ImageRasterMesh.blockIndex == BlendRaster->op.args.ImageRasterMesh.blockIndex
+						)
+					{
+						CurrentMask = MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.image].child();
+						CurrentBlend = BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.image].child();
+					}
+					break;
+				}
+
+				case OP_TYPE::IM_RESIZE:
+				{
+					const ASTOpFixed* MaskResize = dynamic_cast<const ASTOpFixed*>(CurrentMask.get());
+					const ASTOpFixed* BlendResize = dynamic_cast<const ASTOpFixed*>(CurrentBlend.get());
+					if (MaskResize->op.args.ImageResize.size[0] == BlendResize->op.args.ImageResize.size[0]
+						&&
+						MaskResize->op.args.ImageResize.size[1] == BlendResize->op.args.ImageResize.size[1])
+					{
+						CurrentMask = MaskResize->children[MaskResize->op.args.ImageResize.source].child();
+						CurrentBlend = BlendResize->children[BlendResize->op.args.ImageResize.source].child();
+					}
+					break;
+				}
+
+				default:
+					// Case not supported, so don't optimize.
+					bMatchingAlphaExpression = false;
+					break;
+				}
+			}
+
+			if (bMatchingAlphaExpression && CurrentMask->GetOpType() == OP_TYPE::IM_SWIZZLE)
+			{
+				// End of the possible mask expression chain match should have a swizzle selecting the alpha.
+				const ASTOpImageSwizzle* MaskSwizzle = dynamic_cast<const ASTOpImageSwizzle*>(CurrentMask.get());
+				if (MaskSwizzle->SourceChannels[0] == 3
+					&&
+					!MaskSwizzle->SourceChannels[1]
+					&&
+					!MaskSwizzle->SourceChannels[2]
+					&&
+					!MaskSwizzle->SourceChannels[3]
+					&&
+					MaskSwizzle->Sources[0].child() == CurrentBlend
+					)
+				{
+					// we can do something good here
+					Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(this);
+					NewLayer->mask = nullptr;
+					NewLayer->Flags |= OP::ImageLayerArgs::F_USE_MASK_FROM_BLENDED;
+					at = NewLayer;
+				}
+			}
+
+		}
+
+		// Try to avoid child swizzle
+		if (!at)
+		{
+			// Is the base a swizzle expanding alpha from a texture?
+			if (baseAt->GetOpType() == OP_TYPE::IM_SWIZZLE)
+			{
+				const ASTOpImageSwizzle* TypedBase = dynamic_cast<const ASTOpImageSwizzle*>(baseAt.get());
+				bool bAreAllAlpha = true;
+				for (int32 c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+				{
+					if (TypedBase->Sources[c] && TypedBase->SourceChannels[c] != 3)
+					{
+						bAreAllAlpha = false;
+						break;
+					}
+				}
+
+				if (bAreAllAlpha)
+				{
+					// TODO
+				}
+			}
+
+			// Is the mask a swizzle expanding alpha from a texture?
+			if (maskAt && maskAt->GetOpType() == OP_TYPE::IM_SWIZZLE)
+			{
+				const ASTOpImageSwizzle* TypedBase = dynamic_cast<const ASTOpImageSwizzle*>(maskAt.get());
+				bool bAreAllAlpha = true;
+				for (int32 c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+				{
+					if (TypedBase->Sources[c] && TypedBase->SourceChannels[c] != 3)
+					{
+						bAreAllAlpha = false;
+						break;
+					}
+				}
+
+				if (bAreAllAlpha)
+				{
+					// TODO
+				}
 			}
 		}
 
-		if (!at && maskAt && validUsageRect)
+		// Introduce crop if mask is constant and smaller than the base
+		if (!at && maskAt)
 		{
-			// Adjust for compressed blocks (4), and some extra mips (2 more mips, which is 4)
-			constexpr int blockSize = 4 * 4;
+			FImageRect sourceMaskUsage;
+			FImageDesc maskDesc;
 
-			FImageRect maskUsage;
-			maskUsage.min[0] = (sourceMaskUsage.min[0] / blockSize) * blockSize;
-			maskUsage.min[1] = (sourceMaskUsage.min[1] / blockSize) * blockSize;
-			vec2<uint16> minOffset = sourceMaskUsage.min - maskUsage.min;
-			maskUsage.size[0] = ((sourceMaskUsage.size[0] + minOffset[0] + blockSize - 1) / blockSize) * blockSize;
-			maskUsage.size[1] = ((sourceMaskUsage.size[1] + minOffset[1] + blockSize - 1) / blockSize) * blockSize;
-
-			// Is it worth?
-			float ratio = float(maskUsage.size[0] * maskUsage.size[1])
-				/ float(maskDesc.m_size[0] * maskDesc.m_size[1]);
-			float acceptableCropRatio = options.m_acceptableCropRatio;
-			if (ratio < acceptableCropRatio)
+			bool validUsageRect = false;
 			{
-				check(maskUsage.size[0] > 0);
-				check(maskUsage.size[1] > 0);
+				//MUTABLE_CPUPROFILER_SCOPE(EvaluateAreasForCrop);
 
-				Ptr<ASTOpFixed> cropMask = new ASTOpFixed();
-				cropMask->op.type = OP_TYPE::IM_CROP;
-				cropMask->SetChild(cropMask->op.args.ImageCrop.source, mask.child());
-				cropMask->op.args.ImageCrop.minX = maskUsage.min[0];
-				cropMask->op.args.ImageCrop.minY = maskUsage.min[1];
-				cropMask->op.args.ImageCrop.sizeX = maskUsage.size[0];
-				cropMask->op.args.ImageCrop.sizeY = maskUsage.size[1];
+				validUsageRect = maskAt->GetNonBlackRect(sourceMaskUsage);
+				if (validUsageRect)
+				{
+					check(sourceMaskUsage.size[0] > 0);
+					check(sourceMaskUsage.size[1] > 0);
 
-				Ptr<ASTOpFixed> cropBlended = new ASTOpFixed();
-				cropBlended->op.type = OP_TYPE::IM_CROP;
-				cropBlended->SetChild(cropBlended->op.args.ImageCrop.source, blend.child());
-				cropBlended->op.args.ImageCrop.minX = maskUsage.min[0];
-				cropBlended->op.args.ImageCrop.minY = maskUsage.min[1];
-				cropBlended->op.args.ImageCrop.sizeX = maskUsage.size[0];
-				cropBlended->op.args.ImageCrop.sizeY = maskUsage.size[1];
+					FGetImageDescContext context;
+					maskDesc = maskAt->GetImageDesc(false, &context);
+				}
+			}
 
-				Ptr<ASTOpFixed> cropBase = new ASTOpFixed();
-				cropBase->op.type = OP_TYPE::IM_CROP;
-				cropBase->SetChild(cropBase->op.args.ImageCrop.source, base.child());
-				cropBase->op.args.ImageCrop.minX = maskUsage.min[0];
-				cropBase->op.args.ImageCrop.minY = maskUsage.min[1];
-				cropBase->op.args.ImageCrop.sizeX = maskUsage.size[0];
-				cropBase->op.args.ImageCrop.sizeY = maskUsage.size[1];
+			if (validUsageRect)
+			{
+				// Adjust for compressed blocks (4), and some extra mips (2 more mips, which is 4)
+				constexpr int blockSize = 4 * 4;
 
-				Ptr<ASTOpImageLayer> newLayer = mu::Clone<ASTOpImageLayer>(this);
-				newLayer->base = cropBase;
-				newLayer->blend = cropBlended;
-				newLayer->mask = cropMask;
+				FImageRect maskUsage;
+				maskUsage.min[0] = (sourceMaskUsage.min[0] / blockSize) * blockSize;
+				maskUsage.min[1] = (sourceMaskUsage.min[1] / blockSize) * blockSize;
+				vec2<uint16> minOffset = sourceMaskUsage.min - maskUsage.min;
+				maskUsage.size[0] = ((sourceMaskUsage.size[0] + minOffset[0] + blockSize - 1) / blockSize) * blockSize;
+				maskUsage.size[1] = ((sourceMaskUsage.size[1] + minOffset[1] + blockSize - 1) / blockSize) * blockSize;
 
-				Ptr<ASTOpImagePatch> patch = new ASTOpImagePatch();
-				patch->base = baseAt;
-				patch->patch = newLayer;
-				patch->location = maskUsage.min;
-				at = patch;
+				// Is it worth?
+				float ratio = float(maskUsage.size[0] * maskUsage.size[1])
+					/ float(maskDesc.m_size[0] * maskDesc.m_size[1]);
+				float acceptableCropRatio = options.m_acceptableCropRatio;
+				if (ratio < acceptableCropRatio)
+				{
+					check(maskUsage.size[0] > 0);
+					check(maskUsage.size[1] > 0);
+
+					Ptr<ASTOpFixed> cropMask = new ASTOpFixed();
+					cropMask->op.type = OP_TYPE::IM_CROP;
+					cropMask->SetChild(cropMask->op.args.ImageCrop.source, mask.child());
+					cropMask->op.args.ImageCrop.minX = maskUsage.min[0];
+					cropMask->op.args.ImageCrop.minY = maskUsage.min[1];
+					cropMask->op.args.ImageCrop.sizeX = maskUsage.size[0];
+					cropMask->op.args.ImageCrop.sizeY = maskUsage.size[1];
+
+					Ptr<ASTOpFixed> cropBlended = new ASTOpFixed();
+					cropBlended->op.type = OP_TYPE::IM_CROP;
+					cropBlended->SetChild(cropBlended->op.args.ImageCrop.source, blend.child());
+					cropBlended->op.args.ImageCrop.minX = maskUsage.min[0];
+					cropBlended->op.args.ImageCrop.minY = maskUsage.min[1];
+					cropBlended->op.args.ImageCrop.sizeX = maskUsage.size[0];
+					cropBlended->op.args.ImageCrop.sizeY = maskUsage.size[1];
+
+					Ptr<ASTOpFixed> cropBase = new ASTOpFixed();
+					cropBase->op.type = OP_TYPE::IM_CROP;
+					cropBase->SetChild(cropBase->op.args.ImageCrop.source, base.child());
+					cropBase->op.args.ImageCrop.minX = maskUsage.min[0];
+					cropBase->op.args.ImageCrop.minY = maskUsage.min[1];
+					cropBase->op.args.ImageCrop.sizeX = maskUsage.size[0];
+					cropBase->op.args.ImageCrop.sizeY = maskUsage.size[1];
+
+					Ptr<ASTOpImageLayer> newLayer = mu::Clone<ASTOpImageLayer>(this);
+					newLayer->base = cropBase;
+					newLayer->blend = cropBlended;
+					newLayer->mask = cropMask;
+
+					Ptr<ASTOpImagePatch> patch = new ASTOpImagePatch();
+					patch->base = baseAt;
+					patch->patch = newLayer;
+					patch->location = maskUsage.min;
+					at = patch;
+				}
 			}
 		}
 
@@ -421,7 +605,7 @@ namespace mu
 
 		}
 
-		// If we failed to optimize so far, see if it is worth optimizing the blended only.
+		// If we failed to optimize so far, see if it is worth optimizing the blended branch only.
 		if (!at)
 		{
 			OP_TYPE BlendType = blendAt->GetOpType();
@@ -483,6 +667,64 @@ namespace mu
 						}
 					}
 
+					at = NewSwitch;
+				}
+
+				break;
+			}
+
+			default:
+				break;
+
+			}
+		}
+
+		// If we failed to optimize so far, see if it is worth optimizing the mask branch only.
+		if (!at && maskAt)
+		{
+			OP_TYPE MaskType = maskAt->GetOpType();
+			switch (MaskType)
+			{
+
+			case OP_TYPE::IM_SWITCH:
+			{
+				const ASTOpSwitch* MaskSwitch = dynamic_cast<const ASTOpSwitch*>(maskAt.get());
+
+				// If at least a switch option is a plain colour, sink the layer into the switch
+				bool bWorthSinking = false;
+				for (int32 v = 0; v < MaskSwitch->cases.Num(); ++v)
+				{
+					if (MaskSwitch->cases[v].branch)
+					{
+						// \TODO: Use the smarter query function to detect plain images?
+						if (MaskSwitch->cases[v].branch->GetOpType() == OP_TYPE::IM_PLAINCOLOUR)
+						{
+							bWorthSinking = true;
+							break;
+						}
+					}
+				}
+
+				if (bWorthSinking)
+				{
+					Ptr<ASTOpSwitch> NewSwitch = mu::Clone<ASTOpSwitch>(MaskSwitch);
+
+					if (NewSwitch->def)
+					{
+						Ptr<ASTOpImageLayer> defOp = mu::Clone<ASTOpImageLayer>(this);
+						defOp->mask = MaskSwitch->def.child();
+						NewSwitch->def = defOp;
+					}
+
+					for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
+					{
+						if (NewSwitch->cases[v].branch)
+						{
+							Ptr<ASTOpImageLayer> BranchOp = mu::Clone<ASTOpImageLayer>(this);
+							BranchOp->mask = MaskSwitch->cases[v].branch.child();
+							NewSwitch->cases[v].branch = BranchOp;
+						}
+					}
 
 					at = NewSwitch;
 				}

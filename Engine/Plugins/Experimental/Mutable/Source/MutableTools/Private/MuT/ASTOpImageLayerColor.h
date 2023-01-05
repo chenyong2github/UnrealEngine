@@ -31,6 +31,9 @@ namespace mu
 		/** Blend type used for the alpha channel if any. */
 		EBlendType blendTypeAlpha = EBlendType::BT_NONE;
 
+		/** See ImageLayerArgs::Flags .*/
+		uint8 Flags = 0;
+
 	public:
 
 		ASTOpImageLayerColor();
