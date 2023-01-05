@@ -49,7 +49,7 @@ public:
 	struct FUpdateContext
 	{
 		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
-		const UAnimSequence* Sequence = nullptr;
+		const UAnimSequenceBase* SequenceBase = nullptr;
 		const UBlendSpace* BlendSpace = nullptr;
 		float StartTime = 0.0f;
 		float Time = 0.0f;
@@ -468,12 +468,6 @@ public:
 	/** Updates internal Skeletal Mesh Component depending on input */
 	void OnDraw(FSkeletonDrawParams& DrawParams);
 	
-	/** Get an animation sequence from the sequence ID of the active database */
-	const FPoseSearchDatabaseSequence* GetAnimSequence(int32 SequenceIdx) const;
-	
-	/** Get a blendspace from the blend space ID of the active database */
-	const FPoseSearchDatabaseBlendSpace* GetBlendSpace(int32 BlendSpaceIdx) const;
-
 	/** Sets the selected pose skeleton*/
 	void ShowSelectedSkeleton(const UPoseSearchDatabase* Database, int32 DbPoseIdx, float Time);
 	
@@ -508,11 +502,43 @@ public:
 	const USkinnedMeshComponent* GetMeshComponent() const;
 
 private:
+	/** Debug visualization skeleton actor */
+	struct FSkeleton
+	{
+		/** Actor object for the skeleton */
+		TWeakObjectPtr<AActor> Actor = nullptr;
+
+		/** Derived skeletal mesh for setting the skeleton in the scene */
+		TWeakObjectPtr<UPoseSearchMeshComponent> Component = nullptr;
+
+		/** Type of the asset being played */
+		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
+
+		/** Source database for this skeleton  */
+		TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
+
+		/** Source asset for this skeleton */
+		int32 AssetIdx = 0;
+
+		/** Time in the sequence this skeleton is accessing */
+		float Time = 0.0f;
+
+		/** If this asset should be mirrored */
+		bool bMirrored = false;
+
+		/** Blend Parameters if asset is a BlendSpace */
+		FVector BlendParameters = FVector::Zero();
+
+		const FInstancedStruct* GetAnimationAsset() const;
+	};
+
 	/** Update the list of states for this frame */
 	void UpdateFromTimeline();
 
 	/** Populates arrays used for mirroring the animation pose */
 	void FillCompactPoseAndComponentRefRotations();
+
+	void UpdatePoseSearchContext(UPoseSearchMeshComponent::FUpdateContext& InOutContext, const FSkeleton& Skeleton) const;
 	
 	/** List of all Node IDs associated with motion matching states */
 	TArray<int32> NodeIds;
@@ -544,37 +570,7 @@ private:
 	/** Pre-calculated component space rotations of reference pose */
 	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
 
-	/** Debug visualization skeleton actor */
-	struct FSkeleton
-	{
-		/** Actor object for the skeleton */
-		TWeakObjectPtr<AActor> Actor = nullptr;
 
-		/** Derived skeletal mesh for setting the skeleton in the scene */
-		TWeakObjectPtr<UPoseSearchMeshComponent> Component = nullptr;
-		
-		/** Type of the asset being played */
-		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
-
-		/** Source database for this skeleton  */
-		TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
-
-		/** Source asset for this skeleton */
-		int32 AssetIdx = 0;
-		
-		/** Time in the sequence this skeleton is accessing */
-		float Time = 0.0f;
-
-		/** If this asset should be mirrored */
-		bool bMirrored = false;
-
-		/** Blend Parameters if asset is a BlendSpace */
-		FVector BlendParameters = FVector::Zero();
-
-		const FPoseSearchDatabaseSequence* GetAnimSequence() const;
-		const FPoseSearchDatabaseBlendSpace* GetBlendSpace() const;
-	};
-	
 	/** Index for each type of skeleton we store for debug visualization */
 	enum ESkeletonIndex
 	{

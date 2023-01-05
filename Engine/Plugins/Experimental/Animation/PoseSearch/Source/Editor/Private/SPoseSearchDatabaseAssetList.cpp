@@ -6,6 +6,7 @@
 #include "PoseSearch/PoseSearch.h"
 
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimComposite.h"
 #include "Animation/BlendSpace.h"
 
 #include "Misc/TransactionObjectEvent.h"
@@ -60,40 +61,12 @@ namespace UE::PoseSearch
 	{
 		if (const UPoseSearchDatabase* Database = EditorViewModel.Pin()->GetPoseSearchDatabase())
 		{
-			if (SourceAssetType == ESearchIndexAssetType::Sequence)
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(SourceAssetIdx))
 			{
-				if (Database->Sequences.IsValidIndex(SourceAssetIdx))
-				{
-					if (const UAnimSequence* Sequence = Database->Sequences[SourceAssetIdx].Sequence)
-					{
-						return Sequence->HasRootMotion();
-					}
-				}
-			}
-			else if (SourceAssetType == ESearchIndexAssetType::BlendSpace)
-			{
-				if (Database->BlendSpaces.IsValidIndex(SourceAssetIdx))
-				{
-					if (const UBlendSpace* BlendSpace = Database->BlendSpaces[SourceAssetIdx].BlendSpace)
-					{
-						bool bIsRootMotionUsedInBlendSpace = false;
-			
-						BlendSpace->ForEachImmutableSample([&bIsRootMotionUsedInBlendSpace](const FBlendSample & Sample)
-						{
-							const TObjectPtr<UAnimSequence> Sequence = Sample.Animation;
-				
-							if (IsValid(Sequence) && Sequence->HasRootMotion())
-							{
-								bIsRootMotionUsedInBlendSpace = true;
-							}
-						});
-			
-						return bIsRootMotionUsedInBlendSpace;
-					}
-				}
+				return DatabaseAnimationAsset->IsRootMotionEnabled();
 			}
 		}
-		
+
 		return false;
 	}
 
@@ -101,25 +74,9 @@ namespace UE::PoseSearch
 	{
 		if (const UPoseSearchDatabase* Database = EditorViewModel.Pin()->GetPoseSearchDatabase())
 		{
-			if (SourceAssetType == ESearchIndexAssetType::Sequence)
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(SourceAssetIdx))
 			{
-				if (Database->Sequences.IsValidIndex(SourceAssetIdx))
-				{
-					if (const UAnimSequence* Sequence = Database->Sequences[SourceAssetIdx].Sequence)
-					{
-						return Sequence->bLoop;
-					}
-				}
-			}
-			else if (SourceAssetType == ESearchIndexAssetType::BlendSpace)
-			{
-				if (Database->BlendSpaces.IsValidIndex(SourceAssetIdx))
-				{
-					if (const UBlendSpace* BlendSpace = Database->BlendSpaces[SourceAssetIdx].BlendSpace)
-					{
-						return BlendSpace->bLoop;
-					}
-				}
+				return DatabaseAnimationAsset->IsLooping();
 			}
 		}
 
@@ -130,19 +87,9 @@ namespace UE::PoseSearch
 	{
 		if (const UPoseSearchDatabase* Database = EditorViewModel.Pin()->GetPoseSearchDatabase())
 		{
-			if (SourceAssetType == ESearchIndexAssetType::Sequence)
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(SourceAssetIdx))
 			{
-				if (Database->Sequences.IsValidIndex(SourceAssetIdx))
-				{
-					return Database->Sequences[SourceAssetIdx].MirrorOption;
-				}
-			}
-			else if (SourceAssetType == ESearchIndexAssetType::BlendSpace)
-			{
-				if (Database->BlendSpaces.IsValidIndex(SourceAssetIdx))
-				{
-					return Database->BlendSpaces[SourceAssetIdx].MirrorOption;
-				}
+				return DatabaseAnimationAsset->GetMirrorOption();
 			}
 		}
 
@@ -214,45 +161,28 @@ namespace UE::PoseSearch
 		SkeletonView.Pin()->RefreshTreeView(false);
 	}
 
+	void SDatabaseAssetListItem::OnAddAnimComposite()
+	{
+		EditorViewModel.Pin()->AddAnimCompositeToDatabase(nullptr);
+		SkeletonView.Pin()->RefreshTreeView(false);
+	}
+
 	FText SDatabaseAssetListItem::GetName() const
 	{
-		FText Name = LOCTEXT("None", "None");
-
 		TSharedPtr<FDatabaseAssetTreeNode> Node = WeakAssetTreeNode.Pin();
 		TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
-		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 
-		if (Database)
+		if (const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase())
 		{
-			switch (Node->SourceAssetType)
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(Node->SourceAssetIdx))
 			{
-			case ESearchIndexAssetType::Sequence:
-			{
-				const UAnimSequence* Sequence = Database->Sequences[Node->SourceAssetIdx].Sequence;
-				if (Sequence)
-				{
-					Name = FText::FromString(Sequence->GetName());
-				}
-				break;
+				return FText::FromString(DatabaseAnimationAsset->GetName());
 			}
-			case ESearchIndexAssetType::BlendSpace:
-			{
-				const UBlendSpace* BlendSpace = Database->BlendSpaces[Node->SourceAssetIdx].BlendSpace;
-				if (BlendSpace)
-				{
-					Name = FText::FromString(BlendSpace->GetName());
-				}
-				break;
-			}
-			default:
-			{
-				Name = FText::FromString(Database->GetName());
-				break;
-			}
-			}
+
+			return FText::FromString(Database->GetName());
 		}
 
-		return Name;
+		return LOCTEXT("None", "None");
 	}
 
 	TSharedRef<SWidget> SDatabaseAssetListItem::GenerateItemWidget()
@@ -301,18 +231,12 @@ namespace UE::PoseSearch
 		}
 		else
 		{
-			// Item Icon (Sequence or Blendspace)
+			// Item Icon
 			TSharedPtr<SImage> ItemIconWidget;
-			if (Node->SourceAssetType == ESearchIndexAssetType::Sequence)
-			{
-				FSlateIconFinder::FindIconBrushForClass(UBlendSpace::StaticClass());
-				SAssignNew(ItemIconWidget, SImage)
-				.Image(FSlateIconFinder::FindIconBrushForClass(UAnimSequence::StaticClass()));
-			}
-			else
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(Node->SourceAssetIdx))
 			{
 				SAssignNew(ItemIconWidget, SImage)
-				.Image(FSlateIconFinder::FindIconBrushForClass(UBlendSpace::StaticClass()));
+					.Image(FSlateIconFinder::FindIconBrushForClass(DatabaseAnimationAsset->GetAnimationAssetStaticClass()));
 			}
 
 			// Setup table row to display 
@@ -465,6 +389,14 @@ namespace UE::PoseSearch
 			NAME_None,
 			EUserInterfaceActionType::Button);
 
+		AddOptions.AddMenuEntry(
+			LOCTEXT("AnimCompositeOption", "Add Anim Composite"),
+			LOCTEXT("AddAnimCompositeToDefaultGroupTooltip", "Add new anim composite to this group"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddAnimComposite)),
+			NAME_None,
+			EUserInterfaceActionType::Button);
+
 		TSharedPtr<SComboButton> AddButton;
 		SAssignNew(AddButton, SComboButton)
 		.ContentPadding(0)
@@ -517,22 +449,13 @@ namespace UE::PoseSearch
 	{
 		TSharedPtr<FDatabaseViewModel> ViewModelPtr = EditorViewModel.Pin();
 		TSharedPtr<FDatabaseAssetTreeNode> TreeNodePtr = WeakAssetTreeNode.Pin();
-		const UPoseSearchDatabase * Database = ViewModelPtr->GetPoseSearchDatabase();
-		
-		if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::Sequence)
+		const UPoseSearchDatabase* Database = ViewModelPtr->GetPoseSearchDatabase();
+
+		if (Database->AnimationAssets.IsValidIndex(TreeNodePtr->SourceAssetIdx))
 		{
-			if (Database->Sequences.IsValidIndex(TreeNodePtr->SourceAssetIdx))
+			if (ViewModelPtr->IsEnabled(TreeNodePtr->SourceAssetIdx))
 			{
-				const bool bEnabled = ViewModelPtr->IsSelectedSequenceEnabled(TreeNodePtr->SourceAssetIdx);
-				return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-			}
-		}
-		else if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::BlendSpace)
-		{
-			if (Database->BlendSpaces.IsValidIndex(TreeNodePtr->SourceAssetIdx))
-			{
-				const bool bEnabled = ViewModelPtr->IsSelectedBlendSpaceEnabled(TreeNodePtr->SourceAssetIdx);
-				return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				return ECheckBoxState::Checked;
 			}
 		}
 
@@ -548,14 +471,7 @@ namespace UE::PoseSearch
 
 		ViewModelPtr->GetPoseSearchDatabase()->Modify();
 		
-		if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::Sequence)
-		{
-			ViewModelPtr->SetSelectedSequenceEnabled(TreeNodePtr->SourceAssetIdx, NewCheckboxState == ECheckBoxState::Checked ? true : false);
-		}
-		else if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::BlendSpace)
-		{
-			ViewModelPtr->SetSelectedBlendSpaceEnabled(TreeNodePtr->SourceAssetIdx, NewCheckboxState == ECheckBoxState::Checked ? true : false);
-		}
+		ViewModelPtr->SetIsEnabled(TreeNodePtr->SourceAssetIdx, NewCheckboxState == ECheckBoxState::Checked ? true : false);
 
 		SkeletonView.Pin()->RefreshTreeView(false, true);
 		ViewModelPtr->BuildSearchIndex();
@@ -700,7 +616,7 @@ namespace UE::PoseSearch
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text(FText::FromString(TEXT("Drag and drop Animation Sequences or Blendspaces")))
+							.Text(FText::FromString(TEXT("Drag and drop Animation Sequences, Anim Composites or Blendspaces")))
 							.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 						]
 					]
@@ -735,6 +651,7 @@ namespace UE::PoseSearch
 						if (UClass* AssetClass = AssetData.GetClass())
 						{
 							if (AssetClass->IsChildOf(UAnimSequence::StaticClass()) ||
+								AssetClass->IsChildOf(UAnimComposite::StaticClass()) ||
 								AssetClass->IsChildOf(UBlendSpace::StaticClass()))
 							{
 								Reply = FReply::Handled();
@@ -861,89 +778,51 @@ namespace UE::PoseSearch
 			};
 			
 			// Build an index based off of alphabetical order than iterate the index instead
-			TArray<uint32> SequenceIndexArray;
-			SequenceIndexArray.SetNumUninitialized(Database->Sequences.Num());
-			for (int32 SequenceIdx = 0; SequenceIdx < Database->Sequences.Num(); ++SequenceIdx)
+			TArray<uint32> IndexArray;
+			IndexArray.SetNumUninitialized(Database->AnimationAssets.Num());
+			for (int32 AnimationAssetIdx = 0; AnimationAssetIdx < Database->AnimationAssets.Num(); ++AnimationAssetIdx)
 			{
-				SequenceIndexArray[SequenceIdx] = SequenceIdx;
+				IndexArray[AnimationAssetIdx] = AnimationAssetIdx;
 			}
 
-			SequenceIndexArray.Sort([Database](int32 SequenceIdxA, int32 SequenceIdxB)
+			IndexArray.Sort([Database](int32 SequenceIdxA, int32 SequenceIdxB)
 			{
-				const FPoseSearchDatabaseSequence& A = Database->Sequences[SequenceIdxA];
-				const FPoseSearchDatabaseSequence& B = Database->Sequences[SequenceIdxB];
+				const FPoseSearchDatabaseAnimationAssetBase* A = Database->GetAnimationAssetBase(SequenceIdxA);
+				const FPoseSearchDatabaseAnimationAssetBase* B = Database->GetAnimationAssetBase(SequenceIdxB);
 
 				//If its null add it to the end of the list 
-				if (!B.Sequence)
+				if (!B->GetAnimationAsset())
 				{
 					return true;
 				}
 
-				if (!A.Sequence)
+				if (!A->GetAnimationAsset())
 				{
 					return false;
 				}
 
-				const int32 Comparison = A.Sequence->GetName().Compare(B.Sequence->GetName());
+				const int32 Comparison = A->GetName().Compare(B->GetName());
 				return Comparison < 0;
 			});
 
-			// create all sequence nodes
-			for (int32 SequenceIdx = 0; SequenceIdx < Database->Sequences.Num(); ++SequenceIdx)
+			// create all nodes
+			for (int32 AnimationAssetIdx = 0; AnimationAssetIdx < Database->AnimationAssets.Num(); ++AnimationAssetIdx)
 			{
-				const int32 MappedId = SequenceIndexArray[SequenceIdx];
-				const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[MappedId];
-				const bool bFiltered = (DbSequence.Sequence == nullptr || GetAssetFilterString().IsEmpty()) ? false : !DbSequence.Sequence->GetName().Contains(GetAssetFilterString());
+				const int32 MappedId = IndexArray[AnimationAssetIdx];
 
-				if (!bFiltered)
+				if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = Database->GetAnimationAssetBase(MappedId))
 				{
-					CreateAssetNode(MappedId, ESearchIndexAssetType::Sequence, DefaultGroupIdx);
-				}
-			}
+					const bool bFiltered = (DatabaseAnimationAsset->GetAnimationAsset() == nullptr || GetAssetFilterString().IsEmpty()) ? false : !DatabaseAnimationAsset->GetName().Contains(GetAssetFilterString());
 
-			// Build an index based off of alphabetical order than iterate the index instead
-			TArray<uint32> BlendspaceIndexArray;
-			BlendspaceIndexArray.SetNumUninitialized(Database->BlendSpaces.Num());
-			for (int32 BlendspaceIdx = 0; BlendspaceIdx < Database->BlendSpaces.Num(); ++BlendspaceIdx)
-			{
-				BlendspaceIndexArray[BlendspaceIdx] = BlendspaceIdx;
-			}
-
-			BlendspaceIndexArray.Sort([Database](int32 BlendspaceIdxA, int32 BlendspaceIdxB)
-			{
-				const FPoseSearchDatabaseBlendSpace& A = Database->BlendSpaces[BlendspaceIdxA];
-				const FPoseSearchDatabaseBlendSpace& B = Database->BlendSpaces[BlendspaceIdxB];
-
-				//If its null add it to the end of the list 
-				if (!B.BlendSpace)
-				{
-					return true;
-				}
-
-				if (!A.BlendSpace)
-				{
-					return false;
-				}
-
-				const int32 Comparison = A.BlendSpace->GetName().Compare(B.BlendSpace->GetName());
-				return Comparison < 0;
-			});
-
-			// create all blendspace nodes
-			for (int32 BlendSpaceIdx = 0; BlendSpaceIdx < Database->BlendSpaces.Num(); ++BlendSpaceIdx)
-			{
-				const int32 MappedId = BlendspaceIndexArray[BlendSpaceIdx];
-				const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->BlendSpaces[MappedId];
-				const bool bFiltered = (DbBlendSpace.BlendSpace == nullptr || GetAssetFilterString().IsEmpty()) ? false : !DbBlendSpace.BlendSpace->GetName().Contains(GetAssetFilterString());
-
-				if (!bFiltered)
-				{
-					CreateAssetNode(MappedId, ESearchIndexAssetType::BlendSpace, DefaultGroupIdx);
+					if (!bFiltered)
+					{
+						CreateAssetNode(MappedId, DatabaseAnimationAsset->GetSearchIndexType(), DefaultGroupIdx);
+					}
 				}
 			}
 
 			// Show drag and drop suggestion if tree is empty
-			TreeViewDragAndDropSuggestion->SetVisibility(BlendspaceIndexArray.IsEmpty() && SequenceIndexArray.IsEmpty() ? EVisibility::Visible : EVisibility::Hidden);
+			TreeViewDragAndDropSuggestion->SetVisibility(IndexArray.IsEmpty() ? EVisibility::Visible : EVisibility::Hidden);
 		}
 
 		// Update tree view
@@ -998,6 +877,7 @@ namespace UE::PoseSearch
 				if (UClass* AssetClass = AssetData.GetClass())
 				{
 					if (AssetClass->IsChildOf(UAnimSequence::StaticClass()) ||
+						AssetClass->IsChildOf(UAnimComposite::StaticClass()) ||
 						AssetClass->IsChildOf(UBlendSpace::StaticClass()))
 					{
 						ReturnedDropZone = EItemDropZone::OntoItem;
@@ -1063,6 +943,11 @@ namespace UE::PoseSearch
 						ViewModel->AddSequenceToDatabase(Cast<UAnimSequence>(Asset));
 						++AddedAssets;
 					}
+					if (AssetClass->IsChildOf(UAnimComposite::StaticClass()))
+					{
+						ViewModel->AddAnimCompositeToDatabase(Cast<UAnimComposite>(Asset));
+						++AddedAssets;
+					}
 					else if (AssetClass->IsChildOf(UBlendSpace::StaticClass()))
 					{
 						ViewModel->AddBlendSpaceToDatabase(Cast<UBlendSpace>(Asset));
@@ -1088,21 +973,31 @@ namespace UE::PoseSearch
 		FMenuBuilder AddOptions(true, nullptr);
 
 		AddOptions.BeginSection("AddOptions", LOCTEXT("AssetAddOptions", "Assets"));
-		AddOptions.AddMenuEntry(
-			LOCTEXT("AddSequenceOption", "Sequence"),
-			LOCTEXT("AddSequenceOptionTooltip", "Add new sequence to the default group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddSequence, true)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
+		{
+			AddOptions.AddMenuEntry(
+				LOCTEXT("AddSequenceOption", "Sequence"),
+				LOCTEXT("AddSequenceOptionTooltip", "Add new sequence to the default group"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddSequence, true)),
+				NAME_None,
+				EUserInterfaceActionType::Button);
 
-		AddOptions.AddMenuEntry(
-			LOCTEXT("BlendSpaceOption", "Blend Space"),
-			LOCTEXT("AddBlendSpaceToDefaultGroupTooltip", "Add new blend space to the default group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddBlendSpace, true)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
+			AddOptions.AddMenuEntry(
+				LOCTEXT("BlendSpaceOption", "Blend Space"),
+				LOCTEXT("AddBlendSpaceToDefaultGroupTooltip", "Add new blend space to the default group"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddBlendSpace, true)),
+				NAME_None,
+				EUserInterfaceActionType::Button);
+
+			AddOptions.AddMenuEntry(
+				LOCTEXT("AnimCompositeOption", "Anim Composite"),
+				LOCTEXT("AddAnimCompositeToDefaultGroupTooltip", "Add new anim composite to the default group"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddAnimComposite, true)),
+				NAME_None,
+				EUserInterfaceActionType::Button);
+		}
 		AddOptions.EndSection();
 
 		return AddOptions.MakeWidget();
@@ -1206,25 +1101,25 @@ namespace UE::PoseSearch
 		}
 	}
 
+	void SDatabaseAssetTree::OnAddAnimComposite(bool bFinalizeChanges)
+	{
+		FScopedTransaction Transaction(LOCTEXT("AddAnimCompositeTransaction", "Add Anim Composite"));
+
+		EditorViewModel.Pin()->AddAnimCompositeToDatabase(nullptr);
+
+		if (bFinalizeChanges)
+		{
+			FinalizeTreeChanges();
+		}
+	}
+
 	void SDatabaseAssetTree::OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges)
 	{
 		FScopedTransaction Transaction(LOCTEXT("DeleteAsset", "Delete Asset"));
 		const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 		
 		ViewModel->GetPoseSearchDatabase()->Modify();
-
-		if (Node->SourceAssetType == ESearchIndexAssetType::Sequence)
-		{
-			ViewModel->DeleteSequenceFromDatabase(Node->SourceAssetIdx);
-		}
-		else if (Node->SourceAssetType == ESearchIndexAssetType::BlendSpace)
-		{
-			ViewModel->DeleteBlendSpaceFromDatabase(Node->SourceAssetIdx);
-		}
-		else
-		{
-			checkNoEntry();
-		}
+		ViewModel->DeleteFromDatabase(Node->SourceAssetIdx);
 
 		if (bFinalizeChanges)
 		{
@@ -1330,54 +1225,22 @@ namespace UE::PoseSearch
 		}
 	}
 
-	void SDatabaseAssetTree::OnEnableNodes()
+	void SDatabaseAssetTree::EnableSelectedNodes(bool bIsEnabled)
 	{
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
 		if (!SelectedNodes.IsEmpty())
 		{
-			const FScopedTransaction Transaction(LOCTEXT("EnablePoseSearchDatabaseNodes", "Enable selected items from Pose Search Database"));
+			const FText TransactionName = bIsEnabled ? LOCTEXT("EnablePoseSearchDatabaseNodes", "Enable selected items from Pose Search Database") : LOCTEXT("DisablePoseSearchDatabaseNodes", "Disable selected items from Pose Search Database");
+			const FScopedTransaction Transaction(TransactionName);
 			const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 
 			ViewModel->GetPoseSearchDatabase()->Modify();
-			
+
 			for (TSharedPtr<FDatabaseAssetTreeNode> SelectedNode : SelectedNodes)
 			{
-				if (SelectedNode->SourceAssetType == ESearchIndexAssetType::Sequence)
-				{
-					ViewModel->SetSelectedSequenceEnabled(SelectedNode->SourceAssetIdx, true);
-				}
-				else if (SelectedNode->SourceAssetType == ESearchIndexAssetType::BlendSpace)
-				{
-					ViewModel->SetSelectedBlendSpaceEnabled(SelectedNode->SourceAssetIdx, true);
-				}
+				ViewModel->SetIsEnabled(SelectedNode->SourceAssetIdx, bIsEnabled);
 			}
 		
-			FinalizeTreeChanges();
-		}
-	}
-
-	void SDatabaseAssetTree::OnDisableNodes()
-	{
-		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
-		if (!SelectedNodes.IsEmpty())
-		{
-			const FScopedTransaction Transaction(LOCTEXT("DisablePoseSearchDatabaseNodes", "Disable selected items from Pose Search Database"));
-			const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
-
-			ViewModel->GetPoseSearchDatabase()->Modify();
-			
-			for (TSharedPtr<FDatabaseAssetTreeNode> SelectedNode : SelectedNodes)
-			{
-				if (SelectedNode->SourceAssetType == ESearchIndexAssetType::Sequence)
-				{
-					ViewModel->SetSelectedSequenceEnabled(SelectedNode->SourceAssetIdx, false);
-				}
-				else if (SelectedNode->SourceAssetType == ESearchIndexAssetType::BlendSpace)
-				{
-					ViewModel->SetSelectedBlendSpaceEnabled(SelectedNode->SourceAssetIdx, false);
-				}
-			}
-
 			FinalizeTreeChanges();
 		}
 	}

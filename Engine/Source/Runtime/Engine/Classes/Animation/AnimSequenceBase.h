@@ -208,6 +208,15 @@ public:
 
 	virtual bool HasRootMotion() const { return false; }
 
+	// Extract Root Motion transform from the animation
+	virtual FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const { return {}; }
+
+	// Extract Root Motion transform from a contiguous position range (no looping)
+	virtual FTransform ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const { return {}; }
+
+	// Extract the transform from the root track for the given animation position
+	virtual FTransform ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const { return {}; }
+
 	virtual void Serialize(FArchive& Ar) override;
 
 	UE_DEPRECATED(5.0, "Use other AdvanceMarkerPhaseAsLeader signature")

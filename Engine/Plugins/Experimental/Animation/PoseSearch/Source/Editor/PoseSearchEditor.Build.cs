@@ -20,6 +20,7 @@ public class PoseSearchEditor : ModuleRules
 				"Engine",
 				"PoseSearch",
 				"GameplayTags",
+				"StructUtils",
 				
 				// Trace-related dependencies
 				"TraceLog",

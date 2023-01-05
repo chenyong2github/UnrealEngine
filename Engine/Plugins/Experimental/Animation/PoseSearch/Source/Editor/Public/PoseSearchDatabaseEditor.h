@@ -68,6 +68,13 @@ namespace UE::PoseSearch
 			ESelectInfo::Type SelectionType);
 
 		void RefreshStatisticsWidgetInformation();
+
+		struct FSelectionWidget
+		{
+			TSharedPtr<IDetailsView> DetailView;
+			TArray<TWeakObjectPtr<UObject>> SelectedReflections;
+		};
+		FSelectionWidget& FindOrAddSelectionWidget(const UScriptStruct* ScriptStructType);
 		
 		TSharedPtr<SDatabasePreview> PreviewWidget;
 
@@ -75,7 +82,8 @@ namespace UE::PoseSearch
 
 		TSharedPtr<IDetailsView> EditingAssetWidget;
 
-		TArray<TSharedPtr<IDetailsView>> SelectionWidgets;
+		TSharedPtr<SVerticalBox> DetailsContainer;
+		TMap<const UScriptStruct*, FSelectionWidget> SelectionWidgets;
 
 		TSharedPtr<IDetailsView> StatisticsOverviewWidget;
 		

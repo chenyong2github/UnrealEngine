@@ -25,7 +25,6 @@
 namespace UE::PoseSearch
 {
 	const FName PoseSearchDatabaseEditorAppName = FName(TEXT("PoseSearchDatabaseEditorApp"));
-	constexpr int32 SelectionDetailsCount = 2; // sequence, blendspace
 	constexpr double ViewRangeSlack = 0.25;
 
 	// Tab identifiers
@@ -168,27 +167,6 @@ namespace UE::PoseSearch
 
 			EditingAssetWidget = PropertyModule.CreateDetailView(DatabaseDetailsArgs);
 			EditingAssetWidget->SetObject(DatabaseAsset);
-		}
-		
-		// Selection details widgets
-		{
-			FDetailsViewArgs SelectionDetailsArgs;
-			{
-				SelectionDetailsArgs.bHideSelectionTip = true;
-				SelectionDetailsArgs.NotifyHook = this;
-				SelectionDetailsArgs.bShowScrollBar = false;
-			}
-			
-			SelectionWidgets.Reset(SelectionDetailsCount);
-			for (int32 i = 0; i < SelectionDetailsCount; ++i)
-			{
-				TSharedPtr<IDetailsView>& SelectionWidget = 
-					SelectionWidgets.Add_GetRef(PropertyModule.CreateDetailView(SelectionDetailsArgs));
-				SelectionWidget->SetObject(nullptr);
-				SelectionWidget->OnFinishedChangingProperties().AddSP(
-					this,
-					&FDatabaseEditor::OnFinishedChangingSelectionProperties);
-			}
 		}
 
 		// Statistics details widgets
@@ -474,17 +452,7 @@ namespace UE::PoseSearch
 	{
 		check(Args.GetTabId() == FDatabaseEditorTabs::SelectionDetailsID);
 
-		TSharedPtr<SVerticalBox> DetailsContainer;
 		SAssignNew(DetailsContainer, SVerticalBox);
-
-		for (TSharedPtr<IDetailsView> SelectionWidget : SelectionWidgets)
-		{
-			DetailsContainer->AddSlot()
-				.AutoHeight()
-				[
-					SelectionWidget.ToSharedRef()
-				];
-		}
 
 		return SNew(SDockTab)
 			.Label(LOCTEXT("SelectionDetails_Title", "Selection Details"))
@@ -520,56 +488,110 @@ namespace UE::PoseSearch
 		const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
 		ESelectInfo::Type SelectionType)
 	{
-		enum ESelectionAssetTypeIndex
+		// Reset selected objects on all selection widgets
+		for (auto& SelectionWidgetPair : SelectionWidgets)
 		{
-			SequenceSelectionIndex = 0,
-			BlendSpaceSelectionIndex = 1,
-			SelectionTypeCount = 2
-		};
-
-		TArray<TArray<TWeakObjectPtr<UObject>>> SelectionReflections;
-		SelectionReflections.SetNum(SelectionDetailsCount);
+			SelectionWidgetPair.Value.SelectedReflections.Reset();
+		}
 
 		if (SelectedItems.Num() > 0)
 		{
 			for (TSharedPtr<FDatabaseAssetTreeNode>& SelectedItem : SelectedItems)
 			{
-				if (SelectedItem->SourceAssetType == ESearchIndexAssetType::Sequence)
+				if (!SelectedItem.IsValid() ||
+					!GetPoseSearchDatabase()->AnimationAssets.IsValidIndex(SelectedItem->SourceAssetIdx))
+				{
+					continue;
+				}
+
+				const FInstancedStruct& DatabaseAsset = GetPoseSearchDatabase()->AnimationAssets[SelectedItem->SourceAssetIdx];
+				const UScriptStruct* ScriptStruct = DatabaseAsset.GetScriptStruct();
+				FSelectionWidget& SelectionWidget = FindOrAddSelectionWidget(ScriptStruct);
+
+				if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 				{
 					UPoseSearchDatabaseSequenceReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseSequenceReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->Sequence = GetPoseSearchDatabase()->Sequences[SelectedItem->SourceAssetIdx];
+					NewSelectionReflection->Sequence = *DatabaseSequence;
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					NewSelectionReflection->SetFlags(RF_Transactional);
-					SelectionReflections[SequenceSelectionIndex].Add(NewSelectionReflection);
+
+					SelectionWidget.SelectedReflections.Add(NewSelectionReflection);
 				}
-				else if (SelectedItem->SourceAssetType == ESearchIndexAssetType::BlendSpace)
+				else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
+				{
+					UPoseSearchDatabaseAnimCompositeReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseAnimCompositeReflection>();
+					NewSelectionReflection->AddToRoot();
+					NewSelectionReflection->AnimComposite = *DatabaseAnimComposite;
+					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+					NewSelectionReflection->SetFlags(RF_Transactional);
+					
+					SelectionWidget.SelectedReflections.Add(NewSelectionReflection);
+				}
+				else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 				{
 					UPoseSearchDatabaseBlendSpaceReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseBlendSpaceReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->BlendSpace = GetPoseSearchDatabase()->BlendSpaces[SelectedItem->SourceAssetIdx];
+					NewSelectionReflection->BlendSpace = *DatabaseBlendSpace;
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					NewSelectionReflection->SetFlags(RF_Transactional);
-					SelectionReflections[BlendSpaceSelectionIndex].Add(NewSelectionReflection);
+					
+					SelectionWidget.SelectedReflections.Add(NewSelectionReflection);
+				}
+				else
+				{
+					checkNoEntry();
 				}
 			}
 		}
 
-		int32 SelectionWidgetIdx = 0;
-		for (int32 SelectionTypeIdx = 0; SelectionTypeIdx < SelectionTypeCount; ++SelectionTypeIdx)
+		for (auto& SelectionWidgetPair : SelectionWidgets)
 		{
-			if (SelectionReflections[SelectionTypeIdx].Num() > 0)
+			FSelectionWidget& SelectionWidget = SelectionWidgetPair.Value;
+
+			if (SelectionWidget.SelectedReflections.IsEmpty())
 			{
-				SelectionWidgets[SelectionWidgetIdx++]->SetObjects(SelectionReflections[SelectionTypeIdx], true);
+				SelectionWidget.DetailView->SetObject(nullptr, true);
+			}
+			else
+			{
+				SelectionWidget.DetailView->SetObjects(SelectionWidget.SelectedReflections);
 			}
 		}
 
-		while (SelectionWidgetIdx < SelectionDetailsCount)
+		ViewModel->SetSelectedNodes(SelectedItems);
+	}
+
+	FDatabaseEditor::FSelectionWidget& FDatabaseEditor::FindOrAddSelectionWidget(const UScriptStruct* ScriptStructType)
+	{
+		if (SelectionWidgets.Contains(ScriptStructType))
 		{
-			SelectionWidgets[SelectionWidgetIdx++]->SetObject(nullptr, true);
+			return SelectionWidgets[ScriptStructType];
 		}
 
-		ViewModel->SetSelectedNodes(SelectedItems);
+		FSelectionWidget& SelectionWidget = SelectionWidgets.Add(ScriptStructType);
+
+		FDetailsViewArgs SelectionDetailsArgs;
+		{
+			SelectionDetailsArgs.bHideSelectionTip = true;
+			SelectionDetailsArgs.NotifyHook = this;
+			SelectionDetailsArgs.bShowScrollBar = false;
+		}
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		SelectionWidget.DetailView = PropertyModule.CreateDetailView(SelectionDetailsArgs);
+		SelectionWidget.DetailView->SetObject(nullptr);
+		SelectionWidget.DetailView->OnFinishedChangingProperties().AddSP(
+			this,
+			&FDatabaseEditor::OnFinishedChangingSelectionProperties);
+
+		DetailsContainer->AddSlot()
+			.AutoHeight()
+			[
+				SelectionWidget.DetailView.ToSharedRef()
+			];
+
+		return SelectionWidget;
 	}
 
 	void FDatabaseEditor::RefreshStatisticsWidgetInformation()

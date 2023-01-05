@@ -4,6 +4,7 @@
 
 #include "Algo/MaxElement.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
@@ -52,7 +53,7 @@ void FPoseSearchAnimPlayer::Initialize(ESearchIndexAssetType InAssetType, UAnima
 	MirrorNode.SetMirrorDataTable(MirrorDataTable);
 	MirrorNode.SetMirror(bMirrored);
 	
-	if (AssetType == ESearchIndexAssetType::Sequence)
+	if (AssetType == ESearchIndexAssetType::Sequence || AssetType == ESearchIndexAssetType::AnimComposite)
 	{
 		UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(AnimationAsset);
 		check(Sequence);
@@ -77,18 +78,23 @@ void FPoseSearchAnimPlayer::Initialize(ESearchIndexAssetType InAssetType, UAnima
 	{
 		checkNoEntry();
 	}
+
 	UpdateSourceLinkNode();
 }
 
 void FPoseSearchAnimPlayer::UpdatePlayRate(float PlayRate)
 {
-	if (AssetType == ESearchIndexAssetType::Sequence)
+	if (AssetType == ESearchIndexAssetType::Sequence || AssetType == ESearchIndexAssetType::AnimComposite)
 	{
 		SequencePlayerNode.SetPlayRate(PlayRate);
 	}
 	else if (AssetType == ESearchIndexAssetType::BlendSpace)
 	{
 		BlendSpacePlayerNode.SetPlayRate(PlayRate);
+	}
+	else
+	{
+		checkNoEntry();
 	}
 }
 
@@ -143,7 +149,7 @@ void FPoseSearchAnimPlayer::RestorePoseContext(FPoseContext& PoseContext) const
 // since we're making copies and moving this object in memory, we're using this method to set the MirrorNode SourceLinkNode when necessary
 void FPoseSearchAnimPlayer::UpdateSourceLinkNode()
 {
-	if (AssetType == ESearchIndexAssetType::Sequence)
+	if (AssetType == ESearchIndexAssetType::Sequence || AssetType == ESearchIndexAssetType::AnimComposite)
 	{
 		MirrorNode.SetSourceLinkNode(&SequencePlayerNode);
 	}
@@ -181,7 +187,7 @@ void FPoseSearchAnimPlayer::Update_AnyThread(const FAnimationUpdateContext& Cont
 
 float FPoseSearchAnimPlayer::GetAccumulatedTime() const
 {
-	if (AssetType == ESearchIndexAssetType::Sequence)
+	if (AssetType == ESearchIndexAssetType::Sequence || AssetType == ESearchIndexAssetType::AnimComposite)
 	{
 		return SequencePlayerNode.GetAccumulatedTime();
 	}
@@ -190,13 +196,14 @@ float FPoseSearchAnimPlayer::GetAccumulatedTime() const
 	{
 		return BlendSpacePlayerNode.GetAccumulatedTime();
 	}
-	
+
+	checkNoEntry();
 	return 0.f;
 }
 
 FString FPoseSearchAnimPlayer::GetAnimName() const
 {
-	if (AssetType == ESearchIndexAssetType::Sequence)
+	if (AssetType == ESearchIndexAssetType::Sequence || AssetType == ESearchIndexAssetType::AnimComposite)
 	{
 		check(SequencePlayerNode.GetSequence());
 		return SequencePlayerNode.GetSequence()->GetName();
@@ -208,6 +215,7 @@ FString FPoseSearchAnimPlayer::GetAnimName() const
 		return BlendSpacePlayerNode.GetBlendSpace()->GetName();
 	}
 
+	checkNoEntry();
 	return FString("StoredPose");
 }
 

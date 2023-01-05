@@ -14,6 +14,7 @@ class UPoseSearchDatabase;
 struct FPoseSearchIndexAsset;
 class UAnimPreviewInstance;
 class UDebugSkelMeshComponent;
+class UAnimComposite;
 class UAnimSequence;
 class UBlendSpace;
 class UMirrorDataTable;
@@ -45,7 +46,7 @@ namespace UE::PoseSearch
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 
-		FSequenceSampler SequenceSampler;
+		FSequenceBaseSampler SequenceSampler;
 		FBlendSpaceSampler BlendSpaceSampler;
 		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
 
@@ -99,18 +100,14 @@ namespace UE::PoseSearch
 
 		void OnToggleDisplayRootMotionSpeed();
 		bool IsDisplayRootMotionSpeedChecked() const { return DisplayRootMotionSpeed; };
-		
+
 		void AddSequenceToDatabase(UAnimSequence* AnimSequence);
 		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace);
+		void AddAnimCompositeToDatabase(UAnimComposite* AnimComposite);
+		void DeleteFromDatabase(int32 AnimationAssetIndex);
 
-		void DeleteSequenceFromDatabase(int32 SequenceIdx);
-		void DeleteBlendSpaceFromDatabase(int32 BlendSpaceIdx);
-
-		void SetSelectedSequenceEnabled(int32 SequenceIndex, bool bEnabled);
-		void SetSelectedBlendSpaceEnabled(int32 BlendSpaceIndex, bool bEnabled);
-		
-		bool IsSelectedSequenceEnabled(int32 SequenceIndex) const;
-		bool IsSelectedBlendSpaceEnabled(int32 BlendSpaceIndex) const;
+		void SetIsEnabled(int32 AnimationAssetIndex, bool bEnabled);
+		bool IsEnabled(int32 AnimationAssetIndex) const;
 
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 		void ProcessSelectedActor(AActor* Actor);

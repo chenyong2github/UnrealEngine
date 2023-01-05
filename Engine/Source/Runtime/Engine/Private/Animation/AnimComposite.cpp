@@ -109,6 +109,43 @@ bool UAnimComposite::HasRootMotion() const
 	return AnimationTrack.HasRootMotion();
 }
 
+FTransform UAnimComposite::ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const
+{
+	return ExtractRootMotionFromRange(StartTime, DeltaTime);
+}
+
+FTransform UAnimComposite::ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const
+{
+	FRootMotionMovementParams RootMotion;
+	ExtractRootMotionFromTrack(AnimationTrack, StartTrackPosition, EndTrackPosition, RootMotion);
+	return RootMotion.GetRootMotionTransform();
+}
+
+FTransform UAnimComposite::ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const
+{
+	if (const FAnimSegment* AnimSegment = AnimationTrack.GetSegmentAtTime(Time))
+	{
+		float SegmentTime = 0.0f;
+		if (const UAnimSequenceBase* SequenceBase = AnimSegment->GetAnimationData(Time, SegmentTime))
+		{
+			return SequenceBase->ExtractRootTrackTransform(SegmentTime, RequiredBones);
+		}
+	}
+
+	// Return the last valid value in case we're requesting for a time after the anim composite end time.
+	if (!AnimationTrack.AnimSegments.IsEmpty())
+	{
+		const int32 LastSegmentIndex = AnimationTrack.AnimSegments.Num() - 1;
+		if (Time > AnimationTrack.AnimSegments[LastSegmentIndex].AnimEndTime)
+		{
+			const UAnimSequenceBase* SequenceBase = AnimationTrack.AnimSegments[LastSegmentIndex].GetAnimReference().Get();
+			return SequenceBase->ExtractRootTrackTransform(SequenceBase->GetPlayLength(), RequiredBones);
+		}
+	}
+
+	return {};
+}
+
 #if WITH_EDITOR
 class UAnimSequence* UAnimComposite::GetAdditiveBasePose() const
 {

@@ -544,14 +544,14 @@ float FPoseSearchIndexBase::GetAssetTime(int32 PoseIdx, float SamplingInterval) 
 {
 	const FPoseSearchIndexAsset& Asset = GetAssetForPose(PoseIdx);
 
-	if (Asset.Type == ESearchIndexAssetType::Sequence)
+	if (Asset.Type == ESearchIndexAssetType::Sequence || Asset.Type == ESearchIndexAssetType::AnimComposite)
 	{
 		const FFloatInterval SamplingRange = Asset.SamplingInterval;
 
 		float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
 		return AssetTime;
 	}
-	
+
 	if (Asset.Type == ESearchIndexAssetType::BlendSpace)
 	{
 		const FFloatInterval SamplingRange = Asset.SamplingInterval;
@@ -836,64 +836,40 @@ bool UPoseSearchDatabase::GetPoseIndicesAndLerpValueFromTime(float Time, const F
 	return true;
 }
 
-const FPoseSearchDatabaseAnimationAssetBase& UPoseSearchDatabase::GetAnimationSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const
+const FInstancedStruct& UPoseSearchDatabase::GetAnimationAssetStruct(int32 AnimationAssetIndex) const
 {
-	if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
-	{
-		return Sequences[SearchIndexAsset.SourceAssetIdx];
-	}
-
-	if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
-	{
-		return BlendSpaces[SearchIndexAsset.SourceAssetIdx];
-	}
-
-	checkNoEntry();
-	return Sequences[SearchIndexAsset.SourceAssetIdx];
+	check(AnimationAssets.IsValidIndex(AnimationAssetIndex));
+	return AnimationAssets[AnimationAssetIndex];
 }
 
-const FPoseSearchDatabaseSequence& UPoseSearchDatabase::GetSequenceSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const
+const FInstancedStruct& UPoseSearchDatabase::GetAnimationAssetStruct(const FPoseSearchIndexAsset& SearchIndexAsset) const
 {
-	check(SearchIndexAsset.Type == ESearchIndexAssetType::Sequence);
-	return Sequences[SearchIndexAsset.SourceAssetIdx];
+	return GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
 }
 
-const FPoseSearchDatabaseBlendSpace& UPoseSearchDatabase::GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const
+FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(int32 AnimationAssetIndex) const
 {
-	check(SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace);
-	return BlendSpaces[SearchIndexAsset.SourceAssetIdx];
+	if (AnimationAssets.IsValidIndex(AnimationAssetIndex))
+	{
+		return AnimationAssets[AnimationAssetIndex].GetMutablePtr<FPoseSearchDatabaseAnimationAssetBase>();
+	}
+
+	return nullptr;
+}
+
+FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(const FPoseSearchIndexAsset& SearchIndexAsset) const
+{
+	return GetAnimationAssetBase(SearchIndexAsset.SourceAssetIdx);
 }
 
 const bool UPoseSearchDatabase::IsSourceAssetLooping(const FPoseSearchIndexAsset& SearchIndexAsset) const
 {
-	if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
-	{
-		return Sequences[SearchIndexAsset.SourceAssetIdx].Sequence->bLoop;
-	}
-
-	if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
-	{
-		return BlendSpaces[SearchIndexAsset.SourceAssetIdx].BlendSpace->bLoop;
-	}
-	
-	checkNoEntry();
-	return false;
+	return GetAnimationAssetBase(SearchIndexAsset.SourceAssetIdx)->IsLooping();
 }
 
 const FString UPoseSearchDatabase::GetSourceAssetName(const FPoseSearchIndexAsset& SearchIndexAsset) const
 {
-	if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
-	{
-		return Sequences[SearchIndexAsset.SourceAssetIdx].Sequence->GetName();
-	}
-	
-	if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
-	{
-		return BlendSpaces[SearchIndexAsset.SourceAssetIdx].BlendSpace->GetName();
-	}
-	
-	checkNoEntry();
-	return FString();
+	return GetAnimationAssetBase(SearchIndexAsset.SourceAssetIdx)->GetName();
 }
 
 int32 UPoseSearchDatabase::GetNumberOfPrincipalComponents() const
@@ -911,16 +887,49 @@ bool UPoseSearchDatabase::GetSkipSearchIfPossible() const
 	return bSkipSearchIfPossible;
 }
 
+bool FPoseSearchDatabaseSequence::IsRootMotionEnabled() const
+{
+	return Sequence ? Sequence->HasRootMotion() : false;
+}
+
 UAnimationAsset* FPoseSearchDatabaseBlendSpace::GetAnimationAsset() const
 {
 	return BlendSpace.Get();
 }
 
+UClass* FPoseSearchDatabaseBlendSpace::GetAnimationAssetStaticClass() const
+{
+	return UBlendSpace::StaticClass();
+}
+
 bool FPoseSearchDatabaseBlendSpace::IsLooping() const
 {
-	check(BlendSpace);
+	return BlendSpace ? BlendSpace->bLoop : false;
+}
 
-	return BlendSpace->bLoop;
+const FString FPoseSearchDatabaseBlendSpace::GetName() const
+{
+	return BlendSpace ? BlendSpace->GetName() : FString();
+}
+
+bool FPoseSearchDatabaseBlendSpace::IsRootMotionEnabled() const
+{
+	bool bIsRootMotionUsedInBlendSpace = false;
+
+	if (BlendSpace)
+	{
+		BlendSpace->ForEachImmutableSample([&bIsRootMotionUsedInBlendSpace](const FBlendSample& Sample)
+			{
+				const TObjectPtr<UAnimSequence> Sequence = Sample.Animation;
+
+				if (IsValid(Sequence) && Sequence->HasRootMotion())
+				{
+					bIsRootMotionUsedInBlendSpace = true;
+				}
+			});
+	}
+
+	return bIsRootMotionUsedInBlendSpace;
 }
 
 void FPoseSearchDatabaseBlendSpace::GetBlendSpaceParameterSampleRanges(int32& HorizontalBlendNum, int32& VerticalBlendNum) const
@@ -971,8 +980,27 @@ FVector FPoseSearchDatabaseBlendSpace::BlendParameterForSampleRanges(int32 Horiz
 		0.0f);
 }
 
+bool FPoseSearchDatabaseAnimComposite::IsRootMotionEnabled() const
+{
+	return AnimComposite ? AnimComposite->HasRootMotion() : false;
+}
+
 void UPoseSearchDatabase::PostLoad()
 {
+#if WITH_EDITORONLY_DATA
+	for (const FPoseSearchDatabaseSequence& DatabaseSequence : Sequences_DEPRECATED)
+	{
+		AnimationAssets.Add(FInstancedStruct::Make(DatabaseSequence));
+	}
+	Sequences_DEPRECATED.Empty();
+
+	for (const FPoseSearchDatabaseBlendSpace& DatabaseBlendSpace : BlendSpaces_DEPRECATED)
+	{
+		AnimationAssets.Add(FInstancedStruct::Make(DatabaseBlendSpace));
+	}
+	BlendSpaces_DEPRECATED.Empty();
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 	using namespace UE::PoseSearch;
 	FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(this, ERequestAsyncBuildFlag::NewRequest);
@@ -2046,7 +2074,8 @@ void FSearchResult::Update(float NewAssetTime)
 	else
 	{
 		const FPoseSearchIndexAsset& SearchIndexAsset = Database->GetSearchIndex().GetAssetForPose(PoseIdx);
-		if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
+		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(SearchIndexAsset);
+		if (DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>() || DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
 			if (Database->GetPoseIndicesAndLerpValueFromTime(NewAssetTime, SearchIndexAsset, PrevPoseIdx, PoseIdx, NextPoseIdx, LerpValue))
 			{
@@ -2057,15 +2086,13 @@ void FSearchResult::Update(float NewAssetTime)
 				Reset();
 			}
 		}
-		else if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
+		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
-			const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->GetBlendSpaceSourceAsset(SearchIndexAsset);
-
 			TArray<FBlendSampleData> BlendSamples;
 			int32 TriangulationIndex = 0;
-			DbBlendSpace.BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset.BlendParameters, BlendSamples, TriangulationIndex, true);
+			DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset.BlendParameters, BlendSamples, TriangulationIndex, true);
 
-			const float PlayLength = DbBlendSpace.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+			const float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
 
 			// Asset player time for blendspaces is normalized [0, 1] so we need to convert 
 			// to a real time before we advance it
@@ -2298,22 +2325,21 @@ static FTransform ExtrapolateRootMotion(
 	return ExtrapolatedRootMotion;
 }
 
-
 //////////////////////////////////////////////////////////////////////////
-// FSequenceSampler
-void FSequenceSampler::Init(const FInput& InInput)
+// FSequenceBaseSampler
+void FSequenceBaseSampler::Init(const FInput& InInput)
 {
-	check(InInput.Sequence.Get());
+	check(InInput.SequenceBase.Get());
 
 	Input = InInput;
 }
 
-void FSequenceSampler::Process()
+void FSequenceBaseSampler::Process()
 {
 	ProcessRootDistance();
 }
 
-float FSequenceSampler::GetTimeFromRootDistance(float Distance) const
+float FSequenceBaseSampler::GetTimeFromRootDistance(float Distance) const
 {
 	int32 NextSampleIdx = 1;
 	int32 PrevSampleIdx = 0;
@@ -2339,54 +2365,55 @@ float FSequenceSampler::GetTimeFromRootDistance(float Distance) const
 	return ClipTime;
 }
 
-bool FSequenceSampler::IsLoopable() const
+bool FSequenceBaseSampler::IsLoopable() const
 {
-	return Input.Sequence->bLoop;
+	return Input.SequenceBase->bLoop;
 }
 
-void FSequenceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
+void FSequenceBaseSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
 {
-	Input.Sequence->GetAnimationPose(OutAnimPoseData, ExtractionCtx);
+	Input.SequenceBase->GetAnimationPose(OutAnimPoseData, ExtractionCtx);
 }
 
-FTransform FSequenceSampler::ExtractRootTransform(float Time) const
+FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
 {
+	FTransform RootTransform = FTransform::Identity;
+	const UAnimSequenceBase* SequenceBase = Input.SequenceBase.Get();
+
 	if (IsLoopable())
 	{
-		FTransform LoopableRootTransform = Input.Sequence->ExtractRootMotion(0.0f, Time, true);
+		FTransform LoopableRootTransform = SequenceBase->ExtractRootMotion(0.0f, Time, true);
 		return LoopableRootTransform;
 	}
 
 	const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
 
-	const float PlayLength = Input.Sequence->GetPlayLength();
+	const float PlayLength = SequenceBase->GetPlayLength();
 	const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
 	const float ExtrapolationTime = Time - ClampedTime;
-
-	FTransform RootTransform = FTransform::Identity;
 
 	// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
 	// animation to estimate where the root would be at Time
 	if (ExtrapolationTime < -SMALL_NUMBER)
 	{
-		FTransform SampleToExtrapolate = Input.Sequence->ExtractRootMotionFromRange(0.0f, ExtrapolationSampleTime);
+		FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(0.0f, ExtrapolationSampleTime);
 
 		const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
 			SampleToExtrapolate,
-			0.0f, ExtrapolationSampleTime, 
+			0.0f, ExtrapolationSampleTime,
 			ExtrapolationTime,
 			Input.ExtrapolationParameters);
 		RootTransform = ExtrapolatedRootMotion;
 	}
 	else
 	{
-		RootTransform = Input.Sequence->ExtractRootMotionFromRange(0.0f, ClampedTime);
+		RootTransform = SequenceBase->ExtractRootMotionFromRange(0.0f, ClampedTime);
 
 		// If Time is greater than PlayLength, ExtrapolationTIme will be a positive number. In this case, we extrapolate
 		// the end of the animation to estimate where the root would be at Time
 		if (ExtrapolationTime > SMALL_NUMBER)
 		{
-			FTransform SampleToExtrapolate = Input.Sequence->ExtractRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
+			FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
 
 			const FTransform ExtrapolatedRootMotion = ExtrapolateRootMotion(
 				SampleToExtrapolate,
@@ -2400,24 +2427,24 @@ FTransform FSequenceSampler::ExtractRootTransform(float Time) const
 	return RootTransform;
 }
 
-float FSequenceSampler::ExtractRootDistance(float Time) const
+float FSequenceBaseSampler::ExtractRootDistance(float Time) const
 {
 	return ExtractAccumulatedRootDistance(
 		Input.RootDistanceSamplingRate,
 		AccumulatedRootDistance,
-		Input.Sequence->GetPlayLength(),
+		Input.SequenceBase->GetPlayLength(),
 		Time,
 		Input.ExtrapolationParameters);
 }
 
-void FSequenceSampler::ExtractPoseSearchNotifyStates(
+void FSequenceBaseSampler::ExtractPoseSearchNotifyStates(
 	float Time, 
 	TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
 {
 	// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
 	constexpr float ExtractionInterval = 1.0f / 120.0f;
 	FAnimNotifyContext NotifyContext;
-	Input.Sequence->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
+	Input.SequenceBase->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
 
 	// check which notifies actually overlap Time and are of the right base type
 	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
@@ -2443,14 +2470,16 @@ void FSequenceSampler::ExtractPoseSearchNotifyStates(
 	}
 }
 
-void FSequenceSampler::ProcessRootDistance()
+void FSequenceBaseSampler::ProcessRootDistance()
 {
+	const UAnimSequenceBase* SequenceBase = Input.SequenceBase.Get();
+	
 	// Note the distance sampling interval is independent of the schema's sampling interval
 	const float DistanceSamplingInterval = 1.0f / Input.RootDistanceSamplingRate;
 
-	const FTransform InitialRootTransform = Input.Sequence->ExtractRootTrackTransform(0.0f, nullptr);
+	const FTransform InitialRootTransform = SequenceBase->ExtractRootTrackTransform(0.0f, nullptr);
 
-	uint32 NumDistanceSamples = FMath::CeilToInt(Input.Sequence->GetPlayLength() * Input.RootDistanceSamplingRate) + 1;
+	uint32 NumDistanceSamples = FMath::CeilToInt(SequenceBase->GetPlayLength() * Input.RootDistanceSamplingRate) + 1;
 	AccumulatedRootDistance.Reserve(NumDistanceSamples);
 
 	// Build a distance lookup table by sampling root motion at a fixed rate and accumulating
@@ -2463,9 +2492,9 @@ void FSequenceSampler::ProcessRootDistance()
 	float SampleTime = 0.0f;
 	for (int32 SampleIdx = 0; SampleIdx != NumDistanceSamples; ++SampleIdx)
 	{
-		SampleTime = FMath::Min(SampleIdx * DistanceSamplingInterval, Input.Sequence->GetPlayLength());
+		SampleTime = FMath::Min(SampleIdx * DistanceSamplingInterval, SequenceBase->GetPlayLength());
 
-		FTransform RootTransform = Input.Sequence->ExtractRootTrackTransform(SampleTime, nullptr);
+		FTransform RootTransform = SequenceBase->ExtractRootTrackTransform(SampleTime, nullptr);
 		FTransform LocalRootMotion = RootTransform.GetRelativeTransform(LastRootTransform);
 		LastRootTransform = RootTransform;
 
@@ -2474,7 +2503,7 @@ void FSequenceSampler::ProcessRootDistance()
 	}
 
 	// Verify we sampled the final frame of the clip
-	check(SampleTime == Input.Sequence->GetPlayLength());
+	check(SampleTime == SequenceBase->GetPlayLength());
 
 	// Also emit root motion summary info to help with sample wrapping in 
 	// FAssetIndexer::GetSampleTimeFromDistance() and FAssetIndexer::GetSampleInfo()
@@ -2482,9 +2511,9 @@ void FSequenceSampler::ProcessRootDistance()
 	TotalRootDistance = AccumulatedRootDistance.Last();
 }
 
-const UAnimationAsset* FSequenceSampler::GetAsset() const
+const UAnimationAsset* FSequenceBaseSampler::GetAsset() const
 {
-	return Input.Sequence.Get();
+	return Input.SequenceBase.Get();
 }
 
 //////////////////////////////////////////////////////////////////////////

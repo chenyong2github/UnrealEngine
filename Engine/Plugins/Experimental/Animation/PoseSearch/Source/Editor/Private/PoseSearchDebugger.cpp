@@ -140,7 +140,8 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData PoseData(CompactPose, Curve, Attributes);
 
-	if (UpdateContext.Type == ESearchIndexAssetType::Sequence)
+	if (UpdateContext.Type == ESearchIndexAssetType::Sequence ||
+		UpdateContext.Type == ESearchIndexAssetType::AnimComposite)
 	{
 		float AdvancedTime = UpdateContext.StartTime;
 
@@ -148,12 +149,12 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 			UpdateContext.bLoop,
 			UpdateContext.Time - UpdateContext.StartTime,
 			AdvancedTime,
-			UpdateContext.Sequence->GetPlayLength());
+			UpdateContext.SequenceBase->GetPlayLength());
 
 		FAnimExtractContext ExtractionCtx;
 		ExtractionCtx.CurrentTime = AdvancedTime;
 
-		UpdateContext.Sequence->GetAnimationPose(PoseData, ExtractionCtx);
+		UpdateContext.SequenceBase->GetAnimationPose(PoseData, ExtractionCtx);
 	}
 	else if (UpdateContext.Type == ESearchIndexAssetType::BlendSpace)
 	{
@@ -439,7 +440,8 @@ namespace DebuggerDatabaseColumns
 			FNumberFormattingOptions PercentageFormattingOptions = FNumberFormattingOptions()
 				.SetMaximumFractionalDigits(2);
 
-			if (Row->AssetType == ESearchIndexAssetType::Sequence)
+			if (Row->AssetType == ESearchIndexAssetType::Sequence ||
+				Row->AssetType == ESearchIndexAssetType::AnimComposite)
 			{
 				if (GetDefault<UPersonaOptions>()->bTimelineDisplayPercentage)
 				{
@@ -927,27 +929,35 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					const bool bIsQueryVectorValid = DbEntry.QueryVector.Num() == PoseValues.Num();
 					CompareFeatureVectors(PoseValues, bIsQueryVectorValid ? DbEntry.QueryVector : PoseValues, SearchIndex.WeightsSqrt, Row->CostVector);
 
-					if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
+					const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(*SearchIndexAsset);
+					if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
 					{
-						const FPoseSearchDatabaseSequence& DbSequence = Database->GetSequenceSourceAsset(*SearchIndexAsset);
-						Row->AssetType = ESearchIndexAssetType::Sequence;
-						Row->AssetName = DbSequence.Sequence->GetName();
-						Row->AssetPath = DbSequence.Sequence->GetPathName();
-						Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
-						Row->AnimPercentage = Time / DbSequence.Sequence->GetPlayLength();
-						Row->bLooping = DbSequence.Sequence->bLoop;
+						Row->AssetName = DatabaseAsset->GetName();
+						Row->AssetPath = DatabaseAsset->GetAnimationAsset() ? DatabaseAsset->GetAnimationAsset()->GetPathName() : "";
+						Row->AssetType = DatabaseAsset->GetSearchIndexType();
+						Row->bLooping = DatabaseAsset->IsLooping();
 						Row->BlendParameters = FVector::Zero();
-					}
-					else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
-					{
-						const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->GetBlendSpaceSourceAsset(*SearchIndexAsset);
-						Row->AssetType = ESearchIndexAssetType::BlendSpace;
-						Row->AssetName = DbBlendSpace.BlendSpace->GetName();
-						Row->AssetPath = DbBlendSpace.BlendSpace->GetPathName();
-						Row->AnimFrame = 0; // There is no frame index associated with a blendspace
+						Row->AnimFrame = 0;
 						Row->AnimPercentage = 0.0f;
-						Row->bLooping = DbBlendSpace.BlendSpace->bLoop;
-						Row->BlendParameters = SearchIndexAsset->BlendParameters;
+
+						if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
+						{
+							Row->AnimFrame = DatabaseSequence->Sequence->GetFrameAtTime(Time);
+							Row->AnimPercentage = Time / DatabaseSequence->Sequence->GetPlayLength();
+						}
+						else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
+						{
+							Row->AnimFrame = DatabaseAnimComposite->AnimComposite->GetFrameAtTime(Time);
+							Row->AnimPercentage = Time / DatabaseAnimComposite->AnimComposite->GetPlayLength();
+						}
+						else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
+						{
+							Row->BlendParameters = SearchIndexAsset->BlendParameters;
+						}
+						else
+						{
+							checkNoEntry();
+						}
 					}
 				}
 			}
@@ -2421,6 +2431,41 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 	}
 }
 
+void FDebuggerViewModel::UpdatePoseSearchContext(UPoseSearchMeshComponent::FUpdateContext& InOutContext, const FSkeleton& Skeleton) const
+{
+	const FInstancedStruct* DatabaseAssetStruct = Skeleton.GetAnimationAsset();
+	if (DatabaseAssetStruct)
+	{
+		const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = DatabaseAssetStruct->GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
+		if (DatabaseAsset)
+		{
+			InOutContext.Type = DatabaseAsset->GetSearchIndexType();
+			InOutContext.StartTime = Skeletons[SelectedPose].Time;
+			InOutContext.Time = Skeletons[SelectedPose].Time;
+			InOutContext.bMirrored = Skeletons[SelectedPose].bMirrored;
+			InOutContext.bLoop = DatabaseAsset->IsLooping();
+		}
+
+		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct->GetPtr<FPoseSearchDatabaseSequence>())
+		{
+			InOutContext.SequenceBase = DatabaseSequence->Sequence;
+		}
+		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct->GetPtr<FPoseSearchDatabaseAnimComposite>())
+		{
+			InOutContext.SequenceBase = DatabaseAnimComposite->AnimComposite;
+		}
+		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct->GetPtr<FPoseSearchDatabaseBlendSpace>())
+		{
+			InOutContext.BlendSpace = DatabaseBlendSpace->BlendSpace;
+			InOutContext.BlendParameters = Skeletons[SelectedPose].BlendParameters;
+		}
+		else
+		{
+			checkNoEntry();
+		}
+	}
+}
+
 void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 {
 	const UPoseSearchDatabase* CurrentDatabase = GetCurrentDatabase();
@@ -2461,37 +2506,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 		UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component.Get();
 		if (Component && Component->RequiredBones.IsValid())
 		{
-			if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::Sequence)
-			{
-				const FPoseSearchDatabaseSequence* DatabaseSequence = Skeletons[SelectedPose].GetAnimSequence();
-				if (DatabaseSequence)
-				{
-					UpdateContext.Type = ESearchIndexAssetType::Sequence;
-					UpdateContext.Sequence = DatabaseSequence->Sequence;
-					UpdateContext.StartTime = Skeletons[SelectedPose].Time;
-					UpdateContext.Time = Skeletons[SelectedPose].Time;
-					UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
-					UpdateContext.bLoop = DatabaseSequence->Sequence->bLoop;
-				}
-			}
-			else if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::BlendSpace)
-			{
-				const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = Skeletons[SelectedPose].GetBlendSpace();
-				if (DatabaseBlendSpace)
-				{
-					UpdateContext.Type = ESearchIndexAssetType::BlendSpace;
-					UpdateContext.BlendSpace = DatabaseBlendSpace->BlendSpace;
-					UpdateContext.StartTime = Skeletons[SelectedPose].Time;
-					UpdateContext.Time = Skeletons[SelectedPose].Time;
-					UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
-					UpdateContext.bLoop = DatabaseBlendSpace->BlendSpace->bLoop;
-					UpdateContext.BlendParameters = Skeletons[SelectedPose].BlendParameters;
-				}
-			}
-			else
-			{
-				checkNoEntry();
-			}
+			UpdatePoseSearchContext(UpdateContext, Skeletons[SelectedPose]);
 
 			if (UpdateContext.Type != ESearchIndexAssetType::Invalid)
 			{
@@ -2508,37 +2523,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 		{
 			SetDrawSkeleton(Component, true);
 
-			if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::Sequence)
-			{
-				const FPoseSearchDatabaseSequence* DatabaseSequence = Skeletons[Asset].GetAnimSequence();
-				if (DatabaseSequence)
-				{
-					UpdateContext.Type = ESearchIndexAssetType::Sequence;
-					UpdateContext.Sequence = DatabaseSequence->Sequence;
-					UpdateContext.StartTime = Skeletons[Asset].Time;
-					UpdateContext.Time = Skeletons[Asset].Time;
-					UpdateContext.bMirrored = Skeletons[Asset].bMirrored;
-					UpdateContext.bLoop = DatabaseSequence->Sequence->bLoop;
-				}
-			}
-			else if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::BlendSpace)
-			{
-				const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = Skeletons[Asset].GetBlendSpace();
-				if (DatabaseBlendSpace)
-				{
-					UpdateContext.Type = ESearchIndexAssetType::BlendSpace;
-					UpdateContext.BlendSpace = DatabaseBlendSpace->BlendSpace;
-					UpdateContext.StartTime = Skeletons[Asset].Time;
-					UpdateContext.Time = Skeletons[Asset].Time;
-					UpdateContext.bMirrored = Skeletons[Asset].bMirrored;
-					UpdateContext.bLoop = DatabaseBlendSpace->BlendSpace->bLoop;
-					UpdateContext.BlendParameters = Skeletons[Asset].BlendParameters;
-				}
-			}
-			else
-			{
-				checkNoEntry();
-			}
+			UpdatePoseSearchContext(UpdateContext, Skeletons[SelectedPose]);
 
 			if (UpdateContext.Type != ESearchIndexAssetType::Invalid)
 			{
@@ -2649,76 +2634,71 @@ void FDebuggerViewModel::UpdateAsset()
 		AssetSkeleton.Time = AssetData.StartTime;
 	};
 
-	UAnimationAsset* AnimAsset = nullptr;
-	bool bAssetLooping = false;
-
-	if (AssetSkeleton.Type == ESearchIndexAssetType::Sequence)
-	{
-		const FPoseSearchDatabaseSequence* DatabaseSequence = AssetSkeleton.GetAnimSequence();
-		AnimAsset = DatabaseSequence->Sequence;
-		bAssetLooping = DatabaseSequence->Sequence->bLoop;
-	}
-	else if (AssetSkeleton.Type == ESearchIndexAssetType::BlendSpace)
-	{
-		const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = AssetSkeleton.GetBlendSpace();
-		AnimAsset = DatabaseBlendSpace->BlendSpace;
-		bAssetLooping = DatabaseBlendSpace->BlendSpace->bLoop;
-	}
-	else
+	const FInstancedStruct* AnimationAssetStruct = AssetSkeleton.GetAnimationAsset();
+	if (!AnimationAssetStruct)
 	{
 		checkNoEntry();
+		return;
 	}
 
-	if (AnimAsset)
+	const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = AnimationAssetStruct->GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
+	if (!DatabaseAsset)
 	{
-		const float DT = static_cast<float>(FApp::GetDeltaTime()) * AssetPlayRate;
-		const float PlayLength = AnimAsset->GetPlayLength();
-		const bool bExceededDistanceHorizon = Component->LastRootMotionDelta.GetTranslation().Size() > MAX_DISTANCE_RANGE;
-		const bool bExceededTimeHorizon = (AssetSkeleton.Time - AssetData.StartTime) > MAX_TIME_RANGE;
-		const bool bExceededHorizon = bExceededDistanceHorizon && bExceededTimeHorizon;
-		if (bAssetLooping)
-		{
-			if (bExceededHorizon)
-			{
-				// Delay before restarting the asset to give the user some idea of where it would land
-				if (AssetData.AccumulatedTime > AssetData.StopDuration)
-				{
-					RestartAsset();
-				}
-				else
-				{
-					AssetData.AccumulatedTime += DT;
-				}
-				return;
-			}
+		checkNoEntry();
+		return;
 
-			AssetSkeleton.Time += DT;
-			AssetData.AccumulatedTime += DT;
-		}
-		else
-		{
-			// Used to cap the asset, but avoid modding when updating the pose
-			static constexpr float LengthOffset = 0.001f;
-			const bool bFinishedAsset = AssetSkeleton.Time >= PlayLength - LengthOffset;
+	}
 
-			// Asset player reached end of clip or reached distance horizon of trajectory vector
-			if (bFinishedAsset || bExceededHorizon)
+	const UAnimationAsset* AnimAsset = DatabaseAsset->GetAnimationAsset();
+	const bool bAssetLooping = DatabaseAsset->IsLooping();
+
+	const float DT = static_cast<float>(FApp::GetDeltaTime()) * AssetPlayRate;
+	const float PlayLength = AnimAsset->GetPlayLength();
+	const bool bExceededDistanceHorizon = Component->LastRootMotionDelta.GetTranslation().Size() > MAX_DISTANCE_RANGE;
+	const bool bExceededTimeHorizon = (AssetSkeleton.Time - AssetData.StartTime) > MAX_TIME_RANGE;
+	const bool bExceededHorizon = bExceededDistanceHorizon && bExceededTimeHorizon;
+	if (bAssetLooping)
+	{
+		if (bExceededHorizon)
+		{
+			// Delay before restarting the asset to give the user some idea of where it would land
+			if (AssetData.AccumulatedTime > AssetData.StopDuration)
 			{
-				// Delay before restarting the asset to give the user some idea of where it would land
-				if (AssetData.AccumulatedTime > AssetData.StopDuration)
-				{
-					RestartAsset();
-				}
-				else
-				{
-					AssetData.AccumulatedTime += DT;
-				}
+				RestartAsset();
 			}
 			else
 			{
-				// If we haven't finished, update the play time capped by the anim asset (not looping)
-				AssetSkeleton.Time += DT;
+				AssetData.AccumulatedTime += DT;
 			}
+			return;
+		}
+
+		AssetSkeleton.Time += DT;
+		AssetData.AccumulatedTime += DT;
+	}
+	else
+	{
+		// Used to cap the asset, but avoid modding when updating the pose
+		static constexpr float LengthOffset = 0.001f;
+		const bool bFinishedAsset = AssetSkeleton.Time >= PlayLength - LengthOffset;
+
+		// Asset player reached end of clip or reached distance horizon of trajectory vector
+		if (bFinishedAsset || bExceededHorizon)
+		{
+			// Delay before restarting the asset to give the user some idea of where it would land
+			if (AssetData.AccumulatedTime > AssetData.StopDuration)
+			{
+				RestartAsset();
+			}
+			else
+			{
+				AssetData.AccumulatedTime += DT;
+			}
+		}
+		else
+		{
+			// If we haven't finished, update the play time capped by the anim asset (not looping)
+			AssetSkeleton.Time += DT;
 		}
 	}
 }
@@ -2804,20 +2784,11 @@ void FDebuggerViewModel::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, boo
 	bSkeletonsInitialized = false;
 }
 
-const FPoseSearchDatabaseSequence* FDebuggerViewModel::FSkeleton::GetAnimSequence() const
+const FInstancedStruct* FDebuggerViewModel::FSkeleton::GetAnimationAsset() const
 {
-	if ((Type == ESearchIndexAssetType::Sequence) && SourceDatabase.IsValid() && SourceDatabase->Sequences.IsValidIndex(AssetIdx))
+	if (SourceDatabase.IsValid() && SourceDatabase->AnimationAssets.IsValidIndex(AssetIdx))
 	{
-		return &SourceDatabase->Sequences[AssetIdx];
-	}
-	return nullptr;
-}
-
-const FPoseSearchDatabaseBlendSpace* FDebuggerViewModel::FSkeleton::GetBlendSpace() const
-{
-	if ((Type == ESearchIndexAssetType::BlendSpace) && SourceDatabase.IsValid() && SourceDatabase->BlendSpaces.IsValidIndex(AssetIdx))
-	{
-		return &SourceDatabase->BlendSpaces[AssetIdx];
+		return &SourceDatabase->GetAnimationAssetStruct(AssetIdx);
 	}
 	return nullptr;
 }

@@ -44,17 +44,16 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 		return false;
 	}
 
-	
 	const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset(true);
 
-	if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
+	const FInstancedStruct& DatabaseAsset = CurrentSearchResult.Database->GetAnimationAssetStruct(*SearchIndexAsset);
+	if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 	{
-		const FPoseSearchDatabaseSequence& DbSequence = CurrentSearchResult.Database->GetSequenceSourceAsset(*SearchIndexAsset);
-		const float AssetLength = DbSequence.Sequence->GetPlayLength();
+		const float AssetLength = DatabaseSequence->Sequence->GetPlayLength();
 
 		float SteppedTime = CurrentSearchResult.AssetTime;
 		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DbSequence.Sequence->bLoop,
+			DatabaseSequence->Sequence->bLoop,
 			DeltaTime,
 			SteppedTime,
 			AssetLength);
@@ -66,10 +65,15 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 		else
 		{
 			// check if there's a follow-up that can be used
-			int32 FollowUpDbSequenceIdx = CurrentSearchResult.Database->Sequences.IndexOfByPredicate(
-				[&](const FPoseSearchDatabaseSequence& Entry)
+			int32 FollowUpDbSequenceIdx = CurrentSearchResult.Database->AnimationAssets.IndexOfByPredicate(
+				[&](const FInstancedStruct& DatabaseAsset)
 				{
-					return Entry.Sequence == DbSequence.FollowUpSequence;
+					if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
+					{
+						return (DatabaseSequence->Sequence == DatabaseSequence->FollowUpSequence);
+					}
+
+					return false;
 				});
 
 			int32 FollowUpSearchIndexAssetIdx = CurrentSearchResult.Database->GetSearchIndex().Assets.IndexOfByPredicate(
@@ -102,22 +106,36 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 			}
 		}
 	}
-	else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
+	else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 	{
-		const FPoseSearchDatabaseBlendSpace& DbBlendSpace = CurrentSearchResult.Database->GetBlendSpaceSourceAsset(*SearchIndexAsset);
+		const float AssetLength = DatabaseAnimComposite->GetAnimationAsset()->GetPlayLength();
 
+		float SteppedTime = CurrentSearchResult.AssetTime;
+		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
+			DatabaseAnimComposite->IsLooping(),
+			DeltaTime,
+			SteppedTime,
+			AssetLength);
+
+		if (AdvanceType != ETAA_Finished)
+		{
+			return SearchIndexAsset->SamplingInterval.Contains(SteppedTime);
+		}
+	}
+	else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
+	{
 		TArray<FBlendSampleData> BlendSamples;
 		int32 TriangulationIndex = 0;
-		DbBlendSpace.BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
+		DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
 
-		float PlayLength = DbBlendSpace.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+		float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
 
 		// Asset player time for blendspaces is normalized [0, 1] so we need to convert 
 		// to a real time before we advance it
 		float RealTime = CurrentSearchResult.AssetTime * PlayLength;
 		float SteppedTime = RealTime;
 		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DbBlendSpace.BlendSpace->bLoop,
+			DatabaseBlendSpace->BlendSpace->bLoop,
 			DeltaTime,
 			SteppedTime,
 			PlayLength);

@@ -59,6 +59,20 @@ public:
 #endif
 };
 
+UCLASS()
+class UPoseSearchDatabaseAnimCompositeReflection : public UPoseSearchDatabaseReflectionBase
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Selected Anim Composite")
+	FPoseSearchDatabaseAnimComposite AnimComposite;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+};
+
 USTRUCT()
 struct FPoseSearchDatabaseMemoryStats
 {

@@ -154,16 +154,16 @@ static inline FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* 
 	return Range;
 }
 
-static void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, const FPoseSearchExcludeFromDatabaseParameters& ExcludeFromDatabaseParameters, TArray<FFloatRange>& ValidRanges)
+static void FindValidSequenceIntervals(const UAnimSequenceBase* SequenceBase, FFloatInterval SamplingRange, bool bIsLooping,
+	const FPoseSearchExcludeFromDatabaseParameters& ExcludeFromDatabaseParameters, TArray<FFloatRange>& ValidRanges)
 {
-	const UAnimSequence* Sequence = DbSequence.Sequence;
-	check(DbSequence.Sequence);
+	check(SequenceBase);
 
-	const float SequenceLength = DbSequence.Sequence->GetPlayLength();
+	const float SequenceLength = SequenceBase->GetPlayLength();
 
-	const FFloatInterval EffectiveSamplingInterval = GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
+	const FFloatInterval EffectiveSamplingInterval = GetEffectiveSamplingRange(SequenceBase, SamplingRange);
 	FFloatRange EffectiveSamplingRange = FFloatRange::Inclusive(EffectiveSamplingInterval.Min, EffectiveSamplingInterval.Max);
-	if (!DbSequence.IsLooping())
+	if (!bIsLooping)
 	{
 		const FFloatRange ExcludeFromDatabaseRange(ExcludeFromDatabaseParameters.SequenceStartInterval, SequenceLength - ExcludeFromDatabaseParameters.SequenceEndInterval);
 		EffectiveSamplingRange = FFloatRange::Intersection(EffectiveSamplingRange, ExcludeFromDatabaseRange);
@@ -174,7 +174,7 @@ static void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequ
 	ValidRanges.Add(EffectiveSamplingRange);
 
 	FAnimNotifyContext NotifyContext;
-	Sequence->GetAnimNotifies(0.0f, SequenceLength, NotifyContext);
+	SequenceBase->GetAnimNotifies(0.0f, SequenceLength, NotifyContext);
 
 	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
 	{
@@ -199,77 +199,94 @@ static void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequ
 	}
 }
 
-static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, TConstArrayView<FPoseSearchDatabaseSequence> Sequences, TConstArrayView<FPoseSearchDatabaseBlendSpace> BlendSpaces, const FPoseSearchExcludeFromDatabaseParameters& ExcludeFromDatabaseParameters)
+static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, UPoseSearchDatabase* Database)
 {
 	using namespace UE::PoseSearch;
 
 	SearchIndex.Assets.Empty();
-
 	TArray<FFloatRange> ValidRanges;
-
-	for (int32 SequenceIdx = 0; SequenceIdx < Sequences.Num(); ++SequenceIdx)
-	{
-		const FPoseSearchDatabaseSequence& Sequence = Sequences[SequenceIdx];
-
-		if (Sequence.bEnabled)
-		{
-			const bool bAddUnmirrored = Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly || Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-			const bool bAddMirrored = Sequence.MirrorOption == EPoseSearchMirrorOption::MirroredOnly || Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-
-			ValidRanges.Reset();
-			FindValidSequenceIntervals(Sequence, ExcludeFromDatabaseParameters, ValidRanges);
-			for (const FFloatRange& Range : ValidRanges)
-			{
-				if (bAddUnmirrored)
-				{
-					SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, SequenceIdx, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-				}
-
-				if (bAddMirrored)
-				{
-					SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, SequenceIdx, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-				}
-			}
-		}
-	}
-
 	TArray<FBlendSampleData> BlendSamples;
 
-	for (int32 BlendSpaceIdx = 0; BlendSpaceIdx < BlendSpaces.Num(); ++BlendSpaceIdx)
+	for (int32 AnimationAssetIndex = 0; AnimationAssetIndex < Database->AnimationAssets.Num(); ++AnimationAssetIndex)
 	{
-		const FPoseSearchDatabaseBlendSpace& BlendSpace = BlendSpaces[BlendSpaceIdx];
-
-		if (BlendSpace.bEnabled)
+		const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(AnimationAssetIndex);
+		if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
 		{
-			const bool bAddUnmirrored = BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly || BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-			const bool bAddMirrored = BlendSpace.MirrorOption == EPoseSearchMirrorOption::MirroredOnly || BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-
-			int32 HorizontalBlendNum, VerticalBlendNum;
-			BlendSpace.GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
-
-			const bool bWrapInputOnHorizontalAxis = BlendSpace.BlendSpace->GetBlendParameter(0).bWrapInput;
-			const bool bWrapInputOnVerticalAxis = BlendSpace.BlendSpace->GetBlendParameter(1).bWrapInput;
-			for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
+			if (!DatabaseAsset->IsEnabled() || !DatabaseAsset->GetAnimationAsset())
 			{
-				for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
+				continue;
+			}
+
+			const bool bAddUnmirrored = DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredOnly || DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+			const bool bAddMirrored = DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::MirroredOnly || DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+
+			if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
+			{
+				ValidRanges.Reset();
+				FindValidSequenceIntervals(DatabaseSequence->Sequence, DatabaseSequence->SamplingRange, DatabaseSequence->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
+				for (const FFloatRange& Range : ValidRanges)
 				{
-					const FVector BlendParameters = BlendSpace.BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
-
-					int32 TriangulationIndex = 0;
-					BlendSpace.BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true);
-
-					float PlayLength = BlendSpace.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
-
 					if (bAddUnmirrored)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, BlendSpaceIdx, false, FFloatInterval(0.0f, PlayLength), BlendParameters));
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 
 					if (bAddMirrored)
 					{
-						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, BlendSpaceIdx, true, FFloatInterval(0.0f, PlayLength), BlendParameters));
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
 					}
 				}
+			}
+			else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
+			{
+				ValidRanges.Reset();
+				FindValidSequenceIntervals(DatabaseAnimComposite->AnimComposite, DatabaseAnimComposite->SamplingRange, DatabaseAnimComposite->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
+				for (const FFloatRange& Range : ValidRanges)
+				{
+					if (bAddUnmirrored)
+					{
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::AnimComposite, AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+					}
+
+					if (bAddMirrored)
+					{
+						SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::AnimComposite, AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+					}
+				}
+			}
+			else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
+			{
+				int32 HorizontalBlendNum, VerticalBlendNum;
+				DatabaseBlendSpace->GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
+
+				const bool bWrapInputOnHorizontalAxis = DatabaseBlendSpace->BlendSpace->GetBlendParameter(0).bWrapInput;
+				const bool bWrapInputOnVerticalAxis = DatabaseBlendSpace->BlendSpace->GetBlendParameter(1).bWrapInput;
+				for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
+				{
+					for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
+					{
+						const FVector BlendParameters = DatabaseBlendSpace->BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
+
+						int32 TriangulationIndex = 0;
+						DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true);
+
+						float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+
+						if (bAddUnmirrored)
+						{
+							SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, AnimationAssetIndex, false, FFloatInterval(0.0f, PlayLength), BlendParameters));
+						}
+
+						if (bAddMirrored)
+						{
+							SearchIndex.Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, AnimationAssetIndex, true, FFloatInterval(0.0f, PlayLength), BlendParameters));
+						}
+					}
+				}
+			}
+			else
+			{
+				checkNoEntry();
 			}
 		}
 	}
@@ -1011,77 +1028,83 @@ struct FDatabaseIndexingContext
 	FPoseSearchIndexBase* SearchIndexBase = nullptr;
 
 	FAssetSamplingContext SamplingContext;
-	TArray<FSequenceSampler> SequenceSamplers;
+	TArray<FSequenceBaseSampler> SequenceSamplers; // Composite and sequence samplers
 	TArray<FBlendSpaceSampler> BlendSpaceSamplers;
 
 	TArray<FAssetIndexer> Indexers;
 
-	void Prepare(const UPoseSearchSchema* Schema, const FPoseSearchExtrapolationParameters& ExtrapolationParameters, TConstArrayView<FPoseSearchDatabaseSequence> Sequences, TConstArrayView<FPoseSearchDatabaseBlendSpace> BlendSpaces);
+	void Prepare(const UPoseSearchDatabase* Database);
 	bool IndexAssets();
 	void JoinIndex();
 	float CalculateMinCostAddend() const;
 };
 
-void FDatabaseIndexingContext::Prepare(const UPoseSearchSchema* Schema, const FPoseSearchExtrapolationParameters& ExtrapolationParameters, TConstArrayView<FPoseSearchDatabaseSequence> Sequences, TConstArrayView<FPoseSearchDatabaseBlendSpace> BlendSpaces)
+void FDatabaseIndexingContext::Prepare(const UPoseSearchDatabase* Database)
 {
+	const UPoseSearchSchema* Schema = Database->Schema;
 	check(Schema);
 
 	FBoneContainer BoneContainer;
 	BoneContainer.InitializeTo(Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Schema->Skeleton);
 
-	TMap<const UAnimSequence*, int32> SequenceSamplerMap;
+	TMap<const UAnimSequenceBase*, int32> SequenceSamplerMap;
 	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
 
 	SamplingContext.Init(Schema->MirrorDataTable, BoneContainer);
 
-	// Prepare samplers for all sequences
-	auto AddSequenceSampler = [&](const UAnimSequence* Sequence)
+	// Prepare samplers for all animation assets.
+	for (const FInstancedStruct& DatabaseAssetStruct : Database->AnimationAssets)
 	{
-		if (Sequence && !SequenceSamplerMap.Contains(Sequence))
+		auto AddSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence)
 		{
-			int32 SequenceSamplerIdx = SequenceSamplers.AddDefaulted();
-			SequenceSamplerMap.Add(Sequence, SequenceSamplerIdx);
-
-			FSequenceSampler::FInput Input;
-			Input.ExtrapolationParameters = ExtrapolationParameters;
-			Input.Sequence = Sequence;
-			SequenceSamplers[SequenceSamplerIdx].Init(Input);
-		}
-	};
-
-	for (const FPoseSearchDatabaseSequence& DbSequence : Sequences)
-	{
-		AddSequenceSampler(DbSequence.Sequence);
-		AddSequenceSampler(DbSequence.LeadInSequence);
-		AddSequenceSampler(DbSequence.FollowUpSequence);
-	}
-
-	// Prepare samplers for all blend spaces
-	for (const FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
-	{
-		if (DbBlendSpace.BlendSpace)
-		{
-			int32 HorizontalBlendNum, VerticalBlendNum;
-			DbBlendSpace.GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
-
-			for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
+			if (Sequence && !SequenceSamplerMap.Contains(Sequence))
 			{
-				for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
+				int32 SequenceSamplerIdx = SequenceSamplers.AddDefaulted();
+				SequenceSamplerMap.Add(Sequence, SequenceSamplerIdx);
+
+				FSequenceBaseSampler::FInput Input;
+				Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+				Input.SequenceBase = Sequence;
+				SequenceSamplers[SequenceSamplerIdx].Init(Input);
+			}
+		};
+
+		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
+		{
+			AddSequenceBaseSampler(DatabaseSequence->Sequence);
+			AddSequenceBaseSampler(DatabaseSequence->LeadInSequence);
+			AddSequenceBaseSampler(DatabaseSequence->FollowUpSequence);
+		}
+		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
+		{
+			AddSequenceBaseSampler(DatabaseAnimComposite->AnimComposite);
+		}
+		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
+		{
+			if (DatabaseBlendSpace->BlendSpace)
+			{
+				int32 HorizontalBlendNum, VerticalBlendNum;
+				DatabaseBlendSpace->GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
+
+				for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
 				{
-					const FVector BlendParameters = DbBlendSpace.BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
-
-					if (!BlendSpaceSamplerMap.Contains({ DbBlendSpace.BlendSpace, BlendParameters }))
+					for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
 					{
-						int32 BlendSpaceSamplerIdx = BlendSpaceSamplers.AddDefaulted();
-						BlendSpaceSamplerMap.Add({ DbBlendSpace.BlendSpace, BlendParameters }, BlendSpaceSamplerIdx);
+						const FVector BlendParameters = DatabaseBlendSpace->BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
 
-						FBlendSpaceSampler::FInput Input;
-						Input.BoneContainer = BoneContainer;
-						Input.ExtrapolationParameters = ExtrapolationParameters;
-						Input.BlendSpace = DbBlendSpace.BlendSpace;
-						Input.BlendParameters = BlendParameters;
+						if (!BlendSpaceSamplerMap.Contains({ DatabaseBlendSpace->BlendSpace, BlendParameters }))
+						{
+							int32 BlendSpaceSamplerIdx = BlendSpaceSamplers.AddDefaulted();
+							BlendSpaceSamplerMap.Add({ DatabaseBlendSpace->BlendSpace, BlendParameters }, BlendSpaceSamplerIdx);
 
-						BlendSpaceSamplers[BlendSpaceSamplerIdx].Init(Input);
+							FBlendSpaceSampler::FInput Input;
+							Input.BoneContainer = BoneContainer;
+							Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+							Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
+							Input.BlendParameters = BlendParameters;
+
+							BlendSpaceSamplers[BlendSpaceSamplerIdx].Init(Input);
+						}
 					}
 				}
 			}
@@ -1105,7 +1128,7 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchSchema* Schema, const FP
 	// prepare indexers
 	Indexers.Reserve(SearchIndexBase->Assets.Num());
 
-	auto GetSequenceSampler = [&](const UAnimSequence* Sequence) -> const FSequenceSampler*
+	auto GetSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence) -> const FSequenceBaseSampler*
 	{
 		return Sequence ? &SequenceSamplers[SequenceSamplerMap[Sequence]] : nullptr;
 	};
@@ -1127,22 +1150,21 @@ void FDatabaseIndexingContext::Prepare(const UPoseSearchSchema* Schema, const FP
 		IndexerContext.RequestedSamplingRange = SearchIndexAsset.SamplingInterval;
 		IndexerContext.bMirrored = SearchIndexAsset.bMirrored;
 
-		if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
+		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
+		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 		{
-			const FPoseSearchDatabaseSequence& DbSequence = Sequences[SearchIndexAsset.SourceAssetIdx];
-			const float SequenceLength = DbSequence.Sequence->GetPlayLength();
-			IndexerContext.MainSampler = GetSequenceSampler(DbSequence.Sequence);
-			IndexerContext.LeadInSampler = SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSequenceSampler(DbSequence.LeadInSequence) : nullptr;
-			IndexerContext.FollowUpSampler = SearchIndexAsset.SamplingInterval.Max == SequenceLength ? GetSequenceSampler(DbSequence.FollowUpSequence) : nullptr;
+			const float SequenceLength = DatabaseSequence->Sequence->GetPlayLength();
+			IndexerContext.MainSampler = GetSequenceBaseSampler(DatabaseSequence->Sequence);
+			IndexerContext.LeadInSampler = SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSequenceBaseSampler(DatabaseSequence->LeadInSequence) : nullptr;
+			IndexerContext.FollowUpSampler = SearchIndexAsset.SamplingInterval.Max == SequenceLength ? GetSequenceBaseSampler(DatabaseSequence->FollowUpSequence) : nullptr;
 		}
-		else if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
+		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
-			const FPoseSearchDatabaseBlendSpace& DbBlendSpace = BlendSpaces[SearchIndexAsset.SourceAssetIdx];
-			IndexerContext.MainSampler = GetBlendSpaceSampler(DbBlendSpace.BlendSpace, SearchIndexAsset.BlendParameters);
+			IndexerContext.MainSampler = GetSequenceBaseSampler(DatabaseAnimComposite->AnimComposite);
 		}
-		else
+		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
-			checkNoEntry();
+			IndexerContext.MainSampler = GetBlendSpaceSampler(DatabaseBlendSpace->BlendSpace, SearchIndexAsset.BlendParameters);
 		}
 
 		FAssetIndexer& Indexer = Indexers.AddDefaulted_GetRef();
@@ -1409,6 +1431,8 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 	using namespace UE::DerivedData;
 
 	const FCacheKey FullIndexKey = Response.Record.GetKey();
+
+	// The database is part of the derived data cache and up to date, skip re-building it.
 	if (Response.Status == EStatus::Ok)
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeAsyncWait());
@@ -1483,7 +1507,7 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 					}
 
 					// Building all the related FPoseSearchBaseIndex first
-					InitSearchIndexAssets(SearchIndexBase, IndexBaseDatabase->Sequences, IndexBaseDatabase->BlendSpaces, IndexBaseDatabase->ExcludeFromDatabaseParameters);
+					InitSearchIndexAssets(SearchIndexBase, Database.Get());
 
 					if (Owner.IsCanceled())
 					{
@@ -1494,7 +1518,7 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 
 					FDatabaseIndexingContext DbIndexingContext;
 					DbIndexingContext.SearchIndexBase = &SearchIndexBase;
-					DbIndexingContext.Prepare(IndexBaseDatabase->Schema, IndexBaseDatabase->ExtrapolationParameters, IndexBaseDatabase->Sequences, IndexBaseDatabase->BlendSpaces);
+					DbIndexingContext.Prepare(IndexBaseDatabase.Get());
 
 					if (Owner.IsCanceled())
 					{

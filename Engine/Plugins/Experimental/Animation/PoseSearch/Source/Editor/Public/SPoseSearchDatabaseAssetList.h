@@ -64,6 +64,7 @@ namespace UE::PoseSearch
 
 		void OnAddSequence();
 		void OnAddBlendSpace();
+		void OnAddAnimComposite();
 
 		EVisibility GetSelectedActorIconVisbility() const;
 
@@ -156,6 +157,7 @@ namespace UE::PoseSearch
 
 		void OnAddSequence(bool bFinalizeChanges = true);
 		void OnAddBlendSpace(bool bFinalizeChanges = true);
+		void OnAddAnimComposite(bool bFinalizeChanges = true);
 
 		void OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
 		void CreateCommandList();
@@ -164,8 +166,9 @@ namespace UE::PoseSearch
 		bool CanDeleteNodes() const;
 		void OnDeleteNodes();
 
-		void OnEnableNodes();
-		void OnDisableNodes();
+		void EnableSelectedNodes(bool bIsEnabled);
+		void OnEnableNodes() { EnableSelectedNodes(true); }
+		void OnDisableNodes() { EnableSelectedNodes(false); }
 
 		friend SDatabaseAssetListItem;
 

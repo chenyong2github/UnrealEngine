@@ -43,6 +43,9 @@ public:
 	virtual bool IsValidAdditive() const override { return GetAdditiveAnimType() != AAT_None; }
 	virtual void EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock) override;
 	virtual bool HasRootMotion() const override;
+	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const override final;
+	FTransform ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const override final;
+	FTransform ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const override final;
 	virtual void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, FAnimNotifyContext& NotifyContext) const override;
 	virtual bool IsNotifyAvailable() const override;
 	//~ End UAnimSequenceBase Interface

@@ -59,7 +59,7 @@ public:
 		if (bUseDataVer)
 		{
 			// used to invalidate the key without having to change POSESEARCHDB_DERIVEDDATA_VER all the times
-			int32 POSESEARCHDB_DERIVEDDATA_VER_SMALL = 8;
+			int32 POSESEARCHDB_DERIVEDDATA_VER_SMALL = 9;
 			FGuid VersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
 
 			*this << VersionGuid;

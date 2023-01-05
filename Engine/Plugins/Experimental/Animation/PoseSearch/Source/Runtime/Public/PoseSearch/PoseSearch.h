@@ -7,12 +7,14 @@
 #include "CoreMinimal.h"
 #include "Containers/RingBuffer.h"
 #include "Engine/DataAsset.h"
+#include "InstancedStruct.h"
 #include "IO/IoHash.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/EnumClassFlags.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/TypeHash.h"
+#include "Animation/AnimComposite.h"
 #include "Animation/AnimMetaData.h"
 #include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimationAsset.h"
@@ -123,6 +125,7 @@ enum class ESearchIndexAssetType : int32
 	Invalid,
 	Sequence,
 	BlendSpace,
+	AnimComposite,
 };
 
 namespace UE::PoseSearch
@@ -249,12 +252,13 @@ public:
 	virtual void Process() = 0;
 };
 
-struct POSESEARCH_API FSequenceSampler : public IAssetSampler
+// Sampler working with UAnimSequenceBase so it can be used for UAnimSequence as well as UAnimComposite.
+struct POSESEARCH_API FSequenceBaseSampler : public IAssetSampler
 {
 public:
 	struct FInput
 	{
-		TWeakObjectPtr<const UAnimSequence> Sequence;
+		TWeakObjectPtr<const UAnimSequenceBase> SequenceBase;
 		int32 RootDistanceSamplingRate = 60;
 		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 	} Input;
@@ -262,7 +266,7 @@ public:
 	void Init(const FInput& Input);
 	virtual void Process() override;
 
-	virtual float GetPlayLength() const override { return Input.Sequence->GetPlayLength(); }
+	virtual float GetPlayLength() const override { return Input.SequenceBase->GetPlayLength(); }
 	virtual bool IsLoopable() const override;
 
 	virtual float GetTimeFromRootDistance(float Distance) const override;
@@ -834,10 +838,17 @@ USTRUCT()
 struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
 {
 	GENERATED_BODY()
+	virtual ~FPoseSearchDatabaseAnimationAssetBase() = default;
 
-	virtual ~FPoseSearchDatabaseAnimationAssetBase() {}
 	virtual UAnimationAsset* GetAnimationAsset() const { return nullptr; }
+	virtual UClass* GetAnimationAssetStaticClass() const { return nullptr; }
 	virtual bool IsLooping() const { return false; }
+	virtual const FString GetName() const { return {}; }
+	virtual bool IsEnabled() const { return false; }
+	virtual void SetIsEnabled(bool bInIsEnabled) {}
+	virtual bool IsRootMotionEnabled() const { return false; }
+	virtual EPoseSearchMirrorOption GetMirrorOption() const { return EPoseSearchMirrorOption::Invalid; }
+	virtual ESearchIndexAssetType GetSearchIndexType() const { return ESearchIndexAssetType::Invalid; }
 };
 
 /** An entry in a UPoseSearchDatabase. */
@@ -845,6 +856,7 @@ USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAnimationAssetBase
 {
 	GENERATED_BODY()
+	virtual ~FPoseSearchDatabaseSequence() = default;
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> Sequence;
@@ -872,8 +884,15 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> FollowUpSequence;
 
-	virtual UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
-	virtual bool IsLooping() const override { return Sequence->bLoop; }
+	UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
+	UClass* GetAnimationAssetStaticClass() const override { return UAnimSequence::StaticClass(); }
+	bool IsLooping() const override { return Sequence ? Sequence->bLoop : false; }
+	const FString GetName() const override { return Sequence ? Sequence->GetName() : FString(); }
+	bool IsEnabled() const override { return bEnabled; }
+	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
+	bool IsRootMotionEnabled() const override;
+	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+	ESearchIndexAssetType GetSearchIndexType() const override { return ESearchIndexAssetType::Sequence; }
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
@@ -881,6 +900,7 @@ USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabaseAnimationAssetBase
 {
 	GENERATED_BODY()
+	virtual ~FPoseSearchDatabaseBlendSpace() = default;
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	TObjectPtr<UBlendSpace> BlendSpace;
@@ -902,11 +922,48 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
 	int32 NumberOfVerticalSamples = 2;
 
-	virtual UAnimationAsset* GetAnimationAsset() const override;
-	virtual bool IsLooping() const override;
+	UAnimationAsset* GetAnimationAsset() const override;
+	UClass* GetAnimationAssetStaticClass() const override;
+	bool IsLooping() const override;
+	const FString GetName() const override;
+	bool IsEnabled() const override { return bEnabled; }
+	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
+	bool IsRootMotionEnabled() const override;
+	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+	ESearchIndexAssetType GetSearchIndexType() const override { return ESearchIndexAssetType::BlendSpace; }
 
 	void GetBlendSpaceParameterSampleRanges(int32& HorizontalBlendNum, int32& VerticalBlendNum) const;
 	FVector BlendParameterForSampleRanges(int32 HorizontalBlendIndex, int32 VerticalBlendIndex) const;
+};
+
+/** An entry in a UPoseSearchDatabase. */
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchDatabaseAnimComposite : public FPoseSearchDatabaseAnimationAssetBase
+{
+	GENERATED_BODY()
+	virtual ~FPoseSearchDatabaseAnimComposite() = default;
+
+	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	TObjectPtr<UAnimComposite> AnimComposite;
+
+	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	bool bEnabled = true;
+
+	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, Category = "AnimComposite")
+	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
+
+	UAnimationAsset* GetAnimationAsset() const override { return AnimComposite; }
+	UClass* GetAnimationAssetStaticClass() const override { return UAnimComposite::StaticClass(); }
+	bool IsLooping() const override { return AnimComposite ? AnimComposite->bLoop : false; }
+	const FString GetName() const override { return AnimComposite ? AnimComposite->GetName() : FString(); }
+	bool IsEnabled() const override { return bEnabled; }
+	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
+	bool IsRootMotionEnabled() const override;
+	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+	ESearchIndexAssetType GetSearchIndexType() const override { return ESearchIndexAssetType::AnimComposite; }
 };
 
 USTRUCT()
@@ -1117,11 +1174,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExcludeFromDatabaseParameters ExcludeFromDatabaseParameters;
 
-	UPROPERTY(EditAnywhere, Category="Database")
-	TArray<FPoseSearchDatabaseSequence> Sequences;
+#if WITH_EDITORONLY_DATA
+	// Sequences and Blendspaces are deprecated and its data will be part of the AnimationAssets.
+	// All sequences and blend spaces will be added to the AnimationAssets in PostLoad().
+	UPROPERTY()
+	TArray<FPoseSearchDatabaseSequence> Sequences_DEPRECATED;
+	UPROPERTY()
+	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
-	UPROPERTY(EditAnywhere, Category = "Database")
-	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces;
+	UPROPERTY(EditAnywhere, Category="Database")
+	TArray<FInstancedStruct> AnimationAssets;
 
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	EPoseSearchMode PoseSearchMode = EPoseSearchMode::PCAKDTree;
@@ -1157,9 +1220,10 @@ public:
 	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	bool GetPoseIndicesAndLerpValueFromTime(float Time, const FPoseSearchIndexAsset& SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const;
 
-	const FPoseSearchDatabaseAnimationAssetBase& GetAnimationSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const;
-	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const;
-	const FPoseSearchDatabaseBlendSpace& GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	const FInstancedStruct& GetAnimationAssetStruct(int32 AnimationAssetIndex) const;
+	const FInstancedStruct& GetAnimationAssetStruct(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	FPoseSearchDatabaseAnimationAssetBase* GetAnimationAssetBase(int32 AnimationAssetIndex) const;
+	FPoseSearchDatabaseAnimationAssetBase* GetAnimationAssetBase(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;

@@ -420,13 +420,13 @@ public:
 	//~ End UAnimSequenceBase Interface
 
 	// Extract Root Motion transform from the animation
-	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const;
+	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const override final;
 
 	// Extract Root Motion transform from a contiguous position range (no looping)
-	FTransform ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const;
+	FTransform ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const override final;
 
 	// Extract the transform from the root track for the given animation position
-	FTransform ExtractRootTrackTransform(float Pos, const FBoneContainer * RequiredBones) const;
+	FTransform ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const override final;
 
 	// Begin Transform related functions 
 	virtual void GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const override;
