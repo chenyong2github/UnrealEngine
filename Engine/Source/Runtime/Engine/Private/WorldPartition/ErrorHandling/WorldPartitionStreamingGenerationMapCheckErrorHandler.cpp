@@ -3,20 +3,10 @@
 #if WITH_EDITOR
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
 #include "Logging/MessageLog.h"
-#include "Misc/MapErrors.h"
-
-#define LOCTEXT_NAMESPACE "WorldPartition"
-
-void FStreamingGenerationMapCheckErrorHandler::AddAdditionalNameToken(TSharedRef<FTokenizedMessage>& InMessage, const FName& InErrorName)
-{
-	InMessage->AddToken(FMapErrorToken::Create(InErrorName));
-}
 
 void FStreamingGenerationMapCheckErrorHandler::HandleTokenizedMessage(TSharedRef<FTokenizedMessage>&& ErrorMessage)
 {
 	FMessageLog("MapCheck").AddMessage(ErrorMessage);
 }
-
-#undef LOCTEXT_NAMESPACE
 
 #endif
