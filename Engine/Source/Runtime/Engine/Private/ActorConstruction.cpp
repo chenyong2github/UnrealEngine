@@ -201,6 +201,13 @@ void AActor::DestroyConstructedComponents()
 	{
 		GetPackage()->MarkPackageDirty();
 	}
+
+	// When a constructed component is destroyed, it is removed from this set. We compact the set to ensure any newly-constructed components
+	// will get added back into the set contiguously, so that the iteration order remains stable after re-running actor construction scripts.
+	if (PreviouslyAttachedComponents.Num() > OwnedComponents.Num())
+	{
+		OwnedComponents.CompactStable();
+	}
 }
 
 

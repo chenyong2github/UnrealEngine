@@ -403,7 +403,7 @@ void USubobjectDataSubsystem::GatherSubobjectData(UObject* Context, TArray<FSubo
 		}
 
 		// Sort components by type (always put scene components first in the tree)
-		ComponentsToAdd.Sort([](const UActorComponent& A, const UActorComponent& /* B */)
+		ComponentsToAdd.StableSort([](const UActorComponent& A, const UActorComponent& /* B */)
 		{
 			return A.IsA<USceneComponent>();
 		});
