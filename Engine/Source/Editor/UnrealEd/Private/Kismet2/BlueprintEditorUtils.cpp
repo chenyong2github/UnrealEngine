@@ -6282,8 +6282,15 @@ void FBlueprintEditorUtils::FixupVariableDescription(UBlueprint* Blueprint, FBPV
 			if (FPackageName::IsShortPackageName(BitmaskEnumTypePath))
 			{
 				BitflagsEnum = FindFirstObject<UEnum>(GetData(BitmaskEnumTypePath));
-				BitmaskEnumTypePath = FTopLevelAssetPath(BitflagsEnum->GetPackage()->GetFName(), BitflagsEnum->GetFName()).ToString();
-				VarDesc.SetMetaData(FBlueprintMetadata::MD_BitmaskEnum, BitmaskEnumTypePath);
+				if (BitflagsEnum != nullptr)
+				{
+					BitmaskEnumTypePath = FTopLevelAssetPath(BitflagsEnum->GetPackage()->GetFName(), BitflagsEnum->GetFName()).ToString();
+					VarDesc.SetMetaData(FBlueprintMetadata::MD_BitmaskEnum, BitmaskEnumTypePath);
+				}
+				else
+				{
+					UE_LOG(LogBlueprint, Error, TEXT("Enum %s cannot be loaded"), *BitmaskEnumTypePath);
+				}
 			}
 			else
 			{
