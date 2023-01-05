@@ -109,7 +109,7 @@ const TArray<FForceFeedbackChannelDetails>& UForceFeedbackEffect::GetCurrentChan
 	{
 		FHardwareDeviceIdentifier Hardware = SubSystem->GetMostRecentlyUsedHardwareDevice(PlatformUser);
 		// Check if there are any per-input device overrides available
-		if (const FForceFeedbackEffectOverridenChannelDetails* Details = PerDeviceOverides.Find(Hardware.HardwareDeviceIdentifier))
+		if (const FForceFeedbackEffectOverridenChannelDetails* Details = PerDeviceOverrides.Find(Hardware.HardwareDeviceIdentifier))
 		{
 			return Details->ChannelDetails;
 		}
