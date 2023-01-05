@@ -2359,6 +2359,10 @@ UMeshDeformerInstance* UOptimusDeformer::CreateInstance(
 
 void UOptimusDeformer::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
 {
+	if (bMarkAsDirty)
+	{
+		Modify();
+	}
 	Mesh = PreviewMesh;
 	
 	// FIXME: Notify upstream so the viewport can react.
