@@ -347,27 +347,52 @@ void FAdaptiveStreamingPlayer::UpdateManifest()
 bool FAdaptiveStreamingPlayer::FMediaMetadataUpdate::Handle(const FTimeValue& InAtTime)
 {
 	TSharedPtrTS<UtilsMP4::FMetadataParser> NextMetadata;
+	FTimeValue NextActiveTime;
 	while(NextEntries.Num())
 	{
+		// Make the first metadata available right away if there is none yet and the time is not valid either.
 		if (!InAtTime.IsValid() && !ActiveMetadata.IsValid())
 		{
 			NextMetadata = NextEntries[0].Metadata;
+			NextActiveTime = NextEntries[0].ValidFrom;
 			break;
-		}
-		else if (NextEntries[0].ValidFrom <= InAtTime)
-		{
-			NextMetadata = NextEntries[0].Metadata;
-			NextEntries.RemoveAt(0);
 		}
 		else
 		{
-			break;
+			const int64 s1 = NextEntries[0].ValidFrom.GetSequenceIndex();
+			const int64 s2 = InAtTime.GetSequenceIndex();
+			// Sequence count of metadata less or equal to the one of the current time?
+			if (s1 <= s2)
+			{
+				if (NextEntries[0].ValidFrom <= InAtTime)
+				{
+					// Is this metadata older than the one we used before? This happens when there is metadata in the
+					// init segment, which is sent for every media segment so that no metadata is missed when seeking.
+					// Also, when stream switches occur the metadata of the init segment from the new stream is sent
+					// as well.
+					if (!ActiveSince.IsValid() || NextEntries[0].ValidFrom.GetSequenceIndex() > ActiveSince.GetSequenceIndex() || NextEntries[0].ValidFrom > ActiveSince)
+					{
+						NextMetadata = NextEntries[0].Metadata;
+						NextActiveTime = NextEntries[0].ValidFrom;
+					}
+					NextEntries.RemoveAt(0);
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				break;
+			}
 		}
 	}
 	if (NextMetadata.IsValid())
 	{
 		bool bChanged = !ActiveMetadata.IsValid() || ActiveMetadata->IsDifferentFrom(*NextMetadata);
 		ActiveMetadata = MoveTemp(NextMetadata);
+		ActiveSince = NextActiveTime;
 		return bChanged;
 	}
 	return false;

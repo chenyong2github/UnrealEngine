@@ -1897,7 +1897,8 @@ private:
 		void Reset()
 		{
 			NextEntries.Empty();
-			// Do not reset the active metadata.
+			// Do NOT reset the active metadata, but the time it became valid!
+			ActiveSince.SetToInvalid();
 		}
 		void AddEntry(const FTimeValue& InValidFrom, const TSharedPtrTS<UtilsMP4::FMetadataParser>& InMetadata)
 		{
@@ -1906,7 +1907,11 @@ private:
 			e.Metadata = InMetadata;
 			NextEntries.StableSort([](const FEntry& a, const FEntry& b)
 			{
-				return a.ValidFrom < b.ValidFrom;
+				const FTimeValue& t1 = a.ValidFrom;
+				const FTimeValue& t2 = b.ValidFrom;
+				const int64 s1 = t1.GetSequenceIndex();
+				const int64 s2 = t2.GetSequenceIndex();
+				return (s1 == s2 && t1 < t2) || (s1 < s2);
 			});
 		}
 		bool Handle(const FTimeValue& InAtTime);
@@ -1922,6 +1927,7 @@ private:
 		};
 		TArray<FEntry> NextEntries;
 		TSharedPtrTS<UtilsMP4::FMetadataParser> ActiveMetadata;
+		FTimeValue ActiveSince;
 	};
 
 	struct FMetadataHandlingState

@@ -17,6 +17,7 @@
 #include "Player/DRM/DRMManager.h"
 #include "Utilities/Utilities.h"
 #include "Utilities/TimeUtilities.h"
+#include "Utilities/UtilsMP4.h"
 #include "Async/Async.h"
 
 #define INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR					1
@@ -1023,6 +1024,28 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 					}
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
+						// Get the metadata from the movie fragment or the init segment.
+						const IParserISO14496_12::IMetadata* MoofMetadata = MP4Parser->GetMetadata(IParserISO14496_12::EBaseBoxType::Moof);
+						const IParserISO14496_12::IMetadata* MoovMetadata = !MoofMetadata ? MP4InitSegment.IsValid() ? MP4InitSegment->GetMetadata(IParserISO14496_12::EBaseBoxType::Moov) : nullptr : nullptr;
+						if (MoofMetadata || MoovMetadata)
+						{
+							const IParserISO14496_12::IMetadata* md = MoofMetadata ? MoofMetadata : MoovMetadata;
+							uint32 hdlr = md->GetHandler();
+							uint32 res0 = md->GetReserved(0);
+							TArray<UtilsMP4::FMetadataParser::FBoxInfo> Boxes;
+							for(int32 i=0, iMax=md->GetNumChildBoxes(); i<iMax; ++i)
+							{
+								Boxes.Emplace(UtilsMP4::FMetadataParser::FBoxInfo(md->GetChildBoxType(i), md->GetChildBoxData(i), md->GetChildBoxDataSize(i)));
+							}
+							TSharedPtrTS<UtilsMP4::FMetadataParser> MediaMetadata = MakeSharedTS<UtilsMP4::FMetadataParser>();
+							if (MediaMetadata->Parse(hdlr, res0, Boxes) == UtilsMP4::FMetadataParser::EResult::Success)
+							{
+								FTimeValue StartTime = md == MoofMetadata ? Request->GetFirstPTS() : TimeOffset;
+								StartTime.SetSequenceIndex(Request->TimestampSequenceIndex);
+  								PlayerSessionService->SendMessageToPlayer(FPlaylistMetadataUpdateMessage::Create(StartTime, MediaMetadata));
+							}
+						}
+
 						// For the time being we only want to have a single track in the movie segments.
 						if (MP4Parser->GetNumberOfTracks() == 1)
 						{
