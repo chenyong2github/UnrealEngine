@@ -69,13 +69,6 @@ rem ## check if the UAT projects are present. if not, we'll just use the precomp
 if not exist Source\Programs\AutomationTool\AutomationTool.csproj goto RunPrecompiled
 if not exist Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj goto RunPrecompiled
 
-
-rem Checking for out-of-date files won't find source files in places like Engine/Platform, resulting in occasionally
-rem out of date builds. Until a better solution is found, always try to build AutomationTool.
-set FORCECOMPILE_UAT=FORCE
-
-
-
 call "%SCRIPT_DIR%BuildUAT.bat" %MSBUILD_LOGLEVEL% %FORCECOMPILE_UAT%
 if errorlevel 1 goto Error_UATCompileFailed
 

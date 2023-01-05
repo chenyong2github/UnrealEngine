@@ -8,6 +8,9 @@ rem ## This script verifies that dotnet sdk is installed and a new enough SDK is
 rem if UE_USE_SYSTEM_DOTNET we assume a installed dotnet is present
 if "%UE_USE_SYSTEM_DOTNET%" == "1" goto verify_dotnet
 
+rem if UE_DOTNET_VERSION is already set we assume this script has already run
+if "%UE_DOTNET_VERSION%" == "6.0.302" goto Succeeded
+
 rem figure out which architecture to use
 set UE_DOTNET_ARCH=windows
 if "%PROCESSOR_ARCHITECTURE%" == "ARM64" (

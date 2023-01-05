@@ -91,10 +91,6 @@ if [ "$(uname)" = "Linux" ]; then
 	source "$SCRIPT_DIR/Linux/SetupEnvironment.sh" $EnvironmentType "$SCRIPT_DIR/Linux"
 fi
 
-# Checking for out-of-date files won't find source files in places like Engine/Platform, resulting in occasionally
-# out of date builds. Until a better solution is found, always try to build AutomationTool.
-FORCECOMPILE_UAT=FORCE
-
 if [ "$UATCompileArg" = "-compile" ]; then
   # see if the .csproj exists to be compiled
 	if [ ! -f Source/Programs/AutomationTool/AutomationTool.csproj ]; then

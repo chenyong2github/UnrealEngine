@@ -1,5 +1,6 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 echo
 echo Setting up Unreal Engine project files...
 echo
@@ -14,7 +15,6 @@ if [ ! -d "$BASE_PATH/../../../Binaries/DotNET" ]; then
 	exit 1
 fi
 
-echo "$BASE_PATH"
 if [ ! -d "$BASE_PATH/../../../Source" ]; then
 	echo GenerateProjectFiles ERROR: This script file does not appear to be located inside the Engine/Build/BatchFiles/Mac directory.
 	exit 1
@@ -23,13 +23,13 @@ fi
 source "$BASE_PATH/SetupEnvironment.sh" -dotnet "$BASE_PATH"
 # ensure UnrealBuildTool is up to date if the project file exists, but not if running from an installed build
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" -a ! -f "$BASE_PATH/../../../Build/InstalledBuild.txt" ]; then
-	dotnet build "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" -c Development -v quiet
-
+	"$BASE_PATH/../BuildUBT.sh"
 	if [ $? -ne 0 ]; then
 		echo GenerateProjectFiles ERROR: Failed to build UnrealBuildTool
 		exit 1
 	fi
 fi
+
 
 # pass all parameters to UBT
 dotnet "$BASE_PATH/../../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll" -projectfiles "$@"

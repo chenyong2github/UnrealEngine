@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## Unreal Engine AutomationTool build script
+## Unreal Engine UnrealBuildTool build script
 ## Copyright Epic Games, Inc. All Rights Reserved
 ##
 ## This script is expecting to exist in the Engine/Build/BatchFiles directory.  It will not work correctly
@@ -11,9 +11,9 @@
 SCRIPT_DIR=$(cd "`dirname "$0"`" && pwd)
 pushd "$SCRIPT_DIR/../../Source" >/dev/null
 
-if [ ! -f ../Build/BatchFiles/BuildUAT.sh ]; then
+if [ ! -f ../Build/BatchFiles/BuildUBT.sh ]; then
   echo
-  echo "BuildUAT ERROR: The script does not appear to be located in the /Engine/Build/BatchFiles directory.  This script must be run from within that directory."
+  echo "BuildUBT ERROR: The script does not appear to be located in the /Engine/Build/BatchFiles directory.  This script must be run from within that directory."
   echo
   popd >/dev/null
   exit 1
@@ -21,7 +21,7 @@ fi
 
 MSBuild_Verbosity="${1:-quiet}"
 
-# Check to see if the files in the AutomationTool, EpicGames.Build, EpicGames.Core, or UnrealBuildTool
+# Check to see if the files in the UnrealBuildTool, EpicGames.Build, EpicGames.Core, or UnrealBuildTool
 # directory have changed.
 
 mkdir -p ../Intermediate/Build
@@ -31,11 +31,11 @@ if [ "$1" == "FORCE" ]; then
   PERFORM_REBUILD=1
   echo "Rebuilding: build requested"
 
-elif [ ! -f ../Binaries/DotNET/AutomationTool/AutomationTool.dll ]; then
+elif [ ! -f ../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll ]; then
   PERFORM_REBUILD=1
-  echo "Rebuilding: AutomationTool assembly not found"
+  echo "Rebuilding: UnrealBuildTool assembly not found"
 
-elif [ -f ../Intermediate/Build/AutomationToolLastBuildTime ]; then
+elif [ -f ../Intermediate/Build/UnrealBuildToolLastBuildTime ]; then
   UPDATED_DEP_FILES="$(find \
     Programs/Shared/EpicGames.Build \
     Programs/Shared/EpicGames.Core \
@@ -46,11 +46,9 @@ elif [ -f ../Intermediate/Build/AutomationToolLastBuildTime ]; then
     Programs/UnrealBuildTool \
     ../Restricted/**/Source/Programs/UnrealBuildTool \
     ../Platforms/*/Source/Programs/UnrealBuildTool \
-    ../Restricted/**/Source/Programs/AutomationTool \
-    ../Platforms/*/Source/Programs/AutomationTool \
     -type f \
     \( -iname \*.cs -or -iname \*.csproj \) \
-    -newer ../Intermediate/Build/AutomationToolLastBuildTime)"
+    -newer ../Intermediate/Build/UnrealBuildToolLastBuildTime)"
   
   if [ -n "$UPDATED_DEP_FILES" ]; then
     PERFORM_REBUILD=1
@@ -58,17 +56,16 @@ elif [ -f ../Intermediate/Build/AutomationToolLastBuildTime ]; then
     echo "$UPDATED_DEP_FILES"
   fi
 
-  UPDATED_AUTOMATIONTOOL_FILES="$(find \
+  UPDATED_DEP_FILES="$(find \
     Programs/Shared \
-    Programs/AutomationTool \
     -maxdepth 1 \
     -type f \
     \( -iname \*.cs -or -iname \*.csproj \) \
-    -newer ../Intermediate/Build/AutomationToolLastBuildTime)"
-  if [ -n "$UPDATED_AUTOMATIONTOOL_FILES" ]; then
+    -newer ../Intermediate/Build/UnrealBuildToolLastBuildTime)"
+  if [ -n "$UPDATED_DEP_FILES" ]; then
     PERFORM_REBUILD=1
     echo "Rebuilding: Found updated files:"
-    echo "$UPDATED_AUTOMATIONTOOL_FILES"
+    echo "$UPDATED_DEP_FILES"
   fi
 
 else
@@ -87,16 +84,16 @@ if [ $PERFORM_REBUILD -eq 1 ]; then
     source "$SCRIPT_DIR/Linux/SetupEnvironment.sh" -dotnet "$SCRIPT_DIR/Linux"
   fi
 
-  dotnet build Programs/AutomationTool/AutomationTool.csproj -c Development -v $MSBuild_Verbosity
+  dotnet build Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v $MSBuild_Verbosity
   if [ $? -ne 0 ]; then
     echo "Compilation failed"
     popd >/dev/null
     exit 1
   fi
 
-  touch ../Intermediate/Build/AutomationToolLastBuildTime
+  touch ../Intermediate/Build/UnrealBuildToolLastBuildTime
 else
-  echo "AutomationTool.dll is up to date"
+  echo "UnrealBuildTool.dll is up to date"
 fi
 
 popd >/dev/null

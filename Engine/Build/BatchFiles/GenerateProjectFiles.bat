@@ -28,32 +28,8 @@ call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 REM ## Skip msbuild detection if using dotnet as this is done for us by dotnet-cli
 
-rem Check to see if the files in the UBT directory have changed. We conditionally include platform files from the .csproj file, but MSBuild doesn't recognize the dependency when new files are added. 
-md ..\Intermediate\Build >nul 2>nul
-dir /s /b Programs\UnrealBuildTool\*.cs >..\Intermediate\Build\UnrealBuildToolFiles.txt
-
-if not exist ..\Platforms goto NoPlatforms
-for /d %%D in (..\Platforms\*) do (
-	if exist %%D\Source\Programs\UnrealBuildTool dir /s /b %%D\Source\Programs\UnrealBuildTool\*.cs 2> nul >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
-)
-:NoPlatforms
-
-if not exist ..\Restricted goto NoRestricted
-for /d %%D in (..\Restricted\*) do (
-	if exist %%D\Source\Programs\UnrealBuildTool dir /s /b %%D\Source\Programs\UnrealBuildTool\*.cs 2> nul >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
-)
-:NoRestricted
-
-fc /b ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\UnrealBuildToolPrevFiles.txt >nul 2>nul
-if not errorlevel 1 goto SkipClean
-copy /y ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\UnrealBuildToolPrevFiles.txt >nul
-
-dotnet clean Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet
-
-:SkipClean
-echo Building UnrealBuildTool...
-dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet
-
+rem ## Build UnrealBuildTool if necessary
+call "%~dp0BuildUBT.bat"
 if errorlevel 1 goto Error_UBTCompileFailed
 
 rem ## Run UnrealBuildTool to generate Visual Studio solution and project files
