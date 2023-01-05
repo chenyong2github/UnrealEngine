@@ -609,7 +609,6 @@ FTargetingSourceContext UTargetingSubsystem::GetTargetingSourceContext(FTargetin
 	return FTargetingSourceContext();
 }
 
-/* static */
 void UTargetingSubsystem::GetTargetingResultsActors(FTargetingRequestHandle TargetingHandle, TArray<AActor*>& Targets)
 {
 	if (TargetingHandle.IsValid())
@@ -627,7 +626,6 @@ void UTargetingSubsystem::GetTargetingResultsActors(FTargetingRequestHandle Targ
 	}
 }
 
-/* static */
 void UTargetingSubsystem::GetTargetingResults(FTargetingRequestHandle TargetingHandle, TArray<FHitResult>& OutTargets)
 {
 	if (TargetingHandle.IsValid())
