@@ -1385,8 +1385,8 @@ void RasterCS(
 
 			// For debug only
 			#if PERMUTATION_DEBUG
-			const bool bDebugEnableAll	= all(RasterTileCoord == uint2(ShaderPrintData.CursorCoord / float(RASTER_TILE_SIZE)));
-			const bool bDebugEnable		= all(RasterTileCoord == uint2(ShaderPrintData.CursorCoord / float(RASTER_TILE_SIZE))) && GroupThread1D == 0;
+			const bool bDebugEnableAll	= FrontToBackIndex == 0 && all(RasterTileCoord == uint2(ShaderPrintData.CursorCoord / float(RASTER_TILE_SIZE)));
+			const bool bDebugEnable		= FrontToBackIndex == 0 && all(RasterTileCoord == uint2(ShaderPrintData.CursorCoord / float(RASTER_TILE_SIZE))) && GroupThread1D == 0;
 			FShaderPrintContext Ctx		= InitShaderPrintContext(bDebugEnable, uint2(350, 50));
 			const FFontColor FontLegend = FontWhite;
 			const FFontColor FontValue  = FontOrange;
@@ -1958,9 +1958,14 @@ void RasterCS(
 Buffer<uint>						VisTileArgs;
 ByteAddressBuffer					VisTileData;
 
+Buffer<uint>						CompactedVisTileArgs;
+ByteAddressBuffer					CompactedVisTileData;
+
 Texture2D<uint>						HairCountTexture_ForDebug;
 Texture2D<uint>						HairPixelCountPerTile_ForDebug;
 uint								InstanceCount;
+uint								CPUAllocatedTileCount;
+uint								CPUAllocatedCompactedTileCount;
 
 uint GetTileTotalSegment(uint2 TileCoord, bool bPrintDetails, uint InTileSize)
 {
@@ -2040,7 +2045,11 @@ void MainCS(uint3 ThreadId : SV_DispatchThreadID)
 		Print(Context, TEXT("Num Rasterizers      : "), FontLegend); Print(Context, NumRasterizers, FontValue); Newline(Context);
 		Newline(Context);
 
-		Print(Context, TEXT("Alloc. Tile Count    : "), FontLegend); Print(Context, VisTileArgs[0], FontValue); Newline(Context);
+		const FFontColor AllocColor			 = InitFontColor(ColorMapTurbo(VisTileArgs[0] / float(CPUAllocatedTileCount)));
+		const FFontColor AllocCompactedColor = InitFontColor(ColorMapTurbo(CompactedVisTileArgs[0] / float(CPUAllocatedCompactedTileCount)));
+
+		Print(Context, TEXT("Alloc. Tile          : "), FontLegend); Print(Context, VisTileArgs[0], AllocColor); Print(Context, TEXT(" / "), FontLegend); Print(Context, CPUAllocatedTileCount, FontValue); Newline(Context);
+		Print(Context, TEXT("Alloc. Compacted Tile: "), FontLegend); Print(Context, CompactedVisTileArgs[0], AllocColor); Print(Context, TEXT(" / "), FontLegend); Print(Context, CPUAllocatedCompactedTileCount, FontValue); Newline(Context);
 		Print(Context, TEXT("Rasterizer Max Work  : "), FontLegend); Print(Context, NumRasterizers * MAX_WORK_COUNT, FontValue); Newline(Context);
 		Newline(Context);
 		

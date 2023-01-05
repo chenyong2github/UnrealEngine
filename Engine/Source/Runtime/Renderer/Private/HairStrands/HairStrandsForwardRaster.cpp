@@ -246,10 +246,14 @@ class FHairStrandsForwardRasterDebugCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeForwardCommonParameters, Common)
 		SHADER_PARAMETER(uint32, InstanceCount)
+		SHADER_PARAMETER(uint32, CPUAllocatedTileCount)
+		SHADER_PARAMETER(uint32, CPUAllocatedCompactedTileCount)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCountTexture_ForDebug)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairPixelCountPerTile_ForDebug)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTileArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CompactedVisTileArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, CompactedVisTileData)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
@@ -490,23 +494,26 @@ void AddHairStrandsForwardRasterPass(
 		FRDGBufferRef CompactedVisTileWorkCount;
 	};
 
+	const uint32 EntryCount = 5; // See VT_XXX in .usf: PrimOffset / PrimCount / Coord / MaxIndex / MinMaxDepth
+
 	FBinningData BinData;
 	{
-		const uint32 BinMaxTiles = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_MaxTiles, 1024), 262144); //?
+		const uint32 MaxPrimPerTile = 1024u;
+		const uint32 BinMaxTiles = FMath::Clamp(GHairVisibilityComputeRaster_MaxTiles, MaxPrimPerTile, 262144); //?
+		const uint32 MaxTotalPrims = BinMaxTiles * MaxPrimPerTile; // Number of 'binned' primitives. This number can/needs to be higher than the actual number of primitives, since a primitive can be binned into several bins
 
-		BinData.VisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.VisTilePrims"));
+		BinData.VisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTotalPrims), TEXT("Hair.VisTilePrims"));
 		BinData.VisTilePrimsSRV = GraphBuilder.CreateSRV(BinData.VisTilePrims, PF_R32_UINT);
 
-		BinData.VisTilePrimDepths = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.VisTilePrimDepths"));
+		BinData.VisTilePrimDepths = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTotalPrims), TEXT("Hair.VisTilePrimDepths"));
 		BinData.VisTilePrimDepthsSRV = GraphBuilder.CreateSRV(BinData.VisTilePrimDepths, PF_R32_UINT);
 
-		const uint32 EntryCount = 5; // See VT_XXX in .usf: PrimOffset / PrimCount / Coord / MaxIndex / MinMaxDepth
-		FRDGBufferDesc DescTileData = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), BinMaxTiles * EntryCount * 2);
+		FRDGBufferDesc DescTileData = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), BinMaxTiles * EntryCount);
 		DescTileData.Usage = EBufferUsageFlags(DescTileData.Usage | BUF_ByteAddressBuffer);
 		BinData.VisTileData = GraphBuilder.CreateBuffer(DescTileData, TEXT("Hair.VisTileData"));
 		BinData.VisTileDataSRV = GraphBuilder.CreateSRV(BinData.VisTileData);
 
-		FRDGBufferDesc VisTileArgsDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 4 + 16 + (((BinTileRes.X * BinTileRes.Y) + 31) / 32));
+		FRDGBufferDesc VisTileArgsDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1);
 		BinData.VisTileArgs = GraphBuilder.CreateBuffer(VisTileArgsDesc, TEXT("Hair.VisTileArgs"));
 		BinData.VisTileArgsUAV = GraphBuilder.CreateUAV(BinData.VisTileArgs, PF_R32_UINT);
 		BinData.VisTileArgsSRV = GraphBuilder.CreateSRV(BinData.VisTileArgs, PF_R32_UINT);
@@ -520,10 +527,10 @@ void AddHairStrandsForwardRasterPass(
 		BinData.VisTileBinningGridMinZUAV = GraphBuilder.CreateUAV(BinData.VisTileBinningGridMinZ);
 		BinData.VisTileBinningGridMaxZUAV = GraphBuilder.CreateUAV(BinData.VisTileBinningGridMaxZ);
 
-		BinData.CompactedVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.CompactedVisTilePrims"));
+		BinData.CompactedVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTotalPrims), TEXT("Hair.CompactedVisTilePrims"));
 		BinData.CompactedVisTileData = GraphBuilder.CreateBuffer(DescTileData, TEXT("Hair.CompactedVisTileData"));
 		BinData.CompactedVisTileArgs = GraphBuilder.CreateBuffer(VisTileArgsDesc, TEXT("Hair.CompactedVisTileArgs"));
-		BinData.CompactedVisTileWork		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), BinMaxTiles * 1024), TEXT("Hair.CompactedVisTileWork"));
+		BinData.CompactedVisTileWork		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxTotalPrims), TEXT("Hair.CompactedVisTileWork"));
 		BinData.CompactedVisTileDataCount	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Hair.CompactedVisTileDataCount"));
 		BinData.CompactedVisTileWorkCount	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Hair.CompactedVisTileWorkCount"));
 	}
@@ -696,8 +703,12 @@ void AddHairStrandsForwardRasterPass(
 		FHairStrandsForwardRasterDebugCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterDebugCS::FParameters>();
 		Parameters->Common = Common;
 		Parameters->InstanceCount = InData.RasterizedInstanceCount;
+		Parameters->CPUAllocatedTileCount = BinData.VisTileData->Desc.NumElements / EntryCount;
+		Parameters->CPUAllocatedCompactedTileCount = BinData.CompactedVisTileData->Desc.NumElements / EntryCount;
 		Parameters->VisTileData = GraphBuilder.CreateSRV(BinData.CompactedVisTileData);
 		Parameters->VisTileArgs = BinData.VisTileArgsSRV;
+		Parameters->CompactedVisTileData = GraphBuilder.CreateSRV(BinData.CompactedVisTileData);
+		Parameters->CompactedVisTileArgs = GraphBuilder.CreateSRV(BinData.CompactedVisTileArgs, PF_R32_UINT);
 		Parameters->HairCountTexture_ForDebug = HairCountTexture_ForDebug;
 		Parameters->HairPixelCountPerTile_ForDebug = HairPixelCountPerTile_ForDebug;
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
