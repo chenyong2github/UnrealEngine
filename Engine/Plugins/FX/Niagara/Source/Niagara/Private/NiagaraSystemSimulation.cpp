@@ -789,7 +789,7 @@ UNiagaraParameterCollectionInstance* FNiagaraSystemSimulation::GetParameterColle
 
 	if (System)
 	{
-		System->GetParameterCollectionOverride(Collection);
+		Ret = System->GetParameterCollectionOverride(Collection);
 	}
 
 	//If no explicit override from the system, just get the current instance set on the world.
