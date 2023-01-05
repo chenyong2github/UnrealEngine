@@ -33,6 +33,7 @@
 #include "PackageHelperFunctions.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardBuild.h"
 #include "MeshCardRepresentation.h"
 #include "Templates/UniquePtr.h"
 #include "CollectionManagerModule.h"

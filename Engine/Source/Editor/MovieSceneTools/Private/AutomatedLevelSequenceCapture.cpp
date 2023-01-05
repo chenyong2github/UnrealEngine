@@ -22,6 +22,7 @@
 #include "Protocols/AudioCaptureProtocol.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardBuild.h"
 #include "MeshCardRepresentation.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Systems/MovieSceneMotionVectorSimulationSystem.h"

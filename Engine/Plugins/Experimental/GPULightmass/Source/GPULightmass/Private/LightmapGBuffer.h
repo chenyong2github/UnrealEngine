@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GPULightmassCommon.h"
 #include "PrimitiveSceneProxy.h"
 #include "MeshPassProcessor.h"
@@ -9,6 +10,8 @@
 #include "MeshMaterialShader.h"
 #include "LightMapRendering.h"
 #include "Materials/Material.h"
+#include "SceneManagement.h"
+#include "MaterialDomain.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapGBufferParams, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ScratchTilePoolLayer0)

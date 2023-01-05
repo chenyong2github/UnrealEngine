@@ -15,6 +15,7 @@
 #include "DistanceFieldAtlas.h"
 #include "LumenSurfaceCacheFeedback.h"
 #include "LumenVisualizationData.h"
+#include "MeshCardBuild.h"
 
 // Must be in sync with VISUALIZE_MODE_* in LumenVisualize.h
 int32 GLumenVisualize = 0;

@@ -154,7 +154,7 @@
 	#include "Serialization/DerivedData.h"
 	#include "ShaderCompiler.h"
 	#include "DistanceFieldAtlas.h"
-	#include "MeshCardRepresentation.h"
+	#include "MeshCardBuild.h"
 	#include "GlobalShader.h"
 	#include "ShaderCodeLibrary.h"
 	#include "Materials/MaterialInterface.h"

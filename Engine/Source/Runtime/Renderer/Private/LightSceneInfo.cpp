@@ -165,6 +165,12 @@ void FLightSceneInfo::Detach()
 	}
 }
 
+FBoxCenterAndExtent FLightSceneInfo::GetBoundingBox() const
+{
+	FSphere BoundingSphere = Proxy->GetBoundingSphere();
+	return FBoxCenterAndExtent(BoundingSphere.Center, FVector(BoundingSphere.W, BoundingSphere.W, BoundingSphere.W));
+}
+
 bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View, bool bOffscreen) const
 {
 	// Only render the light if it is in the view frustum
@@ -209,9 +215,56 @@ bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View, bool bOffscreen) 
 		&& (Proxy->GetLightingChannelMask() & GetDefaultLightingChannelMask() || View.bUsesLightingChannels || bOffscreen);
 }
 
+bool FLightSceneInfo::ShouldRenderLightViewIndependent() const
+{
+	return !Proxy->GetColor().IsAlmostBlack()
+		// Only render lights with dynamic lighting or unbuilt static lights
+		&& (!Proxy->HasStaticLighting() || !IsPrecomputedLightingValid());
+}
+
+bool FLightSceneInfo::ShouldRenderViewIndependentWholeSceneShadows() const
+{
+	bool bShouldRenderLight = ShouldRenderLightViewIndependent();
+	bool bCastDynamicShadow = Proxy->CastsDynamicShadow();
+
+	// Also create a whole scene shadow for lights with precomputed shadows that are unbuilt
+	const bool bCreateShadowToPreviewStaticLight =
+		Proxy->HasStaticShadowing()
+		&& bCastDynamicShadow
+		&& !IsPrecomputedLightingValid();
+
+	bool bShouldRenderShadow = bShouldRenderLight && bCastDynamicShadow && (!Proxy->HasStaticLighting() || bCreateShadowToPreviewStaticLight);
+	return bShouldRenderShadow;
+}
+
 bool FLightSceneInfo::IsPrecomputedLightingValid() const
 {
 	return (bPrecomputedLightingIsValid && NumUnbuiltInteractions < GWholeSceneShadowUnbuiltInteractionThreshold) || !Proxy->HasStaticShadowing();
+}
+
+void FLightSceneInfo::SetDynamicShadowMapChannel(int32 NewChannel)
+{
+	if (Proxy->HasStaticShadowing())
+	{
+		// This ensure would trigger if several static shadowing light intersects eachother and have the same channel.
+		// ensure(Proxy->GetPreviewShadowMapChannel() == NewChannel);
+	}
+	else
+	{
+		DynamicShadowMapChannel = NewChannel;
+	}
+}
+
+int32 FLightSceneInfo::GetDynamicShadowMapChannel() const
+{
+	if (Proxy->HasStaticShadowing())
+	{
+		// Stationary lights get a channel assigned by ReassignStationaryLightChannels
+		return Proxy->GetPreviewShadowMapChannel();
+	}
+
+	// Movable lights get a channel assigned when they are added to the scene
+	return DynamicShadowMapChannel;
 }
 
 const TArray<FLightPrimitiveInteraction*>* FLightSceneInfo::GetInteractionShadowPrimitives() const
@@ -229,7 +282,7 @@ FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiv
 	return DynamicInteractionStaticPrimitiveList;
 }
 
-bool FLightSceneInfo::SetupMobileMovableLocalLightShadowParameters(const FViewInfo& View, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, FMobileMovableLocalLightShadowParameters& MobileMovableLocalLightShadowParameters) const
+bool FLightSceneInfo::SetupMobileMovableLocalLightShadowParameters(const FViewInfo& View, TConstArrayView<FVisibleLightInfo> VisibleLightInfos, FMobileMovableLocalLightShadowParameters& MobileMovableLocalLightShadowParameters) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLightSceneProxy_SetupMobileMovableLocalLightShadowParameters);
 

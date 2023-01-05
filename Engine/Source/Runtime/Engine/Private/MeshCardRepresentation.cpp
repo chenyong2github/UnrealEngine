@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "MeshCardRepresentation.h"
+#include "MeshCardBuild.h"
 #include "Engine/StaticMeshSourceData.h"
 #include "StaticMeshResources.h"
 #include "EngineLogs.h"

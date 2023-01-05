@@ -13,7 +13,7 @@
 #include "StaticMeshResources.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "DistanceFieldAtlas.h"
-#include "MeshCardRepresentation.h"
+#include "MeshCardBuild.h"
 #include "SceneInterface.h"
 
 #if WITH_EDITOR

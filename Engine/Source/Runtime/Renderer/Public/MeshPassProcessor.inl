@@ -6,7 +6,9 @@ MeshPassProcessor.inl:
 
 #pragma once
 
+#include "MeshPassProcessor.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "PrimitiveSceneProxy.h"
 #include "RHIStaticStates.h"
 #include "RenderGraphBuilder.h"
 

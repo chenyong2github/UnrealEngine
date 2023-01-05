@@ -11,6 +11,10 @@ class FLumenCard;
 class FLumenPrimitiveGroup;
 class FPrimitiveSceneInfo;
 struct FLumenSceneFrameTemporaries;
+class FRDGBuilder;
+class FSceneViewFamily;
+class FScene;
+class FMeshCardsBuildData;
 
 namespace Lumen
 {

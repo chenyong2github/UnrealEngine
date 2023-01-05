@@ -6,19 +6,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Math/GenericOctreePublic.h"
-#include "SceneManagement.h"
+#include "CoreTypes.h"
+#include "Math/Color.h"
 #include "Math/GenericOctree.h"
+#include "Math/GenericOctreePublic.h"
+#include "Math/UnrealMath.h"
 #include "PrimitiveSceneProxy.h"
-#include "Templates/UniquePtr.h"
-#include "SceneRendering.h"
+#include "SceneTypes.h"
 
 class FLightPrimitiveInteraction;
 class FLightSceneInfo;
+class FMobileMovableLocalLightShadowParameters;
 class FPrimitiveSceneInfoCompact;
+class FPrimitiveSceneProxy;
 class FScene;
 class FViewInfo;
+class FVisibleLightInfo;
+
+namespace ECastRayTracedShadow
+{
+	enum Type : int;
+}
 
 /**
  * The information needed to cull a light-primitive interaction.
@@ -272,64 +280,21 @@ public:
 	void Detach();
 
 	/** Octree bounds setup. */
-	FORCEINLINE FBoxCenterAndExtent GetBoundingBox() const
-	{
-		FSphere BoundingSphere = Proxy->GetBoundingSphere();
-		return FBoxCenterAndExtent(BoundingSphere.Center, FVector(BoundingSphere.W, BoundingSphere.W, BoundingSphere.W));
-	}
+	FBoxCenterAndExtent GetBoundingBox() const;
 
 	bool ShouldRenderLight(const FViewInfo& View, bool bOffscreen = false) const;
 
 	/** Encapsulates all View-Independent reasons to have this light render. */
-	bool ShouldRenderLightViewIndependent() const
-	{
-		return !Proxy->GetColor().IsAlmostBlack()
-			// Only render lights with dynamic lighting or unbuilt static lights
-			&& (!Proxy->HasStaticLighting() || !IsPrecomputedLightingValid());
-	}
+	bool ShouldRenderLightViewIndependent() const;
 
 	/** Encapsulates all View-Independent reasons to render ViewIndependentWholeSceneShadows for this light */
-	bool ShouldRenderViewIndependentWholeSceneShadows() const
-	{
-		bool bShouldRenderLight = ShouldRenderLightViewIndependent();
-		bool bCastDynamicShadow = Proxy->CastsDynamicShadow();
-		
-		// Also create a whole scene shadow for lights with precomputed shadows that are unbuilt
-		const bool bCreateShadowToPreviewStaticLight =
-			Proxy->HasStaticShadowing()
-			&& bCastDynamicShadow
-			&& !IsPrecomputedLightingValid();
-
-		bool bShouldRenderShadow = bShouldRenderLight && bCastDynamicShadow && (!Proxy->HasStaticLighting() || bCreateShadowToPreviewStaticLight);
-		return bShouldRenderShadow;
-	}
+	bool ShouldRenderViewIndependentWholeSceneShadows() const;
 
 	bool IsPrecomputedLightingValid() const;
 
-	void SetDynamicShadowMapChannel(int32 NewChannel)
-	{
-		if (Proxy->HasStaticShadowing())
-		{
-			// This ensure would trigger if several static shadowing light intersects eachother and have the same channel.
-			// ensure(Proxy->GetPreviewShadowMapChannel() == NewChannel);
-		}
-		else
-		{
-			DynamicShadowMapChannel = NewChannel;
-		}
-	}
+	void SetDynamicShadowMapChannel(int32 NewChannel);
 
-	int32 GetDynamicShadowMapChannel() const
-	{
-		if (Proxy->HasStaticShadowing())
-		{
-			// Stationary lights get a channel assigned by ReassignStationaryLightChannels
-			return Proxy->GetPreviewShadowMapChannel();
-		}
-
-		// Movable lights get a channel assigned when they are added to the scene
-		return DynamicShadowMapChannel;
-	}
+	int32 GetDynamicShadowMapChannel() const;
 
 	const TArray<FLightPrimitiveInteraction*>* GetInteractionShadowPrimitives() const;
 
@@ -343,7 +308,7 @@ public:
 		return (uint32)LightSceneInfo->Id;
 	}
 
-	bool SetupMobileMovableLocalLightShadowParameters(const FViewInfo& View, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, FMobileMovableLocalLightShadowParameters& MobileMovableLocalLightShadowParameters) const;
+	bool SetupMobileMovableLocalLightShadowParameters(const FViewInfo& View, TConstArrayView<FVisibleLightInfo> VisibleLightInfos, FMobileMovableLocalLightShadowParameters& MobileMovableLocalLightShadowParameters) const;
 
 	bool ShouldRecordShadowSubjectsForMobile() const;
 

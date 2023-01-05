@@ -2,6 +2,7 @@
 
 #include "HeterogeneousVolumes.h"
 
+#include "LocalVertexFactory.h"
 #include "PixelShaderUtils.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"

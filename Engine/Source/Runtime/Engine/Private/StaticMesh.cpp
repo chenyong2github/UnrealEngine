@@ -30,6 +30,7 @@
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "SpeedTreeWind.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardBuild.h"
 #include "MeshCardRepresentation.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"

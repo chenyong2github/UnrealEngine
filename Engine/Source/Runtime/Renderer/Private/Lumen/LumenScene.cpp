@@ -3,6 +3,7 @@
 #include "LumenMeshCards.h"
 #include "RendererPrivate.h"
 #include "Lumen.h"
+#include "MeshCardBuild.h"
 
 extern void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld);
 

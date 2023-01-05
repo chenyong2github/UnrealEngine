@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "RawMesh.h"
 #include "StaticMeshResources.h"
+#include "MeshCardBuild.h"
 #include "MeshCardRepresentation.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshRepresentationCommon.h"

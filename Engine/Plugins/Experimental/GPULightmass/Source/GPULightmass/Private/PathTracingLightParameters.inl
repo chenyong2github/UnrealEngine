@@ -7,6 +7,8 @@
 
 #if RHI_RAYTRACING
 
+#include "SystemTextures.h"
+
 RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV);
 
 static uint32 EncodeToF16x2(const FVector2f& In)

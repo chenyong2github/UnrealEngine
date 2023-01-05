@@ -17,6 +17,7 @@
 #include "GlobalShader.h"
 #include "SceneManagement.h"
 #include "TextureResource.h"
+#include "MeshCardBuild.h"
 #include "MeshCardRepresentation.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "ObjectCacheContext.h"

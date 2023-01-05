@@ -5,6 +5,7 @@
 #include "MeshCardRepresentation.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "LumenHeightfields.h"
+#include "MeshCardBuild.h"
 
 TAutoConsoleVariable<float> CVarLumenMeshCardsMinSize(
 	TEXT("r.LumenScene.SurfaceCache.MeshCardsMinSize"),

@@ -19,6 +19,7 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 #include "DeferredShadingRenderer.h"
 #include "MeshPassProcessor.inl"
 #include "TextureResource.h"
+#include "MeshUVChannelInfo.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModeUniformParameters, "DebugViewModeStruct");
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDebugViewModePassUniformParameters, "DebugViewModePass", SceneTextures);

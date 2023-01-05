@@ -15,7 +15,9 @@
 #include "Lumen/LumenSurfaceCacheFeedback.h"
 #include "Lumen/LumenUniqueList.h"
 #include "MeshCardRepresentation.h"
+#include "RenderTransform.h"
 #include "ShaderParameterMacros.h"
+#include "UnifiedBuffer.h"
 
 class FDistanceFieldSceneData;
 class FLumenCardBuildData;

@@ -11,6 +11,7 @@
 #include "DecalRenderingShared.h"
 #include "RayTracingTypes.h"
 #include "RayTracingDefinitions.h"
+#include <limits>
 
 TAutoConsoleVariable<int32> CVarDecalGridResolution(
 	TEXT("r.RayTracing.DecalGrid.Resolution"),

@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "RectLightTextureManager.h"
 #include "RenderTargetPool.h"
+#include "Engine/SubsurfaceProfile.h"
 #include "IESTextureManager.h"
 #include "GPUSort.h"
 

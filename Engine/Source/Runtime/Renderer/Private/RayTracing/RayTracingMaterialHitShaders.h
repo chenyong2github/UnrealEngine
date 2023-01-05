@@ -6,11 +6,14 @@
 
 #if RHI_RAYTRACING
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "LightMapRendering.h"
+#include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
 #include "MeshPassProcessor.inl"
 #include "RayTracingInstanceMask.h"
 #include "RayTracingPayloadType.h"
+#include "ShaderParameterStruct.h"
 
 enum class ERayTracingMeshCommandsMode : uint8;
 

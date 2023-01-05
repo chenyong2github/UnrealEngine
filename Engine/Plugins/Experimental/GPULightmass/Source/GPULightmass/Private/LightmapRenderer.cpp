@@ -28,6 +28,7 @@
 #include "RayTracingDynamicGeometryCollection.h"
 #include "ShaderCompiler.h"
 #include "RectLightTextureManager.h"
+#include "Engine/SubsurfaceProfile.h"
 #include "IESTextureManager.h"
 #include "PathTracing.h"
 

@@ -2,6 +2,7 @@
 
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "LightSceneInfo.h"
+#include "SceneManagement.h"
 
 void FDynamicShadowMapChannelBindingHelper::DisableChannel(int32 ChannelIndex)
 {
