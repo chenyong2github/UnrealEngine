@@ -73,7 +73,7 @@ class UControlRigTransformControlProxy : public UControlRigControlsProxy
 
 public:
 	
-	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control", meta = (SliderExponent = "1.0"))
 	FEulerTransform Transform; //FTransform doesn't work with multiple values for some reason, so for now using eulertransform which does work
 };
 
@@ -96,7 +96,7 @@ class UControlRigEulerTransformControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control", meta = (SliderExponent = "1.0"))
 	FEulerTransform Transform;
 };
 
@@ -119,7 +119,7 @@ class UControlRigTransformNoScaleControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control", meta = (SliderExponent = "1.0"))
 	FTransformNoScale Transform;
 };
 
@@ -141,7 +141,7 @@ class UControlRigFloatControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control", meta = (SliderExponent = "1.0"))
 	float Float;
 };
 
@@ -249,7 +249,7 @@ class UControlRigVectorControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control", meta = (SliderExponent = "1.0"))
 	FVector3f Vector;
 };
 
@@ -271,7 +271,7 @@ class UControlRigVector2DControlProxy : public UControlRigControlsProxy
 
 public:
 
-	UPROPERTY(EditAnywhere, Interp, Category = "Control")
+	UPROPERTY(EditAnywhere, Interp, Category = "Control", meta = (SliderExponent = "1.0"))
 	FVector2D Vector2D;
 };
 

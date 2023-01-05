@@ -715,6 +715,18 @@ EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 
 	FMovieSceneChannelProxyData Channels;
 
+#if WITH_EDITOR
+
+	auto GetValidConstraint = [](FConstraintAndActiveChannel& ConstraintChannel)
+	{
+		if (ConstraintChannel.Constraint.IsValid())
+		{
+			return ConstraintChannel.Constraint.Get();
+		}
+		return (ConstraintChannel.ConstraintCopyToSpawn.Get());
+	};
+#endif
+		
 	//Constraints go on top
 	int32 NumConstraints = 0;
 	if(Constraints)
@@ -722,11 +734,12 @@ EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 		for (FConstraintAndActiveChannel& ConstraintChannel : Constraints->ConstraintsChannels)
 		{
 #if WITH_EDITOR
-			if (ConstraintChannel.Constraint.IsValid())
+			TWeakObjectPtr<UTickableConstraint> WeakConstraint = GetValidConstraint(ConstraintChannel);
+			if (WeakConstraint.IsValid())
 			{
 				FText ConstraintGroup = NSLOCTEXT("MovieSceneTransformSection", "Constraints", "Constraints");
-				const FName& ConstraintName = ConstraintChannel.Constraint->GetFName();
-				ConstraintChannel.ActiveChannel.ExtraLabel = [WeakConstraint = MakeWeakObjectPtr(ConstraintChannel.Constraint.Get())]
+				const FName& ConstraintName = WeakConstraint->GetFName();
+				ConstraintChannel.ActiveChannel.ExtraLabel = [WeakConstraint]
 				{
 					if (WeakConstraint.IsValid())
 					{
@@ -739,7 +752,7 @@ EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 					static const FString DummyStr;
 					return DummyStr;
 				};
-				const FText DisplayText = FText::FromString(ConstraintChannel.Constraint->GetTypeLabel());
+				const FText DisplayText = FText::FromString(WeakConstraint->GetTypeLabel());
 				FMovieSceneChannelMetaData MetaData(ConstraintName, DisplayText, ConstraintGroup, true /*bInEnabled*/);
 				MetaData.SortOrder = NumConstraints++;
 				MetaData.bCanCollapseToTrack = false;

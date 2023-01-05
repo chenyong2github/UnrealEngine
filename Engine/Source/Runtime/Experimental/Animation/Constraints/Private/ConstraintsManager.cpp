@@ -432,6 +432,14 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 	}
 
 	Manager->Modify();
+	//it's possible this constraint was actually in another ConstraintActor::ConstraintManager so we need to move it over via Rename.
+	//and clear out it ticks function since that may have been registered
+	UConstraintsManager* Outer = InConstraint->GetTypedOuter<UConstraintsManager>();
+	if (Outer && Outer != Manager)
+	{
+		InConstraint->ConstraintTick.UnRegisterTickFunction();
+		InConstraint->Rename(nullptr, Manager, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+	}
 	Manager->Constraints.Emplace(InConstraint);
 
 	InConstraint->ConstraintTick.RegisterFunction(InConstraint->GetFunction());

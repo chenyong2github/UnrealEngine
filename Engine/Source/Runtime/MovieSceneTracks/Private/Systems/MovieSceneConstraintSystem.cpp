@@ -129,7 +129,8 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 				}
 				else // it's possible that we have it but it's not in the manager, due to manager not being saved with it (due to spawning or undo/redo).
 				{
-					if(Controller->GetConstraint(ConstraintChannel.ConstraintName) != Constraint)
+					const TArray< TObjectPtr<UTickableConstraint>>& ConstraintsArray = Controller->GetConstraintsArray();
+					if(ConstraintsArray.Find(Constraint) == INDEX_NONE)
 					{
 						Controller->AddConstraint(Constraint);
 					}
