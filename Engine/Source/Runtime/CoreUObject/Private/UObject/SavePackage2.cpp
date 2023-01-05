@@ -1045,6 +1045,13 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 	SaveContext.GetLinker()->Summary.PersistentGuid = SaveContext.GetPackage()->GetPersistentGuid();
 #endif
 	SaveContext.GetLinker()->Summary.Generations = TArray<FGenerationInfo>{ FGenerationInfo(0, 0) };
+	if (SaveContext.IsProceduralSave())
+	{
+		// Procedural saves should be deterministic, so we have to clear the EngineVersion fields
+		// to avoid indeterminism when it changes
+		SaveContext.GetLinker()->Summary.SavedByEngineVersion = FEngineVersion();
+		SaveContext.GetLinker()->Summary.CompatibleWithEngineVersion = FEngineVersion();
+	}
 
 	FLinkerSave* Linker = SaveContext.GetLinker();
 
