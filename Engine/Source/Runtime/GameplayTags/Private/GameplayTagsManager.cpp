@@ -322,6 +322,11 @@ void UGameplayTagsManager::GetTagSourceSearchPaths(TArray<FString>& OutPaths)
 	RegisteredSearchPaths.GenerateKeyArray(OutPaths);
 }
 
+int32 UGameplayTagsManager::GetNumTagSourceSearchPaths()
+{
+	return RegisteredSearchPaths.Num();
+}
+
 void UGameplayTagsManager::AddRestrictedGameplayTagSource(const FString& FileName)
 {
 	FName TagSource = FName(*FPaths::GetCleanFilename(FileName));

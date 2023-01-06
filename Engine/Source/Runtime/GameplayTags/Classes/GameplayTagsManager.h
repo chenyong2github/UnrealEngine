@@ -487,6 +487,9 @@ public:
 	/** Gets all the current directories to look for tag sources in */
 	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
 
+	/** Gets the number of tag source search paths */
+	int32 GetNumTagSourceSearchPaths();
+
 	/** Helper function to construct the gameplay tag tree */
 	void ConstructGameplayTagTree();
 
