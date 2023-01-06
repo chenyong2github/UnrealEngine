@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "PatchCheckModule.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+
+template<class PatchCheckClass> class TPatchCheckModule;
 
 PATCHCHECK_API DECLARE_LOG_CATEGORY_EXTERN(LogPatchCheck, Log, All);
 

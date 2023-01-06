@@ -110,7 +110,7 @@ public:
 public:
 	FInsetMeshRegion(FDynamicMesh3* mesh);
 
-	virtual ~FInsetMeshRegion() {}
+	virtual ~FInsetMeshRegion();
 
 
 	/**

@@ -8,6 +8,7 @@
 #include "SceneRendering.h"
 #include "RendererPrivateUtils.h"
 #include "Lumen.h"
+#include "Lumen/LumenSceneData.h"
 #include "LumenSceneRendering.h"
 
 class FDeferredLightUniformStruct;

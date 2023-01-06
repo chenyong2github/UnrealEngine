@@ -7,8 +7,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
-
-class FPatchCheck;
+#include "PatchCheck.h"
 
 class IPatchCheckModule : public IModuleInterface
 {

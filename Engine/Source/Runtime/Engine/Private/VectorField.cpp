@@ -45,6 +45,9 @@ DEFINE_LOG_CATEGORY(LogVectorField)
 	FVectorFieldResource implementation.
 ------------------------------------------------------------------------------*/
 
+FVectorFieldResource::FVectorFieldResource() {}
+FVectorFieldResource::~FVectorFieldResource(){}
+
 /**
  * Release RHI resources.
  */

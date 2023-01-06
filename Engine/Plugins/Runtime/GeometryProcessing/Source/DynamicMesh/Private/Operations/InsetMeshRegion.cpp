@@ -19,6 +19,9 @@ FInsetMeshRegion::FInsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
 {
 }
 
+FInsetMeshRegion::~FInsetMeshRegion()
+{
+}
 
 bool FInsetMeshRegion::Apply()
 {
