@@ -231,7 +231,7 @@ namespace EpicGames.Perforce
 				ReadOnlyMemory<byte> data = perforce.Data;
 				if (data.Length > 0 && responses.Count == 0 && data.Span[0] != '{')
 				{
-					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(data.Span));
+					throw new PerforceException("Unexpected response from server (expected '{{'):{0}", FormatDataAsString(data.Span));
 				}
 
 				// Parse the responses from the current buffer

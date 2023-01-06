@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 using EpicGames.Core;
 using EpicGames.Redis;
 using Horde.Build.Projects;
@@ -119,7 +120,7 @@ namespace Horde.Build.Configuration
 		readonly RedisKey _snapshotKey = "config";
 
 		readonly ITicker _ticker;
-		readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(2.0);
+		readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(10.0);
 
 		readonly RedisChannel _updateChannel = "config-update";
 		readonly BackgroundTask _updateTask;
@@ -315,18 +316,24 @@ namespace Horde.Build.Configuration
 		/// <returns>True if the snapshot is out of date</returns>
 		async Task<bool> IsOutOfDateAsync(ConfigSnapshot snapshot, CancellationToken cancellationToken)
 		{
-			foreach ((Uri uri, string version) in snapshot.Dependencies)
+			// Group the dependencies by scheme in order to allow the source to batch-query them
+			foreach(IGrouping<string, KeyValuePair<Uri, string>> group in snapshot.Dependencies.GroupBy(x => x.Key.Scheme))
 			{
+				KeyValuePair<Uri, string>[] pairs = group.ToArray();
+
 				IConfigSource? source;
-				if (!_sources.TryGetValue(uri.Scheme, out source))
+				if (!_sources.TryGetValue(group.Key, out source))
 				{
 					return true;
 				}
 
-				IConfigData data = await source.GetAsync(uri, cancellationToken);
-				if (!data.Revision.Equals(version, StringComparison.Ordinal))
+				IConfigData[] data = await source.GetAsync(pairs.ConvertAll(x => x.Key), cancellationToken);
+				for (int idx = 0; idx < pairs.Length; idx++)
 				{
-					return true;
+					if (!data[idx].Revision.Equals(pairs[idx].Value, StringComparison.Ordinal))
+					{
+						return true;
+					}
 				}
 			}
 			return false;

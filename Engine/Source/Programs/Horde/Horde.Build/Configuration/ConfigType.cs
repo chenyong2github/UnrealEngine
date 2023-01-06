@@ -349,21 +349,13 @@ namespace Horde.Build.Configuration
 			{
 				return new ScalarProperty(name, propertyInfo);
 			}
+			else if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(List<>))
+			{
+				Type elementType = propertyType.GetGenericArguments()[0];
+				return new ListProperty(name, propertyInfo, FindOrAddValueType(elementType));
+			}
 			else
 			{
-				if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(List<>))
-//				if (propertyType.IsAssignableTo(typeof(IList)))
-				{
-	//				foreach (Type type in propertyType.GetInterfaces())
-	//				{
-	//					if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IList<>))
-	//					{
-//							Type elementType = type.GetGenericArguments()[0];
-					Type elementType = propertyType.GetGenericArguments()[0];
-					return new ListProperty(name, propertyInfo, FindOrAddValueType(elementType));
-//						}
-//					}
-				}
 				return new ObjectProperty(name, propertyInfo, FindOrAdd(propertyType));
 			}
 		}
