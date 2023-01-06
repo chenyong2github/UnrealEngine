@@ -38,22 +38,7 @@ public:
 	* @return					Z axis flattened, modified trajectory range
 	*/
 	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(BlueprintThreadSafe))
-	static FTrajectorySampleRange FlattenTrajectory2D(FTrajectorySampleRange Trajectory, bool PreserveSpeed = true);
-
-	/**
-	* Projects trajectory samples onto a defined set of allowed directions
-	*
-	* @param Trajectory			Input trajectory range
-	* @param Directions			Input direction clamping, containing angle thresholds for determining source to target direction
-	* @param bPreserveRotation	If true, sample rotations will be replaced with the present sample rotation
-	*
-	* @return					Direction clamped, modified trajectory range
-	*/
-	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(BlueprintThreadSafe, AutoCreateRefTerm="Directions"))
-	static FTrajectorySampleRange ClampTrajectoryDirection(
-		FTrajectorySampleRange Trajectory, 
-		const TArray<FTrajectoryDirectionClamp>& Directions, 
-		bool bPreserveRotation = true);
+	static FTrajectorySampleRange FlattenTrajectory2D(FTrajectorySampleRange Trajectory);
 
 	/**
 	* Rotates the trajectory
@@ -169,7 +154,6 @@ public:
 	static bool IsSharpVelocityDirChange(
 		const FTrajectorySampleRange& Trajectory,
 		float MinSharpTurnAngleDegrees = 45.0f,
-		ETrajectorySampleDomain RotationConstraintDomain = ETrajectorySampleDomain::None,
 		float RotationConstraintValue = 0.0f,
 		float MaxAlignmentAngleDegrees = 5.0f,
 		float MinLinearSpeed = 1.0f,

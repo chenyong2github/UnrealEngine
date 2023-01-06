@@ -2505,8 +2505,7 @@ void FSequenceBaseSampler::ProcessRootDistance()
 	// Verify we sampled the final frame of the clip
 	check(SampleTime == SequenceBase->GetPlayLength());
 
-	// Also emit root motion summary info to help with sample wrapping in 
-	// FAssetIndexer::GetSampleTimeFromDistance() and FAssetIndexer::GetSampleInfo()
+	// Also emit root motion summary info to help with sample wrapping in FAssetIndexer::GetSampleInfo()
 	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	TotalRootDistance = AccumulatedRootDistance.Last();
 }
@@ -2896,8 +2895,7 @@ void FBlendSpaceSampler::ProcessRootDistance()
 	// Verify we sampled the final frame of the clip
 	check(SampleTime == PlayLength);
 
-	// Also emit root motion summary info to help with sample wrapping in 
-	// FAssetIndexer::GetSampleTimeFromDistance() and FAssetIndexer::GetSampleInfo()
+	// Also emit root motion summary info to help with sample wrapping in FAssetIndexer::GetSampleInfo()
 	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	TotalRootDistance = AccumulatedRootDistance.Last(); 
 }

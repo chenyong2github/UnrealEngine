@@ -9,44 +9,22 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectoryLibrary)
 
-static void FlattenTrajectoryPosition(
-	FTrajectorySample& Sample, 
-	const FTrajectorySample& PrevSample, 
-	const FTrajectorySample& FlattenedPrevSample, 
-	bool PreserveSpeed)
+static void FlattenTrajectoryPosition(FTrajectorySample& Sample, const FTrajectorySample& PrevSample, const FTrajectorySample& FlattenedPrevSample)
 {
 	if (!Sample.Transform.GetTranslation().IsZero())
 	{
 		const FVector Translation = Sample.Transform.GetLocation() - PrevSample.Transform.GetLocation();
 		const FVector FlattenedTranslation = FVector(Translation.X, Translation.Y, 0.0f);
 
-		if (PreserveSpeed)
-		{
-			const float TargetDistance = 
-				FMath::Abs(Sample.AccumulatedDistance - PrevSample.AccumulatedDistance);
-			const FVector FlattenedTranslationDir = Translation.GetSafeNormal2D();
-
-			// Take the full displacement, effectively meaning that the Z axis never existed
-			Sample.Transform.SetLocation(
-				FlattenedPrevSample.Transform.GetLocation() + (FlattenedTranslationDir * TargetDistance));
-		}
-		else
-		{
-			// Accumulate the delta displacement difference as a result of Z axis being removed
-			const float DeltaSeconds = Sample.AccumulatedSeconds - PrevSample.AccumulatedSeconds;
-			const float DeltaDistance = DeltaSeconds >= 0.0f ?
-				FlattenedTranslation.Size() :
-				-FlattenedTranslation.Size();
-
-			Sample.AccumulatedDistance = FlattenedPrevSample.AccumulatedDistance + DeltaDistance;
-			Sample.Transform.SetTranslation(FlattenedPrevSample.Transform.GetLocation() + FlattenedTranslation);
-		}
+		// Accumulate the delta displacement difference as a result of Z axis being removed
+		const float DeltaSeconds = Sample.AccumulatedSeconds - PrevSample.AccumulatedSeconds;
+		const float DeltaDistance = DeltaSeconds >= 0.0f ? FlattenedTranslation.Size() : -FlattenedTranslation.Size();
+		Sample.Transform.SetTranslation(FlattenedPrevSample.Transform.GetLocation() + FlattenedTranslation);
 	}
 }
 
-FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FTrajectorySampleRange Trajectory, bool bPreserveSpeed)
+FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FTrajectorySampleRange Trajectory)
 {
-
 	if (!Trajectory.HasSamples())
 	{
 		return Trajectory;
@@ -65,7 +43,7 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 		// Linear velocity Z-axis component removal
 		if (!Sample.LinearVelocity.IsZero())
 		{
-			const float VelMagnitude = bPreserveSpeed ? Sample.LinearVelocity.Size() : Sample.LinearVelocity.Size2D();
+			const float VelMagnitude = Sample.LinearVelocity.Size2D();
 			Sample.LinearVelocity = VelMagnitude * Sample.LinearVelocity.GetSafeNormal2D();
 		}
 	}
@@ -87,7 +65,7 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 	for (int32 Idx = PresentSampleIdx + 1, Num = Trajectory.Samples.Num(); Idx < Num; ++Idx)
 	{
 		FTrajectorySample CurrentSample = Trajectory.Samples[Idx];
-		FlattenTrajectoryPosition(Trajectory.Samples[Idx], PrevSample, Trajectory.Samples[Idx - 1], bPreserveSpeed);
+		FlattenTrajectoryPosition(Trajectory.Samples[Idx], PrevSample, Trajectory.Samples[Idx - 1]);
 		PrevSample = CurrentSample;
 	}
 
@@ -102,7 +80,7 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 	for (int32 Idx = PresentSampleIdx - 1, Begin = 0; Idx >= Begin; --Idx)
 	{
 		FTrajectorySample CurrentSample = Trajectory.Samples[Idx];
-		FlattenTrajectoryPosition(Trajectory.Samples[Idx], PrevSample, Trajectory.Samples[Idx + 1], bPreserveSpeed);
+		FlattenTrajectoryPosition(Trajectory.Samples[Idx], PrevSample, Trajectory.Samples[Idx + 1]);
 		PrevSample = CurrentSample;
 	}
 
@@ -138,61 +116,6 @@ static FVector ClampDirection(const FVector InputVector, const TArray<FTrajector
 
 	const FVector Output = InputLength * NearestDirection;
 	return Output;
-}
-
-FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::ClampTrajectoryDirection(FTrajectorySampleRange Trajectory, const TArray<FTrajectoryDirectionClamp>& Directions, bool bPreserveRotation)
-{
-	if (Directions.IsEmpty())
-	{
-		return Trajectory;
-	}
-
-	if (!Trajectory.HasSamples())
-	{
-		return Trajectory;
-	}
-
-	if (Trajectory.HasOnlyZeroSamples())
-	{
-		return Trajectory;
-	}
-
-	// The clamped present (zero domain) sample is used as the basis for projecting samples along its trajectory
-	FTrajectorySample* PresentSample = Algo::FindByPredicate(Trajectory.Samples, [](const FTrajectorySample& Sample) {
-		return FMath::IsNearlyZero(Sample.AccumulatedSeconds);
-	}
-	);
-
-	check(PresentSample)
-
-	if (!PresentSample->LinearVelocity.IsZero())
-	{
-		const FVector VelocityBasis = ClampDirection(PresentSample->LinearVelocity, Directions).GetSafeNormal();
-
-		for (auto& Sample : Trajectory.Samples)
-		{
-			// Align linear velocity onto the velocity basis to maintain the present intended direction, while retaining per-sample magnitude
-			if (!Sample.LinearVelocity.IsZero())
-			{
-				Sample.LinearVelocity = Sample.LinearVelocity.Size() * Sample.LinearVelocity.ProjectOnTo(VelocityBasis).GetSafeNormal();
-			}
-
-			// Align the position path through projection onto the modified velocity
-			if (!Sample.LinearVelocity.IsZero() && !Sample.Transform.GetLocation().IsZero())
-			{
-				Sample.Transform.SetLocation(
-					FMath::Abs(Sample.AccumulatedDistance) * 
-					Sample.Transform.GetLocation().ProjectOnTo(Sample.LinearVelocity).GetSafeNormal());
-			}
-
-			if (bPreserveRotation)
-			{
-				Sample.Transform.SetRotation(PresentSample->Transform.GetRotation());
-			}
-		}
-	}
-
-	return Trajectory;
 }
 
 FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::RotateTrajectory(
@@ -261,17 +184,11 @@ bool UMotionTrajectoryBlueprintLibrary::IsStoppingTrajectory(
 		const float SquaredLastLinearSpeed = LastLinearVelocity.SquaredLength();
 		
 		int StartIdx = 0;
-		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
-			Trajectory.Samples, 
-			ETrajectorySampleDomain::Time, 
-			0.0f, 
-			StartIdx);
+		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, 0.f, StartIdx);
 		const FVector PresenLinearVelocity = PresentSample.LinearVelocity;
 		const float SquaredPresentLinearSpeed = PresenLinearVelocity.SquaredLength();
 
-		const bool bIsStopping =
-			(SquaredPresentLinearSpeed >= (MoveMinSpeed * MoveMinSpeed)) &&
-			(SquaredLastLinearSpeed <= (IdleMaxSpeed * IdleMaxSpeed));
+		const bool bIsStopping = (SquaredPresentLinearSpeed >= (MoveMinSpeed * MoveMinSpeed)) && (SquaredLastLinearSpeed <= (IdleMaxSpeed * IdleMaxSpeed));
 
 		return bIsStopping;
 	}
@@ -290,17 +207,11 @@ bool UMotionTrajectoryBlueprintLibrary::IsStartingTrajectory(
 		const float SquaredFirstLinearSpeed = FirstLinearVelocity.SquaredLength();
 
 		int StartIdx = 0;
-		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
-			Trajectory.Samples,
-			ETrajectorySampleDomain::Time,
-			0.0f,
-			StartIdx);
+		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, 0.f, StartIdx);
 		const FVector PresentLinearVelocity = PresentSample.LinearVelocity;
 		const float SquaredPresentLinearSpeed = PresentLinearVelocity.SquaredLength();
 
-		const bool IsStarting =
-			(SquaredPresentLinearSpeed >= (MoveMinSpeed * MoveMinSpeed)) &&
-			(SquaredFirstLinearSpeed <= (IdleMaxSpeed * IdleMaxSpeed));
+		const bool IsStarting = (SquaredPresentLinearSpeed >= (MoveMinSpeed * MoveMinSpeed)) && (SquaredFirstLinearSpeed <= (IdleMaxSpeed * IdleMaxSpeed));
 
 		return IsStarting;
 	}
@@ -331,11 +242,7 @@ bool UMotionTrajectoryBlueprintLibrary::IsConstantSpeedTrajectory(
 		const bool LastSpeedWithinLimit = IsWithinLimit(SquaredLastLinearSpeed);
 
 		int StartIdx = 0;
-		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
-			Trajectory.Samples,
-			ETrajectorySampleDomain::Time,
-			0.0f,
-			StartIdx);
+		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, 0.f, StartIdx);
 		const FVector PresentLinearVelocity = PresentSample.LinearVelocity;
 		const float SquaredPresentLinearSpeed = PresentLinearVelocity.SquaredLength();
 		const bool PresentSpeedWithinLimit = IsWithinLimit(SquaredLastLinearSpeed);
@@ -354,13 +261,8 @@ namespace UE::MotionTrajectory
 	{
 
 	public:
-		FTurnEvaluator(
-			const FTrajectorySampleRange& InTrajectory, 
-			ETrajectorySampleDomain InRotationConstraintDomain,
-			float InRotationConstraintLimit,
-			const FVector& InTurnAxis)
+		FTurnEvaluator(const FTrajectorySampleRange& InTrajectory, float InRotationConstraintLimit, const FVector& InTurnAxis)
 			: Trajectory(InTrajectory)
-			, RotationConstraintDomain(InRotationConstraintDomain)
 			, RotationConstraintLimit(InRotationConstraintLimit)
 			, TurnAxis(InTurnAxis)
 		{
@@ -369,7 +271,6 @@ namespace UE::MotionTrajectory
 		}
 
 		const FTrajectorySampleRange& Trajectory;
-		ETrajectorySampleDomain RotationConstraintDomain;
 		float RotationConstraintLimit;
 		FVector TurnAxis;
 
@@ -567,15 +468,7 @@ namespace UE::MotionTrajectory
 
 		float GetAccumulatedDomainValue(const FTrajectorySample& Sample)
 		{
-			switch (RotationConstraintDomain)
-			{
-			case ETrajectorySampleDomain::Distance:
-				return Sample.AccumulatedDistance;
-			case ETrajectorySampleDomain::Time:
-				return Sample.AccumulatedSeconds;
-			}
-
-			return 0.0f;
+			return Sample.AccumulatedSeconds;
 		}
 
 		// A sample is contributing to the sharp turn if it is turning to the same side as FastestRelativeTurnSpeed,
@@ -605,8 +498,7 @@ namespace UE::MotionTrajectory
 				const float SampleLengthContribution = StartDomainValue - PrevDomainValue;
 				const float NewTurnLength = SampleLengthContribution + CurrentTurnLength;
 
-				if ((RotationConstraintDomain == ETrajectorySampleDomain::None) ||
-					(NewTurnLength <= RotationConstraintLimit))
+				if (NewTurnLength <= RotationConstraintLimit)
 				{
 					const float DeltaTime =
 						Trajectory.Samples[SampleIdx].AccumulatedSeconds -
@@ -665,7 +557,6 @@ namespace UE::MotionTrajectory
 bool UMotionTrajectoryBlueprintLibrary::IsSharpVelocityDirChange(
 	const FTrajectorySampleRange& Trajectory,
 	float MinSharpTurnAngleDegrees,
-	ETrajectorySampleDomain RotationConstraintDomain,
 	float RotationConstraintValue,
 	float MaxAlignmentAngleDegrees,
 	float MinLinearSpeed,
@@ -681,11 +572,7 @@ bool UMotionTrajectoryBlueprintLibrary::IsSharpVelocityDirChange(
 	const int32 LastSampleIdx = Trajectory.Samples.Num() - 1;
 
 	int32 PresentIdx = 0;
-	const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
-		Trajectory.Samples,
-		ETrajectorySampleDomain::Time,
-		0.0f,
-		PresentIdx);
+	const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, 0.f, PresentIdx);
 
 	if (PresentIdx >= LastSampleIdx)
 	{
@@ -714,11 +601,7 @@ bool UMotionTrajectoryBlueprintLibrary::IsSharpVelocityDirChange(
 		return false;
 	}
 
-	UE::MotionTrajectory::FTurnEvaluator TurnEvaluator = UE::MotionTrajectory::FTurnEvaluator(
-		Trajectory, 
-		RotationConstraintDomain, 
-		RotationConstraintValue, 
-		TurnAxis);
+	UE::MotionTrajectory::FTurnEvaluator TurnEvaluator = UE::MotionTrajectory::FTurnEvaluator(Trajectory, RotationConstraintValue, TurnAxis);
 
 	if (!TurnEvaluator.IsTurning(PresentIdx, ForwardAxis, MaxAlignmentAngleDegrees))
 	{

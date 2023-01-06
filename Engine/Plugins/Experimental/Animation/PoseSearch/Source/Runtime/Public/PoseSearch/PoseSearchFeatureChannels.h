@@ -194,16 +194,6 @@ protected:
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Trajectory
-UENUM()
-enum class EPoseSearchFeatureDomain : int32
-{
-	Time,
-	Distance,
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
-};
-
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EPoseSearchTrajectoryFlags : uint32
 {
@@ -244,9 +234,6 @@ class POSESEARCH_API UPoseSearchFeatureChannel_Trajectory : public UPoseSearchFe
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category="Settings")
-	EPoseSearchFeatureDomain Domain = EPoseSearchFeatureDomain::Time;
-
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	float Weight = 1.f;
 
@@ -272,7 +259,6 @@ public:
 
 protected:
 	void IndexAssetPrivate(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, TArrayView<float> FeatureVector) const;
-	float GetSampleTime(const UE::PoseSearch::IAssetIndexer& Indexer, float Offset, float SampleTime, float RootDistance) const;
 };
 
 //////////////////////////////////////////////////////////////////////////

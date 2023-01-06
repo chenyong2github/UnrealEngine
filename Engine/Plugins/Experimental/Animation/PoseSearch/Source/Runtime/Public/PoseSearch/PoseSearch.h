@@ -423,7 +423,6 @@ public:
 	virtual const FAssetIndexingContext& GetIndexingContext() const = 0;
 	virtual FSampleInfo GetSampleInfo(float SampleTime) const = 0;
 	virtual FSampleInfo GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const = 0;
-	virtual const float GetSampleTimeFromDistance(float Distance) const = 0;
 	virtual FTransform MirrorTransform(const FTransform& Transform) const = 0;
 	virtual FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) = 0;
 };

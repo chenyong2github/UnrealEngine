@@ -589,7 +589,6 @@ public: // IAssetIndexer
 	const FAssetIndexingContext& GetIndexingContext() const override { return IndexingContext; }
 	FSampleInfo GetSampleInfo(float SampleTime) const override;
 	FSampleInfo GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const override;
-	const float GetSampleTimeFromDistance(float Distance) const override;
 	FTransform MirrorTransform(const FTransform& Transform) const override;
 	FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) override;
 
@@ -676,44 +675,6 @@ bool FAssetIndexer::Process()
 	}
 
 	return true;
-}
-
-const float FAssetIndexer::GetSampleTimeFromDistance(float SampleDistance) const
-{
-	constexpr float SMALL_ROOT_DISTANCE = 1.0f;
-	const bool bCanWrap = IndexingContext.AssetSampler->IsLoopable() && IndexingContext.AssetSampler->GetTotalRootDistance() > SMALL_ROOT_DISTANCE;
-
-	float RelativeDistance = SampleDistance;
-	if (SampleDistance < 0.0f && bCanWrap)
-	{
-		// In this case we're sampling a loop backwards, so MainRelativeDistance must adjust so the number of cycles 
-		// is counted correctly.
-		RelativeDistance += IndexingContext.AssetSampler->GetTotalRootDistance();
-	}
-
-	const float MainTotalDistance = IndexingContext.AssetSampler->GetTotalRootDistance();
-	const FSamplingParam SamplingParam = WrapOrClampSamplingParam(bCanWrap, MainTotalDistance, RelativeDistance);
-	const float ClipTime = IndexingContext.AssetSampler->GetTimeFromRootDistance(SamplingParam.WrappedParam + SamplingParam.Extrapolation);
-
-	// Unwrap the clip time
-	float SampleTime = MAX_flt;
-	if (bCanWrap)
-	{
-		if (SampleDistance < 0.0f)
-		{
-			SampleTime = -((SamplingParam.NumCycles * IndexingContext.AssetSampler->GetPlayLength()) + (IndexingContext.AssetSampler->GetPlayLength() - ClipTime));
-		}
-		else
-		{
-			SampleTime = SamplingParam.NumCycles * IndexingContext.AssetSampler->GetPlayLength() + ClipTime;
-		}
-	}
-	else
-	{
-		SampleTime = ClipTime;
-	}
-
-	return SampleTime;
 }
 
 FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const

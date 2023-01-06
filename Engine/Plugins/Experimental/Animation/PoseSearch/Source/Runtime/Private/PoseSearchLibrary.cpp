@@ -233,15 +233,8 @@ static void TraceMotionMatchingState(
 	{
 		// simulation
 		int32 FirstIdx = 0;
-		const FTrajectorySample PrevSample = FTrajectorySampleRange::IterSampleTrajectory(
-			Trajectory.Samples,
-			ETrajectorySampleDomain::Time,
-			-DeltaTime, FirstIdx);
-
-		const FTrajectorySample CurrSample = FTrajectorySampleRange::IterSampleTrajectory(
-			Trajectory.Samples,
-			ETrajectorySampleDomain::Time,
-			0.0f, FirstIdx);
+		const FTrajectorySample PrevSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, -DeltaTime, FirstIdx);
+		const FTrajectorySample CurrSample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, 0.f, FirstIdx);
 
 		const FTransform SimDelta = CurrSample.Transform.GetRelativeTransform(PrevSample.Transform);
 

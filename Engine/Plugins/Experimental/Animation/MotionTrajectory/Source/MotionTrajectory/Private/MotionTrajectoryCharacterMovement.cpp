@@ -185,7 +185,6 @@ void UCharacterMovementTrajectoryComponent::PredictTrajectory(
 
 	FTrajectorySample Sample = PresentTrajectory;
 	FTrajectorySample PreviousSample = PresentTrajectory;
-	float AccumulatedDistance = 0.f;
 	float AccumulatedTime = 0.f;
 	FRotator ControlRotationTotalDelta = FRotator::ZeroRotator;
 
@@ -194,8 +193,6 @@ void UCharacterMovementTrajectoryComponent::PredictTrajectory(
 		PreviousSample = Sample;
 		StepPrediction(IntegrationDelta, InDesiredControlRotationVelocity, ControlRotationTotalDelta, Sample);
 
-		AccumulatedDistance += FVector::Distance(PreviousSample.Transform.GetLocation(), Sample.Transform.GetLocation());
-		Sample.AccumulatedDistance = AccumulatedDistance;
 		AccumulatedTime += IntegrationDelta;
 		Sample.AccumulatedSeconds = AccumulatedTime;
 

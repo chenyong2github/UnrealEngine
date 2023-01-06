@@ -1401,23 +1401,6 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAsset(UE::PoseSearch::IAssetInde
 	}
 }
 
-float UPoseSearchFeatureChannel_Trajectory::GetSampleTime(const UE::PoseSearch::IAssetIndexer& Indexer, float Offset, float SampleTime, float RootDistance) const
-{
-	switch (Domain)
-	{
-	case EPoseSearchFeatureDomain::Time:
-		return SampleTime + Offset;
-
-	case EPoseSearchFeatureDomain::Distance:
-		return Indexer.GetSampleTimeFromDistance(RootDistance + Offset);
-
-	default:
-		checkNoEntry();
-	}
-	
-	return 0.0f;
-}
-
 void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, TArrayView<float> FeatureVector) const
 {
 	// This function samples the instantaneous trajectory at time t as well as the trajectory's velocity and acceleration at time t.
@@ -1437,7 +1420,7 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 	int32 DataOffset = ChannelDataOffset;
 	for (const FPoseSearchTrajectorySample& Sample : Samples)
 	{
-		const float SubsampleTime = GetSampleTime(Indexer, Sample.Offset, SampleTime, Origin.RootDistance);
+		const float SubsampleTime = Sample.Offset + SampleTime;
 
 		// For each pose subsample term, get the corresponding clip, accumulated root motion,
 			// and wrap the time parameter based on the clip's length.
@@ -1520,22 +1503,6 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 		return false;
 	}
 
-	ETrajectorySampleDomain SampleDomain;
-	switch (Domain)
-	{
-		case EPoseSearchFeatureDomain::Time:
-			SampleDomain = ETrajectorySampleDomain::Time;
-			break;
-
-		case EPoseSearchFeatureDomain::Distance:
-			SampleDomain = ETrajectorySampleDomain::Distance;
-			break;
-
-		default:
-			checkNoEntry();
-			return false;
-	}
-
 	int32 NextIterStartIdx = 0;
 	int32 DataOffset = ChannelDataOffset;
 	float PreviousOffset = -FLT_MAX;
@@ -1543,7 +1510,7 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 	{
 		// making sure Samples are sorted
 		check(Sample.Offset >= PreviousOffset);
-		const FTrajectorySample TrajectorySample = FTrajectorySampleRange::IterSampleTrajectory(SearchContext.Trajectory->Samples, SampleDomain, Sample.Offset, NextIterStartIdx);
+		const FTrajectorySample TrajectorySample = FTrajectorySampleRange::IterSampleTrajectory(SearchContext.Trajectory->Samples, Sample.Offset, NextIterStartIdx);
 
 		const FVector LinearVelocityDirection = TrajectorySample.LinearVelocity.GetClampedToMaxSize(1.0f);
 		const FVector FacingDirection = TrajectorySample.Transform.GetRotation().GetForwardVector();

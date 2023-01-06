@@ -14,17 +14,14 @@
 static constexpr int32 DebugTrajectorySampleDisable = 0;
 static constexpr int32 DebugTrajectorySampleCount = 1;
 static constexpr int32 DebugTrajectorySampleTime = 2;
-static constexpr int32 DebugTrajectorySampleDistance = 3;
-static constexpr int32 DebugTrajectorySamplePosition = 4;
-static constexpr int32 DebugTrajectorySampleVelocity = 5;
+static constexpr int32 DebugTrajectorySamplePosition = 3;
+static constexpr int32 DebugTrajectorySampleVelocity = 4;
 static const FVector DebugSampleTypeOffset(0.f, 0.f, 50.f);
 static const FVector DebugSampleOffset(0.f, 0.f, 10.f);
 
 TAutoConsoleVariable<int32> CVarMotionTrajectoryDebug(TEXT("a.MotionTrajectory.Debug"), 0, TEXT("Turn on debug drawing for motion trajectory"));
 TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugStride(TEXT("a.MotionTrajectory.Stride"), 1, TEXT("Configure the sample stride when displaying information"));
-TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugOptions(TEXT("a.MotionTrajectory.Options"), 0,
-	TEXT("Toggle motion trajectory sample information:\n 0. Disable Text\n 1. Index\n2. Accumulated Time\n 3. Accumulated Distance\n 4. Position\n 5. Velocity\n 6. Acceleration")
-);
+TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugOptions(TEXT("a.MotionTrajectory.Options"), 0, TEXT("Toggle motion trajectory sample information:\n 0. Disable Text\n 1. Index\n2. Accumulated Time\n 3. Position\n 4. Velocity\n 5. Acceleration"));
 #endif
 
 namespace
@@ -62,7 +59,6 @@ bool FTrajectorySample::IsZeroSample() const
 	// AccumulatedTime is specifically omitted here to allow for the zero sample semantic across an entire trajectory range
 	return LinearVelocity.IsNearlyZero()
 		&& Transform.GetTranslation().IsNearlyZero()
-		&& FMath::IsNearlyZero(AccumulatedDistance)
 		&& Transform.GetRotation().IsIdentity();
 }
 
@@ -70,7 +66,6 @@ FTrajectorySample FTrajectorySample::Lerp(const FTrajectorySample& Sample, float
 {
 	FTrajectorySample Interp;
 	Interp.AccumulatedSeconds = FMath::Lerp(AccumulatedSeconds, Sample.AccumulatedSeconds, Alpha);
-	Interp.AccumulatedDistance = FMath::Lerp(AccumulatedDistance, Sample.AccumulatedDistance, Alpha);
 	Interp.LinearVelocity = FMath::Lerp(LinearVelocity, Sample.LinearVelocity, Alpha);
 
 	Interp.Transform.Blend(Transform, Sample.Transform, Alpha);
@@ -84,7 +79,6 @@ FTrajectorySample FTrajectorySample::SmoothInterp(const FTrajectorySample& PrevS
 	, float Alpha) const
 {
 	FTrajectorySample Interp;
-	Interp.AccumulatedDistance = CubicCRSplineInterpSafe(PrevSample.AccumulatedDistance, AccumulatedDistance, Sample.AccumulatedDistance, NextSample.AccumulatedDistance, Alpha);
 	Interp.AccumulatedSeconds = CubicCRSplineInterpSafe(PrevSample.AccumulatedSeconds, AccumulatedSeconds, Sample.AccumulatedSeconds, NextSample.AccumulatedSeconds, Alpha);
 	Interp.LinearVelocity = CubicCRSplineInterpSafe(PrevSample.LinearVelocity, LinearVelocity, Sample.LinearVelocity, NextSample.LinearVelocity, Alpha);
 
@@ -115,20 +109,6 @@ FTrajectorySample FTrajectorySample::SmoothInterp(const FTrajectorySample& PrevS
 void FTrajectorySample::PrependOffset(const FTransform DeltaTransform, float DeltaSeconds)
 {
 	AccumulatedSeconds += DeltaSeconds;
-
-	if (FMath::IsNearlyZero(AccumulatedSeconds))
-	{
-		AccumulatedDistance = 0.0f;
-	}
-	else
-	{
-		const float DistanceOffset = DeltaSeconds >= 0.0f ?
-			DeltaTransform.GetTranslation().Size() :
-			-DeltaTransform.GetTranslation().Size();
-
-		AccumulatedDistance += DistanceOffset;
-	}
-
 	Transform *= DeltaTransform;
 	LinearVelocity = DeltaTransform.TransformVectorNoScale(LinearVelocity);
 }
@@ -244,10 +224,6 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 				case DebugTrajectorySampleTime: // Sample Accumulated Time
 					DebugString = "Sample Time:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].AccumulatedSeconds });
-					break;
-				case DebugTrajectorySampleDistance: // Sample Accumulated Distance
-					DebugString = "Sample Distance:";
-					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].AccumulatedDistance });
 					break;
 				case DebugTrajectorySamplePosition: // Sample Position
 					DebugString = "Sample Position:";

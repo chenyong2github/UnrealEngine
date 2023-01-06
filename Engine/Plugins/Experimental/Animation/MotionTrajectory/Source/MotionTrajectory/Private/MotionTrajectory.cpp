@@ -39,7 +39,6 @@ void UMotionTrajectoryComponent::TickTrajectory(float DeltaTime)
 {
 	// Compute the instantaneous/present trajectory sample and guarantee that is zeroed on all accumulated domains
 	PresentTrajectorySampleWS = CalcWorldSpacePresentTrajectorySample(DeltaTime);
-	PresentTrajectorySampleWS.AccumulatedDistance = 0.f;
 	PresentTrajectorySampleWS.AccumulatedSeconds = 0.f;
 
 	// convert to local space
@@ -243,7 +242,7 @@ FTrajectorySampleRange UMotionTrajectoryComponent::GetHistory() const
 			const float SampleTime = FirstUniformSampleTime + static_cast<float>(Idx) * SampleFrequency;
 			if (SampleTime < -UE_KINDA_SMALL_NUMBER)
 			{
-				const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(SampleHistory, ETrajectorySampleDomain::Time, SampleTime, InterpStartIdx, bSmoothInterpolation);
+				const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(SampleHistory, SampleTime, InterpStartIdx, bSmoothInterpolation);
 				UniformHistory.Samples.Emplace(Sample);
 			}
 			else

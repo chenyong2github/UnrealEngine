@@ -6,17 +6,6 @@
 
 #include "MotionTrajectoryTypes.generated.h"
 
-// Enumeration for signaling which "Accumulated" domain values to respect when determining past and future sampling horizons
-UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
-enum class ETrajectorySampleDomain : uint8
-{
-	None = 0,
-	Time = 1 << 0, // Seconds
-	Distance = 1 << 1 // Centimeters (Unreal units)
-};
-ENUM_CLASS_FLAGS(ETrajectorySampleDomain);
-
-// A motion trajectory sample associated with a specific time or distance domain value
 USTRUCT(BlueprintType, Category="Motion Trajectory")
 struct ENGINE_API FTrajectorySample
 {
@@ -26,11 +15,6 @@ struct ENGINE_API FTrajectorySample
 	// Zero value for instantaneous, negative values for the past, and positive values for the future
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	float AccumulatedSeconds = 0.f;
-
-	// The relative accumulated distance that this trajectory sample is associated with
-	// Zero value for instantaneous, negative values for the past, and positive values for the future
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
-	float AccumulatedDistance = 0.f;
 
 	// Position relative to the sampled in-motion object
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
@@ -74,7 +58,7 @@ struct ENGINE_API FTrajectorySampleRange
 	static constexpr float DebugDefaultArrowSize = 40.f;
 	static constexpr float DebugDefaultArrowThickness = 2.f;
 
-	// Linearly ordered (Time or Distance domain) container for past, present, and future trajectory samples
+	// Linearly ordered container for past, present, and future trajectory samples
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	TArray<FTrajectorySample> Samples;
 
@@ -118,7 +102,7 @@ struct ENGINE_API FTrajectorySampleRange
 		, float VelArrowThickness = DebugDefaultArrowThickness) const;
 
 	// Iterator for precise subsampling of the trajectory
-	template <typename Container> static FTrajectorySample IterSampleTrajectory(const Container& Samples, ETrajectorySampleDomain DomainType, float DomainValue, int32& InitialIdx, bool bSmoothInterp = false)
+	template <typename Container> static FTrajectorySample IterSampleTrajectory(const Container& Samples, float DomainValue, int32& InitialIdx, bool bSmoothInterp = false)
 	{
 		auto SafeNextIndex = [](float Idx, float Num)
 		{
@@ -134,7 +118,7 @@ struct ENGINE_API FTrajectorySampleRange
 		for (int32 Idx = InitialIdx, Num = Samples.Num(); Idx < Num; ++Idx)
 		{
 			const FTrajectorySample& NextSample = Samples[Idx];
-			const float NextDomainValue = DomainType == ETrajectorySampleDomain::Time ? NextSample.AccumulatedSeconds : NextSample.AccumulatedDistance;
+			const float NextDomainValue = NextSample.AccumulatedSeconds;
 
 			// Continue traversing the samples until an appropriate "right-hand" side domain value is found for interpolation 
 			if (NextDomainValue < DomainValue)
@@ -149,7 +133,7 @@ struct ENGINE_API FTrajectorySampleRange
 				// Find the interpolation factor of P between: [P1 .. P .. P2] by mapping the domain values to [0 ... 1]
 				// Note: NextIdx is biased to equal P1 rather than P2 to account for cases where subsequent trajectory iterations may require subsampling between [P1 ... P2] again
 				const FTrajectorySample& InitialSample = Samples[InitialIdx];
-				const float PrevDomainValue = DomainType == ETrajectorySampleDomain::Time ? InitialSample.AccumulatedSeconds : InitialSample.AccumulatedDistance;
+				const float PrevDomainValue = InitialSample.AccumulatedSeconds;
 				const float Alpha = FMath::GetMappedRangeValueUnclamped(FVector2f(PrevDomainValue, NextDomainValue), FVector2f(0.f, 1.f), DomainValue);
 
 				FTrajectorySample InterpSample;

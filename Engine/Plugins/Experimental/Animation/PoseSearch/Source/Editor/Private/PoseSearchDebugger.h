@@ -18,7 +18,6 @@ class UAnimSequence;
 class UBlendSpace;
 
 namespace TraceServices { class IAnalysisSession; }
-enum class EPoseSearchFeatureDomain;
 class UPoseSearchDatabase;
 class IUnrealInsightsModule;
 class ITableRow;
