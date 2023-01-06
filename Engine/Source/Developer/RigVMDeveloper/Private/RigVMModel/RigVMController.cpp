@@ -5710,6 +5710,11 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 		LinkPaths.Add(TPair< FString, FString >(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath()));
 	}
 
+	if (bSetupUndoRedo)
+	{
+		ActionStack->AddAction(FRigVMPromoteNodeAction(InFunctionRefNode, NodeName, FunctionDefinition->GetPathName()));
+	}
+
 	RemoveNode(InFunctionRefNode, false, true);
 
 	if (RequestNewExternalVariableDelegate.IsBound())
@@ -5765,11 +5770,6 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 		{
 			AddLink(LinkPath.Key, LinkPath.Value, false);
 		}
-	}
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMPromoteNodeAction(InFunctionRefNode, NodeName, FunctionDefinition->GetPathName()));
 	}
 
 	if(bRemoveFunctionDefinition)
