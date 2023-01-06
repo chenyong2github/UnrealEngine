@@ -253,10 +253,7 @@ namespace Horde.Build.Configuration
 				if (node is JsonObject obj)
 				{
 					Uri? otherFile;
-					if (!context.PropertyPathToFile.TryGetValue(Name, out otherFile))
-					{
-						context.AddProperty(Name);
-					}
+					context.TryAddProperty(Name, out otherFile);
 
 					context.EnterScope(Name);
 

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace Horde.Build.Configuration
@@ -69,13 +70,31 @@ namespace Horde.Build.Configuration
 		/// <param name="name"></param>
 		public void AddProperty(string name)
 		{
+			if (!TryAddProperty(name, out Uri? otherFile))
+			{
+				throw new ConfigException(this, $"Property {CurrentScope}.{name} was already defined in {otherFile}.");
+			}
+		}
+
+		/// <summary>
+		/// Marks a property as defined in the current file
+		/// </summary>
+		/// <param name="name">Name of the property within the current scope</param>
+		/// <param name="otherFile">If the property is not added, the file that previously defined it</param>
+		public bool TryAddProperty(string name, [NotNullWhen(false)] out Uri? otherFile)
+		{
 			string propertyPath = $"{CurrentScope}.{name}";
 
 			Uri currentFile = CurrentFile;
-			if (!PropertyPathToFile.TryAdd(propertyPath, currentFile))
+			if (PropertyPathToFile.TryAdd(propertyPath, currentFile))
 			{
-				Uri otherFile = PropertyPathToFile[propertyPath];
-				throw new ConfigException(this, $"Property {propertyPath} was already defined in {otherFile}.");
+				otherFile = null;
+				return true;
+			}
+			else
+			{
+				otherFile = PropertyPathToFile[propertyPath];
+				return false;
 			}
 		}
 
