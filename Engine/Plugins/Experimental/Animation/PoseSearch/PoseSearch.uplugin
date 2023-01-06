@@ -36,14 +36,6 @@
 			]
 		},
 		{
-			"Name": "AnimationWarping",
-			"Enabled": true
-		},
-		{
-			"Name": "MotionTrajectory",
-			"Enabled": true
-		},
-		{
 			"Name": "StructUtils",
 			"Enabled": true
 		}

@@ -23,7 +23,6 @@ public class PoseSearch : ModuleRules
 				"TraceLog",
 				"AnimGraphRuntime",
 				"GameplayTags",
-				"MotionTrajectory",
 				"StructUtils"
 			}
 		);
