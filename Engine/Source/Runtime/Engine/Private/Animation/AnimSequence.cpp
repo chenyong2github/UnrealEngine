@@ -2406,7 +2406,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 		}
 		// @todo end rig testing
 		// @IMPORTANT: now otherwise this will try to do bone to bone mapping
-		else if(OldSkeleton)
+		else if(OldSkeleton && OldSkeleton != NewSkeleton)
 		{
 			// Validate animation tracks against the new skeleton, any tracks linked to bones that do not exist in the new hierarchy are removed
 			Controller->RemoveBoneTracksMissingFromSkeleton(NewSkeleton);
@@ -3746,6 +3746,11 @@ void UAnimSequence::EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData,
 }
 
 #if WITH_EDITOR
+void UAnimSequence::OnSetSkeleton(USkeleton* NewSkeleton)
+{
+	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
+}
+
 void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName)
 {
 	ValidateModel();

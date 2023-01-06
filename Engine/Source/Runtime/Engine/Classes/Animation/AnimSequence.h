@@ -404,6 +404,7 @@ public:
 #if WITH_EDITOR
 	virtual bool GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive = true) override;
 	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap) override;
+	virtual void OnSetSkeleton(USkeleton* NewSkeleton) override;
 #endif
 	//~ End UAnimationAsset Interface
 
