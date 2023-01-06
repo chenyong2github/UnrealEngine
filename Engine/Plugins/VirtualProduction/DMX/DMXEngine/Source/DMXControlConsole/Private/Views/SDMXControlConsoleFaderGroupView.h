@@ -23,8 +23,6 @@ class STableViewBase;
 class SDMXControlConsoleFaderGroupView
 	: public SCompoundWidget
 {
-	DECLARE_DELEGATE_OneParam(FDMXOnFaderSelectionChanged, int32)
-
 public:
 	SLATE_BEGIN_ARGS(SDMXControlConsoleFaderGroupView)
 	{}
@@ -43,6 +41,9 @@ public:
 	/** Gets Fader Group's name */
 	FString GetFaderGroupName() const;
 
+	/** Forces expansion of Faders widget */
+	void ExpandFadersWidget();
+
 	/** Gets wether this Fader Group's Faders widget is expanded or not */
 	bool IsExpanded() const { return bIsExpanded; }
 
@@ -55,14 +56,11 @@ private:
 	/** Generates Faders widget */
 	TSharedRef<SWidget> GenerateFadersWidget();
 
-	/** Forces expansion of Faders widget */
-	void ExpandFadersWidget();
-
 	/** Generates a Fader widget for each Fader referenced in Faders array */
 	TSharedRef<ITableRow> OnGenerateFader(TWeakObjectPtr<UDMXControlConsoleFaderBase> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	
 	/** Changes Faders ListView selection */
-	void OnFaderSelectionChanged();
+	void OnFaderSelectionChanged(UDMXControlConsoleFaderBase* Fader);
 
 	/** Clears Faders ListView selection */
 	void OnClearFaderSelection() const;
@@ -78,12 +76,6 @@ private:
 
 	/** Notifies this Fader Group to add a new Fader */
 	FReply OnAddFaderClicked();
-
-	/** Notifies to this Fader Group to be deleted */
-	void OnDeleteFaderGroup();
-
-	/** Notifies to this Fader Group to be selected */
-	void OnSelectFaderGroup();
 
 	/** Should be called when a Fader was added to the Fader Group this view displays */
 	void OnFaderAdded();

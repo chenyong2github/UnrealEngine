@@ -53,6 +53,28 @@ void UDMXControlConsole::GenarateFromDMXLibrary()
 
 	TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = GetAllFaderGroups();
+	TArray<UDMXEntityFixturePatch*> AllFixturePatchesInUse;
+	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
+	{
+		if (!FaderGroup)
+		{
+			continue;
+		}
+
+		if (!FaderGroup->HasFixturePatch())
+		{
+			continue;
+		}
+
+		AllFixturePatchesInUse.Add(FaderGroup->GetFixturePatch());
+	}
+
+	FixturePatchesInLibrary.RemoveAll([AllFixturePatchesInUse](UDMXEntityFixturePatch* FixturePatch)
+		{
+			return AllFixturePatchesInUse.Contains(FixturePatch);
+		});
+
 	auto SortFixturePatchesLambda = [](const UDMXEntityFixturePatch* ItemA, const UDMXEntityFixturePatch* ItemB)
 		{
 			const int32 UniverseIDA = ItemA->GetUniverseID();
@@ -99,15 +121,12 @@ void UDMXControlConsole::GenarateFromDMXLibrary()
 
 		const int32 NextFaderGroupIndex = FaderGroupRow->GetFaderGroups().Num();
 
-		FDMXEntityFixturePatchRef FixturePatchRef;
-		FixturePatchRef.SetEntity(FixturePatch);
-
 		UDMXControlConsoleFaderGroup* FaderGroup = FaderGroupRow->AddFaderGroup(NextFaderGroupIndex);
 		if (!FaderGroup)
 		{
 			continue;
 		}
-		FaderGroup->GenerateFromFixturePatch(FixturePatchRef);
+		FaderGroup->GenerateFromFixturePatch(FixturePatch);
 
 		if (RowFirstFaderGroup)
 		{
@@ -116,14 +135,14 @@ void UDMXControlConsole::GenarateFromDMXLibrary()
 	}
 }
 
-void UDMXControlConsole::PlayDMX()
+void UDMXControlConsole::SendDMX()
 {
-	bIsPlayingDMX = true;
+	bIsSendingDMX = true;
 }
 
 void UDMXControlConsole::StopDMX()
 {
-	bIsPlayingDMX = false;
+	bIsSendingDMX = false;
 }
 
 void UDMXControlConsole::UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts)
@@ -141,21 +160,16 @@ void UDMXControlConsole::Reset()
 	ClearFaderGroupRows();
 }
 
-void UDMXControlConsole::SetForceRefresh(bool bRefresh)
-{
-	bForceRefresh = bRefresh;
-}
-
 void UDMXControlConsole::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	bIsPlayingDMX = false;
+	bIsSendingDMX = false;
 }
 
 void UDMXControlConsole::Tick(float InDeltaTime)
 {
-	if (!IsPlayingDMX())
+	if (!IsSendingDMX())
 	{
 		return;
 	}
@@ -168,7 +182,7 @@ void UDMXControlConsole::Tick(float InDeltaTime)
 			continue;
 		}
 
-		UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatchRef().GetFixturePatch();
+		UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
 		if (FixturePatch)
 		{
 			const TMap<FDMXAttributeName, int32> AttributeMap = FaderGroup->GetAttributeMap();

@@ -73,6 +73,9 @@ private:
 	/** Handles when the user changes the Fader value */
 	void HandleValueChanged(uint32 NewValue);
 
+	/** Called when fader selection changes */
+	void OnSelectionChanged(UDMXControlConsoleFaderBase* InFader);
+
 	/** Called when the delete button was clicked */
 	FReply OnDeleteClicked();
 
@@ -81,6 +84,9 @@ private:
 
 	/** Gets correct text for mute button */
 	FSlateColor GetMuteButtonColor() const;
+
+	/** Gets wheter the FaderSpinBox widget should be enabled or not */
+	bool GetFaderSpinBoxEnabled() const;
 
 	/**  Gets visibility attribute of the delete button */
 	EVisibility GetDeleteButtonVisibility() const;

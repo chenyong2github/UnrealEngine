@@ -36,8 +36,6 @@ void SDMXControlConsoleFaderGroupView::Construct(const FArguments& InArgs, const
 		return;
 	}
 
-	bIsExpanded = false;
-
 	ChildSlot
 		[
 			SNew(SHorizontalBox)
@@ -51,8 +49,6 @@ void SDMXControlConsoleFaderGroupView::Construct(const FArguments& InArgs, const
 				.OnAddFaderGroup(this, &SDMXControlConsoleFaderGroupView::OnAddFaderGroupClicked)
 				.OnAddFaderGroupRow(this, &SDMXControlConsoleFaderGroupView::OnAddFaderGroupRowClicked)
 				.OnExpanded(this, &SDMXControlConsoleFaderGroupView::OnFaderGroupExpanded)
-				.OnDeleted(this, &SDMXControlConsoleFaderGroupView::OnDeleteFaderGroup)
-				.OnSelected(this, &SDMXControlConsoleFaderGroupView::OnSelectFaderGroup)
 			]
 	
 			//Fader Group View Faders UI widget
@@ -88,6 +84,11 @@ FString SDMXControlConsoleFaderGroupView::GetFaderGroupName() const
 	}
 
 	return FaderGroup->GetFaderGroupName(); 
+}
+
+void SDMXControlConsoleFaderGroupView::ExpandFadersWidget()
+{
+	bIsExpanded = true;
 }
 
 void SDMXControlConsoleFaderGroupView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -156,16 +157,6 @@ TSharedRef<SWidget> SDMXControlConsoleFaderGroupView::GenerateFadersWidget()
 	return FadersWidget.ToSharedRef();
 }
 
-void SDMXControlConsoleFaderGroupView::ExpandFadersWidget()
-{
-	if (IsExpanded())
-	{
-		return;
-	}
-
-	bIsExpanded = true;
-}
-
 TSharedRef<ITableRow> SDMXControlConsoleFaderGroupView::OnGenerateFader(TWeakObjectPtr<UDMXControlConsoleFaderBase> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	const TSharedRef<SWidget> NewFader = SNew(SDMXControlConsoleFader, Item.Get());
@@ -176,7 +167,7 @@ TSharedRef<ITableRow> SDMXControlConsoleFaderGroupView::OnGenerateFader(TWeakObj
 		];
 }
 
-void SDMXControlConsoleFaderGroupView::OnFaderSelectionChanged()
+void SDMXControlConsoleFaderGroupView::OnFaderSelectionChanged(UDMXControlConsoleFaderBase* Fader)
 {
 	if (!ensureMsgf(FaderGroup.IsValid(), TEXT("Invalid fader, cannot update faders selection correctly.")))
 	{
@@ -267,73 +258,6 @@ FReply SDMXControlConsoleFaderGroupView::OnAddFaderClicked()
 	return FReply::Handled();
 }
 
-void SDMXControlConsoleFaderGroupView::OnDeleteFaderGroup()
-{
-	if (!ensureMsgf(FaderGroup.IsValid(), TEXT("Invalid fader group, cannot delete fader group correctly.")))
-	{
-		return;
-	}
-
-	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
-
-	const FScopedTransaction DeleteFaderGroupTransaction(LOCTEXT("DeleteFaderGroupTransaction", "Delete Fader Group"));
-	if (SelectionHandler->IsMultiselectAllowed())
-	{
-		const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
-		for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
-		{
-			UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			if (!SelectedFaderGroup)
-			{
-				continue;
-			}
-
-			SelectedFaderGroup->PreEditChange(nullptr);
-
-			SelectedFaderGroup->Destroy();
-
-			SelectedFaderGroup->PostEditChange();
-
-			SelectionHandler->ClearFadersSelection(SelectedFaderGroup);
-			SelectionHandler->RemoveFromSelection(SelectedFaderGroup);
-		}
-	}
-	else
-	{
-		FaderGroup->PreEditChange(nullptr);
-
-		SelectionHandler->RemoveFromSelection(FaderGroup.Get());
-		FaderGroup->Destroy();
-
-		FaderGroup->PostEditChange();
-	}
-}
-
-void SDMXControlConsoleFaderGroupView::OnSelectFaderGroup()
-{
-	if (!ensureMsgf(FaderGroup.IsValid(), TEXT("Invalid fader group, cannot select fader group correctly.")))
-	{
-		return;
-	}
-
-	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
-	const bool bIsSelected = SelectionHandler->IsSelected(FaderGroup.Get());
-
-	if (!SelectionHandler->IsMultiselectAllowed())
-	{
-		SelectionHandler->ClearSelection();
-	}
-
-	if (!bIsSelected)
-	{
-		SelectionHandler->AddToSelection(FaderGroup.Get());
-	}
-	else
-	{
-		SelectionHandler->RemoveFromSelection(FaderGroup.Get());
-	}
-}
-
 void SDMXControlConsoleFaderGroupView::OnFaderAdded()
 {
 	const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetFaders();
@@ -390,8 +314,7 @@ EVisibility SDMXControlConsoleFaderGroupView::GetAddFaderButtonVisibility() cons
 		return EVisibility::Collapsed;
 	}
 
-	const FDMXEntityFixturePatchRef& FixturePatchRef = FaderGroup->GetFixturePatchRef();
-	return FixturePatchRef.GetFixturePatch() ? EVisibility::Collapsed : EVisibility::Visible;
+	return FaderGroup->GetFixturePatch() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -6,6 +6,7 @@
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleManager.h"
 #include "DMXControlConsoleSelection.h"
+#include "Library/DMXEntityFixturePatch.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -14,6 +15,7 @@
 #include "PropertyHandle.h"
 #include "Layout/Visibility.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -22,18 +24,12 @@
 
 void FDMXControlConsoleFaderGroupDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
-	const TObjectPtr<UDMXControlConsole> ControlConsole = FDMXControlConsoleManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
-	{
-		return;
-	}
-
 	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	IDetailCategoryBuilder& FaderGroupCategory = InDetailLayout.EditCategory("DMX Fader Group", FText::GetEmpty());
 
-	FixturePatchRefHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetFixturePatchRefPropertyName());
-	InDetailLayout.HideProperty(FixturePatchRefHandle);
+	FixturePatchHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetFixturePatchPropertyName());
+	InDetailLayout.HideProperty(FixturePatchHandle);
 
 	const TSharedPtr<IPropertyHandle> FaderGroupNameHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetFaderGroupNamePropertyName());
 	InDetailLayout.HideProperty(FaderGroupNameHandle);
@@ -46,7 +42,20 @@ void FDMXControlConsoleFaderGroupDetails::CustomizeDetails(IDetailLayoutBuilder&
 	FaderGroupCategory.AddProperty(EditorColorHandle)
 		.Visibility(TAttribute<EVisibility>::CreateSP(this, &FDMXControlConsoleFaderGroupDetails::GetEditorColorVisibility));
 
-	FaderGroupCategory.AddProperty(FixturePatchRefHandle);
+	FaderGroupCategory.AddCustomRow(FText::GetEmpty())
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Text(LOCTEXT("FixturePatch", "Fixture Patch"))
+		]
+		.ValueContent()
+		[
+			SNew(SEditableTextBox)
+			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.IsReadOnly(true)
+			.Text(this, &FDMXControlConsoleFaderGroupDetails::GetFixturePatchText)
+		];
 
 	FaderGroupCategory.AddCustomRow(FText::GetEmpty())
 		.Visibility(TAttribute<EVisibility>::CreateSP(this, &FDMXControlConsoleFaderGroupDetails::GetClearButtonVisibility))
@@ -61,7 +70,7 @@ void FDMXControlConsoleFaderGroupDetails::CustomizeDetails(IDetailLayoutBuilder&
 				[
 					SNew(STextBlock)
 					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					.Text(LOCTEXT("Clear", "Clear"))
+					.Text(LOCTEXT("ClearButtonTitle", "Clear"))
 				]
 			]
 		];
@@ -96,8 +105,8 @@ bool FDMXControlConsoleFaderGroupDetails::DoSelectedFaderGroupsHaveAnyFixturePat
 			continue;
 		}
 
-		const FDMXEntityFixturePatchRef FixturePatchRef = SelectedFaderGroup->GetFixturePatchRef();
-		if (!FixturePatchRef.GetFixturePatch())
+		const UDMXEntityFixturePatch* FixturePatch = SelectedFaderGroup->GetFixturePatch();
+		if (!FixturePatch)
 		{
 			continue;
 		}
@@ -111,15 +120,42 @@ bool FDMXControlConsoleFaderGroupDetails::DoSelectedFaderGroupsHaveAnyFixturePat
 
 FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 {
-	if (!FixturePatchRefHandle.IsValid())
+	if (FixturePatchHandle.IsValid())
 	{
-		return FReply::Unhandled();
+		FixturePatchHandle->NotifyPostChange(EPropertyChangeType::Interactive);
+		ForceRefresh();
 	}
 
-	FixturePatchRefHandle->NotifyPostChange(EPropertyChangeType::Interactive);
-	ForceRefresh();
-
 	return FReply::Handled();
+}
+
+FText FDMXControlConsoleFaderGroupDetails::GetFixturePatchText() const
+{
+	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+
+	if (SelectedFaderGroupsObjects.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+	else if (SelectedFaderGroupsObjects.Num() > 1 && DoSelectedFaderGroupsHaveAnyFixturePatches())
+	{
+		return FText::FromString(TEXT("Multiple Values"));
+	}
+
+	const UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupsObjects[0]);
+	if (!SelectedFaderGroup)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (!SelectedFaderGroup->HasFixturePatch())
+	{
+		return LOCTEXT("FaderGroupFixturePatchNoneName", "None");
+	}
+
+	UDMXEntityFixturePatch* FixturePatch = SelectedFaderGroup->GetFixturePatch();
+	return FText::FromString(FixturePatch->GetDisplayName());
 }
 
 EVisibility FDMXControlConsoleFaderGroupDetails::GetEditorColorVisibility() const

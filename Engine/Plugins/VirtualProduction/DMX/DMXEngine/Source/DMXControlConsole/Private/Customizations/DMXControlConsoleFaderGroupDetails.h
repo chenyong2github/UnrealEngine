@@ -7,6 +7,7 @@
 
 class FDMXControlConsoleManager;
 class UDMXControlConsoleFaderGroup;
+class UDMXLibrary;
 
 struct EVisibility;
 class FReply;
@@ -39,14 +40,17 @@ private:
 	/** Called when Clear button is clicked */
 	FReply OnClearButtonClicked();
 
+	/** Gets current selected FaderGroup Fixture Patch name */
+	FText GetFixturePatchText() const;
+
 	/** Gets visibility attribute of the Editor Color Property */
 	EVisibility GetEditorColorVisibility() const;
 
 	/** Gets visibility attribute of the Clear button */
 	EVisibility GetClearButtonVisibility() const;
 
-	/** Property Handle of FixturePatchRef property of the current customized Fader Group */
-	TSharedPtr<IPropertyHandle> FixturePatchRefHandle;
+	/** Property Handle for FixturePatch property of the current customized Fader Group */
+	TSharedPtr<IPropertyHandle> FixturePatchHandle;
 
 	/** Property Utilities for this Details Customization layout */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;

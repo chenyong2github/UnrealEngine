@@ -14,6 +14,9 @@ class FDMXControlConsoleSelection
 	: public TSharedFromThis<FDMXControlConsoleSelection>
 {
 public:
+	DECLARE_EVENT_OneParam(FDMXControlConsoleSelection, FDMXFaderSelectionEvent, UDMXControlConsoleFaderBase*)
+	DECLARE_EVENT_OneParam(FDMXControlConsoleSelection, FDMXFaderGroupSelectionEvent, UDMXControlConsoleFaderGroup*)
+
 	/** Constructor */
 	FDMXControlConsoleSelection(const TSharedRef<FDMXControlConsoleManager>& InControlConsoleManager);
 
@@ -29,14 +32,23 @@ public:
 	/** Removes the given Fader from selection */
 	void RemoveFromSelection(UDMXControlConsoleFaderBase* Fader);
 
+	/** Handles Fader Groups multiselection */
+	void Multiselect(UDMXControlConsoleFaderGroup* FaderGroup);
+
+	/** Handles Faders multiselection */
+	void Multiselect(UDMXControlConsoleFaderBase* Fader);
+
+	/** Replaces the given selected Fader Group with the next available one */
+	void ReplaceInSelection(UDMXControlConsoleFaderGroup* FaderGroup);
+
+	/** Replaces the given selected Fader with the next available one */
+	void ReplaceInSelection(UDMXControlConsoleFaderBase* Fader);
+
 	/** Gets wheter the given Fader Group is selected or not */
 	bool IsSelected(UDMXControlConsoleFaderGroup* FaderGroup) const;
 
 	/** Gets wheter the given Fader is selected or not */
 	bool IsSelected(UDMXControlConsoleFaderBase* Fader) const;
-
-	/** Gets wether Fader Groups multiselecton is allowed or not */
-	bool IsMultiselectAllowed() const { return bAllowMultiselect; }
 
 	/** Sets multiselection state */
 	void SetAllowMultiselect(bool bAllow);
@@ -52,21 +64,30 @@ public:
 
 	/** Gets Selected Fader Gorups array */
 	TArray<TWeakObjectPtr<UObject>> GetSelectedFaderGroups() const { return SelectedFaderGroups; }
+
+	/** Gets first selected Fader Group sorted by index */
+	UDMXControlConsoleFaderGroup* GetFirstSelectedFaderGroup() const;
 	
 	/** Gets Selected Faders array */
 	TArray<TWeakObjectPtr<UObject>> GetSelectedFaders() const { return SelectedFaders; }
 
+	/** Gets first selected Fader sorted by index */
+	UDMXControlConsoleFaderBase* GetFirstSelectedFader() const;
+
 	/** Gets all selected Faders from the fiven Fader Group */
 	TArray<UDMXControlConsoleFaderBase*> GetSelectedFadersFromFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup) const;
 
+	/** Gets a reference to OnSelectionChanged delegate */
+	FSimpleMulticastDelegate& GetOnSelectionChanged() { return OnSelectionChanged; }
+
 	/** Gets a reference to OnFaderGroupSelectionChanged delegate */
-	FSimpleMulticastDelegate& GetOnFaderGroupSelectionChanged() { return OnFaderGroupSelectionChanged; }
+	FDMXFaderGroupSelectionEvent& GetOnFaderGroupSelectionChanged() { return OnFaderGroupSelectionChanged; }
 
 	/** Gets a reference to OnClearFaderGroupSelection delegate */
 	FSimpleMulticastDelegate& GetOnClearFaderGroupSelection() { return OnClearFaderGroupSelection; }
 
 	/** Gets a reference to OnFaderSelectionChanged delegate */
-	FSimpleMulticastDelegate& GetOnFaderSelectionChanged() { return OnFaderSelectionChanged; }
+	FDMXFaderSelectionEvent& GetOnFaderSelectionChanged() { return OnFaderSelectionChanged; }
 
 	/** Gets a reference to OnClearFaderSelection delegate */
 	FSimpleMulticastDelegate& GetOnClearFaderSelection() { return OnClearFaderSelection; }
@@ -81,18 +102,18 @@ private:
 	/** Array of current selected Faders */
 	TArray<TWeakObjectPtr<UObject>> SelectedFaders;
 
+	/** Called whenever current selection changes */
+	FSimpleMulticastDelegate OnSelectionChanged;
+
 	/** Called when Fader Group selection changes */
-	FSimpleMulticastDelegate OnFaderGroupSelectionChanged;
+	FDMXFaderGroupSelectionEvent OnFaderGroupSelectionChanged;
 
 	/** Called on Fader Group selection clearing */
 	FSimpleMulticastDelegate OnClearFaderGroupSelection;
 
 	/** Called when Fader selection changes */
-	FSimpleMulticastDelegate OnFaderSelectionChanged;
+	FDMXFaderSelectionEvent OnFaderSelectionChanged;
 
 	/** Called on Fader selection clearing */
 	FSimpleMulticastDelegate OnClearFaderSelection;
-
-	/** Shows if Fader Groups multiselection is allowed */
-	bool bAllowMultiselect = false;;
 };

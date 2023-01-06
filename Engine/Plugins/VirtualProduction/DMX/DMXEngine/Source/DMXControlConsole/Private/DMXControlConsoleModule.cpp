@@ -52,11 +52,11 @@ void FDMXControlConsoleModule::RegisterControlConsoleActions()
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleCommands::Get().PlayDMX,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::PlayDMX),
-		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanPlayDMX),
+		FDMXControlConsoleCommands::Get().SendDMX,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::SendDMX),
+		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanSendDMX),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanPlayDMX)
+		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleManager::CanSendDMX)
 	);
 
 	CommandList->MapAction

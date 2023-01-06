@@ -18,7 +18,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> OpenControlConsole;
 
-	TSharedPtr<FUICommandInfo> PlayDMX;
+	TSharedPtr<FUICommandInfo> SendDMX;
 	TSharedPtr<FUICommandInfo> StopDMX;
 	TSharedPtr<FUICommandInfo> ClearAll;
 };

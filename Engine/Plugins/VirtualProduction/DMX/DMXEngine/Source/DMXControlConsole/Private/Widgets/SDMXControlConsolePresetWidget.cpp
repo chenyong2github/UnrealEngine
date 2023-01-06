@@ -30,6 +30,7 @@ void SDMXControlConsolePresetWidget::Construct(const FArguments& InArgs)
 
 			// 'Save Preset' button
 			+ SHorizontalBox::Slot()
+			.AutoWidth()
 			.Padding(4.f,0.f)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
@@ -41,25 +42,29 @@ void SDMXControlConsolePresetWidget::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SDMXControlConsolePresetWidget::OnSaveClicked)
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
-					SNew(SImage)
-					.Image(FAppStyle::GetBrush("Icons.Save"))
-				]
-			]
+					SNew(SHorizontalBox)
 
-			// Asset Picker
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.f, 0.f)
-			[
-				SNew(SAssetPickerButton)
-				.AssetClass(UDMXControlConsolePreset::StaticClass())
-				.CurrentAssetValue(this, &SDMXControlConsolePresetWidget::GetSelectedPreset)
-				.OnAssetSelected(this, &SDMXControlConsolePresetWidget::OnPresetSelected)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush("Icons.Save"))
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(8.f, 0.f, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("SaveButtonText", "Save"))
+					]
+				]
 			]
 
 			// 'Create New Preset' button
 			+ SHorizontalBox::Slot()
-			.Padding(4.f, 0.f)
+			.AutoWidth()
+			.Padding(8.f, 0.f)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
@@ -70,9 +75,34 @@ void SDMXControlConsolePresetWidget::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SDMXControlConsolePresetWidget::OnCreateNewClicked)
 				.ForegroundColor(FSlateColor::UseForeground())
 				[
-					SNew(SImage)
-					.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(8.f, 0.f, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CreateNewPresetText", "Create Preset"))
+					]
 				]
+			]
+
+			// Asset Picker
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.f, 0.f)
+			[
+				SNew(SAssetPickerButton)
+				.AssetClass(UDMXControlConsolePreset::StaticClass())
+				.CurrentAssetValue(this, &SDMXControlConsolePresetWidget::GetSelectedPreset)
+				.OnAssetSelected(this, &SDMXControlConsolePresetWidget::OnPresetSelected)
 			]
 		];
 }

@@ -85,32 +85,33 @@ void FDMXControlConsoleManager::LoadFromPreset(const UDMXControlConsolePreset* P
 
 	ControlConsole->StopDMX();
 	ControlConsole = NewControlConsole;
-	ControlConsole->SetForceRefresh(true);
 
 	OnControlConsoleLoaded.Broadcast();
 }
 
-void FDMXControlConsoleManager::PlayDMX()
+void FDMXControlConsoleManager::SendDMX()
 {
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't play DMX correctly.")))
+	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't send DMX correctly.")))
 	{
 		return;
 	}
 
-	ControlConsole->PlayDMX();
+	ControlConsole->SendDMX();
 }
 
 void FDMXControlConsoleManager::StopDMX()
 {
-	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
+	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
 	{
-		ControlConsole->StopDMX();
+		return;
 	}
+
+	ControlConsole->StopDMX();
 }
 
-bool FDMXControlConsoleManager::IsPlayingDMX() const
+bool FDMXControlConsoleManager::IsSendingDMX() const
 {
-	return IsValid(ControlConsole) && ControlConsole->IsPlayingDMX();
+	return IsValid(ControlConsole) ? ControlConsole->IsSendingDMX() : false;
 }
 
 void FDMXControlConsoleManager::ClearAll()

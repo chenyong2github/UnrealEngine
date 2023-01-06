@@ -9,6 +9,7 @@
 #include "Widgets/Input/SButton.h"
 
 class SDMXControlConsoleFaderGroupView;
+class UDMXControlConsoleFaderGroup;
 
 struct FSlateBrush;
 struct FSlateColor;
@@ -31,12 +32,6 @@ public:
 		/** Executed when this Fader Group widget is expanded */
 		SLATE_EVENT(FOnClicked, OnExpanded)
 
-		/** Executed when this Fader Group widget was deleted */
-		SLATE_EVENT(FSimpleDelegate, OnDeleted)
-
-		/** Executed when this Fader Group widget was deletted */
-		SLATE_EVENT(FSimpleDelegate, OnSelected)
-
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
@@ -50,13 +45,19 @@ protected:
 	//~ End of SWidget interface
 
 private:
+	/** Gets reference to the Fader Group */
+	UDMXControlConsoleFaderGroup* GetFaderGroup() const;
+
 	/** Gets wheter this Fader Group is selected or not */
 	bool IsSelected() const;
 
 	/** Generates ExpanderArrow widget  */
 	TSharedRef<SButton> GenerateExpanderArrow();
 
-	/**  Gets current FaderGroupName */
+	/** Called when fader group selection changes */
+	void OnSelectionChanged(UDMXControlConsoleFaderGroup* InFaderGroup);
+
+	/** Gets current FaderGroupName */
 	FText OnGetFaderGroupNameText() const;
 
 	/** Called when the fader name changes */
@@ -87,6 +88,4 @@ private:
 	FOnClicked OnAddFaderGroup;
 	FOnClicked OnAddFaderGroupRow;
 	FOnClicked OnExpanded;
-	FSimpleDelegate OnDeleted;
-	FSimpleDelegate OnSelected;
 };

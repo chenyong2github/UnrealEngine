@@ -13,6 +13,7 @@
 class FDMXControlConsole;
 class FDMXControlConsoleSelection;
 class SDMXControlConsoleFaderGroupRowView;
+class SDMXControlConsoleFixturePatchVerticalBox;
 class SDMXControlConsolePresetWidget;
 class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFaderGroupRow;
@@ -54,6 +55,9 @@ private:
 	/** Updates Details View's object arrays */
 	void UpdateDetailsViews();
 
+	/** Updates FixturePatchVerticalBox widget */
+	void UpdateFixturePatchRows();
+
 	/** Should be called when a Fader Group Row was added to the this view displays */
 	void OnFaderGroupRowAdded();
 
@@ -80,6 +84,9 @@ private:
 
 	/** Reference to the container widget of this DMX Control Console's Fader Group Rows slots */
 	TSharedPtr<SVerticalBox> FaderGroupRowsVerticalBox;
+
+	/** Reference to FixturePatchRows widgets container */
+	TSharedPtr<SDMXControlConsoleFixturePatchVerticalBox> FixturePatchVerticalBox;
 
 	/** Widget to handle saving/loading of Control Console's data */
 	TSharedPtr<SDMXControlConsolePresetWidget> ControlConsolePresetWidget;

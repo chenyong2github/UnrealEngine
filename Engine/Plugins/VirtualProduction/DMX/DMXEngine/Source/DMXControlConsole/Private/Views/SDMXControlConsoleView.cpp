@@ -13,9 +13,13 @@
 #include "Commands/DMXControlConsoleCommands.h"
 #include "Customizations/DMXControlConsoleDetails.h"
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
+#include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityReference.h"
+#include "Library/DMXLibrary.h"
 #include "Style/DMXControlConsoleStyle.h"
 #include "Views/SDMXControlConsoleFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleAddButton.h"
+#include "Widgets/SDMXControlConsoleFixturePatchVerticalBox.h"
 #include "Widgets/SDMXControlConsolePresetWidget.h"
 
 #include "IDetailsView.h"
@@ -48,11 +52,12 @@ void SDMXControlConsoleView::Construct(const FArguments& InArgs)
 {
 	FDMXControlConsoleManager& ControlConsoleManager = FDMXControlConsoleManager::Get();
 	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
+	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleView::OnFaderGroupRowRemoved);
+	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleView::OnFaderGroupRowAdded);
 
 	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
-	SelectionHandler->GetOnFaderGroupSelectionChanged().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
+	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
 	SelectionHandler->GetOnClearFaderGroupSelection().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
-	SelectionHandler->GetOnFaderSelectionChanged().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
 	SelectionHandler->GetOnClearFaderSelection().AddSP(this, &SDMXControlConsoleView::UpdateDetailsViews);
 
 	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXControlConsoleView::OnActiveTabChanged));
@@ -71,6 +76,7 @@ void SDMXControlConsoleView::Construct(const FArguments& InArgs)
 
 	FOnGetDetailCustomizationInstance ControlConsoleCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleDetails::MakeInstance);
 	ControlConsoleDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsole::StaticClass(), ControlConsoleCustomizationInstance);
+	ControlConsoleDetailsView->GetOnDisplayedPropertiesChanged().BindSP(this, &SDMXControlConsoleView::UpdateFixturePatchRows);
 
 	FOnGetDetailCustomizationInstance FaderGroupsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleFaderGroupDetails::MakeInstance);
 	FaderGroupsDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderGroup::StaticClass(), FaderGroupsCustomizationInstance);
@@ -146,30 +152,41 @@ void SDMXControlConsoleView::Construct(const FArguments& InArgs)
 					+ SScrollBox::Slot()
 					[
 						SNew(SVerticalBox)
+
 						+SVerticalBox::Slot()
 						.AutoHeight()
 						[
 							FadersDetailsView.ToSharedRef()
 						]
+
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
 							SNew(SSeparator)
 						]
+
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
 							FaderGroupsDetailsView.ToSharedRef()
 						]
+
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
 							SNew(SSeparator)
 						]
+
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
 							ControlConsoleDetailsView.ToSharedRef()	
+						]
+
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SAssignNew(FixturePatchVerticalBox, SDMXControlConsoleFixturePatchVerticalBox)
 						]
 					]
 				]
@@ -194,7 +211,7 @@ void SDMXControlConsoleView::Tick(const FGeometry& AllottedGeometry, const doubl
 
 	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole->GetFaderGroupRows();
 
-	if (FaderGroupRows.Num() == FaderGroupRowViews.Num() && !ControlConsole->HasForceRefresh())
+	if (FaderGroupRows.Num() == FaderGroupRowViews.Num())
 	{
 		return;
 	}
@@ -207,8 +224,6 @@ void SDMXControlConsoleView::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		OnFaderGroupRowRemoved();
 	}
-
-	ControlConsole->SetForceRefresh(false);
 }
 
 TSharedRef<SWidget> SDMXControlConsoleView::GenerateToolbar()
@@ -218,17 +233,11 @@ TSharedRef<SWidget> SDMXControlConsoleView::GenerateToolbar()
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder = FSlimHorizontalToolBarBuilder(CommandList, FMultiBoxCustomization::None);
 	
-	ToolbarBuilder.BeginSection("Picking");
+	ToolbarBuilder.BeginSection("Saving");
 	{
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleCommands::Get().PlayDMX,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-			FSlateIcon(FDMXControlConsoleStyle::Get().GetStyleSetName(), "DMXControlConsole.PlayDMX"),
-			FName(TEXT("Play DMX")));
+		SAssignNew(ControlConsolePresetWidget, SDMXControlConsolePresetWidget);
 
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleCommands::Get().StopDMX,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-			FSlateIcon(FDMXControlConsoleStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
-			FName(TEXT("Stop Playing DMX")));
+		ToolbarBuilder.AddWidget(ControlConsolePresetWidget.ToSharedRef());
 	}
 	ToolbarBuilder.EndSection();
 
@@ -241,11 +250,17 @@ TSharedRef<SWidget> SDMXControlConsoleView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("Saving");
+	ToolbarBuilder.BeginSection("Picking");
 	{
-		SAssignNew(ControlConsolePresetWidget, SDMXControlConsolePresetWidget);
+		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleCommands::Get().SendDMX,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+			FSlateIcon(FDMXControlConsoleStyle::Get().GetStyleSetName(), "DMXControlConsole.PlayDMX"),
+			FName(TEXT("Send DMX")));
 
-		ToolbarBuilder.AddWidget(ControlConsolePresetWidget.ToSharedRef());
+		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleCommands::Get().StopDMX,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+			FSlateIcon(FDMXControlConsoleStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
+			FName(TEXT("Stop Sending DMX")));
 	}
 	ToolbarBuilder.EndSection();
 
@@ -269,6 +284,16 @@ void SDMXControlConsoleView::UpdateDetailsViews()
 
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaders = SelectionHandler->GetSelectedFaders();
 	FadersDetailsView->SetObjects(SelectedFaders, bForceRefresh);
+}
+
+void SDMXControlConsoleView::UpdateFixturePatchRows()
+{
+	if (!FixturePatchVerticalBox.IsValid())
+	{
+		return;
+	}
+
+	FixturePatchVerticalBox->UpdateFixturePatchRows();
 }
 
 void SDMXControlConsoleView::OnFaderGroupRowAdded()
@@ -441,7 +466,7 @@ bool SDMXControlConsoleView::IsWidgetInTab(TSharedPtr<SDockTab> InDockTab, TShar
 
 EVisibility SDMXControlConsoleView::GetAddButtonVisibility() const
 {
-	const TObjectPtr<UDMXControlConsole> ControlConsole = GetControlConsole();
+	UDMXControlConsole* ControlConsole = GetControlConsole();
 	if (!ControlConsole)
 	{
 		return EVisibility::Collapsed;

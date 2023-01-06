@@ -60,7 +60,6 @@ void SDMXControlConsoleFader::Construct(const FArguments& InArgs, const TObjectP
 								.MultiLine(false)
 								.Text(this, &SDMXControlConsoleFader::GetFaderNameText)		
 								.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
-								.Justification(ETextJustify::Center)
 								.ColorAndOpacity(FLinearColor::White)
 								.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
 								.OnTextCommitted(this, &SDMXControlConsoleFader::OnFaderNameCommitted)
@@ -132,6 +131,7 @@ void SDMXControlConsoleFader::Construct(const FArguments& InArgs, const TObjectP
 									.MinSliderValue(this, &SDMXControlConsoleFader::GetMinValue)
 									.MaxSliderValue(this, &SDMXControlConsoleFader::GetMaxValue)
 									.OnValueChanged(this, &SDMXControlConsoleFader::HandleValueChanged)
+									.IsEnabled(this, &SDMXControlConsoleFader::GetFaderSpinBoxEnabled)
 									.Style(FDMXControlConsoleStyle::Get(), "DMXControlConsole.Fader")
 									.MinDesiredWidth(45.0f)
 								]
@@ -171,6 +171,9 @@ void SDMXControlConsoleFader::Construct(const FArguments& InArgs, const TObjectP
 			]
 		]
 	];
+
+	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+	SelectionHandler->GetOnFaderSelectionChanged().AddSP(this, &SDMXControlConsoleFader::OnSelectionChanged);
 }
 
 void SDMXControlConsoleFader::SetValueByPercentage(float InNewPercentage)
@@ -200,10 +203,18 @@ FReply SDMXControlConsoleFader::OnKeyDown(const FGeometry& MyGeometry, const FKe
 		}
 
 		const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+
+		// If there's only one fader to delete, replace it in selection
+		if (SelectedFadersObjects.Num() == 1)
+		{
+			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFadersObjects[0]);
+			SelectionHandler->ReplaceInSelection(SelectedFader);
+		}
 
 		const FScopedTransaction DeleteSelectedFaderTransaction(LOCTEXT("DeleteSelectedFaderTransaction", "Delete selected Faders"));
 
-		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+		// Delete all selected faders
 		for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
@@ -235,23 +246,27 @@ FReply SDMXControlConsoleFader::OnMouseButtonDown(const FGeometry& MyGeometry, c
 		}
 
 		const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
-		const bool bAllowMultiselect = MouseEvent.IsControlDown() || MouseEvent.IsLeftShiftDown();
-		SelectionHandler->SetAllowMultiselect(bAllowMultiselect);
+		const bool bWasInitallySelected = IsSelected();
 
-		bool bIsSelected = SelectionHandler->IsSelected(Fader.Get());
-
-		if (!SelectionHandler->IsMultiselectAllowed())
+		if (!MouseEvent.IsLeftShiftDown())
 		{
-			SelectionHandler->ClearFadersSelection();
-		}
+			if (!MouseEvent.IsControlDown())
+			{
+				SelectionHandler->ClearSelection();
+			}
 
-		if (bIsSelected)
-		{
-			SelectionHandler->RemoveFromSelection(Fader.Get());
+			if (!bWasInitallySelected)
+			{
+				SelectionHandler->AddToSelection(Fader.Get());
+			}
+			else
+			{
+				SelectionHandler->RemoveFromSelection(Fader.Get());
+			}
 		}
 		else
 		{
-			SelectionHandler->AddToSelection(Fader.Get());
+			SelectionHandler->Multiselect(Fader.Get());
 		}
 
 		return FReply::Handled();
@@ -267,6 +282,7 @@ TSharedRef<SWidget> SDMXControlConsoleFader::GenerateMuteButtonWidget()
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.HAlign(HAlign_Center)
 		[
 			SNew(SBorder)
 			.HAlign(HAlign_Center)
@@ -288,7 +304,7 @@ TSharedRef<SWidget> SDMXControlConsoleFader::GenerateMuteButtonWidget()
 		.Padding(0.f, 8.f, 0.f, 0.f)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("MuteButton", "Mute"))
+			.Text(LOCTEXT("MuteButton", "On/Off"))
 			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 
@@ -392,27 +408,108 @@ void SDMXControlConsoleFader::HandleValueChanged(uint32 NewValue)
 		return;
 	}
 
-	Fader->SetValue(NewValue);
+	const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+
+	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
+	{
+		Fader->SetValue(NewValue);
+	}
+	else
+	{ 
+		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
+		const float Percentage = (NewValue - Fader->GetMinValue()) / Range;
+
+		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
+		{
+			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+			if (!SelectedFader || SelectedFader->IsMuted())
+			{
+				continue;
+			}
+
+			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
+			const uint32 Value = (uint32)(SelectedFaderRange * Percentage);
+			SelectedFader->SetValue(Value);
+		}
+	}
+}
+
+void SDMXControlConsoleFader::OnSelectionChanged(UDMXControlConsoleFaderBase* InFader)
+{
+	if (!InFader)
+	{
+		return;
+	}
+
+	if (InFader!= Fader || !IsSelected())
+	{
+		return;
+	}
+
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 FReply SDMXControlConsoleFader::OnDeleteClicked()
 {
 	if (Fader.IsValid())
 	{
-		Fader->Destroy();
+		const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+
+		if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
+		{
+			Fader->Destroy();
+		}
+		else
+		{
+			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
+			{
+				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+				if (!SelectedFader)
+				{
+					continue;
+				}
+
+				SelectedFader->Destroy();
+
+				return FReply::Handled();
+			}
+		}
 	}
 
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 FReply SDMXControlConsoleFader::OnMuteClicked()
 {
 	if (Fader.IsValid())
 	{
-		Fader->ToggleMute();
+		const TSharedRef<FDMXControlConsoleSelection> SelectionHandler = FDMXControlConsoleManager::Get().GetSelectionHandler();
+		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+
+		if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
+		{
+			Fader->ToggleMute();
+		}
+		else
+		{
+			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
+			{
+				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+				if (!SelectedFader)
+				{
+					continue;
+				}
+
+				SelectedFader->ToggleMute();
+
+				return FReply::Handled();
+			}
+		}
 	}
 
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 FSlateColor SDMXControlConsoleFader::GetMuteButtonColor() const
@@ -423,6 +520,16 @@ FSlateColor SDMXControlConsoleFader::GetMuteButtonColor() const
 	}
 
 	return FLinearColor::Black;
+}
+
+bool SDMXControlConsoleFader::GetFaderSpinBoxEnabled() const
+{
+	if (Fader.IsValid())
+	{
+		return !Fader->IsMuted();
+	}
+
+	return false;
 }
 
 EVisibility SDMXControlConsoleFader::GetDeleteButtonVisibility() const

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Library/DMXEntityReference.h"
-
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 
@@ -15,6 +13,7 @@ class UDMXControlConsoleFaderBase;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsoleFixturePatchFunctionFader;
 class UDMXControlConsoleRawFader;
+class UDMXEntityFixturePatch;
 
 
 /** A Group of Faders in the DMX Control Console */
@@ -56,10 +55,10 @@ public:
 	const FLinearColor& GetEditorColor() const { return EditorColor; }
 
 	/** Automatically generates a Fader Group based on Fixture Patch Ref property */
-	void GenerateFromFixturePatch(const FDMXEntityFixturePatchRef InFixturePatchRef);
+	void GenerateFromFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
 	/** Gets current binded Fixture Patch reference, if valid */
-	const FDMXEntityFixturePatchRef& GetFixturePatchRef() const { return FixturePatchRef; }
+	UDMXEntityFixturePatch* GetFixturePatch() const { return FixturePatch.Get(); }
 
 	/** Gets wheter this Fader Group is binded to a Fixture Patch */
 	bool HasFixturePatch() const;
@@ -82,7 +81,7 @@ public:
 	// Property Name getters
 	FORCEINLINE static FName GetFadersPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Faders); }
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }
-	FORCEINLINE static FName GetFixturePatchRefPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FixturePatchRef); }
+	FORCEINLINE static FName GetFixturePatchPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FixturePatch); }
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
 
 protected:
@@ -101,7 +100,7 @@ private:
 
 	/** Fixture Patch this Fader Group is based on */
 	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "3"), Category = "DMX Fixture Patch")
-	FDMXEntityFixturePatchRef FixturePatchRef;
+	TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch;
 	
 	/** Faders array of this Fader Group */
 	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")

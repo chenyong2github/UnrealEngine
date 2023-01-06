@@ -46,20 +46,20 @@ public:
 	/** Loads Control Console's data from the given Preset */
 	void LoadFromPreset(const UDMXControlConsolePreset* Preset);
 
-	/** Plays DMX on the Control Console */
-	void PlayDMX();
+	/** Sends DMX on the Control Console */
+	void SendDMX();
 
-	/** Stops DMX data from the Control Console */
+	/** Stops sending DMX data from the Control Console */
 	void StopDMX();
 
 	/** Gets wheter the Control Console is sending DMX data or not */
-	bool IsPlayingDMX() const;
+	bool IsSendingDMX() const;
 
 	/** True if DMX data sending can be played */
-	bool CanPlayDMX() const { return !IsPlayingDMX(); }
+	bool CanSendDMX() const { return !IsSendingDMX(); }
 
 	/** True if DMX data sending can be stopped */
-	bool CanStopDMX() const { return IsPlayingDMX(); };
+	bool CanStopDMX() const { return IsSendingDMX(); };
 
 	/** Resets DMX Control Console */
 	void ClearAll();

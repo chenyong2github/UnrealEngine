@@ -34,32 +34,29 @@ public:
 	/** Gets this DMX Control Console's Fader Group Rows array */
 	const TArray<UDMXControlConsoleFaderGroupRow*>& GetFaderGroupRows() const { return FaderGroupRows; }
 
+	/** Gets an array of alla Fader Groups in this DMX Control Console */
+	TArray<UDMXControlConsoleFaderGroup*> GetAllFaderGroups() const;
+
 	/** Generates sorted Fader Groups based on the DMX Control Console's current DMX Library */
 	void GenarateFromDMXLibrary();
 
 	/** Gets this DMX Control Console's DMXLibrary */
 	UDMXLibrary* GetDMXLibrary() const { return DMXLibrary.Get(); }
 
-	/** Plays DMX on this DMX Control Console */
-	void PlayDMX();
+	/** Sends DMX on this DMX Control Console */
+	void SendDMX();
 
 	/** Stops DMX on this DMX Control Console */
 	void StopDMX();
 
-	/** Gets if DMX is playing or not */
-	bool IsPlayingDMX() const { return bIsPlayingDMX; }
+	/** Gets if DMX is sending DMX data or not */
+	bool IsSendingDMX() const { return bIsSendingDMX; }
 
 	/** Updates DMX Output Ports */
 	void UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts);
 
 	/** Resets the DMX Control Console to its default */
 	void Reset();
-
-	/** Sets bForceRefresh condition */
-	void SetForceRefresh(bool bRefresh);
-
-	/** True if this Control Console needs to be refreshed */
-	bool HasForceRefresh() const { return bForceRefresh; }
 
 	// Property Name getters
 	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsole, DMXLibrary); }
@@ -78,9 +75,6 @@ protected:
 	// ~ End FTickableGameObject interface
 
 private:
-	/** Gets an array of alla Fader Groups in this DMX Control Console */
-	TArray<UDMXControlConsoleFaderGroup*> GetAllFaderGroups() const;
-
 	/** Clears FaderGroupRows array */
 	void ClearFaderGroupRows();
 
@@ -96,7 +90,7 @@ private:
 	TArray<FDMXOutputPortSharedRef> OutputPorts;
 
 	/** Shows if DMX is playing on this DMX Control Console or not */
-	bool bIsPlayingDMX = false;
+	bool bIsSendingDMX = false;
 
 	/** Shows wheter this ControlConsole needs to be refreshed or not */
 	bool bForceRefresh = false;
