@@ -173,15 +173,15 @@ private:
 public:
 	/** Returns the targeting source context for the targeting request handle */
 	UFUNCTION(BlueprintCallable, Category = "Targeting System | Targeting Types")
-	FTargetingSourceContext GetTargetingSourceContext(FTargetingRequestHandle TargetingHandle);
+	FTargetingSourceContext GetTargetingSourceContext(FTargetingRequestHandle TargetingHandle) const;
 
 	/** Method to get the actor targets from a given targeting request handle */
 	UFUNCTION(BlueprintCallable, Category = "Targeting System | Targeting Results")
-	TARGETINGSYSTEM_API void GetTargetingResultsActors(FTargetingRequestHandle TargetingHandle, TArray<AActor*>& Targets);
+	TARGETINGSYSTEM_API void GetTargetingResultsActors(FTargetingRequestHandle TargetingHandle, TArray<AActor*>& Targets) const;
 
 	/** Helper method to get the set of hit results for a given targeting handle */
 	UFUNCTION(BlueprintCallable, Category = "Targeting System | Targeting Results")
-	TARGETINGSYSTEM_API void GetTargetingResults(FTargetingRequestHandle TargetingHandle, TArray<FHitResult>& OutTargets);
+	TARGETINGSYSTEM_API void GetTargetingResults(FTargetingRequestHandle TargetingHandle, TArray<FHitResult>& OutTargets) const;
 
 	/** ~Blueprint Helper Methods */
 

@@ -598,7 +598,7 @@ void UTargetingSubsystem::ProcessTargetingRequestTasks(FTargetingRequestHandle& 
 	}
 }
 
-FTargetingSourceContext UTargetingSubsystem::GetTargetingSourceContext(FTargetingRequestHandle TargetingHandle)
+FTargetingSourceContext UTargetingSubsystem::GetTargetingSourceContext(FTargetingRequestHandle TargetingHandle) const
 {
 	if (TargetingHandle.IsValid())
 	{
@@ -609,7 +609,7 @@ FTargetingSourceContext UTargetingSubsystem::GetTargetingSourceContext(FTargetin
 	return FTargetingSourceContext();
 }
 
-void UTargetingSubsystem::GetTargetingResultsActors(FTargetingRequestHandle TargetingHandle, TArray<AActor*>& Targets)
+void UTargetingSubsystem::GetTargetingResultsActors(FTargetingRequestHandle TargetingHandle, TArray<AActor*>& Targets) const
 {
 	if (TargetingHandle.IsValid())
 	{
@@ -626,7 +626,7 @@ void UTargetingSubsystem::GetTargetingResultsActors(FTargetingRequestHandle Targ
 	}
 }
 
-void UTargetingSubsystem::GetTargetingResults(FTargetingRequestHandle TargetingHandle, TArray<FHitResult>& OutTargets)
+void UTargetingSubsystem::GetTargetingResults(FTargetingRequestHandle TargetingHandle, TArray<FHitResult>& OutTargets) const
 {
 	if (TargetingHandle.IsValid())
 	{
