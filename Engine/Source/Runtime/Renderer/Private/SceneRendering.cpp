@@ -85,6 +85,7 @@
 #include "TextureResource.h"
 #include "RenderCore.h"
 #include "VolumetricCloudRendering.h"
+#include "VolumetricFog.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
