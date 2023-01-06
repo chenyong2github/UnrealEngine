@@ -8,11 +8,14 @@
 #include "Systems/MovieScene3DTransformPropertySystem.h"
 
 #include "EntitySystem/MovieSceneEntityManager.h"
+#include "Systems/MovieSceneMaterialSystem.h"
 #include "MovieSceneTracksComponentTypes.h"
 
 #if !IS_MONOLITHIC
 	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
 #endif
+
+DEFINE_STAT(MovieSceneEval_ReinitializeBoundMaterials);
 
 /**
  * Implements the MovieSceneTracks module.

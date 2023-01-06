@@ -88,7 +88,7 @@ struct MOVIESCENE_API FCachedEntityFilterResult_Allocations
 {
 	FEntityComponentFilter Filter;
 
-	TArrayView<const FEntityAllocation* const> GetMatchingAllocations(const FEntityManager& InEntityManager);
+	TArrayView<FEntityAllocation* const> GetMatchingAllocations(const FEntityManager& InEntityManager);
 
 	void Invalidate();
 
@@ -97,7 +97,7 @@ private:
 	FCachedEntityManagerState Cache;
 
 	/** Set bits indicate matching allocations */
-	TArray<const FEntityAllocation*> MatchedEntityAllocations;
+	TArray<FEntityAllocation*> MatchedEntityAllocations;
 };
 
 

@@ -40,12 +40,12 @@ void FCachedEntityFilterResult_Match::Invalidate()
 
 
 
-TArrayView<const FEntityAllocation* const> FCachedEntityFilterResult_Allocations::GetMatchingAllocations(const FEntityManager& InEntityManager)
+TArrayView<FEntityAllocation* const> FCachedEntityFilterResult_Allocations::GetMatchingAllocations(const FEntityManager& InEntityManager)
 {
 	if (Cache.Update(InEntityManager) == ECachedEntityManagerState::Stale)
 	{
 		MatchedEntityAllocations.Empty();
-		for (const FEntityAllocation* Allocation : InEntityManager.Iterate(&Filter))
+		for (FEntityAllocation* Allocation : InEntityManager.Iterate(&Filter))
 		{
 			MatchedEntityAllocations.Add(Allocation);
 		}
