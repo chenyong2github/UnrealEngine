@@ -104,6 +104,12 @@ namespace Horde.Build
 
 	class Startup
 	{
+		static Startup()
+		{
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IProject>)].SetSurrogate(typeof(StringIdProto<IProject>));
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IStream>)].SetSurrogate(typeof(StringIdProto<IStream>));
+		}
+
 		class GrpcExceptionInterceptor : Interceptor
 		{
 			readonly ILogger<GrpcExceptionInterceptor> _logger;
@@ -689,9 +695,6 @@ namespace Horde.Build
 			});
 
 			services.AddMvc().AddJsonOptions(options => ConfigureJsonSerializer(options.JsonSerializerOptions));
-
-			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IProject>)].SetSurrogate(typeof(StringIdProto<IProject>));
-			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IStream>)].SetSurrogate(typeof(StringIdProto<IStream>));
 
 			services.AddControllers(options =>
 			{
