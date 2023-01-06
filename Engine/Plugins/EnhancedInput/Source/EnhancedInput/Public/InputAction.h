@@ -29,6 +29,7 @@ public:
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 	
 	static TSet<const UInputAction*> ActionsWithModifiedValueTypes;
+	static TSet<const UInputAction*> ActionsWithModifiedTriggers;
 	
 	/**
 	 * Returns a bitmask of supported trigger events that is built from each UInputTrigger on this Action.

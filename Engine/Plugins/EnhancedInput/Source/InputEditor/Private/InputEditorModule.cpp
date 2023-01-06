@@ -5,6 +5,7 @@
 #include "AssetBlueprintGraphActions.h"
 #include "AssetTypeActions_Base.h"
 #include "BlueprintEditorModule.h"
+#include "BlueprintNodeTemplateCache.h"
 #include "EnhancedInputModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -561,34 +562,59 @@ void FInputEditorModule::AutoUpgradeDefaultInputClasses()
 void FInputEditorModule::Tick(float DeltaTime)
 {
 	// Update any blueprints that are referencing an input action with a modified value type
-	if (UInputAction::ActionsWithModifiedValueTypes.Num())
+	if (UInputAction::ActionsWithModifiedValueTypes.Num() || UInputAction::ActionsWithModifiedTriggers.Num())
 	{
-		TSet<UBlueprint*> BPsModified;
+		TSet<UBlueprint*> BPsModifiedFromValueTypeChange;
+		TSet<UBlueprint*> BPsModifiedFromTriggerChange;
+		
 		for (TObjectIterator<UK2Node_EnhancedInputAction> NodeIt; NodeIt; ++NodeIt)
 		{
-			if (UInputAction::ActionsWithModifiedValueTypes.Contains(NodeIt->InputAction))
+			if (!FBlueprintNodeTemplateCache::IsTemplateOuter(NodeIt->GetGraph()))
 			{
-				NodeIt->ReconstructNode();
-				BPsModified.Emplace(NodeIt->GetBlueprint());
+				if (UInputAction::ActionsWithModifiedValueTypes.Contains(NodeIt->InputAction))
+				{
+					NodeIt->ReconstructNode();
+					BPsModifiedFromValueTypeChange.Emplace(NodeIt->GetBlueprint());
+				}
+				if (UInputAction::ActionsWithModifiedTriggers.Contains(NodeIt->InputAction))
+				{
+					NodeIt->ReconstructNode();
+					BPsModifiedFromTriggerChange.Emplace(NodeIt->GetBlueprint());
+				}
 			}
 		}
 		for (TObjectIterator<UK2Node_GetInputActionValue> NodeIt; NodeIt; ++NodeIt)
 		{
-			if (UInputAction::ActionsWithModifiedValueTypes.Contains(NodeIt->InputAction))
+			if (!FBlueprintNodeTemplateCache::IsTemplateOuter(NodeIt->GetGraph()))
 			{
-				NodeIt->ReconstructNode();
-				BPsModified.Emplace(NodeIt->GetBlueprint());
+				if (UInputAction::ActionsWithModifiedValueTypes.Contains(NodeIt->InputAction))
+				{
+					NodeIt->ReconstructNode();
+					BPsModifiedFromValueTypeChange.Emplace(NodeIt->GetBlueprint());
+				}
+				if (UInputAction::ActionsWithModifiedTriggers.Contains(NodeIt->InputAction))
+				{
+					NodeIt->ReconstructNode();
+					BPsModifiedFromTriggerChange.Emplace(NodeIt->GetBlueprint());
+				}
 			}
 		}
 
-		if (BPsModified.Num())
+		if (BPsModifiedFromValueTypeChange.Num())
 		{
-			FNotificationInfo Info(FText::Format(LOCTEXT("ActionValueTypeChange", "Changing action value type affected {0} blueprint(s)!"), BPsModified.Num()));
+			FNotificationInfo Info(FText::Format(LOCTEXT("ActionValueTypeChange", "Changing action value type affected {0} blueprint(s)!"), BPsModifiedFromValueTypeChange.Num()));
+			Info.ExpireDuration = 5.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
+		if (BPsModifiedFromTriggerChange.Num())
+		{
+			FNotificationInfo Info(FText::Format(LOCTEXT("ActionTriggerChange", "Changing action triggers affected {0} blueprint(s)!"), BPsModifiedFromTriggerChange.Num()));
 			Info.ExpireDuration = 5.0f;
 			FSlateNotificationManager::Get().AddNotification(Info);
 		}
 
 		UInputAction::ActionsWithModifiedValueTypes.Reset();
+		UInputAction::ActionsWithModifiedTriggers.Reset();
 	}
 }
 

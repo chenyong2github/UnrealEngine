@@ -107,6 +107,7 @@ void FTriggerStateTracker::SetStateForNoTriggers(ETriggerState State)
 // Record input action property changes for later processing
 
 TSet<const UInputAction*> UInputAction::ActionsWithModifiedValueTypes;
+TSet<const UInputAction*> UInputAction::ActionsWithModifiedTriggers;
 
 void UInputAction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -121,10 +122,13 @@ void UInputAction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	}
 	
 	// If our value type changes we need to inform any blueprint InputActionEx nodes that refer to this action
-	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, ValueType) ||
-		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, Triggers))
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, ValueType))
 	{
 		ActionsWithModifiedValueTypes.Add(this);
+	}
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, Triggers))
+	{
+		ActionsWithModifiedTriggers.Add(this);
 	}
 }
 
