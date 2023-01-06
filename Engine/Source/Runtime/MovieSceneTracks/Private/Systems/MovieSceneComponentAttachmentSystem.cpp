@@ -110,12 +110,14 @@ struct FComponentAttachmentPreAnimatedTraits : FBoundObjectPreAnimatedStateTrait
 	using KeyType     = FObjectKey;
 	using StorageType = FPreAnimAttachment;
 
-	static void CachePreAnimatedValue(UObject* InObject, FPreAnimAttachment& OutCachedAttachment)
+	static FPreAnimAttachment CachePreAnimatedValue(UObject* InObject)
 	{
 		USceneComponent* SceneComponent = CastChecked<USceneComponent>(InObject);
 
+		FPreAnimAttachment OutCachedAttachment;
 		OutCachedAttachment.OldAttachParent = SceneComponent->GetAttachParent();
 		OutCachedAttachment.OldAttachSocket = SceneComponent->GetAttachSocketName();
+		return OutCachedAttachment;
 	}
 	static void RestorePreAnimatedValue(const FObjectKey& InKey, FPreAnimAttachment& InOutCachedAttachment, const FRestoreStateParams& Params)
 	{
@@ -126,8 +128,7 @@ struct FComponentAttachmentPreAnimatedTraits : FBoundObjectPreAnimatedStateTrait
 	}
 };
 
-struct FPreAnimatedComponentAttachmentStorage
-	: TPreAnimatedStateStorage_ObjectTraits<FComponentAttachmentPreAnimatedTraits>
+struct FPreAnimatedComponentAttachmentStorage : TPreAnimatedStateStorage_ObjectTraits<FComponentAttachmentPreAnimatedTraits>
 {
 	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedComponentAttachmentStorage> StorageID;
 };
@@ -177,6 +178,7 @@ UMovieSceneComponentAttachmentSystem::UMovieSceneComponentAttachmentSystem(const
 
 		DefineImplicitPrerequisite(UMovieSceneCachePreAnimatedStateSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UMovieSceneComponentMobilitySystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieSceneComponentAttachmentInvalidatorSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneRestorePreAnimatedStateSystem::StaticClass());
 
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->BoundObject);
@@ -191,7 +193,6 @@ void UMovieSceneComponentAttachmentSystem::OnLink()
 
 	UMovieSceneComponentAttachmentInvalidatorSystem* AttachmentInvalidator = Linker->LinkSystem<UMovieSceneComponentAttachmentInvalidatorSystem>();
 	Linker->SystemGraph.AddReference(this, AttachmentInvalidator);
-	Linker->SystemGraph.AddPrerequisite(AttachmentInvalidator, this);
 
 	AttachmentTracker.Initialize(this);
 }

@@ -21,7 +21,7 @@ namespace MovieScene
 struct FPreAnimatedStateExtension;
 struct FRestoreStateParams;
 
-struct FPreAnimatedRootTokenTraits : FDefaultPreAnimatedStateTraits
+struct FPreAnimatedRootTokenTraits : FPreAnimatedStateTraits
 {
 	using KeyType     = FMovieSceneAnimTypeID;
 	using StorageType = IMovieScenePreAnimatedGlobalTokenPtr;
@@ -44,13 +44,5 @@ public:
 	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* ParentExtension) override;
 };
 
-
-
 } // namespace MovieScene
 } // namespace UE
-
-
-
-
-
-

@@ -12,6 +12,7 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneComponentTypeInfo.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectStorage.h"
 #include "MovieSceneTracksComponentTypes.h"
 
 #include "MovieSceneMaterialSystem.generated.h"
@@ -363,13 +364,10 @@ void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::SavePreAnim
 {
 	using namespace UE::MovieScene;
 
-	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
-	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
-
 	// If we have material results to apply save those as well
 	if (Linker->EntityManager.Contains(MaterialSwitcherFilter))
 	{
-		TSavePreAnimatedStateParams<RequiredComponents...> Params;
+		TPreAnimatedStateTaskParams<RequiredComponents...> Params;
 		Params.AdditionalFilter = MaterialSwitcherFilter;
 
 		MaterialSwitcherStorage->BeginTrackingAndCachePreAnimatedValuesTask(Linker, Params, InRequiredComponents...);
@@ -378,7 +376,7 @@ void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::SavePreAnim
 	// If we have bound materials to resolve save the current material
 	if (Linker->EntityManager.Contains(MaterialParameterFilter))
 	{
-		TSavePreAnimatedStateParams<RequiredComponents...> Params;
+		TPreAnimatedStateTaskParams<RequiredComponents...> Params;
 		Params.AdditionalFilter = MaterialParameterFilter;
 
 		MaterialParameterStorage->BeginTrackingAndCachePreAnimatedValuesTask(Linker, Params, InRequiredComponents...);

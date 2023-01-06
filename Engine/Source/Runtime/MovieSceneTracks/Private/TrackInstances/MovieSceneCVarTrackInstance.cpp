@@ -21,12 +21,12 @@ namespace UE
 namespace MovieScene
 {
 
-struct FPreAnimatedCVarTraits : FDefaultPreAnimatedStateTraits
+struct FPreAnimatedCVarTraits : FPreAnimatedStateTraits
 {
 	using KeyType     = FString;
 	using StorageType = FString;
 
-	static void RestorePreAnimatedValue(const FString& InKey, const FString& CachedValue, const FRestoreStateParams& Params)
+	void RestorePreAnimatedValue(const FString& InKey, const FString& CachedValue, const FRestoreStateParams& Params)
 	{
 		static IConsoleManager& ConsoleManager = IConsoleManager::Get();
 		IConsoleVariable* ConsoleVariable = ConsoleManager.FindConsoleVariable(*InKey);
@@ -90,7 +90,7 @@ void UMovieSceneCVarTrackInstance::OnInputAdded(const FMovieSceneTrackInstanceIn
 
 		for (const TPair<FString, FString>& Pair : CommandsAndValues)
 		{
-			CVarStorage->SavePreAnimatedState(UngroupedHandle, Pair.Key, FPreAnimatedCVarTraits::CachePreAnimatedValue);
+			CVarStorage->CachePreAnimatedValue(UngroupedHandle, Pair.Key, FPreAnimatedCVarTraits::CachePreAnimatedValue);
 		}
 	}
 

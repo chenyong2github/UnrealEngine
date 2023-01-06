@@ -54,8 +54,8 @@ struct FPreAnimatedMobilityTraits : FBoundObjectPreAnimatedStateTraits
 	using KeyType     = FObjectKey;
 	using StorageType = EComponentMobility::Type;
 
-	static void RestorePreAnimatedValue(const FObjectKey& InKey, EComponentMobility::Type Mobility, const FRestoreStateParams& Params);
-	static void CachePreAnimatedValue(UObject* InObject, EComponentMobility::Type& OutMobility);
+	void RestorePreAnimatedValue(const FObjectKey& InKey, EComponentMobility::Type Mobility, const FRestoreStateParams& Params);
+	EComponentMobility::Type CachePreAnimatedValue(UObject* InObject);
 };
 
 struct FPreAnimatedComponentMobilityStorage : TPreAnimatedStateStorage_ObjectTraits<FPreAnimatedMobilityTraits>

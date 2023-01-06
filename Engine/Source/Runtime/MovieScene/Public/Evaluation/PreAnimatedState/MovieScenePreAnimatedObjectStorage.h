@@ -16,15 +16,54 @@ namespace UE
 namespace MovieScene
 {
 
+/**
+ * Group state class that groups pre-animated storage together by bound object
+ *
+ * Inherit from this class by implementing the following members:
+ *
+ *	 using KeyType     = FObjectKey;
+ *	 using StorageType = <your storage type>;
+ *	 StorageType CachePreAnimatedValue(const FObjectKey& Object);
+ *	 void RestorePreAnimatedValue(const FObjectKey& Object, StorageType& InOutCachedValue, const FRestoreStateParams& Params);
+ */
+struct MOVIESCENE_API FBoundObjectPreAnimatedStateTraits : FPreAnimatedStateTraits
+{
+	enum { NeedsInitialize = true, SupportsGrouping = true, SupportsReplaceObject = true };
 
+	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* InParentExtension);
 
-// struct FPreAnimatedStateStorageObjectTraits
-// {
-// 	using KeyType     = FObjectKey;
-// 	using StorageType = IMovieScenePreAnimatedTokenPtr;
-// 	static void CachePreAnimatedValue(const FObjectKey& Object, StorageType& OutCachedValue);
-// 	static void RestorePreAnimatedValue(const FObjectKey& Object, StorageType& InOutCachedValue, const FRestoreStateParams& Params);
-// };
+	/* Defined as a template rather than a variadic function to prevent error C4840 */
+	template<typename... T>
+	FPreAnimatedStorageGroupHandle MakeGroup(UObject* BoundObject, T&&... Unused)
+	{
+		return MakeGroupImpl(BoundObject);
+	}
+	FPreAnimatedStorageGroupHandle MakeGroupImpl(UObject* BoundObject);
+
+	template<typename ...T>
+	void ReplaceObject(TTuple<FObjectKey, T...>& InOutKey, const FObjectKey& NewObject)
+	{
+		InOutKey.template Get<0>() = NewObject;
+	}
+	template<typename KeyType>
+	void ReplaceObject(KeyType& InOutKey, const FObjectKey& NewObject)
+	{
+		InOutKey.Object = NewObject;
+	}
+	template<typename ObjectType>
+	void ReplaceObject(TObjectKey<ObjectType>& InOutKey, const FObjectKey& NewObject)
+	{
+		if (ObjectType* CastResult = Cast<ObjectType>(NewObject.ResolveObjectPtr()))
+		{
+			InOutKey = CastResult;
+		}
+	}
+	void ReplaceObject(FObjectKey& InOutKey, const FObjectKey& NewObject)
+	{
+		InOutKey = NewObject;
+	}
+	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager;
+};
 
 template<typename ObjectTraits>
 struct TPreAnimatedStateStorage_ObjectTraits
@@ -33,6 +72,8 @@ struct TPreAnimatedStateStorage_ObjectTraits
 {
 	using KeyType = typename ObjectTraits::KeyType;
 	using StorageType = typename ObjectTraits::StorageType;
+
+	static_assert(ObjectTraits::SupportsGrouping, "Pre-animated object state storage should support grouping by object");
 
 	TPreAnimatedStateStorage_ObjectTraits()
 	{}
@@ -121,9 +162,7 @@ public:
 		EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
 		if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
 		{
-			StorageType NewValue;
-			ObjectTraits::CachePreAnimatedValue(BoundObject, NewValue);
-	
+			StorageType NewValue = this->Traits.CachePreAnimatedValue(BoundObject);
 			this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
 		}
 	
@@ -133,8 +172,8 @@ public:
 		}
 	}
 
-	template<typename ValueInitializer>
-	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject, ValueInitializer&& InitCallback)
+	template<typename OnCacheValue /* StorageType(const KeyType&) */>
+	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject, OnCacheValue&& CacheCallback)
 	{
 		FObjectKey Key{ BoundObject };
 
@@ -151,21 +190,10 @@ public:
 			return;
 		}
 
-		CachePreAnimatedValue(Params, Entry, BoundObject, Forward<ValueInitializer>(InitCallback));
-	}
-
-	template<typename ValueInitializer>
-	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, const FPreAnimatedStateEntry& Entry, UObject* BoundObject, ValueInitializer&& InitCallback)
-	{
-		FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
-
 		EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
 		if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
 		{
-			StorageType NewValue;
-			InitCallback(BoundObject, NewValue);
-			ObjectTraits::CachePreAnimatedValue(BoundObject, NewValue);
-
+			StorageType NewValue = CacheCallback(Key);
 			this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
 		}
 
@@ -176,16 +204,6 @@ public:
 	}
 };
 
-
-
-
-
-
 } // namespace MovieScene
 } // namespace UE
-
-
-
-
-
 

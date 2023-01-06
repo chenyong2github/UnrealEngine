@@ -14,7 +14,7 @@
 #include "EntitySystem/MovieScenePropertyBinding.h"
 #include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectStorage.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
 
 
@@ -132,7 +132,10 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 	: TPreAnimatedStateStorage<TPreAnimatedPropertyTraits<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>, MetaDataTypes...>>
 	, IPreAnimatedObjectPropertyStorage
 {
-	using StorageType = typename TPreAnimatedPropertyTraits<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>, MetaDataTypes...>::StorageType;
+	using StorageTraits = TPreAnimatedPropertyTraits<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>, MetaDataTypes...>;
+	using StorageType = typename StorageTraits::StorageType;
+
+	static_assert(StorageTraits::SupportsGrouping, "Pre-animated storage for properties should support grouping by object");
 
 	TPreAnimatedPropertyStorageImpl(const FPropertyDefinition& InPropertyDefinition)
 		: MetaDataComponents(InPropertyDefinition.MetaDataTypes)

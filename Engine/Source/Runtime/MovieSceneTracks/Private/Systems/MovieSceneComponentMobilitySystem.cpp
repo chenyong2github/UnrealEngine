@@ -100,12 +100,14 @@ void FPreAnimatedMobilityTraits::RestorePreAnimatedValue(const FObjectKey& InKey
 	}
 }
 
-void FPreAnimatedMobilityTraits::CachePreAnimatedValue(UObject* InObject, EComponentMobility::Type& OutMobility)
+EComponentMobility::Type FPreAnimatedMobilityTraits::CachePreAnimatedValue(UObject* InObject)
 {
+	EComponentMobility::Type OutMobility = EComponentMobility::Static;
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(InObject))
 	{
 		OutMobility = SceneComponent->Mobility;
 	}
+	return OutMobility;
 }
 
 } // namespace MovieScene

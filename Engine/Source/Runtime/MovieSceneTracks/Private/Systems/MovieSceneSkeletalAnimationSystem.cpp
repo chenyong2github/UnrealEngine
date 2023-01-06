@@ -73,8 +73,9 @@ struct FPreAnimatedSkeletalAnimationTraits : FBoundObjectPreAnimatedStateTraits
 	using KeyType     = FObjectKey;
 	using StorageType = FPreAnimatedSkeletalAnimationState;
 
-	static void CachePreAnimatedValue(const KeyType& Object, StorageType& OutCachedValue)
+	FPreAnimatedSkeletalAnimationState CachePreAnimatedValue(const KeyType& Object)
 	{
+		FPreAnimatedSkeletalAnimationState OutCachedValue;
 		USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(Object.ResolveObjectPtr());
 		if (ensure(Component))
 		{
@@ -82,9 +83,10 @@ struct FPreAnimatedSkeletalAnimationTraits : FBoundObjectPreAnimatedStateTraits
 			OutCachedValue.CachedAnimInstance.Reset(Component->AnimScriptInstance);
 			OutCachedValue.SkeletalMeshRestoreState.SaveState(Component);
 		}
+		return OutCachedValue;
 	}
 
-	static void RestorePreAnimatedValue(const KeyType& Object, StorageType& InOutCachedValue, const FRestoreStateParams& Params)
+	void RestorePreAnimatedValue(const KeyType& Object, StorageType& InOutCachedValue, const FRestoreStateParams& Params)
 	{
 		USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(Object.ResolveObjectPtr());
 		if (!Component)
@@ -169,12 +171,13 @@ struct FPreAnimatedSkeletalAnimationMontageTraits : FBoundObjectPreAnimatedState
 	using KeyType     = FObjectKey;
 	using StorageType = FPreAnimatedSkeletalAnimationMontageState;
 
-	static void CachePreAnimatedValue(const KeyType& Object, StorageType& OutCachedValue)
+	FPreAnimatedSkeletalAnimationMontageState CachePreAnimatedValue(const FObjectKey& Object)
 	{
-		// Should already be initialized.
+		// Should be unused, as we always cache state with captured values.
+		return FPreAnimatedSkeletalAnimationMontageState();
 	}
 
-	static void RestorePreAnimatedValue(const FObjectKey& Object, FPreAnimatedSkeletalAnimationMontageState& InOutCachedValue, const FRestoreStateParams& Params)
+	void RestorePreAnimatedValue(const FObjectKey& Object, FPreAnimatedSkeletalAnimationMontageState& InOutCachedValue, const FRestoreStateParams& Params)
 	{
 		UAnimInstance* AnimInstance = InOutCachedValue.WeakInstance.Get();
 		if (AnimInstance)
@@ -204,12 +207,13 @@ struct FPreAnimatedSkeletalAnimationAnimInstanceTraits : FBoundObjectPreAnimated
 	using KeyType     = FObjectKey;
 	using StorageType = bool; // We actually don't need any state, so this will be a dummy value
 
-	static void CachePreAnimatedValue(const KeyType& Object, StorageType& Unused)
+	bool CachePreAnimatedValue(const FObjectKey& Object)
 	{
 		// Nothing to do, we just need the object pointer to restore state.
+		return true;
 	}
 
-	static void RestorePreAnimatedValue(const FObjectKey& Object, bool& Unused, const FRestoreStateParams& Params)
+	void RestorePreAnimatedValue(const FObjectKey& Object, bool& Unused, const FRestoreStateParams& Params)
 	{
 		if (UObject* ObjectPtr = Object.ResolveObjectPtr())
 		{
@@ -756,9 +760,11 @@ private:
 				DataContainer.MontageInstanceId = InstanceId;
 
 				PreAnimatedMontageStorage->BeginTrackingEntity(Params.EntityID, Params.bWantsRestoreState, Params.RootInstanceHandle, Montage);
-				PreAnimatedMontageStorage->CachePreAnimatedValue(FCachePreAnimatedValueParams(), Montage, [=](UObject* Unused, FPreAnimatedSkeletalAnimationMontageState& OutState) {
+				PreAnimatedMontageStorage->CachePreAnimatedValue(FCachePreAnimatedValueParams(), Montage, [=](const FObjectKey& Unused) {
+						FPreAnimatedSkeletalAnimationMontageState OutState;
 						OutState.WeakInstance = AnimInst;
 						OutState.MontageInstanceId = InstanceId;
+						return OutState;
 					});
 
 				// Make sure it's playing if the sequence is.
@@ -848,9 +854,11 @@ private:
 				DataContainer.MontageInstanceId = InstanceId;
 
 				PreAnimatedMontageStorage->BeginTrackingEntity(Params.EntityID, Params.bWantsRestoreState, Params.RootInstanceHandle, Montage);
-				PreAnimatedMontageStorage->CachePreAnimatedValue(FCachePreAnimatedValueParams(), Montage, [=](UObject* Unused, FPreAnimatedSkeletalAnimationMontageState& OutState) {
+				PreAnimatedMontageStorage->CachePreAnimatedValue(FCachePreAnimatedValueParams(), Montage, [=](const FObjectKey& Unused) {
+						FPreAnimatedSkeletalAnimationMontageState OutState;
 						OutState.WeakInstance = AnimInst;
 						OutState.MontageInstanceId = InstanceId;
+						return OutState;
 					});
 
 				FAnimMontageInstance* Instance = AnimInst->GetMontageInstanceForID(InstanceId);

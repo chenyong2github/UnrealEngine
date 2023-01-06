@@ -277,7 +277,7 @@ void UMovieSceneMaterialParameterCollectionSystem::SavePreAnimatedState(const FP
 	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
 
-	TSavePreAnimatedStateParams<UObject*, FName> Params;
+	TPreAnimatedStateTaskParams<UObject*, FName> Params;
 
 	Params.AdditionalFilter.All({ TracksComponents->MPC });
 	ScalarParameterStorage->BeginTrackingEntitiesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ScalarParameterName);
