@@ -40,6 +40,23 @@ public:
 
 
 private:
+	/** Contains info not contained in the image data. */
+	struct FImageParameters
+	{
+		/** This window is inclusive, so (0, 0, 0, 0) is a 1 pixel rectangle at 0, 0. */
+		FIntRect DataWindow;
+		/** This window is inclusive, so(0, 0, 0, 0) is a 1 pixel rectangle at 0, 0. */
+		FIntRect DisplayWindow;
+		/** True if the image has an alpha channel. */
+		bool bHasAlphaChannel = false;
+		/** True if DataWindow can be used. */
+		bool bIsDataWindowValid = false;
+		/** True if DisplayWindow can be used. */
+		bool bIsDisplayWindowValid = false;
+	};
+	/** Contains parameters to be applied to all images. */
+	FImageParameters GlobalImageParameters;
+
 	/**
 	 * Updates our widgets based on the current state.
 	 */
@@ -56,13 +73,18 @@ private:
 	void ProcessAllImages();
 	
 	/**
-	  * Checks if this file has an alpha channel.
+	  * Gets information on the file, e.g does it have an alpha channel.
 	  *
-	  * @param Ext			File extension.
-	  * @param File			Full path to file.
-	  * @return				True if the file has an alpha channel.
+	  * @param Ext				File extension.
+	  * @param File				Full path to file.
+	  * @param ImageParameters	Will be filled in with information from the file.
 	  */
-	bool HasAlphaChannel(const FString& Ext, const FString& File);
+	void GetImageParameters(const FString& Ext, const FString& File, FImageParameters& ImageParameters);
+
+	/**
+	 * Gets parameters that can be applied to all files.
+	 */
+	void GetGlobalImageParameters();
 
 	/**
 	 * Processess a single image and writes out a file.
@@ -74,13 +96,13 @@ private:
 	 * @param InTileHeight		Desired height of tiles.
 	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
 	 * @param bInEnableMips		Turn on mip mapping.
-	 * @param bHasAlphaChannel	True if there really is an alpha channel.
+	 * @param ImageParameters	Contains information on the image.
 	 * @param InName			Full path and name of file to write.
 	 * @param bIsCustomFormat	True to output in our custom format.
 	 */
 	void ProcessImageCustom(const FImage& InImage,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, 
-		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName,
+		bool bInEnableMips, const FImageParameters& ImageParameters, const FString& InName,
 		bool bIsCustomFormat);
 
 	/**
@@ -95,14 +117,14 @@ private:
 	 * @param InTileHeight		Desired height of tiles.
 	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
 	 * @param bInEnableMips		Turn on mip mapping.
-	 * @param bHasAlphaChannel	True if there really is an alpha channel.
+	 * @param ImageParameters	Contains information on the image.
 	 * @param InName			Full path and name of file to write.
 	 * @param bIsCustomFormat	True to output in our custom format.
 	 */
 	void ProcessImageCustomRawData(TArray64<uint8>& RawData,
 		int32 Width, int32 Height,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
-		bool bHasAlphaChannel, const FString& InName, bool bIsCustomFormat);
+		const FImageParameters& ImageParameters, const FString& InName, bool bIsCustomFormat);
 
 	/**
 	 * Removes the alpha channel from a buffer.

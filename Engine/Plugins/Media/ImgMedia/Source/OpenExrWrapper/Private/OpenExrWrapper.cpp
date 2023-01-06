@@ -5,6 +5,7 @@
 #include <exception>
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
+#include "Math/IntRect.h"
 #include "Modules/ModuleManager.h"
 
 PRAGMA_DEFAULT_VISIBILITY_START
@@ -127,6 +128,27 @@ FIntPoint FRgbaInputFile::GetDataWindow() const
 	);
 }
 
+FIntRect FRgbaInputFile::GetDataWindowRect() const
+{
+	Imath::Box2i Win;
+	if (InputFile != nullptr)
+	{
+		Win = ((Imf::RgbaInputFile*)InputFile)->dataWindow();
+	}
+
+	return FIntRect(Win.min.x, Win.min.y, Win.max.x, Win.max.y);
+}
+
+FIntRect FRgbaInputFile::GetDisplayWindow() const
+{
+	Imath::Box2i Win;
+	if (InputFile != nullptr)
+	{
+		Win = ((Imf::RgbaInputFile*)InputFile)->displayWindow();
+	}
+
+	return FIntRect(Win.min.x, Win.min.y, Win.max.x, Win.max.y);
+}
 
 FFrameRate FRgbaInputFile::GetFrameRate(const FFrameRate& DefaultValue) const
 {

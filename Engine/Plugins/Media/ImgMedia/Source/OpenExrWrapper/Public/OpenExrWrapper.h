@@ -29,6 +29,8 @@ public:
 
 	const TCHAR* GetCompressionName() const;
 	FIntPoint GetDataWindow() const;
+	FIntRect GetDataWindowRect() const;
+	FIntRect GetDisplayWindow() const;
 	FFrameRate GetFrameRate(const FFrameRate& DefaultValue) const;
 	int32 GetUncompressedSize() const;
 	int32 GetNumChannels() const;
