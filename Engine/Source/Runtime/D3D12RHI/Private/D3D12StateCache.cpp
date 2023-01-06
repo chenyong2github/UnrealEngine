@@ -3,13 +3,7 @@
 // Implementation of Device Context State Caching to improve draw
 //	thread performance by removing redundant device context calls.
 
-//-----------------------------------------------------------------------------
-//	Include Files
-//-----------------------------------------------------------------------------
 #include "D3D12RHIPrivate.h"
-#if !PLATFORM_HOLOLENS && PLATFORM_CPU_X86_FAMILY
-#include <emmintrin.h>
-#endif
 
 // This value defines how many descriptors will be in the device global descriptor heap. This heap contains all shader visible view descriptors.
 // Other shader visible descriptor heaps (e.g. OnlineViewHeap) are allocated from this pool. Non-visible heaps (e.g. LocalViewHeap) are allocated as standalone.
@@ -90,18 +84,6 @@ inline bool operator!=(D3D12_CPU_DESCRIPTOR_HANDLE lhs, D3D12_CPU_DESCRIPTOR_HAN
 }
 
 // Define template functions that are only declared in the header.
-template void FD3D12StateCache::SetShaderResourceView<SF_Vertex>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCache::SetShaderResourceView<SF_Mesh>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCache::SetShaderResourceView<SF_Amplification>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCache::SetShaderResourceView<SF_Geometry>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCache::SetShaderResourceView<SF_Pixel>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-template void FD3D12StateCache::SetShaderResourceView<SF_Compute>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
-
-template void FD3D12StateCache::SetUAVs<SF_Pixel>(uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray);
-template void FD3D12StateCache::SetUAVs<SF_Compute>(uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray);
-
-
-template void FD3D12StateCache::ClearUAVs<SF_Pixel>();
 
 template void FD3D12StateCache::ApplyState<ED3D12PipelineType::Graphics>();
 template void FD3D12StateCache::ApplyState<ED3D12PipelineType::Compute>();
@@ -170,6 +152,25 @@ void FD3D12StateCache::ClearSRVs()
 	PipelineState.Common.SRVCache.Clear();
 
 	bSRVSCleared = true;
+}
+
+void FD3D12StateCache::ClearShaderResourceViews(EShaderFrequency ShaderFrequency, FD3D12ResourceLocation*& ResourceLocation)
+{
+	//SCOPE_CYCLE_COUNTER(STAT_D3D12ClearShaderResourceViewsTime);
+
+	if (PipelineState.Common.SRVCache.MaxBoundIndex[ShaderFrequency] < 0)
+	{
+		return;
+	}
+
+	auto& CurrentShaderResourceViews = PipelineState.Common.SRVCache.Views[ShaderFrequency];
+	for (int32 i = 0; i <= PipelineState.Common.SRVCache.MaxBoundIndex[ShaderFrequency]; ++i)
+	{
+		if (CurrentShaderResourceViews[i] && CurrentShaderResourceViews[i]->GetResourceLocation() == ResourceLocation)
+		{
+			SetShaderResourceView(ShaderFrequency, nullptr, i);
+		}
+	}
 }
 
 void FD3D12StateCache::FlushComputeShaderCache(bool bForce)
@@ -1165,8 +1166,7 @@ bool FD3D12StateCache::AssertResourceStates(ED3D12PipelineType PipelineType)
 #endif
 }
 
-template <EShaderFrequency ShaderStage>
-void FD3D12StateCache::ClearUAVs()
+void FD3D12StateCache::ClearUAVs(EShaderFrequency ShaderStage)
 {
 	FD3D12UnorderedAccessViewCache& Cache = PipelineState.Common.UAVCache;
 	const bool bIsCompute = ShaderStage == SF_Compute;
@@ -1181,8 +1181,7 @@ void FD3D12StateCache::ClearUAVs()
 	}
 }
 
-template <EShaderFrequency ShaderStage>
-void FD3D12StateCache::SetUAVs(uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray)
+void FD3D12StateCache::SetUAVs(EShaderFrequency ShaderStage, uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12SetUnorderedAccessViewTime);
 	check(NumSimultaneousUAVs > 0);
@@ -1425,8 +1424,7 @@ void FD3D12StateCache::InternalSetStreamSource(FD3D12ResourceLocation* VertexBuf
 	}
 }
 
-template <EShaderFrequency ShaderFrequency>
-void FD3D12StateCache::SetShaderResourceView(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex)
+void FD3D12StateCache::SetShaderResourceView(EShaderFrequency ShaderFrequency, FD3D12ShaderResourceView* SRV, uint32 ResourceIndex)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12SetShaderResourceViewTime);
 

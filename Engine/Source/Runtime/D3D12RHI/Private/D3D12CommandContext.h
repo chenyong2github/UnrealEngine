@@ -477,6 +477,9 @@ public:
 	D3D12_RESOURCE_STATES SkipFastClearEliminateState = D3D12_RESOURCE_STATES(0);
 	D3D12_RESOURCE_STATES ValidResourceStates;
 
+	/** Constant buffers for Set*ShaderParameter calls. */
+	FD3D12ConstantBuffer StageConstantBuffers[SF_NumStandardFrequencies];
+
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	bool bNeedFlushTextureCache = false;
 	void InvalidateTextureCache() { bNeedFlushTextureCache = true; }
@@ -491,14 +494,6 @@ public:
 	}
 	virtual void FlushTextureCache() {};
 #endif
-
-	/** Constant buffers for Set*ShaderParameter calls. */
-	FD3D12ConstantBuffer VSConstantBuffer;
-	FD3D12ConstantBuffer MSConstantBuffer;
-	FD3D12ConstantBuffer ASConstantBuffer;
-	FD3D12ConstantBuffer PSConstantBuffer;
-	FD3D12ConstantBuffer GSConstantBuffer;
-	FD3D12ConstantBuffer CSConstantBuffer;
 
 	/** needs to be called before each draw call */
 	void CommitNonComputeShaderConstants();

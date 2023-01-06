@@ -408,25 +408,7 @@ protected:
 	FD3D12DescriptorCache DescriptorCache;
 
 	void InternalSetIndexBuffer(FD3D12Resource* Resource);
-
 	void InternalSetStreamSource(FD3D12ResourceLocation* VertexBufferLocation, uint32 StreamIndex, uint32 Stride, uint32 Offset);
-
-	template <typename TShader> struct TStateCacheShaderTraits;
-#define DECLARE_SHADER_TRAITS(Name) \
-	template <> struct TStateCacheShaderTraits<FD3D12##Name##Shader> \
-	{ \
-		static FD3D12##Name##Shader* GetShader(FD3D12GraphicsPipelineState* PSO) { return PSO ? (FD3D12##Name##Shader*)PSO->PipelineStateInitializer.BoundShaderState.Get##Name##Shader() : nullptr; } \
-	}
-	DECLARE_SHADER_TRAITS(Vertex);
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	DECLARE_SHADER_TRAITS(Mesh);
-	DECLARE_SHADER_TRAITS(Amplification);
-#endif
-	DECLARE_SHADER_TRAITS(Pixel);
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	DECLARE_SHADER_TRAITS(Geometry);
-#endif
-#undef DECLARE_SHADER_TRAITS
 
 	bool InternalSetRootSignature(ED3D12PipelineType InPipelineType, const FD3D12RootSignature* InRootSignature);
 	void InternalSetPipelineState(FD3D12PipelineState* InPipelineState);
@@ -472,28 +454,9 @@ public:
 
 	void ClearSRVs();
 
-	template <EShaderFrequency ShaderFrequency>
-	void ClearShaderResourceViews(FD3D12ResourceLocation*& ResourceLocation)
-	{
-		//SCOPE_CYCLE_COUNTER(STAT_D3D12ClearShaderResourceViewsTime);
+	void ClearShaderResourceViews(EShaderFrequency ShaderFrequency, FD3D12ResourceLocation*& ResourceLocation);
 
-		if (PipelineState.Common.SRVCache.MaxBoundIndex[ShaderFrequency] < 0)
-		{
-			return;
-		}
-
-		auto& CurrentShaderResourceViews = PipelineState.Common.SRVCache.Views[ShaderFrequency];
-		for (int32 i = 0; i <= PipelineState.Common.SRVCache.MaxBoundIndex[ShaderFrequency]; ++i)
-		{
-			if (CurrentShaderResourceViews[i] && CurrentShaderResourceViews[i]->GetResourceLocation() == ResourceLocation)
-			{
-				SetShaderResourceView<ShaderFrequency>(nullptr, i);
-			}
-		}
-	}
-
-	template <EShaderFrequency ShaderFrequency>
-	void SetShaderResourceView(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
+	void SetShaderResourceView(EShaderFrequency ShaderFrequency, FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 	
 	void SetScissorRects(uint32 Count, const D3D12_RECT* const ScissorRects);
 	void SetScissorRect(const D3D12_RECT& ScissorRect);
@@ -537,8 +500,7 @@ public:
 		*Count = PipelineState.Graphics.CurrentNumberOfViewports;
 	}
 
-	template <EShaderFrequency ShaderFrequency>
-	D3D12_STATE_CACHE_INLINE void SetSamplerState(FD3D12SamplerState* SamplerState, uint32 SamplerIndex)
+	D3D12_STATE_CACHE_INLINE void SetSamplerState(EShaderFrequency ShaderFrequency, FD3D12SamplerState* SamplerState, uint32 SamplerIndex)
 	{
 		check(SamplerIndex < MAX_SAMPLERS);
 		auto& Samplers = PipelineState.Common.SamplerCache.States[ShaderFrequency];
@@ -549,8 +511,7 @@ public:
 		}
 	}
 
-	template <EShaderFrequency ShaderFrequency>
-	void D3D12_STATE_CACHE_INLINE SetConstantsFromUniformBuffer(uint32 SlotIndex, FD3D12UniformBuffer* UniformBuffer)
+	D3D12_STATE_CACHE_INLINE void SetConstantsFromUniformBuffer(EShaderFrequency ShaderFrequency, uint32 SlotIndex, FD3D12UniformBuffer* UniformBuffer)
 	{
 		check(SlotIndex < MAX_CBS);
 		FD3D12ConstantBufferCache& CBVCache = PipelineState.Common.CBVCache;
@@ -588,8 +549,7 @@ public:
 		}
 	}
 
-	template <EShaderFrequency ShaderFrequency>
-	void D3D12_STATE_CACHE_INLINE SetConstantBuffer(FD3D12ConstantBuffer& Buffer, bool bDiscardSharedConstants)
+	D3D12_STATE_CACHE_INLINE void SetConstantBuffer(EShaderFrequency ShaderFrequency, FD3D12ConstantBuffer& Buffer, bool bDiscardSharedConstants)
 	{
 		FD3D12ResourceLocation Location(GetParentDevice());
 
@@ -614,10 +574,18 @@ public:
 	void SetBlendFactor(const float BlendFactor[4]);
 	void SetStencilRef(uint32 StencilRef);
 
-	template <typename TShader>
-	D3D12_STATE_CACHE_INLINE TShader* GetShader()
+	FRHIShader* GetShader(EShaderFrequency InFrequency)
 	{
-		return TStateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
+		switch (InFrequency)
+		{
+		case SF_Vertex:        return GetGraphicsPipelineState()->GetVertexShader();
+		case SF_Mesh:          return GetGraphicsPipelineState()->GetMeshShader();
+		case SF_Amplification: return GetGraphicsPipelineState()->GetAmplificationShader();
+		case SF_Pixel:         return GetGraphicsPipelineState()->GetPixelShader();
+		case SF_Geometry:      return GetGraphicsPipelineState()->GetGeometryShader();
+		case SF_Compute:       return GetComputePipelineState()->GetComputeShader();
+		default:               return nullptr;
+		}
 	}
 
 	void SetNewShaderData(EShaderFrequency InFrequency, const FD3D12ShaderData* InShaderData);
@@ -713,11 +681,8 @@ public:
 		}
 	}
 
-	template <EShaderFrequency ShaderStage>
-	void SetUAVs(uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray);
-	template <EShaderFrequency ShaderStage>
-	void ClearUAVs();
-
+	void SetUAVs(EShaderFrequency ShaderStage, uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray);
+	void ClearUAVs(EShaderFrequency ShaderStage);
 
 	void SetDepthBounds(float MinDepth, float MaxDepth)
 	{

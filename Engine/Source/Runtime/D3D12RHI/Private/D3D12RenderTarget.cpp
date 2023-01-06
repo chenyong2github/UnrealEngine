@@ -268,7 +268,7 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 			RHICmdList.RunOnContext([TextureIndex, SourceTexture](FD3D12CommandContext& Context)
 			{
 				// Set the source texture.
-				Context.StateCache.SetShaderResourceView<SF_Pixel>(SourceTexture->GetShaderResourceView(), TextureIndex);
+				Context.StateCache.SetShaderResourceView(SF_Pixel, SourceTexture->GetShaderResourceView(), TextureIndex);
 			});
 
 			RHICmdList.DrawPrimitive(0, 2, 1);

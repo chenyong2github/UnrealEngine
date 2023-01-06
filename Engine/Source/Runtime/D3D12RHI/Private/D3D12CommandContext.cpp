@@ -103,12 +103,14 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12QueueTy
 	, ConstantsAllocator(InParent, InParent->GetGPUMask())
 	, StateCache(*this, InParent->GetGPUMask())
 	, ValidResourceStates(GetValidResourceStates(QueueType))
-	, VSConstantBuffer(InParent, ConstantsAllocator)
-	, MSConstantBuffer(InParent, ConstantsAllocator)
-	, ASConstantBuffer(InParent, ConstantsAllocator)
-	, PSConstantBuffer(InParent, ConstantsAllocator)
-	, GSConstantBuffer(InParent, ConstantsAllocator)
-	, CSConstantBuffer(InParent, ConstantsAllocator)
+	, StageConstantBuffers{
+		FD3D12ConstantBuffer(InParent, ConstantsAllocator),
+		FD3D12ConstantBuffer(InParent, ConstantsAllocator),
+		FD3D12ConstantBuffer(InParent, ConstantsAllocator),
+		FD3D12ConstantBuffer(InParent, ConstantsAllocator),
+		FD3D12ConstantBuffer(InParent, ConstantsAllocator),
+		FD3D12ConstantBuffer(InParent, ConstantsAllocator),
+	}
 {
 	StaticUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 	ClearState();
@@ -630,12 +632,11 @@ void FD3D12CommandContext::ClearState(EClearStateMode Mode)
 void FD3D12CommandContext::ConditionalClearShaderResource(FD3D12ResourceLocation* Resource)
 {
 	check(Resource);
-	StateCache.ClearShaderResourceViews<SF_Vertex>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Mesh>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Amplification>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Pixel>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Geometry>(Resource);
-	StateCache.ClearShaderResourceViews<SF_Compute>(Resource);
+
+	for (int32 Index = 0; Index < SF_NumStandardFrequencies; Index++)
+	{
+		StateCache.ClearShaderResourceViews(static_cast<EShaderFrequency>(Index), Resource);
+	}
 }
 
 void FD3D12CommandContext::ClearAllShaderResources()

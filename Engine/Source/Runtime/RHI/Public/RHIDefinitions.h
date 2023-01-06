@@ -107,6 +107,21 @@ enum EShaderFrequency : uint8
 };
 static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will not fit on SF_NumBits");
 
+inline bool IsValidGraphicsFrequency(EShaderFrequency InShaderFrequency)
+{
+	switch (InShaderFrequency)
+	{
+	case SF_Vertex:        return true;
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	case SF_Mesh:          return true;
+	case SF_Amplification: return true;
+#endif
+	case SF_Pixel:         return true;
+	case SF_Geometry:      return true;
+	}
+	return false;
+}
+
 inline bool IsComputeShaderFrequency(EShaderFrequency ShaderFrequency)
 {
 	switch (ShaderFrequency)
