@@ -25,6 +25,10 @@
 #include "Misc/CoreDelegates.h"
 #include "TextureResource.h"
 
+#if !STATS
+#include "Async/ParallelFor.h"
+#endif
+
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 CSV_DEFINE_CATEGORY(TextureStreaming, true);
