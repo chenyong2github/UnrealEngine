@@ -6,6 +6,7 @@
 
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/PackageName.h"
 #include "UObject/GCObject.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectIterator.h"
