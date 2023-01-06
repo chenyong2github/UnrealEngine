@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Linq;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Perforce;
@@ -11,6 +13,7 @@ using EpicGames.Serialization;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Agents.Software;
+using Horde.Build.Configuration;
 using Horde.Build.Projects;
 using Horde.Build.Storage;
 using Horde.Build.Tools;
@@ -28,6 +31,11 @@ namespace Horde.Build.Server
 	[JsonSchemaCatalog("Horde Globals", "Horde global configuration file", "globals.json")]
 	public class GlobalConfig
 	{
+		/// <summary>
+		/// Other paths to include
+		/// </summary>
+		public List<ConfigInclude> Include { get; set; } = new List<ConfigInclude>();
+
 		/// <summary>
 		/// List of projects
 		/// </summary>
@@ -137,6 +145,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Profile for executing compute requests
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class ComputeClusterConfig
 	{
 		/// <summary>
@@ -168,6 +177,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// References a project configuration
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class ProjectConfigRef
 	{
 		/// <summary>
@@ -179,13 +189,20 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Config path for the project
 		/// </summary>
-		[Required]
+		[Required, ConfigPath]
 		public string Path { get; set; } = null!;
+
+		/// <summary>
+		/// Configuration for this project
+		/// </summary>
+		[JsonIgnore]
+		public ProjectConfig Target { get; set; } = null!;
 	}
 
 	/// <summary>
 	/// Configuration for a device platform 
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class DevicePlatformConfig
 	{
 		/// <summary>
@@ -218,6 +235,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Selects different agent software versions by evaluating a condition
 	/// </summary>
+	[DebuggerDisplay("{Channel}")]
 	public class AgentSoftwareConfig
 	{
 		/// <summary>
@@ -443,6 +461,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Information about a cluster of Perforce servers. 
 	/// </summary>
+	[DebuggerDisplay("{Name}")]
 	public class PerforceCluster
 	{
 		/// <summary>

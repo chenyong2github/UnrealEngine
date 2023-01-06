@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Storage.Backends;
@@ -57,6 +58,7 @@ namespace Horde.Build.Storage
 	/// <summary>
 	/// Common settings object for different providers
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class BackendConfig : IStorageBackendOptions
 	{
 		/// <summary>
@@ -104,6 +106,7 @@ namespace Horde.Build.Storage
 	/// <summary>
 	/// Configuration of a particular namespace
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class NamespaceConfig
 	{
 		/// <summary>

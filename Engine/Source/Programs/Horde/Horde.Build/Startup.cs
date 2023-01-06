@@ -91,11 +91,9 @@ using Horde.Build.Projects;
 using Horde.Build.Streams;
 using Horde.Build.Ugs;
 using Horde.Build.Auditing;
-using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Server.Notices;
 using Horde.Build.Notifications.Sinks;
 using StatusCode = Grpc.Core.StatusCode;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build
 {
@@ -361,6 +359,14 @@ namespace Horde.Build
 
 			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<ToolCollection>();
+
+			services.AddSingleton<IConfigSource, InMemoryConfigSource>();
+			services.AddSingleton<IConfigSource, FileConfigSource>();
+			services.AddSingleton<IConfigSource, PerforceConfigSource>();
+
+			services.AddSingleton<ConfigService>();
+			services.AddSingleton<IOptionsFactory<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
+			services.AddSingleton<IOptionsChangeTokenSource<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
 
 			// Auditing
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
@@ -641,6 +647,7 @@ namespace Horde.Build
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
 				}
+				services.AddHostedService(provider => provider.GetRequiredService<ConfigService>());
 				services.AddHostedService(provider => provider.GetRequiredService<ConfigUpdateService>());
 				services.AddHostedService<TelemetryService>();
 				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
@@ -682,6 +689,9 @@ namespace Horde.Build
 			});
 
 			services.AddMvc().AddJsonOptions(options => ConfigureJsonSerializer(options.JsonSerializerOptions));
+
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IProject>)].SetSurrogate(typeof(StringIdProto<IProject>));
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IStream>)].SetSurrogate(typeof(StringIdProto<IStream>));
 
 			services.AddControllers(options =>
 			{
@@ -741,6 +751,7 @@ namespace Horde.Build
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions options)
 		{
+			options.AllowTrailingCommas = true;
 			options.ReadCommentHandling = JsonCommentHandling.Skip;
 			options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 			options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;

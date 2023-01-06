@@ -3,10 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text.RegularExpressions;
+using System.Diagnostics;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
+using Horde.Build.Configuration;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 
@@ -56,6 +58,7 @@ namespace Horde.Build.Projects
 	/// <summary>
 	/// Reference to configuration for a stream
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class StreamConfigRef
 	{
 		/// <summary>
@@ -67,8 +70,14 @@ namespace Horde.Build.Projects
 		/// <summary>
 		/// Path to the configuration file
 		/// </summary>
-		[Required]
+		[Required, ConfigPath]
 		public string Path { get; set; } = null!;
+
+		/// <summary>
+		/// Target configuration object
+		/// </summary>
+		[JsonIgnore]
+		public StreamConfig Target { get; set; } = null!;
 	}
 
 	/// <summary>

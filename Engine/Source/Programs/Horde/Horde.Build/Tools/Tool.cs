@@ -6,6 +6,8 @@ using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -18,12 +20,15 @@ namespace Horde.Build.Tools
 	/// <summary>
 	/// Options for configuring a tool
 	/// </summary>
+	[DebuggerDisplay("{Id}")]
 	public class ToolOptions
 	{
 		/// <inheritdoc cref="VersionedDocument{ToolId, Tool}.Id"/>
+		[Required]
 		public ToolId Id { get; set; }
 
 		/// <inheritdoc cref="Tool.Name"/>
+		[Required]
 		public string Name { get; set; }
 
 		/// <inheritdoc cref="Tool.Description"/>
@@ -34,6 +39,15 @@ namespace Horde.Build.Tools
 
 		/// <inheritdoc cref="Tool.Acl"/>
 		public AclV2? Acl { get; set; }
+
+		/// <summary>
+		/// Default constructor for serialization
+		/// </summary>
+		public ToolOptions()
+		{
+			Name = String.Empty;
+			Description = String.Empty;
+		}
 
 		/// <summary>
 		/// Constructor

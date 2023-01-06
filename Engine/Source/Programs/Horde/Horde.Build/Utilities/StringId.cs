@@ -11,6 +11,7 @@ using EpicGames.Core;
 using EpicGames.Serialization;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
+using ProtoBuf;
 
 namespace Horde.Build.Utilities
 {
@@ -389,5 +390,19 @@ namespace Horde.Build.Utilities
 				return Activator.CreateInstance(destinationType, value);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Surrogate type for serializing StringId types to ProtoBuf
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	[ProtoContract]
+	struct StringIdProto<T>
+	{
+		[ProtoMember(1)]
+		public string? Id { get; set; }
+
+		public static implicit operator StringId<T>(StringIdProto<T> source) => new StringId<T>(source.Id!);
+		public static implicit operator StringIdProto<T>(StringId<T> source) => new StringIdProto<T> { Id = source.ToString() };
 	}
 }

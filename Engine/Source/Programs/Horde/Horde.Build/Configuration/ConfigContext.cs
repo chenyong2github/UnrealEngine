@@ -1,0 +1,99 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text.Json;
+
+namespace Horde.Build.Configuration
+{
+	/// <summary>
+	/// Context for reading a tree of config files
+	/// </summary>
+	[DebuggerDisplay("{CurrentFile}")]
+	class ConfigContext
+	{
+		/// <summary>
+		/// Options for serializing config files
+		/// </summary>
+		public JsonSerializerOptions JsonOptions { get; }
+
+		/// <summary>
+		/// Stack of included files
+		/// </summary>
+		public Stack<Uri> IncludeStack { get; } = new Stack<Uri>();
+
+		/// <summary>
+		/// Stack of properties
+		/// </summary>
+		public Stack<string> ScopeStack { get; } = new Stack<string>();
+
+		/// <summary>
+		/// Map of property path to the file declaring a value for it
+		/// </summary>
+		public Dictionary<string, Uri> PropertyPathToFile = new Dictionary<string, Uri>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// Sources to read config files from
+		/// </summary>
+		public IReadOnlyDictionary<string, IConfigSource> Sources { get; }
+
+		/// <summary>
+		/// Tracks files read as part of the configuration
+		/// </summary>
+		public Dictionary<Uri, IConfigData> Files { get; } = new Dictionary<Uri, IConfigData>();
+
+		/// <summary>
+		/// Uri of the current file
+		/// </summary>
+		public Uri CurrentFile => (IncludeStack.Count > 0) ? IncludeStack.Peek() : null!;
+
+		/// <summary>
+		/// Current property scope
+		/// </summary>
+		public string CurrentScope => ScopeStack.Peek();
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ConfigContext(JsonSerializerOptions jsonOptions, IReadOnlyDictionary<string, IConfigSource> sources)
+		{
+			JsonOptions = jsonOptions;
+			Sources = sources;
+			ScopeStack.Push("$");
+		}
+
+		/// <summary>
+		/// Marks a property as defined in the current file
+		/// </summary>
+		/// <param name="name"></param>
+		public void AddProperty(string name)
+		{
+			string propertyPath = $"{CurrentScope}.{name}";
+
+			Uri currentFile = CurrentFile;
+			if (!PropertyPathToFile.TryAdd(propertyPath, currentFile))
+			{
+				Uri otherFile = PropertyPathToFile[propertyPath];
+				throw new ConfigException(this, $"Property {propertyPath} was already defined in {otherFile}.");
+			}
+		}
+
+		/// <summary>
+		/// Pushes a scope to the property stack
+		/// </summary>
+		/// <param name="name"></param>
+		public void EnterScope(string name)
+		{
+			ScopeStack.Push($"{CurrentScope}.{name}");
+		}
+
+		/// <summary>
+		/// Pops a scope from the property stack
+		/// </summary>
+		public void LeaveScope()
+		{
+			ScopeStack.Pop();
+		}
+	}
+}
