@@ -2986,7 +2986,7 @@ void ULevel::OnLevelLoaded()
 			const bool bIsValidLevelInstance = IsValidLevelInstanceWorldPartition(WorldPartition);
 			const bool bIsMainWorldLevel = OwningWorld->PersistentLevel == this;
 			const bool bInitializeForEditor = !bIsOwningWorldGameWorld && bIsValidLevelInstance;
-			const bool bInitializeForGame = bIsOwningWorldGameWorld && !bIsOwningWorldPartitioned;
+			const bool bInitializeForGame = bIsOwningWorldGameWorld;
 
 			UE_LOG(LogWorldPartition, Log, TEXT("ULevel::OnLevelLoaded(%s)(bIsOwningWorldGameWorld=%d, bIsOwningWorldPartitioned=%d, bIsValidLevelInstance=%d, InitializeForMainWorld=%d, InitializeForEditor=%d, InitializeForGame=%d)"), 
 				*GetTypedOuter<UWorld>()->GetName(), bIsOwningWorldGameWorld ? 1 : 0, bIsOwningWorldPartitioned ? 1 : 0, bIsValidLevelInstance ? 1 : 0, bIsMainWorldLevel ? 1 : 0, bInitializeForEditor ? 1 : 0, bInitializeForGame ? 1 : 0);

@@ -539,7 +539,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 					InstancingContext.AddPackageMapping(*LongActorPackageName, *InstancedName);
 
-					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath, GetInstanceTransform());
+					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath);
 				}
 
 				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();

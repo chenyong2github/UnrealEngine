@@ -230,7 +230,7 @@ public:
 
 	void SerializeTo(TArray<uint8>& OutData);
 
-	void TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform);
+	void TransformInstance(const FString& From, const FString& To);
 
 	using FActorDescDeprecator = TFunction<void(FArchive&, FWorldPartitionActorDesc*)>;
 	static void RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator);
