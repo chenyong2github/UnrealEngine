@@ -562,6 +562,36 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Add definitions from source to target. This code also reformats defines to match strict rules which does not allow space before and after '='
+		/// </summary>
+		protected void AddDefinitions(List<string> Target, HashSet<string> Source)
+		{
+			StringBuilder Builder = new();
+			foreach (string Def in Source)
+			{
+				string FixedDef = Def;
+				int IndexOfAssign = Def.IndexOf("=");
+				if (IndexOfAssign != -1)
+				{
+					ReadOnlySpan<char> DefSpan = Def.AsSpan();
+					ReadOnlySpan<char> Name = DefSpan.Slice(0, IndexOfAssign);
+					ReadOnlySpan<char> NameTrim = Name.Trim();
+					ReadOnlySpan<char> Value = DefSpan.Slice(IndexOfAssign + 1);
+					ReadOnlySpan<char> ValueTrim = Value.Trim();
+					if (Name.Length != NameTrim.Length || Value.Length != ValueTrim.Length)
+					{
+						Builder.Clear();
+						Builder.Append(NameTrim);
+						Builder.Append('=');
+						Builder.Append(ValueTrim);
+						FixedDef = Builder.ToString();
+					}
+				}
+				Target.Add(FixedDef);
+			}
+		}
+
+		/// <summary>
 		/// Sets up the environment for compiling any module that includes the public interface of this module.
 		/// </summary>
 		public virtual void AddModuleToCompileEnvironment(
@@ -603,7 +633,7 @@ namespace UnrealBuildTool
 			SystemIncludePaths.UnionWith(PublicSystemIncludePaths);
 
 			// Add this module's public definitions
-			Definitions.AddRange(PublicDefinitions);
+			AddDefinitions(Definitions, PublicDefinitions);
 
 			// Add the import or export declaration for the module
 			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)

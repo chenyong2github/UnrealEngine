@@ -1618,7 +1618,8 @@ namespace UnrealBuildTool
 			}
 
 			// Add the module's public and private definitions.
-			Result.Definitions.AddRange(PublicDefinitions);
+			AddDefinitions(Result.Definitions, PublicDefinitions);
+
 			Result.Definitions.AddRange(Rules.PrivateDefinitions);
 
 			// Add the project definitions
