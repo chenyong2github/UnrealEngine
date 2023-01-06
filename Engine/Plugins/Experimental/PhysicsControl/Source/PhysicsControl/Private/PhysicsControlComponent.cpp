@@ -121,12 +121,15 @@ void UPhysicsControlComponent::TickComponent(
 
 		if (ConstraintInstance)
 		{
+			// Always control collision, because otherwise maintaining it is very difficult, since
+			// constraint-controlled collision doesn't interact nicely when there are multiple constraints.
+			ConstraintInstance->SetDisableCollision(Record.PhysicsControl.ControlSettings.bDisableCollision);
+
 			// Constraint is not enabled
 			if (!Record.PhysicsControlState.bEnabled)
 			{
 				ConstraintInstance->SetAngularDriveParams(0.0f, 0.0f, 0.0f);
 				ConstraintInstance->SetLinearDriveParams(0.0f, 0.0f, 0.0f);
-				ConstraintInstance->SetDisableCollision(false);
 			}
 			else
 			{
@@ -1172,6 +1175,48 @@ bool UPhysicsControlComponent::SetControlAutoDisable(const FName Name, const boo
 		return true;
 	}
 	return false;
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetControlsAutoDisable(const TArray<FName>& Names, const bool bAutoDisable)
+{
+	for (FName Name : Names)
+	{
+		SetControlAutoDisable(Name, bAutoDisable);
+	}
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetControlsInSetAutoDisable(const FName SetName, const bool bAutoDisable)
+{
+	SetControlsAutoDisable(GetControlNamesInSet(SetName), bAutoDisable);
+}
+
+//======================================================================================================================
+bool UPhysicsControlComponent::SetControlDisableCollision(const FName Name, const bool bDisableCollision)
+{
+	FPhysicsControl* PhysicsControl = Implementation->FindControl(Name);
+	if (PhysicsControl)
+	{
+		PhysicsControl->ControlSettings.bDisableCollision = bDisableCollision;
+		return true;
+	}
+	return false;
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetControlsDisableCollision(const TArray<FName>& Names, const bool bDisableCollision)
+{
+	for (FName Name : Names)
+	{
+		SetControlDisableCollision(Name, bDisableCollision);
+	}
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetControlsInSetDisableCollision(const FName SetName, const bool bDisableCollision)
+{
+	SetControlsDisableCollision(GetControlNamesInSet(SetName), bDisableCollision);
 }
 
 //======================================================================================================================

@@ -62,6 +62,8 @@ FConstraintInstance* FPhysicsControlRecord::CreateConstraint(UObject* Constraint
 	ConstraintInstance->SetOrientationDriveSLERP(true);
 	ConstraintInstance->SetAngularVelocityDriveSLERP(true);
 
+	ConstraintInstance->SetDisableCollision(PhysicsControl.ControlSettings.bDisableCollision);
+
 	return ConstraintInstance;
 }
 

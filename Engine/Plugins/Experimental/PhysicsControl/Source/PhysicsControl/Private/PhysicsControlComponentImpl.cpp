@@ -603,8 +603,6 @@ void FPhysicsControlComponentImpl::ApplyControl(FPhysicsControlRecord& Record)
 		return;
 	}
 
-	ConstraintInstance->SetDisableCollision(Record.PhysicsControl.ControlSettings.bDisableCollision);
-
 	// Set strengths etc
 	if (ApplyControlStrengths(Record, ConstraintInstance))
 	{

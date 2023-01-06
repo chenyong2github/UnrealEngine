@@ -314,7 +314,7 @@ public:
 	 * @param Name The name of the control to modify. 
 	 * @param ControlData The new control data
 	 * @param bEnableControl Enables the control if it is currently disabled
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlData(const FName Name, const FPhysicsControlData ControlData, const bool bEnableControl = true);
@@ -347,7 +347,7 @@ public:
 	 * @param Name The name of the control to modify. 
 	 * @param ControlMultipliers The new control multipliers
 	 * @param bEnableControl Enables the control if it is currently disabled
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlMultiplier(const FName Name, const FPhysicsControlMultiplier ControlMultiplier, const bool bEnableControl = true);
@@ -389,7 +389,7 @@ public:
 	 * @param ExtraDamping The amount of additional linear damping
 	 * @param MaxForce The maximum force used to drive the linear motion. Zero indicates no limit.
 	 * @param bEnableControl Enables the control if it is currently disabled
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlLinearData(
@@ -409,7 +409,7 @@ public:
 	 * @param ExtraDamping The amount of additional angular damping
 	 * @param MaxTorque The maximum torque used to drive the angular motion. Zero indicates no limit.
 	 * @param bEnableControl Enables the control if it is currently disabled
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlAngularData(
@@ -444,7 +444,7 @@ public:
 	 * @param Name The name of the control to modify. 
 	 * @param ControlTarget The new target for the control
 	 * @param bEnableControl Enables the control if it is currently disabled
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlTarget(const FName Name, const FPhysicsControlTarget ControlTarget, const bool bEnableControl = true);
@@ -518,7 +518,7 @@ public:
 	 *        transform for the object as a whole. If false, then the target transform
 	 *        is used as is, and the system drives the control point towards this
 	 *        transform.
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlTargetPosition(
@@ -543,7 +543,7 @@ public:
 	 *        transform for the object as a whole. If false, then the target transform
 	 *        is used as is, and the system drives the control point towards this
 	 *        transform.
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlTargetOrientation(
@@ -586,7 +586,7 @@ public:
 	 *        there is any) and the control target that has been set
 	 * @param SkeletalAnimationVelocityMultiplier If skeletal animation is being used, then this determines 
 	 *        the amount of velocity extracted from the animation that is used as targets for the controls
-	 * @return Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlUseSkeletalAnimation(
@@ -659,10 +659,48 @@ public:
 	/**
 	 * @param Name The name of the control to modify. 
 	 * @param bAutoDisable If set then the control will automatically deactivate after each tick.
-	 * @return     Returns true if the control was found and modified, false if not
+	 * @return true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlAutoDisable(const FName Name, const bool bAutoDisable);
+
+	/**
+	 * @param Names The names of the controls to modify. 
+	 * @param bAutoDisable If set then the control will automatically deactivate after each tick.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlsAutoDisable(const TArray<FName>& Names, const bool bAutoDisable);
+
+	/**
+	 * @param Set The set of controls to modify. Standard sets will include "All", "WorldSpace",
+	 *        "ParentSpace" and things like "WorldSpace-ArmLeft", depending on how controls have been created.
+	 * @param bAutoDisable If set then the control will automatically deactivate after each tick.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlsInSetAutoDisable(const FName Set, const bool bAutoDisable);
+
+	/**
+	 * @param Name The name of the control to modify. 
+	 * @param bDisableCollision If set then the control will disable collision between the bodies it connects.
+	 * @return true if the control was found and modified, false if not
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	bool SetControlDisableCollision(const FName Name, const bool bDisableCollision);
+
+	/**
+	 * @param Names The names of the controls to modify. 
+	 * @param bDisableCollision If set then the control will disable collision between the bodies it connects.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlsDisableCollision(const TArray<FName>& Names, const bool bDisableCollision);
+
+	/**
+	 * @param Set The set of controls to modify. Standard sets will include "All", "WorldSpace",
+	 *        "ParentSpace" and things like "WorldSpace-ArmLeft", depending on how controls have been created.
+	 * @param bDisableCollision If set then the control will disable collision between the bodies it connects.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlsInSetDisableCollision(const FName Set, const bool bDisableCollision);
 
 	/**
 	 * @param Name     The name of the control to access. 
@@ -839,7 +877,7 @@ public:
 	 * @param KinematicTargetOrientation The orientation to use as the kinematic target of the associated body,
 	 *                                   if it is kinematic
 	 * @param bMakeKinematic If set then the body will be made kinematic. If not set, then it won't be changed.
-	 * @return Returns true if the body modifier was found, false if not
+	 * @return true if the body modifier was found, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetBodyModifierKinematicTarget(
@@ -853,7 +891,7 @@ public:
 	 *
 	 * @param Name The name of the body modifier to access. 
 	 * @param MovementType Whether to enable/disable simulation on the body
-	 * @return Returns true if the body modifier was found, false if not
+	 * @return true if the body modifier was found, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetBodyModifierMovementType(
@@ -889,7 +927,7 @@ public:
 	 *
 	 * @param Name The name of the body modifier to access.
 	 * @param CollisionType Collision type to set on the body
-	 * @return Returns true if the body modifier was found, false if not
+	 * @return true if the body modifier was found, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetBodyModifierCollisionType(
@@ -925,7 +963,7 @@ public:
 	 *
 	 * @param Name The name of the body modifier to access. 
 	 * @param GravityMultiplier The amount of gravity to apply when simulating
-	 * @return Returns true if the body modifier was found, false if not
+	 * @return true if the body modifier was found, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetBodyModifierGravityMultiplier(
@@ -960,10 +998,9 @@ public:
 	 * Sets whether a body modifier should use skeletal animation for its kinematic targets
 	 *
 	 * @param Name The name of the body modifier to access. 
-	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the 
-	 *                              skeletal animation, rather than world space. Only relevant if the
-	 *                              body is part of a skeletal mesh.
-	 * @return Returns true if the body modifier was found, false if not
+	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the skeletal
+	 *        animation, rather than world space. Only relevant if the body is part of a skeletal mesh.
+	 * @return true if the body modifier was found, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetBodyModifierUseSkeletalAnimation(
