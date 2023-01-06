@@ -3,6 +3,7 @@
 #include "WaveformEditorInstantiator.h"
 
 #include "ContentBrowserModule.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Sound/SoundWave.h"
 #include "SWaveformEditorMessageDialog.h"

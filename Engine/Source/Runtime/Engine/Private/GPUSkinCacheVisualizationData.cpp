@@ -3,6 +3,7 @@
 #include "GPUSkinCacheVisualizationData.h"
 #include "HAL/IConsoleManager.h"
 #include "RenderUtils.h"
+#include "RHIDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "FGPUSkinCacheVisualizationData"
 

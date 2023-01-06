@@ -2,6 +2,7 @@
 
 #include "DeferredShadingRenderer.h"
 #include "PostProcess/SceneRenderTargets.h"
+#include "ScenePrivate.h"
 
 #if RHI_RAYTRACING
 
@@ -10,7 +11,6 @@
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
-#include "ScenePrivate.h"
 #include "UniformBuffer.h"
 #include "VisualizeTexture.h"
 #include "RayGenShaderUtils.h"

@@ -27,6 +27,7 @@
 #include "DynamicMeshBuilder.h"
 #include "Engine/EngineTypes.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
 #if WITH_EDITOR
 #include "Materials/Material.h"
 #include "Engine/Canvas.h"  // For draw text
