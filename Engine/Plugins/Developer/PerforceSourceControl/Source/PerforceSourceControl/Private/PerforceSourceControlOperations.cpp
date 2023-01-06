@@ -3071,6 +3071,11 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 																	FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
 																	InCommand.bConnectionDropped, Flags);
 			
+			RemoveRedundantErrors(InCommand, TEXT(" - no such file(s)."));
+			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not on client"));
+			RemoveRedundantErrors(InCommand, TEXT("' is not under client's root '"));
+			RemoveRedundantErrors(InCommand, TEXT(" - no file(s) at that changelist number."));
+
 			if (!InCommand.ResultInfo.ErrorMessages.IsEmpty() || (InCommand.Files.Num() != FilesData.Num()))
 			{
 				InCommand.bCommandSuccessful = false;
@@ -3107,6 +3112,11 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, nullptr, InCommand.ResultInfo.ErrorMessages, 
 																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
 																		InCommand.bConnectionDropped, Flags);
+
+				RemoveRedundantErrors(InCommand, TEXT(" - no such file(s)."));
+				RemoveRedundantErrors(InCommand, TEXT(" - file(s) not on client"));
+				RemoveRedundantErrors(InCommand, TEXT("' is not under client's root '"));
+				RemoveRedundantErrors(InCommand, TEXT(" - no file(s) at that changelist number."));
 
 				if (InCommand.bCommandSuccessful)
 				{
