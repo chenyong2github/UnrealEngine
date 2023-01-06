@@ -2039,7 +2039,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 	}
 
 	const IAnimationDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
-	if (!AnimDataModel)
+	if (!AnimDataModel || !AnimDataModel->HasBeenPopulated())
 	{
 		return false;
 	}
