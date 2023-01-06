@@ -74,7 +74,25 @@ public:
 		
 		void* CompressedData = 0;
 		uint32_t CompressedDataLen = 0;
-		UECompressBinkAudio((void*)InSrcBuffer.GetData(), InSrcBuffer.Num(), InQualityInfo.SampleRate, InQualityInfo.NumChannels, CompressionLevel, 1, BinkAlloc, BinkFree, &CompressedData, &CompressedDataLen);
+		uint8_t BinkCompressError = UECompressBinkAudio((void*)InSrcBuffer.GetData(), InSrcBuffer.Num(), InQualityInfo.SampleRate, InQualityInfo.NumChannels, CompressionLevel, 1, BinkAlloc, BinkFree, &CompressedData, &CompressedDataLen);
+
+		const TCHAR* CompressErrorStr = nullptr;
+		switch (BinkCompressError)
+		{
+		case BINKA_COMPRESS_SUCCESS: break;
+		case BINKA_COMPRESS_ERROR_CHANS: CompressErrorStr = TEXT("Invalid channel count, max ") BINKA_MAX_CHANS_STR; break;
+		case BINKA_COMPRESS_ERROR_SAMPLES: CompressErrorStr = TEXT("No sample data provided"); break;
+		case BINKA_COMPRESS_ERROR_RATE: CompressErrorStr = TEXT("Invalid sample rate provided, min ") BINKA_MIN_RATE_STR TEXT(" max ") BINKA_MAX_RATE_STR; break;
+		case BINKA_COMPRESS_ERROR_QUALITY: CompressErrorStr = TEXT("Invalid quality provided, valid is 0-9"); break;
+		case BINKA_COMPRESS_ERROR_ALLOCATORS: CompressErrorStr = TEXT("No allocators provided!"); break;
+		case BINKA_COMPRESS_ERROR_OUTPUT: CompressErrorStr = TEXT("No output pointers provided!"); break;
+		}
+
+		if (CompressErrorStr != nullptr)
+		{
+			UE_LOG(LogAudioFormatBink, Warning, TEXT("Failed to encode bink audio: %s"), CompressErrorStr);
+			return false;
+		}
 
 		// Create a buffer to store compressed data
 		OutCompressedDataStore.Empty();
