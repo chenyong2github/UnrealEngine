@@ -12,12 +12,6 @@
 
 class UMetaSoundSource;
 
-template <typename T, typename V = void>
-struct TIsOneshotDataType { bool value = false; };
-
-template <typename T>
-struct TIsOneshotDataType<T, decltype(&T::OneshotSubmitted, void())> { bool value = true; };
-
 // A structure that encapsulates a "parameter tag" in the raw 'bag-o-bytes'
 // that will be the parameter storage. It lets us walk through memory to 
 // find a parameter with a specific name and specific type. 
@@ -35,7 +29,6 @@ struct FMetasoundParameterPackItemBase
 		uint8* ptr = reinterpret_cast<uint8*>(this);
 		return ptr + ValueOffset;
 	}
-	virtual void OnPostApplied() {};
 	FName  Name;
 	FName  TypeName;
 	uint16 NextHeaderOffset;
@@ -54,15 +47,6 @@ struct FMetasoundParameterPackItem : public FMetasoundParameterPackItemBase
 	{}
 	FMetasoundParameterPackItem(const FMetasoundParameterPackItem& Other) = default;
 	T      Value;
-	virtual ~FMetasoundParameterPackItem() = default;
-
-	virtual void OnPostApplied() override
-	{
-		if constexpr (TIsOneshotDataType<T>().value)
-		{
-			Value.OneshotSubmitted(); 
-		}
-	}
 };
 
 // This next class owns the 'bag-o-bytes' that holds all of the parameters. 

@@ -534,7 +534,6 @@ namespace Metasound
 						if (ParameterSetter->DataType == Walker->TypeName)
 						{
 							ParameterSetter->SetParameterWithPayload(Walker->GetPayload());
-							Walker->OnPostApplied();
 						}
 					}
 				}
