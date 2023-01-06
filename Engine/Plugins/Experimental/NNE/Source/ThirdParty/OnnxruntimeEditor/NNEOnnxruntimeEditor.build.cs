@@ -4,9 +4,9 @@ using System;
 using System.IO;
 using UnrealBuildTool;
 
-public class ORTDefault : ModuleRules
+public class NNEOnnxruntimeEditor : ModuleRules
 {
-    public ORTDefault(ReadOnlyTargetRules Target) : base(Target)
+    public NNEOnnxruntimeEditor(ReadOnlyTargetRules Target) : base(Target)
     {
 		Type = ModuleType.External;
 		// Win64

@@ -32,7 +32,7 @@ public class NNXRuntimeORT : ModuleRules
 				// ORT-related
 				"ORTHelper",
 				//"ONNXRuntime",
-				"ORTDefault",
+				"NNEOnnxruntimeEditor",
                 "NNXUtils"
 			}
 		);
