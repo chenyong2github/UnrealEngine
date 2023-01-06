@@ -621,6 +621,30 @@ void USoundCue::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceH
 	{
 		FirstNode->ParseNodes(AudioDevice, (UPTRINT)FirstNode, ActiveSound, ParseParams, WaveInstances);
 	}
+
+	if (FSoundCueParameterTransmitter* Transmitter = static_cast<FSoundCueParameterTransmitter*>(ActiveSound.GetTransmitter()))
+	{
+		if (Transmitter->ParamsToSet.IsEmpty())
+		{
+			return;
+		}
+
+		for (const FWaveInstance* Instance : WaveInstances)
+		{
+			if (TSharedPtr<Audio::IParameterTransmitter>* ChildTransmitterPtr = Transmitter->Transmitters.Find(Instance->WaveInstanceHash))
+			{
+				TSharedPtr<Audio::IParameterTransmitter>& ChildTransmitter = *ChildTransmitterPtr;
+				
+				if (ChildTransmitter.IsValid())
+				{
+					TArray<FAudioParameter> Params = Transmitter->ParamsToSet;
+					ChildTransmitter->SetParameters(MoveTemp(Params));
+				}
+			}
+		}
+		
+		Transmitter->ParamsToSet.Reset();
+	}
 }
 
 float USoundCue::GetVolumeMultiplier()
@@ -701,39 +725,6 @@ bool USoundCue::HasCookedAmplitudeEnvelopeData() const
 
 TSharedPtr<Audio::IParameterTransmitter> USoundCue::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
 {
-	class FSoundCueParameterTransmitter : public Audio::FParameterTransmitterBase
-	{
-	public:
-		FSoundCueParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams)
-			: Audio::FParameterTransmitterBase(MoveTemp(InParams.DefaultParams))
-		{
-		}
-
-		virtual ~FSoundCueParameterTransmitter() = default;
-
-		TArray<UObject*> GetReferencedObjects() const override
-		{
-			TArray<UObject*> Objects;
-			for (const FAudioParameter& Param : AudioParameters)
-			{
-				if (Param.ObjectParam)
-				{
-					Objects.Add(Param.ObjectParam);
-				}
-
-				for (UObject* Object : Param.ArrayObjectParam)
-				{
-					if (Object)
-					{
-						Objects.Add(Object);
-					}
-				}
-			}
-
-			return Objects;
-		}
-	};
-
 	return MakeShared<FSoundCueParameterTransmitter>(MoveTemp(InParams));
 }
 
@@ -810,3 +801,41 @@ TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
 }
 #endif // WITH_EDITOR
 
+TArray<UObject*> FSoundCueParameterTransmitter::GetReferencedObjects() const
+{
+	TArray<UObject*> Objects;
+	for (const FAudioParameter& Param : AudioParameters)
+	{
+		if (Param.ObjectParam)
+		{
+			Objects.Add(Param.ObjectParam);
+		}
+
+		for (UObject* Object : Param.ArrayObjectParam)
+		{
+			if (Object)
+			{
+				Objects.Add(Object);
+			}
+		}
+	}
+
+	return Objects;
+}
+
+bool FSoundCueParameterTransmitter::SetParameters(TArray<FAudioParameter>&& InParameters)
+{
+	TArray<FAudioParameter> TempParams = InParameters;
+	FAudioParameter::Merge(MoveTemp(TempParams), ParamsToSet);
+
+	// todo: filter trigger types from being saved in the arrray of persistent params. triggers are not detectable at this point
+	// currently, triggers will be set on sounds as they start if they had been executed at any point in the past
+	// solvable if triggers were their own enum type, but are currently just bool types
+	//
+	// InParameters.FilterByPredicate([](const FAudioParameter& Param)
+	// {
+	// 	return Param.ParamType != EAudioParameterType::Trigger;
+	// });
+		
+	return Audio::FParameterTransmitterBase::SetParameters(MoveTemp(InParameters));
+}

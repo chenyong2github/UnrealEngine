@@ -336,3 +336,22 @@ private:
 	FCriticalSection EditorOnlyCs;
 #endif // WITH_EDITOR
 };
+
+class ENGINE_API FSoundCueParameterTransmitter : public Audio::FParameterTransmitterBase
+{
+public:
+	FSoundCueParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams)
+		: Audio::FParameterTransmitterBase(MoveTemp(InParams.DefaultParams))
+	{
+	}
+
+	virtual ~FSoundCueParameterTransmitter() = default;
+
+	TArray<UObject*> GetReferencedObjects() const override;
+
+	virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
+
+	TArray<FAudioParameter> ParamsToSet;
+
+	TMap<UPTRINT, TSharedPtr<Audio::IParameterTransmitter>> Transmitters;
+};

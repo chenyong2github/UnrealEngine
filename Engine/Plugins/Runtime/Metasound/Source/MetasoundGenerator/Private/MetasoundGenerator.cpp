@@ -3,13 +3,11 @@
 
 #include "Analysis/MetasoundFrontendVertexAnalyzer.h"
 #include "AudioParameter.h"
-#include "DSP/Dsp.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
-#include "MetasoundGraph.h"
-#include "MetasoundInputNode.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
+#include "MetasoundParameterTransmitter.h"
 #include "MetasoundRouter.h"
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
@@ -151,14 +149,14 @@ namespace Metasound
 				{
 					InputData.BindVertex(ParamName, *DataReference);
 				}
-				else
+				else if(MetaSoundParameterEnableWarningOnIgnoredParameterCVar)
 				{
-					UE_LOG(LogMetaSound, Error, TEXT("Failed to create initial input data reference from parameter %s of type %s on graph in MetaSoundSource [%s]"), *ParamName.ToString(), *InputVertex->DataTypeName.ToString(), *InitParams.MetaSoundName);
+					UE_LOG(LogMetaSound, Warning, TEXT("Failed to create initial input data reference from parameter %s of type %s on graph in MetaSoundSource [%s]"), *ParamName.ToString(), *InputVertex->DataTypeName.ToString(), *InitParams.MetaSoundName);
 				}
 			}
-			else
+			else if(MetaSoundParameterEnableWarningOnIgnoredParameterCVar)
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("Failed to set initial input parameter %s on graph in MetaSoundSource [%s]"), *ParamName.ToString(), *InitParams.MetaSoundName);
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to set initial input parameter %s on graph in MetaSoundSource [%s]"), *ParamName.ToString(), *InitParams.MetaSoundName);
 			}
 
 		}
