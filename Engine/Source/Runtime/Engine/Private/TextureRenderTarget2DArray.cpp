@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/TextureRenderTarget2DArray.h"
+#include "HAL/LowLevelMemStats.h"
 #include "RenderingThread.h"
 #include "TextureRenderTarget2DArrayResource.h"
 #include "UnrealEngine.h"

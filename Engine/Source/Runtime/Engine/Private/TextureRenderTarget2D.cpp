@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/TextureRenderTarget2D.h"
+#include "HAL/LowLevelMemStats.h"
 #include "Misc/MessageDialog.h"
 #include "RenderingThread.h"
 #include "TextureResource.h"

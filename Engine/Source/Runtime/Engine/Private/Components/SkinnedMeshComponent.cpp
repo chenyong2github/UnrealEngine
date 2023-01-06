@@ -6,6 +6,7 @@
 
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkinnedAsset.h"
+#include "HAL/LowLevelMemStats.h"
 #include "RenderingThread.h"
 #include "GameFramework/PlayerController.h"
 #include "ContentStreaming.h"

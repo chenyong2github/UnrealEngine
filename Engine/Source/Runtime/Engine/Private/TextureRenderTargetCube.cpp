@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/TextureRenderTargetCube.h"
+#include "HAL/LowLevelMemStats.h"
 #include "RenderingThread.h"
 #include "TextureResource.h"
 #include "UObject/UnrealType.h"
