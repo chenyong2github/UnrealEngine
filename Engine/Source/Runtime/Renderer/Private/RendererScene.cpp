@@ -606,28 +606,6 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 
 #endif //WITH_EDITOR
 
-FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
-	: NumObjectsInBuffer(0)
-	, IndirectionAtlasLayout(8, 8, 8, 512, 512, 512, false, true, false)
-	, HeightFieldAtlasGeneration(0)
-	, HFVisibilityAtlasGenerattion(0)
-{
-	ObjectBuffers = nullptr;
-	HeightFieldObjectBuffers = nullptr;
-
-	bTrackAllPrimitives = ShouldAllPrimitivesHaveDistanceField(ShaderPlatform);
-
-	bCanUse16BitObjectIndices = RHISupportsBufferLoadTypeConversion(ShaderPlatform);
-
-	StreamingRequestReadbackBuffers.AddZeroed(MaxStreamingReadbackBuffers);
-}
-
-FDistanceFieldSceneData::~FDistanceFieldSceneData() 
-{
-	delete ObjectBuffers;
-	delete HeightFieldObjectBuffers;
-}
-
 bool IncludePrimitiveInDistanceFieldSceneData(bool bTrackAllPrimitives, const FPrimitiveSceneProxy* Proxy)
 {
 	return PrimitiveNeedsDistanceFieldSceneData(

@@ -23,6 +23,13 @@
 #include "Nanite/NaniteVisualize.h"
 #include "RenderCore.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "VolumetricFog.h"
+
+#include "BasePassRendering.inl"
+
+// Instantiate the common policies
+template class TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>;
+template class TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>;
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(

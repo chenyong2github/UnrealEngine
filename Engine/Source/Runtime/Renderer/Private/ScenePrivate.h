@@ -8,8 +8,6 @@
 
 // Dependencies.
 
-#include "CoreMinimal.h"
-#include "IO/IoDispatcher.h"
 #include "Misc/Guid.h"
 #include "Math/RandomStream.h"
 #include "Templates/PimplPtr.h"
@@ -31,13 +29,10 @@
 #include "LightSceneInfo.h"
 #include "DepthRendering.h"
 #include "SceneHitProxyRendering.h"
-//#include "ShadowRendering.h"
 #include "TextureLayout.h"
 #include "SceneRendering.h"
 #include "LightMapRendering.h"
 #include "VelocityRendering.h"
-#include "BasePassRendering.h"
-#include "MobileBasePassRendering.h"
 #include "VolumeRendering.h"
 #include "CommonRenderResources.h"
 #include "VisualizeTexture.h"
@@ -667,13 +662,7 @@ public:
 			return (PrimitiveId == Other.PrimitiveId && Light == Other.Light && ShadowSplitIndex == Other.ShadowSplitIndex && bTranslucentShadow == Other.bTranslucentShadow);
 		}
 
-		FProjectedShadowKey(const FProjectedShadowInfo& ProjectedShadowInfo)
-			: PrimitiveId(ProjectedShadowInfo.GetParentSceneInfo() ? ProjectedShadowInfo.GetParentSceneInfo()->PrimitiveComponentId : FPrimitiveComponentId())
-			, Light(ProjectedShadowInfo.GetLightSceneInfo().Proxy->GetLightComponent())
-			, ShadowSplitIndex(ProjectedShadowInfo.CascadeSettings.ShadowSplitIndex)
-			, bTranslucentShadow(ProjectedShadowInfo.bTranslucentShadow)
-		{
-		}
+		FProjectedShadowKey(const FProjectedShadowInfo& ProjectedShadowInfo);
 
 		FProjectedShadowKey(FPrimitiveComponentId InPrimitiveId, const ULightComponent* InLight, int32 InSplitIndex, bool bInTranslucentShadow)
 			: PrimitiveId(InPrimitiveId)
@@ -1899,47 +1888,14 @@ private:
 	TArray<int32, TInlineAllocator<4>> FreeBlocks;
 };
 
-struct FDistanceFieldReadRequest
-{
-	// SDF scene context
-	FSetElementId AssetSetId;
-	int32 ReversedMipIndex = 0;
-	int32 NumDistanceFieldBricks = 0;
-	uint64 BuiltDataId = 0;
-
-	// Used when BulkData is nullptr
-	const uint8* AlwaysLoadedDataPtr = nullptr;
-
-	// Inputs of read request
-	const FBulkData* BulkData = nullptr;
-	uint32 BulkOffset = 0;
-	uint32 BulkSize = 0;
-
-#if !WITH_EDITOR
-	// Outputs of read request
-	FBulkDataBatchReadRequest RequestHandle;
-	FIoBuffer RequestBuffer;
-#endif
-};
-
-struct FDistanceFieldAsyncUpdateParameters
-{
-	FDistanceFieldSceneData* DistanceFieldSceneData = nullptr;
-	FIntVector4* BrickUploadCoordinatesPtr = nullptr;
-	uint8* BrickUploadDataPtr = nullptr;
-
-	uint32* IndirectionIndicesUploadPtr = nullptr;
-	FVector4f* IndirectionDataUploadPtr = nullptr;
-
-	TArray<FDistanceFieldReadRequest> NewReadRequests;
-	TArray<FDistanceFieldReadRequest> ReadRequestsToUpload;
-};
+struct FDistanceFieldReadRequest;
+struct FDistanceFieldAsyncUpdateParameters;
 
 /** Scene data used to manage distance field object buffers on the GPU. */
 class FDistanceFieldSceneData
 {
 public:
-
+	FDistanceFieldSceneData(FDistanceFieldSceneData&&);
 	FDistanceFieldSceneData(EShaderPlatform ShaderPlatform);
 	~FDistanceFieldSceneData();
 
@@ -3622,6 +3578,4 @@ inline bool ShouldIncludeDomainInMeshPass(EMaterialDomain Domain)
 	// Volume domain materials however must only be rendered in the voxelization pass
 	return Domain != MD_Volume;
 }
-
-#include "BasePassRendering.inl" // IWYU pragma: export
 

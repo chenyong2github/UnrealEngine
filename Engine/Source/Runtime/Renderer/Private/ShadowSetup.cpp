@@ -2492,6 +2492,14 @@ void FProjectedShadowInfo::ClearTransientArrays()
 	GraphicsMinimalPipelineStateSet.Empty();
 }
 
+FSceneViewState::FProjectedShadowKey::FProjectedShadowKey(const FProjectedShadowInfo& ProjectedShadowInfo)
+	: PrimitiveId(ProjectedShadowInfo.GetParentSceneInfo() ? ProjectedShadowInfo.GetParentSceneInfo()->PrimitiveComponentId : FPrimitiveComponentId())
+	, Light(ProjectedShadowInfo.GetLightSceneInfo().Proxy->GetLightComponent())
+	, ShadowSplitIndex(ProjectedShadowInfo.CascadeSettings.ShadowSplitIndex)
+	, bTranslucentShadow(ProjectedShadowInfo.bTranslucentShadow)
+{
+}
+
 /** Returns a cached preshadow matching the input criteria if one exists. */
 TRefCountPtr<FProjectedShadowInfo> FSceneRenderer::GetCachedPreshadow(
 	const FLightPrimitiveInteraction* InParentInteraction, 

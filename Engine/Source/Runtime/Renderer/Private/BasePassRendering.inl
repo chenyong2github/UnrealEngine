@@ -8,6 +8,7 @@
 #pragma once
 
 #include "CoreFwd.h"
+#include "BasePassRendering.h"
 
 class FMeshMaterialShader;
 class FPrimitiveSceneProxy;

@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ShaderParameters.h"
-#include "SceneRendering.h"
-#include "VolumetricFog.h"
+#include "ShaderParameterMacros.h"
+#include "RenderGraphFwd.h"
+
+class FSceneViewFamily;
+class FViewInfo;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters,)
 	SHADER_PARAMETER(FVector4f, ExponentialFogParameters)

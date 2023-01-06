@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
+#include "IO/IoDispatcher.h"
 #include "Async/ParallelFor.h"
 #include "RHI.h"
 #include "RenderResource.h"
@@ -434,6 +435,68 @@ void FDistanceFieldBlockAllocator::Allocate(int32 NumBlocks, TArray<int32, TInli
 void FDistanceFieldBlockAllocator::Free(const TArray<int32, TInlineAllocator<4>>& ElementRange)
 {
 	FreeBlocks.Append(ElementRange);
+}
+
+struct FDistanceFieldReadRequest
+{
+	// SDF scene context
+	FSetElementId AssetSetId;
+	int32 ReversedMipIndex = 0;
+	int32 NumDistanceFieldBricks = 0;
+	uint64 BuiltDataId = 0;
+
+	// Used when BulkData is nullptr
+	const uint8* AlwaysLoadedDataPtr = nullptr;
+
+	// Inputs of read request
+	const FBulkData* BulkData = nullptr;
+	uint32 BulkOffset = 0;
+	uint32 BulkSize = 0;
+
+#if !WITH_EDITOR
+	// Outputs of read request
+	FBulkDataBatchReadRequest RequestHandle;
+	FIoBuffer RequestBuffer;
+#endif
+};
+
+
+struct FDistanceFieldAsyncUpdateParameters
+{
+	FDistanceFieldSceneData* DistanceFieldSceneData = nullptr;
+	FIntVector4* BrickUploadCoordinatesPtr = nullptr;
+	uint8* BrickUploadDataPtr = nullptr;
+
+	uint32* IndirectionIndicesUploadPtr = nullptr;
+	FVector4f* IndirectionDataUploadPtr = nullptr;
+
+	TArray<FDistanceFieldReadRequest> NewReadRequests;
+	TArray<FDistanceFieldReadRequest> ReadRequestsToUpload;
+	TArray<FDistanceFieldReadRequest> ReadRequestsToCleanUp;
+};
+
+FDistanceFieldSceneData::FDistanceFieldSceneData(FDistanceFieldSceneData&&) = default;
+
+FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
+	: NumObjectsInBuffer(0)
+	, IndirectionAtlasLayout(8, 8, 8, 512, 512, 512, false, true, false)
+	, HeightFieldAtlasGeneration(0)
+	, HFVisibilityAtlasGenerattion(0)
+{
+	ObjectBuffers = nullptr;
+	HeightFieldObjectBuffers = nullptr;
+
+	bTrackAllPrimitives = ShouldAllPrimitivesHaveDistanceField(ShaderPlatform);
+
+	bCanUse16BitObjectIndices = RHISupportsBufferLoadTypeConversion(ShaderPlatform);
+
+	StreamingRequestReadbackBuffers.AddZeroed(MaxStreamingReadbackBuffers);
+}
+
+FDistanceFieldSceneData::~FDistanceFieldSceneData()
+{
+	delete ObjectBuffers;
+	delete HeightFieldObjectBuffers;
 }
 
 class FDistanceFieldStreamingUpdateTask
