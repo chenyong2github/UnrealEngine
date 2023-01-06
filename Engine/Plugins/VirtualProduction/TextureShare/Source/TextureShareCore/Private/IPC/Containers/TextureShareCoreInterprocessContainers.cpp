@@ -69,7 +69,8 @@ void FTextureShareCoreStringHash::Initialize(const FString& InText)
 	Hash.Initialize(InText);
 
 	// Copy string
-	const wchar_t* WCharValue = FTCHARToWChar(*InText).Get();
+	FTCHARToWChar WCharString(*InText);
+	const wchar_t* WCharValue = WCharString.Get();
 	if (WCharValue && WCharValue[0])
 	{
 		for (int32 CharIt = 0; CharIt < (MaxStringLength-1); CharIt++)
