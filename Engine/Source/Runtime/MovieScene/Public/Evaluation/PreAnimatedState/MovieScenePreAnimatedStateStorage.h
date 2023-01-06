@@ -683,7 +683,7 @@ public:
 	template<typename... ContributorTypes>
 	void BeginTrackingAndCachePreAnimatedValues(UMovieSceneEntitySystemLinker* Linker, TComponentTypeID<ContributorTypes>... InComponentTypes)
 	{
-		BeginTrackingAndCachePreAnimatedValues(Linker, TSavePreAnimatedStateParams<ContributorTypes...>(), InComponentTypes...);
+		BeginTrackingAndCachePreAnimatedValuesTask(Linker, TSavePreAnimatedStateParams<ContributorTypes...>(), InComponentTypes...);
 	}
 
 	/**
