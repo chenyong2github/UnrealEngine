@@ -3743,8 +3743,8 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 									ActionStack->AddAction(FRigVMInjectNodeIntoPinAction(TargetPin->GetTypedOuter<URigVMInjectionInfo>()));	
 								}
 							}
+							Notify(ERigVMGraphNotifType::LinkAdded, CreatedLink);
 						}
-						Notify(ERigVMGraphNotifType::LinkAdded, CreatedLink);
 						continue;
 					}
 				}
