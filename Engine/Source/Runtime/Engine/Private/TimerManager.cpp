@@ -9,6 +9,7 @@
 #include "Engine/GameInstance.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "Misc/CoreDelegates.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Stats/StatsTrace.h"
 #include "UnrealEngine.h"
 #include "Misc/TimeGuard.h"

@@ -10,6 +10,7 @@
 
 
 #include "Engine/DemoNetDriver.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/DemoNetConnection.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LevelStreaming.h"

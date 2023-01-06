@@ -2,6 +2,8 @@
 
 #include "EngineLogs.h"
 #include "Math/RandomStream.h"
+#include "Misc/ScopeExit.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Serialization/ObjectReader.h"
 #include "Engine/Blueprint.h"

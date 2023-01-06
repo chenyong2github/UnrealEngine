@@ -6,6 +6,7 @@
 
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Stats/StatsTrace.h"
 #include "TickTaskManagerInterface.h"
 #include "Async/ParallelFor.h"

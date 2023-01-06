@@ -5,9 +5,12 @@
 =============================================================================*/
 
 #include "Engine/World.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
 #include "Misc/Fork.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 CSV_DEFINE_CATEGORY(WorldCollision, true);
 

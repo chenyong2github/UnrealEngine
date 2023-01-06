@@ -8,6 +8,8 @@
 #include "Containers/StaticBitArray.h"
 #include "EngineStats.h"
 #include "Engine/World.h"
+#include "Misc/MemStack.h"
+#include "Misc/ScopeExit.h"
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
 #include "Net/NetworkProfiler.h"
 #include "Engine/PackageMapClient.h"

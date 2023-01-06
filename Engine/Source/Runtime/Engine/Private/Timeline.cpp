@@ -6,6 +6,7 @@
 
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/Package.h"
 #include "GameFramework/WorldSettings.h"

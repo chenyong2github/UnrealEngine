@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/Level.h"
+#include "Async/ParallelFor.h"
 #include "Misc/TimeGuard.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectStats.h"

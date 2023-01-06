@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/WorldSettings.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectileMovementComponent)
 

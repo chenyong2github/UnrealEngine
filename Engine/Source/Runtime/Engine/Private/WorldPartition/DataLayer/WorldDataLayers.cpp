@@ -6,6 +6,7 @@
 
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "Engine/Level.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"

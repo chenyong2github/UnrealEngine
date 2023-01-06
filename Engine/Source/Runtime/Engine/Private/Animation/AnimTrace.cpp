@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimTrace.h"
-#include "Trace/Detail/Important/ImportantLogScope.h"
-#include "Trace/Detail/Important/SharedBuffer.h"
 
 #if ANIM_TRACE_ENABLED
 
@@ -14,7 +12,7 @@
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "Trace/Detail/Atomic.h"
+#include "Trace/Trace.inl"
 #include "UObject/UObjectAnnotation.h"
 
 UE_TRACE_CHANNEL_DEFINE(AnimationChannel);
