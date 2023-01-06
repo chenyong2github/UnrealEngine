@@ -176,5 +176,10 @@ FSharedMetasoundParameterStoragePtr UMetasoundParameterPack::GetCopyOfParameterS
 	{
 		return nullptr;
 	}
-	return MakeShared<FMetasoundParameterPackStorage>(*ParameterStorage);
+	FSharedMetasoundParameterStoragePtr NewCopy = MakeShared<FMetasoundParameterPackStorage>(*ParameterStorage);
+	for (auto Walker = ParameterStorage->begin(); Walker != ParameterStorage->end(); ++Walker)
+	{
+		Walker->OnPostApplied();
+	}
+	return NewCopy;
 }
