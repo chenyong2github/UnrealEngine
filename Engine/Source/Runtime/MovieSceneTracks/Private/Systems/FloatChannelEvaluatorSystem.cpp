@@ -40,7 +40,7 @@ TArray<FFloatChannelTypeAssociation, TInlineAllocator<4>> GFloatChannelTypeAssoc
 /** Entity-component task that evaluates using the non-cached codepath for testing parity */
 struct FEvaluateFloatChannels_Uncached
 {
-	void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
+	void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, double& OutResult)
 	{
 		float Result;
 		if (FloatChannel.Source->Evaluate(FrameTime, Result))
@@ -214,7 +214,6 @@ void UFloatChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisit
 				FEntityTaskBuilder()
 				.Read(ChannelType.ChannelType)
 				.Read(BuiltInComponents->EvalTime)
-				.Write(ChannelType.CachedInterpolationType)
 				.Write(ChannelType.ResultType)
 				.FilterNone({ BuiltInComponents->Tags.Ignored })
 				.SetStat(GET_STATID(MovieSceneEval_EvaluateFloatChannelTask))

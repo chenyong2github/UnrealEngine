@@ -40,7 +40,7 @@ TArray<FDoubleChannelTypeAssociation, TInlineAllocator<4>> GDoubleChannelTypeAss
 /** Entity-component task that evaluates using the non-cached codepath for testing parity */
 struct FEvaluateDoubleChannels_Uncached
 {
-	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
+	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, double& OutResult)
 	{
 		if (!DoubleChannel.Source->Evaluate(FrameTime, OutResult))
 		{
@@ -203,7 +203,6 @@ void UDoubleChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 				FEntityTaskBuilder()
 				.Read(ChannelType.ChannelType)
 				.Read(BuiltInComponents->EvalTime)
-				.Write(ChannelType.CachedInterpolationType)
 				.Write(ChannelType.ResultType)
 				.FilterNone({ BuiltInComponents->Tags.Ignored })
 				.SetStat(GET_STATID(MovieSceneEval_EvaluateDoubleChannelTask))
