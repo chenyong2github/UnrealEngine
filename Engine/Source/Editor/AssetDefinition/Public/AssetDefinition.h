@@ -77,6 +77,23 @@ struct FAssetArgs
 		
 		return LoadedObjects;
 	}
+	
+	template<typename ExpectedObjectType>
+    ExpectedObjectType* LoadFirstValid(const TSet<FName>& LoadTags = {}) const
+    {   	
+    	for (const FAssetData& Asset : Assets)
+    	{
+    		if (Asset.IsInstanceOf(ExpectedObjectType::StaticClass()))
+    		{
+    			if (ExpectedObjectType* ExpectedType = Cast<ExpectedObjectType>(Asset.GetAsset(LoadTags)))
+    			{
+    				return ExpectedType;
+    			}
+    		}	
+    	}
+    	
+    	return nullptr;
+    }
 };
 
 struct FAssetOpenArgs : public FAssetArgs
