@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using EpicGames.Core;
@@ -958,7 +957,6 @@ namespace UnrealBuildToolTests
 			CheckEventGroup(logEvents.Slice(0, 1), 5, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_CacheLimit);
 			CheckEventGroup(logEvents.Slice(1, 1), 6, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_CacheLimit);
 		}
-
 
 		[TestMethod]
 		public void UhtErrorMatcher()

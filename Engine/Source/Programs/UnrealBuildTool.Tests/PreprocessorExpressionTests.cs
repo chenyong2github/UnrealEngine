@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnrealBuildTool;
 
 namespace UnrealBuildToolTests
@@ -111,7 +107,7 @@ namespace UnrealBuildToolTests
 			RunTest("123ui64", 123);
 			RunTest("0x123i64", 0x123);
 			RunTest("0123i64", 83);
-        }
+		}
 
 		class PreprocessorTestContext : PreprocessorContext
 		{
@@ -126,9 +122,9 @@ namespace UnrealBuildToolTests
 		/// </summary>
 		/// <param name="Expression">The expression to evaluate, as a string</param>
 		/// <param name="ExpectedResult">The expected value of the expression</param>
-        static void RunTest(string Expression, long? ExpectedResult)
-        {
-			TokenReader Reader = new TokenReader(Expression);
+		static void RunTest(string Expression, long? ExpectedResult)
+		{
+			using TokenReader Reader = new TokenReader(Expression);
 
 			List<Token> Tokens = new List<Token>();
 			while (Reader.MoveNext())
@@ -141,7 +137,7 @@ namespace UnrealBuildToolTests
 			{
 				Result = PreprocessorExpression.Evaluate(new PreprocessorTestContext(), Tokens);
 			}
-			catch(PreprocessorException)
+			catch (PreprocessorException)
 			{
 				Result = null;
 			}

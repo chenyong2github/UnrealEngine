@@ -137,8 +137,8 @@ namespace UnrealBuildToolTests
 		{
 			List<Token> Tokens = new List<Token>();
 
-			TokenReader Reader = new TokenReader(InputText);
-			while(Reader.MoveNext())
+			using TokenReader Reader = new TokenReader(InputText);
+			while (Reader.MoveNext())
 			{
 				Tokens.Add(Reader.Current);
 			}
@@ -151,7 +151,7 @@ namespace UnrealBuildToolTests
 		{
 			StringBuilder Result = new StringBuilder();
 			Result.AppendFormat(Token.Type.ToString());
-			if(Token.Type == TokenType.Identifier || Token.Type == TokenType.Number || Token.Type == TokenType.Character || Token.Type == TokenType.String)
+			if (Token.Type == TokenType.Identifier || Token.Type == TokenType.Number || Token.Type == TokenType.Character || Token.Type == TokenType.String)
 			{
 				Result.AppendFormat("({0})", Token.Text);
 			}
@@ -160,10 +160,10 @@ namespace UnrealBuildToolTests
 
 		public static void RunLineNumberTest(string InputText, int ExpectedLineNumber)
 		{
-			TokenReader Reader = new TokenReader(InputText);
-			while(Reader.MoveNext())
+			using TokenReader Reader = new TokenReader(InputText);
+			while (Reader.MoveNext())
 			{
-				if(Reader.Current.Type == TokenType.Plus)
+				if (Reader.Current.Type == TokenType.Plus)
 				{
 					break;
 				}

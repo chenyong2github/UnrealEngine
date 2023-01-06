@@ -141,7 +141,6 @@ namespace UnrealBuildToolTests
 			//			RunTest("#define EMPTY_TOKEN\n#define FUNC(x) (x EMPTY_TOKEN)\nFUNC(A)", "(A )\n");
 			//			RunTest("#define EMPTY_TOKEN\n#define FUNC(x,y) (x y)\nFUNC(A,)", "(A)\n");
 
-
 			RunTest("#define EMPTY\n#define FUNC(x) (x)\nFUNC(x    y)", "(x y)\n");
 			RunTest("#define EMPTY\n#define FUNC(x) (x)\nFUNC(x    EMPTY    y)", "(x  y)\n");
 			RunTest("#define EMPTY\n#define FUNC(x) (x)\nFUNC(x    EMPTY    y    EMPTY)", "(x  y )\n");
@@ -193,7 +192,7 @@ namespace UnrealBuildToolTests
 			RunTest("#define F(A,A) <A>\nF(x,y)", null);
 			RunTest("#define F(A,B) <A,B>\nF(x) + 1", null);
 			RunTest("#define F(A,B,) <A,B>\nF(x,y) + 1", null);
-//			RunTest("#define F(...) <__VA_ARGS__>\nF(x,)", null);
+			//			RunTest("#define F(...) <__VA_ARGS__>\nF(x,)", null);
 			RunTest("#define F(A...) <A, __VA_ARGS__>\nF(x)", null);
 			RunTest("#define F(A...) <A, __VA_ARGS__>\nF(x,y)", null);
 			RunTest("#define F(A,__VA_ARGS__) <A, __VA_ARGS__>\nF(x,y)", null);
@@ -205,7 +204,7 @@ namespace UnrealBuildToolTests
 
 			RunTest("#define INC(x\n)", null);
 			RunTest("#if 1\nbranch_1\n#else garbage\nbranch_2\n#endif\nend", null);
-//			RunTest("#if 1\nbranch_1\n#else\nbranch_2\n#endif garbage\nend", null);
+			//			RunTest("#if 1\nbranch_1\n#else\nbranch_2\n#endif garbage\nend", null);
 			RunTest("#if 1\nbranch_1\n#else\nbranch_2\n#elif 1\nbranch_3\n#endif\nend", null);
 			RunTest("#if 1\nbranch_1\n#else\nbranch_2\n#else\nbranch_3\n#endif", null);
 			RunTest("#if 0\nbranch_1\n#else\nbranch_2\n#else\nbranch_3\n#endif", null);
@@ -250,7 +249,7 @@ namespace UnrealBuildToolTests
 
 							List<Token> Tokens = new List<Token>();
 
-							TokenReader Reader = new TokenReader(SourceText.ToString());
+							using TokenReader Reader = new TokenReader(SourceText.ToString());
 							while (Reader.MoveNext())
 							{
 								Tokens.Add(Reader.Current);

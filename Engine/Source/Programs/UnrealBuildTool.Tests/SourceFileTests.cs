@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
@@ -33,10 +30,10 @@ namespace UnrealBuildToolTests
 			BaseDirectories.Add(DirectoryReference.Combine(Unreal.EngineSourceDirectory, "Developer"));
 			BaseDirectories.Add(DirectoryReference.Combine(Unreal.EngineSourceDirectory, "Editor"));
 
-			foreach(FileReference PluginFile in PluginsBase.EnumeratePlugins((FileReference)null))
+			foreach (FileReference PluginFile in PluginsBase.EnumeratePlugins((FileReference)null))
 			{
 				DirectoryReference PluginSourceDir = DirectoryReference.Combine(PluginFile.Directory, "Source");
-				if(DirectoryReference.Exists(PluginSourceDir))
+				if (DirectoryReference.Exists(PluginSourceDir))
 				{
 					BaseDirectories.Add(PluginSourceDir);
 				}
@@ -45,9 +42,9 @@ namespace UnrealBuildToolTests
 			ConcurrentBag<SourceFile> SourceFiles = new ConcurrentBag<SourceFile>();
 			using (GlobalTracer.Instance.BuildSpan("Scanning source files").StartActive())
 			{
-				using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+				using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 				{
-					foreach(DirectoryReference BaseDirectory in BaseDirectories)
+					foreach (DirectoryReference BaseDirectory in BaseDirectories)
 					{
 						Queue.Enqueue(() => ParseSourceFiles(DirectoryItem.GetItemByDirectoryReference(BaseDirectory), SourceFiles, Queue));
 					}
@@ -61,7 +58,7 @@ namespace UnrealBuildToolTests
 
 			using (GlobalTracer.Instance.BuildSpan("Writing source file data").StartActive())
 			{
-				using(BinaryArchiveWriter Writer = new BinaryArchiveWriter(TempDataFile))
+				using (BinaryArchiveWriter Writer = new BinaryArchiveWriter(TempDataFile))
 				{
 					Writer.WriteList(SourceFiles.ToList(), x => x.Write(Writer));
 				}
@@ -70,7 +67,7 @@ namespace UnrealBuildToolTests
 			List<SourceFile> ReadSourceFiles = new List<SourceFile>();
 			using (GlobalTracer.Instance.BuildSpan("Reading source file data").StartActive())
 			{
-				using(BinaryArchiveReader Reader = new BinaryArchiveReader(TempDataFile))
+				using (BinaryArchiveReader Reader = new BinaryArchiveReader(TempDataFile))
 				{
 					ReadSourceFiles = Reader.ReadList(() => new SourceFile(Reader));
 				}
@@ -79,14 +76,14 @@ namespace UnrealBuildToolTests
 
 		static void ParseSourceFiles(DirectoryItem Directory, ConcurrentBag<SourceFile> SourceFiles, ThreadPoolWorkQueue Queue)
 		{
-			foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
+			foreach (DirectoryItem SubDirectory in Directory.EnumerateDirectories())
 			{
 				Queue.Enqueue(() => ParseSourceFiles(SubDirectory, SourceFiles, Queue));
 			}
 
-			foreach(FileItem File in Directory.EnumerateFiles())
+			foreach (FileItem File in Directory.EnumerateFiles())
 			{
-				if(File.HasExtension(".h") || File.HasExtension(".cpp"))
+				if (File.HasExtension(".h") || File.HasExtension(".cpp"))
 				{
 					Queue.Enqueue(() => SourceFiles.Add(new SourceFile(File)));
 				}

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.IO;
 using UnrealBuildBase;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
@@ -20,7 +19,7 @@ namespace UnrealBuildToolTests
 			FileReference AssemblyFile = new FileReference(Assembly.GetExecutingAssembly().Location);
 			Unreal.LocationOverride.RootDirectory = DirectoryReference.Combine(AssemblyFile.Directory, "../../../../..");
 
-			string[] Arguments = new string[] { };
+			string[] Arguments = System.Array.Empty<string>();
 			CommandLineArguments CommandLineArguments = new CommandLineArguments(Arguments);
 			UhtGlobalOptions Options = new UhtGlobalOptions(CommandLineArguments);
 
@@ -31,7 +30,7 @@ namespace UnrealBuildToolTests
 			IUhtConfig Config = new UhtConfigImpl(CommandLineArguments);
 
 			// Run the tests
-			ILoggerFactory factory = LoggerFactory.Create(x => x.AddEpicDefault());
+			using ILoggerFactory factory = LoggerFactory.Create(x => x.AddEpicDefault());
 			Assert.IsTrue(UhtTestHarness.RunTests(Tables, Config, Options, factory.CreateLogger<UhtTestHarness>()));
 		}
 	}

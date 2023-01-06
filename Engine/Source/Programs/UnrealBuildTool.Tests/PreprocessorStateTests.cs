@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using EpicGames.Core;
 using UnrealBuildTool;
 
 namespace UnrealBuildToolTests
@@ -19,7 +16,7 @@ namespace UnrealBuildToolTests
 		{
 			PreprocessorState BaseState = new PreprocessorState();
 			BaseState.DefineMacro(ParseMacro("FOO", null, "123"));
-			BaseState.DefineMacro(ParseMacro("BAR", new List<string>{ "Arg1", "Arg2" }, "Arg1 + Arg2"));
+			BaseState.DefineMacro(ParseMacro("BAR", new List<string> { "Arg1", "Arg2" }, "Arg1 + Arg2"));
 			Assert.AreEqual("m BAR(Arg1, Arg2)=Arg1 + Arg2\nm FOO=123\n", FormatState(BaseState));
 
 			// Modify the state and revert it
@@ -72,15 +69,15 @@ namespace UnrealBuildToolTests
 				Assert.AreEqual("True", State.CanApply(Transform2).ToString());
 			}
 		}
-	
+
 		static string FormatState(PreprocessorState State)
 		{
 			StringBuilder Result = new StringBuilder();
-			foreach(PreprocessorBranch Branch in State.CurrentBranches)
+			foreach (PreprocessorBranch Branch in State.CurrentBranches)
 			{
 				Result.AppendFormat("b {0}\n", Branch);
 			}
-			foreach(PreprocessorMacro Macro in State.CurrentMacros.OrderBy(x => x.Name))
+			foreach (PreprocessorMacro Macro in State.CurrentMacros.OrderBy(x => x.Name))
 			{
 				Result.AppendFormat("m {0}\n", Macro.ToString().TrimEnd());
 			}
@@ -90,21 +87,21 @@ namespace UnrealBuildToolTests
 		static string FormatTransform(PreprocessorTransform Transform)
 		{
 			StringBuilder Result = new StringBuilder();
-			if(Transform.bRequireTopmostActive.HasValue)
+			if (Transform.bRequireTopmostActive.HasValue)
 			{
-				Result.AppendFormat("=b {0}\n", Transform.bRequireTopmostActive.Value? "Active" : "0");
+				Result.AppendFormat("=b {0}\n", Transform.bRequireTopmostActive.Value ? "Active" : "0");
 			}
-			foreach(PreprocessorBranch Branch in Transform.RequiredBranches)
+			foreach (PreprocessorBranch Branch in Transform.RequiredBranches)
 			{
 				Result.AppendFormat("-b {0}\n", Branch);
 			}
-			foreach(PreprocessorBranch Branch in Transform.NewBranches)
+			foreach (PreprocessorBranch Branch in Transform.NewBranches)
 			{
 				Result.AppendFormat("+b {0}\n", Branch);
 			}
-			foreach(KeyValuePair<Identifier, PreprocessorMacro> Macro in Transform.RequiredMacros)
+			foreach (KeyValuePair<Identifier, PreprocessorMacro> Macro in Transform.RequiredMacros)
 			{
-				if(Macro.Value == null)
+				if (Macro.Value == null)
 				{
 					Result.AppendFormat("=m {0} undef\n", Macro.Key);
 				}
@@ -113,9 +110,9 @@ namespace UnrealBuildToolTests
 					Result.AppendFormat("=m {0}\n", Macro.Value.ToString().TrimEnd());
 				}
 			}
-			foreach(KeyValuePair<Identifier, PreprocessorMacro> Macro in Transform.NewMacros)
+			foreach (KeyValuePair<Identifier, PreprocessorMacro> Macro in Transform.NewMacros)
 			{
-				if(Macro.Value == null)
+				if (Macro.Value == null)
 				{
 					Result.AppendFormat("+m {0} undef\n", Macro.Key);
 				}
@@ -131,13 +128,13 @@ namespace UnrealBuildToolTests
 		{
 			List<Token> Tokens = new List<Token>();
 
-			TokenReader Reader = new TokenReader(Value);
-			while(Reader.MoveNext())
+			using TokenReader Reader = new TokenReader(Value);
+			while (Reader.MoveNext())
 			{
 				Tokens.Add(Reader.Current);
 			}
 
-			if(Parameters == null)
+			if (Parameters == null)
 			{
 				return new PreprocessorMacro(Identifier.FindOrAdd(Name), null, Tokens);
 			}
