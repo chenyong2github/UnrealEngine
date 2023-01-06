@@ -56,6 +56,7 @@ uint VisualizeDecalGrid;
 float DecalRoughnessCutoff;
 float MeshDecalRoughnessCutoff;
 float MeshDecalBias;
+int MeshDecalsUseViewRay;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
@@ -374,18 +375,28 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 		if (PathState.PathRoughness < MeshDecalRoughnessCutoff && HitPayload.IsDecalReceiver())
 		{
-			FRayDesc DecalRay;
-			DecalRay.Direction = HitPayload.WorldGeoNormal;
-			DecalRay.Origin = HitPayload.TranslatedWorldPos - DecalRay.Direction * MeshDecalBias;
-			DecalRay.TMin = 0.0f;
-			DecalRay.TMax = MeshDecalBias * 2;
+			FRayDesc DecalRay = (FRayDesc)0;
+			if (MeshDecalsUseViewRay)
+			{
+				DecalRay = PathState.Ray;
+				// go a bit further than the current hit, to handle decals partially inside the model
+				// NOTE: TMin will be inherited from current ray
+				DecalRay.TMax = HitPayload.HitT + MeshDecalBias;
+			}
+			else
+			{
+				DecalRay.Direction = -HitPayload.WorldGeoNormal;
+				DecalRay.Origin = HitPayload.TranslatedWorldPos - DecalRay.Direction * MeshDecalBias;
+				DecalRay.TMin = 0.0f;
+				DecalRay.TMax = MeshDecalBias * 2;
+			}
 
 			FRayTracingDecalPayload DecalPayload = (FRayTracingDecalPayload)0;
 			DecalPayload.Params.SetInputTranslatedWorldPosition(HitPayload.TranslatedWorldPos);
 
 			TraceRay(
 				DecalTLAS,
-				RAY_FLAG_CULL_FRONT_FACING_TRIANGLES,
+				RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 				InstanceInclusionMask,
 				RAY_TRACING_SHADER_SLOT_MATERIAL,
 				RAY_TRACING_NUM_SHADER_SLOTS,
