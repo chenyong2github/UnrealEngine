@@ -113,11 +113,6 @@ namespace UE::EditorAssetUtils
 			return MakeError(TEXT("The Asset is not valid."));
 		}
 
-		if (Cast<UField>(Object))
-		{
-			return MakeError(FString::Printf(TEXT("The object is of the base class type '%s'"), *Object->GetClass()->GetName()));
-		}
-
 		if (!ObjectTools::IsObjectBrowsable(Object))
 		{
 			return MakeError(FString::Printf(TEXT("The object '%s' is not an asset."), *Object->GetName()));

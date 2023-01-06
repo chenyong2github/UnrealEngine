@@ -400,12 +400,6 @@ namespace EditorScriptingUtils
 			return false;
 		}
 
-		if (Cast<UField>(Object))
-		{
-			OutFailureReason = FString::Printf(TEXT("The object is of the base class type '%s'"), *Object->GetName());
-			return false;
-		}
-
 		if (!ObjectTools::IsObjectBrowsable(Object))
 		{
 			OutFailureReason = FString::Printf(TEXT("The object %s is not an asset."), *Object->GetName());
