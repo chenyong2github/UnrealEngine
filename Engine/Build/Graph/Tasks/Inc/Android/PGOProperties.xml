@@ -11,7 +11,7 @@
 	<Property Name="PGOProfileOutputPathAndroid" Value="$(ProjectPath)/Platforms/Android/Build/PGO"/>
 	<Property Name="PGOProfileOutputFilterAndroid" Value="*.profdata"/>
 	<Property Name="PGOProfileCommandLineAndroid" Value=""/>
-	<Property Name="PGOCompileArgsAndroid" Value=""/>
+	<Property Name="PGOCompileArgsAndroid" Value="-ThinLTO"/>
 	<Property Name="PGOCompileExtraBinariesAndroid" Value=""/>
 
 	<!-- no special preprocessing required for this platform -->
