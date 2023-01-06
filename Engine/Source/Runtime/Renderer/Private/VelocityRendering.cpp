@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VelocityRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "SceneUtils.h"
 #include "Materials/Material.h"
 #include "PostProcess/SceneRenderTargets.h"

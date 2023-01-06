@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CustomDepthRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "SceneUtils.h"
 #include "DepthRendering.h"
 #include "SceneRendering.h"

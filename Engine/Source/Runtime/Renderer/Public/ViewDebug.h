@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,8 @@
 #include "PrimitiveSceneInfo.h"
 
 #if !UE_BUILD_SHIPPING // TODO: Decide whether or not the struct should be entirely stripped out of shipping
+
+class UMaterialInterface;
 
 DECLARE_MULTICAST_DELEGATE(FOnUpdateViewDebugInfo);
 

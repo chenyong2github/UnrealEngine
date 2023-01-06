@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenPass.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "EngineGlobals.h"
 #include "ScenePrivate.h"
 #include "RendererModule.h"

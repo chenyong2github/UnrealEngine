@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "DistanceFieldAmbientOcclusion.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DeferredShadingRenderer.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"

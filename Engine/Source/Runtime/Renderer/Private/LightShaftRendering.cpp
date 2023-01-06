@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightShaftRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ScreenPass.h"
 #include "PipelineStateCache.h"
 #include "PostProcess/SceneRenderTargets.h"

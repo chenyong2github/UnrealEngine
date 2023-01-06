@@ -2,6 +2,7 @@
 
 #include "InstanceCulling/InstanceCullingContext.h"
 #include "CoreMinimal.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHI.h"
 #include "RendererModule.h"
 #include "ShaderParameterMacros.h"

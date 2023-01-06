@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "Stats/Stats.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "RHI.h"
 #include "RenderResource.h"

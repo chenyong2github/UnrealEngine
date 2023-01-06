@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "PostProcess/PostProcessMobile.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
 #include "SceneRenderTargetParameters.h"

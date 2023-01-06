@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshMaterialShader.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ScenePrivate.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"

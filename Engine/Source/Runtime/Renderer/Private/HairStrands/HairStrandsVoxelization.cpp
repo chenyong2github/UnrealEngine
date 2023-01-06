@@ -14,6 +14,7 @@
 #include "RenderGraphUtils.h"
 #include "PostProcess/PostProcessing.h"
 #include "ScenePrivate.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 static int32 GHairVoxelizationEnable = 1;
 static FAutoConsoleVariableRef CVarGHairVoxelizationEnable(TEXT("r.HairStrands.Voxelization"), GHairVoxelizationEnable, TEXT("Enable hair voxelization for transmittance evaluation"));

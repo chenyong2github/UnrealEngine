@@ -9,6 +9,7 @@
 #include "HairStrandsMeshProjection.h"
 #include "HairStrandsData.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "CommonRenderResources.h"

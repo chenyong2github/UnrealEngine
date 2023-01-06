@@ -6,6 +6,7 @@
 #include "CanvasTypes.h"
 #include "ClearQuad.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "Materials/MaterialRenderProxy.h"

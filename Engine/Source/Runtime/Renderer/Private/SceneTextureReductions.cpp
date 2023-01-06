@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "SceneTextureReductions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ScenePrivate.h"
 #include "RenderGraph.h"
 #include "PixelShaderUtils.h"

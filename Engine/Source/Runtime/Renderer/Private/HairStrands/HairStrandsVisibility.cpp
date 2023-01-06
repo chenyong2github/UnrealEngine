@@ -8,6 +8,7 @@
 #include "HairStrandsTile.h"
 #include "HairStrandsForwardRaster.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsRasterCommon.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "HairStrandsUtils.h"
 #include "PrimitiveSceneProxy.h"
 #include "Shader.h"

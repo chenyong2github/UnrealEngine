@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FogRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
 #include "Engine/TextureCube.h"
 #include "PipelineStateCache.h"
 #include "SingleLayerWaterRendering.h"
+#include "SceneCore.h"
 #include "ScreenPass.h"
 #include "TextureResource.h"
 

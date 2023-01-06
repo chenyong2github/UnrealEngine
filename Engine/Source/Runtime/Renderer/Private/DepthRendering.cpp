@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "DepthRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "Engine/Engine.h"
 #include "RendererInterface.h"
 #include "StaticBoundShaderState.h"
 #include "SceneUtils.h"

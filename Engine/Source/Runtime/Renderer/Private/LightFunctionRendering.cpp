@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "EngineGlobals.h"
 #include "Materials/Material.h"

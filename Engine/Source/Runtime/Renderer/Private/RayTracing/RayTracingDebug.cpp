@@ -6,6 +6,7 @@
 
 #if RHI_RAYTRACING
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DeferredShadingRenderer.h"
 #include "GlobalShader.h"
 #include "PostProcess/SceneRenderTargets.h"

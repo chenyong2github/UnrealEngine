@@ -2,6 +2,7 @@
 
 #include "NiagaraRendererMeshes.h"
 #include "Async/ParallelFor.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/StaticMesh.h"
 #include "FXRenderingUtils.h"
 #include "IXRTrackingSystem.h"

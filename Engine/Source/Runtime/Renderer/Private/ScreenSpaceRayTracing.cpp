@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenSpaceRayTracing.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderGraph.h"
 #include "PixelShaderUtils.h"
 #include "ScreenPass.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteCullRaster.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "NaniteVisualizationData.h"
 #include "NaniteSceneProxy.h"
 #include "RHI.h"

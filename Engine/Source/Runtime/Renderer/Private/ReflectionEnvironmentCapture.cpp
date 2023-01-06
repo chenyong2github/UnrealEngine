@@ -48,6 +48,7 @@
 #include "RenderGraphUtils.h"
 #include "PixelShaderUtils.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "UnrealEngine.h"
 
 /** Near plane to use when capturing the scene. */
 float GReflectionCaptureNearPlane = 5;

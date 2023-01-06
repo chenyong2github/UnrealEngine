@@ -2,6 +2,7 @@
 
 #include "GlobalDistanceField.h"
 #include "ClearQuad.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DistanceFieldLightingShared.h"
 #include "DynamicMeshBuilder.h"
 #include "DynamicPrimitiveDrawing.h"

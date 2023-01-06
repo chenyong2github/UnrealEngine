@@ -20,6 +20,7 @@
 #include "GlobalDistanceField.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "UnrealEngine.h"
 
 DECLARE_GPU_STAT(DistanceFields);
 

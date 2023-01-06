@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnisotropyRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PrimitiveSceneProxy.h"
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"

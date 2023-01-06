@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShadingEnergyConservation.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderGraphUtils.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"

@@ -6,6 +6,7 @@
 
 #include "GPUScene.h"
 #include "CoreMinimal.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHI.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"

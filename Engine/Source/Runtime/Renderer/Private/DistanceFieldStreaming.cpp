@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "IO/IoDispatcher.h"

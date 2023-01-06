@@ -5,6 +5,7 @@ MobileDistortionPass.cpp - Mobile specific rendering of primtives with refractio
 =============================================================================*/
 
 #include "MobileDistortionPass.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "TranslucentRendering.h"
 #include "DynamicPrimitiveDrawing.h"
 #include "PostProcess/PostProcessing.h"

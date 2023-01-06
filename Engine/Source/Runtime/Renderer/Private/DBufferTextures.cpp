@@ -2,6 +2,7 @@
 
 #include "DBufferTextures.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RendererUtils.h"
 #include "RenderGraphUtils.h"
 #include "SceneUtils.h"

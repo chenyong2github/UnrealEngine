@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Strata.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "HAL/IConsoleManager.h"
 #include "PixelShaderUtils.h"
 #include "SceneView.h"
@@ -14,6 +15,7 @@
 #include "RendererUtils.h"
 #include "EngineAnalytics.h"
 #include "SystemTextures.h"
+#include "DBufferTextures.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 

@@ -12,6 +12,7 @@
 
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/SceneRenderTargets.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
@@ -21,6 +22,7 @@
 #include "Strata/Strata.h"
 #include "PostProcess/TemporalAA.h"
 #include "SubsurfaceTiles.h"
+#include "UnrealEngine.h"
 
 namespace
 {

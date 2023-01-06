@@ -6,6 +6,7 @@
 
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ShaderParameterStruct.h"
 #include "SceneRendering.h"
 #include "RenderTargetPool.h"

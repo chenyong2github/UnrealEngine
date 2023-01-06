@@ -15,6 +15,7 @@
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "MaterialShared.h"
 #include "Engine/StaticMesh.h"
 #include "ComponentReregisterContext.h"
 #include "EngineUtils.h"

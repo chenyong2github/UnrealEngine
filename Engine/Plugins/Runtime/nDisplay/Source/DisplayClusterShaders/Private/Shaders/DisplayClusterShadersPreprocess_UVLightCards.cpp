@@ -3,6 +3,7 @@
 #include "DisplayClusterShadersPreprocess_UVLightCards.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "EngineModule.h"
 #include "EngineUtils.h"
 #include "InstanceCulling/InstanceCullingContext.h"

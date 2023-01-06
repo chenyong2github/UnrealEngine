@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteVisualize.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "NaniteVisualizationData.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessing.h"

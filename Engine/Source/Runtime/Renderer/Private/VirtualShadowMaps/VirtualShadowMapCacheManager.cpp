@@ -11,6 +11,7 @@
 #include "ScenePrivate.h"
 #include "HAL/FileManager.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PrimitiveSceneInfo.h"
 #include "ShaderPrint.h"
 #include "RendererOnScreenNotification.h"

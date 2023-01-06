@@ -3,6 +3,7 @@
 #include "ShaderPrint.h"
 #include "ShaderPrintParameters.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ShaderParameterStruct.h"
 #include "CommonRenderResources.h"
 #include "Containers/DynamicRHIResourceArray.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessMitchellNetravali.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "SceneUtils.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"

@@ -13,6 +13,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
+#include "MaterialShared.h"
 #include "RenderUtils.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "PrimitiveInstanceUpdateCommand.h"

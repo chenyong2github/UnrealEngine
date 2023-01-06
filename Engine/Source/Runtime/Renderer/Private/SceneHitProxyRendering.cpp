@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "SceneHitProxyRendering.h"
+#include "Engine/Engine.h"
 #include "RendererInterface.h"
 #include "BatchedElements.h"
 #include "Materials/Material.h"
@@ -13,6 +14,7 @@
 #include "MeshMaterialShader.h"
 #include "ShaderBaseClasses.h"
 #include "SceneRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
 #include "DynamicPrimitiveDrawing.h"

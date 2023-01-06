@@ -5,6 +5,7 @@
 =============================================================================*/
 #include "SceneCaptureRendering.h"
 #include "Containers/ArrayView.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Misc/MemStack.h"
 #include "EngineDefines.h"
 #include "RHIDefinitions.h"

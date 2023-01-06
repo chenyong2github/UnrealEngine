@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/NaniteResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "Engine/Engine.h"
 #include "EngineLogs.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"

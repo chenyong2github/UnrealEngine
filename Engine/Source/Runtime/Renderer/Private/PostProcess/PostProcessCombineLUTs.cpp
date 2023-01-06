@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessCombineLUTs.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PostProcess/PostProcessTonemap.h"
 #include "ScenePrivate.h"
 #include "VolumeRendering.h"

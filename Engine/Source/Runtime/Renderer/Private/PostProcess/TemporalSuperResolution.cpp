@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/TemporalAA.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PostProcess/PostProcessTonemap.h"
 #include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"

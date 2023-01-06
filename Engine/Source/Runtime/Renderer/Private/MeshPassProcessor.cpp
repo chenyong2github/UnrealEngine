@@ -18,6 +18,7 @@
 #include "Hash/CityHash.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderCore.h"
+#include "UnrealEngine.h"
 
 FRWLock FGraphicsMinimalPipelineStateId::PersistentIdTableLock;
 FGraphicsMinimalPipelineStateId::PersistentTableType FGraphicsMinimalPipelineStateId::PersistentIdTable;

@@ -2,6 +2,7 @@
 
 #include "WaterInfoRendering.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "EngineModule.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "RenderCaptureInterface.h"

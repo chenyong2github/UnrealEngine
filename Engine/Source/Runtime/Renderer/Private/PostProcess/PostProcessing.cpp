@@ -62,6 +62,7 @@
 #include "Lumen/LumenVisualize.h"
 #include "RectLightTextureManager.h"
 #include "IESTextureManager.h"
+#include "UnrealEngine.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 

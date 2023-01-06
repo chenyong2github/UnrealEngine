@@ -28,6 +28,7 @@
 #include "ShaderPrint.h"
 #include "ScreenPass.h"
 #include "ScenePrivate.h"
+#include "UnrealEngine.h"
 
 #include "GroomVisualizationData.h"
 

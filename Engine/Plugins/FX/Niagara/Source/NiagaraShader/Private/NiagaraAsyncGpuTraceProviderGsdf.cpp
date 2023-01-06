@@ -2,6 +2,7 @@
 
 #include "NiagaraAsyncGpuTraceProviderGsdf.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraGpuComputeDispatchInterface.h"

@@ -5,6 +5,7 @@
 #include "PostProcess/PostProcessBufferInspector.h"
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
+#include "UnrealEngine.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPixelInspectorParameters, )
 	RDG_TEXTURE_ACCESS(GBufferA, ERHIAccess::CopySrc)
