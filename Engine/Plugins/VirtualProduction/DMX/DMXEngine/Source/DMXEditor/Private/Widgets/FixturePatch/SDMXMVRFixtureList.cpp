@@ -711,19 +711,20 @@ void SDMXMVRFixtureList::RefreshList()
 		return;
 	}
 
-	DMXLibrary->UpdateGeneralSceneDescription();
 	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = DMXLibrary->GetLazyGeneralSceneDescription();
 	if (!GeneralSceneDescription)
 	{
 		return;
 	}
 
+	// Remove all that are no longer a patch
 	const TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	ListSource.RemoveAll([&FixturePatches](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
 		{
 			return !FixturePatches.Contains(Item->GetFixturePatch());
 		});
 	
+	bool bUpdatedGeneralSceneDescription = false;
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
 	{
 		bool bExisting = ListSource.ContainsByPredicate([FixturePatch](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
@@ -733,6 +734,13 @@ void SDMXMVRFixtureList::RefreshList()
 
 		if (!bExisting)
 		{
+			if (!bUpdatedGeneralSceneDescription)
+			{	
+				// Ony update the General Scene Description when Nodes were never acquired, or new patches were added.
+				DMXLibrary->UpdateGeneralSceneDescription();
+				bUpdatedGeneralSceneDescription = true;
+			}
+
 			UDMXMVRFixtureNode* MVRFixtureNode = FindMVRFixtureNode(GeneralSceneDescription, FixturePatch);
 			if (!MVRFixtureNode)
 			{

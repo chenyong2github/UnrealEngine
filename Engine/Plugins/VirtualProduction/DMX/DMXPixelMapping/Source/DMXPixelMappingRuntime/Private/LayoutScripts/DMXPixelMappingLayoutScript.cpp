@@ -63,9 +63,6 @@ void FDMXPixelMappingLayoutToken::InitializeFixtureID()
 	{
 		return;
 	}
-#if WITH_EDITOR
-	GeneralSceneDescription->WriteDMXLibraryToGeneralSceneDescription(*DMXLibrary);
-#endif
 	
 	UDMXMVRFixtureNode* FixtureNode = GeneralSceneDescription->FindFixtureNode(MVRUUID);
 	if (!FixtureNode)

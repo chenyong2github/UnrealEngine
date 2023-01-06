@@ -223,6 +223,14 @@ void UDMXComponent::OnAllFixturePatchesReceiveDMXInEditorEnabled(bool bEnabled)
 #if WITH_EDITOR
 void UDMXComponent::OnFixturePatchPropertiesChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
+	// Look up the global setting first, which is on in most cases.
+	// This is faster as GetFixturePatch can be slow.
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	if (ProtocolSettings->ShouldAllFixturePatchesReceiveDMXInEditor() && IsComponentTickEnabled())
+	{
+		return;
+	}
+
 	if (FixturePatch == GetFixturePatch())
 	{
 		UpdateTickEnabled();

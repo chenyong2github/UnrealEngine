@@ -221,10 +221,8 @@ void FDMXPixelMappingOutputComponentModel::UpdateFixtureNode()
 		return;
 	}
 
-	GeneralSceneDescription->WriteDMXLibraryToGeneralSceneDescription(*DMXLibrary);
 	WeakFixtureNode = GeneralSceneDescription->FindFixtureNode(MVRUUID);
 }
-
 
 FDMXPixelMappingScreenComponentModel::FDMXPixelMappingScreenComponentModel(const TSharedRef<FDMXPixelMappingToolkit>& InToolkit, TWeakObjectPtr<UDMXPixelMappingScreenComponent> InScreenComponent)
 	: WeakScreenComponent(InScreenComponent)

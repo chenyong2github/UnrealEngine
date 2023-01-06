@@ -32,13 +32,16 @@ UDMXLibrary::UDMXLibrary()
 
 void UDMXLibrary::Serialize(FArchive& Ar)
 {
-#if WITH_EDITORONLY_DATA
-	if (Ar.IsSaving())
-	{
-		// Update the General Scene Description before saving it
-		UpdateGeneralSceneDescription();
-	}
-#endif
+// More performant without. Instead Update the General Scene Description on demand when it's actually needed.
+// Serialize is only here because the 5.1.1 hotfix doens't allow a header change and can be removed in 5.2.
+// 
+// #if WITH_EDITORONLY_DATA
+//	if (Ar.IsSaving())
+//	{
+//		// Update the General Scene Description before saving it
+//		UpdateGeneralSceneDescription();
+//	}
+//#endif
 
 	Super::Serialize(Ar);
 }
