@@ -123,6 +123,21 @@ public:
 	 */
 	static UE::MovieScene::EEntitySystemCategory RegisterCustomSystemCategory();
 
+	/**
+	 * Sort the given systems by their flow order, suitable for execution
+	 */
+	static void SortByFlowOrder(TArray<uint16>& InOutGlobalNodeIDs);
+
+	/**
+	 * Get the global IDs of all subsequent systems of the given system
+	 */
+	static void GetSubsequentSystems(uint16 FromGlobalNodeID, TArray<uint16>& OutSubsequentGlobalNodeIDs);
+
+	/**
+	 * Prints a graphviz markup for the global system dependency graph
+	 */
+	static void DebugPrintGlobalDependencyGraph(bool bUpdateCache = true);
+
 public:
 
 	/** Returns system categories */

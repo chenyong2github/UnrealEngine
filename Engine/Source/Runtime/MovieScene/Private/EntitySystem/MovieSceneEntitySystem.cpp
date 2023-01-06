@@ -32,6 +32,10 @@ struct FSystemDependencyGraph
 
 		GraphIDsByClass.Add(Class->GetFName(), NewGraphID);
 
+		FlowGraph.AllocateNode(NewGraphID);
+
+		++SerialNumber;
+
 		return NewGraphID;
 	}
 
@@ -53,81 +57,18 @@ struct FSystemDependencyGraph
 
 		GraphIDsByComponent.Add(InComponentType, NewGraphID);
 
+		FlowGraph.AllocateNode(NewGraphID);
+
+		++SerialNumber;
+
 		return NewGraphID;
-	}
-
-	void SetupDependencies(UMovieSceneEntitySystem* ThisSystem, UMovieSceneEntitySystemLinker* Linker)
-	{
-		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
-
-		const uint16 FromNode = ThisSystem->GetGlobalDependencyGraphID();
-
-		// Set up prerequisites
-		for (FDirectionalEdge Edge : ImplicitPrerequisites.GetEdgesFrom(FromNode))
-		{
-			FNode Node = Nodes[Edge.ToNode];
-
-			// Follow edges from components
-			if (Node.WriteComponentType)
-			{
-				for (FDirectionalEdge ComponentEdge : ImplicitPrerequisites.GetEdgesFrom(Edge.ToNode))
-				{
-					// Components shouldn't be connected to other components
-					SetupPrereq(Nodes[ComponentEdge.ToNode].Class.Get(), ThisSystem, Linker);
-				}
-			}
-			else
-			{
-				SetupPrereq(Node.Class.Get(), ThisSystem, Linker);
-			}
-		}
-
-		// Set up subsequents
-		for (FDirectionalEdge Edge : ImplicitSubsequents.GetEdgesFrom(FromNode))
-		{
-			FNode Node = Nodes[Edge.ToNode];
-
-			// Follow edges from components
-			if (Node.WriteComponentType)
-			{
-				for (FDirectionalEdge ComponentEdge : ImplicitSubsequents.GetEdgesFrom(Edge.ToNode))
-				{
-					// Components shouldn't be connected to other components
-					SetupSubsequent(ThisSystem, Nodes[ComponentEdge.ToNode].Class.Get(), Linker);
-				}
-			}
-			else
-			{
-				SetupSubsequent(ThisSystem, Node.Class.Get(), Linker);
-			}
-		}
-	}
-
-	void SetupPrereq(UClass* PrereqType, UMovieSceneEntitySystem* ThisSystem, UMovieSceneEntitySystemLinker* Linker)
-	{
-		if (PrereqType)
-		{
-			if (UMovieSceneEntitySystem* TargetSystem = Linker->FindSystem(PrereqType))
-			{
-				Linker->SystemGraph.AddPrerequisite(TargetSystem, ThisSystem);
-			}
-		}
-	}
-	void SetupSubsequent(UMovieSceneEntitySystem* ThisSystem, UClass* SubsequentType, UMovieSceneEntitySystemLinker* Linker)
-	{
-		if (SubsequentType)
-		{
-			if (UMovieSceneEntitySystem* TargetSystem = Linker->FindSystem(SubsequentType))
-			{
-				Linker->SystemGraph.AddPrerequisite(ThisSystem, TargetSystem);
-			}
-		}
 	}
 
 	void MakeRelationship(uint16 UpstreamGraphID, uint16 DownstreamGraphID)
 	{
 		ImplicitSubsequents.MakeEdge(UpstreamGraphID, DownstreamGraphID);
 		ImplicitPrerequisites.MakeEdge(DownstreamGraphID, UpstreamGraphID);
+		++SerialNumber;
 	}
 
 	UClass* ClassFromGraphID(uint16 GraphID) const
@@ -139,6 +80,328 @@ struct FSystemDependencyGraph
 	uint16 NumGraphIDs() const
 	{
 		return Nodes.Num();
+	}
+
+	void SortByFlowOrder(TArray<uint16>& InOutNodeIDs)
+	{
+		struct FSortableID
+		{
+			uint16 NodeID;
+			uint16 FlowOrder;
+		};
+
+		UpdateCache();
+
+		TArray<FSortableID, TInlineAllocator<32>> SortableNodeIDs;
+		for (uint16 NodeID : InOutNodeIDs)
+		{
+			SortableNodeIDs.Add(FSortableID{ NodeID, ReverseLookupFlowOrderNodes[NodeID] });
+		}
+		Algo::SortBy(SortableNodeIDs, &FSortableID::FlowOrder);
+
+		InOutNodeIDs.Reset();
+		for (const FSortableID& SortableNodeID : SortableNodeIDs)
+		{
+			InOutNodeIDs.Add(SortableNodeID.NodeID);
+		}
+	}
+
+	void GetSubsequents(uint16 FromNodeID, TArray<uint16>& OutSubsequentNodeIDs)
+	{
+		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+
+		UpdateCache();
+
+		for (FDirectionalEdge Edge : FlowGraph.GetEdgesFrom(FromNodeID))
+		{
+			OutSubsequentNodeIDs.Add(Edge.ToNode);
+		}
+	}
+
+	void DebugPrint(bool bUpdateCache = true)
+	{
+		const TCHAR FormatString[] =
+			TEXT("----------------------------------------------------------------------------------\n")
+			TEXT("%s\n")
+			TEXT("----------------------------------------------------------------------------------\n");
+
+		if (bUpdateCache)
+		{
+			UpdateCache();
+		}
+
+		GLog->Log(TEXT("Printing debug graph for Entity System Graph (in standard graphviz syntax):"));
+		GLog->Log(FString::Printf(FormatString, *ToString()));
+	}
+
+	FString ToString() const
+	{
+		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+
+		FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
+
+		FString String;
+		String += TEXT("\ndigraph FMovieSceneEntitySystemGraph {\n");
+		String += TEXT("\tnode [shape=record,height=.1];\n");
+
+		FString FlowStrings[] = 
+		{
+			TEXT("\tsubgraph cluster_flow_0 { label=\"Spawn\"; color=\"#0e868c\";\n"),
+			TEXT("\tsubgraph cluster_flow_1 { label=\"Instantiation\"; color=\"#96c74c\";\n"),
+			TEXT("\tsubgraph cluster_flow_2 { label=\"Evaluation\"; color=\"#6dc74c\";\n"),
+			TEXT("\tsubgraph cluster_flow_3 { label=\"Finalization\"; color=\"#aa42f5\";\n"),
+		};
+
+		TMap<uint16, ESystemPhase> SystemPhasesConnectedToWriteComponents;
+		for (FDirectionalEdge Edge : FlowGraph.GetEdges())
+		{
+			if (Nodes[Edge.FromNode].WriteComponentType)
+			{
+				if (UClass* SystemClass = Nodes[Edge.ToNode].Class.Get())
+				{
+					UMovieSceneEntitySystem* System = SystemClass->GetDefaultObject<UMovieSceneEntitySystem>();
+					SystemPhasesConnectedToWriteComponents.FindOrAdd(Edge.FromNode) |= System->GetPhase();
+				}
+			}
+			else if (Nodes[Edge.ToNode].WriteComponentType)
+			{
+				if (UClass* SystemClass = Nodes[Edge.FromNode].Class.Get())
+				{
+					UMovieSceneEntitySystem* System = SystemClass->GetDefaultObject<UMovieSceneEntitySystem>();
+					SystemPhasesConnectedToWriteComponents.FindOrAdd(Edge.ToNode) |= System->GetPhase();
+				}
+			}
+		}
+
+		for (int32 NodeID = 0; NodeID < Nodes.Num(); ++NodeID)
+		{
+			const FNode& Node(Nodes[NodeID]);
+			if (UClass* SystemClass = Node.Class.Get())
+			{
+				UMovieSceneEntitySystem* DefaultSystem = SystemClass->GetDefaultObject<UMovieSceneEntitySystem>();
+
+				ESystemPhase SystemPhase = DefaultSystem->GetPhase();
+
+				if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Spawn))
+				{
+					FlowStrings[0] += FString::Printf(TEXT("\t\tflow_node%d_0[label=\"%s\"];\n"), NodeID, *SystemClass->GetName());
+				}
+				if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Instantiation))
+				{
+					FlowStrings[1] += FString::Printf(TEXT("\t\tflow_node%d_1[label=\"%s\"];\n"), NodeID, *SystemClass->GetName());
+				}
+				if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Evaluation))
+				{
+					FlowStrings[2] += FString::Printf(TEXT("\t\tflow_node%d_2[label=\"%s\"];\n"), NodeID, *SystemClass->GetName());
+				}
+				if (EnumHasAnyFlags(SystemPhase, ESystemPhase::Finalization))
+				{
+					FlowStrings[3] += FString::Printf(TEXT("\t\tflow_node%d_3[label=\"%s\"];\n"), NodeID, *SystemClass->GetName());
+				}
+			}
+			else if(Node.WriteComponentType)
+			{
+				const FComponentTypeInfo& WriteComponentInfo = ComponentRegistry->GetComponentTypeChecked(Node.WriteComponentType);
+
+				ESystemPhase* ConnectedSystemPhase = SystemPhasesConnectedToWriteComponents.Find(NodeID);
+				if (ConnectedSystemPhase)
+				{
+					if (EnumHasAnyFlags(*ConnectedSystemPhase, ESystemPhase::Spawn))
+					{
+#if UE_MOVIESCENE_ENTITY_DEBUG
+						FlowStrings[0] += FString::Printf(TEXT("\t\tflow_node%d_0[label=\"%s\"];\n"), NodeID, *WriteComponentInfo.DebugInfo->DebugName);
+#else
+						FlowStrings[0] += FString::Printf(TEXT("\t\tflow_node%d_0[label=\"Component ID=%s\"];\n"), NodeID, Node.WriteComponentType.BitIndex());
+#endif
+					}
+					if (EnumHasAnyFlags(*ConnectedSystemPhase, ESystemPhase::Instantiation))
+					{
+#if UE_MOVIESCENE_ENTITY_DEBUG
+						FlowStrings[1] += FString::Printf(TEXT("\t\tflow_node%d_1[label=\"%s\"];\n"), NodeID, *WriteComponentInfo.DebugInfo->DebugName);
+#else
+						FlowStrings[1] += FString::Printf(TEXT("\t\tflow_node%d_1[label=\"Component ID=%s\"];\n"), NodeID, Node.WriteComponentType.BitIndex());
+#endif
+					}
+					if (EnumHasAnyFlags(*ConnectedSystemPhase, ESystemPhase::Evaluation))
+					{
+#if UE_MOVIESCENE_ENTITY_DEBUG
+						FlowStrings[2] += FString::Printf(TEXT("\t\tflow_node%d_2[label=\"%s\"];\n"), NodeID, *WriteComponentInfo.DebugInfo->DebugName);
+#else
+						FlowStrings[2] += FString::Printf(TEXT("\t\tflow_node%d_2[label=\"Component ID=%s\"];\n"), NodeID, Node.WriteComponentType.BitIndex());
+#endif
+					}
+					if (EnumHasAnyFlags(*ConnectedSystemPhase, ESystemPhase::Finalization))
+					{
+#if UE_MOVIESCENE_ENTITY_DEBUG
+						FlowStrings[3] += FString::Printf(TEXT("\t\tflow_node%d_3[label=\"%s\"];\n"), NodeID, *WriteComponentInfo.DebugInfo->DebugName);
+#else
+						FlowStrings[3] += FString::Printf(TEXT("\t\tflow_node%d_3[label=\"Component ID=%s\"];\n"), NodeID, Node.WriteComponentType.BitIndex());
+#endif
+					}
+				}
+			}
+		}
+
+		for (FString& FlowString : FlowStrings)
+		{
+			String += FlowString;
+			String += TEXT("\t}\n");
+		}
+
+		{
+			FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&FlowGraph);
+			CyclicEdges.Search();
+
+			TArrayView<const FDirectionalEdge> FlowEdges = FlowGraph.GetEdges();
+			for (int32 EdgeIndex = 0; EdgeIndex < FlowEdges.Num(); ++EdgeIndex)
+			{
+				FDirectionalEdge Edge = FlowEdges[EdgeIndex];
+				const bool bIsCyclic = CyclicEdges.IsCyclic(EdgeIndex);
+				const FString EdgeColor = bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b");
+
+				ESystemPhase FromPhase = ESystemPhase::None;
+				if (UClass* FromClass = Nodes[Edge.FromNode].Class.Get())
+				{
+					FromPhase = FromClass->GetDefaultObject<UMovieSceneEntitySystem>()->GetPhase();
+				}
+
+				ESystemPhase ToPhase = ESystemPhase::None;
+				if (UClass* ToClass = Nodes[Edge.ToNode].Class.Get())
+				{
+					ToPhase = ToClass->GetDefaultObject<UMovieSceneEntitySystem>()->GetPhase();
+				}
+
+				if ((FromPhase == ESystemPhase::None || EnumHasAnyFlags(FromPhase, ESystemPhase::Spawn)) && 
+						(ToPhase == ESystemPhase::None || EnumHasAnyFlags(ToPhase, ESystemPhase::Spawn)))
+				{
+					String += FString::Printf(TEXT("\tflow_node%d_0 -> flow_node%d_0 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, *EdgeColor);
+				}
+				if ((FromPhase == ESystemPhase::None || EnumHasAnyFlags(FromPhase, ESystemPhase::Instantiation)) && 
+						(ToPhase == ESystemPhase::None || EnumHasAnyFlags(ToPhase, ESystemPhase::Instantiation)))
+				{
+					String += FString::Printf(TEXT("\tflow_node%d_1 -> flow_node%d_1 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, *EdgeColor);
+				}
+				if ((FromPhase == ESystemPhase::None || EnumHasAnyFlags(FromPhase, ESystemPhase::Evaluation)) && 
+						(ToPhase == ESystemPhase::None || EnumHasAnyFlags(ToPhase, ESystemPhase::Evaluation)))
+				{
+					String += FString::Printf(TEXT("\tflow_node%d_2 -> flow_node%d_2 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, *EdgeColor);
+				}
+				if ((FromPhase == ESystemPhase::None || EnumHasAnyFlags(FromPhase, ESystemPhase::Finalization)) && 
+						(ToPhase == ESystemPhase::None || EnumHasAnyFlags(ToPhase, ESystemPhase::Finalization)))
+				{
+					String += FString::Printf(TEXT("\tflow_node%d_3 -> flow_node%d_3 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, *EdgeColor);
+				}
+			}
+		}
+
+		String += TEXT("}");
+		return String;
+	}
+
+private:
+
+	void UpdateCache()
+	{
+		if (PreviousSerialNumber == SerialNumber)
+		{
+			return;
+		}
+
+		BuildFlowGraph();
+
+		FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch DepthFirstSearch(&FlowGraph);
+
+		TBitArray<> EdgeNodes = FlowGraph.FindEdgeUpstreamNodes();
+		for (TConstSetBitIterator<> EdgeNodeIt(EdgeNodes); EdgeNodeIt; ++EdgeNodeIt)
+		{
+			const uint16 NodeID = static_cast<uint16>(EdgeNodeIt.GetIndex());
+			check(Nodes.IsValidIndex(NodeID));
+
+			DepthFirstSearch.Search(NodeID);
+		}
+
+		Algo::Reverse(DepthFirstSearch.PostNodes);
+
+		// FlowOrderNodes has the NodeIDs sorted by dependencies.
+		FlowOrderNodes = DepthFirstSearch.PostNodes;
+
+		// Build a reverse lookup array for the flow order, i.e. an array that gives the flow order index
+		// of a system given that system's NodeID.
+		ReverseLookupFlowOrderNodes.SetNum(Nodes.Num());
+		for (int32 Index = 0; Index < FlowOrderNodes.Num(); ++Index)
+		{
+			ReverseLookupFlowOrderNodes[FlowOrderNodes[Index]] = Index;
+		}
+
+		PreviousSerialNumber = SerialNumber;
+	}
+
+	void BuildFlowGraph()
+	{
+		FlowGraph.DestroyAllEdges();
+
+		for (int32 NodeIndex = 0, NodeCount = Nodes.Num(); NodeIndex < NodeCount; ++NodeIndex)
+		{
+			SetupFlowDependencies(NodeIndex);
+		}
+
+		FlowGraph.CleanUpDanglingEdges();
+
+		checkf(!FlowGraph.IsCyclic(), TEXT("Cycle detected in system flow graph!"));
+	}
+
+	void SetupFlowDependencies(int32 NodeIndex)
+	{
+		using FDirectionalEdge = FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge;
+
+		const uint16 CurrentNodeID(static_cast<uint16>(NodeIndex));
+
+		// Set up prerequisites
+		for (FDirectionalEdge Edge : ImplicitPrerequisites.GetEdgesFrom(CurrentNodeID))
+		{
+			const FNode& Node = Nodes[Edge.ToNode];
+
+			// Follow edges from components
+			if (Node.WriteComponentType)
+			{
+				for (FDirectionalEdge ComponentEdge : ImplicitPrerequisites.GetEdgesFrom(Edge.ToNode))
+				{
+					// Components shouldn't be connected to other components
+					SetupFlowDependency(ComponentEdge.ToNode, CurrentNodeID);
+				}
+			}
+			else
+			{
+				SetupFlowDependency(Edge.ToNode, CurrentNodeID);
+			}
+		}
+
+		// Set up subsequents
+		for (FDirectionalEdge Edge : ImplicitSubsequents.GetEdgesFrom(CurrentNodeID))
+		{
+			const FNode& Node = Nodes[Edge.ToNode];
+
+			// Follow edges from components
+			if (Node.WriteComponentType)
+			{
+				for (FDirectionalEdge ComponentEdge : ImplicitSubsequents.GetEdgesFrom(Edge.ToNode))
+				{
+					// Components shouldn't be connected to other components
+					SetupFlowDependency(CurrentNodeID, ComponentEdge.ToNode);
+				}
+			}
+			else
+			{
+				SetupFlowDependency(CurrentNodeID, Edge.ToNode);
+			}
+		}
+	}
+
+	void SetupFlowDependency(uint16 UpstreamID, uint16 DownstreamID)
+	{
+		check(UpstreamID != TNumericLimits<uint16>::Max() && DownstreamID != TNumericLimits<uint16>::Max());
+
+		FlowGraph.MakeEdge(UpstreamID, DownstreamID);
 	}
 
 private:
@@ -162,8 +425,16 @@ private:
 	};
 
 	TArray<FNode> Nodes;
+
 	FMovieSceneEntitySystemDirectedGraph ImplicitPrerequisites;
 	FMovieSceneEntitySystemDirectedGraph ImplicitSubsequents;
+
+	FMovieSceneEntitySystemDirectedGraph FlowGraph;
+	TArray<uint16> FlowOrderNodes;
+	TArray<uint16> ReverseLookupFlowOrderNodes;
+
+	uint32 SerialNumber = 0;
+	uint32 PreviousSerialNumber = 0;
 };
 
 FSystemDependencyGraph GlobalDependencyGraph;
@@ -328,6 +599,27 @@ UE::MovieScene::EEntitySystemCategory UMovieSceneEntitySystem::RegisterCustomSys
 	return Result;
 }
 
+void UMovieSceneEntitySystem::SortByFlowOrder(TArray<uint16>& InOutGlobalNodeIDs)
+{
+	using namespace UE::MovieScene;
+
+	GlobalDependencyGraph.SortByFlowOrder(InOutGlobalNodeIDs);
+}
+
+void UMovieSceneEntitySystem::GetSubsequentSystems(uint16 FromGlobalNodeID, TArray<uint16>& OutSubsequentGlobalNodeIDs)
+{
+	using namespace UE::MovieScene;
+
+	GlobalDependencyGraph.GetSubsequents(FromGlobalNodeID, OutSubsequentGlobalNodeIDs);
+}
+
+void UMovieSceneEntitySystem::DebugPrintGlobalDependencyGraph(bool bUpdateCache)
+{
+	using namespace UE::MovieScene;
+
+	GlobalDependencyGraph.DebugPrint(bUpdateCache);
+}
+
 bool UMovieSceneEntitySystem::IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const
 {
 	if (RelevantComponent && InLinker->EntityManager.ContainsComponent(RelevantComponent))
@@ -429,7 +721,6 @@ void UMovieSceneEntitySystem::Link(UMovieSceneEntitySystemLinker* InLinker)
 	Linker = InLinker;
 	OnLink();
 
-	GlobalDependencyGraph.SetupDependencies(this, InLinker);
 	Linker->SystemLinked(this);
 }
 

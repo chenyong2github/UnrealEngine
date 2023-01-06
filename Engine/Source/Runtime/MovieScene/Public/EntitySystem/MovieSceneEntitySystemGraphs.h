@@ -87,8 +87,6 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 
 	GENERATED_BODY()
 
-	void AddPrerequisite(UMovieSceneEntitySystem* Upstream, UMovieSceneEntitySystem* Downstream);
-
 	void AddReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
 
 	void RemoveReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
@@ -147,8 +145,6 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 
 	void AddSystem(UMovieSceneEntitySystem* InSystem);
 
-	int32 NumSubsequents(UMovieSceneEntitySystem* InSystem) const;
-
 	void RemoveSystem(UMovieSceneEntitySystem* InSystem);
 
 	int32 RemoveIrrelevantSystems(UMovieSceneEntitySystemLinker* Linker);
@@ -194,7 +190,8 @@ private:
 	UPROPERTY()
 	FMovieSceneEntitySystemGraphNodes Nodes;
 
-	FMovieSceneEntitySystemDirectedGraph FlowGraph;
+	TMap<uint16, uint16> GlobalToLocalNodeIDs;
+
 	FMovieSceneEntitySystemDirectedGraph ReferenceGraph;
 
 	uint32 SerialNumber = 0;

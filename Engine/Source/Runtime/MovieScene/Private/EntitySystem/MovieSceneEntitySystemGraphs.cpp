@@ -13,156 +13,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEntitySystemGraphs)
 
-
-FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::FDepthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph)
-	: Visited(false, InGraph->Nodes.Num())
-	, IsVisiting(false, InGraph->Nodes.Num())
-{
-	Graph = InGraph;
-	PostNodes.Reserve(InGraph->Nodes.CountSetBits());
-	check(!Graph->bHasDanglingEdges);
-}
-
-void FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::Search(uint16 InNodeID)
-{
-	IsVisiting[InNodeID] = true;
-
-	for (FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge Edge : Graph->GetEdgesFrom(InNodeID))
-	{
-		if (Visited[Edge.ToNode] == false)
-		{
-			if (!ensureMsgf(IsVisiting[Edge.ToNode] == false, TEXT("Cycle found in graph.")))
-			{
-				return;
-			}
-			Visited[Edge.ToNode] = true;
-			Search(Edge.ToNode);
-		}
-	}
-
-	PostNodes.Add(InNodeID);
-
-	IsVisiting[InNodeID] = false;
-}
-
-FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::FBreadthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph)
-	: Visited(false, InGraph->Nodes.Num())
-	, StackIndex(0)
-{
-	Graph = InGraph;
-	Nodes.Reserve(InGraph->Nodes.CountSetBits());
-	check(!InGraph->bHasDanglingEdges);
-}
-
-void FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch::Search(uint16 InNodeID)
-{
-	if (Visited[InNodeID] == true)
-	{
-		return;
-	}
-
-	Nodes.Reset();
-	StackIndex = 0;
-
-	Visited[InNodeID] = true;
-	Nodes.Add(InNodeID);
-
-	while (StackIndex < Nodes.Num())
-	{
-		const int32 StackEnd = Nodes.Num();
-		for ( ; StackIndex < StackEnd; ++StackIndex)
-		{
-			const uint16 NodeID = Nodes[StackIndex];
-
-			// Visit all nodes this points to
-			for (FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge Edge : Graph->GetEdgesFrom(NodeID))
-			{
-				if (Visited[Edge.ToNode] == false)
-				{
-					Visited[Edge.ToNode] = true;
-					Nodes.Add(Edge.ToNode);
-				}
-			}
-		}
-	}
-}
-
-FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::FDiscoverCyclicEdges(const FMovieSceneEntitySystemDirectedGraph* InGraph)
-	: CyclicEdges(false, InGraph->SortedEdges.Num())
-	, VisitedEdges(false, InGraph->SortedEdges.Num())
-{
-	Graph = InGraph;
-	check(!Graph->bHasDanglingEdges);
-}
-
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::Search()
-{
-	for (uint16 EdgeIndex = 0; EdgeIndex < Graph->SortedEdges.Num(); ++EdgeIndex)
-	{
-		if (VisitedEdges[EdgeIndex] == false)
-		{
-			EdgeChain.Reset();
-			EdgeChain.Add(EdgeIndex);
-
-			SearchFrom(Graph->SortedEdges[EdgeIndex].FromNode);
-
-			VisitedEdges[EdgeIndex] = true;
-		}
-	}
-}
-
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::SearchFrom(uint16 NodeID)
-{
-	TBitArray<> VisitedNodes(false, Graph->Nodes.Num());
-	VisitedNodes[NodeID] = true;
-	DiscoverCycles(NodeID, VisitedNodes);
-}
-
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::DiscoverCycles(uint16 NodeID, TBitArray<>& VisitedNodes)
-{
-	// Iterate all edges from this node
-	for (int32 SubsequentEdge = Graph->FindEdgeStart(NodeID); SubsequentEdge < Graph->SortedEdges.Num() && Graph->SortedEdges[SubsequentEdge].FromNode == NodeID; ++SubsequentEdge)
-	{
-		if (VisitedEdges[SubsequentEdge] == true)
-		{
-			continue;
-		}
-
-		VisitedEdges[SubsequentEdge] = true;
-		EdgeChain.Add(SubsequentEdge);
-
-		const uint16 SubsequentNode = Graph->SortedEdges[SubsequentEdge].ToNode;
-		if (VisitedNodes[SubsequentNode] == true)
-		{
-			TagCyclicChain(SubsequentNode);
-		}
-		else
-		{
-			VisitedNodes[SubsequentNode] = true;
-			DiscoverCycles(SubsequentNode, VisitedNodes);
-			VisitedNodes[SubsequentNode] = false;
-		}
-
-		EdgeChain.Pop();
-	}
-}
-
-void FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges::TagCyclicChain(uint16 CyclicNodeID)
-{
-	// Found a cycle
-	for (int32 EdgeChainIndex = EdgeChain.Num() - 1; EdgeChainIndex >= 0; --EdgeChainIndex)
-	{
-		const uint16 UpstreamEdgeIndex = EdgeChain[EdgeChainIndex];
-		CyclicEdges.PadToNum(UpstreamEdgeIndex + 1, false);
-		CyclicEdges[UpstreamEdgeIndex] = true;
-
-		if (Graph->SortedEdges[UpstreamEdgeIndex].FromNode == CyclicNodeID)
-		{
-			return;
-		}
-	}
-}
-
 void FMovieSceneEntitySystemGraphNodes::AddStructReferencedObjects(FReferenceCollector& Collector) const
 {
 	for (FMovieSceneEntitySystemGraphNode& Node : const_cast<TSparseArray<FMovieSceneEntitySystemGraphNode>&>(Array))
@@ -170,190 +20,6 @@ void FMovieSceneEntitySystemGraphNodes::AddStructReferencedObjects(FReferenceCol
 		Collector.AddReferencedObject(Node.System);
 	}
 }
-
-void FMovieSceneEntitySystemDirectedGraph::AllocateNode(uint16 NodeID)
-{
-	CleanUpDanglingEdges();
-	Nodes.PadToNum(NodeID + 1, false);
-	Nodes[NodeID] = true;
-}
-
-bool FMovieSceneEntitySystemDirectedGraph::IsNodeAllocated(uint16 NodeID) const
-{
-	return Nodes.IsValidIndex(NodeID) && Nodes[NodeID] == true;
-}
-
-void FMovieSceneEntitySystemDirectedGraph::RemoveNode(uint16 NodeID)
-{
-	check(NodeID != TNumericLimits<uint16>::Max() && IsNodeAllocated(NodeID));
-
-	// Remove the node from the graph
-	Nodes[NodeID] = false;
-
-	bHasDanglingEdges = true;
-}
-
-void FMovieSceneEntitySystemDirectedGraph::CleanUpDanglingEdges()
-{
-	if (!bHasDanglingEdges)
-	{
-		return;
-	}
-
-	bHasDanglingEdges = false;
-	for (int32 Index = 0; Index < SortedEdges.Num(); )
-	{
-		FDirectionalEdge Edge = SortedEdges[Index];
-		if (!IsNodeAllocated(Edge.ToNode) || !IsNodeAllocated(Edge.FromNode))
-		{
-			SortedEdges.RemoveAt(Index, 1, false);
-		}
-		else
-		{
-			++Index;
-		}
-	}
-}
-
-bool FMovieSceneEntitySystemDirectedGraph::IsCyclic() const
-{
-	TBitArray<> Visited(false, Nodes.Num());
-
-	for (FDirectionalEdge Edge : SortedEdges)
-	{
-		if (Visited[Edge.ToNode] == true)
-		{
-			continue;
-		}
-
-		TBitArray<> Visiting(false, Nodes.Num());
-		if (IsCyclicImpl(Edge.ToNode, Visiting))
-		{
-			return true;
-		}
-
-		Visited.CombineWithBitwiseOR(Visiting, EBitwiseOperatorFlags::MaxSize);
-	}
-
-	return false;
-}
-
-bool FMovieSceneEntitySystemDirectedGraph::IsCyclicImpl(uint16 NodeID, TBitArray<>& Visiting) const
-{
-	if (Visiting[NodeID] == true)
-	{
-		return true;
-	}
-
-	Visiting[NodeID] = true;
-
-	for (FDirectionalEdge Edge : GetEdgesFrom(NodeID))
-	{
-		if (IsCyclicImpl(Edge.ToNode, Visiting))
-		{
-			return true;
-		}
-	}
-
-	Visiting[NodeID] = false;
-	return false;
-}
-
-void FMovieSceneEntitySystemDirectedGraph::MakeEdge(uint16 FromNode, uint16 ToNode)
-{
-	FDirectionalEdge NewEdge(FromNode, ToNode);
-
-	const int32 InsertIndex = FindEdgeIndex(NewEdge);
-	if (!SortedEdges.IsValidIndex(InsertIndex) || SortedEdges[InsertIndex] != NewEdge)
-	{
-		SortedEdges.Insert(NewEdge, InsertIndex);
-	}
-}
-
-void FMovieSceneEntitySystemDirectedGraph::DestroyEdge(uint16 FromNode, uint16 ToNode)
-{
-	FDirectionalEdge Edge(FromNode, ToNode);
-
-	const int32 RemoveIndex = Algo::BinarySearch(SortedEdges, Edge);
-	if (RemoveIndex != INDEX_NONE)
-	{
-		SortedEdges.RemoveAt(RemoveIndex, 1, false);
-	}
-}
-
-int32 FMovieSceneEntitySystemDirectedGraph::FindEdgeStart(uint16 FromNode) const
-{
-	return Algo::LowerBoundBy(SortedEdges, FromNode, &FDirectionalEdge::FromNode);
-}
-
-TArrayView<const FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge> FMovieSceneEntitySystemDirectedGraph::GetEdges() const
-{
-	check(!bHasDanglingEdges);
-	return SortedEdges;
-}
-
-bool FMovieSceneEntitySystemDirectedGraph::HasEdgeFrom(uint16 InNode) const
-{
-	const int32 ExpectedIndex = FindEdgeStart(InNode);
-	return SortedEdges.IsValidIndex(ExpectedIndex) && SortedEdges[ExpectedIndex].FromNode == InNode;
-}
-
-bool FMovieSceneEntitySystemDirectedGraph::HasEdgeTo(uint16 InNode) const
-{
-	check(InNode != TNumericLimits<uint16>::Max());
-	return Algo::FindBy(SortedEdges, InNode, &FDirectionalEdge::ToNode) != nullptr;
-}
-
-TArrayView<const FMovieSceneEntitySystemDirectedGraph::FDirectionalEdge> FMovieSceneEntitySystemDirectedGraph::GetEdgesFrom(uint16 InNodeID) const
-{
-	check(!bHasDanglingEdges);
-
-	const int32 EdgeIndex = FindEdgeStart(InNodeID);
-
-	int32 Num = 0;
-	while (EdgeIndex + Num < SortedEdges.Num() && SortedEdges[EdgeIndex + Num].FromNode == InNodeID)
-	{
-		++Num;
-	}
-
-	if (Num > 0)
-	{
-		return MakeArrayView(SortedEdges.GetData() + EdgeIndex, Num);
-	}
-	return TArrayView<const FDirectionalEdge>();
-}
-
-TBitArray<> FMovieSceneEntitySystemDirectedGraph::FindEdgeUpstreamNodes() const
-{
-	check(!bHasDanglingEdges);
-
-	TBitArray<> EdgeNodes(true, Nodes.Num());
-
-	// Unmark nodes that have edges pointing towards them
-	for (uint16 EdgeIndex = 0; EdgeIndex < SortedEdges.Num(); ++EdgeIndex)
-	{
-		const uint16 ToNode = SortedEdges[EdgeIndex].ToNode;
-		EdgeNodes[ToNode] = false;
-	}
-
-	// Mask with nodes that are actually allocated
-	return TBitArray<>::BitwiseAND(EdgeNodes, Nodes, EBitwiseOperatorFlags::MaxSize);
-}
-
-int32 FMovieSceneEntitySystemDirectedGraph::FindEdgeIndex(const FDirectionalEdge& Edge) const
-{
-	check(!bHasDanglingEdges);
-	return Algo::LowerBound(SortedEdges, Edge);
-}
-
-bool FMovieSceneEntitySystemDirectedGraph::EdgeExists(const FDirectionalEdge& Edge) const
-{
-	check(!bHasDanglingEdges);
-
-	const int32 EdgeIndex = FindEdgeIndex(Edge);
-	return EdgeIndex < SortedEdges.Num() && SortedEdges[EdgeIndex] == Edge;
-}
-
 
 void FMovieSceneEntitySystemGraph::AddSystem(UMovieSceneEntitySystem* InSystem)
 {
@@ -366,30 +32,12 @@ void FMovieSceneEntitySystemGraph::AddSystem(UMovieSceneEntitySystem* InSystem)
 
 	const uint16 NewNodeID = static_cast<uint16>(NewIndex);
 
-	FlowGraph.AllocateNode(NewNodeID);
 	ReferenceGraph.AllocateNode(NewNodeID);
 
 	InSystem->SetGraphID(NewNodeID);
 
-	++SerialNumber;
-}
-
-int32 FMovieSceneEntitySystemGraph::NumSubsequents(UMovieSceneEntitySystem* InSystem) const
-{
-	const uint16 GraphID = InSystem->GetGraphID();
-	check(GraphID != TNumericLimits<uint16>::Max());
-
-	return FlowGraph.GetEdgesFrom(GraphID).Num();
-}
-
-void FMovieSceneEntitySystemGraph::AddPrerequisite(UMovieSceneEntitySystem* Upstream, UMovieSceneEntitySystem* Downstream)
-{
-	const uint16 UpstreamID   = Upstream->GetGraphID();
-	const uint16 DownstreamID = Downstream->GetGraphID();
-
-	check(UpstreamID != TNumericLimits<uint16>::Max() && DownstreamID != TNumericLimits<uint16>::Max());
-
-	FlowGraph.MakeEdge(UpstreamID, DownstreamID);
+	checkf(!GlobalToLocalNodeIDs.Contains(InSystem->GetGlobalDependencyGraphID()), TEXT("Got more than one instance of a given system class"));
+	GlobalToLocalNodeIDs.Add(InSystem->GetGlobalDependencyGraphID(), NewNodeID);
 
 	++SerialNumber;
 }
@@ -423,17 +71,17 @@ void FMovieSceneEntitySystemGraph::RemoveSystem(UMovieSceneEntitySystem* InSyste
 	const uint16 NodeID = InSystem->GetGraphID();
 	check(NodeID != TNumericLimits<uint16>::Max());
 
-	FlowGraph.RemoveNode(NodeID);
 	ReferenceGraph.RemoveNode(NodeID);
 
 	Nodes.Array.RemoveAt(NodeID);
 
 	InSystem->SetGraphID(TNumericLimits<uint16>::Max());
 
+	GlobalToLocalNodeIDs.Remove(InSystem->GetGlobalDependencyGraphID());
+
 	++SerialNumber;
 	--ReentrancyGuard;
 
-	FlowGraph.CleanUpDanglingEdges();
 	ReferenceGraph.CleanUpDanglingEdges();
 }
 
@@ -445,7 +93,6 @@ int32 FMovieSceneEntitySystemGraph::RemoveIrrelevantSystems(UMovieSceneEntitySys
 	check(PreviousSerialNumber == SerialNumber);
 
 	int32 NumRemoved = 0;
-	bool bHasUnreferecedIntermediateSystems = false;
 
 	FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch Search(&ReferenceGraph);
 
@@ -468,14 +115,16 @@ int32 FMovieSceneEntitySystemGraph::RemoveIrrelevantSystems(UMovieSceneEntitySys
 			{
 				const uint16 NodeID = Index;
 
-				FlowGraph.RemoveNode(NodeID);
 				ReferenceGraph.RemoveNode(NodeID);
 
 				UMovieSceneEntitySystem* System = Nodes.Array[NodeID].System;
 				Nodes.Array.RemoveAt(NodeID);
 
-				// Remove this system from the graph to ensure we are not re-entrant
+				// Remove this system from the graph to ensure we are not re-entrant when calling Unlink() on it
 				System->SetGraphID(TNumericLimits<uint16>::Max());
+
+				GlobalToLocalNodeIDs.Remove(System->GetGlobalDependencyGraphID());
+
 				System->Unlink();
 				++NumRemoved;
 			}
@@ -486,7 +135,6 @@ int32 FMovieSceneEntitySystemGraph::RemoveIrrelevantSystems(UMovieSceneEntitySys
 	{
 		++SerialNumber;
 
-		FlowGraph.CleanUpDanglingEdges();
 		ReferenceGraph.CleanUpDanglingEdges();
 	}
 
@@ -503,14 +151,7 @@ void FMovieSceneEntitySystemGraph::UpdateCache()
 		return;
 	}
 
-	FlowGraph.CleanUpDanglingEdges();
 	ReferenceGraph.CleanUpDanglingEdges();
-
-	checkf(!FlowGraph.IsCyclic(), TEXT("Cycle detected in system flow graph.\n")
-		TEXT("----------------------------------------------------------------------------------\n")
-		TEXT("%s\n")
-		TEXT("----------------------------------------------------------------------------------\n"),
-		*ToString());
 
 	checkf(!ReferenceGraph.IsCyclic(), TEXT("Cycle detected in system reference graph.\n")
 		TEXT("----------------------------------------------------------------------------------\n")
@@ -523,20 +164,20 @@ void FMovieSceneEntitySystemGraph::UpdateCache()
 	EvaluationPhase.Empty();
 	FinalizationPhase.Empty();
 
-	FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch DepthFirstSearch(&FlowGraph);
-
-	TBitArray<> EdgeNodes = FlowGraph.FindEdgeUpstreamNodes();
-	for (TConstSetBitIterator<> EdgeNodeIt(EdgeNodes); EdgeNodeIt; ++EdgeNodeIt)
+	TArray<uint16> SortedGlobalNodeIDs;
+	for (const FMovieSceneEntitySystemGraphNode& Node : Nodes.Array)
 	{
-		const uint16 NodeID = static_cast<uint16>(EdgeNodeIt.GetIndex());
-		check(Nodes.Array.IsAllocated(NodeID));
+		SortedGlobalNodeIDs.Add(Node.System->GetGlobalDependencyGraphID());
+	}
+	UMovieSceneEntitySystem::SortByFlowOrder(SortedGlobalNodeIDs);
 
-		DepthFirstSearch.Search(NodeID);
+	TArray<uint16> SortedNodeIDs;
+	for (uint16 GlobalNodeID : SortedGlobalNodeIDs)
+	{
+		SortedNodeIDs.Add(GlobalToLocalNodeIDs[GlobalNodeID]);
 	}
 
-	Algo::Reverse(DepthFirstSearch.PostNodes);
-
-	for (uint16 NodeID : DepthFirstSearch.PostNodes)
+	for (uint16 NodeID : SortedNodeIDs)
 	{
 		ESystemPhase SystemPhase = Nodes.Array[NodeID].System->GetPhase();
 
@@ -626,39 +267,6 @@ FString FMovieSceneEntitySystemGraph::ToString() const
 	}
 	String += ReferenceGraphString;
 	String += TEXT("\t}\n");
-
-	{
-		FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&FlowGraph);
-		CyclicEdges.Search();
-
-		TArrayView<const FDirectionalEdge> FlowEdges = FlowGraph.GetEdges();
-		for (int32 EdgeIndex = 0; EdgeIndex < FlowEdges.Num(); ++EdgeIndex)
-		{
-			FDirectionalEdge Edge = FlowEdges[EdgeIndex];
-			const bool bIsCyclic = CyclicEdges.IsCyclic(EdgeIndex);
-
-			ESystemPhase FromPhase = Nodes.Array[Edge.FromNode].System->GetPhase();
-			ESystemPhase ToPhase   = Nodes.Array[Edge.ToNode].System->GetPhase();
-
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Spawn) && EnumHasAnyFlags(ToPhase, ESystemPhase::Spawn))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_0 -> flow_node%d_0 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Instantiation) && EnumHasAnyFlags(ToPhase, ESystemPhase::Instantiation))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_1 -> flow_node%d_1 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Evaluation) && EnumHasAnyFlags(ToPhase, ESystemPhase::Evaluation))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_2 -> flow_node%d_2 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-			if (EnumHasAnyFlags(FromPhase, ESystemPhase::Finalization) && EnumHasAnyFlags(ToPhase, ESystemPhase::Finalization))
-			{
-				String += FString::Printf(TEXT("\tflow_node%d_3 -> flow_node%d_3 [color=\"%s\"];\n"), (int32)Edge.FromNode, (int32)Edge.ToNode, bIsCyclic ? TEXT("#FF0000") : TEXT("#39ad3b"));
-			}
-		}
-	}
-
 
 	{
 		FMovieSceneEntitySystemDirectedGraph::FDiscoverCyclicEdges CyclicEdges(&ReferenceGraph);
@@ -811,14 +419,20 @@ void FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 		{
 			SCOPE_CYCLE_COUNTER(MovieSceneEval_SystemDependencyCost)
 
-			for (FDirectionalEdge Edge : FlowGraph.GetEdgesFrom(NodeID))
+			TArray<uint16> ToGlobalNodeIDs;
+			UMovieSceneEntitySystem::GetSubsequentSystems(System->GetGlobalDependencyGraphID(), ToGlobalNodeIDs);
+			for (uint16 ToGlobalNodeID : ToGlobalNodeIDs)
 			{
-				FMovieSceneEntitySystemGraphNode& ToNode = Nodes.Array[Edge.ToNode];
-				if (!ToNode.Prerequisites)
+				uint16* ToNodeID = GlobalToLocalNodeIDs.Find(ToGlobalNodeID);
+				if (ToNodeID)
 				{
-					ToNode.Prerequisites = MakeShared<FSystemTaskPrerequisites>();
+					FMovieSceneEntitySystemGraphNode& ToNode = Nodes.Array[*ToNodeID];
+					if (!ToNode.Prerequisites)
+					{
+						ToNode.Prerequisites = MakeShared<FSystemTaskPrerequisites>();
+					}
+					ToNode.Prerequisites->Consume(*DownstreamTasks.Subsequents);
 				}
-				ToNode.Prerequisites->Consume(*DownstreamTasks.Subsequents);
 			}
 		}
 	}
@@ -847,3 +461,4 @@ uint16 FMovieSceneEntitySystemGraph::GetGraphID(const UMovieSceneEntitySystem* I
 {
 	return InSystem->GetGraphID();
 }
+

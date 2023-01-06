@@ -138,6 +138,8 @@ public:
 
 	void DestroyEdge(uint16 FromNode, uint16 ToNode);
 
+	void DestroyAllEdges();
+
 	TBitArray<> FindEdgeUpstreamNodes() const;
 
 	TArrayView<const FDirectionalEdge> GetEdges() const;
@@ -168,5 +170,4 @@ private:
 	TArray<FDirectionalEdge> SortedEdges;
 	bool bHasDanglingEdges;
 };
-
 
