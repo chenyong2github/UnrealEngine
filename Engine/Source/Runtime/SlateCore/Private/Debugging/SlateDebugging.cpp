@@ -390,7 +390,11 @@ FSlateDebugging::FEndWidgetPaint FSlateDebugging::EndWidgetPaint;
 
 FSlateDebugging::FPaintDebugElements FSlateDebugging::PaintDebugElements;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSlateDebugging::FDrawElement FSlateDebugging::ElementAdded;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+FSlateDebugging::FDrawElementType FSlateDebugging::ElementTypeAdded;
 
 FSlateDebugging::FWidgetWarningEvent FSlateDebugging::Warning;
 

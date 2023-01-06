@@ -51,6 +51,12 @@ enum class EElementType : uint8
 	ET_CustomVerts,
 	ET_PostProcessPass,
 	ET_RoundedBox,
+	/** 
+	 * We map draw elements by type on add for better cache coherency if possible, 
+	 * this type is used when that grouping is not possible. 
+	 * Grouping is also planned to be used for bulk element type processing.
+	 */
+	ET_NonMapped,
 	/** Total number of draw commands */
 	ET_Count,
 };
@@ -434,7 +440,7 @@ private:
 
 public:
 	/** List of source draw elements to create batches from */
-	FSlateDrawElementArray DrawElements;
+	FSlateDrawElementMap DrawElements;
 
 	TArray<int32> CachedRenderBatchIndices;
 
@@ -552,20 +558,9 @@ public:
 	}
 
 	/** @return Get the draw elements that we want to render into this window */
-	const FSlateDrawElementArray& GetUncachedDrawElements() const
+	const FSlateDrawElementMap& GetUncachedDrawElements() const
 	{
 		return UncachedDrawElements;
-	}
-
-	/**
-	 * Add a draw element to the list
-	 *
-	 * @param InDrawElement  The draw element to add
-	 */
-	UE_DEPRECATED(4.23, "AddItem is deprecated, use AddUninitialized instead")
-	void AddItem(const FSlateDrawElement& InDrawElement)
-	{
-		UncachedDrawElements.Add(InDrawElement);
 	}
 
 	/** @return Get the window size that we will be painting */
@@ -596,7 +591,7 @@ public:
 	/**
 	 * Creates an uninitialized draw element
 	 */
-	SLATECORE_API FSlateDrawElement& AddUninitialized();
+	SLATECORE_API FSlateDrawElement& AddUninitialized(EElementType InElementType = EElementType::ET_NonMapped);
 
 
 	//--------------------------------------------------------------------------
@@ -754,7 +749,7 @@ private:
 	};
 
 	/** The uncached draw elements to be processed */
-	FSlateDrawElementArray UncachedDrawElements;
+	FSlateDrawElementMap UncachedDrawElements;
 
 	TArray<FWidgetDrawElementState, TInlineAllocator<50>> WidgetDrawStack;
 	TArray<FSlateCachedElementData*, TInlineAllocator<4>> CachedElementDataList;

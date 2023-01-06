@@ -276,7 +276,7 @@ public:
 	}
 
 private:
-	void AddElementsInternal(const FSlateDrawElementArray& DrawElements, FVector2f ViewportSize);
+	void AddElementsInternal(const FSlateDrawElementMap& DrawElements, FVector2f ViewportSize);
 	void AddCachedElements(FSlateCachedElementData& CachedElementData, FVector2f ViewportSize);
 
 	/** 
