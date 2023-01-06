@@ -104,6 +104,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&DoubleResult[8],       TEXT("Double Result 8"));
 	ComponentRegistry->NewComponentType(&ObjectResult,          TEXT("Object Result"));
 
+	ComponentRegistry->NewComponentType(&BaseByte,			    TEXT("Base Byte"));
 	ComponentRegistry->NewComponentType(&BaseInteger,			TEXT("Base Integer"));
 	ComponentRegistry->NewComponentType(&BaseDouble[0],         TEXT("Base Double 0"));
 	ComponentRegistry->NewComponentType(&BaseDouble[1],         TEXT("Base Double 1"));
@@ -116,6 +117,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&BaseDouble[8],         TEXT("Base Double 8"));
 
 	ComponentRegistry->NewComponentType(&BaseValueEvalTime,     TEXT("Base Value Eval Time"));
+	ComponentRegistry->NewComponentType(&BaseValueEvalSeconds,  TEXT("Base Value Eval Seconds"));
 
 	ComponentRegistry->NewComponentType(&WeightResult,          TEXT("Weight Result"));
 	ComponentRegistry->NewComponentType(&WeightAndEasingResult, TEXT("Weight/Easing Result"));
@@ -174,6 +176,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DuplicateChildComponent(EvalTime);
 	ComponentRegistry->Factories.DuplicateChildComponent(EvalSeconds);
 	ComponentRegistry->Factories.DuplicateChildComponent(BaseValueEvalTime);
+	ComponentRegistry->Factories.DuplicateChildComponent(BaseValueEvalSeconds);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(SequenceID);
 	ComponentRegistry->Factories.DuplicateChildComponent(InstanceHandle);
@@ -200,6 +203,10 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		ComponentRegistry->Factories.DuplicateChildComponent(ByteResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(ByteChannel, ByteResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(ByteChannel, EvalTime);
+
+		ComponentRegistry->Factories.DefineComplexInclusiveComponents(
+				FComplexInclusivityFilter::All({ ByteResult, BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
+				BaseByte);
 	}
 	
 	// Integer channel relationships
@@ -210,7 +217,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(IntegerChannel, EvalTime);
 
 		ComponentRegistry->Factories.DefineComplexInclusiveComponents(
-				FComplexInclusivityFilter::All({ IntegerChannel, BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
+				FComplexInclusivityFilter::All({ IntegerResult, BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
 				BaseInteger);
 	}
 
@@ -230,14 +237,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], DoubleResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], EvalTime);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], CachedInterpolation[Index]);
-		}
-
-		// Create base float components for float channels that are meant to be additive from base.
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseDouble); ++Index)
-		{
-			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
-					FComplexInclusivityFilter::All({ FloatChannel[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
-					BaseDouble[Index]);
 		}
 	}
 
@@ -259,21 +258,28 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], EvalTime);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], CachedInterpolation[Index]);
 		}
-
-		// Create base double components for double channels that are meant to be additive from base.
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseDouble); ++Index)
-		{
-			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
-					FComplexInclusivityFilter::All({ DoubleChannel[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
-					BaseDouble[Index]);
-		}
 	}
 
 	{
+		// Associate result and base values.
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DoubleResult); ++Index)
 		{
 			ResultToBase.Add(DoubleResult[Index], BaseDouble[Index]);
 		}
+
+		// Create base double components for any channels that are meant to be additive from base.
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseDouble); ++Index)
+		{
+			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
+					FComplexInclusivityFilter::All({ DoubleResult[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
+					BaseDouble[Index]);
+		}
+
+		// If normal evaluation requires the time in seconds, the base value evaluation probably also requires
+		// a base eval time in seconds.
+		ComponentRegistry->Factories.DefineComplexInclusiveComponents(
+				FComplexInclusivityFilter::All({ EvalSeconds, BaseValueEvalTime }),
+				BaseValueEvalSeconds);
 	}
 
 	// Easing component relationships

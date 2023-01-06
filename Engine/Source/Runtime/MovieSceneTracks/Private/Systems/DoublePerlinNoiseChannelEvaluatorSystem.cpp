@@ -2,9 +2,11 @@
 
 #include "Systems/DoublePerlinNoiseChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
+#include "Systems/MovieSceneBaseValueEvaluatorSystem.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEvalTimeSystem.h"
 #include "Channels/MovieSceneDoublePerlinNoiseChannel.h"
 #include "MovieSceneTracksComponentTypes.h"
@@ -34,6 +36,7 @@ UDoublePerlinNoiseChannelEvaluatorSystem::UDoublePerlinNoiseChannelEvaluatorSyst
 	using namespace UE::MovieScene;
 
 	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
 
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
@@ -49,6 +52,7 @@ UDoublePerlinNoiseChannelEvaluatorSystem::UDoublePerlinNoiseChannelEvaluatorSyst
 		}
 
 		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieSceneBaseValueEvaluatorSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseDoubleBlenderSystem::StaticClass());
 	}
 }
@@ -60,15 +64,37 @@ void UDoublePerlinNoiseChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& I
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 
-	for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
+	FMovieSceneEntitySystemRunner* Runner = Linker->GetActiveRunner();
+	if (!Runner)
 	{
-		FEntityTaskBuilder()
-			.Read(BuiltInComponents->EvalSeconds)
-			.Read(TrackComponents->DoublePerlinNoiseChannel)
-			.Write(BuiltInComponents->DoubleResult[i])
-			.FilterNone({ BuiltInComponents->Tags.Ignored })
-			.SetStat(GET_STATID(MovieSceneEval_EvaluateDoublePerlinNoiseChannelTask))
-			.Dispatch_PerEntity<FEvaluateDoublePerlinNoiseChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+		return;
+	}
+
+	if (Runner->GetCurrentPhase() == ESystemPhase::Instantiation)
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
+		{
+			FEntityTaskBuilder()
+				.Read(BuiltInComponents->BaseValueEvalSeconds)
+				.Read(TrackComponents->DoublePerlinNoiseChannel)
+				.Write(BuiltInComponents->BaseDouble[i])
+				.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+				.FilterNone({ BuiltInComponents->Tags.Ignored })
+				.RunInline_PerEntity(&Linker->EntityManager, FEvaluateDoublePerlinNoiseChannels());
+		}
+	}
+	else if (Runner->GetCurrentPhase() == ESystemPhase::Evaluation)
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
+		{
+			FEntityTaskBuilder()
+				.Read(BuiltInComponents->EvalSeconds)
+				.Read(TrackComponents->DoublePerlinNoiseChannel)
+				.Write(BuiltInComponents->DoubleResult[i])
+				.FilterNone({ BuiltInComponents->Tags.Ignored })
+				.SetStat(GET_STATID(MovieSceneEval_EvaluateDoublePerlinNoiseChannelTask))
+				.Dispatch_PerEntity<FEvaluateDoublePerlinNoiseChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+		}
 	}
 }
 

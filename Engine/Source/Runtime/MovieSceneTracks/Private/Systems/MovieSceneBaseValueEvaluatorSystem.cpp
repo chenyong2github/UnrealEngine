@@ -7,6 +7,8 @@
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
+#include "Channels/MovieSceneByteChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 
@@ -16,6 +18,44 @@ namespace UE
 {
 namespace MovieScene
 {
+
+struct FAssignBaseValueEvalSeconds
+{
+	FInstanceRegistry* InstanceRegistry;
+
+	explicit FAssignBaseValueEvalSeconds(FInstanceRegistry* InInstanceRegistry)
+		: InstanceRegistry(InInstanceRegistry)
+	{}
+
+	void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, const FFrameTime& BaseValueEvalTime, double& BaseValueEvalSeconds)
+	{
+		const FSequenceInstance& Instance = InstanceRegistry->GetInstance(InstanceHandle);
+		const FMovieSceneContext& Context = Instance.GetContext();
+		BaseValueEvalSeconds = Context.GetFrameRate().AsSeconds(BaseValueEvalTime);
+	}
+};
+
+struct FEvaluateBaseByteValues
+{
+	void ForEachEntity(FSourceByteChannel ByteChannel, FFrameTime FrameTime, uint8& OutResult)
+	{
+		if (!ByteChannel.Source->Evaluate(FrameTime, OutResult))
+		{
+			OutResult = MIN_uint8;
+		}
+	}
+};
+
+struct FEvaluateBaseIntegerValues
+{
+	void ForEachEntity(FSourceIntegerChannel IntegerChannel, FFrameTime FrameTime, int32& OutResult)
+	{
+		if (!IntegerChannel.Source->Evaluate(FrameTime, OutResult))
+		{
+			OutResult = MIN_int32;
+		}
+	}
+};
 
 struct FEvaluateBaseFloatValues
 {
@@ -64,6 +104,33 @@ void UMovieSceneBaseValueEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrer
 	using namespace UE::MovieScene;
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	// First, compute the base eval time in seconds, for those systems and tasks that need it.
+
+	FAssignBaseValueEvalSeconds AssignBaseValueEvalSecondsTask(Linker->GetInstanceRegistry());
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->InstanceHandle)
+	.Read(BuiltInComponents->BaseValueEvalTime)
+	.Write(BuiltInComponents->BaseValueEvalSeconds)
+	.RunInline_PerEntity(&Linker->EntityManager, AssignBaseValueEvalSecondsTask);
+
+	// Second, evaluate the base values for all the core channel types.
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->ByteChannel)
+	.Read(BuiltInComponents->BaseValueEvalTime)
+	.Write(BuiltInComponents->BaseByte)
+	.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseByteValues());
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->IntegerChannel)
+	.Read(BuiltInComponents->BaseValueEvalTime)
+	.Write(BuiltInComponents->BaseInteger)
+	.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseIntegerValues());
 
 	static_assert(
 			UE_ARRAY_COUNT(BuiltInComponents->BaseDouble) == UE_ARRAY_COUNT(BuiltInComponents->FloatChannel),

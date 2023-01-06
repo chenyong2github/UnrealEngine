@@ -284,6 +284,9 @@ public:
 	// A byte representing the output of a byte or enum track or channel
 	TComponentTypeID<uint8> ByteResult;
 
+	// A byte representing the base value for the byte channel for the purposes of "additive from base" blending.
+	TComponentTypeID<uint8> BaseByte;
+
 	// An FMovieSceneIntegerChannel
 	TComponentTypeID<FSourceIntegerChannel> IntegerChannel;
 
@@ -318,8 +321,9 @@ public:
 	// A double representing the base value for the double channel at index N, for the purposes of "additive from base" blending.
 	TComponentTypeID<double> BaseDouble[9];
 
-	// The time at which to evaluate a base value, such as BaseFloat[] or BaseDouble[].
+	// The time (in frames or in seconds) at which to evaluate a base value, such as BaseFloat[] or BaseDouble[].
 	TComponentTypeID<FFrameTime> BaseValueEvalTime;
+	TComponentTypeID<double> BaseValueEvalSeconds;
 
 	// A float representing the evaluated output of a weight channel
 	TComponentTypeID<double> WeightResult;
