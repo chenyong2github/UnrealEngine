@@ -169,6 +169,14 @@ public:
 	}
 
 	template<typename SubT>
+	T* FindByEqualsFunc(const SubT& InValue)
+	{
+		return FindByPredicate([InValue](const T& DataIt) {
+			return DataIt.EqualsFunc(InValue);
+		});
+	}
+
+	template<typename SubT>
 	bool GetValuesByEqualsFunc(const SubT& InValue, TArray<T>& OutValues) const
 	{
 		for (int32 Index = 0; Index < this->Num(); Index++)
