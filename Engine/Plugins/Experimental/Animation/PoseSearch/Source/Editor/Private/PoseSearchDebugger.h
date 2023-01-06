@@ -222,6 +222,9 @@ private:
 	/** Called when the text in the filter box is modified to update the filtering */
 	void OnFilterTextChanged(const FText& SearchText);
 
+	/** Called when the HideInvalidPoses Checkbox is Toggled */
+	void OnHideInvalidPosesCheckboxChanged(ECheckBoxState State);
+
 	/** Row selection to update model view */
 	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
 
@@ -288,6 +291,9 @@ private:
 
 	/** Text used to filter DatabaseView */
 	FText FilterText;
+
+	/* Bool used to hide invalid poses from display */
+	bool bHideInvalidPoses = false;
 };
 
 /**

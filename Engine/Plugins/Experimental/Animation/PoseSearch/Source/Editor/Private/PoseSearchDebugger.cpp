@@ -1152,6 +1152,19 @@ void SDebuggerDatabaseView::OnFilterTextChanged(const FText& SearchText)
 	PopulateViewRows();
 }
 
+void SDebuggerDatabaseView::OnHideInvalidPosesCheckboxChanged(ECheckBoxState State)
+{
+	if (State == ECheckBoxState::Checked) 
+	{
+		bHideInvalidPoses = true;
+	}
+	else 
+	{
+		bHideInvalidPoses = false;
+	}
+	PopulateViewRows();
+}
+
 void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(
 	TSharedPtr<FDebuggerDatabaseRowData> Row, 
 	ESelectInfo::Type SelectInfo)
@@ -1210,18 +1223,21 @@ void SDebuggerDatabaseView::PopulateViewRows()
 
 		if (bTryAddToFilteredDatabaseViewRows)
 		{
-			bool bPassesNameFilter = true;
-			if (bHasNameFilter)
+			if (!bHideInvalidPoses || EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
 			{
-				bPassesNameFilter = Algo::AllOf(Tokens, [&](FString Token)
+				bool bPassesNameFilter = true;
+				if (bHasNameFilter)
 				{
-					return UnfilteredRow->AssetName.Contains(Token);
-				});
-			}
+					bPassesNameFilter = Algo::AllOf(Tokens, [&](FString Token)
+					{
+						return UnfilteredRow->AssetName.Contains(Token);
+					});
+				}
 
-			if (bPassesNameFilter)
-			{
-				FilteredDatabaseView.Rows.Add(UnfilteredRow);
+				if (bPassesNameFilter)
+				{
+					FilteredDatabaseView.Rows.Add(UnfilteredRow);
+				}
 			}
 		}
 	}
@@ -1497,6 +1513,20 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(FilterBox, SSearchBox)
 					.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(10, 5, 10, 5)
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+					{
+						   SDebuggerDatabaseView::OnHideInvalidPosesCheckboxChanged(State);
+					})
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("PoseSearchDebuggerHideInvalidPosesFlag", "Hide Invalid Poses"))
+					]
 				]
 			]
 		
