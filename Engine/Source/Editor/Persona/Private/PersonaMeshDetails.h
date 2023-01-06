@@ -592,6 +592,7 @@ private:
 
 	/** Called when a LOD is imported. Refreshes the UI. */
 	void OnAssetPostLODImported(UObject* InObject, int32 InLODIndex);
+	void OnAssetReimport(UObject* InObject);
 	/** Called from the PersonalMeshDetails UI to import a LOD. */
 	void OnImportLOD(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo, IDetailLayoutBuilder* DetailLayout);
 	void UpdateLODNames();

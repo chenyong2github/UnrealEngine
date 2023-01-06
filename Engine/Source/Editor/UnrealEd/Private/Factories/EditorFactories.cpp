@@ -6330,7 +6330,7 @@ bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>
 				//Fbx factory only support fbx and obj files
 				return false;
 			}
-			else if (!FactoryExtensions.Contains(FPaths::GetExtension(this->PreferredReimportPath)))
+			else if (!PreferredReimportPath.IsEmpty() && !FactoryExtensions.Contains(FPaths::GetExtension(PreferredReimportPath)))
 			{
 				// Unsupported extensions shouldnt be considered for reimport
 				return false;

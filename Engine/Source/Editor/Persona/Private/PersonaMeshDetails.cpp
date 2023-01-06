@@ -2118,6 +2118,7 @@ FPersonaMeshDetails::FPersonaMeshDetails(TSharedRef<class IPersonaToolkit> InPer
 	bDeleteWarningConsumed = false;
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostLODImport.AddRaw(this, &FPersonaMeshDetails::OnAssetPostLODImported);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddRaw(this, &FPersonaMeshDetails::OnAssetReimport);
 }
 
 /**
@@ -2132,6 +2133,7 @@ FPersonaMeshDetails::~FPersonaMeshDetails()
 	}
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostLODImport.RemoveAll(this);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
 }
 
 TSharedRef<IDetailCustomization> FPersonaMeshDetails::MakeInstance(TWeakPtr<class IPersonaToolkit> InPersonaToolkit)
@@ -3606,6 +3608,14 @@ void FPersonaMeshDetails::ModifyMeshLODSettings(int32 LODIndex)
 }
 
 void FPersonaMeshDetails::OnAssetPostLODImported(UObject* InObject, int32 InLODIndex)
+{
+	if (InObject == GetPersonaToolkit()->GetMesh())
+	{
+		RefreshMeshDetailLayout();
+	}
+}
+
+void FPersonaMeshDetails::OnAssetReimport(UObject* InObject)
 {
 	if (InObject == GetPersonaToolkit()->GetMesh())
 	{
