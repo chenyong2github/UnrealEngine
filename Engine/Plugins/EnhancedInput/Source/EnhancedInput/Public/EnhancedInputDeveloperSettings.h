@@ -71,6 +71,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.OnlyTriggerLastActionInChord"))
 	bool bShouldOnlyTriggerLastActionInChord = true;
 	
+	/** If true, then the world subsystem will be created. */
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input")
+	bool bEnableWorldSubsystem = true;
+	
 	/**
  	 * If true then the Enhanced Input world subsystem will log all input that is being processed by it (keypresses, analog values, etc)
  	 * Note: This can produce A LOT of logs, so only use this if you are debugging something.

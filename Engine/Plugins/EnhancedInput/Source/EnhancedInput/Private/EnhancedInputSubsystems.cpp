@@ -96,7 +96,14 @@ bool UEnhancedInputWorldSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 		return false;
 	}
 	
-	return Super::ShouldCreateSubsystem(Outer);
+	// Getting setting on whether to turn off subsystem or not
+	const bool bShouldCreate = GetDefault<UEnhancedInputDeveloperSettings>()->bEnableWorldSubsystem;
+	if (!bShouldCreate)
+	{
+		UE_LOG(LogWorldSubsystemInput, Log, TEXT("UEnhancedInputDeveloperSettings::bEnableWorldSubsystem is false, the world subsystem will not be created!"));
+	}
+	
+	return bShouldCreate && Super::ShouldCreateSubsystem(Outer);
 }
 
 ETickableTickType UEnhancedInputWorldSubsystem::GetTickableTickType() const
