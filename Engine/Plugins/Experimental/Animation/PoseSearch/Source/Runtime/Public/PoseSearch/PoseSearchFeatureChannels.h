@@ -163,17 +163,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FPoseSearchBone> SampledBones;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	TArray<float> SampleTimes;
-
 	UPROPERTY()
 	TArray<int8> SchemaBoneIdx;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
-
-	// UObject interface
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	// UPoseSearchFeatureChannel interface
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer) override;
