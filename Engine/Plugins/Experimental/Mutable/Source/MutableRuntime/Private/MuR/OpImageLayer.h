@@ -14,7 +14,8 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! Apply a blending function to an image with a colour source
 	//---------------------------------------------------------------------------------------------
-	template< unsigned (*BLEND_FUNC)(unsigned,unsigned), bool CLAMP >
+	template< unsigned (*BLEND_FUNC)(unsigned,unsigned),
+			  bool CLAMP >
     inline void BufferLayerColour( Image* pResult, const Image* pBase, vec3<float> col )
 	{
         check( pResult->GetFormat() == pBase->GetFormat() );
@@ -181,170 +182,6 @@ namespace mu
 			break;
 		}
     }
-
-
-	//---------------------------------------------------------------------------------------------
-	template< unsigned (*BLEND_FUNC)(unsigned, unsigned), bool CLAMP >
-	inline void BufferLayerColourFromAlpha(Image* pResult, const Image* pBase, vec3<float> col)
-	{
-		check(pResult->GetFormat() == pBase->GetFormat());
-		check(pResult->GetSizeX() == pBase->GetSizeX());
-		check(pResult->GetSizeY() == pBase->GetSizeY());
-		check(pResult->GetLODCount() == pBase->GetLODCount());
-
-		EImageFormat baseFormat = pBase->GetFormat();
-
-		uint8* pDestBuf = pResult->GetData();
-		const uint8* pBaseBuf = pBase->GetData();
-
-		unsigned top[3];
-		top[0] = (unsigned)(255 * col[0]);
-		top[1] = (unsigned)(255 * col[1]);
-		top[2] = (unsigned)(255 * col[2]);
-
-		// Generic implementation
-		int32 pixelCount = pBase->CalculatePixelCount();
-
-		constexpr int PixelCountConcurrencyThreshold = 0xff;
-
-		switch (baseFormat)
-		{
-		case EImageFormat::IF_RGB_UBYTE:
-		{
-			// There is no alpha so we assume 255
-			const auto& ProcessPixel = [ pDestBuf, top ] (uint32 i)
-			{
-				for (int c = 0; c < 3; ++c)
-				{
-					unsigned base = 255;
-					unsigned result = BLEND_FUNC(base, top[c]);
-					if (CLAMP)
-					{
-						pDestBuf[3 * i + c] = (uint8)FMath::Min(255u, result);
-					}
-					else
-					{
-						pDestBuf[3 * i + c] = (uint8)result;
-					}
-				}
-			};
-
-			if (pixelCount > PixelCountConcurrencyThreshold)
-			{
-				ParallelFor(pixelCount, ProcessPixel);
-			}
-			else
-			{
-				for (int p = 0; p < pixelCount; ++p)
-				{
-					ProcessPixel(p);
-				}
-			}
-			break;
-		}
-		case EImageFormat::IF_RGBA_UBYTE:
-		{
-			const auto& ProcessPixel = [ pBaseBuf, pDestBuf, top ] (uint32 i)
-			{
-				for (int c = 0; c < 3; ++c)
-				{
-					unsigned base = pBaseBuf[4 * i + 3];
-					unsigned result = BLEND_FUNC(base, top[c]);
-					if (CLAMP)
-					{
-						pDestBuf[4 * i + c] = (uint8)FMath::Min(255u, result);
-					}
-					else
-					{
-						pDestBuf[4 * i + c] = (uint8)result;
-					}
-				}
-				pDestBuf[4 * i + 3] = pBaseBuf[4 * i + 3];
-			};
-
-			if (pixelCount > PixelCountConcurrencyThreshold)
-			{
-				ParallelFor(pixelCount, ProcessPixel);
-			}
-			else
-			{
-				for (int p = 0; p < pixelCount; ++p)
-				{
-					ProcessPixel(p);
-				}
-			}
-			break;
-		}
-		case EImageFormat::IF_BGRA_UBYTE:
-		{
-			const auto& ProcessPixel = [ pBaseBuf, pDestBuf, top ] (uint32 i)
-			{
-				for (int c = 0; c < 3; ++c)
-				{
-					unsigned base = pBaseBuf[4 * i + 3];
-					unsigned result = BLEND_FUNC(base, top[2 - c]);
-					if (CLAMP)
-					{
-						pDestBuf[4 * i + c] = (uint8)FMath::Min(255u, result);
-					}
-					else
-					{
-						pDestBuf[4 * i + c] = (uint8)result;
-					}
-				}
-				pDestBuf[4 * i + 3] = pBaseBuf[4 * i + 3];
-			};
-
-			if (pixelCount > PixelCountConcurrencyThreshold)
-			{
-				ParallelFor(pixelCount, ProcessPixel);
-			}
-			else
-			{
-				for (int p = 0; p < pixelCount; ++p)
-				{
-					ProcessPixel(p);
-				}
-			}
-			break;
-		}
-		case EImageFormat::IF_L_UBYTE:
-		{
-			const auto& ProcessPixel = [ pBaseBuf, pDestBuf, top ] (uint32 i)
-			{
-				// There is no alpha so we assume 255
-				unsigned base = 255;
-				unsigned result = BLEND_FUNC(base, top[0]);
-				if (CLAMP)
-				{
-					pDestBuf[i] = (uint8)FMath::Min(255u, result);
-				}
-				else
-				{
-					pDestBuf[i] = (uint8)result;
-				}
-			};
-
-
-				if (pixelCount > PixelCountConcurrencyThreshold)
-				{
-					ParallelFor(pixelCount, ProcessPixel);
-				}
-				else
-				{
-					for (int p = 0; p < pixelCount; ++p)
-					{
-						ProcessPixel(p);
-					}
-				}
-				break;
-		}
-
-		default:
-			checkf(false, TEXT("Unsupported format."));
-			break;
-		}
-	}
 
 
 	//---------------------------------------------------------------------------------------------
@@ -1179,6 +1016,12 @@ namespace mu
 	{
 		check(pBase->GetSizeX() == pBlend->GetSizeX() && pBase->GetSizeY() == pBlend->GetSizeY());
 		check(bOnlyFirstLOD || pBase->GetLODCount() <= pBlend->GetLODCount());
+		check(pBlend->GetFormat()==EImageFormat::IF_RGBA_UBYTE);
+
+		uint8* pDestBuf = pStartDestBuf;
+		const uint8* pBaseBuf = pBase->GetData() + BaseChannelOffset;
+		const uint8* pBlendedBuf = pBlend->GetData() + BaseChannelOffset;
+		const uint8* pMaskBuf = pBlend->GetData() + 3;
 
 		// The base determines the number of lods to process.
 		int32 LODCount = bOnlyFirstLOD ? 1 : pBase->GetLODCount();
@@ -1195,72 +1038,33 @@ namespace mu
 
 		int32 UnblendedChannels = BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND;
 
-		uint8* pDestBuf = pStartDestBuf;
-		const uint8* pBaseBuf = pBase->GetData() + BaseChannelOffset;
-		const uint8* pBlendedBuf = pBlend->GetData() + BaseChannelOffset;
-
-		if (pBlend->GetFormat() == EImageFormat::IF_RGBA_UBYTE)
-		{
-			const uint8* pMaskBuf = pBlend->GetData() + 3;
-
-			ParallelFor(PixelCount,
-				[
-					pBaseBuf, pBlendedBuf, pDestBuf, pMaskBuf, UnblendedChannels
-				] (uint32 i)
+		ParallelFor(PixelCount,
+			[
+				pBaseBuf, pBlendedBuf, pDestBuf, pMaskBuf, UnblendedChannels
+			] (uint32 i)
+			{
+				uint32 mask = pMaskBuf[BLENDED_CHANNEL_STRIDE * i];
+				for (int c = 0; c < CHANNELS_TO_BLEND; ++c)
 				{
-					uint32 mask = pMaskBuf[BLENDED_CHANNEL_STRIDE * i];
-					for (int c = 0; c < CHANNELS_TO_BLEND; ++c)
+					uint32 base = pBaseBuf[BASE_CHANNEL_STRIDE * i + c];
+					uint32 blended = pBlendedBuf[BLENDED_CHANNEL_STRIDE * i + c];
+					uint32 result = BLEND_FUNC_MASKED(base, blended, mask);
+					if (CLAMP)
 					{
-						uint32 base = pBaseBuf[BASE_CHANNEL_STRIDE * i + c];
-						uint32 blended = pBlendedBuf[BLENDED_CHANNEL_STRIDE * i + c];
-						uint32 result = BLEND_FUNC_MASKED(base, blended, mask);
-						if (CLAMP)
-						{
-							pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)FMath::Min(255u, result);
-						}
-						else
-						{
-							pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)result;
-						}
+						pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)FMath::Min(255u, result);
 					}
-					// Copy the unblended channels
-					// \TODO: unnecessary when doing it in-place?
-					for (int c = 0; c < UnblendedChannels; ++c)
+					else
 					{
-						pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+						pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)result;
 					}
-				});
-		}
-		else
-		{
-			ParallelFor(PixelCount,
-				[
-					pBaseBuf, pBlendedBuf, pDestBuf, UnblendedChannels
-				] (uint32 i)
+				}
+				// Copy the unblended channels
+				// \TODO: unnecessary when doing it in-place?
+				for (int c = 0; c < UnblendedChannels; ++c)
 				{
-					for (int c = 0; c < CHANNELS_TO_BLEND; ++c)
-					{
-						uint32 base = pBaseBuf[BASE_CHANNEL_STRIDE * i + c];
-						uint32 blended = pBlendedBuf[BLENDED_CHANNEL_STRIDE * i + c];
-						uint32 result = BLEND_FUNC(base, blended);
-						if (CLAMP)
-						{
-							pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)FMath::Min(255u, result);
-						}
-						else
-						{
-							pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)result;
-						}
-					}
-					// Copy the unblended channels
-					// \TODO: unnecessary when doing it in-place?
-					for (int c = 0; c < UnblendedChannels; ++c)
-					{
-						pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
-					}
-				});
-
-		}
+					pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+				}
+			});
 	}
 
 

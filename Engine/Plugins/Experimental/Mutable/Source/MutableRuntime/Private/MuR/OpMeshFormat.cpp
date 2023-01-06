@@ -22,6 +22,11 @@
 namespace mu
 {
 
+
+	//-------------------------------------------------------------------------------------------------
+	// Eric Lengyel method's
+	// http://www.terathon.com/code/tangent.html
+	//-------------------------------------------------------------------------------------------------
 	namespace
 	{
 
@@ -208,7 +213,7 @@ namespace mu
 						{
 							for (int v = 0; v < vCount; ++v)
 							{
-								float* pTypedResultBuf = (float*)pResultBuf;
+								auto pTypedResultBuf = (float*)pResultBuf;
 								for (int i = 0; i < resultComponents; ++i)
 								{
 									pTypedResultBuf[i] = 1.0f;
@@ -222,7 +227,7 @@ namespace mu
 						{
 							for (int v = 0; v < vCount; ++v)
 							{
-								uint8_t* pTypedResultBuf = (uint8_t*)pResultBuf;
+								auto pTypedResultBuf = (uint8_t*)pResultBuf;
 								for (int i = 0; i < resultComponents; ++i)
 								{
 									pTypedResultBuf[i] = 255;
@@ -236,7 +241,7 @@ namespace mu
 						{
 							for (int v = 0; v < vCount; ++v)
 							{
-								uint16* pTypedResultBuf = (uint16*)pResultBuf;
+								auto pTypedResultBuf = (uint16*)pResultBuf;
 								for (int i = 0; i < resultComponents; ++i)
 								{
 									pTypedResultBuf[i] = 65535;
@@ -317,7 +322,7 @@ namespace mu
 
 
 							// Add the tangent sign
-							uint8_t* pData = (uint8_t*)pResultBuf;
+							auto pData = (uint8_t*)pResultBuf;
 
 							// Look for the full tangent space
 							int tanXBuf, tanXChan, tanYBuf, tanYChan, tanZBuf, tanZChan;
@@ -572,7 +577,7 @@ namespace mu
 					{
 						int resultBuf = 0;
 						int resultChan = 0;
-						FMeshBufferSet& formBuffs = pResult->GetVertexBuffers();
+						auto& formBuffs = pResult->GetVertexBuffers();
 						formBuffs.FindChannel(MBS_BONEINDICES, Channel.m_semanticIndex, &resultBuf, &resultChan);
 						if (resultBuf >= 0)
 						{
@@ -580,7 +585,7 @@ namespace mu
 							int32_t maxBoneIndex = 0;
 							for (int v = 0; v < VertexBuffers.GetElementCount(); ++v)
 							{
-								vec<int32_t, 8> va = it.GetAsVec8i();
+								auto va = it.GetAsVec8i();
 								for (int c = 0; c < it.GetComponents(); ++c)
 								{
 									maxBoneIndex = FMath::Max(maxBoneIndex, va[c]);
@@ -588,7 +593,7 @@ namespace mu
 								++it;
 							}
 
-							MESH_BUFFER_FORMAT& format = formBuffs.m_buffers[resultBuf].m_channels[resultChan].m_format;
+							auto& format = formBuffs.m_buffers[resultBuf].m_channels[resultChan].m_format;
 							if (maxBoneIndex > 0xffff && (format == MBF_UINT8 || format == MBF_UINT16))
 							{
 								format = MBF_UINT32;
@@ -658,7 +663,7 @@ namespace mu
 		pResult->SetPhysicsBody(pSource->GetPhysicsBody());
 
 		pResult->m_layouts.Empty();
-		for (const Ptr<const Layout>& Layout : pSource->m_layouts)
+		for (const auto& Layout : pSource->m_layouts)
 		{
 			pResult->m_layouts.Add(Layout->Clone());
 		}

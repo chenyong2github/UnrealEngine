@@ -477,11 +477,11 @@ namespace mu
 				const ASTOpImageLayer* AlphaLayer = dynamic_cast<const ASTOpImageLayer*>(Sources[3].child().get());
 				check(AlphaLayer);
 
-				bool bIsSpecialMultiLayer = !AlphaLayer->mask && !ColorLayer->Flags && !AlphaLayer->Flags;
+				bool bIsSpecialMultiLayer = !AlphaLayer->mask;
 
 				if (bIsSpecialMultiLayer)
 				{
-					// We can combine the 2 image_layers into the composite blend+lighten mode
+					// We can combine the 2 multilayers into the composite blend+lighten mode
 
 					Ptr<ASTOpImageSwizzle> NewBase = mu::Clone<ASTOpImageSwizzle>(this);
 					NewBase->Sources[0] = ColorLayer->base.child();

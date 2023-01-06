@@ -431,7 +431,7 @@ namespace mu
 
         case OP_TYPE::SC_CURVE:
         {
-			OP::ScalarCurveArgs args = program.GetOpArgs<OP::ScalarCurveArgs>(at);
+            auto args = program.GetOpArgs<OP::ScalarCurveArgs>(at);
             f(args.time );
             break;
         }
@@ -444,7 +444,7 @@ namespace mu
         case OP_TYPE::LA_CONDITIONAL:
         case OP_TYPE::IN_CONDITIONAL:
         {
-			OP::ConditionalArgs args = program.GetOpArgs<OP::ConditionalArgs>(at);
+            auto args = program.GetOpArgs<OP::ConditionalArgs>(at);
             f(args.condition );
             f(args.yes );
             f(args.no );
@@ -498,7 +498,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::BO_LESS:
         {
-			OP::BoolLessArgs args = program.GetOpArgs<OP::BoolLessArgs>(at);
+            auto args = program.GetOpArgs<OP::BoolLessArgs>(at);
             f(args.a );
             f(args.b );
             break;
@@ -507,7 +507,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::BO_EQUAL_INT_CONST:
         {
-			OP::BoolEqualScalarConstArgs args = program.GetOpArgs<OP::BoolEqualScalarConstArgs>(at);
+            auto args = program.GetOpArgs<OP::BoolEqualScalarConstArgs>(at);
             f(args.value );
             break;
         }
@@ -516,7 +516,7 @@ namespace mu
         case OP_TYPE::BO_AND:
         case OP_TYPE::BO_OR:
         {
-			OP::BoolBinaryArgs args = program.GetOpArgs<OP::BoolBinaryArgs>(at);
+            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(at);
             f(args.a );
             f(args.b );
             break;
@@ -525,7 +525,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::BO_NOT:
         {
-			OP::BoolNotArgs args = program.GetOpArgs<OP::BoolNotArgs>(at);
+            auto args = program.GetOpArgs<OP::BoolNotArgs>(at);
             f(args.source );
             break;
         }
@@ -533,7 +533,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::SC_MULTIPLYADD:
         {
-			OP::ScalarMultiplyAddArgs args = program.GetOpArgs<OP::ScalarMultiplyAddArgs>(at);
+            auto args = program.GetOpArgs<OP::ScalarMultiplyAddArgs>(at);
             f(args.factor0 );
             f(args.factor1 );
             f(args.add );
@@ -543,7 +543,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::SC_ARITHMETIC:
         {
-			OP::ArithmeticArgs args = program.GetOpArgs<OP::ArithmeticArgs>(at);
+            auto args = program.GetOpArgs<OP::ArithmeticArgs>(at);
             f(args.a );
             f(args.b );
             break;
@@ -552,7 +552,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::CO_SAMPLEIMAGE:
         {
-			OP::ColourSampleImageArgs args = program.GetOpArgs<OP::ColourSampleImageArgs>(at);
+            auto args = program.GetOpArgs<OP::ColourSampleImageArgs>(at);
             f(args.image );
             f(args.x );
             f(args.y );
@@ -561,7 +561,7 @@ namespace mu
 
         case OP_TYPE::CO_SWIZZLE:
         {
-			OP::ColourSwizzleArgs args = program.GetOpArgs<OP::ColourSwizzleArgs>(at);
+            auto args = program.GetOpArgs<OP::ColourSwizzleArgs>(at);
             for (int t=0;t<MUTABLE_OP_MAX_SWIZZLE_CHANNELS;++t)
             {
                 f(args.sources[t] );
@@ -571,21 +571,21 @@ namespace mu
 
         case OP_TYPE::CO_IMAGESIZE:
         {
-			OP::ColourSampleImageArgs args = program.GetOpArgs<OP::ColourSampleImageArgs>(at);
+            auto args = program.GetOpArgs<OP::ColourSampleImageArgs>(at);
             f(args.image );
             break;
         }
 
         case OP_TYPE::CO_LAYOUTBLOCKTRANSFORM:
         {
-			OP::ColourLayoutBlockTransformArgs args = program.GetOpArgs<OP::ColourLayoutBlockTransformArgs>(at);
+            auto args = program.GetOpArgs<OP::ColourLayoutBlockTransformArgs>(at);
             f(args.layout );
             break;
         }
 
         case OP_TYPE::CO_FROMSCALARS:
         {
-			OP::ColourFromScalarsArgs args = program.GetOpArgs<OP::ColourFromScalarsArgs>(at);
+            auto args = program.GetOpArgs<OP::ColourFromScalarsArgs>(at);
             f(args.x);
             f(args.y);
             f(args.z);
@@ -595,7 +595,7 @@ namespace mu
 
         case OP_TYPE::CO_ARITHMETIC:
         {
-			OP::ArithmeticArgs args = program.GetOpArgs<OP::ArithmeticArgs>(at);
+            auto args = program.GetOpArgs<OP::ArithmeticArgs>(at);
             f(args.a);
             f(args.b);
             break;
@@ -604,7 +604,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::IM_LAYER:
         {
-			OP::ImageLayerArgs args = program.GetOpArgs<OP::ImageLayerArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageLayerArgs>(at);
             f(args.base );
             if ( args.mask )
             {
@@ -616,7 +616,7 @@ namespace mu
 
         case OP_TYPE::IM_LAYERCOLOUR:
         {
-			OP::ImageLayerColourArgs args = program.GetOpArgs<OP::ImageLayerColourArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageLayerColourArgs>(at);
             f(args.base );
             if ( args.mask )
             {
@@ -628,7 +628,7 @@ namespace mu
 
         case OP_TYPE::IM_MULTILAYER:
         {
-			OP::ImageMultiLayerArgs args = program.GetOpArgs<OP::ImageMultiLayerArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageMultiLayerArgs>(at);
             f(args.rangeSize );
             f(args.base );
             if ( args.mask )
@@ -641,7 +641,7 @@ namespace mu
 
 		case OP_TYPE::IM_NORMALCOMPOSITE:
 		{
-			OP::ImageNormalCompositeArgs args = program.GetOpArgs<OP::ImageNormalCompositeArgs>(at);
+			auto args = program.GetOpArgs<OP::ImageNormalCompositeArgs>(at);
 			f(args.base);
 			f(args.normal);
 
@@ -650,28 +650,28 @@ namespace mu
 
         case OP_TYPE::IM_PIXELFORMAT:
         {
-			OP::ImagePixelFormatArgs args = program.GetOpArgs<OP::ImagePixelFormatArgs>(at);
+            auto args = program.GetOpArgs<OP::ImagePixelFormatArgs>(at);
             f(args.source );
             break;
         }
 
         case OP_TYPE::IM_MIPMAP:
         {
-			OP::ImageMipmapArgs args = program.GetOpArgs<OP::ImageMipmapArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageMipmapArgs>(at);
             f(args.source );
             break;
         }
 
         case OP_TYPE::IM_RESIZE:
         {
-			OP::ImageResizeArgs args = program.GetOpArgs<OP::ImageResizeArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageResizeArgs>(at);
             f(args.source );
             break;
         }
 
         case OP_TYPE::IM_RESIZELIKE:
         {
-			OP::ImageResizeLikeArgs args = program.GetOpArgs<OP::ImageResizeLikeArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageResizeLikeArgs>(at);
             f(args.source );
             f(args.sizeSource );
             break;
@@ -679,21 +679,21 @@ namespace mu
 
         case OP_TYPE::IM_RESIZEREL:
         {
-			OP::ImageResizeRelArgs args = program.GetOpArgs<OP::ImageResizeRelArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageResizeRelArgs>(at);
             f(args.source );
             break;
         }
 
         case OP_TYPE::IM_BLANKLAYOUT:
         {
-			OP::ImageBlankLayoutArgs args = program.GetOpArgs<OP::ImageBlankLayoutArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageBlankLayoutArgs>(at);
             f(args.layout );
             break;
         }
 
         case OP_TYPE::IM_COMPOSE:
         {
-			OP::ImageComposeArgs args = program.GetOpArgs<OP::ImageComposeArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageComposeArgs>(at);
             f(args.layout );
             f(args.base );
             f(args.blockImage );
@@ -703,7 +703,7 @@ namespace mu
 
         case OP_TYPE::IM_DIFFERENCE:
         {
-			OP::ImageDifferenceArgs args = program.GetOpArgs<OP::ImageDifferenceArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageDifferenceArgs>(at);
             f(args.a );
             f(args.b );
             break;
@@ -711,7 +711,7 @@ namespace mu
 
         case OP_TYPE::IM_INTERPOLATE:
         {
-			OP::ImageInterpolateArgs args = program.GetOpArgs<OP::ImageInterpolateArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageInterpolateArgs>(at);
             f(args.factor );
 
             for (int t=0;t<MUTABLE_OP_MAX_INTERPOLATE_COUNT;++t)
@@ -723,7 +723,7 @@ namespace mu
 
         case OP_TYPE::IM_INTERPOLATE3:
         {
-			OP::ImageInterpolate3Args args = program.GetOpArgs<OP::ImageInterpolate3Args>(at);
+            auto args = program.GetOpArgs<OP::ImageInterpolate3Args>(at);
             f(args.factor1 );
             f(args.factor2 );
             f(args.target0 );
@@ -734,7 +734,7 @@ namespace mu
 
         case OP_TYPE::IM_SWIZZLE:
         {
-			OP::ImageSwizzleArgs args = program.GetOpArgs<OP::ImageSwizzleArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageSwizzleArgs>(at);
             for (int t=0;t<MUTABLE_OP_MAX_SWIZZLE_CHANNELS;++t)
             {
                 f(args.sources[t] );
@@ -744,7 +744,7 @@ namespace mu
 
         case OP_TYPE::IM_SATURATE:
         {
-			OP::ImageSaturateArgs args = program.GetOpArgs<OP::ImageSaturateArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageSaturateArgs>(at);
             f(args.base );
             f(args.factor );
             break;
@@ -752,14 +752,14 @@ namespace mu
 
         case OP_TYPE::IM_LUMINANCE:
         {
-			OP::ImageLuminanceArgs args = program.GetOpArgs<OP::ImageLuminanceArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageLuminanceArgs>(at);
             f(args.base );
             break;
         }
 
         case OP_TYPE::IM_SELECTCOLOUR:
         {
-			OP::ImageSelectColourArgs args = program.GetOpArgs<OP::ImageSelectColourArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageSelectColourArgs>(at);
             f(args.base );
             f(args.colour );
             break;
@@ -767,7 +767,7 @@ namespace mu
 
         case OP_TYPE::IM_COLOURMAP:
         {
-			OP::ImageColourMapArgs args = program.GetOpArgs<OP::ImageColourMapArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageColourMapArgs>(at);
             f(args.base );
             f(args.mask );
             f(args.map );
@@ -776,7 +776,7 @@ namespace mu
 
         case OP_TYPE::IM_GRADIENT:
         {
-			OP::ImageGradientArgs args = program.GetOpArgs<OP::ImageGradientArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageGradientArgs>(at);
             f(args.colour0 );
             f(args.colour1 );
             break;
@@ -784,7 +784,7 @@ namespace mu
 
         case OP_TYPE::IM_BINARISE:
         {
-			OP::ImageBinariseArgs args = program.GetOpArgs<OP::ImageBinariseArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageBinariseArgs>(at);
             f(args.base );
             f(args.threshold );
             break;
@@ -792,21 +792,21 @@ namespace mu
 
         case OP_TYPE::IM_PLAINCOLOUR:
         {
-			OP::ImagePlainColourArgs args = program.GetOpArgs<OP::ImagePlainColourArgs>(at);
+            auto args = program.GetOpArgs<OP::ImagePlainColourArgs>(at);
             f(args.colour );
             break;
         }
 
         case OP_TYPE::IM_CROP:
         {
-			OP::ImageCropArgs args = program.GetOpArgs<OP::ImageCropArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageCropArgs>(at);
             f(args.source );
             break;
         }
 
         case OP_TYPE::IM_PATCH:
         {
-			OP::ImagePatchArgs args = program.GetOpArgs<OP::ImagePatchArgs>(at);
+            auto args = program.GetOpArgs<OP::ImagePatchArgs>(at);
             f(args.base );
             f(args.patch );
             break;
@@ -814,7 +814,7 @@ namespace mu
 
         case OP_TYPE::IM_RASTERMESH:
         {
-			OP::ImageRasterMeshArgs args = program.GetOpArgs<OP::ImageRasterMeshArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageRasterMeshArgs>(at);
             f(args.mesh );
             f(args.image );
             f(args.mask );
@@ -825,14 +825,14 @@ namespace mu
 
         case OP_TYPE::IM_MAKEGROWMAP:
         {
-			OP::ImageMakeGrowMapArgs args = program.GetOpArgs<OP::ImageMakeGrowMapArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageMakeGrowMapArgs>(at);
             f(args.mask );
             break;
         }
 
         case OP_TYPE::IM_DISPLACE:
         {
-			OP::ImageDisplaceArgs args = program.GetOpArgs<OP::ImageDisplaceArgs>(at);
+            auto args = program.GetOpArgs<OP::ImageDisplaceArgs>(at);
             f(args.source );
             f(args.displacementMap );
             break;
@@ -840,7 +840,7 @@ namespace mu
 
 		case OP_TYPE::IM_INVERT:
 		{
-			OP::ImageInvertArgs args = program.GetOpArgs<OP::ImageInvertArgs>(at);
+			auto args = program.GetOpArgs<OP::ImageInvertArgs>(at);
 			f(args.base);
 			break;
 		}

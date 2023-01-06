@@ -865,7 +865,7 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
     check( (int)scratch->culledVertex.Num()==vertexCount );
 
     check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX) );
-	const OPTIMISED_VERTEX* pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>( pMesh->GetVertexBuffers().GetBufferData(0) );
+    auto pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>( pMesh->GetVertexBuffers().GetBufferData(0) );
 
     float fadeEndCos = cosf(fadeEnd);
     for ( int v=0; v<vertexCount; ++v )
@@ -883,7 +883,7 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
 
     // Get the indices
     check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-	const uint32* pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+    auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
 
 
     // The mesh is supposed to contain only the faces in the selected block
@@ -944,7 +944,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
     check( (int)scratch->culledVertex.Num()==vertexCount );
 
     check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX_WRAPPING) );
-	const OPTIMISED_VERTEX_WRAPPING* pVertices = reinterpret_cast<const OPTIMISED_VERTEX_WRAPPING*>( pMesh->GetVertexBuffers().GetBufferData(0) );
+    auto pVertices = reinterpret_cast<const OPTIMISED_VERTEX_WRAPPING*>( pMesh->GetVertexBuffers().GetBufferData(0) );
 
     float fadeEndCos = cosf(fadeEnd);
     for ( int v=0; v<vertexCount; ++v )
@@ -968,7 +968,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
 
     // Get the indices
     check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-	const uint32* pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+    auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
 
 
     // The mesh is supposed to contain only the faces in the selected block
@@ -1303,7 +1303,7 @@ inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
             MESH_BUFFER_SEMANTIC sem = MBSPriv.m_buffers[b].m_channels[c].m_semantic;
             int semIndex = MBSPriv.m_buffers[b].m_channels[c].m_semanticIndex;
 
-			UntypedMeshBufferIteratorConst it = UntypedMeshBufferIteratorConst(pMesh->GetVertexBuffers(), sem, semIndex);
+            auto it = UntypedMeshBufferIteratorConst(pMesh->GetVertexBuffers(), sem, semIndex);
 
 			box<FVector3f> meshBoundingBox;
 			Octree* pOctree = nullptr;
@@ -1782,11 +1782,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     // Get the vertices
     int vertexCount = pMesh->GetVertexCount();
     check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX_WRAPPING) );
-	const OPTIMISED_VERTEX_WRAPPING* pVertices = reinterpret_cast<const OPTIMISED_VERTEX_WRAPPING*>( pMesh->GetVertexBuffers().GetBufferData(0) );
+    auto pVertices = reinterpret_cast<const OPTIMISED_VERTEX_WRAPPING*>( pMesh->GetVertexBuffers().GetBufferData(0) );
 
     // Get the indices
     check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-	const uint32* pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+    auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
     int faceCount = pMesh->GetFaceCount();
 
 	TArray<PROJECTED_VERTEX> projectedPositions;
@@ -2581,16 +2581,16 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
         pResult = CreateMeshOptimisedForProjection( layout );
         pResult->GetVertexBuffers().SetElementCount(vertexCount);
         pResult->GetIndexBuffers().SetElementCount(indexCount);
-		uint32* pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
-		OPTIMISED_VERTEX* pResultVertices = reinterpret_cast<OPTIMISED_VERTEX*>( pResult->GetVertexBuffers().GetBufferData(0) );
+        auto pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
+        auto pResultVertices = reinterpret_cast<OPTIMISED_VERTEX*>( pResult->GetVertexBuffers().GetBufferData(0) );
 
         // Get the vertices
         check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX) );
-		const OPTIMISED_VERTEX* pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>( pMesh->GetVertexBuffers().GetBufferData(0) );
+        auto pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>( pMesh->GetVertexBuffers().GetBufferData(0) );
 
         // Get the indices
         check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-		const uint32* pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+        auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
         int faceCount = pMesh->GetFaceCount();
 
         if (projector.type==PROJECTOR_TYPE::PLANAR)
@@ -2623,8 +2623,8 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
         pResult = CreateMeshOptimisedForWrappingProjection( layout );
         pResult->GetVertexBuffers().SetElementCount(vertexCount);
         pResult->GetIndexBuffers().SetElementCount(indexCount);
-		uint32* pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
-		OPTIMISED_VERTEX_WRAPPING* pResultVertices = reinterpret_cast<OPTIMISED_VERTEX_WRAPPING*>( pResult->GetVertexBuffers().GetBufferData(0) );
+        auto pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
+        auto pResultVertices = reinterpret_cast<OPTIMISED_VERTEX_WRAPPING*>( pResult->GetVertexBuffers().GetBufferData(0) );
 
         MeshProject_Optimised_Wrapping( pMesh,
                                         projectorPosition, projectorDirection,

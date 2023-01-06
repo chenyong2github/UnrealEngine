@@ -145,7 +145,7 @@ namespace mu
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Conditional);
 
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
-		OP::ConditionalArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ConditionalArgs>(item.At);
+        auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ConditionalArgs>(item.At);
 
         // Conditionals have the following execution stages:
         // 0: we need to run the condition
@@ -339,7 +339,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDVECTOR:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
 
             switch (item.Stage)
             {
@@ -385,7 +385,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDSCALAR:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -430,7 +430,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDSTRING:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>( item.At );
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>( item.At );
             switch ( item.Stage )
             {
             case 0:
@@ -477,7 +477,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDCOMPONENT:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -536,7 +536,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDSURFACE:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -606,7 +606,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDLOD:
         {
-			OP::InstanceAddLODArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddLODArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddLODArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -692,7 +692,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDMESH:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -739,7 +739,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDIMAGE:
         {
-			OP::InstanceAddArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -872,7 +872,7 @@ namespace mu
 
         case OP_TYPE::ME_APPLYLAYOUT:
         {
-			OP::MeshApplyLayoutArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyLayoutArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyLayoutArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1151,7 +1151,7 @@ namespace mu
 
         case OP_TYPE::ME_MERGE:
         {
-			OP::MeshMergeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMergeArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMergeArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1214,7 +1214,7 @@ namespace mu
 
         case OP_TYPE::ME_INTERPOLATE:
         {
-			OP::MeshInterpolateArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshInterpolateArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshInterpolateArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1406,7 +1406,7 @@ namespace mu
 
         case OP_TYPE::ME_MASKCLIPMESH:
         {
-			OP::MeshMaskClipMeshArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskClipMeshArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskClipMeshArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1440,7 +1440,7 @@ namespace mu
 
         case OP_TYPE::ME_MASKDIFF:
         {
-			OP::MeshMaskDiffArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskDiffArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskDiffArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1474,7 +1474,7 @@ namespace mu
 
         case OP_TYPE::ME_SUBTRACT:
         {
-			OP::MeshSubtractArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSubtractArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSubtractArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1503,7 +1503,7 @@ namespace mu
 
         case OP_TYPE::ME_FORMAT:
         {
-			OP::MeshFormatArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshFormatArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshFormatArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1555,16 +1555,16 @@ namespace mu
         {
             const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
-            OP::ADDRESS source;
-            FMemory::Memcpy( &source, data, sizeof(OP::ADDRESS) );
+            mu::OP::ADDRESS source;
+            memcpy( &source, data, sizeof(OP::ADDRESS) );
             data += sizeof(OP::ADDRESS);
 
             uint16 layout;
-			FMemory::Memcpy( &layout, data, sizeof(uint16) );
+            memcpy( &layout, data, sizeof(uint16) );
             data += sizeof(uint16);
 
             uint16 blockCount;
-			FMemory::Memcpy( &blockCount, data, sizeof(uint16) );
+            memcpy( &blockCount, data, sizeof(uint16) );
             data += sizeof(uint16);
 
             switch (item.Stage)
@@ -1587,7 +1587,7 @@ namespace mu
 
                 // Access with memcpy necessary for unaligned arm issues.
                 uint32 blocks[1024];
-				FMemory::Memcpy( blocks, data, sizeof(uint32)*FMath::Min(1024,int(blockCount)) );
+                memcpy( blocks, data, sizeof(uint32)*FMath::Min(1024,int(blockCount)) );
 
                 MeshPtr pResult;
                 pResult = MeshExtractLayoutBlock( pSource.get(),
@@ -1608,7 +1608,7 @@ namespace mu
 
         case OP_TYPE::ME_EXTRACTFACEGROUP:
         {
-			OP::MeshExtractFaceGroupArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshExtractFaceGroupArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshExtractFaceGroupArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1644,7 +1644,7 @@ namespace mu
 
         case OP_TYPE::ME_TRANSFORM:
         {
-			OP::MeshTransformArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshTransformArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshTransformArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1681,7 +1681,7 @@ namespace mu
 
         case OP_TYPE::ME_CLIPMORPHPLANE:
         {
-			OP::MeshClipMorphPlaneArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipMorphPlaneArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipMorphPlaneArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1751,7 +1751,7 @@ namespace mu
 
         case OP_TYPE::ME_CLIPWITHMESH:
         {
-			OP::MeshClipWithMeshArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipWithMeshArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipWithMeshArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1839,7 +1839,7 @@ namespace mu
 
         case OP_TYPE::ME_REMAPINDICES:
         {
-			OP::MeshRemapIndicesArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshRemapIndicesArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshRemapIndicesArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1885,7 +1885,7 @@ namespace mu
 
         case OP_TYPE::ME_APPLYPOSE:
         {
-			OP::MeshApplyPoseArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyPoseArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyPoseArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -1931,7 +1931,7 @@ namespace mu
 
 		case OP_TYPE::ME_GEOMETRYOPERATION:
 		{
-			OP::MeshGeometryOperationArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshGeometryOperationArgs>(item.At);
+			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshGeometryOperationArgs>(item.At);
 			switch (item.Stage)
 			{
 			case 0:
@@ -2052,7 +2052,7 @@ namespace mu
 
 		case OP_TYPE::ME_APPLYSHAPE:
 		{
-			OP::MeshApplyShapeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyShapeArgs>(item.At);
+			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyShapeArgs>(item.At);
 			switch (item.Stage)
 			{
 			case 0:
@@ -2144,7 +2144,7 @@ namespace mu
 
         case OP_TYPE::ME_SETSKELETON:
         {
-			OP::MeshSetSkeletonArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSetSkeletonArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSetSkeletonArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -2316,7 +2316,7 @@ namespace mu
 
         case OP_TYPE::ME_PROJECT:
         {
-			OP::MeshProjectArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshProjectArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshProjectArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -2369,13 +2369,14 @@ namespace mu
 
 		case OP_TYPE::ME_OPTIMIZESKINNING:
 		{
-			OP::MeshOptimizeSkinningArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshOptimizeSkinningArgs>(item.At);
+			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshOptimizeSkinningArgs>(item.At);
 			switch (item.Stage)
 			{
 			case 0:
 				if (args.source)
 				{
-					AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item));
 				}
 				else
 				{
@@ -2387,9 +2388,9 @@ namespace mu
 			{
 				Ptr<const Mesh> pSource = GetMemory().GetMesh(FCacheAddress(args.source, item));
 
-				MeshPtrConst pResult = MeshOptimizeSkinning(pSource.get());
+				MeshPtr pResult = MeshOptimizeSkinning(pSource.get());
 
-				GetMemory().SetMesh(item, pResult ? pResult : pSource);
+				GetMemory().SetMesh(item, pResult ? pResult : pSource->Clone());
 				break;
 			}
 
@@ -2741,7 +2742,7 @@ namespace mu
 
         case OP_TYPE::IM_DIFFERENCE:
         {
-			OP::ImageDifferenceArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDifferenceArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDifferenceArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3007,7 +3008,7 @@ namespace mu
 
         case OP_TYPE::IM_RESIZEREL:
         {
-			OP::ImageResizeRelArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3063,7 +3064,7 @@ namespace mu
 
         case OP_TYPE::IM_BLANKLAYOUT:
         {
-			OP::ImageBlankLayoutArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBlankLayoutArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBlankLayoutArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3140,7 +3141,7 @@ namespace mu
 
         case OP_TYPE::IM_COMPOSE:
         {
-			OP::ImageComposeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageComposeArgs>( item.At );
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageComposeArgs>( item.At );
             switch ( item.Stage )
             {
             case 0:
@@ -3186,7 +3187,7 @@ namespace mu
 
         case OP_TYPE::IM_INTERPOLATE:
         {
-			OP::ImageInterpolateArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolateArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolateArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3344,7 +3345,7 @@ namespace mu
 
         case OP_TYPE::IM_INTERPOLATE3:
         {
-			OP::ImageInterpolate3Args args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolate3Args>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolate3Args>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3383,7 +3384,7 @@ namespace mu
 
         case OP_TYPE::IM_SATURATE:
         {
-			OP::ImageSaturateArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSaturateArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSaturateArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3412,7 +3413,7 @@ namespace mu
 
         case OP_TYPE::IM_LUMINANCE:
         {
-			OP::ImageLuminanceArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLuminanceArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLuminanceArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3823,7 +3824,7 @@ namespace mu
 
         case OP_TYPE::IM_RASTERMESH:
         {
-			OP::ImageRasterMeshArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageRasterMeshArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageRasterMeshArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3891,7 +3892,7 @@ namespace mu
                     float fadeEnd = 180.0f;
                     if ( args.angleFadeProperties )
                     {
-                        FVector4f fadeProperties = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
+                        auto fadeProperties = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
                         fadeStart = fadeProperties[0];
                         fadeEnd = fadeProperties[1];
                     }
@@ -3919,14 +3920,14 @@ namespace mu
                     float projectionAngle = 0;
                     if ( args.projector && pSource )
                     {
-                        Ptr<const Projector> pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
+                        auto pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
                         if (pProjector)
                         {
                             projectionAngle = pProjector->m_value.projectionAngle;
 
                             switch (pProjector->m_value.type)
                             {
-                            case PROJECTOR_TYPE::PLANAR:
+                            case mu::PROJECTOR_TYPE::PLANAR:
                                 ImageRasterProjectedPlanar( pMesh.get(), pNew.get(),
                                                             pSource.get(), pMask.get(),
                                                             fadeStart, fadeEnd,
@@ -3934,7 +3935,7 @@ namespace mu
                                                             &scratch );
                                 break;
 
-                            case PROJECTOR_TYPE::WRAPPING:
+                            case mu::PROJECTOR_TYPE::WRAPPING:
                                 ImageRasterProjectedWrapping( pMesh.get(), pNew.get(),
                                                               pSource.get(), pMask.get(),
                                                               fadeStart, fadeEnd,
@@ -3942,7 +3943,7 @@ namespace mu
                                                               &scratch );
                                 break;
 
-                            case PROJECTOR_TYPE::CYLINDRICAL:
+                            case mu::PROJECTOR_TYPE::CYLINDRICAL:
                                 ImageRasterProjectedCylindrical( pMesh.get(), pNew.get(),
                                                                  pSource.get(), pMask.get(),
                                                                  fadeStart, fadeEnd,
@@ -4147,13 +4148,13 @@ namespace mu
             return nullptr;
         }
 
-        const FProgram& program = pModel->GetPrivate()->m_program;
+        const auto& program = pModel->GetPrivate()->m_program;
         const FParameterDesc& paramDesc = program.m_parameters[ parameterIndex ];
         for( size_t rangeIndexInParam=0;
              rangeIndexInParam<paramDesc.m_ranges.Num();
              ++rangeIndexInParam )
         {
-            uint32 rangeIndexInModel = paramDesc.m_ranges[rangeIndexInParam];
+            auto rangeIndexInModel = paramDesc.m_ranges[rangeIndexInParam];
             const ExecutionIndex& currentIndex = GetMemory().GetRageIndex( item.ExecutionIndex );
             int position = currentIndex.GetFromModelRangeIndex(rangeIndexInModel);
             index->GetPrivate()->m_values[rangeIndexInParam] = position;
@@ -4171,14 +4172,14 @@ namespace mu
     {
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Bool);
 
-        const FProgram& program = pModel->GetPrivate()->m_program;
-        OP_TYPE type = program.GetOpType(item.At);
+        const auto& program = pModel->GetPrivate()->m_program;
+        auto type = program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::BO_CONSTANT:
         {
-			OP::BoolConstantArgs args = program.GetOpArgs<OP::BoolConstantArgs>(item.At);
+            auto args = program.GetOpArgs<OP::BoolConstantArgs>(item.At);
             bool result = args.value;
             GetMemory().SetBool( item, result );
             break;
@@ -4186,7 +4187,7 @@ namespace mu
 
         case OP_TYPE::BO_PARAMETER:
         {
-			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
+            auto args = program.GetOpArgs<OP::ParameterArgs>(item.At);
             bool result = false;
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             result = pParams->GetBoolValue( args.variable, index );
@@ -4196,7 +4197,7 @@ namespace mu
 
         case OP_TYPE::BO_LESS:
         {
-			OP::BoolLessArgs args = program.GetOpArgs<OP::BoolLessArgs>(item.At);
+            auto args = program.GetOpArgs<OP::BoolLessArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4223,7 +4224,7 @@ namespace mu
 
         case OP_TYPE::BO_AND:
         {
-			OP::BoolBinaryArgs args = program.GetOpArgs<OP::BoolBinaryArgs>(item.At);
+            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4289,7 +4290,7 @@ namespace mu
 
         case OP_TYPE::BO_OR:
         {
-			OP::BoolBinaryArgs args = program.GetOpArgs<OP::BoolBinaryArgs>(item.At);
+            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4355,7 +4356,7 @@ namespace mu
 
         case OP_TYPE::BO_NOT:
         {
-			OP::BoolNotArgs args = program.GetOpArgs<OP::BoolNotArgs>(item.At);
+            auto args = program.GetOpArgs<OP::BoolNotArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4378,7 +4379,7 @@ namespace mu
 
         case OP_TYPE::BO_EQUAL_INT_CONST:
         {
-			OP::BoolEqualScalarConstArgs args = program.GetOpArgs<OP::BoolEqualScalarConstArgs>(item.At);
+            auto args = program.GetOpArgs<OP::BoolEqualScalarConstArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4421,7 +4422,7 @@ namespace mu
 
         case OP_TYPE::NU_CONSTANT:
         {
-			OP::IntConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::IntConstantArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::IntConstantArgs>(item.At);
             int result = args.value;
             GetMemory().SetInt( item, result );
             break;
@@ -4429,7 +4430,7 @@ namespace mu
 
         case OP_TYPE::NU_PARAMETER:
         {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             int result = pParams->GetIntValue( args.variable, index );
 
@@ -4478,7 +4479,7 @@ namespace mu
 
         case OP_TYPE::SC_CONSTANT:
         {
-			OP::ScalarConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarConstantArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarConstantArgs>(item.At);
             float result = args.value;
             GetMemory().SetScalar( item, result );
             break;
@@ -4486,7 +4487,7 @@ namespace mu
 
         case OP_TYPE::SC_PARAMETER:
         {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             float result = pParams->GetFloatValue( args.variable, index );
             GetMemory().SetScalar( item, result );
@@ -4495,7 +4496,7 @@ namespace mu
 
         case OP_TYPE::SC_CURVE:
         {
-			OP::ScalarCurveArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarCurveArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarCurveArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4527,7 +4528,7 @@ namespace mu
 
         case OP_TYPE::SC_ARITHMETIC:
         {
-			OP::ArithmeticArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ArithmeticArgs>(item.At);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ArithmeticArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -4583,7 +4584,8 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_String( FScheduledOp& item, const Parameters* pParams, const Model* pModel )
+    void
+    CodeRunner::RunCode_String( FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_String );
 
@@ -4596,7 +4598,7 @@ namespace mu
 			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>( item.At );
             check( args.value < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
 
-            const std::string& result = pModel->GetPrivate()->m_program.m_constantStrings[args.value];
+            auto result = pModel->GetPrivate()->m_program.m_constantStrings[args.value];
             GetMemory().SetString( item, new String(result.c_str()) );
 
             break;
@@ -4628,7 +4630,7 @@ namespace mu
 
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 
-        const FProgram& program = pModel->GetPrivate()->m_program;
+        const auto& program = pModel->GetPrivate()->m_program;
 
         switch ( type )
         {
@@ -4727,7 +4729,7 @@ namespace mu
                 {
                     if ( args.sources[t] )
                     {
-                        FVector4f p = GetMemory().GetColour( FCacheAddress(args.sources[t],item) );
+                        auto p = GetMemory().GetColour( FCacheAddress(args.sources[t],item) );
                         result[t] = p[ args.sourceChannels[t] ];
                     }
                 }
@@ -5277,7 +5279,7 @@ namespace mu
 		}
 
 
-		const FProgram& program = pModel->GetPrivate()->m_program;
+		const mu::FProgram& program = pModel->GetPrivate()->m_program;
 
 		OP_TYPE type = program.GetOpType(item.At);
 		switch (type)
@@ -5543,7 +5545,7 @@ namespace mu
 
 		case OP_TYPE::IM_RESIZE:
 		{
-			OP::ImageResizeArgs args = program.GetOpArgs<OP::ImageResizeArgs>(item.At);
+			auto args = program.GetOpArgs<OP::ImageResizeArgs>(item.At);
 			switch (item.Stage)
 			{
 			case 0:
@@ -5564,7 +5566,7 @@ namespace mu
 
 		case OP_TYPE::IM_RESIZELIKE:
 		{
-			OP::ImageResizeLikeArgs args = program.GetOpArgs<OP::ImageResizeLikeArgs>(item.At);
+			auto args = program.GetOpArgs<OP::ImageResizeLikeArgs>(item.At);
 			switch (item.Stage)
 			{
 			case 0:
@@ -5600,7 +5602,7 @@ namespace mu
 
 		case OP_TYPE::IM_RESIZEREL:
 		{
-			OP::ImageResizeRelArgs args = program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
+			auto args = program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
 			switch (item.Stage)
 			{
 			case 0:

@@ -278,39 +278,6 @@ namespace mu
             break;
         }
 
-		//-------------------------------------------------------------------------------------
-		case OP_TYPE::IM_RESIZEREL:
-		{
-			auto sourceAt = children[op.args.ImageResizeRel.source].child();
-
-			// The instruction can be sunk
-			OP_TYPE sourceType = sourceAt->GetOpType();
-			switch (sourceType)
-			{
-
-			// This is done here instead of in the OptimizeSize step to prevent removing 
-			// resize_rel too early.
-            case OP_TYPE::IM_RESIZE:
-            {
-				Ptr<ASTOpFixed> NewOp = mu::Clone<ASTOpFixed>(sourceAt.get());
-				NewOp->op.args.ImageResize.size[0] =
-                        int16_t(NewOp->op.args.ImageResize.size[0] * op.args.ImageResizeRel.factor[0] );
-				NewOp->op.args.ImageResize.size[1] =
-                        int16_t(NewOp->op.args.ImageResize.size[1] * op.args.ImageResizeRel.factor[1] );
-
-				at = NewOp;
-                break;
-            }
-
-
-			default:
-				break;
-
-			}
-
-			break;
-		}
-
 
         //-------------------------------------------------------------------------------------
         case OP_TYPE::IM_PIXELFORMAT:
@@ -1647,88 +1614,78 @@ namespace mu
             switch ( sourceType )
             {
 
-			case OP_TYPE::IM_BLANKLAYOUT:
-			{
-				auto newOp = mu::Clone<ASTOpFixed>(sourceAt);
+                case OP_TYPE::IM_BLANKLAYOUT:
+                {
+                    auto newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
-				newOp->op.args.ImageBlankLayout.blockSize[0] =
-					uint16(newOp->op.args.ImageBlankLayout.blockSize[0]
-						* op.args.ImageResizeRel.factor[0]
-						+ 0.5f);
-				newOp->op.args.ImageBlankLayout.blockSize[1] =
-					uint16(newOp->op.args.ImageBlankLayout.blockSize[1]
-						* op.args.ImageResizeRel.factor[1]
-						+ 0.5f);
-				at = newOp;
-				break;
-			}
-
-			case OP_TYPE::IM_PLAINCOLOUR:
-			{
-				auto newOp = mu::Clone<ASTOpFixed>(sourceAt);
-
-				newOp->op.args.ImagePlainColour.size[0] =
-					uint16(newOp->op.args.ImagePlainColour.size[0]
-						* op.args.ImageResizeRel.factor[0]
-						+ 0.5f);
-				newOp->op.args.ImagePlainColour.size[1] =
-					uint16(newOp->op.args.ImagePlainColour.size[1]
-						* op.args.ImageResizeRel.factor[1]
-						+ 0.5f);
-				at = newOp;
-				break;
-			}
+                    newOp->op.args.ImageBlankLayout.blockSize[0] =
+                            uint16( newOp->op.args.ImageBlankLayout.blockSize[0]
+                                    * op.args.ImageResizeRel.factor[0]
+                                    + 0.5f );
+                    newOp->op.args.ImageBlankLayout.blockSize[1] =
+                            uint16( newOp->op.args.ImageBlankLayout.blockSize[1]
+                                    * op.args.ImageResizeRel.factor[1]
+                                    + 0.5f );
+                    at = newOp;
+                    break;
+                }
 
 
 				// Don't combine. ResizeRel sometimes can resize more children than Resize can do. (see RasterMesh)
-				// It can be combined in an optimization step further in the process, when normal sizes may have been 
-				// optimized already (see OptimizeSemantic)
 //                case OP_TYPE::IM_RESIZE:
 //                {
+//                    OP op = program.m_code[sourceAt];
+//                    op.args.ImageResize.size[0] =
+//                            int16_t( op.args.ImageResize.size[0]
+//                                   * program.m_code[at].args.ImageResizeRel.factor[0] );
+//                    op.args.ImageResize.size[1] =
+//                            int16_t( op.args.ImageResize.size[1]
+//                                   * program.m_code[at].args.ImageResizeRel.factor[1] );
+//                    return op;
 //                    break;
 //                }
 
 
-            default:
-            {
-                Sink_ImageResizeRelAST sinker;
-                at = sinker.Apply(this);
+                default:
+                {
+                    Sink_ImageResizeRelAST sinker;
+                    at = sinker.Apply(this);
+
+                    break;
+                }
+
+                }
 
                 break;
             }
 
-            }
 
-            break;
-        }
-
-
-        //-------------------------------------------------------------------------------------
-        case OP_TYPE::IM_RESIZELIKE:
-        {
-            Ptr<ImageSizeExpression> sourceSize =
-                    children[op.args.ImageResizeLike.source]->GetImageSizeExpression();
-            Ptr<ImageSizeExpression> sizeSourceSize =
-                    children[op.args.ImageResizeLike.sizeSource]->GetImageSizeExpression();
-
-            if ( *sourceSize == *sizeSourceSize )
+            //-------------------------------------------------------------------------------------
+            case OP_TYPE::IM_RESIZELIKE:
             {
-                at = children[op.args.ImageResizeLike.source].child();
-            }
+                Ptr<ImageSizeExpression> sourceSize =
+                        children[op.args.ImageResizeLike.source]->GetImageSizeExpression();
+                Ptr<ImageSizeExpression> sizeSourceSize =
+                        children[op.args.ImageResizeLike.sizeSource]->GetImageSizeExpression();
 
-            else if ( sizeSourceSize->type == ImageSizeExpression::ISET_CONSTANT )
-            {
-                Ptr<ASTOpFixed> newAt = new ASTOpFixed;
-                newAt->op.type = OP_TYPE::IM_RESIZE;
-                newAt->SetChild( newAt->op.args.ImageResize.source, children[op.args.ImageResizeLike.source] );
-                newAt->op.args.ImageResize.size[0] = sizeSourceSize->size[0];
-                newAt->op.args.ImageResize.size[1] = sizeSourceSize->size[1];
-                at = newAt;
-            }
-            else if ( sizeSourceSize->type == ImageSizeExpression::ISET_LAYOUTFACTOR )
-            {
-                // TODO
-                // Skip intermediate ops until the layout
+                if ( *sourceSize == *sizeSourceSize )
+                {
+                    at = children[op.args.ImageResizeLike.source].child();
+                }
+
+                else if ( sizeSourceSize->type == ImageSizeExpression::ISET_CONSTANT )
+                {
+                    Ptr<ASTOpFixed> newAt = new ASTOpFixed;
+                    newAt->op.type = OP_TYPE::IM_RESIZE;
+                    newAt->SetChild( newAt->op.args.ImageResize.source, children[op.args.ImageResizeLike.source] );
+                    newAt->op.args.ImageResize.size[0] = sizeSourceSize->size[0];
+                    newAt->op.args.ImageResize.size[1] = sizeSourceSize->size[1];
+                    at = newAt;
+                }
+                else if ( sizeSourceSize->type == ImageSizeExpression::ISET_LAYOUTFACTOR )
+                {
+                    // TODO
+                    // Skip intermediate ops until the layout
 //                    if ( program.m_code[sizeSourceAt].type != OP_TYPE::IM_BLANKLAYOUT )
 //                    {
 //                        m_modified = true;
@@ -1744,10 +1701,10 @@ namespace mu
 //                        opResize.args.ImageResizeLike.sizeSource = program.AddOp( blackLayoutOp );
 //                        at = program.AddOp( opResize );
 //                    }
-            }
+                }
 
-            break;
-        }
+                break;
+            }
 
         default:
             break;

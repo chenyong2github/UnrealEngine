@@ -541,9 +541,7 @@ namespace mu
 				/** If the image has 4 channels, apply to the fourth channel as well. */
 				F_APPLY_TO_ALPHA = 1 << 1,
 				/** Use the alpha channel of the blended image as mask. Mask should be null.*/
-				F_USE_MASK_FROM_BLENDED = 1 << 2,
-				/** Use the alpha channel of the base image as its RGB.*/
-				F_BASE_RGB_FROM_ALPHA = 1 << 3,
+				F_USE_MASK_FROM_BLENDED = 1 << 2
 			} FLAGS;
         };
 
@@ -566,7 +564,6 @@ namespace mu
             ADDRESS colour;
 			uint8 blendType;		// One of EBlendType
 			uint8 blendTypeAlpha;	// One of EBlendType
-			uint8 flags;			// Like in ImageLayerArgs
 		};
 
         struct ImagePixelFormatArgs

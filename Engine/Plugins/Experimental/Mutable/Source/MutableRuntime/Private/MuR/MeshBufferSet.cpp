@@ -69,7 +69,7 @@ namespace mu
 
 		m_elementCount = count;
 
-		for (MESH_BUFFER& buf : m_buffers)
+		for (auto& buf : m_buffers)
 		{
 			buf.m_data.SetNumUninitialized(buf.m_elementSize * count, false);
 		}
@@ -379,7 +379,7 @@ namespace mu
 
 		if (fromIndex != toIndex)
 		{
-			for (MESH_BUFFER& b : m_buffers)
+			for (auto& b : m_buffers)
 			{
 				FMemory::Memcpy(&b.m_data[b.m_elementSize * toIndex],
 					&b.m_data[b.m_elementSize * fromIndex],
@@ -573,9 +573,9 @@ namespace mu
 		uint8_t currentIndices[MBS_COUNT];
 		memset(currentIndices, 0, sizeof(currentIndices));
 
-		for (MESH_BUFFER& b : m_buffers)
+		for (auto& b : m_buffers)
 		{
-			for (MESH_BUFFER_CHANNEL& c : b.m_channels)
+			for (auto& c : b.m_channels)
 			{
 				c.m_semanticIndex = currentIndices[c.m_semantic];
 				currentIndices[c.m_semantic]++;
@@ -588,7 +588,7 @@ namespace mu
 	void FMeshBufferSet::UpdateOffsets(int32 b)
 	{
 		uint8_t offset = 0;
-		for (MESH_BUFFER_CHANNEL& c : m_buffers[b].m_channels)
+		for (auto& c : m_buffers[b].m_channels)
 		{
 			if (c.m_offset < offset)
 			{
