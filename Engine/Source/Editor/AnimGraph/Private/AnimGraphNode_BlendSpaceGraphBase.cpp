@@ -165,7 +165,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(const FAssetData& InAsse
 			BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(Asset, BlendSpaceGraph);
 			BlendSpaceGraph->BlendSpace->ClearFlags(RF_Public | RF_Standalone | RF_Transient);
 			BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
-			BlendSpaceGraph->BlendSpace->SetSkeleton(nullptr);
+			BlendSpaceGraph->BlendSpace->ResetSkeleton(nullptr);
 			BlendSpaceGraph->BlendSpace->EmptyMetaData();
 			BlendSpaceGraph->BlendSpace->RemoveUserDataOfClass(UAssetUserData::StaticClass());
 			BlendSpaceGraph->bAllowDeletion = false;

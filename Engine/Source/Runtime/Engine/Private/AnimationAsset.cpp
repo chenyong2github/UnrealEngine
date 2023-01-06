@@ -301,7 +301,9 @@ void UAnimationAsset::PostLoad()
 
 void UAnimationAsset::ResetSkeleton(USkeleton* NewSkeleton)
 {
+// @TODO LH, I'd like this to work outside of editor, but that requires unlocking track names data in game
 #if WITH_EDITOR
+	Skeleton = NULL;
 	ReplaceSkeleton(NewSkeleton);
 #endif
 }
@@ -358,16 +360,7 @@ void UAnimationAsset::RemoveMetaData(TArrayView<UAnimMetaData*> MetaDataInstance
 
 void UAnimationAsset::SetSkeleton(USkeleton* NewSkeleton)
 {
-#if WITH_EDITOR
-	OnSetSkeleton(NewSkeleton);
-#endif // WITH_EDITOR
-
-	if (NewSkeleton == nullptr)
-	{
-		Skeleton = nullptr;
-		SkeletonGuid.Invalidate();
-	}
-	else if (NewSkeleton != Skeleton)
+	if (NewSkeleton && NewSkeleton != Skeleton)
 	{
 		Skeleton = NewSkeleton;
 		SkeletonGuid = NewSkeleton->GetGuid();
@@ -424,10 +417,8 @@ void UAnimationAsset::RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bCon
 bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces/*=false*/)
 {
 	// if it's not same 
-	if (NewSkeleton && (NewSkeleton != Skeleton || NewSkeleton->GetGuid() != SkeletonGuid))
+	if (NewSkeleton != Skeleton)
 	{
-		OnSetSkeleton(NewSkeleton);
-
 		// get all sequences that need to change
 		TArray<UAnimationAsset*> AnimAssetsToReplace;
 
@@ -650,13 +641,9 @@ void UAnimationAsset::ValidateSkeleton()
 {
 	if (Skeleton && Skeleton->GetGuid() != SkeletonGuid)
 	{
-#if WITH_EDITOR
 		// reset Skeleton
-		ReplaceSkeleton(Skeleton);
+		ResetSkeleton(Skeleton);
 		UE_LOG(LogAnimation, Verbose, TEXT("Needed to reset skeleton. Resave this asset to speed up load time: %s"), *GetPathNameSafe(this));
-#else
-		UE_LOG(LogAnimation, Warning, TEXT("Skeleton GUID is out-of-date, this should have been updated during cook. %s"), *GetPathNameSafe(this));
-#endif
 	}
 }
 

@@ -1053,7 +1053,6 @@ public:
 	virtual float GetPlayLength() const { return 0.f; };
 
 	void SetSkeleton(USkeleton* NewSkeleton);
-	UE_DEPRECATED(5.2, "ResetSkeleton has been deprecated, use ReplaceSkeleton or SetSkeleton instead")
 	void ResetSkeleton(USkeleton* NewSkeleton);
 	virtual void PostLoad() override;
 
@@ -1098,8 +1097,6 @@ public:
 	 * @param NewSkeleton	NewSkeleton to change to 
 	 */
 	bool ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces=false);
-
-	virtual void OnSetSkeleton(USkeleton* NewSkeleton) {}
 
 	// Helper function for GetAllAnimationSequencesReferred, it adds itself first and call GetAllAnimationSEquencesReferred
 	void HandleAnimReferenceCollection(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive);
