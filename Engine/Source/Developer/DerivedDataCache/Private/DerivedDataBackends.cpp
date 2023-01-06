@@ -689,7 +689,8 @@ public:
 				FString SettingPath;
 				if(FParse::Value(*Setting, TEXT("Path="), SettingPath))
 				{
-					SettingPath = SettingPath.TrimQuotes();
+					SettingPath.TrimQuotesInline();
+					SettingPath.ReplaceEscapedCharWithCharInline();
 					if(SettingPath.Len() > 0)
 					{
 						Path = SettingPath;
