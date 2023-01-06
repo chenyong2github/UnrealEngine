@@ -51,6 +51,7 @@
 #include "GeometryCacheTrackUSD.h"
 #include "GeometryCacheUSDComponent.h"
 #include "IMeshBuilderModule.h"
+#include "MeshBudgetProjectSettings.h"
 #endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
@@ -754,6 +755,9 @@ namespace UsdGeomMeshTranslatorImpl
 				check(StaticMeshDescription);
 				*StaticMeshDescription = MoveTemp(MeshDescription);
 			}
+
+			FMeshBudgetProjectSettingsUtils::SetLodGroupForStaticMesh(StaticMesh);
+
 #endif // WITH_EDITOR
 
 			StaticMesh->SetLightingGuid();

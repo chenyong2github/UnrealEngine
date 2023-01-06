@@ -44,6 +44,7 @@
 
 #if WITH_EDITOR
 #include "RawMesh.h"
+#include "MeshBudgetProjectSettings.h"
 #include "NaniteBuilder.h"
 #include "MeshUtilitiesCommon.h"
 #include "DerivedDataCacheInterface.h"
@@ -4011,11 +4012,11 @@ void UStaticMesh::PostEditUndo()
 	Super::PostEditUndo();
 }
 
-void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately)
+void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately, bool bAllowModify)
 {
 #if WITH_EDITORONLY_DATA
 	const bool bBeforeDerivedDataCached = (GetRenderData() == nullptr);
-	if (!bBeforeDerivedDataCached)
+	if (!bBeforeDerivedDataCached && bAllowModify)
 	{
 		Modify();
 	}
@@ -5885,6 +5886,8 @@ void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 	// This scope allows us to use any locked properties without causing stalls
 	FStaticMeshAsyncBuildScope AsyncBuildScope(this);
+
+	FMeshBudgetProjectSettingsUtils::SetLodGroupForStaticMesh(this);
 
 	if (GetNumSourceModels() > 0)
 	{

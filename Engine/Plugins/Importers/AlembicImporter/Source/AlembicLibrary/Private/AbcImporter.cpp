@@ -58,6 +58,10 @@ THIRD_PARTY_INCLUDES_END
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
 
+#if WITH_EDITOR
+#include "MeshBudgetProjectSettings.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "AbcImporter"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAbcImporter, Verbose, All);
@@ -251,6 +255,9 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 		//Set the Imported version before calling the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 
+#if WITH_EDITOR
+		FMeshBudgetProjectSettingsUtils::SetLodGroupForStaticMesh(StaticMesh);
+#endif
 		// Build the static mesh (using the build setting etc.) this generates correct tangents using the extracting smoothing group along with the imported Normals data
 		StaticMesh->Build(false);
 

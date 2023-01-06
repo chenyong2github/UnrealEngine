@@ -1537,7 +1537,7 @@ public:
 	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
 	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
-	ENGINE_API void SetLODGroup(FName NewGroup, bool bRebuildImmediately = true);
+	ENGINE_API void SetLODGroup(FName NewGroup, bool bRebuildImmediately = true, bool bAllowModify = true);
 	ENGINE_API void BroadcastNavCollisionChange();
 
 	FOnExtendedBoundsChanged& GetOnExtendedBoundsChanged() { return OnExtendedBoundsChanged; }

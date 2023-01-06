@@ -25,6 +25,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
 #include "Mesh/InterchangeStaticMeshPayloadInterface.h"
+#include "MeshBudgetProjectSettings.h"
 #include "Model.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -448,6 +449,10 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 	// Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
+
+#if WITH_EDITOR
+	FMeshBudgetProjectSettingsUtils::SetLodGroupForStaticMesh(StaticMesh);
+#endif
 
 	return StaticMeshObject;
 }
