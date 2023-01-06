@@ -122,6 +122,7 @@ namespace AutomationTool
 							File.SetAttributes(Path, Attributes & ~FileAttributes.ReadOnly);
 						}
 						File.Delete(Path);
+						FileItem.ResetCachedInfo(Path);
 					}
 				}
 				catch (Exception Ex)
@@ -213,6 +214,7 @@ namespace AutomationTool
 					try
 					{
 						Directory.Delete(Path, true);
+						DirectoryItem.ResetCachedInfo(Path);
 					}
 					catch (Exception Ex)
 					{

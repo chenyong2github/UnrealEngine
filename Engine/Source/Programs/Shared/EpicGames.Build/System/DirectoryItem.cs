@@ -181,6 +181,17 @@ namespace UnrealBuildBase
 		}
 
 		/// <summary>
+		/// Resets the cached info, if the DirectoryInfo is not found don't create a new entry
+		/// </summary>
+		public static void ResetCachedInfo(string Path)
+		{
+			if (LocationToItem.TryGetValue(new DirectoryReference(Path), out DirectoryItem? Result))
+			{
+				Result.ResetCachedInfo();
+			}
+		}
+
+		/// <summary>
 		/// Resets all cached directory info. Significantly reduces performance; do not use unless strictly necessary.
 		/// </summary>
 		public static void ResetAllCachedInfo_SLOW()
