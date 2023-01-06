@@ -24,7 +24,6 @@
 #include "TextureLayout3d.h"
 #include "ScenePrivateBase.h"
 #include "RenderTargetPool.h"
-#include "SceneCore.h"
 #include "PrimitiveSceneInfo.h"
 #include "LightSceneInfo.h"
 #include "DepthRendering.h"
@@ -37,7 +36,6 @@
 #include "CommonRenderResources.h"
 #include "VisualizeTexture.h"
 #include "UnifiedBuffer.h"
-#include "LightMapDensityRendering.h"
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
 #include "PrecomputedVolumetricLightmap.h"
@@ -88,6 +86,8 @@ struct FHairStrandsInstance;
 struct FPathTracingState;
 class FSparseVolumeTextureViewerSceneProxy;
 class FLandscapeRayTracingStateList;
+class FExponentialHeightFogSceneInfo;
+class FStaticMeshBatch;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -2907,6 +2907,7 @@ public:
 
 	/** The static meshes in the scene. */
 	TSparseArray<FStaticMeshBatch*> StaticMeshes;
+
 	/** The exponential fog components in the scene. */
 	TArray<FExponentialHeightFogSceneInfo> ExponentialFogs;
 

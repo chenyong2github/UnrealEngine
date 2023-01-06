@@ -49,6 +49,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
 #include "RenderCore.h"
+#include "StaticMeshBatch.h"
 
 class FMaterial;
 

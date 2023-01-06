@@ -23,6 +23,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "StaticMeshBatch.h"
 
 int32 GLumenSupported = 1;
 FAutoConsoleVariableRef CVarLumenSupported(

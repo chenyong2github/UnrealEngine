@@ -30,6 +30,7 @@
 #include "RayTracingDefinitions.h"
 #include "RenderCore.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "StaticMeshBatch.h"
 
 extern int32 GGPUSceneInstanceClearList;
 extern int32 GGPUSceneInstanceBVH;

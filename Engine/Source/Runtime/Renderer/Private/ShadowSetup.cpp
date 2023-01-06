@@ -35,6 +35,8 @@
 #include "Shadows/ShadowSceneRenderer.h"
 #include "Lumen/Lumen.h"
 #include "RenderCore.h"
+#include "StaticMeshBatch.h"
+#include "UnrealEngine.h"
 
 /** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
 static const int32 NumCubeShadowDepthSurfaces = 5;

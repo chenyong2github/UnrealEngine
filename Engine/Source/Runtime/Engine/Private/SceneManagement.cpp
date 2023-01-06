@@ -19,6 +19,7 @@
 #include "UnrealEngine.h"
 #include "ColorSpace.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "StaticMeshBatch.h"
 
 static TAutoConsoleVariable<float> CVarLODTemporalLag(
 	TEXT("lod.TemporalLag"),

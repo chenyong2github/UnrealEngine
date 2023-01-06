@@ -8,34 +8,41 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "RenderingThread.h"
-#endif
 #include "RenderDeferredCleanup.h"
-#include "SceneTypes.h"
 #include "HitProxies.h"
 #include "Math/GenericOctreePublic.h"
-#include "Engine/Scene.h"
+#include "PrimitiveComponentId.h"
+#include "PrimitiveDirtyState.h"
 #include "RendererInterface.h"
+#include "ShaderParameterMacros.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/Scene.h"
+#include "RenderingThread.h"
 #include "MeshPassProcessor.h"
 #include "PrimitiveSceneProxy.h"
+#include "SceneTypes.h"
+#endif
 
+enum class ERayTracingPrimitiveFlags : uint8;
+
+class FIndirectLightingCacheUniformParameters;
+class FNaniteCommandInfo;
+class FPlanarReflectionSceneProxy;
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
+class FRayTracingGeometry;
 class FReflectionCaptureProxy;
-class FPlanarReflectionSceneProxy;
 class FScene;
 class FViewInfo;
 class UPrimitiveComponent;
-class FIndirectLightingCacheUniformParameters;
 
-template<typename ElementType,typename OctreeSemantics> class TOctree2;
-
-class FNaniteCommandInfo;
+struct FNaniteMaterialSlot;
 struct FNaniteRasterBin;
 struct FNaniteShadingBin;
-struct FNaniteMaterialSlot;
 struct FRayTracingInstance;
+
+template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 namespace Nanite
 {

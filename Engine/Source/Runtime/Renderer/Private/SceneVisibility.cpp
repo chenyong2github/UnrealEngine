@@ -51,6 +51,8 @@
 #include "RendererModule.h"
 #include "SceneViewExtension.h"
 #include "RenderCore.h"
+#include "StaticMeshBatch.h"
+#include "UnrealEngine.h"
 
 #if !UE_BUILD_SHIPPING
 #include "ViewDebug.h"

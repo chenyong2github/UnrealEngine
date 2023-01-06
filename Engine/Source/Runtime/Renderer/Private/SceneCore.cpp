@@ -358,37 +358,6 @@ void FLightPrimitiveInteraction::FlushCachedShadowMapData()
 	}
 }
 
-int32 FStaticMeshBatchRelevance::GetStaticMeshCommandInfoIndex(EMeshPass::Type MeshPass) const
-{
-	int32 CommandInfoIndex = CommandInfosBase;
-
-	if (!CommandInfosMask.Get(MeshPass))
-	{
-		return -1;
-	}
-
-	for (int32 MeshPassIndex = 0; MeshPassIndex < MeshPass; ++MeshPassIndex)
-	{
-		if (CommandInfosMask.Get((EMeshPass::Type) MeshPassIndex))
-		{
-			++CommandInfoIndex;
-		}
-	}
-
-	return CommandInfoIndex;
-}
-
-/*-----------------------------------------------------------------------------
-	FStaticMeshBatch
------------------------------------------------------------------------------*/
-
-FStaticMeshBatch::~FStaticMeshBatch()
-{
-	FScene* Scene = PrimitiveSceneInfo->Scene;
-	// Remove this static mesh from the scene's list.
-	Scene->StaticMeshes.RemoveAt(Id);
-}
-
 /** Initialization constructor. */
 FExponentialHeightFogSceneInfo::FExponentialHeightFogSceneInfo(const UExponentialHeightFogComponent* InComponent):
 	Component(InComponent),

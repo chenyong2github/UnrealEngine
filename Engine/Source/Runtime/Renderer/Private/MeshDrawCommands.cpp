@@ -10,6 +10,7 @@ MeshDrawCommandSetup.cpp: Mesh draw command setup.
 #include "ScenePrivate.h"
 #include "TranslucentRendering.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "StaticMeshBatch.h"
 
 TGlobalResource<FPrimitiveIdVertexBufferPool> GPrimitiveIdVertexBufferPool;
 

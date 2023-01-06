@@ -3,6 +3,7 @@
 #include "VT/RuntimeVirtualTextureRender.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "GPUScene.h"
 #include "MaterialShader.h"
@@ -19,6 +20,7 @@
 #include "MeshPassProcessor.inl"
 #include "RenderCaptureInterface.h"
 #include "SimpleMeshDrawCommandPass.h"
+#include "StaticMeshBatch.h"
 
 namespace RuntimeVirtualTexture
 {
