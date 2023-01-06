@@ -160,11 +160,11 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 
 		// Set up new constraints
 		FEntityTaskBuilder()
-			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 			.Read(BuiltInComponents->BoundObject)
 			.Read(BuiltInComponents->InstanceHandle)
 			.Read(TracksComponents->ConstraintChannel)
 			.Read(BuiltInComponents->EvalTime)
+			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 			.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, Linker->GetInstanceRegistry(), &Controller, this);
 	}
 	else if (CurrentPhase == ESystemPhase::Finalization)
