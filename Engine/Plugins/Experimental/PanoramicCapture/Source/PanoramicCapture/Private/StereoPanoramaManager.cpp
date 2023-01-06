@@ -5,11 +5,11 @@
 #include "GameFramework/GameModeBase.h"
 #include "Engine/World.h"
 
-#define LOCTEXT_NAMESPACE "LogStereoPanorama"
-
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "LogStereoPanorama"
 
 //Slice Controls
 IConsoleVariable* FStereoPanoramaManager::HorizontalAngularIncrement = IConsoleManager::Get().RegisterConsoleVariable(TEXT("SP.HorizontalAngularIncrement"), 1.0f, TEXT("The number of degrees per horizontal step. Must be a factor of 360."), ECVF_Default);
