@@ -12,6 +12,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Identifier for a storage namespace
 	/// </summary>
+	[JsonSchemaString]
 	[JsonConverter(typeof(NamespaceIdJsonConverter))]
 	[TypeConverter(typeof(NamespaceIdTypeConverter))]
 	public struct NamespaceId : IEquatable<NamespaceId>
