@@ -879,7 +879,7 @@ Texture2D<float3> ScreenProbeRadiance;
 
 float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, FScreenProbeSample ScreenProbeSample)
 {
-	float2 ProbeUV = UnitVectorToOctahedron(ConeDirection) * 0.5 + 0.5;
+	float2 ProbeUV = InverseEquiAreaSphericalMapping(ConeDirection);
 
 #define COMBINED_FACTORS 1
 #if COMBINED_FACTORS
@@ -956,7 +956,7 @@ FBxDFSample SampleBxDFWrapper(const uint TermMask, FLumenMaterialData MaterialDa
 
 float3 InterpolateScreenProbeIrradiance(FScreenProbeSample ScreenProbeSample, float3 WorldNormal)
 {
-	float2 IrradianceProbeUV = UnitVectorToOctahedron(WorldNormal) * 0.5f + 0.5f;
+	float2 IrradianceProbeUV = InverseEquiAreaSphericalMapping(WorldNormal);
 
 	float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[0], IrradianceProbeUV) * ScreenProbeSample.Weights.x;
 
@@ -1312,7 +1312,7 @@ void ScreenProbeIntegrateCS(
 		#if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED
 			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_NUMERICAL_INTEGRAL)
 			{
-				float TotalWeight = 0;
+				int NumValidSamples = 0;
 				const float InvScreenProbeResolution = 1.0f / ScreenProbeGatherOctahedronResolution;
 				float ScreenProbeResolutionFloat = ScreenProbeGatherOctahedronResolution;
 				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(Material.WorldNormal);
@@ -1330,21 +1330,19 @@ void ScreenProbeIntegrateCS(
 					{
 						float2 ProbeTexelCenter = float2(0.5, 0.5);
 						float2 ProbeUV = (float2(X, Y) + ProbeTexelCenter) * InvScreenProbeResolution;
-						float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+						float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
 						float NdotL = dot(WorldConeDirection, Material.WorldNormal);
 
 						if (NdotL > 0 || bTwoSidedFoliage)
 						{
-							float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeGatherOctahedronResolution);
-
 							#if 1
-								float SampleWeight = saturate(NdotL) * SolidAngle;
+								float SampleWeight = saturate(NdotL);
 							#else
 								FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
 								FDirectLighting BxDFSample = EvaluateBxDF(GBufferData, Material.WorldNormal, V, WorldConeDirection, saturate(NdotL), Shadow);
 
-								float3 SampleWeight = BxDFSample.Diffuse * SolidAngle;
+								float3 SampleWeight = BxDFSample.Diffuse;
 							#endif
 
 							float3 InterpolatedRadiance;
@@ -1381,18 +1379,18 @@ void ScreenProbeIntegrateCS(
 								half VoL = dot(V, WorldConeDirection);
 								float Scatter = D_GGX(0.6 * 0.6, saturate(-VoL));
 
-								float BackfaceLightingSampleWeight = SolidAngle * WrapNoL * Scatter;
+								float BackfaceLightingSampleWeight = WrapNoL * Scatter;
 								BackfaceDiffuseLighting += InterpolatedRadiance * BackfaceLightingSampleWeight;
 							}
 
-							TotalWeight += SampleWeight;
+							NumValidSamples++;
 						}
 					}
 				}
 
-				if (TotalWeight > 0)
+				if (NumValidSamples > 0)
 				{
-					float NormalizeTerm = PI / (TotalWeight * AO);
+					float NormalizeTerm = 2 * PI / (NumValidSamples * AO);
 					DiffuseLighting *= NormalizeTerm;
 					BackfaceDiffuseLighting *= NormalizeTerm;
 				}

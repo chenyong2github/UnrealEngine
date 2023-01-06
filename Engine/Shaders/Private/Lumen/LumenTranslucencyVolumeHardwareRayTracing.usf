@@ -65,7 +65,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 			float ConeHalfAngle;
 			GetProbeTracingUV(TraceTexelCoord, GetProbeTexelCenter(GridCoordinate), ProbeUV, ConeHalfAngle);
 
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+			float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
 			float TraceDistance = MaxTraceDistance;
 

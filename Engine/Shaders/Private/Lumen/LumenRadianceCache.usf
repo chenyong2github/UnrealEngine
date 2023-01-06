@@ -262,7 +262,7 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 bool ShouldRefineTraceTile(uint2 TraceTileCoord, uint TraceTileResolution, float LevelPDFThreshold, FThreeBandSHVector BRDF)
 {
 	float2 ProbeUV = (TraceTileCoord + float2(.5f, .5f)) / float(TraceTileResolution);
-	float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+	float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 	FThreeBandSHVector DirectionSH = SHBasisFunction3(WorldConeDirection);
 	float PDF = max(DotSH3(BRDF, DirectionSH), 0);
 
@@ -502,7 +502,7 @@ void GenerateProbeTraceTilesCS(
 		{
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
 			float2 ProbeUV = (TexelCoord + ProbeTexelCenter) / (float)DebugProbeBRDFOctahedronResolution;
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+			float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
 			FThreeBandSHVector DirectionSH = SHBasisFunction3(WorldConeDirection);
 			float PDF = max(DotSH3(BRDF, DirectionSH), 0) * .001f;
@@ -682,7 +682,7 @@ void TraceFromProbesCS(
 #endif
 
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+			float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
 			float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
 			float FinalMaxTraceDistance = MaxTraceDistance;
@@ -866,12 +866,12 @@ void FilterProbeRadianceWithGatherCS(
 
 				float2 ProbeTexelCenter = float2(0.5, 0.5);
 				float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
-				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+				float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
 				float3 NeighborWorldPosition = GetProbeWorldPosition(NeighborCoord, ClipmapIndex, NeighborProbeIndex);
 				float3 NeighborHitPosition = NeighborWorldPosition + WorldConeDirection * NeighborRadianceDepth;
 				float3 ToNeighborHit = NeighborHitPosition - ProbeWorldCenter;
-				uint2 ProbeTexelCoordForNeighborHit = ( UnitVectorToOctahedron(ToNeighborHit) * 0.5 + 0.5 ) * RadianceProbeResolution;
+				uint2 ProbeTexelCoordForNeighborHit = InverseEquiAreaSphericalMapping(ToNeighborHit) * RadianceProbeResolution;
 				float ProbeDepthForNeighborHit = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborHit + ProbeAtlasBaseCoord];
 				float VoxelRadius = sqrt(3.0f) / GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex);
 
@@ -938,7 +938,7 @@ void FilterProbeRadianceWithGatherCS(
 
 		float2 ProbeTexelCenter = float2(0.5, 0.5);
 		float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
-		float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+		float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
 		int3 ProbeCoord = GetRadianceProbeCoord(ProbeWorldCenter, ClipmapIndex);
 
@@ -973,7 +973,7 @@ void FilterProbeRadianceWithGatherCS(
 						float OcclusionDistance = max(GetRadianceProbeTMin(ClipmapIndex), VoxelRadius);
 						float3 NeighborOcclusionTestPosition = NeighborWorldPosition + 2 * OcclusionDistance * WorldConeDirection;
 						float3 ToNeighborOcclusionPosition = NeighborOcclusionTestPosition - ProbeWorldCenter;
-						uint2 ProbeTexelCoordForNeighborOcclusionPosition = ( UnitVectorToOctahedron(ToNeighborOcclusionPosition) * 0.5 + 0.5 ) * RadianceProbeResolution;
+						uint2 ProbeTexelCoordForNeighborOcclusionPosition = InverseEquiAreaSphericalMapping(ToNeighborOcclusionPosition) * RadianceProbeResolution;
 						float ProbeDepthForNeighborOcclusionPosition = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborOcclusionPosition + ProbeAtlasBaseCoord];
 
 						if (ProbeDepthForNeighborOcclusionPosition * ProbeDepthForNeighborOcclusionPosition < dot(ToNeighborOcclusionPosition, ToNeighborOcclusionPosition))
@@ -1034,7 +1034,6 @@ void CalculateProbeIrradianceCS(
 			for (uint DestX = GroupThreadId.x; DestX < DOWNSAMPLED_RADIANCE_SIZE; DestX += THREADGROUP_SIZE)
 			{
 				float3 Radiance = 0;
-				float TotalWeight = 0;
 
 				for (uint YOffset = 0; YOffset < DownsampleFactor; YOffset++)
 				{
@@ -1042,13 +1041,11 @@ void CalculateProbeIrradianceCS(
 					{
 						uint2 SourceTexelCoord = uint2(DestX * DownsampleFactor + XOffset, DestY * DownsampleFactor + YOffset);
 						float2 ProbeUV = (SourceTexelCoord + float2(.5f, .5f)) / (float)RadianceProbeResolution;
-						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, RadianceProbeResolution);
-						Radiance += RadianceProbeAtlasTexture.Load(uint3(AtlasBaseCoord + SourceTexelCoord, 0)).xyz * SolidAngle;
-						TotalWeight += SolidAngle;
+						Radiance += RadianceProbeAtlasTexture.Load(uint3(AtlasBaseCoord + SourceTexelCoord, 0)).xyz;
 					}
 				}
 
-				SharedDownsampledProbeRadiance[DestY][DestX] = Radiance / TotalWeight;
+				SharedDownsampledProbeRadiance[DestY][DestX] = Radiance / DownsampleFactor / DownsampleFactor;
 			}
 		}
 	}
@@ -1065,7 +1062,7 @@ void CalculateProbeIrradianceCS(
 		{
 			uint2 IrradianceProbeTexelCoord = OctahedralMapWrapBorder(uint2(DestX, DestY), OutputIrradianceProbeResolution, IrradianceBorderSize);
 			float2 IrradianceProbeUV = (IrradianceProbeTexelCoord + float2(0.5f, 0.5f)) / (float)IrradianceProbeResolution;
-			float3 IrradianceDirection = OctahedronToUnitVector(IrradianceProbeUV * 2.0 - 1.0);
+			float3 IrradianceDirection = EquiAreaSphericalMapping(IrradianceProbeUV);
 			float3 Irradiance = 0;
 			float TotalWeight = 0;
 
@@ -1076,14 +1073,13 @@ void CalculateProbeIrradianceCS(
 				for (uint X = 0; X < SourceProbeResolution; X++)
 				{
 					float2 RadianceProbeUV = (float2(X, Y) + float2(0.5, 0.5)) / (float)SourceProbeResolution;
-					float3 RadianceDirection = OctahedronToUnitVector(RadianceProbeUV * 2.0 - 1.0);
+					float3 RadianceDirection = EquiAreaSphericalMapping(RadianceProbeUV);
 
 					float NdotL = dot(IrradianceDirection, RadianceDirection);
 
 					if (NdotL > 0)
 					{
-						float SolidAngle = OctahedralSolidAngleLUT(RadianceProbeUV, SourceProbeResolution);
-						float SampleWeight = NdotL * SolidAngle;
+						float SampleWeight = NdotL;
 						#if DOWNSAMPLE_TO_SHARED_MEMORY
 							float3 Radiance = SharedDownsampledProbeRadiance[Y][X];
 						#else
@@ -1211,19 +1207,13 @@ void FixupBordersAndGenerateMipsCS(
 			float2 ProbeUV01 = (ParentProbeTexelCoordBase + float2(0, 1) + float2(.5f, .5f)) * InvParentMipSize;
 			float2 ProbeUV11 = (ParentProbeTexelCoordBase + float2(1, 1) + float2(.5f, .5f)) * InvParentMipSize;
 
-			float4 Weights = 1;
-			Weights.x = OctahedralSolidAngle(ProbeUV00, InvParentMipSize);
-			Weights.y = OctahedralSolidAngle(ProbeUV10, InvParentMipSize);
-			Weights.z = OctahedralSolidAngle(ProbeUV01, InvParentMipSize);
-			Weights.w = OctahedralSolidAngle(ProbeUV11, InvParentMipSize);
-
 			float3 Lighting = 0;
-			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 0] * Weights.x;
-			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 1] * Weights.y;
-			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 0] * Weights.z;
-			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 1] * Weights.w;
+			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 0];
+			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 1];
+			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 0];
+			Lighting += SharedLightingMip0[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 1];
 
-			Lighting /= dot(Weights, 1);
+			Lighting /= 4;
 
 			SharedLightingMip1[GroupThreadId.y][GroupThreadId.x] = Lighting;
 			uint2 FinalAtlasCoord = MipProbeTexelCoord + MipSize * ProbeCoord;
@@ -1250,20 +1240,14 @@ void FixupBordersAndGenerateMipsCS(
 			float2 ProbeUV01 = (ParentProbeTexelCoordBase + float2(0, 1) + float2(.5f, .5f)) * InvParentMipSize;
 			float2 ProbeUV11 = (ParentProbeTexelCoordBase + float2(1, 1) + float2(.5f, .5f)) * InvParentMipSize;
 
-			float4 Weights;
-			Weights.x = OctahedralSolidAngle(ProbeUV00, InvParentMipSize);
-			Weights.y = OctahedralSolidAngle(ProbeUV10, InvParentMipSize);
-			Weights.z = OctahedralSolidAngle(ProbeUV01, InvParentMipSize);
-			Weights.w = OctahedralSolidAngle(ProbeUV11, InvParentMipSize);
-
 			float3 Lighting = 0;
-			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 0] * Weights.x;
-			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 1] * Weights.y;
-			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 0] * Weights.z;
-			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 1] * Weights.w;
+			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 0];
+			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 0][GroupThreadId.x * 2 + 1];
+			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 0];
+			Lighting += SharedLightingMip1[GroupThreadId.y * 2 + 1][GroupThreadId.x * 2 + 1];
 
 			uint2 FinalAtlasCoord = MipProbeTexelCoord + MipSize * ProbeCoord;
-			RWFinalRadianceAtlasMip2[FinalAtlasCoord] = Lighting / dot(Weights, 1);
+			RWFinalRadianceAtlasMip2[FinalAtlasCoord] = Lighting / 4;
 		}
 	}
 #endif

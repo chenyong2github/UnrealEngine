@@ -804,7 +804,7 @@ void ScreenProbeSetupVisualizeTraces(
 			float ConeHalfAngle;
 			GetProbeTracingUV(TraceBufferCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-			RayWorldDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+			RayWorldDirection = EquiAreaSphericalMapping(ProbeUV);
 
 			float BaseAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
 			RefinementRay = 1 - ConeHalfAngle / BaseAngle;

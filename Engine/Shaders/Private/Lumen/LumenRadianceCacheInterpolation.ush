@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../OctahedralCommon.ush"
+#include "../MonteCarlo.ush"
 
 #define RADIANCE_PROBE_MAX_CLIPMAPS 6
 #define INVALID_PROBE_INDEX 0xFFFFFFFF
@@ -204,7 +204,7 @@ FRadianceCacheCoverage GetRadianceCacheCoverage(float3 RayOrigin, float3 RayDire
 
 float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, float MipLevel)
 {
-	float2 ProbeUV = UnitVectorToOctahedron(WorldSpaceDirection) * 0.5 + 0.5;
+	float2 ProbeUV = InverseEquiAreaSphericalMapping(WorldSpaceDirection);
 
 #define VISUALIZE_PROBE_DEPTH 0
 #if VISUALIZE_PROBE_DEPTH
@@ -251,7 +251,7 @@ float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint Pro
 	// Currently disabled, needs more work
 #if RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX && 0
 	{
-		float2 ProbeUV = UnitVectorToOctahedron(ReprojectedDirection) * 0.5 + 0.5;
+		float2 ProbeUV = InverseEquiAreaSphericalMapping(ReprojectedDirection);
 		uint2 ProbeAtlasCoord = RadianceProbeResolution * uint2(ProbeIndex & ProbeAtlasResolutionModuloMask, ProbeIndex >> ProbeAtlasResolutionDivideShift);
 		float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeUV * RadianceProbeResolution) * InvProbeDepthAtlasResolution;
 		float2 ProbeGatherAtlasUV = (floor(ProbeAtlasUV / InvProbeDepthAtlasResolution - .5f) + 1.0f) * InvProbeDepthAtlasResolution;
@@ -278,7 +278,7 @@ float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint Pro
 	{
 		float3 StepPosition = ProbeTraceStart + StepIndex / (NumSamples - 1) * ProbeTraceDirection;
 		float3 ProbeToStepPosition = StepPosition - ProbeWorldPosition;
-		float2 ProbeUV = UnitVectorToOctahedron(ProbeToStepPosition) * 0.5 + 0.5;
+		float2 ProbeUV = InverseEquiAreaSphericalMapping(ProbeToStepPosition);
 		float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeUV * RadianceProbeResolution) * InvProbeDepthAtlasResolution;
 		float StepHitDistanceFromProbe = RadianceCacheDepthAtlas.SampleLevel(GlobalPointClampedSampler, ProbeAtlasUV, MipLevel).x;
 		float StepRayDistanceFromProbeSq = dot(ProbeToStepPosition, ProbeToStepPosition);
@@ -355,7 +355,7 @@ void SampleRadianceCacheAndApply(FRadianceCacheCoverage Coverage, float3 WorldSp
 float3 SampleIrradianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
 {
 	//@todo - move out of loop
-	float2 ProbeUV = UnitVectorToOctahedron(WorldSpaceDirection) * 0.5 + 0.5;
+	float2 ProbeUV = InverseEquiAreaSphericalMapping(WorldSpaceDirection);
 
 	uint FinalIrradianceProbeResolution = IrradianceProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	uint2 ProbeAtlasCoord = FinalIrradianceProbeResolution * uint2(ProbeIndex & ProbeAtlasResolutionModuloMask, ProbeIndex >> ProbeAtlasResolutionDivideShift);
@@ -370,7 +370,7 @@ float3 SampleIrradianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
 
 float2 SampleProbeOcclusion(uint ProbeIndex, float3 WorldSpaceDirection)
 {
-	float2 ProbeUV = UnitVectorToOctahedron(WorldSpaceDirection) * 0.5 + 0.5;
+	float2 ProbeUV = InverseEquiAreaSphericalMapping(WorldSpaceDirection);
 
 	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	uint2 ProbeAtlasCoord = FinalOcclusionProbeResolution * uint2(ProbeIndex & ProbeAtlasResolutionModuloMask, ProbeIndex >> ProbeAtlasResolutionDivideShift);

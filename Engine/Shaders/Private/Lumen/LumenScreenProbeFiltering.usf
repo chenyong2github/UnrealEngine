@@ -67,21 +67,29 @@ void ScreenProbeCompositeTracesWithScatterCS(
 					uint MipSize = ScreenProbeTracingOctahedronResolution;
 				#endif
 
-				float2 ProbeUV = (RayTexelCoord + float2(.5f, .5f)) / (float)MipSize;
-
-				float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, MipSize);
-				float Weight = SolidAngle;
-
-				float3 Lighting = TraceRadiance.Load(int3(TraceBufferCoord, 0)).xyz;
+				const float SampleWeight = (float)ScreenProbeGatherOctahedronResolution / MipSize * ScreenProbeGatherOctahedronResolution / MipSize;
+				
+				float3 Lighting = TraceRadiance.Load(int3(TraceBufferCoord, 0)).xyz * SampleWeight;				
 				float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
 
 				if (MaxLighting > MaxRayIntensity)
 				{
 					Lighting *= MaxRayIntensity / MaxLighting;
 				}
+				
+				uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+				uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
+				float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenTileCoord);
 
-				uint2 GatherTexelCoord = RayTexelCoord * ScreenProbeGatherOctahedronResolution / MipSize;
-				uint ThreadIndex = GatherTexelCoord.y * ScreenProbeGatherOctahedronResolution + GatherTexelCoord.x;
+				// Dither incoming radiance to neighbor texels to hide low resolution octahedron pattern.
+				// Since the bilinear dithering weight is based on the exact direction of the ray sample, it also responds better to directional movements within a single texel.
+				float2 GatherTexelCoord = (RayTexelCoord + ProbeTexelCenter) * ScreenProbeGatherOctahedronResolution / MipSize - 0.5;
+				// Offset by half of the period of blue noise to minimize correlation
+				float2 Random = BlueNoiseVec2(ScreenTileCoord, RAY_DIRECTION_TEMPORAL_INDEX + BlueNoise.ModuloMasks.z / 2);
+				int2 QuantizedGatherTexelCoord = floor(GatherTexelCoord) + select(frac(GatherTexelCoord) < Random, int2(0, 0), int2(1, 1));
+				QuantizedGatherTexelCoord = OctahedralMapWrapBorder(QuantizedGatherTexelCoord + 1, ScreenProbeGatherOctahedronResolution + 2, 1);
+				
+				uint ThreadIndex = QuantizedGatherTexelCoord.y * ScreenProbeGatherOctahedronResolution + QuantizedGatherTexelCoord.x;
 
 				if (ScreenProbeGatherOctahedronResolution > ScreenProbeTracingOctahedronResolution)
 				{
@@ -91,19 +99,20 @@ void ScreenProbeCompositeTracesWithScatterCS(
 
 				float MaxValuePerThread = (float)0xFFFFFFFF / ((float)ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution);
 				float LightingQuantizeScale = MaxValuePerThread / MaxRayIntensity;
-				uint3 QuantizedLighting = Lighting * Weight * LightingQuantizeScale;
+				uint3 QuantizedLighting = Lighting * LightingQuantizeScale;
 
 				InterlockedAdd(SharedAccumulators[ThreadIndex][0], QuantizedLighting.x);
 				InterlockedAdd(SharedAccumulators[ThreadIndex][1], QuantizedLighting.y);
 				InterlockedAdd(SharedAccumulators[ThreadIndex][2], QuantizedLighting.z);
-				float WeightQuantizeScale = MaxValuePerThread;
-				InterlockedAdd(SharedAccumulators[ThreadIndex][3], (uint)(Weight * WeightQuantizeScale));
+				// Flag that we have at least 1 valid sample
+				SharedAccumulators[ThreadIndex][3] = 1;
 
 				bool bHit;
 				bool bMoving;
 				float HitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceBufferCoord, 0)).x, bHit, bMoving);
 
-				InterlockedAdd(SharedAccumulators[ThreadIndex][4], (uint)((bMoving ? 1 : 0) * Weight * WeightQuantizeScale));
+				float WeightQuantizeScale = MaxValuePerThread;
+				InterlockedAdd(SharedAccumulators[ThreadIndex][4], (uint)((bMoving ? 1 : 0) * SampleWeight * WeightQuantizeScale));
 				InterlockedMin(SharedAccumulators[ThreadIndex][5], asuint(HitDistance));
 			}
 
@@ -116,16 +125,11 @@ void ScreenProbeCompositeTracesWithScatterCS(
 				uint ThreadIndex = ProbeTexelCoord.y * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord.x;
 				float3 Lighting = float3(SharedAccumulators[ThreadIndex][0], SharedAccumulators[ThreadIndex][1], SharedAccumulators[ThreadIndex][2]) * InvLightingQuantizeScale;
 				float InvWeightQuantizeScale = InvMaxValuePerThread;
-				float Weight = SharedAccumulators[ThreadIndex][3] * InvWeightQuantizeScale;
+				bool bAnySampleValid = SharedAccumulators[ThreadIndex][3] > 0;
 				float TexelMoving = SharedAccumulators[ThreadIndex][4] * InvWeightQuantizeScale;
 				float MinHitDistance = asfloat(SharedAccumulators[ThreadIndex][5]);
 
-				if (Weight > 0.0f)
-				{
-					Lighting /= Weight;
-					TexelMoving /= Weight;
-				}
-				else
+				if (!bAnySampleValid)
 				{
 					MinHitDistance = -1;
 				}
@@ -366,9 +370,9 @@ void ScreenProbeFilterGatherTracesCS(
 			float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
-			float2 ProbeTexelCenter = float2(0.5, 0.5);
+			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenTileCoord);
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)ScreenProbeGatherOctahedronResolution;
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+			float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 			float HitDistance = DecodeProbeHitDistanceForFiltering(ScreenProbeHitDistance.Load(int3(DispatchThreadId.xy, 0)).x);
 			float3 TotalRadiance = 0;
 			float TotalWeight = 0;
@@ -464,13 +468,13 @@ void ScreenProbeInjectLightSamplesCS(
 				{
 					float3 LightDirection = ScreenProbeLightSampleDirection[LightSampleBufferCoord].xyz;
 
-					float2 ProbeUV = UnitVectorToOctahedron(LightDirection) * 0.5f + 0.5f;
-					float2 LightSampleProbeTexelCoord = ProbeUV * ScreenProbeGatherOctahedronResolution;
-
-					uint2 QuantizedLightSampleProbeTexelCoord = (uint2)LightSampleProbeTexelCoord + select(frac(LightSampleProbeTexelCoord) < Random, uint2(0, 0), uint2(1, 1));
-
-					QuantizedLightSampleProbeTexelCoord = OctahedralMapWrapBorder(QuantizedLightSampleProbeTexelCoord, ScreenProbeGatherOctahedronResolution, 0);
-
+					float2 ProbeUV = InverseEquiAreaSphericalMapping(LightDirection);
+					float2 LightSampleProbeTexelCoord = ProbeUV * ScreenProbeGatherOctahedronResolution - 0.5;
+					
+					int2 QuantizedLightSampleProbeTexelCoord = floor(LightSampleProbeTexelCoord) + select(frac(LightSampleProbeTexelCoord) < Random, 0, 1);
+					
+					QuantizedLightSampleProbeTexelCoord = OctahedralMapWrapBorder(QuantizedLightSampleProbeTexelCoord + 1, ScreenProbeGatherOctahedronResolution + 2, 1);
+					
 					if (all(QuantizedLightSampleProbeTexelCoord == ProbeTexelCoord))
 					{
 						TotalRadiance += ScreenProbeLightSampleRadiance[LightSampleBufferCoord];
@@ -547,30 +551,27 @@ void ScreenProbeConvertToIrradianceCS(
 			{
 				float2 ProbeTexelCenter = float2(0.5, 0.5);
 				float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)ScreenProbeGatherOctahedronResolution;
-				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+				float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
-				float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeGatherOctahedronResolution);
 				uint2 ReadIndex = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
 				float3 Radiance = ScreenProbeRadiance.Load(int3(ReadIndex, 0)).xyz;
 
 				FThreeBandSHVector BasisFunction = SHBasisFunction3(WorldConeDirection);
 #if WAVE_OPS
-				FThreeBandSHVectorRGB LightingSH = MulSH3(BasisFunction, Radiance * SolidAngle);
-
-				float NormalizeWeight = 1.0f / WaveActiveSum(SolidAngle);
+				FThreeBandSHVectorRGB LightingSH = MulSH3(BasisFunction, Radiance);
 
 				FThreeBandSHVectorRGB RadianceSH;
-				RadianceSH.R.V0 = WaveActiveSumFloat4(LightingSH.R.V0) * NormalizeWeight;
-				RadianceSH.G.V0 = WaveActiveSumFloat4(LightingSH.G.V0) * NormalizeWeight;
-				RadianceSH.B.V0 = WaveActiveSumFloat4(LightingSH.B.V0) * NormalizeWeight;
+				RadianceSH.R.V0 = WaveActiveSumFloat4(LightingSH.R.V0);
+				RadianceSH.G.V0 = WaveActiveSumFloat4(LightingSH.G.V0);
+				RadianceSH.B.V0 = WaveActiveSumFloat4(LightingSH.B.V0);
 
-				RadianceSH.R.V1 = WaveActiveSumFloat4(LightingSH.R.V1) * NormalizeWeight;
-				RadianceSH.G.V1 = WaveActiveSumFloat4(LightingSH.G.V1) * NormalizeWeight;
-				RadianceSH.B.V1 = WaveActiveSumFloat4(LightingSH.B.V1) * NormalizeWeight;
+				RadianceSH.R.V1 = WaveActiveSumFloat4(LightingSH.R.V1);
+				RadianceSH.G.V1 = WaveActiveSumFloat4(LightingSH.G.V1);
+				RadianceSH.B.V1 = WaveActiveSumFloat4(LightingSH.B.V1);
 
-				RadianceSH.R.V2 = WaveActiveSum(LightingSH.R.V2) * NormalizeWeight;
-				RadianceSH.G.V2 = WaveActiveSum(LightingSH.G.V2) * NormalizeWeight;
-				RadianceSH.B.V2 = WaveActiveSum(LightingSH.B.V2) * NormalizeWeight;
+				RadianceSH.R.V2 = WaveActiveSum(LightingSH.R.V2);
+				RadianceSH.G.V2 = WaveActiveSum(LightingSH.G.V2);
+				RadianceSH.B.V2 = WaveActiveSum(LightingSH.B.V2);
 
 				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 				{
@@ -626,7 +627,7 @@ void ScreenProbeConvertToIrradianceCS(
 							uint2 IrradianceProbeTexelCoord = uint2(X, Y);
 							uint2 WrappedProbeTexelCoord = OctahedralMapWrapBorder(IrradianceProbeTexelCoord, IRRADIANCE_PROBE_WITH_BORDER_RES, 1);
 							float2 ProbeUV = (WrappedProbeTexelCoord + 0.5f) / IRRADIANCE_PROBE_RES;
-							float3 ProbeTexelDirection = OctahedronToUnitVector(ProbeUV * 2.0f - 1.0f);
+							float3 ProbeTexelDirection = EquiAreaSphericalMapping(ProbeUV);
 
 							FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(ProbeTexelDirection, 1.0f);
 							float3 Irradiance = 4.0f * PI * DotSH3(RadianceSH, DiffuseTransferSH);
@@ -646,10 +647,10 @@ void ScreenProbeConvertToIrradianceCS(
 				SharedSHBasisFunctions[ThreadIndex][6] = BasisFunction.V1.z;
 				SharedSHBasisFunctions[ThreadIndex][7] = BasisFunction.V1.w;
 				SharedSHBasisFunctions[ThreadIndex][8] = BasisFunction.V2;
-				SharedLightingRadiance[ThreadIndex][0] = Radiance.x * SolidAngle;
-				SharedLightingRadiance[ThreadIndex][1] = Radiance.y * SolidAngle;
-				SharedLightingRadiance[ThreadIndex][2] = Radiance.z * SolidAngle;
-				SharedLightingRadiance[ThreadIndex][3] = SolidAngle;
+				SharedLightingRadiance[ThreadIndex][0] = Radiance.x;
+				SharedLightingRadiance[ThreadIndex][1] = Radiance.y;
+				SharedLightingRadiance[ThreadIndex][2] = Radiance.z;
+				SharedLightingRadiance[ThreadIndex][3] = 1.0f;
 #endif
 			}
 
@@ -745,7 +746,7 @@ void ScreenProbeConvertToIrradianceCS(
 						uint2 IrradianceProbeTexelCoord = uint2(X, Y);
 						uint2 WrappedProbeTexelCoord = OctahedralMapWrapBorder(IrradianceProbeTexelCoord, IRRADIANCE_PROBE_WITH_BORDER_RES, 1);
 						float2 ProbeUV = (WrappedProbeTexelCoord + 0.5f) / IRRADIANCE_PROBE_RES;
-						float3 ProbeTexelDirection = OctahedronToUnitVector(ProbeUV * 2.0f - 1.0f);
+						float3 ProbeTexelDirection = EquiAreaSphericalMapping(ProbeUV);
 
 						FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(ProbeTexelDirection, 1.0f);
 						float3 Irradiance = 4.0f * PI * DotSH3(RadianceSH3, DiffuseTransferSH);
@@ -925,20 +926,14 @@ void ScreenProbeGenerateMipLevelCS(
 		float2 ProbeUV01 = (ProbeTexelCoord * 2 + float2(0, 1) + float2(.5f, .5f)) * InvParentMipSize;
 		float2 ProbeUV11 = (ProbeTexelCoord * 2 + float2(1, 1) + float2(.5f, .5f)) * InvParentMipSize;
 
-		float4 Weights;
-		Weights.x = OctahedralSolidAngleLUT(ProbeUV00, ParentMipSize);
-		Weights.y = OctahedralSolidAngleLUT(ProbeUV10, ParentMipSize);
-		Weights.z = OctahedralSolidAngleLUT(ProbeUV01, ParentMipSize);
-		Weights.w = OctahedralSolidAngleLUT(ProbeUV11, ParentMipSize);
-
 		//@todo - gather area around texel, not aligned to power of 2
 		float3 Lighting = 0;
-		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 0), 0)).xyz * Weights.x;
-		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 0), 0)).xyz * Weights.y;
-		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 1), 0)).xyz * Weights.z;
-		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 1), 0)).xyz * Weights.w;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 0), 0)).xyz;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 0), 0)).xyz;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 1), 0)).xyz;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 1), 0)).xyz;
 
 		uint2 WriteCoord = MipSize * ScreenProbeAtlasCoord + ProbeTexelCoord;
-		RWScreenProbeRadianceWithBorderMip[WriteCoord] = Lighting / dot(Weights, 1);
+		RWScreenProbeRadianceWithBorderMip[WriteCoord] = Lighting / 4;
 	}
 }

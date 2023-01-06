@@ -157,7 +157,7 @@ void GetScreenProbeTexelRay(
 		float2 ProbeUV;
 		GetProbeTracingUV(TraceBufferCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-		RayDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+		RayDirection = EquiAreaSphericalMapping(ProbeUV);
 	}
 #endif
 }

@@ -163,7 +163,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 
 		FRayDesc Ray;
 		Ray.Origin = TranslatedWorldPosition;
-		Ray.Direction = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+		Ray.Direction = EquiAreaSphericalMapping(ProbeUV);
 		Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
 #if ENABLE_FAR_FIELD_TRACING
 		Ray.TMin = max(Ray.TMin, FarFieldBias);
