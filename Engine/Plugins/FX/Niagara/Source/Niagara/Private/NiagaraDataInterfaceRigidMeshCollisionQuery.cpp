@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "DistanceFieldLightingShared.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "SkeletalRenderPublic.h"
 
