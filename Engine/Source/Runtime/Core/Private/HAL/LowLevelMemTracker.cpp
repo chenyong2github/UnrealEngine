@@ -378,20 +378,15 @@ public:
 
 	void Clear();
 
-	void PushTag(const FTagData* TagData);
-	void PopTag();
-	const FTagData* GetTopTag();
-#if LLM_ALLOW_ASSETS_TAGS
-	void PushAssetTag(const FTagData* TagData);
-	void PopAssetTag();
-	const FTagData* GetTopAssetTag();
-#endif
-	void TrackAllocation(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType,
-		const FTagData* TagData, const FTagData* AssetTagData, bool bTrackInMemPro);
-	void TrackFree(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType,
-		const FTagData* TagData, const FTagData* AssetTagData, bool bTrackInMemPro);
+	void PushTag(const FTagData* TagData, ELLMTagSet TagSet);
+	void PopTag(ELLMTagSet TagSet);
+	const FTagData* GetTopTag(ELLMTagSet TagSet);
+	void TrackAllocation(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType, 
+		const FTagData* TagData, const FTagData* AssetTagData, const FTagData* AssetClassTagData, bool bTrackInMemPro);
+	void TrackFree(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType, 
+		const FTagData* TagData, const FTagData* AssetTagData, const FTagData* AssetClassTagData, bool bTrackInMemPro);
 	void TrackMemory(int64 Amount, ELLMTracker Tracker, ELLMAllocType AllocType,
-		const FTagData* TagData, const FTagData* AssetTagData);
+		const FTagData* TagData);
 	void TrackMoved(const void* Dest, const void* Source, int64 Size, ELLMTracker Tracker, const FTagData* TagData);
 	void IncrTag(const FTagData* Tag, int64 Amount);
 
@@ -402,11 +397,7 @@ public:
 
 	void ClearAllocTypeAmounts();
 
-	FConstTagDataArray TagStack;
-#if LLM_ALLOW_ASSETS_TAGS
-	FConstTagDataArray AssetTagStack;
-#endif
-
+	FConstTagDataArray TagStack[static_cast<int32>(ELLMTagSet::Max)];
 	FThreadTagSizeMap Allocations;
 	FCriticalSection TagSection;
 
@@ -424,15 +415,10 @@ public:
 
 	void Initialise(ELLMTracker Tracker, FLLMAllocator* InAllocator);
 
-	void PushTag(ELLMTag EnumTag);
-	void PushTag(FName Tag, bool bInIsStatTag);
-	void PushTag(const FTagData* TagData);
-	void PopTag();
-#if LLM_ALLOW_ASSETS_TAGS
-	void PushAssetTag(FName Tag);
-	void PushAssetTag(const FTagData* Tag);
-	void PopAssetTag();
-#endif
+	void PushTag(ELLMTag EnumTag, ELLMTagSet TagSet);
+	void PushTag(FName Tag, bool bInIsStatTag, ELLMTagSet TagSet);
+	void PushTag(const FTagData* TagData, ELLMTagSet TagSet);
+	void PopTag(ELLMTagSet TagSet);
 	void TrackAllocation(const void* Ptr, int64 Size, FName DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType,
 		bool bTrackInMemPro);
 	void TrackAllocation(const void* Ptr, int64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType,
@@ -443,11 +429,12 @@ public:
 	void OnAllocMoved(const void* Dest, const void* Source, ELLMTracker Tracker, ELLMAllocType AllocType);
 
 	void TrackMemory(ELLMTag EnumTag, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType);
-	void TrackMemory(FName TagName, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType);
+	void TrackMemory(FName TagName, ELLMTagSet TagSet, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType);
 	void TrackMemory(const FTagData* TagData, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType);
 
 	// This will pause/unpause tracking, and also manually increment a given tag
-	void PauseAndTrackMemory(FName TagName, ELLMTracker Tracker, bool bInIsStatTag, int64 Amount, ELLMAllocType AllocType);
+	void PauseAndTrackMemory(FName TagName, ELLMTagSet TagSet, ELLMTracker Tracker, bool bInIsStatTag, int64 Amount,
+		ELLMAllocType AllocType);
 	void PauseAndTrackMemory(ELLMTag EnumTag, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType);
 	void PauseAndTrackMemory(const FTagData* TagData, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType);
 	void Pause(ELLMAllocType AllocType);
@@ -466,56 +453,88 @@ public:
 	struct FLowLevelAllocInfo
 	{
 	public:
-		void SetTag(const FTagData* InTag, FLowLevelMemTracker& InLLMRef)
+		FLowLevelAllocInfo()
+		{
+#if LLM_ENABLED_FULL_TAGS && LLM_ALLOW_ASSETS_TAGS
+			FMemory::Memset(Tag, InvalidCompressedTagValue);
+#endif
+		}
+
+		void SetTag(const FTagData* InTag, FLowLevelMemTracker& InLLMRef
+#if LLM_ALLOW_ASSETS_TAGS
+		, ELLMTagSet InTagSet = ELLMTagSet::None
+#endif
+		)
 		{
 #if LLM_ENABLED_FULL_TAGS
+#if !LLM_ALLOW_ASSETS_TAGS
 			Tag = InTag->GetIndex();
+#else
+			Tag[static_cast<int32>(InTagSet)] = InTag ? InTag->GetIndex() : InvalidCompressedTagValue;
+#endif //!LLM_ALLOW_ASSETS_TAGS
 #else
 			Tag = InTag->GetEnumTag();
 #endif
 		}
 
-		const FTagData* GetTag(FLowLevelMemTracker& InLLMRef) const
+		const FTagData* GetTag(FLowLevelMemTracker& InLLMRef
+#if LLM_ALLOW_ASSETS_TAGS
+		, ELLMTagSet InTagSet = ELLMTagSet::None
+#endif
+		) const
 		{
 #if LLM_ENABLED_FULL_TAGS
 			FReadScopeLock TagDataScopeLock(InLLMRef.TagDataLock);
+#if !LLM_ALLOW_ASSETS_TAGS
 			return (*InLLMRef.TagDatas)[Tag];
+#else
+			return Tag[static_cast<int32>(InTagSet)] >= 0 ? (*InLLMRef.TagDatas)[Tag[static_cast<int32>(InTagSet)]] : nullptr;
+#endif
 #else
 			return InLLMRef.FindTagData(Tag);
 #endif
 		}
 
-#if LLM_ALLOW_ASSETS_TAGS
-		void SetAssetTag(const FTagData* InTag, FLowLevelMemTracker& InLLMRef)
-		{
-			AssetTag = InTag;
-		}
-
-		const FTagData* GetAssetTag(FLowLevelMemTracker& InLLMRef) const
-		{
-			return AssetTag;
-		}
-#endif
-
 #if LLM_ENABLED_FULL_TAGS
-		int32 GetCompressedTag() { return Tag; }
-		void SetCompressedTag(int32 InTag) { Tag = InTag; }
+		int32 GetCompressedTag(ELLMTagSet InTagSet)
+		{
+#if !LLM_ALLOW_ASSETS_TAGS
+			return (InTagSet == ELLMTagSet::None) ? Tag : InvalidCompressedTagValue;
+#else
+			return Tag[static_cast<int32>(InTagSet)];
+#endif
+		}
+
+		void SetCompressedTag(int32 InTag, ELLMTagSet InTagSet)
+		{
+#if !LLM_ALLOW_ASSETS_TAGS
+			if (InTagSet == ELLMTagSet::None)
+			{
+				Tag = InTag;
+			}
+#else
+			Tag[static_cast<int32>(InTagSet)] = InTag;
+#endif
+		}
 #else
 		ELLMTag GetCompressedTag() { return Tag; }
 		void SetCompressedTag(ELLMTag InTag) { Tag = InTag; }
 #endif
 
 	private:
-#if LLM_ALLOW_ASSETS_TAGS
-		const FTagData* AssetTag = nullptr;
-#endif
 #if LLM_ENABLED_FULL_TAGS
 		// Even with arbitrary tags we are still partially compressed - the allocation records the tag's index
 		// (4 bytes) rather than the full tag pointer (8 bytes) or the tag's name (12 bytes).
+#if !LLM_ALLOW_ASSETS_TAGS
 		int32 Tag = 0;
+#else
+		int32 Tag[static_cast<int32>(ELLMTagSet::Max)];
+		static_assert(static_cast<uint32>(ELLMTagSet::Max) <= 3, "Every new TagSet enum adds 4 bytes of LLM overhead memory for every active allocation. Do not add them without measuring the cost of the overhead in the cook and runtime of large projects.");
+#endif
 #else
 		ELLMTag Tag = ELLMTag::Untagged;
 #endif
+		static const int32 InvalidCompressedTagValue = -1;
 	};
 
 	typedef LLMMap<PointerKey, uint32, FLowLevelAllocInfo, LLMNumAllocsType> FLLMAllocMap;	// pointer, size, info, Capacity SizeType
@@ -529,9 +548,13 @@ public:
 	int64 GetTagAmount(const FTagData* TagData, bool bPeakAmount = false) const;
 	void SetTagAmountExternal(const FTagData* TagData, int64 Amount, bool bAddToTotal);
 	void SetTagAmountInUpdate(const FTagData* TagData, int64 Amount, bool bAddToTotal);
-	const FTagData* GetActiveTagData();
-	const FTagData* FindTagForPtr(void* Ptr);
-	TArray<const FTagData*> GetTagDatas();
+	const FTagData* GetActiveTagData(ELLMTagSet TagSet = ELLMTagSet::None);
+	TArray<const FTagData*> GetTagDatas(ELLMTagSet TagSet = ELLMTagSet::None);
+
+	void GetTagsNamesWithAmount(TMap<FName, uint64>& OutTagsNamesWithAmount, ELLMTagSet TagSet = ELLMTagSet::None);
+	void GetTagsNamesWithAmountFiltered(TMap<FName, uint64>& OutTagsNamesWithAmount, ELLMTagSet TagSet, TArray<FLLMTagSetAllocationFilter>& Filters);
+
+	bool FindTagsForPtr(void* InPtr, TArray<const FTagData*, TInlineAllocator<static_cast<int32>(ELLMTagSet::Max)>>& OutTags);
 
 	int64 GetAllocTypeAmount(ELLMAllocType AllocType);
 
@@ -589,6 +612,8 @@ static FName GetTagName_CustomName()
 	return TagName_CustomName;
 }
 static FName TagName_Untagged(TEXT("Untagged"));
+static FName TagName_UntaggedAsset(TEXT("UntaggedAsset"));
+static FName TagName_UntaggedAssetClass(TEXT("UntaggedAssetClass"));
 
 FName LLMGetTagUniqueName(ELLMTag Tag)
 {
@@ -1412,7 +1437,7 @@ static bool IsAssetTagForAssets(ELLMTagSet Set)
 	return Set == ELLMTagSet::Assets || Set == ELLMTagSet::AssetClasses;
 }
 
-void FLowLevelMemTracker::RegisterCustomTagInternal(int32 Tag, const TCHAR* InDisplayName, FName StatName,
+void FLowLevelMemTracker::RegisterCustomTagInternal(int32 Tag, ELLMTagSet TagSet, const TCHAR* InDisplayName, FName StatName,
 	FName SummaryStatName, int32 ParentTag)
 {
 	using namespace UE::LLMPrivate;
@@ -1426,7 +1451,7 @@ void FLowLevelMemTracker::RegisterCustomTagInternal(int32 Tag, const TCHAR* InDi
 	FName ParentName = ParentTag >= 0 ? LLMGetTagUniqueName(static_cast<ELLMTag>(ParentTag)) : NAME_None;
 
 	RegisterTagData(LLMGetTagUniqueName(EnumTag), DisplayName, ParentName, StatName, SummaryStatName, true,
-		EnumTag, false, ETagReferenceSource::CustomEnumTag);
+		EnumTag, false, ETagReferenceSource::CustomEnumTag, TagSet);
 }
 
 void FLowLevelMemTracker::RegisterPlatformTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName,
@@ -1442,7 +1467,7 @@ void FLowLevelMemTracker::RegisterPlatformTag(int32 Tag, const TCHAR* Name, FNam
 
 	LLMCheck(Tag >= static_cast<int32>(ELLMTag::PlatformTagStart) &&
 		Tag <= static_cast<int32>(ELLMTag::PlatformTagEnd));
-	RegisterCustomTagInternal(Tag, Name, StatName, SummaryStatName, ParentTag);
+	RegisterCustomTagInternal(Tag, ELLMTagSet::None, Name, StatName, SummaryStatName, ParentTag);
 }
 
 void FLowLevelMemTracker::RegisterProjectTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName,
@@ -1457,7 +1482,7 @@ void FLowLevelMemTracker::RegisterProjectTag(int32 Tag, const TCHAR* Name, FName
 	BootstrapInitialise();
 
 	LLMCheck(Tag >= static_cast<int32>(ELLMTag::ProjectTagStart) && Tag <= static_cast<int32>(ELLMTag::ProjectTagEnd));
-	RegisterCustomTagInternal(Tag, Name, StatName, SummaryStatName, ParentTag);
+	RegisterCustomTagInternal(Tag, ELLMTagSet::None, Name, StatName, SummaryStatName, ParentTag);
 }
 
 void GlobalRegisterTagDeclaration(FLLMTagDeclaration& TagDeclaration)
@@ -1558,7 +1583,7 @@ void FLowLevelMemTracker::InitialiseTagDatas_FinishRegister()
 			ELLMTag EnumTag = ELLMTag::Enum; \
 			int32 Index = static_cast<int32>(EnumTag); \
 			FTagData* TagData = TagDataEnumMap[Index]; \
-			FTagData*& ExistingTagData = TagDataNameMap->FindOrAdd(TagData->GetName(), nullptr); \
+			FTagData*& ExistingTagData = TagDataNameMap->FindOrAdd(FTagDataNameKey(TagData->GetName(), TagData->GetTagSet()), nullptr); \
 			if (ExistingTagData != nullptr) \
 			{ \
 				ReportDuplicateTagName(ExistingTagData, ETagReferenceSource::EnumTag); \
@@ -1624,14 +1649,14 @@ void FLowLevelMemTracker::ClearTagDatas()
 void FLowLevelMemTracker::RegisterTagDeclaration(FLLMTagDeclaration& TagDeclaration)
 {
 	TagDeclaration.ConstructUniqueName();
-	RegisterTagData(TagDeclaration.UniqueName, TagDeclaration.DisplayName, TagDeclaration.ParentTagName,
-		TagDeclaration.StatName, TagDeclaration.SummaryStatName, false, ELLMTag::CustomName, false,
-		UE::LLMPrivate::ETagReferenceSource::Declare);
+	RegisterTagData(TagDeclaration.UniqueName, TagDeclaration.DisplayName, TagDeclaration.ParentTagName, 
+		TagDeclaration.StatName, TagDeclaration.SummaryStatName, false, ELLMTag::CustomName, false, 
+		UE::LLMPrivate::ETagReferenceSource::Declare, TagDeclaration.TagSet);
 }
 
-UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName DisplayName, FName ParentName,
-	FName StatName, FName SummaryStatName, bool bHasEnumTag, ELLMTag EnumTag, bool bIsStatTag,
-	UE::LLMPrivate::ETagReferenceSource ReferenceSource)
+UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName DisplayName, FName ParentName, 
+	FName StatName, FName SummaryStatName, bool bHasEnumTag, ELLMTag EnumTag, bool bIsStatTag, 
+	UE::LLMPrivate::ETagReferenceSource ReferenceSource, ELLMTagSet TagSet/* = ELLMTagSet::None*/)
 {
 	LLMCheckf(!bIsBootstrapping,
 		TEXT("A tag outside of LLM_ENUM_GENERIC_TAGS was requested from LLM_SCOPE or allocation while bootstrapping the names for LLM_ENUM_GENERIC_TAGS, this is not supported."));
@@ -1654,27 +1679,19 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 			DisplayName = Name;
 		}
 	}
+	else if (TagSet != ELLMTagSet::None)
+	{
+		// Tags not in the None TagSet do not have parents and do not require name validation
+		DisplayName = Name;
+	}
 	else if (bIsStatTag)
 	{
-		// Stat tag unique names do not have to be validated, because they are never used as parent tags.
-		// Stat tag unique names are of the form //GroupName//StatUniqueName///StatDisplayName///<OtherData>. 
 		// We set LLM UniqueName = <TheEntireString> and LLM DisplayName = StatDisplayName.
 		// Stat tags do not specify their parent, and their parent is set to the CustomName aggregator.
 		LLMCheck(DisplayName.IsNone());
 		LLMCheck(ParentName.IsNone());
 		DisplayName = Name;
 		ParentName = GetTagName_CustomName();
-
-		const TCHAR* Start = FCString::Strstr(NameBuffer.ToString(), TEXT("///"));
-		if (Start)
-		{
-			Start += 3;
-			const TCHAR* End = FCString::Strstr(Start, TEXT("///"));
-			if (End)
-			{
-				DisplayName = FName(FStringView(Start, UE_PTRDIFF_TO_INT32(End - Start)));
-			}
-		}
 	}
 	else
 	{
@@ -1724,7 +1741,7 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 	}
 
 	FWriteScopeLock ScopeLock(TagDataLock);
-	FTagData*& TagDataForName = TagDataNameMap->FindOrAdd(Name, nullptr);
+	FTagData*& TagDataForName = TagDataNameMap->FindOrAdd(FTagDataNameKey(Name, TagSet), nullptr);
 	if (TagDataForName)
 	{
 		// The tag already exists; this can happen because two formal registrations have tried to add the same name,
@@ -1755,7 +1772,7 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 	FTagData* ParentData = nullptr;
 	if (!ParentName.IsNone())
 	{
-		FTagData** ParentPtr = TagDataNameMap->Find(ParentName);
+		FTagData** ParentPtr = TagDataNameMap->Find(FTagDataNameKey(ParentName, TagSet));
 		if (ParentPtr)
 		{
 			ParentData = *ParentPtr;
@@ -1765,12 +1782,12 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 	FTagData* TagData;
 	if (ParentName.IsNone() || ParentData)
 	{
-		TagData = Allocator.New<FTagData>(Name, DisplayName, ParentData, StatName, SummaryStatName, bHasEnumTag,
+		TagData = Allocator.New<FTagData>(Name, TagSet, DisplayName, ParentData, StatName, SummaryStatName, bHasEnumTag,
 			EnumTag, ReferenceSource);
 	}
 	else
 	{
-		TagData = Allocator.New<FTagData>(Name, DisplayName, ParentName, StatName, SummaryStatName, bHasEnumTag,
+		TagData = Allocator.New<FTagData>(Name, TagSet, DisplayName, ParentName, StatName, SummaryStatName, bHasEnumTag,
 			EnumTag, ReferenceSource);
 	}
 	TagData->SetIndex(TagDatas->Num());
@@ -1856,20 +1873,20 @@ void FLowLevelMemTracker::FinishConstruct(UE::LLMPrivate::FTagData* TagData,
 		}
 		else
 		{
-			FTagData** ParentDataPtr = TagDataNameMap->Find(ParentName);
+			FTagData** ParentDataPtr = TagDataNameMap->Find(FTagDataNameKey(ParentName, TagData->GetTagSet()));
 			if (!ParentDataPtr)
 			{
 				// We have to drop the ReadLock to call RegisterTagData, which takes a WriteLock.
 				TagDataLock.ReadUnlock();
 				FTagData* ParentTagData = &RegisterTagData(ParentName, NAME_None, NAME_None, NAME_None, NAME_None,
-					false, ELLMTag::CustomName, false, ETagReferenceSource::ImplicitParent);
+					false, ELLMTag::CustomName,false, ETagReferenceSource::ImplicitParent, TagData->GetTagSet());
 				TagDataLock.ReadLock();
 				if (TagData->IsFinishConstructed())
 				{
 					// Another thread got in and finished construction while we were outside of the lock.
 					return;
 				}
-				ParentDataPtr = TagDataNameMap->Find(ParentName);
+				ParentDataPtr = TagDataNameMap->Find(FTagDataNameKey(ParentName, TagData->GetTagSet()));
 				LLMCheck(ParentDataPtr);
 			}
 			FTagData* ParentData = *ParentDataPtr;
@@ -1887,7 +1904,7 @@ void FLowLevelMemTracker::FinishConstruct(UE::LLMPrivate::FTagData* TagData,
 	}
 }
 
-TArray<const UE::LLMPrivate::FTagData*> FLowLevelMemTracker::GetTrackedTags()
+TArray<const UE::LLMPrivate::FTagData*> FLowLevelMemTracker::GetTrackedTags(ELLMTagSet TagSet)
 {
 	using namespace UE::LLMPrivate;
 
@@ -1899,10 +1916,15 @@ TArray<const UE::LLMPrivate::FTagData*> FLowLevelMemTracker::GetTrackedTags()
 	BootstrapInitialise();
 
 	FReadScopeLock TagDataScopeLock(TagDataLock);
-	return TArray<const FTagData*>(*TagDatas);
+	
+	TArray<const FTagData*> FoundResults(TagDatas->FilterByPredicate([TagSet](const FTagData* InTagData){
+		return InTagData != nullptr && InTagData->GetTagSet() == TagSet;
+	}));
+
+	return FoundResults;
 }
 
-TArray<const UE::LLMPrivate::FTagData*> FLowLevelMemTracker::GetTrackedTags(ELLMTracker Tracker)
+TArray<const UE::LLMPrivate::FTagData*> FLowLevelMemTracker::GetTrackedTags(ELLMTracker Tracker, ELLMTagSet TagSet /* = ELLMTagSet::None */)
 {
 	using namespace UE::LLMPrivate;
 
@@ -1914,10 +1936,40 @@ TArray<const UE::LLMPrivate::FTagData*> FLowLevelMemTracker::GetTrackedTags(ELLM
 	BootstrapInitialise();
 
 	FScopeLock UpdateScopeLock(&UpdateLock); // uses of TagSizes are guarded by the UpdateLock
-	return GetTracker(Tracker)->GetTagDatas();
+	return GetTracker(Tracker)->GetTagDatas(TagSet);
 }
 
-bool FLowLevelMemTracker::FindTagByName( const TCHAR* Name, uint64& OutTag ) const
+void FLowLevelMemTracker::GetTrackedTagsNamesWithAmount(TMap<FName, uint64>& TagsNamesWithAmount, ELLMTracker Tracker, ELLMTagSet TagSet)
+{
+	using namespace UE::LLMPrivate;
+
+	if (bIsDisabled)
+	{
+		return;
+	}
+
+	BootstrapInitialise();
+
+	FScopeLock UpdateScopeLock(&UpdateLock);
+	GetTracker(Tracker)->GetTagsNamesWithAmount(TagsNamesWithAmount, TagSet);
+}
+
+void FLowLevelMemTracker::GetTrackedTagsNamesWithAmountFiltered(TMap<FName, uint64>& TagsNamesWithAmount, ELLMTracker Tracker, ELLMTagSet TagSet, TArray<FLLMTagSetAllocationFilter>& Filters)
+{
+	using namespace UE::LLMPrivate;
+
+	if (bIsDisabled)
+	{
+		return;
+	}
+
+	BootstrapInitialise();
+
+	FScopeLock UpdateScopeLock(&UpdateLock);
+	GetTracker(Tracker)->GetTagsNamesWithAmountFiltered(TagsNamesWithAmount, TagSet, Filters);
+}
+
+bool FLowLevelMemTracker::FindTagByName( const TCHAR* Name, uint64& OutTag, ELLMTagSet InTagSet /*= ELLMTagSet::None*/ ) const
 {
 	using namespace UE::LLMPrivate;
 
@@ -1934,7 +1986,7 @@ bool FLowLevelMemTracker::FindTagByName( const TCHAR* Name, uint64& OutTag ) con
 
 		// Search by Name
 		FName SearchName(Name);
-		FTagData** TagDataPtr = TagDataNameMap->Find(SearchName);
+		FTagData** TagDataPtr = TagDataNameMap->Find(FTagDataNameKey(SearchName, InTagSet));
 		if (TagDataPtr)
 		{
 			const FTagData* TagData = *TagDataPtr;
@@ -2059,6 +2111,19 @@ int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, const UE:
 	return GetTracker(Tracker)->GetTagAmount(TagData, bPeakAmount);
 }
 
+int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet,
+	bool bPeakAmount /* = false */)
+{
+	if (bIsDisabled)
+	{
+		return 0;
+	}
+
+	BootstrapInitialise();
+
+	return GetTagAmountForTracker(Tracker, FindTagData(Tag, TagSet, UE::LLMPrivate::ETagReferenceSource::FunctionAPI), bPeakAmount);
+}
+
 void FLowLevelMemTracker::SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal)
 {
 	using namespace UE::LLMPrivate;
@@ -2095,7 +2160,7 @@ int64 FLowLevelMemTracker::GetActiveTag(ELLMTracker Tracker)
 	}
 }
 
-const UE::LLMPrivate::FTagData* FLowLevelMemTracker::GetActiveTagData(ELLMTracker Tracker)
+const UE::LLMPrivate::FTagData* FLowLevelMemTracker::GetActiveTagData(ELLMTracker Tracker, ELLMTagSet TagSet /*= ELLMTagSet::None*/)
 {
 	if (bIsDisabled)
 	{
@@ -2103,7 +2168,7 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::GetActiveTagData(ELLMTracke
 	}
 	BootstrapInitialise();
 
-	return GetTracker(Tracker)->GetActiveTagData();
+	return GetTracker(Tracker)->GetActiveTagData(TagSet);
 }
 
 uint64 FLowLevelMemTracker::DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber )
@@ -2181,14 +2246,14 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindOrAddTagData(ELLMTag En
 	}
 }
 
-const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindOrAddTagData(FName TagName, bool bIsStatTag,
+const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindOrAddTagData(FName TagName, ELLMTagSet TagSet, bool bIsStatTag,
 	UE::LLMPrivate::ETagReferenceSource ReferenceSource)
 {
 	using namespace UE::LLMPrivate;
 
 	{
 		FReadScopeLock ScopeLock(TagDataLock);
-		FTagData** TagDataPtr = TagDataNameMap->Find(TagName);
+		FTagData** TagDataPtr = TagDataNameMap->Find(FTagDataNameKey(TagName, TagSet));
 		if (TagDataPtr)
 		{
 			FTagData* TagData = *TagDataPtr;
@@ -2203,14 +2268,14 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindOrAddTagData(FName TagN
 		FinishInitialise();
 		// Reeneter this function so that we retry the find above; note we avoid infinite recursion because
 		// bFullyInitialised is now true.
-		return FindOrAddTagData(TagName, bIsStatTag, ReferenceSource);
+		return FindOrAddTagData(TagName, TagSet, bIsStatTag, ReferenceSource);
 	}
 	LLMCheckf(!bIsBootstrapping, TEXT("LLM Error: Invalid use of FName tag when initialising tags."));
 
 	// Add the new Tag
 	FName StatName = bIsStatTag ? TagName : NAME_None;
 	FTagData* TagData = &RegisterTagData(TagName, NAME_None, NAME_None, StatName, NAME_None, false,
-		ELLMTag::CustomName, bIsStatTag, ReferenceSource);
+		ELLMTag::CustomName, bIsStatTag, ReferenceSource, TagSet);
 	{
 		FReadScopeLock ScopeLock(TagDataLock);
 		FinishConstruct(TagData, ReferenceSource);
@@ -2239,14 +2304,14 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindTagData(ELLMTag EnumTag
 	}
 }
 
-const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindTagData(FName TagName,
+const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindTagData(FName TagName, ELLMTagSet TagSet,
 	UE::LLMPrivate::ETagReferenceSource ReferenceSource)
 {
 	using namespace UE::LLMPrivate;
 
 	FReadScopeLock ScopeLock(TagDataLock);
 
-	FTagData** TagDataPtr = TagDataNameMap->Find(TagName);
+	FTagData** TagDataPtr = TagDataNameMap->Find(FTagDataNameKey(TagName, TagSet));
 	if (TagDataPtr)
 	{
 		FTagData* TagData = *TagDataPtr;
@@ -2259,7 +2324,7 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindTagData(FName TagName,
 	}
 }
 
-void FLLMScope::Init(ELLMTag TagEnum, bool bInIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker)
+void FLLMScope::Init(ELLMTag TagEnum, bool bInIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride)
 {
 	LLMCheck(!bInIsStatTag && InTagSet == ELLMTagSet::None);
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
@@ -2272,15 +2337,19 @@ void FLLMScope::Init(ELLMTag TagEnum, bool bInIsStatTag, ELLMTagSet InTagSet, EL
 	}
 	LLMRef.BootstrapInitialise();
 
+	if (!bOverride && LLMRef.GetTracker(InTracker)->GetActiveTagData(InTagSet) != nullptr)
+	{
+		bEnabled = false;
+		return;
+	}
+
 	bEnabled = true;
 	Tracker = InTracker;
-#if LLM_ALLOW_ASSETS_TAGS
-	bIsAssetTag = false;
-#endif
-	LLMRef.GetTracker(Tracker)->PushTag(TagEnum);
+	TagSet = InTagSet;
+	LLMRef.GetTracker(Tracker)->PushTag(TagEnum, InTagSet);
 }
 
-void FLLMScope::Init(FName TagName, bool bInIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker)
+void FLLMScope::Init(FName TagName, bool bInIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride)
 {
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
 	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set
@@ -2297,26 +2366,22 @@ void FLLMScope::Init(FName TagName, bool bInIsStatTag, ELLMTagSet InTagSet, ELLM
 		return;
 	}
 
+	if (!bOverride && LLMRef.GetTracker(InTracker)->GetActiveTagData(InTagSet) != nullptr)
+	{
+		bEnabled = false;
+		return;
+	}
+
 	bEnabled = true;
 	Tracker = InTracker;
+	TagSet = InTagSet;
 
-#if LLM_ALLOW_ASSETS_TAGS
-	bIsAssetTag = bInIsStatTag && IsAssetTagForAssets(InTagSet);
-	if (bIsAssetTag)
-	{
-		LLMRef.GetTracker(Tracker)->PushAssetTag(TagName);
-	}
-	else
-#endif
-	{
-		LLMRef.GetTracker(Tracker)->PushTag(TagName, bInIsStatTag);
-	}
+	LLMRef.GetTracker(Tracker)->PushTag(TagName, bInIsStatTag, InTagSet);
 }
 
 void FLLMScope::Init(const UE::LLMPrivate::FTagData* TagData, bool bInIsStatTag, ELLMTagSet InTagSet,
-	ELLMTracker InTracker)
+	ELLMTracker InTracker, bool bOverride)
 {
-	LLMCheck(!bInIsStatTag && InTagSet == ELLMTagSet::None);
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
 	// We have to check bIsDisabled again after calling Get, because the constructor is called from Get, and will set
 	// bIsDisabled=false if the platform doesn't support it.
@@ -2327,27 +2392,22 @@ void FLLMScope::Init(const UE::LLMPrivate::FTagData* TagData, bool bInIsStatTag,
 	}
 	LLMRef.BootstrapInitialise();
 
+	if (!bOverride && LLMRef.GetTracker(InTracker)->GetActiveTagData(InTagSet) != nullptr)
+	{
+		bEnabled = false;
+		return;
+	}
+
 	bEnabled = true;
 	Tracker = InTracker;
-#if LLM_ALLOW_ASSETS_TAGS
-	bIsAssetTag = false;
-#endif
-	LLMRef.GetTracker(Tracker)->PushTag(TagData);
+	TagSet = InTagSet;
+	LLMRef.GetTracker(Tracker)->PushTag(TagData, InTagSet);
 }
 
 void FLLMScope::Destruct()
 {
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
-#if LLM_ALLOW_ASSETS_TAGS
-	if (bIsAssetTag)
-	{
-		LLMRef.GetTracker(Tracker)->PopAssetTag();
-	}
-	else
-#endif
-	{
-		LLMRef.GetTracker(Tracker)->PopTag();
-	}
+	LLMRef.GetTracker(Tracker)->PopTag(TagSet);
 }
 
 FLLMPauseScope::FLLMPauseScope(FName TagName, bool bIsStatTag, uint64 Amount, ELLMTracker TrackerToPause,
@@ -2413,8 +2473,8 @@ void FLLMPauseScope::Init(FName TagName, ELLMTag EnumTag, bool bIsEnumTag, bool 
 				}
 				else
 				{
-					LLMRef.GetTracker(Tracker)->PauseAndTrackMemory(TagName, Tracker, bIsStatTag, static_cast<int64>(Amount),
-						InAllocType);
+					LLMRef.GetTracker(Tracker)->PauseAndTrackMemory(TagName, ELLMTagSet::None, Tracker, bIsStatTag, 
+						static_cast<int64>(Amount), InAllocType);
 				}
 			}
 		}
@@ -2441,17 +2501,17 @@ FLLMPauseScope::~FLLMPauseScope()
 }
 
 
-FLLMScopeFromPtr::FLLMScopeFromPtr(void* Ptr, ELLMTracker InTracker )
+FLLMScopeFromPtr::FLLMScopeFromPtr(void* Ptr, ELLMTracker InTracker)
 {
 	using namespace UE::LLMPrivate;
 	if (FLowLevelMemTracker::bIsDisabled)
 	{
-		bEnabled = false;
+		DisableAll();
 		return;
 	}
 	if(Ptr == nullptr)
 	{
-		bEnabled = false;
+		DisableAll();
 		return;
 	}
 
@@ -2460,40 +2520,51 @@ FLLMScopeFromPtr::FLLMScopeFromPtr(void* Ptr, ELLMTracker InTracker )
 	// bIsDisabled=false if the platform doesn't support it.
 	if (FLowLevelMemTracker::bIsDisabled)
 	{
-		bEnabled = false;
+		DisableAll();
 		return;
 	}
 	LLMRef.BootstrapInitialise();
 
 	FLLMTracker* TrackerData = LLMRef.GetTracker(InTracker);
-	const FTagData* TagData = TrackerData->FindTagForPtr(Ptr);
-	if (!TagData)
+
+	TArray<const FTagData*, TInlineAllocator<static_cast<int32>(ELLMTagSet::Max)>> Tags;
+	if (!TrackerData->FindTagsForPtr(Ptr, Tags))
 	{
-		bEnabled = false;
+		DisableAll();
 		return;
 	}
 
 	Tracker = InTracker;
-	bEnabled = true;
 
-	TrackerData->PushTag(TagData);
+	for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); TagSetIndex++)
+	{
+		if (Tags[TagSetIndex])
+		{
+			bEnabled[TagSetIndex] = true;
+			TrackerData->PushTag(Tags[TagSetIndex], static_cast<ELLMTagSet>(TagSetIndex));
+		}
+		else
+		{
+			bEnabled[TagSetIndex] = false;
+		}
+	}
 }
 
 FLLMScopeFromPtr::~FLLMScopeFromPtr()
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-
 	FLowLevelMemTracker& LLMRef = FLowLevelMemTracker::Get();
-	LLMRef.GetTracker(Tracker)->PopTag();
+	for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); TagSetIndex++)
+	{
+		if (bEnabled[TagSetIndex])
+		{
+			LLMRef.GetTracker(Tracker)->PopTag(static_cast<ELLMTagSet>(TagSetIndex));
+		}
+	}
 }
 
-FLLMTagDeclaration::FLLMTagDeclaration(const TCHAR* InCPPName, FName InDisplayName, FName InParentTagName,
-	FName InStatName, FName InSummaryStatName)
-	:CPPName(InCPPName), UniqueName(NAME_None), DisplayName(InDisplayName), ParentTagName(InParentTagName),
-	StatName(InStatName), SummaryStatName(InSummaryStatName)
+FLLMTagDeclaration::FLLMTagDeclaration(const TCHAR* InCPPName, FName InDisplayName, FName InParentTagName, FName InStatName, FName InSummaryStatName, ELLMTagSet InTagSet)
+	:CPPName(InCPPName), UniqueName(NAME_None), DisplayName(InDisplayName), ParentTagName(InParentTagName), StatName(InStatName), SummaryStatName(InSummaryStatName)
+	, TagSet(InTagSet)
 {
 	Register();
 }
@@ -2998,24 +3069,25 @@ void FBin::Free(void* Ptr, FLLMAllocator& Allocator)
 
 } // namespace AllocatorPrivate
 
-FTagData::FTagData(FName InName, FName InDisplayName, FName InParentName, FName InStatName,
+FTagData::FTagData(FName InName, ELLMTagSet InTagSet, FName InDisplayName, FName InParentName, FName InStatName,
 	FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource)
 	: Name(InName), DisplayName(InDisplayName), ParentName(InParentName), StatName(InStatName)
 	, SummaryStatName(InSummaryStatName), EnumTag(InEnumTag), ReferenceSource(InReferenceSource)
-	, bIsFinishConstructed(false), bParentIsName(true), bHasEnumTag(bInHasEnumTag), bIsReportable(true)
+	, TagSet(InTagSet), bIsFinishConstructed(false), bParentIsName(true), bHasEnumTag(bInHasEnumTag)
+	, bIsReportable(InTagSet == ELLMTagSet::None)
 {
 }
 
-FTagData::FTagData(FName InName, FName InDisplayName, const FTagData* InParent, FName InStatName,
+FTagData::FTagData(FName InName, ELLMTagSet InTagSet, FName InDisplayName, const FTagData* InParent, FName InStatName,
 	FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource)
-	: FTagData(InName, InDisplayName, NAME_None, InStatName, InSummaryStatName, bInHasEnumTag, InEnumTag,
+	: FTagData(InName, InTagSet, InDisplayName, NAME_None, InStatName, InSummaryStatName, bInHasEnumTag, InEnumTag,
 		InReferenceSource)
 {
 	SetParent(InParent);
 }
 
 FTagData::FTagData(ELLMTag InEnumTag)
-	: FTagData(NAME_None, NAME_None, NAME_None, NAME_None, NAME_None, true, InEnumTag,
+	: FTagData(NAME_None, ELLMTagSet::None, NAME_None, NAME_None, NAME_None, NAME_None, true, InEnumTag,
 		ETagReferenceSource::EnumTag)
 {
 }
@@ -3093,6 +3165,11 @@ FName FTagData::GetSummaryStatName() const
 ELLMTag FTagData::GetEnumTag() const
 {
 	return EnumTag;
+}
+
+ELLMTagSet FTagData::GetTagSet() const
+{
+	return TagSet;
 }
 
 bool FTagData::HasEnumTag() const
@@ -3256,69 +3333,43 @@ FLLMThreadState* FLLMTracker::GetState()
 	return (FLLMThreadState*)FPlatformTLS::GetTlsValue(TlsSlot);
 }
 
-void FLLMTracker::PushTag(ELLMTag EnumTag)
+void FLLMTracker::PushTag(ELLMTag EnumTag, ELLMTagSet TagSet)
 {
 	const FTagData* TagData = LLMRef.FindOrAddTagData(EnumTag, ETagReferenceSource::Scope);
 
 	// pass along to the state object
-	GetOrCreateState()->PushTag(TagData);
+	GetOrCreateState()->PushTag(TagData, TagSet);
 }
 
-void FLLMTracker::PushTag(FName Tag, bool bInIsStatData)
+void FLLMTracker::PushTag(FName Tag, bool bInIsStatData, ELLMTagSet TagSet)
 {
-	const FTagData* TagData = LLMRef.FindOrAddTagData(Tag, bInIsStatData, ETagReferenceSource::Scope);
+	const FTagData* TagData = LLMRef.FindOrAddTagData(Tag, TagSet, bInIsStatData, ETagReferenceSource::Scope);
 
 	// pass along to the state object
-	GetOrCreateState()->PushTag(TagData);
+	GetOrCreateState()->PushTag(TagData, TagSet);
 }
 
-void FLLMTracker::PushTag(const FTagData* TagData)
+void FLLMTracker::PushTag(const FTagData* TagData, ELLMTagSet TagSet)
 {
 	// pass along to the state object
-	GetOrCreateState()->PushTag(TagData);
+	GetOrCreateState()->PushTag(TagData, TagSet);
 }
 
-void FLLMTracker::PopTag()
+void FLLMTracker::PopTag(ELLMTagSet TagSet)
 {
 	// look for already allocated thread state
 	FLLMThreadState* State = GetState();
 
 	LLMCheckf(State != nullptr, TEXT("Called PopTag but PushTag was never called!"));
 
-	State->PopTag();
+	State->PopTag(TagSet);
 }
-
-#if LLM_ALLOW_ASSETS_TAGS
-void FLLMTracker::PushAssetTag(FName Tag)
-{
-	const FTagData* TagData = LLMRef.FindOrAddTagData(Tag, true /* bIsStatTag */, ETagReferenceSource::Scope);
-
-	// pass along to the state object
-	GetOrCreateState()->PushAssetTag(TagData);
-}
-
-void FLLMTracker::PushAssetTag(const FTagData* TagData)
-{
-	// pass along to the state object
-	GetOrCreateState()->PushAssetTag(TagData);
-}
-
-void FLLMTracker::PopAssetTag()
-{
-	// look for already allocated thread state
-	FLLMThreadState* State = GetState();
-
-	LLMCheckf(State != nullptr, TEXT("Called PopTag but PushTag was never called!"));
-
-	State->PopAssetTag();
-}
-#endif
 
 void FLLMTracker::TrackAllocation(const void* Ptr, int64 Size, ELLMTag DefaultTag, ELLMTracker Tracker,
 	ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	FLLMThreadState* State = GetOrCreateState();
-	const FTagData* TagData = State->GetTopTag();
+	const FTagData* TagData = State->GetTopTag(ELLMTagSet::None);
 	if (!TagData)
 	{
 		TagData = LLMRef.FindOrAddTagData(DefaultTag);
@@ -3330,10 +3381,10 @@ void FLLMTracker::TrackAllocation(const void* Ptr, int64 Size, FName DefaultTag,
 	ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	FLLMThreadState* State = GetOrCreateState();
-	const FTagData* TagData = State->GetTopTag();
+	const FTagData* TagData = State->GetTopTag(ELLMTagSet::None);
 	if (!TagData)
 	{
-		TagData = LLMRef.FindOrAddTagData(DefaultTag);
+		TagData = LLMRef.FindOrAddTagData(DefaultTag, ELLMTagSet::None);
 	}
 	TrackAllocation(Ptr, Size, TagData, Tracker, AllocType, State, bTrackInMemPro);
 }
@@ -3358,13 +3409,23 @@ void FLLMTracker::TrackAllocation(const void* Ptr, int64 Size, const FTagData* A
 #endif
 
 #if LLM_ALLOW_ASSETS_TAGS
-	const FTagData* AssetTagData = State->GetTopAssetTag();
+	const FTagData* AssetTagData = State->GetTopTag(ELLMTagSet::Assets);
+	const FTagData* AssetClassTagData = State->GetTopTag(ELLMTagSet::AssetClasses);
+
+	if (AssetTagData == nullptr && !LLMRef.IsBootstrapping() && LLMRef.IsTagSetActive(ELLMTagSet::Assets))
+	{
+		AssetTagData = LLMRef.FindOrAddTagData(TagName_UntaggedAsset, ELLMTagSet::Assets, false, UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
+	}
+	if (AssetClassTagData == nullptr && !LLMRef.IsBootstrapping() && LLMRef.IsTagSetActive(ELLMTagSet::AssetClasses))
+	{
+		AssetClassTagData = LLMRef.FindOrAddTagData(TagName_UntaggedAssetClass, ELLMTagSet::AssetClasses, false, UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
+	}
 #else
 	const FTagData* AssetTagData = nullptr;
+	const FTagData* AssetClassTagData = nullptr;
 #endif
-
 	// track on the thread state
-	State->TrackAllocation(Ptr, Size, Tracker, AllocType, ActiveTagData, AssetTagData, bTrackInMemPro);
+	State->TrackAllocation(Ptr, Size, Tracker, AllocType, ActiveTagData, AssetTagData, AssetClassTagData, bTrackInMemPro);
 
 	// tracking a nullptr with a Size is allowed, but we don't need to remember it, since we can't free it ever.
 	if (Ptr != nullptr)
@@ -3373,7 +3434,8 @@ void FLLMTracker::TrackAllocation(const void* Ptr, int64 Size, const FTagData* A
 		FLLMTracker::FLowLevelAllocInfo AllocInfo;
 		AllocInfo.SetTag(ActiveTagData, LLMRef);
 #if LLM_ALLOW_ASSETS_TAGS
-		AllocInfo.SetAssetTag(AssetTagData, LLMRef);
+		AllocInfo.SetTag(AssetTagData, LLMRef, ELLMTagSet::Assets);
+		AllocInfo.SetTag(AssetClassTagData, LLMRef, ELLMTagSet::AssetClasses);
 #endif
 		LLMCheck(Size <= 0x0000'ffff'ffff'ffff);
 		uint32 SizeLow = uint32(Size);
@@ -3412,12 +3474,14 @@ void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType 
 	FLLMThreadState* State = GetOrCreateState();
 	const FTagData* TagData = AllocInfo.GetTag(LLMRef);
 #if LLM_ALLOW_ASSETS_TAGS
-	const FTagData* AssetTagData = AllocInfo.GetAssetTag(LLMRef);
+	const FTagData* AssetTagData = AllocInfo.GetTag(LLMRef, ELLMTagSet::Assets);
+	const FTagData* AssetClassTagData = AllocInfo.GetTag(LLMRef, ELLMTagSet::AssetClasses);
 #else
 	const FTagData* AssetTagData = nullptr;
+	const FTagData* AssetClassTagData = nullptr;
 #endif
 
-	State->TrackFree(Ptr, Size, Tracker, AllocType, TagData, AssetTagData, bTrackInMemPro);
+	State->TrackFree(Ptr, Size, Tracker, AllocType, TagData, AssetTagData, AssetClassTagData, bTrackInMemPro);
 }
 
 void FLLMTracker::OnAllocMoved(const void* Dest, const void* Source, ELLMTracker Tracker, ELLMAllocType AllocType)
@@ -3452,10 +3516,10 @@ void FLLMTracker::OnAllocMoved(const void* Dest, const void* Source, ELLMTracker
 void FLLMTracker::TrackMemoryOfActiveTag(int64 Amount, FName DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType)
 {
 	FLLMThreadState* State = GetOrCreateState();
-	const FTagData* TagData = State->GetTopTag();
+	const FTagData* TagData = State->GetTopTag(ELLMTagSet::None);
 	if (!TagData)
 	{
-		TagData = LLMRef.FindOrAddTagData(DefaultTag);
+		TagData = LLMRef.FindOrAddTagData(DefaultTag, ELLMTagSet::None);
 	}
 	TrackMemoryOfActiveTag(Amount, TagData, Tracker, AllocType, State);
 }
@@ -3463,7 +3527,7 @@ void FLLMTracker::TrackMemoryOfActiveTag(int64 Amount, FName DefaultTag, ELLMTra
 void FLLMTracker::TrackMemoryOfActiveTag(int64 Amount, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType)
 {
 	FLLMThreadState* State = GetOrCreateState();
-	const FTagData* TagData = State->GetTopTag();
+	const FTagData* TagData = State->GetTopTag(ELLMTagSet::None);
 	if (!TagData)
 	{
 		TagData = LLMRef.FindOrAddTagData(DefaultTag);
@@ -3488,14 +3552,8 @@ void FLLMTracker::TrackMemoryOfActiveTag(int64 Amount, const FTagData* TagData, 
 	TagData = TagData->GetContainingEnumTagData();
 #endif
 
-#if LLM_ALLOW_ASSETS_TAGS
-	const FTagData* AssetTagData = State->GetTopAssetTag();
-#else
-	const FTagData* AssetTagData = nullptr;
-#endif
-
 	// track on the thread state
-	State->TrackMemory(Amount, Tracker, AllocType, TagData, AssetTagData);
+	State->TrackMemory(Amount, Tracker, AllocType, TagData);
 }
 
 void FLLMTracker::TrackMemory(ELLMTag Tag, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType)
@@ -3503,21 +3561,22 @@ void FLLMTracker::TrackMemory(ELLMTag Tag, ELLMTracker Tracker, int64 Amount, EL
 	TrackMemory(LLMRef.FindOrAddTagData(Tag), Tracker, Amount, AllocType);
 }
 
-void FLLMTracker::TrackMemory(FName Tag, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType)
+void FLLMTracker::TrackMemory(FName Tag, ELLMTagSet TagSet, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType)
 {
-	TrackMemory(LLMRef.FindOrAddTagData(Tag), Tracker, Amount, AllocType);
+	TrackMemory(LLMRef.FindOrAddTagData(Tag, TagSet, false, UE::LLMPrivate::ETagReferenceSource::FunctionAPI), Tracker, Amount, AllocType);
 }
 
 void FLLMTracker::TrackMemory(const FTagData* TagData, ELLMTracker Tracker, int64 Amount, ELLMAllocType AllocType)
 {
 	FLLMThreadState* State = GetOrCreateState();
 	FPlatformAtomics::InterlockedAdd(&TrackedTotal, Amount);
-	State->TrackMemory(Amount, Tracker, AllocType, TagData, nullptr /* AssetTagData */);
+	State->TrackMemory(Amount, Tracker, AllocType, TagData);
 }
 
-void FLLMTracker::PauseAndTrackMemory(FName TagName, ELLMTracker Tracker, bool bInIsStatTag, int64 Amount, ELLMAllocType AllocType)
+void FLLMTracker::PauseAndTrackMemory(FName TagName, ELLMTagSet TagSet, ELLMTracker Tracker, bool bInIsStatTag, 
+	int64 Amount, ELLMAllocType AllocType)
 {
-	const FTagData* TagData = LLMRef.FindOrAddTagData(TagName, bInIsStatTag);
+	const FTagData* TagData = LLMRef.FindOrAddTagData(TagName, TagSet, bInIsStatTag, UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
 	PauseAndTrackMemory(TagData, Tracker, Amount, AllocType);
 }
 
@@ -3532,7 +3591,7 @@ void FLLMTracker::PauseAndTrackMemory(const FTagData* TagData, ELLMTracker Track
 {
 	FLLMThreadState* State = GetOrCreateState();
 	FPlatformAtomics::InterlockedAdd(&TrackedTotal, Amount);
-	State->TrackMemory(Amount, Tracker, AllocType, TagData, nullptr /* AssetTagData */);
+	State->TrackMemory(Amount, Tracker, AllocType, TagData);
 	FScopeLock Lock(&State->TagSection);
 	State->PausedCounter[static_cast<int32>(AllocType)]++;
 }
@@ -3627,8 +3686,7 @@ void FLLMTracker::Update()
 		{
 			if (AllocationData.bExternalAddToTotal)
 			{
-			FPlatformAtomics::InterlockedAdd(&TrackedTotal,
-				AllocationData.ExternalAmount - AllocationData.Size);
+				FPlatformAtomics::InterlockedAdd(&TrackedTotal, AllocationData.ExternalAmount - AllocationData.Size);
 			}
 			AllocationData.Size = AllocationData.ExternalAmount;
 			AllocationData.bExternalValid = false;
@@ -3676,7 +3734,7 @@ void FLLMTracker::PublishStats(bool bTrackPeaks)
 
 	if (OverrideUntaggedTagData)
 	{
-		const FTagData* TagData = LLMRef.FindTagData(TagName_Untagged);
+		const FTagData* TagData = LLMRef.FindTagData(TagName_Untagged, ELLMTagSet::None);
 		const FTrackerTagSizeData* AllocationData = TagData ? TagSizes.Find(TagData) : nullptr;
 		SetMemoryStatByFName(OverrideUntaggedTagData->GetStatName(),
 			AllocationData ? AllocationData->GetSize(bTrackPeaks) : 0);
@@ -3731,7 +3789,14 @@ void FLLMTracker::OnTagsResorted(FTagDataArray& OldTagDatas)
 		AllocationMap.LockAll();
 		for (const FLLMAllocMap::FTuple& Tuple : AllocationMap)
 		{
-			Tuple.Value2.SetCompressedTag(OldTagDatas[Tuple.Value2.GetCompressedTag()]->GetIndex());
+			for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); TagSetIndex++)
+			{
+				const int32 OldTagIndex = Tuple.Value2.GetCompressedTag(static_cast<ELLMTagSet>(TagSetIndex));
+				if (OldTagIndex >= 0)
+				{
+					Tuple.Value2.SetCompressedTag(OldTagDatas[OldTagIndex]->GetIndex(), static_cast<ELLMTagSet>(TagSetIndex));
+				}
+			}
 		}
 		AllocationMap.UnlockAll();
 	}
@@ -3765,34 +3830,94 @@ void FLLMTracker::LockAllThreadTags(bool bLock)
 	}
 }
 
-const FTagData* FLLMTracker::GetActiveTagData()
+const FTagData* FLLMTracker::GetActiveTagData(ELLMTagSet TagSet)
 {
 	FLLMThreadState* State = GetOrCreateState();
-	return State->GetTopTag();
+	return State->GetTopTag(TagSet);
 }
 
-const FTagData* FLLMTracker::FindTagForPtr( void* Ptr )
-{
-	FLLMThreadState* State = GetOrCreateState();
-	FLowLevelAllocInfo AllocInfo;
-	{
-		uint32* Size;
-		FLowLevelAllocInfo* AllocInfoPtr;
-		AllocationMap.Find(PointerKey(Ptr), Size, AllocInfoPtr);
-		if (!AllocInfoPtr)
-		{
-			return nullptr;
-		}
-		AllocInfo = *AllocInfoPtr;
-	}
-	return AllocInfo.GetTag(LLMRef);
-}
-
-TArray<const FTagData*> FLLMTracker::GetTagDatas()
+TArray<const FTagData*> FLLMTracker::GetTagDatas(ELLMTagSet TagSet)
 {
 	TArray<const FTagData*> FoundTagDatas;
 	TagSizes.GetKeys(FoundTagDatas);
-	return FoundTagDatas;
+
+	return FoundTagDatas.FilterByPredicate([TagSet](const FTagData* InTagData) {
+		return InTagData != nullptr && InTagData->GetTagSet() == TagSet;
+	});
+}
+
+void FLLMTracker::GetTagsNamesWithAmount(TMap<FName, uint64>& OutTagsNamesWithAmount, ELLMTagSet TagSet /* = ELLMTagSet::None */)
+{
+	for (const TPair<const FTagData*, FTrackerTagSizeData>& It : TagSizes)
+	{
+		const FTagData* TagData = It.Key;
+		if (TagData->GetTagSet() == TagSet)
+		{
+			OutTagsNamesWithAmount.Add(TagData->GetName(), It.Value.GetSize(false));
+		}
+	}
+}
+
+void FLLMTracker::GetTagsNamesWithAmountFiltered(TMap<FName, uint64>& OutTagsNamesWithAmount, ELLMTagSet TagSet /* = ELLMTagSet::None */, TArray<FLLMTagSetAllocationFilter>& Filters)
+{
+	AllocationMap.LockAll();
+	for (const FLLMAllocMap::FTuple& Tuple : AllocationMap)
+	{
+		bool bIncludeAllocation = true;
+		for (const FLLMTagSetAllocationFilter& Filter : Filters)
+		{
+#if LLM_ALLOW_ASSETS_TAGS
+			const FTagData* TagData = Tuple.Value2.GetTag(LLMRef, Filter.TagSet);
+#else
+			const FTagData* TagData = Tuple.Value2.GetTag(LLMRef);
+#endif
+			if (TagData == nullptr || TagData->GetName() != Filter.Name)
+			{
+				bIncludeAllocation = false;
+				break;
+			}
+		}
+			
+		if (bIncludeAllocation)
+		{
+#if LLM_ALLOW_ASSETS_TAGS
+			const FTagData* TagData = Tuple.Value2.GetTag(LLMRef, TagSet);
+#else
+			const FTagData* TagData = Tuple.Value2.GetTag(LLMRef);
+#endif
+			if (TagData != nullptr)
+			{
+				uint64& Size = OutTagsNamesWithAmount.FindOrAdd(TagData->GetName());
+				Size += Tuple.Value1;
+			}
+		}
+	}
+	AllocationMap.UnlockAll();
+}
+
+bool FLLMTracker::FindTagsForPtr(void* InPtr, TArray<const FTagData *, TInlineAllocator<static_cast<int32>(ELLMTagSet::Max)>>& OutTags)
+{
+	FLLMThreadState* State = GetOrCreateState();
+		
+	uint32* Size;
+	FLowLevelAllocInfo* AllocInfoPtr;
+	AllocationMap.Find(PointerKey(InPtr), Size, AllocInfoPtr);
+	if (!AllocInfoPtr)
+	{
+		return false;
+	}
+
+	OutTags.SetNumUnsafeInternal(static_cast<int32>(ELLMTagSet::Max));
+#if LLM_ALLOW_ASSETS_TAGS
+	for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); TagSetIndex++)
+	{
+		OutTags[TagSetIndex] = AllocInfoPtr->GetTag(LLMRef, static_cast<ELLMTagSet>(TagSetIndex));
+	}
+#else
+	OutTags[static_cast<int32>(ELLMTagSet::None)] = AllocInfoPtr->GetTag(LLMRef);
+#endif
+
+	return true;
 }
 
 int64 FLLMTracker::GetTagAmount(const FTagData* TagData, bool bPeakAmount/* = false*/) const
@@ -3846,60 +3971,35 @@ FLLMThreadState::FLLMThreadState()
 
 void FLLMThreadState::Clear()
 {
-	TagStack.Empty();
-#if LLM_ALLOW_ASSETS_TAGS
-	AssetTagStack.Empty();
-#endif
+	for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); TagSetIndex++)
+	{
+		TagStack[TagSetIndex].Empty();
+	}
 	Allocations.Empty();
 	ClearAllocTypeAmounts();
 }
 
-void FLLMThreadState::PushTag(const FTagData* TagData)
+void FLLMThreadState::PushTag(const FTagData* TagData, ELLMTagSet TagSet)
 {
 	FScopeLock Lock(&TagSection);
 
 	// Push a tag.
-	TagStack.Add(TagData);
+	TagStack[static_cast<int32>(TagSet)].Add(TagData);
 }
 
-void FLLMThreadState::PopTag()
+void FLLMThreadState::PopTag(ELLMTagSet TagSet)
 {
 	FScopeLock Lock(&TagSection);
 
-	LLMCheckf(TagStack.Num() > 0,
+	LLMCheckf(TagStack[static_cast<int32>(TagSet)].Num() > 0,
 		TEXT("Called FLLMThreadState::PopTag without a matching Push (stack was empty on pop)"));
-	TagStack.Pop(false /* bAllowShrinking */);
+	TagStack[static_cast<int32>(TagSet)].Pop(false /* bAllowShrinking */);
 }
 
-const FTagData* FLLMThreadState::GetTopTag()
+const FTagData* FLLMThreadState::GetTopTag(ELLMTagSet TagSet)
 {
-	return TagStack.Num() ? TagStack.Last() : nullptr;
+	return TagStack[static_cast<int32>(TagSet)].Num() ? TagStack[static_cast<int32>(TagSet)].Last() : nullptr;
 }
-
-#if LLM_ALLOW_ASSETS_TAGS
-void FLLMThreadState::PushAssetTag(const FTagData* TagData)
-{
-	FScopeLock Lock(&TagSection);
-
-	// Push a tag.
-	AssetTagStack.Add(TagData);
-}
-
-void FLLMThreadState::PopAssetTag()
-{
-	FScopeLock Lock(&TagSection);
-
-	LLMCheckf(AssetTagStack.Num() > 0,
-		TEXT("Called FLLMThreadState::PopTag without a matching Push (stack was empty on pop)"));
-	AssetTagStack.Pop(false /* bAllowShrinking */);
-}
-
-const FTagData* FLLMThreadState::GetTopAssetTag()
-{
-	FScopeLock Lock(&TagSection);
-	return AssetTagStack.Num() ? AssetTagStack.Last() : nullptr;
-}
-#endif
 
 void FLLMThreadState::IncrTag(const FTagData* TagData, int64 Amount)
 {
@@ -3909,8 +4009,8 @@ void FLLMThreadState::IncrTag(const FTagData* TagData, int64 Amount)
 	AllocationSize.Size += Amount;
 }
 
-void FLLMThreadState::TrackAllocation(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType,
-	const FTagData* TagData, const FTagData* AssetTagData, bool bTrackInMemPro)
+void FLLMThreadState::TrackAllocation(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType, 
+	const FTagData* TagData, const FTagData* AssetTagData, const FTagData* AssetClassTagData, bool bTrackInMemPro)
 {
 	FScopeLock Lock(&TagSection);
 
@@ -3921,6 +4021,10 @@ void FLLMThreadState::TrackAllocation(const void* Ptr, int64 Size, ELLMTracker T
 	if (AssetTagData)
 	{
 		IncrTag(AssetTagData, Size);
+	}
+	if (AssetClassTagData)
+	{
+		IncrTag(AssetClassTagData, Size);
 	}
 #endif
 
@@ -3938,8 +4042,8 @@ void FLLMThreadState::TrackAllocation(const void* Ptr, int64 Size, ELLMTracker T
 #endif
 }
 
-void FLLMThreadState::TrackFree(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType,
-	const FTagData* TagData, const FTagData* AssetTagData, bool bTrackInMemPro)
+void FLLMThreadState::TrackFree(const void* Ptr, int64 Size, ELLMTracker Tracker, ELLMAllocType AllocType, 
+	const FTagData* TagData, const FTagData* AssetTagData, const FTagData* AssetClassTagData, bool bTrackInMemPro)
 {
 	FScopeLock Lock(&TagSection);
 
@@ -3950,6 +4054,10 @@ void FLLMThreadState::TrackFree(const void* Ptr, int64 Size, ELLMTracker Tracker
 	if (AssetTagData)
 	{
 		IncrTag(AssetTagData, -Size);
+	}
+	if (AssetClassTagData)
+	{
+		IncrTag(AssetClassTagData, -Size);
 	}
 #endif
 	ELLMTag EnumTag = TagData->GetContainingEnum();
@@ -3966,17 +4074,11 @@ void FLLMThreadState::TrackFree(const void* Ptr, int64 Size, ELLMTracker Tracker
 #endif
 }
 
-void FLLMThreadState::TrackMemory(int64 Amount, ELLMTracker Tracker, ELLMAllocType AllocType, const FTagData* TagData, const FTagData* AssetTagData)
+void FLLMThreadState::TrackMemory(int64 Amount, ELLMTracker Tracker, ELLMAllocType AllocType, const FTagData* TagData)
 {
 	FScopeLock Lock(&TagSection);
 	AllocTypeAmounts[static_cast<int32>(AllocType)] += Amount;
 	IncrTag(TagData, Amount);
-#if LLM_ALLOW_ASSETS_TAGS
-	if (AssetTagData)
-	{
-		IncrTag(AssetTagData, Size);
-	}
-#endif
 
 	// TODO: Need to expose TrackMemory to Platform-specific trackers and FMemPropProfiler
 }
@@ -4064,7 +4166,7 @@ void FLLMThreadState::LockTags(bool bLock)
 	}
 }
 
-void FLLMThreadState::FetchAndClearTagSizes(FTrackerTagSizeMap& TagSizes, int64* InAllocTypeAmounts,
+void FLLMThreadState::FetchAndClearTagSizes(FTrackerTagSizeMap& TagSizes, int64* InAllocTypeAmounts, 
 	bool bTrimAllocations)
 {
 	FScopeLock Lock(&TagSection);
@@ -4323,7 +4425,7 @@ void FLLMCsvWriter::AddRow(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap
 	}
 	if (OverrideUntaggedTagData)
 	{
-		WriteTag(LLMRef.FindTagData(TagName_Untagged));
+		WriteTag(LLMRef.FindTagData(TagName_Untagged, ELLMTagSet::None));
 	}
 
 	for (const FTagData* TagData : Columns)
@@ -4442,7 +4544,7 @@ void FLLMTraceWriter::Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSize
 	AddValue(OverrideTrackedTotalTagData, TrackedTotal);
 	if (OverrideUntaggedTagData)
 	{
-		const FTagData* TagData = LLMRef.FindTagData(TagName_Untagged);
+		const FTagData* TagData = LLMRef.FindTagData(TagName_Untagged, ELLMTagSet::None);
 		if (!TagData)
 		{
 			AddValue(OverrideUntaggedTagData, 0);
@@ -4526,7 +4628,7 @@ void FLLMCsvProfilerWriter::Publish(FLowLevelMemTracker& LLMRef, const FTrackerT
 
 	if (OverrideUntaggedTagData)
 	{
-		const FTagData* TagData = LLMRef.FindTagData(TagName_Untagged);
+		const FTagData* TagData = LLMRef.FindTagData(TagName_Untagged, ELLMTagSet::None);
 		const FTrackerTagSizeData* AllocationData = TagData ? TagSizes.Find(TagData) : nullptr;
 		RecordTagToCsv(CsvCategoryIndex, OverrideUntaggedTagData,
 			AllocationData ? AllocationData->GetSize(bTrackPeaks) : 0);

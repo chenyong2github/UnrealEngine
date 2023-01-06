@@ -847,6 +847,8 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 
 	if( GetSkinnedAsset() )
 	{
+		LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetSkinnedAsset()->GetOutermost(), ELLMTagSet::Assets);
+
 		// Attempting to track down UE-45505, where it looks as if somehow a skeletal mesh component's mesh has only been partially loaded, causing a mismatch in the LOD arrays
 		checkf(!GetSkinnedAsset()->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects | RF_WillBeLoaded), TEXT("Attempting to create render state for a skeletal mesh that is is not fully loaded. Mesh: %s"), *GetSkinnedAsset()->GetName());
 
@@ -2190,6 +2192,8 @@ bool USkinnedMeshComponent::AllocateTransformData()
 	// Allocate transforms if not present.
 	if (GetSkinnedAsset() != nullptr && LeaderPoseComponent == nullptr )
 	{
+		LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetSkinnedAsset()->GetOutermost(), ELLMTagSet::Assets);
+
 		const int32 NumBones = GetSkinnedAsset()->GetRefSkeleton().GetNum();
 
 		if(GetNumComponentSpaceTransforms() != NumBones)

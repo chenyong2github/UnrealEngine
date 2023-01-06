@@ -248,6 +248,8 @@ UTextureCube* UTextureRenderTargetCube::ConstructTextureCube(
  */
 void FTextureRenderTargetCubeResource::InitDynamicRHI()
 {
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
+
 	if(Owner->SizeX > 0)
 	{
 		bool bIsSRGB = true;
@@ -338,6 +340,8 @@ void FTextureRenderTargetCubeResource::ReleaseDynamicRHI()
  */
 void FTextureRenderTargetCubeResource::UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget/*=true*/)
 {
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
+
 	if (!bClearRenderTarget)
 	{
 		return;

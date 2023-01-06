@@ -27,6 +27,12 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+// Even if bSerializeDependencies is enabled, this can bypass serializing at runtime.
+// Update your <project>.Target.cs build scripts to define as needed.
+#ifndef ASSET_REGISTRY_ALLOW_DEPENDENCY_SERIALIZATION
+#define ASSET_REGISTRY_ALLOW_DEPENDENCY_SERIALIZATION 1
+#endif
+
 FAssetRegistryState& FAssetRegistryState::operator=(FAssetRegistryState&& Rhs)
 {
 	Reset();
@@ -1262,6 +1268,7 @@ void FAssetRegistryState::Load(Archive&& Ar, const FAssetRegistryHeader& Header,
 		Ar << DependencySectionSize;
 		int64 DependencySectionEnd = Ar.Tell() + DependencySectionSize;
 
+#if ASSET_REGISTRY_ALLOW_DEPENDENCY_SERIALIZATION
 		if (Options.bLoadDependencies)
 		{
 			LoadDependencies(Ar);
@@ -1271,6 +1278,9 @@ void FAssetRegistryState::Load(Archive&& Ar, const FAssetRegistryHeader& Header,
 		{
 			Ar.Seek(DependencySectionEnd);
 		}
+#else
+		Ar.Seek(DependencySectionEnd);
+#endif
 	}
 
 	int32 LocalNumPackageData = 0;

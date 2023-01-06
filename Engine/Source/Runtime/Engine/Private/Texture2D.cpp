@@ -1273,9 +1273,10 @@ FVirtualTexture2DResource::~FVirtualTexture2DResource()
 
 void FVirtualTexture2DResource::InitRHI()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTexture2DResource::InitRHI);
-
 	check(TextureOwner);
+	
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTexture2DResource::InitRHI);
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(TextureOwner->GetOutermost(), ELLMTagSet::Assets);
 
 	uint32 MaxAnisotropy = 0;
 	if (VirtualTextureScalability::IsAnisotropicFilteringEnabled())

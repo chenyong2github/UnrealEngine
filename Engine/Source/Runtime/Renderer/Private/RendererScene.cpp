@@ -2013,6 +2013,8 @@ FScene::~FScene()
 
 void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 {
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Primitive->GetOutermost(), ELLMTagSet::Assets);
+
 	SCOPE_CYCLE_COUNTER(STAT_AddScenePrimitiveGT);
 	SCOPED_NAMED_EVENT(FScene_AddPrimitive, FColor::Green);
 

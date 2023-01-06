@@ -8,6 +8,44 @@
 
 namespace UE
 {
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	/** Structure representing the captured LLM Tags */
+	struct FLLMActiveTagsCapture
+	{
+		/** Fixed array of LLMTagSets captured */
+		const UE::LLMPrivate::FTagData* LLMTags[static_cast<uint32>(ELLMTagSet::Max)];
+
+		void CaptureActiveTagData()
+		{
+			for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); ++TagSetIndex)
+			{
+				LLMTags[TagSetIndex] = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default, static_cast<ELLMTagSet>(TagSetIndex));
+			}
+		}
+	};
+
+	/** Structure holding the captured LLM scopes */
+	struct FLLMActiveTagsScope
+	{
+		/** Fixed size array which holds a copy of the LLM scopes for later recall */
+		/** Order doesn't matter so we can use a FixedAllocator and not require a default constructor */
+		TArray<FLLMScope, TFixedAllocator<static_cast<uint32>(ELLMTagSet::Max)>> LLMScopes;
+
+		explicit FLLMActiveTagsScope(const FLLMActiveTagsCapture& InActiveTagsCapture)
+		{
+			CaptureLLMScopes(InActiveTagsCapture);
+		}
+
+		void CaptureLLMScopes(const FLLMActiveTagsCapture& InActiveTagsCapture)
+		{
+			for (int32 TagSetIndex = 0; TagSetIndex < static_cast<int32>(ELLMTagSet::Max); ++TagSetIndex)
+			{
+				LLMScopes.Emplace(InActiveTagsCapture.LLMTags[TagSetIndex], false /* bIsStatTag */, static_cast<ELLMTagSet>(TagSetIndex), ELLMTracker::Default);
+			}
+		}
+	};
+#endif
+
 	// Restores an inherited contex for the current scope.
 	// An instance must be obtained by calling `FInheritedContextBase::RestoreInheritedContext()`
 	class FInheritedContextScope
@@ -19,7 +57,7 @@ namespace UE
 
 		FInheritedContextScope(
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-			const UE::LLMPrivate::FTagData* InInheritedLLMTag
+			const FLLMActiveTagsCapture& InInheritedLLMTag
 	#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
 			,
 	#endif
@@ -29,7 +67,7 @@ namespace UE
 #endif
 		)
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-			: LLMScope(InInheritedLLMTag, false /* bIsStatTag */, ELLMTagSet::None, ELLMTracker::Default)
+			: LLMScopes(InInheritedLLMTag)
 	#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
 			,
 	#endif
@@ -45,7 +83,7 @@ namespace UE
 
 	private:
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		FLLMScope LLMScope;
+		FLLMActiveTagsScope LLMScopes;
 #endif
 
 #if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
@@ -62,7 +100,7 @@ namespace UE
 		void CaptureInheritedContext()
 		{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-			InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default);
+			InheritedLLMTags.CaptureActiveTagData();
 #endif
 
 #if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
@@ -79,7 +117,7 @@ namespace UE
 
 	private:
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		const UE::LLMPrivate::FTagData* InheritedLLMTag;
+		FLLMActiveTagsCapture InheritedLLMTags;
 #endif
 
 #if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED

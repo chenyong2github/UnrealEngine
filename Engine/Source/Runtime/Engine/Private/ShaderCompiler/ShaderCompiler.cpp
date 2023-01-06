@@ -7635,6 +7635,8 @@ static bool TryLoadCookedGlobalShaderMap(EShaderPlatform Platform, FScopedSlowTa
 
 void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, bool bRefreshShaderMap)
 {
+	LLM_SCOPE_RENDER_RESOURCE(TEXT("GlobalShaderMap"));
+
 	// No global shaders needed on dedicated server or clients that use NullRHI. Note that cook commandlet needs to have them, even if it is not allowed to render otherwise.
 	if (FPlatformProperties::IsServerOnly() || (!IsRunningCommandlet() && !FApp::CanEverRender()))
 	{

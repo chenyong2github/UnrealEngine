@@ -312,11 +312,15 @@ extern FName LLMGetTagStat(ELLMTag Tag);
  */
 #define LLM_SCOPE(Tag)												FLLMScope SCOPE_NAME(Tag, false /* bIsStatTag */, ELLMTagSet::None, ELLMTracker::Default);\
 																	UE_MEMSCOPE(Tag) 
+#define LLM_TAGSET_SCOPE(Tag, TagSet)								FLLMScope SCOPE_NAME(Tag, false /* bIsStaTag */, TagSet, ELLMTracker::Default);
 #define LLM_SCOPE_BYNAME(Tag) 										static FName PREPROCESSOR_JOIN(LLMScope_Name,__LINE__)(Tag);\
 																	FLLMScope SCOPE_NAME(PREPROCESSOR_JOIN(LLMScope_Name,__LINE__), false /* bIsStatTag */, ELLMTagSet::None, ELLMTracker::Default);\
 																	UE_MEMSCOPE(PREPROCESSOR_JOIN(LLMScope_Name,__LINE__));
 #define LLM_SCOPE_BYTAG(TagDeclName)								FLLMScope SCOPE_NAME(PREPROCESSOR_JOIN(LLMTagDeclaration_, TagDeclName).GetUniqueName(), false /* bIsStatTag */, ELLMTagSet::None, ELLMTracker::Default);\
 																	UE_MEMSCOPE(PREPROCESSOR_JOIN(LLMTagDeclaration_,TagDeclName).GetUniqueName());
+#define LLM_SCOPE_RENDER_RESOURCE(Tag)								static const FString PREPROCESSOR_JOIN(LLMScope_NamePrefix,__LINE__)(TEXT("RenderResources.")); \
+																	FName PREPROCESSOR_JOIN(LLMScope_Name,__LINE__)(PREPROCESSOR_JOIN(LLMScope_NamePrefix, __LINE__) + (Tag ? Tag : TEXT("Unknown"))); \
+																	FLLMScope SCOPE_NAME(PREPROCESSOR_JOIN(LLMScope_Name,__LINE__), false /* bIsStatTag */, ELLMTagSet::Assets, ELLMTracker::Default, false /* bOverride */);
 #define LLM_PLATFORM_SCOPE(Tag)										FLLMScope SCOPE_NAME(Tag, false /* bIsStatTag */, ELLMTagSet::None, ELLMTracker::Platform);
 #define LLM_PLATFORM_SCOPE_BYNAME(Tag) 								static FName PREPROCESSOR_JOIN(LLMScope_Name,__LINE__)(Tag);\
 																	FLLMScope SCOPE_NAME(PREPROCESSOR_JOIN(LLMLLMScope_NameScope,__LINE__), false /* bIsStatTag */, ELLMTagSet::None, ELLMTracker::Platform);
@@ -390,6 +394,8 @@ typedef void*(*LLMAllocFunction)(size_t);
 typedef void(*LLMFreeFunction)(void*, size_t);
 
 class FLLMTagDeclaration;
+
+struct FLLMTagSetAllocationFilter;
 
 namespace UE::LLMPrivate
 {
@@ -594,20 +600,23 @@ public:
 	int64 GetActiveTag(ELLMTracker Tracker);
 
 	/** Get an opaque identifier for the top active tag for the given tracker. */
-	const UE::LLMPrivate::FTagData* GetActiveTagData(ELLMTracker Tracker);
+	const UE::LLMPrivate::FTagData* GetActiveTagData(ELLMTracker Tracker, ELLMTagSet TagSet = ELLMTagSet::None);
 
 	/** Register custom ELLMTags. */
 	void RegisterPlatformTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
 	void RegisterProjectTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
     
 	/** Get all tags being tracked. */
-	TArray<const UE::LLMPrivate::FTagData*> GetTrackedTags();
+	TArray<const UE::LLMPrivate::FTagData*> GetTrackedTags(ELLMTagSet TagSet = ELLMTagSet::None);
 
 	/** Get all tags being tracked by the given tracker. */
-	TArray<const UE::LLMPrivate::FTagData*> GetTrackedTags(ELLMTracker Tracker);
+	TArray<const UE::LLMPrivate::FTagData*> GetTrackedTags(ELLMTracker Tracker, ELLMTagSet TagSet = ELLMTagSet::None);
+
+	void GetTrackedTagsNamesWithAmount(TMap<FName, uint64>& TagsNamesWithAmount, ELLMTracker Tracker, ELLMTagSet TagSet);
+	void GetTrackedTagsNamesWithAmountFiltered(TMap<FName, uint64>& TagsNamesWithAmount, ELLMTracker Tracker, ELLMTagSet TagSet, TArray<FLLMTagSetAllocationFilter>& Filters);
 
 	/** Look up the ELLMTag associated with the given display name. */
-	bool FindTagByName(const TCHAR* Name, uint64& OutTag) const;
+	bool FindTagByName(const TCHAR* Name, uint64& OutTag, ELLMTagSet InTagSet = ELLMTagSet::None) const;
 
 	UE_DEPRECATED(4.27, "Use FindTagDisplayName instead")
 	const TCHAR* FindTagName(uint64 Tag) const;
@@ -629,6 +638,8 @@ public:
 
 	/** Get the amount of memory for a FTagData from the given tracker. */
 	int64 GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData, bool bPeakAmount = false);
+
+    int64 GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet, bool bPeakAmount = false);
 
 	/** Set the amount of memory for an ELLMTag for a given tracker and optionally update the total tracked memory. */
 	void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal);
@@ -661,6 +672,8 @@ private:
 	 */
 	void BootstrapInitialise();
 
+	bool IsBootstrapping() const { return bIsBootstrapping; }
+
 	/** Free all memory. This will put the tracker into a permanently disabled state. */
 	void Clear();
 	void InitialiseProgramSize();
@@ -672,7 +685,7 @@ private:
 	void SortTags(UE::LLMPrivate::FTagDataArray*& OutOldTagDatas);
 	void PublishDataPerFrame(const TCHAR* LogName);
 
-	void RegisterCustomTagInternal(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
+	void RegisterCustomTagInternal(int32 Tag, ELLMTagSet TagSet, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
 	/**
 	* Called during C++ global static initialization when GMalloc is available (and hence FNames are unavailable)
 	* Creates the subset of tags necessary to record allocations during GMalloc and FName construction
@@ -685,15 +698,15 @@ private:
 	void InitialiseTagDatas();
 	void ClearTagDatas();
 	void RegisterTagDeclaration(FLLMTagDeclaration& TagDeclaration);
-	UE::LLMPrivate::FTagData& RegisterTagData(FName Name, FName DisplayName, FName ParentName, FName StatName, FName SummaryStatName, bool bHasEnumTag, ELLMTag EnumTag, bool bIsStatTag, UE::LLMPrivate::ETagReferenceSource ReferenceSource);
+	UE::LLMPrivate::FTagData& RegisterTagData(FName Name, FName DisplayName, FName ParentName, FName StatName, FName SummaryStatName, bool bHasEnumTag, ELLMTag EnumTag, bool bIsStatTag, UE::LLMPrivate::ETagReferenceSource ReferenceSource, ELLMTagSet TagSet = ELLMTagSet::None);
 	/** Construct if not yet done the data on the given FTagData that relies on the presence of other TagDatas */
 	void FinishConstruct(UE::LLMPrivate::FTagData* TagData, UE::LLMPrivate::ETagReferenceSource ReferenceSource);
 	void ReportDuplicateTagName(UE::LLMPrivate::FTagData* TagData, UE::LLMPrivate::ETagReferenceSource ReferenceSource);
 
 	const UE::LLMPrivate::FTagData* FindOrAddTagData(ELLMTag EnumTag, UE::LLMPrivate::ETagReferenceSource ReferenceSource = UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
-	const UE::LLMPrivate::FTagData* FindOrAddTagData(FName Name, bool bIsStatData=false, UE::LLMPrivate::ETagReferenceSource ReferenceSource = UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
+	const UE::LLMPrivate::FTagData* FindOrAddTagData(FName Name, ELLMTagSet TagSet, bool bIsStatData=false, UE::LLMPrivate::ETagReferenceSource ReferenceSource = UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
 	const UE::LLMPrivate::FTagData* FindTagData(ELLMTag EnumTag, UE::LLMPrivate::ETagReferenceSource ReferenceSource = UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
-	const UE::LLMPrivate::FTagData* FindTagData(FName Name, UE::LLMPrivate::ETagReferenceSource ReferenceSource = UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
+	const UE::LLMPrivate::FTagData* FindTagData(FName Name, ELLMTagSet TagSet, UE::LLMPrivate::ETagReferenceSource ReferenceSource = UE::LLMPrivate::ETagReferenceSource::FunctionAPI);
 
 	friend class FLLMPauseScope;
 	friend class FLLMScope;
@@ -745,27 +758,27 @@ public: // really internal but needs to be visible for LLM_IF_ENABLED macro
 class CORE_API FLLMScope
 {
 public:
-	FLLMScope(FName TagName, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker)
+	FLLMScope(FName TagName, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride = true)
 	{
 		if (!FLowLevelMemTracker::bIsDisabled)
 		{
-			Init(TagName, bIsStatTag, InTagSet, InTracker);
+			Init(TagName, bIsStatTag, InTagSet, InTracker, bOverride);
 		}
 	}
-	FLLMScope(ELLMTag TagEnum, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker)
+	FLLMScope(ELLMTag TagEnum, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride = true)
 	{
 		if (!FLowLevelMemTracker::bIsDisabled)
 		{
-			Init(TagEnum, bIsStatTag, InTagSet, InTracker);
+			Init(TagEnum, bIsStatTag, InTagSet, InTracker, bOverride);
 		}
 
 	}
 
-	FLLMScope(const UE::LLMPrivate::FTagData* TagData, bool bIsStatTag, ELLMTagSet Set, ELLMTracker Tracker)
+	FLLMScope(const UE::LLMPrivate::FTagData* TagData, bool bIsStatTag, ELLMTagSet Set, ELLMTracker Tracker, bool bOverride = true)
 	{
 		if (!FLowLevelMemTracker::bIsDisabled)
 		{
-			Init(TagData, bIsStatTag, Set, Tracker);
+			Init(TagData, bIsStatTag, Set, Tracker, bOverride);
 		}
 	}
 
@@ -778,16 +791,14 @@ public:
 	}
 
 protected:
-	void Init(FName TagName, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker);
-	void Init(ELLMTag TagEnum, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker);
-	void Init(const UE::LLMPrivate::FTagData* TagData, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker);
+	void Init(FName TagName, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride = true);
+	void Init(ELLMTag TagEnum, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride = true);
+	void Init(const UE::LLMPrivate::FTagData* TagData, bool bIsStatTag, ELLMTagSet InTagSet, ELLMTracker InTracker, bool bOverride = true);
 	void Destruct();
 
 	ELLMTracker Tracker{};
 	bool bEnabled = false;
-#if LLM_ALLOW_ASSETS_TAGS
-	bool bIsAssetTag = false;
-#endif
+	ELLMTagSet TagSet;
 };
 
 /** LLM scope for pausing LLM (disables the allocation hooks). */
@@ -813,14 +824,20 @@ public:
 	~FLLMScopeFromPtr();
 protected:
 	ELLMTracker Tracker;
-	bool bEnabled;
+	bool bEnabled[static_cast<int32>(ELLMTagSet::Max)];
+
+private:
+	inline void DisableAll()
+	{
+		FMemory::Memzero(bEnabled);
+	}
 };
 
 /** Global instances to provide information about a tag to LLM. */
 class CORE_API FLLMTagDeclaration
 {
 public:
-	FLLMTagDeclaration(const TCHAR* InCPPName, const FName InDisplayName=NAME_None, FName InParentTagName = NAME_None, FName InStatName = NAME_None, FName InSummaryStatName = NAME_None);
+	FLLMTagDeclaration(const TCHAR* InCPPName, const FName InDisplayName=NAME_None, FName InParentTagName = NAME_None, FName InStatName = NAME_None, FName InSummaryStatName = NAME_None, ELLMTagSet TagSet = ELLMTagSet::None);
 	FName GetUniqueName() const { return UniqueName; }
 
 	typedef void (*FCreationCallback)(FLLMTagDeclaration&);
@@ -842,20 +859,31 @@ protected:
 	FName ParentTagName;
 	FName StatName;
 	FName SummaryStatName;
+	ELLMTagSet TagSet;
 	FLLMTagDeclaration* Next = nullptr;
 
 	friend class FLowLevelMemTracker;
 	friend class FTagTrace;
 };
 
+/** Used to filter Tag allocations specifying a Name that matches in a TagSet, or TagSet alone or just by Name. */
+struct CORE_API FLLMTagSetAllocationFilter
+{
+	/** Tag name to match */
+	FName Name;
+	/** Tag set to match */
+	ELLMTagSet TagSet;
+};
 
 #else
 
 #define LLM(...)
 #define LLM_IF_ENABLED(...)
 #define LLM_SCOPE(...)
+#define LLM_TAGSET_SCOPE(...)
 #define LLM_SCOPE_BYNAME(...)
 #define LLM_SCOPE_BYTAG(...)
+#define LLM_SCOPE_RENDER_RESOURCE(...)
 #define LLM_PLATFORM_SCOPE(...)
 #define LLM_PLATFORM_SCOPE_BYNAME(...)
 #define LLM_PLATFORM_SCOPE_BYTAG(...)

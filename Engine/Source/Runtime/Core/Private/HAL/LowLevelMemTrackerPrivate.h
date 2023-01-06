@@ -22,7 +22,7 @@
 #endif
 
 // Enable storing the full tag for each alloc if (1) arbitrary names tags are allowed or (2) Stats are allowed (stats use names tags) or (3) Asset tags are allowed (assets use names tags)
-#define LLM_ENABLED_FULL_TAGS LLM_ALLOW_NAMES_TAGS || LLM_ALLOW_STATS || LLM_ALLOW_ASSETS_TAGS
+#define LLM_ENABLED_FULL_TAGS (LLM_ALLOW_NAMES_TAGS || LLM_ALLOW_STATS || LLM_ALLOW_ASSETS_TAGS)
 
 // Whether to enable running with reduced threads. This is currently enabled because the engine crashes with -norenderthread
 #define LLM_ENABLED_REDUCE_THREADS 0
@@ -50,6 +50,36 @@ namespace UE
 {
 namespace LLMPrivate
 {
+	struct FTagDataNameKey
+	{
+		FName Name;
+		ELLMTagSet TagSet;
+		
+		FTagDataNameKey(FName InName, ELLMTagSet InTagSet) :
+			Name(InName),
+			TagSet(InTagSet)
+		{
+		}
+
+		friend uint32 GetTypeHash(const FTagDataNameKey& Key)
+		{
+			constexpr uint32 HashPrime = 101;
+			return GetTypeHash(Key.Name) + HashPrime * static_cast<uint32>(Key.TagSet);
+		}
+
+		friend bool operator==(const FTagDataNameKey& A, const FTagDataNameKey& B)
+		{
+			return A.Name == B.Name && A.TagSet == B.TagSet;
+		}
+
+		friend bool operator!=(const FTagDataNameKey& A, const FTagDataNameKey& B)
+		{
+			return (A.Name != B.Name || A.TagSet != B.TagSet);
+		}
+
+		FTagDataNameKey() = delete;
+	};
+
 	/**
 	 * FTagData: Description of the properties of a Tag that can be used in LLM_SCOPE
 	 */
@@ -57,8 +87,8 @@ namespace LLMPrivate
 	{
 	public:
 
-		FTagData(FName InName, FName InDisplayName, FName InParentName, FName InStatName, FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource);
-		FTagData(FName InName, FName InDisplayName, const FTagData* InParent, FName InStatName, FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource);
+		FTagData(FName InName, ELLMTagSet InTagSet, FName InDisplayName, FName InParentName, FName InStatName, FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource);
+		FTagData(FName InName, ELLMTagSet InTagSet, FName InDisplayName, const FTagData* InParent, FName InStatName, FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource);
 		~FTagData();
 
 		bool IsParentConstructed() const;
@@ -72,6 +102,7 @@ namespace LLMPrivate
 		FName GetStatName() const;
 		FName GetSummaryStatName() const;
 		ELLMTag GetEnumTag() const;
+		ELLMTagSet GetTagSet() const;
 		bool HasEnumTag() const;
 		const FTagData* GetContainingEnumTagData() const;
 		ELLMTag GetContainingEnum() const;
@@ -107,6 +138,7 @@ namespace LLMPrivate
 		int32 Index;
 		ELLMTag EnumTag;
 		ETagReferenceSource ReferenceSource;
+		ELLMTagSet TagSet;
 		bool bIsFinishConstructed;
 		bool bParentIsName;
 		bool bHasEnumTag;
@@ -114,9 +146,9 @@ namespace LLMPrivate
 	};
 
 	// TagData container types that use FLLMAllocator
-	class FTagDataNameMap : public TMap<FName, FTagData*, FDefaultSetLLMAllocator>
+	class FTagDataNameMap : public TMap<FTagDataNameKey, FTagData*, FDefaultSetLLMAllocator>
 	{
-		using TMap<FName, FTagData*, FDefaultSetLLMAllocator>::TMap;
+		using TMap<FTagDataNameKey, FTagData*, FDefaultSetLLMAllocator>::TMap;
 	};
 	class FConstTagDataArray : public TArray<const FTagData*, FDefaultLLMAllocator>
 	{
