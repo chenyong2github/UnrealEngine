@@ -89,8 +89,7 @@ call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
 echo Building AutomationTool...
-dotnet clean Programs\AutomationTool\AutomationTool.csproj -c Development -v %MSBUILD_LOGLEVEL% -o ..\Binaries\DotNET\AutomationTool --nologo
-dotnet build Programs\AutomationTool\AutomationTool.csproj -c Development -v %MSBUILD_LOGLEVEL% -o ..\Binaries\DotNET\AutomationTool
+dotnet build Programs\AutomationTool\AutomationTool.csproj -c Development -v %MSBUILD_LOGLEVEL%
 if errorlevel 1 goto Error_UATCompileFailed
 
 rem record input files - regardless of how we got here, these are now our point of reference

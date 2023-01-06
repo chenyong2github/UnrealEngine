@@ -82,10 +82,8 @@ rem ## Verify that dotnet is present
 call "%~dp0GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
-:SkipClean
 echo Building UnrealBuildTool...
-dotnet clean Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v %MSBUILD_LOGLEVEL% -o ..\Binaries\DotNET\UnrealBuildTool --nologo
-dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v %MSBUILD_LOGLEVEL% -o ..\Binaries\DotNET\UnrealBuildTool
+dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v %MSBUILD_LOGLEVEL%
 if errorlevel 1 goto Error_UBTCompileFailed
 
 rem record input files - regardless of how we got here, these are now our point of reference
