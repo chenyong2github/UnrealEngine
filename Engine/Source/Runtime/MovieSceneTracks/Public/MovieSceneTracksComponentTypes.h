@@ -130,6 +130,12 @@ struct FAttachmentComponent
 	FComponentDetachParams DetachParams;
 };
 
+struct FFadeComponentData
+{
+	FLinearColor FadeColor;
+	bool bFadeAudio;
+};
+
 struct FFloatPropertyTraits
 {
 	using StorageType  = double;
@@ -454,6 +460,8 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 
 	TComponentTypeID<UObject*> BoundMaterial;
 	TComponentTypeID<UMaterialParameterCollection*> MPC;
+
+	TComponentTypeID<FFadeComponentData> Fade;
 
 	struct
 	{

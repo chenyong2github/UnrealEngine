@@ -2,8 +2,6 @@
 
 #include "Tracks/MovieSceneFadeTrack.h"
 #include "Sections/MovieSceneFadeSection.h"
-#include "Evaluation/MovieSceneFadeTemplate.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Templates/Casts.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFadeTrack)
@@ -27,11 +25,6 @@ bool UMovieSceneFadeTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionC
 UMovieSceneSection* UMovieSceneFadeTrack::CreateNewSection()
 {
 	return NewObject<UMovieSceneFadeSection>(this, NAME_None, RF_Transactional);
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneFadeTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneFadeSectionTemplate(*CastChecked<UMovieSceneFadeSection>(&InSection));
 }
 
 #if WITH_EDITORONLY_DATA
