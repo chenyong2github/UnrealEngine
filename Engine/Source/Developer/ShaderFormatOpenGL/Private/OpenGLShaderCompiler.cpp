@@ -3110,7 +3110,7 @@ static bool CompileToGlslWithShaderConductor(
 			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("pad_ubo_blocks"), 1);
 			// TODO: Currently disabled due to bug when assigning an array to temporary variable
-			///TargetDesc.CompileFlags.SetDefine(TEXT("force_temporary"), 1);
+			//TargetDesc.CompileFlags.SetDefine(TEXT("force_temporary"), 1);
 
 			// If we have mobile multiview define set then set the view count and enable extension
 			const FString* MultiViewDefine = Input.Environment.GetDefinitions().Find(TEXT("MOBILE_MULTI_VIEW"));
@@ -3151,7 +3151,7 @@ static bool CompileToGlslWithShaderConductor(
 					FString Name = TextureExternalName;
 					if (Name.RemoveFromEnd(TEXT(";")))
 					{
-						ExternalTextures.Add(TEXT("SPIRV_Cross_Combined") + Name + Name + TEXT("Sampler"));
+						ExternalTextures.Add(Name + TEXT("Sampler"));
 					}
 				}
 			}
@@ -3163,7 +3163,7 @@ static bool CompileToGlslWithShaderConductor(
 		{
 			for (const FString& ExternalTex : ExternalTextures)
 			{
-				if (VariableName.Len() == ExternalTex.Len() && FCStringWide::Strncmp(ANSI_TO_TCHAR(VariableName.GetData()), *ExternalTex, ExternalTex.Len()) == 0)
+				if (FCStringWide::Strstr(ANSI_TO_TCHAR(VariableName.GetData()), *ExternalTex))
 				{
 					OutRenamedTypeName = TEXT("samplerExternalOES");
 					return true;
