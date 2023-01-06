@@ -294,7 +294,27 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 			Connection->SetPlayerOnlinePlatformName(FName(*OnlinePlatformName));
 
 			// Try to kick off verification for this player.
-			if (!StartVerifyAuthentication(*UniqueIdRepl, UGameplayStatics::ParseOption(OptionsURL, TEXT("AuthTicket"))))
+			const FString AuthTicket = UGameplayStatics::ParseOption(OptionsURL, TEXT("AuthTicket"));
+
+			// Try to start deprecated auth method.
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			const bool bStartedAuthDeprecated = StartVerifyAuthentication(*UniqueIdRepl, AuthTicket);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			// Don't start new auth method if deprecated auth is active.
+			bool bStartedNewAuth = false;
+			if (!bStartedAuthDeprecated)
+			{
+				// Create completion delegate.
+				FOnAuthenticationVerificationCompleteDelegate OnAuthComplete = FOnAuthenticationVerificationCompleteDelegate::CreateWeakLambda(this, [this, WeakConnection = TWeakObjectPtr<UNetConnection>(Connection)](const FOnlineError& OnlineError)
+				{
+					OnAuthenticationVerificationComplete(WeakConnection.Get(), OnlineError);
+				});
+
+				bStartedNewAuth = StartVerifyAuthentication(*UniqueIdRepl, AuthTicket, OnAuthComplete);
+			}
+
+			if (!bStartedAuthDeprecated && !bStartedNewAuth)
 			{
 				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconLoginInvalidAuthHandlerError", "Login Failure. Unable to process authentication.");
 				SendFailurePacket(Connection, ENetCloseResult::BeaconLoginInvalidAuthHandlerError, ErrorTxt);
@@ -580,6 +600,19 @@ void AOnlineBeaconHost::OnAuthenticationVerificationComplete(const class FUnique
 	FConnectionState* ConnState = nullptr;
 	if (GetConnectionDataForUniqueNetId(PlayerId, Connection, ConnState))
 	{
+		OnAuthenticationVerificationComplete(Connection, Error);
+	}
+}
+
+bool AOnlineBeaconHost::StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& AuthenticationToken, const FOnAuthenticationVerificationCompleteDelegate& OnComplete)
+{
+	return false;
+}
+
+void AOnlineBeaconHost::OnAuthenticationVerificationComplete(UNetConnection* Connection, const FOnlineError& Error)
+{
+	if (FConnectionState* ConnState = ConnectionState.Find(Connection))
+	{
 		if (ConnState->bHasSentLogin && !ConnState->bHasSentWelcome)
 		{
 			// Gating login on valid authentication. Do not fail open so that users are known to have access.
@@ -589,7 +622,7 @@ void AOnlineBeaconHost::OnAuthenticationVerificationComplete(const class FUnique
 				ConnState->bHasAuthenticated = true;
 
 				// send the welcome packet
-				UE_LOG(LogBeacon, Verbose, TEXT("%s: User authenticated: %s"), *GetDebugName(Connection), *PlayerId.ToString());
+				UE_LOG(LogBeacon, Verbose, TEXT("%s: OnAuthenticationVerificationComplete: Successfully authenticated."), *GetDebugName(Connection));
 				ConnState->bHasSentWelcome = true;
 				FNetControlMessage<NMT_BeaconWelcome>::Send(Connection);
 				Connection->FlushNet();
@@ -597,11 +630,19 @@ void AOnlineBeaconHost::OnAuthenticationVerificationComplete(const class FUnique
 			else
 			{
 				// Auth failure.
-				UE_LOG(LogBeacon, Log, TEXT("%s: Failed to authenticate user: %s error: %s"), *GetDebugName(Connection), *PlayerId.ToString(), *Error.ToLogString());
+				UE_LOG(LogBeacon, Log, TEXT("%s: OnAuthenticationVerificationComplete: Failed to authenticate error: %s"), *GetDebugName(Connection), *Error.ToLogString());
 				SendFailurePacket(Connection, ENetCloseResult::BeaconAuthenticationFailure, Error_Authentication);
 				CloseHandshakeConnection(Connection);
 			}
 		}
+		else
+		{
+			UE_LOG(LogBeacon, Warning, TEXT("%s: OnAuthenticationVerificationComplete: Invalid beacon connection state for auth challenge result. error: %s"), *GetDebugName(Connection), *Error.ToLogString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogBeacon, Warning, TEXT("%s: OnAuthenticationVerificationComplete: Failed to find connection state. error: %s"), *GetDebugName(Connection), *Error.ToLogString());
 	}
 }
 
