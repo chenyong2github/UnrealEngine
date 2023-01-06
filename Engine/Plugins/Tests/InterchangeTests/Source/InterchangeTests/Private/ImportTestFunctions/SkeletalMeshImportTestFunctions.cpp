@@ -33,33 +33,72 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckRenderVert
 {
 	FInterchangeTestFunctionResult Result;
 
-	// @todo: add separate test function for checking the source data vertex count?
-	int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (LodIndex >= ImportedLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		}
+		else
+		{
+			int32 RealVertexCount = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].GetNumVertices();
+			if (RealVertexCount != ExpectedNumberOfRenderVertices)
+			{
+				Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d vertices, imported %d."), LodIndex, ExpectedNumberOfRenderVertices, RealVertexCount));
+			}
+		}
 	}
 	else
 	{
-		int32 RealVertexCount = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].GetNumVertices();
-		if (RealVertexCount != ExpectedNumberOfRenderVertices)
-		{
-			Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d vertices, imported %d."), LodIndex, ExpectedNumberOfRenderVertices, RealVertexCount));
-		}
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
 	}
 
 	return Result;
 }
 
+FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckRenderTriangleCount(USkeletalMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfRenderTriangles)
+{
+	FInterchangeTestFunctionResult Result;
+
+	if (Mesh->GetResourceForRendering())
+	{
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		}
+		else
+		{
+			int32 TriangleCount = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].GetTotalFaces();
+			if (TriangleCount != ExpectedNumberOfRenderTriangles)
+			{
+				Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d triangles, imported %d."), LodIndex, ExpectedNumberOfRenderTriangles, TriangleCount));
+			}
+		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
+	}
+
+	return Result;
+}
 
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckLodCount(USkeletalMesh* Mesh, int32 ExpectedNumberOfLods)
 {
 	FInterchangeTestFunctionResult Result;
-
-	int32 NumLODs = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (NumLODs != ExpectedNumberOfLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("Expected %d LODs, imported %d."), ExpectedNumberOfLods, NumLODs));
+		int32 NumLODs = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (NumLODs != ExpectedNumberOfLods)
+		{
+			Result.AddError(FString::Printf(TEXT("Expected %d LODs, imported %d."), ExpectedNumberOfLods, NumLODs));
+		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
 	}
 
 	return Result;
@@ -83,19 +122,25 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckMaterialSl
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckSectionCount(USkeletalMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfSections)
 {
 	FInterchangeTestFunctionResult Result;
-
-	int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (LodIndex >= ImportedLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		}
+		else
+		{
+			int32 NumSections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections.Num();
+			if (NumSections != ExpectedNumberOfSections)
+			{
+				Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d sections, imported %d."), LodIndex, ExpectedNumberOfSections, NumSections));
+			}
+		}
 	}
 	else
 	{
-		int32 NumSections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections.Num();
-		if (NumSections != ExpectedNumberOfSections)
-		{
-			Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d sections, imported %d."), LodIndex, ExpectedNumberOfSections, NumSections));
-		}
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
 	}
 
 	return Result;
@@ -105,27 +150,33 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckSectionCou
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckTriangleCountInSection(USkeletalMesh* Mesh, int32 LodIndex, int32 SectionIndex, int32 ExpectedNumberOfTriangles)
 {
 	FInterchangeTestFunctionResult Result;
-
-	int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (LodIndex >= ImportedLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
-	}
-	else
-	{
-		int32 NumSections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections.Num();
-		if (SectionIndex >= NumSections)
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
 		{
-			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain section index %d."), SectionIndex));
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
 		}
 		else
 		{
-			int32 NumberOfTriangles = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections[SectionIndex].NumTriangles;
-			if (NumberOfTriangles != ExpectedNumberOfTriangles)
+			int32 NumSections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections.Num();
+			if (SectionIndex >= NumSections)
 			{
-				Result.AddError(FString::Printf(TEXT("For LOD %d, section index %d, expected %d triangles, imported %d."), LodIndex, SectionIndex, ExpectedNumberOfTriangles, NumberOfTriangles));
+				Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain section index %d."), SectionIndex));
+			}
+			else
+			{
+				int32 NumberOfTriangles = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections[SectionIndex].NumTriangles;
+				if (NumberOfTriangles != ExpectedNumberOfTriangles)
+				{
+					Result.AddError(FString::Printf(TEXT("For LOD %d, section index %d, expected %d triangles, imported %d."), LodIndex, SectionIndex, ExpectedNumberOfTriangles, NumberOfTriangles));
+				}
 			}
 		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
 	}
 
 	return Result;
@@ -135,19 +186,25 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckTriangleCo
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckUVChannelCount(USkeletalMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfUVChannels)
 {
 	FInterchangeTestFunctionResult Result;
-
-	int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (LodIndex >= ImportedLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		}
+		else
+		{
+			int32 NumUVs = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].GetNumTexCoords();
+			if (NumUVs != ExpectedNumberOfUVChannels)
+			{
+				Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d UVs, imported %d."), LodIndex, ExpectedNumberOfUVChannels, NumUVs));
+			}
+		}
 	}
 	else
 	{
-		int32 NumUVs = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].GetNumTexCoords();
-		if (NumUVs != ExpectedNumberOfUVChannels)
-		{
-			Result.AddError(FString::Printf(TEXT("For LOD %d, expected %d UVs, imported %d."), LodIndex, ExpectedNumberOfUVChannels, NumUVs));
-		}
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
 	}
 
 	return Result;
@@ -157,72 +214,162 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckUVChannelC
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckSectionMaterialName(USkeletalMesh* Mesh, int32 LodIndex, int32 SectionIndex, const FString& ExpectedMaterialName)
 {
 	FInterchangeTestFunctionResult Result;
-
-	int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (LodIndex >= ImportedLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
-	}
-	else
-	{
-		const TArray<FSkelMeshRenderSection>& Sections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections;
-		if (SectionIndex >= Sections.Num())
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
 		{
-			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain section index %d (imported %d)."), SectionIndex, Sections.Num()));
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
 		}
 		else
 		{
-			int32 MaterialIndex = Sections[SectionIndex].MaterialIndex;
-
-			const TArray<FSkeletalMaterial>& SkeletalMaterials = Mesh->GetMaterials();
-			if (!SkeletalMaterials.IsValidIndex(MaterialIndex) || SkeletalMaterials[MaterialIndex].MaterialInterface == nullptr)
+			const TArray<FSkelMeshRenderSection>& Sections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections;
+			if (SectionIndex >= Sections.Num())
 			{
-				Result.AddError(FString::Printf(TEXT("The section references a non-existent material (index %d)."), MaterialIndex));
+				Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain section index %d (imported %d)."), SectionIndex, Sections.Num()));
 			}
 			else
 			{
-				FString MaterialName = SkeletalMaterials[MaterialIndex].MaterialInterface->GetName();
-				if (MaterialName != ExpectedMaterialName)
+				int32 MaterialIndex = Sections[SectionIndex].MaterialIndex;
+
+				const TArray<FSkeletalMaterial>& SkeletalMaterials = Mesh->GetMaterials();
+				if (!SkeletalMaterials.IsValidIndex(MaterialIndex) || SkeletalMaterials[MaterialIndex].MaterialInterface == nullptr)
 				{
-					Result.AddError(FString::Printf(TEXT("For LOD %d section %d, expected material name %s, imported %s."), LodIndex, SectionIndex, *ExpectedMaterialName, *MaterialName));
+					Result.AddError(FString::Printf(TEXT("The section references a non-existent material (index %d)."), MaterialIndex));
+				}
+				else
+				{
+					FString MaterialName = SkeletalMaterials[MaterialIndex].MaterialInterface->GetName();
+					if (MaterialName != ExpectedMaterialName)
+					{
+						Result.AddError(FString::Printf(TEXT("For LOD %d section %d, expected material name %s, imported %s."), LodIndex, SectionIndex, *ExpectedMaterialName, *MaterialName));
+					}
 				}
 			}
 		}
 	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
+	}
 
 	return Result;
 }
 
+FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckSectionImportedMaterialSlotName(USkeletalMesh* Mesh, int32 LodIndex, int32 SectionIndex, const FString& ExpectedImportedMaterialSlotName)
+{
+	FInterchangeTestFunctionResult Result;
+	if (Mesh->GetResourceForRendering())
+	{
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		}
+		else
+		{
+			const TArray<FSkelMeshRenderSection>& Sections = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].RenderSections;
+			if (SectionIndex >= Sections.Num())
+			{
+				Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain section index %d (imported %d)."), SectionIndex, Sections.Num()));
+			}
+			else
+			{
+				int32 MaterialIndex = Sections[SectionIndex].MaterialIndex;
+
+				const TArray<FSkeletalMaterial>& SkeletalMaterials = Mesh->GetMaterials();
+				if (!SkeletalMaterials.IsValidIndex(MaterialIndex))
+				{
+					Result.AddError(FString::Printf(TEXT("The section references a non-existent material (index %d)."), MaterialIndex));
+				}
+				else
+				{
+					const FString ImportedMaterialSlotName = SkeletalMaterials[MaterialIndex].ImportedMaterialSlotName.ToString();
+					if (ImportedMaterialSlotName != ExpectedImportedMaterialSlotName)
+					{
+						Result.AddError(FString::Printf(TEXT("For LOD %d section %d, expected imported material slot name %s, imported %s."), LodIndex, SectionIndex, *ExpectedImportedMaterialSlotName, *ImportedMaterialSlotName));
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
+	}
+
+	return Result;
+}
 
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckVertexIndexPosition(USkeletalMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FVector& ExpectedVertexPosition)
 {
 	FInterchangeTestFunctionResult Result;
-
-	int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
-	if (LodIndex >= ImportedLods)
+	if (Mesh->GetResourceForRendering())
 	{
-		Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
-	}
-	else
-	{
-		int32 VertexCount = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
-		if (VertexIndex >= VertexCount)
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
 		{
-			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain vertex index %d (imported %d)."), VertexIndex, VertexCount));
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
 		}
 		else
 		{
-			FVector VertexPosition = FVector(Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex));
-			if (!VertexPosition.Equals(ExpectedVertexPosition))
+			int32 VertexCount = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+			if (VertexIndex >= VertexCount)
 			{
-				Result.AddError(FString::Printf(TEXT("For LOD %d vertex index %d, expected position %s, imported %s."), LodIndex, VertexIndex, *ExpectedVertexPosition.ToString(), *VertexPosition.ToString()));
+				Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain vertex index %d (imported %d)."), VertexIndex, VertexCount));
+			}
+			else
+			{
+				FVector VertexPosition = FVector(Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex));
+				if (!VertexPosition.Equals(ExpectedVertexPosition, UE_DOUBLE_KINDA_SMALL_NUMBER))
+				{
+					Result.AddError(FString::Printf(TEXT("For LOD %d vertex index %d, expected position %s, imported %s."), LodIndex, VertexIndex, *ExpectedVertexPosition.ToString(), *VertexPosition.ToString()));
+				}
 			}
 		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
 	}
 
 	return Result;
 }
 
+FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckVertexIndexNormal(USkeletalMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FVector& ExpectedVertexNormal)
+{
+	FInterchangeTestFunctionResult Result;
+	if (Mesh->GetResourceForRendering())
+	{
+		int32 ImportedLods = Mesh->GetResourceForRendering()->LODRenderData.Num();
+		if (LodIndex < 0 || LodIndex >= ImportedLods)
+		{
+			Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain LOD index %d (imported %d)."), LodIndex, ImportedLods));
+		}
+		else
+		{
+			int32 VertexCount = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
+			if (VertexIndex >= VertexCount)
+			{
+				Result.AddError(FString::Printf(TEXT("The imported mesh doesn't contain vertex index %d (imported %d)."), VertexIndex, VertexCount));
+			}
+			else
+			{
+				FVector VertexNormal = FVector(Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex));
+				if (!VertexNormal.Equals(ExpectedVertexNormal, UE_DOUBLE_KINDA_SMALL_NUMBER))
+				{
+					Result.AddError(FString::Printf(TEXT("For LOD %d vertex index %d, expected normal %s, imported %s."), LodIndex, VertexIndex, *ExpectedVertexNormal.ToString(), *VertexNormal.ToString()));
+				}
+			}
+		}
+	}
+	else
+	{
+		Result.AddError(FString::Printf(TEXT("No valid render data for this skeletalmesh %s."), *Mesh->GetName()));
+	}
+
+	return Result;
+}
 
 FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckBoneCount(USkeletalMesh* Mesh, int32 ExpectedNumberOfBones)
 {
@@ -268,7 +415,7 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckBonePositi
 		else
 		{
 			FVector BonePosition = Mesh->GetRefSkeleton().GetRefBonePose()[BoneIndex].GetLocation();
-			if (!BonePosition.Equals(ExpectedBonePosition))
+			if (!BonePosition.Equals(ExpectedBonePosition, UE_DOUBLE_KINDA_SMALL_NUMBER))
 			{
 				Result.AddError(FString::Printf(TEXT("For bone index %d, expected position %s, imported %s."), BoneIndex, *ExpectedBonePosition.ToString(), *BonePosition.ToString()));
 			}

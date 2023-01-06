@@ -38,55 +38,27 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckImportedStaticMeshCount(const TArray<UStaticMesh*>& Meshes, int32 ExpectedNumberOfImportedStaticMeshes);
 
-	/** Check whether the vertex count for the given LOD is as expected */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckVertexCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfVertices);
-
-	/** Check whether the vertex count in the built render data for the given LOD is as expected */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckRenderVertexCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfRenderVertices);
-
-	/** Check whether the mesh has the expected number of LODs */
+	/** Check whether the static mesh has the expected number of LODs */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckLodCount(UStaticMesh* Mesh, int32 ExpectedNumberOfLods);
 
-	/** Check whether the mesh has the expected number of material slots */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckMaterialSlotCount(UStaticMesh* Mesh, int32 ExpectedNumberOfMaterialSlots);
-
-	/** Check whether the mesh has the expected number of polygon groups for the given LOD */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckPolygonGroupCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfPolygonGroups);
-
-	/** Check whether the built render data for the given mesh LOD has the expected number of sections */
+	/** Check whether the render data for the given mesh LOD has the expected number of sections */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSectionCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfSections);
 
-	/** Check whether the mesh has the expected number of triangles for the given LOD */
+	/** Check whether the static mesh has the expected number of material slots */
 	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckTotalTriangleCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedTotalNumberOfTriangles);
+	static FInterchangeTestFunctionResult CheckMaterialSlotCount(UStaticMesh* Mesh, int32 ExpectedNumberOfMaterialSlots);
 
-	/** Check whether the mesh has the expected number of polygons for the given LOD */
+	/** Check whether the static mesh imported material slot name for the given material index is as expected */
 	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckTotalPolygonCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfPolygons);
+	static FInterchangeTestFunctionResult CheckImportedMaterialSlotName(UStaticMesh* Mesh, int32 MaterialIndex, const FString& ExpectedImportedMaterialSlotName);
 
-	/** Check whether the mesh contains any quads or ngons */
+	/** Check whether the mesh description has the expected number of polygon groups for the given LOD */
 	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckThatMeshHasQuadsOrNgons(UStaticMesh* Mesh, int32 LodIndex, bool bMeshHasQuadsOrNgons);
+	static FInterchangeTestFunctionResult CheckPolygonGroupCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfPolygonGroups);
 
-	/** Check whether the given polygon group of the given LOD has the expected number of triangles */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckTriangleCountInPolygonGroup(UStaticMesh* Mesh, int32 LodIndex, int32 PolygonGroupIndex, int32 ExpectedNumberOfTriangles);
-
-	/** Check whether the given polygon group of the given LOD has the expected number of polygons */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckPolygonCountInPolygonGroup(UStaticMesh* Mesh, int32 LodIndex, int32 PolygonGroupIndex, int32 ExpectedNumberOfPolygons);
-
-	/** Check whether the mesh has the expected number of UV channels */
-	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckUVChannelCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfUVChannels);
-
-	/** Check whether the material slot name for the given polygon group in the given LOD is as expected */
+	/** Check whether the mesh description material slot name for the given polygon group in the given LOD is as expected */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckPolygonGroupImportedMaterialSlotName(UStaticMesh* Mesh, int32 LodIndex, int32 PolygonGroupIndex, const FString& ExpectedImportedMaterialSlotName);
 
@@ -98,27 +70,75 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSectionMaterialName(UStaticMesh* Mesh, int32 LodIndex, int32 SectionIndex, const FString& ExpectedMaterialName);
 
-	/** Check whether the vertex of the given index is at the expected position */
+	/** Check whether the section index in the built render data for the given LOD is referencing the expected imported material slot name*/
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckSectionImportedMaterialSlotName(UStaticMesh* Mesh, int32 LodIndex, int32 SectionIndex, const FString& ExpectedImportedMaterialSlotName);
+
+	/** Check whether the mesh description vertex count for the given LOD is as expected */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckVertexCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfVertices);
+
+	/** Check whether the render data vertex count for the given LOD is as expected */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckRenderVertexCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfRenderVertices);
+
+	/** Check whether the mesh description vertex of the given index is at the expected position */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckVertexIndexPosition(UStaticMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FVector& ExpectedVertexPosition);
 
-	/** Check whether the expected number of simple collision primitives were imported */
+	/** Check whether the render data vertex index of the given LOD has the expected vertex normal */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckRenderVertexIndexNormal(UStaticMesh* Mesh, int32 LodIndex, int32 VertexIndex, const FVector4f& ExpectedVertexNormal);
+
+	/** Check whether the mesh description has the expected number of triangles for the given LOD */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckTriangleCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedTotalNumberOfTriangles);
+
+	/** Check whether the render data has the expected number of triangles for the given LOD */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckRenderTriangleCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedTotalNumberOfTriangles);
+
+	/** Check whether the mesh description has the expected number of polygons for the given LOD */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckPolygonCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfPolygons);
+
+	/** Check whether the mesh description contains any quads or ngons */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckThatMeshHasQuadsOrNgons(UStaticMesh* Mesh, int32 LodIndex, bool bMeshHasQuadsOrNgons);
+
+	/** Check whether the given mesh description polygon group of the given LOD has the expected number of triangles */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckTriangleCountInPolygonGroup(UStaticMesh* Mesh, int32 LodIndex, int32 PolygonGroupIndex, int32 ExpectedNumberOfTriangles);
+
+	/** Check whether the given mesh description polygon group of the given LOD has the expected number of polygons */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckPolygonCountInPolygonGroup(UStaticMesh* Mesh, int32 LodIndex, int32 PolygonGroupIndex, int32 ExpectedNumberOfPolygons);
+
+	/** Check whether the mesh description has the expected number of UV channels */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckUVChannelCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfUVChannels);
+
+	/** Check whether the render data has the expected number of UV channels */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckRenderUVChannelCount(UStaticMesh* Mesh, int32 LodIndex, int32 ExpectedNumberOfUVChannels);
+
+	/** Check whether the static mesh expected number of simple collision primitives were imported */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSimpleCollisionPrimitiveCount(UStaticMesh* Mesh, int32 ExpectedSphereElementCount, int32 ExpectedBoxElementCount, int32 ExpectedCapsuleElementCount, int32 ExpectedConvexElementCount, int32 ExpectedTaperedCapsuleElementCount);
 
-	/** Check whether the expected number of sockets were imported */
+	/** Check whether the static mesh expected number of sockets were imported */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSocketCount(UStaticMesh* Mesh, int32 ExpectedSocketCount);
 
-	/** Check whether the given socket index has the expected name */
+	/** Check whether the static mesh given socket index has the expected name */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSocketName(UStaticMesh* Mesh, int32 SocketIndex, const FString& ExpectedSocketName);
 
-	/** Check whether the given socket index has the expected location */
+	/** Check whether the static mesh given socket index has the expected location */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSocketLocation(UStaticMesh* Mesh, int32 SocketIndex, const FVector& ExpectedSocketLocation);
 
-	/** Check whether the mesh is equivalent to a ground truth asset */
+	/** Check whether the static mesh is equivalent to a ground truth asset */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckAgainstGroundTruth(UStaticMesh* Mesh, TSoftObjectPtr<UStaticMesh> MeshToCompare,
 		bool bCheckVertexCountEqual = true,
@@ -129,11 +149,11 @@ public:
 		bool bCheckNormalsEqual = true
 	);
 
-	/** Check whether the mesh source model has the expected build settings */
+	/** Check whether the static mesh source model has the expected build settings */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckBuildSettings(UStaticMesh* Mesh, int32 LodIndex, const FMeshBuildSettings& ExpectedBuildSettings);
 
-	/** Check whether the mesh has the expected Nanite settings */
+	/** Check whether the static mesh has the expected Nanite settings */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckNaniteSettings(UStaticMesh* Mesh, const FMeshNaniteSettings& ExpectedNaniteSettings);
 };
