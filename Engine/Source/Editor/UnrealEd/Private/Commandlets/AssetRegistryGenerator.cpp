@@ -1561,11 +1561,9 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		SaveOptions.DisableFilters();
 	}
 
-	// Filter tags from both development and saved registries, keeping only the tags applicable to the platform
-	State.FilterTags(SaveOptions);
-
-	// Then possibly apply previous AssetData and AssetPackageData for packages kept from a previous cook
+	// Possibly apply previous AssetData and AssetPackageData for packages kept from a previous cook
 	UpdateKeptPackages();
+
 	UpdateCollectionAssetData();
 
 	if (DevelopmentSaveOptions.bSerializeAssetRegistry)
@@ -1579,6 +1577,8 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 			// Make a copy of the state so we can add tags to only the development registry.
 			FAssetRegistryState DevelopmentState;
 			DevelopmentState.InitializeFromExisting(State, DevelopmentSaveOptions);
+
+			DevelopmentState.FilterTags(DevelopmentSaveOptions);
 
 			AddCookTagsToState(MoveTemp(CookTagsToAdd), DevelopmentState);
 
@@ -1608,6 +1608,8 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		TMap<int32, TSet<int32>> ChunkBuckets;
 		const int32 GenericChunkBucket = -1;
 		ChunkBucketNames.Add(GenericChunkBucket, FString());
+
+		State.FilterTags(SaveOptions);
 
 		// When chunk manifests have been generated (e.g. cook by the book) serialize 
 		// an asset registry for each chunk.
