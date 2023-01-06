@@ -54,11 +54,11 @@ protected:
 	
 	/** The unique name of this config that can be used when saving it */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
-	FName ConfigName = NAME_None;
+	FName ConfigName;
 
 	/** The display name that can be used  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
-	FText ConfigDisplayName = FText::GetEmpty();
+	FText ConfigDisplayName;
 
 	/** A flag that can be used to mark this Input Config as deprecated to your player/designers. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
