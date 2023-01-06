@@ -126,6 +126,7 @@ public:
 	virtual bool ShouldDrawAsBead() const override;
 	virtual FText GetCompactNodeTitle() const override;
 	virtual void PostPasteNode() override;
+	virtual bool CanSplitPin(const UEdGraphPin* Pin) const override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual bool ShouldShowNodeProperties() const override;
 	virtual void GetRedirectPinNames(const UEdGraphPin& Pin, TArray<FString>& RedirectPinNames) const override;
@@ -259,6 +260,12 @@ protected:
 
 	/** Adds this function to the suppressed deprecation warnings list for this project */
 	void SuppressDeprecationWarning() const;
+
+	/** Helper function for searching a UFunction for the names of requires pins/params: */
+	static TSet<FName> GetRequiredParamNames(const UFunction* ForFunction);
+
+	/** Routine for validating that all UPARAM(Required) parmas have a connection: */
+	void ValidateRequiredPins(const UFunction* Function, class FCompilerResultsLog& MessageLog) const;
 
 	/** Helper function to find UFunction entries from the skeleton class, use with caution.. */
 	UFunction* GetTargetFunctionFromSkeletonClass() const;

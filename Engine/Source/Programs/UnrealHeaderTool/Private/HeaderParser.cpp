@@ -3524,6 +3524,12 @@ void FHeaderParser::GetVarType(
 				}
 				break;
 
+				case EVariableSpecifier::Required:
+				{
+					Flags |= CPF_RequiredParm;
+				}
+				break;
+
 				default:
 				{
 					LogError(TEXT("Unknown variable specifier '%s'"), *Specifier.Key);

@@ -991,7 +991,10 @@ namespace EpicGames.Core
 		/// </summary>
 		Config = 0x0000000000004000,
 
-		// Unused = 0x0000000000008000,
+		/// <summary>
+		/// Parameter is required in blueprint. Not linking the parameter with a node will result in a compile error.
+		/// </summary>
+		RequiredParm = 0x0000000000008000,
 
 		/// <summary>
 		/// Disable editing on an instance of this class
@@ -1185,7 +1188,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// All parameter flags
 		/// </summary>
-		ParmFlags = Parm | OutParm | ReturnParm | ReferenceParm | ConstParm,
+		ParmFlags = Parm | OutParm | ReturnParm | ReferenceParm | ConstParm | RequiredParm,
 
 		/// <summary>
 		/// Flags that are propagated to properties inside array container

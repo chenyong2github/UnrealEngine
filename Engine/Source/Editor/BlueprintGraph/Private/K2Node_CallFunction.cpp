@@ -1118,6 +1118,10 @@ bool UK2Node_CallFunction::CreatePinsForFunctionCall(const UFunction* Function)
 			//Flag pin as read only for const reference property
 			Pin->bDefaultValueIsIgnored = Param->HasAllPropertyFlags(CPF_ConstParm | CPF_ReferenceParm) && (!Function->HasMetaData(FBlueprintMetadata::MD_AutoCreateRefTerm) || Pin->PinType.IsContainer());
 
+			const bool bIsRequiredParam = Param->HasAnyPropertyFlags(CPF_RequiredParm);
+			// Don't let the user edit the default value if the parameter is required to be explicit.
+			Pin->bDefaultValueIsIgnored |= bIsRequiredParam;
+
 			const bool bAdvancedPin = Param->HasAllPropertyFlags(CPF_AdvancedDisplay);
 			Pin->bAdvancedView = bAdvancedPin;
 			if(bAdvancedPin && (ENodeAdvancedPins::NoPins == AdvancedPinDisplay))
@@ -2007,6 +2011,45 @@ void UK2Node_CallFunction::SuppressDeprecationWarning() const
 	}
 }
 
+TSet<FName> UK2Node_CallFunction::GetRequiredParamNames(const UFunction* ForFunction)
+{
+	TSet<FName> Result;
+
+	for (TFieldIterator<FProperty> PropIt(ForFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	{
+		FProperty* Param = *PropIt;
+		const bool bIsRequiredParam = Param->HasAnyPropertyFlags(CPF_RequiredParm);
+		if (bIsRequiredParam)
+		{
+			Result.Add(Param->GetFName());
+		}
+	}
+	return Result;
+}
+
+void UK2Node_CallFunction::ValidateRequiredPins(const UFunction* Function, FCompilerResultsLog& MessageLog) const
+{
+	TSet<FName> RequiredPinNames = GetRequiredParamNames(Function);
+
+	if(RequiredPinNames.Num() == 0)
+	{
+		return;
+	}
+
+	for (const UEdGraphPin* Pin : Pins)
+	{
+		if (Pin != nullptr)
+		{
+			const bool bIsRequired = RequiredPinNames.Contains(Pin->GetFName());
+			const bool bIsNotLinked = Pin->LinkedTo.Num() == 0;
+			if (bIsRequired && bIsNotLinked)
+			{
+				MessageLog.Error(*LOCTEXT("MissingRequiredPin", "Pin @@ must be linked to another node (in @@)").ToString(), Pin, this);
+			}
+		}
+	}
+}
+
 void UK2Node_CallFunction::PostPasteNode()
 {
 	Super::PostPasteNode();
@@ -2043,6 +2086,16 @@ void UK2Node_CallFunction::PostPasteNode()
 			}
 		}
 	}
+}
+
+bool UK2Node_CallFunction::CanSplitPin(const UEdGraphPin* Pin) const
+{
+	TSet<FName> RequiredPins;
+	if (UFunction* Function = GetTargetFunction())
+	{
+		RequiredPins = GetRequiredParamNames(Function);
+	}
+	return Super::CanSplitPin(Pin) && !RequiredPins.Contains(Pin->GetFName());
 }
 
 void UK2Node_CallFunction::PostDuplicate(bool bDuplicateForPIE)
@@ -2120,6 +2173,8 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 
 	if (Function)
 	{
+		ValidateRequiredPins(Function, MessageLog);
+
 		// enforce UnsafeDuringActorConstruction keyword
 		if (Function->HasMetaData(FBlueprintMetadata::MD_UnsafeForConstructionScripts))
 		{

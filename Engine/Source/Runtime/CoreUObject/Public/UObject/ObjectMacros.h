@@ -409,7 +409,7 @@ enum EPropertyFlags : uint64
 	CPF_NonNullable						= 0x0000000000001000,	///< Object property can never be null
 	CPF_Transient   					= 0x0000000000002000,	///< Property is transient: shouldn't be saved or loaded, except for Blueprint CDOs.
 	CPF_Config      					= 0x0000000000004000,	///< Property should be loaded/saved as permanent profile.
-	//CPF_								= 0x0000000000008000,	///< 
+	CPF_RequiredParm					= 0x0000000000008000,	///< Parameter must be linked explicitly in blueprint. Leaving the parameter out results in a compile error. 
 	CPF_DisableEditOnInstance			= 0x0000000000010000,	///< Disable editing on an instance of this class
 	CPF_EditConst   					= 0x0000000000020000,	///< Property is uneditable in the editor.
 	CPF_GlobalConfig					= 0x0000000000040000,	///< Load config from base class, not subclass.
@@ -456,7 +456,7 @@ enum EPropertyFlags : uint64
 #define CPF_NativeAccessSpecifiers	(CPF_NativeAccessSpecifierPublic | CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate)
 
 /** All parameter flags */
-#define CPF_ParmFlags				(CPF_Parm | CPF_OutParm | CPF_ReturnParm | CPF_ReferenceParm | CPF_ConstParm)
+#define CPF_ParmFlags				(CPF_Parm | CPF_OutParm | CPF_ReturnParm | CPF_RequiredParm | CPF_ReferenceParm | CPF_ConstParm )
 
 /** Flags that are propagated to properties inside containers */
 #define CPF_PropagateToArrayInner	(CPF_ExportObject | CPF_PersistentInstance | CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_Config | CPF_EditConst | CPF_Deprecated | CPF_EditorOnly | CPF_AutoWeak | CPF_UObjectWrapper )

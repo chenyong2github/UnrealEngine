@@ -45,6 +45,13 @@ namespace EpicGames.UHT.Parsers
 				context.MessageSite.LogError("Only parameters in service request functions can be marked NotReplicated");
 			}
 		}
+		
+		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.None)]
+		private static void RequiredSpecifier(UhtSpecifierContext SpecifierContext)
+		{
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)SpecifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.RequiredParm;
+		}
 		#endregion
 	}
 }
