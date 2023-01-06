@@ -682,6 +682,12 @@ public:
 		bHasCompilerMessage = false;
 	}
 
+	/** If true, this node whill show the Visual Warning message */
+	virtual bool ShowVisualWarning() const;
+
+	/** Visual Warning tooltip message to show */
+	virtual FText GetVisualWarningTooltipText() const;
+
 	/** Generate a unique pin name, trying to stick close to a passed in name */
 	virtual FName CreateUniquePinName(FName SourcePinName) const
 	{

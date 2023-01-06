@@ -1,10 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
+#include "Engine/SkeletalMesh.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Engine/SkeletalMeshSocket.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SkeletalControlBase)
+
+#define LOCTEXT_NAMESPACE "AnimNode_SkeletalControlBase"
+
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+	DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalControlBase, Log, Warning);
+#else
+	DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalControlBase, Log, All);
+#endif
+DEFINE_LOG_CATEGORY(LogSkeletalControlBase);
 
 /////////////////////////////////////////////////////
 // FAnimNode_SkeletalControlBase
@@ -22,6 +32,10 @@ void FAnimNode_SkeletalControlBase::Initialize_AnyThread(const FAnimationInitial
 
 void FAnimNode_SkeletalControlBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+#if WITH_EDITOR
+	ClearValidationVisualWarnings();
+#endif
+
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	FAnimNode_Base::CacheBones_AnyThread(Context);
 	InitializeBoneReferences(Context.AnimInstanceProxy->GetRequiredBones());
@@ -160,3 +174,65 @@ float FAnimNode_SkeletalControlBase::GetAlpha() const
 {
 	return ActualAlpha;
 }
+
+void FAnimNode_SkeletalControlBase::InitializeAndValidateBoneRef(FBoneReference& BoneRef, const FBoneContainer& RequiredBones)
+{
+	if (BoneRef.BoneName != NAME_None)
+	{
+		BoneRef.Initialize(RequiredBones);
+	}
+
+	if (!BoneRef.HasValidSetup())
+	{
+		const FText ErrorText = FText::Format(LOCTEXT("SkeletalControlBoneError", "Referenced Bone {0} does not exist on SkeletalMesh {1}."),
+			FText::AsCultureInvariant(BoneRef.BoneName.ToString()),
+			FText::AsCultureInvariant(GetNameSafe(RequiredBones.GetSkeletalMeshAsset())));
+
+#if WITH_EDITOR
+		AddValidationVisualWarning(ErrorText);
+#endif // WITH_EDITOR
+
+		// If the user specified a simulation root that is not used by the skelmesh, issue a warning 
+		UE_LOG(LogSkeletalControlBase, Log, TEXT("%s"), *ErrorText.ToString());
+	}
+}
+
+#if WITH_EDITOR
+void FAnimNode_SkeletalControlBase::AddBoneRefMissingVisualWarning(const FString& BoneName, const FString& SkeletalMeshName)
+{
+	const FText ErrorText = FText::Format(LOCTEXT("SkeletalControlBoneError", "Simulation Base Bone {0} does not exist on SkeletalMesh {1}."), FText::FromString(BoneName), FText::FromString(SkeletalMeshName));
+	
+	AddValidationVisualWarning(ErrorText);
+}
+
+void FAnimNode_SkeletalControlBase::AddValidationVisualWarning(FText ValidationVisualWarning)
+{
+#if WITH_EDITORONLY_DATA
+	if (ValidationVisualWarningMessage.IsEmpty())
+	{
+		ValidationVisualWarningMessage = ValidationVisualWarning;
+	}
+	else
+	{
+		ValidationVisualWarningMessage = FText::Format(FText::FromString(TEXT("{0}\n{1}")), ValidationVisualWarningMessage, ValidationVisualWarning);
+	}
+#endif
+}
+
+void FAnimNode_SkeletalControlBase::ClearValidationVisualWarnings()
+{
+	ValidationVisualWarningMessage = FText::GetEmpty();
+}
+
+bool FAnimNode_SkeletalControlBase::HasValidationVisualWarnings() const
+{
+	return ValidationVisualWarningMessage.IsEmpty() == false;
+}
+
+FText FAnimNode_SkeletalControlBase::GetValidationVisualWarningMessage() const
+{
+	return ValidationVisualWarningMessage;
+}
+#endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE

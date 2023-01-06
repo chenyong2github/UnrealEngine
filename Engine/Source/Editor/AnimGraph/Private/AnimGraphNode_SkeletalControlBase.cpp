@@ -4,6 +4,7 @@
 #include "UnrealWidgetFwd.h"
 #include "AnimationGraphSchema.h"
 #include "Animation/AnimationSettings.h"
+#include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -455,6 +456,22 @@ void UAnimGraphNode_SkeletalControlBase::PostEditChangeProperty(struct FProperty
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+bool UAnimGraphNode_SkeletalControlBase::ShowVisualWarning() const
+{
+	const FAnimNode_SkeletalControlBase* DebuggedNode = GetDebuggedNode();
+
+	const bool bHasError = DebuggedNode ? DebuggedNode->HasValidationVisualWarnings() : false;
+
+	return bHasError;
+}
+
+FText UAnimGraphNode_SkeletalControlBase::GetVisualWarningTooltipText() const
+{
+	FAnimNode_SkeletalControlBase* DebuggedNode = GetDebuggedNode();
+
+	return DebuggedNode ? DebuggedNode->GetValidationVisualWarningMessage() : FText::GetEmpty();
+}
+
 void UAnimGraphNode_SkeletalControlBase::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	Super::CustomizeDetails(DetailBuilder);
@@ -496,6 +513,23 @@ void UAnimGraphNode_SkeletalControlBase::ValidateAnimNodePostCompile(FCompilerRe
 			MessageLog.Warning(TEXT("@@ contains no LOD Threshold."), this);
 		}
 	}
+}
+
+FAnimNode_SkeletalControlBase* UAnimGraphNode_SkeletalControlBase::GetDebuggedNode() const
+{
+	if (const UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged())
+	{
+		if (const UAnimInstance* InstanceBeingDebugged = Cast<const UAnimInstance>(ObjectBeingDebugged))
+		{
+			USkeletalMeshComponent* Component = InstanceBeingDebugged->GetSkelMeshComponent();
+			if (Component != nullptr && Component->GetAnimInstance() != nullptr)
+			{
+				return static_cast<FAnimNode_SkeletalControlBase*>(FindDebugAnimNode(Component));
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

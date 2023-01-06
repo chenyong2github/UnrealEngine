@@ -492,6 +492,16 @@ void UEdGraphNode::SnapToGrid(uint32 GridSnapSize)
 	NodePosY = GridSnapSize * (NodePosY / GridSnapSize);
 }
 
+bool UEdGraphNode::ShowVisualWarning() const
+{
+	return false;
+}
+
+FText UEdGraphNode::GetVisualWarningTooltipText() const
+{
+	return FText();
+}
+
 class UEdGraph* UEdGraphNode::GetGraph() const
 {
 	UEdGraph* Graph = Cast<UEdGraph>(GetOuter());

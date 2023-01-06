@@ -765,6 +765,9 @@ void SGraphNode::UpdateErrorInfo()
 		ErrorColor = FLinearColor(0,0,0);
 		ErrorMsg.Empty();
 	}
+
+	VisualWarningMsg = FString(TEXT("WARNING!"));
+	VisualWarningColor = FAppStyle::GetColor("ErrorReporting.WarningBackgroundColor");
 }
 
 void SGraphNode::SetupErrorReporting()
@@ -783,6 +786,20 @@ void SGraphNode::SetupErrorReporting()
 		ErrorReporting = ErrorTextWidget;
 	}
 	ErrorReporting->SetError(ErrorMsg);
+
+	if (!VisualWarningReporting.IsValid())
+	{
+		TSharedPtr<SErrorText> ErrorTextWidget;
+
+		// generate widget
+		SAssignNew(ErrorTextWidget, SErrorText)
+			.Visibility(this, &SGraphNode::VisualWarningVisibility)
+			.BackgroundColor(this, &SGraphNode::GetVisualWarningColor)
+			.ToolTipText(this, &SGraphNode::GetVisualWarningMsgToolTip);
+
+		VisualWarningReporting = ErrorTextWidget;
+	}
+	VisualWarningReporting->SetError(VisualWarningMsg);
 }
 
 TSharedRef<SWidget> SGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
@@ -982,6 +999,12 @@ void SGraphNode::UpdateGraphNode()
 			ErrorReporting->AsWidget()
 		];
 
+	InnerVerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding(Settings->GetNonPinNodeBodyPadding())
+		[
+			VisualWarningReporting->AsWidget()
+		];
 
 
 	this->GetOrAddSlot( ENodeZone::Center )
@@ -1474,6 +1497,30 @@ FText SGraphNode::GetErrorMsgToolTip() const
 
 	return Result;
 }
+
+EVisibility SGraphNode::VisualWarningVisibility() const
+{
+	const bool bShowVisualWarning = GraphNode && GraphNode->ShowVisualWarning();
+	return bShowVisualWarning ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+/* Helper function to set the error color for the node */
+FSlateColor SGraphNode::GetVisualWarningColor() const
+{
+	return VisualWarningColor;
+}
+
+FText SGraphNode::GetVisualWarningMsgToolTip() const
+{
+	FText Result = FText::GetEmpty();
+	if (GraphNode != nullptr)
+	{
+		Result = GraphNode->GetVisualWarningTooltipText();
+	}
+
+	return Result;
+}
+
 
 bool SGraphNode::IsNameReadOnly() const
 {

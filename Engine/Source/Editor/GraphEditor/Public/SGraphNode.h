@@ -330,6 +330,15 @@ protected:
 	/* Helper function to set the error color for the node */
 	FSlateColor GetErrorColor() const	{return ErrorColor;}
 
+	/** Controls wether to show or not the visual warning message */
+	EVisibility VisualWarningVisibility() const;
+
+	/** Function to get a visual warning description string(visual warnings does not break the build) */
+	FText GetVisualWarningMsgToolTip() const;
+
+	/* Helper function to set the error color for the node */
+	FSlateColor GetVisualWarningColor() const;
+
 	/** Helper function to get any error text for the node */
 	FString GetErrorMessage() const {return ErrorMsg;}
 
@@ -424,6 +433,8 @@ protected:
 	TSharedPtr<SInlineEditableTextBlock> InlineEditableText;
 	/** Error handling widget */
 	TSharedPtr<class IErrorReportingWidget> ErrorReporting;
+	/** Visual Warning handling widget */
+	TSharedPtr<class IErrorReportingWidget> VisualWarningReporting;
 
 	FCurveSequence SpawnAnim;
 	FCurveHandle ZoomCurve;
@@ -449,6 +460,11 @@ protected:
 	FString ErrorMsg;
 	/** Used to set the error color */
 	FSlateColor ErrorColor;
+	/** Used to report visual warnings on the node (does not break build) */
+	FString VisualWarningMsg;
+	/** Used to set the soft error color */
+	FSlateColor VisualWarningColor;
+
 
 	/** Caches true position of node */
 	FVector2D CachedUnscaledPosition;

@@ -90,7 +90,19 @@ public:
 
 	// Get the alpha of this node
 	float GetAlpha() const;
-	
+
+	void InitializeAndValidateBoneRef(FBoneReference& BoneRef, const FBoneContainer& RequiredBones);
+
+	// Visual warnings are shown on the node but not logged as an error for build system, use with care
+	// The warnigns are cleared at CacheBones_AnyThread and should be added during InitializeBoneReferences
+#if WITH_EDITOR
+	void AddBoneRefMissingVisualWarning(const FString& BoneName, const FString& SkeletalMeshName);
+	void AddValidationVisualWarning(FText ValidationVisualWarning);
+	bool HasValidationVisualWarnings() const;
+	void ClearValidationVisualWarnings();
+	FText GetValidationVisualWarningMessage() const;
+#endif
+
 protected:
 	// Interface for derived skeletal controls to implement
 	// use this function to update for skeletal control base
@@ -113,8 +125,14 @@ protected:
 
 	/** Allow base to add info to the node debug output */
 	void AddDebugNodeData(FString& OutDebugData);
-private:
 
+private:
 	// Resused bone transform array to avoid reallocating in skeletal controls
 	TArray<FBoneTransform> BoneTransforms;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	FText ValidationVisualWarningMessage;
+#endif
+
 };
