@@ -252,7 +252,7 @@ public:
 				for (; Idx < Num; ++Idx)
 				{
 					const TSharedPtr<SampleType, ESPMode::ThreadSafe> & Sample = Samples[Idx];
-					if ((Sample->GetTime().Time + Sample->GetDuration()) > ReferenceTime.Time)
+					if ((Sample->GetTime() + Sample->GetDuration()) > ReferenceTime)
 					{
 						break;
 					}
@@ -263,7 +263,7 @@ public:
 				for (; Idx < Num; ++Idx)
 				{
 					const TSharedPtr<SampleType, ESPMode::ThreadSafe> & Sample = Samples[Idx];
-					if ((Sample->GetTime().Time - Sample->GetDuration()) < ReferenceTime.Time)
+					if ((Sample->GetTime() - Sample->GetDuration()) < ReferenceTime)
 					{
 						break;
 					}
