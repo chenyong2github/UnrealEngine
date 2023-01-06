@@ -4,6 +4,7 @@
 #include "GeometryCacheAbcFileComponent.h"
 #include "GeometryCacheHelpers.h"
 #include "GeometryCacheTrackAbcFile.h"
+#include "SceneInterface.h"
 
 FGeometryCacheAbcFileSceneProxy::FGeometryCacheAbcFileSceneProxy(UGeometryCacheAbcFileComponent* Component)
 : FGeometryCacheSceneProxy(Component, [this]() { return new FGeomCacheTrackAbcFileProxy(GetScene().GetFeatureLevel()); })

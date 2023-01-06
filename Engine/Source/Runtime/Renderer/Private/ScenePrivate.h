@@ -14,7 +14,6 @@
 #include "Templates/RefCounting.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#include "SceneTypes.h"
 #include "UniformBuffer.h"
 #include "SceneInterface.h"
 #include "SceneView.h"
@@ -36,7 +35,6 @@
 #include "CommonRenderResources.h"
 #include "VisualizeTexture.h"
 #include "UnifiedBuffer.h"
-#include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
 #include "PrecomputedVolumetricLightmap.h"
 #include "RayTracing/RaytracingOptions.h"
@@ -53,6 +51,7 @@
 #include "ShadingEnergyConservation.h"
 #include "Experimental/Containers/RobinHoodHashTable.h"
 #include "SpanAllocator.h"
+#include "GlobalDistanceField.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)

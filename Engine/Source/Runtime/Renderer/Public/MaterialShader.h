@@ -6,19 +6,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/IConsoleManager.h"
-#include "RHI.h"
-#include "ShaderParameters.h"
+#include "MaterialShaderType.h"
+#include "MaterialShared.h"
 #include "SceneView.h"
 #include "Shader.h"
-#include "MaterialShared.h"
-#include "GlobalShader.h"
-#include "MaterialShaderType.h"
+#include "RHIFwd.h"
+#include "Serialization/MemoryLayout.h"
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "SceneRenderTargetParameters.h"
 #endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GlobalShader.h"
+#include "HAL/IConsoleManager.h"
+#include "RHI.h"
+#include "ShaderParameters.h"
 #include "ShaderParameterUtils.h"
+#endif
+
+class FScene;
+class FUniformExpressionSet;
+class FViewUniformShaderParameters;
 
 template<typename TBufferStruct> class TUniformBufferRef;
 
@@ -29,39 +39,15 @@ class FDebugUniformExpressionSet
 {
 	DECLARE_TYPE_LAYOUT(FDebugUniformExpressionSet, NonVirtual);
 public:
-	FDebugUniformExpressionSet()
-		: NumPreshaders(0)
-	{
-		FMemory::Memzero(NumTextureExpressions);
-	}
+	FDebugUniformExpressionSet();
 
-	explicit FDebugUniformExpressionSet(const FUniformExpressionSet& InUniformExpressionSet)
-	{
-		InitFromExpressionSet(InUniformExpressionSet);
-	}
+	explicit FDebugUniformExpressionSet(const FUniformExpressionSet& InUniformExpressionSet);
 
 	/** Initialize from a uniform expression set. */
-	void InitFromExpressionSet(const FUniformExpressionSet& InUniformExpressionSet)
-	{
-		NumPreshaders = InUniformExpressionSet.UniformPreshaders.Num();
-		for (uint32 TypeIndex = 0u; TypeIndex < NumMaterialTextureParameterTypes; ++TypeIndex)
-		{
-			NumTextureExpressions[TypeIndex] = InUniformExpressionSet.UniformTextureParameters[TypeIndex].Num();
-		}
-	}
+	void InitFromExpressionSet(const FUniformExpressionSet& InUniformExpressionSet);
 
 	/** Returns true if the number of uniform expressions matches those with which the debug set was initialized. */
-	bool Matches(const FUniformExpressionSet& InUniformExpressionSet) const
-	{
-		for (uint32 TypeIndex = 0u; TypeIndex < NumMaterialTextureParameterTypes; ++TypeIndex)
-		{
-			if (NumTextureExpressions[TypeIndex] != InUniformExpressionSet.UniformTextureParameters[TypeIndex].Num())
-			{
-				return false;
-			}
-		}
-		return NumPreshaders == InUniformExpressionSet.UniformPreshaders.Num();
-	}
+	bool Matches(const FUniformExpressionSet& InUniformExpressionSet) const;
 	
 	/** The number of each type of expression contained in the set. */
 	LAYOUT_FIELD(int32, NumPreshaders);
@@ -88,7 +74,7 @@ public:
 
 	static FName UniformBufferLayoutName;
 
-	FMaterialShader() = default;
+	FMaterialShader();
 
 	FMaterialShader(const FMaterialShaderType::CompiledShaderInitializerType& Initializer);
 
@@ -123,7 +109,7 @@ public:
 
 	void GetShaderBindings(
 		const FScene* Scene,
-		const FStaticFeatureLevel FeatureLevel,
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FMaterialRenderProxy& MaterialRenderProxy,
 		const FMaterial& Material,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;

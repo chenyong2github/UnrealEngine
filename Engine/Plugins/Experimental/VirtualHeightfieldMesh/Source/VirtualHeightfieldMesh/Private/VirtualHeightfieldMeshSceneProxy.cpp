@@ -18,6 +18,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RenderUtils.h"
+#include "SceneInterface.h"
 #include "TextureResource.h"
 #include "VirtualHeightfieldMeshComponent.h"
 #include "VirtualHeightfieldMeshVertexFactory.h"

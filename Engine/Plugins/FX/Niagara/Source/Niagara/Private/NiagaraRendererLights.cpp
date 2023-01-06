@@ -16,6 +16,7 @@
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraRendererLights.h"
 #include "NiagaraCullProxyComponent.h"
+#include "SceneInterface.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Generate Particle Lights"), STAT_NiagaraGenLights, STATGROUP_Niagara);

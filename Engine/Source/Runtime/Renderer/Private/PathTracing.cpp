@@ -29,6 +29,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "GenerateMips.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Modules/ModuleManager.h"
+#include "SkyAtmosphereRendering.h"
 #include <limits>
 #include "PathTracingSpatialTemporalDenoising.h"
 

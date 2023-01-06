@@ -13,6 +13,7 @@
 #include "DrawDebugHelpers.h"
 #include "Math/ColorList.h"
 #include "RayTracingInstance.h"
+#include "SceneInterface.h"
 
 DECLARE_STATS_GROUP(TEXT("Water Mesh"), STATGROUP_WaterMesh, STATCAT_Advanced);
 

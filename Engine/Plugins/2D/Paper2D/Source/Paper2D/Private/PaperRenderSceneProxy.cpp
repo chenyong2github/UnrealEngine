@@ -11,6 +11,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/MeshComponent.h"
 #include "Engine/Engine.h"
+#include "SceneInterface.h"
 
 static TAutoConsoleVariable<int32> CVarDrawSpritesAsTwoSided(TEXT("r.Paper2D.DrawTwoSided"), 1, TEXT("Draw sprites as two sided."));
 static TAutoConsoleVariable<int32> CVarDrawSpritesUsingPrebuiltVertexBuffers(TEXT("r.Paper2D.UsePrebuiltVertexBuffers"), 1, TEXT("Draw sprites using prebuilt vertex buffers."));

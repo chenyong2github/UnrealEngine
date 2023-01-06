@@ -19,6 +19,7 @@
 #include "ProceduralMeshComponentPluginPrivate.h"
 #include "DynamicMeshBuilder.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"

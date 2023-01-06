@@ -10,6 +10,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Docking/TabManager.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineGlobals.h"
 #include "ActorFactories/ActorFactory.h"
 #include "Misc/ConfigCacheIni.h"

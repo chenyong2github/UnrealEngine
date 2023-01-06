@@ -6,12 +6,15 @@
 
 #pragma once
 
+#include "MeshMaterialShaderType.h"
+#include "MaterialShader.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "ShaderParameters.h"
 #include "VertexFactory.h"
-#include "MeshMaterialShaderType.h"
-#include "MaterialShader.h"
 #include "MeshDrawShaderBindings.h"
+#endif
 
 class FPrimitiveSceneProxy;
 struct FMeshBatchElement;

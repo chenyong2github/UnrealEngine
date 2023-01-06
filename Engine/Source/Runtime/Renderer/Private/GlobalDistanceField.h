@@ -2,25 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DistanceFieldAmbientOcclusion.h"
-#include "Delegates/DelegateCombinations.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "Math/IntVector.h"
 
-class FRDGExternalAccessQueue;
+class FDistanceFieldAOParameters;
 class FGlobalDistanceFieldInfo;
+class FRDGBuilder;
+class FRDGExternalAccessQueue;
+class FScene;
+class FViewInfo;
+
+enum FGlobalDFCacheType
+{
+	GDF_MostlyStatic,
+	GDF_Full,
+	GDF_Num
+};
 
 extern int32 GAOGlobalDistanceField;
 
-inline bool UseGlobalDistanceField()
-{
-	return GAOGlobalDistanceField != 0;
-}
-
-inline bool UseGlobalDistanceField(const FDistanceFieldAOParameters& Parameters)
-{
-	return UseGlobalDistanceField() && Parameters.GlobalMaxOcclusionDistance > 0;
-}
+bool UseGlobalDistanceField();
+bool UseGlobalDistanceField(const FDistanceFieldAOParameters& Parameters);
 
 namespace GlobalDistanceField
 {
@@ -51,24 +52,3 @@ extern void UpdateGlobalDistanceFieldVolume(
 	float MaxOcclusionDistance, 
 	bool bLumenEnabled,
 	FGlobalDistanceFieldInfo& Info);
-
-class FGlobalDistanceFieldReadback
-{
-public:
-	DECLARE_DELEGATE(FCompleteDelegate);
-
-	FBox Bounds;
-	FIntVector Size;
-	TArray<FFloat16Color> ReadbackData;	
-	FCompleteDelegate ReadbackComplete;
-	ENamedThreads::Type CallbackThread = ENamedThreads::UnusedAnchor;
-};
-
-/**
- * Retrieves the GPU data of a global distance field clipmap for access by the CPU
- *
- * @note: Currently only works with the highest res clipmap on the first updated view in the frame
- **/
-extern void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback);
-
-void RENDERER_API RequestGlobalDistanceFieldReadback_GameThread(FGlobalDistanceFieldReadback* Readback);

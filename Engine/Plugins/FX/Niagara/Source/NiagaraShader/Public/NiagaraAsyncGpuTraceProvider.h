@@ -6,6 +6,7 @@
 #include "NiagaraSettings.h"
 #include "RHIDefinitions.h"
 
+class FScene;
 class FNiagaraGpuComputeDispatchInterface;
 class FViewInfo;
 

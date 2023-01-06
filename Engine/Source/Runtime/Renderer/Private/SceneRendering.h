@@ -13,6 +13,7 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "UniformBuffer.h"
+#include "GlobalDistanceField.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "SceneView.h"
 #include "RendererInterface.h"
@@ -23,24 +24,22 @@
 #include "PrimitiveSceneInfo.h"
 #include "GlobalShader.h"
 #include "PrimitiveViewRelevance.h"
-#include "DistortionRendering.h"
-#include "HeightfieldLighting.h"
 #include "LightShaftRendering.h"
-#include "SkyAtmosphereRendering.h"
 #include "StaticBoundShaderState.h"
 #include "Templates/UniquePtr.h"
 #include "RenderGraphUtils.h"
 #include "MeshDrawCommands.h"
+#include "MeshPassProcessor.h"
 #include "ShaderPrintParameters.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
-#include "Nanite/Nanite.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Strata/Strata.h"
 #include "GPUScene.h"
-#include "CanvasTypes.h"
 #include "SceneTextures.h"
+#include "TranslucencyPass.h"
+#include "SceneTexturesConfig.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -74,6 +73,11 @@ struct FMinimalSceneTextures;
 struct FSceneTextures;
 struct FCustomDepthTextures;
 struct FDynamicShadowsTaskData;
+class FAtmosphereUniformShaderParameters;
+struct FSkyAtmosphereRenderContext;
+class FTexture2DResource;
+class FSimpleLightArray;
+struct FNaniteMaterialPassCommand;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -714,13 +718,6 @@ public:
 
 	// Bounds in the volume texture to update.
 	TArray<FClipmapUpdateBounds, TInlineAllocator<64>> UpdateBounds;
-};
-
-enum FGlobalDFCacheType
-{
-	GDF_MostlyStatic,
-	GDF_Full,
-	GDF_Num
 };
 
 class FGlobalDistanceFieldInfo

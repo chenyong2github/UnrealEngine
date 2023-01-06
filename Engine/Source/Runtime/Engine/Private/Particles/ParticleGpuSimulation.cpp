@@ -40,6 +40,7 @@
 #include "VectorField/VectorField.h"
 #include "MeshMaterialShader.h"
 #include "Stats/StatsTrace.h"
+#include "ShaderParameterUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("GPUSpriteEmitterInstance Init GT"), STAT_GPUSpriteEmitterInstance_Init, STATGROUP_Particles);
 DECLARE_GPU_STAT_NAMED(ParticleSimulation, TEXT("Particle Simulation"));

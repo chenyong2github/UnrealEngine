@@ -13,6 +13,7 @@
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RenderResource.h"
 #include "UniformBuffer.h"
+#include "SceneInterface.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
 #include "HitProxies.h"

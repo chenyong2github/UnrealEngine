@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GlobalDistanceField.h"
+#include "GlobalDistanceFieldReadback.h"
 #include "ClearQuad.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "DistanceFieldAmbientOcclusion.h"
 #include "DistanceFieldLightingShared.h"
 #include "DynamicMeshBuilder.h"
 #include "DynamicPrimitiveDrawing.h"
@@ -12,6 +14,7 @@
 #include "RendererModule.h"
 #include "ScenePrivate.h"
 #include "TextureResource.h"
+#include "HeightfieldLighting.h"
 
 DECLARE_GPU_STAT(GlobalDistanceFieldUpdate);
 
@@ -265,6 +268,16 @@ TAutoConsoleVariable<int32> CVarGlobalDistanceFieldDebug(
 	TEXT("Debug drawing for the Global Distance Field."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+bool UseGlobalDistanceField()
+{
+	return GAOGlobalDistanceField != 0;
+}
+
+bool UseGlobalDistanceField(const FDistanceFieldAOParameters& Parameters)
+{
+	return UseGlobalDistanceField() && Parameters.GlobalMaxOcclusionDistance > 0;
+}
 
 FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData)
 {

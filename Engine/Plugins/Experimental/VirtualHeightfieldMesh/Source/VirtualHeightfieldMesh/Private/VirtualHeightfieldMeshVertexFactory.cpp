@@ -6,6 +6,7 @@
 #include "EngineGlobals.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
+#include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
 #include "RHIStaticStates.h"
 #include "ShaderParameters.h"

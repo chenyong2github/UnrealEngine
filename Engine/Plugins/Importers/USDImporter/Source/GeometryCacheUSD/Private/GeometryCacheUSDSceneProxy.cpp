@@ -3,6 +3,7 @@
 #include "GeometryCacheUSDSceneProxy.h"
 #include "GeometryCacheTrackUSD.h"
 #include "GeometryCacheUSDComponent.h"
+#include "SceneInterface.h"
 
 FGeometryCacheUsdSceneProxy::FGeometryCacheUsdSceneProxy(UGeometryCacheUsdComponent* Component)
 : FGeometryCacheSceneProxy(Component, [this]() { return new FGeomCacheTrackUsdProxy(GetScene().GetFeatureLevel()); })

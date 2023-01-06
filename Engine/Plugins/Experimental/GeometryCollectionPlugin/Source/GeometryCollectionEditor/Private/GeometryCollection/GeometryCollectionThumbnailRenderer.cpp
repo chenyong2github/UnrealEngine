@@ -6,6 +6,7 @@
 #include "SceneView.h"
 #include "GeometryCollection/GeometryCollectionThumbnailScene.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionThumbnailRenderer)
 

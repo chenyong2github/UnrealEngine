@@ -23,6 +23,7 @@
 #include "UObject/NameTypes.h"
 #include "Engine/StaticMesh.h"
 #include "NiagaraCullProxyComponent.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraComponent)
 

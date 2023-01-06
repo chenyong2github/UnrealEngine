@@ -3,6 +3,7 @@
 #include "ThumbnailRendering/StaticMeshThumbnailRenderer.h"
 #include "Misc/App.h"
 #include "ShowFlags.h"
+#include "SceneInterface.h"
 #include "SceneView.h"
 #include "ThumbnailHelpers.h"
 #include "Engine/StaticMesh.h"

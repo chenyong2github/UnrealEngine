@@ -53,31 +53,7 @@ extern RENDERER_API TGlobalResource<FPrimitiveIdVertexBufferPool> GPrimitiveIdVe
 class FMeshDrawCommandPassSetupTaskContext
 {
 public:
-	FMeshDrawCommandPassSetupTaskContext()
-		: View(nullptr)
-		, Scene(nullptr)
-		, ShadingPath(EShadingPath::Num)
-		, PassType(EMeshPass::Num)
-		, bUseGPUScene(false)
-		, bDynamicInstancing(false)
-		, bReverseCulling(false)
-		, bRenderSceneTwoSided(false)
-		, BasePassDepthStencilAccess(FExclusiveDepthStencil::DepthNop_StencilNop)
-		, MeshPassProcessor(nullptr)
-		, MobileBasePassCSMMeshPassProcessor(nullptr)
-		, DynamicMeshElements(nullptr)
-		, InstanceFactor(1)
-		, NumDynamicMeshElements(0)
-		, NumDynamicMeshCommandBuildRequestElements(0)
-		, NeedsShaderInitialisation(false)
-		, PrimitiveIdBufferData(nullptr)
-		, PrimitiveIdBufferDataSize(0)
-		, PrimitiveBounds(nullptr)
-		, VisibleMeshDrawCommandsNum(0)
-		, NewPassVisibleMeshDrawCommandsNum(0)
-		, MaxInstances(1)
-	{
-	}
+	FMeshDrawCommandPassSetupTaskContext();
 
 	const FViewInfo* View;
 	const FScene* Scene;
@@ -197,15 +173,8 @@ public:
 	void SetDumpInstancingStats(const FString& InPassName);
 	bool HasAnyDraw() const { return MaxNumDraws > 0; }
 
-	void InitCreateSnapshot()
-	{
-		new (&TaskContext.MinimalPipelineStatePassSet) FGraphicsMinimalPipelineStateSet();
-	}
-
-	void FreeCreateSnapshot()
-	{
-		TaskContext.MinimalPipelineStatePassSet.~FGraphicsMinimalPipelineStateSet();
-	}
+	void InitCreateSnapshot();
+	void FreeCreateSnapshot();
 
 	static bool IsOnDemandShaderCreationEnabled();
 

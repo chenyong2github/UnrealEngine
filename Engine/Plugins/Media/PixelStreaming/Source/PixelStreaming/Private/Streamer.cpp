@@ -16,6 +16,7 @@
 #include "Stats.h"
 #include "PixelStreamingStatNames.h"
 #include "Async/Async.h"
+#include "Engine/Texture2D.h"
 #include "RTCStatsCollector.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"

@@ -31,6 +31,7 @@
 #include "UObject/Package.h"
 #include "VolumeCache.h"
 #include "TextureResource.h"
+#include "SceneInterface.h"
 
 //////////////////////////////////////////////////////////////////////////
 

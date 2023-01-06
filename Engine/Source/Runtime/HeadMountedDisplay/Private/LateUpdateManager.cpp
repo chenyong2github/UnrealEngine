@@ -5,6 +5,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "PrimitiveSceneInfo.h"
 #include "HeadMountedDisplayTypes.h"
+#include "SceneInterface.h"
 
 FLateUpdateManager::FLateUpdateManager()
 	: LateUpdateGameWriteIndex(0)

@@ -18,6 +18,7 @@
 #include "MaterialShared.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
 #include "DataDrivenShaderPlatformInfo.h"
 

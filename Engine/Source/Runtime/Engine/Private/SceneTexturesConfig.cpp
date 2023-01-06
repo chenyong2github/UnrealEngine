@@ -3,6 +3,7 @@
 #include "SceneTexturesConfig.h"
 #include "ShaderCompiler.h"
 #include "Engine/Engine.h"
+#include "SceneInterface.h"
 #include "ShadowRendering.h" // IWYU pragma: keep
 #include "StereoRenderTargetManager.h"
 

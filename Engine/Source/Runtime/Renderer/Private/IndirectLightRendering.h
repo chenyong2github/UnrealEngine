@@ -7,6 +7,8 @@
 #include "ShaderParameterMacros.h"
 #include "Strata/Strata.h"
 
+class FSkyLightSceneProxy;
+
 namespace HybridIndirectLighting
 {
 

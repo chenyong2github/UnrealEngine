@@ -20,6 +20,8 @@ class FLumenCardScene;
 class FMeshPassDrawListContext;
 class FMeshPassProcessor;
 class FNaniteCommandInfo;
+class FPrimitiveSceneProxy;
+class FScene;
 class FViewFamilyInfo;
 class FViewInfo;
 

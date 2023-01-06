@@ -4,6 +4,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
+#include "SceneInterface.h"
 
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"

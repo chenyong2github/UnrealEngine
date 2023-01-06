@@ -16,6 +16,7 @@
 #include "DynamicMeshBuilder.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 
 /** Scene proxy */

@@ -14,6 +14,7 @@
 #include "EngineModule.h"
 #include "Slate/SceneViewport.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Viewport)
 

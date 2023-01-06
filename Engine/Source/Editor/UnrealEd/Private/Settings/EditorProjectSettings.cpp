@@ -7,6 +7,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "EditorViewportClient.h"
 #include "Editor.h"
+#include "Engine/GameViewportClient.h"
 
 
 TAutoConsoleVariable<int32> CVarEditorViewportDefaultScreenPercentageMode(

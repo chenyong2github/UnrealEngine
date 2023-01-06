@@ -14,6 +14,7 @@
 #include "Misc/CoreDelegates.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineModule.h"
 #include "NiagaraStats.h"
 #include "NiagaraComponentPool.h"

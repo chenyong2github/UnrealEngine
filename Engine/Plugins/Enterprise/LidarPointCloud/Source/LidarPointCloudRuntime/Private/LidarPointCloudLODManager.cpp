@@ -12,6 +12,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeTryLock.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
 #include "UnrealClient.h"
 

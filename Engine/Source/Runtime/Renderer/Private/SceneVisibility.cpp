@@ -35,6 +35,7 @@
 #include "FXSystem.h"
 #include "PostProcess/PostProcessing.h"
 #include "SceneView.h"
+#include "SkyAtmosphereRendering.h"
 #include "Engine/LODActor.h"
 #include "GPUScene.h"
 #include "TranslucentRendering.h"

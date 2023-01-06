@@ -11,6 +11,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Widgets/SWindow.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Application/SlateApplication.h"
@@ -25,6 +26,7 @@
 #include "Slate/SWorldWidgetScreenLayer.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Widgets/SViewport.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetComponent)
 

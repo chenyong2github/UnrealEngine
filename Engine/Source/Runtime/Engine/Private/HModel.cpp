@@ -10,6 +10,7 @@
 #include "Raster.h"
 #include "Engine/Polys.h"
 #include "Engine/Brush.h"
+#include "GenericPlatform/ICursor.h"
 
 IMPLEMENT_HIT_PROXY(HModel,HHitProxy);
 

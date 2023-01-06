@@ -11,6 +11,7 @@
 #include "DynamicMeshBuilder.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LineSetComponent)

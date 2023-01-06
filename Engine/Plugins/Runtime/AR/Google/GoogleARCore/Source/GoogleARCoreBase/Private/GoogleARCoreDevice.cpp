@@ -7,6 +7,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "GeneralProjectSettings.h"
 #include "GoogleARCoreXRTrackingSystem.h"
 #include "GoogleARCoreAndroidHelper.h"

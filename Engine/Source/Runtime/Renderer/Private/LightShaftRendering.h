@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
 
 class FViewInfo;
 class FLightSceneInfo;

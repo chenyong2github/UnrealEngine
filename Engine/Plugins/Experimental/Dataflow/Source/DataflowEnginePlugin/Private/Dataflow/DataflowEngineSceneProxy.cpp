@@ -12,6 +12,7 @@
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "PrimitiveSceneProxy.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 
 const TArray<FVector3f> BoxVertexArray = {

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RectLightTextureManager.h"
+#include "Engine/Texture.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"

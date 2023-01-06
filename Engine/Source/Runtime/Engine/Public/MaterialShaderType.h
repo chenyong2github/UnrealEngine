@@ -6,10 +6,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#endif
 
 /** A macro to implement material shaders. */
 #define IMPLEMENT_MATERIAL_SHADER_TYPE(TemplatePrefix,ShaderClass,SourceFilename,FunctionName,Frequency) \
@@ -29,6 +32,9 @@ class FShaderCompileJob;
 class FUniformExpressionSet;
 class FVertexFactoryType;
 struct FMaterialShaderParameters;
+struct FMaterialShadingModelField;
+enum EBlendMode : int;
+enum EMaterialShadingModel : int;
 enum class EShaderCompileJobPriority : uint8;
 
 DECLARE_DELEGATE_RetVal_OneParam(FString, FShadingModelToStringDelegate, EMaterialShadingModel)

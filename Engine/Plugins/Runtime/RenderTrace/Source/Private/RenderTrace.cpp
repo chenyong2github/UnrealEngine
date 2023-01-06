@@ -16,6 +16,7 @@
 #include "RenderGraphUtils.h"
 #include "RHIGPUReadback.h"
 #include "RHIResources.h"
+#include "SceneInterface.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "SceneRenderTargetParameters.h"
 #include "SimpleMeshDrawCommandPass.h"

@@ -18,6 +18,7 @@
 #include "FogRendering.h"
 #include "GPUScene.h"
 #include "ScreenPass.h"
+#include "SkyAtmosphereRendering.h"
 
 #if WITH_EDITOR
 #include "CanvasTypes.h"

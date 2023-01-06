@@ -454,35 +454,9 @@ class ENGINE_API FInstancedStaticMeshRenderData
 {
 public:
 
-	FInstancedStaticMeshRenderData(UInstancedStaticMeshComponent* InComponent, ERHIFeatureLevel::Type InFeatureLevel)
-	  : Component(InComponent)
-	  , LightMapCoordinateIndex(Component->GetStaticMesh()->GetLightMapCoordinateIndex())
-	  , PerInstanceRenderData(InComponent->PerInstanceRenderData)
-	  , LODModels(Component->GetStaticMesh()->GetRenderData()->LODResources)
-	  , FeatureLevel(InFeatureLevel)
-	{
-		check(PerInstanceRenderData.IsValid());
-		// Allocate the vertex factories for each LOD
-		InitVertexFactories();
-		RegisterSpeedTreeWind();
-	}
+	FInstancedStaticMeshRenderData(UInstancedStaticMeshComponent* InComponent, ERHIFeatureLevel::Type InFeatureLevel);
 
-	void ReleaseResources(FSceneInterface* Scene, const UStaticMesh* StaticMesh)
-	{
-		// unregister SpeedTree wind with the scene
-		if (Scene && StaticMesh && StaticMesh->SpeedTreeWind.IsValid())
-		{
-			for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
-			{
-				Scene->RemoveSpeedTreeWind_RenderThread(&VertexFactories[LODIndex], StaticMesh);
-			}
-		}
-
-		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
-		{
-			VertexFactories[LODIndex].ReleaseResource();
-		}
-	}
+	void ReleaseResources(FSceneInterface* Scene, const UStaticMesh* StaticMesh);
 
 	/** Source component */
 	UInstancedStaticMeshComponent* Component;
@@ -506,21 +480,7 @@ public:
 
 private:
 	void InitVertexFactories();
-
-	void RegisterSpeedTreeWind()
-	{
-		// register SpeedTree wind with the scene
-		if (Component->GetStaticMesh()->SpeedTreeWind.IsValid())
-		{
-			for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
-			{
-				if (Component->GetScene())
-				{
-					Component->GetScene()->AddSpeedTreeWind(&VertexFactories[LODIndex], Component->GetStaticMesh());
-				}
-			}
-		}
-	}
+	void RegisterSpeedTreeWind();
 };
 
 

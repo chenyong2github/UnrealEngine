@@ -16,6 +16,7 @@
 #include "PaperTerrainSplineComponent.h"
 #include "PaperTerrainMaterial.h"
 #include "Paper2DPrivate.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTerrainComponent)
 

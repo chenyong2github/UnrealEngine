@@ -7,6 +7,7 @@
 #include "Materials/MaterialRelevance.h"
 #include "LocalVertexFactory.h"
 #include "PrimitiveSceneProxy.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 
 #include "Algo/Accumulate.h"

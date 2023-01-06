@@ -6,6 +6,7 @@
 
 #include "NavMesh/NavMeshRenderingComponent.h"
 #include "NavigationSystem.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialRenderProxy.h"
@@ -14,6 +15,7 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "NavMesh/RecastNavMeshGenerator.h"
 #include "Debug/DebugDrawService.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
 #include "TimerManager.h"
 

@@ -15,6 +15,7 @@
 #include "StaticMeshResources.h"
 #include "Algo/Accumulate.h"
 #include "Async/ParallelFor.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PointSetComponent)
 

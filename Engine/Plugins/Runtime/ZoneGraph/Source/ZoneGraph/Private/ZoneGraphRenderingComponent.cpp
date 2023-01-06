@@ -7,6 +7,7 @@
 #include "ZoneGraphRenderingUtilities.h"
 #include "ZoneGraphSettings.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/GameViewportClient.h"
 #include "PrimitiveViewRelevance.h"
 #include "Engine/Engine.h"
 #include "TimerManager.h"

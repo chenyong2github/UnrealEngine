@@ -5,6 +5,7 @@
 
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/LocalPlayer.h"
 #include "Materials/Material.h"

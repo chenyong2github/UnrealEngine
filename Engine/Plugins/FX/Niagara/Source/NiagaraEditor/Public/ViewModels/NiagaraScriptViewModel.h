@@ -20,6 +20,7 @@ class FNiagaraMetaDataCollectionViewModel;
 class UNiagaraEmitter;
 class FNiagaraObjectSelection;
 
+template<typename ObjectType> class TAttribute;
 
 /** A view model for Niagara scripts which manages other script related view models. */
 class FNiagaraScriptViewModel

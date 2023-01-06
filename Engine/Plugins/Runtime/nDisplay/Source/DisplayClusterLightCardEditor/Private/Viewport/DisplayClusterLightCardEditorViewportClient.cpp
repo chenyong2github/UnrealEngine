@@ -35,6 +35,7 @@
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "Engine/Canvas.h"
+#include "Engine/DebugDisplayProperty.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineModule.h"
 #include "EngineUtils.h"

@@ -48,6 +48,7 @@
 #include "ToolMenus.h"
 #include "AnimationSequenceBrowserMenuContexts.h"
 #include "Viewports.h"
+#include "SceneInterface.h"
 
 #define LOCTEXT_NAMESPACE "SequenceBrowser"
 

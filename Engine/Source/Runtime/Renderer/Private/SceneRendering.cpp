@@ -84,6 +84,7 @@
 #include "Shadows/ShadowSceneRenderer.h"
 #include "TextureResource.h"
 #include "RenderCore.h"
+#include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
 #include "VolumetricFog.h"
 

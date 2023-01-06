@@ -8,6 +8,7 @@
 #include "Engine/InstancedStaticMesh.h"
 #include "Engine/CollisionProfile.h"
 #include "RenderUtils.h"
+#include "SceneInterface.h"
 
 
 //---------------------------------------------------------------

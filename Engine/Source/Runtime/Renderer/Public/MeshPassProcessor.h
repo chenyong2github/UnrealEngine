@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
 #include "SceneUtils.h"
 #include "MeshBatch.h"

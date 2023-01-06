@@ -14,6 +14,7 @@
 #include "Scalability.h"
 #include "Dom/JsonObject.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonWriter.h"

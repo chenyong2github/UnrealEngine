@@ -6,6 +6,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
+#include "MeshDrawShaderBindings.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 #include "DataDrivenShaderPlatformInfo.h"

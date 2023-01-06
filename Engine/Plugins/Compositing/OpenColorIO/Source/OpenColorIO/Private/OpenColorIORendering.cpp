@@ -15,6 +15,7 @@
 #include "OpenColorIOShaderType.h"
 #include "OpenColorIOShared.h"
 #include "OpenColorIOColorTransform.h"
+#include "SceneInterface.h"
 #include "ScreenPass.h"
 #include "TextureResource.h"
 

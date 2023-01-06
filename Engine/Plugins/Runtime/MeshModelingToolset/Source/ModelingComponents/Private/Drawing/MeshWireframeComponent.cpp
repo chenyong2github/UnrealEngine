@@ -11,6 +11,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
 #include "DynamicMeshBuilder.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 #include "IndexTypes.h"
 #include "Async/ParallelFor.h"

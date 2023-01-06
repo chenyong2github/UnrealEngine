@@ -20,6 +20,7 @@
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Settings/EditorMiscSettings.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineGlobals.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"

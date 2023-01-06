@@ -14,6 +14,7 @@
 #include "Engine/Canvas.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/DebugDisplayProperty.h"
 #include "Engine/RendererSettings.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"

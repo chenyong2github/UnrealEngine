@@ -67,7 +67,43 @@ void FMeshMaterialShaderElementData::InitializeMeshMaterialData(const FSceneView
 	InitializeMeshMaterialData(SceneView, PrimitiveSceneProxy, StaticMeshId, MeshBatch.bDitheredLODTransition, bAllowStencilDither);
 }
 
+FDebugUniformExpressionSet::FDebugUniformExpressionSet()
+	: NumPreshaders(0)
+{
+	FMemory::Memzero(NumTextureExpressions);
+}
+
+FDebugUniformExpressionSet::FDebugUniformExpressionSet(const FUniformExpressionSet& InUniformExpressionSet)
+{
+	InitFromExpressionSet(InUniformExpressionSet);
+}
+
+/** Initialize from a uniform expression set. */
+void FDebugUniformExpressionSet::InitFromExpressionSet(const FUniformExpressionSet& InUniformExpressionSet)
+{
+	NumPreshaders = InUniformExpressionSet.UniformPreshaders.Num();
+	for (uint32 TypeIndex = 0u; TypeIndex < NumMaterialTextureParameterTypes; ++TypeIndex)
+	{
+		NumTextureExpressions[TypeIndex] = InUniformExpressionSet.UniformTextureParameters[TypeIndex].Num();
+	}
+}
+
+/** Returns true if the number of uniform expressions matches those with which the debug set was initialized. */
+bool FDebugUniformExpressionSet::Matches(const FUniformExpressionSet& InUniformExpressionSet) const
+{
+	for (uint32 TypeIndex = 0u; TypeIndex < NumMaterialTextureParameterTypes; ++TypeIndex)
+	{
+		if (NumTextureExpressions[TypeIndex] != InUniformExpressionSet.UniformTextureParameters[TypeIndex].Num())
+		{
+			return false;
+		}
+	}
+	return NumPreshaders == InUniformExpressionSet.UniformPreshaders.Num();
+}
+
 FName FMaterialShader::UniformBufferLayoutName(TEXT("Material"));
+
+FMaterialShader::FMaterialShader() = default;
 
 FMaterialShader::FMaterialShader(const FMaterialShaderType::CompiledShaderInitializerType& Initializer)
 :	FShader(Initializer)
@@ -319,7 +355,7 @@ IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIComputeCommandList, FRHIComputeShade
 
 void FMaterialShader::GetShaderBindings(
 	const FScene* Scene,
-	const FStaticFeatureLevel FeatureLevel,
+	const ERHIFeatureLevel::Type FeatureLevel,
 	const FMaterialRenderProxy& MaterialRenderProxy,
 	const FMaterial& Material,
 	FMeshDrawSingleShaderBindings& ShaderBindings) const

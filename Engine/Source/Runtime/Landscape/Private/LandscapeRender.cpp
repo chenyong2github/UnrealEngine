@@ -18,6 +18,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "MeshDrawShaderBindings.h"
 #include "ShaderParameterUtils.h"
 #include "LandscapeEdit.h"
 #include "Engine/Level.h"

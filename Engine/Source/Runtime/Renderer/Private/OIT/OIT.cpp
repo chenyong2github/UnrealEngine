@@ -6,6 +6,7 @@
 #include "OITParameters.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "PrimitiveSceneProxy.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
 #include "SceneTextureParameters.h"

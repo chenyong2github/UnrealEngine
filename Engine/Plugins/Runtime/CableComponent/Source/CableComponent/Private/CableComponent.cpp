@@ -19,6 +19,7 @@
 #include "CableComponentStats.h"
 #include "DynamicMeshBuilder.h"
 #include "StaticMeshResources.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CableComponent)
 

@@ -3,6 +3,7 @@
 #include "PostProcess/TextureSharePostprocess.h"
 #include "PostProcess/TextureSharePostprocessStrings.h"
 
+#include "Engine/GameViewportClient.h"
 #include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "Module/TextureShareDisplayClusterLog.h"

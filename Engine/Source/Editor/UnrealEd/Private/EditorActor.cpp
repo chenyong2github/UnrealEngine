@@ -75,6 +75,7 @@
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "SceneInterface.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.EditorActor"
 

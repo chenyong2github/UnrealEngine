@@ -15,6 +15,7 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "Rendering/Texture2DResource.h"
 #include "RenderUtils.h"
+#include "SceneInterface.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"

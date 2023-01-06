@@ -7,6 +7,7 @@
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "UnrealEdGlobals.h"
+#include "SceneInterface.h"
 #include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "LevelEditorViewport.h"

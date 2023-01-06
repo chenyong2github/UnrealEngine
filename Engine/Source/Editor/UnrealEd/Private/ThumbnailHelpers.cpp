@@ -25,6 +25,7 @@
 #include "Engine/TextureCube.h"
 #include "Animation/BlendSpace1D.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "SceneInterface.h"
 
 /*
 ***************************************************************

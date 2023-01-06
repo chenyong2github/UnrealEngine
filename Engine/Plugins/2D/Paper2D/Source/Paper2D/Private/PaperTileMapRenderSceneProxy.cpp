@@ -9,6 +9,7 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "PaperTileMap.h"
 #include "PaperTileMapComponent.h"
+#include "SceneInterface.h"
 
 DECLARE_CYCLE_STAT(TEXT("Tile Map Proxy"), STAT_TileMap_GetDynamicMeshElements, STATGROUP_Paper2D);
 DECLARE_CYCLE_STAT(TEXT("Tile Map Editor Grid"), STAT_TileMap_EditorWireDrawing, STATGROUP_Paper2D);

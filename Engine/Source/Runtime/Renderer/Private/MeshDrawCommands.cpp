@@ -809,6 +809,32 @@ FAutoConsoleTaskPriority CPrio_FMeshDrawCommandPassSetupTask(
 	ENamedThreads::HighTaskPriority
 );
 
+FMeshDrawCommandPassSetupTaskContext::FMeshDrawCommandPassSetupTaskContext()
+	: View(nullptr)
+	, Scene(nullptr)
+	, ShadingPath(EShadingPath::Num)
+	, PassType(EMeshPass::Num)
+	, bUseGPUScene(false)
+	, bDynamicInstancing(false)
+	, bReverseCulling(false)
+	, bRenderSceneTwoSided(false)
+	, BasePassDepthStencilAccess(FExclusiveDepthStencil::DepthNop_StencilNop)
+	, MeshPassProcessor(nullptr)
+	, MobileBasePassCSMMeshPassProcessor(nullptr)
+	, DynamicMeshElements(nullptr)
+	, InstanceFactor(1)
+	, NumDynamicMeshElements(0)
+	, NumDynamicMeshCommandBuildRequestElements(0)
+	, NeedsShaderInitialisation(false)
+	, PrimitiveIdBufferData(nullptr)
+	, PrimitiveIdBufferDataSize(0)
+	, PrimitiveBounds(nullptr)
+	, VisibleMeshDrawCommandsNum(0)
+	, NewPassVisibleMeshDrawCommandsNum(0)
+	, MaxInstances(1)
+{
+}
+
 /**
  * Task for a parallel setup of mesh draw commands. Includes generation of dynamic mesh draw commands, sorting, merging etc.
  */
@@ -1523,4 +1549,14 @@ void FParallelMeshDrawCommandPass::DumpInstancingStats() const
 void FParallelMeshDrawCommandPass::SetDumpInstancingStats(const FString& InPassNameForStats)
 {
 	PassNameForStats = InPassNameForStats;
+}
+
+void FParallelMeshDrawCommandPass::InitCreateSnapshot()
+{
+	new (&TaskContext.MinimalPipelineStatePassSet) FGraphicsMinimalPipelineStateSet();
+}
+
+void FParallelMeshDrawCommandPass::FreeCreateSnapshot()
+{
+	TaskContext.MinimalPipelineStatePassSet.~FGraphicsMinimalPipelineStateSet();
 }

@@ -6,6 +6,7 @@
 #include "SceneView.h"
 #include "GeometryCacheThumbnailScene.h"
 #include "GeometryCache.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheThumbnailRenderer)
 

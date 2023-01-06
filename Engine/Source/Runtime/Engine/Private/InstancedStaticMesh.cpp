@@ -41,6 +41,7 @@
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "UObject/UObjectIterator.h"
+#include "GenericPlatform/ICursor.h"
 
 #if RHI_RAYTRACING
 #endif
@@ -1046,6 +1047,36 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private
 	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
+FInstancedStaticMeshRenderData::FInstancedStaticMeshRenderData(UInstancedStaticMeshComponent* InComponent, ERHIFeatureLevel::Type InFeatureLevel)
+	: Component(InComponent)
+	, LightMapCoordinateIndex(Component->GetStaticMesh()->GetLightMapCoordinateIndex())
+	, PerInstanceRenderData(InComponent->PerInstanceRenderData)
+	, LODModels(Component->GetStaticMesh()->GetRenderData()->LODResources)
+	, FeatureLevel(InFeatureLevel)
+{
+	check(PerInstanceRenderData.IsValid());
+	// Allocate the vertex factories for each LOD
+	InitVertexFactories();
+	RegisterSpeedTreeWind();
+}
+
+void FInstancedStaticMeshRenderData::ReleaseResources(FSceneInterface* Scene, const UStaticMesh* StaticMesh)
+{
+	// unregister SpeedTree wind with the scene
+	if (Scene && StaticMesh && StaticMesh->SpeedTreeWind.IsValid())
+	{
+		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
+		{
+			Scene->RemoveSpeedTreeWind_RenderThread(&VertexFactories[LODIndex], StaticMesh);
+		}
+	}
+
+	for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
+	{
+		VertexFactories[LODIndex].ReleaseResource();
+	}
+}
+
 void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FInstancedStaticMeshRenderData::BindBuffersToVertexFactories");
@@ -1110,6 +1141,20 @@ void FInstancedStaticMeshRenderData::InitVertexFactories()
 		});
 }
 
+void FInstancedStaticMeshRenderData::RegisterSpeedTreeWind()
+{
+	// register SpeedTree wind with the scene
+	if (Component->GetStaticMesh()->SpeedTreeWind.IsValid())
+	{
+		for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
+		{
+			if (Component->GetScene())
+			{
+				Component->GetScene()->AddSpeedTreeWind(&VertexFactories[LODIndex], Component->GetStaticMesh());
+			}
+		}
+	}
+}
 
 FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess, FBox InBounds, bool bTrack, bool bDeferGPUUploadIn)
 	: ResourceSize(InRequireCPUAccess ? Other.GetResourceSize() : 0)

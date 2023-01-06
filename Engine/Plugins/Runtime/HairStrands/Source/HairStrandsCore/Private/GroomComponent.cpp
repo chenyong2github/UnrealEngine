@@ -41,6 +41,7 @@
 #include "Async/ParallelFor.h"
 #include "PrimitiveSceneInfo.h"
 #include "PSOPrecache.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GroomComponent)
 LLM_DECLARE_TAG(Groom);

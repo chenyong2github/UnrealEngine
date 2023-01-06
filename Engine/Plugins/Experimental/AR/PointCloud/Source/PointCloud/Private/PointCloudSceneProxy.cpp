@@ -18,6 +18,7 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "LocalVertexFactory.h"
 #include "Engine/Engine.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
 #include "DynamicMeshBuilder.h"
 

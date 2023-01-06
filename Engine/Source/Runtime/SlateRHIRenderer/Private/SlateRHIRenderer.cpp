@@ -13,6 +13,7 @@
 #include "MaterialShared.h"
 #include "RendererInterface.h"
 #include "StaticBoundShaderState.h"
+#include "SceneInterface.h"
 #include "SceneUtils.h"
 #include "RHIStaticStates.h"
 #include "UnrealEngine.h"

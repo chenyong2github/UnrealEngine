@@ -17,6 +17,7 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "MobileBasePassRendering.h"
+#include "SkyAtmosphereRendering.h"
 
 static TAutoConsoleVariable<int32> CVarPixelFogQuality(
 	TEXT("r.Mobile.PixelFogQuality"),

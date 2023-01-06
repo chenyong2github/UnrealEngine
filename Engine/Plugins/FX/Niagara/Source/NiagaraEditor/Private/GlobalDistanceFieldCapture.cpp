@@ -5,6 +5,7 @@
 #include "Editor.h"
 #include "Engine/VolumeTexture.h"
 #include "GlobalDistanceField.h"
+#include "GlobalDistanceFieldReadback.h"
 #include "HAL/IConsoleManager.h"
 #include "IContentBrowserSingleton.h"
 #include "LevelEditorViewport.h"

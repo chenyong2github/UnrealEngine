@@ -9,6 +9,7 @@
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
 #include "MaterialShared.h"
+#include "SceneInterface.h"
 
 /**
  * Scene Proxy for UDynamicMeshComponent.

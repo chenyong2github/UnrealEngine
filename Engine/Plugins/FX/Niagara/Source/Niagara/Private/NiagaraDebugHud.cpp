@@ -21,6 +21,7 @@
 #include "Engine/Canvas.h"
 #include "GameFramework/PlayerController.h"
 #include "Particles/FXBudget.h"
+#include "SceneInterface.h"
 
 #if WITH_NIAGARA_DEBUGGER
 

@@ -132,6 +132,7 @@
 
 #if WITH_ENGINE
 	#include "Engine/GameEngine.h"
+	#include "Engine/GameViewportClient.h"
 	#include "UnrealClient.h"
 	#include "Engine/LocalPlayer.h"
 	#include "GameFramework/PlayerController.h"

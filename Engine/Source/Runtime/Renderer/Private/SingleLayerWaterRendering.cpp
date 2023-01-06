@@ -3,6 +3,7 @@
 #include "SingleLayerWaterRendering.h"
 #include "BasePassRendering.h"
 #include "DeferredShadingRenderer.h"
+#include "DistortionRendering.h"
 #include "MeshPassProcessor.inl"
 #include "PixelShaderUtils.h"
 #include "PostProcess/PostProcessSubsurface.h"

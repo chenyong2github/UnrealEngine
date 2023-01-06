@@ -7,7 +7,7 @@
 // enum instead of bool to get better visibility when we pass around multiple bools, also allows for easier extensions
 namespace ETranslucencyPass
 {
-	enum Type
+	enum Type : int
 	{
 		TPT_TranslucencyStandard,
 		TPT_TranslucencyStandardModulate,

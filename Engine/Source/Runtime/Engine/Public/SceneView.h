@@ -2,31 +2,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "Engine/EngineBaseTypes.h"
-#include "EngineDefines.h"
-#include "RenderResource.h"
-#include "UniformBuffer.h"
-#include "GameTime.h"
-#include "SceneTypes.h"
-#include "ShowFlags.h"
 #include "ConvexVolume.h"
-#include "Engine/GameViewportClient.h"
-#include "SceneInterface.h"
-#include "FinalPostProcessSettings.h"
-#include "GlobalDistanceFieldConstants.h"
 #include "DebugViewModeHelpers.h"
-#include "PhysicsInterfaceDeclaresCore.h"
-#include "RendererInterface.h"
-#include "Interfaces/Interface_PostProcessVolume.h"
 #include "DynamicRenderScaling.h"
+#include "EngineDefines.h"
+#include "FinalPostProcessSettings.h"
+#include "GameTime.h"
+#include "GlobalDistanceFieldConstants.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
 #include "Math/MirrorMatrix.h"
+#include "PrimitiveComponentId.h"
+#include "RendererInterface.h"
+#include "RenderResource.h"
+#include "ShowFlags.h"
+#include "StereoRendering.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GlobalDistanceFieldParameters.h"
+#include "PhysicsInterfaceDeclaresCore.h"
+#include "SceneInterface.h"
+#include "SceneTypes.h"
+#include "UniformBuffer.h"
 #endif
+
+#define MAX_PHYSICS_FIELD_TARGETS 32
 
 class FSceneView;
 class FSceneViewFamily;
@@ -37,6 +41,9 @@ class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class ISpatialUpscaler;
 class ITemporalUpscaler;
+
+class FRenderTarget;
+
 
 // Projection data for a FSceneView
 struct FSceneViewProjectionData

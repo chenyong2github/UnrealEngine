@@ -7,6 +7,7 @@
 #include "HairStrandsVertexFactory.h"
 #include "SceneView.h"
 #include "MeshBatch.h"
+#include "MeshDrawShaderBindings.h"
 #include "ShaderParameterUtils.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "MaterialDomain.h"

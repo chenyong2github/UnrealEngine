@@ -32,6 +32,7 @@ struct FMeshBatch;
 class FColorVertexBuffer;
 struct FInstanceUpdateCmdBuffer;
 class FRayTracingGeometry;
+class FVertexFactory;
 
 namespace Nanite
 {

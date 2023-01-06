@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "Animation/AnimMontage.h"
 #include "Engine/Engine.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
 #include "EngineGlobals.h"
 #include "GameFramework/WorldSettings.h"

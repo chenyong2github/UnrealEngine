@@ -29,6 +29,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "ImagePlateFrustumComponent.h"
 #include "ImagePlateComponent.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 #include "Kismet/GameplayStatics.h"
 

@@ -6,6 +6,7 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
 
 FBaseDynamicMeshSceneProxy::FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component)

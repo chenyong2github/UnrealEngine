@@ -9,6 +9,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"

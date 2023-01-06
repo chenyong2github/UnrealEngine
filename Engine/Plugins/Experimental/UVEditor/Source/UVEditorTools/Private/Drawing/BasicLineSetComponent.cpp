@@ -7,6 +7,7 @@
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "DynamicMeshBuilder.h"
+#include "SceneInterface.h"
 #include "StaticMeshResources.h"
 
 
