@@ -241,14 +241,6 @@ float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord)
 	return ScreenProbeMoving[ScreenProbeAtlasCoord];
 }
 
-Texture2D OctahedralSolidAngleTexture;
-float OctahedralSolidAngleTextureResolutionSq;
-
-float OctahedralSolidAngleLUT(float2 UV, float Resolution)
-{
-	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * OctahedralSolidAngleTextureResolutionSq / (Resolution * Resolution);
-}
-
 StructuredBuffer<uint> CompactedTraceTexelAllocator;
 StructuredBuffer<uint2> CompactedTraceTexelData;
 StructuredBuffer<uint2> CompactedLightSampleTraceTexelData;

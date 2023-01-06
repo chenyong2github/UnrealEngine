@@ -931,7 +931,6 @@ class FCalculateProbeIrradianceCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadianceProbeAtlasTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FOctahedralSolidAngleParameters, OctahedralSolidAngleParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		RDG_BUFFER_ACCESS(CalculateProbeIrradianceIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
@@ -2088,18 +2087,12 @@ void UpdateRadianceCaches(
 
 			if (RadianceCacheInputs.CalculateIrradiance)
 			{
-				const int32 OctahedralSolidAngleTextureSize = 16;
-				FOctahedralSolidAngleParameters OctahedralSolidAngleParameters;
-				OctahedralSolidAngleParameters.OctahedralSolidAngleTextureResolutionSq = OctahedralSolidAngleTextureSize * OctahedralSolidAngleTextureSize;
-				OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, OctahedralSolidAngleTextureSize, RadianceCacheState.OctahedralSolidAngleTextureRT);
-
 				{
 					FCalculateProbeIrradianceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateProbeIrradianceCS::FParameters>();
 					PassParameters->RWFinalIrradianceAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Setup.FinalIrradianceAtlas));
 					PassParameters->RadianceProbeAtlasTexture = RadianceProbeAtlasTexture[RadianceCacheIndex];
 					PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData[RadianceCacheIndex], PF_A32B32G32R32F));
 					PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-					PassParameters->OctahedralSolidAngleParameters = OctahedralSolidAngleParameters;
 					PassParameters->View = View.ViewUniformBuffer;
 					// GenerateProbeTraceTilesIndirectArgs is the same so we can reuse it
 					PassParameters->CalculateProbeIrradianceIndirectArgs = GenerateProbeTraceTilesIndirectArgs[RadianceCacheIndex];

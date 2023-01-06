@@ -65,11 +65,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
-	SHADER_PARAMETER(float, OctahedralSolidAngleTextureResolutionSq)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
-END_SHADER_PARAMETER_STRUCT()
-
 extern void GetLumenCardTracingParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -183,12 +178,6 @@ extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
 extern float ComputeMaxCardUpdateDistanceFromCamera(const FViewInfo& View);
-
-extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	int32 OctahedralSolidAngleTextureSize,
-	TRefCountPtr<IPooledRenderTarget>& OctahedralSolidAngleTextureRT);
 
 extern int32 GLumenIrradianceFieldGather;
 

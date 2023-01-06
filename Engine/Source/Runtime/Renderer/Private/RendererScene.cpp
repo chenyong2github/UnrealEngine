@@ -967,7 +967,6 @@ uint64 FScreenProbeGatherTemporalState::GetGPUSizeBytes(bool bLogSizes) const
 		GetRenderTargetGPUSizeBytes(FastUpdateModeHistoryRT, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(NormalHistoryRT, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(BSDFTileHistoryRT, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(OctahedralSolidAngleTextureRT, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(HistoryScreenProbeSceneDepth, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(HistoryScreenProbeTranslatedWorldPosition, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(ProbeHistoryScreenProbeRadiance, bLogSizes) +
@@ -997,8 +996,7 @@ uint64 FRadianceCacheState::GetGPUSizeBytes(bool bLogSizes) const
 		GetBufferGPUSizeBytes(ProbeFreeList, bLogSizes) +
 		GetBufferGPUSizeBytes(ProbeLastUsedFrame, bLogSizes) +
 		GetBufferGPUSizeBytes(ProbeLastTracedFrame, bLogSizes) +
-		GetBufferGPUSizeBytes(ProbeWorldOffset, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(OctahedralSolidAngleTextureRT, bLogSizes);
+		GetBufferGPUSizeBytes(ProbeWorldOffset, bLogSizes);
 }
 
 uint64 FLumenViewState::GetGPUSizeBytes(bool bLogSizes) const

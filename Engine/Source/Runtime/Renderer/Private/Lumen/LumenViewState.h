@@ -47,7 +47,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> FastUpdateModeHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> NormalHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> BSDFTileHistoryRT;
-	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 	FIntRect ProbeHistoryViewRect;
 	FVector4f ProbeHistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> HistoryScreenProbeSceneDepth;
@@ -73,7 +72,6 @@ public:
 		FastUpdateModeHistoryRT.SafeRelease();
 		NormalHistoryRT.SafeRelease();
 		BSDFTileHistoryRT.SafeRelease();
-		OctahedralSolidAngleTextureRT.SafeRelease();
 		HistoryScreenProbeSceneDepth.SafeRelease();
 		HistoryScreenProbeTranslatedWorldPosition.SafeRelease();
 		ProbeHistoryScreenProbeRadiance.SafeRelease();
@@ -197,7 +195,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastUsedFrame;
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastTracedFrame;
 	TRefCountPtr<FRDGPooledBuffer> ProbeWorldOffset;
-	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 
 	void ReleaseTextures()
 	{

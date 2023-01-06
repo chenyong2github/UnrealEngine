@@ -108,14 +108,6 @@ FAutoConsoleVariableRef CVarLumenScreenProbeInjectLightsToProbes(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenOctahedralSolidAngleTextureSize = 16;
-FAutoConsoleVariableRef CVarLumenScreenProbeOctahedralSolidAngleTextureSize(
-	TEXT("r.Lumen.ScreenProbeGather.OctahedralSolidAngleTextureSize"),
-	GLumenOctahedralSolidAngleTextureSize,
-	TEXT("Resolution of the lookup texture to compute Octahedral Solid Angle."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GLumenScreenProbeFullResolutionJitterWidth = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeFullResolutionJitterWidth(
 	TEXT("r.Lumen.ScreenProbeGather.FullResolutionJitterWidth"),
@@ -555,74 +547,6 @@ namespace LumenScreenProbeGatherRadianceCache
 		return Parameters;
 	}
 };
-
-class FOctahedralSolidAngleCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FOctahedralSolidAngleCS)
-	SHADER_USE_PARAMETER_STRUCT(FOctahedralSolidAngleCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWOctahedralSolidAngleTexture)
-		SHADER_PARAMETER(uint32, OctahedralSolidAngleTextureSize)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static int32 GetGroupSize() 
-	{
-		return 8;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FOctahedralSolidAngleCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "OctahedralSolidAngleCS", SF_Compute);
-
-FRDGTextureRef InitializeOctahedralSolidAngleTexture(
-	FRDGBuilder& GraphBuilder, 
-	FGlobalShaderMap* ShaderMap,
-	int32 OctahedralSolidAngleTextureSize,
-	TRefCountPtr<IPooledRenderTarget>& OctahedralSolidAngleTextureRT)
-{
-	if (OctahedralSolidAngleTextureRT.IsValid()
-		&& OctahedralSolidAngleTextureRT->GetDesc().Extent == OctahedralSolidAngleTextureSize)
-	{
-		return GraphBuilder.RegisterExternalTexture(OctahedralSolidAngleTextureRT, TEXT("OctahedralSolidAngleTexture"));
-	}
-	else
-	{
-		FRDGTextureDesc OctahedralSolidAngleTextureDesc(FRDGTextureDesc::Create2D(OctahedralSolidAngleTextureSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-		FRDGTextureRef OctahedralSolidAngleTexture = GraphBuilder.CreateTexture(OctahedralSolidAngleTextureDesc, TEXT("OctahedralSolidAngleTexture"));
-	
-		{
-			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
-			FOctahedralSolidAngleCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOctahedralSolidAngleCS::FParameters>();
-			PassParameters->RWOctahedralSolidAngleTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OctahedralSolidAngleTexture));
-			PassParameters->OctahedralSolidAngleTextureSize = OctahedralSolidAngleTextureSize;
-
-			auto ComputeShader = ShaderMap->GetShader<FOctahedralSolidAngleCS>(0);
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("OctahedralSolidAngleCS"),
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntPoint(OctahedralSolidAngleTextureSize, OctahedralSolidAngleTextureSize), FOctahedralSolidAngleCS::GetGroupSize()));
-		}
-
-		OctahedralSolidAngleTextureRT = GraphBuilder.ConvertToExternalTexture(OctahedralSolidAngleTexture);
-		return OctahedralSolidAngleTexture;
-	}
-}
-
 
 class FCopyDepthCS : public FGlobalShader
 {
@@ -1897,10 +1821,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	FBlueNoise BlueNoise = GetBlueNoiseParameters();
 	ScreenProbeParameters.BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
-
-	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTextureResolutionSq = GLumenOctahedralSolidAngleTextureSize * GLumenOctahedralSolidAngleTextureSize;
-	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, GLumenOctahedralSolidAngleTextureSize, View.ViewState->Lumen.ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
-
+	
 	{
 		FScreenProbeDownsampleDepthUniformCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeDownsampleDepthUniformCS::FParameters>();
 		PassParameters->RWScreenProbeSceneDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeSceneDepth));

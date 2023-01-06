@@ -31,24 +31,6 @@
 #define INTEGRATE_TILE_CLASSIFICATION_MODE 0
 #endif
 
-RWTexture2D<float> RWOctahedralSolidAngleTexture;
-uint OctahedralSolidAngleTextureSize;
-
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void OctahedralSolidAngleCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	if (all(DispatchThreadId.xy < OctahedralSolidAngleTextureSize))
-	{
-		float2 ProbeTexelCenter = float2(0.5, 0.5);
-		float2 ProbeUV = (DispatchThreadId.xy + ProbeTexelCenter) / (float)OctahedralSolidAngleTextureSize;
-		float SolidAngle = OctahedralSolidAngle(ProbeUV, 1.0f / (float)OctahedralSolidAngleTextureSize);
-		RWOctahedralSolidAngleTexture[DispatchThreadId.xy] = SolidAngle;
-	}
-}
-
 RWTexture2D<float> RWDepth;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
