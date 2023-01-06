@@ -16,7 +16,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Horde.Agent.Tests
 {
 	[TestClass]
-	public class AwsLambdaListenerCommandTest
+	public sealed class AwsLambdaListenerCommandTest : IDisposable
 	{
 		class TestTaskHandler : LeaseHandler<TestTask>
 		{
@@ -36,6 +36,11 @@ namespace Horde.Agent.Tests
 			_serviceCollection.AddSingleton<CapabilitiesService>();
 			_serviceCollection.AddSingleton<LeaseHandler, TestTaskHandler>();
 			_serviceCollection.AddSingleton<ISessionFactoryService>(sp => new FakeServerSessionFactory(_fakeServer));
+		}
+
+		public void Dispose()
+		{
+			_fakeServer.DisposeAsync().AsTask().Wait();
 		}
 
 		[TestMethod]

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -13,7 +14,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Horde.Agent.Tests.Execution;
 
 [TestClass]
-public class WorkspaceExecutorTest
+public sealed class WorkspaceExecutorTest : IDisposable
 {
 	private const string StreamId = "foo-main";
 	private const string JobId = "job1";
@@ -46,6 +47,12 @@ public class WorkspaceExecutorTest
 		_workspace.SetFile(1, "foo/bar/baz.h", "baz");
 		
 		_executor = new (_session, JobId, "batch1", AgentType, null, _workspace, null!);
+	}
+
+	public void Dispose()
+	{
+		_server.DisposeAsync().AsTask().Wait();
+		_session.DisposeAsync().AsTask().Wait();
 	}
 	
 	[TestMethod]
