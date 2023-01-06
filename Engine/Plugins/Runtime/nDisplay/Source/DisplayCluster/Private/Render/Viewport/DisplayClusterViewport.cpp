@@ -73,7 +73,7 @@ FDisplayClusterViewport::~FDisplayClusterViewport()
 	// Handle projection policy EndScene event
 	HandleEndScene();
 
-	// Release Projection policy after HandleEndScene()
+	// Handle projection policy event
 	ProjectionPolicy.Reset();
 	UninitializedProjectionPolicy.Reset();
 
