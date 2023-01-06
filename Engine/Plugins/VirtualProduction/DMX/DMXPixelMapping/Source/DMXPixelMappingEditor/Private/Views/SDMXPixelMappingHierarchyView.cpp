@@ -118,10 +118,7 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 			]
 		];
 
-	RebuildTreeView();
-
-	bRefreshRequested = true;
-
+	bRebuildTreeRequested = true;
 	bSelectFirstRenderer = true;
 
 	GEditor->RegisterForUndo(this);
@@ -136,7 +133,15 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 
 void SDMXPixelMappingHierarchyView::SelectFirstAvailableRenderer()
 {
-	if (TreeRootWidgets.Num() > 0)
+	bSelectFirstRenderer = true;
+}
+
+void SDMXPixelMappingHierarchyView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	ConditionallyUpdateTree();
+
+	// select the first available renderer, if any is available
+	if (bSelectFirstRenderer && TreeRootWidgets.Num() > 0 && WidgetTreeView->GetNumItemsSelected() == 0)
 	{
 		FDMXPixelMappingHierarchyItemWidgetModelArr RootComponents;
 		TreeRootWidgets[0]->GatherChildren(RootComponents);
@@ -144,28 +149,14 @@ void SDMXPixelMappingHierarchyView::SelectFirstAvailableRenderer()
 		{
 			if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(ItemWidgetPtr->GetReference().GetComponent()))
 			{
-				CurrentSelectedItems.Empty();
-				CurrentSelectedItems.Add(ItemWidgetPtr);
-				bRefreshRequested = true;
+				WidgetTreeView->SetSelection(ItemWidgetPtr, ESelectInfo::OnMouseClick);
+				bSelectFirstRenderer = false;
+
 				break;
 			}
 		}
 	}
 }
-
-void SDMXPixelMappingHierarchyView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-
-	// select the first available renderer (if any)
-	if (bSelectFirstRenderer && TreeRootWidgets.Num() > 0 && CurrentSelectedItems.Num() == 0)
-	{
-		SelectFirstAvailableRenderer();
-		bSelectFirstRenderer = false;
-	}
-
-	ConditionallyUpdateTree();
-}
-
 
 FReply SDMXPixelMappingHierarchyView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
@@ -314,12 +305,6 @@ void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
 		RefreshTree();
 		ExpansionSnapshot.RestoreExpandedAndExpandNewModels(RootWidgets, WidgetTreeView);
 
-		for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Item : CurrentSelectedItems)
-		{
-			Item->OnSelection();
-		}
-		CurrentSelectedItems.Empty();
-
 		bRefreshRequested = false;
 		bRebuildTreeRequested = false;
 
@@ -359,33 +344,59 @@ void SDMXPixelMappingHierarchyView::RebuildTreeView()
 
 void SDMXPixelMappingHierarchyView::RestoreSelectedItems()
 {
-	for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Model : RootWidgets)
+	if (bIsUpdatingSelection)
 	{
-		RecursiveSelection(Model);
+		return;
 	}
+
+	GEditor->GetTimerManager()->SetTimerForNextTick([this]()
+		{
+
+			WidgetTreeView->ClearSelection();
+			for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Model : RootWidgets)
+			{
+				RestoreSelectionForItemAndChildren(Model);
+			}
+		});
 }
 
-void SDMXPixelMappingHierarchyView::RecursiveSelection(FDMXPixelMappingHierarchyItemWidgetModelPtr& Model)
+bool SDMXPixelMappingHierarchyView::RestoreSelectionForItemAndChildren(FDMXPixelMappingHierarchyItemWidgetModelPtr& Model)
 {
-	if (Model->ContainsSelection())
+	if (bIsUpdatingSelection)
 	{
-		// Expand items that contain selection.
-		WidgetTreeView->SetItemExpansion(Model, true);
-
-		TArray<FDMXPixelMappingHierarchyItemWidgetModelPtr> Children;
-		Model->GatherChildren(Children);
-
-		for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Children)
-		{
-			RecursiveSelection(ChildModel);
-		}
+		return false;
 	}
 
-	if (Model->IsSelected())
+	const TSharedPtr<FDMXPixelMappingToolkit> StrongToolkit = Toolkit.Pin();
+	if (!StrongToolkit.IsValid())
+	{
+		return false;
+	}
+
+	TArray<FDMXPixelMappingHierarchyItemWidgetModelPtr> Children;
+	Model->GatherChildren(Children);
+
+	bool bContainsSelection = false;
+	for (FDMXPixelMappingHierarchyItemWidgetModelPtr& ChildModel : Children)
+	{
+		bContainsSelection |= RestoreSelectionForItemAndChildren(ChildModel);
+	}
+
+	const TSet<FDMXPixelMappingComponentReference> SelectedComponents = StrongToolkit->GetSelectedComponents();
+	if (bContainsSelection)
+	{
+		WidgetTreeView->SetItemExpansion(Model, true);
+	}
+
+	if (SelectedComponents.Contains(Model->GetReference()))
 	{
 		WidgetTreeView->SetItemSelection(Model, true, ESelectInfo::Direct);
 		WidgetTreeView->RequestScrollIntoView(Model);
+		
+		return true;
 	}
+
+	return bContainsSelection;
 }
 
 void SDMXPixelMappingHierarchyView::RefreshTree()
@@ -411,13 +422,6 @@ void SDMXPixelMappingHierarchyView::OnEditorSelectionChanged()
 {
 	if (!bIsUpdatingSelection)
 	{
-		WidgetTreeView->ClearSelection();
-
-		if (RootWidgets.Num() > 0)
-		{
-			RootWidgets[0]->RefreshSelection();
-		}
-
 		RestoreSelectedItems();
 	}
 }
@@ -582,11 +586,6 @@ void SDMXPixelMappingHierarchyView::BeginPaste()
 		{
 			MoveComponentToComponent(Component, SelectedComponent, true);
 		}
-	}
-
-	if (bRebuildTreeRequested)
-	{
-		CurrentSelectedItems = WidgetTreeView->GetSelectedItems();
 	}
 }
 

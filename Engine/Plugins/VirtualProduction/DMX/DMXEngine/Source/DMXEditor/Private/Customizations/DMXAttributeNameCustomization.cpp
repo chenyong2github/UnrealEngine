@@ -6,6 +6,7 @@
 #include "DMXProtocolSettings.h"
 
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
 #include "ScopedTransaction.h"
@@ -60,7 +61,9 @@ void FDMXAttributeNameCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 			.OnValueChanged(this, &FDMXAttributeNameCustomization::SetValue)
 		];
 
-	ProtocolSettings->GetOnDefaultAttributesChanged().AddSP(this, &FDMXAttributeNameCustomization::ForceRefresh);
+	ProtocolSettings->GetOnDefaultAttributesChanged().AddSP(this, &FDMXAttributeNameCustomization::RequestRefresh);
+
+	NameHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXAttributeNameCustomization::RequestRefresh));
 }
 
 void FDMXAttributeNameCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -70,19 +73,10 @@ void FDMXAttributeNameCustomization::CustomizeChildren(TSharedRef<IPropertyHandl
 
 FName FDMXAttributeNameCustomization::GetValue() const
 {
-	TArray<const void*> RawData;
-	StructPropertyHandle->AccessRawData(RawData);
-
-	for (const void* RawPtr : RawData)
-	{
-		if (RawPtr != nullptr)
-		{
-			// The types we use with this customization must have a cast constructor to FName
-			return reinterpret_cast<const FDMXAttributeName*>(RawPtr)->Name;
-		}
-	}
-
-	return FName();
+	FName Name;
+	NameHandle->GetValue(Name);
+	
+	return Name;
 }
 
 void FDMXAttributeNameCustomization::SetValue(FName NewValue)
@@ -129,7 +123,16 @@ bool FDMXAttributeNameCustomization::HasMultipleValues() const
 	return false;
 }
 
-void FDMXAttributeNameCustomization::ForceRefresh()
+void FDMXAttributeNameCustomization::RequestRefresh()
 {
+	if (!RefreshHandle.IsValid())
+	{
+		RefreshHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &FDMXAttributeNameCustomization::Refresh));
+	}
+}
+
+void FDMXAttributeNameCustomization::Refresh()
+{
+	RefreshHandle.Invalidate();
 	PropertyUtilities->ForceRefresh();
 }

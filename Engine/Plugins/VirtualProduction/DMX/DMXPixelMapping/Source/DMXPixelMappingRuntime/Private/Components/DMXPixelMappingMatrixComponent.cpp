@@ -126,6 +126,9 @@ void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
 #if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
+	// Explicitly recording the state here is required since many properties propagonate to the child cells and cause otherwise malformed transactions
+	Modify();
+
 	if (PropertyAboutToChange)
 	{
 		const FName PropertyName = PropertyAboutToChange->GetFName();

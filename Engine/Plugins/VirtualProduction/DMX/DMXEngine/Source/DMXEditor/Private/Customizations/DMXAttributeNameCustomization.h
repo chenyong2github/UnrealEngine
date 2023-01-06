@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "DetailWidgetRow.h"
+#include "Engine/EngineTypes.h"
 #include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
 #include "Widgets/SNameListPicker.h"
@@ -38,14 +39,20 @@ private:
 	/** True if the customization displays multiple values */
 	bool HasMultipleValues() const;
 
-	/** Forces a refresh of the customization */
-	void ForceRefresh();
+	/** Requests a refresh of the customization */
+	void RequestRefresh();
+
+	/** Refreshes instantly */
+	void Refresh();
 
 	/** Property handle for the Name property */
 	TSharedPtr<IPropertyHandle> NameHandle;
 
 	/** Handle for the FDMXAttributeName struct self */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
+
+	/** Timer handle set when refresh is requested but not carried out yet */
+	FTimerHandle RefreshHandle;
 
 	/** Property utlities for this customization */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;

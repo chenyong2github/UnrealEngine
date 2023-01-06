@@ -82,7 +82,8 @@ private:
 
 	void RestoreSelectedItems();
 
-	void RecursiveSelection(FDMXPixelMappingHierarchyItemWidgetModelPtr& Model);
+	/** Restores selection for a the item and its children. Returns true if the Model or a child was selected. */
+	bool RestoreSelectionForItemAndChildren(FDMXPixelMappingHierarchyItemWidgetModelPtr& Model);
 
 	/** Rebuilds the tree structure based on the current filter options */
 	void RefreshTree();
@@ -155,8 +156,6 @@ private:
 	bool bIsUpdatingSelection;
 
 	TreeViewPtr WidgetTreeView;
-
-	FDMXPixelMappingHierarchyItemWidgetModelArr CurrentSelectedItems;
 
 	bool bSelectFirstRenderer;
 };

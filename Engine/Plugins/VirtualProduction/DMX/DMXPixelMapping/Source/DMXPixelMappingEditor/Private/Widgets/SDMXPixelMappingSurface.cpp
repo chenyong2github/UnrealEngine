@@ -172,6 +172,8 @@ void SDMXPixelMappingSurface::Construct(const FArguments& InArgs, const TSharedP
 		[
 			InArgs._Content.Widget
 		];
+
+	InitialBounds = ComputeAreaBounds();
 }
 
 EActiveTimerReturnType SDMXPixelMappingSurface::HandleZoomToFit(double InCurrentTime, float InDeltaTime)
@@ -209,7 +211,7 @@ void SDMXPixelMappingSurface::Tick(const FGeometry& AllottedGeometry, const doub
 		}
 	}
 
-	if (!bRecenteredOnFirstTick)
+	if (!bRecenteredOnFirstTick && InitialBounds != ComputeAreaBounds())
 	{
 		ZoomToFit(true);
 		bRecenteredOnFirstTick = true;

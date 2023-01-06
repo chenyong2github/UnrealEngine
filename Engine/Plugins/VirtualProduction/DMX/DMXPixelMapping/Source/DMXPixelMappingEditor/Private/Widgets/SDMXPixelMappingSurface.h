@@ -151,6 +151,9 @@ protected:
 	/** Does the user need to press Control in order to over-zoom. */
 	bool bRequireControlToOverZoom;
 
+	/** Initial bounds, useful to detect when the initial zoom to fit should occur */
+	FSlateRect InitialBounds;
+
 	/** Toolkit weak pointer */
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
