@@ -12,6 +12,11 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "Streaming/Texture2DStreamIn.h"
 #include "Streaming/Texture2DUpdate.h"
 
+#if PLATFORM_ANDROID
+#include "EngineLogs.h"
+#include "RenderUtils.h"
+#endif
+
 int32 GStreamingTextureIOPriority = (int32)AIOP_Low;
 static FAutoConsoleVariableRef CVarStreamingTextureIOPriority(
 	TEXT("r.Streaming.TextureIOPriority"),
