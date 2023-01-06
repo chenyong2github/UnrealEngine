@@ -4,6 +4,7 @@
 	Functionality for a real time illuminance meter reference for the sky light and sun.
 =============================================================================*/
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ReflectionEnvironmentCapture.h"
 #include "RHIResources.h"
 #include "RHIShaderPlatform.h"

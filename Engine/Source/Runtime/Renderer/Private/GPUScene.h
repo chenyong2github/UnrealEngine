@@ -17,6 +17,7 @@ class FViewInfo;
 class FLightSceneInfoCompact;
 class FGPUScene;
 class FGPUSceneDynamicContext;
+class FViewUniformShaderParameters;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneResourceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)

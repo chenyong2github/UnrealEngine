@@ -4,6 +4,7 @@
 
 #if RHI_RAYTRACING
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 #include "PrimitiveSceneProxy.h"

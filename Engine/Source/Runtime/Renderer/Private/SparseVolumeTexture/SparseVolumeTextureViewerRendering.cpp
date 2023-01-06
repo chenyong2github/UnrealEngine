@@ -4,6 +4,7 @@
 #include "SparseVolumeTexture/SparseVolumeTextureViewerSceneProxy.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "SceneView.h"
 #include "ScenePrivate.h"
 #include "SceneRendering.h"

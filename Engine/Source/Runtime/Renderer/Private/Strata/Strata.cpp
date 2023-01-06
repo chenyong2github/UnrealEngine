@@ -9,6 +9,7 @@
 #include "SceneRendering.h"
 #include "RendererInterface.h"
 #include "UniformBuffer.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "SceneTextureParameters.h"
 #include "ShaderCompiler.h"
 #include "Lumen/Lumen.h"
