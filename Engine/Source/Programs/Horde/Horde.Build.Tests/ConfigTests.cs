@@ -92,7 +92,7 @@ namespace Horde.Build.Tests
 			FileConfigSource source = new FileConfigSource(baseDir);
 
 			// file:test/foo
-			Uri fooUri = new Uri($"file:///{baseDir}\\test.json");
+			Uri fooUri = new Uri($"file:///{FileReference.Combine(baseDir, "test.json")}");
 
 			byte[] data;
 			{
