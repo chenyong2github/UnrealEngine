@@ -45,6 +45,26 @@ void FPCGRootSet::AddInternal(UObject* InObject)
 	{
 		AddInternal(OuterObject);
 	}
+
+	// Recurse on metadata
+	UPCGMetadata* InMetadata = nullptr;
+	if (UPCGSpatialData* InSpatialData = Cast<UPCGSpatialData>(InObject))
+	{
+		InMetadata = InSpatialData->Metadata;
+	}
+	else if (UPCGParamData* InParamData = Cast<UPCGParamData>(InObject))
+	{
+		InMetadata = InParamData->Metadata;
+	}
+
+	if (InMetadata && InMetadata->GetParent())
+	{
+		UObject* MetadataParentOuter = InMetadata->GetParent()->GetOuter();
+		if (MetadataParentOuter && !MetadataParentOuter->IsA<UPackage>())
+		{
+			AddInternal(MetadataParentOuter);
+		}
+	}
 }
 
 void FPCGRootSet::Remove(UObject* InObject)
@@ -79,6 +99,27 @@ void FPCGRootSet::RemoveInternal(UObject* InObject)
 	if (OuterObject && !OuterObject->IsA<UPackage>())
 	{
 		RemoveInternal(OuterObject);
+	}
+
+	// Recurse on metadata
+	UPCGMetadata* InMetadata = nullptr;
+
+	if (UPCGSpatialData* InSpatialData = Cast<UPCGSpatialData>(InObject))
+	{
+		InMetadata = InSpatialData->Metadata;
+	}
+	else if (UPCGParamData* InParamData = Cast<UPCGParamData>(InObject))
+	{
+		InMetadata = InParamData->Metadata;
+	}
+
+	if (InMetadata && InMetadata->GetParent())
+	{
+		UObject* MetadataParentOuter = InMetadata->GetParent()->GetOuter();
+		if (MetadataParentOuter && !MetadataParentOuter->IsA<UPackage>())
+		{
+			RemoveInternal(MetadataParentOuter);
+		}
 	}
 }
 
