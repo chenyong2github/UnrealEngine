@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include <Chaos/Real.h>
-#include <Framework/Threading.h>
+#include "Chaos/Real.h"
+#include "Framework/ThreadContextEnum.h"
 #include <type_traits>
 
 // Use to define out code blocks that need to be adapted to use Particle Handles in a searchable way (better than #if 0)
@@ -116,3 +116,7 @@ namespace Chaos
 	template<EThreadContext Id>
 	using TThreadRigidParticle = std::conditional_t<Id == EThreadContext::External, FPBDRigidParticle, FPBDRigidParticleHandle>;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Framework/Threading.h"
+#endif
