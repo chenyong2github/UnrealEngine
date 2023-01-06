@@ -23,6 +23,19 @@ public:
 		, Data(InData)
 	{}
 
+	friend uint32 GetTypeHash(const FWidgetMaterialHandle& In)
+	{
+		return HashCombine(GetTypeHash(In.TypeName), GetTypeHash(In.Data));
+	}
+	friend bool operator==(const FWidgetMaterialHandle& A, const FWidgetMaterialHandle& B)
+	{
+		return A.TypeName == B.TypeName && A.Data == B.Data;
+	}
+	friend bool operator!=(const FWidgetMaterialHandle& A, const FWidgetMaterialHandle& B)
+	{
+		return !(A == B);
+	}
+
 	/** @return true if this handle points to valid data */
 	bool IsValid() const { return TypeName != NAME_None && Data != nullptr; }
 

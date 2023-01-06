@@ -19,20 +19,15 @@ namespace UE::MovieScene
 struct FWidgetMaterialKey
 {
 	FObjectKey Object;
-	FWidgetMaterialPath WidgetMaterialPath;
+	FWidgetMaterialHandle WidgetMaterialHandle;
 
 	friend uint32 GetTypeHash(const FWidgetMaterialKey& In)
 	{
-		uint32 Accumulator = GetTypeHash(In.Object);
-		for (const FName& Name : In.WidgetMaterialPath.Path)
-		{
-			Accumulator ^= GetTypeHash(Name);
-		}
-		return Accumulator;
+		return GetTypeHash(In.Object) ^ GetTypeHash(In.WidgetMaterialHandle);
 	}
 	friend bool operator==(const FWidgetMaterialKey& A, const FWidgetMaterialKey& B)
 	{
-		return A.Object == B.Object && A.WidgetMaterialPath.Path == B.WidgetMaterialPath.Path;
+		return A.Object == B.Object && A.WidgetMaterialHandle == B.WidgetMaterialHandle;
 	}
 };
 
@@ -41,30 +36,30 @@ struct FWidgetMaterialAccessor
 	using KeyType = FWidgetMaterialKey;
 
 	UWidget* Widget;
-	FWidgetMaterialPath WidgetMaterialPath;
+	FWidgetMaterialHandle WidgetMaterialHandle;
 
 	FWidgetMaterialAccessor(const FWidgetMaterialKey& InKey);
-	FWidgetMaterialAccessor(UObject* InObject, FWidgetMaterialPath InWidgetMaterialPath);
+	FWidgetMaterialAccessor(UObject* InObject, FWidgetMaterialHandle InWidgetMaterialHandle);
 
 	explicit operator bool() const;
 
 	UMaterialInterface* GetMaterial() const;
-	void SetMaterial(UMaterialInterface* InMaterial) const;
+	void SetMaterial(UMaterialInterface* InMaterial);
 	UMaterialInstanceDynamic* CreateDynamicMaterial(UMaterialInterface* InMaterial);
 	FString ToString() const;
 };
 
-using FPreAnimatedWidgetMaterialTraits          = TPreAnimatedMaterialTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialPath>;
-using FPreAnimatedWidgetMaterialParameterTraits = TPreAnimatedMaterialParameterTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialPath>;
+using FPreAnimatedWidgetMaterialTraits          = TPreAnimatedMaterialTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialHandle>;
+using FPreAnimatedWidgetMaterialParameterTraits = TPreAnimatedMaterialParameterTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialHandle>;
 
 struct FPreAnimatedWidgetMaterialSwitcherStorage
-	: public TPreAnimatedStateStorage<TPreAnimatedMaterialTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialPath>>
+	: public TPreAnimatedStateStorage<TPreAnimatedMaterialTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialHandle>>
 {
 	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedWidgetMaterialSwitcherStorage> StorageID;
 };
 
 struct FPreAnimatedWidgetMaterialParameterStorage
-	: public TPreAnimatedStateStorage<TPreAnimatedMaterialParameterTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialPath>>
+	: public TPreAnimatedStateStorage<TPreAnimatedMaterialParameterTraits<FWidgetMaterialAccessor, UObject*, FWidgetMaterialHandle>>
 {
 	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedWidgetMaterialParameterStorage> StorageID;
 };
@@ -93,5 +88,5 @@ private:
 
 private:
 
-	UE::MovieScene::TMovieSceneMaterialSystem<UE::MovieScene::FWidgetMaterialAccessor, UObject*, UE::MovieScene::FWidgetMaterialPath> SystemImpl;
+	UE::MovieScene::TMovieSceneMaterialSystem<UE::MovieScene::FWidgetMaterialAccessor, UObject*, FWidgetMaterialHandle> SystemImpl;
 };

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/MovieSceneUMGComponentTypes.h"
+#include "Animation/WidgetMaterialTrackUtilities.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
@@ -86,15 +87,48 @@ static void SetRenderTransform(UObject* Object, const FIntermediateWidgetTransfo
 
 FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 {
-	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FComponentRegistry*     ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
 	ComponentRegistry->NewPropertyType(Margin, TEXT("FMargin Property"));
 
 	ComponentRegistry->NewPropertyType(WidgetTransform, TEXT("FWidgetTransform Property"));
 
 	ComponentRegistry->NewComponentType(&WidgetMaterialPath, TEXT("Widget Material Path"), EComponentTypeFlags::CopyToChildren | EComponentTypeFlags::CopyToOutput);
+	ComponentRegistry->NewComponentType(&WidgetMaterialHandle, TEXT("Widget Material Handle"), EComponentTypeFlags::CopyToOutput);
 
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	/** Initializer that initializes the value of an FWidgetMaterialHandle derived from an FWidgetMaterialPath */
+	struct FWidgetMaterialHandleInitializer : TChildEntityInitializer<FWidgetMaterialPath, FWidgetMaterialHandle>
+	{
+		explicit FWidgetMaterialHandleInitializer(TComponentTypeID<FWidgetMaterialPath> Path, TComponentTypeID<FWidgetMaterialHandle> Handle)
+			: TChildEntityInitializer<FWidgetMaterialPath, FWidgetMaterialHandle>(Path, Handle)
+		{}
+
+		virtual void Run(const FEntityRange& ChildRange, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets)
+		{
+			TComponentReader<FWidgetMaterialPath>   PathComponents        = ParentAllocation->ReadComponents(this->GetParentComponent());
+			TComponentWriter<FWidgetMaterialHandle> HandleComponents      = ChildRange.Allocation->WriteComponents(this->GetChildComponent(), FEntityAllocationWriteContext::NewAllocation());
+			TOptionalComponentReader<UObject*>      BoundObjectComponents = ChildRange.Allocation->TryReadComponents(FBuiltInComponentTypes::Get()->BoundObject);
+			if (!ensure(BoundObjectComponents))
+			{
+				return;
+			}
+
+			for (int32 Index = 0; Index < ChildRange.Num; ++Index)
+			{
+				const int32 ParentIndex = ParentAllocationOffsets[Index];
+				const int32 ChildIndex  = ChildRange.ComponentStartOffset + Index;
+
+				UWidget* Widget = Cast<UWidget>(BoundObjectComponents[ChildIndex]);
+				if (Widget)
+				{
+					HandleComponents[ChildIndex] = WidgetMaterialTrackUtilities::GetMaterialHandle(Widget, PathComponents[ParentIndex].Path);
+				}
+			}
+		}
+	};
+
+	ComponentRegistry->Factories.DefineChildComponent(FWidgetMaterialHandleInitializer(WidgetMaterialPath, WidgetMaterialHandle));
 
 	FMovieSceneTracksComponentTypes::Get()->Accessors.Float.Add(UWidget::StaticClass(), "RenderOpacity", &GetRenderOpacity, &SetRenderOpacity);
 

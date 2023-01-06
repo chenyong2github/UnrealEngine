@@ -25,12 +25,12 @@ namespace UE::MovieScene
 
 FWidgetMaterialAccessor::FWidgetMaterialAccessor(const FWidgetMaterialKey& InKey)
 	: Widget(CastChecked<UWidget>(InKey.Object.ResolveObjectPtr()))
-	, WidgetMaterialPath(InKey.WidgetMaterialPath)
+	, WidgetMaterialHandle(InKey.WidgetMaterialHandle)
 {}
 
-FWidgetMaterialAccessor::FWidgetMaterialAccessor(UObject* InObject, FWidgetMaterialPath InWidgetMaterialPath)
+FWidgetMaterialAccessor::FWidgetMaterialAccessor(UObject* InObject, FWidgetMaterialHandle InWidgetMaterialHandle)
 	: Widget(Cast<UWidget>(InObject))
-	, WidgetMaterialPath(MoveTemp(InWidgetMaterialPath))
+	, WidgetMaterialHandle(MoveTemp(InWidgetMaterialHandle))
 {
 	// Object must be a widget
 	if (InObject && !Widget)
@@ -48,26 +48,24 @@ FWidgetMaterialAccessor::operator bool() const
 
 FString FWidgetMaterialAccessor::ToString() const
 {
-	return FString::Printf(TEXT("Brush %s.%s"), *Widget->GetPathName(), *FString::JoinBy(WidgetMaterialPath.Path, TEXT("."), UE_PROJECTION_MEMBER(FName, ToString)));
+	return FString::Printf(TEXT("Brush on widget %s"), *Widget->GetPathName());
 }
 
 UMaterialInterface* FWidgetMaterialAccessor::GetMaterial() const
 {
-	FWidgetMaterialHandle Handle = WidgetMaterialTrackUtilities::GetMaterialHandle(Widget, WidgetMaterialPath.Path);
-	if (Handle.IsValid())
+	if (WidgetMaterialHandle.IsValid())
 	{
-		return Handle.GetMaterial();
+		return WidgetMaterialHandle.GetMaterial();
 	}
 
 	return nullptr;
 }
 
-void FWidgetMaterialAccessor::SetMaterial(UMaterialInterface* InMaterial) const
+void FWidgetMaterialAccessor::SetMaterial(UMaterialInterface* InMaterial)
 {
-	FWidgetMaterialHandle Handle = WidgetMaterialTrackUtilities::GetMaterialHandle(Widget, WidgetMaterialPath.Path);
-	if (Handle.IsValid())
+	if (WidgetMaterialHandle.IsValid())
 	{
-		Handle.SetMaterial(InMaterial, Widget);
+		WidgetMaterialHandle.SetMaterial(InMaterial, Widget);
 	}
 }
 
@@ -98,7 +96,7 @@ UMovieSceneWidgetMaterialSystem::UMovieSceneWidgetMaterialSystem(const FObjectIn
 	FMovieSceneUMGComponentTypes*    WidgetComponents  = FMovieSceneUMGComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
 
-	RelevantComponent = WidgetComponents->WidgetMaterialPath;
+	RelevantComponent = WidgetComponents->WidgetMaterialHandle;
 	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -120,7 +118,7 @@ void UMovieSceneWidgetMaterialSystem::OnLink()
 	SystemImpl.MaterialSwitcherStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedWidgetMaterialSwitcherStorage>();
 	SystemImpl.MaterialParameterStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedWidgetMaterialParameterStorage>();
 
-	SystemImpl.OnLink(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialPath);
+	SystemImpl.OnLink(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialHandle);
 }
 
 void UMovieSceneWidgetMaterialSystem::OnUnlink()
@@ -135,7 +133,7 @@ void UMovieSceneWidgetMaterialSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 	FBuiltInComponentTypes*       BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneUMGComponentTypes* WidgetComponents  = FMovieSceneUMGComponentTypes::Get();
 
-	SystemImpl.OnRun(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialPath, InPrerequisites, Subsequents);
+	SystemImpl.OnRun(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialHandle, InPrerequisites, Subsequents);
 }
 
 void UMovieSceneWidgetMaterialSystem::SavePreAnimatedState(const FPreAnimationParameters& InParameters)
@@ -145,5 +143,5 @@ void UMovieSceneWidgetMaterialSystem::SavePreAnimatedState(const FPreAnimationPa
 	FBuiltInComponentTypes*       BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneUMGComponentTypes* WidgetComponents  = FMovieSceneUMGComponentTypes::Get();
 
-	SystemImpl.SavePreAnimatedState(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialPath, InParameters);
+	SystemImpl.SavePreAnimatedState(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialHandle, InParameters);
 }

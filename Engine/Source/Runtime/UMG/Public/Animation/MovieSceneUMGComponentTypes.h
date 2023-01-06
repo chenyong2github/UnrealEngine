@@ -4,6 +4,7 @@
 
 #include "Layout/Margin.h"
 #include "Slate/WidgetTransform.h"
+#include "Animation/WidgetMaterialTrackUtilities.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
 #include "EntitySystem/MovieScenePropertyTraits.h"
@@ -61,6 +62,7 @@ struct UMG_API FMovieSceneUMGComponentTypes
 	TPropertyComponents<FWidgetTransformPropertyTraits> WidgetTransform;
 
 	TComponentTypeID<FWidgetMaterialPath> WidgetMaterialPath;
+	TComponentTypeID<FWidgetMaterialHandle> WidgetMaterialHandle;
 
 	TCustomPropertyRegistration<FWidgetTransformPropertyTraits, 1> CustomWidgetTransformAccessors;
 
