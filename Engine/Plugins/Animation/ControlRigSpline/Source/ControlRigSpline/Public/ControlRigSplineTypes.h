@@ -50,7 +50,9 @@ public:
 
 	virtual void SetControlPoints(const TArrayView<const FVector>& InControlPoints);
 
-	TArray<FVector>& GetControlPoints() { return ControlPoints; }
+	virtual TArray<FVector>& GetControlPoints() { return ControlPoints; }
+	
+	virtual TArray<FVector> GetControlPointsWithoutDuplicates();
 
 	uint8 GetDegree() const { return Degree; }
 };
@@ -126,6 +128,9 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 
 	// Returns a reference to the control points that were used to create this spline 
 	TArray<FVector>& GetControlPoints();
+
+	// Returns the control points that were used to create this spline, removing the duplicates in case of a closed spline
+	TArray<FVector> GetControlPointsWithoutDuplicates();
 
 	// Returns the degree of the curve
 	uint8 GetDegree() const;

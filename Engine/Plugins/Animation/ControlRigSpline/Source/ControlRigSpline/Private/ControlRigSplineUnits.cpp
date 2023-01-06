@@ -680,6 +680,8 @@ FRigUnit_FitSplineCurveToChainItemArray_Execute()
 		return;
 	}
 
+	const bool bClosed = Spline.SplineData->bClosed;
+
 	// 1.- Create spline from chain
 	TArray<FVector> AuxControlPoints;
 	AuxControlPoints.SetNumUninitialized(Items.Num());	
@@ -690,24 +692,27 @@ FRigUnit_FitSplineCurveToChainItemArray_Execute()
 	}
     FControlRigSpline AuxSpline;
 	const TArrayView<const FVector> PointsView(AuxControlPoints.GetData(), AuxControlPoints.Num());
-	AuxSpline.SetControlPoints(PointsView, ESplineType::Hermite, false, Spline.SplineData->SamplesPerSegment);
+	AuxSpline.SetControlPoints(PointsView, ESplineType::Hermite, bClosed, Spline.SplineData->SamplesPerSegment);
 	
 
 	// 2.-  for each control point in the original spline
 	//			figure out its u in the original spline (preprocess)
 	//			query position at u on the new spline
-	const TArray<FVector>& ControlPoints = Spline.SplineData->GetControlPoints();
+	const TArray<FVector> ControlPoints = Spline.SplineData->GetControlPointsWithoutDuplicates();
+	const int32 NumControlPoints = ControlPoints.Num();
 	TArray<FVector> NewControlPoints;
-	NewControlPoints.SetNumUninitialized(ControlPoints.Num());
-	for (int32 i = 0; i < ControlPoints.Num(); ++i)
+	NewControlPoints.SetNumUninitialized(NumControlPoints);
+	float U = 0;
+	const float DeltaU = bClosed ? 1 / (float)(NumControlPoints) : 1 / (float)(NumControlPoints - 1);
+	for (int32 i = 0; i < NumControlPoints; ++i)
 	{
-		float U = i / (float)(ControlPoints.Num() - 1);
 		FVector NewPosition = AuxSpline.PositionAtParam(U);
 		NewControlPoints[i] = NewPosition;
+		U += DeltaU;
 	}
 
 	const TArrayView<const FVector> NewPointsView(NewControlPoints.GetData(), NewControlPoints.Num());
-	Spline.SetControlPoints(NewPointsView, Spline.SplineData->SplineMode, false, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
+	Spline.SetControlPoints(NewPointsView, Spline.SplineData->SplineMode, bClosed, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
 }
 
 FRigUnit_ClosestParameterFromControlRigSpline_Execute()

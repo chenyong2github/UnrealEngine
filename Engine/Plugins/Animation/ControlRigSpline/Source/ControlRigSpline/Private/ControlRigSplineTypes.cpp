@@ -26,6 +26,25 @@ ControlRigBaseSpline::ControlRigBaseSpline(const TArrayView<const FVector>& InCo
 	}
 }
 
+TArray<FVector> ControlRigBaseSpline::GetControlPointsWithoutDuplicates()
+{
+	if (bClosed)
+	{
+		const int32 NumPoints = ControlPoints.Num() - Degree;
+		const int32 NumInitPointsToIgnore = Degree/2 - 1;
+		
+		TArray<FVector> ReducedControlPoints;
+		ReducedControlPoints.Reserve(NumPoints);
+		for (int32 i=0; i<NumPoints; ++i)
+		{
+			ReducedControlPoints.Add(ControlPoints[i+NumInitPointsToIgnore]);
+		}
+		return ReducedControlPoints;
+	}
+
+	return ControlPoints;
+}
+
 void ControlRigBaseSpline::SetControlPoints(const TArrayView<const FVector>& InControlPoints)
 {
 	if (bClosed)
@@ -229,6 +248,12 @@ TArray<FVector>& FControlRigSplineImpl::GetControlPoints()
 {
 	check(Spline);
 	return Spline->GetControlPoints();	
+}
+
+TArray<FVector> FControlRigSplineImpl::GetControlPointsWithoutDuplicates()
+{
+	check(Spline);
+	return Spline->GetControlPointsWithoutDuplicates();
 }
 
 uint8 FControlRigSplineImpl::GetDegree() const
