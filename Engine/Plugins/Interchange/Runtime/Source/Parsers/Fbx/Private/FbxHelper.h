@@ -3,55 +3,53 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
 #include "FbxInclude.h"
 
-namespace UE
+namespace UE::Interchange::Private
 {
-	namespace Interchange
+	class FFbxParser;
+
+	class FPayloadContextBase
 	{
-		namespace Private
-		{
-			class FFbxParser;
+	public:
+		virtual ~FPayloadContextBase() {}
+		virtual FString GetPayloadType() const { return FString(); }
+		virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) { return false; }
+		virtual bool FetchAnimationBakeTransformPayloadToFile(FFbxParser& Parser, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath) { return false; }
+	};
 
-			class FPayloadContextBase
-			{
-			public:
-				virtual ~FPayloadContextBase() {}
-				virtual FString GetPayloadType() const { return FString(); }
-				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) { return false; }
-				virtual bool FetchAnimationBakeTransformPayloadToFile(FFbxParser& Parser, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath) { return false; }
-			};
+	struct FFbxHelper
+	{
+	public:
 
-			struct FFbxHelper
-			{
-			public:
+		FString GetMeshName(FbxGeometryBase* Mesh) const;
+		FString GetMeshUniqueID(FbxGeometryBase* Mesh) const;
 
-				static FString GetMeshName(FbxGeometryBase* Mesh);
-				static FString GetMeshUniqueID(FbxGeometryBase* Mesh);
+		FString GetNodeAttributeName(FbxNodeAttribute* NodeAttribute, const FStringView DefaultNamePrefix) const;
+		FString GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix) const;
 
-				static FString GetNodeAttributeName(FbxNodeAttribute* NodeAttribute, const FStringView DefaultNamePrefix);
-				static FString GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix);
+		/**
+			* Return the name of an FbxProperty, return empty string if the property is null.
+			*/
+		FString GetFbxPropertyName(const FbxProperty& Property) const;
 
-				/**
-				 * Return the name of an FbxProperty, return empty string if the property is null.
-				 */
-				static FString GetFbxPropertyName(const FbxProperty& Property);
+		/**
+			* Return the name of an FbxObject, return empty string if the object is null.
+			*/
+		FString GetFbxObjectName(const FbxObject* Object) const;
 
-				/**
-				 * Return the name of an FbxObject, return empty string if the object is null.
-				 */
-				static FString GetFbxObjectName(const FbxObject* Object);
+		/**
+			* Return a string with the name of all the parent in the hierarchy separate by a dot( . ) from the fbx root node to the specified node.
+			* This is a way to have a valid unique ID for a fbx node that will be the same if the fbx change when we re-import.
+			* Using the fbx sdk int32 uniqueID is not valid anymore if the fbx is re-exported.
+			*/
+		FString GetFbxNodeHierarchyName(const FbxNode* Node) const;
 
-				/**
-				 * Return a string with the name of all the parent in the hierarchy separate by a dot( . ) from the fbx root node to the specified node.
-				 * This is a way to have a valid unique ID for a fbx node that will be the same if the fbx change when we re-import.
-				 * Using the fbx sdk int32 uniqueID is not valid anymore if the fbx is re-exported.
-				 */
-				static FString GetFbxNodeHierarchyName(const FbxNode* Node);
+	protected:
+		FString GetUniqueIDString(const uint64 UniqueID) const;
 
-			protected:
-				static FString GetUniqueIDString(const uint64 UniqueID);
-			};
-		}//ns Private
-	}//ns Interchange
-}//ns UE
+	private:
+		mutable TMap<FString, const FbxObject*> MaterialNameClashMap;
+	};
+}//ns UE::Interchange::Private

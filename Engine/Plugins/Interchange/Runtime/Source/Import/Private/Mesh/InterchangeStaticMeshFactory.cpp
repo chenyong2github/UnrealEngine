@@ -126,6 +126,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 	// create an asset if it doesn't exist
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
 
+	const bool bReimport = Arguments.ReimportObject&& ExistingAsset;
 	UObject* StaticMeshObject = nullptr;
 
 	// create a new static mesh or overwrite existing asset, if possible
@@ -170,27 +171,32 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 	// If we are reimporting, cache the existing vertex colors so they can be optionally reapplied after reimport
 	TMap<FVector3f, FColor> ExisitingVertexColorData;
-	if (Arguments.ReimportObject && ExistingAsset)
+	if (bReimport)
 	{
 		StaticMesh->GetVertexColorData(ExisitingVertexColorData);
 	}
 
 	// Set material slots from imported materials
-	auto UpdateOrAddStaticMaterial = [&StaticMesh](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
+	auto UpdateOrAddStaticMaterial = [&StaticMesh, bReimport](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
 	{
-		int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(MaterialSlotName);
+		UMaterialInterface* NewMaterial = MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface);
 
-		if (MaterialSlotIndex == INDEX_NONE)
+		FStaticMaterial* StaticMaterial = StaticMesh->GetStaticMaterials().FindByPredicate([&MaterialSlotName](const FStaticMaterial& Material) { return Material.MaterialSlotName == MaterialSlotName; });
+		if (StaticMaterial)
 		{
-			MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(MaterialInterface, MaterialSlotName);
+			//When we do a re-import we update the material interface only if the specified MaterialInterface is not null
+			if (!bReimport || MaterialInterface || !StaticMaterial->MaterialInterface)
+			{
+				StaticMaterial->MaterialInterface = NewMaterial;
+			}
+		}
+		else
+		{
+			int32 MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(NewMaterial, MaterialSlotName);
 #if !WITH_EDITOR
 			// UV density is not supported to be generated at runtime for now. We fake that it has been initialized so that we don't trigger ensures.
 			StaticMesh->GetStaticMaterials()[MaterialSlotIndex].UVChannelData = FMeshUVChannelInfo(1.f);
 #endif
-		}
-		else
-		{
-			StaticMesh->GetStaticMaterials()[MaterialSlotIndex].MaterialInterface = MaterialInterface;
 		}
 	};
 
@@ -203,19 +209,19 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(SlotMaterialDependency.Value));
 		if (!MaterialFactoryNode || !MaterialFactoryNode->IsEnabled())
 		{
-			UpdateOrAddStaticMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			UpdateOrAddStaticMaterial(MaterialSlotName, nullptr);
 			continue;
 		}
 		FSoftObjectPath MaterialFactoryNodeReferenceObject;
 		MaterialFactoryNode->GetCustomReferenceObject(MaterialFactoryNodeReferenceObject);
 		if (!MaterialFactoryNodeReferenceObject.IsValid())
 		{
-			UpdateOrAddStaticMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			UpdateOrAddStaticMaterial(MaterialSlotName, nullptr);
 			continue;
 		}
 
 		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNodeReferenceObject.TryLoad());
-		UpdateOrAddStaticMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface));
+		UpdateOrAddStaticMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : nullptr);
 	}
 
 	// Now import geometry for each LOD

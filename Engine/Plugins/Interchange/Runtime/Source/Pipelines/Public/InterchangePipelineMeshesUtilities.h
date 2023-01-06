@@ -289,11 +289,10 @@ namespace UE::Interchange::MeshesUtilities
 		for (const TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
 		{
 			const FString MaterialFactoryNodeUid = UInterchangeBaseMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(SlotMaterialDependency.Value);
+			FactoryNode.SetSlotMaterialDependencyUid(SlotMaterialDependency.Key, MaterialFactoryNodeUid);
 			if (UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(NodeContainer.GetFactoryNode(MaterialFactoryNodeUid)))
 			{
 				MaterialFactoryNode->SetEnabled(true);
-
-				FactoryNode.SetSlotMaterialDependencyUid(SlotMaterialDependency.Key, MaterialFactoryNodeUid);
 
 				// Create a factory dependency so Material asset are imported before the static mesh asset
 				TArray<FString> FactoryDependencies;
@@ -305,5 +304,90 @@ namespace UE::Interchange::MeshesUtilities
 			}
 		}
 
+	}
+
+	template<class T>
+	void ReorderSlotMaterialDependencies(T& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer)
+	{
+		TMap<FString, FString> SlotMaterialDependencies;
+		FactoryNode.GetSlotMaterialDependencies(SlotMaterialDependencies);
+
+		for (const TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
+		{
+			const FString& MaterialName = SlotMaterialDependency.Key;
+			FactoryNode.RemoveSlotMaterialDependencyUid(MaterialName);
+		}
+
+		TArray<FString> KeyReorder;
+		KeyReorder.Reserve(SlotMaterialDependencies.Num());
+		TArray<FString> MissingSuffixe;
+		MissingSuffixe.Reserve(SlotMaterialDependencies.Num());
+		//Reorder material using the skinXX workflow
+		for (const TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
+		{
+			const FString& MaterialName = SlotMaterialDependency.Key;
+			if (MaterialName.Len() > 6)
+			{
+				int32 Offset = MaterialName.Find(TEXT("_SKIN"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				if (Offset != INDEX_NONE)
+				{
+					// Chop off the material name so we are left with the number in _SKINXX
+					FString SkinXXNumber = MaterialName.Right(MaterialName.Len() - (Offset + 1)).RightChop(4);
+					if (SkinXXNumber.IsNumeric())
+					{
+						int32 TmpIndex = FPlatformString::Atoi(*SkinXXNumber);
+						if (TmpIndex >= 0)
+						{
+							while (KeyReorder.Num() <= TmpIndex)
+							{
+								KeyReorder.AddDefaulted();
+							}
+							check(KeyReorder.IsValidIndex(TmpIndex));
+							if (KeyReorder[TmpIndex].IsEmpty())
+							{
+								KeyReorder[TmpIndex] = MaterialName;
+								continue;
+							}
+						}
+					}
+				}
+				else
+				{
+					MissingSuffixe.Add(MaterialName);
+				}
+			}
+			else
+			{
+				MissingSuffixe.Add(MaterialName);
+			}
+		}
+
+		//The map is MaterialName, MaterialUid
+		TMap<FString, FString> ReorderedSlotMaterialDependencies;
+		ReorderedSlotMaterialDependencies.Reserve(SlotMaterialDependencies.Num());
+
+		//Start by adding the KeyReorder material
+		for (const FString& MaterialName : KeyReorder)
+		{
+			if (MaterialName.IsEmpty())
+			{
+				continue;
+			}
+			const FString& SlotMaterialUid = SlotMaterialDependencies.FindChecked(MaterialName);
+			ReorderedSlotMaterialDependencies.Add(MaterialName, SlotMaterialUid);
+		}
+		//Add the missing suffixe material
+		for (const FString& MaterialName : MissingSuffixe)
+		{
+			const FString& SlotMaterialUid = SlotMaterialDependencies.FindChecked(MaterialName);
+			ReorderedSlotMaterialDependencies.Add(MaterialName, SlotMaterialUid);
+		}
+
+		check(ReorderedSlotMaterialDependencies.Num() == SlotMaterialDependencies.Num());
+
+		for (const TPair<FString, FString>& SlotMaterialDependency : ReorderedSlotMaterialDependencies)
+		{
+			FactoryNode.SetSlotMaterialDependencyUid(SlotMaterialDependency.Key, SlotMaterialDependency.Value);
+		}
 	}
 }

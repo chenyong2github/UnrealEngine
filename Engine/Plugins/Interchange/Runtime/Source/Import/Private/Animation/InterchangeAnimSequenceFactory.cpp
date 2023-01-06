@@ -298,7 +298,7 @@ namespace UE::Interchange::Private
 
 			const double BakeInterval = 1.0 / SampleRate;
 			const double SequenceLength = FMath::Max<double>(RangeEnd - RangeStart, MINIMUM_ANIMATION_LENGTH);
-			int32 BakeKeyCount = (SequenceLength / BakeInterval) + 1;
+			int32 BakeKeyCount = FMath::RoundToInt32(SequenceLength * SampleRate) + 1;
 
 			TMap<FString, FString> PayloadKeys;
 			AnimSequenceFactoryNode->GetSceneNodeAnimationPayloadKeys(PayloadKeys);

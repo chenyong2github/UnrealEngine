@@ -14,7 +14,7 @@ namespace UE
 	{
 		namespace Private
 		{
-			FString FFbxHelper::GetMeshName(FbxGeometryBase* Mesh)
+			FString FFbxHelper::GetMeshName(FbxGeometryBase* Mesh) const
 			{
 				if (!Mesh)
 				{
@@ -34,7 +34,7 @@ namespace UE
 				return GetNodeAttributeName(Mesh, DefaultPrefix);
 			}
 
-			FString FFbxHelper::GetMeshUniqueID(FbxGeometryBase* Mesh)
+			FString FFbxHelper::GetMeshUniqueID(FbxGeometryBase* Mesh) const
 			{
 				if (!Mesh)
 				{
@@ -54,7 +54,7 @@ namespace UE
 				return GetNodeAttributeUniqueID(Mesh, MeshUniqueID);
 			}
 
-			FString FFbxHelper::GetNodeAttributeName(FbxNodeAttribute* NodeAttribute, const FStringView DefaultNamePrefix)
+			FString FFbxHelper::GetNodeAttributeName(FbxNodeAttribute* NodeAttribute, const FStringView DefaultNamePrefix) const
 			{
 				FString NodeAttributeName = FFbxHelper::GetFbxObjectName(NodeAttribute);
 				if (NodeAttributeName.IsEmpty())
@@ -72,7 +72,7 @@ namespace UE
 				return NodeAttributeName;
 			}
 
-			FString FFbxHelper::GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix)
+			FString FFbxHelper::GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix) const
 			{
 				if (!NodeAttribute)
 				{
@@ -99,7 +99,7 @@ namespace UE
 				return NodeAttributeUniqueID;
 			}
 
-			FString FFbxHelper::GetFbxPropertyName(const FbxProperty& Property)
+			FString FFbxHelper::GetFbxPropertyName(const FbxProperty& Property) const
 			{
 				FString PropertyName = FFbxConvert::MakeName(Property.GetName());
 				if (PropertyName.Equals(TEXT("none"), ESearchCase::IgnoreCase))
@@ -110,7 +110,7 @@ namespace UE
 				return PropertyName;
 			}
 
-			FString FFbxHelper::GetFbxObjectName(const FbxObject* Object)
+			FString FFbxHelper::GetFbxObjectName(const FbxObject* Object) const
 			{
 				if (!Object)
 				{
@@ -122,10 +122,35 @@ namespace UE
 					//Replace None by Null because None clash with NAME_None and the create asset will instead call the object ClassName_X
 					ObjName = TEXT("Null");
 				}
+				
+				//Material name clash have to be sorted here since the unique ID is only compose of the name.
+				//If we do not do it only one material node will be created.
+				if (Object->Is<FbxSurfaceMaterial>())
+				{
+					const FbxObject* SurfaceMaterialClash = MaterialNameClashMap.FindOrAdd(ObjName);
+					if (SurfaceMaterialClash != nullptr && SurfaceMaterialClash != Object)
+					{
+						int32 UniqueID = 1;
+						FString MaterialNameClash;
+						bool bBreak = false;
+						do
+						{
+							MaterialNameClash = ObjName + TEXT(NAMECLASH1_KEY) + FString::FromInt(UniqueID++);
+							SurfaceMaterialClash = MaterialNameClashMap.FindOrAdd(MaterialNameClash);
+							if (SurfaceMaterialClash == nullptr || SurfaceMaterialClash == Object)
+							{
+								bBreak = true;
+							}
+						} while (!bBreak);
+						ObjName = MaterialNameClash;
+					}
+					MaterialNameClashMap.FindChecked(ObjName) = Object;
+				}
+
 				return ObjName;
 			}
 
-			FString FFbxHelper::GetFbxNodeHierarchyName(const FbxNode* Node)
+			FString FFbxHelper::GetFbxNodeHierarchyName(const FbxNode* Node) const
 			{
 				if (!Node)
 				{
@@ -150,7 +175,7 @@ namespace UE
 				return UniqueID;
 			}
 
-			FString FFbxHelper::GetUniqueIDString(const uint64 UniqueID)
+			FString FFbxHelper::GetUniqueIDString(const uint64 UniqueID) const
 			{
 				FStringFormatNamedArguments FormatArguments;
 				FormatArguments.Add(TEXT("UniqueID"), UniqueID);

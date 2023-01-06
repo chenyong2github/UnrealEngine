@@ -47,8 +47,8 @@ namespace UE
 				T* AddMessage(FbxGeometryBase* FbxNode) const
 				{
 					T* Item = Parser.AddMessage<T>();
-					Item->MeshName = FFbxHelper::GetMeshName(FbxNode);
-					Item->InterchangeKey = FFbxHelper::GetMeshUniqueID(FbxNode);
+					Item->MeshName = Parser.GetFbxHelper()->GetMeshName(FbxNode);
+					Item->InterchangeKey = Parser.GetFbxHelper()->GetMeshUniqueID(FbxNode);
 					return Item;
 				}
 

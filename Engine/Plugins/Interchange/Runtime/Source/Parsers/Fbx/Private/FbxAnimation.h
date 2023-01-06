@@ -61,12 +61,14 @@ namespace UE::Interchange::Private
 	public:
 		/** This function add the payload key if the scene node transform is animated. */
 		static void AddNodeTransformAnimation(FbxScene* SDKScene
+			, FFbxParser& Parser
 			, FbxNode* Node
 			, UInterchangeSceneNode* UnrealNode
 			, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
 
 		/** This function add the payload key for an animated node user attribute. */
-		static void AddNodeAttributeCurvesAnimation(FbxNode* Node
+		static void AddNodeAttributeCurvesAnimation(FFbxParser& Parser
+			, FbxNode* Node
 			, FbxProperty& Property
 			, FbxAnimCurveNode* AnimCurveNode
 			, UInterchangeSceneNode* SceneNode

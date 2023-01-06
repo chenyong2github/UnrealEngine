@@ -531,9 +531,9 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 
 	const FString SkeletalMeshUid = SkeletalMeshFactoryNode->GetUniqueID();
 	const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
-	for (const TPair<int32, TArray<FString>>& LodIndexAndNodeUids : NodeUidsPerLodIndex)
+	const int32 LodCount = NodeUidsPerLodIndex.Num();
+	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
-		const int32 LodIndex = LodIndexAndNodeUids.Key;
 		if (!CommonMeshesProperties->bImportLods && LodIndex > 0)
 		{
 			//If the pipeline should not import lods, skip any lod over base lod
@@ -541,7 +541,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 		}
 
 		//Copy the nodes unique id because we need to remove nested mesh if the option is to not import them
-		TArray<FString> NodeUids = LodIndexAndNodeUids.Value;
+		TArray<FString> NodeUids = NodeUidsPerLodIndex.FindChecked(LodIndex);
 		if (!CommonSkeletalMeshesAndAnimationsProperties->bImportMeshesInBoneHierarchy)
 		{
 			UE::Interchange::SkeletalMeshGenericPipeline::RemoveNestedMeshNodes(BaseNodeContainer, SkeletonFactoryNode, NodeUids);
@@ -597,6 +597,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 
 			LodDataNode->AddMeshUid(NodeUid);
 		}
+		UE::Interchange::MeshesUtilities::ReorderSlotMaterialDependencies(*SkeletalMeshFactoryNode, *BaseNodeContainer);
 	}
 }
 

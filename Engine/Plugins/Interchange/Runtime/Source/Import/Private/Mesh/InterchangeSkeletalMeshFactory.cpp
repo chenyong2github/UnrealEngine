@@ -1062,19 +1062,24 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 	// Update skeletal materials
 	TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
 
-	auto UpdateOrAddSkeletalMaterial = [&Materials](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
+	auto UpdateOrAddSkeletalMaterial = [&Materials, bIsReImport](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
 	{
+		UMaterialInterface* NewMaterial = MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface);
+
 		FSkeletalMaterial* SkeletalMaterial = Materials.FindByPredicate([&MaterialSlotName](const FSkeletalMaterial& Material) { return Material.MaterialSlotName == MaterialSlotName; });
-		
 		if (SkeletalMaterial)
 		{
-			SkeletalMaterial->MaterialInterface = MaterialInterface;
+			//When we do a reimport we update the material interface only if the specified MaterialInterface is not null
+			if (!bIsReImport || MaterialInterface || !SkeletalMaterial->MaterialInterface)
+			{
+				SkeletalMaterial->MaterialInterface = NewMaterial;
+			}
 		}
 		else
 		{
 			const bool bEnableShadowCasting = true;
 			const bool bInRecomputeTangent = false;
-			Materials.Emplace(MaterialInterface, bEnableShadowCasting, bInRecomputeTangent, MaterialSlotName, MaterialSlotName);
+			Materials.Emplace(NewMaterial, bEnableShadowCasting, bInRecomputeTangent, MaterialSlotName, MaterialSlotName);
 		}
 	};
 
@@ -1089,7 +1094,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(SlotMaterialDependency.Value));
 		if (!MaterialFactoryNode || !MaterialFactoryNode->IsEnabled())
 		{
-			UpdateOrAddSkeletalMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			UpdateOrAddSkeletalMaterial(MaterialSlotName, nullptr);
 			continue;
 		}
 
@@ -1097,12 +1102,12 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		MaterialFactoryNode->GetCustomReferenceObject(MaterialFactoryNodeReferenceObject);
 		if (!MaterialFactoryNodeReferenceObject.IsValid())
 		{
-			UpdateOrAddSkeletalMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			UpdateOrAddSkeletalMaterial(MaterialSlotName, nullptr);
 			continue;
 		}
 
 		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNodeReferenceObject.ResolveObject());
-		UpdateOrAddSkeletalMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface));
+		UpdateOrAddSkeletalMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : nullptr);
 	}
 
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
@@ -1413,9 +1418,22 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 				if (LODMatIndex == INDEX_NONE)
 				{
 					LODMatIndex = Materials.Add(FSkeletalMaterial(ImportedMaterials[ImportedMaterialIndex].Material.Get(), true, false, ImportedMaterialName, ImportedMaterialName));
+					LodInfo->LODMaterialMap.Add(LODMatIndex);
 				}
-
-				LodInfo->LODMaterialMap.Add(LODMatIndex);
+				else
+				{
+					if (CurrentLodIndex == 0)
+					{
+						//For base lod, the skeletalmesh build will reorder the FSkeletalMeshImportData face in the correct order
+						//see FLODUtilities::AdjustImportDataFaceMaterialIndex function, so we dont need to set 
+						LodInfo->LODMaterialMap.Add(ImportedMaterialIndex);
+					}
+					else
+					{
+						//For non base lod we want to use the LODMatIndex
+						LodInfo->LODMaterialMap.Add(LODMatIndex);
+					}
+				}
 			}
 		}
 

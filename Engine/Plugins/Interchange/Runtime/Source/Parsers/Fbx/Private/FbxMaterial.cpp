@@ -161,7 +161,7 @@ namespace UE
 				using namespace UE::Interchange::Materials;
 
 				//Create a material node
-				FString MaterialName = FFbxHelper::GetFbxObjectName(SurfaceMaterial);
+				FString MaterialName = Parser.GetFbxHelper()->GetFbxObjectName(SurfaceMaterial);
 				FString NodeUid = TEXT("\\Material\\") + MaterialName;
 				const UInterchangeShaderGraphNode* ExistingShaderGraphNode = Cast<const UInterchangeShaderGraphNode>(NodeContainer.GetNode(NodeUid));
 				if (ExistingShaderGraphNode)
@@ -288,7 +288,7 @@ namespace UE
 				{
 					FbxSurfaceMaterial* SurfaceMaterial = ParentFbxNode->GetMaterial(MaterialIndex);
 					const UInterchangeShaderGraphNode* ShaderGraphNode = AddShaderGraphNode(SurfaceMaterial, NodeContainer);
-					SceneNode->SetSlotMaterialDependencyUid(FFbxHelper::GetFbxObjectName(SurfaceMaterial), ShaderGraphNode->GetUniqueID());
+					SceneNode->SetSlotMaterialDependencyUid(Parser.GetFbxHelper()->GetFbxObjectName(SurfaceMaterial), ShaderGraphNode->GetUniqueID());
 				}
 			}
 

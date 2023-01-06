@@ -562,7 +562,7 @@ namespace UE::Interchange::Private
 		if (!ensure(FetchPayloadData.Node))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
-			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(FetchPayloadData.Node);
+			Message->InterchangeKey = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(FetchPayloadData.Node);
 			Message->Text = LOCTEXT("FBXNodeNull", "Cannot fetch FBX animation transform payload because the FBX node is null.");
 			return false;
 		}
@@ -592,7 +592,7 @@ namespace UE::Interchange::Private
 		if (!ensure(FetchPayloadData.Node != nullptr))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
-			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(FetchPayloadData.Node);
+			Message->InterchangeKey = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(FetchPayloadData.Node);
 			Message->Text = LOCTEXT("InternalFetchCurveNodePayloadToFile_FBXNodeNull", "Cannot fetch FBX animation curve payload because the FBX node is null.");
 			return false;
 		}
@@ -600,7 +600,7 @@ namespace UE::Interchange::Private
 		if (!ensure(FetchPayloadData.AnimCurves != nullptr))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
-			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(FetchPayloadData.Node);
+			Message->InterchangeKey = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(FetchPayloadData.Node);
 			Message->Text = LOCTEXT("InternalFetchCurveNodePayloadToFile_FBXCurveNull", "Cannot fetch FBX user attribute animation curve payload because the FBX anim curve node is null.");
 			return false;
 		}
@@ -721,7 +721,7 @@ namespace UE::Interchange::Private
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 			if (FbxNode* Node = Geometry->GetNode())
 			{
-				Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(Node);
+				Message->InterchangeKey = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Node);
 			}
 			Message->Text = LOCTEXT("InternalFetchMorphTargetCurvePayloadToFile_FBXCurveNull", "Cannot fetch FBX morph target animation curve payload because the FBX anim curve node is null.");
 			return false;
@@ -743,6 +743,7 @@ namespace UE::Interchange::Private
 	}
 
 	void FFbxAnimation::AddNodeTransformAnimation(FbxScene* SDKScene
+		, FFbxParser& Parser
 		, FbxNode* Node
 		, UInterchangeSceneNode* SceneNode
 		, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
@@ -758,7 +759,7 @@ namespace UE::Interchange::Private
 
 		if (Parameters.IsNodeAnimated)
 		{
-			FString PayLoadKey = FFbxHelper::GetFbxNodeHierarchyName(Node) + TEXT("_AnimationPayloadKey");
+			FString PayLoadKey = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Node) + TEXT("_AnimationPayloadKey");
 			if (ensure(!PayloadContexts.Contains(PayLoadKey)))
 			{
 				TSharedPtr<FAnimationPayloadContextTransform> AnimPayload = MakeShared<FAnimationPayloadContextTransform>();
@@ -775,7 +776,8 @@ namespace UE::Interchange::Private
 		}
 	}
 
-	void FFbxAnimation::AddNodeAttributeCurvesAnimation(FbxNode* Node
+	void FFbxAnimation::AddNodeAttributeCurvesAnimation(FFbxParser& Parser
+		, FbxNode* Node
 		, FbxProperty& Property
 		, FbxAnimCurveNode* AnimCurveNode
 		, UInterchangeSceneNode* SceneNode
@@ -783,8 +785,8 @@ namespace UE::Interchange::Private
 		, EFbxType PropertyType
 		, TOptional<FString>& OutPayloadKey)
 	{
-		const FString PropertyName = FFbxHelper::GetFbxPropertyName(Property);
-		const FString PayLoadKey = FFbxHelper::GetFbxNodeHierarchyName(Node) + PropertyName + TEXT("_AnimationPayloadKey");
+		const FString PropertyName = Parser.GetFbxHelper()->GetFbxPropertyName(Property);
+		const FString PayLoadKey = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Node) + PropertyName + TEXT("_AnimationPayloadKey");
 		if (ensure(!PayloadContexts.Contains(PayLoadKey)))
 		{
 			TSharedPtr<FAnimationPayloadContextTransform> AnimPayload = MakeShared<FAnimationPayloadContextTransform>();

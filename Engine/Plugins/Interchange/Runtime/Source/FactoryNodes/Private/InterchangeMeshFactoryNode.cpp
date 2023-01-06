@@ -174,7 +174,12 @@ bool UInterchangeMeshFactoryNode::SetSlotMaterialDependencyUid(const FString& Sl
 
 bool UInterchangeMeshFactoryNode::RemoveSlotMaterialDependencyUid(const FString& SlotName)
 {
-	return SlotMaterialDependencies.RemoveKey(SlotName);
+	if (SlotMaterialDependencies.RemoveKey(SlotName))
+	{
+		SlotMaterialDependencies.RebuildCache();
+		return true;
+	}
+	return false;
 }
 
 bool UInterchangeMeshFactoryNode::GetCustomRecomputeNormals(bool& AttributeValue) const

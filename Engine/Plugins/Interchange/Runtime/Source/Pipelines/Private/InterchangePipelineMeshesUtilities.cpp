@@ -13,6 +13,94 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePipelineMeshesUtilities)
 
+namespace UE::Private::InterchangeMeshPipeline
+{
+	void FindNamedLodGroup(UInterchangeBaseNodeContainer* BaseNodeContainer, TMap<FString, TArray<FString>>& SceneMeshNodeUidsPerLodParentUidMap)
+	{
+		const FString LodPrefix = TEXT("LOD");
+		BaseNodeContainer->IterateNodes(
+			[&BaseNodeContainer, &SceneMeshNodeUidsPerLodParentUidMap, &LodPrefix](const FString& NodeUid, UInterchangeBaseNode* Node)
+			{
+				if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::TranslatedScene)
+				{
+					const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node);
+					if (!SceneNode)
+					{
+						return;
+					}
+					FString MeshUid;
+					if (!SceneNode->GetCustomAssetInstanceUid(MeshUid))
+					{
+						return;
+					}
+					const UInterchangeBaseNode* MeshNode = BaseNodeContainer->GetNode(MeshUid);
+					if (!MeshNode || !MeshNode->IsA<UInterchangeMeshNode>())
+					{
+						return;
+					}
+					FString ParentUniqueID = SceneNode->GetParentUid();
+					const UInterchangeSceneNode* ParentSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUniqueID));
+					if (!ParentSceneNode)
+					{
+						return;
+					}
+
+					//Skip this node if there is a parent in the hierarchy that is a specialize lod group
+					const UInterchangeSceneNode* ParentSceneNodeHierarchy = ParentSceneNode;
+					while (ParentSceneNodeHierarchy)
+					{
+						if (ParentSceneNodeHierarchy->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetLodGroupSpecializeTypeString()))
+						{
+							return;
+						}
+						ParentSceneNodeHierarchy = Cast<const UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentSceneNodeHierarchy->GetParentUid()));
+					}
+
+					if (BaseNodeContainer->GetNodeChildrenCount(ParentUniqueID) <= 1)
+					{
+						//Do not create custom named LOD group that have only one lod
+						return;
+					}
+
+					FString SceneNodeName = SceneNode->GetDisplayLabel();
+					if (SceneNodeName.Len() > 5 && SceneNodeName.StartsWith(LodPrefix, ESearchCase::CaseSensitive) && SceneNodeName[4] == '_')
+					{
+						FString LODXNumber = SceneNodeName.RightChop(3).Left(1);
+						if (LODXNumber.IsNumeric())
+						{
+							int32 LodNumber = FPlatformString::Atoi(*LODXNumber);
+							FString MatchName = ParentUniqueID;
+							
+							TArray<FString>& LodChildUids = SceneMeshNodeUidsPerLodParentUidMap.FindOrAdd(MatchName);
+							//Add LOD at the correct index
+							if (LodNumber >= LodChildUids.Num())
+							{
+								int32 AddCount = LodNumber + 1 - LodChildUids.Num();
+								LodChildUids.AddDefaulted(AddCount);
+							}
+							LodChildUids[LodNumber] = SceneNode->GetUniqueID();
+						}
+					}
+				}
+			}
+		);
+
+		//Remove all empty entry, we use empty entry to set all lod in the correct order
+		for (TPair<FString, TArray<FString>>& LodPrefixNodePair : SceneMeshNodeUidsPerLodParentUidMap)
+		{
+			TArray<FString>& LodChildUids = LodPrefixNodePair.Value;
+			for (int32 ChildLodIndex = LodChildUids.Num() - 1; ChildLodIndex >= 0; ChildLodIndex--)
+			{
+				if (LodChildUids[ChildLodIndex].IsEmpty())
+				{
+					LodChildUids.RemoveAt(ChildLodIndex, 1, false);
+				}
+			}
+			//Shrink the array to the correct size
+			LodChildUids.Shrink();
+		}
+	}
+}
 
 static bool IsSceneNodeASocket(const UInterchangeSceneNode* SceneNode)
 {
@@ -46,10 +134,13 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 		}
 	);
 
+	TMap<FString, TArray<FString>> SceneMeshNodeUidsPerLodParentUidMap;
+	UE::Private::InterchangeMeshPipeline::FindNamedLodGroup(BaseNodeContainer, SceneMeshNodeUidsPerLodParentUidMap);
+
 	//Find all translated scene node we need for this pipeline
 	bool bHasSockets = false;
 	BaseNodeContainer->IterateNodes(
-		[&PipelineMeshesUtilities, &BaseNodeContainer, &SkeletonRootNodeUids, &bHasSockets](const FString& NodeUid, const UInterchangeBaseNode* Node)
+		[&PipelineMeshesUtilities, &BaseNodeContainer, &SceneMeshNodeUidsPerLodParentUidMap, &SkeletonRootNodeUids, &bHasSockets](const FString& NodeUid, const UInterchangeBaseNode* Node)
 		{
 			if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::TranslatedScene)
 			{
@@ -81,28 +172,44 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 							{
 								const UInterchangeSceneNode* LodGroupNode = nullptr;
 								int32 LodIndex = 0;
-								FString LastChildUid = SceneNode->GetUniqueID();
-								do
+								if (SceneMeshNodeUidsPerLodParentUidMap.Contains(ParentMeshSceneNode->GetUniqueID()))
 								{
-									if (ParentMeshSceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetLodGroupSpecializeTypeString()))
+									LodGroupNode = ParentMeshSceneNode;
+									const TArray<FString>& LodChildUids = SceneMeshNodeUidsPerLodParentUidMap.FindChecked(ParentMeshSceneNode->GetUniqueID());
+									for (int32 ChildLodIndex = 0; ChildLodIndex < LodChildUids.Num(); ++ChildLodIndex)
 									{
-										LodGroupNode = ParentMeshSceneNode;
-										TArray<FString> LodGroupChildrens = BaseNodeContainer->GetNodeChildrenUids(ParentMeshSceneNode->GetUniqueID());
-										for (int32 ChildLodIndex = 0; ChildLodIndex < LodGroupChildrens.Num(); ++ChildLodIndex)
+										const FString& ChildrenUid = LodChildUids[ChildLodIndex];
+										if (ChildrenUid.Equals(SceneNode->GetUniqueID()))
 										{
-											const FString& ChildrenUid = LodGroupChildrens[ChildLodIndex];
-											if (ChildrenUid.Equals(LastChildUid))
-											{
-												LodIndex = ChildLodIndex;
-												break;
-											}
+											LodIndex = ChildLodIndex;
+											break;
 										}
-										break;
 									}
-									LastChildUid = ParentMeshSceneNode->GetUniqueID();
-									ParentMeshSceneNode = Cast<const UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
-								} while (ParentMeshSceneNode);
-
+								}
+								else
+								{
+									FString LastChildUid = SceneNode->GetUniqueID();
+									do
+									{
+										if (ParentMeshSceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetLodGroupSpecializeTypeString()))
+										{
+											LodGroupNode = ParentMeshSceneNode;
+											TArray<FString> LodGroupChildrens = BaseNodeContainer->GetNodeChildrenUids(ParentMeshSceneNode->GetUniqueID());
+											for (int32 ChildLodIndex = 0; ChildLodIndex < LodGroupChildrens.Num(); ++ChildLodIndex)
+											{
+												const FString& ChildrenUid = LodGroupChildrens[ChildLodIndex];
+												if (ChildrenUid.Equals(LastChildUid))
+												{
+													LodIndex = ChildLodIndex;
+													break;
+												}
+											}
+											break;
+										}
+										LastChildUid = ParentMeshSceneNode->GetUniqueID();
+										ParentMeshSceneNode = Cast<const UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
+									} while (ParentMeshSceneNode);
+								}
 								FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->MeshGeometriesPerMeshUid.FindChecked(MeshUid);
 								if (LodGroupNode)
 								{

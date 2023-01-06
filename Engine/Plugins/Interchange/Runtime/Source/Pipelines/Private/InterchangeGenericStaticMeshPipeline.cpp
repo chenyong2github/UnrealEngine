@@ -474,17 +474,16 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 	check(CommonMeshesProperties.IsValid());
 	const FString StaticMeshFactoryUid = StaticMeshFactoryNode->GetUniqueID();
 
-	for (const TPair<int32, TArray<FString>>& LodIndexAndNodeUids : NodeUidsPerLodIndex)
+	const int32 LodCount = NodeUidsPerLodIndex.Num();
+	for(int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
-		const int32 LodIndex = LodIndexAndNodeUids.Key;
 		if (!CommonMeshesProperties->bImportLods && LodIndex > 0)
 		{
 			// If the pipeline should not import lods, skip any lod over base lod
 			continue;
 		}
 
-		const TArray<FString>& NodeUids = LodIndexAndNodeUids.Value;
-
+		const TArray<FString>& NodeUids = NodeUidsPerLodIndex.FindChecked(LodIndex);
 		// Create a lod data node with all the meshes for this LOD
 		const FString StaticMeshLodDataName = TEXT("LodData") + FString::FromInt(LodIndex);
 		const FString LODDataPrefix = TEXT("\\LodData") + (LodIndex > 0 ? FString::FromInt(LodIndex) : TEXT(""));
@@ -567,5 +566,6 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 				LodDataNode->AddMeshUid(NodeUid);
 			}
 		}
+		UE::Interchange::MeshesUtilities::ReorderSlotMaterialDependencies(*StaticMeshFactoryNode, *BaseNodeContainer);
 	}
 }

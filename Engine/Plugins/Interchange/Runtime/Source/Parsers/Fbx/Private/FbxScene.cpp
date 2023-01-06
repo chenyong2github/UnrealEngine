@@ -36,7 +36,7 @@ namespace UE
 					FbxMesh* Mesh = static_cast<FbxMesh*>(NodeAttribute);
 					if (ensure(Mesh))
 					{
-						FString MeshRefString = FFbxHelper::GetMeshUniqueID(Mesh);
+						FString MeshRefString = Parser.GetFbxHelper()->GetMeshUniqueID(Mesh);
 						MeshNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(MeshRefString));
 					}
 				}
@@ -60,9 +60,9 @@ namespace UE
 				}
 			}
 
-			void CreateAssetNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer, const FStringView TypeName)
+			void CreateAssetNodeReference(FFbxParser& Parser, UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer, const FStringView TypeName)
 			{
-				const FString AssetUniqueID = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, TypeName);
+				const FString AssetUniqueID = Parser.GetFbxHelper()->GetNodeAttributeUniqueID(NodeAttribute, TypeName);
 
 				if (const UInterchangeBaseNode* AssetNode = NodeContainer.GetNode(AssetUniqueID))
 				{
@@ -72,12 +72,12 @@ namespace UE
 
 			void FFbxScene::CreateCameraNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
 			{
-				CreateAssetNodeReference(UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeCameraNode::StaticAssetTypeName());
+				CreateAssetNodeReference(Parser, UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeCameraNode::StaticAssetTypeName());
 			}
 
 			void FFbxScene::CreateLightNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
 			{
-				CreateAssetNodeReference(UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeLightNode::StaticAssetTypeName());
+				CreateAssetNodeReference(Parser, UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeLightNode::StaticAssetTypeName());
 			}
 
 			bool DoesTheParentHierarchyContainJoints(FbxNode* Node)
@@ -105,8 +105,8 @@ namespace UE
 				, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
 			{
 				constexpr bool bResetCache = false;
-				FString NodeName = FFbxHelper::GetFbxObjectName(Node);
-				FString NodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Node);
+				FString NodeName = Parser.GetFbxHelper()->GetFbxObjectName(Node);
+				FString NodeUniqueID = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(Node);
 
 				UInterchangeSceneNode* UnrealNode = CreateTransformNode(NodeContainer, NodeName, NodeUniqueID);
 				check(UnrealNode);
@@ -280,7 +280,7 @@ namespace UE
 					}
 				}
 				//Scene node transform can be animated, add the transform animation payload key.
-				FFbxAnimation::AddNodeTransformAnimation(SDKScene, Node, UnrealNode, PayloadContexts);
+				FFbxAnimation::AddNodeTransformAnimation(SDKScene, Parser, Node, UnrealNode, PayloadContexts);
 
 				//Add all custom Attributes for the node
 				FbxProperty Property = Node->GetFirstProperty();
@@ -289,14 +289,14 @@ namespace UE
 					EFbxType PropertyType =  Property.GetPropertyDataType().GetType();
 					if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && FFbxAnimation::IsFbxPropertyTypeSupported(PropertyType))
 					{
-						FString PropertyName = FFbxHelper::GetFbxPropertyName(Property);
+						FString PropertyName = Parser.GetFbxHelper()->GetFbxPropertyName(Property);
 
 						FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
 						TOptional<FString> PayloadKey;
 						if (CurveNode && CurveNode->IsAnimated())
 						{
 							//Attribute is animated, add the curves payload key that represent the attribute animation
-							FFbxAnimation::AddNodeAttributeCurvesAnimation(Node, Property, CurveNode, UnrealNode, PayloadContexts, PropertyType, PayloadKey);
+							FFbxAnimation::AddNodeAttributeCurvesAnimation(Parser, Node, Property, CurveNode, UnrealNode, PayloadContexts, PropertyType, PayloadKey);
 						}
 						switch (Property.GetPropertyDataType().GetType())
 						{

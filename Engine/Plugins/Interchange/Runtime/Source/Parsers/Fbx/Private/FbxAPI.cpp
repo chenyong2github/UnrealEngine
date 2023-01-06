@@ -25,6 +25,17 @@ namespace UE
 			FFbxParser::~FFbxParser()
 			{
 				PayloadContexts.Empty();
+				FbxHelper = nullptr;
+			}
+			
+			const TSharedPtr<FFbxHelper> FFbxParser::GetFbxHelper()
+			{
+				if (!FbxHelper.IsValid())
+				{
+					FbxHelper = MakeShared<FFbxHelper>();
+				}
+				check(FbxHelper.IsValid());
+				return FbxHelper;
 			}
 
 			bool FFbxParser::LoadFbxFile(const FString& Filename)

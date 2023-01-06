@@ -18,6 +18,7 @@ namespace UE
 		namespace Private
 		{
 			class FPayloadContextBase;
+			struct FFbxHelper;
 		}
 	}
 }
@@ -37,6 +38,9 @@ namespace UE
 				{}
 
 				~FFbxParser();
+
+				//return the fbx helper for this parser
+				const TSharedPtr<FFbxHelper> GetFbxHelper();
 
 				/* Load an fbx file into the fbx sdk, return false if the file could not be load. */
 				bool LoadFbxFile(const FString& Filename);
@@ -86,6 +90,7 @@ namespace UE
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;
 				FString SourceFilename;
 				TMap<FString, TSharedPtr<FPayloadContextBase>> PayloadContexts;
+				TSharedPtr<FFbxHelper> FbxHelper;
 			};
 		}//ns Private
 	}//ns Interchange
