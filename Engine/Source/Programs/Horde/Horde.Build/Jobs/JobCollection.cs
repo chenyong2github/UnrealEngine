@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
@@ -707,9 +706,10 @@ namespace Horde.Build.Jobs
 			{
 				batch.Error = newError.Value;
 
-				bool allowRetrying = (newError == JobStepBatchError.Incomplete);
+				// Only allow retrying nodes that may succeed if run again
+				bool allowRetrying = !IsFatalBatchError(newError.Value);
 
-				// Check if there are any steps that need to be run again
+				// Update the state of the nodes
 				List<NodeRef> retriedNodes = jobDocument.RetriedNodes ?? new List<NodeRef>();
 				foreach (JobStepDocument step in batch.Steps)
 				{
@@ -1324,6 +1324,10 @@ namespace Horde.Build.Jobs
 					{
 						failedNodes.Remove(node);
 					}
+					else if (batch.State == JobStepBatchState.Complete && IsFatalBatchError(batch.Error))
+					{
+						failedNodes.Add(node);
+					}
 					else if (step.State == JobStepState.Skipped && (node.InputDependencies.Any(x => failedNodes.Contains(graph.GetNode(x))) || !CanRetryNode(job, batch.GroupIdx, step.NodeIdx)))
 					{
 						failedNodes.Add(node);
@@ -1566,6 +1570,14 @@ namespace Horde.Build.Jobs
 					nodeExecutionCount[node] = count + 1;
 				}
 			}
+		}
+
+		/// <summary>
+		/// Test whether the nodes in a batch can still be run
+		/// </summary>
+		static bool IsFatalBatchError(JobStepBatchError error)
+		{
+			return error != JobStepBatchError.None && error != JobStepBatchError.Incomplete;
 		}
 
 		/// <summary>

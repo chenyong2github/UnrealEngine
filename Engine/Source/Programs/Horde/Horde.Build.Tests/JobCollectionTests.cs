@@ -327,5 +327,26 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(JobStepState.Completed, job.Batches[2].Steps[0].State);
 			Assert.AreEqual(JobStepError.Incomplete, job.Batches[2].Steps[0].Error);
 		}
+
+		[TestMethod]
+		public async Task UnknownShelfAsync()
+		{
+			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
+			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
+
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object, null);
+
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Step 1");
+			options.Arguments.Add("-Target=Step 3");
+
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, options);
+			Assert.AreEqual(1, job.Batches.Count);
+
+			job = await StartBatch(job, baseGraph, 0);
+			job = Deref(await JobCollection.TryUpdateBatchAsync(job, baseGraph, job.Batches[0].Id, null, JobStepBatchState.Complete, JobStepBatchError.UnknownShelf));
+
+			Assert.AreEqual(1, job.Batches.Count);
+		}
 	}
 }
