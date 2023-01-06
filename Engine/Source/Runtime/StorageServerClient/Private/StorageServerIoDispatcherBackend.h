@@ -66,12 +66,7 @@ private:
 	struct FBatch
 		: public IQueuedWork
 	{
-		FBatch(FStorageServerIoDispatcherBackend& InOwner, TUniquePtr<FStorageServerSerializationContext> InSerializationContext)
-			: Owner(InOwner)
-			, SerializationContext(MoveTemp(InSerializationContext))
-		{
-
-		}
+		FBatch(FStorageServerIoDispatcherBackend& InOwner, TUniquePtr<FStorageServerSerializationContext> InSerializationContext);
 
 		virtual void DoThreadedWork() override;
 		virtual void Abandon() override {};

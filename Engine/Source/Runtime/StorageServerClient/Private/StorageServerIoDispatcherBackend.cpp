@@ -267,6 +267,13 @@ void FStorageServerIoDispatcherBackend::OnBatchCompleted(FBatch* Batch)
 	BatchCompletedEvent->Trigger();
 }
 
+FStorageServerIoDispatcherBackend::FBatch::FBatch(FStorageServerIoDispatcherBackend& InOwner, TUniquePtr<FStorageServerSerializationContext> InSerializationContext)
+	: Owner(InOwner)
+	, SerializationContext(MoveTemp(InSerializationContext))
+{
+
+}
+
 void FStorageServerIoDispatcherBackend::FBatch::DoThreadedWork()
 {
 	LLM_SCOPE(ELLMTag::FileSystem);
