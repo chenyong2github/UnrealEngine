@@ -83,20 +83,20 @@ public:
 	}
 };
 
-BEGIN_SHADER_PARAMETER_STRUCT(FOpenColorIOErrorShaderParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FOpenColorIOInvalidShaderParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-class OPENCOLORIO_API FOpenColorIOErrorPassPS : public FGlobalShader
+class OPENCOLORIO_API FOpenColorIOInvalidPixelShader : public FGlobalShader
 {
 public:
-	DECLARE_GLOBAL_SHADER(FOpenColorIOErrorPassPS);
-	SHADER_USE_PARAMETER_STRUCT(FOpenColorIOErrorPassPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FOpenColorIOInvalidPixelShader);
+	SHADER_USE_PARAMETER_STRUCT(FOpenColorIOInvalidPixelShader, FGlobalShader);
 
-	using FParameters = FOpenColorIOErrorShaderParameters;
+	using FParameters = FOpenColorIOInvalidShaderParameters;
 };
 
 OPENCOLORIO_API void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Parameters, const TSortedMap<int32, FTextureResource*>& InTextureResources);

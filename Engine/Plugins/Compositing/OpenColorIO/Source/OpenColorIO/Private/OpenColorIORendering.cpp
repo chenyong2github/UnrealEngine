@@ -64,15 +64,15 @@ void FOpenColorIORendering::AddPass_RenderThread(
 	}
 	else
 	{
-		// Fallback error pass, printing OCIO error message indicators across the viewport. (Helpful to quickly identify an OCIO config issue on nDisplay for example.)
-		TShaderMapRef<FOpenColorIOErrorPassPS> OCIOPixelShader(View.ShaderMap);
-		FOpenColorIOErrorShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOErrorShaderParameters>();
+		// Fallback pass, printing invalid message across the viewport.
+		TShaderMapRef<FOpenColorIOInvalidPixelShader> OCIOInvalidPixelShader(View.ShaderMap);
+		FOpenColorIOInvalidShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOInvalidShaderParameters>();
 		Parameters->InputTexture = Input.Texture;
 		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
 		Parameters->MiniFontTexture = OpenColorIOGetMiniFontTexture();
 		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OpenColorIOErrorPass"), View, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
+		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OpenColorIOInvalidPass"), View, OutputViewport, InputViewport, OCIOInvalidPixelShader, Parameters);
 	}
 }
 

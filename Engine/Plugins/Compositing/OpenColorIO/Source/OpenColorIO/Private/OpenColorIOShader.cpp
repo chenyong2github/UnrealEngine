@@ -42,4 +42,4 @@ FRHITexture* OpenColorIOGetMiniFontTexture()
 }
 
 IMPLEMENT_SHADER_TYPE(, FOpenColorIOPixelShader, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOShader.usf"), TEXT("MainPS"), SF_Pixel)
-IMPLEMENT_SHADER_TYPE(, FOpenColorIOErrorPassPS, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOErrorShader.usf"), TEXT("MainPS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(, FOpenColorIOInvalidPixelShader, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOInvalidShader.usf"), TEXT("MainPS"), SF_Pixel);

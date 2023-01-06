@@ -24,5 +24,5 @@ void MainPS(in noperspective float4 InUVAndScreenPos : TEXCOORD0,
 
 	P(_O_)P(_C_)P(_I_)P(_O_)
 	P(_SPC_)
-	P(_E_)P(_R_)P(_R_)P(_O_)P(_R_)
+	P(_I_)P(_N_)P(_V_)P(_A_)P(_L_)P(_I_)P(_D_)
 }
