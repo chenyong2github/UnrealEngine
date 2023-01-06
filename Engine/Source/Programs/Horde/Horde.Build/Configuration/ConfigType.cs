@@ -124,7 +124,7 @@ namespace Horde.Build.Configuration
 				}
 				else
 				{
-					return new Uri($"{PerforceConfigSource.Scheme}://{PerforceCluster.DefaultName}{path}");
+					return new Uri($"{PerforceConfigSource.Scheme}://{PerforceConnectionSettings.Default}{path}");
 				}
 			}
 			return new Uri(baseUri, path);

@@ -1,20 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 using System.Linq;
-using EpicGames.Horde.Common;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using EpicGames.Perforce;
 using Horde.Build.Agents.Fleet;
-using Horde.Build.Agents.Software;
+using Horde.Build.Server;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Utilities;
+using MongoDB.Driver.Core.Configuration;
 using Serilog.Events;
-using TimeZoneConverter;
 
 namespace Horde.Build
 {
+	using PerforceConnectionId = StringId<PerforceConnectionSettings>;
+
 	/// <summary>
 	/// Types of storage backend to use
 	/// </summary>
@@ -280,17 +282,17 @@ namespace Horde.Build
 		/// Issuer for tokens from the auth provider
 		/// </summary>
 		public AuthMethod AuthMethod { get; set; } = AuthMethod.Anonymous;
-		
+
 		/// <summary>
 		/// Issuer for tokens from the auth provider
 		/// </summary>
 		public string? OidcAuthority { get; set; }
-		
+
 		/// <summary>
 		/// Client id for the OIDC authority
 		/// </summary>
 		public string? OidcClientId { get; set; }
-		
+
 		/// <summary>
 		/// Client secret for the OIDC authority
 		/// </summary>
@@ -305,22 +307,22 @@ namespace Horde.Build
 		/// OpenID Connect scopes to request when signing in
 		/// </summary>
 		public string[] OidcRequestedScopes { get; set; } = { "profile", "email", "openid" };
-		
+
 		/// <summary>
 		/// List of fields in /userinfo endpoint to try map to the standard name claim (see System.Security.Claims.ClaimTypes.Name)
 		/// </summary>
 		public string[] OidcClaimNameMapping { get; set; } = { "preferred_username", "email" };
-		
+
 		/// <summary>
 		/// List of fields in /userinfo endpoint to try map to the standard email claim (see System.Security.Claims.ClaimTypes.Email)
 		/// </summary>
 		public string[] OidcClaimEmailMapping { get; set; } = { "email" };
-		
+
 		/// <summary>
 		/// List of fields in /userinfo endpoint to try map to the Horde user claim (see HordeClaimTypes.User)
 		/// </summary>
 		public string[] OidcClaimHordeUserMapping { get; set; } = { "preferred_username", "email" };
-		
+
 		/// <summary>
 		/// List of fields in /userinfo endpoint to try map to the Horde Perforce user claim (see HordeClaimTypes.PerforceUser)
 		/// </summary>
@@ -387,7 +389,7 @@ namespace Horde.Build
 		/// See format at https://stackexchange.github.io/StackExchange.Redis/Configuration.html
 		/// </summary>
 		public string? RedisConnectionConfig { get; set; }
-		
+
 		/// <summary>
 		/// Type of write cache to use in log service
 		/// Currently Supported: "InMemory" or "Redis"
@@ -423,7 +425,7 @@ namespace Horde.Build
 		/// Default fleet manager to use (when not specified by pool)
 		/// </summary>
 		public FleetManagerType FleetManagerV2 { get; set; } = FleetManagerType.NoOp;
-		
+
 		/// <summary>
 		/// Config for the fleet manager (serialized JSON)
 		/// </summary>
@@ -473,7 +475,7 @@ namespace Horde.Build
 		/// Channel to send stream notification update failures to
 		/// </summary>
 		public string? UpdateStreamsNotificationChannel { get; set; }
-		
+
 		/// <summary>
 		/// Slack channel to send job related notifications to. Multiple channels can be specified, separated by ;
 		/// </summary>
@@ -563,7 +565,7 @@ namespace Horde.Build
 		/// Scale-out cooldown for auto-scaling agent pools (in seconds). Can be overridden by per-pool settings.
 		/// </summary>
 		public int AgentPoolScaleOutCooldownSeconds { get; set; } = 60; // 1 min
-		
+
 		/// <summary>
 		/// Scale-in cooldown for auto-scaling agent pools (in seconds). Can be overridden by per-pool settings.
 		/// </summary>
@@ -591,6 +593,11 @@ namespace Horde.Build
 		/// Path to the root config file
 		/// </summary>
 		public string ConfigPath { get; set; } = "Defaults/globals.json";
+
+		/// <summary>
+		/// Perforce connections for use by the Horde server (not agents)
+		/// </summary>
+		public List<PerforceConnectionSettings> Perforce { get; set; } = new List<PerforceConnectionSettings>();
 
 		/// <summary>
 		/// Settings for the storage service
@@ -659,6 +666,59 @@ namespace Horde.Build
 			{
 				throw new ArgumentException($"Settings key '{nameof(RunModes)}' contains one or more invalid entries");
 			}
+		}
+	}
+
+	/// <summary>
+	/// Perforce connection information for use by the Horde server (for reading config files, etc...)
+	/// </summary>
+	public class PerforceConnectionSettings
+	{
+		/// <summary>
+		/// Identifier for the default perforce connection profile
+		/// </summary>
+		public static PerforceConnectionId Default { get; } = new PerforceConnectionId("default");
+
+		/// <summary>
+		/// Identifier for this server
+		/// </summary>
+		public PerforceConnectionId Id { get; set; } = Default;
+
+		/// <summary>
+		/// Server and port
+		/// </summary>
+		public string? ServerAndPort { get; set; }
+
+		/// <summary>
+		/// Credentials for the server
+		/// </summary>
+		public PerforceCredentials? Credentials { get; set; }
+
+		/// <summary>
+		/// Create a <see cref="PerforceSettings"/> object with these settings as overrides
+		/// </summary>
+		/// <returns>New perforce settings object</returns>
+		public PerforceSettings ToPerforceSettings()
+		{
+			PerforceSettings settings = new PerforceSettings(PerforceSettings.Default);
+			settings.PreferNativeClient = true;
+
+			if (!String.IsNullOrEmpty(ServerAndPort))
+			{
+				settings.ServerAndPort = ServerAndPort;
+			}
+			if (Credentials != null)
+			{
+				if (!String.IsNullOrEmpty(Credentials.UserName))
+				{
+					settings.UserName = Credentials.UserName;
+				}
+				if (!String.IsNullOrEmpty(Credentials.Password))
+				{
+					settings.Password = Credentials.Password;
+				}
+			}
+			return settings;
 		}
 	}
 }

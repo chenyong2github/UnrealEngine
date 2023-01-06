@@ -9,10 +9,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
-using Horde.Build.Perforce;
+using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Configuration
 {
+	using PerforceConnectionId = StringId<PerforceConnectionSettings>;
+
 	/// <summary>
 	/// Accessor for a specific revision of a config file. Provides metadata about the current revision, and allows reading its data.
 	/// </summary>
@@ -224,26 +228,29 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Name of the scheme for this source
 		/// </summary>
-		public const string Scheme = "p4-cluster";
+		public const string Scheme = "perforce";
 
 		/// <inheritdoc/>
 		string IConfigSource.Scheme => Scheme;
 
-		readonly IPerforceService _perforceService;
+		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="perforceService">Perforce service instance</param>
-		public PerforceConfigSource(IPerforceService perforceService)
+		/// <param name="settings">Global settings</param>
+		/// <param name="logger">Logger instance</param>
+		public PerforceConfigSource(IOptionsMonitor<ServerSettings> settings, ILogger<PerforceConfigSource> logger)
 		{
-			_perforceService = perforceService;
+			_settings = settings;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
 		public async Task<IConfigData> GetAsync(Uri uri, CancellationToken cancellationToken)
 		{
-			using (IPerforceConnection perforce = await _perforceService.ConnectAsync(uri.Host, null, cancellationToken))
+			using (IPerforceConnection perforce = await ConnectAsync(uri.Host))
 			{
 				List<FStatRecord> files = await perforce.FStatAsync(FStatOptions.ShortenOutput, uri.AbsolutePath, cancellationToken).ToListAsync(cancellationToken);
 				files.RemoveAll(x => x.HeadAction == FileAction.Delete || x.HeadAction == FileAction.MoveDelete);
@@ -259,12 +266,38 @@ namespace Horde.Build.Configuration
 
 		async ValueTask<ReadOnlyMemory<byte>> ReadAsync(Uri uri, int change, CancellationToken cancellationToken)
 		{
-			using (IPerforceConnection perforce = await _perforceService.ConnectAsync(uri.Host, null, cancellationToken))
+			using (IPerforceConnection perforce = await ConnectAsync(uri.Host))
 			{
 				PerforceResponse<PrintRecord<byte[]>> response = await perforce.TryPrintDataAsync($"{uri.AbsolutePath}@{change}", cancellationToken);
 				response.EnsureSuccess();
 				return response.Data.Contents!;
 			}
+		}
+
+		async Task<IPerforceConnection> ConnectAsync(string host)
+		{
+			ServerSettings settings = _settings.CurrentValue;
+
+			PerforceConnectionId connectionId = new PerforceConnectionId();
+			if (!String.IsNullOrEmpty(host))
+			{
+				connectionId = new PerforceConnectionId(host);
+			}
+
+			PerforceConnectionSettings? connectionSettings = settings.Perforce.FirstOrDefault(x => x.Id == connectionId);
+			if (connectionSettings == null)
+			{
+				if (connectionId == PerforceConnectionSettings.Default)
+				{
+					connectionSettings = new PerforceConnectionSettings();
+				}
+				else
+				{
+					throw new InvalidOperationException($"No Perforce connection settings defined for '{connectionId}'.");
+				}
+			}
+
+			return await PerforceConnection.CreateAsync(connectionSettings.ToPerforceSettings(), _logger);
 		}
 	}
 }
