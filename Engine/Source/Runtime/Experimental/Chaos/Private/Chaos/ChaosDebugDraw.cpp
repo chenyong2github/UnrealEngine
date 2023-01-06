@@ -360,6 +360,11 @@ namespace Chaos
 				return;
 			}
 
+			if (Particle == nullptr)
+			{
+				return;
+			}
+
 			if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = Particle->CastToRigidParticle())
 			{
 				const TUniquePtr<TBVHParticles<FReal, 3>>& CollisionParticles = Rigid->CollisionParticles();
@@ -491,7 +496,10 @@ namespace Chaos
 
 		void DrawShapesImpl(const FGeometryParticleHandle* Particle, const FRigidTransform3& ShapeTransform, const FImplicitObject* Implicit, const FShapeOrShapesArray& Shapes, const FReal Margin, const FColor& Color, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
 		{
-			if (!Particle || !Implicit) return;
+			if (Implicit == nullptr)
+			{
+				return;
+			}
 
 			const EImplicitObjectType PackedType = Implicit->GetType(); // Type includes scaling and instancing data
 			const EImplicitObjectType InnerType = GetInnerType(Implicit->GetType());
@@ -591,13 +599,16 @@ namespace Chaos
 			}
 
 			FColor ShapeColor = Color;
-			if (bChaosDebugDebugDrawColorShapesByShapeType)
+			if (Particle != nullptr)
 			{
-				ShapeColor = Settings.ShapesColorsPerShapeType.GetColorFromShapeType(InnerType);
-			}
-			if (bChaosDebugDebugDrawColorShapesByIsland && (FConstGenericParticleHandle(Particle)->IslandIndex() != INDEX_NONE))
-			{
-				ShapeColor = GetIslandColor(FConstGenericParticleHandle(Particle)->IslandIndex(), true);
+				if (bChaosDebugDebugDrawColorShapesByShapeType)
+				{
+					ShapeColor = Settings.ShapesColorsPerShapeType.GetColorFromShapeType(InnerType);
+				}
+				if (bChaosDebugDebugDrawColorShapesByIsland && (FConstGenericParticleHandle(Particle)->IslandIndex() != INDEX_NONE))
+				{
+					ShapeColor = GetIslandColor(FConstGenericParticleHandle(Particle)->IslandIndex(), true);
+				}
 			}
 
 			// If we get here, we have an actual shape to render
@@ -1026,24 +1037,6 @@ namespace Chaos
 			DrawCollisionImpl(SpaceTransform, ConstraintHandle->GetContact(), ColorScale, Duration, Settings);
 		}
 
-		void DrawParticleCCDCollisionShapeImpl(const FRigidTransform3& SpaceTransform, const FCCDParticle* CCDParticle, const bool bShowStartPos,  const FColor& ShapeColor, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
-		{
-			if (CCDParticle != nullptr)
-			{
-				FConstGenericParticleHandle P0 = CCDParticle->Particle;
-				if (P0->IsDynamic() && P0->CCDEnabled())
-				{
-					FRigidTransform3 ActorTransform0 = P0->GetTransformPQ();
-					if (bShowStartPos)
-					{
-						// For CCD we want to see the initial position but with the latest rotation since that's what the sweep uses
-						ActorTransform0.SetTranslation(P0->X());
-					}
-					DrawShapesImpl(P0->Handle(), ActorTransform0 * SpaceTransform, P0->Geometry().Get(), FShapeOrShapesArray(P0->Handle()), 0.0f, ShapeColor, Duration, Settings);
-				}
-			}
-		}
-
 		void DrawParticleCCDCollisionImpulseImpl(const FRigidTransform3& SpaceTransform, const FCCDParticle* CCDParticle, const FCCDConstraint& CCDConstraint, const int32 ManifoldPointIndex, const FVec3& Impulse, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
 		{
 			if (CCDParticle != nullptr)
@@ -1058,15 +1051,6 @@ namespace Chaos
 					}
 				}
 			}
-		}
-
-		void DrawCCDCollisionShapeImpl(const FRigidTransform3& SpaceTransform, const FCCDConstraint& CCDConstraint, const bool bShowStartPos, const FColor& ShapeColor, const FChaosDebugDrawSettings& Settings)
-		{
-			const FRealSingle Duration = ChaosDebugDrawCCDDuration;
-
-			DrawParticleCCDCollisionShapeImpl(SpaceTransform, CCDConstraint.Particle[0], bShowStartPos, ShapeColor, Duration, Settings);
-			DrawParticleCCDCollisionShapeImpl(SpaceTransform, CCDConstraint.Particle[1], bShowStartPos, ShapeColor, Duration, Settings);
-			DrawCollisionImpl(SpaceTransform, CCDConstraint.SweptConstraint, 1.0f, Duration, Settings);
 		}
 
 		void DrawCCDCollisionImpulseImpl(const FRigidTransform3& SpaceTransform, const FCCDConstraint& CCDConstraint, const int32 ManifoldPointIndex, const FVec3& Impulse, const FChaosDebugDrawSettings& Settings)
@@ -1815,14 +1799,6 @@ namespace Chaos
 				{
 					DrawSuspensionConstraintsImpl(SpaceTransform, Constraints, ConstraintIndex, GetChaosDebugDrawSettings(Settings));
 				}
-			}
-		}
-
-		void DrawCCDCollisionShape(const FRigidTransform3& SpaceTransform, const FCCDConstraint& CCDConstraint, const bool bShowStartPos, const FColor& ShapeColor, const FChaosDebugDrawSettings* Settings)
-		{
-			if (FDebugDrawQueue::IsDebugDrawingEnabled())
-			{
-				DrawCCDCollisionShapeImpl(SpaceTransform, CCDConstraint, bShowStartPos, ShapeColor, GetChaosDebugDrawSettings(Settings));
 			}
 		}
 

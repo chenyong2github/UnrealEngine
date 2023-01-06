@@ -352,18 +352,6 @@ namespace Chaos
 			GroupedCCDParticles[i]->Particle->X() = GroupedCCDParticles[i]->Particle->P() - GroupedCCDParticles[i]->Particle->V() * Dt;
 		}
 
-#if CHAOS_DEBUG_DRAW
-		if (CVars::ChaosSolverDrawCCDInteractions)
-		{
-			// Debugdraw the shape at the TOI=0 (black) and TOI=1 (white)
-			for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
-			{
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, true, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, false, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
-			}
-		}
-#endif
-
 		// Sort constraints based on TOI
 		FReal IslandTOI = 0.f;
 		ResetIslandParticles(Island);
@@ -421,7 +409,18 @@ namespace Chaos
 			// Debugdraw the shape at the current TOI
 			if (CVars::ChaosSolverDrawCCDInteractions)
 			{
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, true, FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
+				if (CCDParticle0)
+				{
+					const FRigidTransform3 SweepWorldTransform0 = FRigidTransform3(FConstGenericParticleHandle(CCDParticle0->Particle)->X(), FConstGenericParticleHandle(CCDParticle0->Particle)->Q());
+					const FRigidTransform3 ShapeWorldTransformXQ0 = CCDConstraint->SweptConstraint->GetShapeRelativeTransform0() * SweepWorldTransform0;
+					DebugDraw::DrawShape(ShapeWorldTransformXQ0, CCDConstraint->SweptConstraint->GetShape0()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape0(), FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
+				if (CCDParticle1)
+				{
+					const FRigidTransform3 SweepWorldTransform1 = FRigidTransform3(FConstGenericParticleHandle(CCDParticle1->Particle)->X(), FConstGenericParticleHandle(CCDParticle1->Particle)->Q());
+					const FRigidTransform3 ShapeWorldTransformXR1 = CCDConstraint->SweptConstraint->GetShapeRelativeTransform1() * SweepWorldTransform1;
+					DebugDraw::DrawShape(ShapeWorldTransformXR1, CCDConstraint->SweptConstraint->GetShape1()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape1(), FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
 			}
 #endif
 
@@ -485,7 +484,18 @@ namespace Chaos
 		{
 			for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
 			{
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, false, FColor::Green, &CVars::ChaosSolverDebugDebugDrawSettings);
+				FCCDParticle* CCDParticle0 = CCDConstraint->Particle[0];
+				FCCDParticle* CCDParticle1 = CCDConstraint->Particle[1];
+				if (CCDParticle0)
+				{
+					const FRigidTransform3 ShapeWorldTransformPQ0 = CCDConstraint->SweptConstraint->GetShapeRelativeTransform0() * FConstGenericParticleHandle(CCDParticle0->Particle)->GetTransformPQ();
+					DebugDraw::DrawShape(ShapeWorldTransformPQ0, CCDConstraint->SweptConstraint->GetShape0()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape0(), FColor::Green, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
+				if (CCDParticle1)
+				{
+					const FRigidTransform3 ShapeWorldTransformPQ1 = CCDConstraint->SweptConstraint->GetShapeRelativeTransform1() * FConstGenericParticleHandle(CCDParticle1->Particle)->GetTransformPQ();
+					DebugDraw::DrawShape(ShapeWorldTransformPQ1, CCDConstraint->SweptConstraint->GetShape1()->GetLeafGeometry(), CCDConstraint->SweptConstraint->GetShape1(), FColor::Green, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
 			}
 		}
 #endif
@@ -506,18 +516,6 @@ namespace Chaos
 		const int32 ConstraintNum = IslandConstraintNum[Island];
 		const int32 ConstraintEnd = IslandConstraintEnd[Island];
 		check(ConstraintNum > 0);
-
-#if CHAOS_DEBUG_DRAW
-		if (CVars::ChaosSolverDrawCCDInteractions)
-		{
-			// Debugdraw the shape at the TOI=0 (black) and TOI=1 (white)
-			for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
-			{
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, true, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, false, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
-			}
-		}
-#endif
 
 		// Sort constraints based on TOI
 		std::sort(SortedCCDConstraints.GetData() + ConstraintStart, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
@@ -561,14 +559,6 @@ namespace Chaos
 			{
 				AdvanceParticleXToTOI(CCDParticle1, IslandTOI, Dt);
 			}
-
-#if CHAOS_DEBUG_DRAW
-			// Debugdraw the shape at the current TOI
-			if (CVars::ChaosSolverDrawCCDInteractions)
-			{
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, true, FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
-			}
-#endif
 
 			ApplyImpulse(CCDConstraint);
 			CCDConstraint->ProcessedCount++;
@@ -683,17 +673,6 @@ namespace Chaos
 		{ 
 			CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
 		}
-
-#if CHAOS_DEBUG_DRAW
-		// Debugdraw the shapes at the final position
-		if (CVars::ChaosSolverDrawCCDInteractions)
-		{
-			for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
-			{
-				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, false, FColor::Green, &CVars::ChaosSolverDebugDebugDrawSettings);
-			}
-		}
-#endif
 	}
 
 	bool FCCDManager::UpdateParticleSweptConstraints(FCCDParticle* CCDParticle, const FReal IslandTOI, const FReal Dt)

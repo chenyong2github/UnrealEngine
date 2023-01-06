@@ -10,6 +10,7 @@
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDCollisionConstraints.h"
 
+#include "Chaos/ChaosDebugDraw.h"
 #include "ChaosStats.h"
 
 extern bool Chaos_Collision_NarrowPhase_AABBBoundsCheck;
@@ -18,6 +19,11 @@ namespace Chaos
 {
 	namespace CVars
 	{
+		extern int32 ChaosSolverDrawCCDInteractions;
+#if CHAOS_DEBUG_DRAW
+		extern DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings;
+#endif
+
 		bool bChaos_Collision_MidPhase_EnableBoundsChecks = true;
 		FAutoConsoleVariableRef CVarChaos_Collision_EnableBoundsChecks(TEXT("p.Chaos.Collision.EnableBoundsChecks"), bChaos_Collision_MidPhase_EnableBoundsChecks, TEXT(""));
 
@@ -421,6 +427,22 @@ namespace Chaos
 			const FRigidTransform3 CCDShapeWorldTransform0 = Constraint->ImplicitTransform[0] * CCDParticleWorldTransform0;
 			const FRigidTransform3 CCDShapeWorldTransform1 = Constraint->ImplicitTransform[1] * CCDParticleWorldTransform1;
 			const bool bDidSweep = Collisions::UpdateConstraintSwept(*Constraint.Get(), CCDShapeWorldTransform0, CCDShapeWorldTransform1, Dt);
+
+#if CHAOS_DEBUG_DRAW
+			if (CVars::ChaosSolverDrawCCDInteractions)
+			{
+				if (FConstGenericParticleHandle(Constraint->GetParticle0())->CCDEnabled())
+				{
+					DebugDraw::DrawShape(CCDShapeWorldTransform0, Implicit0, Shape0, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(ShapeWorldTransform0, Implicit0, Shape0, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
+				if (FConstGenericParticleHandle(Constraint->GetParticle1())->CCDEnabled())
+				{
+					DebugDraw::DrawShape(CCDShapeWorldTransform1, Implicit1, Shape1, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(ShapeWorldTransform1, Implicit1, Shape1, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
+			}
+#endif
 
 			// If we did get a hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint (skip the rewind)
 			if ((!bDidSweep) || Constraint->GetCCDTimeOfImpact() == FReal(1))
