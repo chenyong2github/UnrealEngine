@@ -17,9 +17,9 @@ mkdir ShaderConductor\lib\Win64
 set ENGINE_THIRD_PARTY_BIN=..\..\Binaries\ThirdParty\ShaderConductor\Win64
 set ENGINE_THIRD_PARTY_SOURCE=..\..\Source\ThirdParty\ShaderConductor
 
-set VS16_ROOT_DIR=%ProgramFiles(x86)%\Microsoft Visual Studio\2019
-set MSBUILD_VS16_PROFESSIONAL=%VS16_ROOT_DIR%\Professional\MSBuild\Current\Bin
-set MSBUILD_VS16_ENTERPRISE=%VS16_ROOT_DIR%\Enterprise\MSBuild\Current\Bin
+set VS_ROOT_DIR=%ProgramFiles%\Microsoft Visual Studio\2022
+set MSBUILD_VS_PROFESSIONAL=%VS_ROOT_DIR%\Professional\MSBuild\Current\Bin
+set MSBUILD_VS_ENTERPRISE=%VS_ROOT_DIR%\Enterprise\MSBuild\Current\Bin
 
 set VSPROJ_SHADERCONDUCTOR_LIB=ALL_BUILD.vcxproj
 set VSPROJ_DXCOMPILER_APP=External\DirectXShaderCompiler\tools\clang\tools\dxc\dxc.vcxproj
@@ -40,7 +40,7 @@ pushd ..\..\..\Intermediate\ShaderConductor
 	echo 
 	echo ************************************
 	echo *** CMake
-	cmake -G "Visual Studio 16" -T host=x64 -A x64 %ENGINE_THIRD_PARTY_SOURCE%\ShaderConductor
+	cmake -G "Visual Studio 17 2022" -T host=x64 -A x64 %ENGINE_THIRD_PARTY_SOURCE%\ShaderConductor
 
 	echo 
 	echo ************************************
@@ -52,14 +52,14 @@ pushd ..\..\..\Intermediate\ShaderConductor
 		MSbuild.exe "%VSPROJ_SHADERCONDUCTOR_LIB%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 		MSbuild.exe "%VSPROJ_DXCOMPILER_APP%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 	) else (
-		if exist "%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe" (
-			echo Run MSBuild from "%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe"
-			"%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe" "%VSPROJ_SHADERCONDUCTOR_LIB%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
-			"%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe" "%VSPROJ_DXCOMPILER_APP%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+		if exist "%MSBUILD_VS_PROFESSIONAL%\MSBuild.exe" (
+			echo Run MSBuild from "%MSBUILD_VS_PROFESSIONAL%\MSBuild.exe"
+			"%MSBUILD_VS_PROFESSIONAL%\MSBuild.exe" "%VSPROJ_SHADERCONDUCTOR_LIB%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+			"%MSBUILD_VS_PROFESSIONAL%\MSBuild.exe" "%VSPROJ_DXCOMPILER_APP%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 		) else (
-			echo Run MSBuild from "%MSBUILD_VS16_ENTERPRISE%\MSBuild.exe"
-			"%MSBUILD_VS16_ENTERPRISE%\MSBuild.exe" "%VSPROJ_SHADERCONDUCTOR_LIB%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
-			"%MSBUILD_VS16_ENTERPRISE%\MSBuild.exe" "%VSPROJ_DXCOMPILER_APP%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+			echo Run MSBuild from "%MSBUILD_VS_ENTERPRISE%\MSBuild.exe"
+			"%MSBUILD_VS_ENTERPRISE%\MSBuild.exe" "%VSPROJ_SHADERCONDUCTOR_LIB%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+			"%MSBUILD_VS_ENTERPRISE%\MSBuild.exe" "%VSPROJ_DXCOMPILER_APP%" -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 		)
 	)
 	
