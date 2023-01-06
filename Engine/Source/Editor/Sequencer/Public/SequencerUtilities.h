@@ -132,7 +132,8 @@ struct SEQUENCER_API FSequencerUtilities
 
 	static void PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UMovieSceneSection>>& InSections, TWeakPtr<ISequencer> InSequencer);
 
-	static TArray<FString> GetAssociatedMapPackages(const ULevelSequence* InSequence);
+	static TArray<FString> GetAssociatedLevelSequenceMapPackages(const ULevelSequence* InSequence);
+	static TArray<FString> GetAssociatedLevelSequenceMapPackages(FName LevelSequencePackageName);
 
 	/** 
 	 * Generates a unique FName from a candidate name given a set of already existing names.  

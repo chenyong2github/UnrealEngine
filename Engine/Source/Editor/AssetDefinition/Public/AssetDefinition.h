@@ -234,13 +234,22 @@ struct ASSETDEFINITION_API EAssetCategoryPaths
 	static FAssetCategoryPath Physics;
 	static FAssetCategoryPath Texture;
 	static FAssetCategoryPath UI;
+	static FAssetCategoryPath Cinematics;
 };
 
 struct FAssetOpenSupport
 {
+public:
 	FAssetOpenSupport(EAssetOpenMethod InOpenMethod, bool bInSupported)
 		: OpenMethod(InOpenMethod)
 		, IsSupported(bInSupported)
+	{
+	}
+	
+	FAssetOpenSupport(EAssetOpenMethod InOpenMethod, bool bInSupported, EToolkitMode::Type InRequiredToolkitMode)
+		: OpenMethod(InOpenMethod)
+		, IsSupported(bInSupported)
+		, RequiredToolkitMode(InRequiredToolkitMode)
 	{
 	}
 	

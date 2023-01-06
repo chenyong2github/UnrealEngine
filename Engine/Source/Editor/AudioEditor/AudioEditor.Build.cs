@@ -18,7 +18,8 @@ public class AudioEditor : ModuleRules
 				"DeveloperSettings",
 				"UMGEditor",
 				"AudioExtensions",
-				"AudioLinkEngine"
+				"AudioLinkEngine",
+				"AssetDefinition"
 			}
 		);
 

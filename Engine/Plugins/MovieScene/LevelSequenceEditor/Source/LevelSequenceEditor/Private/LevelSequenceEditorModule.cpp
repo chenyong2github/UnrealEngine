@@ -12,7 +12,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "IAssetTypeActions.h"
-#include "AssetTools/LevelSequenceActions.h"
 #include "LevelSequenceEditorCommands.h"
 #include "Misc/LevelSequenceEditorSettings.h"
 #include "Misc/LevelSequenceEditorHelpers.h"
@@ -67,7 +66,6 @@ public:
 
 		RegisterEditorObjectBindings();
 		RegisterEditorActorSpawner();
-		RegisterAssetTools();
 		RegisterMenuExtensions();
 		RegisterLevelEditorExtensions();
 		RegisterPlacementModeExtensions();
@@ -95,7 +93,6 @@ public:
 	{
 		UnregisterEditorObjectBindings();
 		UnregisterEditorActorSpawner();
-		UnregisterAssetTools();
 		UnregisterMenuExtensions();
 		UnregisterLevelEditorExtensions();
 		UnregisterPlacementModeExtensions();
@@ -117,15 +114,6 @@ protected:
 	{
 		ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
 		EditorActorSpawnerDelegateHandle = LevelSequenceModule.RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner::CreateStatic(&FLevelSequenceEditorActorSpawner::CreateObjectSpawner));
-	}
-
-	/** Registers asset tool actions. */
-	void RegisterAssetTools()
-	{
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		EAssetTypeCategories::Type CinematicAssetCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Cinematics")), LOCTEXT("CinematicsAssetCategory", "Cinematics"));
-		LevelSequenceTypeActions = MakeShared<FLevelSequenceActions>(FLevelSequenceEditorStyle::Get(), CinematicAssetCategoryBit);
-		AssetTools.RegisterAssetTypeActions(LevelSequenceTypeActions.ToSharedRef());
 	}
 
 	/** Registers level editor extensions. */
@@ -229,18 +217,6 @@ protected:
 		if (SequencerModule)
 		{
 			SequencerModule->UnRegisterEditorObjectBinding(ActorBindingDelegateHandle);
-		}
-	}
-
-	/** Unregisters asset tool actions. */
-	void UnregisterAssetTools()
-	{
-		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-
-		if (AssetToolsModule != nullptr)
-		{
-			IAssetTools& AssetTools = AssetToolsModule->Get();
-			AssetTools.UnregisterAssetTypeActions(LevelSequenceTypeActions.ToSharedRef());
 		}
 	}
 
@@ -391,9 +367,6 @@ protected:
 	}
 
 private:
-
-	/** The type actions for interacting with level sequences. */
-	TSharedPtr<FLevelSequenceActions> LevelSequenceTypeActions;
 
 	/** Extender for the cinematics menu */
 	TSharedPtr<FExtender> CinematicsMenuExtender;

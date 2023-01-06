@@ -6,7 +6,6 @@
 #include "AssetTypeActions/AssetTypeActions_AudioBus.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueVoice.h"
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
-#include "AssetTypeActions/AssetTypeActions_ReverbEffect.h"
 #include "AssetTypeActions/AssetTypeActions_SoundAttenuation.h"
 #include "AssetTypeActions/AssetTypeActions_SoundBase.h"
 #include "AssetTypeActions/AssetTypeActions_SoundClass.h"
@@ -195,7 +194,6 @@ public:
 		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundCue>());
 		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundMix>());
 		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundWave>());
-		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_ReverbEffect>());
 	}
 
 	virtual void RegisterAudioMixerAssetActions() override

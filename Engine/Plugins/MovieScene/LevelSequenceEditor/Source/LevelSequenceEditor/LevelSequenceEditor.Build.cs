@@ -50,6 +50,7 @@ public class LevelSequenceEditor : ModuleRules
 				"TimeManagement",
 				"ToolMenus",
 				"ToolWidgets",
+				"AssetDefinition",
 			}
 		);
 

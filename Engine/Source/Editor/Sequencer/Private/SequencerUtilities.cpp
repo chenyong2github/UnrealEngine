@@ -411,22 +411,27 @@ FName FSequencerUtilities::GetUniqueName( FName CandidateName, const TArray<FNam
 	return UniqueName;
 }
 
-TArray<FString> FSequencerUtilities::GetAssociatedMapPackages(const ULevelSequence* InSequence)
+TArray<FString> FSequencerUtilities::GetAssociatedLevelSequenceMapPackages(const ULevelSequence* InSequence)
 {
 	if (!InSequence)
 	{
 		return TArray<FString>();
 	}
 
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	const FName LSMapPathName = *InSequence->GetOutermost()->GetPathName();
+	return GetAssociatedLevelSequenceMapPackages(LSMapPathName);
+}
+
+TArray<FString> FSequencerUtilities::GetAssociatedLevelSequenceMapPackages(FName LevelSequencePackageName)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
 	TArray<FString> AssociatedMaps;
 	TArray<FAssetIdentifier> AssociatedAssets;
 
 	// This makes the assumption these functions will append the array, and not clear it.
-	AssetRegistryModule.Get().GetReferencers(LSMapPathName, AssociatedAssets);
-	AssetRegistryModule.Get().GetDependencies(LSMapPathName, AssociatedAssets);
+	AssetRegistryModule.Get().GetReferencers(LevelSequencePackageName, AssociatedAssets);
+	AssetRegistryModule.Get().GetDependencies(LevelSequencePackageName, AssociatedAssets);
 
 	for (FAssetIdentifier& AssociatedMap : AssociatedAssets)
 	{
