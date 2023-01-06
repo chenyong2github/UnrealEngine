@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDSpringConstraintsBase.h"
+#include "Chaos/XPBDCorotatedConstraints.h"
 #include "ChaosStats.h"
 #include "Chaos/ImplicitQRSVD.h"
 #include "Chaos/GraphColoring.h"

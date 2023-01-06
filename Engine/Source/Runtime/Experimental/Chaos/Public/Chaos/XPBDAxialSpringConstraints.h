@@ -76,11 +76,11 @@ public:
 				{
 					Particles.P(i1) -= Multiplier * Particles.InvM(i1) * Delta;
 				}
-				if (Particles.InvM(i2))
+				if (Particles.InvM(i2) != 0)
 				{
 					Particles.P(i2) += Multiplier * Particles.InvM(i2) * Barys[ConstraintIndex] * Delta;
 				}
-				if (Particles.InvM(i3))
+				if (Particles.InvM(i3) != 0)
 				{
 					Particles.P(i3) += Multiplier * Particles.InvM(i3) * ((FSolverReal)1. - Barys[ConstraintIndex]) * Delta;
 				}
@@ -101,11 +101,11 @@ public:
 				{
 					Particles.P(i1) -= Multiplier * Particles.InvM(i1) * Delta;
 				}
-				if (Particles.InvM(i2))
+				if (Particles.InvM(i2) != 0)
 				{
 					Particles.P(i2) += Multiplier * Particles.InvM(i2) * Barys[ConstraintIndex] * Delta;
 				}
-				if (Particles.InvM(i3))
+				if (Particles.InvM(i3) != 0)
 				{
 					Particles.P(i3) += Multiplier * Particles.InvM(i3) * ((FSolverReal)1. - Barys[ConstraintIndex]) * Delta;
 				}

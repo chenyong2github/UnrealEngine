@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Internal
+
 namespace Chaos
 {
 	/**

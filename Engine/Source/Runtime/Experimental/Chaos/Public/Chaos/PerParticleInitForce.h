@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/PerParticleRule.h"
 
 namespace Chaos

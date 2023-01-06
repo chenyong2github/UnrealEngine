@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Math/VectorRegister.h"
 
 /**
  * Cast VectorRegister4Int in VectorRegister4Float

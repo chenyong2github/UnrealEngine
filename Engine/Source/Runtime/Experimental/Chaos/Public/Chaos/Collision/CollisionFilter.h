@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Internal
+
 #include "CoreMinimal.h"
 #include "Chaos/Core.h"
 #include "Chaos/CollisionFilterData.h"

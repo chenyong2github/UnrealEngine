@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Core.h"
 #include "Math/VectorRegister.h"
 #include "Chaos/VectorUtility.h"
 

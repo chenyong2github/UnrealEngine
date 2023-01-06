@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "Chaos/KinematicGeometryParticles.h"
 #include "Chaos/Transform.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/PBDTetConstraintsBase.h"
 
 namespace Chaos::Softs

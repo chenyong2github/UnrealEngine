@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - This file does not compile anymore (Base ctor not matching)
+
 #include "Chaos/PBDShapeConstraintsBase.h"
 #include "Chaos/Framework/Parallel.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 
 namespace Chaos::Softs
 {

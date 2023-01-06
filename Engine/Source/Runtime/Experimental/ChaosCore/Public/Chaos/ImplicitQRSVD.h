@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad include VectorTypes (living in GeometryCore)
+
 #include "Chaos/Matrix.h"
 #include "VectorTypes.h"
 #include "Chaos/Vector.h"

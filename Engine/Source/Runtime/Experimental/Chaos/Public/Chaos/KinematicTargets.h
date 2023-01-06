@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Internal
+
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/Transform.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"

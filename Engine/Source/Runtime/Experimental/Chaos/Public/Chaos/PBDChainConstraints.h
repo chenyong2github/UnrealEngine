@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - This file does not compile anymore (Base ctor needs to be called)
+
+#include "Chaos/Evolution/IndexedConstraintContainer.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/PBDConstraintContainer.h"

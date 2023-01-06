@@ -3,6 +3,7 @@
 #include "Containers/UnrealString.h"
 #include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/GeometryCollectionSection.h"
+#include "GeometryCollection/ManagedArray.h"
 #include "Math/Color.h"
 #include "Math/IntVector.h"
 #include "Math/Quat.h"
