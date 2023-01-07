@@ -518,8 +518,7 @@ namespace Delaunay3Internal
 			return false;
 		}
 
-		// TODO: Combine the Z Order Curve ordering with a BRIO, to add enough randomization to break up pathological bad orderings
-		FZOrderCurvePoints InsertOrder;
+		FBRIOPoints InsertOrder;
 		InsertOrder.Compute(Vertices);
 		TArray<int32>& Order = InsertOrder.Order;
 
