@@ -17,6 +17,7 @@ struct FNaniteMaterialPassCommand;
 struct FLumenMeshCaptureMaterialPass;
 class  FLumenCardPassUniformParameters;
 class  FCardPageRenderData;
+class  FSceneRenderer;
 struct FCustomDepthTextures;
 
 // VertexCountPerInstance
