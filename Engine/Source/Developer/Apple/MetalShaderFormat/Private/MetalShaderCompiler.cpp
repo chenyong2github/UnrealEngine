@@ -533,10 +533,6 @@ void BuildMetalShaderOutput(
 	}
 
 	FString MetalCode = FString(USFSource);
-	if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
-	{
-		ShaderOutput.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*ShaderInput.GenerateShaderName()));
-	}
 
 	if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_Debug))
 	{
