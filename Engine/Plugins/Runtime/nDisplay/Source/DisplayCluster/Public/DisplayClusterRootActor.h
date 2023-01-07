@@ -144,6 +144,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NDisplay|Render")
 	bool SetReplaceTextureFlagForAllViewports(bool bReplace);
 
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Render")
+	bool SetFreezeOuterViewports(bool bEnable);
+
 	template <typename TComp>
 	TComp* GetComponentByName(const FString& ComponentName) const
 	{
@@ -377,7 +380,7 @@ private:
 	TMap<FString, TObjectPtr<UDisplayClusterPreviewComponent>> PreviewComponents;
 
 	UPROPERTY(Transient)
-	bool bDeferPreviewGeneration;
+	bool bDeferPreviewGeneration = false;
 #endif
 
 #if WITH_EDITOR

@@ -2,6 +2,7 @@
 
 #include "DisplayClusterRootActor.h"
 
+#include "Async/ParallelFor.h"
 #include "Components/SceneComponent.h"
 #include "Components/DisplayClusterOriginComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
@@ -45,19 +46,13 @@
 #include "Components/DisplayClusterStageGeometryComponent.h"
 #include "UObject/Package.h"
 
+
 #if WITH_EDITOR
 #include "IConcertSyncClientModule.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
 #endif
 
-static TAutoConsoleVariable<int32> CVarShowVisualizationComponents(
-	TEXT("nDisplay.render.show.visualizationcomponents"),
-	1,
-	TEXT("Whether to show or hide visualization mesh components \n")
-	TEXT("0 : Hides visualization components \n")
-	TEXT("1 : Shows visualization components\n")
-);
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -396,14 +391,9 @@ int ADisplayClusterRootActor::GetInnerFrustumPriority(const FString& InnerFrustu
 }
 
 template <typename TComp>
-void ImplCollectChildVisualizationOrHiddenComponents(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp, bool bCollectVisualizationComponents = true, bool bCollectHiddenComponents = true)
+void ImplCollectChildHiddenComponents(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp)
 {
 #if WITH_EDITOR
-
-	if (!bCollectVisualizationComponents && !bCollectHiddenComponents)
-	{
-		return;
-	}
 
 	USceneComponent* SceneComp = Cast<USceneComponent>(pComp);
 	if (SceneComp)
@@ -412,8 +402,7 @@ void ImplCollectChildVisualizationOrHiddenComponents(TSet<FPrimitiveComponentId>
 		SceneComp->GetChildrenComponents(false, Childrens);
 		for (USceneComponent* ChildIt : Childrens)
 		{
-			if ((bCollectVisualizationComponents && ChildIt->IsVisualizationComponent()) 
-				|| (bCollectHiddenComponents && ChildIt->bHiddenInGame))
+			if (ChildIt->bHiddenInGame)
 			{
 				UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ChildIt);
 				if (PrimComp)
@@ -451,7 +440,7 @@ void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& O
 
 						if (bCollectChildrenVisualizationComponent)
 						{
-							ImplCollectChildVisualizationOrHiddenComponents(OutPrimitives, CompIt);
+							ImplCollectChildHiddenComponents(OutPrimitives, CompIt);
 						}
 						break;
 					}
@@ -467,7 +456,7 @@ void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& O
 
 				if (bCollectChildrenVisualizationComponent)
 				{
-					ImplCollectChildVisualizationOrHiddenComponents(OutPrimitives, CompIt);
+					ImplCollectChildHiddenComponents(OutPrimitives, CompIt);
 				}
 			}
 
@@ -485,6 +474,8 @@ bool ADisplayClusterRootActor::FindPrimitivesByName(const TArray<FString>& InNam
 // Gather components not rendered in game
 bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponentId>& OutPrimitives)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DCRootActor_GetHiddenInGamePrimitives);
+
 	check(IsInGameThread());
 
 	OutPrimitives.Empty();
@@ -506,8 +497,6 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 #if WITH_EDITOR
 
-	const bool bHideVisualizationComponents = !CVarShowVisualizationComponents.GetValueOnGameThread();
-
 	// Hide visualization and hidden components from RootActor
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
@@ -515,40 +504,107 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 		for (UPrimitiveComponent* CompIt : PrimitiveComponents)
 		{
-			if ((bHideVisualizationComponents && CompIt->IsVisualizationComponent()) || CompIt->bHiddenInGame)
+			if (CompIt->bHiddenInGame)
 			{
 				OutPrimitives.Add(CompIt->ComponentId);
 			}
 
-			ImplCollectChildVisualizationOrHiddenComponents(OutPrimitives, CompIt, bHideVisualizationComponents);
+			ImplCollectChildHiddenComponents(OutPrimitives, CompIt);
 		}
 	}
 
 	// Hide visualization and hidden components from scene
-	if (const UWorld* CurrentWorld = GetWorld())
+
+	const UWorld* CurrentWorld = GetWorld();
+
+	if (CurrentWorld && !CurrentWorld->IsGameWorld()) // Note: We should only have to do this for preview in editor (not already game worlds).
 	{
-		// Iterate over all actors, looking for editor components.
-		for (const TWeakObjectPtr<AActor>& WeakActor : FActorRange(CurrentWorld))
+		TArray<AActor*> Actors;
 		{
-			if (AActor* Actor = WeakActor.Get())
+			int32 NumActors = 0;
+
+			for (const ULevel* Level : CurrentWorld->GetLevels())
 			{
-				// do not render hidden in game actors
-				const bool bActorHideInGame = Actor->IsHidden();
-
-				TArray<UPrimitiveComponent*> PrimitiveComponents;
-				Actor->GetComponents(PrimitiveComponents);
-
-				for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+				if (Level && Level->bIsVisible)
 				{
-					if ((bHideVisualizationComponents && PrimComp->IsVisualizationComponent()) 
-						|| ((bActorHideInGame || PrimComp->bHiddenInGame) && !PrimComp->bCastHiddenShadow))
-					{
-						OutPrimitives.Add(PrimComp->ComponentId);
-					}
-
-					ImplCollectChildVisualizationOrHiddenComponents(OutPrimitives, PrimComp, bHideVisualizationComponents);
+					NumActors += Level->Actors.Num();
 				}
 			}
+
+			// Presize the array
+			Actors.Reserve(NumActors);
+
+			// Fill the array
+			for (const ULevel* Level : CurrentWorld->GetLevels())
+			{
+				if (Level && Level->bIsVisible)
+				{
+					Actors.Append(Level->Actors);
+				}
+			}
+		}
+
+		// Create as many threads as cores, minus an arbitrary number of reserved cores to avoid starving other subsystems
+		int32 NumIterThreads;
+		{
+			constexpr int32 ReservedCores = 4;
+			static const int32 NumberOfCores = FPlatformMisc::NumberOfCores();
+
+			NumIterThreads = NumberOfCores - ReservedCores;
+
+			// Make sure there are enough actors to make it worth a new thread
+			constexpr int32 MinActorsPerThread = 64;
+			NumIterThreads = FMath::Min(NumIterThreads, Actors.Num() / MinActorsPerThread);
+
+			// There should be at least one thread
+			NumIterThreads = FMath::Max(NumIterThreads, 1);
+		}
+
+		// Allocate primitive sets for each thread
+		TArray<TSet<FPrimitiveComponentId>> PrimitiveComponentsArray;
+		PrimitiveComponentsArray.AddDefaulted(NumIterThreads);
+
+		// Start the iteration parallel threads
+		ParallelFor(NumIterThreads, [NumIterThreads, CurrentWorld, &Actors, &PrimitiveComponentsArray](int32 Index)
+			{
+				// Using inline allocator for efficiency
+				constexpr int32 MaxExpectedComponentsPerActor = 64;
+				TArray<UPrimitiveComponent*, TInlineAllocator<MaxExpectedComponentsPerActor>> PrimitiveComponents;
+
+				// The thread index is our starting actor index
+				int32 ActorIdx = Index;
+
+				while (ActorIdx < Actors.Num())
+				{
+					const AActor* Actor = Actors[ActorIdx];
+
+					if (IsValid(Actor))
+					{
+						Actor->GetComponents(PrimitiveComponents);
+
+						for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+						{
+							if (((Actor->IsHidden() || PrimComp->bHiddenInGame) && !PrimComp->bCastHiddenShadow))
+							{
+								PrimitiveComponentsArray[Index].Add(PrimComp->ComponentId);
+							}
+
+							ImplCollectChildHiddenComponents(PrimitiveComponentsArray[Index], PrimComp);
+						}
+
+						// Empty w/o ever shrinking, for efficiency
+						PrimitiveComponents.Empty(PrimitiveComponents.Max());
+					}
+
+					// Jump to every other NumIterThreads actors.
+					ActorIdx += NumIterThreads;
+				}
+			});
+
+		// Join all the found primitives arrays
+		for (const TSet<FPrimitiveComponentId>& PrimitiveComponents : PrimitiveComponentsArray)
+		{
+			OutPrimitives.Append(PrimitiveComponents);
 		}
 	}
 
@@ -1211,6 +1267,21 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			}
 		}
 	}
+
+	return true;
+}
+
+bool ADisplayClusterRootActor::SetFreezeOuterViewports(bool bEnable)
+{
+	UDisplayClusterConfigurationData* ConfigData = GetConfigData();
+
+	if (!ConfigData)
+	{
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("ADisplayClusterRootActor::SetFreezeOuterViewports failed because ConfigData was null"));
+		return false;
+	}
+
+	ConfigData->StageSettings.bFreezeRenderOuterViewports = bEnable;
 
 	return true;
 }
