@@ -1146,6 +1146,23 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets if the processos has asymmetrical cores (Windows only)
+		/// </summary>
+		/// <returns></returns>
+		public static bool IsAsymmetricalProcessor()
+		{
+			int LogicalCores = GetLogicalProcessorCount();
+			int PhysicalCores = GetPhysicalProcessorCount();
+
+			if (PhysicalCores <= 0 || PhysicalCores == LogicalCores)
+			{
+				return false;
+			}
+
+			return LogicalCores != PhysicalCores * 2;
+		}
+
+		/// <summary>
 		/// Gets the total memory bytes available, based on what is known to the garbage collector.
 		/// </summary>
 		/// <remarks>This will return a max of 2GB for a 32bit application.</remarks>

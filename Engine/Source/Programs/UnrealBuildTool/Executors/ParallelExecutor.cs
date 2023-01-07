@@ -46,10 +46,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The priority to set for spawned processes.
 		/// Valid Settings: Idle, BelowNormal, Normal, AboveNormal, High
-		/// Default: BelowNormal
+		/// Default: BelowNormal or Normal for an Asymmetrical processor as BelowNormal can cause scheduling issues.
 		/// </summary>
 		[XmlConfigFile]
-		private static ProcessPriorityClass ProcessPriority = ProcessPriorityClass.BelowNormal;
+		private static ProcessPriorityClass ProcessPriority = Utils.IsAsymmetricalProcessor() ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
