@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Templates/TypeHash.h"
+
 /**
  * Class used to identify UPrimitiveComponents on the rendering thread without having to pass the pointer around,
  * Which would make it easy for people to access game thread variables from the rendering thread.

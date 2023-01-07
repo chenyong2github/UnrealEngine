@@ -5,6 +5,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Engine/EngineTypes.h"
+#include "MemoryUsageInfoProvider.h"
 #include "UObject/FastReferenceCollector.h"
 
 namespace MemoryUsageQueries::Internal

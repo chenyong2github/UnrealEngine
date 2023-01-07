@@ -14,6 +14,7 @@
 
 // Forward declarations.
 class FScene;
+class FSceneRenderer;
 class FRDGBuilder;
 struct FMinimalSceneTextures;
 struct FScreenPassTexture;
