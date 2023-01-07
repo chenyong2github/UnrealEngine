@@ -2,6 +2,7 @@
 
 #include "Internationalization/LegacyInternationalization.h"
 #include "Internationalization/Cultures/LeetCulture.h"
+#include "Internationalization/Cultures/KeysCulture.h"
 
 #if !UE_ENABLE_ICU
 
@@ -23,6 +24,7 @@ bool FLegacyInternationalization::Initialize()
 
 #if ENABLE_LOC_TESTING
 	I18N->AddCustomCulture(MakeShared<FLeetCulture>(I18N->InvariantCulture.ToSharedRef()));
+	I18N->AddCustomCulture(MakeShared<FKeysCulture>(I18N->InvariantCulture.ToSharedRef()));
 #endif
 
 	return true;

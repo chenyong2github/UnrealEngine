@@ -7,6 +7,7 @@
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Cultures/LeetCulture.h"
+#include "Internationalization/Cultures/KeysCulture.h"
 #include "Stats/Stats.h"
 #include "Misc/CoreStats.h"
 #include "Misc/ConfigCacheIni.h"
@@ -183,6 +184,7 @@ bool FICUInternationalization::Initialize()
 
 #if ENABLE_LOC_TESTING
 	I18N->AddCustomCulture(MakeShared<FLeetCulture>(I18N->InvariantCulture.ToSharedRef()));
+	I18N->AddCustomCulture(MakeShared<FKeysCulture>(I18N->InvariantCulture.ToSharedRef()));
 #endif
 
 	InitializeTimeZone();

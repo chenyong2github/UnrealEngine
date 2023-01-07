@@ -7,6 +7,7 @@
 #include "Internationalization/PolyglotTextSource.h"
 #include "Internationalization/StringTableRegistry.h"
 #include "Internationalization/Cultures/LeetCulture.h"
+#include "Internationalization/Cultures/KeysCulture.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -59,6 +60,11 @@ FString GetRequestedCulture(const TCHAR* InCommandLineKey, const TCHAR* InConfig
 		if (RequestedCulture.IsEmpty() && FParse::Param(FCommandLine::Get(), *FLeetCulture::StaticGetName()))
 		{
 			RequestedCulture = FLeetCulture::StaticGetName();
+			OutOverrideLevel = ERequestedCultureOverrideLevel::CommandLine;
+		}
+		else if (RequestedCulture.IsEmpty() && FParse::Param(FCommandLine::Get(), *FKeysCulture::StaticGetName()))
+		{
+			RequestedCulture = FKeysCulture::StaticGetName();
 			OutOverrideLevel = ERequestedCultureOverrideLevel::CommandLine;
 		}
 #endif
@@ -220,7 +226,8 @@ void ApplyDefaultCultureSettings(const ELocalizationLoadFlags LocLoadFlags)
 		FString TargetCultureName = InRequestedCulture;
 
 #if ENABLE_LOC_TESTING
-		if (TargetCultureName != FLeetCulture::StaticGetName())
+		bool bIsTargetCultureDebugCulture = (TargetCultureName == FLeetCulture::StaticGetName()) || (TargetCultureName == FKeysCulture::StaticGetName());
+		if (!bIsTargetCultureDebugCulture)
 #endif
 		{
 			// Validate the locale has data or fallback to one that does.
@@ -1110,9 +1117,11 @@ void FTextLocalizationManager::LoadLocalizationResourcesForPrioritizedCultures(T
 	}
 
 	// Leet-ify always needs the native text to operate on, so force native data if we're loading for LEET
+	// The keys culture also uses native so that we have a good way to restore the orginal text from the keys state 
 	ELocalizationLoadFlags FinalLocLoadFlags = LocLoadFlags;
 #if ENABLE_LOC_TESTING
-	if (PrioritizedCultureNames[0] == FLeetCulture::StaticGetName())
+	bool bShouldForceLoadNative = (PrioritizedCultureNames[0] == FLeetCulture::StaticGetName()) || (PrioritizedCultureNames[0] == FKeysCulture::StaticGetName());
+	if (bShouldForceLoadNative)
 	{
 		FinalLocLoadFlags |= ELocalizationLoadFlags::Native;
 	}
@@ -1138,23 +1147,11 @@ void FTextLocalizationManager::LoadLocalizationResourcesForPrioritizedCultures(T
 	// The leet culture is fake. Just leet-ify existing strings.
 	if (PrioritizedCultureNames[0] == FLeetCulture::StaticGetName())
 	{
-		// Lock while updating the tables
-		{
-			FScopeLock ScopeLock(&DisplayStringLookupTableCS);
-
-			for (auto& DisplayStringPair : DisplayStringLookupTable)
-			{
-				FDisplayStringEntry& LiveEntry = DisplayStringPair.Value;
-				LiveEntry.NativeStringBackup = LiveEntry.DisplayString;
-				
-				if (!LiveEntry.DisplayString->IsEmpty())
-				{
-					FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*LiveEntry.DisplayString));
-					FInternationalization::Leetify(*TmpDisplayString);
-					LiveEntry.DisplayString = TmpDisplayString;
-				}
-			}
-		}
+		LeetifyAllDisplayStrings();
+	}
+	else if (PrioritizedCultureNames[0] == FKeysCulture::StaticGetName())
+	{
+		KeyifyAllDisplayStrings();
 	}
 	else
 #endif
@@ -1508,3 +1505,40 @@ bool FTextLocalizationManager::IsLocalizationLocked() const
 	return bIsLocalizationLocked;
 }
 #endif
+
+#if ENABLE_LOC_TESTING
+void FTextLocalizationManager::LeetifyAllDisplayStrings()
+{
+	// Lock while updating the tables
+	FScopeLock ScopeLock(&DisplayStringLookupTableCS);
+
+	for (auto& DisplayStringPair : DisplayStringLookupTable)
+	{
+		FDisplayStringEntry& LiveEntry = DisplayStringPair.Value;
+		LiveEntry.NativeStringBackup = LiveEntry.DisplayString;
+
+		if (!LiveEntry.DisplayString->IsEmpty())
+		{
+			FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*LiveEntry.DisplayString));
+			FInternationalization::Leetify(*TmpDisplayString);
+			LiveEntry.DisplayString = TmpDisplayString;
+		}
+	}
+}
+
+void FTextLocalizationManager::KeyifyAllDisplayStrings()
+{
+	// Lock while updating the tables
+	FScopeLock ScopeLock(&DisplayStringLookupTableCS);
+
+	for (auto& DisplayStringPair : DisplayStringLookupTable)
+	{
+		FDisplayStringEntry& LiveEntry = DisplayStringPair.Value;
+		LiveEntry.NativeStringBackup = LiveEntry.DisplayString;
+
+		FString Key = DisplayStringPair.Key.GetKey().GetChars();
+		FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(MoveTemp(Key));
+		LiveEntry.DisplayString = TmpDisplayString;
+	}
+}
+#endif 

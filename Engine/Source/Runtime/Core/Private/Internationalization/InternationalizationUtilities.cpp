@@ -3,6 +3,7 @@
 #include "Internationalization/InternationalizationUtilities.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Cultures/LeetCulture.h"
+#include "Internationalization/Cultures/KeysCulture.h"
 
 namespace InternationalizationUtilities
 {
@@ -89,11 +90,12 @@ namespace InternationalizationUtilities
 	{
 		auto IsLanguageCode = [](const FString& InCode)
 		{
-			// Language codes must be 2 or 3 letters, or our special "LEET" language
+			// Language codes must be 2 or 3 letters, or our special "LEET"/"keys" languages
 			return InCode.Len() == 2
 				|| InCode.Len() == 3
 #if ENABLE_LOC_TESTING
 				|| InCode == FLeetCulture::StaticGetName()
+				|| InCode == FKeysCulture::StaticGetName()
 #endif
 				;
 		};

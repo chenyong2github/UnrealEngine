@@ -292,6 +292,13 @@ private:
 
 	/** Dirties the text revision counter by incrementing it, causing a revision mismatch for any information cached before this happens.  */
 	void DirtyTextRevision();
+#if ENABLE_LOC_TESTING
+	/** A helper function that leetifies all of the display strings when the LEET culture is active. */
+	void LeetifyAllDisplayStrings();
+	/** A helper function that converts all of the display strings to show the localization key associated with the string when the keys culture is active. */
+	void KeyifyAllDisplayStrings();
+#endif 
+
 
 	/** Array of registered localized text sources, sorted by priority (@see RegisterTextSource) */
 	TArray<TSharedPtr<ILocalizedTextSource>> LocalizedTextSources;
