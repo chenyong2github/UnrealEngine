@@ -748,7 +748,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::IAssetIndex
 		{
 			bool ClampedPast, ClampedPresent, ClampedFuture;
 			const FTransform BoneTransformsPast = Indexer.GetTransformAndCacheResults(SampleTime - SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SampleTime - SamplingContext->FiniteDelta : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPast);
-			const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SampleTime, UseCharacterSpaceVelocities ? SampleTime : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPresent);
+			const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SampleTime, SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPresent);
 			const FTransform BoneTransformsFuture = Indexer.GetTransformAndCacheResults(SampleTime + SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SampleTime + SamplingContext->FiniteDelta : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedFuture);
 
 			// We can get a better finite difference if we ignore samples that have
