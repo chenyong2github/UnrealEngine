@@ -195,7 +195,7 @@ namespace UnrealBuildTool
 		{
 			Options = InOptions;
 
-			LazyInfo = new Lazy<ClangToolChainInfo>(() => GetToolChainInfo());
+			LazyInfo = new Lazy<ClangToolChainInfo>(() => { return GetToolChainInfo(); }); // Don't change to => GetToolChainInfo().. it doesnt produce correct code
 		}
 
 		protected abstract ClangToolChainInfo GetToolChainInfo();
