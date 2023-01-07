@@ -4,7 +4,6 @@
 
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "Serialization/StructuredArchive.h"
 #include "UObject/NameTypes.h"
@@ -233,3 +232,7 @@ private:
 };
 
 #endif //WITH_EDITOR
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

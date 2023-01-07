@@ -8,7 +8,6 @@
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "Containers/StringView.h"
 #include "CoreTypes.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -615,3 +614,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Out;
 	}
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

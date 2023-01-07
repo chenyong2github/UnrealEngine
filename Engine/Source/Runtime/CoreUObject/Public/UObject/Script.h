@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/ThreadSingleton.h"
 #include "Internationalization/Text.h"
 #include "Stats/Stats.h"
@@ -677,3 +676,6 @@ COREUOBJECT_API FString ToValidCPPIdentifierChars(TCHAR Char);
 */
 COREUOBJECT_API FString UnicodeToCPPIdentifier(const FString& InName, bool bDeprecated, const TCHAR* Prefix);
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

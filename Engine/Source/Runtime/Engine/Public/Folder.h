@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/Guid.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"

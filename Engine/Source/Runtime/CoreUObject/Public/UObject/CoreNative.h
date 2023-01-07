@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "UObject/Object.h"
 #include "UObject/Script.h"
@@ -37,3 +36,7 @@ struct FNativeFunctionRegistrar
 
 	static COREUOBJECT_API void RegisterFunctions(class UClass* Class, const FNameNativePtrPair* InArray, int32 NumFunctions);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

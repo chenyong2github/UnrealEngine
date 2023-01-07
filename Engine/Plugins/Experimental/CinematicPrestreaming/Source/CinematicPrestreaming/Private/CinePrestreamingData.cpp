@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CinePrestreamingData.h"
+#include "Misc/FrameNumber.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CinePrestreamingData)
 
 void UCinePrestreamingData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {

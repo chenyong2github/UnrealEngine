@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Class.h"
 
 #include <type_traits>
@@ -176,3 +175,6 @@ FArchive& operator<<(FArchive& Ar, TSubclassOf<T>& SubclassOf)
 	return Ar;
 }
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

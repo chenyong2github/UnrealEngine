@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -29,3 +28,6 @@ public:
 	typedef UInterface UClassType;
 };
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

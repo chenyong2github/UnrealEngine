@@ -4,7 +4,6 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
 #include "Serialization/StructuredArchive.h"
@@ -118,3 +117,7 @@ public:
 	FNumericProperty* UnderlyingProp; // The property which represents the underlying type of the enum
 	UEnum* Enum; // The enum represented by this property
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

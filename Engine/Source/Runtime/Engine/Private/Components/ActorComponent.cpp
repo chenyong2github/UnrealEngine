@@ -15,6 +15,7 @@
 #include "Engine/LevelStreamingPersistent.h"
 #include "Engine/NetDriver.h"
 #include "Engine/ActorChannel.h"
+#include "HAL/LowLevelMemStats.h"
 #include "Misc/ScopeRWLock.h"
 #include "Net/UnrealNetwork.h"
 #include "Logging/MessageLog.h"

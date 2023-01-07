@@ -8,7 +8,6 @@
 
 #include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
-#include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/Guid.h"
@@ -404,3 +403,7 @@ FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TLazyObjectPtr<T>& Rhs)
 
 template<class T> struct TIsPODType<TLazyObjectPtr<T> > { enum { Value = TIsPODType<FLazyObjectPtr>::Value }; };
 template<class T> struct TIsWeakPointerType<TLazyObjectPtr<T> > { enum { Value = TIsWeakPointerType<FLazyObjectPtr>::Value }; };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -11,6 +10,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/ScriptMacros.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "EdGraph/EdGraphPin.h"
 #include "UObject/CoreNet.h"
 #endif

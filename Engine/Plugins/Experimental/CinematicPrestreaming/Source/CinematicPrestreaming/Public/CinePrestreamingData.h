@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Misc/DateTime.h"
 #include "UObject/Object.h"
 #include "CinePrestreamingData.generated.h"
 

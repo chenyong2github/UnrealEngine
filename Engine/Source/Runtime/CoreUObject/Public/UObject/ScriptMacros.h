@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// IWYU pragma: begin_keep
 #include "UObject/Script.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/UnrealType.h"
 #include "UObject/Stack.h"
 #include "UObject/FieldPathProperty.h"
+// IWYU pragma: end_keep
 
 /*-----------------------------------------------------------------------------
 	Macros.
@@ -109,3 +110,7 @@ enum {MAX_VARIABLE_SIZE = 0x0FFF };
 
 #define P_NATIVE_BEGIN { SCOPED_SCRIPT_NATIVE_TIMER(ScopedNativeCallTimer);
 #define P_NATIVE_END   }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

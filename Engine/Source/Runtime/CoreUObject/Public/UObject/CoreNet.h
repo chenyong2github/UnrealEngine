@@ -7,7 +7,6 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
@@ -754,3 +753,7 @@ enum { LAN_BEACON_MAX_PACKET_SIZE = 1024 }; // MTU for the connection
 COREUOBJECT_API void			RPC_ResetLastFailedReason();
 COREUOBJECT_API void			RPC_ValidateFailed( const TCHAR* Reason );
 COREUOBJECT_API const TCHAR *	RPC_GetLastFailedReason();
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

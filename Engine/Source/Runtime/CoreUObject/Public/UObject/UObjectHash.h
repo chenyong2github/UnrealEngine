@@ -11,7 +11,6 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"
@@ -320,3 +319,7 @@ public:
 		UnlockUObjectHashTables();
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

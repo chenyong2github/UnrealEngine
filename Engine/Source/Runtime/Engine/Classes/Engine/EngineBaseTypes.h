@@ -8,17 +8,12 @@
  */
 
 #include "Async/TaskGraphFwd.h"
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/CoreMisc.h"
 #include "Net/Core/Connection/NetEnums.h"
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Async/TaskGraphInterfaces.h"
-#endif
 
 #include "EngineBaseTypes.generated.h"
 
@@ -1003,3 +998,7 @@ class UEngineBaseTypes : public UObject
 
 };
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/TaskGraphInterfaces.h"
+#include "CoreMinimal.h"
+#endif

@@ -18,7 +18,6 @@
 #include "Containers/UnrealString.h"
 #include "Containers/VersePathFwd.h"
 #include "CoreGlobals.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "Internationalization/Text.h"
@@ -3622,3 +3621,7 @@ enum class EDataValidationResult : uint8
  * @return	Returns the combined data validation result
  */
 COREUOBJECT_API EDataValidationResult CombineDataValidationResults(EDataValidationResult Result1, EDataValidationResult Result2);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

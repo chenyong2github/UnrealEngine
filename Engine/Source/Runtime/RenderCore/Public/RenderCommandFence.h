@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Async/TaskGraphFwd.h"
-#include "CoreMinimal.h"
 #include "Templates/RefCounting.h"
 
 namespace ENamedThreads { enum Type : int32; }
@@ -46,3 +45,7 @@ private:
 	/** Thread that will trigger the CompletionEvent **/
 	ENamedThreads::Type TriggerThreadIndex;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -3,7 +3,6 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Serialization/StructuredArchive.h"
 #include "UObject/Field.h"
@@ -82,3 +81,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	static FString RedirectFieldPathName(const FString& InPathName);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Containers/LockFreeList.h"
 #include "UObject/ObjectMacros.h"
@@ -1251,3 +1250,7 @@ struct FIndexToObject
 		return ObjectItem ? ObjectItem->Object : nullptr;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

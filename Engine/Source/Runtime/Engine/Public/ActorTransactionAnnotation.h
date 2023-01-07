@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "ComponentInstanceDataCache.h"
 
@@ -95,3 +94,7 @@ private:
 	TArray<FDiffableComponentInfo> DiffableComponentInfos;
 };
 #endif // WITH_EDITOR
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

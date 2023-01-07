@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Set.h"
 #include "Serialization/ArchiveUObject.h"
 
 class FPIEFixupSerializer : public FArchiveUObject

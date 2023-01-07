@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
 
 class Error;
 
@@ -33,3 +33,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogPlayerManagement, Error, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSecurity, Warning, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogEngineSessionManager, Log, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogViewport, Log, All);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

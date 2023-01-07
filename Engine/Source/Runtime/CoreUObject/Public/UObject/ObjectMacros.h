@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// IWYU pragma: begin_keep
 #include "Misc/EnumClassFlags.h"
 #include "UObject/Script.h"
+// IWYU pragma: end_keep
 
 class FObjectInitializer;
 class FReferenceCollector;
@@ -2173,3 +2174,7 @@ public:
 	**/
 	virtual void Restore() const=0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

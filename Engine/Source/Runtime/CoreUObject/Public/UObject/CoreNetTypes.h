@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
 /** Whether or not caching of actor/subobject names to the stack should be enabled, for async demo recording crashdumps */
@@ -53,3 +52,7 @@ enum class EChannelCloseReason : uint8
 };
 
 COREUOBJECT_API const TCHAR* LexToString(const EChannelCloseReason Value);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

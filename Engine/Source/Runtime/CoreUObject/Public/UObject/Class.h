@@ -13,7 +13,6 @@
 #include "Containers/Set.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformCrt.h"
@@ -4061,3 +4060,7 @@ UE_DECLARE_CORE_VARIANT_TYPE(Ray3,		Ray);
 UE_DECLARE_CORE_VARIANT_TYPE(Sphere3, Sphere);
 
 #undef UE_DECLARE_CORE_VARIANT_TYPE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

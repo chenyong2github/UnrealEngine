@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Templates/Casts.h"
 #include "UObject/PersistentObjectPtr.h"
@@ -726,3 +725,7 @@ FArchive& operator<<(FArchive& Ar, TSoftClassPtr<TClass>& Ptr)
 	Ptr.Serialize(Ar);
 	return Ar;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

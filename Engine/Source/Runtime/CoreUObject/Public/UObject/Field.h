@@ -10,7 +10,6 @@ Field.h: Declares FField property system fundamentals
 #include "Containers/Map.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "HAL/PlatformMath.h"
@@ -1055,3 +1054,7 @@ inline FieldType* FindFProperty(const TCHAR* InFieldPath)
 	FField* FoundField = FindFPropertyByPath(InFieldPath);
 	return CastField<FieldType>(FoundField);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

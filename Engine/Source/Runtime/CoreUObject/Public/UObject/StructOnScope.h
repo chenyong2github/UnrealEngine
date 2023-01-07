@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Templates/Casts.h"
@@ -375,3 +374,7 @@ FArchive& operator<<(FArchive& Ar, TStructOnScope<T>& Struct)
 	Struct.Serialize(Ar);
 	return Ar;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

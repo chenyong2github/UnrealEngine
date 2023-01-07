@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
@@ -340,3 +339,6 @@ FORCEINLINE uint32 GetTypeHash(const FWeakObjectPtr& WeakObjectPtr)
 	return WeakObjectPtr.GetTypeHash();
 }
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Serialization/Archive.h"
 
 /** Helper class to set and restore serialized property on an archive */
 class COREUOBJECT_API FSerializedPropertyScope
@@ -34,3 +34,7 @@ public:
 		PopProperty();
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

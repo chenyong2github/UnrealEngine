@@ -5,6 +5,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "GenericPlatform/ICursor.h"
 #include "InputCoreTypes.h"
+#include "Misc/DateTime.h"
 
 class FCanvas;
 class FCursorReply;

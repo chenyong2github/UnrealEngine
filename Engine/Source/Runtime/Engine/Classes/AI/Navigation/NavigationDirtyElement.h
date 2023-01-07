@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
+#include "Math/Box.h"
 #include "UObject/WeakObjectPtr.h"
 
 class INavRelevantInterface;

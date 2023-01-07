@@ -9,7 +9,6 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/ThreadSafeBool.h"
@@ -547,3 +546,7 @@ FORCEINLINE bool IsGarbageCollecting()
 * Whether garbage collection is locking the global uobject hash tables
 */
 COREUOBJECT_API bool IsGarbageCollectingAndLockingUObjectHashTables();
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

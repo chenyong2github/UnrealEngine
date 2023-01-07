@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Templates/LosesQualifiersFromTo.h"
 #include "Templates/UnrealTemplate.h"
@@ -507,3 +506,7 @@ namespace UECasts_Private
 }
 
 #define dynamic_cast UECasts_Private::DynamicCast
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

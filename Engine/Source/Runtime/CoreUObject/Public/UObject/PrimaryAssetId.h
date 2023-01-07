@@ -4,7 +4,6 @@
 
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/Archive.h"
@@ -201,3 +200,7 @@ struct FPrimaryAssetId
 };
 
 COREUOBJECT_API FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FPrimaryAssetId& Id);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

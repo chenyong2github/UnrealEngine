@@ -8,7 +8,6 @@
 
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformMath.h"
@@ -469,3 +468,6 @@ void UObjectBaseInit();
  */
 void UObjectBaseShutdown();
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

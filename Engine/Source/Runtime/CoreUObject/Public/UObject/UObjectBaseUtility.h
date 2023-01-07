@@ -9,7 +9,6 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "Containers/VersePathFwd.h"
-#include "CoreMinimal.h"
 #include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
@@ -1204,4 +1203,8 @@ public:
 	#ifdef PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 		PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 	#endif
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #endif

@@ -7,7 +7,6 @@
  *	use in multiple files where the enum can't be mapped to a specific file.
  */
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -3750,3 +3749,7 @@ enum class ELevelCollectionType : uint8
 
 	MAX
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

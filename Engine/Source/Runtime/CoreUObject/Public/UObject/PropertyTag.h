@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
 #include "Serialization/StructuredArchive.h"
@@ -53,3 +52,7 @@ struct FPropertyTag
 	void SerializeTaggedProperty( FArchive& Ar, FProperty* Property, uint8* Value, uint8* Defaults ) const;
 	void SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, uint8* Defaults) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

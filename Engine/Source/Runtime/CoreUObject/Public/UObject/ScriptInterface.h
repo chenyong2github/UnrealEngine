@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "Templates/Casts.h"
 #include "Templates/UnrealTemplate.h"
@@ -287,3 +286,7 @@ public:
 		return Interface.Serialize(Ar, InterfaceType::UClassType::StaticClass());
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

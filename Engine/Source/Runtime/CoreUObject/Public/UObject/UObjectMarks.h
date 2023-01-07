@@ -7,7 +7,6 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "CoreMinimal.h"
 
 class UObject;
 
@@ -133,3 +132,6 @@ COREUOBJECT_API void GetObjectsWithAllMarks(TArray<UObject *>& Results, EObjectM
  */
 COREUOBJECT_API void GetObjectsWithAnyMarks(TArray<UObject *>& Results, EObjectMark Marks);
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
