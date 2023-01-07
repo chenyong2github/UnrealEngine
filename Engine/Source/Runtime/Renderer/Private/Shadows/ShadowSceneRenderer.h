@@ -17,6 +17,7 @@ class FDeferredShadingSceneRenderer;
 class FWholeSceneProjectedShadowInitializer;
 class FRDGBuilder;
 class FVirtualShadowMapPerLightCacheEntry;
+struct FNaniteVisibilityQuery;
 
 /**
  * Transient scope for per-frame rendering resources for the shadow rendering.

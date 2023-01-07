@@ -16,6 +16,8 @@ class FRHIGPUBufferReadback;
 class FGPUScene;
 class FVirtualShadowMapPerLightCacheEntry;
 
+namespace Nanite { struct FPackedViewParams; }
+
 #define VSM_LOG_INVALIDATIONS 0
 
 class FVirtualShadowMapCacheEntry

@@ -18,6 +18,8 @@ class UInterpCurveEdSetup;
 class UParticleLODLevel;
 class UParticleSystemComponent;
 
+enum EDetailMode : int;
+
 //~=============================================================================
 //	Burst emissions
 //~=============================================================================

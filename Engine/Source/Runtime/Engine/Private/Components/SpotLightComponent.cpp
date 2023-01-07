@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "PointLightSceneProxy.h"
 #include "UObject/UnrealType.h"
+#include "SceneInterface.h"
 #include "SceneView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SpotLightComponent)

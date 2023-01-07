@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessEyeAdaptation.h"
 
+#include "Engine/Texture.h"
 #include "TranslucentLighting.h"
 
 #include "SceneTextureParameters.h"

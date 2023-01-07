@@ -4,6 +4,7 @@
 
 #include "AllocatedVirtualTexture.h"
 #include "Engine/Canvas.h"
+#include "Engine/Texture2D.h"
 #include "Debug/DebugDrawService.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialRenderProxy.h"

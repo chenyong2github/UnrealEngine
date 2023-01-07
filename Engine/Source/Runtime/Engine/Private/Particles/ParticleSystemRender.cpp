@@ -10,6 +10,7 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
 #include "UObject/UObjectIterator.h"
+#include "MaterialDomain.h"
 #include "MeshParticleVertexFactory.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleSystemComponent.h"

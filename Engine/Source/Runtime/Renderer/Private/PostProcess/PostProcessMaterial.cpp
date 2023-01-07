@@ -9,6 +9,7 @@
 #include "RendererModule.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "MaterialDomain.h"
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
 #include "RenderUtils.h"

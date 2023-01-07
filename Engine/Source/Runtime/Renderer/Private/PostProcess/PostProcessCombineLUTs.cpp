@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessCombineLUTs.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "Engine/Texture.h"
 #include "PostProcess/PostProcessTonemap.h"
 #include "ScenePrivate.h"
 #include "VolumeRendering.h"

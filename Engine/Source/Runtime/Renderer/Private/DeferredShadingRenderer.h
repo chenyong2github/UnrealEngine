@@ -54,6 +54,7 @@ struct FBuildHZBAsyncComputeParams;
 struct FForwardBasePassTextures;
 struct FTranslucentLightInjectionCollector;
 struct FRayTracingPickingFeedback;
+struct FDBufferTextures;
 
 #if RHI_RAYTRACING
 struct FRayTracingRelevantPrimitiveTaskData;

@@ -14,6 +14,7 @@
 class UParticleEmitter;
 class UParticleLODLevel;
 class UParticleModuleTypeDataBase;
+struct FHitResult;
 struct FParticleEmitterInstance;
 
 UCLASS(editinlinenew, hidecategories=Object, MinimalAPI, meta=(DisplayName = "Actor Collision"))
