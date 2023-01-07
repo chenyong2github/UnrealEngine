@@ -2,6 +2,7 @@
 
 #include "DatasmithFacadeVariant.h"
 #include "DatasmithFacadeMaterial.h"
+#include "Math/Transform.h"
 
 FDatasmithFacadePropertyCapture::FDatasmithFacadePropertyCapture()
 : FDatasmithFacadeElement(FDatasmithSceneFactory::CreatePropertyCapture())

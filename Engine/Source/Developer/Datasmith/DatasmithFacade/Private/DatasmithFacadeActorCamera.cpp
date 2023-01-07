@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithFacadeActorCamera.h"
-
 #include "IDatasmithSceneElements.h"
+#include "Math/RotationMatrix.h"
 
 FDatasmithFacadeActorCamera::FDatasmithFacadeActorCamera(
 	const TCHAR* InElementName
