@@ -204,9 +204,9 @@ void UMovieScene::Serialize( FArchive& Ar )
 #if WITH_EDITOR
 void UMovieScene::PostEditUndo()
 {
-	Super::PostEditUndo();
-
 	RemoveNullTracks();
+
+	Super::PostEditUndo();
 }
 #endif
 
