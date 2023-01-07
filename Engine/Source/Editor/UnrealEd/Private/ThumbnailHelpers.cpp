@@ -1125,6 +1125,15 @@ bool FClassActorThumbnailScene::IsValidComponentForVisualization(UActorComponent
 		{
 			return true;
 		}
+
+		// we cannot include the geomety collection component in this module because of circular dependency 
+		// so we need to check using the name of the class instead 
+		const FName ClassName = Component->GetClass()->GetFName();
+		const FName GeometryCollectionClassName("GeometryCollectionComponent");
+		if (ClassName == GeometryCollectionClassName)
+		{
+			return true;
+		}
 	}
 
 	return false;
