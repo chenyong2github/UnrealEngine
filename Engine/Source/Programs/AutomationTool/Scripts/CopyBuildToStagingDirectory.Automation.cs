@@ -2629,7 +2629,20 @@ namespace AutomationScripts
 				bCompressed_ProjectPackagingSettings = false;
 			}
 
-			if (CompressionFormats == "None" || CompressionFormats == "none")
+			bool bIsCompressionFormatNone = (CompressionFormats == "None" || CompressionFormats == "none");
+
+			if (Params.ForceCompressed)
+			{
+				Params.Compressed = true;
+				
+				// If we are forcing compression make sure we have a valid compression format
+				if (bIsCompressionFormatNone)
+				{
+					PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionFormat", out CompressionFormats);
+					// empty CompressionFormats string means "use default" eg. zlib;
+				}	
+			}
+			else if (bIsCompressionFormatNone)
 			{
 				// rather than pass "-compressed" + format=None through to UnrealPak/iostore
 				//	just turn off compression

@@ -1849,6 +1849,11 @@ namespace AutomationTool
 		/// Do not compress packages during cook, override game ProjectPackagingSettings to force it off
 		/// </summary>
 		public bool ForceUncompressed;
+		
+		/// <summary>
+		/// Compress packages during cook, override game ProjectPackagingSettings and Platform Hardware Compression settings to force it on
+		/// </summary>
+		public bool ForceCompressed;
 
 		/// <summary>
 		/// Additional parameters when generating the PAK file
