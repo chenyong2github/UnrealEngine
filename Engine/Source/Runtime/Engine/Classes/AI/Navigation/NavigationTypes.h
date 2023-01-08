@@ -2,7 +2,7 @@
 
 #pragma once
 
-#ifdef UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "UObject/UObjectGlobals.h"

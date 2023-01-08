@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/ScriptInterface.h"
 #include "Engine/BlendableInterface.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "RHIDefinitions.h"
 #include "EngineDefines.h" // SDPG_NumBits moved to here
 #endif

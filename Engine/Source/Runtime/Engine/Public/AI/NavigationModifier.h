@@ -2,7 +2,6 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
 #include "CollisionShape.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -368,3 +367,7 @@ private:
 	uint32 bMaskFillCollisionUnderneathForNavmesh : 1;
 	ENavigationDataResolution NavMeshResolution;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "RHIDefinitions.h"
 
 #if !defined(RHI_WANT_BREADCRUMB_EVENTS)

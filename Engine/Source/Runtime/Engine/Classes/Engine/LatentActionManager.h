@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtr.h"
 #include "LatentActionManager.generated.h"
@@ -226,3 +225,6 @@ protected:
 	static FOnLatentActionsChanged LatentActionsChangedDelegate;
 };
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

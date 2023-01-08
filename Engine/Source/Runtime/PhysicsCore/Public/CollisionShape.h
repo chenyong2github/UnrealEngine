@@ -2,7 +2,7 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
+#include "Math/Vector.h"
 
 /** Types of Collision Shapes that are used by Trace **/
 namespace ECollisionShape
@@ -229,3 +229,7 @@ struct FCollisionShape
 		return CapsuleShape;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

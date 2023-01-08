@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Math/Color.h"
 #include "Math/RandomStream.h"
 #include "WorldPartitionStreamingSource.generated.h"
@@ -558,3 +557,7 @@ struct ENGINE_API IWorldPartitionStreamingSourceProvider
 
 	virtual const UObject* GetStreamingSourceOwner() const { return nullptr; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

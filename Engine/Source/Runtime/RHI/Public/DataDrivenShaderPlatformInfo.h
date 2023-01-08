@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
 #include "RHIDefinitions.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"

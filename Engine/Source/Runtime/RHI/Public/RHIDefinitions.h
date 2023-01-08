@@ -7,11 +7,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PixelFormat.h"
 #include "Serialization/MemoryLayout.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"

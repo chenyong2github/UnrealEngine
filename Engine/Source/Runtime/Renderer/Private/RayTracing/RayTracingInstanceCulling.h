@@ -6,6 +6,7 @@
 
 #if RHI_RAYTRACING
 
+#include "Containers/ArrayView.h"
 #include "Math/MathFwd.h"
 
 class FPrimitiveSceneInfo;

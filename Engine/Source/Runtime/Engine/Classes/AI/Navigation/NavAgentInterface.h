@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "AI/Navigation/NavigationTypes.h"
 #endif
 #include "NavAgentInterface.generated.h"

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Online/CoreOnline.h"
 #include "Misc/EnumRange.h"
@@ -137,3 +136,7 @@ public:
 
 /** Dump out information about all player controller mute state */
 ENGINE_API FString DumpMutelistState(UWorld* World);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

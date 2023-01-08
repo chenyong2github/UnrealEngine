@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ComputeSystemInterface.h"
+#include "Containers/Map.h"
 
 class FComputeGraphTaskWorker;
 

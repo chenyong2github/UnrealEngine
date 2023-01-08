@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/CoreNet.h"
 #include "GameFramework/Actor.h"
@@ -430,3 +429,7 @@ FORCEINLINE_DEBUGGABLE bool AController::IsLocalPlayerController() const
 {
 	return IsPlayerController() && IsLocalController();
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
