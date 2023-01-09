@@ -83,7 +83,9 @@ void FMassFragmentRequirements::SortRequirements()
 
 bool FMassFragmentRequirements::CheckValidity() const
 {
-	return RequiredAllFragments.IsEmpty() == false || RequiredAnyFragments.IsEmpty() == false || RequiredOptionalFragments.IsEmpty() == false;
+	return
+		RequiredAllFragments.IsEmpty() == false || RequiredAnyFragments.IsEmpty() == false || RequiredOptionalFragments.IsEmpty() == false ||
+		RequiredAllTags.IsEmpty() == false || RequiredAnyTags.IsEmpty() == false;
 }
 
 bool FMassFragmentRequirements::IsEmpty() const

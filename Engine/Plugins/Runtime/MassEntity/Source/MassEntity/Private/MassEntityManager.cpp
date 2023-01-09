@@ -1162,14 +1162,36 @@ void FMassEntityManager::GetValidArchetypes(const FMassEntityQuery& Query, TArra
 
 	// First get set of all archetypes that contain *any* fragment
 	TSet<TSharedPtr<FMassArchetypeData>> AnyArchetypes;
-	for (const FMassFragmentRequirementDescription& Requirement : Query.GetFragmentRequirements())
+	TConstArrayView<FMassFragmentRequirementDescription> FragmentRequirements = Query.GetFragmentRequirements();
+	if (!FragmentRequirements.IsEmpty())
 	{
-		check(Requirement.StructType);
-		if (Requirement.Presence != EMassFragmentPresence::None)
+		for (const FMassFragmentRequirementDescription& Requirement : FragmentRequirements)
 		{
-			if (const TArray<TSharedPtr<FMassArchetypeData>>* pData = FragmentTypeToArchetypeMap.Find(Requirement.StructType))
+			check(Requirement.StructType);
+			if (Requirement.Presence != EMassFragmentPresence::None)
 			{
-				AnyArchetypes.Append(*pData);
+				if (const TArray<TSharedPtr<FMassArchetypeData>>* pData = FragmentTypeToArchetypeMap.Find(Requirement.StructType))
+				{
+					AnyArchetypes.Append(*pData);
+				}
+			}
+		}
+	}
+	else
+	{
+		// If there are no fragment requirements, assume this is a tag-only query.
+		const FMassTagBitSet& AllTags = Query.GetRequiredAllTags();
+		const FMassTagBitSet& AnyTags = Query.GetRequiredAnyTags();
+
+		for (const TPair<uint32, TArray<TSharedPtr<FMassArchetypeData>>>& KeyValue : FragmentHashToArchetypeMap)
+		{
+			for (const TSharedPtr<FMassArchetypeData>& ArchetypeData : KeyValue.Value)
+			{
+				const FMassTagBitSet ArchetypeTags = ArchetypeData->GetTagBitSet();
+				if (ArchetypeTags.HasAll(AllTags) || ArchetypeTags.HasAny(AnyTags))
+				{
+					AnyArchetypes.Add(ArchetypeData);
+				}
 			}
 		}
 	}
