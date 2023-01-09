@@ -294,7 +294,7 @@ private:
 
 	void ProcessNewResources( FRDGBuilder& GraphBuilder);
 	
-	uint32 DetermineReadyPages();
+	uint32 DetermineReadyPages(uint32& TotalPageSize);
 	void InstallReadyPages( uint32 NumReadyPages );
 
 	void AsyncUpdate();

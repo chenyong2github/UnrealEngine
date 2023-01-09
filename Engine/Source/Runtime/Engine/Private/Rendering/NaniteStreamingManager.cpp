@@ -126,6 +126,21 @@ static FAutoConsoleVariableRef CVarNaniteStreamingPrefetch(
 	TEXT("Process resource prefetch requests from calls to PrefetchResource().")
 );
 
+static int32 GNaniteStreamingTrimLockRegion = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingTrimLockRegion(
+	TEXT("r.Nanite.Streaming.Debug.TrimLockRegion"),
+	GNaniteStreamingTrimLockRegion,
+	TEXT("Debug: Trim the upload buffer lock region to the smallest PO2 that will fit the data.")
+);
+
+static int32 GNaniteStreamingPersistPageUploadBuffer = 0;
+static FAutoConsoleVariableRef CVarNaniteStreamingPersistPageUploadBuffer(
+	TEXT("r.Nanite.Streaming.Debug.PersistPageUploadBuffer"),
+	GNaniteStreamingPersistPageUploadBuffer,
+	TEXT("Debug: Persist an upload buffer of maximum size seen so far. If disabled, it will allocate a new pooled buffer of minimal (PO2) size on every upload.")
+);
+
+
 static_assert(NANITE_MAX_GPU_PAGES_BITS + MAX_RUNTIME_RESOURCE_VERSIONS_BITS + NANITE_STREAMING_REQUEST_MAGIC_BITS <= 32,	"Streaming request member RuntimeResourceID_Magic doesn't fit in 32 bits");
 static_assert(NANITE_MAX_RESOURCE_PAGES_BITS + NANITE_MAX_GROUP_PARTS_BITS + NANITE_STREAMING_REQUEST_MAGIC_BITS <= 32,			"Streaming request member PageIndex_NumPages_Magic doesn't fit in 32 bits");
 
@@ -331,7 +346,7 @@ public:
 	{
 		ResetState();
 		MaxPages = InMaxPages;
-		MaxPageBytes = InMaxPageBytes;
+		MaxPageBytes = FMath::Max(InMaxPageBytes, 16u);
 		MaxStreamingPages = InMaxStreamingPages;
 
 		// Create a new set of buffers if the old set is already queued into RDG.
@@ -342,8 +357,8 @@ public:
 			PageDependenciesBuffer = nullptr;
 		}
 
-		uint32 PageAllocationSize = FMath::RoundUpToPowerOfTwo(MaxPageBytes);
-		if (PageAllocationSize > TryGetSize(PageUploadBuffer))
+		uint32 PageAllocationSize = FMath::RoundUpToPowerOfTwo(MaxPageBytes); //TODO: Revisit po2 rounding once upload buffer refactor lands
+		if (!GNaniteStreamingPersistPageUploadBuffer || PageAllocationSize > TryGetSize(PageUploadBuffer))
 		{
 			// Add EBufferUsageFlags::Dynamic to skip the unneeded copy from upload to VRAM resource on d3d12 RHI
 			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateByteAddressUploadDesc(PageAllocationSize);
@@ -499,6 +514,10 @@ public:
 		}
 
 		ResetState();
+		if (!GNaniteStreamingPersistPageUploadBuffer)
+		{
+			Release();
+		}
 	}
 private:
 	TRefCountPtr<FRDGPooledBuffer> InstallInfoUploadBuffer;
@@ -1482,7 +1501,7 @@ public:
 	FORCEINLINE TStatId				GetStatId() const		{ return TStatId(); }
 };
 
-uint32 FStreamingManager::DetermineReadyPages()
+uint32 FStreamingManager::DetermineReadyPages(uint32& TotalPageSize)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::DetermineReadyPages);
@@ -1495,7 +1514,7 @@ uint32 FStreamingManager::DetermineReadyPages()
 	uint64 DeltaTick = PrevUpdateTick ? UpdateTick - PrevUpdateTick : 0;
 	PrevUpdateTick = UpdateTick;
 #endif
-
+	TotalPageSize = 0;
 	// Check how many pages are ready
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CheckReadyPages);
@@ -1564,6 +1583,13 @@ uint32 FStreamingManager::DetermineReadyPages()
 					break;
 			}
 #endif
+
+			FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
+			if (Resources)
+			{
+				const FPageStreamingState& PageStreamingState = (*Resources)->PageStreamingStates[PendingPage.InstallKey.PageIndex];
+				TotalPageSize += PageStreamingState.PageSize;
+			}
 
 			NumReadyPages++;
 		}
@@ -1679,14 +1705,16 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 
 	ProcessNewResources(GraphBuilder);
 
-	AsyncState.NumReadyPages = DetermineReadyPages();
+	uint32 TotalPageSize;
+	AsyncState.NumReadyPages = DetermineReadyPages(TotalPageSize);
 	if (AsyncState.NumReadyPages > 0)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocBuffers);
 		// Prepare buffers for upload
-		PageUploader->Init(GraphBuilder, MaxPageInstallsPerUpdate, MaxPageInstallsPerUpdate * NANITE_MAX_PAGE_DISK_SIZE, MaxStreamingPages);
-		ClusterFixupUploadBuffer.Init(GraphBuilder, MaxPageInstallsPerUpdate * NANITE_MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
-		Hierarchy.UploadBuffer.Init(GraphBuilder, 2 * MaxPageInstallsPerUpdate * NANITE_MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
+		const uint32 NumPages = GNaniteStreamingTrimLockRegion ? AsyncState.NumReadyPages : MaxPageInstallsPerUpdate;
+		PageUploader->Init(GraphBuilder, NumPages, GNaniteStreamingTrimLockRegion ? TotalPageSize : (MaxPageInstallsPerUpdate * NANITE_MAX_PAGE_DISK_SIZE), MaxStreamingPages);
+		ClusterFixupUploadBuffer.Init(GraphBuilder, NumPages * NANITE_MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
+		Hierarchy.UploadBuffer.Init(GraphBuilder, 2 * NumPages * NANITE_MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
 	}
 
 	// Find latest most recent ready readback buffer
