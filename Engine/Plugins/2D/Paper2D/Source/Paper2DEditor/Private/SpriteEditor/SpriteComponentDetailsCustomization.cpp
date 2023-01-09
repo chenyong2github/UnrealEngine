@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SpriteComponentDetailsCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
 #include "GroupedSprites/PaperGroupedSpriteUtilities.h"
 
 #define LOCTEXT_NAMESPACE "SpriteEditor"

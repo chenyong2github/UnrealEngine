@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperEditorShared/SocketEditing.h"
-#include "Engine/EngineTypes.h"
 #include "SceneManagement.h"
 #include "SceneView.h"
 #include "CanvasItem.h"
-#include "Components/Viewport.h"
 #include "Paper2DModule.h"
 #include "PaperSpriteComponent.h"
 #include "PaperSprite.h"
 #include "PaperEditorShared/SpriteGeometryEditMode.h"
 #include "CanvasTypes.h"
+#include "UnrealClient.h"
 
 //////////////////////////////////////////////////////////////////////////
 // HSpriteSelectableObjectHitProxy

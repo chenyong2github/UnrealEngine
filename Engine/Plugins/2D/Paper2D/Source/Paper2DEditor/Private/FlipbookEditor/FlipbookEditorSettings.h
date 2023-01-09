@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "FlipbookEditorSettings.generated.h"
 
 // Settings for the Paper2D sprite editor

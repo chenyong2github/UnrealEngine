@@ -2,7 +2,6 @@
 
 #include "FlipbookAssetTypeActions.h"
 
-#include "PaperFlipbook.h"
 #include "FlipbookEditor/FlipbookEditor.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

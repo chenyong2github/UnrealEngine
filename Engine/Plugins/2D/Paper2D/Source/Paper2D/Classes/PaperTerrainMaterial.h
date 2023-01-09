@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/DataAsset.h"
 #include "PaperTerrainMaterial.generated.h"
 
@@ -89,3 +87,8 @@ class PAPER2D_API UPaperTerrainMaterial : public UDataAsset
 	// End of UObject interface
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

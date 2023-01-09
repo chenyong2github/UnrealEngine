@@ -1,19 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FlipbookEditor/STimelineTrack.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
 #include "Layout/WidgetPath.h"
-#include "Framework/Application/MenuStack.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AssetRegistry/AssetData.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "PaperStyle.h"
 #include "FlipbookEditor/FlipbookEditorCommands.h"
 #include "FlipbookEditor/SFlipbookTrackHandle.h"
 #include "DragAndDrop/AssetDragDropOp.h"
@@ -22,6 +13,8 @@
 #include "PaperSprite.h"
 
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Subsystems/ImportSubsystem.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "FlipbookEditor"
 

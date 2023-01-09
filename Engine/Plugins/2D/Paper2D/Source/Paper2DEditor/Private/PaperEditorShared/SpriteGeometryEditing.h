@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineBaseTypes.h"
+#include "Math/Vector2D.h"
 #include "UObject/GCObject.h"
+
+enum EInputEvent : int;
 
 class FCanvas;
 class FPrimitiveDrawInterface;

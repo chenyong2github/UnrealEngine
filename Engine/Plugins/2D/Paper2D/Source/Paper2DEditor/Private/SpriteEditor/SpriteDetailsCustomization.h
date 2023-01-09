@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "PaperSprite.h"
 #include "IDetailCustomization.h"
 #include "SpriteEditor/SpriteEditor.h"
+
+namespace ESpriteCollisionMode { enum Type : int; }
+namespace ESpritePolygonMode { enum Type : int; }
 
 class FDetailWidgetRow;
 class IDetailCategoryBuilder;

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PaperSpriteThumbnailRenderer.h"
 #include "PaperFlipbookThumbnailRenderer.generated.h"
 
@@ -19,3 +17,8 @@ class UPaperFlipbookThumbnailRenderer : public UPaperSpriteThumbnailRenderer
 	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily) override;
 	// End of UThumbnailRenderer interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

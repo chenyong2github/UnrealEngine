@@ -7,8 +7,6 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "EditorModeManager.h"
-#include "PaperEditorShared/AssetEditorSelectedItem.h"
-#include "SpriteEditorOnlyTypes.h"
 #include "SpriteEditor/SpriteEditorSelections.h"
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "PhysicsEngine/BodySetup.h"

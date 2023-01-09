@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/Texture.h"
 #include "EditorFramework/AssetImportData.h"
 #include "TileMapAssetImportData.generated.h"
 
@@ -38,3 +35,9 @@ class PAPER2DEDITOR_API UTileMapAssetImportData : public UAssetImportData
 
 	static UTileMapAssetImportData* GetImportDataForTileMap(class UPaperTileMap* TileMap);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/Texture.h"
+#include "UObject/ObjectMacros.h"
+#endif

@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/PrimitiveComponent.h"
-#include "SpriteDrawCall.h"
 #include "PaperTerrainComponent.generated.h"
+
+class UPaperSprite;
+namespace ESpriteCollisionMode { enum Type : int; }
+struct FSpriteDrawCallRecord;
 
 class FPrimitiveSceneProxy;
 class UBodySetup;
@@ -135,3 +136,9 @@ protected:
 	FTransform GetTransformAtDistance(float InDistance) const;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "SpriteDrawCall.h"
+#include "UObject/ObjectMacros.h"
+#endif

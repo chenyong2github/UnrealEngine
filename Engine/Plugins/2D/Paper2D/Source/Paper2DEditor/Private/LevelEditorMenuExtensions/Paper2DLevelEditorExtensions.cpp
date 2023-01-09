@@ -2,19 +2,13 @@
 
 #include "LevelEditorMenuExtensions/Paper2DLevelEditorExtensions.h"
 #include "Modules/ModuleManager.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "GameFramework/Actor.h"
-#include "Engine/Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditor.h"
-#include "Editor.h"
 
 #include "PaperSpriteComponent.h"
 #include "PaperGroupedSpriteComponent.h"
 #include "GroupedSprites/PaperGroupedSpriteUtilities.h"
+#include "Selection.h"
 
 #define LOCTEXT_NAMESPACE "Paper2D"
 

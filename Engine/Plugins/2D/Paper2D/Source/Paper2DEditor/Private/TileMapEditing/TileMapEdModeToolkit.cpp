@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/TileMapEdModeToolkit.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SBorder.h"
+#include "PaperTileSet.h"
 #include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
 #include "PaperTileMapComponent.h"
 #include "PaperTileMap.h"
 
 #include "Toolkits/AssetEditorToolkit.h"
 #include "TileSetEditor/TileSetSelectorViewport.h"
 #include "WorkflowOrientedApp/SContentReference.h"
-#include "PaperStyle.h"
 #include "TileMapEditing/TileMapEditorCommands.h"
 #include "SAssetDropTarget.h"
 

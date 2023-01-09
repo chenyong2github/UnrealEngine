@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "InputCoreTypes.h"
 #include "PreviewScene.h"
-#include "PaperFlipbook.h"
 #include "PaperEditorViewportClient.h"
 
 class FCanvas;

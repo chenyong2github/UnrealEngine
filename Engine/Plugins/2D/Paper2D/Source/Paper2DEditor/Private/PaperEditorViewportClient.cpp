@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperEditorViewportClient.h"
+#include "Editor/UnrealEdTypes.h"
 #include "Paper2DModule.h"
-#include "AssetEditorModeManager.h"
 #include "CanvasTypes.h"
 #include "Engine/Texture2D.h"
 #include "ImageUtils.h"

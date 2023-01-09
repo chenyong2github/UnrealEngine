@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
 // In-viewport toolbar widget used in the flipbook editor

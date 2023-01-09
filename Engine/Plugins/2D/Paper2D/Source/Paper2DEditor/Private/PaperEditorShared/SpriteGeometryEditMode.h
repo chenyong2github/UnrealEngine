@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
 #include "EdMode.h"
 #include "PaperEditorShared/SpriteGeometryEditing.h"
 

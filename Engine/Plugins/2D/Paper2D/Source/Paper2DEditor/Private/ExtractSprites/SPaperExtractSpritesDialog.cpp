@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExtractSprites/SPaperExtractSpritesDialog.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SWindow.h"
-#include "Widgets/SViewport.h"
+#include "DetailsViewArgs.h"
 #include "Misc/FeedbackContext.h"
+#include "IDetailsView.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
-#include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SBorder.h"
+#include "PaperEditorViewportClient.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Framework/Docking/TabManager.h"
-#include "Styling/AppStyle.h"
 #include "CanvasItem.h"
 #include "ExtractSprites/PaperExtractSpritesSettings.h"
 

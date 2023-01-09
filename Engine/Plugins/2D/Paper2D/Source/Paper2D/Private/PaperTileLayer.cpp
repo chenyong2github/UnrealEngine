@@ -2,7 +2,6 @@
 
 #include "PaperTileLayer.h"
 #include "Paper2DModule.h"
-#include "SpriteEditorOnlyTypes.h"
 #include "PaperTileMap.h"
 #include "PaperTileSet.h"
 

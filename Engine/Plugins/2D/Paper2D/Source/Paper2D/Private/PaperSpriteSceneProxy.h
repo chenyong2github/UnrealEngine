@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SpriteDrawCall.h"
 #include "PaperRenderSceneProxy.h"
 
 class FMeshElementCollector;

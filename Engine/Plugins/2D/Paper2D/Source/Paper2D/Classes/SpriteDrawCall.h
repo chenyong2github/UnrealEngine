@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PaperSprite.h"
 #include "SpriteDrawCall.generated.h"
 
@@ -43,3 +41,8 @@ public:
 		return (RenderVerts.Num() > 0) && (BaseTexture != nullptr) && (BaseTexture->GetResource() != nullptr);
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

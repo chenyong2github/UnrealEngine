@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "PaperSprite.h"
 #include "PaperSpriteSheet.generated.h"
+
+class UTexture2D;
 
 UCLASS(BlueprintType, meta = (DisplayThumbnail = "true"))
 class UPaperSpriteSheet : public UObject

@@ -2,19 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "RenderResource.h"
+#include "Materials/MaterialRelevance.h"
 #include "SpriteDrawCall.h"
 #include "Materials/MaterialInterface.h"
-#include "PackedNormal.h"
-#include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
-#include "LocalVertexFactory.h"
 #include "Paper2DModule.h"
-#include "DynamicMeshBuilder.h"
 #include "PaperSpriteVertexBuffer.h"
 #include "TextureResource.h"
+
+class FTexture;
 
 class FMeshElementCollector;
 class UBodySetup;

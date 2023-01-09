@@ -183,7 +183,6 @@ void UPaperTileSet::PostLoad()
 #if WITH_EDITOR
 
 #include "PaperTileMapComponent.h"
-#include "UObject/UObjectHash.h"
 #include "ComponentReregisterContext.h"
 
 void UPaperTileSet::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

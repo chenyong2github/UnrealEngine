@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetEditor/TileSetEditorViewportClient.h"
-#include "IntMargin.h"
 #include "PaperTileSet.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
-#include "Engine/Engine.h"
-#include "EngineGlobals.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
 #include "GlobalRenderResources.h"

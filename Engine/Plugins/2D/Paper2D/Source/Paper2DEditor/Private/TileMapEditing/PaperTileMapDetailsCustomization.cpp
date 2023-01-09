@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/PaperTileMapDetailsCustomization.h"
-#include "Layout/Margin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "DetailsViewArgs.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Commands/UICommandList.h"
+#include "PaperTileLayer.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "PaperTileMap.h"
 #include "Widgets/Text/STextBlock.h"
+#include "PaperTileMapComponent.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 
-#include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
 #include "PaperTileSet.h"
 #include "TileMapEditing/EdModeTileMap.h"
 

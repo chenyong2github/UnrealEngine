@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PaperSpriteAtlas.h"
+#include "Containers/Array.h"
+
+class UPaperSprite;
+class UTexture;
+enum class EPaperSpriteAtlasPadding : uint8;
+struct FPaperSpriteAtlasSlot;
 
 struct FPaperAtlasTextureHelpers
 {

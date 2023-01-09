@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperSpriteSheetReimportFactory.h"
+#include "Engine/Texture2D.h"
 #include "PaperSpriteSheetImporterLog.h"
 #include "HAL/FileManager.h"
 #include "EditorFramework/AssetImportData.h"

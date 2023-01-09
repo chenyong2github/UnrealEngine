@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperRenderSceneProxy.h"
-#include "Containers/ResourceArray.h"
+#include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "EngineGlobals.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/MeshComponent.h"
 #include "Engine/Engine.h"
 #include "SceneInterface.h"

@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
-#include "Engine/TextureStreamingTypes.h"
 #include "Components/MeshComponent.h"
 #include "PaperFlipbookComponent.generated.h"
+
+class FStreamingTextureLevelContext;
+struct FComponentSocketDescription;
+struct FStreamingRenderAssetPrimitiveInfo;
 
 class FPrimitiveSceneProxy;
 class UBodySetup;
@@ -212,3 +212,10 @@ public:
 	virtual UBodySetup* GetBodySetup() override;
 	// End of UPrimitiveComponent interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/TextureStreamingTypes.h"
+#include "UObject/ObjectMacros.h"
+#endif

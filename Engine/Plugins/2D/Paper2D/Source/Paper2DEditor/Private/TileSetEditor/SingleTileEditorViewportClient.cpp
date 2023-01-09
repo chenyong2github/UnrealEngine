@@ -3,7 +3,6 @@
 #include "TileSetEditor/SingleTileEditorViewportClient.h"
 #include "Materials/MaterialInterface.h"
 #include "PaperTileSet.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"

@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperStyle.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateTypes.h"
+#include "Misc/Paths.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
+#include "Styling/SlateStyle.h"
 
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FPaperStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )

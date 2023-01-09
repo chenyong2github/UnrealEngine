@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 #define PAPER2D_EDITOR_MODULE_NAME "Paper2DEditor"
 
@@ -23,3 +22,8 @@ public:
 	virtual uint32 GetPaper2DAssetCategory() const = 0;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#endif

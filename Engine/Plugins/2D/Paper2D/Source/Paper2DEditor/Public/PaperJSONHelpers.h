@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Dom/JsonObject.h"
+#include "Math/Vector2D.h"
+
+class FJsonValue;
 
 //////////////////////////////////////////////////////////////////////////
 // FPaperJSONHelpers
@@ -48,3 +49,8 @@ private:
 	FPaperJSONHelpers() {}
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Dom/JsonObject.h"
+#endif

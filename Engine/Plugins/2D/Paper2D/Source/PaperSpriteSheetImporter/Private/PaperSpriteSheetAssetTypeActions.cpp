@@ -2,11 +2,8 @@
 
 #include "PaperSpriteSheetAssetTypeActions.h"
 #include "Misc/PackageName.h"
-#include "ToolMenus.h"
 #include "Misc/FeedbackContext.h"
-#include "Styling/AppStyle.h"
 #include "EditorFramework/AssetImportData.h"
-#include "PaperFlipbook.h"
 #include "PaperSprite.h"
 #include "PaperSpriteSheet.h"
 #include "IContentBrowserSingleton.h"
@@ -14,6 +11,7 @@
 #include "PaperFlipbookFactory.h"
 #include "PackageTools.h"
 #include "PaperFlipbookHelpers.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

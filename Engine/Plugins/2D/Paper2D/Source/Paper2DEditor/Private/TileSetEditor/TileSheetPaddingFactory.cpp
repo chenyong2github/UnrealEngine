@@ -2,9 +2,6 @@
 
 #include "TileSetEditor/TileSheetPaddingFactory.h"
 #include "Paper2DEditorLog.h"
-#include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
-#include "IntMargin.h"
 #include "PaperTileSet.h"
 #include "PaperSpriteAtlas.h"
 #include "Atlasing/PaperAtlasTextureHelpers.h"

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
-#include "Components/ActorComponent.h"
+#include "Math/Box.h"
+
+class UActorComponent;
+template <class TClass> class TSubclassOf;
 
 class AActor;
 

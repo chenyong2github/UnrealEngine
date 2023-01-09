@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetEditor.h"
-#include "UObject/Package.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Commands/UICommandList.h"
 #include "PaperTileSet.h"
 #include "SSingleObjectDetailsPanel.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -10,12 +9,9 @@
 #include "TileSetEditor/SingleTileEditorViewport.h"
 #include "TileSetEditor/SingleTileEditorViewportClient.h"
 #include "TileSetEditor/TileSetEditorCommands.h"
-#include "IDetailCustomization.h"
 #include "TileSetEditor/TileSetDetailsCustomization.h"
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "IDetailsView.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 

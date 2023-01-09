@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/EdModeTileMap.h"
+#include "EditorViewportClient.h"
 #include "NavigationSystem.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Engine/Selection.h"
 #include "EditorModeManager.h"
 #include "Paper2DModule.h"
 #include "PaperTileLayer.h"
 #include "PaperTileMapComponent.h"
+#include "PaperTileSet.h"
 #include "TileMapEditing/TileMapEdModeToolkit.h"
+#include "Selection.h"
 #include "Toolkits/ToolkitManager.h"
 #include "SceneView.h"
 #include "ScopedTransaction.h"

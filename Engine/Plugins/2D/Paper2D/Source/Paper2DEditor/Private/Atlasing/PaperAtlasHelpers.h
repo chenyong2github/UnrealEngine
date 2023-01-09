@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "UObject/SoftObjectPath.h"
 #include "PaperSprite.h"
 #include "PaperSpriteAtlas.h"
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+
+class IModuleInterface;
 
 // Loads and returns a list of sprites referenced in the atlas group (i.e. sprites used in the previous build)
 static void LoadAllReferencedSprites(UPaperSpriteAtlas* AtlasGroup, TArray<UPaperSprite*>& AllSprites)

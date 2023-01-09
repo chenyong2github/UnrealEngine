@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Styling/SlateBrush.h"
 #include "PaperSpriteBlueprintLibrary.generated.h"
+
+struct FSlateBrush;
 
 class UPaperSprite;
 
@@ -22,3 +21,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Widget|Brush")
 	static FSlateBrush MakeBrushFromSprite(UPaperSprite* Sprite, int32 Width, int32 Height);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/SlateBrush.h"
+#include "UObject/ObjectMacros.h"
+#endif

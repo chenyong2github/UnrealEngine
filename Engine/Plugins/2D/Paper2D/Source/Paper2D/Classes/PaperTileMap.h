@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "SpriteEditorOnlyTypes.h"
 #include "PaperTileMap.generated.h"
+
+namespace ESpriteCollisionMode { enum Type : int; }
+struct FPropertyChangedEvent;
 
 class UBodySetup;
 class UMaterialInterface;
@@ -242,3 +241,10 @@ public:
 protected:
 	virtual void UpdateBodySetup();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "SpriteEditorOnlyTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#endif

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperSprite.h"
+#include "BodySetupEnums.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
 #include "Engine/CollisionProfile.h"
-#include "PhysicsEngine/ConvexElem.h"
-#include "PhysicsEngine/BoxElem.h"
-#include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/BodySetup.h"
 
 #include "PaperCustomVersion.h"
@@ -23,8 +21,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSprite)
 
 #if WITH_EDITOR
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
 #endif
 
 #if WITH_EDITOR
@@ -66,7 +62,6 @@ static void UpdateGeometryToBeBoxPositionRelative(FSpriteGeometryCollection& Geo
 #if WITH_EDITOR
 
 #include "PaperSpriteAtlas.h"
-#include "AlphaBitmap.h"
 #include "BitmapUtils.h"
 #include "ComponentReregisterContext.h"
 #include "PaperRuntimeSettings.h"

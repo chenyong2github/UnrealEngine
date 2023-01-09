@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperTileMapComponent.h"
+#include "PaperTileLayer.h"
 #include "UObject/ConstructorHelpers.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Paper2DPrivate.h"
-#include "PaperRenderSceneProxy.h"
 #include "PaperTileMapRenderSceneProxy.h"
 #include "PaperCustomVersion.h"
 #include "PhysicsEngine/BodySetup.h"

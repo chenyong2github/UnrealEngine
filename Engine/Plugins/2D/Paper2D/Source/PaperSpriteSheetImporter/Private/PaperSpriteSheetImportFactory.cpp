@@ -3,12 +3,12 @@
 #include "PaperSpriteSheetImportFactory.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Editor.h"
 #include "AssetToolsModule.h"
 #include "PaperSpriteSheet.h"
+#include "Subsystems/ImportSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteSheetImportFactory)
 

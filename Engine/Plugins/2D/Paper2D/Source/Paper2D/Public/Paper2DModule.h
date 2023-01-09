@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
+#include "Math/Vector.h"
 #include "Modules/ModuleInterface.h"
+#include "Stats/Stats2.h"
 
 #define PAPER2D_MODULE_NAME "Paper2D"
 
@@ -35,3 +35,8 @@ extern PAPER2D_API FVector PaperAxisZ;
 
 DECLARE_STATS_GROUP(TEXT("Paper2D"), STATGROUP_Paper2D, STATCAT_Advanced);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("SetSprite (RT)"), STAT_PaperRender_SetSpriteRT, STATGROUP_Paper2D, PAPER2D_API);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Stats/Stats.h"
+#endif

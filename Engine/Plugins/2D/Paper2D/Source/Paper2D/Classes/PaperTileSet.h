@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "SpriteEditorOnlyTypes.h"
 #include "IntMargin.h"
 
@@ -302,3 +299,9 @@ private:
 	UPROPERTY()
 	int32 Spacing_DEPRECATED;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#endif

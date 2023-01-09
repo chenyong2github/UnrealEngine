@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "PaperRuntimeSettings.generated.h"
 
 /**
@@ -27,3 +24,9 @@ class PAPER2D_API UPaperRuntimeSettings : public UObject
 	UPROPERTY(EditAnywhere, config, Category=Settings)
 	bool bResizeSpriteDataToMatchTextures;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#endif

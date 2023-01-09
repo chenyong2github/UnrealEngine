@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "PaperTileSet.h"
 #include "SPaperEditorViewport.h"
-#include "TileSetEditor/TileSetEditorViewportClient.h"
+
+class UPaperTileSet;
 
 struct FMarqueeOperation;
 

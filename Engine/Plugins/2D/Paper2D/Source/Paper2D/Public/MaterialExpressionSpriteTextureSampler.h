@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "MaterialExpressionSpriteTextureSampler.generated.h"
 
@@ -37,3 +35,8 @@ class PAPER2D_API UMaterialExpressionSpriteTextureSampler : public UMaterialExpr
 #endif
 	// End of UMaterialExpression interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
 
 class FToolBarBuilder;
 class SSpriteEditorViewport;

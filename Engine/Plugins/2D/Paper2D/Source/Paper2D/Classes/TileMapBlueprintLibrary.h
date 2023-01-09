@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "PaperTileLayer.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "TileMapBlueprintLibrary.generated.h"
+
+struct FPaperTileInfo;
 
 class UPaperTileSet;
 
@@ -37,3 +36,9 @@ public:
 	UFUNCTION(BlueprintPure, Category=Sprite, meta=(AdvancedDisplay=2))
 	static FPaperTileInfo MakeTile(int32 TileIndex, UPaperTileSet* TileSet, bool bFlipH, bool bFlipV, bool bFlipD);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PaperTileLayer.h"
+#include "UObject/ObjectMacros.h"
+#endif

@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
 #include "LocalVertexFactory.h"
-#include "RenderResource.h"
-#include "PackedNormal.h"
-#include "SceneManagement.h"
 #include "DynamicMeshBuilder.h"
 
 //////////////////////////////////////////////////////////////////////////

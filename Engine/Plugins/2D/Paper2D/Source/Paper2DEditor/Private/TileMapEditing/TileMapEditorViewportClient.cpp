@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/TileMapEditorViewportClient.h"
-#include "Components/PrimitiveComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "PaperTileMapComponent.h"
 #include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "CanvasItem.h"
-#include "Engine/Selection.h"
 #include "AssetEditorModeManager.h"
+#include "Selection.h"
 #include "TileMapEditing/EdModeTileMap.h"
 #include "PaperEditorShared/SpriteGeometryEditMode.h"
 #include "PaperTileMap.h"

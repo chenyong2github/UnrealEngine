@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EditorReimportHandler.h"
 #include "Factories/Factory.h"
-#include "PaperTileMap.h"
-#include "PaperTileLayer.h"
 #include "PaperTiledImporterFactory.generated.h"
+
+class UPaperTileMap;
+class UTexture2D;
+namespace ETileMapProjectionMode { enum Type : int; }
+struct FPaperTileInfo;
+struct FSpriteGeometryCollection;
 
 class FJsonObject;
 class FJsonValue;
@@ -389,3 +391,10 @@ public:
 	FTileMapFromTiled();
 	bool IsValid() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PaperTileLayer.h"
+#include "PaperTileMap.h"
+#include "UObject/ObjectMacros.h"
+#endif

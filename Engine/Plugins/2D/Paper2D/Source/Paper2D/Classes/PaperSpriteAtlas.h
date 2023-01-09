@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Misc/Guid.h"
-#include "PaperSprite.h"
 #include "PaperSpriteAtlas.generated.h"
+
+class UTexture;
+enum TextureCompressionSettings : int;
+enum TextureFilter : int;
 
 USTRUCT()
 struct FPaperSpriteAtlasSlot
@@ -81,11 +80,11 @@ class UPaperSpriteAtlas : public UObject
 
 	// Compression settings to use on atlas texture
 	UPROPERTY(EditAnywhere, Category=AtlasTexture)
-	TEnumAsByte<enum TextureCompressionSettings> CompressionSettings;
+	TEnumAsByte<TextureCompressionSettings> CompressionSettings;
 
 	// Texture filtering mode when sampling these textures
 	UPROPERTY(EditAnywhere, Category=AtlasTexture)
-	TEnumAsByte<enum TextureFilter> Filter;
+	TEnumAsByte<TextureFilter> Filter;
 
 	// List of generated atlas textures
 	UPROPERTY(VisibleAnywhere, Category=AtlasTexture)
@@ -128,3 +127,11 @@ public:
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	// End of UObject interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/Guid.h"
+#include "PaperSprite.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#endif

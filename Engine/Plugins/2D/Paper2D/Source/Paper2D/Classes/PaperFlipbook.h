@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "UObject/ScriptMacros.h"
 #include "PaperFlipbook.generated.h"
+
+struct FComponentSocketDescription;
+struct FPropertyChangedEvent;
 
 class UMaterialInterface;
 class UPaperSprite;
@@ -191,3 +189,11 @@ public:
 		return SourceFlipbook;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ScriptMacros.h"
+#endif

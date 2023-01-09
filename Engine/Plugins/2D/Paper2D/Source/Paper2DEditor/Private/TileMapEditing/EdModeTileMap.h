@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "EditorViewportClient.h"
 #include "EdMode.h"
+#include "Math/IntRect.h"
+
+class FExtender;
+struct FViewportCursorLocation;
 
 class FCanvas;
 class UPaperTileLayer;

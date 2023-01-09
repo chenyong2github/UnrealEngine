@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SpriteEditorViewportClient.h"
+#include "InputKeyEventArgs.h"
 #include "Materials/MaterialInterface.h"
-#include "Modules/ModuleManager.h"
 #include "CanvasItem.h"
+#include "Misc/PackageName.h"
 #include "Utils.h"
 #include "PaperSpriteComponent.h"
 #include "AssetEditorModeManager.h"
+#include "SEditorViewport.h"
 #include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "GlobalRenderResources.h"
@@ -14,7 +16,6 @@
 
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistry/ARFilter.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"

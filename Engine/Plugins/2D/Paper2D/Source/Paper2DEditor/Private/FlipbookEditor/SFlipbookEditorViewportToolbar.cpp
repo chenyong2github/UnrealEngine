@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FlipbookEditor/SFlipbookEditorViewportToolbar.h"
+#include "Framework/Commands/UICommandList.h"
 #include "SEditorViewport.h"
 #include "FlipbookEditor/FlipbookEditorCommands.h"
 

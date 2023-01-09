@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FlipbookEditor/FlipbookEditorViewportClient.h"
+#include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
 #include "CanvasItem.h"
-#include "Engine/Engine.h"
-#include "EngineGlobals.h"
 #include "Engine/CollisionProfile.h"
 #include "Utils.h"
 

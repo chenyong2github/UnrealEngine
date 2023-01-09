@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/TileMapEditor.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorViewportClient.h"
-#include "UObject/Package.h"
-#include "Styling/AppStyle.h"
 #include "SEditorViewport.h"
 #include "SSingleObjectDetailsPanel.h"
 #include "PaperTileMap.h"
@@ -12,11 +10,8 @@
 
 #include "TileMapEditing/TileMapEditorViewportClient.h"
 #include "TileMapEditing/TileMapEditorCommands.h"
-#include "SCommonEditorViewportToolbarBase.h"
 #include "TileMapEditing/STileMapEditorViewportToolbar.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "TileMapEditor"
 

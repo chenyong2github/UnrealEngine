@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetAssetTypeActions.h"
-#include "ToolMenus.h"
-#include "Engine/Texture.h"
+#include "Math/ColorList.h"
 #include "Misc/PackageName.h"
-#include "Styling/AppStyle.h"
 #include "TileSetEditor.h"
 #include "PaperTileSet.h"
 #include "PaperTileMap.h"
@@ -13,6 +11,7 @@
 #include "PaperTileMapFactory.h"
 #include "TileSetEditor/TileSetEditorSettings.h"
 #include "TileSetEditor/TileSheetPaddingFactory.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

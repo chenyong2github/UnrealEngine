@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FlipbookEditor/FlipbookEditor.h"
-#include "EditorViewportClient.h"
-#include "UObject/Package.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Modules/ModuleManager.h"
-#include "Styling/AppStyle.h"
 #include "SSingleObjectDetailsPanel.h"
 
 
@@ -14,13 +12,11 @@
 #include "FlipbookEditor/FlipbookEditorViewportClient.h"
 #include "FlipbookEditor/FlipbookEditorCommands.h"
 #include "Paper2DEditorModule.h"
-#include "SCommonEditorViewportToolbarBase.h"
 #include "FlipbookEditor/SFlipbookEditorViewportToolbar.h"
 #include "SScrubControlPanel.h"
 #include "FlipbookEditor/SFlipbookTimeline.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FlipbookEditor"
 

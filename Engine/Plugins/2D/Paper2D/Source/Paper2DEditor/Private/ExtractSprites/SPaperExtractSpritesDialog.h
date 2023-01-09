@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Engine/Texture2D.h"
-#include "IDetailsView.h"
 #include "SPaperEditorViewport.h"
+
+class UTexture2D;
+struct FPropertyChangedEvent;
 
 class FPaperExtractSpritesViewportClient;
 struct Rect;

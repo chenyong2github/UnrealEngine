@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorViewportClient.h"
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 

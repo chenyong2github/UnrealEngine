@@ -4,6 +4,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "PaperSprite.h"
+#include "SpriteEditor/SpriteEditor.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SSpriteList

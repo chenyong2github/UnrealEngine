@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperTileSetThumbnailRenderer.h"
-#include "Engine/Texture2D.h"
 #include "CanvasTypes.h"
-#include "IntMargin.h"
 #include "PaperTileSet.h"
-#include "RenderUtils.h"
 #include "TextureResource.h"
 #include "GlobalRenderResources.h"
 

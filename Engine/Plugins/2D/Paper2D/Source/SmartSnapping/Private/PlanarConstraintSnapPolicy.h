@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ISnappingPolicy.h"
+#include "Math/Plane.h"
 
 class FPrimitiveDrawInterface;
 class FSceneView;

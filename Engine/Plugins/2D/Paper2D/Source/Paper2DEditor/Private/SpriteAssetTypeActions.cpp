@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteAssetTypeActions.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "Misc/FeedbackContext.h"
-#include "Styling/AppStyle.h"
 
 #include "SpriteEditor/SpriteEditor.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "PaperFlipbookHelpers.h"
-#include "PaperFlipbook.h"
 #include "PaperFlipbookFactory.h"
 #include "PaperSprite.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

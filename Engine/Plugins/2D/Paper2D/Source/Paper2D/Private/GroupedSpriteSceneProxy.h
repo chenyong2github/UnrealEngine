@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "PaperRenderSceneProxy.h"
+
+struct FSpriteDrawCallRecord;
 
 class FMeshElementCollector;
 class UBodySetup;

@@ -1,17 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/STileLayerList.h"
+#include "Framework/Commands/UICommandList.h"
 #include "PaperTileLayer.h"
-#include "UObject/PropertyPortFlags.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Misc/NotifyHook.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Views/SListView.h"
 #include "Exporters/Exporter.h"
 #include "Editor.h"
 #include "PaperTileMapComponent.h"
 #include "TileMapEditing/STileLayerItem.h"
-#include "PaperStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 #include "ScopedTransaction.h"

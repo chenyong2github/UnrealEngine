@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SpritePolygonCollectionCustomization.h"
+#include "PropertyHandle.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FSpritePolygonCollectionCustomization

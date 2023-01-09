@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "PaperTileLayer.h"
 #include "Components/MeshComponent.h"
-#include "DynamicMeshBuilder.h"
 #include "PaperTileMapComponent.generated.h"
+
+class UPaperTileLayer;
+struct FDynamicMeshVertex;
+struct FPaperTileInfo;
 
 class FPaperTileMapRenderSceneProxy;
 class FPrimitiveSceneProxy;
@@ -235,3 +235,10 @@ public:
 	void GetRenderingStats(int32& OutNumTriangles, int32& OutNumBatches) const;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DynamicMeshBuilder.h"
+#include "PaperTileLayer.h"
+#include "UObject/ObjectMacros.h"
+#endif

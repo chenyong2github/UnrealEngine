@@ -2,6 +2,7 @@
 
 #include "TileMapEditing/TileMapAssetTypeActions.h"
 
+#include "Math/ColorList.h"
 #include "TileMapEditing/TileMapEditor.h"
 #include "PaperTileMap.h"
 

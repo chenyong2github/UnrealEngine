@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperSpriteVertexBuffer.h"
-#include "Materials/Material.h"
-#include "SceneManagement.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "PaperSpriteComponent.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RenderingThread.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FPaperSpriteVertexBuffer

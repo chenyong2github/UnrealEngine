@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetEditor/SingleTileEditorViewport.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SViewport.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
-#include "PaperStyle.h"
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "TileSetEditor/SingleTileEditorViewportClient.h"
 #include "TileSetEditor/TileSetEditorCommands.h"

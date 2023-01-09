@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/MeshComponent.h"
-#include "Physics/PhysicsInterfaceDeclares.h"
 
 #include "PaperGroupedSpriteComponent.generated.h"
 
@@ -185,3 +182,9 @@ protected:
 
 	friend FGroupedSpriteSceneProxy;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Physics/PhysicsInterfaceDeclares.h"
+#include "UObject/ObjectMacros.h"
+#endif

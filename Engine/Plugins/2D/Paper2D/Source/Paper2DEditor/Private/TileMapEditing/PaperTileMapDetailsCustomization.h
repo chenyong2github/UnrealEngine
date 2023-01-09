@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "PaperTileMap.h"
 #include "IDetailCustomization.h"
-#include "PaperTileMapComponent.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FReply;
+struct EVisibility;
 
 class IDetailLayoutBuilder;
 

@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 
 #include "PaperTileMapActor.generated.h"
+
+class UPaperTileMapComponent;
 
 /**
  * An instance of a UPaperTileMap in a level.
@@ -33,3 +33,8 @@ public:
 	/** Returns RenderComponent subobject **/
 	FORCEINLINE class UPaperTileMapComponent* GetRenderComponent() const { return RenderComponent; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

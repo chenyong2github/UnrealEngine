@@ -3,13 +3,11 @@
 #include "Atlasing/PaperAtlasGenerator.h"
 #include "Paper2DEditorLog.h"
 #include "Misc/MessageDialog.h"
-#include "Engine/Texture2D.h"
 
 
 //////////////////////////////////////////////////////////////////////////
 // 
 
-#include "PaperSpriteAtlas.h"
 #include "Atlasing/PaperAtlasTextureHelpers.h"
 #include "Atlasing/PaperAtlasHelpers.h"
 

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
 
 class STileMapEditorViewport;
 class UPaperTileMap;

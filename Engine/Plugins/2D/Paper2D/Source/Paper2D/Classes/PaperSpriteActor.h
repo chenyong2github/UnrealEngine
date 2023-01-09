@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "PaperSpriteActor.generated.h"
+
+class UPaperSpriteComponent;
 
 /**
  * An instance of a UPaperSprite in a level.
@@ -32,3 +32,8 @@ public:
 	/** Returns RenderComponent subobject **/
 	FORCEINLINE class UPaperSpriteComponent* GetRenderComponent() const { return RenderComponent; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

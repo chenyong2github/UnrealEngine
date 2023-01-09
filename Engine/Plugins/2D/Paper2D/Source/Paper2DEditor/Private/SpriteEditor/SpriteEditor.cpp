@@ -1,22 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SpriteEditor.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorViewportClient.h"
-#include "Modules/ModuleManager.h"
-#include "Styling/AppStyle.h"
+#include "IDetailsView.h"
 #include "SSingleObjectDetailsPanel.h"
 
 
-#include "SEditorViewport.h"
-#include "PaperSprite.h"
 #include "SpriteEditor/SpriteEditorViewportClient.h"
 #include "SpriteEditor/SpriteEditorCommands.h"
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "Paper2DEditorModule.h"
-#include "SCommonEditorViewportToolbarBase.h"
 #include "SpriteEditor/SSpriteEditorViewportToolbar.h"
 #include "SpriteEditor/SpriteDetailsCustomization.h"
 
@@ -24,7 +18,6 @@
 #include "Widgets/Docking/SDockTab.h"
 
 #include "ExtractSprites/SPaperExtractSpritesDialog.h"
-#include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "SpriteEditor"
 

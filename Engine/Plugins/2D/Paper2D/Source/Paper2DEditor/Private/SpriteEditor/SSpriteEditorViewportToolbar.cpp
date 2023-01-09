@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SSpriteEditorViewportToolbar.h"
+#include "Framework/Commands/UICommandList.h"
 #include "SpriteEditor/SpriteEditorCommands.h"
 #include "PaperEditorShared/SpriteGeometryEditCommands.h"
 #include "SEditorViewport.h"

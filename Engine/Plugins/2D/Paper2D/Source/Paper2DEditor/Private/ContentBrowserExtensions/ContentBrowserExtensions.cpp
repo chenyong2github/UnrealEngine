@@ -1,15 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserExtensions/ContentBrowserExtensions.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Engine/Texture2D.h"
-#include "AssetRegistry/AssetData.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "PaperSprite.h"

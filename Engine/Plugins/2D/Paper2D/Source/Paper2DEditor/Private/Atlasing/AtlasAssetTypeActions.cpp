@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Atlasing/AtlasAssetTypeActions.h"
-#include "AssetRegistry/AssetData.h"
 
 #include "PaperSpriteAtlas.h"
 

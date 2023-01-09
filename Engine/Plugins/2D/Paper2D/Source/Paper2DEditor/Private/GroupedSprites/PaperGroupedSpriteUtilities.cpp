@@ -2,10 +2,6 @@
 
 #include "GroupedSprites/PaperGroupedSpriteUtilities.h"
 #include "Paper2DEditorLog.h"
-#include "Components/SceneComponent.h"
-#include "GameFramework/Actor.h"
-#include "Engine/World.h"
-#include "Editor/EditorEngine.h"
 #include "Kismet/GameplayStatics.h"
 #include "Editor.h"
 #include "PaperGroupedSpriteActor.h"

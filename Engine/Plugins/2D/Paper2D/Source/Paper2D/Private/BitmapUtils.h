@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 #include "AlphaBitmap.h"
+#include "Math/IntRect.h"
 #include "Misc/ScopedSlowTask.h"
 
 //////////////////////////////////////////////////////////////////////////

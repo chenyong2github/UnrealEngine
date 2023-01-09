@@ -7,7 +7,6 @@
 #include "GroupedSpriteSceneProxy.h"
 #include "AI/NavigationSystemHelpers.h"
 
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 

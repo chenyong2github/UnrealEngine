@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetEditor/TileSetSelectorViewport.h"
-#include "Widgets/SViewport.h"
+#include "Framework/Commands/UICommandList.h"
 #include "TileMapEditing/EdModeTileMap.h"
+#include "PaperTileSet.h"
 #include "Slate/SceneViewport.h"
 #include "TileSetEditor/TileSetEditorCommands.h"
+#include "TileSetEditor/TileSetEditorViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 

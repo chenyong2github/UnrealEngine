@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperFlipbookThumbnailRenderer.h"
+#include "Math/BoxSphereBounds.h"
 #include "Misc/App.h"
 #include "CanvasItem.h"
 #include "Engine/Engine.h"
-#include "EngineGlobals.h"
 #include "PaperFlipbook.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbookThumbnailRenderer)

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Character.h"
 #include "PaperCharacter.generated.h"
+
+class UPaperFlipbookComponent;
 
 // APaperCharacter behaves like ACharacter, but uses a UPaperFlipbookComponent instead of a USkeletalMeshComponent as a visual representation
 // Note: The variable named Mesh will not be set up on this actor!
@@ -28,3 +28,8 @@ public:
 	/** Returns Sprite subobject **/
 	FORCEINLINE class UPaperFlipbookComponent* GetSprite() const { return Sprite; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

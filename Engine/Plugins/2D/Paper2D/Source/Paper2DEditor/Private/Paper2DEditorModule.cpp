@@ -1,43 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Paper2DEditorModule.h"
+#include "Misc/CoreDelegates.h"
 #include "Paper2DEditorLog.h"
-#include "Engine/Texture2D.h"
-#include "Editor.h"
 #include "EditorModeRegistry.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/UObjectHash.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "UObject/UObjectIterator.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
 
-#include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
-#include "PaperStyle.h"
 #include "PaperEditorCommands.h"
-#include "PaperSprite.h"
 #include "PaperEditorShared/SpriteGeometryEditMode.h"
 #include "PaperTileSet.h"
 
 #include "ContentBrowserExtensions/ContentBrowserExtensions.h"
 #include "LevelEditorMenuExtensions/Paper2DLevelEditorExtensions.h"
-#include "PaperTileMap.h"
 #include "PaperImporterSettings.h"
 
 // Sprite support
-#include "IAssetTypeActions.h"
 #include "SpriteAssetTypeActions.h"
-#include "ComponentAssetBroker.h"
-#include "PaperSpriteComponent.h"
 #include "PaperSpriteAssetBroker.h"
-#include "PaperSpriteThumbnailRenderer.h"
 #include "SpriteEditor/SpriteDetailsCustomization.h"
 #include "SpriteEditor/SpriteComponentDetailsCustomization.h"
 #include "SpriteEditor/SpriteEditorSettings.h"
 
 // Flipbook support
 #include "FlipbookAssetTypeActions.h"
-#include "PaperFlipbookComponent.h"
-#include "PaperFlipbook.h"
 #include "PaperFlipbookAssetBroker.h"
 #include "PaperFlipbookThumbnailRenderer.h"
 #include "FlipbookEditor/FlipbookComponentDetailsCustomization.h"
@@ -51,7 +38,6 @@
 
 // Tile map support
 #include "TileMapEditing/TileMapAssetTypeActions.h"
-#include "PaperTileMapComponent.h"
 #include "TileMapEditing/PaperTileMapAssetBroker.h"
 #include "TileMapEditing/EdModeTileMap.h"
 #include "TileMapEditing/PaperTileMapDetailsCustomization.h"

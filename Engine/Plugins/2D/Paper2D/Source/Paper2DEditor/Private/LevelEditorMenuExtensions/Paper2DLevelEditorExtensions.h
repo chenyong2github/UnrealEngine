@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 // Integrate Paper2D actions into the level editor context menu
 class FPaperLevelEditorMenuExtensions

@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "SpriteEditorOnlyTypes.h"
 #include "Slate/SlateTextureAtlasInterface.h"
 #include "PaperSprite.generated.h"
+
+class UTexture2D;
+struct FComponentSocketDescription;
 
 class UMaterialInterface;
 class UPaperSpriteAtlas;
@@ -341,3 +340,10 @@ protected:
 	friend class FSingleTileEditorViewportClient;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#endif

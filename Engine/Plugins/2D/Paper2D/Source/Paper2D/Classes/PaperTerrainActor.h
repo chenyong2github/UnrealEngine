@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 
 #include "PaperTerrainActor.generated.h"
+
+class UPaperTerrainComponent;
+class UPaperTerrainSplineComponent;
 
 /**
  * An instance of a piece of 2D terrain in the level
@@ -41,3 +42,8 @@ public:
 	/** Returns RenderComponent subobject **/
 	FORCEINLINE class UPaperTerrainComponent* GetRenderComponent() const { return RenderComponent; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

@@ -2,6 +2,8 @@
 
 #include "Atlasing/PaperAtlasTextureHelpers.h"
 #include "Paper2DEditorLog.h"
+#include "PaperSprite.h"
+#include "PaperSpriteAtlas.h"
 
 //////////////////////////////////////////////////////////////////////////
 // 

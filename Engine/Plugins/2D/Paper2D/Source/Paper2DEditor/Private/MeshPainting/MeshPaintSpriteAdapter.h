@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MeshPaintModule.h"
 #include "IMeshPaintGeometryAdapter.h"
 #include "IMeshPaintGeometryAdapterFactory.h"
 

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "PaperFlipbookActor.generated.h"
+
+class UPaperFlipbookComponent;
 
 /**
  * An instance of a UPaperFlipbook in a level.
@@ -34,3 +34,8 @@ public:
 	FORCEINLINE class UPaperFlipbookComponent* GetRenderComponent() const { return RenderComponent; }
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

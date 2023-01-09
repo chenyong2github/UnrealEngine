@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PreviewScene.h"
 #include "PaperEditorViewportClient.h"
 #include "SpriteEditor/SpriteEditorSelections.h"
+
+struct FInputEventState;
 
 class FCanvas;
 class FScopedTransaction;

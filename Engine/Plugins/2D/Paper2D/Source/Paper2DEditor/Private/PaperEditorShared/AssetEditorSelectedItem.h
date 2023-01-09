@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GenericPlatform/ICursor.h"
 #include "HitProxies.h"
+#include "Math/Rotator.h"
 #include "UnrealWidgetFwd.h"
 
 //////////////////////////////////////////////////////////////////////////

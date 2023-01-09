@@ -1,23 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SpriteDetailsCustomization.h"
-#include "Materials/MaterialInterface.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "Styling/AppStyle.h"
 #include "Materials/Material.h"
-#include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
-#include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
 #include "SpriteEditor/SpriteEditorViewportClient.h"
 
 #include "PhysicsEngine/BodySetup.h"
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
-#include "PhysicsEngine/PhysicsSettings.h"
 #include "PropertyRestriction.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MaterialExpressionSpriteTextureSampler.h"

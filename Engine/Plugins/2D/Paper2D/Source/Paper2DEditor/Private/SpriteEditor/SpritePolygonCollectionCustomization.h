@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
-#include "SpriteEditorOnlyTypes.h"
+
+namespace ESpritePolygonMode { enum Type : int; }
+struct EVisibility;
 
 //////////////////////////////////////////////////////////////////////////
 // FSpritePolygonCollectionCustomization

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ComponentAssetBroker.h"
 #include "PaperFlipbookComponent.h"
 #include "PaperFlipbook.h"

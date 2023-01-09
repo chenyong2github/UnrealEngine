@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "PaperStyle.h"
+#include "Styling/ISlateStyle.h"
 
 class FSpriteGeometryEditCommands : public TCommands<FSpriteGeometryEditCommands>
 {

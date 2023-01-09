@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapEditing/STileMapEditorViewportToolbar.h"
+#include "Framework/Commands/UICommandList.h"
 #include "TileMapEditing/TileMapEditorCommands.h"
 #include "SEditorViewport.h"
 

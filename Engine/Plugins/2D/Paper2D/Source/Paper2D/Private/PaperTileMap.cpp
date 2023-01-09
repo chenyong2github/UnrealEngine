@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperTileMap.h"
+#include "BodySetupEnums.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
 #include "EditorFramework/AssetImportData.h"
@@ -15,8 +16,6 @@
 
 #if WITH_EDITOR
 #include "PaperTileMapComponent.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
 #include "ComponentReregisterContext.h"
 #endif
 

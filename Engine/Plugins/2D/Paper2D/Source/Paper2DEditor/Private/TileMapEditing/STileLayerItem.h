@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/SlateDelegates.h"
 #include "PaperTileMap.h"
+
+class SInlineEditableTextBlock;
 
 class SButton;
 class UPaperTileLayer;

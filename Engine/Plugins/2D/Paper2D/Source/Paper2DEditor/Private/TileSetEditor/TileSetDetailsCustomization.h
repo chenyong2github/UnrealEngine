@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "PaperTileSet.h"
 #include "IDetailCustomization.h"
+#include "UObject/WeakObjectPtr.h"
+
+struct FSlateColor;
 
 class IDetailLayoutBuilder;
 

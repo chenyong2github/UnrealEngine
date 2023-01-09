@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
-#include "Engine/Texture.h"
 #include "PaperImporterSettings.generated.h"
+
+class UTexture;
+enum TextureCompressionSettings : int;
+enum TextureGroup : int;
 
 class UMaterialInterface;
 class UPaperTileMap;
@@ -158,3 +157,11 @@ public:
 	// Returns the default pixels/uu setting
 	float GetDefaultPixelsPerUnrealUnit() const { return DefaultPixelsPerUnrealUnit; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/Texture.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#endif

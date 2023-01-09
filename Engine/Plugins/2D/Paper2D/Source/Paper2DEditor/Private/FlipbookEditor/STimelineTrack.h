@@ -2,18 +2,11 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Input/DragAndDrop.h"
-#include "Input/Reply.h"
-#include "Layout/Margin.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "FlipbookEditor/SFlipbookTimeline.h"
-#include "Types/SlateStructs.h"
 #include "PaperFlipbook.h"
 #include "ScopedTransaction.h"
+
+struct FOptionalSize;
 
 class FUICommandList;
 class SHorizontalBox;

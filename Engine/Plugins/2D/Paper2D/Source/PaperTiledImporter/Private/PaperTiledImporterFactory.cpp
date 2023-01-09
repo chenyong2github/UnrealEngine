@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperTiledImporterFactory.h"
+#include "PaperTileLayer.h"
 #include "PaperTiledImporterLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
-#include "Serialization/JsonReader.h"
+#include "PaperTileMap.h"
 #include "Serialization/JsonSerializer.h"
 #include "Editor.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "TileMapAssetImportData.h"
 #include "PaperJSONHelpers.h"
 #include "IAssetTools.h"
@@ -16,7 +17,6 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PaperImporterSettings.h"
 #include "PackageTools.h"
-#include "IntMargin.h"
 #include "PaperTileSet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTiledImporterFactory)

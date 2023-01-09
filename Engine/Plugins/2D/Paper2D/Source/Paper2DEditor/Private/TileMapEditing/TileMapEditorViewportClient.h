@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealWidgetFwd.h"
 #include "PreviewScene.h"
 #include "TileMapEditing/TileMapEditor.h"
 #include "PaperEditorViewportClient.h"

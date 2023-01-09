@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PaperTileMap.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Commands/UICommandList.h"
 #include "Widgets/SCompoundWidget.h"
 #include "EditorUndoClient.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class UPaperTileMap;
+namespace ESelectInfo { enum Type : int; }
 
 class FNotifyHook;
 class UPaperTileLayer;

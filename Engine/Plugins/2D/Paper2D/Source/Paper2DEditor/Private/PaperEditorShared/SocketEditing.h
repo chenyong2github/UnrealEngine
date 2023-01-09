@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UnrealWidgetFwd.h"
 #include "PaperEditorShared/AssetEditorSelectedItem.h"
 
 class FCanvas;
