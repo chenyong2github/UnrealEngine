@@ -269,22 +269,22 @@ void FRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 		{
 			Close();
 		}
-		break;
+		return;
 
 	case OpMetadataRead:
 		if (!ReadMetadata(Size))
 		{
 			Close();
 		}
-		break;
+		return;
 
 	case OpSocketRead:
 		Output->Write(Buffer, Size, this, OpFileWrite);
-		break;
+		return;
 
 	case OpFileWrite:
 		Input.ReadSome(Buffer, BufferSize, this, OpSocketRead);
-		break;
+		return;
 	}
 }
 
