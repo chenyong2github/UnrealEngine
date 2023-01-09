@@ -51,6 +51,11 @@ public:
 			return;
 		}
 
+		if (SubdivisionLevel == 0)
+		{
+			return;
+		}
+
 		constexpr bool bAutoCompute = true;
 		FGroupTopology Topo(&Mesh, bAutoCompute);
 		FSubdividePoly Subd(Topo, Mesh, SubdivisionLevel);
