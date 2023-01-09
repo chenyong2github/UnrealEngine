@@ -268,7 +268,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 
 	/** Builds a TopLevelAssetPath struct from single Path string or from PackageName and AssetName string. */
 	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (Keywords = "construct build", NativeMakeFunc, BlueprintThreadSafe, BlueprintAutocast))
-	static FORCENOINLINE FTopLevelAssetPath MakeTopLevelAssetPath(const FString& FullPathOrPackageName, const FString& AssetName);
+	static FORCENOINLINE FTopLevelAssetPath MakeTopLevelAssetPath(UPARAM(DisplayName="FullPathOrPackageName") const FString& PackageName, const FString& AssetName);
 
 	/** Gets the path string out of a TopLevelAssetPath */
 	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (NativeBreakFunc, BlueprintThreadSafe, BlueprintAutocast))
