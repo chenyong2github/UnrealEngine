@@ -207,9 +207,6 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 		return true;
 	}
 
-	// TODO: impact? make permutation for shadow views? Or use a dynamic branch?
-	bool bNearClip = true;
-
 	// TODO: remove this indirection and go straight to data index
 	checkStructuredBufferAccessSlow(ViewIds, ViewIdIndex);
 
@@ -222,6 +219,7 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 		float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 		float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
 		const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
+		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0;
 
 		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bIsOrtho, bNearClip, false);
 

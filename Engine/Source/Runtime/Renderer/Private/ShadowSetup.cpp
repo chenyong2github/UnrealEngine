@@ -2151,7 +2151,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 			// Setup packed view
 			TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
 			{
-				Nanite::FPackedViewParams Params;
+				Nanite::FPackedViewParams Params{};
 				Params.ViewMatrices = GetShadowDepthRenderingViewMatrices(CubemapFaceIndex);
 				// TODO: Real prev frame matrices
 				Params.PrevViewMatrices = Params.ViewMatrices;
@@ -2165,7 +2165,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	else if (VirtualShadowMapClipmap.IsValid())
 	{
 		// TODO: Register view per clip level such that they are culled early (?)
-		Nanite::FPackedViewParams Params;
+		Nanite::FPackedViewParams Params{};
 		// Note: To ensure conservative culling, we get the coarsest clip-level view since it covers the finer ones.
 		Params.ViewMatrices = VirtualShadowMapClipmap->GetViewMatrices(VirtualShadowMapClipmap->GetLevelCount() - 1);
 		// TODO: Real prev frame matrices
@@ -2177,12 +2177,16 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	}
 	else
 	{
-		Nanite::FPackedViewParams Params;
+		Nanite::FPackedViewParams Params{};
 		Params.ViewMatrices = GetShadowDepthRenderingViewMatrices();
 		// TODO: Real prev frame matrices
 		Params.PrevViewMatrices = Params.ViewMatrices;
 		Params.ViewRect = GetInnerViewRect();
 		Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+		if (IsWholeSceneDirectionalShadow())
+		{
+			Params.Flags &= ~NANITE_VIEW_FLAG_NEAR_CLIP;
+		}
 		Params.MaxPixelsPerEdgeMultipler = 1.0f;
 		ViewIds.Add(InstanceCullingManager.RegisterView(Params));
 	}
