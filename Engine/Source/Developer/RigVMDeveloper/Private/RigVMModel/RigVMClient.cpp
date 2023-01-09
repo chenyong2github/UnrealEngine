@@ -781,12 +781,23 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					URigVMBuildData* BuildData = URigVMBuildData::Get();
 					IRigVMGraphFunctionHost* Host = Cast<IRigVMGraphFunctionHost>(CollapseNode->GetFunctionIdentifier().HostObject.ResolveObject());
 					FRigVMGraphFunctionData* Data = Host->GetRigVMGraphFunctionStore()->FindFunctionByName(CollapseNode->GetPreviousFName());
+					const FRigVMGraphFunctionIdentifier PreviousFunctionId = Data->Header.LibraryPointer;
 					Data->Header = CollapseNode->GetFunctionHeader();
-					
-					BuildData->ForEachFunctionReference(CollapseNode->GetFunctionIdentifier(), [Data](URigVMFunctionReferenceNode* ReferenceNode)
+
+					if (const FRigVMFunctionReferenceArray* FunctionReferencesPtr = BuildData->GraphFunctionReferences.Find(PreviousFunctionId))
 					{
-						ReferenceNode->ReferencedFunctionHeader = Data->Header;
-					});
+						const FRigVMFunctionReferenceArray& FunctionReferences = *FunctionReferencesPtr;
+						BuildData->Modify();
+						FRigVMFunctionReferenceArray& NewFunctionReferences = BuildData->GraphFunctionReferences.Add(Data->Header.LibraryPointer, FunctionReferences);
+						BuildData->GraphFunctionReferences.Remove(PreviousFunctionId);
+						BuildData->MarkPackageDirty();
+
+						for (int32 i=0; i<NewFunctionReferences.Num(); ++i)
+						{
+							NewFunctionReferences[i]->ReferencedFunctionHeader = Data->Header;
+						}
+					}
+					
 					UpdateGraphFunctionData(CollapseNode);
 				}
 			}

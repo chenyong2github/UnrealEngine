@@ -6236,29 +6236,15 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	{
 		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 		{
-			// update the table in the build data
+			// rename each function reference
 			if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 			{
-				for(const TPair< FRigVMGraphFunctionIdentifier, FRigVMFunctionReferenceArray >& Pair: BuildData->GraphFunctionReferences)
+				BuildData->ForEachFunctionReference(LibraryNode->GetFunctionIdentifier(), [this, InNewName](URigVMFunctionReferenceNode* ReferenceNode)
 				{
-					if(Pair.Key.LibraryNode == PreviousObjectPath)
-					{
-						const FRigVMFunctionReferenceArray FunctionReferences = Pair.Value;
-						
-						BuildData->Modify();
-						BuildData->GraphFunctionReferences.Remove(Pair.Key);
-						BuildData->GraphFunctionReferences.Add(LibraryNode->GetFunctionIdentifier(), FunctionReferences);
-						BuildData->MarkPackageDirty();
-						break;
-					}
-				}
+					FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
+					RenameNode(ReferenceNode, InNewName, false);
+				});
 			}
-			
-			FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this, InNewName](URigVMFunctionReferenceNode* ReferenceNode)
-			{
-				FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
-                RenameNode(ReferenceNode, InNewName, false);
-			});
 
 			if (FunctionLibrary->PublicFunctionNames.Contains(InNode->PreviousName))
 			{

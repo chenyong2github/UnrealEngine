@@ -129,6 +129,7 @@ private:
 	bool bIsRunningUnitTest;
 
 	friend class URigVMController;
+	friend struct FRigVMClient;
 	friend class URigVMCompiler;
 };
 
