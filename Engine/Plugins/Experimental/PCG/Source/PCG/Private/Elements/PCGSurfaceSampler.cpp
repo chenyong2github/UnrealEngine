@@ -198,7 +198,8 @@ namespace PCGSurfaceSampler
 			const UPCGEdge* Edge = DownstreamPin->Edges[0];
 			const UPCGNode* UpstreamNode = (Edge && Edge->InputPin) ? Edge->InputPin->Node : nullptr;
 			const bool bConnectedToInputNode = UpstreamNode && (GraphInputNode == UpstreamNode);
-			return bConnectedToInputNode && (Edge->InputPin->Properties.Label == FName(TEXT("In")) || Edge->InputPin->Properties.Label == FName(TEXT("Input")));
+			const bool bConnectedToInputPin = Edge && (Edge->InputPin->Properties.Label == FName(TEXT("In")) || Edge->InputPin->Properties.Label == FName(TEXT("Input")));
+			return bConnectedToInputNode && bConnectedToInputPin;
 		}
 
 		return false;
