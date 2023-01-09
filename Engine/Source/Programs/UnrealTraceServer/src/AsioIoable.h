@@ -33,6 +33,7 @@ class FAsioReadable
 	: public virtual FAsioIoable
 {
 public:
+	virtual bool	HasDataAvailable() const = 0;
 	virtual bool	Read(void* Dest, uint32 Size, FAsioIoSink* Sink, uint32 Id) = 0;
 	virtual bool	ReadSome(void* Dest, uint32 DestSize, FAsioIoSink* Sink, uint32 Id) = 0;
 };

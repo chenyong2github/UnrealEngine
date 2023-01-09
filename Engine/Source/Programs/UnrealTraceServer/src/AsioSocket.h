@@ -16,6 +16,7 @@ public:
 	asio::io_context&		GetIoContext();
 	virtual bool			IsOpen() const override;
 	virtual void			Close() override;
+	virtual bool			HasDataAvailable() const override;
 	uint32					GetRemoteAddress() const;
 	uint32					GetRemotePort() const;
 	uint32					GetLocalPort() const;

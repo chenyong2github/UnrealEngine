@@ -52,6 +52,25 @@ void FAsioFile::Close()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FAsioFile::HasDataAvailable() const
+{
+	uint64 FileSize = 0;
+#if TS_USING(TS_PLATFORM_WINDOWS)
+	LARGE_INTEGER Out;
+	HANDLE Inner = const_cast<asio::windows::random_access_handle&>(Handle).native_handle();
+	GetFileSizeEx(Inner, &Out);
+	FileSize = Out.QuadPart;
+#else
+	struct stat Stat;
+	int32 Inner = const_cast<asio::posix::stream_descriptor&>(StreamDescriptor).native_handle();
+	fstat(Inner, &Stat);
+	FileSize = Stat.st_size;
+	static_assert(sizeof(Stat.st_size) >= sizeof(FileSize), "fstat() reports sizes that are too small");
+#endif
+	return Offset < FileSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAsioFile::Write(const void* Src, uint32 Size, FAsioIoSink* Sink, uint32 Id)
 {
 	if (!SetSink(Sink, Id))
