@@ -163,7 +163,7 @@ bool FRecorderRelay::ReadMagic()
 		{
 			// Old clients have no metadata so we can go straight into the
 			// read-write loop. We've already got read data in Buffer.
-			Output->Write(Buffer, sizeof(MagicType), this, OpFileWrite);
+			Output->Write(Buffer, sizeof(MagicType) + sizeof(MetadataSizeType), this, OpFileWrite);
 			return true;
 		}
 		return false;
