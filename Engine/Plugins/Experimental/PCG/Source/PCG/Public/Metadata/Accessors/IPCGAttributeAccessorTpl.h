@@ -92,8 +92,8 @@ private:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGAttributeAccessorT::InternalSetRange);
 
-		// Can't set if read only, and discard any set outside the keys range.
-		if (bReadOnly || Index >= Keys.GetNum())
+		// Can't set if read only, and discard any set if there are too many values.
+		if (bReadOnly || (Index + InValues.Num()) > Keys.GetNum())
 		{
 			return false;
 		}

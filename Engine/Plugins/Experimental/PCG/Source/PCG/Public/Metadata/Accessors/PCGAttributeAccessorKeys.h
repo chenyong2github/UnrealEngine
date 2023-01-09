@@ -115,6 +115,8 @@ public:
 	*/
 	virtual int32 GetNum() const = 0;
 
+	bool IsReadOnly() const { return bIsReadOnly; }
+
 protected:
 	virtual bool GetPointKeys(int32 InStart, TArrayView<FPCGPoint*>& OutPoints) { return false; }
 	virtual bool GetPointKeys(int32 InStart, TArrayView<const FPCGPoint*>& OutPoints) const { return false; }
