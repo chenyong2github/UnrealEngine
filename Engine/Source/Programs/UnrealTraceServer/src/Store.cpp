@@ -88,7 +88,7 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-void MacCallback(ConstFSEventStreamRef StreamRef,
+static void MacCallback(ConstFSEventStreamRef StreamRef,
 					void* InDirWatcherPtr,
 					size_t EventCount,
 					void* EventPaths,
