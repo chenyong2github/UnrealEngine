@@ -318,17 +318,21 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// If no shapes were obtained from the first input pin, try to find a shape to sample from nodes connected to the second pin.
-	const UPCGSpatialData* GeneratorFromBoundingShapeInput = nullptr;
 	if (GeneratingShapes.Num() == 0 && BoundingShapeSpatialInput)
 	{
-		GeneratorFromBoundingShapeInput = BoundingShapeSpatialInput->FindShapeFromNetwork(/*InDimension=*/2);
-		if (GeneratorFromBoundingShapeInput)
+		if (const UPCGSpatialData* GeneratorFromBoundingShapeInput = BoundingShapeSpatialInput->FindShapeFromNetwork(/*InDimension=*/2))
 		{
 			GeneratingShapes.Add(GeneratorFromBoundingShapeInput);
 
 			check(BoundingShapeInputs.Num() == 1);
 			Outputs.Add(BoundingShapeInputs[0]);
 		}
+	}
+
+	// Warn if something is connected but no shape could be obtained for sampling
+	if (GeneratingShapes.Num() == 0 && (BoundingShapeInputs.Num() > 0 || SurfaceInputs.Num() > 0))
+	{
+		PCGE_LOG(Warning, "No Surface input was provided, and no surface could be found in the Bounding Shape input for sampling. Connect the surface to be sampled to the Surface input.");
 	}
 
 	UPCGParamData* Params = Context->InputData.GetParams();
