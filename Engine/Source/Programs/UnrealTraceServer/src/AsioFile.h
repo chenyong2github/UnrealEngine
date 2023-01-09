@@ -28,11 +28,14 @@ public:
 	virtual bool						ReadSome(void* Dest, uint32 BufferSize, FAsioIoSink* Sink, uint32 Id) override;
 
 private:
+	using HandleType =
 #if TS_USING(TS_PLATFORM_WINDOWS)
-	asio::windows::random_access_handle	Handle;
+		asio::windows::random_access_handle;
 #else
-	asio::posix::stream_descriptor		StreamDescriptor;
+		asio::posix::stream_descriptor;
 #endif
+
+	HandleType							Handle;
 	uint64								Offset = 0;
 };
 
