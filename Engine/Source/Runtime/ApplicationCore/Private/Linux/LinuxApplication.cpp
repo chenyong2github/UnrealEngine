@@ -442,11 +442,6 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					if (CurrentlyActiveWindow != CurrentEventWindow)
 					{
 						ActivateWindow(CurrentEventWindow);
-
-						if(NotificationWindows.Num() > 0)
-						{
-							RaiseNotificationWindows(CurrentEventWindow);
-						}
 					}
 
 					// Check if we have to set the focus.
@@ -456,6 +451,11 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					}
 
 					MessageHandler->OnMouseDown(CurrentEventWindow, button);
+
+					if (NotificationWindows.Num() > 0)
+					{
+						RaiseNotificationWindows(CurrentEventWindow);
+					}
 				}
 			}
 		}
@@ -905,6 +905,11 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 						UE_LOG(LogLinuxWindowEvent, Verbose, TEXT("WM_SETFOCUS                                 : %d"), CurrentEventWindow->GetID());
 
 						CurrentFocusWindow = CurrentEventWindow;
+
+						if (NotificationWindows.Num() > 0)
+						{
+							RaiseNotificationWindows(CurrentEventWindow);
+						}
 
 						// We have gained focus, we can stop trying to check if we need to deactivate
 						FocusOutDeactivationTime = 0.0;
