@@ -4,6 +4,7 @@
 
 #include "IMediaAssetsModule.h"
 #include "MediaAssetsPrivate.h"
+#include "MediaTexture.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/Paths.h"
 #include "StreamMediaSource.h"

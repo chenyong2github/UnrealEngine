@@ -4,14 +4,19 @@
 
 #include "Editor.h"
 #include "EditorReimportHandler.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
 #include "Models/MediaPlayerEditorCommands.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+#include "ScreenPass.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
+#include "TextureResource.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SMediaPlayerEditorDetails.h"
 #include "Widgets/SMediaPlayerEditorMediaDetails.h"
@@ -270,6 +275,11 @@ void FMediaSourceEditorToolkit::BindCommands()
 	);
 
 	ToolkitCommands->MapAction(
+		Commands.GenerateThumbnail,
+		FExecuteAction::CreateLambda([this] { GenerateThumbnail(); })
+	);
+
+	ToolkitCommands->MapAction(
 		Commands.NextMedia,
 		FExecuteAction::CreateLambda([this]{ MediaPlayer->Next(); }),
 		FCanExecuteAction::CreateLambda([this]{ return (MediaPlayer->GetPlaylistRef().Num() > 1); })
@@ -336,6 +346,7 @@ void FMediaSourceEditorToolkit::ExtendToolBar()
 			{
 				ToolbarBuilder.AddToolBarButton(FMediaPlayerEditorCommands::Get().OpenMedia);
 				ToolbarBuilder.AddToolBarButton(FMediaPlayerEditorCommands::Get().CloseMedia);
+				ToolbarBuilder.AddToolBarButton(FMediaPlayerEditorCommands::Get().GenerateThumbnail);
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -379,6 +390,84 @@ float FMediaSourceEditorToolkit::GetReverseRate() const
 	}
 
 	return 2.0f * Rate;
+}
+
+void FMediaSourceEditorToolkit::GenerateThumbnail()
+{
+	// Create render target.
+	UTextureRenderTarget2D* ThumbnailTexture =
+		NewObject<UTextureRenderTarget2D>(GetTransientPackage());
+	if (ThumbnailTexture != nullptr)
+	{
+		ThumbnailTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
+		ThumbnailTexture->ClearColor = FLinearColor::Black;
+		ThumbnailTexture->bAutoGenerateMips = false;
+		ThumbnailTexture->InitAutoFormat(MediaTexture->GetWidth(), MediaTexture->GetHeight());
+		ThumbnailTexture->UpdateResourceImmediate(true);
+
+		// Enqueue render command to copy the media texture to the render target.
+		ENQUEUE_RENDER_COMMAND(MediaSourceRenderThumbnail)(
+			[this, ThumbnailTexture](FRHICommandListImmediate& RHICmdList)
+		{
+			FTextureResource* DestResource = ThumbnailTexture->GetResource();
+			FTextureResource* SourceResource = MediaTexture->GetResource();
+			FRHITexture* SourceTexture = SourceResource->GetTextureRHI();
+			FRHITexture* DestTexture = DestResource->GetTextureRHI();
+
+			FRDGBuilder GraphBuilder(RHICmdList);
+			FRDGTextureRef RDGSourceTexture = RegisterExternalTexture(GraphBuilder, SourceTexture, TEXT("MediaSourceThumnbailSourceTexture"));
+			FRDGTextureRef RDGDestTexture = RegisterExternalTexture(GraphBuilder, DestTexture, TEXT("MediaSourceThumnbailDestTexture"));
+
+			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+			TShaderMapRef<FScreenPassVS> VertexShader(ShaderMap);
+			TShaderMapRef<FCopyRectPS> PixelShader(ShaderMap);
+
+			FCopyRectPS::FParameters* PixelShaderParameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+			PixelShaderParameters->InputTexture = RDGSourceTexture;
+			PixelShaderParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PixelShaderParameters->RenderTargets[0] = FRenderTargetBinding(RDGDestTexture, ERenderTargetLoadAction::ELoad);
+
+			ClearUnusedGraphResources(PixelShader, PixelShaderParameters);
+
+			FRHIBlendState* BlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+			FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
+
+			// Create the pipline state that will execute
+			const FScreenPassPipelineState PipelineState(VertexShader, PixelShader, BlendState, DepthStencilState);
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("MediaSourceThumbnailCopy"),
+				PixelShaderParameters,
+				ERDGPassFlags::Raster,
+				[PipelineState, Extent = RDGSourceTexture->Desc.Extent, PixelShader, PixelShaderParameters](FRHICommandList& RHICmdList) {
+				PipelineState.Validate();
+
+				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, Extent.X, Extent.Y, 1.0f);
+				SetScreenPassPipelineState(RHICmdList, PipelineState);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PixelShaderParameters);
+
+				DrawRectangle(
+					RHICmdList,
+					0, 0, Extent.X, Extent.Y,
+					0, 0, Extent.X, Extent.Y,
+					Extent,
+					Extent,
+					PipelineState.VertexShader,
+					EDRF_UseTriangleOptimization);
+			});
+
+			GraphBuilder.Execute();
+
+		});
+
+		MediaSource->SetThumbnail(ThumbnailTexture);
+
+		// Trigger a thumbnail render.
+		FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(MediaSource,
+			EmptyPropertyChangedEvent);
+		MediaSource->MarkPackageDirty();
+	}
 }
 
 

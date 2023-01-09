@@ -6,7 +6,7 @@
 
 #include "MediaSourceThumbnailRenderer.generated.h"
 
-class UMediaTexture;
+class UTexture;
 
 /**
  * Renders thumbnails for media sources.
@@ -28,6 +28,6 @@ protected:
 	/**
 	 * Gets the thumnbail from the object if the object is a media source.
 	 */
-	virtual UMediaTexture* GetThumbnailTextureFromObject(UObject* Object) const;
+	virtual UTexture* GetThumbnailTextureFromObject(UObject* Object) const;
 
 };

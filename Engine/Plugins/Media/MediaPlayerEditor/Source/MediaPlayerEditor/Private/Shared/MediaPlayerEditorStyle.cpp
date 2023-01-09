@@ -8,16 +8,10 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Math/Vector2D.h"
 #include "Misc/Paths.h"
+#include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-
-
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define BORDER_BRUSH(RelativePath, ...) FSlateBorderBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
-
 
 /* FMediaPlayerEditorStyle structors
  *****************************************************************************/
@@ -32,6 +26,7 @@ FMediaPlayerEditorStyle::FMediaPlayerEditorStyle()
 	const FVector2D Icon40x40(40.0f, 40.0f);
 
 	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Media/MediaPlayerEditor/Content"));
+	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 
 	// buttons
 	Set("MediaPlayerEditor.SourceButton", new IMAGE_BRUSH("btn_source_12x", Icon12x12));
@@ -54,6 +49,7 @@ FMediaPlayerEditorStyle::FMediaPlayerEditorStyle()
 	Set("MediaPlayerEditor.CloseMedia", new IMAGE_BRUSH("icon_eject_40x", Icon40x40));
 	Set("MediaPlayerEditor.ForwardMedia", new IMAGE_BRUSH("icon_forward_40x", Icon40x40));
 	Set("MediaPlayerEditor.ForwardMedia.Small", new IMAGE_BRUSH("icon_forward_40x", Icon20x20));
+	Set("MediaPlayerEditor.GenerateThumbnail", new CORE_IMAGE_BRUSH_SVG("Starship/AssetEditors/SaveThumbnail", Icon40x40));
 	Set("MediaPlayerEditor.NextMedia", new IMAGE_BRUSH("icon_step_40x", Icon40x40));
 	Set("MediaPlayerEditor.NextMedia.Small", new IMAGE_BRUSH("icon_step_40x", Icon20x20));
 	Set("MediaPlayerEditor.OpenMedia", new IMAGE_BRUSH("icon_open_40x", Icon40x40));

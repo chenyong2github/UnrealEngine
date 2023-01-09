@@ -23,7 +23,7 @@
 class FVariant;
 class IMediaSourceRendererInterface;
 class UMediaSource;
-class UMediaTexture;
+class UTexture;
 struct FFrame;
 
 /** Delegate for creating a media source from a string. */
@@ -102,7 +102,12 @@ public:
 	/**
 	 * Gets our thumbnail texture, if any.
 	 */
-	UMediaTexture* GetThumbnail() const { return ThumbnailImage; }
+	UTexture* GetThumbnail() const { return ThumbnailImage; }
+
+	/**
+	 * Sets what the thumbnail texture should be.
+	 */
+	void SetThumbnail(UTexture* InTexture) { ThumbnailImage = InTexture; }
 
 #endif // WITH_EDITOR
 
@@ -186,7 +191,7 @@ private:
 
 	/** The thumbnail image.*/
 	UPROPERTY(Transient)
-	TObjectPtr<UMediaTexture> ThumbnailImage = nullptr;
+	TObjectPtr<UTexture> ThumbnailImage = nullptr;
 
 	/** Renders thumnbnails for us. */
 	UPROPERTY(Transient)

@@ -13,7 +13,7 @@ bool UMediaSourceThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 
 void UMediaSourceThumbnailRenderer::GetThumbnailSize(UObject* Object, float Zoom, uint32& OutWidth, uint32& OutHeight) const
 {
-	UMediaTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
+	UTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
 	if (ObjectTexture != nullptr)
 	{
 		OutWidth = Zoom * ObjectTexture->GetSurfaceWidth();
@@ -28,19 +28,19 @@ void UMediaSourceThumbnailRenderer::GetThumbnailSize(UObject* Object, float Zoom
 
 void UMediaSourceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
-	UMediaTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
+	UTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
 	if (ObjectTexture != nullptr)
 	{
 		Super::Draw(ObjectTexture, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
 	}
 }
 
-UMediaTexture* UMediaSourceThumbnailRenderer::GetThumbnailTextureFromObject(UObject* Object) const
+UTexture* UMediaSourceThumbnailRenderer::GetThumbnailTextureFromObject(UObject* Object) const
 {
 	UMediaSource* MediaSource = Cast<UMediaSource>(Object);
 	if (MediaSource != nullptr)
 	{
-		UMediaTexture* Texture = MediaSource->GetThumbnail();
+		UTexture* Texture = MediaSource->GetThumbnail();
 		return Texture;
 	}
 	

@@ -100,6 +100,11 @@ protected:
 	 */
 	float GetReverseRate() const;
 
+	/**
+	 * Enqueues rendering commands to generate a thumbnail.
+	 */
+	void GenerateThumbnail();
+
 private:
 
 	/** Callback for spawning tabs. */

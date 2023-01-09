@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class MediaPlayerEditor : ModuleRules
@@ -49,6 +50,7 @@ public class MediaPlayerEditor : ModuleRules
 				"MediaUtils",
 				"PropertyEditor",
 				"RenderCore",
+				"Renderer",
 				"RHI",
 				"TextureEditor",
 				"EditorFramework",
@@ -63,5 +65,10 @@ public class MediaPlayerEditor : ModuleRules
 				"UnrealEd",
 				"WorkspaceMenuStructure",
 			});
+
+
+		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private"));
+
 	}
 }

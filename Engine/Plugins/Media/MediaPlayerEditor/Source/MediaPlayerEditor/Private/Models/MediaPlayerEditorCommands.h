@@ -32,6 +32,9 @@ public:
 	/** Fast forwards media playback. */
 	TSharedPtr<FUICommandInfo> ForwardMedia;
 
+	/** Generate a thumnbnail. */
+	TSharedPtr<FUICommandInfo> GenerateThumbnail;
+
 	/** Jump to next item in the play list. */
 	TSharedPtr<FUICommandInfo> NextMedia;
 
