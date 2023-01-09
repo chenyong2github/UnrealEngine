@@ -560,18 +560,20 @@ void ScreenProbeConvertToIrradianceCS(
 #if WAVE_OPS
 				FThreeBandSHVectorRGB LightingSH = MulSH3(BasisFunction, Radiance);
 
+				float InvNumSamples = 1.0f / WaveActiveCountBits(true);
+
 				FThreeBandSHVectorRGB RadianceSH;
-				RadianceSH.R.V0 = WaveActiveSumFloat4(LightingSH.R.V0);
-				RadianceSH.G.V0 = WaveActiveSumFloat4(LightingSH.G.V0);
-				RadianceSH.B.V0 = WaveActiveSumFloat4(LightingSH.B.V0);
+				RadianceSH.R.V0 = WaveActiveSumFloat4(LightingSH.R.V0) * InvNumSamples;
+				RadianceSH.G.V0 = WaveActiveSumFloat4(LightingSH.G.V0) * InvNumSamples;
+				RadianceSH.B.V0 = WaveActiveSumFloat4(LightingSH.B.V0) * InvNumSamples;
 
-				RadianceSH.R.V1 = WaveActiveSumFloat4(LightingSH.R.V1);
-				RadianceSH.G.V1 = WaveActiveSumFloat4(LightingSH.G.V1);
-				RadianceSH.B.V1 = WaveActiveSumFloat4(LightingSH.B.V1);
+				RadianceSH.R.V1 = WaveActiveSumFloat4(LightingSH.R.V1) * InvNumSamples;
+				RadianceSH.G.V1 = WaveActiveSumFloat4(LightingSH.G.V1) * InvNumSamples;
+				RadianceSH.B.V1 = WaveActiveSumFloat4(LightingSH.B.V1) * InvNumSamples;
 
-				RadianceSH.R.V2 = WaveActiveSum(LightingSH.R.V2);
-				RadianceSH.G.V2 = WaveActiveSum(LightingSH.G.V2);
-				RadianceSH.B.V2 = WaveActiveSum(LightingSH.B.V2);
+				RadianceSH.R.V2 = WaveActiveSum(LightingSH.R.V2) * InvNumSamples;
+				RadianceSH.G.V2 = WaveActiveSum(LightingSH.G.V2) * InvNumSamples;
+				RadianceSH.B.V2 = WaveActiveSum(LightingSH.B.V2) * InvNumSamples;
 
 				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 				{
