@@ -348,6 +348,15 @@ namespace LowLevelTasks
 			return EnumHasAnyFlags(State, ETaskState::ExpeditedFlag | ETaskState::CompletedFlag);
 		}
 
+	private:
+		//Scheduler internal interface to speed things up
+		inline bool WasCanceledOrIsExpediting() const
+		{
+			ETaskState State = PackedData.load(std::memory_order_relaxed).GetState();
+			return EnumHasAnyFlags(State, ETaskState::CanceledFlag | ETaskState::RunningFlag);
+		}
+
+	public:
 		/*
 		* means the task is ready to be launched but might already been canceled 
 		*/
