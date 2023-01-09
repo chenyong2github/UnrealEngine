@@ -200,22 +200,18 @@ bool FRecorderRelay::ReadMetadata(int32 Size)
 	// We want to consume [metadata] so some adjustment is required.
 	int32 ReadSize = Size - sizeof(VersionType);
 	const uint8* Cursor = PreambleCursor;
-	auto Read = [&] (int32 SizeToRead)
-	{
-		const uint8* Ptr = Cursor;
-		Cursor += SizeToRead;
-		ReadSize -= SizeToRead;
-		return Ptr;
-	};
 
 	// MetadataFields
-	while (ReadSize > 0)
+	while (ReadSize >= 2)
 	{
 		struct {
 			uint8	Size;
 			uint8	Id;
 		} MetadataField;
 		MetadataField = *(const decltype(MetadataField)*)(Read(sizeof(MetadataField)));
+
+		Cursor += sizeof(FMetadataHeader);
+		ReadSize -= sizeof(FMetadataHeader);
 
 		if (ReadSize < MetadataField.Size)
 		{
@@ -227,6 +223,7 @@ bool FRecorderRelay::ReadMetadata(int32 Size)
 			ControlPort = *(const uint16*)Cursor;
 		}
 
+		Cursor += MetadataField.Size;
 		ReadSize -= MetadataField.Size;
 	}
 
