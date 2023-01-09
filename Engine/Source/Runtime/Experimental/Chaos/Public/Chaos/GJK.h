@@ -1204,7 +1204,7 @@ namespace Chaos
 		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
 		while (!bIsContact && !bIsDegenerate)
 		{
-			if (NumIterations++ >= 32)	//todo: temporary workaround for query crash
+			if (!ensure(NumIterations++ < 32))	//todo: take this out
 			{
 				break;	//if taking too long just stop. This should never happen
 			}
