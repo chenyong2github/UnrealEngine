@@ -61,6 +61,7 @@ private:
 	TSortedMap<XrPath, FName> PathToName;
 	TSortedMap<FName, XrPath, FDefaultAllocator, FNameFastLess> NameToPath;
 
+	void DestroyInstance();
 	bool EnumerateExtensions();
 	bool EnumerateLayers();
 	bool InitRenderBridge();
