@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -9,14 +10,85 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
 {
-	using ToolId = StringId<Tool>;
-	using ToolDeploymentId = ObjectId<ToolDeployment>;
+	using ToolId = StringId<ITool>;
+	using ToolDeploymentId = ObjectId<IToolDeployment>;
+
+	/// <summary>
+	/// Describes a standalone, external tool hosted and deployed by Horde. Provides basic functionality for performing
+	/// gradual roll-out, versioning, etc...
+	/// </summary>
+	public class GetToolResponse
+	{
+		readonly ITool _tool;
+
+		/// <inheritdoc cref="VersionedDocument{TId, TLatest}.Id"/>
+		public ToolId Id => _tool.Id;
+
+		/// <inheritdoc cref="ITool.Name"/>
+		public string Name => _tool.Name;
+
+		/// <inheritdoc cref="ITool.Description"/>
+		public string Description => _tool.Description;
+
+		/// <inheritdoc cref="ITool.Deployments"/>
+		public List<GetToolDeploymentResponse> Deployments { get; }
+
+		/// <inheritdoc cref="ITool.Public"/>
+		public bool Public => _tool.Public;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetToolResponse(ITool tool)
+		{
+			_tool = tool;
+			Deployments = tool.Deployments.ConvertAll(x => new GetToolDeploymentResponse(x));
+		}
+	}
+
+	/// <summary>
+	/// Response object describing the deployment of a tool
+	/// </summary>
+	public class GetToolDeploymentResponse
+	{
+		readonly IToolDeployment _deployment;
+
+		/// <inheritdoc cref="IToolDeployment.Id"/>
+		public ToolDeploymentId Id => _deployment.Id;
+
+		/// <inheritdoc cref="IToolDeployment.Version"/>
+		public string Version => _deployment.Version;
+
+		/// <inheritdoc cref="IToolDeployment.State"/>
+		public ToolDeploymentState State => _deployment.State;
+
+		/// <inheritdoc cref="IToolDeployment.Progress"/>
+		public double Progress => _deployment.Progress;
+
+		/// <inheritdoc cref="IToolDeployment.StartedAt"/>
+		public DateTime? StartedAt => _deployment.StartedAt;
+
+		/// <inheritdoc cref="IToolDeployment.Duration"/>
+		public TimeSpan Duration => _deployment.Duration;
+
+		/// <inheritdoc cref="IToolDeployment.MimeType"/>
+		public string MimeType => _deployment.MimeType;
+
+		/// <inheritdoc cref="IToolDeployment.RefId"/>
+		public RefId RefId => _deployment.RefId;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetToolDeploymentResponse(IToolDeployment deployment) => _deployment = deployment;
+	}
 
 	/// <summary>
 	/// Response from creating a deployment
@@ -82,9 +154,9 @@ namespace Horde.Build.Tools
 		/// <returns>Information about the registered agent</returns>
 		[HttpPost]
 		[Route("/api/v1/tools/{id}/deployments")]
-		public async Task<ActionResult<CreateDeploymentResponse>> CreateDeploymentAsync(ToolId id, [FromForm] ToolDeploymentOptions options, [FromForm] IFormFile file)
+		public async Task<ActionResult<CreateDeploymentResponse>> CreateDeploymentAsync(ToolId id, [FromForm] ToolDeploymentConfig options, [FromForm] IFormFile file)
 		{
-			Tool? tool = await _toolCollection.GetAsync(id);
+			ITool? tool = await _toolCollection.GetAsync(id);
 			if (tool == null)
 			{
 				return NotFound(id);
@@ -114,7 +186,7 @@ namespace Horde.Build.Tools
 		[Route("/api/v1/tools/{id}/deployments/{deploymentId}")]
 		public async Task<ActionResult> GetDeploymentAsync(ToolId id, ToolDeploymentId deploymentId, [FromQuery] GetToolAction action = GetToolAction.Info)
 		{
-			Tool? tool = await _toolCollection.GetAsync(id);
+			ITool? tool = await _toolCollection.GetAsync(id);
 			if (tool == null)
 			{
 				return NotFound(id);
@@ -124,7 +196,7 @@ namespace Horde.Build.Tools
 				return Forbid(AclAction.DownloadTool, id);
 			}
 
-			ToolDeployment? deployment = tool.Deployments.FirstOrDefault(x => x.Id == deploymentId);
+			IToolDeployment? deployment = tool.Deployments.FirstOrDefault(x => x.Id == deploymentId);
 			if(deployment == null)
 			{
 				return NotFound(id, deploymentId);
@@ -133,11 +205,12 @@ namespace Horde.Build.Tools
 			return await GetDeploymentResponseAsync(tool, deployment, action);
 		}
 
-		private async Task<ActionResult> GetDeploymentResponseAsync(Tool tool, ToolDeployment deployment, GetToolAction action)
+		private async Task<ActionResult> GetDeploymentResponseAsync(ITool tool, IToolDeployment deployment, GetToolAction action)
 		{
 			if (action == GetToolAction.Info)
 			{
-				return Ok(deployment);
+				GetToolDeploymentResponse response = new GetToolDeploymentResponse(deployment);
+				return Ok(response);
 			}
 			else
 			{
@@ -153,7 +226,7 @@ namespace Horde.Build.Tools
 		[Route("/api/v1/tools/{id}/deployments/{deploymentId}")]
 		public async Task<ActionResult> UpdateDeploymentAsync(ToolId id, ToolDeploymentId deploymentId, [FromBody] UpdateDeploymentRequest request)
 		{
-			Tool? tool = await _toolCollection.GetAsync(id);
+			ITool? tool = await _toolCollection.GetAsync(id);
 			if (tool == null)
 			{
 				return NotFound(id);
@@ -203,7 +276,7 @@ namespace Horde.Build.Tools
 		[Route("/api/v1/tools/{id}")]
 		public async Task<ActionResult> GetToolAsync(ToolId id, GetToolAction action = GetToolAction.Info)
 		{
-			Tool? tool = await _toolCollection.GetAsync(id);
+			ITool? tool = await _toolCollection.GetAsync(id);
 			if (tool == null)
 			{
 				return NotFound(id);
@@ -239,7 +312,7 @@ namespace Horde.Build.Tools
 		[Route("/api/v1/tools/{id}/deployments")]
 		public async Task<ActionResult> FindDeploymentAsync(ToolId id, [FromQuery] double phase = 0.0, [FromQuery] GetToolAction action = GetToolAction.Info)
 		{
-			Tool? tool = await _toolCollection.GetAsync(id);
+			ITool? tool = await _toolCollection.GetAsync(id);
 			if (tool == null)
 			{
 				return NotFound(id);
@@ -274,13 +347,13 @@ namespace Horde.Build.Tools
 			}
 		}
 
-		async Task<ActionResult> GetDeploymentPayloadAsync(Tool tool, ToolDeployment deployment)
+		async Task<ActionResult> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment)
 		{
 			Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment);
 			return new FileStreamResult(stream, deployment.MimeType);
 		}
 
-		async ValueTask<bool> AuthorizeDownloadAsync(Tool tool)
+		async ValueTask<bool> AuthorizeDownloadAsync(ITool tool)
 		{
 			if (!tool.Public)
 			{

@@ -79,7 +79,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// List of tools hosted by the server
 		/// </summary>
-		public List<ToolOptions> Tools { get; set; } = new List<ToolOptions>();
+		public List<ToolConfig> Tools { get; set; } = new List<ToolConfig>();
 
 		/// <summary>
 		/// Maximum number of conforms to run at once

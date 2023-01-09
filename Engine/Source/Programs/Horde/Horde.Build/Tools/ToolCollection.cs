@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using StackExchange.Redis;
 using System;
@@ -22,14 +23,144 @@ using System.Threading.Tasks;
 
 namespace Horde.Build.Tools
 {
-	using ToolId = StringId<Tool>;
-	using ToolDeploymentId = ObjectId<ToolDeployment>;
+	using ToolId = StringId<ITool>;
+	using ToolDeploymentId = ObjectId<IToolDeployment>;
 
 	/// <summary>
 	/// Collection of tool documents
 	/// </summary>
 	public class ToolCollection
 	{
+		class Tool : VersionedDocument<ToolId, Tool>, ITool
+		{
+			/// <summary>
+			/// Name of the tool
+			/// </summary>
+			[BsonElement("nam")]
+			public string Name { get; set; }
+
+			/// <summary>
+			/// Description for the tool
+			/// </summary>
+			[BsonElement("dsc")]
+			public string Description { get; set; }
+
+			[BsonElement("dep")]
+			public List<ToolDeployment> Deployments { get; set; } = new List<ToolDeployment>();
+
+			IReadOnlyList<IToolDeployment> ITool.Deployments => Deployments;
+
+			[BsonElement("pub")]
+			public bool Public { get; set; }
+
+			[BsonElement("acl")]
+			public AclV2? Acl
+			{
+				get => _acl;
+				set => _acl = (value is not null && !value.IsDefault()) ? value : null;
+			}
+
+			private AclV2? _acl;
+
+			[BsonConstructor]
+			public Tool(ToolId id)
+				: base(id)
+			{
+				Id = id;
+				Name = id.ToString();
+				Description = String.Empty;
+			}
+
+			public Tool(ToolConfig config)
+				: base(config.Id)
+			{
+				Name = config.Name;
+				Description = config.Description;
+				Public = config.Public;
+				Acl = config.Acl;
+			}
+
+			/// <inheritdoc/>
+			public override Tool UpgradeToLatest() => this;
+
+			public void UpdateTemporalState(DateTime utcNow)
+			{
+				foreach (ToolDeployment deployment in Deployments)
+				{
+					deployment.UpdateTemporalState(utcNow);
+				}
+			}
+		}
+
+		class ToolDeployment : IToolDeployment
+		{
+			public ToolDeploymentId Id { get; set; }
+
+			[BsonElement("ver")]
+			public string Version { get; set; }
+
+			[BsonIgnore]
+			public ToolDeploymentState State { get; set; }
+
+			[BsonIgnore]
+			public double Progress { get; set; }
+
+			[BsonElement("bpr")]
+			public double BaseProgress { get; set; }
+
+			[BsonElement("stm")]
+			public DateTime? StartedAt { get; set; }
+
+			[BsonElement("dur")]
+			public TimeSpan Duration { get; set; }
+
+			[BsonElement("mtp")]
+			public string MimeType { get; set; }
+
+			[BsonElement("ref")]
+			public RefId RefId { get; set; }
+
+			public ToolDeployment(ToolDeploymentId id)
+			{
+				Id = id;
+				Version = String.Empty;
+				MimeType = ToolDeploymentConfig.DefaultMimeType;
+			}
+
+			public ToolDeployment(ToolDeploymentId id, ToolDeploymentConfig options, RefId refId)
+			{
+				Id = id;
+				Version = options.Version;
+				Duration = options.Duration;
+				MimeType = options.MimeType;
+				RefId = refId;
+			}
+
+			public void UpdateTemporalState(DateTime utcNow)
+			{
+				if (BaseProgress >= 1.0)
+				{
+					State = ToolDeploymentState.Complete;
+					Progress = 1.0;
+				}
+				else if (StartedAt == null)
+				{
+					State = ToolDeploymentState.Paused;
+					Progress = BaseProgress;
+				}
+				else if (Duration > TimeSpan.Zero)
+				{
+					State = ToolDeploymentState.Active;
+					Progress = Math.Clamp((utcNow - StartedAt.Value) / Duration, 0.0, 1.0);
+				}
+				else
+				{
+					State = ToolDeploymentState.Complete;
+					Progress = 1.0;
+				}
+			}
+		}
+
 		private class ToolDeploymentData
 		{
 			[CbField]
@@ -102,7 +233,7 @@ namespace Horde.Build.Tools
 		/// Configures all the available tools
 		/// </summary>
 		/// <param name="tools">The list of configured tools</param>
-		public async Task ConfigureAsync(List<ToolOptions> tools)
+		public async Task ConfigureAsync(List<ToolConfig> tools)
 		{
 			List<ToolId> ids = await FindAllIdsAsync();
 
@@ -113,7 +244,7 @@ namespace Horde.Build.Tools
 				await _tools.DeleteAsync(removeId);
 			}
 
-			foreach (ToolOptions tool in tools)
+			foreach (ToolConfig tool in tools)
 			{
 				if (!ids.Contains(tool.Id))
 				{
@@ -128,7 +259,7 @@ namespace Horde.Build.Tools
 		/// </summary>
 		/// <param name="options">Options for the tool</param>
 		/// <returns>Document describing the tool</returns>
-		private async Task<Tool> AddOrUpdateAsync(ToolOptions options)
+		private async Task<ITool> AddOrUpdateAsync(ToolConfig options)
 		{
 			for (; ; )
 			{
@@ -236,17 +367,17 @@ namespace Horde.Build.Tools
 		/// Finds all tools matching a set of criteria
 		/// </summary>
 		/// <returns>Sequence of tool documents</returns>
-		public async Task<List<Tool>> FindAllAsync()
+		public async Task<List<ITool>> FindAllAsync()
 		{
 			// Fetch all the tools in parallel
 			IEnumerable<ToolId> toolIds =await FindAllIdsAsync();
-			List<Task<Tool?>> tasks = toolIds.Select(x => Task.Run(() => GetAsync(x))).ToList();
+			List<Task<ITool?>> tasks = toolIds.Select(x => Task.Run(() => GetAsync(x))).ToList();
 
 			// Return all the successful results
-			List<Tool> results = new List<Tool>();
-			foreach (Task<Tool?> task in tasks)
+			List<ITool> results = new List<ITool>();
+			foreach (Task<ITool?> task in tasks)
 			{
-				Tool? tool = await task;
+				ITool? tool = await task;
 				if (tool != null)
 				{
 					results.Add(tool);
@@ -260,7 +391,14 @@ namespace Horde.Build.Tools
 		/// </summary>
 		/// <param name="id">The tool identifier</param>
 		/// <returns></returns>
-		public async Task<Tool?> GetAsync(ToolId id)
+		public async Task<ITool?> GetAsync(ToolId id) => await GetInternalAsync(id);
+
+		/// <summary>
+		/// Gets a tool with the given identifier
+		/// </summary>
+		/// <param name="id">The tool identifier</param>
+		/// <returns></returns>
+		async Task<Tool?> GetInternalAsync(ToolId id)
 		{
 			Tool? tool = await _tools.GetAsync(id);
 			if (tool != null)
@@ -277,7 +415,7 @@ namespace Horde.Build.Tools
 		/// <param name="options">Options for the new deployment</param>
 		/// <param name="stream">Stream containing the tool data</param>
 		/// <returns>Updated tool document, or null if it does not exist</returns>
-		public async Task<Tool?> CreateDeploymentAsync(Tool tool, ToolDeploymentOptions options, Stream stream)
+		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream)
 		{
 			// Upload the tool data first
 			IoHash hash = await _storage.WriteBlobAsync(_namespaceId, stream);
@@ -302,7 +440,7 @@ namespace Horde.Build.Tools
 			}
 
 			// Create the deployment
-			Tool? newTool = tool;
+			Tool? newTool = (Tool)tool;
 			for (; ; )
 			{
 				newTool = await TryAddDeploymentAsync(newTool, deployment);
@@ -311,7 +449,7 @@ namespace Horde.Build.Tools
 					break;
 				}
 
-				newTool = await GetAsync(tool.Id);
+				newTool = await GetInternalAsync(tool.Id);
 				if (newTool == null)
 				{
 					return null;
@@ -350,7 +488,12 @@ namespace Horde.Build.Tools
 		/// <param name="deploymentId">Identifier for the deployment to modify</param>
 		/// <param name="action">New state of the deployment</param>
 		/// <returns></returns>
-		public async Task<Tool?> UpdateDeploymentAsync(Tool tool, ToolDeploymentId deploymentId, ToolDeploymentState action)
+		public async Task<ITool?> UpdateDeploymentAsync(ITool tool, ToolDeploymentId deploymentId, ToolDeploymentState action)
+		{
+			return await UpdateDeploymentInternalAsync((Tool)tool, deploymentId, action);
+		}
+
+		async Task<Tool?> UpdateDeploymentInternalAsync(Tool tool, ToolDeploymentId deploymentId, ToolDeploymentState action)
 		{
 			int idx = tool.Deployments.FindIndex(x => x.Id == deploymentId);
 			if (idx == -1)
@@ -401,7 +544,7 @@ namespace Horde.Build.Tools
 		/// <param name="tool">Identifier for the tool</param>
 		/// <param name="deployment">The deployment</param>
 		/// <returns>Stream for the data</returns>
-		public async Task<Stream> GetDeploymentPayloadAsync(Tool tool, ToolDeployment deployment)
+		public async Task<Stream> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment)
 		{
 			ToolDeploymentData data = await _storage.GetRefAsync<ToolDeploymentData>(_namespaceId, GetBucket(tool.Id), deployment.RefId);
 			return await _storage.ReadBlobAsync(_namespaceId, data.Data);

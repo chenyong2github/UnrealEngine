@@ -18,8 +18,8 @@ namespace Horde.Build.Utilities
 	using LeaseId = ObjectId<ILease>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using ToolId = StringId<Tool>;
-	using ToolDeploymentId = ObjectId<ToolDeployment>;
+	using ToolId = StringId<ITool>;
+	using ToolDeploymentId = ObjectId<IToolDeployment>;
 	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
