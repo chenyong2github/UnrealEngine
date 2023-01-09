@@ -382,6 +382,11 @@ void UUVEditorMode::Enter()
 	InitializeModeContexts();
 	InitializeTargets();
 
+	// By default combined transform gizmos now hide some of their elements based on what gizmo mode is chosen in
+	// the viewport. The UV editor doesn't currently have that selector, so we don't want to try to use it. If we
+	// add that selector, we'll need to remove this call.
+	GetInteractiveToolsContext()->SetForceCombinedGizmoMode(true);
+
 	BackgroundVisualization = NewObject<UUVEditorBackgroundPreview>(this);
 	BackgroundVisualization->CreateInWorld(GetWorld(), FTransform::Identity);
 
