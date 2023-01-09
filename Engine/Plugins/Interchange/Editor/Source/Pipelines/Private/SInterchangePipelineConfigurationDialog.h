@@ -7,6 +7,7 @@
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineConfigurationBase.h"
 #include "InterchangeSourceData.h"
+#include "Styling/SlateBrush.h"
 #include "Styling/SlateColor.h"
 #include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -15,6 +16,7 @@
 #include "Widgets/Views/STreeView.h"
 
 struct FPropertyAndParent;
+struct FSlateBrush;
 class IDetailsView;
 class SCheckBox;
 
@@ -26,6 +28,8 @@ public:
 		const TSharedRef<STableViewBase>& OwnerTable,
 		TObjectPtr<UInterchangePipelineBase> InPipelineElement);
 private:
+	const FSlateBrush* GetImageItemIcon() const;
+
 	TObjectPtr<UInterchangePipelineBase> PipelineElement;
 };
 
