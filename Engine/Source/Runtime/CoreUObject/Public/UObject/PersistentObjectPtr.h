@@ -15,7 +15,10 @@ template<class TObjectID>
 struct TPersistentObjectPtr
 {
 	friend struct FGCInternals;
-public:	
+
+public:
+	using ElementType = TObjectID;
+
 	/** Default constructor, will be null */
 	FORCEINLINE TPersistentObjectPtr()
 	{

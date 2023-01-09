@@ -38,6 +38,8 @@ struct TWeakObjectPtr : private TWeakObjectPtrBase
 	static_assert(TAreTypesEqual<TWeakObjectPtrBase, FWeakObjectPtr>::Value, "TWeakObjectPtrBase should not be overridden");
 
 public:
+	using ElementType = T;
+	
 	TWeakObjectPtr() = default;
 	TWeakObjectPtr(const TWeakObjectPtr&) = default;
 	TWeakObjectPtr& operator=(const TWeakObjectPtr&) = default;

@@ -22,6 +22,8 @@ private:
 	mutable TFieldPath<T> Field;
 
 public:
+	using ElementType = T;
+	
 	TWeakFieldPtr() = default;
 	TWeakFieldPtr(const TWeakFieldPtr&) = default;
 	TWeakFieldPtr& operator=(const TWeakFieldPtr&) = default;

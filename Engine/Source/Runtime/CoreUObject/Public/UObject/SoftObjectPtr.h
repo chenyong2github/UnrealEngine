@@ -113,6 +113,8 @@ struct TSoftObjectPtr
 	friend struct TSoftObjectPtr;
 
 public:
+	using ElementType = T;
+	
 	/** Default constructor, will be null */
 	FORCEINLINE TSoftObjectPtr()
 	{
@@ -439,6 +441,8 @@ class TSoftClassPtr
 	friend class TSoftClassPtr;
 
 public:
+	using ElementType = TClass;
+	
 	/** Default constructor, will be null */
 	FORCEINLINE TSoftClassPtr()
 	{

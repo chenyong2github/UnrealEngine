@@ -181,6 +181,8 @@ template<class T=UObject>
 struct TLazyObjectPtr : private FLazyObjectPtr
 {
 public:
+	using ElementType = T;
+	
 	TLazyObjectPtr() = default;
 
 	TLazyObjectPtr(TLazyObjectPtr<T>&&) = default;

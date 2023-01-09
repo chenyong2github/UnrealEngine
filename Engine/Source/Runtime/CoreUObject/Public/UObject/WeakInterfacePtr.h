@@ -16,6 +16,8 @@
 template<class T>
 struct TWeakInterfacePtr
 {
+	using ElementType = T;
+	
 	/**
 	 * Construct a new default weak pointer, pointing to null object.
 	 */

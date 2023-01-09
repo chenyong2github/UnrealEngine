@@ -14,9 +14,10 @@
  * operations using a simple bit mask instead of the commonly used modulus operator that may
  * be slow on some platforms.
  */
-template<typename ElementType> class TCircularBuffer
+template<typename InElementType> class TCircularBuffer
 {
 public:
+	using ElementType = InElementType;
 
 	/**
 	 * Creates and initializes a new instance of the TCircularBuffer class.

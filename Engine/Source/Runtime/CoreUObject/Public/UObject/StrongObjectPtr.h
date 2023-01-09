@@ -72,6 +72,8 @@ template <typename ObjectType, typename ReferencerNameProvider = UEStrongObjectP
 class TStrongObjectPtr
 {
 public:
+	using ElementType = ObjectType;
+	
 	TStrongObjectPtr(TStrongObjectPtr&& InOther) = default;
 	TStrongObjectPtr& operator=(TStrongObjectPtr&& InOther) = default;
 	~TStrongObjectPtr() = default;
