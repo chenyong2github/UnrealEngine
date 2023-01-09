@@ -1184,7 +1184,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				else
 				{
 					//A pipeline was not loaded
-					//Log something
+					UE_LOG(LogInterchangeEngine, Warning, TEXT("Interchange Reimport: Missing import pipeline from the reimpoting asset. The reimport might fail."));
 				}
 			}
 		}
