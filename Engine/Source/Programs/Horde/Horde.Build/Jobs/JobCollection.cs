@@ -284,8 +284,6 @@ namespace Horde.Build.Jobs
 			[BsonIgnoreIfNull]
 			public DateTime? UpdateTimeUtc { get; set; }
 
-			public Acl? Acl { get; set; }
-
 			[BsonRequired]
 			public int UpdateIndex { get; set; }
 
@@ -341,18 +339,6 @@ namespace Horde.Build.Jobs
 				NextSubResourceId = SubResourceId.Random();
 				UpdateTimeUtc = createTimeUtc;
 			}
-		}
-
-		/// <summary>
-		/// Projection of a job definition to just include permissions info
-		/// </summary>
-		[SuppressMessage("Design", "CA1812: Class is never instantiated")]
-		class JobPermissions : IJobPermissions
-		{
-			public static ProjectionDefinition<JobDocument> Projection { get; } = Builders<JobDocument>.Projection.Include(x => x.Acl).Include(x => x.StreamId);
-
-			public Acl? Acl { get; set; }
-			public StreamId StreamId { get; set; }
 		}
 
 		/// <summary>
@@ -446,12 +432,6 @@ namespace Horde.Build.Jobs
 		public async Task RemoveStreamAsync(StreamId streamId)
 		{
 			await _jobs.DeleteManyAsync(x => x.StreamId == streamId);
-		}
-
-		/// <inheritdoc/>
-		public async Task<IJobPermissions?> GetPermissionsAsync(JobId jobId)
-		{
-			return await _jobs.Find<JobDocument>(x => x.Id == jobId).Project<JobPermissions>(JobPermissions.Projection).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>

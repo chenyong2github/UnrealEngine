@@ -452,13 +452,7 @@ namespace Horde.Build.Jobs
 				abortedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(job.AbortedByUserId.Value));
 			}
 
-			GetAclResponse? aclResponse = null;
-			if (includeAcl && job.Acl != null)
-			{
-				aclResponse = new GetAclResponse(job.Acl);
-			}
-
-			GetJobResponse response = new GetJobResponse(job, startedByUserInfo, abortedByUserInfo, aclResponse);
+			GetJobResponse response = new GetJobResponse(job, startedByUserInfo, abortedByUserInfo);
 			if (includeBatches || includeLabels)
 			{
 				if (includeBatches)

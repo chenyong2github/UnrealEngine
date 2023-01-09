@@ -178,13 +178,6 @@ namespace Horde.Build.Jobs
 		Task RemoveStreamAsync(StreamId streamId);
 
 		/// <summary>
-		/// Gets a job's permissions info by ID
-		/// </summary>
-		/// <param name="jobId">Unique id of the job</param>
-		/// <returns>The job document</returns>
-		Task<IJobPermissions?> GetPermissionsAsync(JobId jobId);
-
-		/// <summary>
 		/// Searches for jobs matching the given criteria
 		/// </summary>
 		/// <param name="jobIds">List of job ids to return</param>

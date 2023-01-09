@@ -70,7 +70,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Map of job id to permissions for that job
 		/// </summary>
-		public Dictionary<JobId, IJobPermissions?> Jobs { get; set; } = new Dictionary<JobId, IJobPermissions?>();
+		public Dictionary<JobId, StreamId> Jobs { get; set; } = new Dictionary<JobId, StreamId>();
 	}
 
 	/// <summary>
@@ -533,16 +533,6 @@ namespace Horde.Build.Jobs
 		public Task<IGraph> GetGraphAsync(IJob job)
 		{
 			return _graphs.GetAsync(job.GraphHash);
-		}
-
-		/// <summary>
-		/// Gets a job's permissions info by ID
-		/// </summary>
-		/// <param name="jobId">Unique id of the job</param>
-		/// <returns>The job document</returns>
-		public Task<IJobPermissions?> GetJobPermissionsAsync(JobId jobId)
-		{
-			return _jobs.GetPermissionsAsync(jobId);
 		}
 
 		/// <summary>
@@ -1353,29 +1343,6 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular stream
 		/// </summary>
-		/// <param name="acl">The ACL to check</param>
-		/// <param name="streamId">The stream containing this job</param>
-		/// <param name="action">The action being performed</param>
-		/// <param name="user">The principal to authorize</param>
-		/// <param name="cache">Cache of stream permissions</param>
-		/// <returns>True if the action is authorized</returns>
-		private Task<bool> AuthorizeAsync(Acl? acl, StreamId streamId, AclAction action, ClaimsPrincipal user, StreamPermissionsCache? cache)
-		{
-			// Do the regular authorization
-			bool? result = acl?.Authorize(action, user);
-			if (result == null)
-			{
-				return _streamService.AuthorizeAsync(streamId, action, user, cache);
-			}
-			else
-			{
-				return Task.FromResult(result.Value);
-			}
-		}
-
-		/// <summary>
-		/// Determines if the user is authorized to perform an action on a particular stream
-		/// </summary>
 		/// <param name="job">The job to check</param>
 		/// <param name="action">The action being performed</param>
 		/// <param name="user">The principal to authorize</param>
@@ -1383,7 +1350,7 @@ namespace Horde.Build.Jobs
 		/// <returns>True if the action is authorized</returns>
 		public Task<bool> AuthorizeAsync(IJob job, AclAction action, ClaimsPrincipal user, StreamPermissionsCache? cache)
 		{
-			return AuthorizeAsync(job.Acl, job.StreamId, action, user, cache);
+			return _streamService.AuthorizeAsync(job.StreamId, action, user, cache);
 		}
 
 		/// <summary>
@@ -1396,17 +1363,19 @@ namespace Horde.Build.Jobs
 		/// <returns>True if the action is authorized</returns>
 		public async Task<bool> AuthorizeAsync(JobId jobId, AclAction action, ClaimsPrincipal user, JobPermissionsCache? cache)
 		{
-			IJobPermissions? permissions;
+			StreamId streamId;
 			if (cache == null)
 			{
-				permissions = await GetJobPermissionsAsync(jobId);
+				IJob? job = await GetJobAsync(jobId);
+				streamId = job?.StreamId ?? StreamId.Empty;
 			}
-			else if (!cache.Jobs.TryGetValue(jobId, out permissions))
+			else if (!cache.Jobs.TryGetValue(jobId, out streamId))
 			{
-				permissions = await GetJobPermissionsAsync(jobId);
-				cache.Jobs.Add(jobId, permissions);
+				IJob? job = await GetJobAsync(jobId);
+				streamId = job?.StreamId ?? StreamId.Empty;
+				cache.Jobs.Add(jobId, streamId);
 			}
-			return permissions != null && await AuthorizeAsync(permissions.Acl, permissions.StreamId, action, user, cache);
+			return !streamId.IsEmpty && await _streamService.AuthorizeAsync(streamId, action, user, cache);
 		}
 
 		/// <summary>

@@ -364,8 +364,7 @@ namespace Horde.Build.Jobs
 		/// <param name="job">Job to create a response for</param>
 		/// <param name="startedByUserInfo">User that started this job</param>
 		/// <param name="abortedByUserInfo">User that aborted this job</param>
-		/// <param name="aclResponse">The ACL response object</param>
-		public GetJobResponse(IJob job, GetThinUserInfoResponse? startedByUserInfo, GetThinUserInfoResponse? abortedByUserInfo, GetAclResponse? aclResponse)
+		public GetJobResponse(IJob job, GetThinUserInfoResponse? startedByUserInfo, GetThinUserInfoResponse? abortedByUserInfo)
 		{
 			Id = job.Id.ToString();
 			StreamId = job.StreamId.ToString();
@@ -393,7 +392,6 @@ namespace Horde.Build.Jobs
 			Arguments = job.Arguments.ToList();
 			UpdateTime = new DateTimeOffset(job.UpdateTimeUtc);
 			UpdateIssues = job.UpdateIssues;
-			Acl = aclResponse;
 		}
 	}
 

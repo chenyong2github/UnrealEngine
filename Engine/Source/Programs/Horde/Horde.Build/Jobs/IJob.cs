@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Acls;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
@@ -730,11 +729,6 @@ namespace Horde.Build.Jobs
 		/// The last update time
 		/// </summary>
 		public DateTime UpdateTimeUtc { get; }
-
-		/// <summary>
-		/// The ACL for this job.
-		/// </summary>
-		public Acl? Acl { get; }
 
 		/// <summary>
 		/// Update counter for this document. Any updates should compare-and-swap based on the value of this counter, or increment it in the case of server-side updates.
@@ -1495,21 +1489,5 @@ namespace Horde.Build.Jobs
 			response.Arguments.Add(job.Arguments);
 			return response;
 		}
-	}
-
-	/// <summary>
-	/// Projection of a job definition to just include permissions info
-	/// </summary>
-	public interface IJobPermissions
-	{
-		/// <summary>
-		/// ACL for the job
-		/// </summary>
-		public Acl? Acl { get; }
-
-		/// <summary>
-		/// The stream containing 
-		/// </summary>
-		public StreamId StreamId { get; }
 	}
 }
