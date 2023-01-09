@@ -495,6 +495,12 @@ namespace EpicGames.Core
 		{
 			WIN32_FIND_DATA findData = new WIN32_FIND_DATA();
 
+			const string RawPathPrefix = "\\\\?\\";
+			if (!dirName.StartsWith(RawPathPrefix, StringComparison.Ordinal))
+			{
+				dirName = RawPathPrefix + dirName;				
+			}
+
 			IntPtr hFind = FindFirstFileW(dirName + "\\*", ref findData);
 			if (hFind != INVALID_HANDLE_VALUE)
 			{
