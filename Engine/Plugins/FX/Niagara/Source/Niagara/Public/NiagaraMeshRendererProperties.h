@@ -55,6 +55,18 @@ enum class ENiagaraMeshLockedAxisSpace : uint8
 };
 
 USTRUCT()
+struct NIAGARA_API FNiagaraMeshMICOverride
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OriginalMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceConstant> ReplacementMaterial;
+};
+
+USTRUCT()
 struct NIAGARA_API FNiagaraMeshMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
@@ -278,10 +290,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials", EditConditionHides))
 	TArray<FNiagaraMeshMaterialOverride> OverrideMaterials;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(transient)
-	TArray<TObjectPtr<UMaterialInstanceConstant>> MICMaterials;
-#endif
+	UPROPERTY()
+	TArray<FNiagaraMeshMICOverride> MICOverrideMaterials;
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (EditCondition = "bSubImageBlend", EditConditionHides))
