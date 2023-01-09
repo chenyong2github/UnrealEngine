@@ -1483,9 +1483,9 @@ bool FMediaPlayerFacade::BlockOnFetch() const
 
 	const TRange<FMediaTimeStamp>& BR = BlockOnRange.GetRange();
 
-	if (BR.IsEmpty() || !Player->GetControls().CanControl(EMediaControl::BlockOnFetch) || BlockOnRangeDisabled)
+	if (BR.IsEmpty() || !Player->GetControls().CanControl(EMediaControl::BlockOnFetch) || BlockOnRangeDisabled || bHaveActiveAudio)
 	{
-		return false; // no blocking requested / not supported
+		return false; // no blocking requested / not supported / audio present
 	}
 
 	if (Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
@@ -1493,12 +1493,6 @@ bool FMediaPlayerFacade::BlockOnFetch() const
 		//
 		// V2 blocking logic
 		//
-
-		// If we have any active audio playback we skip any blocking
-		if (HaveAudioPlayback())
-		{
-			return false;
-		}
 
 		float Rate = GetUnpausedRate();
 
