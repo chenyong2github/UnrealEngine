@@ -623,6 +623,12 @@ namespace UnrealBuildTool
 				Arguments.Add("/GL");
 			}
 
+			if (CompileEnvironment.bPGOOptimize)
+			{
+				// Prevent VM execution functions from being inlined - UE-172329
+				AddDefinition(Arguments, "FORCE_NO_INLINE_VM_FUNCTION=1");
+			}
+
 			//
 			//	PC
 			//
