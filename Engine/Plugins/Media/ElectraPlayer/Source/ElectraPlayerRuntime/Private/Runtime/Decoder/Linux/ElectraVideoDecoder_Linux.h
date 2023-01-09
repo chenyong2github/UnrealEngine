@@ -30,7 +30,6 @@ public:
 	uint32 GetStride() const override;
 	FIntPoint GetDim() const override
 	{ return SampleDim; }
-	bool GetIs10Bit() const override;
 
 	void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer) override;
 

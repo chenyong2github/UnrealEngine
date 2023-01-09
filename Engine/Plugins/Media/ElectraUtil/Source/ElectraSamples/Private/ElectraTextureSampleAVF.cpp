@@ -330,118 +330,22 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 
 void FElectraTextureSample::Initialize(FVideoDecoderOutput* InVideoDecoderOutput)
 {
-	VideoDecoderOutput = StaticCastSharedPtr<FVideoDecoderOutputApple, IDecoderOutputPoolable, ESPMode::ThreadSafe>(InVideoDecoderOutput->AsShared());
-
-	HDRInfo = VideoDecoderOutput->GetHDRInformation();
-	Colorimetry = VideoDecoderOutput->GetColorimetry();
-
-	bool bFullRange = false;
-	if (auto PinnedColorimetry = Colorimetry.Pin())
-	{
-		bFullRange = (PinnedColorimetry->GetMPEGDefinition()->VideoFullRangeFlag != 0);
-	}
-
-	// Prepare YUV -> RGB matrix containing all necessary offsets and scales to produce RGB straight from sample data
-	const FMatrix* Mtx = bFullRange ? &MediaShaders::YuvToRgbRec709Unscaled : &MediaShaders::YuvToRgbRec709Scaled;
-	FVector Off = (GetFormat() == EMediaTextureSampleFormat::P010) ? (bFullRange ? MediaShaders::YUVOffsetNoScale16bits : MediaShaders::YUVOffset16bits)
-		: (bFullRange ? MediaShaders::YUVOffsetNoScale8bits : MediaShaders::YUVOffset8bits);
-	float Scale = 1.0f;
-
-	if (auto PinnedHDRInfo = HDRInfo.Pin())
-	{
-		switch (PinnedHDRInfo->GetHDRType())
-		{
-		case IVideoDecoderHDRInformation::EType::PQ10:
-		case IVideoDecoderHDRInformation::EType::HLG10:
-		case IVideoDecoderHDRInformation::EType::HDR10:
-			Mtx = &MediaShaders::YuvToRgbRec2020Unscaled;
-			Off = MediaShaders::YUVOffsetNoScale16bits;
-			break;
-		default:
-			break;
-		}
-	}
-
-	// Matrix to transform sample data to standard YUV values
-	FMatrix PreMtx = FMatrix::Identity;
-	PreMtx.M[0][0] = Scale;
-	PreMtx.M[1][1] = Scale;
-	PreMtx.M[2][2] = Scale;
-	PreMtx.M[0][3] = -Off.X;
-	PreMtx.M[1][3] = -Off.Y;
-	PreMtx.M[2][3] = -Off.Z;
-
-	// Combine this with the actual YUV-RGB conversion
-	YuvToRgbMtx = FMatrix44f(*Mtx * PreMtx);
+	IElectraTextureSampleBase::Initialize(InVideoDecoderOutput);
+	VideoDecoderOutputApple = static_cast<FVideoDecoderOutputApple*>(InVideoDecoderOutput);
 }
 
 
 EMediaTextureSampleFormat FElectraTextureSample::GetFormat() const
 {
-	OSType PixelFormat = CVPixelBufferGetPixelFormatType(VideoDecoderOutput->GetImageBuffer());
+	OSType PixelFormat = CVPixelBufferGetPixelFormatType(VideoDecoderOutputApple->GetImageBuffer());
 	return ((PixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) || (PixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)) ? EMediaTextureSampleFormat::CharNV12 : EMediaTextureSampleFormat::P010;
-}
-
-
-/**
-* Init code for realloacting an image from the the pool
-*/
-void FElectraTextureSample::InitializePoolable()
-{
-}
-
-
-/**
-*  Return the object to the pool and inform the renderer about this...
-*/
-void FElectraTextureSample::ShutdownPoolable()
-{
-	VideoDecoderOutput.Reset();
-}
-
-
-FIntPoint FElectraTextureSample::GetDim() const
-{
-	if (VideoDecoderOutput)
-	{
-		return VideoDecoderOutput->GetDim();
-	}
-	return FIntPoint::ZeroValue;
-}
-
-FMediaTimeStamp FElectraTextureSample::GetTime() const
-{
-	if (VideoDecoderOutput)
-	{
-		const FDecoderTimeStamp TimeStamp = VideoDecoderOutput->GetTime();
-		return FMediaTimeStamp(TimeStamp.Time, TimeStamp.SequenceIndex);
-	}
-	return FMediaTimeStamp();
-}
-
-FTimespan FElectraTextureSample::GetDuration() const
-{
-	if (VideoDecoderOutput)
-	{
-		return VideoDecoderOutput->GetDuration();
-	}
-	return FTimespan::Zero();
-}
-
-FIntPoint FElectraTextureSample::GetOutputDim() const
-{
-	if (VideoDecoderOutput)
-	{
-		return VideoDecoderOutput->GetOutputDim();
-	}
-	return FIntPoint::ZeroValue;
 }
 
 uint32 FElectraTextureSample::GetStride() const
 {
 	if (VideoDecoderOutput)
 	{
-		return VideoDecoderOutput->GetStride();
+		return VideoDecoderOutputApple->GetStride();
 	}
 	return 0;
 }
@@ -450,7 +354,7 @@ uint32 FElectraTextureSample::GetConverterInfoFlags() const
 {
 	if (VideoDecoderOutput)
 	{
-		return CVPixelBufferIsPlanar(VideoDecoderOutput->GetImageBuffer()) ? ConverterInfoFlags_Default : ConverterInfoFlags_WillCreateOutputTexture;
+		return CVPixelBufferIsPlanar(VideoDecoderOutputApple->GetImageBuffer()) ? ConverterInfoFlags_Default : ConverterInfoFlags_WillCreateOutputTexture;
 	}
 	return ConverterInfoFlags_Default;
 }
@@ -461,103 +365,11 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef & InDstTexture, const FConv
 	{
 		if (TSharedPtr<FElectraMediaTexConvApple, ESPMode::ThreadSafe> PinnedTexConv = TexConv.Pin())
 		{
-			PinnedTexConv->ConvertTexture(InDstTexture, VideoDecoderOutput->GetImageBuffer(), VideoDecoderOutput->GetColorimetry()->GetMPEGDefinition()->VideoFullRangeFlag != 0, GetFormat(), GetSampleToRGBMatrix(), GetGamutToXYZMatrix(), GetEncodingType());
+			PinnedTexConv->ConvertTexture(InDstTexture, VideoDecoderOutputApple->GetImageBuffer(), VideoDecoderOutput->GetColorimetry()->GetMPEGDefinition()->VideoFullRangeFlag != 0, GetFormat(), GetSampleToRGBMatrix(), GetGamutToXYZMatrix(), GetEncodingType());
 			return true;
 		}
 	}
 	return false;
-}
-
-bool FElectraTextureSample::IsOutputSrgb() const
-{
-	if (auto PinnedHDRInfo = HDRInfo.Pin())
-	{
-		// If the HDR type is unknown we also assume sRGB
-		return (PinnedHDRInfo->GetHDRType() == IVideoDecoderHDRInformation::EType::Unknown);
-	}
-	return true;
-}
-
-const FMatrix& FElectraTextureSample::GetYUVToRGBMatrix() const
-{
-	if (auto PinnedHDRInfo = HDRInfo.Pin())
-	{
-		switch (PinnedHDRInfo->GetHDRType())
-		{
-			case IVideoDecoderHDRInformation::EType::PQ10:
-			case IVideoDecoderHDRInformation::EType::HLG10:
-			case IVideoDecoderHDRInformation::EType::HDR10:		return MediaShaders::YuvToRgbRec2020Unscaled;
-			case IVideoDecoderHDRInformation::EType::Unknown:	break;
-		}
-	}
-
-	// If no HDR info is present, we assume sRGB
-	return GetFullRange() ? MediaShaders::YuvToRgbRec709Unscaled : MediaShaders::YuvToRgbRec709Scaled;
-}
-
-bool FElectraTextureSample::GetFullRange() const
-{
-	bool bFullRange = false;
-	if (auto PinnedColorimetry = Colorimetry.Pin())
-	{
-		bFullRange = (PinnedColorimetry->GetMPEGDefinition()->VideoFullRangeFlag != 0);
-	}
-	return bFullRange;
-}
-
-FMatrix44f FElectraTextureSample::GetSampleToRGBMatrix() const
-{
-	return YuvToRgbMtx;
-}
-
-FMatrix44f FElectraTextureSample::GetGamutToXYZMatrix() const
-{
-	if (auto PinnedHDRInfo = HDRInfo.Pin())
-	{
-		switch (PinnedHDRInfo->GetHDRType())
-		{
-			case IVideoDecoderHDRInformation::EType::PQ10:
-			case IVideoDecoderHDRInformation::EType::HLG10:
-			case IVideoDecoderHDRInformation::EType::HDR10:		return GamutToXYZMatrix(EDisplayColorGamut::Rec2020_D65);
-			case IVideoDecoderHDRInformation::EType::Unknown:	return GamutToXYZMatrix(EDisplayColorGamut::sRGB_D65);
-		}
-	}
-	// If no HDR info is present, we assume sRGB
-	return GamutToXYZMatrix(EDisplayColorGamut::sRGB_D65);
-}
-
-FVector2f FElectraTextureSample::GetWhitePoint() const
-{
-	if (auto PinnedHDRInfo = HDRInfo.Pin())
-	{
-		if (auto ColorVolume = PinnedHDRInfo->GetMasteringDisplayColourVolume())
-		{
-			return FVector2f(ColorVolume->white_point_x, ColorVolume->white_point_y);
-		}
-	}
-	// If no HDR info is present, we assume sRGB
-	return FVector2f(UE::Color::GetWhitePoint(UE::Color::EWhitePoint::CIE1931_D65));
-}
-
-UE::Color::EEncoding FElectraTextureSample::GetEncodingType() const
-{
-	if (auto PinnedHDRInfo = HDRInfo.Pin())
-	{
-		switch (PinnedHDRInfo->GetHDRType())
-		{
-			case IVideoDecoderHDRInformation::EType::PQ10:
-			case IVideoDecoderHDRInformation::EType::HDR10:		return UE::Color::EEncoding::ST2084;
-			case IVideoDecoderHDRInformation::EType::Unknown:	return UE::Color::EEncoding::sRGB;
-			case IVideoDecoderHDRInformation::EType::HLG10:
-			{
-				check(!"*** Implement support for HLG10 in UE::Color!");
-				return UE::Color::EEncoding::sRGB;
-			}
-		}
-	}
-
-	// No info: use our legacy value
-	return UE::Color::EEncoding::sRGB;
 }
 
 #endif

@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "IMediaTextureSample.h"
-#include "IMediaTextureSampleConverter.h"
-#include "MediaObjectPool.h"
-#include "Misc/Timespan.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/RefCounting.h"
+#include "IElectraTextureSample.h"
 #include "RHI.h"
 #include "RHIResources.h"
 #include "ShaderCore.h"
@@ -18,8 +13,7 @@
 #endif
 
 class ELECTRASAMPLES_API FElectraTextureSample final
-	: public IMediaTextureSample
-	, public IMediaPoolable
+	: public IElectraTextureSampleBase
 	, public IMediaTextureSampleConverter
 {
 public:
@@ -39,40 +33,10 @@ public:
 	virtual const void* GetBuffer() override;
 	virtual uint32 GetStride() const override;
 
-	virtual FIntPoint GetDim() const override;
-	virtual FIntPoint GetOutputDim() const override;
-
-	virtual FMediaTimeStamp GetTime() const override;
-	virtual FTimespan GetDuration() const override;
-
-	virtual double GetAspectRatio() const override
-	{
-		return VideoDecoderOutput->GetAspectRatio();
-	}
-
-	virtual EMediaOrientation GetOrientation() const override
-	{
-		return (EMediaOrientation)VideoDecoderOutput->GetOrientation();
-	}
-
 	virtual EMediaTextureSampleFormat GetFormat() const override
 	{
 		return SampleFormat;
 	}
-
-	virtual bool IsCacheable() const override
-	{
-		return true;
-	}
-
-	virtual bool IsOutputSrgb() const override;
-	virtual const FMatrix& GetYUVToRGBMatrix() const override;
-	virtual bool GetFullRange() const override;
-
-	virtual FMatrix44f GetSampleToRGBMatrix() const override;
-	virtual FMatrix44f GetGamutToXYZMatrix() const override;
-	virtual FVector2f GetWhitePoint() const override;
-	virtual UE::Color::EEncoding GetEncodingType() const override;
 
 #if WITH_ENGINE
 	virtual FRHITexture* GetTexture() const override
@@ -82,11 +46,6 @@ public:
 #endif //WITH_ENGINE
 
 	IMFSample* GetMFSample();
-
-#if !UE_SERVER
-	virtual void InitializePoolable() override;
-	virtual void ShutdownPoolable() override;
-#endif
 
 	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override;
 
@@ -103,15 +62,8 @@ private:
 	/** Destination Texture resource (from Rendering device) */
 	FTexture2DRHIRef Texture;
 
-	/** Output data from video decoder. */
-	TSharedPtr<FVideoDecoderOutputPC, ESPMode::ThreadSafe> VideoDecoderOutput;
-
-	/** Quick access for some HDR related info */
-	TWeakPtr<const IVideoDecoderHDRInformation, ESPMode::ThreadSafe> HDRInfo;
-	TWeakPtr<const IVideoDecoderColorimetry, ESPMode::ThreadSafe> Colorimetry;
-
-	/** YUV matrix, adjusted to compensate for decoder output specific scale */
-	FMatrix44f YuvToRgbMtx;
+	/** Output data from video decoder. Baseclass holds reference */
+	FVideoDecoderOutputPC* VideoDecoderOutputPC;
 };
 
 using FElectraTextureSamplePtr = TSharedPtr<FElectraTextureSample, ESPMode::ThreadSafe>;

@@ -1399,7 +1399,7 @@ void FVideoDecoderH265LinuxLibavcodec::ProcessOutput(bool bFlush)
 				OutputBufferSampleProperties->Set("aspect_h", FVariantValue((int64) ay));
 				OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64) 0 ));
 				OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64) 0 ));
-				OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_NV12));
+				OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)((num_bits <= 8) ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010)));
 
 				// Set the bit depth and the colorimetry.
 				uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
@@ -1420,7 +1420,7 @@ void FVideoDecoderH265LinuxLibavcodec::ProcessOutput(bool bFlush)
 						video_format = NextImage.SourceInfo->SPSs[0].video_format;
 					}
 				}
-			/// see above // OutputBufferSampleProperties->Set("pixelfmt", num_bits==8 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_PLATFORM_HDR_1));
+			/// see above // OutputBufferSampleProperties->Set("pixelfmt", num_bits==8 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_P010));
 				OutputBufferSampleProperties->Set("bits_per", FVariantValue((int64)num_bits));
 				Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
 				Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);

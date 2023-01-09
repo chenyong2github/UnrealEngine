@@ -52,12 +52,12 @@ public class ElectraTextureSample
 		}
 	}
 
-	public FFrameUpdateInfo GetVideoFrameUpdateInfo(int destTextureES, int width, int height)
+	public FFrameUpdateInfo GetVideoFrameUpdateInfo(int destTextureES, int width, int height, boolean bIs10Bbit)
 	{
 		FFrameUpdateInfo Info = null;
 		if (BitmapRenderer != null)
 		{
-			Info = BitmapRenderer.GetVideoFrameUpdateInfo(destTextureES, width, height);
+			Info = BitmapRenderer.GetVideoFrameUpdateInfo(destTextureES, width, height, bIs10Bbit);
 		}
 		return Info;
 	}
@@ -89,12 +89,11 @@ public class ElectraTextureSample
 		private int mTextureID = -1;
 		private int mFBO = -1;
 		private int mBlitVertexShaderID = -1;
-		private int mBlitFragmentShaderID = -1;
+		private int[] mBlitFragmentShaderID = new int[2];
 		private float[] mTransformMatrix = new float[16];
 		private boolean mTriangleVerticesDirty = true;
 		private boolean mUseOwnContext = true;
 		private boolean mVulkanRenderer = false;
-		private boolean mSwizzlePixels = false;
 
 		private int GL_TEXTURE_EXTERNAL_OES = 0x8D65;
 
@@ -119,15 +118,9 @@ public class ElectraTextureSample
 			mEglContext = EGL14.EGL_NO_CONTEXT;
 			mUseOwnContext = true;
 
-			if (mVulkanRenderer)
+			if (!mVulkanRenderer)
 			{
-				mSwizzlePixels = true;
-
-				Log.d(TAG,"FBitmapRenderer: mSwizzlePixels");
-			}
-			else
-			{
-				String RendererString = GLES20.glGetString(GLES20.GL_RENDERER);
+				String RendererString = GLES32.glGetString(GLES32.GL_RENDERER);
 				Log.d(TAG,"FBitmapRenderer: GLES: " + RendererString);
 				// Do not use shared context if Adreno before 400 or on older Android than Marshmallow
 				if (RendererString.contains("Adreno (TM) "))
@@ -273,7 +266,7 @@ public class ElectraTextureSample
 		private void initSurfaceTexture()
 		{
 			int[] textures = new int[1];
-			GLES20.glGenTextures(1, textures, 0);
+			GLES32.glGenTextures(1, textures, 0);
 			mTextureID = textures[0];
 			if (mTextureID <= 0)
 			{
@@ -286,7 +279,7 @@ public class ElectraTextureSample
 
 			int[] glInt = new int[1];
 
-			GLES20.glGenFramebuffers(1,glInt,0);
+			GLES32.glGenFramebuffers(1,glInt,0);
 			mFBO = glInt[0];
 			if (mFBO <= 0)
 			{
@@ -295,48 +288,65 @@ public class ElectraTextureSample
 				return;
 			}
 			// Special shaders for blit of movie texture.
-			mBlitVertexShaderID = createShader(GLES20.GL_VERTEX_SHADER, mBlitVextexShader);
+			mBlitVertexShaderID = createShader(GLES32.GL_VERTEX_SHADER, mBlitVextexShader);
 			if (mBlitVertexShaderID == 0)
 			{
 				Log.e(TAG,"mBlitVertexShaderID == 0");
 				release();
 				return;
 			}
-			int mBlitFragmentShaderID = createShader(GLES20.GL_FRAGMENT_SHADER,
-				mVulkanRenderer ? (mSwizzlePixels ? mBlitFragmentShaderBGRA_NoConv : mBlitFragmentShaderRGBA_NoConv)
-								: (mSwizzlePixels ? mBlitFragmentShaderBGRA : mBlitFragmentShaderRGBA));
-			if (mBlitFragmentShaderID == 0)
-			{
-				Log.e(TAG,"mBlitFragmentShaderID == 0");
-				release();
-				return;
-			}
-			mProgram = GLES20.glCreateProgram();
-			if (mProgram <= 0)
-			{
-				Log.e(TAG,"mProgram <= 0");
-				release();
-				return;
-			}
-			GLES20.glAttachShader(mProgram, mBlitVertexShaderID);
-			GLES20.glAttachShader(mProgram, mBlitFragmentShaderID);
-			GLES20.glLinkProgram(mProgram);
-			int[] linkStatus = new int[1];
-			GLES20.glGetProgramiv(mProgram, GLES20.GL_LINK_STATUS, linkStatus, 0);
-			if (linkStatus[0] != GLES20.GL_TRUE)
-			{
-				Log.e(TAG,"Could not link program: ");
-				Log.e(TAG, GLES20.glGetProgramInfoLog(mProgram));
-				GLES20.glDeleteProgram(mProgram);
-				mProgram = 0;
-				release();
-				return;
-			}
-			mPositionAttrib = GLES20.glGetAttribLocation(mProgram, "Position");
-			mTexCoordsAttrib = GLES20.glGetAttribLocation(mProgram, "TexCoords");
-			mTextureUniform = GLES20.glGetUniformLocation(mProgram, "VideoTexture");
+			//
+			// Android will deliver the data as "image external" to ES.
+			// - Anything read from such a texture will "magically" appear as [0..1] range RGB data in the shader
+			// - For SDR material this will be sRGB data (still very much with gamma curve applied)
+			// - For HDR material thisd will be PQ data (here, too, the EOTF is still very much applied)
+			// - CS will be whatever we have in the material playing (mostly Rec.709 (SDR) or Rec.2020 (HDR))
+			//
+			// -> Hence this indeed complies with the old [0..1] range for "image external". We just need to be very careful
+			//    with how to interpret the data.
+			//
+			// ES:		We copy the data directly into an externally (RHI created) provided texture from where MFW can further process it as needed
+			// Vulkan:	We simply copy the data into a CPU-side buffer (any upload into a texture is done in MediaFramework - an ES texture serves as inbetween buffer as we cannot access the "image external" data)
+			//
+			int[] mBlitFragmentShaderID = new int[2];
+			mBlitFragmentShaderID[0] = createShader(GLES32.GL_FRAGMENT_SHADER, mBlitFragmentShaderRGBA_NoConv);
+			mBlitFragmentShaderID[1] = createShader(GLES32.GL_FRAGMENT_SHADER, mBlitFragmentShaderBGRA_NoConv);
 
-			GLES20.glGenBuffers(1,glInt,0);
+			if (mBlitFragmentShaderID[0] == 0 || mBlitFragmentShaderID[1] == 0)
+			{
+				Log.e(TAG,"mBlitFragmentShaderID[i] == 0");
+				release();
+				return;
+			}
+			for(int i=0; i<2; ++i)
+			{
+				mProgram[i] = GLES32.glCreateProgram();
+				if (mProgram[i] <= 0)
+				{
+					Log.e(TAG,"mProgram[i] <= 0");
+					release();
+					return;
+				}
+				GLES32.glAttachShader(mProgram[i], mBlitVertexShaderID);
+				GLES32.glAttachShader(mProgram[i], mBlitFragmentShaderID[i]);
+				GLES32.glLinkProgram(mProgram[i]);
+				int[] linkStatus = new int[1];
+				GLES32.glGetProgramiv(mProgram[i], GLES32.GL_LINK_STATUS, linkStatus, 0);
+				if (linkStatus[0] != GLES32.GL_TRUE)
+				{
+					Log.e(TAG,"Could not link program: ");
+					Log.e(TAG, GLES32.glGetProgramInfoLog(mProgram[i]));
+					GLES32.glDeleteProgram(mProgram[i]);
+					mProgram[i] = 0;
+					release();
+					return;
+				}
+				mPositionAttrib = GLES32.glGetAttribLocation(mProgram[i], "Position");
+				mTexCoordsAttrib = GLES32.glGetAttribLocation(mProgram[i], "TexCoords");
+				mTextureUniform = GLES32.glGetUniformLocation(mProgram[i], "VideoTexture");
+			}
+
+			GLES32.glGenBuffers(1,glInt,0);
 			mBlitBuffer = glInt[0];
 			if (mBlitBuffer <= 0)
 			{
@@ -354,13 +364,13 @@ public class ElectraTextureSample
 			// Set up GL state
 			if (mUseOwnContext)
 			{
-				GLES20.glDisable(GLES20.GL_BLEND);
-				GLES20.glDisable(GLES20.GL_CULL_FACE);
-				GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
-				GLES20.glDisable(GLES20.GL_STENCIL_TEST);
-				GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-				GLES20.glDisable(GLES20.GL_DITHER);
-				GLES20.glColorMask(true,true,true,true);
+				GLES32.glDisable(GLES32.GL_BLEND);
+				GLES32.glDisable(GLES32.GL_CULL_FACE);
+				GLES32.glDisable(GLES32.GL_SCISSOR_TEST);
+				GLES32.glDisable(GLES32.GL_STENCIL_TEST);
+				GLES32.glDisable(GLES32.GL_DEPTH_TEST);
+				GLES32.glDisable(GLES32.GL_DITHER);
+				GLES32.glColorMask(true,true,true,true);
 			}
 		}
 
@@ -377,16 +387,16 @@ public class ElectraTextureSample
 
 			// save VBO state
 			int[] glInt = new int[1];
-			GLES20.glGetIntegerv(GLES20.GL_ARRAY_BUFFER_BINDING, glInt, 0);
+			GLES32.glGetIntegerv(GLES32.GL_ARRAY_BUFFER_BINDING, glInt, 0);
 			int previousVBO = glInt[0];
 
-			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, mBlitBuffer);
-			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER,
+			GLES32.glBindBuffer(GLES32.GL_ARRAY_BUFFER, mBlitBuffer);
+			GLES32.glBufferData(GLES32.GL_ARRAY_BUFFER,
 				mTriangleVerticesData.length*FLOAT_SIZE_BYTES,
-				mTriangleVertices, GLES20.GL_STATIC_DRAW);
+				mTriangleVertices, GLES32.GL_STATIC_DRAW);
 
 			// restore VBO state
-			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, previousVBO);
+			GLES32.glBindBuffer(GLES32.GL_ARRAY_BUFFER, previousVBO);
 
 			mTriangleVerticesDirty = false;
 		}
@@ -398,18 +408,18 @@ public class ElectraTextureSample
 
 		private int createShader(int shaderType, String source)
 		{
-			int shader = GLES20.glCreateShader(shaderType);
+			int shader = GLES32.glCreateShader(shaderType);
 			if (shader != 0)
 			{
-				GLES20.glShaderSource(shader, source);
-				GLES20.glCompileShader(shader);
+				GLES32.glShaderSource(shader, source);
+				GLES32.glCompileShader(shader);
 				int[] compiled = new int[1];
-				GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+				GLES32.glGetShaderiv(shader, GLES32.GL_COMPILE_STATUS, compiled, 0);
 				if (compiled[0] == 0)
 				{
 					Log.e(TAG,"Could not compile shader " + shaderType + ":");
-					Log.e(TAG, GLES20.glGetShaderInfoLog(shader));
-					GLES20.glDeleteShader(shader);
+					Log.e(TAG, GLES32.glGetShaderInfoLog(shader));
+					GLES32.glDeleteShader(shader);
 					shader = 0;
 				}
 			}
@@ -454,35 +464,13 @@ public class ElectraTextureSample
 			"	gl_Position = vec4(Position, 0.0, 1.0);\n" +
 			"}\n";
 
-		private final String mBlitFragmentShaderBGRA =
-			"#extension GL_OES_EGL_image_external : require\n" +
-			"uniform samplerExternalOES VideoTexture;\n" +
-			"varying highp vec2 TexCoord;\n" +
-			"void main()\n" +
-			"{\n" +
-			"	highp vec4 Color = texture2D(VideoTexture, TexCoord).bgra;\n" +
-			"	Color.rgb = max(Color.rgb, 6.10352e-5);\n" +
-			"	Color.rgb = mix(pow(Color.rgb * vec3(1.0 / 1.055) + vec3(0.0521327), vec3(2.4) ), Color.rgb * vec3(1.0 / 12.92), vec3(lessThanEqual(Color.rgb, vec3(0.04045))));\n" +
-			"	gl_FragColor = Color;\n" +
-			"}\n";
-		private final String mBlitFragmentShaderRGBA =
-			"#extension GL_OES_EGL_image_external : require\n" +
-			"uniform samplerExternalOES VideoTexture;\n" +
-			"varying highp vec2 TexCoord;\n" +
-			"void main()\n" +
-			"{\n" +
-			"	highp vec4 Color = texture2D(VideoTexture, TexCoord).rgba;\n" +
-			"	Color.rgb = max(Color.rgb, 6.10352e-5);\n" +
-			"	Color.rgb = mix(pow(Color.rgb * vec3(1.0 / 1.055) + vec3(0.0521327), vec3(2.4) ), Color.rgb * vec3(1.0 / 12.92), vec3(lessThanEqual(Color.rgb, vec3(0.04045))));\n" +
-			"	gl_FragColor = Color;\n" +
-			"}\n";
 		private final String mBlitFragmentShaderBGRA_NoConv =
 			"#extension GL_OES_EGL_image_external : require\n" +
 			"uniform samplerExternalOES VideoTexture;\n" +
 			"varying highp vec2 TexCoord;\n" +
 			"void main()\n" +
 			"{\n" +
-			"	gl_FragColor = texture2D(VideoTexture, TexCoord).bgra;;\n" +
+			"	gl_FragColor = texture2D(VideoTexture, TexCoord).bgra;\n" +
 			"}\n";
 		private final String mBlitFragmentShaderRGBA_NoConv =
 			"#extension GL_OES_EGL_image_external : require\n" +
@@ -490,10 +478,10 @@ public class ElectraTextureSample
 			"varying highp vec2 TexCoord;\n" +
 			"void main()\n" +
 			"{\n" +
-			"	gl_FragColor = texture2D(VideoTexture, TexCoord).bgra;;\n" +
+			"	gl_FragColor = texture2D(VideoTexture, TexCoord).rgba;\n" +
 			"}\n";
 
-		private int mProgram;
+		private int[] mProgram = new int[2];
 		private int mPositionAttrib;
 		private int mTexCoordsAttrib;
 		private int mBlitBuffer;
@@ -502,7 +490,7 @@ public class ElectraTextureSample
 		//
 		// Vulkan version: resulting image is returned as byte array in frame info data
 		//
-		public FFrameUpdateInfo updateFrameData()
+		public FFrameUpdateInfo updateFrameData(boolean bIs10Bit)
 		{
 			synchronized(this)
 			{
@@ -517,7 +505,7 @@ public class ElectraTextureSample
 					mFrameDataSize = frameDataSize;
 				}
 				// Copy surface texture to frame data.
-				if (!copyFrameTexture(0, mFrameData))
+				if (!copyFrameTexture(0, mFrameData, bIs10Bit))
 				{
 					return null;
 				}
@@ -542,12 +530,12 @@ public class ElectraTextureSample
 		//
 		// ES version: resulting image is written to given texture
 		//
-		public FFrameUpdateInfo updateFrameData(int destTexture)
+		public FFrameUpdateInfo updateFrameData(int destTexture, boolean bIs10Bit)
 		{
 			synchronized(this)
 			{
 				// Copy surface texture to destination texture.
-				if (!copyFrameTexture(destTexture, null))
+				if (!copyFrameTexture(destTexture, null, bIs10Bit))
 				{
 					return null;
 				}
@@ -574,7 +562,7 @@ public class ElectraTextureSample
 
 		// Copy the surface texture to another texture, or to raw data.
 		// Note: copying to raw data creates a temporary FBO texture.
-		private boolean copyFrameTexture(int destTexture, java.nio.Buffer destData)
+		private boolean copyFrameTexture(int destTexture, java.nio.Buffer destData, boolean bIs10Bit)
 		{
 			if (null == mSurfaceTexture)
 			{
@@ -591,10 +579,10 @@ public class ElectraTextureSample
 			if (mUseOwnContext)
 			{
 				// Received reports of these not being preserved when changing contexts
-				GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-				GLES20.glGetTexParameteriv(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, glInt, 0);
+				GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+				GLES32.glGetTexParameteriv(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MIN_FILTER, glInt, 0);
 				previousMinFilter = glInt[0];
-				GLES20.glGetTexParameteriv(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, glInt, 0);
+				GLES32.glGetTexParameteriv(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MAG_FILTER, glInt, 0);
 				previousMagFilter = glInt[0];
 
 				saveContext();
@@ -603,24 +591,24 @@ public class ElectraTextureSample
 			else
 			{
 				// Clear gl errors as they can creep in from the UE4 renderer.
-				GLES20.glGetError();
+				GLES32.glGetError();
 
-				previousBlend = GLES20.glIsEnabled(GLES20.GL_BLEND);
-				previousCullFace = GLES20.glIsEnabled(GLES20.GL_CULL_FACE);
-				previousScissorTest = GLES20.glIsEnabled(GLES20.GL_SCISSOR_TEST);
-				previousStencilTest = GLES20.glIsEnabled(GLES20.GL_STENCIL_TEST);
-				previousDepthTest = GLES20.glIsEnabled(GLES20.GL_DEPTH_TEST);
-				previousDither = GLES20.glIsEnabled(GLES20.GL_DITHER);
-				GLES20.glGetIntegerv(GLES20.GL_FRAMEBUFFER_BINDING, glInt, 0);
+				previousBlend = GLES32.glIsEnabled(GLES32.GL_BLEND);
+				previousCullFace = GLES32.glIsEnabled(GLES32.GL_CULL_FACE);
+				previousScissorTest = GLES32.glIsEnabled(GLES32.GL_SCISSOR_TEST);
+				previousStencilTest = GLES32.glIsEnabled(GLES32.GL_STENCIL_TEST);
+				previousDepthTest = GLES32.glIsEnabled(GLES32.GL_DEPTH_TEST);
+				previousDither = GLES32.glIsEnabled(GLES32.GL_DITHER);
+				GLES32.glGetIntegerv(GLES32.GL_FRAMEBUFFER_BINDING, glInt, 0);
 				previousFBO = glInt[0];
-				GLES20.glGetIntegerv(GLES20.GL_ARRAY_BUFFER_BINDING, glInt, 0);
+				GLES32.glGetIntegerv(GLES32.GL_ARRAY_BUFFER_BINDING, glInt, 0);
 				previousVBO = glInt[0];
-				GLES20.glGetIntegerv(GLES20.GL_VIEWPORT, previousViewport, 0);
+				GLES32.glGetIntegerv(GLES32.GL_VIEWPORT, previousViewport, 0);
 
-				GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-				GLES20.glGetTexParameteriv(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, glInt, 0);
+				GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+				GLES32.glGetTexParameteriv(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MIN_FILTER, glInt, 0);
 				previousMinFilter = glInt[0];
-				GLES20.glGetTexParameteriv(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, glInt, 0);
+				GLES32.glGetTexParameteriv(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MAG_FILTER, glInt, 0);
 				previousMagFilter = glInt[0];
 
 				glVerify("save state");
@@ -655,18 +643,18 @@ public class ElectraTextureSample
 
 			if (!mUseOwnContext)
 			{
-				GLES20.glDisable(GLES20.GL_BLEND);
-				GLES20.glDisable(GLES20.GL_CULL_FACE);
-				GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
-				GLES20.glDisable(GLES20.GL_STENCIL_TEST);
-				GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-				GLES20.glDisable(GLES20.GL_DITHER);
-				GLES20.glColorMask(true,true,true,true);
+				GLES32.glDisable(GLES32.GL_BLEND);
+				GLES32.glDisable(GLES32.GL_CULL_FACE);
+				GLES32.glDisable(GLES32.GL_SCISSOR_TEST);
+				GLES32.glDisable(GLES32.GL_STENCIL_TEST);
+				GLES32.glDisable(GLES32.GL_DEPTH_TEST);
+				GLES32.glDisable(GLES32.GL_DITHER);
+				GLES32.glColorMask(true,true,true,true);
 
 				glVerify("reset state");
 			}
 
-			GLES20.glViewport(0, 0, mTextureWidth, mTextureHeight);
+			GLES32.glViewport(0, 0, mTextureWidth, mTextureHeight);
 
 			glVerify("set viewport");
 
@@ -675,7 +663,7 @@ public class ElectraTextureSample
 			if (null != destData)
 			{
 				// Create temporary FBO for data copy.
-				GLES20.glGenTextures(1,glInt,0);
+				GLES32.glGenTextures(1,glInt,0);
 				FBOTextureID = glInt[0];
 			}
 			else
@@ -684,77 +672,85 @@ public class ElectraTextureSample
 				FBOTextureID = destTexture;
 			}
 			// Set the FBO to draw into the texture one-to-one.
-			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, FBOTextureID);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
-				GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
-				GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
-				GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
-				GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+			GLES32.glBindTexture(GLES32.GL_TEXTURE_2D, FBOTextureID);
+			GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D,
+				GLES32.GL_TEXTURE_MIN_FILTER, GLES32.GL_NEAREST);
+			GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D,
+				GLES32.GL_TEXTURE_MAG_FILTER, GLES32.GL_NEAREST);
+			GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D,
+				GLES32.GL_TEXTURE_WRAP_S, GLES32.GL_CLAMP_TO_EDGE);
+			GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D,
+				GLES32.GL_TEXTURE_WRAP_T, GLES32.GL_CLAMP_TO_EDGE);
 			// Create the temp FBO data if needed.
 			if (null != destData)
 			{
-				GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0,
-					GLES20.GL_RGBA,
+				GLES32.glTexImage2D(GLES32.GL_TEXTURE_2D, 0,
+					bIs10Bit ? GLES32.GL_RGB10_A2 : GLES32.GL_RGBA,
 					mTextureWidth, mTextureHeight,
-					0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+					0,
+					GLES32.GL_RGBA,
+					bIs10Bit ? GLES32.GL_UNSIGNED_INT_2_10_10_10_REV : GLES32.GL_UNSIGNED_BYTE, null);
 			}
 
 			glVerify("set-up FBO texture");
 			// Set to render to the FBO.
-			GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFBO);
+			GLES32.glBindFramebuffer(GLES32.GL_FRAMEBUFFER, mFBO);
 			glVerify("glBindFramebuffer");
-			GLES20.glFramebufferTexture2D(
-				GLES20.GL_FRAMEBUFFER,
-				GLES20.GL_COLOR_ATTACHMENT0,
-				GLES20.GL_TEXTURE_2D, FBOTextureID, 0);
+			GLES32.glFramebufferTexture2D(
+				GLES32.GL_FRAMEBUFFER,
+				GLES32.GL_COLOR_ATTACHMENT0,
+				GLES32.GL_TEXTURE_2D, FBOTextureID, 0);
 
 			// check status
-			int status = GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER);
-			if (status != GLES20.GL_FRAMEBUFFER_COMPLETE)
+			int status = GLES32.glCheckFramebufferStatus(GLES32.GL_FRAMEBUFFER);
+			if (status != GLES32.GL_FRAMEBUFFER_COMPLETE)
 			{
 				Log.w(TAG,"Failed to complete framebuffer attachment ("+status+")");
 			}
 
 			// The special shaders to render from the video texture.
-			GLES20.glUseProgram(mProgram);
+			// (Vulkan SDR needs to convert BGR / RGB)
+			GLES32.glUseProgram((!bIs10Bit && mVulkanRenderer) ? mProgram[1] : mProgram[0]);
 
 			// Set the mesh that renders the video texture.
 			UpdateVertexData();
-			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, mBlitBuffer);
-			GLES20.glEnableVertexAttribArray(mPositionAttrib);
-			GLES20.glVertexAttribPointer(mPositionAttrib, 2, GLES20.GL_FLOAT, false,
+			GLES32.glBindBuffer(GLES32.GL_ARRAY_BUFFER, mBlitBuffer);
+			GLES32.glEnableVertexAttribArray(mPositionAttrib);
+			GLES32.glVertexAttribPointer(mPositionAttrib, 2, GLES32.GL_FLOAT, false,
 				TRIANGLE_VERTICES_DATA_STRIDE_BYTES, 0);
-			GLES20.glEnableVertexAttribArray(mTexCoordsAttrib);
-			GLES20.glVertexAttribPointer(mTexCoordsAttrib, 2, GLES20.GL_FLOAT, false,
+			GLES32.glEnableVertexAttribArray(mTexCoordsAttrib);
+			GLES32.glVertexAttribPointer(mTexCoordsAttrib, 2, GLES32.GL_FLOAT, false,
 				TRIANGLE_VERTICES_DATA_STRIDE_BYTES,
 				TRIANGLE_VERTICES_DATA_UV_OFFSET*FLOAT_SIZE_BYTES);
 
 			glVerify("setup movie texture read");
 
-//GLES20.glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-//GLES20.glClear( GLES20.GL_COLOR_BUFFER_BIT);
+//GLES32.glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//GLES32.glClear( GLES32.GL_COLOR_BUFFER_BIT);
 
 			// connect 'VideoTexture' to video source texture (mTextureID).
 			// mTextureID is bound to GL_TEXTURE_EXTERNAL_OES in updateTexImage
-			GLES20.glUniform1i(mTextureUniform, 0);
-			GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-			GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureID);
+			GLES32.glUniform1i(mTextureUniform, 0);
+			GLES32.glActiveTexture(GLES32.GL_TEXTURE0);
+			GLES32.glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureID);
+
+			glVerify("bind FBO movie texture read");
 
 			// Draw the video texture mesh.
-			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+			GLES32.glDrawArrays(GLES32.GL_TRIANGLE_STRIP, 0, 4);
 
 			// Make sure GL issues commands to GPU
-			GLES20.glFlush();
+			GLES32.glFlush();
+
+			glVerify("movie texture read flushed");
 
 			// Read the FBO texture pixels into raw data.
 			if (null != destData)
 			{
-				GLES20.glReadPixels(
+				GLES32.glReadPixels(
 					0, 0, mTextureWidth, mTextureHeight,
-					GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE,
+					GLES32.GL_RGBA,
+					bIs10Bit ? GLES32.GL_UNSIGNED_INT_2_10_10_10_REV : GLES32.GL_UNSIGNED_BYTE,
 					destData);
 			}
 
@@ -763,47 +759,47 @@ public class ElectraTextureSample
 			// Restore state and cleanup.
 			if (mUseOwnContext)
 			{
-				GLES20.glFramebufferTexture2D(
-					GLES20.GL_FRAMEBUFFER,
-					GLES20.GL_COLOR_ATTACHMENT0,
-					GLES20.GL_TEXTURE_2D, 0, 0);
+				GLES32.glFramebufferTexture2D(
+					GLES32.GL_FRAMEBUFFER,
+					GLES32.GL_COLOR_ATTACHMENT0,
+					GLES32.GL_TEXTURE_2D, 0, 0);
 
 				if (null != destData && FBOTextureID > 0)
 				{
 					glInt[0] = FBOTextureID;
-					GLES20.glDeleteTextures(1, glInt, 0);
+					GLES32.glDeleteTextures(1, glInt, 0);
 				}
 
 				restoreContext();
 
 				// Restore previous texture filtering
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, previousMinFilter);
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, previousMagFilter);
+				GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MIN_FILTER, previousMinFilter);
+				GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MAG_FILTER, previousMagFilter);
 			}
 			else
 			{
-				GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, previousFBO);
+				GLES32.glBindFramebuffer(GLES32.GL_FRAMEBUFFER, previousFBO);
 				if (null != destData && FBOTextureID > 0)
 				{
 					glInt[0] = FBOTextureID;
-					GLES20.glDeleteTextures(1, glInt, 0);
+					GLES32.glDeleteTextures(1, glInt, 0);
 				}
-				GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, previousVBO);
+				GLES32.glBindBuffer(GLES32.GL_ARRAY_BUFFER, previousVBO);
 
-				GLES20.glViewport(previousViewport[0], previousViewport[1],	previousViewport[2], previousViewport[3]);
-				if (previousBlend) GLES20.glEnable(GLES20.GL_BLEND);
-				if (previousCullFace) GLES20.glEnable(GLES20.GL_CULL_FACE);
-				if (previousScissorTest) GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
-				if (previousStencilTest) GLES20.glEnable(GLES20.GL_STENCIL_TEST);
-				if (previousDepthTest) GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-				if (previousDither) GLES20.glEnable(GLES20.GL_DITHER);
+				GLES32.glViewport(previousViewport[0], previousViewport[1],	previousViewport[2], previousViewport[3]);
+				if (previousBlend) GLES32.glEnable(GLES32.GL_BLEND);
+				if (previousCullFace) GLES32.glEnable(GLES32.GL_CULL_FACE);
+				if (previousScissorTest) GLES32.glEnable(GLES32.GL_SCISSOR_TEST);
+				if (previousStencilTest) GLES32.glEnable(GLES32.GL_STENCIL_TEST);
+				if (previousDepthTest) GLES32.glEnable(GLES32.GL_DEPTH_TEST);
+				if (previousDither) GLES32.glEnable(GLES32.GL_DITHER);
 
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, previousMinFilter);
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, previousMagFilter);
+				GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MIN_FILTER, previousMinFilter);
+				GLES32.glTexParameteri(GLES32.GL_TEXTURE_2D, GLES32.GL_TEXTURE_MAG_FILTER, previousMagFilter);
 
 				// invalidate cached state in RHI
-				GLES20.glDisableVertexAttribArray(mPositionAttrib);
-				GLES20.glDisableVertexAttribArray(mTexCoordsAttrib);
+				GLES32.glDisableVertexAttribArray(mPositionAttrib);
+				GLES32.glDisableVertexAttribArray(mTexCoordsAttrib);
 				nativeClearCachedAttributeState(mPositionAttrib, mTexCoordsAttrib); // offered by RHI for ES on Android
 			}
 
@@ -814,14 +810,14 @@ public class ElectraTextureSample
 		{
 			switch (error)
 			{
-				case GLES20.GL_INVALID_ENUM:						Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_ENUM");  break;
-				case GLES20.GL_INVALID_OPERATION:					Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_OPERATION");  break;
-				case GLES20.GL_INVALID_FRAMEBUFFER_OPERATION:		Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_FRAMEBUFFER_OPERATION");  break;
-				case GLES20.GL_INVALID_VALUE:						Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_VALUE");  break;
-				case GLES20.GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:	Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");  break;
-				case GLES20.GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:	Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS");  break;
-				case GLES20.GL_FRAMEBUFFER_UNSUPPORTED:				Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_FRAMEBUFFER_UNSUPPORTED");  break;
-				case GLES20.GL_OUT_OF_MEMORY:						Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_OUT_OF_MEMORY");  break;
+				case GLES32.GL_INVALID_ENUM:						Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_ENUM");  break;
+				case GLES32.GL_INVALID_OPERATION:					Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_OPERATION");  break;
+				case GLES32.GL_INVALID_FRAMEBUFFER_OPERATION:		Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_FRAMEBUFFER_OPERATION");  break;
+				case GLES32.GL_INVALID_VALUE:						Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_INVALID_VALUE");  break;
+				case GLES32.GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:	Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");  break;
+				case GLES32.GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:	Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS");  break;
+				case GLES32.GL_FRAMEBUFFER_UNSUPPORTED:				Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_FRAMEBUFFER_UNSUPPORTED");  break;
+				case GLES32.GL_OUT_OF_MEMORY:						Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError GL_OUT_OF_MEMORY");  break;
 				default:											Log.e(TAG,"MediaPlayer$BitmapRenderer: " + op + ": glGetError " + error);
 			}
 		}
@@ -829,7 +825,7 @@ public class ElectraTextureSample
 		private void glVerify(String op)
 		{
 			int error;
-			while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR)
+			while ((error = GLES32.glGetError()) != GLES32.GL_NO_ERROR)
 			{
 				showGlError(op, error);
 				throw new RuntimeException(op + ": glGetError " + error);
@@ -839,13 +835,13 @@ public class ElectraTextureSample
 		private void glWarn(String op)
 		{
 			int error;
-			while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR)
+			while ((error = GLES32.glGetError()) != GLES32.GL_NO_ERROR)
 			{
 				showGlError(op, error);
 			}
 		}
 
-		public FFrameUpdateInfo GetVideoFrameUpdateInfo(int destTexture, int width, int height)
+		public FFrameUpdateInfo GetVideoFrameUpdateInfo(int destTexture, int width, int height, boolean bIs10Bit)
 		{
 			mTextureWidth = width;
 			mTextureHeight = height;
@@ -853,10 +849,10 @@ public class ElectraTextureSample
 			if (mVulkanRenderer)
 			{
 				// Return data as byte buffer
-				return updateFrameData();
+				return updateFrameData(bIs10Bit);
 			}
 			// Return data in ES texture
-			return updateFrameData(destTexture);
+			return updateFrameData(destTexture, bIs10Bit);
 		}
 
 		public void release()
@@ -888,34 +884,40 @@ public class ElectraTextureSample
 			if (mBlitBuffer > 0)
 			{
 				glInt[0] = mBlitBuffer;
-				GLES20.glDeleteBuffers(1,glInt,0);
+				GLES32.glDeleteBuffers(1,glInt,0);
 				mBlitBuffer = -1;
 			}
-			if (mProgram > 0)
+			for(int i=0; i<2; ++i)
 			{
-				GLES20.glDeleteProgram(mProgram);
-				mProgram = -1;
+				if (mProgram[i] > 0)
+				{
+					GLES32.glDeleteProgram(mProgram[i]);
+					mProgram[i] = -1;
+				}
 			}
 			if (mBlitVertexShaderID > 0)
 			{
-				GLES20.glDeleteShader(mBlitVertexShaderID);
+				GLES32.glDeleteShader(mBlitVertexShaderID);
 				mBlitVertexShaderID = -1;
 			}
-			if (mBlitFragmentShaderID > 0)
+			for(int i=0; i<2; ++i)
 			{
-				GLES20.glDeleteShader(mBlitFragmentShaderID);
-				mBlitFragmentShaderID = -1;
+				if (mBlitFragmentShaderID[i] > 0)
+				{
+					GLES32.glDeleteShader(mBlitFragmentShaderID[i]);
+					mBlitFragmentShaderID[i] = -1;
+				}
 			}
 			if (mFBO > 0)
 			{
 				glInt[0] = mFBO;
-				GLES20.glDeleteFramebuffers(1,glInt,0);
+				GLES32.glDeleteFramebuffers(1,glInt,0);
 				mFBO = -1;
 			}
 			if (mTextureID > 0)
 			{
 				glInt[0] = mTextureID;
-				GLES20.glDeleteTextures(1,glInt,0);
+				GLES32.glDeleteTextures(1,glInt,0);
 				mTextureID = -1;
 			}
 			if (mEglSurface != EGL14.EGL_NO_SURFACE)

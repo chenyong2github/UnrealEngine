@@ -1498,7 +1498,7 @@ FVideoDecoderH265::EOutputResult FVideoDecoderH265::GetOutput()
 
 				// NOTE: We do not release the output buffer here as this would immediately overwrite the last frame in the surface not yet rendered.
 				//	     Instead we leave returning the buffer and the subsequent update of the texture to the render task.
-					//Result = DecoderInstance->ReleaseOutputBuffer(OutputBufferInfo.BufferIndex, OutputBufferInfo.ValidCount, false, -1);
+				//Result = DecoderInstance->ReleaseOutputBuffer(OutputBufferInfo.BufferIndex, OutputBufferInfo.ValidCount, false, -1);
 			}
 			else
 			{
@@ -1587,13 +1587,12 @@ FVideoDecoderH265::EOutputResult FVideoDecoderH265::ProcessOutput(const FDecoded
 					OutputBufferSampleProperties->Set("aspect_h", FVariantValue(ay));
 					OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64)0));
 					OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64)0));
-					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
 
 					// Set the bit depth and the colorimetry.
 					uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
 					uint8 video_full_range_flag=0, video_format=5;
 					uint8 num_bits = 8;
-					if (NextImage.SourceInfo->SPSs.Num())
+					if (NextImage.SourceInfo.IsValid() && NextImage.SourceInfo->SPSs.Num())
 					{
 						check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
 						num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
@@ -1609,7 +1608,8 @@ FVideoDecoderH265::EOutputResult FVideoDecoderH265::ProcessOutput(const FDecoded
 							video_format = NextImage.SourceInfo->SPSs[0].video_format;
 						}
 					}
-					/// see above // OutputBufferSampleProperties->Set("pixelfmt", num_bits==8 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_PLATFORM_HDR_1));
+					
+					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)((num_bits > 8)  ? EPixelFormat::PF_A2B10G10R10 : EPixelFormat::PF_B8G8R8A8)));
 					OutputBufferSampleProperties->Set("bits_per", FVariantValue((int64)num_bits));
 					Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
 					Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);

@@ -12,6 +12,7 @@
 
 #include "RenderingThread.h"
 
+DECLARE_GPU_STAT_NAMED(MediaAndroidDecoder_Convert, TEXT("MediaAndroidDecoder_Convert"));
 
 #define ELECTRA_INIT_ON_RENDERTHREAD	1	// set to 1 if context & surface init should be on render thread (seems safer for compatibility - TODO: research why)
 
@@ -122,7 +123,7 @@ FElectraTextureSampleSupport::FElectraTextureSampleSupport()
 	, InitializeFN(GetClassMethod("Initialize", "(Z)V"))
 	, ReleaseFN(GetClassMethod("Release", "()V"))
 	, GetCodecSurfaceFN(GetClassMethod("GetCodecSurface", "()Landroid/view/Surface;"))
-	, GetVideoFrameUpdateInfoFN(GetClassMethod("GetVideoFrameUpdateInfo", "(III)Lcom/epicgames/unreal/ElectraTextureSample$FFrameUpdateInfo;"))
+	, GetVideoFrameUpdateInfoFN(GetClassMethod("GetVideoFrameUpdateInfo", "(IIIZ)Lcom/epicgames/unreal/ElectraTextureSample$FFrameUpdateInfo;"))
 	, CodecSurface(nullptr)
 	, SurfaceInitEvent(nullptr)
 {
@@ -233,7 +234,7 @@ int32 FElectraTextureSampleSupport::GetFrameDataAndUpdateInfo(FFrameUpdateInfo& 
 
 	// Update frame info and get data...
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
-	jobject OutputInfo = JEnv->CallObjectMethod(Object, GetVideoFrameUpdateInfoFN.Method, DestTexture, InTargetSample->GetDim().X, InTargetSample->GetDim().Y);
+	jobject OutputInfo = JEnv->CallObjectMethod(Object, GetVideoFrameUpdateInfoFN.Method, DestTexture, InTargetSample->GetDim().X, InTargetSample->GetDim().Y, InTargetSample->GetFormat() == EMediaTextureSampleFormat::CharBGR10A2);
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
@@ -286,7 +287,7 @@ int32 FElectraTextureSampleSupport::GetFrameData(FElectraTextureSample* InTarget
 
 	// Update frame info and get data...
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
-	jobject OutputInfo = JEnv->CallObjectMethod(Object, GetVideoFrameUpdateInfoFN.Method, DestTexture, InTargetSample->GetDim().X, InTargetSample->GetDim().Y);
+	jobject OutputInfo = JEnv->CallObjectMethod(Object, GetVideoFrameUpdateInfoFN.Method, DestTexture, InTargetSample->GetDim().X, InTargetSample->GetDim().Y, InTargetSample->GetFormat() == EMediaTextureSampleFormat::CharBGR10A2);
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
@@ -356,32 +357,17 @@ void* FElectraTextureSamplePool::GetCodecSurface()
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-/**
-* Init code for reallocating an image from the the pool
-*/
-void FElectraTextureSample::InitializePoolable()
-{
-}
-
-/**
-*  Return the object to the pool and inform the renderer about this...
-*/
-void FElectraTextureSample::ShutdownPoolable()
-{
-	VideoDecoderOutput.Reset();
-}
-
-
 void FElectraTextureSample::Initialize(FVideoDecoderOutput* InVideoDecoderOutput)
 {
-	VideoDecoderOutput = StaticCastSharedPtr<FVideoDecoderOutputAndroid, IDecoderOutputPoolable, ESPMode::ThreadSafe>(InVideoDecoderOutput->AsShared());
+	IElectraTextureSampleBase::Initialize(InVideoDecoderOutput);
+	VideoDecoderOutputAndroid = static_cast<FVideoDecoderOutputAndroid*>(InVideoDecoderOutput);
 
-	if (VideoDecoderOutput->GetOutputType() == FVideoDecoderOutputAndroid::EOutputType::DirectToSurfaceAsQueue)
+	if (VideoDecoderOutputAndroid->GetOutputType() == FVideoDecoderOutputAndroid::EOutputType::DirectToSurfaceAsQueue)
 	{
-		ENQUEUE_RENDER_COMMAND(InitTextureSample)([WeakThis{ TWeakPtr<FElectraTextureSample, ESPMode::ThreadSafe>(AsShared()) }](FRHICommandListImmediate& RHICmdList) {
+		ENQUEUE_RENDER_COMMAND(InitTextureSample)([WeakThis{ AsWeak() }](FRHICommandListImmediate& RHICmdList) {
 			if (TSharedPtr<FElectraTextureSample, ESPMode::ThreadSafe> This = WeakThis.Pin())
 			{
-				This->InitializeTexture();
+				This->InitializeTexture(This->VideoDecoderOutputAndroid->GetFormat());
 
 				if (This->Texture)
 				{
@@ -405,12 +391,13 @@ void FElectraTextureSample::Initialize(FVideoDecoderOutput* InVideoDecoderOutput
 }
 
 
-void FElectraTextureSample::InitializeTexture()
+void FElectraTextureSample::InitializeTexture(EPixelFormat PixelFormat)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
 	if (FAndroidMisc::ShouldUseVulkan())
 	{
+		// For Vulkan we use a CPU-side buffer to transport the data
 		Texture = nullptr;
 		return;
 	}
@@ -419,16 +406,17 @@ void FElectraTextureSample::InitializeTexture()
 
 	if (Texture.IsValid() && (Texture->GetSizeXY() == Dim))
 	{
+		// The existing texture is just fine...
 		return;
 	}
 
+	// Make linear texture of appropriate bit depth to carry data...
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2D(TEXT("FElectraTextureSample"))
 		.SetExtent(Dim)
-		.SetFormat(PF_B8G8R8A8)
-		.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
-		.SetInitialState(ERHIAccess::SRVMask);
-
+		.SetInitialState(ERHIAccess::SRVMask)
+		.SetFlags(ETextureCreateFlags::Dynamic | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+		.SetFormat(PixelFormat);
 	Texture = RHICreateTexture(Desc);
 
 	return;
@@ -450,6 +438,113 @@ void FElectraTextureSample::SetupFromBuffer(const void* InBuffer, int32 InBuffer
 		BufferSize = InBufferSize;
 	}
 	FMemory::Memcpy(Buffer, InBuffer, InBufferSize);
+}
+
+
+EMediaTextureSampleFormat FElectraTextureSample::GetFormat() const
+{
+	if (VideoDecoderOutput)
+	{
+		return (VideoDecoderOutput->GetFormat() == EPixelFormat::PF_A2B10G10R10) ? EMediaTextureSampleFormat::CharBGR10A2 : EMediaTextureSampleFormat::CharBGRA;
+	}
+	return EMediaTextureSampleFormat::Undefined;
+}
+
+
+uint32 FElectraTextureSample::GetStride() const
+{
+	// note: we expect RGBA8 or RGB10A2 -> it's always 32 bits
+	return GetDim().X * sizeof(uint32);
+}
+
+
+bool FElectraTextureSample::Convert(FTexture2DRHIRef& InDstTexture, const FConversionHints& Hints)
+{
+	check(IsInRenderingThread());
+
+	if (GDynamicRHI->RHIIsRenderingSuspended())
+	{
+		return false;
+	}
+
+	TRefCountPtr<FRHITexture2D> InputTexture;
+
+	// Either use a texture we have around as a payload or make a temporary one from buffer contents...
+	if (!Texture.IsValid())
+	{
+		auto SampleDim = GetDim();
+
+		// Make a source texture so we can convert from it...
+		const FRHITextureCreateDesc Desc =
+			FRHITextureCreateDesc::Create2D(TEXT("FMediaTextureResource"), SampleDim, VideoDecoderOutputAndroid->GetFormat())
+			.SetFlags(TexCreate_Dynamic);
+		InputTexture = RHICreateTexture(Desc);
+		if (!InputTexture.IsValid())
+		{
+			return false;
+		}
+
+		// copy sample data to input render target
+		FUpdateTextureRegion2D Region(0, 0, 0, 0, SampleDim.X, SampleDim.Y);
+		RHIUpdateTexture2D(InputTexture, 0, Region, GetStride(), (const uint8*)GetBuffer());
+	}
+	else
+	{
+		InputTexture = Texture;
+	}
+
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	SCOPED_DRAW_EVENT(RHICmdList, AndroidMediaOutputConvertTexture);
+	SCOPED_GPU_STAT(RHICmdList, MediaAndroidDecoder_Convert);
+
+	FIntPoint Dim = VideoDecoderOutput->GetDim();
+	FIntPoint OutputDim = VideoDecoderOutput->GetOutputDim();
+
+	RHICmdList.Transition(FRHITransitionInfo(InDstTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
+	FRHIRenderPassInfo RPInfo(InDstTexture, ERenderTargetActions::DontLoad_Store);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("AndroidProcessVideo"));
+
+	// Update viewport.
+	RHICmdList.SetViewport(0, 0, 0.f, OutputDim.X, OutputDim.Y, 1.f);
+
+	// Setup conversion from Rec2020 to current working color space
+	const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+	FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * GetGamutToXYZMatrix();
+	if (GetEncodingType() == UE::Color::EEncoding::ST2084)
+	{
+		// Normalize output (e.g. 80 or 100 nits == 1.0)
+		ColorSpaceMtx = ColorSpaceMtx.ApplyScale(kMediaSample_HDR_NitsNormalizationFactor);
+	}
+
+	// Get shaders.
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	TShaderMapRef<FRGBConvertPS> PixelShader(GlobalShaderMap);
+	TShaderMapRef<FMediaShadersVS> VertexShader(GlobalShaderMap);
+
+	// Set the graphic pipeline state.
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMediaVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+	// Update shader uniform parameters.
+	PixelShader->SetParameters(RHICmdList, InputTexture, OutputDim, GetEncodingType() == UE::Color::EEncoding::sRGB, GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx);
+
+	RHICmdList.SetStreamSource(0, CreateTempMediaVertexBuffer(), 0);
+
+	RHICmdList.DrawPrimitive(0, 2, 1);
+
+	RHICmdList.EndRenderPass();
+	RHICmdList.Transition(FRHITransitionInfo(InDstTexture, ERHIAccess::RTV, ERHIAccess::SRVMask));
+
+	return true;
 }
 
 #endif

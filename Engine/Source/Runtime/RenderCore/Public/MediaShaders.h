@@ -333,7 +333,7 @@ public:
  * Pixel shader to resize an RGB texture.
  *
  * This shader expects an RGB or RGBA frame packed into a single texture
- * in PF_B8G8R8A8 or PF_FloatRGB format.
+ * in PF_B8G8R8A8, PF_A2B10G10R10 or PF_FloatRGB format.
  */
 class FRGBConvertPS
 	: public FGlobalShader
@@ -348,7 +348,7 @@ public:
 	{ }
 
 
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear, bool bIsST2084, const FMatrix44f& CSTransform);
 };
 
 

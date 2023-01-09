@@ -215,18 +215,27 @@ namespace MediaTextureResourceHelpers
 	{
 		switch (Sample->GetFormat())
 		{
-			// 10-bit formats
 		case EMediaTextureSampleFormat::CharBGR10A2:
+		{
+			if (Sample->GetEncodingType() == UE::Color::EEncoding::ST2084)
+			{
+				return PF_FloatRGB;
+			}
+			return PF_A2B10G10R10;
+		}
 		case EMediaTextureSampleFormat::YUVv210:
 			return PF_A2B10G10R10;
-			// Float formats
+
 		case EMediaTextureSampleFormat::FloatRGB:
-		case EMediaTextureSampleFormat::FloatRGBA:
 		case EMediaTextureSampleFormat::Y416:
 		case EMediaTextureSampleFormat::P010:
+			return PF_FloatRGB;
+
+		case EMediaTextureSampleFormat::FloatRGBA:
 		case EMediaTextureSampleFormat::P010_RGB1010102:
 			return PF_FloatRGBA;
-			// Everything else maps to 8-bit RGB...
+
+		// Everything else maps to 8-bit RGB...
 		default:
 			return PF_B8G8R8A8;
 		}
@@ -999,7 +1008,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, false);
+					ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, false, false, FMatrix44f::Identity);
 				}
 				break;
 

@@ -24,8 +24,8 @@ bool FElectraPlayerVideoDecoderOutputLinux::InitializeForBuffer(FIntPoint Dim, E
 {
 	FVideoDecoderOutputLinux::Initialize(InParamDict);
 	NumBits = InNumBits;
-	check(PixFmt == EPixelFormat::PF_NV12);
-	if (PixFmt != EPixelFormat::PF_NV12)
+	check(PixFmt == EPixelFormat::PF_NV12 || PixFmt == EPixelFormat::PF_P010);
+	if (PixFmt != EPixelFormat::PF_NV12 && PixFmt != EPixelFormat::PF_P010)
 	{
 		return false;
 	}
@@ -70,11 +70,6 @@ const TArray<uint8>& FElectraPlayerVideoDecoderOutputLinux::GetBuffer() const
 uint32 FElectraPlayerVideoDecoderOutputLinux::GetStride() const
 {
 	return Stride;
-}
-
-bool FElectraPlayerVideoDecoderOutputLinux::GetIs10Bit() const
-{
-	return NumBits > 8;
 }
 
 
