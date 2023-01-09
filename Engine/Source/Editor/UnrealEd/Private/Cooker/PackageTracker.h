@@ -190,12 +190,6 @@ namespace Cook
 		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
-		// This is a complete list of currently loaded UPackages
-		TFastPointerSet<UPackage*> LoadedPackages;
-
-		// This list contains the UPackages loaded since last call to GetNewPackages
-		TMap<UPackage*, FInstigator> NewPackages;
-
 		/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
 		FPackageData* LoadingPackageData = nullptr;
 
@@ -210,6 +204,27 @@ namespace Cook
 		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
 
 		bool bHasBeenConsumed = false;
+
+		// Thread-safe enumeration of loaded package. 
+		// A lock is held during enumeration, keep code simple and optimal so the lock is released as fast as possible.
+		template <typename FunctionType>
+		void ForEachLoadedPackage(FunctionType Function)
+		{
+			FReadScopeLock ScopeLock(Lock);
+			for (UPackage* Package : LoadedPackages)
+			{
+				Function(Package);
+			}
+		}
+	private:
+		// Protects data for thread-safety
+		FRWLock Lock;
+
+		// This is a complete list of currently loaded UPackages
+		TFastPointerSet<UPackage*> LoadedPackages;
+
+		// This list contains the UPackages loaded since last call to GetNewPackages
+		TMap<UPackage*, FInstigator> NewPackages;
 	}; 
 }
 }

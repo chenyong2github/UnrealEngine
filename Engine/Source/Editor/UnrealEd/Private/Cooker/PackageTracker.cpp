@@ -5,6 +5,7 @@
 #include "CookOnTheFlyServerInterface.h"
 #include "CookPackageData.h"
 #include "CookPlatformManager.h"
+#include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
@@ -63,6 +64,8 @@ namespace UE::Cook
 		:PackageDatas(InPackageDatas)
 	{
 		LLM_SCOPE_BYTAG(Cooker);
+
+		FWriteScopeLock ScopeLock(Lock);
 		for (TObjectIterator<UPackage> It; It; ++It)
 		{
 			UPackage* Package = *It;
@@ -91,6 +94,7 @@ namespace UE::Cook
 
 	TMap<UPackage*, FInstigator> FPackageTracker::GetNewPackages()
 	{
+		FWriteScopeLock ScopeLock(Lock);
 		TMap<UPackage*, FInstigator> Result = MoveTemp(NewPackages);
 		NewPackages.Reset();
 		bHasBeenConsumed = true;
@@ -117,6 +121,7 @@ namespace UE::Cook
 					COOK_STAT(++Stats::NumInlineLoads);
 				}
 
+				FWriteScopeLock ScopeLock(Lock);
 				LoadedPackages.Add(Package);
 				NewPackages.Add(Package,
 						FInstigator(EInstigator::Unsolicited,
@@ -132,6 +137,7 @@ namespace UE::Cook
 		{
 			UPackage* Package = const_cast<UPackage*>(static_cast<const UPackage*>(Object));
 
+			FWriteScopeLock ScopeLock(Lock);
 			LoadedPackages.Remove(Package);
 			NewPackages.Remove(Package);
 		}

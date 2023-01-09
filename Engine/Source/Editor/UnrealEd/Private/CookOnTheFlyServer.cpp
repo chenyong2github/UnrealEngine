@@ -2825,16 +2825,19 @@ void UCookOnTheFlyServer::UpdatePackageFilter()
 
 	UE_SCOPED_COOKTIMER(UpdatePackageFilter);
 	const TArray<const ITargetPlatform*>& TargetPlatforms = PlatformManager->GetSessionPlatforms();
-	for (UPackage* Package : PackageTracker->LoadedPackages)
-	{
-		UE::Cook::FPackageData* PackageData = QueueDiscoveredPackage(Package,
-			UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorUpdatePackageFilter));
-		if (PackageData && PackageData->IsInProgress())
+
+	PackageTracker->ForEachLoadedPackage(
+		[this, &TargetPlatforms](UPackage* Package)
 		{
-			PackageData->UpdateRequestData(TargetPlatforms, /*bIsUrgent*/ false, UE::Cook::FCompletionCallback(),
-				UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorUpdatePackageFilter));
+			UE::Cook::FPackageData* PackageData = QueueDiscoveredPackage(Package,
+			UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorUpdatePackageFilter));
+			if (PackageData && PackageData->IsInProgress())
+			{
+				PackageData->UpdateRequestData(TargetPlatforms, /*bIsUrgent*/ false, UE::Cook::FCompletionCallback(),
+					UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorUpdatePackageFilter));
+			}
 		}
-	}
+	);
 }
 
 void UCookOnTheFlyServer::OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform)
@@ -5183,15 +5186,17 @@ void UCookOnTheFlyServer::PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackage
 		}
 
 		TSet<FName> LoadedPackages;
-		for (UPackage* Package : PackageTracker->LoadedPackages)
-		{
-			const FName& PackageName = Package->GetFName();
-			if (KeepPackages.Contains(PackageName))
+		PackageTracker->ForEachLoadedPackage(
+			[&KeepPackages, &LoadedPackages, &GCKeepPackages](UPackage* Package)
 			{
-				LoadedPackages.Add(PackageName);
-				GCKeepPackages.Add(Package);
+				const FName& PackageName = Package->GetFName();
+				if (KeepPackages.Contains(PackageName))
+				{
+					LoadedPackages.Add(PackageName);
+					GCKeepPackages.Add(Package);
+				}
 			}
-		}
+		);
 
 		FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
 		TArray<FPackageData*> Requests;
