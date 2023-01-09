@@ -43,6 +43,7 @@ struct CORE_API FHoloLensProcess : public FGenericPlatformProcess
 	static void PopDllDirectory(const TCHAR* Directory);
 	static void SetCurrentWorkingDirectoryToBaseDir();
 	static FString GetCurrentWorkingDirectory();
+	static uint32 GetCurrentProcessId();
 	/** Content saved to the game or engine directories should be rerouted to user directories instead **/
 	static bool ShouldSaveToUserDir();
 
@@ -51,6 +52,7 @@ struct CORE_API FHoloLensProcess : public FGenericPlatformProcess
 	static const TCHAR* UserSettingsDir();
 	static const TCHAR* UserTempDir();
 	static const TCHAR* ApplicationSettingsDir();
+	static const TCHAR* ComputerName();
 
 	static const TCHAR* GetLocalAppDataLowLevelPath();
 	static const TCHAR* GetTempAppDataLowLevelPath();

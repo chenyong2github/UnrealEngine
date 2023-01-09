@@ -479,4 +479,20 @@ void FHoloLensProcess::LaunchURL(const TCHAR* URL, const TCHAR* Params, FString*
 #endif
 }
 
+const TCHAR* FHoloLensProcess::ComputerName()
+{
+	static TCHAR Result[256] = TEXT("");
+	if (!Result[0])
+	{
+		uint32 Size = UE_ARRAY_COUNT(Result);
+		GetComputerName(Result, (::LPDWORD)&Size);
+	}
+	return Result;
+}
+
+uint32 FHoloLensProcess::GetCurrentProcessId()
+{
+	return ::GetCurrentProcessId();
+}
+
 #include "Microsoft/HideMicrosoftPlatformTypes.h"
