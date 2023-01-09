@@ -208,7 +208,7 @@ void SScrollBox::ConstructVerticalLayout()
 			SNew(SOverlay)
 
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, 0.0f, 0.0f, 1.0f))
+			.Padding(Style->VerticalScrolledContentPadding)
 			[
 				// Scroll panel that presents the scrolled content
 				ScrollPanel.ToSharedRef()
@@ -264,7 +264,7 @@ void SScrollBox::ConstructHorizontalLayout()
 			SNew(SOverlay)
 
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, 0.0f, 1.0f, 0.0f))
+			.Padding(Style->HorizontalScrolledContentPadding)
 			[
 				// Scroll panel that presents the scrolled content
 				ScrollPanel.ToSharedRef()

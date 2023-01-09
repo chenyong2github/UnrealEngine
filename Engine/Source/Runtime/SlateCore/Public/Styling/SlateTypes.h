@@ -1975,6 +1975,24 @@ struct SLATECORE_API FScrollBoxStyle : public FSlateWidgetStyle
 		return *this;
 	}
 
+	/** Padding scroll panel that presents the scrolled content */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FMargin HorizontalScrolledContentPadding = FMargin(0.0f, 0.0f, 1.0f, 0.0f);
+	FScrollBoxStyle& SetHorizontalScrolledContentPadding(const FMargin& InPadding)
+	{
+		HorizontalScrolledContentPadding = InPadding;
+		return *this;
+	}
+
+	/** Padding scroll panel that presents the scrolled content */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FMargin VerticalScrolledContentPadding = FMargin(0.0f, 0.0f, 0.0f, 1.0f);
+	FScrollBoxStyle& SetVerticalScrolledContentPadding(const FMargin& InPadding)
+	{
+		VerticalScrolledContentPadding = InPadding;
+		return *this;
+	}
+
 	/**
 	 * Unlinks all colors in this style.
 	 * @see FSlateColor::Unlink
