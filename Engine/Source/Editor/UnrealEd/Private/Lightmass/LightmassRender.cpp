@@ -980,6 +980,11 @@ public:
 		}
 	}
 
+	virtual bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const override
+	{
+		return Material && Material->CheckInValidStateForCompilation(Compiler);
+	}
+
 private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;

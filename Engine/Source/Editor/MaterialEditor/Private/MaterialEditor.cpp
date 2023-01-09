@@ -393,6 +393,11 @@ bool FMatExpressionPreview::IsUsingNewHLSLGenerator() const
 	return false;
 }
 
+bool FMatExpressionPreview::CheckInValidStateForCompilation(FMaterialCompiler* Compiler) const
+{
+	return Expression.IsValid() && Expression->Material && Expression->Material->CheckInValidStateForCompilation(Compiler);
+}
+
 /////////////////////
 // FMaterialEditor //
 /////////////////////

@@ -562,6 +562,11 @@ public:
 		}
 	}
 
+	virtual bool CheckInValidStateForCompilation(FMaterialCompiler* Compiler) const override
+	{
+		return Material && Material->CheckInValidStateForCompilation(Compiler);
+	}
+
 private:
 	int32 CompileInputForCustomOutput(FMaterialCompiler* Compiler, int32 InputIndex, uint32 ForceCastFlags) const
 	{
