@@ -157,6 +157,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				Ray.Origin = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, HardwareRayTracingShadowRayBias + ReceiverBias);
 				Ray.Direction = L;
 #endif
+				Ray.TMin = 0;
+				Ray.TMax = NearFieldTMax;
 
 				{
 					FRayCone RayCone = (FRayCone)0;
@@ -182,20 +184,12 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 #if ENABLE_FAR_FIELD_TRACING
 					{
-						// Rebase origin and point-source direction for far-field rays
-						FRayDesc FarFieldRay;
-						FarFieldRay.Origin = TranslatedWorldPosition;
-						FarFieldRay.Direction = Ray.Direction;
-						FarFieldRay.TMin = NearFieldTMax;
-						FarFieldRay.TMax = FarFieldTMax;
-
-						Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
 						Context.bSkipClosestHitShader = true;
 						Context.TranslucentSkipCountMax = 0;
 						Context.FarFieldReferencePos = FarFieldReferencePos;
 						Context.FarFieldMaxTraceDistance = FarFieldTMax;
 						
-						FRayTracedLightingResult RayResult = TraceSurfaceCacheFarFieldRay(FarFieldRay, Context);
+						FRayTracedLightingResult RayResult = TraceSurfaceCacheFarFieldRay(Ray, Context);
 						bRayOccluded = IsRayOccluded(RayResult);
 
 						Context.bSkipClosestHitShader = false;
@@ -227,11 +221,10 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 #endif // ENABLE_HEIGHTFIELD_PROJECTION_BIAS
 
 					if (!bRayOccluded)
-					{
-						Ray.TMin = 0;
-						Ray.TMax = NearFieldTMax;
+					{						
 						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
 						Context.TranslucentSkipCountMax = MaxTranslucentSkipCount;
+						Context.bSkipClosestHitShader = false;
 
 						FRayTracedLightingResult RayResult = TraceSurfaceCacheRay(Ray, Context);
 						bRayOccluded = IsRayOccluded(RayResult);
