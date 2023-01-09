@@ -420,7 +420,7 @@ namespace DatasmithRevitExporter
 			{
 				int CenterX = (InCommandData.Application.MainWindowExtents.Left + InCommandData.Application.MainWindowExtents.Right) / 2;
 				int CenterY = (InCommandData.Application.MainWindowExtents.Top + InCommandData.Application.MainWindowExtents.Bottom) / 2;
-				
+
 				ExportMessagesDialog = new DatasmithRevitExportMessages(new System.Drawing.Point(CenterX, CenterY), () => ExportMessages = "");
 				ExportMessagesDialog.Messages = ExportMessages;
 				ExportMessagesDialog.Show();
@@ -429,6 +429,15 @@ namespace DatasmithRevitExporter
 			{
 				ExportMessagesDialog.Focus();
 			}
+		}
+
+		public static bool IsPreHandshakeRevitBuild(string VersionBuild)
+		{
+#if REVIT_API_2023
+			return Version.Parse(VersionBuild) < Version.Parse("23.1");
+#else
+			return true;
+#endif
 		}
 	}
 }
