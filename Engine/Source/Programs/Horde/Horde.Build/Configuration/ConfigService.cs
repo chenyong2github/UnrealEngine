@@ -8,9 +8,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 using EpicGames.Core;
 using EpicGames.Redis;
+using Horde.Build.Notifications;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Streams;
@@ -114,10 +114,12 @@ namespace Horde.Build.Configuration
 		record class ConfigState(IoHash Hash, GlobalConfig GlobalConfig);
 
 		readonly RedisService _redisService;
+		readonly INotificationService _notificationService;
 		readonly ServerSettings _settings;
 		readonly Dictionary<string, IConfigSource> _sources;
 		readonly JsonSerializerOptions _jsonOptions;
 		readonly RedisKey _snapshotKey = "config";
+		readonly ILogger _logger;
 
 		readonly ITicker _ticker;
 		readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(10.0);
@@ -134,11 +136,13 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(RedisService redisService, IOptions<ServerSettings> settings, IEnumerable<IConfigSource> sources, IClock clock, ILogger<ConfigService> logger)
+		public ConfigService(RedisService redisService, INotificationService notificationService, IOptions<ServerSettings> settings, IEnumerable<IConfigSource> sources, IClock clock, ILogger<ConfigService> logger)
 		{
 			_redisService = redisService;
+			_notificationService = notificationService;
 			_settings = settings.Value;
 			_sources = sources.ToDictionary(x => x.Scheme, x => x, StringComparer.OrdinalIgnoreCase);
+			_logger = logger;
 
 			_jsonOptions = new JsonSerializerOptions();
 			Startup.ConfigureJsonSerializer(_jsonOptions);
@@ -221,8 +225,11 @@ namespace Horde.Build.Configuration
 			{
 				if (snapshot == null || await IsOutOfDateAsync(snapshot, cancellationToken))
 				{
-					snapshot = await CreateSnapshotAsync(cancellationToken);
-					await WriteSnapshotAsync(snapshot);
+					snapshot = await CreateSnapshotGuardedAsync(cancellationToken);
+					if (snapshot != null)
+					{
+						await WriteSnapshotAsync(snapshot);
+					}
 				}
 				await Task.Delay(_tickInterval, cancellationToken);
 			}
@@ -246,6 +253,27 @@ namespace Horde.Build.Configuration
 
 					await await Task.WhenAny(updateTask, cancellationTask);
 				}
+			}
+		}
+
+		/// <summary>
+		/// Create a new snapshot object, catching any exceptions and sending notifications
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New config snapshot</returns>
+		async Task<ConfigSnapshot?> CreateSnapshotGuardedAsync(CancellationToken cancellationToken)
+		{
+			try
+			{
+				ConfigSnapshot snapshot = await CreateSnapshotAsync(cancellationToken);
+				_notificationService.NotifyConfigUpdate(null);
+				return snapshot;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Exception while updating config: {Message}", ex.Message);
+				_notificationService.NotifyConfigUpdate(ex);
+				return null;
 			}
 		}
 
@@ -295,16 +323,16 @@ namespace Horde.Build.Configuration
 				}
 
 				// Save all the dependencies
-				foreach ((Uri depUri, IConfigData depData) in context.Files)
+				foreach ((Uri depUri, IConfigFile depFile) in context.Files)
 				{
-					snapshot.Dependencies.Add(depUri, depData.Revision);
+					snapshot.Dependencies.Add(depUri, depFile.Revision);
 				}
 
 				return snapshot;
 			}
 			catch (Exception ex) when (ex is not ConfigException)
 			{
-				throw new ConfigException(context, "Internal exception while parsing config files", ex);
+				throw new ConfigException(context, ex.Message, ex);
 			}
 		}
 
@@ -327,10 +355,10 @@ namespace Horde.Build.Configuration
 					return true;
 				}
 
-				IConfigData[] data = await source.GetAsync(pairs.ConvertAll(x => x.Key), cancellationToken);
+				IConfigFile[] files = await source.GetAsync(pairs.ConvertAll(x => x.Key), cancellationToken);
 				for (int idx = 0; idx < pairs.Length; idx++)
 				{
-					if (!data[idx].Revision.Equals(pairs[idx].Value, StringComparison.Ordinal))
+					if (!files[idx].Revision.Equals(pairs[idx].Value, StringComparison.Ordinal))
 					{
 						return true;
 					}

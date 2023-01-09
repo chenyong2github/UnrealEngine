@@ -472,6 +472,11 @@ namespace Horde.Build
 		public string SlackWarningPrefix { get; set; } = ":horde-warning: ";
 
 		/// <summary>
+		/// Channel for sending messages related to config update failures
+		/// </summary>
+		public string? ConfigNotificationChannel { get; set; }
+
+		/// <summary>
 		/// Channel to send stream notification update failures to
 		/// </summary>
 		public string? UpdateStreamsNotificationChannel { get; set; }

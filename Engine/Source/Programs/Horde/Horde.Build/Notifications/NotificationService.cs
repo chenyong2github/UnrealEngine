@@ -277,6 +277,13 @@ namespace Horde.Build.Notifications
 		}
 
 		/// <inheritdoc/>
+		public void NotifyConfigUpdate(Exception? ex)
+		{
+			_logger.LogInformation(ex, "Configuration updated ({Result})", (ex == null) ? "success" : "failure");
+			EnqueueTasks(sink => sink.NotifyConfigUpdateAsync(ex));
+		}
+
+		/// <inheritdoc/>
 		public void NotifyConfigUpdateFailure(string errorMessage, string fileName, int? change = null, IUser? author = null, string? description = null)
 		{
 			EnqueueTasks(sink => sink.NotifyConfigUpdateFailureAsync(errorMessage, fileName, change, author, description));

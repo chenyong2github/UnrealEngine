@@ -116,6 +116,12 @@ namespace Horde.Build.Notifications
 		void NotifyLabelUpdate(IJob job, IReadOnlyList<(LabelState, LabelOutcome)> oldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> newLabelStates);
 
 		/// <summary>
+		/// Notify slack channel about a configuration update
+		/// </summary>
+		/// <param name="ex">Exception thrown during the update. Null if the update completed successfully.</param>
+		void NotifyConfigUpdate(Exception? ex);
+
+		/// <summary>
 		/// Notify slack channel about a stream update failure
 		/// </summary>
 		/// <param name="errorMessage">Error message passed back</param>

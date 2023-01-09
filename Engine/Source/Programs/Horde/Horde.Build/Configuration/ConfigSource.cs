@@ -7,8 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 using EpicGames.Core;
 using EpicGames.Perforce;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -17,29 +19,6 @@ using Microsoft.Extensions.Options;
 namespace Horde.Build.Configuration
 {
 	using PerforceConnectionId = StringId<PerforceConnectionSettings>;
-
-	/// <summary>
-	/// Accessor for a specific revision of a config file. Provides metadata about the current revision, and allows reading its data.
-	/// </summary>
-	public interface IConfigData
-	{
-		/// <summary>
-		/// URI of the config file
-		/// </summary>
-		Uri Uri { get; }
-
-		/// <summary>
-		/// String used to identify a specific version of the config data. Used for ordinal comparisons, otherwise opaque.
-		/// </summary>
-		string Revision { get; }
-
-		/// <summary>
-		/// Reads data for the config file
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>UTF-8 encoded data for the config file</returns>
-		ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken cancellationToken);
-	}
 
 	/// <summary>
 	/// Source for reading config files
@@ -57,7 +36,7 @@ namespace Horde.Build.Configuration
 		/// <param name="uris">Locations of the config files to query</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Config file data</returns>
-		Task<IConfigData[]> GetAsync(Uri[] uris, CancellationToken cancellationToken);
+		Task<IConfigFile[]> GetAsync(Uri[] uris, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
@@ -72,9 +51,9 @@ namespace Horde.Build.Configuration
 		/// <param name="uri">Location of the config file to query</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Config file data</returns>
-		public static async Task<IConfigData> GetAsync(this IConfigSource source, Uri uri, CancellationToken cancellationToken)
+		public static async Task<IConfigFile> GetAsync(this IConfigSource source, Uri uri, CancellationToken cancellationToken)
 		{
-			IConfigData[] result = await source.GetAsync(new[] { uri }, cancellationToken);
+			IConfigFile[] result = await source.GetAsync(new[] { uri }, cancellationToken);
 			return result[0];
 		}
 	}
@@ -84,11 +63,12 @@ namespace Horde.Build.Configuration
 	/// </summary>
 	public sealed class InMemoryConfigSource : IConfigSource
 	{
-		class ConfigFileRevisionImpl : IConfigData
+		class ConfigFileRevisionImpl : IConfigFile
 		{
 			public Uri Uri { get; }
 			public string Revision { get; }
 			public ReadOnlyMemory<byte> Data { get; }
+			public IUser? Author => null;
 
 			public ConfigFileRevisionImpl(Uri uri, string version, ReadOnlyMemory<byte> data)
 			{
@@ -121,9 +101,9 @@ namespace Horde.Build.Configuration
 		}
 
 		/// <inheritdoc/>
-		public Task<IConfigData[]> GetAsync(Uri[] uris, CancellationToken cancellationToken)
+		public Task<IConfigFile[]> GetAsync(Uri[] uris, CancellationToken cancellationToken)
 		{
-			IConfigData[] result = new IConfigData[uris.Length];
+			IConfigFile[] result = new IConfigFile[uris.Length];
 			for (int idx = 0; idx < uris.Length; idx++)
 			{
 				ConfigFileRevisionImpl? configFile;
@@ -142,12 +122,13 @@ namespace Horde.Build.Configuration
 	/// </summary>
 	public sealed class FileConfigSource : IConfigSource
 	{
-		class ConfigFileImpl : IConfigData
+		class ConfigFileImpl : IConfigFile
 		{
 			public Uri Uri { get; }
 			public string Revision { get; }
 			public DateTime LastWriteTimeUtc { get; }
 			public ReadOnlyMemory<byte> Data { get; }
+			public IUser? Author => null;
 
 			public ConfigFileImpl(Uri uri, DateTime lastWriteTimeUtc, ReadOnlyMemory<byte> data)
 			{
@@ -189,9 +170,9 @@ namespace Horde.Build.Configuration
 		}
 
 		/// <inheritdoc/>
-		public async Task<IConfigData[]> GetAsync(Uri[] uris, CancellationToken cancellationToken)
+		public async Task<IConfigFile[]> GetAsync(Uri[] uris, CancellationToken cancellationToken)
 		{
-			IConfigData[] files = new IConfigData[uris.Length];
+			IConfigFile[] files = new IConfigFile[uris.Length];
 			for (int idx = 0; idx < uris.Length; idx++)
 			{
 				Uri uri = uris[idx];
@@ -237,19 +218,21 @@ namespace Horde.Build.Configuration
 	/// </summary>
 	public sealed class PerforceConfigSource : IConfigSource
 	{
-		class ConfigFileImpl : IConfigData
+		class ConfigFileImpl : IConfigFile
 		{
 			public Uri Uri { get; }
 			public int Change { get; }
 			public string Revision { get; }
+			public IUser? Author { get; }
 
 			readonly PerforceConfigSource _owner;
 
-			public ConfigFileImpl(Uri uri, int change, PerforceConfigSource owner)
+			public ConfigFileImpl(Uri uri, int change, IUser? author, PerforceConfigSource owner)
 			{
 				Uri = uri;
 				Change = change;
 				Revision = $"{change}";
+				Author = author;
 				_owner = owner;
 			}
 
@@ -265,23 +248,25 @@ namespace Horde.Build.Configuration
 		string IConfigSource.Scheme => Scheme;
 
 		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IUserCollection _userCollection;
 		readonly IMemoryCache _cache;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceConfigSource(IOptionsMonitor<ServerSettings> settings, IMemoryCache cache, ILogger<PerforceConfigSource> logger)
+		public PerforceConfigSource(IOptionsMonitor<ServerSettings> settings, IUserCollection userCollection, IMemoryCache cache, ILogger<PerforceConfigSource> logger)
 		{
 			_settings = settings;
+			_userCollection = userCollection;
 			_cache = cache;
 			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public async Task<IConfigData[]> GetAsync(Uri[] uris, CancellationToken cancellationToken)
+		public async Task<IConfigFile[]> GetAsync(Uri[] uris, CancellationToken cancellationToken)
 		{
-			Dictionary<Uri, IConfigData> results = new Dictionary<Uri, IConfigData>();
+			Dictionary<Uri, IConfigFile> results = new Dictionary<Uri, IConfigFile>();
 			foreach (IGrouping<string, Uri> group in uris.GroupBy(x => x.Host))
 			{
 				using (IPerforceConnection perforce = await ConnectAsync(group.Key))
@@ -299,16 +284,34 @@ namespace Horde.Build.Configuration
 						{
 							throw new FileNotFoundException($"Unable to read {uri}. No matching files found.");
 						}
-						results[uri] = new ConfigFileImpl(uri, record.HeadChange, this);
+
+						IUser? author = await GetAuthorAsync(perforce, group.Key, record.HeadChange, cancellationToken);
+						results[uri] = new ConfigFileImpl(uri, record.HeadChange, author, this);
 					}
 				}
 			}
 			return uris.ConvertAll(x => results[x]);
 		}
 
+		async ValueTask<IUser?> GetAuthorAsync(IPerforceConnection perforce, string host, int change, CancellationToken cancellationToken)
+		{
+			string cacheKey = $"{nameof(PerforceConfigSource)}:author:{host}@{change}";
+			if (!_cache.TryGetValue(cacheKey, out string? author))
+			{
+				ChangeRecord record = await perforce.GetChangeAsync(GetChangeOptions.None, change, cancellationToken);
+				using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
+				{
+					entry.SetSlidingExpiration(TimeSpan.FromHours(1.0));
+					entry.SetSize(256);
+					entry.SetValue(record.User);
+				}
+			}
+			return (author != null)? await _userCollection.FindUserByLoginAsync(author) : null;
+		}
+
 		async ValueTask<ReadOnlyMemory<byte>> ReadAsync(Uri uri, int change, CancellationToken cancellationToken)
 		{
-			string cacheKey = $"{nameof(PerforceConfigSource)}:{uri}@{change}";
+			string cacheKey = $"{nameof(PerforceConfigSource)}:data:{uri}@{change}";
 			if (!_cache.TryGetValue(cacheKey, out ReadOnlyMemory<byte> data))
 			{
 				using (IPerforceConnection perforce = await ConnectAsync(uri.Host))

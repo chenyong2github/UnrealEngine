@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -12,7 +13,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Server;
+
 using JsonObject = System.Text.Json.Nodes.JsonObject;
 
 namespace Horde.Build.Configuration
@@ -43,9 +44,9 @@ namespace Horde.Build.Configuration
 	public sealed class ConfigException : Exception
 	{
 		/// <summary>
-		/// Path to the config file triggering the exception
+		/// Context for the parser
 		/// </summary>
-		public Uri Path { get; }
+		public ConfigContext Context { get; }
 
 		/// <summary>
 		/// Constructor
@@ -56,7 +57,7 @@ namespace Horde.Build.Configuration
 		internal ConfigException(ConfigContext context, string message, Exception? innerException = null)
 			: base(message, innerException)
 		{
-			Path = context.CurrentFile;
+			Context = context;
 		}
 	}
 
@@ -393,7 +394,7 @@ namespace Horde.Build.Configuration
 			return result;
 		}
 
-		static async ValueTask<JsonObject> ReadFileAsync(Uri uri, ConfigContext context, CancellationToken cancellationToken)
+		static async ValueTask<IConfigFile> ReadFileAsync(Uri uri, ConfigContext context, CancellationToken cancellationToken)
 		{
 			IConfigSource? source = context.Sources[uri.Scheme];
 			if (source == null)
@@ -401,19 +402,24 @@ namespace Horde.Build.Configuration
 				throw new ConfigException(context, $"Invalid/unknown scheme for config file {uri}");
 			}
 
-			IConfigData? file;
+			IConfigFile? file;
 			if (!context.Files.TryGetValue(uri, out file))
 			{
 				file = await source.GetAsync(uri, cancellationToken);
 				context.Files.Add(uri, file);
 			}
 
+			return file;
+		}
+
+		static async ValueTask<JsonObject> ParseFileAsync(IConfigFile file, ConfigContext context, CancellationToken cancellationToken)
+		{
 			ReadOnlyMemory<byte> data = await file.ReadAsync(cancellationToken);
 
 			JsonObject? obj = JsonSerializer.Deserialize<JsonObject>(data.Span, context.JsonOptions);
 			if (obj == null)
 			{
-				throw new ConfigException(context, $"Config file {uri} contains a null object.");
+				throw new ConfigException(context, $"Config file {file.Uri} contains a null object.");
 			}
 
 			return obj;
@@ -421,14 +427,16 @@ namespace Horde.Build.Configuration
 
 		public async Task MergeObjectAsync(object target, Uri uri, ConfigContext context, CancellationToken cancellationToken)
 		{
-			if (context.IncludeStack.Contains(uri))
+			if (context.IncludeStack.Any(x => x.Uri == uri))
 			{
 				throw new ConfigException(context, $"Recursive include of file {uri}");
 			}
 
-			context.IncludeStack.Push(uri);
+			IConfigFile file = await ReadFileAsync(uri, context, cancellationToken);
 
-			JsonObject obj = await ReadFileAsync(uri, context, cancellationToken);
+			context.IncludeStack.Push(file);
+
+			JsonObject obj = await ParseFileAsync(file, context, cancellationToken);
 			await MergeObjectAsync(target, obj, context, cancellationToken);
 
 			context.IncludeStack.Pop();
@@ -448,9 +456,11 @@ namespace Horde.Build.Configuration
 						foreach (ConfigInclude include in includes)
 						{
 							Uri uri = ConfigType.CombinePaths(context.CurrentFile, include.Path);
-							context.IncludeStack.Push(uri);
+							IConfigFile file = await ReadFileAsync(uri, context, cancellationToken);
 
-							JsonObject nextObj = await ReadFileAsync(uri, context, cancellationToken);
+							context.IncludeStack.Push(file);
+
+							JsonObject nextObj = await ParseFileAsync(file, context, cancellationToken);
 							await MergeObjectAsync(target, nextObj, context, cancellationToken);
 
 							context.IncludeStack.Pop();

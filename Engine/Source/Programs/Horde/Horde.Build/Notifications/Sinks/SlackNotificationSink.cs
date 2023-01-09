@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.WebSockets;
@@ -20,6 +21,8 @@ using EpicGames.Redis.Utility;
 using EpicGames.Slack;
 using EpicGames.Slack.Blocks;
 using EpicGames.Slack.Elements;
+using Horde.Build.Agents;
+using Horde.Build.Configuration;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
 using Horde.Build.Issues.External;
@@ -353,6 +356,13 @@ namespace Horde.Build.Notifications.Sinks
 		{
 			FilterDefinition<MessageStateDocument> filter = Builders<MessageStateDocument>.Filter.Eq(x => x.Recipient, recipient) & Builders<MessageStateDocument>.Filter.Eq(x => x.EventId, eventId);
 			return await _messageStates.Find(filter).FirstOrDefaultAsync();
+		}
+
+		async Task<bool> DeleteMessageStateAsync(string recipient, string eventId)
+		{
+			FilterDefinition<MessageStateDocument> filter = Builders<MessageStateDocument>.Filter.Eq(x => x.Recipient, recipient) & Builders<MessageStateDocument>.Filter.Eq(x => x.EventId, eventId);
+			DeleteResult result = await _messageStates.DeleteOneAsync(filter);
+			return result.DeletedCount > 0;
 		}
 
 		async Task UpdateMessageStateAsync(ObjectId stateId, SlackMessageId id, string? permalink = null)
@@ -1878,6 +1888,110 @@ namespace Horde.Build.Notifications.Sinks
 		#region Stream updates
 
 		/// <inheritdoc/>
+		public async Task NotifyConfigUpdateAsync(Exception? ex)
+		{
+			if (String.IsNullOrEmpty(_settings.ConfigNotificationChannel))
+			{
+				return;
+			}
+
+			const string EventId = "config-update";
+
+			if (ex != null)
+			{
+				_logger.LogInformation(ex, "Sending config update failure notification: {Message}", ex.Message);
+
+				List<string> details = new List<string>();
+				if (ex is ConfigException configEx)
+				{
+					ConfigContext context = configEx.Context;
+					if (context.IncludeStack.TryPeek(out IConfigFile? blame))
+					{
+						string line = String.Empty;
+						if (configEx.InnerException is JsonException jsonEx && jsonEx.LineNumber != null)
+						{
+							line = $"({jsonEx.LineNumber})";
+						}
+
+						string file = FormatConfigFileUri(blame.Uri);
+						details.Add($"Error parsing `{file}{line}`:");
+						details.Add($"```{ex.Message}```");
+						details.Add("Include stack:\n```" + String.Join("\n", context.IncludeStack.Select(x => FormatConfigFileRevision(x))) + "```");
+
+						if (blame.Uri.Scheme == PerforceConfigSource.Scheme)
+						{
+							string blameMessage = $"Possibly due to CL {blame.Revision}";
+							if (blame.Author != null)
+							{
+								string userId = await FormatMentionAsync(blame.Author.Id, true);
+								blameMessage += $" ({FormatUserOrGroupMention(userId)})";
+							}
+							details.Add(blameMessage.ToString());
+						}
+					}
+				}
+
+				if (details.Count == 0)
+				{
+					details.Add(QuoteText(ex.Message));
+				}
+
+				string message = String.Join("\n", details);
+				string digest = GetMessageDigest(message);
+
+				MessageStateDocument? state = await GetMessageStateAsync(_settings.ConfigNotificationChannel, EventId);
+				if (state == null || state.Digest != digest)
+				{
+					SlackMessage header = new SlackMessage();
+					header.AddHeader($"Config Update Error");
+					await SendMessageAsync(_settings.ConfigNotificationChannel, header);
+
+					SlackMessageId? messageId = await SendMessageAsync(_settings.ConfigNotificationChannel, message);
+					await AddOrUpdateMessageStateAsync(_settings.ConfigNotificationChannel, EventId, null, digest, messageId);
+				}
+			}
+			else
+			{
+				if (await DeleteMessageStateAsync(_settings.ConfigNotificationChannel, EventId))
+				{
+					SlackMessage message = new SlackMessage();
+					message.AddSection($"*Config Update Succeeded*");
+					await SendMessageAsync(_settings.ConfigNotificationChannel, message);
+					await DeleteMessageStateAsync(_settings.ConfigNotificationChannel, EventId);
+				}
+			}
+		}
+
+		static string FormatConfigFileUri(Uri uri)
+		{
+			if (uri.Scheme == FileConfigSource.Scheme)
+			{
+				return Uri.UnescapeDataString(uri.AbsolutePath).Replace('/', Path.DirectorySeparatorChar);
+			}
+			else if (uri.Scheme == PerforceConfigSource.Scheme)
+			{
+				return $"/{uri.AbsolutePath}";
+			}
+			else
+			{
+				return uri.ToString();
+			}
+		}
+
+		static string FormatConfigFileRevision(IConfigFile file)
+		{
+			Uri uri = file.Uri;
+			if (uri.Scheme == PerforceConfigSource.Scheme)
+			{
+				return $"{FormatConfigFileUri(uri)}@{file.Revision}";
+			}
+			else
+			{
+				return FormatConfigFileUri(uri);
+			}
+		}
+
+		/// <inheritdoc/>
 		public async Task NotifyConfigUpdateFailureAsync(string errorMessage, string fileName, int? change = null, IUser? author = null, string? description = null)
 		{
 			_logger.LogInformation("Sending config update failure notification for {FileName} (change: {Change}, author: {UserId})", fileName, change ?? -1, author?.Id ?? UserId.Empty);
@@ -2137,9 +2251,14 @@ namespace Horde.Build.Notifications.Sinks
 			return await SendOrUpdateMessageToThreadAsync(recipient, eventId, userId, null, message);
 		}
 
+		private static string GetMessageDigest(SlackMessage message)
+		{
+			return ContentHash.MD5(JsonSerializer.Serialize(message, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull })).ToString();
+		}
+
 		private async Task<(MessageStateDocument, bool)> SendOrUpdateMessageToThreadAsync(string recipient, string eventId, UserId? userId, SlackMessageId? threadId, SlackMessage message)
 		{
-			string requestDigest = ContentHash.MD5(JsonSerializer.Serialize(message, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull })).ToString();
+			string requestDigest = GetMessageDigest(message);
 
 			MessageStateDocument? prevState = await GetMessageStateAsync(recipient, eventId);
 			if (prevState != null && prevState.Digest == requestDigest)

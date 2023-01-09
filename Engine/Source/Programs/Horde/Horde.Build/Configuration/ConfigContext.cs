@@ -12,7 +12,7 @@ namespace Horde.Build.Configuration
 	/// Context for reading a tree of config files
 	/// </summary>
 	[DebuggerDisplay("{CurrentFile}")]
-	class ConfigContext
+	public class ConfigContext
 	{
 		/// <summary>
 		/// Options for serializing config files
@@ -22,7 +22,7 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Stack of included files
 		/// </summary>
-		public Stack<Uri> IncludeStack { get; } = new Stack<Uri>();
+		public Stack<IConfigFile> IncludeStack { get; } = new Stack<IConfigFile>();
 
 		/// <summary>
 		/// Stack of properties
@@ -32,7 +32,7 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Map of property path to the file declaring a value for it
 		/// </summary>
-		public Dictionary<string, Uri> PropertyPathToFile = new Dictionary<string, Uri>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, Uri> PropertyPathToFile { get; } = new Dictionary<string, Uri>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Sources to read config files from
@@ -42,12 +42,12 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Tracks files read as part of the configuration
 		/// </summary>
-		public Dictionary<Uri, IConfigData> Files { get; } = new Dictionary<Uri, IConfigData>();
+		public Dictionary<Uri, IConfigFile> Files { get; } = new Dictionary<Uri, IConfigFile>();
 
 		/// <summary>
 		/// Uri of the current file
 		/// </summary>
-		public Uri CurrentFile => (IncludeStack.Count > 0) ? IncludeStack.Peek() : null!;
+		public Uri CurrentFile => (IncludeStack.Count > 0) ? IncludeStack.Peek().Uri : null!;
 
 		/// <summary>
 		/// Current property scope

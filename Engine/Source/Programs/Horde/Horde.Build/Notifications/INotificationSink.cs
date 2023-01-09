@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Horde.Build.Configuration;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
 using Horde.Build.Jobs;
@@ -90,6 +91,12 @@ namespace Horde.Build.Notifications
 		Task SendIssueReportAsync(IssueReportGroup report);
 
 		#endregion
+
+		/// <summary>
+		/// Notification that the configuration state has changed
+		/// </summary>
+		/// <param name="ex">Exception during update. Null if the update completed successfully.</param>
+		Task NotifyConfigUpdateAsync(Exception? ex);
 
 		/// <summary>
 		/// Notification that a stream has failed to update
