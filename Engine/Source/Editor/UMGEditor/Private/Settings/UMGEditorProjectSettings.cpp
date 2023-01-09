@@ -21,7 +21,7 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 
 	bUseWidgetTemplateSelector = false;
 	DefaultRootWidget = nullptr;
-	DefaultWidgetParentClass = UUserWidget::StaticClass();
+	FavoriteWidgetParentClasses.Add(UUserWidget::StaticClass());
 }
 
 #if WITH_EDITOR

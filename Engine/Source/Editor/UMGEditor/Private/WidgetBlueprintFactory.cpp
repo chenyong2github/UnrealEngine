@@ -71,16 +71,38 @@ bool UWidgetBlueprintFactory::ConfigureProperties()
 
 		TSharedPtr<FWidgetClassFilter> Filter = MakeShareable(new FWidgetClassFilter);
 		Options.ClassFilters.Add(Filter.ToSharedRef());
-		Options.ExtraPickerCommonClasses.Add(UUserWidget::StaticClass());
+
+		TArray<TSoftClassPtr<UUserWidget>> FavoriteWidgetParentClasses = GetDefault <UUMGEditorProjectSettings>()->FavoriteWidgetParentClasses;
+		for (int32 Index = 0; Index < FavoriteWidgetParentClasses.Num(); ++Index)
+		{
+			UClass* FavoriteWidgetParentClass = FavoriteWidgetParentClasses[Index].LoadSynchronous();
+			if (FavoriteWidgetParentClass && FavoriteWidgetParentClass->IsChildOf(UUserWidget::StaticClass()))
+			{
+				if (!Options.ExtraPickerCommonClasses.Contains(FavoriteWidgetParentClass))
+				{
+					Options.ExtraPickerCommonClasses.Add(FavoriteWidgetParentClass);
+				}
+			}
+		}
+
+		if (Options.ExtraPickerCommonClasses.Num() == 0)
+		{
+			Options.ExtraPickerCommonClasses.Add(UUserWidget::StaticClass());
+		}
 
 		Filter->DisallowedClassFlags = CLASS_Deprecated | CLASS_NewerVersionExists;
 		Filter->AllowedChildrenOfClasses.Add(UUserWidget::StaticClass());
 
-		const FText TitleText = LOCTEXT("CreateWidgetBlueprint", "Pick Root Widget for New Widget Blueprint");
+		const FText TitleText = LOCTEXT("CreateWidgetBlueprint", "Pick Parent Class for New Widget Blueprint");
 
 		UClass* ChosenParentClass = nullptr;
-		SClassPickerDialog::PickClass(TitleText, Options, ChosenParentClass, UUserWidget::StaticClass());
+		bool isSuccessful = SClassPickerDialog::PickClass(TitleText, Options, ChosenParentClass, UUserWidget::StaticClass());
 		ParentClass = ChosenParentClass ? ChosenParentClass : UUserWidget::StaticClass();
+
+		if (!isSuccessful)
+		{
+			return false;
+		}
 	}
 	if (GetDefault<UUMGEditorProjectSettings>()->bUseWidgetTemplateSelector)
 	{
@@ -123,7 +145,7 @@ UObject* UWidgetBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 	UClass* CurrentParentClass = ParentClass;
 	if (CurrentParentClass == nullptr)
 	{
-		CurrentParentClass = GetDefault <UUMGEditorProjectSettings>()->DefaultWidgetParentClass.LoadSynchronous();
+		CurrentParentClass = UUserWidget::StaticClass();
 	}
 
 	// If they selected an interface, force the parent class to be UInterface
