@@ -27,6 +27,9 @@ void UBaseMediaSource::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 	{
 		OutTags.Add(FAssetRegistryTag("Url", Url, FAssetRegistryTag::TT_Alphabetical));
 	}
+	
+	OutTags.Add(FAssetRegistryTag("Validate", Validate() ? TEXT("True") : TEXT("False"),
+		FAssetRegistryTag::TT_Alphabetical));
 	Super::GetAssetRegistryTags(OutTags);
 }
 

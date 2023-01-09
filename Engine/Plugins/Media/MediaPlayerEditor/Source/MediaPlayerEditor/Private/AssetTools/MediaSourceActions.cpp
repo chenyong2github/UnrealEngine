@@ -21,21 +21,17 @@ bool FMediaSourceActions::CanFilter()
 
 FText FMediaSourceActions::GetAssetDescription(const struct FAssetData& AssetData) const
 {
-	auto MediaSource = Cast<UMediaSource>(AssetData.GetAsset());
-
-	if (MediaSource != nullptr)
+	FString Url = AssetData.GetTagValueRef<FString>("Url");
+	if (Url.IsEmpty())
 	{
-		FString Url = MediaSource->GetUrl();
+		return LOCTEXT("AssetTypeActions_MediaSourceMissing", "Warning: Missing settings detected!");
+	}
 
-		if (Url.IsEmpty())
-		{
-			return LOCTEXT("AssetTypeActions_MediaSourceMissing", "Warning: Missing settings detected!");
-		}
-
-		if (!MediaSource->Validate())
-		{
-			return LOCTEXT("AssetTypeActions_MediaSourceInvalid", "Warning: Invalid settings detected!");
-		}
+	FString Validate = AssetData.GetTagValueRef<FString>("Validate");
+	bool bIsValidated = Validate.IsEmpty() || (Validate == TEXT("True"));
+	if (!bIsValidated)
+	{
+		return LOCTEXT("AssetTypeActions_MediaSourceInvalid", "Warning: Invalid settings detected!");
 	}
 
 	return FText::GetEmpty();
