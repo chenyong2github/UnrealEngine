@@ -138,8 +138,10 @@ export enum JobStepBatchError {
 	Incomplete = "Incomplete",
 
 	/** An error ocurred while executing the lease. Cannot be retried. */
-	ExecutionError = "ExecutionError"
+	ExecutionError = "ExecutionError",
 
+	/** The change that the job is running against is invalid. */
+	UnknownShelf  = "UnknownShelf"
 
 }
 

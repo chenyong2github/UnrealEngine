@@ -145,7 +145,7 @@ export const getBatchText = (item: StepItem): string | undefined => {
 
 
       if (!statusText && batch.error !== undefined && batch.error !== JobStepBatchError.None) {
-         statusText = `Unknown error: ${batch.error}`;
+         statusText = `Batch error: ${batch.error}`;
       }
 
       if (!statusText) {
