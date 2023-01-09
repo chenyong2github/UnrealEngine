@@ -117,6 +117,40 @@ namespace
 		ECVF_RenderThreadSafe);
 }
 
+namespace AutoExposurePermutation
+{
+	bool ShouldCompileCommonPermutation(const FCommonDomain& PermutationVector)
+	{
+		if (PermutationVector.Get<FUseApproxIlluminanceDim>() && PermutationVector.Get<FUsePrecalculatedLuminanceDim>())
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	FCommonDomain BuildCommonPermutationDomain()
+	{
+		FCommonDomain PermutationVector;
+
+		if (CVarAutoExposureIgnoreMaterials.GetValueOnRenderThread())
+		{
+			if (CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance.GetValueOnRenderThread())
+			{
+				PermutationVector.Set<FUsePrecalculatedLuminanceDim>(true);
+			}
+			else
+			{
+				PermutationVector.Set<FUseApproxIlluminanceDim>(true);
+			}
+		}
+
+		PermutationVector.Set<FUseDebugOutputDim>(CVarAutoExposureIgnoreMaterialsDebug.GetValueOnRenderThread());
+
+		return PermutationVector;
+	}
+} // namespace TonemapperPermutation
+
 // Basic eye adaptation is supported everywhere except mobile when MobileHDR is disabled
 static ERHIFeatureLevel::Type GetBasicEyeAdaptationMinFeatureLevel()
 {

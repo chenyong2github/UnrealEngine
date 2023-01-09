@@ -26,6 +26,19 @@ FORCEINLINE float Log2ToEV100(float LuminanceMax, float Log2)
 	return Log2 - FMath::Log2(LuminanceMax);
 }
 
+namespace AutoExposurePermutation
+{
+	class FUsePrecalculatedLuminanceDim : SHADER_PERMUTATION_BOOL("USE_PRECALCULATED_LUMINANCE");
+	class FUseApproxIlluminanceDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE");
+	class FUseDebugOutputDim : SHADER_PERMUTATION_BOOL("USE_DEBUG_OUTPUT");
+
+	using FCommonDomain = TShaderPermutationDomain<FUsePrecalculatedLuminanceDim, FUseApproxIlluminanceDim, FUseDebugOutputDim>;
+
+	bool ShouldCompileCommonPermutation(const FCommonDomain& PermutationVector);
+
+	FCommonDomain BuildCommonPermutationDomain();
+} // namespace AutoExposurePermutation
+
 // For converting the auto exposure to new values from 4.24 to 4.25
 float CalculateEyeAdaptationParameterExposureConversion(const FPostProcessSettings& Settings, const bool bExtendedLuminanceRange);
 
