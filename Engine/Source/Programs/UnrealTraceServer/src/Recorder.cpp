@@ -28,7 +28,7 @@ private:
 	bool				CreateTrace();
 	bool				ReadMagic();
 	bool				ReadMetadata(int32 Size);
-	static const uint32	BufferSize = 64 * 1024;
+	static const uint32	BufferSize = 256 * 1024;
 	FAsioSocket			Input;
 	FAsioWriteable*		Output = nullptr;
 	FStore&				Store;
