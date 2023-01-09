@@ -19,6 +19,8 @@ public:
 	virtual ~FPCGMetadataAttributeBase() = default;
 	virtual void Serialize(UPCGMetadata* InMetadata, FArchive& InArchive);
 
+	virtual void Flatten() = 0;
+
 	const UPCGMetadata* GetMetadata() const { return Metadata; }
 	int16 GetTypeId() const { return TypeId; }
 

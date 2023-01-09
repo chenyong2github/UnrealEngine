@@ -19,9 +19,14 @@ void FPCGMetadataAttributeBase::Serialize(UPCGMetadata* InMetadata, FArchive& In
 	int32 ParentAttributeId = (Parent ? Parent->AttributeId : -1);
 	InArchive << ParentAttributeId;
 
-	if (InArchive.IsLoading() && ParentAttributeId >= 0 && Metadata->GetParent())
+	if (InArchive.IsLoading())
 	{
-		Parent = Metadata->GetParent()->GetConstAttributeById(ParentAttributeId);
+		ensure(ParentAttributeId < 0 || Metadata->GetParent());
+		if (ParentAttributeId >= 0 && Metadata->GetParent())
+		{
+			Parent = Metadata->GetParent()->GetConstAttributeById(ParentAttributeId);
+			check(Parent);
+		}
 	}
 
 	//Type id should already be known by then, so no need to serialize it

@@ -6,6 +6,7 @@
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGInputOutputSettings.h"
+#include "PCGParamData.h"
 #include "PCGVolume.h"
 #include "PCGManagedResource.h"
 #include "Data/PCGDifferenceData.h"
@@ -366,6 +367,22 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated,
 				// TODO: outering the first layer might not be sufficient here - might need to expose
 				// some methods in the data to traverse all the data to outer everything for serialization
 				DuplicatedTaggedData.Data = Cast<UPCGData>(StaticDuplicateObject(TaggedData.Data, this));
+
+				UPCGMetadata* DuplicatedMetadata = nullptr;
+				if (UPCGSpatialData* DuplicatedSpatialData = Cast<UPCGSpatialData>(DuplicatedTaggedData.Data))
+				{
+					DuplicatedMetadata = DuplicatedSpatialData->Metadata;
+				}
+				else if (UPCGParamData* DuplicatedParamData = Cast<UPCGParamData>(DuplicatedTaggedData.Data))
+				{
+					DuplicatedMetadata = DuplicatedParamData->Metadata;
+				}
+
+				// Make sure the metadata can be serialized independently
+				if (DuplicatedMetadata)
+				{
+					DuplicatedMetadata->Flatten();
+				}
 			}
 
 			// If the original component is partitioned, local components have to forward

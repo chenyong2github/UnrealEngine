@@ -78,6 +78,9 @@ public:
 	const UPCGMetadata* GetRoot() const;
 	bool HasParent(const UPCGMetadata* InTentativeParent) const;
 
+	/** Unparents current metadata by flattening the attributes (values, entries, etc.) */
+	void Flatten();
+
 	/** Create new streams */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateInteger32Attribute(FName AttributeName, int32 DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);

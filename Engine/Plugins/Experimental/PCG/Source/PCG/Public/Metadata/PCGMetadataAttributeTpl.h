@@ -51,6 +51,43 @@ public:
 		}
 	}
 
+	virtual void Flatten() override
+	{
+		// Implementation notes:
+		// We don't need to flatten the EntryToValueKeyMap - this will have been taken care of in the metadata flatten
+
+		// Flatten values, from root to current attribute
+		if(Parent)
+		{
+			FWriteScopeLock ScopeLock(ValueLock);
+
+			TArray<const TArray<T>*> OriginalValues;
+			int32 ValueCount = 0;
+
+			const FPCGMetadataAttribute<T>* Current = static_cast<const FPCGMetadataAttribute<T>*>(this);
+			while (Current)
+			{
+				ValueCount += Current->Values.Num();
+				OriginalValues.Add(&Current->Values);
+				Current = static_cast<const FPCGMetadataAttribute<T>*>(Current->Parent);
+			}
+
+			TArray<T> FlattenedValues;
+			FlattenedValues.Reserve(ValueCount);
+
+			for (int32 ValuesIndex = OriginalValues.Num() - 1; ValuesIndex >= 0; --ValuesIndex)
+			{
+				FlattenedValues.Append(*OriginalValues[ValuesIndex]);
+			}
+
+			Values = MoveTemp(FlattenedValues);
+		}
+		
+		// Reset value offset, and lose parent
+		ValueKeyOffset = 0;
+		Parent = nullptr;
+	}
+
 	const FPCGMetadataAttribute* GetParent() const { return static_cast<const FPCGMetadataAttribute*>(Parent); }
 
 	FPCGMetadataAttribute* TypedCopy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true)

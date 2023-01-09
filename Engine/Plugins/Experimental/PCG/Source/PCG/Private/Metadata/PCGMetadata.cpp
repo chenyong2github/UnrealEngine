@@ -258,6 +258,44 @@ bool UPCGMetadata::HasParent(const UPCGMetadata* InTentativeParent) const
 	return HierarchicalParent == InTentativeParent;
 }
 
+void UPCGMetadata::Flatten()
+{
+	Modify();
+
+	const int32 NumEntries = GetItemCountForChild();
+
+	AttributeLock.WriteLock();
+	for (auto& AttributePair : Attributes)
+	{
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
+		check(Attribute);
+
+		// For all stored entries (from the root), we need to make sure that entries that should have a concrete value have it
+		// Optimization notes:
+		// - we could skip entries that existed prior to attribute existence, etc.
+		// - we could skip entries that have no parent, but that would require checking against the parent entries in the parent hierarchy
+		for (int64 EntryKey = 0; EntryKey < NumEntries; ++EntryKey)
+		{
+			// Get value using value inheritance as expected
+			PCGMetadataValueKey ValueKey = Attribute->GetValueKey(EntryKey);
+			if (ValueKey != PCGDefaultValueKey)
+			{
+				// Set concrete non-default value
+				Attribute->SetValueFromValueKey(EntryKey, ValueKey);
+			}
+		}
+
+		// Finally, flatten values
+		Attribute->Flatten();
+	}
+	AttributeLock.WriteUnlock();
+
+	Parent = nullptr;
+	ParentKeys.Reset();
+	ParentKeys.Init(PCGInvalidEntryKey, NumEntries);
+	ItemKeyOffset = 0;
+}
+
 void UPCGMetadata::AddAttributeInternal(FName AttributeName, FPCGMetadataAttributeBase* Attribute)
 {
 	// This call assumes we have a write lock on the attribute map.
