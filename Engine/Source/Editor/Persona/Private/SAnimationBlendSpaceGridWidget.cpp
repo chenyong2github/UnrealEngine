@@ -507,6 +507,12 @@ int32 SBlendSpaceGridWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Al
 	
 	PaintBackgroundAndGrid(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
+#if 0
+	// Showing the sample-weights on the grid points is not useful to end users, but can be helpful when debugging
+	// the grid-based interpolation.
+	PaintGridSampleWeights(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
+#endif
+
 	PaintTriangulation(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 	PaintSampleKeys(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
@@ -821,6 +827,67 @@ void SBlendSpaceGridWidget::PaintAxisText(
 }
 
 //======================================================================================================================
+void SBlendSpaceGridWidget::PaintGridSampleWeights(
+	const FGeometry& AllottedGeometry,
+	const FSlateRect& MyCullingRect,
+	FSlateWindowElementList& OutDrawElements,
+	int32& DrawLayerId) const
+{
+	const UBlendSpace* BlendSpace = BlendSpaceBase.Get();
+	if (!BlendSpace)
+	{
+		return;
+	}
+	if (!BlendSpace->bInterpolateUsingGrid)
+	{
+		return;
+	}
+
+	const TSharedRef< FSlateFontMeasure > FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+	const TArray<FEditorElement>& GridSamples = BlendSpace->GetGridSamples();
+	int32 NumGridSamples = GridSamples.Num();
+	const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
+	for (int32 GridSampleIndex = 0 ; GridSampleIndex != NumGridSamples ; ++GridSampleIndex)
+	{
+		const FEditorElement& EditorElement = GridSamples[GridSampleIndex];
+
+		int32 TextOffset = 0;
+		for (int32 ElementIndex = 0 ; ElementIndex != 3 ; ++ElementIndex)
+		{
+			float SampleWeight = EditorElement.Weights[ElementIndex];
+			int32 SampleIndex = EditorElement.Indices[ElementIndex];
+			if (SampleWeight <= 0 || SampleIndex < 0)
+			{
+				continue;
+			}
+
+			const FBlendSample& Sample = Samples[SampleIndex];
+
+			const FText Name = FText::Format(LOCTEXT("SampleNameFormatWeight", "{0} ({1}) {2}"), 
+				GetSampleName(Sample, SampleIndex), FText::AsNumber(SampleIndex), SampleWeight);
+			const FVector2D TextSize = FontMeasure->Measure(Name, FontInfo);
+			const FVector2D Padding = FVector2D(12.0f, 4.0f);
+
+			FVector GridSamplePosition = BlendSpace->GetGridPosition(GridSampleIndex);
+
+			// Show the sample name/index/weight, going progressively up (because sample labels are
+			// below the grid points)
+			FVector2D GridPosition = SampleValueToScreenPosition(GridSamplePosition);
+			GridPosition += FVector2D(-TextSize.X / 2, -2 * KeySize.Y);
+			GridPosition.Y -= TextSize.Y * TextOffset++;
+			GridPosition.X -= Padding.X / 2;
+			GridPosition.Y += Padding.Y / 2;
+
+			FSlateDrawElement::MakeText(
+				OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(GridPosition + Padding / 2,
+					FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+		}
+	}
+}
+
+
+//======================================================================================================================
 void SBlendSpaceGridWidget::PaintTriangulation(
 	const FGeometry&         AllottedGeometry, 
 	const FSlateRect&        MyCullingRect, 
@@ -869,8 +936,8 @@ void SBlendSpaceGridWidget::PaintTriangulation(
 				SampleValueToScreenPosition(Samples[Triangle.SampleIndices[2]].SampleValue),
 			};
 
-			// If we just have one triangle it's OK for it to be degenerate
-			if (BlendSpaceData.Triangles.Num() > 1)
+			// Show invalid triangles even if there's only one triangle, because that probably
+			// happened when somebody failed to place the sample points in a proper line.
 			{
 				FVector2D NormalizedPositions[3] = {
 					SampleValueToNormalizedPosition(Samples[Triangle.SampleIndices[0]].SampleValue),

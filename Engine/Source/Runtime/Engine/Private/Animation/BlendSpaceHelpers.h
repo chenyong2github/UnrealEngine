@@ -93,6 +93,11 @@ struct FTriangle
 	// FEdges
 	FHalfEdge Edges[3];
 
+	void UpdateCenter() 
+	{
+		Center = (Vertices[0]->Position + Vertices[1]->Position + Vertices[2]->Position) / 3.0;
+	}
+
 	bool operator==( const FTriangle& Other ) const 
 	{
 		// if same position, it's same point
@@ -103,7 +108,7 @@ struct FTriangle
 	{
 		FMemory::Memcpy(Vertices, Copy.Vertices);
 		FMemory::Memcpy(Edges, Copy.Edges);
-		Center = Copy.Center;
+		UpdateCenter();
 
 		Vertices[0]->AddTriangle(this);
 		Vertices[1]->AddTriangle(this);
@@ -115,7 +120,7 @@ struct FTriangle
 		Vertices[0] = A;
 		Vertices[1] = B;
 		Vertices[2] = C;
-		Center = (A->Position + B->Position + C->Position)/3.0f;
+		UpdateCenter();
 
 		Vertices[0]->AddTriangle(this);
 		Vertices[1]->AddTriangle(this);
@@ -134,7 +139,7 @@ struct FTriangle
 		Vertices[0] = A;
 		Vertices[1] = A;
 		Vertices[2] = A;
-		Center = A->Position;
+		UpdateCenter();
 
 		Vertices[0]->AddTriangle(this);
 		Vertices[1]->AddTriangle(this);
@@ -151,7 +156,7 @@ struct FTriangle
 		Vertices[0] = A;
 		Vertices[1] = B;
 		Vertices[2] = B;
-		Center = (A->Position + B->Position) / 2.0f;
+		UpdateCenter();
 
 		Vertices[0]->AddTriangle(this);
 		Vertices[1]->AddTriangle(this);
