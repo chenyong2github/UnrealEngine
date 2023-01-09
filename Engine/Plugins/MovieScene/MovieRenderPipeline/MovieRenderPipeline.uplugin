@@ -21,6 +21,11 @@
 			"Optional": false
 		},
 		{
+			"Name": "ConsoleVariables",
+			"Enabled": true,
+			"Optional": false
+		},
+		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		},

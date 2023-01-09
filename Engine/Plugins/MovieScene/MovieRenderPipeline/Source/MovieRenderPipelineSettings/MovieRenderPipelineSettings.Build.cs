@@ -30,5 +30,10 @@ public class MovieRenderPipelineSettings : ModuleRules
 				"OpenColorIO",
 			}
 		);
+		
+		if (Target.bBuildEditor)
+		{
+			PublicDependencyModuleNames.Add("ConsoleVariablesEditor");
+		}
 	}
 }

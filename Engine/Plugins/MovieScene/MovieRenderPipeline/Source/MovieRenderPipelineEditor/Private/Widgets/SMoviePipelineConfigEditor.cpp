@@ -55,6 +55,8 @@
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
 
+#include "Customizations/ConsoleVariableCustomization.h"
+#include "MoviePipelineConsoleVariableSetting.h"
 #include "MoviePipelineOutputSetting.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
@@ -732,6 +734,7 @@ void SMoviePipelineConfigEditor::UpdateDetails()
 		else
 		{
 			TSharedRef<IDetailsView> Details = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+			Details->RegisterInstancedCustomPropertyTypeLayout(FMoviePipelineConsoleVariableEntry::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(FConsoleVariablesDetailsCustomization::MakeInstance));
 			Details->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFrameNumberDetailsCustomization::MakeInstance, NumericTypeInterface));
 			Details->RegisterInstancedCustomPropertyLayout(UMoviePipelineOutputSetting::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(FOutputFormatDetailsCustomization::MakeInstance, SharedThis(this)));
 
