@@ -39,7 +39,7 @@ public:
 
 protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Data")
-	TObjectPtr<UPrimitiveComponent> Primitive = nullptr;
+	TWeakObjectPtr<UPrimitiveComponent> Primitive = nullptr;
 
 	UPROPERTY()
 	FBox CachedBounds = FBox(EForceInit::ForceInit);

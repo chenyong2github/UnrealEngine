@@ -59,7 +59,7 @@ void UPCGMetadata::Serialize(FArchive& InArchive)
 		// Therefore by construction, it should never be less than the number of attributes (but can be greater).
 		NextAttributeId = MaxAttributeId + 1;
 		check(NextAttributeId >= Attributes.Num());
-		ItemKeyOffset = (Parent.IsValid() ? Parent->GetItemCountForChild() : 0);
+		ItemKeyOffset = (Parent ? Parent->GetItemCountForChild() : 0);
 	}
 }
 
@@ -86,14 +86,14 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent, bool bAddAttributesF
 
 void UPCGMetadata::InitializeWithAttributeFilter(const UPCGMetadata* InParent, const TSet<FName>& InFilteredAttributes, EPCGMetadataFilterMode InFilterMode)
 {
-	if (Parent.IsValid() || Attributes.Num() != 0)
+	if (Parent || Attributes.Num() != 0)
 	{
 		// Already initialized; note that while that might be construed as a warning, there are legit cases where this is correct
 		return;
 	}
 
 	Parent = ((InParent != this) ? InParent : nullptr);
-	ItemKeyOffset = Parent.IsValid() ? Parent->GetItemCountForChild() : 0;
+	ItemKeyOffset = Parent ? Parent->GetItemCountForChild() : 0;
 
 	// If we have been given an include list which is empty, then don't bother adding any attributes
 	const bool bSkipAddingAttributesFromParent = (InFilterMode == EPCGMetadataFilterMode::IncludeAttributes) && (InFilteredAttributes.Num() == 0);
@@ -111,7 +111,7 @@ void UPCGMetadata::InitializeAsCopy(const UPCGMetadata* InMetadataToCopy)
 	}
 
 	check(InMetadataToCopy);
-	if (Parent.IsValid() || Attributes.Num() != 0)
+	if (Parent || Attributes.Num() != 0)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Metadata has already been initialized or already contains attributes"));
 		return;
@@ -232,7 +232,7 @@ void UPCGMetadata::CopyAttribute(const UPCGMetadata* InOther, FName AttributeToC
 
 const UPCGMetadata* UPCGMetadata::GetRoot() const
 {
-	if (Parent.IsValid())
+	if (Parent)
 	{
 		return Parent->GetRoot();
 	}
@@ -394,7 +394,7 @@ FName UPCGMetadata::GetLatestAttributeNameOrNone() const
 
 bool UPCGMetadata::ParentHasAttribute(FName AttributeName) const
 {
-	return Parent.IsValid() && Parent->HasAttribute(AttributeName);
+	return Parent && Parent->HasAttribute(AttributeName);
 }
 
 void UPCGMetadata::CreateInteger32Attribute(FName AttributeName, int32 DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
@@ -545,7 +545,7 @@ FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(FName AttributeToCopy, FN
 	}
 	AttributeLock.ReadUnlock();
 
-	if (!OriginalAttribute && Parent.IsValid())
+	if (!OriginalAttribute && Parent)
 	{
 		OriginalAttribute = Parent->GetConstAttribute(AttributeToCopy);
 	}
