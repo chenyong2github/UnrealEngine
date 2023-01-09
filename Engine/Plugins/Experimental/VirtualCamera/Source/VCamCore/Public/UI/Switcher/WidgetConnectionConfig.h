@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/VCamConnectionStructs.h"
+#include "Util/WidgetReference.h"
 #include "WidgetConnectionConfig.generated.h"
 
 class UVCamStateSwitcherWidget;
@@ -19,7 +20,7 @@ struct VCAMCORE_API FWidgetConnectionConfig
 	 * This is the name of a child widget and can be used as argument to UWidgetTree::FindWidget.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connection")
-	FName Widget = NAME_None;
+	FVCamChildWidgetReference Widget;
 	
 	/**
 	 * Key: A valid key of in UVCamWidget::Connections of the widget identified via WidgetProperty.
@@ -29,5 +30,5 @@ struct VCAMCORE_API FWidgetConnectionConfig
 	TMap<FName, FVCamConnectionTargetSettings> ConnectionTargets;
 
 	UVCamWidget* ResolveWidget(UVCamStateSwitcherWidget* OwnerWidget) const;
-	bool HasNoWidgetSet() const { return Widget == NAME_None; }
+	bool HasNoWidgetSet() const;
 };

@@ -25,12 +25,13 @@ bool UVCamStateSwitcherWidget::SetCurrentState(FName NewState, bool bForceUpdate
 	const FName OldState = CurrentState;
 	OnPreStateChanged.Broadcast(this, OldState, NewState);
 	
-	for (const FWidgetConnectionConfig& WidgetConfig : StateConfig->WidgetConfigs)
+	for (int32 i = 0; i < StateConfig->WidgetConfigs.Num(); ++i)
 	{
+		const FWidgetConnectionConfig& WidgetConfig = StateConfig->WidgetConfigs[i];
 		UVCamWidget* Widget = WidgetConfig.ResolveWidget(this);
 		if (!Widget)
 		{
-			UE_CLOG(!WidgetConfig.HasNoWidgetSet(), LogVCamStateSwitcher, Warning, TEXT("Failed to find widget %s (NewState: %s)"), *WidgetConfig.Widget.ToString(), *NewState.ToString());
+			UE_CLOG(!WidgetConfig.HasNoWidgetSet(), LogVCamStateSwitcher, Warning, TEXT("Failed to find widget at index %d in state %s"), i, *NewState.ToString());
 			continue;
 		}
 
