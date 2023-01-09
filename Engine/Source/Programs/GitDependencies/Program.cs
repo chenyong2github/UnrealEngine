@@ -105,6 +105,7 @@ namespace GitDependencies
 			float CacheSizeMultiplier = ParseFloatParameter(ArgsList, DefaultArgsList, "-cache-size-multiplier=", 2.0f);
 			int CacheDays = ParseIntParameter(ArgsList, DefaultArgsList, "-cache-days=", 7);
 			string RootPath = ParseParameter(ArgsList, "-root=", Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "../../../../..")));
+			double HttpTimeoutMultiplier = ParseFloatParameter(ArgsList, DefaultArgsList, "-http-timeout-multiplier=", 1.0f) * NumThreads;
 
 			// Parse the cache path. A specific path can be set using -catch=<PATH> or the UE4_GITDEPS environment variable, otherwise we look for a parent .git directory
 			// and use a sub-folder of that. Users which download the source through a zip file (and won't have a .git directory) are unlikely to benefit from caching, as
@@ -205,6 +206,7 @@ namespace GitDependencies
 				Log.WriteLine("   --root=<PATH>                 Set the repository directory to be sync");
 				Log.WriteLine("   --threads=<N>                 Use N threads when downloading new files");
 				Log.WriteLine("   --dry-run                     Print a list of outdated files and exit");
+				Log.WriteLine("   --http-timeout-multiplier=<N> Override download timeout multiplier");
 				Log.WriteLine("   --max-retries                 Override maximum number of retries per file");
 				Log.WriteLine("   --proxy=<user:password@url>   Sets the HTTP proxy address and credentials");
 				Log.WriteLine("   --cache=<PATH>                Specifies a custom path for the download cache");
@@ -225,7 +227,7 @@ namespace GitDependencies
 			Console.CancelKeyPress += delegate { Log.FlushStatus(); };
 
 			// Update the tree. Make sure we clear out the status line if we quit for any reason (eg. ctrl-c)
-			if(!UpdateWorkingTree(bDryRun, RootPath, ExcludeFolders, NumThreads, MaxRetries, Proxy, Overwrite, CachePath, CacheSizeMultiplier, CacheDays))
+			if(!UpdateWorkingTree(bDryRun, RootPath, ExcludeFolders, NumThreads, HttpTimeoutMultiplier, MaxRetries, Proxy, Overwrite, CachePath, CacheSizeMultiplier, CacheDays))
 			{
 				return 1;
 			}
@@ -369,7 +371,7 @@ namespace GitDependencies
 			}
 		}
 
-		static bool UpdateWorkingTree(bool bDryRun, string RootPath, HashSet<string> ExcludeFolders, int NumThreads, int MaxRetries, Uri Proxy, OverwriteMode Overwrite, string CachePath, float CacheSizeMultiplier, int CacheDays)
+		static bool UpdateWorkingTree(bool bDryRun, string RootPath, HashSet<string> ExcludeFolders, int NumThreads, double HttpTimeoutMultiplier, int MaxRetries, Uri Proxy, OverwriteMode Overwrite, string CachePath, float CacheSizeMultiplier, int CacheDays)
 		{
 			// Start scanning on the working directory 
 			if(ExcludeFolders.Count > 0)
@@ -647,7 +649,7 @@ namespace GitDependencies
 			if(FilesToDownload.Count > 0)
 			{
 				// Download all the new dependencies
-				if(!DownloadDependencies(RootPath, FilesToDownload, TargetBlobs.Values, TargetPacks.Values, NumThreads, MaxRetries, Proxy, CachePath))
+				if(!DownloadDependencies(RootPath, FilesToDownload, TargetBlobs.Values, TargetPacks.Values, NumThreads, HttpTimeoutMultiplier, MaxRetries, Proxy, CachePath))
 				{
 					return false;
 				}
@@ -988,7 +990,7 @@ namespace GitDependencies
 			return false;
 		}
 
-		static bool DownloadDependencies(string RootPath, IEnumerable<DependencyFile> RequiredFiles, IEnumerable<DependencyBlob> Blobs, IEnumerable<DependencyPackInfo> Packs, int NumThreads, int MaxRetries, Uri Proxy, string CachePath)
+		static bool DownloadDependencies(string RootPath, IEnumerable<DependencyFile> RequiredFiles, IEnumerable<DependencyBlob> Blobs, IEnumerable<DependencyPackInfo> Packs, int NumThreads, double HttpTimeoutMultiplier, int MaxRetries, Uri Proxy, string CachePath)
 		{
 			// Make sure we can actually open the right number of connections
 			ServicePointManager.DefaultConnectionLimit = NumThreads;
@@ -1049,7 +1051,7 @@ namespace GitDependencies
 			Thread[] WorkerThreads = new Thread[NumThreads];
 			for(int Idx = 0; Idx < NumThreads; Idx++)
 			{
-				WorkerThreads[Idx] = new Thread(x => DownloadWorker(DownloadQueue, State, MaxRetries, CancellationToken.Token));
+				WorkerThreads[Idx] = new Thread(x => DownloadWorker(DownloadQueue, State, HttpTimeoutMultiplier, MaxRetries, CancellationToken.Token));
 				WorkerThreads[Idx].Start();
 			}
 
@@ -1131,7 +1133,7 @@ namespace GitDependencies
 			return Files.OrderBy(x => x.MinPackOffset).ToArray();
 		}
 
-		static void DownloadWorker(ConcurrentQueue<IncomingPack> DownloadQueue, AsyncDownloadState State, int MaxRetries, CancellationToken CancellationToken)
+		static void DownloadWorker(ConcurrentQueue<IncomingPack> DownloadQueue, AsyncDownloadState State, double HttpTimeoutMultiplier, int MaxRetries, CancellationToken CancellationToken)
 		{
 			int Retries = 0;
 			for(;;)
@@ -1171,7 +1173,7 @@ namespace GitDependencies
 					}
 					else
 					{
-						DownloadAndExtractFiles(NextPack.Url, NextPack.Proxy, NextPack.CacheFileName, NextPack.CompressedSize, NextPack.Hash, NextPack.Files, Size => { RollbackSize += Size; Interlocked.Add(ref State.NumBytesRead, Size); }).Wait();
+						DownloadAndExtractFiles(NextPack.Url, NextPack.Proxy, NextPack.CacheFileName, NextPack.CompressedSize, NextPack.Hash, NextPack.Files, HttpTimeoutMultiplier, Size => { RollbackSize += Size; Interlocked.Add(ref State.NumBytesRead, Size); }).Wait();
 					}
 
 					// Update the stats
@@ -1238,7 +1240,7 @@ namespace GitDependencies
 			return false;
 		}
 
-		static async Task DownloadAndExtractFiles(string Url, Uri Proxy, string CacheFileName, long CompressedSize, string ExpectedHash, IncomingFile[] Files, NotifyReadDelegate NotifyRead)
+		static async Task DownloadAndExtractFiles(string Url, Uri Proxy, string CacheFileName, long CompressedSize, string ExpectedHash, IncomingFile[] Files, double HttpTimeoutMultiplier, NotifyReadDelegate NotifyRead)
 		{
 			// Create the web request
 			HttpClientHandler Handler = new HttpClientHandler();
@@ -1248,6 +1250,12 @@ namespace GitDependencies
 			}
 
 			HttpClient Client = new HttpClient(Handler);
+
+			// Estimate and set HttpClient timeout
+			double EstimatedDownloadDurationSecondsAt2MBps = Convert.ToDouble(CompressedSize) / 250000.0;
+			double HttpTimeoutSeconds = Math.Max(Client.Timeout.TotalSeconds, EstimatedDownloadDurationSecondsAt2MBps * HttpTimeoutMultiplier);
+
+			Client.Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds);
 
 			// Read the response and extract the files
 			using (HttpResponseMessage Response = await Client.GetAsync(Url))
