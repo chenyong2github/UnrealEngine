@@ -244,7 +244,12 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 		AssetName = *FPackageName::GetShortName(InPackage->GetFName());
 	}
 
-	FString FileName = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(InPackage->GetName()));
+	const FString Extension = (InPackage->GetPackageFlags() & PKG_ContainsMap) ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+	FString FileName = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(InPackage->GetName(), Extension));
+
+	// Ensure that the filename is formatted in a way that the current platform natively understands. 
+	FPaths::MakePlatformFilename(FileName);
+	
 	PackagesDialogWidget.Get()->Add(MakeShareable(new FPackageItem(InPackage, AssetName.ToString(), FileName, OwnerName.ToString(), InChecked, InDisabled, InIconName, InIconToolTip)));
 }
 

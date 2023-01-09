@@ -10,6 +10,7 @@ public class PackagesDialog : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ApplicationCore",
 				"Core", 
 				"CoreUObject", 
 				"EditorFramework",
