@@ -50,7 +50,10 @@ public class ChaosClothAssetEditorTools : ModuleRules
 				"ChaosClothAssetTools",
 				"ChaosClothAssetEngine",
 				"ClothingSystemEditor",
-				"MeshConversion"
+				"MeshConversion",
+				"MeshDescription",
+				"SkeletalMeshDescription",
+				"ChaosClothAsset"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

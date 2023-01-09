@@ -29,8 +29,8 @@ void FChaosClothAssetEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeightMapPaintTool);
-
 		ToolbarBuilder.AddToolBarButton(Commands.BeginClothTrainingTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransferSkinWeightsTool);
 	}
 }
 

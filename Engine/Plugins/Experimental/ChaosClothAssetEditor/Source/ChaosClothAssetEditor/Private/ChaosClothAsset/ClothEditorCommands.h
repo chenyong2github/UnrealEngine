@@ -39,6 +39,9 @@ public:
 	const static FString BeginClothTrainingToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginClothTrainingTool;
 
+	const static FString BeginTransferSkinWeightsToolIdentifier;
+	TSharedPtr<FUICommandInfo> BeginTransferSkinWeightsTool;
+
 	// Rest space viewport commands
 	const static FString TogglePatternModeIdentifier;
 	TSharedPtr<FUICommandInfo> TogglePatternMode;
