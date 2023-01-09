@@ -33,6 +33,8 @@ namespace UE::AssetTools
 	struct FPackageMigrationContext;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPackageMigration, FPackageMigrationContext&);
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FCanMigrateAsset, FName);
 }
 
 UENUM()
@@ -572,6 +574,10 @@ public:
 
 	/** Show notification that writable folder filter blocked an action */
 	virtual void NotifyBlockedByWritableFolderFilter() const = 0;
+
+	/** Allow to add some restrictions to the assets that can be migrated */
+	virtual void RegisterCanMigrateAsset(const FName OwnerName, UE::AssetTools::FCanMigrateAsset Delegate) = 0;
+	virtual void UnregisterCanMigrateAsset(const FName OwnerName) = 0;
 
 	/** Syncs the primary content browser to the specified assets, whether or not it is locked. Most syncs that come from AssetTools -feel- like they came from the content browser, so this is okay. */
 	virtual void SyncBrowserToAssets(const TArray<UObject*>& AssetsToSync) = 0;

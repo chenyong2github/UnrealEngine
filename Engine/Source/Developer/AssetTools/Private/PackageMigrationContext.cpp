@@ -50,6 +50,13 @@ const TArray<UPackage*>& FPackageMigrationContext::GetMovedOutOfTheWayPackages()
 	return PackagesThatWhereMoved;
 }
 
+const TArray<FString>& FPackageMigrationContext::GetExcludedDependencies() const
+{
+	checkf(CurrentStep < EPackageMigrationStep::PostExcludedDependenciesCreated, TEXT("The migration can't give the excluded packages before the where processed"));
+
+	return ExcludedDependencies;
+}
+
 void FPackageMigrationContext::MoveInTheWayPackage(UPackage* Package)
 {
 	check(Package);

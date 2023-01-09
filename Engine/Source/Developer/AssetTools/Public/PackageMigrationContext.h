@@ -42,6 +42,9 @@ struct ASSETTOOLS_API FPackageMigrationContext : public FGCObject
 	// Return the array of non instanced package where moved because they were in the way of the migration
 	const TArray<UPackage*>& GetMovedOutOfTheWayPackages() const;
 
+	// Return the array of package dependencies that where not migrated because there where excluded by some automated filters
+	const TArray<FString>& GetExcludedDependencies() const;
+
 	enum class EPackageMigrationStep
 	{
 		// Called before the migration begin
@@ -50,6 +53,8 @@ struct ASSETTOOLS_API FPackageMigrationContext : public FGCObject
 		PostAssetMigrationPackageDataCreated,
 		// Called after the non external packages to migrate where processed
 		PostExternalMigrationPackageDataCreated,
+		// Called after the excluded depencies where processed
+		PostExcludedDependenciesCreated,
 		// Called after all the package that might be in the way for the migration where move
 		InTheWayPackagesMoved,
 		// Called after the instanced package where created with their load linker setup being already set to load the right file
@@ -60,6 +65,8 @@ struct ASSETTOOLS_API FPackageMigrationContext : public FGCObject
 		InstancedPackagesSaved,
 		// Called after the instanced package were removed
 		PostCleaningInstancedPackages,
+		// Called after all the package that were in the way for the migration where restored
+		InTheWayPackagesRestored,
 		// Called at the end of the migration. After the in the way package where restored but before the log is processed
 		EndMigration
 	};
@@ -108,7 +115,7 @@ struct ASSETTOOLS_API FPackageMigrationContext : public FGCObject
 		// Tell the migration that package must be loaded
 		bool bNeedInstancedLoad = false;
 
-		// Tell the migration that the package must migrated by save
+		// Tell the migration that the package must be migrated by save
 		bool bNeedToBeSaveMigrated = false;
 
 		FMigrationPackageData(const FString& InInstancedPackageName, const FString& InOriginalPackageName, const FString& InDestinationFilename);
@@ -180,6 +187,9 @@ private:
 
 	// The data associated to the packages that take part of the migration process.
 	TArray<FMigrationPackageData> MigrationPackagesData;
+
+	// The excluded dependencies of the asset that are being migrated (these don't include the asset a user might have exclude voluntary from the migration)
+	TArray<FString> ExcludedDependencies;
 };
 
 }
