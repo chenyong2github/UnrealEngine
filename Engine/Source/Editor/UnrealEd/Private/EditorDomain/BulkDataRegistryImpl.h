@@ -104,7 +104,7 @@ public:
 
 private:
 	void OnBulkDataListResults(FSharedBuffer Buffer);
-	void ReadCache();
+	void ReadCache(bool& bOutAbort);
 
 	enum EFlags : int32
 	{
@@ -235,6 +235,8 @@ private:
 	static void WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData);
 	void ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
 		TArray<TRefCountPtr<FPendingPayloadId>>&& NewPendings);
+	void OnEnginePreExit();
+	void Teardown();
 
 	friend class FPendingPackage;
 	friend class FUpdatePayloadWorker;
