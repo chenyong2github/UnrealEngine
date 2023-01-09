@@ -39,8 +39,8 @@ private:
 
 	enum
 	{
-		OpMagicRead,
-		OpMetadataRead,
+		OpMagicRead			= 0x1000,
+		OpMetadataRead		= 0x1001,
 		OpSocketRead,
 		OpFileWrite,
 	};
