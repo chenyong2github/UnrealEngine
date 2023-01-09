@@ -12,14 +12,14 @@
 
 namespace UE::ChooserEditor
 {
-TSharedRef<SWidget> CreateFloatPropertyWidget(UObject* Object, UClass* ContextClass)
+TSharedRef<SWidget> CreateFloatPropertyWidget(UObject* TransactionObject, void* Value, UClass* ContextClass)
 {
-	return CreatePropertyWidget<UChooserParameterFloat_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->FloatPinTypeColor);
+	return CreatePropertyWidget<FFloatContextProperty>(TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->FloatPinTypeColor);
 }
 	
-TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
+TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)
 {
-	UChooserColumnFloatRange* FloatRangeColumn = Cast<UChooserColumnFloatRange>(Column);
+	FFloatRangeColumn* FloatRangeColumn = static_cast<FFloatRangeColumn*>(Column);
 
 	return SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot().MaxWidth(10)
@@ -37,12 +37,12 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
 		{
 			return (Row < FloatRangeColumn->RowValues.Num()) ? FloatRangeColumn->RowValues[Row].Min : 0;
 		})
-		.OnValueCommitted_Lambda([FloatRangeColumn, Row](float NewValue, ETextCommit::Type CommitType)
+		.OnValueCommitted_Lambda([Chooser, FloatRangeColumn, Row](float NewValue, ETextCommit::Type CommitType)
 		{
 			if (Row < FloatRangeColumn->RowValues.Num())
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Edit Min Value", "Edit Min Value"));
-				FloatRangeColumn->Modify(true);
+				Chooser->Modify(true);
 				FloatRangeColumn->RowValues[Row].Min = NewValue;
 			}
 		})
@@ -62,12 +62,12 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
 		{
 			return (Row < FloatRangeColumn->RowValues.Num()) ? FloatRangeColumn->RowValues[Row].Max : 0;
 		})
-		.OnValueCommitted_Lambda([FloatRangeColumn, Row](float NewValue, ETextCommit::Type CommitType)
+		.OnValueCommitted_Lambda([Chooser, FloatRangeColumn, Row](float NewValue, ETextCommit::Type CommitType)
 		{
 			if (Row < FloatRangeColumn->RowValues.Num())
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Edit Max", "Edit Max Value"));
-				FloatRangeColumn->Modify(true);
+				Chooser->Modify(true);
 				FloatRangeColumn->RowValues[Row].Max = NewValue;
 			}
 		})
@@ -81,10 +81,8 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
 	
 void RegisterFloatRangeWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterFloat_ContextProperty::StaticClass(), CreateFloatPropertyWidget);
-	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterFloat_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterFloat_ContextProperty>);
-
-	FChooserTableEditor::ColumnWidgetCreators.Add(UChooserColumnFloatRange::StaticClass(), CreateFloatRangeColumnWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FFloatContextProperty::StaticStruct(), CreateFloatPropertyWidget);
+	FChooserTableEditor::ColumnWidgetCreators.Add(FFloatRangeColumn::StaticStruct(), CreateFloatRangeColumnWidget);
 }
 	
 }

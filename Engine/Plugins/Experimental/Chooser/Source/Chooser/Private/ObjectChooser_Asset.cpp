@@ -2,7 +2,7 @@
 
 #include "ObjectChooser_Asset.h"
 
-UObject* UObjectChooser_Asset::ChooseObject(const UObject* ContextObject) const
+UObject* FAssetChooser::ChooseObject(const UObject* ContextObject) const
 {
 	return Asset;
 }

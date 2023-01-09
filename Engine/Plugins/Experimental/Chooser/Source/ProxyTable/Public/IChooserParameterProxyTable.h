@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#include "IChooserParameterBase.h"
+#include "InstancedStruct.h"
 #include "IChooserParameterProxyTable.generated.h"
 
 class UProxyTable;
@@ -18,7 +20,16 @@ class PROXYTABLE_API UChooserParameterProxyTable : public UInterface
 class PROXYTABLE_API IChooserParameterProxyTable
 {
 	GENERATED_BODY()
+public:
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const {}
+};
 
+
+USTRUCT()
+struct FChooserParameterProxyTableBase : public FChooserParameterBase
+{
+	GENERATED_BODY()
+    
 public:
 	virtual bool GetValue(const UObject* ContextObject, const UProxyTable*& OutResult) const { return false; }
 };

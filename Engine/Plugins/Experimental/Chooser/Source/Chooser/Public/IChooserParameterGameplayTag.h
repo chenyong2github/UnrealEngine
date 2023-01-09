@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#include "IChooserParameterBase.h"
 #include "IChooserParameterGameplayTag.generated.h"
 
 struct FGameplayTagContainer;
@@ -18,7 +19,13 @@ class CHOOSER_API UChooserParameterGameplayTag : public UInterface
 class CHOOSER_API IChooserParameterGameplayTag
 {
 	GENERATED_BODY()
-
 public:
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const {}
+};
+
+USTRUCT()
+struct FChooserParameterGameplayTagBase : public FChooserParameterBase
+{
+	GENERATED_BODY()
 	virtual bool GetValue(const UObject* ContextObject, const FGameplayTagContainer*& OutResult) const { return false; }
 };

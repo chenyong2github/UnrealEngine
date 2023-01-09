@@ -5,10 +5,11 @@
 #include "IChooserColumn.h"
 #include "IChooserParameterBool.h"
 #include "ChooserPropertyAccess.h"
+#include "InstancedStruct.h"
 #include "BoolColumn.generated.h"
 
-UCLASS(DisplayName = "Bool Property Binding")
-class CHOOSER_API UChooserParameterBool_ContextProperty :  public UObject, public IChooserParameterBool
+USTRUCT(DisplayName = "Bool Property Binding")
+struct CHOOSER_API FBoolContextProperty :  public FChooserParameterBoolBase
 {
 	GENERATED_BODY()
 public:
@@ -29,37 +30,77 @@ public:
 	{
 		UE::Chooser::CopyPropertyChain(InBindingChain, PropertyBindingChain);
 	}
+
+	virtual void GetDisplayName(FText& OutName) const override
+	{
+		if (!PropertyBindingChain.IsEmpty())
+		{
+			OutName = FText::FromName(PropertyBindingChain.Last());
+		}
+	}
 #endif
 };
 
-UCLASS()
-class CHOOSER_API UChooserColumnBool : public UObject, public IChooserColumn
+USTRUCT()
+struct CHOOSER_API FBoolColumn : public FChooserColumnBase
 {
 	GENERATED_BODY()
 	public:
-	UChooserColumnBool() {};
-	UChooserColumnBool(const FObjectInitializer& ObjectInitializer);
+	FBoolColumn();
 	
-	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Input")
+	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Hidden")
+	FInstancedStruct InputValue;
+	
+	UPROPERTY(EditAnywhere, Category=Runtime);
+	TArray<bool> RowValues; 
+	
+	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+
+	CHOOSER_COLUMN_BOILERPLATE(FChooserParameterBoolBase);
+};
+
+// deprecated class versions for converting old data
+
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ChooserParameterBool_ContextProperty :  public UObject, public IChooserParameterBool
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	TArray<FName> PropertyBindingChain;
+	
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
+	{
+		OutInstancedStruct.InitializeAs(FBoolContextProperty::StaticStruct());
+		FBoolContextProperty& Property = OutInstancedStruct.GetMutable<FBoolContextProperty>();
+		Property.PropertyBindingChain = PropertyBindingChain;
+	}
+};
+
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ChooserColumnBool : public UObject, public IChooserColumn
+{
+	GENERATED_BODY()
+public:
+	UDEPRECATED_ChooserColumnBool() {};
+	UDEPRECATED_ChooserColumnBool(const FObjectInitializer& ObjectInitializer){};
+	
+	UPROPERTY(EditAnywhere, Category = "Input")
 	TScriptInterface<IChooserParameterBool> InputValue;
 
 	UPROPERTY(EditAnywhere, Category=Runtime)
 	// array of results (cells for this column for each row in the table)
 	// should match the length of the Results array 
 	TArray<bool> RowValues;
-	
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) override;
 
-	// todo: macro boilerplate
-	virtual void SetNumRows(uint32 NumRows) override { RowValues.SetNum(NumRows); }
-	virtual void DeleteRows(const TArray<uint32> & RowIndices )
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
 	{
-		for(uint32 Index : RowIndices)
+		OutInstancedStruct.InitializeAs(FBoolColumn::StaticStruct());
+		FBoolColumn& Column = OutInstancedStruct.GetMutable<FBoolColumn>();
+		if (IChooserParameterBool* InputValueInterface = InputValue.GetInterface())
 		{
-			RowValues.RemoveAt(Index);
+			InputValueInterface->ConvertToInstancedStruct(Column.InputValue);
 		}
+		Column.RowValues = RowValues;
 	}
-	virtual UClass* GetInputValueInterface() override { return UChooserParameterBool::StaticClass(); };
-	virtual UObject* GetInputValue() override { return InputValue.GetObject(); };
-	virtual void SetInputValue(UObject* Value) override { InputValue = Value; };
 };

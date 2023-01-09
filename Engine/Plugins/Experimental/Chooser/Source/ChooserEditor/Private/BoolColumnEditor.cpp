@@ -3,8 +3,8 @@
 #include "BoolColumnEditor.h"
 #include "BoolColumn.h"
 #include "ContextPropertyWidget.h"
-#include "ObjectChooserWidgetFactories.h"
 #include "ChooserTableEditor.h"
+#include "ObjectChooserWidgetFactories.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "GraphEditorSettings.h"
 
@@ -13,17 +13,17 @@
 namespace UE::ChooserEditor
 {
 
-TSharedRef<SWidget> CreateBoolColumnWidget(UObject* Column, int Row)
+TSharedRef<SWidget> CreateBoolColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)
 {
-	UChooserColumnBool* BoolColumn = Cast<UChooserColumnBool>(Column);
+	FBoolColumn* BoolColumn = static_cast<FBoolColumn*>(Column);
 
 	return SNew (SCheckBox)
-	.OnCheckStateChanged_Lambda([BoolColumn,Row](ECheckBoxState State)
+	.OnCheckStateChanged_Lambda([Chooser, BoolColumn,Row](ECheckBoxState State)
 	{
 		if (Row < BoolColumn->RowValues.Num())
 		{
 			const FScopedTransaction Transaction(LOCTEXT("Change Bool Value", "Change Bool Value"));
-			BoolColumn->Modify(true);
+			Chooser->Modify(true);
 			BoolColumn->RowValues[Row] = (State == ECheckBoxState::Checked);
 		}
 	})
@@ -34,17 +34,15 @@ TSharedRef<SWidget> CreateBoolColumnWidget(UObject* Column, int Row)
 	});
 }
 	
-TSharedRef<SWidget> CreateBoolPropertyWidget(UObject* Object, UClass* ContextClass)
+TSharedRef<SWidget> CreateBoolPropertyWidget(UObject* TransactionObject, void* Value, UClass* ContextClass)
 {
-	return CreatePropertyWidget<UChooserParameterBool_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor);
+	return CreatePropertyWidget<FBoolContextProperty>(TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor);
 }
 	
 void RegisterBoolWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterBool_ContextProperty::StaticClass(), CreateBoolPropertyWidget);
-	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterBool_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterBool_ContextProperty>);
-
-	FChooserTableEditor::ColumnWidgetCreators.Add(UChooserColumnBool::StaticClass(), CreateBoolColumnWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FBoolContextProperty::StaticStruct(), CreateBoolPropertyWidget);
+	FChooserTableEditor::ColumnWidgetCreators.Add(FBoolColumn::StaticStruct(), CreateBoolColumnWidget);
 }
 	
 }

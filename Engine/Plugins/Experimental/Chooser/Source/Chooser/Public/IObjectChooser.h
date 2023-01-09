@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#include "InstancedStruct.h"
 #include "IObjectChooser.generated.h"
 
 UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
@@ -16,8 +17,18 @@ class CHOOSER_API UObjectChooser : public UInterface
 class CHOOSER_API IObjectChooser
 {
 	GENERATED_BODY()
+public:
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const { }
+};
+
+
+USTRUCT()
+struct CHOOSER_API FObjectChooserBase
+{
+	GENERATED_BODY()
 
 public:
+	virtual ~FObjectChooserBase() {}
 
 	virtual UObject* ChooseObject(const UObject* ContextObject) const { return nullptr; };
 

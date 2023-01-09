@@ -2,7 +2,7 @@
 #include "FloatRangeColumn.h"
 #include "ChooserPropertyAccess.h"
 
-bool UChooserParameterFloat_ContextProperty::GetValue(const UObject* ContextObject, float& OutResult) const
+bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutResult) const
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
@@ -25,18 +25,17 @@ bool UChooserParameterFloat_ContextProperty::GetValue(const UObject* ContextObje
 	return false;
 }
 
-UChooserColumnFloatRange::UChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer)
+FFloatRangeColumn::FFloatRangeColumn()
 {
-	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterFloat_ContextProperty>(this, "InputValue");
-	InputValue.GetObject()->SetFlags(RF_Transactional);
+	InputValue.InitializeAs(FFloatContextProperty::StaticStruct());
 }
 
-void UChooserColumnFloatRange::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
+void FFloatRangeColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
-	if (ContextObject && InputValue)
+	if (ContextObject && InputValue.IsValid())
 	{
 		float Result = 0.0f;
-		InputValue->GetValue(ContextObject, Result);
+		InputValue.Get<FChooserParameterFloatBase>().GetValue(ContextObject, Result);
 
 		for(uint32 Index : IndexListIn)
 		{

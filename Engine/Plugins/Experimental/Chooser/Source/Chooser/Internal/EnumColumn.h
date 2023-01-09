@@ -4,15 +4,16 @@
 #include "CoreMinimal.h"
 #include "IChooserColumn.h"
 #include "IChooserParameterEnum.h"
+#include "InstancedStruct.h"
 #include "EnumColumn.generated.h"
 
 struct FBindingChainElement;
 
-UCLASS(DisplayName = "Enum Property Binding")
-class CHOOSER_API UChooserParameterEnum_ContextProperty : public UObject, public IChooserParameterEnum
+USTRUCT(DisplayName = "Enum Property Binding")
+struct CHOOSER_API FEnumContextProperty : public FChooserParameterEnumBase
 {
 	GENERATED_BODY()
-public:
+	
 	UPROPERTY()
 	TArray<FName> PropertyBindingChain;
 
@@ -36,19 +37,24 @@ public:
 
 	void SetBinding(const TArray<FBindingChainElement>& InBindingChain);
 
-	virtual const UEnum* GetEnum() const override { return Enum; }
+	virtual void GetDisplayName(FText& OutName) const override
+	{
+		if (!PropertyBindingChain.IsEmpty())
+		{
+			OutName = FText::FromName(PropertyBindingChain.Last());
+		}
+	}
 
-	virtual FSimpleMulticastDelegate& OnEnumChanged() { return EnumChanged; }
+	virtual const UEnum* GetEnum() const override { return Enum; }
 #endif
 
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<const UEnum> Enum = nullptr;
-
-	FSimpleMulticastDelegate EnumChanged;
 #endif
 };
+
 
 
 UENUM()
@@ -76,46 +82,41 @@ struct FChooserEnumRowData
 	bool Evaluate(const uint8 LeftHandSide) const;
 };
 
-UCLASS()
-class CHOOSER_API UChooserColumnEnum : public UObject, public IChooserColumn
+
+USTRUCT()
+struct CHOOSER_API FEnumColumn : public FChooserColumnBase
 {
 	GENERATED_BODY()
 public:
-	UChooserColumnEnum() = default;
-	UChooserColumnEnum(const FObjectInitializer& ObjectInitializer);
+	FEnumColumn();
 
-	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Input")
-	TScriptInterface<IChooserParameterEnum> InputValue;
+	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterEnumBase"), Category = "Hidden")
+	FInstancedStruct InputValue;
 
 	UPROPERTY(EditAnywhere, Category = Runtime)
 	// array of results (cells for this column for each row in the table)
 	// should match the length of the Results array
 	TArray<FChooserEnumRowData> RowValues;
 
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) override;
-	virtual void SetNumRows(uint32 NumRows) { RowValues.SetNum(NumRows); }
-	virtual void DeleteRows(const TArray<uint32>& RowIndices)
-	{
-		for (uint32 Index : RowIndices)
-		{
-			RowValues.RemoveAt(Index);
-		}
-	}
-	virtual UClass* GetInputValueInterface() { return UChooserParameterEnum::StaticClass(); };
-	virtual UObject* GetInputValue() override { return InputValue.GetObject(); };
-	virtual void SetInputValue(UObject* Value) override
-	{
-		InputValue = Value;
+	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	
+	CHOOSER_COLUMN_BOILERPLATE_NoSetInputType(FChooserParameterEnumBase);
+	
 #if WITH_EDITOR
+	virtual void SetInputType(const UScriptStruct* Type) override
+	{
+		InputValue.InitializeAs(Type);
 		InputChanged();
-#endif
 	};
 
-#if WITH_EDITOR
 	FSimpleMulticastDelegate OnEnumChanged;
+	
 	void InputChanged()
 	{
-		InputValue->OnEnumChanged().AddLambda([this](){ OnEnumChanged.Broadcast(); });
+		if (InputValue.IsValid())
+		{
+			InputValue.GetMutable<FChooserParameterEnumBase>().OnEnumChanged.AddLambda([this](){ OnEnumChanged.Broadcast(); });
+		}
 		OnEnumChanged.Broadcast();
 	}
 
@@ -125,4 +126,47 @@ public:
 		InputChanged();
 	}
 #endif
+};
+
+// deprecated class version for converting old data
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ChooserParameterEnum_ContextProperty : public UObject, public IChooserParameterEnum
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	TArray<FName> PropertyBindingChain;
+	
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
+	{
+		OutInstancedStruct.InitializeAs(FEnumContextProperty::StaticStruct());
+		FEnumContextProperty& Property = OutInstancedStruct.GetMutable<FEnumContextProperty>();
+		Property.PropertyBindingChain = PropertyBindingChain;
+	}
+};
+
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ChooserColumnEnum : public UObject, public IChooserColumn
+{
+	GENERATED_BODY()
+public:
+	UDEPRECATED_ChooserColumnEnum() = default;
+	UDEPRECATED_ChooserColumnEnum(const FObjectInitializer& ObjectInitializer){};
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TScriptInterface<IChooserParameterEnum> InputValue;
+
+	UPROPERTY(EditAnywhere, Category = Runtime)
+	TArray<FChooserEnumRowData> RowValues;
+	
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
+	{
+		OutInstancedStruct.InitializeAs(FEnumColumn::StaticStruct());
+		FEnumColumn& Column = OutInstancedStruct.GetMutable<FEnumColumn>();
+		if (IChooserParameterEnum* InputValueInterface = InputValue.GetInterface())
+		{
+			InputValueInterface->ConvertToInstancedStruct(Column.InputValue);
+		}
+		Column.RowValues = RowValues;
+	}
 };

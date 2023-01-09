@@ -4,35 +4,49 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "IObjectChooser.h"
+#include "InstancedStruct.h"
 #include "IChooserColumn.h"
 
 #include "Chooser.generated.h"
 
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, BlueprintType)
 class UChooserTable : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
 	UChooserTable() {}
-
-	// each possible result
-	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Hidden")
-	TArray<TScriptInterface<IObjectChooser>> Results;
 	
-	// columns which filter results
-	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category="Hidden")
-	TArray<TScriptInterface<IChooserColumn>> Columns;
+	// deprecated UObject Results
+	UPROPERTY()
+	TArray<TScriptInterface<IObjectChooser>> Results_DEPRECATED;
+	
+	// deprecated UObject Columns
+	UPROPERTY()
+	TArray<TScriptInterface<IChooserColumn>> Columns_DEPRECATED;
+
+	// Each possible Result (Rows of chooser table)
+	UPROPERTY(EditAnywhere, DisplayName = "Results", Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ObjectChooserBase"), Category = "Hidden")
+	TArray<FInstancedStruct> ResultsStructs;
+
+	// Columns which filter Results
+	UPROPERTY(EditAnywhere, DisplayName = "Columns", Category = Hidden, meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserColumnBase"))
+	TArray<FInstancedStruct> ColumnsStructs;
 
 	UPROPERTY(EditAnywhere, Category="Input", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> ContextObjectType;
 	
 	UPROPERTY(EditAnywhere, Category="Output", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> OutputObjectType;
+
+#if WITH_EDITOR
+	virtual void PostLoad() override;
+#endif
 };
 
-UCLASS(DisplayName = "Evaluate Chooser")
-class CHOOSER_API UObjectChooser_EvaluateChooser : public UObject, public IObjectChooser
+
+USTRUCT(DisplayName = "Evaluate Chooser")
+struct CHOOSER_API FEvaluateChooser : public FObjectChooserBase
 {
 	GENERATED_BODY()
 
@@ -42,6 +56,22 @@ class CHOOSER_API UObjectChooser_EvaluateChooser : public UObject, public IObjec
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
 	TObjectPtr<UChooserTable> Chooser;
+};
+
+// Deprecated class for converting old data
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ObjectChooser_EvaluateChooser : public UObject, public IObjectChooser
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, Category="Parameters")
+	TObjectPtr<UChooserTable> Chooser;
+
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const
+	{
+		OutInstancedStruct.InitializeAs(FEvaluateChooser::StaticStruct());
+		FEvaluateChooser& AssetChooser = OutInstancedStruct.GetMutable<FEvaluateChooser>();
+		AssetChooser.Chooser = Chooser;
+	}
 };
 
 

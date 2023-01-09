@@ -2,7 +2,7 @@
 #include "BoolColumn.h"
 #include "ChooserPropertyAccess.h"
 
-bool UChooserParameterBool_ContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
+bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
@@ -19,18 +19,17 @@ bool UChooserParameterBool_ContextProperty::GetValue(const UObject* ContextObjec
 	return false;
 }
 
-UChooserColumnBool::UChooserColumnBool(const FObjectInitializer& ObjectInitializer)
+FBoolColumn::FBoolColumn()
 {
-	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterBool_ContextProperty>(this, "InputValue");
-	InputValue.GetObject()->SetFlags(RF_Transactional);
+	InputValue.InitializeAs(FBoolContextProperty::StaticStruct());
 }
 
-void UChooserColumnBool::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
+void FBoolColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
-	if (ContextObject && InputValue)
+	if (ContextObject && InputValue.IsValid())
 	{
 		bool Result = false;
-		InputValue->GetValue(ContextObject,Result);
+		InputValue.Get<FChooserParameterBoolBase>().GetValue(ContextObject,Result);
 		
 		for (uint32 Index : IndexListIn)
 		{

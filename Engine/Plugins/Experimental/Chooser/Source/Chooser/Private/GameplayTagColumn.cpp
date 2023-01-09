@@ -2,7 +2,7 @@
 #include "GameplayTagColumn.h"
 #include "ChooserPropertyAccess.h"
 
-bool UChooserParameterGameplayTag_ContextProperty::GetValue(const UObject* ContextObject, const FGameplayTagContainer*& OutResult) const
+bool FGameplayTagContextProperty::GetValue(const UObject* ContextObject, const FGameplayTagContainer*& OutResult) const
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
@@ -19,22 +19,19 @@ bool UChooserParameterGameplayTag_ContextProperty::GetValue(const UObject* Conte
 	return false;
 }
 
-UChooserColumnGameplayTag::UChooserColumnGameplayTag(const FObjectInitializer& ObjectInitializer)
+FGameplayTagColumn::FGameplayTagColumn()
 {
-	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterGameplayTag_ContextProperty>(this, "InputValue");
-	InputValue.GetObject()->SetFlags(RF_Transactional);
+	InputValue.InitializeAs(FGameplayTagContextProperty::StaticStruct());
 }
 
-void UChooserColumnGameplayTag::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
+void FGameplayTagColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
-	if (ContextObject && InputValue)
+	const FGameplayTagContainer* Result = nullptr;
+	if (ContextObject && InputValue.IsValid() && InputValue.Get<FChooserParameterGameplayTagBase>().GetValue(ContextObject,Result))
 	{
-		const FGameplayTagContainer* Result = nullptr;
-		InputValue->GetValue(ContextObject,Result);
-
 		for (uint32 Index : IndexListIn)
 		{
-			 
+		 
 			if (RowValues.Num() > (int)Index)
 			{
 				if (RowValues[Index].IsEmpty())

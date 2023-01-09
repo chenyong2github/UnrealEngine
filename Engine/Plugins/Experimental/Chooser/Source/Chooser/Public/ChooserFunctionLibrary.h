@@ -25,4 +25,12 @@ public:
 	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe), Category = "Animation")
 	static UObject* EvaluateChooser(const UObject* ContextObject, const UChooserTable* ChooserTable);
 
+	/**
+    * Evaluate a chooser table and return the list of all selected UObjects
+    *
+    * @param ContextObject			(in) An Object from which the parameters to the Chooser Table will be read
+    * @param ChooserTable			(in) The ChooserTable asset
+    */
+    UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe), Category = "Animation")
+    static TArray<UObject*> EvaluateChooserMulti(const UObject* ContextObject, const UChooserTable* ChooserTable);
 };

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#include "InstancedStruct.h"
 #include "IChooserParameterEnum.generated.h"
 
 UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
@@ -16,12 +17,19 @@ class CHOOSER_API UChooserParameterEnum : public UInterface
 class CHOOSER_API IChooserParameterEnum
 {
 	GENERATED_BODY()
-
 public:
-	virtual bool GetValue(const UObject* ContextObject, uint8& OutResult) const { return false; }
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const {}
+};
 
-#if WITH_EDITOR
-	virtual const UEnum* GetEnum() const { return nullptr; }
-	virtual FSimpleMulticastDelegate& OnEnumChanged() = 0;
-#endif
+USTRUCT()
+struct FChooserParameterEnumBase : public FChooserParameterBase
+{
+	GENERATED_BODY()
+	
+		virtual bool GetValue(const UObject* ContextObject, uint8& OutResult) const { return false; }
+
+	#if WITH_EDITOR
+    	virtual const UEnum* GetEnum() const { return nullptr; }
+    	FSimpleMulticastDelegate OnEnumChanged;
+    #endif
 };

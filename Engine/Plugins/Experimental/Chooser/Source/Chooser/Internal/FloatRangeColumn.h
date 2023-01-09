@@ -5,17 +5,18 @@
 #include "IChooserColumn.h"
 #include "IChooserParameterFloat.h"
 #include "ChooserPropertyAccess.h"
+#include "InstancedStruct.h"
 #include "FloatRangeColumn.generated.h"
 
-UCLASS(DisplayName = "Float Property Binding")
-class CHOOSER_API UChooserParameterFloat_ContextProperty :  public UObject, public IChooserParameterFloat
+USTRUCT(DisplayName = "Float Property Binding")
+struct CHOOSER_API FFloatContextProperty :  public FChooserParameterFloatBase
 {
 	GENERATED_BODY()
-public:
-	UPROPERTY()
-	TArray<FName> PropertyBindingChain;
 	
 	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const override;
+
+	UPROPERTY()
+	TArray<FName> PropertyBindingChain;
 
 #if WITH_EDITOR
 	static bool CanBind(const FProperty& Property)
@@ -29,6 +30,14 @@ public:
 	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
 	{
 		UE::Chooser::CopyPropertyChain(InBindingChain, PropertyBindingChain);
+	}
+
+	virtual void GetDisplayName(FText& OutName) const override
+	{
+		if (!PropertyBindingChain.IsEmpty())
+		{
+			OutName = FText::FromName(PropertyBindingChain.Last());
+		}
 	}
 #endif
 };
@@ -45,15 +54,55 @@ struct FChooserFloatRangeRowData
 	float Max=0;
 };
 
-UCLASS()
-class CHOOSER_API UChooserColumnFloatRange : public UObject, public IChooserColumn
+
+USTRUCT()
+struct CHOOSER_API FFloatRangeColumn : public FChooserColumnBase
 {
 	GENERATED_BODY()
 	public:
-	UChooserColumnFloatRange() {}
-	UChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer);
+	FFloatRangeColumn();
 		
-	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Input")
+	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterFloatBase"), Category = "Hidden")
+	FInstancedStruct InputValue;
+	
+	UPROPERTY(EditAnywhere, Category=Runtime)
+	// array of results (cells for this column for each row in the table)
+	// should match the length of the Results array 
+	TArray<FChooserFloatRangeRowData> RowValues;
+	
+	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	
+	CHOOSER_COLUMN_BOILERPLATE(FChooserParameterFloatBase);
+
+};
+
+// deprecated class version to support upgrading old data
+
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ChooserParameterFloat_ContextProperty :  public UObject, public IChooserParameterFloat
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	TArray<FName> PropertyBindingChain;
+	
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
+	{
+		OutInstancedStruct.InitializeAs(FFloatContextProperty::StaticStruct());
+		FFloatContextProperty& Property = OutInstancedStruct.GetMutable<FFloatContextProperty>();
+		Property.PropertyBindingChain = PropertyBindingChain;
+	}
+};
+
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ChooserColumnFloatRange : public UObject, public IChooserColumn
+{
+	GENERATED_BODY()
+	public:
+	UDEPRECATED_ChooserColumnFloatRange() {}
+	UDEPRECATED_ChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer) {};
+		
+	UPROPERTY(EditAnywhere, Category = "Input")
 	TScriptInterface<IChooserParameterFloat> InputValue;
 	
 	UPROPERTY(EditAnywhere, Category=Runtime)
@@ -61,16 +110,14 @@ class CHOOSER_API UChooserColumnFloatRange : public UObject, public IChooserColu
 	// should match the length of the Results array 
 	TArray<FChooserFloatRangeRowData> RowValues;
 	
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) override;
-	virtual void SetNumRows(uint32 NumRows) { RowValues.SetNum(NumRows); }
-	virtual void DeleteRows(const TArray<uint32> & RowIndices )
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
 	{
-		for(uint32 Index : RowIndices)
+		OutInstancedStruct.InitializeAs(FFloatRangeColumn::StaticStruct());
+		FFloatRangeColumn& Column = OutInstancedStruct.GetMutable<FFloatRangeColumn>();
+		if (IChooserParameterFloat* InputValueInterface = InputValue.GetInterface())
 		{
-			RowValues.RemoveAt(Index);
+			InputValueInterface->ConvertToInstancedStruct(Column.InputValue);
 		}
+		Column.RowValues = RowValues;
 	}
-	virtual UClass* GetInputValueInterface() { return UChooserParameterFloat::StaticClass(); };
-	virtual UObject* GetInputValue() override { return InputValue.GetObject(); };
-	virtual void SetInputValue(UObject* Value) override { InputValue = Value; };
 };

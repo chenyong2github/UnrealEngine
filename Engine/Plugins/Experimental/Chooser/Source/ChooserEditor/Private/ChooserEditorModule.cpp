@@ -20,15 +20,6 @@ void FModule::StartupModule()
 	RegisterFloatRangeWidgets();
 	RegisterBoolWidgets();
 	RegisterEnumWidgets();
-	
-	InterfacePropertyTypeIdentifier = MakeShared<UE::ChooserEditor::FPropertyTypeIdentifier>();
-	
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FInterfaceProperty::StaticClass()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<UE::ChooserEditor::FInterfacePropertyTypeCustomization>(); }),
-		InterfacePropertyTypeIdentifier);
 }
 
 void FModule::ShutdownModule()

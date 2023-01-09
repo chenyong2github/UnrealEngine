@@ -1,82 +1,66 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectChooserWidgetFactories.h"
+
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "SClassViewer.h"
 #include "DetailCategoryBuilder.h"
+#include "IObjectChooser.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "ObjectChooserClassFilter.h"
+#include "StructViewerModule.h"
 
 #define LOCTEXT_NAMESPACE "DataInterfaceEditor"
 
 namespace UE::ChooserEditor
 {
 
-void FObjectChooserWidgetFactories::ConvertToText(UObject* Object, FText& OutText)
-{
-	UClass* Class = Object->GetClass();
-	while (Class)
-	{
-		if (FChooserTextConverter* TextConverter = FObjectChooserWidgetFactories::ChooserTextConverter.Find(Class))
-		{
-			(*TextConverter)(Object, OutText);
-			break;
-		}
-		Class = Class->GetSuperClass();
-	}
-}
-	
-TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UObject* Value, UClass* ContextClass)
+TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UObject* TransactionObject, void* Value, const UStruct* ValueType, UClass* ContextClass)
 {
 	if (Value)
 	{
-		UClass* Class = Value->GetClass();
-		while (Class)
+		while (ValueType)
 		{
-			if (FChooserWidgetCreator* Creator = FObjectChooserWidgetFactories::ChooserWidgetCreators.Find(Class))
+			if (FChooserWidgetCreator* Creator = ChooserWidgetCreators.Find(ValueType))
 			{
-				return (*Creator)(Value, ContextClass);
-				break;
+				return (*Creator)(TransactionObject, Value, ContextClass);
 			}
-			Class = Class->GetSuperClass();
+			ValueType = ValueType->GetSuperStruct();
 		}
 	}
 
 	return nullptr;
 }
 
-TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UClass* InterfaceType, UObject* Value, UClass* ContextClass, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget)
+TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UObject* TransactionObject, const UScriptStruct* BaseType, void* Value, const UStruct* ValueType, UClass* ContextClass, const FOnStructPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget)
 {
-	TSharedPtr<SWidget> LeftWidget = CreateWidget(Value, ContextClass);
-
+	TSharedPtr<SWidget> LeftWidget = CreateWidget(TransactionObject, Value, ValueType, ContextClass);
 	
 	if (!LeftWidget.IsValid())
 	{
 		LeftWidget = SNew(STextBlock).Text(LOCTEXT("SelectDataType", "Select Data Type..."));
 	}
 
-
 	// button for replacing data with a different Data Interface class
 	TSharedPtr<SComboButton> Button = SNew(SComboButton)
 			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton");
 	
-	Button->SetOnGetMenuContent(FOnGetContent::CreateLambda([InterfaceType, Button, CreateClassCallback]()
+	Button->SetOnGetMenuContent(FOnGetContent::CreateLambda([BaseType, Button, CreateClassCallback]()
 	{
-		FClassViewerInitializationOptions Options;
-		Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(InterfaceType));
-		Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
+		FStructViewerInitializationOptions Options;
+		Options.StructFilter = MakeShared<FStructFilter>(BaseType);
+		Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
 		
-		// Add class filter for columns here
-		TSharedRef<SWidget>  ClassMenu = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").
-		CreateClassViewer(Options, FOnClassPicked::CreateLambda([Button, CreateClassCallback](UClass* Class)
+		TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer").CreateStructViewer(Options, FOnStructPicked::CreateLambda(
+			[Button, CreateClassCallback](const UScriptStruct* ChosenStruct)
 		{
 			Button->SetIsOpen(false);
-			CreateClassCallback.Execute(Class);
+			CreateClassCallback.Execute(ChosenStruct);
 		}));
-		return ClassMenu;
+		return Widget;
 	}));
 
 	TSharedPtr <SBorder> Border;
@@ -111,17 +95,10 @@ TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UClass* Interfac
 	return Widget;
 }
 
-TMap<const UClass*, FChooserTextConverter> FObjectChooserWidgetFactories::ChooserTextConverter;
-TMap<const UClass*, FChooserWidgetCreator> FObjectChooserWidgetFactories::ChooserWidgetCreators;
-
-void ConvertToText_Base(const UObject* Object, FText& OutText)
-{
-	OutText = FText::FromString(Object->GetName());
-}
+TMap<const UStruct*, FChooserWidgetCreator> FObjectChooserWidgetFactories::ChooserWidgetCreators;
 
 void FObjectChooserWidgetFactories::RegisterWidgets()
 {
-	ChooserTextConverter.Add(UObject::StaticClass(), ConvertToText_Base);
 }
 	
 }

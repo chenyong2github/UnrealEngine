@@ -20,24 +20,24 @@ namespace UE::ChooserEditor
 			: _RowIndex(-1)
 		{}
 
-		SLATE_ARGUMENT(UChooserColumnEnum*, EnumColumn)
+		SLATE_ARGUMENT(FEnumColumn*, EnumColumn)
 		SLATE_ATTRIBUTE(int, RowIndex);
                 
 		SLATE_END_ARGS()
 
 		TSharedRef<SWidget> CreateEnumComboBox()
 		{
-			if (const UChooserColumnEnum* EnumColumnPointer = EnumColumn.Get())
+			if (const FEnumColumn* EnumColumnPointer = EnumColumn)
 			{
-				if (EnumColumnPointer->InputValue)
+				if (EnumColumnPointer->InputValue.IsValid())
 				{
-					if (const UEnum* Enum = EnumColumnPointer->InputValue->GetEnum())
+					if (const UEnum* Enum = EnumColumnPointer->InputValue.Get<FChooserParameterEnumBase>().GetEnum())
 					{
 						return SNew(SEnumComboBox, Enum)
 							.CurrentValue_Lambda([this]()
 							{
 								int Row = RowIndex.Get();
-								return EnumColumn.Get()->RowValues.IsValidIndex(Row) ? static_cast<int32>(EnumColumn->RowValues[Row].Value) : 0;
+								return EnumColumn->RowValues.IsValidIndex(Row) ? static_cast<int32>(EnumColumn->RowValues[Row].Value) : 0;
 							})
 							.OnEnumSelectionChanged_Lambda([this](int32 EnumValue, ESelectInfo::Type)
 							{
@@ -45,7 +45,8 @@ namespace UE::ChooserEditor
 								if (EnumColumn->RowValues.IsValidIndex(Row))
 								{
 									const FScopedTransaction Transaction(LOCTEXT("Edit RHS", "Edit Enum Value"));
-									EnumColumn->Modify(true);
+									// todo: need a reference to the UChooserTable to modify
+									// EnumColumn->Modify(true);
 									EnumColumn->RowValues[Row].Value = static_cast<uint8>(EnumValue);
 								}
 							});
@@ -66,7 +67,7 @@ namespace UE::ChooserEditor
 			RowIndex = InArgs._RowIndex;
 			EnumColumn = InArgs._EnumColumn;
 
-			if (UChooserColumnEnum* EnumColumnPointer = EnumColumn.Get())
+			if (FEnumColumn* EnumColumnPointer = EnumColumn)
 			{
 				EnumChangedHandle = EnumColumnPointer->OnEnumChanged.AddSP(this, &SEnumCell::UpdateEnumComboBox);
 			}
@@ -76,21 +77,21 @@ namespace UE::ChooserEditor
 
 		~SEnumCell()
 		{
-			if (UChooserColumnEnum* EnumColumnPointer = EnumColumn.Get())
+			if (FEnumColumn* EnumColumnPointer = EnumColumn)
 			{
 				EnumColumnPointer->OnEnumChanged.Remove(EnumChangedHandle);
 			}
 		}
 
 	private:
-		TWeakObjectPtr<UChooserColumnEnum> EnumColumn;
+		FEnumColumn* EnumColumn = nullptr;
 		TAttribute<int> RowIndex;
 		FDelegateHandle EnumChangedHandle;
 	};
 
-	TSharedRef<SWidget> CreateEnumColumnWidget(UObject* Column, int Row)
+	TSharedRef<SWidget> CreateEnumColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)
 	{
-		UChooserColumnEnum* EnumColumn = CastChecked<UChooserColumnEnum>(Column);
+		FEnumColumn* EnumColumn = static_cast<FEnumColumn*>(Column);
 		
 		return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().MaxWidth(95.0f)
@@ -100,12 +101,12 @@ namespace UE::ChooserEditor
 			{
 				return EnumColumn->RowValues.IsValidIndex(Row) ? static_cast<int32>(EnumColumn->RowValues[Row].Comparison) : 0;
 			})
-			.OnEnumSelectionChanged_Lambda([EnumColumn, Row](int32 EnumValue, ESelectInfo::Type)
+			.OnEnumSelectionChanged_Lambda([Chooser, EnumColumn, Row](int32 EnumValue, ESelectInfo::Type)
 			{
 				if (EnumColumn->RowValues.IsValidIndex(Row))
 				{
 					const FScopedTransaction Transaction(LOCTEXT("Edit Comparison", "Edit Comparison Operation"));
-					EnumColumn->Modify(true);
+					Chooser->Modify(true);
 					EnumColumn->RowValues[Row].Comparison = static_cast<EChooserEnumComparison>(EnumValue);
 				}
 			})
@@ -118,17 +119,15 @@ namespace UE::ChooserEditor
 
 	
 
-TSharedRef<SWidget> CreateEnumPropertyWidget(UObject* Object, UClass* ContextClass)
+TSharedRef<SWidget> CreateEnumPropertyWidget(UObject* TransactionObject, void* Value, UClass* ContextClass)
 {
-	return CreatePropertyWidget<UChooserParameterEnum_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->BytePinTypeColor);
+	return CreatePropertyWidget<FEnumContextProperty>(TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->BytePinTypeColor);
 }
 	
 void RegisterEnumWidgets()
 {
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterEnum_ContextProperty::StaticClass(), CreateEnumPropertyWidget);
-	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterEnum_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterEnum_ContextProperty>);
-
-	FChooserTableEditor::ColumnWidgetCreators.Add(UChooserColumnEnum::StaticClass(), CreateEnumColumnWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FEnumContextProperty::StaticStruct(), CreateEnumPropertyWidget);
+	FChooserTableEditor::ColumnWidgetCreators.Add(FEnumColumn::StaticStruct(), CreateEnumColumnWidget);
 }
 	
 }

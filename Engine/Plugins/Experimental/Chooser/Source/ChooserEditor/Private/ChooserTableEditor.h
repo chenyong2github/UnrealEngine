@@ -28,6 +28,17 @@ public:
 	int Row;
 };
 
+// Class used for chooser editor details customization
+UCLASS()
+class UChooserColumnDetails : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Instanced, Category="Hidden")
+	TObjectPtr<UChooserTable> Chooser;
+	int Column;
+};
+
 namespace UE::ChooserEditor
 {
 	class FChooserTableEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient, public FNotifyHook
@@ -114,6 +125,7 @@ namespace UE::ChooserEditor
 		/** The objects open within this editor */
 		TArray<UObject*> EditingObjects;
 
+		TObjectPtr<UChooserColumnDetails> SelectedColumn;
 		TArray<TObjectPtr<UChooserRowDetails>> SelectedRows;
 
 		void UpdateTableColumns();
@@ -124,12 +136,11 @@ namespace UE::ChooserEditor
 		
 		TSharedPtr<SHeaderRow> HeaderRow;
 		TSharedPtr<SListView<TSharedPtr<FChooserTableRow>>> TableView;
-
-		FName SelectedColumn;
+		
 	public:
 		TSharedPtr<SComboButton>& GetCreateRowComboButton() { return CreateRowComboButton; };
 
-		static TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Column, int Row)>> ColumnWidgetCreators;
+		static TMap<const UStruct*, TFunction<TSharedRef<SWidget> (UChooserTable* Chooser, FChooserColumnBase* Column, int Row)>> ColumnWidgetCreators;
 	
 		/** The name given to all instances of this type of editor */
 		static const FName ToolkitFName;

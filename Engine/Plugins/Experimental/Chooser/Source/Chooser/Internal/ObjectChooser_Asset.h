@@ -6,15 +6,32 @@
 #include "IObjectChooser.h"
 #include "ObjectChooser_Asset.generated.h"
 
-UCLASS(DisplayName = "Choose Asset")
-class CHOOSER_API UObjectChooser_Asset : public UObject, public IObjectChooser
+USTRUCT(DisplayName = "Asset")
+struct CHOOSER_API FAssetChooser : public FObjectChooserBase
 {
 	GENERATED_BODY()
 	
-	// IObjectChooser interface
+	// FObjectChooserBase interface
 	virtual UObject* ChooseObject(const UObject* ContextObject) const final override;
-	
 public: 
+	UPROPERTY(EditAnywhere, Category = "Parameters")
+	TObjectPtr<UObject> Asset;
+};
+
+// deprecated class for upgrading old data
+UCLASS(ClassGroup = "LiveLink", deprecated)
+class CHOOSER_API UDEPRECATED_ObjectChooser_Asset : public UObject, public IObjectChooser
+{
+	GENERATED_BODY()
+	
+public:
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const override
+	{
+		OutInstancedStruct.InitializeAs(FAssetChooser::StaticStruct());
+		FAssetChooser& AssetChooser = OutInstancedStruct.GetMutable<FAssetChooser>();
+		AssetChooser.Asset = Asset;
+	}
+	
 	UPROPERTY(EditAnywhere, Category = "Parameters")
 	TObjectPtr<UObject> Asset;
 };

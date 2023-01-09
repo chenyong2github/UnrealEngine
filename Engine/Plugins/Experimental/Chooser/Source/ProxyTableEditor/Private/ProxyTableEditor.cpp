@@ -29,6 +29,8 @@
 #include "ScopedTransaction.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "ContextPropertyWidget.h"
+#include "IObjectChooser.h"
+#include "Misc/TransactionObjectEvent.h"
 
 #define LOCTEXT_NAMESPACE "ProxyTableEditor"
 
@@ -294,7 +296,7 @@ public:
 		Operation->ChooserEditor = InEditor;
 		Operation->RowIndex = InRowIndex;
 		Operation->DefaultHoverText = LOCTEXT("Proxy Row", "Proxy Row");
-		UE::ChooserEditor::FObjectChooserWidgetFactories::ConvertToText(InEditor->GetProxyTable()->Entries[InRowIndex].Value.GetObject(), Operation->DefaultHoverText);
+		// UE::ChooserEditor::FObjectChooserWidgetFactories::ConvertToText(InEditor->GetProxyTable()->Entries[InRowIndex].Value.GetObject(), Operation->DefaultHoverText);
 		Operation->CurrentHoverText = Operation->DefaultHoverText;
 			
 		Operation->Construct();
@@ -380,23 +382,26 @@ public:
 			if (ColumnName == Handles)
 			{
 				// row drag handle
-				
 				return SNew(SProxyRowHandle).ProxyEditor(Editor).RowIndex(RowIndex->RowIndex);
 			}
 			else if (ColumnName == Value) 
 			{
-				UObject* RowValue = ProxyTable->Entries[RowIndex->RowIndex].Value.GetObject();
-				TSharedPtr<SWidget> ResultWidget = UE::ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(UObjectChooser::StaticClass(), RowValue, nullptr/*ProxyTable->ContextObjectType*/,
-				FOnClassPicked::CreateLambda([this, RowIndex=RowIndex->RowIndex](UClass* ChosenClass)
-				{
-					const FScopedTransaction Transaction(LOCTEXT("Change Row Result Type", "Change Row Result Type"));
-					UObject* RowValue = NewObject<UObject>(ProxyTable, ChosenClass, NAME_None, RF_Transactional);
-					ProxyTable->Modify(true);
-					ProxyTable->Entries[RowIndex].Value = RowValue;
-					UE::ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(UObjectChooser::StaticClass(), RowValue, nullptr/*Chooser->ContextObjectType*/, FOnClassPicked(), &CacheBorder);
-				}),
-				&CacheBorder
-				);
+				TSharedPtr<SWidget> ResultWidget = ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(ProxyTable, FObjectChooserBase::StaticStruct(),
+					ProxyTable->Entries[RowIndex->RowIndex].ValueStruct.GetMutableMemory(),
+					ProxyTable->Entries[RowIndex->RowIndex].ValueStruct.GetScriptStruct(),
+					nullptr/*ProxyTable->ContextObjectType*/,
+					FOnStructPicked::CreateLambda([this, RowIndex=RowIndex->RowIndex](const UScriptStruct* ChosenStruct)
+					{
+						const FScopedTransaction Transaction(LOCTEXT("Change Value Type", "Change Value Type"));
+						ProxyTable->Entries[RowIndex].ValueStruct.InitializeAs(ChosenStruct);
+						ProxyTable->Modify(true);
+						ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(ProxyTable, FObjectChooserBase::StaticStruct(),
+								ProxyTable->Entries[RowIndex].ValueStruct.GetMutableMemory(),
+								ProxyTable->Entries[RowIndex].ValueStruct.GetScriptStruct(),
+								nullptr/*ProxyTable->ContextObjectType*/, FOnStructPicked(), &CacheBorder);
+					}),
+					&CacheBorder
+					);
 				return ResultWidget.ToSharedRef();
 			}
 			else if (ColumnName == Key)
@@ -485,24 +490,22 @@ TSharedRef<SDockTab> FProxyTableEditor::SpawnTableTab( const FSpawnTabArgs& Args
 		]
 		.OnGetMenuContent_Lambda([this]()
 		{
-			FClassViewerInitializationOptions Options;
-			Options.ClassFilters.Add(MakeShared<UE::ChooserEditor::FInterfaceClassFilter>(UObjectChooser::StaticClass()) );
-			Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
+			FStructViewerInitializationOptions Options;
+			Options.StructFilter = MakeShared<ChooserEditor::FStructFilter>(FObjectChooserBase::StaticStruct());
+			Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
 			
-			// Add class filter for columns here
-			TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options,
-				FOnClassPicked::CreateLambda([this](UClass* ChosenClass)
-				{
-					CreateRowComboButton->SetIsOpen(false);
-					UProxyTable* ProxyTable = Cast<UProxyTable>(EditingObjects[0]);
-					const FScopedTransaction Transaction(LOCTEXT("Add Row Transaction", "Add Row"));
-					ProxyTable->Modify(true);
-					UObject* ResultObject = NewObject<UObject>(ProxyTable, ChosenClass, NAME_None, RF_Transactional);
-					FProxyEntry Entry;
-					Entry.Value = TScriptInterface<IObjectChooser>(ResultObject);
-					ProxyTable->Entries.Add(Entry);
-					UpdateTableRows();
-				}));
+			TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer").CreateStructViewer(Options, FOnStructPicked::CreateLambda([this](const UScriptStruct* ChosenStruct)
+			{
+				CreateRowComboButton->SetIsOpen(false);
+				UProxyTable* ProxyTable = Cast<UProxyTable>(EditingObjects[0]);
+				const FScopedTransaction Transaction(LOCTEXT("Add Row Transaction", "Add Row"));
+				ProxyTable->Modify(true);
+
+				ProxyTable->Entries.SetNum(ProxyTable->Entries.Num()+1);
+				ProxyTable->Entries.Last().ValueStruct.InitializeAs(ChosenStruct);
+				UpdateTableRows();
+			}));
+			
 			return Widget;
 		});
 
@@ -600,14 +603,14 @@ void FProxyTableEditor::OnObjectsReplaced(const TMap<UObject*, UObject*>& Replac
 	// Refresh our details view if one of the objects replaced was in the map. This gets called before the reinstance GC fixup, so we might as well fixup EditingObjects now too
 	for (int32 i = 0; i < EditingObjects.Num(); i++)
 	{
-		// UObject* SourceObject = EditingObjects[i];
-		// UObject* ReplacedObject = ReplacementMap.FindRef(SourceObject);
-		//
-		// if (ReplacedObject && ReplacedObject != SourceObject)
-		// {
-		// 	EditingObjects[i] = ReplacedObject;
-		// 	bChangedAny = true;
-		// }
+		UObject* SourceObject = EditingObjects[i];
+		UObject* ReplacedObject = ReplacementMap.FindRef(SourceObject);
+
+		if (ReplacedObject && ReplacedObject != SourceObject)
+		{
+			EditingObjects[i] = ReplacedObject;
+			bChangedAny = true;
+		}
 	}
 
 	if (bChangedAny)
@@ -641,38 +644,31 @@ TSharedRef<FProxyTableEditor> FProxyTableEditor::CreateEditor( const EToolkitMod
 
 /// Result widgets
 
-TSharedRef<SWidget> CreateLookupProxyWidget(UObject* Object, UClass* ContextObject)
+TSharedRef<SWidget> CreateLookupProxyWidget(UObject* TransactionObject, void* Value, UClass* ContextObject)
 {
-	UObjectChooser_LookupProxy* LookupProxy = Cast<UObjectChooser_LookupProxy>(Object);
+	FLookupProxy* LookupProxy = static_cast<FLookupProxy*>(Value);
 	
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		[
-			UE::ChooserEditor::CreatePropertyWidget<UChooserParameterProxyTable_ContextProperty>(LookupProxy->ProxyTable.GetObject(), ContextObject, GetDefault<UGraphEditorSettings>()->ObjectPinTypeColor)
+			UE::ChooserEditor::CreatePropertyWidget<FProxyTableContextProperty>(TransactionObject, LookupProxy->ProxyTable.GetMutablePtr<FProxyTableContextProperty>(), ContextObject, GetDefault<UGraphEditorSettings>()->ObjectPinTypeColor)
 		]
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SEditableTextBox)
 			.Text_Lambda([LookupProxy]() { return FText::FromName(LookupProxy->Key);})
-			.OnTextChanged_Lambda([LookupProxy](const FText& NewText)
+			.OnTextChanged_Lambda([TransactionObject,LookupProxy](const FText& NewText)
 			{
 				FScopedTransaction ScopedTransaction(LOCTEXT("Change LookupProxy Key Name", "Change LookupProxy Key Name"));
-				LookupProxy->Modify(true);
+				TransactionObject->Modify(true);
 				LookupProxy->Key = FName(NewText.ToString());
 			})
 		];
 }
 
-void ConvertToText_LookupProxy(const UObject* Object, FText& OutText)
-{
-	const UObjectChooser_LookupProxy* LookupProxy = Cast<UObjectChooser_LookupProxy>(Object);
-	OutText = FText::FromString(LookupProxy->Key.ToString());
-}
-	
 void FProxyTableEditor::RegisterWidgets()
 {
-	UE::ChooserEditor::FObjectChooserWidgetFactories::ChooserTextConverter.Add(UObjectChooser_LookupProxy::StaticClass(), ConvertToText_LookupProxy);
-	UE::ChooserEditor::FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_LookupProxy::StaticClass(), CreateLookupProxyWidget);
+	UE::ChooserEditor::FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(FLookupProxy::StaticStruct(), CreateLookupProxyWidget);
 }
 	
 }

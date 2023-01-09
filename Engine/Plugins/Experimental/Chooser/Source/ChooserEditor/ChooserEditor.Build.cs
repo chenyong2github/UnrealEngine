@@ -27,7 +27,8 @@ namespace UnrealBuildTool.Rules
 					"BlueprintGraph",
 					"GraphEditor",
 					"GameplayTags",
-					"GameplayTagsEditor"
+					"GameplayTagsEditor",
+					"StructUtils"
 					// ... add private dependencies that you statically link with here ...
 				}
 			);

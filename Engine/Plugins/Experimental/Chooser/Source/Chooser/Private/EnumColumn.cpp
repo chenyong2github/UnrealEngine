@@ -6,7 +6,7 @@
 #include "IPropertyAccessEditor.h"
 #endif
 
-bool UChooserParameterEnum_ContextProperty::GetValue(const UObject* ContextObject, uint8& OutResult) const
+bool FEnumContextProperty::GetValue(const UObject* ContextObject, uint8& OutResult) const
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
@@ -34,7 +34,7 @@ bool UChooserParameterEnum_ContextProperty::GetValue(const UObject* ContextObjec
 
 #if WITH_EDITOR
 
-void UChooserParameterEnum_ContextProperty::SetBinding(const TArray<FBindingChainElement>& InBindingChain)
+void FEnumContextProperty::SetBinding(const TArray<FBindingChainElement>& InBindingChain)
 {
 	const UEnum* PreviousEnum = Enum;
 	Enum = nullptr;
@@ -54,17 +54,16 @@ void UChooserParameterEnum_ContextProperty::SetBinding(const TArray<FBindingChai
 	if (Enum != PreviousEnum)
 	{
 		// Our enum type has changed! Need to refresh the UI to update enum value pickers.
-		EnumChanged.Broadcast();
+		OnEnumChanged.Broadcast();
 	}
 }
 
 #endif // WITH_EDITOR
 
-UChooserColumnEnum::UChooserColumnEnum(const FObjectInitializer& ObjectInitializer)
+FEnumColumn::FEnumColumn()
 {
 #if WITH_EDITOR
-	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterEnum_ContextProperty>(this, "InputValue");
-	InputValue.GetObject()->SetFlags(RF_Transactional);
+	InputValue.InitializeAs(FEnumContextProperty::StaticStruct());
 	InputChanged();
 #endif
 }
@@ -97,12 +96,12 @@ bool FChooserEnumRowData::Evaluate(const uint8 LeftHandSide) const
 	}
 }
 
-void UChooserColumnEnum::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
+void FEnumColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	uint8 Result = 0;
 	if (ContextObject != nullptr &&
-		InputValue != nullptr &&
-		InputValue->GetValue(ContextObject, Result))
+		InputValue.IsValid() &&
+		InputValue.Get<FChooserParameterEnumBase>().GetValue(ContextObject, Result))
 	{
 		for (const uint32 Index : IndexListIn)
 		{

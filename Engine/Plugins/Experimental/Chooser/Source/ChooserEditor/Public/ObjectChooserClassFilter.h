@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ClassViewerFilter.h"
-#include "IObjectChooser.h"
+#include "StructViewerFilter.h"
 
 namespace UE::ChooserEditor
 {
@@ -24,6 +24,24 @@ namespace UE::ChooserEditor
 		}
 	private:
 		UClass* InterfaceType;
+	};
+	
+
+	class FStructFilter : public IStructViewerFilter
+	{
+	public:
+		FStructFilter(const UScriptStruct* InBaseType) : BaseType(InBaseType)  { };
+		
+		virtual bool IsStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const UScriptStruct* InStruct, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
+		{
+			return InStruct->IsChildOf(BaseType) && InStruct !=BaseType;
+		}
+		virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FSoftObjectPath& InStructPath, TSharedRef<class FStructViewerFilterFuncs> InFilterFuncs)
+		{
+			return false;
+		};
+	private:
+		const UScriptStruct* BaseType;
 	};
 		
 }

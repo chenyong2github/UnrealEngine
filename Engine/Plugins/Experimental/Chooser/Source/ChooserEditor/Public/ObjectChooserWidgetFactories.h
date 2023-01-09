@@ -5,22 +5,19 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SBorder.h"
-#include "SClassViewer.h"
+#include "StructViewerModule.h"
 
 namespace UE::ChooserEditor
 {
-	typedef TFunction<void(const UObject* Object, FText& OutText)> FChooserTextConverter;
-	typedef TFunction<TSharedRef<SWidget>(UObject* Object, UClass* ContextClass)> FChooserWidgetCreator;
+	typedef TFunction<TSharedRef<SWidget>(UObject* TransactionObject, void* Value, UClass* ContextClass)> FChooserWidgetCreator;
 
 	class CHOOSEREDITOR_API FObjectChooserWidgetFactories
 	{
 	public:
-		static TMap<const UClass*, FChooserTextConverter> ChooserTextConverter;
-		static TMap<const UClass*, FChooserWidgetCreator> ChooserWidgetCreators;
+		static TMap<const UStruct*, FChooserWidgetCreator> ChooserWidgetCreators;
 
-		static TSharedPtr<SWidget> CreateWidget(UObject* Value, UClass* ContextClass);
-		static TSharedPtr<SWidget> CreateWidget(UClass* InterfaceType, UObject* Value, UClass* ContextClass, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget = nullptr);
-		static void ConvertToText(UObject* Object, FText& OutText);
+		static TSharedPtr<SWidget> CreateWidget(UObject* TransactionObject, void* Value, const UStruct* ValueType, UClass* ContextClass);
+		static TSharedPtr<SWidget> CreateWidget(UObject* TransactionObject, const UScriptStruct* BaseType, void* Value, const UStruct* ValueType, UClass* ContextClass, const FOnStructPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget = nullptr);
 		
 		static void RegisterWidgets();
 	};

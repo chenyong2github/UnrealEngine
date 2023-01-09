@@ -16,7 +16,15 @@ class CHOOSER_API UChooserParameterFloat : public UInterface
 class CHOOSER_API IChooserParameterFloat
 {
 	GENERATED_BODY()
+public:
+	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const {}
+};
 
+USTRUCT()
+struct FChooserParameterFloatBase : public FChooserParameterBase
+{
+	GENERATED_BODY()
+    
 public:
 	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const { return false; }
 };

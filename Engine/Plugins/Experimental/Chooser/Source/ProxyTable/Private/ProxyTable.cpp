@@ -1,22 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProxyTable.h"
 
-UObjectChooser_LookupProxy::UObjectChooser_LookupProxy(const FObjectInitializer& ObjectInitializer)
+FLookupProxy::FLookupProxy()
 {
-	ProxyTable = ObjectInitializer.CreateDefaultSubobject<UChooserParameterProxyTable_ContextProperty>(this, "InputValue");
-	ProxyTable.GetObject()->SetFlags(RF_Transactional);
+	ProxyTable.InitializeAs(FProxyTableContextProperty::StaticStruct());
 }
 
 static UObject* FindProxyObject(const UProxyTable* Table, FName Key, const UObject* ContextObject)
 {
 	for (const FProxyEntry& Entry : Table->Entries)
 	{
-		if (Entry.Key == Key)
+		if (Entry.Key == Key && Entry.ValueStruct.IsValid())
 		{
-			if (const IObjectChooser* EntryValue = Entry.Value.GetInterface())
-			{
-				return EntryValue->ChooseObject(ContextObject);
-			}
+			const FObjectChooserBase& EntryValue = Entry.ValueStruct.Get<FObjectChooserBase>();
+			return EntryValue.ChooseObject(ContextObject);
 		}
 	}
 
@@ -32,12 +29,12 @@ static UObject* FindProxyObject(const UProxyTable* Table, FName Key, const UObje
 	return nullptr;
 }
 
-UObject* UObjectChooser_LookupProxy::ChooseObject(const UObject* ContextObject) const
+UObject* FLookupProxy::ChooseObject(const UObject* ContextObject) const
 {
-	if (ProxyTable)
+	if (ProxyTable.IsValid())
 	{
 		const UProxyTable* Table;
-		if (ProxyTable->GetValue(ContextObject, Table))
+		if (ProxyTable.Get<FChooserParameterProxyTableBase>().GetValue(ContextObject, Table))
 		{
 			if (Table)
 			{
@@ -47,7 +44,6 @@ UObject* UObjectChooser_LookupProxy::ChooseObject(const UObject* ContextObject) 
 				}
 			}
 		}
-				
 	}
 	
 	return nullptr;
@@ -59,7 +55,7 @@ UProxyTable::UProxyTable(const FObjectInitializer& Initializer)
 
 }
 
-bool UChooserParameterProxyTable_ContextProperty::GetValue(const UObject* ContextObject, const UProxyTable*& OutResult) const
+bool FProxyTableContextProperty::GetValue(const UObject* ContextObject, const UProxyTable*& OutResult) const
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
