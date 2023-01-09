@@ -428,7 +428,6 @@ void FWaveformEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChan
 		return;
 	}
 	
-
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
 	{
 		bIsInteractingWithTransformations = true;
@@ -536,14 +535,17 @@ bool FWaveformEditor::SetUpDetailsViews()
 	PropertiesDetails->SetObject(SoundWave);
 
 	TransformationsDetails = PropertyModule.CreateDetailView(Args);
-	FOnGetDetailCustomizationInstance TransformationsDetailsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateLambda([]() { 
-			return MakeShared<FWaveformTransformationsDetailsCustomization>(); 
+	FOnGetDetailCustomizationInstance TransformationsDetailsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateLambda([]() {
+			return MakeShared<FWaveformTransformationsDetailsCustomization>();
 		}
 	);
 
 	TransformationsDetails->RegisterInstancedCustomPropertyLayout(SoundWave->GetClass(), TransformationsDetailsCustomizationInstance);
 	TransformationsDetails->SetObject(SoundWave);
 
+	TransformationsPropertiesPropagator = PropertyModule.CreateDetailView(Args);
+	TransformationsPropertiesPropagator->SetObject(SoundWave);
+	
 	return true;
 }
 
@@ -628,12 +630,29 @@ bool FWaveformEditor::SetUpWaveformPanel()
 	
 	TransportCoordinator = MakeShared<FWaveformEditorTransportCoordinator>(RenderData.ToSharedRef());
 	RenderData->OnRenderDataUpdated.AddSP(TransportCoordinator.Get(), &FWaveformEditorTransportCoordinator::HandleRenderDataUpdate);
+	
+	FOnTransformationsPropertiesRequired OnTransformationPropertiesRequired = FOnTransformationsPropertiesRequired::CreateLambda([this](FTransformationsToPropertiesArray& InObjToPropsMap)
+	{
+		TSharedPtr<FWaveformTransformationsDetailsProvider> TransformationsDetailsProvider = MakeShared<FWaveformTransformationsDetailsProvider>();
 
-	TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> PropertyChangeNotifier = [this](FPropertyChangedEvent& PropertyChangedEvent, FEditPropertyChain* PropertyThatChanged) {
-		this->NotifyPostChange(PropertyChangedEvent, PropertyThatChanged); 
-	};
+		FOnGetDetailCustomizationInstance ProviderInstance = FOnGetDetailCustomizationInstance::CreateLambda( [&]() 
+			{
+				return TransformationsDetailsProvider.ToSharedRef();
+			}
+		);
 
-	TransformationsRenderManager = MakeShared<FWaveformTransformationsRenderManager>(SoundWave, RenderData.ToSharedRef(), PropertyChangeNotifier);
+		TransformationsPropertiesPropagator->RegisterInstancedCustomPropertyLayout(SoundWave->GetClass(), ProviderInstance);
+		TransformationsPropertiesPropagator->ForceRefresh();
+
+		for (FTransformationToPropertiesPair& ObjToPropsPair : InObjToPropsMap)
+		{
+			TransformationsDetailsProvider->GetHandlesForUObjectProperties(ObjToPropsPair.Key, ObjToPropsPair.Value);
+		}
+
+		TransformationsDetailsProvider.Reset();
+	});
+
+	TransformationsRenderManager = MakeShared<FWaveformTransformationsRenderManager>(SoundWave, OnTransformationPropertiesRequired);
 	TransformationsRenderManager->OnRenderDataGenerated.AddSP(RenderData.Get(), &FWaveformEditorRenderData::UpdateRenderData);
 
 	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = SNew(SWaveformTransformationsOverlay, TransformationsRenderManager->GetTransformLayers(), TransportCoordinator.ToSharedRef());

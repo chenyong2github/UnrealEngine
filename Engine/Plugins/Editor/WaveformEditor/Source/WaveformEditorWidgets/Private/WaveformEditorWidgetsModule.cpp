@@ -4,11 +4,13 @@
 
 #include "Modules/ModuleManager.h"
 #include "WaveformEditorStyle.h"
+#include "WaveformTransformationRendererMapper.h"
 
 void FWaveformEditorWidgetsModule::StartupModule()
 {
 	// Initialize static style instance 
 	FWaveformEditorStyle::Init();
+	FWaveformTransformationRendererMapper::Init();
 }
 
 void FWaveformEditorWidgetsModule::ShutdownModule()

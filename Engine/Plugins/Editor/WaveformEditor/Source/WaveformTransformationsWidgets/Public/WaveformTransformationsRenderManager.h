@@ -7,13 +7,17 @@
 #include "WaveformTransformationRenderLayerFactory.h"
 
 class IWaveformTransformationRenderer;
+class FWaveformTransformationDurationRenderer;
 class USoundWave;
 class UWaveformTransformationBase;
 
 using FTransformationLayerConstraints = TPair<float, float>;
 using FTransformationRenderLayerInfo = TPair<TSharedPtr<IWaveformTransformationRenderer>, FTransformationLayerConstraints>;
+using FTransformationToPropertiesPair = TPair<TObjectPtr<UWaveformTransformationBase>, TArray<TSharedRef<IPropertyHandle>>>;
+using FTransformationsToPropertiesArray = TArray<FTransformationToPropertiesPair>;
 
 DECLARE_MULTICAST_DELEGATE(FOnRenderElementsUpdated)
+DECLARE_DELEGATE_OneParam(FOnTransformationsPropertiesRequired, FTransformationsToPropertiesArray& /*Transformations Properties To Hand*/)
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLayersChainGenerated, FTransformationRenderLayerInfo* /*First Layer ptr*/, const int32 /* NLayers */)
 DECLARE_MULTICAST_DELEGATE_SixParams(FOnRenderDataGenerated, const uint8* /* First RawPCMData element */, const uint32 /*Num Samples*/, const uint32 /*First Edited Sample*/, const uint32 /*Last Edited Sample*/, const uint32/*Sample Rate*/, const uint16 /*Num Channels*/)
 
@@ -45,9 +49,8 @@ class WAVEFORMTRANSFORMATIONSWIDGETS_API FWaveformTransformationsRenderManager
 {
 public:
 	explicit FWaveformTransformationsRenderManager(
-		TObjectPtr<USoundWave> InSoundWave, 
-		TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, 
-		TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> InPropertyChangeNotifier
+		TObjectPtr<USoundWave> InSoundWave,
+		FOnTransformationsPropertiesRequired InTransformationChainPropertiesHandler
 	);
 
 	/** Used to generate the stack of transformations UI					*/
@@ -85,5 +88,9 @@ private:
 	TArray<uint8> RawPCMData;
 
 	TUniquePtr<FWaveformTransformationRenderLayerFactory> LayersFactory = nullptr;
-	TSharedPtr<IWaveformTransformationRenderer> DurationHiglightLayer = nullptr;
+	TSharedPtr<FWaveformTransformationDurationRenderer> DurationHiglightLayer = nullptr;
+
+	FOnTransformationsPropertiesRequired ChainPropertiesHandler;
+
+	uint32 NumOriginalWaveformFrames = 0;
 };

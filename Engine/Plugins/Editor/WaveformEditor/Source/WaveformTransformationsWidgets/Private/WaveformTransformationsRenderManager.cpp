@@ -7,12 +7,14 @@
 #include "DSP/FloatArrayMath.h"
 #include "IWaveformTransformationRenderer.h"
 #include "Sound/SoundWave.h"
+#include "WaveformTransformationDurationRenderer.h"
 
-FWaveformTransformationsRenderManager::FWaveformTransformationsRenderManager(TObjectPtr<USoundWave> InSoundWave, 
-	TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, 
-	TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> InPropertyChangeNotifier)
+FWaveformTransformationsRenderManager::FWaveformTransformationsRenderManager(
+	TObjectPtr<USoundWave> InSoundWave, 
+	FOnTransformationsPropertiesRequired InTransformationChainPropertiesHandler)
 	: SoundWaveToRender(InSoundWave)
-	, LayersFactory(MakeUnique<FWaveformTransformationRenderLayerFactory>(InWaveformRenderData, InPropertyChangeNotifier))
+	, LayersFactory(MakeUnique<FWaveformTransformationRenderLayerFactory>())
+	, ChainPropertiesHandler(InTransformationChainPropertiesHandler)
 {
 	GenerateLayersChain();	
 }
@@ -26,21 +28,29 @@ void FWaveformTransformationsRenderManager::GenerateLayersChain()
 
 	if (SoundWaveToRender->Transformations.Num() > 0)
 	{
+		FTransformationsToPropertiesArray TransformPropertiesMap;
+
 		for (const TObjectPtr<UWaveformTransformationBase> Transformation : SoundWaveToRender->Transformations)
 		{
 			if (Transformation != nullptr)
 			{
-				TransformationsToRender.Add(Transformation);
-				
-				TSharedPtr<IWaveformTransformationRenderer> TransformationUI = LayersFactory->Create(Transformation);
-				FTransformationRenderLayerInfo RenderLayerInfo = FTransformationRenderLayerInfo(TransformationUI, FTransformationLayerConstraints(0.f, 1.f));
-				RenderLayers.Add(RenderLayerInfo);
-				
+				TArray<TSharedRef<IPropertyHandle>> TransformationPropertiesArray;
+				TransformPropertiesMap.Emplace(Transformation, TransformationPropertiesArray);
 			}
 		}
 
-		CreateDurationHighlightLayer();
+		ChainPropertiesHandler.Execute(TransformPropertiesMap);
+		
 
+		for (FTransformationToPropertiesPair& ObjPropsPair : TransformPropertiesMap)
+		{
+			TransformationsToRender.Add(ObjPropsPair.Key);
+			TSharedPtr<IWaveformTransformationRenderer> TransformationUI = LayersFactory->Create(ObjPropsPair.Key, ObjPropsPair.Value);
+			FTransformationRenderLayerInfo RenderLayerInfo = FTransformationRenderLayerInfo(TransformationUI, FTransformationLayerConstraints(0.f, 1.f));
+			RenderLayers.Add(RenderLayerInfo);
+		}
+
+		CreateDurationHighlightLayer();
 	}
 
 	OnLayersChainGenerated.Broadcast(RenderLayers.GetData(), RenderLayers.Num());
@@ -66,6 +76,7 @@ void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 	}
 
 	uint32 NumOriginalSamples = RawPCMData.Num() * sizeof(uint8) / sizeof(int16);
+	NumOriginalWaveformFrames = NumOriginalSamples / NumChannels;
 	uint32 FirstEditedSample = 0;
 	uint32 LastEditedSample = NumOriginalSamples;
 
@@ -122,6 +133,8 @@ void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 		check(DurationHiglightLayer)
 		FWaveformTransformationRenderInfo DurationLayerInfo{ TransformationInfo.SampleRate, TransformationInfo.NumChannels, FirstEditedSample, LastEditedSample - FirstEditedSample };
 		DurationHiglightLayer->SetTransformationWaveInfo(MoveTemp(DurationLayerInfo));
+		DurationHiglightLayer->SetOriginalWaveformFrames(NumOriginalWaveformFrames);
+		
 			
 		if (!bChainChangesFileLength)
 		{
@@ -182,7 +195,7 @@ void FWaveformTransformationsRenderManager::CreateDurationHighlightLayer()
 {
 	if (!DurationHiglightLayer)
 	{
-		DurationHiglightLayer = LayersFactory->CreateDurationHiglightLayer();
+		DurationHiglightLayer = MakeShared<FWaveformTransformationDurationRenderer>(NumOriginalWaveformFrames);
 	}
 
 	DurationHiglightLayer->SetTransformationWaveInfo(FWaveformTransformationRenderInfo());

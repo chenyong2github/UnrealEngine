@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveformTransformationTrimFadeRenderer.h"
-#include "Layout/Geometry.h"
-#include "Rendering/DrawElements.h"
-#include "Widgets/SWidget.h"
 
-FWaveformTransformationTrimFadeRenderer::FWaveformTransformationTrimFadeRenderer(const TObjectPtr<UWaveformTransformationTrimFade> TransformationToRender)
-{
-	check(TransformationToRender);
-	TrimFadeTransform = TransformationToRender;
-}
+#include "Layout/Geometry.h"
+#include "PropertyHandle.h"
+#include "Rendering/DrawElements.h"
+#include "WaveformTransformationTrimFade.h"
+#include "Widgets/SWidget.h"
 
 int32 FWaveformTransformationTrimFadeRenderer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
@@ -95,7 +92,7 @@ int32 FWaveformTransformationTrimFadeRenderer::DrawFadeCurves(const FGeometry& A
 
 void FWaveformTransformationTrimFadeRenderer::GenerateFadeCurves(const FGeometry& AllottedGeometry)
 {
-	const float FadeInFrames = TrimFadeTransform->StartFadeTime * TransformationWaveInfo.SampleRate;
+	const float FadeInFrames = GetPropertyValue<float>(StartFadeTimeHandle) * TransformationWaveInfo.SampleRate;
 	const uint32 FadeInPixelLenght = FadeInFrames * PixelsPerFrame;
 	FadeInStartX = FMath::RoundToInt32(StartTimeHandleX);
 	FadeInEndX = FMath::RoundToInt32(FMath::Clamp(StartTimeHandleX + FadeInPixelLenght, StartTimeHandleX, EndTimeHandleX));
@@ -106,13 +103,13 @@ void FWaveformTransformationTrimFadeRenderer::GenerateFadeCurves(const FGeometry
 	for (uint32 Pixel = 0; Pixel < DisplayedFadeInPixelLenght; ++Pixel)
 	{
 		const double FadeFraction = (float)Pixel / FadeInPixelLenght;
-		const double CurveValue = Pixel != FadeInPixelLenght - 1 ? 1.f - FMath::Pow(FadeFraction, TrimFadeTransform->StartFadeCurve) : 0.f;
+		const double CurveValue = Pixel != FadeInPixelLenght - 1 ? 1.f - FMath::Pow(FadeFraction, GetPropertyValue<float>(StartFadeCurveHandle)) : 0.f;
 
 		const uint32 XCoordinate = Pixel + FadeInStartX;
 		FadeInCurvePoints[Pixel] = FVector2D(XCoordinate, CurveValue * AllottedGeometry.Size.Y);
 	}
 
-	const float FadeOutFrames = TrimFadeTransform->EndFadeTime * TransformationWaveInfo.SampleRate;
+	const float FadeOutFrames = GetPropertyValue<float>(EndFadeTimeHandle) * TransformationWaveInfo.SampleRate;
 	const float FadeOutPixelLength = FadeOutFrames * PixelsPerFrame;
 	FadeOutStartX = FMath::RoundToInt32(FMath::Clamp(EndTimeHandleX - FadeOutPixelLength, StartTimeHandleX, EndTimeHandleX));
 	FadeOutEndX = FMath::RoundToInt32(EndTimeHandleX);
@@ -124,7 +121,7 @@ void FWaveformTransformationTrimFadeRenderer::GenerateFadeCurves(const FGeometry
 	for (uint32 Pixel = 0; Pixel < DisplayedFadeOutPixelLength; ++Pixel)
 	{
 		const double FadeFraction = (float)(Pixel + FadeOutPixelOffset) / FadeOutPixelLength;
-		const double CurveValue = Pixel != FadeOutPixelLength - 1 ? FMath::Pow(FadeFraction, TrimFadeTransform->EndFadeCurve) : 1.f;
+		const double CurveValue = Pixel != FadeOutPixelLength - 1 ? FMath::Pow(FadeFraction, GetPropertyValue<float>(EndFadeCurveHandle)) : 1.f;
 
 		const uint32 XCoordinate = Pixel + FadeOutStartX;
 		FadeOutCurvePoints[Pixel] = FVector2D(XCoordinate, CurveValue * AllottedGeometry.Size.Y);
@@ -153,6 +150,18 @@ FCursorReply FWaveformTransformationTrimFadeRenderer::OnCursorQuery(const FGeome
 	return FCursorReply::Unhandled();
 }
 
+void FWaveformTransformationTrimFadeRenderer::SetPropertyHandles(const TArray<TSharedRef<IPropertyHandle>>& InPropertyHandles)
+{
+	FWaveformTransformationRendererBase::SetPropertyHandles(InPropertyHandles);
+
+	StartTimeHandle = GetPropertyHandle(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartTime));
+	EndTimeHandle  = GetPropertyHandle(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndTime));
+	StartFadeTimeHandle = GetPropertyHandle(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartFadeTime));
+	StartFadeCurveHandle = GetPropertyHandle(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartFadeCurve));
+	EndFadeTimeHandle = GetPropertyHandle(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndFadeTime));
+	EndFadeCurveHandle = GetPropertyHandle(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndFadeCurve));
+}
+
 FReply FWaveformTransformationTrimFadeRenderer::OnMouseWheel(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	const FVector2D LocalCursorPosition = GetLocalCursorPosition(MouseEvent, MyGeometry);
@@ -160,16 +169,22 @@ FReply FWaveformTransformationTrimFadeRenderer::OnMouseWheel(SWidget& OwnerWidge
 	if (IsCursorInFadeInInteractionRange(LocalCursorPosition, MyGeometry))
 	{		
 		const float FadeCurveDelta = MouseEvent.GetWheelDelta() * MouseWheelStep;
-		TrimFadeTransform->StartFadeCurve = FMath::Clamp(TrimFadeTransform->StartFadeCurve + FadeCurveDelta, 0.f, 10.f);
-		NotifyTransformationPropertyChanged(TrimFadeTransform, GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartFadeCurve), EPropertyChangeType::ValueSet);
+		const float FadeCurveValue = FMath::Clamp(GetPropertyValue<float>(StartFadeCurveHandle) + FadeCurveDelta, 0.f, 10.f);
+
+		EPropertyValueSetFlags::Type PropertyFlags = EPropertyValueSetFlags::InteractiveChange;
+		StartFadeCurveHandle->SetValue(FadeCurveValue, PropertyFlags);
+
 		return FReply::Handled();
 	}
 
 	if (IsCursorInFadeOutInteractionRange(LocalCursorPosition, MyGeometry))
 	{
 		const float FadeCurveDelta = MouseEvent.GetWheelDelta() * MouseWheelStep;
-		TrimFadeTransform->EndFadeCurve = FMath::Clamp(TrimFadeTransform->EndFadeCurve + FadeCurveDelta, 0.f, 10.f);
-		NotifyTransformationPropertyChanged(TrimFadeTransform, GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndFadeCurve), EPropertyChangeType::ValueSet);
+		const float FadeCurveValue = FMath::Clamp(GetPropertyValue<float>(EndFadeCurveHandle) + FadeCurveDelta, 0.f, 10.f);
+		
+		EPropertyValueSetFlags::Type PropertyFlags = EPropertyValueSetFlags::InteractiveChange;
+		EndFadeCurveHandle->SetValue(FadeCurveValue, PropertyFlags);
+		
 		return FReply::Handled();
 	}
 
@@ -182,7 +197,7 @@ FVector2D FWaveformTransformationTrimFadeRenderer::GetLocalCursorPosition(const 
 	return  EventGeometry.AbsoluteToLocal(ScreenSpacePosition);
 }
 
-float FWaveformTransformationTrimFadeRenderer::ConvertXRatioToTime(const float InRatio) const
+double FWaveformTransformationTrimFadeRenderer::ConvertXRatioToTime(const float InRatio) const
 {
 	const float NumFrames = TransformationWaveInfo.NumAvilableSamples / TransformationWaveInfo.NumChannels;
 	const float FrameSelected = NumFrames * InRatio;
@@ -191,14 +206,9 @@ float FWaveformTransformationTrimFadeRenderer::ConvertXRatioToTime(const float I
 
 void FWaveformTransformationTrimFadeRenderer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 { 
-	if (!TrimFadeTransform)
-	{
-		return;
-	}
-
 	const float NumFrames = TransformationWaveInfo.NumAvilableSamples / TransformationWaveInfo.NumChannels;
-	const double FirstFrame = FMath::Clamp((TrimFadeTransform->StartTime * TransformationWaveInfo.SampleRate) , 0.f, NumFrames);
-	const double EndFrame = FMath::Clamp((TrimFadeTransform->EndTime * TransformationWaveInfo.SampleRate), FirstFrame, NumFrames);
+	const double FirstFrame = FMath::Clamp((GetPropertyValue<double>(StartTimeHandle) * TransformationWaveInfo.SampleRate) , 0.f, NumFrames);
+	const double EndFrame = FMath::Clamp((GetPropertyValue<double>(EndTimeHandle) * TransformationWaveInfo.SampleRate), FirstFrame, NumFrames);
 
 	PixelsPerFrame = FMath::Max(AllottedGeometry.GetLocalSize().X / NumFrames, 0.0);
 
@@ -233,8 +243,10 @@ FReply FWaveformTransformationTrimFadeRenderer::OnMouseButtonDown(SWidget& Owner
 
 		if (TrimFadeInteractionType != ETrimFadeInteractionType::None)
 		{
+			BeginTransaction(TEXT("PropertyEditor"), FText::Format(NSLOCTEXT("PropertyEditor", "SetNumericPropertyTransaction", "Edit {0}"), GetPropertyEditedByCurrentInteraction()), nullptr);
 			return FReply::Handled().CaptureMouse(OwnerWidget.AsShared()).PreventThrottling();
 		}
+
 	}
 
 	return FReply::Unhandled();
@@ -245,7 +257,7 @@ FReply FWaveformTransformationTrimFadeRenderer::OnMouseMove(SWidget& OwnerWidget
 {
 	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) && TrimFadeInteractionType != ETrimFadeInteractionType::None)
 	{
-		SetPropertyValueDependingOnInteractionType(MouseEvent, MyGeometry, EPropertyChangeType::Interactive);
+		SetPropertyValueDependingOnInteractionType(MouseEvent, MyGeometry, EPropertyValueSetFlags::InteractiveChange | EPropertyValueSetFlags::NotTransactable);
 
 		return FReply::Handled().CaptureMouse(OwnerWidget.AsShared());
 	}
@@ -257,8 +269,8 @@ FReply FWaveformTransformationTrimFadeRenderer::OnMouseButtonUp(SWidget& OwnerWi
 {
 	if (TrimFadeInteractionType != ETrimFadeInteractionType::None)
 	{
-		SetPropertyValueDependingOnInteractionType(MouseEvent, MyGeometry, EPropertyChangeType::ValueSet);
-
+		SetPropertyValueDependingOnInteractionType(MouseEvent, MyGeometry);
+		EndTransaction();
 		TrimFadeInteractionType = ETrimFadeInteractionType::None;
 		return FReply::Handled().ReleaseMouseCapture();
 	}
@@ -266,37 +278,40 @@ FReply FWaveformTransformationTrimFadeRenderer::OnMouseButtonUp(SWidget& OwnerWi
 	return FReply::Unhandled();
 }
 
-void FWaveformTransformationTrimFadeRenderer::SetPropertyValueDependingOnInteractionType(const FPointerEvent& MouseEvent, const FGeometry& WidgetGeometry, const EPropertyChangeType::Type DesiredChangeType)
+void FWaveformTransformationTrimFadeRenderer::SetPropertyValueDependingOnInteractionType(const FPointerEvent& MouseEvent, const FGeometry& WidgetGeometry, const EPropertyValueSetFlags::Type Flags /*= EPropertyValueSetFlags::DefaultFlags*/)
 {
 	const FVector2D LocalCursorPosition = GetLocalCursorPosition(MouseEvent, WidgetGeometry);
 	const float LocalCursorXRatio = FMath::Clamp(LocalCursorPosition.X / WidgetGeometry.GetLocalSize().X, 0.f, 1.f);
-	const float SelectedTime = ConvertXRatioToTime(LocalCursorXRatio);
+	const double SelectedTime = ConvertXRatioToTime(LocalCursorXRatio);
+
+	TSharedPtr<IPropertyHandle> PropertyHandle;
 
 	switch (TrimFadeInteractionType)
 	{
 	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::None:
 		break;
 	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingLeftHandle:
-		TrimFadeTransform->StartTime = SelectedTime;
-		NotifyTransformationPropertyChanged(TrimFadeTransform, GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartTime), DesiredChangeType);
+		StartTimeHandle->SetValue(SelectedTime, Flags);
 		break;
 	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingRightHandle:
-		TrimFadeTransform->EndTime = SelectedTime;
-		NotifyTransformationPropertyChanged(TrimFadeTransform, GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndTime), DesiredChangeType);
+		EndTimeHandle->SetValue(SelectedTime, Flags);
 		break;
 	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingFadeIn:
-		TrimFadeTransform->StartFadeTime = FMath::Clamp(SelectedTime - TrimFadeTransform->StartTime, 0.f, TNumericLimits<float>().Max());
-		NotifyTransformationPropertyChanged(TrimFadeTransform, GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartFadeTime), DesiredChangeType);
+		{
+			float StartFadeTimeValue = FMath::Clamp(SelectedTime - GetPropertyValue<double>(StartTimeHandle), 0.f, TNumericLimits<float>().Max());
+			StartFadeTimeHandle->SetValue(StartFadeTimeValue, Flags);
+		}
 		break;
 	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingFadeOut:
-		TrimFadeTransform->EndFadeTime = FMath::Clamp(TrimFadeTransform->EndTime - SelectedTime, 0.f, TNumericLimits<float>().Max());
-		NotifyTransformationPropertyChanged(TrimFadeTransform, GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndFadeTime), DesiredChangeType);
+		{	
+			float EndFadeTimeValue = FMath::Clamp(GetPropertyValue<double>(EndTimeHandle) - SelectedTime, 0.f, TNumericLimits<float>().Max());
+			EndFadeTimeHandle->SetValue(EndFadeTimeValue, Flags);
+		}
 		break;
 	default:
 		break;
 	}
 }
-
 
 FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType FWaveformTransformationTrimFadeRenderer::GetInteractionTypeFromCursorPosition(const FVector2D& InLocalCursorPosition, const FGeometry& WidgetGeometry) const
 {
@@ -333,4 +348,32 @@ bool FWaveformTransformationTrimFadeRenderer::IsCursorInFadeOutInteractionRange(
 {
 	return FadeOutInteractionXRange.Contains(InLocalCursorPosition.X)
 		&& InLocalCursorPosition.Y < WidgetGeometry.GetLocalSize().Y* InteractionRatioYDelta;
+}
+
+FText FWaveformTransformationTrimFadeRenderer::GetPropertyEditedByCurrentInteraction() const
+{
+	FText OutPropertyName = FText::FromName(NAME_None);
+
+	switch (TrimFadeInteractionType)
+	{
+	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::None:
+		break;
+	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingLeftHandle:
+		OutPropertyName = FText::FromName(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartTime));
+		break;
+	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingRightHandle:
+		OutPropertyName = FText::FromName(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndTime));
+		break;
+	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingFadeIn:
+		OutPropertyName = FText::FromName(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartFadeTime));
+		break;
+	case FWaveformTransformationTrimFadeRenderer::ETrimFadeInteractionType::ScrubbingFadeOut:
+		OutPropertyName = FText::FromName(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndFadeTime));
+		break;
+	default:
+		break;
+	}
+
+	return MoveTemp(OutPropertyName);
+
 }

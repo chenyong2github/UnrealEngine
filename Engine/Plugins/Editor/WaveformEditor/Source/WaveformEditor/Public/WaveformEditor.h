@@ -114,6 +114,9 @@ private:
 	/** Transformations tab */
 	TSharedPtr<IDetailsView> TransformationsDetails;
 
+	/** Hidden details view to propagate property handles to transformation layers */
+	TSharedPtr<IDetailsView> TransformationsPropertiesPropagator;
+
 	/** Settings Editor App Identifier */
 	static const FName AppIdentifier;
 

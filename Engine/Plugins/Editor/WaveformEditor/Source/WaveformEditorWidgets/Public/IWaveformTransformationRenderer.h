@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
 #include "IWaveformTransformation.h"
-#include "Sound/SoundWave.h"
 #include "Templates/Function.h"
-#include "UObject/UnrealType.h"
 
+class IPropertyHandle;
 class FCursorReply;
 class FPaintArgs;
 class FReply;
@@ -15,6 +13,7 @@ class FSlateRect;
 class FSlateWindowElementList;
 class FWidgetStyle;
 class SWidget;
+class UClass;
 struct FGeometry;
 struct FPointerEvent;
 
@@ -44,48 +43,10 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const = 0;
 
 	/* Gets info about the transformation being rendered */
-	void SetTransformationWaveInfo(FWaveformTransformationRenderInfo InWaveInfo)
-	{
-		TransformationWaveInfo = InWaveInfo;
-	}
-
-	/* Sets a callback to notify when a property has been changed by the renderer */
-	void SetTransformationNotifier(const TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)>& InTransformationChangeNotifier)
-	{
-		TransformationChangeNotifier = InTransformationChangeNotifier;
-	}
-
-protected:
-
-	/* Notifies that a property has been changed through TransformationChangeNotifier  */
-	void NotifyTransformationPropertyChanged(const TObjectPtr<UWaveformTransformationBase> EditedTransformation, const FName& PropertyName, const EPropertyChangeType::Type InChangeType)
-	{
-		FProperty* Property = EditedTransformation->GetClass()->FindPropertyByName(PropertyName);
-		check(Property);
-
-		USoundWave* ParentSoundWave = EditedTransformation->GetTypedOuter<USoundWave>();
-		check(ParentSoundWave)
-
-		FProperty* TransformationsProperty = ParentSoundWave->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USoundWave, Transformations));
-		check(TransformationsProperty)
-
-		FEditPropertyChain EditChain;
-		EditChain.AddHead(TransformationsProperty);
-		EditChain.AddTail(Property);
-		EditChain.SetActivePropertyNode(Property);
-
-		FPropertyChangedEvent PropertyEvent(Property, InChangeType);
-		FPropertyChangedEvent TransformationsPropertyEvent(TransformationsProperty, InChangeType);
-
-		EditedTransformation->PostEditChangeProperty(PropertyEvent);
-		ParentSoundWave->PostEditChangeProperty(TransformationsPropertyEvent);
-
-		TransformationChangeNotifier(PropertyEvent, &EditChain);
-	}
-
-	FWaveformTransformationRenderInfo TransformationWaveInfo;
-
-private:
-	TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> TransformationChangeNotifier;
-
+	virtual void SetTransformationWaveInfo(const FWaveformTransformationRenderInfo& InWaveInfo) = 0;
+	
+	/* Gets the transformations properties. IPropertyHandle is used to get/set properties to have full support of change notifiers, editor undo ecc  */
+	virtual void SetPropertyHandles(const TArray<TSharedRef<IPropertyHandle>>& InPropertyHandles) = 0;
 };
+
+
