@@ -9,7 +9,9 @@
 #include "Metadata/Accessors/PCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 
