@@ -62,7 +62,7 @@ namespace Jupiter
         public Task StartAsync(CancellationToken cancellationToken)
         {
             bool shouldPoll = ShouldStartPolling();
-            _logger.LogInformation("Polling service {Service} initialized {@State} , will poll: {WillPoll}.", _serviceName, _state, shouldPoll);
+            _logger.LogInformation("Polling service {Service} initialized, will poll: {WillPoll}.", _serviceName, shouldPoll);
 
             if (shouldPoll)
             {
