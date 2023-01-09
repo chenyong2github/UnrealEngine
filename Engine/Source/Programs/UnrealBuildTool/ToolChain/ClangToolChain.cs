@@ -831,6 +831,12 @@ namespace UnrealBuildTool
 			Arguments.Add("-c");
 			Arguments.Add("-pipe");
 
+			if (UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform).IsX86Architecture(CompileEnvironment.Architecture))
+			{		
+				// UE5 minspec is 4.2
+				Arguments.Add("-msse4.2");
+			}
+
 			// Add include paths to the argument list.
 			GetCompileArguments_IncludePaths(CompileEnvironment, Arguments);
 

@@ -6,13 +6,15 @@
 
 #include "HAL/Platform.h"
 #include "Math/UnrealPlatformMathSSE.h"
-// Code including this header is responsible for including the correct platform-specific header for SSE intrinsics.
 
+// UE5.2+ requires SSE4.2
+
+// We have to retain this #if because it's pulled in via the linux header chain
+// for all platforms at the moment and we rely on the parent class to implement
+// the functions
 #if PLATFORM_MAYBE_HAS_SSE4_1
+#include <smmintrin.h>
 
-// SSE4_1 instrinsics are only available for compile if PLATFORM_MAYBE_HAS_SSE4_1 is 1, and even if compiled, should not
-// be called at runtime unless PLATFORM_ALWAYS_HAS_SSE4_1 is 1 or cpuid has been checked to verify that the current hardware
-// instance supports it.
 namespace UE4
 {
 namespace SSE4
@@ -61,8 +63,6 @@ namespace SSE4
 
 #endif // PLATFORM_MAYBE_HAS_SSE4_1
 
-// We currently don't have any runtime checks in FPlatforMath for whether the SSE4_1 intrinsics are available,
-// so we have to not call them from FPlatformMath classes unless PLATFORM_ALWAYS_HAS_SSE4_1
 #define UNREALPLATFORMMATH_SSE4_1_ENABLED PLATFORM_ALWAYS_HAS_SSE4_1
 
 template<class Base>

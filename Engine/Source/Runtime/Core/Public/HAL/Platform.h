@@ -162,12 +162,18 @@
 // If PLATFORM_MAYBE_HAS_### is 1, then ### intrinsics are compilable.
 // This does not guarantee that the intrinsics are runnable on all instances of the platform however; a runtime check such as cpuid may be required to confirm availability.
 // If PLATFORM_ALWAYS_HAS_### is 1, then ## intrinsics will compile and run on all instances of the platform.  PLATFORM_ALWAYS_HAS_### == 1 implies PLATFORM_MAYBE_HAS_### == 1.
+
+// UE5.2+ requires SSE4.2.
 #ifndef PLATFORM_MAYBE_HAS_SSE4_1
-	#define PLATFORM_MAYBE_HAS_SSE4_1			0
+	#define PLATFORM_MAYBE_HAS_SSE4_1			PLATFORM_CPU_X86_FAMILY
 #endif
 #ifndef PLATFORM_ALWAYS_HAS_SSE4_1
-	#define PLATFORM_ALWAYS_HAS_SSE4_1			0
+	#define PLATFORM_ALWAYS_HAS_SSE4_1			PLATFORM_CPU_X86_FAMILY
 #endif
+#ifndef PLATFORM_ALWAYS_HAS_SSE4_2
+	#define PLATFORM_ALWAYS_HAS_SSE4_2			PLATFORM_CPU_X86_FAMILY
+#endif
+
 #ifndef PLATFORM_MAYBE_HAS_AVX
 	#define PLATFORM_MAYBE_HAS_AVX				0
 #endif
@@ -175,7 +181,7 @@
 	#define PLATFORM_ALWAYS_HAS_AVX				0
 #endif
 #ifndef PLATFORM_ALWAYS_HAS_AVX_2
-#define PLATFORM_ALWAYS_HAS_AVX_2				0
+	#define PLATFORM_ALWAYS_HAS_AVX_2			0
 #endif
 #ifndef PLATFORM_ALWAYS_HAS_FMA3
 	#define PLATFORM_ALWAYS_HAS_FMA3			0

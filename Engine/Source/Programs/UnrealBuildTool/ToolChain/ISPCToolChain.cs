@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxArm64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
-				ISPCTargets.AddRange(new string[] { "avx512skx-i32x8", "avx2", "avx", "sse4", "sse2" });
+				ISPCTargets.AddRange(new string[] { "avx512skx-i32x8", "avx2", "avx", "sse4" });
 			}
 			else if (Platform == UnrealTargetPlatform.LinuxArm64)
 			{
@@ -43,8 +43,8 @@ namespace UnrealBuildTool
 				{
 					case "-armv7": ISPCTargets.Add("neon"); break; // Assumes NEON is in use
 					case "-arm64": ISPCTargets.Add("neon"); break;
-					case "-x86": ISPCTargets.AddRange(new string[] { "sse4", "sse2" }); break;
-					case "-x64": ISPCTargets.AddRange(new string[] { "sse4", "sse2" }); break;
+					case "-x86": ISPCTargets.Add("sse4"); break;
+					case "-x64": ISPCTargets.Add("sse4"); break;
 					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
 				}
 			}

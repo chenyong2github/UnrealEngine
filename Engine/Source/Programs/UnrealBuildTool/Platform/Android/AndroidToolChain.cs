@@ -772,6 +772,7 @@ namespace UnrealBuildTool
 				Result += " -fno-strict-aliasing";
 				Result += " -fno-short-enums";
 				Result += " -march=atom";
+				Result += " -msse4.2";
 			}
 
 			ClangSanitizer Sanitizer = BuildWithSanitizer();

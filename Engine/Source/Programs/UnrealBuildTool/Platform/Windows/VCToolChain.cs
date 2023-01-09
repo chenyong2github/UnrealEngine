@@ -391,8 +391,8 @@ namespace UnrealBuildTool
 				// Tell the Clang compiler to generate 64-bit code
 				Arguments.Add("--target=x86_64-pc-windows-msvc");
 
-				// This matches Microsoft's default support floor for SSE.
-				Arguments.Add("-mssse3");
+				// UE5 minspec is 4.2
+				Arguments.Add("-msse4.2");
 
 				// Use tpause on supported processors.
 				Arguments.Add("-mwaitpkg");
@@ -641,8 +641,6 @@ namespace UnrealBuildTool
 				// Inform Unreal code that we have sse2, sse4, and AVX, both available to compile and available to run
 				// By setting the ALWAYS_HAS defines, we we direct Unreal code to skip cpuid checks to verify that the running hardware supports sse/avx.
 				AddDefinition(Arguments, "PLATFORM_ENABLE_VECTORINTRINSICS=1");
-				AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_SSE4_1=1");
-				AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_SSE4_1=1");
 				AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_AVX=1");
 				AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_AVX=1");
 			}

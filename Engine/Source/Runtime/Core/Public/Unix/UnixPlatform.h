@@ -105,13 +105,6 @@ typedef FUnixPlatformTypes FPlatformTypes;
 	#define PLATFORM_ENABLE_VECTORINTRINSICS		1
 #endif
 
-// We do not currently compile with -msse4 or higher on Unix or Linux
-#ifndef PLATFORM_MAYBE_HAS_SSE4_1 // May be set from UnrealBuildTool
-	#define PLATFORM_MAYBE_HAS_SSE4_1							0
-#endif
-#ifndef PLATFORM_ALWAYS_HAS_SSE4_1 // May be set from UnrealBuildTool
-	#define PLATFORM_ALWAYS_HAS_SSE4_1							0
-#endif
 #ifndef PLATFORM_ALWAYS_HAS_FMA3
 	#define PLATFORM_ALWAYS_HAS_FMA3							0
 #endif
