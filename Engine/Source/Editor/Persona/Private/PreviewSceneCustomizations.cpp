@@ -478,13 +478,12 @@ bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset(const FAsset
 		return false;
 	}
 
-	const UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScene.Pin()->GetPreviewSceneDescription();
-	if(!PersonaPreviewSceneDescription->PreviewMesh.IsValid())
+	if(!PersonaToolkit.IsValid())
 	{
 		return false;
 	}
-
-	const USkeleton* Skeleton = PersonaPreviewSceneDescription->PreviewMesh->GetSkeleton();
+	
+	const USkeleton* Skeleton = PersonaToolkit.Pin()->GetSkeleton();
 	const FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
 	if (Skeleton && Skeleton->IsCompatibleForEditor(SkeletonTag))
 	{

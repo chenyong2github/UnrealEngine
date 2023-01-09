@@ -458,40 +458,43 @@ const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(con
 
 			if (SourceSkeletonBoneIndex != INDEX_NONE && AssetSkeleton->GetBoneTranslationRetargetingMode(SourceSkeletonBoneIndex) == EBoneTranslationRetargetingMode::OrientAndScale)
 			{
-				const FVector SourceSkelTrans = AuthoredOnRefSkeleton[SourceSkeletonBoneIndex].GetTranslation();
-				FVector TargetSkelTrans;
-				if (RefPoseOverride.IsValid())
+				if(AuthoredOnRefSkeleton.IsValidIndex(SourceSkeletonBoneIndex))
 				{
-					TargetSkelTrans = RefPoseOverride->RefBonePoses[BoneIndicesArray[CompactBoneIndex]].GetTranslation();
-				}
-				else
-				{
-					TargetSkelTrans = PlayingOnRefSkeleton[BoneIndicesArray[CompactBoneIndex]].GetTranslation();
-				}
-
-				// If translations are identical, we don't need to do any retargeting
-				if (!SourceSkelTrans.Equals(TargetSkelTrans, BONE_TRANS_RT_ORIENT_AND_SCALE_PRECISION))
-				{
-					const float SourceSkelTransLength = SourceSkelTrans.Size();
-					const float TargetSkelTransLength = TargetSkelTrans.Size();
-
-					// this only works on non zero vectors.
-					if (!FMath::IsNearlyZero(SourceSkelTransLength * TargetSkelTransLength))
+					const FVector SourceSkelTrans = AuthoredOnRefSkeleton[SourceSkeletonBoneIndex].GetTranslation();
+					FVector TargetSkelTrans;
+					if (RefPoseOverride.IsValid())
 					{
-						const FVector SourceSkelTransDir = SourceSkelTrans / SourceSkelTransLength;
-						const FVector TargetSkelTransDir = TargetSkelTrans / TargetSkelTransLength;
+						TargetSkelTrans = RefPoseOverride->RefBonePoses[BoneIndicesArray[CompactBoneIndex]].GetTranslation();
+					}
+					else
+					{
+						TargetSkelTrans = PlayingOnRefSkeleton[BoneIndicesArray[CompactBoneIndex]].GetTranslation();
+					}
 
-						const FQuat DeltaRotation = FQuat::FindBetweenNormals(SourceSkelTransDir, TargetSkelTransDir);
-						const float Scale = TargetSkelTransLength / SourceSkelTransLength;
-						const int32 OrientAndScaleIndex = RetargetSourceCachedData->OrientAndScaleData.Add(FOrientAndScaleRetargetingCachedData(DeltaRotation, Scale, SourceSkelTrans, TargetSkelTrans));
+					// If translations are identical, we don't need to do any retargeting
+					if (!SourceSkelTrans.Equals(TargetSkelTrans, BONE_TRANS_RT_ORIENT_AND_SCALE_PRECISION))
+					{
+						const float SourceSkelTransLength = SourceSkelTrans.Size();
+						const float TargetSkelTransLength = TargetSkelTrans.Size();
 
-						// initialize CompactPoseBoneIndex to OrientAndScale Index LUT on demand
-						if (RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex.Num() == 0)
+						// this only works on non zero vectors.
+						if (!FMath::IsNearlyZero(SourceSkelTransLength * TargetSkelTransLength))
 						{
-							RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex.Init(INDEX_NONE, CompactPoseNumBones);
-						}
+							const FVector SourceSkelTransDir = SourceSkelTrans / SourceSkelTransLength;
+							const FVector TargetSkelTransDir = TargetSkelTrans / TargetSkelTransLength;
 
-						RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex[CompactBoneIndex] = OrientAndScaleIndex;
+							const FQuat DeltaRotation = FQuat::FindBetweenNormals(SourceSkelTransDir, TargetSkelTransDir);
+							const float Scale = TargetSkelTransLength / SourceSkelTransLength;
+							const int32 OrientAndScaleIndex = RetargetSourceCachedData->OrientAndScaleData.Add(FOrientAndScaleRetargetingCachedData(DeltaRotation, Scale, SourceSkelTrans, TargetSkelTrans));
+
+							// initialize CompactPoseBoneIndex to OrientAndScale Index LUT on demand
+							if (RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex.Num() == 0)
+							{
+								RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex.Init(INDEX_NONE, CompactPoseNumBones);
+							}
+
+							RetargetSourceCachedData->CompactPoseIndexToOrientAndScaleIndex[CompactBoneIndex] = OrientAndScaleIndex;
+						}
 					}
 				}
 			}
