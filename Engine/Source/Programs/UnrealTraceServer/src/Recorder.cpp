@@ -114,7 +114,11 @@ FRecorderRelay::~FRecorderRelay()
 ////////////////////////////////////////////////////////////////////////////////
 bool FRecorderRelay::IsOpen()
 {
-	return Input.IsOpen();
+	// Even if the input socket has been closed we should still report ourselves
+	// as open if there is a pending write on the output.
+	bool Ret = (Output != nullptr && FillDrainCounter < 2);
+	Ret |= Input.IsOpen();
+	return Ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
