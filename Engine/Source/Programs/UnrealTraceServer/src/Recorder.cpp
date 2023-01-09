@@ -173,19 +173,6 @@ bool FRecorderRelay::ReadMagic()
 		return false;
 	}
 
-	// We can continue to support very old clients
-	if (Cursor[0] == 'E')
-	{
-		if (CreateTrace())
-		{
-			// Old clients have no metadata so we can go straight into the
-			// read-write loop. We've already got read data in Buffer.
-			OnIoComplete(OpBuffer0|OpFill, sizeof(MagicType) + sizeof(MetadataSizeType));
-			return true;
-		}
-		return false;
-	}
-
 	// Later clients have a metadata block (TRC2). There's loose support for the
 	// future too if need be (TRC[3-9]).
 	if (Cursor[0] < '2' || Cursor[0] > '9')
