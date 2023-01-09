@@ -269,6 +269,7 @@ void FRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 {
 	if (Size < 0)
 	{
+		FillDrainCounter += (Output != nullptr);
 		Close();
 		return;
 	}
