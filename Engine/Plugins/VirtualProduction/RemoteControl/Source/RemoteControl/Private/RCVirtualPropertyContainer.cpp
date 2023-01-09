@@ -202,7 +202,7 @@ int32 URCVirtualPropertyContainerBase::GetNumVirtualProperties() const
 	return NumPropertiesInBag;
 }
 
-TSharedPtr<FStructOnScope> URCVirtualPropertyContainerBase::CreateStructOnScope() const
+TSharedPtr<FStructOnScope> URCVirtualPropertyContainerBase::CreateStructOnScope()
 {
 	return MakeShared<FStructOnScope>(Bag.GetPropertyBagStruct(), Bag.GetMutableValue().GetMutableMemory());
 }

@@ -105,7 +105,7 @@ public:
 	/**
 	 * Creates new Struct on Scope for this Property Bag UStruct and Memory
 	 */
-	TSharedPtr<FStructOnScope> CreateStructOnScope() const;
+	TSharedPtr<FStructOnScope> CreateStructOnScope();
 
 	/**
 	 * Generates unique name for the property for specified property container

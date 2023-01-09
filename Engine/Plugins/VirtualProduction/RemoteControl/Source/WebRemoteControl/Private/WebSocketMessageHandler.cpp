@@ -1732,7 +1732,7 @@ bool FWebSocketMessageHandler::WriteControllerChangeEventPayload(URemoteControlP
 	TArray<FStructOnScope*> ControllerValueOnScope;
 	for (const FGuid& ControllerId : InModifiedControllerIds)
 	{
-		if (const URCVirtualPropertySelfContainer* Controller = Cast<URCVirtualPropertySelfContainer>(InPreset->GetController(ControllerId)))
+		if (URCVirtualPropertySelfContainer* Controller = Cast<URCVirtualPropertySelfContainer>(InPreset->GetController(ControllerId)))
 		{
 			bHasController = true;
 
