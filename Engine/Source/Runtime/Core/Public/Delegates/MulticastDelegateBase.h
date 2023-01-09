@@ -140,6 +140,20 @@ public:
 		return Result;
 	}
 
+	/**
+	 * Returns the amount of memory allocated by this delegate's invocation list and the delegates stored within it, not including sizeof(*this).
+	 */
+	SIZE_T GetAllocatedSize() const
+	{
+		SIZE_T Size = 0;
+		Size += InvocationList.GetAllocatedSize();
+		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
+		{
+			Size += DelegateBaseRef.GetAllocatedSize();
+		}
+		return Size;
+	}
+
 protected:
 
 	/** Hidden default constructor. */

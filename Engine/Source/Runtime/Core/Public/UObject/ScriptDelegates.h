@@ -621,6 +621,14 @@ public:
 		return OutputList;
 	}
 
+	/**
+	 * Returns the amount of memory allocated by this delegate's invocation list, not including sizeof(*this).
+	 */
+	SIZE_T GetAllocatedSize() const
+	{
+		return InvocationList.GetAllocatedSize();
+	}
+
 protected:
 
 	/**

@@ -116,6 +116,14 @@ protected:
 		return DelegateSize ? (IDelegateInstance*)DelegateAllocator.GetAllocation() : nullptr;
 	}
 
+	/**
+	 * Returns the amount of memory allocated by this delegate, not including sizeof(*this).
+	 */
+	SIZE_T GetAllocatedSize() const
+	{
+		return DelegateAllocator.GetAllocatedSize(DelegateSize, sizeof(FAlignedInlineDelegateType));
+	}
+
 private:
 	friend void* operator new(size_t Size, FDelegateBase& Base);
 

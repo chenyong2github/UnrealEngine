@@ -74,6 +74,7 @@ class TDelegate<InRetValType(ParamTypes...), UserPolicy> : public TDelegateBase<
 public:
 	// Make sure FDelegateBase's public functions are publicly exposed through the TDelegate API
 	using Super::Unbind;
+	using Super::GetAllocatedSize;
 
 private:
 	// Make sure FDelegateBase's protected functions are not accidentally exposed through the TDelegate API
@@ -702,6 +703,7 @@ public:
 	using Super::IsBound;
 	using Super::IsBoundToObject;
 	using Super::RemoveAll;
+	using Super::GetAllocatedSize;
 
 private:
 	// Make sure TMulticastDelegateBase's protected functions are not accidentally exposed through the TMulticastDelegate API
