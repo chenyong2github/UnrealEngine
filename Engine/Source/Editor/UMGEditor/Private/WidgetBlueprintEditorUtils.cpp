@@ -256,14 +256,14 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 		UWidget* WidgetPreview = BlueprintEditor->GetReferenceFromTemplate(Widget).GetPreview();
 		if (WidgetPreview)
 		{
-			WidgetPreview->SetDisplayLabel(NewNameStr);
+			WidgetPreview->SetDisplayLabel(NewDisplayName);
 			WidgetPreview->Rename(*NewNameStr);
 		}
 
 		if (!WidgetPreview || WidgetPreview != Widget)
 		{
 			// Find and update all variable references in the graph
-			Widget->SetDisplayLabel(NewNameStr);
+			Widget->SetDisplayLabel(NewDisplayName);
 			Widget->Rename(*NewNameStr);
 		}
 
