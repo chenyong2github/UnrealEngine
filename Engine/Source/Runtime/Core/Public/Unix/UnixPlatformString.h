@@ -26,7 +26,7 @@ struct FUnixPlatformString : public
 			return 0;
 
 		int Len = 0;
-		while(String[Len])
+		while(*String++)
 		{
 			++Len;
 		}
