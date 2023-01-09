@@ -480,11 +480,6 @@ namespace Horde.Build.Agents
 		public IReadOnlyList<AgentLease> Leases { get; }
 
 		/// <summary>
-		/// ACL for modifying this agent
-		/// </summary>
-		public Acl? Acl { get; }
-
-		/// <summary>
 		/// Last time that the agent was modified
 		/// </summary>
 		public DateTime UpdateTime { get; }

@@ -113,7 +113,6 @@ namespace Horde.Build.Agents
 
 			public AgentCapabilities Capabilities { get; set; } = new AgentCapabilities();
 			public List<AgentLease>? Leases { get; set; }
-			public Acl? Acl { get; set; }
 			public DateTime UpdateTime { get; set; }
 			public uint UpdateIndex { get; set; }
 			public string? Comment { get; set; }
@@ -133,7 +132,6 @@ namespace Horde.Build.Agents
 			public AgentDocument(AgentId id, bool enabled, List<PoolId> pools)
 			{
 				Id = id;
-				Acl = new Acl();
 				Enabled = enabled;
 				Pools = pools;
 			}
@@ -283,7 +281,7 @@ namespace Horde.Build.Agents
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryUpdateSettingsAsync(IAgent agentInterface, bool? enabled = null, bool? requestConform = null, bool? requestFullConform = null, bool? requestRestart = null, bool? requestShutdown = null, string? shutdownReason = null, List<PoolId>? pools = null, Acl? acl = null, string? comment = null)
+		public async Task<IAgent?> TryUpdateSettingsAsync(IAgent agentInterface, bool? enabled = null, bool? requestConform = null, bool? requestFullConform = null, bool? requestRestart = null, bool? requestShutdown = null, string? shutdownReason = null, List<PoolId>? pools = null, string? comment = null)
 		{
 			AgentDocument agent = (AgentDocument)agentInterface;
 
@@ -337,10 +335,6 @@ namespace Horde.Build.Agents
 				updates.Add(updateBuilder.Set(x => x.LastShutdownReason, shutdownReason));
 			}
 
-			if (acl != null)
-			{
-				updates.Add(Acl.CreateUpdate<AgentDocument>(x => x.Acl!, acl));
-			}
 			if (comment != null)
 			{
 				updates.Add(updateBuilder.Set(x => x.Comment, comment));

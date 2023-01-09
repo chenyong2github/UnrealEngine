@@ -1024,15 +1024,8 @@ namespace Horde.Build.Agents
 		/// <returns>True if the action is authorized</returns>
 		public async Task<bool> AuthorizeAsync(IAgent agent, AclAction action, ClaimsPrincipal user, GlobalPermissionsCache? cache)
 		{
-			bool? result = agent.Acl?.Authorize(action, user);
-			if (result == null)
-			{
-				return await _aclService.AuthorizeAsync(action, user, cache);
-			}
-			else
-			{
-				return result.Value;
-			}
+			_ = agent;
+			return await _aclService.AuthorizeAsync(action, user, cache);
 		}
 
 		/// <summary>

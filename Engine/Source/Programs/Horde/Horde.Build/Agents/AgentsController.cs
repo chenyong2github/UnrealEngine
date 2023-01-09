@@ -127,8 +127,7 @@ namespace Horde.Build.Agents
 				leases.Add(new GetAgentLeaseResponse(lease, details));
 			}
 
-			bool includeAcl = await _agentService.AuthorizeAsync(agent, AclAction.ViewPermissions, User, permissionsCache);
-			return new GetAgentResponse(agent, leases, rate, includeAcl).ApplyFilter(filter);
+			return new GetAgentResponse(agent, leases, rate).ApplyFilter(filter);
 		}
 
 		/// <summary>
@@ -157,12 +156,8 @@ namespace Horde.Build.Agents
 				{
 					return Forbid(AclAction.UpdateAgent, agentId);
 				}
-				if (update.Acl != null && !await _agentService.AuthorizeAsync(agent, AclAction.ChangePermissions, User, cache))
-				{
-					return Forbid(AclAction.ChangePermissions, agentId);
-				}
 
-				IAgent? newAgent = await _agentService.Agents.TryUpdateSettingsAsync(agent, update.Enabled, update.RequestConform, update.RequestFullConform, update.RequestRestart, update.RequestShutdown, $"Manual ({userName})", update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(agent.Acl, update.Acl), update.Comment);
+				IAgent? newAgent = await _agentService.Agents.TryUpdateSettingsAsync(agent, update.Enabled, update.RequestConform, update.RequestFullConform, update.RequestRestart, update.RequestShutdown, $"Manual ({userName})", update.Pools?.ConvertAll(x => new PoolId(x)), update.Comment);
 				if (newAgent == null)
 				{
 					continue;
