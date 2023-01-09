@@ -20,6 +20,18 @@ FAsioFile::FAsioFile(asio::io_context& IoContext, uintptr_t OsHandle)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+asio::io_context& FAsioFile::GetIoContext()
+{
+#if TS_USING(TS_PLATFORM_WINDOWS)
+	auto& Inner = Handle;
+#else
+	auto& Inner = StreamDescriptor;
+#endif
+
+	return Inner.get_executor().context();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAsioFile::IsOpen() const
 {
 #if TS_USING(TS_PLATFORM_WINDOWS)

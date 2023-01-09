@@ -17,6 +17,7 @@ class FAsioFile
 {
 public:
 										FAsioFile(asio::io_context& IoContext, uintptr_t OsHandle);
+	asio::io_context&					GetIoContext();
 	static FAsioWriteable*				WriteFile(asio::io_context& IoContext, const FPath& Path);
 	static FAsioReadable*				ReadFile(asio::io_context& IoContext, const FPath& Path);
 	virtual bool						IsOpen() const override;
