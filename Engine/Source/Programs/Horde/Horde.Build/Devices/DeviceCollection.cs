@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Acls;
-using Horde.Build.Jobs;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Streams;
@@ -75,9 +73,6 @@ namespace Horde.Build.Devices
 
 			[BsonRequired]
 			public string Name { get; set; } = null!;
-
-			[BsonIgnoreIfNull]
-			public Acl? Acl { get; set; }
 
 			[BsonConstructor]
 			private DevicePoolDocument()
@@ -236,9 +231,6 @@ namespace Horde.Build.Devices
 			/// </summary>
 			[BsonIgnoreIfNull]
 			public List<DeviceUtilizationTelemetry>? Utilization { get; set; }
-
-			[BsonIgnoreIfNull]
-			public Acl? Acl { get; set; }
 
 			[BsonIgnoreIfNull]
 			public int? Version { get; set; }

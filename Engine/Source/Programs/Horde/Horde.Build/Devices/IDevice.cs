@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using Horde.Build.Acls;
 using Horde.Build.Projects;
 using Horde.Build.Streams;
 using Horde.Build.Users;
@@ -161,11 +160,6 @@ namespace Horde.Build.Devices
 		/// Friendly name of the pool
 		/// </summary>
 		string Name { get; }
-
-		/// <summary>
-		/// Acl access to the pool
-		/// </summary>
-		public Acl? Acl { get; }
 	}
 
 	/// <summary>
@@ -346,11 +340,6 @@ namespace Horde.Build.Devices
 		/// Device job utilization history 
 		/// </summary>
 		public List<DeviceUtilizationTelemetry>? Utilization { get; set; }
-
-		/// <summary>
-		/// ACL for modifying this device
-		/// </summary>
-		public Acl? Acl { get; }
 	}
 
 	/// <summary>
