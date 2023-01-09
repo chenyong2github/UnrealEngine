@@ -15,7 +15,7 @@ enum class EDMXFixtureSignalFormat : uint8;
 
 /** A fader matching a Fixture Patch Function in the DMX Control Console. */
 UCLASS()
-class UDMXControlConsoleFixturePatchFunctionFader 
+class DMXCONTROLCONSOLE_API UDMXControlConsoleFixturePatchFunctionFader
 	: public UDMXControlConsoleFaderBase
 {
 	GENERATED_BODY()

@@ -12,7 +12,7 @@ class UDMXControlConsoleFaderGroup;
 
 /** Base class for a Fader in the DMX Control Console. */
 UCLASS(Abstract)
-class UDMXControlConsoleFaderBase 
+class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderBase
 	: public UObject
 {
 	GENERATED_BODY()
@@ -64,7 +64,9 @@ public:
 protected:
 	//~ Begin of UObject interface
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 	//~ End of UObject interface
 
 	/** Cached Name of the Fader */

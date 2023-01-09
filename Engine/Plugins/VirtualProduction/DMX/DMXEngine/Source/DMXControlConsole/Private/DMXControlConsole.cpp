@@ -53,22 +53,18 @@ void UDMXControlConsole::GenarateFromDMXLibrary()
 
 	TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 
+	// Get All Fixture Patches in use in a Fader Group
+	auto FaderGroupsHasFixturePatchInUseLambda = [](const UDMXControlConsoleFaderGroup* FaderGroup)
+	{
+		return FaderGroup && FaderGroup->HasFixturePatch();
+	};
+	auto GetFixturePatchFromFaderGroupLambda = [](UDMXControlConsoleFaderGroup* FaderGroup)
+	{
+		return FaderGroup->GetFixturePatch();
+	};
 	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = GetAllFaderGroups();
 	TArray<UDMXEntityFixturePatch*> AllFixturePatchesInUse;
-	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
-	{
-		if (!FaderGroup)
-		{
-			continue;
-		}
-
-		if (!FaderGroup->HasFixturePatch())
-		{
-			continue;
-		}
-
-		AllFixturePatchesInUse.Add(FaderGroup->GetFixturePatch());
-	}
+	Algo::TransformIf(AllFaderGroups, AllFixturePatchesInUse, FaderGroupsHasFixturePatchInUseLambda, GetFixturePatchFromFaderGroupLambda);
 
 	FixturePatchesInLibrary.RemoveAll([AllFixturePatchesInUse](UDMXEntityFixturePatch* FixturePatch)
 		{

@@ -12,7 +12,7 @@ enum class EDMXFixtureSignalFormat : uint8;
 
 /** A fader matching that sends Raw DMX */
 UCLASS()
-class UDMXControlConsoleRawFader 
+class DMXCONTROLCONSOLE_API UDMXControlConsoleRawFader
 	: public UDMXControlConsoleFaderBase
 {
 	GENERATED_BODY()
@@ -45,9 +45,11 @@ public:
 	FORCEINLINE static FName GetStartingAddressPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleRawFader, StartingAddress); }
 
 protected:
-	//~ Begin of UObject interface
+	//~ Begin UObject interface
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End of UObject interface
+#endif // WITH_EDITOR
+	//~ End UObject interface
 
 private:
 	/** Sets this fader's number of channels */

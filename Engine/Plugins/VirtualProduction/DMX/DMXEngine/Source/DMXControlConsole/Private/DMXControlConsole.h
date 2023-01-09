@@ -18,7 +18,7 @@ class UDMXLibrary;
 
 /** The DMX Control Console */
 UCLASS()
-class UDMXControlConsole 
+class DMXCONTROLCONSOLE_API UDMXControlConsole 
 	: public UObject
 	, public FTickableGameObject
 {

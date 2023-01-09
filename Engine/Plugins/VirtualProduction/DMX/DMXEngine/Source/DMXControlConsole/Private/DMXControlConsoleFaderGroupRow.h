@@ -13,7 +13,7 @@ class UDMXControlConsoleFaderGroup;
 
 /** A Row of Fader Groups in the DMX Control Console */
 UCLASS()
-class UDMXControlConsoleFaderGroupRow 
+class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderGroupRow
 	: public UObject
 {
 	GENERATED_BODY()

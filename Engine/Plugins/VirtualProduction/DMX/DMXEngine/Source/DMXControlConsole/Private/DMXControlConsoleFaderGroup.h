@@ -18,7 +18,7 @@ class UDMXEntityFixturePatch;
 
 /** A Group of Faders in the DMX Control Console */
 UCLASS()
-class UDMXControlConsoleFaderGroup
+class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderGroup
 	: public UObject
 {
 	GENERATED_BODY()
@@ -85,10 +85,12 @@ public:
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
 
 protected:
-	//~ Begin of UObject interface
+	//~ Begin UObject interface
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End of UObject interface
+#endif // WITH_EDITOR
+	//~ End UObject interface
 
 private:	
 	/** Gets the next Universe and Address available for a new fader */

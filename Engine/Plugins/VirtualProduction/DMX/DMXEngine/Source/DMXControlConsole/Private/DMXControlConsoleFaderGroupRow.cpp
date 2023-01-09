@@ -66,9 +66,13 @@ void UDMXControlConsoleFaderGroupRow::Destroy()
 {
 	UDMXControlConsole& ControlConsole = GetOwnerControlConsoleChecked();
 
-	ControlConsole.PreEditChange(nullptr);
+#if WITH_EDITOR
+	ControlConsole.PreEditChange(UDMXControlConsole::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFaderGroupNamePropertyName()));
+#endif // WITH_EDITOR
 
 	ControlConsole.DeleteFaderGroupRow(this);
 
+#if WITH_EDITOR
 	ControlConsole.PostEditChange();
+#endif // WITH_EDITOR
 }

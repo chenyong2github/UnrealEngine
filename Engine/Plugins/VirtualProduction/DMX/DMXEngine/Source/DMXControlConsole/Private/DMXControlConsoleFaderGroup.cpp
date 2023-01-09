@@ -89,7 +89,11 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 
 	FixturePatch = InFixturePatch;
 	FaderGroupName = FixturePatch->GetDisplayName();
+
+#if WITH_EDITOR
 	EditorColor = FixturePatch->EditorColor;
+#endif // WITH_EDITOR
+	
 	ClearFaders();
 
 	const TMap<FDMXAttributeName, FDMXFixtureFunction> FunctionsMap = FixturePatch->GetAttributeFunctionsMap();
@@ -173,12 +177,16 @@ TMap<FDMXAttributeName, int32> UDMXControlConsoleFaderGroup::GetAttributeMap() c
 void UDMXControlConsoleFaderGroup::Destroy()
 {
 	UDMXControlConsoleFaderGroupRow& FaderGroupRow = GetOwnerFaderGroupRowChecked();
-	
-	FaderGroupRow.PreEditChange(nullptr);
+
+#if WITH_EDITOR
+	FaderGroupRow.PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFadersPropertyName()));
+#endif // WITH_EDITOR
 
 	FaderGroupRow.DeleteFaderGroup(this);
 
+#if WITH_EDITOR
 	FaderGroupRow.PostEditChange();
+#endif // WITH_EDITOR
 }
 
 void UDMXControlConsoleFaderGroup::ForceRefresh()
@@ -193,6 +201,7 @@ void UDMXControlConsoleFaderGroup::PostInitProperties()
 	FaderGroupName = GetName();
 }
 
+#if WITH_EDITOR
 void UDMXControlConsoleFaderGroup::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -208,6 +217,7 @@ void UDMXControlConsoleFaderGroup::PostEditChangeProperty(FPropertyChangedEvent&
 		ClearFaders();
 	}
 }
+#endif // WITH_EDITOR
 
 void UDMXControlConsoleFaderGroup::GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const
 {

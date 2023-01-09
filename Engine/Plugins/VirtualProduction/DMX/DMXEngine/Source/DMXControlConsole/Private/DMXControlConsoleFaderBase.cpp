@@ -55,20 +55,27 @@ void UDMXControlConsoleFaderBase::Destroy()
 		return;
 	}
 
-	Outer->PreEditChange(nullptr);
+#if WITH_EDITOR
+	Outer->PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFadersPropertyName()));
+#endif // WITH_EDITOR
 
 	Outer->DeleteFader(this);
 
+#if WITH_EDITOR
 	Outer->PostEditChange();
+#endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 void UDMXControlConsoleFaderBase::PostInitProperties()
 {
 	Super::PostInitProperties();
 
 	FaderName = GetName();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -81,5 +88,6 @@ void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& 
 
 	SetValue(Value);
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

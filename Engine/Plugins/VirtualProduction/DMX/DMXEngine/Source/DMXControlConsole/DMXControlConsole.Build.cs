@@ -18,21 +18,10 @@ public class DMXControlConsole : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"AssetTools",
-				"AssetRegistry",
 				"CoreUObject",
-				"DMXEditor",
 				"DMXProtocol",
-				"DMXProtocolEditor",
 				"DMXRuntime",
 				"Engine",
-				"InputCore",
-				"LevelEditor",
-				"Projects",
-				"Slate",
-				"SlateCore",
-				"ToolMenus",
-				"UnrealEd",
 			}
 		);
 	}

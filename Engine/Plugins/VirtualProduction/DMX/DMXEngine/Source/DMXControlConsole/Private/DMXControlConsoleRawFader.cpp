@@ -38,6 +38,7 @@ void UDMXControlConsoleRawFader::SetAddressRange(int32 InStartingAddress)
 	EndingAddress = StartingAddress + NumChannels;
 }
 
+#if WITH_EDITOR
 void UDMXControlConsoleRawFader::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -54,5 +55,6 @@ void UDMXControlConsoleRawFader::PostEditChangeProperty(FPropertyChangedEvent& P
 		SetUniverseID(UniverseID);
 	}
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

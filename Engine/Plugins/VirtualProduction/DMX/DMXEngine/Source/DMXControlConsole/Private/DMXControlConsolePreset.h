@@ -12,7 +12,7 @@ class UDMXControlConsole;
 
 /** Preset to save Control Console's data */
 UCLASS(BlueprintType)
-class UDMXControlConsolePreset 
+class DMXCONTROLCONSOLE_API UDMXControlConsolePreset
 	: public UObject
 {
 	GENERATED_BODY()
