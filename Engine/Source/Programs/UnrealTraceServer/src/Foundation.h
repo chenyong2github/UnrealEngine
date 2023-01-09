@@ -25,6 +25,7 @@ struct TArray
 	void		Empty()								{ return Super::clear(); }
 	void		SetNumUninitialized(int Num)		{ return Super::resize(Num); }
 	void		Append(const void* Data, int Num)	{ Super::insert(Super::end(), (const Type*)Data, ((const Type*)Data) + Num); }
+	Type&		Last()								{ return Super::back(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
