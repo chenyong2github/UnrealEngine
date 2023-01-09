@@ -1238,12 +1238,6 @@ public:
 	 */
 	ENGINE_API virtual void GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const override;
 
-	/**
-	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
-	 * @return whether no errors occurred.
-	 */
-	ENGINE_API bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const;
-	
 private:
 	void BackwardsCompatibilityInputConversion();
 	void BackwardsCompatibilityVirtualTextureOutputConversion();

@@ -1434,11 +1434,6 @@ bool FMaterialResource::GetAllowDevelopmentShaderCompile()const
 	return Material->bAllowDevelopmentShaderCompile;
 }
 
-bool FMaterialResource::CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const
-{
-	return Material && Material->CheckInValidStateForCompilation(Compiler);
-}
-
 void FMaterial::ReleaseShaderMap()
 {
 	UE_CLOG(IsOwnerBeginDestroyed(), LogMaterial, Error, TEXT("ReleaseShaderMap called on FMaterial %s, owner is BeginDestroyed"), *GetDebugName());
@@ -4372,8 +4367,7 @@ bool UMaterialInterface::IsPropertyActive(EMaterialProperty InProperty)const
 }
 
 #if WITH_EDITOR
-
-int32 UMaterialInterface::CompilePropertyEx(FMaterialCompiler* Compiler, const FGuid& AttributeID )
+int32 UMaterialInterface::CompilePropertyEx( class FMaterialCompiler* Compiler, const FGuid& AttributeID )
 {
 	return INDEX_NONE;
 }

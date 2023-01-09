@@ -166,12 +166,6 @@ public:
 		}
 	}
 
-	/**
-	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
-	 * @return whether no errors occurred.
-	 */
-	 bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const override;
-
 	float UnrelatedNodesOpacity;
 
 private:

@@ -2210,12 +2210,6 @@ protected:
 #endif // WITH_EDITOR
 
 	/**
-	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
-	 * @return whether no errors occurred.
-	 */
-	ENGINE_API virtual bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const = 0;
-
-	/**
 	 * Entry point for compiling a specific material property.  This must call SetMaterialProperty. 
 	 * @param OverrideShaderFrequency SF_NumFrequencies to not override
 	 * @return cases to the proper type e.g. Compiler->ForceCast(Ret, GetValueType(Property));
@@ -2640,8 +2634,6 @@ public:
 	inline const UMaterialInstance* GetMaterialInstance() const { return MaterialInstance; }
 	inline void SetMaterial(UMaterial* InMaterial) { Material = InMaterial; }
 	inline void SetMaterialInstance(UMaterialInstance* InMaterialInstance) { MaterialInstance = InMaterialInstance; }
-
-	ENGINE_API virtual bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const override;
 
 protected:
 	UMaterial* Material;
