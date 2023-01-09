@@ -69,6 +69,7 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
 	friend struct FWorldPartitionActorDescUtils;
+	friend struct FWorldPartitionActorDescUnitTestAcccessor;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
@@ -179,7 +180,6 @@ protected:
 		return --HardRefCount;
 	}
 
-public:
 	inline uint32 GetSoftRefCount() const
 	{
 		return SoftRefCount;
@@ -190,6 +190,7 @@ public:
 		return HardRefCount;
 	}
 
+public:
 	const TArray<FGuid>& GetReferences() const
 	{
 		return References;
