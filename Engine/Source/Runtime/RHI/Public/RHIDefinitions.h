@@ -7,15 +7,17 @@
 
 #pragma once
 
-#include "PixelFormat.h"
-#include "Serialization/MemoryLayout.h"
+#include "HAL/Platform.h"
+#include "Misc/EnumClassFlags.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
+#include "PixelFormat.h"
 #include "HAL/IConsoleManager.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
 #include "RHIImmutableSamplerState.h"
+#include "Serialization/MemoryLayout.h"
 #endif
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
@@ -399,7 +401,6 @@ enum EVertexElementType
 	VET_NumBits = 5,
 };
 static_assert(VET_MAX <= (1 << VET_NumBits), "VET_MAX will not fit on VET_NumBits");
-DECLARE_INTRINSIC_TYPE_LAYOUT(EVertexElementType);
 
 enum ECubeFace : uint32
 {
@@ -518,7 +519,6 @@ enum EUniformBufferBaseType : uint8
 	EUniformBufferBaseType_NumBits = 5,
 };
 static_assert(EUniformBufferBaseType_Num <= (1 << EUniformBufferBaseType_NumBits), "EUniformBufferBaseType_Num will not fit on EUniformBufferBaseType_NumBits");
-DECLARE_INTRINSIC_TYPE_LAYOUT(EUniformBufferBaseType);
 
 /** The list of flags declaring which binding models are allowed for a uniform buffer layout. */
 enum class EUniformBufferBindingFlags : uint8
@@ -537,7 +537,6 @@ enum class EUniformBufferBindingFlags : uint8
 	StaticAndShader = Static | Shader
 };
 ENUM_CLASS_FLAGS(EUniformBufferBindingFlags);
-DECLARE_INTRINSIC_TYPE_LAYOUT(EUniformBufferBindingFlags);
 
 /** Numerical type used to store the static slot indices. */
 using FUniformBufferStaticSlot = uint8;
@@ -743,7 +742,6 @@ enum class EBufferUsageFlags : uint32
 
 	/** Buffer should go in fast vram (hint only). Requires BUF_Transient */
 	FastVRAM                = 1 << 10,
-
 	/** Create a buffer that can be shared with an external RHI or process. */
 	Shared                  = 1 << 12,
 
@@ -1103,8 +1101,7 @@ enum class ERHIDescriptorHeapType : uint8
 	Sampler,
 	RenderTarget,
 	DepthStencil,
-	Count,
-	Invalid = MAX_uint8
+	Count
 };
 
 struct FRHIDescriptorHandle
@@ -1125,14 +1122,15 @@ struct FRHIDescriptorHandle
 	inline ERHIDescriptorHeapType GetType() const { return (ERHIDescriptorHeapType)Type; }
 	inline uint8                  GetRawType() const { return Type; }
 
-	inline bool IsValid() const { return Index != UINT_MAX && Type != (uint8)ERHIDescriptorHeapType::Invalid; }
+	inline bool IsValid() const { return Index != InvalidIndex && Type !=InvalidType; }
 
 private:
-	uint32    Index{ UINT_MAX };
-	uint8     Type{ (uint8)ERHIDescriptorHeapType::Invalid };
-};
+	static constexpr uint32 InvalidIndex = 0xffffffff;
+	static constexpr uint8  InvalidType  = 0xff;
 
-using FDisplayInformationArray = TArray<struct FDisplayInformation>;
+	uint32    Index{ InvalidIndex };
+	uint8     Type{ InvalidType };
+};
 
 enum class ERHIBindlessConfiguration
 {
@@ -1235,222 +1233,6 @@ inline EGpuVendorId RHIConvertToGpuVendorId(uint32 VendorId)
 	return EGpuVendorId::Unknown;
 }
 
-inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bIncludePrefix = true)
-{
-	const TCHAR* String = TEXT("SF_NumFrequencies");
-	switch (Frequency)
-	{
-	case SF_Vertex:			String = TEXT("SF_Vertex"); break;
-	case SF_Mesh:			String = TEXT("SF_Mesh"); break;
-	case SF_Amplification:	String = TEXT("SF_Amplification"); break;
-	case SF_Geometry:		String = TEXT("SF_Geometry"); break;
-	case SF_Pixel:			String = TEXT("SF_Pixel"); break;
-	case SF_Compute:		String = TEXT("SF_Compute"); break;
-	case SF_RayGen:			String = TEXT("SF_RayGen"); break;
-	case SF_RayMiss:		String = TEXT("SF_RayMiss"); break;
-	case SF_RayHitGroup:	String = TEXT("SF_RayHitGroup"); break;
-	case SF_RayCallable:	String = TEXT("SF_RayCallable"); break;
-
-	default:
-		checkf(0, TEXT("Unknown ShaderFrequency %d"), (int32)Frequency);
-		break;
-	}
-
-	// Skip SF_
-	int32 Index = bIncludePrefix ? 0 : 3;
-	String += Index;
-	return String;
-};
-
-inline const TCHAR* GetTextureDimensionString(ETextureDimension Dimension)
-{
-	switch (Dimension)
-	{
-	case ETextureDimension::Texture2D:
-		return TEXT("Texture2D");
-	case ETextureDimension::Texture2DArray:
-		return TEXT("Texture2DArray");
-	case ETextureDimension::Texture3D:
-		return TEXT("Texture3D");
-	case ETextureDimension::TextureCube:
-		return TEXT("TextureCube");
-	case ETextureDimension::TextureCubeArray:
-		return TEXT("TextureCubeArray");
-	}
-	return TEXT("");
-}
-
-inline const TCHAR* GetTextureCreateFlagString(ETextureCreateFlags TextureCreateFlag)
-{
-	switch (TextureCreateFlag)
-	{
-	case ETextureCreateFlags::None:
-		return TEXT("None");
-	case ETextureCreateFlags::RenderTargetable:
-		return TEXT("RenderTargetable");
-	case ETextureCreateFlags::ResolveTargetable:
-		return TEXT("ResolveTargetable");
-	case ETextureCreateFlags::DepthStencilTargetable:
-		return TEXT("DepthStencilTargetable");
-	case ETextureCreateFlags::ShaderResource:
-		return TEXT("ShaderResource");
-	case ETextureCreateFlags::SRGB:
-		return TEXT("SRGB");
-	case ETextureCreateFlags::CPUWritable:
-		return TEXT("CPUWritable");
-	case ETextureCreateFlags::NoTiling:
-		return TEXT("NoTiling");
-	case ETextureCreateFlags::VideoDecode:
-		return TEXT("VideoDecode");
-	case ETextureCreateFlags::Dynamic:
-		return TEXT("Dynamic");
-	case ETextureCreateFlags::InputAttachmentRead:
-		return TEXT("InputAttachmentRead");
-	case ETextureCreateFlags::Foveation:
-		return TEXT("Foveation");
-	case ETextureCreateFlags::Tiling3D:
-		return TEXT("Tiling3D");
-	case ETextureCreateFlags::Memoryless:
-		return TEXT("Memoryless");
-	case ETextureCreateFlags::GenerateMipCapable:
-		return TEXT("GenerateMipCapable");
-	case ETextureCreateFlags::FastVRAMPartialAlloc:
-		return TEXT("FastVRAMPartialAlloc");
-	case ETextureCreateFlags::DisableSRVCreation:
-		return TEXT("DisableSRVCreation");
-	case ETextureCreateFlags::DisableDCC:
-		return TEXT("DisableDCC");
-	case ETextureCreateFlags::UAV:
-		return TEXT("UAV");
-	case ETextureCreateFlags::Presentable:
-		return TEXT("Presentable");
-	case ETextureCreateFlags::CPUReadback:
-		return TEXT("CPUReadback");
-	case ETextureCreateFlags::OfflineProcessed:
-		return TEXT("OfflineProcessed");
-	case ETextureCreateFlags::FastVRAM:
-		return TEXT("FastVRAM");
-	case ETextureCreateFlags::HideInVisualizeTexture:
-		return TEXT("HideInVisualizeTexture");
-	case ETextureCreateFlags::Virtual:
-		return TEXT("Virtual");
-	case ETextureCreateFlags::TargetArraySlicesIndependently:
-		return TEXT("TargetArraySlicesIndependently");
-	case ETextureCreateFlags::Shared:
-		return TEXT("Shared");
-	case ETextureCreateFlags::NoFastClear:
-		return TEXT("NoFastClear");
-	case ETextureCreateFlags::DepthStencilResolveTarget:
-		return TEXT("DepthStencilResolveTarget");
-	case ETextureCreateFlags::Streamable:
-		return TEXT("Streamable");
-	case ETextureCreateFlags::NoFastClearFinalize:
-		return TEXT("NoFastClearFinalize");
-	case ETextureCreateFlags::AFRManual:
-		return TEXT("AFRManual");
-	case ETextureCreateFlags::ReduceMemoryWithTilingMode:
-		return TEXT("ReduceMemoryWithTilingMode");
-	}
-	return TEXT("");
-}
-
-inline const TCHAR* GetBufferUsageFlagString(EBufferUsageFlags BufferUsage)
-{
-	switch (BufferUsage)
-	{
-	case EBufferUsageFlags::None:
-		return TEXT("None");
-	case EBufferUsageFlags::Static:
-		return TEXT("Static");
-	case EBufferUsageFlags::Dynamic:
-		return TEXT("Dynamic");
-	case EBufferUsageFlags::Volatile:
-		return TEXT("Volatile");
-	case EBufferUsageFlags::UnorderedAccess:
-		return TEXT("UnorderedAccess");
-	case EBufferUsageFlags::ByteAddressBuffer:
-		return TEXT("ByteAddressBuffer");
-	case EBufferUsageFlags::SourceCopy:
-		return TEXT("SourceCopy");
-	case EBufferUsageFlags::StreamOutput:
-		return TEXT("StreamOutput");
-	case EBufferUsageFlags::DrawIndirect:
-		return TEXT("DrawIndirect");
-	case EBufferUsageFlags::ShaderResource:
-		return TEXT("ShaderResource");
-	case EBufferUsageFlags::KeepCPUAccessible:
-		return TEXT("KeepCPUAccessible");
-	case EBufferUsageFlags::FastVRAM:
-		return TEXT("FastVRAM");
-	case EBufferUsageFlags::Shared:
-		return TEXT("Shared");
-	case EBufferUsageFlags::AccelerationStructure:
-		return TEXT("AccelerationStructure");
-	case EBufferUsageFlags::VertexBuffer:
-		return TEXT("VertexBuffer");
-	case EBufferUsageFlags::IndexBuffer:
-		return TEXT("IndexBuffer");
-	case EBufferUsageFlags::StructuredBuffer:
-		return TEXT("StructuredBuffer");
-	}
-	return TEXT("");
-}
-
-inline const TCHAR* GetUniformBufferBaseTypeString(EUniformBufferBaseType BaseType)
-{
-	switch (BaseType)
-	{
-	case UBMT_INVALID:
-		return TEXT("UBMT_INVALID");
-	case UBMT_BOOL:
-		return TEXT("UBMT_BOOL");
-	case UBMT_INT32:
-		return TEXT("UBMT_INT32");
-	case UBMT_UINT32:
-		return TEXT("UBMT_UINT32");
-	case UBMT_FLOAT32:
-		return TEXT("UBMT_FLOAT32");
-	case UBMT_TEXTURE:
-		return TEXT("UBMT_TEXTURE");
-	case UBMT_SRV:
-		return TEXT("UBMT_SRV");
-	case UBMT_UAV:
-		return TEXT("UBMT_UAV");
-	case UBMT_SAMPLER:
-		return TEXT("UBMT_SAMPLER");
-	case UBMT_RDG_TEXTURE:
-		return TEXT("UBMT_RDG_TEXTURE");
-	case UBMT_RDG_TEXTURE_ACCESS:
-		return TEXT("UBMT_RDG_TEXTURE_ACCESS");
-	case UBMT_RDG_TEXTURE_ACCESS_ARRAY:
-		return TEXT("UBMT_RDG_TEXTURE_ACCESS_ARRAY");
-	case UBMT_RDG_TEXTURE_SRV:
-		return TEXT("UBMT_RDG_TEXTURE_SRV");
-	case UBMT_RDG_TEXTURE_UAV:
-		return TEXT("UBMT_RDG_TEXTURE_UAV");
-	case UBMT_RDG_BUFFER_ACCESS:
-		return TEXT("UBMT_RDG_BUFFER_ACCESS");
-	case UBMT_RDG_BUFFER_ACCESS_ARRAY:
-		return TEXT("UBMT_RDG_BUFFER_ACCESS_ARRAY");
-	case UBMT_RDG_BUFFER_SRV:
-		return TEXT("UBMT_RDG_BUFFER_SRV");
-	case UBMT_RDG_BUFFER_UAV:
-		return TEXT("UBMT_RDG_BUFFER_UAV");
-	case UBMT_RDG_UNIFORM_BUFFER:
-		return TEXT("UBMT_RDG_UNIFORM_BUFFER");
-	case UBMT_NESTED_STRUCT:
-		return TEXT("UBMT_NESTED_STRUCT");
-	case UBMT_INCLUDED_STRUCT:
-		return TEXT("UBMT_INCLUDED_STRUCT");
-	case UBMT_REFERENCED_STRUCT:
-		return TEXT("UBMT_REFERENCED_STRUCT");
-	case UBMT_RENDER_TARGET_BINDING_SLOTS:
-		return TEXT("UBMT_RENDER_TARGET_BINDING_SLOTS");
-	}
-	return TEXT("");
-}
-
-
 inline bool IsGeometryPipelineShaderFrequency(EShaderFrequency Frequency)
 {
 	return Frequency == SF_Mesh || Frequency == SF_Amplification;
@@ -1470,24 +1252,6 @@ inline bool IsRayTracingShaderFrequency(EShaderFrequency Frequency)
 	}
 }
 
-inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
-{
-	switch (Dimension)
-	{
-	case ETextureDimension::Texture2D:
-		return ERHIResourceType::RRT_Texture2D;
-	case ETextureDimension::Texture2DArray:
-		return ERHIResourceType::RRT_Texture2DArray;
-	case ETextureDimension::Texture3D:
-		return ERHIResourceType::RRT_Texture3D;
-	case ETextureDimension::TextureCube:
-	case ETextureDimension::TextureCubeArray:
-		return ERHIResourceType::RRT_TextureCube;
-	}
-	checkNoEntry();
-	return ERHIResourceType::RRT_None;
-}
-
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
 #else
@@ -1496,4 +1260,5 @@ inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIStrings.h"
 #endif

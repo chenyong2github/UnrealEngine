@@ -6,7 +6,9 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
+#endif
 #include "Containers/ContainersFwd.h"
 #include "Stats/Stats.h"
 #include "RHIDefinitions.h"
@@ -16,6 +18,7 @@
 #include "Math/PerspectiveMatrix.h"
 #include "Math/ScaleMatrix.h"
 #include "Math/TranslationMatrix.h"
+#include "PixelFormat.h"
 #include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "GpuProfilerTrace.h"
 #include "RHIShaderPlatform.h"

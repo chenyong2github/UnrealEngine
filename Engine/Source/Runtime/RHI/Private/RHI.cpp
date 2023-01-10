@@ -18,6 +18,8 @@
 #include "Misc/OutputDeviceFile.h"
 #include "Async/ParallelFor.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIStrings.h"
+#include "RHIUniformBufferLayoutInitializer.h"
 
 #if RHI_ENABLE_RESOURCE_INFO
 #include "HAL/FileManager.h"
@@ -57,7 +59,7 @@ DEFINE_STAT(STAT_StructuredBufferMemory);
 DEFINE_STAT(STAT_PixelBufferMemory);
 
 IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayoutInitializer);
-IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferResource);
+IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferResourceInitializer);
 
 #if !defined(RHIRESOURCE_NUM_FRAMES_TO_EXPIRE)
 	#define RHIRESOURCE_NUM_FRAMES_TO_EXPIRE 3

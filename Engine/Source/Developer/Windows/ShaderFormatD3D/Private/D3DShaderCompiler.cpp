@@ -9,6 +9,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "HAL/FileManager.h"
+#include "RHIStrings.h"
 #include "Serialization/MemoryWriter.h"
 #include "RayTracingDefinitions.h"
 #include "SpirvCommon.h"

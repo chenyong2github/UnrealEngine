@@ -30,12 +30,15 @@
 #include "Containers/ConsumeAllMpmcQueue.h"
 #include "Misc/CoreDelegates.h"
 #include "RHIFwd.h"
+#include "RHIAccess.h"
+#include "RHIDefinitions.h"
 #include "RHIImmutableSamplerState.h"
 
 class FRHIComputeCommandList;
 class FRHICommandListImmediate;
 struct FClearValueBinding;
 struct FRHIResourceInfo;
+struct FRHIUniformBufferLayoutInitializer;
 struct FGenerateMipsStruct;
 enum class EClearBinding;
 
@@ -759,13 +762,11 @@ public:
 /** Data structure to store information about resource parameter in a shader parameter structure. */
 struct FRHIUniformBufferResource
 {
-	DECLARE_EXPORTED_TYPE_LAYOUT(FRHIUniformBufferResource, RHI_API, NonVirtual);
-
 	/** Byte offset to each resource in the uniform buffer memory. */
-	LAYOUT_FIELD(uint16, MemberOffset);
+	uint16 MemberOffset;
 
 	/** Type of the member that allow (). */
-	LAYOUT_FIELD(EUniformBufferBaseType, MemberType);
+	EUniformBufferBaseType MemberType;
 
 	/** Compare two uniform buffer layout resources. */
 	friend inline bool operator==(const FRHIUniformBufferResource& A, const FRHIUniformBufferResource& B)
@@ -775,198 +776,12 @@ struct FRHIUniformBufferResource
 	}
 };
 
-inline FArchive& operator<<(FArchive& Ar, FRHIUniformBufferResource& Ref)
-{
-	uint8 Type = (uint8)Ref.MemberType;
-	Ar << Ref.MemberOffset;
-	Ar << Type;
-	Ref.MemberType = (EUniformBufferBaseType)Type;
-	return Ar;
-}
-
-inline constexpr uint16 kUniformBufferInvalidOffset = TNumericLimits<uint16>::Max();
-
-/** Initializer for the layout of a uniform buffer in memory. */
-struct FRHIUniformBufferLayoutInitializer
-{
-	DECLARE_EXPORTED_TYPE_LAYOUT(FRHIUniformBufferLayoutInitializer, RHI_API, NonVirtual);
-
-	FRHIUniformBufferLayoutInitializer() = default;
-
-	explicit FRHIUniformBufferLayoutInitializer(const TCHAR * InName)
-		: Name(InName)
-	{}
-	explicit FRHIUniformBufferLayoutInitializer(const TCHAR * InName, uint32 InConstantBufferSize)
-		: Name(InName)
-		, ConstantBufferSize(InConstantBufferSize)
-	{
-		ComputeHash();
-	}
-
-	inline uint32 GetHash() const
-	{
-		checkSlow(Hash != 0);
-		return Hash;
-	}
-
-	void ComputeHash()
-	{
-		// Static slot is not stable. Just track whether we have one at all.
-		uint32 TmpHash = ConstantBufferSize << 16 | static_cast<uint32>(BindingFlags) << 8 | static_cast<uint32>(StaticSlot != MAX_UNIFORM_BUFFER_STATIC_SLOTS);
-
-		for (int32 ResourceIndex = 0; ResourceIndex < Resources.Num(); ResourceIndex++)
-		{
-			// Offset and therefore hash must be the same regardless of pointer size
-			checkSlow(Resources[ResourceIndex].MemberOffset == Align(Resources[ResourceIndex].MemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT));
-			TmpHash ^= Resources[ResourceIndex].MemberOffset;
-		}
-
-		uint32 N = Resources.Num();
-		while (N >= 4)
-		{
-			TmpHash ^= (Resources[--N].MemberType << 0);
-			TmpHash ^= (Resources[--N].MemberType << 8);
-			TmpHash ^= (Resources[--N].MemberType << 16);
-			TmpHash ^= (Resources[--N].MemberType << 24);
-		}
-		while (N >= 2)
-		{
-			TmpHash ^= Resources[--N].MemberType << 0;
-			TmpHash ^= Resources[--N].MemberType << 16;
-		}
-		while (N > 0)
-		{
-			TmpHash ^= Resources[--N].MemberType;
-		}
-		Hash = TmpHash;
-	}
-
-	void CopyFrom(const FRHIUniformBufferLayoutInitializer& Source)
-	{
-		ConstantBufferSize = Source.ConstantBufferSize;
-		StaticSlot = Source.StaticSlot;
-		BindingFlags = Source.BindingFlags;
-		Resources = Source.Resources;
-		Name = Source.Name;
-		Hash = Source.Hash;
-	}
-
-	const FMemoryImageString& GetDebugName() const
-	{
-		return Name;
-	}
-
-	bool HasRenderTargets() const
-	{
-		return RenderTargetsOffset != kUniformBufferInvalidOffset;
-	}
-
-	bool HasExternalOutputs() const
-	{
-		return bHasNonGraphOutputs;
-	}
-
-	bool HasStaticSlot() const
-	{
-		return IsUniformBufferStaticSlotValid(StaticSlot);
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FRHIUniformBufferLayoutInitializer& Ref)
-	{
-		Ar << Ref.ConstantBufferSize;
-		Ar << Ref.StaticSlot;
-		Ar << Ref.RenderTargetsOffset;
-		Ar << Ref.bHasNonGraphOutputs;
-		Ar << Ref.BindingFlags;
-		Ar << Ref.Resources;
-		Ar << Ref.GraphResources;
-		Ar << Ref.GraphTextures;
-		Ar << Ref.GraphBuffers;
-		Ar << Ref.GraphUniformBuffers;
-		Ar << Ref.UniformBuffers;
-		Ar << Ref.Name;
-		Ar << Ref.Hash;
-		Ar << Ref.bNoEmulatedUniformBuffer;
-		return Ar;
-	}
-
-private:
-	// for debugging / error message
-	LAYOUT_FIELD(FMemoryImageString, Name);
-
-public:
-	/** The list of all resource inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, Resources);
-
-	/** The list of all RDG resource references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphResources);
-
-	/** The list of all RDG texture references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphTextures);
-
-	/** The list of all RDG buffer references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphBuffers);
-
-	/** The list of all RDG uniform buffer references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphUniformBuffers);
-
-	/** The list of all non-RDG uniform buffer references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, UniformBuffers);
-
-private:
-	LAYOUT_FIELD_INITIALIZED(uint32, Hash, 0);
-
-public:
-	/** The size of the constant buffer in bytes. */
-	LAYOUT_FIELD_INITIALIZED(uint32, ConstantBufferSize, 0);
-
-	/** The render target binding slots offset, if it exists. */
-	LAYOUT_FIELD_INITIALIZED(uint16, RenderTargetsOffset, kUniformBufferInvalidOffset);
-
-	/** The static slot (if applicable). */
-	LAYOUT_FIELD_INITIALIZED(FUniformBufferStaticSlot, StaticSlot, MAX_UNIFORM_BUFFER_STATIC_SLOTS);
-
-	/** The binding flags describing how this resource can be bound to the RHI. */
-	LAYOUT_FIELD_INITIALIZED(EUniformBufferBindingFlags, BindingFlags, EUniformBufferBindingFlags::Shader);
-
-	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
-	LAYOUT_FIELD_INITIALIZED(bool, bHasNonGraphOutputs, false);
-
-	/** Used for platforms which use emulated ub's, forces a real uniform buffer instead */
-	LAYOUT_FIELD_INITIALIZED(bool, bNoEmulatedUniformBuffer, false);
-
-	/** Compare two uniform buffer layout initializers. */
-	friend inline bool operator==(const FRHIUniformBufferLayoutInitializer& A, const FRHIUniformBufferLayoutInitializer& B)
-	{
-		return A.ConstantBufferSize == B.ConstantBufferSize
-			&& A.StaticSlot == B.StaticSlot
-			&& A.BindingFlags == B.BindingFlags
-			&& A.Resources == B.Resources;
-	}
-};
-
 /** The layout of a uniform buffer in memory. */
 struct FRHIUniformBufferLayout : public FRHIResource
 {
 	FRHIUniformBufferLayout() = delete;
 
-	explicit FRHIUniformBufferLayout(const FRHIUniformBufferLayoutInitializer& Initializer)
-		: FRHIResource(RRT_UniformBufferLayout)
-		, Name(Initializer.GetDebugName())
-		, Resources(Initializer.Resources)
-		, GraphResources(Initializer.GraphResources)
-		, GraphTextures(Initializer.GraphTextures)
-		, GraphBuffers(Initializer.GraphBuffers)
-		, GraphUniformBuffers(Initializer.GraphUniformBuffers)
-		, UniformBuffers(Initializer.UniformBuffers)
-		, Hash(Initializer.GetHash())
-		, ConstantBufferSize(Initializer.ConstantBufferSize)
-		, RenderTargetsOffset(Initializer.RenderTargetsOffset)
-		, StaticSlot(Initializer.StaticSlot)
-		, BindingFlags(Initializer.BindingFlags)
-		, bHasNonGraphOutputs(Initializer.bHasNonGraphOutputs)
-		, bNoEmulatedUniformBuffer(Initializer.bNoEmulatedUniformBuffer)
-	{}
+	RHI_API explicit FRHIUniformBufferLayout(const FRHIUniformBufferLayoutInitializer& Initializer);
 
 	inline const FString& GetDebugName() const
 	{
@@ -981,7 +796,7 @@ struct FRHIUniformBufferLayout : public FRHIResource
 
 	inline bool HasRenderTargets() const
 	{
-		return RenderTargetsOffset != kUniformBufferInvalidOffset;
+		return RenderTargetsOffset != TNumericLimits<uint16>::Max();
 	}
 
 	inline bool HasExternalOutputs() const
@@ -2409,71 +2224,68 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(ERayTracingGeometryInitializerType);
 
 struct FRayTracingGeometrySegment
 {
-	DECLARE_TYPE_LAYOUT(FRayTracingGeometrySegment, NonVirtual);
-public:
-	LAYOUT_FIELD_INITIALIZED(FBufferRHIRef, VertexBuffer, nullptr);
-	LAYOUT_FIELD_INITIALIZED(EVertexElementType, VertexBufferElementType, VET_Float3);
+	FBufferRHIRef VertexBuffer = nullptr;
+	EVertexElementType VertexBufferElementType = VET_Float3;
 
 	// Offset in bytes from the base address of the vertex buffer.
-	LAYOUT_FIELD_INITIALIZED(uint32, VertexBufferOffset, 0);
+	uint32 VertexBufferOffset = 0;
 
 	// Number of bytes between elements of the vertex buffer (sizeof VET_Float3 by default).
 	// Must be equal or greater than the size of the position vector.
-	LAYOUT_FIELD_INITIALIZED(uint32, VertexBufferStride, 12);
+	uint32 VertexBufferStride = 12;
 
 	// Number of vertices (positions) in VertexBuffer.
 	// If an index buffer is present, this must be at least the maximum index value in the index buffer + 1.
-	LAYOUT_FIELD_INITIALIZED(uint32, MaxVertices, 0);
+	uint32 MaxVertices = 0;
 
 	// Primitive range for this segment.
-	LAYOUT_FIELD_INITIALIZED(uint32, FirstPrimitive, 0);
-	LAYOUT_FIELD_INITIALIZED(uint32, NumPrimitives, 0);
+	uint32 FirstPrimitive = 0;
+	uint32 NumPrimitives = 0;
 
 	// Indicates whether any-hit shader could be invoked when hitting this geometry segment.
 	// Setting this to `false` turns off any-hit shaders, making the section "opaque" and improving ray tracing performance.
-	LAYOUT_FIELD_INITIALIZED(bool, bForceOpaque, false);
+	bool bForceOpaque = false;
 
 	// Any-hit shader may be invoked multiple times for the same primitive during ray traversal.
 	// Setting this to `false` guarantees that only a single instance of any-hit shader will run per primitive, at some performance cost.
-	LAYOUT_FIELD_INITIALIZED(bool, bAllowDuplicateAnyHitShaderInvocation, true);
+	bool bAllowDuplicateAnyHitShaderInvocation = true;
 
 	// Indicates whether this section is enabled and should be taken into account during acceleration structure creation
-	LAYOUT_FIELD_INITIALIZED(bool, bEnabled, true);
+	bool bEnabled = true;
 };
 
 struct FRayTracingGeometryInitializer
 {
-	DECLARE_EXPORTED_TYPE_LAYOUT(FRayTracingGeometryInitializer, RHI_API, NonVirtual);
-public:
-	LAYOUT_FIELD_INITIALIZED(FBufferRHIRef, IndexBuffer, nullptr);
+	FBufferRHIRef IndexBuffer = nullptr;
 
 	// Offset in bytes from the base address of the index buffer.
-	LAYOUT_FIELD_INITIALIZED(uint32, IndexBufferOffset, 0);
+	uint32 IndexBufferOffset = 0;
 
-	LAYOUT_FIELD_INITIALIZED(ERayTracingGeometryType, GeometryType, RTGT_Triangles);
+	ERayTracingGeometryType GeometryType = RTGT_Triangles;
 
 	// Total number of primitives in all segments of the geometry. Only used for validation.
-	LAYOUT_FIELD_INITIALIZED(uint32, TotalPrimitiveCount, 0);
+	uint32 TotalPrimitiveCount = 0;
 
 	// Partitions of geometry to allow different shader and resource bindings.
 	// All ray tracing geometries must have at least one segment.
-	LAYOUT_FIELD(TMemoryImageArray<FRayTracingGeometrySegment>, Segments);
+	TMemoryImageArray<FRayTracingGeometrySegment> Segments;
 
 	// Offline built geometry data. If null, the geometry will be built by the RHI at runtime.
-	LAYOUT_FIELD_INITIALIZED(FResourceArrayInterface*, OfflineData, nullptr);
+	FResourceArrayInterface* OfflineData = nullptr;
 
 	// Pointer to an existing ray tracing geometry which the new geometry is built from.
-	LAYOUT_FIELD_INITIALIZED(FRHIRayTracingGeometry*, SourceGeometry, nullptr);
+	FRHIRayTracingGeometry* SourceGeometry = nullptr;
 
-	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
-	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
-	LAYOUT_FIELD_INITIALIZED(bool, bAllowCompaction, true);
-	LAYOUT_FIELD_INITIALIZED(ERayTracingGeometryInitializerType, Type, ERayTracingGeometryInitializerType::Rendering);
+	bool bFastBuild = false;
+	bool bAllowUpdate = false;
+	bool bAllowCompaction = true;
+	ERayTracingGeometryInitializerType Type = ERayTracingGeometryInitializerType::Rendering;
 
 	// Use FDebugName for auto-generated debug names with numbered suffixes, it is a variation of FMemoryImageName with optional number postfix.
-	LAYOUT_FIELD(FDebugName, DebugName);
+	FDebugName DebugName;
+
 	// Store the path name of the owner object for resource tracking. FMemoryImageName allows a conversion to/from FName.
-	LAYOUT_FIELD(FMemoryImageName, OwnerName);
+	FMemoryImageName OwnerName;
 };
 
 enum ERayTracingSceneLifetime
@@ -2996,12 +2808,6 @@ template<> struct TRHIShaderToEnum<FAmplificationShaderRHIRef> { enum { ShaderFr
 template<> struct TRHIShaderToEnum<FPixelShaderRHIRef>         { enum { ShaderFrequency = SF_Pixel         }; };
 template<> struct TRHIShaderToEnum<FGeometryShaderRHIRef>      { enum { ShaderFrequency = SF_Geometry      }; };
 template<> struct TRHIShaderToEnum<FComputeShaderRHIRef>       { enum { ShaderFrequency = SF_Compute       }; };
-
-template<typename TRHIShaderType>
-inline const TCHAR* GetShaderFrequencyString(bool bIncludePrefix = true)
-{
-	return GetShaderFrequencyString(static_cast<EShaderFrequency>(TRHIShaderToEnum<TRHIShaderType>::ShaderFrequency), bIncludePrefix);
-}
 
 struct FBoundShaderStateInput
 {

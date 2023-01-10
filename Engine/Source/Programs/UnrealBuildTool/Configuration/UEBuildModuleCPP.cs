@@ -1532,6 +1532,7 @@ namespace UnrealBuildTool
 			}
 			switch(Name)
 			{
+				case "RHI":
 				case "D3D11RHI":
 				case "D3D12RHI":
 				case "VulkanRHI":

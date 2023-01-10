@@ -18,6 +18,7 @@
 #include "ShaderCore.h"
 #include "ShaderCompilerCore.h"
 #include "RenderUtils.h"
+#include "RHIStrings.h"
 #include "StereoRenderUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"

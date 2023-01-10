@@ -35,6 +35,7 @@ struct FSamplerStateInitializerRHI;
 struct FTextureMemoryStats;
 struct FRHIGPUMask;
 
+using FDisplayInformationArray = TArray<struct FDisplayInformation>;
 
 /** Struct to hold common data between begin/end updatetexture3d */
 struct FUpdateTexture3DData

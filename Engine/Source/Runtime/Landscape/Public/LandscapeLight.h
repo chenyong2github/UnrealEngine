@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PixelFormat.h"
 #include "StaticLighting.h"
 #include "RenderUtils.h"
 

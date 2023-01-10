@@ -315,6 +315,17 @@ bool TexturePaintHelpers::GenerateSeamMask(UMeshComponent* MeshComponent, int32 
 	return RetVal;
 }
 
+int32 TexturePaintHelpers::GetMaxSupportedBytesPerPixelForPainting()
+{
+	return GPixelFormats[GetTempUncompressedTexturePixelFormat()].BlockBytes;
+}
+
+/** Returns the pixel format that CreateTempUncompressedTexture uses to create render target data for painting. */
+EPixelFormat TexturePaintHelpers::GetTempUncompressedTexturePixelFormat()
+{
+	return PF_B8G8R8A8;
+}
+
 UTexture2D* TexturePaintHelpers::CreateTempUncompressedTexture(UTexture2D* SourceTexture)
 {
 	check(SourceTexture->Source.IsValid());
