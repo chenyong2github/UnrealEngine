@@ -3,9 +3,7 @@
 #pragma once
 
 #include "Containers/EnumAsByte.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Serialization/MemoryLayout.h"
-#endif
 
 #ifndef USE_STATIC_FEATURE_LEVEL_ENUMS
 #define USE_STATIC_FEATURE_LEVEL_ENUMS 0
@@ -56,6 +54,7 @@ namespace ERHIFeatureLevel
 		Num
 	};
 };
+DECLARE_INTRINSIC_TYPE_LAYOUT(ERHIFeatureLevel::Type);
 
 struct FGenericStaticFeatureLevel
 {

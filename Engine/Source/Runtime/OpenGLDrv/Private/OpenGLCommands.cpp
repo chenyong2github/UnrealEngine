@@ -10,7 +10,6 @@
 #include "Misc/App.h"
 #include "RHIDefinitions.h"
 #include "RHI.h"
-#include "RHIStrings.h"
 #include "EngineGlobals.h"
 #include "RenderResource.h"
 #include "OpenGLDrv.h"

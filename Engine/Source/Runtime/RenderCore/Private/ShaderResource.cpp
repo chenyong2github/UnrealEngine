@@ -26,7 +26,6 @@
 #include "ShaderCompilerCore.h"
 #include "Compression/OodleDataCompression.h"
 #include "RHIResources.h"	// Access to FRHIRayTracingShader::RayTracingPayloadType requires this
-#include "RHIStrings.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITORONLY_DATA

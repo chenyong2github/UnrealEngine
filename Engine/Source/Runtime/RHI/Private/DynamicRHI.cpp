@@ -17,6 +17,9 @@
 #include "TextureProfiler.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
+IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
+IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
+
 static_assert(sizeof(FRayTracingGeometryInstance) <= 104,
 	"Ray tracing instance descriptor is expected to be no more than 104 bytes, as there may be a very large number of them.");
 

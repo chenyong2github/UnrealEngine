@@ -36,7 +36,6 @@
 #include "RenderingThread.h"
 #endif
 #include "RenderDeferredCleanup.h"
-#include "RHIMemoryLayout.h"
 #include "Serialization/Archive.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Serialization/MemoryImage.h"

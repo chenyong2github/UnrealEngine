@@ -6,7 +6,6 @@
 
 #include "LightMap.h"
 #include "Components/PrimitiveComponent.h"
-#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Level.h"
 #include "Misc/QueuedThreadPool.h"
 #include "ShadowMap.h"

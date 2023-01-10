@@ -7,7 +7,6 @@
 #include "ShaderParameters.h"
 #include "Containers/List.h"
 #include "UniformBuffer.h"
-#include "RHIStrings.h"
 #include "ShaderCore.h"
 #include "Shader.h"
 #include "VertexFactory.h"

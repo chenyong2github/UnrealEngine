@@ -317,16 +317,6 @@ bool UTexturePaintToolset::GenerateSeamMask(UMeshComponent* MeshComponent, int32
 	return RetVal;
 }
 
-int32 UTexturePaintToolset::GetMaxSupportedBytesPerPixelForPainting()
-{
-	return GPixelFormats[GetTempUncompressedTexturePixelFormat()].BlockBytes;
-}
-
-EPixelFormat UTexturePaintToolset::GetTempUncompressedTexturePixelFormat()
-{
-	return PF_B8G8R8A8;
-}
-
 UTexture2D* UTexturePaintToolset::CreateScratchUncompressedTexture(UTexture2D* SourceTexture)
 {
 	check(SourceTexture->Source.IsValid());

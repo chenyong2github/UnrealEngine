@@ -5,7 +5,6 @@
 #include "Modules/ModuleManager.h"
 #include "RenderGraphProvider.h"
 #include "RenderGraphTimingViewSession.h"
-#include "RHIStrings.h"
 
 #include "Application/SlateApplicationBase.h"
 #include "Fonts/FontMeasure.h"
