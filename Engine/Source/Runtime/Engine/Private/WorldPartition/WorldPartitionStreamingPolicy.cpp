@@ -18,6 +18,7 @@
 #include "Engine/Level.h"
 #include "Engine/NetConnection.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingPolicy)
 
