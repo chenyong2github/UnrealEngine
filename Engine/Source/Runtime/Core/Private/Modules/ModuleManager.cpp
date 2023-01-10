@@ -67,9 +67,9 @@ FModuleManager::ModuleInfoRef FModuleManager::FindModuleChecked(FName InModuleNa
 }
 
 // Function level static to allow lazy construction during static initialization
-static TOptional<FModuleManager>& GetModuleManagerSingleton()
+TOptional<FModuleManager>& UE::Core::Private::GetModuleManagerSingleton()
 {
-	static TOptional<FModuleManager> Singleton(InPlace);
+	static TOptional<FModuleManager> Singleton(InPlace, FModuleManager::FPrivateToken{});
 	return Singleton;
 }
 
@@ -77,15 +77,15 @@ static TOptional<FModuleManager>& GetModuleManagerSingleton()
 void FModuleManager::TearDown()
 {
 	check(IsInGameThread());
-	GetModuleManagerSingleton().Reset();
+	UE::Core::Private::GetModuleManagerSingleton().Reset();
 }
 
 FModuleManager& FModuleManager::Get()
 {
-	return GetModuleManagerSingleton().GetValue();
+	return UE::Core::Private::GetModuleManagerSingleton().GetValue();
 }
 
-FModuleManager::FModuleManager()
+FModuleManager::FModuleManager(FPrivateToken)
 	: bCanProcessNewlyLoadedObjects(false)
 	, bExtraBinarySearchPathsAdded(false)
 {
