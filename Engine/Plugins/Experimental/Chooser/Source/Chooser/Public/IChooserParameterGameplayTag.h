@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#include "InstancedStruct.h"
 #include "IChooserParameterBase.h"
 #include "IChooserParameterGameplayTag.generated.h"
 
