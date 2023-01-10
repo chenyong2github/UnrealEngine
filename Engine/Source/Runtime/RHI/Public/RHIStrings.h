@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RHIDefinitions.h"
+#include "RHI.h"
 #include "Misc/AssertionMacros.h"
 
 inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bIncludePrefix = true)
