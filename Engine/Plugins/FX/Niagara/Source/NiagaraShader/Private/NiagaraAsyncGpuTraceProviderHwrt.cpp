@@ -280,7 +280,18 @@ bool FNiagaraAsyncGpuTraceProviderHwrt::IsSupported()
 
 bool FNiagaraAsyncGpuTraceProviderHwrt::IsAvailable() const
 {
-	if (!GNiagaraAsyncGpuTraceHwrtEnabled)
+	// Disable HWRT collision if there are multiple GPUs and this is a pending tick.  The ray tracing scene may be in an indeterminate state
+	// on a given GPU outside the context of the scene renderer, where pending ticks are handled.  To handle this properly, we would either
+	// need to provide a mechanism to force Niagara to run on the GPU where the ray tracing scene is valid, or refresh the ray tracing scene
+	// on GPU 0.  Either solution is a bit complicated, so we'll wait to implement one until it becomes important.  Virtual Production is the
+	// main client of multi-GPU, and they generally don't de-focus the application to create a scenario where pending ticks accumulate,
+	// so they are unlikely to encounter this issue.
+	//
+	// Note that pending ticks may run into inconsistencies with multiple views, even on a single GPU, because collision will be run against the
+	// last view, rather than the first view, which is normally where Niagara runs.  Longer term, it might be interesting to support running
+	// Niagara against all view's ray tracing scenes, and if you wanted to go that route, the solution would be to preserve the otherwise
+	// transient TLAS data for all views.  That could solve this issue as well.
+	if (!GNiagaraAsyncGpuTraceHwrtEnabled || (GNumExplicitGPUsForRendering > 1 && Dispatcher->IsOutsideSceneRenderer()))
 	{
 		return false;
 	}

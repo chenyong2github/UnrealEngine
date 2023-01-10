@@ -431,6 +431,9 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			// in the event of submitting commands, i.e. when we write a fence, or indeed perform a manual flush.
 			RHICmdList.BeginScene();
 
+			// Allow downstream logic to detect we are running pending ticks outside the scene renderer
+			bIsOutsideSceneRenderer = true;
+
 			// Execute all ticks that we can support without invalid simulations
 			MaxTicksToFlush = TickFlushMaxPendingTicks;
 			for (int32 iTickBatch = 0; iTickBatch < MaxPendingTicks; iTickBatch+=MaxTicksToFlush)
@@ -455,6 +458,8 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 				GraphBuilder.Execute();
 			}
 			MaxTicksToFlush = TNumericLimits<int32>::Max();
+
+			bIsOutsideSceneRenderer = false;
 
 			// We have completed flushing the commands
 			RHICmdList.EndScene();

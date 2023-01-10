@@ -142,6 +142,8 @@ public:
 
 	virtual FNiagaraAsyncGpuTraceHelper& GetAsyncGpuTraceHelper() const = 0;
 
+	bool IsOutsideSceneRenderer() const { return bIsOutsideSceneRenderer; }
+
 #if WITH_MGPU
 	/**
 	Notify that a GPU resource was modified that will impact MultiGPU rendering.
@@ -180,4 +182,6 @@ protected:
 	TArray<TPair<FName, TUniquePtr<FNiagaraGpuComputeDataManager>>> GpuDataManagers;
 
 	TConstArrayView<FViewInfo>				SimulationViewInfos;
+
+	bool									bIsOutsideSceneRenderer = false;
 };

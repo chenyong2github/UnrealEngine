@@ -261,6 +261,15 @@ static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
 	TEXT("Forces all ray tracing geometry instances to be opaque, effectively disabling any-hit shaders. This is useful for debugging and profiling. (default = 0)")
 );
 
+static int32 GRayTracingMultiGpuTLASMask = 1;
+static FAutoConsoleVariableRef CVarRayTracingMultiGpuTLASMask(
+	TEXT("r.RayTracing.MultiGpuMaskTLAS"),
+	GRayTracingMultiGpuTLASMask,
+	TEXT("For Multi-GPU, controls which GPUs TLAS and material pipeline updates run on.  (default = 1)\n")
+	TEXT(" 0: Run TLAS and material pipeline updates on all GPUs.  Original behavior, which may be useful for debugging.\n")
+	TEXT(" 1: Run TLAS and material pipeline updates masked to the active view's GPUs to improve performance.  BLAS updates still run on all GPUs.")
+);
+
 static TAutoConsoleVariable<int32> CVarSceneDepthHZBAsyncCompute(
 	TEXT("r.SceneDepthHZBAsyncCompute"), 0,
 	TEXT("Selects whether HZB for scene depth buffer should be built with async compute.\n")
@@ -1952,7 +1961,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		}
 	}
 
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+	// Keep mask the same as what's already set (which will be the view mask) if TLAS updates should be masked to the view
+	RDG_GPU_MASK_SCOPE(GraphBuilder, GRayTracingMultiGpuTLASMask ? GraphBuilder.RHICmdList.GetGPUMask() : FRHIGPUMask::All());
 
 	RayTracingScene.CreateWithInitializationData(GraphBuilder, &Scene->GPUScene, ReferenceView.ViewMatrices, MoveTemp(ReferenceView.RayTracingSceneInitData));
 
@@ -1977,44 +1987,65 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingUpdate);
 
-		FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
-		PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
-		PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
-		PassParams->View = ReferenceView.ViewUniformBuffer;
-		PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
-		PassParams->LightDataPacked = nullptr;
-		PassParams->ClusterPageData = nullptr;
-		PassParams->HierarchyBuffer = nullptr;
-		PassParams->RayTracingDataBuffer = nullptr;
-
-		// Use ERDGPassFlags::NeverParallel so the pass never runs off the render thread and we always get the following order of execution on the CPU:
-		// BuildTLASInstanceBuffer, RayTracingUpdate, RayTracingEndUpdate, ..., ReleaseRayTracingResources
-		GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingUpdate"), PassParams, ComputePassFlags | ERDGPassFlags::NeverCull | ERDGPassFlags::NeverParallel,
-			[this, PassParams, bRayTracingAsyncBuild](FRHICommandListImmediate& RHICmdList)
 		{
+			// Dynamic geometry (BLAS) updates must always run on all GPUs.  Other passes may either run on all GPUs or be scoped to the view's GPUs.
+			// See GRayTracingMultiGpuTLASMask.
+			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
+			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
+			PassParams->RayTracingSceneScratchBuffer = nullptr;
+			PassParams->RayTracingSceneInstanceBuffer = nullptr;
+			PassParams->View = ReferenceView.ViewUniformBuffer;
+			PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
+			PassParams->LightDataPacked = nullptr;
+			PassParams->ClusterPageData = nullptr;
+			PassParams->HierarchyBuffer = nullptr;
+			PassParams->RayTracingDataBuffer = nullptr;
+
+			// Use ERDGPassFlags::NeverParallel so the pass never runs off the render thread and we always get the following order of execution on the CPU:
+			// BuildTLASInstanceBuffer, RayTracingDynamicUpdate, RayTracingUpdate, RayTracingEndUpdate, ..., ReleaseRayTracingResources
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingDynamicUpdate"), PassParams, ComputePassFlags | ERDGPassFlags::NeverCull | ERDGPassFlags::NeverParallel,
+				[this, PassParams, bRayTracingAsyncBuild](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPED_GPU_STAT(RHICmdList, RayTracingGeometry);
 				FRHIBuffer* DynamicGeometryScratchBuffer = PassParams->DynamicGeometryScratchBuffer ? PassParams->DynamicGeometryScratchBuffer->GetRHI() : nullptr;
 				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList, DynamicGeometryScratchBuffer);
-			}
+			});
+		}
 
-			SCOPED_GPU_STAT(RHICmdList, RayTracingScene);
+		{
+			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
+			PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+			PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
+			PassParams->View = ReferenceView.ViewUniformBuffer;
+			PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
+			PassParams->LightDataPacked = nullptr;
+			PassParams->ClusterPageData = nullptr;
+			PassParams->HierarchyBuffer = nullptr;
+			PassParams->RayTracingDataBuffer = nullptr;
 
-			FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
-			FRHIBuffer* AccelerationStructureBuffer = Scene->RayTracingScene.GetBufferChecked();
-			FRHIBuffer* ScratchBuffer = PassParams->RayTracingSceneScratchBuffer->GetRHI();
-			FRHIBuffer* InstanceBuffer = PassParams->RayTracingSceneInstanceBuffer->GetRHI();
+			// Use ERDGPassFlags::NeverParallel here too -- see comment above on the previous pass
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingUpdate"), PassParams, ComputePassFlags | ERDGPassFlags::NeverCull | ERDGPassFlags::NeverParallel,
+				[this, PassParams, bRayTracingAsyncBuild](FRHICommandListImmediate& RHICmdList)
+			{
+				SCOPED_GPU_STAT(RHICmdList, RayTracingScene);
 
-			FRayTracingSceneBuildParams BuildParams;
-			BuildParams.Scene = RayTracingSceneRHI;
-			BuildParams.ScratchBuffer = ScratchBuffer;
-			BuildParams.ScratchBufferOffset = 0;
-			BuildParams.InstanceBuffer = InstanceBuffer;
-			BuildParams.InstanceBufferOffset = 0;
+				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
+				FRHIBuffer* AccelerationStructureBuffer = Scene->RayTracingScene.GetBufferChecked();
+				FRHIBuffer* ScratchBuffer = PassParams->RayTracingSceneScratchBuffer->GetRHI();
+				FRHIBuffer* InstanceBuffer = PassParams->RayTracingSceneInstanceBuffer->GetRHI();
 
-			RHICmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, AccelerationStructureBuffer, 0);
-			RHICmdList.BuildAccelerationStructure(BuildParams);
-		});
+				FRayTracingSceneBuildParams BuildParams;
+				BuildParams.Scene = RayTracingSceneRHI;
+				BuildParams.ScratchBuffer = ScratchBuffer;
+				BuildParams.ScratchBufferOffset = 0;
+				BuildParams.InstanceBuffer = InstanceBuffer;
+				BuildParams.InstanceBufferOffset = 0;
+
+				RHICmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, AccelerationStructureBuffer, 0);
+				RHICmdList.BuildAccelerationStructure(BuildParams);
+			});
+		}
 	}
 
 	AddPass(GraphBuilder, RDG_EVENT_NAME("RayTracingEndUpdate"), [this, bRayTracingAsyncBuild](FRHICommandListImmediate& RHICmdList)
@@ -2034,9 +2065,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views, FRayTracingScene &RayTracingScene, bool bIsLastRenderer)
 {
-	// Ray tracing is always set up for all GPUs (see WaitForRayTracingScene), so ClearRayTracingBindings must run on all GPUs as well
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
+	// Keep mask the same as what's already set (which will be the view mask) if TLAS updates should be masked to the view
+	RDG_GPU_MASK_SCOPE(GraphBuilder, GRayTracingMultiGpuTLASMask ? GraphBuilder.RHICmdList.GetGPUMask() : FRHIGPUMask::All());
 	AddPass(GraphBuilder, RDG_EVENT_NAME("ReleaseRayTracingResources"), [Views, &RayTracingScene, bIsLastRenderer](FRHICommandListImmediate& RHICmdList)
 	{
 		if (RayTracingScene.IsCreated())
@@ -2074,7 +2104,8 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::WaitForRayTracingScene);
 
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+	// Keep mask the same as what's already set (which will be the view mask) if TLAS updates should be masked to the view
+	RDG_GPU_MASK_SCOPE(GraphBuilder, GRayTracingMultiGpuTLASMask ? GraphBuilder.RHICmdList.GetGPUMask() : FRHIGPUMask::All());
 
 	SetupRayTracingPipelineStates(GraphBuilder);
 
