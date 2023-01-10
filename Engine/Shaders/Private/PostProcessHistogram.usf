@@ -61,6 +61,8 @@ RWTexture3D<float2> BilateralGridRWTexture;
 RWTexture2D<float4> HistogramRWTexture;
 #endif
 
+RWTexture2D<float> DebugOutput;
+
 // Number of thread groups in the dispatch
 uint2 ThreadGroupCount;
 
@@ -120,6 +122,19 @@ void MainCS(
 				LuminanceVal.y = CalculateEyeAdaptationLuminance(float3(SceneColorR.y, SceneColorG.y, SceneColorB.y));
 				LuminanceVal.z = CalculateEyeAdaptationLuminance(float3(SceneColorR.z, SceneColorG.z, SceneColorB.z));
 				LuminanceVal.w = CalculateEyeAdaptationLuminance(float3(SceneColorR.w, SceneColorG.w, SceneColorB.w));
+
+#if USE_PRECALCULATED_LUMINANCE
+				LuminanceVal = SceneColorR;
+#elif USE_APPROX_ILLUMINANCE
+				// TODO
+#endif
+
+#if USE_DEBUG_OUTPUT
+				DebugOutput[TexelPos - Input_ViewportMin + uint2(0, 1)] = LuminanceVal.r;
+				DebugOutput[TexelPos - Input_ViewportMin + uint2(1, 1)] = LuminanceVal.g;
+				DebugOutput[TexelPos - Input_ViewportMin + uint2(1, 0)] = LuminanceVal.b;
+				DebugOutput[TexelPos - Input_ViewportMin + uint2(0, 0)] = LuminanceVal.a;
+#endif
 
 				// only sample screen weight once per quad
 				float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;

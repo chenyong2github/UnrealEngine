@@ -40,15 +40,35 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HistogramRWTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float2>, BilateralGridRWTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, DebugOutput)
 		SHADER_PARAMETER(FIntPoint, ThreadGroupCount)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FBilateralGrid : SHADER_PERMUTATION_BOOL("BILATERAL_GRID");
-	using FPermutationDomain = TShaderPermutationDomain<FBilateralGrid>;
+	using FPermutationDomain = TShaderPermutationDomain<FBilateralGrid, AutoExposurePermutation::FCommonDomain>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+		{
+			return false;
+		}
+
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+		const AutoExposurePermutation::FCommonDomain& AEPermutationCommon = PermutationVector.Get<AutoExposurePermutation::FCommonDomain>();
+
+		if (!AutoExposurePermutation::ShouldCompileCommonPermutation(AEPermutationCommon))
+		{
+			return false;
+		}
+
+		if (PermutationVector.Get<FBilateralGrid>() && AEPermutationCommon != AutoExposurePermutation::FCommonDomain())
+		{
+			// bilateral grid permutation doesn't use AE permutations
+			return false;
+		}
+
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -249,7 +269,14 @@ static FRDGTextureRef AddHistogramLegacyPass(
 		PassParameters->ThreadGroupCount = HistogramThreadGroupCount;
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
 
+		{
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneColor.ViewRect.Size(), PF_R16F, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
+			FRDGTextureRef DebugOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("EyeAdaptation_DebugOutput"));
+			PassParameters->DebugOutput = GraphBuilder.CreateUAV(DebugOutputTexture);
+		}
+
 		FHistogramCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<AutoExposurePermutation::FCommonDomain>(AutoExposurePermutation::BuildCommonPermutationDomain());
 
 		auto ComputeShader = View.ShaderMap->GetShader<FHistogramCS>(PermutationVector);
 
