@@ -236,11 +236,8 @@ UObject* USoundFactory::CreateObject
 			// to be auditioned in the editor properly.
 			if (!ExistingSound->GetResourceData())
 			{
-				if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
-				{
-					FName RuntimeFormat = AudioDevice->GetRuntimeFormat(ExistingSound);
-					ExistingSound->InitAudioResource(RuntimeFormat);
-				}
+				FName RuntimeFormat = ExistingSound->GetRuntimeFormat();
+				ExistingSound->InitAudioResource(RuntimeFormat);
 			}
 
 			if (ComponentsToRestart.Num() > 0)

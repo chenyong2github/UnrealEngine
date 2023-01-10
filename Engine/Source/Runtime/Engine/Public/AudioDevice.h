@@ -1146,6 +1146,7 @@ public:
 	 */
 	void DeactivateReverbEffect(FName TagName);
 
+	UE_DEPRECATED(5.2, "GetRuntimeFormat is now deprecated. Please call SoundWave::GetRuntimeFormat() instead")
 	virtual FName GetRuntimeFormat(const USoundWave* SoundWave) const = 0;
 
 	/** Whether this SoundWave has an associated info class to decompress it */
@@ -1164,7 +1165,10 @@ public:
 	}
 
 	/** Creates a Compressed audio info class suitable for decompressing this SoundWave */
+	UE_DEPRECATED(5.2, "CreateCompressedAudioInfo is now deprecated. Please use IAudioInfoFactory::Create() instead")
 	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const USoundWave* SoundWave) const { return nullptr; }
+	
+	UE_DEPRECATED(5.2, "CreateCompressedAudioInfo is now deprecated. Please use IAudioInfoFactory::Create() instead")
 	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) const { return nullptr; }
 
 	/**

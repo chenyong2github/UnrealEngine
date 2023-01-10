@@ -336,7 +336,8 @@ namespace Audio
 		FMixerBuffer* Buffer = new FMixerBuffer(AudioDevice, InWave, EBufferType::Streaming);
 
 		FSoundQualityInfo QualityInfo = { 0 };
-		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
+		
+		Buffer->DecompressionState = IAudioInfoFactoryRegistry::Get().Create(InWave->GetRuntimeFormat());
 
 		// Get the header information of our compressed format
 		if (Buffer->DecompressionState && Buffer->DecompressionState->StreamCompressedInfo(InWave, &QualityInfo))
@@ -384,12 +385,14 @@ namespace Audio
 		// Create a new buffer for real-time sounds
 		FMixerBuffer* Buffer = new FMixerBuffer(AudioDevice, InWave, EBufferType::PCMRealTime);
 
+		FName FormatName = InWave->GetRuntimeFormat();
 		if (InWave->GetResourceData() == nullptr)
 		{
-			InWave->InitAudioResource(AudioDevice->GetRuntimeFormat(InWave));
+			InWave->InitAudioResource(FormatName);
 		}
 
-		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
+		Buffer->DecompressionState = IAudioInfoFactoryRegistry::Get().Create(FormatName);
+		check(Buffer->DecompressionState);
 
 		if (Buffer->DecompressionState)
 		{

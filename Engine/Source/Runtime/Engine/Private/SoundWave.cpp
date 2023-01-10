@@ -782,7 +782,7 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 			if (!FPlatformProperties::SupportsAudioStreaming() || !IsStreaming(nullptr))
 			{
-				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetCompressedDataSize(LocalAudioDevice->GetRuntimeFormat(this)));
+				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetCompressedDataSize(GetRuntimeFormat()));
 			}
 		}
 	}
@@ -3854,7 +3854,7 @@ void USoundWave::UpdateAsset(bool bMarkDirty)
 			FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw();
 			if (LocalAudioDevice)
 			{
-				FName RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(this);
+				FName RuntimeFormat = GetRuntimeFormat();
 
 				if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline && !GetResourceData())
 				{

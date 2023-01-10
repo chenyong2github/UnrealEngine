@@ -342,6 +342,16 @@ struct ENGINE_API IAudioInfoFactoryRegistry
 	virtual void Register(IAudioInfoFactory*, FName) = 0;
 	virtual void Unregister(IAudioInfoFactory*, FName) = 0;
 	virtual IAudioInfoFactory* Find(FName InName) const = 0;
+	
+	// Convenience helper.
+	ICompressedAudioInfo* Create(FName InName)
+	{
+		if (IAudioInfoFactory* Factory = Find(InName))
+		{
+			return Factory->Create();
+		}
+		return nullptr;
+	}
 };
 
 class FSimpleAudioInfoFactory : public IAudioInfoFactory

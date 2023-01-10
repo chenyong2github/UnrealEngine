@@ -14,39 +14,34 @@ namespace Audio
 		FFormatDescriptorSection* OutDescriptor /*= nullptr*/) const
 	{
 		if (!OldInfoObject.IsValid())
-		{
-			FAudioDeviceHandle Handle = FAudioDeviceManager::Get()->GetActiveAudioDevice();
+		{			
+			OldInfoObject.Reset(IAudioInfoFactoryRegistry::Get().Create(Wave->GetRuntimeFormat()));
+			audio_ensure(OldInfoObject.IsValid());
 
-			if (ensure(Handle))
+			FSoundQualityInfo Info;
+			if (Wave->IsStreaming())
 			{
-				OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(Wave));
-				audio_ensure(OldInfoObject.IsValid());
-
-				FSoundQualityInfo Info;
-				if (Wave->IsStreaming())
+				if (!OldInfoObject->StreamCompressedInfo(Wave, &Info))
 				{
-					if (!OldInfoObject->StreamCompressedInfo(Wave, &Info))
-					{
-						return nullptr;
-					}
+					return nullptr;
 				}
-				else
-				{
-					if (!OldInfoObject->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &Info))
-					{
-						return nullptr;
-					}
-				}
-
-				Desc.NumChannels		= Info.NumChannels;
-				Desc.NumFramesPerSec	= Info.SampleRate;
-				Desc.NumFrames			= (uint32)((float)Info.Duration * Info.SampleRate);
-				Desc.NumBytesPerPacket	= ~0;
-
-				Desc.CodecName			= FBackCompatCodec::GetDetailsStatic().Name;
-				Desc.CodecFamilyName	= FBackCompatCodec::GetDetailsStatic().FamilyName;
-				Desc.CodecVersion		= FBackCompatCodec::GetDetailsStatic().Version;		
 			}
+			else
+			{
+				if (!OldInfoObject->ReadCompressedInfo(Wave->GetResourceData(), Wave->GetResourceSize(), &Info))
+				{
+					return nullptr;
+				}
+			}
+
+			Desc.NumChannels		= Info.NumChannels;
+			Desc.NumFramesPerSec	= Info.SampleRate;
+			Desc.NumFrames			= (uint32)((float)Info.Duration * Info.SampleRate);
+			Desc.NumBytesPerPacket	= ~0;
+
+			Desc.CodecName			= FBackCompatCodec::GetDetailsStatic().Name;
+			Desc.CodecFamilyName	= FBackCompatCodec::GetDetailsStatic().FamilyName;
+			Desc.CodecVersion		= FBackCompatCodec::GetDetailsStatic().Version;		
 		}
 
 		if( OutDescriptor )
