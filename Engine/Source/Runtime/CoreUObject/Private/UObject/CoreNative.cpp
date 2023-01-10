@@ -134,9 +134,12 @@ UObject* FObjectInstancingGraph::GetDestinationObject(UObject* SourceObject)
 	return SourceToDestinationMap.FindRef(SourceObject);
 }
 
-UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject, UObject* CurrentValue, UObject* CurrentObject, bool bDoNotCreateNewInstance, bool bAllowSelfReference )
+UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject, UObject* CurrentValue, UObject* CurrentObject, EInstancePropertyValueFlags Flags )
 {
 	checkSlow(SourceSubobject);
+
+	bool bDoNotCreateNewInstance = !!(Flags & EInstancePropertyValueFlags::DoNotCreateNewInstance);
+	bool bAllowSelfReference     = !!(Flags & EInstancePropertyValueFlags::AllowSelfReference);
 
 	UObject* InstancedSubobject = INVALID_OBJECT;
 
@@ -200,7 +203,7 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 							// outer.  In that case - we need to go ahead and instance that outer.
 							if ( SubobjectOuter == nullptr )
 							{
-								SubobjectOuter = GetInstancedSubobject(SourceSubobject->GetOuter(), SourceSubobject->GetOuter(), CurrentObject, bDoNotCreateNewInstance, bAllowSelfReference);
+								SubobjectOuter = GetInstancedSubobject(SourceSubobject->GetOuter(), SourceSubobject->GetOuter(), CurrentObject, Flags);
 
 								checkf(SubobjectOuter && SubobjectOuter != INVALID_OBJECT, TEXT("No corresponding destination object found for '%s' while attempting to instance subobject '%s'"), *SourceSubobject->GetOuter()->GetFullName(), *SourceSubobject->GetFullName());
 							}
@@ -269,8 +272,11 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 }
 
 
-UObject* FObjectInstancingGraph::InstancePropertyValue(UObject* SubObjectTemplate, UObject* CurrentValue, UObject* Owner, bool bIsTransient, bool bCausesInstancing, bool bAllowSelfReference)
+UObject* FObjectInstancingGraph::InstancePropertyValue(UObject* SubObjectTemplate, UObject* CurrentValue, UObject* Owner, EInstancePropertyValueFlags Flags)
 {
+	bool bCausesInstancing   = !!(Flags & EInstancePropertyValueFlags::CausesInstancing);
+	bool bAllowSelfReference = !!(Flags & EInstancePropertyValueFlags::AllowSelfReference);
+
 	UObject* NewValue = CurrentValue;
 
 	check(CurrentValue);
@@ -302,7 +308,7 @@ UObject* FObjectInstancingGraph::InstancePropertyValue(UObject* SubObjectTemplat
 			SubObjectTemplate = CurrentValue;
 		}
 
-		UObject* MaybeNewValue = GetInstancedSubobject(SubObjectTemplate, CurrentValue, Owner, bAllowSelfReference, bAllowSelfReference);
+		UObject* MaybeNewValue = GetInstancedSubobject(SubObjectTemplate, CurrentValue, Owner, Flags);
 		if ( MaybeNewValue != INVALID_OBJECT )
 		{
 			NewValue = MaybeNewValue;

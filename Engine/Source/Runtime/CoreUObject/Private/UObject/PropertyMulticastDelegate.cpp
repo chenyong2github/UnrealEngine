@@ -54,7 +54,7 @@ void FMulticastDelegateProperty::InstanceSubobjects(void* Data, void const* Defa
 				{
 					FScriptDelegate& DefaultDelegateInvocation = *DefaultInvocation;
 					UObject *Template = DefaultDelegateInvocation.GetUObject();
-					UObject* NewUObject = InstanceGraph->InstancePropertyValue(Template, CurrentUObject, InOwner, HasAnyPropertyFlags(CPF_Transient), false, true);
+					UObject* NewUObject = InstanceGraph->InstancePropertyValue(Template, CurrentUObject, InOwner, EInstancePropertyValueFlags::AllowSelfReference | EInstancePropertyValueFlags::DoNotCreateNewInstance);
 					DestDelegateInvocation.BindUFunction(NewUObject, DestDelegateInvocation.GetFunctionName());
 				}
 			}
@@ -66,7 +66,7 @@ void FMulticastDelegateProperty::InstanceSubobjects(void* Data, void const* Defa
 
 				if (CurrentUObject)
 				{
-					UObject* NewUObject = InstanceGraph->InstancePropertyValue(NULL, CurrentUObject, InOwner, HasAnyPropertyFlags(CPF_Transient), false, true);
+					UObject* NewUObject = InstanceGraph->InstancePropertyValue(NULL, CurrentUObject, InOwner, EInstancePropertyValueFlags::AllowSelfReference | EInstancePropertyValueFlags::DoNotCreateNewInstance);
 					DestDelegateInvocation.BindUFunction(NewUObject, DestDelegateInvocation.GetFunctionName());
 				}
 			}
@@ -83,7 +83,7 @@ void FMulticastDelegateProperty::InstanceSubobjects(void* Data, void const* Defa
 
 				if (CurrentUObject)
 				{
-					UObject* NewUObject = InstanceGraph->InstancePropertyValue(NULL, CurrentUObject, InOwner, HasAnyPropertyFlags(CPF_Transient), false, true);
+					UObject* NewUObject = InstanceGraph->InstancePropertyValue(NULL, CurrentUObject, InOwner, EInstancePropertyValueFlags::AllowSelfReference | EInstancePropertyValueFlags::DoNotCreateNewInstance);
 					DestDelegateInvocation.BindUFunction(NewUObject, DestDelegateInvocation.GetFunctionName());
 				}
 			}

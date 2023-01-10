@@ -3512,6 +3512,22 @@ COREUOBJECT_API void GetPrivateStaticClassBody(
 	FObjectInstancingGraph.
 -----------------------------------------------------------------------------*/
 
+enum class EInstancePropertyValueFlags
+{
+	None                   = 0x00,
+
+	// if set, then this property causes an instance to be created, otherwise this is just a pointer to a uobject that should be remapped if the object is instanced for some other property
+	CausesInstancing       = 0x01,
+
+	// if set, instance the reference to the subobjectroot, so far only delegates remap a self reference
+	AllowSelfReference     = 0x02,
+
+	// if set, then we do not create a new instance, but we will reassign one if there is already a mapping in the table
+	DoNotCreateNewInstance = 0x04
+};
+
+ENUM_CLASS_FLAGS(EInstancePropertyValueFlags)
+
 struct COREUOBJECT_API FObjectInstancingGraph
 {
 public:
@@ -3575,7 +3591,35 @@ public:
 	 *
 	 * @return	As with GetInstancedSubobject, above, but also deals with archetype creation and a few other special cases
 	 */
-	class UObject* InstancePropertyValue( class UObject* SourceComponent, class UObject* CurrentValue, class UObject* CurrentObject, bool bIsTransient, bool bCausesInstancing = false, bool bAllowSelfReference = false );
+	UE_DEPRECATED(5.2, "This overload of InstancePropertyValue has been deprecated, please call the overload that takes flags instead.")
+	class UObject* InstancePropertyValue( class UObject* SourceComponent, class UObject* CurrentValue, class UObject* CurrentObject, bool bIsTransient, bool bCausesInstancing = false, bool bAllowSelfReference = false )
+	{
+		EInstancePropertyValueFlags Flags = EInstancePropertyValueFlags::None;
+		if (bCausesInstancing)
+		{
+			Flags |= EInstancePropertyValueFlags::CausesInstancing;
+		}
+		if (bAllowSelfReference)
+		{
+			Flags |= EInstancePropertyValueFlags::AllowSelfReference;
+		}
+		return InstancePropertyValue(SourceComponent, CurrentValue, CurrentObject, Flags);
+	}
+
+	/**
+	 * Returns the component that has SourceComponent as its archetype, instancing the component as necessary.
+	 *
+	 * @param	SourceComponent		the component to find the corresponding component instance for
+	 * @param	CurrentValue		the component currently assigned as the value for the component property
+	 *								being instanced.  Used when updating archetypes to ensure that the new instanced component
+	 *								replaces the existing component instance in memory.
+	 * @param	CurrentObject		the object that owns the component property currently being instanced;  this is NOT necessarily the object
+	 *								that should be the Outer for the new component.
+	 * @param	Flags				reinstancing flags - see EInstancePropertyValueFlags
+	 *
+	 * @return	As with GetInstancedSubobject, above, but also deals with archetype creation and a few other special cases
+	 */
+	class UObject* InstancePropertyValue( class UObject* SourceComponent, class UObject* CurrentValue, class UObject* CurrentObject, EInstancePropertyValueFlags Flags = EInstancePropertyValueFlags::None );
 
 	/**
 	 * Adds a partially built object instance to the map(s) of source objects to their instances.
@@ -3686,8 +3730,7 @@ private:
 	 *								replaces the existing component instance in memory.
 	 * @param	CurrentObject		the object that owns the component property currently being instanced;  this is NOT necessarily the object
 	 *								that should be the Outer for the new component.
-	 * @param	bDoNotCreateNewInstance If true, then we do not create a new instance, but we will reassign one if there is already a mapping in the table
-	 * @param	bAllowSelfReference If true, instance the reference to the subobjectroot, so far only delegates remap a self reference
+	 * @param	Flags				reinstancing flags - see EInstancePropertyValueFlags
 	 *
 	 * @return	if SourceComponent is contained within SourceRoot, returns a pointer to a unique component instance corresponding to
 	 *			SourceComponent if SourceComponent is allowed to be instanced in this context, or NULL if the component isn't allowed to be
@@ -3695,7 +3738,7 @@ private:
 	 *			if SourceComponent is not contained by SourceRoot, return INVALID_OBJECT, indicating that the that has SourceComponent as its ObjectArchetype, or NULL if SourceComponent is not contained within
 	 *			SourceRoot.
 	 */
-	class UObject* GetInstancedSubobject( class UObject* SourceSubobject, class UObject* CurrentValue, class UObject* CurrentObject, bool bDoNotCreateNewInstance, bool bAllowSelfReference );
+	class UObject* GetInstancedSubobject( class UObject* SourceSubobject, class UObject* CurrentValue, class UObject* CurrentObject, EInstancePropertyValueFlags Flags );
 
 	/**
 	 * The root of the object tree that is the source used for instancing components;

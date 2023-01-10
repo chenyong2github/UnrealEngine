@@ -57,7 +57,7 @@ void FObjectPropertyBase::InstanceSubobjects(void* Data, void const* DefaultData
 		if ( CurrentValue )
 		{
 			UObject *SubobjectTemplate = DefaultData ? GetObjectPropertyValue((uint8*)DefaultData + ArrayIndex * ElementSize): nullptr;
-			UObject* NewValue = InstanceGraph->InstancePropertyValue(SubobjectTemplate, CurrentValue, InOwner, HasAnyPropertyFlags(CPF_Transient), HasAnyPropertyFlags(CPF_InstancedReference));
+			UObject* NewValue = InstanceGraph->InstancePropertyValue(SubobjectTemplate, CurrentValue, InOwner, HasAnyPropertyFlags(CPF_InstancedReference) ? EInstancePropertyValueFlags::CausesInstancing : EInstancePropertyValueFlags::None);
 			SetObjectPropertyValue((uint8*)Data + ArrayIndex * ElementSize, NewValue);
 		}
 	}

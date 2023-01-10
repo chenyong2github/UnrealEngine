@@ -54,7 +54,7 @@ void FDelegateProperty::InstanceSubobjects(void* Data, void const* DefaultData, 
 				Template = DefaultDelegate.GetUObject();
 			}
 
-			UObject* NewUObject = InstanceGraph->InstancePropertyValue(Template, CurrentUObject, InOwner, HasAnyPropertyFlags(CPF_Transient), false, true);
+			UObject* NewUObject = InstanceGraph->InstancePropertyValue(Template, CurrentUObject, InOwner, EInstancePropertyValueFlags::AllowSelfReference | EInstancePropertyValueFlags::DoNotCreateNewInstance);
 			DestDelegate.BindUFunction(NewUObject, DestDelegate.GetFunctionName());
 		}
 	}
