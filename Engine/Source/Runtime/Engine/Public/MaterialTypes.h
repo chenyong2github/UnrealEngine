@@ -274,6 +274,11 @@ struct FParameterChannelNames
 
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
 	FText A;
+
+	bool operator==(const FParameterChannelNames& Other) const
+	{
+		return R.EqualTo(Other.R) && G.EqualTo(Other.G) && B.EqualTo(Other.B) && A.EqualTo(Other.A);
+	}
 };
 
 USTRUCT()
@@ -295,6 +300,11 @@ struct FStaticComponentMaskValue
 
 	UPROPERTY()
 	bool A = false;
+
+	bool operator==(const FStaticComponentMaskValue& Other) const
+	{
+		return R == Other.R && G == Other.G && B == Other.B && A == Other.A;
+	}
 };
 
 struct FMaterialTextureValue
