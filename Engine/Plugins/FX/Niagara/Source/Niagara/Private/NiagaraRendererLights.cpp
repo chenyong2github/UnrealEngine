@@ -92,21 +92,12 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	FNiagaraSystemInstance* SystemInstance = Emitter->GetParentSystemInstance();
 	FNiagaraDynamicDataLights* DynamicData = new FNiagaraDynamicDataLights(Emitter);
 
-	//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
-	//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
-	const auto PositionReader = Properties->PositionDataSetAccessor.GetReader(Data);
-	const auto ColorReader = Properties->ColorDataSetAccessor.GetReader(Data);
-	const auto RadiusReader = Properties->RadiusDataSetAccessor.GetReader(Data);
-	const auto ExponentReader = Properties->ExponentDataSetAccessor.GetReader(Data);
-	const auto ScatteringReader = Properties->ScatteringDataSetAccessor.GetReader(Data);
-	const auto EnabledReader = Properties->EnabledDataSetAccessor.GetReader(Data);
-	const auto VisTagReader = Properties->RendererVisibilityTagAccessor.GetReader(Data);
 
 	// This used to use Proxy->GetLocalToWorld(), but that's a bad thing to do here, because the proxy gets updated on the render thread,
 	// and this function happens during EndOfFrame updates. So instead, use the most up-to-date transform here (fixes local-space frame-behind issues)
-	FTransform LocalToWorld = SystemInstance->GetWorldTransform();
+	const FTransform LocalToWorld = SystemInstance->GetWorldTransform();
 
-	bool bUseLocalSpace = UseLocalSpace(Proxy);
+	const bool bUseLocalSpace = UseLocalSpace(Proxy);
 	FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(bUseLocalSpace);
 	const FLinearColor DefaultColor = Properties->ColorBinding.GetDefaultValue<FLinearColor>();
 	const FNiagaraPosition DefaultPos = bUseLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
@@ -118,28 +109,70 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 	const float InverseExposureBlend = Properties->bOverrideInverseExposureBlend ? Properties->InverseExposureBlend : GetDefault<UNiagaraSettings>()->DefaultLightInverseExposureBlend;
 
-	for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
+	// Particles Source mode?
+	if (Properties->SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
-		bool bShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
-		if (bShouldRenderParticleLight && VisTagReader.IsValid())
+		//I'm not a great fan of pulling scalar components out to a structured vert buffer like this.
+		//TODO: Experiment with a new VF that reads the data directly from the scalar layout.
+		const auto PositionReader = Properties->PositionDataSetAccessor.GetReader(Data);
+		const auto ColorReader = Properties->ColorDataSetAccessor.GetReader(Data);
+		const auto RadiusReader = Properties->RadiusDataSetAccessor.GetReader(Data);
+		const auto ExponentReader = Properties->ExponentDataSetAccessor.GetReader(Data);
+		const auto ScatteringReader = Properties->ScatteringDataSetAccessor.GetReader(Data);
+		const auto EnabledReader = Properties->EnabledDataSetAccessor.GetReader(Data);
+		const auto VisTagReader = Properties->RendererVisibilityTagAccessor.GetReader(Data);
+
+		for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
 		{
-			bShouldRenderParticleLight = VisTagReader.GetSafe(ParticleIndex, DefaultVisibilityTag) == Properties->RendererVisibility;
+			bool bShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
+			if (bShouldRenderParticleLight && VisTagReader.IsValid())
+			{
+				bShouldRenderParticleLight = VisTagReader.GetSafe(ParticleIndex, DefaultVisibilityTag) == Properties->RendererVisibility;
+			}
+			float LightRadius = RadiusReader.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
+			if (bShouldRenderParticleLight && LightRadius > 0)
+			{
+				SimpleLightData& LightData = DynamicData->LightArray.AddDefaulted_GetRef();
+
+				const FLinearColor Color = ColorReader.GetSafe(ParticleIndex, DefaultColor);
+				const float Brightness = Properties->bAlphaScalesBrightness ? Color.A : 1.0f;
+
+				LightData.LightEntry.Radius = LightRadius;
+				LightData.LightEntry.Color = FVector3f(Color) * Brightness + Properties->ColorAdd;
+				LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, DefaultExponent);
+				LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
+				LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
+				LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
+				LightData.PerViewEntry.Position = LwcConverter.ConvertSimulationPositionToWorld(PositionReader.GetSafe(ParticleIndex, DefaultPos));
+				if (bUseLocalSpace)
+				{
+					LightData.PerViewEntry.Position = LocalToWorld.TransformPosition(LightData.PerViewEntry.Position);
+				}
+			}
 		}
-		float LightRadius = RadiusReader.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
-		if (bShouldRenderParticleLight && LightRadius > 0)
+	}
+	else
+	{
+		const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
+		const bool bEnabled = ParameterStore.GetParameterValueOrDefault(Properties->LightRenderingEnabledBinding.GetParamMapBindableVariable(), FNiagaraBool(true)).GetValue();
+		const int32 VisTag = ParameterStore.GetParameterValueOrDefault(Properties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), Properties->RendererVisibility);
+		const float LightRadius = ParameterStore.GetParameterValueOrDefault(Properties->RadiusBinding.GetParamMapBindableVariable(), DefaultRadius) * Properties->RadiusScale;
+		if (bEnabled && VisTag == Properties->RendererVisibility && LightRadius > 0.0f)
 		{
+			const FVector3f SimPos = ParameterStore.GetParameterValueOrDefault(Properties->PositionBinding.GetParamMapBindableVariable(), DefaultPos);
+			const FLinearColor LightColor = ParameterStore.GetParameterValueOrDefault(Properties->ColorBinding.GetParamMapBindableVariable(), DefaultColor);
+			const float LightExponent = ParameterStore.GetParameterValueOrDefault(Properties->LightExponentBinding.GetParamMapBindableVariable(), DefaultExponent);
+			const float LightScattering = ParameterStore.GetParameterValueOrDefault(Properties->VolumetricScatteringBinding.GetParamMapBindableVariable(), DefaultScattering);
+			const float Brightness = Properties->bAlphaScalesBrightness ? LightColor.A : 1.0f;
+
 			SimpleLightData& LightData = DynamicData->LightArray.AddDefaulted_GetRef();
-
-			const FLinearColor Color = ColorReader.GetSafe(ParticleIndex, DefaultColor);
-			const float Brightness = Properties->bAlphaScalesBrightness ? Color.A : 1.0f;
-
 			LightData.LightEntry.Radius = LightRadius;
-			LightData.LightEntry.Color = FVector3f(Color) * Brightness + Properties->ColorAdd;
-			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, DefaultExponent);
+			LightData.LightEntry.Color = FVector3f(LightColor) * Brightness + Properties->ColorAdd;
+			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : LightExponent;
 			LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
-			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
-			LightData.PerViewEntry.Position = LwcConverter.ConvertSimulationPositionToWorld(PositionReader.GetSafe(ParticleIndex, DefaultPos));
+			LightData.LightEntry.VolumetricScatteringIntensity = LightScattering;
+			LightData.PerViewEntry.Position = LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			if (bUseLocalSpace)
 			{
 				LightData.PerViewEntry.Position = LocalToWorld.TransformPosition(LightData.PerViewEntry.Position);

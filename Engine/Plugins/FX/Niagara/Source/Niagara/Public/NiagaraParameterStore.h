@@ -401,6 +401,14 @@ public:
 		return T();
 	}
 
+	template<typename T>
+	FORCEINLINE_DEBUGGABLE T GetParameterValueOrDefault(const FNiagaraVariable& Parameter, const T& DefaultValue) const
+	{
+		check(Parameter.GetSizeInBytes() == sizeof(T));
+		int32 Offset = IndexOf(Parameter);
+		return Offset != INDEX_NONE ? *(const T*)(GetParameterData(Offset)) : DefaultValue;
+	}
+
 	FORCEINLINE const uint8* GetParameterData(int32 Offset)const
 	{
 		return ParameterData.GetData() + Offset;

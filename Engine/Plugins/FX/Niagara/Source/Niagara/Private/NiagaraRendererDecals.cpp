@@ -24,8 +24,6 @@ namespace NiagaraRendererDecalsLocal
 	);
 
 #if UE_BUILD_SHIPPING
-	void DrawDebugDecal(UWorld* World, const FDeferredDecalUpdateParams& UpdateParams, float Fade) {}
-#else
 	static bool GDrawDebug = false;
 	static FAutoConsoleVariableRef CVarDrawDebug(
 		TEXT("fx.Niagara.DecalRenderer.DrawDebug"),
@@ -34,7 +32,7 @@ namespace NiagaraRendererDecalsLocal
 		ECVF_Default
 	);
 
-	void DrawDebugDecal(UWorld* World, const FDeferredDecalUpdateParams& UpdateParams, float Fade)
+	void DrawDebugDecal(UWorld* World, TConstArrayView<FDeferredDecalUpdateParams> AllUpdateParams, double WorldTime)
 	{
 		if (GDrawDebug == false)
 		{
@@ -44,7 +42,7 @@ namespace NiagaraRendererDecalsLocal
 		// Line Batcher is not thread safe and we could be on any thread, therefore send a task to draw the information safely
 		AsyncTask(
 			ENamedThreads::GameThread,
-			[WeakWorld=MakeWeakObjectPtr(World), UpdateParams, Fade]
+			[WeakWorld=MakeWeakObjectPtr(World), AllUpdateParams_GT=TArray<FDeferredDecalUpdateParams>(AllUpdateParams), WorldTime]
 			{
 				UWorld* World = WeakWorld.Get();
 				if (World == nullptr || World->LineBatcher == nullptr)
@@ -53,14 +51,23 @@ namespace NiagaraRendererDecalsLocal
 				}
 				ULineBatchComponent* LineBatcher = World->LineBatcher;
 				
-				const FBox BoundsBox(-FVector(1), FVector(1));
-				const uint8 IntFade = FMath::Clamp(uint8(255.0f * Fade), 0, 255);
-				LineBatcher->DrawSolidBox(BoundsBox, UpdateParams.Transform, FColor(IntFade, IntFade, IntFade, 128), 0, 0.0f);
+				for (const FDeferredDecalUpdateParams& UpdateParams : AllUpdateParams_GT)
+				{
+					if ( UpdateParams.OperationType == FDeferredDecalUpdateParams::EOperationType::RemoveFromSceneAndDelete )
+					{
+						continue;
+					}
 
-				LineBatcher->DrawCircle(UpdateParams.Bounds.Origin, FVector::XAxisVector, FVector::YAxisVector, FColor::Red, UpdateParams.Bounds.SphereRadius, 16, 0);
-				LineBatcher->DrawCircle(UpdateParams.Bounds.Origin, FVector::XAxisVector, FVector::ZAxisVector, FColor::Red, UpdateParams.Bounds.SphereRadius, 16, 0);
-				LineBatcher->DrawCircle(UpdateParams.Bounds.Origin, FVector::YAxisVector, FVector::ZAxisVector, FColor::Red, UpdateParams.Bounds.SphereRadius, 16, 0);
-		}
+					const float Fade = (WorldTime - UpdateParams.FadeStartDelay) / UpdateParams.FadeDuration;
+					const FBox BoundsBox(-FVector(1), FVector(1));
+					const uint8 IntFade = FMath::Clamp(uint8(255.0f * Fade), 0, 255);
+					LineBatcher->DrawSolidBox(BoundsBox, UpdateParams.Transform, FColor(IntFade, IntFade, IntFade, 128), 0, 0.0f);
+
+					LineBatcher->DrawCircle(UpdateParams.Bounds.Origin, FVector::XAxisVector, FVector::YAxisVector, FColor::Red, UpdateParams.Bounds.SphereRadius, 16, 0);
+					LineBatcher->DrawCircle(UpdateParams.Bounds.Origin, FVector::XAxisVector, FVector::ZAxisVector, FColor::Red, UpdateParams.Bounds.SphereRadius, 16, 0);
+					LineBatcher->DrawCircle(UpdateParams.Bounds.Origin, FVector::YAxisVector, FVector::ZAxisVector, FColor::Red, UpdateParams.Bounds.SphereRadius, 16, 0);
+				}
+			}
 		);
 	}
 #endif
@@ -109,7 +116,7 @@ void FNiagaraRendererDecals::DestroyRenderState_Concurrent()
 FPrimitiveViewRelevance FNiagaraRendererDecals::GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const
 {
 	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = bHasLights && SceneProxy->IsShown(View) && View->Family->EngineShowFlags.Particles && View->Family->EngineShowFlags.Niagara;
+	Result.bDrawRelevance = false;
 	Result.bShadowRelevance = false;
 	Result.bDynamicRelevance = false;
 	Result.bOpaque = false;
@@ -144,8 +151,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	const FTransform LocalToWorld = SystemInstance->GetWorldTransform();
 	const FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(bUseLocalSpace);
 	const FNiagaraPosition DefaultPos = bUseLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
-	const FQuat4f DefaultRot = FRotator3f(-90.0f, 0.0f, 90.0f).Quaternion();
-	const FVector3f DefaultSize = FVector3f(50.0f, 50.0f, 50.0f);	//-TODO: Read defaults from properties or default variable
+	const FQuat4f DefaultRot = UNiagaraDecalRendererProperties::GetDefaultOrientation();
+	const FVector3f DefaultSize = UNiagaraDecalRendererProperties::GetDefaultDecalSize();
+	const float DefaultFade = UNiagaraDecalRendererProperties::GetDefaultDecalFade();
 
 	// Check for Material Update
 	UMaterialInterface* Material = RendererProperties->GetMaterial(Emitter);
@@ -155,75 +163,117 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 		ReleaseAllDecals();
 	}
 
-	// Create all our data readers
-	const auto PositionReader	= RendererProperties->PositionDataSetAccessor.GetReader(DataSet);
-	const auto RotationReader	= RendererProperties->DecalOrientationDataSetAccessor.GetReader(DataSet);
-	const auto SizeReader		= RendererProperties->DecalSizeDataSetAccessor.GetReader(DataSet);
-	const auto ColorReader		= RendererProperties->ColorDataSetAccessor.GetReader(DataSet);
-	const auto FadeReader		= RendererProperties->DecalFadeDataSetAccessor.GetReader(DataSet);
-	const auto VisTagReader		= RendererProperties->RendererVisibilityTagAccessor.GetReader(DataSet);
+	// Generate list of decals to update
+	int NumActiveDecalProxies = 0;
 
 	TArray<FDeferredDecalUpdateParams> DecalUpdates;
 	DecalUpdates.Reserve(DataToRender->GetNumInstances());
 
-	int NumActiveDecalProxies = 0;
-	for (uint32 ParticleIndex=0; ParticleIndex < DataToRender->GetNumInstances(); ++ParticleIndex)
+	// Particles Source mode?
+	if (RendererProperties->SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
-		// Check visibility tag
-		const int32 VisTag = VisTagReader.GetSafe(ParticleIndex, RendererProperties->RendererVisibility);
-		if (VisTag != RendererProperties->RendererVisibility)
+		// Create all our data readers
+		const auto PositionReader = RendererProperties->PositionDataSetAccessor.GetReader(DataSet);
+		const auto RotationReader = RendererProperties->DecalOrientationDataSetAccessor.GetReader(DataSet);
+		const auto SizeReader = RendererProperties->DecalSizeDataSetAccessor.GetReader(DataSet);
+		const auto ColorReader = RendererProperties->ColorDataSetAccessor.GetReader(DataSet);
+		const auto FadeReader = RendererProperties->DecalFadeDataSetAccessor.GetReader(DataSet);
+		const auto VisTagReader = RendererProperties->RendererVisibilityTagAccessor.GetReader(DataSet);
+
+		for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ++ParticleIndex)
 		{
-			continue;
+			// Check visibility tag
+			const int32 VisTag = VisTagReader.GetSafe(ParticleIndex, RendererProperties->RendererVisibility);
+			if (VisTag != RendererProperties->RendererVisibility)
+			{
+				continue;
+			}
+
+			// Grab Decal Attributes
+			const FVector3f SimPos = PositionReader.GetSafe(ParticleIndex, DefaultPos);
+			const FQuat4f SimRot = RotationReader.GetSafe(ParticleIndex, DefaultRot);
+			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
+			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
+			const FVector Size = FVector(SizeReader.GetSafe(ParticleIndex, DefaultSize) * 0.5f);
+			const float Fade = RendererProperties->bUseColorBindingAsFade ? ColorReader.GetSafe(ParticleIndex, FLinearColor::White).A : FadeReader.GetSafe(ParticleIndex, DefaultFade);
+
+			// Create Update Parameters
+			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
+			if (NumActiveDecalProxies < ActiveDecalProxies.Num())
+			{
+				UpdateParams.DecalProxy = ActiveDecalProxies[NumActiveDecalProxies];
+				UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::Update;
+			}
+			else
+			{
+				UpdateParams.DecalProxy = new FDeferredDecalProxy(OwnerComponent, Material);
+				UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::AddToSceneAndUpdate;
+				ActiveDecalProxies.Add(UpdateParams.DecalProxy);
+			}
+			++NumActiveDecalProxies;
+
+			UpdateParams.Transform = FTransform(Rotation, Position, FVector(Size));
+			UpdateParams.Bounds = FBoxSphereBounds(FSphere(Position, Size.GetAbsMax() * 2.0));
+			UpdateParams.AbsSpawnTime = World->TimeSeconds - FMath::Clamp(1.0f - Fade, 0.0f, 1.0f);
+			UpdateParams.FadeStartDelay = 0.0f;
+			UpdateParams.FadeDuration = 1.0f;
 		}
-
-		// Grab Decal Attributes
-		const FVector3f SimPos	= PositionReader.GetSafe(ParticleIndex, DefaultPos);
-		const FQuat4f SimRot	= RotationReader.GetSafe(ParticleIndex, DefaultRot);
-		const FVector Position	= bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
-		const FQuat Rotation	= bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
-		const FVector Size		= FVector(SizeReader.GetSafe(ParticleIndex, DefaultSize) * 0.5f);
-		const float Fade		= RendererProperties->bUseColorBindingAsFade ? ColorReader.GetSafe(ParticleIndex, FLinearColor::White).A : FadeReader.GetSafe(ParticleIndex, 1.0f);
-
-		// Create Update Parameters
-		FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
-		if (NumActiveDecalProxies < ActiveDecalProxies.Num())
+	}
+	// Emitter source mode
+	else
+	{
+		//-OPT: Emitter mode we should be able to cache the parameter offset rather than search each frame
+		const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
+		const int32 VisTag = ParameterStore.GetParameterValueOrDefault(RendererProperties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), RendererProperties->RendererVisibility);
+		if (VisTag == RendererProperties->RendererVisibility)
 		{
-			UpdateParams.DecalProxy = ActiveDecalProxies[NumActiveDecalProxies];
-			UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::Update;
-		}
-		else
-		{
-			UpdateParams.DecalProxy = new FDeferredDecalProxy(OwnerComponent, Material);
-			UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::AddToSceneAndUpdate;
-			ActiveDecalProxies.Add(UpdateParams.DecalProxy);
-		}
-		++NumActiveDecalProxies;
+			const FVector3f SimPos = ParameterStore.GetParameterValueOrDefault(RendererProperties->PositionBinding.GetParamMapBindableVariable(), DefaultPos);
+			const FQuat4f SimRot = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalOrientationBinding.GetParamMapBindableVariable(), DefaultRot);
+			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
+			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
+			const FVector Size = FVector(ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSizeBinding.GetParamMapBindableVariable(), DefaultSize) * 0.5f);
+			const float Fade =
+				RendererProperties->bUseColorBindingAsFade ?
+				ParameterStore.GetParameterValueOrDefault(RendererProperties->ColorBinding.GetParamMapBindableVariable(), FLinearColor::White).A :
+				ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
 
-		UpdateParams.Transform		= FTransform(Rotation, Position, FVector(Size));
-		UpdateParams.Bounds			= FBoxSphereBounds(FSphere(Position, Size.GetAbsMax() * 2.0));
-		UpdateParams.AbsSpawnTime	= World->TimeSeconds - FMath::Clamp(1.0f - Fade, 0.0f, 1.0f);
-		UpdateParams.FadeStartDelay	= 0.0f;
-		UpdateParams.FadeDuration	= 1.0f;
+			// Create Update Parameters
+			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
+			if (NumActiveDecalProxies < ActiveDecalProxies.Num())
+			{
+				UpdateParams.DecalProxy = ActiveDecalProxies[NumActiveDecalProxies];
+				UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::Update;
+			}
+			else
+			{
+				UpdateParams.DecalProxy = new FDeferredDecalProxy(OwnerComponent, Material);
+				UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::AddToSceneAndUpdate;
+				ActiveDecalProxies.Add(UpdateParams.DecalProxy);
+			}
+			++NumActiveDecalProxies;
 
-		DrawDebugDecal(World, UpdateParams, Fade);
+			UpdateParams.Transform = FTransform(Rotation, Position, FVector(Size));
+			UpdateParams.Bounds = FBoxSphereBounds(FSphere(Position, Size.GetAbsMax() * 2.0));
+			UpdateParams.AbsSpawnTime = World->TimeSeconds - FMath::Clamp(1.0f - Fade, 0.0f, 1.0f);
+			UpdateParams.FadeStartDelay = 0.0f;
+			UpdateParams.FadeDuration = 1.0f;
+		}
 	}
 
 	// Remove any unused decals
-	// Note: We don't delete at the RemoveDecal call will automatically do this
-	const int NumToRemove = ActiveDecalProxies.Num() - NumActiveDecalProxies;
-	if (NumToRemove > 0)
+	while (ActiveDecalProxies.Num() > NumActiveDecalProxies)
 	{
-		for (int i = DataToRender->GetNumInstances(); i < ActiveDecalProxies.Num(); ++i)
-		{
-			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
-			UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::RemoveFromSceneAndDelete;
-			UpdateParams.DecalProxy = ActiveDecalProxies.Pop();
-		}
+		FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
+		UpdateParams.OperationType = FDeferredDecalUpdateParams::EOperationType::RemoveFromSceneAndDelete;
+		UpdateParams.DecalProxy = ActiveDecalProxies.Pop();
 	}
 
 	// Send updates to RT
 	if (DecalUpdates.Num() > 0)
 	{
+	#if UE_BUILD_SHIPPING
+		DrawDebugDecal(World, DecalUpdates, World->TimeSeconds);
+	#endif
 		World->Scene->BatchUpdateDecals(MoveTemp(DecalUpdates));
 	}
 

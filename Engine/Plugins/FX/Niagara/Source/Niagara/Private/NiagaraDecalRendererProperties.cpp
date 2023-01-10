@@ -34,19 +34,19 @@ namespace NiagaraDecalRendererPropertiesLocal
 
 	static FNiagaraVariable GetDecalOrientationVariable()
 	{
-		static FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Particles.DecalOrientation"), FRotator3f(-90.0f, 0.0f, 90.0f).Quaternion());
+		static FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Particles.DecalOrientation"), UNiagaraDecalRendererProperties::GetDefaultOrientation());
 		return Variable;
 	}
 
 	static FNiagaraVariable GetDecalSizeVariable()
 	{
-		static FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.DecalSize"), FVector3f(50.0f, 50.0f, 50.0f));
+		static FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.DecalSize"), UNiagaraDecalRendererProperties::GetDefaultDecalSize());
 		return Variable;
 	}
 
 	static FNiagaraVariable GetDecalFadeVariable()
 	{
-		FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.DecalFade"), 1.0f);
+		FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.DecalFade"), UNiagaraDecalRendererProperties::GetDefaultDecalFade());
 		return Variable;
 	}
 
@@ -72,7 +72,7 @@ namespace NiagaraDecalRendererPropertiesLocal
 
 UNiagaraDecalRendererProperties::UNiagaraDecalRendererProperties()
 {
-	AttributeBindings.Reserve(5);
+	AttributeBindings.Reserve(6);
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&DecalOrientationBinding);
 	AttributeBindings.Add(&DecalSizeBinding);
@@ -108,6 +108,20 @@ void UNiagaraDecalRendererProperties::PostInitProperties()
 		SetupBindings(this);
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+void UNiagaraDecalRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDecalRendererProperties, SourceMode))
+	{
+		UpdateSourceModeDerivates(SourceMode, true);
+	}
+}
+#endif// WITH_EDITORONLY_DATA
 
 void UNiagaraDecalRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
@@ -170,10 +184,10 @@ protected:
 
 FNiagaraBoundsCalculator* UNiagaraDecalRendererProperties::CreateBoundsCalculator()
 {
-	//if (GetCurrentSourceMode() == ENiagaraRendererSourceDataMode::Emitter)
-	//{
-	//	return nullptr;
-	//}
+	if (GetCurrentSourceMode() == ENiagaraRendererSourceDataMode::Emitter)
+	{
+		return nullptr;
+	}
 
 	return new FNiagaraBoundsCalculatorDecals(PositionDataSetAccessor, DecalSizeDataSetAccessor);
 }
@@ -188,6 +202,8 @@ void UNiagaraDecalRendererProperties::GetUsedMaterials(const FNiagaraEmitterInst
 
 void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
+	UpdateSourceModeDerivates(SourceMode);
+
 	PositionDataSetAccessor.Init(CompiledData, PositionBinding.GetDataSetBindableVariable().GetName());
 	DecalOrientationDataSetAccessor.Init(CompiledData, DecalOrientationBinding.GetDataSetBindableVariable().GetName());
 	DecalSizeDataSetAccessor.Init(CompiledData, DecalSizeBinding.GetDataSetBindableVariable().GetName());
@@ -196,7 +212,42 @@ void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSe
 	RendererVisibilityTagAccessor.Init(CompiledData, RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
 }
 
+void UNiagaraDecalRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
+{
+	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
+}
+
+bool UNiagaraDecalRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
+{
+	bool bAnyAdded = Super::PopulateRequiredBindings(InParameterStore);
+
+	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
+	{
+		if (Binding && Binding->CanBindToHostParameterMap())
+		{
+			InParameterStore.AddParameter(Binding->GetParamMapBindableVariable(), false);
+			bAnyAdded = true;
+		}
+	}
+
+	return bAnyAdded;
+}
+
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDecalRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
+{
+	switch (SourceMode)
+	{
+		case ENiagaraRendererSourceDataMode::Particles:
+			return InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString);
+
+		default:
+			return
+				InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+				InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
+				InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString);
+	}
+}
 
 const TArray<FNiagaraVariable>& UNiagaraDecalRendererProperties::GetOptionalAttributes()
 {
