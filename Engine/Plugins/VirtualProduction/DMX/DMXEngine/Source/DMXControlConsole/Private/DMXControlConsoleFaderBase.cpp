@@ -66,14 +66,12 @@ void UDMXControlConsoleFaderBase::Destroy()
 #endif // WITH_EDITOR
 }
 
-#if WITH_EDITOR
 void UDMXControlConsoleFaderBase::PostInitProperties()
 {
 	Super::PostInitProperties();
 
 	FaderName = GetName();
 }
-#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
