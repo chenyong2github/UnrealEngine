@@ -31,7 +31,7 @@ struct FPCGProfilingListViewItem
 	double StdExecutionTime = 0.0;
 	double PostExecuteTime = 0.0;
 	int32 NbCalls = 0;
-	int32 NbExecutionFrames = 0;
+	double NbExecutionFrames = 0;
 	int32 MaxNbExecutionFrames = 0;
 	int32 MinNbExecutionFrames = 0;
 	bool HasData = false;
@@ -59,10 +59,19 @@ public:
 	SLATE_BEGIN_ARGS(SPCGEditorGraphProfilingView) { }
 	SLATE_END_ARGS()
 
+	~SPCGEditorGraphProfilingView();
+
 	void Construct(const FArguments& InArgs, TSharedPtr<FPCGEditor> InPCGEditor);
 
 private:
 	TSharedRef<SHeaderRow> CreateHeaderRowWidget();
+	bool FillItem(const UPCGComponent* InComponent, const UPCGEditorGraphNode* InPCGEditorNode, const UPCGNode* InPCGNode, const FName& InName, FPCGProfilingListViewItem& OutItem);
+
+	ECheckBoxState IsSubgraphExpanded() const;
+	void OnSubgraphExpandedChanged(ECheckBoxState InNewState);
+
+	void OnDebugObjectChanged(UPCGComponent* InPCGComponent);
+	void OnGenerateUpdated(UPCGComponent* InPCGComponent);
 	
 	// Callbacks
 	FReply Refresh();
@@ -78,6 +87,9 @@ private:
 	/** Cached PCGGraph being viewed */
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
 
+	/** Cached PCGComponent being viewed */
+	TWeakObjectPtr<UPCGComponent> PCGComponent;
+
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGProfilingListViewItemPtr>> ListView;
 	TArray<PCGProfilingListViewItemPtr> ListViewItems;
@@ -85,4 +97,6 @@ private:
 	// To allow sorting
 	FName SortingColumn = NAME_None;
 	EColumnSortMode::Type SortMode = EColumnSortMode::Type::None;
+
+	bool bExpandSubgraph = true;
 };

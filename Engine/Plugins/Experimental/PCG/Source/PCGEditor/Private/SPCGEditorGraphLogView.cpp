@@ -7,6 +7,7 @@
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNode.h"
 #include "PCGGraph.h"
+#include "PCGSubgraph.h"
 
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -103,6 +104,14 @@ void SPCGEditorGraphLogView::OnItemDoubleClicked(PCGLogListViewItemPtr Item)
 	PCGEditor->JumpToNode(Item->EditorNode);
 }
 
+SPCGEditorGraphLogView::~SPCGEditorGraphLogView()
+{
+	if (PCGEditorPtr.IsValid())
+	{
+		PCGEditorPtr.Pin()->OnDebugObjectChangedDelegate.RemoveAll(this);
+	}
+}
+
 void SPCGEditorGraphLogView::Construct(const FArguments& InArgs, TSharedPtr<FPCGEditor> InPCGEditor)
 {
 	PCGEditorPtr = InPCGEditor;
@@ -111,6 +120,9 @@ void SPCGEditorGraphLogView::Construct(const FArguments& InArgs, TSharedPtr<FPCG
 	if (PCGEditor)
 	{
 		PCGEditorGraph = PCGEditor->GetPCGEditorGraph();
+		PCGComponent = PCGEditor->GetPCGComponentBeingDebugged();
+
+		PCGEditor->OnDebugObjectChangedDelegate.AddSP(this, &SPCGEditorGraphLogView::OnDebugObjectChanged);
 	}
 
 	ListViewHeader = CreateHeaderRowWidget();
@@ -139,13 +151,6 @@ void SPCGEditorGraphLogView::Construct(const FArguments& InArgs, TSharedPtr<FPCG
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("RefreshButton", "Refresh"))
-				.OnClicked(this, &SPCGEditorGraphLogView::Refresh)
-			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
@@ -263,27 +268,11 @@ FReply SPCGEditorGraphLogView::Clear()
 		return FReply::Handled();
 	}
 
-	TArray<UPCGEditorGraphNode*> EditorNodes;
-	PCGEditorGraph->GetNodesOfClass<UPCGEditorGraphNode>(EditorNodes);
-
-	for (UPCGEditorGraphNode* PCGEditorNode : EditorNodes)
+	if (const UPCGComponent* Component = PCGComponent.Get())
 	{
-		if (PCGEditorNode)
-		{
-			if (UPCGNode* PCGNode = PCGEditorNode->GetPCGNode())
-			{
-				if (UPCGSettings* Settings = PCGNode->GetSettings())
-				{
-					if (IPCGElement* Element = Settings->GetElement().Get())
-					{
-						Element->ResetMessages();
-					}
-				}
-			}
-		}
+		Component->ExtraCapture.ResetCapturedMessages();
+		Refresh();
 	}
-
-	Refresh();
 
 	return FReply::Handled();
 }
@@ -304,6 +293,13 @@ FReply SPCGEditorGraphLogView::Refresh()
 		return FReply::Handled();
 	}
 
+	const UPCGComponent* Component = PCGComponent.Get();
+
+	if (!Component)
+	{
+		return FReply::Handled();
+	}
+
 	TArray<UPCGEditorGraphNode*> EditorNodes;
 	PCGEditorGraph->GetNodesOfClass<UPCGEditorGraphNode>(EditorNodes);
 
@@ -312,25 +308,7 @@ FReply SPCGEditorGraphLogView::Refresh()
 		const UPCGNode* PCGNode = PCGEditorNode ? PCGEditorNode->GetPCGNode() : nullptr;
 		if (PCGNode)
 		{
-			if (const UPCGSettings* Settings = PCGNode->GetSettings())
-			{
-				if (const IPCGElement* Element = Settings->GetElement().Get())
-				{
-					for (const IPCGElement::FCapturedMessage& Message : Element->GetCapturedMessages())
-					{
-						PCGLogListViewItemPtr ListViewItem = MakeShared<FPCGLogListViewItem>();
-						ListViewItem->EditorNode = PCGEditorNode;
-						ListViewItem->PCGNode = PCGNode;
-						ListViewItem->NodeName = PCGNode->GetNodeTitle();
-						ListViewItem->Order = Message.Index;
-						ListViewItem->Namespace = Message.Namespace;
-						ListViewItem->Message = Message.Message;
-						ListViewItem->Verbosity = Message.Verbosity;
-
-						this->ListViewItems.Add(ListViewItem);
-					};
-				}
-			}
+			CreateAndAddItem(PCGEditorNode, PCGNode, PCGNode->GetNodeTitle());
 		}
 	}
 
@@ -363,6 +341,82 @@ FReply SPCGEditorGraphLogView::Refresh()
 	ListView->SetItemsSource(&ListViewItems);
 
 	return FReply::Handled();
+}
+
+void SPCGEditorGraphLogView::CreateAndAddItem(const UPCGEditorGraphNode* InPCGEditorNode, const UPCGNode* InPCGNode, const FName& InName)
+{
+	const TSharedPtr<FPCGEditor> PCGEditor = PCGEditorPtr.Pin();
+
+	check(PCGEditor);
+
+	const UPCGComponent* Component = PCGComponent.Get();
+
+	if (!Component || !InPCGEditorNode || !InPCGNode)
+	{
+		return;
+	}
+
+	const TArray<PCGUtils::FCapturedMessage>* CapturedMessagesPtr = Component->ExtraCapture.GetCapturedMessages().Find(InPCGNode);
+	if (!CapturedMessagesPtr)
+	{
+		return;
+	}
+
+	for (const PCGUtils::FCapturedMessage& Message : *CapturedMessagesPtr)
+	{
+		PCGLogListViewItemPtr ListViewItem = MakeShared<FPCGLogListViewItem>();
+		ListViewItem->EditorNode = InPCGEditorNode;
+		ListViewItem->PCGNode = InPCGNode;
+		ListViewItem->NodeName = InName;
+		ListViewItem->Order = Message.Index;
+		ListViewItem->Namespace = Message.Namespace;
+		ListViewItem->Message = Message.Message;
+		ListViewItem->Verbosity = Message.Verbosity;
+
+		ListViewItems.Add(ListViewItem);
+	}
+
+	// Also if the node is a subgraph, recurse on all child nodes
+	const UPCGSettings* Settings = InPCGNode->GetSettings();
+	if (Settings && Settings->IsA<UPCGBaseSubgraphSettings>())
+	{
+		if (const UPCGGraph* Graph = CastChecked<const UPCGBaseSubgraphSettings>(Settings)->GetSubgraph())
+		{
+			FString Prefix = InName.ToString() + "/";
+			for (const UPCGNode* ChildNode : Graph->GetNodes())
+			{
+				if (!ChildNode)
+				{
+					continue;
+				}
+
+				FName ChildName = FName(Prefix + ChildNode->GetNodeTitle().ToString());
+				CreateAndAddItem(InPCGEditorNode, ChildNode, ChildName);
+			}
+		}
+	}
+}
+
+void SPCGEditorGraphLogView::OnDebugObjectChanged(UPCGComponent* InPCGComponent)
+{
+	if (PCGComponent.IsValid())
+	{
+		PCGComponent->OnPCGGraphGeneratedDelegate.RemoveAll(this);
+	}
+
+	PCGComponent = InPCGComponent;
+
+	if (PCGComponent.IsValid())
+	{
+		PCGComponent->OnPCGGraphGeneratedDelegate.AddSP(this, &SPCGEditorGraphLogView::OnGenerateUpdated);
+	}
+
+	Refresh();
+}
+
+void SPCGEditorGraphLogView::OnGenerateUpdated(UPCGComponent* InPCGComponent)
+{
+	Refresh();
 }
 
 TSharedRef<ITableRow> SPCGEditorGraphLogView::OnGenerateRow(PCGLogListViewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const

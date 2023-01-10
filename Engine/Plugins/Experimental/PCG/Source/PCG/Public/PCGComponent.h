@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "PCGSettings.h"
+#include "Utils/PCGExtraCapture.h"
 
 #include "PCGComponent.generated.h"
 
@@ -396,6 +397,11 @@ private:
 #endif
 
 	mutable FCriticalSection GeneratedResourcesLock;
+
+#if WITH_EDITOR
+public:
+	mutable PCGUtils::FExtraCapture ExtraCapture;
+#endif // WITH_EDITOR
 };
 
 /** Used to store generated resources data during RerunConstructionScripts */

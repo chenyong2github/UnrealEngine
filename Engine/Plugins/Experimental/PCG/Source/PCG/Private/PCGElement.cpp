@@ -12,6 +12,7 @@
 #include "Elements/PCGSelfPruning.h"
 #include "Graph/PCGGraphCache.h"
 #include "HAL/IConsoleManager.h"
+#include "Utils/PCGExtraCapture.h"
 
 #include "Algo/Find.h"
 
@@ -28,6 +29,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 	while (Context->CurrentPhase != EPCGExecutionPhase::Done)
 	{
+		PCGUtils::FScopedCall ScopedCall(*this, Context);
 		bool bExecutionPostponed = false;
 
 		switch (Context->CurrentPhase)
@@ -40,7 +42,6 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::PrepareData:
 			{
-				FScopedCall ScopedCall(*this, Context);
 				if (PrepareDataInternal(Context))
 				{
 					Context->CurrentPhase = EPCGExecutionPhase::Execute;
@@ -54,7 +55,6 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::Execute:
 			{
-				FScopedCall ScopedCall(*this, Context);
 				if (ExecuteInternal(Context))
 				{
 					Context->CurrentPhase = EPCGExecutionPhase::PostExecute;
@@ -163,13 +163,6 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 {
 	// Cleanup and validate output
 	CleanupAndValidateOutput(Context);
-
-#if WITH_EDITOR
-	{
-		FScopeLock Lock(&CapturedDataLock);
-		PCGE_LOG(Verbose, "Executed in (%f)s and (%d) frames(s)", Timers[CurrentTimerIndex].ExecutionTime, Timers[CurrentTimerIndex].ExecutionFrameCount);
-	}
-#endif
 
 	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
 	const UPCGSettings* Settings = SettingsInterface ? SettingsInterface->GetSettings() : nullptr;
@@ -312,33 +305,6 @@ void IPCGElement::DebugDisplay(FPCGContext* Context) const
 	}
 }
 
-
-TArray<IPCGElement::FCallTime> IPCGElement::GetTimers() const
-{
-	FScopeLock Lock(&CapturedDataLock);
-	return Timers;
-}
-
-TArray<IPCGElement::FCapturedMessage> IPCGElement::GetCapturedMessages() const
-{
-	FScopeLock Lock(&CapturedDataLock);
-	return CapturedMessages;
-
-}
-
-void IPCGElement::ResetTimers()
-{
-	FScopeLock Lock(&CapturedDataLock);
-	Timers.Empty();
-	CurrentTimerIndex = 0;
-}
-
-void IPCGElement::ResetMessages()
-{
-	FScopeLock Lock(&CapturedDataLock);
-	CapturedMessages.Reset();
-}
-
 #endif // WITH_EDITOR
 
 void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
@@ -425,79 +391,7 @@ bool IPCGElement::IsCacheableInstance(const UPCGSettingsInterface* InSettingsInt
 }
 
 #if WITH_EDITOR
-IPCGElement::FScopedCall::FScopedCall(const IPCGElement& InOwner, FPCGContext* InContext)
-	: Owner(InOwner)
-	, Context(InContext)
-	, Phase(InContext->CurrentPhase)
-	, ThreadID(FPlatformTLS::GetCurrentThreadId())
-{
-	StartTime = FPlatformTime::Seconds();
 
-	GLog->AddOutputDevice(this);
-}
-
-IPCGElement::FScopedCall::~FScopedCall()
-{
-	GLog->RemoveOutputDevice(this);
-
-	const double ThisFrameTime = FPlatformTime::Seconds() - StartTime;
-
-	FScopeLock Lock(&Owner.CapturedDataLock);
-
-	constexpr int32 MaxNumberOfTrackedTimers = 100;
-	if (Phase == EPCGExecutionPhase::PrepareData)
-	{
-		if (Owner.Timers.Num() < MaxNumberOfTrackedTimers)
-		{
-			// first time here
-			Owner.Timers.Add({});
-			Owner.CurrentTimerIndex = Owner.Timers.Num()-1;
-		}
-		else
-		{
-			Owner.CurrentTimerIndex = (Owner.CurrentTimerIndex+1) % MaxNumberOfTrackedTimers;
-			Owner.Timers[Owner.CurrentTimerIndex] = FCallTime();
-		}
-
-		FCallTime& Time = Owner.Timers[Owner.CurrentTimerIndex];
-		Time.PrepareDataTime = ThisFrameTime;
-	}
-	else if (Phase == EPCGExecutionPhase::Execute)
-	{
-		FCallTime& Time = Owner.Timers[Owner.CurrentTimerIndex];
-
-		Time.ExecutionTime += ThisFrameTime;
-		Time.ExecutionFrameCount++;
-
-		Time.MaxExecutionFrameTime = FMath::Max(Time.MaxExecutionFrameTime, ThisFrameTime);
-		Time.MinExecutionFrameTime = FMath::Min(Time.MinExecutionFrameTime, ThisFrameTime);
-	}
-	else if (Phase == EPCGExecutionPhase::PostExecute)
-	{
-		FCallTime& Time = Owner.Timers[Owner.CurrentTimerIndex];
-
-		Time.PostExecuteTime = ThisFrameTime;
-	}
-
-	Owner.CapturedMessages += std::move(CapturedMessages);
-}
-
-void IPCGElement::FScopedCall::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
-{
-	// TODO: this thread id check will also filter out messages spawned from threads spawned inside of nodes. To improve that,
-	// perhaps set at TLS bit on things from here and inside of PCGAsync spawned jobs. If this was done, CapturedMessages below also will
-	// need protection
-	if (Verbosity > ELogVerbosity::Warning || FPlatformTLS::GetCurrentThreadId() != ThreadID)
-	{
-		// ignore
-		return;
-	}
-
-	// this is a dumb counter just so messages can be sorted in a similar order as when they were logged
-	static volatile int32 MessageCounter = 0;
-
-	CapturedMessages.Add(FCapturedMessage { MessageCounter++, Category, V, Verbosity});
-}
 
 #endif // WITH_EDITOR
 

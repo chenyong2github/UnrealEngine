@@ -57,10 +57,16 @@ public:
 	SLATE_BEGIN_ARGS(SPCGEditorGraphLogView) { }
 	SLATE_END_ARGS()
 
+	~SPCGEditorGraphLogView();
+
 	void Construct(const FArguments& InArgs, TSharedPtr<FPCGEditor> InPCGEditor);
 
 private:
 	TSharedRef<SHeaderRow> CreateHeaderRowWidget();
+	void CreateAndAddItem(const UPCGEditorGraphNode* InPCGEditorNode, const UPCGNode* InPCGNode, const FName& InName);
+
+	void OnDebugObjectChanged(UPCGComponent* InPCGComponent);
+	void OnGenerateUpdated(UPCGComponent* InPCGComponent);
 	
 	// Callbacks
 	FReply Refresh();
@@ -75,6 +81,9 @@ private:
 
 	/** Cached PCGGraph being viewed */
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
+
+	/** Cached PCGComponent being viewed */
+	TWeakObjectPtr<UPCGComponent> PCGComponent;
 
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGLogListViewItemPtr>> ListView;

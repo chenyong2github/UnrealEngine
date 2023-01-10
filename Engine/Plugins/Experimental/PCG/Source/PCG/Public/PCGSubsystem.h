@@ -120,6 +120,9 @@ public:
 	/** Flushes the graph cache completely, use only for debugging */
 	void FlushCache();
 
+	/* Call the InFunc function to all local component registered to the original component. Thread safe*/
+	void ForAllRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<void(UPCGComponent*)>& InFunc) const;
+
 #if WITH_EDITOR
 public:
 	/** Schedule refresh on the current or next frame */

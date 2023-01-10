@@ -57,34 +57,7 @@ public:
 
 	/** Note: the following methods must be called from the main thread */
 #if WITH_EDITOR
-	struct FCallTime
-	{
-		// sum of all frames
-		double ExecutionTime = 0;
-		// how many frames
-		int32 ExecutionFrameCount = 0;
-		double MinExecutionFrameTime = MAX_dbl;
-		double MaxExecutionFrameTime = 0.0;
-		double PrepareDataTime = 0.0;
-		double PostExecuteTime = 0.0;
-	};
-
-	struct FCapturedMessage
-	{
-		int32 Index=0;
-		FName Namespace;
-		FString Message;
-		ELogVerbosity::Type Verbosity;
-	};
-
 	void DebugDisplay(FPCGContext* Context) const;
-
-	// returns a copy because they can be modified on another thread otherwise
-	TArray<FCallTime> GetTimers() const;
-	TArray<FCapturedMessage> GetCapturedMessages() const;
-
-	void ResetTimers();
-	void ResetMessages();
 #endif
 
 protected:
@@ -111,45 +84,6 @@ protected:
 
 private:
 	void CleanupAndValidateOutput(FPCGContext* Context) const;
-
-#if WITH_EDITOR
-
-	struct FScopedCall : public FOutputDevice
-	{
-		FScopedCall(const IPCGElement& InOwner, FPCGContext* InContext);
-		virtual ~FScopedCall();
-
-		const IPCGElement& Owner;
-		FPCGContext* Context;
-		double StartTime;
-		EPCGExecutionPhase Phase;
-		const uint32 ThreadID;
-		TArray<FCapturedMessage> CapturedMessages;
-
-		// FOutputDevice
-		virtual bool IsMemoryOnly() const override { return true; }
-		virtual bool CanBeUsedOnMultipleThreads() const override { return true; }
-		virtual bool CanBeUsedOnAnyThread() const override { return true; }
-		virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
-	};
-
-	// Set mutable because we need to modify them in the execute call, which is const
-	// TODO: Should be a map with PCG Components. We need a mechanism to make sure that this map is cleaned up when component doesn't exist anymore.
-	// For now, it will track all calls to execute (excluding call where the result is already in cache).
-	mutable TArray<FCallTime> Timers;
-	mutable int32 CurrentTimerIndex = 0;
-	mutable TArray<FCapturedMessage> CapturedMessages;
-
-	// Perhaps overkill but there is a slight chance that we need to protect the timers array. If we call reset from the UI while an element is executing,
-	// it could crash while writing to the timers array.
-	mutable FCriticalSection CapturedDataLock;
-#else // !WITH_EDITOR
-	struct FScopedCall
-	{
-		FScopedCall(const IPCGElement& InOwner, FPCGContext* InContext) {}
-		void AdvanceTimerIndex() {}
-	};
-#endif // WITH_EDITOR
 };
 
 /**

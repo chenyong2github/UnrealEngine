@@ -467,6 +467,17 @@ bool UPCGSubsystem::IsGraphCurrentlyExecuting(UPCGGraph* Graph)
 	return GraphExecutor->IsGraphCurrentlyExecuting(Graph);
 }
 
+void UPCGSubsystem::ForAllRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<void(UPCGComponent*)>& InFunc) const
+{
+	auto WrapperFunc = [&InFunc](UPCGComponent* Component) -> FPCGTaskId
+	{
+		InFunc(Component);
+		return InvalidPCGTaskId;
+	};
+
+	DispatchToRegisteredLocalComponents(OriginalComponent, WrapperFunc);
+}
+
 TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DispatchToRegisteredLocalComponents);
