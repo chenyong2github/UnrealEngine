@@ -288,7 +288,7 @@ void UPCGSelfPruningSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNo
 
 	if (DataVersion < FPCGCustomVersion::MoveSelfPruningParamsOffFirstPin)
 	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
+		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
 	}
 }
 #endif // WITH_EDITOR

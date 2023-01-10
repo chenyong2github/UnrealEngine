@@ -405,6 +405,9 @@ void UPCGSurfaceSamplerSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOu
 				InputOutputSettings->SetShowAdvancedPins(true);
 			}
 		}
+
+		// A new params pin was added, migrate the first param connection there if any
+		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
 	}
 
 	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);

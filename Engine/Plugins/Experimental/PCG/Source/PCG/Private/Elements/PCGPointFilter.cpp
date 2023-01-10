@@ -187,7 +187,7 @@ void UPCGPointFilterSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNo
 	check(InOutNode);
 	if (DataVersion < FPCGCustomVersion::MovePointFilterParamsOffFirstPin)
 	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
+		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
 	}
 }
 #endif // WITH_EDITOR

@@ -103,7 +103,7 @@ void UPCGDensityNoiseSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutN
 
 	if (DataVersion < FPCGCustomVersion::MoveParamsOffFirstPinDensityNodes)
 	{
-		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
+		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
 	}
 }
 #endif // WITH_EDITOR
