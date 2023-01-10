@@ -4,12 +4,13 @@
         "name": "VK_LAYER_KHRONOS_synchronization2",
         "type": "GLOBAL",
         "library_path": ".\\VkLayer_khronos_synchronization2.dll",
-        "api_version": "1.3.204",
+        "api_version": "1.3.236",
         "implementation_version": "1",
         "description": "Khronos Synchronization2 layer",
         "introduction": "The VK_LAYER_KHRONOS_synchronization2 extension layer implements the VK_KHR_synchronization2 extension.",
         "url": "https://vulkan.lunarg.com/doc/sdk/latest/windows/synchronization2_layer.html",
         "status": "STABLE",
+        "platforms": [ "WINDOWS", "LINUX", "MACOS", "ANDROID" ],
         "instance_extensions": [],
         "device_extensions": [
             {
@@ -33,7 +34,7 @@
                     "key": "force_enable",
                     "env": "VK_SYNC2_FORCE_ENABLE",
                     "label": "Force Enable",
-                    "description": "Force the layer to be active even if the underlying driver already supports the synchonization2 extension.",
+                    "description": "Force the layer to be active even if the underlying driver also implements the synchonization2 extension.",
                     "type": "BOOL",
                     "default": false
                 }
