@@ -122,7 +122,7 @@ bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& 
 	}
 
 	const ULandscapeInfo* LandscapeInfo = GetLandscapeInfo(InTransform.GetLocation());
-	if (!LandscapeInfo)
+	if (!LandscapeInfo || !LandscapeInfo->GetLandscapeProxy())
 	{
 		return false;
 	}
@@ -204,6 +204,11 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 	for (const TPair<FBox, ULandscapeInfo*>& LandscapeInfoPair : LandscapeInfos)
 	{
 		ULandscapeInfo* LandscapeInfo = LandscapeInfoPair.Value;
+
+		if (!LandscapeInfo || !LandscapeInfo->GetLandscapeProxy())
+		{
+			continue;
+		}
 
 		const FTransform& LandscapeTransform = LandscapeInfo->GetLandscapeProxy()->GetTransform();
 		const int32 ComponentSizeQuads = LandscapeInfo->ComponentSizeQuads;
