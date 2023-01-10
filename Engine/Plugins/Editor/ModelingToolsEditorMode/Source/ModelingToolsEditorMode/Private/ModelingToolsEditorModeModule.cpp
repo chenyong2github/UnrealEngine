@@ -5,7 +5,6 @@
 #include "ModelingToolsActions.h"
 #include "ModelingToolsManagerActions.h"
 #include "ModelingToolsEditorModeStyle.h"
-#include "ModelingToolsEditorModeSettings.h"
 
 #include "Misc/CoreDelegates.h"
 

@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "Delegates/Delegate.h"
 #include "HAL/PlatformTime.h"
-#include "Interfaces/IPluginManager.h"
-#include "UObject/UObjectGlobals.h"
+
+enum class EPluginLoadedFrom;
+enum class EReloadCompleteReason;
 
 /**
  * Type of hierarchy node

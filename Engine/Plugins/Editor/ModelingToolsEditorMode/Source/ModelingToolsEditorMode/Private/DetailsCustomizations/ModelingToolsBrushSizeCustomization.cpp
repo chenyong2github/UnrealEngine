@@ -2,16 +2,13 @@
 
 #include "DetailsCustomizations/ModelingToolsBrushSizeCustomization.h"
 
-#include "PropertyHandle.h"
-#include "IPropertyTypeCustomization.h"
-#include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "ModelingWidgets/SDynamicNumericEntry.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"
 
 #include "Sculpting/MeshSculptToolBase.h"
+#include "Widgets/SBoxPanel.h"
 
 using namespace UE::ModelingUI;
 

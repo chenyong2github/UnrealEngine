@@ -2,20 +2,19 @@
 
 #include "ObjectMixerEditorModule.h"
 
-#include "ObjectMixerEditorLog.h"
+#include "Engine/Level.h"
 #include "ObjectMixerEditorSettings.h"
+#include "Misc/CoreDelegates.h"
 #include "ObjectMixerEditorStyle.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
-#include "Editor.h"
-#include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "ObjectMixerEditorSerializedData.h"
 #include "Selection.h"
 #include "Misc/TransactionObjectEvent.h"
-#include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Views/Widgets/ObjectMixerEditorListMenuContext.h"

@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagCustomization.h"
+#include "AssetRegistry/AssetIdentifier.h"
 #include "Widgets/Input/SComboButton.h"
 
 #include "Editor.h"
-#include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
+#include "GameplayTagsManager.h"
 #include "IDetailChildrenBuilder.h"
 #include "GameplayTagsEditorModule.h"
 #include "Widgets/Input/SHyperlink.h"

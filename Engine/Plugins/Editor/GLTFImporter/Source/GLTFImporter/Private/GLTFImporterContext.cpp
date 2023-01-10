@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFImporterContext.h"
+#include "GLTFAnimation.h"
 #include "GLTFMaterialElement.h"
-#include "GLTFMaterialExpressions.h"
+#include "GLTFMaterial.h"
 #include "GLTFTextureFactory.h"
 
+#include "GLTFMesh.h"
 #include "Materials/Material.h"
+#include "GLTFNode.h"
 #include "Misc/Paths.h"
+#include "GLTFTexture.h"
 #include "PackageTools.h"
 #include "UObject/Package.h"
 

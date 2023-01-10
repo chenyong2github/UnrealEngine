@@ -2,7 +2,6 @@
 
 #include "GLTFMaterialExpressions.h"
 
-#include "Engine/Texture.h"
 
 namespace GLTF
 {

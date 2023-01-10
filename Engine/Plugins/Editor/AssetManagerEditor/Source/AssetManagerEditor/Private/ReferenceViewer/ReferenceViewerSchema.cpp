@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReferenceViewer/ReferenceViewerSchema.h"
-#include "Textures/SlateIcon.h"
-#include "Misc/Attribute.h"
 #include "SReferenceViewer.h"
-#include "ToolMenus.h"
-#include "EdGraph/EdGraph.h"
-#include "Styling/AppStyle.h"
-#include "CollectionManagerTypes.h"
 #include "AssetManagerEditorCommands.h"
 #include "AssetManagerEditorModule.h"
+#include "ToolMenu.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "ConnectionDrawingPolicy.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReferenceViewerSchema)
 

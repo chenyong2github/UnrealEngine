@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "IPropertyTypeCustomization.h"
 #include "GameplayTagCustomizationOptions.h"
 #include "SGameplayTagWidget.h"
 #include "EditorUndoClient.h"
+
+struct EVisibility;
 
 class IPropertyHandle;
 

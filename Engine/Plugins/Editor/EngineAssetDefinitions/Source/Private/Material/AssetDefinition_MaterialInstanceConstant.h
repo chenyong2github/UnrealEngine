@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Material/AssetDefinition_MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "AssetDefinition_MaterialInterface.h"
 
 #include "AssetDefinition_MaterialInstanceConstant.generated.h"
+
+class UAssetDefinition_MaterialInterface;
+
+enum class EAssetCommandResult : uint8;
+struct FAssetOpenArgs;
 
 UCLASS()
 class UAssetDefinition_MaterialInstanceConstant : public UAssetDefinition_MaterialInterface

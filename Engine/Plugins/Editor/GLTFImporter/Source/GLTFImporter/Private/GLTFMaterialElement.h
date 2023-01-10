@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GLTFMaterialExpressions.h"
+#include "UObject/StrongObjectPtr.h"
 
 class UMaterialExpression;
 class UMaterial;

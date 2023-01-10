@@ -2,15 +2,9 @@
 
 #pragma once
 
-#include "ClassIconFinder.h"
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "AssetThumbnail.h"
+
+class FAssetThumbnailPool;
 
 #define LOCTEXT_NAMESPACE "SObjectBrowserTableRow"
 

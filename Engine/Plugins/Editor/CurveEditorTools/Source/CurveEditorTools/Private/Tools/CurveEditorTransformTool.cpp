@@ -3,23 +3,12 @@
 #include "CurveEditorTransformTool.h"
 #include "CurveEditorToolCommands.h"
 #include "CurveEditor.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Commands/UIAction.h"
 #include "Rendering/DrawElementPayloads.h"
-#include "Rendering/DrawElements.h"
-#include "Framework/DelayedDrag.h"
 #include "SCurveEditorView.h"
-#include "ScopedTransaction.h"
-#include "CurveEditorSelection.h"
 #include "SCurveEditorPanel.h"
 #include "CurveModel.h"
-#include "CurveEditorScreenSpace.h"
-#include "Containers/ArrayView.h"
-#include "CurveDataAbstraction.h"
-#include "CurveEditorSnapMetrics.h"
 #include "UObject/StructOnScope.h"
-#include "Algo/Transform.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEditorTransformTool)
 

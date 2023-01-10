@@ -1,24 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartitionChangelistValidator.h"
+#include "AssetRegistry/ARFilter.h"
 #include "DataValidationChangelist.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "Misc/PackageName.h"
 #include "SourceControlHelpers.h"
 
 #include "Engine/Level.h"
-#include "Engine/World.h"
 #include "Misc/PathViews.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
-#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionChangelistValidator)
 

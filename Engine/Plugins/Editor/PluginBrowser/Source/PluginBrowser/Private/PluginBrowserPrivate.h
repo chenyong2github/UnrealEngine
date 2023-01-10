@@ -3,8 +3,8 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "Misc/TextFilter.h"
+
+template <typename ItemType> class TTextFilter;
 
 class IPlugin;
 

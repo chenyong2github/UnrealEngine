@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/LightWeightInstanceManager.h"
 #include "AssetDefinitionDefault.h"
 

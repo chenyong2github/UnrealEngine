@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Input/Reply.h"
-#include "Brushes/SlateDynamicImageBrush.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IPluginWizardDefinition.h"
-#include "NewPluginDescriptorData.h"
-#include "ModuleDescriptor.h"
+
+class IPluginWizardDefinition;
+class SDockTab;
+class UNewPluginDescriptorData;
+namespace ESelectInfo { enum Type : int; }
+struct FPluginTemplateDescription;
 
 class ITableRow;
 class SFilePathBlock;

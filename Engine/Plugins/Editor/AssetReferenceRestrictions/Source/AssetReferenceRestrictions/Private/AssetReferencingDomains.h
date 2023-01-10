@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/Tuple.h"
+#include "Internationalization/Text.h"
 
 //@TODO: Debug printing
 #define UE_ASSET_DOMAIN_FILTERING_DEBUG_LOGGING 0

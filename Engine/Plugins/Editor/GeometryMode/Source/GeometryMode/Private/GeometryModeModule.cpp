@@ -2,11 +2,10 @@
 
 #include "GeometryModeModule.h"
 #include "Modules/ModuleManager.h"
-#include "EditorModeManager.h"
-#include "Editor.h"
 #include "EditorModeRegistry.h"
 #include "GeometryEdMode.h"
 #include "GeometryModeStyle.h"
+#include "Styling/AppStyle.h"
 
 
 FEditorModeID FGeometryEditingModes::EM_Geometry = FEditorModeID(TEXT("EM_Geometry"));

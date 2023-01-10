@@ -1,15 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 #include "IAssetSearchModule.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "WorkspaceMenuStructure.h"
-#include "Styling/AppStyle.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SSearchBrowser.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetSearchManager.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchModule"

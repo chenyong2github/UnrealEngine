@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "AssetRegistry/AssetData.h"
+#include "Logging/LogMacros.h"
+
+struct FAssetData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorScripting, Log, All);
 

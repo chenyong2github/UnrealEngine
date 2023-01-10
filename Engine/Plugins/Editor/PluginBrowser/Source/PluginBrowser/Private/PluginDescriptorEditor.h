@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
+#include "Delegates/Delegate.h"
+
+class FReply;
 
 class UPluginMetadataObject;
 class IPlugin;

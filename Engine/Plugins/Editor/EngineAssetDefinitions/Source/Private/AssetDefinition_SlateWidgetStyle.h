@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "AssetDefinitionDefault.h"
 

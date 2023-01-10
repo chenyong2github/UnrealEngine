@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "KismetPins/SGraphPinStructInstance.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "SGameplayTagWidget.h"
+
+template <typename ItemType> class SListView;
 
 /** Pin that represents a single gameplay tag, overrides the generic struct widget because tags have their own system for saving changes */
 class SGameplayTagGraphPin : public SGraphPinStructInstance

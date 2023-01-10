@@ -7,7 +7,7 @@
 #include "LightMixerStyle.h"
 
 #include "ISettingsModule.h"
-#include "ISettingsSection.h"
+#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FLightMixerEditorModule"

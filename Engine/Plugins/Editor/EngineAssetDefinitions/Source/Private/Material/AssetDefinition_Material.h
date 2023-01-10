@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Material/AssetDefinition_MaterialInterface.h"
 #include "Materials/Material.h"
-#include "AssetDefinition_MaterialInterface.h"
 
 #include "AssetDefinition_Material.generated.h"
+
+class UAssetDefinition_MaterialInterface;
 
 UCLASS()
 class UAssetDefinition_Material : public UAssetDefinition_MaterialInterface

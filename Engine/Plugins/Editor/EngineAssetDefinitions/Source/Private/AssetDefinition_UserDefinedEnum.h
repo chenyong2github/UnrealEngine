@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetDefinitionDefault.h"
 #include "Engine/UserDefinedEnum.h"
 

@@ -2,20 +2,11 @@
 
 #include "MaterialExpressionIndexer.h"
 #include "Utility/IndexerUtilities.h"
-#include "Internationalization/Text.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"
-#include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "SearchSerializer.h"
 
-#include "Materials/MaterialExpressionParameter.h"
-#include "Materials/MaterialExpressionFontSampleParameter.h"
-#include "Materials/MaterialExpressionScalarParameter.h"
-#include "Materials/MaterialExpressionStaticBoolParameter.h"
-#include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
-#include "Materials/MaterialExpressionTextureSampleParameter.h"
-#include "Materials/MaterialExpressionVectorParameter.h"
 
 #define LOCTEXT_NAMESPACE "FMaterialExpressionIndexer"
 

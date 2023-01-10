@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IPluginWizardDefinition.h"
+#include "Styling/SlateTypes.h"
 
 class FDefaultPluginWizardDefinition : public IPluginWizardDefinition
 {

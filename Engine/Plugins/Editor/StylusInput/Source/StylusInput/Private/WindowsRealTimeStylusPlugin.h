@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"

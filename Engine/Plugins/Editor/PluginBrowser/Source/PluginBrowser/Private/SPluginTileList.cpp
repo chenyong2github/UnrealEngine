@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPluginTileList.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Views/SListView.h"
 #include "SPluginBrowser.h"
+#include "SPluginCategory.h"
 #include "SPluginTile.h"
 #include "Interfaces/IPluginManager.h"
 #include "Widgets/Layout/SScrollBorder.h"

@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_GameplayTagAssetBase.h"
-#include "ToolMenus.h"
-#include "UObject/UnrealType.h"
 #include "Framework/Application/SlateApplication.h"
 
 #include "GameplayTagContainer.h"
 #include "SGameplayTagWidget.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

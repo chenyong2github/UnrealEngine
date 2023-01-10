@@ -2,15 +2,15 @@
 
 #include "GLTFImportFactory.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "GLTFImportOptions.h"
 #include "GLTFImporterContext.h"
 #include "GLTFImporterModule.h"
+#include "GLTFMesh.h"
 #include "UI/GLTFOptionsWindow.h"
 
 #include "Engine/StaticMesh.h"
 #include "Misc/FeedbackContext.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetImportTask.h"
@@ -18,12 +18,11 @@
 #include "Engine/StaticMesh.h"
 #include "IMessageLogListing.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "Logging/LogMacros.h"
-#include "Logging/TokenizedMessage.h"
 #include "Materials/Material.h"
 #include "MessageLogModule.h"
 #include "PackageTools.h"
-#include "UObject/StrongObjectPtr.h"
+#include "Subsystems/ImportSubsystem.h"
+#include "Widgets/SWindow.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFImportFactory)
 

@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "Engine/EngineTypes.h"
 #include "SearchProjectSettings.generated.h"
+
+struct FDirectoryPath;
 
 UCLASS(config = Editor, defaultconfig, meta=(DisplayName="Search"))
 class USearchProjectSettings : public UDeveloperSettings

@@ -3,6 +3,7 @@
 #include "Views/List/ObjectMixerEditorList.h"
 
 #include "Views/List/SObjectMixerEditorList.h"
+#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
 FObjectMixerEditorList::FObjectMixerEditorList(TSharedRef<FObjectMixerEditorMainPanel, ESPMode::ThreadSafe> InMainPanel)
 {

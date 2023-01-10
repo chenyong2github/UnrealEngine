@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/HLODProxy.h"
 #include "AssetDefinitionDefault.h"
 

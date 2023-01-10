@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserClassDataCore.h"
+#include "ContentBrowserClassDataPayload.h"
 #include "ContentBrowserDataSource.h"
+#include "Interfaces/IPluginManager.h"
 #include "Misc/PackageName.h"
 #include "AssetViewUtils.h"
 #include "IAssetTypeActions.h"

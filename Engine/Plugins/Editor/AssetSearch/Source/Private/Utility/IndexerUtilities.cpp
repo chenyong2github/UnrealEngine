@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utility/IndexerUtilities.h"
-#include "UObject/UnrealType.h"
 #include "GameplayTagContainer.h"
-#include "Internationalization/Text.h"
+#include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
-#include "UObject/SoftObjectPtr.h"
 
 static bool IsPropertyIndexable(const TPropertyValueIterator<FProperty>& It, const FProperty* Property)
 {

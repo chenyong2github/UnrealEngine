@@ -2,15 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
-#include "GameplayTagContainer.h"
-#include "PropertyHandle.h"
+
+class IPropertyHandle;
+struct FGameplayTagQuery;
 
 class IDetailsView;
 struct FPropertyChangedEvent;

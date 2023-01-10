@@ -4,8 +4,10 @@
 
 #include "Widgets/SCompoundWidget.h"
 
-#include "IStylusInputModule.h"
 #include "IStylusState.h"
+
+class UStylusInputSubsystem;
+enum class ECheckBoxState : uint8;
 
 class SStylusInputDebugWidget : public SCompoundWidget, 
 	public IStylusMessageHandler

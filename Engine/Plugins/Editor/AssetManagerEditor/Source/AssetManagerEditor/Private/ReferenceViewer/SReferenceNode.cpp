@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SReferenceNode.h"
+#include "ReferenceViewer/EdGraph_ReferenceViewer.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "ReferenceViewer/EdGraphNode_Reference.h"
 #include "AssetThumbnail.h"
+#include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SCommentBubble.h"
 #include "ReferenceViewerStyle.h"

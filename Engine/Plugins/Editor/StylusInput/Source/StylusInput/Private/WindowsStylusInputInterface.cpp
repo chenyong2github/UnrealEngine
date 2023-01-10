@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WindowsStylusInputInterface.h"
-#include "WindowsRealTimeStylusPlugin.h"
-#include "Interfaces/IMainFrameModule.h"
 
-#include "Framework/Application/SlateApplication.h" 
 
 #if PLATFORM_WINDOWS
 

@@ -1,22 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsEditorMode.h"
+#include "Components/StaticMeshComponent.h"
 #include "IGeometryProcessingInterfacesModule.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "GeometryProcessingInterfaces/IUVEditorModularFeature.h"
-#include "InteractiveTool.h"
+#include "IAnalyticsProviderET.h"
 #include "ModelingToolsEditorModeToolkit.h"
+#include "ILevelEditor.h"
 #include "ModelingToolsEditorModeSettings.h"
-#include "Toolkits/ToolkitManager.h"
+#include "IStylusState.h"
 #include "ToolTargetManager.h"
 #include "ContextObjectStore.h"
+#include "InputRouter.h"
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
+#include "Selection.h"
 #include "ToolTargets/VolumeComponentToolTarget.h"
 #include "ToolTargets/DynamicMeshComponentToolTarget.h"
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorViewportClient.h"
 #include "EngineAnalytics.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Selection/StoredMeshSelectionUtil.h"
@@ -38,7 +39,6 @@
 #include "RevolveBoundaryTool.h"
 #include "SmoothMeshTool.h"
 #include "OffsetMeshTool.h"
-#include "RemeshMeshTool.h"
 #include "SimplifyMeshTool.h"
 #include "MeshInspectorTool.h"
 #include "WeldMeshEdgesTool.h"
@@ -46,8 +46,6 @@
 #include "DrawPolyPathTool.h"
 #include "DrawAndRevolveTool.h"
 #include "ShapeSprayTool.h"
-#include "MergeMeshesTool.h"
-#include "VoxelCSGMeshesTool.h"
 #include "VoxelSolidifyMeshesTool.h"
 #include "VoxelBlendMeshesTool.h"
 #include "VoxelMorphologyMeshesTool.h"
@@ -67,7 +65,6 @@
 #include "RemoveOccludedTrianglesTool.h"
 #include "AttributeEditorTool.h"
 #include "TransformMeshesTool.h"
-#include "MeshSelectionTool.h"
 #include "UVProjectionTool.h"
 #include "UVLayoutTool.h"
 #include "EditMeshMaterialsTool.h"
@@ -117,7 +114,6 @@
 #include "IStylusInputModule.h"
 
 #include "LevelEditor.h"
-#include "IAssetViewport.h"
 #include "SLevelViewport.h"
 #include "Application/ThrottleManager.h"
 
@@ -126,18 +122,20 @@
 #include "ModelingModeAssetUtils.h"
 #include "EditorModelingObjectsCreationAPI.h"
 
-#include "Selections/GeometrySelection.h"
 #include "Selection/GeometrySelectionManager.h"
-#include "Selection/DynamicMeshSelector.h"
 #include "Selection/VolumeSelector.h"
 #include "Selection/StaticMeshSelector.h"
 #include "ModelingSelectionInteraction.h"
 #include "DynamicMeshActor.h"
-#include "GameFramework/Volume.h"
 #include "Components/BrushComponent.h"
 #include "Engine/StaticMeshActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingToolsEditorMode)
+
+#if WITH_PROXYLOD
+#include "MergeMeshesTool.h"
+#include "VoxelCSGMeshesTool.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "UModelingToolsEditorMode"
 

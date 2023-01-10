@@ -3,11 +3,13 @@
 #include "GLTFMaterialFactory.h"
 
 #include "GLTFMapFactory.h"
+#include "GLTFMaterial.h"
 #include "GLTFMaterialExpressions.h"
 
 #include "GLTFAsset.h"
 
 #include "Engine/EngineTypes.h"
+#include "GLTFTexture.h"
 
 namespace GLTF
 {

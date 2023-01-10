@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayTagQueryGraphPin.h"
-#include "Widgets/SBoxPanel.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Widgets/Input/SComboButton.h"
+#include "GameplayTagContainer.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "ScopedTransaction.h"
 

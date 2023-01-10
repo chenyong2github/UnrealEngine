@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/Font.h"
 #include "AssetDefinitionDefault.h"
 

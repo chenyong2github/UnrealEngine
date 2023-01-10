@@ -2,16 +2,17 @@
 
 #include "AssetDefinition_TextureCube.h"
 
-#include "AssetToolsModule.h"
 #include "ContentBrowserMenuContexts.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
-#include "Styling/AppStyle.h"
 #include "Factories/TextureCubeArrayFactory.h"
 #include "Engine/TextureCubeArray.h"
 #include "IAssetTools.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_TextureCubeArray"
 

@@ -3,7 +3,6 @@
 #include "GLTFAccessor.h"
 
 #include "ConversionUtilities.h"
-#include "Misc/SecureHash.h"
 
 namespace GLTF
 {

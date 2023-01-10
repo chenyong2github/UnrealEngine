@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrailHierarchy.h"
-#include "TrajectoryDrawInfo.h"
-#include "Containers/Queue.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "ILevelEditor.h"
 #include "LevelEditor.h"
+#include "Layout/WidgetPath.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "EditorModeManager.h"
+#include "SceneManagement.h"
 #include "Tools/MotionTrailOptions.h"
+#include "TrajectoryCache.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "CanvasTypes.h"
 

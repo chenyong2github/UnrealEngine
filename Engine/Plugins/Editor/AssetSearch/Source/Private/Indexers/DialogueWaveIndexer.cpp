@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DialogueWaveIndexer.h"
-#include "Utility/IndexerUtilities.h"
-#include "Engine/DataAsset.h"
 #include "Sound/DialogueWave.h"
 #include "SearchSerializer.h"
 

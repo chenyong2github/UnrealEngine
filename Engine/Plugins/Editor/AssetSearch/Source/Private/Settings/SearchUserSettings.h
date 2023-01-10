@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "Engine/EngineTypes.h"
 #include "SearchUserSettings.generated.h"
+
+struct FDirectoryPath;
 
 USTRUCT()
 struct FSearchPerformance

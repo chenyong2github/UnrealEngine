@@ -3,11 +3,10 @@
 #pragma once
 
 #include "GLTFLogger.h"
-#include "GLTFMaterial.h"
 #include "JsonUtilities.h"
 
-#include "CoreMinimal.h"
-#include "Dom/JsonObject.h"
+
+namespace GLTF { struct FTexture; }
 
 namespace GLTF
 {

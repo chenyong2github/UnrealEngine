@@ -2,31 +2,26 @@
 
 #include "DataValidationModule.h"
 
-#include "UObject/Object.h"
+#include "AssetRegistry/ARFilter.h"
 #include "UObject/ObjectSaveContext.h"
-#include "UObject/SoftObjectPath.h"
-#include "GameFramework/HUD.h"
 
+#include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Internationalization/LocKeyFuncs.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "DataValidationCommandlet.h"
-#include "LevelEditor.h"
-#include "Misc/FeedbackContext.h"
-#include "Misc/OutputDeviceConsole.h"
-#include "Modules/ModuleManager.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "ContentBrowserModule.h"
-#include "ContentBrowserDelegates.h"
 
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 #include "EditorValidatorSubsystem.h"
 #include "ISettingsModule.h"
 #include "Algo/RemoveIf.h"
+#include "Misc/PackageName.h"
+#include "ToolMenu.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "DataValidationModule"
 

@@ -2,16 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Misc/NotifyHook.h"
-#include "Toolkits/IToolkitHost.h"
 #include "Toolkits/BaseToolkit.h"
+
+enum class ECheckBoxState : uint8;
 
 class IDetailsView;
 class SButton;

@@ -2,8 +2,6 @@
 
 #include "HeaderViewVariableListItem.h"
 #include "EdMode.h"
-#include "EdGraphSchema_K2.h"
-#include "Engine/Blueprint.h"
 #include "Engine/UserDefinedStruct.h"
 #include "String/LineEndings.h"
 #include "Kismet2/BlueprintEditorUtils.h"

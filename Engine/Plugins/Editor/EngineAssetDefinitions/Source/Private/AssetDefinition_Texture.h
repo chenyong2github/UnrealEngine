@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/Texture.h"
 #include "AssetDefinitionDefault.h"
 

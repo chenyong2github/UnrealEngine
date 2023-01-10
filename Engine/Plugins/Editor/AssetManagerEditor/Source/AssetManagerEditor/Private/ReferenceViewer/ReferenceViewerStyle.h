@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleRegistry.h"
 
 /**
  * The Reference Viewer is being used as a sandbox for testing out ui changes to graphs.

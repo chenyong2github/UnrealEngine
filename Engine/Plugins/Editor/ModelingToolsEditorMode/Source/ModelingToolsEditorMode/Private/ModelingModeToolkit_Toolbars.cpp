@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsEditorModeToolkit.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "ModelingToolsEditorMode.h"
+#include "Framework/Commands/UICommandList.h"
 #include "ModelingToolsManagerActions.h"
 #include "ModelingToolsEditorModeSettings.h"
 #include "ModelingToolsEditorModeStyle.h"
 
-#include "Selection/GeometrySelectionManager.h"
 #include "ModelingSelectionInteraction.h"
 
 #include "ModelingComponentsSettings.h"
@@ -16,14 +17,12 @@
 #include "ISettingsModule.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/UIAction.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SComboButton.h"
 
 // to toggle component instance selection
-#include "ComponentRecreateRenderStateContext.h"
-#include "Elements/SMInstance/SMInstanceElementData.h"
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
 

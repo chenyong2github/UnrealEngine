@@ -2,9 +2,7 @@
 
 #include "GLTFBinaryReader.h"
 
-#include "Misc/FileHelper.h"
-#include "Serialization/ArrayReader.h"
-#include "Serialization/JsonReader.h"
+#include "CoreGlobals.h"
 
 namespace GLTF
 {

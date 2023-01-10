@@ -2,11 +2,9 @@
 
 #include "PrimaryAssetTypeCustomization.h"
 #include "AssetManagerEditorModule.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SToolTip.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Engine/AssetManager.h"
-#include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 

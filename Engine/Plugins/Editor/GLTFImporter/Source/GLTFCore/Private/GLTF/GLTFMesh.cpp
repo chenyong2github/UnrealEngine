@@ -3,7 +3,6 @@
 #include "GLTFMesh.h"
 
 #include "ConversionUtilities.h"
-#include "Misc/SecureHash.h"
 
 namespace GLTF
 {

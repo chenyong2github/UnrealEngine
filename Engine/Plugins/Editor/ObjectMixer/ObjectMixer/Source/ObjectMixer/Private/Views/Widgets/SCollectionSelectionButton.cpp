@@ -2,18 +2,13 @@
 
 #include "Views/Widgets/SCollectionSelectionButton.h"
 
-#include "ObjectMixerEditorSerializedData.h"
 #include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
-#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Views/List/ObjectMixerEditorListRow.h"
 #include "Widgets/Input/SMenuAnchor.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"

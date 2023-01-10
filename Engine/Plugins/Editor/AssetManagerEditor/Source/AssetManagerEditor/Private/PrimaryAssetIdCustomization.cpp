@@ -2,17 +2,17 @@
 
 #include "PrimaryAssetIdCustomization.h"
 #include "AssetManagerEditorModule.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Engine/AssetManager.h"
-#include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Editor.h"
 #include "AssetThumbnail.h"
 #include "ScopedTransaction.h"
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "PrimaryAssetIdCustomization"
 

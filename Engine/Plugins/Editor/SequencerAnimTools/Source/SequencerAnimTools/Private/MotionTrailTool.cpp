@@ -1,30 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionTrailTool.h"
+#include "BaseBehaviors/InputBehaviorModifierStates.h"
 #include "LevelEditorSequencerIntegration.h"
-#include "ISequencer.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "Sequencer/SequencerTrailHierarchy.h"
-#include "Sequencer/MovieSceneTransformTrail.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
+#include "Framework/Commands/UICommandList.h"
 #include "InteractiveGizmoManager.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
-#include "BaseBehaviors/SingleKeyCaptureBehavior.h"
-#include "BaseBehaviors/ClickDragBehavior.h"
-#include "BaseGizmos/TransformGizmoUtil.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
 // for raycast into World
-#include "CollisionQueryParams.h"
-#include "Engine/World.h"
 
-#include "SceneManagement.h"
 #include "ScopedTransaction.h"
-#include "Tools/MotionTrailOptions.h"
 #include "EditorModeManager.h"
-#include "EditorViewportClient.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrailTool)
 

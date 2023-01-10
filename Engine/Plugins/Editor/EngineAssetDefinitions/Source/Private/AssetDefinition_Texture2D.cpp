@@ -4,9 +4,9 @@
 
 #include "AssetToolsModule.h"
 #include "ContentBrowserMenuContexts.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
-#include "Styling/AppStyle.h"
 #include "Factories/SlateBrushAssetFactory.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Factories/VolumeTextureFactory.h"
@@ -16,6 +16,8 @@
 #include "IAssetTools.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_Texture2D"
 

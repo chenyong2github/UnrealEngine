@@ -4,6 +4,7 @@
 
 #include "BlueprintEditorModule.h"
 #include "Kismet2/StructureEditorUtils.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_UserDefinedStruct"
 

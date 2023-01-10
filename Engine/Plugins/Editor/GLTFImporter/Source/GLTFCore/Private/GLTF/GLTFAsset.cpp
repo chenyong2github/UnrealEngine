@@ -2,7 +2,12 @@
 
 #include "GLTFAsset.h"
 
+#include "GLTFAnimation.h"
 #include "Misc/Paths.h"
+#include "GLTFMaterial.h"
+#include "GLTFMesh.h"
+#include "GLTFNode.h"
+#include "GLTFTexture.h"
 
 namespace GLTF
 {

@@ -2,8 +2,6 @@
 
 #include "GLTFCoreModule.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 
 /**
  * glTF Core module implementation (private)

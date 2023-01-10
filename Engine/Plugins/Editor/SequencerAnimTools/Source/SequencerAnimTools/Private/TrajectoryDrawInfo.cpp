@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrajectoryDrawInfo.h"
-#include "TrailHierarchy.h"
+#include "SceneView.h"
 #include "TrajectoryCache.h"
 
 namespace UE

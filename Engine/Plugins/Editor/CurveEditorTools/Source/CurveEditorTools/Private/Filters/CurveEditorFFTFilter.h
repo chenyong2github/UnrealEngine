@@ -5,6 +5,9 @@
 #include "Filters/CurveEditorFilterBase.h"
 #include "CurveEditorFFTFilter.generated.h"
 
+struct FCurveModelID;
+struct FKeyHandleSet;
+
 
 UENUM(BlueprintType)
 enum class ECurveEditorFFTFilterClass : uint8

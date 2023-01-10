@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BrushEditingSubsystemImpl.h"
+#include "Editor/UnrealEdTypes.h"
 #include "EditorGeometry.h"
 #include "EditorModeManager.h"
-#include "EdMode.h"
-#include "EditorModeTools.h"
+#include "Engine/Brush.h"
 #include "GeometryEdMode.h"
 #include "LevelEditorViewport.h"
 #include "SnappingUtils.h"
-#include "HitProxies.h"
 #include "LevelViewportClickHandlers.h"
 #include "GeometryModeModule.h"
 #include "ScopedTransaction.h"

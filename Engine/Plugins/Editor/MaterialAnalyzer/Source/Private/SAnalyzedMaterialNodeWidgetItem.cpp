@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnalyzedMaterialNodeWidgetItem.h"
-#include "Widgets/Views/STreeView.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Images/SImage.h"
-#include "Engine/EngineTypes.h"
 #include "MaterialShaderType.h"
-#include "PropertyCustomizationHelpers.h"
 #include "Editor.h"
-#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "MaterialAnalyzer"
 

@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetDefinitionDefault.h"
 #include "Curves/CurveBase.h"
 
 #include "AssetDefinition_Curve.generated.h"
+
+enum class EAssetCommandResult : uint8;
+struct FAssetDiffArgs;
+struct FAssetOpenArgs;
 
 UCLASS()
 class UAssetDefinition_Curve : public UAssetDefinitionDefault

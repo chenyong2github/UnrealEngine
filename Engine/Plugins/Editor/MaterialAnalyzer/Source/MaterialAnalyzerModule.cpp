@@ -2,14 +2,8 @@
 
 #include "MaterialAnalyzerModule.h"
 #include "SMaterialAnalyzer.h"
-#include "EditorModeRegistry.h"
-#include "Modules/ModuleManager.h"
-#include "Framework/Docking/TabManager.h"
-#include "ISettingsModule.h"
-#include "Editor.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "MaterialAnalyzer"

@@ -1,32 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneTransformTrail.h"
+#include "Engine/Engine.h"
 #include "TrailHierarchy.h"
 
-#include "ISequencer.h"
-#include "Tracks/MovieScene3DTransformTrack.h"
-#include "Sections/MovieScene3DTransformSection.h"
-#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Systems/MovieSceneComponentTransformSystem.h"
-#include "MovieSceneSequence.h"
-#include "MovieSceneTracksComponentTypes.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 
-#include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/CombinedTransformGizmo.h"
 
-#include "ViewportWorldInteraction.h"
-#include "GameFramework/Actor.h"
-#include "Components/SceneComponent.h"
 #include "MovieSceneToolHelpers.h"
 #include "ActorForWorldTransforms.h"
-#include "IControlRigObjectBinding.h"
-#include "LevelSequence.h"
-#include "LevelSequenceActor.h"
 #include "Evaluation/MovieScenePlayback.h"
-#include "Tools/ControlRigSnapSettings.h"
 #include "ScopedTransaction.h"
+#include "Sequencer/MotionTrailMovieSceneKey.h"
 
 #define LOCTEXT_NAMESPACE "SequencerAnimTools"
 

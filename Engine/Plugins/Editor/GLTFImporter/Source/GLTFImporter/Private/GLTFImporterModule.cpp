@@ -2,10 +2,13 @@
 
 #include "GLTFImporterModule.h"
 
+#include "GLTFAnimation.h"
 #include "GLTFImporterContext.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "GLTFMaterial.h"
+#include "GLTFMesh.h"
+#include "GLTFNode.h"
+#include "GLTFTexture.h"
 
 /**
  * glTF Importer module implementation (private)

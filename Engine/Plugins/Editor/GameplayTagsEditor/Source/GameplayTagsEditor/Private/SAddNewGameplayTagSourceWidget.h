@@ -2,14 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GameplayTagsManager.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SComboBox.h"
+
+class SEditableTextBox;
+template <typename OptionType> class SComboBox;
 
 /** Widget allowing the user to create new gameplay tags */
 class SAddNewGameplayTagSourceWidget : public SCompoundWidget

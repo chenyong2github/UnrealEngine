@@ -2,21 +2,21 @@
 
 #include "SSourceControlReviewEntry.h"
 
+#include "AssetDefinition.h"
 #include "AssetToolsModule.h"
 #include "ClassIconFinder.h"
+#include "Engine/Blueprint.h"
 #include "SourceControlHelpers.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/Font.h"
+#include "IAssetTools.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/StyleColors.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlReviewEntry"
 

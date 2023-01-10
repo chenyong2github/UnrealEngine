@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
 #include "IAssetIndexer.h"
+
+struct FScriptContainerElement;
 
 class FGenericObjectIndexer : public IAssetIndexer
 {

@@ -3,23 +3,18 @@
 #pragma once
 
 #include "Async/AsyncWork.h"
-#include "CoreMinimal.h"
-#include "Containers/Queue.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
+#include "MaterialTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/Docking/TabManager.h"
-#include "Widgets/Views/STreeView.h"
 #include "AnalyzedMaterialNode.h"
-#include "SAnalyzedMaterialNodeWidgetItem.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialInstance.h"
-#include "ContentBrowserModule.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Images/SThrobber.h"
+
+class ITableRow;
+class SDockTab;
+class SScrollBox;
+class STableViewBase;
+class STextBlock;
+class SThrobber;
+class UMaterialInterface;
+template <typename ItemType> class STreeView;
 
 struct FBuildBasicMaterialTreeAsyncTask : FNonAbandonableTask
 {

@@ -4,16 +4,23 @@
 
 #include "AssetDefinitionRegistry.h"
 #include "AssetToolsModule.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "BlueprintEditorModule.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserModule.h"
+#include "IAssetTools.h"
 #include "ToolMenus.h"
 #include "Factories/BlueprintFactory.h"
+#include "Internationalization/LocKeyFuncs.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IContentBrowserSingleton.h"
 #include "Algo/AllOf.h"
 #include "Logging/MessageLog.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_Blueprint"
 

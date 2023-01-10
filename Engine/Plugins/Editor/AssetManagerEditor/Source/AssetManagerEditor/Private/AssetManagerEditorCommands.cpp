@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetManagerEditorCommands.h"
+#include "Styling/AppStyle.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetManagerEditorCommands

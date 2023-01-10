@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Filters/SFilterBar.h"
-#include "ReferenceViewer/ReferenceViewerSettings.h"
-#include "ReferenceViewer/EdGraph_ReferenceViewer.h"
+
+struct FReferenceNodeInfo;
 
 class SReferenceViewerFilterBar : public SFilterBar< FReferenceNodeInfo& > 
 {

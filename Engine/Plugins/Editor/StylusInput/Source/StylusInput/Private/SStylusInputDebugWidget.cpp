@@ -2,8 +2,8 @@
 
 #include "SStylusInputDebugWidget.h"
 
-#include "IStylusState.h"
 
+#include "IStylusInputModule.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"

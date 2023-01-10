@@ -2,23 +2,19 @@
 
 #include "AssetDefinition_StaticMesh.h"
 
-#include "IAssetTools.h"
-#include "Editor.h"
+#include "Algo/Accumulate.h"
 #include "EditorSupportDelegates.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "StaticMeshEditorModule.h"
-#include "EditorFramework/AssetImportData.h"
 #include "FbxMeshUtils.h"
-#include "Framework/Notifications/NotificationManager.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Misc/MessageDialog.h"
-#include "Misc/ScopedSlowTask.h"
 #include "StaticMeshCompiler.h"
-#include "Styling/AppStyle.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "ContentBrowserMenuContexts.h"
-#include "Algo/AllOf.h"
-#include "Algo/Compare.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_StaticMesh"
 

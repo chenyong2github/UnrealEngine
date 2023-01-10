@@ -1,8 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
-#include "AssetToolsModule.h"
-#include "IAssetTypeActions.h"
 #include "AssetDefinition_PoseAsset.h"
 
 #define LOCTEXT_NAMESPACE "FEngineAssetDefinitionsModule"

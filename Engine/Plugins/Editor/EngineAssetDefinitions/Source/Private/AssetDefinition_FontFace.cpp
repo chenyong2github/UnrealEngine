@@ -4,10 +4,12 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "FontEditorModule.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
+#include "ToolMenu.h"
 #include "Toolkits/SimpleAssetEditor.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetDefinition_FontFace"
 

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveTableIndexer.h"
-#include "Utility/IndexerUtilities.h"
 #include "Engine/CurveTable.h"
 #include "SearchSerializer.h"
 

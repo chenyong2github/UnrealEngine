@@ -2,9 +2,9 @@
 
 
 #include "EditorGeometry.h"
+#include "Engine/Brush.h"
 #include "Engine/Polys.h"
 #include "EditorModeManager.h"
-#include "EditorModes.h"
 #include "GeometryEdMode.h"
 #include "GeometryModeModule.h"
 #include "Model.h"

@@ -2,6 +2,7 @@
 
 #include "BlueprintHeaderViewSettings.h"
 #include "BlueprintHeaderView.h"
+#include "Styling/SlateTypes.h"
 #include "Styling/StyleColors.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintHeaderViewSettings)

@@ -2,7 +2,6 @@
 
 #include "CurveEditorFFTFilter.h"
 #include "DSP/PassiveFilter.h"
-#include "CurveEditor.h"
 #include "Filters/CurveEditorBakeFilter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEditorFFTFilter)

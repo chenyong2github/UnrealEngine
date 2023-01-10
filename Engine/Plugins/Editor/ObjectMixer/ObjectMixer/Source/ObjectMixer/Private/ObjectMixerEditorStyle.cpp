@@ -2,13 +2,12 @@
 
 #include "ObjectMixerEditorStyle.h"
 
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
-#include "Styling/CoreStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/StyleColors.h"
+#include "Rendering/SlateRenderer.h"
 
 TSharedPtr<FSlateStyleSet> FObjectMixerEditorStyle::StyleInstance = nullptr;
 

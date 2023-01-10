@@ -2,20 +2,15 @@
 
 #include "FileInfoDatabase.h"
 
+#include "HAL/PlatformFile.h"
 #include "SQLiteDatabase.h"
 #include "HAL/FileManager.h"
-#include "UObject/StructOnScope.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
 
 #include "AssetRegistry/AssetData.h"
-#include "Misc/TextFilterExpressionEvaluator.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
-#include "Misc/SecureHash.h"
-#include "Engine/World.h"
 #include "HAL/PlatformFileManager.h"
-#include "Misc/StringBuilder.h"
+#include "SQLitePreparedStatement.h"
 
 DECLARE_LOG_CATEGORY_CLASS(LogFileInfo, Log, All);
 

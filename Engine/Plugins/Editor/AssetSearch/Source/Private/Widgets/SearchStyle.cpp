@@ -2,10 +2,10 @@
 
 #include "SearchStyle.h"
 
-#include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyleRegistry.h"
 
 FPluginStyleSet::FPluginStyleSet(const FName& InPluginName, const FName& InStyleSetName)
 	: FSlateStyleSet(InStyleSetName == NAME_None ? InPluginName : FName(*(InPluginName.ToString() + TEXT(".") + InStyleSetName.ToString())))

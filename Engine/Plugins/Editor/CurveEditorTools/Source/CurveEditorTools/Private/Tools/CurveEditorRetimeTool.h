@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
 #include "ICurveEditorToolExtension.h"
-#include "Layout/Geometry.h"
 #include "Framework/DelayedDrag.h"
-#include "Curves/KeyHandle.h"
 #include "CurveDataAbstraction.h"
-#include "CurveEditorTypes.h"
 #include "CurveEditorSelection.h"
 #include "CurveEditorRetimeTool.generated.h"
 

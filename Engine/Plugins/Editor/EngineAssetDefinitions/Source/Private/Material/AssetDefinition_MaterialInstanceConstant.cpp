@@ -3,12 +3,12 @@
 #include "AssetDefinition_MaterialInstanceConstant.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "ContentBrowserModule.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "IAssetTools.h"
-#include "IContentBrowserSingleton.h"
 #include "MaterialEditorModule.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

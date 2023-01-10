@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/TextureCubeArray.h"
 #include "AssetDefinition_Texture.h"
 

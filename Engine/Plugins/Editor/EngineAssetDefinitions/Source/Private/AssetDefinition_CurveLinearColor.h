@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetDefinition_Curve.h"
 #include "Curves/CurveLinearColor.h"
 

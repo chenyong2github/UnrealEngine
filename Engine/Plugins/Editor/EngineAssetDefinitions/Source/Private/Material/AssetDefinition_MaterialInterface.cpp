@@ -4,14 +4,15 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "Materials/Material.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "IAssetTools.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

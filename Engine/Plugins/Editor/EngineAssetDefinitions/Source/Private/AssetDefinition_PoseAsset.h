@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "Animation/PoseAsset.h"
 

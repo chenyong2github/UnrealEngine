@@ -2,9 +2,10 @@
 
 #include "ChangelistReviewModule.h"
 #include "ISourceControlModule.h"
+#include "ToolMenu.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "ISourceControlProvider.h"
 #include "SSourceControlReview.h"
+#include "ToolMenuSection.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ChangelistReviewModule"

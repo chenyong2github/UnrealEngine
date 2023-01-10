@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
 #include "IPropertyTypeCustomization.h"
 #include "SGameplayTagQueryWidget.h"
 #include "EditorUndoClient.h"
+
+struct EVisibility;
 
 class IPropertyHandle;
 class SWindow;

@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WidgetBlueprintIndexer.h"
-#include "Engine/Blueprint.h"
 #include "WidgetBlueprint.h"
-#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Components/Widget.h"
-#include "Misc/StringBuilder.h"
 #include "Utility/IndexerUtilities.h"
 #include "SearchSerializer.h"
 

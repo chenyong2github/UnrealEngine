@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayTagGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "GameplayTagPinUtilities.h"
+#include "Framework/Views/TableViewMetadata.h"
+#include "GameplayTagContainer.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagGraphPin"
 

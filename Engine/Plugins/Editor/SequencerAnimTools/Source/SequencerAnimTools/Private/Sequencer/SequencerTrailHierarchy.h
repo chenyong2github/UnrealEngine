@@ -4,8 +4,9 @@
 
 #include "TrailHierarchy.h"
 #include "ISequencer.h"
-#include "Rigs/RigHierarchyDefines.h"
-#include "UObject/GCObject.h"
+
+namespace UE::SequencerAnimTools { class FTrail; }
+namespace UE::SequencerAnimTools { class FTrailEvaluateTimes; }
 
 
 class ISequencer;

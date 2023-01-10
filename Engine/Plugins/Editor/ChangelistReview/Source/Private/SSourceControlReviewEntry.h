@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "IAssetTypeActions.h"
 #include "SSourceControlReview.h"
-#include "Engine/Blueprint.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/ITableRow.h"
+#include "Widgets/Views/STableRow.h"
+
+enum EBlueprintType : int;
+struct FRevisionInfo;
 
 class SImage;
 

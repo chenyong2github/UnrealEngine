@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "AssetDefinitionDefault.h"
 

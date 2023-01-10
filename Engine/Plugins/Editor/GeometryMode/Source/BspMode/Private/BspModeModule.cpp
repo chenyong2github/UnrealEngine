@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BspModeModule.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Textures/SlateIcon.h"
 #include "Styling/AppStyle.h"
-#include "Engine/BrushBuilder.h"
 #include "Builders/ConeBuilder.h"
 #include "Builders/CubeBuilder.h"
 #include "Builders/CurvedStairBuilder.h"
@@ -13,11 +9,7 @@
 #include "Builders/LinearStairBuilder.h"
 #include "Builders/SpiralStairBuilder.h"
 #include "Builders/TetrahedronBuilder.h"
-#include "Widgets/SWidget.h"
-#include "EditorModeRegistry.h"
-#include "EditorModes.h"
 #include "BspModeStyle.h"
-#include "BspMode.h"
 #include "SBspPalette.h"
 #include "IPlacementModeModule.h"
 

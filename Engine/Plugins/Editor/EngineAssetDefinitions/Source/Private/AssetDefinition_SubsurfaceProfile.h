@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "AssetDefinitionDefault.h"
 

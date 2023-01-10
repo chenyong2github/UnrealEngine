@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Haptics/HapticFeedbackEffect_Buffer.h"
 #include "AssetDefinitionDefault.h"
 

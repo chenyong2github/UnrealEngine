@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "IPropertyTypeCustomization.h"
 #include "SGraphPin.h"
+#include "UObject/PrimaryAssetId.h"
 
 class IPropertyHandle;
 

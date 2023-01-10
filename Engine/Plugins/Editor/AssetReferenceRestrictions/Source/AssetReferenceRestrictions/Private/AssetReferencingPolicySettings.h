@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 
 #include "AssetReferencingPolicySettings.generated.h"
+
+struct FDirectoryPath;
+struct FPropertyChangedEvent;
 
 USTRUCT()
 struct FARPDefaultPluginDomainRules

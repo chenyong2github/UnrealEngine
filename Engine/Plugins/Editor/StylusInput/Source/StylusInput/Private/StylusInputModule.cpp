@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IStylusInputModule.h"
-#include "CoreMinimal.h"
 
-#include "Framework/Docking/TabManager.h"
-#include "Interfaces/IMainFrameModule.h"
-#include "Logging/LogMacros.h"
 #include "Misc/App.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/SWindow.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "SStylusInputDebugWidget.h"

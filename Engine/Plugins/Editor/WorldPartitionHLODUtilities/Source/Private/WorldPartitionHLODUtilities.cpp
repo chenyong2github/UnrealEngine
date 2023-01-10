@@ -1,19 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartitionHLODUtilities.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
+#include "WorldPartition/WorldPartitionStreamingGeneration.h"
 
 #if WITH_EDITOR
 
-#include "WorldPartition/ActorDescContainer.h"
+#include "BodySetupEnums.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionHandle.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "Engine/CollisionProfile.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "Engine/Texture.h"
 #include "WorldPartition/HLOD/HLODSubActor.h"
-#include "WorldPartition/HLOD/HLODActorDesc.h"
-#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "StaticMeshResources.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODModifier.h"
+#include "WorldPartition/HLOD/HLODStats.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
 #include "HLODBuilderInstancing.h"
@@ -21,18 +25,13 @@
 #include "HLODBuilderMeshSimplify.h"
 #include "HLODBuilderMeshApproximate.h"
 
-#include "Algo/Transform.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine/InstancedStaticMesh.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
-#include "HAL/FileManager.h"
 #include "Materials/MaterialInstance.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Serialization/ArchiveCrc32.h"
 #include "StaticMeshCompiler.h"
-#include "Templates/UniquePtr.h"
 #include "TextureCompiler.h"
 #include "UObject/MetaData.h"
 #include "UObject/GCObjectScopeGuard.h"

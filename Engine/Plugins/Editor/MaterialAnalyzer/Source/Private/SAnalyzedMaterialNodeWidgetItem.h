@@ -2,16 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
 #include "AnalyzedMaterialNode.h"
-#include "Widgets/Input/SButton.h"
-#include "AssetRegistry/AssetData.h"
+
+class STableViewBase;
+class SVerticalBox;
 
 class SAnalyzedMaterialNodeWidgetItem
 	: public SMultiColumnTableRow<FAnalyzedMaterialNodeRef>

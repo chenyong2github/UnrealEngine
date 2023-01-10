@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
+#include "Curves/KeyHandle.h"
 #include "Misc/FrameNumber.h"
-#include "MovieSceneTracksComponentTypes.h"
-#include "Algo/BinarySearch.h"
-#include "Algo/Sort.h"
-#include "Trail.h"
+
+class FCanvas;
+class FEditorViewportClient;
+class FPrimitiveDrawInterface;
+class FSceneView;
+class HHitProxy;
+namespace UE::SequencerAnimTools { struct FInputClick; }
 
 class UMovieSceneSection;
 struct FMovieSceneChannel;

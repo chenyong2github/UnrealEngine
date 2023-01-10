@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReferenceViewer/EdGraph_ReferenceViewer.h"
+#include "Misc/FilterCollection.h"
 #include "ReferenceViewer/EdGraphNode_Reference.h"
+#include "Misc/IFilter.h"
 #include "ReferenceViewer/ReferenceViewerSettings.h"
 #include "EdGraph/EdGraphPin.h"
-#include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetThumbnail.h"
 #include "SReferenceViewer.h"
-#include "SReferenceNode.h"
-#include "GraphEditor.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
 #include "AssetManagerEditorModule.h"
 #include "Engine/AssetManager.h"
-#include "Settings/EditorProjectSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraph_ReferenceViewer)
 

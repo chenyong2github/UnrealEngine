@@ -8,8 +8,8 @@
 #include "ObjectMixerEditorSerializedData.h"
 #include "ScopedTransaction.h"
 #include "GameFramework/Actor.h"
-#include "Styling/SlateIconFinder.h"
 #include "Views/List/SObjectMixerEditorList.h"
+#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
 TSharedRef<FObjectMixerListRowDragDropOp> FObjectMixerListRowDragDropOp::New(const TArray<FObjectMixerEditorListRowPtr>& InItems)
 {

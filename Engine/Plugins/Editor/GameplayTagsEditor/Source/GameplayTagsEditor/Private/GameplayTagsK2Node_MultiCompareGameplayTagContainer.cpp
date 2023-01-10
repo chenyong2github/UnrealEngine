@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagsK2Node_MultiCompareGameplayTagContainer.h"
-#include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"

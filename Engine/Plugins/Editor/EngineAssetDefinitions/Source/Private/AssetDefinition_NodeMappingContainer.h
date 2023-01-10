@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Animation/NodeMappingContainer.h"
 #include "AssetDefinitionDefault.h"
 

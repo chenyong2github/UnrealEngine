@@ -10,6 +10,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
+#include "Widgets/Text/STextBlock.h"
 
 void SGraphNode_MultiCompareGameplayTag::Construct(const FArguments& InArgs, UGameplayTagsK2Node_MultiCompareBase* InNode)
 {

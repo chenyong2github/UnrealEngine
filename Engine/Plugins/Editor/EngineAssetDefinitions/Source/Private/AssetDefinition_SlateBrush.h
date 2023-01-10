@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Slate/SlateBrushAsset.h"
 #include "AssetDefinitionDefault.h"
 

@@ -2,7 +2,6 @@
 
 #include "TextureAlignMode.h"
 #include "EditorModeManager.h"
-#include "EditorModes.h"
 #include "TextureAlignEdMode.h"
 #include "GeometryModeModule.h"
 

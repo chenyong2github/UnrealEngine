@@ -2,12 +2,15 @@
 
 #include "SAddNewGameplayTagWidget.h"
 #include "DetailLayoutBuilder.h"
-#include "GameplayTagsSettings.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "GameplayTagsEditorModule.h"
+#include "GameplayTagsManager.h"
 #include "GameplayTagsModule.h"
+#include "Misc/Paths.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/MessageDialog.h"
-#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "AddNewGameplayTagWidget"
 

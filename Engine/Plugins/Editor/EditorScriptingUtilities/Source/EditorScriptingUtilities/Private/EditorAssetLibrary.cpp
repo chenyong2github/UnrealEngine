@@ -5,19 +5,12 @@
 #include "EditorScriptingUtils.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetToolsModule.h"
-#include "Algo/Count.h"
 #include "Editor.h"
-#include "Editor/UnrealEdEngine.h"
-#include "Engine/Blueprint.h"
-#include "FileHelpers.h"
 #include "HAL/FileManager.h"
-#include "ISourceControlModule.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
-#include "ObjectTools.h"
 #include "Subsystems/EditorAssetSubsystem.h"
-#include "UObject/MetaData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorAssetLibrary)
 

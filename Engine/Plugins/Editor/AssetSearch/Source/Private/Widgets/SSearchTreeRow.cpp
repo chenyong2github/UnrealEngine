@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSearchTreeRow.h"
+#include "Engine/Blueprint.h"
 #include "SearchModel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Editor.h"
-#include "Subsystems/AssetEditorSubsystem.h"
+#include "IAssetTools.h"
 #include "Styling/SlateIconFinder.h"
-#include "AssetThumbnail.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetToolsModule.h"
+#include "IAssetTypeActions.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IMaterialEditor.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"
+#include "Misc/Paths.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowserTableRow"
 

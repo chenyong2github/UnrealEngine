@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
-#include "ISourceControlProvider.h"
-#include "HAL/CriticalSection.h"
+#include "Templates/SharedPointer.h"
 
 class UToolMenu;
 struct FToolMenuSection;

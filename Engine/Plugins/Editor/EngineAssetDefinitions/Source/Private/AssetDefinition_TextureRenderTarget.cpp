@@ -2,10 +2,9 @@
 
 #include "AssetDefinition_TextureRenderTarget.h"
 
-#include "AssetToolsModule.h"
 #include "ContentBrowserMenuContexts.h"
+#include "IAssetTools.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
@@ -15,6 +14,9 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Misc/DelayedAutoRegister.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_TextureRenderTarget"
 

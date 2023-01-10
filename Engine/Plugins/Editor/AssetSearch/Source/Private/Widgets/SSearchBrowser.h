@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
+#include "SearchQuery.h"
 #include "Widgets/Views/SHeaderRow.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "SearchModel.h"
-#include "AssetThumbnail.h"
-#include "Widgets/Views/STreeView.h"
+
+class STableViewBase;
+template <typename ItemType> class STreeView;
 
 class IDetailsView;
 class ITableRow;

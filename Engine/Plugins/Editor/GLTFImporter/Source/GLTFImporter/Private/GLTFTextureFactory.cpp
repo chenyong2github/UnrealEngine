@@ -2,7 +2,6 @@
 
 #include "GLTFTextureFactory.h"
 
-#include "GLTFMaterial.h"
 #include "GLTFMaterialElement.h"
 #include "GLTFTexture.h"
 

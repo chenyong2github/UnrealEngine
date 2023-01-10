@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Factories/FbxSceneImportData.h"
 #include "AssetDefinitionDefault.h"
 

@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDefinition_PoseAsset.h"
+#include "Animation/Skeleton.h"
 #include "ToolMenuSection.h"
-#include "Animation/PoseAsset.h"
 #include "Animation/AnimSequence.h"
-#include "Misc/MessageDialog.h"
-#include "Styling/AppStyle.h"
-#include "ToolMenus.h"
 #include "ScopedTransaction.h"
-#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

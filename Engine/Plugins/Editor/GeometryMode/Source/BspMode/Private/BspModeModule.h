@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IBspModeModule.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 struct FSlateBrush;
 

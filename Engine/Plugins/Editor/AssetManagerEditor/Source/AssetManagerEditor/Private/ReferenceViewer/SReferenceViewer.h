@@ -2,21 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SSearchBox.h"
 #include "GraphEditor.h"
 #include "AssetRegistry/AssetData.h"
 #include "HistoryManager.h"
 #include "CollectionManagerTypes.h"
-#include "AssetManagerEditorModule.h"
-#include "Containers/ArrayView.h"
-#include "ReferenceViewer/ReferenceViewerSettings.h"
-#include "ReferenceViewer/EdGraph_ReferenceViewer.h"
-#include "ReferenceViewer/SReferenceViewerFilterBar.h"
+
+class FUICommandList;
+class SReferenceViewerFilterBar;
+class SSearchBox;
+class UEdGraph_ReferenceViewer;
+class UReferenceViewerSettings;
+namespace ESelectInfo { enum Type : int; }
+struct FAssetManagerEditorRegistrySource;
+template <typename OptionType> class SComboBox;
 
 class UEdGraph;
 

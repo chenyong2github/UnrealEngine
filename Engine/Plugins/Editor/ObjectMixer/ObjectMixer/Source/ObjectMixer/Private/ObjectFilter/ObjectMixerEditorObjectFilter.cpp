@@ -2,7 +2,6 @@
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
-#include "GameFramework/Actor.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
 FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, const bool bIsHybridRow) const

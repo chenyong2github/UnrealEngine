@@ -2,8 +2,8 @@
 
 #include "EditorFilterLibrary.h"
 
-#include "EditorScriptingUtils.h"
 #include "GameFramework/Actor.h"
+#include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorFilterLibrary)
 

@@ -3,6 +3,7 @@
 #include "AssetDefinition_World.h"
 
 #include "FileHelpers.h"
+#include "Misc/PackageName.h"
 #include "ThumbnailRendering/WorldThumbnailInfo.h"
 #include "Misc/MessageDialog.h"
 #include "Engine/Level.h"

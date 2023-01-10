@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/CanvasRenderTarget2D.h"
 #include "AssetDefinition_TextureRenderTarget2D.h"
 

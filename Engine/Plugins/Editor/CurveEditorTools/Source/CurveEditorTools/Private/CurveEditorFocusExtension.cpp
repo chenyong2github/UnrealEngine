@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorFocusExtension.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
 #include "CurveEditorToolCommands.h"
-#include "ITimeSlider.h"
 #include "CurveEditor.h"
 #include "ICurveEditorBounds.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 
 void FCurveEditorFocusExtension::BindCommands(TSharedRef<FUICommandList> CommandBindings)
 {

@@ -13,7 +13,7 @@
 #include "EditMeshPolygonsTool.h"
 #include "ShapeSprayTool.h"
 #include "MeshSpaceDeformerTool.h"
-#include "MeshSelectionTool.h"
+#include "Tools/StandardToolModeCommands.h"
 #include "TransformMeshesTool.h"
 #include "PlaneCutTool.h"
 #include "EditMeshPolygonsTool.h"

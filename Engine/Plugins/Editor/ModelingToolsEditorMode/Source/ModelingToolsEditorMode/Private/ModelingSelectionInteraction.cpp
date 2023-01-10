@@ -2,13 +2,16 @@
 
 
 #include "ModelingSelectionInteraction.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "InteractiveToolsContext.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "Selection/GeometrySelectionManager.h"
+#include "InteractiveGizmoManager.h"
 #include "ToolSceneQueriesUtil.h"
+#include "InteractiveToolManager.h"
 #include "SceneQueries/SceneSnappingManager.h"
 
-#include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"

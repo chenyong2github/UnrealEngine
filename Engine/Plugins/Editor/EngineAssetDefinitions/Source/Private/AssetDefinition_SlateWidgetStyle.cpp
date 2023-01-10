@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDefinition_SlateWidgetStyle.h"
-#include "ToolMenus.h"
 #include "Toolkits/SimpleAssetEditor.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_SlateWidgetStyle"

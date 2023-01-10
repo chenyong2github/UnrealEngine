@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TextureAlignEdMode.h"
+#include "EditorModeRegistry.h"
 #include "EditorViewportClient.h"
+#include "Engine/Brush.h"
 #include "Modules/ModuleManager.h"
 #include "EditorModeManager.h"
-#include "EditorModes.h"
+#include "Math/RotationMatrix.h"
 #include "ScopedTransaction.h"
 #include "SurfaceIterators.h"
 #include "EditorSupportDelegates.h"

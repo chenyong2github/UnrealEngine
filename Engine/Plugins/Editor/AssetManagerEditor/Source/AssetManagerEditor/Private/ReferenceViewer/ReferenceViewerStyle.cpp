@@ -2,11 +2,14 @@
 
 #include "ReferenceViewerStyle.h"
 
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/StarshipCoreStyle.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Misc/Paths.h"
 #include "Styling/StyleColors.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
 
 FName FReferenceViewerStyle::StyleName("ReferenceViewerStyle");

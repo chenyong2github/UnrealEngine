@@ -2,11 +2,12 @@
 
 #include "SRenameGameplayTagDialog.h"
 #include "GameplayTagsEditorModule.h"
+#include "GameplayTagsManager.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "RenameGameplayTag"
 

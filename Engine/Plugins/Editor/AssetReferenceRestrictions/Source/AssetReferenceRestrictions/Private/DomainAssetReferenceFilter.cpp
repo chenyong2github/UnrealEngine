@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DomainAssetReferenceFilter.h"
+#include "Editor/EditorEngine.h"
 #include "Toolkits/ToolkitManager.h"
+#include "Modules/ModuleManager.h"
 #include "Toolkits/IToolkit.h"
-#include "Engine/AssetManager.h"
-#include "Interfaces/IPluginManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetReferencingDomains.h"
 

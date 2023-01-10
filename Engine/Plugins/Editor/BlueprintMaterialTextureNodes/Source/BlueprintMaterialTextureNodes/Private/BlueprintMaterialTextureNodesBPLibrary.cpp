@@ -1,32 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintMaterialTextureNodesBPLibrary.h"
-#include "CoreMinimal.h"
-#include "BlueprintMaterialTextureNodes.h"
 #include "Engine/Texture2D.h"
 
 //RHI gives access to MaxShaderPlatform and FeatureLevel (i.e. GMaxRHIShaderPlatform)
-#include "RHI.h"
 
 //includes for asset creation
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
-#include "IContentBrowserSingleton.h"
+#include "MaterialInstanceBasePropertyOverrides.h"
 #include "PackageTools.h"
 #include "Editor.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Logging/MessageLog.h"
-#include "Factories/TextureFactory.h"
-#include "Factories/Factory.h"
 
 //Material and texture includes
 #include "Engine/TextureRenderTarget2D.h"
-#include "Materials/MaterialInstance.h"
+#include "MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialShared.h"
-#include "ImageCore.h"
 #include "ImageCoreUtils.h"
+#include "Misc/PackageName.h"
 #include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintMaterialTextureNodesBPLibrary)

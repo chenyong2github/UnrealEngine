@@ -2,7 +2,6 @@
 
 #include "GameplayTagsK2Node_MultiCompareGameplayTagAssetInterface.h"
 #include "GameplayTagContainer.h"
-#include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 
 #include "BlueprintNodeSpawner.h"

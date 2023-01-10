@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "LandscapeLayerInfoObject.h"
 #include "AssetDefinitionDefault.h"
 

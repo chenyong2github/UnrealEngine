@@ -4,11 +4,13 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "EdGraph/EdGraphPin.h"
 #include "HAL/PlatformFileManager.h"
-#include "Styling/SlateIconFinder.h"
+#include "Misc/PackageName.h"
 #include "SReferenceViewer.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
+#include "ReferenceViewer/EdGraph_ReferenceViewer.h"
+#include "Styling/AppStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphNode_Reference)
 

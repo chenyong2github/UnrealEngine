@@ -2,15 +2,8 @@
 
 #include "EditorValidatorBase.h"
 
-#include "Editor.h"
-#include "AssetToolsModule.h"
-#include "ObjectTools.h"
-#include "Dialogs/Dialogs.h"
 #include "EditorValidatorSubsystem.h"
-#include "Logging/MessageLog.h"
-#include "Misc/UObjectToken.h"
-#include "Logging/TokenizedMessage.h"
-#include "DataValidationModule.h"
+#include "Trace/Trace.inl"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorValidatorBase)
 

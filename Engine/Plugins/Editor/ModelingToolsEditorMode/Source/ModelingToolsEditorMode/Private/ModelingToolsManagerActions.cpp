@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsManagerActions.h"
-#include "InputCoreTypes.h"
 #include "ModelingToolsEditorModeStyle.h"
 #include "ModelingToolsEditorModeSettings.h"
+#include "Styling/ISlateStyle.h"
 
 #define LOCTEXT_NAMESPACE "ModelingToolsManagerCommands"
 

@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetPropertyTagCache.h"
-#include "UObject/Field.h"
-#include "UObject/Class.h"
-#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/LinkerLoad.h"
 

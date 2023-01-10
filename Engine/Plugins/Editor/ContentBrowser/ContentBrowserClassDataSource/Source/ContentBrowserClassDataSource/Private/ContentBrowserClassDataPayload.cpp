@@ -2,7 +2,6 @@
 
 #include "ContentBrowserClassDataPayload.h"
 #include "Misc/Paths.h"
-#include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
 #include "SourceCodeNavigation.h"
 

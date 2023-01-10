@@ -1,21 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailsCustomizations/BakeMeshAttributeToolCustomizations.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SComboButton.h"
-#include "IDetailChildrenBuilder.h"
-#include "Internationalization/BreakIterator.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IContentBrowserSingleton.h"
-#include "SAssetView.h"
 
-#include "ModelingWidgets/SDynamicNumericEntry.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"
 
-#include "ModelingToolsEditorModeSettings.h"
 
 #include "BakeMeshAttributeMapsTool.h"
 #include "BakeMultiMeshAttributeMapsTool.h"

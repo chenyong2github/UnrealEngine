@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PluginStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateTypes.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
 #include "Styling/StarshipCoreStyle.h"
+#include "Styling/SlateStyle.h"
 
 #define RootToContentDir FPluginStyle::InContent
 #define RootToCoreContentDir StyleSet->RootToCoreContentDir

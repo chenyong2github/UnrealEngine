@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
 #include "IPropertyTypeCustomization.h"
 #include "GameplayTagContainerCustomizationOptions.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "SGameplayTagWidget.h"
 #include "EditorUndoClient.h"
+#include "Widgets/Views/SListView.h"
+
+struct FGameplayTag;
 
 class IPropertyHandle;
 

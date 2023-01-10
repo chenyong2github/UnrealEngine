@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "Editor/UnrealEdEngine.h"
+#include "AssetRegistry/AssetData.h"
+#include "Editor/AssetReferenceFilter.h"
+
+struct FAssetReferenceFilterContext;
 
 struct FAssetData;
 struct FDomainDatabase;

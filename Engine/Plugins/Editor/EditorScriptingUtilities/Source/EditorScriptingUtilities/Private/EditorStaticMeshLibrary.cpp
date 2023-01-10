@@ -2,42 +2,10 @@
 
 #include "EditorStaticMeshLibrary.h"
 
-#include "EditorScriptingUtils.h"
 
-#include "ActorEditorUtils.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Components/MeshComponent.h"
-#include "ContentBrowserModule.h"
-#include "Editor.h"
-#include "Editor/UnrealEdEngine.h"
-#include "EngineUtils.h"
-#include "Engine/Brush.h"
-#include "Engine/Selection.h"
+#include "BodySetupEnums.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/StaticMeshActor.h"
-#include "FileHelpers.h"
-#include "GameFramework/Actor.h"
-#include "IContentBrowserSingleton.h"
-#include "IMeshMergeUtilities.h"
-#include "Kismet/GameplayStatics.h"
-#include "Kismet2/ComponentEditorUtils.h"
-#include "LevelEditorViewport.h"
-#include "Engine/MapBuildDataRegistry.h"
-#include "StaticMeshAttributes.h"
-#include "StaticMeshOperations.h"
-#include "MeshMergeModule.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "ScopedTransaction.h"
-#include "Async/ParallelFor.h"
-#include "Algo/AllOf.h"
-#include "Algo/AnyOf.h"
-#include "Async/Async.h"
-#include "Misc/ScopedSlowTask.h"
 
-#include "UnrealEdGlobals.h"
-#include "GeomFitUtils.h"
-#include "ConvexDecompTool.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorStaticMeshLibrary)
 

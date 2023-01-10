@@ -5,12 +5,13 @@
 #include "Algo/IndexOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
-#include "Editor/UnrealEdEngine.h"
 #include "FileHelpers.h"
-#include "HAL/FileManager.h"
+#include "HAL/PlatformFile.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "ObjectTools.h"
-#include "UnrealEdGlobals.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 
 
 DEFINE_LOG_CATEGORY(LogEditorScripting);

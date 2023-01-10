@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NewClassContextMenu.h"
-#include "Styling/AppStyle.h"
-#include "ToolMenus.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 

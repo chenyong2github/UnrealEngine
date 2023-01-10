@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "SGameplayTagWidget.h"
+
+class SGameplayTagWidget;
 
 class IDetailLayoutBuilder;
 

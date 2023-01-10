@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GLTFAsset.h"
-#include "GLTFLogger.h"
 #include "GLTFMaterialFactory.h"
 #include "GLTFReader.h"
 #include "GLTFStaticMeshFactory.h"

@@ -2,11 +2,13 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Modules/ModuleManager.h"
 #include "IPluginBrowser.h"
-#include "Widgets/SWindow.h"
+
+class IModuleInterface;
+class IPluginWizardDefinition;
+class SDockTab;
+class SNotificationItem;
+class SWindow;
 
 class FSpawnTabArgs;
 

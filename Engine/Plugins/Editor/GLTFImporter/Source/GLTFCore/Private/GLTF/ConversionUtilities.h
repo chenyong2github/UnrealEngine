@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "GLTFAccessor.h"
 #include "GLTFAnimation.h"
 #include "GLTFMaterial.h"
 #include "GLTFMesh.h"
 #include "GLTFTexture.h"
+#include "Math/Quat.h"
 
 namespace GLTF
 {

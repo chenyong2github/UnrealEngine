@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "AssetDefinitionDefault.h"
 
 #include "AssetDefinition_Actor.generated.h"
+
+enum class EAssetCommandResult : uint8;
+struct FAssetCategoryPath;
+struct FAssetOpenArgs;
 
 UCLASS()
 class UAssetDefinition_Actor : public UAssetDefinitionDefault

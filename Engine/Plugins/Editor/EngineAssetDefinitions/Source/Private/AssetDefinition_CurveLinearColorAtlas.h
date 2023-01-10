@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Curves/CurveLinearColorAtlas.h"
 #include "AssetDefinition_Texture.h"
 

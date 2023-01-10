@@ -2,7 +2,7 @@
 
 #include "GLTFOptionsWindow.h"
 
-#include "Styling/AppStyle.h"
+#include "DetailsViewArgs.h"
 #include "HAL/PlatformProcess.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
@@ -10,6 +10,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "GLTFOptionsWindow"

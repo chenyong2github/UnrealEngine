@@ -2,7 +2,7 @@
 
 #include "AssetDefinition_UserDefinedEnum.h"
 #include "BlueprintEditorModule.h"
-#include "AssetRegistry/AssetData.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_UserDefinedEnum"
 

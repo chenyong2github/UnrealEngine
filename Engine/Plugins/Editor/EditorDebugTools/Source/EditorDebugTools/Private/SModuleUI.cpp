@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SModuleUI.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FeedbackContext.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Modules/ModuleManager.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Misc/Paths.h"
 #include "SlateOptMacros.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
 #include "Misc/HotReloadInterface.h"

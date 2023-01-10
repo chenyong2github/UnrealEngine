@@ -2,13 +2,11 @@
 
 #include "DetailsCustomizations/ModelingToolPropertyCustomizations.h"
 
-#include "PropertyHandle.h"
-#include "IPropertyTypeCustomization.h"
-#include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
 
 
 #include "PropertySets/AxisFilterPropertyType.h"
+#include "Widgets/SBoxPanel.h"
 
 
 #define LOCTEXT_NAMESPACE "ModelingToolsAxisFilterCustomization"

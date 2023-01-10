@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagsK2Node_MultiCompareBase.h"
-#include "UObject/UnrealType.h"
 #include "EdGraph/EdGraph.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsK2Node_MultiCompareBase)

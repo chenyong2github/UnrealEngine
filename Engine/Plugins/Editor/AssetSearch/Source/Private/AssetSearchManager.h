@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IAssetSearchModule.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetSearchDatabase.h"
 #include "FileInfoDatabase.h"
 #include "Containers/Queue.h"
 #include "Containers/Ticker.h"
 #include "HAL/Runnable.h"
+#include "SearchQuery.h"
+#include "UObject/WeakObjectPtr.h"
+
+class IAssetIndexer;
+struct FSearchStats;
 
 class FObjectPostSaveContext;
 class FRunnableThread;

@@ -2,19 +2,19 @@
 
 #include "GLTFReader.h"
 
-#include "ConversionUtilities.h"
 #include "ExtensionsHandler.h"
+#include "GLTF/ConversionUtilities.h"
 #include "GLTFAsset.h"
+#include "GLTF/JsonUtilities.h"
 #include "GLTFBinaryReader.h"
-#include "JsonUtilities.h"
+#include "GLTFNode.h"
 #include "MaterialUtilities.h"
 
-#include "Dom/JsonObject.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
 namespace GLTF

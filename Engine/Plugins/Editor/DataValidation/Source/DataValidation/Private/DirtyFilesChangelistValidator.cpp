@@ -2,12 +2,9 @@
 
 #include "DirtyFilesChangelistValidator.h"
 
-#include "Algo/Transform.h"
 #include "DataValidationChangelist.h"
 #include "FileHelpers.h"
-#include "ISourceControlChangelistState.h"
 #include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
 #include "Misc/Paths.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DirtyFilesChangelistValidator)

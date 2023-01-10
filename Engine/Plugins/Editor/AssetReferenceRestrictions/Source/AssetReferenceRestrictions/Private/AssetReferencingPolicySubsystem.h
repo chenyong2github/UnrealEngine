@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorSubsystem.h"
 
 #include "AssetReferencingPolicySubsystem.generated.h"

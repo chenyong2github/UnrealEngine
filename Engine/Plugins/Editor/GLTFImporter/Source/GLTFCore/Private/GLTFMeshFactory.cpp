@@ -2,12 +2,9 @@
 
 #include "GLTFMeshFactory.h"
 
-#include "GLTFLogger.h"
-#include "GLTFAsset.h"
 
-#include "MeshDescription.h"
+#include "GLTFMesh.h"
 #include "StaticMeshAttributes.h"
-#include "RenderUtils.h"
 
 namespace GLTF
 {

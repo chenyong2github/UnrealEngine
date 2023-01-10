@@ -1,20 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NewAssetContextMenu.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+#include "ToolMenu.h"
 #include "Widgets/SBoxPanel.h"
+#include "ToolMenuEntry.h"
 #include "Widgets/SOverlay.h"
-#include "Textures/SlateIcon.h"
+#include "ToolMenuSection.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Settings/ContentBrowserSettings.h"
 #include "Factories/Factory.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
@@ -23,7 +17,6 @@
 #include "IDocumentation.h"
 #include "ClassIconFinder.h"
 #include "AssetToolsModule.h"
-#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

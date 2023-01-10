@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PluginBrowserModule.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Docking/TabManager.h"
 #include "SPluginBrowser.h"
 #include "Features/IModularFeatures.h"
 #include "Features/EditorFeatures.h"
@@ -17,7 +15,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/IPluginManager.h"
 #include "PluginDescriptorEditor.h"
-#include "HAL/LowLevelMemTracker.h"
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 

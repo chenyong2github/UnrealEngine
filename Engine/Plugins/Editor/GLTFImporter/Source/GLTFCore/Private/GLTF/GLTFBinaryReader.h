@@ -4,8 +4,8 @@
 
 #include "GLTFLogger.h"
 
-#include "Dom/JsonObject.h"
-#include "Templates/Tuple.h"
+
+struct FScriptContainerElement;
 
 namespace GLTF
 {

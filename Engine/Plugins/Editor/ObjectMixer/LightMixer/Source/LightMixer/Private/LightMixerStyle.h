@@ -4,6 +4,8 @@
 
 #include "Styling/SlateStyle.h"
 
+class ISlateStyle;
+
 class FLightMixerStyle : FSlateStyleSet
 {
 public:

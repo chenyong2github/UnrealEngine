@@ -6,9 +6,10 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
+#include <openssl/opensslv.h>
 #include <openssl/rsa.h>
+#include <openssl/ossl_typ.h>
 #include <openssl/rand.h>
-#include <openssl/pem.h>
 #include <openssl/bn.h>
 
 #if PLATFORM_WINDOWS

@@ -5,9 +5,10 @@
 #include "Interfaces/IPluginManager.h"
 #include "DomainAssetReferenceFilter.h"
 #include "Editor.h"
+#include "Misc/PackageName.h"
 #include "Settings/ProjectPackagingSettings.h"
-#include "Misc/PackagePath.h"
-#include "Misc/StringBuilder.h"
+#include "Misc/Paths.h"
+#include "PluginReferenceDescriptor.h"
 
 DEFINE_LOG_CATEGORY(LogAssetReferenceRestrictions);
 

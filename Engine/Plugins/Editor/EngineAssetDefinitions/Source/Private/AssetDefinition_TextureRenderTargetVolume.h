@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "AssetDefinition_TextureRenderTarget.h"
 

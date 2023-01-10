@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionTrailMovieSceneKey.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "MovieSceneTransformTrail.h"
-#include "TrailHierarchy.h"
-#include "Tracks/MovieScene3DTransformTrack.h"
-#include "Sections/MovieScene3DTransformSection.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
-#include "HitProxies.h"
-#include "Trail.h"
+#include "Channels/MovieSceneFloatChannel.h"
 #include "Tools/MotionTrailOptions.h"
 #include "CanvasItem.h"
+#include "Engine/Engine.h"
 #include "ISequencer.h"
 #include "CanvasTypes.h"
+#include "MovieSceneSection.h"
+#include "SceneManagement.h"
+#include "SceneView.h"
 
 namespace UE
 {

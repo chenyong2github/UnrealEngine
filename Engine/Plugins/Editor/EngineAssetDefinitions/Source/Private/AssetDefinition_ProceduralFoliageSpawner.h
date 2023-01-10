@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ProceduralFoliageSpawner.h"
 #include "AssetDefinitionDefault.h"
 

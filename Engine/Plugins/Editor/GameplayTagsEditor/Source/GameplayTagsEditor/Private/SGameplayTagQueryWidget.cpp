@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayTagQueryWidget.h"
+#include "DetailsViewArgs.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyHandle.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
-#include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "GameplayTagsManager.h"
 

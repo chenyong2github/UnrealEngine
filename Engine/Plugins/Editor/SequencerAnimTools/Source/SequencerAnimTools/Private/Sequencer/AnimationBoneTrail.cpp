@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationBoneTrail.h"
-#include "TrailHierarchy.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "SequencerTrailHierarchy.h"
 
-#include "Animation/AnimInstance.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Sequencer/ControlRigLayerInstance.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
 #include "MovieSceneToolHelpers.h"
 
-#include "ISequencer.h"
-#include "MovieSceneSequence.h"
 #include "Exporters/AnimSeqExportOption.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "UObject/Package.h"
 
 namespace UE 
 {

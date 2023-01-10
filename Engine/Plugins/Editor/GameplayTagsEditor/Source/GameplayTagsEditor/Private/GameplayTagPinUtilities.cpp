@@ -2,7 +2,6 @@
 
 #include "GameplayTagPinUtilities.h"
 #include "GameplayTagsManager.h"
-#include "SGraphPin.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_FunctionTerminator.h"

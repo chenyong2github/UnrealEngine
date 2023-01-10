@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
 
-#include "GLTFLogger.h"
 #include "GLTFMaterialFactory.h"
 
 class UTexture;

@@ -2,7 +2,6 @@
 
 #include "LevelIndexer.h"
 #include "Utility/IndexerUtilities.h"
-#include "Engine/DataAsset.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/World.h"
 #include "SearchSerializer.h"

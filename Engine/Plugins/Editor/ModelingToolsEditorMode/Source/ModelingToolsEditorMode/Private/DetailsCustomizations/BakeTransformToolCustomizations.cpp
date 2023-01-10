@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailsCustomizations/BakeTransformToolCustomizations.h"
-#include "UObject/Class.h"
 #include "DetailLayoutBuilder.h"
 #include "PropertyHandle.h"
 #include "PropertyRestriction.h"

@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "AssetRegistry/AssetData.h"
-#include "Widgets/SToolTip.h"
 #include "ContentBrowserDelegates.h"
-#include "AssetManagerEditorModule.h"
+#include "Widgets/SCompoundWidget.h"
+
+struct FAssetIdentifier;
+struct FAssetManagerEditorRegistrySource;
 
 class FUICommandList;
 class SMenuAnchor;

@@ -2,7 +2,7 @@
 
 #include "ReferenceViewer/SReferenceViewerFilterBar.h"
 
-#include "CoreMinimal.h"
+#include "ReferenceViewer/ReferenceViewerSettings.h"
 
 void SReferenceViewerFilterBar::SaveSettings()
 {

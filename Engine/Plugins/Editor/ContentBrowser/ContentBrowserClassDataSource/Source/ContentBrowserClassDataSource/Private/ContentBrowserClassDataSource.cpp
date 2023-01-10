@@ -2,15 +2,13 @@
 
 #include "ContentBrowserClassDataSource.h"
 #include "ContentBrowserClassDataCore.h"
-#include "NativeClassHierarchy.h"
-#include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "CollectionManagerModule.h"
+#include "ContentBrowserClassDataPayload.h"
 #include "ICollectionManager.h"
-#include "Misc/StringBuilder.h"
-#include "Misc/NamePermissionList.h"
-#include "UObject/UObjectHash.h"
+#include "ContentBrowserDataFilter.h"
 #include "ToolMenus.h"
+#include "ContentBrowserDataMenuContexts.h"
 #include "NewClassContextMenu.h"
 #include "GameProjectGenerationModule.h"
 #include "Framework/Docking/TabManager.h"
@@ -18,8 +16,11 @@
 #include "ContentBrowserDataUtils.h"
 #include "ContentBrowserItemPath.h"
 #include "Editor/UnrealEdEngine.h"
+#include "IAssetTools.h"
 #include "Preferences/UnrealEdOptions.h"
+#include "IAssetTypeActions.h"
 #include "UnrealEdGlobals.h"
+#include "ToolMenu.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserClassDataSource)
 

@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
 #include "Misc/NotifyHook.h"
-#include "Kismet2/Kismet2NameValidators.h"
+
+class FMenuBuilder;
+enum class EValidatorResult;
+template <typename ItemType> class SListView;
 
 class SComboButton;
 class UBlueprint;

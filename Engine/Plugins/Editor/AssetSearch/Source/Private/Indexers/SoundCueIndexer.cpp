@@ -4,7 +4,6 @@
 #include "Utility/IndexerUtilities.h"
 #include "Sound/SoundCue.h"
 #include "EdGraph/EdGraphNode.h"
-#include "Sound/SoundNode.h"
 #include "SearchSerializer.h"
 
 enum class ESoundCueIndexerVersion

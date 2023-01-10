@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserAliasDataSourceModule.h"
-#include "ContentBrowserAliasDataSource.h"
-#include "Misc/CoreDelegates.h"
 
 void FContentBrowserAliasDataSourceModule::StartupModule()
 {

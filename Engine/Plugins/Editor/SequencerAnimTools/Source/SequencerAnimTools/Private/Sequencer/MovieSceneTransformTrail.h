@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Components/SceneComponent.h"
 #include "Trail.h"
 #include "MotionTrailMovieSceneKey.h"
-#include "TrajectoryDrawInfo.h"
-#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "MovieSceneTrack.h"
+#include "TrajectoryCache.h"
+
+class IMovieScenePlayer;
 
 class ISequencer;
 class UMovieScene3DTransformTrack;

@@ -2,18 +2,13 @@
 
 #include "PluginMetadataObject.h"
 #include "Misc/Paths.h"
-#include "Layout/Margin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Interfaces/IPluginManager.h"
 #include "PluginReferenceDescriptor.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
 #include "SExternalImageReference.h"
-#include "Dom/JsonObject.h"
-#include "Features/IPluginsEditorFeature.h"
 #include "PluginBrowserModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PluginMetadataObject)

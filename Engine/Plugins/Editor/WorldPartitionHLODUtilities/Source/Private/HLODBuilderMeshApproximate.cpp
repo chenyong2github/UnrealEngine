@@ -3,16 +3,15 @@
 #include "HLODBuilderMeshApproximate.h"
 
 #include "Algo/ForEach.h"
-#include "Algo/Transform.h"
+#include "Components/StaticMeshComponent.h"
 #include "UObject/Package.h"
-#include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODLayer.h"
 
+#include "Concepts/StaticStructProvider.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
-#include "MaterialUtilities.h"
 
 #include "Modules/ModuleManager.h"
 #include "IGeometryProcessingInterfacesModule.h"

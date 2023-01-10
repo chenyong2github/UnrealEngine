@@ -2,13 +2,14 @@
 
 #include "WorldPartition/HLOD/Modifiers/HLODModifierMeshDestruction.h"
 
-#include "Algo/Transform.h"
+#include "Components/StaticMeshComponent.h"
 #include "IMeshMergeExtension.h"
+#include "IMeshMergeUtilities.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "Materials/MaterialInterface.h"
 #include "MeshMergeDataTracker.h"
 #include "MeshMergeModule.h"
 #include "Modules/ModuleManager.h"
+#include "StaticMeshAttributes.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "WorldPartition/HLOD/HLODDestruction.h"
 #include "WorldPartition/HLOD/DestructibleHLODComponent.h"

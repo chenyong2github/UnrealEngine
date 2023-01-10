@@ -3,10 +3,12 @@
 #include "AssetDefinition_Font.h"
 
 #include "ContentBrowserMenuContexts.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
-#include "Styling/AppStyle.h"
 #include "EditorReimportHandler.h"
 #include "FontEditorModule.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_Font"
 

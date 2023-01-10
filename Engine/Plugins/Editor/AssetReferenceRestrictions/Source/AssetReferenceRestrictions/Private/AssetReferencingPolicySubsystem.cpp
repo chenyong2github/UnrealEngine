@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetReferencingPolicySubsystem.h"
-#include "AssetReferencingPolicySettings.h"
 #include "DomainAssetReferenceFilter.h"
 #include "Editor.h"
 #include "AssetReferencingDomains.h"

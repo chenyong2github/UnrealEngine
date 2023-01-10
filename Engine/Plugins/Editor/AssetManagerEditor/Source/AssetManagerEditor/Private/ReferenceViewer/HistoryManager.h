@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
+#include "Internationalization/Text.h"
+
+struct FAssetIdentifier;
 
 class FMenuBuilder;
 

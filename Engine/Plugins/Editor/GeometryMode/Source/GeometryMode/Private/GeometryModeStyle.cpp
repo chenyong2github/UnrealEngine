@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryModeStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
 #include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
-#include "SlateOptMacros.h"
+#include "Styling/SlateStyle.h"
 
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FGeometryModeStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )

@@ -1,36 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailsCustomizations/MeshVertexSculptToolCustomizations.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "PropertyCustomizationHelpers.h"
-#include "Widgets/Input/SButton.h"
+#include "Engine/Texture2D.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Views/STileView.h"
-#include "Widgets/Images/SImage.h"
-#include "IDetailChildrenBuilder.h"
-#include "Internationalization/BreakIterator.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "SAssetView.h"
-#include "SAssetDropTarget.h"
 
 #include "ModelingWidgets/SComboPanel.h"
-#include "ModelingWidgets/SDynamicNumericEntry.h"
-#include "ModelingWidgets/SToolInputAssetPicker.h"
 #include "ModelingWidgets/SToolInputAssetComboPanel.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"
 #include "DetailsCustomizations/ModelingToolsBrushSizeCustomization.h"
 
-#include "Styling/SlateStyleMacros.h"
 #include "ModelingToolsEditorModeStyle.h"
 #include "ModelingToolsEditorModeSettings.h"
 
 #include "MeshVertexSculptTool.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 
 using namespace UE::ModelingUI;
 

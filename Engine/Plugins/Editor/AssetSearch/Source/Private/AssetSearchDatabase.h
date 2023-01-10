@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IAssetSearchModule.h"
+#include "Logging/LogMacros.h"
+#include "Templates/UniquePtr.h"
+
+struct FSearchRecord;
 
 class FSQLiteDatabase;
 enum class ESQLiteDatabaseOpenMode : uint8;

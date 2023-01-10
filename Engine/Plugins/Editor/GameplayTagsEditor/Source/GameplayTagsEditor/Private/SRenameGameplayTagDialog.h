@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GameplayTagsManager.h"
-#include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SEditableTextBox.h"
+
+class SEditableTextBox;
+namespace ETextCommit { enum Type : int; }
+struct FGameplayTagNode;
 
 class SRenameGameplayTagDialog : public SCompoundWidget
 {

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "VectorField/VectorFieldAnimated.h"
 #include "AssetDefinition_VectorField.h"
 

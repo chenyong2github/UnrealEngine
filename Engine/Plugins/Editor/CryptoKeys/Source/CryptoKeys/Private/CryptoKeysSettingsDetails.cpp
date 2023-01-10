@@ -4,9 +4,9 @@
 #include "CryptoKeysSettings.h"
 #include "CryptoKeysHelpers.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "CryptoKeysSettingsDetails"
 

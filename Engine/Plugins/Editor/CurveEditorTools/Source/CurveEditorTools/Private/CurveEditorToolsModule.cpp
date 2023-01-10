@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modules/ModuleManager.h"
+#include "Framework/Commands/UICommandList.h"
 #include "ICurveEditorModule.h"
 #include "CurveEditorFocusExtension.h"
 #include "CurveEditorToolCommands.h"

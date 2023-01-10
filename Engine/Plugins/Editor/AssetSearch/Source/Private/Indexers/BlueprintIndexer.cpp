@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintIndexer.h"
-#include "Engine/Blueprint.h"
-#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraph.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Variable.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "Utility/IndexerUtilities.h"
 #include "K2Node_BaseMCDelegate.h"
-#include "Internationalization/Text.h"
 #include "K2Node_Knot.h"
 #include "EdGraphNode_Comment.h"
-#include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "K2Node_Event.h"
 #include "SearchSerializer.h"

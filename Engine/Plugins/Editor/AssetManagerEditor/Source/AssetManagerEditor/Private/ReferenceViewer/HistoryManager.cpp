@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HistoryManager.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
+#include "AssetRegistry/AssetIdentifier.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"

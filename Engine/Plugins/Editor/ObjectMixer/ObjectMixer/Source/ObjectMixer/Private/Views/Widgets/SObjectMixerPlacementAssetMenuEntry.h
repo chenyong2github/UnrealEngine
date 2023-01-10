@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "Styling/SlateBrush.h"
-#include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FButtonStyle;
+struct FPlaceableItem;
 
 class SObjectMixerPlacementAssetMenuEntry : public SCompoundWidget
 {

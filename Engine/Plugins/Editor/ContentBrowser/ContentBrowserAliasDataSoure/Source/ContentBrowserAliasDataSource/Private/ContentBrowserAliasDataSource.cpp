@@ -2,18 +2,17 @@
 
 #include "ContentBrowserAliasDataSource.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserAssetDataCore.h"
 #include "ContentBrowserAssetDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserItemPath.h"
 
 #include "AssetToolsModule.h"
-#include "ObjectTools.h"
-#include "Misc/NamePermissionList.h"
-#include "Modules/ModuleManager.h"
 #include "CollectionManagerModule.h"
-#include "ICollectionManager.h"
+#include "IAssetTools.h"
 #include "IContentBrowserDataModule.h"
+#include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserAliasDataSource)
 

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetTypeActions_Base.h"
 #include "Engine/ObjectLibrary.h"
 #include "AssetDefinitionDefault.h"
 

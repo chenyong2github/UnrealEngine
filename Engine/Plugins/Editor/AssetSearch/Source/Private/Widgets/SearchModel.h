@@ -2,14 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "UObject/Package.h"
-#include "Engine/World.h"
-#include "Templates/SharedPointer.h"
-#include "IAssetSearchModule.h"
+#include "SearchQuery.h"
 
 enum class ESearchNodeType : uint8
 {

@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPluginCategoryTree.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Interfaces/IPluginManager.h"
 #include "SPluginCategory.h"
 #include "SPluginBrowser.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "PluginCategories"
 

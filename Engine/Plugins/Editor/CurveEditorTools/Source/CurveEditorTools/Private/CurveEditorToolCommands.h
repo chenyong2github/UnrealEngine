@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 

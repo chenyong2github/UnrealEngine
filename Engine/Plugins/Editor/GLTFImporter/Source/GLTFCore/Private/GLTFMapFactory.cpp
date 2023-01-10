@@ -5,7 +5,7 @@
 #include "GLTFMaterial.h"
 #include "GLTFMaterialExpressions.h"
 
-#include "Containers/UnrealString.h"
+#include "GLTFMaterialFactory.h"
 
 namespace GLTF
 {

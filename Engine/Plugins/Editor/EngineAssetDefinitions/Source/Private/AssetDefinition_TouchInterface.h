@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/TouchInterface.h"
 #include "AssetDefinitionDefault.h"
 

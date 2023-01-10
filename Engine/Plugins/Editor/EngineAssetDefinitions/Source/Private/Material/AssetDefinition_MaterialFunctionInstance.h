@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetDefinition_MaterialFunction.h"
-#include "Materials/MaterialFunctionInstance.h"
 
+#include "Material/AssetDefinition_MaterialFunction.h"
 #include "AssetDefinition_MaterialFunctionInstance.generated.h"
+
+enum class EAssetCommandResult : uint8;
+struct FAssetOpenArgs;
 
 UCLASS()
 class UAssetDefinition_MaterialFunctionInstance : public UAssetDefinition_MaterialFunction

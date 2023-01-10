@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetFolderContextMenu.h"
+#include "ContentBrowserDataMenuContexts.h"
 #include "Misc/MessageDialog.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/ObjectRedirector.h"
-#include "Textures/SlateIcon.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AssetViewUtils.h"
-#include "ToolMenus.h"
-#include "ContentBrowserMenuContexts.h"
+#include "IAssetTools.h"
 #include "Misc/ScopedSlowTask.h"
+#include "ToolMenu.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

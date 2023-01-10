@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SBlueprintHeaderView.h"
+
+namespace ETextCommit { enum Type : int; }
 
 struct FBPVariableDescription;
 

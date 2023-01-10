@@ -2,10 +2,10 @@
 
 #include "DefaultPluginWizardDefinition.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "PluginStyle.h"
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/App.h"
+#include "Misc/Paths.h"
 #include "PluginBrowserModule.h"
 
 #define LOCTEXT_NAMESPACE "NewPluginWizard"

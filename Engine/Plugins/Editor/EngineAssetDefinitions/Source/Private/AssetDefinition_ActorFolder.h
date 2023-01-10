@@ -7,6 +7,8 @@
 
 #include "AssetDefinition_ActorFolder.generated.h"
 
+struct FAssetCategoryPath;
+
 UCLASS()
 class UAssetDefinition_ActorFolder : public UAssetDefinitionDefault
 {

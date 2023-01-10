@@ -2,13 +2,13 @@
 
 #include "SequencerAnimToolsModule.h"
 #include "EditorModeManager.h"
-#include "Editor.h"
-#include "EditorModeRegistry.h"
+#include "ILevelEditor.h"
 #include "LevelEditor.h"
 #include "EdModeInteractiveToolsContext.h"
-#include "UnrealEdGlobals.h"
+#include "InteractiveToolManager.h"
 #include "LevelEditorSequencerIntegration.h"
 
+#include "Modules/ModuleManager.h"
 #include "MotionTrailTool.h"
 #include "Tools/MotionTrailOptions.h"
 

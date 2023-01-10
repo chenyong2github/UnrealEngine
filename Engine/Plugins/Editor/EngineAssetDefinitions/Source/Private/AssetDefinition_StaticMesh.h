@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/StaticMesh.h"
 #include "AssetDefinitionDefault.h"
 

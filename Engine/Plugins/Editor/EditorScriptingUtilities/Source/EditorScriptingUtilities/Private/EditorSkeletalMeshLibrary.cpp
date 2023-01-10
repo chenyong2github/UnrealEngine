@@ -3,20 +3,12 @@
 #include "EditorSkeletalMeshLibrary.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Editor.h"
-#include "EditorScriptingUtils.h"
-#include "Rendering/SkeletalMeshRenderData.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Engine/SkeletalMesh.h"
-#include "Animation/Skeleton.h"
-#include "Engine/SkeletalMeshSocket.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "LODUtilities.h"
-#include "Misc/CoreMisc.h"
-#include "Rendering/SkeletalMeshRenderData.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
 #include "SkeletalMeshEditorSubsystem.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorSkeletalMeshLibrary)
 

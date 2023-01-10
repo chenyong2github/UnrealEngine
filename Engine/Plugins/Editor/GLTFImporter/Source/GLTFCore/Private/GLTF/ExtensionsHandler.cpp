@@ -2,8 +2,9 @@
 
 #include "ExtensionsHandler.h"
 
+#include "GLTF/JsonUtilities.h"
 #include "GLTFAsset.h"
-#include "JsonUtilities.h"
+#include "GLTFNode.h"
 #include "MaterialUtilities.h"
 
 namespace GLTF

@@ -3,16 +3,13 @@
 #include "AssetDefinition_MaterialFunctionInstance.h"
 
 #include "ContentBrowserMenuContexts.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "Styling/AppStyle.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "IAssetTools.h"
 #include "MaterialEditorModule.h"
-#include "Factories/MaterialFunctionInstanceFactory.h"
-#include "ContentBrowserModule.h"
-#include "IContentBrowserSingleton.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

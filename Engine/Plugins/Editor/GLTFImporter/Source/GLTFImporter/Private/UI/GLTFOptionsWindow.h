@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Framework/Application/SlateApplication.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SGLTFOptionsWindow : public SCompoundWidget

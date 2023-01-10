@@ -1,18 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSizeMap.h"
-#include "Modules/ModuleManager.h"
 #include "Engine/AssetManager.h"
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetThumbnail.h"
 #include "ClassIconFinder.h"
-#include "Math/UnitConversion.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Input/SButton.h"
-#include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
 
+#include "Misc/PackageName.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AssetManagerEditorModule.h"
@@ -20,9 +18,10 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Misc/ScopedSlowTask.h"
+#include "STreeMap.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "SizeMap"
 

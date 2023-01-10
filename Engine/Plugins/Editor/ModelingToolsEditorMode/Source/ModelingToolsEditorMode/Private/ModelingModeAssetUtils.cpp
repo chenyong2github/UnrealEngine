@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingModeAssetUtils.h"
+#include "ContentBrowserItemPath.h"
 #include "ModelingToolsEditorModeSettings.h"
 
-#include "Engine/World.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "FileHelpers.h"
+#include "IAssetTools.h"
 #include "Misc/Paths.h"
+#include "Misc/PackageName.h"
 #include "ModelingObjectsCreationAPI.h"
 #include "Editor/EditorEngine.h"
 #include "EditorDirectories.h"
@@ -15,6 +17,7 @@
 // for content-browser things
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
+#include "Trace/Trace.inl"
 
 extern UNREALED_API UEditorEngine* GEditor;
 

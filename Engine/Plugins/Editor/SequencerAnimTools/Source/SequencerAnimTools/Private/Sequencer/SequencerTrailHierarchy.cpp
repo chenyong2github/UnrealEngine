@@ -2,28 +2,24 @@
 
 #include "SequencerTrailHierarchy.h"
 
-#include "Components/SkeletalMeshComponent.h"
-#include "MovieSceneSequence.h"
-#include "ISequencer.h"
+#include "Editor.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
-#include "MovieSceneSection.h"
 
-#include "ControlRig.h"
+#include "Evaluation/MovieScenePlayback.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
-#include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "AnimationBoneTrail.h"
-#include "LevelSequencePlayer.h"
+#include "LevelSequence.h"
 #include "Tools/MotionTrailOptions.h"
+#include "LevelSequenceCameraSettings.h"
 #include "MovieSceneTransformTrail.h"
 #include "IControlRigObjectBinding.h"
 #include "ActorForWorldTransforms.h"
+#include "MovieSceneSequencePlaybackSettings.h"
 #include "MovieSceneToolHelpers.h"
-#include "ControlRigSequencerEditorLibrary.h"
-#include "Engine/World.h"
-#include "Kismet/GameplayStatics.h"
-#include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Sequencer/MotionTrailMovieSceneKey.h"
 
 namespace UE
 {
@@ -228,7 +224,6 @@ void FSequencerTrailHierarchy::UpdateControlRig(const TArray<FFrameNumber> &Fram
 		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 
 		UWorld* World = GEditor->GetEditorWorldContext().World();
-		ALevelSequenceActor* OutActor = nullptr;
 		FMovieSceneSequencePlaybackSettings Settings;
 		FLevelSequenceCameraSettings CameraSettings;
 		FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;

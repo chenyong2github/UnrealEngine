@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IAssetSearchModule.h"
+#include "Misc/DateTime.h"
+#include "Misc/SecureHash.h"
 
 class FSQLiteDatabase;
 enum class ESQLiteDatabaseOpenMode : uint8;

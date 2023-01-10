@@ -2,17 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "CollectionManagerTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
 #include "AssetRegistry/AssetData.h"
-#include "AssetManagerEditorModule.h"
-#include "ITreeMap.h"
-#include "STreeMap.h"
-
 #include "SSizeMap.generated.h"
 
+class FTreeMapNodeData;
+namespace ESelectInfo { enum Type : int; }
+struct FAssetIdentifier;
+struct FAssetManagerEditorRegistrySource;
+template <typename OptionType> class SComboBox;
 class FAssetThumbnailPool;
 class FUICommandList;
 

@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GameplayTagsManager.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Notifications/SNotificationList.h"
+
+class SCheckBox;
+class SEditableTextBox;
+class SNotificationItem;
+namespace ETextCommit { enum Type : int; }
+template <typename OptionType> class SComboBox;
 
 /** Widget allowing the user to create new restricted gameplay tags */
 class SAddNewRestrictedGameplayTagWidget : public SCompoundWidget

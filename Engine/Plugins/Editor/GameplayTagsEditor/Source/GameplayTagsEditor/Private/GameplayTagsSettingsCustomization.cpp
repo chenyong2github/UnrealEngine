@@ -3,10 +3,9 @@
 #include "GameplayTagsSettingsCustomization.h"
 #include "GameplayTagsSettings.h"
 #include "GameplayTagsModule.h"
-#include "PropertyHandle.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "SGameplayTagWidget.h"
 
 #define LOCTEXT_NAMESPACE "FGameplayTagsSettingsCustomization"
 

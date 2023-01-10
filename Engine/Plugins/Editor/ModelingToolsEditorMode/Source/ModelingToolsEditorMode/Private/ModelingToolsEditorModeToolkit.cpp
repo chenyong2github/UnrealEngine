@@ -1,31 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsEditorModeToolkit.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "IGeometryProcessingInterfacesModule.h"
 #include "GeometryProcessingInterfaces/IUVEditorModularFeature.h"
-#include "ModelingToolsEditorMode.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "ModelingToolsManagerActions.h"
+#include "InteractiveToolManager.h"
 #include "ModelingToolsEditorModeSettings.h"
 #include "ModelingToolsEditorModeStyle.h"
-#include "Selection/GeometrySelectionManager.h"
-#include "Engine/Selection.h"
 
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "IDetailsView.h"
 #include "ISettingsModule.h"
-#include "EditorModeManager.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
 
-#include "Widgets/Input/SButton.h"
 #include "SSimpleButton.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Images/SImage.h"
+#include "Tools/UEdMode.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
-#include "Internationalization/Text.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"
 
 // for Tool Extensions
@@ -45,6 +38,8 @@
 #include "ModelingModeAssetUtils.h"
 
 #include "LevelEditorViewport.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/STextComboBox.h"
 
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"

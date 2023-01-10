@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorDialogLibrary.h"
+#include "DetailsViewArgs.h"
 #include "Misc/MessageDialog.h"
 #include "Dialogs/Dialogs.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorDialogLibrary)

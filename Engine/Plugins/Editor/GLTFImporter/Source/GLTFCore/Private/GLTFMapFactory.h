@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "GLTFMaterialExpressions.h"
-#include "GLTFMaterialFactory.h"
 
+#include "Math/Vector4.h"
 #include "UObject/ObjectMacros.h"
+
+namespace GLTF { class FMaterialElement; }
+namespace GLTF { class FMaterialExpression; }
+namespace GLTF { class FMaterialExpressionInput; }
+namespace GLTF { class FMaterialExpressionTexture; }
+namespace GLTF { class ITextureFactory; }
+namespace GLTF { enum class ETextureMode; }
+template <uint32 NumInlineElements> class TFixedAllocator;
 
 namespace GLTF
 {

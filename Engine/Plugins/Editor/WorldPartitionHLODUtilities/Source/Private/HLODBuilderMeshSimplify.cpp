@@ -3,16 +3,15 @@
 #include "HLODBuilderMeshSimplify.h"
 
 #include "Algo/ForEach.h"
-#include "Algo/Transform.h"
+#include "Concepts/StaticStructProvider.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "Components/StaticMeshComponent.h"
 
-#include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODLayer.h"
 
 #include "IMeshMergeUtilities.h"
+#include "Math/PerspectiveMatrix.h"
 #include "MeshMergeModule.h"
 #include "Modules/ModuleManager.h"
 

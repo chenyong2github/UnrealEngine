@@ -2,16 +2,17 @@
 
 #include "AssetDefinition_DataAsset.h"
 
-#include "AssetToolsModule.h"
 #include "ClassViewerFilter.h"
-#include "ClassViewerModule.h"
 #include "ContentBrowserMenuContexts.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ObjectTools.h"
 #include "SDetailsDiff.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Engine/Engine.h"
 #include "Misc/AssetFilterData.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_DataAsset"
 
