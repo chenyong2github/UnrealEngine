@@ -12,7 +12,6 @@
 #include "RenderGraphResources.h"
 #include "Misc/MemStack.h"
 #include "Containers/ArrayView.h"
-#include "PrimitiveSceneProxy.h"
 #include "MeshPassProcessor.h"
 #include "RayTracingInstanceBufferUtil.h"
 #include "RayTracingDebugTypes.h"
@@ -22,6 +21,12 @@ class FRHIRayTracingScene;
 class FRHIShaderResourceView;
 class FRayTracingGeometry;
 class FRDGBuilder;
+class FPrimitiveSceneProxy;
+
+namespace Nanite
+{
+	using CoarseMeshStreamingHandle = int16;
+}
 
 enum class ERayTracingSceneLayer : uint8
 {
@@ -48,6 +53,8 @@ public:
 	FRayTracingScene();
 	~FRayTracingScene();
 
+	uint32 AddInstance(FRayTracingGeometryInstance Instance, const FPrimitiveSceneProxy* Proxy = nullptr, bool bDynamic = false);
+
 	// Allocates RayTracingSceneRHI and builds various metadata required to create the final scene.
 	FRayTracingSceneWithGeometryInstances BuildInitializationData() const;
 
@@ -60,7 +67,7 @@ public:
 	void Create(FRDGBuilder& GraphBuilder, const FGPUScene* GPUScene, const FViewMatrices& ViewMatrices);
 
 	// Resets the instance list and reserves memory for this frame.
-	void Reset();
+	void Reset(bool bInstanceDebugDataEnabled);
 
 	// Similar to Reset(), but also releases any persistent CPU and GPU memory allocations.
 	void ResetAndReleaseResources();
@@ -90,18 +97,16 @@ public:
 	RENDERER_API FRHIBuffer* GetBufferChecked() const;
 	
 	RENDERER_API FRHIShaderResourceView* GetLayerSRVChecked(ERayTracingSceneLayer Layer) const;
-	
-	void AddInstanceDebugData(const FRHIRayTracingGeometry* GeometryRHI, const FPrimitiveSceneProxy* Proxy, bool bDynamic);
+
+	TArrayView<const FRayTracingGeometryInstance> GetInstances() const { return MakeArrayView(Instances); }
+
+	FRayTracingGeometryInstance& GetInstance(uint32 InstanceIndex) { return Instances[InstanceIndex]; }
 
 	void InitPreViewTranslation(const FViewMatrices& ViewMatrices);
+
 public:
 
 	// Public members for initial refactoring step (previously were public members of FViewInfo).
-
-	// Persistent storage for ray tracing instance descriptors.
-	// Cleared every frame without releasing memory to avoid large heap allocations.
-	// This must be filled before calling CreateRayTracingSceneWithGeometryInstances() and Create().
-	TArray<FRayTracingGeometryInstance> Instances;
 
 	bool bUsedThisFrame = false;
 	uint32 NumMissShaderSlots = 1; // we must have a default miss shader, so always include it from the start
@@ -122,7 +127,6 @@ public:
 
 	// Special data for debugging purposes
 	FRDGBufferRef InstanceDebugBuffer = nullptr;
-	TArray<FRayTracingInstanceDebugData> InstancesDebugData;
 
 	FRDGBufferRef DebugInstanceGPUSceneIndexBuffer = nullptr;
 	bool bNeedsDebugInstanceGPUSceneIndexBuffer = false;
@@ -155,7 +159,16 @@ private:
 
 	mutable FGraphEventRef FillInstanceUploadBufferTask;
 
+	// Persistent storage for ray tracing instance descriptors.
+	// Cleared every frame without releasing memory to avoid large heap allocations.
+	// This must be filled before calling CreateRayTracingSceneWithGeometryInstances() and Create().
+	TArray<FRayTracingGeometryInstance> Instances;
+
+	TArray<FRayTracingInstanceDebugData> InstancesDebugData;
+
 	ERayTracingSceneState State = ERayTracingSceneState::Writable;
+
+	bool bInstanceDebugDataEnabled = false;
 };
 
 #endif // RHI_RAYTRACING

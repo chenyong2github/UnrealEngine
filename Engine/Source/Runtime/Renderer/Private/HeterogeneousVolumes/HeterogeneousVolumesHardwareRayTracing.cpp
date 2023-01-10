@@ -197,19 +197,18 @@ void GenerateRayTracingScene(
 	FRayTracingScene& RayTracingScene
 )
 {
-	RayTracingScene.Reset();
+	RayTracingScene.Reset(false);
 
 	// Collect instances
-	TArray<FRayTracingGeometryInstance> RayTracingInstances;
 	for (int32 GeometryIndex = 0; GeometryIndex < RayTracingGeometries.Num(); ++GeometryIndex)
 	{
-		checkf(RayTracingGeometries[GeometryIndex], TEXT("RayTracingGeometryInstance not created."))
-			FRayTracingGeometryInstance RayTracingGeometryInstance = {};
+		checkf(RayTracingGeometries[GeometryIndex], TEXT("RayTracingGeometryInstance not created."));
+		FRayTracingGeometryInstance RayTracingGeometryInstance = {};
 		RayTracingGeometryInstance.GeometryRHI = RayTracingGeometries[GeometryIndex];
 		RayTracingGeometryInstance.NumTransforms = 1;
 		RayTracingGeometryInstance.Transforms = MakeArrayView(&RayTracingTransforms[GeometryIndex], 1);
 
-		RayTracingInstances.Add(RayTracingGeometryInstance);
+		RayTracingScene.AddInstance(RayTracingGeometryInstance);
 	}
 
 	// Build instance BLAS
@@ -238,7 +237,6 @@ void GenerateRayTracingScene(
 	// Create RayTracingScene
 	const FGPUScene* EmptyGPUScene = nullptr;
 	FViewMatrices EmptyViewMatrices;
-	RayTracingScene.Instances = RayTracingInstances;
 	RayTracingScene.Create(GraphBuilder, EmptyGPUScene, EmptyViewMatrices);
 
 	// Build TLAS

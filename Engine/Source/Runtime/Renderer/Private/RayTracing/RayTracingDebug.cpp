@@ -1045,7 +1045,7 @@ void FDeferredShadingSceneRenderer::RayTracingDisplayPicking(const FRayTracingPi
 	Writer.EmptyLine();
 
 	FRHIRayTracingGeometry* Geometry = nullptr;
-	for (const FRayTracingGeometryInstance& Instance : Scene->RayTracingScene.Instances)
+	for (const FRayTracingGeometryInstance& Instance : Scene->RayTracingScene.GetInstances())
 	{
 		if (Instance.GeometryRHI)
 		{

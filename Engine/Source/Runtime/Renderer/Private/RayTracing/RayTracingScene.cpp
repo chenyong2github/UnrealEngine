@@ -10,6 +10,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RaytracingOptions.h"
+#include "PrimitiveSceneProxy.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildInstanceBufferPassParams, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstanceBuffer)
@@ -314,19 +315,28 @@ FRHIShaderResourceView* FRayTracingScene::GetLayerSRVChecked(ERayTracingSceneLay
 	return LayerSRVs[uint8(Layer)].GetReference();
 }
 
-void FRayTracingScene::AddInstanceDebugData(const FRHIRayTracingGeometry* GeometryRHI, const FPrimitiveSceneProxy* Proxy, bool bDynamic)
+uint32 FRayTracingScene::AddInstance(FRayTracingGeometryInstance Instance, const FPrimitiveSceneProxy* Proxy, bool bDynamic)
 {
-	FRayTracingInstanceDebugData& InstanceDebugData = InstancesDebugData.AddDefaulted_GetRef();
-	InstanceDebugData.Flags = bDynamic ? 1 : 0;
-	InstanceDebugData.GeometryAddress = uint64(GeometryRHI);
+	FRHIRayTracingGeometry* GeometryRHI = Instance.GeometryRHI;
 
-	if (Proxy)
+	const uint32 InstanceIndex = Instances.Add(MoveTemp(Instance));
+
+	if (bInstanceDebugDataEnabled)
 	{
-		InstanceDebugData.ProxyHash = Proxy->GetTypeHash();
+		FRayTracingInstanceDebugData& InstanceDebugData = InstancesDebugData.AddDefaulted_GetRef();
+		InstanceDebugData.Flags = bDynamic ? 1 : 0;
+		InstanceDebugData.GeometryAddress = uint64(GeometryRHI);
+
+		if (Proxy)
+		{
+			InstanceDebugData.ProxyHash = Proxy->GetTypeHash();
+		}
 	}
+
+	return InstanceIndex;
 }
 
-void FRayTracingScene::Reset()
+void FRayTracingScene::Reset(bool bInInstanceDebugDataEnabled)
 {
 	WaitForTasks();
 
@@ -344,11 +354,13 @@ void FRayTracingScene::Reset()
 	BuildScratchBuffer = nullptr;
 	InstanceDebugBuffer = nullptr;
 	DebugInstanceGPUSceneIndexBuffer = nullptr;
+
+	bInstanceDebugDataEnabled = bInInstanceDebugDataEnabled;
 }
 
 void FRayTracingScene::ResetAndReleaseResources()
 {
-	Reset();
+	Reset(false);
 
 	Instances.Empty();
 	InstancesDebugData.Empty();

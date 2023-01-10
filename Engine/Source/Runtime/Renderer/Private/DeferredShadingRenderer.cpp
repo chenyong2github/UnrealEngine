@@ -1017,7 +1017,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	);
 
 	const float CurrentWorldTime = View.Family->Time.GetWorldTimeSeconds();
-	const bool bEnableInstanceDebugData = IsRayTracingInstanceDebugDataEnabled(View);
 
 	// Consume output of the relevant primitive gathering task
 	RayTracingScene.UsedCoarseMeshStreamingHandles = MoveTemp(RelevantPrimitiveList.UsedCoarseMeshStreamingHandles);
@@ -1195,17 +1194,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						continue;
 					}
 
-					const uint32 InstanceIndex = RayTracingScene.Instances.Num();
-
-					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
+					FRayTracingGeometryInstance RayTracingInstance;
 					RayTracingInstance.GeometryRHI = Geometry->RayTracingGeometryRHI;
 					checkf(RayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-					
-					if (bEnableInstanceDebugData)
-					{
-						RayTracingScene.AddInstanceDebugData(RayTracingInstance.GeometryRHI, SceneProxy, true);
-					}					
-
 					RayTracingInstance.DefaultUserData = PrimitiveIndex;
 					RayTracingInstance.bApplyLocalBoundsTransform = Instance.bApplyLocalBoundsTransform;
 					RayTracingInstance.LayerIndex = (uint8)(Instance.MaskAndFlags.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
@@ -1247,6 +1238,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 							RayTracingInstance.Transforms = Instance.InstanceTransformsView;
 						}
 					}
+
+					const uint32 InstanceIndex = RayTracingScene.AddInstance(MoveTemp(RayTracingInstance), SceneProxy, true);
 
 					if (bParallelMeshBatchSetup)
 					{
@@ -1332,7 +1325,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 		const FScene& Scene;
 		TChunkedArray<FRayTracingRelevantPrimitive>& RelevantStaticPrimitives;
 		const FRayTracingCullingParameters& CullingParameters;
-		const bool bEnableInstanceDebugData;
 
 		// Outputs
 
@@ -1342,19 +1334,20 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 		FRayTracingSceneAddInstancesTask(const FScene& InScene,
 											TChunkedArray<FRayTracingRelevantPrimitive>& InRelevantStaticPrimitives,
-											const FRayTracingCullingParameters& InCullingParameters, bool InEnableInstanceDebugData,
+											const FRayTracingCullingParameters& InCullingParameters,
 											FRayTracingScene& InRayTracingScene, TArray<FVisibleRayTracingMeshCommand>& InVisibleRayTracingMeshCommands,
 											TArray<FPrimitiveSceneProxy*>& InProxiesWithDirtyCachedInstance)
 			: Scene(InScene)
 			, RelevantStaticPrimitives(InRelevantStaticPrimitives)
 			, CullingParameters(InCullingParameters)
-			, bEnableInstanceDebugData(InEnableInstanceDebugData)
 			, RayTracingScene(InRayTracingScene)
 			, VisibleRayTracingMeshCommands(InVisibleRayTracingMeshCommands)
 			, ProxiesWithDirtyCachedInstance(InProxiesWithDirtyCachedInstance)
 		{
 			VisibleRayTracingMeshCommands.Reserve(RelevantStaticPrimitives.Num());
 		}
+
+		// TODO: Consider moving auto instance batching logic into FRayTracingScene
 
 		struct FAutoInstanceBatch
 		{
@@ -1473,29 +1466,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}
 
 					checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-					const int32 NewInstanceIndex = RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
-					FRayTracingGeometryInstance& NewInstance = RayTracingScene.Instances[NewInstanceIndex];
+					FRayTracingGeometryInstance NewInstance = SceneInfo->CachedRayTracingInstance;
 
 					NewInstance.LayerIndex = (uint8)(RelevantPrimitive.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
-
-					// At the moment we only support SM & ISMs on this path
-					check(EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands));
-					if (SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Num() > 0 && SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex].Num() > 0)
-					{
-						for (int32 CommandIndex : SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex])
-						{
-							FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
-
-							NewVisibleMeshCommand.RayTracingMeshCommand = &Scene.CachedRayTracingMeshCommands[CommandIndex];
-							NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
-							VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
-						}
-					}
-
-					if (bEnableInstanceDebugData)
-					{
-						RayTracingScene.AddInstanceDebugData(SceneInfo->CachedRayTracingInstance.GeometryRHI, SceneInfo->Proxy, false);
-					}					
 
 					const Experimental::FHashElementId GroupId = Scene.PrimitiveRayTracingGroupIds[PrimitiveIndex];
 					const bool bUseGroupBounds = CullingParameters.bCullUsingGroupIds && GroupId.IsValid();
@@ -1531,6 +1504,21 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}
 
 					AddDebugRayTracingInstanceFlags(NewInstance.Flags);
+
+					const int32 NewInstanceIndex = RayTracingScene.AddInstance(MoveTemp(NewInstance), SceneInfo->Proxy, false);
+
+					// At the moment we only support SM & ISMs on this path
+					check(EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands));
+					if (SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Num() > 0 && SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex].Num() > 0)
+					{
+						for (int32 CommandIndex : SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex])
+						{
+							FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
+							NewVisibleMeshCommand.RayTracingMeshCommand = &Scene.CachedRayTracingMeshCommands[CommandIndex];
+							NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
+							VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+						}
+					}
 				}
 				else
 				{
@@ -1555,7 +1543,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}
 
 					// location if this is a new entry
-					const int32 NewInstanceIndex = RayTracingScene.Instances.Num();
+					const int32 NewInstanceIndex = RayTracingScene.GetInstances().Num();
 					const uint64 InstanceKey = RelevantPrimitive.InstancingKey();
 
 					FAutoInstanceBatch DummyInstanceBatch = { NewInstanceIndex };
@@ -1565,7 +1553,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					{
 						// Reusing a previous entry, just append to the instance list.
 
-						FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances[InstanceBatch.Index];
+						FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.GetInstance(InstanceBatch.Index);
 						bool bReallocated = InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
 
 						++RayTracingInstance.NumTransforms;
@@ -1598,16 +1586,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 							}
 						}
 
-						FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
+						InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
+
+						FRayTracingGeometryInstance RayTracingInstance;
 						RayTracingInstance.GeometryRHI = RelevantPrimitive.RayTracingGeometryRHI;
 						checkf(RayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-
-						if (bEnableInstanceDebugData)
-						{
-							RayTracingScene.AddInstanceDebugData(RayTracingInstance.GeometryRHI, SceneInfo->Proxy, false);
-						}						
-
-						InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
 						RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
 						RayTracingInstance.UserData = InstanceBatch.UserData;
 						RayTracingInstance.NumTransforms = 1;
@@ -1625,6 +1608,10 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						AddDebugRayTracingInstanceFlags(RayTracingInstance.Flags);
 
 						RayTracingInstance.LayerIndex = (uint8)(RelevantPrimitive.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
+
+						const uint32 ActualInstanceIndex = RayTracingScene.AddInstance(MoveTemp(RayTracingInstance), SceneInfo->Proxy, false);
+
+						check(NewInstanceIndex == ActualInstanceIndex);
 					}
 				}
 			}
@@ -1648,7 +1635,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	AddInstancesTaskPrerequisites.Add(RelevantPrimitiveList.StaticPrimitiveLODTask);
 
 	FGraphEventRef AddInstancesTask = TGraphTask<FRayTracingSceneAddInstancesTask>::CreateTask(&AddInstancesTaskPrerequisites).ConstructAndDispatchWhenReady(
-		*Scene, RelevantPrimitiveList.StaticPrimitives, View.RayTracingCullingParameters, bEnableInstanceDebugData, // inputs 
+		*Scene, RelevantPrimitiveList.StaticPrimitives, View.RayTracingCullingParameters, // inputs 
 		RayTracingScene, View.VisibleRayTracingMeshCommands, View.ProxiesWithDirtyCachedInstance // outputs
 	);
 
@@ -2079,7 +2066,7 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 
 			// Track if we ended up rendering anything this frame.  After rendering all view families, we'll release the
 			// ray tracing scene resources if nothing used ray tracing.
-			if (RayTracingScene.Instances.Num() > 0)
+			if (RayTracingScene.GetInstances().Num() > 0)
 			{
 				RayTracingScene.bUsedThisFrame = true;
 			}
@@ -2613,9 +2600,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 
+	const int32 ReferenceViewIndex = 0;
+	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
 	// Prepare the scene for rendering this frame.
 	FRayTracingScene& RayTracingScene = Scene->RayTracingScene;
-	RayTracingScene.Reset(); // Resets the internal arrays, but does not release any resources.
+	RayTracingScene.Reset(IsRayTracingInstanceDebugDataEnabled(ReferenceView)); // Resets the internal arrays, but does not release any resources.
 
 	if (ShouldPrepareRayTracingDecals(*Scene, ViewFamily))
 	{
@@ -2641,9 +2631,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			View.bHasRayTracingDecals = false;
 		}
 	}
-
-	const int32 ReferenceViewIndex = 0;
-	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
 	if (IsRayTracingEnabled() && RHISupportsRayTracingShaders(ViewFamily.GetShaderPlatform()))
 	{
