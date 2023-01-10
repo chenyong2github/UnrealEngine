@@ -5,6 +5,7 @@
 #include "AI/NavigationSystemHelpers.h"
 #include "Async/ParallelFor.h"
 #include "Chaos/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosScene.h"
 #include "ChaosSolversModule.h"
 #include "ChaosStats.h"
 #include "ComponentRecreateRenderStateContext.h"
@@ -34,6 +35,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/PhysicsFiltering.h"
+#include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsSolver.h"
@@ -2633,7 +2635,8 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	}
 #endif
 	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialSimFilter, InitialQueryFilter, CollectorGuid);
-	PhysicsProxy->SetPostPhysicsSyncCallback([this]() { UpdateAttachedChildrenTransform(); }); 
+	PhysicsProxy->SetPostPhysicsSyncCallback([this]() { UpdateAttachedChildrenTransform(); });
+
 	if (GetIsReplicated())
 	{
 		// using net mode and not local role because at this time in the initialization client and server both have an authority local role
@@ -2680,6 +2683,15 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 					}
 				});
 		}
+	}
+
+	// We need to add the geometry collection into the external acceleration structure so that it's immediately available for queries instead of waiting for the sync from the physics thread (which could take awhile).
+	// Just adding the root particle should be sufficient since that'll be the only particle we'd expect any collisions with right after initialization.
+	if (Chaos::FPhysicsObjectHandle RootObject = GetPhysicsObjectByName(NAME_None))
+	{
+		TArrayView<Chaos::FPhysicsObjectHandle> Handles{ &RootObject, 1 };
+		FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite(Handles);
+		Interface->AddToSpatialAcceleration(Handles, Scene->GetSpacialAcceleration());
 	}
 
 	RegisterForEvents();

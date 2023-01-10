@@ -13,6 +13,7 @@
 #include "PhysicsReplication.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
+#include "Chaos/PhysicsObjectInternalInterface.h"
 
 #include "ChaosSolversModule.h"
 
@@ -1693,7 +1694,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	FPhysicsCommand::ExecuteWrite(this, [&Solver, &PendingTransforms](FPhysScene* PhysScene)
+	FPhysicsCommand::ExecuteWrite(this, [this, &Solver, &PendingTransforms](FPhysScene* PhysScene)
 	{
 		auto RigidLambda = [&PhysScene, &PendingTransforms](Chaos::FSingleParticlePhysicsProxy* Proxy)
 		{
@@ -1766,7 +1767,21 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 		};
 
-		Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda);
+		auto GeometryCollectionLambda = [this](FGeometryCollectionPhysicsProxy* Proxy)
+		{
+			// Use the interface interface since we're already locked.
+			Chaos::FWritePhysicsObjectInterface_Internal Interface = Chaos::FPhysicsObjectInternalInterface::GetWrite();
+			TArray<Chaos::FPhysicsObjectHandle> Handles = Proxy->GetAllPhysicsObjects().FilterByPredicate(
+				[&Interface](Chaos::FPhysicsObjectHandle Handle)
+				{
+					return !Interface.AreAllDisabled({ &Handle, 1 });
+				}
+			);
+
+			Interface.AddToSpatialAcceleration(Handles, GetSpacialAcceleration());
+		};
+
+		Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda, GeometryCollectionLambda);
 
 	});
 

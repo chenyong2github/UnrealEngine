@@ -159,6 +159,22 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	FSpatialAccelerationIdx FReadPhysicsObjectInterface<Id>::GetSpatialIndex(FPhysicsObjectHandle Object)
+	{
+		if (!Object)
+		{
+			return {};
+		}
+
+		if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+		{
+			return Particle->SpatialIdx();
+		}
+
+		return {};
+	}
+
+	template<EThreadContext Id>
 	TArray<FPerShapeData*> FReadPhysicsObjectInterface<Id>::GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects)
 	{
 		TArray<FPerShapeData*> AllShapes;
@@ -465,6 +481,12 @@ namespace Chaos
 			}
 		}
 		return AggregateResult;
+	}
+
+	template<EThreadContext Id>
+	FAccelerationStructureHandle FReadPhysicsObjectInterface<Id>::CreateAccelerationStructureHandle(FPhysicsObjectHandle InObject)
+	{
+		return FAccelerationStructureHandle{InObject->GetParticle<Id>()};
 	}
 
 	template<EThreadContext Id>

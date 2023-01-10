@@ -429,6 +429,7 @@ public:
 		PostPhysicsSyncCallback = Callback;
 	}
 	
+	TArray<Chaos::FPhysicsObjectHandle> GetAllPhysicsObjects();
 	Chaos::FPhysicsObjectHandle GetPhysicsObjectByIndex(int32 Index) const;
 	int32 GetNumParticles() const { return NumParticles; }
 protected:

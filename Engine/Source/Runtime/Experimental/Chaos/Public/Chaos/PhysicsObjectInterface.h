@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/PhysicsObject.h"
+#include "Chaos/ISpatialAcceleration.h"
 #include "Framework/Threading.h"
 #include "Containers/ArrayView.h"
 #include "Math/MathFwd.h"
@@ -54,6 +56,7 @@ namespace Chaos
 		FVector GetCoM(FPhysicsObjectHandle Object);
 		FVector GetWorldCoM(FPhysicsObjectHandle Object);
 		FQuat GetR(FPhysicsObjectHandle Object);
+		FSpatialAccelerationIdx GetSpatialIndex(FPhysicsObjectHandle Object);
 
 		TArray<FPerShapeData*> GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FMTDInfo* OutMTD);
@@ -68,7 +71,7 @@ namespace Chaos
 		FBox GetBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FBox GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
-
+		FAccelerationStructureHandle CreateAccelerationStructureHandle(FPhysicsObjectHandle Handle);
 		friend class FPhysicsObjectInterface;
 	protected:
 		FReadPhysicsObjectInterface() = default;
@@ -88,6 +91,23 @@ namespace Chaos
 		void WakeUp(TArrayView<FPhysicsObjectHandle> InObjects);
 		void AddForce(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
 		void AddTorque(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
+
+		template<typename TPayloadType, typename T, int d>
+		void AddToSpatialAcceleration(TArrayView<FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
+		{
+			if (!SpatialAcceleration)
+			{
+				return;
+			}
+
+			for (FPhysicsObjectHandle Handle : InObjects)
+			{
+				const FBox WorldBounds = this->GetWorldBounds({ &Handle, 1 });
+				const FAABB3 ChaosWorldBounds{ WorldBounds.Min, WorldBounds.Max };
+				FAccelerationStructureHandle AccelerationHandle = this->CreateAccelerationStructureHandle(Handle);
+				SpatialAcceleration->UpdateElementIn(AccelerationHandle, ChaosWorldBounds, true, this->GetSpatialIndex(Handle));
+			}
+		}
 
 		friend class FPhysicsObjectInterface;
 	protected:

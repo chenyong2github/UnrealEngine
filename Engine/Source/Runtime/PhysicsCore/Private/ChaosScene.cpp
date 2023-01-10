@@ -377,7 +377,7 @@ void FChaosScene::StartFrame()
 
 void FChaosScene::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 {
-	Solver->PullPhysicsStateForEachDirtyProxy_External([](auto){}, [](auto) {});
+	Solver->PullPhysicsStateForEachDirtyProxy_External([](auto) {}, [](auto) {}, [](auto) {});
 }
 
 bool FChaosScene::AreAnyTasksPending() const

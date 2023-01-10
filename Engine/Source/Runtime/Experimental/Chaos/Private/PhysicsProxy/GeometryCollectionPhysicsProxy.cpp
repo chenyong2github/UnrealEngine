@@ -4177,6 +4177,19 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigid
 	}
 }
 
+TArray<Chaos::FPhysicsObjectHandle> FGeometryCollectionPhysicsProxy::GetAllPhysicsObjects()
+{
+	TArray<Chaos::FPhysicsObjectHandle> Handles;
+	Handles.Reserve(PhysicsObjects.Num());
+
+	for (Chaos::FPhysicsObjectUniquePtr& Object : PhysicsObjects)
+	{
+		Handles.Add(Object.Get());
+	}
+
+	return Handles;
+}
+
 Chaos::FPhysicsObjectHandle FGeometryCollectionPhysicsProxy::GetPhysicsObjectByIndex(int32 Index) const
 {
 	if (!PhysicsObjects.IsValidIndex(Index))
