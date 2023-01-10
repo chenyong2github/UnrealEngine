@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetManagerEditorModule.h"
 #include "CollectionManagerTypes.h"
 #include "Widgets/SCompoundWidget.h"
 #include "AssetRegistry/AssetData.h"
