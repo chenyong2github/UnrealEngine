@@ -157,10 +157,6 @@ bool UComputeGraph::ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> >
 		{
 			return false;
 		}
-		if (DataProviders[Index] != nullptr && !DataProviders[Index]->IsValid())
-		{
-			return false;
-		}
 	}
 	return true;
 }
@@ -169,7 +165,7 @@ void UComputeGraph::CreateDataProviders(int32 InBindingIndex, TObjectPtr<UObject
 {
 	InOutDataProviders.SetNumZeroed(DataInterfaces.Num());
 
-	if (ensure(Bindings.IsValidIndex(InBindingIndex)) && InBindingObject && InBindingObject.IsA(Bindings[InBindingIndex]))
+	if (ensure(Bindings.IsValidIndex(InBindingIndex)) && (!InBindingObject || InBindingObject.IsA(Bindings[InBindingIndex])))
 	{
 		for (int32 DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num(); ++DataInterfaceIndex)
 		{

@@ -31,11 +31,10 @@ bool FComputeGraphInstance::ValidateDataProviders(UComputeGraph* InComputeGraph)
 	return InComputeGraph != nullptr && InComputeGraph->IsCompiled() && InComputeGraph->ValidateGraph() && InComputeGraph->ValidateProviders(DataProviders);
 }
 
-bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInterface const* InScene, FName InExecutionGroupName, FName InOwnerName)
+bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInterface const* InScene, FName InExecutionGroupName, FName InOwnerName, FSimpleDelegate InFallbackDelegate)
 {
 	if (InComputeGraph == nullptr || InScene == nullptr)
 	{
-		// todo[CF]: We should have a default fallback for all cases where we can't submit work.
 		return false;
 	}
 
@@ -44,18 +43,15 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		return false;
 	}
 
-	// Lookup the compute worker associated with this scene.
-	FComputeGraphTaskWorker* ComputeGraphWorker = FComputeFrameworkModule::GetComputeSystem()->GetComputeWorker(InScene);
-	if (!ensure(ComputeGraphWorker))
+	// Don't submit work if we don't have all of the expected bindings.
+	if (!InComputeGraph->ValidateProviders(DataProviders))
 	{
 		return false;
 	}
 
-	// Don't submit work if we don't have all of the expected bindings.
-	// If we hit the ensure then something invalidated providers without calling CreateDataProviders().
-	// Those paths DO need fixing. We can remove the ensure() if we ever feel safe enough!
-	const bool bValidProviders = InComputeGraph->ValidateProviders(DataProviders);
-	if (!ensure(bValidProviders))
+	// Lookup the compute worker associated with this scene.
+	FComputeGraphTaskWorker* ComputeGraphWorker = FComputeFrameworkModule::GetComputeSystem()->GetComputeWorker(InScene);
+	if (!ensure(ComputeGraphWorker))
 	{
 		return false;
 	}
@@ -76,10 +72,10 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 	}
 
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
-		[ComputeGraphWorker, InExecutionGroupName, InOwnerName, GraphRenderProxy, MovedDataProviderRenderProxies = MoveTemp(DataProviderRenderProxies)](FRHICommandListImmediate& RHICmdList)
+		[ComputeGraphWorker, InExecutionGroupName, InOwnerName, GraphRenderProxy, MovedDataProviderRenderProxies = MoveTemp(DataProviderRenderProxies), InFallbackDelegate](FRHICommandListImmediate& RHICmdList)
 		{
 			// Compute graph scheduler will take ownership of the provider proxies.
-			ComputeGraphWorker->Enqueue(InExecutionGroupName, InOwnerName, GraphRenderProxy, MovedDataProviderRenderProxies);
+			ComputeGraphWorker->Enqueue(InExecutionGroupName, InOwnerName, GraphRenderProxy, MovedDataProviderRenderProxies, InFallbackDelegate);
 		});
 
 	return true;

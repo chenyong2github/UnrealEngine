@@ -29,7 +29,13 @@ class ENGINE_API UMeshDeformerInstance : public UObject
 	GENERATED_BODY()
 
 public:
-	/** Enumeration for workloads to enqueue. */
+	/** Called to allocate any persistent render resources */
+	virtual void AllocateResources() PURE_VIRTUAL(, );
+
+	/** Called when persistent render resources should be released */
+	virtual void ReleaseResources() PURE_VIRTUAL(, );
+
+	/** Enumeration for workloads to EnqueueWork. */
 	enum EWorkLoad
 	{
 		WorkLoad_Setup,
@@ -37,7 +43,7 @@ public:
 		WorkLoad_Update,
 	};
 
-	/** Enumeration for exectution groups to enqueue on. */
+	/** Enumeration for execution groups to EnqueueWork on. */
 	enum EExectutionGroup
 	{
 		ExecutionGroup_Default,
@@ -45,21 +51,18 @@ public:
 		ExecutionGroup_EndOfFrameUodate,
 	};
 
-	/** Called to allocate any persistent render resources */
-	virtual void AllocateResources() PURE_VIRTUAL(, );
-
-	/** Called when persistent render resources should be released */ 
-	virtual void ReleaseResources() PURE_VIRTUAL(, );
-
-	/** Get if mesh deformer is active (compiled and valid). */
-	virtual bool IsActive() const PURE_VIRTUAL(, return false;);
-	
-	/** Enqueue the mesh deformer workload on a scene. InOwnerName is used for debugging. */
-	virtual void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, EExectutionGroup InExecutionGroup, FName InOwnerName) PURE_VIRTUAL(, );
-
-	/** For backwards compatibility. To deprecate. */
-	void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName)
+	/** Structure of inputs to EnqueueWork. */
+	struct FEnqueueWorkDesc
 	{
-		EnqueueWork(InScene, InWorkLoadType, ExecutionGroup_Default, InOwnerName);
-	}
+		FSceneInterface* Scene = nullptr;
+		EWorkLoad WorkLoadType = WorkLoad_Update;
+		EExectutionGroup ExecutionGroup = ExecutionGroup_Default;
+		/** Name used for debugging and profiling markers. */
+		FName OwnerName;
+		/** Render thread delegate that will be executed if Enqueue fails at any stage. */
+		FSimpleDelegate FallbackDelegate;
+	};
+
+	/** Enqueue the mesh deformer workload on a scene. */
+	virtual void EnqueueWork(FEnqueueWorkDesc const& InDesc) PURE_VIRTUAL(, );
 };

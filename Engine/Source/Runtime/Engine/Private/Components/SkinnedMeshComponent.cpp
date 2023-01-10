@@ -967,11 +967,13 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
  	if (MeshDeformerInstance)
  	{
 		MeshDeformerInstance->AllocateResources();
-		if (MeshDeformerInstance->IsActive())
-		{
-			// Enqueue immediate execution of work here to ensure that we have some deformer outputs written for the next frame.
-			MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, UMeshDeformerInstance::ExecutionGroup_Immediate, GetSkinnedAsset()->GetFName());
-		}
+		
+		// Enqueue immediate execution of work here to ensure that we have some deformer outputs written for the next frame.
+		UMeshDeformerInstance::FEnqueueWorkDesc Desc;
+		Desc.Scene = GetScene();
+		Desc.ExecutionGroup = UMeshDeformerInstance::ExecutionGroup_Immediate;
+		Desc.OwnerName = GetSkinnedAsset() != nullptr ? GetSkinnedAsset()->GetFName() : GetFName();
+		MeshDeformerInstance->EnqueueWork(Desc);
 	}
 }
 
@@ -1086,16 +1088,13 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 		if (MeshDeformerInstance != nullptr && UseLOD <= GetMeshDeformerMaxLOD())
 		{
-			if (MeshDeformerInstance->IsActive())
-			{
-				MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, UMeshDeformerInstance::ExecutionGroup_Default, GetSkinnedAsset()->GetFName());
-			}
-			else
-			{
-				// Reset so mesh appears in bind pose.
-				// We could use a fallback mesh deformer instead?
-				FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides_GameThread(MeshObject, UseLOD);
-			}
+			UMeshDeformerInstance::FEnqueueWorkDesc Desc;
+			Desc.Scene = GetScene();
+			Desc.OwnerName = GetSkinnedAsset() != nullptr ? GetSkinnedAsset()->GetFName() : GetFName();
+			// Fallback is to reset the passthrough vertex factory if the deformer fails to run.
+			Desc.FallbackDelegate.BindLambda([MeshObjectPtr = MeshObject, UseLOD]() { FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides(MeshObjectPtr, UseLOD); });
+
+			MeshDeformerInstance->EnqueueWork(Desc);
 		}
 	}
 }

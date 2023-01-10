@@ -82,9 +82,8 @@ public:
 	/** 
 	 * Release all of the the buffers that have been allocated through the AllocateVertexFactory*() functions.
 	 * Reset all of the MeshObject's passthrough vertex factories.  
-	 * Usually called on the game thread when we know that the mesh deformer is not able to update to force bind pose rendering.
 	 */
-	ENGINE_API static void ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* InMeshObject, int32 InLodIndex);
+	ENGINE_API static void ResetVertexFactoryBufferOverrides(FSkeletalMeshObject* InMeshObject, int32 InLodIndex);
 
 #pragma endregion SetInternals
 };

@@ -204,8 +204,7 @@ protected:
 	/** Implementation of UMeshDeformerInstance. */
 	void AllocateResources() override;
 	void ReleaseResources() override;
-	bool IsActive() const override;
-	void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, EExectutionGroup InExecutionGroup, FName InOwnerName) override;
+	void EnqueueWork(FEnqueueWorkDesc const& InDesc) override;
 
 private:
 	/** The Mesh Component that owns this Mesh Deformer Instance. */

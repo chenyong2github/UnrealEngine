@@ -392,14 +392,11 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 void UOptimusDeformerInstance::SetCanBeActive(bool bInCanBeActive)
 {
 	bCanBeActive = bInCanBeActive;
-
 }
 
 void UOptimusDeformerInstance::AllocateResources()
 {
-	
 }
-
 
 void UOptimusDeformerInstance::ReleaseResources()
 {
@@ -413,29 +410,11 @@ void UOptimusDeformerInstance::ReleaseResources()
 	}
 }
 
-
-bool UOptimusDeformerInstance::IsActive() const
-{
-	if (!bCanBeActive)
-	{
-		return false;
-	}
-		
-	for (const FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
-	{
-		if (!Info.ComputeGraphInstance.ValidateDataProviders(Info.ComputeGraph))
-		{
-			return false;
-		}
-	}
-	return !ComputeGraphExecInfos.IsEmpty();
-}
-
-void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, EExectutionGroup InExecutionGroup, FName InOwnerName)
+void UOptimusDeformerInstance::EnqueueWork(FEnqueueWorkDesc const& InDesc)
 {
 	// Convert execution group enum to ComputeTaskExecutionGroup name.
 	FName ExecutionGroupName;
-	switch (InExecutionGroup)
+	switch (InDesc.ExecutionGroup)
 	{
 	case UMeshDeformerInstance::ExecutionGroup_Immediate:
 		ExecutionGroupName = ComputeTaskExecutionGroup::Immediate;
@@ -458,19 +437,30 @@ void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad I
 	
 	// Enqueue work.
 	bool bIsWorkEnqueued = false;
-	for (FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
+	if (bCanBeActive)
 	{
-		if (Info.GraphType == EOptimusNodeGraphType::Update || GraphsToRun.Contains(Info.GraphName))
+		for (FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
 		{
-			Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene, ExecutionGroupName, InOwnerName);
-			bIsWorkEnqueued = true;
+			if (Info.GraphType == EOptimusNodeGraphType::Update || GraphsToRun.Contains(Info.GraphName))
+			{
+				bIsWorkEnqueued |= Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InDesc.Scene, ExecutionGroupName, InDesc.OwnerName, InDesc.FallbackDelegate);
+			}
 		}
 	}
 
-	// If this was enqueued to the Immediate group then flush all work on that group now.
-	if (bIsWorkEnqueued && InExecutionGroup == UMeshDeformerInstance::ExecutionGroup_Immediate)
+	if (!bIsWorkEnqueued)
 	{
-		ComputeFramework::FlushWork(InScene, ExecutionGroupName);
+		// If we failed to enqueue work then enqueue the fallback.
+		// todo: This might need enqueuing for EndOfFrame instead of immediate execution?
+		ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueFallback)([FallbackDelegate = InDesc.FallbackDelegate](FRHICommandListImmediate& RHICmdList)
+		{ 
+			FallbackDelegate.ExecuteIfBound();
+		});
+	}
+	else if (InDesc.ExecutionGroup == UMeshDeformerInstance::ExecutionGroup_Immediate)
+	{
+		// If we succesfully enqueued to the Immediate group then flush all work on that group now.
+		ComputeFramework::FlushWork(InDesc.Scene, ExecutionGroupName);
 	}
 }
 

@@ -252,50 +252,49 @@ void FSkeletalMeshDeformerHelpers::UpdateVertexFactoryBufferOverrides(FSkeletalM
 	}
 }
 
-void FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* InMeshObject, int32 LODIndex)
+void FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides(FSkeletalMeshObject* InMeshObject, int32 LODIndex)
 {
+	check(IsInRenderingThread());
+
 	if (InMeshObject->IsCPUSkinned())
 	{
 		return;
 	}
 
-	ENQUEUE_RENDER_COMMAND(ResetSkinPassthroughVertexFactory)([InMeshObject, LODIndex](FRHICommandList& CmdList)
+	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
+	FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(LODIndex);
+
+	// This can be called per frame even when already reset. So early out if we don't need to do anything.
+	const bool bIsReset = DeformerGeometry.PositionUpdatedFrame == 0 && DeformerGeometry.TangentUpdatedFrame == 0 && DeformerGeometry.ColorUpdatedFrame == 0;
+	if (bIsReset)
 	{
-		FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
-		FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(LODIndex);
+		return;
+	}
 
-		// This can be called per frame even when already reset. So early out if we don't need to do anything.
-		const bool bIsReset = DeformerGeometry.PositionUpdatedFrame == 0 && DeformerGeometry.TangentUpdatedFrame == 0 && DeformerGeometry.ColorUpdatedFrame == 0;
-		if (bIsReset)
-		{
-			return;
-		}
+	// Reset stored buffers.
+	DeformerGeometry.Reset();
 
-		// Reset stored buffers.
-		DeformerGeometry.Reset();
-
-		// Reset vertex factories.
-		const FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD& LOD = MeshObjectGPU->LODs[LODIndex];
-		const int32 NumSections = InMeshObject->GetRenderSections(LODIndex).Num();
-		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
-		{
-			FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
-			FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
-			TargetVertexFactory->ResetVertexAttributes();
-			FGPUSkinPassthroughVertexFactory::FDataType Data;
-			BaseVertexFactory->CopyDataTypeForLocalVertexFactory(Data);
-			TargetVertexFactory->SetData(Data);
-		}
+	// Reset vertex factories.
+	const FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD& LOD = MeshObjectGPU->LODs[LODIndex];
+	const int32 NumSections = InMeshObject->GetRenderSections(LODIndex).Num();
+	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+	{
+		FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
+		FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
+		TargetVertexFactory->ResetVertexAttributes();
+		FGPUSkinPassthroughVertexFactory::FDataType Data;
+		BaseVertexFactory->CopyDataTypeForLocalVertexFactory(Data);
+		TargetVertexFactory->SetData(Data);
+	}
 
 #if RHI_RAYTRACING
-		// Reset ray tracing geometry.
-		FSkeletalMeshRenderData& SkelMeshRenderData = MeshObjectGPU->GetSkeletalMeshRenderData();
-		FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[LODIndex];
-		FBufferRHIRef VertexBuffer = LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+	// Reset ray tracing geometry.
+	FSkeletalMeshRenderData& SkelMeshRenderData = MeshObjectGPU->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[LODIndex];
+	FBufferRHIRef VertexBuffer = LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 
-		TArray<FBufferRHIRef> VertexBuffers;
-		VertexBuffers.Init(VertexBuffer, NumSections);
-		MeshObjectGPU->UpdateRayTracingGeometry(LODModel, LODIndex, VertexBuffers);
+	TArray<FBufferRHIRef> VertexBuffers;
+	VertexBuffers.Init(VertexBuffer, NumSections);
+	MeshObjectGPU->UpdateRayTracingGeometry(LODModel, LODIndex, VertexBuffers);
 #endif // RHI_RAYTRACING
-	});
 }

@@ -3577,14 +3577,11 @@ void UGroomComponent::SendRenderDynamicData_Concurrent()
 
 	if (MeshDeformerInstance != nullptr && GroomAsset != nullptr)
 	{
-		if (MeshDeformerInstance->IsActive())
-		{
-			MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, GroomAsset->GetFName());
-		}
-		else
-		{
-			// TODO: Reset so groom appears rest pose
-		}
+		UMeshDeformerInstance::FEnqueueWorkDesc Desc;
+		Desc.Scene = GetScene();
+		Desc.OwnerName = GroomAsset->GetFName();
+		// TODO: Provide a FEnqueueWorkDesc::FallbackDelegate so that groom appears rest pose if the Enqueue fails.
+		MeshDeformerInstance->EnqueueWork(Desc);
 	}
 }
 

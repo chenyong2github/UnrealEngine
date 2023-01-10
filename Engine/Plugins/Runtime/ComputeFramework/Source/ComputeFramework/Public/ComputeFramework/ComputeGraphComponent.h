@@ -47,6 +47,4 @@ protected:
 private:
 	UPROPERTY()
 	FComputeGraphInstance ComputeGraphInstance;
-
-	bool bValidProviders = false;
 };

@@ -24,7 +24,8 @@ public:
 		FName InExecutionGroupName,
 		FName InOwnerName,
 		FComputeGraphRenderProxy const* InGraphRenderProxy, 
-		TArray<FComputeDataProviderRenderProxy*> InDataProviderRenderProxies );
+		TArray<FComputeDataProviderRenderProxy*> InDataProviderRenderProxies,
+		FSimpleDelegate InFallbackDelegate);
 
 	/** Submit enqueued compute graph work. */
 	void SubmitWork(
@@ -42,6 +43,8 @@ private:
 		FComputeGraphRenderProxy const* GraphRenderProxy = nullptr;
 		/** Data provider render proxies. */
 		TArray<FComputeDataProviderRenderProxy*> DataProviderRenderProxies;
+		/** Render thread fallback logic for invocations that are invalid. */
+		FSimpleDelegate FallbackDelegate;
 		
 		~FGraphInvocation();
 	};
