@@ -458,13 +458,12 @@ bool FExpressionParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	{
 		if (!ParameterInfo.Name.IsNone())
 		{
-			UObject* UnusedReferencedTexture;
-			EmitData.CachedExpressionData->AddParameter(ParameterInfo, ParameterMeta, UnusedReferencedTexture);
+			EmitData.CachedExpressionData->AddParameter(ParameterInfo, ParameterMeta);
 		}
 
 		UObject* ReferencedTexture = ParameterMeta.Value.AsTextureObject();
 		if (ReferencedTexture)
-		{	
+		{
 			EmitData.CachedExpressionData->ReferencedTextures.AddUnique(ReferencedTexture);
 		}
 	}

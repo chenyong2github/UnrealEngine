@@ -6244,25 +6244,6 @@ void UMaterial::ForceRecompileForRendering()
 	CacheResourceShadersForRendering( false );
 }
 
-bool UMaterial::CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const
-{
-	bool bSuccess = true;
-	
-	// Check and report errors due to duplicate parameters set to distinct values.
-	if (!CachedExpressionData->DuplicateParameterErrors.IsEmpty())
-	{
-		for (const TPair<TObjectPtr<UMaterialExpression>, FName>& Error : CachedExpressionData->DuplicateParameterErrors)
-		{
-			FString ErrorMsg = FString::Format(TEXT("Parameter '{0}' is set multiple times to different values. Make sure each parameter is set once or always to the same value (e.g. same texture)."), { *Error.Get<1>().ToString() });
-			Compiler->AppendExpressionError(Error.Get<0>(), *ErrorMsg);
-		}
-
-		bSuccess = false;
-	}
-
-	return bSuccess;
-}
-
 UMaterial::FMaterialCompilationFinished UMaterial::MaterialCompilationFinishedEvent;
 UMaterial::FMaterialCompilationFinished& UMaterial::OnMaterialCompilationFinished()
 {

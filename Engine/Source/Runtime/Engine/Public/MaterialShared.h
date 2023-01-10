@@ -2219,12 +2219,6 @@ protected:
 	void GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMapIds);
 
 	uint32 GetGameThreadCompilingShaderMapId() const { return GameThreadCompilingShaderMapId; }
-
-	/**
-	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
-	 * @return whether no errors occurred.
-	 */
-	ENGINE_API virtual bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const { return true; }
 #endif // WITH_EDITOR
 
 	/**
@@ -2634,7 +2628,6 @@ public:
 	ENGINE_API virtual bool ShouldInlineShaderCode() const override;
 	ENGINE_API virtual bool IsUsingControlFlow() const override;
 	ENGINE_API virtual bool IsUsingNewHLSLGenerator() const override;
-	ENGINE_API virtual bool CheckInValidStateForCompilation(FMaterialCompiler* Compiler) const override;
 #endif // WITH_EDITOR
 
 	ENGINE_API virtual FString GetFullPath() const override;

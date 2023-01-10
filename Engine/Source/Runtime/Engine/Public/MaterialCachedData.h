@@ -190,9 +190,12 @@ struct FMaterialCachedExpressionData
 	ENGINE_API void UpdateForCachedHLSLTree(const FMaterialCachedHLSLTree& CachedTree, const FStaticParameterSet* StaticParameters);
 	void Validate();
 
-	/** Adds a parameter. If this returns false, a parameter with identical name has already been added but it was set to a different value. */
-	bool AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta, UObject*& OutReferencedTexture);
-	
+	void AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta, UObject*& OutReferencedTexture);
+	inline void AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta)
+	{
+		UObject* UnusedReferencedTexture = nullptr;
+		AddParameter(ParameterInfo, ParameterMeta, UnusedReferencedTexture);
+	}
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
@@ -335,10 +338,5 @@ struct FMaterialCachedExpressionData
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()
 	uint32 PropertyConnectedBitmask = 0;
-
-#if WITH_EDITOR
-	/** Array of errors reporting a parameter being set multiple times to distinct values. */
-	TArray<TPair<TObjectPtr<class UMaterialExpression>, FName>> DuplicateParameterErrors;
-#endif
 };
 

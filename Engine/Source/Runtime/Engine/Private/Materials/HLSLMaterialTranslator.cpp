@@ -764,6 +764,7 @@ bool FHLSLMaterialTranslator::Translate()
 	STAT(double HLSLTranslateTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(HLSLTranslateTime);
+		bSuccess = true;
 
 		check(ScopeStack.Num() == 0);
 
@@ -773,10 +774,8 @@ bool FHLSLMaterialTranslator::Translate()
 		Material->CompileErrors.Empty();
 		Material->ErrorExpressions.Empty();
 
-		// Verify that no pre-compilation errors have occured.
-		bSuccess = Material->CheckInValidStateForCompilation(this);
-
 		bEnableExecutionFlow = Material->IsUsingControlFlow();
+
 		bCompileForComputeShader = Material->IsLightFunction();
 
 		const bool bStrataEnabled = Engine_IsStrataEnabled();
@@ -7029,13 +7028,7 @@ int32 FHLSLMaterialTranslator::TextureParameter(FName ParameterName, UTexture* I
 
 	EMaterialValueType ShaderType = DefaultValue->GetMaterialType();
 	TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultValue);
-	if (TextureReferenceIndex == INDEX_NONE)
-	{
-		FString TextureName;
-		DefaultValue->GetName(TextureName);
-		Errorf(TEXT("Could not resolve referenced texture '%s'."), *TextureName);
-		return INDEX_NONE;
-	}
+	checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->TextureParameter() without implementing UMaterialExpression::GetReferencedTexture properly"));
 
 	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 	ParameterInfo.Name = ParameterName;

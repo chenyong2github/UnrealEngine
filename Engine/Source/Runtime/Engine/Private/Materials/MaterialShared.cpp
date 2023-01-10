@@ -2085,12 +2085,6 @@ bool FMaterialResource::IsUsingNewHLSLGenerator() const
 	}
 	return false;
 }
-
-bool FMaterialResource::CheckInValidStateForCompilation(FMaterialCompiler* Compiler) const
-{
-	return Material && Material->CheckInValidStateForCompilation(Compiler);
-}
-
 #endif
 
 FString FMaterialResource::GetFullPath() const
@@ -4391,8 +4385,7 @@ bool UMaterialInterface::IsPropertyActive(EMaterialProperty InProperty)const
 }
 
 #if WITH_EDITOR
-
-int32 UMaterialInterface::CompilePropertyEx(FMaterialCompiler* Compiler, const FGuid& AttributeID )
+int32 UMaterialInterface::CompilePropertyEx( class FMaterialCompiler* Compiler, const FGuid& AttributeID )
 {
 	return INDEX_NONE;
 }
