@@ -24,6 +24,7 @@
 
 #include "Editor.h"
 #include "ActorTransactionAnnotation.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "ActorFolder.h"
@@ -695,10 +696,12 @@ bool AActor::InternalPostEditUndo()
 
 		// notify navigation system
 		FNavigationSystem::UpdateActorAndComponentData(*this);
+		UEngineElementsLibrary::RegisterActorElement(this);
 	}
 	else
 	{
 		FNavigationSystem::RemoveActorData(*this);
+		UEngineElementsLibrary::UnregisterActorElement(this);
 	}
 
 	// This is a normal undo, so call super

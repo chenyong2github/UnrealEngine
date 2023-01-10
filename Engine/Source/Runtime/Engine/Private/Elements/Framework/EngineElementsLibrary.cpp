@@ -360,12 +360,7 @@ TTypedElementOwner<FActorElementData> UEngineElementsLibrary::CreateActorElement
 		ActorElement.GetDataChecked().Actor = const_cast<AActor*>(InActor);
 	}
 	
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	ITypedElementDataStorageCompatibilityInterface* Storage = Registry->GetMutableDataStorageCompatibility();
-	if (Storage)
-	{
-		Storage->AddCompatibleObject(const_cast<AActor*>(InActor));
-	}
+	RegisterActorElement(InActor);
 
 	return ActorElement;
 }
@@ -379,6 +374,16 @@ void UEngineElementsLibrary::DestroyActorElement(const AActor* InActor, TTypedEl
 	{
 		checkf(InOutActorElement.GetDataChecked().Actor == InActor, TEXT("Actor element was not for this actor instance! %s"), *InActor->GetPathName());
 		UTypedElementRegistry::GetInstance()->DestroyElement(InOutActorElement);
+	}
+}
+
+void UEngineElementsLibrary::RegisterActorElement(const AActor* InActor)
+{
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	ITypedElementDataStorageCompatibilityInterface* Storage = Registry->GetMutableDataStorageCompatibility();
+	if (Storage)
+	{
+		Storage->AddCompatibleObject(const_cast<AActor*>(InActor));
 	}
 }
 

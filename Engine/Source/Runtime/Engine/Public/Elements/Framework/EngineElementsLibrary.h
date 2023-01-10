@@ -42,6 +42,7 @@ public:
 
 	static TTypedElementOwner<FActorElementData> CreateActorElement(const AActor* InActor);
 	static void DestroyActorElement(const AActor* InActor, TTypedElementOwner<FActorElementData>& InOutActorElement);
+	static void RegisterActorElement(const AActor* InActor);
 	static void UnregisterActorElement(const AActor* InActor);
 #if WITH_EDITOR
 	static void CreateEditorActorElement(const AActor* Actor);
