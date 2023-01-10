@@ -193,6 +193,194 @@ bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightIn
 }
 #endif // RHI_RAYTRACING
 
+void FLightFunctionSharedParameters::Bind(const FShaderParameterMap& ParameterMap)
+{
+	LightFunctionParameters.Bind(ParameterMap, TEXT("LightFunctionParameters"));
+}
+
+FVector4f FLightFunctionSharedParameters::GetLightFunctionSharedParameters(const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction)
+{
+	const bool bIsSpotLight = LightSceneInfo->Proxy->GetLightType() == LightType_Spot;
+	const bool bIsPointLight = LightSceneInfo->Proxy->GetLightType() == LightType_Point;
+	const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo->Proxy->GetOuterConeAngle()) : 1.0f;
+	return FVector4f(TanOuterAngle, ShadowFadeFraction, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
+}
+
+class FStencilConeIndexBuffer : public FIndexBuffer
+{
+public:
+	// A side is a line of vertices going from the cone's origin to the edge of its SphereRadius
+	static const int32 NumSides = 18;
+	// A slice is a circle of vertices in the cone's XY plane
+	static const int32 NumSlices = 12;
+
+	static const uint32 NumVerts = NumSides * NumSlices * 2;
+
+	void InitRHI() override
+	{
+		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> Indices;
+
+		Indices.Empty((NumSlices - 1) * NumSides * 12);
+		// Generate triangles for the vertices of the cone shape
+		for (int32 SliceIndex = 0; SliceIndex < NumSlices - 1; SliceIndex++)
+		{
+			for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
+			{
+				const int32 CurrentIndex = SliceIndex * NumSides + SideIndex % NumSides;
+				const int32 NextSideIndex = SliceIndex * NumSides + (SideIndex + 1) % NumSides;
+				const int32 NextSliceIndex = (SliceIndex + 1) * NumSides + SideIndex % NumSides;
+				const int32 NextSliceAndSideIndex = (SliceIndex + 1) * NumSides + (SideIndex + 1) % NumSides;
+
+				Indices.Add(CurrentIndex);
+				Indices.Add(NextSideIndex);
+				Indices.Add(NextSliceIndex);
+				Indices.Add(NextSliceIndex);
+				Indices.Add(NextSideIndex);
+				Indices.Add(NextSliceAndSideIndex);
+			}
+		}
+
+		// Generate triangles for the vertices of the spherical cap
+		const int32 CapIndexStart = NumSides * NumSlices;
+
+		for (int32 SliceIndex = 0; SliceIndex < NumSlices - 1; SliceIndex++)
+		{
+			for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
+			{
+				const int32 CurrentIndex = SliceIndex * NumSides + SideIndex % NumSides + CapIndexStart;
+				const int32 NextSideIndex = SliceIndex * NumSides + (SideIndex + 1) % NumSides + CapIndexStart;
+				const int32 NextSliceIndex = (SliceIndex + 1) * NumSides + SideIndex % NumSides + CapIndexStart;
+				const int32 NextSliceAndSideIndex = (SliceIndex + 1) * NumSides + (SideIndex + 1) % NumSides + CapIndexStart;
+
+				Indices.Add(CurrentIndex);
+				Indices.Add(NextSliceIndex);
+				Indices.Add(NextSideIndex);
+				Indices.Add(NextSideIndex);
+				Indices.Add(NextSliceIndex);
+				Indices.Add(NextSliceAndSideIndex);
+			}
+		}
+
+		const uint32 Size = Indices.GetResourceDataSize();
+		const uint32 Stride = sizeof(uint16);
+
+		NumIndices = Indices.Num();
+
+		// Create index buffer. Fill buffer with initial data upon creation
+		FRHIResourceCreateInfo CreateInfo(TEXT("FStencilConeIndexBuffer"), &Indices);
+		IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
+	}
+
+	int32 GetIndexCount() const { return NumIndices; }
+
+protected:
+	int32 NumIndices;
+};
+
+/** The stencil cone index buffer. */
+TGlobalResource<FStencilConeIndexBuffer> GStencilConeIndexBuffer;
+
+/**
+* Vertex buffer for a cone. It holds zero'd out data since the actual math is done on the shader
+*/
+class FStencilConeVertexBuffer : public FVertexBuffer
+{
+public:
+	static const int32 NumVerts = FStencilConeIndexBuffer::NumSides * FStencilConeIndexBuffer::NumSlices * 2;
+
+	/**
+	* Initialize the RHI for this rendering resource
+	*/
+	void InitRHI() override
+	{
+		TResourceArray<FVector4f, VERTEXBUFFER_ALIGNMENT> Verts;
+		Verts.Empty(NumVerts);
+		for (int32 s = 0; s < NumVerts; s++)
+		{
+			Verts.Add(FVector4f(0, 0, 0, 0));
+		}
+
+		uint32 Size = Verts.GetResourceDataSize();
+
+		// Create vertex buffer. Fill buffer with initial data upon creation
+		FRHIResourceCreateInfo CreateInfo(TEXT("FStencilConeVertexBuffer"), &Verts);
+		VertexBufferRHI = RHICreateVertexBuffer(Size, BUF_Static, CreateInfo);
+	}
+
+	int32 GetVertexCount() const { return NumVerts; }
+};
+
+/** The (dummy) stencil cone vertex buffer. */
+TGlobalResource<FStencilConeVertexBuffer> GStencilConeVertexBuffer;
+
+void FStencilingGeometryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
+{
+	StencilGeometryPosAndScale.Bind(ParameterMap, TEXT("StencilingGeometryPosAndScale"));
+	StencilConeParameters.Bind(ParameterMap, TEXT("StencilingConeParameters"));
+	StencilConeTransform.Bind(ParameterMap, TEXT("StencilingConeTransform"));
+}
+
+void FStencilingGeometryShaderParameters::Set(FRHICommandList& RHICmdList, FShader* Shader, const FVector4f& InStencilingGeometryPosAndScale) const
+{
+	const FParameters P = GetParameters(InStencilingGeometryPosAndScale);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilGeometryPosAndScale, P.StencilingGeometryPosAndScale);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeParameters, P.StencilingConeParameters);
+}
+
+void FStencilingGeometryShaderParameters::Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FLightSceneInfo* LightSceneInfo) const
+{
+	const FParameters P = GetParameters(View, LightSceneInfo);
+	if (LightSceneInfo->Proxy->GetLightType() == LightType_Point ||
+		LightSceneInfo->Proxy->GetLightType() == LightType_Rect)
+	{
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilGeometryPosAndScale, P.StencilingGeometryPosAndScale);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeParameters, P.StencilingConeParameters);
+	}
+	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
+	{
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeTransform, P.StencilingConeTransform);
+		SetShaderValue(
+			RHICmdList,
+			RHICmdList.GetBoundVertexShader(),
+			StencilConeParameters,
+			P.StencilingConeParameters);
+	}
+}
+
+FStencilingGeometryShaderParameters::FParameters FStencilingGeometryShaderParameters::GetParameters(const FVector4f& InStencilingGeometryPosAndScale)
+{
+	FParameters Out;
+	Out.StencilingGeometryPosAndScale = InStencilingGeometryPosAndScale;
+	Out.StencilingConeParameters = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+	Out.StencilingConeTransform = FMatrix44f::Identity;
+	return Out;
+}
+
+FStencilingGeometryShaderParameters::FParameters FStencilingGeometryShaderParameters::GetParameters(const FSceneView& View, const FLightSceneInfo* LightSceneInfo)
+{
+	FParameters Out;
+	if (LightSceneInfo->Proxy->GetLightType() == LightType_Point ||
+		LightSceneInfo->Proxy->GetLightType() == LightType_Rect)
+	{
+		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(Out.StencilingGeometryPosAndScale, LightSceneInfo->Proxy->GetBoundingSphere(), View.ViewMatrices.GetPreViewTranslation());
+		Out.StencilingConeParameters = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		Out.StencilingConeTransform = FMatrix44f::Identity;
+	}
+	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
+	{
+		const FMatrix WorldToTranslatedWorld = FTranslationMatrix(View.ViewMatrices.GetPreViewTranslation());
+		Out.StencilingGeometryPosAndScale = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		Out.StencilingConeTransform = FMatrix44f(LightSceneInfo->Proxy->GetLightToWorld() * WorldToTranslatedWorld);
+		Out.StencilingConeParameters =
+			FVector4f(
+				FStencilConeIndexBuffer::NumSides,
+				FStencilConeIndexBuffer::NumSlices,
+				LightSceneInfo->Proxy->GetOuterConeAngle(),
+				LightSceneInfo->Proxy->GetRadius());
+	}
+	return Out;
+}
+
 bool FDeferredLightVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {
 	FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -478,10 +666,10 @@ void StencilingGeometry::DrawVectorSphere(FRHICommandList& RHICmdList)
 void StencilingGeometry::DrawCone(FRHICommandList& RHICmdList)
 {
 	// No Stream Source needed since it will generate vertices on the fly
-	RHICmdList.SetStreamSource(0, StencilingGeometry::GStencilConeVertexBuffer.VertexBufferRHI, 0);
+	RHICmdList.SetStreamSource(0, GStencilConeVertexBuffer.VertexBufferRHI, 0);
 
-	RHICmdList.DrawIndexedPrimitive(StencilingGeometry::GStencilConeIndexBuffer.IndexBufferRHI, 0, 0,
-		FStencilConeIndexBuffer::NumVerts, 0, StencilingGeometry::GStencilConeIndexBuffer.GetIndexCount() / 3, 1);
+	RHICmdList.DrawIndexedPrimitive(GStencilConeIndexBuffer.IndexBufferRHI, 0, 0,
+		FStencilConeIndexBuffer::NumVerts, 0, GStencilConeIndexBuffer.GetIndexCount() / 3, 1);
 }
 
 /** The stencil sphere vertex buffer. */
@@ -493,12 +681,6 @@ TGlobalResource<StencilingGeometry::TStencilSphereIndexBuffer<18, 12> > Stencili
 
 TGlobalResource<StencilingGeometry::TStencilSphereVertexBuffer<4, 4, FVector4f> > StencilingGeometry::GLowPolyStencilSphereVertexBuffer;
 TGlobalResource<StencilingGeometry::TStencilSphereIndexBuffer<4, 4> > StencilingGeometry::GLowPolyStencilSphereIndexBuffer;
-
-/** The (dummy) stencil cone vertex buffer. */
-TGlobalResource<StencilingGeometry::FStencilConeVertexBuffer> StencilingGeometry::GStencilConeVertexBuffer;
-
-/** The stencil cone index buffer. */
-TGlobalResource<StencilingGeometry::FStencilConeIndexBuffer> StencilingGeometry::GStencilConeIndexBuffer;
 
 // Implement a version for directional lights, and a version for point / spot lights
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightVS, "/Engine/Private/DeferredLightVertexShaders.usf", "VertexMain", SF_Vertex);

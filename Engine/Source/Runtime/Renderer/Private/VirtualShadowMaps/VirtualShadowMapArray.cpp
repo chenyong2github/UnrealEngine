@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-/*=============================================================================
-	VirtualShadowMap.h:
-=============================================================================*/
+
 #include "VirtualShadowMapArray.h"
 #include "BasePassRendering.h"
 #include "ComponentRecreateRenderStateContext.h"
@@ -1149,6 +1147,11 @@ void FVirtualShadowMapVisualizeLightSearch::CheckLight(const FLightSceneProxy* C
 		FoundVirtualShadowMapId = CheckVirtualShadowMapId;
 	}
 #endif
+}
+
+const FString FVirtualShadowMapVisualizeLightSearch::GetLightName() const
+{
+	return FoundProxy->GetOwnerNameOrLabel();
 }
 
 static FRDGTextureRef CreateDebugVisualizationTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)

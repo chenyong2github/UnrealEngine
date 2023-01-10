@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Components/DirectionalLightComponent.h"
+#include "LightSceneProxy.h"
 #include "Math/InverseRotationMatrix.h"
 #include "UObject/ConstructorHelpers.h"
 #include "RenderUtils.h"

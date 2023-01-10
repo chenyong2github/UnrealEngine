@@ -19,15 +19,12 @@
 #include "RendererInterface.h"
 #include "BatchedElements.h"
 #include "MeshBatch.h"
-#include "SceneManagement.h"
 #include "ScenePrivateBase.h"
 #include "PrimitiveSceneInfo.h"
-#include "GlobalShader.h"
 #include "PrimitiveViewRelevance.h"
 #include "LightShaftRendering.h"
 #include "StaticBoundShaderState.h"
 #include "Templates/UniquePtr.h"
-#include "RenderGraphUtils.h"
 #include "MeshDrawCommands.h"
 #include "MeshPassProcessor.h"
 #include "ShaderPrintParameters.h"
@@ -60,6 +57,7 @@ class FShadowProjectionPassParameters;
 class FSceneTextureShaderParameters;
 class FLumenSceneData;
 class FShadowSceneRenderer;
+class FGlobalShaderMap;
 
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
@@ -78,6 +76,7 @@ struct FSkyAtmosphereRenderContext;
 class FTexture2DResource;
 class FSimpleLightArray;
 struct FNaniteMaterialPassCommand;
+struct FScreenMessageWriter;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 

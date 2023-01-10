@@ -11,8 +11,8 @@
 #include "SceneView.h"
 #include "Async/ParallelFor.h"
 #include "LightMap.h"
+#include "LightSceneProxy.h"
 #include "ShadowMap.h"
-#include "Engine/TextureLightProfile.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "TextureResource.h"
 #include "VT/LightmapVirtualTexture.h"
@@ -67,12 +67,6 @@ bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)
 bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform)
 {
 	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(ShaderPlatform) && IsUsingDistanceFields(ShaderPlatform);
-}
-
-
-FTexture* FLightSceneProxy::GetIESTextureResource() const
-{
-	return IESTexture ? IESTexture->GetResource() : nullptr;
 }
 
 

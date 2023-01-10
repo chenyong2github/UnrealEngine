@@ -6,6 +6,7 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
+#include "LightSceneProxy.h"
 #include "MeshPassProcessor.inl"
 #include "MeshCardRepresentation.h"
 #include "GPUScene.h"
@@ -1019,6 +1020,8 @@ FCardPageRenderData::FCardPageRenderData(
 
 	UpdateViewMatrices(InMainView);
 }
+
+FCardPageRenderData::~FCardPageRenderData() = default;
 
 void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 {

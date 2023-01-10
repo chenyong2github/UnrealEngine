@@ -7,6 +7,7 @@
 #if RHI_RAYTRACING
 
 #include "LightRendering.h"
+#include "LightSceneProxy.h"
 #include "SceneRendering.h"
 #include "RayTracingMaterialHitShaders.h"
 

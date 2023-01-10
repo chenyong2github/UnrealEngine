@@ -2,6 +2,7 @@
 
 #include "LightShaftRendering.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "LightSceneProxy.h"
 #include "ScreenPass.h"
 #include "PipelineStateCache.h"
 #include "PostProcess/SceneRenderTargets.h"

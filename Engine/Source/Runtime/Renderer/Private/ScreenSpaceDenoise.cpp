@@ -6,6 +6,7 @@
 
 #include "ScreenSpaceDenoise.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "LightSceneProxy.h"
 #include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
 #include "PostProcess/SceneRenderTargets.h"

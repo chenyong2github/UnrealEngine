@@ -4706,15 +4706,16 @@ void FScene::Export( FArchive& Ar ) const
 	
 }
 
-void FScene::ApplyWorldOffset(FVector InOffset)
+void FScene::ApplyWorldOffset(const FVector& InOffset)
 {
 	// Send a command to the rendering thread to shift scene data
 	FScene* Scene = this;
+	FVector Offset = InOffset;
 	ENQUEUE_RENDER_COMMAND(FApplyWorldOffset)(
-		[Scene, InOffset](FRHICommandListImmediate& RHICmdList)
+		[Scene, Offset](FRHICommandListImmediate& RHICmdList)
 		{
 			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
-			Scene->ApplyWorldOffset_RenderThread(InOffset);
+			Scene->ApplyWorldOffset_RenderThread(Offset);
 		});
 }
 
@@ -4836,7 +4837,7 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 	VelocityData.ApplyOffset(InOffset);
 }
 
-void FScene::OnLevelAddedToWorld(FName LevelAddedName, UWorld* InWorld, bool bIsLightingScenario)
+void FScene::OnLevelAddedToWorld(const FName& InLevelAddedName, UWorld* InWorld, bool bIsLightingScenario)
 {
 	if (bIsLightingScenario)
 	{
@@ -4844,6 +4845,7 @@ void FScene::OnLevelAddedToWorld(FName LevelAddedName, UWorld* InWorld, bool bIs
 	}
 
 	FScene* Scene = this;
+	FName LevelAddedName = InLevelAddedName;
 	ENQUEUE_RENDER_COMMAND(FLevelAddedToWorld)(
 		[Scene, LevelAddedName](FRHICommandListImmediate& RHICmdList)
 		{
@@ -4852,7 +4854,7 @@ void FScene::OnLevelAddedToWorld(FName LevelAddedName, UWorld* InWorld, bool bIs
 		});
 }
 
-void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
+void FScene::OnLevelAddedToWorld_RenderThread(const FName& InLevelName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FScene::OnLevelAddedToWorld_RenderThread);
 
@@ -4882,7 +4884,7 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 	FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListExecutor::GetImmediateCommandList(), this, PrimitivesToAdd);
 }
 
-void FScene::OnLevelRemovedFromWorld(FName LevelRemovedName, UWorld* InWorld, bool bIsLightingScenario)
+void FScene::OnLevelRemovedFromWorld(const FName& InLevelRemovedName, UWorld* InWorld, bool bIsLightingScenario)
 {
 	if (bIsLightingScenario)
 	{
@@ -4890,6 +4892,7 @@ void FScene::OnLevelRemovedFromWorld(FName LevelRemovedName, UWorld* InWorld, bo
 	}
 
 	FScene* Scene = this;
+	FName LevelRemovedName = InLevelRemovedName;
 	ENQUEUE_RENDER_COMMAND(FLevelRemovedFromWorld)(
 		[Scene, LevelRemovedName](FRHICommandListImmediate& RHICmdList)
 		{
@@ -4899,7 +4902,7 @@ void FScene::OnLevelRemovedFromWorld(FName LevelRemovedName, UWorld* InWorld, bo
 }
 
 
-void FScene::OnLevelRemovedFromWorld_RenderThread(FName InLevelName)
+void FScene::OnLevelRemovedFromWorld_RenderThread(const FName& InLevelName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FScene::OnLevelRemovedFromWorld_RenderThread);
 

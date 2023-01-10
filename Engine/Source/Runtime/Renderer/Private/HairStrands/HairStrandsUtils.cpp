@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsUtils.h"
+#include "LightSceneProxy.h"
 #include "ScenePrivate.h"
 #include "HairStrandsCluster.h"
 #include "Rendering/SkeletalMeshRenderData.h"

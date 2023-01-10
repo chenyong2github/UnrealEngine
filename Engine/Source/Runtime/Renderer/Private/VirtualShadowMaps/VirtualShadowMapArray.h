@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-/*=============================================================================
-	VirtualShadowMapArray.h:
-=============================================================================*/
+
 #pragma once
 
-#include "MeshDrawCommands.h"
-#include "Nanite/Nanite.h"
-#include "SceneTypes.h"
+#include "SceneManagement.h"
+#include "SceneView.h"
 #include "VirtualShadowMapDefinitions.h"
 
 struct FMinimalSceneTextures;
@@ -20,6 +17,15 @@ struct FSortedLightSetSceneInfo;
 class FVirtualShadowMapClipmap;
 struct FScreenPassTexture;
 struct FSingleLayerWaterPrePassResult;
+class FNaniteVisibilityResults;
+class FSceneRenderer;
+struct FShaderCompilerEnvironment;
+
+namespace Nanite
+{
+	struct FPackedView;
+	struct FRasterResults;
+}
 
 // TODO: does this exist?
 constexpr uint32 ILog2Const(uint32 n)
@@ -176,7 +182,7 @@ public:
 
 	int GetVirtualShadowMapId() const { return FoundVirtualShadowMapId; }
 	const FLightSceneProxy* GetProxy() const { return FoundProxy; }
-	const FString GetLightName() const { return FoundProxy->GetOwnerNameOrLabel(); }
+	const FString GetLightName() const;
 
 private:
 	union SortKey

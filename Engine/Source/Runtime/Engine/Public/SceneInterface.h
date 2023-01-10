@@ -2,46 +2,64 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
+#include "HAL/Platform.h"
+#include "Math/MathFwd.h"
+#include "RenderGraphFwd.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "SceneTypes.h"
 #include "SceneUtils.h"
 #include "Math/SHMath.h"
 #include "RenderGraphDefinitions.h"
+#endif
 
 class AWorldSettings;
-class FSkyAtmosphereRenderSceneInfo;
-class FSkyAtmosphereSceneProxy;
-class FVolumetricCloudRenderSceneInfo;
-class FVolumetricCloudSceneProxy;
+class FArchive;
+class FFloat16Color;
+class FInstanceCullingManager;
 class FMaterial;
 class FMaterialShaderMap;
+class FName;
+class FOutputDevice;
+class FPrimitiveComponentId;
 class FPrimitiveSceneInfo;
+class FRDGBuilder;
+class FRectLightSceneProxy;
 class FRenderResource;
 class FRenderTarget;
-class FLightSceneProxy;
-class FRectLightSceneProxy;
+class FRHICommandListImmediate;
+class FRHIUniformBuffer;
+class FSceneRenderer;
+class FSceneViewStateInterface;
+class FSkyAtmosphereRenderSceneInfo;
+class FSkyAtmosphereSceneProxy;
 class FSkyLightSceneProxy;
 class FTexture;
 class FVertexFactory;
+class FViewInfo;
+class FVolumetricCloudRenderSceneInfo;
+class FVolumetricCloudSceneProxy;
 class UDecalComponent;
-struct FDeferredDecalUpdateParams;
+class UInstancedStaticMeshComponent;
 class ULightComponent;
 class UPlanarReflectionComponent;
 class UPrimitiveComponent;
-class UInstancedStaticMeshComponent;
 class UReflectionCaptureComponent;
 class USkyLightComponent;
 class UStaticMeshComponent;
 class UTextureCube;
-class FViewInfo;
-class FSceneRenderer;
-class FInstanceCullingManager;
-class FSceneViewStateInterface;
-class FRDGExternalAccessQueue;
+enum class EPrimitiveDirtyState : uint8;
+enum class EShadingPath;
+enum EShaderPlatform : uint16;
+namespace ERHIFeatureLevel { enum Type : int; }
+struct FDeferredDecalUpdateParams;
 struct FHairStrandsInstance;
 struct FLightRenderParameters;
-class FSparseVolumeTextureViewerSceneProxy;
+template<int32 MaxSHOrder> class TSHVectorRGB;
+using FSHVectorRGB3 = TSHVectorRGB<3>;
 
 enum EBasePassDrawListType
 {
@@ -57,9 +75,7 @@ enum EBasePassDrawListType
 class FSceneInterface
 {
 public:
-	ENGINE_API FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
-		: FeatureLevel(InFeatureLevel)
-	{}
+	ENGINE_API FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel);
 
 	// FSceneInterface interface
 
@@ -81,7 +97,7 @@ public:
 	* Updates all primitive scene info additions, remobals and translation changes
 	*/
 	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs = false) = 0;
-	virtual ENGINE_API void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false);
+	ENGINE_API virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false);
 
 	/** 
 	 * Updates the transform of a primitive which has already been added to the scene. 
@@ -528,15 +544,15 @@ public:
 	 * 
 	 * @param	InOffset	Delta to shift scene by
 	 */
-	virtual void ApplyWorldOffset(FVector InOffset) {}
+	virtual void ApplyWorldOffset(const FVector& InOffset) {}
 
 	/**
 	 * Notification that level was added to a world
 	 * 
 	 * @param	InLevelName		Level name
 	 */
-	virtual void OnLevelAddedToWorld(FName InLevelName, UWorld* InWorld, bool bIsLightingScenario) {}
-	virtual void OnLevelRemovedFromWorld(FName InLevelName, UWorld* InWorld, bool bIsLightingScenario) {}
+	virtual void OnLevelAddedToWorld(const FName& InLevelName, UWorld* InWorld, bool bIsLightingScenario) {}
+	virtual void OnLevelRemovedFromWorld(const FName& InLevelName, UWorld* InWorld, bool bIsLightingScenario) {}
 
 	/**
 	 * @return True if there are any lights in the scene
@@ -547,19 +563,9 @@ public:
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 
-	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[GetFeatureLevel()]; }
+	ENGINE_API EShaderPlatform GetShaderPlatform() const;
 
-	static EShadingPath GetShadingPath(ERHIFeatureLevel::Type InFeatureLevel)
-	{
-		if (InFeatureLevel >= ERHIFeatureLevel::SM5)
-		{
-			return EShadingPath::Deferred;
-		}
-		else
-		{
-			return EShadingPath::Mobile;
-		}
-	}
+	static ENGINE_API EShadingPath GetShadingPath(ERHIFeatureLevel::Type InFeatureLevel);
 
 	EShadingPath GetShadingPath() const
 	{
@@ -589,17 +595,15 @@ public:
 	/**
 	 * Returns the FPrimitiveComponentId for all primitives in the scene
 	 */
-	virtual ENGINE_API TArray<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const;
+	ENGINE_API virtual TArray<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const;
 
 	virtual void StartFrame() {}
 	virtual uint32 GetFrameNumber() const { return 0; }
 	virtual void IncrementFrameNumber() {}
 
-#if RHI_RAYTRACING
 	virtual void UpdateCachedRayTracingState(class FPrimitiveSceneProxy* SceneProxy) {}
 	virtual class FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() { return nullptr; }
 	virtual class FRayTracingSkinnedGeometryUpdateQueue* GetRayTracingSkinnedGeometryUpdateQueue() { return nullptr; }
-#endif
 
 	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) { return false; }
 

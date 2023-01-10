@@ -6,6 +6,7 @@
 #include "HairStrandsUtils.h"
 #include "HairStrandsData.h"
 #include "LightSceneInfo.h"
+#include "LightSceneProxy.h"
 #include "ScenePrivate.h"
 #include "SystemTextures.h"
 

@@ -68,6 +68,7 @@ public:
 		int32 InCardIndex,
 		int32 InCardPageIndex,
 		bool bResampleLastLighting);
+	~FCardPageRenderData();
 
 	void UpdateViewMatrices(const FViewInfo& MainView);
 

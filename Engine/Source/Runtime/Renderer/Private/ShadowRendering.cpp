@@ -1930,6 +1930,16 @@ float FProjectedShadowInfo::ComputeTransitionSize() const
 	return FMath::Max(TransitionSize, MinTransitionSize);
 }
 
+bool FProjectedShadowInfo::IsWholeSceneDirectionalShadow() const
+{
+	return bWholeSceneShadow && CascadeSettings.ShadowSplitIndex >= 0 && bDirectionalLight;
+}
+
+bool FProjectedShadowInfo::IsWholeScenePointLightShadow() const
+{
+	return bWholeSceneShadow && (LightSceneInfo->Proxy->GetLightType() == LightType_Point || LightSceneInfo->Proxy->GetLightType() == LightType_Rect);
+}
+
 float FProjectedShadowInfo::GetShaderReceiverDepthBias() const
 {
 	float ShadowReceiverBias = 1;

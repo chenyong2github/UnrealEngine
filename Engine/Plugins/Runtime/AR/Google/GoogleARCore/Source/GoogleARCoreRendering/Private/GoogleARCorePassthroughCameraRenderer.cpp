@@ -15,6 +15,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessMaterial.h"
 #include "Materials/MaterialRenderProxy.h"
+#include "MaterialDomain.h"
 #include "MaterialShader.h"
 #include "MaterialShaderType.h"
 #include "GoogleARCoreAndroidHelper.h"

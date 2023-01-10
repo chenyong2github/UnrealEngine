@@ -4,6 +4,7 @@
 
 #if RHI_RAYTRACING
 
+#include "LightSceneProxy.h"
 #include "RayTracingSkyLight.h"
 #include "ScenePrivate.h"
 #include "PostProcess/SceneRenderTargets.h"

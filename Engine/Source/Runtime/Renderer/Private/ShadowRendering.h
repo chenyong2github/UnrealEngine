@@ -11,6 +11,7 @@
 #include "Templates/RefCounting.h"
 #include "RHI.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "LightSceneProxy.h"
 #include "RenderResource.h"
 #include "UniformBuffer.h"
 #include "SceneInterface.h"
@@ -739,15 +740,8 @@ public:
 	/** How large the soft PCF comparison should be, similar to DepthBias, before this was called TransitionScale and 1/Size */
 	float ComputeTransitionSize() const;
 
-	inline bool IsWholeSceneDirectionalShadow() const 
-	{ 
-		return bWholeSceneShadow && CascadeSettings.ShadowSplitIndex >= 0 && bDirectionalLight; 
-	}
-
-	inline bool IsWholeScenePointLightShadow() const
-	{
-		return bWholeSceneShadow && ( LightSceneInfo->Proxy->GetLightType() == LightType_Point || LightSceneInfo->Proxy->GetLightType() == LightType_Rect );
-	}
+	bool IsWholeSceneDirectionalShadow() const;
+	bool IsWholeScenePointLightShadow() const;
 
 	bool ShouldClampToNearPlane() const
 	{

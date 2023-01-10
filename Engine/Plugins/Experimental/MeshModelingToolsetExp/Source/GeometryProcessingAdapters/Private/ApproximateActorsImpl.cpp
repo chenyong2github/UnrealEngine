@@ -2,6 +2,7 @@
 
 #include "GeometryProcessing/ApproximateActorsImpl.h"
 
+#include "GameFramework/Actor.h"
 #include "Scene/MeshSceneAdapter.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"

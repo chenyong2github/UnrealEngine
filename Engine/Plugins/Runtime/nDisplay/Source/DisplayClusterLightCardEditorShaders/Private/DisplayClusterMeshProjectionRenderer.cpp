@@ -15,6 +15,7 @@
 #include "ScreenPass.h"
 #include "Components/PrimitiveComponent.h"
 #include "InstanceCulling/InstanceCullingContext.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "DataDrivenShaderPlatformInfo.h"
 

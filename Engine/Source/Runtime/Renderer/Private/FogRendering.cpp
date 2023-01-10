@@ -3,6 +3,7 @@
 #include "FogRendering.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "DeferredShadingRenderer.h"
+#include "LightSceneProxy.h"
 #include "ScenePrivate.h"
 #include "Engine/TextureCube.h"
 #include "PipelineStateCache.h"

@@ -8,6 +8,7 @@ VirtualShadowMapClipmap.cpp
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "LightSceneInfo.h"
+#include "LightSceneProxy.h"
 #include "RendererModule.h"
 #include "ScenePrivate.h"
 #include "SceneRendering.h"

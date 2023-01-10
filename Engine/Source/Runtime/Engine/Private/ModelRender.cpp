@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "PrimitiveViewRelevance.h"
 #include "LightMap.h"
+#include "LightSceneProxy.h"
 #include "PrimitiveSceneProxy.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Model.h"

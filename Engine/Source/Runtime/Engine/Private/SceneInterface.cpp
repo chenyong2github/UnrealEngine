@@ -3,6 +3,12 @@
 #include "SceneInterface.h"
 #include "RenderGraphBuilder.h"
 #include "SceneTypes.h"
+#include "SceneUtils.h"
+
+FSceneInterface::FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
+	: FeatureLevel(InFeatureLevel)
+{
+}
 
 TArray<FPrimitiveComponentId> FSceneInterface::GetScenePrimitiveComponentIds() const
 { 
@@ -14,4 +20,21 @@ void FSceneInterface::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHI
 	FRDGBuilder GraphBuilder(RHICmdList, FRDGEventName(TEXT("UpdateAllPrimitiveSceneInfos")));
 	UpdateAllPrimitiveSceneInfos(GraphBuilder, bAsyncCreateLPIs);
 	GraphBuilder.Execute();
+}
+
+EShaderPlatform FSceneInterface::GetShaderPlatform() const
+{
+	return GShaderPlatformForFeatureLevel[GetFeatureLevel()];
+}
+
+EShadingPath FSceneInterface::GetShadingPath(ERHIFeatureLevel::Type InFeatureLevel)
+{
+	if (InFeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		return EShadingPath::Deferred;
+	}
+	else
+	{
+		return EShadingPath::Mobile;
+	}
 }

@@ -7,6 +7,7 @@
 #if RHI_RAYTRACING
 
 #include "ClearQuad.h"
+#include "LightSceneProxy.h"
 #include "SceneRendering.h"
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
