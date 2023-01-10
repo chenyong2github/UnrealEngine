@@ -82,12 +82,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Output")
 	EVCamTargetViewportID GetTargetViewport() const { return TargetViewport; }
 	UFUNCTION(BlueprintCallable, Category = "Output")
-	void SetTargetViewport(EVCamTargetViewportID Value) { TargetViewport = Value; }
+	void SetTargetViewport(EVCamTargetViewportID Value);
 	
 	UFUNCTION(BlueprintPure, Category = "Output")
 	TSubclassOf<UUserWidget> GetUMGClass() const { return UMGClass; }
 	UFUNCTION(BlueprintCallable, Category = "Output")
-	void SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass) { UMGClass = InUMGClass; }
+	void SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass);
 
 	UVPFullScreenUserWidget* GetUMGWidget() { return UMGWidget; };
 

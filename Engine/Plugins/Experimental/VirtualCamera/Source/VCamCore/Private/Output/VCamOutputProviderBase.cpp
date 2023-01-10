@@ -152,6 +152,16 @@ void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTarg
 	NotifyWidgetOfComponentChange();
 }
 
+void UVCamOutputProviderBase::SetTargetViewport(EVCamTargetViewportID Value)
+{
+	TargetViewport = Value;
+}
+
+void UVCamOutputProviderBase::SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass)
+{
+	UMGClass = InUMGClass;
+}
+
 void UVCamOutputProviderBase::CreateUMG()
 {
 	if (!UMGClass)
