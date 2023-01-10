@@ -181,33 +181,17 @@ void FMassEntityManager::Deinitialize()
 
 FMassArchetypeHandle FMassEntityManager::CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAndTagsList, const FName ArchetypeDebugName)
 {
-	FMassChunkFragmentBitSet ChunkFragments;
-	FMassTagBitSet Tags;
-	TArray<const UScriptStruct*, TInlineAllocator<16>> FragmentList;
-	FragmentList.Reserve(FragmentsAndTagsList.Num());
+	FMassArchetypeCompositionDescriptor Composition;
+	InternalAppendFragmentsAndTagsToArchetypeCompositionDescriptor(Composition, FragmentsAndTagsList);
+	return CreateArchetype(Composition, ArchetypeDebugName);
+}
 
-	for (const UScriptStruct* Type : FragmentsAndTagsList)
-	{
-		if (Type->IsChildOf(FMassFragment::StaticStruct()))
-		{
-			FragmentList.Add(Type);
-		}
-		else if (Type->IsChildOf(FMassTag::StaticStruct()))
-		{
-			Tags.Add(*Type);
-		}
-		else if (Type->IsChildOf(FMassChunkFragment::StaticStruct()))
-		{
-			ChunkFragments.Add(*Type);
-		}
-		else
-		{
-			UE_LOG(LogMass, Warning, TEXT("%s: %s is not a valid fragment nor tag type. Ignoring.")
-				, ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Type));
-		}
-	}
-
-	const FMassArchetypeCompositionDescriptor Composition(FMassFragmentBitSet(FragmentList), Tags, ChunkFragments, FMassSharedFragmentBitSet());
+FMassArchetypeHandle FMassEntityManager::CreateArchetype(FMassArchetypeHandle SourceArchetype,
+	TConstArrayView<const UScriptStruct*> FragmentsAndTagsList, const FName ArchetypeDebugName)
+{
+	const FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(SourceArchetype);
+	FMassArchetypeCompositionDescriptor Composition = ArchetypeData.GetCompositionDescriptor();
+	InternalAppendFragmentsAndTagsToArchetypeCompositionDescriptor(Composition, FragmentsAndTagsList);
 	return CreateArchetype(Composition, ArchetypeDebugName);
 }
 
@@ -321,6 +305,31 @@ FMassArchetypeHandle FMassEntityManager::InternalCreateSimilarArchetype(const FM
 	}
 
 	return FMassArchetypeHelper::ArchetypeHandleFromData(ArchetypeDataPtr);
+}
+
+void FMassEntityManager::InternalAppendFragmentsAndTagsToArchetypeCompositionDescriptor(
+	FMassArchetypeCompositionDescriptor& InOutComposition, TConstArrayView<const UScriptStruct*> FragmentsAndTagsList) const
+{
+	for (const UScriptStruct* Type : FragmentsAndTagsList)
+	{
+		if (Type->IsChildOf(FMassFragment::StaticStruct()))
+		{
+			InOutComposition.Fragments.Add(*Type);
+		}
+		else if (Type->IsChildOf(FMassTag::StaticStruct()))
+		{
+			InOutComposition.Tags.Add(*Type);
+		}
+		else if (Type->IsChildOf(FMassChunkFragment::StaticStruct()))
+		{
+			InOutComposition.ChunkFragments.Add(*Type);
+		}
+		else
+		{
+			UE_LOG(LogMass, Warning, TEXT("%s: %s is not a valid fragment nor tag type. Ignoring.")
+				, ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Type));
+		}
+	}
 }
 
 FMassArchetypeHandle FMassEntityManager::GetArchetypeForEntity(FMassEntityHandle Entity) const

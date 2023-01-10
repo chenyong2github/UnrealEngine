@@ -107,6 +107,14 @@ public:
 	FMassArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAndTagsList, const FName ArchetypeDebugName = FName());
 
 	/**
+	 * A special, relaxed but slower version of CreateArchetype functions that allows FragmentAngTagsList to contain
+	 * both fragments and tags. This version takes an original archetype and copies it layout, then appends any fragments and tags from the
+	 * provided list if they're not already in the original archetype.
+	 */
+	FMassArchetypeHandle CreateArchetype(FMassArchetypeHandle SourceArchetype, 
+		TConstArrayView<const UScriptStruct*> FragmentsAndTagsList, const FName ArchetypeDebugName = FName());
+
+	/**
 	 * CreateArchetype from a composition descriptor and initial values
 	 *
 	 * @param Composition of fragment, tag and chunk fragment types
@@ -426,6 +434,9 @@ protected:
 
 	FMassArchetypeHandle InternalCreateSimilarArchetype(const FMassArchetypeData& SourceArchetypeRef, FMassArchetypeCompositionDescriptor&& NewComposition);
 
+	void InternalAppendFragmentsAndTagsToArchetypeCompositionDescriptor(FMassArchetypeCompositionDescriptor& InOutComposition,
+		TConstArrayView<const UScriptStruct*> FragmentsAndTagsList) const;
+
 private:
 	void InternalBuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle, const FMassArchetypeSharedFragmentValues& SharedFragmentValues);
 	void InternalReleaseEntity(FMassEntityHandle Entity);
@@ -442,7 +453,6 @@ private:
 	void InternalAddFragmentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& InFragments);
 	void* InternalGetFragmentDataChecked(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
 	void* InternalGetFragmentDataPtr(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
-
 private:
 	TChunkedArray<FEntityData> Entities;
 	TArray<int32> EntityFreeIndexList;
