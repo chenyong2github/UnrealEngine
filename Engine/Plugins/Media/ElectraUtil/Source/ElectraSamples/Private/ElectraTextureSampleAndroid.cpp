@@ -11,6 +11,8 @@
 #include "Android/AndroidApplication.h"
 
 #include "RenderingThread.h"
+#include "RHIStaticStates.h"
+#include "PipelineStateCache.h"
 
 DECLARE_GPU_STAT_NAMED(MediaAndroidDecoder_Convert, TEXT("MediaAndroidDecoder_Convert"));
 
