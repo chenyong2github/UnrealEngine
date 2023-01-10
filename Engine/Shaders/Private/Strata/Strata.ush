@@ -2648,6 +2648,12 @@ void SanitizeStrataSingleLayerWater(inout FStrataBSDF BSDF)
 #endif
 }
 
+void SanitizeStrataUnlit(inout FStrataBSDF BSDF)
+{
+	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
+	UNLIT_TRANSMITTANCE(BSDF) = saturate(UNLIT_TRANSMITTANCE(BSDF));
+}
+
 void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
@@ -2672,7 +2678,6 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 			SanitizeStrataSingleLayerWater(BSDF);
 			break;
 		}
-		
 	}
 }
 

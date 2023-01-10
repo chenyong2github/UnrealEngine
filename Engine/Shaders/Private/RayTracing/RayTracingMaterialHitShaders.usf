@@ -253,6 +253,7 @@ void GetMaterialPayload(
 
   #if STRATA_OPTIMIZED_UNLIT
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	SanitizeStrataUnlit(UnlitBSDF);
 	EmissiveLuminance = BSDF_GETEMISSIVE(UnlitBSDF);
 	#if !STRATA_OPAQUE_MATERIAL
 	TotalCoverage = UnlitBSDF.Coverage;

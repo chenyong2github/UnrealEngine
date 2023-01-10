@@ -66,6 +66,7 @@ void Main(
 
   #if STRATA_OPTIMIZED_UNLIT
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	SanitizeStrataUnlit(UnlitBSDF);
 	Emissive = BSDF_GETEMISSIVE(UnlitBSDF);
 	TotalCoverage = UnlitBSDF.Coverage;
   #else // STRATA_OPTIMIZED_UNLIT

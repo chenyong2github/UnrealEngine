@@ -653,6 +653,8 @@ void Main(
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	SanitizeStrataUnlit(UnlitBSDF);
+
 	DualBlendSurfaceLuminancePostCoverage = BSDF_GETEMISSIVE(UnlitBSDF);
 	DualBlendSurfaceTransmittancePreCoverage = UNLIT_TRANSMITTANCE(UnlitBSDF);
 	DualBlendSurfaceCoverage = UnlitBSDF.Coverage;

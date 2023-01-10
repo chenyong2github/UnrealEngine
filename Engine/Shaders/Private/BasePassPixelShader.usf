@@ -1720,6 +1720,7 @@ void FPixelShaderInOut_MainPS(
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	SanitizeStrataUnlit(UnlitBSDF);
 
 #if ((STRATA_OPAQUE_DEFERRED || (STRATA_OPAQUE_MATERIAL && STRATA_FORWARD_SHADING))) && !STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
 	Color = BSDF_GETEMISSIVE(UnlitBSDF);
