@@ -54,6 +54,7 @@ class ULevelStreaming;
 struct FEncryptionKeyResponse;
 class PacketHandler;
 class FRPCDoSDetection;
+enum class EEngineNetworkRuntimeFeatures : uint16;
 
 namespace UE::Net
 {
@@ -95,6 +96,16 @@ enum EConnectionState
 	USOCK_Open      = 3, // Connection is open.
 };
 ENGINE_API const TCHAR* LexToString(const EConnectionState Value);
+
+namespace UE::Net
+{
+	/** The source of a net upgrade message */
+	enum class ENetUpgradeSource : uint8
+	{
+		ControlChannel,			// The upgrade message came from the control channel
+		StatelessHandshake		// The upgrade message came from the stateless handshake
+	};
+}
 
 
 /** If this connection is from a client, this is the current login state of this connection/login attempt */
@@ -1759,6 +1770,16 @@ public:
 	 * @param CloseReasonList	Delimited list of close reasons
 	 */
 	ENGINE_API void HandleReceiveCloseReason(const FString& CloseReasonList);
+
+	/**
+	 * Handles receiving NMT_Upgrade messages (including at stateless handshake level)
+	 *
+	 * @param RemoteNetworkVersion		The net version of the remote side
+	 * @param RemoteNetworkFeatures		The net runtime features of the remote side
+	 * @param NetUpgradeSource			The source of the net upgrade message
+	 */
+	ENGINE_API void HandleReceiveNetUpgrade(uint32 RemoteNetworkVersion, EEngineNetworkRuntimeFeatures RemoteNetworkFeatures,
+											UE::Net::ENetUpgradeSource NetUpgradeSource=UE::Net::ENetUpgradeSource::ControlChannel);
 
 private:
 	/**

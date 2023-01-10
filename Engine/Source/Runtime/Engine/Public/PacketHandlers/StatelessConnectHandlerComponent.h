@@ -9,18 +9,13 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogHandshake, Log, All);
 
 
-/**
- * Forward Declarations
- */
-
+// Forward Declarations
 class UNetConnection;
 class UNetDriver;
+enum class EEngineNetworkRuntimeFeatures : uint16;
 
 
-/**
- * Defines
- */
-
+// Defines
 #define SECRET_BYTE_SIZE 64
 #define SECRET_COUNT 2
 #define COOKIE_BYTE_SIZE 20
@@ -33,15 +28,16 @@ namespace UE::Net
 	 */
 	enum class EHandshakeVersion : uint8
 	{
-		Original		= 0,	// The original/unversioned handshake protocol
-		Randomized		= 1,	// The version of the handshake protocol with randomization, versioning and debug/diagnostic tweaks
-		NetCLVersion	= 2,	// Added Network CL version, for optional extra-early client rejection
+		Original				= 0,	// The original/unversioned handshake protocol
+		Randomized				= 1,	// The version of the handshake protocol with randomization, versioning and debug/diagnostic tweaks
+		NetCLVersion			= 2,	// Added Network CL version, for optional extra-early client rejection
 
 		/** Net compatibility break */
 
-		SessionClientId	= 3,	// Added SessionId (index of server game session) and ClientId (clientside index of NetConnection)
+		SessionClientId			= 3,	// Added SessionId (index of server game session) and ClientId (clientside index of NetConnection)
+		NetCLUpgradeMessage		= 4,	// Added stateless handshake level NMT_Upgrade message, to allow Network CL checks to be permanently enabled
 
-		Latest			= SessionClientId
+		Latest					= NetCLUpgradeMessage
 	};
 
 	/** List of EHandshakeVersion's which break net compatibility (sorted from earliest to latest) */
@@ -58,8 +54,59 @@ namespace UE::Net
 		Response			= 2,
 		Ack					= 3,
 		RestartHandshake	= 4,
-		RestartResponse		= 5
+		RestartResponse		= 5,
+		VersionUpgrade		= 6,
+
+		Last = VersionUpgrade
 	};
+
+	/**
+	 * Flags/modifiers affecting how handshake packets are handled (e.g. restart handshake packets)
+	 */
+	enum class EHandshakePacketModifier : uint8
+	{
+		None				= 0x00,
+		RestartHandshake	= 0x01		// Restart handshake packet
+	};
+
+	ENUM_CLASS_FLAGS(EHandshakePacketModifier);
+
+
+	/**
+	 * Reasons for handshake failures
+	 */
+	enum class EHandshakeFailureReason
+	{
+		None,
+		WrongVersion		// Client/Server have incompatible versions
+	};
+
+	/**
+	 * Contains the information necessary for processing a failed stateless handshake, on the Game Thread.
+	 * Designed to be sent from the Receive Thread, to the Game Thread.
+	 */
+	struct FStatelessHandshakeFailureInfo
+	{
+		/** The reason the handshake failed */
+		EHandshakeFailureReason FailureReason = EHandshakeFailureReason::None;
+
+		/** The Network CL version of the remote side */
+		uint32 RemoteNetworkVersion = 0;
+
+		/** The net runtime features of the remote side */
+		EEngineNetworkRuntimeFeatures RemoteNetworkFeatures;
+
+
+	public:
+		FStatelessHandshakeFailureInfo();
+	};
+
+	/**
+	 * Callback function for handling a failed stateless handshake. Triggered when processing incoming packets.
+	 *
+	 * @param HandshakeFailureInfo		Information about the handshake failure.
+	 */
+	using FHandshakeFailureFunc = TUniqueFunction<void(FStatelessHandshakeFailureInfo HandshakeFailureInfo)>;
 }
 
 
@@ -71,6 +118,27 @@ namespace UE::Net
 class ENGINE_API StatelessConnectHandlerComponent : public HandlerComponent
 {
 	using EHandshakeVersion = UE::Net::EHandshakeVersion;
+	using EHandshakePacketType = UE::Net::EHandshakePacketType;
+	using EHandshakePacketModifier = UE::Net::EHandshakePacketModifier;
+	using FHandshakeFailureFunc = UE::Net::FHandshakeFailureFunc;
+
+private:
+	/** Common parameters for all 'Send*' functions which send packets to clients */
+	struct FCommonSendToClientParams
+	{
+		/** The address of the client to send the packet to */
+		const TSharedPtr<const FInternetAddr>& ClientAddress;
+		
+		/** The handshake format version to use when sending */
+		EHandshakeVersion HandshakeVersion;
+
+		/** The client-specified connection id */
+		uint32 ClientID;
+
+
+	public:
+		FCommonSendToClientParams(const TSharedPtr<const FInternetAddr>& InClientAddress, EHandshakeVersion InHandshakeVersion, uint32 InClientID);
+	};
 
 public:
 	/**
@@ -92,6 +160,13 @@ public:
 	 */
 	void InitFromConnectionless(StatelessConnectHandlerComponent* InConnectionlessHandler);
 
+	/**
+	 * Set a callback for notifying of handshake failure (clientside only).
+	 *
+	 * @param InHandshakeFailureFunc	The callback to use for notification.
+	 */
+	void SetHandshakeFailureCallback(FHandshakeFailureFunc&& InHandshakeFailureFunc);
+
 private:
 	/**
 	 * Constructs and sends the initial handshake packet, from the client to the server
@@ -103,13 +178,10 @@ private:
 	/**
 	 * Constructs and sends the server response to the initial connect packet, from the server to the client.
 	 *
-	 * @param ClientAddress						The address of the client to send the challenge to.
-	 * @param HandshakeVersion					The handshake format version to use when sending
+	 * @param CommonParams						Common parameters for 'Send*' functions to clients
 	 * @param ClientSentHandshakePacketCount	The number of handshake packets the client has sent (for debugging/packet-analysis)
-	 * @param InClientID						The client-specified connection id
 	 */
-	void SendConnectChallenge(TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion,
-								uint8 ClientSentHandshakePacketCount, uint32 InClientID);
+	void SendConnectChallenge(FCommonSendToClientParams CommonParams, uint8 ClientSentHandshakePacketCount);
 
 	/**
 	 * Constructs and sends the handshake challenge response packet, from the client to the server
@@ -124,24 +196,59 @@ private:
 	/**
 	 * Constructs and sends the server ack to a successful challenge response, from the server to the client.
 	 *
-	 * @param ClientAddress						The address of the client to send the ack to.
-	 * @param HandshakeVersion					The handshake format version to use when sending
+	 * @param CommonParams						Common parameters for 'Send*' functions to clients
 	 * @param ClientSentHandshakePacketCount	The number of handshake packets the client has sent (for debugging/packet-analysis)
-	 * @param InClientID						The client-specified connection id
 	 * @param InCookie							The cookie value to send
 	 */
-	void SendChallengeAck(TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion, uint8 ClientSentHandshakePacketCount,
-							uint32 InClientID, uint8 InCookie[COOKIE_BYTE_SIZE]);
+	void SendChallengeAck(FCommonSendToClientParams CommonParams, uint8 ClientSentHandshakePacketCount, uint8 InCookie[COOKIE_BYTE_SIZE]);
 
 	/**
 	 * Constructs and sends a request to resend the cookie, from the server to the client.
 	 *
-	 * @param ClientAddress		The address of the client to send the request to.
-	 * @param HandshakeVersion	The handshake format version to use when sending
-	 * @param InClientID		The client-specified connection id
+	 * @param CommonParams	Common parameters for 'Send*' functions to clients
 	 */
-	void SendRestartHandshakeRequest(const TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion,
-										uint32 InClientID);
+	void SendRestartHandshakeRequest(FCommonSendToClientParams CommonParams);
+
+	/**
+	 * Constructs and sends a stateless handshake level NMT_Upgrade message
+	 *
+	 * @param CommonParams	Common parameters for 'Send*' functions to clients
+	 */
+	void SendVersionUpgradeMessage(FCommonSendToClientParams CommonParams);
+
+
+	/**
+	 * Writes out the base/common parameters for all handshake packets, both to server and client
+	 *
+	 * @param HandshakePacket							The handshake packet being written.
+	 * @param HandshakePacketType						The type of handshake packet.
+	 * @param HandshakeVersion							The handshake format version to use when sending.
+	 * @param SentHandshakePacketCount_LocalOrRemote	The number of handshake packets sent (for debugging/packet-analysis).
+	 * @param ClientID									The client-specified connection id.
+	 * @param HandshakePacketModifier					Flags/modifiers affecting how the packet will be handled.
+	 */
+	void BeginHandshakePacket(FBitWriter& HandshakePacket, EHandshakePacketType HandshakePacketType, EHandshakeVersion HandshakeVersion,
+								uint8 SentHandshakePacketCount_LocalOrRemote, uint32 ClientID,
+								EHandshakePacketModifier HandshakePacketModifier=EHandshakePacketModifier::None);
+
+
+	/**
+	 * Sends a packet from the client to the server.
+	 *
+	 * @param HandshakeVersion		The handshake format version to use when sending.
+	 * @param PacketType			The type of handshake packet.
+	 * @param Packet				The handshake packet being written.
+	 */
+	void SendToServer(EHandshakeVersion HandshakeVersion, EHandshakePacketType PacketType, FBitWriter& Packet);
+
+	/**
+	 * Sends a packet from the server to a client.
+	 *
+	 * @param CommonParams			Common parameters for 'Send*' functions to clients.
+	 * @param PacketType			The type of handshake packet.
+	 * @param Packet				The handshake packet being written.
+	 */
+	void SendToClient(FCommonSendToClientParams CommonParams, EHandshakePacketType PacketType, FBitWriter& Packet);
 
 
 	/**
@@ -153,34 +260,6 @@ private:
 	void CapHandshakePacket(FBitWriter& HandshakePacket, EHandshakeVersion HandshakeVersion);
 
 public:
-	/**
-	 * Whether or not the specified connection address, has just passed the connection handshake challenge.
-	 *
-	 * @param Address	The address (including port, for UIpNetDriver) being checked
-	 */
-	UE_DEPRECATED(4.22, "HasPassedChallenge must return bOutRestartedHandshake, in order to correctly process the challenge. Use the new version")
-	FORCEINLINE bool HasPassedChallenge(const FString& Address) const
-	{
-		bool bDud = false;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return HasPassedChallenge(Address, bDud);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	/**
-	 * Whether or not the specified connection address, has just passed the connection handshake challenge.
-	 *
-	 * @param Address					The address (including port, for UIpNetDriver) being checked
-	 * @param bOutRestartedHandshake	Whether or not the passed challenge, was a restarted handshake for an existing NetConnection
-	 */
-	UE_DEPRECATED(4.23, "HasPassedChallenge should pass a FInternetAddr pointer for faster address checking")
-	FORCEINLINE bool HasPassedChallenge(const FString& Address, bool& bOutRestartedHandshake) const
-	{
-		bOutRestartedHandshake = bRestartedHandshake;
-
-		return (LastChallengeSuccessAddress.IsValid()) ? LastChallengeSuccessAddress->ToString(true) == Address : false;
-	}
-
 	/**
 	 * Whether or not the specified connection address, has just passed the connection handshake challenge.
 	 *
@@ -273,6 +352,9 @@ private:
 		/** The Network CL version of the remote side */
 		uint32 RemoteNetworkVersion = 0;
 
+		/** The net runtime features of the remote side */
+		EEngineNetworkRuntimeFeatures RemoteNetworkFeatures;
+
 		/** The type of handshake packet */
 		UE::Net::EHandshakePacketType HandshakePacketType = UE::Net::EHandshakePacketType::InitialPacket;
 
@@ -293,6 +375,10 @@ private:
 
 		/** If this is a restart handshake challenge response, this is the original handshake's cookie */
 		uint8 OrigCookie[COOKIE_BYTE_SIZE] = {};
+
+
+	public:
+		FParsedHandshakeData();
 	};
 
 
@@ -324,7 +410,7 @@ private:
 	 * @param TimeStamp			The serverside timestamp
 	 * @param OutCookie			Outputs the generated cookie value.
 	 */
-	void GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, double Timestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE]) const;
+	void GenerateCookie(const TSharedPtr<const FInternetAddr>& ClientAddress, uint8 SecretId, double Timestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE]) const;
 
 	/**
 	 * Generates a new HandshakeSecret value
@@ -384,6 +470,15 @@ private:
 	/** The number of 'invalid SessionId/ClientId/MagicHeader' logs in the current log period (for logspam limiting) */
 	uint32 ValidationLogCounter = 0;
 #endif
+
+	/** The last time an 'upgrade message' send period began */
+	double LastUpgradeMessagePeriodStart = 0.0;
+
+	/** The number of upgrade messages sent in the current send period (for rate limiting) */
+	uint32 UpgradeMessageCounter = 0;
+
+	/** Callback for processing handshake failures */
+	FHandshakeFailureFunc HandshakeFailureCallback;
 
 
 	/** Clientside variables */

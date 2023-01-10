@@ -604,6 +604,8 @@ void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InSta
 
 void UNetConnection::InitHandler()
 {
+	using namespace UE::Net;
+
 	LLM_SCOPE_BYTAG(NetConnection);
 
 	check(!Handler.IsValid());
@@ -643,7 +645,18 @@ void UNetConnection::InitHandler()
 
 			if (StatelessConnectComponent.IsValid())
 			{
-				StatelessConnectComponent.Pin()->SetDriver(Driver);
+				StatelessConnectHandlerComponent* CurComponent = StatelessConnectComponent.Pin().Get();
+				
+				CurComponent->SetDriver(Driver);
+
+				CurComponent->SetHandshakeFailureCallback([this](FStatelessHandshakeFailureInfo HandshakeFailureInfo)
+					{
+						if (HandshakeFailureInfo.FailureReason == EHandshakeFailureReason::WrongVersion)
+						{
+							this->HandleReceiveNetUpgrade(HandshakeFailureInfo.RemoteNetworkVersion, HandshakeFailureInfo.RemoteNetworkFeatures,
+															ENetUpgradeSource::StatelessHandshake);
+						}
+					});
 			}
 
 
@@ -1116,6 +1129,36 @@ void UNetConnection::HandleReceiveCloseReason(const FString& CloseReasonList)
 
 			bReceivedCloseReason = true;
 		}
+	}
+}
+
+void UNetConnection::HandleReceiveNetUpgrade(uint32 RemoteNetworkVersion, EEngineNetworkRuntimeFeatures RemoteNetworkFeatures,
+												UE::Net::ENetUpgradeSource NetUpgradeSource/*=UE::Net::ENetUpgradeSource::ControlChannel*/)
+{
+	TStringBuilder<128> RemoteFeaturesDescription;
+	TStringBuilder<128> LocalFeaturesDescription;
+
+	FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(RemoteNetworkFeatures, RemoteFeaturesDescription);
+
+	if (Driver != nullptr)
+	{
+		FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(Driver->GetNetworkRuntimeFeatures(), LocalFeaturesDescription);
+	}
+
+	UE_LOG(LogNet, Error, TEXT("Server is incompatible with the local version of the game: RemoteNetworkVersion=%u, ")
+			TEXT("RemoteNetworkFeatures=%s vs LocalNetworkVersion=%u, LocalNetworkFeatures=%s"), 
+			RemoteNetworkVersion, RemoteFeaturesDescription.ToString(), FNetworkVersion::GetLocalNetworkVersion(),
+			LocalFeaturesDescription.ToString());
+
+
+	const FString ConnectionError = NSLOCTEXT("Engine", "ClientOutdated",
+		"The match you are trying to join is running an incompatible version of the game.  Please try upgrading your game version.").ToString();
+
+	GEngine->BroadcastNetworkFailure(GetWorld(), Driver, ENetworkFailure::OutdatedClient, ConnectionError);
+
+	if (NetUpgradeSource == UE::Net::ENetUpgradeSource::StatelessHandshake)
+	{
+		Close(ENetCloseResult::OutdatedClient);
 	}
 }
 
