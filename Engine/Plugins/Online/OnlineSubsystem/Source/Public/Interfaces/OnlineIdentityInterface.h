@@ -459,11 +459,19 @@ public:
 	 * Gets a user's platform specific authentication ticket used to sign into linked account(s)
 	 *
 	 * @param LocalUserNum the controller number of the associated user
+	 * @param TokenType the platform specific token type you are requesting.
+	 * @param Delegate delegate to execute when the async task completes
 	 */
-	virtual void GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+	virtual void GetLinkedAccountAuthToken(int32 LocalUserNum, const FString& TokenType, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
 	{
 		FExternalAuthToken EmptyToken;
 		Delegate.ExecuteIfBound(LocalUserNum, false, EmptyToken);
+	}
+
+	UE_DEPRECATED(5.2, "Please use GetLinkedAccountAuthToken taking a TokenType")
+	virtual void GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+	{
+		GetLinkedAccountAuthToken(LocalUserNum, FString(), Delegate);
 	}
 
 	/**

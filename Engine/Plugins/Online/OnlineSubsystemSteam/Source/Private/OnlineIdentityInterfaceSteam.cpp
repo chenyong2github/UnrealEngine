@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineIdentityInterfaceSteam.h"
+
+#include "Misc/ConfigCacheIni.h"
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineError.h"
@@ -239,9 +241,44 @@ FString FOnlineIdentitySteam::GetAuthType() const
 	return TEXT("");
 }
 
-void FOnlineIdentitySteam::GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+void FOnlineIdentitySteam::GetLinkedAccountAuthToken(int32 LocalUserNum, const FString& InTokenType, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
 {
-	FExternalAuthToken AuthToken;
-	AuthToken.TokenString = GetAuthToken(LocalUserNum);
-	Delegate.ExecuteIfBound(LocalUserNum, AuthToken.HasTokenString(), AuthToken);
+	const TCHAR* AppTokenType = TEXT("App");
+	const TCHAR* SessionTokenType = TEXT("Session");
+
+	FString TokenType = InTokenType;
+	if (TokenType.IsEmpty())
+	{
+		// Default to APP tokens
+		TokenType = AppTokenType;
+
+		// But allow the user to configure something else
+		GConfig->GetString(TEXT("OnlineSubsystemSteam"), TEXT("DefaultLinkedAccountAuthTokenType"), TokenType, GEngineIni);
+	}
+
+	if (TokenType == AppTokenType)
+	{
+		SteamSubsystem->GetEncryptedAppTicketInterface()->OnEncryptedAppTicketResultDelegate.AddLambda([this, LocalUserNum, OnComplete = FOnGetLinkedAccountAuthTokenCompleteDelegate(Delegate)](bool bEncryptedDataAvailable, int32 ResultCode)
+		{
+			FExternalAuthToken ExternalToken;
+			if (bEncryptedDataAvailable)
+			{
+				SteamSubsystem->GetEncryptedAppTicketInterface()->GetEncryptedAppTicket(ExternalToken.TokenData);
+			}
+			// Pass the info back to the original caller
+			OnComplete.ExecuteIfBound(LocalUserNum, ExternalToken.HasTokenData(), ExternalToken);
+		});
+		SteamSubsystem->GetEncryptedAppTicketInterface()->RequestEncryptedAppTicket(nullptr, 0);
+	}
+	else if (TokenType == SessionTokenType)
+	{
+		FExternalAuthToken AuthToken;
+		AuthToken.TokenString = GetAuthToken(LocalUserNum);
+		Delegate.ExecuteIfBound(LocalUserNum, AuthToken.HasTokenString(), AuthToken);
+	}
+	else
+	{	
+		UE_LOG_ONLINE_IDENTITY(Warning, TEXT("FOnlineIdentitySteam::GetLinkedAccountAuthToken TokenType=[%s] unknown"), *TokenType);
+		Delegate.ExecuteIfBound(LocalUserNum, false, FExternalAuthToken());
+	}
 }

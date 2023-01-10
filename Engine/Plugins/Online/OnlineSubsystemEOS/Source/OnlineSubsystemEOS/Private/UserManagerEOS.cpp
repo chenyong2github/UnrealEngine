@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserManagerEOS.h"
-#include "OnlineSubsystemEOS.h"
-#include "OnlineSubsystemEOSPrivate.h"
+
 #include "Misc/CommandLine.h"
 #include "Misc/Guid.h"
 #include "Misc/OutputDeviceRedirector.h"
-#include "IPAddress.h"
-#include "SocketSubsystem.h"
-#include "OnlineError.h"
-#include "EOSSettings.h"
+
 #include "CoreMinimal.h"
+#include "EOSSettings.h"
 #include "IEOSSDKManager.h"
+#include "IPAddress.h"
+#include "OnlineError.h"
+#include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemEOSPrivate.h"
+#include "OnlineSubsystemNames.h"
+#include "SocketSubsystem.h"
 
 #include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
 
@@ -274,8 +277,16 @@ void FUserManagerEOS::GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinke
 		Delegate.ExecuteIfBound(LocalUserNum, false, FExternalAuthToken());
 		return;
 	}
+
+	FString TokenType;
+	// TODO config map of OSS -> token type?
+	if (PlatformOSS->GetSubsystemName() == STEAM_SUBSYSTEM)
+	{
+		TokenType = TEXT("Session");
+	}
+
 	// Request the auth token from the platform
-	PlatformIdentity->GetLinkedAccountAuthToken(LocalUserNum, Delegate);
+	PlatformIdentity->GetLinkedAccountAuthToken(LocalUserNum, TokenType, Delegate);
 }
 
 FString FUserManagerEOS::GetPlatformDisplayName(int32 LocalUserNum) const
@@ -1547,7 +1558,7 @@ FPlatformUserId FUserManagerEOS::GetPlatformUserIdFromUniqueNetId(const FUniqueN
 	return GetPlatformUserIdFromLocalUserNum(GetLocalUserNumFromUniqueNetId(UniqueNetId));
 }
 
-void FUserManagerEOS::GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+void FUserManagerEOS::GetLinkedAccountAuthToken(int32 LocalUserNum, const FString& /*TokenType*/, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
 {
 	FExternalAuthToken ExternalToken;
 	ExternalToken.TokenString = GetAuthToken(LocalUserNum);
