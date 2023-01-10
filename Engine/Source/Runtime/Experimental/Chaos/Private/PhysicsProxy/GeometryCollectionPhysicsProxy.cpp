@@ -2894,9 +2894,14 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		}
 		else
 		{
+			TManagedArray<bool>* AnimationsActive =
+				GameThreadCollection.FindAttribute<bool>("AnimateTransformAttribute", FGeometryCollection::TransformGroup);
+
 			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
-				if (!TargetResults.States[TransformGroupIndex].DisabledState)
+				bool bAnimatingWhileDisabled = AnimationsActive ? (*AnimationsActive)[TransformGroupIndex] : false;
+
+				if (!TargetResults.States[TransformGroupIndex].DisabledState || bAnimatingWhileDisabled)
 				{
 					FParticle& GTParticle = *GTParticles[TransformGroupIndex];
 
