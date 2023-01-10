@@ -6,6 +6,7 @@
 #include "CoreTypes.h"
 #include "CurveEditorTypes.h"
 #include "CurveModel.h"
+#include "Misc/OptionalFwd.h"
 #include "Templates/Tuple.h"
 #include "UObject/UnrealType.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -18,7 +19,6 @@ struct FKeyDrawInfo;
 struct FKeyHandle;
 struct FKeyPosition;
 struct FRealCurve;
-template <typename OptionalType> struct TOptional;
 
 /*
  * RealCurveModel implements the FCurveModel interface for FRealCurves which allows

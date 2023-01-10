@@ -15,6 +15,7 @@
 #include "Curves/KeyHandle.h"
 #include "Delegates/IDelegateInstance.h"
 #include "IBufferedCurveModel.h"
+#include "Misc/OptionalFwd.h"
 #include "MovieSceneSection.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
@@ -33,7 +34,6 @@ struct FCurveEditorScreenSpace;
 struct FKeyAttributes;
 struct FKeyDrawInfo;
 struct FKeyPosition;
-template <typename OptionalType> struct TOptional;
 
 template <class ChannelType, class ChannelValue, class KeyType>
 class FChannelCurveModel : public FCurveModel

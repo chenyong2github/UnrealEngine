@@ -6,7 +6,6 @@ class FSlateWindowElementList;
 struct FCurvePointHandle;
 struct FGeometry;
 struct FPointerEvent;
-template <typename OptionalType> struct TOptional;
 
 void ICurveEditorDragOperation::BeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {

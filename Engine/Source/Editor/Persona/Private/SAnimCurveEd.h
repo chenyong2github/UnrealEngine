@@ -10,6 +10,7 @@
 #include "Input/Reply.h"
 #include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
+#include "Misc/OptionalFwd.h"
 #include "SCurveEditor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
@@ -20,7 +21,6 @@ class FWidgetStyle;
 class UObject;
 struct FGeometry;
 struct FPointerEvent;
-template <typename OptionalType> struct TOptional;
 
 DECLARE_DELEGATE_OneParam(FOnSelectionChanged, const TArray<UObject*>&)
 DECLARE_DELEGATE(FOnUpdatePanel)

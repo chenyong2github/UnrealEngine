@@ -29,7 +29,6 @@
 class FCurveEditor;
 class UObject;
 struct FCurveEditorScreenSpace;
-template <typename OptionalType> struct TOptional;
 
 ECurveEditorViewID FEventChannelCurveModel::EventView = ECurveEditorViewID::Invalid;
 

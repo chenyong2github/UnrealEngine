@@ -10,6 +10,7 @@
 #include "CurveEditorTypes.h"
 #include "CurveModel.h"
 #include "Curves/KeyHandle.h"
+#include "Misc/OptionalFwd.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
 #include "UObject/UnrealType.h"
@@ -25,7 +26,6 @@ struct FKeyAttributes;
 struct FKeyDrawInfo;
 struct FKeyPosition;
 struct FMovieSceneEventChannel;
-template <typename OptionalType> struct TOptional;
 
 class FEventChannelCurveModel : public FCurveModel
 {

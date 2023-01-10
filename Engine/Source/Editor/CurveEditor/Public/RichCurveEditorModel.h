@@ -10,6 +10,7 @@
 #include "IBufferedCurveModel.h"
 #include "Math/Range.h"
 #include "Misc/Attribute.h"
+#include "Misc/OptionalFwd.h"
 #include "Templates/Tuple.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/UnrealType.h"
@@ -26,7 +27,6 @@ struct FKeyDrawInfo;
 struct FKeyHandle;
 struct FKeyPosition;
 struct FRichCurve;
-template <typename OptionalType> struct TOptional;
 
 class CURVEEDITOR_API FRichCurveEditorModel : public FCurveModel
 {

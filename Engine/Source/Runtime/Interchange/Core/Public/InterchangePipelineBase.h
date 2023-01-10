@@ -10,6 +10,7 @@
 #include "InterchangeResultsContainer.h"
 #include "InterchangeSourceData.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/OptionalFwd.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
 #include "UObject/NameTypes.h"
@@ -26,7 +27,6 @@ class UInterchangeBaseNodeContainer;
 class UInterchangeResult;
 class UInterchangeSourceData;
 struct FFrame;
-template <typename OptionalType> struct TOptional;
 
 UENUM(BlueprintType)
 enum class EInterchangePipelineTask : uint8

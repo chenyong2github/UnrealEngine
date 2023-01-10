@@ -9,7 +9,7 @@
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
 #include "Math/Vector2D.h"
-#include "Misc/Optional.h"
+#include "Misc/OptionalFwd.h"
 #include "ScopedTransaction.h"
 #include "Templates/UniquePtr.h"
 
@@ -18,7 +18,6 @@ class FSlateWindowElementList;
 struct FCurvePointHandle;
 struct FGeometry;
 struct FPointerEvent;
-template <typename OptionalType> struct TOptional;
 
 /**
  * Interface for all drag operations in the curve editor

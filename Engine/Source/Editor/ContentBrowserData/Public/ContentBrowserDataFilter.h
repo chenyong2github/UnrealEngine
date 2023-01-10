@@ -11,6 +11,7 @@
 #include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/OptionalFwd.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
@@ -22,7 +23,6 @@
 class FNamePermissionList;
 class FPathPermissionList;
 class UContentBrowserDataSource;
-template <typename OptionalType> struct TOptional;
 
 /** Flags controlling which item types should be included */
 UENUM()
