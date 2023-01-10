@@ -49,11 +49,6 @@ uint32 FUniqueNetIdEOS::GetTypeHash() const
 	return ::GetTypeHash(static_cast<const void*>(this));
 }
 
-bool FUniqueNetIdEOS::IsMutable() const
-{
-	return true;
-}
-
 FString FUniqueNetIdEOS::ToString() const
 {
 	return LexToString(EpicAccountId) + EOS_ID_SEPARATOR + LexToString(ProductUserId);
