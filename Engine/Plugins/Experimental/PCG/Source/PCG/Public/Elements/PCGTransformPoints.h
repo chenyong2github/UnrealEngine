@@ -32,6 +32,12 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bApplyToAttribute = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition="bApplyToAttribute"))
+	FName AttributeName;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FVector OffsetMin = FVector::Zero();
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -66,11 +72,11 @@ public:
 	bool bUniformScale = true;
 
 	/** Recompute the seed for each new point using its new location */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bApplyToAttribute"))
 	bool bRecomputeSeed = false;
 };
 
-class FPCGTransformPointsElement : public FPCGPointProcessingElementBase
+class FPCGTransformPointsElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
