@@ -489,7 +489,7 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 		}
 
 		// Apk's go to project location, not necessarily where the .so is (content only packages need to output to their directory)
-		string ApkName = Path.Combine(ProjectDir, DecoratedExeName) + Architecture + ".apk";
+		string ApkName = Path.Combine(ProjectDir, DecoratedExeName) + "-" + Architecture + ".apk";
 
 		// if the source binary was UnrealGame, handle using it or switching to project name
 		if (Path.GetFileNameWithoutExtension(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()) == "UnrealGame")
@@ -747,6 +747,12 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 		return "";
 	}
 
+	private List<string> GetDeploymentArchitectures(ProjectParams Params, DeploymentContext SC)
+	{
+		string ArchitectureList = (Params.ClientArchitecture != "") ? Params.ClientArchitecture : SC.StageTargets[0].Receipt.Architecture;
+		return ArchitectureList.Split('+').ToList();
+	}
+
 	private List<string> CollectPluginDataPaths(DeploymentContext SC)
 	{
 		// collect plugin extra data paths from target receipts
@@ -994,8 +1000,7 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 
 		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
 
-		IAndroidToolChain ToolChain = AndroidExports.CreateToolChain(Params.RawProjectPath);
-		var Architectures = ToolChain.GetAllArchitectures();
+		List<string> Architectures = GetDeploymentArchitectures(Params, SC);
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		bool bBuildWithHiddenSymbolVisibility = BuildWithHiddenSymbolVisibility(SC);
 		bool bSaveSymbols = GetSaveSymbols(SC);
@@ -1785,8 +1790,7 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 		}
 
 		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
-		IAndroidToolChain ToolChain = AndroidExports.CreateToolChain(Params.RawProjectPath);
-		var Architectures = ToolChain.GetAllArchitectures();
+		IEnumerable<string> Architectures = GetDeploymentArchitectures(Params, SC);
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		bool bPackageDataInsideApk = UnrealBuildTool.AndroidExports.CreateDeploymentHandler(Params.RawProjectPath, Params.ForcePackageData).GetPackageDataInsideApk();
 
@@ -2298,17 +2302,15 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 
 	private void DeployAndroidFileServer(ProjectParams Params, DeploymentContext SC, string AFSToken)
 	{
-		var AppArchitectures = AndroidExports.CreateToolChain(Params.RawProjectPath).GetAllArchitectures();
-
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), UnrealTargetPlatform.Android);
-		bool bDisablePerfHarden = false;
+		bool bDisablePerfHarden;
 		Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMaliPerfCounters", out bDisablePerfHarden);
 
-		bool bUseCompression = false;
-		bool bLogFiles = false;
-		bool bReportStats = false;
-		bool bUseManualIPAddress = false;
-		string ManualIPAddress = "";
+		bool bUseCompression;
+		bool bLogFiles;
+		bool bReportStats;
+		bool bUseManualIPAddress;
+		string ManualIPAddress;
 		EConnectionType ConnectionType = GetAndroidFileServerNetworkConfig(SC, out bUseCompression, out bLogFiles, out bReportStats, out bUseManualIPAddress, out ManualIPAddress);
 
 		AndroidFileClient.OptimalADB adb = new AndroidFileClient.OptimalADB();
@@ -2324,7 +2326,7 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 			{
 				string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 				string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
-				Deploy.SetAndroidPluginData(AppArchitectures, CollectPluginDataPaths(SC));
+				Deploy.SetAndroidPluginData(GetDeploymentArchitectures(Params, SC), CollectPluginDataPaths(SC));
 				Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, true, false);
 			}
 
@@ -2893,8 +2895,6 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 
 	private void DeployADB(ProjectParams Params, DeploymentContext SC)
     {
-		var AppArchitectures = AndroidExports.CreateToolChain(Params.RawProjectPath).GetAllArchitectures();
-
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), UnrealTargetPlatform.Android);
 		bool bDisablePerfHarden = false;
 		Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMaliPerfCounters", out bDisablePerfHarden);
@@ -2910,7 +2910,7 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
             {
                 string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 				string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
-				Deploy.SetAndroidPluginData(AppArchitectures, CollectPluginDataPaths(SC));
+				Deploy.SetAndroidPluginData(GetDeploymentArchitectures(Params, SC), CollectPluginDataPaths(SC));
                 Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, true, false);
             }
 
@@ -3719,7 +3719,8 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 			return "";
 		}
 
-		var AppArchitectures = AndroidExports.CreateToolChain(Params.RawProjectPath).GetAllArchitectures();
+		// @todo get TargetName?
+		IEnumerable<string> AppArchitectures = PlatformExports.GetProjectArchitectures(UnrealTargetPlatform.Android, Params.RawProjectPath, null, true, Params.Distribution);
 
 		// ask the device
 		IProcessResult ABIResult = RunAdbCommand(Params, DeviceName, " shell getprop ro.product.cpu.abi", null, ERunOptions.AppMustExist);
@@ -3730,40 +3731,11 @@ Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
 		// if the architecture wasn't built, look for a backup
 		if (!AppArchitectures.Contains(DeviceArch))
 		{
-			// go from 64 to 32-bit
-			if (DeviceArch == "-arm64")
+			// Houdini emulation can run arm64 on intel
+			if (DeviceArch == "-x64")
 			{
-				DeviceArch = "-armv7";
+				DeviceArch = "-arm64";
 			}
-			// go from 64 to 32-bit
-			else if (DeviceArch == "-x64")
-			{
-				if (!AppArchitectures.Contains("-x86"))
-				{
-					DeviceArch = "-x86";
-				}
-				// if it didn't have 32-bit x86, look for 64-bit arm for emulation
-				// @todo android 64-bit: x86_64 most likely can't emulate arm64 at this ponit
-// 				else if (Array.IndexOf(AppArchitectures, "-arm64") == -1)
-// 				{
-// 					DeviceArch = "-arm64";
-// 				}
-				// finally try for 32-bit arm emulation (Houdini)
-				else
-				{
-					DeviceArch = "-armv7";
-				}
-			}
-			// use armv7 (with Houdini emulation)
-			else if (DeviceArch == "-x86")
-			{
-				DeviceArch = "-armv7";
-			}
-            else
-            {
-                // future-proof by dropping back to armv7 for unknown
-                DeviceArch = "-armv7";
-            }
 		}
 
 		// if after the fallbacks, we still don't have it, we can't continue

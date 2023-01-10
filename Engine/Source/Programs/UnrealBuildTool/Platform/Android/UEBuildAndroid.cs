@@ -2,11 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using System.IO;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -15,18 +16,6 @@ namespace UnrealBuildTool
 	/// </summary>
 	public partial class AndroidTargetRules
 	{
-		/// <summary>
-		/// Lists Architectures that you want to build
-		/// </summary>
-		[CommandLine("-Architectures=", ListSeparator = '+')]
-		public List<string> Architectures = new List<string>();
-
-		/// <summary>
-		/// Lists GPU Architectures that you want to build (mostly used for mobile etc.)
-		/// </summary>
-		[CommandLine("-GPUArchitectures=", ListSeparator = '+')]
-		public List<string> GPUArchitectures = new List<string>();
-
 		/// <summary>
 		/// Enables address sanitizer (ASan)
 		/// </summary>
@@ -83,16 +72,6 @@ namespace UnrealBuildTool
 		#region Read-only accessor properties 
 		#pragma warning disable CS1591
 
-		public IReadOnlyList<string> Architectures
-		{
-			get { return Inner.Architectures.AsReadOnly(); }
-		}
-
-		public IReadOnlyList<string> GPUArchitectures
-		{
-			get { return Inner.GPUArchitectures.AsReadOnly(); }
-		}
-
 		public bool bEnableAddressSanitizer
 		{
 			get { return Inner.bEnableAddressSanitizer; }
@@ -141,6 +120,16 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public override string GetFolderNameForArchitecture(string Architecture)
+		{
+			if (Architecture.Contains("+"))
+			{
+				return Architecture;
+			}
+				
+			return Architecture.Contains("arm") ? "a" : "x";
+		}
+
 		public override void ResetTarget(TargetRules Target)
 		{
 			ValidateTarget(Target);
@@ -170,6 +159,16 @@ namespace UnrealBuildTool
 
 			Target.bCompileRecast = true;
 			Target.bCompileISPC = false;
+
+
+			// disable plugins by architecture
+			if (Target.Architecture.ToLower() == "x64" && Target.Name != "UnrealHeaderTool")
+			{
+				Target.DisablePlugins.AddRange(new string[]
+				{
+
+				});
+			}
 		}
 
 		public override bool CanUseXGE()
@@ -183,6 +182,17 @@ namespace UnrealBuildTool
 			return Architecture == "-x64";
 		}
 
+		public override bool NeedsSingleTargetForMultiArchitecture(IEnumerable<string> Architectures)
+		{
+			return true;
+		}
+
+		public override bool RequiresArchitectureSuffix()
+		{
+			// Any -architecture argument passed to UBT only affects the contents of the binaries, not their naming
+			return false;
+		}
+		
 		public override bool IsBuildProduct(string FileName, string[] NamePrefixes, string[] NameSuffixes)
 		{
 			return IsBuildProductWithArch(FileName, NamePrefixes, NameSuffixes, ".so")
@@ -225,6 +235,73 @@ namespace UnrealBuildTool
 		public override string[] GetDebugInfoExtensions(ReadOnlyTargetRules InTarget, UEBuildBinaryType InBinaryType)
 		{
 			return new string [] {};
+		}
+
+		public override string ConvertToPlatformArchitecture(string Arch)
+		{
+			switch (Arch.ToLower())
+			{
+				case "arm64":
+				case "a8":
+				case "a":
+				case "-arm64": 
+					return "arm64";
+
+				case "x64":
+				case "x86_64":
+				case "x6":
+				case "x":
+				case "-x64": 
+					return "x64";
+			}
+			throw new BuildException($"Unknown architecture {Arch}");
+		}
+
+		private List<string>? ActiveArches = null;
+		private FileReference? ActiveArchesProject = null;
+		public override IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
+		{
+			if (ActiveArches == null || ProjectFile != ActiveArchesProject)
+			{
+				ActiveArches = new();
+				ActiveArchesProject = ProjectFile;
+
+				// look in ini settings for what platforms to compile for
+				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
+				bool bBuild;
+				bool bUnsupportedBinaryBuildArch = false;
+
+				if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForArm64", out bBuild) && bBuild)
+				{
+					ActiveArches.Add("arm64");
+				}
+				if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForx8664", out bBuild) && bBuild)
+				{
+					if (File.Exists(Path.Combine(Unreal.EngineDirectory.FullName, "Build", "InstalledBuild.txt")))
+					{
+						bUnsupportedBinaryBuildArch = true;
+						Log.TraceWarningOnce("Please install source to build for x86_64 (-x64); ignoring this architecture target.");
+					}
+					else
+					{
+						ActiveArches.Add("x64");
+					}
+				}
+
+				// force arm64 if something went wrong
+				if (ActiveArches.Count == 0)
+				{
+					if (bUnsupportedBinaryBuildArch)
+					{
+						throw new BuildException("Only architectures unsupported by binary-only engine selected.");
+					}
+					else
+					{
+						ActiveArches.Add("arm64");
+					}
+				}
+			}
+			return ActiveArches;
 		}
 
 		public override void FindAdditionalBuildProductsToClean(ReadOnlyTargetRules Target, List<FileReference> FilesToDelete, List<DirectoryReference> DirectoriesToDelete)
@@ -340,13 +417,9 @@ namespace UnrealBuildTool
 
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
-			AndroidToolChain ToolChain = (AndroidToolChain)CreateToolChain(Target);
-
-			List<string> Architectures = ToolChain.GetAllArchitectures();
-
 			// make multiple output binaries
 			List<FileReference> AllBinaries = new List<FileReference>();
-			foreach (string Architecture in Architectures)
+			foreach (string Architecture in Target.Architecture.Split('+'))
 			{
 				string BinaryPath;
 				if (Target.bShouldCompileAsDLL)
@@ -388,7 +461,7 @@ namespace UnrealBuildTool
 			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT")!;
 			NDKPath = NDKPath.Replace("\"", "");
 
-			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Logger);
+			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, Logger);
 
 			// figure out the NDK version
 			string? NDKToolchainVersion = SDK.GetInstalledVersion();
@@ -540,14 +613,14 @@ namespace UnrealBuildTool
 			{
 				Options |= ClangToolChainOptions.EnableThinLTO;
 			}
-			return new AndroidToolChain(Target.ProjectFile, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options, Logger);
+			return new AndroidToolChain(Target.ProjectFile, Options, Logger);
 		}
 		public virtual UEToolChain CreateTempToolChainForProject(FileReference? ProjectFile)
 		{
 			AndroidTargetRules TargetRules = new AndroidTargetRules();
 			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules, Logger);
 			ClangToolChainOptions Options = CreateToolChainOptions(TargetRules);
-			return new AndroidToolChain(ProjectFile, null, null, Options, Logger);
+			return new AndroidToolChain(ProjectFile, Options, Logger);
 		}
 
 		/// <inheritdoc/>

@@ -18,6 +18,7 @@ namespace UnrealBuildTool
 		// Minimum NDK API level to allow
 		public const int MinimumNDKAPILevel = 26;
 
+		// this is architectures with the dash, which we match in filenames that have inlined arch name
 		public static readonly string[] AllCpuSuffixes =
 		{
 			"-arm64",
@@ -28,8 +29,8 @@ namespace UnrealBuildTool
 		public static readonly Dictionary<string, string> ShortArchNames = new Dictionary<string, string>()
 		{
 			{ "", "" },
-			{ "-arm64", "a8" },
-			{ "-x64", "x6" },
+			{ "arm64", "a8" },
+			{ "x64", "x6" },
 		};
 
 		public enum ClangSanitizer
@@ -56,44 +57,38 @@ namespace UnrealBuildTool
 		}
 
 		protected FileReference? ProjectFile;
-		private List<string> AdditionalArches;
-		private List<string> AdditionalGPUArches;
-		protected bool bExecuteCompilerThroughShell;
 
 		// Version string from the Android specific build of clang. E.g in Android (6317467 based on r365631c1) clang version 9.0.8
 		// this would be 6317467)
 		protected static string? AndroidClangBuild;
 
-		// the list of architectures we will compile for
-		protected List<string>? Arches = null;
-
 		// the "-android" suffix paths here are vcpkg triplets for the android platform
 		static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
-			{ "-arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
-			{ "-x64",   new string[] { "x64", "x86_64", "x64-android" } }
+			{ "arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
+			{ "x64",   new string[] { "x64", "x86_64", "x64-android" } }
 		};
 
 		// architecture paths to use for filtering include and lib paths
 		static private Dictionary<string, string[]> AllFilterArchNames = new Dictionary<string, string[]> {
-			{ "-armv7", new string[] { "armv7", "armeabi-v7a", "arm-android" } },
-			{ "-arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
-			{ "-x86",   new string[] { "x86", "x86-android" } },
-			{ "-x64",   new string[] { "x64", "x86_64", "x64-android" } }
+			{ "armv7", new string[] { "armv7", "armeabi-v7a", "arm-android" } },
+			{ "arm64", new string[] { "arm64", "arm64-v8a", "arm64-android" } },
+			{ "x86",   new string[] { "x86", "x86-android" } },
+			{ "x64",   new string[] { "x64", "x86_64", "x64-android" } }
 		};
 
 		static private Dictionary<string, string[]> LibrariesToSkip = new Dictionary<string, string[]> {
-			{ "-arm64", new string[] { "nvToolsExt", "nvToolsExtStub", "vorbisenc", } },
-			{ "-x64",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "gpg", "vorbisenc", } }
+			{ "arm64", new string[] { "nvToolsExt", "nvToolsExtStub", "vorbisenc", } },
+			{ "x64",   new string[] { "nvToolsExt", "nvToolsExtStub", "oculus", "OVRPlugin", "vrapi", "ovrkernel", "systemutils", "openglloader", "ovrplatformloader", "gpg", "vorbisenc", } }
 		};
 
 		static private Dictionary<string, string[]> ModulesToSkip = new Dictionary<string, string[]> {
-			{ "-arm64", new string[] {  } },
-			{ "-x64",   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OculusMR", "OnlineSubsystemGooglePlay" } }
+			{ "arm64", new string[] {  } },
+			{ "x64",   new string[] { "OnlineSubsystemOculus", "OculusHMD", "OculusMR", "OnlineSubsystemGooglePlay" } }
 		};
 
 		static private Dictionary<string, string[]> GeneratedModulesToSkip = new Dictionary<string, string[]> {
-			{ "-arm64", new string[] {  } },
-			{ "-x64",   new string[] { "OculusEntitlementCallbackProxy", "OculusCreateSessionCallbackProxy", "OculusFindSessionsCallbackProxy", "OculusIdentityCallbackProxy", "OculusNetConnection", "OculusNetDriver", "OnlineSubsystemOculus_init" } }
+			{ "arm64", new string[] {  } },
+			{ "x64",   new string[] { "OculusEntitlementCallbackProxy", "OculusCreateSessionCallbackProxy", "OculusFindSessionsCallbackProxy", "OculusIdentityCallbackProxy", "OculusNetConnection", "OculusNetDriver", "OnlineSubsystemOculus_init" } }
 		};
 
 		public string? NDKToolchainVersion;
@@ -121,55 +116,22 @@ namespace UnrealBuildTool
 			return NDKVersionInt >= 220000;
 		}
 
-		[CommandLine("-Architectures=", ListSeparator = '+')]
-		public List<string> ArchitectureArg = new List<string>();
-
-		public AndroidToolChain(FileReference? InProjectFile, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ILogger InLogger)
-			: this(InProjectFile, InAdditionalArches, InAdditionalGPUArches, false, ClangToolChainOptions.None, InLogger)
+		public AndroidToolChain(FileReference? InProjectFile, ILogger InLogger)
+			: this(InProjectFile, ClangToolChainOptions.None, InLogger)
 		{
 		}
 
-		public AndroidToolChain(FileReference? InProjectFile, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
-			: this(InProjectFile, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions, InLogger)
-		{
-		}
-
-		protected AndroidToolChain(FileReference? InProjectFile, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+		public AndroidToolChain(FileReference? InProjectFile, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
 			: base(ToolchainOptions, InLogger)
 		{
 			Options = ToolchainOptions;
 			ProjectFile = InProjectFile;
-			AdditionalArches = new List<string>();
-			AdditionalGPUArches = new List<string>();
-
-			if (InAdditionalArches != null)
-			{
-				AdditionalArches.AddRange(InAdditionalArches);
-			}
-
-			if (InAdditionalGPUArches != null)
-			{
-				AdditionalGPUArches.AddRange(InAdditionalGPUArches);
-			}
-
-			// by default tools chains don't parse arguments, but we want to be able to check the -architectures flag defined above. This is
-			// only necessary when AndroidToolChain is used during UAT
-			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this, Logger);
-
-			if (AdditionalArches.Count == 0 && ArchitectureArg.Count > 0)
-			{
-				AdditionalArches.AddRange(ArchitectureArg);
-			}
 
 			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
 
 			// don't register if we don't have an NDKROOT specified
 			if (String.IsNullOrEmpty(NDKPath))
 			{
-				if (bAllowMissingNDK)
-				{
-					return;
-				}
 				throw new BuildException("NDKROOT is not specified; cannot use Android toolchain.");
 			}
 
@@ -259,7 +221,7 @@ namespace UnrealBuildTool
 			int NDKApiLevel64Int = GetNdkApiLevelInt(MinimumNDKAPILevel);
 
 			string GCCToolchainPath = Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath);
-			string SysrootPath = Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, "sysroot");
+			string SysrootPath = Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, "sysroot").Replace("\\", "/");
 
 			// toolchain params (note: use ANDROID=1 same as we define it)
 			ToolchainLinkParamsArm64 = " --target=aarch64-none-linux-android" + NDKApiLevel64Int + " --gcc-toolchain=\"" + GCCToolchainPath + "\" --sysroot=\"" + SysrootPath + "\" -DANDROID=1";
@@ -278,50 +240,10 @@ namespace UnrealBuildTool
 			ReadElfPath = Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/llvm-readelf" + ExeExtension);
 		}
 
+
 		protected override ClangToolChainInfo GetToolChainInfo()
 		{
 			return new ClangToolChainInfo(FileReference.FromString(ClangPath)!, FileReference.FromString(ArPathArm64)!, Logger);
-		}
-
-		public virtual void ParseArchitectures()
-		{
-			// look in ini settings for what platforms to compile for
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
-			Arches = new List<string>();
-			bool bBuild = true;
-			bool bUnsupportedBinaryBuildArch = false;
-
-			if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForArm64", out bBuild) && bBuild
-				|| (AdditionalArches != null && (AdditionalArches.Contains("arm64", StringComparer.OrdinalIgnoreCase) || AdditionalArches.Contains("-arm64", StringComparer.OrdinalIgnoreCase))))
-			{
-				Arches.Add("-arm64");
-			}
-			if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForx8664", out bBuild) && bBuild
-				|| (AdditionalArches != null && (AdditionalArches.Contains("x64", StringComparer.OrdinalIgnoreCase) || AdditionalArches.Contains("-x64", StringComparer.OrdinalIgnoreCase))))
-			{
-				if (File.Exists(Path.Combine(Unreal.EngineDirectory.FullName, "Build", "InstalledBuild.txt")))
-				{
-					bUnsupportedBinaryBuildArch = true;
-					Log.TraceWarningOnce("Please install source to build for x86_64 (-x64); ignoring this architecture target.");
-				}
-				else
-				{
-					Arches.Add("-x64");
-				}
-			}
-
-			// force armv7 if something went wrong
-			if (Arches.Count == 0)
-			{
-				if (bUnsupportedBinaryBuildArch)
-				{
-					throw new BuildException("Only architectures unsupported by binary-only engine selected.");
-				}
-				else
-				{
-					Arches.Add("-arm64");
-				}
-			}
 		}
 
 		static public string GetGLESVersion(bool bBuildForES31)
@@ -374,23 +296,6 @@ namespace UnrealBuildTool
 		private string GetVersionScriptFilename(LinkEnvironment LinkEnvironment)
 		{
 			return Path.Combine(LinkEnvironment.IntermediateDirectory!.FullName, "ExportSymbols.ldscript");
-		}
-
-		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
-		{
-			base.SetUpGlobalEnvironment(Target);
-
-			ParseArchitectures();
-		}
-
-		public List<string> GetAllArchitectures()
-		{
-			if (Arches == null)
-			{
-				ParseArchitectures();
-			}
-
-			return Arches!;
 		}
 
 		public int GetNdkApiLevelInt(int MinNdk = MinimumNDKAPILevel)
@@ -537,162 +442,79 @@ namespace UnrealBuildTool
 			return "android-" + MaxPlatform.ToString();
 		}
 
-		protected virtual string GetCLArguments_Global(CppCompileEnvironment CompileEnvironment, string Architecture)
+
+		protected override void GetCompileArguments_IncludePaths(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-
-			switch (Architecture)
-			{
-				case "-arm64": Result += ToolchainParamsArm64; break;
-				case "-x64": Result += ToolchainParamsx64; break;
-				default: Result += ToolchainParamsArm64; break;
-			}
-
-			// build up the commandline common to C and C++
-			Result += " -c";
-			Result += " -no-canonical-prefixes";
-			Result += " -fdiagnostics-format=msvc";
-			Result += " -Wall";
-			Result += " -Wdelete-non-virtual-dtor";
-			Result += " -fno-PIE";
-
-			Result += " -Wno-unused-variable";
-            if (CompilerVersionGreaterOrEqual(13, 0, 0))
-            {
-                Result += " -Wno-unused-but-set-variable";
-                Result += " -Wno-unused-but-set-parameter";
-                Result += " -Wno-ordered-compare-function-pointers";
-            }
+			// remove paths that are not meant for this architecture
+			// @todo can remove this when we only add paths properly for architecture
+			IEnumerable<DirectoryReference> FilteredPaths = CompileEnvironment.UserIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture));
+			Arguments.AddRange(FilteredPaths.Select(IncludePath => GetUserIncludePathArgument(IncludePath)));
 			
-			if (CompilerVersionGreaterOrEqual(14, 0, 2))
-			{
-				Result += " -Wno-bitwise-instead-of-logical";
-			}
+			FilteredPaths = CompileEnvironment.SystemIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture)); 
+			Arguments.AddRange(FilteredPaths.Select(IncludePath => GetSystemIncludePathArgument(IncludePath)));
+		}
 
-			// this will hide the warnings about static functions in headers that aren't used in every single .cpp file
-			Result += " -Wno-unused-function";
-			// this hides the "enumeration value 'XXXXX' not handled in switch [-Wswitch]" warnings - we should maybe remove this at some point and add UE_LOG(, Fatal, ) to default cases
-			Result += " -Wno-switch";
-			// this hides the "warning : comparison of unsigned expression < 0 is always false" type warnings due to constant comparisons, which are possible with template arguments
-			Result += " -Wno-tautological-compare";
-			//This will prevent the issue of warnings for unused private variables.
-			Result += " -Wno-unused-private-field";
-			Result += " -Wno-local-type-template-args"; // engine triggers this
-			Result += " -Wno-return-type-c-linkage";    // needed for PhysX
-			Result += " -Wno-reorder";                  // member initialization order
-			Result += " -Wno-unknown-pragmas";          // probably should kill this one, sign of another issue in PhysX?
-			Result += " -Wno-invalid-offsetof";         // needed to suppress warnings about using offsetof on non-POD types.
-			Result += " -Wno-logical-op-parentheses";   // needed for external headers we can't change
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
 
-			if (BuildWithHiddenSymbolVisibility(CompileEnvironment))
-			{
-				// Result += " -fvisibility-ms-compat -fvisibility-inlines-hidden"; // This hides all symbols by default but exports all type info (vtable/rtti) for a non-monolithic setup
-				Result += " -fvisibility=hidden -fvisibility-inlines-hidden"; // Symbols default to hidden.
-				//TODO: add when Android's clang will support this
-				//Resul += " -fvisibility-inlines-hidden-static-local-var";
-			}
+
+			// @todo unlikely all needed
+			Arguments.Add("-Wno-local-type-template-args"); // engine triggers this
+			Arguments.Add("-Wno-return-type-c-linkage");    // needed for PhysX
+			Arguments.Add("-Wno-reorder");                  // member initialization order
+			Arguments.Add("-Wno-logical-op-parentheses");   // needed for external headers we can't change
+			Arguments.Add("-Wno-nonportable-include-path"); // not all of these are real
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			// @todo the base has PGO options that are a little different than what we want - it would be nice to merge these
 
 			if (CompilerVersionGreaterOrEqual(12, 0, 0))
 			{
-				// The 'this' vs nullptr comparisons get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
-				Result += " -fno-delete-null-pointer-checks";
-			}
-
-			if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
-			{
-				Result += " -Werror=deprecated-declarations";
-			}
-
-			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
-			{
-				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
-			}
-
-			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
-			{
-				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
-			}
-
-			// new for clang4.5 warnings:
-			if (CompilerVersionGreaterOrEqual(3, 5, 0))
-			{
-				Result += " -Wno-undefined-bool-conversion"; // 'this' pointer cannot be null in well-defined C++ code; pointer may be assumed to always convert to true (if (this))
-
-				// we use this feature to allow static FNames.
-				Result += " -Wno-gnu-string-literal-operator-template";
-			}
-
-			if (CompilerVersionGreaterOrEqual(3, 6, 0))
-			{
-				Result += " -Wno-unused-local-typedef";             // clang is being overly strict here? PhysX headers trigger this.
-				Result += " -Wno-inconsistent-missing-override";    // these have to be suppressed for UE 4.8, should be fixed later.
-			}
-
-			if (CompilerVersionGreaterOrEqual(3, 8, 275480))
-			{
-				Result += " -Wno-undefined-var-template";           // not really a good warning to disable
-				Result += " -Wno-nonportable-include-path";         // not all of these are real
-			}
-
-            if (CompilerVersionGreaterOrEqual(4, 0, 0))
-			{
-				Result += " -Wno-unused-lambda-capture";            // probably should fix the code
-																	//				Result += " -Wno-nonportable-include-path";         // not all of these are real
-			}
-
-			// shipping builds will cause this warning with "ensure", so disable only in those case
-			if (CompileEnvironment.Configuration == CppConfiguration.Shipping)
-			{
-				Result += " -Wno-unused-value";
-			}
-
-			// debug info
-			if (CompileEnvironment.bCreateDebugInfo)
-			{
-				Result += " -g2 -gdwarf-4";
+				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
+				Arguments.Add("-fno-delete-null-pointer-checks");
 			}
 
 			// optimization level
 			if (!CompileEnvironment.bOptimizeCode)
 			{
-				Result += " -O0";
+				Arguments.Add("-O0");
 			}
 			else
 			{
 				if (CompileEnvironment.OptimizationLevel == OptimizationMode.Size)
 				{
-					Result += " -Oz";
+					Arguments.Add("-Oz");
 				}
 				else if (CompileEnvironment.OptimizationLevel == OptimizationMode.SizeAndSpeed)
 				{
-					Result += " -Os";
-					if (Architecture == "-arm64")
+					Arguments.Add("-Os");
+					if (CompileEnvironment.Architecture == "arm64")
 					{
-						Result += " -moutline";
+						Arguments.Add("-moutline");
 					}
 				}
 				else
 				{
-					Result += " -O3";
+					Arguments.Add("-O3");
 				}
 			}
 
-			// FORTIFY default
-			Result += " -D_FORTIFY_SOURCE=2";
-
-			// Optionally enable exception handling (off by default since it generates extra code needed to propagate exceptions)
-			if (CompileEnvironment.bEnableExceptions)
+			if (CompileEnvironment.bAllowLTCG)
 			{
-				Result += " -fexceptions";
-				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=0";
+				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
+				{
+					Arguments.Add("-flto=thin");
+				}
+				else
+				{
+					Arguments.Add("-flto");
+				}
 			}
-			else
-			{
-				Result += " -fno-exceptions";
-				Result += " -DPLATFORM_EXCEPTIONS_DISABLED=1";
-			}
-
-			Result += $" {GetRTTIFlag(CompileEnvironment)}";
 
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
 			if (CompileEnvironment.bPGOOptimize)
@@ -703,110 +525,185 @@ namespace UnrealBuildTool
 				//
 				// Disable these warnings. They are far too verbose.
 				//
-				Result += " -Wno-profile-instr-out-of-date";
-				Result += " -Wno-profile-instr-unprofiled";
-
+				Arguments.Add("-Wno-profile-instr-out-of-date");
+				Arguments.Add("-Wno-profile-instr-unprofiled");
 				// apparently there can be hashing conflicts with PGO which can result in:
 				// 'Function control flow change detected (hash mismatch)' warnings. 
-				Result += " -Wno-backend-plugin";
-
-				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(CompileEnvironment.PGODirectory!, CompileEnvironment.PGOFilenamePrefix!));
+				Arguments.Add("-Wno-backend-plugin");
+				Arguments.Add(string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(CompileEnvironment.PGODirectory!, CompileEnvironment.PGOFilenamePrefix!)));
 			}
 			else if (CompileEnvironment.bPGOProfile)
 			{
-				// Always enable LTO when generating PGO profile data.
 				// Android supports only LLVM IR-based for instrumentation-based PGO.
-				Result += " -fprofile-generate";
+				Arguments.Add("-fprofile-generate");
 				//  for sampling-based profile collection to generate minimal debug information:
-				Result += " -gline-tables-only";
+				Arguments.Add("-gline-tables-only");
 			}
 
-			if (CompileEnvironment.bAllowLTCG)
+			if (!CompileEnvironment.bUseInlining)
 			{
-				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
-				{
-					Result += " -flto=thin";
-				}
-				else
-				{
-					Result += " -flto";
-				}
+				Arguments.Add("-fno-inline-functions");
 			}
+		}
 
-			if (Architecture == "-arm64")
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Debugging(CompileEnvironment, Arguments);
+
+			// debug info
+			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Result += " -funwind-tables";           // Just generates any needed static data, affects no code
-				Result += " -fno-strict-aliasing";      // Prevents unwanted or invalid optimizations that could produce incorrect code
-				Result += " -fPIC";                     // Generates position-independent code (PIC) suitable for use in a shared library
-				Result += " -fno-short-enums";          // Do not allocate to an enum type only as many bytes as it needs for the declared range of possible values
-				Result += " -D__arm64__";               // for some reason this isn't defined and needed for PhysX
-
-				Result += " -march=armv8-a";
-				//Result += " -mfloat-abi=softfp";
-				//Result += " -mfpu=vfpv3-d16";			//@todo android: UE3 was just vfp. arm7a should all support v3 with 16 registers
-
-				// Add flags for on-device debugging
-				if (CompileEnvironment.Configuration == CppConfiguration.Debug)
-				{
-					Result += " -fno-omit-frame-pointer";   // Disable removing the save/restore frame pointer for better debugging
-					if (CompilerVersionGreaterOrEqual(3, 6, 0))
-					{
-						Result += " -fno-function-sections";    // Improve breakpoint location
-					}
-				}
-
-				// Some switches interfere with on-device debugging
-				if (CompileEnvironment.Configuration != CppConfiguration.Debug && !DisableFunctionDataSections())
-				{
-					Result += " -ffunction-sections";   // Places each function in its own section of the output file, linker may be able to perform opts to improve locality of reference
-					Result += " -fdata-sections";		// Places each data item in its own section of the output file, linker may be able to perform opts to improve locality of reference
-				}
-
-				Result += " -fsigned-char";             // Treat chars as signed //@todo android: any concerns about ABI compatibility with libs here?
-			}
-			else if (Architecture == "-x64")
-			{
-				Result += " -funwind-tables";           // Just generates any needed static data, affects no code
-				Result += " -fPIC";                     // Generates position-independent code (PIC) suitable for use in a shared library
-				Result += " -fno-omit-frame-pointer";
-				Result += " -fno-strict-aliasing";
-				Result += " -fno-short-enums";
-				Result += " -march=atom";
-				Result += " -msse4.2";
-			}
-
-			ClangSanitizer Sanitizer = BuildWithSanitizer();
-			if (Sanitizer != ClangSanitizer.None)
-			{
-				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
-
-				if (Sanitizer == ClangSanitizer.Address || Sanitizer == ClangSanitizer.HwAddress)
-				{
-					Result += " -fno-omit-frame-pointer -DRUNNING_WITH_ASAN=1";
-				}
+				Arguments.Add("-g2");
+				Arguments.Add("-gdwarf-4");
 			}
 
 			if (!DisableStackProtector())
 			{
-				Result += " -fstack-protector-strong";  // Emits extra code to check for buffer overflows
+				Arguments.Add("-fstack-protector-strong");  // Emits extra code to check for buffer overflows
 			}
 
-			// Add analysis flags to the argument list.
-			if (IsAnalyzing(CompileEnvironment))
+			// Add flags for on-device debugging
+			if (CompileEnvironment.Configuration == CppConfiguration.Debug)
 			{
-				List<string> Arguments = new List<string>();
-				GetCompileArguments_Analyze(CompileEnvironment, Arguments);
-				for (int i = 0; i < Arguments.Count; i++)
+				Arguments.Add("-fno-omit-frame-pointer");   // Disable removing the save/restore frame pointer for better debugging
+				if (CompilerVersionGreaterOrEqual(3, 6, 0))
 				{
-					Result += " " + Arguments[i];
+					Arguments.Add(" -fno-function-sections");    // Improve breakpoint location
 				}
 			}
 
-			Result += " -fforce-emit-vtables";      // Helps with devirtualization
-			//Result += " -fstrict-vtable-pointers";	// Assumes that vtable pointer will never change, i.e. object of a different type would not be constracted in place of another object. Helps with devirtualization
+			// Some switches interfere with on-device debugging
+			if (CompileEnvironment.Configuration != CppConfiguration.Debug && !DisableFunctionDataSections())
+			{
+				Arguments.Add("-ffunction-sections");   // Places each function in its own section of the output file, linker may be able to perform opts to improve locality of reference
+				Arguments.Add("-fdata-sections");       // Places each data item in its own section of the output file, linker may be able to perform opts to improve locality of reference
+			}
 
-			return Result;
 		}
+
+		/// <inheritdoc/>
+		protected override void GetCompilerArguments_Sanitizers(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			// TODO: Reconcile with base
+			//base.GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
+
+			ClangSanitizer Sanitizer = BuildWithSanitizer();
+			if (Sanitizer != ClangSanitizer.None)
+			{
+				Arguments.Add("-fsanitize=" + GetCompilerOption(Sanitizer));
+
+				if (Sanitizer == ClangSanitizer.Address || Sanitizer == ClangSanitizer.HwAddress)
+				{
+					Arguments.Add("-fno-omit-frame-pointer -DRUNNING_WITH_ASAN=1");
+				}
+			}
+
+
+
+			//string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
+			//if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer)))
+			//{
+			//	Arguments.Add("-fsanitize=address -fno-omit-frame-pointer -DFORCE_ANSI_ALLOCATOR=1");
+			//}
+
+			//string? UndefSanitizerMode = Environment.GetEnvironmentVariable("ENABLE_UNDEFINED_BEHAVIOR_SANITIZER");
+			//if ((UndefSanitizerMode != null && UndefSanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer)))
+			//{
+			//	Arguments.Add("-fsanitize=undefined -fno-sanitize=bounds,enum,return,float-divide-by-zero");
+			//}
+
+			//if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
+			//{
+			//	Arguments.Add("-fsanitize=thread");
+			//}
+
+			//if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+			//{
+			//	Arguments.Add("-fsanitize=memory");
+			//}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
+
+			// NDK setup (enforce minimum API level)
+			int NDKApiLevel64Int = GetNdkApiLevelInt(21);       // deliberately use 21 minimum to force NDKApiLevel64Bit to update if below minimum
+			string NDKApiLevel64Bit = GetNdkApiLevel();
+			if (NDKApiLevel64Int < MinimumNDKAPILevel)
+			{
+				NDKApiLevel64Int = MinimumNDKAPILevel;
+				NDKApiLevel64Bit = "android-" + MinimumNDKAPILevel;
+			}
+
+			Log.TraceInformationOnce("Compiling Native 64-bit code with NDK API '{0}'", NDKApiLevel64Bit);
+
+			string NativeGluePath = Path.GetFullPath(GetNativeGluePath());
+
+
+			if (BuildWithHiddenSymbolVisibility(CompileEnvironment))
+			{
+				Arguments.Add("-fvisibility=hidden");
+				Arguments.Add("-fvisibility-inlines-hidden");
+				//TODO: add when Android's clang will support this
+				//Arguments.Add("-fvisibility-inlines-hidden-static-local-var");
+			}
+
+			Arguments.Add(GetRTTIFlag(CompileEnvironment));
+			Arguments.Add("-no-canonical-prefixes");
+			Arguments.Add("-fno-PIE");
+			Arguments.Add("-funwind-tables");           // Just generates any needed static data, affects no code
+			Arguments.Add("-fPIC");                     // Generates position-independent code (PIC) suitable for use in a shared library
+			Arguments.Add("-fno-strict-aliasing");      // Prevents unwanted or invalid optimizations that could produce incorrect code
+			Arguments.Add("-fno-short-enums");          // Do not allocate to an enum type only as many bytes as it needs for the declared range of possible values
+			Arguments.Add("-fforce-emit-vtables");      // Helps with devirtualization
+			Arguments.Add("-D_FORTIFY_SOURCE=2");       // FORTIFY default
+			Arguments.Add($"-DPLATFORM_USED_NDK_VERSION_INTEGER={NDKApiLevel64Int}");       // NDK version
+			Arguments.Add("-DPLATFORM_64BITS=1");       // NDK version
+
+
+			if (CompileEnvironment.bCompileISPC)
+			{
+				Arguments.Add("-DINTEL_ISPC=1");
+			}
+
+			if (CompileEnvironment.Architecture == "arm64")
+			{
+				Arguments.Add(ToolchainParamsArm64);
+				Arguments.Add("-D__arm64__");            // for some reason this isn't defined and needed for PhysX
+				Arguments.Add("-DPLATFORM_ANDROID_ARM64=1");
+				Arguments.Add("-march=armv8-a");
+				Arguments.Add("-fsigned-char");             // Treat chars as signed //@todo android: any concerns about ABI compatibility with libs here?
+			}
+			else if (CompileEnvironment.Architecture == "x64")
+			{
+				Arguments.Add(ToolchainParamsx64);
+				Arguments.Add("-fno-omit-frame-pointer");
+				Arguments.Add("-march=atom");
+				Arguments.Add("-DPLATFORM_ANDROID_X64=1");
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_FileType(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, List<string> Arguments, Action CompileAction, CPPOutput CompileResult)
+		{
+			base.GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, Arguments, CompileAction, CompileResult);
+
+			string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
+			if (Extension == ".C")
+			{
+				if (SourceFile.AbsolutePath.Equals(GetNativeGluePath()))
+				{
+					// Remove visibility settings for android native glue. Since it doesn't decorate with visibility attributes.
+					Arguments.RemoveAll(x => x.StartsWith("-fvisibility"));
+				}
+				// remove any forced include/PCH stuff - mostly for the force-added .c files in Launch as those will attempt to have the PCH used that was made with .cpp language
+				Arguments.RemoveAll(x => x.StartsWith("-include"));
+			}
+		}
+
 
 		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment, string Architecture)
 		{
@@ -828,12 +725,12 @@ namespace UnrealBuildTool
 				Result += " -Wl,--strip-debug";
 			}
 
-			if (Architecture == "-x64")
+			if (Architecture == "x64")
 			{
 				Result += ToolchainLinkParamsx64;
 				Result += " -march=atom";
 			}
-			else // if (Architecture == "-arm64")
+			else // if (Architecture == "arm64")
 			{
 				Result += ToolchainLinkParamsArm64;
 				Result += " -march=armv8-a";
@@ -1025,7 +922,7 @@ namespace UnrealBuildTool
 			}
 
 			// if another architecture is in the filename, reject it
-			foreach (string ComboName in Arches!)
+			foreach (string ComboName in AllCpuSuffixes)
 			{
 				if (ComboName != Arch)
 				{
@@ -1060,7 +957,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph, ILogger Logger)
+		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string Arch, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Only add to Launch module
 			if (!ModuleName.Equals("Launch"))
@@ -1074,25 +971,22 @@ namespace UnrealBuildTool
 			List<string> Result = new List<string>();
 			Result.Add("#include \"CoreTypes.h\"");
 			Result.Add("");
-			foreach (string Arch in Arches!)
+			switch (Arch)
 			{
-				switch (Arch)
-				{
-					case "-arm64": Result.Add("#if PLATFORM_ANDROID_ARM64"); break;
-					case "-x64": Result.Add("#if PLATFORM_ANDROID_X64"); break;
-					default: Result.Add("#if PLATFORM_ANDROID_ARM"); break;
-				}
-
-				foreach (string ModName in ModulesToSkip[Arch])
-				{
-					Result.Add("  void EmptyLinkFunctionForStaticInitialization" + ModName + "(){}");
-				}
-				foreach (string ModName in GeneratedModulesToSkip[Arch])
-				{
-					Result.Add("  void EmptyLinkFunctionForGeneratedCode" + ModName + "(){}");
-				}
-				Result.Add("#endif");
+				case "arm64": Result.Add("#if PLATFORM_ANDROID_ARM64"); break;
+				case "x64": Result.Add("#if PLATFORM_ANDROID_X64"); break;
+				default: Result.Add("#if PLATFORM_ANDROID_ARM"); break;
 			}
+
+			foreach (string ModName in ModulesToSkip[Arch])
+			{
+				Result.Add("  void EmptyLinkFunctionForStaticInitialization" + ModName + "(){}");
+			}
+			foreach (string ModName in GeneratedModulesToSkip[Arch])
+			{
+				Result.Add("  void EmptyLinkFunctionForGeneratedCode" + ModName + "(){}");
+			}
+			Result.Add("#endif");
 
 			Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result);
 
@@ -1101,10 +995,10 @@ namespace UnrealBuildTool
 
 		// cache the location of NDK tools
 		protected static string? ClangPath;
-		protected static string? ToolchainParamsArm64;
-		protected static string? ToolchainParamsx64;
-		protected static string? ToolchainLinkParamsArm64;
-		protected static string? ToolchainLinkParamsx64;
+		protected static string ToolchainParamsArm64 = "";
+		protected static string ToolchainParamsx64 = "";
+		protected static string ToolchainLinkParamsArm64 = "";
+		protected static string ToolchainLinkParamsx64 = "";
 		protected static string? ArPathArm64;
 		protected static string? ArPathx64;
 		protected static string? ReadElfPath;
@@ -1115,60 +1009,21 @@ namespace UnrealBuildTool
 
 			switch (UnrealArch)
 			{
-				case "-arm64": StripPath = ArPathArm64!; break;
-				case "-x64": StripPath = ArPathx64!; break;
+				case "arm64": StripPath = ArPathArm64!; break;
+				case "x64": StripPath = ArPathx64!; break;
 				default: StripPath = ArPathArm64!; break;
 			}
 			return StripPath.Replace("-ar", "-strip");
 		}
 
-		static private bool bHasHandledLaunchModule = false;
+		private bool bHasHandledLaunchModule = false;
 		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
-			if (Arches!.Count == 0)
+			if (ShouldSkipModule(ModuleName, CompileEnvironment.Architecture))
 			{
-				throw new BuildException("At least one architecture (arm64, x64, etc) needs to be selected in the project settings to build");
+				return new CPPOutput();
 			}
 
-			CPPOutput Result = new CPPOutput();
-
-			// Skip if nothing to do
-			if (InputFiles.Count == 0)
-			{
-				return Result;
-			}
-
-			/*
-			Trace.TraceInformation("CompileCPPFiles: Module={0}, SourceFiles={1}", ModuleName, SourceFiles.Count);
-			foreach (string Arch in Arches)
-			{
-				Trace.TraceInformation("  Arch: {0}", Arch);
-			}
-			foreach (FileItem SourceFile in SourceFiles)
-			{
-				Trace.TraceInformation("  {0}", SourceFile.AbsolutePath);
-			}
-			*/
-
-			// NDK setup (enforce minimum API level)
-			int NDKApiLevel64Int = GetNdkApiLevelInt(21);		// deliberately use 21 minimum to force NDKApiLevel64Bit to update if below minimum
-			string NDKApiLevel64Bit = GetNdkApiLevel();
-			if (NDKApiLevel64Int < MinimumNDKAPILevel)
-			{
-				NDKApiLevel64Int = MinimumNDKAPILevel;
-				NDKApiLevel64Bit = "android-" + MinimumNDKAPILevel;
-			}
-
-			Log.TraceInformationOnce("Compiling Native 64-bit code with NDK API '{0}'", NDKApiLevel64Bit);
-
-			string BaseArguments = "";
-
-			if (CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create)
-			{
-				BaseArguments += " -Werror";
-			}
-
-			string NativeGluePath = Path.GetFullPath(GetNativeGluePath());
 
 			// Deal with Launch module special if first time seen
 			if (!bHasHandledLaunchModule && (ModuleName.Equals("Launch") || ModuleName.Equals("AndroidLauncher")))
@@ -1176,277 +1031,18 @@ namespace UnrealBuildTool
 				// Directly added NDK files for NDK extensions
 				ModifySourceFiles(CompileEnvironment, InputFiles, ModuleName);
 				// Deal with dynamic modules removed by architecture
-				GenerateEmptyLinkFunctionsForRemovedModules(InputFiles, ModuleName, OutputDir, Graph, Logger);
+				GenerateEmptyLinkFunctionsForRemovedModules(InputFiles, CompileEnvironment.Architecture, ModuleName, OutputDir, Graph, Logger);
 
 				bHasHandledLaunchModule = true;
 			}
 
-			// Add preprocessor definitions to the argument list.
-			foreach (string Definition in CompileEnvironment.Definitions)
-			{
-				// We must change the \" to escaped double quotes to save it properly for clang .rsp
-				BaseArguments += string.Format(" -D \"{0}\"", Definition.Replace("\"", RuntimePlatform.IsWindows ? "\"\"" : "\\\""));
-			}
 
-			//LUMIN_MERGE
-			//string NDKRoot = Environment.GetEnvironmentVariable("NDKROOT").Replace("\\", "/");
-
-			string BasePCHName = "";
-			//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
-			string PCHExtension = ".gch";
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				BasePCHName = RemoveArchName(CompileEnvironment.PrecompiledHeaderFile!.AbsolutePath).Replace(PCHExtension, "");
-			}
-
-			// Create a compile action for each source file.
-			foreach (string Arch in Arches)
-			{
-				if (ShouldSkipModule(ModuleName, Arch))
-				{
-					continue;
-				}
-
-				// which toolchain to use
-				string Arguments = GetCLArguments_Global(CompileEnvironment, Arch) + BaseArguments;
-
-				switch (Arch)
-				{
-					case "-x64": Arguments += " -DPLATFORM_64BITS=1 -DPLATFORM_ANDROID_X64=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel64Int.ToString(); break;
-					case "-arm64": Arguments += " -DPLATFORM_64BITS=1 -DPLATFORM_ANDROID_ARM64=1 -DPLATFORM_USED_NDK_VERSION_INTEGER=" + NDKApiLevel64Int.ToString(); break;
-					default: throw new BuildException($"Unknown arch {Arch}");
-				}
-
-				if(CompileEnvironment.bCompileISPC)
-				{
-					Arguments += " -DINTEL_ISPC=1";
-				}
-
-				// which PCH file to include
-				string PCHArguments = "";
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-				{
-					// add the platform-specific PCH reference
-					PCHArguments += string.Format(" -include-pch \"{0}\"", InlineArchName(BasePCHName, Arch) + PCHExtension);
-
-					// Add the precompiled header file's path to the include path so Clang can find it.
-					// This needs to be before the other include paths to ensure Clang uses it instead of the source header file.
-					PCHArguments += string.Format(" -include \"{0}\"", BasePCHName);
-
-					// Validate PCH inputs by content if mtime check fails
-					if (CompilerVersionGreaterOrEqual(11, 0, 0))
-					{
-						PCHArguments += " -fpch-validate-input-files-content";
-					}
-				}
-
-				// Add include paths to the argument list (filtered by architecture)
-				foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
-				{
-					if (IsDirectoryForArch(IncludePath.FullName, Arch))
-					{
-						Arguments += string.Format(" -I\"{0}\"", IncludePath);
-					}
-				}
-				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-				{
-					if (IsDirectoryForArch(IncludePath.FullName, Arch))
-					{
-						Arguments += string.Format(" -I\"{0}\"", IncludePath);
-					}
-				}
-
-				foreach (FileItem SourceFile in InputFiles)
-				{
-					Action CompileAction = Graph.CreateAction(ActionType.Compile);
-					CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
-					CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
-
-					string FileArguments = "";
-					bool bIsPlainCFile = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant() == ".C";
-					bool bDisableShadowWarning = false;
-
-					// Add C or C++ specific compiler arguments.
-					if (bIsPlainCFile)
-					{
-						List<string> CArguments = new();
-						GetCompileArguments_C(CompileEnvironment, CArguments);
-						FileArguments += $" {string.Join(' ', CArguments)}";
-
-						// remove shadow variable warnings for externally included files
-						if (!SourceFile.Location.IsUnderDirectory(Unreal.RootDirectory))
-						{
-							bDisableShadowWarning = true;
-						}
-					}
-					else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
-					{
-						List<string> CreatePCHArguments = new();
-						GetCompileArguments_PCH(CompileEnvironment, CreatePCHArguments);
-						FileArguments += $" {string.Join(' ', CreatePCHArguments)}";
-					}
-					else
-					{
-						List<string> CPPArguments = new();
-						GetCompileArguments_CPP(CompileEnvironment, CPPArguments);
-						FileArguments += $" {string.Join(' ', CPPArguments)}";
-
-						// only use PCH for .cpp files
-						FileArguments += PCHArguments;
-					}
-
-					foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-					{
-						FileArguments += string.Format(" -include \"{0}\"", ForceIncludeFile.Location);
-					}
-
-					// Add the C++ source file and its included files to the prerequisite item list.
-					CompileAction.PrerequisiteItems.Add(SourceFile);
-
-					List<FileItem>? InlinedFiles;
-					if (CompileEnvironment.FileInlineGenCPPMap.TryGetValue(SourceFile, out InlinedFiles))
-					{
-						CompileAction.PrerequisiteItems.AddRange(InlinedFiles);
-					}
-
-					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && !bIsPlainCFile)
-					{
-						// Add the precompiled header file to the produced item list.
-						FileItem PrecompiledHeaderFile = FileItem.GetItemByFileReference(
-							FileReference.Combine(
-								OutputDir,
-								Path.GetFileName(InlineArchName(SourceFile.AbsolutePath, Arch) + PCHExtension)
-								)
-							);
-
-						CompileAction.ProducedItems.Add(PrecompiledHeaderFile);
-						Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
-
-						// Add the parameters needed to compile the precompiled header file to the command-line.
-						FileArguments += string.Format(" -o \"{0}\"", PrecompiledHeaderFile.AbsolutePath);
-					}
-					else
-					{
-						if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-						{
-							FileItem ArchPrecompiledHeaderFile = FileItem.GetItemByPath(InlineArchName(BasePCHName, Arch) + PCHExtension);
-							CompileAction.PrerequisiteItems.Add(ArchPrecompiledHeaderFile);
-						}
-
-						string ObjectFileExtension;
-						if(CompileEnvironment.AdditionalArguments != null && CompileEnvironment.AdditionalArguments.Contains("-emit-llvm"))
-						{
-							ObjectFileExtension = ".bc";
-						}
-						else
-						{
-							ObjectFileExtension = ".o";
-						}
-
-						// Add the object file to the produced item list.
-						FileItem ObjectFile = FileItem.GetItemByFileReference(
-							FileReference.Combine(
-								OutputDir,
-								InlineArchName(Path.GetFileName(SourceFile.AbsolutePath) + ObjectFileExtension, Arch, true)
-								)
-							);
-						CompileAction.ProducedItems.Add(ObjectFile);
-						Result.ObjectFiles.Add(ObjectFile);
-
-						FileArguments += string.Format(" -o \"{0}\"", ObjectFile.AbsolutePath);
-					}
-
-					// Add the source file path to the command-line.
-					FileArguments += string.Format(" \"{0}\"", SourceFile.AbsolutePath);
-
-					// Generate the timing info
-					if (CompileEnvironment.bPrintTimingInfo)
-					{
-						bool ShortArchName = !(CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && !bIsPlainCFile);
-						FileItem TraceFile;
-						if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && !bIsPlainCFile)
-						{
-							TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(SourceFile.AbsolutePath), Arch) + ".json"));
-						}
-						else
-						{
-							TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(SourceFile.AbsolutePath) + ".json", Arch, true)));
-						}
-						FileArguments += " -ftime-trace";
-						CompileAction.ProducedItems.Add(TraceFile);
-					}
-
-					// Generate the included header dependency list
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(SourceFile.AbsolutePath) + ".d", Arch, true)));
-					FileArguments += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.ProducedItems.Add(DependencyListFile);
-
-					// Build a full argument list
-					string AllArguments = Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
-
-					if (SourceFile.AbsolutePath.Equals(NativeGluePath))
-					{
-						// Remove visibility settings for android native glue. Since it doesn't decorate with visibility attributes.
-						//AllArguments = AllArguments.Replace("-fvisibility-ms-compat -fvisibility-inlines-hidden", "");
-						AllArguments = AllArguments.Replace("-fvisibility=hidden -fvisibility-inlines-hidden", "");
-					}
-
-					AllArguments = Utils.ExpandVariables(AllArguments);
-					AllArguments = AllArguments.Replace("\\", "/");
-
-					// Remove shadow warning for this file if requested
-					if (bDisableShadowWarning)
-					{
-						int WarningIndex = AllArguments.IndexOf(" -Wshadow");
-						if (WarningIndex > 0)
-						{
-							AllArguments = AllArguments.Remove(WarningIndex, 9);
-						}
-					}
-
-					// Create the response file
-					FileReference ResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
-					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments });
-					string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
-
-					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-					CompileAction.CommandDescription = IsAnalyzing(CompileEnvironment) ? "Analyze" : "Compile";
-					if (bExecuteCompilerThroughShell)
-					{
-						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath!, ResponseArgument, CompileAction.CommandDescription);
-					}
-					else
-					{
-						CompileAction.CommandPath = new FileReference(ClangPath!);
-						CompileAction.CommandArguments = ResponseArgument;
-					}
-					CompileAction.PrerequisiteItems.Add(ResponseFileItem);
-					CompileAction.CommandVersion = AndroidClangBuild!;
-
-					CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(SourceFile.AbsolutePath), Arch.Replace("-", ""));
-
-					// VC++ always outputs the source file name being compiled, so we don't need to emit this ourselves
-					CompileAction.bShouldOutputStatusDescription = true;
-
-					// Don't farm out creation of pre-compiled headers as it is the critical path task.
-					CompileAction.bCanExecuteRemotely =
-						CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create ||
-						CompileEnvironment.bAllowRemotelyCompiledPCHs;
-				}
-			}
-
-			return Result;
-		}
-
-		public override FileItem? LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
-		{
-			return null;
+			return base.CompileCPPFiles(CompileEnvironment, InputFiles, OutputDir, ModuleName, Graph);
 		}
 
 		static public string InlineArchName(string Pathname, string Arch, bool bUseShortNames = false)
 		{
-			string FinalArch = Arch;
+			string FinalArch = "-" + Arch;
 			if (bUseShortNames)
 			{
 				FinalArch = ShortArchNames[FinalArch];
@@ -1457,7 +1053,7 @@ namespace UnrealBuildTool
 		public string RemoveArchName(string Pathname)
 		{
 			// remove all architecture names
-			foreach (string Arch in GetAllArchitectures())
+			foreach (string Arch in AllCpuSuffixes)
 			{
 				Pathname = Path.Combine(Path.GetDirectoryName(Pathname)!, Path.GetFileName(Pathname).Replace(Arch, ""));
 			}
@@ -1471,11 +1067,6 @@ namespace UnrealBuildTool
 
 		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
-			if (Arches!.Count == 0)
-			{
-				throw new BuildException("At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build");
-			}
-
 			CPPOutput Result = new CPPOutput();
 
 			if (!CompileEnvironment.bCompileISPC)
@@ -1483,97 +1074,288 @@ namespace UnrealBuildTool
 				return Result;
 			}
 
-			foreach (string Arch in Arches)
+			List<string> CompileTargets = GetISPCCompileTargets(CompileEnvironment.Platform, CompileEnvironment.Architecture);
+
+			CompileEnvironment.UserIncludePaths.Add(InlineArchIncludeFolder(OutputDir, CompileEnvironment.Architecture));
+
+			foreach (FileItem ISPCFile in InputFiles)
 			{
-				List<string> CompileTargets = GetISPCCompileTargets(CompileEnvironment.Platform, Arch);
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
+				CompileAction.CommandDescription = "Compile";
+				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
+				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+				CompileAction.CommandVersion = GetISPCHostCompilerVersion(BuildHostPlatform.Current.Platform).ToString();
 
-				CompileEnvironment.UserIncludePaths.Add(InlineArchIncludeFolder(OutputDir, Arch));
+				// Disable remote execution to workaround mismatched case on XGE
+				CompileAction.bCanExecuteRemotely = false;
 
-				foreach (FileItem ISPCFile in InputFiles)
+				List<string> Arguments = new List<string>();
+
+				// Add the ISPC obj file as a prerequisite of the action.
+				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+
+				// Add the ISPC h file to the produced item list.
+				FileItem ISPCIncludeHeaderFile = FileItem.GetItemByFileReference(
+					FileReference.Combine(
+						InlineArchIncludeFolder(OutputDir, CompileEnvironment.Architecture),
+						Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.dummy.h"
+						)
+					);
+
+				// Add the ISPC file to be compiled.
+				Arguments.Add(String.Format("-h \"{0}\"", ISPCIncludeHeaderFile));
+
+				// Build target string. No comma on last
+				string TargetString = "";
+				foreach (string Target in CompileTargets)
 				{
-					Action CompileAction = Graph.CreateAction(ActionType.Compile);
-					CompileAction.CommandDescription = "Compile";
-					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-					CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
-					CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
-					CompileAction.CommandVersion = GetISPCHostCompilerVersion(BuildHostPlatform.Current.Platform).ToString();
+					if (Target == CompileTargets.Last())
+					{
+						TargetString += Target;
+					}
+					else
+					{
+						TargetString += Target + ",";
+					}
+				}
 
-					// Disable remote execution to workaround mismatched case on XGE
-					CompileAction.bCanExecuteRemotely = false;
+				// Build target triplet
+				Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
+				Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, CompileEnvironment.Architecture)));
+				Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
 
-					List<string> Arguments = new List<string>();
+				Arguments.Add("--pic");
 
-					// Add the ISPC obj file as a prerequisite of the action.
-					Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
+				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
+				}
 
-					// Add the ISPC h file to the produced item list.
-					FileItem ISPCIncludeHeaderFile = FileItem.GetItemByFileReference(
+				// System include paths.
+				foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+				}
+
+				// Generate the included header dependency list
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", CompileEnvironment.Architecture, true)));
+				Arguments.Add(String.Format("-M -MF \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.ProducedItems.Add(DependencyListFile);
+
+				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
+
+				CompileAction.CommandArguments = String.Join(" ", Arguments);
+
+				// Add the source file and its included files to the prerequisite item list.
+				CompileAction.PrerequisiteItems.Add(ISPCFile);
+				CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), CompileEnvironment.Architecture.Replace("-", ""));
+
+				FileItem ISPCFinalHeaderFile = FileItem.GetItemByFileReference(
+					FileReference.Combine(
+						InlineArchIncludeFolder(OutputDir, CompileEnvironment.Architecture),
+						Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.h"
+						)
+					);
+
+				// Fix interrupted build issue by copying header after generation completes
+				FileReference SourceFile = ISPCIncludeHeaderFile.Location;
+				FileReference TargetFile = ISPCFinalHeaderFile.Location;
+
+				FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
+				FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
+
+				Action CopyAction = Graph.CreateAction(ActionType.BuildProject);
+				CopyAction.CommandDescription = "Copy";
+				CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
+				if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
+				{
+					CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile, TargetFile);
+				}
+				else
+				{
+					CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
+				}
+				CopyAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+				CopyAction.PrerequisiteItems.Add(SourceFileItem);
+				CopyAction.ProducedItems.Add(TargetFileItem);
+				CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
+				CopyAction.bCanExecuteRemotely = false;
+				CopyAction.bShouldOutputStatusDescription = false;
+
+				Result.GeneratedHeaderFiles.Add(TargetFileItem);
+
+				Logger.LogDebug("   ISPC Generating Header {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
+			}
+
+			return Result;
+		}
+		
+		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
+		{
+			CPPOutput Result = new CPPOutput();
+
+			if (!CompileEnvironment.bCompileISPC)
+			{
+				return Result;
+			}
+
+			List<string> CompileTargets = GetISPCCompileTargets(CompileEnvironment.Platform, CompileEnvironment.Architecture);
+
+			foreach (FileItem ISPCFile in InputFiles)
+			{
+				Action CompileAction = Graph.CreateAction(ActionType.Compile);
+				CompileAction.CommandDescription = "Compile";
+				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
+				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+
+				// Disable remote execution to workaround mismatched case on XGE
+				CompileAction.bCanExecuteRemotely = false;
+
+				List<string> Arguments = new List<string>();
+
+				// Add the ISPC file to be compiled.
+				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+
+				List<FileItem> CompiledISPCObjFiles = new List<FileItem>();
+				List<FileItem> FinalISPCObjFiles = new List<FileItem>();
+				string TargetString = "";
+
+				foreach (string Target in CompileTargets)
+				{
+					string ObjTarget = Target;
+
+					if (Target.Contains("-"))
+					{
+						// Remove lane width and gang size from obj file name
+						ObjTarget = Target.Split('-')[0];
+					}
+
+					FileItem CompiledISPCObjFile;
+					FileItem FinalISPCObjFile;
+
+					if (CompileTargets.Count > 1)
+					{
+						CompiledISPCObjFile = FileItem.GetItemByFileReference(
 						FileReference.Combine(
-							InlineArchIncludeFolder(OutputDir, Arch),
-							Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.dummy.h"
+							OutputDir,
+							Path.GetFileNameWithoutExtension(InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", CompileEnvironment.Architecture, true)) + "_" + ObjTarget + ".o"
 							)
 						);
 
-					// Add the ISPC file to be compiled.
-					Arguments.Add(String.Format("-h \"{0}\"", ISPCIncludeHeaderFile));
+						FinalISPCObjFile = FileItem.GetItemByFileReference(
+						FileReference.Combine(
+							OutputDir,
+							Path.GetFileName(ISPCFile.AbsolutePath) + "_" + ObjTarget + InlineArchName(".o", CompileEnvironment.Architecture, true)
+							)
+						);
+					}
+					else
+					{
+						CompiledISPCObjFile = FileItem.GetItemByFileReference(
+							FileReference.Combine(
+								OutputDir,
+								InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", CompileEnvironment.Architecture, true)
+								)
+							);
+
+						FinalISPCObjFile = CompiledISPCObjFile;
+					}
+
+					// Add the ISA specific ISPC obj files to the produced item list.
+					CompiledISPCObjFiles.Add(CompiledISPCObjFile);
+					FinalISPCObjFiles.Add(FinalISPCObjFile);
 
 					// Build target string. No comma on last
-					string TargetString = "";
-					foreach (string Target in CompileTargets)
+					if (Target == CompileTargets.Last())
 					{
-						if (Target == CompileTargets.Last())
-						{
-							TargetString += Target;
-						}
-						else
-						{
-							TargetString += Target + ",";
-						}
+						TargetString += Target;
 					}
-
-					// Build target triplet
-					Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
-					Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, Arch)));
-					Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
-
-					Arguments.Add("--pic");
-
-					// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
-					foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+					else
 					{
-						Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
+						TargetString += Target + ",";
 					}
+				}
 
-					// System include paths.
-					foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
+				// Add the common ISPC obj file to the produced item list.
+				FileItem CompiledISPCObjFileNoISA = FileItem.GetItemByFileReference(
+					FileReference.Combine(
+						OutputDir,
+						InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", CompileEnvironment.Architecture, true)
+						)
+					);
+
+				CompiledISPCObjFiles.Add(CompiledISPCObjFileNoISA);
+				FinalISPCObjFiles.Add(CompiledISPCObjFileNoISA);
+
+				// Add the output ISPC obj file
+				Arguments.Add(String.Format("-o \"{0}\"", CompiledISPCObjFileNoISA));
+
+				// Build target triplet
+				Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
+				Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, CompileEnvironment.Architecture)));
+				Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
+
+				if (CompileEnvironment.Configuration == CppConfiguration.Debug)
+				{
+					Arguments.Add("-g -O0");
+				}
+				else
+				{
+					Arguments.Add("-O2");
+				}
+
+				Arguments.Add("--pic");
+
+				// Add include paths to the argument list (filtered by architecture)
+				foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
+				{
+					if (IsDirectoryForArch(IncludePath.FullName, CompileEnvironment.Architecture))
 					{
-						Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+						Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
 					}
+				}
+				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+				{
+					if (IsDirectoryForArch(IncludePath.FullName, CompileEnvironment.Architecture))
+					{
+						Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
+					}
+				}
 
-					// Generate the included header dependency list
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, true)));
-					Arguments.Add(String.Format("-M -MF \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.ProducedItems.Add(DependencyListFile);
+				// Preprocessor definitions.
+				foreach (string Definition in CompileEnvironment.Definitions)
+				{
+					Arguments.Add(String.Format(" -D\"{0}\"", Definition));
+				}
 
-					CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
+				// Consume the included header dependency list
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", CompileEnvironment.Architecture, true)));
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.PrerequisiteItems.Add(DependencyListFile);
 
-					CompileAction.CommandArguments = String.Join(" ", Arguments);
+				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
 
-					// Add the source file and its included files to the prerequisite item list.
-					CompileAction.PrerequisiteItems.Add(ISPCFile);
-					CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""));
+				CompileAction.CommandArguments = String.Join(" ", Arguments);
 
-					FileItem ISPCFinalHeaderFile = FileItem.GetItemByFileReference(
-						FileReference.Combine(
-							InlineArchIncludeFolder(OutputDir, Arch),
-							Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.h"
-							)
-						);
+				// Add the source file and its included files to the prerequisite item list.
+				CompileAction.PrerequisiteItems.Add(ISPCFile);
 
-					// Fix interrupted build issue by copying header after generation completes
-					FileReference SourceFile = ISPCIncludeHeaderFile.Location;
-					FileReference TargetFile = ISPCFinalHeaderFile.Location;
+				CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), CompileEnvironment.Architecture.Replace("-", ""));
+
+				for(int i = 0; i < CompiledISPCObjFiles.Count; i++)
+				{
+					// ISPC compiler can't add suffix on the end of the arch, so copy to put into what linker expects
+					FileReference SourceFile = CompiledISPCObjFiles[i].Location;
+					FileReference TargetFile = FinalISPCObjFiles[i].Location;
+
+					if (SourceFile.Equals(TargetFile))
+					{
+						continue;
+					}
 
 					FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
 					FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
@@ -1595,511 +1377,284 @@ namespace UnrealBuildTool
 					CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
 					CopyAction.bCanExecuteRemotely = false;
 					CopyAction.bShouldOutputStatusDescription = false;
-
-					Result.GeneratedHeaderFiles.Add(TargetFileItem);
-
-					Logger.LogDebug("   ISPC Generating Header {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
 				}
-			}
 
-			return Result;
-		}
-		
-		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
-		{
-			if (Arches!.Count == 0)
-			{
-				throw new BuildException("At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build");
-			}
+				Result.ObjectFiles.AddRange(FinalISPCObjFiles);
 
-			CPPOutput Result = new CPPOutput();
-
-			if (!CompileEnvironment.bCompileISPC)
-			{
-				return Result;
-			}
-
-			foreach (string Arch in Arches)
-			{
-				List<string> CompileTargets = GetISPCCompileTargets(CompileEnvironment.Platform, Arch);
-
-				foreach (FileItem ISPCFile in InputFiles)
-				{
-					Action CompileAction = Graph.CreateAction(ActionType.Compile);
-					CompileAction.CommandDescription = "Compile";
-					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-					CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
-					CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
-
-					// Disable remote execution to workaround mismatched case on XGE
-					CompileAction.bCanExecuteRemotely = false;
-
-					List<string> Arguments = new List<string>();
-
-					// Add the ISPC file to be compiled.
-					Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
-
-					List<FileItem> CompiledISPCObjFiles = new List<FileItem>();
-					List<FileItem> FinalISPCObjFiles = new List<FileItem>();
-					string TargetString = "";
-
-					foreach (string Target in CompileTargets)
-					{
-						string ObjTarget = Target;
-
-						if (Target.Contains("-"))
-						{
-							// Remove lane width and gang size from obj file name
-							ObjTarget = Target.Split('-')[0];
-						}
-
-						FileItem CompiledISPCObjFile;
-						FileItem FinalISPCObjFile;
-
-						if (CompileTargets.Count > 1)
-						{
-							CompiledISPCObjFile = FileItem.GetItemByFileReference(
-							FileReference.Combine(
-								OutputDir,
-								Path.GetFileNameWithoutExtension(InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", Arch, true)) + "_" + ObjTarget + ".o"
-								)
-							);
-
-							FinalISPCObjFile = FileItem.GetItemByFileReference(
-							FileReference.Combine(
-								OutputDir,
-								Path.GetFileName(ISPCFile.AbsolutePath) + "_" + ObjTarget + InlineArchName(".o", Arch, true)
-								)
-							);
-						}
-						else
-						{
-							CompiledISPCObjFile = FileItem.GetItemByFileReference(
-								FileReference.Combine(
-									OutputDir,
-									InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", Arch, true)
-									)
-								);
-
-							FinalISPCObjFile = CompiledISPCObjFile;
-						}
-
-						// Add the ISA specific ISPC obj files to the produced item list.
-						CompiledISPCObjFiles.Add(CompiledISPCObjFile);
-						FinalISPCObjFiles.Add(FinalISPCObjFile);
-
-						// Build target string. No comma on last
-						if (Target == CompileTargets.Last())
-						{
-							TargetString += Target;
-						}
-						else
-						{
-							TargetString += Target + ",";
-						}
-					}
-
-					// Add the common ISPC obj file to the produced item list.
-					FileItem CompiledISPCObjFileNoISA = FileItem.GetItemByFileReference(
-						FileReference.Combine(
-							OutputDir,
-							InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".o", Arch, true)
-							)
-						);
-
-					CompiledISPCObjFiles.Add(CompiledISPCObjFileNoISA);
-					FinalISPCObjFiles.Add(CompiledISPCObjFileNoISA);
-
-					// Add the output ISPC obj file
-					Arguments.Add(String.Format("-o \"{0}\"", CompiledISPCObjFileNoISA));
-
-					// Build target triplet
-					Arguments.Add(String.Format("--target-os=\"{0}\"", GetISPCOSTarget(CompileEnvironment.Platform)));
-					Arguments.Add(String.Format("--arch=\"{0}\"", GetISPCArchTarget(CompileEnvironment.Platform, Arch)));
-					Arguments.Add(String.Format("--target=\"{0}\"", TargetString));
-
-					if (CompileEnvironment.Configuration == CppConfiguration.Debug)
-					{
-						Arguments.Add("-g -O0");
-					}
-					else
-					{
-						Arguments.Add("-O2");
-					}
-
-					Arguments.Add("--pic");
-
-					// Add include paths to the argument list (filtered by architecture)
-					foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
-					{
-						if (IsDirectoryForArch(IncludePath.FullName, Arch))
-						{
-							Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
-						}
-					}
-					foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-					{
-						if (IsDirectoryForArch(IncludePath.FullName, Arch))
-						{
-							Arguments.Add(string.Format(" -I\"{0}\"", IncludePath));
-						}
-					}
-
-					// Preprocessor definitions.
-					foreach (string Definition in CompileEnvironment.Definitions)
-					{
-						Arguments.Add(String.Format(" -D\"{0}\"", Definition));
-					}
-
-					// Consume the included header dependency list
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, true)));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.PrerequisiteItems.Add(DependencyListFile);
-
-					CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
-
-					CompileAction.CommandArguments = String.Join(" ", Arguments);
-
-					// Add the source file and its included files to the prerequisite item list.
-					CompileAction.PrerequisiteItems.Add(ISPCFile);
-
-					CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""));
-
-					for(int i = 0; i < CompiledISPCObjFiles.Count; i++)
-					{
-						// ISPC compiler can't add suffix on the end of the arch, so copy to put into what linker expects
-						FileReference SourceFile = CompiledISPCObjFiles[i].Location;
-						FileReference TargetFile = FinalISPCObjFiles[i].Location;
-
-						if (SourceFile.Equals(TargetFile))
-						{
-							continue;
-						}
-
-						FileItem SourceFileItem = FileItem.GetItemByFileReference(SourceFile);
-						FileItem TargetFileItem = FileItem.GetItemByFileReference(TargetFile);
-
-						Action CopyAction = Graph.CreateAction(ActionType.BuildProject);
-						CopyAction.CommandDescription = "Copy";
-						CopyAction.CommandPath = BuildHostPlatform.Current.Shell;
-						if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
-						{
-							CopyAction.CommandArguments = String.Format("/C \"copy /Y \"{0}\" \"{1}\" 1>nul\"", SourceFile, TargetFile);
-						}
-						else
-						{
-							CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
-						}
-						CopyAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-						CopyAction.PrerequisiteItems.Add(SourceFileItem);
-						CopyAction.ProducedItems.Add(TargetFileItem);
-						CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
-						CopyAction.bCanExecuteRemotely = false;
-						CopyAction.bShouldOutputStatusDescription = false;
-					}
-
-					Result.ObjectFiles.AddRange(FinalISPCObjFiles);
-
-					Logger.LogDebug("   ISPC Compiling {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
-				}
+				Logger.LogDebug("   ISPC Compiling {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
 			}
 
 			return Result;
 		}
 
-		public override FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
+		public override FileItem? LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
-			List<FileItem> Outputs = new List<FileItem>();
-
 			if (!LinkEnvironment.bIsBuildingLibrary)
 			{
 				// @todo Lumin: will this add them multiple times?
 				ModifyLibraries(LinkEnvironment);
 			}
 
-			for (int ArchIndex = 0; ArchIndex < Arches!.Count; ArchIndex++)
+			string Arch = LinkEnvironment.Architecture;
+
+			// Create an action that invokes the linker.
+			Action LinkAction = Graph.CreateAction(ActionType.Link);
+			LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+
+			if (LinkEnvironment.bIsBuildingLibrary)
 			{
-				string Arch = Arches[ArchIndex];
-
-				int OutputPathIndex = ArchIndex;
-
-				// Android will have an array of outputs
-				if (!LinkEnvironment.bIsBuildingDLL && // DLL compiles don't have the Arch embedded in the name
-					(LinkEnvironment.OutputFilePaths.Count < OutputPathIndex ||
-					!LinkEnvironment.OutputFilePaths[OutputPathIndex].GetFileNameWithoutExtension().EndsWith(Arch)))
+				switch (Arch)
 				{
-					throw new BuildException("The OutputFilePaths array didn't match the Arches array in AndroidToolChain.LinkAllFiles");
+					case "arm64": LinkAction.CommandPath = new FileReference(ArPathArm64!); break;
+					case "x64": LinkAction.CommandPath = new FileReference(ArPathx64!); break;
 				}
+			}
+			else
+			{
+				LinkAction.CommandPath = new FileReference(ClangPath!);
+			}
 
-				// Create an action that invokes the linker.
-				Action LinkAction = Graph.CreateAction(ActionType.Link);
-				LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+			DirectoryReference LinkerPath = LinkAction.WorkingDirectory;
 
-				if (LinkEnvironment.bIsBuildingLibrary)
+			LinkAction.WorkingDirectory = LinkEnvironment.IntermediateDirectory!;
+
+			// Get link arguments.
+			LinkAction.CommandArguments = LinkEnvironment.bIsBuildingLibrary ? GetArArguments(LinkEnvironment) : GetLinkArguments(LinkEnvironment, Arch);
+
+			// Add the output file as a production of the link action.
+			FileItem OutputFile;
+			OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePaths.Where(x => x.FullName.Contains(LinkEnvironment.Architecture)).First());
+			LinkAction.ProducedItems.Add(OutputFile);
+			LinkAction.StatusDescription = string.Format("{0}", Path.GetFileName(OutputFile.AbsolutePath));
+			LinkAction.CommandVersion = AndroidClangBuild!;
+
+			// LinkAction.bPrintDebugInfo = true;
+
+			// Add the output file to the command-line.
+			if (LinkEnvironment.bIsBuildingLibrary)
+			{
+				LinkAction.CommandArguments += string.Format(" \"{0}\"", OutputFile.AbsolutePath);
+			}
+			else
+			{
+				LinkAction.CommandArguments += string.Format(" -o \"{0}\"", OutputFile.AbsolutePath);
+			}
+
+			// Add the input files to a response file, and pass the response file on the command-line.
+			List<string> InputFileNames = new List<string>();
+			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
+			{
+				string InputPath;
+				if (InputFile.Location.IsUnderDirectory(LinkEnvironment.IntermediateDirectory!))
 				{
-					switch (Arch)
-					{
-						case "-arm64": LinkAction.CommandPath = new FileReference(ArPathArm64!); break;
-						case "-x64": LinkAction.CommandPath = new FileReference(ArPathx64!); break;
-					}
-				}
-				else
-				{
-					LinkAction.CommandPath = new FileReference(ClangPath!);
-				}
-
-				DirectoryReference LinkerPath = LinkAction.WorkingDirectory;
-
-				LinkAction.WorkingDirectory = LinkEnvironment.IntermediateDirectory!;
-
-				// Get link arguments.
-				LinkAction.CommandArguments = LinkEnvironment.bIsBuildingLibrary ? GetArArguments(LinkEnvironment) : GetLinkArguments(LinkEnvironment, Arch);
-
-				// Add the output file as a production of the link action.
-				FileItem OutputFile;
-				OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePaths[OutputPathIndex]);
-				Outputs.Add(OutputFile);
-				LinkAction.ProducedItems.Add(OutputFile);
-				LinkAction.StatusDescription = string.Format("{0}", Path.GetFileName(OutputFile.AbsolutePath));
-				LinkAction.CommandVersion = AndroidClangBuild!;
-
-				// LinkAction.bPrintDebugInfo = true;
-
-				// Add the output file to the command-line.
-				if (LinkEnvironment.bIsBuildingLibrary)
-				{
-					LinkAction.CommandArguments += string.Format(" \"{0}\"", OutputFile.AbsolutePath);
+					InputPath = InputFile.Location.MakeRelativeTo(LinkEnvironment.IntermediateDirectory!);
 				}
 				else
 				{
-					LinkAction.CommandArguments += string.Format(" -o \"{0}\"", OutputFile.AbsolutePath);
+					InputPath = InputFile.Location.FullName;
 				}
+				InputFileNames.Add(string.Format("\"{0}\"", InputPath.Replace('\\', '/')));
 
-				// Add the input files to a response file, and pass the response file on the command-line.
-				List<string> InputFileNames = new List<string>();
-				foreach (FileItem InputFile in LinkEnvironment.InputFiles)
+				LinkAction.PrerequisiteItems.Add(InputFile);
+			}
+
+			string LinkResponseArguments = "";
+
+			// libs don't link in other libs
+			if (!LinkEnvironment.bIsBuildingLibrary)
+			{
+				// Make a list of library paths to search
+				List<string> AdditionalLibraryPaths = new List<string>();
+				List<string> AdditionalLibraries = new List<string>();
+
+				// Add the library paths to the additional path list
+				foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 				{
-					// make sure it's for current Arch
-					if (Path.GetFileNameWithoutExtension(InputFile.AbsolutePath).EndsWith(ShortArchNames[Arch]))
+					// LinkerPaths could be relative or absolute
+					string AbsoluteLibraryPath = Utils.ExpandVariables(LibraryPath.FullName);
+					if (IsDirectoryForArch(AbsoluteLibraryPath, Arch))
 					{
-						string InputPath;
-						if (InputFile.Location.IsUnderDirectory(LinkEnvironment.IntermediateDirectory!))
+						// environment variables aren't expanded when using the $( style
+						if (Path.IsPathRooted(AbsoluteLibraryPath) == false)
 						{
-							InputPath = InputFile.Location.MakeRelativeTo(LinkEnvironment.IntermediateDirectory!);
+							AbsoluteLibraryPath = Path.Combine(LinkerPath.FullName, AbsoluteLibraryPath);
 						}
-						else
+						AbsoluteLibraryPath = Utils.CollapseRelativeDirectories(AbsoluteLibraryPath);
+						if (!AdditionalLibraryPaths.Contains(AbsoluteLibraryPath))
 						{
-							InputPath = InputFile.Location.FullName;
+							AdditionalLibraryPaths.Add(AbsoluteLibraryPath);
 						}
-						InputFileNames.Add(string.Format("\"{0}\"", InputPath.Replace('\\', '/')));
-
-						LinkAction.PrerequisiteItems.Add(InputFile);
 					}
 				}
 
-				string LinkResponseArguments = "";
-
-				// libs don't link in other libs
-				if (!LinkEnvironment.bIsBuildingLibrary)
+				// discover additional libraries and their paths
+				foreach (string SystemLibrary in LinkEnvironment.SystemLibraries)
 				{
-					// Make a list of library paths to search
-					List<string> AdditionalLibraryPaths = new List<string>();
-					List<string> AdditionalLibraries = new List<string>();
-
-					// Add the library paths to the additional path list
-					foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
+					if (!ShouldSkipLib(SystemLibrary, Arch))
 					{
-						// LinkerPaths could be relative or absolute
-						string AbsoluteLibraryPath = Utils.ExpandVariables(LibraryPath.FullName);
-						if (IsDirectoryForArch(AbsoluteLibraryPath, Arch))
+						if (String.IsNullOrEmpty(Path.GetDirectoryName(SystemLibrary)))
 						{
-							// environment variables aren't expanded when using the $( style
-							if (Path.IsPathRooted(AbsoluteLibraryPath) == false)
+							if (SystemLibrary.StartsWith("lib"))
 							{
-								AbsoluteLibraryPath = Path.Combine(LinkerPath.FullName, AbsoluteLibraryPath);
+								AdditionalLibraries.Add(SystemLibrary);
 							}
-							AbsoluteLibraryPath = Utils.CollapseRelativeDirectories(AbsoluteLibraryPath);
+							else
+							{
+								AdditionalLibraries.Add("lib" + SystemLibrary);
+							}
+						}
+					}
+				}
+				foreach (FileReference Library in LinkEnvironment.Libraries)
+				{
+					if (!ShouldSkipLib(Library.FullName, Arch))
+					{
+						string AbsoluteLibraryPath = Path.GetDirectoryName(Library.FullName)!;
+						LinkAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(Library));
+
+						string Lib = Path.GetFileNameWithoutExtension(Library.FullName);
+						if (Lib.StartsWith("lib"))
+						{
+							AdditionalLibraries.Add(Lib);
 							if (!AdditionalLibraryPaths.Contains(AbsoluteLibraryPath))
 							{
 								AdditionalLibraryPaths.Add(AbsoluteLibraryPath);
 							}
 						}
-					}
-
-					// discover additional libraries and their paths
-					foreach (string SystemLibrary in LinkEnvironment.SystemLibraries)
-					{
-						if (!ShouldSkipLib(SystemLibrary, Arch))
+						else
 						{
-							if (String.IsNullOrEmpty(Path.GetDirectoryName(SystemLibrary)))
-							{
-								if (SystemLibrary.StartsWith("lib"))
-								{
-									AdditionalLibraries.Add(SystemLibrary);
-								}
-								else
-								{
-									AdditionalLibraries.Add("lib" + SystemLibrary);
-								}
-							}
+							AdditionalLibraries.Add(AbsoluteLibraryPath);
 						}
-					}
-					foreach (FileReference Library in LinkEnvironment.Libraries)
-					{
-						if (!ShouldSkipLib(Library.FullName, Arch))
+
+						if (!DisableLibCppSharedDependencyValidation() && ReadElfPath != null)
 						{
-							string AbsoluteLibraryPath = Path.GetDirectoryName(Library.FullName)!;
-							LinkAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(Library));
-
-							string Lib = Path.GetFileNameWithoutExtension(Library.FullName);
-							if (Lib.StartsWith("lib"))
+							string? Output = Utils.RunLocalProcessAndReturnStdOut(ReadElfPath, "--dynamic \"" + Library.FullName + "\"");
+							if (Output != null)
 							{
-								AdditionalLibraries.Add(Lib);
-								if (!AdditionalLibraryPaths.Contains(AbsoluteLibraryPath))
+								if (Output.Contains("libc++_shared.so"))
 								{
-									AdditionalLibraryPaths.Add(AbsoluteLibraryPath);
-								}
-							}
-							else
-							{
-								AdditionalLibraries.Add(Library.FullName);
-							}
-
-							if (!DisableLibCppSharedDependencyValidation() && ReadElfPath != null)
-							{
-								string? Output = Utils.RunLocalProcessAndReturnStdOut(ReadElfPath, "--dynamic \"" + Library.FullName + "\"");
-								if (Output != null)
-								{
-									if (Output.Contains("libc++_shared.so"))
+									if (IsNewNDKModel())
 									{
-										if (IsNewNDKModel())
-										{
-											throw new BuildException("Lib {0} depends on libc++_shared.so. There are known incompatibility issues when linking libc++_shared.so with Unreal Engine built with NDK22+." +
-												" Please rebuild your dependencies with static libc++!", Lib);
-										}
-										else
-										{
-											Log.TraceWarning("Lib {0} depends on libc++_shared.so. Unreal Engine is designed to be linked with libs that are built against static libc++ only. Please rebuild your dependencies with static libc++!", Lib);
-										}
+										throw new BuildException("Lib {0} depends on libc++_shared.so. There are known incompatibility issues when linking libc++_shared.so with Unreal Engine built with NDK22+." +
+											" Please rebuild your dependencies with static libc++!", Lib);
+									}
+									else
+									{
+										Log.TraceWarning("Lib {0} depends on libc++_shared.so. Unreal Engine is designed to be linked with libs that are built against static libc++ only. Please rebuild your dependencies with static libc++!", Lib);
 									}
 								}
 							}
 						}
 					}
-
-					// add the library paths to response
-					foreach (string LibaryPath in AdditionalLibraryPaths)
-					{
-						LinkResponseArguments += string.Format(" -L\"{0}\"", LibaryPath);
-					}
-
-					// add libraries in a library group
-					LinkResponseArguments += string.Format(" -Wl,--start-group");
-					foreach (string AdditionalLibrary in AdditionalLibraries)
-					{
-						if (AdditionalLibrary.StartsWith("lib"))
-						{
-							LinkResponseArguments += string.Format(" \"-l{0}\"", AdditionalLibrary.Substring(3));
-						}
-						else
-						{
-							LinkResponseArguments += string.Format(" \"{0}\"", AdditionalLibrary);
-						}
-					}
-					LinkResponseArguments += string.Format(" -Wl,--end-group");
-
-					// Write the MAP file to the output directory.
-					if (LinkEnvironment.bCreateMapFile)
-					{
-						FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory!, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
-						FileItem MAPFile = FileItem.GetItemByFileReference(MAPFilePath);
-						LinkResponseArguments += String.Format(" -Wl,--cref -Wl,-Map,\"{0}\"", MAPFilePath);
-						LinkAction.ProducedItems.Add(MAPFile);
-
-						// Export a list of object file paths, so we can locate the object files referenced by the map file
-						ExportObjectFilePaths(LinkEnvironment, Path.ChangeExtension(MAPFilePath.FullName, ".objpaths"));
-					}
 				}
 
-				// Add the additional arguments specified by the environment.
-				LinkResponseArguments += LinkEnvironment.AdditionalArguments;
-
-				// Write out a response file
-				FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
-				InputFileNames.Add(LinkResponseArguments.Replace("\\", "/"));
-
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames);
-
-				LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);
-				LinkAction.PrerequisiteItems.Add(ResponseFileItem);
-
-				// Fix up the paths in commandline
-				LinkAction.CommandArguments = LinkAction.CommandArguments.Replace("\\", "/");
-
-				// Only execute linking on the local PC.
-				LinkAction.bCanExecuteRemotely = false;
-
-				string VersionScriptFileItem = GetVersionScriptFilename(LinkEnvironment);
-				LinkAction.PrerequisiteItems.Add(FileItem.GetItemByPath(VersionScriptFileItem));
-				
-				if(bExecuteCompilerThroughShell)
+				// add the library paths to response
+				foreach (string LibaryPath in AdditionalLibraryPaths)
 				{
-					SetupActionToExecuteCompilerThroughShell(ref LinkAction, LinkAction.CommandPath.FullName, LinkAction.CommandArguments, "Link");
+					LinkResponseArguments += string.Format(" -L\"{0}\"", LibaryPath);
 				}
 
-				//Logger.LogInformation("Link: {LinkActionCommandPathFullName} {LinkActionCommandArguments}", LinkAction.CommandPath.FullName, LinkAction.CommandArguments);
-
-				// Windows can run into an issue with too long of a commandline when clang tries to call ld to link.
-				// To work around this we call clang to just get the command it would execute and generate a
-				// second response file to directly call ld with the right arguments instead of calling through clang.
-/* disable while tracking down some linker errors this introduces
-				if (RuntimePlatform.IsWindows)
+				// add libraries in a library group
+				LinkResponseArguments += string.Format(" -Wl,--start-group");
+				foreach (string AdditionalLibrary in AdditionalLibraries)
 				{
-					// capture the actual link command without running it
-					ProcessStartInfo StartInfo = new ProcessStartInfo();
-					StartInfo.WorkingDirectory = LinkEnvironment.IntermediateDirectory.FullName;
-					StartInfo.FileName = LinkAction.CommandPath;
-					StartInfo.Arguments = "-### " + LinkAction.CommandArguments;
-					StartInfo.UseShellExecute = false;
-					StartInfo.CreateNoWindow = true;
-					StartInfo.RedirectStandardError = true;
-
-					LinkerCommandline = "";
-
-					Process Proc = new Process();
-					Proc.StartInfo = StartInfo;
-					Proc.ErrorDataReceived += new DataReceivedEventHandler(OutputReceivedForLinker);
-					Proc.Start();
-					Proc.BeginErrorReadLine();
-					Proc.WaitForExit(5000);
-
-					LinkerCommandline = LinkerCommandline.Trim();
-
-					// the command should be in quotes; if not we'll just use clang to link as usual
-					int FirstQuoteIndex = LinkerCommandline.IndexOf('"');
-					if (FirstQuoteIndex >= 0)
+					if (AdditionalLibrary.StartsWith("lib"))
 					{
-						int SecondQuoteIndex = LinkerCommandline.Substring(FirstQuoteIndex + 1).IndexOf('"');
-						if (SecondQuoteIndex >= 0)
-						{
-							LinkAction.CommandPath = LinkerCommandline.Substring(FirstQuoteIndex + 1, SecondQuoteIndex - FirstQuoteIndex);
-							LinkAction.CommandArguments = LinkerCommandline.Substring(FirstQuoteIndex + SecondQuoteIndex + 3);
-
-							// replace double backslashes
-							LinkAction.CommandPath = LinkAction.CommandPath.Replace("\\\\", "/");
-
-							// now create a response file for the full command using ld directly
-							FileReference FinalResponseFileName = FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".responseFinal");
-							FileItem FinalResponseFileItem = Graph.CreateIntermediateTextFile(FinalResponseFileName, LinkAction.CommandArguments);
-							LinkAction.CommandArguments = string.Format("@\"{0}\"", FinalResponseFileName);
-							LinkAction.PrerequisiteItems.Add(FinalResponseFileItem);
-						}
+						LinkResponseArguments += string.Format(" \"-l{0}\"", AdditionalLibrary.Substring(3));
+					}
+					else
+					{
+						LinkResponseArguments += string.Format(" \"{0}\"", AdditionalLibrary);
 					}
 				}
-*/
+				LinkResponseArguments += string.Format(" -Wl,--end-group");
+
+				// Write the MAP file to the output directory.
+				if (LinkEnvironment.bCreateMapFile)
+				{
+					FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory!, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
+					FileItem MAPFile = FileItem.GetItemByFileReference(MAPFilePath);
+					LinkResponseArguments += String.Format(" -Wl,--cref -Wl,-Map,\"{0}\"", MAPFilePath);
+					LinkAction.ProducedItems.Add(MAPFile);
+
+					// Export a list of object file paths, so we can locate the object files referenced by the map file
+					ExportObjectFilePaths(LinkEnvironment, Path.ChangeExtension(MAPFilePath.FullName, ".objpaths"));
+				}
 			}
 
-			return Outputs.ToArray();
+			// Add the additional arguments specified by the environment.
+			LinkResponseArguments += LinkEnvironment.AdditionalArguments;
+
+			// Write out a response file
+			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
+			InputFileNames.Add(LinkResponseArguments.Replace("\\", "/"));
+
+			FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames);
+
+			LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);
+			LinkAction.PrerequisiteItems.Add(ResponseFileItem);
+
+			// Fix up the paths in commandline
+			LinkAction.CommandArguments = LinkAction.CommandArguments.Replace("\\", "/");
+
+			// Only execute linking on the local PC.
+			LinkAction.bCanExecuteRemotely = false;
+
+			string VersionScriptFileItem = GetVersionScriptFilename(LinkEnvironment);
+			LinkAction.PrerequisiteItems.Add(FileItem.GetItemByPath(VersionScriptFileItem));
+				
+			Logger.LogInformation("Link: {LinkActionCommandPathFullName} {LinkActionCommandArguments}", LinkAction.CommandPath.FullName, LinkAction.CommandArguments);
+
+			// Windows can run into an issue with too long of a commandline when clang tries to call ld to link.
+			// To work around this we call clang to just get the command it would execute and generate a
+			// second response file to directly call ld with the right arguments instead of calling through clang.
+/* disable while tracking down some linker errors this introduces
+			if (RuntimePlatform.IsWindows)
+			{
+				// capture the actual link command without running it
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.WorkingDirectory = LinkEnvironment.IntermediateDirectory.FullName;
+				StartInfo.FileName = LinkAction.CommandPath;
+				StartInfo.Arguments = "-### " + LinkAction.CommandArguments;
+				StartInfo.UseShellExecute = false;
+				StartInfo.CreateNoWindow = true;
+				StartInfo.RedirectStandardError = true;
+
+				LinkerCommandline = "";
+
+				Process Proc = new Process();
+				Proc.StartInfo = StartInfo;
+				Proc.ErrorDataReceived += new DataReceivedEventHandler(OutputReceivedForLinker);
+				Proc.Start();
+				Proc.BeginErrorReadLine();
+				Proc.WaitForExit(5000);
+
+				LinkerCommandline = LinkerCommandline.Trim();
+
+				// the command should be in quotes; if not we'll just use clang to link as usual
+				int FirstQuoteIndex = LinkerCommandline.IndexOf('"');
+				if (FirstQuoteIndex >= 0)
+				{
+					int SecondQuoteIndex = LinkerCommandline.Substring(FirstQuoteIndex + 1).IndexOf('"');
+					if (SecondQuoteIndex >= 0)
+					{
+						LinkAction.CommandPath = LinkerCommandline.Substring(FirstQuoteIndex + 1, SecondQuoteIndex - FirstQuoteIndex);
+						LinkAction.CommandArguments = LinkerCommandline.Substring(FirstQuoteIndex + SecondQuoteIndex + 3);
+
+						// replace double backslashes
+						LinkAction.CommandPath = LinkAction.CommandPath.Replace("\\\\", "/");
+
+						// now create a response file for the full command using ld directly
+						FileReference FinalResponseFileName = FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".responseFinal");
+						FileItem FinalResponseFileItem = Graph.CreateIntermediateTextFile(FinalResponseFileName, LinkAction.CommandArguments);
+						LinkAction.CommandArguments = string.Format("@\"{0}\"", FinalResponseFileName);
+						LinkAction.PrerequisiteItems.Add(FinalResponseFileItem);
+					}
+				}
+			}
+*/
+
+			return OutputFile;
 		}
 
 		// captures stderr from clang
@@ -2198,27 +1753,6 @@ namespace UnrealBuildTool
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
-		}
-
-		protected virtual void SetupActionToExecuteCompilerThroughShell(ref Action CompileOrLinkAction, string CommandPath, string CommandArguments, string CommandDescription)
-		{
-			string QuotedCommandPath = CommandPath;
-			if (CommandPath.Contains(' '))
-			{
-				QuotedCommandPath = "'" + CommandPath + "'";
-			}
-	
-			if (BuildHostPlatform.Current.ShellType == ShellType.Cmd)
-			{
-				CompileOrLinkAction.CommandArguments = String.Format("/c \"{0} {1}\"", QuotedCommandPath, CommandArguments);
-			}
-			else
-			{
-				CompileOrLinkAction.CommandArguments = String.Format("-c \'{0} {1}\'", QuotedCommandPath, CommandArguments);
-			}
-
-			CompileOrLinkAction.CommandPath = BuildHostPlatform.Current.Shell;
-			CompileOrLinkAction.CommandDescription = CommandDescription;
 		}
 
 		public ClangSanitizer BuildWithSanitizer()

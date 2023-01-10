@@ -41,11 +41,9 @@ namespace UnrealBuildTool
 			{
 				switch (Arch)
 				{
-					case "-armv7": ISPCTargets.Add("neon"); break; // Assumes NEON is in use
-					case "-arm64": ISPCTargets.Add("neon"); break;
-					case "-x86": ISPCTargets.Add("sse4"); break;
-					case "-x64": ISPCTargets.Add("sse4"); break;
-					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
+					case "arm64": ISPCTargets.Add("neon"); break;
+					case "x64": ISPCTargets.AddRange(new string[] { "sse4" }); break;
+					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (arm64, x64) needs to be selected in the project settings to build"); break;
 				}
 			}
 			else if (Platform == UnrealTargetPlatform.IOS)
@@ -121,11 +119,9 @@ namespace UnrealBuildTool
 			{
 				switch (Arch)
 				{
-					case "-armv7": ISPCArch += "arm"; break; // Assumes NEON is in use
-					case "-arm64": ISPCArch += "aarch64"; break;
-					case "-x86": ISPCArch += "x86"; break;
-					case "-x64": ISPCArch += "x86-64"; break;
-					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
+					case "arm64": ISPCArch += "aarch64"; break;
+					case "x64": ISPCArch += "x86-64"; break;
+					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (arm64, x64) needs to be selected in the project settings to build"); break;
 				}
 			}
 			else if (Platform == UnrealTargetPlatform.IOS)

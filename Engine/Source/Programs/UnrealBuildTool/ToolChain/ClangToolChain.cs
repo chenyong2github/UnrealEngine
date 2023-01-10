@@ -995,7 +995,8 @@ namespace UnrealBuildTool
 		{
 			Action CompileAction = Graph.CreateAction(ActionType.Compile);
 
-			List<string> FileArguments = new();
+			// copy the global arguments into the file arguments, so GetCompileArguments_FileType can remove entries if needed (special case but can be important)
+			List<string> FileArguments = new(GlobalArguments);
 
 			// Add C or C++ specific compiler arguments.
 			GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
@@ -1005,10 +1006,7 @@ namespace UnrealBuildTool
 
 			// Creates the path to the response file using the name of the output file and creates its contents.
 			FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
-			List<string> ResponseFileContents = new();
-			ResponseFileContents.AddRange(GlobalArguments);
-			ResponseFileContents.AddRange(FileArguments);
-			ResponseFileContents = ExpandResponseFileContents(ResponseFileContents);
+			List<string> ResponseFileContents = ExpandResponseFileContents(FileArguments);
 
 			if (RuntimePlatform.IsWindows)
 			{

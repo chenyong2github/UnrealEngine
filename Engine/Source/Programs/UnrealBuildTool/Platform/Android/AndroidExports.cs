@@ -16,12 +16,6 @@ namespace UnrealBuildTool
 	public interface IAndroidToolChain
 	{
 		/// <summary>
-		/// Finds the list of supported architectures
-		/// </summary>
-		/// <returns>The targeted architectures</returns>
-		List<string> GetAllArchitectures();
-
-		/// <summary>
 		/// Returns the Android NDK Level
 		/// </summary>
 		/// <returns>The NDK Level</returns>
@@ -87,25 +81,6 @@ namespace UnrealBuildTool
 		/// 
 		/// </summary>
 		/// <param name="ProjectFile"></param>
-		/// <returns></returns>
-		public static IAndroidToolChain CreateToolChain(FileReference ProjectFile)
-		{
-			return new AndroidToolChain(ProjectFile, null, null, Log.Logger);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <returns></returns>
-		public static IAndroidToolChain CreateTempToolChain()
-		{
-			return new AndroidToolChain(null, null, null, Log.Logger);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="ProjectFile"></param>
 		/// <param name="InForcePackageData"></param>
 		/// <returns></returns>
 		public static IAndroidDeploy CreateDeploymentHandler(FileReference ProjectFile, bool InForcePackageData)
@@ -140,7 +115,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile, ILogger Logger)
 		{
-			AndroidToolChain ToolChain = new AndroidToolChain(null, null, null, Logger);
+			AndroidToolChain ToolChain = new AndroidToolChain(null, Logger);
 			ToolChain.StripSymbols(SourceFile, TargetFile, Logger);
 		}
 	}
