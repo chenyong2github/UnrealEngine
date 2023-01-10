@@ -263,14 +263,6 @@ ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
 #endif
 }
 
-UE_DEPRECATED(5.0, "This function is no longer in use and will be removed.")
-ENGINE_API bool DoRecomputeSkinTangentsOnGPU_RT()
-{
-	// currently only implemented and tested on Window SM5 (needs Compute, Atomics, SRV for index buffers, UAV for VertexBuffers)
-	//#todo-gpuskin: Enable on PS4 when SRVs for IB exist
-	return IsGPUSkinCacheAllowed(GMaxRHIShaderPlatform) && GEnableGPUSkinCacheShaders != 0 && (GEnableGPUSkinCache && GSkinCacheRecomputeTangents != 0);
-}
-
 // determine if during DispatchUpdateSkinning caching should occur
 enum class EGPUSkinCacheDispatchFlags
 {
