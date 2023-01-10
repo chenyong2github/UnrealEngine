@@ -1155,8 +1155,7 @@ void FScopedGPUStatEvent::Begin(FRHICommandListBase& InRHICmdList, const FName& 
 		return;
 	}
 
-	// Non-immediate command lists are not supported (silently fail)
-	if (InRHICmdList.IsImmediate())
+	if (InRHICmdList.IsImmediate() && EnumHasAnyFlags(InRHICmdList.GetPipeline(), ERHIPipeline::Graphics))
 	{
 		Category = &InCategory;
 		RHICmdList = &InRHICmdList;

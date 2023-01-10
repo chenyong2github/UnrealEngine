@@ -593,9 +593,7 @@ class TRDGLambdaPass
 	using TRDGPass = typename TLambdaTraits<ExecuteLambdaType>::TRDGPass;
 
 public:
-	static const bool kSupportsAsyncCompute = TIsSame<TRHICommandList, FRHIComputeCommandList>::Value;
-	static const bool kSupportsRaster = TIsDerivedFrom<TRHICommandList, FRHICommandList>::IsDerived;
-
+	
 	TRDGLambdaPass(
 		FRDGEventName&& InName,
 		const FShaderParametersMetadata* InParameterMetadata,
@@ -607,10 +605,7 @@ public:
 #if RDG_ENABLE_DEBUG
 		, DebugParameterStruct(InParameterStruct)
 #endif
-	{
-		checkf(kSupportsAsyncCompute || !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::AsyncCompute),
-			TEXT("Pass %s is set to use 'AsyncCompute', but the pass lambda's first argument is not FRHIComputeCommandList&."), GetName());
-
+	{		
 		bParallelExecuteAllowed = !TIsSame<TRHICommandList, FRHICommandListImmediate>::Value && !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::NeverParallel);
 	}
 
@@ -629,7 +624,6 @@ private:
 
 	void Execute(FRHIComputeCommandList& RHICmdList) override
 	{
-		check(!kSupportsRaster || RHICmdList.IsGraphics());
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
 		RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
 		ExecuteLambdaFunc<TRDGPass>(static_cast<TRHICommandList&>(RHICmdList));

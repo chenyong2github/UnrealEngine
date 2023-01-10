@@ -260,7 +260,7 @@ FRDGPassRef FRDGBuilder::AddPassInternal(
 		MoveTemp(Name),
 		ParametersMetadata,
 		ParameterStruct,
-		OverridePassFlags(Name.GetTCHAR(), Flags, LambdaPassType::kSupportsAsyncCompute),
+		OverridePassFlags(Name.GetTCHAR(), Flags),
 		MoveTemp(ExecuteLambda));
 
 	IF_RDG_ENABLE_DEBUG(ClobberPassOutputs(Pass));
