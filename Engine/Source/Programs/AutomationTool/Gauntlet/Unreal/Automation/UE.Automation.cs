@@ -77,10 +77,10 @@ namespace UE
 		public bool D3DDebug = false;
 
 		/// <summary>
-		/// Disable capturing frame trace for image based tests
+		/// Attach to RenderDoc to capture frame traces for image based tests
 		/// </summary>
 		[AutoParam]
-		public bool DisableFrameTraceCapture = true;
+		public bool AttachRenderDoc = false;
 
 		/// <summary>
 		/// Filter or groups of tests to apply
@@ -239,14 +239,9 @@ namespace UE
 			if ((ConfigRole.RoleType.IsEditor() && HasNoOtherRole) || ConfigRole.RoleType.IsClient())
 			{
 				// These are flags that are required only on the main role that is going to execute the tests. ie raytracing is required only on the client or if it is an editor test.
-				if (DisableFrameTraceCapture || RayTracing)
-				{
-					AppConfig.CommandLine += " -DisableFrameTraceCapture";
-				}
-
 				if (RayTracing)
 				{
-					AppConfig.CommandLine += " -dpcvars=r.RayTracing=1,r.SkinCache.CompileShaders=1,r.Lumen.HardwareRayTracing=1,AutomationAllowFrameTraceCapture=0";
+					AppConfig.CommandLine += " -dpcvars=r.RayTracing=1,r.SkinCache.CompileShaders=1,r.Lumen.HardwareRayTracing=1";
 				}
 				else
 				{
@@ -256,6 +251,11 @@ namespace UE
 				// Options specific to windows
 				if (ConfigRole.Platform != null && ((UnrealTargetPlatform)ConfigRole.Platform).IsInGroup(UnrealPlatformGroup.Windows))
 				{
+					if (AttachRenderDoc && !RayTracing)
+					{
+						AppConfig.CommandLine += " -attachRenderDoc";
+					}
+
 					if (PreferNvidia)
 					{
 						AppConfig.CommandLine += " -preferNvidia";

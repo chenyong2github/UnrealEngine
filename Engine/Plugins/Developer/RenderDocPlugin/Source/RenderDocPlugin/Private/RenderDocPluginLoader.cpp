@@ -195,28 +195,9 @@ void FRenderDocPluginLoader::Initialize()
 	UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/RenderDocPlugin.RenderDocPluginSettings"), *GEngineIni, ECVF_SetByProjectSetting);
 
 	const bool bCapture = FParse::Param(FCommandLine::Get(), TEXT("AttachRenderDoc")) || (CVarRenderDocAutoAttach.GetValueOnAnyThread() != 0);
-
-	const bool bUnattended = FApp::IsUnattended();
-	IConsoleVariable* CVarAutomationAllowFrameTraceCapture = IConsoleManager::Get().FindConsoleVariable(TEXT("AutomationAllowFrameTraceCapture"), false);
-	const bool bUnattendedCapture = bUnattended && CVarAutomationAllowFrameTraceCapture && CVarAutomationAllowFrameTraceCapture->GetInt() != 0;
-
-	if (!bCapture && !bUnattendedCapture)
+	if (!bCapture)
 	{
-		if (bUnattended)
-		{
-			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because AutomationAllowFrameTraceCapture cvar is set to 0."));
-		}
-		else
-		{
-			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded. Use '-AttachRenderDoc' on the cmd line or enable 'renderdoc.AutoAttach' in the plugin settings."));
-		}
-		return;
-	}
-
-	const bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
-	if (bDisableFrameTraceCapture)
-	{
-		UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because -DisableFrameTraceCapture cmd line flag."));
+		UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded. Use '-AttachRenderDoc' on the cmd line or enable 'renderdoc.AutoAttach' in the plugin settings."));
 		return;
 	}
 

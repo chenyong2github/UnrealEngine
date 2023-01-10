@@ -459,14 +459,6 @@ class DevicenDisplay(DeviceUnreal):
             tool_tip=(
                 'Adds the selected LiveLink preset to the command line \n')
         ),
-        'disable_frame_trace_capture': BoolSetting(
-            attr_name='disable_frame_trace_capture',
-            nice_name='Disable Frame Trace Capture',
-            value=True,
-            tool_tip=(
-                'Prevents RenderDoc from loading, so that Unreal Engine does not disable certain rendering optimizations '
-                'such as parallel algorithms. Uncheck this setting to allow RenderDoc captures. \n')
-        ),
         'graphics_adapter': OptionSetting(
             attr_name="graphics_adapter",
             nice_name="Graphics Adapter",
@@ -775,12 +767,6 @@ class DevicenDisplay(DeviceUnreal):
             if DevicenDisplay.csettings['disable_all_screen_messages'].get_value()
             else '')
 
-        # Effectively disable RenderDoc
-        disable_frame_trace_capture = (
-            '-DisableFrameTraceCapture'
-            if DevicenDisplay.csettings['disable_frame_trace_capture'].get_value()
-            else '')
-
         # fill in fixed arguments
         args = [
             f'"{uproject}"',
@@ -812,7 +798,6 @@ class DevicenDisplay(DeviceUnreal):
             f'{unattended}',              # -unattended
             f'{no_screen_messages}',      # -NoScreenMessages
             f'{disable_ensures}',         # -handleensurepercent=0
-            f'{disable_frame_trace_capture}', # -DisableFrameTraceCapture
             f'{udpm_transport_multi}',    # -UDPMESSAGING_TRANSPORT_MULTICAST=
             f'{udpm_transport_unicast}',  # -UDPMESSAGING_TRANSPORT_UNICAST=
             f'{udpm_transport_static}',   # -UDPMESSAGING_TRANSPORT_STATIC=
