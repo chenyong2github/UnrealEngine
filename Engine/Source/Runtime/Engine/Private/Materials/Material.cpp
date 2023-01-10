@@ -996,6 +996,8 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	RefractionDepthBias = 0.0f;
 	MaterialDecalResponse = MDR_ColorNormalRoughness;
 
+	StrataCompilationConfig = FStrataCompilationConfig();
+
 	bAllowDevelopmentShaderCompile = true;
 	bIsMaterialEditorStatsMaterial = false;
 

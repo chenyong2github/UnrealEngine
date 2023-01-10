@@ -61,8 +61,8 @@ TSharedPtr<FTabManager::FLayout> FMaterialEditorApplicationModes::GetDefaultEdit
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient( 0.20f )
-						->AddTab( FMaterialStats::GetGridStatsTabName(), ETabState::ClosedTab )
-						->AddTab( FMaterialStats::GetGridOldStatsTabName(), ETabState::ClosedTab )
+					->AddTab( FMaterialStats::GetGridStatsTabName(), ETabState::ClosedTab )
+					->AddTab( FMaterialStats::GetGridOldStatsTabName(), ETabState::ClosedTab )
 					->AddTab( FMaterialEditorTabs::FindTabId, ETabState::ClosedTab )
 				)
 			)
@@ -73,6 +73,7 @@ TSharedPtr<FTabManager::FLayout> FMaterialEditorApplicationModes::GetDefaultEdit
 				(
 					FTabManager::NewStack()
 					->AddTab( FMaterialEditorTabs::PaletteTabId, ETabState::SidebarTab, ESidebarLocation::Right, 0.14f )
+					->AddTab( FMaterialEditorTabs::StrataTabId,  ETabState::SidebarTab, ESidebarLocation::Right, 0.14f)
 				)
 			)
 		)

@@ -449,3 +449,25 @@ struct FMaterialParameterMetadata
 	bool bOverride = false;
 #endif // WITH_EDITORONLY_DATA
 };
+
+class FSHA1;
+struct FStrataCompilationConfig
+{
+	bool bFullSimplify = false;
+
+	FString GetShaderMapKeyString() const;
+
+	void UpdateHash(FSHA1& Hasher) const;
+
+	void Serialize(FArchive& Ar);
+
+	friend inline bool operator==(const FStrataCompilationConfig& Lhs, const FStrataCompilationConfig& Rhs)
+	{
+		return Lhs.bFullSimplify == Rhs.bFullSimplify;
+	}
+
+	friend inline bool operator!=(const FStrataCompilationConfig& Lhs, const FStrataCompilationConfig& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
+};

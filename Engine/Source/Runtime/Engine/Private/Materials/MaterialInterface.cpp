@@ -263,6 +263,22 @@ bool UMaterialInterface::IsUsingNewHLSLGenerator() const
 	return BaseMaterial ? BaseMaterial->bEnableNewHLSLGenerator : false;
 }
 
+const FStrataCompilationConfig& UMaterialInterface::GetStrataCompilationConfig() const
+{
+	const UMaterial* BaseMaterial = GetMaterial_Concurrent();
+	static FStrataCompilationConfig DefaultFStrataCompilationConfig = FStrataCompilationConfig();
+	return BaseMaterial ? BaseMaterial->StrataCompilationConfig : DefaultFStrataCompilationConfig;
+}
+
+ENGINE_API void UMaterialInterface::SetStrataCompilationConfig(FStrataCompilationConfig& StrataCompilationConfig)
+{
+	UMaterial* BaseMaterial = GetMaterial();
+	if (BaseMaterial)
+	{
+		BaseMaterial->StrataCompilationConfig = StrataCompilationConfig;
+	}
+}
+
 void UMaterialInterface::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking)
 {
 	OutQualityLevelsUsed = GetCachedExpressionData().QualityLevelsUsed;

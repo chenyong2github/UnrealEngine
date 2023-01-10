@@ -36,6 +36,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "ShaderCompilerCore.h"
 #include "PSOPrecache.h"
+#include "UObject/ObjectMacros.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
@@ -872,6 +873,10 @@ public:
 
 	/** Is the material using the new HLSL generator? */
 	bool bUsingNewHLSLGenerator;
+
+	/** The Strata configuration used when compiling this material, can be tweaked in the material editor for live visualization of simplification. */
+	FStrataCompilationConfig StrataCompilationConfig;
+
 #endif // WITH_EDITOR
 
 	/*
@@ -886,6 +891,7 @@ public:
 		, Usage(EMaterialShaderMapUsage::Default)
 		, bIsCookedId(false)
 		, bUsingNewHLSLGenerator(false)
+		, StrataCompilationConfig()
 #endif
 	{ }
 
@@ -1935,6 +1941,12 @@ public:
 
 	/** Is the material using the new (WIP) HLSL generator? */
 	ENGINE_API virtual bool IsUsingNewHLSLGenerator() const;
+
+	/** Get to the strata compilation config */
+	ENGINE_API virtual const FStrataCompilationConfig& GetStrataCompilationConfig() const;
+	/** Set the strata compilation config */
+	ENGINE_API virtual void SetStrataCompilationConfig(FStrataCompilationConfig& StrataCompilationConfig);
+
 #endif // WITH_EDITOR
 
 	/**

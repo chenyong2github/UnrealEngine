@@ -469,6 +469,9 @@ protected:
 	uint32 NumVtSamples;
 
 	const ITargetPlatform* TargetPlatform;
+
+	/** Strata material compilation and simplification configuration. */
+	FStrataCompilationConfig StrataCompilationConfig;
 public: 
 
 	FHLSLMaterialTranslator(FMaterial* InMaterial,
@@ -477,7 +480,8 @@ public:
 		EShaderPlatform InPlatform,
 		EMaterialQualityLevel::Type InQualityLevel,
 		ERHIFeatureLevel::Type InFeatureLevel,
-		const ITargetPlatform* InTargetPlatform = nullptr);
+		const ITargetPlatform* InTargetPlatform = nullptr,
+		const FStrataCompilationConfig* InStrataCompilationConfig = nullptr);
 
 	~FHLSLMaterialTranslator();
 

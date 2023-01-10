@@ -155,6 +155,7 @@
 #include "MaterialEditorModes.h"
 #include "Materials/MaterialExpression.h"
 #include "MaterialCachedHLSLTree.h"
+#include "SMaterialEditorStrataWidget.h"
 
 #include "SMaterialParametersOverviewWidget.h"
 #include "SMaterialEditorCustomPrimitiveDataWidget.h"
@@ -444,6 +445,11 @@ void FMaterialEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& In
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Layers"));
 
+	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::StrataTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_Strata))
+		.SetDisplayName(LOCTEXT("StrataTab", "Strata"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Palette"));	// STRATA_TODO a strata icon
+
 	MaterialStatsManager->RegisterTabs();
 
 	OnRegisterTabSpawners().Broadcast(InTabManager);
@@ -467,6 +473,7 @@ void FMaterialEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>&
 	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::ParameterDefaultsTabId);
 	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::CustomPrimitiveTabId);
 	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::LayerPropertiesTabId);
+	InTabManager->UnregisterTabSpawner(FMaterialEditorTabs::StrataTabId);
 
 	MaterialStatsManager->UnregisterTabs();
 
@@ -1589,6 +1596,8 @@ void FMaterialEditor::CreateInternalWidgets()
 
 	FindResults =
 		SNew(SFindInMaterial, SharedThis(this));
+
+	StrataWidget = SNew(SMaterialEditorStrataWidget, SharedThis(this));
 
 	RegenerateCodeView();
 }
@@ -5171,6 +5180,22 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_LayerProperties(const FSpawnTabAr
 		];
 
 	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Strata(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == FMaterialEditorTabs::StrataTabId);
+
+	TSharedRef<SDockTab> StrataTab = SNew(SDockTab)
+		.Label(LOCTEXT("MaterialStrataTabTitle", "Strata"))
+		[
+			SNew(SBox)
+			[
+				StrataWidget.ToSharedRef()
+			]
+		];
+
+	return StrataTab;
 }
 
 void FMaterialEditor::SetPreviewExpression(UMaterialExpression* NewPreviewExpression)

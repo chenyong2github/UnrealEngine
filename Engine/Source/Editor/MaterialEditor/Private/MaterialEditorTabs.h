@@ -17,6 +17,7 @@ struct FMaterialEditorTabs
 	static const FName ParameterDefaultsTabId;
 	static const FName CustomPrimitiveTabId;
 	static const FName LayerPropertiesTabId;
+	static const FName StrataTabId;
 
 	// Disable default constructor
 	FMaterialEditorTabs() = delete;

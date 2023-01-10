@@ -63,6 +63,7 @@ class FMaterialCachedHLSLTree;
 struct FParameterChannelNames;
 #endif
 enum EShaderPlatform : uint16;
+struct FStrataCompilationConfig;
 
 typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
 
@@ -395,6 +396,9 @@ public:
 
 	ENGINE_API bool IsUsingNewHLSLGenerator() const;
 	ENGINE_API bool IsUsingControlFlow() const;
+
+	ENGINE_API const FStrataCompilationConfig& GetStrataCompilationConfig() const;
+	ENGINE_API void SetStrataCompilationConfig(FStrataCompilationConfig& StrataCompilationConfig);
 
 	/**
 	* Test this material for dependency on a given material.

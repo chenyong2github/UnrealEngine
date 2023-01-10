@@ -270,7 +270,8 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	EShaderPlatform InPlatform,
 	EMaterialQualityLevel::Type InQualityLevel,
 	ERHIFeatureLevel::Type InFeatureLevel,
-	const ITargetPlatform* InTargetPlatform) //if InTargetPlatform is nullptr, we use the current active
+	const ITargetPlatform* InTargetPlatform, //if InTargetPlatform is nullptr, we use the current active
+	const FStrataCompilationConfig* InStrataCompilationConfig)
 :	ShaderFrequency(SF_Pixel)
 ,	MaterialProperty(MP_EmissiveColor)
 ,	CurrentScopeChunks(nullptr)
@@ -331,6 +332,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	FinalUsedSharedLocalBasesCount(0)
 ,	NumVtSamples(0)
 ,	TargetPlatform(InTargetPlatform)
+,	StrataCompilationConfig()
 {
 	FMemory::Memzero(SharedPixelProperties);
 
@@ -392,6 +394,11 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 
 	// Default value used as the root of the tree for the first path (when a node parent==nullptr).
 	StrataNodeIdentifierStack.Push(FGuid(0x7AEE, 0xBAD, 0xDEAD, 0xBEEF));
+
+	if (InStrataCompilationConfig)
+	{
+		StrataCompilationConfig = *InStrataCompilationConfig;
+	}
 }
 
 FHLSLMaterialTranslator::~FHLSLMaterialTranslator()
@@ -10229,6 +10236,8 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			return false;
 		}
 	}
+
+	StrataSimplificationStatus.bRunFullSimplification = StrataCompilationConfig.bFullSimplify && !bStrataUsesConversionFromLegacy;
 
 	const uint32 StrataBytePerPixel = GetStrataBytePerPixel(Platform);
 	do 

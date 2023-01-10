@@ -566,6 +566,28 @@ void FStaticParameterSet::SetStaticComponentMaskParameterValue(const FMaterialPa
 #endif // WITH_EDITORONLY_DATA
 
 
+
+#if WITH_EDITOR
+FString FStrataCompilationConfig::GetShaderMapKeyString() const
+{
+	if (bFullSimplify)
+	{
+		return TEXT("_STRTFS");
+	}
+	return TEXT("");
+}
+
+void FStrataCompilationConfig::UpdateHash(FSHA1& Hasher) const
+{
+	Hasher.Update((const uint8*)(&bFullSimplify), sizeof(bFullSimplify));
+}
+
+void FStrataCompilationConfig::Serialize(FArchive& Ar)
+{
+	Ar << bFullSimplify;
+}
+#endif
+
 void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 {
 	SCOPED_LOADTIMER(FMaterialShaderMapId_Serialize);
@@ -692,6 +714,11 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 		{
 			bUsingNewHLSLGenerator = false;
 		}
+
+		// STRATA_TODO We do not need to serialize FStrataCompilationConfig for now since this is only used when debugging in the editor.
+		// However we might want to do that when compilation config will change between raster and path tracing for instance.
+		// So currently, the shader map DDC key string won't be changing, but if the user toggles simplification on via the Material Editor it will cache a new map. 
+		// In other words we only cache the simplified shader map version of the material in the editor (and not during cooks).
 	}
 	else
 	{
@@ -787,6 +814,8 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash, bool bWithStaticPa
 
 	HashState.Update((const uint8*)&bUsingNewHLSLGenerator, sizeof(bUsingNewHLSLGenerator));
 
+	StrataCompilationConfig.UpdateHash(HashState);
+
 	HashState.Final();
 	HashState.GetHash(&OutHash.Hash[0]);
 }
@@ -810,6 +839,11 @@ bool FMaterialShaderMapId::Equals(const FMaterialShaderMapId& ReferenceSet, bool
 	}
 
 	if (bUsingNewHLSLGenerator != ReferenceSet.bUsingNewHLSLGenerator)
+	{
+		return false;
+	}
+
+	if (StrataCompilationConfig != ReferenceSet.StrataCompilationConfig)
 	{
 		return false;
 	}
@@ -1100,6 +1134,8 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSour
 	{
 		KeyString += TEXT("_NewHLSL");
 	}
+
+	KeyString += StrataCompilationConfig.GetShaderMapKeyString();
 }
 
 void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& ShaderTypes, const TArray<const FShaderPipelineType*>& ShaderPipelineTypes, const TArray<FVertexFactoryType*>& VFTypes, EShaderPlatform ShaderPlatform)

@@ -747,6 +747,8 @@ void FMaterial::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* 
 		OutId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, Platform);
 		GetReferencedTexturesHash(Platform, OutId.TextureReferencesHash);
 
+		OutId.StrataCompilationConfig = GetStrataCompilationConfig();
+
 #else
 		OutId.QualityLevel = GetQualityLevel();
 		OutId.FeatureLevel = GetFeatureLevel();
@@ -863,6 +865,22 @@ bool FMaterial::IsUsingNewHLSLGenerator() const
 {
 	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
 	return MaterialInterface ? MaterialInterface->IsUsingNewHLSLGenerator() : false;
+}
+
+const FStrataCompilationConfig& FMaterial::GetStrataCompilationConfig() const
+{
+	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
+	static FStrataCompilationConfig DefaultFStrataCompilationConfig = FStrataCompilationConfig();
+	return MaterialInterface ? MaterialInterface->GetStrataCompilationConfig() : DefaultFStrataCompilationConfig;
+}
+
+void FMaterial::SetStrataCompilationConfig(FStrataCompilationConfig& StrataCompilationConfig)
+{
+	UMaterialInterface* MaterialInterface = GetMaterialInterface();
+	if (MaterialInterface)
+	{
+		MaterialInterface->SetStrataCompilationConfig(StrataCompilationConfig);
+	}
 }
 
 #endif // WITH_EDITOR
@@ -3096,7 +3114,7 @@ bool FMaterial::Translate_Legacy(const FMaterialShaderMapId& ShaderMapId,
 	FMaterialCompilationOutput& OutCompilationOutput,
 	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment)
 {
-	FHLSLMaterialTranslator MaterialTranslator(this, OutCompilationOutput, InStaticParameters, InPlatform, GetQualityLevel(), ShaderMapId.FeatureLevel, InTargetPlatform);
+	FHLSLMaterialTranslator MaterialTranslator(this, OutCompilationOutput, InStaticParameters, InPlatform, GetQualityLevel(), ShaderMapId.FeatureLevel, InTargetPlatform, &ShaderMapId.StrataCompilationConfig);
 	const bool bSuccess = MaterialTranslator.Translate();
 	if (bSuccess)
 	{

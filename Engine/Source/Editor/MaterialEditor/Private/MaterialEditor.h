@@ -46,6 +46,8 @@ struct FGraphAppearanceInfo;
 class UMaterialFunctionInstance;
 class FMaterialCachedHLSLTree;
 struct FMaterialCachedExpressionData;
+class SMaterialEditorStrataWidget;
+
 
 /**
  * Class for rendering previews of material expressions in the material editor's linked object viewport.
@@ -910,6 +912,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_ParameterDefaults(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_CustomPrimitiveData(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_LayerProperties(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Strata(const FSpawnTabArgs& Args);
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 	void OnFinishedChangingParametersFromOverview(const FPropertyChangedEvent& PropertyChangedEvent);
@@ -935,6 +938,9 @@ private:
 
 	/** Palette of Material Expressions and functions */
 	TSharedPtr<class SMaterialPalette> Palette;
+
+	/** The strata control tab */
+	TSharedPtr<class SMaterialEditorStrataWidget> StrataWidget;
 
 	/** Stats log, with the log listing that it reflects */
 	TSharedPtr<class SWidget> Stats;

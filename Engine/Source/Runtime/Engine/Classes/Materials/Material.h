@@ -994,6 +994,9 @@ public:
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	float RefractionDepthBias;
 
+	/** Not a UPROPERTY, used to propagate editor only strata material simplification options for preview. */
+	FStrataCompilationConfig StrataCompilationConfig;
+
 	/** 
 	 * Guid that uniquely identifies this material. 
 	 * Any changes to the state of the material that do not appear separately in the shadermap DDC keys must cause this guid to be regenerated!
