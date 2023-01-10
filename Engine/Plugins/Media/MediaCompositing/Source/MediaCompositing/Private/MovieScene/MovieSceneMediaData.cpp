@@ -5,6 +5,7 @@
 #include "IMediaEventSink.h"
 #include "MediaPlayer.h"
 #include "MediaPlayerProxyInterface.h"
+#include "MediaTexture.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -24,23 +25,7 @@ FMovieSceneMediaData::~FMovieSceneMediaData()
 	if (MediaPlayer != nullptr)
 	{
 		MediaPlayer->OnMediaEvent().RemoveAll(this);
-		// If we have a proxy and are looping, then don't bother closing as
-		// we are just going to open again soon anyway.
-		if ((PlayerProxy == nullptr) || (MediaPlayer->IsLooping() == false))
-		{
-			if (PlayerProxy != nullptr)
-			{
-				IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
-				if (PlayerProxyInterface != nullptr)
-				{
-					PlayerProxyInterface->ProxyClose();
-				}
-			}
-			else
-			{
-				MediaPlayer->Close();
-			}
-		}
+		MediaPlayer->Close();
 		MediaPlayer->RemoveFromRoot();
 	}
 }
@@ -79,17 +64,13 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InP
 	MediaPlayer->PlayOnOpen = false;
 	MediaPlayer->OnMediaEvent().AddRaw(this, &FMovieSceneMediaData::HandleMediaPlayerEvent);
 	MediaPlayer->AddToRoot();
+	ProxyMediaTexture.Reset();
 
 	// Do we have a valid proxy object?
 	if ((InPlayerProxy != nullptr) && (InPlayerProxy->Implements<UMediaPlayerProxyInterface>()))
 	{
 		PlayerProxy = InPlayerProxy;
-		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
-			(PlayerProxy);
-		if (PlayerProxyInterface != nullptr)
-		{
-			PlayerProxyInterface->ProxySetPlayOnOpen(false);
-		}
+		
 	}
 	else
 	{
@@ -97,6 +78,63 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InP
 	}
 }
 
+void FMovieSceneMediaData::Initialize(bool bIsEvaluating)
+{
+	if (bIsEvaluating)
+	{
+		AllocProxyMediaTexture();
+	}
+	else
+	{
+		DeallocProxyMediaTexture();
+	}
+}
+
+void FMovieSceneMediaData::TearDown()
+{
+	DeallocProxyMediaTexture();
+}
+
+void FMovieSceneMediaData::AllocProxyMediaTexture()
+{
+	if (PlayerProxy != nullptr)
+	{
+		if (ProxyMediaTexture == nullptr)
+		{
+			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+			if (PlayerProxyInterface != nullptr)
+			{
+				ProxyMediaTexture = PlayerProxyInterface->ProxyAllocMediaTexture();
+			}
+		}
+
+		if (ProxyMediaTexture != nullptr)
+		{
+			ProxyMediaTexture->SetMediaPlayer(MediaPlayer);
+		}
+	}
+}
+
+void FMovieSceneMediaData::DeallocProxyMediaTexture()
+{
+	if (PlayerProxy != nullptr)
+	{
+		if (ProxyMediaTexture != nullptr)
+		{
+			if (ProxyMediaTexture->GetMediaPlayer() == MediaPlayer)
+			{
+				ProxyMediaTexture->SetMediaPlayer(nullptr);
+			}
+		
+			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+			if (PlayerProxyInterface != nullptr)
+			{
+				PlayerProxyInterface->ProxyDeallocMediaTexture(ProxyMediaTexture.Get());
+			}
+			ProxyMediaTexture = nullptr;
+		}
+	}
+}
 
 /* FMediaSectionData callbacks
  *****************************************************************************/

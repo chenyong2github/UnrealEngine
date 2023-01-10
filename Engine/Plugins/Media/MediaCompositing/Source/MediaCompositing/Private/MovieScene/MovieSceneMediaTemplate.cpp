@@ -99,17 +99,9 @@ struct FMediaSectionPreRollExecutionToken
 			{
 				MediaSource->SetCacheSettings(PlayerProxyInterface->GetCacheSettings());
 			}
-			if ((PlayerProxyInterface != nullptr) && (IsMediaSourceProxyValid()))
-			{
-				SectionData.SeekOnOpen(StartTime);
-				int32 PlaylistIndex = GetMediaSourceProxyIndex();
-				PlayerProxyInterface->ProxyOpenPlaylistIndex(PlaylistIndex);
-			}
-			else
-			{
-				SectionData.SeekOnOpen(StartTime);
-				MediaPlayer->OpenSource(MediaSource);
-			}
+			
+			SectionData.SeekOnOpen(StartTime);
+			MediaPlayer->OpenSource(MediaSource);
 		}
 	}
 
@@ -158,21 +150,7 @@ struct FMediaSectionExecutionToken
 		}
 
 		// open the media source if necessary
-		if ((PlayerProxyInterface != nullptr) && (IsMediaSourceProxyValid()))
-		{
-			int32 PlaylistIndex = GetMediaSourceProxyIndex();
-			if (PlayerProxyInterface->ProxyIsPlaylistIndexPlaying(PlaylistIndex) == false)
-			{
-				MediaSource->SetCacheSettings(PlayerProxyInterface->GetCacheSettings());
-				SectionData.SeekOnOpen(CurrentTime);
-				// Setup an initial blocking range - MediaFramework will block (even through the opening process) in its next tick...
-				PlayerProxyInterface->ProxyOpenPlaylistIndex(PlaylistIndex);
-				MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
-
-				return;
-			}
-		}
-		else if (MediaPlayer->GetUrl().IsEmpty())
+		if (MediaPlayer->GetUrl().IsEmpty())
 		{
 			if (PlayerProxyInterface != nullptr)
 			{
@@ -232,8 +210,7 @@ struct FMediaSectionExecutionToken
 				// Set rate
 				// (note that the DIRECTION is important, but the magnitude is not - as we use blocked playback, the range setup to block on will serve as external clock to the player,
 				//  the direction is taken into account as hint for internal operation of the player)
-				if (!SetRate(MediaPlayer, PlayerProxyInterface,
-					(Context.GetDirection() == EPlayDirection::Forwards) ? 1.0f : -1.0f))
+				if (!MediaPlayer->SetRate((Context.GetDirection() == EPlayDirection::Forwards) ? 1.0f : -1.0f))
 				{
 					// Failed to set needed rate: better switch off blocking and bail...
 					MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
@@ -250,7 +227,7 @@ struct FMediaSectionExecutionToken
 				float CurrentPlayerRate = MediaPlayer->GetRate();
 				if (Context.GetDirection() == EPlayDirection::Forwards && CurrentPlayerRate < 0.0f)
 				{
-					if (!SetRate(MediaPlayer, PlayerProxyInterface, 1.0f))
+					if (!MediaPlayer->SetRate(1.0f))
 					{
 						// Failed to set needed rate: better switch off blocking and bail...
 						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
@@ -259,7 +236,7 @@ struct FMediaSectionExecutionToken
 				}
 				else if (Context.GetDirection() == EPlayDirection::Backwards && CurrentPlayerRate > 0.0f)
 				{
-					if (!SetRate(MediaPlayer, PlayerProxyInterface, -1.0f))
+					if (!MediaPlayer->SetRate(-1.0f))
 					{
 						// Failed to set needed rate: better switch off blocking and bail...
 						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
@@ -272,7 +249,7 @@ struct FMediaSectionExecutionToken
 		{
 			if (MediaPlayer->IsPlaying())
 			{
-				SetRate(MediaPlayer, PlayerProxyInterface, 0.0f);
+				MediaPlayer->SetRate(0.0f);
 			}
 
 			MediaPlayer->Seek(MediaTime);
@@ -284,22 +261,6 @@ struct FMediaSectionExecutionToken
 	}
 
 private:
-
-	/**
-	 * Call this to set the rate.
-	 * It will use the proxy if available, otherwise it will use the player.
-	 */
-	bool SetRate(UMediaPlayer* Player, IMediaPlayerProxyInterface* Proxy, float Rate)
-	{
-		if (Proxy != nullptr)
-		{
-			return Proxy->SetProxyRate(Rate);
-		}
-		else
-		{
-			return Player->SetRate(Rate);
-		}
-	}
 
 	FTimespan CurrentTime;
 	FTimespan FrameDuration;
@@ -417,7 +378,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 						UObject* BoundObject = WeakObject.Get();
 						if (BoundObject != nullptr)
 						{
-							MediaPlayer = MediaAssetsModule->GetPlayerFromObject(BoundObject, PlayerProxy);
+							MediaAssetsModule->GetPlayerFromObject(BoundObject, PlayerProxy);
 							break;
 						}
 					}
@@ -443,6 +404,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 	}
 
 	const bool IsEvaluating = !(Context.IsPreRoll() || Context.IsPostRoll() || (Context.GetTime().FrameNumber >= Params.SectionEndFrame));
+	SectionData->Initialize(IsEvaluating);
 
 	if (Params.MediaSoundComponent != nullptr)
 	{
@@ -519,5 +481,7 @@ void FMovieSceneMediaSectionTemplate::TearDown(FPersistentEvaluationData& Persis
 	{
 		Params.MediaTexture->SetMediaPlayer(nullptr);
 	}
+
+	SectionData->TearDown();
 }
 

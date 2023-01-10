@@ -599,9 +599,18 @@ UMediaSource* UMediaPlateComponent::GetMediaSourceFromIndex(int32 Index) const
 	return MediaSource;
 }
 
+UMediaTexture* UMediaPlateComponent::ProxyAllocMediaTexture()
+{
+	return MediaTexture;
+}
+
 void UMediaPlateComponent::ProxyClose()
 {
 	Close();
+}
+
+void UMediaPlateComponent::ProxyDeallocMediaTexture(UMediaTexture* InMediaTexture)
+{
 }
 
 bool UMediaPlateComponent::ProxyIsPlaylistIndexPlaying(int32 Index) const

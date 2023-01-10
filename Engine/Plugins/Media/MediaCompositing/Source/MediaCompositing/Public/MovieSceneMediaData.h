@@ -8,6 +8,7 @@
 
 class IMediaPlayerProxy;
 class UMediaPlayer;
+class UMediaTexture;
 enum class EMediaEvent;
 
 
@@ -47,7 +48,26 @@ public:
 	/** Set up this persistent data object. */
 	void Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy);
 
+	/**
+	 * Called from FMovieSceneMediaSectionTemplate::Initialize.
+	 */
+	void Initialize(bool bIsEvaluating);
+
+	/**
+	 * Called from FMovieSceneMediaSectionTemplate::TearDown.
+	 */
+	void TearDown();
+
 private:
+	/**
+	 * Sets up our proxy media texture.
+	 */
+	void AllocProxyMediaTexture();
+
+	/**
+	 * Removes our proxy media texture.
+	 */
+	void DeallocProxyMediaTexture();
 
 	/** Callback for media player events. */
 	void HandleMediaPlayerEvent(EMediaEvent Event);
@@ -59,6 +79,8 @@ private:
 	UMediaPlayer* MediaPlayer;
 	/** Optional proxy for the media player. */
 	TWeakObjectPtr<UObject> PlayerProxy;
+	/** Media texture allocated from the proxy. */
+	TWeakObjectPtr<UMediaTexture> ProxyMediaTexture;
 
 	/** The time to seek to after the media source is opened. */
 	FTimespan SeekOnOpenTime;
