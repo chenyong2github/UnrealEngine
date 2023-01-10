@@ -176,6 +176,54 @@ struct FMaterialShader
 		return WorldPositionOffset;
 	}
 
+#if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
+	float4 EvaluateDomain( float3 UVW )
+	{
+		float3 PointLocal;
+		PointLocal  = TransformedTri.Verts[0].PointLocal * UVW[0];
+		PointLocal += TransformedTri.Verts[1].PointLocal * UVW[1];
+		PointLocal += TransformedTri.Verts[2].PointLocal * UVW[2];
+
+	#if NANITE_PIXEL_PROGRAMMABLE && MATERIALBLENDING_MASKED
+		float3 Normal;
+		Normal  = TransformedTri.Verts[0].RawAttributeData.TangentZ * UVW[0];
+		Normal += TransformedTri.Verts[1].RawAttributeData.TangentZ * UVW[1];
+		Normal += TransformedTri.Verts[2].RawAttributeData.TangentZ * UVW[2];
+		Normal = normalize( Normal );
+
+		float4 SvPosition = 0;
+
+		FBarycentrics Barycentrics;
+		Barycentrics.UVW 	= UVW;
+		Barycentrics.UVW_dx	= 0;
+		Barycentrics.UVW_dy	= 0;
+					
+		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
+
+		FPixelMaterialInputs PixelMaterialInputs;
+		CalcMaterialParameters( MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/ );
+
+		float Displacement = GetMaterialMaskInputRaw( PixelMaterialInputs );
+
+		const float DisplacementBase = 0.8;
+		const float DisplacementScale = 5.0;
+
+		Displacement -= DisplacementBase;
+		Displacement *= DisplacementScale;
+
+		PointLocal += Normal * Displacement;
+	#endif
+
+		// Transform from view space
+		//float4 PointClip = mul( float4( PointView, 1 ), NaniteView.ViewToClip );
+
+		float3 PointWorld = mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ).xyz;
+		float4 PointClip = mul( float4( PointWorld, 1 ), NaniteView.TranslatedWorldToClip );
+		return PointClip;
+	}
+#endif
+
 	bool EvaluatePixel( FBarycentrics Barycentrics, float4 SvPosition, inout FVisBufferPixel Pixel )
 	{
 	#if NANITE_PIXEL_PROGRAMMABLE

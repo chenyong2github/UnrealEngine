@@ -22,6 +22,7 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "DynamicResolutionState.h"
 #include "Lumen/Lumen.h"
+#include "TessellationTable.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
@@ -892,6 +893,10 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ClusterPageData )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, MaterialSlotTable )
 
+	SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Offsets )
+	SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Verts )
+	SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Indexes )
+
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPackedView >,	InViews )
@@ -1651,6 +1656,55 @@ void CollectRasterPSOInitializers(
 	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, PSOInitializers);
 	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Shadows, PSOInitializers);
 }
+
+
+class FTessellationTableResources : public FRenderResource
+{
+public:
+	FByteAddressBuffer	Offsets;
+	FByteAddressBuffer	Verts;
+	FByteAddressBuffer	Indexes;
+
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
+};
+
+template< typename T >
+static void CreateAndUpload( FByteAddressBuffer& Buffer, const TArray<T>& Array, const TCHAR* InDebugName )
+{
+	Buffer.Initialize( InDebugName, Array.Num() * Array.GetTypeSize() );
+
+	uint8* DataPtr = (uint8*)RHILockBuffer( Buffer.Buffer, 0, Buffer.NumBytes, RLM_WriteOnly );
+
+	FMemory::Memcpy( DataPtr, Array.GetData(), Buffer.NumBytes );
+
+	RHIUnlockBuffer( Buffer.Buffer );
+}
+
+void FTessellationTableResources::InitRHI()
+{
+	if( DoesPlatformSupportNanite( GMaxRHIShaderPlatform ) )
+	{
+		FTessellationTable TessellationTable(8);
+
+		CreateAndUpload( Offsets,	TessellationTable.OffsetTable,	TEXT("TessellationTable.Offsets") );
+		CreateAndUpload( Verts,		TessellationTable.Verts,		TEXT("TessellationTable.Verts") );
+		CreateAndUpload( Indexes,	TessellationTable.Indexes,		TEXT("TessellationTable.Indexes") );
+	}
+}
+
+void FTessellationTableResources::ReleaseRHI()
+{
+	if( DoesPlatformSupportNanite( GMaxRHIShaderPlatform ) )
+	{
+		Offsets.Release();
+		Verts.Release();
+		Indexes.Release();
+	}
+}
+
+TGlobalResource< FTessellationTableResources > GTessellationTable;
+
 
 static void AddPassInitNodesAndClusterBatchesUAV( FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAVRef )
 {
@@ -2928,6 +2982,10 @@ FBinningData AddPass_Rasterize(
 	RasterPassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 	RasterPassParameters->RasterizerBinData = GraphBuilder.CreateSRV(BinningData.DataBuffer);
 	RasterPassParameters->RasterizerBinHeaders = GraphBuilder.CreateSRV(BinningData.HeaderBuffer);
+
+	RasterPassParameters->TessellationTable_Offsets	= GTessellationTable.Offsets.SRV;
+	RasterPassParameters->TessellationTable_Verts	= GTessellationTable.Verts.SRV;
+	RasterPassParameters->TessellationTable_Indexes	= GTessellationTable.Indexes.SRV;
 
 	if (VirtualShadowMapArray != nullptr)
 	{

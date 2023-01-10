@@ -607,6 +607,9 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 	bool bIsImposter = false;
 	UnpackVisPixel(PackedPixel, DepthInt, VisibleClusterIndex, TriIndex, bIsImposter);
 
+	// Update to real depth from VisBuffer
+	SvPosition.z = asfloat(DepthInt);
+
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 #if VIRTUAL_TEXTURE_TARGET
@@ -644,10 +647,24 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 			// Calculate perspective correct barycentric coordinates with screen derivatives
 			const float2 Subpixel = SvPosition.xy * NANITE_SUBPIXEL_SAMPLES;
 			Barycentrics = CalculateTriangleBarycentrics(Subpixel, Tri.Verts[0].PointSubpixelClip, Tri.Verts[1].PointSubpixelClip, Tri.Verts[2].PointSubpixelClip);
-		}
 
-		// Update to real depth from VisBuffer
-		SvPosition.z = asfloat(DepthInt);
+#if 0// Displacement mapping
+			float4x4 TranslatedWorldToLocal = LWCMultiplyTranslation( LWCNegate( NaniteView.PreViewTranslation ), InstanceData.WorldToLocal );
+			float4 PixelTranslatedWorld = mul( SvPosition, NaniteView.SVPositionToTranslatedWorld );
+			float4 PixelLocal = mul( PixelTranslatedWorld, TranslatedWorldToLocal );
+			PixelLocal.xyz /= PixelLocal.w;
+
+			CalculateTriangleBarycentrics(
+				PixelLocal.xyz,
+				Tri.Verts[0].PointLocal,
+				Tri.Verts[1].PointLocal,
+				Tri.Verts[2].PointLocal,
+				RawAttributeData[0].TangentZ,
+				RawAttributeData[1].TangentZ,
+				RawAttributeData[2].TangentZ,
+				Barycentrics );
+#endif
+		}
 
 		Result = FetchNaniteMaterialPixelParameters(InstanceData, InstanceDynamicData, NaniteView, Tri, Cluster, Barycentrics, Interpolants, SvPosition);
 	}

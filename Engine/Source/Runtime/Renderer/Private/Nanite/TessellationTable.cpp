@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TessellationTable.h"
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderUtils.h"
 
 namespace Nanite
 {
 
-FTessellationTable::FTessellationTable()
+FTessellationTable::FTessellationTable( uint32 InMaxTessFactor )
+	: MaxTessFactor( InMaxTessFactor )
 {
 	/*
 		NumPatterns = (MaxTessFactor + 2) choose 3
@@ -16,17 +14,21 @@ FTessellationTable::FTessellationTable()
 		= 816
 	*/
 
+	uint32 MaxNumTris = MaxTessFactor * MaxTessFactor;
 	HashTable.Clear( MaxNumTris, MaxNumTris );
 
 	uint32 NumOffsets = MaxTessFactor * MaxTessFactor * MaxTessFactor;
 	OffsetTable.AddUninitialized( NumOffsets + 1 );
 
+	uint32 Shift = FMath::FloorLog2( MaxTessFactor );
+	uint32 Mask = MaxTessFactor - 1;
+
 	for( uint32 i = 0; i < NumOffsets; i++ )
 	{
 		FIntVector TessFactors(
-			( (i >> 0) & 15 ) + 1,
-			( (i >> 4) & 15 ) + 1,
-			( (i >> 8) & 15 ) + 1 );
+			( (i >> Shift * 0) & Mask ) + 1,
+			( (i >> Shift * 1) & Mask ) + 1,
+			( (i >> Shift * 2) & Mask ) + 1 );
 
 		FirstVert = Verts.Num();
 		FirstTri = Indexes.Num();
@@ -62,8 +64,8 @@ int32 FTessellationTable::GetPattern( FIntVector TessFactors ) const
 
 	return
 		( TessFactors[0] - 1 ) +
-		( TessFactors[1] - 1 ) * 16 +
-		( TessFactors[2] - 1 ) * 256;
+		( TessFactors[1] - 1 ) * MaxTessFactor +
+		( TessFactors[2] - 1 ) * MaxTessFactor * MaxTessFactor;
 }
 
 FIntVector FTessellationTable::GetBarycentrics( uint32 Vert ) const
@@ -451,45 +453,10 @@ void FTessellationTable::UniformTessellateAndSnap( const FIntVector& TessFactors
 	}
 }
 
-FTessellationTable& GetTessellationTable()
+FTessellationTable& GetTessellationTable( uint32 MaxTessFactor )
 {
-	static FTessellationTable TessellationTable;
+	static FTessellationTable TessellationTable( MaxTessFactor );
 	return TessellationTable;
-}
-
-
-template< typename T >
-static void CreateAndUpload( FByteAddressBuffer& Buffer, const TArray<T>& Array, const TCHAR* InDebugName )
-{
-	Buffer.Initialize( InDebugName, Array.Num() * Array.GetTypeSize() );
-
-	uint8* DataPtr = (uint8*)RHILockBuffer( Buffer.Buffer, 0, Buffer.NumBytes, RLM_WriteOnly );
-
-	FMemory::Memcpy( DataPtr, Array.GetData(), Buffer.NumBytes );
-
-	RHIUnlockBuffer( Buffer.Buffer );
-}
-
-void FTessellationTableResources::InitRHI()
-{
-	if( DoesPlatformSupportNanite( GMaxRHIShaderPlatform ) )
-	{
-		FTessellationTable TessellationTable;
-
-		CreateAndUpload( Offsets,	TessellationTable.OffsetTable,	TEXT("TessellationTable.Offsets") );
-		CreateAndUpload( Verts,		TessellationTable.Verts,		TEXT("TessellationTable.Verts") );
-		CreateAndUpload( Indexes,	TessellationTable.Indexes,		TEXT("TessellationTable.Indexes") );
-	}
-}
-
-void FTessellationTableResources::ReleaseRHI()
-{
-	if( DoesPlatformSupportNanite( GMaxRHIShaderPlatform ) )
-	{
-		Offsets.Release();
-		Verts.Release();
-		Indexes.Release();
-	}
 }
 
 } // namespace Nanite

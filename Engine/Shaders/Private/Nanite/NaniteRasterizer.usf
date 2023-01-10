@@ -9,6 +9,7 @@
 #include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #include "NaniteWritePixel.ush"
+#include "NaniteTessellation.ush"
 
 
 #if PIXELSHADER
@@ -218,6 +219,10 @@ uint DeduplicateVertIndexes( FInstanceSceneData InstanceData, FCluster Cluster, 
 	VertLaneIndexes.y = MaskedBitCount( UsedVertMask, VertIndexes.y );
 	VertLaneIndexes.z = MaskedBitCount( UsedVertMask, VertIndexes.z );
 
+	//uint2 ValidTriMask = WaveBallet( all( VertLaneIndexes < 32 ) );
+	//uint BatchTriCount = firstbithigh( ValidTriMask == ~0u ? ValidTriMask.y : ValidTriMask.x );
+	//uint BatchTriCount = WaveActiveCountBits( all( VertLaneIndexes < 32 ) );
+
 	return countbits( UsedVertMask.x ) + countbits( UsedVertMask.y );
 }
 
@@ -388,6 +393,33 @@ void MicropolyRasterize(
 		PointSubpixelClip = CalculateSubpixelCoordinates(Raster, PointClip);
 	}
 
+#if TESS
+	float3 TriPointView[3];
+	TriPointView[0] = WaveReadLaneAt( PointView, VertLaneIndexes[0] );
+	TriPointView[1] = WaveReadLaneAt( PointView, VertLaneIndexes[1] );
+	TriPointView[2] = WaveReadLaneAt( PointView, VertLaneIndexes[2] );
+
+	float3 TessFactors = GetTessFactors( NaniteView, TriPointView );
+
+	FDiceTask DiceTask;
+	DiceTask.Raster				= Raster;
+	DiceTask.Shader				= MaterialShader;
+	DiceTask.PixelValue			= ( VisibleIndex + 1 ) << 7;
+	DiceTask.VisualizeValues	= GetVisualizeValues();
+	DiceTask.Vert				= Vert;
+
+	uint NumVerts = 0;
+	uint NumTris = 0;
+	if( GroupThreadIndex < TriRange.Num )
+	{
+		DiceTask.Create( TessFactors, VertLaneIndexes, TriIndex, NumVerts, NumTris );
+	}
+
+	//DiceTask.FirstVert = WavePrefixSum( NumVerts );
+	//DiceTask.NumCached = 0;
+
+	DistributeWork( DiceTask, GroupThreadIndex, NumTris );
+#else
 	float4 Verts[3];
 	UNROLL
 	for (uint Corner = 0; Corner < 3; ++Corner)
@@ -419,6 +451,8 @@ void MicropolyRasterize(
 			RasterizeTri_Adaptive( Tri, NaniteWritePixel );
 		}
 	}
+#endif
+
 #else // !NANITE_VERT_REUSE_BATCH
 	UNROLL
 	for( uint i = 0; i < VERTEX_CACHE_SIZE; i += SWRASTER_NUM_THREADS )

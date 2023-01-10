@@ -6,10 +6,6 @@
 #include "Containers/HashTable.h"
 #include "CoreMinimal.h"
 #include "Math/IntVector.h"
-#include "Math/UnrealMathSSE.h"
-#include "RenderResource.h"
-#include "RHI.h"
-#include "RHIUtilities.h"
 
 namespace Nanite
 {
@@ -17,16 +13,16 @@ namespace Nanite
 class FTessellationTable
 {
 public:
-	static constexpr uint32 MaxTessFactor = 16;
-	static constexpr uint32 MaxNumTris = MaxTessFactor * MaxTessFactor;
 	static constexpr uint32 BarycentricMax = 1 << 15;
 
 	TArray< FUintVector2 >	OffsetTable;
 	TArray< uint32 >		Verts;
 	TArray< uint32 >		Indexes;
+	
+	uint32					MaxTessFactor;
 
 public:
-	RENDERER_API			FTessellationTable();
+	RENDERER_API			FTessellationTable( uint32 MaxTessFactor );
 	RENDERER_API int32		GetPattern( FIntVector TessFactors ) const;
 
 	uint32		GetNumVerts( int32 Pattern ) const;
@@ -60,18 +56,6 @@ FORCEINLINE uint32 FTessellationTable::GetNumTris( int32 Pattern ) const
 			OffsetTable[ Pattern ].Y;
 }
 
-RENDERER_API FTessellationTable& GetTessellationTable();
-
-
-class FTessellationTableResources : public FRenderResource
-{
-public:
-	FByteAddressBuffer	Offsets;
-	FByteAddressBuffer	Verts;
-	FByteAddressBuffer	Indexes;
-
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-};
+RENDERER_API FTessellationTable& GetTessellationTable( uint32 MaxTessFactor );
 
 } // namespace Nanite
