@@ -72,9 +72,10 @@ namespace UE::VCamCoreEditor::Private
 		AddScopeRow(ChildBuilder, CustomizationUtils);
 		
 		const TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+		const FStructProperty* ParentStruct = CastField<FStructProperty>(ParentHandle->GetProperty());
 		const bool bIsValidHandle = ParentHandle
-			&& CastField<FStructProperty>(PropertyHandle->GetProperty())
-			&& CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct == FVCamConnection::StaticStruct();
+			&& ParentStruct
+			&& ParentStruct->Struct == FVCamConnection::StaticStruct();
 		const TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle = bIsValidHandle
 			? ParentHandle
 			: nullptr;
