@@ -6,6 +6,8 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceUtilities.h"
 
 
 template<typename TAction>
@@ -16,9 +18,12 @@ void UNiagaraSystem::ForEachScript(TAction Func) const
 
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		if (FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData())
+		if (Handle.GetIsEnabled())
 		{
-			EmitterData->ForEachScript(Func);
+			if (FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData())
+			{
+				EmitterData->ForEachScript(Func);
+			}
 		}
 	}
 }
