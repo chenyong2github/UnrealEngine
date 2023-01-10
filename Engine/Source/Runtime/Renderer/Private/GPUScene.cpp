@@ -25,6 +25,7 @@
 #include "ShaderPrint.h"
 #include "RenderCore.h"
 #include "LightSceneData.h"
+#include "LightSceneProxy.h"
 
 #define LOG_INSTANCE_ALLOCATIONS 0
 
