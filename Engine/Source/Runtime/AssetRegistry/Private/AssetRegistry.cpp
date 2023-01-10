@@ -2970,6 +2970,11 @@ void UAssetRegistryImpl::UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataL
 	}
 	FARCompiledFilter CompiledFilter;
 	CompileFilter(Filter, CompiledFilter);
+	UseFilterToExcludeAssets(AssetDataList, CompiledFilter);
+}
+
+void UAssetRegistryImpl::UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataList, const FARCompiledFilter& CompiledFilter) const
+{
 	UE::AssetRegistry::Utils::RunAssetsThroughFilter(AssetDataList, CompiledFilter, UE::AssetRegistry::Utils::EFilterMode::Exclusive);
 }
 

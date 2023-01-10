@@ -2062,8 +2062,9 @@ void UAssetToolsImpl::GetAllAdvancedCopySources(FName SelectedPackage, FAdvanced
 		AssetRegistry.GetAssetsByPackageName(SelectedPackage, SourceAssetData);
 		// Check if this is a folder before using the filter to exclude assets
 		bool bIsFolder = SourceAssetData.Num() == 0;
-		FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
-		AssetRegistry.UseFilterToExcludeAssets(SourceAssetData, ExclusionFilter);
+		FARCompiledFilter CompiledExclusionFilter;
+		AssetRegistry.CompileFilter(CopyCustomization->GetARFilter(), CompiledExclusionFilter);
+		AssetRegistry.UseFilterToExcludeAssets(SourceAssetData, CompiledExclusionFilter);
 		// If this is a valid asset
 		if (SourceAssetData.Num() > 0 || bIsFolder)
 		{
@@ -2074,7 +2075,7 @@ void UAssetToolsImpl::GetAllAdvancedCopySources(FName SelectedPackage, FAdvanced
 		// Folders should ALWAYS get checked for assets and subfolders
 		if ((CopyParams.bShouldCheckForDependencies && SourceAssetData.Num() > 0) || bIsFolder)
 		{
-			RecursiveGetDependenciesAdvanced(SelectedPackage, CopyParams, CurrentDependencies, DependencyMap, CopyCustomization, SourceAssetData);
+			RecursiveGetDependenciesAdvanced(SelectedPackage, CopyParams, CurrentDependencies, DependencyMap, CompiledExclusionFilter, SourceAssetData);
 		}
 		OutPackageNamesToCopy.Append(CurrentDependencies);
 	}
@@ -5155,7 +5156,7 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 	}
 }
 
-void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName, FAdvancedCopyParams& CopyParams, TArray<FName>& AllDependencies, TMap<FName, FName>& DependencyMap, const UAdvancedCopyCustomization* CopyCustomization, TArray<FAssetData>& OptionalAssetData) const
+void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName, FAdvancedCopyParams& CopyParams, TArray<FName>& AllDependencies, TMap<FName, FName>& DependencyMap, const FARCompiledFilter& CompiledExclusionFilter, TArray<FAssetData>& OptionalAssetData) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FName> Dependencies;
@@ -5170,13 +5171,12 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 			{
 				TArray<FAssetData> DependencyAssetData;
 				AssetRegistry.GetAssetsByPackageName(Dep, DependencyAssetData, true);
-				FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
-				AssetRegistry.UseFilterToExcludeAssets(DependencyAssetData, ExclusionFilter);
+				AssetRegistry.UseFilterToExcludeAssets(DependencyAssetData, CompiledExclusionFilter);
 				if (DependencyAssetData.Num() > 0)
 				{
 					AllDependencies.Add(Dep);
 					DependencyMap.Add(Dep, PackageName);
-					RecursiveGetDependenciesAdvanced(Dep, CopyParams, AllDependencies, DependencyMap, CopyCustomization, DependencyAssetData);
+					RecursiveGetDependenciesAdvanced(Dep, CopyParams, AllDependencies, DependencyMap, CompiledExclusionFilter, DependencyAssetData);
 				}
 			}
 		}
@@ -5188,15 +5188,14 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 		if (AssetRegistry.HasAssets(PackageName) && AssetRegistry.GetAssetsByPath(PackageName, PathAssetData))
 		{
 
-			FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
-			AssetRegistry.UseFilterToExcludeAssets(PathAssetData, ExclusionFilter);
+			AssetRegistry.UseFilterToExcludeAssets(PathAssetData, CompiledExclusionFilter);
 			for(const FAssetData& Asset : PathAssetData)
 			{
 				AllDependencies.Add(*Asset.GetPackage()->GetName());
 				// If we should check the assets we found for dependencies
 				if (CopyParams.bShouldCheckForDependencies)
 				{
-					RecursiveGetDependenciesAdvanced(FName(*Asset.GetPackage()->GetName()), CopyParams, AllDependencies, DependencyMap, CopyCustomization, PathAssetData);
+					RecursiveGetDependenciesAdvanced(FName(*Asset.GetPackage()->GetName()), CopyParams, AllDependencies, DependencyMap, CompiledExclusionFilter, PathAssetData);
 				}
 			}
 		}
@@ -5208,7 +5207,7 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 			for (const FString& SubPath : SubPaths)
 			{
 				TArray<FAssetData> EmptyArray;
-				RecursiveGetDependenciesAdvanced(FName(*SubPath), CopyParams, AllDependencies, DependencyMap, CopyCustomization, EmptyArray);
+				RecursiveGetDependenciesAdvanced(FName(*SubPath), CopyParams, AllDependencies, DependencyMap, CompiledExclusionFilter, EmptyArray);
 			}
 
 		}
