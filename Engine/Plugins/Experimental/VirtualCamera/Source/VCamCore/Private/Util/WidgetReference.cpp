@@ -3,14 +3,13 @@
 #include "Util/WidgetReference.h"
 
 #include "LogVCamCore.h"
-#include "UI/Switcher/VCamStateSwitcherWidget.h"
 #include "Util/WidgetTreeUtils.h"
 
 #include "Blueprint/WidgetTree.h"
 
 UWidget* FChildWidgetReference::ResolveWidget(UUserWidget& OwnerWidget) const
 {
-	UWidget* ResolvedTemplate = Template.Get();
+	UWidget* ResolvedTemplate = Template.LoadSynchronous();
 	if (!ResolvedTemplate)
 	{
 		return nullptr;

@@ -24,7 +24,7 @@ struct VCAMCORE_API FChildWidgetReference
 	 * @see FWidgetReference
 	 */
 	UPROPERTY(EditAnywhere, Category = "Virtual Camera")
-	TLazyObjectPtr<UWidget> Template;
+	TSoftObjectPtr<UWidget> Template;
 	
 	UWidget* ResolveWidget(UUserWidget& OwnerWidget) const;
 	bool HasNoWidgetSet() const { return Template.IsValid(); }
