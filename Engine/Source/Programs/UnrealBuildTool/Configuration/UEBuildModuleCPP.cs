@@ -429,6 +429,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// We are building with IWYU and thismodule does not support it, early out
+			if (Target.bIWYU && Rules.IWYUSupport == IWYUSupport.None)
+			{
+				return new List<FileItem>();
+			}
+
 			// Process all of the header file dependencies for this module
 			CheckFirstIncludeMatchesEachCppFile(Target, ModuleCompileEnvironment, InputFiles.HeaderFiles, InputFiles.CPPFiles);
 
@@ -769,6 +775,43 @@ namespace UnrealBuildTool
 					}
 					Writer.WriteObjectEnd();
 					Writer.WriteObjectEnd();
+				}
+			}
+
+			// IWYU needs to build all headers separate from cpp files to produce proper recommendations for includes
+			if (Target.bIWYU)
+			{
+				// Find FileItems for module's pch files
+				FileItem? PrivatePchFileItem = null;
+				if (Rules.PrivatePCHHeaderFile != null)
+					PrivatePchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.PrivatePCHHeaderFile));
+				FileItem? SharedPchFileItem = null;
+				if (Rules.SharedPCHHeaderFile != null)
+					SharedPchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile));
+
+				// Collect the headers that should be built
+				List<FileItem> HeaderFileItems = new();
+				foreach (FileItem HeaderFileItem in InputFiles.HeaderFiles)
+				{
+					// We don't want to build pch files in iwyu, skip those.
+					if (HeaderFileItem == PrivatePchFileItem || HeaderFileItem == SharedPchFileItem)
+					{
+						continue;
+					}
+
+					// If file is skipped by header units it means they can't be compiled by themselves and we must skip them too
+					if (CompileEnvironment.MetadataCache.GetHeaderUnitType(HeaderFileItem) != HeaderUnitType.Valid)
+					{
+						continue;
+					}
+
+					HeaderFileItems.Add(HeaderFileItem);
+				}
+
+				if (HeaderFileItems.Count > 0)
+				{
+					// Add the compile actions
+					LinkInputFiles.AddRange(ToolChain.CompileCPPFiles(CompileEnvironment, HeaderFileItems, IntermediateDirectory, Name, Graph).ObjectFiles);
 				}
 			}
 
@@ -1454,7 +1497,7 @@ namespace UnrealBuildTool
 
 					// Find the directly included files for each source file, and make sure it includes the matching header if possible
 					InvalidIncludeDirectiveMessages = new List<string>();
-					if (Rules != null && Rules.bEnforceIWYU && Target.bEnforceIWYU)
+					if (Rules != null && Rules.IWYUSupport != IWYUSupport.None && Target.bEnforceIWYU)
 					{
 						foreach (FileItem CppFile in CppFiles)
 						{
@@ -1579,7 +1622,7 @@ namespace UnrealBuildTool
 			}
 
 			// Set the macro used to check whether monolithic headers can be used
-			if (Rules.bTreatAsEngineModule && (!Rules.bEnforceIWYU || !Target.bEnforceIWYU))
+			if (Rules.bTreatAsEngineModule && (Rules.IWYUSupport == IWYUSupport.None || !Target.bEnforceIWYU))
 			{
 				Result.Definitions.Add("SUPPRESS_MONOLITHIC_HEADER_WARNINGS=1");
 			}

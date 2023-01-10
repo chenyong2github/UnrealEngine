@@ -201,7 +201,16 @@ namespace UnrealBuildTool
 
 		public override string GetFolderNameForArchitecture(string Architecture)
 		{
-			return ConvertToReadableArchitecture(Architecture);
+			string Str = ConvertToReadableArchitecture(Architecture);
+
+			// TODO: This will be revisted. Unfortunately there is no way to know we are about to build with iwyu toolchain
+			// except parsing the commandline arguments.
+			bool HAAACK = false;
+			foreach (var Arg in Environment.GetCommandLineArgs())
+				HAAACK |= Arg.Contains("iwyu", StringComparison.OrdinalIgnoreCase);
+			if (HAAACK)
+				Str += "-IWYU";
+			return Str;
 		}
 
 		public override void ResetTarget(TargetRules Target)
@@ -275,6 +284,11 @@ namespace UnrealBuildTool
 			Target.bCheckSystemHeadersForModification = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux);
 
 			Target.bCompileISPC = true;
+
+			if (Target.bIWYU)
+			{
+				IWYUToolChain.ValidateTarget(Target);
+			}
 		}
 
 		/// <summary>
@@ -560,6 +574,11 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
+			if (Target.bIWYU)
+			{
+				return new IWYUToolChain(Target, Logger);
+			}
+
 			ClangToolChainOptions Options = ClangToolChainOptions.None;
 
 			if (Target.LinuxPlatform.bEnableAddressSanitizer)

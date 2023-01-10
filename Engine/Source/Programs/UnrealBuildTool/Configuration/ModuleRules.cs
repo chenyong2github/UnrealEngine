@@ -60,6 +60,39 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// To what extent a module supports include-what-you-use
+	/// </summary>
+	public enum IWYUSupport
+	{
+		/// <summary>
+		/// None means code does not even compile. IWYU needs to skip this module entirely
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Module could be modified with iwyu but we want it to stay the way it is and handle changes manually
+		/// </summary>
+		KeepAsIs,
+
+		/// <summary>
+		/// Module is parsed and processed. This means that from the outside it is stripped for includes
+		/// even though the files are not modified. This can be used to defer iwyu work on a module.
+		/// When it comes to transitive includes this module is seen as modified from the outside.
+		/// </summary>
+		KeepAsIsForNow,
+
+		/// <summary>
+		/// Same as KeepAsIsForNow but will allow iwyu to update private headers and cpp files.
+		/// </summary>
+		KeepPublicAsIsForNow,
+
+		/// <summary>
+		/// Full iwyu support. When running with -Mode=IWYU this module will be modified if needed
+		/// </summary>
+		Full,
+	}
+
+	/// <summary>
 	/// ModuleRules is a data structure that contains the rules for defining a module
 	/// </summary>
 	public class ModuleRules
@@ -874,7 +907,14 @@ namespace UnrealBuildTool
 		/// Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) 
 		/// are used, and checks that source files include their matching header first.
 		/// </summary>
-		public bool bEnforceIWYU = true;
+		//[Obsolete("Deprecated in UE5.2 - Use IWYUSupport instead.")]
+		public bool bEnforceIWYU { set { if (!value) IWYUSupport = IWYUSupport.None; } }
+
+		/// <summary>
+		/// Allows "include what you use" to modify the source code when run. bEnforceIWYU must be true for this variable to matter.
+		/// 
+		/// </summary>
+		public IWYUSupport IWYUSupport = IWYUSupport.Full;
 
 		/// <summary>
 		/// Whether to add all the default include paths to the module (eg. the Source/Classes folder, subfolders under Source/Public).
