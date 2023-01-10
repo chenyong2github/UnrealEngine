@@ -517,6 +517,8 @@ public:
 	uint8 bIsFirstAttenuationUpdate : 1;
 	uint8 bStartedWithinNonBinauralRadius : 1;
 
+	uint8 bModulationRoutingUpdated : 1;
+
 	uint8 UserIndex;
 
 	/** Type of fade out currently being applied */
@@ -691,6 +693,9 @@ public:
 
 	/** Resets internal data of new Source Bus Sends */
 	void ResetNewBusSends();
+
+	/* Gives new Modulation Routing settings to the Active Sound. */
+	void SetNewModulationRouting(const FSoundModulationDefaultRoutingSettings& NewRouting);
 
 	/* Determines which of the provided listeners is the closest to the sound */
 	int32 FindClosestListener( const TArray<struct FListener>& InListeners ) const;

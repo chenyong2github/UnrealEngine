@@ -79,6 +79,9 @@ namespace Audio
 		/** Updates and source effect on this voice. */
 		void UpdateEffects();
 
+		/** Updates the Modulation Routing settings on this voice. */
+		void UpdateModulation();
+
 		/** Updates source bus send levels based on game data. */
 		void UpdateSourceBusSends();
 

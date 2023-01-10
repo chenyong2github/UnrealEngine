@@ -59,6 +59,8 @@ namespace Audio
 		// Sets the source voice's HPF filter modulation base frequency.
 		void SetModHPFFrequency(const float InFrequency);
 
+		void SetModulationRouting(FSoundModulationDefaultRoutingSettings& RoutingSettings);
+
 		// Set the source voice's SourceBufferListener and associated boolean.
 		void SetSourceBufferListener(FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer);
 

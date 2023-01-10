@@ -431,6 +431,12 @@ void FActiveSound::ResetNewBusSends()
 	bHasNewBusSends = false;
 }
 
+void FActiveSound::SetNewModulationRouting(const FSoundModulationDefaultRoutingSettings& NewRouting)
+{
+	ModulationRouting = NewRouting;
+	bModulationRoutingUpdated = true;
+}
+
 void FActiveSound::Stop()
 {
 	if (AudioDevice)

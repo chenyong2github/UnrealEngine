@@ -1646,6 +1646,45 @@ namespace Audio
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("SetModHPFFrequency()"));
 	}
 
+	void FMixerSourceManager::SetModulationRouting(const int32 SourceId, FSoundModulationDefaultSettings& ModulationSettings)
+	{
+		FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		FModulationDestination VolumeMod;
+		VolumeMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+		VolumeMod.UpdateModulators(ModulationSettings.VolumeModulationDestination.Modulators);
+
+		FModulationDestination PitchMod;
+		PitchMod.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
+		PitchMod.UpdateModulators(ModulationSettings.PitchModulationDestination.Modulators);
+
+		FModulationDestination HighpassMod;
+		HighpassMod.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
+		HighpassMod.UpdateModulators(ModulationSettings.HighpassModulationDestination.Modulators);
+
+		FModulationDestination LowpassMod;
+		LowpassMod.Init(MixerDevice->DeviceID, FName("LPFCutoffFrequency"), false /* bInIsBuffered */);
+		LowpassMod.UpdateModulators(ModulationSettings.LowpassModulationDestination.Modulators);
+
+
+		AudioMixerThreadCommand([
+			this,
+				SourceId,
+				VolumeModulation = MoveTemp(VolumeMod),
+				HighpassModulation = MoveTemp(HighpassMod),
+				LowpassModulation = MoveTemp(LowpassMod),
+				PitchModulation = MoveTemp(PitchMod)
+		]() mutable
+			{
+				FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+				SourceInfo.VolumeModulation = MoveTemp(VolumeModulation);
+				SourceInfo.PitchModulation = MoveTemp(PitchModulation);
+				SourceInfo.LowpassModulation = MoveTemp(LowpassModulation);
+				SourceInfo.HighpassModulation = MoveTemp(HighpassModulation);
+			}, AUDIO_MIXER_THREAD_COMMAND_STRING("SetModulationRouting"));
+	}
+
 	void FMixerSourceManager::SetSourceBufferListener(const int32 SourceId, FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer)
 	{
 		AUDIO_MIXER_THREAD_DEBUG_UPDATE()

@@ -196,6 +196,13 @@ namespace Audio
 		}
 	}
 
+	void FMixerSourceVoice::SetModulationRouting(FSoundModulationDefaultRoutingSettings& RoutingSettings)
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		SourceManager->SetModulationRouting(SourceId, RoutingSettings);
+	}
+
 	void FMixerSourceVoice::SetSourceBufferListener(FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);

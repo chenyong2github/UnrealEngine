@@ -482,6 +482,17 @@ float UAudioModulationStatics::GetModulatorValue(const UObject* WorldContextObje
 	return 1.0f;
 }
 
+TSet<USoundModulatorBase*> UAudioModulationStatics::GetModulatorsFromDestination(const FSoundModulationDestinationSettings& Destination)
+{
+	TSet<USoundModulatorBase*> Modulators;
+	for (const TObjectPtr<USoundModulatorBase>& Modulator : Destination.Modulators)
+	{
+		Modulators.Add(Modulator.Get());
+	}
+
+	return Modulators;
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

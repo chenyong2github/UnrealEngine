@@ -232,6 +232,8 @@ namespace Audio
 		void SetModVolume(const int32 SourceId, const float InModVolume);
 		void SetModLPFFrequency(const int32 SourceId, const float InModFrequency);
 		void SetModHPFFrequency(const int32 SourceId, const float InModFrequency);
+		
+		void SetModulationRouting(const int32 SourceId, FSoundModulationDefaultSettings& ModulationSettings);
 
 		void SetSourceBufferListener(const int32 SourceId, FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer);
 

@@ -1016,6 +1016,8 @@ namespace Audio
 			AudioLink->OnUpdateWorldState(Params);
 		}
 
+		UpdateModulation();
+
 		UpdatePitch();
 
 		UpdateVolume();
@@ -1791,6 +1793,21 @@ namespace Audio
 		MixerSourceVoice->SetEnablement(WaveInstance->bEnableBusSends, WaveInstance->bEnableBaseSubmix, WaveInstance->bEnableSubmixSends);
 
 		MixerSourceVoice->SetSourceBufferListener(WaveInstance->SourceBufferListener, WaveInstance->bShouldSourceBufferListenerZeroBuffer);
+	}
+
+	void FMixerSource::UpdateModulation()
+	{
+		check(WaveInstance);
+
+		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+		check(ActiveSound);
+
+		if (ActiveSound->bModulationRoutingUpdated)
+		{
+			MixerSourceVoice->SetModulationRouting(ActiveSound->ModulationRouting);
+		}
+
+		ActiveSound->bModulationRoutingUpdated = false;
 	}
 
 	void FMixerSource::UpdateSourceBusSends()

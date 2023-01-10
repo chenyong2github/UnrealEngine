@@ -320,4 +320,14 @@ public:
 		Keywords = "modulation generator bus")
 	)
 	static UPARAM(DisplayName = "Value") float GetModulatorValue(const UObject* WorldContextObject, USoundModulatorBase* Modulator);
+
+	/** Gets the list of modulators currently applied to a Modulation Destination.
+	* @param Destination - The Modulation Destination.
+	* @return Modulators - The set of Modulators.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Audio|Modulation", DisplayName = "Get Modulators From Destination", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "modulation generator bus")
+	)
+	static UPARAM(DisplayName = "Modulators") TSet<USoundModulatorBase*> GetModulatorsFromDestination(const FSoundModulationDestinationSettings& Destination);
 };
