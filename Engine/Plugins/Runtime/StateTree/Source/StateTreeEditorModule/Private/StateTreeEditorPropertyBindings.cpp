@@ -28,6 +28,25 @@ void FStateTreeEditorPropertyBindings::RemovePropertyBindings(const FStateTreeEd
 		});
 }
 
+void FStateTreeEditorPropertyBindings::CopyBindings(const FGuid FromStructID, const FGuid ToStructID)
+{
+	// Copy all bindings that target "FromStructID" and retarget them to "ToStructID".
+	TArray<FStateTreeEditorPropertyBinding> NewBindings;
+	for (const FStateTreeEditorPropertyBinding& Binding : PropertyBindings)
+	{
+		if (Binding.TargetPath.StructID == FromStructID)
+		{
+			FStateTreeEditorPropertyBinding& NewBinding = NewBindings.Add_GetRef(Binding);
+			NewBinding.TargetPath.StructID = ToStructID;
+		}
+	}
+
+	for (const FStateTreeEditorPropertyBinding& NewBinding : NewBindings)
+	{
+		AddPropertyBinding(NewBinding.SourcePath, NewBinding.TargetPath);
+	}
+}
+
 bool FStateTreeEditorPropertyBindings::HasPropertyBinding(const FStateTreeEditorPropertyPath& TargetPath) const
 {
 	return PropertyBindings.ContainsByPredicate([TargetPath](const FStateTreeEditorPropertyBinding& Binding)

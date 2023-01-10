@@ -149,6 +149,13 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		return false;
 	}
 
+	
+	if (!CreateGlobalTasks())
+	{
+		StateTree->ResetCompiled();
+		return false;
+	}
+
 	if (!CreateStateTasksAndParameters())
 	{
 		StateTree->ResetCompiled();
@@ -336,6 +343,35 @@ bool FStateTreeCompiler::CreateEvaluators()
 	return true;
 }
 
+bool FStateTreeCompiler::CreateGlobalTasks()
+{
+	const int32 GlobalTasksBegin = Nodes.Num();
+	if (const auto Validation = UE::StateTree::Compiler::IsValidCount16(GlobalTasksBegin); Validation.DidFail())
+	{
+		Validation.Log(Log, TEXT("GlobalTasksBegin"));
+		return false;
+	}
+	StateTree->GlobalTasksBegin = uint16(GlobalTasksBegin);
+
+	for (FStateTreeEditorNode& TaskNode : EditorData->GlobalTasks)
+	{
+		if (!CreateTask(TaskNode))
+		{
+			return false;
+		}
+	}
+	
+	const int32 GlobalTasksNum = Nodes.Num() - GlobalTasksBegin;
+	if (const auto Validation = UE::StateTree::Compiler::IsValidCount16(GlobalTasksNum); Validation.DidFail())
+	{
+		Validation.Log(Log, TEXT("GlobalTasksNum"));
+		return false;
+	}
+	StateTree->GlobalTasksNum = uint16(GlobalTasksNum);
+
+	return true;
+}
+
 bool FStateTreeCompiler::CreateStateTasksAndParameters()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
@@ -437,13 +473,13 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 
 		for (FStateTreeEditorNode& TaskNode : SourceState->Tasks)
 		{
-			if (!CreateTask(*SourceState, TaskNode))
+			if (!CreateTask(TaskNode))
 			{
 				return false;
 			}
 		}
 
-		if (!CreateTask(*SourceState, SourceState->SingleTask))
+		if (!CreateTask(SourceState->SingleTask))
 		{
 			return false;
 		}
@@ -682,7 +718,7 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 	}
 
 	// Copy the condition
-	const FInstancedStruct& Node = Nodes.Add_GetRef(CondNode.Node);
+	FInstancedStruct& Node = Nodes.Add_GetRef(CondNode.Node);
 	FStateTreeConditionBase& Cond = Node.GetMutable<FStateTreeConditionBase>();
 
 	Cond.Operand = Operand;
@@ -793,7 +829,7 @@ bool FStateTreeCompiler::CompileAndValidateNode(const FStateTreeBindableStructDe
 	return Result != EDataValidationResult::Invalid;
 }
 
-bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode)
+bool FStateTreeCompiler::CreateTask(const FStateTreeEditorNode& TaskNode)
 {
 	// Silently ignore empty nodes.
 	if (!TaskNode.Node.IsValid())
@@ -816,7 +852,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 	}
 
 	// Copy the task
-	const FInstancedStruct& Node = Nodes.Add_GetRef(TaskNode.Node);
+	FInstancedStruct& Node = Nodes.Add_GetRef(TaskNode.Node);
 	FStateTreeTaskBase& Task = Node.GetMutable<FStateTreeTaskBase>();
 
 	if (TaskNode.Instance.IsValid())
@@ -924,7 +960,7 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
     }
 
 	// Copy the evaluator
-	const FInstancedStruct& Node = Nodes.Add_GetRef(EvalNode.Node);
+	FInstancedStruct& Node = Nodes.Add_GetRef(EvalNode.Node);
 	FStateTreeEvaluatorBase& Eval = Node.GetMutable<FStateTreeEvaluatorBase>();
 
 	if (EvalNode.Instance.IsValid())

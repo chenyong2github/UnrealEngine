@@ -784,14 +784,14 @@ struct STATETREEMODULE_API FStateTreeStructRef
 
 	/** Returns mutable reference to the struct, this getter assumes that all data is valid. */
 	template <typename T>
-    T& GetMutable() const
+    T& GetMutable()
 	{
 		return Data.template GetMutable<T>();
 	}
 
 	/** Returns mutable pointer to the struct, or nullptr if cast is not valid. */
 	template <typename T>
-    T* GetMutablePtr() const
+    T* GetMutablePtr()
 	{
 		return Data.template GetMutablePtr<T>();
 	}

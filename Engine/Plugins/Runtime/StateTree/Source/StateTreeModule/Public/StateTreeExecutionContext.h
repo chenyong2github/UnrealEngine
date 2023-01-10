@@ -318,13 +318,20 @@ protected:
 	void StateCompleted();
 
 	/**
-	 * Ticks global evaluators by delta time.
+	 * Tick evaluators and global tasks by delta time.
 	 */
-	void TickEvaluators(const float DeltaTime);
+	EStateTreeRunStatus TickEvaluatorsAndGlobalTasks(const float DeltaTime, bool bTickGlobalTasks = true);
 
-	void StartEvaluators();
+	/**
+	 * Starts evaluators and global tasks.
+	 * @return true if all evaluators and tasks were started, or false if any failed.
+	 */
+	bool StartEvaluatorsAndGlobalTasks(FStateTreeIndex16& OutLastInitializedTaskIndex);
 
-	void StopEvaluators();
+	/**
+	 * Stops evaluators and global tasks.
+	 */
+	void StopEvaluatorsAndGlobalTasks(const FStateTreeIndex16 LastInitializedTaskIndex = FStateTreeIndex16());
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.

@@ -78,6 +78,8 @@ FText GetSectionNameFromDataSource(const EStateTreeBindableStructSource Source)
 		return LOCTEXT("Parameters", "Parameters");
 	case EStateTreeBindableStructSource::Evaluator:
 		return LOCTEXT("Evaluators", "Evaluators");
+	case EStateTreeBindableStructSource::GlobalTask:
+		return LOCTEXT("StateGlobalTasks", "Global Tasks");
 	case EStateTreeBindableStructSource::State:
 		return LOCTEXT("StateParameters", "State");
 	case EStateTreeBindableStructSource::Task:

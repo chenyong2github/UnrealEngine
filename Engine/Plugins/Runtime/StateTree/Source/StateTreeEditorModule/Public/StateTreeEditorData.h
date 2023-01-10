@@ -109,15 +109,33 @@ public:
 	template<typename T, typename... TArgs>
 	TStateTreeEditorNode<T>& AddEvaluator(TArgs&&... InArgs)
 	{
-		FStateTreeEditorNode& EvalItem = Evaluators.AddDefaulted_GetRef();
-		EvalItem.ID = FGuid::NewGuid();
-		EvalItem.Node.InitializeAs<T>(Forward<TArgs>(InArgs)...);
-		T& Eval = EvalItem.Node.GetMutable<T>();
+		FStateTreeEditorNode& EditorNode = Evaluators.AddDefaulted_GetRef();
+		EditorNode.ID = FGuid::NewGuid();
+		EditorNode.Node.InitializeAs<T>(Forward<TArgs>(InArgs)...);
+		T& Eval = EditorNode.Node.GetMutable<T>();
 		if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval.GetInstanceDataType()))
 		{
-			EvalItem.Instance.InitializeAs(InstanceType);
+			EditorNode.Instance.InitializeAs(InstanceType);
 		}
-		return static_cast<TStateTreeEditorNode<T>&>(EvalItem);
+		return static_cast<TStateTreeEditorNode<T>&>(EditorNode);
+	}
+
+	/**
+	 * Adds Global Task of specified type.
+	 * @return reference to the new task. 
+	 */
+	template<typename T, typename... TArgs>
+	TStateTreeEditorNode<T>& AddGlobalTask(TArgs&&... InArgs)
+	{
+		FStateTreeEditorNode& EditorNode = GlobalTasks.AddDefaulted_GetRef();
+		EditorNode.ID = FGuid::NewGuid();
+		EditorNode.Node.InitializeAs<T>(Forward<TArgs>(InArgs)...);
+		T& Task = EditorNode.Node.GetMutable<T>();
+		if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Task.GetInstanceDataType()))
+		{
+			EditorNode.Instance.InitializeAs(InstanceType);
+		}
+		return static_cast<TStateTreeEditorNode<T>&>(EditorNode);
 	}
 
 	/**
@@ -139,6 +157,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeEvaluatorBase", BaseClass = "/Script/StateTreeModule.StateTreeEvaluatorBlueprintBase"))
 	TArray<FStateTreeEditorNode> Evaluators;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Global Tasks", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeTaskBase", BaseClass = "/Script/StateTreeModule.StateTreeTaskBlueprintBase"))
+	TArray<FStateTreeEditorNode> GlobalTasks;
 
 	UPROPERTY(meta = (ExcludeFromHash))
 	FStateTreeEditorPropertyBindings EditorBindings;

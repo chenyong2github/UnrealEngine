@@ -55,8 +55,36 @@ void UStateTreeEditorData::PostEditChangeChainProperty(FPropertyChangedChainEven
 					{
 						Eval->Name = FName(Eval->Name.ToString() + TEXT(" Duplicate"));
 					}
+					
+					const FGuid OldStructID = Evaluators[ArrayIndex].ID;
 					Evaluators[ArrayIndex].ID = FGuid::NewGuid();
+					EditorBindings.CopyBindings(OldStructID, Evaluators[ArrayIndex].ID);
 				}
+			}
+			else if (MemberName == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, GlobalTasks))
+			{
+				const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
+				if (GlobalTasks.IsValidIndex(ArrayIndex))
+				{
+					if (FStateTreeTaskBase* Task = GlobalTasks[ArrayIndex].Node.GetMutablePtr<FStateTreeTaskBase>())
+					{
+						Task->Name = FName(Task->Name.ToString() + TEXT(" Duplicate"));
+					}
+					
+					const FGuid OldStructID = GlobalTasks[ArrayIndex].ID;
+					GlobalTasks[ArrayIndex].ID = FGuid::NewGuid();
+					EditorBindings.CopyBindings(OldStructID, GlobalTasks[ArrayIndex].ID);
+				}
+			}
+		}
+		else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
+		{
+			if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, Evaluators)
+				|| MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, GlobalTasks))
+			{
+				TMap<FGuid, const UStruct*> AllStructIDs;
+				GetAllStructIDs(AllStructIDs);
+				EditorBindings.RemoveUnusedBindings(AllStructIDs);
 			}
 		}
 	}
@@ -135,6 +163,28 @@ void UStateTreeEditorData::GetAccessibleStructs(const TConstArrayView<const USta
 			Desc.Name = Evaluator->Name;
 			Desc.ID = Node.ID;
 			Desc.DataSource = EStateTreeBindableStructSource::Evaluator;
+		}
+	}
+
+	// Global Tasks
+	// Global tasks can access evaluators and other global tasks that come before them.
+	for (const FStateTreeEditorNode& Node : GlobalTasks)
+	{
+		if (const FStateTreeTaskBase* Task = Node.Node.GetPtr<FStateTreeTaskBase>())
+		{
+			// Stop iterating as soon as we find the target node.
+			if (Node.ID == TargetStructID)
+			{
+				bFoundTarget = true;
+				break;
+			}
+
+			// Collect global tasks accessible so far.
+			FStateTreeBindableStructDesc& Desc = OutStructDescs.AddDefaulted_GetRef();
+			Desc.Struct = Task->GetInstanceDataType();
+			Desc.Name = Task->Name;
+			Desc.ID = Node.ID;
+			Desc.DataSource = EStateTreeBindableStructSource::GlobalTask;
 		}
 	}
 
@@ -289,6 +339,25 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 		}
 	}
 
+	// Global tasks
+	if (!bResult)
+	{
+		for (const FStateTreeEditorNode& Node : GlobalTasks)
+		{
+			if (const FStateTreeTaskBase* Task = Node.Node.GetPtr<FStateTreeTaskBase>())
+			{
+				if (StructID == Node.ID)
+				{
+					OutStructDesc.Struct = Task->GetInstanceDataType();
+					OutStructDesc.Name = Task->Name;
+					OutStructDesc.ID = Node.ID;
+					bResult = true;
+					break;
+				}
+			}
+		}
+	}
+
 	if (!bResult)
 	{
 		VisitHierarchyNodes([&bResult, &OutStructDesc, StructID](const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)
@@ -368,6 +437,15 @@ void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStruc
 		if (const FStateTreeEvaluatorBase* Evaluator = Node.Node.GetPtr<FStateTreeEvaluatorBase>())
 		{
 			AllStructs.Emplace(Node.ID, Evaluator->GetInstanceDataType());
+		}
+	}
+
+	// Global tasks
+	for (const FStateTreeEditorNode& Node : GlobalTasks)
+	{
+		if (const FStateTreeTaskBase* Task = Node.Node.GetPtr<FStateTreeTaskBase>())
+		{
+			AllStructs.Emplace(Node.ID, Task->GetInstanceDataType());
 		}
 	}
 
@@ -506,5 +584,3 @@ void UStateTreeEditorData::VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(co
 		return VisitStateNodes(State, InFunc);
 	});
 }
-
-

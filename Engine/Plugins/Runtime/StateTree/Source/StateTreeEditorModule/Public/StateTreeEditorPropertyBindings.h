@@ -57,6 +57,14 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorPropertyBindings
 	 * @return True of the target path has any bindings.
 	 */
 	bool HasPropertyBinding(const FStateTreeEditorPropertyPath& TargetPath) const;
+
+	/**
+	 * Copies property bindings from an existing struct to another.
+	 * Overrides a binding to a specific property if it already exists in ToStructID.
+	 * @param FromStructID ID of the struct to copy from.
+	 * @param ToStructID ID of the struct to copy to.
+	 */
+	void CopyBindings(const FGuid FromStructID, const FGuid ToStructID);
 	
 	/**
 	 * @return Source path for given target path, or null if binding does not exists.

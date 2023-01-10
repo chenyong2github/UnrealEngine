@@ -39,12 +39,13 @@ private:
 	bool CreateStateRecursive(UStateTreeState& State, const FStateTreeStateHandle Parent);
 	
 	bool CreateEvaluators();
+	bool CreateGlobalTasks();
 	bool CreateStateTasksAndParameters();
 	bool CreateStateTransitions();
 	
 	bool CreateConditions(UStateTreeState& State, TConstArrayView<FStateTreeEditorNode> Conditions);
 	bool CreateCondition(UStateTreeState& State, const FStateTreeEditorNode& CondNode, const EStateTreeConditionOperand Operand, const int8 DeltaIndent);
-	bool CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode);
+	bool CreateTask(const FStateTreeEditorNode& TaskNode);
 	bool CreateEvaluator(const FStateTreeEditorNode& EvalNode);
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;

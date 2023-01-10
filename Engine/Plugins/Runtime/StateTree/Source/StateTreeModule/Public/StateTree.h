@@ -206,6 +206,14 @@ private:
 	UPROPERTY()
 	uint16 EvaluatorsNum = 0;
 
+	/** Index of first global task in Nodes. */
+	UPROPERTY()
+	uint16 GlobalTasksBegin = 0;
+
+	/** Number of global tasks. */
+	UPROPERTY()
+	uint16 GlobalTasksNum = 0;
+
 	// Data created during linking.
 	
 	/** List of external data required by the state tree, created during linking. */

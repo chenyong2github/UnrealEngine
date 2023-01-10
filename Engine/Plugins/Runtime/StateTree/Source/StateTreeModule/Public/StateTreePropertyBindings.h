@@ -19,6 +19,8 @@ enum class EStateTreeBindableStructSource : uint8
 	Parameter,
 	/** Source is StateTree evaluator */
 	Evaluator,
+	/** Source is StateTree global task */
+	GlobalTask,
 	/** Source is State parameter */
 	State,
 	/** Source is State task */

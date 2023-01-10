@@ -533,7 +533,18 @@ void FStateTreeEditorNodeDetails::OnPasteNode()
 								Node->Name = FName(Node->Name.ToString() + TEXT(" Copy"));
 							}
 
+							const FGuid OldStructID = EditorNode->ID; 
 							EditorNode->ID = FGuid::NewGuid();
+
+							// Copy bindings from the copied node.
+							if (OldStructID.IsValid() && EditorData)
+							{
+								if (FStateTreeEditorPropertyBindings* Bindings = EditorData->GetPropertyEditorBindings())
+								{
+									Bindings->CopyBindings(OldStructID, EditorNode->ID);
+								}
+							}
+
 						}
 					}
 				}

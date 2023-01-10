@@ -77,6 +77,21 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 		}
 		return INDEX_NONE;
 	};
+
+	auto CopyBindings = [this](const FGuid FromStructID, const FGuid ToStructID)
+	{
+		if (UStateTreeEditorData* EditorData = GetTypedOuter<UStateTreeEditorData>())
+		{
+		    if (FromStructID.IsValid())
+            {
+                if (FStateTreeEditorPropertyBindings* Bindings = EditorData->GetPropertyEditorBindings())
+                {
+                	Bindings->CopyBindings(FromStructID, ToStructID);
+                }
+            }
+		}
+	};
+
 	
 	if (Property)
 	{
@@ -160,7 +175,9 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 						{
 							Task->Name = FName(Task->Name.ToString() + TEXT(" Duplicate"));
 						}
+						const FGuid OldStructID = Tasks[ArrayIndex].ID; 
 						Tasks[ArrayIndex].ID = FGuid::NewGuid();
+						CopyBindings(OldStructID, Tasks[ArrayIndex].ID);
 					}
 				}
 				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, EnterConditions))
@@ -172,7 +189,9 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 						{
 							Condition->Name = FName(Condition->Name.ToString() + TEXT(" Duplicate"));
 						}
+						const FGuid OldStructID = EnterConditions[ArrayIndex].ID; 
 						EnterConditions[ArrayIndex].ID = FGuid::NewGuid();
+						CopyBindings(OldStructID, EnterConditions[ArrayIndex].ID);
 					}
 				}
 				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Transitions))
@@ -189,7 +208,9 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 							{
 								Condition->Name = FName(Condition->Name.ToString() + TEXT(" Duplicate"));
 							}
+							const FGuid OldStructID = Transition.Conditions[ConditionsIndex].ID;
 							Transition.Conditions[ConditionsIndex].ID = FGuid::NewGuid();
+							CopyBindings(OldStructID, Transition.Conditions[ConditionsIndex].ID);
 						}
 					}
 				}
@@ -206,6 +227,23 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 						Transition.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
 						const UStateTreeState* RootState = GetRootState();
 						Transition.State.Set(RootState ? RootState : this);
+					}
+				}
+			}
+			else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
+			{
+				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks)
+					|| MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, EnterConditions)
+					|| MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Transitions))
+				{
+					if (UStateTreeEditorData* TreeData = GetTypedOuter<UStateTreeEditorData>())
+					{
+						TreeData->Modify();
+						FStateTreeEditorPropertyBindings* Bindings = TreeData->GetPropertyEditorBindings();
+						check(Bindings);
+						TMap<FGuid, const UStruct*> AllStructIDs;
+						TreeData->GetAllStructIDs(AllStructIDs);
+						Bindings->RemoveUnusedBindings(AllStructIDs);
 					}
 				}
 			}

@@ -176,6 +176,12 @@ void FStateTreeEditorDataDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 		DetailBuilder.EditCategory(EvalCategoryName).SetCategoryVisibility(false);
 	}
 
+	// Global Tasks category
+	TSharedPtr<IPropertyHandle> GlobalTasksProperty = DetailBuilder.GetProperty(TEXT("GlobalTasks"));
+	check(GlobalTasksProperty.IsValid());
+	const FName GlobalTasksCategoryName(TEXT("GlobalTasks"));
+	MakeArrayCategory(DetailBuilder, GlobalTasksCategoryName, LOCTEXT("EditorDataDetailsGlobalTasks", "Global Tasks"), /*SortOrder*/4, GlobalTasksProperty);
+
 	// Refresh the UI when the Schema changes.	
 	TSharedPtr<IPropertyHandle> SchemaProperty = DetailBuilder.GetProperty(TEXT("Schema"));
 	check(SchemaProperty.IsValid());
