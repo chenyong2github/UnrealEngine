@@ -502,6 +502,9 @@ public:
 	bool RenderHeadless = false;
 
 	UPROPERTY()
+	int32 GraphicsAdapter = -1;
+
+	UPROPERTY()
 	bool TextureShare = false;
 
 	UPROPERTY()

@@ -222,6 +222,7 @@ namespace JSON500
 				Node->bIsSoundEnabled = CfgNode.Value.Sound;
 				Node->bIsFullscreen = CfgNode.Value.FullScreen;
 				Node->bRenderHeadless = CfgNode.Value.RenderHeadless;
+				Node->GraphicsAdapter = CfgNode.Value.GraphicsAdapter;
 				Node->bEnableTextureShare = CfgNode.Value.TextureShare;
 				Node->WindowRect = FDisplayClusterConfigurationRectangle(CfgNode.Value.Window.X, CfgNode.Value.Window.Y, CfgNode.Value.Window.W, CfgNode.Value.Window.H);
 
@@ -415,6 +416,7 @@ namespace JSON500
 				Node.Sound = CfgNode.Value->bIsSoundEnabled;
 				Node.FullScreen = CfgNode.Value->bIsFullscreen;
 				Node.RenderHeadless = CfgNode.Value->bRenderHeadless;
+				Node.GraphicsAdapter = CfgNode.Value->GraphicsAdapter;
 				Node.TextureShare = CfgNode.Value->bEnableTextureShare;
 				Node.Window = FDisplayClusterConfigurationJsonRectangle_500(CfgNode.Value->WindowRect.X, CfgNode.Value->WindowRect.Y, CfgNode.Value->WindowRect.W, CfgNode.Value->WindowRect.H);
 
