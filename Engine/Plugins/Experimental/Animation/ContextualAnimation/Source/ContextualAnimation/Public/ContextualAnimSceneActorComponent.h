@@ -63,6 +63,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
 	bool StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings);
 
+	void EarlyOutContextualAnimScene();
+
+	bool IsOwnerLocallyControlled() const;
+
 protected:
 
 	/** 
@@ -83,13 +87,14 @@ protected:
 	UPROPERTY(Transient)
 	TArray<FContextualAnimIKTarget> IKTargets;
 
-	struct FRotationProperties
+	struct FCharacterProperties
 	{
+		bool bIgnoreClientMovementErrorChecksAndCorrection = false;
 		bool bAllowPhysicsRotationDuringAnimRootMotion = false;
 		bool bUseControllerDesiredRotation = false;
 		bool bOrientRotationToMovement = false;
 	};
-	FRotationProperties RotationPropertiesBackup;
+	FCharacterProperties CharacterPropertiesBackup;
 
 	void UpdateIKTargets();
 
@@ -114,6 +119,12 @@ protected:
 	void JoinScene(const FContextualAnimSceneBindings& InBindings);
 
 	void LeaveScene();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerStartContextualAnimScene(const FContextualAnimSceneBindings& InBindings);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerEarlyOutContextualAnimScene();
 
 private:
 
