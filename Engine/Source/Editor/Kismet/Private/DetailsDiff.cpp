@@ -16,6 +16,7 @@
 #include "PropertyPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Engine/MemberReference.h"
+#include "Widgets/Layout/LinkableScrollBar.h"
 
 class UObject;
 
@@ -27,6 +28,8 @@ FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChange
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bShowDifferingPropertiesOption = true;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	ScrollBar = SNew(SLinkableScrollBar);
+	DetailsViewArgs.ExternalScrollbar = ScrollBar;
 
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
@@ -234,4 +237,10 @@ void FDetailsDiff::DiffAgainst(const FDetailsDiff& Newer, TArray< FSingleObjectD
 			OutDifferences.Add(*Difference);
 		}
 	}
+}
+
+void FDetailsDiff::LinkScrolling(FDetailsDiff& LeftPanel, FDetailsDiff& RightPanel,
+	const TAttribute<TArray<FVector2f>>& ScrollRate)
+{
+	SLinkableScrollBar::LinkScrollBars(LeftPanel.ScrollBar.ToSharedRef(), RightPanel.ScrollBar.ToSharedRef(), ScrollRate);
 }

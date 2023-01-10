@@ -207,6 +207,58 @@ TArray< FPropertyPath > SDetailsViewBase::GetPropertiesInOrderDisplayed() const
 	return Ret;
 }
 
+static void GetPropertyRowRowNumbersRecursive(const TArray<TSharedRef<FDetailTreeNode>>& TreeNodes, int32& CurrentRowNumber, const TSharedPtr<SDetailTree>& DetailTree, TArray<TPair<int32, FPropertyPath>>& OutResults)
+{
+	for (const TSharedRef<FDetailTreeNode>& TreeNode : TreeNodes)
+	{
+		// pre-order traversal (add parents to list before their children)
+		FPropertyPath Path = TreeNode->GetPropertyPath();
+
+		if(Path.IsValid())
+		{
+			OutResults.Add(TPair<int32, FPropertyPath>(CurrentRowNumber, Path));
+		}
+		++CurrentRowNumber;
+
+		if (!TreeNode->IsLeaf() && DetailTree->IsItemExpanded(TreeNode))
+		{
+			TArray<TSharedRef<FDetailTreeNode>> Children;
+			TreeNode->GetChildren(Children);
+			GetPropertyRowRowNumbersRecursive(Children, CurrentRowNumber, DetailTree, OutResults);
+		}
+	}
+}
+
+TArray<TPair<int32, FPropertyPath>> SDetailsViewBase::GetPropertyRowNumbers() const
+{
+	TArray<TPair<int32, FPropertyPath>> Results;
+	int32 OverallIdx = 0;
+	GetPropertyRowRowNumbersRecursive(RootTreeNodes, OverallIdx, DetailTree, Results);
+	return Results;
+}
+
+static int32 CountRowsRecursive(const TArray<TSharedRef<FDetailTreeNode>>& TreeNodes, const TSharedPtr<SDetailTree>& DetailTree)
+{
+	int32 Count = 0;
+	for (const TSharedRef<FDetailTreeNode>& TreeNode : TreeNodes)
+	{
+		++Count;
+		
+		if (!TreeNode->IsLeaf() && DetailTree->IsItemExpanded(TreeNode))
+		{
+			TArray<TSharedRef<FDetailTreeNode>> Children;
+			TreeNode->GetChildren(Children);
+			Count += CountRowsRecursive(Children, DetailTree);
+		}
+	}
+	return Count;
+}
+
+int32 SDetailsViewBase::CountRows() const
+{
+	return CountRowsRecursive(RootTreeNodes, DetailTree);
+}
+
 // construct a map for fast FPropertyPath.ToString() -> FDetailTreeNode lookup
 static void GetPropertyPathToTreeNodes(const TArray<TSharedRef<FDetailTreeNode>>& RootTreeNodes, TMap<FString, TSharedRef<FDetailTreeNode>> &OutMap)
 {

@@ -85,6 +85,8 @@ public:
 	 * IDetailsView interface 
 	 */
 	virtual TArray< FPropertyPath > GetPropertiesInOrderDisplayed() const override;
+	virtual TArray<TPair<int32, FPropertyPath>> GetPropertyRowNumbers() const override;
+	virtual int32 CountRows() const override;
 	virtual void HighlightProperty(const FPropertyPath& Property) override;
 	virtual void ShowAllAdvancedProperties() override;
 	virtual void SetOnDisplayedPropertiesChanged(FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChangedDelegate) override;

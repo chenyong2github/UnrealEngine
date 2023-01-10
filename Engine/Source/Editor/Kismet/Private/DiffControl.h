@@ -15,6 +15,7 @@ class SBlueprintDiff;
 class UEdGraph;
 struct FEdGraphEditAction;
 
+
 /** Interface responsible for generating FBlueprintDifferenceTreeEntry's for visual diff tools */
 class KISMET_API IDiffControl
 {
@@ -67,63 +68,23 @@ private:
 };
 
 /** Generic wrapper around a details view template parameter determines whether TreeEntries are populated */
-template<bool bPopulateOutTreeEntries>
-class KISMET_API TDetailsDiffControl : public TSharedFromThis<TDetailsDiffControl<bPopulateOutTreeEntries>>, public IDiffControl
+class KISMET_API FDetailsDiffControl : public TSharedFromThis<FDetailsDiffControl>, public IDiffControl
 {
 public:
-	TDetailsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
-		: SelectionCallback(InSelectionCallback)
-		, OldDetails(InOldObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
-		, NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
-	{
-		OldDetails.DiffAgainst(NewDetails, DifferingProperties, true);
+	FDetailsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback, bool bPopulateOutTreeEntries);
 
-		TSet<FPropertyPath> PropertyPaths;
-		Algo::Transform(DifferingProperties, PropertyPaths,
-			[&InOldObject](const FSingleObjectDiffEntry& DiffEntry)
-			{
-				return DiffEntry.Identifier.ResolvePath(InOldObject);
-			});
-
-		OldDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
-
-		PropertyPaths.Reset();
-		Algo::Transform(DifferingProperties, PropertyPaths,
-			[&InNewObject](const FSingleObjectDiffEntry& DiffEntry)
-			{
-				return DiffEntry.Identifier.ResolvePath(InNewObject);
-			});
-
-		NewDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
-	}
-
-	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
-	{
-		for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
-		{
-			
-			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
-				FOnDiffEntryFocused::CreateSP(TSharedFromThis<TDetailsDiffControl<bPopulateOutTreeEntries>>::AsShared(), &TDetailsDiffControl::OnSelectDiffEntry, Difference.Identifier),
-				FGenerateDiffEntryWidget::CreateStatic(&GenerateObjectDiffWidget, Difference, RightRevision));
-			Children.Push(Entry);
-			OutRealDifferences.Push(Entry);
-			if constexpr (bPopulateOutTreeEntries)
-			{
-				OutTreeEntries.Push(Entry);
-			}
-		}
-	}
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override;
 
 	TSharedRef<SWidget> OldDetailsWidget() { return OldDetails.DetailsWidget(); }
 	TSharedRef<SWidget> NewDetailsWidget() { return NewDetails.DetailsWidget(); }
 
 protected:
-	virtual void OnSelectDiffEntry(FPropertySoftPath PropertyName)
-	{
-		SelectionCallback.ExecuteIfBound();
-		OldDetails.HighlightProperty(PropertyName);
-		NewDetails.HighlightProperty(PropertyName);
-	}
+	virtual void OnSelectDiffEntry(FPropertySoftPath PropertyName);
+	TAttribute<TArray<FVector2f>> GetLinkedScrollRateAttribute(const TSharedRef<IDetailsView>& OldDetailsView, const TSharedRef<IDetailsView>& NewDetailsView);
+	
+
+	// helper function that analyzes two details views and determines the rate they should scroll relative to one another to be in sync
+	TArray<FVector2f> GetLinkedScrollRate(TSharedRef<IDetailsView> OldDetailsView, TSharedRef<IDetailsView> NewDetailsView) const;
 
 	FOnDiffEntryFocused SelectionCallback;
 	FDetailsDiff OldDetails;
@@ -131,12 +92,18 @@ protected:
 
 	TArray<FSingleObjectDiffEntry> DifferingProperties;
 	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
+	const bool bPopulateOutTreeEntries;
+
+	mutable struct
+	{
+		TArray<TPair<int32, FPropertyPath>> OldProperties;
+		TArray<TPair<int32, FPropertyPath>> NewProperties;
+		TArray<FVector2f> ScrollRate;
+	} LinkedScrollRateCache;
 };
 
-using FDetailsDiffControl = TDetailsDiffControl<true>;
-
 /** Override for CDO special case */
-class FCDODiffControl : public TDetailsDiffControl<false>
+class FCDODiffControl : public FDetailsDiffControl
 {
 public:
 	FCDODiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback);
@@ -145,7 +112,7 @@ public:
 };
 
 /** Override for class class settings */
-class FClassSettingsDiffControl : public TDetailsDiffControl<false>
+class FClassSettingsDiffControl : public FDetailsDiffControl
 {
 public:
 	FClassSettingsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback);

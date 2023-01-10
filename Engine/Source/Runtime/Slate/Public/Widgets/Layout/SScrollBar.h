@@ -81,8 +81,9 @@ public:
 	 *
 	 * @param InOffsetFraction     Offset of the thumbnail from the top as a fraction of the total available scroll space.
 	 * @param InThumbSizeFraction  Size of thumbnail as a fraction of the total available scroll space.
+	 * @param bCallOnUserScrolled  If true, OnUserScrolled will be called with InOffsetFraction
 	 */
-	void SetState( float InOffsetFraction, float InThumbSizeFraction );
+	virtual void SetState( float InOffsetFraction, float InThumbSizeFraction, bool bCallOnUserScrolled = false);
 
 	// SWidget
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -101,6 +102,9 @@ public:
 
 	/** @return normalized distance from bottom */
 	float DistanceFromBottom() const;
+
+	/** @return normalized percentage of track covered by thumb bar */
+	float ThumbSizeFraction() const;
 
 	/** @return the scrollbar's visibility as a product of internal rules and user-specified visibility */
 	EVisibility ShouldBeVisible() const;

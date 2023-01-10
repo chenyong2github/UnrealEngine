@@ -187,6 +187,18 @@ public:
 	 * Returns a list of all the properties displayed (via full path), order in list corresponds to draw order:
 	 */
 	virtual TArray< FPropertyPath > GetPropertiesInOrderDisplayed() const = 0;
+	
+	/**
+	 * Returns the row number in the underlying TableView for each property being displayed. Note this won't include
+	 * any properties that are apart of a collapsed section of the property tree because those properties don't have
+	 * row numbers. If you need a list of all properties independent of expansion state, use GetPropertiesInOrderDisplayed
+	 */
+	virtual TArray<TPair<int32, FPropertyPath>> GetPropertyRowNumbers() const  = 0;
+	
+	/**
+	 * returns the number of rows in the underlying TableView
+	 */
+	virtual int32 CountRows() const  = 0;
 
 	/**
 	 * Creates a box around the treenode corresponding to Property and scrolls the treenode into view

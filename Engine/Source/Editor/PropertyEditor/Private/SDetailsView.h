@@ -121,7 +121,7 @@ private:
 
 	void SetObjectArrayPrivate(const TArray<UObject*>& InObjects);
 
-	TSharedRef<SDetailTree> ConstructTreeView( TSharedRef<SScrollBar>& ScrollBar );
+	TSharedRef<SDetailTree> ConstructTreeView(const TSharedRef<SScrollBar>& ScrollBar );
 
 	/**
 	 * Returns whether or not new objects need to be set. If the new objects being set are identical to the objects 

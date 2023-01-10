@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/Layout/SScrollBar.h"
 
 class FDetailsViewObjectFilter;
 class FNotifyHook;
@@ -47,6 +48,8 @@ struct FDetailsViewArgs
 	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;
 	/** Optional custom filter(s) to apply to the class viewer widget for class object property values. */
 	TArray<TSharedRef<IClassViewerFilter>> ClassViewerFilters;
+	/** Externally constructed Scrollbar (internally constructed if not provided) */
+	TSharedPtr<SScrollBar> ExternalScrollbar;
 
 	/** Identifier for this details view; NAME_None if this view is anonymous */
 	FName ViewIdentifier;

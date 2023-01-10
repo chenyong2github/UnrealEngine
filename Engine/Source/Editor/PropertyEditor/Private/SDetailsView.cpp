@@ -86,7 +86,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	//  - We can't use AlwaysShowScrollbar for this, as this will also show the scrollbar when nothing is selected
 	//  - We can't use the Visibility construction parameter, as it gets translated into user visibility and can hide the scrollbar even when objects are selected
 	// We instead have to explicitly set the visibility after the scrollbar has been constructed to get the exact behavior we want
-	TSharedRef<SScrollBar> ExternalScrollbar = SNew(SScrollBar);
+	const TSharedRef<SScrollBar> ExternalScrollbar = InDetailsViewArgs.ExternalScrollbar ? InDetailsViewArgs.ExternalScrollbar.ToSharedRef() : SNew(SScrollBar);
 	ExternalScrollbar->SetVisibility( TAttribute<EVisibility>( this, &SDetailsView::GetScrollBarVisibility ) );
 
 	FMenuBuilder DetailViewOptions( true, nullptr);
@@ -427,7 +427,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	];
 }
 
-TSharedRef<SDetailTree> SDetailsView::ConstructTreeView( TSharedRef<SScrollBar>& ScrollBar )
+TSharedRef<SDetailTree> SDetailsView::ConstructTreeView(const TSharedRef<SScrollBar>& ScrollBar )
 {
 	check( !DetailTree.IsValid() || DetailTree.IsUnique() );
 

@@ -8,6 +8,7 @@
 #include "PropertyPath.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/Layout/LinkableScrollBar.h"
 
 class FPropertyPath;
 class IDetailsView;
@@ -37,6 +38,9 @@ public:
 	/** Perform a diff against another view, ordering either by display order or by remove/add/change */
 	void DiffAgainst(const FDetailsDiff& Newer, TArray<FSingleObjectDiffEntry>& OutDifferences, bool bSortByDisplayOrder = false) const;
 
+	/** Link the two details panels so they scroll in sync with one another */
+	static void LinkScrolling(FDetailsDiff& LeftPanel, FDetailsDiff& RightPanel, const TAttribute<TArray<FVector2f>>& ScrollRate);
+
 private:
 	void HandlePropertiesChanged();
 
@@ -46,4 +50,6 @@ private:
 	const UObject* DisplayedObject;
 
 	TSharedPtr< class IDetailsView > DetailsView;
+
+	TSharedPtr<SLinkableScrollBar> ScrollBar;
 };

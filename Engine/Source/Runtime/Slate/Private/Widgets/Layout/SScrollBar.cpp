@@ -91,7 +91,7 @@ void SScrollBar::SetOnUserScrolled( const FOnUserScrolled& InHandler )
 	OnUserScrolled = InHandler;
 }
 
-void SScrollBar::SetState( float InOffsetFraction, float InThumbSizeFraction )
+void SScrollBar::SetState( float InOffsetFraction, float InThumbSizeFraction, bool bCallOnUserScrolled )
 {
 	if ( Track->DistanceFromTop() != InOffsetFraction || Track->GetThumbSizeFraction() != InThumbSizeFraction )
 	{
@@ -101,6 +101,10 @@ void SScrollBar::SetState( float InOffsetFraction, float InThumbSizeFraction )
 		GetVisibilityAttribute().UpdateValue();
 
 		LastInteractionTime = FSlateApplication::Get().GetCurrentTime();
+		if (bCallOnUserScrolled)
+		{
+			OnUserScrolled.ExecuteIfBound(InOffsetFraction);
+		}
 	}
 }
 
@@ -228,6 +232,11 @@ float SScrollBar::DistanceFromTop() const
 float SScrollBar::DistanceFromBottom() const
 {
 	return Track->DistanceFromBottom();
+}
+
+float SScrollBar::ThumbSizeFraction() const
+{
+	return Track->GetThumbSizeFraction();
 }
 
 SScrollBar::SScrollBar()
