@@ -445,6 +445,11 @@ void ADisplayClusterLightCardActor::UpdateUVIndicator()
 #endif // WITH_EDITOR
 }
 
+void ADisplayClusterLightCardActor::SetIsLightCardFlag(bool bNewFlagValue)
+{
+	bIsLightCardFlag = bNewFlagValue;
+}
+
 void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)
 {
 	if (IsUVActor())

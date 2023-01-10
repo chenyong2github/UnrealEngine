@@ -259,15 +259,18 @@ void SDisplayClusterLightCardOutliner::CreateWorldOutliner()
 			{
 				if (const AActor* Actor = ActorItem->Actor.Get())
 				{
+					const FString ClassDisplayName = Actor->GetClass()->GetDisplayNameText().ToString();
+					
 					if (const ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(Actor))
 					{
-						if (LightCardActor->bIsUVLightCard)
-						{
-							return TEXT("UV Light Card");
-						}
+						const FString LightCardType = LightCardActor->IsLightCardFlag() ? TEXT("Flag") : ClassDisplayName;
+						
+						return LightCardActor->bIsUVLightCard ?
+							FString::Printf(TEXT("UV %s"), *LightCardType) :
+							FString::Printf(TEXT("%s"), *LightCardType);
 					}
 					
-					return Actor->GetClass()->GetDisplayNameText().ToString();
+					return ClassDisplayName;
 				}
 			
 				return FString();

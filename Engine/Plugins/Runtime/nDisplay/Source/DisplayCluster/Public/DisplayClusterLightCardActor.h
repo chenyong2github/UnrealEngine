@@ -96,6 +96,12 @@ public:
 	/** Updates the UV Indicator */
 	void UpdateUVIndicator();
 
+	/** Configures this light card as a flag */
+	void SetIsLightCardFlag(bool bNewFlagValue);
+
+	/** If this light card is considered a flag */
+	bool IsLightCardFlag() const { return bIsLightCardFlag; }
+	
 	/** Show or hide the light card label  */
 	void ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor);
 
@@ -287,6 +293,10 @@ protected:
 	/** The current owner of the light card */
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorOwner;
 
+	/** Indicates this light card should be considered a flag */
+	UPROPERTY()
+	bool bIsLightCardFlag = false;
+	
 private:
 	/** Stores the user translucency value when labels are displayed */
 	TOptional<int32> SavedTranslucencySortPriority;

@@ -417,6 +417,8 @@ void FDisplayClusterLightCardEditor::AddNewFlag()
 			// When adding a new lightcard, usually the desired location is in the middle of the viewport
 			CenterActorInView(NewLightCard);
 		}
+
+		NewLightCard->SetIsLightCardFlag(true);
 		
 		FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
 		RecentlyPlacedItem.ObjectPath = NewLightCard->GetClass();
