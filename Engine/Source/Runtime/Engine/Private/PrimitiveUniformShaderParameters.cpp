@@ -191,6 +191,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.VisibleInSceneCaptureOnly(Proxy->IsVisibleInSceneCaptureOnly())
 		.HiddenInSceneCapture(Proxy->IsHiddenInSceneCapture())
 		.ForceHidden(Proxy->IsForceHidden())
+		.Holdout(Proxy->Holdout())
 		.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
 		.NaniteResourceID(NaniteResourceID)
 		.NaniteHierarchyOffset(NaniteHierarchyOffset)

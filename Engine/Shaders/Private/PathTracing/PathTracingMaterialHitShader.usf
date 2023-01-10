@@ -116,9 +116,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 
 	Payload.BlendingMode = MaterialBlendingMode;
-	Payload.PrimitiveLightingChannelMask = GetPrimitive_LightingChannelMask(MaterialParameters.PrimitiveId);
 
-	if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
+	// fetch primitive flags only once
+	// TODO: would be nice to keep this inside MaterialParameters as it is also needed there as well
+	const uint PrimitiveFlags = GetPrimitiveData(MaterialParameters.PrimitiveId).Flags;
+
+	Payload.PrimitiveLightingChannelMask = GetPrimitive_LightingChannelMask_FromFlags(PrimitiveFlags);
+
+	if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
 	{
 		Payload.SetDecalReceiver();
 	}
@@ -130,8 +135,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	}
 
 #if MATERIAL_IS_SKY
-	if (PackedPayload.IsIgnoreSkyMaterials())
+	if (!PackedPayload.IsCameraRay())
 	{
+		// avoid double counting what was captured by the skylight
+		// also avoid noise from hot spots (they can be properly
+		// importance sampled if a capturing skylight is added)
 		PackedPayload = PackPathTracingPayload(Payload);
 		return;
 	}
@@ -382,6 +390,27 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 	{
 		// terminal case for the conditionals above
+	}
+
+	if (PackedPayload.IsCameraRay())
+	{
+		if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT) != 0)
+		{
+			if (Payload.BlendingMode != RAY_TRACING_BLEND_MODE_TRANSLUCENT || Payload.Ior != 0.0)
+			{
+				// If we are either not translucent, or if the surface is marked as refractive
+				// then treat opacity as 1.0
+				Payload.Opacity = 1.0;
+			}
+			else
+			{
+				// keep the opacity from the material, it might indicate partial transparency
+				// so we should get a partial holdout
+			}
+			Payload.BlendingMode = MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+			Payload.ShadingModelID = SHADINGMODELID_UNLIT;
+			Payload.Radiance = 0;
+		}
 	}
 
 	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)

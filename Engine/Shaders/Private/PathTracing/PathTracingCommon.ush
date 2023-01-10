@@ -14,7 +14,7 @@
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit the front face of a primitive. Set by closest hit shader.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RECEIVER               (1 << 1) // Indicates that ray has hit a primitive that receives decals. Set by closest hit shader.
 
-#define PATH_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_SKY_MATERIALS          (1 << 0) // Indicates that the AHS/CHS should skip processing if the material is tagged as sky
+#define PATH_TRACING_PAYLOAD_INPUT_FLAG_CAMERA_RAY                    (1 << 0) // Indicates that this is a camera ray which can trigger a number of special behaviors in the closest hit shader
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY         (1 << 1) // Indicates that this is a path tracer visibility ray (which supports material evaluation for transparent shadows and fake caustics)
 
 #define PATH_TRACING_PAYLOAD_NORMAL_BITS  32
@@ -73,8 +73,8 @@ struct FPackedPathTracingPayload : FMinimalPayload
 	uint GetPrimitiveLightingChannelMask() { return (PackedData[0] >> 29) & 0x7; }
 
 	// Flag methods
-	void SetIgnoreSkyMaterials() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_SKY_MATERIALS); }
-	bool IsIgnoreSkyMaterials() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_SKY_MATERIALS) != 0; }
+	void SetCameraRay() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_CAMERA_RAY); }
+	bool IsCameraRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_CAMERA_RAY) != 0; }
 
 	void SetVisibilityRay() { SetFlag(PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY); }
 	bool IsVisibilityRay() { return (GetFlags() & PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY) != 0; }
@@ -254,13 +254,13 @@ struct FPathTracingPayload : FMinimalPayload
 	}
 };
 
-FPackedPathTracingPayload InitPathTracingPayload(bool bIgnoreSkyMaterials, float PathRoughness)
+FPackedPathTracingPayload InitPathTracingPayload(bool bIsCameraRay, float PathRoughness)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
 	Output.SetPathRoughness(PathRoughness);
-	if (bIgnoreSkyMaterials)
+	if (bIsCameraRay)
 	{
-		Output.SetIgnoreSkyMaterials();
+		Output.SetCameraRay();
 	}
 	return Output;
 }

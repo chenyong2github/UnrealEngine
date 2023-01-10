@@ -649,6 +649,7 @@ public:
 	inline bool DoesVFRequirePrimitiveUniformBuffer() const { return bVFRequiresPrimitiveUniformBuffer; }
 	inline bool ShouldUseAsOccluder() const { return bUseAsOccluder; }
 	inline bool AllowApproximateOcclusion() const { return bAllowApproximateOcclusion; }
+	inline bool Holdout() const { return bHoldout; }
 
 	inline FRHIUniformBuffer* GetUniformBuffer() const
 	{
@@ -1304,6 +1305,12 @@ protected:
 
 	/** If this is True, this primitive doesn't need exact occlusion info. */
 	uint8 bAllowApproximateOcclusion : 1;
+
+	/**
+	 * If this is True, this primitive should render black with an alpha of 0, but all secondary effects (shadows, refletions, indirect lighting)
+	 * should behave as usual. This feature is currently only implemented in the Path Tracer.
+	 */
+	uint8 bHoldout : 1;
 
 private:
 

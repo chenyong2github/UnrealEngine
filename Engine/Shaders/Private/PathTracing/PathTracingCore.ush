@@ -184,11 +184,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	}
 	for (;;)
 	{
-		// avoid double counting what was captured by the skylight
-		// also avoid noise from hot spots (they can be properly
-		// importance sampled if a capturing skylight is added)
-		const bool bIgnoreSky = !bIsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky, ApproximateCaustics ? PathState.PathRoughness : 0.0);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIsCameraRay, ApproximateCaustics ? PathState.PathRoughness : 0.0);
 		// Trace the ray
 		TraceRay(
 			TLAS,

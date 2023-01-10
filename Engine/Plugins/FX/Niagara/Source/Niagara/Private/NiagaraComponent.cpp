@@ -345,6 +345,7 @@ TUniformBuffer<FPrimitiveUniformShaderParameters>* FNiagaraSceneProxy::GetCustom
 				.OutputVelocity(bOutputVelocity)
 				.CastContactShadow(CastsContactShadow())
 				.CastShadow(CastsDynamicShadow())
+				.Holdout(Holdout())
 				.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation())
 				.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
 				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights());

@@ -430,6 +430,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering)
 	uint8 bReceivesDecals:1;
 
+	/** If this is True, this primitive will render black with an alpha of 0, but all secondary effects (shadows, reflections, indirect lighting) remain. This feature is currently only implemented in the Path Tracer. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PathTracing)
+	uint8 bHoldout : 1;
+
 	/** If this is True, this component won't be visible when the view actor is the component's owner, directly or indirectly. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering)
 	uint8 bOwnerNoSee:1;
