@@ -660,13 +660,13 @@ public:
 #endif // D3D12_RHI_RAYTRACING
 
 	template<typename ObjectType, typename RHIType>
-	static FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject, uint32 GPUIndex)
+	static FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType* RHIObject, uint32 GPUIndex)
 	{
-		return FD3D12DynamicRHI::ResourceCast(RHIObject, GPUIndex);
+		return FD3D12DynamicRHI::ResourceCast<RHIType, ObjectType>(RHIObject, GPUIndex);
 	}
 
 	template<typename ObjectType, typename RHIType>
-	FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject)
+	FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType* RHIObject)
 	{
 		return RetrieveObject<ObjectType, RHIType>(RHIObject, GetGPUIndex());
 	}

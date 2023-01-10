@@ -401,6 +401,24 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 #endif
 }
 
+static D3D12_RESOURCE_STATES GetBindingResourceState(FD3D12CommandContext& Context, EShaderFrequency ShaderStage, FD3D12ShaderResourceView* SRV)
+{
+	D3D12_RESOURCE_STATES State = (ShaderStage == SF_Compute)
+		? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
+		: D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+	if (SRV->IsDepthStencilResource())
+	{
+		State |= D3D12_RESOURCE_STATE_DEPTH_READ;
+	}
+	else if (SRV->GetSkipFastClearFinalize())
+	{
+		State |= Context.SkipFastClearEliminateState;
+	}
+
+	return State;
+}
+
 template <EShaderFrequency ShaderStage>
 void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD3D12ShaderResourceViewCache& Cache, const SRVSlotMask& SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot)
 {
@@ -424,24 +442,13 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 
 	for (uint32 SlotIndex = 0; SlotIndex < SlotsNeeded; SlotIndex++)
 	{
-		if (SRVs[SlotIndex] != nullptr)
+		if (FD3D12ShaderResourceView* SRV = SRVs[SlotIndex])
 		{
-			SrcDescriptors[SlotIndex] = SRVs[SlotIndex]->GetOfflineCpuHandle();
+			SrcDescriptors[SlotIndex] = SRV->GetOfflineCpuHandle();
 
-			D3D12_RESOURCE_STATES State = (ShaderStage == SF_Compute) 
-				? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
-				: D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			const D3D12_RESOURCE_STATES State = GetBindingResourceState(Context, ShaderStage, SRV);
 
-			if (SRVs[SlotIndex]->IsDepthStencilResource())
-			{
-				State |= D3D12_RESOURCE_STATE_DEPTH_READ;
-			}
-			else if (SRVs[SlotIndex]->GetSkipFastClearFinalize())
-			{
-				State |= Context.SkipFastClearEliminateState;
-			}
-			Context.TransitionResource(SRVs[SlotIndex], State & ValidResourceStates);
-
+			Context.TransitionResource(SRV, State & ValidResourceStates);
 			Context.UpdateResidency(Cache.ResidencyHandles[ShaderStage][SlotIndex]);
 		}
 		else
@@ -480,6 +487,30 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 #ifdef VERBOSE_DESCRIPTOR_HEAP_DEBUG
 	FMsg::Logf(__FILE__, __LINE__, TEXT("DescriptorCache"), ELogVerbosity::Log, TEXT("SetShaderResourceViewTable [STAGE %d] to slots %d - %d"), (int32)ShaderStage, FirstSlotIndex, FirstSlotIndex + SlotsNeeded - 1);
 #endif
+}
+
+void FD3D12DescriptorCache::PrepareBindlessViews(EShaderFrequency ShaderStage, TConstArrayView<FD3D12ShaderResourceView*> SRVs, TConstArrayView<FD3D12UnorderedAccessView*> UAVs)
+{
+	const D3D12_RESOURCE_STATES ValidResourceStates = Context.ValidResourceStates;
+
+	for (FD3D12ShaderResourceView* SRV : SRVs)
+	{
+		if (ensure(SRV))
+		{
+			const D3D12_RESOURCE_STATES State = GetBindingResourceState(Context, ShaderStage, SRV);
+			Context.TransitionResource(SRV, State & ValidResourceStates);
+			Context.UpdateResidency(&SRV->GetResidencyHandle());
+		}
+	}
+
+	for (FD3D12UnorderedAccessView* UAV : UAVs)
+	{
+		if (ensure(UAV))
+		{
+			Context.TransitionResource(UAV, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			Context.UpdateResidency(&UAV->GetResidencyHandle());
+		}
+	}
 }
 
 void FD3D12DescriptorCache::SetConstantBufferViews(EShaderFrequency ShaderStage, const FD3D12RootSignature* RootSignature, FD3D12ConstantBufferCache& Cache, CBVSlotMask SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot)

@@ -87,6 +87,27 @@ inline void ValidateBoundUniformBuffer(FD3D12UniformBuffer * InUniformBuffer, FR
 #endif
 }
 
+inline FD3D12ShaderResourceView* GetShaderResourceViewFromTexture(FRHIResource* InResource, uint32 GpuIndex)
+{
+	FD3D12Texture* Texture = FD3D12CommandContext::RetrieveTexture(static_cast<FRHITexture*>(InResource), GpuIndex);
+	return Texture ? Texture->GetShaderResourceView() : nullptr;
+}
+
+static void BindUniformBuffer(FD3D12CommandContext& Context, FRHIShader* Shader, EShaderFrequency ShaderFrequency, uint32 BufferIndex, FD3D12UniformBuffer* InBuffer)
+{
+	ValidateBoundUniformBuffer(InBuffer, Shader, BufferIndex);
+
+	Context.StateCache.SetConstantsFromUniformBuffer(ShaderFrequency, BufferIndex, InBuffer);
+
+	if (!GRHINeedsExtraDeletionLatency)
+	{
+		Context.BoundUniformBufferRefs[ShaderFrequency][BufferIndex] = InBuffer;
+	}
+
+	Context.BoundUniformBuffers[ShaderFrequency][BufferIndex] = InBuffer;
+	Context.DirtyUniformBuffers[ShaderFrequency] |= (1 << BufferIndex);
+}
+
 #if !defined(D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
 	#define D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS 1
 #endif
@@ -995,18 +1016,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 	{
 		ValidateBoundShader(StateCache, ShaderRHI);
 
-		FD3D12UniformBuffer* Buffer = RetrieveObject<FD3D12UniformBuffer>(BufferRHI);
-		ValidateBoundUniformBuffer(Buffer, ShaderRHI, BufferIndex);
-
-		StateCache.SetConstantsFromUniformBuffer(ShaderFrequency, BufferIndex, Buffer);
-
-		if (!GRHINeedsExtraDeletionLatency)
-		{
-			BoundUniformBufferRefs[ShaderFrequency][BufferIndex] = BufferRHI;
-		}
-
-		BoundUniformBuffers[ShaderFrequency][BufferIndex] = Buffer;
-		DirtyUniformBuffers[ShaderFrequency] |= (1 << BufferIndex);
+		BindUniformBuffer(*this, ShaderRHI, ShaderFrequency, BufferIndex, RetrieveObject<FD3D12UniformBuffer>(BufferRHI));
 	}
 	else
 	{
@@ -1018,36 +1028,153 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeS
 {
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12SetShaderUniformBuffer);
 	//ValidateBoundShader(StateCache, ComputeShader);
-	FD3D12UniformBuffer* Buffer = RetrieveObject<FD3D12UniformBuffer>(BufferRHI);
 
-	StateCache.SetConstantsFromUniformBuffer(SF_Compute, BufferIndex, Buffer);
+	BindUniformBuffer(*this, ComputeShader, SF_Compute, BufferIndex, RetrieveObject<FD3D12UniformBuffer>(BufferRHI));
+}
 
-	if (!GRHINeedsExtraDeletionLatency)
+static void SetShaderParametersOnContext(
+	FD3D12CommandContext& Context
+	, FRHIShader* Shader
+	, EShaderFrequency ShaderFrequency
+	, TArrayView<const uint8> InParametersData
+	, TArrayView<const FRHIShaderParameter> InParameters
+	, TArrayView<const FRHIShaderParameterResource> InResourceParameters
+	, TArrayView<const FRHIShaderParameterResource> InBindlessParameters)
+{
+	FD3D12ConstantBuffer& ConstantBuffer = Context.StageConstantBuffers[ShaderFrequency];
+	FD3D12StateCache& StateCache = Context.StateCache;
+	const uint32 GpuIndex = Context.GetGPUIndex();
+
+	for (const FRHIShaderParameter& Parameter : InParameters)
 	{
-		BoundUniformBufferRefs[SF_Compute][BufferIndex] = BufferRHI;
+		checkSlow(Parameter.BufferIndex == 0);
+		ConstantBuffer.UpdateConstant(&InParametersData[Parameter.ByteOffset], Parameter.BaseIndex, Parameter.ByteSize);
 	}
 
-	BoundUniformBuffers[SF_Compute][BufferIndex] = Buffer;
-	DirtyUniformBuffers[SF_Compute] |= (1 << BufferIndex);
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	for (const FRHIShaderParameterResource& Parameter : InBindlessParameters)
+	{
+		if (FRHIResource* Resource = Parameter.Resource)
+		{
+			FRHIDescriptorHandle Handle;
+
+			switch (Parameter.Type)
+			{
+			case FRHIShaderParameterResource::EType::Texture:
+			{
+				Handle = static_cast<FRHITexture*>(Resource)->GetDefaultBindlessHandle();
+				StateCache.QueueBindlessSRV(ShaderFrequency, GetShaderResourceViewFromTexture(Resource, GpuIndex));
+			}
+			break;
+			case FRHIShaderParameterResource::EType::ResourceView:
+			{
+				Handle = static_cast<FRHIShaderResourceView*>(Resource)->GetBindlessHandle();
+				StateCache.QueueBindlessSRV(ShaderFrequency, FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(Parameter.Resource, GpuIndex));
+			}
+			break;
+			case FRHIShaderParameterResource::EType::UnorderedAccessView:
+			{
+				Handle = static_cast<FRHIUnorderedAccessView*>(Resource)->GetBindlessHandle();
+				FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(Parameter.Resource, GpuIndex);
+				if (UAV)
+				{
+					Context.ConditionalClearShaderResource(UAV->GetResourceLocation());
+				}
+				StateCache.QueueBindlessUAV(ShaderFrequency, UAV);
+			}
+			break;
+			case FRHIShaderParameterResource::EType::Sampler:
+			{
+				Handle = static_cast<FRHISamplerState*>(Resource)->GetBindlessHandle();
+			}
+			break;
+			}
+
+			if (Handle.IsValid())
+			{
+				const uint32 BindlessIndex = Handle.GetIndex();
+				ConstantBuffer.UpdateConstant(reinterpret_cast<const uint8*>(&BindlessIndex), Parameter.Index, 4);
+			}
+		}
+	}
+#endif
+
+	for (const FRHIShaderParameterResource& Parameter : InResourceParameters)
+	{
+		if (Parameter.Type == FRHIShaderParameterResource::EType::UnorderedAccessView)
+		{
+			if (ShaderFrequency == SF_Pixel)
+			{
+				FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(Parameter.Resource, GpuIndex);
+				if (UAV)
+				{
+					Context.ConditionalClearShaderResource(UAV->GetResourceLocation());
+				}
+				StateCache.SetUAV(SF_Pixel, Parameter.Index, UAV);
+			}
+			else
+			{
+				checkf(false, TEXT("TShaderRHI Can't have compute shader to be set. UAVs are not supported on vertex, tessellation and geometry shaders."));
+			}
+		}
+	}
+
+	for (const FRHIShaderParameterResource& Parameter : InResourceParameters)
+	{
+		switch (Parameter.Type)
+		{
+		case FRHIShaderParameterResource::EType::Texture:
+			StateCache.SetShaderResourceView(ShaderFrequency, GetShaderResourceViewFromTexture(Parameter.Resource, GpuIndex), Parameter.Index);
+			break;
+		case FRHIShaderParameterResource::EType::ResourceView:
+			StateCache.SetShaderResourceView(ShaderFrequency, FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(Parameter.Resource, GpuIndex), Parameter.Index);
+			break;
+		case FRHIShaderParameterResource::EType::UnorderedAccessView:
+			break;
+		case FRHIShaderParameterResource::EType::Sampler:
+			StateCache.SetSamplerState(ShaderFrequency, FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Parameter.Resource, GpuIndex), Parameter.Index);
+			break;
+		case FRHIShaderParameterResource::EType::UniformBuffer:
+			BindUniformBuffer(Context, Shader, ShaderFrequency, Parameter.Index, FD3D12CommandContext::RetrieveObject<FD3D12UniformBuffer>(Parameter.Resource, GpuIndex));
+			break;
+		default:
+			checkf(false, TEXT("Unhandled resource type?"));
+			break;
+		}
+	}
 }
 
 void FD3D12CommandContext::RHISetShaderParameters(FRHIGraphicsShader* Shader, TArrayView<const uint8> InParametersData, TArrayView<const FRHIShaderParameter> InParameters, TArrayView<const FRHIShaderParameterResource> InResourceParameters, TArrayView<const FRHIShaderParameterResource> InBindlessParameters)
 {
-	UE::RHICore::RHISetShaderParametersShared(
-		*this
-		, Shader
-		, InParametersData
-		, InParameters
-		, InResourceParameters
-		, InBindlessParameters
-	);
+	const EShaderFrequency ShaderFrequency = Shader->GetFrequency();
+	if (IsValidGraphicsFrequency(ShaderFrequency))
+	{
+		ValidateBoundShader(StateCache, Shader);
+
+		SetShaderParametersOnContext(
+			*this
+			, Shader
+			, ShaderFrequency
+			, InParametersData
+			, InParameters
+			, InResourceParameters
+			, InBindlessParameters
+		);
+	}
+	else
+	{
+		checkf(0, TEXT("Unsupported FRHIGraphicsShader Type '%s'!"), GetShaderFrequencyString(ShaderFrequency, false));
+	}
 }
 
 void FD3D12CommandContext::RHISetShaderParameters(FRHIComputeShader* Shader, TArrayView<const uint8> InParametersData, TArrayView<const FRHIShaderParameter> InParameters, TArrayView<const FRHIShaderParameterResource> InResourceParameters, TArrayView<const FRHIShaderParameterResource> InBindlessParameters)
 {
-	UE::RHICore::RHISetShaderParametersShared(
+	//ValidateBoundShader(StateCache, Shader);
+
+	SetShaderParametersOnContext(
 		*this
 		, Shader
+		, SF_Compute
 		, InParametersData
 		, InParameters
 		, InResourceParameters

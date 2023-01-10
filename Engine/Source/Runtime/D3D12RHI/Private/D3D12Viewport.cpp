@@ -667,8 +667,8 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 		FD3D12CommandContext& DefaultContext = Adapter->GetDevice(GPUIndex)->GetDefaultCommandContext();
 
 		// Those are not necessarily the swap chain back buffer in case of multi-gpu
-		FD3D12Texture* DeviceBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture, FRHITexture2D*>(GetBackBuffer_RHIThread());
-		FD3D12Texture* DeviceSDRBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture, FRHITexture2D*>(GetSDRBackBuffer_RHIThread());
+		FD3D12Texture* DeviceBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture, FRHITexture2D>(GetBackBuffer_RHIThread());
+		FD3D12Texture* DeviceSDRBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture, FRHITexture2D>(GetSDRBackBuffer_RHIThread());
 
 		DefaultContext.TransitionResource(
 			DeviceBackBuffer->GetShaderResourceView()->GetResource(),

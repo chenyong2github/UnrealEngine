@@ -391,18 +391,17 @@ public:
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D12"); }
 
-	template<typename TRHIType>
-	static FORCEINLINE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource)
+	template<typename TRHIType, typename TReturnType = TD3D12ResourceTraits<TRHIType>::TConcreteType>
+	static FORCEINLINE TReturnType* ResourceCast(TRHIType* Resource)
 	{
-		return static_cast<typename TD3D12ResourceTraits<TRHIType>::TConcreteType*>(Resource);
+		return static_cast<TReturnType*>(Resource);
 	}
 
-	template<typename TRHIType>
-	static FORCEINLINE_DEBUGGABLE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource, uint32 GPUIndex)
+	template<typename TRHIType, typename TReturnType = TD3D12ResourceTraits<TRHIType>::TConcreteType>
+	static FORCEINLINE_DEBUGGABLE TReturnType* ResourceCast(TRHIType* Resource, uint32 GPUIndex)
 	{
-		using ReturnType = typename TD3D12ResourceTraits<TRHIType>::TConcreteType;
-		ReturnType* Object = ResourceCast(Resource);
-		return Object ? static_cast<ReturnType*>(Object->GetLinkedObject(GPUIndex)) : nullptr;
+		TReturnType* Object = ResourceCast<TRHIType, TReturnType>(Resource);
+		return Object ? static_cast<TReturnType*>(Object->GetLinkedObject(GPUIndex)) : nullptr;
 	}
 
 	virtual FD3D12CommandContext* CreateCommandContext(FD3D12Device* InParent, ED3D12QueueType InQueueType, bool InIsDefaultContext);

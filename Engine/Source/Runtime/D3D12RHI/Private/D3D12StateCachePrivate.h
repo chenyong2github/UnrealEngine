@@ -402,6 +402,9 @@ protected:
 			uint32 CurrentShaderSRVCounts    [SF_NumStandardFrequencies] = {};
 			uint32 CurrentShaderCBCounts     [SF_NumStandardFrequencies] = {};
 			uint32 CurrentShaderUAVCounts    [SF_NumStandardFrequencies] = {};
+
+			TArray<FD3D12ShaderResourceView*> QueuedBindlessSRVs[SF_NumStandardFrequencies];
+			TArray<FD3D12UnorderedAccessView*> QueuedBindlessUAVs[SF_NumStandardFrequencies];
 		} Common = {};
 	} PipelineState = {};
 
@@ -659,6 +662,7 @@ public:
 	void ApplyState();
 	void ApplySamplers(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
 	void ApplyResources(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
+	void ApplyBindlessResources(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
 	void ApplyConstants(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
 	void DirtyStateForNewCommandList();
 	void DirtyState();
@@ -682,6 +686,11 @@ public:
 	}
 
 	void SetUAVs(EShaderFrequency ShaderStage, uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray);
+	void SetUAV(EShaderFrequency ShaderStage, uint32 SlotIndex, FD3D12UnorderedAccessView* UAV)
+	{
+		uint32 InitialCount = -1;
+		SetUAVs(ShaderStage, SlotIndex, 1, &UAV, &InitialCount);
+	}
 	void ClearUAVs(EShaderFrequency ShaderStage);
 
 	void SetDepthBounds(float MinDepth, float MaxDepth)
@@ -738,4 +747,13 @@ public:
 	void ClearState();
 
 	void ForceSetComputeRootSignature() { PipelineState.Compute.bNeedSetRootSignature = true; }
+
+	void QueueBindlessSRV(EShaderFrequency ShaderFrequency, FD3D12ShaderResourceView* SRV)
+	{
+		PipelineState.Common.QueuedBindlessSRVs[ShaderFrequency].Emplace(SRV);
+	}
+	void QueueBindlessUAV(EShaderFrequency ShaderFrequency, FD3D12UnorderedAccessView* UAV)
+	{
+		PipelineState.Common.QueuedBindlessUAVs[ShaderFrequency].Emplace(UAV);
+	}
 };

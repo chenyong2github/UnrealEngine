@@ -558,6 +558,10 @@ void FD3D12StateCache::ApplyState()
 	{
 		ApplyResources(PSOCommonData->RootSignature, StartStage, EndStage);
 	}
+	else if (bBindlessResources)
+	{
+		ApplyBindlessResources(PSOCommonData->RootSignature, StartStage, EndStage);
+	}
 
 	ApplyConstants(PSOCommonData->RootSignature, StartStage, EndStage);
 
@@ -743,6 +747,20 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 #undef CONDITIONAL_SET_CBVS
 	}
 #endif // USE_STATIC_ROOT_SIGNATURE
+}
+
+void FD3D12StateCache::ApplyBindlessResources(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage)
+{
+	for (uint32 Index = StartStage; Index < EndStage; Index++)
+	{
+		DescriptorCache.PrepareBindlessViews(
+			static_cast<EShaderFrequency>(Index)
+			, PipelineState.Common.QueuedBindlessSRVs[Index]
+			, PipelineState.Common.QueuedBindlessUAVs[Index]);
+
+		PipelineState.Common.QueuedBindlessSRVs[Index].Reset();
+		PipelineState.Common.QueuedBindlessUAVs[Index].Reset();
+	}
 }
 
 void FD3D12StateCache::ApplyConstants(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage)
