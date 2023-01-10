@@ -5,6 +5,7 @@
 #include "ActorDescTreeItem.h"
 #include "ActorFolderTreeItem.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "UObject/Package.h"
 
 #include "SourceControlHelpers.h"
 
@@ -18,7 +19,7 @@ namespace SceneOutliner
 			{
 				if (Actor->IsPackageExternal())
 				{
-					return USourceControlHelpers::PackageFilename(Actor->GetExternalPackage());
+					return Actor->GetExternalPackage()->GetName();
 				}
 
 			}
@@ -29,7 +30,7 @@ namespace SceneOutliner
 			{
 				if (ActorFolder->IsPackageExternal())
 				{
-					return USourceControlHelpers::PackageFilename(ActorFolder->GetExternalPackage());
+					return ActorFolder->GetExternalPackage()->GetName();
 				}
 			}
 		}
@@ -37,7 +38,7 @@ namespace SceneOutliner
 		{
 			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 			{
-				return USourceControlHelpers::PackageFilename(ActorDesc->GetActorPackage().ToString());
+				return ActorDesc->GetActorPackage().ToString();
 			}
 		}
 

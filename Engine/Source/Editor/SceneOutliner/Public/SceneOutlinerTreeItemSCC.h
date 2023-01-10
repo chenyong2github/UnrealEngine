@@ -28,6 +28,8 @@ public:
 
 	FString GetPackageName() { return ExternalPackageName; }
 
+	FString GetPackageFileName() { return ExternalPackageFileName; }
+
 	UPackage* GetPackage() { return ExternalPackage; }
 
 	FSourceControlStateChangedDelegate OnSourceControlStateChanged;
@@ -53,8 +55,9 @@ private:
 	/** The tree item we relate to */
 	FSceneOutlinerTreeItemPtr TreeItemPtr;
 
-	/** Cache the items external package name */
+	/** Cache the items external package name and filename */
 	FString ExternalPackageName;
+	FString ExternalPackageFileName;
 	UPackage* ExternalPackage = nullptr;
 
 	/** Source control state changed delegate handle */

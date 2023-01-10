@@ -279,7 +279,8 @@ void FSceneOutlinerSCCHandler::GetSelectedPackageNames(TArray<FString>& OutPacka
 		}
 
 		FString PackageName = SourceControl->GetPackageName();
-		if (!PackageName.IsEmpty()) {
+		if (!PackageName.IsEmpty())
+		{
 			OutPackageNames.Add(PackageName);
 		}
 	}
@@ -296,7 +297,8 @@ void FSceneOutlinerSCCHandler::GetSelectedPackages(TArray<UPackage*>& OutPackage
 		}
 
 		UPackage* Package = SourceControl->GetPackage();
-		if (Package != nullptr) {
+		if (Package != nullptr)
+		{
 			OutPackages.Add(Package);
 		}
 	}
@@ -368,6 +370,7 @@ void FSceneOutlinerSCCHandler::ExecuteSCCRevert()
 {
 	TArray<FString> PackageNames;
 	GetSelectedPackageNames(PackageNames);
+
 	FSourceControlWindows::PromptForRevert(PackageNames, true);
 }
 
@@ -375,7 +378,8 @@ void FSceneOutlinerSCCHandler::ExecuteSCCHistory()
 {
 	TArray<FString> PackageNames;
 	GetSelectedPackageNames(PackageNames);
-	FSourceControlWindows::DisplayRevisionHistory(SourceControlHelpers::PackageFilenames(PackageNames));
+
+	FSourceControlWindows::DisplayRevisionHistory(PackageNames);
 }
 
 #undef LOCTEXT_NAMESPACE

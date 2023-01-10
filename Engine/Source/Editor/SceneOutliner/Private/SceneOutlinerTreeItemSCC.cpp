@@ -10,6 +10,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "SceneOutlinerHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "UObject/Package.h"
 #include "UncontrolledChangelistsModule.h"
 
 FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr InTreeItemPtr)
@@ -19,6 +20,7 @@ FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr I
 	if (TreeItemPtr.IsValid())
 	{
 		ExternalPackageName = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(*TreeItemPtr.Get());
+		ExternalPackageFileName = USourceControlHelpers::PackageFilename(ExternalPackageName);
 		ExternalPackage = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackage(*TreeItemPtr.Get());
 		
 		if (FActorTreeItem* ActorItem = TreeItemPtr->CastTo<FActorTreeItem>())
@@ -29,13 +31,15 @@ FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr I
 				{
 					if (bExternal)
 					{
-						ExternalPackageName = USourceControlHelpers::PackageFilename(InActor->GetExternalPackage());
+						ExternalPackageName = InActor->GetExternalPackage()->GetName();
+						ExternalPackageFileName = USourceControlHelpers::PackageFilename(ExternalPackageName);
 						ExternalPackage = InActor->GetExternalPackage();
 						ConnectSourceControl();
 					}
 					else
 					{
 						ExternalPackageName = FString();
+						ExternalPackageFileName = FString();
 						ExternalPackage = nullptr;
 						DisconnectSourceControl();
 					}
@@ -43,7 +47,7 @@ FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr I
 			}
 		}
 		
-		if (!ExternalPackageName.IsEmpty())
+		if (!ExternalPackageFileName.IsEmpty())
 		{
 			ConnectSourceControl();
 		}
@@ -67,31 +71,31 @@ FSceneOutlinerTreeItemSCC::~FSceneOutlinerTreeItemSCC()
 
 FSourceControlStatePtr FSceneOutlinerTreeItemSCC::GetSourceControlState()
 {
-	return ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::Use);
+	return ISourceControlModule::Get().GetProvider().GetState(ExternalPackageFileName, EStateCacheUsage::Use);
 }
 
 FSourceControlStatePtr FSceneOutlinerTreeItemSCC::RefreshSourceControlState()
 {
-	return ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::ForceUpdate);
+	return ISourceControlModule::Get().GetProvider().GetState(ExternalPackageFileName, EStateCacheUsage::ForceUpdate);
 }
 
 void FSceneOutlinerTreeItemSCC::ConnectSourceControl()
 {
-	check(!ExternalPackageName.IsEmpty());
+	check(!ExternalPackageFileName.IsEmpty());
 
 	ISourceControlModule& SCCModule = ISourceControlModule::Get();
 	SourceControlProviderChangedDelegateHandle = SCCModule.RegisterProviderChanged(FSourceControlProviderChanged::FDelegate::CreateRaw(this, &FSceneOutlinerTreeItemSCC::HandleSourceControlProviderChanged));
 	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateRaw(this, &FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged, EStateCacheUsage::Use));
 
 	// Check if there is already a cached state for this item
-	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::Use);
+	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageFileName, EStateCacheUsage::Use);
 	if (SourceControlState.IsValid() && !SourceControlState->IsUnknown())
 	{
 		BroadcastNewState(SourceControlState);
 	}
 	else
 	{
-		SCCModule.QueueStatusUpdate(ExternalPackageName);
+		SCCModule.QueueStatusUpdate(ExternalPackageFileName);
 	}
 }
 
@@ -115,7 +119,7 @@ void FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged(EStateCacheUsage
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged);
 
-	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, CacheUsage);
+	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageFileName, CacheUsage);
 	if (SourceControlState.IsValid())
 	{
 		BroadcastNewState(SourceControlState);
@@ -129,7 +133,7 @@ void FSceneOutlinerTreeItemSCC::HandleSourceControlProviderChanged(ISourceContro
 	
 	BroadcastNewState(nullptr);
 
-	ISourceControlModule::Get().QueueStatusUpdate(ExternalPackageName);
+	ISourceControlModule::Get().QueueStatusUpdate(ExternalPackageFileName);
 }
 
 void FSceneOutlinerTreeItemSCC::BroadcastNewState(FSourceControlStatePtr SourceControlState)
@@ -147,7 +151,7 @@ void FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged()
 
 	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistStateRef : UncontrolledChangelistStates)
 	{
-		if(UncontrolledChangelistStateRef->GetFilenames().Contains(ExternalPackageName))
+		if(UncontrolledChangelistStateRef->GetFilenames().Contains(ExternalPackageFileName))
 		{
 			UncontrolledChangelistState = UncontrolledChangelistStateRef;
 			break;
