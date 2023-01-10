@@ -211,7 +211,7 @@ public:
 		OptionsSource = InArgs._OptionsSource;
 		CustomScrollbar = InArgs._CustomScrollbar;
 
-		TSharedRef<SWidget> ComboBoxMenuContent =
+		ComboBoxMenuContent =
 			SNew(SBox)
 			.MaxDesiredHeight(InArgs._MaxListHeight)
 			[
@@ -246,7 +246,7 @@ public:
 			]
 			.MenuContent()
 			[
-				ComboBoxMenuContent
+				ComboBoxMenuContent.ToSharedRef()
 			]
 			.HasDownArrow( InArgs._HasDownArrow )
 			.ContentPadding( InArgs._ContentPadding )
@@ -361,6 +361,16 @@ public:
 		{
 			ComboListView->ClearSelection();
 		}
+	}
+
+	void SetEnableGamepadNavigationMode(bool InEnableGamepadNavigationMode)
+	{
+		this->EnableGamepadNavigationMode = InEnableGamepadNavigationMode;
+	}
+
+	void SetMaxHeight(float InMaxHeight)
+	{
+		ComboBoxMenuContent->SetMaxDesiredHeight(InMaxHeight);
 	}
 
 	/** @return the item currently selected by the combo box. */
@@ -642,7 +652,7 @@ private:
 	// When true, navigation away from the widget is prevented until a new value has been accepted or canceled. 
 	bool bControllerInputCaptured;
 
-		
+	TSharedPtr<SBox> ComboBoxMenuContent;
 
 	const TArray< OptionType >* OptionsSource;
 };

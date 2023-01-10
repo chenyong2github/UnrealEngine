@@ -32,17 +32,18 @@ class UMG_API UCheckBox : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Whether the check box is currently in a checked state */
 	UE_DEPRECATED(5.1, "Direct access to CheckedState is deprecated. Please use the getter or setter.")
+	/** Whether the check box is currently in a checked state */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetCheckedState", BlueprintSetter="SetCheckedState", FieldNotify, Category="Appearance")
 	ECheckBoxState CheckedState;
 
+	UE_DEPRECATED(5.2, "Direct access to CheckedStateDelegate is deprecated. Please use the InitCheckedStateDelegate() function.")
 	/** A bindable delegate for the IsChecked. */
 	UPROPERTY()
 	FGetCheckBoxState CheckedStateDelegate;
 
-	/** The checkbox bar style */
 	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	/** The checkbox bar style */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta = (DisplayName="Style"))
 	FCheckBoxStyle WidgetStyle;
 
@@ -50,23 +51,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The type of mouse action required by the user to trigger the buttons 'Click' */
 	UE_DEPRECATED(5.1, "Direct access to ClickMethod is deprecated. Please use the getter or setter.")
+	/** The type of mouse action required by the user to trigger the buttons 'Click' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetClickMethod", Category="Interaction", AdvancedDisplay)
 	TEnumAsByte<EButtonClickMethod::Type> ClickMethod;
 
-	/** The type of touch action required by the user to trigger the buttons 'Click' */
 	UE_DEPRECATED(5.1, "Direct access to TouchMethod is deprecated. Please use the getter or setter.")
+	/** The type of touch action required by the user to trigger the buttons 'Click' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetTouchMethod", Category="Interaction", AdvancedDisplay)
 	TEnumAsByte<EButtonTouchMethod::Type> TouchMethod;
 
-	/** The type of keyboard/gamepad button press action required by the user to trigger the buttons 'Click' */
 	UE_DEPRECATED(5.1, "Direct access to PressMethod is deprecated. Please use the getter or setter.")
+	/** The type of keyboard/gamepad button press action required by the user to trigger the buttons 'Click' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPressMethod", Category="Interaction", AdvancedDisplay)
 	TEnumAsByte<EButtonPressMethod::Type> PressMethod;
 
+	UE_DEPRECATED(5.2, "Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** Sometimes a button should only be mouse-clickable and never keyboard focusable. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Interaction")
 	bool IsFocusable;
 
 public:
@@ -124,6 +126,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Button")
 	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
+	/** Is the checkbox focusable. */
+	bool GetIsFocusable() const;
+
 public:
 	
 	//~ Begin UWidget Interface
@@ -145,6 +150,10 @@ protected:
 	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
+	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
+	void InitIsFocusable(bool InIsFocusable);
+
+	void InitCheckedStateDelegate(FGetCheckBoxState InCheckedStateDelegate);
 protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -165,5 +174,7 @@ protected:
 protected:
 	TSharedPtr<SCheckBox> MyCheckbox;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PROPERTY_BINDING_IMPLEMENTATION(ECheckBoxState, CheckedState)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

@@ -59,9 +59,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClickMethod = EButtonClickMethod::DownAndUp;
 	TouchMethod = EButtonTouchMethod::DownAndUp;
 	PressMethod = EButtonPressMethod::DownAndUp;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	IsFocusable = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
 	bCanChildrenBeAccessible = false;
@@ -250,6 +250,24 @@ void UCheckBox::SetWidgetStyle(const FCheckBoxStyle& InStyle)
 		MyCheckbox->SetStyle(&WidgetStyle);
 	}
 }
+
+bool UCheckBox::GetIsFocusable() const
+{
+	return IsFocusable;
+}
+
+void UCheckBox::InitIsFocusable(bool InIsFocusable)
+{
+	ensureMsgf(!MyCheckbox.IsValid(), TEXT("The widget is already created."));
+	IsFocusable = InIsFocusable;
+}
+
+void UCheckBox::InitCheckedStateDelegate(FGetCheckBoxState InCheckedStateDelegate)
+{
+	ensureMsgf(!MyCheckbox.IsValid(), TEXT("The widget is already created."));
+	CheckedStateDelegate = InCheckedStateDelegate;
+}
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UCheckBox::SlateOnCheckStateChangedCallback(ECheckBoxState NewState)

@@ -32,56 +32,66 @@ private:
 	TArray<FString> DefaultOptions;
 
 	/** The item in the combobox to select by default */
-	UPROPERTY(EditAnywhere, Category=Content)
+	UPROPERTY(EditAnywhere, FieldNotify, Category=Content)
 	FString SelectedOption;
 
 public:
 
+	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The style. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Style, meta=( DisplayName="Style" ))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category=Style, meta=( DisplayName="Style" ))
 	FComboBoxStyle WidgetStyle;
 
+	UE_DEPRECATED(5.2, "Direct access to ItemStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The item row style. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Style)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category=Style)
 	FTableRowStyle ItemStyle;
 	
+	UE_DEPRECATED(5.2, "Direct access to ScrollBarStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The scroll bar style. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Style")
     FScrollBarStyle ScrollBarStyle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Content)
+	UE_DEPRECATED(5.2, "Direct access to ContentPadding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Content)
 	FMargin ContentPadding;
 
+	UE_DEPRECATED(5.2, "Direct access to MaxListHeight is deprecated. Please use the getter or setter.")
 	/** The max height of the combobox list that opens */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Content, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Content, AdvancedDisplay)
 	float MaxListHeight;
 
+	UE_DEPRECATED(5.2, "Direct access to HasDownArrow is deprecated. Please use the getter or setter.")
 	/**
 	 * When false, the down arrow is not generated and it is up to the API consumer
 	 * to make their own visual hint that this is a drop down.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Content, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsHasDownArrow", Setter = "SetHasDownArrow", Category = Content, AdvancedDisplay)
 	bool HasDownArrow;
 
+	UE_DEPRECATED(5.2, "Direct access to EnableGamepadNavigationMode is deprecated. Please use the getter or setter.")
 	/**
 	* When false, directional keys will change the selection. When true, ComboBox 
 	* must be activated and will only capture arrow input while activated.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Content, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsEnableGamepadNavigationMode", Setter = "SetEnableGamepadNavigationMode", Category = Content, AdvancedDisplay)
 	bool EnableGamepadNavigationMode;
 
+	UE_DEPRECATED(5.2, "Direct access to Font is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/**
 	 * The default font to use in the combobox, only applies if you're not implementing OnGenerateWidgetEvent
 	 * to factory each new entry.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Style)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category=Style)
 	FSlateFontInfo Font;
 
+	UE_DEPRECATED(5.2, "Direct access to ForegroundColor is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The foreground color to pass through the hierarchy. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Style, meta=(DesignerRebuild))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category=Style, meta=(DesignerRebuild))
 	FSlateColor ForegroundColor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Interaction)
+	UE_DEPRECATED(5.2, "Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter= "IsFocusable", Category=Interaction)
 	bool bIsFocusable;
 
 public: // Events
@@ -148,6 +158,48 @@ public:
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
+	/** Set the padding for content. */
+	void SetContentPadding(FMargin InPadding);
+
+	/** Get the padding for content. */
+	FMargin GetContentPadding() const;
+
+	/** Is the combobox navigated by gamepad. */
+	bool IsEnableGamepadNavigationMode() const;
+
+	/** Set whether the combobox is navigated by gamepad. */
+	void SetEnableGamepadNavigationMode(bool InEnableGamepadNavigationMode);
+
+	/** Is the combobox arrow showing. */
+	bool IsHasDownArrow() const;
+
+	/** Set whether the combobox arrow is showing. */
+	void SetHasDownArrow(bool InHasDownArrow);
+
+	/** Get the maximum height of the combobox list. */
+	float GetMaxListHeight() const;
+
+	/** Set the maximum height of the combobox list. */
+	void SetMaxListHeight(float InMaxHeight);
+
+	/** Get the default font for Combobox if no OnGenerateWidgetEvent is specified. */
+	const FSlateFontInfo& GetFont() const;
+
+	/** Get the style of the combobox. */
+	const FComboBoxStyle& GetWidgetStyle() const;
+
+	/** Get the style of the items. */
+	const FTableRowStyle& GetItemStyle() const;
+
+	/** Get the style of the scrollbar. */
+	const FScrollBarStyle& GetScrollBarStyle() const;
+
+	/** Is the combobox focusable. */
+	bool IsFocusable() const;
+
+	/** Get the foreground color of the button. */
+	FSlateColor GetForegroundColor() const;
+
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FArchive& Ar) override;
@@ -174,6 +226,24 @@ protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
+
+	/** Initialize the widget style in the constructor before the SWidget is constructed. */
+	void InitWidgetStyle(const FComboBoxStyle& InWidgetStyle);
+
+	/** Initialize the item style in the constructor before the SWidget is constructed. */
+	void InitItemStyle(const FTableRowStyle& InItemStyle);
+
+	/** Initialize the scrollbar style in the constructor before the SWidget is constructed. */
+	void InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle);
+
+	/** Initialize the default font in the constructor before the SWidget is constructed. */
+	void InitFont(FSlateFontInfo InFont);
+
+	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
+	void InitIsFocusable(bool InIsFocusable);
+
+	/** Initialize ForegroundColor in the constructor before the SWidget is constructed. */
+	void InitForegroundColor(FSlateColor InForegroundColor);
 
 protected:
 	/** The true objects bound to the Slate combobox. */

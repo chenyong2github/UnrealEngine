@@ -32,49 +32,58 @@ private:
 	TArray<FName> Options;
 
 	/** */
-	UPROPERTY(EditAnywhere, Category = Content)
+	UPROPERTY(EditAnywhere, FieldNotify, Category = Content)
 	FName SelectedOption;
 
 public:
+	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The combobox style. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, meta = (DisplayName = "Style"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = Style, meta = (DisplayName = "Style"))
 	FComboBoxStyle WidgetStyle;
 
+	UE_DEPRECATED(5.2, "Direct access to ItemStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The item row style. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = Style)
 	FTableRowStyle ItemStyle;
 
+	UE_DEPRECATED(5.2, "Direct access to ScrollBarStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The scroll bar style. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Style")
     FScrollBarStyle ScrollBarStyle;
 
+	UE_DEPRECATED(5.2, "Direct access to ForegroundColor is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The foreground color to pass through the hierarchy. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, meta = (DesignerRebuild))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = Style, meta = (DesignerRebuild))
 	FSlateColor ForegroundColor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style)
+	UE_DEPRECATED(5.2, "Direct access to ContentPadding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Style)
 	FMargin ContentPadding;
 
+	UE_DEPRECATED(5.2, "Direct access to MaxListHeight is deprecated. Please use the getter or setter.")
 	/** The max height of the combobox list that opens */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Style, AdvancedDisplay)
 	float MaxListHeight;
 
+	UE_DEPRECATED(5.2, "Direct access to bHasDownArrow is deprecated. Please use the getter or setter.")
 	/**
 	 * When false, the down arrow is not generated and it is up to the API consumer
 	 * to make their own visual hint that this is a drop down.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsHasDownArrow", Setter = "SetHasDownArrow", Category = Style, AdvancedDisplay)
 	bool bHasDownArrow;
 
+	UE_DEPRECATED(5.2, "Direct access to bEnableGamepadNavigationMode is deprecated. Please use the getter or setter.")
 	/**
 	 * When false, directional keys will change the selection. When true, ComboBox
 	 * must be activated and will only capture arrow input while activated.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsEnableGamepadNavigationMode", Setter = "SetEnableGamepadNavigationMode", Category = Style, AdvancedDisplay)
 	bool bEnableGamepadNavigationMode;
 
+	UE_DEPRECATED(5.2, "Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** When true, allows the combo box to receive keyboard focus */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsFocusable", Category = Style)
 	bool bIsFocusable;
 
 public: // Events
@@ -123,7 +132,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ComboBox")
 	FName GetSelectedOption() const;
 
-	/** Is the combobox menu openned. */
+	/** Is the combobox menu opened. */
 	UFUNCTION(BlueprintCallable, Category = "ComboBox", Meta = (ReturnDisplayName = "bOpen"))
 	bool IsOpen() const;
 
@@ -131,9 +140,64 @@ public:
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
+	/** Set the padding for content. */
+	void SetContentPadding(FMargin InPadding);
+
+	/** Get the padding for content. */
+	FMargin GetContentPadding() const;
+
+	/** Is the combobox navigated by gamepad. */
+	bool IsEnableGamepadNavigationMode() const;
+
+	/** Set whether the combobox is navigated by gamepad. */
+	void SetEnableGamepadNavigationMode(bool InEnableGamepadNavigationMode);
+
+	/** Is the combobox arrow showing. */
+	bool IsHasDownArrow() const;
+
+	/** Set whether the combobox arrow is showing. */
+	void SetHasDownArrow(bool InHasDownArrow);
+
+	/** Get the maximum height of the combobox list. */
+	float GetMaxListHeight() const;
+
+	/** Set the maximum height of the combobox list. */
+	void SetMaxListHeight(float InMaxHeight);
+
+	/** Get the style of the combobox. */
+	const FComboBoxStyle& GetWidgetStyle() const;
+
+	/** Get the style of the items. */
+	const FTableRowStyle& GetItemStyle() const;
+
+	/** Get the style of the scrollbar. */
+	const FScrollBarStyle& GetScrollBarStyle() const;
+
+	/** Is the combobox focusable. */
+	bool IsFocusable() const;
+
+	/** Get the foreground color of the button. */
+	FSlateColor GetForegroundColor() const;
+
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 #endif
+
+protected:
+	/** Initialize the widget style in the constructor before the SWidget is constructed. */
+	void InitWidgetStyle(const FComboBoxStyle& InWidgetStyle);
+
+	/** Initialize the item style in the constructor before the SWidget is constructed. */
+	void InitItemStyle(const FTableRowStyle& InItemStyle);
+
+	/** Initialize the scrollbar style in the constructor before the SWidget is constructed. */
+	void InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle);
+
+	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
+	void InitIsFocusable(bool InIsFocusable);
+
+	/** Initialize ForegroundColor in the constructor before the SWidget is constructed. */
+	void InitForegroundColor(FSlateColor InForegroundColor);
 
 private:
 	/** Called by slate when it needs to generate the widget in the content box */

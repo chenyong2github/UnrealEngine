@@ -204,6 +204,11 @@ void UScrollBar::SetPadding(const FMargin& InPadding)
 	}
 }
 
+void UScrollBar::InitOrientation(EOrientation InOrientation)
+{
+	ensureMsgf(!MyScrollBar.IsValid(), TEXT("The widget is already created."));
+	Orientation = InOrientation;
+}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR

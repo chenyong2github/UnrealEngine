@@ -22,9 +22,11 @@ UComboBoxKey::UComboBoxKey()
 	if (!IsRunningDedicatedServer())
 	{
 #if WITH_EDITOR 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		WidgetStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorComboBoxStyle() : FDefaultStyleCache::Get().GetComboBoxStyle();
 		ItemStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorComboBoxRowStyle() : FDefaultStyleCache::Get().GetComboBoxRowStyle();
 		ScrollBarStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorScrollBarStyle() : FDefaultStyleCache::Get().GetScrollBarStyle();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (IsEditorWidget())
 		{
@@ -32,12 +34,15 @@ UComboBoxKey::UComboBoxKey()
 			PostEditChange();
 		}
 #else
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		WidgetStyle = FDefaultStyleCache::Get().GetComboBoxStyle();
 		ItemStyle = FDefaultStyleCache::Get().GetComboBoxRowStyle();
 		ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ContentPadding = FMargin(4.0, 2.0);
 	ForegroundColor = ItemStyle.TextColor;
 
@@ -45,6 +50,7 @@ UComboBoxKey::UComboBoxKey()
 	bHasDownArrow = true;
 	bEnableGamepadNavigationMode = true;
 	bIsFocusable = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
@@ -59,6 +65,7 @@ void UComboBoxKey::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UComboBoxKey::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyComboBox =
 		SNew(SComboBox<FName>)
 		.ComboBoxStyle(&WidgetStyle)
@@ -78,6 +85,7 @@ TSharedRef<SWidget> UComboBoxKey::RebuildWidget()
 		[
 			SAssignNew(ComboBoxContent, SBox)
 		];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	GenerateContent();
 
@@ -140,6 +148,7 @@ void UComboBoxKey::SetSelectedOption(FName Option)
 {
 	if (SelectedOption != Option)
 	{
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::SelectedOption);
 		if (MyComboBox)
 		{
 			MyComboBox->SetSelectedItem(Option);
@@ -150,7 +159,6 @@ void UComboBoxKey::SetSelectedOption(FName Option)
 		}
 	}
 }
-
 
 FName UComboBoxKey::GetSelectedOption() const
 {
@@ -163,6 +171,118 @@ bool UComboBoxKey::IsOpen() const
 	return MyComboBox && MyComboBox->IsOpen();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void  UComboBoxKey::SetContentPadding(FMargin InPadding)
+{
+	ContentPadding = InPadding;
+	if (MyComboBox.IsValid())
+	{
+		MyComboBox->SetButtonContentPadding(InPadding);
+	}
+}
+
+FMargin  UComboBoxKey::GetContentPadding() const
+{
+	return ContentPadding;
+}
+
+void UComboBoxKey::SetEnableGamepadNavigationMode(bool InEnableGamepadNavigationMode)
+{
+	bEnableGamepadNavigationMode = InEnableGamepadNavigationMode;
+	if (MyComboBox.IsValid())
+	{
+		MyComboBox->SetEnableGamepadNavigationMode(bEnableGamepadNavigationMode);
+	}
+}
+
+bool UComboBoxKey::IsEnableGamepadNavigationMode() const
+{
+	return bEnableGamepadNavigationMode;
+}
+
+bool UComboBoxKey::IsHasDownArrow() const
+{
+	return bHasDownArrow;
+}
+
+void UComboBoxKey::SetHasDownArrow(bool InHasDownArrow)
+{
+	bHasDownArrow = InHasDownArrow;
+	if (MyComboBox.IsValid())
+	{
+		MyComboBox->SetHasDownArrow(InHasDownArrow);
+	}
+}
+
+float UComboBoxKey::GetMaxListHeight() const
+{
+	return MaxListHeight;
+}
+
+void UComboBoxKey::SetMaxListHeight(float InMaxHeight)
+{
+	MaxListHeight = InMaxHeight;
+	if (MyComboBox.IsValid())
+	{
+		MyComboBox->SetMaxHeight(MaxListHeight);
+	}
+}
+
+const FComboBoxStyle& UComboBoxKey::GetWidgetStyle() const
+{
+	return WidgetStyle;
+}
+
+const FTableRowStyle& UComboBoxKey::GetItemStyle() const
+{
+	return ItemStyle;
+}
+
+const FScrollBarStyle& UComboBoxKey::GetScrollBarStyle() const
+{
+	return ScrollBarStyle;
+}
+
+bool UComboBoxKey::IsFocusable() const
+{
+	return bIsFocusable;
+}
+
+FSlateColor UComboBoxKey::GetForegroundColor() const
+{
+	return ForegroundColor;
+}
+
+void UComboBoxKey::InitWidgetStyle(const FComboBoxStyle& InWidgetStyle)
+{
+	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
+	WidgetStyle = InWidgetStyle;
+}
+
+void UComboBoxKey::InitItemStyle(const FTableRowStyle& InItemStyle)
+{
+	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
+	ItemStyle = InItemStyle;
+}
+
+void UComboBoxKey::InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle)
+{
+	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
+	ScrollBarStyle = InScrollBarStyle;
+}
+
+void UComboBoxKey::InitIsFocusable(bool InIsFocusable)
+{
+	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
+	bIsFocusable = InIsFocusable;
+}
+
+void UComboBoxKey::InitForegroundColor(FSlateColor InForegroundColor)
+{
+	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
+	ForegroundColor = InForegroundColor;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UComboBoxKey::GenerateContent()
 {
@@ -238,6 +358,7 @@ void UComboBoxKey::HandleSelectionChanged(FName Item, ESelectInfo::Type Selectio
 	if (SelectedOption != Item)
 	{
 		SelectedOption = Item;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::SelectedOption);
 
 		if (!IsDesignTime())
 		{

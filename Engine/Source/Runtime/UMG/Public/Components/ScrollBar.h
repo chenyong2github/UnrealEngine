@@ -132,4 +132,7 @@ protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
+
+	/** Initialize the orientation of the scrollbar in the constructor before the SWidget is constructed. */
+	void InitOrientation(EOrientation InOrientation);
 };

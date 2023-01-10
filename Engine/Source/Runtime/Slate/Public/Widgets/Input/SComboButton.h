@@ -13,7 +13,10 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SMenuAnchor.h"
 
-DECLARE_DELEGATE( FOnComboBoxOpened )
+DECLARE_DELEGATE(FOnComboBoxOpened)
+
+class SButton;
+class SImage;
 
 /**
  * A button that, when clicked, brings up a popup.
@@ -90,6 +93,12 @@ public:
 		WidgetToFocusPtr = InWidgetToFocusPtr;
 	}
 
+	/** See the padding for button content. */
+	void SetButtonContentPadding(FMargin InPadding);
+
+	/** add/remove the expanding arrow. */
+	void SetHasDownArrow(bool InHasArrowDown);
+
 protected:
 	/**
 	 * Handle the button being clicked by summoning the ComboButton.
@@ -126,4 +135,20 @@ protected:
 
 	/** Can this button be focused? */
 	bool bIsFocusable;
+
+private:
+	/** The button widget within the ComboButton */
+	TSharedPtr<SButton> ButtonPtr;
+
+	/** The box containing the arrow */
+	TSharedPtr<SHorizontalBox> HBox;
+
+	/** The arrow image shadow */
+	TSharedPtr<SImage> ShadowImage;
+
+	/** The arrow image */
+	TSharedPtr<SImage> ForegroundArrowImage;
+
+	/** The ComboButton style */
+	const FComboButtonStyle* Style;
 };
