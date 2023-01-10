@@ -2866,7 +2866,7 @@ export type GetIssueResponse = {
 	promoted: boolean;
 
 	/** Owner of the issue */
-	ownerInfo: GetThinUserInfoResponse;
+	ownerInfo?: GetThinUserInfoResponse;
 
 	/** Use that nominated the current owner */
 	nominatedByInfo: GetThinUserInfoResponse;
@@ -2881,7 +2881,7 @@ export type GetIssueResponse = {
 	resolvedAt?: Date | string;
 
 	/** Use info for the person that resolved the issue */
-	resolvedByInfo: GetThinUserInfoResponse;
+	resolvedByInfo?: GetThinUserInfoResponse;
 
 	/**  List of stream paths affected by this issue */
 	streams: string[];
