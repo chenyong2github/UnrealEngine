@@ -1271,7 +1271,7 @@ void FOpenXRInputPlugin::FOpenXRInput::SetHapticFeedbackValues(int32 ControllerI
 	XrHapticVibration HapticValue;
 	HapticValue.type = XR_TYPE_HAPTIC_VIBRATION;
 	HapticValue.next = nullptr;
-	HapticValue.duration = MaxFeedbackDuration;
+	HapticValue.duration = XrDuration(CurrentDeltaTime * 1e9);
 	HapticValue.frequency = Values.Frequency;
 	HapticValue.amplitude = Values.Amplitude;
 
