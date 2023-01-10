@@ -46,18 +46,18 @@ public:
 
 	bool IsLockedOnCurrentThread() const
 	{
-		return OwnerThreadId.load(std::memory_order::memory_order_relaxed) == FPlatformTLS::GetCurrentThreadId();
+		return OwnerThreadId.load(std::memory_order_relaxed) == FPlatformTLS::GetCurrentThreadId();
 	}
 
 private:
 	void SetOwner()
 	{
-		OwnerThreadId.store(FPlatformTLS::GetCurrentThreadId(), std::memory_order::memory_order_relaxed);
+		OwnerThreadId.store(FPlatformTLS::GetCurrentThreadId(), std::memory_order_relaxed);
 	}
 
 	void ClearOwner()
 	{
-		OwnerThreadId.store(0, std::memory_order::memory_order_relaxed);
+		OwnerThreadId.store(0, std::memory_order_relaxed);
 	}
 
 	FCriticalSection Inner;

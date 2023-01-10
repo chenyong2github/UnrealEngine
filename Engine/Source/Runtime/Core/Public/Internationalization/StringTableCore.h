@@ -220,7 +220,7 @@ public:
 	static bool CanFindOrLoadStringTableAsset()
 	{
 		return FInternationalization::IsAvailable()
-			&& DeferFindOrLoad.load(std::memory_order::memory_order_relaxed) <= 0
+			&& DeferFindOrLoad.load(std::memory_order_relaxed) <= 0
 			&& (!InstancePtr || InstancePtr->CanFindOrLoadStringTableAssetImpl());
 	}
 
