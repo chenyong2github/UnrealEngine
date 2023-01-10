@@ -1454,13 +1454,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					
 					// TODO: Consider requesting a recache of all ray tracing commands during which decals are excluded
 
-					if (SceneInfo->bCachedRayTracingInstancebAnySegmentsDecal && !SceneInfo->bCachedRayTracingInstancebAllSegmentsDecal)
+					if (SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal && !SceneInfo->bCachedRayTracingInstanceAllSegmentsDecal)
 					{
 						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
 						continue;
 					}
 
-					if (GRayTracingExcludeDecals && SceneInfo->bCachedRayTracingInstancebAnySegmentsDecal)
+					if (GRayTracingExcludeDecals && SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal)
 					{
 						continue;
 					}

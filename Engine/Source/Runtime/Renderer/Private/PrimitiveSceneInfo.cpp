@@ -1054,8 +1054,8 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 			SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 		}
 
-		SceneInfo->bCachedRayTracingInstancebAnySegmentsDecal = CachedRayTracingInstance.MaskAndFlags.bAnySegmentsDecal;
-		SceneInfo->bCachedRayTracingInstancebAllSegmentsDecal = CachedRayTracingInstance.MaskAndFlags.bAllSegmentsDecal;
+		SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal = CachedRayTracingInstance.MaskAndFlags.bAnySegmentsDecal;
+		SceneInfo->bCachedRayTracingInstanceAllSegmentsDecal = CachedRayTracingInstance.MaskAndFlags.bAllSegmentsDecal;
 	}
 }
 

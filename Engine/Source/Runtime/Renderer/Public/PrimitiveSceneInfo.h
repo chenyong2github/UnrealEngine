@@ -415,8 +415,8 @@ public:
 	TArray<uint64> CachedRayTracingMeshCommandsHashPerLOD;
 	// TODO: this should be placed in FRayTracingScene and we have a pointer/handle here. It's here for now for PoC
 	FRayTracingGeometryInstance CachedRayTracingInstance;
-	bool bCachedRayTracingInstancebAnySegmentsDecal : 1;
-	bool bCachedRayTracingInstancebAllSegmentsDecal : 1;
+	bool bCachedRayTracingInstanceAnySegmentsDecal : 1;
+	bool bCachedRayTracingInstanceAllSegmentsDecal : 1;
 	TArray<FBoxSphereBounds> CachedRayTracingInstanceWorldBounds;
 	int32 SmallestRayTracingInstanceWorldBoundsIndex;
 #endif
