@@ -1895,7 +1895,7 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 		// Use a separate archive for each export to enable rearranging the exports according to the load/dependency order. Seeks/Tell
 		// during export serialize will be relative to the beginning of the export buffer.
 		ExportBuffer.Reset();
-		FMemoryWriter64 ExportArchive(ExportBuffer);
+		FMemoryWriter64 ExportArchive(ExportBuffer, false, false, SaveContext.GetPackage()->GetFName());
 		TGuardValue<FArchive*> GuardSaver(Linker.Saver, &ExportArchive);
 
 		if (Export.Object->HasAnyFlags(RF_ClassDefaultObject))

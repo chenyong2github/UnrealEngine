@@ -68,6 +68,11 @@ public:
 	 **/
 	virtual FString GetArchiveName() const override
 	{
+		if (ArchiveName != NAME_None)
+		{
+			return ArchiveName.ToString();
+		}
+
 		if constexpr (IndexSize == 64)
 		{
 			return TEXT("FMemoryWriter64");
