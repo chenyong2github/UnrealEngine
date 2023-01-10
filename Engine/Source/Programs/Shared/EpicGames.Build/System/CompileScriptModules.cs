@@ -156,6 +156,7 @@ namespace UnrealBuildBase
 			BaseDirectories.Add(Unreal.EngineDirectory);
 			BaseDirectories.AddRange(GameDirectories);
 			BaseDirectories.AddRange(AdditionalDirectories);
+			BaseDirectories = BaseDirectories.Distinct().ToList();
 
 			HashSet<FileReference> FoundProjects = new HashSet<FileReference>(
 				Rules.FindAllRulesSourceFiles(RulesFileType,
