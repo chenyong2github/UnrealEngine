@@ -311,6 +311,8 @@ void AOnlineBeaconClient::OnFailure()
 
 void AOnlineBeaconClient::ClientOnConnected_Implementation()
 {
+	UE_LOG(LogBeacon, Verbose, TEXT("%s: Received first RPC from server"), *GetName());
+
 	SetConnectionState(EBeaconConnectionState::Open);
 	BeaconConnection->SetConnectionState(USOCK_Open);
 
@@ -476,8 +478,10 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 						// Fail safe for connection to server but no client connection RPC
 						if (!Connection->Driver->bNoTimeouts)
 						{
+							float Timeout = Connection->GetTimeoutValue();
+							UE_LOG(LogBeacon, Verbose, TEXT("%s: Waiting for first RPC from server, timeout: %.3f"), *GetName(), Timeout);
 							FTimerDelegate TimerDelegate = FTimerDelegate::CreateUObject(this, &AOnlineBeaconClient::OnFailure);
-							GetWorldTimerManager().SetTimer(TimerHandle_OnFailure, TimerDelegate, Connection->GetTimeoutValue(), false);
+							GetWorldTimerManager().SetTimer(TimerHandle_OnFailure, TimerDelegate, Timeout, false);
 						}
 					}
 					else

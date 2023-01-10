@@ -167,6 +167,15 @@ private:
 	/** Connection states used to check against misbehaving connections. */
 	struct FConnectionState
 	{
+		FConnectionState(const AOnlineBeaconHost& InBeaconHost) :
+			BeaconHost(InBeaconHost)
+		{
+		}
+
+		~FConnectionState();
+
+		const AOnlineBeaconHost& BeaconHost;
+		FTimerHandle FinishHandshakeTimerHandle;
 		bool bHasSentHello = false;
 		bool bHasSentChallenge = false;
 		bool bHasSentLogin = false;
@@ -188,6 +197,7 @@ private:
 	void OnConnectionClosed(UNetConnection* Connection);
 
 	bool HandleControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch);
+	void FinishHandshake(UNetConnection* Connection, FString BeaconType);
 	void SendFailurePacket(UNetConnection* Connection, FNetCloseResult&& CloseReason, const FText& ErrorText);
 
 	UE_DEPRECATED(5.1, "SendFailurePacket without CloseReason is deprecated. Use the version which takes CloseReason.")
