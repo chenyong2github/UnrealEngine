@@ -273,6 +273,12 @@ bool UGameplayTask_MoveTo::FindPath()
 	const FSharedConstNavQueryFilter NavFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, Pawn, MoveRequest.GetNavigationFilter());
 	PathQuery = FPathFindingQuery(*Pawn, *NavData, Pawn->GetNavAgentLocation(), GoalLocation, NavFilter);
 	PathQuery.SetAllowPartialPaths(MoveRequest.IsUsingPartialPaths());
+	PathQuery.SetRequireNavigableEndLocation(MoveRequest.IsNavigableEndLocationRequired());
+	if (MoveRequest.IsApplyingCostLimitFromHeuristic())
+	{
+		const float HeuristicScale = NavFilter->GetHeuristicScale();
+		PathQuery.CostLimit = FPathFindingQuery::ComputeCostLimitFromHeuristic(PathQuery.StartLocation, PathQuery.EndLocation, HeuristicScale, MoveRequest.GetCostLimitFactor(), MoveRequest.GetMinimumCostLimit());
+	}
 
 	FPathFindingResult PathResult = NavSys->FindPathSync(PathQuery);
 	

@@ -160,31 +160,31 @@ const FAIRequestID FAIRequestID::CurrentRequest(FAIRequestID::AnyRequestID);
 FAIMoveRequest::FAIMoveRequest() : 
 	GoalActor(nullptr), GoalLocation(FAISystem::InvalidLocation), FilterClass(nullptr),
 	bInitialized(false), bMoveToActor(false),
-	bUsePathfinding(true), bAllowPartialPath(true), bProjectGoalOnNavigation(true),
+	bUsePathfinding(true), bAllowPartialPath(true), bRequireNavigableEndLocation(true), bApplyCostLimitFromHeuristic(false), bProjectGoalOnNavigation(true),
 	bReachTestIncludesAgentRadius(true), bReachTestIncludesGoalRadius(true), bCanStrafe(false),
+	AcceptanceRadius(UPathFollowingComponent::DefaultAcceptanceRadius), CostLimitFactor(FLT_MAX), MinimumCostLimit(0.f),
 	UserFlags(0)
 {
-	AcceptanceRadius = UPathFollowingComponent::DefaultAcceptanceRadius;
 }
 
 FAIMoveRequest::FAIMoveRequest(const AActor* InGoalActor) :
 	GoalActor(const_cast<AActor*>(InGoalActor)), GoalLocation(FAISystem::InvalidLocation), FilterClass(nullptr),
 	bInitialized(true), bMoveToActor(true),
-	bUsePathfinding(true), bAllowPartialPath(true), bProjectGoalOnNavigation(true),
+	bUsePathfinding(true), bAllowPartialPath(true), bRequireNavigableEndLocation(true), bApplyCostLimitFromHeuristic(false), bProjectGoalOnNavigation(true),
 	bReachTestIncludesAgentRadius(true), bReachTestIncludesGoalRadius(true), bCanStrafe(false),
+	AcceptanceRadius(UPathFollowingComponent::DefaultAcceptanceRadius), CostLimitFactor(FLT_MAX), MinimumCostLimit(0.f),
 	UserFlags(0)
 {
-	AcceptanceRadius = UPathFollowingComponent::DefaultAcceptanceRadius;
 }
 
 FAIMoveRequest::FAIMoveRequest(const FVector& InGoalLocation) :
 	GoalActor(nullptr), GoalLocation(InGoalLocation), FilterClass(nullptr),
 	bInitialized(true), bMoveToActor(false),
-	bUsePathfinding(true), bAllowPartialPath(true), bProjectGoalOnNavigation(true),
+	bUsePathfinding(true), bAllowPartialPath(true), bRequireNavigableEndLocation(true), bApplyCostLimitFromHeuristic(false), bProjectGoalOnNavigation(true),
 	bReachTestIncludesAgentRadius(true), bReachTestIncludesGoalRadius(true), bCanStrafe(false),
+	AcceptanceRadius(UPathFollowingComponent::DefaultAcceptanceRadius), CostLimitFactor(FLT_MAX), MinimumCostLimit(0.f),
 	UserFlags(0)
 {
-	AcceptanceRadius = UPathFollowingComponent::DefaultAcceptanceRadius;
 }
 
 void FAIMoveRequest::SetGoalActor(const AActor* InGoalActor)

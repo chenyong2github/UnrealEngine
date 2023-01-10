@@ -84,7 +84,7 @@ public:
 	uint32 bSearchStart : 1;
 
 	/** this multiplier is used to compute a max node cost allowed to the open list
-	 *	(cost limit = CostLimitFacotr*InitialHeuristicEstimate) */
+	 *	(cost limit = CostLimitFactor*InitialHeuristicEstimate) */
 	UPROPERTY(EditAnywhere, Category=Pathfinding, meta = (ClampMin = "0", UIMin = "0"))
 	float CostLimitFactor;
 

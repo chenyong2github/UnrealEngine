@@ -781,6 +781,12 @@ bool AAIController::BuildPathfindingQuery(const FAIMoveRequest& MoveRequest, FPa
 		FSharedConstNavQueryFilter NavFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, this, MoveRequest.GetNavigationFilter());
 		Query = FPathFindingQuery(*this, *NavData, GetNavAgentLocation(), GoalLocation, NavFilter);
 		Query.SetAllowPartialPaths(MoveRequest.IsUsingPartialPaths());
+		Query.SetRequireNavigableEndLocation(MoveRequest.IsNavigableEndLocationRequired());
+		if (MoveRequest.IsApplyingCostLimitFromHeuristic())
+		{
+			const float HeuristicScale = NavFilter->GetHeuristicScale();
+			Query.CostLimit = FPathFindingQuery::ComputeCostLimitFromHeuristic(Query.StartLocation, Query.EndLocation, HeuristicScale, MoveRequest.GetCostLimitFactor(), MoveRequest.GetMinimumCostLimit()); 
+		}
 
 		if (PathFollowingComponent)
 		{
