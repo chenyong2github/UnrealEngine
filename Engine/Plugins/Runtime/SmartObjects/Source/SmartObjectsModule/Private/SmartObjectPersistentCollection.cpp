@@ -255,7 +255,7 @@ FSmartObjectCollectionEntry* FSmartObjectContainer::AddSmartObject(USmartObjectC
 	}
 
 	const USmartObjectDefinition* Definition = SOComponent.GetDefinition();
-	ensureMsgf(Definition != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
+	checkf(Definition != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
 
 	return AddSmartObjectInternal(Handle, *Definition, SOComponent);
 }
