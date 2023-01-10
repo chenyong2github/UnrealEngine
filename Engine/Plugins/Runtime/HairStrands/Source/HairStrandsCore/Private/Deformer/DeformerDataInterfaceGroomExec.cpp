@@ -74,15 +74,12 @@ UComputeDataProvider* UOptimusGroomExecDataInterface::CreateDataProvider(TObject
 	return Provider;
 }
 
-bool UOptimusGroomExecDataProvider::IsValid() const
-{
-	return GroomComponent != nullptr && GroomComponent->GetGroupCount() > 0;
-}
 
 FComputeDataProviderRenderProxy* UOptimusGroomExecDataProvider::GetRenderProxy()
 {
 	return new FOptimusGroomExecDataProviderProxy(GroomComponent, Domain);
 }
+
 
 FOptimusGroomExecDataProviderProxy::FOptimusGroomExecDataProviderProxy(UGroomComponent* InGroomComponent, EOptimusGroomExecDomain InDomain)
 {

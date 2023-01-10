@@ -195,48 +195,6 @@ UComputeDataProvider* UOptimusPersistentBufferDataInterface::CreateDataProvider(
 }
 
 
-bool UOptimusRawBufferDataProvider::IsValid() const
-{
-	if (!Component.IsValid())
-	{
-		return false;
-	}
-	
-	const UOptimusComponentSource* ComponentSourcePtr = ComponentSource.Get();
-	if (!ComponentSourcePtr)
-	{
-		return false;
-	}
-
-	switch(DataDomain.Type)
-	{
-	case EOptimusDataDomainType::Dimensional:
-		{
-			if (DataDomain.DimensionNames.IsEmpty())
-			{
-				return false;
-			}
-			return ComponentSourcePtr->GetExecutionDomains().Contains(DataDomain.DimensionNames[0]); 
-		}
-	case EOptimusDataDomainType::Expression:
-		{
-			using namespace Optimus::Expression;
-			TMap<FName, int32> DomainNames;
-
-			for (FName DomainName: ComponentSourcePtr->GetExecutionDomains())
-			{
-				DomainNames.Add(DomainName, 0);
-			}
-
-			// Return true if there was no error. Verify returns a TOptional.
-			return !FEngine{DomainNames}.Verify(DataDomain.Expression).IsSet();
-		}
-	}
-
-	return false;
-}
-
-
 bool UOptimusRawBufferDataProvider::GetLodAndInvocationElementCounts(
 	int32& OutLodIndex,
 	TArray<int32>& OutInvocationElementCounts
@@ -328,17 +286,6 @@ FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderP
 	GetLodAndInvocationElementCounts(LodIndex, InvocationCounts);
 	
 	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride);
-}
-
-
-bool UOptimusPersistentBufferDataProvider::IsValid() const
-{
-	if (!BufferPool.IsValid())
-	{
-		return false;
-	}
-
-	return UOptimusRawBufferDataProvider::IsValid();
 }
 
 

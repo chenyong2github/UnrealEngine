@@ -102,11 +102,6 @@ UComputeDataProvider* UOptimusDebugDrawDataInterface::CreateDataProvider(TObject
 }
 
 
-bool UOptimusDebugDrawDataProvider::IsValid() const
-{
-	return PrimitiveComponent != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusDebugDrawDataProvider::GetRenderProxy()
 {
 	return new FOptimusDebugDrawDataProviderProxy(PrimitiveComponent, DebugDrawParameters);

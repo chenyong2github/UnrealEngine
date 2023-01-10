@@ -133,15 +133,12 @@ UComputeDataProvider* UOptimusGroomDataInterface::CreateDataProvider(TObjectPtr<
 	return Provider;
 }
 
-bool UOptimusGroomDataProvider::IsValid() const
-{
-	return Groom != nullptr;
-}
 
 FComputeDataProviderRenderProxy* UOptimusGroomDataProvider::GetRenderProxy()
 {
 	return new FOptimusGroomDataProviderProxy(Groom);
 }
+
 
 FOptimusGroomDataProviderProxy::FOptimusGroomDataProviderProxy(UGroomComponent* InGroomComponent)
 {

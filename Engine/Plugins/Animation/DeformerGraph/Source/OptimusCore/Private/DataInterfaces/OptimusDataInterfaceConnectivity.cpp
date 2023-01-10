@@ -221,14 +221,6 @@ UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TObj
 }
 
 
-bool UOptimusConnectivityDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr &&
-		AdjacencyBufferPerLod.Num();
-}
-
 FComputeDataProviderRenderProxy* UOptimusConnectivityDataProvider::GetRenderProxy()
 {
 	return new FOptimusConnectivityDataProviderProxy(SkinnedMesh, AdjacencyBufferPerLod);

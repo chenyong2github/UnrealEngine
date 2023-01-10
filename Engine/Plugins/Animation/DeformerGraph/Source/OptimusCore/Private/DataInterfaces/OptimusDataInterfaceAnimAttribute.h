@@ -196,7 +196,6 @@ public:
 	int32 TotalNumArrays = 0;
 	
 	//~ Begin UComputeDataProvider Interface
-	bool IsValid() const override;
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 };

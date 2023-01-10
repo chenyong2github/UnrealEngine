@@ -113,13 +113,6 @@ UComputeDataProvider* UOptimusSkinnedMeshWriteDataInterface::CreateDataProvider(
 }
 
 
-bool UOptimusSkinnedMeshWriteDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusSkinnedMeshWriteDataProvider::GetRenderProxy()
 {
 	return new FOptimusSkinnedMeshWriteDataProviderProxy(SkinnedMesh, OutputMask);

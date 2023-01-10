@@ -22,12 +22,12 @@ class COMPUTEFRAMEWORK_API UComputeDataProvider : public UObject
 
 public:
 	/** Return false if the provider has not been fully initialized. */
+	UE_DEPRECATED(5.2, "Implement any validation in FComputeDataProviderRenderProxy::IsValid().")
 	virtual bool IsValid() const { return true; }
 	
 	/**
 	 * Get an associated render thread proxy object.
 	 * Currently these are created and destroyed per frame by the FComputeGraphInstance.
-	 * todo[CF]: Don't destroy FComputeDataProviderRenderProxy objects every frame?
 	 */
 	virtual FComputeDataProviderRenderProxy* GetRenderProxy() { return nullptr; }
 };

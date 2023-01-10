@@ -92,13 +92,6 @@ UComputeDataProvider* UOptimusMorphTargetDataInterface::CreateDataProvider(TObje
 }
 
 
-bool UOptimusMorphTargetDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusMorphTargetDataProvider::GetRenderProxy()
 {
 	return new FOptimusMorphTargetDataProviderProxy(SkinnedMesh);

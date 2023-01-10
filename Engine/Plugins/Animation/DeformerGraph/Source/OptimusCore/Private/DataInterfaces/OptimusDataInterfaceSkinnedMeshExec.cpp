@@ -79,13 +79,6 @@ UComputeDataProvider* UOptimusSkinnedMeshExecDataInterface::CreateDataProvider(T
 }
 
 
-bool UOptimusSkinnedMeshExecDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusSkinnedMeshExecDataProvider::GetRenderProxy()
 {
 	return new FOptimusSkinnedMeshExecDataProviderProxy(SkinnedMesh, Domain);

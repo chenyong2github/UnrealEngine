@@ -73,7 +73,6 @@ public:
 	virtual void Init() {};
 
 	// UComputeDataProvider overrides.
-	virtual bool IsValid() const override;
 	virtual FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	// ~END UComputeDataProvider overrides.
 

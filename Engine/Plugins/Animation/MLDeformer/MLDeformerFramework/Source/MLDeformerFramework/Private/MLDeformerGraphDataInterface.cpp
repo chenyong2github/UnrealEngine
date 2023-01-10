@@ -81,16 +81,6 @@ FComputeDataProviderRenderProxy* UMLDeformerGraphDataProvider::GetRenderProxy()
 	return new UE::MLDeformer::FMLDeformerGraphDataProviderProxy(DeformerComponent);
 }
 
-bool UMLDeformerGraphDataProvider::IsValid() const
-{
-	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr || DeformerComponent->GetModelInstance() == nullptr)
-	{
-		return false;
-	}
-
-	return DeformerComponent->GetModelInstance()->IsValidForDataProvider();
-}
-
 namespace UE::MLDeformer
 {
 	FMLDeformerGraphDataProviderProxy::FMLDeformerGraphDataProviderProxy(UMLDeformerComponent* DeformerComponent)

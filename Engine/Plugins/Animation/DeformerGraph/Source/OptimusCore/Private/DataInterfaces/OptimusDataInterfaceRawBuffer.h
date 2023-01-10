@@ -143,10 +143,6 @@ class OPTIMUSCORE_API UOptimusRawBufferDataProvider : public UComputeDataProvide
 	GENERATED_BODY()
 
 public:
-	//~ Begin UComputeDataProvider Interface
-	bool IsValid() const override;
-	//~ End UComputeDataProvider Interface
-
 	/** Helper function to calculate the element count for each section invocation of the given skinned/skeletal mesh
 	 *  object and a data domain. Uses the execution domains to compute the information. Returns false if the
 	 *  data domain is not valid for computation.
@@ -196,7 +192,6 @@ class OPTIMUSCORE_API UOptimusPersistentBufferDataProvider : public UOptimusRawB
 
 public:
 	//~ Begin UComputeDataProvider Interface
-	bool IsValid() const override;
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 

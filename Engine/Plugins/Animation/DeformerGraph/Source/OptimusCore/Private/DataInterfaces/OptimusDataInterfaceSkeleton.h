@@ -46,7 +46,6 @@ public:
 	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
-	bool IsValid() const override;
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 };

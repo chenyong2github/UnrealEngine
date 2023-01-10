@@ -91,11 +91,6 @@ UComputeDataProvider* UOptimusGroomWriteDataInterface::CreateDataProvider(TObjec
 }
 
 
-bool UOptimusGroomWriteDataProvider::IsValid() const
-{
-	return GroomComponent != nullptr && GroomComponent->GetGroupCount() > 0;
-}
-
 FComputeDataProviderRenderProxy* UOptimusGroomWriteDataProvider::GetRenderProxy()
 {
 	return new FOptimusGroomWriteDataProviderProxy(GroomComponent, OutputMask);

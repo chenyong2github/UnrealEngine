@@ -118,13 +118,6 @@ UComputeDataProvider* UOptimusSkeletonDataInterface::CreateDataProvider(TObjectP
 }
 
 
-bool UOptimusSkeletonDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusSkeletonDataProvider::GetRenderProxy()
 {
 	return new FOptimusSkeletonDataProviderProxy(SkinnedMesh);

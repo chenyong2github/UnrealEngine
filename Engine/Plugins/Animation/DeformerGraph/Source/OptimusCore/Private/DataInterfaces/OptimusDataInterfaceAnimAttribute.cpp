@@ -616,11 +616,6 @@ void UOptimusAnimAttributeDataProvider::Init(
 	}
 }
 
-bool UOptimusAnimAttributeDataProvider::IsValid() const
-{
-	return SkeletalMesh != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderProxy()
 {
 	FOptimusAnimAttributeDataProviderProxy* Proxy = new FOptimusAnimAttributeDataProviderProxy(AttributeBufferSize, TotalNumArrays);

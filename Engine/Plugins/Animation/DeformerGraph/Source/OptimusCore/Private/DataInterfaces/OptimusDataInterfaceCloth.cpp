@@ -115,13 +115,6 @@ UComputeDataProvider* UOptimusClothDataInterface::CreateDataProvider(TObjectPtr<
 }
 
 
-bool UOptimusClothDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusClothDataProvider::GetRenderProxy()
 {
 	return new FOptimusClothDataProviderProxy(SkinnedMesh);

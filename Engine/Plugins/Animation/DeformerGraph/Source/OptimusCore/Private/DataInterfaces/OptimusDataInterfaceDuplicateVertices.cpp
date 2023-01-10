@@ -104,13 +104,6 @@ UComputeDataProvider* UOptimusDuplicateVerticesDataInterface::CreateDataProvider
 }
 
 
-bool UOptimusDuplicateVerticesDataProvider::IsValid() const
-{
-	return
-		SkinnedMesh != nullptr &&
-		SkinnedMesh->MeshObject != nullptr;
-}
-
 FComputeDataProviderRenderProxy* UOptimusDuplicateVerticesDataProvider::GetRenderProxy()
 {
 	return new FOptimusDuplicateVerticesDataProviderProxy(SkinnedMesh);

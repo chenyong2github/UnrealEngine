@@ -103,24 +103,10 @@ UComputeDataProvider* UMLDeformerGraphDebugDataInterface::CreateDataProvider(TOb
 	return Provider;
 }
 
-bool UMLDeformerGraphDebugDataProvider::IsValid() const
-{
-#if WITH_EDITORONLY_DATA
-	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr || DeformerComponent->GetModelInstance() == nullptr)
-	{
-		return false;
-	}
-
-	return DeformerComponent->GetModelInstance()->IsValidForDataProvider();
-#else
-	return false; // This data interface is only valid in editor.
-#endif
-}
-
 FComputeDataProviderRenderProxy* UMLDeformerGraphDebugDataProvider::GetRenderProxy()
 {
 #if WITH_EDITORONLY_DATA
-	if (DeformerComponent && DeformerAsset)
+	if (DeformerComponent && DeformerAsset && DeformerComponent->GetModelInstance() && DeformerComponent->GetModelInstance()->IsValidForDataProvider())
 	{
 		UE::MLDeformer::FMLDeformerGraphDebugDataProviderProxy* Proxy = new UE::MLDeformer::FMLDeformerGraphDebugDataProviderProxy(DeformerComponent, DeformerAsset, this);
 		const float SampleTime = DeformerComponent->GetModelInstance()->GetSkeletalMeshComponent()->GetPosition();
