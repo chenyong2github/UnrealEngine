@@ -54,9 +54,9 @@ FTessellationTable::FTessellationTable( uint32 InMaxTessFactor )
 
 int32 FTessellationTable::GetPattern( FIntVector TessFactors ) const
 {
-	checkSlow( 0 < TessFactors[0] && TessFactors[0] <= MaxTessFactor );
-	checkSlow( 0 < TessFactors[1] && TessFactors[1] <= MaxTessFactor );
-	checkSlow( 0 < TessFactors[2] && TessFactors[2] <= MaxTessFactor );
+	checkSlow( 0 < TessFactors[0] && TessFactors[0] <= int32(MaxTessFactor) );
+	checkSlow( 0 < TessFactors[1] && TessFactors[1] <= int32(MaxTessFactor) );
+	checkSlow( 0 < TessFactors[2] && TessFactors[2] <= int32(MaxTessFactor) );
 
 	if( TessFactors[0] < TessFactors[1] ) Swap( TessFactors[0], TessFactors[1] );
 	if( TessFactors[0] < TessFactors[2] ) Swap( TessFactors[0], TessFactors[2] );
