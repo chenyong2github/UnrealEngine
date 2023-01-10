@@ -142,7 +142,7 @@ public:
 
 	virtual FNiagaraAsyncGpuTraceHelper& GetAsyncGpuTraceHelper() const = 0;
 
-	bool IsOutsideSceneRenderer() const { return bIsOutsideSceneRenderer; }
+	FORCEINLINE bool IsOutsideSceneRenderer() const { return bIsOutsideSceneRenderer; }
 
 #if WITH_MGPU
 	/**
