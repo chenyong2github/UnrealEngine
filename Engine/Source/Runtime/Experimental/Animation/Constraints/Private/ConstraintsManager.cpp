@@ -484,7 +484,7 @@ int32 FConstraintsManagerController::GetConstraintIndex(const FName& InConstrain
 	
 	return Manager->Constraints.IndexOfByPredicate([InConstraintName](const TObjectPtr<UTickableConstraint>& Constraint)
 	{
-		return 	Constraint->GetFName() == InConstraintName;
+		return 	(Constraint && Constraint->GetFName() == InConstraintName);
 	} );
 }
 	
