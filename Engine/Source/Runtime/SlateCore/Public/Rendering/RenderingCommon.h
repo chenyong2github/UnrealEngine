@@ -477,27 +477,11 @@ typedef TArray<FSlateVertex, FSlateStatTrackingMemoryAllocator<FRenderingBufferS
 typedef TArray<SlateIndex, FSlateStatTrackingMemoryAllocator<FRenderingBufferStatTracker>> FSlateIndexArray;
 typedef TArray<FSlateDrawElement, FSlateStatTrackingMemoryAllocator<FDrawElementStatTracker>> FSlateDrawElementArray;
 
-struct FSlateDrawElementContainer
-{
-	FSlateDrawElementArray Elements;
-};
-
-enum class EElementType : uint8;
-typedef TMap<EElementType, FSlateDrawElementContainer> FSlateDrawElementMap;
-
 #else
 
 typedef TArray<FSlateVertex> FSlateVertexArray;
 typedef TArray<SlateIndex> FSlateIndexArray;
 typedef TArray<FSlateDrawElement> FSlateDrawElementArray;
-
-struct FSlateDrawElementContainer
-{
-	FSlateDrawElementArray Elements;
-};
-
-enum class EElementType : uint8;
-typedef TMap<EElementType, FSlateDrawElementContainer> FSlateDrawElementMap;
 
 #endif
 

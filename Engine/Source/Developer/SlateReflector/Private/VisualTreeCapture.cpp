@@ -58,20 +58,17 @@ void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 		return;
 	}
 
-	if (const FSlateDrawElementContainer* Container = ElementList.GetUncachedDrawElements().Find(EElementType::ET_NonMapped))
-	{
-		const FSlateDrawElement& Element = Container->Elements[ElementIndex];
-		const FSlateRenderTransform& Transform = Element.GetRenderTransform();
-		const FVector2D LocalSize = Element.GetLocalSize();
+	const FSlateDrawElement& Element = ElementList.GetUncachedDrawElements()[ElementIndex];
+	const FSlateRenderTransform& Transform = Element.GetRenderTransform();
+	const FVector2D LocalSize = Element.GetLocalSize();
 
-		TopLeft = Transform.TransformPoint(FVector2D(0, 0));
-		TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));
-		BottomLeft = Transform.TransformPoint(FVector2D(0, LocalSize.Y));
-		BottomRight = Transform.TransformPoint(LocalSize);
+	TopLeft = Transform.TransformPoint(FVector2D(0, 0));
+	TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));
+	BottomLeft = Transform.TransformPoint(FVector2D(0, LocalSize.Y));
+	BottomRight = Transform.TransformPoint(LocalSize);
 
-		LayerId = Element.GetLayer();
-		ClippingIndex = Element.GetPrecachedClippingIndex();
-	}
+	LayerId = Element.GetLayer();
+	ClippingIndex = Element.GetPrecachedClippingIndex();
 }
 
 bool FVisualEntry::IsPointInside(const FVector2D& Point) const
@@ -181,26 +178,23 @@ void FVisualTreeCapture::AddInvalidationRootCachedEntries(TSharedRef<FVisualTree
 	const TArray<TSharedPtr<FSlateCachedElementList>>& CachedElements = Data.GetCachedElementLists();
 	for (const TSharedPtr<FSlateCachedElementList>& CachedElement : CachedElements)
 	{
-		for (TPair<EElementType, FSlateDrawElementContainer>& DrawElement : CachedElement->DrawElements)
+		const FSlateDrawElementArray& DrawElementArray = CachedElement->DrawElements;
+		const SWidget* Widget = CachedElement->OwningWidget;
+		// todo, should check if parents has the metadata also
+		if (Widget && !Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
 		{
-			const FSlateDrawElementArray& DrawElementArray = DrawElement.Value.Elements;
-			const SWidget* Widget = CachedElement->OwningWidget;
-			// todo, should check if parents has the metadata also
-			if (Widget && !Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
+			for (const FSlateDrawElement& Element : DrawElementArray)
 			{
-				for (const FSlateDrawElement& Element : DrawElementArray)
-				{
-					const int32 EntryIndex = Tree->Entries.Emplace(Widget->AsShared(), Element);
+				const int32 EntryIndex = Tree->Entries.Emplace(Widget->AsShared(), Element);
 
-					const FSlateClippingState* ClippingState = Element.GetClippingHandle().GetCachedClipState();
-					if (ClippingState)
+				const FSlateClippingState* ClippingState = Element.GetClippingHandle().GetCachedClipState();
+				if (ClippingState)
+				{
+					int32& ClippingRefIndex = Tree->Entries[EntryIndex].ClippingIndex;
+					ClippingRefIndex = Tree->CachedClippingStates.IndexOfByKey(*ClippingState);
+					if (ClippingRefIndex == INDEX_NONE)
 					{
-						int32& ClippingRefIndex = Tree->Entries[EntryIndex].ClippingIndex;
-						ClippingRefIndex = Tree->CachedClippingStates.IndexOfByKey(*ClippingState);
-						if (ClippingRefIndex == INDEX_NONE)
-						{
-							ClippingRefIndex = Tree->CachedClippingStates.Add(*ClippingState);
-						}
+						ClippingRefIndex = Tree->CachedClippingStates.Add(*ClippingState);
 					}
 				}
 			}

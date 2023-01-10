@@ -36,7 +36,6 @@ class FWeakWidgetPath;
 class FWidgetPath;
 class FNavigationReply;
 class FSlateInvalidationRoot;
-enum class EElementType : uint8;
 
 UENUM()
 enum class ESlateDebuggingInputEvent : uint8
@@ -285,18 +284,8 @@ public:
 	 * Called as soon as the element is added to the element list.
 	 * NOTE: These elements are not valid until the widget finishes painting, or you can resolve them all after the window finishes painting.
 	 */
-	UE_DEPRECATED(5.2, "FSlateDebugging::ElementAdded is deprecated, use FSlateDebugging::ElementTypeAdded instead")
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FDrawElement, const FSlateWindowElementList& /*ElementList*/, int32 /*ElementIndex*/);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static FDrawElement ElementAdded;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	/**
-	 * Called as soon as the element is added to the element list.
-	 * NOTE: These elements are not valid until the widget finishes painting, or you can resolve them all after the window finishes painting.
-	 */
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FDrawElementType, const FSlateWindowElementList& /*ElementList*/, int32 /*ElementIndex*/, EElementType /*ElementType*/);
-	static FDrawElementType ElementTypeAdded;
 
 public:
 	/**  */
