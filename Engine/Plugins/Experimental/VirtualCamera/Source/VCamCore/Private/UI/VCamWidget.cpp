@@ -35,6 +35,7 @@ void UVCamWidget::InitializeConnections(UVCamComponent* VCam)
 		VCamComponent->AddInputMappingContext(InputMappingContext, InputContextPriority);
 	}
 
+	OnInitializeConnections(VCam);
 	ReinitializeConnections();
 }
 
@@ -106,4 +107,8 @@ void UVCamWidget::UpdateConnectionTargets(const TMap<FName, FVCamConnectionTarge
 	{
 		Result = EConnectionUpdateResult::NoConnectionsUpdated;
 	}
+}
+
+void UVCamWidget::OnInitializeConnections_Implementation(UVCamComponent* VCam)
+{
 }

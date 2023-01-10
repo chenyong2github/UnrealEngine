@@ -29,10 +29,6 @@ class VCAMCORE_API UVCamWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-
-	UVCamWidget(const FObjectInitializer& ObjectInitializer);
-	
-	virtual void NativeDestruct() override;
 	
 	/*
 	 * The VCam Connections associated with this Widget
@@ -69,6 +65,12 @@ public:
 	/** Called when ReinitializeConnections is called. */
 	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "OnConnectionsReinitialized"))
 	FConnectionsReinitializedDelegate_Blueprint OnPostConnectionsReinitializedDelegate_Blueprint;
+	
+	UVCamWidget(const FObjectInitializer& ObjectInitializer);
+
+	//~ Begin UWidget Interface
+	virtual void NativeDestruct() override;
+	//~ End UWidget Interface
 	
 	/*
 	 * Event called when a specific connection has been updated
@@ -109,9 +111,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="VCam Connections", meta=(ExpandEnumAsExecs="Result", bReinitializeOnSuccessfulUpdate=true))
 	void UpdateConnectionTargets(const TMap<FName, FVCamConnectionTargetSettings>& NewConnectionTargets, const bool bReinitializeOnSuccessfulUpdate, EConnectionUpdateResult& Result);
 
+	FORCEINLINE TObjectPtr<UVCamComponent> GetVCamComponent() const { return VCamComponent; }
+
+protected:
+
+	UFUNCTION(BlueprintNativeEvent, Category = "VCam Connections")
+	void OnInitializeConnections(UVCamComponent* VCam);
+	
+private:
+	
 	/*
 	 * Cached pointer to the VCam Component that owns this VCam Widget
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category="VCam")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "VCam", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UVCamComponent> VCamComponent;
 };

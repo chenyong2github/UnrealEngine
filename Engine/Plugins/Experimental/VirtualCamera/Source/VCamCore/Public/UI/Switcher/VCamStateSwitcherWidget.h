@@ -32,9 +32,10 @@ public:
 	 * 
 	 * @param NewState The new state to switch to
 	 * @param bForceUpdate Call UpdateConnectionTargets even if the CurrentState == NewState
+	 * @param bReinitializeConnections Parameter to pass to UpdateConnectionTargets. If true, ReinitializeConnections will be called.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Connections")
-	bool SetCurrentState(FName NewState, bool bForceUpdate = false);
+	bool SetCurrentState(FName NewState, bool bForceUpdate = false, bool bReinitializeConnections = true);
 	
 	UFUNCTION(BlueprintPure, Category = "Connections")
 	FName GetCurrentState() const { return CurrentState; }
@@ -56,6 +57,10 @@ protected:
 	//~ Begin UUserWidget Interface
 	virtual void NativePreConstruct() override;
 	//~ End UUserWidget Interface
+
+	//~ Begin UVCamWidget Interface
+	virtual void OnInitializeConnections_Implementation(UVCamComponent* VCam) override;
+	//~ End UVCamWidget Interface
 	
 private:
 
@@ -75,4 +80,6 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintGetter = "GetCurrentState", BlueprintSetter = "K2_SetCurrentState", Category = "Connections")
 	FName CurrentState = DefaultState;
+
+	void SetStateOrFallbackToDefault(FName NewState, bool bReinitializeConnections = true);
 };
