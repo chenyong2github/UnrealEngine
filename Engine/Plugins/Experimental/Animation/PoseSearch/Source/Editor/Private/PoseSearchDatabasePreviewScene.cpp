@@ -5,7 +5,6 @@
 #include "PoseSearchDatabaseEditor.h"
 #include "PoseSearchDatabaseViewModel.h"
 
-#include "PoseSearch/PoseSearch.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 
 #include "Animation/DebugSkelMeshComponent.h"

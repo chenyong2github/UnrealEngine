@@ -5,17 +5,18 @@
 #include "CoreMinimal.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Misc/NotifyHook.h"
-#include "SPoseSearchDatabaseAssetList.h"
 
 class IDetailsView;
 class FToolBarBuilder;
-class UPoseSearchDatabaseSelectionReflection;
+class UPoseSearchDatabase;
 
 namespace UE::PoseSearch
 {
-	class SDatabasePreview;
+	class FDatabaseAssetTreeNode;
 	class FDatabasePreviewScene;
 	class FDatabaseViewModel;
+	class SDatabaseAssetTree;
+	class SDatabasePreview;
 
 	class FDatabaseEditor : public FAssetEditorToolkit, public FNotifyHook
 	{

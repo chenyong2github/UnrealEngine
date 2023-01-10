@@ -2,7 +2,7 @@
 
 #include "PoseSearchDatabaseViewModel.h"
 #include "PoseSearchDatabasePreviewScene.h"
-#include "SPoseSearchDatabaseAssetList.h"
+#include "PoseSearchDatabaseAssetTreeNode.h"
 #include "PoseSearchEditor.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "Modules/ModuleManager.h"

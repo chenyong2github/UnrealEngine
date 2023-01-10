@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseEditorReflection.h"
-#include "SPoseSearchDatabaseAssetList.h"
+#include "PoseSearchDatabaseAssetTree.h"
+#include "PoseSearchDatabaseAssetTreeNode.h"
 #include "PoseSearchDatabaseViewModel.h"
 
 #define LOCTEXT_NAMESPACE "UPoseSearchDatabaseReflection"
