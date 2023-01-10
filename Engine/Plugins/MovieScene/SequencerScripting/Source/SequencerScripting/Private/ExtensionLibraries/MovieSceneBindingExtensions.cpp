@@ -90,6 +90,41 @@ void UMovieSceneBindingExtensions::SetName(const FMovieSceneBindingProxy& InBind
 	}
 }
 
+int32 UMovieSceneBindingExtensions::GetSortingOrder(const FMovieSceneBindingProxy& InBinding)
+{
+#if WITH_EDITORONLY_DATA
+	UMovieScene* MovieScene = InBinding.GetMovieScene();
+	if (MovieScene)
+	{
+		const FMovieSceneBinding* Binding = Algo::FindBy(MovieScene->GetBindings(), InBinding.BindingID, &FMovieSceneBinding::GetObjectGuid);
+		if (Binding)
+		{
+			return Binding->GetSortingOrder();
+		}
+	}
+#endif
+
+	FFrame::KismetExecutionMessage(TEXT("Cannot find requested binding"), ELogVerbosity::Error);
+	return 0;
+}
+
+void UMovieSceneBindingExtensions::SetSortingOrder(const FMovieSceneBindingProxy& InBinding, int32 SortingOrder)
+{
+#if WITH_EDITORONLY_DATA
+	UMovieScene* MovieScene = InBinding.GetMovieScene();
+	if (MovieScene)
+	{
+		FMovieSceneBinding* Binding = MovieScene->FindBinding(InBinding.BindingID);
+		if (Binding)
+		{
+			Binding->SetSortingOrder(SortingOrder);
+			return;
+		}
+	}
+#endif
+	FFrame::KismetExecutionMessage(TEXT("Cannot find requested binding"), ELogVerbosity::Error);
+}
+
 TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::GetTracks(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();

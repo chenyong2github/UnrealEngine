@@ -72,6 +72,24 @@ public:
 	static void SetName(const FMovieSceneBindingProxy& InBinding, const FString& InName);
 
 	/**
+	 * Get the sorting order for this binding
+	 *
+	 * @param InBinding        The binding to get the sorting order from
+	 * @return The sorting order of the requested binding
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DevelopmentOnly))
+	static int32 GetSortingOrder(const FMovieSceneBindingProxy& InBinding);
+
+	/**
+	 * Set the sorting order for this binding
+	 *
+	 * @param InBinding        The binding to get the sorting order from
+	 * @param SortingOrder The sorting order to set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DevelopmentOnly))
+	static void SetSortingOrder(const FMovieSceneBindingProxy& InBinding, int32 SortingOrder);
+
+	/**
 	 * Get all the tracks stored within this binding
 	 *
 	 * @param InBinding     The binding to find tracks in
