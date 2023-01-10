@@ -244,6 +244,21 @@ void FUniqueNetIdRepl::MakeReplicationDataV2()
 	Writer << ReplicationData;
 }
 
+bool FUniqueNetIdRepl::IsReplicationDataDirty() const
+{
+	if (ReplicationBytes.IsEmpty())
+	{
+		// If ReplicationBytes is empty, it is dirty by definition. Even invalid net ids have encoding flags.
+		return true;
+	}
+	if (IsValid() && IsV1() && GetUniqueNetId()->IsMutable())
+	{
+		// Mutable net id's require us to reserialize fresh every time.
+		return true;
+	}
+	return false;
+}
+
 void FUniqueNetIdRepl::UniqueIdFromString(FName Type, const FString& Contents)
 {
 	// Don't need to distinguish OSS interfaces here with world because we just want the create function below
@@ -257,7 +272,7 @@ bool FUniqueNetIdRepl::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 
 	if (Ar.IsSaving())
 	{
-		if (ReplicationBytes.Num() == 0)
+		if (IsReplicationDataDirty())
 		{
 			MakeReplicationData();
 		}

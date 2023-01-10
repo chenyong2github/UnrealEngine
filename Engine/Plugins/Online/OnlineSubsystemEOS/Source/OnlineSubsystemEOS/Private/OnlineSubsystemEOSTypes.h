@@ -43,6 +43,7 @@ public:
 	virtual int32 GetSize() const override;
 	virtual bool IsValid() const override;
 	virtual uint32 GetTypeHash() const override;
+	virtual bool IsMutable() const override;
 	virtual FString ToString() const override;
 	virtual FString ToDebugString() const override;
 

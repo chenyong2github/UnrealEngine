@@ -185,9 +185,30 @@ public:
 	 */
 	virtual FString ToDebugString() const = 0;
 
+	/**
+	 * Get a hash of the opaque data
+	 *
+	 * @return the hash
+	 */
 	virtual uint32 GetTypeHash() const
 	{
 		return CityHash32(reinterpret_cast<const char*>(GetBytes()), GetSize());
+	}
+
+	/**
+	 * Whether the opaque data may mutate.
+	 * 
+	 * If true, it is not safe to assume that GetBytes and GetSize will always return the same values.
+	 * Note however the following contracts which always apply:
+	 *  - GetTypeHash must be stable, and return the same value pre and post mutation
+	 *  - Compare of 2 net id's must return the same value pre and post mutation.
+	 *  - A net id cannot mutate what it logically represents, i.e. a net id representing player A cannot mutate to represent player B.
+	 * 
+	 * @return whether the opaque data may mutate
+	 */
+	virtual bool IsMutable() const
+	{
+		return false;
 	}
 
 	/**

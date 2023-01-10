@@ -124,6 +124,9 @@ protected:
 	/** Network serialized data cache */
 	UPROPERTY(Transient)
 	TArray<uint8> ReplicationBytes;
+
+	/** Do we need to rebuild the ReplicationData */
+	bool IsReplicationDataDirty() const;
 };
 
 /** Specify type trait support for various low level UPROPERTY overrides */
