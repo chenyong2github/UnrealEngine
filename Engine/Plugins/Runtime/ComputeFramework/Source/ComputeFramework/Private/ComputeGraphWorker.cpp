@@ -69,7 +69,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 						FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderRenderProxies[DataProviderIndex];
 						if (ensure(DataProvider != nullptr))
 						{
-							FComputeDataProviderRenderProxy::FValidationData ValidationData{ NumSubInvocations, Member.GetStructMetadata()->GetSize() };
+							FComputeDataProviderRenderProxy::FValidationData ValidationData{ NumSubInvocations, (int32)Member.GetStructMetadata()->GetSize() };
 							bIsValid &= DataProvider->IsValid(ValidationData);
 
 							if (bIsValid)
