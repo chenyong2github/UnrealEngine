@@ -44,7 +44,7 @@ public:
 
 	// BEGIN ControlRig
 	virtual void Initialize(bool bInitRigUnits = true) override;
-	virtual bool ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName) override;
+	virtual bool Execute_Internal(const FName& InEventName) override;
 	virtual void SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp, bool bUseAnimInstance = false) override;
 	// END ControlRig
 

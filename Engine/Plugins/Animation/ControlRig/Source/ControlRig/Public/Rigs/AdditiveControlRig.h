@@ -18,7 +18,7 @@ class CONTROLRIG_API UAdditiveControlRig : public UControlRig
 public: 
 	// BEGIN ControlRig
 	virtual void Initialize(bool bInitRigUnits = true) override;
-	virtual bool ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName) override;
+	virtual bool Execute_Internal(const FName& InEventName) override;
 	// END ControlRig
 
 	// utility function to 

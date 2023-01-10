@@ -11,7 +11,7 @@
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimationGraphSchema.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "ControlRigBlueprint.h"
 #include "Misc/DefaultValueHelper.h"
 
@@ -62,7 +62,7 @@ void UAnimGraphNode_ControlRig::CreateCustomPins(TArray<UEdGraphPin*>* OldPins)
 #if WITH_EDITOR
 
 	// sustain the current set of custom pins - we'll refrain from changing the node until post load is complete
-	if (UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
+	if (URigVMBlueprintGeneratedClass* GeneratedClass = Cast<URigVMBlueprintGeneratedClass>(GetTargetClass()))
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GeneratedClass->ClassGeneratedBy))
 		{
@@ -170,7 +170,7 @@ void UAnimGraphNode_ControlRig::CreateCustomPins(TArray<UEdGraphPin*>* OldPins)
 			// Memory could be null if Control Rig is compiling, so only do it if Memory is not null
 			if (Variable.IsValid(false))
 			{ 
-				if (UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
+				if (URigVMBlueprintGeneratedClass* GeneratedClass = Cast<URigVMBlueprintGeneratedClass>(GetTargetClass()))
 				{
 					for (TFieldIterator<FProperty> PropertyIt(GeneratedClass); PropertyIt; ++PropertyIt)
 					{
@@ -301,7 +301,7 @@ void UAnimGraphNode_ControlRig::RebuildExposedProperties()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (UControlRigBlueprintGeneratedClass* TargetClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
+	if (URigVMBlueprintGeneratedClass* TargetClass = Cast<URigVMBlueprintGeneratedClass>(GetTargetClass()))
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(TargetClass->ClassGeneratedBy))
 		{
@@ -572,7 +572,7 @@ void UAnimGraphNode_ControlRig::GetVariables(bool bInput, TMap<FName, FRigVMExte
 
 	OutVariables.Reset();
 
-	if (UControlRigBlueprintGeneratedClass* TargetClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
+	if (URigVMBlueprintGeneratedClass* TargetClass = Cast<URigVMBlueprintGeneratedClass>(GetTargetClass()))
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(TargetClass->ClassGeneratedBy))
 		{
@@ -836,7 +836,7 @@ void UAnimGraphNode_ControlRig::PostReconstructNode()
 
 						if (RigVMExternalVariable != nullptr && RigVMExternalVariable->IsValid())
 						{
-							if (UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
+							if (URigVMBlueprintGeneratedClass* GeneratedClass = Cast<URigVMBlueprintGeneratedClass>(GetTargetClass()))
 							{
 								const FName& PropertyName = CurrentPin->GetFName();
 

@@ -114,7 +114,7 @@ private:
 	bool bSuspendModelNotifications;
 	bool bSuspendControllerSelection;
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
-	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const FName& InEventName);
+	void HandleControlRigInitializedEvent(URigVMHost* InControlRig, const FName& InEventName);
 	void HandlePreviewControlRigUpdated(FControlRigEditor* InEditor);
 	void HandleItemMouseDoubleClick(TSharedPtr<FRigStackEntry> InItem);
 

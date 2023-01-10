@@ -13,35 +13,13 @@ UControlRigBlueprintGeneratedClass::UControlRigBlueprintGeneratedClass(const FOb
 {
 }
 
-uint8* UControlRigBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const
-{
-	if(!IsInGameThread())
-	{
-		// we cant use the persistent frame if we are executing in parallel (as we could potentially thunk to BP)
-		return nullptr;
-	}
-	return Super::GetPersistentUberGraphFrame(Obj, FuncToCheck);
-}
-
-void UControlRigBlueprintGeneratedClass::PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph)
-{
-	if (UControlRig* ControlRig = Cast<UControlRig>(InObj))
-	{
-		UControlRig* CDO = nullptr;
-		if (!ControlRig->HasAnyFlags(RF_ClassDefaultObject))
-		{
-			CDO = Cast<UControlRig>(GetDefaultObject());;
-		}
-
-		ControlRig->PostInitInstance(CDO);
-	}
-}
-
 void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	Super::Serialize(Ar);
+	// don't use URigVMBlueprintGeneratedClass
+	// to avoid backwards compat issues.
+	UBlueprintGeneratedClass::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 

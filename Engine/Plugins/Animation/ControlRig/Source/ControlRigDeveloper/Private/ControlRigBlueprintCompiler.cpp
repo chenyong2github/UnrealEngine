@@ -9,7 +9,7 @@
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraphSchema.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -123,7 +123,7 @@ void FControlRigBlueprintCompilerContext::EnsureProperGeneratedClass(UClass*& Ta
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if( TargetUClass && !((UObject*)TargetUClass)->IsA(UControlRigBlueprintGeneratedClass::StaticClass()) )
+	if( TargetUClass && !((UObject*)TargetUClass)->IsA(URigVMBlueprintGeneratedClass::StaticClass()) )
 	{
 		FKismetCompilerUtilities::ConsignToOblivion(TargetUClass, Blueprint->bIsRegeneratingOnLoad);
 		TargetUClass = nullptr;
@@ -134,11 +134,11 @@ void FControlRigBlueprintCompilerContext::SpawnNewClass(const FString& NewClassN
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	NewControlRigBlueprintGeneratedClass = FindObject<UControlRigBlueprintGeneratedClass>(Blueprint->GetOutermost(), *NewClassName);
+	NewControlRigBlueprintGeneratedClass = FindObject<URigVMBlueprintGeneratedClass>(Blueprint->GetOutermost(), *NewClassName);
 
 	if (NewControlRigBlueprintGeneratedClass == nullptr)
 	{
-		NewControlRigBlueprintGeneratedClass = NewObject<UControlRigBlueprintGeneratedClass>(Blueprint->GetOutermost(), FName(*NewClassName), RF_Public | RF_Transactional);
+		NewControlRigBlueprintGeneratedClass = NewObject<URigVMBlueprintGeneratedClass>(Blueprint->GetOutermost(), FName(*NewClassName), RF_Public | RF_Transactional);
 	}
 	else
 	{
@@ -152,7 +152,7 @@ void FControlRigBlueprintCompilerContext::OnNewClassSet(UBlueprintGeneratedClass
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	NewControlRigBlueprintGeneratedClass = CastChecked<UControlRigBlueprintGeneratedClass>(ClassToUse);
+	NewControlRigBlueprintGeneratedClass = CastChecked<URigVMBlueprintGeneratedClass>(ClassToUse);
 }
 
 void FControlRigBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO)

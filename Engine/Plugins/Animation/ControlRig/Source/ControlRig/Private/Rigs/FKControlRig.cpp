@@ -104,7 +104,7 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 	return NAME_None;
 }
 
-bool UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
+bool UFKControlRig::Execute_Internal(const FName& InEventName)
 {
 #if WITH_EDITOR
 	if(URigHierarchy* Hierarchy = GetHierarchy())

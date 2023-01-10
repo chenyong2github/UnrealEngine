@@ -325,6 +325,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// New default for number of attributes on 2d grids
 		NiagaraGrid2DDefaultUnnamedAttributesZero,
 
+		// RigVM generated class refactor
+		RigVMGeneratedClass,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

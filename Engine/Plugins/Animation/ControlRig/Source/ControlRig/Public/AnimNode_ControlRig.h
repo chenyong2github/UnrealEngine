@@ -38,7 +38,7 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	virtual void PropagateInputProperties(const UObject* InSourceInstance) override;
 	
 private:
-	void HandleOnInitialized_AnyThread(UControlRig*, const FName&);
+	void HandleOnInitialized_AnyThread(URigVMHost*, const FName&);
 #if WITH_EDITOR
 	virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
 #endif

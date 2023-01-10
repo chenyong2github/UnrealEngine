@@ -20,7 +20,7 @@
 #include "ClassViewerFilter.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintActions.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -288,7 +288,7 @@ UObject* UControlRigBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* I
 	}
 	else
 	{
-		UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BPTYPE_Normal, UControlRigBlueprint::StaticClass(), UControlRigBlueprintGeneratedClass::StaticClass(), CallingContext));
+		UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BPTYPE_Normal, UControlRigBlueprint::StaticClass(), URigVMBlueprintGeneratedClass::StaticClass(), CallingContext));
 		CreateRigGraphIfRequired(ControlRigBlueprint);
 		return ControlRigBlueprint;
 	}

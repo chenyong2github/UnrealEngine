@@ -42,14 +42,14 @@ FName UAdditiveControlRig::GetNullName(const FName& InBoneName)
 	return NAME_None;
 }
 
-bool UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
+bool UAdditiveControlRig::Execute_Internal(const FName& InEventName)
 {
 	if (InEventName == FRigUnit_BeginExecution::EventName)
 	{
 		FControlRigExecuteContext ExecuteContext;
 		ExecuteContext.Hierarchy = GetHierarchy();
 		ExecuteContext.SetEventName(InEventName);
-		ExecuteContext.UnitContext = InOutContext;
+		ExecuteContext.UnitContext = FRigUnitContext();
 
 		for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
 		{
@@ -93,8 +93,7 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 		return;
 	}
 
-	FRigUnitContext DefaultContext;
-	ExecuteUnits(DefaultContext, FRigUnit_PrepareForExecution::EventName);
+	Execute_Internal(FRigUnit_PrepareForExecution::EventName);
 }
 
 void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)

@@ -14,7 +14,7 @@
 #include "GraphEditorActions.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "ControlRigDeveloper.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Application/SlateApplication.h"

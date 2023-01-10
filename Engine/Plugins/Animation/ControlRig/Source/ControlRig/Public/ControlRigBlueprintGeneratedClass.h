@@ -8,27 +8,16 @@
 #include "ControlRigDefines.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMGraphFunctionHost.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "ControlRigBlueprintGeneratedClass.generated.h"
 
 UCLASS()
-class CONTROLRIG_API UControlRigBlueprintGeneratedClass : public UBlueprintGeneratedClass, public IRigVMGraphFunctionHost
+class CONTROLRIG_API UControlRigBlueprintGeneratedClass : public URigVMBlueprintGeneratedClass
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	// UClass interface
-	virtual uint8* GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const override;
-	virtual void PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph) override;
-
 	// UObject interface
 	void Serialize(FArchive& Ar);
-
-	// IRigVMGraphFunctionHost interface
-	virtual const FRigVMGraphFunctionStore* GetRigVMGraphFunctionStore() const override { return &GraphFunctionStore; }
-	virtual FRigVMGraphFunctionStore* GetRigVMGraphFunctionStore() override { return &GraphFunctionStore; }
-
-	UPROPERTY()
-	FRigVMGraphFunctionStore GraphFunctionStore;
-	
 };

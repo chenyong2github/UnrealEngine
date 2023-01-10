@@ -131,7 +131,7 @@ void UControlRigValidator::SetControlRig(UControlRig* InControlRig)
 	}
 }
 
-void UControlRigValidator::OnControlRigInitialized(UControlRig* Subject, const FName& EventName)
+void UControlRigValidator::OnControlRigInitialized(URigVMHost* Subject, const FName& EventName)
 {
 	if (UControlRig* ControlRig = WeakControlRig.Get())
 	{
@@ -149,7 +149,7 @@ void UControlRigValidator::OnControlRigInitialized(UControlRig* Subject, const F
 	}
 }
 
-void UControlRigValidator::OnControlRigExecuted(UControlRig* Subject, const FName& EventName)
+void UControlRigValidator::OnControlRigExecuted(URigVMHost* Subject, const FName& EventName)
 {
 	if (UControlRig* ControlRig = WeakControlRig.Get())
 	{

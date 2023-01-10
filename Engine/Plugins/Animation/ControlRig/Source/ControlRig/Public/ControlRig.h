@@ -16,9 +16,8 @@
 #include "Units/RigUnit.h"
 #include "Units/Control/RigUnit_Control.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMHost.h"
 #include "Components/SceneComponent.h"
-#include "Engine/AssetUserData.h"
-#include "Interfaces/Interface_AssetUserData.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AttributesRuntime.h"
@@ -47,18 +46,9 @@ struct FRigControl;
 
 CONTROLRIG_API DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
 
-// set this to something larger than 0 to profile N runs
-#ifndef UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
-#define UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM 0
-#endif
-
-#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
-#include "HAL/PlatformTime.h"
-#endif
-
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
-class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderInterface, public IInterface_AssetUserData
+class CONTROLRIG_API UControlRig : public URigVMHost, public INodeMappingProviderInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -95,23 +85,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ControlRig)
 	static TArray<UControlRig*> FindControlRigs(UObject* Outer, TSubclassOf<UControlRig> OptionalClass);
 
-
-private:
-	/** Current delta time */
-	float DeltaTime;
-
-	/** Current delta time */
-	float AbsoluteTime;
-
-	/** Current delta time */
-	float FramesPerSecond;
-
-	/** true if the rig itself should increase the AbsoluteTime */
-	bool bAccumulateTime;
-
 public:
+	virtual UWorld* GetWorld() const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+	virtual UScriptStruct* GetPublicContextStruct() const override { return FControlRigExecuteContext::StaticStruct(); }
+
 #if WITH_EDITOR
 
 private:
@@ -123,40 +102,7 @@ public:
 	void BroadCastEndLoadPackage() { EndLoadPackageEvent.Broadcast(this); }
 	FOnEndLoadPackage& OnEndLoadPackage() { return EndLoadPackageEvent; }
 
-	virtual void PostEditUndo() override;
 #endif
-
-	/** Is valid for execution */
-	UFUNCTION(BlueprintPure, Category="Control Rig")
-	virtual bool CanExecute() const;
-
-	/** Gets the current absolute time */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	float GetAbsoluteTime() const { return AbsoluteTime; }
-
-	/** Gets the current delta time */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	float GetDeltaTime() const { return DeltaTime; }
-
-	/** Set the current delta time */
-	UFUNCTION(BlueprintCallable, Category="Control Rig")
-	void SetDeltaTime(float InDeltaTime);
-
-	/** Set the current absolute time */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void SetAbsoluteTime(float InAbsoluteTime, bool InSetDeltaTimeZero = false);
-
-	/** Set the current absolute and delta times */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void SetAbsoluteAndDeltaTime(float InAbsoluteTime, float InDeltaTime);
-
-	/** Set the current fps */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void SetFramesPerSecond(float InFramesPerSecond);
-
-	/** Returns the current frames per second (this may change over time) */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	float GetCurrentFramesPerSecond() const;
 
 	/** Creates a transformable control handle for the specified control to be used by the constraints system. Should use the UObject from 
 	ConstraintsScriptingLibrary::GetManager(UWorld* InWorld)*/
@@ -172,78 +118,11 @@ public:
 	virtual FText GetToolTipText() const;
 #endif
 
-	/** UObject interface */
-	virtual UWorld* GetWorld() const override;
-
 	/** Initialize things for the ControlRig */
-	virtual void Initialize(bool bInitRigUnits = true);
+	virtual void Initialize(bool bInitRigUnits = true) override;
 
 	/** Initialize the VM */
-	virtual bool InitializeVM(const FName& InEventName);
-
-	/** Evaluate at Any Thread */
-	virtual void Evaluate_AnyThread();
-
-	/** Locks for the scope of Evaluate_AnyThread */
-	FCriticalSection& GetEvaluateMutex() { return EvaluateMutex; };
-
-	/** Returns the member properties as an external variable array */
-	TArray<FRigVMExternalVariable> GetExternalVariables() const;
-
-	/** Returns the public member properties as an external variable array */
-	TArray<FRigVMExternalVariable> GetPublicVariables() const;
-
-	/** Returns a public variable given its name */
-	FRigVMExternalVariable GetPublicVariableByName(const FName& InVariableName) const;
-
-	/** Returns the names of variables accessible in scripting */
-	UFUNCTION(BlueprintPure, Category = "Control Rig", meta=(DisplayName="Get Variables"))
-	TArray<FName> GetScriptAccessibleVariables() const;
-
-	/** Returns the type of a given variable */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	FName GetVariableType(const FName& InVariableName) const;
-
-	/** Returns the value of a given variable as a string */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	FString GetVariableAsString(const FName& InVariableName) const;
-
-	/** Returns the value of a given variable as a string */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	bool SetVariableFromString(const FName& InVariableName, const FString& InValue);
-
-	template<class T>
-	T GetPublicVariableValue(const FName& InVariableName)
-	{
-		FRigVMExternalVariable Variable = GetPublicVariableByName(InVariableName);
-		if (Variable.IsValid())
-		{
-			return Variable.GetValue<T>();
-		}
-		return T();
-	}
-
-	template<class T>
-	void SetPublicVariableValue(const FName& InVariableName, const T& InValue)
-	{
-		FRigVMExternalVariable Variable = GetPublicVariableByName(InVariableName);
-		if (Variable.IsValid())
-		{
-			Variable.SetValue<T>(InValue);
-		}
-	}
-
-	template<class T>
-	bool SupportsEvent() const
-	{
-		return SupportsEvent(T::EventName);
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	bool SupportsEvent(const FName& InEventName) const;
-
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	TArray<FName> GetSupportedEvents() const;
+	virtual bool InitializeVM(const FName& InEventName) override;
 
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
 	void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
@@ -260,13 +139,6 @@ public:
 	/** Find the actor the rig is bound to, if any */
 	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	AActor* GetHostingActor() const;
-
-	virtual FString GetName() const
-	{
-		FString ObjectName = (GetClass()->GetName());
-		ObjectName.RemoveFromEnd(TEXT("_C"));
-		return ObjectName;
-	}
 
 	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	URigHierarchy* GetHierarchy()
@@ -287,7 +159,6 @@ public:
 #endif // WITH_EDITOR
 	
 	// BEGIN UObject interface
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void BeginDestroy() override;
 	// END UObject interface
 
@@ -297,49 +168,17 @@ public:
 	UPROPERTY()
 	FRigHierarchySettings HierarchySettings;
 
-	UPROPERTY()
-	FRigVMRuntimeSettings VMRuntimeSettings;
-
-	/** Execute */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	bool Execute(const FName& InEventName);
-
-	/** ExecuteUnits */
-	virtual bool ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
-
-	/** Returns true if this rig contains a given event */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	bool ContainsEvent(const FName& InEventName) const;
-
-	/** Returns the user defined events */
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	TArray<FName> GetEvents() const;
-
-	/** Execute a user defined event */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	bool ExecuteEvent(const FName& InEventName);
-
-	/** Requests to perform an init during the next execution */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void RequestInit();
+	virtual bool Execute(const FName& InEventName) override;
+	virtual bool Execute_Internal(const FName& InEventName) override;
+	virtual void RequestInit() override;
 
 	/** Requests to perform construction during the next execution */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void RequestConstruction();
 
-	bool IsConstructionRequired() const { return bRequiresConstructionEvent; }
+	bool IsConstructionRequired() const;
 
-	/** Returns the queue of events to run */
-	const TArray<FName>& GetEventQueue() const { return EventQueue; }
-
-	/** Sets the queue of events to run */
-	void SetEventQueue(const TArray<FName>& InEventNames);
-
-	/** Update the settings such as array bound and log facilities */
-	void UpdateVMSettings();
-
-	UFUNCTION(BlueprintPure, Category = "Control Rig")
-	URigVM* GetVM();
+	virtual void AdaptEventQueueForEvaluate(TArray<FName>& InOutEventQueueToRun) override;
 
 	/** INodeMappingInterface implementation */
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
@@ -448,7 +287,6 @@ public:
 	bool IsCurveControl(const FRigControlElement* InControlElement) const;
 
 	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const FName&);
-	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
 #if WITH_EDITOR
 	FControlRigExecuteEvent& OnPreConstructionForUI_AnyThread() { return PreConstructionForUIEvent; }
 #endif
@@ -456,7 +294,6 @@ public:
 	FControlRigExecuteEvent& OnPostConstruction_AnyThread() { return PostConstructionEvent; }
 	FControlRigExecuteEvent& OnPreForwardsSolve_AnyThread() { return PreForwardsSolveEvent; }
 	FControlRigExecuteEvent& OnPostForwardsSolve_AnyThread() { return PostForwardsSolveEvent; }
-	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
 
 	// Setup the initial transform / ref pose of the bones based upon an anim instance
@@ -485,31 +322,20 @@ private:
 
 public:
 	
-	const FRigVMDrawInterface& GetDrawInterface() const { return DrawInterface; };
-	FRigVMDrawInterface& GetDrawInterface() { return DrawInterface; };
-
-	const FRigVMDrawContainer& GetDrawContainer() const { return DrawContainer; };
-	FRigVMDrawContainer& GetDrawContainer() { return DrawContainer; };
-
 	const FRigControlElementCustomization* GetControlCustomization(const FRigElementKey& InControl) const;
 	void SetControlCustomization(const FRigElementKey& InControl, const FRigControlElementCustomization& InCustomization);
 
-	void PostInitInstanceIfRequired();
-	void SwapVMToNativizedIfRequired(UClass* InNativizedClass = nullptr);
-	static bool AreNativizedVMsDisabled() ;
+	virtual void PostInitInstanceIfRequired() override;
 #if WITH_EDITORONLY_DATA
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 protected:
 
-	void PostInitInstance(UControlRig* InCDO);
+	virtual void PostInitInstance(URigVMHost* InCDO) override;
 
 	UPROPERTY()
 	TMap<FRigElementKey, FRigControlElementCustomization> ControlCustomizations;
-
-	UPROPERTY()
-	TObjectPtr<URigVM> VM;
 
 	UPROPERTY()
 	TObjectPtr<URigHierarchy> DynamicHierarchy;
@@ -525,11 +351,6 @@ protected:
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
 
-#if WITH_EDITOR
-	FRigVMLog* ControlRigLog;
-	bool bEnableControlRigLogging;
-#endif
-
 #if WITH_EDITORONLY_DATA
 	// you either go Input or Output, currently if you put it in both place, Output will override
 	UPROPERTY()
@@ -543,25 +364,8 @@ private:
 	
 	void HandleOnControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
 
-	void HandleExecutionReachedExit(const FName& InEventName);
-	
-	TArray<FRigVMExternalVariable> GetExternalVariablesImpl(bool bFallbackToBlueprint) const;
-
-	FProperty* GetPublicVariableProperty(const FName& InVariableName) const
-	{
-		if (FProperty* Property = GetClass()->FindPropertyByName(InVariableName))
-		{
-			if (!Property->IsNative())
-			{
-				if (!Property->HasAllPropertyFlags(CPF_DisableEditOnInstance))
-				{
-					return Property;
-				}
-			}
-		}
-		return nullptr;
-	}
 public:
+	
 	class CONTROLRIG_API FAnimAttributeContainerPtrScope
 	{
 	public:
@@ -586,29 +390,9 @@ private:
 	UE::Anim::FHeapAttributeContainer OutputAnimAttributeSnapshot;
 #endif
 	
-	UPROPERTY()
-	FRigVMDrawContainer DrawContainer;
-
-	/** The draw interface for the units to use */
-	FRigVMDrawInterface DrawInterface;
-
 	/** The registry to access data source */
 	UPROPERTY(transient)
 	TObjectPtr<UAnimationDataSourceRegistry> DataSourceRegistry;
-
-	/** The event name used during an update */
-	UPROPERTY(transient)
-	TArray<FName> EventQueue;
-	TArray<FName> EventQueueToRun;
-
-	/** Copy the VM from the default object */
-	void InstantiateVMFromCDO();
-	
-	/** Copy the default values of external variables from the default object */
-	void CopyExternalVariableDefaultValuesFromCDO();
-	
-	/** Broadcasts a notification whenever the controlrig's memory is initialized. */
-	FControlRigExecuteEvent InitializedEvent;
 
 	/** Broadcasts a notification when launching the construction event */
 	FControlRigExecuteEvent PreConstructionForUIEvent;
@@ -624,9 +408,6 @@ private:
 	
 	/** Broadcasts a notification after a forward solve has been initiated */
 	FControlRigExecuteEvent PostForwardsSolveEvent;
-	
-	/** Broadcasts a notification whenever the controlrig is executed / updated. */
-	FControlRigExecuteEvent ExecutedEvent;
 
 	/** Handle changes within the hierarchy */
 	void HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
@@ -674,7 +455,7 @@ private:
 	void HandleHierarchyEvent(URigHierarchy* InHierarchy, const FRigEventContext& InEvent);
 	FRigEventDelegate RigEventDelegate;
 
-	void InitializeFromCDO();
+	virtual void InitializeFromCDO() override;
 
 	UPROPERTY()
 	FRigInfluenceMapPerEvent Influences;
@@ -709,37 +490,20 @@ public:
 
 	float GetDebugBoneRadiusMultiplier() const { return DebugBoneRadiusMultiplier; }
 
-public:
-	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
-	//~ End IInterface_AssetUserData Interface
-protected
-	:
-	/** Array of user data stored with the asset */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = "Default")
-	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
-
 private:
 
 	void CopyPoseFromOtherRig(UControlRig* Subject);
 	void HandleInteractionRigControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
-	void HandleInteractionRigInitialized(UControlRig* Subject, const FName& EventName);
-	void HandleInteractionRigExecuted(UControlRig* Subject, const FName& EventName);
+	void HandleInteractionRigInitialized(URigVMHost* Subject, const FName& EventName);
+	void HandleInteractionRigExecuted(URigVMHost* Subject, const FName& EventName);
 	void HandleInteractionRigControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected, bool bInverted);
 
 
 protected:
-	bool bRequiresInitExecution;
-	bool bRequiresConstructionEvent;
 	bool bCopyHierarchyBeforeConstruction;
 	bool bResetInitialTransformsBeforeConstruction;
 	bool bManipulationEnabled;
 
-	int32 InitBracket;
-	int32 UpdateBracket;
 	int32 PreConstructionBracket;
 	int32 PostConstructionBracket;
 	int32 PreForwardsSolveBracket;
@@ -752,16 +516,6 @@ protected:
 	bool bInteractionJustBegan;
 
 	TWeakObjectPtr<USceneComponent> OuterSceneComponent;
-
-	bool IsInitializing() const
-	{
-		return InitBracket > 0;
-	}
-
-	bool IsExecuting() const
-	{
-		return UpdateBracket > 0;
-	}
 
 	bool IsRunningPreConstruction() const
 	{
@@ -815,13 +569,6 @@ private:
 
 #if WITH_EDITORONLY_DATA
 
-	UPROPERTY(transient)
-	TObjectPtr<URigVM> VMSnapshotBeforeExecution;
-
-	/** The current execution mode */
-	UPROPERTY(transient)
-	bool bIsInDebugMode;
-
 	/** Whether controls are visible */
 	UPROPERTY(transient)
 	bool bControlsVisible;
@@ -832,30 +579,12 @@ private:
 	
 #if WITH_EDITOR	
 
-	FRigVMDebugInfo DebugInfo;
-	TMap<FString, bool> LoggedMessages;
-	void LogOnce(EMessageSeverity::Type InSeverity, int32 InInstructionIndex, const FString& InMessage);
-	
 public:
-
-	void SetIsInDebugMode(const bool bValue) { bIsInDebugMode = bValue; }
-	bool IsInDebugMode() const { return bIsInDebugMode; }
-	
-	/** Adds a breakpoint in the VM at the InstructionIndex for the Node */
-	void AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode, uint16 InDepth);
-
-	/** If the VM is halted at a breakpoint, it sets a breakpoint action so that
-	 *  it is applied on the next VM execution */
-	bool ExecuteBreakpointAction(const ERigVMBreakpointAction BreakpointAction);
-	
-	FRigVMDebugInfo& GetDebugInfo() { return DebugInfo; }
-
-	/** Creates the snapshot VM if required and returns it */
-	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
 
 	void ToggleControlsVisible() { bControlsVisible = !bControlsVisible; }
 	void SetControlsVisible(const bool bIsVisible) { bControlsVisible = bIsVisible; }
 	bool GetControlsVisible()const { return bControlsVisible;}
+
 #endif	
 
 private:
@@ -949,13 +678,6 @@ public:
 #endif
 	
 private:
-
-	FCriticalSection EvaluateMutex;
-
-#if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
-	int32 ProfilingRunsLeft;
-	uint64 AccumulatedCycles;
-#endif
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;

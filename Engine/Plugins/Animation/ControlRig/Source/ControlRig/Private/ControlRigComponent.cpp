@@ -1656,7 +1656,7 @@ FName UControlRigComponent::GetComponentNameWithinActor(UActorComponent* InCompo
 	return ComponentProperty;
 }
 
-void UControlRigComponent::HandleControlRigInitializedEvent(UControlRig* InControlRig, const FName& InEventName)
+void UControlRigComponent::HandleControlRigInitializedEvent(URigVMHost* InControlRig, const FName& InEventName)
 {
 #if WITH_EDITOR
 	if (bUpdateInEditor)
@@ -1766,7 +1766,7 @@ void UControlRigComponent::HandleControlRigPostForwardsSolveEvent(UControlRig* I
 	}
 }
 
-void UControlRigComponent::HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName)
+void UControlRigComponent::HandleControlRigExecutedEvent(URigVMHost* InControlRig, const FName& InEventName)
 {
 	TransferOutputs();
 }

@@ -10,7 +10,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "ControlRigBlueprint.h"
 #include "RigVMCore/RigVM.h"
 
@@ -86,7 +86,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 
 	if (BlueprintBeingCustomized)
 	{
-		UControlRigBlueprintGeneratedClass* RigClass = BlueprintBeingCustomized->GetControlRigBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* RigClass = BlueprintBeingCustomized->GetControlRigBlueprintGeneratedClass();
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 		if (CDO->GetVM() != nullptr)
 		{

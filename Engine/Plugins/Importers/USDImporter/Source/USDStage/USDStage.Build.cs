@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"AnimationCore",
 					"CinematicCamera",
+					"RigVM",
 					"ControlRig",
 					"Core",
 					"CoreUObject",

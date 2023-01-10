@@ -12,7 +12,7 @@
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimationGraphSchema.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "ControlRigBlueprint.h"
 #include "Misc/DefaultValueHelper.h"
 #include "AnimNextInterfaceUncookedOnlyUtils.h"
@@ -148,7 +148,7 @@ void UAnimGraphNode_AnimNextInterfaceGraph::GetVariables(bool bInput, TMap<FName
 
 	OutVariables.Reset();
 
-	if (UControlRigBlueprintGeneratedClass* TargetClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
+	if (URigVMBlueprintGeneratedClass* TargetClass = Cast<URigVMBlueprintGeneratedClass>(GetTargetClass()))
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(TargetClass->ClassGeneratedBy))
 		{

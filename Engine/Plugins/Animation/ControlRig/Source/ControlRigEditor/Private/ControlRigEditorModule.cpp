@@ -41,7 +41,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/ControlRigEditor.h"
 #include "ControlRigBlueprintActions.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "ControlRigGizmoLibraryActions.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraph.h"
@@ -1157,7 +1157,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		TArray<FAssetData> ControlRigAssetDatas;
 		FARFilter ControlRigAssetFilter;
 		ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprint::StaticClass()->GetClassPathName());
-		ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprintGeneratedClass::StaticClass()->GetClassPathName());
+		ControlRigAssetFilter.ClassPaths.Add(URigVMBlueprintGeneratedClass::StaticClass()->GetClassPathName());
 		AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
 
 		// loop over all control rigs in the project
@@ -1215,7 +1215,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 
 void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
 {
-	if (UControlRigBlueprintGeneratedClass* GeneratedClass = CRB->GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* GeneratedClass = CRB->GetControlRigBlueprintGeneratedClass())
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject()))
 		{
@@ -2182,7 +2182,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 										TSharedPtr<FDelegateHandle> RunOnceHandle = MakeShareable(new FDelegateHandle);
 										*(RunOnceHandle.Get()) = ControlRig->OnExecuted_AnyThread().AddLambda(
-											[RunOnceHandle, EventName, PreviousEventQueue](UControlRig* InRig, const FName& InEventName)
+											[RunOnceHandle, EventName, PreviousEventQueue](URigVMHost* InRig, const FName& InEventName)
 											{
 												if(InEventName == EventName)
 												{
@@ -2575,7 +2575,7 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 		{
 			// make sure variable properties on the BP is patched
 			// since active rig instance still references it
-			if (UControlRigBlueprintGeneratedClass* BPClass = Cast<UControlRigBlueprintGeneratedClass>(InStructProperty->GetOwnerClass()))
+			if (URigVMBlueprintGeneratedClass* BPClass = Cast<URigVMBlueprintGeneratedClass>(InStructProperty->GetOwnerClass()))
 			{
 				if (BPClass->ClassGeneratedBy->IsA<UControlRigBlueprint>())
 				{
@@ -2677,7 +2677,7 @@ void FControlRigEditorModule::PostChange(const UUserDefinedStruct* Changed,
 		// so to simplify things, here we just reset all rigs upon error
 		if (ResultsLog.NumErrors > 0)
 		{
-			UControlRigBlueprintGeneratedClass* RigClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+			URigVMBlueprintGeneratedClass* RigClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
 			UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 			if (CDO->GetVM() != nullptr)
 			{

@@ -20,7 +20,7 @@
 #include "Editor/ControlRigEditorEditMode.h"
 #include "EditMode/ControlRigEditModeSettings.h"
 #include "EditorModeManager.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "AnimCustomInstanceHelper.h"
 #include "Sequencer/ControlRigLayerInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -1433,7 +1433,7 @@ void FControlRigEditor::SetExecutionMode(const EControlRigExecutionModeType InEx
 	
 	if (ControlRig)
 	{
-		ControlRig->bIsInDebugMode = InExecutionMode == EControlRigExecutionModeType_Debug;
+		ControlRig->SetIsInDebugMode(InExecutionMode == EControlRigExecutionModeType_Debug);
 	}
 
 	SetHaltedNode(nullptr);
@@ -1485,7 +1485,7 @@ void FControlRigEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugL
 		DebugList.Add(DebugObject);
 	}
 
-	UControlRigBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
 	if (GeneratedClass)
 	{
 		struct Local
@@ -1597,7 +1597,7 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
-		if (UControlRigBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass())
+		if (URigVMBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass())
 		{
 			UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject(true /* create if needed */));
 			if (CDO->VM->GetInstructions().Num() <= 1 /* only exit */)
@@ -1614,7 +1614,7 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 	{
 		bool bIsExternalControlRig = DebuggedControlRig != ControlRig;
 		bool bShouldExecute = (!bIsExternalControlRig) && bExecutionControlRig;
-		DebuggedControlRig->ControlRigLog = &ControlRigLog;
+		DebuggedControlRig->RigVMLog = &ControlRigLog;
 		GetControlRigBlueprint()->Hierarchy->HierarchyForSelectionPtr = DebuggedControlRig->DynamicHierarchy;
 
 		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
@@ -2256,9 +2256,9 @@ void FControlRigEditor::Compile()
 		
 		if (ControlRig)
 		{
-			ControlRig->ControlRigLog = &ControlRigLog;
+			ControlRig->RigVMLog = &ControlRigLog;
 
-			UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
+			URigVMBlueprintGeneratedClass* GeneratedClass = Cast<URigVMBlueprintGeneratedClass>(ControlRig->GetClass());
 			if (GeneratedClass)
 			{
 				UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject(true /* create if needed */));
@@ -3231,7 +3231,7 @@ void FControlRigEditor::HandleVMCompiledEvent(UObject* InCompiledObject, URigVM*
 	UpdateGraphCompilerErrors();
 }
 
-void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName)
+void FControlRigEditor::HandleControlRigExecutedEvent(URigVMHost* InControlRig, const FName& InEventName)
 {
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
@@ -3326,9 +3326,9 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
                                     ControlRigBP->RigGraphDisplaySettings.NodeRunLimit
                                 );
 
-								if(DebuggedControlRig->ControlRigLog)
+								if(DebuggedControlRig->RigVMLog)
 								{
-									DebuggedControlRig->ControlRigLog->Entries.Add(
+									DebuggedControlRig->RigVMLog->Entries.Add(
 										FRigVMLog::FLogEntry(EMessageSeverity::Warning, InEventName, InstructionIndex, Message
 									));
 								}
@@ -4368,7 +4368,7 @@ void FControlRigEditor::UpdateControlRig()
 				ControlRig = NewObject<UControlRig>(EditorSkelComp, Class);
 				// this is editing time rig
 				ControlRig->ExecutionType = ERigExecutionType::Editing;
-				ControlRig->ControlRigLog = &ControlRigLog;
+				ControlRig->RigVMLog = &ControlRigLog;
 
 				ControlRig->Initialize(true);
  			}
@@ -4376,7 +4376,7 @@ void FControlRigEditor::UpdateControlRig()
 			ControlRig->PreviewInstance = PreviewInstance;
 
 #if WITH_EDITOR
-			ControlRig->bIsInDebugMode = ExecutionMode == EControlRigExecutionModeType_Debug;
+			ControlRig->SetIsInDebugMode(ExecutionMode == EControlRigExecutionModeType_Debug);
 #endif
 
 			if (UControlRig* CDO = Cast<UControlRig>(Class->GetDefaultObject()))

@@ -27,7 +27,7 @@
 
 #include "ControlRigBlueprint.generated.h"
 
-class UControlRigBlueprintGeneratedClass;
+class URigVMBlueprintGeneratedClass;
 class USkeletalMesh;
 class UControlRigGraph;
 struct FEndLoadPackageContext;
@@ -212,10 +212,10 @@ public:
 	void InitializeModelIfRequired(bool bRecompileVM = true);
 
 	/** Get the (full) generated class for this control rig blueprint */
-	UControlRigBlueprintGeneratedClass* GetControlRigBlueprintGeneratedClass() const;
+	URigVMBlueprintGeneratedClass* GetControlRigBlueprintGeneratedClass() const;
 
 	/** Get the (skeleton) generated class for this control rig blueprint */
-	UControlRigBlueprintGeneratedClass* GetControlRigBlueprintSkeletonClass() const;
+	URigVMBlueprintGeneratedClass* GetControlRigBlueprintSkeletonClass() const;
 
 	virtual void Serialize(FArchive& Ar) override;
 

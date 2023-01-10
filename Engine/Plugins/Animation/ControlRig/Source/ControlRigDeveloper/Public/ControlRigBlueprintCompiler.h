@@ -8,7 +8,7 @@
 class UControlRigGraph;
 class UControlRigGraphNode;
 class UControlRigBlueprint;
-class UControlRigBlueprintGeneratedClass;
+class URigVMBlueprintGeneratedClass;
 
 class CONTROLRIGDEVELOPER_API FControlRigBlueprintCompiler : public IBlueprintCompiler
 {
@@ -53,5 +53,5 @@ private:
 
 private:
 	/** the new class we are generating */
-	UControlRigBlueprintGeneratedClass* NewControlRigBlueprintGeneratedClass;
+	URigVMBlueprintGeneratedClass* NewControlRigBlueprintGeneratedClass;
 };

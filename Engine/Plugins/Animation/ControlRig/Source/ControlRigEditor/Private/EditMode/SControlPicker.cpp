@@ -17,7 +17,7 @@
 #include "EditorModeManager.h"
 #include "EditMode/SEditorUserWidgetHost.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 
 #define LOCTEXT_NAMESPACE "ControlPicker"
 

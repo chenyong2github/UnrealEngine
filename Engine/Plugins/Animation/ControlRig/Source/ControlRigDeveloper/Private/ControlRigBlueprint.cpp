@@ -2,7 +2,7 @@
 
 #include "ControlRigBlueprint.h"
 
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraphNode_Comment.h"
 #include "Modules/ModuleManager.h"
@@ -209,21 +209,21 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 	}
 }
 
-UControlRigBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprintGeneratedClass() const
+URigVMBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprintGeneratedClass() const
 {
-	UControlRigBlueprintGeneratedClass* Result = Cast<UControlRigBlueprintGeneratedClass>(*GeneratedClass);
+	URigVMBlueprintGeneratedClass* Result = Cast<URigVMBlueprintGeneratedClass>(*GeneratedClass);
 	return Result;
 }
 
-UControlRigBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprintSkeletonClass() const
+URigVMBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprintSkeletonClass() const
 {
-	UControlRigBlueprintGeneratedClass* Result = Cast<UControlRigBlueprintGeneratedClass>(*SkeletonGeneratedClass);
+	URigVMBlueprintGeneratedClass* Result = Cast<URigVMBlueprintGeneratedClass>(*SkeletonGeneratedClass);
 	return Result;
 }
 
 UClass* UControlRigBlueprint::GetBlueprintClass() const
 {
-	return UControlRigBlueprintGeneratedClass::StaticClass();
+	return URigVMBlueprintGeneratedClass::StaticClass();
 }
 
 UClass* UControlRigBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO)
@@ -468,7 +468,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 		{
 			if(UControlRigBlueprint* Blueprint = InGraph->GetTypedOuter<UControlRigBlueprint>())
 			{
-				if (UControlRigBlueprintGeneratedClass* RigClass = Blueprint->GetControlRigBlueprintGeneratedClass())
+				if (URigVMBlueprintGeneratedClass* RigClass = Blueprint->GetControlRigBlueprintGeneratedClass())
 				{
                     if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
                     {
@@ -487,7 +487,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 
 		if (WeakThis.IsValid())
 		{
-			if (UControlRigBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
+			if (URigVMBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
 			{
 				if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false)))
 				{
@@ -690,7 +690,7 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 
 		for(IRigVMGraphFunctionHost* ReferencedFunctionHost : ReferencedFunctionHosts)
 		{
-			if (UControlRigBlueprintGeneratedClass* BPGeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ReferencedFunctionHost))
+			if (URigVMBlueprintGeneratedClass* BPGeneratedClass = Cast<URigVMBlueprintGeneratedClass>(ReferencedFunctionHost))
 			{
 				Ar << BPGeneratedClass;
 			}
@@ -730,7 +730,7 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	RigVMClient.PreSave();
 
 	SupportedEventNames.Reset();
-	if (UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
 		{
@@ -774,7 +774,7 @@ void UControlRigBlueprint::PostLoad()
 		// and ready to be inlined into this BP during compilation
 		for (IRigVMGraphFunctionHost* FunctionHost : ReferencedFunctionHosts)
 		{
-			if (UControlRigBlueprintGeneratedClass* BPGeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(FunctionHost))
+			if (URigVMBlueprintGeneratedClass* BPGeneratedClass = Cast<URigVMBlueprintGeneratedClass>(FunctionHost))
 			{
 				if (BPGeneratedClass->HasAllFlags(RF_NeedPostLoad))
 				{
@@ -957,7 +957,7 @@ void UControlRigBlueprint::PostLoad()
 			ShapeLibrariesToLoadOnPackageLoaded.Add(DefaultGizmoLibraryPath);
 		}
 
-		UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false /* create if needed */));
 
 		TArray<UObject*> ArchetypeInstances;
@@ -1039,7 +1039,7 @@ void UControlRigBlueprint::HandlePackageDone()
 			ShapeLibraries.Add(LoadObject<UControlRigShapeLibrary>(nullptr, *ShapeLibraryToLoadOnPackageLoaded));
 		}
 
-		UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false /* create if needed */));
 
 		TArray<UObject*> ArchetypeInstances;
@@ -1120,7 +1120,7 @@ void UControlRigBlueprint::HandlePackageDone()
 
 void UControlRigBlueprint::BroadcastControlRigPackageDone()
 {
-	if (UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
 	{
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 		CDO->BroadCastEndLoadPackage();
@@ -1159,7 +1159,7 @@ void UControlRigBlueprint::RecompileVM()
 		return;
 	}
 
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	if(RigClass == nullptr)
 	{
 		return;
@@ -1793,7 +1793,7 @@ bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLib
 
 bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNode)
 {
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
 	const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode();
 	TSet<FString> AddedCallpaths;
@@ -1904,7 +1904,7 @@ bool UControlRigBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
 
 void UControlRigBlueprint::RefreshControlRigBreakpoints()
 {
-	if (UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
 	{
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
 		CDO->GetDebugInfo().Reset();
@@ -1937,7 +1937,7 @@ TArray<FRigVMReferenceNodeData> UControlRigBlueprint::GetReferenceNodeData() con
 
 void UControlRigBlueprint::RequestControlRigInit()
 {
-	if (UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
 	{
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 		CDO->RequestInit();
@@ -2536,7 +2536,7 @@ void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 	if (PreviousRigBeingDebugged && PreviousRigBeingDebugged != NewObject)
 	{
 		PreviousRigBeingDebugged->DrawInterface.Reset();
-		PreviousRigBeingDebugged->ControlRigLog = nullptr;
+		PreviousRigBeingDebugged->RigVMLog = nullptr;
 	}
 
 	Super::SetObjectBeingDebugged(NewObject);
@@ -2640,7 +2640,7 @@ void UControlRigBlueprint::PreDuplicate(FObjectDuplicationParameters& DupParams)
 {
 	Super::PreDuplicate(DupParams);
 	PreDuplicateAssetPath = GetPathName();
-	if(UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+	if(URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
 	{
 		PreDuplicateHostPath = FSoftObjectPath(CRGeneratedClass->GetPathName());
 	}
@@ -2671,7 +2671,7 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 		}
 		if(!InNewPath.Equals(InOldPath, ESearchCase::CaseSensitive))
 		{
-			if(UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+			if(URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
 			{
 				FRigVMGraphFunctionStore& Store = CRGeneratedClass->GraphFunctionStore;
 				Store.PostDuplicateHost(InOldPath, InNewPath);
@@ -2682,7 +2682,7 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 
 	// update the paths once for the blueprint and once for the generated class
 	UpdateFunctionHeaders(PreDuplicateAssetPath.ToString(), GetPathName());
-	if(const UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+	if(const URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
 	{
 		UpdateFunctionHeaders(PreDuplicateHostPath.ToString(), CRGeneratedClass->GetPathName());
 	}
@@ -2903,7 +2903,7 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 	// for now we only allow one pin control at the same time
 	ClearTransientControls();
 
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FRigElementKey SpaceKey;
@@ -2962,7 +2962,7 @@ FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
 
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FName RemovedName = NAME_None;
@@ -2991,7 +2991,7 @@ FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 	{
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FName ReturnName = NAME_None;
@@ -3050,7 +3050,7 @@ FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InEleme
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
 
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FName RemovedName = NAME_None;
@@ -3080,7 +3080,7 @@ void UControlRigBlueprint::ClearTransientControls()
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
 
-	if (UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
 	{
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
@@ -3542,7 +3542,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						{
 							const FString DefaultValue = RootPin->GetDefaultValue();
 
-							UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+							URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 							UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 							if (CDO->VM != nullptr)
 							{
@@ -4592,7 +4592,7 @@ void UControlRigBlueprint::PatchLinksWithCast()
 
 void UControlRigBlueprint::PatchFunctionsOnLoad()
 {
-	UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass();
 	FRigVMGraphFunctionStore& Store = CRGeneratedClass->GraphFunctionStore;
 	const URigVMFunctionLibrary* Library = GetLocalFunctionLibrary();
 
@@ -5159,7 +5159,7 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 
 void UControlRigBlueprint::BroadcastExternalVariablesChangedEvent()
 {
-	if (UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
 		{

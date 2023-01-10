@@ -36,7 +36,7 @@ FAnimNode_ControlRig::~FAnimNode_ControlRig()
 	}
 }
 
-void FAnimNode_ControlRig::HandleOnInitialized_AnyThread(UControlRig*, const FName&)
+void FAnimNode_ControlRig::HandleOnInitialized_AnyThread(URigVMHost*, const FName&)
 {
 	RefPoseSetterHash.Reset();
 }

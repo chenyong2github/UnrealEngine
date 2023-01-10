@@ -11,7 +11,7 @@
 #include "EdGraphSchema_K2.h"
 #include "DetailLayoutBuilder.h"
 #include "RigVMModel/RigVMController.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 

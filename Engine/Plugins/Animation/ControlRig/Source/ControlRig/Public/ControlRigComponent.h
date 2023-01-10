@@ -645,12 +645,12 @@ private:
 	void TransferOutputs();
 	static FName GetComponentNameWithinActor(UActorComponent* InComponent);
 
-	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const FName& InEventName);
+	void HandleControlRigInitializedEvent(URigVMHost* InControlRig, const FName& InEventName);
 	void HandleControlRigPreConstructionEvent(UControlRig* InControlRig, const FName& InEventName);
 	void HandleControlRigPostConstructionEvent(UControlRig* InControlRig, const FName& InEventName);
 	void HandleControlRigPreForwardsSolveEvent(UControlRig* InControlRig, const FName& InEventName);
 	void HandleControlRigPostForwardsSolveEvent(UControlRig* InControlRig, const FName& InEventName);
-	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName);
+	void HandleControlRigExecutedEvent(URigVMHost* InControlRig, const FName& InEventName);
 
 	void ConvertTransformToRigSpace(FTransform& InOutTransform, EControlRigComponentSpace FromSpace);
 	void ConvertTransformFromRigSpace(FTransform& InOutTransform, EControlRigComponentSpace ToSpace);

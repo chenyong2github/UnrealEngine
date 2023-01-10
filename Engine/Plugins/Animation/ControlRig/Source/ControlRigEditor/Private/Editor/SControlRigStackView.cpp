@@ -11,7 +11,7 @@
 #include "ControlRigEditorStyle.h"
 #include "ControlRigStackCommands.h"
 #include "ControlRig.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
@@ -378,7 +378,7 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			return;
 		}
 
-		UControlRigBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
 		if (GeneratedClass == nullptr)
 		{
 			return;
@@ -787,9 +787,9 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 		if (ControlRigEditor.IsValid())
 		{
 			UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
-			if(ControlRig && ControlRig->ControlRigLog)
+			if(ControlRig && ControlRig->RigVMLog)
 			{
-				const TArray<FRigVMLog::FLogEntry>& LogEntries = ControlRig->ControlRigLog->Entries;
+				const TArray<FRigVMLog::FLogEntry>& LogEntries = ControlRig->RigVMLog->Entries;
 				for (const FRigVMLog::FLogEntry& LogEntry : LogEntries)
 				{
 					if (Operators.Num() <= LogEntry.InstructionIndex)
@@ -1038,11 +1038,11 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 	}
 }
 
-void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InControlRig, const FName& InEventName)
+void SControlRigStackView::HandleControlRigInitializedEvent(URigVMHost* InControlRig, const FName& InEventName)
 {
 	TGuardValue<bool> SuspendControllerSelection(bSuspendControllerSelection, true);
 
-	RefreshTreeView(InControlRig->VM);
+	RefreshTreeView(InControlRig->GetVM());
 	OnSelectionChanged(TSharedPtr<FRigStackEntry>(), ESelectInfo::Direct);
 
 	for (TSharedPtr<FRigStackEntry>& Operator : Operators)

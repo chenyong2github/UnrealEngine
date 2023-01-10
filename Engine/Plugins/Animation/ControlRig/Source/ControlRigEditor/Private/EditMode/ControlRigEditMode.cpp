@@ -28,7 +28,7 @@
 #include "ControlRigEditorModule.h"
 #include "Constraint.h"
 #include "EngineUtils.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "IControlRigObjectBinding.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ControlRigBlueprint.h"

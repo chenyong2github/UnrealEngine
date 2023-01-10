@@ -21,6 +21,7 @@
 #include "RigVMModel/RigVMController.h"
 #include "Editor/DetailsViewWrapperObject.h"
 #include "ControlRigTestData.h"
+#include "RigVMHost.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -238,7 +239,7 @@ protected:
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 	void HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM);
-	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName);
+	void HandleControlRigExecutedEvent(URigVMHost* InControlRig, const FName& InEventName);
 	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode, const FName& InEntryName);
 	void SetHaltedNode(URigVMNode* Node);
 

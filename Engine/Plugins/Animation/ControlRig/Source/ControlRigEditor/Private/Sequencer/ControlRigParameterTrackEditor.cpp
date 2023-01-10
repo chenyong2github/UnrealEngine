@@ -67,7 +67,7 @@
 #include "Exporters/AnimSeqExportOption.h"
 #include "SBakeToControlRigDialog.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMBlueprintGeneratedClass.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "TimerManager.h"
 #include "BakeToControlRigSettings.h"
@@ -1898,7 +1898,7 @@ void FControlRigParameterTrackEditor::AddTrackForComponent(USceneComponent* InCo
 					{
 						if (UControlRigBlueprint* BPControlRig = Cast<UControlRigBlueprint>(Object))
 						{
-							if (UControlRigBlueprintGeneratedClass* RigClass = BPControlRig->GetControlRigBlueprintGeneratedClass())
+							if (URigVMBlueprintGeneratedClass* RigClass = BPControlRig->GetControlRigBlueprintGeneratedClass())
 							{
 								if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
 								{
@@ -2986,8 +2986,10 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 
 
 
-void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRig, const FName& InEventName)
+void FControlRigParameterTrackEditor::HandleOnInitialized(URigVMHost* Subject, const FName& InEventName)
 {
+	UControlRig* ControlRig = CastChecked<UControlRig>(Subject);
+	
 	if (GetSequencer().IsValid())
 	{
 		//If FK control rig on next tick we refresh the tree
@@ -3798,7 +3800,7 @@ bool FControlRigParameterTrackEditor::HandleAssetAdded(UObject* Asset, const FGu
 	}
 
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Asset);
-	UControlRigBlueprintGeneratedClass* RigClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
 	if (!RigClass)
 	{
 		return false;

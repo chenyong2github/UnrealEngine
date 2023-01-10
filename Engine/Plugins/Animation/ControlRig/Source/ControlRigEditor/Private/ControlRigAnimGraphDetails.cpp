@@ -134,7 +134,7 @@ void FControlRigAnimNodeEventNameDetails::UpdateEntryNameList()
 		{
 			if(const UControlRig* CDO = Cast<UControlRig>(Class->GetDefaultObject(true)))
 			{
-				Algo::Transform(CDO->GetEvents(), EntryNameList,[](const FName& InEntryName)
+				Algo::Transform(CDO->GetSupportedEvents(), EntryNameList,[](const FName& InEntryName)
 				{
 					return MakeShareable(new FString(InEntryName.ToString()));
 				});
