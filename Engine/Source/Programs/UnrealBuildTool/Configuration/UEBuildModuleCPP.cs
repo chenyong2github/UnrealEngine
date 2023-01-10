@@ -811,7 +811,7 @@ namespace UnrealBuildTool
 				if (HeaderFileItems.Count > 0)
 				{
 					// Add the compile actions
-					LinkInputFiles.AddRange(ToolChain.CompileCPPFiles(CompileEnvironment, HeaderFileItems, IntermediateDirectory, Name, Graph).ObjectFiles);
+					LinkInputFiles.AddRange(ToolChain.CompileAllCPPFiles(CompileEnvironment, HeaderFileItems, IntermediateDirectory, Name, Graph).ObjectFiles);
 				}
 			}
 
