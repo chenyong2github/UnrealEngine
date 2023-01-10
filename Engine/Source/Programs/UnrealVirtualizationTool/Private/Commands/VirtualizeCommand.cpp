@@ -179,7 +179,12 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 			return false;
 		}
 
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\tCheck complete"));
+		if (bShouldCheckout)
+		{
+			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), ResultInfo.CheckedOutPackages.Num());
+		}
+
+		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tVirtualization of project packages complete!"), ProjectName.ToString());
 	}
 
 	if (bShouldSubmitChangelist)

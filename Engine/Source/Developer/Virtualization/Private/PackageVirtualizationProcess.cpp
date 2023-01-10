@@ -446,7 +446,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOp
 	}
 
 	OutResultInfo.TimeTaken = FPlatformTime::Seconds() - StartTime;
-	UE_LOG(LogVirtualization, Verbose, TEXT("Virtualization pre submit check took %.3f(s)"), OutResultInfo.TimeTaken);
+	UE_LOG(LogVirtualization, Verbose, TEXT("Virtualization process took %.3f(s)"), OutResultInfo.TimeTaken);
 }
 
 } // namespace UE::Virtualization

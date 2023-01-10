@@ -63,6 +63,10 @@ bool FRehydrateCommand::Initialize(const TCHAR* CmdLine)
 		{
 			return TryParseChangelist(ClientSpecName, SwitchValue, Packages, nullptr);
 		}
+		else if (Switch == TEXT("Checkout"))
+		{
+			bShouldCheckout = true;
+		}
 	}
 
 	return true;
@@ -89,7 +93,7 @@ bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 
 		UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
 		UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
-		
+
 		ON_SCOPE_EXIT
 		{
 			UE::Virtualization::Shutdown();
@@ -104,22 +108,34 @@ bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 
 		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tAttempting to rehydrate packages..."), ProjectName.ToString());
 
-		TArray<FText> Errors;
-		UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Errors);
 
-		if (!Errors.IsEmpty())
+		ERehydrationOptions Options = ERehydrationOptions::None;
+		if (bShouldCheckout)
+		{
+			Options |= ERehydrationOptions::Checkout;
+		}
+
+		FRehydrationResult Info;
+		UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Options, Info);
+
+		if (!Info.Errors.IsEmpty())
 		{
 			UE_LOG(LogVirtualizationTool, Error, TEXT("The rehydration process failed with the following errors:"));
-			for (const FText& Error : Errors)
+			for (const FText& Error : Info.Errors)
 			{
 				UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
 			}
 			return false;
 		}
 
+		if (bShouldCheckout)
+		{
+			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Info.CheckedOutPackages.Num());
+		}
+
 		Project.UnRegisterMountPoints();
 
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\tRehyration of project packages complete"), ProjectName.ToString());
+		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tRehyration of project packages complete!"), ProjectName.ToString());
 	}
 
 	return true;

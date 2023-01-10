@@ -119,10 +119,10 @@ public:
 		return EVirtualizationResult::Failed;
 	}
 
-	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors) override
+	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResultInfo) override
 	{
-		OutErrors.Reset();
-		OutErrors.Add(FText::FromString(TEXT("Calling ::TryRehydratePackages on FNullVirtualizationSystem")));
+		OutResultInfo.Reset();
+		OutResultInfo.Errors.Add(FText::FromString(TEXT("Calling ::TryRehydratePackages on FNullVirtualizationSystem")));
 
 		return ERehydrationResult::Failed;
 	}

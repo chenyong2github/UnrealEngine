@@ -839,29 +839,29 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 	return EQueryResult::Success;
 }
 
-EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo)
+EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResult)
 {
 	if (IsEnabled() && IsPushingEnabled(EStorageType::Persistent))
 	{
-		UE::Virtualization::VirtualizePackages(PackagePaths, Options, OutResultInfo);
+		UE::Virtualization::VirtualizePackages(PackagePaths, Options, OutResult);
 
-		if (OutResultInfo.Errors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
+		if (OutResult.Errors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
 		{
 			FText Tag = FText::FromString(VirtualizationProcessTag);
-			OutResultInfo.DescriptionTags.Add(Tag);
+			OutResult.DescriptionTags.Add(Tag);
 		}
 	}
 
-	return OutResultInfo.Errors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
+	return OutResult.Errors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
 }
 
-ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
+ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResult)
 {
-	OutErrors.Reset();
+	OutResult.Reset();
 
-	UE::Virtualization::RehydratePackages(PackagePaths, OutErrors);
+	UE::Virtualization::RehydratePackages(PackagePaths, Options, OutResult);
 
-	return OutErrors.IsEmpty() ? ERehydrationResult::Success : ERehydrationResult::Failed;
+	return OutResult.Errors.IsEmpty() ? ERehydrationResult::Success : ERehydrationResult::Failed;
 }
 
 ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, uint64 PaddingAlignment, TArray<FText>& OutErrors, TArray<FSharedBuffer>& OutPackages, TArray<FRehydrationInfo>* OutInfo)

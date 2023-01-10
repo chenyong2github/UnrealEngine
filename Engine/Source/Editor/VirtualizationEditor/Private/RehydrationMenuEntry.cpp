@@ -26,7 +26,9 @@ namespace UE::Virtualization
 void RehydratePackages(TArray<FString> SelectedFiles)
 {
 	TArray<FText> Errors;
-	if (IVirtualizationSystem::Get().TryRehydratePackages(SelectedFiles, Errors) == ERehydrationResult::Success)
+
+	FRehydrationResult ResultInfo;
+	if (IVirtualizationSystem::Get().TryRehydratePackages(SelectedFiles, ERehydrationOptions::Checkout, ResultInfo) == ERehydrationResult::Success)
 	{
 		// TODO: At some point ::TryRehydratePackages will return more detail info about the process
 		// when it does we should make a better job at logging it.

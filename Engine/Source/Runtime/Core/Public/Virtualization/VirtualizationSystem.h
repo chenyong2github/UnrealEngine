@@ -499,6 +499,55 @@ enum class EVirtualizationOptions : uint32
 
 ENUM_CLASS_FLAGS(EVirtualizationOptions);
 
+/** Contains the results of the package virtualization process */
+struct FRehydrationResult
+{
+	/** A list of errors encountered during the process */
+	TArray<FText> Errors;
+
+	/** A list of packages that were actually rehydrated and had payloads added to local storage */
+	TArray<FString> RehydratedPackages;
+	/** A list of packages that were checked out of revision control during the process */
+	TArray<FString> CheckedOutPackages;
+
+	/** The length of time that the process took in seconds */
+	double TimeTaken = 0.0;
+
+	/** Returns members to the default state */
+	void Reset()
+	{
+		Errors.Reset();
+	}
+
+	/** Add an error message to the result */
+	void AddError(const FText& ErrorMsg)
+	{
+		Errors.Add(ErrorMsg);
+	}
+
+	/** Add an error message to the result */
+	void AddError(FText&& ErrorMsg)
+	{
+		Errors.Add(MoveTemp(ErrorMsg));
+	}
+
+	/** Returns how many errors the process has currently encountered */
+	int32 GetNumErrors() const
+	{
+		return Errors.Num();
+	}
+};
+
+/** Options used when rehydrating packages */
+enum class ERehydrationOptions : uint32
+{
+	None = 0,
+	/** Attempt to check out files from revision control if needed */
+	Checkout = 1 << 0
+};
+
+ENUM_CLASS_FLAGS(ERehydrationOptions);
+
 /** 
  * The set of parameters to be used when initializing the virtualization system. The 
  * members must remain valid for the duration of the call to ::Initialize. It is not
@@ -773,20 +822,29 @@ public:
 	 */
 	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo) = 0;
 
+	UE_DEPRECATED(5.2, "Use The other overload that takes a EVirtualizationOptions parameter")
+	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
+	{
+		FRehydrationResult Info;
+		ERehydrationResult Result = TryRehydratePackages(PackagePaths, ERehydrationOptions::None, Info);
+
+		OutErrors = MoveTemp(Info.Errors);
+
+		return Result;
+	}
+
 	/**
 	 * Runs the rehydration process on a set of packages. This involves downloading virtualized payloads and placing them back in the trailer of
 	 * the given packages.
 	 * 
-	 * @param PackagePaths	An array containing the absolute file paths of packages. It is assumed that the packages have already been checked out
-	 *						of source control (if applicable) and will be writable.
-	 * @param OutErrors		Any error encountered during the process will be added here. If any error is added to the array then it
-	 *						can be assumed that the process will return false. Note that the array will be emptied before the process
-	 *						is run and will not contain any pre-existing entries.
+	 * @param PackagePaths		An array containing the absolute file paths of packages
+	 * @param Options			An enum bitfield containing various options for the process. @see EVirtualizationOptions
+	 * @param OutResultInfo		A struct that will contain info about the process. @see FVirtualizationResult
 	 * 
-	 * @return	A ERehydrationResult enum with the status of the process. If the status indicates any sort of failure then OutErrors should
+	 * @return	A ERehydrationResult enum with the status of the process. If the status indicates any sort of failure then OutResultInfo.Errors should
 	 *			contain at least one entry.
 	 */
-	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors) = 0;
+	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResultInfo) = 0;
 
 	/**
 	 * Rehydrates a number of packages into memory buffers.

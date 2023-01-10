@@ -26,6 +26,8 @@ private:
 	FString ClientSpecName;
 
 	TArray<FString> Packages;
+
+	bool bShouldCheckout = false;
 };
 
 } // namespace UE::Virtualization

@@ -14,6 +14,7 @@
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectGlobals.h"
 #include "Virtualization/VirtualizationSystem.h"
+#include "VirtualizationSourceControlUtilities.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
@@ -172,7 +173,7 @@ bool TryRehydrateBuilder(const FString& FilePath, FPackageTrailer& OutTrailer, F
 	return PayloadsHydrated > 0;
 }
 
-void RehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
+void RehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResult)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::RehydratePackagesOnDisk);
 
@@ -183,51 +184,106 @@ void RehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Out
 		return;
 	}
 
+	const double StartTime = FPlatformTime::Seconds();
+
 	FScopedSlowTask Progress(1.0f, LOCTEXT("VAHydration_TaskOnDisk", "Re-hydrating Assets On Disk..."));
 	Progress.MakeDialog();
 
+	TArray<TPair<FString, FString>> PackagesToReplace;
+
+	// TODO: Should we consider a way to batch this so many payloads can be downloaded at once?
+	//       Running this over a large project would be much faster if we could batch. An easy way
+	//       to do this might be to gather all of the payloads needed and do a prefetch first?
+
+	// Attempt to rehydrate the packages
 	for (const FString& FilePath : PackagePaths)
 	{
 		FPackageTrailer Trailer;
 		FPackageTrailerBuilder Builder;
 
-		if (TryRehydrateBuilder(FilePath, Trailer, Builder, OutErrors))
+		if (TryRehydrateBuilder(FilePath, Trailer, Builder, OutResult.Errors))
 		{
-			const FString NewPackagePath = DuplicatePackageWithNewTrailer(FilePath, Trailer, Builder, OutErrors);
+			FString NewPackagePath = DuplicatePackageWithNewTrailer(FilePath, Trailer, Builder, OutResult.Errors);
 
-			FString PackageName;
-			if (FPackageName::TryConvertFilenameToLongPackageName(FilePath, PackageName))
+			if (!NewPackagePath.IsEmpty())
 			{
-				UPackage* Package = FindObjectFast<UPackage>(nullptr, *PackageName);
-				if (Package != nullptr)
-				{
-					UE_LOG(LogVirtualization, Verbose, TEXT("Detaching '%s' from disk so that it can be rehydrated"), *FilePath);
-					ResetLoadersForSave(Package, *FilePath);
-				}
-			}
-
-			if (CanWriteToFile(FilePath))
-			{
-				if (!IFileManager::Get().Move(*FilePath, *NewPackagePath))
-				{
-					FText Message = FText::Format(LOCTEXT("VAHydration_MoveFailed", "Unable to replace the package '{0}' with the hydrated version"),
-						FText::FromString(FilePath));
-					OutErrors.Add(Message);
-
-					return;
-				}
+				PackagesToReplace.Emplace(FilePath, MoveTemp(NewPackagePath));
 			}
 			else
 			{
-				FText Message = FText::Format(
-					LOCTEXT("VAHydration_PackageLocked", "The package file '{0}' has virtualized payloads but is locked for modification and cannot be hydrated"),
-					FText::FromString(FilePath));
-
-				OutErrors.Add(Message);
+				// Error?
 				return;
 			}
 		}
 	}
+
+	// We need to reset the loader of any loaded package that should have its package file replaced
+	for (const TPair<FString, FString>& Pair : PackagesToReplace)
+	{
+		const FString& OriginalFilePath = Pair.Key;
+
+		FString PackageName;
+		if (FPackageName::TryConvertFilenameToLongPackageName(OriginalFilePath, PackageName))
+		{
+			UPackage* Package = FindObjectFast<UPackage>(nullptr, *PackageName);
+			if (Package != nullptr)
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("Detaching '%s' from disk so that it can be rehydrated"), *OriginalFilePath);
+				ResetLoadersForSave(Package, *OriginalFilePath);
+			}
+		}
+	}
+
+	// Should we try to check out packages from revision control?
+	if (EnumHasAnyFlags(Options, ERehydrationOptions::Checkout))
+	{
+		TArray<FString> FilesToCheckState;
+		FilesToCheckState.Reserve(PackagesToReplace.Num());
+
+		for (const TPair<FString, FString>& Pair : PackagesToReplace)
+		{
+			FilesToCheckState.Add(Pair.Key);
+		}
+
+		if (!TryCheckoutFiles(FilesToCheckState, OutResult.Errors, &OutResult.CheckedOutPackages))
+		{
+			return;
+		}
+	}
+
+	for (const TPair<FString, FString>& Pair : PackagesToReplace)
+	{
+		const FString& OriginalFilePath = Pair.Key;
+		const FString& TempFilePath = Pair.Value;
+
+		if (CanWriteToFile(OriginalFilePath))
+		{
+			if (IFileManager::Get().Move(*OriginalFilePath, *TempFilePath))
+			{
+				OutResult.RehydratedPackages.Add(OriginalFilePath);
+			}
+			else
+			{
+				FText Message = FText::Format(LOCTEXT("VAHydration_MoveFailed", "Unable to replace the package '{0}' with the hydrated version"),
+					FText::FromString(OriginalFilePath));
+
+				OutResult.AddError(MoveTemp(Message));
+				return;
+			}
+		}
+		else
+		{
+			FText Message = FText::Format(
+				LOCTEXT("VAHydration_PackageLocked", "The package file '{0}' has virtualized payloads but is locked for modification and cannot be hydrated"),
+				FText::FromString(OriginalFilePath));
+
+			OutResult.AddError(MoveTemp(Message));
+			return;
+		}
+	}
+
+	OutResult.TimeTaken = FPlatformTime::Seconds() - StartTime;
+	UE_LOG(LogVirtualization, Verbose, TEXT("Rehydration process took %.3f(s)"), OutResult.TimeTaken);
 }
 
 void RehydratePackages(TConstArrayView<FString> PackagePaths, uint64 PaddingAlignment, TArray<FText>& OutErrors, TArray<FSharedBuffer>& OutPackages, TArray<FRehydrationInfo>* OutInfo)
