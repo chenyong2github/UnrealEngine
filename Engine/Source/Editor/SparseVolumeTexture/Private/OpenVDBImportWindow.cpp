@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "SOpenVDBImportWindow"
 
-static FText GetGridComboBoxItemText(TSharedPtr<FOpenVDBGridInfo> InItem)
+static FText GetGridComboBoxItemText(TSharedPtr<FOpenVDBGridComponentInfo> InItem)
 {
 	return InItem ? FText::FromString(InItem->DisplayString) : LOCTEXT("NoneGrid", "<None>");
 };
@@ -40,7 +40,7 @@ static FText GetFormatComboBoxItemText(TSharedPtr<ESparseVolumePackedDataFormat>
 void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 {
 	PackedDataA = InArgs._PackedDataA;
-	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
+	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
 	OpenVDBSupportedTargetFormats = InArgs._OpenVDBSupportedTargetFormats;
 	WidgetWindow = InArgs._WidgetWindow;
 
@@ -98,6 +98,25 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			.Padding(2)
 			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("OpenVDBImportWindow_FileInfo", "Source File Grid Info"))
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.Padding(FMargin(3))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(InArgs._FileInfoString))
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2)
+			[
 				SNew(SUniformGridPanel)
 				.SlotPadding(2)
 				+ SUniformGridPanel::Slot(1, 0)
@@ -127,7 +146,7 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(PackedDataAConfigurator, SOpenVDBPackedDataConfigurator)
 			.PackedData(PackedDataA)
-			.OpenVDBGridInfo(OpenVDBGridInfo)
+			.OpenVDBGridComponentInfo(OpenVDBGridComponentInfo)
 			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
 			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataA", "Packed Data A"))
 		]
@@ -235,12 +254,12 @@ FText SOpenVDBImportWindow::GetImportTypeDisplayText() const
 
 void SOpenVDBImportWindow::SetDefaultGridAssignment()
 {
-	check(OpenVDBGridInfo);
+	check(OpenVDBGridComponentInfo);
 
 	PackedDataA->Format = ESparseVolumePackedDataFormat::Float32;
 	PackedDataA->SourceGridIndex = FUintVector4(INDEX_NONE);
 	PackedDataA->SourceComponentIndex = FUintVector4(INDEX_NONE);
-	PackedDataA->bRescaleInputForUnorm = false;
+	PackedDataA->bRemapInputForUnorm = false;
 
 	const TCHAR* SearchNames[] = { TEXT("density"), TEXT("heat"), TEXT("temperature"), TEXT("motion") };
 
@@ -249,7 +268,7 @@ void SOpenVDBImportWindow::SetDefaultGridAssignment()
 	{
 		for (uint32 InputComponent = 0; InputComponent < 4; ++InputComponent)
 		{
-			for (const TSharedPtr<FOpenVDBGridInfo>& Grid : *OpenVDBGridInfo)
+			for (const TSharedPtr<FOpenVDBGridComponentInfo>& Grid : *OpenVDBGridComponentInfo)
 			{
 				if (Grid->Name == SearchName && Grid->ComponentIndex == InputComponent)
 				{
@@ -269,7 +288,7 @@ void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 {
 	PackedData = InArgs._PackedData;
 	ComponentIndex = InArgs._ComponentIndex;
-	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
+	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
 	
 	check(ComponentIndex < 4);
 	const TCHAR* ComponentLabels[] = { TEXT("X"), TEXT("Y"), TEXT("Z"), TEXT("W") };
@@ -295,14 +314,14 @@ void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 				SNew(SBox)
 				.WidthOverride(300.0f)
 				[
-					SAssignNew(GridComboBox, SComboBox<TSharedPtr<FOpenVDBGridInfo>>)
-					.OptionsSource(OpenVDBGridInfo)
-					.OnGenerateWidget_Lambda([](TSharedPtr<FOpenVDBGridInfo> InItem)
+					SAssignNew(GridComboBox, SComboBox<TSharedPtr<FOpenVDBGridComponentInfo>>)
+					.OptionsSource(OpenVDBGridComponentInfo)
+					.OnGenerateWidget_Lambda([](TSharedPtr<FOpenVDBGridComponentInfo> InItem)
 					{
 						return SNew(STextBlock)
 						.Text(GetGridComboBoxItemText(InItem));
 					})
-					.OnSelectionChanged_Lambda([this](TSharedPtr<FOpenVDBGridInfo> InItem, ESelectInfo::Type)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FOpenVDBGridComponentInfo> InItem, ESelectInfo::Type)
 					{
 						if (InItem)
 						{
@@ -329,7 +348,7 @@ void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 
 void SOpenVDBComponentPicker::RefreshUIFromData()
 {
-	for (const TSharedPtr<FOpenVDBGridInfo>& Grid : *OpenVDBGridInfo)
+	for (const TSharedPtr<FOpenVDBGridComponentInfo>& Grid : *OpenVDBGridComponentInfo)
 	{
 		if (Grid->Index == PackedData->SourceGridIndex[ComponentIndex] && Grid->ComponentIndex == PackedData->SourceComponentIndex[ComponentIndex])
 		{
@@ -350,7 +369,7 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 			SNew(SOpenVDBComponentPicker)
 			.PackedData(PackedData)
 			.ComponentIndex(ComponentIndex)
-			.OpenVDBGridInfo(InArgs._OpenVDBGridInfo);
+			.OpenVDBGridComponentInfo(InArgs._OpenVDBGridComponentInfo);
 	}
 
 	this->ChildSlot
@@ -407,7 +426,11 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 				.Padding(2.0f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("UnormRescaleCheckBoxLabel", "Unorm Rescale"))
+					.Text(LOCTEXT("UnormRemapCheckBoxLabel", "Unorm Remap"))
+					.IsEnabled_Lambda([this]()
+					{
+						return PackedData->Format == ESparseVolumePackedDataFormat::Unorm8;
+					})
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -415,16 +438,16 @@ void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				.Padding(2.0f)
 				[
-					SAssignNew(RescaleUnormCheckBox, SCheckBox)
+					SAssignNew(RemapUnormCheckBox, SCheckBox)
 					.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckBoxState)
 					{
-							PackedData->bRescaleInputForUnorm = CheckBoxState == ECheckBoxState::Checked;
+						PackedData->bRemapInputForUnorm = CheckBoxState == ECheckBoxState::Checked;
 					})
 					.IsEnabled_Lambda([this]()
 					{
 						return PackedData->Format == ESparseVolumePackedDataFormat::Unorm8;
 					})
-					.ToolTipText(LOCTEXT("UnormRescaleCheckBoxTooltip", "Rescales input values for unorm formats into the [0-1] range instead of clamping values outside this range."))
+					.ToolTipText(LOCTEXT("UnormRemapCheckBoxTooltip", "Remaps input values for unorm formats into the [0-1] range instead of clamping values outside this range."))
 					.IsChecked(false)
 				]
 			]
@@ -481,7 +504,7 @@ void SOpenVDBPackedDataConfigurator::RefreshUIFromData()
 	{
 		ComponentPickers[i]->RefreshUIFromData();
 	}
-	RescaleUnormCheckBox->SetIsChecked(PackedData->bRescaleInputForUnorm);
+	RemapUnormCheckBox->SetIsChecked(PackedData->bRemapInputForUnorm);
 }
 
 #undef LOCTEXT_NAMESPACE

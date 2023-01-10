@@ -16,26 +16,34 @@ struct FOpenVDBData
 	bool bHasUniformVoxels;
 };
 
-enum class EOpenVDBGridFormat : uint8
+enum class EOpenVDBGridType : uint8
 {
-	Float = 0,
-	Double = 1,
+	Unknown = 0,
+	Float = 1,
+	Float2 = 2,
+	Float3 = 3,
+	Float4 = 4,
+	Double = 5,
+	Double2 = 6,
+	Double3 = 7,
+	Double4 = 8,
 };
 
 struct FOpenVDBGridInfo
 {
 	uint32 Index;
-	uint32 ComponentIndex;
-	EOpenVDBGridFormat Format;
+	uint32 NumComponents;
+	EOpenVDBGridType Type;
 	FString Name;
-	FString DisplayString; // Contains Name and Format and component in source grid
+	FString DisplayString; // Contains Index (into source file grids), Type and Name
+	FOpenVDBData OpenVDBData;
 };
 
-bool IsOpenVDBDataValid(FOpenVDBData& OpenVDBData, const FString& Filename);
+bool IsOpenVDBDataValid(const FOpenVDBData& OpenVDBData, const FString& Filename);
 
 bool FindDensityGridIndex(TArray<uint8>& SourceFile, const FString& Filename, uint32* OutGridIndex, FOpenVDBData* OutOVDBData);
 
-bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, const FString& Filename, TArray<FOpenVDBGridInfo>* OutGridInfo);
+bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, TArray<FOpenVDBGridInfo>* OutGridInfo);
 
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,
@@ -47,6 +55,6 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 	FVector ActiveMin,
 	FVector ActiveMax);
 
-const TCHAR* OpenVDBGridFormatToString(EOpenVDBGridFormat Format);
+const TCHAR* OpenVDBGridTypeToString(EOpenVDBGridType Type);
 
 #endif // WITH_EDITOR

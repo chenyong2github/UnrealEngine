@@ -7,9 +7,16 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SCheckBox.h"
 
-struct FOpenVDBGridInfo;
 struct ENGINE_API FSparseVolumeRawSourcePackedData;
 enum class ESparseVolumePackedDataFormat : uint8;
+
+struct FOpenVDBGridComponentInfo
+{
+	uint32 Index;
+	uint32 ComponentIndex;
+	FString Name;
+	FString DisplayString; // Contains source file grid index, name and component (if it is a multi component type like Float3)
+};
 
 class SOpenVDBComponentPicker : public SCompoundWidget
 {
@@ -17,12 +24,12 @@ public:
 	SLATE_BEGIN_ARGS(SOpenVDBComponentPicker)
 		: _PackedData()
 		, _ComponentIndex()
-		, _OpenVDBGridInfo()
+		, _OpenVDBGridComponentInfo()
 	{}
 
 		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedData)
 		SLATE_ARGUMENT(uint32, ComponentIndex)
-		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridInfo>>*, OpenVDBGridInfo)
+		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
 	SLATE_END_ARGS()
 
 public:
@@ -32,8 +39,8 @@ public:
 private:
 	FSparseVolumeRawSourcePackedData* PackedData;
 	uint32 ComponentIndex;
-	TArray<TSharedPtr<FOpenVDBGridInfo>>* OpenVDBGridInfo;
-	TSharedPtr<SComboBox<TSharedPtr<FOpenVDBGridInfo>>>	GridComboBox;
+	TArray<TSharedPtr<FOpenVDBGridComponentInfo>>* OpenVDBGridComponentInfo;
+	TSharedPtr<SComboBox<TSharedPtr<FOpenVDBGridComponentInfo>>> GridComboBox;
 };
 
 class SOpenVDBPackedDataConfigurator : public SCompoundWidget
@@ -41,13 +48,13 @@ class SOpenVDBPackedDataConfigurator : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SOpenVDBPackedDataConfigurator)
 		: _PackedData()
-		, _OpenVDBGridInfo()
+		, _OpenVDBGridComponentInfo()
 		, _OpenVDBSupportedTargetFormats()
 		, _PackedDataName()
 	{}
 
 		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedData)
-		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridInfo>>*, OpenVDBGridInfo)
+		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
 		SLATE_ARGUMENT(TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*, OpenVDBSupportedTargetFormats)
 		SLATE_ARGUMENT(FText, PackedDataName)
 	SLATE_END_ARGS()
@@ -61,7 +68,7 @@ private:
 	TSharedPtr<SOpenVDBComponentPicker> ComponentPickers[4];
 	TArray<TSharedPtr<ESparseVolumePackedDataFormat>>* OpenVDBSupportedTargetFormats;
 	TSharedPtr<SComboBox<TSharedPtr<ESparseVolumePackedDataFormat>>>	FormatComboBox;
-	TSharedPtr<SCheckBox> RescaleUnormCheckBox;
+	TSharedPtr<SCheckBox> RemapUnormCheckBox;
 };
 
 class SOpenVDBImportWindow : public SCompoundWidget
@@ -69,7 +76,8 @@ class SOpenVDBImportWindow : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SOpenVDBImportWindow)
 		: _PackedDataA()
-		, _OpenVDBGridInfo()
+		, _OpenVDBGridComponentInfo()
+		, _FileInfoString()
 		, _OpenVDBSupportedTargetFormats()
 		, _WidgetWindow()
 		, _FullPath()
@@ -78,7 +86,8 @@ public:
 	{}
 
 		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedDataA)
-		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridInfo>>*, OpenVDBGridInfo)
+		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
+		SLATE_ARGUMENT(FString, FileInfoString)
 		SLATE_ARGUMENT(TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*, OpenVDBSupportedTargetFormats)
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
 		SLATE_ARGUMENT(FText, FullPath)
@@ -95,7 +104,7 @@ public:
 
 private:
 	FSparseVolumeRawSourcePackedData*					PackedDataA;
-	TArray<TSharedPtr<FOpenVDBGridInfo>>*				OpenVDBGridInfo;
+	TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*		OpenVDBGridComponentInfo;
 	TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*	OpenVDBSupportedTargetFormats;
 	TSharedPtr<SOpenVDBPackedDataConfigurator>			PackedDataAConfigurator;
 	TSharedPtr<SButton>									ImportButton;

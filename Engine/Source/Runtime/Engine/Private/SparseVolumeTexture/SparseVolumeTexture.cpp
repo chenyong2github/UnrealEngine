@@ -72,7 +72,7 @@ void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 		}
 		Ar << PackedDataA.SourceGridIndex;
 		Ar << PackedDataA.SourceComponentIndex;
-		Ar << PackedDataA.bRescaleInputForUnorm;
+		Ar << PackedDataA.bRemapInputForUnorm;
 
 		Ar << SourceAssetFile;
 	}

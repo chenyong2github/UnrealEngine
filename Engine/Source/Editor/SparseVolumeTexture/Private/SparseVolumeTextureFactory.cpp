@@ -223,43 +223,87 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		// Load file and get info about each contained grid
 		TArray<uint8> LoadedFile;
-		TArray<TSharedPtr<FOpenVDBGridInfo>> GridInfoPtrs;
+		TArray<TSharedPtr<FOpenVDBGridComponentInfo>> GridComponentInfoPtrs;
 		TArray<TSharedPtr<ESparseVolumePackedDataFormat>> SupportedFormats =
 		{ 
 			MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Float32),
 			MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Float16),
 			MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Unorm8)
 		};
+		FString FileInfoString;
 		{
 			if (!FFileHelper::LoadFileToArray(LoadedFile, *Filename))
 			{
-				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be opened: %s"), *Filename);
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be loaded: %s"), *Filename);
 				return nullptr;
 			}
 
 			TArray<FOpenVDBGridInfo> GridInfo;
-			if (!GetOpenVDBGridInfo(LoadedFile, Filename, &GridInfo))
+			if (!GetOpenVDBGridInfo(LoadedFile, &GridInfo))
 			{
-				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file contains no suitable density grids: %s"), *Filename);
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to read OpenVDB file: %s"), *Filename);
+				return nullptr;
+			}
+			if (GridInfo.IsEmpty())
+			{
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file contains no grids: %s"), *Filename);
+				return nullptr;
+			}
+
+			// Create individual entries for each component of all valid source grids
+			TArray<FOpenVDBGridComponentInfo> GridComponentInfo;
+			for (const FOpenVDBGridInfo& Grid : GridInfo)
+			{
+				// Append all grids to the string, even if we don't actually support them
+				FileInfoString.Append(Grid.DisplayString);
+				FileInfoString.AppendChar(TEXT('\n'));
+
+				if (Grid.Type == EOpenVDBGridType::Unknown || !IsOpenVDBDataValid(Grid.OpenVDBData, Filename))
+				{
+					continue;
+				}
+
+				// Create one entry per component
+				for (uint32 ComponentIdx = 0; ComponentIdx < Grid.NumComponents; ++ComponentIdx)
+				{
+					FOpenVDBGridComponentInfo ComponentInfo;
+					ComponentInfo.Index = Grid.Index;
+					ComponentInfo.ComponentIndex = ComponentIdx;
+					ComponentInfo.Name = Grid.Name;
+
+					const TCHAR* ComponentNames[] = { TEXT(".X"), TEXT(".Y"),TEXT(".Z"),TEXT(".W") };
+					FStringFormatOrderedArguments FormatArgs;
+					FormatArgs.Add(ComponentInfo.Index);
+					FormatArgs.Add(ComponentInfo.Name);
+					FormatArgs.Add(Grid.NumComponents == 1 ? TEXT("") : ComponentNames[ComponentIdx]);
+
+					ComponentInfo.DisplayString = FString::Format(TEXT("{0}. {1}{2}"), FormatArgs);
+
+					GridComponentInfo.Add(MoveTemp(ComponentInfo));
+				}
+			}
+
+			if (GridComponentInfo.IsEmpty())
+			{
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file contains no grids of supported type: %s"), *Filename);
 				return nullptr;
 			}
 
 			// Convert to array of TSharedPtr. SComboBox requires this.
-			GridInfoPtrs.Empty(GridInfo.Num() + 1);
+			GridComponentInfoPtrs.Empty(GridComponentInfo.Num() + 1);
 			
 			// We need a <None> option to leave channels empty
-			FOpenVDBGridInfo NoneGridInfo;
-			NoneGridInfo.Index = INDEX_NONE;
-			NoneGridInfo.ComponentIndex = INDEX_NONE;
-			NoneGridInfo.Format = EOpenVDBGridFormat::Float;
-			NoneGridInfo.Name = TEXT("<None>");
-			NoneGridInfo.DisplayString = TEXT("<None>");
+			FOpenVDBGridComponentInfo NoneGridComponentInfo;
+			NoneGridComponentInfo.Index = INDEX_NONE;
+			NoneGridComponentInfo.ComponentIndex = INDEX_NONE;
+			NoneGridComponentInfo.Name = TEXT("<None>");
+			NoneGridComponentInfo.DisplayString = TEXT("<None>");
 			
-			GridInfoPtrs.Add(MakeShared<FOpenVDBGridInfo>(NoneGridInfo));
+			GridComponentInfoPtrs.Add(MakeShared<FOpenVDBGridComponentInfo>(NoneGridComponentInfo));
 			
-			for (auto& Grid : GridInfo)
+			for (const FOpenVDBGridComponentInfo& GridCompInfo : GridComponentInfo)
 			{
-				GridInfoPtrs.Add(MakeShared<FOpenVDBGridInfo>(Grid));
+				GridComponentInfoPtrs.Add(MakeShared<FOpenVDBGridComponentInfo>(GridCompInfo));
 			}
 		}
 
@@ -301,7 +345,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			(
 				SAssignNew(OpenVDBOptionWindow, SOpenVDBImportWindow)
 				.PackedDataA(&PackedDataA)
-				.OpenVDBGridInfo(&GridInfoPtrs)
+				.OpenVDBGridComponentInfo(&GridComponentInfoPtrs)
+				.FileInfoString(FileInfoString)
 				.OpenVDBSupportedTargetFormats(&SupportedFormats)
 				.WidgetWindow(Window)
 				.FullPath(FText::FromString(Filename))

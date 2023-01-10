@@ -66,8 +66,8 @@ struct ENGINE_API FSparseVolumeRawSourcePackedData
 {
 	ESparseVolumePackedDataFormat Format;
 	FUintVector4 SourceGridIndex;
-	FUintVector4 SourceComponentIndex; // [0-3]
-	bool bRescaleInputForUnorm; // Just clamps to the [0-1] range if this is false
+	FUintVector4 SourceComponentIndex; // Index [0-3] of the component in the source grid.
+	bool bRemapInputForUnorm; // Maps the input from its minimum and maximum value into the [0-1] range. Clamps to [0-1] otherwise.
 };
 
 // The structure represent the source asset in high quality. It is used to cook the runtime data

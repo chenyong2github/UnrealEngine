@@ -5,6 +5,7 @@
 #include "SparseVolumeTextureOpenVDBUtility.h"
 #include "SparseVolumeTextureOpenVDB.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "OpenVDBGridAdapter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureOpenVDBUtility, Log, All);
 
@@ -43,18 +44,18 @@ static FOpenVDBData GetOpenVDBData(openvdb::GridBase::Ptr GridBase)
 
 #endif
 
-bool IsOpenVDBDataValid(FOpenVDBData& OpenVDBData, const FString& Filename)
+bool IsOpenVDBDataValid(const FOpenVDBData& OpenVDBData, const FString& Filename)
 {
 	if (OpenVDBData.VolumeActiveDim.X * OpenVDBData.VolumeActiveDim.Y * OpenVDBData.VolumeActiveDim.Z == 0)
 	{
 		// SVT_TODO we should gently handle that case
-		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Error, TEXT("OpenVDB asset is empty due to volume size being 0: %s"), *Filename);
+		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB grid is empty due to volume size being 0: %s"), *Filename);
 		return false;
 	}
 
 	if (!OpenVDBData.bHasUniformVoxels)
 	{
-		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Error, TEXT("OpenVDB importer cannot handle non uniform voxels: %s"), *Filename);
+		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB importer cannot handle non uniform voxels: %s"), *Filename);
 		return false;
 	}
 	return true;
@@ -133,7 +134,7 @@ bool FindDensityGridIndex(TArray<uint8>& SourceFile, const FString& Filename, ui
 	return false;
 }
 
-bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, const FString& Filename, TArray<FOpenVDBGridInfo>* OutGridInfo)
+bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, TArray<FOpenVDBGridInfo>* OutGridInfo)
 {
 #if OPENVDB_AVAILABLE
 	FArrayUint8StreamBuf StreamBuf(SourceFile);
@@ -142,94 +143,69 @@ bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, const FString& Filename, TArr
 
 	openvdb::GridPtrVecPtr Grids = Stream.getGrids();
 
-	if (!Grids)
-	{
-		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB file contains no grids: %s"), *Filename);
-		return false;
-	}
-
-	OutGridInfo->Empty(Grids->size() * 2 /*assume an average of 2 channels per grid*/);
+	OutGridInfo->Empty(Grids->size());
 
 	uint32 GridIndex = 0;
 	for (openvdb::GridBase::Ptr& Grid : *Grids)
 	{
+		// Create entry
 		FOpenVDBGridInfo GridInfo;
 		GridInfo.Index = GridIndex++;
+		GridInfo.NumComponents = 0;
+		GridInfo.Type = EOpenVDBGridType::Unknown;
+		GridInfo.Name = Grid->getName().c_str();
+		GridInfo.OpenVDBData = GetOpenVDBData(Grid);
 
 		// Figure out the type/format of the grid
-		uint32 NumComponents = 0;
-		if (Grid->isType<openvdb::FloatGrid>())
+		if (Grid->isType<FOpenVDBFloat1Grid>())
 		{
-			NumComponents = 1;
-			GridInfo.Format = EOpenVDBGridFormat::Float;
+			GridInfo.NumComponents = 1;
+			GridInfo.Type = EOpenVDBGridType::Float;
 		}
-#if 0 // SV_TODO: actually support these additional types in ConvertOpenVDBToSparseVolumeTexture()
-		else if (Grid->isType<openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2f, 5, 4, 3>::Type>>())
+		else if (Grid->isType<FOpenVDBFloat2Grid>())
 		{
-			NumComponents = 2;
-			GridInfo.Format = EOpenVDBGridFormat::Float;
+			GridInfo.NumComponents = 2;
+			GridInfo.Type = EOpenVDBGridType::Float2;
 		}
-		else if (Grid->isType<openvdb::Vec3SGrid>())
+		else if (Grid->isType<FOpenVDBFloat3Grid>())
 		{
-			NumComponents = 3;
-			GridInfo.Format = EOpenVDBGridFormat::Float;
+			GridInfo.NumComponents = 3;
+			GridInfo.Type = EOpenVDBGridType::Float3;
 		}
-		else if (Grid->isType<openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4f, 5, 4, 3>::Type>>())
+		else if (Grid->isType<FOpenVDBFloat4Grid>())
 		{
-			NumComponents = 4;
-			GridInfo.Format = EOpenVDBGridFormat::Float;
+			GridInfo.NumComponents = 4;
+			GridInfo.Type = EOpenVDBGridType::Float4;
 		}
-		else if (Grid->isType<openvdb::DoubleGrid>())
+		else if (Grid->isType<FOpenVDBDouble1Grid>())
 		{
-			NumComponents = 1;
-			GridInfo.Format = EOpenVDBGridFormat::Double;
+			GridInfo.NumComponents = 1;
+			GridInfo.Type = EOpenVDBGridType::Double;
 		}
-		else if (Grid->isType<openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2d, 5, 4, 3>::Type>>())
+		else if (Grid->isType<FOpenVDBDouble2Grid>())
 		{
-			NumComponents = 2;
-			GridInfo.Format = EOpenVDBGridFormat::Double;
+			GridInfo.NumComponents = 2;
+			GridInfo.Type = EOpenVDBGridType::Double2;
 		}
-		else if (Grid->isType<openvdb::Vec3DGrid>())
+		else if (Grid->isType<FOpenVDBDouble3Grid>())
 		{
-			NumComponents = 3;
-			GridInfo.Format = EOpenVDBGridFormat::Double;
+			GridInfo.NumComponents = 3;
+			GridInfo.Type = EOpenVDBGridType::Double3;
 		}
-		else if (Grid->isType<openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4d, 5, 4, 3>::Type>>())
+		else if (Grid->isType<FOpenVDBDouble4Grid>())
 		{
-			NumComponents = 4;
-			GridInfo.Format = EOpenVDBGridFormat::Double;
+			GridInfo.NumComponents = 4;
+			GridInfo.Type = EOpenVDBGridType::Double4;
 		}
-#endif
-		else
-		{
-			// unsupported type
-			continue;
-		}
-		check(NumComponents > 0);
 
-		GridInfo.Name = Grid->getName().c_str();
+		FStringFormatOrderedArguments FormatArgs;
+		FormatArgs.Add(GridInfo.Index);
+		FormatArgs.Add(OpenVDBGridTypeToString(GridInfo.Type));
+		FormatArgs.Add(GridInfo.Name);
 
-		// Create one entry per component
-		for (uint32 ComponentIdx = 0; ComponentIdx < NumComponents; ++ComponentIdx)
-		{
-			GridInfo.ComponentIndex = ComponentIdx;
+		GridInfo.DisplayString = FString::Format(TEXT("{0}. Type: {1}, Name: \"{2}\""), FormatArgs);
 
-			const TCHAR* ComponentNames[] = { TEXT(".x"), TEXT(".y"),TEXT(".z"),TEXT(".w") };
-			FStringFormatOrderedArguments FormatArgs;
-			FormatArgs.Add(GridInfo.Name);
-			FormatArgs.Add(TEXT("")); // SV_TODO: Silences warning about NumComponents always being 1. Replace with this later: FormatArgs.Add(NumComponents == 1 ? TEXT("") : ComponentNames[GridInfo.ComponentIndex]);
-			FormatArgs.Add(OpenVDBGridFormatToString(GridInfo.Format));
-
-			GridInfo.DisplayString = FString::Format(TEXT("{0}{1} ({2})"), FormatArgs);
-
-			OutGridInfo->Add(MoveTemp(GridInfo));
-		}
-	}
-
-	if (OutGridInfo->IsEmpty())
-	{
-		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB file contains no grids of supported type/format: %s"), *Filename);
-		return false;
+		OutGridInfo->Add(MoveTemp(GridInfo));
 	}
 
 	return true;
@@ -333,25 +309,26 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 	FIntVector SmallestAABBMin = FIntVector(INT32_MAX);
 
 	// Compute per source grid data of up to 4 different grids (one per component)
-	openvdb::FloatGrid::Ptr FloatGrids[4]{};
-	openvdb::FloatGrid::Ptr DummyGrid = nullptr;
+	TSharedPtr<IOpenVDBGridAdapterBase> GridAdapters[4]{};
 	float GridBackgroundValues[4]{};
-	float NormalizeFactors[4]{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float NormalizeScale[4]{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float NormalizeBias[4]{};
 	for (uint32 CompIdx = 0; CompIdx < 4; ++CompIdx)
 	{
 		if (PackedData.SourceGridIndex[CompIdx] == INDEX_NONE)
 		{
-			FloatGrids[CompIdx] = nullptr;
+			GridAdapters[CompIdx] = nullptr;
 			continue;
 		}
 
-		openvdb::FloatGrid::Ptr FloatGrid = openvdb::gridPtrCast<openvdb::FloatGrid>((*Grids)[PackedData.SourceGridIndex[CompIdx]]);
-		if (!FloatGrid)
+		openvdb::GridBase::Ptr GridBase = (*Grids)[PackedData.SourceGridIndex[CompIdx]];
+		GridAdapters[CompIdx] = CreateOpenVDBGridAdapter(GridBase);
+		if (!GridAdapters[CompIdx])
 		{
 			return false;
 		}
 
-		FOpenVDBData OVDBData = GetOpenVDBData(FloatGrid);
+		FOpenVDBData OVDBData = GetOpenVDBData(GridBase);
 		if (!IsOpenVDBDataValid(OVDBData, TEXT("")))
 		{
 			return false;
@@ -371,15 +348,15 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 		SmallestAABBMin.Y = FMath::Min(SmallestAABBMin.Y, OVDBData.VolumeActiveAABBMin.Y);
 		SmallestAABBMin.Z = FMath::Min(SmallestAABBMin.Z, OVDBData.VolumeActiveAABBMin.Z);
 
-		FloatGrids[CompIdx] = FloatGrid;
-		DummyGrid = FloatGrid;
-		GridBackgroundValues[CompIdx] = FloatGrid->background();
-		if (bNormalizedFormat && PackedData.bRescaleInputForUnorm)
+		GridBackgroundValues[CompIdx] = GridAdapters[CompIdx]->GetBackgroundValue(PackedData.SourceComponentIndex[CompIdx]);
+		if (bNormalizedFormat && PackedData.bRemapInputForUnorm)
 		{
 			float MinVal = 0.0f;
 			float MaxVal = 0.0f;
-			FloatGrid->evalMinMax(MinVal, MaxVal);
-			NormalizeFactors[CompIdx] = MaxVal > SMALL_NUMBER ? (1.0f / MaxVal) : 1.0f;
+			GridAdapters[CompIdx]->GetMinMaxValue(PackedData.SourceComponentIndex[CompIdx], &MinVal, &MaxVal);
+			const float Diff = MaxVal - MinVal;
+			NormalizeScale[CompIdx] = MaxVal > SMALL_NUMBER ? (1.0f / Diff) : 1.0f;
+			NormalizeBias[CompIdx] = -MinVal * NormalizeScale[CompIdx];
 		}
 	}
 	
@@ -392,20 +369,12 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 
 	const uint32 VolumeTileDataBytes = GPixelFormats[(SIZE_T)MultiCompFormat].Get3DImageSizeInBytes(SPARSE_VOLUME_TILE_RES, SPARSE_VOLUME_TILE_RES, SPARSE_VOLUME_TILE_RES);
 	const uint32 FormatSize = (uint32)GPixelFormats[(SIZE_T)MultiCompFormat].BlockBytes;
-	const uint32 SingleComponentFormatSize = (uint32)GPixelFormats[(SIZE_T)PackedData.Format].BlockBytes;
+	const uint32 SingleComponentFormatSize = FormatSize / NumActualComponents;
 	uint32 NumAllocatedPages = 0;
 
 	// Allocate some memory for temp data (worst case)
 	TArray<FIntVector3> LinearAllocatedPages;
 	LinearAllocatedPages.SetNum(Header.PageTableVolumeResolution.X * Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.Z);
-
-	openvdb::FloatGrid::ConstAccessor Accessors[4]
-	{
-		(FloatGrids[0] ? FloatGrids[0] : DummyGrid)->getConstAccessor(),
-		(FloatGrids[1] ? FloatGrids[1] : DummyGrid)->getConstAccessor(),
-		(FloatGrids[2] ? FloatGrids[2] : DummyGrid)->getConstAccessor(),
-		(FloatGrids[3] ? FloatGrids[3] : DummyGrid)->getConstAccessor(),
-	};
 
 	// Go over each potential page from the source data and push allocate it if it has any data.
 	// Otherwise point to the default empty page.
@@ -429,8 +398,8 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 								if (PackedData.SourceGridIndex[CompIdx] != INDEX_NONE)
 								{
 									FVector VoxelCoord = FVector(SmallestAABBMin) + FVector(PageX, PageY, PageZ) * SPARSE_VOLUME_TILE_RES + FVector(x, y, z);	// This assumes sampling outside the boundary returns a default value
-									float VoxelValue = Accessors[CompIdx].getValue(openvdb::Coord(VoxelCoord.X, VoxelCoord.Y, VoxelCoord.Z));
-									bHasAnyData |= VoxelValue > GridBackgroundValues[CompIdx];
+									float VoxelValue = GridAdapters[CompIdx]->Sample(openvdb::Coord(VoxelCoord.X, VoxelCoord.Y, VoxelCoord.Z), PackedData.SourceComponentIndex[CompIdx]);
+									bHasAnyData |= VoxelValue != GridBackgroundValues[CompIdx];
 								}
 							}
 						}
@@ -519,10 +488,12 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 					for (uint32 CompIdx = 0; CompIdx < NumActualComponents; ++CompIdx)
 					{
 						float VoxelValue = 0.0f;
+						float VoxelValueNormalized = 0.0f;
 						if (PackedData.SourceGridIndex[CompIdx] != INDEX_NONE)
 						{
 							FVector VoxelCoord = FVector(SmallestAABBMin) + FVector(PageCoordToSplat * SPARSE_VOLUME_TILE_RES) + FVector(x, y, z);	// This assumes sampling outside the boundary returns a default value
-							VoxelValue = Accessors[CompIdx].getValue(openvdb::Coord(VoxelCoord.X, VoxelCoord.Y, VoxelCoord.Z));
+							VoxelValue = GridAdapters[CompIdx]->Sample(openvdb::Coord(VoxelCoord.X, VoxelCoord.Y, VoxelCoord.Z), PackedData.SourceComponentIndex[CompIdx]);
+							VoxelValueNormalized = FMath::Clamp(VoxelValue * NormalizeScale[CompIdx] + NormalizeBias[CompIdx], 0.0f, 1.0f);
 						}
 
 						const SIZE_T DstCoord = ((DestinationTileCoord.Z * SPARSE_VOLUME_TILE_RES + z) * Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y +
@@ -533,7 +504,7 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 						{
 						case ESparseVolumePackedDataFormat::Unorm8:
 						{
-							DensityDataPtr[DstCoord] = uint8(FMath::Clamp(VoxelValue * NormalizeFactors[CompIdx], 0.0f, 1.0f) * 255.0f);
+							DensityDataPtr[DstCoord] = uint8(VoxelValueNormalized * 255.0f);
 							break;
 						}
 						case ESparseVolumePackedDataFormat::Float16:
@@ -566,14 +537,26 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 #endif // OPENVDB_AVAILABLE
 }
 
-const TCHAR* OpenVDBGridFormatToString(EOpenVDBGridFormat Format)
+const TCHAR* OpenVDBGridTypeToString(EOpenVDBGridType Type)
 {
-	switch (Format)
+	switch (Type)
 	{
-	case EOpenVDBGridFormat::Float:
+	case EOpenVDBGridType::Float:
 		return TEXT("Float");
-	case EOpenVDBGridFormat::Double:
+	case EOpenVDBGridType::Float2:
+		return TEXT("Float2");
+	case EOpenVDBGridType::Float3:
+		return TEXT("Float3");
+	case EOpenVDBGridType::Float4:
+		return TEXT("Float4");
+	case EOpenVDBGridType::Double:
 		return TEXT("Double");
+	case EOpenVDBGridType::Double2:
+		return TEXT("Double2");
+	case EOpenVDBGridType::Double3:
+		return TEXT("Double3");
+	case EOpenVDBGridType::Double4:
+		return TEXT("Double4");
 	default:
 		return TEXT("Unknown");
 	}
