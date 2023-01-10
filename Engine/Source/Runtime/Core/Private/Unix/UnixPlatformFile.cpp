@@ -146,6 +146,12 @@ public:
 	{
 		check(NewPosition >= 0);
 
+		// Avoid allowing for a negative NewPosition as this will set FileOffset which is returned in Tell blindly
+		if (NewPosition < 0)
+		{
+			return false;
+		}
+
 		if (!FileOpenAsWrite)
 		{
 			FileOffset = NewPosition >= FileSize ? FileSize - 1 : NewPosition;
@@ -161,6 +167,13 @@ public:
 	virtual bool SeekFromEnd(int64 NewPositionRelativeToEnd = 0) override
 	{
 		check(NewPositionRelativeToEnd <= 0);
+
+		// Avoid allowing a relative position to set less then the size of the file
+		// lseek handles this negative but we return FileOffset blindly which could be used incorrectly
+		if (NewPositionRelativeToEnd < (-FileSize))
+		{
+			return false;
+		}
 
 		if (!FileOpenAsWrite)
 		{
@@ -265,6 +278,12 @@ private:
 	{
 		check(IsValid());
 		int64 BytesRead = 0;
+
+		if (BytesToRead < 0)
+		{
+			return 0;
+		}
+
 		while (BytesToRead)
 		{
 			check(BytesToRead >= 0);
