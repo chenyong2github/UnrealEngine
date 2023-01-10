@@ -86,17 +86,15 @@ namespace UnrealBuildTool
 			XmlConfig.ApplyTo(this);
 		}
 
-		[SupportedOSPlatform("windows")]
 		public override string Name
 		{
 			get { return "XGE"; }
 		}
 
-		[SupportedOSPlatform("windows")]
 		public static bool TryGetXgConsoleExecutable([NotNullWhen(true)] out string? OutXgConsoleExe)
 		{
 			// Try to get the path from the registry
-			if(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			if (OperatingSystem.IsWindows())
 			{
 				string? XgConsoleExe;
 				if(TryGetXgConsoleExecutableFromRegistry(RegistryView.Registry32, out XgConsoleExe))
@@ -304,11 +302,6 @@ namespace UnrealBuildTool
 
 		public static bool IsAvailable(ILogger Logger)
 		{
-			if (!OperatingSystem.IsWindows())
-			{
-				return false;
-			}
-
 			string? XgConsoleExe;
 			if (!TryGetXgConsoleExecutable(out XgConsoleExe))
 			{
@@ -389,7 +382,6 @@ namespace UnrealBuildTool
 			Logger.LogInformation("XGEEXPORT: Exported '{OutFile}'", OutFile);
 		}
 
-		[SupportedOSPlatform("windows")]
 		public override bool ExecuteActions(IEnumerable<LinkedAction> Actions, ILogger Logger)
 		{
 			if (!Actions.Any())
@@ -610,7 +602,6 @@ namespace UnrealBuildTool
 		/// <param name="ActionCount"></param>
 		/// <param name="Logger"></param>
 		/// <returns>Indicates whether the tasks were successfully executed.</returns>
-		[SupportedOSPlatform("windows")]
 		bool ExecuteTaskFile(string TaskFilePath, DataReceivedEventHandler OutputEventHandler, int ActionCount, ILogger Logger)
 		{
 			// A bug in the UCRT can cause XGE to hang on VS2015 builds. Figure out if this hang is likely to effect this build and workaround it if able.
@@ -700,7 +691,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Executes the tasks in the specified file, parsing progress markup as part of the output.
 		/// </summary>
-		[SupportedOSPlatform("windows")]
 		bool ExecuteTaskFileWithProgressMarkup(string TaskFilePath, int NumActions, ILogger Logger)
 		{
 			using (ProgressWriter Writer = new ProgressWriter("Compiling C++ source files...", false, Logger))
