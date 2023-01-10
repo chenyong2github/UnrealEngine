@@ -1213,6 +1213,10 @@ public:
 	void Deinit();
 
 	static bool VerifySupport(FVulkanDevice* InDevice);
+	inline bool IsSupported()
+	{
+		return bIsSupported;
+	}
 
 	inline VkPipelineLayout GetPipelineLayout() const
 	{
@@ -1233,6 +1237,7 @@ public:
 	void CopyDescriptor(VkCommandBuffer CommandBuffer, FRHIDescriptorHandle DstHandle, const FRHIDescriptorHandle SrcHandle);
 
 private:
+	const bool bIsSupported;
 
 	VkDescriptorSetLayout EmptyDescriptorSetLayout = VK_NULL_HANDLE;
 

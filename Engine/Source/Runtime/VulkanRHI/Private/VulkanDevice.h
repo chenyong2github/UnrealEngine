@@ -324,10 +324,7 @@ public:
 		return DeviceMemoryManager.HasUnifiedMemory();
 	}
 
-	inline bool SupportsBindless() const
-	{
-		return (BindlessDescriptorManager != nullptr);
-	}
+	bool SupportsBindless() const;
 
 	inline uint64 GetTimestampValidBitsMask() const
 	{

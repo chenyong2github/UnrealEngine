@@ -119,6 +119,7 @@ static inline VkMemoryPropertyFlags GetDescriptorBufferMemoryType(FVulkanDevice*
 
 FVulkanBindlessDescriptorManager::FVulkanBindlessDescriptorManager(FVulkanDevice* InDevice)
 	: VulkanRHI::FDeviceChild(InDevice)
+	, bIsSupported(VerifySupport(InDevice))
 {
 	const bool bFullyDisabled = (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::Disabled) &&
 		(RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::Disabled);

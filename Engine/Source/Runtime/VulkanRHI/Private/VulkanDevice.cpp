@@ -1018,6 +1018,12 @@ void FVulkanDevice::MapFormatSupport(EPixelFormat UEFormat, std::initializer_lis
 	MapFormatSupport(UEFormat, PrioritizedFormats, ComponentMapping, RequiredCapabilities, kDefaultBlockBytes);
 }
 
+bool FVulkanDevice::SupportsBindless() const
+{
+	checkSlow(BindlessDescriptorManager != nullptr);
+	return BindlessDescriptorManager->IsSupported();
+}
+
 void FVulkanDevice::InitGPU()
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanMisc);
@@ -1151,11 +1157,8 @@ void FVulkanDevice::InitGPU()
 	DescriptorPoolsManager = new FVulkanDescriptorPoolsManager();
 	DescriptorPoolsManager->Init(this);
 
-	if (FVulkanBindlessDescriptorManager::VerifySupport(this))
-	{
-		BindlessDescriptorManager = new FVulkanBindlessDescriptorManager(this);
-		BindlessDescriptorManager->Init();
-	}
+	BindlessDescriptorManager = new FVulkanBindlessDescriptorManager(this);
+	BindlessDescriptorManager->Init();
 
 	PipelineStateCache = new FVulkanPipelineStateCacheManager(this);
 
@@ -1327,12 +1330,9 @@ void FVulkanDevice::Destroy()
 
 	DeferredDeletionQueue.Clear();
 
-	if (BindlessDescriptorManager)
-	{
-		BindlessDescriptorManager->Deinit();
-		delete BindlessDescriptorManager;
-		BindlessDescriptorManager = nullptr;
-	}
+	BindlessDescriptorManager->Deinit();
+	delete BindlessDescriptorManager;
+	BindlessDescriptorManager = nullptr;
 
 	MemoryManager.Deinit();
 
