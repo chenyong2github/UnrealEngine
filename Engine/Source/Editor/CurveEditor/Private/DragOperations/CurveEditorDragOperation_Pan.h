@@ -31,6 +31,8 @@ private:
 	double InitialInputMin, InitialInputMax;
 	double InitialOutputMin, InitialOutputMax;
 	FCurveEditorAxisSnap::FSnapState SnappingState;
+	FVector2D LastMousePosition;
+
 };
 
 class FCurveEditorDragOperation_PanInput : public ICurveEditorDragOperation
@@ -46,4 +48,5 @@ private:
 	FCurveEditor* CurveEditor;
 	double InitialInputMin, InitialInputMax;
 	FCurveEditorAxisSnap::FSnapState SnappingState;
+	FVector2D LastMousePosition;
 };

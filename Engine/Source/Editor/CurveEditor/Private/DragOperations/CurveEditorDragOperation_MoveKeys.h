@@ -29,6 +29,7 @@ private:
 	FCurveEditor* CurveEditor;
 	TOptional<FCurvePointHandle> CardinalPoint;
 
+	FVector2D LastMousePosition;
 private:
 
 	struct FKeyData

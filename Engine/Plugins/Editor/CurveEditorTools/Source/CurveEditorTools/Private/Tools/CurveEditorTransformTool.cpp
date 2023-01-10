@@ -391,7 +391,7 @@ FReply FCurveEditorTransformTool::OnMouseMove(TSharedRef<SWidget> OwningWidget, 
 		}
 		else if (DelayedDrag->AttemptDragStart(MouseEvent))
 		{
-			InitialMousePosition = MouseEvent.GetScreenSpacePosition();
+			LastMousePosition = InitialMousePosition = MouseEvent.GetScreenSpacePosition();
 			OnDragStart();
 
 			// Steal the capture, as we're now the authoritative widget in charge of a mouse-drag operation
@@ -983,7 +983,7 @@ void FCurveEditorTransformTool::OnDrag(const FPointerEvent& InMouseEvent, const 
 		// Dragging the center is the easy case!
 		if (TransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::Center)
 		{
-			const FVector2D AxisLockedMousePosition = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialMousePosition, InMouseEvent.GetScreenSpacePosition(), InMouseEvent, SnappingState);
+			const FVector2D AxisLockedMousePosition = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialMousePosition, LastMousePosition, InMouseEvent.GetScreenSpacePosition(), InMouseEvent, SnappingState);
 			{
 				FVector2D MouseDelta = AxisLockedMousePosition - InitialMousePosition;
 				TransformWidget.Position = TransformWidget.StartPosition + MouseDelta;
@@ -1061,7 +1061,7 @@ void FCurveEditorTransformTool::OnDrag(const FPointerEvent& InMouseEvent, const 
 			}
 		}
 	}
-
+	LastMousePosition = InMouseEvent.GetScreenSpacePosition();
 	UpdateMarqueeBoundingBox();
 
 	UpdateToolOptions();

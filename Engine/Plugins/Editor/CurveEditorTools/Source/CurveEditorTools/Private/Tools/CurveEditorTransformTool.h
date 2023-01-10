@@ -184,6 +184,7 @@ private:
 	TRange<double> InputMinMax;
 
 	FVector2D InitialMousePosition;
+	FVector2D LastMousePosition;
 	FCurveEditorAxisSnap::FSnapState SnappingState;
 
 	/** UStruct that displays properties to be modified on screen */
