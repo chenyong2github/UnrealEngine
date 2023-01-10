@@ -5,10 +5,6 @@
 
 #if PLATFORM_WINDOWS
 
-#include "WindowsRealTimeStylusPlugin.h"
-#include "Interfaces/IMainFrameModule.h"
-
-#include "Framework/Application/SlateApplication.h" 
 #include <ShlObj.h>
 
 class FWindowsStylusInputInterfaceImpl
