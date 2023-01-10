@@ -125,7 +125,7 @@ bool UWidgetBlueprintFactory::ConfigureProperties()
 		Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 		Filter->AllowedChildrenOfClasses.Add(UPanelWidget::StaticClass());
 
-		const FText TitleText = LOCTEXT("CreateWidgetBlueprint", "Pick Root Widget for New Widget Blueprint");
+		const FText TitleText = LOCTEXT("CreateRootWidgetBlueprint", "Pick Root Widget for New Widget Blueprint");
 		return SClassPickerDialog::PickClass(TitleText, Options, static_cast<UClass*&>(RootWidgetClass), UPanelWidget::StaticClass());
 
 	}
