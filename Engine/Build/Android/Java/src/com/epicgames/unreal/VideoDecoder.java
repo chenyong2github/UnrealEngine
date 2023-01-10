@@ -244,7 +244,7 @@ public class VideoDecoder
 		if (null != mBitmapRenderer)
 		{
 			while (WaitOnBitmapRender) ;
-			releaseOESTextureRenderer();
+			releaseBitmapRenderer();
 		}
 
 		resetCodec();

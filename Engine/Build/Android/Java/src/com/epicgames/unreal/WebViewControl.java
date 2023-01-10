@@ -228,7 +228,7 @@ class WebViewControl
 		if (null != mBitmapRenderer)
 		{
 			while (WaitOnBitmapRender) ;
-			releaseOESTextureRenderer();
+			releaseBitmapRenderer();
 		}
 
 		if (TargetCanvas != null)

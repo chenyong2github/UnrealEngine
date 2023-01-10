@@ -706,7 +706,7 @@ public class CameraPlayer14
 		if (null != mBitmapRenderer)
 		{
 			while (WaitOnBitmapRender) ;
-			releaseOESTextureRenderer();
+			releaseBitmapRenderer();
 		}
 
 		if (null != mCamera)

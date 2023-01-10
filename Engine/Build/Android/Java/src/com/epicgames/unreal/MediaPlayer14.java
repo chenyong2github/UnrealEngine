@@ -708,7 +708,7 @@ public class MediaPlayer14
 		if (null != mBitmapRenderer)
 		{
 			while (WaitOnBitmapRender) ;
-			releaseOESTextureRenderer();
+			releaseBitmapRenderer();
 		}
 		super.release();
 	}
