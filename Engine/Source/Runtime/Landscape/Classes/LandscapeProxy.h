@@ -664,8 +664,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Collision)
 	int32 SimpleCollisionMipLevel;
 
-	/** Thickness of the collision surface, in unreal units */
-	UPROPERTY(EditAnywhere, Category=Collision)
+	UE_DEPRECATED(5.2, "CollisionThickness is not supported by Chaos Physics and therefore deprecated. Please remove any usage of this property")
 	float CollisionThickness;
 
 	/** Collision profile settings for this landscape */

@@ -3666,7 +3666,6 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->CustomDepthStencilWriteMask = OldLandscape->CustomDepthStencilWriteMask;
 			NewLandscape->CustomDepthStencilValue = OldLandscape->CustomDepthStencilValue;
 			NewLandscape->LightmassSettings = OldLandscape->LightmassSettings;
-			NewLandscape->CollisionThickness = OldLandscape->CollisionThickness;
 			NewLandscape->BodyInstance.SetCollisionProfileName(OldLandscape->BodyInstance.GetCollisionProfileName());
 			if (NewLandscape->BodyInstance.DoesUseCollisionProfile() == false)
 			{

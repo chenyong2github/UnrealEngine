@@ -1305,7 +1305,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bCastStaticShadow = true;
 	bUsedForNavigation = true;
 	bFillCollisionUnderLandscapeForNavmesh = false;
-	CollisionThickness = 16;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bGenerateOverlapEvents = false;
 #if WITH_EDITORONLY_DATA
