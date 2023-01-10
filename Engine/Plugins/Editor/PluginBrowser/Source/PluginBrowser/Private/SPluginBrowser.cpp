@@ -22,6 +22,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/StyleColors.h"
 #include "SWarningOrErrorBox.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 
