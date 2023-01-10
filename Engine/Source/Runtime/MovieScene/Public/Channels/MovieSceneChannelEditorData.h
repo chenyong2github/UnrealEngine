@@ -49,6 +49,13 @@ struct FMovieSceneChannelMetaData
 	 */
 	MOVIESCENE_API void SetIdentifiers(FName InName, FText InDisplayText, FText InGroup = FText());
 
+	/*
+	 * Get property metadata that corresponds to the given key.
+	 * 
+	 * @param InKey The requested key to get metadata for
+	 */
+	MOVIESCENE_API FString GetPropertyMetaData(const FName& InKey) const;
+
 	/** Whether this channel is enabled or not */
 	uint8 bEnabled : 1;
 	/** True if this channel can be collapsed onto the top level track node */
@@ -67,6 +74,8 @@ struct FMovieSceneChannelMetaData
 	FText LongIntentNameFormat;
 	/** Optional color to draw underneath the keys on this channel */
 	TOptional<FLinearColor> Color;
+	/** Property meta data */
+	TMap<FName, FString> PropertyMetaData;
 };
 
 

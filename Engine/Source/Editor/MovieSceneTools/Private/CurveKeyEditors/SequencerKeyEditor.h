@@ -187,6 +187,32 @@ struct TSequencerKeyEditor
 		return WeakPropertyBindings.Pin().Get();
 	}
 
+	FString GetMetaData(const FName& Key) const
+	{
+		ISequencer* Sequencer = GetSequencer();
+		FTrackInstancePropertyBindings* PropertyBindings = GetPropertyBindings();
+		if (Sequencer && PropertyBindings)
+		{
+			for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(ObjectBindingID, Sequencer->GetFocusedTemplateID()))
+			{
+				if (UObject* Object = WeakObject.Get())
+				{
+					if (FProperty* Property = PropertyBindings->GetProperty(*Object))
+					{
+						return Property->GetMetaData(Key);
+					}
+				}
+			}
+		}
+
+		if (const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData())
+		{
+			return MetaData->GetPropertyMetaData(Key);
+		}
+
+		return FString();
+	}
+
 private:
 
 	FGuid ObjectBindingID;

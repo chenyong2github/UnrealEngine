@@ -42,4 +42,9 @@ void FMovieSceneChannelMetaData::SetIdentifiers(FName InName, FText InDisplayTex
 	DisplayText = InDisplayText;
 }
 
+FString FMovieSceneChannelMetaData::GetPropertyMetaData(const FName& InKey) const
+{
+	return PropertyMetaData.FindRef(InKey);
+}
+
 #endif	// WITH_EDITOR

@@ -11,6 +11,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Styling/AppStyle.h"
 #include "CurveKeyEditors/SequencerKeyEditor.h"
+#include "NumericPropertyParams.h"
 
 #define LOCTEXT_NAMESPACE "NumericKeyEditor"
 
@@ -41,15 +42,46 @@ public:
 	void Construct(const FArguments& InArgs, const TSequencerKeyEditor<ChannelType, NumericType>& InKeyEditor)
 	{
 		KeyEditor = InKeyEditor;
+
+		const FProperty* Property = nullptr;
+		ISequencer* Sequencer = InKeyEditor.GetSequencer();
+		FTrackInstancePropertyBindings* PropertyBindings = InKeyEditor.GetPropertyBindings();
+		if (Sequencer && PropertyBindings)
+		{
+			for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(InKeyEditor.GetObjectBindingID(), Sequencer->GetFocusedTemplateID()))
+			{
+				if (UObject* Object = WeakObject.Get())
+				{
+					Property = PropertyBindings->GetProperty(*Object);
+					if (Property)
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		const typename TNumericPropertyParams<NumericType>::FMetaDataGetter MetaDataGetter = TNumericPropertyParams<NumericType>::FMetaDataGetter::CreateLambda([&](const FName& Key)
+		{
+			return InKeyEditor.GetMetaData(Key);
+		});
+
+		TNumericPropertyParams<NumericType> NumericPropertyParams(Property, MetaDataGetter);
+
 		ChildSlot
 		[
 			SNew(SNonThrottledSpinBox<NumericType>)
 			.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 			.Font(FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-			.MinValue(TOptional<NumericType>())
-			.MaxValue(TOptional<NumericType>())
-			.MaxSliderValue(TOptional<NumericType>())
-			.MinSliderValue(TOptional<NumericType>())
+			.MinValue(NumericPropertyParams.MinValue)
+			.MaxValue(NumericPropertyParams.MaxValue)
+			.MinSliderValue(NumericPropertyParams.MinSliderValue)
+			.MaxSliderValue(NumericPropertyParams.MaxSliderValue)
+			.SliderExponent(NumericPropertyParams.SliderExponent)
+			.Delta(NumericPropertyParams.Delta)
+			// LinearDeltaSensitivity needs to be left unset if not provided, rather than being set to some default
+			.LinearDeltaSensitivity(NumericPropertyParams.GetLinearDeltaSensitivityAttribute())
+			.WheelStep(NumericPropertyParams.WheelStep)
 			.Value_Raw(&KeyEditor, &decltype(KeyEditor)::GetCurrentValue)
 			.OnValueChanged(this, &SNumericKeyEditor::OnValueChanged)
 			.OnValueCommitted(this, &SNumericKeyEditor::OnValueCommitted)
