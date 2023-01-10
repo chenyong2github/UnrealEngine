@@ -1756,6 +1756,7 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 	{
 		CurrentActorIndexForIncrementalUpdate = 0;
 		bCachedHasStaticMeshCompilationPending.Reset();
+		bHasRerunConstructionScripts = true;
 		return true;
 	}
 	return false;
