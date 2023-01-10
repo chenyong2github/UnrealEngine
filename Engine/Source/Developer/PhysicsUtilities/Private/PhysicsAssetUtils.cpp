@@ -506,7 +506,7 @@ namespace LevelSetHelpers
 		TSweepingMeshSDF<FDynamicMesh3> SDF;
 		SDF.Mesh = &SolidMesh;
 		SDF.Spatial = &Spatial;
-		SDF.ComputeMode = TSweepingMeshSDF<FDynamicMesh3>::EComputeModes::NarrowBand_SpatialFloodFill;
+		SDF.ComputeMode = TSweepingMeshSDF<FDynamicMesh3>::EComputeModes::FullGrid;
 		SDF.CellSize = (float)CellSize;
 		SDF.NarrowBandMaxDistance = NumNarrowBandCells * CellSize;
 		SDF.ExactBandWidth = FMath::CeilToInt32(SDF.NarrowBandMaxDistance / CellSize);
