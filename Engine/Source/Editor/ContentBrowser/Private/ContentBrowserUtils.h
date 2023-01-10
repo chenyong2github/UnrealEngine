@@ -97,9 +97,17 @@ namespace ContentBrowserUtils
 	/** Returns if this folder has been marked as a favorite folder */
 	bool IsFavoriteFolder(const FString& FolderPath);
 
-	void AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig = true);
+	/** Add a favorite folder. This should be a full virtual path. */
+	void AddFavoriteFolder(const FString& FolderPath);
 
-	void RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig = true);
+	UE_DEPRECATED(5.2, "The bFlushConfig parameter is ignored, since this function does not persist the favorites to config.")
+	void AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig);
+
+	/** Remove a favorite folder. This should be a full virtual path. */
+	void RemoveFavoriteFolder(const FString& FolderPath);
+
+	UE_DEPRECATED(5.2, "The bFlushConfig parameter is ignored, since this function does not persist the favorites to config.")
+	void RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig);
 
 	const TArray<FString>& GetFavoriteFolders();
 

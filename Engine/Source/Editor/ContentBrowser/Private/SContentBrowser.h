@@ -39,6 +39,7 @@ class SBorder;
 class SCollectionView;
 class SComboButton;
 class SExpandableArea;
+class SFavoritePathView;
 class SFilterList;
 class SPathView;
 class SSearchToggleButton;
@@ -51,6 +52,7 @@ class UToolMenu;
 struct FAssetData;
 struct FAssetSearchBoxSuggestion;
 struct FCollectionNameType;
+struct FContentBrowserInstanceConfig;
 struct FContentBrowserItem;
 struct FContentBrowserItemPath;
 struct FGeometry;
@@ -377,6 +379,9 @@ private:
 
 	/** Gets the visibility state of the asset tree */
 	EVisibility GetSourcesViewVisibility() const;
+	
+	/** Set whether or not we the sources view is expanded. */
+	void SetSourcesViewExpanded(bool bExpanded);
 
 	/** Handler for clicking the tree expand/collapse button */
 	FReply SourcesViewExpandClicked();
@@ -573,6 +578,9 @@ private:
 	TSharedRef<SWidget> CreateDockedCollectionsView(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreateDrawerDockButton(const FContentBrowserConfig* Config);
 
+	void SetFavoritesExpanded(bool bExpanded);
+	void SetPathViewExpanded(bool bExpanded);
+
 	/** Adds menu options to the view menu */
 	void ExtendViewOptionsMenu(const FContentBrowserConfig* Config);
 
@@ -590,6 +598,15 @@ private:
 
 	/** Called when the layout of the SFilterList is changing */
 	void OnFilterBarLayoutChanging(EFilterBarLayout NewLayout);
+
+	/** Fetch the const config for this content browser instance. */
+	const FContentBrowserInstanceConfig* GetConstInstanceConfig() const;
+
+	/** Fetch the mutable config for this content browser instance. */
+	FContentBrowserInstanceConfig* GetMutableInstanceConfig();
+
+	/** Initialize an editor config for this instance if one does not exist. */
+	FContentBrowserInstanceConfig* CreateEditorConfigIfRequired();
 
 private:
 
@@ -618,7 +635,7 @@ private:
 	TSharedPtr<SPathView> PathViewPtr;
 
 	/** The favorites tree widget */
-	TSharedPtr<class SFavoritePathView> FavoritePathViewPtr;
+	TSharedPtr<SFavoritePathView> FavoritePathViewPtr;
 
 	/** The collection widget */
 	TSharedPtr<SCollectionView> CollectionViewPtr;

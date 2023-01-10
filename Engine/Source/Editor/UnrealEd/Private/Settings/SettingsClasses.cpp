@@ -52,13 +52,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogSettingsClasses, Log, All);
 
 UContentBrowserSettings::FSettingChangedEvent UContentBrowserSettings::SettingChangedEvent;
 
-UContentBrowserSettings::UContentBrowserSettings( const FObjectInitializer& ObjectInitializer )
-	: Super(ObjectInitializer)
-	, DockCollections(true)
-{
-}
-
-
 void UContentBrowserSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

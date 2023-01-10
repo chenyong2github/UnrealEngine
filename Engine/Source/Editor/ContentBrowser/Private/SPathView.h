@@ -50,6 +50,7 @@ class UToolMenu;
 struct FAssetData;
 struct FGeometry;
 struct FHistoryData;
+struct FPathViewConfig;
 struct FPointerEvent;
 
 typedef TTextFilter< const FString& > FolderTextFilter;
@@ -74,6 +75,7 @@ public:
 		, _AllowReadOnlyFolders(true)
 		, _ShowFavorites(false)
 		, _SelectionMode( ESelectionMode::Multi )
+		, _EditorConfig(nullptr)
 		{}
 
 		/** Content displayed to the left of the search bar */
@@ -123,6 +125,8 @@ public:
 
 		/** The plugin filter collection */
 		SLATE_ARGUMENT( TSharedPtr<FPluginFilterCollectionType>, PluginPathFilters)
+
+		SLATE_ARGUMENT( FPathViewConfig*, EditorConfig )
 
 	SLATE_END_ARGS()
 
@@ -197,10 +201,10 @@ public:
 	void ApplyHistoryData( const FHistoryData& History );
 
 	/** Saves any settings to config that should be persistent between editor sessions */
-	virtual void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const;
+	virtual void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& InstanceName) const;
 
 	/** Loads any settings to config that should be persistent between editor sessions */
-	virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
+	virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& InstanceName);
 
 	/**
 	 * Return true if passes path block lists
@@ -473,6 +477,9 @@ private:
 
 	/** The favorites path view if one is set. */
 	TSharedPtr<SExpandableArea> FavoritesArea;
+
+	/** The config instance to use. */
+	FPathViewConfig* EditorConfig = nullptr;
 };
 
 

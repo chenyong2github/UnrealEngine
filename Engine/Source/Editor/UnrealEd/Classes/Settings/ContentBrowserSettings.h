@@ -18,7 +18,7 @@
 UCLASS(config=EditorSettings)
 class UNREALED_API UContentBrowserSettings : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
 
@@ -73,27 +73,51 @@ public:
 public:
 
 	/** Sets whether we are allowed to display the engine folder or not, optional flag for setting override instead */
-	void SetDisplayEngineFolder( bool bInDisplayEngineFolder, bool bOverride = false )
+	void SetDisplayEngineFolder( bool bInDisplayEngineFolder )
+	{
+		DisplayEngineFolder = bInDisplayEngineFolder;
+	}
+
+	UE_DEPRECATED(5.2, "The bOverride flag is no longer necessary. The override can now be set on SAssetView::OverrideShowEngineFolder().")
+	void SetDisplayEngineFolder( bool bInDisplayEngineFolder, bool bOverride )
 	{ 
-		bOverride ? OverrideDisplayEngineFolder = bInDisplayEngineFolder : DisplayEngineFolder = bInDisplayEngineFolder;
+		SetDisplayEngineFolder(bInDisplayEngineFolder);
 	}
 
 	/** Gets whether we are allowed to display the engine folder or not, optional flag ignoring the override */
-	bool GetDisplayEngineFolder( bool bExcludeOverride = false ) const
+	bool GetDisplayEngineFolder() const
+	{
+		return DisplayEngineFolder;
+	}
+
+	UE_DEPRECATED(5.2, "The bOverride flag is no longer necessary. The override can now be set on SAssetView::OverrideShowEngineFolder().")
+	bool GetDisplayEngineFolder( bool bExcludeOverride ) const
 	{ 
-		return ( ( bExcludeOverride ? false : OverrideDisplayEngineFolder ) || DisplayEngineFolder );
+		return GetDisplayEngineFolder();
 	}
 
 	/** Sets whether we are allowed to display the developers folder or not, optional flag for setting override instead */
-	void SetDisplayDevelopersFolder( bool bInDisplayDevelopersFolder, bool bOverride = false )
+	void SetDisplayDevelopersFolder( bool bInDisplayDevelopersFolder )
+	{
+		DisplayDevelopersFolder = bInDisplayDevelopersFolder;
+	}
+
+	UE_DEPRECATED(5.2, "The bOverride flag is no longer necessary. The override can now be set on SAssetView::OverrideShowDeveloperFolders().")
+	void SetDisplayDevelopersFolder( bool bInDisplayDevelopersFolder, bool bOverride )
 	{ 
-		bOverride ? OverrideDisplayDevelopersFolder = bInDisplayDevelopersFolder : DisplayDevelopersFolder = bInDisplayDevelopersFolder;
+		SetDisplayDevelopersFolder(bInDisplayDevelopersFolder);
 	}
 
 	/** Gets whether we are allowed to display the developers folder or not, optional flag ignoring the override */
-	bool GetDisplayDevelopersFolder( bool bExcludeOverride = false ) const
+	bool GetDisplayDevelopersFolder() const
+	{
+		return DisplayDevelopersFolder;
+	}
+
+	UE_DEPRECATED(5.2, "The bOverride flag is no longer necessary. The override can now be set on SAssetView::OverrideShowDeveloperFolders().")
+	bool GetDisplayDevelopersFolder( bool bExcludeOverride ) const
 	{ 
-		return ( ( bExcludeOverride ? false : OverrideDisplayDevelopersFolder ) || DisplayDevelopersFolder );
+		return GetDisplayDevelopersFolder();
 	}
 
 	/** Sets whether we are allowed to display the L10N folder (contains localized assets) or not */
@@ -108,16 +132,28 @@ public:
 		return DisplayL10NFolder;
 	}
 
-	/** Sets whether we are allowed to display the plugin folders or not, optional flag for setting override instead */
-	void SetDisplayPluginFolders( bool bInDisplayPluginFolders, bool bOverride = false )
-	{ 
-		bOverride ? OverrideDisplayPluginFolders = bInDisplayPluginFolders : DisplayPluginFolders = bInDisplayPluginFolders;
+	/** Sets whether we are allowed to display the plugin folders or not */
+	void SetDisplayPluginFolders( bool bInDisplayPluginFolders )
+	{
+		DisplayPluginFolders = bInDisplayPluginFolders;
 	}
 
-	/** Gets whether we are allowed to display the plugin folders or not, optional flag ignoring the override */
-	bool GetDisplayPluginFolders( bool bExcludeOverride = false ) const
+	UE_DEPRECATED(5.2, "The bOverride flag is no longer necessary. The override can now be set on SAssetView::OverrideShowPluginFolders().")
+	void SetDisplayPluginFolders( bool bInDisplayPluginFolders, bool bOverride )
 	{ 
-		return ( ( bExcludeOverride ? false : OverrideDisplayPluginFolders ) || DisplayPluginFolders );
+		SetDisplayPluginFolders(bInDisplayPluginFolders);
+	}
+
+	/** Gets whether we are allowed to display the plugin folders or not */
+	bool GetDisplayPluginFolders() const
+	{
+		return DisplayPluginFolders;
+	}
+
+	UE_DEPRECATED(5.2, "The bOverride flag is no longer necessary. The override can now be set on SAssetView::OverrideShowPluginFolders().")
+	bool GetDisplayPluginFolders( bool bExcludeOverride ) const
+	{ 
+		return GetDisplayPluginFolders();
 	}
 
 	/** Sets whether we are allowed to display favorite folders or not */
@@ -212,9 +248,6 @@ private:
 	UPROPERTY(config)
 	bool DisplayEngineFolder;
 
-	/** If true, overrides the DisplayEngine setting */
-	bool OverrideDisplayEngineFolder;
-
 	/** Whether to display the developers folder in the path view of the content browser */
 	UPROPERTY(config)
 	bool DisplayDevelopersFolder;
@@ -222,15 +255,9 @@ private:
 	UPROPERTY(config)
 	bool DisplayL10NFolder;
 
-	/** If true, overrides the DisplayDev setting */
-	bool OverrideDisplayDevelopersFolder;
-
 	/** List of plugin folders to display in the content browser. */
 	UPROPERTY(config)
 	bool DisplayPluginFolders;
-
-	/** Temporary override for the DisplayPluginFolders setting */
-	bool OverrideDisplayPluginFolders;
 
 	UPROPERTY(config)
 	bool DisplayFavorites;

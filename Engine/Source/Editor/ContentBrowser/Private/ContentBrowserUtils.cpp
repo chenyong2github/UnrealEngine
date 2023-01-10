@@ -7,6 +7,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
+#include "ContentBrowserConfig.h"
 #include "ContentBrowserDataFilter.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
@@ -703,29 +704,46 @@ bool ContentBrowserUtils::IsFavoriteFolder(const FString& FolderPath)
 	return FContentBrowserSingleton::Get().FavoriteFolderPaths.Contains(ConvertVirtualPathToInvariantPathString(FolderPath));
 }
 
-void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
+void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath)
 {
-	FContentBrowserSingleton::Get().FavoriteFolderPaths.AddUnique(ConvertVirtualPathToInvariantPathString(FolderPath));
+	const FString InvariantFolder = ConvertVirtualPathToInvariantPathString(FolderPath);
+
+	FContentBrowserSingleton::Get().FavoriteFolderPaths.AddUnique(InvariantFolder);
+
+	if (UContentBrowserConfig* EditorConfig = UContentBrowserConfig::Get())
+	{
+		EditorConfig->Favorites.Add(InvariantFolder);
+
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	FContentBrowserSingleton::Get().BroadcastFavoritesChanged();
+}
+	
+void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig)
+{
+	AddFavoriteFolder(FolderPath);
+}
+
+void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath)
+{
+	const FString InvariantFolder = ConvertVirtualPathToInvariantPathString(FolderPath);
+
+	FContentBrowserSingleton::Get().FavoriteFolderPaths.Remove(InvariantFolder);
+
+	if (UContentBrowserConfig* EditorConfig = UContentBrowserConfig::Get())
+	{
+		EditorConfig->Favorites.Remove(InvariantFolder);
+
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
 
 	FContentBrowserSingleton::Get().BroadcastFavoritesChanged();
 }
 
-void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
+void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig)
 {
-	FString InvariantFolder = ConvertVirtualPathToInvariantPathString(FolderPath);
-
-	// Find and remove any subfolders
-	FContentBrowserSingleton::Get().FavoriteFolderPaths.RemoveAll([&InvariantFolder](const FString& FavoritePath)
-	{
-		return FavoritePath.StartsWith(InvariantFolder) && (FavoritePath.Len() <= InvariantFolder.Len() || FavoritePath[InvariantFolder.Len()] == TEXT('/'));
-	});
-
-	if (bFlushConfig)
-	{
-		GConfig->Flush(false, GEditorPerProjectIni);
-	}
-
-	FContentBrowserSingleton::Get().BroadcastFavoritesChanged();
+	RemoveFavoriteFolder(FolderPath);
 }
 
 const TArray<FString>& ContentBrowserUtils::GetFavoriteFolders()

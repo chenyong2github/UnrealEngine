@@ -131,7 +131,6 @@ void UEditorTutorial::SetEngineFolderVisibilty(bool bNewVisibility)
 	else
 	{
 		GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder(false);
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder(false, true);
 	}
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }

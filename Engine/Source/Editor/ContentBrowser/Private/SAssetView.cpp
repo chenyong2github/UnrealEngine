@@ -1,66 +1,64 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetView.h"
-#include "Algo/Transform.h"
-#include "HAL/FileManager.h"
-#include "UObject/UnrealType.h"
-#include "Widgets/SOverlay.h"
-#include "Engine/GameViewportClient.h"
-#include "Factories/Factory.h"
-#include "Framework/Commands/UIAction.h"
-#include "Textures/SlateIcon.h"
-#include "Misc/CommandLine.h"
-#include "Misc/ConfigCacheIni.h"
-#include "SlateOptMacros.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Notifications/SProgressBar.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SSlider.h"
-#include "Framework/Docking/TabManager.h"
-#include "Styling/AppStyle.h"
-#include "Settings/ContentBrowserSettings.h"
-#include "Engine/Blueprint.h"
-#include "Engine/Level.h"
-#include "Editor.h"
-#include "AssetSelection.h"
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
-#include "ContentBrowserLog.h"
-#include "FrontendFilterBase.h"
-#include "ContentBrowserSingleton.h"
-#include "EditorWidgetsModule.h"
-#include "AssetViewTypes.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "DragDropHandler.h"
-#include "AssetViewWidgets.h"
-#include "ContentBrowserModule.h"
-#include "ObjectTools.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "DesktopPlatformModule.h"
-#include "Misc/FileHelper.h"
-#include "Misc/TextFilterUtils.h"
-#include "Misc/NamePermissionList.h"
-#include "AssetRegistry/AssetRegistryState.h"
-#include "Materials/Material.h"
-#include "ContentBrowserMenuContexts.h"
-#include "ContentBrowserUtils.h"
-#include "ToolMenus.h"
 
-#include "IContentBrowserDataModule.h"
+#include "Algo/Transform.h"
+#include "AssetRegistry/AssetRegistryState.h"
+#include "AssetSelection.h"
+#include "AssetToolsModule.h"
+#include "AssetView/AssetViewConfig.h"
+#include "AssetViewTypes.h"
+#include "AssetViewWidgets.h"
+#include "ContentBrowserConfig.h"
+#include "ContentBrowserDataDragDropOp.h"
+#include "ContentBrowserDataLegacyBridge.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
-#include "ContentBrowserDataLegacyBridge.h"
-#include "ContentBrowserDataDragDropOp.h"
+#include "ContentBrowserLog.h"
+#include "ContentBrowserMenuContexts.h"
+#include "ContentBrowserModule.h"
+#include "ContentBrowserSingleton.h"
+#include "ContentBrowserUtils.h"
+#include "DesktopPlatformModule.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "DragDropHandler.h"
+#include "Editor.h"
+#include "EditorWidgetsModule.h"
+#include "Engine/Blueprint.h"
+#include "Engine/Level.h"
+#include "Factories/Factory.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "FrontendFilterBase.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "IAssetTools.h"
+#include "IContentBrowserDataModule.h"
+#include "Materials/Material.h"
+#include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/FileHelper.h"
+#include "Misc/NamePermissionList.h"
+#include "Misc/TextFilterUtils.h"
+#include "ObjectTools.h"
+#include "SContentBrowser.h"
 #include "SFilterList.h"
 #include "SPrimaryButton.h"
+#include "Settings/ContentBrowserSettings.h"
+#include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenus.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include "ISourceControlModule.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
@@ -265,7 +263,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	bShowPathInColumnView = InArgs._ShowPathInColumnView;
 	bShowTypeInColumnView = InArgs._ShowTypeInColumnView;
-	bSortByPathInColumnView = bShowPathInColumnView & InArgs._SortByPathInColumnView;
+	bSortByPathInColumnView = bShowPathInColumnView && InArgs._SortByPathInColumnView;
 	bShowTypeInTileView = InArgs._ShowTypeInTileView;
 	bForceShowEngineContent = InArgs._ForceShowEngineContent;
 	bForceShowPluginContent = InArgs._ForceShowPluginContent;
@@ -920,7 +918,8 @@ void SAssetView::LoadSettings(const FString& IniFilename, const FString& IniSect
 	{
 		// Clamp value to normal range and update state
 		ThumbnailSizeConfig = FMath::Clamp<int32>(ThumbnailSizeConfig, 0, (int32)EThumbnailSize::MAX-1);
-		OnThumbnailSizeChanged((EThumbnailSize)ThumbnailSizeConfig);
+
+		ThumbnailSize = (EThumbnailSize) ThumbnailSizeConfig;
 	}
 
 	int32 ViewType = EAssetViewType::Tile;
@@ -948,7 +947,6 @@ void SAssetView::LoadSettings(const FString& IniFilename, const FString& IniSect
 				ColumnView->GetHeaderRow()->SetShowGeneratedColumn(Column.ColumnId, !HiddenColumnNames.Contains(Column.ColumnId.ToString()));
 			}
 		}
-		
 	}
 }
 
@@ -2006,9 +2004,19 @@ void SAssetView::RefreshSourceItems()
 
 bool SAssetView::IsFilteringRecursively() const
 {
+	if (!bFilterRecursivelyWithBackendFilter)
+	{
+		return false;
+	}
+
 	// In some cases we want to not filter recursively even if we have a backend filter (e.g. the open level window)
 	// Most of the time, bFilterRecursivelyWithBackendFilter is true
-	return bFilterRecursivelyWithBackendFilter && GetDefault<UContentBrowserSettings>()->FilterRecursively;
+	if (const FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+	{
+		return EditorConfig->bFilterRecursively;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->FilterRecursively;
 }
 
 bool SAssetView::IsToggleFilteringRecursivelyAllowed() const
@@ -2019,7 +2027,18 @@ bool SAssetView::IsToggleFilteringRecursivelyAllowed() const
 void SAssetView::ToggleFilteringRecursively()
 {
 	check(IsToggleFilteringRecursivelyAllowed());
-	GetMutableDefault<UContentBrowserSettings>()->FilterRecursively = !GetDefault<UContentBrowserSettings>()->FilterRecursively;
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->FilterRecursively;
+	
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
+	{
+		bNewState = !EditorConfig->bFilterRecursively;
+
+		EditorConfig->bFilterRecursively = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->FilterRecursively = bNewState;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -2105,25 +2124,78 @@ void SAssetView::RefreshFilteredItems()
 	UE_LOG(LogContentBrowser, VeryVerbose, TEXT("AssetView - RefreshFilteredItems completed in %0.4f seconds"), FPlatformTime::Seconds() - RefreshFilteredItemsStartTime);
 }
 
+FContentBrowserInstanceConfig* SAssetView::GetContentBrowserConfig() const
+{
+	if (TSharedPtr<SContentBrowser> ContentBrowser = OwningContentBrowser.Pin())
+	{
+		if (UContentBrowserConfig* EditorConfig = UContentBrowserConfig::Get())
+		{
+			return UContentBrowserConfig::Get()->Instances.Find(ContentBrowser->GetInstanceName());
+		}
+	}
+	return nullptr;
+}
+
+FAssetViewInstanceConfig* SAssetView::GetAssetViewConfig() const
+{
+	if (TSharedPtr<SContentBrowser> ContentBrowser = OwningContentBrowser.Pin())
+	{
+		const FName InstanceName = ContentBrowser->GetInstanceName();
+		if (!InstanceName.IsNone())
+		{
+			if (UAssetViewConfig* Config = UAssetViewConfig::Get())
+			{
+				return &Config->GetInstanceConfig(InstanceName);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void SAssetView::ToggleShowAllFolder()
 {
-	GetMutableDefault<UContentBrowserSettings>()->bShowAllFolder = !GetDefault<UContentBrowserSettings>()->bShowAllFolder;
+	const bool bNewValue = !IsShowingAllFolder();
+	GetMutableDefault<UContentBrowserSettings>()->bShowAllFolder = bNewValue;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		Config->bShowAllFolder = bNewValue;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
 }
 
 bool SAssetView::IsShowingAllFolder() const
 {
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowAllFolder;
+	}
+
 	return GetDefault<UContentBrowserSettings>()->bShowAllFolder;
 }
 
 void SAssetView::ToggleOrganizeFolders()
 {
-	GetMutableDefault<UContentBrowserSettings>()->bOrganizeFolders = !GetDefault<UContentBrowserSettings>()->bOrganizeFolders;
+	const bool bNewValue = !IsOrganizingFolders();
+	GetMutableDefault<UContentBrowserSettings>()->bOrganizeFolders = bNewValue;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		Config->bOrganizeFolders = bNewValue;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
 }
 
 bool SAssetView::IsOrganizingFolders() const
 {
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bOrganizeFolders;
+	}
+
 	return GetDefault<UContentBrowserSettings>()->bOrganizeFolders;
 }
 
@@ -2434,22 +2506,22 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 
 	// Get all menu extenders for this context menu from the content browser module
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
-	TArray<FContentBrowserMenuExtender> MenuExtenderDelegates = ContentBrowserModule.GetAllAssetViewViewMenuExtenders();
+	const TArray<FContentBrowserMenuExtender>& MenuExtenderDelegates = ContentBrowserModule.GetAllAssetViewViewMenuExtenders();
 
 	TArray<TSharedPtr<FExtender>> Extenders;
-	for (int32 i = 0; i < MenuExtenderDelegates.Num(); ++i)
+	for (const FContentBrowserMenuExtender& Extender : MenuExtenderDelegates)
 	{
-		if (MenuExtenderDelegates[i].IsBound())
+		if (Extender.IsBound())
 		{
-			Extenders.Add(MenuExtenderDelegates[i].Execute());
+			Extenders.Add(Extender.Execute());
 		}
 	}
-	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
 
 	UContentBrowserAssetViewContextMenuContext* Context = NewObject<UContentBrowserAssetViewContextMenuContext>();
 	Context->AssetView = SharedThis(this);
 	Context->OwningContentBrowser = OwningContentBrowser;
 
+	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
 	FToolMenuContext MenuContext(nullptr, MenuExtender, Context);
 
 	if (OnExtendAssetViewOptionsMenuContext.IsBound())
@@ -2850,8 +2922,18 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 
 void SAssetView::ToggleShowFolders()
 {
-	check( IsToggleShowFoldersAllowed() );
-	GetMutableDefault<UContentBrowserSettings>()->DisplayFolders = !GetDefault<UContentBrowserSettings>()->DisplayFolders;
+	check(IsToggleShowFoldersAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->DisplayFolders;
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bShowFolders;
+		Config->bShowFolders = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->DisplayFolders = bNewState;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -2862,7 +2944,17 @@ bool SAssetView::IsToggleShowFoldersAllowed() const
 
 bool SAssetView::IsShowingFolders() const
 {
-	return IsToggleShowFoldersAllowed() && GetDefault<UContentBrowserSettings>()->DisplayFolders;
+	if (!IsToggleShowFoldersAllowed())
+	{
+		return false;
+	}
+	
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowFolders;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->DisplayFolders;
 }
 
 bool SAssetView::IsShowingReadOnlyFolders() const
@@ -2872,7 +2964,17 @@ bool SAssetView::IsShowingReadOnlyFolders() const
 
 void SAssetView::ToggleShowEmptyFolders()
 {
-	check( IsToggleShowEmptyFoldersAllowed() );
+	check(IsToggleShowEmptyFoldersAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->DisplayEmptyFolders;
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bShowEmptyFolders;
+		Config->bShowEmptyFolders = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+	
 	GetMutableDefault<UContentBrowserSettings>()->DisplayEmptyFolders = !GetDefault<UContentBrowserSettings>()->DisplayEmptyFolders;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
@@ -2884,14 +2986,33 @@ bool SAssetView::IsToggleShowEmptyFoldersAllowed() const
 
 bool SAssetView::IsShowingEmptyFolders() const
 {
-	return IsToggleShowEmptyFoldersAllowed() && GetDefault<UContentBrowserSettings>()->DisplayEmptyFolders;
+	if (!IsToggleShowEmptyFoldersAllowed())
+	{
+		return false;
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowEmptyFolders;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->DisplayEmptyFolders;
 }
 
 void SAssetView::ToggleRealTimeThumbnails()
 {
-	check( CanShowRealTimeThumbnails() );
-	GetMutableDefault<UContentBrowserSettings>()->RealTimeThumbnails = !GetDefault<UContentBrowserSettings>()->RealTimeThumbnails;
+	check(CanShowRealTimeThumbnails());
+
+	bool bNewState = !IsShowingRealTimeThumbnails();
+
+	GetMutableDefault<UContentBrowserSettings>()->RealTimeThumbnails = bNewState;
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		Config->bRealTimeThumbnails = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
 }
 
 bool SAssetView::CanShowRealTimeThumbnails() const
@@ -2901,70 +3022,113 @@ bool SAssetView::CanShowRealTimeThumbnails() const
 
 bool SAssetView::IsShowingRealTimeThumbnails() const
 {
-	return CanShowRealTimeThumbnails() && GetDefault<UContentBrowserSettings>()->RealTimeThumbnails;
+	if (!CanShowRealTimeThumbnails())
+	{
+		return false;
+	}
+	
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bRealTimeThumbnails;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->RealTimeThumbnails;
 }
 
 void SAssetView::ToggleShowPluginContent()
 {
-	bool bDisplayPlugins = GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
-	bool bRawDisplayPlugins = GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders( true );
+	check(IsToggleShowPluginContentAllowed());
 
-	// Only if both these flags are false when toggling we want to enable the flag, otherwise we're toggling off
-	if ( !bDisplayPlugins && !bRawDisplayPlugins )
+	bOverrideShowPluginContent.Reset();
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
+
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
 	{
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayPluginFolders( true );
+		bNewState = !EditorConfig->bShowPluginContent;
+		EditorConfig->bShowPluginContent = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
-	else
-	{
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayPluginFolders( false );
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayPluginFolders( false, true );
-	}	
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDisplayPluginFolders(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
 bool SAssetView::IsShowingPluginContent() const
 {
-	return bForceShowPluginContent || GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
+	if (bForceShowPluginContent)
+	{
+		return true;
+	}
+
+	if (bOverrideShowPluginContent.IsSet())
+	{
+		return bOverrideShowPluginContent.GetValue();
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowPluginContent;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
 }
 
 void SAssetView::ToggleShowEngineContent()
 {
-	bool bDisplayEngine = GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
-	bool bRawDisplayEngine = GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder( true );
+	check(IsToggleShowEngineContentAllowed());
 
-	// Only if both these flags are false when toggling we want to enable the flag, otherwise we're toggling off
-	if ( !bDisplayEngine && !bRawDisplayEngine )
+	bOverrideShowEngineContent.Reset();
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
+
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
 	{
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder( true );
+		bNewState = !EditorConfig->bShowEngineContent;
+		EditorConfig->bShowEngineContent = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
-	else
-	{
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder( false );
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder( false, true );
-	}	
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDisplayEngineFolder(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
 bool SAssetView::IsShowingEngineContent() const
 {
-	return bForceShowEngineContent || GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
+	if (bForceShowEngineContent)
+	{
+		return true;
+	}
+
+	if (bOverrideShowEngineContent.IsSet())
+	{
+		return bOverrideShowEngineContent.GetValue();
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowEngineContent;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
 }
 
 void SAssetView::ToggleShowDevelopersContent()
 {
-	bool bDisplayDev = GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
-	bool bRawDisplayDev = GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder( true );
+	check(IsToggleShowDevelopersContentAllowed());
 
-	// Only if both these flags are false when toggling we want to enable the flag, otherwise we're toggling off
-	if ( !bDisplayDev && !bRawDisplayDev )
+	bOverrideShowDeveloperContent.Reset();
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
+
+	if (FContentBrowserInstanceConfig* EditorConfig = GetContentBrowserConfig())
 	{
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayDevelopersFolder( true );
+		bNewState = !EditorConfig->bShowDeveloperContent;
+		EditorConfig->bShowDeveloperContent = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
 	}
-	else
-	{
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayDevelopersFolder( false );
-		GetMutableDefault<UContentBrowserSettings>()->SetDisplayDevelopersFolder( false, true );
-	}	
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDisplayDevelopersFolder(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -2985,12 +3149,40 @@ bool SAssetView::IsToggleShowPluginContentAllowed() const
 
 bool SAssetView::IsShowingDevelopersContent() const
 {
-	return IsToggleShowDevelopersContentAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
+	if (!IsToggleShowDevelopersContentAllowed())
+	{
+		return false;
+	}
+
+	if (bOverrideShowDeveloperContent.IsSet())
+	{
+		return bOverrideShowDeveloperContent.GetValue();
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowDeveloperContent;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->GetDisplayDevelopersFolder();
 }
 
 void SAssetView::ToggleShowLocalizedContent()
 {
-	GetMutableDefault<UContentBrowserSettings>()->SetDisplayL10NFolder(!GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder());
+	check(IsToggleShowLocalizedContentAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
+
+	bOverrideShowLocalizedContent.Reset();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bShowLocalizedContent;
+		Config->bShowLocalizedContent = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDisplayL10NFolder(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -3001,13 +3193,38 @@ bool SAssetView::IsToggleShowLocalizedContentAllowed() const
 
 bool SAssetView::IsShowingLocalizedContent() const
 {
-	return IsToggleShowLocalizedContentAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
+	if (!IsToggleShowLocalizedContentAllowed())
+	{
+		return false;
+	}
+
+	if (bOverrideShowLocalizedContent.IsSet())
+	{
+		return bOverrideShowLocalizedContent.GetValue();
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowLocalizedContent;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->GetDisplayL10NFolder();
 }
 
 void SAssetView::ToggleShowFavorites()
 {
-	const bool bShowingFavorites = GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
-	GetMutableDefault<UContentBrowserSettings>()->SetDisplayFavorites(!bShowingFavorites);
+	check(IsToggleShowFavoritesAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bShowFavorites;
+		Config->bShowFavorites = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDisplayFavorites(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -3018,13 +3235,33 @@ bool SAssetView::IsToggleShowFavoritesAllowed() const
 
 bool SAssetView::IsShowingFavorites() const
 {
-	return IsToggleShowFavoritesAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
+	if (!IsToggleShowFavoritesAllowed())
+	{
+		return false;
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowFavorites;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
 }
 
 void SAssetView::ToggleDockCollections()
 {
-	const bool bDockCollections = GetDefault<UContentBrowserSettings>()->GetDockCollections();
-	GetMutableDefault<UContentBrowserSettings>()->SetDockCollections(!bDockCollections);
+	check(IsToggleDockCollectionsAllowed()); 
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDockCollections();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bCollectionsDocked;
+		Config->bCollectionsDocked = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDockCollections(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -3035,13 +3272,33 @@ bool SAssetView::IsToggleDockCollectionsAllowed() const
 
 bool SAssetView::HasDockedCollections() const
 {
-	return IsToggleDockCollectionsAllowed() && GetDefault<UContentBrowserSettings>()->GetDockCollections();
+	if (!IsToggleDockCollectionsAllowed())
+	{
+		return false;
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bCollectionsDocked;
+	}
+
+	return GetDefault<UContentBrowserSettings>()->GetDockCollections();
 }
 
 void SAssetView::ToggleShowCppContent()
 {
-	const bool bDisplayCppFolders = GetDefault<UContentBrowserSettings>()->GetDisplayCppFolders();
-	GetMutableDefault<UContentBrowserSettings>()->SetDisplayCppFolders(!bDisplayCppFolders);
+	check(IsToggleShowCppContentAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDisplayCppFolders();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bShowCppFolders;
+		Config->bShowCppFolders = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetDisplayCppFolders(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 }
 
@@ -3052,13 +3309,33 @@ bool SAssetView::IsToggleShowCppContentAllowed() const
 
 bool SAssetView::IsShowingCppContent() const
 {
-	return IsToggleShowCppContentAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayCppFolders();
+	if (!IsToggleShowCppContentAllowed())
+	{
+		return false;
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bShowCppFolders;
+	}
+	
+	return GetDefault<UContentBrowserSettings>()->GetDisplayCppFolders();
 }
 
 void SAssetView::ToggleIncludeClassNames()
 {
-	const bool bIncludeClassNames = GetDefault<UContentBrowserSettings>()->GetIncludeClassNames();
-	GetMutableDefault<UContentBrowserSettings>()->SetIncludeClassNames(!bIncludeClassNames);
+	check(IsToggleIncludeClassNamesAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetIncludeClassNames();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bSearchClasses;
+		Config->bSearchClasses = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetIncludeClassNames(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 
 	OnSearchOptionsChanged.ExecuteIfBound();
@@ -3071,13 +3348,33 @@ bool SAssetView::IsToggleIncludeClassNamesAllowed() const
 
 bool SAssetView::IsIncludingClassNames() const
 {
-	return IsToggleIncludeClassNamesAllowed() && GetDefault<UContentBrowserSettings>()->GetIncludeClassNames();
+	if (!IsToggleIncludeClassNamesAllowed())
+	{
+		return false;
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bSearchClasses;
+	}
+	
+	return GetDefault<UContentBrowserSettings>()->GetIncludeClassNames();
 }
 
 void SAssetView::ToggleIncludeAssetPaths()
 {
-	const bool bIncludeAssetPaths = GetDefault<UContentBrowserSettings>()->GetIncludeAssetPaths();
-	GetMutableDefault<UContentBrowserSettings>()->SetIncludeAssetPaths(!bIncludeAssetPaths);
+	check(IsToggleIncludeAssetPathsAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetIncludeAssetPaths();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bSearchAssetPaths;
+		Config->bSearchAssetPaths = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetIncludeAssetPaths(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 
 	OnSearchOptionsChanged.ExecuteIfBound();
@@ -3090,13 +3387,33 @@ bool SAssetView::IsToggleIncludeAssetPathsAllowed() const
 
 bool SAssetView::IsIncludingAssetPaths() const
 {
-	return IsToggleIncludeAssetPathsAllowed() && GetDefault<UContentBrowserSettings>()->GetIncludeAssetPaths();
+	if (!IsToggleIncludeAssetPathsAllowed())
+	{
+		return false;
+	}
+
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bSearchAssetPaths;
+	}
+	
+	return GetDefault<UContentBrowserSettings>()->GetIncludeAssetPaths();
 }
 
 void SAssetView::ToggleIncludeCollectionNames()
 {
-	const bool bIncludeCollectionNames = GetDefault<UContentBrowserSettings>()->GetIncludeCollectionNames();
-	GetMutableDefault<UContentBrowserSettings>()->SetIncludeCollectionNames(!bIncludeCollectionNames);
+	check(IsToggleIncludeCollectionNamesAllowed());
+
+	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetIncludeCollectionNames();
+
+	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		bNewState = !Config->bSearchCollections;
+		Config->bSearchCollections = bNewState;
+		UContentBrowserConfig::Get()->SaveEditorConfig();
+	}
+
+	GetMutableDefault<UContentBrowserSettings>()->SetIncludeCollectionNames(bNewState);
 	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
 
 	OnSearchOptionsChanged.ExecuteIfBound();
@@ -3109,9 +3426,18 @@ bool SAssetView::IsToggleIncludeCollectionNamesAllowed() const
 
 bool SAssetView::IsIncludingCollectionNames() const
 {
-	return IsToggleIncludeCollectionNamesAllowed() && GetDefault<UContentBrowserSettings>()->GetIncludeCollectionNames();
+	if (!IsToggleIncludeCollectionNamesAllowed())
+	{
+		return false;
+	}
+	
+	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
+	{
+		return Config->bSearchCollections;
+	}
+	
+	return GetDefault<UContentBrowserSettings>()->GetIncludeCollectionNames();
 }
-
 
 void SAssetView::SetCurrentViewType(EAssetViewType::Type NewType)
 {
@@ -3145,12 +3471,21 @@ void SAssetView::SetCurrentViewType(EAssetViewType::Type NewType)
 			RefreshFilteredItems();
 			SortList();
 		}
+
+		if (FAssetViewInstanceConfig* Config = GetAssetViewConfig())
+		{
+			Config->ViewType = (int32) NewType;
+			UAssetViewConfig::Get()->SaveEditorConfig();
+		}
 	}
 }
 
 void SAssetView::SetCurrentThumbnailSize(EThumbnailSize NewThumbnailSize)
 {
-	OnThumbnailSizeChanged(NewThumbnailSize);
+	if (ThumbnailSize != NewThumbnailSize)
+	{
+		OnThumbnailSizeChanged(NewThumbnailSize);
+	}
 }
 
 void SAssetView::SetCurrentViewTypeFromMenu(EAssetViewType::Type NewType)
@@ -4004,6 +4339,13 @@ void SAssetView::ToggleThumbnailEditMode()
 void SAssetView::OnThumbnailSizeChanged(EThumbnailSize NewThumbnailSize)
 {
 	ThumbnailSize = NewThumbnailSize;
+
+	if (FAssetViewInstanceConfig* Config = GetAssetViewConfig())
+	{
+		Config->ThumbnailSize = (int32) NewThumbnailSize;
+		UAssetViewConfig::Get()->SaveEditorConfig();
+	}
+
 	RefreshList();
 }
 
@@ -4393,6 +4735,13 @@ void SAssetView::OnHiddenColumnsChanged()
 		}
 	}
 	
+	if (FAssetViewInstanceConfig* Config = GetAssetViewConfig())
+	{
+		Config->HiddenColumns.Reset();
+		Algo::Transform(HiddenColumnNames, Config->HiddenColumns, [](const FString& Str) { return FName(*Str); });
+
+		UAssetViewConfig::Get()->SaveEditorConfig();
+	}
 }
 
 bool SAssetView::ShouldColumnGenerateWidget(const FString ColumnName) const
@@ -4411,6 +4760,26 @@ void SAssetView::ForceShowPluginFolder(bool bEnginePlugin)
 	{
 		ToggleShowPluginContent();
 	}
+}
+
+void SAssetView::OverrideShowEngineContent( bool bShow )
+{
+	bOverrideShowEngineContent = bShow;
+}
+
+void SAssetView::OverrideShowDeveloperContent( bool bShow )
+{
+	bOverrideShowDeveloperContent = bShow;
+}
+
+void SAssetView::OverrideShowPluginContent( bool bShow )
+{
+	bOverrideShowPluginContent = bShow;
+}
+
+void SAssetView::OverrideShowLocalizedContent( bool bShow )
+{
+	bOverrideShowLocalizedContent = bShow;
 }
 
 void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems)

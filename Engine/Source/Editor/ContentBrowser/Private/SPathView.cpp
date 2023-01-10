@@ -6,6 +6,7 @@
 #include "AssetToolsModule.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/StringView.h"
+#include "ContentBrowserConfig.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserItemData.h"
@@ -134,6 +135,8 @@ SPathView::~SPathView()
 
 void SPathView::Construct( const FArguments& InArgs )
 {
+	EditorConfig = InArgs._EditorConfig;
+
 	OnItemSelectionChanged = InArgs._OnItemSelectionChanged;
 	bAllowContextMenu = InArgs._AllowContextMenu;
 	OnGetItemContextMenu = InArgs._OnGetItemContextMenu;
@@ -978,12 +981,12 @@ void SPathView::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, c
 		{
 			// Prune the current selection so that we don't unnecessarily change the path which might disorientate the user.
 			// If a parent tree item is currently selected we don't need to clear it and select the child
-			auto SelectedTreeItems = TreeViewPtr->GetSelectedItems();
+			TArray<TSharedPtr<FTreeItem>> SelectedTreeItems = TreeViewPtr->GetSelectedItems();
 
 			for (int32 Index = 0; Index < SelectedTreeItems.Num(); ++Index)
 			{
 				// For each item already selected in the tree
-				auto AlreadySelectedTreeItem = SelectedTreeItems[Index];
+				const TSharedPtr<FTreeItem>& AlreadySelectedTreeItem = SelectedTreeItems[Index];
 				if (!AlreadySelectedTreeItem.IsValid())
 				{
 					continue;
@@ -992,7 +995,7 @@ void SPathView::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, c
 				// Check to see if any of the items to sync are already synced
 				for (int32 ToSyncIndex = SyncTreeItems.Num()-1; ToSyncIndex >= 0; --ToSyncIndex)
 				{
-					auto ToSyncItem = SyncTreeItems[ToSyncIndex];
+					const TSharedPtr<FTreeItem>& ToSyncItem = SyncTreeItems[ToSyncIndex];
 					if (ToSyncItem == AlreadySelectedTreeItem || ToSyncItem->IsChildOf(*AlreadySelectedTreeItem.Get()))
 					{
 						// A parent is already selected
@@ -1013,10 +1016,10 @@ void SPathView::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, c
 		}
 
 		// SyncTreeItems should now only contain items which aren't already shown explicitly or implicitly (as a child)
-		for ( auto ItemIt = SyncTreeItems.CreateConstIterator(); ItemIt; ++ItemIt )
+		for (const TSharedPtr<FTreeItem>& Item : SyncTreeItems)
 		{
-			RecursiveExpandParents(*ItemIt);
-			TreeViewPtr->SetItemSelection(*ItemIt, true);
+			RecursiveExpandParents(Item);
+			TreeViewPtr->SetItemSelection(Item, true);
 		}
 	}
 
@@ -1067,11 +1070,17 @@ void SPathView::ApplyHistoryData( const FHistoryData& History )
 	SetSelectedPaths(SelectedPaths);
 }
 
-void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const
+void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& InstanceName) const
 {
 	FString SelectedPathsString;
 	TArray< TSharedPtr<FTreeItem> > PathItems = TreeViewPtr->GetSelectedItems();
-	for ( auto PathIt = PathItems.CreateConstIterator(); PathIt; ++PathIt )
+
+	if (EditorConfig != nullptr)
+	{
+		EditorConfig->SelectedPaths.Reset(PathItems.Num());
+	}
+
+	for (const TSharedPtr<FTreeItem>& Item : PathItems)
 	{
 		if ( SelectedPathsString.Len() > 0 )
 		{
@@ -1079,26 +1088,41 @@ void SPathView::SaveSettings(const FString& IniFilename, const FString& IniSecti
 		}
 
 		FName InvariantPath;
-		IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath((*PathIt)->GetItem().GetVirtualPath(), InvariantPath);
+		IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(Item->GetItem().GetVirtualPath(), InvariantPath);
 		InvariantPath.AppendString(SelectedPathsString);
+
+		if (EditorConfig != nullptr)
+		{
+			EditorConfig->SelectedPaths.Add(InvariantPath);
+		}
 	}
 
-	GConfig->SetString(*IniSection, *(SettingsString + TEXT(".SelectedPaths")), *SelectedPathsString, IniFilename);
+	GConfig->SetString(*IniSection, *(InstanceName + TEXT(".SelectedPaths")), *SelectedPathsString, IniFilename);
 
 	FString PluginFiltersString;
 	if (PluginPathFilters.IsValid())
 	{
-		for (int32 i=0; i < PluginPathFilters->Num(); ++i)
+		if (EditorConfig != nullptr)
+		{
+			EditorConfig->PluginFilters.Reset(PluginPathFilters->Num());
+		}
+
+		for (int32 FilterIdx = 0; FilterIdx < PluginPathFilters->Num(); ++FilterIdx)
 		{
 			if (PluginFiltersString.Len() > 0)
 			{
 				PluginFiltersString += TEXT(",");
 			}
 
-			TSharedPtr<FContentBrowserPluginFilter> Filter = StaticCastSharedPtr<FContentBrowserPluginFilter>(PluginPathFilters->GetFilterAtIndex(i));
+			TSharedPtr<FContentBrowserPluginFilter> Filter = StaticCastSharedPtr<FContentBrowserPluginFilter>(PluginPathFilters->GetFilterAtIndex(FilterIdx));
 			PluginFiltersString += Filter->GetName();
+
+			if (EditorConfig != nullptr)
+			{
+				EditorConfig->PluginFilters.Add(Filter->GetName());
+			}
 		}
-		GConfig->SetString(*IniSection, *(SettingsString + TEXT(".PluginFilters")), *PluginFiltersString, IniFilename);
+		GConfig->SetString(*IniSection, *(InstanceName + TEXT(".PluginFilters")), *PluginFiltersString, IniFilename);
 	}
 }
 
@@ -2189,9 +2213,13 @@ void SFavoritePathView::Populate(const bool bIsRefreshingFilter)
 			const FString Path = VirtualPath.ToString();
 
 			// Use the whole path so we deliberately include any children of matched parents in the filtered list
-			if (SearchBoxFolderFilter->PassesFilter(Path))
+			if (!SearchBoxFolderFilter->PassesFilter(Path))
 			{
-				ContentBrowserData->EnumerateItemsAtPath(*Path, CompiledDataFilter.ItemTypeFilter, [this, &CompiledDataFilter](FContentBrowserItemData&& InItemData)
+				continue;
+			}
+
+			ContentBrowserData->EnumerateItemsAtPath(*Path, CompiledDataFilter.ItemTypeFilter, 
+			[this, &CompiledDataFilter](FContentBrowserItemData&& InItemData)
 				{
 					UContentBrowserDataSource* ItemDataSource = InItemData.GetOwnerDataSource();
 					if (ItemDataSource->DoesItemPassFilter(InItemData, CompiledDataFilter))
@@ -2199,7 +2227,6 @@ void SFavoritePathView::Populate(const bool bIsRefreshingFilter)
 						if (TSharedPtr<FTreeItem> Item = AddFolderItem(MoveTemp(InItemData)))
 						{
 							const bool bSelectedItem = LastSelectedPaths.Contains(Item->GetItem().GetInvariantPath());
-
 							if (bSelectedItem)
 							{
 								// Tree items that match the last broadcasted paths should be re-selected them after they are added
@@ -2210,8 +2237,8 @@ void SFavoritePathView::Populate(const bool bIsRefreshingFilter)
 					}
 
 					return true;
-				});
-			}
+				}
+			);
 		}
 	}
 
@@ -2264,7 +2291,7 @@ void SFavoritePathView::LoadSettings(const FString& IniFilename, const FString& 
 				const FString& InvariantPath = NewFavoritePaths[PathIdx];
 				FName VirtualPath;
 				IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(FStringView(InvariantPath), VirtualPath);
-				ContentBrowserUtils::AddFavoriteFolder(VirtualPath.ToString(), false);
+				ContentBrowserUtils::AddFavoriteFolder(VirtualPath.ToString());
 				bAddedAtLeastOnePath = true;
 			}
 		}
@@ -2287,13 +2314,13 @@ TSharedPtr<FTreeItem> SFavoritePathView::AddFolderItem(FContentBrowserItemData&&
 	// The favorite view will add all items at the root level
 
 	// Try and find an existing tree item
-	for (const TSharedPtr<FTreeItem>& PotentialTreeItem : TreeRootItems)
+	TWeakPtr<FTreeItem>* WeakExistingItem = TreeItemLookup.Find(InItem.GetVirtualPath());
+	if (WeakExistingItem != nullptr)
 	{
-		if (PotentialTreeItem->GetItem().GetVirtualPath() == InItem.GetVirtualPath())
+		if (TSharedPtr<FTreeItem> ExistingItem = WeakExistingItem->Pin())
 		{
-			// Found a match - merge the new item data
-			PotentialTreeItem->AppendItemData(InItem);
-			return PotentialTreeItem;
+			ExistingItem->AppendItemData(InItem);
+			return ExistingItem;
 		}
 	}
 
@@ -2469,11 +2496,11 @@ void SFavoritePathView::FixupFavoritesFromExternalChange(TArrayView<const AssetV
 		if (bWasFavorite)
 		{
 			// Remove the original path
-			ContentBrowserUtils::RemoveFavoriteFolder(MovedFolder.Key, false);
+			ContentBrowserUtils::RemoveFavoriteFolder(MovedFolder.Key);
 
 			// Add the new path to favorites instead
 			const FString& NewPath = MovedFolder.Value;
-			ContentBrowserUtils::AddFavoriteFolder(NewPath, false);
+			ContentBrowserUtils::AddFavoriteFolder(NewPath);
 			TSharedPtr<FTreeItem> Item = FindTreeItem(*NewPath);
 			if (Item.IsValid())
 			{
