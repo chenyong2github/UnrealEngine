@@ -20,6 +20,7 @@ class AWorldSettings;
 class FArchive;
 class FFloat16Color;
 class FInstanceCullingManager;
+class FLightSceneProxy;
 class FMaterial;
 class FMaterialShaderMap;
 class FName;
@@ -27,6 +28,7 @@ class FOutputDevice;
 class FPrimitiveComponentId;
 class FPrimitiveSceneInfo;
 class FRDGBuilder;
+class FRDGExternalAccessQueue;
 class FRectLightSceneProxy;
 class FRenderResource;
 class FRenderTarget;
@@ -37,6 +39,7 @@ class FSceneViewStateInterface;
 class FSkyAtmosphereRenderSceneInfo;
 class FSkyAtmosphereSceneProxy;
 class FSkyLightSceneProxy;
+class FSparseVolumeTextureViewerSceneProxy;
 class FTexture;
 class FVertexFactory;
 class FViewInfo;
@@ -222,7 +225,7 @@ public:
 	virtual void AllocateAndCaptureFrameSkyEnvMap(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue) {}
 	virtual void ValidateSkyLightRealTimeCapture(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture) {}
 
-	virtual void ProcessAndRenderIlluminanceMeter(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views, FRDGTextureRef SceneColorTexture) {}
+	ENGINE_API virtual void ProcessAndRenderIlluminanceMeter(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views, FRDGTextureRef SceneColorTexture);
 
 	virtual void AddPlanarReflection(class UPlanarReflectionComponent* Component) {}
 	virtual void RemovePlanarReflection(class UPlanarReflectionComponent* Component) {}
