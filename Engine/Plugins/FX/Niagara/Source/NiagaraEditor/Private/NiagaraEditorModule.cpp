@@ -150,6 +150,7 @@
 #include "NiagaraDebugVis.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraGraphDataCache.h"
+#include "NiagaraDecalRendererProperties.h"
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraSpriteRendererProperties.h"
@@ -1814,6 +1815,18 @@ void FNiagaraEditorModule::RegisterDefaultRendererFactories()
 		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
 		{
 			UNiagaraLightRendererProperties* NewRenderer = NewObject<UNiagaraLightRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			return NewRenderer;
+		})));
+
+	RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
+		UNiagaraDecalRendererProperties::StaticClass()->GetDisplayNameText(),
+		FText::FromString(UNiagaraDecalRendererProperties::StaticClass()->GetDescription()),
+		UNiagaraDecalRendererProperties::StaticClass()->GetClassPathName(),
+		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
+		{
+			UNiagaraDecalRendererProperties* NewRenderer = NewObject<UNiagaraDecalRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			FSoftObjectPath DefaultMaterial(TEXT("Material'/Niagara/DefaultAssets/DefaultDecalMaterial.DefaultDecalMaterial'"));
+			NewRenderer->Material = Cast<UMaterialInterface>(DefaultMaterial.TryLoad());
 			return NewRenderer;
 		})));
 }

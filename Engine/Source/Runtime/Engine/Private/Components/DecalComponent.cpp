@@ -67,6 +67,43 @@ FDeferredDecalProxy::FDeferredDecalProxy(const UDecalComponent* InComponent)
 	}
 }
 
+FDeferredDecalProxy::FDeferredDecalProxy(const USceneComponent* InComponent, UMaterialInterface* InMaterial)
+	: DrawInGame(InComponent->GetVisibleFlag() && !InComponent->bHiddenInGame)
+	, DrawInEditor(InComponent->GetVisibleFlag())
+	, InvFadeDuration(-1.0f)
+	, InvFadeInDuration(1.0f)
+	, FadeStartDelayNormalized(1.0f)
+	, FadeInStartDelayNormalized(0.0f)
+	, FadeScreenSize(0.1f)
+{
+	Component = InComponent;
+	DecalMaterial = InMaterial;
+	if (InMaterial == nullptr || (InMaterial->GetMaterial()->MaterialDomain != MD_DeferredDecal))
+	{
+		DecalMaterial = UMaterial::GetDefaultMaterial(MD_DeferredDecal);
+	}
+
+	SetTransformIncludingDecalSize(FTransform::Identity, InComponent->CalcBounds(InComponent->GetComponentTransform()));
+	bOwnerSelected = InComponent->IsOwnerSelected();
+	SortOrder = 0;
+
+#if WITH_EDITOR
+	// We don't want to fade when we're editing, only in Simulate/PIE/Game
+	if (!GIsEditor || (InComponent->GetWorld() && InComponent->GetWorld()->IsPlayInEditor()))
+#endif
+	{
+		InitializeFadingParameters(InComponent->GetWorld()->GetTimeSeconds(), 1.0f, 1.0f, 0.0f, 0.0f);
+	}
+
+	if (InComponent->GetOwner())
+	{
+		DrawInGame &= !(InComponent->GetOwner()->IsHidden());
+#if WITH_EDITOR
+		DrawInEditor &= !InComponent->GetOwner()->IsHiddenEd();
+#endif
+	}
+}
+
 void FDeferredDecalProxy::SetTransformIncludingDecalSize(const FTransform& InComponentToWorldIncludingDecalSize, const FBoxSphereBounds& InBounds)
 {
 	ComponentTrans = InComponentToWorldIncludingDecalSize;

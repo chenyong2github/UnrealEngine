@@ -1866,6 +1866,7 @@ class ENGINE_API FDeferredDecalProxy
 public:
 	/** constructor */
 	FDeferredDecalProxy(const UDecalComponent* InComponent);
+	FDeferredDecalProxy(const USceneComponent* InComponent, UMaterialInterface* InMaterial);
 
 	/**
 	 * Updates the decal proxy's cached transform and bounds.
@@ -1881,8 +1882,8 @@ public:
 
 	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 
-	/** Pointer back to the game thread decal component. */
-	const UDecalComponent* Component;
+	/** Pointer back to the game thread owner component. */
+	const USceneComponent* Component;
 
 	UMaterialInterface* DecalMaterial;
 
@@ -1920,6 +1921,28 @@ public:
 	float FadeInStartDelayNormalized;
 
 	float FadeScreenSize;
+};
+
+struct FDeferredDecalUpdateParams
+{
+	enum class EOperationType : int
+	{
+		AddToSceneAndUpdate,				// Adds the decal to the scene an updates the parameters
+		Update,								// Updates the decals parameters
+		RemoveFromSceneAndDelete,			// Remove the decal from the scene and deletes the proxy
+	};
+
+	EOperationType			OperationType = EOperationType::Update;
+	FDeferredDecalProxy*	DecalProxy = nullptr;
+	FTransform				Transform;
+	FBoxSphereBounds		Bounds;
+	float					AbsSpawnTime = 0.0f;
+	float					FadeDuration = 0.0f;
+	float					FadeStartDelay = 1.0f;
+	float					FadeInDuration = 0.0f;
+	float					FadeInStartDelay = 0.0f;
+	float					FadeScreenSize = 0.01f;
+	int32					SortOrder = 0;
 };
 
 /** Reflection capture shapes. */

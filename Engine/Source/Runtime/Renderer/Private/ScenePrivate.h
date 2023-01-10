@@ -3044,6 +3044,7 @@ public:
 	virtual void UpdateDecalTransform(UDecalComponent* Decal) override;
 	virtual void UpdateDecalFadeOutTime(UDecalComponent* Decal) override;
 	virtual void UpdateDecalFadeInTime(UDecalComponent* Decal) override;
+	virtual void BatchUpdateDecals(TArray<FDeferredDecalUpdateParams>&& UpdateParams) override;
 	virtual void AddReflectionCapture(UReflectionCaptureComponent* Component) override;
 	virtual void RemoveReflectionCapture(UReflectionCaptureComponent* Component) override;
 	virtual void GetReflectionCaptureData(UReflectionCaptureComponent* Component, class FReflectionCaptureData& OutCaptureData) override;

@@ -3005,6 +3005,33 @@ void FScene::UpdateDecalFadeInTime(UDecalComponent* Decal)
 	}
 }
 
+void FScene::BatchUpdateDecals(TArray<FDeferredDecalUpdateParams>&& UpdateParams)
+{
+	ENQUEUE_RENDER_COMMAND(FBatchUpdateDecalsCommand)(
+		[Scene=this, UpdateParams_RT=MoveTemp(UpdateParams)](FRHICommandListImmediate& RHICmdList)
+		{
+			for (const FDeferredDecalUpdateParams& DecalUpdate : UpdateParams_RT )
+			{
+				if (DecalUpdate.OperationType == FDeferredDecalUpdateParams::EOperationType::RemoveFromSceneAndDelete)
+				{
+					Scene->AddOrRemoveDecal_RenderThread(DecalUpdate.DecalProxy, false);
+					continue;
+				}
+
+				if (DecalUpdate.OperationType == FDeferredDecalUpdateParams::EOperationType::AddToSceneAndUpdate )
+				{
+					Scene->AddOrRemoveDecal_RenderThread(DecalUpdate.DecalProxy, true);
+				}
+
+				DecalUpdate.DecalProxy->SetTransformIncludingDecalSize(DecalUpdate.Transform, DecalUpdate.Bounds);
+				DecalUpdate.DecalProxy->InitializeFadingParameters(DecalUpdate.AbsSpawnTime, DecalUpdate.FadeDuration, DecalUpdate.FadeStartDelay, DecalUpdate.FadeInDuration, DecalUpdate.FadeInStartDelay);
+				DecalUpdate.DecalProxy->FadeScreenSize = DecalUpdate.FadeScreenSize;
+				DecalUpdate.DecalProxy->SortOrder = DecalUpdate.SortOrder;
+			}
+		}
+	);
+}
+
 void FScene::AddHairStrands(FHairStrandsInstance* Proxy)
 {
 	if (Proxy)
@@ -6178,6 +6205,7 @@ public:
 	virtual void UpdateDecalTransform(UDecalComponent* Decal) override {}
 	virtual void UpdateDecalFadeOutTime(UDecalComponent* Decal) override {};
 	virtual void UpdateDecalFadeInTime(UDecalComponent* Decal) override {};
+	virtual void BatchUpdateDecals(TArray<FDeferredDecalUpdateParams>&& UpdateParams) override {}
 
 	/** Updates the transform of a light which has already been added to the scene. */
 	virtual void UpdateLightTransform(ULightComponent* Light) override {}

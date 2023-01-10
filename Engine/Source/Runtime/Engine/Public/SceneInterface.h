@@ -25,6 +25,7 @@ class FSkyLightSceneProxy;
 class FTexture;
 class FVertexFactory;
 class UDecalComponent;
+struct FDeferredDecalUpdateParams;
 class ULightComponent;
 class UPlanarReflectionComponent;
 class UPrimitiveComponent;
@@ -157,6 +158,7 @@ public:
 	virtual void UpdateDecalTransform(UDecalComponent* Component) = 0;
 	virtual void UpdateDecalFadeOutTime(UDecalComponent* Component) = 0;
 	virtual void UpdateDecalFadeInTime(UDecalComponent* Component) = 0;
+	virtual void BatchUpdateDecals(TArray<FDeferredDecalUpdateParams>&& UpdateParams) = 0;
 
 	/** Adds a reflection capture to the scene. */
 	virtual void AddReflectionCapture(class UReflectionCaptureComponent* Component) {}

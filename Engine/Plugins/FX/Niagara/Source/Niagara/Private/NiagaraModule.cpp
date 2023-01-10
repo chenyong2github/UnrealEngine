@@ -16,6 +16,7 @@
 #include "NiagaraWorldManager.h"
 #include "VectorVM.h"
 #include "NiagaraConstants.h"
+#include "NiagaraDecalRendererProperties.h"
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraMeshRendererProperties.h"
@@ -368,6 +369,7 @@ void INiagaraModule::StartupModule()
 	Translator_CallID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Translator.CallID"));
 
 	FNiagaraConstants::Init();
+	UNiagaraDecalRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup();
 	UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup();
