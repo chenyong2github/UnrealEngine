@@ -119,6 +119,11 @@ struct FTestFastArrayReplicationState_FastArrayWithExtraProperty : public FTestF
 	{
 		return FFastArraySerializer::FastArrayDeltaSerialize<FTestFastArrayReplicationState_FastArrayItem, FTestFastArrayReplicationState_FastArrayWithExtraProperty>(Items, DeltaParms, *this);
 	}
+
+	// Note: !!This is not an example of something that should be used as we want to remove the need for users to declare custom types for FastArray-style replication
+	// As we do not really support replication of FastArrays with additional replicated properties in the derived FastArray-struct we use a custom replication fragment to poll and apply the additional replicated property
+	class FastArrayWithExtraPropertiesReplicationFragment;
+	static UE::Net::FReplicationFragment* CreateAndRegisterReplicationFragment(UObject* Owner, const UE::Net::FReplicationStateDescriptor* Descriptor, UE::Net::FFragmentRegistrationContext& Context);
 };
 
 template<>
@@ -152,9 +157,11 @@ public:
 
 	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 
+public:
 	UPROPERTY(Replicated)
 	FTestFastArrayReplicationState_FastArrayWithExtraProperty FastArray;
 };
+
 
 
 

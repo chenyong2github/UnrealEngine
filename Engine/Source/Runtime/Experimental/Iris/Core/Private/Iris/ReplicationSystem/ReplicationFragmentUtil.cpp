@@ -30,6 +30,14 @@ uint32 FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(UObject* Ob
 		}
 	}
 
+	// Pass-on that we allow FastAarrays with extra replicated properties for this object.
+	// NOTE: this is not perfect as it allows this for all FastArray properties of the object but as there 
+	// is further validation in the actual ReplicationStateFragment implementation for FastArrays it is good enough.
+	if (EnumHasAnyFlags(RegistrationFlags, EFragmentRegistrationFlags::AllowFastArraysWithAdditionalProperties))
+	{
+		BuilderParameters.AllowFastArrayWithExtraReplicatedProperties = 1U;
+	}
+
 	FReplicationStateDescriptorBuilder::FResult Result;
 	FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(Result, Object->GetClass(), BuilderParameters);
 

@@ -15,29 +15,41 @@ namespace UE::Net
 {
 
 /**
- * TFastArrayReplicationFragment - Binds a typed FastArray to a FReplicationfragments
+ * TFastArrayReplicationFragment - Binds a typed FastArray to a FReplicationfragment
  * Used to support FFastArray-based serialization with no required code modifications
  * Backed by a PropertyReplicationState which means that we will have to poll source data for dirtiness,
  * in the case of FastArrays this involves comparing the replication key of the array and its items.
  */
 template <typename FastArrayItemType, typename FastArrayType>
-class TFastArrayReplicationFragment final : public Private::FFastArrayReplicationFragmentBase
+class TFastArrayReplicationFragment : public Private::FFastArrayReplicationFragmentBase
 {
 public:
 	typedef TArray<FastArrayItemType> ItemArrayType;
 	TFastArrayReplicationFragment(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor) : FFastArrayReplicationFragmentBase(InTraits, InOwner, InDescriptor) {}
 
 protected:
+	enum EAllowAdditionalPropertiesType { AllowAdditionalProperties };
+	TFastArrayReplicationFragment(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor, const EAllowAdditionalPropertiesType) : FFastArrayReplicationFragmentBase(InTraits, InOwner, InDescriptor, false) {}
+
 	virtual void ApplyReplicatedState(FReplicationStateApplyContext& Context) const override;
 	virtual bool PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
 
 	bool PollAllState(bool bForceFullCompare = false);
 
+	// Returns true if the FastArray is dirty
 	bool IsDirty() const;
 
-private:
-	// Get the wrapped FastArraySerializerProperty
-	inline FastArrayType* GetWrappedFastArraySerializer() const;
+	// Mark FastArray dirty
+	void MarkDirty();
+
+	// Get FastArraySerializer from owner
+	inline FastArrayType* GetFastArraySerializerFromOwner() const;
+
+	// Get FastArraySerializer from our cached ReplicationState
+	inline FastArrayType* GetFastArraySerializerFromReplicationState() const;
+
+	// Get FastArraySerialzier from received state
+	inline FastArrayType* GetFastArraySerializerFromApplyContext(FReplicationStateApplyContext& Context) const;	
 };
 
 /**
@@ -68,9 +80,10 @@ protected:
 
 	bool IsDirty() const;
 
+	// Get FastArraySerializer from owner
+	inline FastArrayType* GetFastArraySerializerFromOwner() const;
+
 private:
-	// Get the wrapped FastArraySerializerProperty
-	inline FastArrayType* GetWrappedFastArraySerializer() const;
 	PollingPolicyType PollingPolicy;
 };
 
@@ -81,29 +94,35 @@ template <typename FastArrayItemType, typename FastArrayType>
 void TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::ApplyReplicatedState(FReplicationStateApplyContext& Context) const
 {
 	// Get the wrapped FastArraySerializer and array
-	FastArrayType* DstArraySerializer = GetWrappedFastArraySerializer();
+	FastArrayType* DstArraySerializer = GetFastArraySerializerFromOwner();
 	ItemArrayType* DstWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(DstArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
 
-	// Intentionally not const as we allow the src state to be modified
-	FastArrayType* SrcArraySerializer;
-	const ItemArrayType* SrcWrappedArray;
-
 	// Get received array data
-	{
-		uint8* ReceivedStateBuffer = Context.StateBufferData.ExternalStateBuffer;
-		const SIZE_T FastArraySerializerMemberOffset = ReplicationStateDescriptor->MemberDescriptors[0].ExternalMemberOffset;
-		SrcArraySerializer = reinterpret_cast<FastArrayType*>(ReceivedStateBuffer + FastArraySerializerMemberOffset);
-		SrcWrappedArray = reinterpret_cast<const ItemArrayType*>(ReceivedStateBuffer + FastArraySerializerMemberOffset + WrappedArrayOffsetRelativeFastArraySerializerProperty);
-	}
+	// Intentionally not const as we allow the src state to be modified	
+	FastArrayType* SrcArraySerializer = GetFastArraySerializerFromApplyContext(Context);
+	const ItemArrayType* SrcWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(SrcArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
 
 	// Apply state and issue callbacks etc
 	Private::FFastArrayReplicationFragmentHelper::ApplyReplicatedState(DstArraySerializer, DstWrappedArray, SrcArraySerializer, SrcWrappedArray, GetArrayElementDescriptor(), Context);
 }
 
 template <typename FastArrayItemType, typename FastArrayType>
-FastArrayType* TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::GetWrappedFastArraySerializer() const
+FastArrayType* TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::GetFastArraySerializerFromOwner() const
 {
 	return reinterpret_cast<FastArrayType*>(reinterpret_cast<uint8*>(Owner) + ReplicationStateDescriptor->MemberProperties[0]->GetOffset_ForGC());
+}
+
+template <typename FastArrayItemType, typename FastArrayType>
+inline FastArrayType* TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::GetFastArraySerializerFromApplyContext(FReplicationStateApplyContext& Context) const
+{
+	return reinterpret_cast<FastArrayType*>(Context.StateBufferData.ExternalStateBuffer + ReplicationStateDescriptor->MemberDescriptors[0].ExternalMemberOffset);	
+}
+
+template <typename FastArrayItemType, typename FastArrayType>
+FastArrayType* TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::GetFastArraySerializerFromReplicationState() const
+{
+	checkSlow(ReplicationState);
+	return ReplicationState ? reinterpret_cast<FastArrayType*>(ReplicationState->GetStateBuffer() + ReplicationStateDescriptor->MemberDescriptors[0].ExternalMemberOffset) : nullptr;
 }
 
 template <typename FastArrayItemType, typename FastArrayType>
@@ -126,11 +145,11 @@ template <typename FastArrayItemType, typename FastArrayType>
 bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllState(bool bForceFullCompare)
 {
 	// Lookup source data, we need the actual FastArraySerializer and the Array it is wrapping
-	FastArrayType* SrcArraySerializer = GetWrappedFastArraySerializer();
+	FastArrayType* SrcArraySerializer = GetFastArraySerializerFromOwner();
 	ItemArrayType* SrcWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(SrcArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
 	
 	// Lookup destination data
-	FastArrayType* DstArraySerializer = reinterpret_cast<FastArrayType*>(SrcReplicationState->GetStateBuffer() + ReplicationStateDescriptor->MemberDescriptors[0].ExternalMemberOffset);
+	FastArrayType* DstArraySerializer = GetFastArraySerializerFromReplicationState();
 	ItemArrayType* DstWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(DstArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
 
 	// Check if we can early out
@@ -154,7 +173,7 @@ bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllSta
 	// We currently use a simple modulo scheme for bits in the changemask
 	// A single bit might represent several entries in the array which all will be considered dirty, it is up to the serializer to handle this
 	// The first bit is used by the owning property we need to offset by one and deduct one from the usable bits
-	FNetBitArrayView MemberChangeMask = UE::Net::Private::GetMemberChangeMask(SrcReplicationState->GetStateBuffer(), ReplicationStateDescriptor);
+	FNetBitArrayView MemberChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState->GetStateBuffer(), ReplicationStateDescriptor);
 	
 	const FReplicationStateMemberChangeMaskDescriptor& MemberChangeMaskDescriptor = ReplicationStateDescriptor->MemberChangeMaskDescriptors[0];
 	const uint32 ChangeMaskBitOffset = MemberChangeMaskDescriptor.BitOffset + FIrisFastArraySerializer::IrisFastArrayChangeMaskBitOffset;
@@ -197,10 +216,10 @@ bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllSta
 	DstArraySerializer->ArrayReplicationKey = SrcArraySerializer->ArrayReplicationKey;
 
 	// Mark the NetObject as dirty
-	if (bMarkArrayDirty && SrcReplicationState->IsCustomConditionEnabled(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex))
+	if (bMarkArrayDirty && ReplicationState->IsCustomConditionEnabled(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex))
 	{
 		MemberChangeMask.SetBit(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex);
-		MarkNetObjectStateDirty(UE::Net::Private::GetReplicationStateHeader(SrcReplicationState->GetStateBuffer(), ReplicationStateDescriptor));
+		MarkNetObjectStateDirty(UE::Net::Private::GetReplicationStateHeader(ReplicationState->GetStateBuffer(), ReplicationStateDescriptor));
 	}
 
 	return IsDirty();
@@ -209,8 +228,20 @@ bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllSta
 template <typename FastArrayItemType, typename FastArrayType>
 bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::IsDirty() const
 {
-	FReplicationStateHeader& ReplicationStateHeader = Private::GetReplicationStateHeader(SrcReplicationState->GetStateBuffer(), ReplicationStateDescriptor);
+	FReplicationStateHeader& ReplicationStateHeader = Private::GetReplicationStateHeader(ReplicationState->GetStateBuffer(), ReplicationStateDescriptor);
 	return Private::FReplicationStateHeaderAccessor::GetIsStateDirty(ReplicationStateHeader);
+}
+
+template <typename FastArrayItemType, typename FastArrayType>
+void TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::MarkDirty()
+{
+	// Mark the NetObject as dirty
+	if (ReplicationState->IsCustomConditionEnabled(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex))
+	{
+		FNetBitArrayView MemberChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState->GetStateBuffer(), ReplicationStateDescriptor);
+		MemberChangeMask.SetBit(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex);
+		MarkNetObjectStateDirty(UE::Net::Private::GetReplicationStateHeader(ReplicationState->GetStateBuffer(), ReplicationStateDescriptor));
+	}
 }
 
 /*
@@ -231,7 +262,7 @@ template <typename FastArrayItemType, typename FastArrayType, typename PollingPo
 void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::Register(FFragmentRegistrationContext& Context, EReplicationFragmentTraits InTraits)
 {
 	Traits |= InTraits;
-	Context.RegisterReplicationFragment(this, ReplicationStateDescriptor.GetReference(), reinterpret_cast<uint8*>(GetWrappedFastArraySerializer()));
+	Context.RegisterReplicationFragment(this, ReplicationStateDescriptor.GetReference(), reinterpret_cast<uint8*>(GetFastArraySerializerFromOwner()));
 }
 
 template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>
@@ -247,7 +278,7 @@ void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 		{
 			FastArrayType ReceivedState;
 			FastArrayType DefaultState;
-			InternalDequantizeFastArray(*Context.NetSerializationContext, reinterpret_cast<uint8*>(&ReceivedState), Context.StateBufferData.RawStateBuffer, GetFastArraySerializerPropertyDescriptor());
+			InternalDequantizeFastArray(*Context.NetSerializationContext, reinterpret_cast<uint8*>(&ReceivedState), Context.StateBufferData.RawStateBuffer, GetFastArrayPropertyStructDescriptor());
 			if (Descriptor->MemberProperties[0]->Identical(&ReceivedState, &DefaultState))
 			{
 				return;
@@ -277,7 +308,7 @@ bool TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 	if (FPollingState* PollingState = PollingPolicy.GetPollingState())
 	{
 		// Get the source FastArraySerializer and array
-		FastArrayType* SrcArraySerializer = GetWrappedFastArraySerializer();
+		FastArrayType* SrcArraySerializer = GetFastArraySerializerFromOwner();
 		ItemArrayType* SrcWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(SrcArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
 
 		// Check if we can early out
@@ -355,7 +386,7 @@ bool TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>
 bool TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::IsDirty() const
 {
-	FastArrayType* SrcArraySerializer = GetWrappedFastArraySerializer();
+	FastArrayType* SrcArraySerializer = GetFastArraySerializerFromOwner();
 	const FReplicationStateHeader& ReplicationStateHeader = Private::FIrisFastArraySerializerPrivateAccessor::GetReplicationStateHeader(*SrcArraySerializer);
 	return Private::FReplicationStateHeaderAccessor::GetIsStateDirty(ReplicationStateHeader);
 }
@@ -368,7 +399,7 @@ void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 	FastArrayType ReceivedState;
 
 	// Dequantize into temporary array
-	InternalDequantizeFastArray(*Context.NetSerializationContext, reinterpret_cast<uint8*>(&ReceivedState), Context.StateBufferData.RawStateBuffer, GetFastArraySerializerPropertyDescriptor());
+	InternalDequantizeFastArray(*Context.NetSerializationContext, reinterpret_cast<uint8*>(&ReceivedState), Context.StateBufferData.RawStateBuffer, GetFastArrayPropertyStructDescriptor());
 
 	// Get the wrapped FastArraySerializer and array
 	FastArrayType* DstArraySerializer = reinterpret_cast<FastArrayType*>(reinterpret_cast<uint8*>(Owner) + ReplicationStateDescriptor->MemberProperties[0]->GetOffset_ForGC());
@@ -389,14 +420,14 @@ void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 	FastArrayType ReceivedState;
 
 	// Dequantize into temporary array
-	InternalDequantizeFastArray(*Context.NetSerializationContext, reinterpret_cast<uint8*>(&ReceivedState), Context.StateBufferData.RawStateBuffer, GetFastArraySerializerPropertyDescriptor());
+	InternalDequantizeFastArray(*Context.NetSerializationContext, reinterpret_cast<uint8*>(&ReceivedState), Context.StateBufferData.RawStateBuffer, GetFastArrayPropertyStructDescriptor());
 
 	// Output state to string
-	ToString(StringBuilder, reinterpret_cast<uint8*>(&ReceivedState), GetFastArraySerializerPropertyDescriptor());
+	ToString(StringBuilder, reinterpret_cast<uint8*>(&ReceivedState), GetFastArrayPropertyStructDescriptor());
 }
 
 template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>
-FastArrayType* TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::GetWrappedFastArraySerializer() const
+FastArrayType* TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::GetFastArraySerializerFromOwner() const
 {
 	return reinterpret_cast<FastArrayType*>(reinterpret_cast<uint8*>(Owner) + ReplicationStateDescriptor->MemberProperties[0]->GetOffset_ForGC());
 }
@@ -407,7 +438,7 @@ template <typename FastArrayType>
 FReplicationFragment* CreateAndRegisterFragment(UObject* Owner, const FReplicationStateDescriptor* Descriptor, FFragmentRegistrationContext& Context)
 {
 	using namespace UE::Net;
-	static_assert(TFastArrayTypeHelper<FastArrayType>::HasValidFastArrayItemType(), "Invalid FastArrayItemType detected. Make sure that FastArraySerializer has a single replicated dynamic array");
+	static_assert(TFastArrayTypeHelper<FastArrayType>::HasValidFastArrayItemType(), "Invalid FastArrayItemType detected. Make sure that FastArraySerializer has a single replicated property that is a dynamic array of the expected type");
 
 	if constexpr (TIsDerivedFrom<FastArrayType, FIrisFastArraySerializer>::IsDerived)
 	{

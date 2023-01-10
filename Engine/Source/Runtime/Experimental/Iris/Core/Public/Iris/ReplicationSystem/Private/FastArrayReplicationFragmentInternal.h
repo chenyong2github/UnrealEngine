@@ -9,11 +9,13 @@
 #include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Net/Core/Trace/NetDebugName.h"
+#include "Net/Core/NetBitArray.h"
 
-namespace UE {
-namespace Net {
+namespace UE::Net
+{
 
-namespace FastArrayPollingPolicies {
+namespace FastArrayPollingPolicies
+{
 
 struct FPollingState
 {
@@ -48,7 +50,8 @@ public:
 
 } // End of namespace FastArrayPollingPolicies
 
-namespace Private {
+namespace Private
+{
 
 /** Utility methods to behave similar to FastArraySerializer */
 struct FFastArrayReplicationFragmentHelper
@@ -66,6 +69,9 @@ struct FFastArrayReplicationFragmentHelper
 
 	/** Compare array element, only replicated items will be compared */
 	IRISCORE_API static bool InternalCompareArrayElement(const FReplicationStateDescriptor* ArrayElementDescriptor, void* RESTRICT Dst, const void* RESTRICT Src);
+
+	/** Find the member index of the FastArrayIteArray, used to support FastArrayNetSerializers with extra properties */
+	IRISCORE_API static uint32 GetFastArrayStructItemArrayMemberIndex(const FReplicationStateDescriptor* StructDescriptor);
 
 	/**
 	 * Conditionally invoke PostReplicatedReceive method depending on if it is defined or not
@@ -89,16 +95,12 @@ public:
 	IRISCORE_API void Register(FFragmentRegistrationContext& Context, EReplicationFragmentTraits InTraits);
 
 protected:
-	IRISCORE_API FFastArrayReplicationFragmentBase(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor);
-
-	IRISCORE_API const FReplicationStateDescriptor* GetFastArraySerializerPropertyDescriptor() const;
+	IRISCORE_API FFastArrayReplicationFragmentBase(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor, bool bValidateDescriptor = true);
+	IRISCORE_API const FReplicationStateDescriptor* GetFastArrayPropertyStructDescriptor() const;
 	IRISCORE_API const FReplicationStateDescriptor* GetArrayElementDescriptor() const;
-
 	IRISCORE_API virtual void CollectOwner(FReplicationStateOwnerCollector* Owners) const override;
 	IRISCORE_API virtual void CallRepNotifies(FReplicationStateApplyContext& Context) override;	
-
 	IRISCORE_API virtual void ReplicatedStateToString(FStringBuilderBase& StringBuilder, FReplicationStateApplyContext& Context, EReplicationStateToStringFlags Flags) const override;
-
 	IRISCORE_API static void InternalCopyArrayElement(const FReplicationStateDescriptor* ArrayElementDescriptor, void* RESTRICT Dst, const void* RESTRICT Src);
 	IRISCORE_API static bool InternalCompareArrayElement(const FReplicationStateDescriptor* ArrayElementDescriptor, void* RESTRICT Dst, const void* RESTRICT Src);
 
@@ -107,7 +109,7 @@ protected:
 	TRefCountPtr<const FReplicationStateDescriptor> ReplicationStateDescriptor;
 
 	// This is the source state from which we source our state data
-	TUniquePtr<FPropertyReplicationState> SrcReplicationState;
+	TUniquePtr<FPropertyReplicationState> ReplicationState;
 
 	// Owner
 	UObject* Owner;
@@ -121,11 +123,9 @@ class FNativeFastArrayReplicationFragmentBase : public FReplicationFragment
 {
 protected:
 	IRISCORE_API FNativeFastArrayReplicationFragmentBase(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor);
-
-	IRISCORE_API virtual void CollectOwner(FReplicationStateOwnerCollector* Owners) const override;
-
-	IRISCORE_API const FReplicationStateDescriptor* GetFastArraySerializerPropertyDescriptor() const;
+	IRISCORE_API const FReplicationStateDescriptor* GetFastArrayPropertyStructDescriptor() const;
 	IRISCORE_API const FReplicationStateDescriptor* GetArrayElementDescriptor() const;
+	IRISCORE_API virtual void CollectOwner(FReplicationStateOwnerCollector* Owners) const override;
 
 	// Dequantize state into DstExternalBuffer, note it is expected to be initialized
 	IRISCORE_API static void InternalDequantizeFastArray(FNetSerializationContext& Context, uint8* RESTRICT DstExternalBuffer, const uint8* RESTRICT SrcInternalBuffer, const FReplicationStateDescriptor* FastArrayPropertyDescriptor);
@@ -275,4 +275,4 @@ void FFastArrayReplicationFragmentHelper::ApplyReplicatedState(FastArrayType* Ds
 	CallPostReplicatedReceiveOrNot(*DstArraySerializer, Context.bHasUnresolvableReferences);
 }
 
-}}} // End of namespaces
+}} // End of namespaces

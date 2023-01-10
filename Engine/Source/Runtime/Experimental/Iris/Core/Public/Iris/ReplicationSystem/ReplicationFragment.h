@@ -174,8 +174,13 @@ protected:
 enum class EFragmentRegistrationFlags : uint32
 {
 	None = 0U,
+	
+	// Indicates that we only should register RPC:s
 	RegisterRPCsOnly = 1U,
+	// Indicates that this objects should use the CDO for class defaults instead of the archetype
 	InitializeDefaultStateFromClassDefaults = RegisterRPCsOnly << 1U,
+	// Allow building descriptors for FastArrays that contain additional properties, NOTE: This should be avoided as fastarrays normally only should contain a single replicated property.
+	AllowFastArraysWithAdditionalProperties = InitializeDefaultStateFromClassDefaults << 1U,
 };
 ENUM_CLASS_FLAGS(EFragmentRegistrationFlags);
 

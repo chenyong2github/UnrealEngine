@@ -368,6 +368,12 @@ struct CGetFastArrayCreateReplicationFragmentFuncable
 template<typename T>
 inline typename TEnableIf<TModels<CGetFastArrayCreateReplicationFragmentFuncable, T>::Value, const FDoRepLifetimeParams>::Type FixupParams(const FDoRepLifetimeParams& Params)
 {
+	// Use passed in CreateAndRegisterReplicationFragmentFunction if set
+	if (Params.CreateAndRegisterReplicationFragmentFunction)
+	{
+		return Params;
+	}
+
 	FDoRepLifetimeParams NewParams(Params);
 	NewParams.CreateAndRegisterReplicationFragmentFunction = T::GetFastArrayCreateReplicationFragmentFunction();
 	return NewParams;

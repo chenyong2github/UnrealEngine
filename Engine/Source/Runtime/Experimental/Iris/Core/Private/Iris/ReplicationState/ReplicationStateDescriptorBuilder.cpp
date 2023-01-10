@@ -74,7 +74,8 @@ enum class EMemberPropertyTraits : uint32
 	IsSourceTriviallyDestructible		= IsSourceTriviallyConstructible << 1U,
 	IsFastArray							= IsSourceTriviallyDestructible << 1U,
 	IsNativeFastArray					= IsFastArray << 1U,
-	IsFastArrayItem						= IsNativeFastArray << 1U,
+	IsFastArrayWithExtraProperties		= IsNativeFastArray << 1U,
+	IsFastArrayItem						= IsFastArrayWithExtraProperties << 1U,
 	IsInvalidFastArray					= IsFastArrayItem << 1U,
 	HasConnectionSpecificSerialization	= IsInvalidFastArray << 1U,
 	HasPushBasedDirtiness				= HasConnectionSpecificSerialization << 1U,
@@ -126,8 +127,15 @@ public:
 	};
 
 	// Utility methods
-	static void GetSerializerTraits(FMemberProperty& OutMemberProperty, const FProperty* Property, const FPropertyNetSerializerInfo* Info);
-	static bool IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property, const TArray<FLifetimeProperty>* LifeTimeProperties = nullptr, UClass* InObjectClass = nullptr);
+	static void GetSerializerTraits(FMemberProperty& OutMemberProperty, const FProperty* Property, const FPropertyNetSerializerInfo* Info, bool bAllowFastArrayWithExtraProperties = false);
+	struct FIsSupportedPropertyParams
+	{
+		const TArray<FLifetimeProperty>* LifeTimeProperties = nullptr;
+		UClass* InObjectClass = nullptr;
+		bool bAllowFastArrayWithExtraReplicatedProperties = false;
+	};
+	static bool IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property, const FIsSupportedPropertyParams& Params);
+	static bool IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property) { FIsSupportedPropertyParams Params; return IsSupportedProperty(OutMemberProperty, Property, Params); }
 	static bool IsSupportedStructWithCustomSerializer(FMemberProperty& OutMemberProperty, const UStruct* InStruct);	
 	static bool IsStructWithCustomSerializer(const UStruct* InStruct);
 
@@ -135,11 +143,10 @@ public:
 	
 	static EMemberPropertyTraits GetConnectionFilterTrait(ELifetimeCondition Condition);
 	static EMemberPropertyTraits GetInitOnlyTrait(ELifetimeCondition Condition);
-	static EMemberPropertyTraits GetFastArrayPropertyTraits(const FNetSerializer* NetSerializer, const FProperty* Property);
+	static EMemberPropertyTraits GetFastArrayPropertyTraits(const FNetSerializer* NetSerializer, const FProperty* Property, bool bAllowFastArrayWithExtraProperties);
 	static SIZE_T GetFastArrayChangeMaskOffset(const FProperty* Property);
 	static EMemberPropertyTraits GetHasObjectReferenceTraits(const FNetSerializer* NetSerializer);
 	static void GetIrisPropertyTraits(FMemberProperty& OutMemberProperty, const FProperty* Property, const TArray<FLifetimeProperty>* LifeTimeProperties, UClass* ObjectClass);
-	static bool IsFastArraySupported(const UStruct* Struct);
 
 public:
 	enum class EDescriptorType : uint32
@@ -324,6 +331,7 @@ TRefCountPtr<const FReplicationStateDescriptor> FPropertyReplicationStateDescrip
 	FReplicationStateDescriptorBuilder::FParameters Params;
 	Params.DescriptorRegistry = DescriptorRegistry;
 	Params.EnableFastArrayHandling = EnumHasAnyFlags(MemberProperty.Traits, EMemberPropertyTraits::IsFastArray);
+	Params.AllowFastArrayWithExtraReplicatedProperties = EnumHasAnyFlags(MemberProperty.Traits, EMemberPropertyTraits::IsFastArrayWithExtraProperties);
 
 	return FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(Struct, Params);
 }
@@ -1826,7 +1834,7 @@ void FPropertyReplicationStateDescriptorBuilder::GetIrisPropertyTraits(FMemberPr
 	OutMemberProperty.CreateAndRegisterReplicationFragmentFunction = CreateAndRegisterReplicationFragmentFunction;
 }
 
-void FPropertyReplicationStateDescriptorBuilder::GetSerializerTraits(FMemberProperty& OutMemberProperty, const FProperty* Property, const FPropertyNetSerializerInfo* NetSerializerInfo)
+void FPropertyReplicationStateDescriptorBuilder::GetSerializerTraits(FMemberProperty& OutMemberProperty, const FProperty* Property, const FPropertyNetSerializerInfo* NetSerializerInfo, bool bAllowFastArrayWithExtraProperties)
 {
 	const FNetSerializer* NetSerializer = NetSerializerInfo->GetNetSerializer(Property);
 
@@ -1834,10 +1842,10 @@ void FPropertyReplicationStateDescriptorBuilder::GetSerializerTraits(FMemberProp
 	OutMemberProperty.Traits |= EnumHasAnyFlags(NetSerializer->Traits, ENetSerializerTraits::HasDynamicState) ? EMemberPropertyTraits::HasDynamicState : EMemberPropertyTraits::None;
 	OutMemberProperty.Traits |= EnumHasAnyFlags(NetSerializer->Traits, ENetSerializerTraits::HasConnectionSpecificSerialization) ? EMemberPropertyTraits::HasConnectionSpecificSerialization : EMemberPropertyTraits::None;
 	OutMemberProperty.Traits |= EnumHasAnyFlags(NetSerializer->Traits, ENetSerializerTraits::UseSerializerIsEqual) ? EMemberPropertyTraits::UseSerializerIsEqual : EMemberPropertyTraits::None;
-	OutMemberProperty.Traits |= GetFastArrayPropertyTraits(NetSerializer, Property);
+	OutMemberProperty.Traits |= GetFastArrayPropertyTraits(NetSerializer, Property, bAllowFastArrayWithExtraProperties);
 }
 
-bool FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property, const TArray<FLifetimeProperty>* LifeTimeProperties, UClass* InObjectClass)
+bool FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property, const FIsSupportedPropertyParams& Parameters)
 {
 	// A property is supported if it has a registered SerializerInfo.
 	const FPropertyNetSerializerInfo* NetSerializerInfo = FPropertyNetSerializerInfoRegistry::FindSerializerInfo(Property);
@@ -1853,8 +1861,8 @@ bool FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(FMemberProp
 	OutMemberProperty.ExternalSizeAndAlignment = { 0, 0 };
 
 	// Init traits
-	GetIrisPropertyTraits(OutMemberProperty, Property, LifeTimeProperties, InObjectClass);
-	GetSerializerTraits(OutMemberProperty, Property, NetSerializerInfo);
+	GetIrisPropertyTraits(OutMemberProperty, Property, Parameters. LifeTimeProperties, Parameters.InObjectClass);
+	GetSerializerTraits(OutMemberProperty, Property, NetSerializerInfo, Parameters.bAllowFastArrayWithExtraReplicatedProperties);
 
 	// $IRIS: $TODO: Add property attribute to control how many changemask bits we want to use per property
 	if (EnumHasAnyFlags(OutMemberProperty.Traits, EMemberPropertyTraits::IsFastArray))
@@ -2025,25 +2033,81 @@ SIZE_T FPropertyReplicationStateDescriptorBuilder::GetFastArrayChangeMaskOffset(
 	return 0U;
 }
 
-EMemberPropertyTraits FPropertyReplicationStateDescriptorBuilder::GetFastArrayPropertyTraits(const FNetSerializer* NetSerializer, const FProperty* Property)
+EMemberPropertyTraits FPropertyReplicationStateDescriptorBuilder::GetFastArrayPropertyTraits(const FNetSerializer* NetSerializer, const FProperty* InProperty, bool bAllowFastArrayWithExtraProperties)
 {
 	if (IsStructNetSerializer(NetSerializer))
 	{
-		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
+			// Find traits for the FastArraySerializer
 			const UScriptStruct* Struct = StructProperty->Struct;
-			const bool bUseNativeFastArray = CVarIrisUseNativeFastArray.GetValueOnAnyThread() != 0;
+			if (Struct->IsChildOf(FFastArraySerializer::StaticStruct()))
+			{
+				FMemberProperty MemberProperty;
+				if (IsStructWithCustomSerializer(Struct))
+				{
+					return EMemberPropertyTraits::IsInvalidFastArray;
+				}
 
-			if (bUseNativeFastArray && Struct->IsChildOf(FIrisFastArraySerializer::StaticStruct()))
-			{
-				return IsFastArraySupported(Struct) ? EMemberPropertyTraits::HasPushBasedDirtiness | EMemberPropertyTraits::IsFastArray | EMemberPropertyTraits::IsNativeFastArray : EMemberPropertyTraits::IsInvalidFastArray;
-			}
-			else if (Struct->IsChildOf(FFastArraySerializer::StaticStruct()))
-			{
-				return IsFastArraySupported(Struct) ? EMemberPropertyTraits::IsFastArray : EMemberPropertyTraits::IsInvalidFastArray;
+				// Try to figure out if this is a FastArraySerializer we can support. It is assumed the struct has already been determined to inherit from FastArraySerializer.
+				// A proper FastArraySerializer should contain a single TArray property with elements that are a derived from FastArraySerializerItem.
+				uint32 ReplicatedPropertyCount = 0;
+				bool bHasFastArrayItem = false;
+	
+				for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::IncludeSuper); It; ++It)
+				{
+					const FProperty* CurrentProperty = *It;
+					if (EnumHasAnyFlags(CurrentProperty->PropertyFlags, EPropertyFlags::CPF_RepSkip))
+					{
+						continue;
+					}
+
+					++ReplicatedPropertyCount;
+
+					if (!FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(MemberProperty, CurrentProperty))
+					{
+						return EMemberPropertyTraits::IsInvalidFastArray;
+					}
+
+					if (EnumHasAnyFlags(MemberProperty.Traits, EMemberPropertyTraits::IsFastArrayItem))
+					{
+						bHasFastArrayItem = true;
+					}
+
+					// If we do not allow additional properties, report this as an invalid FastArray
+					if (!bAllowFastArrayWithExtraProperties)
+					{
+						if ((ReplicatedPropertyCount > 1) || (CastField<FArrayProperty>(MemberProperty.Property) == nullptr))
+						{
+							return EMemberPropertyTraits::IsInvalidFastArray;
+						}
+					}
+				}
+
+				if (!bHasFastArrayItem)
+				{
+					return EMemberPropertyTraits::IsInvalidFastArray;
+				}
+
+				// We have a valid FastArray, setup traits
+				EMemberPropertyTraits Traits = EMemberPropertyTraits::IsFastArray;
+
+				// If the struct is derived from FIrisFastArraySerializer and has a single property we can treat it as a native FastArray
+				const bool bUseNativeFastArray = CVarIrisUseNativeFastArray.GetValueOnAnyThread() != 0 && ReplicatedPropertyCount == 1U;
+				if (bUseNativeFastArray && Struct->IsChildOf(FIrisFastArraySerializer::StaticStruct()))
+				{
+					Traits |= EMemberPropertyTraits::HasPushBasedDirtiness | EMemberPropertyTraits::IsNativeFastArray;
+				}
+				else if (ReplicatedPropertyCount > 1U)
+				{
+					Traits |= EMemberPropertyTraits::IsFastArrayWithExtraProperties;
+				}
+
+				return Traits;
 			}
 			else if (Struct->IsChildOf(FFastArraySerializerItem::StaticStruct()))
 			{
+				// Invalidate FastArrayItem if it has a custom NetSerializer which we currently do not support, the workaround is to wrap the struct with the custom netserializer in a struct
 				if (ensureAlwaysMsgf(!IsStructWithCustomSerializer(Struct), 
 					TEXT("FPropertyReplicationStateDescriptorBuilder Iris does not support custom NetSerializers for FastArrayItems %s, if required use a property in the struct wrapping the custom NetSerializer"), *Struct->GetName())
 				)
@@ -2055,7 +2119,8 @@ EMemberPropertyTraits FPropertyReplicationStateDescriptorBuilder::GetFastArrayPr
 	}
 	else if (IsArrayPropertyNetSerializer(NetSerializer))
 	{
-		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		// If the property is an array, unwrap it and check if it is a FFastArraySerializerItem
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
 			if (const FStructProperty* StructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 			{
@@ -2071,50 +2136,6 @@ EMemberPropertyTraits FPropertyReplicationStateDescriptorBuilder::GetFastArrayPr
 	return EMemberPropertyTraits::None;
 }
 
-bool FPropertyReplicationStateDescriptorBuilder::IsFastArraySupported(const UStruct* Struct)
-{
-	uint32 ReplicatedPropertyCount = 0;
-
-	FMemberProperty MemberProperty;
-	if (IsStructWithCustomSerializer(Struct))
-	{
-		return false;
-	}
-
-	// Try to figure out if this is a FastArraySerializer we can support. It is assumed the struct has already been determined to inherit from FastArraySerializer.
-	// A proper implementation would contain a TArray of a struct that is a subclass of FastArraySerializerItem.
-	for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::IncludeSuper); It; ++It)
-	{
-		const FProperty* Property = *It;
-		if (EnumHasAnyFlags(Property->PropertyFlags, EPropertyFlags::CPF_RepSkip))
-		{
-			continue;
-		}
-
-		++ReplicatedPropertyCount;
-		if (ReplicatedPropertyCount > 1)
-		{
-			return false;
-		}
-		if (!FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(MemberProperty, Property))
-		{
-			return false;
-		}
-
-		if (!EnumHasAnyFlags(MemberProperty.Traits, EMemberPropertyTraits::IsFastArrayItem))
-		{
-			return false;
-		}
-
-		if (CastField<FArrayProperty>(MemberProperty.Property) == nullptr)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
 }
 
 namespace UE::Net
@@ -2128,6 +2149,7 @@ FReplicationStateDescriptorBuilder::FParameters::FParameters()
   IncludeSuper(1U),
   GetLifeTimeProperties(1U),
   EnableFastArrayHandling(1U),
+  AllowFastArrayWithExtraReplicatedProperties(0U),
   SkipCheckForCustomNetSerializerForStruct(0U),
   SinglePropertyIndex(-1)
 {
@@ -2220,11 +2242,14 @@ TRefCountPtr<const FReplicationStateDescriptor> FReplicationStateDescriptorBuild
 					continue;
 				}
 
-				// For FastArraySerializer we do not expect other properties than FastArrayItems
 				if (bIsFastArraySerializer && !EnumHasAnyFlags(MemberProperty.Traits, EMemberPropertyTraits::IsFastArrayItem))
 				{
-					UE_LOG_DESCRIPTORBUILDER_WARNING(TEXT("FReplicationStateDescriptorBuilder ::CreateDescriptorForStruct FastArraySerializerStructs can only hold a single replicated property derived from FastArraySerializerItem. Skipping property: %s.%s of type %s."), ToCStr(InStruct->GetName()), ToCStr(Property->GetName()), ToCStr(Property->GetCPPType()));
-					continue;
+					// For FastArraySerializer we do not expect other properties than FastArrayItems unless explicitly allowed.
+					if (!Parameters.AllowFastArrayWithExtraReplicatedProperties)
+					{
+						UE_LOG_DESCRIPTORBUILDER_WARNING(TEXT("FReplicationStateDescriptorBuilder ::CreateDescriptorForStruct FastArraySerializerStructs can only hold a single replicated property derived from FastArraySerializerItem. Skipping property: %s.%s of type %s."), ToCStr(InStruct->GetName()), ToCStr(Property->GetName()), ToCStr(Property->GetCPPType()));
+						continue;
+					}
 				}
 
 				for (uint32 ArrayIt = 0, ArrayEndIt = Property->ArrayDim; ArrayIt < ArrayEndIt; ++ArrayIt)
@@ -2401,6 +2426,11 @@ SIZE_T FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(FResult& Cr
 	// We add separate descriptors properties with custom replication fragments
 	TArray<FPropertyReplicationStateDescriptorBuilder::FMemberProperty, TInlineAllocator<8>> CustomProperties;
 
+	FPropertyReplicationStateDescriptorBuilder::FIsSupportedPropertyParams IsSupportedPropertyParams;
+	IsSupportedPropertyParams.LifeTimeProperties = &LifeTimeProperties;
+	IsSupportedPropertyParams.InObjectClass = InObjectClass;
+	IsSupportedPropertyParams.bAllowFastArrayWithExtraReplicatedProperties = Parameters.AllowFastArrayWithExtraReplicatedProperties;
+
 	// Add properties
 	for (const FRepRecord& RepRecord : InObjectClass->ClassReps)
 	{
@@ -2416,7 +2446,7 @@ SIZE_T FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(FResult& Cr
 		// Skip super class properties depending on parameters. C array elements will be treated individually.
 		if ((bIncludeSuper || Property->GetOwnerVariant() == InObjectClass))
 		{
-			if (FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(MemberProperty, Property, &LifeTimeProperties, InObjectClass))
+			if (FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(MemberProperty, Property, IsSupportedPropertyParams))
 			{
 				// Ignore disabled properties
 				if (MemberProperty.ReplicationCondition == COND_Never)
