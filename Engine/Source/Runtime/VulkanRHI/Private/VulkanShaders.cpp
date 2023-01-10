@@ -500,20 +500,11 @@ void FVulkanLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLayoutMap)
 
 	DescriptorSetLayout.Compile(DSetLayoutMap);
 
-	VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo;
-	ZeroVulkanStruct(PipelineLayoutCreateInfo, VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
+	if (!Device->SupportsBindless())
+	{
+		VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo;
+		ZeroVulkanStruct(PipelineLayoutCreateInfo, VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
 
-	// Sneak in extra descriptor sets when in bindless
-	FVulkanBindlessDescriptorManager* BindlessDescriptorManager = Device->GetBindlessDescriptorManager();
-	if (BindlessDescriptorManager)
-	{
-		FVulkanBindlessDescriptorManager::BindlessLayoutArray LayoutHandles = BindlessDescriptorManager->GeneratePipelineLayout(DescriptorSetLayout.GetHandles());
-		PipelineLayoutCreateInfo.setLayoutCount = LayoutHandles.Num();
-		PipelineLayoutCreateInfo.pSetLayouts = LayoutHandles.GetData();
-		VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineLayout(Device->GetInstanceHandle(), &PipelineLayoutCreateInfo, VULKAN_CPU_ALLOCATOR, &PipelineLayout));
-	}
-	else
-	{
 		const TArray<VkDescriptorSetLayout>& LayoutHandles = DescriptorSetLayout.GetHandles();
 		PipelineLayoutCreateInfo.setLayoutCount = LayoutHandles.Num();
 		PipelineLayoutCreateInfo.pSetLayouts = LayoutHandles.GetData();

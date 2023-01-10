@@ -8,187 +8,201 @@
 #include "VulkanDescriptorSets.h"
 
 
-int32 GBindlessMaxResourceDescriptorCount = 1000 * 1000;
-static FAutoConsoleVariableRef CVarBindlessResourceDescriptorCount(
-	TEXT("r.Vulkan.Bindless.MaxResourceDescriptorCount"),
-	GBindlessMaxResourceDescriptorCount,
-	TEXT("Maximum bindless resource descriptor count"),
-	ECVF_ReadOnly
-);
-
-int32 GBindlessMaxSamplerDescriptorCount = 2048;
-static FAutoConsoleVariableRef CVarBindlessSamplerDescriptorCount(
+int32 GVulkanBindlessMaxSamplerDescriptorCount = 2048;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxSamplerDescriptorCount(
 	TEXT("r.Vulkan.Bindless.MaxSamplerDescriptorCount"),
-	GBindlessMaxSamplerDescriptorCount,
+	GVulkanBindlessMaxSamplerDescriptorCount,
 	TEXT("Maximum bindless sampler descriptor count"),
 	ECVF_ReadOnly
 );
 
+int32 GVulkanBindlessMaxSampledImageDescriptorCount = 256 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxSampledImageCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceSampledImageCount"),
+	GVulkanBindlessMaxSampledImageDescriptorCount,
+	TEXT("Maximum bindless Sampled Image descriptor count"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanBindlessMaxStorageImageDescriptorCount = 64 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxStorageImageCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceStorageImageCount"),
+	GVulkanBindlessMaxStorageImageDescriptorCount,
+	TEXT("Maximum bindless Storage Image descriptor count"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanBindlessMaxUniformTexelBufferDescriptorCount = 64 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxUniformTexelBufferCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceUniformTexelBufferCount"),
+	GVulkanBindlessMaxUniformTexelBufferDescriptorCount,
+	TEXT("Maximum bindless Uniform Texel Buffer descriptor count"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanBindlessMaxStorageTexelBufferDescriptorCount = 64 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxStorageTexelBufferCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceStorageTexelBufferCount"),
+	GVulkanBindlessMaxStorageTexelBufferDescriptorCount,
+	TEXT("Maximum bindless Storage Texel Buffer descriptor count"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanBindlessMaxUniformBufferDescriptorCount = 2 * 1024 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxUniformBufferCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceUniformBufferCount"),
+	GVulkanBindlessMaxUniformBufferDescriptorCount,
+	TEXT("Maximum bindless Uniform Buffer descriptor count"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanBindlessMaxStorageBufferDescriptorCount = 64 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxStorageBufferCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceStorageBufferCount"),
+	GVulkanBindlessMaxStorageBufferDescriptorCount,
+	TEXT("Maximum bindless Storage Buffer descriptor count"),
+	ECVF_ReadOnly
+);
+
+int32 GVulkanBindlessMaxAccelerationStructureDescriptorCount = 64 * 1024;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxAccelerationStructureCount(
+	TEXT("r.Vulkan.Bindless.MaxResourceAccelerationStructureCount"),
+	GVulkanBindlessMaxAccelerationStructureDescriptorCount,
+	TEXT("Maximum bindless Acceleration Structure descriptor count"),
+	ECVF_ReadOnly
+);
+
+
+int32 GVulkanBindlessMaxUniformBuffersPerStage = 32;
+static FAutoConsoleVariableRef CVarVulkanBindlessMaxUniformBuffersPerStage(
+	TEXT("r.Vulkan.Bindless.MaxUniformBuffersPerStage"),
+	GVulkanBindlessMaxUniformBuffersPerStage,
+	TEXT("Maximum Uniform Buffers per shader stage"),
+	ECVF_ReadOnly
+);
+
+
+static inline uint32 GetInitialDescriptorCount(VkDescriptorType DescriptorType)
+{
+	switch (DescriptorType)
+	{
+	case VK_DESCRIPTOR_TYPE_SAMPLER:                    return GVulkanBindlessMaxSamplerDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:              return GVulkanBindlessMaxSampledImageDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:              return GVulkanBindlessMaxStorageImageDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:       return GVulkanBindlessMaxUniformTexelBufferDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:       return GVulkanBindlessMaxStorageTexelBufferDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:             return GVulkanBindlessMaxUniformBufferDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:             return GVulkanBindlessMaxStorageBufferDescriptorCount;
+	case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: return GVulkanBindlessMaxAccelerationStructureDescriptorCount;
+	default: checkNoEntry();
+	}
+	return 0;
+}
+
+
+static inline VkMemoryPropertyFlags GetDescriptorBufferMemoryType(FVulkanDevice* Device)
+{
+	if (Device->HasUnifiedMemory() || (FVulkanPlatform::SupportsDeviceLocalHostVisibleWithNoPenalty(Device->GetVendorId()) &&
+		Device->GetDeviceMemoryManager().SupportsMemoryType(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)))
+	{
+		return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	}
+	else
+	{
+		return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	}
+}
+
+
+
+
 
 FVulkanBindlessDescriptorManager::FVulkanBindlessDescriptorManager(FVulkanDevice* InDevice)
 	: VulkanRHI::FDeviceChild(InDevice)
-	, bBindlessResourcesAllowed(RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled)
-	, bBindlessSamplersAllowed(RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled)
 {
-
+	const bool bFullyDisabled = (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::Disabled) &&
+		(RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::Disabled);
+	const bool bFullyEnabled = (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::AllShaders) &&
+		(RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::AllShaders);
+	checkf(bFullyDisabled || bFullyEnabled, TEXT("Bindless must be fully enabled or fully disabled in Vulkan because of the way it uses descriptor buffers."));
 }
 
 FVulkanBindlessDescriptorManager::~FVulkanBindlessDescriptorManager()
 {
-	VulkanRHI::vkDestroyPipelineLayout(Device->GetInstanceHandle(), BindlessPipelineLayout, VULKAN_CPU_ALLOCATOR);
+	check(BindlessPipelineLayout == VK_NULL_HANDLE);
+}
 
-	VulkanRHI::vkDestroyDescriptorSetLayout(Device->GetInstanceHandle(), EmptyDescriptorSetLayout, VULKAN_CPU_ALLOCATOR);
-	VulkanRHI::vkDestroyDescriptorSetLayout(Device->GetInstanceHandle(), SamplerDescriptorSetLayout, VULKAN_CPU_ALLOCATOR);
-	VulkanRHI::vkDestroyDescriptorSetLayout(Device->GetInstanceHandle(), ResourceDescriptorSetLayout, VULKAN_CPU_ALLOCATOR);
+void FVulkanBindlessDescriptorManager::Deinit()
+{
+}
 
-	VulkanRHI::vkDestroyDescriptorPool(Device->GetInstanceHandle(), DescriptorPool, VULKAN_CPU_ALLOCATOR);
+bool FVulkanBindlessDescriptorManager::VerifySupport(FVulkanDevice* Device)
+{
+	return false;
 }
 
 void FVulkanBindlessDescriptorManager::Init()
 {
-	MaxResourceDescriptors = GBindlessMaxResourceDescriptorCount;
-	MaxSamplerDescriptors = GBindlessMaxSamplerDescriptorCount;
-
-	// Create the empty descriptor set (used to pad empty indices)
-	{
-		VkDescriptorSetLayoutCreateInfo EmptyDescriptorSetLayoutCreateInfo;
-		ZeroVulkanStruct(EmptyDescriptorSetLayoutCreateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
-		VERIFYVULKANRESULT(VulkanRHI::vkCreateDescriptorSetLayout(Device->GetInstanceHandle(), &EmptyDescriptorSetLayoutCreateInfo, VULKAN_CPU_ALLOCATOR, &EmptyDescriptorSetLayout));
-	}
-
-	// Create the descriptor pool for bindless
-	{
-		const uint32 DescriptorTypeCount = 1;
-		VkDescriptorPoolSize DescriptorPoolSize[DescriptorTypeCount];
-		DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-		DescriptorPoolSize[0].descriptorCount = MaxSamplerDescriptors;
-		// todo-jn: bindless: add 'real' resource descriptors
-
-		VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo;
-		ZeroVulkanStruct(DescriptorPoolCreateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
-		DescriptorPoolCreateInfo.maxSets = VulkanBindless::NumBindlessSets;
-		DescriptorPoolCreateInfo.poolSizeCount = DescriptorTypeCount;
-		DescriptorPoolCreateInfo.pPoolSizes = DescriptorPoolSize;
-		DescriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-
-		VERIFYVULKANRESULT(VulkanRHI::vkCreateDescriptorPool(Device->GetInstanceHandle(), &DescriptorPoolCreateInfo, VULKAN_CPU_ALLOCATOR, &DescriptorPool));
-	}
-
-	// Create the sampler descriptor set layout
-	{
-		VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding;
-		DescriptorSetLayoutBinding.binding = 0;
-		DescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		DescriptorSetLayoutBinding.descriptorCount = MaxSamplerDescriptors;
-		DescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
-		DescriptorSetLayoutBinding.pImmutableSamplers = nullptr;
-
-		const VkDescriptorBindingFlags DescriptorBindingFlags =
-			VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
-			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
-			VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT |
-			VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
-		VkDescriptorSetLayoutBindingFlagsCreateInfo DescriptorSetLayoutBindingFlagsCreateInfo;
-		ZeroVulkanStruct(DescriptorSetLayoutBindingFlagsCreateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO);
-		DescriptorSetLayoutBindingFlagsCreateInfo.bindingCount = 1;
-		DescriptorSetLayoutBindingFlagsCreateInfo.pBindingFlags = &DescriptorBindingFlags;
-
-		VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo;
-		ZeroVulkanStruct(DescriptorSetLayoutCreateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
-		DescriptorSetLayoutCreateInfo.pBindings = &DescriptorSetLayoutBinding;
-		DescriptorSetLayoutCreateInfo.bindingCount = 1;
-		DescriptorSetLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-		DescriptorSetLayoutCreateInfo.pNext = &DescriptorSetLayoutBindingFlagsCreateInfo;
-
-		VERIFYVULKANRESULT(VulkanRHI::vkCreateDescriptorSetLayout(Device->GetInstanceHandle(), &DescriptorSetLayoutCreateInfo, VULKAN_CPU_ALLOCATOR, &SamplerDescriptorSetLayout));
-	}
-
-	// Create the sampler descriptor set
-	{
-		VkDescriptorSetVariableDescriptorCountAllocateInfo VariableDescriptorCountAllocateInfo;
-		ZeroVulkanStruct(VariableDescriptorCountAllocateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO);
-		VariableDescriptorCountAllocateInfo.descriptorSetCount = 1;
-		VariableDescriptorCountAllocateInfo.pDescriptorCounts = &MaxSamplerDescriptors;
-
-		VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo;
-		ZeroVulkanStruct(DescriptorSetAllocateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
-		DescriptorSetAllocateInfo.descriptorPool = DescriptorPool;
-		DescriptorSetAllocateInfo.descriptorSetCount = 1;
-		DescriptorSetAllocateInfo.pSetLayouts = &SamplerDescriptorSetLayout;
-		DescriptorSetAllocateInfo.pNext = &VariableDescriptorCountAllocateInfo;
-
-		VERIFYVULKANRESULT(VulkanRHI::vkAllocateDescriptorSets(Device->GetInstanceHandle(), &DescriptorSetAllocateInfo, &DescriptorSets[VulkanBindless::BindlessSamplerSet]));
-	}
-
-	// todo-jn: bindless: Create the resource descriptor set and layout
-	{
-		ResourceDescriptorSetLayout = EmptyDescriptorSetLayout;
-		DescriptorSets[VulkanBindless::BindlessResourceSet] = VK_NULL_HANDLE;
-	}
-
-	// Now create the basic pipeline
-	{
-		VkDescriptorSetLayout DescriptorSetLayouts[VulkanBindless::NumBindlessSets];
-		DescriptorSetLayouts[VulkanBindless::BindlessSamplerSet] = SamplerDescriptorSetLayout;
-		DescriptorSetLayouts[VulkanBindless::BindlessResourceSet] = ResourceDescriptorSetLayout;
-
-		VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo;
-		ZeroVulkanStruct(PipelineLayoutCreateInfo, VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
-		PipelineLayoutCreateInfo.setLayoutCount = VulkanBindless::NumBindlessSets;
-		PipelineLayoutCreateInfo.pSetLayouts = DescriptorSetLayouts;
-
-		VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineLayout(Device->GetInstanceHandle(), &PipelineLayoutCreateInfo, VULKAN_CPU_ALLOCATOR, &BindlessPipelineLayout));
-	}
 }
 
-FVulkanBindlessDescriptorManager::BindlessLayoutArray FVulkanBindlessDescriptorManager::GeneratePipelineLayout(const TArray<VkDescriptorSetLayout>& LayoutArray) const
+void FVulkanBindlessDescriptorManager::BindDescriptorBuffers(VkCommandBuffer CommandBuffer, VkPipelineStageFlags SupportedStages)
 {
-	BindlessLayoutArray PatchedArray;
-	PatchedArray.Add(SamplerDescriptorSetLayout);
-	PatchedArray.Add(ResourceDescriptorSetLayout);
-	PatchedArray.Append(LayoutArray);
-	return PatchedArray;
 }
 
-void FVulkanBindlessDescriptorManager::BindDescriptorSets(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint)
+void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint, ShaderStage::EStage Stage, const FVulkanDescriptorSetWriter& SetWriter)
 {
-	uint32 FirstDescriptorSet = VulkanBindless::NumBindlessSets;
-	uint32 NumDescriptorSets = 0;
-	if (bBindlessSamplersAllowed)
-	{
-		FirstDescriptorSet = FMath::Min<uint32>(VulkanBindless::BindlessSamplerSet, FirstDescriptorSet);
-		++NumDescriptorSets;
-	}
-	if (bBindlessResourcesAllowed)
-	{
-		FirstDescriptorSet = FMath::Min<uint32>(VulkanBindless::BindlessResourceSet, FirstDescriptorSet);
-		++NumDescriptorSets;
-	}
-
-	if (NumDescriptorSets > 0)
-	{
-		VulkanRHI::vkCmdBindDescriptorSets(CommandBuffer, BindPoint, BindlessPipelineLayout, 0, NumDescriptorSets, &DescriptorSets[FirstDescriptorSet], 0, nullptr);
-	}
 }
+
 
 FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterSampler(VkSampler VulkanSampler)
 {
-	const uint32 SamplerIndex = BindlessSamplerCount++;
-	checkf(SamplerIndex < MaxSamplerDescriptors, TEXT("You need to grow the sampler array size!"));
+	return FRHIDescriptorHandle();
+}
 
-	VkDescriptorImageInfo DescriptorImageInfo;
-	FMemory::Memzero(DescriptorImageInfo);
-	DescriptorImageInfo.sampler = VulkanSampler;
+FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterImage(VkImageView ImageView, VkDescriptorType DescriptorType, bool bIsDepthStencil)
+{
+	return FRHIDescriptorHandle();
+}
 
-	VkWriteDescriptorSet WriteDescriptorSet;
-	ZeroVulkanStruct(WriteDescriptorSet, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
-	WriteDescriptorSet.dstSet = DescriptorSets[VulkanBindless::BindlessSamplerSet];
-	WriteDescriptorSet.dstBinding = 0;
-	WriteDescriptorSet.dstArrayElement = SamplerIndex;
-	WriteDescriptorSet.descriptorCount = 1;
-	WriteDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	WriteDescriptorSet.pImageInfo = &DescriptorImageInfo;
+FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterBuffer(VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize, VkDescriptorType DescriptorType)
+{
+	return FRHIDescriptorHandle();
+}
 
-	VulkanRHI::vkUpdateDescriptorSets(Device->GetInstanceHandle(), 1, &WriteDescriptorSet, 0, nullptr);
-	return FRHIDescriptorHandle(ERHIDescriptorHeapType::Sampler, SamplerIndex);
+FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterTexelBuffer(const VkBufferViewCreateInfo& ViewInfo, VkDescriptorType DescriptorType)
+{
+	return FRHIDescriptorHandle();
+}
+
+FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterAccelerationStructure(VkAccelerationStructureKHR AccelerationStructure)
+{
+	return FRHIDescriptorHandle();
+}
+
+
+uint32 FVulkanBindlessDescriptorManager::GetFreeResourceIndex(FVulkanBindlessDescriptorManager::BindlessSetState& State)
+{
+	{
+		FScopeLock ScopeLock(&State.FreeListCS);
+		if ((State.FreeListHead != MAX_uint32) && (State.PeakDescriptorCount >= State.MaxDescriptorCount)) // todo-jn: temp
+		{
+			const uint32 FreeIndex = State.FreeListHead;
+			const uint32 ByteOffset = State.FreeListHead * State.DescriptorSize;
+			uint32* NextSlot = (uint32*)(&State.DebugDescriptors[ByteOffset]);
+			State.FreeListHead = *NextSlot;
+			return FreeIndex;
+		}
+	}
+
+	const uint32 ResourceIndex = State.PeakDescriptorCount++;
+	checkf(ResourceIndex < State.MaxDescriptorCount, TEXT("You need to grow the resource array size for [%s]!"), VK_TYPE_TO_STRING(VkDescriptorType, State.DescriptorType));
+	return ResourceIndex;
+}
+
+void FVulkanBindlessDescriptorManager::Unregister(FRHIDescriptorHandle DescriptorHandle)
+{
+}
+
+void FVulkanBindlessDescriptorManager::CopyDescriptor(VkCommandBuffer CommandBuffer, FRHIDescriptorHandle DstHandle, const FRHIDescriptorHandle SrcHandle)
+{
 }

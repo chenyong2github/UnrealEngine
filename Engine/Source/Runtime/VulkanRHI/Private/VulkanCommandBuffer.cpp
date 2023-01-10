@@ -338,15 +338,7 @@ void FVulkanCmdBuffer::Begin()
 		FVulkanBindlessDescriptorManager* BindlessDescriptorManager = Device->GetBindlessDescriptorManager();
 		FVulkanQueue* Queue = GetOwner()->GetMgr().GetQueue();
 		const VkPipelineStageFlags SupportedStages = Queue->GetSupportedStageBits();
-		if (SupportedStages & VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
-		{
-			BindlessDescriptorManager->BindDescriptorSets(CommandBufferHandle, VK_PIPELINE_BIND_POINT_GRAPHICS);
-		}
-		if (SupportedStages & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
-		{
-			BindlessDescriptorManager->BindDescriptorSets(CommandBufferHandle, VK_PIPELINE_BIND_POINT_COMPUTE);
-		}
-		// todo-jn: bindless : raytracing
+		BindlessDescriptorManager->BindDescriptorBuffers(CommandBufferHandle, SupportedStages);
 	}
 
 	bNeedsDynamicStateSet = true;

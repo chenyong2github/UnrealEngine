@@ -850,131 +850,7 @@ protected:
 };
 
 
-// Layout for a Pipeline, also includes DescriptorSets layout
-class FVulkanLayout : public VulkanRHI::FDeviceChild
-{
-public:
-	FVulkanLayout(FVulkanDevice* InDevice);
-	virtual ~FVulkanLayout();
 
-	virtual bool IsGfxLayout() const = 0;
-
-	inline const FVulkanDescriptorSetsLayout& GetDescriptorSetsLayout() const
-	{
-		return DescriptorSetLayout;
-	}
-
-	inline VkPipelineLayout GetPipelineLayout() const
-	{
-		return PipelineLayout;
-	}
-
-	inline bool HasDescriptors() const
-	{
-		return DescriptorSetLayout.GetLayouts().Num() > 0;
-	}
-
-	inline uint32 GetDescriptorSetLayoutHash() const
-	{
-		return DescriptorSetLayout.GetHash();
-	}
-
-	void PatchSpirvBindings(FVulkanShader::FSpirvCode& SpirvCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const;
-
-protected:
-	FVulkanDescriptorSetsLayout	DescriptorSetLayout;
-	VkPipelineLayout			PipelineLayout;
-
-	template <bool bIsCompute>
-	inline void FinalizeBindings(const FUniformBufferGatherInfo& UBGatherInfo)
-	{
-		// Setting descriptor is only allowed prior to compiling the layout
-		check(DescriptorSetLayout.GetHandles().Num() == 0);
-
-		DescriptorSetLayout.FinalizeBindings<bIsCompute>(UBGatherInfo);
-	}
-
-	inline void ProcessBindingsForStage(VkShaderStageFlagBits StageFlags, ShaderStage::EStage DescSet, const FVulkanShaderHeader& CodeHeader, FUniformBufferGatherInfo& OutUBGatherInfo) const
-	{
-		// Setting descriptor is only allowed prior to compiling the layout
-		check(DescriptorSetLayout.GetHandles().Num() == 0);
-
-		DescriptorSetLayout.ProcessBindingsForStage(StageFlags, DescSet, CodeHeader, OutUBGatherInfo);
-	}
-
-	void Compile(FVulkanDescriptorSetLayoutMap& DSetLayoutMap);
-
-	friend class FVulkanComputePipeline;
-	friend class FVulkanGfxPipeline;
-	friend class FVulkanPipelineStateCacheManager;
-#if VULKAN_RHI_RAYTRACING
-	friend class FVulkanRayTracingPipelineState;
-#endif
-};
-
-class FVulkanGfxLayout : public FVulkanLayout
-{
-public:
-	FVulkanGfxLayout(FVulkanDevice* InDevice)
-		: FVulkanLayout(InDevice)
-	{
-	}
-
-	virtual bool IsGfxLayout() const final override
-	{
-		return true;
-	}
-
-	inline const FVulkanGfxPipelineDescriptorInfo& GetGfxPipelineDescriptorInfo() const
-	{
-		return GfxPipelineDescriptorInfo;
-	}
-
-	bool UsesInputAttachment(FVulkanShaderHeader::EAttachmentType AttachmentType) const;
-	
-protected:
-	FVulkanGfxPipelineDescriptorInfo		GfxPipelineDescriptorInfo;
-	friend class FVulkanPipelineStateCacheManager;
-};
-
-class FVulkanComputeLayout : public FVulkanLayout
-{
-public:
-	FVulkanComputeLayout(FVulkanDevice* InDevice)
-		: FVulkanLayout(InDevice)
-	{
-	}
-
-	virtual bool IsGfxLayout() const final override
-	{
-		return false;
-	}
-
-	inline const FVulkanComputePipelineDescriptorInfo& GetComputePipelineDescriptorInfo() const
-	{
-		return ComputePipelineDescriptorInfo;
-	}
-
-protected:
-	FVulkanComputePipelineDescriptorInfo		ComputePipelineDescriptorInfo;
-	friend class FVulkanPipelineStateCacheManager;
-};
-
-#if VULKAN_RHI_RAYTRACING
-class FVulkanRayTracingLayout : public FVulkanLayout
-{
-public:
-	FVulkanRayTracingLayout(FVulkanDevice* InDevice)
-		: FVulkanLayout(InDevice)
-	{
-	}
-
-	virtual bool IsGfxLayout() const final override
-	{
-		return false;
-	}
-};
-#endif // VULKAN_RHI_RAYTRACING
 
 // This class encapsulates updating VkWriteDescriptorSet structures (but doesn't own them), and their flags for dirty ranges; it is intended
 // to be used to access a sub-region of a long array of VkWriteDescriptorSet (ie FVulkanDescriptorSetWriteContainer)
@@ -1324,6 +1200,199 @@ protected:
 	void InitWrittenMasks(uint32 NumDescriptorWrites);
 };
 
+
+
+// Manager for resource descriptors used in bindless rendering.
+class FVulkanBindlessDescriptorManager : public VulkanRHI::FDeviceChild
+{
+public:
+	FVulkanBindlessDescriptorManager(FVulkanDevice* InDevice);
+	~FVulkanBindlessDescriptorManager();
+
+	void Init();
+	void Deinit();
+
+	static bool VerifySupport(FVulkanDevice* InDevice);
+
+	inline VkPipelineLayout GetPipelineLayout() const
+	{
+		return BindlessPipelineLayout;
+	}
+
+	void BindDescriptorBuffers(VkCommandBuffer CommandBuffer, VkPipelineStageFlags SupportedStages);
+
+	FRHIDescriptorHandle RegisterSampler(VkSampler VulkanSampler);
+	FRHIDescriptorHandle RegisterImage(VkImageView VulkanImage, VkDescriptorType DescriptorType, bool bIsDepthStencil);
+	FRHIDescriptorHandle RegisterBuffer(VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize, VkDescriptorType DescriptorType);
+	FRHIDescriptorHandle RegisterTexelBuffer(const VkBufferViewCreateInfo& ViewInfo, VkDescriptorType DescriptorType);
+	FRHIDescriptorHandle RegisterAccelerationStructure(VkAccelerationStructureKHR AccelerationStructure);
+	void RegisterUniformBuffers(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint, ShaderStage::EStage Stage, const FVulkanDescriptorSetWriter& SetWriter);
+
+	void Unregister(FRHIDescriptorHandle DescriptorHandle);
+
+	void CopyDescriptor(VkCommandBuffer CommandBuffer, FRHIDescriptorHandle DstHandle, const FRHIDescriptorHandle SrcHandle);
+
+private:
+
+	VkDescriptorSetLayout EmptyDescriptorSetLayout = VK_NULL_HANDLE;
+
+	struct BindlessSetState
+	{
+		VkDescriptorType DescriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+		uint32 MaxDescriptorCount = 0;
+		std::atomic<uint32> PeakDescriptorCount = 1;  // always keep a null descriptor in slot 0
+		VkDescriptorSetLayout DescriptorSetLayout = VK_NULL_HANDLE;
+
+		FCriticalSection FreeListCS;
+		uint32 FreeListHead = MAX_uint32;
+
+		uint32 DescriptorSize = 0;
+		VkBuffer BufferHandle = VK_NULL_HANDLE;
+		VkDeviceMemory MemoryHandle = VK_NULL_HANDLE;
+		uint8* MappedPointer = nullptr;
+
+		TArray<uint8> DebugDescriptors;
+	};
+	BindlessSetState BindlessSetStates[VulkanBindless::NumBindlessSets];
+
+	BindlessSetState BindlessUniformBufferSetState;
+	std::atomic<uint32> UniformBlockIndex = 0;
+
+	VkPipelineLayout BindlessPipelineLayout = VK_NULL_HANDLE;
+
+	uint32 GetFreeResourceIndex(BindlessSetState& Desc);
+};
+
+
+
+// Layout for a Pipeline, also includes DescriptorSets layout
+class FVulkanLayout : public VulkanRHI::FDeviceChild
+{
+public:
+	FVulkanLayout(FVulkanDevice* InDevice);
+	virtual ~FVulkanLayout();
+
+	virtual bool IsGfxLayout() const = 0;
+
+	inline const FVulkanDescriptorSetsLayout& GetDescriptorSetsLayout() const
+	{
+		return DescriptorSetLayout;
+	}
+
+	inline VkPipelineLayout GetPipelineLayout() const
+	{
+		return Device->SupportsBindless() ? Device->GetBindlessDescriptorManager()->GetPipelineLayout() : PipelineLayout;
+	}
+
+	inline bool HasDescriptors() const
+	{
+		return DescriptorSetLayout.GetLayouts().Num() > 0;
+	}
+
+	inline uint32 GetDescriptorSetLayoutHash() const
+	{
+		return DescriptorSetLayout.GetHash();
+	}
+
+	void PatchSpirvBindings(FVulkanShader::FSpirvCode& SpirvCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const;
+
+protected:
+	FVulkanDescriptorSetsLayout	DescriptorSetLayout;
+	VkPipelineLayout			PipelineLayout;
+
+	template <bool bIsCompute>
+	inline void FinalizeBindings(const FUniformBufferGatherInfo& UBGatherInfo)
+	{
+		// Setting descriptor is only allowed prior to compiling the layout
+		check(DescriptorSetLayout.GetHandles().Num() == 0);
+
+		DescriptorSetLayout.FinalizeBindings<bIsCompute>(UBGatherInfo);
+	}
+
+	inline void ProcessBindingsForStage(VkShaderStageFlagBits StageFlags, ShaderStage::EStage DescSet, const FVulkanShaderHeader& CodeHeader, FUniformBufferGatherInfo& OutUBGatherInfo) const
+	{
+		// Setting descriptor is only allowed prior to compiling the layout
+		check(DescriptorSetLayout.GetHandles().Num() == 0);
+
+		DescriptorSetLayout.ProcessBindingsForStage(StageFlags, DescSet, CodeHeader, OutUBGatherInfo);
+	}
+
+	void Compile(FVulkanDescriptorSetLayoutMap& DSetLayoutMap);
+
+	friend class FVulkanComputePipeline;
+	friend class FVulkanGfxPipeline;
+	friend class FVulkanPipelineStateCacheManager;
+#if VULKAN_RHI_RAYTRACING
+	friend class FVulkanRayTracingPipelineState;
+#endif
+};
+
+class FVulkanGfxLayout : public FVulkanLayout
+{
+public:
+	FVulkanGfxLayout(FVulkanDevice* InDevice)
+		: FVulkanLayout(InDevice)
+	{
+	}
+
+	virtual bool IsGfxLayout() const final override
+	{
+		return true;
+	}
+
+	inline const FVulkanGfxPipelineDescriptorInfo& GetGfxPipelineDescriptorInfo() const
+	{
+		return GfxPipelineDescriptorInfo;
+	}
+
+	bool UsesInputAttachment(FVulkanShaderHeader::EAttachmentType AttachmentType) const;
+
+protected:
+	FVulkanGfxPipelineDescriptorInfo		GfxPipelineDescriptorInfo;
+	friend class FVulkanPipelineStateCacheManager;
+};
+
+class FVulkanComputeLayout : public FVulkanLayout
+{
+public:
+	FVulkanComputeLayout(FVulkanDevice* InDevice)
+		: FVulkanLayout(InDevice)
+	{
+	}
+
+	virtual bool IsGfxLayout() const final override
+	{
+		return false;
+	}
+
+	inline const FVulkanComputePipelineDescriptorInfo& GetComputePipelineDescriptorInfo() const
+	{
+		return ComputePipelineDescriptorInfo;
+	}
+
+protected:
+	FVulkanComputePipelineDescriptorInfo		ComputePipelineDescriptorInfo;
+	friend class FVulkanPipelineStateCacheManager;
+};
+
+#if VULKAN_RHI_RAYTRACING
+class FVulkanRayTracingLayout : public FVulkanLayout
+{
+public:
+	FVulkanRayTracingLayout(FVulkanDevice* InDevice)
+		: FVulkanLayout(InDevice)
+	{
+	}
+
+	virtual bool IsGfxLayout() const final override
+	{
+		return false;
+	}
+};
+#endif // VULKAN_RHI_RAYTRACING
+
+
+
 class FVulkanGenericDescriptorPool : FNoncopyable
 {
 public:
@@ -1414,40 +1483,6 @@ private:
 	float PoolAllocRatio;
 };
 
-// Manager for resource descriptors used in bindless rendering.
-class FVulkanBindlessDescriptorManager : public VulkanRHI::FDeviceChild
-{
-public:
-	using BindlessLayoutArray = TArray<VkDescriptorSetLayout, TInlineAllocator<VulkanBindless::MaxNumSets>>;
 
-	FVulkanBindlessDescriptorManager(FVulkanDevice* InDevice);
-	~FVulkanBindlessDescriptorManager();
 
-	void Init();
 
-	BindlessLayoutArray GeneratePipelineLayout(const TArray<VkDescriptorSetLayout>& LayoutArray) const;
-
-	void BindDescriptorSets(VkCommandBuffer CommandBuffer, VkPipelineBindPoint BindPoint);
-
-	FRHIDescriptorHandle RegisterSampler(VkSampler VulkanSampler);
-
-private:
-	const bool bBindlessResourcesAllowed;
-	const bool bBindlessSamplersAllowed;
-
-	uint32 MaxResourceDescriptors = 0;
-	uint32 MaxSamplerDescriptors = 0;
-
-	std::atomic<uint32> BindlessSamplerCount = 0;
-
-	VkDescriptorSetLayout EmptyDescriptorSetLayout = VK_NULL_HANDLE;
-
-	VkDescriptorPool DescriptorPool = VK_NULL_HANDLE;
-
-	VkDescriptorSetLayout SamplerDescriptorSetLayout = VK_NULL_HANDLE;
-	VkDescriptorSetLayout ResourceDescriptorSetLayout = VK_NULL_HANDLE;
-
-	VkDescriptorSet  DescriptorSets[VulkanBindless::NumBindlessSets] = { VK_NULL_HANDLE };
-
-	VkPipelineLayout BindlessPipelineLayout = VK_NULL_HANDLE;
-};

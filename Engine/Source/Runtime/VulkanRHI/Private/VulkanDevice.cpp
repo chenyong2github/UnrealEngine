@@ -1151,16 +1151,10 @@ void FVulkanDevice::InitGPU()
 	DescriptorPoolsManager = new FVulkanDescriptorPoolsManager();
 	DescriptorPoolsManager->Init(this);
 
-	if (OptionalDeviceExtensions.HasEXTDescriptorIndexing && GpuProps.limits.maxBoundDescriptorSets >= VulkanBindless::MaxNumSets)
+	if (FVulkanBindlessDescriptorManager::VerifySupport(this))
 	{
-		const bool bBindlessResources = RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
-		const bool bBindlessSamplers = RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
-
-		if (bBindlessResources || bBindlessSamplers)
-		{
-			BindlessDescriptorManager = new FVulkanBindlessDescriptorManager(this);
-			BindlessDescriptorManager->Init();
-		}
+		BindlessDescriptorManager = new FVulkanBindlessDescriptorManager(this);
+		BindlessDescriptorManager->Init();
 	}
 
 	PipelineStateCache = new FVulkanPipelineStateCacheManager(this);
@@ -1271,12 +1265,6 @@ void FVulkanDevice::Destroy()
 	delete DescriptorPoolsManager;
 	DescriptorPoolsManager = nullptr;
 
-	if (BindlessDescriptorManager)
-	{
-		delete BindlessDescriptorManager;
-		BindlessDescriptorManager = nullptr;
-	}
-
 	// No need to delete as it's stored in SamplerMap
 	DefaultSampler = nullptr;
 
@@ -1338,6 +1326,13 @@ void FVulkanDevice::Destroy()
 	}
 
 	DeferredDeletionQueue.Clear();
+
+	if (BindlessDescriptorManager)
+	{
+		BindlessDescriptorManager->Deinit();
+		delete BindlessDescriptorManager;
+		BindlessDescriptorManager = nullptr;
+	}
 
 	MemoryManager.Deinit();
 
