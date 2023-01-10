@@ -97,7 +97,7 @@ namespace MenuExtension_DataAsset
 			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UDataAsset::StaticClass());
 	        
 			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-			Section.AddDynamicEntry("GetAssetActions_DataAsset", FNewToolMenuSectionDelegate::CreateStatic([](FToolMenuSection& InSection)
+			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateStatic([](FToolMenuSection& InSection)
 			{
 				{
 					const TAttribute<FText> Label = LOCTEXT("DataAsset_ChangeClass", "Convert to Different DataAsset Type");
@@ -144,27 +144,6 @@ EAssetCommandResult UAssetDefinition_DataAsset::PerformAssetDiff(const FAssetDif
 	SDetailsDiff::CreateDiffWindow(WindowTitle, DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision);
 	
 	return EAssetCommandResult::Handled;
-}
-
-EAssetCommandResult UAssetDefinition_DataAsset::GetFilters(TArray<FAssetFilterData>& OutFilters) const
-{
-	// AssetDefinitions don't allow filters for abstract classes by default, so we override that behavior to allow
-	// filters for Data Assets for now
-	const TSoftClassPtr<UObject> AssetClassPtr = GetAssetClass();
-	
-	if (const UClass* AssetClass = AssetClassPtr.Get())
-	{
-		FAssetFilterData DefaultFilter;
-		DefaultFilter.Name = AssetClassPtr.ToSoftObjectPath().ToString();
-		DefaultFilter.DisplayText = GetAssetDisplayName();
-		DefaultFilter.Filter.ClassPaths.Add(AssetClassPtr.ToSoftObjectPath().GetAssetPath());
-		DefaultFilter.Filter.bRecursiveClasses = true;
-		OutFilters.Add(MoveTemp(DefaultFilter));
-
-		return EAssetCommandResult::Handled;
-	}
-	
-	return EAssetCommandResult::Unhandled;
 }
 
 #undef LOCTEXT_NAMESPACE

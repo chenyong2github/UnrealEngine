@@ -27,7 +27,7 @@ void FMotoSynthExtension::RegisterMenus()
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
 	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
-	Section.AddDynamicEntry("SoundWaveAssetConversion", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 		if (!Context || Context->SelectedAssets.IsEmpty())

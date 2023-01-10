@@ -162,7 +162,7 @@ namespace MenuExtension_CurveBase
 			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UCurveBase::StaticClass());
 		
 			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-				Section.AddDynamicEntry("GetAssetActions_UCurveBase", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+				Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection))
 					{

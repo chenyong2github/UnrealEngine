@@ -15,11 +15,14 @@ class UAssetDefinition_DataAsset : public UAssetDefinitionDefault
 
 public:
 	// UAssetDefinition Implementation
+	UAssetDefinition_DataAsset()
+	{
+		IncludeClassInFilter = EIncludeClassInFilter::Always;
+	}
 	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetDefinition", "DataAsset", "Data Asset"); }
 	virtual FText GetAssetDisplayName(const FAssetData& AssetData) const override;
 	virtual FLinearColor GetAssetColor() const override { return FLinearColor(FColor(201, 29, 85)); }
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UDataAsset::StaticClass(); }
 	
 	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
-	virtual EAssetCommandResult GetFilters(TArray<FAssetFilterData>& OutFilters) const override;
 };

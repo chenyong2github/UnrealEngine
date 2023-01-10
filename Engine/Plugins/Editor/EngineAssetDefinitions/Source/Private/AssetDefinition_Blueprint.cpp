@@ -111,7 +111,7 @@ namespace MenuExtension_Blueprint
 			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UBlueprint::StaticClass());
 	        
 			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-				Section.AddDynamicEntry("GetAssetActions_Blueprint", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+				Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection))
 					{

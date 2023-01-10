@@ -69,7 +69,7 @@ namespace MenuExtension_MaterialFunctionInstance
 			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UMaterialFunctionInstance::StaticClass());
 	        
 			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-			Section.AddDynamicEntry("GetAssetActions_UMaterialFunctionInstance", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
 				{
 					const TAttribute<FText> Label = LOCTEXT("MaterialFunctionInstance_FindParent", "Find Parent");

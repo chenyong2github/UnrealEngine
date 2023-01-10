@@ -99,7 +99,7 @@ namespace MenuExtension_MaterialFunction
 			UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(UMaterialFunction::StaticClass());
 	        
 			FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-			Section.AddDynamicEntry("GetAssetActions_NewMaterialFunctionInstance", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
 				{
 					const TAttribute<FText> Label = NSLOCTEXT("AssetTypeActions", "Material_NewMFI", "Create Function Instance");
@@ -111,7 +111,7 @@ namespace MenuExtension_MaterialFunction
 				}
 			}));
 			
-			Section.AddDynamicEntry("GetAssetActions_UMaterialFunction", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
 				if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
 				{
@@ -152,7 +152,7 @@ namespace MenuExtension_MaterialFunctionMaterialLayer
 			for (UToolMenu* Menu : Menus)
 			{
 				FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-				Section.AddDynamicEntry("GetAssetActions_NewMaterialFunctionInstance", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+				Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					{
 						const TAttribute<FText> Label = NSLOCTEXT("AssetTypeActions", "Material_NewMLI", "Create Layer Instance");
@@ -193,7 +193,7 @@ namespace MenuExtension_MaterialFunctionMaterialLayerBlend
 			for (UToolMenu* Menu : Menus)
 			{
 				FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-				Section.AddDynamicEntry("GetAssetActions_NewMaterialFunctionInstance", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+				Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					{
 						const TAttribute<FText> Label = NSLOCTEXT("AssetTypeActions", "Material_NewMBI", "Create Blend Instance");

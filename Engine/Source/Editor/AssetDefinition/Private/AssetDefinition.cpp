@@ -79,7 +79,7 @@ EAssetCommandResult UAssetDefinition::GetFilters(TArray<FAssetFilterData>& OutFi
 	{
 		// By default we don't advertise filtering if the class is abstract for the asset definition.  Odds are,
 		// if they've registered an abstract class as an asset definition, they mean to use it for subclasses.
-		if (!AssetClass->HasAnyClassFlags(CLASS_Abstract))
+		if (IncludeClassInFilter == EIncludeClassInFilter::Always || (IncludeClassInFilter == EIncludeClassInFilter::IfClassIsNotAbstract && !AssetClass->HasAnyClassFlags(CLASS_Abstract)))
 		{
 			FAssetFilterData DefaultFilter;
 			DefaultFilter.Name = AssetClassPtr.ToSoftObjectPath().ToString();

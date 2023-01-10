@@ -225,6 +225,8 @@ struct ASSETDEFINITION_API FAssetCategoryPath
 	FName GetSubCategory() const { return HasSubCategory() ? CategoryPath[1].Key : NAME_None; }
 	FText GetSubCategoryText() const { return HasSubCategory() ? CategoryPath[1].Value : FText::GetEmpty(); }
 	
+	FAssetCategoryPath operator / (const FText& SubCategory) const { return FAssetCategoryPath(*this, SubCategory); }
+	
 private:
 	TArray<TPair<FName, FText>> CategoryPath;
 };
@@ -277,6 +279,12 @@ public:
 
 
 class UAssetDefinitionRegistry;
+
+enum class EIncludeClassInFilter : uint8
+{
+	IfClassIsNotAbstract,
+	Always
+};
 
 /**
  * Asset Definitions represent top level assets that are known to the editor.
@@ -435,6 +443,9 @@ public:
 
 protected:
 	virtual bool CanRegisterStatically() const;
+
+protected:
+	EIncludeClassInFilter IncludeClassInFilter = EIncludeClassInFilter::IfClassIsNotAbstract;
 
 	friend class UAssetDefinitionRegistry;
 };

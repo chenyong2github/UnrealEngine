@@ -1896,10 +1896,16 @@ UToolMenu* UToolMenus::GenerateMenuFromHierarchy(const TArray<UToolMenu*>& Hiera
 	return GeneratedMenu;
 }
 
-TSharedRef< class SWidget > UToolMenus::GenerateWidget(const FName InName, const FToolMenuContext& InMenuContext)
+TSharedRef<SWidget> UToolMenus::GenerateWidget(const FName InName, const FToolMenuContext& InMenuContext)
 {
+	OnPreGenerateWidget.Broadcast(InName, InMenuContext);
+
 	UToolMenu* Generated = GenerateMenu(InName, InMenuContext);
-	return GenerateWidget(Generated);
+	TSharedRef<SWidget> Result = GenerateWidget(Generated);
+
+	OnPostGenerateWidget.Broadcast(InName, Generated);
+	
+	return Result;
 }
 
 TSharedRef<SWidget> UToolMenus::GenerateWidget(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext)

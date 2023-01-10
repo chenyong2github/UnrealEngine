@@ -1867,13 +1867,14 @@ void FAssetFileContextMenu::ExecuteBulkExport()
 bool FAssetFileContextMenu::CanExecuteCreateBlueprintUsing() const
 {
 	// Only work if you have a single asset selected
-	if(SelectedAssets.Num() == 1)
+	if (SelectedAssets.Num() == 1)
 	{
-		if (UObject* Asset = SelectedAssets[0].FastGetAsset(true))
+		// There's no need to resolve the class, we don't need to probably worry about blueprint components here for
+		// the component asset brokerage, so just loaded native classes will work.
+		if (UClass* AssetClass = SelectedAssets[0].GetClass(EResolveClass::No))
 		{
-			// See if we know how to make a component from this asset
-			TArray< TSubclassOf<UActorComponent> > ComponentClassList = FComponentAssetBrokerage::GetComponentsForAsset(Asset);
-			return (ComponentClassList.Num() > 0);
+			// Just see if there's a primary component for this asset class.
+			return FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass) != nullptr;
 		}
 	}
 

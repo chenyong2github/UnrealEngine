@@ -70,6 +70,27 @@ public:
 		return LoadSelectedObjectsIfNeeded();
 	}
 
+	template<typename ExpectedAssetType>
+	TArray<ExpectedAssetType*> GetSelectedObjectsInMemory() const
+	{
+		TArray<ExpectedAssetType*> Result;
+		Result.Reserve(SelectedAssets.Num());
+		for (const FAssetData& Asset : SelectedAssets)
+		{
+			if (Asset.IsInstanceOf(ExpectedAssetType::StaticClass()))
+			{
+				if (UObject* AssetObject = Asset.FastGetAsset(false))
+				{
+					if (ExpectedAssetType* AssetObjectTyped = Cast<ExpectedAssetType>(AssetObject))
+					{
+						Result.Add(AssetObjectTyped);
+					}
+				}
+			}
+		}
+		return Result;
+	}
+
 	/**
 	 * Loads the selected assets (if needed) which is based on AssetViewUtils::LoadAssetsIfNeeded, this exists primarily
 	 * for backwards compatability.  Reliance on a black box to determine 'neededness' is not recommended, this function
@@ -115,18 +136,41 @@ public:
 		Result.Reserve(SelectedAssets.Num());
 		for (const FAssetData& Asset : SelectedAssets)
 		{
-			if (PredicateFilter(Asset))
+			if (Asset.IsInstanceOf(ExpectedAssetType::StaticClass()))
 			{
-				if (UObject* AssetObject = Asset.GetAsset(LoadTags))
+				if (PredicateFilter(Asset))
 				{
-					if (ExpectedAssetType* AssetObjectTyped = Cast<ExpectedAssetType>(AssetObject))
+					if (UObject* AssetObject = Asset.GetAsset(LoadTags))
 					{
-						Result.Add(AssetObjectTyped);
+						if (ExpectedAssetType* AssetObjectTyped = Cast<ExpectedAssetType>(AssetObject))
+						{
+							Result.Add(AssetObjectTyped);
+						}
 					}
 				}
 			}
 		}
 		return Result;
+	}
+
+	/**
+	 * Loads the first selected valid asset and returns it.
+	 */
+	template<typename ExpectedAssetType>
+	ExpectedAssetType* LoadFirstSelectedObject(const TSet<FName>& LoadTags = {}) const
+	{   	
+		for (const FAssetData& Asset : SelectedAssets)
+		{
+			if (Asset.IsInstanceOf(ExpectedAssetType::StaticClass()))
+			{
+				if (ExpectedAssetType* ExpectedType = Cast<ExpectedAssetType>(Asset.GetAsset(LoadTags)))
+				{
+					return ExpectedType;
+				}
+			}	
+		}
+    
+		return nullptr;
 	}
 
 	/**

@@ -123,9 +123,6 @@ public:
 	 */
 	TSharedRef<SWidget> GenerateWidget(const FName Name, const FToolMenuContext& InMenuContext);
 
-
-
-
 	/**
 	 * Finds an existing menu that has been registered or extended.
 	 * @param	Name	Name of the menu to find.
@@ -282,6 +279,12 @@ public:
 	/* Delegate that opens a menu editor */
 	DECLARE_DELEGATE_OneParam(FEditMenuDelegate, class UToolMenu*);
 	FEditMenuDelegate EditMenuDelegate;
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FGenerateWidgetEvent, const FName InName, const FToolMenuContext& InMenuContext);
+	/** Called before we generate a menu widget. */
+	FGenerateWidgetEvent OnPreGenerateWidget;
+	/** Called after we generate a menu widget. */
+	FGenerateWidgetEvent OnPostGenerateWidget;
 
 	/** Icon to display in menus for command to open menu editor */
 	FSlateIcon EditMenuIcon;

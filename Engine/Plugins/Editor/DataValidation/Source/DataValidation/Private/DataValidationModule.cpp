@@ -106,7 +106,7 @@ void FDataValidationModule::RegisterMenus()
 			FSlateIcon(),
 			FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
 			{
-				if (UContentBrowserAssetContextMenuContext* Context = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
+				if (const UContentBrowserAssetContextMenuContext* Context = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
 				{
 					ValidateAssets(Context->SelectedAssets, false, EDataValidationUsecase::Manual);
 				}
@@ -120,7 +120,7 @@ void FDataValidationModule::RegisterMenus()
 			FSlateIcon(),
 			FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
 			{
-				if (UContentBrowserAssetContextMenuContext* Context = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
+				if (const UContentBrowserAssetContextMenuContext* Context = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
 				{
 					ValidateAssets(Context->SelectedAssets, true, EDataValidationUsecase::Manual);
 				}
@@ -138,7 +138,7 @@ void FDataValidationModule::RegisterMenus()
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Validate"),
 			FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
 			{
-				if (UContentBrowserFolderContext* Context = InContext.FindContext<UContentBrowserFolderContext>())
+				if (const UContentBrowserFolderContext* Context = InContext.FindContext<UContentBrowserFolderContext>())
 				{
 					const TArray<FString>& SelectedPaths = Context->GetSelectedPackagePaths();
 

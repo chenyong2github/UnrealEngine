@@ -14,6 +14,7 @@ public class SoundCueTemplatesEditor : ModuleRules
 				"Core",
 				"SoundCueTemplates",
 				"AudioEditor",
+				"AssetDefinition",
 				"ToolMenus"
 			}
 		);
