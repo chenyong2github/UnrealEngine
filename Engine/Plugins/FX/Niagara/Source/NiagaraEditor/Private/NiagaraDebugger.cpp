@@ -297,6 +297,11 @@ void FNiagaraDebugger::HandleConnectionAcceptedMessage(const FNiagaraDebuggerAcc
 
 		UpdateDebugHUDSettings();
 
+		if (UNiagaraOutliner* Outliner = GetOutliner())
+		{
+			Outliner->Reset();
+		}
+
 		OnConnectionMadeDelegate.Broadcast(NewConnection);
 	}
 	else

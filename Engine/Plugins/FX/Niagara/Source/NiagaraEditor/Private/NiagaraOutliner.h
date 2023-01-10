@@ -144,6 +144,7 @@ public:
 	//FNotifyHook Interface END
 #endif
 
+	void Reset();
 	void UpdateData(const FNiagaraOutlinerData& NewData);
 	void UpdateSystemSimCache(const FNiagaraSystemSimCacheCaptureReply& Reply);
 
