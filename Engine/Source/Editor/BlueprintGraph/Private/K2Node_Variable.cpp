@@ -343,6 +343,10 @@ UK2Node::ERedirectType UK2Node_Variable::DoPinsMatchForReconstruction( const UEd
 		{
 			return ERedirectType_Name;
 		}
+		else if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType))
+		{
+			return ERedirectType_Type;
+		}
 		else
 		{
 			const bool bNewPinIsObject = (NewPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object);
