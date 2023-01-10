@@ -668,6 +668,9 @@ void FRigVMClient::PatchModelsOnLoad()
 	for(URigVMGraph* Model : AllModels)
 	{
 		URigVMController* Controller = GetOrCreateController(Model);
+		TGuardValue<bool> GuardSuspendTemplateComputation(Controller->bSuspendTemplateComputation, true);
+		TGuardValue<bool> GuardIsTransacting(Controller->bIsTransacting, true);
+		Controller->PatchUnitNodesOnLoad();
 		Controller->PatchDispatchNodesOnLoad();
 		Controller->PatchBranchNodesOnLoad();
 		Controller->PatchIfSelectNodesOnLoad();

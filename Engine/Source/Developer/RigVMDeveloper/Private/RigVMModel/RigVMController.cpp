@@ -82,6 +82,7 @@ URigVMController::URigVMController()
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 	, bSuspendRecomputingTemplateFilters(false)
+	, bSuspendTemplateComputation(false)
 #if WITH_EDITOR
 	, bRegisterTemplateNodeUsage(true)
 #endif
@@ -101,6 +102,7 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 	, bSuspendRecomputingTemplateFilters(false)
+	, bSuspendTemplateComputation(false)
 #if WITH_EDITOR
 	, bRegisterTemplateNodeUsage(true)
 #endif
@@ -9602,30 +9604,33 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		}
 	}
 
-	// Find any library pin that doesn't own an argument, but should 
-	if (URigVMLibraryNode* LibraryNode = Graph->GetTypedOuter<URigVMLibraryNode>())
+	// Find any library pin that doesn't own an argument, but should
+	if (!bSuspendTemplateComputation)
 	{
-		for (URigVMPin* Pin : LibraryNode->GetPins())
+		if (URigVMLibraryNode* LibraryNode = Graph->GetTypedOuter<URigVMLibraryNode>())
 		{
-			if (const FRigVMTemplate* Template = LibraryNode->GetTemplate())
+			for (URigVMPin* Pin : LibraryNode->GetPins())
 			{
-				if (!Template->FindArgument(Pin->GetFName()))
+				if (const FRigVMTemplate* Template = LibraryNode->GetTemplate())
 				{
-					if (ShouldPinOwnArgument(Pin))
+					if (!Template->FindArgument(Pin->GetFName()))
 					{
-						URigVMPin* InterfacePin = nullptr;
-						if (URigVMFunctionEntryNode* EntryNode = LibraryNode->GetEntryNode())
+						if (ShouldPinOwnArgument(Pin))
 						{
-							InterfacePin = EntryNode->FindPin(Pin->GetName());
-						}
-						if (!InterfacePin)
-						{
-							if (URigVMFunctionReturnNode* ReturnNode = LibraryNode->GetReturnNode())
+							URigVMPin* InterfacePin = nullptr;
+							if (URigVMFunctionEntryNode* EntryNode = LibraryNode->GetEntryNode())
 							{
-								InterfacePin = ReturnNode->FindPin(Pin->GetName());
+								InterfacePin = EntryNode->FindPin(Pin->GetName());
 							}
+							if (!InterfacePin)
+							{
+								if (URigVMFunctionReturnNode* ReturnNode = LibraryNode->GetReturnNode())
+								{
+									InterfacePin = ReturnNode->FindPin(Pin->GetName());
+								}
+							}
+							AddArgumentForPin(InterfacePin, nullptr, bSetupUndoRedo);
 						}
-						AddArgumentForPin(InterfacePin, nullptr, bSetupUndoRedo);
 					}
 				}
 			}
@@ -9641,50 +9646,53 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	if (bSetupUndoRedo)
 	{
 #if WITH_EDITOR
-		auto ResolveTemplateNodeToCommonTypes = [this](URigVMPin* Pin)
+		if (!bSuspendTemplateComputation)
 		{
-			if(!Pin->IsExecuteContext())
+			auto ResolveTemplateNodeToCommonTypes = [this](URigVMPin* Pin)
 			{
-				return;
-			}
-			
-			URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Pin->GetNode());
-			if(TemplateNode == nullptr)
-			{
-				return;
-			}
-
-			const FRigVMTemplate* Template = TemplateNode->GetTemplate();
-			if(Template == nullptr)
-			{
-				return;
-			}
-
-			if(!TemplateNode->HasWildCardPin())
-			{
-				return;
-			}
-
-			const FRigVMTemplate::FTypeMap PreferredTypes = GetCommonlyUsedTypesForTemplate(TemplateNode);
-			if(PreferredTypes.IsEmpty())
-			{
-				return;
-			}
-
-			const int32 PreferredPermutation = Template->FindPermutation(PreferredTypes);
-			if(PreferredPermutation != INDEX_NONE)
-			{
-				const TGuardValue<bool> DisableRegisterUseOfTemplate(bRegisterTemplateNodeUsage, false);
-				if(FullyResolveTemplateNode(TemplateNode, PreferredPermutation, true))
+				if(!Pin->IsExecuteContext())
 				{
-					static const FString Message = TEXT("Template node was automatically resolved to commonly used types.");
-					SendUserFacingNotification(Message, 0.f, TemplateNode, TEXT("MessageLog.Note"));
+					return;
 				}
-			}
-		};
+			
+				URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Pin->GetNode());
+				if(TemplateNode == nullptr)
+				{
+					return;
+				}
 
-		ResolveTemplateNodeToCommonTypes(OutputPin);
-		ResolveTemplateNodeToCommonTypes(InputPin);
+				const FRigVMTemplate* Template = TemplateNode->GetTemplate();
+				if(Template == nullptr)
+				{
+					return;
+				}
+
+				if(!TemplateNode->HasWildCardPin())
+				{
+					return;
+				}
+
+				const FRigVMTemplate::FTypeMap PreferredTypes = GetCommonlyUsedTypesForTemplate(TemplateNode);
+				if(PreferredTypes.IsEmpty())
+				{
+					return;
+				}
+
+				const int32 PreferredPermutation = Template->FindPermutation(PreferredTypes);
+				if(PreferredPermutation != INDEX_NONE)
+				{
+					const TGuardValue<bool> DisableRegisterUseOfTemplate(bRegisterTemplateNodeUsage, false);
+					if(FullyResolveTemplateNode(TemplateNode, PreferredPermutation, true))
+					{
+						static const FString Message = TEXT("Template node was automatically resolved to commonly used types.");
+						SendUserFacingNotification(Message, 0.f, TemplateNode, TEXT("MessageLog.Note"));
+					}
+				}
+			};
+
+			ResolveTemplateNodeToCommonTypes(OutputPin);
+			ResolveTemplateNodeToCommonTypes(InputPin);
+		}
 #endif
 		
 		ActionStack->EndAction(Action);
@@ -15544,8 +15552,14 @@ void URigVMController::ApplyPinState(URigVMPin* InPin, const FPinState& InPinSta
 	{
 		for (const URigVMInjectionInfo::FWeakInfo& InjectionInfo : InPinState.WeakInjectionInfos)
 		{
-			if(const URigVMNode* FormerlyInjectedNode = InjectionInfo.Node.Get())
+			if(URigVMNode* FormerlyInjectedNode = InjectionInfo.Node.Get())
 			{
+				if (FormerlyInjectedNode->IsInjected())
+				{
+					URigVMInjectionInfo* Injection = Cast<URigVMInjectionInfo>(FormerlyInjectedNode->GetOuter());
+					RenameObject(FormerlyInjectedNode, nullptr, InPin->GetGraph());
+					DestroyObject(Injection);
+				}
 				if(InjectionInfo.bInjectedAsInput)
 				{
 					const FString OutputPinPath = URigVMPin::JoinPinPath(FormerlyInjectedNode->GetNodePath(), InjectionInfo.OutputPinName.ToString()); 
@@ -15684,6 +15698,19 @@ void URigVMController::ReportAndNotifyError(const FString& InMessage) const
 
 	ReportError(InMessage);
 	SendUserFacingNotification(InMessage, 0.f, nullptr, TEXT("MessageLog.Error"));
+}
+
+void URigVMController::ReportPinTypeChange(URigVMPin* InPin, const FString& InNewCPPType)
+{
+	/*
+	UE_LOG(LogRigVMDeveloper,
+		Warning,
+		TEXT("Pin '%s' is about to change type from '%s' to '%s'."),
+		*InPin->GetPinPath(),
+		*InPin->GetCPPType(),
+		*InNewCPPType
+	);
+	*/
 }
 
 void URigVMController::SendUserFacingNotification(const FString& InMessage, float InDuration, const UObject* InSubject, const FName& InBrushName) const
@@ -17178,7 +17205,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 			{
 				bShouldUnresolve = true;
 			}
-				
+
 			if (bShouldUnresolve)
 			{
 				// Unresolve
@@ -17220,6 +17247,10 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 				if (Pin->GetCPPType() != CPPType || Pin->GetCPPTypeObject() != CPPObjectType)
 				{
 					bAnyTypeChanged = !Pin->IsExecuteContext();
+					if(bAnyTypeChanged)
+					{
+						ReportPinTypeChange(Pin, CPPType);
+					}
 					ChangePinType(Pin, CPPType, CPPObjectType, bSetupUndoRedo, false, false, false, bInitializeDefaultValue);
 				}
 			}
@@ -17229,6 +17260,11 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 				if (Pin->GetTypeIndex() != FinalPinTypes[PinIndex])
 				{
 					bAnyTypeChanged = !Pin->IsExecuteContext();
+					if(bAnyTypeChanged)
+					{
+						const FString CPPType = FRigVMRegistry::Get().GetType(FinalPinTypes[PinIndex]).CPPType.ToString();
+						ReportPinTypeChange(Pin, CPPType);
+					}
 					ChangePinType(Pin, FinalPinTypes[PinIndex], bSetupUndoRedo, false, false, false, bInitializeDefaultValue);
 				}
 
@@ -19347,6 +19383,82 @@ FRigVMTemplate::FTypeMap URigVMController::GetCommonlyUsedTypesForTemplate(
 	return Template->GetArgumentTypesFromString(TypesString);
 }
 
+void URigVMController::PatchUnitNodesOnLoad()
+{
+	if (const URigVMGraph* Graph = GetGraph())
+	{
+		TArray<URigVMUnitNode*> UnitNodesToTurnToDispatches;
+		
+		// check for unit nodes that should be dispatches
+		for(URigVMNode* Node : Graph->GetNodes())
+		{
+			if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+			{
+				if(const FRigVMTemplate* Template = UnitNode->GetTemplate())
+				{
+					if(Template->GetDispatchFactory() != nullptr)
+					{
+						UnitNodesToTurnToDispatches.Add(UnitNode);
+					}
+				}
+			}
+		}
+
+		// convert unit nodes to dispatches
+		for(URigVMUnitNode* UnitNode : UnitNodesToTurnToDispatches)
+		{
+			TArray<TPair<FString, FString>> LinkedPaths = GetLinkedPinPaths(UnitNode);
+			const FVector2D NodePosition = UnitNode->GetPosition();
+			const FString NodeName = UnitNode->GetName();
+			TMap<FString, FPinState> PinStates = GetPinStates(UnitNode, false);
+			
+			FRigVMTemplate::FTypeMap TypeMap;
+			for(URigVMPin* Pin : UnitNode->GetPins())
+			{
+				if(Pin->GetDirection() == ERigVMPinDirection::Input ||
+					Pin->GetDirection() == ERigVMPinDirection::Visible ||
+					Pin->GetDirection() == ERigVMPinDirection::IO ||
+					Pin->GetDirection() == ERigVMPinDirection::Output)
+				{
+					TypeMap.Add(Pin->GetFName(), Pin->GetTypeIndex());
+				}
+			}
+
+			const FRigVMTemplate* Template = UnitNode->GetTemplate();
+
+			RemoveNode(UnitNode, false, false, false, false);
+
+			URigVMTemplateNode* NewNode = AddTemplateNode(
+				Template->GetNotation(),
+				NodePosition, 
+				NodeName, 
+				false, 
+				false);
+
+			TArray<int32> Permutations;
+			Template->Resolve(TypeMap, Permutations, false);
+
+			for(URigVMPin* Pin : NewNode->GetPins())
+			{
+				if(Pin->IsWildCard())
+				{
+					if(const TRigVMTypeIndex* ResolvedTypeIndex = TypeMap.Find(Pin->GetFName()))
+					{
+						if(!FRigVMRegistry::Get().IsWildCardType(*ResolvedTypeIndex))
+						{
+							ChangePinType(Pin, *ResolvedTypeIndex, false, false);
+							NewNode->UpdateFilteredPermutations(Pin, {*ResolvedTypeIndex});
+						}
+					}
+				}
+			}
+
+			ApplyPinStates(NewNode, PinStates, {}, false);
+			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
+		}
+	}
+}
+
 void URigVMController::PatchDispatchNodesOnLoad()
 {
 	if (const URigVMGraph* Graph = GetGraph())
@@ -19503,7 +19615,7 @@ void URigVMController::PatchArrayNodesOnLoad()
 			const ERigVMOpCode OpCode = ArrayNode->GetOpCode();
 			TMap<FString, FPinState> PinStates = GetPinStates(ArrayNode, true);
 			
-			RemoveNode(ArrayNode, false, true, false, false);
+			RemoveNode(ArrayNode, false, false, false, false);
 
 			URigVMNode* NewNode = AddArrayNode(OpCode, CPPType, CPPTypeObject, NodePosition, NodeName, false, false, true);
 			ApplyPinStates(NewNode, PinStates, {}, false);

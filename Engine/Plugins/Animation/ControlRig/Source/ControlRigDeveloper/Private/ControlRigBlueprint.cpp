@@ -1490,6 +1490,8 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 			if (Controller->RecomputeAllTemplateFilteredPermutations(false))
 			{
 				ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
+				// if you hit this ensure consider to uncomment the code
+				// in URigVMController::ReportPinTypeChange for debugging
 			}
 
 			for(URigVMNode* ModelNode : GraphToClean->GetNodes())
@@ -4541,14 +4543,17 @@ void UControlRigBlueprint::PatchLinksWithCast()
 			{
 				const URigVMPin* SourcePin = Link->GetSourcePin();
 				const URigVMPin* TargetPin = Link->GetTargetPin();
-				const TRigVMTypeIndex SourceTypeIndex = SourcePin->GetTypeIndex();
-				const TRigVMTypeIndex TargetTypeIndex = TargetPin->GetTypeIndex();
-
-				if(SourceTypeIndex != TargetTypeIndex)
+				if (SourcePin && TargetPin)
 				{
-					if(!FRigVMRegistry::Get().CanMatchTypes(SourceTypeIndex, TargetTypeIndex, true))
+					const TRigVMTypeIndex SourceTypeIndex = SourcePin->GetTypeIndex();
+					const TRigVMTypeIndex TargetTypeIndex = TargetPin->GetTypeIndex();
+					
+					if(SourceTypeIndex != TargetTypeIndex)
 					{
-						LinksWithCast.Emplace(Graph, TWeakObjectPtr<URigVMLink>(Link), SourcePin->GetPinPath(), TargetPin->GetPinPath());
+						if(!FRigVMRegistry::Get().CanMatchTypes(SourceTypeIndex, TargetTypeIndex, true))
+						{
+							LinksWithCast.Emplace(Graph, TWeakObjectPtr<URigVMLink>(Link), SourcePin->GetPinPath(), TargetPin->GetPinPath());
+						}
 					}
 				}
 			}

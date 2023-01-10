@@ -924,6 +924,7 @@ public:
 	void ReportAndNotifyInfo(const FString& InMessage) const;
 	void ReportAndNotifyWarning(const FString& InMessage) const;
 	void ReportAndNotifyError(const FString& InMessage) const;
+	void ReportPinTypeChange(URigVMPin* InPin, const FString& InNewCPPType);
 	void SendUserFacingNotification(const FString& InMessage, float InDuration = 0.f, const UObject* InSubject = nullptr, const FName& InBrushName = TEXT("MessageLog.Warning")) const;
 
 	template <typename FmtType, typename... Types>
@@ -1168,6 +1169,7 @@ public:
 protected:
 
 	// backwards compatibility code
+	void PatchUnitNodesOnLoad();
 	void PatchDispatchNodesOnLoad();
 	void PatchBranchNodesOnLoad();
 	void PatchIfSelectNodesOnLoad();
@@ -1237,6 +1239,7 @@ private:
 public:
 	
 	bool bSuspendRecomputingTemplateFilters;
+	bool bSuspendTemplateComputation;
 
 private:
 

@@ -117,6 +117,12 @@ void URigVMTemplateNode::PostLoad()
 
 	ConvertPreferredTypesToTypeIndex();
 	InvalidateCache();
+
+	// the template notation may have changed
+	if(const FRigVMTemplate* Template = GetTemplate())
+	{
+		TemplateNotation = Template->GetNotation();
+	}
 }
 
 void URigVMTemplateNode::ConvertPreferredTypesToString()

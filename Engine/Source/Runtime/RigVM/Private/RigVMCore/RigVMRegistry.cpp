@@ -12,7 +12,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/DelayedAutoRegister.h"
-
+#include "RigVMFunctions//RigVMDispatch_Core.h"
 
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
@@ -1215,6 +1215,26 @@ const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation, bool
 	FString FactoryName, ArgumentsString;
 	if(NotationString.Split(TEXT("("), &FactoryName, &ArgumentsString))
 	{
+		FRigVMRegistry* MutableThis = (FRigVMRegistry*)this;
+		
+		// deal with a couple of custom cases
+		static const TMap<FString, FString> CoreDispatchMap =
+		{
+			{
+				TEXT("Equals::Execute"),
+				MutableThis->FindOrAddDispatchFactory<FRigVMDispatch_CoreEquals>()->GetFactoryName().ToString()
+			},
+			{
+				TEXT("NotEquals::Execute"),
+				MutableThis->FindOrAddDispatchFactory<FRigVMDispatch_CoreNotEquals>()->GetFactoryName().ToString()
+			},
+		};
+
+		if(const FString* RemappedDispatch = CoreDispatchMap.Find(FactoryName))
+		{
+			FactoryName = *RemappedDispatch;
+		}
+		
 		if(const FRigVMDispatchFactory* Factory = FindDispatchFactory(*FactoryName))
 		{
 			TGuardValue<bool> ReEntryGuard(IsDispatchingFunction, true);
