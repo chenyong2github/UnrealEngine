@@ -128,8 +128,9 @@ struct FDormantReplicatorHolder
 	* 
 	* @param DormantActor The dormant actor that owns the replicated object
 	* @param ReplicatedObjectKey The object key to a replicated object that may have stored it's object replicator here
+	* @return Return true if we did find the replicated object and removed it
 	*/
-	void RemoveStoredReplicator(AActor* DormantActor, FObjectKey ReplicatedObjectKey);
+	bool RemoveStoredReplicator(AActor* DormantActor, FObjectKey ReplicatedObjectKey);
 
 	/**
 	* Remove the references to all the object replicators tied to the given actor

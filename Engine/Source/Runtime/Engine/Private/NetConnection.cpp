@@ -5104,11 +5104,11 @@ void UNetConnection::RemoveDormantReplicator(AActor* Actor, UObject* Object)
 {
 	const FObjectKey ObjectKey = Object;
 
-	DormantReplicatorSet.RemoveStoredReplicator(Actor, ObjectKey);
+	const bool bWasStored = DormantReplicatorSet.RemoveStoredReplicator(Actor, ObjectKey);
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	// If this is a subobject (and not the main actor) remove the reference
-	if (Object != Actor)
+	if (bWasStored && Object != Actor)
 	{
 		if (Driver)
 		{

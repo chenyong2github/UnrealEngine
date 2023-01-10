@@ -98,10 +98,11 @@ void FDormantReplicatorHolder::StoreReplicator(AActor* DormantActor, UObject* Re
 	ActorReplicators.DormantReplicators.Add(FDormantObjectReplicator(ReplicatedObject, ObjectReplicator));
 }
 
-void FDormantReplicatorHolder::RemoveStoredReplicator(AActor* DormantActor, FObjectKey ReplicatedObjectKey)
+bool FDormantReplicatorHolder::RemoveStoredReplicator(AActor* DormantActor, FObjectKey ReplicatedObjectKey)
 {
 	FSetElementId Index = ActorReplicatorSet.FindId(DormantActor);
-	if (Index.IsValidId())
+	const bool bIsFound = Index.IsValidId();
+	if (bIsFound)
 	{
 		ActorReplicatorSet[Index].DormantReplicators.Remove(ReplicatedObjectKey);
 
@@ -111,6 +112,8 @@ void FDormantReplicatorHolder::RemoveStoredReplicator(AActor* DormantActor, FObj
 			ActorReplicatorSet.Remove(Index);
 		}
 	}
+
+	return bIsFound;
 }
 
 void FDormantReplicatorHolder::CleanupAllReplicatorsOfActor(AActor* DormantActor)

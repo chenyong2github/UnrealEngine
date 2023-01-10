@@ -359,15 +359,24 @@ public:
 
 protected:
 
+	/** Attempts to find a valid, non-dormant replicator for the given object. */
+	TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj);
+
 	/**
-	 * Attempts to find a valid, non-dormant replicator for the given object.
-	 *
-	 * @param Obj				The object whose replicator to find.
-	 * @param bOutFoundInvalid	Indicates we found a replicator, but it was invalid.
-	 *
-	 * @return A replicator, if one was found.
-	 */
-	TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj, bool* bOutFoundInvalid=nullptr);
+	* Attempts to find a valid, non-dormant replicator for the given object.
+	*
+	* @param Obj				The object whose replicator to find.
+	* @param bOutFoundInvalid	Indicates we found a replicator, but it was invalid.
+	*
+	* @return A replicator, if one was found.
+	*/
+	UE_DEPRECATED(5.2, "This function has been deprecated in favor of the one with a single parameter")
+	TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj, bool* bOutFoundInvalid);
+
+	/** 
+	* Creates a new object replicator or reuses a replicator if it was stored for dormancy in the Connection.
+	*/
+	 TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj);
 
 	/**
 	 * Creates a new object replicator.
@@ -382,6 +391,7 @@ protected:
 	 *
 	 * @return The newly created replicator.
 	 */
+	UE_DEPRECATED(5.2, "This function has been deprecated in favor of the one with a single parameter")
 	TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj, bool bCheckDormantReplicators);
 
 	/**

@@ -4943,6 +4943,13 @@ FObjectReplicator & UActorChannel::GetActorReplicationData()
 	return *ActorReplicator;
 }
 
+TSharedRef<FObjectReplicator>* UActorChannel::FindReplicator(UObject* Obj)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return FindReplicator(Obj, nullptr);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 TSharedRef<FObjectReplicator>* UActorChannel::FindReplicator(UObject* Obj, bool* bOutFoundInvalid)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
@@ -4970,6 +4977,14 @@ TSharedRef<FObjectReplicator>* UActorChannel::FindReplicator(UObject* Obj, bool*
 	return ReplicatorRefPtr;
 }
 
+TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// We always want to reuse the dormant replicator if it was stored in the connection previously.
+	return CreateReplicator(Obj, true);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, bool bCheckDormantReplicators)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
@@ -4994,6 +5009,7 @@ TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, boo
 		}
 #endif
 	}
+	// Failsafe thats makes sure to discard any dormant replicator until we completely delete the option to ignore them.
 	else
 	{
 		// Discard dormant replicator if there was one that we're not using
@@ -5027,8 +5043,6 @@ TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, boo
 	// Add to the replication map
 	TSharedRef<FObjectReplicator>& NewRef = ReplicationMap.Add(Obj, NewReplicator.ToSharedRef());
 
-
-
 	// Start replicating with this replicator
 	NewRef->StartReplicating(this);
 	return NewRef;
@@ -5036,8 +5050,7 @@ TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, boo
 
 TSharedRef<FObjectReplicator>& UActorChannel::FindOrCreateReplicator(UObject* Obj, bool* bOutCreated)
 {
-	bool bFoundInvalidReplicator = false;
-	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = FindReplicator(Obj, &bFoundInvalidReplicator);
+	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = FindReplicator(Obj);
 
 	// This should only be false if we found the replicator in the ReplicationMap
 	// If we pickup the replicator from the DormantReplicatorMap we treat it as it has been created.
@@ -5048,7 +5061,7 @@ TSharedRef<FObjectReplicator>& UActorChannel::FindOrCreateReplicator(UObject* Ob
 
 	if (!ReplicatorRefPtr)
 	{
-		ReplicatorRefPtr = &CreateReplicator(Obj, !bFoundInvalidReplicator);
+		ReplicatorRefPtr = &CreateReplicator(Obj);
 	}
 
 	return *ReplicatorRefPtr;
@@ -5143,8 +5156,7 @@ bool UActorChannel::WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FRepli
 		return ReplicateSubobjectCustom(Obj, Bunch, RepFlags);
 	}
 
-	bool bFoundInvalidReplicator = false;
-	TSharedRef<FObjectReplicator>* FoundReplicator = FindReplicator(Obj, &bFoundInvalidReplicator);
+	TSharedRef<FObjectReplicator>* FoundReplicator = FindReplicator(Obj);
 	const bool bFoundReplicator = (FoundReplicator != nullptr);
 
 	// Special case for replay checkpoints where the replicator could already exist but we still need to consider this a new object even if it has an empty layout
@@ -5172,7 +5184,7 @@ bool UActorChannel::WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FRepli
 	bool NewSubobject = false;
 	
 	FReplicationFlags ObjRepFlags = RepFlags;
-	TSharedRef<FObjectReplicator>& ObjectReplicator = !bFoundReplicator ? CreateReplicator(Obj, !bFoundInvalidReplicator) : *FoundReplicator;
+	TSharedRef<FObjectReplicator>& ObjectReplicator = !bFoundReplicator ? CreateReplicator(Obj) : *FoundReplicator;
 
 	if (!bFoundReplicator || bNewToReplay)
 	{
