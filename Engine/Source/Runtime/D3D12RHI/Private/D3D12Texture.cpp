@@ -1334,6 +1334,10 @@ bool FD3D12Texture::GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const
 	OutResourceInfo.Type = GetType();
 	OutResourceInfo.VRamAllocation.AllocationSize = ResourceLocation.GetSize();
 	OutResourceInfo.IsTransient = ResourceLocation.IsTransient();
+#if ENABLE_RESIDENCY_MANAGEMENT
+	OutResourceInfo.bResident = GetResource() && GetResource()->GetResidencyHandle().ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT;
+#endif
+
 	return true;
 }
 #endif

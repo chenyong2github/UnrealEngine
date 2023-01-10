@@ -1356,6 +1356,7 @@ struct FRHIResourceInfo
 	FVRamAllocation VRamAllocation;
 	bool IsTransient{ false };
 	bool bValid{ true };
+	bool bResident{ true };
 };
 
 enum class EClearBinding
