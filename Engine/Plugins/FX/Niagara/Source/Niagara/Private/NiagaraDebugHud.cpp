@@ -1441,6 +1441,11 @@ struct FGraph
 
 	void DrawLine(FString Name, FLinearColor Color, const TArray<T>& Samples)
 	{
+		if(Samples.IsEmpty())
+		{
+			return;
+		}
+
 		FBatchedElements* BatchedElements = Canvas->GetBatchedElements(FCanvas::ET_Line);
 		BatchedElements->AddReserveLines(Samples.Num() - 1);
 		FHitProxyId HitProxyId = Canvas->GetHitProxyId();
