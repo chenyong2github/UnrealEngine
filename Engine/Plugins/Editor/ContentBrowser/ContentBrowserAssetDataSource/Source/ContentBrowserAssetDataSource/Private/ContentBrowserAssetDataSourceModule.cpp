@@ -9,8 +9,11 @@ class FContentBrowserAssetDataSourceModule : public FDefaultModuleImpl
 public:
 	virtual void StartupModule() override
 	{
-		AssetDataSource.Reset(NewObject<UContentBrowserAssetDataSource>(GetTransientPackage(), "AssetData"));
-		AssetDataSource->Initialize();
+		if (GIsEditor && !IsRunningCommandlet())
+		{
+			AssetDataSource.Reset(NewObject<UContentBrowserAssetDataSource>(GetTransientPackage(), "AssetData"));
+			AssetDataSource->Initialize();
+		}
 	}
 
 	virtual void ShutdownModule() override
