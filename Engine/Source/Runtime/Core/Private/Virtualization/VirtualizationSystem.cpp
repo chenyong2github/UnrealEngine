@@ -111,20 +111,20 @@ public:
 		return EQueryResult::Failure_NotImplemented;
 	}
 
-	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo) override
+	virtual FVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options) override
 	{
-		OutResultInfo.Reset();
-		OutResultInfo.Errors.Add(FText::FromString(TEXT("Calling ::TryVirtualizePackages on FNullVirtualizationSystem")));
+		FVirtualizationResult Result;
+		Result.AddError(FText::FromString(TEXT("Calling ::TryVirtualizePackages on FNullVirtualizationSystem")));
 
-		return EVirtualizationResult::Failed;
+		return Result;
 	}
 
-	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResultInfo) override
+	virtual FRehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options) override
 	{
-		OutResultInfo.Reset();
-		OutResultInfo.Errors.Add(FText::FromString(TEXT("Calling ::TryRehydratePackages on FNullVirtualizationSystem")));
+		FRehydrationResult Result;
+		Result.AddError(FText::FromString(TEXT("Calling ::TryRehydratePackages on FNullVirtualizationSystem")));
 
-		return ERehydrationResult::Failed;
+		return Result;
 	}
 
 	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, uint64 PaddingAlignment, TArray<FText>& OutErrors, TArray<FSharedBuffer>& OutPackages, TArray<FRehydrationInfo>* OutInfo) override

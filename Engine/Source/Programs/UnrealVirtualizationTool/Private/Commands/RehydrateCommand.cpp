@@ -115,13 +115,11 @@ bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 			Options |= ERehydrationOptions::Checkout;
 		}
 
-		FRehydrationResult Info;
-		UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Options, Info);
-
-		if (!Info.Errors.IsEmpty())
+		FRehydrationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Options);
+		if (!Result.WasSuccessful())
 		{
 			UE_LOG(LogVirtualizationTool, Error, TEXT("The rehydration process failed with the following errors:"));
-			for (const FText& Error : Info.Errors)
+			for (const FText& Error : Result.Errors)
 			{
 				UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
 			}
@@ -130,7 +128,7 @@ bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 
 		if (bShouldCheckout)
 		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Info.CheckedOutPackages.Num());
+			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
 		}
 
 		Project.UnRegisterMountPoints();

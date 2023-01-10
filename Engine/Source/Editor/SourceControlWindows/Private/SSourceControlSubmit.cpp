@@ -55,16 +55,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
-	FVirtualizationResult VirtualizationResults;
 	EVirtualizationOptions VirtualizationOptions = EVirtualizationOptions::None;
 
-	EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, VirtualizationOptions, VirtualizationResults);
-	if (Result == EVirtualizationResult::Success)
+	FVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, VirtualizationOptions);
+	if (Result.WasSuccessful())
 	{
 		FTextBuilder NewDescription;
 		NewDescription.AppendLine(Description);
 
-		for (const FText& Line : VirtualizationResults.DescriptionTags)
+		for (const FText& Line : Result.DescriptionTags)
 		{
 			NewDescription.AppendLine(Line);
 		}
@@ -75,7 +74,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else if (System.AllowSubmitIfVirtualizationFailed())
 	{
-		for (const FText& Error : VirtualizationResults.Errors)
+		for (const FText& Error : Result.Errors)
 		{
 			FMessageLog("SourceControl").Warning(Error);
 		}
@@ -85,7 +84,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
-		for (const FText& Error : VirtualizationResults.Errors)
+		for (const FText& Error : Result.Errors)
 		{
 			FMessageLog("SourceControl").Error(Error);
 		}

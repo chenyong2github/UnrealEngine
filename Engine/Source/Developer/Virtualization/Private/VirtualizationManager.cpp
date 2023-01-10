@@ -839,29 +839,30 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 	return EQueryResult::Success;
 }
 
-EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResult)
+FVirtualizationResult FVirtualizationManager::TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options)
 {
+	FVirtualizationResult Result;
+
 	if (IsEnabled() && IsPushingEnabled(EStorageType::Persistent))
 	{
-		UE::Virtualization::VirtualizePackages(PackagePaths, Options, OutResult);
+		UE::Virtualization::VirtualizePackages(PackagePaths, Options, Result);
 
-		if (OutResult.Errors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
+		if (Result.WasSuccessful() && !VirtualizationProcessTag.IsEmpty())
 		{
-			FText Tag = FText::FromString(VirtualizationProcessTag);
-			OutResult.DescriptionTags.Add(Tag);
+			Result.DescriptionTags.Add(FText::FromString(VirtualizationProcessTag));
 		}
 	}
 
-	return OutResult.Errors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
+	return Result;
 }
 
-ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResult)
+FRehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options)
 {
-	OutResult.Reset();
+	FRehydrationResult Result;
 
-	UE::Virtualization::RehydratePackages(PackagePaths, Options, OutResult);
+	UE::Virtualization::RehydratePackages(PackagePaths, Options, Result);
 
-	return OutResult.Errors.IsEmpty() ? ERehydrationResult::Success : ERehydrationResult::Failed;
+	return Result;
 }
 
 ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, uint64 PaddingAlignment, TArray<FText>& OutErrors, TArray<FSharedBuffer>& OutPackages, TArray<FRehydrationInfo>* OutInfo)

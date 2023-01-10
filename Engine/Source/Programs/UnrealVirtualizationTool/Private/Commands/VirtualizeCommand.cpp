@@ -166,13 +166,12 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 			Options |= EVirtualizationOptions::Checkout;
 		}
 
-		FVirtualizationResult ResultInfo;
-		UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, Options, ResultInfo);
+		FVirtualizationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, Options);
 
-		if (!ResultInfo.Errors.IsEmpty())
+		if (!Result.WasSuccessful())
 		{
 			UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
-			for (const FText& Error : ResultInfo.Errors)
+			for (const FText& Error : Result.Errors)
 			{
 				UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
 			}
@@ -181,7 +180,7 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 
 		if (bShouldCheckout)
 		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), ResultInfo.CheckedOutPackages.Num());
+			UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
 		}
 
 		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tVirtualization of project packages complete!"), ProjectName.ToString());

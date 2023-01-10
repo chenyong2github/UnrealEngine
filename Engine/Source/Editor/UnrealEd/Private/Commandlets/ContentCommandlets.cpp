@@ -1788,16 +1788,15 @@ bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesTo
 		return true;
 	}
 
-	FVirtualizationResult VirtualizationResults;
 	EVirtualizationOptions VirtualizationOptions = EVirtualizationOptions::None;
 
-	EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, VirtualizationOptions, VirtualizationResults);
-	if (Result == EVirtualizationResult::Success)
+	FVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, VirtualizationOptions);
+	if (Result.WasSuccessful())
 	{
 		FTextBuilder NewDescription;
 		NewDescription.AppendLine(InOutDescription);
 
-		for (const FText& Line : VirtualizationResults.DescriptionTags)
+		for (const FText& Line : Result.DescriptionTags)
 		{
 			NewDescription.AppendLine(Line);
 		}
@@ -1808,7 +1807,7 @@ bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesTo
 	}
 	else if (System.AllowSubmitIfVirtualizationFailed())
 	{
-		for (const FText& Error : VirtualizationResults.Errors)
+		for (const FText& Error : Result.Errors)
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT("%s"), *Error.ToString());
 		}
@@ -1818,7 +1817,7 @@ bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesTo
 	}
 	else
 	{
-		for (const FText& Error : VirtualizationResults.Errors)
+		for (const FText& Error : Result.Errors)
 		{
 			UE_LOG(LogContentCommandlet, Error, TEXT("%s"), *Error.ToString());
 		}

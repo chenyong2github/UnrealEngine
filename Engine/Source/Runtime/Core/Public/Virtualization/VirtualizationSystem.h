@@ -460,13 +460,10 @@ struct FVirtualizationResult
 	/** The length of time that the process took in seconds */
 	double TimeTaken = 0.0;
 
-	/** Returns members to the default state */
-	void Reset()
+	/* Returns if the virtualization process succeeded or not */
+	bool WasSuccessful() const
 	{
-		Errors.Reset();
-		DescriptionTags.Reset();
-		VirtualizedPackages.Reset();
-		CheckedOutPackages.Reset();
+		return Errors.IsEmpty();
 	}
 
 	/** Add an error message to the result */
@@ -513,10 +510,10 @@ struct FRehydrationResult
 	/** The length of time that the process took in seconds */
 	double TimeTaken = 0.0;
 
-	/** Returns members to the default state */
-	void Reset()
+	/* Returns if the rehydration process succeeded or not */
+	bool WasSuccessful() const
 	{
-		Errors.Reset();
+		return Errors.IsEmpty();
 	}
 
 	/** Add an error message to the result */
@@ -799,13 +796,12 @@ public:
 	UE_DEPRECATED(5.2, "Use The other overload that takes a EVirtualizationOptions parameter")
 	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
 	{
-		FVirtualizationResult Info;
-		EVirtualizationResult Result = TryVirtualizePackages(PackagePaths, EVirtualizationOptions::None, Info);
+		FVirtualizationResult Result = TryVirtualizePackages(PackagePaths, EVirtualizationOptions::None);
 
-		OutDescriptionTags = MoveTemp(Info.DescriptionTags);
-		OutErrors = MoveTemp(Info.Errors);
+		OutDescriptionTags = MoveTemp(Result.DescriptionTags);
+		OutErrors = MoveTemp(Result.Errors);
 
-		return Result;
+		return Result.WasSuccessful() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
 	}
 	
 	/**
@@ -820,17 +816,16 @@ public:
 	 * @return						A EVirtualizationResult enum with the status of the process. If the status is not EVirtualizationResult::Success
 	 *								then the parameter OutErrors should contain at least one entry.
 	 */
-	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo) = 0;
+	virtual FVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options) = 0;
 
 	UE_DEPRECATED(5.2, "Use The other overload that takes a EVirtualizationOptions parameter")
 	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
 	{
-		FRehydrationResult Info;
-		ERehydrationResult Result = TryRehydratePackages(PackagePaths, ERehydrationOptions::None, Info);
+		FRehydrationResult Result = TryRehydratePackages(PackagePaths, ERehydrationOptions::None);
 
-		OutErrors = MoveTemp(Info.Errors);
+		OutErrors = MoveTemp(Result.Errors);
 
-		return Result;
+		return Result.WasSuccessful() ? ERehydrationResult::Success : ERehydrationResult::Failed;
 	}
 
 	/**
@@ -844,7 +839,7 @@ public:
 	 * @return	A ERehydrationResult enum with the status of the process. If the status indicates any sort of failure then OutResultInfo.Errors should
 	 *			contain at least one entry.
 	 */
-	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options, FRehydrationResult& OutResultInfo) = 0;
+	virtual FRehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOptions Options) = 0;
 
 	/**
 	 * Rehydrates a number of packages into memory buffers.

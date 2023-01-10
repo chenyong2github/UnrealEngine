@@ -27,8 +27,8 @@ void RehydratePackages(TArray<FString> SelectedFiles)
 {
 	TArray<FText> Errors;
 
-	FRehydrationResult ResultInfo;
-	if (IVirtualizationSystem::Get().TryRehydratePackages(SelectedFiles, ERehydrationOptions::Checkout, ResultInfo) == ERehydrationResult::Success)
+	FRehydrationResult Result = IVirtualizationSystem::Get().TryRehydratePackages(SelectedFiles, ERehydrationOptions::Checkout);
+	if (Result.WasSuccessful())
 	{
 		// TODO: At some point ::TryRehydratePackages will return more detail info about the process
 		// when it does we should make a better job at logging it.
