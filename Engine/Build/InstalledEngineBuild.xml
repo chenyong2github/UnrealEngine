@@ -990,6 +990,7 @@
 				<Property Name="Platforms" Value="$(Platforms)IOS;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyIOSFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyIOSExceptions)"/>
+				<Property Name="ExtraSignFiles" Value="$(ExtraSignFiles);$(ExtraSignFilesIOS)"/>
 			</Do>
 			<Do If="'$(WithTVOS)' == true">
 				<Tag Files="#UnrealGame TVOS" Except="#UnrealGame TVOS Unstripped" With="#Installed Win64"/>
@@ -997,6 +998,7 @@
 				<Property Name="Platforms" Value="$(Platforms)TVOS;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyTVOSFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyTVOSExceptions)"/>
+				<Property Name="ExtraSignFiles" Value="$(ExtraSignFiles);$(ExtraSignFilesTVOS)"/>
 			</Do>
 			<Do If="'$(WithLinux)' == true">
 				<Tag Files="#UnrealGame Linux;#Build Tools Linux" Except="#UnrealGame Linux Unstripped" With="#Installed Win64"/>
@@ -1026,6 +1028,7 @@
 			<Tag FileLists="#DependencyLists" With="#Installed Win64" />
 
 			<!-- Confidential Exceptions - done last to ensure they never get overwritten -->
+			<Property Name="SignCopyExceptions" Value="$(CopyInstalledExceptions);$(ConfidentialExceptions)"/>
 			<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);#DependencyLists;$(ConfidentialExceptions)"/>
 			
 			<!-- Tag additional files needed for installed build -->
@@ -1036,10 +1039,12 @@
 
 			<Do If="'$(SignExecutables)' == true">
 				<!-- Tag files that need to be signed -->
-				<Tag Files="#Compile UnrealHeaderTool Win64;#Build Tools Win64;#Rules Assemblies" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
-				<Tag Files="$(ExtraSignFiles)" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
-				<Tag Files="#DatasmithPluginBinaries Win64" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64" If="$(CompileDatasmithPlugins)"/>
-				<Tag Files="#Build Tools CS Binaries;" Filter="$(WindowsSignFilter)" Except="$(CopyWin64CsToolsExceptions);$(SignExceptions);" With="#Sign CS Tools for Installed Win64"/>
+				<Tag Files="#Compile UnrealHeaderTool Win64;#Build Tools Win64;#Rules Assemblies" Filter="$(WindowsSignFilter)" Except="$(SignCopyExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="$(CopyInstalledFilter)" Filter="$(WindowsSignFilter)" Except="$(SignCopyExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag FileLists="#DependencyLists" Filter="$(WindowsSignFilter)" Except="$(SignCopyExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="$(ExtraSignFiles)" Filter="$(WindowsSignFilter)" Except="$(SignCopyExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="#DatasmithPluginBinaries Win64" Filter="$(WindowsSignFilter)" Except="$(SignCopyExceptions)" With="#Sign Tools for Installed Win64" If="$(CompileDatasmithPlugins)"/>
+				<Tag Files="#Build Tools CS Binaries;" Filter="$(WindowsSignFilter)" Except="$(CopyWin64CsToolsExceptions);" With="#Sign CS Tools for Installed Win64"/>
 			</Do>
 
 			<!-- Tag files that need to be copied directly -->
