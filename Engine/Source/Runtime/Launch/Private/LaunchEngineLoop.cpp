@@ -4979,6 +4979,10 @@ void FEngineLoop::Exit()
 	// Disable the PSO cache
 	FShaderPipelineCache::Shutdown();
 
+	// Free the global shader map, needs to happen before FShaderCodeLibrary::Shutdown to avoid warnings
+	// about leaking RHI references.
+	ShutdownGlobalShaderMap();
+
 	// Close shader code map, if any
 	FShaderCodeLibrary::Shutdown();
 

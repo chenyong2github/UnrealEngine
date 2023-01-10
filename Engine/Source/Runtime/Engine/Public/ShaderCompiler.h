@@ -1396,6 +1396,7 @@ extern ENGINE_API void CompileGlobalShaderMap(bool bRefreshShaderMap=false);
 extern ENGINE_API void CompileGlobalShaderMap(ERHIFeatureLevel::Type InFeatureLevel, bool bRefreshShaderMap=false);
 extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, bool bRefreshShaderMap = false);
 extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, bool bRefreshShaderMap);
+extern ENGINE_API void ShutdownGlobalShaderMap();
 
 extern ENGINE_API const FString& GetGlobalShaderMapDDCKey();
 

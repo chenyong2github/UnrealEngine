@@ -50,6 +50,7 @@
 #include "UObject/DevObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #include "Math/UnitConversion.h"
+#include "UnrealEngine.h"
 
 #if WITH_EDITOR
 #include "UObject/ArchiveCookContext.h"
@@ -7820,6 +7821,20 @@ void CompileGlobalShaderMap(ERHIFeatureLevel::Type InFeatureLevel, bool bRefresh
 void CompileGlobalShaderMap(bool bRefreshShaderMap)
 {
 	CompileGlobalShaderMap(GMaxRHIFeatureLevel, bRefreshShaderMap);
+}
+
+void ShutdownGlobalShaderMap()
+{
+	// at the point this function is called (during the shutdown process) we do not expect any outstanding work that could potentially be still referencing
+	// global shaders, so we are not deferring the deletion (via GGlobalShaderMap_DeferredDeleteCopy) like we do during the shader recompilation.
+	EShaderPlatform Platform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
+	if (GGlobalShaderMap[Platform] != nullptr)
+	{
+		GGlobalShaderMap[Platform]->ReleaseAllSections();
+
+		delete GGlobalShaderMap[Platform];
+		GGlobalShaderMap[Platform] = nullptr;
+	}
 }
 
 void ReloadGlobalShaders()
