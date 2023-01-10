@@ -425,6 +425,19 @@ void UCustomizableObjectInstance::BeginDestroy()
 	BeginDestroyDelegate.Broadcast(this);
 	BeginDestroyNativeDelegate.Broadcast(this);
 
+	// Release the Live Instance ID if there it hadn't been released before
+	if (PrivateData && PrivateData->LiveUpdateModeInstanceID)
+	{
+		// If FCustomizableObjectSystemPrivate::SSystem is nullptr it means it has already been destroyed, no point in registering an instanceID release
+		// since the Mutable system has already been destroyed. Just checking UCustomizableObjectSystem::GetInstance() will try to recreate the system when
+		// everything is shutting down, so it's better to check FCustomizableObjectSystemPrivate::SSystem first here
+		if (FCustomizableObjectSystemPrivate::SSystem && UCustomizableObjectSystem::GetInstance() && UCustomizableObjectSystem::GetInstance()->GetPrivate())
+		{
+			UCustomizableObjectSystem::GetInstance()->GetPrivate()->InitInstanceIDRelease(PrivateData->LiveUpdateModeInstanceID);
+			PrivateData->LiveUpdateModeInstanceID = 0;
+		}
+	}
+
 	if (PrivateData && PrivateData->StreamingHandle)
 	{
 		PrivateData->StreamingHandle->CancelHandle();

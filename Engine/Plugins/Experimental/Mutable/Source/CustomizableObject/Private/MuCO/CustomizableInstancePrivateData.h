@@ -180,6 +180,9 @@ public:
 	// Handle used to store a streaming request operation if one is ongoing.
 	TSharedPtr<FStreamableHandle> StreamingHandle;
 
+	// Only used in LiveUpdateMode to reuse core instances between updates and their temp data to speed up updates, but spend way more memory
+	mu::Instance::ID LiveUpdateModeInstanceID = 0;
+
 	FCustomizableInstanceComponentData* GetComponentData(int32 ComponentIndex);
 	const FCustomizableInstanceComponentData* GetComponentData(int32 ComponentIndex) const;
 

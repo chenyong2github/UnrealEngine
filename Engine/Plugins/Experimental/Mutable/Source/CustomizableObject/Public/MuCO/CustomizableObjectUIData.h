@@ -261,12 +261,20 @@ struct FParameterUIData
 	UPROPERTY(BlueprintReadWrite, Category = CustomizableObject)
 	bool bDontCompressRuntimeTextures = false; // Only useful for state metadata
 
+	/** In this mode instances and their temp data will be reused between updates. It will be much faster but spend as much as ten times the memory.
+	    Useful for customization lockers with few characters that are going to have their parameters changed many times, not for in-game */
+	UPROPERTY(BlueprintReadWrite, Category = CustomizableObject)
+	bool bLiveUpdateMode = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = CustomizableObject)
 	TMap<FString, FString> ForcedParameterValues;
 
 	bool operator ==(const FParameterUIData& Other) const
 	{
-		if (Name != Other.Name || ParamUIMetadata != Other.ParamUIMetadata || Type != Other.Type || ArrayIntegerParameterOption != Other.ArrayIntegerParameterOption || IntegerParameterGroupType != Other.IntegerParameterGroupType || !ForcedParameterValues.OrderIndependentCompareEqual(Other.ForcedParameterValues))
+		if (Name != Other.Name || ParamUIMetadata != Other.ParamUIMetadata || Type != Other.Type 
+			|| ArrayIntegerParameterOption != Other.ArrayIntegerParameterOption || IntegerParameterGroupType != Other.IntegerParameterGroupType 
+			|| bLiveUpdateMode != Other.bLiveUpdateMode || !ForcedParameterValues.OrderIndependentCompareEqual(Other.ForcedParameterValues)
+			)
 		{
 			return false;
 		}
@@ -282,6 +290,7 @@ struct FParameterUIData
 		Ar << UIData.ArrayIntegerParameterOption;
 		Ar << UIData.IntegerParameterGroupType;
 		Ar << UIData.bDontCompressRuntimeTextures;
+		Ar << UIData.bLiveUpdateMode;
 		Ar << UIData.ForcedParameterValues;
 
 		return Ar;

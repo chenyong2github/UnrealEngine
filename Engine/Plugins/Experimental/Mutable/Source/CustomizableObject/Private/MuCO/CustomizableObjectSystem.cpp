@@ -897,6 +897,15 @@ void FCustomizableObjectSystemPrivate::InitDiscardResourcesSkeletalMesh(UCustomi
 }
 
 
+void FCustomizableObjectSystemPrivate::InitInstanceIDRelease(mu::Instance::ID IDToRelease)
+{
+	check(IsInGameThread());
+
+	const TSharedRef<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceIDRelease(IDToRelease));
+	MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, FMutableQueueElem::EQueuePriorityType::High, 0));
+}
+
+
 bool UCustomizableObjectSystem::IsReplaceDiscardedWithReferenceMeshEnabled() const
 {
 	if (Private.IsValid())
@@ -1209,9 +1218,30 @@ namespace impl
 		mu::System* System = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableSystem.get();
 		check(System != nullptr);
 
-		// For now, we are forcing the recreation of mutable-side instances with every update.
-		OperationData->InstanceID = System->NewInstance(Model);
-		UE_LOG(LogMutable, Log, TEXT("Creating instance with id [%d] "), OperationData->InstanceID)
+		if (OperationData->bLiveUpdateMode)
+		{
+			if (OperationData->InstanceID == 0)
+			{
+				// It's the first update since the instance was put in LiveUpdate Mode, this ID will be reused from now on
+				OperationData->InstanceID = System->NewInstance(Model);
+				UE_LOG(LogMutable, Verbose, TEXT("Creating Mutable instance with id [%d] for reuse "), OperationData->InstanceID);
+			}
+			else
+			{
+				// The instance was already in LiveUpdate Mode, the ID is reused
+				check(OperationData->InstanceID);
+				UE_LOG(LogMutable, Verbose, TEXT("Reusing Mutable instance with id [%d] "), OperationData->InstanceID);
+			}
+		}
+		else
+		{
+			// In non-LiveUpdate mode, we are forcing the recreation of mutable-side instances with every update.
+			check(OperationData->InstanceID == 0);
+			OperationData->InstanceID = System->NewInstance(Model);
+			UE_LOG(LogMutable, Verbose, TEXT("Creating Mutable instance with id [%d] "), OperationData->InstanceID);
+		}
+
+		check(OperationData->InstanceID != 0);
 
 		const mu::Instance* Instance = nullptr;
 
@@ -1625,10 +1655,27 @@ namespace impl
 			MutableSystem->EndUpdate(OperationData->InstanceID);
 			OperationData->InstanceUpdateData.Clear();
 
+			if (!OperationData->bLiveUpdateMode)
+			{
+				MutableSystem->ReleaseInstance(OperationData->InstanceID);
+				OperationData->InstanceID = 0;
+			}
+		}
+	}
+
+
+	void Task_Mutable_ReleaseInstanceID(TSharedPtr<FMutableOperationData> OperationData, mu::SystemPtr MutableSystem)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(Task_Mutable_ReleaseInstanceID)
+
+		// This runs in a worker thread.
+		check(OperationData.IsValid());
+
+		if (OperationData->InstanceID > 0)
+		{
 			MutableSystem->ReleaseInstance(OperationData->InstanceID);
 			OperationData->InstanceID = 0;
 		}
-
 	}
 
 
@@ -1877,6 +1924,20 @@ namespace impl
 			return;
 		}
 
+		UCustomizableInstancePrivateData* ObjectInstancePrivateData = ObjectInstance->GetPrivate();
+		check(ObjectInstancePrivateData != nullptr);
+
+		if (OperationData->bLiveUpdateMode)
+		{
+			check(OperationData->InstanceID != 0);
+
+			if (ObjectInstancePrivateData->LiveUpdateModeInstanceID == 0)
+			{
+				// From now this instance will reuse this InstanceID until it gets out of LiveUpdateMode
+				ObjectInstancePrivateData->LiveUpdateModeInstanceID = OperationData->InstanceID;
+			}
+		}
+
 		const UCustomizableObject* CustomizableObject = ObjectInstance->GetCustomizableObject(); 
 		if (!CustomizableObject)
 		{
@@ -1885,9 +1946,6 @@ namespace impl
 		}
 
 		check(OperationData.IsValid());
-
-		UCustomizableInstancePrivateData* ObjectInstancePrivateData = ObjectInstance->GetPrivate();
-		check(ObjectInstancePrivateData != nullptr);
 		
 		// Process the parameter decorations if requested
 		if (bBuildParameterDecorations)
@@ -1968,6 +2026,50 @@ namespace impl
 				Game_LoadUnrealAssets,
 				Mutable_GetImagesTask
 			});
+	}
+
+
+	/** Enqueue the release ID operation in the Mutable queue */
+	void Task_Game_ReleaseInstanceID(const mu::Instance::ID IDToRelease)
+	{
+		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+		check(System != nullptr);
+
+		FCustomizableObjectSystemPrivate* SystemPrivateData = System->GetPrivate();
+		check(SystemPrivateData != nullptr);
+
+		mu::SystemPtr MutableSystem = SystemPrivateData->MutableSystem;
+
+		// Task: Release Instance ID
+		//-------------------------------------------------------------
+		TSharedPtr<FMutableOperationData> CurrentOperationData = MakeShared<FMutableOperationData>();
+		check(CurrentOperationData);
+		CurrentOperationData->InstanceID = IDToRelease;
+
+		FGraphEventRef Mutable_GetMeshTask;
+		{
+			// Task inputs
+			TSharedPtr<FMutableOperation> CurrentMutableOperation = SystemPrivateData->CurrentMutableOperation;
+			check(CurrentMutableOperation);
+
+			Mutable_GetMeshTask = SystemPrivateData->AddMutableThreadTask(
+				TEXT("Task_Mutable_ReleaseInstanceID"),
+				[CurrentOperationData, MutableSystem]()
+				{
+					impl::Task_Mutable_ReleaseInstanceID(CurrentOperationData, MutableSystem);
+				},
+				UE::Tasks::ETaskPriority::BackgroundHigh);
+		}
+	}
+
+
+	/** Enqueue the release ID operation in the Mutable queue */
+	void Task_Game_ReleaseInstanceID(TSharedPtr<FMutableOperation> Operation)
+	{
+		check(Operation);
+		check(Operation->Type == FMutableOperation::EOperationType::IDRelease);
+
+		Task_Game_ReleaseInstanceID(Operation->IDToRelease);
 	}
 
 
@@ -2069,6 +2171,27 @@ namespace impl
 		SystemPrivateData->Streamer->PrepareStreamingForObject(CustomizableObject);
 
 		CandidateInstance->CommitMinMaxLOD();
+
+		FString StateName = CandidateInstance->GetCustomizableObject()->GetStateName(CandidateInstance->GetState());
+		const FParameterUIData* StateData = CandidateInstance->GetCustomizableObject()->StateUIDataMap.Find(StateName);
+		bool bLiveUpdateMode = StateData ? StateData->bLiveUpdateMode : false;
+
+		if (bLiveUpdateMode && (!Operation->bNeverStream || Operation->MipsToSkip > 0))
+		{
+			UE_LOG(LogMutable, Warning, TEXT("Instance LiveUpdateMode does not yet support progressive streaming of Mutable textures. Disabling LiveUpdateMode for this update."));
+			bLiveUpdateMode = false;
+		}
+
+		FCustomizableObjectSystemPrivate* CustomizableObjectSystemPrivateData = System->GetPrivate();
+		check(CustomizableObjectSystemPrivateData != nullptr);
+
+		if (!bLiveUpdateMode && CandidateInstancePrivateData->LiveUpdateModeInstanceID != 0)
+		{
+			// The instance was in live update mode last update, but now it's not. So the Id and resources have to be released.
+			// Enqueue a new mutable task to release them
+			Task_Game_ReleaseInstanceID(CandidateInstancePrivateData->LiveUpdateModeInstanceID);
+			CandidateInstancePrivateData->LiveUpdateModeInstanceID = 0;
+		}
 		
 		// Task: Mutable Update and GetMesh
 		//-------------------------------------------------------------
@@ -2079,6 +2202,8 @@ namespace impl
 		CurrentOperationData->CurrentMinLOD = Operation->InstanceDescriptorRuntimeHash.GetMinLOD();
 		CurrentOperationData->CurrentMaxLOD = Operation->InstanceDescriptorRuntimeHash.GetMaxLOD();
 		CurrentOperationData->bNeverStream = Operation->bNeverStream;
+		CurrentOperationData->bLiveUpdateMode = bLiveUpdateMode;
+		CurrentOperationData->InstanceID = bLiveUpdateMode ? CandidateInstancePrivateData->LiveUpdateModeInstanceID : 0;
 		CurrentOperationData->MipsToSkip = Operation->MipsToSkip;
 		CurrentOperationData->MutableParameters = Parameters;
 		check(Operation->CustomizableObjectInstance.IsValid());
@@ -2220,6 +2345,15 @@ void UCustomizableObjectSystem::AdvanceCurrentOperation()
 
 			// Start the first task of the update process. See namespace impl comments above.
 			impl::Task_Game_StartUpdate(Private->CurrentMutableOperation);
+			break;
+		}
+
+		case FMutableOperation::EOperationType::IDRelease:
+		{
+			impl::Task_Game_ReleaseInstanceID(Private->CurrentMutableOperation);
+
+			ClearCurrentMutableOperation();
+
 			break;
 		}
 
@@ -2444,6 +2578,16 @@ FMutableOperation FMutableOperation::CreateInstanceDiscard(UCustomizableObjectIn
 	Op.CustomizableObjectInstance = InCustomizableObjectInstance;
 
 	Op.CustomizableObjectInstance->GetPrivate()->SetCOInstanceFlags(Updating);
+
+	return Op;
+}
+
+
+FMutableOperation FMutableOperation::CreateInstanceIDRelease(mu::Instance::ID IDToRelease)
+{
+	FMutableOperation Op;
+	Op.Type = EOperationType::IDRelease;
+	Op.IDToRelease = IDToRelease;
 
 	return Op;
 }

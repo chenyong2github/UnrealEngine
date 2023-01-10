@@ -742,6 +742,7 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 			// UI Data
 			FParameterUIData ParameterUIData(State.Name, State.StateUIMetadata, EMutableParameterType::None);
 			ParameterUIData.bDontCompressRuntimeTextures = State.bDontCompressRuntimeTextures;
+			ParameterUIData.bLiveUpdateMode = State.bLiveUpdateMode;
 			ParameterUIData.ForcedParameterValues = State.ForcedParameterValues;
 
 			GenerationContext.StateUIDataMap.Add(State.Name, ParameterUIData);

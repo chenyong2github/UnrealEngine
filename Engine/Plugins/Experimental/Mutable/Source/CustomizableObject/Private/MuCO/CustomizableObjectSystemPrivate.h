@@ -39,6 +39,7 @@ public:
 
 	static FMutableOperation CreateInstanceUpdate(UCustomizableObjectInstance* COInstance, bool bInNeverStream, int32 MipsToSkip);
 	static FMutableOperation CreateInstanceDiscard(UCustomizableObjectInstance* COInstance);
+	static FMutableOperation CreateInstanceIDRelease(mu::Instance::ID);
 
 
 	enum class EOperationType
@@ -47,7 +48,10 @@ public:
 		Update,
 
 		// Discard the resources of an instance.
-		Discard
+		Discard,
+
+		// Release the instance ID and all the temp data associated with it. Usually used with the LiveUpdateMode
+		IDRelease
 	};
 
 	// Type of the operation
@@ -74,7 +78,10 @@ public:
 
 	/** Instance optimization state. */
 	int32 State;
-	
+
+	/** Only used in the IDRelease operation type */
+	mu::Instance::ID IDToRelease;
+
 	//!
 	bool IsBuildParameterDecorations() const
 	{
@@ -410,6 +417,8 @@ struct FMutableOperationData
 
 	/** This option comes from the operation request */
 	bool bNeverStream = false;
+	/** When this option is enabled it will reuse the Mutable core instance and its temp data between updates.  */
+	bool bLiveUpdateMode = false;
 	/** This option comes from the operation request. It is used to reduce the number of mipmaps that mutable must generate for images.  */
 	int32 MipsToSkip = 0;
 
@@ -687,8 +696,11 @@ public:
 	// Init the async Skeletal Mesh creation/update
 	void InitUpdateSkeletalMesh(UCustomizableObjectInstance& Public, FMutableQueueElem::EQueuePriorityType Priority);
 		
-	// Init an async and safe release of the UE4 and Mutable resources used by the instance without actually destroying the instance, for example if it's very far away
+	// Init an async and safe release of the UE and Mutable resources used by the instance without actually destroying the instance, for example if it's very far away
 	void InitDiscardResourcesSkeletalMesh(UCustomizableObjectInstance* InCustomizableObjectInstance);
+
+	// Init the async release of a Mutable Core Instance ID and all the temp resources associated with it
+	void InitInstanceIDRelease(mu::Instance::ID IDToRelease);
 	
 	bool IsReplaceDiscardedWithReferenceMeshEnabled() const { return bReplaceDiscardedWithReferenceMesh; }
 	void SetReplaceDiscardedWithReferenceMeshEnabled(bool bIsEnabled) { bReplaceDiscardedWithReferenceMesh = bIsEnabled; }
