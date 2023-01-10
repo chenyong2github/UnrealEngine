@@ -379,6 +379,21 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 	const bool bHideRotationField = ( HiddenFieldMask & ( 1 << ETransformField::Rotation ) ) != 0;
 	const bool bHideScaleField = ( HiddenFieldMask & ( 1 << ETransformField::Scale ) ) != 0;
 
+	IDetailLayoutBuilder& LayoutBuilder = ChildrenBuilder.GetParentCategory().GetParentLayout();
+	TSharedPtr<IPropertyHandle> LocationPropertyHandle = LayoutBuilder.GetProperty(USceneComponent::GetRelativeLocationPropertyName(), USceneComponent::StaticClass());
+	TSharedPtr<IPropertyHandle> RotationPropertyHandle = LayoutBuilder.GetProperty(USceneComponent::GetRelativeRotationPropertyName(), USceneComponent::StaticClass());
+	TSharedPtr<IPropertyHandle> ScalePropertyHandle = LayoutBuilder.GetProperty(USceneComponent::GetRelativeScale3DPropertyName(), USceneComponent::StaticClass());
+
+	const FString& MetaLocationDeltaString = LocationPropertyHandle->GetMetaData("Delta");
+	const FString& MetaRotationMinString = RotationPropertyHandle->GetMetaData("UIMin");
+	const FString& MetaRotationMaxString = RotationPropertyHandle->GetMetaData("UIMax");
+	const FString& MetaScaleDeltaString = ScalePropertyHandle->GetMetaData("Delta");
+
+	float LocationSpinDelta = !MetaLocationDeltaString.IsEmpty() ? FCString::Atof(*MetaLocationDeltaString) : 1.f;
+	float RotationMin = !MetaRotationMinString.IsEmpty() ? FCString::Atof(*MetaRotationMinString) : 0.f;
+	float RotationMax = !MetaRotationMaxString.IsEmpty() ? FCString::Atof(*MetaRotationMaxString) : 359.999f;
+	float ScaleSpinDelta = !MetaScaleDeltaString.IsEmpty() ? FCString::Atof(*MetaScaleDeltaString) : 0.0025f;
+
 	// Location
 	if(!bHideLocationField)
 	{
@@ -419,7 +434,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 			.Font(FontInfo)
 			.TypeInterface(TypeInterface)
 			.AllowSpin(SelectedObjects.Num() == 1)
-			.SpinDelta(1)
+			.SpinDelta(LocationSpinDelta)
 			.OnBeginSliderMovement(this, &FComponentTransformDetails::OnBeginLocationSlider)
 			.OnEndSliderMovement(this, &FComponentTransformDetails::OnEndLocationSlider)
 		];
@@ -452,6 +467,8 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		[
 			SNew( SNumericRotatorInputBox<FRotator::FReal> )
 			.AllowSpin( SelectedObjects.Num() == 1 ) 
+			.MinSliderValue(RotationMin)
+			.MaxSliderValue(RotationMax)
 			.Roll( this, &FComponentTransformDetails::GetRotationX )
 			.Pitch( this, &FComponentTransformDetails::GetRotationY )
 			.Yaw( this, &FComponentTransformDetails::GetRotationZ )
@@ -506,7 +523,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 			.ContextMenuExtenderZ( this, &FComponentTransformDetails::ExtendZScaleContextMenu )
 			.Font( FontInfo )
 			.AllowSpin( SelectedObjects.Num() == 1 )
-			.SpinDelta( 0.0025f )
+			.SpinDelta( ScaleSpinDelta )
 			.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginScaleSlider )
 			.OnEndSliderMovement(this, &FComponentTransformDetails::OnEndScaleSlider)
 		];

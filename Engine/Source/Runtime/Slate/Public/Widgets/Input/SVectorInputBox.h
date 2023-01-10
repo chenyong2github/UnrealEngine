@@ -176,6 +176,7 @@ public:
 			, _Font(FAppStyle::Get().GetFontStyle("NormalFont"))
 			, _AllowSpin(false)
 			, _SpinDelta(1)
+			, _LinearDeltaSensitivity(1)
 			, _bColorAxisLabels(false)
 			, _DisplayToggle(false)
 			, _TogglePadding(FMargin(1.f,0.f,1.f,0.f) )
@@ -216,6 +217,9 @@ public:
 
 		/** The delta amount to apply, per pixel, when the spinner is dragged. */
 		SLATE_ATTRIBUTE( NumericType, SpinDelta )
+
+		/** If we're an unbounded spinbox, what value do we divide mouse movement by before multiplying by Delta. Requires Delta to be set. */
+		SLATE_ATTRIBUTE( int32, LinearDeltaSensitivity )
 
 		/** Should the axis labels be colored */
 		SLATE_ARGUMENT( bool, bColorAxisLabels )		
@@ -424,7 +428,7 @@ private:
 			.MaxValue(CreatePerComponentGetter(ComponentIndex, TOptional<NumericType>(), InArgs._MaxVector))
 			.MinSliderValue(CreatePerComponentGetter(ComponentIndex, TOptional<NumericType>(), InArgs._MinSliderVector))
 			.MaxSliderValue(CreatePerComponentGetter(ComponentIndex, TOptional<NumericType>(), InArgs._MaxSliderVector))
-			.LinearDeltaSensitivity(1)
+			.LinearDeltaSensitivity(InArgs._LinearDeltaSensitivity)
 			.Delta(InArgs._SpinDelta)
 			.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 			.OnEndSliderMovement(InArgs._OnEndSliderMovement)

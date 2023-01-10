@@ -32,6 +32,8 @@ public:
 		: _bColorAxisLabels(false)
 		, _Font(FAppStyle::Get().GetFontStyle("NormalFont"))
 		, _AllowSpin(true)
+		, _MinSliderValue(0.0f)
+		, _MaxSliderValue(359.999f)
 		, _DisplayToggle( false )
 		, _TogglePitchChecked( ECheckBoxState::Checked )
 		, _ToggleYawChecked( ECheckBoxState::Checked )
@@ -62,6 +64,12 @@ public:
 
 		/** Whether or not values can be spun or if they should be typed in */
 		SLATE_ARGUMENT( bool, AllowSpin )
+
+		/** The minimum value that can be specified by using the slider */
+		SLATE_ATTRIBUTE( TOptional<NumericType>, MinSliderValue )
+
+		/** The maximum value that can be specified by using the slider */
+		SLATE_ATTRIBUTE( TOptional<NumericType>, MaxSliderValue )
 
 		/** Called when the pitch value is changed */
 		SLATE_EVENT( FOnNumericValueChanged, OnPitchChanged )
@@ -130,8 +138,8 @@ public:
 			[
 				SNew(SNumericEntryBox<NumericType>)
 				.AllowSpin(InArgs._AllowSpin)
-				.MinSliderValue(0.0f)
-				.MaxSliderValue(359.999f)
+				.MinSliderValue(InArgs._MinSliderValue)
+				.MaxSliderValue(InArgs._MaxSliderValue)
 				.LabelPadding(FMargin(3.0f))
 				.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
 				.Label()
@@ -162,8 +170,8 @@ public:
 			[
 				SNew(SNumericEntryBox<NumericType>)
 				.AllowSpin(InArgs._AllowSpin)
-				.MinSliderValue(0.0f)
-				.MaxSliderValue(359.999f)
+				.MinSliderValue(InArgs._MinSliderValue)
+				.MaxSliderValue(InArgs._MaxSliderValue)
 				.LabelPadding(FMargin(3.0f))
 				.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
 				.Label()
@@ -194,8 +202,8 @@ public:
 			[
 				SNew(SNumericEntryBox<NumericType>)
 				.AllowSpin(InArgs._AllowSpin)
-				.MinSliderValue(0.0f)
-				.MaxSliderValue(359.999f)
+				.MinSliderValue(InArgs._MinSliderValue)
+				.MaxSliderValue(InArgs._MaxSliderValue)
 				.LabelPadding(FMargin(3.0f))
 				.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
 				.Label()
