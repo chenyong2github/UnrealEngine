@@ -794,7 +794,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, TScriptInterface<I
 		else
 		{
 			// Recreate collision for modified components and update the navmesh
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 			if (CollisionComponent)
 			{
 				CollisionComponent->RecreateCollision();
@@ -899,7 +899,7 @@ namespace LandscapeSplineRaster
 			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
 				// Recreate collision for modified components and update the navmesh
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 				if (CollisionComponent)
 				{
 					CollisionComponent->RecreateCollision();

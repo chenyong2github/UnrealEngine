@@ -1161,7 +1161,7 @@ bool GetMaxHitWeight(const FVector& Location, UActorComponent* Component, const 
 	float MaxHitWeight = 0.f;
 	if (ULandscapeHeightfieldCollisionComponent* HitLandscapeCollision = Cast<ULandscapeHeightfieldCollisionComponent>(Component))
 	{
-		if (ULandscapeComponent* HitLandscape = HitLandscapeCollision->RenderComponent.Get())
+		if (ULandscapeComponent* HitLandscape = HitLandscapeCollision->GetRenderComponent())
 		{
 			for (const FName& LandscapeLayerName : LandscapeLayersArray)
 			{

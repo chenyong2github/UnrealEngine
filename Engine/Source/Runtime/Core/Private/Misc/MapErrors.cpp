@@ -37,6 +37,7 @@ FLazyName FMapErrors::FixedUpInvalidLandscapeMaterialInstances(TEXT("FixedUpInva
 FLazyName FMapErrors::FixedUpIncorrectLayerWeightmap(TEXT("FixedUpIncorrectLayerWeightmap"));
 FLazyName FMapErrors::FixedUpSharedLayerWeightmap(TEXT("FixedUpSharedLayerWeightmap"));
 FLazyName FMapErrors::LandscapeComponentPostLoad_Warning(TEXT("LandscapeComponentPostLoad_Warning"));
+FLazyName FMapErrors::LandscapeLazyObjectPtrDeprecation_Warning(TEXT("LandscapeLazyObjectPtrDeprecation_Warning"));
 FLazyName FMapErrors::DuplicateLevelInfo(TEXT("DuplicateLevelInfo"));
 FLazyName FMapErrors::NoKillZ(TEXT("NoKillZ"));
 FLazyName FMapErrors::LightComponentNull(TEXT("LightComponentNull"));

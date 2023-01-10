@@ -3260,7 +3260,7 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 	for (ULandscapeComponent* Component : ComponentsToDelete)
 	{
 		Component->Modify();
-		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->GetCollisionComponent();
 		if (CollisionComp)
 		{
 			CollisionComp->Modify();
@@ -3319,7 +3319,7 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 	// Remove attached foliage
 	for (ULandscapeComponent* Component : ComponentsToDelete)
 	{
-		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->GetCollisionComponent();
 		if (CollisionComp)
 		{
 			AInstancedFoliageActor::DeleteInstancesForComponent(Proxy->GetWorld(), CollisionComp);
@@ -3427,7 +3427,7 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 			Component->XYOffsetmapTexture->ClearFlags(RF_Standalone);
 		}
 
-		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->GetCollisionComponent();
 		if (CollisionComp)
 		{
 			CollisionComp->DestroyComponent();
@@ -3725,8 +3725,8 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 					ULandscapeComponent* NewComponent = NewLandscapeInfo->XYtoComponentMap.FindRef(Entry.Key);
 					if (NewComponent)
 					{
-						ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = Entry.Value->CollisionComponent.Get();
-						ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewComponent->CollisionComponent.Get();
+						ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = Entry.Value->GetCollisionComponent();
+						ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewComponent->GetCollisionComponent();
 
 						if (OldCollisionComponent && NewCollisionComponent)
 						{
@@ -3757,7 +3757,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 				// Move instances
 				for (const TPair<FIntPoint, ULandscapeComponent*>& OldEntry : LandscapeInfo->XYtoComponentMap)
 				{
-					ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = OldEntry.Value->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = OldEntry.Value->GetCollisionComponent();
 
 					if (OldCollisionComponent)
 					{
@@ -3765,7 +3765,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 
 						for (const TPair<FIntPoint, ULandscapeComponent*>& NewEntry : NewLandscapeInfo->XYtoComponentMap)
 						{
-							ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->CollisionComponent.Get();
+							ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->GetCollisionComponent();
 
 							if (NewCollisionComponent && FBoxSphereBounds::BoxesIntersect(NewCollisionComponent->Bounds, OldCollisionComponent->Bounds))
 							{
@@ -3782,7 +3782,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 				// Snap them to the bounds
 				for (const TPair<FIntPoint, ULandscapeComponent*>& NewEntry : NewLandscapeInfo->XYtoComponentMap)
 				{
-					ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->GetCollisionComponent();
 
 					if (NewCollisionComponent)
 					{
@@ -3818,7 +3818,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			// Delete the old Landscape and all its proxies
 			for (ALandscapeStreamingProxy* Proxy : TActorRange<ALandscapeStreamingProxy>(OldLandscape->GetWorld()))
 			{
-				if (Proxy->LandscapeActor == OldLandscapeActor)
+				if (Proxy->GetLandscapeActor() == OldLandscapeActor)
 				{
 					Proxy->Destroy();
 				}

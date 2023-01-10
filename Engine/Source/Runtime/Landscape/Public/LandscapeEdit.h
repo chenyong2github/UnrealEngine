@@ -430,7 +430,7 @@ struct FHeightmapAccessor
 				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
-					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 					if (CollisionComponent && AInstancedFoliageActor::HasFoliageAttached(CollisionComponent))
 					{
 						bUpdateFoliage = true;
@@ -449,7 +449,7 @@ struct FHeightmapAccessor
 
 				for (ULandscapeComponent* Component : Components)
 				{
-					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 					if (CollisionComponent)
 					{
 						CollisionComponents.Add(CollisionComponent);
@@ -495,7 +495,7 @@ struct FHeightmapAccessor
 				(*It)->UpdateComponentToWorld();
 
 				// Recreate collision for modified components to update the physical materials
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = (*It)->CollisionComponent.Get();
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = (*It)->GetCollisionComponent();
 				if (CollisionComponent)
 				{
 					CollisionComponent->RecreateCollision();
@@ -549,7 +549,7 @@ struct FAlphamapAccessor
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 				if (CollisionComponent)
 				{
 					CollisionComponent->RecreateCollision();

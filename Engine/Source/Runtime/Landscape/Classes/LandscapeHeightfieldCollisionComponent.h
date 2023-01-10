@@ -81,13 +81,21 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	UPROPERTY()
 	FBox CachedLocalBox;
 
+#if WITH_EDITORONLY_DATA
 	/** Reference to render component */
 	UPROPERTY()
-	TLazyObjectPtr<ULandscapeComponent> RenderComponent;
+	TLazyObjectPtr<ULandscapeComponent> RenderComponent_DEPRECATED;
+#endif // !WITH_EDITORONLY_DATA
 
+private:
+	/** Reference to render component */
+	UPROPERTY()
+	TObjectPtr<ULandscapeComponent> RenderComponentRef;
+
+public:
 	/** Returns associated landscape component */
 	UFUNCTION(BlueprintCallable, Category = "Landscape")
-	ULandscapeComponent* GetRenderComponent() const;
+	LANDSCAPE_API ULandscapeComponent* GetRenderComponent() const;
 
 	struct FHeightfieldGeometryRef : public FRefCountedObject
 	{
@@ -284,6 +292,8 @@ public:
 
 	LANDSCAPE_API void SnapFoliageInstances();
 #endif
+
+	LANDSCAPE_API void SetRenderComponent(ULandscapeComponent* InRenderComponent) { RenderComponentRef = InRenderComponent; }
 
 public:
 	TOptional<float> GetHeight(float X, float Y, EHeightfieldSource HeightFieldSource);

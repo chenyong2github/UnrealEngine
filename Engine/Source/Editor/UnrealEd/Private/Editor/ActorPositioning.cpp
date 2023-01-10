@@ -70,7 +70,7 @@ bool IsHitIgnored(const FHitResult& InHit, const FSceneView& InSceneView)
 	}
 	if (PrimitiveComponent && PrimitiveComponent->IsA(ULandscapeHeightfieldCollisionComponent::StaticClass()))
 	{
-		PrimitiveComponent = CastChecked<ULandscapeHeightfieldCollisionComponent>(PrimitiveComponent)->RenderComponent.Get();
+		PrimitiveComponent = CastChecked<ULandscapeHeightfieldCollisionComponent>(PrimitiveComponent)->GetRenderComponent();
 	}
 
 	if (InHit.bStartPenetrating || !PrimitiveComponent)

@@ -2365,7 +2365,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	{
 		for (const FSceneView* View : Views)
 		{
-			const FString& LandscapeName = LandscapeComponent->GetLandscapeInfo()->LandscapeActor
+			const FString& LandscapeName = LandscapeComponent->GetLandscapeInfo()->LandscapeActor.IsValid()
 											 ? LandscapeComponent->GetLandscapeInfo()->LandscapeActor->GetName()
 											 : LexToString(LandscapeComponent->GetLandscapeInfo()->LandscapeGuid);
 			const FString& ComponentName = LandscapeComponent->GetName();

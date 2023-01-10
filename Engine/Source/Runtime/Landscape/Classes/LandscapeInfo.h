@@ -124,7 +124,7 @@ class ULandscapeInfo : public UObject
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	TLazyObjectPtr<ALandscape> LandscapeActor;
+	TWeakObjectPtr<ALandscape> LandscapeActor;
 
 	UPROPERTY()
 	FGuid LandscapeGuid;
@@ -166,6 +166,8 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
+	TSet<TWeakObjectPtr<UObject>> PackagesToDeprecate;
+
 	UPROPERTY()
 	TArray<TScriptInterface<ILandscapeSplineInterface>> SplineActors;
 
@@ -260,6 +262,10 @@ public:
 
 	LANDSCAPE_API void ModifyObject(UObject* InObject, bool bAlwaysMarkDirty = true);
 	LANDSCAPE_API void MarkObjectDirty(UObject* InObject);
+
+	LANDSCAPE_API void RequestPackageDeprecation(UObject* InObject);
+	LANDSCAPE_API void ShowForceUpdateMapCheckError(UObject* InOutermost);
+	LANDSCAPE_API void ForceUpdateDeprecatedObjects();
 #endif //WITH_EDITOR
 
 	/**

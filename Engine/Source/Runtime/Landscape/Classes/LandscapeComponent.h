@@ -420,7 +420,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceConstant> MaterialInstance_DEPRECATED;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(TextExportTransient)
 	TArray<TObjectPtr<UMaterialInstanceConstant>> MaterialInstances;
@@ -452,11 +452,16 @@ class ULandscapeComponent : public UPrimitiveComponent
 	UPROPERTY()
 	FBox CachedLocalBox;
 
-	/** Reference to associated collision component */
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TLazyObjectPtr<ULandscapeHeightfieldCollisionComponent> CollisionComponent;
+	TLazyObjectPtr<ULandscapeHeightfieldCollisionComponent> CollisionComponent_DEPRECATED;
+#endif // !WITH_EDITORONLY_DATA
 
 private:
+	/** Reference to associated collision component */
+	UPROPERTY()
+	TObjectPtr<ULandscapeHeightfieldCollisionComponent> CollisionComponentRef;
+
 
 	/** Store  */ 
 	UPROPERTY(Transient)
@@ -512,10 +517,6 @@ public:
 	UPROPERTY()
 	FGuid MapBuildDataId;
 
-	/**	Legacy irrelevant lights */
-	UPROPERTY()
-	TArray<FGuid> IrrelevantLights_DEPRECATED;
-
 	/** Heightfield mipmap used to generate collision */
 	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	int32 CollisionMipLevel;
@@ -562,6 +563,10 @@ public:
 	TObjectPtr<UTexture2D> GIBakedBaseColorTexture;
 
 #if WITH_EDITORONLY_DATA
+	/**	Legacy irrelevant lights */
+	UPROPERTY()
+	TArray<FGuid> IrrelevantLights_DEPRECATED;
+
 	/** LOD level Bias to use when lighting building via lightmass, -1 Means automatic LOD calculation based on ForcedLOD + LODBias */
 	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	int32 LightingLODBias;
@@ -595,7 +600,7 @@ public:
 	/** Represents last saved hash for PhysicalMaterialTask */
 	UPROPERTY(Transient)
 	uint32 LastSavedPhysicalMaterialHash;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(NonPIEDuplicateTransient)
 	TObjectPtr<UMaterialInterface> MobileMaterialInterface_DEPRECATED;
@@ -620,7 +625,7 @@ public:
 
 	UPROPERTY(NonPIEDuplicateTransient)
 	TObjectPtr<UMaterialInstanceConstant> MobileCombinationMaterialInstance_DEPRECATED;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 public:
 	/** Grass data for generation **/
@@ -1094,6 +1099,9 @@ public:
 	{
 		return bNaniteActive;
 	}
+
+	LANDSCAPE_API ULandscapeHeightfieldCollisionComponent* GetCollisionComponent() const { return CollisionComponentRef.Get(); }
+	LANDSCAPE_API void SetCollisionComponent(ULandscapeHeightfieldCollisionComponent* InCollisionComponent) { CollisionComponentRef = InCollisionComponent; }
 
 	void SetUserTriggeredChangeRequested(bool bInUserTriggeredChangeRequested)
 	{

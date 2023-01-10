@@ -370,7 +370,7 @@ void FLandscapeConfigHelper::MoveFoliageToLandscape(ULandscapeInfo* InLandscapeI
 	// Move instances
 	for (const TPair<FIntPoint, ULandscapeComponent*>& OldEntry : InLandscapeInfo->XYtoComponentMap)
 	{
-		ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = OldEntry.Value->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = OldEntry.Value->GetCollisionComponent();
 
 		if (OldCollisionComponent)
 		{
@@ -378,7 +378,7 @@ void FLandscapeConfigHelper::MoveFoliageToLandscape(ULandscapeInfo* InLandscapeI
 
 			for (const TPair<FIntPoint, ULandscapeComponent*>& NewEntry : InNewLandscapeInfo->XYtoComponentMap)
 			{
-				ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->CollisionComponent.Get();
+				ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->GetCollisionComponent();
 
 				if (NewCollisionComponent && FBoxSphereBounds::BoxesIntersect(NewCollisionComponent->Bounds, OldCollisionComponent->Bounds))
 				{
@@ -395,7 +395,7 @@ void FLandscapeConfigHelper::MoveFoliageToLandscape(ULandscapeInfo* InLandscapeI
 	// Snap them to the bounds
 	for (const TPair<FIntPoint, ULandscapeComponent*>& NewEntry : InNewLandscapeInfo->XYtoComponentMap)
 	{
-		ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* NewCollisionComponent = NewEntry.Value->GetCollisionComponent();
 
 		if (NewCollisionComponent)
 		{

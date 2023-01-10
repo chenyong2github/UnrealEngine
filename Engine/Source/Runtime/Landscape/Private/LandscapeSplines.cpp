@@ -103,7 +103,7 @@ struct FLandscapeFixSplines
 							}
 						});
 
-						if (Pair.Value->LandscapeActor && Pair.Value->LandscapeActor->HasLayersContent())
+						if (Pair.Value->LandscapeActor.IsValid() && Pair.Value->LandscapeActor->HasLayersContent())
 						{
 							Pair.Value->LandscapeActor->RequestSplineLayerUpdate();
 						}

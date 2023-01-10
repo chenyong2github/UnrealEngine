@@ -665,7 +665,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		}
 	}
 	else
-#endif
+#endif // WITH_EDITOR
 	{
 		Super::Serialize(Ar);
 	}
@@ -675,13 +675,17 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		FMeshMapBuildData* LegacyMapBuildData = new FMeshMapBuildData();
 		Ar << LegacyMapBuildData->LightMap;
 		Ar << LegacyMapBuildData->ShadowMap;
+
+#if WITH_EDITORONLY_DATA
 		LegacyMapBuildData->IrrelevantLights = IrrelevantLights_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 		FMeshMapBuildLegacyData LegacyComponentData;
 		LegacyComponentData.Data.Emplace(MapBuildDataId, LegacyMapBuildData);
 		GComponentsWithLegacyLightmaps.AddAnnotation(this, MoveTemp(LegacyComponentData));
 	}
 
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::NewLandscapeMaterialPerLOD)
 	{
 		if (MobileMaterialInterface_DEPRECATED != nullptr)
@@ -689,13 +693,12 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 			MobileMaterialInterfaces.AddUnique(MobileMaterialInterface_DEPRECATED);
 		}
 
-#if WITH_EDITORONLY_DATA
 		if (MobileCombinationMaterialInstance_DEPRECATED != nullptr)
 		{
 			MobileCombinationMaterialInstances.AddUnique(MobileCombinationMaterialInstance_DEPRECATED);
 		}
-#endif
 	}
+#endif // WITH_EDITORONLY_DATA
 
 	if (Ar.UEVer() >= VER_UE4_SERIALIZE_LANDSCAPE_GRASS_DATA)
 	{
@@ -1219,8 +1222,21 @@ void ULandscapeComponent::PostLoad()
 
 	GrassData->ConditionalDiscardDataOnLoad();
 
-#endif // WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	// If the Collision Component is not set yet and we're transferring the property from the lazy object pointer it was previously stored as to the soft object ptr it is now stored as :
+	if (!CollisionComponentRef && CollisionComponent_DEPRECATED.IsValid())
+	{
+		CollisionComponentRef = CollisionComponent_DEPRECATED.Get();
+		CollisionComponent_DEPRECATED = nullptr;
 
+		if (ALandscapeProxy* Proxy = GetLandscapeProxy())
+		{
+			Proxy->RequestPackageDeprecation();
+		}
+	}
+#endif // !WITH_EDITORONLY_DATA
+
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1390,12 +1406,17 @@ ALandscape* ALandscape::GetLandscapeActor()
 
 const ALandscape* ALandscapeStreamingProxy::GetLandscapeActor() const
 {
-	return LandscapeActor.Get();
+	return LandscapeActorRef.Get();
 }
 
 ALandscape* ALandscapeStreamingProxy::GetLandscapeActor()
 {
-	return LandscapeActor.Get();
+	return LandscapeActorRef.Get();
+}
+
+void ALandscapeStreamingProxy::SetLandscapeActor(ALandscape* InLandscape)
+{
+	LandscapeActorRef = InLandscape;
 }
 
 ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo(bool bMapCheck, bool bUpdateAllAddCollisions)
@@ -2282,15 +2303,15 @@ void ALandscapeProxy::PostRegisterAllComponents()
 				UpdateCachedHasLayersContent(true);
 
 				// Cache the value at this point as CreateLandscapeInfo (-> RegisterActor) might create/destroy layers content if there was a mismatch between landscape & proxy
-				// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActor is valid.
+				// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActorRef is valid.
 				bool bHasLayersContentBefore = bHasLayersContent;
 
 				check(WeightmapFixupVersion == CurrentVersion);
 
 				const bool bNeedOldDataMigration = !bHasLayersContentBefore && CanHaveLayersContent();
-				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor.Get()->HasLayersContent())
+				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor->HasLayersContent())
 				{
-					LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
+					LandscapeInfo->LandscapeActor->CopyOldDataToDefaultLayer(this);
 				}
 			}
 #endif // WITH_EDITOR
@@ -2311,6 +2332,12 @@ void ALandscapeProxy::PostRegisterAllComponents()
 		{
 			LandscapeInfo->FixupProxiesTransform();
 		}
+	}
+
+	if (bPackageDeprecationNeeded && (LandscapeInfo != nullptr))
+	{
+		LandscapeInfo->RequestPackageDeprecation(this);
+		bPackageDeprecationNeeded = false;
 	}
 #endif // WITH_EDITOR
 }
@@ -2458,7 +2485,7 @@ void ALandscape::PostLoad()
 				break;
 			}
 		}
-#endif
+#endif // WITH_EDITOR
 	}
 
 #if WITH_EDITOR
@@ -2471,7 +2498,7 @@ void ALandscape::PostLoad()
 			Brush.SetOwner(this);
 		}
 	}
-#endif
+#endif // WITH_EDITOR
 
 	Super::PostLoad();
 }
@@ -2734,7 +2761,6 @@ bool ALandscape::IsValidRenderTargetFormatHeightmap(EPixelFormat InRenderTargetF
 	return false;
 }
 
-// TODO [jonathan.bard] This does not support being called at runtime yet because ULandscapeInfo::LandscapeActor is not valid at runtime or in non-editor worlds (e.g. PIE), for no good reason :
 void ALandscape::RenderHeightmap(const FTransform& InRenderAreaWorldTransform, const FBox2D& InRenderAreaExtents, UTextureRenderTarget2D* OutRenderTarget)
 {
 	// TODO: We may want a version of this function that returns a lambda that can be passed to the render thread and run
@@ -3329,7 +3355,7 @@ void ALandscapeProxy::PostLoad()
 
 	if ((GetLinker() && (GetLinker()->UEVer() < VER_UE4_LANDSCAPE_COMPONENT_LAZY_REFERENCES)) ||
 		LandscapeComponents.Num() != CollisionComponents.Num() ||
-		LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Comp) { return ((Comp != nullptr) && !Comp->CollisionComponent.IsValid()); }))
+		LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Comp) { return ((Comp != nullptr) && (Comp->GetCollisionComponent() == nullptr)); }))
 	{
 		CreateLandscapeInfo();
 	}
@@ -3346,13 +3372,32 @@ void ALandscapeProxy::PostLoad()
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
-	if (GIsEditor && GetWorld() && !GetWorld()->IsGameWorld())
+	if (GIsEditor)
 	{
+		// We may not have run PostLoad on LandscapeComponents yet
+		for (TObjectPtr<ULandscapeComponent>& LandscapeComponent : LandscapeComponents)
+		{
+			if (LandscapeComponent)
+			{
+				LandscapeComponent->ConditionalPostLoad();
+			}
+		}
+		
+		// We may not have run PostLoad on CollisionComponent yet
+		for (TObjectPtr<ULandscapeHeightfieldCollisionComponent>& CollisionComponent : CollisionComponents)
+		{
+			if (CollisionComponent)
+			{
+				CollisionComponent->ConditionalPostLoad();
+			}
+		}
+
 		if ((GetLinker() && (GetLinker()->UEVer() < VER_UE4_LANDSCAPE_COMPONENT_LAZY_REFERENCES)) ||
 			LandscapeComponents.Num() != CollisionComponents.Num() ||
-			LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Comp) { return ((Comp != nullptr) && !Comp->CollisionComponent.IsValid()); }))
+			LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Comp) { return ((Comp != nullptr) && (Comp->GetCollisionComponent() == nullptr)); }) ||
+			CollisionComponents.ContainsByPredicate([](ULandscapeHeightfieldCollisionComponent* Comp) { return ((Comp != nullptr) && (Comp->GetRenderComponent() == nullptr)); }))
 		{
-			// Need to clean up invalid collision components
+			// Need to clean up invalid collision and render components
 			RecreateCollisionComponents();
 		}
 	}
@@ -3720,9 +3765,9 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 		return LandscapeMaterial;
 	}
 
-	if (LandscapeActor != nullptr)
+	if (const ALandscape* Landscape = GetLandscapeActor())
 	{
-		return LandscapeActor->GetLandscapeMaterial(InLODIndex);
+		return Landscape->GetLandscapeMaterial(InLODIndex);
 	}
 
 	return UMaterial::GetDefaultMaterial(MD_Surface);
@@ -3734,7 +3779,7 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
 	{
 		return LandscapeHoleMaterial;
 	}
-	else if (ALandscape* Landscape = LandscapeActor.Get())
+	else if (const ALandscape* Landscape = GetLandscapeActor())
 	{
 		return Landscape->GetLandscapeHoleMaterial();
 	}
@@ -3898,6 +3943,48 @@ void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
 			ModifiedPackages.Add(InObject->GetPackage());
 		}
 	}
+}
+
+void ULandscapeInfo::RequestPackageDeprecation(UObject* InObject)
+{
+	check(InObject != nullptr);
+	// This is either the first time or the user already deprecated a set of object previously, we need to display the MapCheck error.
+	// We do not display the message during cook as the data will be fixedup in the produced asset, and user cannot click on the action.
+	if (PackagesToDeprecate.IsEmpty() && !GIsCookerLoadingPackage)
+	{
+		UObject* Outermost = InObject->GetOutermostObject();
+		ShowForceUpdateMapCheckError(Outermost);
+	}
+
+	PackagesToDeprecate.Add(InObject);
+}
+
+void ULandscapeInfo::ShowForceUpdateMapCheckError(UObject* InOutermost)
+{
+	check(InOutermost != nullptr)
+
+	FMessageLog("MapCheck").Warning()
+		->AddToken(FUObjectToken::Create(InOutermost))
+		->AddToken(FTextToken::Create(LOCTEXT("ULandscapeInfo_ShowForceUpdateMapCheckError_Message_ForceUpdateNeeded", "Landscape packages are out of date and need updating for landscape to be loaded properly.")))
+		->AddToken(FMapErrorToken::Create(TEXT("ULandscapeInfo_ShowForceUpdateMapCheckError_MapError_ForceUpdateNeeded")))
+		->AddToken(FActionToken::Create(LOCTEXT("ULandscapeInfo_ShowForceUpdateMapCheckError_ActionName_ForceUpdateNeeded", "Update Landscape Packages"), FText(),
+			FOnActionTokenExecuted::CreateUObject(this, &ULandscapeInfo::ForceUpdateDeprecatedObjects), true));
+
+	// Show MapCheck window
+	FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+}
+
+void ULandscapeInfo::ForceUpdateDeprecatedObjects()
+{
+	for (const TWeakObjectPtr<UObject>& ObjectToDeprecate : PackagesToDeprecate)
+	{
+		if (ObjectToDeprecate.IsValid())
+		{
+			ObjectToDeprecate->MarkPackageDirty();
+		}
+	}
+
+	PackagesToDeprecate.Empty();
 }
 
 ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const
@@ -4247,7 +4334,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 	// register
 	if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
 	{
-		if (LandscapeActor == nullptr)
+		if (!LandscapeActor.IsValid())
 		{
 			LandscapeActor = Landscape;
 
@@ -4263,7 +4350,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 			{
 				if (ALandscapeStreamingProxy* StreamingProxy = StreamingProxyPtr.Get())
 				{
-					StreamingProxy->LandscapeActor = LandscapeActor;
+					StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
 #if WITH_EDITOR
 					StreamingProxy->FixupSharedData(Landscape);
 #endif // WITH_EDITOR
@@ -4310,7 +4397,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 			StreamingProxies.Insert(StreamingProxyPtr, InsertIndex);
 		}
 
-		StreamingProxy->LandscapeActor = LandscapeActor;
+		StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
 #if WITH_EDITOR
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 #endif // WITH_EDITOR
@@ -4362,7 +4449,7 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 		{
 			if (ALandscapeStreamingProxy* StreamingProxy = StreamingProxyPtr.Get())
 			{
-				StreamingProxy->LandscapeActor = LandscapeActor;
+				StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
 			}
 		}
 	}
@@ -4371,7 +4458,7 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
 		TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr = StreamingProxy;
 		StreamingProxies.Remove(StreamingProxyPtr);
-		StreamingProxy->LandscapeActor = nullptr;
+		StreamingProxy->SetLandscapeActor(nullptr);
 	}
 
 #if WITH_EDITOR
@@ -4480,7 +4567,7 @@ void ULandscapeInfo::UnregisterSplineActor(TScriptInterface<ILandscapeSplineInte
 
 void ULandscapeInfo::RequestSplineLayerUpdate()
 {
-	if (LandscapeActor)
+	if (LandscapeActor.IsValid())
 	{
 		LandscapeActor->RequestSplineLayerUpdate();
 	}
@@ -4488,7 +4575,7 @@ void ULandscapeInfo::RequestSplineLayerUpdate()
 
 void ULandscapeInfo::ForceLayersFullUpdate()
 {
-	if (LandscapeActor)
+	if (LandscapeActor.IsValid())
 	{
 		LandscapeActor->ForceLayersFullUpdate();
 	}
@@ -4528,9 +4615,6 @@ void ULandscapeInfo::UnregisterCollisionComponent(ULandscapeHeightfieldCollision
 	}
 }
 
-// TODO [jonathan.bard] This does not support being called at runtime yet because ULandscapeInfo::LandscapeActor 
-// is not valid at runtime or in non-editor worlds (e.g. PIE), for no good reason, and also XYtoComponentMap is
-// described as being valid only in editor.
 bool ULandscapeInfo::GetOverlappedComponents(const FTransform& InAreaWorldTransform, const FBox2D& InAreaExtents, 
 	TMap<FIntPoint, ULandscapeComponent*>& OutOverlappedComponents, FIntRect& OutComponentIndicesBoundingRect)
 {

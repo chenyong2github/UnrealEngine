@@ -1727,7 +1727,7 @@ FBoxSphereBounds ULandscapeHeightfieldCollisionComponent::CalcBounds(const FTran
 
 void ULandscapeHeightfieldCollisionComponent::BeginDestroy()
 {
-	HeightfieldRef = NULL;
+	HeightfieldRef = nullptr;
 	HeightfieldGuid = FGuid();
 	Super::BeginDestroy();
 }
@@ -1736,7 +1736,7 @@ void ULandscapeMeshCollisionComponent::BeginDestroy()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		MeshRef = NULL;
+		MeshRef = nullptr;
 		MeshGuid = FGuid();
 	}
 
@@ -2159,6 +2159,21 @@ void ULandscapeHeightfieldCollisionComponent::PostLoad()
 			SpeculativelyLoadAsyncDDCCollsionData();
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	// If the RenderComponent is not set yet and we're transferring the property from the lazy object pointer it was previously stored as to the object ptr it is now stored as :
+	if (!RenderComponentRef && RenderComponent_DEPRECATED.IsValid())
+	{
+		RenderComponentRef = RenderComponent_DEPRECATED.Get();
+		RenderComponent_DEPRECATED = nullptr;
+		
+		if (ALandscapeProxy* Proxy = GetLandscapeProxy())
+		{
+			Proxy->RequestPackageDeprecation();
+		}
+	}
+#endif // !WITH_EDITORONLY_DATA
+
 #endif // WITH_EDITOR
 }
 
@@ -2177,6 +2192,8 @@ void ULandscapeHeightfieldCollisionComponent::PreSave(FObjectPreSaveContext Obje
 	{
 #if WITH_EDITOR
 		ALandscapeProxy* Proxy = GetLandscapeProxy();
+		ULandscapeComponent* RenderComponent = GetRenderComponent();
+
 		if (Proxy && Proxy->bBakeMaterialPositionOffsetIntoCollision)
 		{
 			if (!RenderComponent->GrassData->HasData() || RenderComponent->IsGrassMapOutdated())
@@ -2225,7 +2242,7 @@ void ULandscapeInfo::UpdateAllAddCollisions()
 					ULandscapeComponent* NeighborComponent = XYtoComponentMap.FindRef(NeighborsKeys[i]);
 
 					// UpdateAddCollision() treats a null CollisionComponent as an empty hole
-					if (!NeighborComponent || !NeighborComponent->CollisionComponent.IsValid())
+					if (!NeighborComponent || (NeighborComponent->GetCollisionComponent() == nullptr))
 					{
 						UpdateAddCollision(NeighborsKeys[i]);
 					}
@@ -2264,7 +2281,7 @@ void ULandscapeInfo::UpdateAddCollision(FIntPoint LandscapeKey)
 		ULandscapeComponent* Comp = XYtoComponentMap.FindRef(NeighborsKeys[i]);
 		if (Comp)
 		{
-			ULandscapeHeightfieldCollisionComponent* NeighborCollision = Comp->CollisionComponent.Get();
+			ULandscapeHeightfieldCollisionComponent* NeighborCollision = Comp->GetCollisionComponent();
 			// Skip cooked because CollisionHeightData not saved during cook
 			if (NeighborCollision && !NeighborCollision->GetOutermost()->bIsCookedForEditor)
 			{
@@ -2272,12 +2289,12 @@ void ULandscapeInfo::UpdateAddCollision(FIntPoint LandscapeKey)
 			}
 			else
 			{
-				NeighborCollisions[i] = NULL;
+				NeighborCollisions[i] = nullptr;
 			}
 		}
 		else
 		{
-			NeighborCollisions[i] = NULL;
+			NeighborCollisions[i] = nullptr;
 		}
 	}
 
@@ -2649,7 +2666,7 @@ ULandscapeHeightfieldCollisionComponent::~ULandscapeHeightfieldCollisionComponen
 
 ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent() const
 {
-	return RenderComponent.Get();
+	return RenderComponentRef.Get();
 }
 
 TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y, EHeightfieldSource HeightFieldSource)

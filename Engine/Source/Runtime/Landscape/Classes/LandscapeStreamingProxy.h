@@ -23,9 +23,16 @@ class ALandscapeStreamingProxy : public ALandscapeProxy
 public:
 	ALandscapeStreamingProxy(const FObjectInitializer& ObjectInitializer);
 
-	UPROPERTY(EditAnywhere, Category=LandscapeProxy)
-	TLazyObjectPtr<ALandscape> LandscapeActor;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TLazyObjectPtr<ALandscape> LandscapeActor_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
+private:
+	UPROPERTY(EditAnywhere, Category = LandscapeProxy, Meta = (DisplayName = "Landscape Actor"))
+	TSoftObjectPtr<ALandscape> LandscapeActorRef;
+	
+public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual bool ShouldExport() override { return false;  }
@@ -43,6 +50,7 @@ public:
 	//~ Begin ALandscapeBase Interface
 	virtual ALandscape* GetLandscapeActor() override;
 	virtual const ALandscape* GetLandscapeActor() const override;
+	void LANDSCAPE_API SetLandscapeActor(ALandscape* InLandscape);
 #if WITH_EDITOR
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const override;
 	virtual UMaterialInterface* GetLandscapeHoleMaterial() const override;

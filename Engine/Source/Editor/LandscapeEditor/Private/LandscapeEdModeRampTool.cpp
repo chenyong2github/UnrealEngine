@@ -598,7 +598,7 @@ public:
 					for (ULandscapeComponent* Component : Components)
 					{
 						// Recreate collision for modified components and update the navmesh
-						ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+						ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 						if (CollisionComponent)
 						{
 							CollisionComponent->RecreateCollision();

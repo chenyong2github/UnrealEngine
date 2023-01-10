@@ -774,6 +774,7 @@ public:
 
 #if WITH_EDITOR
 	FOnLandscapeProxyComponentDataChanged OnComponentDataChanged;
+	bool bPackageDeprecationNeeded = false;
 #endif
 
 	// Blueprint functions
@@ -1309,6 +1310,8 @@ public:
 	LANDSCAPE_API bool CanHaveLayersContent() const;
 
 	LANDSCAPE_API virtual void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
+	
+	LANDSCAPE_API void RequestPackageDeprecation() { bPackageDeprecationNeeded = true; };
 
 protected:
 	friend class ALandscape;
@@ -1333,7 +1336,7 @@ protected:
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
 
-#endif
+#endif // WITH_EDITOR
 private:
 	/** Returns Grass Update interval */
 	FORCEINLINE int32 GetGrassUpdateInterval() const 

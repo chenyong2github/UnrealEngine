@@ -782,7 +782,7 @@ struct FXYOffsetmapAccessor
 				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
-					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 					if (CollisionComponent && AInstancedFoliageActor::HasFoliageAttached(CollisionComponent))
 					{
 						bUpdateFoliage = true;
@@ -801,7 +801,7 @@ struct FXYOffsetmapAccessor
 
 				for (ULandscapeComponent* Component : Components)
 				{
-					CollisionComponents.Add(Component->CollisionComponent.Get());
+					CollisionComponents.Add(Component->GetCollisionComponent());
 					PreUpdateLocalBoxes.Add(FBox(FVector((float)X1, (float)Y1, Component->CachedLocalBox.Min.Z), FVector((float)X2, (float)Y2, Component->CachedLocalBox.Max.Z)));
 				}
 
@@ -1116,7 +1116,7 @@ struct FFullWeightmapAccessor
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
 				if (CollisionComponent)
 				{
 					CollisionComponent->RecreateCollision();

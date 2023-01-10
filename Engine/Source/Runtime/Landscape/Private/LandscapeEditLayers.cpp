@@ -8117,7 +8117,7 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 		bool bDoUpdateClient = true;
 		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, ComponentReadbackResult.UpdateModes))
 		{
-			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
+			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->GetCollisionComponent())
 			{
 				FEnableCollisionHashOptimScope Scope(CollisionComp);
 				bDoUpdateClient = CollisionComp->RecreateCollision();
@@ -8128,7 +8128,7 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 		{
 			if (!GUndo)
 			{
-				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
+				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->GetCollisionComponent())
 				{
 					FNavigationSystem::UpdateComponentData(*CollisionComp);
 					CollisionComp->SnapFoliageInstances();

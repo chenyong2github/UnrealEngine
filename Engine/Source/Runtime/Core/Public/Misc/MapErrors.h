@@ -123,6 +123,9 @@ struct CORE_API FMapErrors
 	/** Landscape ({ProxyName}) has overlapping render components at location ({X, Y}): */
 	static FLazyName LandscapeComponentPostLoad_Warning;
 
+	/** Landscape proxy {ProxyName} of {LevelName} points to a LandscapeActor that is not currently loaded. This will lose the property upon save.  */
+	static FLazyName LandscapeLazyObjectPtrDeprecation_Warning;
+
 
     /**  Level */
 

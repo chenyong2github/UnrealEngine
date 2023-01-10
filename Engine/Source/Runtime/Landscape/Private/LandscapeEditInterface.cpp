@@ -1743,7 +1743,7 @@ void ULandscapeComponent::DeleteLayerInternal(ULandscapeLayerInfoObject* LayerIn
 			CollisionWeightmapMipData.GetData(),
 			Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
 
-		ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->GetCollisionComponent();
 		if (LocalCollisionComponent)
 		{
 			LocalCollisionComponent->RecreateCollision();
@@ -1764,7 +1764,7 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 		Component->DeleteLayer(LayerInfo, *this);
 	}
 
-	if (LandscapeInfo->LandscapeActor && LandscapeInfo->LandscapeActor->HasLayersContent())
+	if (LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor->HasLayersContent())
 	{
 		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
@@ -1954,7 +1954,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 			CollisionWeightmapMipData.GetData(),
 			Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
 
-		ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->GetCollisionComponent();
 		if (LocalCollisionComponent)
 		{
 			LocalCollisionComponent->RecreateCollision();
@@ -2010,7 +2010,7 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 		}
 	}
 
-	if (LandscapeInfo->LandscapeActor && LandscapeInfo->LandscapeActor->HasLayersContent())
+	if (LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor->HasLayersContent())
 	{
 		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll();
 	}
@@ -2236,7 +2236,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 			SimpleCollisionMipLevel > CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
 
 
-		if(ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get())
+		if(ULandscapeHeightfieldCollisionComponent* CollisionComp = GetCollisionComponent())
 		{
 			CollisionComp->RecreateCollision();
 		}

@@ -59,6 +59,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "NaniteBuilder.h"
 #include "Rendering/NaniteResources.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/UObjectToken.h"
 #include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -173,7 +174,7 @@ void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
 	}
 
 	// Update collision component bounds
-	ULandscapeHeightfieldCollisionComponent* HFCollisionComponent = CollisionComponent.Get();
+	ULandscapeHeightfieldCollisionComponent* HFCollisionComponent = GetCollisionComponent();
 	if (HFCollisionComponent)
 	{
         // In Landscape Layers the Collision Component gets regenerated after the heightmap changes are undone and doesn't need to be transacted
@@ -190,6 +191,8 @@ void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
 void ULandscapeComponent::UpdateNavigationRelevance()
 {
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = GetCollisionComponent();
+
 	if (CollisionComponent && Proxy)
 	{
 		CollisionComponent->SetCanEverAffectNavigation(Proxy->bUsedForNavigation);
@@ -199,6 +202,8 @@ void ULandscapeComponent::UpdateNavigationRelevance()
 void ULandscapeComponent::UpdateRejectNavmeshUnderneath()
 {
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = GetCollisionComponent();
+
 	if (CollisionComponent && Proxy)
 	{
 		CollisionComponent->bFillCollisionUnderneathForNavmesh = Proxy->bFillCollisionUnderLandscapeForNavmesh;
@@ -1115,7 +1120,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 {
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 	FIntPoint ComponentKey = GetSectionBase() / ComponentSizeQuads;
-	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+	ULandscapeHeightfieldCollisionComponent* CollisionComp = GetCollisionComponent();
 	ULandscapeMeshCollisionComponent* MeshCollisionComponent = Cast<ULandscapeMeshCollisionComponent>(CollisionComp);
 	ULandscapeHeightfieldCollisionComponent* OldCollisionComponent = CollisionComp;
 
@@ -1183,7 +1188,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		ComponentY2 = ComponentSizeQuads;
 
 		RecreateCollisionComponent(bUsingSimpleCollision);
-		CollisionComp = CollisionComponent.Get();
+		CollisionComp = GetCollisionComponent();
         MeshCollisionComponent = Cast<ULandscapeMeshCollisionComponent>(CollisionComp);
 	}
 
@@ -1288,11 +1293,12 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 
 void ULandscapeComponent::DestroyCollisionData()
 {
-	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+	ULandscapeHeightfieldCollisionComponent* CollisionComp = GetCollisionComponent();
+	
 	if (CollisionComp)
 	{
 		CollisionComp->DestroyComponent();
-		CollisionComponent = CollisionComp = nullptr;
+		SetCollisionComponent(nullptr);
 	}
 }
 
@@ -1321,7 +1327,7 @@ void ULandscapeComponent::UpdateCollisionData(bool bInUpdateHeightfieldRegion)
 
 void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 {
-	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+	ULandscapeHeightfieldCollisionComponent* CollisionComp = GetCollisionComponent();
 	ULandscapeMeshCollisionComponent* MeshCollisionComponent = nullptr;
 	TArray<uint8> DominantLayerData;
 	TArray<ULandscapeLayerInfoObject*> LayerInfos;
@@ -1372,7 +1378,7 @@ void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 	CollisionComp->SetupAttachment(Proxy->GetRootComponent(), NAME_None);
 	Proxy->CollisionComponents.Add(CollisionComp);
 
-	CollisionComp->RenderComponent = this;
+	CollisionComp->SetRenderComponent(this);
 	CollisionComp->SetSectionBase(GetSectionBase());
 	CollisionComp->CollisionSizeQuads = CollisionSize.SubsectionSizeQuads * NumSubsections;
 	CollisionComp->CollisionScale = (float)(ComponentSizeQuads) / (float)(CollisionComp->CollisionSizeQuads);
@@ -1407,7 +1413,7 @@ void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
 	{
 		CollisionComp->ComponentLayerInfos = MoveTemp(LayerInfos);
 	}
-	CollisionComponent = CollisionComp;
+	SetCollisionComponent(CollisionComp);
 }
 
 void ULandscapeComponent::UpdateCollisionHeightBuffer(	int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InHeightmapSizeU, int32 InHeightmapSizeV,
@@ -1585,7 +1591,7 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 	FIntPoint ComponentKey = GetSectionBase() / ComponentSizeQuads;
 
-	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+	ULandscapeHeightfieldCollisionComponent* CollisionComp = GetCollisionComponent();
 
 	if (CollisionComp)
 	{
@@ -1791,7 +1797,7 @@ bool ULandscapeComponent::CanUpdatePhysicalMaterial()
 		return false;
 	}
 
-	return CollisionComponent != nullptr;
+	return GetCollisionComponent() != nullptr;
 }
 
 
@@ -1811,6 +1817,9 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 
 	// Check if we need to launch a new task to update the physical material.
 	uint32 Hash = CalculatePhysicalMaterialTaskHash();
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = GetCollisionComponent();
+	check(CollisionComponent != nullptr);
+
 	if (PhysicalMaterialHash != Hash)
 	{
 		TArray<UPhysicalMaterial*> PhysicalMaterials;
@@ -1855,6 +1864,8 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 void ULandscapeComponent::UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMaterial*> const& InPhysicalMaterials, TArray<uint8> const& InMaterialIds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeComponent::UpdateCollisionPhysicalMaterialData);
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = GetCollisionComponent();
+	check(CollisionComponent != nullptr);
 
 	// Copy the physical material array
 	CollisionComponent->PhysicalMaterialRenderObjects = InPhysicalMaterials;
@@ -2561,7 +2572,7 @@ bool ULandscapeInfo::HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2,
 {
 	bool bResult = false;
 
-	if (LandscapeActor)
+	if (LandscapeActor.IsValid())
 	{
 		UWorld* World = LandscapeActor->GetWorld();
 
@@ -4086,7 +4097,7 @@ FVector ULandscapeInfo::GetLandscapeCenterPos(float& LengthZ, int32 MinX /*= MAX
 				ULandscapeComponent* Comp = XYtoComponentMap.FindRef(FIntPoint(IndexX, IndexY));
 				if (Comp)
 				{
-					ULandscapeHeightfieldCollisionComponent* CollisionComp = Comp->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* CollisionComp = Comp->GetCollisionComponent();
 					if (CollisionComp)
 					{
 						uint16* Heights = (uint16*)CollisionComp->CollisionHeightData.Lock(LOCK_READ_ONLY);
@@ -4898,7 +4909,7 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeCo
 			TargetSelectedComponents.Add(Component);
 		}
 
-		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->CollisionComponent.Get();
+		ULandscapeHeightfieldCollisionComponent* CollisionComp = Component->GetCollisionComponent();
 		SelectProxies.Add(CollisionComp->GetLandscapeProxy());
 		if (CollisionComp->GetLandscapeProxy() != LandscapeProxy && (!TargetLevel || CollisionComp->GetLandscapeProxy()->GetOuter() != TargetLevel))
 		{
@@ -5491,7 +5502,7 @@ bool ALandscapeStreamingProxy::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
-	if (InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ALandscapeStreamingProxy, LandscapeActor))
+	if (InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ALandscapeStreamingProxy, LandscapeActorRef))
 	{
 		return !GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
 	}
@@ -5505,20 +5516,21 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	if (PropertyName == FName(TEXT("LandscapeActor")))
 	{
-		if (LandscapeActor && IsValidLandscapeActor(LandscapeActor.Get()))
+		if (LandscapeActorRef && IsValidLandscapeActor(LandscapeActorRef.Get()))
 		{
-			LandscapeGuid = LandscapeActor->GetLandscapeGuid();
+			LandscapeGuid = LandscapeActorRef->GetLandscapeGuid();
 			if (GIsEditor && GetWorld() && !GetWorld()->IsPlayInEditor())
 			{
 				// TODO - only need to refresh the old and new landscape info
 				ULandscapeInfo::RecreateLandscapeInfo(GetWorld(), false);
 				FixupWeightmaps();
 				InitializeProxyLayersWeightmapUsage();
+				// TODO [jonathan.bard] : Call FixupSharedData?
 			}
 		}
 		else
 		{
-			LandscapeActor = nullptr;
+			LandscapeActorRef = nullptr;
 		}
 	}
 	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || PropertyName == FName(TEXT("PerLODOverrideMaterials")))
@@ -5581,6 +5593,34 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 {
 	ALandscapeProxy::PostRegisterAllComponents();
 
+#if WITH_EDITORONLY_DATA
+	// If the landscape actor is not set yet and we're transferring the property from the lazy object pointer it was previously stored as to the soft object ptr it is now stored as :
+	if (!LandscapeActorRef)
+	{
+		// Because of how lazy object pointers were made, the only way we can deprecate them is if the object they're pointing to is currently loaded :
+		if (LandscapeActor_DEPRECATED.IsValid())
+		{
+			LandscapeActorRef = LandscapeActor_DEPRECATED.Get();
+			LandscapeActor_DEPRECATED = nullptr;
+			RequestPackageDeprecation();
+		}
+		else if (LandscapeActor_DEPRECATED.IsPending())
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("LevelName"), FText::FromString(GetLevel()->GetOutermost()->GetName()));
+			Arguments.Add(TEXT("ProxyName"), FText::FromString(GetName()));
+			FMessageLog("MapCheck").Error()
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_LandscapeLazyObjectPtrDeprecation_Warning", "Landscape proxy {ProxyName} of {LevelName} points to a LandscapeActor that is not currently loaded. This will lose the property upon save. \
+				Please make sure to load the level containing the parent landscape actor prior to {LevelName} so that data deprecation can be performed adequately."), Arguments)))
+				->AddToken(FMapErrorToken::Create(FMapErrors::LandscapeLazyObjectPtrDeprecation_Warning));
+
+			// Show MapCheck window
+			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	if (LandscapeGuid.IsValid())
 	{
 		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
@@ -5635,7 +5675,7 @@ bool ALandscapeStreamingProxy::GetReferencedContentObjects(TArray<UObject*>& Obj
 	Super::GetReferencedContentObjects(Objects);
 
 	// Also return the objects referenced by our parent landscape : 
-	if (LandscapeActor != nullptr)
+	if (const ALandscape* LandscapeActor = GetLandscapeActor())
 	{
 		LandscapeActor->GetReferencedContentObjects(Objects);
 	}
@@ -6058,7 +6098,7 @@ void ALandscapeProxy::ChangedPhysMaterial()
 	{
 		if (LandscapeComponent && LandscapeComponent->IsRegistered())
 		{
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = LandscapeComponent->CollisionComponent.Get();
+			ULandscapeHeightfieldCollisionComponent* CollisionComponent = LandscapeComponent->GetCollisionComponent();
 			if (CollisionComponent)
 			{
 				LandscapeComponent->UpdateCollisionLayerData();
@@ -6832,17 +6872,23 @@ bool ALandscapeStreamingProxy::IsValidLandscapeActor(ALandscape* Landscape)
 	{
 		if (!Landscape->HasAnyFlags(RF_BeginDestroyed))
 		{
-			if (LandscapeActor.IsNull() && !LandscapeGuid.IsValid())
+			if (!LandscapeActorRef && !LandscapeGuid.IsValid())
 			{
 				return true; // always valid for newly created Proxy
 			}
-			if (((LandscapeActor && LandscapeActor == Landscape)
-				|| (LandscapeActor.IsNull() && LandscapeGuid.IsValid() && LandscapeGuid == Landscape->GetLandscapeGuid()))
-				&& ComponentSizeQuads == Landscape->ComponentSizeQuads
-				&& NumSubsections == Landscape->NumSubsections
-				&& SubsectionSizeQuads == Landscape->SubsectionSizeQuads)
+			if ((LandscapeActorRef && (LandscapeActorRef == Landscape))
+				|| (!LandscapeActorRef && LandscapeGuid.IsValid() && (LandscapeGuid == Landscape->GetLandscapeGuid())))
 			{
-				return true;
+				const bool bCompatibleSize = (ComponentSizeQuads == Landscape->ComponentSizeQuads)
+					&& (NumSubsections == Landscape->NumSubsections)
+					&& (SubsectionSizeQuads == Landscape->SubsectionSizeQuads);
+
+				if (!bCompatibleSize)
+				{
+					UE_LOG(LogLandscape, Warning, TEXT("Landscape streaming proxy %s's setup (Num Quads = %i, Num Subsections = %i, Num Quads per Subsection = %i) is not compatible with landscape actor %s (Num Quads = %i, Num Subsections = %i, Num Quads per Subsection = %i)"), 
+						*GetName(), ComponentSizeQuads, NumSubsections, SubsectionSizeQuads, *Landscape->GetName(), Landscape->ComponentSizeQuads, Landscape->NumSubsections, Landscape->SubsectionSizeQuads);
+				}
+				return bCompatibleSize;
 			}
 		}
 	}
@@ -7123,11 +7169,13 @@ void ALandscapeProxy::RemoveOverlappingComponent(ULandscapeComponent* Component)
 {
 	Modify();
 	Component->Modify();
-	if (Component->CollisionComponent.IsValid() && (Component->CollisionComponent->RenderComponent.Get() == Component || Component->CollisionComponent->RenderComponent.IsNull()))
+
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->GetCollisionComponent();
+	if ((CollisionComponent != nullptr) && (CollisionComponent->GetRenderComponent() == Component || (CollisionComponent->GetRenderComponent() == nullptr)))
 	{
-		Component->CollisionComponent->Modify();
-		CollisionComponents.Remove(Component->CollisionComponent.Get());
-		Component->CollisionComponent.Get()->DestroyComponent();
+		CollisionComponent->Modify();
+		CollisionComponents.Remove(CollisionComponent);
+		CollisionComponent->DestroyComponent();
 	}
 	LandscapeComponents.Remove(Component);
 	Component->DestroyComponent();

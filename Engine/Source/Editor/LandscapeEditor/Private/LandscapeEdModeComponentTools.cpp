@@ -652,7 +652,7 @@ public:
 
 				if (!bHasLandscapeLayersContent)
 				{
-					ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->CollisionComponent.Get();
+					ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->GetCollisionComponent();
 					if (CollisionComp && !bHasXYOffset)
 					{
 						CollisionComp->MarkRenderStateDirty();
