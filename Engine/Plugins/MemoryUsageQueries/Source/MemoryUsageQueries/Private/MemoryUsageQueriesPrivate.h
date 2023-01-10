@@ -67,6 +67,6 @@ void GetPackagesSize(const IMemoryUsageInfoProvider* MemoryUsageInfoProvider, co
 void RemoveNonExistentPackages(TMap<FName, uint64>& OutPackagesWithSize);
 void RemoveFilteredPackages(TMap<FName, uint64>& OutPackagesWithSize, const FString& AssetSubstring);
 
-void PrintTagsWithSize(FOutputDevice& Ar, const TMap<FName, uint64>& TagsWithSize, const TCHAR* Name, bool bTruncate = false, int32 Limit = -1);
+void PrintTagsWithSize(FOutputDevice& Ar, const TMap<FName, uint64>& TagsWithSize, const TCHAR* Name, bool bTruncate = false, int32 Limit = -1, bool bCSV = false);
 
 }
