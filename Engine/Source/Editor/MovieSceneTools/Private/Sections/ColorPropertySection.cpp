@@ -80,7 +80,7 @@ int32 FColorPropertySection::OnPaintSection( FSequencerSectionPainter& Painter )
 	FVector2D GradientSize = FVector2D( Painter.SectionGeometry.Size.X - 2.f, (Painter.SectionGeometry.Size.Y / 4) - 3.0f );
 	if ( GradientSize.X >= 1.f )
 	{
-		FPaintGeometry PaintGeometry = Painter.SectionGeometry.ToPaintGeometry( FVector2D( 1.f, 1.f ), GradientSize );
+		FPaintGeometry PaintGeometry = Painter.SectionGeometry.ToPaintGeometry( GradientSize, FSlateLayoutTransform(FVector2D( 1.f, 1.f )) );
 
 		// If we are showing a background pattern and the colors is transparent, draw a checker pattern
 		FSlateDrawElement::MakeBox(

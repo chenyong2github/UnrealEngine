@@ -23,7 +23,7 @@ struct FSlateMaterialBrush : public FSlateBrush
 	 * @param InMaterial The material to use.
 	 * @param InImageSize The material's dimensions.
 	 */
-	FSlateMaterialBrush( class UMaterialInterface& InMaterial, const FVector2D& InImageSize )
+	FSlateMaterialBrush( class UMaterialInterface& InMaterial, const UE::Slate::FDeprecateVector2DParameter& InImageSize )
 		: FSlateBrush( ESlateBrushDrawType::Image, NAME_None, FMargin(0), ESlateBrushTileType::NoTile, ESlateBrushImageType::FullColor, InImageSize, FLinearColor::White, &InMaterial )
 	{
 		ResourceName = FName( *InMaterial.GetFullName() );
@@ -34,7 +34,7 @@ struct FSlateMaterialBrush : public FSlateBrush
 	 *
 	 * @param InImageSize The material's dimensions.
 	 */
-	FSlateMaterialBrush(const FVector2D& InImageSize)
+	FSlateMaterialBrush(const UE::Slate::FDeprecateVector2DParameter& InImageSize)
 		: FSlateBrush(ESlateBrushDrawType::Image, FName(TEXT("None")), FMargin(0), ESlateBrushTileType::NoTile, ESlateBrushImageType::FullColor, InImageSize, FLinearColor::White)
 	{}
 

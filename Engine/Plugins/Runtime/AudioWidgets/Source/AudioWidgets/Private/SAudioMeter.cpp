@@ -71,7 +71,7 @@ int32 SAudioMeter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			MeterGeometry.ToPaintGeometry(BackgroundImageTopLeft, BackgroundImageSize),
+			MeterGeometry.ToPaintGeometry(BackgroundImageSize, FSlateLayoutTransform(BackgroundImageTopLeft)),
 			&Style->MeterBackgroundImage,
 			ESlateDrawEffect::None,
 			Style->BackgroundImage.GetTint(InWidgetStyle) * BackgroundColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -98,7 +98,7 @@ int32 SAudioMeter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
  		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			MeterGeometry.ToPaintGeometry(MeterBackgroundTopLeft, MeterBackgroundSize),
+			MeterGeometry.ToPaintGeometry(MeterBackgroundSize, FSlateLayoutTransform(MeterBackgroundTopLeft)),
 			&Style->MeterBackgroundImage,
 			ESlateDrawEffect::None,
 			Style->MeterBackgroundImage.GetTint(InWidgetStyle) * MeterBackgroundColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -122,7 +122,7 @@ int32 SAudioMeter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			MeterGeometry.ToPaintGeometry(MeterValueTopLeft, MeterValueSize),
+			MeterGeometry.ToPaintGeometry(MeterValueSize, FSlateLayoutTransform(MeterValueTopLeft)),
 			&Style->MeterValueImage,
 			ESlateDrawEffect::None,
 			Style->MeterValueImage.GetTint(InWidgetStyle) * MeterValueColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -148,7 +148,7 @@ int32 SAudioMeter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			MeterGeometry.ToPaintGeometry(MeterPeakValueTopLeft, MeterPeakValueSize),
+			MeterGeometry.ToPaintGeometry(MeterPeakValueSize, FSlateLayoutTransform(MeterPeakValueTopLeft)),
 			&Style->MeterPeakImage,
 			ESlateDrawEffect::None,
 			Style->MeterPeakImage.GetTint(InWidgetStyle) * MeterPeakColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -200,7 +200,7 @@ int32 SAudioMeter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId,
-				MeterGeometry.ToPaintGeometry(HashTopLeft, HashSize),
+				MeterGeometry.ToPaintGeometry(HashSize, FSlateLayoutTransform(HashTopLeft)),
 				&Style->MeterPeakImage,
 				ESlateDrawEffect::None,
 				MeterScaleColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()

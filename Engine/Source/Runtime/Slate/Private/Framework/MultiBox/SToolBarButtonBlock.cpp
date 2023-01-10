@@ -207,9 +207,9 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
 	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
 	{
-		const FVector2D IconSize = ToolBarStyle.IconSize;
+		const FVector2f IconSize = ToolBarStyle.IconSize;
 
-		IconWidget->SetDesiredSizeOverride(IconSize);
+		IconWidget->SetDesiredSizeOverride(FVector2D(IconSize));
 		ButtonContent =
 			SNew(SHorizontalBox)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TutorialHighlightName))

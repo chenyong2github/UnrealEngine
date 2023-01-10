@@ -106,8 +106,8 @@ struct SLATECORE_API FToolBarStyle : public FSlateWidgetStyle
 	FToolBarStyle& SetBackgroundPadding(const FMargin& InMargin) { BackgroundPadding = InMargin; return *this; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FVector2D IconSize;
-	FToolBarStyle& SetIconSize(const FVector2D& InIconSize) { IconSize = InIconSize; return *this; }
+	FDeprecateSlateVector2D IconSize;
+	FToolBarStyle& SetIconSize(const UE::Slate::FDeprecateVector2DParameter& InIconSize) { IconSize = InIconSize; return *this; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	bool bShowLabels;

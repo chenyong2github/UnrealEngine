@@ -112,6 +112,10 @@ TSharedRef<FJsonValue> FNavigationSimulationWidgetNode::ToJson(const FNavigation
 		{
 			return FWidgetReflectorNodeUtils::WidgetAddressToString(Value);
 		}
+		static TSharedRef<FJsonValue> CreateJsonValue(const UE::Slate::FDeprecateVector2DResult& InVec2D)
+		{
+			return CreateJsonValue(FVector2D(InVec2D));
+		}
 		static TSharedRef<FJsonValue> CreateJsonValue(const FVector2D& InVec2D)
 		{
 			TArray<TSharedPtr<FJsonValue>> StructJsonArray;

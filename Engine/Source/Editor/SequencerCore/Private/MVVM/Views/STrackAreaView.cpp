@@ -281,7 +281,7 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DashLayer,
-			AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackPosition), FVector2D(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y), FSlateLayoutTransform(FVector2f(DropMinX, TrackPosition))),
 			HorizontalBrush,
 			ESlateDrawEffect::None,
 			DashColor.GetSpecifiedColor());
@@ -290,7 +290,7 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DashLayer,
-			AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackPosition + (TrackHeight - HorizontalBrush->ImageSize.Y)), FVector2D(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y), FSlateLayoutTransform(FVector2f(DropMinX, TrackPosition + (TrackHeight - HorizontalBrush->ImageSize.Y)))),
 			HorizontalBrush,
 			ESlateDrawEffect::None,
 			DashColor.GetSpecifiedColor());
@@ -299,7 +299,7 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DashLayer,
-			AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackPosition), FVector2D(VerticalBrush->ImageSize.X, TrackHeight)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(VerticalBrush->ImageSize.X, TrackHeight), FSlateLayoutTransform(FVector2f(DropMinX, TrackPosition))),
 			VerticalBrush,
 			ESlateDrawEffect::None,
 			DashColor.GetSpecifiedColor());
@@ -308,7 +308,7 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DashLayer,
-			AllottedGeometry.ToPaintGeometry(FVector2D(DropMaxX - VerticalBrush->ImageSize.X, TrackPosition), FVector2D(VerticalBrush->ImageSize.X, TrackHeight)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(VerticalBrush->ImageSize.X, TrackHeight), FSlateLayoutTransform(FVector2f(DropMaxX - VerticalBrush->ImageSize.X, TrackPosition))),
 			VerticalBrush,
 			ESlateDrawEffect::None,
 			DashColor.GetSpecifiedColor());

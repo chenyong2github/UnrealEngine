@@ -80,7 +80,7 @@ int32 FCameraCalibrationTimeSliderController::OnPaintTimeSlider( bool bMirrorLab
 		const float      HandleEnd          = HandleStart + 13.0f;
 
 		const int32 ArrowLayer = LayerId + 2;
-		FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2D( HandleStart, 0 ), FVector2D( HandleEnd - HandleStart, AllottedGeometry.Size.Y ) );
+		FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2D( HandleEnd - HandleStart, AllottedGeometry.Size.Y ), FSlateLayoutTransform(FVector2D( HandleStart, 0 )) );
 		FLinearColor ScrubColor = InWidgetStyle.GetColorAndOpacityTint();
 		{
 			ScrubColor.A = ScrubColor.A * 0.75f;
@@ -121,7 +121,7 @@ int32 FCameraCalibrationTimeSliderController::OnPaintTimeSlider( bool bMirrorLab
 			FSlateDrawElement::MakeText(
 				OutDrawElements,
 				LayerId + 1, 
-				AllottedGeometry.ToPaintGeometry( TextOffset, TextSize ), 
+				AllottedGeometry.ToPaintGeometry( TextSize, FSlateLayoutTransform(TextOffset) ), 
 				FormattedCategoryString, 
 				SmallLayoutFont,
 				DrawEffects,
@@ -161,7 +161,7 @@ int32 FCameraCalibrationTimeSliderController::OnPaintViewArea( const FGeometry& 
 		FSlateDrawElement::MakeLines(
 			OutDrawElements,
 			LayerId+1,
-			AllottedGeometry.ToPaintGeometry( FVector2D(LinePos, 0.0f ), FVector2D(1.0f,1.0f) ),
+			AllottedGeometry.ToPaintGeometry( FVector2D(1.0f,1.0f), FSlateLayoutTransform(FVector2D(LinePos, 0.0f )) ),
 			LinePoints,
 			DrawEffects,
 			FLinearColor(1.f, 1.f, 1.f, .5f),

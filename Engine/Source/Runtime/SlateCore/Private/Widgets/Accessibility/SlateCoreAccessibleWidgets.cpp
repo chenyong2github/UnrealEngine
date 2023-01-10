@@ -74,7 +74,10 @@ FBox2D FSlateAccessibleWidget::GetBounds() const
 	if (Widget.IsValid())
 	{
 		const FGeometry& Geometry = Widget.Pin()->GetCachedGeometry();
-		return FBox2D(Geometry.GetAbsolutePosition(), Geometry.GetAbsolutePosition() + Geometry.GetAbsoluteSize());
+		const FVector2f Min = Geometry.GetAbsolutePosition();
+		const FVector2f Max = Min + Geometry.GetAbsoluteSize();
+
+		return FBox2D(FVector2d(Min), FVector2d(Max));
 	}
 	return FBox2D();
 }
@@ -370,7 +373,7 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 		if (UseHitTestGrid)
 		{
 			TSharedPtr<SWindow> SlateWindow = StaticCastSharedPtr<SWindow>(Widget.Pin());
-			TArray<FWidgetAndPointer> Hits = SlateWindow->GetHittestGrid().GetBubblePath(FVector2D((float)X, (float)Y), 0.0f, false, INDEX_NONE);
+			TArray<FWidgetAndPointer> Hits = SlateWindow->GetHittestGrid().GetBubblePath(FVector2f((float)X, (float)Y), 0.0f, false, INDEX_NONE);
 			TSharedPtr<SWidget> LastAccessibleWidget = nullptr;
 			for (int32 i = 0; i < Hits.Num(); ++i)
 			{

@@ -61,7 +61,7 @@ void SDMXPixelMappingScreenComponentBox::SetLocalSize(const FVector2D& NewLocalS
 	ComponentBox->SetHeightOverride(NewLocalSize.Y);
 }
 
-const FVector2D& SDMXPixelMappingScreenComponentBox::GetLocalSize() const
+FVector2f SDMXPixelMappingScreenComponentBox::GetLocalSize() const
 {
 	return GetCachedGeometry().GetLocalSize();
 }

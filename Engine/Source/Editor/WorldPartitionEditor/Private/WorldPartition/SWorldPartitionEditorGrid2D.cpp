@@ -1201,7 +1201,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					++LayerId,
-					AllottedGeometry.ToPaintGeometry(LabelTextPos - BackgroundGrowSize, LabelTextSize + BackgroundGrowSize),
+					AllottedGeometry.ToPaintGeometry(LabelTextSize + BackgroundGrowSize, FSlateLayoutTransform(LabelTextPos - BackgroundGrowSize)),
 					&BackgroundBrush,
 					ESlateDrawEffect::None,
 					LabelBackgroundColor
@@ -1264,7 +1264,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 					const float AreaFadeDistance = 128.0f;
 					if ((Extent.Size2D() < KINDA_SMALL_NUMBER) || (ActorViewBox.GetArea() > MinimumAreaCull))
 					{
-						const FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(TopLeft, BottomRight - TopLeft);
+						const FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(BottomRight - TopLeft, FSlateLayoutTransform(TopLeft));
 						const float LoaderColorGradient = FMath::Min((ActorViewBox.GetArea() - MinimumAreaCull) / AreaFadeDistance, 1.0f);
 						const FLinearColor LoaderColor = LoaderAdapter->GetColor().IsSet() ? *LoaderAdapter->GetColor() : FColor::White;
 						const bool bIsLocalHovered = LocalHoveredLoaderAdapter == LoaderAdapter;
@@ -1295,8 +1295,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 							for (const FBox2D& Rect : LoaderInterfaceHighlight.GetRects())
 							{
 								const FPaintGeometry RectAreaGeometry = AllottedGeometry.ToPaintGeometry(
-									Rect.Min,
-									Rect.Max - Rect.Min
+									Rect.Max - Rect.Min,
+									FSlateLayoutTransform(Rect.Min)
 								);
 
 								FSlateDrawElement::MakeBox(
@@ -1396,8 +1396,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 				const float AreaFadeDistance = 128.0f;
 				if ((Extent.Size2D() < KINDA_SMALL_NUMBER) || (ActorViewBox.GetArea() > MinimumAreaCull))
 				{
-					const FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(TopLeft, BottomRight - TopLeft);
-					const FPaintGeometry ActorGeometryShadow = AllottedGeometry.ToPaintGeometry(TopLeft - FVector2D::One(), BottomRight - TopLeft + FVector2D::One() * 2.0);
+					const FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(BottomRight - TopLeft, FSlateLayoutTransform(TopLeft));
+					const FPaintGeometry ActorGeometryShadow = AllottedGeometry.ToPaintGeometry(BottomRight - TopLeft + FVector2D::One() * 2.0, FSlateLayoutTransform(TopLeft - FVector2D::One()));
 					const bool bIsBoundsEdgeHovered = !bIsBoundsEdgeHoveredFound && IsBoundsEdgeHovered(MouseCursorPos, ActorViewBox, 10.0f);
 					const float ActorColorGradient = FMath::Cube(FMath::Clamp((ActorViewBox.GetArea() - MinimumAreaCull) / AreaFadeDistance, 0.0f, 1.0f));
 					const float ActorBrightness = bIsSpatiallyLoaded ? 1.0f : 0.3f;
@@ -1551,8 +1551,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintViewer(const FGeometry& AllottedGeometr
 	{
 		const FVector2D LocalLocation = WorldToScreen.TransformPoint(Location);
 		const FPaintGeometry PaintGeometryShadow = AllottedGeometry.ToPaintGeometry(
-			LocalLocation - (Image->ImageSize + ShadowSize) * 0.5f, 
-			Image->ImageSize + ShadowSize
+			Image->ImageSize + ShadowSize,
+			FSlateLayoutTransform(LocalLocation - (Image->ImageSize + ShadowSize) * 0.5f)
 		);
 
 		FSlateDrawElement::MakeRotatedBox(
@@ -1568,8 +1568,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintViewer(const FGeometry& AllottedGeometr
 		);
 
 		const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry(
-			LocalLocation - Image->ImageSize * 0.5f, 
-			Image->ImageSize
+			Image->ImageSize,
+			FSlateLayoutTransform(LocalLocation - Image->ImageSize * 0.5f)
 		);
 
 		FSlateDrawElement::MakeRotatedBox(
@@ -1635,8 +1635,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintSelection(const FGeometry& AllottedGeom
 				FLinearColor CellColor(FLinearColor(1, 1, 1, 0.1f));
 
 				FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
-					TopLeft,
-					BottomRight - TopLeft
+					BottomRight - TopLeft,
+					FSlateLayoutTransform(TopLeft)
 				);
 
 				FSlateDrawElement::MakeBox(
@@ -1745,7 +1745,7 @@ int32 SWorldPartitionEditorGrid2D::PaintSoftwareCursor(const FGeometry& Allotted
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry(MouseCursorPos - (CursorSize * 0.5f), CursorSize),
+			AllottedGeometry.ToPaintGeometry(CursorSize, FSlateLayoutTransform(MouseCursorPos - (CursorSize * 0.5f))),
 			Brush
 		);
 	}
@@ -1764,8 +1764,8 @@ int32 SWorldPartitionEditorGrid2D::PaintMinimap(const FGeometry& AllottedGeometr
 		);
 
 		const FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
-			MinimapBounds.Min,
-			MinimapBounds.Max - MinimapBounds.Min
+			MinimapBounds.Max - MinimapBounds.Min,
+			FSlateLayoutTransform(MinimapBounds.Min)
 		);
 
 		FSlateDrawElement::MakeBox(
@@ -1813,8 +1813,8 @@ int32 SWorldPartitionEditorGrid2D::PaintMinimap(const FGeometry& AllottedGeometr
 			for (const FBox2D& ShadowArea : ShadowAreas.GetRects())
 			{
 				const FPaintGeometry ShadowAreaGeometry = AllottedGeometry.ToPaintGeometry(
-					ShadowArea.Min,
-					ShadowArea.Max - ShadowArea.Min
+					ShadowArea.Max - ShadowArea.Min,
+					FSlateLayoutTransform(ShadowArea.Min)
 				);
 
 				const FSlateColorBrush ShadowdBrush(FLinearColor::Gray);
@@ -1934,7 +1934,7 @@ int32 SWorldPartitionEditorGrid2D::DrawTextLabel(FSlateWindowElementList& OutDra
 		FSlateDrawElement::MakeText(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(LabelTextPos + FVector2D(2, 2), FVector2D(1, 1)),
+			AllottedGeometry.ToPaintGeometry(FVector2D(1, 1), FSlateLayoutTransform(LabelTextPos + FVector2D(2, 2))),
 			Label,
 			Font,
 			ESlateDrawEffect::None,
@@ -1944,7 +1944,7 @@ int32 SWorldPartitionEditorGrid2D::DrawTextLabel(FSlateWindowElementList& OutDra
 		FSlateDrawElement::MakeText(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(LabelTextPos, FVector2D(1,1)),
+			AllottedGeometry.ToPaintGeometry(FVector2D(1,1), FSlateLayoutTransform(LabelTextPos)),
 			Label,
 			Font,
 			ESlateDrawEffect::None,

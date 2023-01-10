@@ -130,7 +130,7 @@ public:
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				MaxLayerId,
-				AllottedGeometry.ToPaintGeometry( GetSoftwareCursorPosition() - ( Brush->ImageSize / 2 ) , Brush->ImageSize / AllottedGeometry.Scale ),
+				AllottedGeometry.ToPaintGeometry( Brush->ImageSize / AllottedGeometry.Scale, FSlateLayoutTransform(GetSoftwareCursorPosition() - ( Brush->ImageSize / 2 )) ),
 				Brush);
 #ifdef DEBUG_DRAG
 			FVector2D LocalCursorPosition = GetTickSpaceGeometry().AbsoluteToLocal(FSlateApplication::Get().GetCursorPos());

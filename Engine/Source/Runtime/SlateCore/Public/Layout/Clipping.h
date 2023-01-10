@@ -70,7 +70,7 @@ public:
 	explicit FSlateClippingZone(const FSlateRect& AxisAlignedRect);
 	explicit FSlateClippingZone(const FGeometry& BoundingGeometry);
 	explicit FSlateClippingZone(const FPaintGeometry& PaintingGeometry);
-	FSlateClippingZone(const FVector2D& InTopLeft, const FVector2D& InTopRight, const FVector2D& InBottomLeft, const FVector2D& InBottomRight);
+	FSlateClippingZone(const UE::Slate::FDeprecateVector2DParameter& InTopLeft, const UE::Slate::FDeprecateVector2DParameter& InTopRight, const UE::Slate::FDeprecateVector2DParameter& InBottomLeft, const UE::Slate::FDeprecateVector2DParameter& InBottomRight);
 	FSlateClippingZone() {}
 
 	/**  */
@@ -119,7 +119,7 @@ public:
 	}
 
 	/** Is a point inside the clipping zone? */
-	bool IsPointInside(const FVector2D& Point) const;
+	bool IsPointInside(const UE::Slate::FDeprecateVector2DParameter& Point) const;
 
 	/**
 	 * Intersects two clipping zones and returns the new clipping zone that would need to be used.
@@ -151,9 +151,9 @@ public:
 		);
 	}
 
-	FSlateClippingZone ConvertRelativeToAbsolute(const FVector2D& WindowOffset) const
+	FSlateClippingZone ConvertRelativeToAbsolute(const UE::Slate::FDeprecateVector2DParameter& WindowOffset) const
 	{
-		FSlateClippingZone Absolute(FVector2D(TopLeft) + WindowOffset, FVector2D(TopRight) + WindowOffset, FVector2D(BottomLeft) + WindowOffset, FVector2D(BottomRight) + WindowOffset);
+		FSlateClippingZone Absolute(TopLeft + WindowOffset, TopRight + WindowOffset, BottomLeft + WindowOffset, BottomRight + WindowOffset);
 		Absolute.bIsAxisAligned = bIsAxisAligned;
 		Absolute.bIntersect = bIntersect;
 		Absolute.bAlwaysClip = bAlwaysClip;
@@ -161,7 +161,7 @@ public:
 		return Absolute;
 	}
 private:
-	void InitializeFromArbitraryPoints(const FVector2D& InTopLeft, const FVector2D& InTopRight, const FVector2D& InBottomLeft, const FVector2D& InBottomRight);
+	void InitializeFromArbitraryPoints(const UE::Slate::FDeprecateVector2DParameter& InTopLeft, const UE::Slate::FDeprecateVector2DParameter& InTopRight, const UE::Slate::FDeprecateVector2DParameter& InBottomLeft, const UE::Slate::FDeprecateVector2DParameter& InBottomRight);
 
 private:
 	/** Is the clipping zone axis aligned?  Axis aligned clipping zones are much cheaper. */
@@ -211,7 +211,7 @@ public:
 	FSlateClippingState(const FSlateClippingState& Other);
 
 	/** Is a point inside the clipping state? */
-	bool IsPointInside(const FVector2D& Point) const;
+	bool IsPointInside(const UE::Slate::FDeprecateVector2DParameter& Point) const;
 
 #if WITH_SLATE_DEBUGGING
 	/** Set the state index that this clipping state originated from.  We just do this for debugging purposes. */

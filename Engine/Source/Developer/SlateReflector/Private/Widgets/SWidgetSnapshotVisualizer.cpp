@@ -254,7 +254,7 @@ public:
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						++LayerId,
-						AllottedGeometry.ToPaintGeometry(RootDrawOffset + PickedWidget->GetAccumulatedLayoutTransform().GetTranslation(), TransformPoint(PickedWidget->GetAccumulatedLayoutTransform().GetScale(), PickedWidget->GetLocalSize())),
+						AllottedGeometry.ToPaintGeometry(TransformPoint(PickedWidget->GetAccumulatedLayoutTransform().GetScale(), PickedWidget->GetLocalSize()), FSlateLayoutTransform(RootDrawOffset + PickedWidget->GetAccumulatedLayoutTransform().GetTranslation())),
 						Brush,
 						ESlateDrawEffect::None,
 						FMath::Lerp(TopmostWidgetColor, LeafmostWidgetColor, ColorFactor)
@@ -268,7 +268,7 @@ public:
 					FSlateDrawElement::MakeBox(
 						OutDrawElements,
 						++LayerId,
-						AllottedGeometry.ToPaintGeometry(RootDrawOffset + SelectedWidget->GetAccumulatedLayoutTransform().GetTranslation(), TransformPoint(SelectedWidget->GetAccumulatedLayoutTransform().GetScale(), SelectedWidget->GetLocalSize())),
+						AllottedGeometry.ToPaintGeometry(TransformPoint(SelectedWidget->GetAccumulatedLayoutTransform().GetScale(), SelectedWidget->GetLocalSize()), FSlateLayoutTransform(RootDrawOffset + SelectedWidget->GetAccumulatedLayoutTransform().GetTranslation())),
 						Brush,
 						ESlateDrawEffect::None,
 						SelectedWidget->GetTint()

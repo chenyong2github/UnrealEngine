@@ -142,7 +142,7 @@ int32 FNiagaraCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) co
 			FSlateDrawElement::MakeBox(
 				Painter.DrawElements,
 				LayerId + 5,
-				Painter.SectionGeometry.ToPaintGeometry(TextOffset - BoxPadding, TextSize + 2.0f * BoxPadding),
+				Painter.SectionGeometry.ToPaintGeometry(TextSize + 2.0f * BoxPadding, FSlateLayoutTransform(TextOffset - BoxPadding)),
 				FAppStyle::GetBrush("WhiteBrush"),
 				ESlateDrawEffect::None,
 				FLinearColor::Black.CopyWithNewOpacity(0.5f)
@@ -151,7 +151,7 @@ int32 FNiagaraCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) co
 			FSlateDrawElement::MakeText(
 				Painter.DrawElements,
 				LayerId + 6,
-				Painter.SectionGeometry.ToPaintGeometry(TextOffset, TextSize),
+				Painter.SectionGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextOffset)),
 				FrameString,
 				SmallLayoutFont,
 				DrawEffects,

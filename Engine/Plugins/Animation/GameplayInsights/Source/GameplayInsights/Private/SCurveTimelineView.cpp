@@ -190,7 +190,7 @@ int32 SCurveTimelineView::PaintCurve(const FGeometry& AllottedGeometry, const FS
 					{
 						float X1 = RangeToScreen.InputToLocalX(PreviousTime);
 						float X2 = RangeToScreen.InputToLocalX(CurrentTime);
-						FPaintGeometry PaintGeo = AllottedGeometry.ToPaintGeometry(FVector2D(X1, Y2) , FVector2D(X2-X1, Y1-Y2), 1.0);
+						FPaintGeometry PaintGeo = AllottedGeometry.ToPaintGeometry(FVector2f(X2-X1, Y1-Y2), FSlateLayoutTransform(FVector2f(X1, Y2)));
 						FSlateDrawElement::MakeBox(OutDrawElements, LayerId, PaintGeo, FillBrush, ESlateDrawEffect::None, FillColor.Get());
 					}
 				}

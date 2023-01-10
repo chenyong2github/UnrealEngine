@@ -239,7 +239,7 @@ void FAnimTimeSliderController::DrawTicks( FSlateWindowElementList& OutDrawEleme
 			FSlateDrawElement::MakeText(
 				OutDrawElements,
 				InArgs.StartLayer+1, 
-				InArgs.AllottedGeometry.ToPaintGeometry( TextOffset, InArgs.AllottedGeometry.Size ), 
+				InArgs.AllottedGeometry.ToPaintGeometry( InArgs.AllottedGeometry.Size, FSlateLayoutTransform(TextOffset) ), 
 				FrameString, 
 				SmallLayoutFont,
 				InArgs.DrawEffects,
@@ -323,7 +323,7 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 		const float      HandleEnd          = HandleStart + 13.0f;
 
 		const int32 ArrowLayer = LayerId + 2;
-		FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2D( HandleStart, 0 ), FVector2D( HandleEnd - HandleStart, AllottedGeometry.Size.Y ) );
+		FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2f( HandleEnd - HandleStart, AllottedGeometry.Size.Y ), FSlateLayoutTransform(FVector2f( HandleStart, 0.f )) );
 		FLinearColor ScrubColor = InWidgetStyle.GetColorAndOpacityTint();
 		{
 			ScrubColor.A = ScrubColor.A * 0.75f;
@@ -376,7 +376,7 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 			FSlateDrawElement::MakeText(
 				OutDrawElements,
 				Args.StartLayer+1, 
-				Args.AllottedGeometry.ToPaintGeometry( TextOffset, TextSize ), 
+				Args.AllottedGeometry.ToPaintGeometry( TextSize, FSlateLayoutTransform(TextOffset) ), 
 				FrameString, 
 				SmallLayoutFont,
 				Args.DrawEffects,
@@ -402,7 +402,7 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId+1,
-				AllottedGeometry.ToPaintGeometry( FVector2D(RangePosX, 0.f), FVector2D(RangeSizeX, AllottedGeometry.Size.Y) ),
+				AllottedGeometry.ToPaintGeometry( FVector2f(RangeSizeX, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(RangePosX, 0.f)) ),
 				bMirrorLabels ? ScrubHandleDownBrush : ScrubHandleUpBrush,
 				DrawEffects,
 				MouseStartPosX < MouseEndPosX ? FLinearColor(0.5f, 0.5f, 0.5f) : FLinearColor(0.25f, 0.3f, 0.3f)
@@ -431,7 +431,7 @@ int32 FAnimTimeSliderController::DrawSelectionRange(const FGeometry& AllottedGeo
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeL, 0.f), FVector2D(SelectionRangeR - SelectionRangeL, AllottedGeometry.Size.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(SelectionRangeR - SelectionRangeL, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(SelectionRangeL, 0.f))),
 				FAppStyle::GetBrush("WhiteBrush"),
 				ESlateDrawEffect::None,
 				DrawColor.CopyWithNewOpacity(Args.SolidFillOpacity)
@@ -441,7 +441,7 @@ int32 FAnimTimeSliderController::DrawSelectionRange(const FGeometry& AllottedGeo
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeL, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(SelectionRangeL, 0.f))),
 			Args.StartBrush,
 			ESlateDrawEffect::None,
 			DrawColor
@@ -450,7 +450,7 @@ int32 FAnimTimeSliderController::DrawSelectionRange(const FGeometry& AllottedGeo
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeR - Args.BrushWidth, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(SelectionRangeR - Args.BrushWidth, 0.f))),
 			Args.EndBrush,
 			ESlateDrawEffect::None,
 			DrawColor
@@ -478,7 +478,7 @@ int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeom
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId+1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeL, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(PlaybackRangeL, 0.f))),
 		Args.StartBrush,
 		ESlateDrawEffect::None,
 		FColor(32, 128, 32, OpacityBlend)	// 120, 75, 50 (HSV)
@@ -487,7 +487,7 @@ int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeom
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId+1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR - Args.BrushWidth, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(PlaybackRangeR - Args.BrushWidth, 0.f))),
 		Args.EndBrush,
 		ESlateDrawEffect::None,
 		FColor(128, 32, 32, OpacityBlend)	// 0, 75, 50 (HSV)
@@ -497,7 +497,7 @@ int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeom
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId+1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(0.f, 0.f), FVector2D(PlaybackRangeL, AllottedGeometry.Size.Y)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(PlaybackRangeL, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(0.f, 0.f))),
 		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.f)
@@ -506,7 +506,7 @@ int32 FAnimTimeSliderController::DrawPlaybackRange(const FGeometry& AllottedGeom
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId+1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR, 0.f), FVector2D(AllottedGeometry.Size.X - PlaybackRangeR, AllottedGeometry.Size.Y)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.Size.X - PlaybackRangeR, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(PlaybackRangeR, 0.f))),
 		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.f)
@@ -527,7 +527,7 @@ int32 FAnimTimeSliderController::DrawEditableTimes(const FGeometry& AllottedGeom
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(LinePos - 6.0f, AllottedGeometry.Size.Y - 12.0f), FVector2D(11.0f, 12.0f)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(11.0f, 12.0f), FSlateLayoutTransform(FVector2f(LinePos - 6.0f, AllottedGeometry.Size.Y - 12.0f))),
 			EditableTimeBrush,
 			ESlateDrawEffect::None,
 			TimeColor
@@ -926,7 +926,7 @@ int32 FAnimTimeSliderController::OnPaintViewArea( const FGeometry& AllottedGeome
 		FSlateDrawElement::MakeLines(
 			OutDrawElements,
 			LayerId+1,
-			AllottedGeometry.ToPaintGeometry( FVector2D(LinePos, 0.0f ), FVector2D(1.0f,1.0f) ),
+			AllottedGeometry.ToPaintGeometry( FVector2f(1.0f,1.0f), FSlateLayoutTransform(FVector2f(LinePos, 0.0f )) ),
 			LinePoints,
 			DrawEffects,
 			FLinearColor(1.f, 1.f, 1.f, .5f),
@@ -954,7 +954,7 @@ int32 FAnimTimeSliderController::OnPaintViewArea( const FGeometry& AllottedGeome
 			FSlateDrawElement::MakeLines(
 				OutDrawElements,
 				LayerId+1,
-				AllottedGeometry.ToPaintGeometry( FVector2D(LinePos, 0.0f ), FVector2D(1.0f,1.0f) ),
+				AllottedGeometry.ToPaintGeometry( FVector2f(1.0f,1.0f), FSlateLayoutTransform(FVector2f(LinePos, 0.0f )) ),
 				LinePoints,
 				DrawEffects,
 				LineColor,

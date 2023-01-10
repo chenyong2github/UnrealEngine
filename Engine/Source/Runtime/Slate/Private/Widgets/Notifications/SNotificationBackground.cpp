@@ -47,7 +47,7 @@ int32 SNotificationBackground::OnPaint(const FPaintArgs& Args, const FGeometry& 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(4.0f, 4.0f), FVector2D(WatermarkSize, WatermarkSize)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(WatermarkSize, WatermarkSize), FSlateLayoutTransform(FVector2f(4.0f, 4.0f))),
 			WatermarkBrush,
 			ESlateDrawEffect::None,
 			WatermarkTint * InWidgetStyle.GetColorAndOpacityTint() * GetBorderBackgroundColor().GetColor(InWidgetStyle));

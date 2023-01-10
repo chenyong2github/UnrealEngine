@@ -949,7 +949,7 @@ int32 SSplitter2x2::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		MaxLayerId,
-		AllottedGeometry.ToPaintGeometry(HorizontalSplitterPos, HorizontalSplitterSize),
+		AllottedGeometry.ToPaintGeometry(HorizontalSplitterSize, FSlateLayoutTransform(HorizontalSplitterPos)),
 		HorizontalBrush,
 		ShouldBeEnabled(bParentEnabled) ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 		InWidgetStyle.GetColorAndOpacityTint() * HorizontalBrush->TintColor.GetSpecifiedColor());
@@ -962,7 +962,7 @@ int32 SSplitter2x2::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		MaxLayerId,
-		AllottedGeometry.ToPaintGeometry(VerticalSplitterPos, VerticalSplitterSize),
+		AllottedGeometry.ToPaintGeometry(VerticalSplitterSize, FSlateLayoutTransform(VerticalSplitterPos)),
 		VerticalBrush,
 		ShouldBeEnabled(bParentEnabled) ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 		InWidgetStyle.GetColorAndOpacityTint() * VerticalBrush->TintColor.GetSpecifiedColor());

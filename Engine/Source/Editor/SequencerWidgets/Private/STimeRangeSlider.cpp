@@ -109,7 +109,7 @@ int32 STimeRangeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		LayerId, 
-		AllottedGeometry.ToPaintGeometry(FVector2D(HandleOffset, 0.0f), FVector2D(RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize), FSlateLayoutTransform(FVector2f(HandleOffset, 0.0f))),
 		RangeHandle,
 		ESlateDrawEffect::None,
 		(bHandleDragged || bHandleHovered) ? SelectionColor : FLinearColor::Gray);
@@ -118,7 +118,7 @@ int32 STimeRangeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		LayerId, 
-		AllottedGeometry.ToPaintGeometry(FVector2D(LeftHandleOffset, 0.0f), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize), FSlateLayoutTransform(FVector2f(LeftHandleOffset, 0.0f))),
 		RangeHandleLeft,
 		ESlateDrawEffect::None,
 		(bLeftHandleDragged || bLeftHandleHovered) ? SelectionColor : FLinearColor::Gray);
@@ -127,7 +127,7 @@ int32 STimeRangeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		LayerId, 
-		AllottedGeometry.ToPaintGeometry(FVector2D(RightHandleOffset, 0.0f), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize), FSlateLayoutTransform(FVector2f(RightHandleOffset, 0.0f))),
 		RangeHandleRight,
 		ESlateDrawEffect::None,
 		(bRightHandleDragged || bRightHandleHovered) ? SelectionColor : FLinearColor::Gray);
@@ -249,9 +249,9 @@ FReply STimeRangeSlider::OnMouseMove( const FGeometry& MyGeometry, const FPointe
 		double RightHandleOffset = 0;
 		ComputeHandleOffsets(LeftHandleOffset, HandleOffset, RightHandleOffset, MyGeometry.GetLocalSize().X);
 		
-		FGeometry LeftHandleRect  = MyGeometry.MakeChild(FVector2D(LeftHandleOffset, 0), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
-		FGeometry RightHandleRect = MyGeometry.MakeChild(FVector2D(RightHandleOffset, 0), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
-		FGeometry HandleRect      = MyGeometry.MakeChild(FVector2D(HandleOffset, 0), FVector2D(RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
+		FGeometry LeftHandleRect  = MyGeometry.MakeChild(FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize), FSlateLayoutTransform(FVector2D(LeftHandleOffset, 0)));
+		FGeometry RightHandleRect = MyGeometry.MakeChild(FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize), FSlateLayoutTransform(FVector2D(RightHandleOffset, 0)));
+		FGeometry HandleRect      = MyGeometry.MakeChild(FVector2D(RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize), FSlateLayoutTransform(FVector2D(HandleOffset, 0)));
 
 		FVector2D LocalMousePosition = MouseEvent.GetScreenSpacePosition();
 

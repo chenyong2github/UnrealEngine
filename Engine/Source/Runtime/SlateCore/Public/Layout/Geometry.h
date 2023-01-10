@@ -17,6 +17,7 @@
 #include "Rendering/SlateRenderTransform.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectMacros.h"
+#include "Types/SlateVector2.h"
 
 #include "Geometry.generated.h"
 
@@ -61,7 +62,7 @@ public:
 	 * @param InSize                   The size of this geometry.
 	 * @param InScale                  The scale of this geometry with respect to Normal Slate Coordinates.
 	 */
-	FGeometry( const FVector2D& OffsetFromParent, const FVector2D& ParentAbsolutePosition, const FVector2D& InLocalSize, float InScale )
+	FGeometry( const UE::Slate::FDeprecateVector2DParameter& OffsetFromParent, const UE::Slate::FDeprecateVector2DParameter& ParentAbsolutePosition, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, float InScale )
 		: Size(InLocalSize)
 		, Scale(1.0f)
 		, AbsolutePosition(0.0f, 0.0f)
@@ -69,9 +70,9 @@ public:
 	{
 		// Since OffsetFromParent is given as a LocalSpaceOffset, we MUST convert this offset into the space of the parent to construct a valid layout transform.
 		// The extra TransformPoint below does this by converting the local offset to an offset in parent space.
-		FVector2D LayoutOffset = TransformPoint(InScale, OffsetFromParent);
+		FVector2f LayoutOffset = TransformPoint(InScale, UE::Slate::CastToVector2f(OffsetFromParent));
 
-		FSlateLayoutTransform ParentAccumulatedLayoutTransform(InScale, ParentAbsolutePosition);
+		FSlateLayoutTransform ParentAccumulatedLayoutTransform(InScale, UE::Slate::CastToVector2f(ParentAbsolutePosition));
 		FSlateLayoutTransform LocalLayoutTransform(LayoutOffset);
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(LocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		AccumulatedRenderTransform = TransformCast<FSlateRenderTransform>(AccumulatedLayoutTransform);
@@ -93,10 +94,10 @@ private:
 	 * @param ParentAccumulatedRenderTransform	The accumulated render transform of the parent widget. AccumulatedRenderTransform = Concat(LocalRenderTransform, LocalLayoutTransform, ParentAccumulatedRenderTransform).
 	 */
 	FGeometry( 
-		const FVector2D& InLocalSize, 
+		const UE::Slate::FDeprecateVector2DParameter& InLocalSize, 
 		const FSlateLayoutTransform& InLocalLayoutTransform, 
 		const FSlateRenderTransform& InLocalRenderTransform, 
-		const FVector2D& InLocalRenderTransformPivot, 
+		const UE::Slate::FDeprecateVector2DParameter& InLocalRenderTransformPivot, 
 		const FSlateLayoutTransform& ParentAccumulatedLayoutTransform, 
 		const FSlateRenderTransform& ParentAccumulatedRenderTransform)
 		: Size(InLocalSize)
@@ -105,11 +106,11 @@ private:
 		, AccumulatedRenderTransform(
 			Concatenate(
 				// convert the pivot to local space and make it the origin
-				Inverse(TransformPoint(FScale2D(InLocalSize), InLocalRenderTransformPivot)),
+				Inverse(TransformPoint(FScale2D(UE::Slate::CastToVector2f(InLocalSize)), UE::Slate::CastToVector2f(InLocalRenderTransformPivot))),
 				// apply the render transform in local space centered around the pivot
 				InLocalRenderTransform,
 				// translate the pivot point back.
-				TransformPoint(FScale2D(InLocalSize), InLocalRenderTransformPivot),
+				TransformPoint(FScale2D(UE::Slate::CastToVector2f(InLocalSize)), UE::Slate::CastToVector2f(InLocalRenderTransformPivot)),
 				// apply the layout transform next.
 				InLocalLayoutTransform,
 				// finally apply the parent accumulated transform, which takes us to the root.
@@ -133,12 +134,12 @@ private:
 	 * @param ParentAccumulatedRenderTransform	The accumulated render transform of the parent widget. AccumulatedRenderTransform = Concat(LocalRenderTransform, LocalLayoutTransform, ParentAccumulatedRenderTransform).
 	 */
 	FGeometry(
-		const FVector2D& InLocalSize,
+		const UE::Slate::FDeprecateVector2DParameter& InLocalSize,
 		const FSlateLayoutTransform& InLocalLayoutTransform,
 		const FSlateLayoutTransform& ParentAccumulatedLayoutTransform,
 		const FSlateRenderTransform& ParentAccumulatedRenderTransform,
 		bool bParentHasRenderTransform)
-		: Size(InLocalSize)
+		: Size(UE::Slate::CastToVector2f(InLocalSize))
 		, Scale(1.0f)
 		, AbsolutePosition(0.0f, 0.0f)
 		, AccumulatedRenderTransform(Concatenate(InLocalLayoutTransform, ParentAccumulatedRenderTransform))
@@ -188,11 +189,10 @@ public:
 	 * @param LayoutTransform	Layout transform of the geometry.
 	 * @return					The new root geometry
 	 */
-	FORCEINLINE_DEBUGGABLE static FGeometry MakeRoot(const FVector2D& InLocalSize, const FSlateLayoutTransform& LayoutTransform)
+	FORCEINLINE_DEBUGGABLE static FGeometry MakeRoot(const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform)
 	{
 		return FGeometry(InLocalSize, LayoutTransform, FSlateLayoutTransform(), FSlateRenderTransform(), false);
 	}
-
 	/**
 	 * Makes a new geometry that is essentially the root of a hierarchy (has no parent transforms to inherit).
 	 * For a root Widget, the LayoutTransform is often the window DPI scale + window offset.
@@ -201,11 +201,10 @@ public:
 	 * @param LayoutTransform	Layout transform of the geometry.
 	 * @return					The new root geometry
 	 */
-	FORCEINLINE_DEBUGGABLE static FGeometry MakeRoot(const FVector2D& InLocalSize, const FSlateLayoutTransform& LayoutTransform, const FSlateRenderTransform& RenderTransform)
+	FORCEINLINE_DEBUGGABLE static FGeometry MakeRoot(const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform, const FSlateRenderTransform& RenderTransform)
 	{
 		return FGeometry(InLocalSize, LayoutTransform, FSlateLayoutTransform(), FSlateRenderTransform(), !RenderTransform.IsIdentity());
 	}
-
 	/**
 	 * Create a child geometry relative to this one with a given local space size, layout transform, and render transform.
 	 * For example, a widget with a 5x5 margin will create a geometry for it's child contents having a LayoutTransform of Translate(5,5) and a LocalSize 10 units smaller 
@@ -218,7 +217,7 @@ public:
 	 *
 	 * @return					The new child geometry.
 	 */
-	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const FVector2D& InLocalSize, const FSlateLayoutTransform& LayoutTransform, const FSlateRenderTransform& RenderTransform, const FVector2D& RenderTransformPivot) const
+	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform, const FSlateRenderTransform& RenderTransform, const UE::Slate::FDeprecateVector2DParameter& RenderTransformPivot) const
 	{
 		return FGeometry(InLocalSize, LayoutTransform, RenderTransform, RenderTransformPivot, GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform());
 	}
@@ -233,15 +232,15 @@ public:
 	 *
 	 * @return					The new child geometry.
 	 */
-	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const FVector2D& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const
+	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const
 	{
 		return FGeometry(InLocalSize, LayoutTransform, GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform(), bHasRenderTransform);
 	}
-
-	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const FSlateRenderTransform& RenderTransform, const FVector2D& RenderTransformPivot = FVector2D(0.5f, 0.5)) const
+	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const FSlateRenderTransform& RenderTransform, const UE::Slate::FDeprecateVector2DParameter& RenderTransformPivot = FVector2f(0.5f, 0.5f)) const
 	{
 		return FGeometry(GetLocalSize(), FSlateLayoutTransform(), RenderTransform, RenderTransformPivot, GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform());
 	}
+
 
 	/**
 	 * Create a child geometry+widget relative to this one using the given LayoutGeometry.
@@ -265,7 +264,9 @@ public:
 	 *
 	 * @return					The new child geometry+widget.
 	 */
-	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const FVector2D& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const;
+	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const;
+
+#if UE_ENABLE_SLATE_VECTOR_DEPRECATION_MECHANISMS
 
 	/**
 	 * !!! DEPRECATED FUNCTION !!! Use MakeChild taking a layout transform instead!
@@ -277,12 +278,15 @@ public:
 	 *
 	 * @return				The new child geometry.
 	 */
+	UE_DEPRECATED(5.2, "Use FGeometry MakeChild(const FVector2f& InLocalSize, const FSlateLayoutTransform& InLayoutTransform) instead.")
 	FORCEINLINE_DEBUGGABLE FGeometry MakeChild(const FVector2D& ChildOffset, const FVector2D& InLocalSize, float ChildScale = 1.0f) const
 	{
 		// Since ChildOffset is given as a LocalSpaceOffset, we MUST convert this offset into the space of the parent to construct a valid layout transform.
 		// The extra TransformPoint below does this by converting the local offset to an offset in parent space.
-		return FGeometry(InLocalSize, FSlateLayoutTransform(ChildScale, TransformPoint(ChildScale, ChildOffset)), GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform(), bHasRenderTransform);
+		return FGeometry(UE::Slate::CastToVector2f(InLocalSize), FSlateLayoutTransform(ChildScale, TransformPoint(ChildScale, UE::Slate::CastToVector2f(ChildOffset))), GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform(), bHasRenderTransform);
 	}
+
+#endif
 
 	/**
 	 * !!! DEPRECATED FUNCTION !!! Use MakeChild taking a layout transform instead!
@@ -296,7 +300,7 @@ public:
 	 *
 	 * @return				The new child geometry+widget.
 	 */
-	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const FVector2D& ChildOffset, const FVector2D& InLocalSize, float ChildScale = 1.0f) const;
+	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& ChildOffset, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, float ChildScale = 1.0f) const;
 
 	/**
 	 * Create a paint geometry that represents this geometry.
@@ -305,7 +309,7 @@ public:
 	 */
 	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry() const
 	{
-		return FPaintGeometry(GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform(), Size, bHasRenderTransform);
+		return FPaintGeometry(GetAccumulatedLayoutTransform(), GetAccumulatedRenderTransform(), FVector2f(Size), bHasRenderTransform);
 	}
 
 	/**
@@ -317,10 +321,10 @@ public:
 	 *
 	 * @return					The new paint geometry derived from this one.
 	 */
-	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const FVector2D& InLocalSize, const FSlateLayoutTransform& InLayoutTransform) const
+	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& InLayoutTransform) const
 	{
 		FSlateLayoutTransform NewAccumulatedLayoutTransform = Concatenate(InLayoutTransform, GetAccumulatedLayoutTransform());
-		return FPaintGeometry(NewAccumulatedLayoutTransform, Concatenate(InLayoutTransform, GetAccumulatedRenderTransform()), InLocalSize, bHasRenderTransform);
+		return FPaintGeometry(NewAccumulatedLayoutTransform, Concatenate(InLayoutTransform, GetAccumulatedRenderTransform()), UE::Slate::CastToVector2f(InLocalSize), bHasRenderTransform);
 	}
 
 	/**
@@ -332,7 +336,7 @@ public:
 	 *
 	 * @return					The new paint geometry derived from this one.
 	 */
-	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const FVector2D& InLocalSize, const FSlateLayoutTransform& InLayoutTransform, const FSlateRenderTransform& RenderTransform, const FVector2D& RenderTransformPivot = FVector2D(0.5f, 0.5)) const
+	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& InLayoutTransform, const FSlateRenderTransform& RenderTransform, const UE::Slate::FDeprecateVector2DParameter& RenderTransformPivot = FVector2f(0.5f, 0.5f)) const
 	{
 		return MakeChild(InLocalSize, InLayoutTransform, RenderTransform, RenderTransformPivot).ToPaintGeometry();
 	}
@@ -347,8 +351,10 @@ public:
 	 */
 	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const FSlateLayoutTransform& LayoutTransform) const
 	{
-		return ToPaintGeometry(Size, LayoutTransform);
+		return ToPaintGeometry(FVector2f(Size), LayoutTransform);
 	}
+
+#if UE_ENABLE_SLATE_VECTOR_DEPRECATION_MECHANISMS
 
 	/**
 	 * !!! DEPRECATED FUNCTION !!! Use ToPaintGeometry taking a layout transform instead!
@@ -361,12 +367,15 @@ public:
 	 * 
 	 * @return				The new paint geometry derived from this one.
 	 */
-	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const FVector2D& InLocalOffset, const FVector2D& InLocalSize, float InLocalScale = 1.0f) const
+	UE_DEPRECATED(5.2, "Use FPaintGeometry ToPaintGeometry(const FVector2f& InLocalSize, const FSlateLayoutTransform& InLayoutTransform) instead.")
+	FORCEINLINE_DEBUGGABLE FPaintGeometry ToPaintGeometry(const UE::Slate::FDeprecateVector2DParameter& InLocalOffset, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, float InLocalScale = 1.0f) const
 	{
 		// Since ChildOffset is given as a LocalSpaceOffset, we MUST convert this offset into the space of the parent to construct a valid layout transform.
 		// The extra TransformPoint below does this by converting the local offset to an offset in parent space.
-		return ToPaintGeometry(InLocalSize, FSlateLayoutTransform(InLocalScale, TransformPoint(InLocalScale, InLocalOffset)));
+		return ToPaintGeometry(InLocalSize, FSlateLayoutTransform(InLocalScale, TransformPoint(InLocalScale, UE::Slate::CastToVector2f(InLocalOffset))));
 	}
+
+#endif
 
 	/**
 	 * !!! DEPRECATED FUNCTION !!! Use ToPaintGeometry taking a layout transform instead!
@@ -377,9 +386,9 @@ public:
 	 * 
 	 * @return				The new paint geometry derived from this one.
 	 */
-	FORCEINLINE_DEBUGGABLE FPaintGeometry ToOffsetPaintGeometry(const FVector2D& LocalOffset) const
+	FORCEINLINE_DEBUGGABLE FPaintGeometry ToOffsetPaintGeometry(const UE::Slate::FDeprecateVector2DParameter& LocalOffset) const
 	{
-		return ToPaintGeometry(FSlateLayoutTransform(LocalOffset));
+		return ToPaintGeometry(FSlateLayoutTransform(UE::Slate::CastToVector2f(LocalOffset)));
 	}
 
 	/**
@@ -390,12 +399,13 @@ public:
 	 * 
 	 * @return				The new paint geometry derived from this one.
 	 */
-	FORCEINLINE_DEBUGGABLE FPaintGeometry ToInflatedPaintGeometry(const FVector2D& InflateAmount) const
+	FORCEINLINE_DEBUGGABLE FPaintGeometry ToInflatedPaintGeometry(const UE::Slate::FDeprecateVector2DParameter& InflateAmount) const
 	{
+		FVector2f InflateAmount2f = UE::Slate::CastToVector2f(InflateAmount);
 		// This essentially adds (or subtracts) a border around the widget. We scale the size then offset by the border amount.
 		// Note this is not scaling child widgets, so the scale is not changing.
-		FVector2D NewSize = Size + InflateAmount * 2;
-		return ToPaintGeometry(NewSize, FSlateLayoutTransform(-InflateAmount));
+		FVector2f NewSize = FVector2f(Size) + InflateAmount2f* 2;
+		return ToPaintGeometry(NewSize, FSlateLayoutTransform(-InflateAmount2f));
 	}
 
 	/** 
@@ -403,10 +413,10 @@ public:
 	 * 
 	 * @return true if the provided location in absolute coordinates is within the bounds of this geometry. 
 	 */
-	FORCEINLINE_DEBUGGABLE bool IsUnderLocation(const FVector2D& AbsoluteCoordinate) const
+	FORCEINLINE_DEBUGGABLE bool IsUnderLocation(const UE::Slate::FDeprecateVector2DParameter& AbsoluteCoordinate) const
 	{
 		// this render transform invert is a little expensive. We might consider caching it?
-		FSlateRotatedRect Rect = TransformRect(GetAccumulatedRenderTransform(), FSlateRotatedRect(FSlateRect(FVector2D(0.0f, 0.0f), Size)));
+		FSlateRotatedRect Rect = TransformRect(GetAccumulatedRenderTransform(), FSlateRotatedRect(FSlateRect(FVector2f(0.0f, 0.0f), FVector2f(Size))));
 		return Rect.IsUnderLocation(AbsoluteCoordinate);
 	}
 
@@ -415,10 +425,10 @@ public:
 	 * 
 	 * @return Transforms AbsoluteCoordinate into the local space of this Geometry. 
 	 */
-	FORCEINLINE_DEBUGGABLE FVector2D AbsoluteToLocal(FVector2D AbsoluteCoordinate) const
+	FORCEINLINE_DEBUGGABLE UE::Slate::FDeprecateVector2DResult AbsoluteToLocal(UE::Slate::FDeprecateVector2DParameter AbsoluteCoordinate) const
 	{
 		// this render transform invert is a little expensive. We might consider caching it.
-		return TransformPoint(Inverse(GetAccumulatedRenderTransform()), AbsoluteCoordinate);
+		return UE::Slate::FDeprecateVector2DResult(TransformPoint(Inverse(GetAccumulatedRenderTransform()), UE::Slate::CastToVector2f(AbsoluteCoordinate)));
 	}
 
 	/**
@@ -428,9 +438,9 @@ public:
 	 * 
 	 * @return  Absolute coordinates
 	 */
-	FORCEINLINE_DEBUGGABLE FVector2D LocalToAbsolute(FVector2D LocalCoordinate) const
+	FORCEINLINE_DEBUGGABLE UE::Slate::FDeprecateVector2DResult LocalToAbsolute(UE::Slate::FDeprecateVector2DParameter LocalCoordinate) const
 	{
-		return TransformPoint(GetAccumulatedRenderTransform(), LocalCoordinate);
+		return UE::Slate::FDeprecateVector2DResult(TransformPoint(GetAccumulatedRenderTransform(), UE::Slate::CastToVector2f(LocalCoordinate)));
 	}
 
 	/**
@@ -439,22 +449,22 @@ public:
 	 * and not have the window start on a half pixel, which can cause the contents to jitter in relation to each other as the tooltip 
 	 * or popup moves around.
 	 */
-	FORCEINLINE_DEBUGGABLE FVector2D LocalToRoundedLocal(FVector2D LocalCoordinate) const
+	FORCEINLINE_DEBUGGABLE UE::Slate::FDeprecateVector2DResult LocalToRoundedLocal(UE::Slate::FDeprecateVector2DParameter LocalCoordinate) const
 	{
-		const FVector2D AbsoluteCoordinate = LocalToAbsolute(LocalCoordinate);
-		const FVector2D AbsoluteCoordinateRounded = FVector2D(FMath::RoundToFloat(AbsoluteCoordinate.X), FMath::RoundToFloat(AbsoluteCoordinate.Y));
+		const FVector2f AbsoluteCoordinate = LocalToAbsolute(UE::Slate::CastToVector2f(LocalCoordinate));
+		const FVector2f AbsoluteCoordinateRounded = FVector2f(FMath::RoundToFloat(AbsoluteCoordinate.X), FMath::RoundToFloat(AbsoluteCoordinate.Y));
 
 		return AbsoluteToLocal(AbsoluteCoordinateRounded);
 	}
 	
 	FORCEINLINE_DEBUGGABLE FSlateRect GetLayoutBoundingRect() const
 	{
-		return GetLayoutBoundingRect(FSlateRect(FVector2D(0.0f, 0.0f), Size));
+		return GetLayoutBoundingRect(FSlateRect(FVector2f(0.0f, 0.0f), FVector2f(Size)));
 	}
 
 	FORCEINLINE_DEBUGGABLE FSlateRect GetLayoutBoundingRect(const FMargin& LocalSpaceExtendBy) const
 	{
-		return GetLayoutBoundingRect(FSlateRect(FVector2D::ZeroVector, Size).ExtendBy(LocalSpaceExtendBy));
+		return GetLayoutBoundingRect(FSlateRect(FVector2f::ZeroVector, FVector2f(Size)).ExtendBy(LocalSpaceExtendBy));
 	}
 
 	FORCEINLINE_DEBUGGABLE FSlateRect GetLayoutBoundingRect(const FSlateRect& LocalSpaceRect) const
@@ -464,12 +474,12 @@ public:
 
 	FORCEINLINE_DEBUGGABLE FSlateRect GetRenderBoundingRect() const
 	{
-		return GetRenderBoundingRect(FSlateRect(FVector2D(0.0f, 0.0f), Size));
+		return GetRenderBoundingRect(FSlateRect(FVector2f(0.0f, 0.0f), FVector2f(Size)));
 	}
 
 	FORCEINLINE_DEBUGGABLE FSlateRect GetRenderBoundingRect(const FMargin& LocalSpaceExtendBy) const
 	{
-		return GetRenderBoundingRect(FSlateRect(FVector2D::ZeroVector, Size).ExtendBy(LocalSpaceExtendBy));
+		return GetRenderBoundingRect(FSlateRect(FVector2f::ZeroVector, FVector2f(Size)).ExtendBy(LocalSpaceExtendBy));
 	}
 
 	FORCEINLINE_DEBUGGABLE FSlateRect GetRenderBoundingRect(const FSlateRect& LocalSpaceRect) const
@@ -486,13 +496,13 @@ public:
 	 * Absolute coordinates could be either desktop or window space depending on what space the root of the widget hierarchy is in.
 	 *
 	 * @return the size of the geometry in absolute space */
-	FORCEINLINE_DEBUGGABLE FVector2D GetDrawSize() const
+	FORCEINLINE_DEBUGGABLE UE::Slate::FDeprecateVector2DResult GetDrawSize() const
 	{
-		return TransformVector(GetAccumulatedLayoutTransform(), Size);
+		return UE::Slate::FDeprecateVector2DResult(TransformVector(GetAccumulatedLayoutTransform(), FVector2f(Size)));
 	}
 
 	/** @return the size of the geometry in local space. */
-	FORCEINLINE const FVector2D& GetLocalSize() const { return Size; }
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetLocalSize() const { return Size; }
 
 	/** @return the accumulated render transform. Shouldn't be needed in general. */
 	FORCEINLINE const FSlateRenderTransform& GetAccumulatedRenderTransform() const { return AccumulatedRenderTransform; }
@@ -500,7 +510,7 @@ public:
 	/** @return the accumulated layout transform. Shouldn't be needed in general. */
 	FORCEINLINE FSlateLayoutTransform GetAccumulatedLayoutTransform() const
 	{
-		return FSlateLayoutTransform(Scale, FVector2D(AbsolutePosition));
+		return FSlateLayoutTransform(Scale, AbsolutePosition);
 	}
 
 	/**
@@ -522,17 +532,17 @@ public:
 	/**
 	 * Get the absolute position in render space.
 	 */
-	FORCEINLINE FVector2D GetAbsolutePosition() const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetAbsolutePosition() const
 	{
-		return AccumulatedRenderTransform.TransformPoint(FVector2D::ZeroVector);
+		return UE::Slate::FDeprecateVector2DResult(AccumulatedRenderTransform.TransformPoint(FVector2f::ZeroVector));
 	}
 
 	/**
 	 * Get the absolute size of the geometry in render space.
 	 */
-	FORCEINLINE FVector2D GetAbsoluteSize() const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetAbsoluteSize() const
 	{
-		return AccumulatedRenderTransform.TransformVector(GetLocalSize());
+		return UE::Slate::FDeprecateVector2DResult(AccumulatedRenderTransform.TransformVector(FVector2f(GetLocalSize())));
 	}
 
 	/**
@@ -540,11 +550,11 @@ public:
 	 *   (0,0) - upper left
 	 *   (1,1) - bottom right
 	 *
-	 * Example: Say you wanted to know the center of the widget in absolute space, GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
+	 * Example: Say you wanted to know the center of the widget in absolute space, GetAbsolutePositionAtCoordinates(FVector2f(0.5f, 0.5f));
 	 */
-	FORCEINLINE FVector2D GetAbsolutePositionAtCoordinates(const FVector2D& NormalCoordinates) const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetAbsolutePositionAtCoordinates(const UE::Slate::FDeprecateVector2DParameter& NormalCoordinates) const
 	{
-		return AccumulatedRenderTransform.TransformPoint(NormalCoordinates * GetLocalSize());
+		return UE::Slate::FDeprecateVector2DResult(AccumulatedRenderTransform.TransformPoint(FVector2f(NormalCoordinates) * FVector2f(GetLocalSize())));
 	}
 
 	/**
@@ -552,11 +562,11 @@ public:
 	 *   (0,0) - upper left
 	 *   (1,1) - bottom right
 	 *
-	 * Example: Say you wanted to know the center of the widget in local space, GetLocalPositionAtCoordinates(FVector2D(0.5f, 0.5f));
+	 * Example: Say you wanted to know the center of the widget in local space, GetLocalPositionAtCoordinates(FVector2f(0.5f, 0.5f));
 	 */
-	FORCEINLINE FVector2D GetLocalPositionAtCoordinates(const FVector2D& NormalCoordinates) const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetLocalPositionAtCoordinates(const UE::Slate::FDeprecateVector2DParameter& NormalCoordinates) const
 	{
-		return FVector2D(Position) + (NormalCoordinates * GetLocalSize());
+		return UE::Slate::FDeprecateVector2DResult(Position + (FVector2f(NormalCoordinates) * GetLocalSize()));
 	}
 
 	bool HasRenderTransform() const { return bHasRenderTransform; }
@@ -572,7 +582,7 @@ public:
 	 * 
 	 * Size of the geometry in local space.
 	 */
-	const FVector2D /*Local*/Size;
+	const FDeprecateSlateVector2D /*Local*/Size;
 
 	/** 
 	 * !!! DEPRECATED !!! These legacy public members should ideally not be referenced, as they do not account for the render transform.

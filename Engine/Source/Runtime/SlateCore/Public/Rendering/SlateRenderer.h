@@ -326,22 +326,6 @@ public:
 
 	virtual bool GenerateDynamicImageResource(FName ResourceName, FSlateTextureDataRef TextureData) { return false; }
 
-	/**
-	 * Creates a resource handle with a specific size and scale (for brushes with dynamic resizing such as vector art)
-	 * A handle is used as fast path for looking up a rendering resource for a given brush when adding Slate draw elements
-	 * This can be cached and stored safely in code.  It will become invalid when a resource is destroyed
-	 * It is expensive to create a resource so do not do it in time sensitive areas
-	 *
-	 * @param	Brush		The brush to get a rendering resource handle
-	 * @param	LocalSize	The local size of the element using the brush (Vector graphics only)
-	 * @param	DrawScale	The draw scale of the element using the brush (Vector graphics only)
-	 * @return	The created resource handle.
-	 */
-	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use GetResourceHandle(FName,FVector2f, float)")
-	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2d LocalSize, float DrawScale)
-	{
-		return GetResourceHandle(Brush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
-	}
 	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale) = 0;
 
 	/**

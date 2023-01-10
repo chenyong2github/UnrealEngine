@@ -772,7 +772,7 @@ int32 SCurveEditor::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 		(
 		OutDrawElements,
 		BackgroundLayerId,
-		CurveAreaGeometry.ToPaintGeometry(FVector2D(ZeroInputX, 0), FVector2D(TimelineMaxX - ZeroInputX, CurveAreaGeometry.GetLocalSize().Y)),
+		CurveAreaGeometry.ToPaintGeometry(FVector2D(TimelineMaxX - ZeroInputX, CurveAreaGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(ZeroInputX, 0.f))),
 		TimelineAreaBrush,
 		DrawEffects,
 		TimelineAreaBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -803,7 +803,7 @@ int32 SCurveEditor::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 		(
 			OutDrawElements,
 			ZeroLineLayerId,
-			CurveAreaGeometry.ToPaintGeometry( FVector2D(0, ZeroOutputY), FVector2D(CurveAreaGeometry.Size.X, 1) ),
+			CurveAreaGeometry.ToPaintGeometry( FVector2D(CurveAreaGeometry.Size.X, 1), FSlateLayoutTransform(FVector2D(0.f, ZeroOutputY)) ),
 			WhiteBrush,
 			DrawEffects,
 			WhiteBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint()
@@ -1013,7 +1013,7 @@ void SCurveEditor::PaintKeys(TSharedPtr<FCurveViewModel> CurveViewModel, FTrackS
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerToUse,
-			AllottedGeometry.ToPaintGeometry( KeyIconLocation, CONST_KeySize ),
+			AllottedGeometry.ToPaintGeometry( CONST_KeySize, FSlateLayoutTransform(KeyIconLocation) ),
 			KeyBrush,
 			DrawEffects,
 			KeyBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint() * KeyColor * SelectionTint
@@ -1058,8 +1058,8 @@ void SCurveEditor::PaintTangent( TSharedPtr<FCurveViewModel> CurveViewModel, FTr
 
 	//Add lines from tangent control point to 'key'
 	TArray<FVector2D> LinePoints;
-	LinePoints.Add(KeyLocation);
-	LinePoints.Add(ArriveTangentLocation);
+	LinePoints.Add(FVector2D(KeyLocation));
+	LinePoints.Add(FVector2D(ArriveTangentLocation));
 	FSlateDrawElement::MakeLines(
 		OutDrawElements,
 		LayerId,
@@ -1070,8 +1070,8 @@ void SCurveEditor::PaintTangent( TSharedPtr<FCurveViewModel> CurveViewModel, FTr
 		);
 
 	LinePoints.Empty();
-	LinePoints.Add(KeyLocation);
-	LinePoints.Add(LeaveTangentLocation);
+	LinePoints.Add(FVector2D(KeyLocation));
+	LinePoints.Add(FVector2D(LeaveTangentLocation));
 	FSlateDrawElement::MakeLines(
 		OutDrawElements,
 		LayerId,
@@ -1085,7 +1085,7 @@ void SCurveEditor::PaintTangent( TSharedPtr<FCurveViewModel> CurveViewModel, FTr
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerToUse,
-		AllottedGeometry.ToPaintGeometry(ArriveTangentIconLocation, CONST_TangentSize ),
+		AllottedGeometry.ToPaintGeometry( CONST_TangentSize, FSlateLayoutTransform(ArriveTangentIconLocation) ),
 		ArriveTangentSelected ? TangentBrushSelected : TangentBrush,
 		DrawEffects,
 		ArriveTangentSelected ? TangentBrushSelected->GetTint( InWidgetStyle ) * ArriveSelectionTint : TangentBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint() * ArriveSelectionTint
@@ -1094,7 +1094,7 @@ void SCurveEditor::PaintTangent( TSharedPtr<FCurveViewModel> CurveViewModel, FTr
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerToUse,
-		AllottedGeometry.ToPaintGeometry(LeaveTangentIconLocation, CONST_TangentSize ),
+		AllottedGeometry.ToPaintGeometry( CONST_TangentSize, FSlateLayoutTransform(LeaveTangentIconLocation) ),
 		LeaveTangentSelected ? TangentBrushSelected : TangentBrush,
 		DrawEffects,
 		LeaveTangentSelected ? TangentBrushSelected->GetTint( InWidgetStyle ) * LeaveSelectionTint : TangentBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint() * LeaveSelectionTint
@@ -1160,7 +1160,7 @@ void SCurveEditor::PaintGridLines(const FGeometry &AllottedGeometry, FTrackScale
 					if (bDrawInputGridNumbers)
 					{
 						FString TimeStr = FString::Printf(TEXT("%.2f"), Time);
-						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(X, 0.0), FVector2D(1.0f, ScaleX )).ToPaintGeometry(),TimeStr,
+						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(1.0f, ScaleX ), FSlateLayoutTransform(FVector2D(X, 0.0))).ToPaintGeometry(),TimeStr,
 							FAppStyle::GetFontStyle("CurveEd.InfoFont"), DrawEffects, GridTextColor );
 					}
 
@@ -1211,12 +1211,12 @@ void SCurveEditor::PaintGridLines(const FGeometry &AllottedGeometry, FTrackScale
 						FVector2D DrawSize = FontMeasureService->Measure(ValueStr, Font);
 
 						// draw at the start
-						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(0.0f, Y), FVector2D(ScaleY, 1.0f )).ToPaintGeometry(),ValueStr,
-												 Font, DrawEffects, GridTextColor );
+						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(ScaleY, 1.0f ), FSlateLayoutTransform(FVector2D(0.0f, Y))).ToPaintGeometry(),
+							ValueStr, Font, DrawEffects, GridTextColor );
 
 						// draw at the last since sometimes start can be hidden
-						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(AllottedGeometry.GetLocalSize().X-DrawSize.X, Y), FVector2D(ScaleY, 1.0f )).ToPaintGeometry(),ValueStr,
-												 Font, DrawEffects, GridTextColor );
+						FSlateDrawElement::MakeText(OutDrawElements,LayerId,AllottedGeometry.MakeChild(FVector2D(ScaleY, 1.0f ), FSlateLayoutTransform(FVector2D(AllottedGeometry.GetLocalSize().X-DrawSize.X, Y))).ToPaintGeometry(),
+							ValueStr, Font, DrawEffects, GridTextColor );
 					}
 					
 					LinePoints.Empty();
@@ -1241,7 +1241,7 @@ void SCurveEditor::PaintMarquee(const FGeometry& AllottedGeometry, const FSlateR
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry(MarqueTopLeft, MarqueBottomRight - MarqueTopLeft),
+		AllottedGeometry.ToPaintGeometry(MarqueBottomRight - MarqueTopLeft, FSlateLayoutTransform(MarqueTopLeft)),
 		FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 		);
 }

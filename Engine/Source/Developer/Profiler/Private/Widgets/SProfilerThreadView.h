@@ -98,7 +98,7 @@ class SProfilerThreadView
 			, SummaryFont8Height( static_cast<float>(FontMeasureService->Measure( TEXT( "!" ), SummaryFont8 ).Y) )
 		{}
 
-		const FVector2D& Size2D() const
+		FVector2f Size2D() const
 		{
 			return AllottedGeometry.GetLocalSize();
 		}

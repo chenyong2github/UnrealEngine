@@ -261,7 +261,7 @@ int32 STreeMap::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeomet
 					// Draw the visual's background box
 					const FVector2D VisualPosition = BlendedVisual.Position;
 					const FSlateRect VisualClippingRect = TransformRect( AllottedGeometry.GetAccumulatedLayoutTransform(), FSlateRect( VisualPosition, VisualPosition + BlendedVisual.Size ) );
-					const auto VisualPaintGeometry = AllottedGeometry.ToPaintGeometry( VisualPosition, BlendedVisual.Size );
+					const auto VisualPaintGeometry = AllottedGeometry.ToPaintGeometry( BlendedVisual.Size, FSlateLayoutTransform(VisualPosition) );
 					auto DrawColor = InWidgetStyle.GetColorAndOpacityTint() * ThisNodeBackground->TintColor.GetColor( InWidgetStyle ) * BlendedVisual.Color;
 
 					OutDrawElements.PushClip(FSlateClippingZone(VisualClippingRect));
@@ -291,7 +291,7 @@ int32 STreeMap::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeomet
 							const float SizeDifference = LargestSize - BlendedVisual.Size.X;
 							BackgroundPosition.X -= SizeDifference * 0.5f;
 						}
-						const auto BackgroundPaintGeometry = AllottedGeometry.ToPaintGeometry( BackgroundPosition, BackgroundSize );
+						const auto BackgroundPaintGeometry = AllottedGeometry.ToPaintGeometry( BackgroundSize, FSlateLayoutTransform(BackgroundPosition) );
 
 						const FSlateRect BackgroundClippingRect = VisualClippingRect.InsetBy( FMargin( 1 ) );
 
@@ -379,7 +379,7 @@ int32 STreeMap::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeomet
 						const FVector2D ScreenSpaceVisualSize( AllottedGeometry.Scale * BlendedVisual.Size );
 						if( ScreenSpaceVisualSize.X > 20 )
 						{
-							FGeometry VisualGeometry = AllottedGeometry.MakeChild(VisualPosition, BlendedVisual.Size);
+							FGeometry VisualGeometry = AllottedGeometry.MakeChild(BlendedVisual.Size, FSlateLayoutTransform(VisualPosition));
 							const FPaintGeometry VisualPaintGeometry = VisualGeometry.ToPaintGeometry();
 
 							
@@ -491,7 +491,7 @@ int32 STreeMap::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeomet
 			FSlateDrawElement::MakeSpline(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry(  ShadowOffset, FVector2D( 1.0, 1.0f ) ),
+				AllottedGeometry.ToPaintGeometry( FVector2f( 1.0, 1.0f ), FSlateLayoutTransform(ShadowOffset) ),
 				SplineStart,
 				SplineStartDir,
 				SplineEnd,

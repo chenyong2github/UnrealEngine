@@ -24,7 +24,7 @@ public:
 
 	static TSharedRef<FDeferredCleanupSlateBrush> CreateBrush(
 		class UObject* InResource,
-		const FVector2D& InImageSize,
+		const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f),
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile,
 		ESlateBrushImageType::Type InImageType = ESlateBrushImageType::FullColor,

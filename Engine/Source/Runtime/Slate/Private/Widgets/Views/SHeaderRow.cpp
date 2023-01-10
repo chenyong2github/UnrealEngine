@@ -284,9 +284,9 @@ public:
 		return EVisibility::Visible;
 	}
 
-	FVector2D GetMenuOverlaySize() const 
+	UE::Slate::FDeprecateVector2DResult GetMenuOverlaySize() const 
 	{ 
-		return MenuOverlay.IsValid() ? MenuOverlay->GetDesiredSize() : FVector2D::ZeroVector; 
+		return MenuOverlay.IsValid() ? MenuOverlay->GetDesiredSize() : FVector2f::ZeroVector; 
 	}
 
 private:
@@ -421,7 +421,7 @@ private:
 	{
 		if ( ContextMenuContent != SNullWidget::NullWidget )
 		{
-			const FVector2D& SummonLocation = MouseEvent.GetScreenSpacePosition();
+			FVector2f SummonLocation = MouseEvent.GetScreenSpacePosition();
 			FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 
 			FSlateApplication::Get().CloseToolTip();
@@ -462,7 +462,7 @@ void SHeaderRow::Construct( const FArguments& InArgs )
 {
 	check(InArgs._Style);
 
-	ScrollBarThickness = FVector2D::ZeroVector;
+	ScrollBarThickness = FVector2f::ZeroVector;
 	ScrollBarVisibility = EVisibility::Collapsed;
 	Style = InArgs._Style;
 	OnGetMaxRowSizeForColumn = InArgs._OnGetMaxRowSizeForColumn;
@@ -608,7 +608,7 @@ FVector2D SHeaderRow::GetRowSizeForSlotIndex(int32 SlotIndex) const
 		const TSharedPtr<STableColumnHeader>& HeaderWidget = HeaderWidgets[SlotIndex];
 		const FColumn& Column = Columns[SlotIndex];
 
-		FVector2D HeaderSize = HeaderWidget->GetDesiredSize();
+		FVector2D HeaderSize = FVector2D(HeaderWidget->GetDesiredSize());
 
 		if (Column.HeaderMenuContent.Widget != SNullWidget::NullWidget && HeaderWidget->GetMenuOverlayVisibility() != EVisibility::Visible)
 		{
@@ -681,7 +681,7 @@ FReply SHeaderRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEv
 {
 	if (bCanSelectGeneratedColumn && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		const FVector2D& SummonLocation = MouseEvent.GetScreenSpacePosition();
+		FVector2f SummonLocation = MouseEvent.GetScreenSpacePosition();
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 
 		const bool CloseAfterSelection = true;

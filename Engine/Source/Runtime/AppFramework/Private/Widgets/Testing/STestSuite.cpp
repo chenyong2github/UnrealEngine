@@ -926,7 +926,7 @@ private:
 		FSlateDrawElement::MakeText(
 			InParams.OutDrawElements,
 			InParams.Layer,
-			InParams.Geometry.ToPaintGeometry(FVector2D(0,0), InParams.Geometry.GetLocalSize(), FontScale),
+			InParams.Geometry.ToPaintGeometry(InParams.Geometry.GetLocalSize(), FSlateLayoutTransform(FontScale)),
 			Text.ToString(),
 			FontInfo,
 			InParams.bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,

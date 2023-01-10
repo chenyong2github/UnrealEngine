@@ -17,7 +17,7 @@
 
 FSlateStyleSet::FSlateStyleSet(const FName& InStyleSetName)
 : StyleSetName(InStyleSetName)
-, DefaultBrush(new FSlateImageBrush(FPaths::EngineContentDir() / TEXT("Slate/Checkerboard.png"), FVector2D(16, 16), FLinearColor::White, ESlateBrushTileType::Both))
+, DefaultBrush(new FSlateImageBrush(FPaths::EngineContentDir() / TEXT("Slate/Checkerboard.png"), FVector2f(16.f, 16.f), FLinearColor::White, ESlateBrushTileType::Both))
 {
 	// Add a mapping so that this resource will be discovered by GetStyleResources.
 	Set(TEXT("Default"), GetDefaultBrush());
@@ -197,7 +197,7 @@ float FSlateStyleSet::GetFloat(const FName PropertyName, const ANSICHAR* Specifi
 
 FVector2D FSlateStyleSet::GetVector(const FName PropertyName, const ANSICHAR* Specifier, FVector2D DefaultValue, const ISlateStyle* RequestingStyle) const
 {
-	const FVector2D* const Result = Vector2DValues.Find(Join(PropertyName, Specifier));
+	const FVector2f* const Result = Vector2DValues.Find(Join(PropertyName, Specifier));
 
 	if (Result == nullptr) 
 	{
@@ -213,7 +213,7 @@ FVector2D FSlateStyleSet::GetVector(const FName PropertyName, const ANSICHAR* Sp
 		ReportingStyle->LogMissingResource(EStyleMessageSeverity::Warning, FText::Format(NSLOCTEXT("SlateStyleSet", "UknownSlateVector", "Unable to find vector property '{0}' in style."), FText::FromName(PropertyName)), PropertyName);
 	}
 
-	return Result ? *Result : DefaultValue;
+	return Result ? FVector2D(*Result) : DefaultValue;
 }
 
 const FLinearColor& FSlateStyleSet::GetColor(const FName PropertyName, const ANSICHAR* Specifier, const FLinearColor& DefaultValue, const ISlateStyle* RequestingStyle) const

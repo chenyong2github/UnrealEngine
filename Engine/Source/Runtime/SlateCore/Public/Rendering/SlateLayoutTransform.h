@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Math/TransformCalculus.h"
 #include "Math/TransformCalculus2D.h"
+#include "Types/SlateVector2.h"
 
 /**
  * Represents a 2D transformation in the following order: scale then translate.
@@ -25,25 +26,22 @@ public:
 	}
 
 	/** Ctor from a scale followed by translate. Shortcut to Concatenate(InScale, InTranslation). */
-	template<typename VType>
-	explicit FSlateLayoutTransform(float InScale, const UE::Math::TVector2<VType>& InTranslation)
-		:Scale(InScale)
-		,Translation(FVector2f(InTranslation))
+	explicit FSlateLayoutTransform(float InScale, const UE::Slate::FDeprecateVector2DParameter& InTranslation)
+		: Scale(InScale)
+		, Translation(FVector2f(InTranslation))
 	{
 	}
 
-	/** Ctor from a 2D translation followed by a scale. Shortcut to Concatenate(InTranslation, InScale). While this is the opposite order we internally store them, we can represent this correctly. */
-	template<typename VType>
-	explicit FSlateLayoutTransform(const UE::Math::TVector2<VType>& InTranslation)
+	explicit FSlateLayoutTransform(const UE::Slate::FDeprecateVector2DParameter& InTranslation)
 		:Scale(1.0f)
 		,Translation(FVector2f(InTranslation))
 	{
 	}
 
 	/** Access to the 2D translation */
-	FVector2D GetTranslation() const
+	UE::Slate::FDeprecateVector2DResult GetTranslation() const
 	{
-		return FVector2D(Translation);
+		return UE::Slate::FDeprecateVector2DResult(Translation);
 	}
 
 	/** Access to the scale. */
@@ -56,22 +54,18 @@ public:
 	FMatrix ToMatrix() const
 	{
 		FMatrix Matrix = FScaleMatrix(GetScale());
-		Matrix.SetOrigin(FVector(GetTranslation(), 0.0f));
+		Matrix.SetOrigin(FVector(FVector2d(Translation), 0.0f));
 		return Matrix;
 	}
 
-	/** 2D transform support. */
-	template<typename VType>
-	UE::Math::TVector2<VType> TransformPoint(const UE::Math::TVector2<VType>& Point) const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult TransformPoint(const UE::Slate::FDeprecateVector2DParameter& Point) const
 	{
-		return ::TransformPoint((UE::Math::TVector2<VType>)Translation, ::TransformPoint(Scale, Point));
+		return UE::Slate::FDeprecateVector2DResult(::TransformPoint(Translation, ::TransformPoint(Scale, FVector2f(Point))));
 	}
 
-	/** 2D transform support. */
-	template<typename VType>
-	UE::Math::TVector2<VType> TransformVector(const UE::Math::TVector2<VType>& Vector) const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult TransformVector(const UE::Slate::FDeprecateVector2DParameter& Vector) const
 	{
-		return ::TransformVector((UE::Math::TVector2<VType>)Translation, ::TransformVector(Scale, Vector));
+		return UE::Slate::FDeprecateVector2DResult(::TransformVector(Translation, ::TransformVector(Scale, FVector2f(Vector))));
 	}
 
 	/**
@@ -169,6 +163,6 @@ template<> template<> inline TTransform2<float> TransformConverter<TTransform2<f
 
 template<> template<> inline TTransform2<double> TransformConverter<TTransform2<double>>::Convert<FSlateLayoutTransform>(const FSlateLayoutTransform& Transform)
 {
-	return TTransform2<double>(TScale2<double>(Transform.GetScale()), Transform.GetTranslation());
+	return TTransform2<double>(TScale2<double>(Transform.GetScale()), UE::Math::TVector2<double>(UE::Slate::CastToVector2f(Transform.GetTranslation())));
 }
 

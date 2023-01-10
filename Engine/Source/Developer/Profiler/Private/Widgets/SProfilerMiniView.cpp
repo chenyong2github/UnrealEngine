@@ -119,7 +119,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry( FVector2D( 0, 0 ), FVector2D( MiniViewSizeX, AllottedGeometry.Size.Y ) ),
+		AllottedGeometry.ToPaintGeometry( FVector2D( MiniViewSizeX, AllottedGeometry.Size.Y ), FSlateLayoutTransform() ),
 		MiniViewArea,
 		DrawEffects,
 		MiniViewArea->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint()
@@ -155,7 +155,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry( FVector2D( DestSamplePosX0, MiniViewSizeY - GTSizeY ), FVector2D( DestSampleSizeX, GTSizeY ) ),
+				AllottedGeometry.ToPaintGeometry( FVector2D( DestSampleSizeX, GTSizeY ), FSlateLayoutTransform(FVector2D( DestSamplePosX0, MiniViewSizeY - GTSizeY )) ),
 				&SolidWhiteBrush,
 				DrawEffects,
 				GameThreadColor
@@ -166,7 +166,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry( FVector2D( DestSamplePosX0, MiniViewSizeY - GTSizeY - RTSizeY ), FVector2D( DestSampleSizeX, RTSizeY ) ),
+				AllottedGeometry.ToPaintGeometry( FVector2D( DestSampleSizeX, RTSizeY ), FSlateLayoutTransform(FVector2D( DestSamplePosX0, MiniViewSizeY - GTSizeY - RTSizeY )) ),
 				&SolidWhiteBrush,
 				DrawEffects,
 				RenderThreadColor
@@ -204,7 +204,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry( FVector2D( 0.0, 0.0 ), FVector2D( SelectionBoxX0, AllottedGeometry.Size.Y ) ),
+				AllottedGeometry.ToPaintGeometry( FVector2D( SelectionBoxX0, AllottedGeometry.Size.Y ), FSlateLayoutTransform(FVector2D( 0.0, 0.0 )) ),
 				&SolidWhiteBrush,
 				DrawEffects,
 				FColorList::Grey.WithAlpha( 192 )
@@ -217,7 +217,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry( FVector2D( SelectionBoxX1, 0.0 ), FVector2D( MiniViewSizeX - SelectionBoxX1, AllottedGeometry.Size.Y ) ),
+				AllottedGeometry.ToPaintGeometry( FVector2D( MiniViewSizeX - SelectionBoxX1, AllottedGeometry.Size.Y ), FSlateLayoutTransform(FVector2D( SelectionBoxX1, 0.0 )) ),
 				&SolidWhiteBrush,
 				DrawEffects,
 				FColorList::Grey.WithAlpha( 192 )
@@ -233,7 +233,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry( FVector2D( FillerPosX0, 0.0 ), FVector2D( FillerSizeX + 1.0, AllottedGeometry.Size.Y ) ),
+				AllottedGeometry.ToPaintGeometry( FVector2D( FillerSizeX + 1.0, AllottedGeometry.Size.Y ), FSlateLayoutTransform(FVector2D( FillerPosX0, 0.0 )) ),
 				&SolidWhiteBrush,
 				DrawEffects,
 				// #Profiler: 2014-04-09 How to get this color from Slate?
@@ -247,7 +247,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 		(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry( FVector2D( SelectionBoxX0, 0.0 ), FVector2D( SelectionBoxX1 - SelectionBoxX0, AllottedGeometry.Size.Y ) ),
+			AllottedGeometry.ToPaintGeometry( FVector2D( SelectionBoxX1 - SelectionBoxX0, AllottedGeometry.Size.Y ), FSlateLayoutTransform(FVector2D( SelectionBoxX0, 0.0 )) ),
 			FProfilerStyle::Get().GetBrush( "PlainBorder" ),
 			DrawEffects,
 			FColorList::Green

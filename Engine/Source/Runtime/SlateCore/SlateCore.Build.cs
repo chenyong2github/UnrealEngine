@@ -6,6 +6,8 @@ public class SlateCore : ModuleRules
 {
 	public SlateCore(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateDefinitions.Add("UE_REPORT_SLATE_VECTOR_DEPRECATION=1");
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

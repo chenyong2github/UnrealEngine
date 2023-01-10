@@ -124,7 +124,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 	AmountScrolledWhileRightMouseDown = 0;
 	PendingScrollTriggerAmount = 0;
 	bShowSoftwareCursor = false;
-	SoftwareCursorPosition = FVector2D::ZeroVector;
+	SoftwareCursorPosition = FVector2f::ZeroVector;
 	OnUserScrolled = InArgs._OnUserScrolled;
 	Orientation = InArgs._Orientation;
 	bScrollToEnd = false;
@@ -429,7 +429,7 @@ bool SScrollBox::InternalScrollDescendantIntoView(const FGeometry& MyGeometry, c
 			{
 				// Calculate how much we would need to scroll to bring this to the top/left of the scroll box
 				const float WidgetPosition = GetScrollComponentFromVector(MyGeometry.AbsoluteToLocal(WidgetGeometry->Geometry.GetAbsolutePosition()) + (WidgetGeometry->Geometry.GetLocalSize() / 2));
-				const float MyPosition = GetScrollComponentFromVector(MyGeometry.GetLocalSize() * FVector2D(0.5f, 0.5f));
+				const float MyPosition = GetScrollComponentFromVector(MyGeometry.GetLocalSize() * FVector2f(0.5f, 0.5f));
 				ScrollOffset = WidgetPosition - MyPosition;
 			}
 			else
@@ -516,7 +516,7 @@ void SScrollBox::SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible)
 	ScrollBar->SetScrollBarTrackAlwaysVisible(InAlwaysVisible);
 }
 
-void SScrollBox::SetScrollBarThickness(FVector2D InThickness)
+void SScrollBox::SetScrollBarThickness(UE::Slate::FDeprecateVector2DParameter InThickness)
 {
 	ScrollBar->SetThickness(InThickness);
 }
@@ -720,7 +720,7 @@ FReply SScrollBox::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerE
 		if ( HasMouseCapture() )
 		{
 			FSlateRect PanelScreenSpaceRect = MyGeometry.GetLayoutBoundingRect();
-			FVector2D CursorPosition = MyGeometry.LocalToAbsolute( SoftwareCursorPosition );
+			FVector2f CursorPosition = MyGeometry.LocalToAbsolute( SoftwareCursorPosition );
 
 			FIntPoint BestPositionInPanel(
 				FMath::RoundToInt( FMath::Clamp( CursorPosition.X, PanelScreenSpaceRect.Left, PanelScreenSpaceRect.Right ) ),
@@ -1078,12 +1078,12 @@ int32 SScrollBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	}
 
 	const FSlateBrush* Brush = FCoreStyle::Get().GetBrush(TEXT("SoftwareCursor_Grab"));
-	const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
+	const FVector2f CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		++NewLayerId,
-		AllottedGeometry.ToPaintGeometry( SoftwareCursorPosition - (CursorSize / 2 ), CursorSize),
+		AllottedGeometry.ToPaintGeometry( CursorSize, FSlateLayoutTransform(SoftwareCursorPosition - (CursorSize *.5f )) ),
 		Brush
 	);
 

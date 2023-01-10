@@ -35,7 +35,7 @@ public:
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				++LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0.f, 0.f), FVector2D(RightMarginX, AllottedGeometry.Size.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(RightMarginX, AllottedGeometry.Size.Y), FSlateLayoutTransform()),
 				FAppStyle::GetBrush(WaveformTransformationDurationHiglightParams::BackgroundBrushName),
 				ESlateDrawEffect::None,
 				WaveformTransformationDurationHiglightParams::BoxColor);
@@ -49,7 +49,7 @@ public:
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				++LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(LeftMarginX, 0.f), FVector2D(AllottedGeometry.Size.X, AllottedGeometry.Size.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.Size.X, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2D(LeftMarginX, 0.f))),
 				FAppStyle::GetBrush(WaveformTransformationDurationHiglightParams::BackgroundBrushName),
 				ESlateDrawEffect::None,
 				WaveformTransformationDurationHiglightParams::BoxColor);

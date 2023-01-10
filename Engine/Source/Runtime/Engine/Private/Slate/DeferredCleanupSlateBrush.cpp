@@ -18,7 +18,7 @@ TSharedRef<FDeferredCleanupSlateBrush> FDeferredCleanupSlateBrush::CreateBrush(
 {
 	FSlateBrush Brush;
 	Brush.SetResourceObject(InTexture);
-	Brush.ImageSize = FVector2D(InTexture->GetSurfaceWidth(), InTexture->GetSurfaceHeight());
+	Brush.ImageSize = FVector2f(InTexture->GetSurfaceWidth(), InTexture->GetSurfaceHeight());
 	Brush.TintColor = InTint;
 	Brush.Margin = InMargin;
 	Brush.Tiling = InTiling;
@@ -30,7 +30,7 @@ TSharedRef<FDeferredCleanupSlateBrush> FDeferredCleanupSlateBrush::CreateBrush(
 
 TSharedRef<FDeferredCleanupSlateBrush> FDeferredCleanupSlateBrush::CreateBrush(
 	UObject* InResource,
-	const FVector2D& InImageSize,
+	const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 	const FLinearColor& InTint,
 	ESlateBrushTileType::Type InTiling,
 	ESlateBrushImageType::Type InImageType,

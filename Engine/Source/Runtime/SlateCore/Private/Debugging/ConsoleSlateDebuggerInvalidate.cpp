@@ -646,13 +646,13 @@ void FConsoleSlateDebuggerInvalidate::HandlePaintDebugInfo(const FPaintArgs& InA
 	CacheDuration = FMath::Max(CacheDuration, 0.01f);
 	const double SlateApplicationCurrentTime = FSlateApplicationBase::Get().GetCurrentTime();
 
-	FVector2D TextElementLocation {16.f, 64.f};
+	FVector2f TextElementLocation {16.f, 64.f};
 	auto MakeText = [&](const FString& Text, const FLinearColor& Color)
 	{
 		FSlateDrawElement::MakeText(
 			InOutDrawElements
 			, InOutLayerId
-			, InAllottedGeometry.ToPaintGeometry(TextElementLocation, FVector2D(1.f, 1.f))
+			, InAllottedGeometry.ToPaintGeometry(FVector2f(1.f, 1.f), FSlateLayoutTransform(TextElementLocation))
 			, Text
 			, FontInfo
 			, ESlateDrawEffect::None
@@ -745,7 +745,7 @@ void FConsoleSlateDebuggerInvalidate::HandlePaintDebugInfo(const FPaintArgs& InA
 		FSlateDrawElement::MakeText(
 			InOutDrawElements
 			, InOutLayerId
-			, InAllottedGeometry.ToPaintGeometry(TextElementLocation, FVector2D(1.f, 1.f))
+			, InAllottedGeometry.ToPaintGeometry(FVector2f(1.f, 1.f), FSlateLayoutTransform(TextElementLocation))
 			, FString::Printf(TEXT("Slate Performance Threshold Reached: %d"), LastPerformanceThresholdFrameCount)
 			, NormalFontInfo
 			, ESlateDrawEffect::None

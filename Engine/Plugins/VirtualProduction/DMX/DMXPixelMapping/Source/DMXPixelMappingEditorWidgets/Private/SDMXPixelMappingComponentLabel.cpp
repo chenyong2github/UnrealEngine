@@ -76,7 +76,7 @@ void SDMXPixelMappingComponentLabel::SetText(const FText& Text)
 	LabelTextBlock->SetText(Text);
 }
 
-const FVector2D& SDMXPixelMappingComponentLabel::GetLocalSize() const
+FVector2f SDMXPixelMappingComponentLabel::GetLocalSize() const
 {
 	return GetCachedGeometry().GetLocalSize();
 }

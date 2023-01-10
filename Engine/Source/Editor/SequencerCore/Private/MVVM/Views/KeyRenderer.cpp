@@ -790,11 +790,11 @@ int32 FKeyRenderer::Draw(const FKeyBatchParameters& Params, const FGeometry& All
 			bSelected ? LayerId + 1 : LayerId,
 			// Center the key along Y.  Ensure the middle of the key is at the actual key time
 			AllottedGeometry.ToPaintGeometry(
-				FVector2D(
+				KeySize,
+				FSlateLayoutTransform(FVector2f(
 					KeyPositionPx - FMath::CeilToFloat(KeySize.X / 2.0f),
 					((AllottedGeometry.GetLocalSize().Y / 2.0f) - (KeySize.Y / 2.0f))
-				),
-				KeySize
+				))
 			),
 			KeyDrawParams.BorderBrush,
 			KeyDrawEffects,
@@ -808,12 +808,14 @@ int32 FKeyRenderer::Draw(const FKeyBatchParameters& Params, const FGeometry& All
 			bSelected ? LayerId + 2 : LayerId + 1,
 			// Center the key along Y.  Ensure the middle of the key is at the actual key time
 			AllottedGeometry.ToPaintGeometry(
-				KeyDrawParams.FillOffset + 
-				FVector2D(
-					(KeyPositionPx - FMath::CeilToFloat((KeySize.X / 2.0f) - BrushBorderWidth)),
-					((AllottedGeometry.GetLocalSize().Y / 2.0f) - ((KeySize.Y / 2.0f) - BrushBorderWidth))
-				),
-				KeySize - 2.0f * BrushBorderWidth
+				KeySize - 2.0f * BrushBorderWidth,
+				FSlateLayoutTransform(
+					KeyDrawParams.FillOffset + 
+					FVector2D(
+						(KeyPositionPx - FMath::CeilToFloat((KeySize.X / 2.0f) - BrushBorderWidth)),
+						((AllottedGeometry.GetLocalSize().Y / 2.0f) - ((KeySize.Y / 2.0f) - BrushBorderWidth))
+					)
+				)
 			),
 			KeyDrawParams.FillBrush,
 			KeyDrawEffects,

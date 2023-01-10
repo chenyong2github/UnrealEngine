@@ -174,12 +174,12 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 
 
 	float TextElementY = 48.f;
-	auto MakeText = [&](const FString& Text, const FVector2D& Location, const FLinearColor& Color)
+	auto MakeText = [&](const FString& Text, const FVector2f& Location, const FLinearColor& Color)
 	{
 		FSlateDrawElement::MakeText(
 			InOutDrawElements
 			, InOutLayerId
-			, InAllottedGeometry.ToPaintGeometry(Location, FVector2D(1.f, 1.f))
+			, InAllottedGeometry.ToPaintGeometry(FVector2f(1.f, 1.f), FSlateLayoutTransform(Location))
 			, Text
 			, FontInfo
 			, ESlateDrawEffect::None
@@ -202,9 +202,9 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 		//	ESlateDrawEffect::None,
 		//	FLinearColor::Black);
 
-		MakeText(TEXT("Slow Path"), FVector2D(10.f, 10.f+0.f), DrawSlowPathColor);
-		MakeText(TEXT("Fast Path"), FVector2D(10.f, 10.f+12.f), DrawFastPathColor);
-		MakeText(TEXT("No Paint occurred"), FVector2D(10.f, 10.f+24.f), DrawNoneColor);
+		MakeText(TEXT("Slow Path"), FVector2f(10.f, 10.f+0.f), DrawSlowPathColor);
+		MakeText(TEXT("Fast Path"), FVector2f(10.f, 10.f+12.f), DrawFastPathColor);
+		MakeText(TEXT("No Paint occurred"), FVector2f(10.f, 10.f+24.f), DrawNoneColor);
 		TextElementY += 36.f;
 	}
 
@@ -305,7 +305,7 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 				if (NumberOfWidget < MaxNumberOfWidgetInList)
 				{
 					FString WidgetDisplayName = FString::Printf(TEXT("Id:('%d') - %s"), Itt.Key, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
-					MakeText(WidgetDisplayName, FVector2D(0.f, (12.f * NumberOfWidget) + TextElementY), DrawColor);
+					MakeText(WidgetDisplayName, FVector2f(0.f, (12.f * NumberOfWidget) + TextElementY), DrawColor);
 				}
 			}
 			++NumberOfWidget;
@@ -315,7 +315,7 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 	if (bDisplayInvalidationRootList && NumberOfWidget == MaxNumberOfWidgetInList)
 	{
 		FString WidgetDisplayName = FString::Printf(TEXT("   %d more invalidation root"), NumberOfWidget - MaxNumberOfWidgetInList);
-		MakeText(WidgetDisplayName, FVector2D(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
+		MakeText(WidgetDisplayName, FVector2f(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
 	}
 }
 

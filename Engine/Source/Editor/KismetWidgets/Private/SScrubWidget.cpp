@@ -137,7 +137,7 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					BackgroundLayer,
-					AllottedGeometry.ToPaintGeometry(Offset, Size),
+					AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(Offset)),
 					StyleInfo,
 					DrawEffects,
 					InWidgetStyle.GetColorAndOpacityTint()
@@ -153,7 +153,7 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 				FSlateDrawElement::MakeText(
 					OutDrawElements,
 					TextLayer, 
-					AllottedGeometry.ToPaintGeometry(TextOffset, TextSize), 
+					AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextOffset)), 
 					FrameString, 
 					SmallLayoutFont, 
 					DrawEffects);
@@ -167,7 +167,7 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
  				FSlateDrawElement::MakeBox(
  					OutDrawElements,
  					BackgroundLayer,
-					AllottedGeometry.ToPaintGeometry(Offset, Size),
+					AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(Offset)),
  					StyleInfo,
  					DrawEffects,
  					InWidgetStyle.GetColorAndOpacityTint()
@@ -185,7 +185,7 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 			const double Height = AllottedGeometry.GetLocalSize().Y;
 			const FVector2D Offset( XPos - Height*0.25f, 0.f );
 
-			FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( Offset, FVector2D(Height * 0.5f, Height) );
+			FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2f(Height * 0.5f, Height), FSlateLayoutTransform(Offset) );
 			FLinearColor ScrubColor = InWidgetStyle.GetColorAndOpacityTint();
 			ScrubColor.A = ScrubColor.A*0.5f;
 			ScrubColor.B *= 0.1f;
@@ -216,7 +216,7 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					ArrowLayer+1,
-					AllottedGeometry.ToPaintGeometry(BarOffset, Size),
+					AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(BarOffset)),
 					StyleInfo,
 					DrawEffects,
 					BarColor

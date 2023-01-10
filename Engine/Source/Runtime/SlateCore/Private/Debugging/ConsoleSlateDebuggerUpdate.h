@@ -89,8 +89,8 @@ private:
 		void Update(const SWidget* Widget, EWidgetUpdateFlags InUpdateFlags);
 
 		FConsoleSlateDebuggerUtility::TSWindowId WindowId;
-		FVector2D PaintLocation;
-		FVector2D PaintSize;
+		FVector2f PaintLocation;
+		FVector2f PaintSize;
 		FString WidgetName;
 		EWidgetUpdateFlags UpdateFlags;
 		double LastInvalidationTime;

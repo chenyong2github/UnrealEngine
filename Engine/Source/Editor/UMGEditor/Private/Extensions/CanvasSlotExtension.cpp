@@ -562,9 +562,7 @@ void FCanvasSlotExtension::PaintDragPercentages(const TSet< FWidgetReference >& 
 				Designer->GetWidgetGeometry(Canvas, CanvasGeometry);
 				// Ignore all widget scales and only use the designer scale (text doesn't need the designer scale, however the rendered lines do)
 				const FGeometry IgnoreScale = CanvasGeometry.MakeChild(
-					FVector2D::ZeroVector,
-					CanvasGeometry.GetLocalSize(),
-					Inverse(CanvasGeometry.GetAccumulatedLayoutTransform().GetScale()) * Designer->GetPreviewScale() * AllottedGeometry.Scale
+					CanvasGeometry.GetLocalSize(), Inverse(CanvasGeometry.GetAccumulatedLayoutTransform().GetScale()) * Designer->GetPreviewScale() * AllottedGeometry.Scale
 				);
 				CanvasGeometry = Designer->MakeGeometryWindowLocal(IgnoreScale);
 
@@ -670,13 +668,13 @@ void FCanvasSlotExtension::PaintLineWithText(FVector2D Start, FVector2D End, FTe
 		Offset.Y += ((End - Start).Y - TextSize.Y) * TextTransform.Y;
 	}
 
-	const FGeometry ChildGeometry = AllottedGeometry.MakeChild(Start + Offset, AllottedGeometry.GetLocalSize());
+	const FGeometry ChildGeometry = AllottedGeometry.MakeChild(AllottedGeometry.GetLocalSize(), FSlateLayoutTransform(Start + Offset));
 
 	// Draw drop shadow
 	FSlateDrawElement::MakeText(
 		OutDrawElements,
 		LayerId,
-		ChildGeometry.ToPaintGeometry(FVector2D(1, 1), TextSize, InverseDesignerScale),
+		ChildGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(InverseDesignerScale, FVector2f(1.f, 1.f))),
 		Text,
 		AnchorFont,
 		ESlateDrawEffect::None,
@@ -687,7 +685,7 @@ void FCanvasSlotExtension::PaintLineWithText(FVector2D Start, FVector2D End, FTe
 	FSlateDrawElement::MakeText(
 		OutDrawElements,
 		++LayerId,
-		ChildGeometry.ToPaintGeometry(FVector2D::ZeroVector, TextSize, InverseDesignerScale),
+		ChildGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(InverseDesignerScale)),
 		Text,
 		AnchorFont,
 		ESlateDrawEffect::None,

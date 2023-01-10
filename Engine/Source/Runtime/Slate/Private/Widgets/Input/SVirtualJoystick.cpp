@@ -125,8 +125,9 @@ int32 SVirtualJoystick::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 					OutDrawElements,
 					RetLayerId++,
 					AllottedGeometry.ToPaintGeometry(
-					Control.VisualCenter - FVector2D(Control.CorrectedVisualSize.X * 0.5f, Control.CorrectedVisualSize.Y * 0.5f),
-					Control.CorrectedVisualSize),
+						Control.CorrectedVisualSize,
+						FSlateLayoutTransform(Control.VisualCenter - FVector2D(Control.CorrectedVisualSize.X * 0.5f, Control.CorrectedVisualSize.Y * 0.5f))
+					),
 					Control.Info.Image2->GetSlateBrush(),
 					ESlateDrawEffect::None,
 					ColorAndOpacitySRGB
@@ -139,8 +140,9 @@ int32 SVirtualJoystick::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 					OutDrawElements,
 					RetLayerId++,
 					AllottedGeometry.ToPaintGeometry(
-					Control.VisualCenter + Control.ThumbPosition - FVector2D(Control.CorrectedThumbSize.X * 0.5f, Control.CorrectedThumbSize.Y * 0.5f),
-					Control.CorrectedThumbSize),
+						Control.CorrectedThumbSize,
+						FSlateLayoutTransform(Control.VisualCenter + Control.ThumbPosition - FVector2D(Control.CorrectedThumbSize.X * 0.5f, Control.CorrectedThumbSize.Y * 0.5f))
+					),
 					Control.Info.Image1->GetSlateBrush(),
 					ESlateDrawEffect::None,
 					ColorAndOpacitySRGB

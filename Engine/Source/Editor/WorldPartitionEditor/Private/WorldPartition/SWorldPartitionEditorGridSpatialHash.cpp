@@ -94,8 +94,8 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		FLinearColor ShadowColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
 
 		FPaintGeometry GridGeometry = AllottedGeometry.ToPaintGeometry(
-			WorldToScreen.TransformPoint(FVector2D(VisibleMinimapRectWorld.Min)),
-			WorldToScreen.TransformPoint(FVector2D(VisibleMinimapRectWorld.Max)) - WorldToScreen.TransformPoint(FVector2D(VisibleMinimapRectWorld.Min))
+			WorldToScreen.TransformPoint(FVector2D(VisibleMinimapRectWorld.Max)) - WorldToScreen.TransformPoint(FVector2D(VisibleMinimapRectWorld.Min)),
+			FSlateLayoutTransform(WorldToScreen.TransformPoint(FVector2D(VisibleMinimapRectWorld.Min)))
 		);
 
 		FSlateDrawElement::MakeBox(
@@ -234,7 +234,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 						FSlateDrawElement::MakeText(
 							OutDrawElements,
 							++LayerId,
-							AllottedGeometry.ToPaintGeometry(WorldToScreen.TransformPoint(FVector2D(x + EffectiveCellSize / 2, y + EffectiveCellSize / 2)) - CoordTextSize / 2, FVector2D(1,1)),
+							AllottedGeometry.ToPaintGeometry(FVector2D(1,1), FSlateLayoutTransform(WorldToScreen.TransformPoint(FVector2D(x + EffectiveCellSize / 2, y + EffectiveCellSize / 2)) - CoordTextSize / 2)),
 							FString::Printf(TEXT("(%lld,%lld)"), x / EffectiveCellSize, y / EffectiveCellSize),
 							CoordsFont,
 							ESlateDrawEffect::None,

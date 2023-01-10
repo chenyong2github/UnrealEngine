@@ -121,7 +121,7 @@ namespace UE::Sequencer
 				FVector2D GradientSize = AllottedGeometry.GetLocalSize() - FVector2D(2.f, 0.f);
 				if ( GradientSize.X >= 1.f )
 				{
-					FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry( FVector2D( 1.f, 1.f ), GradientSize );
+					FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry( GradientSize, FSlateLayoutTransform(FVector2D( 1.f, 1.f )) );
 
 					// If we are showing a background pattern and the colors is transparent, draw a checker pattern
 					FSlateDrawElement::MakeBox(

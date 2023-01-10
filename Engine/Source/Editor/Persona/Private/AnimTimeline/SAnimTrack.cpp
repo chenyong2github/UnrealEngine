@@ -44,8 +44,8 @@ int32 SAnimTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeome
 					OutDrawElements,
 					LayerId++,
 					AllottedGeometry.ToPaintGeometry(
-						FVector2D(0, 0),
-						FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
+						FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight),
+						FSlateLayoutTransform()
 					),
 					FAppStyle::GetBrush(BorderName),
 					ESlateDrawEffect::None,

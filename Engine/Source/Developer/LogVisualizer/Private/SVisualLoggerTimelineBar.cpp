@@ -237,13 +237,13 @@ int32 SVisualLoggerTimelineBar::OnPaint(const FPaintArgs& Args, const FGeometry&
 
 		if (EndPos - StartPos > 0)
 		{
-			const double BarWidth = (EndPos - StartPos);
+			const float BarWidth = (EndPos - StartPos);
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				RetLayerId,
 				AllottedGeometry.ToPaintGeometry(
-				FVector2D(StartPos, 0.),
-				FVector2D(BarWidth, AllottedGeometry.Size.Y)),
+				FVector2f(StartPos, 0.0f),
+				FSlateLayoutTransform(FVector2f(BarWidth, AllottedGeometry.Size.Y))),
 				FillImage,
 				DrawEffects,
 				CurrentTimeColor
@@ -261,8 +261,8 @@ int32 SVisualLoggerTimelineBar::OnPaint(const FPaintArgs& Args, const FGeometry&
 			OutDrawElements,
 			RetLayerId,
 			AllottedGeometry.ToPaintGeometry(
-			FVector2D(LinePos - 3., 0.),
-			FVector2D(6., AllottedGeometry.GetLocalSize().Y)),
+			FVector2f(6.f, AllottedGeometry.GetLocalSize().Y),
+			FSlateLayoutTransform(FVector2f(LinePos - 3.f, 0.0f))),
 			FillImage,
 			DrawEffects,
 			WarningTimeColor
@@ -278,8 +278,8 @@ int32 SVisualLoggerTimelineBar::OnPaint(const FPaintArgs& Args, const FGeometry&
 			OutDrawElements,
 			RetLayerId,
 			AllottedGeometry.ToPaintGeometry(
-			FVector2D(LinePos - 3., 0.),
-			FVector2D(6, AllottedGeometry.GetLocalSize().Y)),
+			FVector2f(6, AllottedGeometry.GetLocalSize().Y),
+			FSlateLayoutTransform(FVector2f(LinePos - 3, 0.0f))),
 			FillImage,
 			DrawEffects,
 			ErrorTimeColor
@@ -298,8 +298,8 @@ int32 SVisualLoggerTimelineBar::OnPaint(const FPaintArgs& Args, const FGeometry&
 			OutDrawElements,
 			++RetLayerId,
 			AllottedGeometry.ToPaintGeometry(
-			FVector2D(LinePos - 2., 0.),
-			FVector2D(4., AllottedGeometry.GetLocalSize().Y)),
+			FVector2f(4, AllottedGeometry.GetLocalSize().Y),
+			FSlateLayoutTransform(FVector2f(LinePos - 2, 0.0f))),
 			SelectedFillImage,
 			ESlateDrawEffect::None,
 			SelectedBarColor

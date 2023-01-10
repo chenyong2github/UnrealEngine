@@ -40,7 +40,7 @@ struct FSlateInvalidationContext
 	} 
 
 	FSlateRect CullingRect;
-	FVector2D ViewOffset;
+	UE::Slate::FDeprecateVector2DResult ViewOffset;
 	const FPaintArgs* PaintArgs;
 	const FWidgetStyle& WidgetStyle;
 	FSlateWindowElementList* WindowElementList;
@@ -66,7 +66,7 @@ struct FSlateInvalidationResult
 	{}
 
 	/** The view offset to use with the draw buffer */
-	FVector2D ViewOffset;
+	UE::Slate::FDeprecateVector2DResult ViewOffset;
 	/** The max layer id painted or cached */
 	int32 MaxLayerIdPainted;
 	/** If we had to repaint any widget */
@@ -172,7 +172,7 @@ private:
 	void InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWidgetReason InvalidateReason);
 
 	void BuildFastPathWidgetList(const TSharedRef<SWidget>& RootWidget);
-	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
+	void AdjustWidgetsDesktopGeometry(UE::Slate::FDeprecateVector2DParameter WindowToDesktopTransform);
 
 	/** Update child order and slate attribute registration */
 	void ProcessPreUpdate();
@@ -205,7 +205,7 @@ private:
 	/** Widgets that will be updated. */
 	TArray<FSlateInvalidationWidgetHeapElement> FinalUpdateList;
 
-	FVector2D CachedViewOffset;
+	FVector2f CachedViewOffset;
 
 	FSlateCachedElementData* CachedElementData;
 

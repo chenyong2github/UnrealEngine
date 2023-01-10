@@ -97,7 +97,7 @@ int32 SProfilerThreadView::OnPaint( const FPaintArgs& Args, const FGeometry& All
 	(
 		PaintState->OutDrawElements,
 		PaintState->LayerId,
-		PaintState->AllottedGeometry.ToPaintGeometry( FVector2D( 0, 0 ), PaintState->Size2D() ),
+		PaintState->AllottedGeometry.ToPaintGeometry( PaintState->Size2D(), FSlateLayoutTransform() ),
 		BackgroundBrush,
 		PaintState->DrawEffects,
 		BackgroundBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint()
@@ -190,7 +190,7 @@ void SProfilerThreadView::DrawFramesBackgroundAndTimelines() const
 			(
 				PaintState->OutDrawElements,
 				PaintState->LayerId,
-				PaintState->AllottedGeometry.ToPaintGeometry( ClippedFrameBackgroundRect.GetTopLeft(), ClippedFrameBackgroundRect.GetSize() ),
+				PaintState->AllottedGeometry.ToPaintGeometry( ClippedFrameBackgroundRect.GetSize(), FSlateLayoutTransform(ClippedFrameBackgroundRect.GetTopLeft()) ),
 				&SolidWhiteBrush,
 				PaintState->DrawEffects,
 				(ThreadNode.FrameIndex % 2) ? FColorList::White.WithAlpha( 64 ) : FColorList::White.WithAlpha( 128 )
@@ -287,7 +287,7 @@ void SProfilerThreadView::DrawUIStackNodes() const
 				(
 					PaintState->OutDrawElements,
 					PaintState->LayerId,
-					PaintState->AllottedGeometry.ToPaintGeometry( ClippedNodeRect.GetTopLeft(), ClippedNodeRect.GetSize() ),
+					PaintState->AllottedGeometry.ToPaintGeometry( ClippedNodeRect.GetSize(), FSlateLayoutTransform(ClippedNodeRect.GetTopLeft()) ),
 					BorderBrush,
 					PaintState->DrawEffects,
 					NodeColor
@@ -438,7 +438,7 @@ void SProfilerThreadView::DrawUIStackNodes_Recursively( const FProfilerUIStackNo
 		(
 			PaintState->OutDrawElements,
 			PaintState->LayerId,
-			PaintState->AllottedGeometry.ToPaintGeometry( Position, Size ),
+			PaintState->AllottedGeometry.ToPaintGeometry( Size, FSlateLayoutTransform(Position) ),
 			&SolidWhiteBrush,
 			PaintState->DrawEffects,
 			GameThreadColor

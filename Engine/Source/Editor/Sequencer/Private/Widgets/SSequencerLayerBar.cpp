@@ -328,7 +328,7 @@ int32 SSequencerLayerBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry(FVector2D(1, 1), AllottedGeometry.GetLocalSize() - FVector2D(2,3)),
+			AllottedGeometry.ToPaintGeometry(AllottedGeometry.GetLocalSize() - FVector2f(2.f,3.f), FSlateLayoutTransform(FVector2f(1.f, 1.f))),
 			SelectedSectionOverlay,
 			DrawEffects,
 			SelectionColor.CopyWithNewOpacity(0.8f)

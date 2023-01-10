@@ -151,7 +151,7 @@ int32 SColorGradientEditor::OnPaint( const FPaintArgs& Args, const FGeometry& Al
 		FGeometry ColorMarkAreaGeometry = GetColorMarkAreaGeometry( AllottedGeometry );
 		FGeometry AlphaMarkAreaGeometry = GetAlphaMarkAreaGeometry( AllottedGeometry );
 
-		FGeometry GradientAreaGeometry = AllottedGeometry.MakeChild( FVector2D(0.0f, 16.0f), FVector2D( AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y - 30.0f ) );
+		FGeometry GradientAreaGeometry = AllottedGeometry.MakeChild( FVector2D( AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y - 30.0f ), FSlateLayoutTransform(FVector2D(0.0f, 16.0f)) );
 
 		bool bEnabled = ShouldBeEnabled( bParentEnabled );
 		ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
@@ -775,7 +775,7 @@ void SColorGradientEditor::DrawGradientStopMark( const FGradientStopMark& Mark, 
 	( 
 		OutDrawElements,
 		LayerId,
-		Geometry.ToPaintGeometry( FVector2D( XPos-HandleRect.Left, HandleRect.Top ), FVector2D( HandleRect.Right, HandleRect.Bottom ) ),
+		Geometry.ToPaintGeometry( FVector2f( HandleRect.Right, HandleRect.Bottom ), FSlateLayoutTransform(FVector2f( XPos-HandleRect.Left, HandleRect.Top )) ),
 		bColor ? ColorStopBrush : AlphaStopBrush,
 		DrawEffects,
 		bSelected ? SelectionColor : FLinearColor::White
@@ -787,7 +787,7 @@ void SColorGradientEditor::DrawGradientStopMark( const FGradientStopMark& Mark, 
 	( 
 		OutDrawElements,
 		LayerId+1,
-		Geometry.ToPaintGeometry( FVector2D( XPos-HandleRect.Left+3, bColor ? HandleRect.Top+3.0f : HandleRect.Top+6), FVector2D( HandleRect.Right-6, HandleRect.Bottom-9 ) ),
+		Geometry.ToPaintGeometry( FVector2f( HandleRect.Right-6.f, HandleRect.Bottom-9.f ), FSlateLayoutTransform(FVector2f( XPos-HandleRect.Left+3.f, bColor ? HandleRect.Top+3.0f : HandleRect.Top+6.f)) ),
 		WhiteBrush,
 		DrawEffects,
 		Color.ToFColor(true)
@@ -795,12 +795,12 @@ void SColorGradientEditor::DrawGradientStopMark( const FGradientStopMark& Mark, 
 }
 FGeometry SColorGradientEditor::GetColorMarkAreaGeometry( const FGeometry& InGeometry ) const
 {
-	return InGeometry.MakeChild( FVector2D( 0.0f, 0.0f), FVector2D( InGeometry.GetLocalSize().X, 16.0f ) );
+	return InGeometry.MakeChild( FVector2D( InGeometry.GetLocalSize().X, 16.0f ), FSlateLayoutTransform() );
 }
 
 FGeometry SColorGradientEditor::GetAlphaMarkAreaGeometry( const FGeometry& InGeometry ) const
 {
-	return InGeometry.MakeChild( FVector2D( 0.0f, InGeometry.GetLocalSize().Y-14.0f), FVector2D( InGeometry.GetLocalSize().X, 16.0f ) );
+	return InGeometry.MakeChild( FVector2D( InGeometry.GetLocalSize().X, 16.0f ), FSlateLayoutTransform(FVector2D( 0.0f, InGeometry.GetLocalSize().Y-14.0f)) );
 }
 
 FGradientStopMark SColorGradientEditor::GetGradientStopAtPoint( const FVector2D& MousePos, const FGeometry& MyGeometry )
@@ -826,7 +826,7 @@ FGradientStopMark SColorGradientEditor::GetGradientStopAtPoint( const FVector2D&
 
 			if( XVal >= 0 )
 			{
-				FGeometry MarkGeometry = ColorMarkAreaGeometry.MakeChild( FVector2D( XVal-HandleRect.Left, HandleRect.Top ), FVector2D( HandleRect.Right, HandleRect.Bottom ) );
+				FGeometry MarkGeometry = ColorMarkAreaGeometry.MakeChild( FVector2D( HandleRect.Right, HandleRect.Bottom ), FSlateLayoutTransform(FVector2D( XVal-HandleRect.Left, HandleRect.Top )) );
 				if( MarkGeometry.IsUnderLocation( MousePos ) )
 				{
 					return Mark;
@@ -843,7 +843,7 @@ FGradientStopMark SColorGradientEditor::GetGradientStopAtPoint( const FVector2D&
 
 			if( XVal >= 0 )
 			{
-				FGeometry MarkGeometry = AlphaMarkAreaGeometry.MakeChild( FVector2D( XVal-HandleRect.Left, HandleRect.Top ), FVector2D( HandleRect.Right, HandleRect.Bottom ) );
+				FGeometry MarkGeometry = AlphaMarkAreaGeometry.MakeChild( FVector2D( HandleRect.Right, HandleRect.Bottom ), FSlateLayoutTransform(FVector2D( XVal-HandleRect.Left, HandleRect.Top )) );
 				if( MarkGeometry.IsUnderLocation( MousePos ) )
 				{
 					return Mark;

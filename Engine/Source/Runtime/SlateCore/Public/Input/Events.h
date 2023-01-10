@@ -10,6 +10,7 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Layout/Geometry.h"
+#include "Types/SlateVector2.h"
 #include "Events.generated.h"
 
 class FWidgetPath;
@@ -133,17 +134,17 @@ public:
 struct FVirtualPointerPosition
 {
 	FVirtualPointerPosition()
-		: CurrentCursorPosition(FVector2D::ZeroVector)
-		, LastCursorPosition(FVector2D::ZeroVector)
+		: CurrentCursorPosition(FVector2f::ZeroVector)
+		, LastCursorPosition(FVector2f::ZeroVector)
 	{}
 
-	FVirtualPointerPosition(const FVector2D& InCurrentCursorPosition, const FVector2D& InLastCursorPosition)
+	FVirtualPointerPosition(const UE::Slate::FDeprecateVector2DParameter& InCurrentCursorPosition, const UE::Slate::FDeprecateVector2DParameter& InLastCursorPosition)
 		: CurrentCursorPosition(InCurrentCursorPosition)
 		, LastCursorPosition(InLastCursorPosition)
 	{}
 
-	FVector2D CurrentCursorPosition;
-	FVector2D LastCursorPosition;
+	UE::Slate::FDeprecateVector2DResult CurrentCursorPosition;
+	UE::Slate::FDeprecateVector2DResult LastCursorPosition;
 };
 
 /**
@@ -690,9 +691,9 @@ public:
 	 * UStruct Constructor.  Not meant for normal usage.
 	 */
 	FPointerEvent()
-		: ScreenSpacePosition(FVector2D(0, 0))
-		, LastScreenSpacePosition(FVector2D(0, 0))
-		, CursorDelta(FVector2D(0, 0))
+		: ScreenSpacePosition(FVector2f(0.f, 0.f))
+		, LastScreenSpacePosition(FVector2f(0.f, 0.f))
+		, CursorDelta(FVector2f(0.f, 0.f))
 		, PressedButtons(&FTouchKeySet::EmptySet)
 		, EffectingButton()
 		, PointerIndex(0)
@@ -709,8 +710,8 @@ public:
 	/** Events are immutable once constructed. */
 	FPointerEvent(
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
 		const TSet<FKey>& InPressedButtons,
 		FKey InEffectingButton,
 		float InWheelDelta,
@@ -719,7 +720,7 @@ public:
 		: FInputEvent(InModifierKeys, 0, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
-		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
+		, CursorDelta(FVector2f(InScreenSpacePosition) - FVector2f(InLastScreenSpacePosition))
 		, PressedButtons(&InPressedButtons)
 		, EffectingButton(InEffectingButton)
 		, PointerIndex(InPointerIndex)
@@ -736,8 +737,8 @@ public:
 	FPointerEvent(
 		uint32 InUserIndex,
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
 		const TSet<FKey>& InPressedButtons,
 		FKey InEffectingButton,
 		float InWheelDelta,
@@ -746,7 +747,7 @@ public:
 		: FInputEvent(InModifierKeys, InUserIndex, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
-		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
+		, CursorDelta(FVector2f(InScreenSpacePosition) - FVector2f(InLastScreenSpacePosition))
 		, PressedButtons(&InPressedButtons)
 		, EffectingButton(InEffectingButton)
 		, PointerIndex(InPointerIndex)
@@ -763,8 +764,8 @@ public:
 	FPointerEvent(
 		FInputDeviceId InDeviceId,
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
 		const TSet<FKey>& InPressedButtons,
 		FKey InEffectingButton,
 		float InWheelDelta,
@@ -774,7 +775,7 @@ public:
 		: FInputEvent(InModifierKeys, InDeviceId, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
-		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
+		, CursorDelta(FVector2f(InScreenSpacePosition) - FVector2f(InLastScreenSpacePosition))
 		, PressedButtons(&InPressedButtons)
 		, EffectingButton(InEffectingButton)
 		, PointerIndex(InPointerIndex)
@@ -796,9 +797,9 @@ public:
 	FPointerEvent(
 		uint32 InUserIndex,
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
-		const FVector2D& InDelta,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InDelta,
 		const TSet<FKey>& InPressedButtons,
 		const FModifierKeysState& InModifierKeys
 	)
@@ -821,9 +822,9 @@ public:
 	/** A constructor for raw mouse events */
 	FPointerEvent(
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
-		const FVector2D& InDelta,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InDelta,
 		const TSet<FKey>& InPressedButtons,
 		const FModifierKeysState& InModifierKeys
 	)
@@ -843,25 +844,11 @@ public:
 		, bIsTouchFirstMove(false)
 	{ }
 
-	/** A constructor for touch events */
-	UE_DEPRECATED(4.20, "FPointerEvent constructor now takes a Force parameter")
 	FPointerEvent(
 		uint32 InUserIndex,
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
-		bool bPressLeftMouseButton,
-		const FModifierKeysState& InModifierKeys = FModifierKeysState(),
-		uint32 InTouchpadIndex=0
-	)
-	: FPointerEvent(InUserIndex, InPointerIndex, InScreenSpacePosition, InLastScreenSpacePosition, 1.0f, bPressLeftMouseButton, false, false, InModifierKeys, InTouchpadIndex)
-	{ }
-
-	FPointerEvent(
-		uint32 InUserIndex,
-		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
 		float InForce,
 		bool bPressLeftMouseButton,
 		bool bInIsForceChanged = false,
@@ -872,7 +859,7 @@ public:
 	: FInputEvent(InModifierKeys, InUserIndex, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
-		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
+		, CursorDelta(FVector2f(InScreenSpacePosition) - FVector2f(InLastScreenSpacePosition))
 		, PressedButtons(bPressLeftMouseButton ? &FTouchKeySet::StandardSet : &FTouchKeySet::EmptySet)
 		, EffectingButton(EKeys::LeftMouseButton)
 		, PointerIndex(InPointerIndex)
@@ -889,8 +876,8 @@ public:
 	FPointerEvent(
 		FInputDeviceId InDeviceId,
 		uint32 InPointerIndex,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
 		float InForce,
 		bool bPressLeftMouseButton,
 		bool bInIsForceChanged = false,
@@ -902,7 +889,7 @@ public:
 	: FInputEvent(InModifierKeys, InDeviceId, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
-		, CursorDelta(InScreenSpacePosition - InLastScreenSpacePosition)
+		, CursorDelta(FVector2f(InScreenSpacePosition) - FVector2f(InLastScreenSpacePosition))
 		, PressedButtons(bPressLeftMouseButton ? &FTouchKeySet::StandardSet : &FTouchKeySet::EmptySet)
 		, EffectingButton(EKeys::LeftMouseButton)
 		, PointerIndex(InPointerIndex)
@@ -923,18 +910,18 @@ public:
 
 	/** A constructor for gesture events */
 	FPointerEvent(
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition,
 		const TSet<FKey>& InPressedButtons,
 		const FModifierKeysState& InModifierKeys,
 		EGestureEvent InGestureType,
-		const FVector2D& InGestureDelta,
+		const UE::Slate::FDeprecateVector2DParameter& InGestureDelta,
 		bool bInIsDirectionInvertedFromDevice
 	)
 		: FInputEvent(InModifierKeys, 0, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
 		, LastScreenSpacePosition(InLastScreenSpacePosition)
-		, CursorDelta(LastScreenSpacePosition - ScreenSpacePosition)
+		, CursorDelta(FVector2f(LastScreenSpacePosition) - FVector2f(ScreenSpacePosition))
 		, PressedButtons(&InPressedButtons)
 		, PointerIndex(0)
 		, Force(1.0f)
@@ -949,8 +936,8 @@ public:
 	/** A constructor to alter cursor positions */
 	FPointerEvent(
 		const FPointerEvent& Other,
-		const FVector2D& InScreenSpacePosition,
-		const FVector2D& InLastScreenSpacePosition)
+		const UE::Slate::FDeprecateVector2DParameter& InScreenSpacePosition,
+		const UE::Slate::FDeprecateVector2DParameter& InLastScreenSpacePosition)
 	{
 		*this = Other;
 		ScreenSpacePosition = InScreenSpacePosition;
@@ -960,13 +947,13 @@ public:
 public:
 
 	/** Returns The position of the cursor in screen space */
-	const FVector2D& GetScreenSpacePosition() const { return ScreenSpacePosition; }
+	const UE::Slate::FDeprecateVector2DResult& GetScreenSpacePosition() const { return ScreenSpacePosition; }
 
 	/** Returns the position of the cursor in screen space last time we handled an input event */
-	const FVector2D& GetLastScreenSpacePosition() const { return LastScreenSpacePosition; }
+	const UE::Slate::FDeprecateVector2DResult& GetLastScreenSpacePosition() const { return LastScreenSpacePosition; }
 
 	/** Returns the distance the mouse traveled since the last event was handled. */
-	const FVector2D& GetCursorDelta() const { return CursorDelta; }
+	const UE::Slate::FDeprecateVector2DResult& GetCursorDelta() const { return CursorDelta; }
 
 	/** Mouse buttons that are currently pressed */
 	bool IsMouseButtonDown( FKey MouseButton ) const { return PressedButtons->Contains( MouseButton ); }
@@ -1002,7 +989,7 @@ public:
 	EGestureEvent GetGestureType() const { return GestureType; }
 
 	/** Returns the change in gesture value since the last gesture event of the same type. */
-	const FVector2D& GetGestureDelta() const { return WheelOrGestureDelta; }
+	const UE::Slate::FDeprecateVector2DResult& GetGestureDelta() const { return WheelOrGestureDelta; }
 
 	/** Is the gesture delta inverted */
 	bool IsDirectionInvertedFromDevice() const { return bIsDirectionInvertedFromDevice; }
@@ -1049,9 +1036,9 @@ public:
 
 private:
 
-	FVector2D ScreenSpacePosition;
-	FVector2D LastScreenSpacePosition;
-	FVector2D CursorDelta;
+	UE::Slate::FDeprecateVector2DResult ScreenSpacePosition;
+	UE::Slate::FDeprecateVector2DResult LastScreenSpacePosition;
+	UE::Slate::FDeprecateVector2DResult CursorDelta;
 	const TSet<FKey>* PressedButtons;
 	FKey EffectingButton;
 	uint32 PointerIndex;
@@ -1059,7 +1046,7 @@ private:
 	float Force;
 	bool bIsTouchEvent;
 	EGestureEvent GestureType;
-	FVector2D WheelOrGestureDelta;
+	UE::Slate::FDeprecateVector2DResult WheelOrGestureDelta;
 	bool bIsDirectionInvertedFromDevice;
 	bool bIsTouchForceChanged;
 	bool bIsTouchFirstMove;

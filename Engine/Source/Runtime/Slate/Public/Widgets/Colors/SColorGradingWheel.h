@@ -77,7 +77,7 @@ protected:
 	 *
 	 * @return The position relative to the widget.
 	 */
-	FVector2D CalcRelativePositionFromCenter() const;
+	UE::Slate::FDeprecateVector2DResult CalcRelativePositionFromCenter() const;
 
 	/**
 	 * Performs actions according to mouse click / move

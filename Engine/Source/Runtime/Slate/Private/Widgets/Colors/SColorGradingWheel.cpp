@@ -77,7 +77,7 @@ FVector2D SColorGradingWheel::ComputeDesiredSize(float) const
 		int32 CachedDesiredWheelSize = DesiredWheelSizeAttribute.Get();
 		return FVector2D(CachedDesiredWheelSize, CachedDesiredWheelSize);
 	}
-	return Image->ImageSize;
+	return FVector2D(Image->ImageSize);
 }
 
 
@@ -148,9 +148,9 @@ int32 SColorGradingWheel::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 {
 	const bool bIsEnabled = ShouldBeEnabled(bParentEnabled);
 	const ESlateDrawEffect DrawEffects = bIsEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FVector2D& SelectorSize = SelectorImage->ImageSize;
-	FVector2D CircleSize = AllottedGeometry.GetLocalSize() - SelectorSize;
-	FVector2D AllottedGeometrySize = AllottedGeometry.GetLocalSize();
+	const FVector2f& SelectorSize = SelectorImage->ImageSize;
+	FVector2f CircleSize = AllottedGeometry.GetLocalSize() - SelectorSize;
+	FVector2f AllottedGeometrySize = AllottedGeometry.GetLocalSize();
 	if (bIsAttributeDesiredWheelSizeSet)
 	{
 		int32 CachedDesiredWheelSize = DesiredWheelSizeAttribute.Get();
@@ -163,7 +163,7 @@ int32 SColorGradingWheel::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry(0.5 * SelectorSize, CircleSize),
+		AllottedGeometry.ToPaintGeometry(CircleSize, FSlateLayoutTransform(0.5f * SelectorSize)),
 		Image,
 		DrawEffects,
 		InWidgetStyle.GetColorAndOpacityTint() * Image->GetTint(InWidgetStyle)
@@ -172,7 +172,7 @@ int32 SColorGradingWheel::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId + 1,
-		AllottedGeometry.ToPaintGeometry(0.5f * (AllottedGeometrySize + CalcRelativePositionFromCenter() * CircleSize - SelectorSize), SelectorSize),
+		AllottedGeometry.ToPaintGeometry(SelectorSize, FSlateLayoutTransform(0.5f * (AllottedGeometrySize + CalcRelativePositionFromCenter() * CircleSize - SelectorSize))),
 		SelectorImage,
 		DrawEffects,
 		InWidgetStyle.GetColorAndOpacityTint() * SelectorImage->GetTint(InWidgetStyle)
@@ -185,7 +185,7 @@ int32 SColorGradingWheel::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 /* SColorGradingWheel implementation
  *****************************************************************************/
 
-FVector2D SColorGradingWheel::CalcRelativePositionFromCenter() const
+UE::Slate::FDeprecateVector2DResult SColorGradingWheel::CalcRelativePositionFromCenter() const
 {
 	float Hue = SelectedColorAttribute.Get().R;
 	float Saturation = SelectedColorAttribute.Get().G;
@@ -197,13 +197,13 @@ FVector2D SColorGradingWheel::CalcRelativePositionFromCenter() const
 	float Angle = Hue / 180.0f * PI;
 	float Radius = Saturation;
 
-	return FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius;
+	return FVector2f(FMath::Cos(Angle), FMath::Sin(Angle)) * Radius;
 }
 
 
 bool SColorGradingWheel::ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bProcessWhenOutsideColorWheel)
 {
-	FVector2D GeometrySize = MyGeometry.GetLocalSize();
+	FVector2f GeometrySize = MyGeometry.GetLocalSize();
 	if (bIsAttributeDesiredWheelSizeSet)
 	{
 		DesiredWheelSizeAttribute.UpdateNow(*this);
@@ -212,8 +212,8 @@ bool SColorGradingWheel::ProcessMouseAction(const FGeometry& MyGeometry, const F
 		GeometrySize.Y = CachedDesiredWheelSize;
 	}
 
-	const FVector2D LocalMouseCoordinate = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-	const FVector2D RelativePositionFromCenter = (2.0f * LocalMouseCoordinate - GeometrySize) / (GeometrySize - SelectorImage->ImageSize);
+	const FVector2f LocalMouseCoordinate = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	const FVector2f RelativePositionFromCenter = (2.0f * LocalMouseCoordinate - GeometrySize) / (GeometrySize - SelectorImage->ImageSize);
 	const float RelativeRadius = RelativePositionFromCenter.Size();
 
 	if (RelativeRadius <= 1.0f || bProcessWhenOutsideColorWheel)

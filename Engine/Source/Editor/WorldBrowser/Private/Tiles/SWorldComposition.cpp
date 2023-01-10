@@ -314,9 +314,9 @@ public:
 				//FSlateLayoutTransform LayoutTransform(Scale, AllottedGeometry.GetAccumulatedLayoutTransform().GetTranslation() - InflateAmount);
 				//FSlateRenderTransform SlateRenderTransform(Scale, AllottedGeometry.GetAccumulatedRenderTransform().GetTranslation() - InflateAmount);
 
-				FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry(
-					ObserverPositionScreen - CameraImage->ImageSize*0.5f, 
-					CameraImage->ImageSize
+				FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry( 
+					CameraImage->ImageSize,
+					FSlateLayoutTransform(ObserverPositionScreen - CameraImage->ImageSize*0.5f)
 				);
 
 				FSlateDrawElement::MakeRotatedBox(
@@ -339,8 +339,8 @@ public:
 				const FSlateBrush* CameraImage = FAppStyle::GetBrush(TEXT("WorldBrowser.SimulationViewPosition"));
 	
 				FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry(
-					PlayerPositionScreen - CameraImage->ImageSize*0.5f, 
-					CameraImage->ImageSize
+					CameraImage->ImageSize,
+					FSlateLayoutTransform(PlayerPositionScreen - CameraImage->ImageSize*0.5f)
 					);
 
 				FSlateDrawElement::MakeRotatedBox(
@@ -392,7 +392,7 @@ public:
 				}
 
 				// Panning and mouse is outside of panel? Pasting should just go to the screen center.
-				PastePosition = PanelCoordToGraphCoord( 0.5 * MyGeometry.GetLocalSize() );
+				PastePosition = PanelCoordToGraphCoord( 0.5f * MyGeometry.GetLocalSize() );
 
 				this->bIsPanning = true;
 				ViewOffset -= CursorDelta / GetZoomAmount();

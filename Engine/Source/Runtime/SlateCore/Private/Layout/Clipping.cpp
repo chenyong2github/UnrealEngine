@@ -45,12 +45,12 @@ FSlateClippingZone::FSlateClippingZone(const FGeometry& BooundingGeometry)
 	, bAlwaysClip(false)
 {
 	const FSlateRenderTransform& Transform = BooundingGeometry.GetAccumulatedRenderTransform();
-	const FVector2D& LocalSize = BooundingGeometry.GetLocalSize();
+	FVector2f LocalSize = BooundingGeometry.GetLocalSize();
 
 	InitializeFromArbitraryPoints(
-		Transform.TransformPoint(FVector2D(0,0)),
-		Transform.TransformPoint(FVector2D(LocalSize.X, 0)),
-		Transform.TransformPoint(FVector2D(0, LocalSize.Y)),
+		Transform.TransformPoint(FVector2f(0.f, 0.f)),
+		Transform.TransformPoint(FVector2f(LocalSize.X, 0.f)),
+		Transform.TransformPoint(FVector2f(0.f, LocalSize.Y)),
 		Transform.TransformPoint(LocalSize)
 	);
 }
@@ -60,24 +60,24 @@ FSlateClippingZone::FSlateClippingZone(const FPaintGeometry& PaintingGeometry)
 	, bAlwaysClip(false)
 {
 	const FSlateRenderTransform& Transform = PaintingGeometry.GetAccumulatedRenderTransform();
-	const FVector2D& LocalSize = PaintingGeometry.GetLocalSize();
+	FVector2f LocalSize = PaintingGeometry.GetLocalSize();
 
 	InitializeFromArbitraryPoints(
-		Transform.TransformPoint(FVector2D(0, 0)),
-		Transform.TransformPoint(FVector2D(LocalSize.X, 0)),
-		Transform.TransformPoint(FVector2D(0, LocalSize.Y)),
+		Transform.TransformPoint(FVector2f(0.f, 0.f)),
+		Transform.TransformPoint(FVector2f(LocalSize.X, 0.f)),
+		Transform.TransformPoint(FVector2f(0.f, LocalSize.Y)),
 		Transform.TransformPoint(LocalSize)
 	);
 }
 
-FSlateClippingZone::FSlateClippingZone(const FVector2D& InTopLeft, const FVector2D& InTopRight, const FVector2D& InBottomLeft, const FVector2D& InBottomRight)
+FSlateClippingZone::FSlateClippingZone(const UE::Slate::FDeprecateVector2DParameter& InTopLeft, const UE::Slate::FDeprecateVector2DParameter& InTopRight, const UE::Slate::FDeprecateVector2DParameter& InBottomLeft, const UE::Slate::FDeprecateVector2DParameter& InBottomRight)
 	: bIntersect(true)
 	, bAlwaysClip(false)
 {
 	InitializeFromArbitraryPoints(InTopLeft, InTopRight, InBottomLeft, InBottomRight);
 }
 
-void FSlateClippingZone::InitializeFromArbitraryPoints(const FVector2D& InTopLeft, const FVector2D& InTopRight, const FVector2D& InBottomLeft, const FVector2D& InBottomRight)
+void FSlateClippingZone::InitializeFromArbitraryPoints(const UE::Slate::FDeprecateVector2DParameter& InTopLeft, const UE::Slate::FDeprecateVector2DParameter& InTopRight, const UE::Slate::FDeprecateVector2DParameter& InBottomLeft, const UE::Slate::FDeprecateVector2DParameter& InBottomRight)
 {
 	bIsAxisAligned = false;
 
@@ -162,14 +162,14 @@ FSlateRect FSlateClippingZone::GetBoundingBox() const
 	);
 }
 
-static float VectorSign(const FVector2D& Vec, const FVector2D& A, const FVector2D& B)
+static float VectorSign(const FVector2f& Vec, const FVector2f& A, const FVector2f& B)
 {
 	return FMath::Sign((B.X - A.X) * (Vec.Y - A.Y) - (B.Y - A.Y) * (Vec.X - A.X));
 }
 
 // Returns true when the point is inside the triangle
 // Should not return true when the point is on one of the edges
-static bool IsPointInTriangle(const FVector2D& TestPoint, const FVector2D& A, const FVector2D& B, const FVector2D& C)
+static bool IsPointInTriangle(const FVector2f& TestPoint, const FVector2f& A, const FVector2f& B, const FVector2f& C)
 {
 	float BA = VectorSign(B, A, TestPoint);
 	float CB = VectorSign(C, B, TestPoint);
@@ -180,7 +180,7 @@ static bool IsPointInTriangle(const FVector2D& TestPoint, const FVector2D& A, co
 	return BA == CB && CB == AC;
 }
 
-bool FSlateClippingZone::IsPointInside(const FVector2D& Point) const
+bool FSlateClippingZone::IsPointInside(const UE::Slate::FDeprecateVector2DParameter& Point) const
 {
 	if (IsAxisAligned())
 	{
@@ -188,7 +188,7 @@ bool FSlateClippingZone::IsPointInside(const FVector2D& Point) const
 	}
 	else
 	{
-		if (IsPointInTriangle(Point, FVector2D(TopLeft), FVector2D(TopRight), FVector2D(BottomLeft)) || IsPointInTriangle(Point, FVector2D(BottomLeft), FVector2D(TopRight), FVector2D(BottomRight)))
+		if (IsPointInTriangle(Point, TopLeft, TopRight, BottomLeft) || IsPointInTriangle(Point, BottomLeft, TopRight, BottomRight))
 		{
 			return true;
 		}
@@ -219,7 +219,7 @@ FSlateClippingState::FSlateClippingState(const FSlateClippingState& Other)
 {
 }
 
-bool FSlateClippingState::IsPointInside(const FVector2D& Point) const
+bool FSlateClippingState::IsPointInside(const UE::Slate::FDeprecateVector2DParameter& Point) const
 {
 	if (ScissorRect.IsSet())
 	{

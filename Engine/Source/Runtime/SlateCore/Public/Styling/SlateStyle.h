@@ -102,7 +102,18 @@ public:
 	 * @param PropertyName - Name of the property to set.
 	 * @param InVector - The value to set.
 	 */
-	FORCENOINLINE void Set(const FName PropertyName, const FVector2D InVector)
+	UE_SLATE_VECTOR_DEPRECATED_DEFAULT()
+	FORCENOINLINE void Set(const FName PropertyName, const FVector2D& InVector)
+	{
+		LLM_SCOPE_BYTAG(UI_Style);
+		Vector2DValues.Add(PropertyName, UE::Slate::CastToVector2f(InVector));
+	}
+	FORCENOINLINE void Set(const FName PropertyName, const UE::Slate::FDeprecateVector2DResult& InVector)
+	{
+		LLM_SCOPE_BYTAG(UI_Style);
+		Vector2DValues.Add(PropertyName, InVector);
+	}
+	FORCENOINLINE void Set(const FName PropertyName, const FVector2f& InVector)
 	{
 		LLM_SCOPE_BYTAG(UI_Style);
 		Vector2DValues.Add(PropertyName, InVector);
@@ -219,7 +230,7 @@ protected:
 	TMap< FName, float > FloatValues;
 
 	/** FVector2D property storage. */
-	TMap< FName, FVector2D > Vector2DValues;
+	TMap< FName, FVector2f > Vector2DValues;
 
 	/** Color property storage. */
 	TMap< FName, FLinearColor > ColorValues;

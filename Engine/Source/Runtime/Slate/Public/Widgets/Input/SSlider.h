@@ -200,7 +200,7 @@ protected:
 	 * @param AbsolutePosition The absolute position of the slider.
 	 * @return The new value.
 	 */
-	float PositionToValue( const FGeometry& MyGeometry, const FVector2D& AbsolutePosition );
+	float PositionToValue( const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& AbsolutePosition );
 
 	const FSlateBrush* GetBarImage() const;
 	const FSlateBrush* GetThumbImage() const;
@@ -259,7 +259,7 @@ protected:
 	EMouseCursor::Type CachedCursor;
 
 	/** The location in screenspace the slider was pressed by a touch */
-	FVector2D PressedScreenSpaceTouchDownPosition;
+	UE::Slate::FDeprecateVector2DResult PressedScreenSpaceTouchDownPosition;
 
 	/** Holds the amount to adjust the value by when using a controller or keyboard */
 	TAttribute<float> StepSize;

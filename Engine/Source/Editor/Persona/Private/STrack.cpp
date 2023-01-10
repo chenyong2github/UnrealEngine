@@ -475,7 +475,7 @@ int32 STrack::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry
 		{
 			//float EndPos = (DraggableBarIndex.Get().IsValidIndex(I+1) ? DraggableBarIndex.Get()(I+1)
 
-			FPaintGeometry TextGeometry = AllottedGeometry.ToPaintGeometry( FVector2D(XPos + 15.f, 5.f), AllottedGeometry.GetDrawSize() );
+			FPaintGeometry TextGeometry = AllottedGeometry.ToPaintGeometry( AllottedGeometry.GetDrawSize(), FSlateLayoutTransform(FVector2f(XPos + 15.f, 5.f)) );
 			FSlateDrawElement::MakeText( 
 				OutDrawElements,
 				CustomLayerId,

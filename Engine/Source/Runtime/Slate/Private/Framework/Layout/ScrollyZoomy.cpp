@@ -13,7 +13,7 @@
 FScrollyZoomy::FScrollyZoomy(const bool InUseInertialScrolling)
 	: AmountScrolledWhileRightMouseDown(0.0f)
 	, bShowSoftwareCursor(false)
-	, SoftwareCursorPosition(FVector2D::ZeroVector)
+	, SoftwareCursorPosition(FVector2f::ZeroVector)
 	, UseInertialScrolling(InUseInertialScrolling)
 { }
 
@@ -25,7 +25,7 @@ void FScrollyZoomy::Tick(const float DeltaTime, IScrollableZoomable& ScrollableZ
 {
 	if (!IsRightClickScrolling())
 	{
-		FVector2D ScrollBy = FVector2D::ZeroVector;
+		FVector2f ScrollBy = FVector2f::ZeroVector;
 
 		this->HorizontalIntertia.UpdateScrollVelocity(DeltaTime);
 		const float HorizontalScrollVelocity = this->HorizontalIntertia.GetScrollVelocity();
@@ -43,9 +43,9 @@ void FScrollyZoomy::Tick(const float DeltaTime, IScrollableZoomable& ScrollableZ
 			ScrollBy.Y = VerticalScrollVelocity * DeltaTime;
 		}
 
-		if (ScrollBy != FVector2D::ZeroVector)
+		if (ScrollBy != FVector2f::ZeroVector)
 		{
-			ScrollableZoomable.ScrollBy(ScrollBy);
+			ScrollableZoomable.ScrollBy(FVector2D(ScrollBy));
 		}
 	}
 }
@@ -87,7 +87,7 @@ FReply FScrollyZoomy::OnMouseButtonUp(const TSharedRef<SWidget> MyWidget, const 
 		if (MyWidget->HasMouseCapture())
 		{
 			FSlateRect PanelScreenSpaceRect = MyGeometry.GetLayoutBoundingRect();
-			FVector2D CursorPosition = MyGeometry.LocalToAbsolute(SoftwareCursorPosition);
+			FVector2f CursorPosition = MyGeometry.LocalToAbsolute(SoftwareCursorPosition);
 
 			FIntPoint BestPositionInPanel(
 				FMath::RoundToInt(FMath::Clamp(CursorPosition.X, PanelScreenSpaceRect.Left, PanelScreenSpaceRect.Right)),
@@ -198,7 +198,7 @@ bool FScrollyZoomy::NeedsSoftwareCursor() const
 }
 
 
-const FVector2D& FScrollyZoomy::GetSoftwareCursorPosition() const
+UE::Slate::FDeprecateVector2DResult FScrollyZoomy::GetSoftwareCursorPosition() const
 {
 	return SoftwareCursorPosition;
 }
@@ -213,7 +213,7 @@ int32 FScrollyZoomy::PaintSoftwareCursorIfNeeded(const FGeometry& AllottedGeomet
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(SoftwareCursorPosition - (Brush->ImageSize / 2), Brush->ImageSize),
+			AllottedGeometry.ToPaintGeometry(Brush->ImageSize, FSlateLayoutTransform(SoftwareCursorPosition - (Brush->ImageSize / 2))),
 			Brush
 		);
 	}

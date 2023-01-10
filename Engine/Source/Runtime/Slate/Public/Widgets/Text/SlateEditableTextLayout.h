@@ -142,16 +142,16 @@ public:
 	void AdvanceSearch(const bool InReverse = false);
 
 	/** Update the horizontal scroll amount from the given fraction */
-	FVector2D SetHorizontalScrollFraction(const float InScrollOffsetFraction);
+	UE::Slate::FDeprecateVector2DResult SetHorizontalScrollFraction(const float InScrollOffsetFraction);
 
 	/** Update the vertical scroll amount from the given fraction */
-	FVector2D SetVerticalScrollFraction(const float InScrollOffsetFraction);
+	UE::Slate::FDeprecateVector2DResult SetVerticalScrollFraction(const float InScrollOffsetFraction);
 
 	/** Set the absolute scroll offset value */
-	FVector2D SetScrollOffset(const FVector2D& InScrollOffset, const FGeometry& InGeometry);
+	UE::Slate::FDeprecateVector2DResult SetScrollOffset(const UE::Slate::FDeprecateVector2DParameter& InScrollOffset, const FGeometry& InGeometry);
 
 	/** Get the absolute scroll offset value */
-	FVector2D GetScrollOffset() const;
+	UE::Slate::FDeprecateVector2DResult GetScrollOffset() const;
 
 	/** Returns the computed wrap location for this layout */
 	float GetComputedWrappingWidth() const;
@@ -211,10 +211,10 @@ public:
 	bool AnyTextSelected() const;
 
 	/** Query to see if the text under the given position is currently selected */
-	bool IsTextSelectedAt(const FGeometry& MyGeometry, const FVector2D& ScreenSpacePosition) const;
+	bool IsTextSelectedAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition) const;
 
 	/** Query to see if the text under the given position is currently selected (the position is local to the text layout space) */
-	bool IsTextSelectedAt(const FVector2D& InLocalPosition) const;
+	bool IsTextSelectedAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition) const;
 
 	/** Are we able to execute the "Select All" command? */
 	bool CanExecuteSelectAll() const;
@@ -223,10 +223,10 @@ public:
 	void SelectAllText();
 
 	/** Select the word under the given position */
-	void SelectWordAt(const FGeometry& MyGeometry, const FVector2D& ScreenSpacePosition);
+	void SelectWordAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition);
 
 	/** Select the word under the given position (the position is local to the text layout space) */
-	void SelectWordAt(const FVector2D& InLocalPosition);
+	void SelectWordAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition);
 
 	/** Select a block of text */
 	void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
@@ -388,7 +388,7 @@ public:
 
 	void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
 
-	FVector2D GetSize() const;
+	UE::Slate::FDeprecateVector2DResult GetSize() const;
 
 	TSharedRef<SWidget> BuildDefaultContextMenu(const TSharedPtr<FExtender>& InMenuExtender) const;
 

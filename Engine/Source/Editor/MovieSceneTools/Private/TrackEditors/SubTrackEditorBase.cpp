@@ -166,8 +166,8 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                 InPainter.DrawElements,
                 InPainter.LayerId++,
                 InPainter.SectionGeometry.ToPaintGeometry(
-                    FVector2D(0.0f, 0.f),
-                    FVector2D(StartOffset * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
+                    FVector2f(StartOffset * PixelsPerFrame, InPainter.SectionGeometry.Size.Y),
+                    FSlateLayoutTransform()
                     ),
                 FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
@@ -179,8 +179,8 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                 InPainter.DrawElements,
                 InPainter.LayerId++,
                 InPainter.SectionGeometry.ToPaintGeometry(
-                    FVector2D(StartOffset * PixelsPerFrame, 0.f),
-                    FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+                    FVector2f(1.0f, InPainter.SectionGeometry.Size.Y),
+                    FSlateLayoutTransform(FVector2f(StartOffset * PixelsPerFrame, 0.f))
                     ),
                 FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
@@ -197,8 +197,8 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                 InPainter.DrawElements,
                 InPainter.LayerId++,
                 InPainter.SectionGeometry.ToPaintGeometry(
-                    FVector2D(EndOffset * PixelsPerFrame, 0.f),
-                    FVector2D((SectionSize - EndOffset) * PixelsPerFrame, InPainter.SectionGeometry.Size.Y)
+                    FVector2f((SectionSize - EndOffset) * PixelsPerFrame, InPainter.SectionGeometry.Size.Y),
+                    FSlateLayoutTransform(FVector2f(EndOffset * PixelsPerFrame, 0.f))
                     ),
                 FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
@@ -211,8 +211,8 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                 InPainter.DrawElements,
                 InPainter.LayerId++,
                 InPainter.SectionGeometry.ToPaintGeometry(
-                    FVector2D(EndOffset * PixelsPerFrame, 0.f),
-                    FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+                    FVector2f(1.0f, InPainter.SectionGeometry.Size.Y),
+                    FSlateLayoutTransform(FVector2f(EndOffset * PixelsPerFrame, 0.f))
                     ),
                 FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,
@@ -257,8 +257,8 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
             InPainter.DrawElements,
             InPainter.LayerId++,
             InPainter.SectionGeometry.ToPaintGeometry(
-                FVector2D(CurOffset * PixelsPerFrame, 0.f),
-                FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+                FVector2f(1.0f, InPainter.SectionGeometry.Size.Y),
+                FSlateLayoutTransform(FVector2f(CurOffset * PixelsPerFrame, 0.f))
             ),
             FAppStyle::GetBrush("WhiteBrush"),
             DrawEffects,
@@ -270,8 +270,8 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
                 InPainter.DrawElements,
                 InPainter.LayerId++,
                 InPainter.SectionGeometry.ToPaintGeometry(
-                    FVector2D(CurOffset * PixelsPerFrame - 1.f, 0.f),
-                    FVector2D(1.0f, InPainter.SectionGeometry.Size.Y)
+                    FVector2f(1.0f, InPainter.SectionGeometry.Size.Y),
+                    FSlateLayoutTransform(FVector2f(CurOffset * PixelsPerFrame - 1.f, 0.f))
                 ),
                 FAppStyle::GetBrush("WhiteBrush"),
                 DrawEffects,

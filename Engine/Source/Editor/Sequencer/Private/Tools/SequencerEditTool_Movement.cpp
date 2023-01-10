@@ -89,7 +89,7 @@ FReply FSequencerEditTool_Movement::OnMouseMove(SWidget& OwnerWidget, const FGeo
 				double CurrentTime = VirtualTrackArea.PixelToSeconds(DragPosition.X);
 				Sequencer.UpdateAutoScroll(CurrentTime);
 
-				DragOperation->OnDrag(MouseEvent, DragPosition, VirtualTrackArea);
+				DragOperation->OnDrag(MouseEvent, FVector2D(DragPosition), VirtualTrackArea);
 			}
 		}
 		// Otherwise we can attempt a new drag
@@ -374,7 +374,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(DragPosition + FVector2D(5, -25), CursorDecorator->ImageSize),
+			AllottedGeometry.ToPaintGeometry(CursorDecorator->ImageSize, FSlateLayoutTransform(DragPosition + FVector2f(5.f, -25.f))),
 			CursorDecorator
 			);
 	}
@@ -416,7 +416,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				FSlateDrawElement::MakeLines(
 					OutDrawElements,
 					LayerId + 1,
-					AllottedGeometry.ToPaintGeometry(FVector2D(OldPos.X, 0.0f), FVector2D(1.0f, 1.0f)),
+					AllottedGeometry.ToPaintGeometry(FVector2f(1.0f, 1.0f), FSlateLayoutTransform(FVector2f(OldPos.X, 0.0f))),
 					LinePoints,
 					ESlateDrawEffect::None,
 					FLinearColor::White.CopyWithNewOpacity(0.5f),
@@ -427,7 +427,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				FSlateDrawElement::MakeLines(
 					OutDrawElements,
 					LayerId + 1,
-					AllottedGeometry.ToPaintGeometry(FVector2D(NewPos.X, 0.0f), FVector2D(1.0f, 1.0f)),
+					AllottedGeometry.ToPaintGeometry(FVector2f(1.0f, 1.0f), FSlateLayoutTransform(FVector2f(NewPos.X, 0.0f))),
 					LinePoints,
 					ESlateDrawEffect::None,
 					DrawColor,
@@ -442,7 +442,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				FSlateDrawElement::MakeBox( 
 					OutDrawElements,
 					LayerId + 2, 
-					AllottedGeometry.ToPaintGeometry(TimePos - BoxPadding, TimeStringSize + 2.0f * BoxPadding),
+					AllottedGeometry.ToPaintGeometry(TimeStringSize + 2.0f * BoxPadding, FSlateLayoutTransform(TimePos - BoxPadding)),
 					FAppStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None, 
 					FLinearColor::Black.CopyWithNewOpacity(0.5f)
@@ -451,7 +451,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				FSlateDrawElement::MakeText(
 					OutDrawElements,
 					LayerId + 3,
-					AllottedGeometry.ToPaintGeometry(TimePos, TimeStringSize),
+					AllottedGeometry.ToPaintGeometry(TimeStringSize, FSlateLayoutTransform(TimePos)),
 					TimeString,
 					SmallLayoutFont,
 					ESlateDrawEffect::None,
@@ -467,7 +467,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				FSlateDrawElement::MakeBox( 
 					OutDrawElements,
 					LayerId + 2, 
-					AllottedGeometry.ToPaintGeometry(OffsetPos - BoxPadding, OffsetStringSize + 2.0f * BoxPadding),
+					AllottedGeometry.ToPaintGeometry(OffsetStringSize + 2.0f * BoxPadding, FSlateLayoutTransform(OffsetPos - BoxPadding)),
 					FAppStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None, 
 					FLinearColor::Black.CopyWithNewOpacity(0.5f)
@@ -476,7 +476,7 @@ int32 FSequencerEditTool_Movement::OnPaint(const FGeometry& AllottedGeometry, co
 				FSlateDrawElement::MakeText(
 					OutDrawElements,
 					LayerId + 3,
-					AllottedGeometry.ToPaintGeometry(OffsetPos, TimeStringSize),
+					AllottedGeometry.ToPaintGeometry(TimeStringSize, FSlateLayoutTransform(OffsetPos)),
 					OffsetString,
 					SmallLayoutFont,
 					ESlateDrawEffect::None,

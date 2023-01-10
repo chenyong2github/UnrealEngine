@@ -78,7 +78,7 @@ public:
 		/** Size of the viewport widget. */
 		SLATE_ATTRIBUTE(FVector2D, ViewportSize);
 
-		SLATE_API static FVector2D GetDefaultViewportSize();
+		SLATE_API static UE::Slate::FDeprecateVector2DResult GetDefaultViewportSize();
 
 	SLATE_END_ARGS()
 

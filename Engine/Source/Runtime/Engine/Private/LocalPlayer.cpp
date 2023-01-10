@@ -911,7 +911,43 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 	return View;
 }
 
-bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize)
+ULocalPlayer::FOptionalAllottedSize::FOptionalAllottedSize(std::nullptr_t Empty)
+	: Value(-std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity())
+{}
+
+ULocalPlayer::FOptionalAllottedSize::FOptionalAllottedSize(const FVector2d* InVector2D)
+{
+	if (InVector2D)
+	{
+		Value.X = static_cast<float>(InVector2D->X);
+		Value.Y = static_cast<float>(InVector2D->Y);
+	}
+	else
+	{
+		Value.X = -std::numeric_limits<float>::infinity();
+		Value.Y = -std::numeric_limits<float>::infinity();
+	}
+}
+
+ULocalPlayer::FOptionalAllottedSize::FOptionalAllottedSize(const FVector2f* InVector)
+{
+	if (InVector)
+	{
+		Value = *InVector;
+	}
+	else
+	{
+		Value.X = -std::numeric_limits<float>::infinity();
+		Value.Y = -std::numeric_limits<float>::infinity();
+	}
+}
+
+ULocalPlayer::FOptionalAllottedSize::operator bool() const
+{
+	return Value.X != -std::numeric_limits<float>::infinity();
+}
+
+bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize)
 {
 	//@TODO: CAMERA: This has issues with aspect-ratio constrained cameras
 	if ((ViewportClient != NULL) && (ViewportClient->Viewport != NULL) && (PlayerController != NULL))
@@ -931,7 +967,7 @@ bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLower
 	}
 }
 
-bool ULocalPlayer::GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize)
+bool ULocalPlayer::GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize)
 {
 	// if we passed in an optional size, use it for the viewrect
 	FIntRect ViewRect = ProjectionData.GetConstrainedViewRect();
@@ -989,7 +1025,31 @@ bool ULocalPlayer::GetPixelBoundingBox(const FSceneViewProjectionData& Projectio
 	return SuccessCount >= 2;
 }
 
-bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize)
+bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize)
+{
+	if (OptionalAllotedSize)
+	{
+		return GetPixelBoundingBox(ActorBox, OutLowerLeft, OutUpperRight, &OptionalAllotedSize.Value);
+	}
+	else
+	{
+		return GetPixelBoundingBox(ActorBox, OutLowerLeft, OutUpperRight);
+	}
+}
+
+bool ULocalPlayer::GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize)
+{
+	if (OptionalAllotedSize)
+	{
+		return GetPixelBoundingBox(ProjectionData, ActorBox, OutLowerLeft, OutUpperRight, &OptionalAllotedSize.Value);
+	}
+	else
+	{
+		return GetPixelBoundingBox(ProjectionData, ActorBox, OutLowerLeft, OutUpperRight);
+	}
+}
+
+bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize)
 {
 	//@TODO: CAMERA: This has issues with aspect-ratio constrained cameras
 	if ((ViewportClient != NULL) && (ViewportClient->Viewport != NULL) && (PlayerController != NULL))
@@ -1007,7 +1067,7 @@ bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, co
 	return false;
 }
 
-bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize)
+bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize)
 {
 	bool bInFrontOfCamera = true;
 
@@ -1039,6 +1099,30 @@ bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData,
 	}
 
 	return bInFrontOfCamera;
+}
+
+bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize)
+{
+	if (OptionalAllotedSize)
+	{
+		return GetPixelPoint(InPoint, OutPoint, &OptionalAllotedSize.Value);
+	}
+	else
+	{
+		return GetPixelPoint(InPoint, OutPoint);
+	}
+}
+
+bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize)
+{
+	if (OptionalAllotedSize)
+	{
+		return GetPixelPoint(ProjectionData, InPoint, OutPoint, &OptionalAllotedSize.Value);
+	}
+	else
+	{
+		return GetPixelPoint(ProjectionData, InPoint, OutPoint);
+	}
 }
 
 bool ULocalPlayer::GetProjectionData(FViewport* Viewport, FSceneViewProjectionData& ProjectionData, int32 StereoViewIndex) const

@@ -149,7 +149,7 @@ static FVector2D ComputeDesiredSizeForBox( const TPanelChildren<SlotType>& Child
 		if ( CurChild.GetWidget()->GetVisibility() != EVisibility::Collapsed )
 		{
 
-			const FVector2D& CurChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
+			FVector2f CurChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
 
 			if (Orientation == Orient_Vertical)
 			{
@@ -246,7 +246,7 @@ void SDragAndDropVerticalBox::Construct(const FArguments& InArgs)
 	OnDragLeave_Handler = InArgs._OnDragLeave;
 	OnDrop_Handler = InArgs._OnDrop;
 
-	CurrentDragOperationScreenSpaceLocation = FVector2D::ZeroVector;
+	CurrentDragOperationScreenSpaceLocation = FVector2f::ZeroVector;
 	CurrentDragOverSlotIndex = INDEX_NONE;
 }
 
@@ -290,7 +290,7 @@ void SDragAndDropVerticalBox::OnDragEnter(FGeometry const& MyGeometry, FDragDrop
 void SDragAndDropVerticalBox::OnDragLeave(FDragDropEvent const& DragDropEvent)
 {
 	ItemDropZone = TOptional<EItemDropZone>();
-	CurrentDragOperationScreenSpaceLocation = FVector2D::ZeroVector;
+	CurrentDragOperationScreenSpaceLocation = FVector2f::ZeroVector;
 	CurrentDragOverSlotIndex = INDEX_NONE;
 
 	if (OnDragLeave_Handler.IsBound())
@@ -299,7 +299,7 @@ void SDragAndDropVerticalBox::OnDragLeave(FDragDropEvent const& DragDropEvent)
 	}
 }
 
-SDragAndDropVerticalBox::EItemDropZone SDragAndDropVerticalBox::ZoneFromPointerPosition(FVector2D LocalPointerPos, const FGeometry& CurrentGeometry, const FGeometry& StartGeometry) const
+SDragAndDropVerticalBox::EItemDropZone SDragAndDropVerticalBox::ZoneFromPointerPosition(FVector2f LocalPointerPos, const FGeometry& CurrentGeometry, const FGeometry& StartGeometry) const
 {
 	FSlateLayoutTransform StartGeometryLayoutTransform = StartGeometry.GetAccumulatedLayoutTransform();
 	FSlateLayoutTransform CurrentGeometryLayoutTransform = CurrentGeometry.GetAccumulatedLayoutTransform();
@@ -340,7 +340,7 @@ FReply SDragAndDropVerticalBox::OnDragOver(const FGeometry& MyGeometry, const FD
 
 			if (ArrangedChildren.IsValidIndex(DragOverSlotIndex))
 			{
-				FVector2D LocalPointerPos = ArrangedChildren[DragOverSlotIndex].Geometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+				FVector2f LocalPointerPos = ArrangedChildren[DragOverSlotIndex].Geometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
 				EItemDropZone ItemHoverZone = ZoneFromPointerPosition(LocalPointerPos, ArrangedChildren[DragOverSlotIndex].Geometry, ArrangedChildren[DragOp->SlotIndexBeingDragged].Geometry);
 
 				if (Children.IsValidIndex(DragOverSlotIndex))
@@ -397,7 +397,7 @@ FReply SDragAndDropVerticalBox::OnDrop(const FGeometry& MyGeometry, const FDragD
 			}
 
 			ItemDropZone = TOptional<EItemDropZone>();
-			CurrentDragOperationScreenSpaceLocation = FVector2D::ZeroVector;
+			CurrentDragOperationScreenSpaceLocation = FVector2f::ZeroVector;
 			CurrentDragOverSlotIndex = INDEX_NONE;
 		}		
 	}

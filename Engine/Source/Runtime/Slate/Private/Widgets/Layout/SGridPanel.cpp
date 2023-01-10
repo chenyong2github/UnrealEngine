@@ -465,7 +465,7 @@ int32 SGridPanel::LayoutDebugPaint(const FGeometry& AllottedGeometry, const FSla
 			(
 				OutDrawElements, 
 				LayerId,
-				AllottedGeometry.ToPaintGeometry( FVector2D(XOffset, YOffset), FVector2D( Columns[Column], Rows[Row] ) )
+				AllottedGeometry.ToPaintGeometry( FVector2f( Columns[Column], Rows[Row] ), FSlateLayoutTransform(FVector2f(XOffset, YOffset)) )
 			);
 
 			YOffset += Rows[Row];

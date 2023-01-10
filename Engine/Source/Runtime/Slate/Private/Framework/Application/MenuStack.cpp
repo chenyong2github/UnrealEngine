@@ -36,7 +36,7 @@ public:
 		SOverlay::Construct(SOverlay::FArguments());
 	}
 
-	void PushMenu(TSharedRef<FMenuBase> InMenu, const FVector2D& InLocation)
+	void PushMenu(TSharedRef<FMenuBase> InMenu, const FVector2f& InLocation)
 	{
 		check(InMenu->GetContent().IsValid());
 
@@ -44,10 +44,10 @@ public:
 		check(ParentWindow.IsValid());
 
 		// Transform InLocation into a position local to this panel (assumes the panel is in an overlay that covers the whole of the panel window) 
-		FVector2D PanelInScreen = ParentWindow->GetRectInScreen().GetTopLeft();
-		FVector2D PanelInWindow = ParentWindow->GetLocalToScreenTransform().Inverse().TransformPoint(PanelInScreen);
-		FVector2D LocationInWindow = ParentWindow->GetLocalToScreenTransform().Inverse().TransformPoint(InLocation);
-		FVector2D LocationInPanel = LocationInWindow - PanelInWindow;
+		FVector2f PanelInScreen = ParentWindow->GetRectInScreen().GetTopLeft();
+		FVector2f PanelInWindow = ParentWindow->GetLocalToScreenTransform().Inverse().TransformPoint(PanelInScreen);
+		FVector2f LocationInWindow = ParentWindow->GetLocalToScreenTransform().Inverse().TransformPoint(InLocation);
+		FVector2f LocationInPanel = LocationInWindow - PanelInWindow;
 
 		// Add the new menu into a slot on this panel and set the padding so that its position is correct
 		AddSlot()
@@ -181,7 +181,7 @@ namespace MenuStackInternal
 	FSimpleDelegate MenuStackPushDebuggingInfo;
 }	// anon namespace
 
-TSharedRef<IMenu> FMenuStack::Push(const FWidgetPath& InOwnerPath, const TSharedRef<SWidget>& InContent, const FVector2D& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const FVector2D& SummonLocationSize, TOptional<EPopupMethod> InMethod, const bool bIsCollapsedByParent, const bool bEnablePerPixelTransparency)
+TSharedRef<IMenu> FMenuStack::Push(const FWidgetPath& InOwnerPath, const TSharedRef<SWidget>& InContent, const UE::Slate::FDeprecateVector2DParameter& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const UE::Slate::FDeprecateVector2DParameter& SummonLocationSize, TOptional<EPopupMethod> InMethod, const bool bIsCollapsedByParent, const bool bEnablePerPixelTransparency)
 {
 	// We want to ensure that when the window is restored, we restore the current keyboard focus, 
 	// but only if it is valid, otherwise we could end up clearing a previously valid path.
@@ -241,7 +241,7 @@ TSharedRef<IMenu> FMenuStack::Push(const FWidgetPath& InOwnerPath, const TShared
 	return PushInternal(ParentMenu, InContent, Anchor, TransitionEffect, bFocusImmediately, ActiveMethod.GetShouldThrottle(), bIsCollapsedByParent, bEnablePerPixelTransparency);
 }
 
-TSharedRef<IMenu> FMenuStack::Push(const TSharedPtr<IMenu>& InParentMenu, const TSharedRef<SWidget>& InContent, const FVector2D& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const FVector2D& SummonLocationSize, const bool bIsCollapsedByParent, const bool bEnablePerPixelTransparency)
+TSharedRef<IMenu> FMenuStack::Push(const TSharedPtr<IMenu>& InParentMenu, const TSharedRef<SWidget>& InContent, const UE::Slate::FDeprecateVector2DParameter& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const UE::Slate::FDeprecateVector2DParameter& SummonLocationSize, const bool bIsCollapsedByParent, const bool bEnablePerPixelTransparency)
 {
 	check(Stack.Contains(InParentMenu));
 	check(HostWindow.IsValid());
@@ -377,12 +377,12 @@ FMenuStack::FPrePushResults FMenuStack::PrePush(const FPrePushArgs& InArgs)
 		// already handled
 		const bool bAutoAdjustForDPIScale = false;
 		// Places the menu's window in the work area
-		OutResults.AnimStartLocation = OutResults.AnimFinalLocation = FSlateApplication::Get().CalculatePopupWindowPosition(InArgs.Anchor, OutResults.ExpectedSize, bAutoAdjustForDPIScale, FVector2D::ZeroVector, Orientation);
+		OutResults.AnimStartLocation = OutResults.AnimFinalLocation = FSlateApplication::Get().CalculatePopupWindowPosition(InArgs.Anchor, OutResults.ExpectedSize, bAutoAdjustForDPIScale, FVector2f::ZeroVector, Orientation);
 	}
 	else
 	{
 		// Places the menu's content in the host window
-		const FVector2D ProposedPlacement(
+		const FVector2f ProposedPlacement(
 			Orientation == Orient_Horizontal ? InArgs.Anchor.Right : InArgs.Anchor.Left,
 			Orientation == Orient_Horizontal ? InArgs.Anchor.Top : InArgs.Anchor.Bottom);
 

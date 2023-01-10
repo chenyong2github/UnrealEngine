@@ -163,7 +163,7 @@ FGeometry SSequencerEvaluationTemplateDebugVisualizer::GetSegmentGeometry(const 
 	const FMovieSceneEvaluationField* EvaluationField = GetEvaluationField();
 	if (EvaluationField == nullptr || EvaluationField->GetSignature() != CachedSignature)
 	{
-		return AllottedGeometry.MakeChild(FVector2D(0,0), FVector2D(0,0));
+		return AllottedGeometry.MakeChild(FSlateRenderTransform());
 	}
 
 	TRange<FFrameNumber> SegmentRange = EvaluationField->GetRange(Slot.GetSegmentIndex());
@@ -175,8 +175,8 @@ FGeometry SSequencerEvaluationTemplateDebugVisualizer::GetSegmentGeometry(const 
 	float SectionLength = FMath::Max(MinSectionWidth, PixelEndX - PixelStartX);
 
 	return AllottedGeometry.MakeChild(
-		FVector2D(PixelStartX, 0),
-		FVector2D(SectionLength, FMath::Max(Slot.GetDesiredSize().Y, 20.f))
+		FVector2D(SectionLength, FMath::Max(Slot.GetDesiredSize().Y, 20.f)),
+		FSlateLayoutTransform(FVector2D(PixelStartX, 0))
 		);
 }
 
@@ -555,8 +555,8 @@ FGeometry SSequencerEntityComponentSystemDebugVisualizer::GetSegmentGeometry(con
 	float SectionLength = FMath::Max(MinSectionWidth, PixelEndX - PixelStartX);
 
 	return AllottedGeometry.MakeChild(
-		FVector2D(PixelStartX, 0),
-		FVector2D(SectionLength, FMath::Max(Slot.GetDesiredSize().Y, 20.f))
+		FVector2D(SectionLength, FMath::Max(Slot.GetDesiredSize().Y, 20.f)),
+		FSlateLayoutTransform(FVector2D(PixelStartX, 0))
 		);
 }
 

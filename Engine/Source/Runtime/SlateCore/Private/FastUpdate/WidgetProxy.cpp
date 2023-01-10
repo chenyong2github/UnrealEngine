@@ -107,8 +107,8 @@ void FWidgetProxy::ProcessLayoutInvalidation(FSlateInvalidationWidgetPostHeap& U
 	SWidget* WidgetPtr = GetWidget();
 	SCOPE_CYCLE_SWIDGET(WidgetPtr);
 	// When layout changes compute a new desired size for this widget
-	const FVector2D CurrentDesiredSize = WidgetPtr->GetDesiredSize();
-	FVector2D NewDesiredSize = FVector2D::ZeroVector;
+	const FVector2f CurrentDesiredSize = WidgetPtr->GetDesiredSize();
+	FVector2f NewDesiredSize = FVector2f::ZeroVector;
 	if (!Visibility.IsCollapseDirectly())
 	{
 		if (WidgetPtr->NeedsPrepass())

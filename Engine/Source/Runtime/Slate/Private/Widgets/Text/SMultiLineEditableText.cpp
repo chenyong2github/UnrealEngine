@@ -604,7 +604,7 @@ void SMultiLineEditableText::Refresh()
 void SMultiLineEditableText::ForceScroll(int32 UserIndex, float ScrollAxisMagnitude)
 {
 	const FGeometry& CachedGeom = GetCachedGeometry();
-	FVector2D ScrollPos = (CachedGeom.LocalToAbsolute(FVector2D::ZeroVector) + CachedGeom.LocalToAbsolute(CachedGeom.GetLocalSize())) * 0.5f;
+	FVector2f ScrollPos = (CachedGeom.LocalToAbsolute(FVector2f::ZeroVector) + CachedGeom.LocalToAbsolute(CachedGeom.GetLocalSize())) * 0.5f;
 	TSet<FKey> PressedKeys;
 
 	OnMouseWheel(CachedGeom, FPointerEvent(UserIndex, 0, ScrollPos, ScrollPos, PressedKeys, EKeys::Invalid, ScrollAxisMagnitude, FModifierKeysState()));
@@ -635,12 +635,12 @@ int32 SMultiLineEditableText::OnPaint( const FPaintArgs& Args, const FGeometry& 
 	if (bIsSoftwareCursor)
 	{
 		const FSlateBrush* Brush = FCoreStyle::Get().GetBrush(TEXT("SoftwareCursor_Grab"));
-		const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
+		const FVector2f CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(SoftwareCursorPosition - (CursorSize / 2), CursorSize),
+			AllottedGeometry.ToPaintGeometry(CursorSize, FSlateLayoutTransform(SoftwareCursorPosition - (CursorSize *.5f))),
 			Brush
 			);
 	}
@@ -735,7 +735,7 @@ FReply SMultiLineEditableText::OnMouseButtonUp( const FGeometry& MyGeometry, con
 		if (bWasRightClickScrolling)
 		{
 			bIsSoftwareCursor = false;
-			const FVector2D CursorPosition = MyGeometry.LocalToAbsolute(SoftwareCursorPosition);
+			const FVector2f CursorPosition = MyGeometry.LocalToAbsolute(SoftwareCursorPosition);
 			const FIntPoint OriginalMousePos(CursorPosition.X, CursorPosition.Y);
 			return FReply::Handled().ReleaseMouseCapture().SetMousePos(OriginalMousePos);
 		}
@@ -756,9 +756,9 @@ FReply SMultiLineEditableText::OnMouseMove( const FGeometry& MyGeometry, const F
 
 		if (IsRightClickScrolling())
 		{
-			const FVector2D PreviousScrollOffset = EditableTextLayout->GetScrollOffset();
+			const FVector2f PreviousScrollOffset = EditableTextLayout->GetScrollOffset();
 
-			FVector2D NewScrollOffset = PreviousScrollOffset;
+			FVector2f NewScrollOffset = PreviousScrollOffset;
 			NewScrollOffset.Y -= ScrollByAmount;
 			EditableTextLayout->SetScrollOffset(NewScrollOffset, MyGeometry);
 
@@ -789,9 +789,9 @@ FReply SMultiLineEditableText::OnMouseWheel( const FGeometry& MyGeometry, const 
 	{
 		const float ScrollAmount = -MouseEvent.GetWheelDelta() * GetGlobalScrollAmount();
 
-		const FVector2D PreviousScrollOffset = EditableTextLayout->GetScrollOffset();
+		const FVector2f PreviousScrollOffset = EditableTextLayout->GetScrollOffset();
 		
-		FVector2D NewScrollOffset = PreviousScrollOffset;
+		FVector2f NewScrollOffset = PreviousScrollOffset;
 		NewScrollOffset.Y += ScrollAmount;
 		EditableTextLayout->SetScrollOffset(NewScrollOffset, MyGeometry);
 

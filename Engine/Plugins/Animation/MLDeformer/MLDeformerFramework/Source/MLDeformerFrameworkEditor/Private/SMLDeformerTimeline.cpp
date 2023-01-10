@@ -427,7 +427,7 @@ namespace UE::MLDeformer
 				FSlateDrawElement::MakeText(
 					OutDrawElements,
 					InArgs.StartLayer + 1,
-					InArgs.AllottedGeometry.ToPaintGeometry(TextOffset, InArgs.AllottedGeometry.Size),
+					InArgs.AllottedGeometry.ToPaintGeometry(InArgs.AllottedGeometry.Size, FSlateLayoutTransform(TextOffset)),
 					FrameString,
 					SmallLayoutFont,
 					InArgs.DrawEffects,
@@ -503,7 +503,7 @@ namespace UE::MLDeformer
 			const float HandleEnd = HandleStart + 13.0f;
 
 			const int32 ArrowLayer = LayerId + 2;
-			FPaintGeometry MyGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(HandleStart, 0), FVector2D(HandleEnd - HandleStart, AllottedGeometry.Size.Y));
+			FPaintGeometry MyGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(HandleEnd - HandleStart, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(HandleStart, 0)));
 			FLinearColor ScrubColor = InWidgetStyle.GetColorAndOpacityTint();
 			{
 				ScrubColor.A = ScrubColor.A * 0.75f;
@@ -546,7 +546,7 @@ namespace UE::MLDeformer
 				FSlateDrawElement::MakeText(
 					OutDrawElements,
 					Args.StartLayer + 1,
-					Args.AllottedGeometry.ToPaintGeometry(TextOffset, TextSize),
+					Args.AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextOffset)),
 					FrameString,
 					SmallLayoutFont,
 					Args.DrawEffects,
@@ -574,7 +574,7 @@ namespace UE::MLDeformer
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					LayerId + 1,
-					AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeL, 0.f), FVector2D(SelectionRangeR - SelectionRangeL, AllottedGeometry.Size.Y)),
+					AllottedGeometry.ToPaintGeometry(FVector2f(SelectionRangeR - SelectionRangeL, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(SelectionRangeL, 0.f))),
 					FAppStyle::GetBrush("WhiteBrush"),
 					ESlateDrawEffect::None,
 					DrawColor.CopyWithNewOpacity(Args.SolidFillOpacity));
@@ -583,7 +583,7 @@ namespace UE::MLDeformer
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeL, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(SelectionRangeL, 0.f))),
 				Args.StartBrush,
 				ESlateDrawEffect::None,
 				DrawColor);
@@ -591,7 +591,7 @@ namespace UE::MLDeformer
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(SelectionRangeR - Args.BrushWidth, 0.f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(SelectionRangeR - Args.BrushWidth, 0.f))),
 				Args.EndBrush,
 				ESlateDrawEffect::None,
 				DrawColor);
@@ -616,7 +616,7 @@ namespace UE::MLDeformer
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeL, 0.0f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(PlaybackRangeL, 0.0f))),
 			Args.StartBrush,
 			ESlateDrawEffect::None,
 			FColor(32, 128, 32, OpacityBlend)	// 120, 75, 50 (HSV)
@@ -625,7 +625,7 @@ namespace UE::MLDeformer
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR - Args.BrushWidth, 0.0f), FVector2D(Args.BrushWidth, AllottedGeometry.Size.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(Args.BrushWidth, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(PlaybackRangeR - Args.BrushWidth, 0.0f))),
 			Args.EndBrush,
 			ESlateDrawEffect::None,
 			FColor(128, 32, 32, OpacityBlend)	// 0, 75, 50 (HSV)
@@ -635,7 +635,7 @@ namespace UE::MLDeformer
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(0.f, 0.f), FVector2D(PlaybackRangeL, AllottedGeometry.Size.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(PlaybackRangeL, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(0.f, 0.f))),
 			FAppStyle::GetBrush("WhiteBrush"),
 			ESlateDrawEffect::None,
 			FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.0f)
@@ -644,7 +644,7 @@ namespace UE::MLDeformer
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(PlaybackRangeR, 0.0f), FVector2D(AllottedGeometry.Size.X - PlaybackRangeR, AllottedGeometry.Size.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.Size.X - PlaybackRangeR, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(PlaybackRangeR, 0.0f))),
 			FAppStyle::GetBrush("WhiteBrush"),
 			ESlateDrawEffect::None,
 			FLinearColor::Black.CopyWithNewOpacity(0.3f * OpacityBlend / 255.0f)
@@ -953,7 +953,7 @@ namespace UE::MLDeformer
 			FSlateDrawElement::MakeLines(
 				OutDrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(LinePos, 0.0f), FVector2D(1.0f, 1.0f)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(1.0f, 1.0f), FSlateLayoutTransform(FVector2f(LinePos, 0.0f))),
 				LinePoints,
 				DrawEffects,
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f),

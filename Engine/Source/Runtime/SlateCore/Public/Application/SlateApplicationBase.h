@@ -10,6 +10,7 @@
 #include "Rendering/SlateRenderer.h"
 #include "Misc/CoreDelegates.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Types/SlateVector2.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDebugSafeZoneChanged, const FMargin&, bool);
 
@@ -78,7 +79,7 @@ private:
 private:	
 	FSlateApplicationBase* SlateApp;
 	// @see FSlateApplicationBase::LocateWidgetInWindow
-	FWidgetPath LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const;
+	FWidgetPath LocateWidgetInWindow(FVector2f ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const;
 };
 
 /**
@@ -211,21 +212,21 @@ public:
 	 *
 	 * @return Cursor position.
 	 */
-	virtual FVector2D GetCursorPos( ) const = 0;
+	virtual UE::Slate::FDeprecateVector2DResult GetCursorPos( ) const = 0;
 
 	/**
 	* Gets the last known position of the cursor.
 	*
 	* @return Cursor position.
 	*/
-	virtual FVector2D GetLastCursorPos( ) const = 0;
+	virtual UE::Slate::FDeprecateVector2DResult GetLastCursorPos( ) const = 0;
 
 	/**
 	 * Gets the size of the cursor..
 	 *
 	 * @return Cursor size.
 	 */
-	virtual FVector2D GetCursorSize( ) const = 0;
+	virtual UE::Slate::FDeprecateVector2DResult GetCursorSize( ) const = 0;
 
 	/** 
 	 * Whether the software cursor is enabled for this application.  
@@ -255,7 +256,7 @@ public:
 	*/
 	void GetCachedDisplayMetrics(FDisplayMetrics& OutDisplayMetrics) const;
 
-	void GetSafeZoneSize(FMargin& SafeZone, const FVector2D& OverrideSize);
+	void GetSafeZoneSize(FMargin& SafeZone, const UE::Slate::FDeprecateVector2DParameter& OverrideSize);
 
 	/**
 	 * Get the highest level of window transparency support currently enabled by this application
@@ -365,7 +366,7 @@ public:
 	 *
 	 * @return The path to the widget.
 	 */
-	virtual FWidgetPath LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray< TSharedRef<SWindow > >& Windows, bool bIgnoreEnabledStatus = false, int32 UserIndex = INDEX_NONE) = 0;
+	virtual FWidgetPath LocateWindowUnderMouse( UE::Slate::FDeprecateVector2DParameter ScreenspaceMouseCoordinate, const TArray< TSharedRef<SWindow > >& Windows, bool bIgnoreEnabledStatus = false, int32 UserIndex = INDEX_NONE) = 0;
 
 	/**
 	 * Calculates the tooltip window position.
@@ -374,7 +375,7 @@ public:
 	 * @param InSize The size of the tooltip window.
 	 * @return The suggested position.
 	 */
-	virtual FVector2D CalculateTooltipWindowPosition(const FSlateRect& InAnchorRect, const FVector2D& InSize, bool bAutoAdjustForDPIScale) const = 0;
+	virtual UE::Slate::FDeprecateVector2DResult CalculateTooltipWindowPosition(const FSlateRect& InAnchorRect, const UE::Slate::FDeprecateVector2DParameter& InSize, bool bAutoAdjustForDPIScale) const = 0;
 
 	/** @return true if 'WindowToTest' is being used to display the current tooltip and the tooltip is interactive. */
 	virtual bool IsWindowHousingInteractiveTooltip(const TSharedRef<const SWindow>& WindowToTest) const = 0;
@@ -597,7 +598,7 @@ protected:
 	virtual bool ShowUserFocus(const TSharedPtr<const SWidget> Widget) const = 0;
 
 	/** Given a window, locate a widget under the cursor in it; returns an invalid path if cursor is not over this window. */
-	virtual FWidgetPath LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const = 0;
+	virtual FWidgetPath LocateWidgetInWindow(UE::Slate::FDeprecateVector2DParameter ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const = 0;
 	
 	void UpdateCustomSafeZone(const FMargin& NewSafeZoneRatio, bool bShouldRecacheMetrics);
 #if WITH_EDITOR

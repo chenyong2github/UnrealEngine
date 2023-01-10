@@ -1804,7 +1804,7 @@ FReply SDesignerView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEve
 							const FSlateRenderTransform& AbsoluteToLocalTransform = Inverse(ParentGeometry.GetAccumulatedRenderTransform());
 
 							FWidgetTransform WidgetRenderTransform = WidgetPreview->GetRenderTransform();
-							WidgetRenderTransform.Translation += AbsoluteToLocalTransform.TransformVector(MouseEvent.GetCursorDelta());
+							WidgetRenderTransform.Translation += TransformVector(AbsoluteToLocalTransform, MouseEvent.GetCursorDelta());
 
 							static const FName RenderTransformName(TEXT("RenderTransform"));
 
@@ -2161,7 +2161,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 			FSlateDrawElement::MakeBox(
 				PaintArgs.OutDrawElements,
 				PaintArgs.Layer,
-				PreviewGeometry.ToPaintGeometry(FVector2D::ZeroVector, FVector2D(Width, SafeMargin.Top)),
+				PreviewGeometry.ToPaintGeometry(FVector2D(Width, SafeMargin.Top), FSlateLayoutTransform()),
 				WhiteBrush,
 				ESlateDrawEffect::None,
 				UnsafeZoneColor
@@ -2171,7 +2171,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 			FSlateDrawElement::MakeBox(
 				PaintArgs.OutDrawElements,
 				PaintArgs.Layer,
-				PreviewGeometry.ToPaintGeometry(FVector2D(0.0f, Height - SafeMargin.Bottom), FVector2D(Width, SafeMargin.Bottom)),
+				PreviewGeometry.ToPaintGeometry(FVector2f(Width, SafeMargin.Bottom), FSlateLayoutTransform(FVector2f(0.0f, Height - SafeMargin.Bottom))),
 				WhiteBrush,
 				ESlateDrawEffect::None,
 				UnsafeZoneColor
@@ -2181,7 +2181,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 			FSlateDrawElement::MakeBox(
 				PaintArgs.OutDrawElements,
 				PaintArgs.Layer,
-				PreviewGeometry.ToPaintGeometry(FVector2D(0.0f, SafeMargin.Top), FVector2D(SafeMargin.Left, HeightOfSides)),
+				PreviewGeometry.ToPaintGeometry(FVector2f(SafeMargin.Left, HeightOfSides), FSlateLayoutTransform(FVector2f(0.0f, SafeMargin.Top))),
 				WhiteBrush,
 				ESlateDrawEffect::None,
 				UnsafeZoneColor
@@ -2191,7 +2191,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 			FSlateDrawElement::MakeBox(
 				PaintArgs.OutDrawElements,
 				PaintArgs.Layer,
-				PreviewGeometry.ToPaintGeometry(FVector2D(Width - SafeMargin.Right, SafeMargin.Top), FVector2D(SafeMargin.Right, HeightOfSides)),
+				PreviewGeometry.ToPaintGeometry(FVector2f(SafeMargin.Right, HeightOfSides), FSlateLayoutTransform(FVector2f(Width - SafeMargin.Right, SafeMargin.Top))),
 				WhiteBrush,
 				ESlateDrawEffect::None,
 				UnsafeZoneColor
@@ -2217,7 +2217,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 				FSlateDrawElement::MakeBox(
 					PaintArgs.OutDrawElements,
 					PaintArgs.Layer,
-					PreviewGeometry.ToPaintGeometry(Start, Dimensions),
+					PreviewGeometry.ToPaintGeometry(Dimensions, FSlateLayoutTransform(Start)),
 					WhiteBrush,
 					ESlateDrawEffect::None,
 					UnsafeZoneColor

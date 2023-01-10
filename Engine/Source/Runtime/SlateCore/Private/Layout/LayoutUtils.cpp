@@ -2,7 +2,7 @@
 
 #include "Layout/LayoutUtils.h"
 
-FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& PopupRect, const EOrientation& Orientation, const FSlateRect& RectToFit)
+UE::Slate::FDeprecateVector2DResult ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& PopupRect, const EOrientation& Orientation, const FSlateRect& RectToFit)
 {
 	const bool bAdjustmentNeeded = PopupRect.IntersectionWith(RectToFit) != PopupRect;
 	if (bAdjustmentNeeded)
@@ -83,10 +83,10 @@ FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& Po
 
 		NewPosition += Adjust;
 
-		return FVector2D(NewPosition);
+		return FVector2f(NewPosition);
 	}
 	else
 	{
-		return FVector2D(PopupRect.GetTopLeft());
+		return FVector2f(PopupRect.GetTopLeft());
 	}
 }

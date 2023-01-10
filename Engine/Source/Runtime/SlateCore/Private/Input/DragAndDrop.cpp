@@ -34,7 +34,7 @@ void FDragDropOperation::OnDragged( const class FDragDropEvent& DragDropEvent )
 	{
 		FSlateApplicationBase& SlateApplication = FSlateApplicationBase::Get();
 						
-		FVector2D Position = DragDropEvent.GetScreenSpacePosition() + FSlateApplicationBase::Get().GetCursorSize();
+		FVector2f Position = DragDropEvent.GetScreenSpacePosition() + FSlateApplicationBase::Get().GetCursorSize();
 
 		if (Position != CursorDecoratorWindow->GetPositionInScreen())
 		{

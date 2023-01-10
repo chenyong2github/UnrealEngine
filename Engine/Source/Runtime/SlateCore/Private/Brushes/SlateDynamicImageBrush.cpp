@@ -10,7 +10,7 @@
 
 TSharedPtr<FSlateDynamicImageBrush> FSlateDynamicImageBrush::CreateWithImageData(
 	const FName InTextureName,
-	const FVector2D& InImageSize,
+	const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 	const TArray<uint8>& InImageData,
 	const FLinearColor& InTint,
 	ESlateBrushTileType::Type InTiling,

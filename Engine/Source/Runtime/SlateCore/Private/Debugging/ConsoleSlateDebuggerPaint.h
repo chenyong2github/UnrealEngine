@@ -80,8 +80,8 @@ private:
 	struct FPaintInfo 
 	{
 		FConsoleSlateDebuggerUtility::TSWindowId Window;
-		FVector2D PaintLocation;
-		FVector2D PaintSize;
+		FVector2f PaintLocation;
+		FVector2f PaintSize;
 		FString WidgetName;
 		double LastPaint;
 		int32 PaintCount;

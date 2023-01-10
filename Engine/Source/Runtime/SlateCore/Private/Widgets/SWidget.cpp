@@ -631,11 +631,6 @@ FPopupMethodReply SWidget::OnQueryPopupMethod() const
 	return FPopupMethodReply::Unhandled();
 }
 
-TSharedPtr<struct FVirtualPointerPosition> SWidget::TranslateMouseCoordinateForCustomHitTestChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
-{
-	return nullptr;
-}
-
 TOptional<FVirtualPointerPosition> SWidget::TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const
 {
 	return TOptional<FVirtualPointerPosition>();
@@ -708,9 +703,9 @@ void SWidget::InvalidateChildRemovedFromTree(SWidget& Child)
 	}
 }
 
-FVector2D SWidget::GetDesiredSize() const
+UE::Slate::FDeprecateVector2DResult SWidget::GetDesiredSize() const
 {
-	return FVector2D(DesiredSize.Get(FVector2f::ZeroVector));
+	return UE::Slate::FDeprecateVector2DResult(DesiredSize.Get(FVector2f::ZeroVector));
 }
 
 void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
@@ -1049,11 +1044,11 @@ FGeometry SWidget::FindChildGeometry( const FGeometry& MyGeometry, TSharedRef<SW
 
 int32 SWidget::FindChildUnderMouse( const FArrangedChildren& Children, const FPointerEvent& MouseEvent )
 {
-	const FVector2D& AbsoluteCursorLocation = MouseEvent.GetScreenSpacePosition();
+	FVector2f AbsoluteCursorLocation = MouseEvent.GetScreenSpacePosition();
 	return SWidget::FindChildUnderPosition( Children, AbsoluteCursorLocation );
 }
 
-int32 SWidget::FindChildUnderPosition( const FArrangedChildren& Children, const FVector2D& ArrangedSpacePosition )
+int32 SWidget::FindChildUnderPosition( const FArrangedChildren& Children, const UE::Slate::FDeprecateVector2DParameter& ArrangedSpacePosition )
 {
 	const int32 NumChildren = Children.Num();
 	for( int32 ChildIndex=NumChildren-1; ChildIndex >= 0; --ChildIndex )
@@ -1356,8 +1351,8 @@ FSlateRect SWidget::CalculateCullingAndClippingRules(const FGeometry& AllottedGe
 			break;
 		case EWidgetClipping::OnDemand:
 			const float OverflowEpsilon = 1.0f;
-			const FVector2D& CurrentSize = GetDesiredSize();
-			const FVector2D& LocalSize = AllottedGeometry.GetLocalSize();
+			const FVector2f& CurrentSize = GetDesiredSize();
+			const FVector2f& LocalSize = AllottedGeometry.GetLocalSize();
 			bClipToBounds =
 				(CurrentSize.X - OverflowEpsilon) > LocalSize.X ||
 				(CurrentSize.Y - OverflowEpsilon) > LocalSize.Y;

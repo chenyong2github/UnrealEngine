@@ -212,8 +212,8 @@ static void ArrangeSingleChild(EFlowDirection InFlowDirection, const FGeometry& 
 
 		ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
 			ChildSlot.GetWidget(),
-			FVector2D(XResult.Offset, YResult.Offset),
-			FVector2D(XResult.Size, YResult.Size)
+			FVector2f(XResult.Size, YResult.Size),
+			FSlateLayoutTransform(FVector2f(XResult.Offset, YResult.Offset))
 		));
 	}
 }
@@ -244,7 +244,7 @@ static void ArrangeChildrenInStack(EFlowDirection InLayoutFlow, const TPanelChil
 				// All widgets contribute their margin to the fixed space requirement
 				FixedTotal += CurChild.GetPadding().template GetTotalSpaceAlong<Orientation>();
 
-				FVector2D ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
+				FVector2f ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
 
 				// Auto-sized children contribute their desired size to the fixed space requirement
 				const float ChildSize = (Orientation == Orient_Vertical)
@@ -305,7 +305,7 @@ static void ArrangeChildrenInStack(EFlowDirection InLayoutFlow, const TPanelChil
 				}
 				else
 				{
-					const FVector2D ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
+					const FVector2f ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
 
 					// Auto-sized widgets get their desired-size value
 					ChildSize = (Orientation == Orient_Vertical)
@@ -323,19 +323,19 @@ static void ArrangeChildrenInStack(EFlowDirection InLayoutFlow, const TPanelChil
 
 			const FMargin SlotPadding(LayoutPaddingWithFlow(InLayoutFlow, CurChild.GetPadding()));
 
-			FVector2D SlotSize = (Orientation == Orient_Vertical)
-				? FVector2D(AllottedGeometry.GetLocalSize().X, ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Vertical>())
-				: FVector2D(ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Horizontal>(), AllottedGeometry.GetLocalSize().Y);
+			FVector2f SlotSize = (Orientation == Orient_Vertical)
+				? FVector2f(AllottedGeometry.GetLocalSize().X, ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Vertical>())
+				: FVector2f(ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Horizontal>(), AllottedGeometry.GetLocalSize().Y);
 
 			// Figure out the size and local position of the child within the slot			
 			AlignmentArrangeResult XAlignmentResult = AlignChild<Orient_Horizontal>(InLayoutFlow, SlotSize.X, CurChild, SlotPadding);
 			AlignmentArrangeResult YAlignmentResult = AlignChild<Orient_Vertical>(SlotSize.Y, CurChild, SlotPadding);
 
-			const FVector2D LocalPosition = (Orientation == Orient_Vertical)
-				? FVector2D(XAlignmentResult.Offset, PositionSoFar + YAlignmentResult.Offset + InOffset)
-				: FVector2D(PositionSoFar + XAlignmentResult.Offset + InOffset, YAlignmentResult.Offset);
+			const FVector2f LocalPosition = (Orientation == Orient_Vertical)
+				? FVector2f(XAlignmentResult.Offset, PositionSoFar + YAlignmentResult.Offset + InOffset)
+				: FVector2f(PositionSoFar + XAlignmentResult.Offset + InOffset, YAlignmentResult.Offset);
 
-			const FVector2D LocalSize = FVector2D(XAlignmentResult.Size, YAlignmentResult.Size);
+			const FVector2f LocalSize = FVector2f(XAlignmentResult.Size, YAlignmentResult.Size);
 
 			// Add the information about this child to the output list (ArrangedChildren)
 			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
@@ -378,4 +378,4 @@ static FMargin LayoutPaddingWithFlow(EFlowDirection InLayoutFlow, const FMargin&
 *
 * @return A best position within the RectToFit such that none of the popup clips outside of the RectToFit.
 */
-SLATECORE_API FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& PopupRect, const EOrientation& Orientation, const FSlateRect& RectToFit);
+SLATECORE_API UE::Slate::FDeprecateVector2DResult ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& PopupRect, const EOrientation& Orientation, const FSlateRect& RectToFit);

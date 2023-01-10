@@ -14,6 +14,7 @@
 #include "Sound/SlateSound.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateWidgetStyle.h"
+#include "Types/SlateVector2.h"
 
 #include "SlateTypes.generated.h"
 
@@ -350,8 +351,8 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
 
 	/** How much should the shadow be offset? An offset of 0 implies no shadow. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
-	FVector2D ShadowOffset;
-	FTextBlockStyle& SetShadowOffset(const FVector2D& InShadowOffset) { ShadowOffset = InShadowOffset; return *this; }
+	FDeprecateSlateVector2D ShadowOffset;
+	FTextBlockStyle& SetShadowOffset(const UE::Slate::FDeprecateVector2DParameter& InShadowOffset) { ShadowOffset = InShadowOffset; return *this; }
 
 	/** The color and opacity of the shadow */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -591,8 +592,8 @@ struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
 	  * An offset of 0 implies no shadow. 
 	  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
-	FVector2D ShadowOffset;
-	FComboButtonStyle& SetShadowOffset(const FVector2D& InShadowOffset) { ShadowOffset = InShadowOffset; return *this; }
+	FDeprecateSlateVector2D ShadowOffset;
+	FComboButtonStyle& SetShadowOffset(const UE::Slate::FDeprecateVector2DParameter& InShadowOffset) { ShadowOffset = InShadowOffset; return *this; }
 
 	/** 
 	  * The color and opacity of the shadow for the down arrow.
@@ -1883,8 +1884,8 @@ struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
 
 	/** Icon size for icons in this tab */
 	UPROPERTY(EditAnywhere, Category = Appearance)
-	FVector2D IconSize;
-	FDockTabStyle& SetIconSize(const FVector2D& InIconSize) { IconSize = InIconSize; return *this; }
+	FDeprecateSlateVector2D IconSize;
+	FDockTabStyle& SetIconSize(const UE::Slate::FDeprecateVector2DParameter& InIconSize) { IconSize = InIconSize; return *this; }
 
 	/** The width that this tab will overlap with side-by-side tabs */
 	UPROPERTY(EditAnywhere, Category=Appearance)

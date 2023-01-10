@@ -62,11 +62,11 @@ struct SLATE_API FTableViewDimensions
 {
 	FTableViewDimensions(EOrientation InOrientation);
 	FTableViewDimensions(EOrientation InOrientation, float X, float Y);
-	FTableViewDimensions(EOrientation InOrientation, const FVector2D& Size);
+	FTableViewDimensions(EOrientation InOrientation, const UE::Slate::FDeprecateVector2DParameter& Size);
 
-	FVector2D ToVector2D() const
+	UE::Slate::FDeprecateVector2DResult ToVector2D() const
 	{
-		return Orientation == Orient_Vertical ? FVector2D(LineAxis, ScrollAxis) : FVector2D(ScrollAxis, LineAxis);
+		return Orientation == Orient_Vertical ? FVector2f(LineAxis, ScrollAxis) : FVector2f(ScrollAxis, LineAxis);
 	}
 
 	FTableViewDimensions operator+(const FTableViewDimensions& Other) const
@@ -278,7 +278,7 @@ protected:
 	/**
 	* Get the uniform item
 	*/
-	FVector2D GetItemSize() const;
+	UE::Slate::FDeprecateVector2DResult GetItemSize() const;
 
 	/** @return the number of items that can fit on the screen */
 	virtual float GetNumLiveWidgets() const;
@@ -425,7 +425,7 @@ protected:
 	float AmountScrolledWhileRightMouseDown;
 
 	/** The location in screenspace the view was pressed */
-	FVector2D PressedScreenSpacePosition;
+	FVector2f PressedScreenSpacePosition;
 
 	/** The amount we have scrolled this tick cycle */
 	float TickScrollDelta;
@@ -452,7 +452,7 @@ protected:
 	FInertialScrollManager InertialScrollManager;
 
 	/**	The current position of the software cursor */
-	FVector2D SoftwareCursorPosition;
+	FVector2f SoftwareCursorPosition;
 
 	/**	Whether the software cursor should be drawn in the viewport */
 	bool bShowSoftwareCursor;

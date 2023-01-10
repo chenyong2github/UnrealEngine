@@ -45,7 +45,7 @@ int32 SSegmentedTimelineView::PaintBlock(const FGeometry& AllottedGeometry, cons
 			float BoxMin = FMath::Max(0, RangeToScreen.InputToLocalX(LowerBound));
 			float BoxMax = FMath::Min(Size.X, RangeToScreen.InputToLocalX(UpperBound));
 
-			FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(BoxMin, 1), FVector2D(BoxMax - BoxMin, Size.Y - 2), 1);
+			FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(BoxMax - BoxMin, Size.Y - 2), FSlateLayoutTransform(FVector2f(BoxMin, 1.f)));
 
 			const FSlateBrush* Brush = FAppStyle::GetBrush("Sequencer.SectionArea.Background");
 

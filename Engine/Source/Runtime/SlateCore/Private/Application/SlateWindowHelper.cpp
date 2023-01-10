@@ -57,8 +57,8 @@ bool FSlateWindowHelper::CheckWorkAreaForWindows( const TArray<TSharedRef<SWindo
 	for (TArray<TSharedRef<SWindow>>::TConstIterator CurrentWindowIt(WindowsToSearch); CurrentWindowIt; ++CurrentWindowIt)
 	{
 		const TSharedRef<SWindow>& CurrentWindow = *CurrentWindowIt;
-		const FVector2D Position = CurrentWindow->GetPositionInScreen();
-		const FVector2D Size = CurrentWindow->GetSizeInScreen();
+		const FVector2f Position = CurrentWindow->GetPositionInScreen();
+		const FVector2f Size = CurrentWindow->GetSizeInScreen();
 		const FSlateRect WindowRect(Position.X, Position.Y, Size.X, Size.Y);
 
 		if (FSlateRect::DoRectanglesIntersect(WorkAreaRect, WindowRect) || CheckWorkAreaForWindows(CurrentWindow->GetChildWindows(), WorkAreaRect))

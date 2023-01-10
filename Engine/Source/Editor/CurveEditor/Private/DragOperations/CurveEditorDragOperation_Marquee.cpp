@@ -183,7 +183,7 @@ void FCurveEditorDragOperation_Marquee::OnPaint(const FGeometry& AllottedGeometr
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		PaintOnLayerId,
-		AllottedGeometry.ToPaintGeometry(Marquee.GetTopLeft(), Marquee.GetBottomRight() - Marquee.GetTopLeft()),
+		AllottedGeometry.ToPaintGeometry(Marquee.GetBottomRight() - Marquee.GetTopLeft(), FSlateLayoutTransform(Marquee.GetTopLeft())),
 		FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 		);
 }

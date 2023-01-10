@@ -40,7 +40,7 @@ public:
 	virtual void SetText(const FText& Text);
 
 	/** Returns the local size */
-	virtual const FVector2D& GetLocalSize() const;
+	virtual FVector2f GetLocalSize() const;
 
 protected:
 	/** The box that defines the size */

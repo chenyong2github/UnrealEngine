@@ -71,7 +71,7 @@ FVector2D SImage::ComputeDesiredSize( float ) const
 	{
 		const TOptional<FVector2D>& CurrentSizeOverride = DesiredSizeOverrideAttribute.Get();
 
-		return CurrentSizeOverride.IsSet() ? CurrentSizeOverride.GetValue() : ImageBrush->ImageSize;
+		return CurrentSizeOverride.IsSet() ? CurrentSizeOverride.GetValue() : FVector2D(ImageBrush->ImageSize.X, ImageBrush->ImageSize.Y);
 	}
 	return FVector2D::ZeroVector;
 }

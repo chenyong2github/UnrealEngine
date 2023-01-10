@@ -202,7 +202,7 @@ public:
 	/**
 	 * @return The local size of the widget we were initialized from
 	 */
-	const FVector2D& GetLocalSize() const;
+	FVector2f GetLocalSize() const;
 
 	/**
 	 * @return The basic hit-test of the widget we were initialized from

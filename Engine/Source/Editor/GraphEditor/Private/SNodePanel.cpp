@@ -1467,7 +1467,7 @@ void SNodePanel::PaintMarquee(const FGeometry& AllottedGeometry, const FSlateRec
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DrawLayerId,
-			AllottedGeometry.ToPaintGeometry( GraphCoordToPanelCoord(Marquee.Rect.GetUpperLeft()), Marquee.Rect.GetSize()*GetZoomAmount() ),
+			AllottedGeometry.ToPaintGeometry( Marquee.Rect.GetSize()*GetZoomAmount(), FSlateLayoutTransform(GraphCoordToPanelCoord(Marquee.Rect.GetUpperLeft())) ),
 			FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 		);
 	}
@@ -1486,7 +1486,7 @@ void SNodePanel::PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FS
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		DrawLayerId,
-		AllottedGeometry.ToPaintGeometry( GraphCoordToPanelCoord( SoftwareCursorPosition ) - ( Brush->ImageSize / 2 ), Brush->ImageSize ),
+		AllottedGeometry.ToPaintGeometry( Brush->ImageSize, FSlateLayoutTransform(GraphCoordToPanelCoord( SoftwareCursorPosition ) - ( Brush->ImageSize / 2 )) ),
 		Brush
 	);
 }
@@ -1514,7 +1514,7 @@ void SNodePanel::PaintComment(const FString& CommentText, const FGeometry& Allot
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		DrawLayerId-1,
-		AllottedGeometry.ToPaintGeometry(CommentBubbleOffset, CommentTextSize),
+		AllottedGeometry.ToPaintGeometry(CommentTextSize, FSlateLayoutTransform(CommentBubbleOffset)),
 		CommentCalloutBubble,
 		ESlateDrawEffect::None,
 		CommentTinting
@@ -1523,7 +1523,7 @@ void SNodePanel::PaintComment(const FString& CommentText, const FGeometry& Allot
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		DrawLayerId-1,
-		AllottedGeometry.ToPaintGeometry( CommentBubbleArrowOffset, CommentCalloutArrow->ImageSize ),
+		AllottedGeometry.ToPaintGeometry( CommentCalloutArrow->ImageSize, FSlateLayoutTransform(CommentBubbleArrowOffset) ),
 		CommentCalloutArrow,
 		ESlateDrawEffect::None,
 		CommentTinting
@@ -1533,7 +1533,7 @@ void SNodePanel::PaintComment(const FString& CommentText, const FGeometry& Allot
 	FSlateDrawElement::MakeText(
 		OutDrawElements,
 		DrawLayerId,
-		AllottedGeometry.ToPaintGeometry( CommentBubbleOffset + CommentBubblePadding, CommentTextSize ),
+		AllottedGeometry.ToPaintGeometry( CommentTextSize, FSlateLayoutTransform(CommentBubbleOffset + CommentBubblePadding) ),
 		CommentText,
 		CommentFont,
 		ESlateDrawEffect::None,

@@ -499,6 +499,17 @@ public:
 	UE_DEPRECATED(5.0, "Platform User Id now has priority over ControllerId, these are not expected to be the same")
 	bool IsCachedUniqueNetIdPairedWithControllerId() const;
 
+	struct FOptionalAllottedSize
+	{
+		FVector2f Value;
+
+		ENGINE_API FOptionalAllottedSize(std::nullptr_t Empty);
+		ENGINE_API FOptionalAllottedSize(const FVector2d* InVector2D);
+		ENGINE_API FOptionalAllottedSize(const FVector2f* InVector2D);
+
+		ENGINE_API explicit operator bool() const;
+	};
+
 	/**
 	 * This function will give you two points in Pixel Space that surround the World Space box.
 	 *
@@ -507,8 +518,13 @@ public:
 	 * @param	OutUpperRight	The Upper Right corner of the pixel space box
 	 * @return  False if there is no viewport, or if the box is behind the camera completely
 	 */
-	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize = nullptr);
-	static bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize = nullptr);
+	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize = nullptr);
+	static bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize = nullptr);
+
+	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
+	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize);
+	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
+	static bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize);
 
 	/**
 	 * This function will give you a point in Pixel Space from a World Space position
@@ -517,8 +533,13 @@ public:
 	 * @param	OutPoint	The point in pixel space
 	 * @return  False if there is no viewport, or if the box is behind the camera completely
 	 */
-	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize = nullptr);
-	static bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize = nullptr);
+	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize = nullptr);
+	static bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize = nullptr);
+
+	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
+	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize);
+	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
+	static bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize);
 
 	/**
 	 * Helper function for deriving various bits of data needed for projection

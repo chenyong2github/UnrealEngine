@@ -371,7 +371,7 @@ void SAtlasVisualizer::OnDrawViewport(const FGeometry& AllottedGeometry, const F
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId+1,
-			AllottedGeometry.ToPaintGeometry(FVector2D::Max((CurrentSlotRect.GetTopLeft()*ScrollPanel->GetZoomLevel())-FVector2D(1,1), FVector2D::ZeroVector), (CurrentSlotRect.GetSize() * ScrollPanel->GetZoomLevel())+FVector2D(1, 1)),
+			AllottedGeometry.ToPaintGeometry((CurrentSlotRect.GetSize() * ScrollPanel->GetZoomLevel())+FVector2D(1, 1), FSlateLayoutTransform(FVector2D::Max((CurrentSlotRect.GetTopLeft()*ScrollPanel->GetZoomLevel())-FVector2D(1,1), FVector2D::ZeroVector))),
 			HoveredSlotBorderBrush,
 			ESlateDrawEffect::None,
 			FLinearColor::Yellow

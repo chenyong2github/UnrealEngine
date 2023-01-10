@@ -42,7 +42,7 @@ int32 SSequencerShotFilterOverlay::OnPaint( const FPaintArgs& Args, const FGeome
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(LowerBound, 0), FVector2D(UpperBound - LowerBound, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(UpperBound - LowerBound, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2f(LowerBound, 0.f))),
 				FAppStyle::GetBrush("Sequencer.ShotFilter"),
 				ESlateDrawEffect::None,
 				FLinearColor(1.f, 1.f, 1.f, Alpha)

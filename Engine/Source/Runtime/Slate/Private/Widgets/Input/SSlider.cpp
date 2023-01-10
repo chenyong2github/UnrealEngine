@@ -19,7 +19,7 @@ void SSlider::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIni
 
 SSlider::SSlider()
 	: Style(nullptr)
-	, PressedScreenSpaceTouchDownPosition(FVector2D(0, 0))
+	, PressedScreenSpaceTouchDownPosition(FVector2f(0, 0))
 	, ValueSlateAttribute(*this, 1.f)
 	, IndentHandleSlateAttribute(*this, true)
 	, LockedSlateAttribute(*this, false)
@@ -67,13 +67,13 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	const float AllottedHeight = Orientation == Orient_Horizontal ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X;
 
 	float HandleRotation;
-	FVector2D HandleTopLeftPoint;
-	FVector2D SliderStartPoint;
-	FVector2D SliderEndPoint;
+	FVector2f HandleTopLeftPoint;
+	FVector2f SliderStartPoint;
+	FVector2f SliderEndPoint;
 
 	// calculate slider geometry as if it's a horizontal slider (we'll rotate it later if it's vertical)
-	const FVector2D HandleSize = GetThumbImage()->ImageSize;
-	const FVector2D HalfHandleSize = 0.5f * HandleSize;
+	const FVector2f HandleSize = GetThumbImage()->ImageSize;
+	const FVector2f HalfHandleSize = 0.5f * HandleSize;
 	const float Indentation = IndentHandleSlateAttribute.Get() ? HandleSize.X : 0.0f;
 
 	// We clamp to make sure that the slider cannot go out of the slider Length.
@@ -83,10 +83,10 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	const float SliderY = 0.5f * AllottedHeight;
 
 	HandleRotation = 0.0f;
-	HandleTopLeftPoint = FVector2D(SliderHandleOffset + (0.5f * Indentation), SliderY - HalfHandleSize.Y);
+	HandleTopLeftPoint = FVector2f(SliderHandleOffset + (0.5f * Indentation), SliderY - HalfHandleSize.Y);
 
-	SliderStartPoint = FVector2D(HalfHandleSize.X, SliderY);
-	SliderEndPoint = FVector2D(AllottedWidth - HalfHandleSize.X, SliderY);
+	SliderStartPoint = FVector2f(HalfHandleSize.X, SliderY);
+	SliderEndPoint = FVector2f(AllottedWidth - HalfHandleSize.X, SliderY);
 
 	FGeometry SliderGeometry = AllottedGeometry;
 	
@@ -94,26 +94,26 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	if (Orientation == Orient_Vertical)
 	{
 		// Do this by translating along -X by the width of the geometry, then rotating 90 degreess CCW (left-hand coords)
-		FSlateRenderTransform SlateRenderTransform = TransformCast<FSlateRenderTransform>(Concatenate(Inverse(FVector2D(AllottedWidth, 0)), FQuat2D(FMath::DegreesToRadians(-90.0f))));
+		FSlateRenderTransform SlateRenderTransform = TransformCast<FSlateRenderTransform>(Concatenate(Inverse(FVector2f(AllottedWidth, 0)), FQuat2D(FMath::DegreesToRadians(-90.0f))));
 		// create a child geometry matching this one, but with the render transform.
 		SliderGeometry = AllottedGeometry.MakeChild(
-			FVector2D(AllottedWidth, AllottedHeight), 
+			FVector2f(AllottedWidth, AllottedHeight), 
 			FSlateLayoutTransform(), 
-			SlateRenderTransform, FVector2D::ZeroVector);
+			SlateRenderTransform, FVector2f::ZeroVector);
 	}
 
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
 	// draw slider bar
-	auto BarTopLeft = FVector2D(SliderStartPoint.X, SliderStartPoint.Y - Style->BarThickness * 0.5f);
-	auto BarSize = FVector2D(SliderEndPoint.X - SliderStartPoint.X, Style->BarThickness);
+	auto BarTopLeft = FVector2f(SliderStartPoint.X, SliderStartPoint.Y - Style->BarThickness * 0.5f);
+	auto BarSize = FVector2f(SliderEndPoint.X - SliderStartPoint.X, Style->BarThickness);
 	auto BarImage = GetBarImage();
 	auto ThumbImage = GetThumbImage();
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		SliderGeometry.ToPaintGeometry(BarTopLeft, BarSize),
+		SliderGeometry.ToPaintGeometry(BarSize, FSlateLayoutTransform(BarTopLeft)),
 		BarImage,
 		DrawEffects,
 		BarImage->GetTint(InWidgetStyle) * SliderBarColorSlateAttribute.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -125,7 +125,7 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		LayerId,
-		SliderGeometry.ToPaintGeometry(HandleTopLeftPoint, GetThumbImage()->ImageSize),
+		SliderGeometry.ToPaintGeometry(GetThumbImage()->ImageSize, FSlateLayoutTransform(HandleTopLeftPoint)),
 		ThumbImage,
 		DrawEffects,
 		ThumbImage->GetTint(InWidgetStyle) * SliderHandleColorSlateAttribute.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
@@ -415,9 +415,9 @@ void SSlider::CommitValue(float NewValue)
 	OnValueChanged.ExecuteIfBound(NewValue);
 }
 
-float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& AbsolutePosition )
+float SSlider::PositionToValue( const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& AbsolutePosition )
 {
-	const FVector2D LocalPosition = MyGeometry.AbsoluteToLocal(AbsolutePosition);
+	const FVector2f LocalPosition = MyGeometry.AbsoluteToLocal(AbsolutePosition);
 
 	float RelativeValue;
 	float Denominator;

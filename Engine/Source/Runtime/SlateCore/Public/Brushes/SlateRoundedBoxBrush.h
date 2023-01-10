@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Styling/SlateBrush.h"
+#include "Types/SlateVector2.h"
 
 struct SLATECORE_API FSlateRoundedBoxBrush
 	: public FSlateBrush
@@ -15,7 +16,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * @param InColor 		Linear Fill Color 
 	 */
 	template<typename FillColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const FVector2D& InImageSize = FVector2D::ZeroVector)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -30,7 +31,23 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	}
 
 	template<typename FillColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const UE::Slate::FDeprecateVector2DResult& InImageSize)
+		: FSlateRoundedBoxBrush(InColor, UE::Slate::FDeprecateVector2DParameter(InImageSize))
+	{ 
+	}
+	template<typename FillColorType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const FVector2D& InImageSize)
+		: FSlateRoundedBoxBrush(InColor, UE::Slate::FDeprecateVector2DParameter(UE::Slate::CastToVector2f(InImageSize)))
+	{ 
+	}
+	template<typename FillColorType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const FVector2f& InImageSize)
+		: FSlateRoundedBoxBrush(InColor, UE::Slate::FDeprecateVector2DParameter(InImageSize))
+	{ 
+	}
+
+	template<typename FillColorType>
+	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox,
 			InFillResourceName,
 			FMargin(0.0f),
@@ -52,7 +69,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * @param InRadius      Corner Radius in Slate Units applied to the outline at each corner. X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left
 	 */
 	template<typename FillColorType, typename RadiusType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, RadiusType InRadius, const FVector2D& InImageSize = FVector2D::ZeroVector)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, RadiusType InRadius, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -69,7 +86,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 
 
 	template<typename FillColorType, typename RadiusType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, RadiusType InRadius, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, RadiusType InRadius, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox,
 			InFillResourceName,
 			FMargin(0.0f),
@@ -93,7 +110,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * @param InOutlineWidth Outline Width or Thickness
 	 */
 	template<typename FillColorType, typename OutlineColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, const OutlineColorType& InOutlineColor, float InOutlineWidth, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -116,7 +133,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * @param InOutlineWidth Outline Width or Thickness
 	 */
 	template<typename FillColorType, typename OutlineColorType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, const OutlineColorType& InOutlineColor, float InOutlineWidth, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox,
 			InFillResourceName,
 			FMargin(0.0f),
@@ -142,7 +159,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * @param InOutlineWidth Outline Width or Thickness
 	 */
 	template<typename FillColorType, typename OutlineColorType, typename RadiusType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, RadiusType InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FillColorType& InColor, RadiusType InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox, 
 					  NAME_None, 
 					  FMargin(0.0f), 
@@ -166,7 +183,7 @@ struct SLATECORE_API FSlateRoundedBoxBrush
 	 * @param InOutlineWidth Outline Width or Thickness
 	 */
 	template<typename FillColorType, typename OutlineColorType, typename RadiusType>
-	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, RadiusType InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const FVector2D& InImageSize = FVector2D::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
+	FORCENOINLINE FSlateRoundedBoxBrush(const FName InFillResourceName, const FillColorType& FillColorTint, RadiusType InRadius, const OutlineColorType& InOutlineColor, float InOutlineWidth, const UE::Slate::FDeprecateVector2DParameter& InImageSize = FVector2f::ZeroVector, ESlateBrushTileType::Type InTileType = ESlateBrushTileType::NoTile)
 		: FSlateBrush(ESlateBrushDrawType::RoundedBox,
 					  InFillResourceName,
 					  FMargin(0.0f),

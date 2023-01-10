@@ -367,7 +367,7 @@ public:
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					FilledLayer,
-					AllottedGeometry.ToPaintGeometry(Style->InsetPadding.GetTopLeft(), FillSize - FVector2D(Style->InsetPadding.GetTotalSpaceAlong<Orient_Horizontal>(), Style->InsetPadding.GetTotalSpaceAlong<Orient_Vertical>())),
+					AllottedGeometry.ToPaintGeometry(FillSize - FVector2D(Style->InsetPadding.GetTotalSpaceAlong<Orient_Horizontal>(), Style->InsetPadding.GetTotalSpaceAlong<Orient_Vertical>()), FSlateLayoutTransform(Style->InsetPadding.GetTopLeft())),
 					FillImage,
 					DrawEffects,
 					FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()

@@ -98,7 +98,7 @@ int32 SVerticalResizeBox::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	(
 		OutDrawElements,
 		HandleLayerId,
-		AllottedGeometry.ToPaintGeometry(HandleLocation, HandleSize),
+		AllottedGeometry.ToPaintGeometry(HandleSize, FSlateLayoutTransform(HandleLocation)),
 		&HandleBrush,
 		ESlateDrawEffect::None,
 		HandleBoxColor

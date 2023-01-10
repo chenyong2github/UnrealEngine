@@ -74,7 +74,7 @@ void SDMXPixelMappingComponentBox::SetIDText(const FText& NewIDText)
 	IDTextBlock->SetText(NewIDText);
 }
 
-const FVector2D& SDMXPixelMappingComponentBox::GetLocalSize() const
+FVector2f SDMXPixelMappingComponentBox::GetLocalSize() const
 {
 	return GetCachedGeometry().GetLocalSize();
 }

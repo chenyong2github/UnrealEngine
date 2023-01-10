@@ -547,7 +547,7 @@ FVector2D SButton::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	// the border image specified by the style.
 	if (ChildSlot.GetWidget() == SNullWidget::NullWidget)
 	{
-		return GetBorderImage()->ImageSize;
+		return FVector2D(GetBorderImage()->ImageSize);
 	}
 	else
 	{

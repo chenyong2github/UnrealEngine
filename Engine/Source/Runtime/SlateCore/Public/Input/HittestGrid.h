@@ -21,9 +21,6 @@ public:
 
 	virtual void ArrangeCustomHitTestChildren( FArrangedChildren& ArrangedChildren ) const = 0;
 
-	UE_DEPRECATED(5.0, "TranslateMouseCoordinateForCustomHitTestChild that returns a shared ptr is deprecated.")
-	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const { return TSharedPtr<struct FVirtualPointerPosition>(); }
-
 	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const = 0;
 };
 
@@ -37,7 +34,7 @@ public:
 	 * Given a Slate Units coordinate in virtual desktop space, perform a hittest
 	 * and return the path along which the corresponding event would be bubbled.
 	 */
-	TArray<FWidgetAndPointer> GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex = INDEX_NONE);
+	TArray<FWidgetAndPointer> GetBubblePath(UE::Slate::FDeprecateVector2DParameter DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex = INDEX_NONE);
 
 	/**
 	 * Set the position and size of the hittest area in desktop coordinates
@@ -47,7 +44,7 @@ public:
 	 *
 	 * @return      Returns true if a clear of the hittest grid was required. 
 	 */
-	bool SetHittestArea(const FVector2D& HittestPositionInDesktop, const FVector2D& HittestDimensions, const FVector2D& HitestOffsetInWindow = FVector2D::ZeroVector);
+	bool SetHittestArea(const UE::Slate::FDeprecateVector2DParameter& HittestPositionInDesktop, const UE::Slate::FDeprecateVector2DParameter& HittestDimensions, const UE::Slate::FDeprecateVector2DParameter& HitestOffsetInWindow = FVector2f::ZeroVector);
 
 	/** Insert custom hit test data for a widget already in the grid */
 	UE_DEPRECATED(5.0, "Deprecated. Use the InsertCustomHitTestPath with a pointer.")
@@ -78,9 +75,9 @@ public:
 	 */
 	TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex);
 
-	FVector2D GetGridSize() const { return GridSize; }
-	FVector2D GetGridOrigin() const { return GridOrigin; }
-	FVector2D GetGridWindowOrigin() const { return GridWindowOrigin; }
+	UE::Slate::FDeprecateVector2DResult GetGridSize() const { return GridSize; }
+	UE::Slate::FDeprecateVector2DResult GetGridOrigin() const { return GridOrigin; }
+	UE::Slate::FDeprecateVector2DResult GetGridWindowOrigin() const { return GridWindowOrigin; }
 
 	/** Clear the grid */
 	void Clear();
@@ -278,7 +275,7 @@ private:
 	TSharedPtr<SWidget> FindFocusableWidget(const FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc, int32 UserIndex, TArray<FDebuggingFindNextFocusableWidgetArgs::FWidgetResult>* IntermediatedResultPtr) const;
 
 	/** Constrains a float position into the grid coordinate. */
-	FIntPoint GetCellCoordinate(FVector2D Position) const;
+	FIntPoint GetCellCoordinate(UE::Slate::FDeprecateVector2DParameter Position) const;
 
 	/** Access a cell at coordinates X, Y. Coordinates are row and column indexes. */
 	FORCEINLINE_DEBUGGABLE FCell& CellAt(const int32 X, const int32 Y)
@@ -334,13 +331,13 @@ private:
 	FIntPoint NumCells;
 
 	/** Where the 0,0 of the upper-left-most cell corresponds to in desktop space. */
-	FVector2D GridOrigin;
+	FVector2f GridOrigin;
 
 	/** Where the 0,0 of the upper-left-most cell corresponds to in window space. */
-	FVector2D GridWindowOrigin;
+	FVector2f GridWindowOrigin;
 
 	/** The Size of the current grid. */
-	FVector2D GridSize;
+	FVector2f GridSize;
 
 	/** The current slate user index that should be associated with any added widgets */
 	int32 CurrentUserIndex;

@@ -49,7 +49,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry( FVector2D(0,0), FVector2D(AllottedGeometry.GetLocalSize().X,AllottedGeometry.GetLocalSize().Y) ),
+		AllottedGeometry.ToPaintGeometry( FVector2D(AllottedGeometry.GetLocalSize().X,AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(0,0)) ),
 		TimelineAreaBrush,
 		DrawEffects,
 		TimelineAreaBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint()
@@ -159,7 +159,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry( FVector2D(MarkerPosX, AllottedGeometry.GetLocalSize().Y - SizeY- LabelBuffer), FVector2D(CountX, SizeY) ),
+			AllottedGeometry.ToPaintGeometry( FVector2D(CountX, SizeY), FSlateLayoutTransform(FVector2D(MarkerPosX, AllottedGeometry.GetLocalSize().Y - SizeY- LabelBuffer)) ),
 			FillImage,
 			DrawEffects,
 			FLinearColor::Green

@@ -30,7 +30,7 @@ void SColorSpectrum::Construct( const FArguments& InArgs )
 
 FVector2D SColorSpectrum::ComputeDesiredSize( float ) const
 {
-	return Image->ImageSize;
+	return FVector2D(Image->ImageSize);
 }
 
 
@@ -106,7 +106,7 @@ int32 SColorSpectrum::OnPaint( const FPaintArgs& Args, const FGeometry& Allotted
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId + 1,
-		AllottedGeometry.ToPaintGeometry(CalcRelativeSelectedPosition() * AllottedGeometry.Size - SelectorImage->ImageSize * 0.5f, SelectorImage->ImageSize),
+		AllottedGeometry.ToPaintGeometry(SelectorImage->ImageSize, FSlateLayoutTransform(CalcRelativeSelectedPosition() * AllottedGeometry.Size - SelectorImage->ImageSize * 0.5f)),
 		SelectorImage,
 		DrawEffects,
 		InWidgetStyle.GetColorAndOpacityTint() * SelectorImage->GetTint(InWidgetStyle));

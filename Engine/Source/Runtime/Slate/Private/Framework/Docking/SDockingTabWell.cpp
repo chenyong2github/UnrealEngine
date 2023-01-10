@@ -173,7 +173,7 @@ int32 SDockingTabWell::OnPaint( const FPaintArgs& Args, const FGeometry& Allotte
 
 				// Center the separator
 				float Offset = (CurWidget.Geometry.GetLocalSize().Y - SeparatorHeight) / 2.0f;
-				FPaintGeometry Geometry = CurWidget.Geometry.ToPaintGeometry(FVector2D(CurWidget.Geometry.GetLocalSize().X + 1.0f, Offset), FVector2D(1.0f, SeparatorHeight));
+				FPaintGeometry Geometry = CurWidget.Geometry.ToPaintGeometry(FVector2f(1.0f, SeparatorHeight), FSlateLayoutTransform(FVector2f(CurWidget.Geometry.GetLocalSize().X + 1.0f, Offset)));
 		
 				// This code rounds the position of the widget so we don't end up on half a pixel and end up with a larger size separator than we want
 				FSlateRenderTransform NewTransform = Geometry.GetAccumulatedRenderTransform();

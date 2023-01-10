@@ -24,6 +24,6 @@ FGeometry& FGeometry::operator=(const FGeometry& RHS)
 
 FString FGeometry::ToString() const
 {
-	return FString::Printf(TEXT("[Abs=%s, Scale=%.2f, Size=%s]"), *AbsolutePosition.ToString(), Scale, *Size.ToString());
+	return FString::Printf(TEXT("[Abs=%s, Scale=%.2f, Size=%s]"), *AbsolutePosition.ToString(), Scale, *FVector2f(Size).ToString());
 }
 

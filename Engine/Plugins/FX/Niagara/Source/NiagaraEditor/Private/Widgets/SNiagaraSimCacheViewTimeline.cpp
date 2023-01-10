@@ -44,7 +44,7 @@ int32 SNiagaraSimCacheViewTimeline::OnPaint(const FPaintArgs& Args, const FGeome
 				const FVector2D BoxLocation(UStep * float(i), 0.0f);
 				const FVector2D BoxSize(UStep, AllottedGeometry.Size.Y);
 				const FLinearColor& Tint = (i == CurrentFrame) ? CurrentTint : BoxTints[i & 1];
-				FSlateDrawElement::MakeBox(OutDrawElements, LayerId++, AllottedGeometry.ToPaintGeometry(BoxLocation, BoxSize), BoxBrush, ESlateDrawEffect::None, Tint);
+				FSlateDrawElement::MakeBox(OutDrawElements, LayerId++, AllottedGeometry.ToPaintGeometry(BoxSize, FSlateLayoutTransform(BoxLocation)), BoxBrush, ESlateDrawEffect::None, Tint);
 			}
 		}
 		else

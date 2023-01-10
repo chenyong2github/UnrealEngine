@@ -262,7 +262,7 @@ int32 SNiagaraGraphNodeConvert::OnPaint(const FPaintArgs& Args, const FGeometry&
 		FVector2D LocalStart = AllottedGeometry.AbsoluteToLocal(AbsStart);
 		FVector2D StartDirection = FVector2D(DirectionOffset, 0);
 
-		FVector2D AbsEnd = ConvertNodeViewModel->GetDraggedSocketViewModel()->GetAbsoluteDragPosition() + Inverse(Args.GetWindowToDesktopTransform());
+		FVector2D AbsEnd = ConvertNodeViewModel->GetDraggedSocketViewModel()->GetAbsoluteDragPosition() + FVector2D(Inverse(Args.GetWindowToDesktopTransform()));
 		FVector2D LocalEnd = AllottedGeometry.AbsoluteToLocal(AbsEnd);
 		FVector2D EndDirection = FVector2D(DirectionOffset, 0);
 

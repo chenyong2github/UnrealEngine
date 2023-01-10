@@ -61,7 +61,8 @@ FVector2D SCompoundWidget::ComputeDesiredSize( float ) const
 	EVisibility ChildVisibility = ChildSlot.GetWidget()->GetVisibility();
 	if ( ChildVisibility != EVisibility::Collapsed )
 	{
-		return ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.GetPadding().GetDesiredSize();
+		FVector2f LocalDesiredSize = ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.GetPadding().GetDesiredSize();
+		return FVector2D(LocalDesiredSize);
 	}
 	
 	return FVector2D::ZeroVector;

@@ -218,7 +218,7 @@ class SDrawerOverlay : public SCompoundWidget
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight)),
+			RenderTransformedChildGeometry.ToPaintGeometry( FVector2f(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight), FSlateLayoutTransform(ShadowOffset) ),
 			BackgroundBrush,
 			ESlateDrawEffect::None,
 			BackgroundBrush->GetTint(InWidgetStyle));
@@ -229,7 +229,7 @@ class SDrawerOverlay : public SCompoundWidget
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			OutLayerId,
-			AllottedGeometry.ToPaintGeometry(FVector2D(0.0f, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y), FVector2D(AllottedGeometry.GetLocalSize().X, ShadowOffset.Y)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.GetLocalSize().X, ShadowOffset.Y), FSlateLayoutTransform(FVector2f(0.0f, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y))),
 			ShadowBrush,
 			ESlateDrawEffect::None,
 			ShadowBrush->GetTint(InWidgetStyle));
@@ -238,7 +238,7 @@ class SDrawerOverlay : public SCompoundWidget
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			OutLayerId+1,
-			RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight)),
+			RenderTransformedChildGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight), FSlateLayoutTransform(ShadowOffset)),
 			BorderBrush,
 			ESlateDrawEffect::None,
 			BorderBrush->GetTint(InWidgetStyle));
@@ -279,7 +279,10 @@ private:
 
 	FGeometry GetResizeHandleGeometry(const FGeometry& AllottedGeometry) const
 	{
-		return GetRenderTransformedGeometry(AllottedGeometry).MakeChild(ShadowOffset - FVector2D(0.0f, ExpanderSize), FVector2D(AllottedGeometry.GetLocalSize().X-ShadowOffset.X*2, ExpanderSize));
+		return GetRenderTransformedGeometry(AllottedGeometry).MakeChild(
+			FVector2D(AllottedGeometry.GetLocalSize().X-ShadowOffset.X*2, ExpanderSize),
+			FSlateLayoutTransform(ShadowOffset - FVector2D(0.0f, ExpanderSize))
+		);
 	}
 
 	void SetHeight(float NewHeight)

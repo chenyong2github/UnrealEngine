@@ -67,7 +67,7 @@ namespace UE::DisplayClusterColorGradingDetailTreeRow
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(16 * IndentIndex, 0), FVector2D(16, AllottedGeometry.GetLocalSize().Y)),
+					AllottedGeometry.ToPaintGeometry(FVector2D(16, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(16 * IndentIndex, 0))),
 					BackgroundBrush,
 					ESlateDrawEffect::None,
 					BackgroundColor.GetColor(InWidgetStyle)
@@ -76,7 +76,7 @@ namespace UE::DisplayClusterColorGradingDetailTreeRow
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					LayerId + 1,
-					AllottedGeometry.ToPaintGeometry(FVector2D(16 * IndentIndex, 0), FVector2D(16, AllottedGeometry.GetLocalSize().Y)),
+					AllottedGeometry.ToPaintGeometry(FVector2D(16, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(16 * IndentIndex, 0))),
 					DropShadowBrush
 				);
 			}

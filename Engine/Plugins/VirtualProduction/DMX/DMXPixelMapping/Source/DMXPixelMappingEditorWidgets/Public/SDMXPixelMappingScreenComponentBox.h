@@ -74,7 +74,7 @@ public:
 	virtual void SetLocalSize(const FVector2D& NewSize) override;
 
 	/** Returns the local size */
-	virtual const FVector2D& GetLocalSize() const override;
+	virtual FVector2f GetLocalSize() const override;
 
 	/** Rebuilds the grid */
 	void RebuildGrid(const FDMXPixelMappingScreenComponentGridParams& GridParams);

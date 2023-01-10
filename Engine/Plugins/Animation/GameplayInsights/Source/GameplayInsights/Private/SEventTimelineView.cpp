@@ -76,10 +76,10 @@ int32 SEventTimelineView::PaintEvents(const FGeometry& AllottedGeometry, const F
 				PrevPointTime = Point.Time;
 				
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(X, Y) , EventSize, 1.0), EventBrush, ESlateDrawEffect::None, Point.Color);
+					AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2f(X, Y))), EventBrush, ESlateDrawEffect::None, Point.Color);
 				
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(X, Y) , EventSize, 1.0), EventBorderBrush, ESlateDrawEffect::None, FLinearColor::Black); 
+					AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2f(X, Y))), EventBorderBrush, ESlateDrawEffect::None, FLinearColor::Black); 
 			}
 		}
 		
@@ -107,21 +107,21 @@ int32 SEventTimelineView::PaintEvents(const FGeometry& AllottedGeometry, const F
 
 				// window bar
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId++,
-					AllottedGeometry.ToPaintGeometry(FVector2D(XStart,Y + 1),FVector2D(XEnd-XStart, EventSize.Y-2), 1), Brush, ESlateDrawEffect::None, Window.Color);
+					AllottedGeometry.ToPaintGeometry(FVector2D(XEnd-XStart, EventSize.Y-2), FSlateLayoutTransform(FVector2D(XStart,Y + 1))), Brush, ESlateDrawEffect::None, Window.Color);
 
 				// key diamond at start
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(XStartDiamond, Y) , EventSize, 1.0), EventBrush, ESlateDrawEffect::None, Window.Color);
+					AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2D(XStartDiamond, Y))), EventBrush, ESlateDrawEffect::None, Window.Color);
 				
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(XStartDiamond, Y) , EventSize, 1.0), EventBorderBrush, ESlateDrawEffect::None, FLinearColor::Black); 
+					AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2D(XStartDiamond, Y))), EventBorderBrush, ESlateDrawEffect::None, FLinearColor::Black); 
 
 				// key diamond at end
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(XEndDiamond, Y) , EventSize, 1.0), EventBrush, ESlateDrawEffect::None, Window.Color);
+					AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2D(XEndDiamond, Y))), EventBrush, ESlateDrawEffect::None, Window.Color);
 				
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(XEndDiamond, Y) , EventSize, 1.0), EventBorderBrush, ESlateDrawEffect::None, FLinearColor::Black);
+					AllottedGeometry.ToPaintGeometry(EventSize, FSlateLayoutTransform(FVector2D(XEndDiamond, Y))), EventBorderBrush, ESlateDrawEffect::None, FLinearColor::Black);
 			}
 		}
 		

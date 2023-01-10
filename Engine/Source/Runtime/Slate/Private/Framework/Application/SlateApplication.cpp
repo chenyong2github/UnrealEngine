@@ -502,10 +502,10 @@ DECLARE_CYCLE_STAT(TEXT("ProcessMouseMove"), STAT_ProcessMouseMove, STATGROUP_Sl
 namespace SlateDefs
 {
 	// How far tool tips should be offset from the mouse cursor position, in pixels
-	static const FVector2D ToolTipOffsetFromMouse( 12.0f, 8.0f );
+	static const FVector2f ToolTipOffsetFromMouse( 12.0f, 8.0f );
 
 	// How far tool tips should be pushed out from a force field border, in pixels
-	static const FVector2D ToolTipOffsetFromForceField( 4.0f, 3.0f );
+	static const FVector2f ToolTipOffsetFromForceField( 4.0f, 3.0f );
 
 	// Empty set of Touch Key
 	static TSet<FKey> EmptyTouchKeySet;
@@ -962,19 +962,19 @@ float FSlateApplication::GetSoundDuration(const FSlateSound& Sound) const
 	return SlateSoundDevice->GetSoundDuration(Sound);
 }
 
-FVector2D FSlateApplication::GetCursorPos() const
+UE::Slate::FDeprecateVector2DResult FSlateApplication::GetCursorPos() const
 {
 	return GetCursorUser()->GetCursorPosition();
 }
 
-FVector2D FSlateApplication::GetLastCursorPos() const
+UE::Slate::FDeprecateVector2DResult FSlateApplication::GetLastCursorPos() const
 {
 	return GetCursorUser()->GetPreviousCursorPosition();
 }
 
 void FSlateApplication::SetCursorPos(const FVector2D& MouseCoordinate)
 {
-	GetCursorUser()->SetCursorPosition(MouseCoordinate);
+	GetCursorUser()->SetCursorPosition(UE::Slate::CastToVector2f(MouseCoordinate));
 }
 
 void FSlateApplication::UsePlatformCursorForCursorUser(bool bUsePlatformCursor)
@@ -1003,7 +1003,7 @@ void FSlateApplication::SetPlatformCursorVisibility(bool bNewVisibility)
 	}
 }
 
-FWidgetPath FSlateApplication::LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray< TSharedRef< SWindow > >& Windows, bool bIgnoreEnabledStatus, int32 UserIndex)
+FWidgetPath FSlateApplication::LocateWindowUnderMouse( UE::Slate::FDeprecateVector2DParameter ScreenspaceMouseCoordinate, const TArray< TSharedRef< SWindow > >& Windows, bool bIgnoreEnabledStatus, int32 UserIndex)
 {
 	// First, give the OS a chance to tell us which window to use, in case a child window is not guaranteed to stay on top of its parent window
 	TSharedPtr<FGenericWindow> NativeWindowUnderMouse = PlatformApplication->GetWindowUnderCursor();
@@ -1685,8 +1685,8 @@ void FSlateApplication::ThrottleApplicationBasedOnMouseMovement()
 		// Use a small movement threshold to avoid engaging the throttle when the user bumps the mouse
 		const float MinMouseMovePixelsBeforeThrottle = 2.0f;
 
-		const FVector2D& CursorPos = GetCursorPos();
-		static FVector2D LastCursorPos = GetCursorPos();
+		const FVector2f& CursorPos = GetCursorPos();
+		static FVector2f LastCursorPos = GetCursorPos();
 		//static double LastMouseMoveTime = FPlatformTime::Seconds();
 		static bool bIsMouseMoving = false;
 		if( CursorPos != LastCursorPos )
@@ -1748,19 +1748,19 @@ void FSlateApplication::ThrottleApplicationBasedOnMouseMovement()
 	}
 }
 
-FWidgetPath FSlateApplication::LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const
+FWidgetPath FSlateApplication::LocateWidgetInWindow(UE::Slate::FDeprecateVector2DParameter ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const
 {
 	const bool bAcceptsInput = Window->IsVisible() && (Window->AcceptsInput() || IsWindowHousingInteractiveTooltip(Window));
 	if (bAcceptsInput && Window->IsScreenspaceMouseWithin(ScreenspaceMouseCoordinate))
 	{
-		FVector2D CursorPosition = ScreenspaceMouseCoordinate;
+		FVector2f CursorPosition = ScreenspaceMouseCoordinate;
 
 		if (TransformFullscreenMouseInput && !GIsEditor && Window->GetWindowMode() == EWindowMode::Fullscreen)
 		{
 			// Screen space mapping scales everything. When window resolution doesn't match platform resolution, 
 			// this causes offset cursor hit-tests in fullscreen. Correct in slate since we are first window-aware slate processor.
-			FVector2D WindowSize = Window->GetSizeInScreen();
-			FVector2D DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
+			FVector2f WindowSize = Window->GetSizeInScreen();
+			FVector2f DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
 
 			CursorPosition *= WindowSize / DisplaySize;
 		}
@@ -1823,11 +1823,11 @@ TSharedRef< FGenericWindow > FSlateApplication::MakeWindow( TSharedRef<SWindow> 
 
 	Definition->Type = InSlateWindow->GetType();
 
-	const FVector2D Size = InSlateWindow->GetInitialDesiredSizeInScreen();
+	const FVector2f Size = InSlateWindow->GetInitialDesiredSizeInScreen();
 	Definition->WidthDesiredOnScreen = Size.X;
 	Definition->HeightDesiredOnScreen = Size.Y;
 
-	const FVector2D Position = InSlateWindow->GetInitialDesiredPositionInScreen();
+	const FVector2f Position = InSlateWindow->GetInitialDesiredPositionInScreen();
 	Definition->XDesiredPositionOnScreen = Position.X;
 	Definition->YDesiredPositionOnScreen = Position.Y;
 
@@ -2138,7 +2138,7 @@ TSharedRef<SWindow> FSlateApplication::AddWindowAsNativeChild( TSharedRef<SWindo
 	return InSlateWindow;
 }
 
-TSharedPtr<IMenu> FSlateApplication::PushMenu(const TSharedRef<SWidget>& InParentWidget, const FWidgetPath& InOwnerPath, const TSharedRef<SWidget>& InContent, const FVector2D& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const FVector2D& SummonLocationSize, TOptional<EPopupMethod> Method, const bool bIsCollapsedByParent)
+TSharedPtr<IMenu> FSlateApplication::PushMenu(const TSharedRef<SWidget>& InParentWidget, const FWidgetPath& InOwnerPath, const TSharedRef<SWidget>& InContent, const UE::Slate::FDeprecateVector2DParameter& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const UE::Slate::FDeprecateVector2DParameter& SummonLocationSize, TOptional<EPopupMethod> Method, const bool bIsCollapsedByParent)
 {
 	// Caller supplied a valid path? Pass it to the menu stack.
 	if (InOwnerPath.IsValid())
@@ -2157,7 +2157,7 @@ TSharedPtr<IMenu> FSlateApplication::PushMenu(const TSharedRef<SWidget>& InParen
 	return TSharedPtr<IMenu>();
 }
 
-TSharedPtr<IMenu> FSlateApplication::PushMenu(const TSharedPtr<IMenu>& InParentMenu, const TSharedRef<SWidget>& InContent, const FVector2D& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const FVector2D& SummonLocationSize, const bool bIsCollapsedByParent)
+TSharedPtr<IMenu> FSlateApplication::PushMenu(const TSharedPtr<IMenu>& InParentMenu, const TSharedRef<SWidget>& InContent, const UE::Slate::FDeprecateVector2DParameter& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const UE::Slate::FDeprecateVector2DParameter& SummonLocationSize, const bool bIsCollapsedByParent)
 {
 	return MenuStack.Push(InParentMenu, InContent, SummonLocation, TransitionEffect, bFocusImmediately, SummonLocationSize, bIsCollapsedByParent);
 }
@@ -3457,7 +3457,7 @@ void FSlateApplication::ProcessCursorReply(const FCursorReply& CursorReply)
 	GetCursorUser()->ProcessCursorReply(CursorReply);
 }
 
-void FSlateApplication::SpawnToolTip(const TSharedRef<IToolTip>& InToolTip, const FVector2D& InSpawnLocation)
+void FSlateApplication::SpawnToolTip(const TSharedRef<IToolTip>& InToolTip, const UE::Slate::FDeprecateVector2DParameter& InSpawnLocation)
 {
 	GetCursorUser()->ShowTooltip(InToolTip, InSpawnLocation);
 }
@@ -3657,12 +3657,12 @@ float FSlateApplication::GetDragTriggerDistanceSquared() const
 	return DragTriggerDistance * DragTriggerDistance;
 }
 
-bool FSlateApplication::HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin) const
+bool FSlateApplication::HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const UE::Slate::FDeprecateVector2DParameter ScreenSpaceOrigin) const
 {
 	return ( PointerEvent.GetScreenSpacePosition() - ScreenSpaceOrigin ).SizeSquared() >= ( DragTriggerDistance * DragTriggerDistance );
 }
 
-bool FSlateApplication::HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin, EOrientation Orientation) const
+bool FSlateApplication::HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const UE::Slate::FDeprecateVector2DParameter ScreenSpaceOrigin, EOrientation Orientation) const
 {
 	if (Orientation == Orient_Horizontal)
 	{
@@ -3720,11 +3720,11 @@ bool FSlateApplication::GetAllowTooltips() const
 	return bEnableTooltips;
 }
 
-FVector2D FSlateApplication::CalculateTooltipWindowPosition( const FSlateRect& InAnchorRect, const FVector2D& InSize, bool bAutoAdjustForDPIScale) const
+UE::Slate::FDeprecateVector2DResult FSlateApplication::CalculateTooltipWindowPosition( const FSlateRect& InAnchorRect, const UE::Slate::FDeprecateVector2DParameter& InSize, bool bAutoAdjustForDPIScale) const
 {
 	// first use the CalculatePopupWindowPosition and if cursor is not inside it, proceed with it to avoid behavior change.
-	FVector2D PopupPosition = CalculatePopupWindowPosition(InAnchorRect, InSize, bAutoAdjustForDPIScale);
-	FVector2D Cursor = GetCursorPos();
+	FVector2f PopupPosition = CalculatePopupWindowPosition(InAnchorRect, InSize, bAutoAdjustForDPIScale);
+	FVector2f Cursor = GetCursorPos();
 	if (PopupPosition.X > Cursor.X || PopupPosition.X + InSize.X < Cursor.X ||
 		PopupPosition.Y > Cursor.Y || PopupPosition.Y + InSize.Y < Cursor.Y)
 	{
@@ -3750,10 +3750,10 @@ FVector2D FSlateApplication::CalculateTooltipWindowPosition( const FSlateRect& I
 	// We want the Tooltip to appear in a 'comfortable' distance. The following vector: 'TooltipCursorOffset' 
 	// is used to move away from the cursor tip position. If we wouldn't do this the Tooltip would directly
 	// appear at the tip of the cursor. The coefficients 16 and 12 are estimated empirical.
-	const FVector2D TooltipCursorOffset(16 * DPIScale, 12 * DPIScale);
+	const FVector2f TooltipCursorOffset(16 * DPIScale, 12 * DPIScale);
 
 	// Calculate the new position of the Tooltip by starting at the Top/Left corner.
-	FVector2D ToolTipLocation = Cursor - TooltipCursorOffset - InSize;
+	FVector2f ToolTipLocation = Cursor - TooltipCursorOffset - InSize;
 
 	// Adjust the horizontal position so that it will be inside the work area.
 	if ( ToolTipLocation.X < WorkAreaRect.Left )
@@ -3770,9 +3770,9 @@ FVector2D FSlateApplication::CalculateTooltipWindowPosition( const FSlateRect& I
 	return ToolTipLocation;
 }
 
-FVector2D FSlateApplication::CalculatePopupWindowPosition(const FSlateRect& InAnchor, const FVector2D& InSize, bool bAutoAdjustForDPIScale, const FVector2D& InProposedPlacement, const EOrientation Orientation) const
+UE::Slate::FDeprecateVector2DResult FSlateApplication::CalculatePopupWindowPosition(const FSlateRect& InAnchor, const UE::Slate::FDeprecateVector2DParameter& InSize, bool bAutoAdjustForDPIScale, const UE::Slate::FDeprecateVector2DParameter& InProposedPlacement, const EOrientation Orientation) const
 {
-	FVector2D CalculatedPopUpWindowPosition(0, 0);
+	FVector2D CalculatedPopUpWindowPosition(0.f, 0.f);
 
 	float DPIScale = 1.0f;
 
@@ -3781,7 +3781,7 @@ FVector2D FSlateApplication::CalculatePopupWindowPosition(const FSlateRect& InAn
 		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(InAnchor.Left, InAnchor.Top);
 	}
 
-	FVector2D AdjustedSize = InSize * DPIScale;
+	FVector2f AdjustedSize = InSize * DPIScale;
 
 	FPlatformRect AnchorRect;
 	AnchorRect.Left = InAnchor.Left;
@@ -3796,9 +3796,9 @@ FVector2D FSlateApplication::CalculatePopupWindowPosition(const FSlateRect& InAn
 		PopUpOrientation = EPopUpOrientation::Vertical;
 	}
 
-	if (PlatformApplication->TryCalculatePopupWindowPosition(AnchorRect, AdjustedSize, InProposedPlacement, PopUpOrientation, /*OUT*/&CalculatedPopUpWindowPosition))
+	if (PlatformApplication->TryCalculatePopupWindowPosition(AnchorRect, FVector2D(AdjustedSize), FVector2D(InProposedPlacement), PopUpOrientation, /*OUT*/&CalculatedPopUpWindowPosition))
 	{
-		return CalculatedPopUpWindowPosition / DPIScale;
+		return UE::Slate::CastToVector2f(CalculatedPopUpWindowPosition / DPIScale);
 	}
 	else
 	{
@@ -3816,12 +3816,12 @@ FVector2D FSlateApplication::CalculatePopupWindowPosition(const FSlateRect& InAn
 			PlatformWorkArea.Right,
 			PlatformWorkArea.Bottom);
 
-		FVector2D ProposedPlacement = InProposedPlacement;
+		FVector2f ProposedPlacement = InProposedPlacement;
 
 		if (ProposedPlacement.IsZero())
 		{
 			// Assume natural left-to-right, top-to-bottom flow; position popup below and to the right.
-			ProposedPlacement = FVector2D(
+			ProposedPlacement = FVector2f(
 				Orientation == Orient_Horizontal ? AnchorRect.Right : AnchorRect.Left,
 				Orientation == Orient_Horizontal ? AnchorRect.Top : AnchorRect.Bottom);
 		}
@@ -3899,13 +3899,13 @@ FSlateRect FSlateApplication::GetPreferredWorkArea() const
 		// First see if we have a focused widget
 		if (FocusedWidgetPath.IsValid() && FocusedWidgetPath.Window.IsValid())
 		{
-			const FVector2D WindowPos = FocusedWidgetPath.Window.Pin()->GetPositionInScreen();
-			const FVector2D WindowSize = FocusedWidgetPath.Window.Pin()->GetSizeInScreen();
+			const FVector2f WindowPos = FocusedWidgetPath.Window.Pin()->GetPositionInScreen();
+			const FVector2f WindowSize = FocusedWidgetPath.Window.Pin()->GetSizeInScreen();
 			return GetWorkArea(FSlateRect(WindowPos.X, WindowPos.Y, WindowPos.X + WindowSize.X, WindowPos.Y + WindowSize.Y));
 		}
 
 		// no focus widget, so use cursor position if there are windows present in the work area
-		const FVector2D CursorPos = KeyboardUser->GetCursorPosition();
+		const FVector2f CursorPos = KeyboardUser->GetCursorPosition();
 		const FSlateRect WorkArea = GetWorkArea(FSlateRect(CursorPos.X, CursorPos.Y, CursorPos.X + 1.0f, CursorPos.Y + 1.0f));
 
 		if (FSlateWindowHelper::CheckWorkAreaForWindows(SlateWindows, WorkArea))
@@ -3989,9 +3989,9 @@ void TakeScreenshotCommon(const TSharedRef<SWidget>& Widget, const FIntRect& Inn
 	FSlateApplication::Get().GeneratePathToWidgetChecked(Widget, WidgetPath);
 
 	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
-	FVector2D Position = FVector2D(ArrangedWidget.Geometry.AbsolutePosition);
-	FVector2D Size = ArrangedWidget.Geometry.GetDrawSize();
-	FVector2D WindowPosition = WidgetWindow->GetPositionInScreen();
+	FVector2f Position = FVector2f(ArrangedWidget.Geometry.AbsolutePosition);
+	FVector2f Size = ArrangedWidget.Geometry.GetDrawSize();
+	FVector2f WindowPosition = WidgetWindow->GetPositionInScreen();
 
 	ScreenshotRect = InnerWidgetArea.IsEmpty() ? FIntRect(0, 0, (int32)Size.X, (int32)Size.Y) : InnerWidgetArea;
 
@@ -4223,17 +4223,17 @@ void FSlateApplication::ForEachUser(TFunctionRef<void(FSlateUser*)> InPredicate,
 /* FSlateApplicationBase interface
  *****************************************************************************/
 
-FVector2D FSlateApplication::GetCursorSize( ) const
+UE::Slate::FDeprecateVector2DResult FSlateApplication::GetCursorSize( ) const
 {
 	if ( PlatformApplication->Cursor.IsValid() )
 	{
 		int32 X;
 		int32 Y;
 		PlatformApplication->Cursor->GetSize( X, Y );
-		return FVector2D( X, Y );
+		return FVector2f( static_cast<float>(X), static_cast<float>(Y) );
 	}
 
-	return FVector2D( 1.0f, 1.0f );
+	return FVector2f( 1.0f, 1.0f );
 }
 
 EVisibility FSlateApplication::GetSoftwareCursorVis( ) const
@@ -4284,8 +4284,8 @@ FPointerEvent FSlateApplication::TransformPointerEvent(const FPointerEvent& Poin
 		{
 			// Screen space mapping scales everything. When window resolution doesn't match platform resolution, 
 			// this causes offset cursor hit-tests in fullscreen. Correct in slate since we are first window-aware slate processor.
-			FVector2D WindowSize = Window->GetSizeInScreen();
-			FVector2D DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
+			FVector2f WindowSize = Window->GetSizeInScreen();
+			FVector2f DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
 
 			TransformedPointerEvent = FPointerEvent(PointerEvent, PointerEvent.GetScreenSpacePosition() * WindowSize / DisplaySize, PointerEvent.GetLastScreenSpacePosition() * WindowSize / DisplaySize);
 		}
@@ -5717,7 +5717,7 @@ bool FSlateApplication::ProcessMouseWheelOrGestureEvent( const FPointerEvent& In
 			bShouldProcessEvent = true;
 			break;
 		default:
-			bShouldProcessEvent = InGestureEvent->GetGestureDelta() != FVector2D::ZeroVector;
+			bShouldProcessEvent = InGestureEvent->GetGestureDelta() != FVector2f::ZeroVector;
 			break;
 		}
 	}
@@ -5806,8 +5806,8 @@ bool FSlateApplication::OnMouseMove()
 	}
 
 	bool Result = true;
-	const FVector2D CurrentCursorPosition = GetCursorPos();
-	const FVector2D LastCursorPosition = GetLastCursorPos();
+	const FVector2f CurrentCursorPosition = GetCursorPos();
+	const FVector2f LastCursorPosition = GetLastCursorPos();
 	
 	// Force the cursor user index to use the platform cursor since we've been notified that the platform 
 	// cursor position has changed. This is done intentionally after getting the positions in order to avoid
@@ -5872,7 +5872,7 @@ bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 			CursorPointerIndex,
 			GetCursorPos(),
 			GetLastCursorPos(),
-			FVector2D( X, Y ), 
+			FVector2f( X, Y ), 
 			PressedMouseButtons,
 			PlatformApplication->GetModifierKeys()
 		);
@@ -6124,7 +6124,7 @@ bool FSlateApplication::OnControllerButtonReleased(FGamepadKeyNames::Type KeyNam
 
 bool FSlateApplication::OnTouchGesture( EGestureEvent GestureType, const FVector2D &Delta, const float MouseWheelDelta, bool bIsDirectionInvertedFromDevice )
 {
-	const FVector2D CurrentCursorPosition = GetCursorPos();
+	const FVector2f CurrentCursorPosition = GetCursorPos();
 	
 	FPointerEvent GestureEvent(
 		CurrentCursorPosition,
@@ -6350,7 +6350,7 @@ bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& Platf
 
 	if ( Window.IsValid() )
 	{
-		Window->SetCachedSize( FVector2D( Width, Height ) );
+		Window->SetCachedSize( FVector2f( Width, Height ) );
 
 		Renderer->RequestResize( Window, Width, Height );
 
@@ -6472,7 +6472,7 @@ void FSlateApplication::OnMovedWindow( const TSharedRef< FGenericWindow >& Platf
 
 	if ( Window.IsValid() )
 	{
-		Window->SetCachedScreenPosition( FVector2D( X, Y ) );
+		Window->SetCachedScreenPosition( FVector2f( X, Y ) );
 	}
 }
 
@@ -6723,7 +6723,7 @@ EWindowZone::Type FSlateApplication::GetWindowZoneForPoint( const TSharedRef< FG
 
 	if ( Window.IsValid() )
 	{
-		return Window->GetCurrentWindowZone( FVector2D( X, Y ) );
+		return Window->GetCurrentWindowZone( FVector2f( X, Y ) );
 	}
 
 	return EWindowZone::NotInWindow;
@@ -6840,8 +6840,8 @@ EDropEffect::Type FSlateApplication::OnDragEnter( const TSharedRef< SWindow >& W
 	// Assume we cannot handle it.
 	DragIsHandled = false;
 
-	const FVector2D CurrentCursorPosition = GetCursorPos();
-	const FVector2D LastCursorPosition = GetLastCursorPos();
+	const FVector2f CurrentCursorPosition = GetCursorPos();
+	const FVector2f LastCursorPosition = GetLastCursorPos();
 
 	// Tell slate to enter drag and drop mode.
 	// Make a faux mouse event for slate, so we can initiate a drag and drop.
@@ -6895,9 +6895,9 @@ EDropEffect::Type FSlateApplication::OnDragOver( const TSharedPtr< FGenericWindo
 	if (GetCursorUser()->IsDragDropping())
 	{
 		bool MouseMoveHandled = true;
-		FVector2D CursorMovementDelta( 0, 0 );
-		const FVector2D CurrentCursorPosition = GetCursorPos();
-		const FVector2D LastCursorPosition = GetLastCursorPos();
+		FVector2f CursorMovementDelta( 0, 0 );
+		const FVector2f CurrentCursorPosition = GetCursorPos();
+		const FVector2f LastCursorPosition = GetLastCursorPos();
 
 		if ( LastCursorPosition != CurrentCursorPosition )
 		{

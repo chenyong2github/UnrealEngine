@@ -224,7 +224,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	static const FTextBlockStyle NormalText = FTextBlockStyle()
 		.SetFont(DEFAULT_FONT("Regular", RegularTextSize))
 		.SetColorAndOpacity(FSlateColor::UseForeground())
-		.SetShadowOffset(FVector2D::ZeroVector)
+		.SetShadowOffset(FVector2f::ZeroVector)
 		.SetShadowColorAndOpacity(FLinearColor::Black)
 		.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
 		.SetHighlightShape(BOX_BRUSH("Common/TextBlockHighlightShape", FMargin(3.f /8.f)));
@@ -236,7 +236,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	static const FTextBlockStyle MonospacedText = FTextBlockStyle()
 		.SetFont(DEFAULT_FONT("Mono", 10))
 		.SetColorAndOpacity(FSlateColor::UseForeground())
-		.SetShadowOffset(FVector2D::ZeroVector)
+		.SetShadowOffset(FVector2f::ZeroVector)
 		.SetShadowColorAndOpacity(FLinearColor::Black)
 		.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
 		.SetHighlightShape(BOX_BRUSH("Common/TextBlockHighlightShape", FMargin(3.f/8.f))
@@ -259,7 +259,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	Style->Set("EmbossedText", FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Regular", 24))
 		.SetColorAndOpacity(FLinearColor::Black )
-		.SetShadowOffset( FVector2D(0.0f, 1.0f))
+		.SetShadowOffset( FVector2f(0.0f, 1.0f))
 		.SetShadowColorAndOpacity(FLinearColor(0.8f, 0.8f, 0.8f, 0.5))
 		);
 
@@ -310,7 +310,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	
 	// Demo Recording
 	{
-		Style->Set("DemoRecording.CursorPing", new IMAGE_BRUSH("Common/CursorPing", FVector2D(31,31)));
+		Style->Set("DemoRecording.CursorPing", new IMAGE_BRUSH("Common/CursorPing", FVector2f(31.f,31.f)));
 	}
 
 	// Error Reporting
@@ -330,8 +330,8 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 
 	// Common Icons
 	{
-		Style->Set("TrashCan", new IMAGE_BRUSH( "Icons/TrashCan", FVector2D(64, 64)));
-		Style->Set("TrashCan_Small", new IMAGE_BRUSH( "Icons/TrashCan_Small", FVector2D(18, 18)));
+		Style->Set("TrashCan", new IMAGE_BRUSH( "Icons/TrashCan", FVector2f(64.f, 64.f)));
+		Style->Set("TrashCan_Small", new IMAGE_BRUSH( "Icons/TrashCan_Small", FVector2f(18.f, 18.f)));
 	}
 
 	// Common Icons
@@ -370,14 +370,14 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	}
 
 	// SVerticalBox Drag& Drop Icon
-	Style->Set("VerticalBoxDragIndicator", new IMAGE_BRUSH("Common/VerticalBoxDragIndicator", FVector2D(6, 45)));
-	Style->Set("VerticalBoxDragIndicatorShort", new IMAGE_BRUSH("Common/VerticalBoxDragIndicatorShort", FVector2D(6, 15)));
+	Style->Set("VerticalBoxDragIndicator", new IMAGE_BRUSH("Common/VerticalBoxDragIndicator", FVector2f(6.f, 45.f)));
+	Style->Set("VerticalBoxDragIndicatorShort", new IMAGE_BRUSH("Common/VerticalBoxDragIndicatorShort", FVector2f(6.f, 15.f)));
 	// SScrollBar defaults...
 	static const FScrollBarStyle ScrollBar = FScrollBarStyle()
-		.SetVerticalTopSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Vertical", FVector2D(8, 8)))
-		.SetVerticalBottomSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Vertical", FVector2D(8, 8)))
-		.SetHorizontalTopSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Horizontal", FVector2D(8, 8)))
-		.SetHorizontalBottomSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Horizontal", FVector2D(8, 8)))
+		.SetVerticalTopSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Vertical", FVector2f(8.f, 8.f)))
+		.SetVerticalBottomSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Vertical", FVector2f(8.f, 8.f)))
+		.SetHorizontalTopSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Horizontal", FVector2f(8.f, 8.f)))
+		.SetHorizontalBottomSlotImage(IMAGE_BRUSH("Common/Scrollbar_Background_Horizontal", FVector2f(8.f, 8.f)))
 		.SetNormalThumbImage( BOX_BRUSH( "Common/Scrollbar_Thumb", FMargin(4.f/16.f) ) )
 		.SetDraggedThumbImage( BOX_BRUSH( "Common/Scrollbar_Thumb", FMargin(4.f/16.f) ) )
 		.SetHoveredThumbImage( BOX_BRUSH( "Common/Scrollbar_Thumb", FMargin(4.f/16.f) ) );
@@ -580,7 +580,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	{
 		FTextBlockStyle InlineEditableTextBlockReadOnly = FTextBlockStyle(NormalText)
 			.SetColorAndOpacity( FSlateColor::UseForeground() )
-			.SetShadowOffset( FVector2D::ZeroVector )
+			.SetShadowOffset( FVector2f::ZeroVector )
 			.SetShadowColorAndOpacity( FLinearColor::Black );
 
 		FTextBlockStyle InlineEditableTextBlockSmallReadOnly = FTextBlockStyle(InlineEditableTextBlockReadOnly)
@@ -653,14 +653,14 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 		Style->Set( "ProgressBar", FProgressBarStyle()
 			.SetBackgroundImage( BOX_BRUSH( "Common/ProgressBar_Background", FMargin(5.f/12.f) ) )
 			.SetFillImage( BOX_BRUSH( "Common/ProgressBar_Fill", FMargin(5.f/12.f), FLinearColor( 1.0f, 0.22f, 0.0f )  ) )
-			.SetMarqueeImage( IMAGE_BRUSH( "Common/ProgressBar_Marquee", FVector2D(20,12), FLinearColor::White, ESlateBrushTileType::Horizontal ) )
+			.SetMarqueeImage( IMAGE_BRUSH( "Common/ProgressBar_Marquee", FVector2f(20.f,12.f), FLinearColor::White, ESlateBrushTileType::Horizontal ) )
 			);
 	}
 
 	// SThrobber, SCircularThrobber defaults...
 	{
-		Style->Set( "Throbber.Chunk", new IMAGE_BRUSH( "Common/Throbber_Piece", FVector2D(16,16) ) );
-		Style->Set( "Throbber.CircleChunk", new IMAGE_BRUSH( "Common/Throbber_Piece", FVector2D(8,8) ) );
+		Style->Set( "Throbber.Chunk", new IMAGE_BRUSH( "Common/Throbber_Piece", FVector2f(16.f,16.f) ) );
+		Style->Set( "Throbber.CircleChunk", new IMAGE_BRUSH( "Common/Throbber_Piece", FVector2f(8.f,8.f) ) );
 	}
 
 	// SExpandableArea defaults...
@@ -698,9 +698,9 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 			.SetNormalBarImage(FSlateColorBrush(FColor::White))
 			.SetHoveredBarImage(FSlateColorBrush(FColor::White))
 			.SetDisabledBarImage(FSlateColorBrush(FLinearColor::Gray))
-			.SetNormalThumbImage( IMAGE_BRUSH( "Common/Button", FVector2D(8.0f, 14.0f) ) )
-			.SetHoveredThumbImage(IMAGE_BRUSH("Common/Button", FVector2D(8.0f, 14.0f)))
-			.SetDisabledThumbImage( IMAGE_BRUSH( "Common/Button_Disabled", FVector2D(8.0f, 14.0f) ) )
+			.SetNormalThumbImage( IMAGE_BRUSH( "Common/Button", FVector2f(8.0f, 14.0f) ) )
+			.SetHoveredThumbImage(IMAGE_BRUSH("Common/Button", FVector2f(8.0f, 14.0f)))
+			.SetDisabledThumbImage( IMAGE_BRUSH( "Common/Button_Disabled", FVector2f(8.0f, 14.0f) ) )
 			.SetBarThickness(2.0f);
 		Style->Set( "Slider", SliderStyle );
 
@@ -760,19 +760,19 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 		Style->Set( "ColorPicker.EyeDropper", new IMAGE_BRUSH( "Icons/eyedropper_16px", Icon16x16) );
 		Style->Set( "ColorPicker.Font", DEFAULT_FONT( "Regular", 10 ) );
 		Style->Set( "ColorPicker.Mode", new IMAGE_BRUSH( "Common/ColorPicker_Mode_16x", Icon16x16) );
-		Style->Set( "ColorPicker.Separator", new IMAGE_BRUSH( "Common/ColorPicker_Separator", FVector2D(2.0f, 2.0f) ) );
-		Style->Set( "ColorPicker.Selector", new IMAGE_BRUSH( "Common/Circle", FVector2D(8, 8) ) );
+		Style->Set( "ColorPicker.Separator", new IMAGE_BRUSH( "Common/ColorPicker_Separator", FVector2f(2.0f, 2.0f) ) );
+		Style->Set( "ColorPicker.Selector", new IMAGE_BRUSH( "Common/Circle", FVector2f(8.f, 8.f) ) );
 		Style->Set( "ColorPicker.Slider", FSliderStyle()
-			.SetDisabledThumbImage( IMAGE_BRUSH( "Common/ColorPicker_SliderHandle", FVector2D(8.0f, 32.0f)) )
-			.SetNormalThumbImage( IMAGE_BRUSH( "Common/ColorPicker_SliderHandle", FVector2D(8.0f, 32.0f)) )
-			.SetHoveredThumbImage( IMAGE_BRUSH("Common/ColorPicker_SliderHandle", FVector2D(8.0f, 32.0f)) )
+			.SetDisabledThumbImage( IMAGE_BRUSH( "Common/ColorPicker_SliderHandle", FVector2f(8.0f, 32.0f)) )
+			.SetNormalThumbImage( IMAGE_BRUSH( "Common/ColorPicker_SliderHandle", FVector2f(8.0f, 32.0f)) )
+			.SetHoveredThumbImage( IMAGE_BRUSH("Common/ColorPicker_SliderHandle", FVector2f(8.0f, 32.0f)) )
 			);
 	}
 
 	// SColorSpectrum defaults...
 	{
-		Style->Set( "ColorSpectrum.Spectrum", new IMAGE_BRUSH( "Common/ColorSpectrum", FVector2D(256, 256) ) );
-		Style->Set( "ColorSpectrum.Selector", new IMAGE_BRUSH( "Common/Circle", FVector2D(8, 8) ) );
+		Style->Set( "ColorSpectrum.Spectrum", new IMAGE_BRUSH( "Common/ColorSpectrum", FVector2f(256.f, 256.f) ) );
+		Style->Set( "ColorSpectrum.Selector", new IMAGE_BRUSH( "Common/Circle", FVector2f(8.f, 8.f) ) );
 	}
 
 	// SColorThemes defaults...
@@ -782,14 +782,14 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 
 	// SColorWheel defaults...
 	{
-		Style->Set( "ColorWheel.HueValueCircle", new IMAGE_BRUSH( "Common/ColorWheel", FVector2D(192, 192) ) );
-		Style->Set( "ColorWheel.Selector", new IMAGE_BRUSH( "Common/Circle", FVector2D(8, 8) ) );
+		Style->Set( "ColorWheel.HueValueCircle", new IMAGE_BRUSH( "Common/ColorWheel", FVector2f(192.f, 192.f) ) );
+		Style->Set( "ColorWheel.Selector", new IMAGE_BRUSH( "Common/Circle", FVector2f(8.f, 8.f) ) );
 	}
 
 	// SColorGradingWheel defaults...
 	{
-		Style->Set("ColorGradingWheel.HueValueCircle", new IMAGE_BRUSH("Common/ColorGradingWheel", FVector2D(192, 192)));
-		Style->Set("ColorGradingWheel.Selector", new IMAGE_BRUSH("Common/Circle", FVector2D(8, 8)));
+		Style->Set("ColorGradingWheel.HueValueCircle", new IMAGE_BRUSH("Common/ColorGradingWheel", FVector2f(192.f, 192.f)));
+		Style->Set("ColorGradingWheel.Selector", new IMAGE_BRUSH("Common/Circle", FVector2f(8.f, 8.f)));
 	}
 
 	// SSplitter
@@ -1140,7 +1140,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	{
 		Style->Set("Wizard.PageTitle", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("BoldCondensed", 28))
-			.SetShadowOffset(FVector2D(1, 1))
+			.SetShadowOffset(FVector2f(1.f, 1.f))
 			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f))
 			);
 	}
@@ -1176,13 +1176,13 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 		FTextBlockStyle DockingTabFont = FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT( "Regular", 9 ) )
 			.SetColorAndOpacity( FLinearColor(0.72f, 0.72f, 0.72f, 1.f) )
-			.SetShadowOffset( FVector2D( 1,1 ) )
+			.SetShadowOffset( FVector2f( 1.f,1.f ) )
 			.SetShadowColorAndOpacity( FLinearColor::Black ) ;
 
 		Style->Set( "Docking.UnhideTabwellButton", FButtonStyle(Button)
-			.SetNormal ( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Normal", FVector2D(10,10) ) )
-			.SetPressed( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Pressed", FVector2D(10,10) ) )
-			.SetHovered( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Hovered", FVector2D(10,10) ) )
+			.SetNormal ( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Normal", FVector2f(10.f,10.f) ) )
+			.SetPressed( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Pressed", FVector2f(10.f,10.f) ) )
+			.SetHovered( IMAGE_BRUSH( "/Docking/ShowTabwellButton_Hovered", FVector2f(10.f,10.f) ) )
 			.SetNormalPadding(0)
 			.SetPressedPadding(0)
 			);
@@ -1231,14 +1231,14 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 			);
 
 		// Dock Cross
-		Style->Set( "Docking.Cross.DockLeft", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
-		Style->Set( "Docking.Cross.DockLeft_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f) ) );
-		Style->Set( "Docking.Cross.DockTop", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
-		Style->Set( "Docking.Cross.DockTop_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f) ) );
-		Style->Set( "Docking.Cross.DockRight", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
-		Style->Set( "Docking.Cross.DockRight_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f) ) );
-		Style->Set( "Docking.Cross.DockBottom", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
-		Style->Set( "Docking.Cross.DockBottom_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2D(6, 6), FLinearColor(1.0f, 0.35f, 0.0f) ) );
+		Style->Set( "Docking.Cross.DockLeft", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
+		Style->Set( "Docking.Cross.DockLeft_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f) ) );
+		Style->Set( "Docking.Cross.DockTop", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
+		Style->Set( "Docking.Cross.DockTop_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f) ) );
+		Style->Set( "Docking.Cross.DockRight", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
+		Style->Set( "Docking.Cross.DockRight_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f) ) );
+		Style->Set( "Docking.Cross.DockBottom", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
+		Style->Set( "Docking.Cross.DockBottom_Hovered", new IMAGE_BRUSH( "/Docking/OuterDockingIndicator", FVector2f(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f) ) );
 		Style->Set( "Docking.Cross.DockCenter", new IMAGE_BRUSH( "/Docking/DockingIndicator_Center", Icon64x64,  FLinearColor(1.0f, 0.35f, 0.0f, 0.25f) ) );
 		Style->Set( "Docking.Cross.DockCenter_Hovered", new IMAGE_BRUSH( "/Docking/DockingIndicator_Center", Icon64x64,  FLinearColor(1.0f, 0.35f, 0.0f) ) );
 		
@@ -1256,18 +1256,18 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	// SScrollBox defaults...
 	{
 		Style->Set( "ScrollBox", FScrollBoxStyle()
-			.SetTopShadowBrush( BOX_BRUSH( "Common/ScrollBoxShadowTop", FVector2D(16, 8), FMargin(0.5, 1, 0.5, 0) ) )
-			.SetBottomShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowBottom", FVector2D(16, 8), FMargin(0.5, 0, 0.5, 1)))
-			.SetLeftShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowLeft", FVector2D(8, 16), FMargin(1, 0.5, 0, 0.5)))
-			.SetRightShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowRight", FVector2D(8, 16), FMargin(0, 0.5, 1, 0.5)))
+			.SetTopShadowBrush( BOX_BRUSH( "Common/ScrollBoxShadowTop", FVector2f(16.f, 8.f), FMargin(0.5, 1, 0.5, 0) ) )
+			.SetBottomShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowBottom", FVector2f(16.f, 8.f), FMargin(0.5, 0, 0.5, 1)))
+			.SetLeftShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowLeft", FVector2f(8.f, 16.f), FMargin(1, 0.5, 0, 0.5)))
+			.SetRightShadowBrush(BOX_BRUSH("Common/ScrollBoxShadowRight", FVector2f(8.f, 16.f), FMargin(0, 0.5, 1, 0.5)))
 			);
 	}
 
 	// SScrollBorder defaults...
 	{
 		Style->Set( "ScrollBorder", FScrollBorderStyle()
-			.SetTopShadowBrush(BOX_BRUSH("Common/ScrollBorderShadowTop", FVector2D(16, 8), FMargin(0.5, 1, 0.5, 0)))
-			.SetBottomShadowBrush(BOX_BRUSH("Common/ScrollBorderShadowBottom", FVector2D(16, 8), FMargin(0.5, 0, 0.5, 1)))
+			.SetTopShadowBrush(BOX_BRUSH("Common/ScrollBorderShadowTop", FVector2f(16.f, 8.f), FMargin(0.5, 1, 0.5, 0)))
+			.SetBottomShadowBrush(BOX_BRUSH("Common/ScrollBorderShadowBottom", FVector2f(16.f, 8.f), FMargin(0.5, 0, 0.5, 1)))
 			);
 	}
 
@@ -1275,30 +1275,30 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	{
 #if !PLATFORM_MAC
 		static const FButtonStyle MinimizeButtonStyle = FButtonStyle(Button)
-			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Minimize_Normal", FVector2D(27.0f, 18.0f)))
-			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Minimize_Hovered", FVector2D(27.0f, 18.0f)))
-			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Minimize_Pressed", FVector2D(27.0f, 18.0f)));
+			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Minimize_Normal", FVector2f(27.0f, 18.0f)))
+			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Minimize_Hovered", FVector2f(27.0f, 18.0f)))
+			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Minimize_Pressed", FVector2f(27.0f, 18.0f)));
 
 		static const FButtonStyle MaximizeButtonStyle = FButtonStyle(Button)
-			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Maximize_Normal", FVector2D(23.0f, 18.0f)))
-			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Maximize_Hovered", FVector2D(23.0f, 18.0f)))
-			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Maximize_Pressed", FVector2D(23.0f, 18.0f)));
+			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Maximize_Normal", FVector2f(23.0f, 18.0f)))
+			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Maximize_Hovered", FVector2f(23.0f, 18.0f)))
+			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Maximize_Pressed", FVector2f(23.0f, 18.0f)));
 
 		static const FButtonStyle RestoreButtonStyle = FButtonStyle(Button)
-			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Restore_Normal", FVector2D(23.0f, 18)))
-			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Restore_Hovered", FVector2D(23.0f, 18)))
-			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Restore_Pressed", FVector2D(23.0f, 18)));
+			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Restore_Normal", FVector2f(23.0f, 18.f)))
+			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Restore_Hovered", FVector2f(23.0f, 18.f)))
+			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Restore_Pressed", FVector2f(23.0f, 18.f)));
 
 		static const FButtonStyle CloseButtonStyle = FButtonStyle(Button)
-			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Close_Normal", FVector2D(44.0f, 18.0f)))
-			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Close_Hovered", FVector2D(44.0f, 18.0f)))
-			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Close_Pressed", FVector2D(44.0f, 18.0f)));
+			.SetNormal (IMAGE_BRUSH("Common/Window/WindowButton_Close_Normal", FVector2f(44.0f, 18.0f)))
+			.SetHovered(IMAGE_BRUSH("Common/Window/WindowButton_Close_Hovered", FVector2f(44.0f, 18.0f)))
+			.SetPressed(IMAGE_BRUSH("Common/Window/WindowButton_Close_Pressed", FVector2f(44.0f, 18.0f)));
 #endif
 
 		static const FTextBlockStyle TitleTextStyle = FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("Regular", 9))
 			.SetColorAndOpacity(FLinearColor::White)
-			.SetShadowOffset(FVector2D(1.0f, 1.0f))
+			.SetShadowOffset(FVector2f(1.0f, 1.0f))
 			.SetShadowColorAndOpacity(FLinearColor::Black);
 
 		Style->Set( "Window", FWindowStyle()
@@ -1315,15 +1315,15 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 			.SetOutlineBrush(BORDER_BRUSH("Common/Window/WindowOutline", FMargin(3.0f / 32.0f)))
 			.SetOutlineColor(FLinearColor(0.1f, 0.1f, 0.1f, 1.0f))
 			.SetBorderBrush(BOX_BRUSH("Common/Window/WindowBorder", 0.48f))
-			.SetBackgroundBrush(IMAGE_BRUSH( "Common/Window/WindowBackground", FVector2D(74.0f, 74.0f), FLinearColor::White, ESlateBrushTileType::Both))
-			.SetChildBackgroundBrush(IMAGE_BRUSH( "Common/NoiseBackground", FVector2D(64.0f, 64.0f), FLinearColor::White, ESlateBrushTileType::Both))
+			.SetBackgroundBrush(IMAGE_BRUSH( "Common/Window/WindowBackground", FVector2f(74.0f, 74.0f), FLinearColor::White, ESlateBrushTileType::Both))
+			.SetChildBackgroundBrush(IMAGE_BRUSH( "Common/NoiseBackground", FVector2f(64.0f, 64.0f), FLinearColor::White, ESlateBrushTileType::Both))
 			);
 	}
 
 	// STutorialWrapper defaults...
 	{
-		Style->Set("Tutorials.Border", new BOX_BRUSH("Tutorials/TutorialBorder", FVector2D(64.0f, 64.0f), FMargin(25.0f/ 64.0f)));
-		Style->Set("Tutorials.Shadow", new BOX_BRUSH("Tutorials/TutorialShadow", FVector2D(256.0f, 256.0f), FMargin(114.0f / 256.0f)));
+		Style->Set("Tutorials.Border", new BOX_BRUSH("Tutorials/TutorialBorder", FVector2f(64.0f, 64.0f), FMargin(25.0f/ 64.0f)));
+		Style->Set("Tutorials.Shadow", new BOX_BRUSH("Tutorials/TutorialShadow", FVector2f(256.0f, 256.0f), FMargin(114.0f / 256.0f)));
 	}
 
 	// Standard Dialog Settings
@@ -1357,7 +1357,7 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	{
 		Style->Set("MessageLog", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("Regular", 8))
-			.SetShadowOffset(FVector2D::ZeroVector)
+			.SetShadowOffset(FVector2f::ZeroVector)
 		);
 		Style->Set("MessageLog.Error", new IMAGE_BRUSH("MessageLog/Log_Error", Icon16x16));
 		Style->Set("MessageLog.Warning", new IMAGE_BRUSH("MessageLog/Log_Warning", Icon16x16));

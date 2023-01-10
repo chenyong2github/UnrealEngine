@@ -605,7 +605,7 @@ protected:
 	bool bIsSoftwareCursor;
 
 	/**	The current position of the software cursor */
-	FVector2D SoftwareCursorPosition;
+	FVector2f SoftwareCursorPosition;
 
 	/** Callback delegate to have first chance handling of the OnKeyChar event */
 	FOnKeyChar OnKeyCharHandler;

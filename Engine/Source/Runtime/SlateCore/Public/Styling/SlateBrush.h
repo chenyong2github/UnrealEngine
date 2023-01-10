@@ -252,7 +252,7 @@ public:
 
 	/** Size of the resource in Slate Units */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
-	FVector2D ImageSize;
+	FDeprecateSlateVector2D ImageSize;
 
 	/** The margin to use in Box and Border modes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush, meta=( UVSpace="true" ))
@@ -284,8 +284,8 @@ public:
 
 public:
 
-	FVector2D GetImageSize() const { return ImageSize; }
-	void SetImageSize(FVector2D InImageSize) { ImageSize = InImageSize; }
+	UE::Slate::FDeprecateVector2DResult GetImageSize() const { return UE::Slate::FDeprecateVector2DResult(ImageSize); }
+	void SetImageSize(UE::Slate::FDeprecateVector2DParameter InImageSize) { ImageSize = InImageSize; }
 
 	const FMargin& GetMargin() const { return Margin; }
 
@@ -437,7 +437,7 @@ public:
 	 */
 	static const FString UTextureIdentifier( );
 	
-	const FSlateResourceHandle& GetRenderingResource(FVector2D LocalSize, float DrawScale) const
+	const FSlateResourceHandle& GetRenderingResource(UE::Slate::FDeprecateVector2DParameter LocalSize, float DrawScale) const
 	{
 		UpdateRenderingResource(LocalSize, DrawScale);
 
@@ -456,7 +456,7 @@ public:
 #endif
 
 private:
-	void UpdateRenderingResource(FVector2D LocalSize, float DrawScale) const;
+	void UpdateRenderingResource(FVector2f LocalSize, float DrawScale) const;
 	bool CanRenderResourceObject(UObject* InResourceObject) const;
 
 private:
@@ -497,11 +497,11 @@ protected:
 	 * @param InTint		  Tint to apply to the element.
 	 * @param InOutlineSettings Optional Outline Border Settings for RoundedBox mode
 	 */
-	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FLinearColor& InTint = FLinearColor::White, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
+	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const UE::Slate::FDeprecateVector2DParameter& InImageSize, const FLinearColor& InTint = FLinearColor::White, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
 
-	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const TSharedRef< FLinearColor >& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
+	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const UE::Slate::FDeprecateVector2DParameter& InImageSize, const TSharedRef< FLinearColor >& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
 
-	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FSlateColor& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
+	 FORCENOINLINE FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const UE::Slate::FDeprecateVector2DParameter& InImageSize, const FSlateColor& InTint, UObject* InObjectResource = nullptr, bool bInDynamicallyLoaded = false);
 
 };
 

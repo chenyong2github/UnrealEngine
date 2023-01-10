@@ -33,11 +33,11 @@ FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation)
 
 
 FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation, float X, float Y)
-	: FTableViewDimensions(InOrientation, FVector2D(X, Y))
+	: FTableViewDimensions(InOrientation, FVector2f(X, Y))
 {
 }
 
-FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation, const FVector2D& Size)
+FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation, const UE::Slate::FDeprecateVector2DParameter& Size)
 	: FTableViewDimensions(InOrientation)
 {
 	if (InOrientation == Orient_Vertical)
@@ -473,7 +473,7 @@ FReply STableViewBase::OnMouseButtonUp( const FGeometry& MyGeometry, const FPoin
 		if ( HasMouseCapture() )
 		{
 			FSlateRect ListScreenSpaceRect = MyGeometry.GetLayoutBoundingRect();
-			FVector2D CursorPosition = MyGeometry.LocalToAbsolute( SoftwareCursorPosition );
+			FVector2f CursorPosition = MyGeometry.LocalToAbsolute( SoftwareCursorPosition );
 
 			FIntPoint BestPositionInList(
 				FMath::RoundToInt( FMath::Clamp( CursorPosition.X, ListScreenSpaceRect.Left, ListScreenSpaceRect.Right ) ),
@@ -763,12 +763,12 @@ int32 STableViewBase::OnPaint( const FPaintArgs& Args, const FGeometry& Allotted
 	}
 
 	const FSlateBrush* Brush = FCoreStyle::Get().GetBrush(TEXT("SoftwareCursor_Grab"));
-	const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
+	const FVector2f CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		++NewLayerId,
-		AllottedGeometry.ToPaintGeometry( SoftwareCursorPosition - (CursorSize / 2 ), CursorSize),
+		AllottedGeometry.ToPaintGeometry(CursorSize, FSlateLayoutTransform(SoftwareCursorPosition - (CursorSize / .5f ))),
 		Brush
 		);
 
@@ -984,7 +984,7 @@ float STableViewBase::GetItemHeight() const
 	return GetItemSize().Y;
 }
 
-FVector2D STableViewBase::GetItemSize() const
+UE::Slate::FDeprecateVector2DResult STableViewBase::GetItemSize() const
 {
 	FTableViewDimensions ItemDimensions = ItemsPanel->GetItemSize(PanelGeometryLastTick);
 	ItemDimensions.LineAxis += ItemsPanel->GetItemPadding(PanelGeometryLastTick);
@@ -1026,7 +1026,7 @@ void STableViewBase::NavigateToWidget(const uint32 UserIndex, const TSharedPtr<S
 
 void STableViewBase::OnRightMouseButtonUp(const FPointerEvent& MouseEvent)
 {
-	const FVector2D& SummonLocation = MouseEvent.GetScreenSpacePosition();
+	FVector2f SummonLocation = MouseEvent.GetScreenSpacePosition();
 	const bool bShouldOpenContextMenu = !IsRightClickScrolling();
 	const bool bContextMenuOpeningBound = OnContextMenuOpening.IsBound();
 

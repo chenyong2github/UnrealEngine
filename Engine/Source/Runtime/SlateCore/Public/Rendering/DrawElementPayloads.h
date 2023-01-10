@@ -22,16 +22,11 @@ struct FSlateGradientStop
 						  A two stop gradient should go from (0,0), to (Width,Height).
 	 * @param InColor	- The color to lerp towards at this stop.
 	 */
-	FSlateGradientStop(const FVector2d InPosition, const FLinearColor InColor)
+	template<typename VectorType>
+	FSlateGradientStop(const VectorType& InPosition, const FLinearColor InColor)
 		: Position(UE::Slate::CastToVector2f(InPosition))
 		, Color(InColor)
 	{
-	}
-	FSlateGradientStop(const FVector2f InPosition, const FLinearColor InColor)
-		: Position(InPosition)
-		, Color(InColor)
-	{
-
 	}
 };
 template <> struct TIsPODType<FSlateGradientStop> { enum { Value = true }; };
@@ -66,12 +61,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 	ESlateBrushDrawType::Type GetBrushDrawType() const { return DrawType; }
 	const FSlateShaderResourceProxy* GetResourceProxy() const { return ResourceProxy; }
 
-	void SetBrush(const FSlateBrush* InBrush, FVector2D LocalSize, float DrawScale)
-	{
-		SetBrush(InBrush, UE::Slate::CastToVector2f(LocalSize), DrawScale);
-	}
-
-	void SetBrush(const FSlateBrush* InBrush, FVector2f LocalSize, float DrawScale)
+	void SetBrush(const FSlateBrush* InBrush, UE::Slate::FDeprecateVector2DParameter LocalSize, float DrawScale)
 	{
 		check(InBrush);
 		ensureMsgf(InBrush->GetDrawType() != ESlateBrushDrawType::NoDrawType, TEXT("This should have been filtered out earlier in the Make... call."));
@@ -82,7 +72,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 		Tiling = InBrush->GetTiling();
 		Mirroring = InBrush->GetMirroring();
 		DrawType = InBrush->GetDrawType();
-		FSlateResourceHandle Handle = InBrush->GetRenderingResource(FVector2D(LocalSize), DrawScale);
+		FSlateResourceHandle Handle = InBrush->GetRenderingResource(LocalSize, DrawScale);
 		if (Handle.IsValid())
 		{
 			ResourceProxy = Handle.GetResourceProxy();
@@ -222,18 +212,7 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 	void SetThickness(float InThickness) { Thickness = InThickness; }
 	float GetThickness() const { return Thickness; }
 
-	void SetCubicBezier(const FVector2d InP0, const FVector2d InP1, const FVector2d InP2, const FVector2d InP3, float InThickness, const FLinearColor InTint)
-	{
-		SetCubicBezier(
-			UE::Slate::CastToVector2f(InP0),
-			UE::Slate::CastToVector2f(InP1),
-			UE::Slate::CastToVector2f(InP2),
-			UE::Slate::CastToVector2f(InP3),
-			InThickness,
-			InTint);
-	}
-
-	void SetCubicBezier(const FVector2f InP0, const FVector2f InP1, const FVector2f InP2, const FVector2f InP3, float InThickness, const FLinearColor InTint)
+	void SetCubicBezier(const UE::Slate::FDeprecateVector2DParameter InP0, const UE::Slate::FDeprecateVector2DParameter InP1, const UE::Slate::FDeprecateVector2DParameter InP2, const UE::Slate::FDeprecateVector2DParameter InP3, float InThickness, const FLinearColor InTint)
 	{
 		Tint = InTint;
 		P0 = InP0;
@@ -243,18 +222,7 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 		Thickness = InThickness;
 	}
 
-	void SetHermiteSpline(const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness, const FLinearColor InTint)
-	{
-		SetHermiteSpline(
-			UE::Slate::CastToVector2f(InStart),
-			UE::Slate::CastToVector2f(InStartDir),
-			UE::Slate::CastToVector2f(InEnd),
-			UE::Slate::CastToVector2f(InEndDir),
-			InThickness,
-			InTint);
-	}
-
-	void SetHermiteSpline(const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness, const FLinearColor InTint)
+	void SetHermiteSpline(const UE::Slate::FDeprecateVector2DParameter InStart, const UE::Slate::FDeprecateVector2DParameter InStartDir, const UE::Slate::FDeprecateVector2DParameter InEnd, const UE::Slate::FDeprecateVector2DParameter InEndDir, float InThickness, const FLinearColor InTint)
 	{
 		Tint = InTint;
 		P0 = InStart;
@@ -264,18 +232,7 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 		Thickness = InThickness;
 	}
 
-	void SetGradientHermiteSpline(const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness, TArray<FSlateGradientStop> InGradientStops)
-	{
-		SetGradientHermiteSpline(
-			UE::Slate::CastToVector2f(InStart),
-			UE::Slate::CastToVector2f(InStartDir),
-			UE::Slate::CastToVector2f(InEnd),
-			UE::Slate::CastToVector2f(InEndDir),
-			InThickness,
-			MoveTemp(InGradientStops));
-	}
-
-	void SetGradientHermiteSpline(const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness, TArray<FSlateGradientStop> InGradientStops)
+	void SetGradientHermiteSpline(const UE::Slate::FDeprecateVector2DParameter InStart, const UE::Slate::FDeprecateVector2DParameter InStartDir, const UE::Slate::FDeprecateVector2DParameter InEnd, const UE::Slate::FDeprecateVector2DParameter InEndDir, float InThickness, TArray<FSlateGradientStop> InGradientStops)
 	{
 		P0 = InStart;
 		P1 = InStart + InStartDir / 3.0f;
@@ -305,6 +262,7 @@ struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElemen
 		Thickness = InThickness;
 	}
 
+#if UE_ENABLE_SLATE_VECTOR_DEPRECATION_MECHANISMS
 	void SetLines(const TArray<FVector2D>& InPoints, bool bInAntialias, const TArray<FLinearColor>* InPointColors = nullptr)
 	{
 		TArray<FVector2f> NewPoints;
@@ -322,7 +280,7 @@ struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElemen
 			SetLines(MoveTemp(NewPoints), bInAntialias);
 		}
 	}
-
+#endif
 
 	void SetLines(TArray<FVector2f> InPoints, bool bInAntialias)
 	{
@@ -386,12 +344,7 @@ struct FSlateCachedBufferPayload : public FSlateDataPayload
 	FVector2f CachedRenderDataOffset;
 
 	// Cached Buffers
-	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const FVector2d Offset)
-	{
-		SetCachedBuffer(InRenderDataHandle, UE::Slate::CastToVector2f(Offset));
-	}
-
-	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const FVector2f Offset)
+	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const UE::Slate::FDeprecateVector2DParameter Offset)
 	{
 		check(InRenderDataHandle);
 

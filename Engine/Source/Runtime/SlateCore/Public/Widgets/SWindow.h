@@ -250,8 +250,8 @@ public:
 		, _Title()
 		, _bDragAnywhere( false )
 		, _AutoCenter( EAutoCenter::PreferredWorkArea )
-		, _ScreenPosition( FVector2D::ZeroVector )
-		, _ClientSize( FVector2D::ZeroVector )
+		, _ScreenPosition( FVector2f::ZeroVector )
+		, _ClientSize( FVector2f::ZeroVector )
 		, _AdjustInitialSizeAndPositionForDPIScale(true)
 		, _SupportsTransparency( EWindowTransparency::None )
 		, _InitialOpacity( 1.0f )
@@ -293,10 +293,10 @@ public:
 		SLATE_ARGUMENT( EAutoCenter, AutoCenter )
 
 		/** Screen-space position where the window should be initially located. */
-		SLATE_ARGUMENT( FVector2D, ScreenPosition )
+		SLATE_ARGUMENT( UE::Slate::FDeprecateVector2DParameter, ScreenPosition )
 
 		/** What the initial size of the window should be. */
-		SLATE_ARGUMENT( FVector2D, ClientSize )
+		SLATE_ARGUMENT( UE::Slate::FDeprecateVector2DParameter, ClientSize )
 
 		/** If the initial ClientSize and ScreenPosition arguments should be automatically adjusted to account for DPI scale */
 		SLATE_ARGUMENT( bool, AdjustInitialSizeAndPositionForDPIScale )
@@ -420,7 +420,7 @@ public:
 	 * @param ContentSize      The size of content that we want to accommodate 
 	 *
 	 * @return The size of the window necessary to accommodate the given content */
-	static FVector2D ComputeWindowSizeForContent( FVector2D ContentSize );
+	static UE::Slate::FDeprecateVector2DResult ComputeWindowSizeForContent( UE::Slate::FDeprecateVector2DParameter ContentSize );
 
 	/**
 	 * Grabs the window type
@@ -467,13 +467,13 @@ public:
 	FOptionalSize GetTitleBarSize() const;
 
 	/** @return the desired size in desktop pixels */
-	FVector2D GetDesiredSizeDesktopPixels() const;
+	UE::Slate::FDeprecateVector2DResult GetDesiredSizeDesktopPixels() const;
 
 	/**	@return The initially desired screen position of the slate window */
-	FVector2D GetInitialDesiredSizeInScreen() const;
+	UE::Slate::FDeprecateVector2DResult GetInitialDesiredSizeInScreen() const;
 
 	/**	@return The initially desired size of the slate window */
-	FVector2D GetInitialDesiredPositionInScreen() const;
+	UE::Slate::FDeprecateVector2DResult GetInitialDesiredPositionInScreen() const;
 
 	/** Get the Geometry that describes this window. Windows in Slate are unique in that they know their own geometry. */
 	FGeometry GetWindowGeometryInScreen() const;
@@ -488,10 +488,10 @@ public:
 	FSlateLayoutTransform GetLocalToWindowTransform() const;
 
 	/** @return The position of the window in screen space */
-	FVector2D GetPositionInScreen() const;
+	UE::Slate::FDeprecateVector2DResult GetPositionInScreen() const;
 
 	/** @return the size of the window in screen pixels */
-	FVector2D GetSizeInScreen() const;
+	UE::Slate::FDeprecateVector2DResult GetSizeInScreen() const;
 
 	/** @return the rectangle of the window for its non-maximized state */
 	FSlateRect GetNonMaximizedRectInScreen() const;
@@ -503,7 +503,7 @@ public:
 	FSlateRect GetClientRectInScreen() const;
 
 	/** @return the size of the window's usable client area. */
-	FVector2D GetClientSizeInScreen() const;
+	UE::Slate::FDeprecateVector2DResult GetClientSizeInScreen() const;
 
 	/** @return a clipping rectangle that represents this window in Window Space (i.e. always starts at 0,0) */
 	FSlateRect GetClippingRectangleInWindow() const;
@@ -515,16 +515,16 @@ public:
 	FMargin GetNonMaximizedWindowBorderSize() const;
 
 	/** Relocate the window to a screenspace position specified by NewPosition */
-	void MoveWindowTo( FVector2D NewPosition );
+	void MoveWindowTo( UE::Slate::FDeprecateVector2DParameter NewPosition );
 	/** Relocate the window to a screenspace position specified by NewPosition and resize it to NewSize */
-	void ReshapeWindow( FVector2D NewPosition, FVector2D NewSize );
+	void ReshapeWindow( UE::Slate::FDeprecateVector2DParameter NewPosition, UE::Slate::FDeprecateVector2DParameter NewSize );
 	void ReshapeWindow( const FSlateRect& InNewShape );
 	/**
 	 * Resize the window to be dpi scaled NewClientSize immediately
 	 *
 	 * @param NewClientSize: Client size with DPI scaling already applied that does not include border or title bars.
 	 */
-	void Resize( FVector2D NewClientSize );
+	void Resize( UE::Slate::FDeprecateVector2DParameter NewClientSize );
 
 	/** Returns the rectangle of the screen the window is associated with */
 	FSlateRect GetFullScreenInfo() const;
@@ -534,15 +534,15 @@ public:
 	/** @return Returns true if the window is currently morphing and is morphing by size */
 	bool IsMorphingSize() const;
 	/** Animate the window to TargetOpacity and TargetPosition over a short period of time */
-	void MorphToPosition( const FCurveSequence& Sequence, const float TargetOpacity, const FVector2D& TargetPosition );
+	void MorphToPosition( const FCurveSequence& Sequence, const float TargetOpacity, const UE::Slate::FDeprecateVector2DParameter& TargetPosition );
 	/** Animate the window to TargetOpacity and TargetShape over a short period of time */
 	void MorphToShape( const FCurveSequence& Sequence, const float TargetOpacity, const FSlateRect& TargetShape );
 	/** Set a new morph shape and force the morph to run for at least one frame in order to reach that target */
 	void UpdateMorphTargetShape( const FSlateRect& TargetShape );
 	/** Set a new morph position and force the morph to run for at least one frame in order to reach that target */
-	void UpdateMorphTargetPosition( const FVector2D& TargetPosition );
+	void UpdateMorphTargetPosition( const UE::Slate::FDeprecateVector2DParameter& TargetPosition );
 	/** @return Returns the currently set morph target position */
-	FVector2D GetMorphTargetPosition() const;
+	UE::Slate::FDeprecateVector2DResult GetMorphTargetPosition() const;
 	/** @return Returns the currently set morph target shape */
 	FSlateRect GetMorphTargetShape() const;
 
@@ -571,10 +571,10 @@ public:
 	void HACK_ForceToFront();
 
 	/** Sets the actual screen position of the window. THIS SHOULD ONLY BE CALLED BY THE OS */
-	void SetCachedScreenPosition(FVector2D NewPosition);
+	void SetCachedScreenPosition(UE::Slate::FDeprecateVector2DParameter NewPosition);
 
 	/**	Sets the actual size of the window. THIS SHOULD ONLY BE CALLED BY THE OS */
-	void SetCachedSize(FVector2D NewSize);
+	void SetCachedSize(UE::Slate::FDeprecateVector2DParameter NewSize);
 
 	TSharedPtr<FGenericWindow> GetNativeWindow();
 	TSharedPtr<const FGenericWindow> GetNativeWindow() const ;
@@ -838,7 +838,7 @@ public:
 	bool HasOSWindowBorder() const { return bHasOSWindowBorder; }
 
 	/** @return true if mouse coordinates is within this window */
-	bool IsScreenspaceMouseWithin(FVector2D ScreenspaceMouseCoordinate) const;
+	bool IsScreenspaceMouseWithin(UE::Slate::FDeprecateVector2DParameter ScreenspaceMouseCoordinate) const;
 
 	/** @return true if this is a user-sized window with a thick edge */
 	bool HasSizingFrame() const;
@@ -907,11 +907,11 @@ public:
 	void Minimize();
 
 	/** Gets the current Window Zone that mouse position is over. */
-	EWindowZone::Type GetCurrentWindowZone(FVector2D LocalMousePosition);
+	EWindowZone::Type GetCurrentWindowZone(UE::Slate::FDeprecateVector2DParameter LocalMousePosition);
 
 	/** Used to store the zone where the mouse down event occurred during move / drag */
 	EWindowZone::Type MoveResizeZone;
-	FVector2D MoveResizeStart;
+	UE::Slate::FDeprecateVector2DResult MoveResizeStart;
 	FSlateRect MoveResizeRect;
 
 	/** @return Gets the radius of the corner rounding of the window. */
@@ -942,7 +942,7 @@ private:
 	virtual bool ComputeVolatility() const override;
 
 	/** Resize using already dpi scaled window size including borders/title bar */
-	void ResizeWindowSize( FVector2D NewWindowSize );
+	void ResizeWindowSize( FVector2f NewWindowSize );
 
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
 public:
@@ -952,7 +952,7 @@ public:
 	 * @param InClientSize: Client size with DPI scaling already applied
 	 * @param DPIScale: Scale that will be applied for border and title. When not supplied detects DPIScale using native or initial position.
 	 */
-	FVector2D GetWindowSizeFromClientSize(FVector2D InClientSize, TOptional<float> DPIScale = TOptional<float>());
+	UE::Slate::FDeprecateVector2DResult GetWindowSizeFromClientSize(UE::Slate::FDeprecateVector2DParameter InClientSize, TOptional<float> DPIScale = TOptional<float>());
 
 	/** @return true if this window will be focused when it is first shown */
 	inline bool IsFocusedInitially() const
@@ -1005,7 +1005,7 @@ public:
 	{
 		if (bDrivenByWindow)
 		{
-			ViewportSize = FVector2D::ZeroVector;
+			ViewportSize = FVector2f::ZeroVector;
 		}
 		else
 		{
@@ -1024,7 +1024,7 @@ public:
 	/**
 	 * Returns the viewport size, taking into consideration if the window size should drive the viewport size 
 	 */
-	inline FVector2D GetViewportSize() const
+	inline UE::Slate::FDeprecateVector2DResult GetViewportSize() const
 	{
 		return (ViewportSize.X != 0) ? ViewportSize : Size;
 	}
@@ -1032,7 +1032,7 @@ public:
 	/**
 	 * Sets the viewport size independently of the window size, if non-zero.
 	 */
-	inline void SetIndependentViewportSize(const FVector2D& VP) 
+	inline void SetIndependentViewportSize(const UE::Slate::FDeprecateVector2DParameter& VP) 
 	{
 		ViewportSize = VP;
 	}
@@ -1168,22 +1168,22 @@ protected:
 	EWindowActivationPolicy WindowActivationPolicy;
 
 	/** Initial desired position of the window's content in screen space */
-	FVector2D InitialDesiredScreenPosition;
+	UE::Slate::FDeprecateVector2DResult InitialDesiredScreenPosition;
 
 	/** Initial desired size of the window's content in screen space */
-	FVector2D InitialDesiredSize;
+	UE::Slate::FDeprecateVector2DResult InitialDesiredSize;
 
 	/** Position of the window's content in screen space */
-	FVector2D ScreenPosition;
+	UE::Slate::FDeprecateVector2DResult ScreenPosition;
 
 	/** The position of the window before entering fullscreen */
-	FVector2D PreFullscreenPosition;
+	UE::Slate::FDeprecateVector2DResult PreFullscreenPosition;
 
 	/** Size of the window's content area in screen space */
-	FVector2D Size;
+	UE::Slate::FDeprecateVector2DResult Size;
 
 	/** Size of the viewport. If (0,0) then it is equal to Size */
-	FVector2D ViewportSize;
+	UE::Slate::FDeprecateVector2DResult ViewportSize;
 
 	/** Pointer to the viewport registered with this window if any */
 	TWeakPtr<ISlateViewport> Viewport;

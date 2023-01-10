@@ -132,11 +132,11 @@ void SSimpleTimeSlider::DrawTicks( FSlateWindowElementList& OutDrawElements, con
 
 		if ( AbsOffsetNum % Divider == 0 )
 		{
-			FVector2D Offset( XPos, InArgs.TickOffset );
-			FVector2D TickSize( 1.0f, InArgs.MajorTickHeight );
+			FVector2f Offset( XPos, InArgs.TickOffset );
+			FVector2f TickSize( 1.0f, InArgs.MajorTickHeight );
 
 			LinePoints[0] = FVector2D(1.0f,1.0f);
-			LinePoints[1] = TickSize;
+			LinePoints[1] = FVector2D(TickSize);
 
 			// lines should not need anti-aliasing
 			const bool bAntiAliasLines = false;
@@ -145,7 +145,7 @@ void SSimpleTimeSlider::DrawTicks( FSlateWindowElementList& OutDrawElements, con
 			FSlateDrawElement::MakeLines(
 				OutDrawElements,
 				InArgs.StartLayer,
-				InArgs.AllottedGeometry.ToPaintGeometry( Offset, TickSize ),
+				InArgs.AllottedGeometry.ToPaintGeometry( TickSize, FSlateLayoutTransform(Offset) ),
 				LinePoints,
 				InArgs.DrawEffects,
 				InArgs.TickColor,
@@ -158,13 +158,13 @@ void SSimpleTimeSlider::DrawTicks( FSlateWindowElementList& OutDrawElements, con
 
 				// Space the text between the tick mark but slightly above
 				const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-				FVector2D TextSize = FontMeasureService->Measure(FrameString, SmallLayoutFont);
-				FVector2D TextOffset( XPos-(TextSize.X*0.5f), InArgs.bMirrorLabels ? TextSize.Y :  FMath::Abs( InArgs.AllottedGeometry.GetLocalSize().Y - (InArgs.MajorTickHeight+TextSize.Y) ) );
+				FVector2f TextSize = UE::Slate::CastToVector2f(FontMeasureService->Measure(FrameString, SmallLayoutFont));
+				FVector2f TextOffset( XPos-(TextSize.X*0.5f), InArgs.bMirrorLabels ? TextSize.Y :  FMath::Abs( InArgs.AllottedGeometry.GetLocalSize().Y - (InArgs.MajorTickHeight+TextSize.Y) ) );
 
 				FSlateDrawElement::MakeText(
 					OutDrawElements,
 					InArgs.StartLayer+1, 
-					InArgs.AllottedGeometry.ToPaintGeometry( TextOffset, TextSize ), 
+					InArgs.AllottedGeometry.ToPaintGeometry( TextSize, FSlateLayoutTransform(TextOffset) ), 
 					FrameString, 
 					SmallLayoutFont, 
 					InArgs.DrawEffects,
@@ -177,18 +177,18 @@ void SSimpleTimeSlider::DrawTicks( FSlateWindowElementList& OutDrawElements, con
 			// Compute the size of each tick mark.  If we are half way between to visible values display a slightly larger tick mark
 			const float MinorTickHeight = AbsOffsetNum % HalfDivider == 0 ? 7.0f : 4.0f;
 
-			FVector2D Offset(XPos, InArgs.bMirrorLabels ? 0.0f : FMath::Abs( InArgs.AllottedGeometry.GetLocalSize().Y - MinorTickHeight ) );
-			FVector2D TickSize(1, MinorTickHeight);
+			FVector2f Offset(XPos, InArgs.bMirrorLabels ? 0.0f : FMath::Abs( InArgs.AllottedGeometry.GetLocalSize().Y - MinorTickHeight ) );
+			FVector2f TickSize(1.f, MinorTickHeight);
 
 			LinePoints[0] = FVector2D(1.0f,1.0f);
-			LinePoints[1] = TickSize;
+			LinePoints[1] = FVector2D(TickSize);
 
 			const bool bAntiAlias = false;
 			// Draw each sub mark
 			FSlateDrawElement::MakeLines(
 				OutDrawElements,
 				InArgs.StartLayer,
-				InArgs.AllottedGeometry.ToPaintGeometry( Offset, TickSize ),
+				InArgs.AllottedGeometry.ToPaintGeometry( TickSize, FSlateLayoutTransform(Offset) ),
 				LinePoints,
 				InArgs.DrawEffects,
 				InArgs.TickColor,
@@ -224,11 +224,11 @@ int32 SSimpleTimeSlider::OnPaintTimeSlider( bool bMirrorLabels, const FGeometry&
 		FPaintGeometry RangeGeometry;
 		if (bMirrorLabels)
 		{
-			RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(LeftClamp, 0), FVector2D(RightClamp-LeftClamp, Height));
+			RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(RightClamp-LeftClamp, Height), FSlateLayoutTransform(FVector2f(LeftClamp, 0)));
 		}
 		else
 		{
-			RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(LeftClamp, AllottedGeometry.GetLocalSize().Y - Height), FVector2D(RightClamp-LeftClamp, AllottedGeometry.GetLocalSize().Y ));
+			RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(RightClamp-LeftClamp, AllottedGeometry.GetLocalSize().Y ), FSlateLayoutTransform(FVector2f(LeftClamp, AllottedGeometry.GetLocalSize().Y - Height)));
 		}
 
 		FSlateDrawElement::MakeBox(
@@ -265,7 +265,7 @@ int32 SSimpleTimeSlider::OnPaintTimeSlider( bool bMirrorLabels, const FGeometry&
 		const float CursorHalfSize = CursorSize.Get() * 0.5f;
 		const int32 CursorLayer = LayerId + 2;
 		const float CursorHalfLength = AllottedGeometry.GetLocalSize().X * CursorHalfSize;
-		FPaintGeometry CursorGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(XPos - CursorHalfLength, 0), FVector2D(2 * CursorHalfLength, AllottedGeometry.GetLocalSize().Y));
+		FPaintGeometry CursorGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(2 * CursorHalfLength, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2f(XPos - CursorHalfLength, 0)));
 
 		FLinearColor CursorColor = InWidgetStyle.GetColorAndOpacityTint();
 		CursorColor.A = CursorColor.A*0.08f;
@@ -284,7 +284,7 @@ int32 SSimpleTimeSlider::OnPaintTimeSlider( bool bMirrorLabels, const FGeometry&
 
 		// Should draw above the text
 		const int32 ArrowLayer = LayerId + 3;
-		FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2D( XPos-HalfSize, 0 ), FVector2D( HandleSize, AllottedGeometry.GetLocalSize().Y ) );
+		FPaintGeometry MyGeometry =	AllottedGeometry.ToPaintGeometry( FVector2f( HandleSize, AllottedGeometry.GetLocalSize().Y ), FSlateLayoutTransform(FVector2f( XPos-HalfSize, 0 )) );
 		FLinearColor ScrubColor = InWidgetStyle.GetColorAndOpacityTint();
 
 		// @todo Sequencer this color should be specified in the style

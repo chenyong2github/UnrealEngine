@@ -83,7 +83,7 @@ int32 FBoolPropertySection::OnPaintSection( FSequencerSectionPainter& Painter ) 
 		FSlateDrawElement::MakeBox(
 			Painter.DrawElements,
 			LayerId + 1,
-			Painter.SectionGeometry.ToPaintGeometry(StartPos, Size),
+			Painter.SectionGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(StartPos)),
 			BoolOverlayBrush,
 			DrawEffects,
 			Color

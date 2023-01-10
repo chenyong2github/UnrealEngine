@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Layout/Margin.h"
 #include "Styling/SlateBrush.h"
+#include "Types/SlateVector2.h"
 
 /**
  * Ignores the Margin. Just renders the image. Can tile the image instead of stretching.
@@ -21,7 +22,7 @@ struct SLATECORE_API FSlateDynamicImageBrush
 	 */
 	FORCENOINLINE FSlateDynamicImageBrush( 
 		class UTexture2D* InTexture, 
-		const FVector2D& InImageSize,
+		const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 		const FName InTextureName,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), 
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile, 
@@ -44,7 +45,7 @@ struct SLATECORE_API FSlateDynamicImageBrush
 	 */
 	FORCENOINLINE FSlateDynamicImageBrush( 
 		class UTexture2DDynamic* InTexture, 
-		const FVector2D& InImageSize,
+		const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 		const FName InTextureName,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), 
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile, 
@@ -67,7 +68,7 @@ struct SLATECORE_API FSlateDynamicImageBrush
 	 */
 	FORCENOINLINE FSlateDynamicImageBrush( 
 		const FName InTextureName,
-		const FVector2D& InImageSize,
+		const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), 
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile, 
 		ESlateBrushImageType::Type InImageType = ESlateBrushImageType::FullColor )
@@ -88,7 +89,7 @@ struct SLATECORE_API FSlateDynamicImageBrush
 	*/
 	static TSharedPtr<FSlateDynamicImageBrush> CreateWithImageData(
 		const FName InTextureName,
-		const FVector2D& InImageSize,
+		const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 		const TArray<uint8>& InImageData,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f),
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile,

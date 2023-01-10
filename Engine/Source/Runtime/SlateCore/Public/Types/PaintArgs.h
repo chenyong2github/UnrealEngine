@@ -24,8 +24,8 @@ class SLATECORE_API FPaintArgs
 	friend class SInvalidationPanel;
 	friend class SRetainerWidget;
 public:
-	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FHittestGrid& InCurrentHitTestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime);
-	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime);
+	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FHittestGrid& InCurrentHitTestGrid, UE::Slate::FDeprecateVector2DParameter InWindowOffset, double InCurrentTime, float InDeltaTime);
+	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, UE::Slate::FDeprecateVector2DParameter InWindowOffset, double InCurrentTime, float InDeltaTime);
 
 	UE_NODISCARD FORCEINLINE_DEBUGGABLE FPaintArgs WithNewParent(const SWidget* PaintParent) const
 	{
@@ -63,9 +63,9 @@ public:
 		return PaintParentPtr; 
 	}
 
-	FVector2D GetWindowToDesktopTransform() const
+	UE::Slate::FDeprecateVector2DResult GetWindowToDesktopTransform() const
 	{
-		return WindowOffset;
+		return UE::Slate::FDeprecateVector2DResult(WindowOffset);
 	}
 
 	double GetCurrentTime() const
@@ -96,7 +96,7 @@ private:
 	/** The current hit test grid.  Its possible that there is more than one grid when there is nested invalidation panels.  This is what widgets should add to always */
 	FHittestGrid& CurrentGrid;
 
-	FVector2D WindowOffset;
+	FVector2f WindowOffset;
 	const SWidget* PaintParentPtr;
 
 	double CurrentTime;

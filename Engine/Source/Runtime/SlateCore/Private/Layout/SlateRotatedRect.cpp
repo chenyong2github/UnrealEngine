@@ -21,7 +21,7 @@ FSlateRect FSlateRotatedRect::ToBoundingRect() const
 		);
 }
 
-bool FSlateRotatedRect::IsUnderLocation(const FVector2f Location) const
+bool FSlateRotatedRect::IsUnderLocation(const UE::Slate::FDeprecateVector2DParameter Location) const
 {
 	const FVector2f Offset = Location - TopLeft;
 	const float Det = FVector2f::CrossProduct(ExtentX, ExtentY);
@@ -34,11 +34,6 @@ bool FSlateRotatedRect::IsUnderLocation(const FVector2f Location) const
 		return FMath::IsWithinInclusive(T, 0.0f, 1.0f);
 	}
 	return false;
-}
-
-bool FSlateRotatedRect::IsUnderLocation(const FVector2D Location) const
-{
-	return IsUnderLocation(UE::Slate::CastToVector2f(Location));
 }
 
 FSlateRotatedRect FSlateRotatedRect::MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform)

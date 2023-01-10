@@ -142,8 +142,8 @@ void SOverlay::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedCh
 
 			ArrangedChildren.AddWidget( ChildVisibility, AllottedGeometry.MakeChild(
 				CurChild.GetWidget(),
-				FVector2D(XResult.Offset, YResult.Offset),
-				FVector2D(XResult.Size, YResult.Size)
+				FVector2f(XResult.Size, YResult.Size),
+				FSlateLayoutTransform(FVector2f(XResult.Offset, YResult.Offset))
 			) );
 		}
 	}
@@ -158,7 +158,7 @@ FVector2D SOverlay::ComputeDesiredSize( float ) const
 		const EVisibility ChildVisibilty = CurSlot.GetWidget()->GetVisibility();
 		if ( ChildVisibilty != EVisibility::Collapsed )
 		{
-			FVector2D ChildDesiredSize = CurSlot.GetWidget()->GetDesiredSize() + CurSlot.GetPadding().GetDesiredSize();
+			FVector2f ChildDesiredSize = CurSlot.GetWidget()->GetDesiredSize() + CurSlot.GetPadding().GetDesiredSize();
 			MaxSize.X = FMath::Max( MaxSize.X, ChildDesiredSize.X );
 			MaxSize.Y = FMath::Max( MaxSize.Y, ChildDesiredSize.Y );
 		}

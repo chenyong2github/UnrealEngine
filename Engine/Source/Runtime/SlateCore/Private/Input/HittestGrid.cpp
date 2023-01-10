@@ -40,7 +40,7 @@ constexpr bool IsCompatibleUserIndex(int32 RequestedUserIndex, int32 TestUserInd
 // Helper Functions
 //
 
-FVector2D ClosestPointOnSlateRotatedRect(const FVector2D &Point, const FSlateRotatedRect& RotatedRect)
+FVector2f ClosestPointOnSlateRotatedRect(const FVector2f &Point, const FSlateRotatedRect& RotatedRect)
 {
 	//no need to do any testing if we are inside of the rect
 	if (RotatedRect.IsUnderLocation(Point))
@@ -49,26 +49,26 @@ FVector2D ClosestPointOnSlateRotatedRect(const FVector2D &Point, const FSlateRot
 	}
 
 	const static int32 NumOfCorners = 4;
-	FVector2D Corners[NumOfCorners];
-	Corners[0] = FVector2D(RotatedRect.TopLeft);
-	Corners[1] = FVector2D(Corners[0]) + FVector2D(RotatedRect.ExtentX);
-	Corners[2] = FVector2D(Corners[1]) + FVector2D(RotatedRect.ExtentY);
-	Corners[3] = FVector2D(Corners[0]) + FVector2D(RotatedRect.ExtentY);
+	FVector2d Corners[NumOfCorners];
+	Corners[0] = FVector2d(RotatedRect.TopLeft);
+	Corners[1] = FVector2d(Corners[0]) + FVector2d(RotatedRect.ExtentX);
+	Corners[2] = FVector2d(Corners[1]) + FVector2d(RotatedRect.ExtentY);
+	Corners[3] = FVector2d(Corners[0]) + FVector2d(RotatedRect.ExtentY);
 
-	FVector2D RetPoint;
+	FVector2f RetPoint;
 	float ClosestDistSq = FLT_MAX;
 	for (int32 i = 0; i < NumOfCorners; ++i)
 	{
 		//grab the closest point along the line segment
-		const FVector2D ClosestPoint = FMath::ClosestPointOnSegment2D(Point, Corners[i], Corners[(i + 1) % NumOfCorners]);
+		const FVector2d ClosestPoint = FMath::ClosestPointOnSegment2D(FVector2d(Point), Corners[i], Corners[(i + 1) % NumOfCorners]);
 
 		//get the distance between the two
-		const float TestDist = FVector2D::DistSquared(Point, ClosestPoint);
+		const float TestDist = FVector2d::DistSquared(FVector2d(Point), ClosestPoint);
 
 		//if the distance is smaller than the current smallest, update our closest
 		if (TestDist < ClosestDistSq)
 		{
-			RetPoint = ClosestPoint;
+			RetPoint = FVector2f(UE_REAL_TO_FLOAT(ClosestPoint.X), UE_REAL_TO_FLOAT(ClosestPoint.Y));
 			ClosestDistSq = TestDist;
 		}
 	}
@@ -76,12 +76,12 @@ FVector2D ClosestPointOnSlateRotatedRect(const FVector2D &Point, const FSlateRot
 	return RetPoint;
 }
 
-FORCEINLINE float DistanceSqToSlateRotatedRect(const FVector2D &Point, const FSlateRotatedRect& RotatedRect)
+FORCEINLINE float DistanceSqToSlateRotatedRect(const FVector2f &Point, const FSlateRotatedRect& RotatedRect)
 {
-	return FVector2D::DistSquared(ClosestPointOnSlateRotatedRect(Point, RotatedRect), Point);
+	return FVector2f::DistSquared(ClosestPointOnSlateRotatedRect(Point, RotatedRect), Point);
 }
 
-FORCEINLINE bool IsOverlappingSlateRotatedRect(const FVector2D& Point, const float Radius, const FSlateRotatedRect& RotatedRect)
+FORCEINLINE bool IsOverlappingSlateRotatedRect(const FVector2f& Point, const float Radius, const FSlateRotatedRect& RotatedRect)
 {
 	return DistanceSqToSlateRotatedRect( Point, RotatedRect ) <= (Radius * Radius);
 }
@@ -100,7 +100,7 @@ bool ContainsInteractableWidget(const TArray<FWidgetAndPointer>& PathToTest)
 }
 
 
-const FVector2D CellSize(128.0f, 128.0f);
+const FVector2f CellSize(128.0f, 128.0f);
 
 //
 // FHittestGrid::FWidgetIndex
@@ -119,13 +119,13 @@ struct FHittestGrid::FGridTestingParams
 	/** Ctor */
 	FGridTestingParams()
 	: CellCoord(-1, -1)
-	, CursorPositionInGrid(FVector2D::ZeroVector)
+	, CursorPositionInGrid(FVector2f::ZeroVector)
 	, Radius(-1.0f)
 	, bTestWidgetIsInteractive(false)
 	{}
 
 	FIntPoint CellCoord;
-	FVector2D CursorPositionInGrid;
+	FVector2f CursorPositionInGrid;
 	float Radius;
 	bool bTestWidgetIsInteractive;
 };
@@ -163,11 +163,11 @@ FHittestGrid::FHittestGrid()
 {
 }
 
-TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex)
+TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(UE::Slate::FDeprecateVector2DParameter DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex)
 {
 	checkSlow(IsInGameThread());
 
-	const FVector2D CursorPositionInGrid = DesktopSpaceCoordinate - GridOrigin;
+	const FVector2f CursorPositionInGrid = DesktopSpaceCoordinate - GridOrigin;
 
 	if (WidgetArray.Num() > 0 && Cells.Num() > 0)
 	{
@@ -223,7 +223,8 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 				{
 					if (BestHitWidgetData.CustomPath.IsValid())
 					{
-						TArray<FWidgetAndPointer> BubblePathExtension = BestHitWidgetData.CustomPath.Pin()->GetBubblePathAndVirtualCursors(FirstHitWidget->GetTickSpaceGeometry(), DesktopSpaceCoordinate, bIgnoreEnabledStatus);
+						FVector2d DesktopSpaceCoordinate2d(DesktopSpaceCoordinate.X, DesktopSpaceCoordinate.Y);
+						TArray<FWidgetAndPointer> BubblePathExtension = BestHitWidgetData.CustomPath.Pin()->GetBubblePathAndVirtualCursors(FirstHitWidget->GetTickSpaceGeometry(), DesktopSpaceCoordinate2d, bIgnoreEnabledStatus);
 						Path.Append(MoveTemp(BubblePathExtension));
 					}
 				}
@@ -236,7 +237,7 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 	return TArray<FWidgetAndPointer>();
 }
 
-bool FHittestGrid::SetHittestArea(const FVector2D& HittestPositionInDesktop, const FVector2D& HittestDimensions, const FVector2D& HitestOffsetInWindow)
+bool FHittestGrid::SetHittestArea(const UE::Slate::FDeprecateVector2DParameter& HittestPositionInDesktop, const UE::Slate::FDeprecateVector2DParameter& HittestDimensions, const UE::Slate::FDeprecateVector2DParameter& HitestOffsetInWindow)
 {
 	bool bWasCleared = false;
 
@@ -442,7 +443,7 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 					return TSharedPtr<SWidget>();
 				case EUINavigationRule::Wrap:
 					CurrentSourceSide = DestSideFunc(SweptRect);
-					FVector2D SampleSpot = WidgetRect.GetCenter();
+					FVector2f SampleSpot = WidgetRect.GetCenter();
 					SampleSpot[AxisIndex] = CurrentSourceSide;
 					CurrentCellPoint = GetCellCoordinate(SampleSpot);
 					bWrapped = true;
@@ -467,7 +468,7 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 					break;
 				}
 				CurrentSourceSide = DestSideFunc(SweptRect);
-				FVector2D SampleSpot = WidgetRect.GetCenter();
+				FVector2f SampleSpot = WidgetRect.GetCenter();
 				SampleSpot[AxisIndex] = CurrentSourceSide;
 				CurrentCellPoint = GetCellCoordinate(SampleSpot);
 				bWrapped = true;
@@ -571,7 +572,7 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 	return Widget;
 }
 
-FIntPoint FHittestGrid::GetCellCoordinate(FVector2D Position) const
+FIntPoint FHittestGrid::GetCellCoordinate(UE::Slate::FDeprecateVector2DParameter Position) const
 {
 	return FIntPoint(
 		FMath::Min(FMath::Max(FMath::FloorToInt(Position.X / CellSize.X), 0), NumCells.X - 1),
@@ -853,7 +854,7 @@ FHittestGrid::FIndexAndDistance FHittestGrid::GetHitIndexFromCellIndex(const FGr
 			const bool bIsValidWidget = TestWidget.IsValid() && (!Params.bTestWidgetIsInteractive || TestWidget->IsInteractable());
 			if (bIsValidWidget)
 			{
-				const FVector2D WindowSpaceCoordinate = Params.CursorPositionInGrid + GridWindowOrigin;
+				const FVector2f WindowSpaceCoordinate = Params.CursorPositionInGrid + GridWindowOrigin;
 
 				const FGeometry& TestGeometry = TestWidget->GetPaintSpaceGeometry();
 

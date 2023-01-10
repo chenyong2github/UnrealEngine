@@ -300,7 +300,7 @@ int32 STabDrawer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeome
 		ContentsLocalSize = FVector2D(LocalSize.X - (ShadowOffset.X * 2), TargetDrawerSize);
 	}
 
-	const FPaintGeometry OffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ContentsLocalOrigin, ContentsLocalSize);
+	const FPaintGeometry OffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ContentsLocalSize, FSlateLayoutTransform(ContentsLocalOrigin));
 
 	// Draw the resize handle
 	if (bIsResizing || bIsResizeHandleHovered)
@@ -386,12 +386,12 @@ int32 STabDrawer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeome
 		// Create the geometry for the notched portion, where one edge extends past the clipping rect.
 		const FVector2D NotchOffsetSize(TabButtonGeometry.GetLocalSize().X, 0.0f);
 		const FVector2D NotchOffsetTranslate = OpenDirection == ETabDrawerOpenDirection::Left ? -NotchOffsetSize : FVector2D::ZeroVector;
-		const FPaintGeometry NotchOffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ContentsLocalOrigin + NotchOffsetTranslate, ContentsLocalSize + NotchOffsetSize);
+		const FPaintGeometry NotchOffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ContentsLocalSize + NotchOffsetSize, FSlateLayoutTransform(ContentsLocalOrigin + NotchOffsetTranslate));
 
 		// Split the border box into three clipping zones.
-		const FPaintGeometry ClipAboveTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(LocalSize.X, TabTopY));
-		const FPaintGeometry ClipAtTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0, TabTopY), FVector2D(LocalSize.X, TabBottomY - TabTopY));
-		const FPaintGeometry ClipBelowTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0, TabBottomY), FVector2D(LocalSize.X, LocalSize.Y - TabBottomY));
+		const FPaintGeometry ClipAboveTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2f(LocalSize.X, TabTopY), FSlateLayoutTransform(FVector2f(0, 0)));
+		const FPaintGeometry ClipAtTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2f(LocalSize.X, TabBottomY - TabTopY), FSlateLayoutTransform(FVector2f(0, TabTopY)));
+		const FPaintGeometry ClipBelowTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2f(LocalSize.X, LocalSize.Y - TabBottomY), FSlateLayoutTransform(FVector2f(0, TabBottomY)));
 
 		// If the tab button touches a corner on the edge of the border, switch the brush to
 		// draw that corner squared-off. When a tab is near the very top or bottom of its sidebar,
@@ -463,15 +463,24 @@ FGeometry STabDrawer::GetResizeHandleGeometry(const FGeometry& AllottedGeometry)
 
 	if (OpenDirection == ETabDrawerOpenDirection::Left)
 	{
-		return RenderTransformedGeometry.MakeChild((FVector2D(RenderTransformedGeometry.GetLocalSize().X-ShadowOffset.X, ShadowOffset.Y)), FVector2D(ExpanderSize, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y * 2));
+		return RenderTransformedGeometry.MakeChild(
+			FVector2D(ExpanderSize, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y * 2),
+			FSlateLayoutTransform(FVector2D(RenderTransformedGeometry.GetLocalSize().X-ShadowOffset.X, ShadowOffset.Y))
+		);
 	}
 	else if (OpenDirection == ETabDrawerOpenDirection::Right)
 	{
-		return RenderTransformedGeometry.MakeChild(ShadowOffset - FVector2D(ExpanderSize, 0.0f), FVector2D(ExpanderSize, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y * 2));
+		return RenderTransformedGeometry.MakeChild(
+			FVector2D(ExpanderSize, AllottedGeometry.GetLocalSize().Y - ShadowOffset.Y * 2),
+			FSlateLayoutTransform(ShadowOffset - FVector2D(ExpanderSize, 0.0f))
+		);
 	}
 	else
 	{
-		return RenderTransformedGeometry.MakeChild(ShadowOffset - FVector2D(0.0f, ExpanderSize), FVector2D(AllottedGeometry.GetLocalSize().X - ShadowOffset.X * 2, ExpanderSize));
+		return RenderTransformedGeometry.MakeChild(
+			FVector2D(AllottedGeometry.GetLocalSize().X - ShadowOffset.X * 2, ExpanderSize),
+			FSlateLayoutTransform(ShadowOffset - FVector2D(0.0f, ExpanderSize))
+		);
 	}
 }
 

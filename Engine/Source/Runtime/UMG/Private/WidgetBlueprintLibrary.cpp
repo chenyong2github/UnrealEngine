@@ -168,7 +168,7 @@ void UWidgetBlueprintLibrary::DrawBox(FPaintContext& Context, FVector2D Position
 		FSlateDrawElement::MakeBox(
 			Context.OutDrawElements,
 			Context.MaxLayer,
-			Context.AllottedGeometry.ToPaintGeometry(Position, Size),
+			Context.AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(Position)),
 			&Brush->Brush,
 			ESlateDrawEffect::None,
 			Tint);

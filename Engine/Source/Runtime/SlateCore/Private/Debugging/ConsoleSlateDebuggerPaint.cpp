@@ -236,12 +236,12 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 	CacheDuration = FMath::Max(CacheDuration, 0.01f);
 	const double SlateApplicationCurrentTime = FSlateApplicationBase::Get().GetCurrentTime();
 
-	auto MakeText = [&](const FString& Text, const FVector2D& Location, const FLinearColor& Color)
+	auto MakeText = [&](const FString& Text, const FVector2f& Location, const FLinearColor& Color)
 	{
 		FSlateDrawElement::MakeText(
 			InOutDrawElements
 			, InOutLayerId
-			, InAllottedGeometry.ToPaintGeometry(Location, FVector2D(1.f, 1.f))
+			, InAllottedGeometry.ToPaintGeometry(FVector2f(1.f, 1.f), FSlateLayoutTransform(Location))
 			, Text
 			, FontInfo
 			, ESlateDrawEffect::None
@@ -293,7 +293,7 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 			{
 				if (NumberOfWidget < MaxNumberOfWidgetInList)
 				{
-					MakeText(Itt.Value.WidgetName, FVector2D(0, (12 * NumberOfWidget) + TextElementY), DrawWidgetNameColor);
+					MakeText(Itt.Value.WidgetName, FVector2f(0.f, (12.f * NumberOfWidget) + TextElementY), DrawWidgetNameColor);
 				}
 			}
 			++NumberOfWidget;
@@ -303,13 +303,13 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 
 	{
 		FString NumberOfWidgetDrawn = FString::Printf(TEXT("Number of Widget Painted: %d"), NumberOfWidget);
-		MakeText(NumberOfWidgetDrawn, FVector2D(10, 10), DrawWidgetNameColor);
+		MakeText(NumberOfWidgetDrawn, FVector2f(10.f, 10.f), DrawWidgetNameColor);
 	}
 
 	if (bDisplayWidgetsNameList && NumberOfWidget > MaxNumberOfWidgetInList)
 	{
 		FString WidgetDisplayName = FString::Printf(TEXT("   %d more invalidations"), NumberOfWidget - MaxNumberOfWidgetInList);
-		MakeText(WidgetDisplayName, FVector2D(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
+		MakeText(WidgetDisplayName, FVector2f(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
 	}
 }
 

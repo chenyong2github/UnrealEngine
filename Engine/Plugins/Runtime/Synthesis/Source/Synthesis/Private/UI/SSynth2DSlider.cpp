@@ -63,7 +63,7 @@ int32 SSynth2DSlider::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId++,
-		SliderGeometry.ToPaintGeometry(HandleTopLeftPoint, Style->NormalThumbImage.ImageSize),
+		SliderGeometry.ToPaintGeometry(Style->NormalThumbImage.ImageSize, FSlateLayoutTransform(HandleTopLeftPoint)),
 		LockedAttribute.Get() ? &Style->DisabledThumbImage : &Style->NormalThumbImage,
 		DrawEffects,
 		SliderHandleColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()

@@ -353,7 +353,7 @@ public:
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					FilledLayer,
-					AllottedGeometry.ToPaintGeometry(AllottedGeometry.GetLocalSize() - FillSize, FillSize),
+					AllottedGeometry.ToPaintGeometry(FillSize, FSlateLayoutTransform(AllottedGeometry.GetLocalSize() - FillSize)),
 					FillImage,
 					DrawEffects,
 					FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()

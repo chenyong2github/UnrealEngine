@@ -181,7 +181,7 @@ public:
 		, _ScrollBarVisibility(EVisibility::Visible)
 		, _ScrollBarAlwaysVisible(false)
 		, _ScrollBarDragFocusCause(EFocusCause::Mouse)
-		, _ScrollBarThickness(FVector2D(_Style->BarThickness, _Style->BarThickness))
+		, _ScrollBarThickness(FVector2f(_Style->BarThickness, _Style->BarThickness))
 		, _ScrollBarPadding(2.0f)
 		, _AllowOverscroll(EAllowOverscroll::Yes)
 		, _BackPadScrolling(false)
@@ -217,7 +217,7 @@ public:
 
 		SLATE_ARGUMENT( EFocusCause, ScrollBarDragFocusCause )
 
-		SLATE_ARGUMENT( FVector2D, ScrollBarThickness )
+		SLATE_ARGUMENT( UE::Slate::FDeprecateVector2DParameter, ScrollBarThickness )
 
 		/** This accounts for total internal scroll bar padding; default 2.0f padding from the scroll bar itself is removed */
 		SLATE_ARGUMENT( FMargin, ScrollBarPadding )
@@ -322,7 +322,7 @@ public:
 	
 	void SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible);
 
-	void SetScrollBarThickness(FVector2D InThickness);
+	void SetScrollBarThickness(UE::Slate::FDeprecateVector2DParameter InThickness);
 
 	void SetScrollBarPadding(const FMargin& InPadding);
 
@@ -362,13 +362,13 @@ private:
 	void ConstructHorizontalLayout();
 
 	/** Gets the component of a vector in the direction of scrolling based on the Orientation property. */
-	FORCEINLINE float GetScrollComponentFromVector(FVector2D Vector) const
+	FORCEINLINE float GetScrollComponentFromVector(FVector2f Vector) const
 	{
 		return float(Orientation == Orient_Vertical ? Vector.Y : Vector.X);
 	}
 
 	/** Sets the component of a vector in the direction of scrolling based on the Orientation property. */
-	inline void SetScrollComponentOnVector(FVector2D& InVector, float Value) const
+	inline void SetScrollComponentOnVector(FVector2f& InVector, float Value) const
 	{
 		if (Orientation == Orient_Vertical)
 		{
@@ -479,7 +479,7 @@ protected:
 	EScrollWhenFocusChanges ScrollWhenFocusChanges;
 
 	/**	The current position of the software cursor */
-	FVector2D SoftwareCursorPosition;
+	FVector2f SoftwareCursorPosition;
 
 	/** Fired when the user scrolls the scrollbox */
 	FOnUserScrolled OnUserScrolled;

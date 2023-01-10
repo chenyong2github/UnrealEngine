@@ -941,7 +941,7 @@ EVisibility SDockTab::HandleIsCloseButtonVisible() const
 
 TOptional<FVector2D> SDockTab::GetTabIconSize() const
 {
-	return GetCurrentStyle().IconSize;
+	return FVector2D(GetCurrentStyle().IconSize);
 }
 
 bool SDockTab::CanCloseTab() const
@@ -981,10 +981,10 @@ void SDockTab::PersistVisualState()
 }
 
 
-FVector2D SDockTab::GetAnimatedScale() const
+UE::Slate::FDeprecateVector2DResult SDockTab::GetAnimatedScale() const
 {
-	static FVector2D FullyOpen = FVector2D::UnitVector;
-	static FVector2D FullyClosed = FVector2D(1.0f, 0.0f);
+	static FVector2f FullyOpen = FVector2f::UnitVector;
+	static FVector2f FullyClosed = FVector2f(1.0f, 0.0f);
 	return FMath::Lerp(FullyClosed, FullyOpen, SpawnAnimCurve.GetLerp());
 }
 

@@ -173,7 +173,7 @@ class SMontageSections : public SLeafWidget
 			FSlateDrawElement::MakeBox( 
 				OutDrawElements,
 				++LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(bDrawLabelOnLeft ? LabelPosX - TotalBorderSize.X : LabelPosX, LabelPosY), TotalBorderSize),
+				AllottedGeometry.ToPaintGeometry(TotalBorderSize, FSlateLayoutTransform(FVector2D(bDrawLabelOnLeft ? LabelPosX - TotalBorderSize.X : LabelPosX, LabelPosY))),
 				BorderBrush,
 				ESlateDrawEffect::None,
 				SelectedSectionIndex == SectionIndex ? SelectedColor : MontageColor);
@@ -181,7 +181,7 @@ class SMontageSections : public SLeafWidget
 			FSlateDrawElement::MakeText( 
 				OutDrawElements,
 				++LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(bDrawLabelOnLeft ? (LabelPosX - TotalBorderSize.X) + MontageSectionsConstants::TextOffset.X : LabelPosX + MontageSectionsConstants::TextOffset.X, LabelPosY + MontageSectionsConstants::TextOffset.Y), TextSize),
+				AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(FVector2D(bDrawLabelOnLeft ? (LabelPosX - TotalBorderSize.X) + MontageSectionsConstants::TextOffset.X : LabelPosX + MontageSectionsConstants::TextOffset.X, LabelPosY + MontageSectionsConstants::TextOffset.Y))),
 				NameText,
 				LabelFont,
 				ESlateDrawEffect::None,
@@ -190,7 +190,7 @@ class SMontageSections : public SLeafWidget
 			FSlateDrawElement::MakeText( 
 				OutDrawElements,
 				++LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(bDrawLabelOnLeft ? (LabelPosX - TotalBorderSize.X) + TextBorderSize.X + (MontageSectionsConstants::TextBorderMargin.X * 2.0f) + MontageSectionsConstants::TextOffset.X : LabelPosX + MontageSectionsConstants::TextOffset.X + (MontageSectionsConstants::TextBorderMargin.X * 2.0f) + TextBorderSize.X, IconPosY + MontageSectionsConstants::TextOffset.Y), TextIconSize),
+				AllottedGeometry.ToPaintGeometry(TextIconSize, FSlateLayoutTransform(FVector2D(bDrawLabelOnLeft ? (LabelPosX - TotalBorderSize.X) + TextBorderSize.X + (MontageSectionsConstants::TextBorderMargin.X * 2.0f) + MontageSectionsConstants::TextOffset.X : LabelPosX + MontageSectionsConstants::TextOffset.X + (MontageSectionsConstants::TextBorderMargin.X * 2.0f) + TextBorderSize.X, IconPosY + MontageSectionsConstants::TextOffset.Y))),
 				IconText,
 				IconFont,
 				ESlateDrawEffect::None,
@@ -230,7 +230,10 @@ class SMontageSections : public SLeafWidget
 			const double RightEdgeToNotify = MyGeometry.Size.X - (LabelPosX + TotalBorderSize.X);
 			const bool bDrawLabelOnLeft = RightEdgeToNotify < 0.0;
 
-			const FGeometry LabelGeometry = MyGeometry.MakeChild(FVector2D(bDrawLabelOnLeft ? LabelPosX - TotalBorderSize.X: LabelPosX, LabelPosY), TotalBorderSize);
+			const FGeometry LabelGeometry = MyGeometry.MakeChild(
+				TotalBorderSize,
+				FSlateLayoutTransform(FVector2D(bDrawLabelOnLeft ? LabelPosX - TotalBorderSize.X: LabelPosX, LabelPosY))
+			);
 
 			if(LabelGeometry.IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
 			{

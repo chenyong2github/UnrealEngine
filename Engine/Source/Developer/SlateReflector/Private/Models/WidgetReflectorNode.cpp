@@ -53,7 +53,7 @@ const FSlateRenderTransform& FWidgetReflectorNodeBase::GetAccumulatedRenderTrans
 	return WidgetGeometry.GetAccumulatedRenderTransform();
 }
 
-const FVector2D& FWidgetReflectorNodeBase::GetLocalSize() const
+FVector2f FWidgetReflectorNodeBase::GetLocalSize() const
 {
 	return WidgetGeometry.GetLocalSize();
 }
@@ -438,7 +438,13 @@ TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSn
 			StructJsonArray.Add(MakeShareable(new FJsonValueNumber(InVec2D.Y)));
 			return MakeShareable(new FJsonValueArray(StructJsonArray));
 		}
-
+		static TSharedRef<FJsonValue> CreateVector2DJsonValue(const FVector2f& InVec2D)
+		{
+			TArray<TSharedPtr<FJsonValue>> StructJsonArray;
+			StructJsonArray.Add(MakeShareable(new FJsonValueNumber(InVec2D.X)));
+			StructJsonArray.Add(MakeShareable(new FJsonValueNumber(InVec2D.Y)));
+			return MakeShareable(new FJsonValueArray(StructJsonArray));
+		}
 		static TSharedRef<FJsonValue> CreateMatrix2x2JsonValue(const FMatrix2x2& InMatrix)
 		{
 			float m00, m01, m10, m11;

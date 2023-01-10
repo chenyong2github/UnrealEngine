@@ -371,7 +371,7 @@ private:
 	TIndirectArray<FColumn> Columns;
 	TArray<TSharedPtr<class STableColumnHeader>> HeaderWidgets;
 
-	FVector2D ScrollBarThickness;
+	FVector2f ScrollBarThickness;
 	TAttribute< EVisibility > ScrollBarVisibility;
 	const FHeaderRowStyle* Style;
 	FColumnsChanged ColumnsChanged;

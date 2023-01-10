@@ -54,7 +54,7 @@ private:
 	TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> DragOperation;
 
 	/** Current local position the mouse is dragged to. */
-	FVector2D DragPosition;
+	FVector2f DragPosition;
 
 	/** The hotspot's time before dragging started. */
 	FFrameTime OriginalHotspotTime;

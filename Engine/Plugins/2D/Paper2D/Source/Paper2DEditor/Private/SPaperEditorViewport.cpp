@@ -518,7 +518,7 @@ void SPaperEditorViewport::PaintSoftwareCursor(const FGeometry& AllottedGeometry
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DrawLayerId,
-			AllottedGeometry.ToPaintGeometry( GraphCoordToPanelCoord(SoftwareCursorPosition) / AllottedGeometry.Scale - ( CursorSize / 2 ), CursorSize ),
+			AllottedGeometry.ToPaintGeometry( CursorSize, FSlateLayoutTransform(GraphCoordToPanelCoord(SoftwareCursorPosition) / AllottedGeometry.Scale - ( CursorSize * .5f )) ),
 			Brush);
 	}
 }

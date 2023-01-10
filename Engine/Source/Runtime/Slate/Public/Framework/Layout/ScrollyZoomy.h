@@ -139,7 +139,7 @@ public:
 	 * @return Cursor position.
 	 * @see NeedsSoftwareCursor
 	 */
-	const FVector2D& GetSoftwareCursorPosition() const;
+	UE::Slate::FDeprecateVector2DResult GetSoftwareCursorPosition() const;
 
 	/**
 	 * Call this from your widget's OnPaint to paint a software cursor, if needed 
@@ -161,7 +161,7 @@ private:
 	bool bShowSoftwareCursor;
 
 	/** The current position of the software cursor. */
-	FVector2D SoftwareCursorPosition;
+	FVector2f SoftwareCursorPosition;
 
 	/** Whether inertial scrolling is enabled. */
 	bool UseInertialScrolling;

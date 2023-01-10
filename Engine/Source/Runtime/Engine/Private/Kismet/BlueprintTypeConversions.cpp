@@ -3,6 +3,7 @@
 #include "Kismet/BlueprintTypeConversions.h"
 #include "UObject/ScriptMacros.h"
 #include "UObject/Stack.h"
+#include "Types/SlateVector2.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintTypeConversions)
 
@@ -447,6 +448,17 @@ UE::Kismet::BlueprintTypeConversions::Internal::FStructConversionEntry FVector2D
 	&TBaseStructure<FVector2D>::Get,
 	&ReturnNullVariant,
 	&ReturnNullVariant,
+	&TVariantStructure<FVector2f>::Get,
+	TEXT(PREPROCESSOR_TO_STRING(MAKE_CONVERSION_FUNCTION_NAME(FVector2d, FVector2f))),
+	TEXT(PREPROCESSOR_TO_STRING(MAKE_CONVERSION_FUNCTION_NAME(FVector2f, FVector2d))),
+	&UE::Kismet::BlueprintTypeConversions::Internal::ConvertType<FVector2d, FVector2f>,
+	&UE::Kismet::BlueprintTypeConversions::Internal::ConvertType<FVector2f, FVector2d>
+);
+
+UE::Kismet::BlueprintTypeConversions::Internal::FStructConversionEntry FDeprecateVector2DEntry(
+	&FDeprecateSlateVector2D::StaticStruct,
+	&TVariantStructure<FVector2f>::Get,
+	&TBaseStructure<FVector2D>::Get,
 	&TVariantStructure<FVector2f>::Get,
 	TEXT(PREPROCESSOR_TO_STRING(MAKE_CONVERSION_FUNCTION_NAME(FVector2d, FVector2f))),
 	TEXT(PREPROCESSOR_TO_STRING(MAKE_CONVERSION_FUNCTION_NAME(FVector2f, FVector2d))),

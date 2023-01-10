@@ -793,39 +793,39 @@ FVector2D SDMXPixelMappingDesignerView::GetExtensionPosition(TSharedPtr<SDMXPixe
 
 		if (GetComponentGeometry(SelectedComponent, SelectedComponentGeometry))
 		{
-			const FVector2D WidgetPosition = [Handle, &SelectedComponentGeometry]()
+			const FVector2f WidgetPosition = [Handle, &SelectedComponentGeometry]()
 			{
 				// Get the initial offset based on the location around the selected object.
 				switch (Handle->GetTransformDirection())
 				{
 				case EDMXPixelMappingTransformDirection::CenterRight:
-					return FVector2D(SelectedComponentGeometry.GetLocalSize().X, SelectedComponentGeometry.GetLocalSize().Y * 0.5f);
+					return FVector2f(SelectedComponentGeometry.GetLocalSize().X, SelectedComponentGeometry.GetLocalSize().Y * 0.5f);
 				case EDMXPixelMappingTransformDirection::BottomLeft:
-					return FVector2D(0, SelectedComponentGeometry.GetLocalSize().Y);
+					return FVector2f(0, SelectedComponentGeometry.GetLocalSize().Y);
 				case EDMXPixelMappingTransformDirection::BottomCenter:
-					return FVector2D(SelectedComponentGeometry.GetLocalSize().X * 0.5f, SelectedComponentGeometry.GetLocalSize().Y);
+					return FVector2f(SelectedComponentGeometry.GetLocalSize().X * 0.5f, SelectedComponentGeometry.GetLocalSize().Y);
 				case EDMXPixelMappingTransformDirection::BottomRight:
-					return SelectedComponentGeometry.GetLocalSize();
+					return UE::Slate::CastToVector2f(SelectedComponentGeometry.GetLocalSize());
 				default:
 					checkNoEntry(); // Unhandled enum value
 				}
-				return FVector2D::ZeroVector;
+				return FVector2f::ZeroVector;
 			}();
 
-			const FVector2D SelectedWidgetScale = FVector2D(SelectedComponentGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector());
+			const FVector2f SelectedWidgetScale = SelectedComponentGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
 
-			const FVector2D ApplicationScaledOffset = Handle->GetOffset() * GetDesignerGeometry().Scale;
+			const FVector2f ApplicationScaledOffset = UE::Slate::CastToVector2f(Handle->GetOffset() * GetDesignerGeometry().Scale);
 
-			const FVector2D LocalOffsetFull = ApplicationScaledOffset / SelectedWidgetScale;
-			const FVector2D PositionFullOffset = GetDesignerGeometry().AbsoluteToLocal(SelectedComponentGeometry.LocalToAbsolute(WidgetPosition + LocalOffsetFull));
-			const FVector2D LocalOffsetHalf = (ApplicationScaledOffset / 2.0f) / SelectedWidgetScale;
-			const FVector2D PositionHalfOffset = GetDesignerGeometry().AbsoluteToLocal(SelectedComponentGeometry.LocalToAbsolute(WidgetPosition + LocalOffsetHalf));
+			const FVector2f LocalOffsetFull = ApplicationScaledOffset / SelectedWidgetScale;
+			const FVector2f PositionFullOffset = GetDesignerGeometry().AbsoluteToLocal(SelectedComponentGeometry.LocalToAbsolute(WidgetPosition + LocalOffsetFull));
+			const FVector2f LocalOffsetHalf = (ApplicationScaledOffset / 2.0f) / SelectedWidgetScale;
+			const FVector2f PositionHalfOffset = GetDesignerGeometry().AbsoluteToLocal(SelectedComponentGeometry.LocalToAbsolute(WidgetPosition + LocalOffsetHalf));
 
-			FVector2D PivotCorrection = PositionHalfOffset - (PositionFullOffset + FVector2D(5.0f, 5.0f));
+			FVector2f PivotCorrection = PositionHalfOffset - (PositionFullOffset + FVector2f(5.0f, 5.0f));
 
-			const FVector2D FinalPosition = PositionFullOffset + PivotCorrection;
+			const FVector2f FinalPosition = PositionFullOffset + PivotCorrection;
 
-			return FinalPosition;
+			return FVector2D(FinalPosition);
 		}
 	}
 

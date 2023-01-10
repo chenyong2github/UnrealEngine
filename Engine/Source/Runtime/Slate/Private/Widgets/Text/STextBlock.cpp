@@ -143,9 +143,9 @@ FSlateColor STextBlock::GetColorAndOpacity() const
 	return bIsAttributeColorAndOpacitySet ? ColorAndOpacity.Get() : TextStyle.ColorAndOpacity;
 }
 
-FVector2D STextBlock::GetShadowOffset() const
+FVector2f STextBlock::GetShadowOffset() const
 {
-	return bIsAttributeShadowOffsetSet ? ShadowOffset.Get() : TextStyle.ShadowOffset;
+	return bIsAttributeShadowOffsetSet ? UE::Slate::CastToVector2f(ShadowOffset.Get()) : FVector2f(TextStyle.ShadowOffset);
 }
 
 FLinearColor STextBlock::GetShadowColorAndOpacity() const
@@ -199,7 +199,7 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		// Draw the optional shadow
 		const FLinearColor LocalShadowColorAndOpacity = GetShadowColorAndOpacity();
-		const FVector2D LocalShadowOffset = GetShadowOffset();
+		const FVector2f LocalShadowOffset = GetShadowOffset();
 		const bool ShouldDropShadow = LocalShadowColorAndOpacity.A > 0.f && LocalShadowOffset.SizeSquared() > 0.f;
 
 		const bool bShouldBeEnabled = ShouldBeEnabled(bParentEnabled);
@@ -272,7 +272,7 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 
 	if (bSimpleTextMode)
 	{
-		const FVector2D LocalShadowOffset = GetShadowOffset();
+		const FVector2D LocalShadowOffset = FVector2D(GetShadowOffset());
 
 		const float LocalOutlineSize = (float)(GetFont().OutlineSettings.OutlineSize);
 

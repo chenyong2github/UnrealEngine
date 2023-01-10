@@ -504,8 +504,8 @@ void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEdito
 				}
 
 				FPaintGeometry PointGeometry = AllottedGeometry.ToPaintGeometry(
-					Point.ScreenPosition - (PointDrawInfo.ScreenSize * 0.5f),
-					PointDrawInfo.ScreenSize
+					PointDrawInfo.ScreenSize,
+					FSlateLayoutTransform(Point.ScreenPosition - (PointDrawInfo.ScreenSize * 0.5f))
 				);
 
 				FSlateDrawElement::MakeBox(OutDrawElements, KeyLayerId, PointGeometry, PointDrawInfo.Brush, DrawEffects, PointTint);

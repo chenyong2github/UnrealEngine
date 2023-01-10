@@ -121,7 +121,7 @@ int32 SRealtimeProfilerLineGraph::OnPaint( const FPaintArgs& Args, const FGeomet
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry( FVector2D(0,0), FVector2D(AllottedGeometry.GetLocalSize().X,AllottedGeometry.Size.Y) ),
+		AllottedGeometry.ToPaintGeometry( FVector2D(AllottedGeometry.GetLocalSize().X,AllottedGeometry.Size.Y), FSlateLayoutTransform() ),
 		TimelineAreaBrush,
 		DrawEffects,
 		TimelineAreaBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint()

@@ -173,7 +173,7 @@ namespace NavigationSimulationOverlay
 				const FVector2D NewLocalOffset = RootDrawOffset + WidgetInfo.WidgetGeometry.GetAccumulatedLayoutTransform().GetTranslation();
 				const FVector2D NewLocalSize = TransformPoint(WidgetInfo.WidgetGeometry.GetAccumulatedLayoutTransform().GetScale(), WidgetInfo.WidgetGeometry.GetLocalSize());
 
-				Map.Add(WidgetInfo.WidgetPtr, AllottedGeometry.ToPaintGeometry(NewLocalOffset, NewLocalSize));
+				Map.Add(WidgetInfo.WidgetPtr, AllottedGeometry.ToPaintGeometry(NewLocalSize, FSlateLayoutTransform(NewLocalOffset)));
 				return Map.Find(WidgetInfo.WidgetPtr);
 			}
 

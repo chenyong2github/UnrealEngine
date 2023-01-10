@@ -32,7 +32,7 @@ FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType,
 						  const FMargin& InMargin, 
 						  ESlateBrushTileType::Type InTiling, 
 						  ESlateBrushImageType::Type InImageType, 
-						  const FVector2D& InImageSize, 
+						  const UE::Slate::FDeprecateVector2DParameter& InImageSize, 
 						  const FLinearColor& InTint, 
 						  UObject* InObjectResource, 
 						  bool bInDynamicallyLoaded
@@ -68,7 +68,7 @@ FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType,
  						  const FMargin& InMargin,
  						  ESlateBrushTileType::Type InTiling,
  						  ESlateBrushImageType::Type InImageType,
- 						  const FVector2D& InImageSize,
+ 						  const UE::Slate::FDeprecateVector2DParameter& InImageSize,
  						  const TSharedRef< FLinearColor >& InTint,
  						  UObject* InObjectResource, 
  						  bool bInDynamicallyLoaded
@@ -104,7 +104,7 @@ FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType,
 						  const FMargin& InMargin,
 						  ESlateBrushTileType::Type InTiling, 
 						  ESlateBrushImageType::Type InImageType, 
-						  const FVector2D& InImageSize, const FSlateColor& InTint, 
+						  const UE::Slate::FDeprecateVector2DParameter& InImageSize, const FSlateColor& InTint, 
 						  UObject* InObjectResource, 
 						  bool bInDynamicallyLoaded
  						)
@@ -151,7 +151,7 @@ const FSlateResourceHandle& FSlateBrush::GetRenderingResource() const
 	return ResourceHandle;
 }
 
-void FSlateBrush::UpdateRenderingResource(FVector2D LocalSize, float DrawScale) const
+void FSlateBrush::UpdateRenderingResource(FVector2f LocalSize, float DrawScale) const
 {
 	if (DrawAs != ESlateBrushDrawType::NoDrawType && (ResourceName != NAME_None || ResourceObject != nullptr))
 	{
@@ -159,7 +159,7 @@ void FSlateBrush::UpdateRenderingResource(FVector2D LocalSize, float DrawScale) 
 		// For vector graphics we will rebuild the handle only if the shape needs to be rasterized again and the new size and scale
 		if (!ResourceHandle.IsValid() || ImageType == ESlateBrushImageType::Vector)
 		{
-			ResourceHandle = FSlateApplicationBase::Get().GetRenderer()->GetResourceHandle(*this, UE::Slate::CastToVector2f(LocalSize), DrawScale);
+			ResourceHandle = FSlateApplicationBase::Get().GetRenderer()->GetResourceHandle(*this, LocalSize, DrawScale);
 		}
 	}
 

@@ -19,6 +19,7 @@
 #include "Rendering/SlateRenderBatch.h"
 #include "DrawElementTextOverflowArgs.h"
 #include "ElementBatcher.h"
+#include "Types/SlateVector2.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Fonts/FontCache.h"
@@ -117,17 +118,6 @@ public:
 		ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None,
 		const FLinearColor& InTint = FLinearColor::White );
 
-
-	UE_DEPRECATED(4.20, "Storing and passing in a FSlateResourceHandle to MakeBox is no longer necessary.")
-	SLATECORE_API static void MakeBox(
-		FSlateWindowElementList& ElementList,
-		uint32 InLayer, 
-		const FPaintGeometry& PaintGeometry, 
-		const FSlateBrush* InBrush, 
-		const FSlateResourceHandle& InRenderingHandle, 
-		ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, 
-		const FLinearColor& InTint = FLinearColor::White );
-
 	SLATECORE_API static void MakeRotatedBox(
 		FSlateWindowElementList& ElementList,
 		uint32 InLayer, 
@@ -135,20 +125,9 @@ public:
 		const FSlateBrush* InBrush, 
 		ESlateDrawEffect,
 		float Angle,
-		TOptional<FVector2d> InRotationPoint,
+		UE::Slate::FDeprecateOptionalVector2DParameter InRotationPoint = TOptional<FVector2f>(),
 		ERotationSpace RotationSpace = RelativeToElement,
 		const FLinearColor& InTint = FLinearColor::White );
-
-	SLATECORE_API static void MakeRotatedBox(
-		FSlateWindowElementList& ElementList,
-		uint32 InLayer,
-		const FPaintGeometry& PaintGeometry,
-		const FSlateBrush* InBrush,
-		ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None,
-		float Angle = 0.0f,
-		TOptional<FVector2f> InRotationPoint = TOptional<FVector2f>(),
-		ERotationSpace RotationSpace = RelativeToElement,
-		const FLinearColor& InTint = FLinearColor::White);
 
 	/**
 	 * Creates a text element which displays a string of a rendered in a certain font on the screen
@@ -210,8 +189,7 @@ public:
 	 * @param InDrawEffects         Optional draw effects to apply
 	 * @param InTint                Color to tint the element
 	 */
-	SLATECORE_API static void MakeSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
-	SLATECORE_API static void MakeSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
+	SLATECORE_API static void MakeSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const UE::Slate::FDeprecateVector2DParameter InStart, const UE::Slate::FDeprecateVector2DParameter InStartDir, const UE::Slate::FDeprecateVector2DParameter InEnd, const UE::Slate::FDeprecateVector2DParameter InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
 
 	/**
 	 * Creates a Bezier Spline element
@@ -226,19 +204,10 @@ public:
 	 * @param InDrawEffects         Optional draw effects to apply
 	 * @param InTint                Color to tint the element
 	 */
-	SLATECORE_API static void MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2d P0, const FVector2d P1, const FVector2d P2, const FVector2d P3, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint = FLinearColor::White);
-	SLATECORE_API static void MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2f P0, const FVector2f P1, const FVector2f P2, const FVector2f P3, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint = FLinearColor::White);
+	SLATECORE_API static void MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const UE::Slate::FDeprecateVector2DParameter P0, const UE::Slate::FDeprecateVector2DParameter P1, const UE::Slate::FDeprecateVector2DParameter P2, const UE::Slate::FDeprecateVector2DParameter P3, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint = FLinearColor::White);
 
 	/** Just like MakeSpline but in draw-space coordinates. This is useful for connecting already-transformed widgets together. */
-	SLATECORE_API static void MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2d InStart, const FVector2d InStartDir, const FVector2d InEnd, const FVector2d InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
-	SLATECORE_API static void MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2f InStart, const FVector2f InStartDir, const FVector2f InEnd, const FVector2f InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
-
-	/** Just like MakeSpline but in draw-space coordinates. This is useful for connecting already-transformed widgets together. */
-	UE_DEPRECATED(4.20, "Splines with color gradients will not be supported in the future.")
-	SLATECORE_API static void MakeDrawSpaceGradientSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const TArray<FSlateGradientStop>& InGradientStops, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None );
-
-	UE_DEPRECATED(4.20, "Splines with color gradients will not be supported in the future.")
-	static void MakeDrawSpaceGradientSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const FSlateRect InClippingRect, const TArray<FSlateGradientStop>& InGradientStops, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None);
+	SLATECORE_API static void MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const UE::Slate::FDeprecateVector2DParameter InStart, const UE::Slate::FDeprecateVector2DParameter InStartDir, const UE::Slate::FDeprecateVector2DParameter InEnd, const UE::Slate::FDeprecateVector2DParameter InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
 
 	/**
 	 * Creates a line defined by the provided points
@@ -252,7 +221,9 @@ public:
 	 * @param bAntialias               Should antialiasing be applied to the line?
 	 * @param Thickness                The thickness of the line
 	 */
+#if UE_ENABLE_SLATE_VECTOR_DEPRECATION_MECHANISMS
 	SLATECORE_API static void MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2d>& Points, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White, bool bAntialias = true, float Thickness = 1.0f);
+#endif
 	SLATECORE_API static void MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FVector2f> Points, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint = FLinearColor::White, bool bAntialias = true, float Thickness = 1.0f);
 
 
@@ -269,7 +240,9 @@ public:
 	 * @param bAntialias               Should antialiasing be applied to the line?
 	 * @param Thickness                The thickness of the line
 	 */
+#if UE_ENABLE_SLATE_VECTOR_DEPRECATION_MECHANISMS
 	SLATECORE_API static void MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2d>& Points, const TArray<FLinearColor>& PointColors, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White, bool bAntialias = true, float Thickness = 1.0f);
+#endif
 	SLATECORE_API static void MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, TArray<FVector2f> Points, TArray<FLinearColor> PointColors, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White, bool bAntialias = true, float Thickness = 1.0f);
 
 	/**
@@ -315,24 +288,19 @@ public:
 	FORCEINLINE const FSlateRenderTransform& GetRenderTransform() const { return RenderTransform; }
 	FORCEINLINE void SetRenderTransform(const FSlateRenderTransform& InRenderTransform) { RenderTransform = InRenderTransform; }
 
-	FORCEINLINE UE::Slate::FDeprecateVector2D GetPosition() const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetPosition() const
 	{
-		return UE::Slate::FDeprecateVector2D(Position);
+		return UE::Slate::FDeprecateVector2DResult(Position);
 	}
 
-	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use SetPosition(FVector2f)")
-	FORCEINLINE void SetPosition(FVector2d InPosition)
-	{
-		Position = UE::Slate::CastToVector2f(InPosition);
-	}
-	FORCEINLINE void SetPosition(FVector2f InPosition)
+	FORCEINLINE void SetPosition(UE::Slate::FDeprecateVector2DParameter InPosition)
 	{
 		Position = InPosition;
 	}
 
-	FORCEINLINE UE::Slate::FDeprecateVector2D GetLocalSize() const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetLocalSize() const
 	{
-		return UE::Slate::FDeprecateVector2D(LocalSize);
+		return UE::Slate::FDeprecateVector2DResult(LocalSize);
 	}
 
 	FORCEINLINE float GetScale() const { return Scale; }
@@ -357,16 +325,13 @@ public:
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
-	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use ApplyPositionOffset(FVector2f)")
-	void ApplyPositionOffset(FVector2d InOffset);
-
 	/**
 	 * Update element cached position with an arbitrary offset
 	 *
 	 * @param Element		   Element to update
 	 * @param InOffset         Absolute translation delta
 	 */
-	void ApplyPositionOffset(FVector2f InOffset);
+	void ApplyPositionOffset(UE::Slate::FDeprecateVector2DParameter InOffset);
 
 	UE_DEPRECATED(4.23, "GetClippingIndex has been deprecated.  If you were using this please use GetPrecachedClippingIndex instead.")
 	FORCEINLINE const int32 GetClippingIndex() const { return GetPrecachedClippingIndex(); }
@@ -564,9 +529,9 @@ public:
 	}
 
 	/** @return Get the window size that we will be painting */
-	UE::Slate::FDeprecateVector2D GetWindowSize() const
+	UE::Slate::FDeprecateVector2DResult GetWindowSize() const
 	{
-		return UE::Slate::FDeprecateVector2D(WindowSize);
+		return UE::Slate::FDeprecateVector2DResult(WindowSize);
 	}
 
 	template<typename PayloadType>

@@ -55,7 +55,7 @@ void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& Cu
 	FSlateDrawElement::MakeBox(
 		InPainter.DrawElements,
 		InPainter.LayerId + 5,
-		InPainter.SectionGeometry.ToPaintGeometry(TextOffset - BoxPadding, TextSize + 2.0f * BoxPadding),
+		InPainter.SectionGeometry.ToPaintGeometry(TextSize + 2.0f * BoxPadding, FSlateLayoutTransform(TextOffset - BoxPadding)),
 		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.5f * InPainter.GhostAlpha)
@@ -66,7 +66,7 @@ void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& Cu
 	FSlateDrawElement::MakeText(
 		InPainter.DrawElements,
 		InPainter.LayerId + 6,
-		InPainter.SectionGeometry.ToPaintGeometry(TextOffset, TextSize),
+		InPainter.SectionGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextOffset)),
 		FrameTimeString,
 		SmallLayoutFont,
 		DrawEffects,

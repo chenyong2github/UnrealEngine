@@ -88,8 +88,8 @@ int32 SGraphBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 				OutDrawElements,
 				RetLayerId++,
 				AllottedGeometry.ToPaintGeometry(
-					FVector2D( StartX, 0.0f ),
-					FVector2D( EndX - StartX, AllottedGeometry.GetLocalSize().Y )),
+					FVector2f( EndX - StartX, AllottedGeometry.GetLocalSize().Y ),
+					FSlateLayoutTransform(FVector2f( StartX, 0.0f ))),
 				Event->IsSelected ? SelectedImage : FillImage,
 				DrawEffects,
 				Event->IsSelected ? SelectedBarColor : ColorPalette[Event->ColorIndex % (sizeof(ColorPalette) / sizeof(ColorPalette[0]))]			

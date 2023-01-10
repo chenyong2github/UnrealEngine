@@ -50,7 +50,7 @@ int32 SMediaPlayerEditorCache::OnPaint(const FPaintArgs& Args, const FGeometry& 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId + 1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(0.0f, 0.0f), FVector2D(AllottedGeometry.Size.X, ProgressBarHeight.Get())),
+		AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.Size.X, ProgressBarHeight.Get()), FSlateLayoutTransform()),
 		FCoreStyle::Get().GetBrush("GenericWhiteBox"),
 		ESlateDrawEffect::None,
 		InWidgetStyle.GetColorAndOpacityTint() * FLinearColor::Black
@@ -85,7 +85,7 @@ void SMediaPlayerEditorCache::DrawPlayerPosition(FTimespan Time, const FGeometry
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId + 1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(DrawOffset, ProgressBarHeight.Get() + PositionMarkerMargin.Get()), FVector2D(PositionMarkerSize.Get(), MarkerSize)),
+		AllottedGeometry.ToPaintGeometry(FVector2f(PositionMarkerSize.Get(), MarkerSize), FSlateLayoutTransform(FVector2f(DrawOffset, ProgressBarHeight.Get() + PositionMarkerMargin.Get()))),
 		GenericBrush,
 		ESlateDrawEffect::None,
 		InWidgetStyle.GetColorAndOpacityTint() * Color
@@ -139,7 +139,7 @@ void SMediaPlayerEditorCache::DrawSampleStates(const TRangeSet<FTimespan>& Range
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId + 1,
-			AllottedGeometry.ToPaintGeometry(FVector2D(DrawOffset, YPos * BarHeight), FVector2D(DrawSize, YScale * BarHeight)),
+			AllottedGeometry.ToPaintGeometry(FVector2f(DrawSize, YScale * BarHeight), FSlateLayoutTransform(FVector2f(DrawOffset, YPos * BarHeight))),
 			GenericBrush,
 			ESlateDrawEffect::None,
 			InWidgetStyle.GetColorAndOpacityTint() * Color

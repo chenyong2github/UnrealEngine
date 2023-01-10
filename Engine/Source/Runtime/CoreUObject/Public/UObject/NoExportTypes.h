@@ -598,10 +598,10 @@ struct FVector4
 USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FVector2f
 {
-	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector2D, SaveGame)
 	float X;
 
-	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector2D, SaveGame)
 	float Y;
 };
 

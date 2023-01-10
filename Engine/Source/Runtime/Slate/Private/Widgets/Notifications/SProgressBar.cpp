@@ -228,14 +228,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * (ClampedFraction)) * 0.5f), (AllottedGeometry.GetLocalSize().Y * 0.5f) - ((AllottedGeometry.GetLocalSize().Y * (ClampedFraction)) * 0.5f)),
-							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+							FVector2f(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y * ClampedFraction),
+							FSlateLayoutTransform(FVector2f((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * (ClampedFraction)) * 0.5f), (AllottedGeometry.GetLocalSize().Y * 0.5f) - ((AllottedGeometry.GetLocalSize().Y * (ClampedFraction)) * 0.5f)))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform()
+						);
 					}
 
 					// Draw Fill
@@ -261,14 +263,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * (ClampedFraction)) * 0.5f), 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f((AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * (ClampedFraction)) * 0.5f), 0.0f))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f(0.0f, 0.0f))
+						);
 					}
 
 					// Draw Fill
@@ -294,14 +298,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, (AllottedGeometry.GetLocalSize().Y * 0.5f) - ((AllottedGeometry.GetLocalSize().Y * (ClampedFraction)) * 0.5f)),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction),
+							FSlateLayoutTransform(FVector2f(0.0f, (AllottedGeometry.GetLocalSize().Y * 0.5f) - ((AllottedGeometry.GetLocalSize().Y * (ClampedFraction)) * 0.5f)))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f(0.0f, 0.0f))
+						);
 					}
 
 					// Draw Fill
@@ -326,14 +332,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction),
+							FSlateLayoutTransform(FVector2f(0.0f, 0.0f))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, MarqueeAnimOffsetY - MarqueeImageSizeY),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSizeY));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSizeY),
+							FSlateLayoutTransform(FVector2f(0.0f, MarqueeAnimOffsetY - MarqueeImageSizeY))
+						);
 					}
 
 					// Draw Fill
@@ -358,14 +366,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, AllottedGeometry.GetLocalSize().Y * (1.0f - ClampedFraction)),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * ClampedFraction),
+							FSlateLayoutTransform(FVector2f(0.0f, AllottedGeometry.GetLocalSize().Y * (1.0f - ClampedFraction)))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, MarqueeAnimOffsetY - MarqueeImageSizeY),
-							FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSizeY));
+							FVector2f(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y + MarqueeImageSizeY),
+							FSlateLayoutTransform(FVector2f(0.0f, MarqueeAnimOffsetY - MarqueeImageSizeY))
+						);
 					}
 
 					// Draw Fill
@@ -390,14 +400,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(AllottedGeometry.GetLocalSize().X * (1.0f - ClampedFraction), 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f(AllottedGeometry.GetLocalSize().X * (1.0f - ClampedFraction), 0.0f))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(MarqueeAnimOffsetX - MarqueeImageSizeX, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X + MarqueeImageSizeX, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X + MarqueeImageSizeX, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f(MarqueeAnimOffsetX - MarqueeImageSizeX, 0.0f))
+						);
 					}
 
 					// Draw Fill
@@ -423,14 +435,16 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 					if (bScaleWithFillPerc)
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(0.0f, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f(0.0f, 0.0f))
+						);
 					}
 					else
 					{
 						PaintRect = AllottedGeometry.ToPaintGeometry(
-							FVector2D(MarqueeAnimOffsetX - MarqueeImageSizeX, 0.0f),
-							FVector2D(AllottedGeometry.GetLocalSize().X + MarqueeImageSizeX, AllottedGeometry.GetLocalSize().Y));
+							FVector2f(AllottedGeometry.GetLocalSize().X + MarqueeImageSizeX, AllottedGeometry.GetLocalSize().Y),
+							FSlateLayoutTransform(FVector2f(MarqueeAnimOffsetX - MarqueeImageSizeX, 0.0f))
+						);
 					}
 
 					// Draw fill
@@ -467,8 +481,9 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 				OutDrawElements,
 				RetLayerId++,
 				AllottedGeometry.ToPaintGeometry(
-					FVector2D( MarqueeAnimOffset - MarqueeImageSize, 0.0f ),
-					FVector2D( AllottedGeometry.GetLocalSize().X + MarqueeImageSize, AllottedGeometry.GetLocalSize().Y )),
+					FVector2f( AllottedGeometry.GetLocalSize().X + MarqueeImageSize, AllottedGeometry.GetLocalSize().Y ),
+					FSlateLayoutTransform(FVector2f( MarqueeAnimOffset - MarqueeImageSize, 0.0f ))
+				),
 				CurrentMarqueeImage,
 				DrawEffects,
 				FillColorAndOpacitySRGB
@@ -483,7 +498,7 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 
 FVector2D SProgressBar::ComputeDesiredSize( float ) const
 {
-	return GetMarqueeImage()->ImageSize;
+	return FVector2D(GetMarqueeImage()->ImageSize);
 }
 
 bool SProgressBar::ComputeVolatility() const

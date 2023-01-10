@@ -95,7 +95,7 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 
 		if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
 		{
-			const FVector2D IconSize = ToolBarStyle.IconSize;
+			const FVector2f IconSize = ToolBarStyle.IconSize;
 
 			IconWidget =
 				SNew(SBox)

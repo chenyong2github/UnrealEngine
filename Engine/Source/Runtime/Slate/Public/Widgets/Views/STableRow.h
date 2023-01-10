@@ -380,9 +380,9 @@ public:
 		else
 		{
 			// Reuse the drop indicator asset for horizontal, by rotating the drawn box 90 degrees.
-			const FVector2D LocalSize(AllottedGeometry.GetLocalSize());
-			const FVector2D Pivot(LocalSize * 0.5f);
-			const FVector2D RotatedLocalSize(LocalSize.Y, LocalSize.X);
+			const FVector2f LocalSize(AllottedGeometry.GetLocalSize());
+			const FVector2f Pivot(LocalSize * 0.5f);
+			const FVector2f RotatedLocalSize(LocalSize.Y, LocalSize.X);
 			FSlateLayoutTransform RotatedTransform(Pivot - RotatedLocalSize * 0.5f);	// Make the box centered to the alloted geometry, so that it can be rotated around the center.
 
 			FSlateDrawElement::MakeRotatedBox(
@@ -723,12 +723,12 @@ public:
 	}
 
 	/** @return the zone (above, onto, below) based on where the user is hovering over within the row */
-	EItemDropZone ZoneFromPointerPosition(FVector2D LocalPointerPos, FVector2D LocalSize, EOrientation Orientation)
+	EItemDropZone ZoneFromPointerPosition(UE::Slate::FDeprecateVector2DParameter LocalPointerPos, UE::Slate::FDeprecateVector2DParameter LocalSize, EOrientation Orientation)
 	{
-		const FVector2D::FReal PointerPos = Orientation == EOrientation::Orient_Horizontal ? LocalPointerPos.X : LocalPointerPos.Y;
-		const FVector2D::FReal Size = Orientation == EOrientation::Orient_Horizontal ? LocalSize.X : LocalSize.Y;
+		const float PointerPos = Orientation == EOrientation::Orient_Horizontal ? LocalPointerPos.X : LocalPointerPos.Y;
+		const float Size = Orientation == EOrientation::Orient_Horizontal ? LocalSize.X : LocalSize.Y;
 
-		const FVector2D::FReal ZoneBoundarySu = FMath::Clamp(Size * 0.25f, 3.0f, 10.0f);
+		const float ZoneBoundarySu = FMath::Clamp(Size * 0.25f, 3.0f, 10.0f);
 		if (PointerPos < ZoneBoundarySu)
 		{
 			return EItemDropZone::AboveItem;
@@ -748,7 +748,7 @@ public:
 		if ( OnCanAcceptDrop.IsBound() )
 		{
 			const TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
-			const FVector2D LocalPointerPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+			const FVector2f LocalPointerPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
 			const EItemDropZone ItemHoverZone = ZoneFromPointerPosition(LocalPointerPos, MyGeometry.GetLocalSize(), OwnerTable->Private_GetOrientation());
 
 			ItemDropZone = [ItemHoverZone, DragDropEvent, this]()
@@ -786,7 +786,7 @@ public:
 				if (const ItemType* MyItemPtr = GetItemForThis(OwnerTable))
 				{
 					// Which physical drop zone is the drop about to be performed onto?
-					const FVector2D LocalPointerPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+					const FVector2f LocalPointerPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
 					const EItemDropZone HoveredZone = ZoneFromPointerPosition(LocalPointerPos, MyGeometry.GetLocalSize(), OwnerTable->Private_GetOrientation());
 
 					// The row gets final say over which zone to drop onto regardless of physical location.

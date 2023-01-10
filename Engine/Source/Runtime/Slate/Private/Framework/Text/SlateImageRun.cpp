@@ -68,7 +68,7 @@ FSlateImageRun::FSlateImageRun( const FRunInfo& InRunInfo, const TSharedRef< con
 	, Baseline( InBaseline )
 {
 	FIntPoint Size = FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource(InDynamicBrushName);
-	DynamicBrush = MakeShareable(new FSlateDynamicImageBrush( InDynamicBrushName, FVector2D(Size.X, Size.Y) ) );
+	DynamicBrush = MakeShareable(new FSlateDynamicImageBrush( InDynamicBrushName, FVector2f(Size.X, Size.Y) ) );
 	Image = DynamicBrush.Get();
 }
 
@@ -80,7 +80,7 @@ FSlateImageRun::FSlateImageRun( const FRunInfo& InRunInfo, const TSharedRef< con
 	, Baseline( InBaseline )
 {
 	FIntPoint Size = FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource(InDynamicBrushName);
-	DynamicBrush = MakeShareable(new FSlateDynamicImageBrush( InDynamicBrushName, FVector2D(Size.X, Size.Y) ) );
+	DynamicBrush = MakeShareable(new FSlateDynamicImageBrush( InDynamicBrushName, FVector2f(Size.X, Size.Y) ) );
 	Image = DynamicBrush.Get();
 }
 
@@ -123,7 +123,7 @@ int32 FSlateImageRun::GetTextIndexAt( const TSharedRef< ILayoutBlock >& Block, c
 		return INDEX_NONE;
 	}
 
-	const FVector2D ScaledImageSize = Image->ImageSize * Scale;
+	const FVector2f ScaledImageSize = Image->ImageSize * Scale;
 	const int32 Index = (Location.X <= (Left + (ScaledImageSize.X * 0.5f))) ? Range.BeginIndex : Range.EndIndex;
 	
 	if (OutHitPoint)
@@ -182,7 +182,7 @@ FVector2D FSlateImageRun::Measure( int32 BeginIndex, int32 EndIndex, float Scale
 		return FVector2D( 0, GetMaxHeight( Scale ) );
 	}
 
-	return Image->ImageSize * Scale;
+	return FVector2D(Image->ImageSize * Scale);
 }
 
 int16 FSlateImageRun::GetMaxHeight( float Scale ) const 

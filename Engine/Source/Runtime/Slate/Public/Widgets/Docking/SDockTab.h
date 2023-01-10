@@ -478,7 +478,7 @@ protected:
 	TAttribute<FLinearColor> IconColor;
 
 	/** @return the scaling of the tab based on the opening/closing animation */
-	FVector2D GetAnimatedScale() const;
+	UE::Slate::FDeprecateVector2DResult GetAnimatedScale() const;
 
 	/** Animation that shows the tab opening up */
 	FCurveSequence SpawnAnimCurve;

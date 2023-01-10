@@ -15,9 +15,9 @@ DECLARE_CYCLE_STAT(TEXT("Game UI Paint"), STAT_ViewportPaintTime, STATGROUP_Slat
 
 /* SViewport::FArguments interface
 *****************************************************************************/
-FVector2D SViewport::FArguments::GetDefaultViewportSize()
+UE::Slate::FDeprecateVector2DResult SViewport::FArguments::GetDefaultViewportSize()
 {
-	return FVector2D(320.0f, 240.0f);
+	return FVector2f(320.0f, 240.0f);
 }
 
 /* SViewport constructors
@@ -173,14 +173,14 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 
 	if( ViewportInterfacePin.IsValid() && ViewportInterfacePin->IsSoftwareCursorVisible() )
 	{
-		const FVector2D CursorPosScreenSpace = FSlateApplication::Get().GetCursorPos();		
+		const FVector2f CursorPosScreenSpace = FSlateApplication::Get().GetCursorPos();		
 		// @todo Slate: why are we calling OnCursorQuery in here?
 		FCursorReply Reply = ViewportInterfacePin->OnCursorQuery( AllottedGeometry,
 			FPointerEvent(
 				FSlateApplicationBase::CursorPointerIndex,
 				CursorPosScreenSpace,
 				CursorPosScreenSpace,
-				FVector2D::ZeroVector,
+				FVector2f::ZeroVector,
 				TSet<FKey>(),
 				FModifierKeysState() )
 		 );
@@ -191,15 +191,15 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		{
 			Brush = FCoreStyle::Get().GetBrush(TEXT("SoftwareCursor_CardinalCross"));
 		}
-		const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
+		const FVector2f CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
-		FVector2D CursorPositionLocalSpace = ViewportInterfacePin->GetSoftwareCursorPosition() / AllottedGeometry.Scale;
+		FVector2f CursorPositionLocalSpace = UE::Slate::CastToVector2f(ViewportInterfacePin->GetSoftwareCursorPosition()) / AllottedGeometry.Scale;
 
 		LayerId++;
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry( CursorPositionLocalSpace - (CursorSize / 2 ), CursorSize),
+			AllottedGeometry.ToPaintGeometry( CursorSize, FSlateLayoutTransform(CursorPositionLocalSpace - (CursorSize *.5f )) ),
 			Brush
 		);
 	}

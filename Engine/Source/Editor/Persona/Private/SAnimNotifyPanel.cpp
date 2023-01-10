@@ -1742,7 +1742,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 	{
 		FVector2D MarkerSize = EndMarkerNodeOverlay->GetDesiredSize();
 		FVector2D MarkerOffset(NotifyDurationSizeX + MarkerSize.X * 0.5f + 5.0f, (NotifyHeight - MarkerSize.Y) * 0.5f);
-		EndMarkerNodeOverlay->Paint(Args.WithNewParent(this), AllottedGeometry.MakeChild(MarkerOffset, MarkerSize, 1.0f), MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+		EndMarkerNodeOverlay->Paint(Args.WithNewParent(this), AllottedGeometry.MakeChild(MarkerSize, FSlateLayoutTransform(MarkerOffset)), MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 	}
 
 	const FSlateBrush* StyleInfo = FAppStyle::GetBrush( TEXT("SpecialEditableTextImageNormal") );
@@ -1761,7 +1761,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		FSlateDrawElement::MakeBox( 
 			OutDrawElements,
 			LayerId, 
-			AllottedGeometry.ToPaintGeometry(DurationBoxPosition, DurationBoxSize), 
+			AllottedGeometry.ToPaintGeometry(DurationBoxSize, FSlateLayoutTransform(DurationBoxPosition)), 
 			StyleInfo,
 			ESlateDrawEffect::None,
 			BoxColor);
@@ -1795,7 +1795,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		FSlateDrawElement::MakeBox( 
 			OutDrawElements,
 			LayerId, 
-			AllottedGeometry.ToPaintGeometry(LabelPosition, LabelSize), 
+			AllottedGeometry.ToPaintGeometry(LabelSize, FSlateLayoutTransform(LabelPosition)),
 			StyleInfo,
 			ESlateDrawEffect::None,
 			BoxColor);
@@ -1817,7 +1817,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		TextPosition.X += BranchingPointIconSize.X;
 	}
 
-	FPaintGeometry TextGeometry = AllottedGeometry.ToPaintGeometry(TextPosition, DrawTextSize);
+	FPaintGeometry TextGeometry = AllottedGeometry.ToPaintGeometry(DrawTextSize, FSlateLayoutTransform(TextPosition));
 	OutDrawElements.PushClip(FSlateClippingZone(TextGeometry));
 
 	FSlateDrawElement::MakeText( 
@@ -1843,7 +1843,7 @@ int32 SAnimNotifyNode::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			BranchPointLayerID,
-			AllottedGeometry.ToPaintGeometry(BranchPointIconPos, BranchingPointIconSize),
+			AllottedGeometry.ToPaintGeometry(BranchingPointIconSize, FSlateLayoutTransform(BranchPointIconPos)),
 			FAppStyle::GetBrush(TEXT("AnimNotifyEditor.BranchingPoint")),
 			ESlateDrawEffect::None,
 			FLinearColor::White
@@ -2078,7 +2078,7 @@ void SAnimNotifyNode::DrawScrubHandle( float ScrubHandleCentre, FSlateWindowElem
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		ScrubHandleID, 
-		AllottedGeometry.ToPaintGeometry(ScrubHandlePosition, ScrubHandleSize), 
+		AllottedGeometry.ToPaintGeometry(ScrubHandleSize, FSlateLayoutTransform(ScrubHandlePosition)), 
 		FAppStyle::GetBrush( TEXT( "Sequencer.KeyDiamond" ) ),
 		ESlateDrawEffect::None,
 		NodeColour
@@ -2087,7 +2087,7 @@ void SAnimNotifyNode::DrawScrubHandle( float ScrubHandleCentre, FSlateWindowElem
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		ScrubHandleID, 
-		AllottedGeometry.ToPaintGeometry(ScrubHandlePosition, ScrubHandleSize), 
+		AllottedGeometry.ToPaintGeometry(ScrubHandleSize, FSlateLayoutTransform(ScrubHandlePosition)), 
 		FAppStyle::GetBrush( TEXT( "Sequencer.KeyDiamondBorder" ) ),
 		ESlateDrawEffect::None,
 		bSelected ? FAppStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::Black
@@ -2112,7 +2112,7 @@ void SAnimNotifyNode::DrawHandleOffset( const float& Offset, const float& Handle
 	FSlateDrawElement::MakeBox( 
 		OutDrawElements,
 		MarkerLayer, 
-		AllottedGeometry.ToPaintGeometry(MarkerPosition, MarkerSize), 
+		AllottedGeometry.ToPaintGeometry(MarkerSize, FSlateLayoutTransform(MarkerPosition)), 
 		FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.NotifyAlignmentMarker" ) ),
 		ESlateDrawEffect::None,
 		NodeColor
@@ -4747,7 +4747,7 @@ int32 SAnimNotifyPanel::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId++,
-			AllottedGeometry.ToPaintGeometry(Marquee.Rect.GetUpperLeft(), Marquee.Rect.GetSize()),
+			AllottedGeometry.ToPaintGeometry(Marquee.Rect.GetSize(), FSlateLayoutTransform(Marquee.Rect.GetUpperLeft())),
 			FAppStyle::GetBrush(TEXT("MarqueeSelection"))
 			);
 	}

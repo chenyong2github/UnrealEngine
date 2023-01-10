@@ -180,7 +180,7 @@ int32 SDropTarget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(Inset, 0), FVector2D(AllottedGeometry.GetLocalSize().X-Inset*2, HorizontalImage->ImageSize.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.GetLocalSize().X-Inset*2, HorizontalImage->ImageSize.Y), FSlateLayoutTransform(FVector2f(Inset, 0))),
 				HorizontalImage,
 				ESlateDrawEffect::None,
 				DashColor.GetColor(InWidgetStyle));
@@ -189,7 +189,7 @@ int32 SDropTarget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(Inset, AllottedGeometry.GetLocalSize().Y - HorizontalImage->ImageSize.Y), FVector2D(AllottedGeometry.Size.X-Inset * 2, HorizontalImage->ImageSize.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(AllottedGeometry.Size.X-Inset * 2, HorizontalImage->ImageSize.Y), FSlateLayoutTransform(FVector2f(Inset, AllottedGeometry.GetLocalSize().Y - HorizontalImage->ImageSize.Y))),
 				HorizontalImage,
 				ESlateDrawEffect::None,
 				DashColor.GetColor(InWidgetStyle));
@@ -198,7 +198,7 @@ int32 SDropTarget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, Inset), FVector2D(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y-Inset * 2)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y-Inset * 2), FSlateLayoutTransform(FVector2f(0, Inset))),
 				VerticalImage,
 				ESlateDrawEffect::None,
 				DashColor.GetColor(InWidgetStyle));
@@ -207,7 +207,7 @@ int32 SDropTarget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.GetLocalSize().X - VerticalImage->ImageSize.X, Inset), FVector2D(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y-Inset * 2)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(VerticalImage->ImageSize.X, AllottedGeometry.GetLocalSize().Y-Inset * 2), FSlateLayoutTransform(FVector2f(AllottedGeometry.GetLocalSize().X - VerticalImage->ImageSize.X, Inset))),
 				VerticalImage,
 				ESlateDrawEffect::None,
 				DashColor.GetColor(InWidgetStyle));

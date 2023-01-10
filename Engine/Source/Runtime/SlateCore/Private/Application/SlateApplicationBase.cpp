@@ -20,7 +20,7 @@ const uint32 FSlateApplicationBase::CursorPointerIndex = ETouchIndex::CursorPoin
 const uint32 FSlateApplicationBase::CursorUserIndex = 0;
 const FPlatformUserId FSlateApplicationBase::SlateAppPrimaryPlatformUser = FPlatformUserId::CreateFromInternalId(0);
 
-FWidgetPath FHitTesting::LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const
+FWidgetPath FHitTesting::LocateWidgetInWindow(FVector2f ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const
 {
 	return SlateApp->LocateWidgetInWindow(ScreenspaceMouseCoordinate, Window, bIgnoreEnabledStatus, UserIndex);
 }
@@ -50,9 +50,9 @@ void FSlateApplicationBase::GetCachedDisplayMetrics(FDisplayMetrics& OutDisplayM
 	OutDisplayMetrics = CachedDisplayMetrics;
 }
 
-void FSlateApplicationBase::GetSafeZoneSize(FMargin& SafeZone, const FVector2D& OverrideSize)
+void FSlateApplicationBase::GetSafeZoneSize(FMargin& SafeZone, const UE::Slate::FDeprecateVector2DParameter& OverrideSize)
 {
-	FVector2D ContainerSize = FVector2D::ZeroVector;
+	FVector2f ContainerSize = FVector2f::ZeroVector;
 
 #if WITH_EDITOR
 	ContainerSize = OverrideSize;
@@ -62,7 +62,7 @@ void FSlateApplicationBase::GetSafeZoneSize(FMargin& SafeZone, const FVector2D& 
 	{
 		FDisplayMetrics Metrics;
 		GetCachedDisplayMetrics(Metrics);
-		ContainerSize = FVector2D((float)Metrics.PrimaryDisplayWidth, (float)Metrics.PrimaryDisplayHeight);
+		ContainerSize = FVector2f((float)Metrics.PrimaryDisplayWidth, (float)Metrics.PrimaryDisplayHeight);
 	}
 
 	FMargin SafeZoneRatio;

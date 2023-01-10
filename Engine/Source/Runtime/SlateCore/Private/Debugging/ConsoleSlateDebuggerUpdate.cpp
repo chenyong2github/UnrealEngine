@@ -379,12 +379,12 @@ void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs,
 	const double SlateApplicationCurrentTime = FSlateApplicationBase::Get().GetCurrentTime();
 
 	float TextElementY = 48.f;
-	auto MakeText = [&](const FString& Text, const FVector2D& Location, const FLinearColor& Color)
+	auto MakeText = [&](const FString& Text, const FVector2f& Location, const FLinearColor& Color)
 	{
 		FSlateDrawElement::MakeText(
 			InOutDrawElements
 			, InOutLayerId
-			, InAllottedGeometry.ToPaintGeometry(Location, FVector2D(1.f, 1.f))
+			, InAllottedGeometry.ToPaintGeometry(FVector2f(1.f, 1.f), FSlateLayoutTransform(Location))
 			, Text
 			, FontInfo
 			, ESlateDrawEffect::None
@@ -393,10 +393,10 @@ void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs,
 
 	if (bShowLegend)
 	{
-		MakeText(TEXT("Repaint"), FVector2D(10.f, 10.f + 0.f), DrawRepaintColor);
-		MakeText(TEXT("Volatile Paint"), FVector2D(10.f, 10.f + 12.f), DrawVolatilePaintColor);
-		MakeText(TEXT("Tick"), FVector2D(10.f, 10.f + 24.f), DrawTickColor);
-		MakeText(TEXT("Active Timer"), FVector2D(10.f, 10.f + 36.f), DrawActiveTimerColor);
+		MakeText(TEXT("Repaint"), FVector2f(10.f, 10.f + 0.f), DrawRepaintColor);
+		MakeText(TEXT("Volatile Paint"), FVector2f(10.f, 10.f + 12.f), DrawVolatilePaintColor);
+		MakeText(TEXT("Tick"), FVector2f(10.f, 10.f + 24.f), DrawTickColor);
+		MakeText(TEXT("Active Timer"), FVector2f(10.f, 10.f + 36.f), DrawActiveTimerColor);
 		TextElementY += 48.f;
 	}
 
@@ -449,7 +449,7 @@ void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs,
 			{
 				if (NumberOfWidget < MaxNumberOfWidgetInList)
 				{
-					MakeText(Itt.Value.WidgetName, FVector2D(0, (12 * NumberOfWidget) + TextElementY), Color);
+					MakeText(Itt.Value.WidgetName, FVector2f(0.f, (12.f * NumberOfWidget) + TextElementY), Color);
 				}
 			}
 			++NumberOfWidget;
@@ -459,7 +459,7 @@ void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs,
 	if (bDisplayWidgetsNameList && NumberOfWidget > MaxNumberOfWidgetInList)
 	{
 		FString WidgetDisplayName = FString::Printf(TEXT("   %d more updates"), NumberOfWidget - MaxNumberOfWidgetInList);
-		MakeText(WidgetDisplayName, FVector2D(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
+		MakeText(WidgetDisplayName, FVector2f(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
 	}
 }
 

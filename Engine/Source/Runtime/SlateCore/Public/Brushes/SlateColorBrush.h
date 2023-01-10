@@ -18,7 +18,7 @@ struct SLATECORE_API FSlateColorBrush
 	 * @param InColor The linear color to use
 	 */
 	FORCENOINLINE FSlateColorBrush( const FLinearColor& InColor )
-		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2D::ZeroVector, InColor)
+		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2f::ZeroVector, InColor)
 	{ }
 
 	/** 
@@ -27,7 +27,7 @@ struct SLATECORE_API FSlateColorBrush
 	 * @param InColor The color value to use
 	 */
 	FORCENOINLINE FSlateColorBrush( const FColor& InColor )
-		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2D::ZeroVector, InColor.ReinterpretAsLinear())
+		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2f::ZeroVector, InColor.ReinterpretAsLinear())
 	{ }
 
 	/** 
@@ -36,7 +36,7 @@ struct SLATECORE_API FSlateColorBrush
 	 * @param InColor The shared color to use
 	 */
 	FORCENOINLINE FSlateColorBrush( const TSharedRef< FLinearColor >& InColor )
-		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2D::ZeroVector, InColor)
+		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2f::ZeroVector, InColor)
 	{ }
 
 	/**
@@ -45,6 +45,6 @@ struct SLATECORE_API FSlateColorBrush
 	 * @param InColor The shared color to use
 	 */
 	FORCENOINLINE FSlateColorBrush(const FSlateColor& InColor)
-		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2D::ZeroVector, InColor)
+		: FSlateBrush(ESlateBrushDrawType::Image, NAME_None, FMargin(0.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::NoImage, FVector2f::ZeroVector, InColor)
 	{ }
 };

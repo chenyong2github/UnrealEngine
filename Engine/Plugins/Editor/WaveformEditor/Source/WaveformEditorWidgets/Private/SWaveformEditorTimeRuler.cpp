@@ -129,7 +129,7 @@ void SWaveformEditorTimeRuler::DrawTickTimeString(float TickTimeSeconds, const d
 	FSlateDrawElement::MakeText(
 		OutDrawElements,
 		++LayerId,
-		AllottedGeometry.ToPaintGeometry(TextOffset, AllottedGeometry.Size),
+		AllottedGeometry.ToPaintGeometry(AllottedGeometry.Size, FSlateLayoutTransform(TextOffset)),
 		TimeString,
 		TicksTextFont,
 		ESlateDrawEffect::None,
@@ -240,7 +240,7 @@ void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeome
 	const float WindowWidth = AllottedGeometry.Size.X;
 	const float	HandleStart = TransportCoordinator->GetPlayheadPosition() * WindowWidth - HandleWidth / 2;
 	const float	HandleEnd = HandleStart + HandleWidth;
- 	FPaintGeometry HandleGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(HandleStart, 0), FVector2D(HandleEnd - HandleStart, AllottedGeometry.Size.Y));
+ 	FPaintGeometry HandleGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(HandleEnd - HandleStart, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(HandleStart, 0)));
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,

@@ -538,7 +538,7 @@ void SBlendSpaceGridWidget::PaintBackgroundAndGrid(const FGeometry& AllottedGeom
 		const FVector2D GridOffset = CachedGridRectangle.GetTopLeft();
 
 		// Fill the background of the grid
-		FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(GridOffset, GridSize), BackgroundImage );
+		FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(GridSize, FSlateLayoutTransform(GridOffset)), BackgroundImage );
 		
 		TArray<FVector2D> LinePoints;
 
@@ -651,7 +651,7 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 
 			const FVector2D GridPosition = SampleValueToScreenPosition(Sample.SampleValue) - (KeySize * 0.5f);
 			FSlateDrawElement::MakeBox(
-				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), 
+				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(KeySize, FSlateLayoutTransform(GridPosition)), 
 				KeyBrush, ESlateDrawEffect::None, DrawColor );
 
 			const float SampleLookupWeight = GetSampleLookupWeight(SampleIndex);
@@ -672,7 +672,7 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 		{
 			const FVector2D GridPosition = SampleValueToScreenPosition(PreviewFilteredPosition) - (PreviewSize * .5f);
 			FSlateDrawElement::MakeBox(
-				OutDrawElements, FilteredPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), 
+				OutDrawElements, FilteredPositionLayer, AllottedGeometry.ToPaintGeometry(PreviewSize, FSlateLayoutTransform(GridPosition)), 
 				PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() * 0.7f);
 		}
 
@@ -680,7 +680,7 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 		{
 			const FVector2D GridPosition = SampleValueToScreenPosition(PreviewPosition) - (PreviewSize * .5f);
 			FSlateDrawElement::MakeBox(
-				OutDrawElements, PreviewPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), 
+				OutDrawElements, PreviewPositionLayer, AllottedGeometry.ToPaintGeometry(PreviewSize, FSlateLayoutTransform(GridPosition)), 
 				PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor());
 		}
 
@@ -689,7 +689,7 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 			const FVector2D GridPoint = SnapScreenPositionToGrid(
 				LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown()) - (KeySize * .5f);
 			FSlateDrawElement::MakeBox(
-				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPoint, KeySize), KeyBrush, ESlateDrawEffect::None,
+				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(KeySize, FSlateLayoutTransform(GridPoint)), KeyBrush, ESlateDrawEffect::None,
 				(DragState == EDragState::DragDrop) ? DropKeyColor.GetSpecifiedColor() : InvalidColor.GetSpecifiedColor() );
 		}
 
@@ -704,20 +704,26 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 
 				float MaxWeightWidth = 48;
 				float WeightHeight = 6;
+				float Border = 1.0f;
 
 				Point.Y -= KeySize.Y / 2 + WeightHeight * 1.25;
 				Point.X -= MaxWeightWidth * 0.5f;
 
+				FGeometry FillGeometry = AllottedGeometry.MakeChild(
+					FVector2D(MaxWeightWidth, WeightHeight),
+					FSlateLayoutTransform(FVector2D(Point.X, Point.Y))
+				);
+				FGeometry BorderGeometry = AllottedGeometry.MakeChild(
+					FVector2D(Weight * (MaxWeightWidth - 2 * Border), WeightHeight - 2 * Border),
+					FSlateLayoutTransform(FVector2D(Point.X + Border, Point.Y + Border))
+				);
+
 				FSlateDrawElement::MakeBox(
-					OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
-						FVector2D(Point.X, Point.Y), FVector2D(MaxWeightWidth, WeightHeight)).ToPaintGeometry(),
+					OutDrawElements, DrawLayerId + 1, FillGeometry.ToPaintGeometry(),
 					LabelBrush, ESlateDrawEffect::None, FLinearColor::Black);
 
-				float Border = 1.0f;
 				FSlateDrawElement::MakeBox(
-					OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(
-						FVector2D(Point.X + Border, Point.Y + Border), 
-						FVector2D(Weight * (MaxWeightWidth - 2 * Border), WeightHeight - 2 * Border)).ToPaintGeometry(),
+					OutDrawElements, DrawLayerId + 2, BorderGeometry.ToPaintGeometry(),
 					LabelBrush, ESlateDrawEffect::None, FLinearColor::Gray);
 			}
 		}
@@ -746,36 +752,38 @@ void SBlendSpaceGridWidget::PaintAxisText(
 	FVector2D TextPosition = FVector2D(GridCenter.X - (TextSize.X * .5f), CachedGridRectangle.Bottom + TextMargin + (ArrowSize.Y * .25f));
 	FVector2D ArrowPosition = FVector2D(TextPosition.X - ArrowSize.X - 10.f/* give padding*/, TextPosition.Y);
 	FSlateDrawElement::MakeBox(
-		OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowPosition, ArrowSize), 
+		OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowSize, FSlateLayoutTransform(ArrowPosition)), 
 		ArrowBrushes[(uint8)EArrowDirection::Left], ESlateDrawEffect::None, FLinearColor::White);
 
 	// Label
 	FSlateDrawElement::MakeText(
-		OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(TextPosition, FVector2D(1.0f, 1.0f)).ToPaintGeometry(), 
+		OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(1.0f, 1.0f), FSlateLayoutTransform(TextPosition)).ToPaintGeometry(), 
 		Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 
 	// arrow right
 	ArrowSize = ArrowBrushes[(uint8)EArrowDirection::Right]->GetImageSize();
 	ArrowPosition = FVector2D(TextPosition.X + TextSize.X + 10.f/* give padding*/, TextPosition.Y);
 	FSlateDrawElement::MakeBox(
-		OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowPosition, ArrowSize), 
+		OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowSize, FSlateLayoutTransform(ArrowPosition)), 
 		ArrowBrushes[(uint8)EArrowDirection::Right], ESlateDrawEffect::None, FLinearColor::White);
 
 	Text = FString::SanitizeFloat(SampleValueMin.X);
 	TextSize = FontMeasure->Measure(Text, FontInfo);
 
 	// Minimum value
-	FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(
-		CachedGridRectangle.Left - (TextSize.X * .5f), CachedGridRectangle.Bottom + TextMargin + (TextSize.Y * .25f)), 
-		FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+	FVector2D MinTextPosition(CachedGridRectangle.Left - (TextSize.X * .5f), CachedGridRectangle.Bottom + TextMargin + (TextSize.Y * .25f));
+	FSlateDrawElement::MakeText(
+		OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(1.0f, 1.0f), FSlateLayoutTransform(MinTextPosition)).ToPaintGeometry(),
+		Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 
 	Text = FString::SanitizeFloat(SampleValueMax.X);
 	TextSize = FontMeasure->Measure(Text, FontInfo);
 
 	// Maximum value
-	FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(
-		CachedGridRectangle.Right - (TextSize.X * .5f), CachedGridRectangle.Bottom + TextMargin + (TextSize.Y * .25f)), 
-		FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+	FVector2D MaxTextPosition(CachedGridRectangle.Right - (TextSize.X * .5f), CachedGridRectangle.Bottom + TextMargin + (TextSize.Y * .25f));
+	FSlateDrawElement::MakeText(
+		OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(1.0f, 1.0f), FSlateLayoutTransform(MaxTextPosition)).ToPaintGeometry(),
+		Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 
 	// Only draw Y axis labels if this is a 2D grid
 	if (GridType == EGridType::TwoAxis)
@@ -789,38 +797,39 @@ void SBlendSpaceGridWidget::PaintAxisText(
 		TextPosition = FVector2D(((GridMargin.Left - TextSize.X) * 0.5f - (ArrowSize.X * .25f)) + GridRatioMargin.Left, GridCenter.Y - (TextSize.Y * .5f));
 		ArrowPosition = FVector2D(TextPosition.X + TextSize.X * 0.5f - ArrowSize.X * 0.5f, TextPosition.Y - ArrowSize.Y - 10.f/* give padding*/);
 		FSlateDrawElement::MakeBox(
-			OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowPosition, ArrowSize), 
+			OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowSize, FSlateLayoutTransform(ArrowPosition)), 
 			ArrowBrushes[(uint8)EArrowDirection::Up], ESlateDrawEffect::None, FLinearColor::White);
 
 		// Label
 		FSlateDrawElement::MakeText(
-			OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(TextPosition, FVector2D(1.0f, 1.0f)).ToPaintGeometry(),
+			OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(1.0f, 1.0f), FSlateLayoutTransform(TextPosition)).ToPaintGeometry(),
 			Text,	FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 
 		// arrow down
 		ArrowSize = ArrowBrushes[(uint8)EArrowDirection::Down]->GetImageSize();
 		ArrowPosition = FVector2D(TextPosition.X + TextSize.X * 0.5f - ArrowSize.X * 0.5f, TextPosition.Y + TextSize.Y + 10.f/* give padding*/);
 		FSlateDrawElement::MakeBox(
-			OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowPosition, ArrowSize), 
+			OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(ArrowSize, FSlateLayoutTransform(ArrowPosition)), 
 			ArrowBrushes[(uint8)EArrowDirection::Down], ESlateDrawEffect::None, FLinearColor::White);
 
 		Text = FString::SanitizeFloat(SampleValueMin.Y);
 		TextSize = FontMeasure->Measure(Text, FontInfo);
 
 		// Minimum value
-		FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(
-			((GridMargin.Left - TextSize.X) * 0.5f - (TextSize.X * .25f)) + GridRatioMargin.Left, 
-			CachedGridRectangle.Bottom - (TextSize.Y * .5f)), FVector2D(1.0f, 1.0f)).ToPaintGeometry(), 
+		FVector2D MinValuePosition(((GridMargin.Left - TextSize.X) * 0.5f - (TextSize.X * .25f)) + GridRatioMargin.Left, CachedGridRectangle.Bottom - (TextSize.Y * .5f));
+		FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
+				FVector2D(1.0f, 1.0f),
+				FSlateLayoutTransform(MinValuePosition)
+			).ToPaintGeometry(), 
 			Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 
 		Text = FString::SanitizeFloat(SampleValueMax.Y);
 		TextSize = FontMeasure->Measure(Text, FontInfo);
 
 		// Maximum value
-		FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(
-			((GridMargin.Left - TextSize.X) * 0.5f - (TextSize.X * .25f) ) + GridRatioMargin.Left, 
-			CachedGridRectangle.Top - (TextSize.Y * .5f)), 
-			FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+		FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
+			FVector2D(1.0f, 1.0f), FSlateLayoutTransform( FVector2D( ((GridMargin.Left - TextSize.X) * 0.5f - (TextSize.X * .25f) ) + GridRatioMargin.Left,  CachedGridRectangle.Top - (TextSize.Y * .5f)) )).ToPaintGeometry(),
+			Text, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 	}
 
 	DrawLayerId += 1;
@@ -880,8 +889,8 @@ void SBlendSpaceGridWidget::PaintGridSampleWeights(
 			GridPosition.Y += Padding.Y / 2;
 
 			FSlateDrawElement::MakeText(
-				OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(GridPosition + Padding / 2,
-					FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+				OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(FVector2f(1.0f, 1.0f),
+					FSlateLayoutTransform(GridPosition + Padding / 2)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 		}
 	}
 }
@@ -1085,11 +1094,11 @@ void SBlendSpaceGridWidget::PaintAnimationNames(const FGeometry& AllottedGeometr
 			GridPosition.Y += Padding.Y / 2;
 
 			FSlateDrawElement::MakeBox(
-				OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(GridPosition, 
-				TextSize + Padding).ToPaintGeometry(), LabelBrush, ESlateDrawEffect::None, FLinearColor::Black);
+				OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(TextSize + Padding, FSlateLayoutTransform(GridPosition)).ToPaintGeometry(),
+				LabelBrush, ESlateDrawEffect::None, FLinearColor::Black);
 			FSlateDrawElement::MakeText(
-				OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(GridPosition + Padding/2,
-					FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+				OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(FVector2D(1.0f, 1.0f), FSlateLayoutTransform(GridPosition + Padding/2)).ToPaintGeometry(),
+				Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 		}
 	}
 

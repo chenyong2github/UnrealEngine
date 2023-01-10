@@ -751,29 +751,29 @@ void FSlateEditableTextLayout::AdvanceSearch(const bool InReverse)
 	}
 }
 
-FVector2D FSlateEditableTextLayout::SetHorizontalScrollFraction(const float InScrollOffsetFraction)
+UE::Slate::FDeprecateVector2DResult FSlateEditableTextLayout::SetHorizontalScrollFraction(const float InScrollOffsetFraction)
 {
 	ScrollOffset.X = FMath::Clamp<float>(InScrollOffsetFraction, 0.0, 1.0) * TextLayout->GetSize().X;
-	return FVector2D(ScrollOffset);
+	return ScrollOffset;
 }
 
-FVector2D FSlateEditableTextLayout::SetVerticalScrollFraction(const float InScrollOffsetFraction)
+UE::Slate::FDeprecateVector2DResult FSlateEditableTextLayout::SetVerticalScrollFraction(const float InScrollOffsetFraction)
 {
 	ScrollOffset.Y = FMath::Clamp<float>(InScrollOffsetFraction, 0.0, 1.0) * TextLayout->GetSize().Y;
-	return FVector2D(ScrollOffset);
+	return ScrollOffset;
 }
 
-FVector2D FSlateEditableTextLayout::SetScrollOffset(const FVector2D& InScrollOffset, const FGeometry& InGeometry)
+UE::Slate::FDeprecateVector2DResult FSlateEditableTextLayout::SetScrollOffset(const UE::Slate::FDeprecateVector2DParameter& InScrollOffset, const FGeometry& InGeometry)
 {
-	const FVector2D ContentSize = TextLayout->GetSize();
+	const FVector2f ContentSize = UE::Slate::CastToVector2f(TextLayout->GetSize());
 	ScrollOffset.X = FMath::Clamp(InScrollOffset.X, 0.0f, ContentSize.X - InGeometry.GetLocalSize().X);
 	ScrollOffset.Y = FMath::Clamp(InScrollOffset.Y, 0.0f, ContentSize.Y - InGeometry.GetLocalSize().Y);
-	return FVector2D(ScrollOffset);
+	return ScrollOffset;
 }
 
-FVector2D FSlateEditableTextLayout::GetScrollOffset() const
+UE::Slate::FDeprecateVector2DResult FSlateEditableTextLayout::GetScrollOffset() const
 {
-	return FVector2D(ScrollOffset);
+	return ScrollOffset;
 }
 
 
@@ -1406,7 +1406,7 @@ FReply FSlateEditableTextLayout::HandleMouseButtonUp(const FGeometry& MyGeometry
 
 FReply FSlateEditableTextLayout::HandleMouseMove(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (bIsDragSelecting && OwnerWidget->GetSlateWidget()->HasMouseCapture() && InMouseEvent.GetCursorDelta() != FVector2D::ZeroVector)
+	if (bIsDragSelecting && OwnerWidget->GetSlateWidget()->HasMouseCapture() && InMouseEvent.GetCursorDelta() != FVector2f::ZeroVector)
 	{
 		MoveCursor(FMoveCursor::ViaScreenPointer(InMyGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition()), InMyGeometry.Scale, ECursorAction::SelectText));
 		bHasDragSelectedSinceFocused = true;
@@ -1750,13 +1750,13 @@ bool FSlateEditableTextLayout::AnyTextSelected() const
 	return SelectionPosition != CursorInteractionPosition;
 }
 
-bool FSlateEditableTextLayout::IsTextSelectedAt(const FGeometry& MyGeometry, const FVector2D& ScreenSpacePosition) const
+bool FSlateEditableTextLayout::IsTextSelectedAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition) const
 {
-	const FVector2D LocalPosition = MyGeometry.AbsoluteToLocal(ScreenSpacePosition);
+	const FVector2f LocalPosition = MyGeometry.AbsoluteToLocal(ScreenSpacePosition);
 	return IsTextSelectedAt(LocalPosition * MyGeometry.Scale);
 }
 
-bool FSlateEditableTextLayout::IsTextSelectedAt(const FVector2D& InLocalPosition) const
+bool FSlateEditableTextLayout::IsTextSelectedAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition) const
 {
 	const FTextLocation CursorInteractionPosition = CursorInfo.GetCursorInteractionLocation();
 	const FTextLocation SelectionPosition = SelectionStart.Get(CursorInteractionPosition);
@@ -1766,7 +1766,7 @@ bool FSlateEditableTextLayout::IsTextSelectedAt(const FVector2D& InLocalPosition
 		return false;
 	}
 
-	const FTextLocation ClickedPosition = TextLayout->GetTextLocationAt(InLocalPosition);
+	const FTextLocation ClickedPosition = TextLayout->GetTextLocationAt(FVector2D(InLocalPosition));
 
 	FTextLocation SelectionLocation = SelectionStart.Get(CursorInteractionPosition);
 	FTextSelection Selection(SelectionLocation, CursorInteractionPosition);
@@ -1819,15 +1819,15 @@ void FSlateEditableTextLayout::SelectAllText()
 	UpdateCursorHighlight();
 }
 
-void FSlateEditableTextLayout::SelectWordAt(const FGeometry& MyGeometry, const FVector2D& ScreenSpacePosition)
+void FSlateEditableTextLayout::SelectWordAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition)
 {
-	const FVector2D LocalPosition = MyGeometry.AbsoluteToLocal(ScreenSpacePosition);
+	const FVector2f LocalPosition = MyGeometry.AbsoluteToLocal(ScreenSpacePosition);
 	SelectWordAt(LocalPosition * MyGeometry.Scale);
 }
 
-void FSlateEditableTextLayout::SelectWordAt(const FVector2D& InLocalPosition)
+void FSlateEditableTextLayout::SelectWordAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition)
 {
-	FTextLocation InitialLocation = TextLayout->GetTextLocationAt(InLocalPosition);
+	FTextLocation InitialLocation = TextLayout->GetTextLocationAt(FVector2d(InLocalPosition));
 	FTextSelection WordSelection = TextLayout->GetWordAt(InitialLocation);
 
 	FTextLocation WordStart = WordSelection.GetBeginning();
@@ -3471,7 +3471,7 @@ void FSlateEditableTextLayout::Tick(const FGeometry& AllottedGeometry, const dou
 			const FSlateRect LocalLineViewRect(LineView.Offset / TextLayout->GetScale(), (LineView.Offset + LineView.Size) / TextLayout->GetScale());
 
 			const FVector2D LocalCursorLocation = TextLayout->GetLocationAt(ScrollInfo.Position, ScrollInfo.Alignment == SlateEditableTextTypes::ECursorAlignment::Right) / TextLayout->GetScale();
-			const FSlateRect LocalCursorRect(LocalCursorLocation, FVector2D(LocalCursorLocation.X + CaretWidth, LocalCursorLocation.Y + FontMaxCharHeight));
+			const FSlateRect LocalCursorRect(LocalCursorLocation, FVector2f(LocalCursorLocation.X + CaretWidth, LocalCursorLocation.Y + FontMaxCharHeight));
 
 			if (LocalCursorRect.Left < 0.0f)
 			{
@@ -3651,9 +3651,9 @@ void FSlateEditableTextLayout::OnArrangeChildren(const FGeometry& AllottedGeomet
 	}
 }
 
-FVector2D FSlateEditableTextLayout::GetSize() const
+UE::Slate::FDeprecateVector2DResult FSlateEditableTextLayout::GetSize() const
 {
-	return TextLayout->GetSize();
+	return UE::Slate::CastToVector2f(TextLayout->GetSize());
 }
 
 TSharedRef<SWidget> FSlateEditableTextLayout::BuildDefaultContextMenu(const TSharedPtr<FExtender>& InMenuExtender) const

@@ -97,8 +97,9 @@ public:
 		{
 			FPaintGeometry PaintRect;
 			PaintRect = AllottedGeometry.ToPaintGeometry(
-				FVector2D(0.0f, 0.0f),
-				FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y));
+				FVector2D(AllottedGeometry.GetLocalSize().X * ClampedFraction, AllottedGeometry.GetLocalSize().Y),
+				FSlateLayoutTransform()
+				);
 
 			// Draw fill
 			FSlateDrawElement::MakeBox(

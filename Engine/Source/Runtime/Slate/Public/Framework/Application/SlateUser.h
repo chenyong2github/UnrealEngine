@@ -89,15 +89,15 @@ public:
 	void SetCursorVisibility(bool bDrawCursor);
 
 	void SetCursorPosition(int32 PosX, int32 PosY);
-	void SetCursorPosition(const FVector2D& NewCursorPos);
+	void SetCursorPosition(const UE::Slate::FDeprecateVector2DParameter& NewCursorPos);
 	void SetPointerPosition(uint32 PointerIndex, int32 PosX, int32 PosY);
-	void SetPointerPosition(uint32 PointerIndex, const FVector2D& NewPointerPos);
+	void SetPointerPosition(uint32 PointerIndex, const UE::Slate::FDeprecateVector2DParameter& NewPointerPos);
 	
-	FVector2D GetCursorPosition() const;
-	FVector2D GetPreviousCursorPosition() const;
+	UE::Slate::FDeprecateVector2DResult GetCursorPosition() const;
+	UE::Slate::FDeprecateVector2DResult GetPreviousCursorPosition() const;
 	
-	FVector2D GetPointerPosition(uint32 PointerIndex) const;
-	FVector2D GetPreviousPointerPosition(uint32 PointerIndex) const;
+	UE::Slate::FDeprecateVector2DResult GetPointerPosition(uint32 PointerIndex) const;
+	UE::Slate::FDeprecateVector2DResult GetPreviousPointerPosition(uint32 PointerIndex) const;
 
 	bool IsWidgetUnderCursor(TSharedPtr<const SWidget> Widget) const;
 	bool IsWidgetUnderPointer(TSharedPtr<const SWidget> Widget, uint32 PointerIndex) const;
@@ -116,7 +116,7 @@ public:
 	bool IsDragDroppingAffected(const FPointerEvent& InPointerEvent) const;
 	void CancelDragDrop();
 	
-	void ShowTooltip(const TSharedRef<IToolTip>& InTooltip, const FVector2D& InSpawnLocation);
+	void ShowTooltip(const TSharedRef<IToolTip>& InTooltip, const UE::Slate::FDeprecateVector2DParameter& InSpawnLocation);
 	void CloseTooltip();
 
 	const FGestureDetector& GetGestureDetector() const { return GestureDetector; }
@@ -168,7 +168,7 @@ SLATE_SCOPE:
 	void NotifyPointerReleased(const FPointerEvent& PointerEvent, const FWidgetPath& WidgetsUnderCursor, TSharedPtr<FDragDropOperation> DroppedContent, bool bWasHandled);
 	void UpdatePointerPosition(const FPointerEvent& PointerEvent);
 
-	void StartDragDetection(const FWidgetPath& PathToWidget, int32 PointerIndex, FKey DragButton, FVector2D StartLocation);
+	void StartDragDetection(const FWidgetPath& PathToWidget, int32 PointerIndex, FKey DragButton, UE::Slate::FDeprecateVector2DParameter StartLocation);
 	FWidgetPath DetectDrag(const FPointerEvent& PointerEvent, float DragTriggerDistance);
 	bool IsDetectingDrag(uint32 PointerIndex) const;
 	void ResetDragDetection();
@@ -195,7 +195,7 @@ private:
 	FSlateUser(int32 InUserIndex, TSharedPtr<ICursor> InCursor);
 	
 	FSlateUser(FPlatformUserId InPlatformUser, TSharedPtr<ICursor> InCursor);
-	void UpdatePointerPosition(uint32 PointerIndex, const FVector2D& Position);
+	void UpdatePointerPosition(uint32 PointerIndex, const FVector2f& Position);
 	void LockCursorInternal(const FWidgetPath& WidgetPath);
 	TSharedRef<SWindow> GetOrCreateTooltipWindow();
 
@@ -246,15 +246,15 @@ private:
 	int32 FocusVersion = 0;
 
 	/** Current position of all pointers controlled by this user */
-	TMap<uint32, FVector2D> PointerPositionsByIndex;
-	TMap<uint32, FVector2D> PreviousPointerPositionsByIndex;
+	TMap<uint32, FVector2f> PointerPositionsByIndex;
+	TMap<uint32, FVector2f> PreviousPointerPositionsByIndex;
 
 	/** Weak paths to widgets that are currently capturing a particular pointer */
 	TMap<uint32, FWeakWidgetPath> PointerCaptorPathsByIndex;
 
 	struct FDragDetectionState
 	{
-		FDragDetectionState(const FWidgetPath& PathToWidget, int32 PointerIndex, FKey DragButton, const FVector2D& StartLocation)
+		FDragDetectionState(const FWidgetPath& PathToWidget, int32 PointerIndex, FKey DragButton, const FVector2f& StartLocation)
 			: DetectDragForWidget(PathToWidget)
 			, DragStartLocation(StartLocation)
 			, TriggerButton(DragButton)
@@ -265,7 +265,7 @@ private:
 		/** If not null, a widget has requested that we detect a drag being triggered in this widget and send an OnDragDetected() event*/
 		FWeakWidgetPath DetectDragForWidget;
 
-		FVector2D DragStartLocation = FVector2D::ZeroVector;
+		FVector2f DragStartLocation = FVector2f::ZeroVector;
 		FKey TriggerButton = EKeys::Invalid;
 		int32 PointerIndex = INDEX_NONE;
 	};
@@ -311,7 +311,7 @@ private:
 		TWeakPtr<SWidget> SourceWidget;
 
 		/** Desired position of the tooltip in screen space, updated whenever the mouse moves */
-		FVector2D DesiredLocation = FVector2D::ZeroVector;
+		FVector2f DesiredLocation = FVector2f::ZeroVector;
 
 		/** The time at which the tooltip was summoned */
 		double SummonTime = 0.0;

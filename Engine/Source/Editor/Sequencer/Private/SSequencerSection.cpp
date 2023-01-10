@@ -226,7 +226,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 				FSlateDrawElement::MakeBox(
 					DrawElements,
 					++LayerId,
-					ExpandedSectionGeometry.ToPaintGeometry(FVector2D(1, 1), ExpandedSectionGeometry.GetLocalSize() - FVector2D(2,2)),
+					ExpandedSectionGeometry.ToPaintGeometry(ExpandedSectionGeometry.GetLocalSize() - FVector2f(2.f,2.f), FSlateLayoutTransform(FVector2f(1.f, 1.f))),
 					CollapsedSelectedSectionOverlay,
 					DrawEffects,
 					SelectionColor.GetValue().CopyWithNewOpacity(0.8f)
@@ -274,7 +274,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 				FSlateDrawElement::MakeBox(
 					DrawElements,
 					++LayerId,
-					HeaderGeometry.ToPaintGeometry(FVector2D(1, 1), HeaderGeometry.GetLocalSize() - FVector2D(2, 2)),
+					HeaderGeometry.ToPaintGeometry(HeaderGeometry.GetLocalSize() - FVector2f(2.f, 2.f), FSlateLayoutTransform(FVector2f(1.f, 1.f))),
 					SectionHeaderSelectedSectionOverlay,
 					DrawEffects,
 					SelectionColor.GetValue().CopyWithNewOpacity(0.8f)
@@ -286,7 +286,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 				FSlateDrawElement::MakeBox(
 					DrawElements,
 					++LayerId,
-					ContentsGeometry.ToPaintGeometry(FVector2D(1, 1), ContentsGeometry.GetLocalSize() - FVector2D(2, 2)),
+					ContentsGeometry.ToPaintGeometry(ContentsGeometry.GetLocalSize() - FVector2f(2.f, 2.f), FSlateLayoutTransform(FVector2f(1.f, 1.f))),
 					SectionHeaderSelectedSectionOverlay,
 					DrawEffects,
 					FillSelectionColor.HSVToLinearRGB().CopyWithNewOpacity(0.8f)
@@ -1178,8 +1178,8 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 		{
 			// Make areas to the left and right of the geometry.  We will use these areas to determine if someone dragged the left or right edge of a section
 			FGeometry SectionRectLeft = SectionGeometryWithoutHandles.MakeChild(
-				FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetInclusiveStartFrame()) - ThisHandleOffset, 0.f ),
-				GripSize
+				GripSize,
+				FSlateLayoutTransform(FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetInclusiveStartFrame()) - ThisHandleOffset, 0.f ))
 			);
 
 			if( SectionRectLeft.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
@@ -1192,8 +1192,8 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 		if (UnderlappingSectionObj->HasEndFrame())
 		{
 			FGeometry SectionRectRight = SectionGeometryWithoutHandles.MakeChild(
-				FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetExclusiveEndFrame()) - UnderlappingSectionInterface->GetSectionGripSize() + ThisHandleOffset, 0 ), 
-				GripSize
+				GripSize,
+				FSlateLayoutTransform(FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetExclusiveEndFrame()) - UnderlappingSectionInterface->GetSectionGripSize() + ThisHandleOffset, 0 ))
 			);
 
 			if( SectionRectRight.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
@@ -1499,15 +1499,15 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 			TRange<FFrameNumber> EaseInRange = UnderlappingSectionObj->GetEaseInRange();
 			// Always draw handles if the section is highlighted, even if there is no range (to allow manual adjustment)
 			FFrameNumber HandleFrame = EaseInRange.IsEmpty() ? UnderlappingSectionObj->GetInclusiveStartFrame() : UE::MovieScene::DiscreteExclusiveUpper(EaseInRange);
-			FVector2D HandlePos(TimeToPixelConverter.FrameToPixel(HandleFrame), 0.f);
+			FVector2f HandlePos(TimeToPixelConverter.FrameToPixel(HandleFrame), 0.f);
 			FSlateDrawElement::MakeBox(
 				InPainter.DrawElements,
 				// always draw selected keys on top of other keys
 				InPainter.LayerId,
 				// Center the key along X.  Ensure the middle of the key is at the actual key time
 				InPainter.SectionGeometry.ToPaintGeometry(
-					HandlePos - FVector2D(HandleSize.X*0.5f, 0.f),
-					HandleSize
+					HandleSize,
+					FSlateLayoutTransform(HandlePos - FVector2f(HandleSize.X*0.5f, 0.f))
 				),
 				EasingHandle,
 				DrawEffects,
@@ -1521,7 +1521,7 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 
 			// Always draw handles if the section is highlighted, even if there is no range (to allow manual adjustment)
 			FFrameNumber HandleFrame = EaseOutRange.IsEmpty() ? UnderlappingSectionObj->GetExclusiveEndFrame() : UE::MovieScene::DiscreteInclusiveLower(EaseOutRange);
-			FVector2D    HandlePos   = FVector2D(TimeToPixelConverter.FrameToPixel(HandleFrame), 0.f);
+			FVector2f    HandlePos   = FVector2f(TimeToPixelConverter.FrameToPixel(HandleFrame), 0.f);
 
 			FSlateDrawElement::MakeBox(
 				InPainter.DrawElements,
@@ -1529,8 +1529,8 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 				InPainter.LayerId,
 				// Center the key along X.  Ensure the middle of the key is at the actual key time
 				InPainter.SectionGeometry.ToPaintGeometry(
-					HandlePos - FVector2D(HandleSize.X*0.5f, 0.f),
-					HandleSize
+					HandleSize,
+					FSlateLayoutTransform(HandlePos - FVector2f(HandleSize.X*0.5f, 0.f))
 				),
 				EasingHandle,
 				DrawEffects,
@@ -1632,8 +1632,8 @@ void SSequencerSection::DrawSectionHandles( const FGeometry& AllottedGeometry, F
 		if (UnderlappingSectionObj->HasStartFrame())
 		{
 			FGeometry SectionRectLeft = SectionGeometryWithoutHandles.MakeChild(
-				FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetInclusiveStartFrame()) - ThisHandleOffset, 0.f ),
-				GripSize
+				GripSize,
+				FSlateLayoutTransform(FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetInclusiveStartFrame()) - ThisHandleOffset, 0.f ))
 			);
 			FSlateDrawElement::MakeBox
 			(
@@ -1650,8 +1650,8 @@ void SSequencerSection::DrawSectionHandles( const FGeometry& AllottedGeometry, F
 		if (UnderlappingSectionObj->HasEndFrame())
 		{
 			FGeometry SectionRectRight = SectionGeometryWithoutHandles.MakeChild(
-				FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetExclusiveEndFrame()) - UnderlappingSection->GetSectionGripSize() + ThisHandleOffset, 0 ), 
-				GripSize
+				GripSize,
+				FSlateLayoutTransform(FVector2D( TimeToPixelConverter.FrameToPixel(UnderlappingSectionObj->GetExclusiveEndFrame()) - UnderlappingSection->GetSectionGripSize() + ThisHandleOffset, 0 ))
 			);
 			FSlateDrawElement::MakeBox
 			(

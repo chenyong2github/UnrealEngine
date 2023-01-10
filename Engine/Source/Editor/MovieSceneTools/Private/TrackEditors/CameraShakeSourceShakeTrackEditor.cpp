@@ -168,7 +168,7 @@ void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& 
 	TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
 	const  FMargin   BoxPadding     = FMargin(4.0f, 2.0f);
-	const FVector2D  TextSize       = FontMeasureService->Measure(ShakeText, SmallLayoutFont);
+	const FVector2f  TextSize       = UE::Slate::CastToVector2f(FontMeasureService->Measure(ShakeText, SmallLayoutFont));
 
 	// Flip the text position if getting near the end of the view range
 	const bool bDrawLeft = (Painter.SectionGeometry.Size.X - PixelPos) < (TextSize.X + 22.f) - BoxOffsetPx;
@@ -176,14 +176,14 @@ void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& 
 			bDrawLeft ? PixelPos - TextSize.X - BoxOffsetPx : PixelPos + BoxOffsetPx,
 			0.f);
 
-	const FVector2D BoxOffset  = FVector2D(BoxPositionX, Painter.SectionGeometry.Size.Y*.5f - TextSize.Y*.5f);
-	const FVector2D TextOffset = FVector2D(BoxPadding.Left, 0);
+	const FVector2f BoxOffset  = FVector2f(BoxPositionX, Painter.SectionGeometry.Size.Y*.5f - TextSize.Y*.5f);
+	const FVector2f TextOffset = FVector2f(BoxPadding.Left, 0);
 
 	// Draw the background box.
 	FSlateDrawElement::MakeBox(
 		Painter.DrawElements,
 		LayerId + 1,
-		Painter.SectionGeometry.ToPaintGeometry(BoxOffset, TextSize),
+		Painter.SectionGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(BoxOffset)),
 		FAppStyle::GetBrush("WhiteBrush"),
 		ESlateDrawEffect::None,
 		FLinearColor::Black.CopyWithNewOpacity(0.5f)
@@ -193,7 +193,7 @@ void FCameraShakeSourceTriggerSection::PaintShakeName(FSequencerSectionPainter& 
 	FSlateDrawElement::MakeText(
 		Painter.DrawElements,
 		LayerId + 2,
-		Painter.SectionGeometry.ToPaintGeometry(BoxOffset + TextOffset, TextSize),
+		Painter.SectionGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(BoxOffset + TextOffset)),
 		ShakeText,
 		SmallLayoutFont,
 		Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,

@@ -272,8 +272,8 @@ int32 STrackLane::PaintLaneBackground(const FGeometry& AllottedGeometry, const F
 			OutDrawElements,
 			PaintLayerId,
 			AllottedGeometry.ToPaintGeometry(
-				FVector2D(0, 0),
-				FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
+				FVector2f(AllottedGeometry.GetLocalSize().X, TotalNodeHeight),
+				FSlateLayoutTransform()
 			),
 			FAppStyle::GetBrush(BorderName),
 			ESlateDrawEffect::None,
@@ -303,8 +303,8 @@ int32 STrackLane::PaintLaneBackground(const FGeometry& AllottedGeometry, const F
 				OutDrawElements,
 				PaintLayerId,
 				AllottedGeometry.ToPaintGeometry(
-					FVector2D(0, 0),
-					FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
+					FVector2f(AllottedGeometry.GetLocalSize().X, TotalNodeHeight),
+					FSlateLayoutTransform()
 				),
 				FAppStyle::GetBrush(BorderName),
 				ESlateDrawEffect::None,

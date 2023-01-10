@@ -27,6 +27,7 @@
 #include "SlateGlobals.h"
 #include "Types/PaintArgs.h"
 #include "Types/SlateAttribute.h"
+#include "Types/SlateVector2.h"
 #include "FastUpdate/WidgetProxy.h"
 #include "InvalidateWidgetReason.h"
 #include "Widgets/SlateControlledConstruction.h"
@@ -641,16 +642,6 @@ public:
 	 */
 	virtual FPopupMethodReply OnQueryPopupMethod() const;
 
-	UE_DEPRECATED(4.26, "Renaming to TranslateMouseCoordinateForCustomHitTestChild")
-	TSharedPtr<FVirtualPointerPosition> TranslateMouseCoordinateFor3DChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
-	{
-		TOptional<FVirtualPointerPosition> Result = TranslateMouseCoordinateForCustomHitTestChild(ChildWidget.Get(), MyGeometry, ScreenSpaceMouseCoordinate, LastScreenSpaceMouseCoordinate);
-		return Result.IsSet() ? MakeShared<FVirtualPointerPosition>(Result.GetValue()) : TSharedPtr<FVirtualPointerPosition>();
-	}
-
-	UE_DEPRECATED(5.0, "TranslateMouseCoordinateForCustomHitTestChild that returns a shared ptr is deprecated.")
-	virtual TSharedPtr<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const;
-
 	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const;
 
 	/**
@@ -714,7 +705,7 @@ public:
 	const FWidgetProxyHandle GetProxyHandle() const { return FastPathProxyHandle; }
 
 	/** @return the DesiredSize that was computed the last time CacheDesiredSize() was called. */
-	FVector2D GetDesiredSize() const;
+	UE::Slate::FDeprecateVector2DResult GetDesiredSize() const;
 
 	void AssignParentWidget(TSharedPtr<SWidget> InParent);
 	bool ConditionallyDetatchParentWidget(SWidget* InExpectedParent);
@@ -1224,16 +1215,16 @@ public:
 		}
 	}
 
-	FORCEINLINE FVector2D GetRenderTransformPivotWithRespectToFlowDirection() const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetRenderTransformPivotWithRespectToFlowDirection() const
 	{
+		FVector2f TransformPivot = UE::Slate::CastToVector2f(RenderTransformPivotAttribute.Get());
 		if (LIKELY(GSlateFlowDirection == EFlowDirection::LeftToRight))
 		{
-			return RenderTransformPivotAttribute.Get();
+			return TransformPivot;
 		}
 		else
 		{
 			// If we're going right to left, flip the X's pivot mirrored about 0.5.
-			FVector2D TransformPivot = RenderTransformPivotAttribute.Get();
 			TransformPivot.X = 0.5f + (0.5f - TransformPivot.X);
 			return TransformPivot;
 		}
@@ -1246,9 +1237,10 @@ public:
 	}
 
 	/** @return the pivot point of the render transform. */
-	FORCEINLINE FVector2D GetRenderTransformPivot() const
+	FORCEINLINE UE::Slate::FDeprecateVector2DResult GetRenderTransformPivot() const
 	{
-		return RenderTransformPivotAttribute.Get();
+		FVector2f TransformPivot = UE::Slate::CastToVector2f(RenderTransformPivotAttribute.Get());
+		return TransformPivot;
 	}
 
 	/** @param InTransformPivot Sets the pivot point of the widget's render transform (in normalized local space). */
@@ -1575,7 +1567,7 @@ protected:
 	static int32 FindChildUnderMouse( const FArrangedChildren& Children, const FPointerEvent& MouseEvent );
 
 	/** @return The index of the child that is under the specified position */
-	static int32 FindChildUnderPosition(const FArrangedChildren& Children, const FVector2D& ArrangedSpacePosition);
+	static int32 FindChildUnderPosition(const FArrangedChildren& Children, const UE::Slate::FDeprecateVector2DParameter& ArrangedSpacePosition);
 
 	/** 
 	 * Determines if this widget should be enabled.
@@ -1927,14 +1919,14 @@ private:
 // FGeometry Arranged Widget Inlined Functions
 //=================================================================
 
-FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWidget>& ChildWidget, const FVector2D& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const
+FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const
 {
 	// If there is no render transform set, use the simpler MakeChild call that doesn't bother concatenating the render transforms.
 	// This saves a significant amount of overhead since every widget does this, and most children don't have a render transform.
 	const TOptional<FSlateRenderTransform> RenderTransform = ChildWidget->GetRenderTransformWithRespectToFlowDirection();
 	if (RenderTransform.IsSet() )
 	{
-		const FVector2D RenderTransformPivot = ChildWidget->GetRenderTransformPivotWithRespectToFlowDirection();
+		const FVector2f RenderTransformPivot = UE::Slate::CastToVector2f(ChildWidget->GetRenderTransformPivotWithRespectToFlowDirection());
 		return FArrangedWidget(ChildWidget, MakeChild(InLocalSize, LayoutTransform, RenderTransform.GetValue(), RenderTransformPivot));
 	}
 	else
@@ -1945,16 +1937,15 @@ FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWi
 
 FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWidget>& ChildWidget, const FLayoutGeometry& LayoutGeometry) const
 {
-	return MakeChild(ChildWidget, LayoutGeometry.GetSizeInLocalSpace(), LayoutGeometry.GetLocalToParentTransform());
+	return MakeChild(ChildWidget, FVector2f(LayoutGeometry.GetSizeInLocalSpace()), LayoutGeometry.GetLocalToParentTransform());
 }
 
-FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWidget>& ChildWidget, const FVector2D& ChildOffset, const FVector2D& InLocalSize, float ChildScale) const
+FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& ChildOffset, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, float ChildScale) const
 {
 	// Since ChildOffset is given as a LocalSpaceOffset, we MUST convert this offset into the space of the parent to construct a valid layout transform.
 	// The extra TransformPoint below does this by converting the local offset to an offset in parent space.
-	return MakeChild(ChildWidget, InLocalSize, FSlateLayoutTransform(ChildScale, TransformPoint(ChildScale, ChildOffset)));
+	return MakeChild(ChildWidget, UE::Slate::CastToVector2f(InLocalSize), FSlateLayoutTransform(ChildScale, TransformPoint(ChildScale, UE::Slate::CastToVector2f(ChildOffset))));
 }
-
 
 template<typename TargetValueType, typename SourceValueType>
 bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)

@@ -622,9 +622,9 @@ private:
 	FSlateBrush DropIndicator_Below;
 
 	/** This is required for the paint to access which item we're hovering */
-	FVector2D CurrentDragOperationScreenSpaceLocation;
+	FVector2f CurrentDragOperationScreenSpaceLocation;
 	int32 CurrentDragOverSlotIndex;
 
 	/** @return the zone (above, below) based on where the user is hovering over */
-	EItemDropZone ZoneFromPointerPosition(FVector2D LocalPointerPos, const FGeometry& CurrentGeometry, const FGeometry& StartGeometry) const;
+	EItemDropZone ZoneFromPointerPosition(FVector2f LocalPointerPos, const FGeometry& CurrentGeometry, const FGeometry& StartGeometry) const;
 };

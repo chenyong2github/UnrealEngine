@@ -325,7 +325,10 @@ FWeakWidgetPath::EPathResolutionResult::Result FWeakWidgetPath::ToWidgetPath( FW
 						{
 							if (PointerEvent && !VirtualPointerPos.IsSet())
 							{
-								VirtualPointerPos = CurWidget->TranslateMouseCoordinateForCustomHitTestChild(*ChildWidgetPtr.Get(), ParentGeometry, PointerEvent->GetScreenSpacePosition(), PointerEvent->GetLastScreenSpacePosition());
+								FVector2f ScreenPos = PointerEvent->GetScreenSpacePosition();
+								FVector2f LastScreenPos = PointerEvent->GetLastScreenSpacePosition();
+
+								VirtualPointerPos = CurWidget->TranslateMouseCoordinateForCustomHitTestChild(*ChildWidgetPtr.Get(), ParentGeometry, FVector2d(ScreenPos), FVector2d(LastScreenPos));
 							}
 
 							bFoundChild = true;
@@ -388,7 +391,10 @@ FWeakWidgetPath::EPathResolutionResult::Result FWeakWidgetPath::ToWidgetPath( FW
 						{
 							if (PointerEvent && !VirtualPointerPos.IsSet())
 							{
-								VirtualPointerPos = CurWidget->TranslateMouseCoordinateForCustomHitTestChild(ArrangedWidget.Widget.Get(), ParentGeometry, PointerEvent->GetScreenSpacePosition(), PointerEvent->GetLastScreenSpacePosition());
+								FVector2f ScreenPos = PointerEvent->GetScreenSpacePosition();
+								FVector2f LastScreenPos = PointerEvent->GetLastScreenSpacePosition();
+
+								VirtualPointerPos = CurWidget->TranslateMouseCoordinateForCustomHitTestChild(ArrangedWidget.Widget.Get(), ParentGeometry, FVector2d(ScreenPos), FVector2d(LastScreenPos));
 							}
 
 							bFoundChild = true;

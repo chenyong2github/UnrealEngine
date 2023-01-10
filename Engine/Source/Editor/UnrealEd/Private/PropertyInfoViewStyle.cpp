@@ -102,7 +102,7 @@ namespace PropertyInfoViewStyle
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(TabSize * IndentCount, 0), FVector2D(TabSize, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(TabSize, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2f(TabSize * IndentCount, 0.f))),
 				BackgroundBrush,
 				ESlateDrawEffect::None,
 				BackgroundColor.GetColor(InWidgetStyle)
@@ -111,7 +111,7 @@ namespace PropertyInfoViewStyle
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(TabSize * IndentCount, 0), FVector2D(TabSize, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2f(TabSize, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2f(TabSize * IndentCount, 0.f))),
 				DropShadowBrush
 			);
 		}

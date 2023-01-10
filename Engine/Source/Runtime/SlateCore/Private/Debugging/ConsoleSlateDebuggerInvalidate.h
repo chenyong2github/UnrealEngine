@@ -55,10 +55,10 @@ private:
 		FConsoleSlateDebuggerUtility::TSWindowId WindowId;
 		FString WidgetInvalidatedName;
 		FString WidgetInvalidatorName;
-		FVector2D InvalidatedPaintLocation;
-		FVector2D InvalidatedPaintSize;
-		FVector2D InvalidatorPaintLocation;
-		FVector2D InvalidatorPaintSize;
+		FVector2f InvalidatedPaintLocation;
+		FVector2f InvalidatedPaintSize;
+		FVector2f InvalidatorPaintLocation;
+		FVector2f InvalidatorPaintSize;
 		EInvalidateWidgetReason WidgetReason;
 		ESlateDebuggingInvalidateRootReason InvalidationRootReason;
 		int32 InvalidationPriority;

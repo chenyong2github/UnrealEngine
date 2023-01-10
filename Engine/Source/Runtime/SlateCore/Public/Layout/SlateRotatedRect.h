@@ -31,18 +31,10 @@ public:
 	}
 
 	/** Per-element constructor. */
-	FSlateRotatedRect(const FVector2f InTopLeft, const FVector2f InExtentX, const FVector2f InExtentY)
+	FSlateRotatedRect(const UE::Slate::FDeprecateVector2DParameter& InTopLeft, const UE::Slate::FDeprecateVector2DParameter& InExtentX, const UE::Slate::FDeprecateVector2DParameter& InExtentY)
 		: TopLeft(InTopLeft)
 		, ExtentX(InExtentX)
 		, ExtentY(InExtentY)
-	{
-	}
-
-	/** Per-element constructor. */
-	FSlateRotatedRect(const FVector2d InTopLeft, const FVector2d InExtentX, const FVector2d InExtentY)
-		: TopLeft(UE::Slate::CastToVector2f(InTopLeft))
-		, ExtentX(UE::Slate::CastToVector2f(InExtentX))
-		, ExtentY(UE::Slate::CastToVector2f(InExtentY))
 	{
 	}
 
@@ -70,8 +62,7 @@ public:
 	FSlateRect ToBoundingRect() const;
 
 	/** Point-in-rect test. */
-	bool IsUnderLocation(const FVector2f Location) const;
-	bool IsUnderLocation(const FVector2d Location) const;
+	bool IsUnderLocation(const UE::Slate::FDeprecateVector2DParameter Location) const;
 
 	static FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FSlateLayoutTransform& InverseLayoutTransform, const FSlateRenderTransform& RenderTransform)
 	{

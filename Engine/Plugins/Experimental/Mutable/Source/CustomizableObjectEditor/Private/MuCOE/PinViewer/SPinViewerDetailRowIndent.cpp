@@ -46,7 +46,7 @@ int32 SPinViewerDetailRowIndent::OnPaint(const FPaintArgs& Args, const FGeometry
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(16, AllottedGeometry.GetLocalSize().Y)),
+		AllottedGeometry.ToPaintGeometry(FVector2D(16, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform()),
 		BackgroundBrush,
 		ESlateDrawEffect::None,
 		BackgroundColor.GetColor(InWidgetStyle)
@@ -55,7 +55,7 @@ int32 SPinViewerDetailRowIndent::OnPaint(const FPaintArgs& Args, const FGeometry
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId + 1,
-		AllottedGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(16, AllottedGeometry.GetLocalSize().Y)),
+		AllottedGeometry.ToPaintGeometry(FVector2D(16, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform()),
 		DropShadowBrush
 	);
 

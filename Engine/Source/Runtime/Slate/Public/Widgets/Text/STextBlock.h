@@ -272,7 +272,7 @@ private:
 	ETextTransformPolicy GetTransformPolicyImpl() const;
 	
 	/** Gets the current shadow offset */
-	FVector2D GetShadowOffset() const;
+	FVector2f GetShadowOffset() const;
 
 	/** Gets the current shadow color and opacity */
 	FLinearColor GetShadowColorAndOpacity() const;

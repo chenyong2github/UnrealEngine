@@ -313,7 +313,7 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	(
 		OutDrawElements,
 		LayerId,
-		AllottedGeometry.ToPaintGeometry( FVector2D(0,0), FVector2D(AreaX1,AllottedGeometry.GetLocalSize().Y) ),
+		AllottedGeometry.ToPaintGeometry( FVector2D(AreaX1,AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform() ),
 		TimelineAreaBrush,
 		DrawEffects,
 		TimelineAreaBrush->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint()
@@ -838,7 +838,7 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 				(
 					OutDrawElements,
 					LayerId,
-					AllottedGeometry.ToPaintGeometry( FVector2D(LocalGraphSelectionX[Nx]-HalfGraphMarkerWidth,0.0f), FVector2D(GraphMarkerWidth, AllottedGeometry.GetLocalSize().Y) ),
+					AllottedGeometry.ToPaintGeometry( FVector2D(GraphMarkerWidth, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(LocalGraphSelectionX[Nx]-HalfGraphMarkerWidth,0.0f)) ),
 					FAppStyle::GetBrush("Brushes.Foldout"),
 					DrawEffects,
 					FColor(64,64,255,128)
@@ -860,7 +860,7 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 				(
 					OutDrawElements,
 					LayerId,
-					AllottedGeometry.ToPaintGeometry( FVector2D(GraphSelectionX0/*+HalfGraphMarkerWidth*/,0.0f), FVector2D(GraphSelectionW/*-GraphMarkerWidth*/, AllottedGeometry.GetLocalSize().Y) ),
+					AllottedGeometry.ToPaintGeometry( FVector2D(GraphSelectionW/*-GraphMarkerWidth*/, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(GraphSelectionX0/*+HalfGraphMarkerWidth*/,0.0f)) ),
 					FAppStyle::GetBrush("Brushes.Foldout"),
 					DrawEffects,
 					FColor(64,64,255,32)
@@ -880,7 +880,7 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 		(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry( FVector2D(LocalPositionGraphX-HalfGraphMarkerWidth,0.0f), FVector2D(GraphMarkerWidth, AllottedGeometry.GetLocalSize().Y) ),
+			AllottedGeometry.ToPaintGeometry( FVector2D(GraphMarkerWidth, AllottedGeometry.GetLocalSize().Y), FSlateLayoutTransform(FVector2D(LocalPositionGraphX-HalfGraphMarkerWidth,0.0f)) ),
 			FAppStyle::Get().GetBrush("Brushes.Recessed"),
 			DrawEffects,
 			FColor(255,128,128,128)
