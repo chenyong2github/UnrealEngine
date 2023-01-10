@@ -263,7 +263,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 }
 
 // if we change the logic, increment this number to force a DDC key change
-static const int32 GBufferGeneratorVersion = 4;
+static const int32 GBufferGeneratorVersion = 5;
 
 static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform, EGBufferLayout GBufferLayout)
 {
