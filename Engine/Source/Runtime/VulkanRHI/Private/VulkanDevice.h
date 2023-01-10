@@ -51,6 +51,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasRayQuery : 1;
 			uint64 HasDeferredHostOperations : 1;
 			uint64 HasEXTCalibratedTimestamps : 1;
+			uint64 HasEXTDescriptorBuffer : 1;
 
 			// Vendor specific
 			uint64 HasAMDBufferMarker : 1;
@@ -148,6 +149,7 @@ namespace VulkanRHI
 			DeviceMemoryAllocation,
 			BufferSuballocation,
 			AccelerationStructure,
+			BindlessHandle,
 		};
 
 		template <typename T>
@@ -157,6 +159,16 @@ namespace VulkanRHI
 			EnqueueGenericResource(Type, (uint64)Handle);
 		}
 
+		inline void EnqueueBindlessHandle(FRHIDescriptorHandle DescriptorHandle)
+		{
+			if (DescriptorHandle.IsValid())
+			{
+				const uint64 Type = (uint64)DescriptorHandle.GetRawType();
+				const uint64 Index = (uint64)DescriptorHandle.GetIndex();
+				const uint64 AsUInt64 = (Type << 32) | Index;
+				EnqueueResource(EType::BindlessHandle, AsUInt64);
+			}
+		}
 
 		void EnqueueResourceAllocation(FVulkanAllocation& Allocation);
 		void EnqueueDeviceAllocation(FDeviceMemoryAllocation* DeviceMemoryAllocation);
