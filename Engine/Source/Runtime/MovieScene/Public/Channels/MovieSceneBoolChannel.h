@@ -32,7 +32,7 @@ struct MOVIESCENE_API FMovieSceneBoolChannel : public FMovieSceneChannel
 	GENERATED_BODY()
 
 	FMovieSceneBoolChannel()
-		: DefaultValue(), bHasDefaultValue(false)
+		: DefaultValue(false), bHasDefaultValue(false)
 	{}
 
 	/**

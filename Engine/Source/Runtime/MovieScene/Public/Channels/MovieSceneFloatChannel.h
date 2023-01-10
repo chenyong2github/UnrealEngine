@@ -81,8 +81,14 @@ struct FMovieSceneFloatValue
 	 */
 	UPROPERTY()
 	uint8 PaddingByte;
-};
 
+	// This is required because TMovieSceneCurveChannelImpl<ChannelType>::Serialize dumps us as a byte array so we need padding to be initialized to avoid indeterminism in the cooked build
+	uint8 UnserializedPaddingBytes[1] = {0};
+};
+static_assert(
+	sizeof(FMovieSceneFloatValue) ==
+	sizeof(FMovieSceneFloatValue::Value) + sizeof(FMovieSceneFloatValue::Tangent) + sizeof(FMovieSceneFloatValue::InterpMode) + sizeof(FMovieSceneFloatValue::TangentMode) + sizeof(FMovieSceneFloatValue::PaddingByte) + sizeof(FMovieSceneFloatValue::UnserializedPaddingBytes),
+	"Adjust padding size to avoid cooked build indeterminism with uninitialized padded data");
 
 template<>
 struct TIsPODType<FMovieSceneFloatValue>
@@ -115,7 +121,7 @@ struct MOVIESCENE_API FMovieSceneFloatChannel : public FMovieSceneChannel
 	FMovieSceneFloatChannel() 
 		: PreInfinityExtrap(RCCE_Constant)
 		, PostInfinityExtrap(RCCE_Constant)
-		, DefaultValue()
+		, DefaultValue(0.f)
 		, bHasDefaultValue(false)
 #if WITH_EDITORONLY_DATA
 		, bShowCurve(false)

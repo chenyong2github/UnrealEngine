@@ -33,7 +33,7 @@ struct MOVIESCENE_API FMovieSceneIntegerChannel : public FMovieSceneChannel
 	GENERATED_BODY()
 
 	FMovieSceneIntegerChannel()
-		: DefaultValue(), bHasDefaultValue(false)
+		: DefaultValue(0), bHasDefaultValue(false)
 	{}
 
 	/**

@@ -64,7 +64,16 @@ struct FMovieSceneTangentData
 	UPROPERTY(EditAnywhere, Category = "Key")
 	TEnumAsByte<ERichCurveTangentWeightMode> TangentWeightMode;
 
+	// This is required because TMovieSceneCurveChannelImpl<ChannelType>::Serialize dumps us as a byte array so we need padding to be initialized to avoid indeterminism in the cooked build
+	uint8 UnserializedPaddingBytes[3] = {0};
 };
+
+// Make sure padding size matches our expectation
+static_assert(sizeof(FMovieSceneTangentData) == 
+	sizeof(FMovieSceneTangentData::ArriveTangent) + sizeof(FMovieSceneTangentData::LeaveTangent) + sizeof(FMovieSceneTangentData::ArriveTangentWeight) + 
+	sizeof(FMovieSceneTangentData::LeaveTangentWeight) + sizeof(FMovieSceneTangentData::TangentWeightMode) + sizeof(FMovieSceneTangentData::UnserializedPaddingBytes),
+	"Adjust padding size to avoid cooked build indeterminism with uninitialized padded data");
+
 
 template<>
 struct TIsPODType<FMovieSceneTangentData>
