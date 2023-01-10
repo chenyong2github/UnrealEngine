@@ -9,13 +9,15 @@
 
 #include "OptimusDataInterfaceRawBuffer.generated.h"
 
+class FOptimusPersistentBufferPool;
+class FPersistentBufferDataInterfaceParameters;
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
-class FOptimusPersistentBufferPool;
+class FTransientBufferDataInterfaceParameters;
+class UOptimusComponentSource;
 class UOptimusComponentSourceBinding;
 class UOptimusRawBufferDataProvider;
-class UOptimusComponentSource;
 
 /** Write to buffer operation types. */
 UENUM()
@@ -218,11 +220,14 @@ public:
 		);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FTransientBufferDataInterfaceParameters;
+
 	const TArray<int32> InvocationElementCounts;
 	const int32 ElementStride;
 	const int32 RawStride;
@@ -247,11 +252,14 @@ public:
 	);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FPersistentBufferDataInterfaceParameters;
+
 	const TArray<int32> InvocationElementCounts;
 	const int32 ElementStride;
 	const int32 RawStride;

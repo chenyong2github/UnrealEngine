@@ -27,14 +27,14 @@ class USkeletalMeshComponent;
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 
 #define MLDEFORMER_GRAPH_DISPATCH_DEFAULT_DEBUG_PARAMETERS() \
-	Parameters->NumVertices = 0; \
-	Parameters->InputStreamStart = RenderSection.BaseVertexIndex; \
-	Parameters->HeatMapMode = HeatMapMode; \
-	Parameters->HeatMapMax = HeatMapMax; \
-	Parameters->GroundTruthLerp = GroundTruthLerp; \
-	Parameters->GroundTruthBufferSize = GroundTruthPositions.Num(); \
-	Parameters->PositionGroundTruthBuffer = GroundTruthBufferSRV; \
-	Parameters->VertexMapBuffer = VertexMapBufferSRV;
+	Parameters.NumVertices = 0; \
+	Parameters.InputStreamStart = RenderSection.BaseVertexIndex; \
+	Parameters.HeatMapMode = HeatMapMode; \
+	Parameters.HeatMapMax = HeatMapMax; \
+	Parameters.GroundTruthLerp = GroundTruthLerp; \
+	Parameters.GroundTruthBufferSize = GroundTruthPositions.Num(); \
+	Parameters.PositionGroundTruthBuffer = GroundTruthBufferSRV; \
+	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 
 /** 
  * Compute Framework Data Interface for MLDeformer debugging data. 
@@ -98,15 +98,16 @@ namespace UE::MLDeformer
 		virtual void HandleZeroGroundTruthPositions();
 
 		// FComputeDataProviderRenderProxy overrides.
-		virtual void AllocateResources(FRDGBuilder& GraphBuilder) override;
-		virtual void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+		bool IsValid(FValidationData const& InValidationData) const override;
+		void AllocateResources(FRDGBuilder& GraphBuilder) override;
+		void GatherDispatchData(FDispatchData const& InDispatchData) override;
 		// ~END FComputeDataProviderRenderProxy overrides.
 
 		TArray<FVector3f>& GetGroundTruthPositions() { return GroundTruthPositions; }
 
 	protected:
 		TObjectPtr<UMLDeformerGraphDebugDataProvider> Provider = nullptr;
-		FSkeletalMeshObject* SkeletalMeshObject;
+		FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 		TArray<FVector3f> GroundTruthPositions;
 		FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
 		FRDGBuffer* GroundTruthBuffer = nullptr;

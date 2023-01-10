@@ -39,6 +39,64 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 			FGraphInvocation const& GraphInvocation = GraphInvocations[GraphIndex];
 			FComputeGraphRenderProxy const* GraphRenderProxy = GraphInvocation.GraphRenderProxy;
 
+			TArray<TShaderRef<FComputeKernelShader>> Shaders;
+
+			// Validation phase.
+			// Check if all DataInterfaces are valid.
+			// At the same time gather the permutation id so that we can validate if shader is compiled.
+			bool bIsValid = true;
+			for (int32 KernelIndex = 0; bIsValid && KernelIndex < GraphRenderProxy->KernelInvocations.Num(); ++KernelIndex)
+			{
+				FComputeGraphRenderProxy::FKernelInvocation const& KernelInvocation = GraphRenderProxy->KernelInvocations[KernelIndex];
+
+				TArray<FIntVector> ThreadCounts;
+				const int32 NumSubInvocations = GraphInvocation.DataProviderRenderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
+
+				// Iterate shader parameter members to fill the dispatch data structures.
+				// We assume that the members were filled out with a single data interface per member, and that the
+				// order is the same one defined in the KernelInvocation.BoundProviderIndices.
+				TArray<FShaderParametersMetadata::FMember> const& ParamMembers = KernelInvocation.ShaderParameterMetadata->GetMembers();
+
+				FComputeDataProviderRenderProxy::FPermutationData PermutationData{ NumSubInvocations, GraphRenderProxy->ShaderPermutationVectors[KernelIndex] };
+				PermutationData.PermutationIds.AddZeroed(NumSubInvocations);
+
+				for (int32 MemberIndex = 0; bIsValid && MemberIndex < ParamMembers.Num(); ++MemberIndex)
+				{
+					FShaderParametersMetadata::FMember const& Member = ParamMembers[MemberIndex];
+					if (ensure(Member.GetBaseType() == EUniformBufferBaseType::UBMT_NESTED_STRUCT))
+					{
+						const int32 DataProviderIndex = KernelInvocation.BoundProviderIndices[MemberIndex];
+						FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderRenderProxies[DataProviderIndex];
+						if (ensure(DataProvider != nullptr))
+						{
+							FComputeDataProviderRenderProxy::FValidationData ValidationData{ NumSubInvocations, Member.GetStructMetadata()->GetSize() };
+							bIsValid &= DataProvider->IsValid(ValidationData);
+
+							if (bIsValid)
+							{
+								DataProvider->GatherPermutations(PermutationData);
+							}
+						}
+					}
+				}
+
+				// Get shader. This can fail if compilation is pending.
+				Shaders.Reserve(Shaders.Num() + NumSubInvocations);
+				for (int32 SubInvocationIndex = 0; bIsValid && SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
+				{
+					TShaderRef<FComputeKernelShader> Shader = KernelInvocation.KernelResource->GetShader(PermutationData.PermutationIds[SubInvocationIndex]);
+					bIsValid &= Shader.IsValid();
+					Shaders.Add(Shader);
+				}
+			}
+
+			// If we can't run the graph for any reason, back out now.
+			if (!bIsValid)
+			{
+				continue;
+			}
+
+			// From here on we are committed to submitting the work to the GPU.
 			RDG_EVENT_SCOPE(GraphBuilder, "%s:%s", *GraphInvocation.OwnerName.ToString(), *GraphRenderProxy->GraphName.ToString());
 
 			// Do resource allocation for all the data providers in the graph.
@@ -62,18 +120,12 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 				const int32 NumSubInvocations = GraphInvocation.DataProviderRenderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
 
 				TStridedView<FComputeKernelShader::FParameters> ParameterArray = GraphBuilder.AllocParameters<FComputeKernelShader::FParameters>(KernelInvocation.ShaderParameterMetadata, NumSubInvocations);
+				FComputeDataProviderRenderProxy::FDispatchData DispatchData{ NumSubInvocations, 0, 0, ParameterArray.GetStride(), reinterpret_cast<uint8*>(&ParameterArray[0]) };
 
 				// Iterate shader parameter members to fill the dispatch data structures.
 				// We assume that the members were filled out with a single data interface per member, and that the
 				// order is the same one defined in the KernelInvocation.BoundProviderIndices.
 				TArray<FShaderParametersMetadata::FMember> const& ParamMembers = KernelInvocation.ShaderParameterMetadata->GetMembers();
-
-				FComputeDataProviderRenderProxy::FCollectedDispatchData DispatchData;
-				DispatchData.ParameterBuffer = reinterpret_cast<uint8*>(&ParameterArray[0]);
-				DispatchData.PermutationId.AddZeroed(NumSubInvocations);
-
-				FComputeDataProviderRenderProxy::FDispatchSetup DispatchSetup{ NumSubInvocations, 0, ParameterArray.GetStride(), 0, GraphRenderProxy->ShaderPermutationVectors[KernelIndex]};
-
 				for (int32 MemberIndex = 0; MemberIndex < ParamMembers.Num(); ++MemberIndex)
 				{
 					FShaderParametersMetadata::FMember const& Member = ParamMembers[MemberIndex];
@@ -83,10 +135,9 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 						FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderRenderProxies[DataProviderIndex];
 						if (ensure(DataProvider != nullptr))
 						{
-							DispatchSetup.ParameterBufferOffset = Member.GetOffset();
-							DispatchSetup.ParameterStructSizeForValidation = Member.GetStructMetadata()->GetSize();
-
-							DataProvider->GatherDispatchData(DispatchSetup, DispatchData);
+							DispatchData.ParameterStructSize = Member.GetStructMetadata()->GetSize();
+							DispatchData.ParameterBufferOffset = Member.GetOffset();
+							DataProvider->GatherDispatchData(DispatchData);
 						}
 					}
 				}
@@ -94,7 +145,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 				// Dispatch work to the render graph.
 				for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 				{
-					TShaderRef<FComputeKernelShader> Shader = KernelInvocation.KernelResource->GetShader(DispatchData.PermutationId[SubInvocationIndex]);
+					TShaderRef<FComputeKernelShader> Shader = Shaders[KernelIndex * NumSubInvocations + SubInvocationIndex];
 					const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ThreadCounts[SubInvocationIndex], KernelInvocation.KernelGroupSize);
 
 					FComputeShaderUtils::AddPass(

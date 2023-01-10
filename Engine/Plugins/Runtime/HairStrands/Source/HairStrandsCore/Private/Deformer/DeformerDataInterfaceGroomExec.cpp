@@ -109,27 +109,31 @@ int32 FOptimusGroomExecDataProviderProxy::GetDispatchThreadCount(TArray<FIntVect
 	return NumInvocations;
 }
 
-void FOptimusGroomExecDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+bool FOptimusGroomExecDataProviderProxy::IsValid(FValidationData const& InValidationData) const
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FGroomExecDataInterfaceParameters)))
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
 	{
-		return;
+		return false;
+	}
+	if (GroomComponent == nullptr || GroomComponent->GetGroupCount() == 0)
+	{
+		return false;
 	}
 
-	const int32 NumInvocations = GroomComponent ? GroomComponent->GetGroupCount() : 0;
-	if (!ensure(NumInvocations == InDispatchSetup.NumInvocations))
-	{
-		return;
-	}
+	return true;
+}
 
-	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
+void FOptimusGroomExecDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
+{
+	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(InvocationIndex);
 		const int32 NumControlPoints = Instance->Strands.Data->PointCount;
 		const int32 NumCurves = Instance->Strands.Data->CurveCount;
 		const int32 NumThreads = Domain == EOptimusGroomExecDomain::ControlPoint ? NumControlPoints : NumCurves;
 
-		FGroomExecDataInterfaceParameters* Parameters = (FGroomExecDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-		Parameters->NumThreads = FIntVector(NumThreads, 1, 1);
+		FParameters& Parameters = ParameterArray[InvocationIndex];
+		Parameters.NumThreads = FIntVector(NumThreads, 1, 1);
 	}
 }

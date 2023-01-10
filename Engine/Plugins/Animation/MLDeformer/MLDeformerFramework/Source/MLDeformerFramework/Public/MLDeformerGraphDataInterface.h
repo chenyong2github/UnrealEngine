@@ -27,24 +27,21 @@ class UMLDeformerModel;
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, PositionDeltaBuffer) \
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 
-#define MLDEFORMER_GRAPH_DISPATCH_START(ParameterStructType, InDispatchSetup, InOutDispatchData) \
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(ParameterStructType))) \
-	{ \
-		return; \
-	} \
+#define MLDEFORMER_GRAPH_DISPATCH_START(ParameterStructType, InDispatchData) \
 	const FSkeletalMeshRenderData& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData(); \
 	const FSkeletalMeshLODRenderData* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0); \
-	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex) \
+	const TStridedView<ParameterStructType> ParameterArray = MakeStridedParameterView<ParameterStructType>(InDispatchData); \
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex) \
 	{ \
 		const FSkelMeshRenderSection& RenderSection = LodRenderData->RenderSections[InvocationIndex]; \
-		ParameterStructType* Parameters = (ParameterStructType*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		ParameterStructType& Parameters = ParameterArray[InvocationIndex]; \
 
 #define MLDEFORMER_GRAPH_DISPATCH_DEFAULT_PARAMETERS() \
-	Parameters->NumVertices = 0; \
-	Parameters->InputStreamStart = RenderSection.BaseVertexIndex; \
-	Parameters->Weight = Weight; \
-	Parameters->PositionDeltaBuffer = BufferSRV; \
-	Parameters->VertexMapBuffer = VertexMapBufferSRV;
+	Parameters.NumVertices = 0; \
+	Parameters.InputStreamStart = RenderSection.BaseVertexIndex; \
+	Parameters.Weight = Weight; \
+	Parameters.PositionDeltaBuffer = BufferSRV; \
+	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 
 #define MLDEFORMER_GRAPH_DISPATCH_END() }
 
@@ -105,8 +102,9 @@ namespace UE::MLDeformer
 		FMLDeformerGraphDataProviderProxy(UMLDeformerComponent* DeformerComponent);
 
 		// FComputeDataProviderRenderProxy overrides.
-		virtual void AllocateResources(FRDGBuilder& GraphBuilder) override;
-		virtual void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+		bool IsValid(FValidationData const& InValidationData) const override;
+		void AllocateResources(FRDGBuilder& GraphBuilder) override;
+		void GatherDispatchData(FDispatchData const& InDispatchData) override;
 		// ~END FComputeDataProviderRenderProxy overrides.
 
 	protected:

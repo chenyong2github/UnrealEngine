@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "OptimusDataInterfaceConnectivity.generated.h"
 
+class FConnectivityDataInterfaceParameters;
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FSkeletalMeshObject;
@@ -62,11 +63,14 @@ public:
 	FOptimusConnectivityDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent, TArray< TArray<uint32> >& InAdjacencyBufferPerLod);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
+	void GatherDispatchData(FDispatchData const& InDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FConnectivityDataInterfaceParameters;
+
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 	TArray< TArray<uint32> > const& AdjacencyBufferPerLod;
 

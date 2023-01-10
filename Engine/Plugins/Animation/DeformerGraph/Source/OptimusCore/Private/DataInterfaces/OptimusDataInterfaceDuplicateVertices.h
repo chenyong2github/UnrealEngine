@@ -7,6 +7,7 @@
 
 #include "OptimusDataInterfaceDuplicateVertices.generated.h"
 
+class FDuplicateVerticesDataInterfaceParameters;
 class FSkeletalMeshObject;
 class USkinnedMeshComponent;
 
@@ -59,9 +60,13 @@ public:
 	FOptimusDuplicateVerticesDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherPermutations(FPermutationData& InOutPermutationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FDuplicateVerticesDataInterfaceParameters;
+
 	FSkeletalMeshObject* SkeletalMeshObject;
 };

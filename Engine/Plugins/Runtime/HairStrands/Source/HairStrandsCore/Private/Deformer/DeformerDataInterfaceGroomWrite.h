@@ -6,11 +6,12 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DeformerDataInterfaceGroomWrite.generated.h"
 
-class UGroomComponent;
-class FRDGBuffer;
-class FRDGBufferUAV;
-class FRDGBufferSRV;
+class FGroomWriteDataInterfaceParameters;
 struct FHairGroupInstance;
+class FRDGBuffer;
+class FRDGBufferSRV;
+class FRDGBufferUAV;
+class UGroomComponent;
 
 /** Compute Framework Data Interface for writing skinned mesh. */
 UCLASS(Category = ComputeFramework)
@@ -61,11 +62,14 @@ public:
 	FOptimusGroomWriteDataProviderProxy(UGroomComponent* InGroomComponent, uint64 InOutputMask);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FGroomWriteDataInterfaceParameters;
+
 	TArray<FHairGroupInstance*> Instances;
 	uint64 OutputMask;
 

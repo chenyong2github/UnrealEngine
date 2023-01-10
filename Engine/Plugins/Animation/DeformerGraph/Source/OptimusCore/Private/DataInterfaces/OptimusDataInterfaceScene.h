@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "OptimusDataInterfaceScene.generated.h"
 
+class FSceneDataInterfaceParameters;
 class USceneComponent;
 
 /** Compute Framework Data Interface for reading general scene data. */
@@ -52,10 +53,14 @@ public:
 	FOptimusSceneDataProviderProxy(USceneComponent* SceneComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FSceneDataInterfaceParameters;
+
+	bool bIsValid;
 	float GameTime;
 	float GameTimeDelta;
 	uint32 FrameNumber;

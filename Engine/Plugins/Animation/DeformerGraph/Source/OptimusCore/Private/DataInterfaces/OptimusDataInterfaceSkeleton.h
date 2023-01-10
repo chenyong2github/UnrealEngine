@@ -8,6 +8,7 @@
 #include "OptimusDataInterfaceSkeleton.generated.h"
 
 class FSkeletalMeshObject;
+class FSkeletonDataInterfaceParameters;
 class USkinnedMeshComponent;
 
 /** Compute Framework Data Interface for skeletal data. */
@@ -56,10 +57,14 @@ public:
 	FOptimusSkeletonDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherPermutations(FPermutationData& InOutPermutationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FSkeletonDataInterfaceParameters;
+
 	FSkeletalMeshObject* SkeletalMeshObject;
 	uint32 BoneRevisionNumber = 0;
 };

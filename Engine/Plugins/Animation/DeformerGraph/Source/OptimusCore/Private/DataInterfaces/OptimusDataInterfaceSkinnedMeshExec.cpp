@@ -94,18 +94,23 @@ FComputeDataProviderRenderProxy* UOptimusSkinnedMeshExecDataProvider::GetRenderP
 
 FOptimusSkinnedMeshExecDataProviderProxy::FOptimusSkinnedMeshExecDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, EOptimusSkinnedMeshExecDomain InDomain)
 {
-	SkeletalMeshObject = InSkinnedMeshComponent->MeshObject;
+	SkeletalMeshObject = InSkinnedMeshComponent != nullptr ? InSkinnedMeshComponent->MeshObject : nullptr;
 	Domain = InDomain;
 }
 
 int32 FOptimusSkinnedMeshExecDataProviderProxy::GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const
 {
+	ThreadCounts.Reset();
+	if (SkeletalMeshObject == nullptr)
+	{
+		return 0;
+	}
+
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 	const int32 NumInvocations = LodRenderData->RenderSections.Num();
 
-	ThreadCounts.Reset();
 	ThreadCounts.Reserve(NumInvocations);
 	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
 	{
@@ -117,29 +122,37 @@ int32 FOptimusSkinnedMeshExecDataProviderProxy::GetDispatchThreadCount(TArray<FI
 	return NumInvocations;
 }
 
-void FOptimusSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+bool FOptimusSkinnedMeshExecDataProviderProxy::IsValid(FValidationData const& InValidationData) const
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkinedMeshExecDataInterfaceParameters)))
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
 	{
-		return;
+		return false;
+	}
+	if (SkeletalMeshObject == nullptr)
+	{
+		return false;
+	}
+	if (SkeletalMeshObject->GetSkeletalMeshRenderData().LODRenderData[SkeletalMeshObject->GetLOD()].RenderSections.Num() != InValidationData.NumInvocations)
+	{
+		return false;
 	}
 
+	return true;
+}
+
+void FOptimusSkinnedMeshExecDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
+{
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
 
-	const int32 NumInvocations = LodRenderData->RenderSections.Num();
-	if (!ensure(NumInvocations == InDispatchSetup.NumInvocations))
-	{
-		return;
-	}
-
-	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
+	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 		const int32 NumThreads = Domain == EOptimusSkinnedMeshExecDomain::Vertex ? RenderSection.NumVertices : RenderSection.NumTriangles;
 
-		FSkinedMeshExecDataInterfaceParameters* Parameters = (FSkinedMeshExecDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-		Parameters->NumThreads = FIntVector(NumThreads, 1, 1);
+		FParameters& Parameters = ParameterArray[InvocationIndex];
+		Parameters.NumThreads = FIntVector(NumThreads, 1, 1);
 	}
 }

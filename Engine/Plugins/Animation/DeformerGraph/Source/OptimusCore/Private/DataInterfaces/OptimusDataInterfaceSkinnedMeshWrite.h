@@ -7,10 +7,11 @@
 
 #include "OptimusDataInterfaceSkinnedMeshWrite.generated.h"
 
-class USkinnedMeshComponent;
-class FSkeletalMeshObject;
 class FRDGBuffer;
 class FRDGBufferUAV;
+class FSkeletalMeshObject;
+class FSkinedMeshWriteDataInterfaceParameters;
+class USkinnedMeshComponent;
 
 /** Compute Framework Data Interface for writing skinned mesh. */
 UCLASS(Category = ComputeFramework)
@@ -61,11 +62,14 @@ public:
 	FOptimusSkinnedMeshWriteDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, uint64 InOutputMask);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FSkinedMeshWriteDataInterfaceParameters;
+
 	FSkeletalMeshObject* SkeletalMeshObject;
 	uint64 OutputMask;
 

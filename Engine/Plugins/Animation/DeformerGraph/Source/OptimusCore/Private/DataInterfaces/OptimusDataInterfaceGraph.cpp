@@ -162,22 +162,27 @@ FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerI
 	}
 }
 
-void FOptimusGraphDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+bool FOptimusGraphDataProviderProxy::IsValid(FValidationData const& InValidationData) const
 {
 	if (ParameterData.Num() == 0)
 	{
 		// todo[CF]: Why can we end up here? Remove this condition if possible.
-		return;
+		return false;
 	}
 
-	if (!ensure(ParameterData.Num() == InDispatchSetup.ParameterStructSizeForValidation))
+	if (InValidationData.ParameterStructSize != ParameterData.Num())
 	{
-		return;
+		return false;
 	}
 
-	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	return true;
+}
+
+void FOptimusGraphDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
+{
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchData.NumInvocations; ++InvocationIndex)
 	{
-		void* ParameterBuffer = (void*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		void* ParameterBuffer = (void*)(InDispatchData.ParameterBuffer + InDispatchData.ParameterBufferOffset + InDispatchData.ParameterBufferStride * InvocationIndex);
 		FMemory::Memcpy(ParameterBuffer, ParameterData.GetData(), ParameterData.Num());
 	}
 }

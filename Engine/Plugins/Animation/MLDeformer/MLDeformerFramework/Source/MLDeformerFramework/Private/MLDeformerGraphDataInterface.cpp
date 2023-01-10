@@ -97,40 +97,43 @@ namespace UE::MLDeformer
 	{
 		using namespace UE::MLDeformer;
 
-		const UMLDeformerAsset* DeformerAsset = DeformerComponent->GetDeformerAsset();
-		if (DeformerAsset)
+		const UMLDeformerAsset* DeformerAsset = DeformerComponent != nullptr ? DeformerComponent->GetDeformerAsset() : nullptr;
+		const UMLDeformerModel* Model = DeformerAsset != nullptr ? DeformerAsset->GetModel() : nullptr;
+		const UMLDeformerModelInstance* ModelInstance = DeformerComponent != nullptr ? DeformerComponent->GetModelInstance() : nullptr;
+		if (Model != nullptr && ModelInstance != nullptr)
 		{
-			const UMLDeformerModel* Model = DeformerAsset->GetModel();
-			const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
-		
 			SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
 			NeuralNetwork = Model->GetNeuralNetwork();
 			NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();
-			bCanRunNeuralNet = ModelInstance->IsCompatible() && Model->IsNeuralNetworkOnGPU();
+			bCanRunNeuralNet = ModelInstance->IsCompatible() && Model->IsNeuralNetworkOnGPU() && DeformerComponent->GetModelInstance()->IsValidForDataProvider();
 			Weight = DeformerComponent->GetWeight();
 			VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
 		}
 	}
 
-	void FMLDeformerGraphDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+	bool FMLDeformerGraphDataProviderProxy::IsValid(FValidationData const& InValidationData) const
 	{
-		if (bCanRunNeuralNet)
+		if (InValidationData.ParameterStructSize != sizeof(FMLDeformerGraphDataInterfaceParameters))
 		{
-			check(NeuralNetwork != nullptr);
-			Buffer = GraphBuilder.RegisterExternalBuffer(NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle).GetPooledBuffer());
+			return false;
 		}
-		else
+		if (!bCanRunNeuralNet || SkeletalMeshObject == nullptr || NeuralNetwork == nullptr || VertexMapBufferSRV == nullptr)
 		{
-			// TODO: use an actual buffer that is of the right size, and filled with zero's.
-			Buffer = GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer);
+			return false;
 		}
 
+		return true;
+	}
+
+	void FMLDeformerGraphDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+	{
+		Buffer = GraphBuilder.RegisterExternalBuffer(NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle).GetPooledBuffer());
 		BufferSRV = GraphBuilder.CreateSRV(Buffer, PF_R32_FLOAT);
 	}
 
-	void FMLDeformerGraphDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+	void FMLDeformerGraphDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 	{
-		MLDEFORMER_GRAPH_DISPATCH_START(FMLDeformerGraphDataInterfaceParameters, InDispatchSetup, InOutDispatchData)
+		MLDEFORMER_GRAPH_DISPATCH_START(FMLDeformerGraphDataInterfaceParameters, InDispatchData)
 		MLDEFORMER_GRAPH_DISPATCH_DEFAULT_PARAMETERS()
 		MLDEFORMER_GRAPH_DISPATCH_END()
 	}

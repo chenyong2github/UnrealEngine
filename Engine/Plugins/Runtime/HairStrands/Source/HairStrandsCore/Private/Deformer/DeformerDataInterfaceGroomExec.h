@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DeformerDataInterfaceGroomExec.generated.h"
 
+class FGroomExecDataInterfaceParameters;
 class UGroomComponent;
 
 UENUM()
@@ -72,10 +73,13 @@ public:
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FGroomExecDataInterfaceParameters;
+
 	UGroomComponent* GroomComponent = nullptr;
 	EOptimusGroomExecDomain Domain = EOptimusGroomExecDomain::ControlPoint;
 };

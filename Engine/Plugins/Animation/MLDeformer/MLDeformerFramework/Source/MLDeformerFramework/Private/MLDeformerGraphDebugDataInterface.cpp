@@ -120,19 +120,19 @@ bool UMLDeformerGraphDebugDataProvider::IsValid() const
 FComputeDataProviderRenderProxy* UMLDeformerGraphDebugDataProvider::GetRenderProxy()
 {
 #if WITH_EDITORONLY_DATA
-	UE::MLDeformer::FMLDeformerGraphDebugDataProviderProxy* Proxy = new UE::MLDeformer::FMLDeformerGraphDebugDataProviderProxy(DeformerComponent, DeformerAsset, this);
-	if (DeformerAsset)
+	if (DeformerComponent && DeformerAsset)
 	{
+		UE::MLDeformer::FMLDeformerGraphDebugDataProviderProxy* Proxy = new UE::MLDeformer::FMLDeformerGraphDebugDataProviderProxy(DeformerComponent, DeformerAsset, this);
 		const float SampleTime = DeformerComponent->GetModelInstance()->GetSkeletalMeshComponent()->GetPosition();
 		UMLDeformerModel* Model = DeformerAsset->GetModel();
 		Model->SampleGroundTruthPositions(SampleTime, Proxy->GetGroundTruthPositions());
 		Proxy->HandleZeroGroundTruthPositions();
 		return Proxy;
 	}
-	return nullptr;
-#else
-	return nullptr;
 #endif
+
+	// Return default invalid proxy.
+	return new FComputeDataProviderRenderProxy();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -143,7 +143,7 @@ namespace UE::MLDeformer
 	{
 		Provider = InProvider;
 
-		if (DeformerAsset)
+		if (DeformerComponent && DeformerAsset)
 		{
 			const UMLDeformerModel* Model = DeformerAsset->GetModel();	
 			const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
@@ -175,6 +175,20 @@ namespace UE::MLDeformer
 		}
 	}
 
+	bool FMLDeformerGraphDebugDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+	{
+		if (InValidationData.ParameterStructSize != sizeof(FMLDeformerGraphDebugDataInterfaceParameters))
+		{
+			return false;
+		}
+		if (SkeletalMeshObject == nullptr || VertexMapBufferSRV == nullptr)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	void FMLDeformerGraphDebugDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 	{
 		GroundTruthBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float), 3 * GroundTruthPositions.Num()), TEXT("MLDeformer.GroundTruthPositions"));
@@ -182,9 +196,9 @@ namespace UE::MLDeformer
 		GraphBuilder.QueueBufferUpload(GroundTruthBuffer, GroundTruthPositions.GetData(), sizeof(FVector3f) * GroundTruthPositions.Num(), ERDGInitialDataFlags::None);
 	}
 
-	void FMLDeformerGraphDebugDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+	void FMLDeformerGraphDebugDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 	{
-		MLDEFORMER_GRAPH_DISPATCH_START(FMLDeformerGraphDebugDataInterfaceParameters, InDispatchSetup, InOutDispatchData)
+		MLDEFORMER_GRAPH_DISPATCH_START(FMLDeformerGraphDebugDataInterfaceParameters, InDispatchData)
 		MLDEFORMER_GRAPH_DISPATCH_DEFAULT_DEBUG_PARAMETERS()
 		MLDEFORMER_GRAPH_DISPATCH_END()
 	}

@@ -708,6 +708,20 @@ FOptimusAnimAttributeDataProviderProxy::FOptimusAnimAttributeDataProviderProxy(
 	AttributeArrayData.AddDefaulted(InTotalNumArrays);
 }
 
+bool FOptimusAnimAttributeDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+{
+	if (InValidationData.ParameterStructSize != AttributeBuffer.Num())
+	{
+		return false;
+	}
+	if (AttributeArrayData.Num() != AttributeArrayMetadata.Num())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FOptimusAnimAttributeDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	FComputeDataProviderRenderProxy::AllocateResources(GraphBuilder);
@@ -733,27 +747,17 @@ void FOptimusAnimAttributeDataProviderProxy::AllocateResources(FRDGBuilder& Grap
 	}
 }
 
-void FOptimusAnimAttributeDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusAnimAttributeDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == AttributeBuffer.Num()))
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchData.NumInvocations; ++InvocationIndex)
 	{
-		return;
-	}
+		uint8* ParameterBuffer = (InDispatchData.ParameterBuffer + InDispatchData.ParameterBufferOffset + InDispatchData.ParameterBufferStride * InvocationIndex);
+		FMemory::Memcpy(ParameterBuffer, AttributeBuffer.GetData(), InDispatchData.ParameterStructSize);
 
-	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
-	{
-		uint8* ParameterBuffer = (InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-		
-		FMemory::Memcpy(ParameterBuffer, AttributeBuffer.GetData(), InDispatchSetup.ParameterStructSizeForValidation);
-
-		if (ensure(AttributeArrayData.Num() == AttributeArrayMetadata.Num()))
+		for (int32 ArrayIndex = 0; ArrayIndex < AttributeArrayMetadata.Num(); ArrayIndex++)
 		{
-			for (int32 ArrayIndex = 0; ArrayIndex < AttributeArrayMetadata.Num(); ArrayIndex++)
-			{
-				const FArrayMetadata& ArrayMetadata = AttributeArrayMetadata[ArrayIndex];
-
-				*((FRDGBufferSRV**)(ParameterBuffer + ArrayMetadata.Offset)) = ArrayBufferSRVs[ArrayIndex];
-			}
+			const FArrayMetadata& ArrayMetadata = AttributeArrayMetadata[ArrayIndex];
+			*((FRDGBufferSRV**)(ParameterBuffer + ArrayMetadata.Offset)) = ArrayBufferSRVs[ArrayIndex];
 		}
 	}
 }

@@ -7,6 +7,7 @@
 
 #include "OptimusDataInterfaceMorphTarget.generated.h"
 
+class FMorphTargetDataInterfaceParameters;
 class FSkeletalMeshObject;
 class USkinnedMeshComponent;
 
@@ -56,10 +57,14 @@ public:
 	FOptimusMorphTargetDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherPermutations(FPermutationData& InOutPermutationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	FSkeletalMeshObject* SkeletalMeshObject;
+	using FParameters = FMorphTargetDataInterfaceParameters;
+
+	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 	uint32 FrameNumber = 0;
 };

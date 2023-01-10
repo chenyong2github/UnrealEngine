@@ -8,6 +8,7 @@
 
 #include "OptimusDataInterfaceDebugDraw.generated.h"
 
+class FDebugDrawDataInterfaceParameters;
 class UPrimitiveComponent;
 
 /* User controllable debug draw settings. */
@@ -89,11 +90,14 @@ public:
 	FOptimusDebugDrawDataProviderProxy(UPrimitiveComponent* InPrimitiveComponent, FOptimusDebugDrawParameters const& InDebugDrawParameters);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FDebugDrawDataInterfaceParameters;
+
 	FSceneInterface const* Scene;
 	FMatrix44f LocalToWorld;
 	ShaderPrint::FShaderPrintSetup Setup;

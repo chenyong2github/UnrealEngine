@@ -7,6 +7,7 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DeformerDataInterfaceGroom.generated.h"
 
+class FGroomDataInterfaceParameters;
 class UGroomComponent;
 
 /** Compute Framework Data Interface for reading groom. */
@@ -55,11 +56,13 @@ public:
 	FOptimusGroomDataProviderProxy(UGroomComponent* InGroomComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	bool IsValid(FValidationData const& InValidationData) const override;
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FGroomDataInterfaceParameters;
 
 	UGroomComponent* GroomComponent = nullptr; // Should it be HairInstance instead?
 	struct FResources

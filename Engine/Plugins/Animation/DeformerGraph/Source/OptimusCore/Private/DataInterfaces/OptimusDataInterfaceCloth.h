@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "OptimusDataInterfaceCloth.generated.h"
 
+class FClothDataInterfaceParameters;
 class FSkeletalMeshObject;
 class USkinnedMeshComponent;
 
@@ -55,11 +56,15 @@ public:
 	FOptimusClothDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherPermutations(FPermutationData& InOutPermutationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FClothDataInterfaceParameters;
+
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
-	float ClothBlendWeight = 0.0f;
+	float ClothBlendWeight = 1.0f;
 	uint32 FrameNumber = 0;
 };

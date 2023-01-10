@@ -148,6 +148,24 @@ FOptimusGroomDataProviderProxy::FOptimusGroomDataProviderProxy(UGroomComponent* 
 	GroomComponent = InGroomComponent;
 }
 
+bool FOptimusGroomDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+{
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
+	{
+		return false;
+	}
+	if (GroomComponent == nullptr)
+	{
+		return false;
+	}
+	if (InValidationData.NumInvocations != GroomComponent->GetGroupCount())
+	{
+		return false;
+	}
+	
+	return true;
+}
+
 void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	Resources.Empty();
@@ -167,17 +185,14 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 }
 
 FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance, EGroomViewMode ViewMode);
-void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FGroomDataInterfaceParameters)))
-	{
-		return;
-	}
-
 	const uint32 InstanceCount = GroomComponent ? GroomComponent->GetGroupCount() : 0;
-	check(InDispatchSetup.NumInvocations == InstanceCount);
+	check(InDispatchData.NumInvocations == InstanceCount);
 	check(uint32(Resources.Num()) == InstanceCount);
-	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+
+	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(InvocationIndex))
 		{
@@ -187,25 +202,25 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchSetup const& In
 
 			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance, EGroomViewMode::None);
 			
-			FGroomDataInterfaceParameters* Parameters = (FGroomDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-			Parameters->NumControlPoints = NumControlPoints;
-			Parameters->NumCurves = NumCurves;
-			Parameters->VF_HairRadius = VFInput.Strands.HairRadius;
-			Parameters->VF_HairLength = VFInput.Strands.HairLength;
+			FParameters& Parameters = ParameterArray[InvocationIndex];
+			Parameters.NumControlPoints = NumControlPoints;
+			Parameters.NumCurves = NumCurves;
+			Parameters.VF_HairRadius = VFInput.Strands.HairRadius;
+			Parameters.VF_HairLength = VFInput.Strands.HairLength;
 
 			if (bIsSRVValid)
 			{
-				Parameters->PositionBuffer = Resources[InvocationIndex].PositionSRV;
-				Parameters->Attribute0Buffer = Resources[InvocationIndex].Attribute0SRV;
-				Parameters->Attribute1Buffer = Resources[InvocationIndex].Attribute1SRV;
-				Parameters->CurveBuffer = Resources[InvocationIndex].CurveSRV;
+				Parameters.PositionBuffer = Resources[InvocationIndex].PositionSRV;
+				Parameters.Attribute0Buffer = Resources[InvocationIndex].Attribute0SRV;
+				Parameters.Attribute1Buffer = Resources[InvocationIndex].Attribute1SRV;
+				Parameters.CurveBuffer = Resources[InvocationIndex].CurveSRV;
 			}
 			else
 			{
-				Parameters->PositionBuffer   = Resources[InvocationIndex].FallbackSRV;
-				Parameters->Attribute0Buffer = Resources[InvocationIndex].FallbackSRV;
-				Parameters->Attribute1Buffer = Resources[InvocationIndex].FallbackSRV;
-				Parameters->CurveBuffer		 = Resources[InvocationIndex].FallbackSRV;
+				Parameters.PositionBuffer   = Resources[InvocationIndex].FallbackSRV;
+				Parameters.Attribute0Buffer = Resources[InvocationIndex].FallbackSRV;
+				Parameters.Attribute1Buffer = Resources[InvocationIndex].FallbackSRV;
+				Parameters.CurveBuffer		 = Resources[InvocationIndex].FallbackSRV;
 			}
 		}
 	}

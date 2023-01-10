@@ -3,15 +3,15 @@
 #pragma once
 
 #include "OptimusComputeDataInterface.h"
-
 #include "ComputeFramework/ComputeDataProvider.h"
 
 #include "OptimusDataInterfaceSkinnedMeshExec.generated.h"
 
-class USkinnedMeshComponent;
-class FSkeletalMeshObject;
 class FRDGBuffer;
 class FRDGBufferUAV;
+class FSkeletalMeshObject;
+class FSkinedMeshExecDataInterfaceParameters;
+class USkinnedMeshComponent;
 
 UENUM()
 enum class EOptimusSkinnedMeshExecDomain : uint8
@@ -77,10 +77,13 @@ public:
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	bool IsValid(FValidationData const& InValidationData) const override;
+	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	using FParameters = FSkinedMeshExecDataInterfaceParameters;
+
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 	EOptimusSkinnedMeshExecDomain Domain = EOptimusSkinnedMeshExecDomain::Vertex;
 };

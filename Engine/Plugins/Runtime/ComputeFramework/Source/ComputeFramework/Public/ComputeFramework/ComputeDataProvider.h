@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StridedView.h"
 #include "ComputeDataProvider.generated.h"
 
 class FComputeDataProviderRenderProxy;
@@ -33,7 +34,7 @@ public:
 
 /**
  * Compute Framework Data Provider Proxy. 
- * A concrete instance of this is created by the UComputeDataProvider and used for the render thread gathering of data for a Compute Kernel. 
+ * A concrete instance of this is created by the UComputeDataProvider gathering of data for a Compute Kernel on the render thread. 
  */
 class COMPUTEFRAMEWORK_API FComputeDataProviderRenderProxy
 {
@@ -46,25 +47,82 @@ public:
 	*/
 	virtual int32 GetDispatchThreadCount(TArray<FIntVector>& ThreadCounts) const { return 0; };
 
+	/** Data needed for validation. */
+	struct FValidationData
+	{
+		int32 NumInvocations;
+		int32 ParameterStructSize;
+	};
+
+	/**
+	 * Validates that we are OK to dispatch work.
+	 * Default implementation returns false.
+	 */
+	virtual bool IsValid(FValidationData const& InValidationData) const { return false; }
+
+	/** Data needed for setting permuations. */
+	struct FPermutationData
+	{
+		const int32 NumInvocations;
+		const FComputeKernelPermutationVector& PermutationVector;
+		TArray<int32> PermutationIds;
+	};
+
+	/** 
+	 * Gathers permutation bits for each invocation.
+	 * This is called before any calls to AllocateResources() because we validate all requested shaders before doing any further work.
+	 */
+	virtual void GatherPermutations(FPermutationData& InOutPermutationData) const {}
+
 	/* Called once before any calls to GatherDispatchData() to allow any RDG resource allocation. */
 	virtual void AllocateResources(FRDGBuilder& GraphBuilder) {}
 
-	/** */
-	struct FDispatchSetup
+	/** Setup needed to gather dispatch data. */
+	struct FDispatchData
 	{
 		int32 NumInvocations;
+		int32 ParameterStructSize;
 		int32 ParameterBufferOffset;
 		int32 ParameterBufferStride;
+		uint8* ParameterBuffer;
+	};
+
+	/** Collect parameter data required to dispatch work. */
+	virtual void GatherDispatchData(FDispatchData const& InDispatchData) {}
+
+protected:
+	/** Helper for making an FStridedView over the FDispatchData. */
+	template <typename ElementType>
+	TStridedView<ElementType> MakeStridedParameterView(FDispatchData const& InDispatchData)
+	{
+		return TStridedView<ElementType>(InDispatchData.ParameterBufferStride, (ElementType*)(InDispatchData.ParameterBuffer + InDispatchData.ParameterBufferOffset), InDispatchData.NumInvocations);
+	}
+
+protected:
+	//~ Start deprecation of old GatherDispatchData() interface.
+	struct FDispatchSetup
+	{
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
+		int32 NumInvocations;
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
+		int32 ParameterBufferOffset;
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
+		int32 ParameterBufferStride;
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
 		int32 ParameterStructSizeForValidation;
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
 		FComputeKernelPermutationVector const& PermutationVector;
 	};
 
-	/** Collected data during kernel dispatch. */
 	struct FCollectedDispatchData
 	{
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
 		uint8* ParameterBuffer;
+		UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
 		TArray<int32> PermutationId;
 	};
 
+	UE_DEPRECATED(5.2, "Convert to using the new GatherDispatchData() that takes FDispatchData.")
 	virtual void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) {}
+	//~ End deprecation of old GatherDispatchData() interface.
 };

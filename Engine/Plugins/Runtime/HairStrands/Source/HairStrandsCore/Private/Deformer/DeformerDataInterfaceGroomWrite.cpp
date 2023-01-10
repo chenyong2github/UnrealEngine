@@ -111,6 +111,20 @@ FOptimusGroomWriteDataProviderProxy::FOptimusGroomWriteDataProviderProxy(UGroomC
 	}
 }
 
+bool FOptimusGroomWriteDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+{
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
+	{
+		return false;
+	}
+	if (InValidationData.NumInvocations != Instances.Num())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FOptimusGroomWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	for (FHairGroupInstance* GroomInstance : Instances)
@@ -140,16 +154,10 @@ void FOptimusGroomWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBu
 	}
 }
 
-void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FGroomWriteDataInterfaceParameters)))
-	{
-		return;
-	}
-
-	check(InDispatchSetup.NumInvocations == Instances.Num());
-
-	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		if (FHairGroupInstance* GroomInstance = Instances[InvocationIndex])
 		{
@@ -159,12 +167,12 @@ void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchSetup cons
 			const int32 NumCurves = bValid ? GroomInstance->Strands.Data->CurveCount : 0;
 			const int32 NumControlPoints = bValid ? GroomInstance->Strands.Data->PointCount : 0;
 
-			FGroomWriteDataInterfaceParameters* Parameters = (FGroomWriteDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-			Parameters->NumControlPoints = NumControlPoints;
-			Parameters->NumCurves = NumCurves;
-			Parameters->OutputStreamStart = 0;
-			Parameters->PositionBufferSRV = bValid ? Resource.PositionBufferSRV : Resource.PositionBufferSRV_fallback;
-			Parameters->PositionBufferUAV = bValid ? Resource.PositionBufferUAV : Resource.PositionBufferUAV_fallback;
+			FParameters& Parameters = ParameterArray[InvocationIndex];
+			Parameters.NumControlPoints = NumControlPoints;
+			Parameters.NumCurves = NumCurves;
+			Parameters.OutputStreamStart = 0;
+			Parameters.PositionBufferSRV = bValid ? Resource.PositionBufferSRV : Resource.PositionBufferSRV_fallback;
+			Parameters.PositionBufferUAV = bValid ? Resource.PositionBufferUAV : Resource.PositionBufferUAV_fallback;
 		}
 	}
 }

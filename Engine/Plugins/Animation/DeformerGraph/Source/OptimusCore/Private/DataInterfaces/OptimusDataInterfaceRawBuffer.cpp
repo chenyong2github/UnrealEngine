@@ -355,14 +355,26 @@ FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRender
 FOptimusTransientBufferDataProviderProxy::FOptimusTransientBufferDataProviderProxy(
 	TArray<int32> InInvocationElementCounts,
 	int32 InElementStride,
-	int32 InRawStride
-	) :
-	InvocationElementCounts(InInvocationElementCounts),
-	ElementStride(InElementStride),
-	RawStride(InRawStride)
+	int32 InRawStride) 
+	: InvocationElementCounts(InInvocationElementCounts)
+	, ElementStride(InElementStride)
+	, RawStride(InRawStride)
 {
 }
 
+bool FOptimusTransientBufferDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+{
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
+	{
+		return false;
+	}
+	if (InValidationData.NumInvocations != InvocationElementCounts.Num())
+	{
+		return false;
+	}
+
+	return true;
+}
 
 void FOptimusTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
@@ -379,29 +391,18 @@ void FOptimusTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& Gr
 	}
 }
 
-void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FTransientBufferDataInterfaceParameters)))
+	TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
-		return;
-	}
-
-	if (!ensure(InDispatchSetup.NumInvocations == Buffer.Num()))
-	{
-		return;
-	}
-
-	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCounts.Num(); ++InvocationIndex)
-	{
-		FTransientBufferDataInterfaceParameters* Parameters =
-			reinterpret_cast<FTransientBufferDataInterfaceParameters*>(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-		Parameters->StartOffset = 0;
-		Parameters->BufferSize = InvocationElementCounts[InvocationIndex];
-		Parameters->BufferSRV = BufferSRV[InvocationIndex];
-		Parameters->BufferUAV = BufferUAV[InvocationIndex];
+		FParameters& Parameters = ParameterArray[InvocationIndex];
+		Parameters.StartOffset = 0;
+		Parameters.BufferSize = InvocationElementCounts[InvocationIndex];
+		Parameters.BufferSRV = BufferSRV[InvocationIndex];
+		Parameters.BufferUAV = BufferUAV[InvocationIndex];
 	}
 }
-
 
 
 FOptimusPersistentBufferDataProviderProxy::FOptimusPersistentBufferDataProviderProxy(
@@ -410,21 +411,31 @@ FOptimusPersistentBufferDataProviderProxy::FOptimusPersistentBufferDataProviderP
 	int32 InRawStride,
 	TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 	FName InResourceName,
-	int32 InLODIndex
-	) :
-	InvocationElementCounts(InInvocationElementCounts),
-	ElementStride(InElementStride),
-	RawStride(InRawStride),
-	BufferPool(InBufferPool),
-	ResourceName(InResourceName),
-	LODIndex(InLODIndex)
+	int32 InLODIndex)
+	: InvocationElementCounts(InInvocationElementCounts)
+	, ElementStride(InElementStride)
+	, RawStride(InRawStride)
+	, BufferPool(InBufferPool)
+	, ResourceName(InResourceName)
+	, LODIndex(InLODIndex)
 {
 }
 
+bool FOptimusPersistentBufferDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+{
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
+	{
+		return false;
+	}
+	if (InValidationData.NumInvocations != InvocationElementCounts.Num())
+	{
+		return false;
+	}
 
-void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
-	FRDGBuilder& GraphBuilder
-	)
+	return true;
+}
+
+void FOptimusPersistentBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, LODIndex, ElementStride, RawStride, InvocationElementCounts, Buffers);
 	ensure(Buffers.Num() == InvocationElementCounts.Num());
@@ -435,31 +446,14 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	}
 }
 
-
-void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(
-	FDispatchSetup const& InDispatchSetup,
-	FCollectedDispatchData& InOutDispatchData
-	)
+void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FPersistentBufferDataInterfaceParameters)))
+	TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
-		return;
+		FParameters& Parameters = ParameterArray[InvocationIndex];
+		Parameters.StartOffset = 0;
+		Parameters.BufferSize = InvocationElementCounts[InvocationIndex];
+		Parameters.BufferUAV = BufferUAVs[InvocationIndex];
 	}
-
-	if (!ensure(InDispatchSetup.NumInvocations == Buffers.Num()))
-	{
-		return;
-	}
-
-	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCounts.Num(); ++InvocationIndex)
-	{
-		FPersistentBufferDataInterfaceParameters* Parameters =
-			reinterpret_cast<FPersistentBufferDataInterfaceParameters*>(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-		
-		Parameters->StartOffset = 0;
-		Parameters->BufferSize = InvocationElementCounts[InvocationIndex];
-		Parameters->BufferUAV = BufferUAVs[InvocationIndex];
-	}
-
-	FComputeDataProviderRenderProxy::GatherDispatchData(InDispatchSetup, InOutDispatchData);
 }

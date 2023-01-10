@@ -236,9 +236,27 @@ FComputeDataProviderRenderProxy* UOptimusConnectivityDataProvider::GetRenderProx
 
 
 FOptimusConnectivityDataProviderProxy::FOptimusConnectivityDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent, TArray< TArray<uint32> >& InAdjacencyBufferPerLod)
-	: SkeletalMeshObject(SkinnedMeshComponent->MeshObject)
+	: SkeletalMeshObject(SkinnedMeshComponent != nullptr ? SkinnedMeshComponent->MeshObject : nullptr)
 	, AdjacencyBufferPerLod(InAdjacencyBufferPerLod)
 {
+}
+
+bool FOptimusConnectivityDataProviderProxy::IsValid(FValidationData const& InValidationData) const
+{
+	if (InValidationData.ParameterStructSize != sizeof(FParameters))
+	{
+		return false;
+	}
+	if (SkeletalMeshObject == nullptr || AdjacencyBufferPerLod.Num() == 0)
+	{
+		return false;
+	}
+	if (SkeletalMeshObject->GetSkeletalMeshRenderData().LODRenderData[SkeletalMeshObject->GetLOD()].RenderSections.Num() != InValidationData.NumInvocations)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void FOptimusConnectivityDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
@@ -252,31 +270,23 @@ void FOptimusConnectivityDataProviderProxy::AllocateResources(FRDGBuilder& Graph
 	GraphBuilder.QueueBufferUpload(ConnectivityBuffer, ConnectivityData.GetData(), ConnectivityData.Num() * sizeof(uint32), ERDGInitialDataFlags::None);
 }
 
-void FOptimusConnectivityDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+void FOptimusConnectivityDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FConnectivityDataInterfaceParameters)))
-	{
-		return;
-	}
-
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
-	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
-	{
-		return;
-	}
 
 	FRHIShaderResourceView* NullSRVBinding = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI.GetReference();
 
-	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
+	for (int32 InvocationIndex = 0; InvocationIndex < ParameterArray.Num(); ++InvocationIndex)
 	{
 		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-		FConnectivityDataInterfaceParameters* Parameters = (FConnectivityDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
-		Parameters->NumVertices = RenderSection.NumVertices;
-		Parameters->InputStreamStart = RenderSection.BaseVertexIndex;
-		Parameters->MaxConnectedVertexCount = UOptimusConnectivityDataInterface::MaxConnectedVertexCount;
-		Parameters->ConnectivityBuffer = ConnectivityBufferSRV;
+		FParameters& Parameters = ParameterArray[InvocationIndex];
+		Parameters.NumVertices = RenderSection.NumVertices;
+		Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
+		Parameters.MaxConnectedVertexCount = UOptimusConnectivityDataInterface::MaxConnectedVertexCount;
+		Parameters.ConnectivityBuffer = ConnectivityBufferSRV;
 	}
 }
