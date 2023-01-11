@@ -39,6 +39,10 @@ public:
 
 	TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList) override;
 	TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name) override;
+	TypedElementTableHandle RegisterTable(TypedElementTableHandle SourceTable, TConstArrayView<const UScriptStruct*> ColumnList) override;
+	TypedElementTableHandle RegisterTable(TypedElementTableHandle SourceTable, TConstArrayView<const UScriptStruct*> ColumnList, 
+		const FName Name) override;
+	TypedElementTableHandle FindTable(const FName Name) override;
 
 	TypedElementRowHandle AddRow(TypedElementTableHandle Table) override;
 	TypedElementRowHandle AddRow(FName TableName) override;

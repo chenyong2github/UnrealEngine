@@ -79,7 +79,17 @@ public:
 	/** Creates a new table for with the provided columns. Optionally a name can be given which is useful for retrieval later. */
 	virtual TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList) = 0;
 	virtual TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name) = 0;
+	/** 
+	 * Copies the column information from the provided table and creates a new table for with the provided columns. Optionally a 
+	 * name can be given which is useful for retrieval later.
+	 */
+	virtual TypedElementTableHandle RegisterTable(TypedElementTableHandle SourceTable, 
+		TConstArrayView<const UScriptStruct*> ColumnList) = 0;
+	virtual TypedElementTableHandle RegisterTable(TypedElementTableHandle SourceTable, 
+		TConstArrayView<const UScriptStruct*> ColumnList, const FName Name) = 0;
 
+	/** Returns a previously created table with the provided name or TypedElementInvalidTableHandle if not found. */
+	virtual TypedElementTableHandle FindTable(const FName Name) = 0;
 	
 	/**
 	 * @section Row management

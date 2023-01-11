@@ -94,26 +94,45 @@ TypedElementTableHandle UTypedElementDatabase::RegisterTable(TConstArrayView<con
 
 TypedElementTableHandle UTypedElementDatabase::RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name)
 {
-	if (ActiveEditorEntityManager)
+	if (ActiveEditorEntityManager && (!Name.IsValid() || !TableNameLookup.Contains(Name)))
 	{
+		TypedElementTableHandle Result = Tables.Num();
+		Tables.Add(ActiveEditorEntityManager->CreateArchetype(ColumnList, Name));
 		if (Name.IsValid())
 		{
-			if (!TableNameLookup.Contains(Name))
-			{
-				TypedElementTableHandle Result = Tables.Num();
-				Tables.Add(ActiveEditorEntityManager->CreateArchetype(ColumnList, Name));
-				TableNameLookup.Add(Name, Result);
-				return Result;
-			}
+			TableNameLookup.Add(Name, Result);
 		}
-		else
-		{
-			TypedElementTableHandle Result = Tables.Num();
-			Tables.Add(ActiveEditorEntityManager->CreateArchetype(ColumnList, Name));
-			return Result;
-		}
+		return Result;
 	}
 	return TypedElementInvalidTableHandle;
+}
+
+TypedElementTableHandle UTypedElementDatabase::RegisterTable(TypedElementTableHandle SourceTable,
+	TConstArrayView<const UScriptStruct*> ColumnList)
+{
+	return RegisterTable(SourceTable, ColumnList, {});
+}
+
+TypedElementTableHandle UTypedElementDatabase::RegisterTable(TypedElementTableHandle SourceTable, 
+	TConstArrayView<const UScriptStruct*> ColumnList, const FName Name)
+{
+	if (ActiveEditorEntityManager && (!Name.IsValid() || !TableNameLookup.Contains(Name)) && SourceTable < Tables.Num())
+	{
+		TypedElementTableHandle Result = Tables.Num();
+		Tables.Add(ActiveEditorEntityManager->CreateArchetype(Tables[SourceTable], ColumnList, Name));
+		if (Name.IsValid())
+		{
+			TableNameLookup.Add(Name, Result);
+		}
+		return Result;
+	}
+	return TypedElementInvalidTableHandle;
+}
+
+TypedElementTableHandle UTypedElementDatabase::FindTable(const FName Name)
+{
+	TypedElementTableHandle* TableHandle = TableNameLookup.Find(Name);
+	return TableHandle ? *TableHandle : TypedElementInvalidTableHandle;
 }
 
 TypedElementRowHandle UTypedElementDatabase::AddRow(TypedElementTableHandle Table)
