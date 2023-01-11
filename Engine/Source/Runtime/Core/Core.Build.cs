@@ -319,6 +319,8 @@ public class Core : ModuleRules
 		PrivateDefinitions.Add("UE_DEFINE_LEGACY_MATH_CONSTANT_MACRO_NAMES=0");
 
 		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
+		IWYUSupport = IWYUSupport.KeepAsIs;
 	}
 
 	protected virtual bool SupportsBinaryConfig(ReadOnlyTargetRules Target)

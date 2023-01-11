@@ -66,7 +66,7 @@ public class TextureFormatOodle : ModuleRules
 
 	public TextureFormatOodle(ReadOnlyTargetRules Target) : base(Target)
 	{
-		bEnforceIWYU = false;
+		IWYUSupport = IWYUSupport.None;
 
 		ShortName = "TextureFormatOodle";
 

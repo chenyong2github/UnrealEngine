@@ -110,7 +110,7 @@ public class ONNXRuntime : ModuleRules
 
 		bUseRTTI = true;
 		bEnableUndefinedIdentifierWarnings = false;
-		bEnforceIWYU = false;
+		IWYUSupport = IWYUSupport.None;
 
 		// PublicDefinitions
 		// Disable exceptions (needed by UE Game)

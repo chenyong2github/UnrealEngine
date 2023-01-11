@@ -6,7 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public ElectraCDM(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bEnforceIWYU = false; // Disabled because of third party code
+			IWYUSupport = IWYUSupport.None; // Disabled because of third party code
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

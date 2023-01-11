@@ -12,7 +12,7 @@ namespace UnrealBuildTool.Rules
 			// Common setup...
 			//
 			bLegalToDistributeObjectCode = true;
-			bEnforceIWYU = false;
+			IWYUSupport = IWYUSupport.None;
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
