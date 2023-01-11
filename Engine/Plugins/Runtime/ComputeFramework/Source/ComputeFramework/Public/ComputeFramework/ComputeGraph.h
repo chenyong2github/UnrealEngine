@@ -110,9 +110,6 @@ public:
 	 */
 	bool ValidateGraph(FString* OutErrors = nullptr);
 
-	/** Returns true if graph has a full set of compiled shaders. */
-	bool IsCompiled() const;
-
 	/** 
 	 * Create UComputeDataProvider objects to match the current UComputeDataInterface objects. 
 	 * We attempt to setup bindings from the InBindingObjects.

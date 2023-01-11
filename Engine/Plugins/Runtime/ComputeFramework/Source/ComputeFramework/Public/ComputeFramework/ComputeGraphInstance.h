@@ -28,9 +28,6 @@ public:
 	/** Create the Data Provider objects. */
 	void DestroyDataProviders();
 
-	/** Returns true if the Data Provider objects are all created and valid. */
-	bool ValidateDataProviders(UComputeGraph* InComputeGraph) const;
-
 	/** Get the Data Provider objects. */
 	TArray< TObjectPtr<UComputeDataProvider> >& GetDataProviders() { return DataProviders; }
 

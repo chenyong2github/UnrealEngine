@@ -121,30 +121,6 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	return true;
 }
 
-bool UComputeGraph::IsCompiled() const
-{
-	// todo[CF]: Checking all shader maps is probably slow. Cache and serialize compilation success after each compile instead.
-	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
-	{
-		if (KernelInvocations[KernelIndex] != nullptr)
-		{
-			if (!KernelResources.IsValidIndex(KernelIndex))
-			{
-				return false;
-			}
-			
-			FComputeKernelResource const* Resource = KernelResources[KernelIndex].Get();
-			FComputeKernelShaderMap* ShaderMap = Resource != nullptr ? Resource->GetGameThreadShaderMap() : nullptr;
-			if (ShaderMap == nullptr || !ShaderMap->IsComplete(Resource, true))
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
 bool UComputeGraph::ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const
 {
 	if (DataInterfaces.Num() != DataProviders.Num())
