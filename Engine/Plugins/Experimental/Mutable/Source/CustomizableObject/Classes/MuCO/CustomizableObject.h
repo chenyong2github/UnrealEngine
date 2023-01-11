@@ -1148,6 +1148,16 @@ public:
 
 #endif // WITH_EDITORONLY_DATA
 
+	/** Amount of components in this CO. Set at the end of the model compilation process. */
+	UPROPERTY()
+	int32 NumMeshComponentsInRoot = 0;
+	
+	/** Method to query the amount of components this Customizable Object has.
+	 * @warning It must be invoked from a COInstance to ensure that the CO has been compiled
+	 */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	int32 GetComponentCount() const;
+	
 	// Object parameters interface. This is used to query static data about the parameters available
 	// in instances of this object.
 
@@ -1223,7 +1233,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 362;
+	static const int32 CurrentSupportedVersion = 363;
 
 public:
 

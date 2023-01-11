@@ -452,6 +452,7 @@ void UCustomizableObject::SaveCompiledData(FArchive& MemoryWriter, bool bSkipEdi
 	}
 
 	MemoryWriter << LODSettings.NumLODsInRoot;
+	MemoryWriter << NumMeshComponentsInRoot;
 
 	MemoryWriter << LODSettings.FirstLODAvailable;
 
@@ -542,6 +543,7 @@ void UCustomizableObject::LoadCompiledData(FArchive& MemoryReader, bool bSkipEdi
 		}
 
 		MemoryReader << LODSettings.NumLODsInRoot;
+		MemoryReader << NumMeshComponentsInRoot;
 
 		MemoryReader << LODSettings.FirstLODAvailable;
 
@@ -1110,6 +1112,19 @@ int32 UCustomizableObject::GetNumLODs() const
 	return LODSettings.NumLODsInRoot;
 }
 
+int32 UCustomizableObject::GetComponentCount() const
+{
+	if (!IsCompiled())
+	{
+		UE_LOG(LogMutable, Warning,
+		       TEXT(
+			       "You are trying to get the component count of a non compiled CO. This will always return 0 as value."
+		       ));
+		return 0;
+	}
+	
+	return NumMeshComponentsInRoot;
+}
 
 int UCustomizableObject::GetParameterCount() const
 {

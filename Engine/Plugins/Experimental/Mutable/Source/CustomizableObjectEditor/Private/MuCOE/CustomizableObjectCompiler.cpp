@@ -1139,7 +1139,9 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 #endif
 
 		Object->LODSettings.NumLODsInRoot = GenerationContext.NumLODsInRoot;
-
+		
+		Object->NumMeshComponentsInRoot = GenerationContext.NumMeshComponentsInRoot;
+		
 		Object->LODSettings.FirstLODAvailable = GenerationContext.FirstLODAvailable;
 
 		Object->LODSettings.bLODStreamingEnabled = GenerationContext.bEnableLODStreaming;
