@@ -324,7 +324,7 @@ bool FGrid::GeneratePointCloud()
 		return false;
 	}
 
-	PointMarkers.Init(EPointMarker::None, CuttingSize);
+	NodeMarkers.Init(ENodeMarker::None, CuttingSize);
 
 	CountOfInnerNodes = CuttingSize;
 	for (int32 Index = 0; Index < EGridSpace::EndGridSpace; ++Index)
@@ -739,7 +739,7 @@ void FGrid::RemovePointsCloseToLoop()
 		IndexOfPointsNearAndInsideLoop.Reserve(CuttingSize);
 		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
-			if (IsNodeCloseToAndInsideLoop(Index))
+			if (IsNodeInsideAndCloseToLoop(Index))
 			{
 				IndexOfPointsNearAndInsideLoop.Add(Index);
 			}
@@ -865,7 +865,6 @@ void FGrid::RemovePointsCloseToLoop()
 			}
 
 			SetTooCloseToLoop(Index);
-			CountOfInnerNodes--;
 			break;
 		}
 	}
@@ -1477,7 +1476,7 @@ void FGrid::FindInnerFacePoints()
 	TArray<char> IntersectLoop;
 
 	IntersectLoop.Init(0, CuttingSize);
-	PointMarkers.Init(EPointMarker::IsInside, CuttingSize);
+	NodeMarkers.Init(ENodeMarker::IsInside, CuttingSize);
 
 	NbIntersectUForward.Init(0, CuttingSize);
 	NbIntersectUBackward.Init(0, CuttingSize);

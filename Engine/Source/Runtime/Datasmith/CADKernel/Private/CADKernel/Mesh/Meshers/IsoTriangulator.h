@@ -110,8 +110,6 @@ protected:
 	TArray<FIsoInnerNode> InnerNodes;
 	int32 InnerNodeCount = 0;
 
-
-
 	TFactory<FIsoSegment> IsoSegmentFactory;
 
 	TArray<FIsoSegment*> LoopSegments;
@@ -127,8 +125,7 @@ protected:
 	FIntersectionSegmentTool LoopSegmentsIntersectionTool;
 	FIntersectionSegmentTool InnerSegmentsIntersectionTool;
 	FIntersectionSegmentTool InnerToLoopSegmentsIntersectionTool;
-	FIntersectionSegmentTool InnerToOuterSegmentsIntersectionTool;
-
+	FIntersectionNodePairTool InnerToOuterSegmentsIntersectionTool;
 
 	/**
 	 * Define all the lower left index of grid node that the upper cell is surrounding a loop
@@ -264,12 +261,6 @@ public:
 	 */
 	void FindIsoSegmentToLinkLoopToLoop();
 
-	/**
-	 * The purpose of the method is select a minimal set of segments connecting loops together
-	 * The final segments will be selected with SelectSegmentInCandidateSegments
-	 */
-	void ConnectCellSubLoopsByNeighborhood();  // to rename and clean
-
 	void FindCandidateSegmentsToLinkInnerAndLoop();
 
 	/**
@@ -300,10 +291,6 @@ public:
 	 * The algorithm is based on frontal process
 	 */
 	void MeshCycle(const EGridSpace Space, const TArray<FIsoSegment*>& cycle, const TArray<bool>& cycleOrientation);
-
-#ifdef WIP_ADD_STEP_TO_TO_FAVOR_ISO_SEGMENTS
-	void FindIsoCandidateSegmentInCycle(TArray<FIsoNode*> CycleNodes);
-#endif
 
 	bool CanCycleBeMeshed(const TArray<FIsoSegment*>& Cycle, FIntersectionSegmentTool& CycleIntersectionTool);
 
