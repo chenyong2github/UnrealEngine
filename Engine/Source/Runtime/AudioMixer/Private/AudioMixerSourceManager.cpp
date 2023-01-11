@@ -1650,7 +1650,7 @@ namespace Audio
 				SourceInfo.PitchModulation = MoveTemp(PitchModulation);
 				SourceInfo.LowpassModulation = MoveTemp(LowpassModulation);
 				SourceInfo.HighpassModulation = MoveTemp(HighpassModulation);
-			}, AUDIO_MIXER_THREAD_COMMAND_STRING("SetModulationRouting"));
+			});
 	}
 
 	void FMixerSourceManager::SetSourceBufferListener(const int32 SourceId, FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer)
