@@ -148,57 +148,54 @@ public:
 		if( Column.HeaderMenuContent.Widget != SNullWidget::NullWidget ||
 			Column.OnGetMenuContent.IsBound())
 		{
-			if (!Column.bHideHeaderMenuButton)
-			{
-				// Add Drop down menu button (only if menu content has been specified)
-				Box->AddSlot()
-				.AutoWidth()
+			// Add Drop down menu button (only if menu content has been specified)
+			Box->AddSlot()
+			.AutoWidth()
+			[
+				SAssignNew( MenuOverlay, SOverlay )
+				.Visibility( this, &STableColumnHeader::GetMenuOverlayVisibility )
+
+				+SOverlay::Slot()
 				[
-					SAssignNew( MenuOverlay, SOverlay )
-					.Visibility( this, &STableColumnHeader::GetMenuOverlayVisibility )
-
-					+SOverlay::Slot()
+					SNew( SBorder )
+					.Padding( FMargin( 0.0f ) )
+					.BorderImage( this, &STableColumnHeader::GetComboButtonBorderBrush )
 					[
-						SNew( SBorder )
-						.Padding( FMargin( 0.0f ) )
-						.BorderImage( this, &STableColumnHeader::GetComboButtonBorderBrush )
+						SAssignNew( ComboButton, SComboButton )
+						.HasDownArrow(false)
+						.ButtonStyle( FAppStyle::Get(), "NoBorder" )
+						.ContentPadding( FMargin(0) )
+						.ButtonContent()
 						[
-							SAssignNew( ComboButton, SComboButton )
-							.HasDownArrow(false)
-							.ButtonStyle( FAppStyle::Get(), "NoBorder" )
-							.ContentPadding( FMargin(0) )
-							.ButtonContent()
-							[
-								SNew( SSpacer )
-								.Size( FVector2D( 14.0f, 0 ) )
-							]
+							SNew( SSpacer )
+							.Size( FVector2D( 14.0f, 0 ) )
 						]
 					]
+				]
 
-					+SOverlay::Slot()
-					.HAlign( HAlign_Center )
-					.VAlign( VAlign_Center )
+				+SOverlay::Slot()
+				.HAlign( HAlign_Center )
+				.VAlign( VAlign_Center )
+				[
+					SNew( SBox )
+					.HeightOverride( 18.0f )
+					.Padding( FMargin( 0.0f, -2.0f ) )
 					[
-						SNew( SBox )
-						.HeightOverride( 18.0f )
-						.Padding( FMargin( 0.0f, -2.0f ) )
-						[
-							SNew( SImage )
-							.Image( &Style->MenuDropdownImage )
-							.ColorAndOpacity( this, &STableColumnHeader::GetComboButtonTint )
-							.Visibility( EVisibility::HitTestInvisible )
-						]
+						SNew( SImage )
+						.Image( &Style->MenuDropdownImage )
+						.ColorAndOpacity( this, &STableColumnHeader::GetComboButtonTint )
+						.Visibility( EVisibility::HitTestInvisible )
 					]
-				];
+				]
+			];
 
-				if (Column.HeaderMenuContent.Widget != SNullWidget::NullWidget)
-				{
-					ComboButton->SetMenuContent( ContextMenuContent );
-				}
-				else if (Column.OnGetMenuContent.IsBound())
-				{
-					ComboButton->SetOnGetMenuContent( Column.OnGetMenuContent );
-				}
+			if (Column.HeaderMenuContent.Widget != SNullWidget::NullWidget)
+			{
+				ComboButton->SetMenuContent( ContextMenuContent );
+			}
+			else if (Column.OnGetMenuContent.IsBound())
+			{
+				ComboButton->SetOnGetMenuContent( Column.OnGetMenuContent );
 			}
 		}
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
@@ -113,7 +114,6 @@ public:
 			, _HeaderContentPadding()
 			, _HeaderComboVisibility(EHeaderComboVisibility::OnHover)
 			, _MenuContent()
-			, _HideHeaderMenuButton(false)
 			, _HAlignCell( HAlign_Fill )
 			, _VAlignCell( VAlign_Fill )
 			, _InitialSortMode( EColumnSortMode::Ascending )
@@ -144,8 +144,6 @@ public:
 			SLATE_NAMED_SLOT( FArguments, MenuContent )
 			SLATE_EVENT( FOnGetContent, OnGetMenuContent )
 
-			SLATE_ARGUMENT(bool, HideHeaderMenuButton)
-
 			SLATE_ARGUMENT( EHorizontalAlignment, HAlignCell )
 			SLATE_ARGUMENT( EVerticalAlignment, VAlignCell )
 
@@ -169,7 +167,6 @@ public:
 			, HeaderContent( InArgs._HeaderContent )
 			, HeaderMenuContent( InArgs._MenuContent )
 			, OnGetMenuContent( InArgs._OnGetMenuContent )
-			, bHideHeaderMenuButton(InArgs._HideHeaderMenuButton)
 			, HeaderHAlignment( InArgs._HAlignHeader )
 			, HeaderVAlignment( InArgs._VAlignHeader )
 			, HeaderContentPadding( InArgs._HeaderContentPadding )
@@ -252,8 +249,6 @@ public:
 		TAlwaysValidWidget HeaderMenuContent;
 
 		FOnGetContent OnGetMenuContent;
-
-		bool bHideHeaderMenuButton;
 
 		EHorizontalAlignment HeaderHAlignment;
 		EVerticalAlignment HeaderVAlignment;
