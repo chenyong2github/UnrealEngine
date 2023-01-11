@@ -148,8 +148,11 @@ bool UVCamOutputProviderBase::IsOuterComponentEnabled() const
 
 void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTargetCamera)
 {
-	TargetCamera = InTargetCamera;
-	NotifyWidgetOfComponentChange();
+	if (InTargetCamera != TargetCamera)
+	{
+		TargetCamera = InTargetCamera;
+		NotifyWidgetOfComponentChange();
+	}
 }
 
 void UVCamOutputProviderBase::SetTargetViewport(EVCamTargetViewportID Value)
@@ -244,6 +247,7 @@ void UVCamOutputProviderBase::DisplayUMG()
 
 		if (ActorWorld)
 		{
+			UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
 			UMGWidget->Display(ActorWorld);
 			if (UUserWidget* Subwidget = UMGWidget->GetWidget(); ensure(Subwidget) && WidgetSnapshot.HasData())
 			{
@@ -319,8 +323,6 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 {
 	if (UMGWidget && UMGWidget->IsDisplayed())
 	{
-		UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
-		
 		UUserWidget* DisplayedWidget = UMGWidget->GetWidget();
 		if (IsValid(DisplayedWidget))
 		{
@@ -525,7 +527,10 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 			WidgetSnapshot.Reset();
 			if (bIsActive)
 			{
+				// In case a child class resets UMGClass, reapply the correct value we got the PostEditChangeProperty for.
+				const TSubclassOf<UUserWidget> ProtectUMGClass = UMGClass;
 				SetActive(false);
+				UMGClass = ProtectUMGClass;
 				SetActive(true);
 			}
 		}
@@ -535,7 +540,7 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 			{
 				RestoreOverrideResolutionForViewport(static_cast<EVCamTargetViewportID>(i));
 			}
-			ApplyOverrideResolutionForViewport(TargetViewport);
+			ReapplyOverrideResolution(TargetViewport);
 
 			if (bIsActive)
 			{

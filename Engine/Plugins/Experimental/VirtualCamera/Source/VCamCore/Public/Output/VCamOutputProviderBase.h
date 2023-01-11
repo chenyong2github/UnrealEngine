@@ -160,7 +160,7 @@ private:
 
 	/** Which viewport to use for this VCam */
 	UPROPERTY(EditAnywhere, BlueprintGetter = "GetTargetViewport", BlueprintSetter = "SetTargetViewport", Category = "Output", meta = (DisplayPriority = "2"))
-	EVCamTargetViewportID TargetViewport = EVCamTargetViewportID::CurrentlySelected;
+	EVCamTargetViewportID TargetViewport = EVCamTargetViewportID::Viewport1;
 	
 	/** The UMG class to be rendered in this output provider */
 	UPROPERTY(EditAnywhere, BlueprintGetter = "GetUMGClass", BlueprintSetter = "SetUMGClass", Category = "Output", meta = (DisplayName="UMG Overlay", DisplayPriority = "3"))

@@ -13,9 +13,9 @@ struct FVCamViewportLocker;
 namespace UE::VCamCore::LevelViewportUtils::Private
 {
 	/** Locks or unlocks all viewports which are used by OutputProviders depending on the corresponding FVCamViewportLockState::bLockViewportToCamera flag. All other viewports will be unlocked. */
-	void UpdateViewportLocksFromOutputs(TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders, FVCamViewportLocker& LockData, AActor* ActorToLockWith);
+	void UpdateViewportLocksFromOutputs(TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders, FVCamViewportLocker& LockData, AActor& ActorToLockWith);
 	/** Sets all viewports to be unlocked. */
-	void UnlockAllViewports(FVCamViewportLocker& LockData);
+	void UnlockAllViewports(FVCamViewportLocker& LockData, AActor& ActorToLockWith);
 
 #if WITH_EDITOR
 	/** Gets the level viewport identified by TargetViewport */

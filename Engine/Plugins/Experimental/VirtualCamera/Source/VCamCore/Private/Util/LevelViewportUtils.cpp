@@ -29,19 +29,19 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 		ENUM_CLASS_FLAGS(EViewportFlags)
 		
 #if WITH_EDITOR
-		static void UpdateLockStateForEditor(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, bool bNewLockState, AActor* ActorToLockWith = nullptr)
+		static void UpdateLockStateForEditor(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, bool bNewLockState, AActor& ActorToLockWith)
 		{
 			TSharedPtr<SLevelViewport> Viewport = GetLevelViewport(ViewportID);
 			FLevelEditorViewportClient* LevelViewportClient = Viewport.IsValid()
 				? &Viewport->GetLevelViewportClient()
 				: nullptr;
-			const bool bNeedsLock = !ViewportLockState.bIsLockedToViewport && bNewLockState;
 			if (LevelViewportClient)
 			{
+				const bool bNeedsLock = !ViewportLockState.bIsLockedToViewport && bNewLockState;
 				if (bNeedsLock)
 				{
 					ViewportLockState.Backup_ActorLock = LevelViewportClient->GetActiveActorLock();
-					LevelViewportClient->SetActorLock(ActorToLockWith);
+					LevelViewportClient->SetActorLock(&ActorToLockWith);
 					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
 					LevelViewportClient->bLockedCameraView = true;
 					ViewportLockState.bIsLockedToViewport = true;
@@ -64,7 +64,7 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 		}
 #endif
 
-		static void UpdateLockStateForGame(FVCamViewportLockState& ViewportLockState, const FWorldContext& Context, bool bNewLockState, AActor* ActorToLockWith = nullptr)
+		static void UpdateLockStateForGame(FVCamViewportLockState& ViewportLockState, const FWorldContext& Context, bool bNewLockState, AActor& ActorToLockWith)
 		{
 			UWorld* ActorWorld = Context.World();
 			if (ActorWorld && ActorWorld->GetGameInstance())
@@ -76,7 +76,7 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 					if (bNeedsLock)
 					{
 						ViewportLockState.Backup_ViewTarget = PlayerController->GetViewTarget();
-						PlayerController->SetViewTarget(ActorToLockWith);
+						PlayerController->SetViewTarget(&ActorToLockWith);
 						ViewportLockState.bIsLockedToViewport = true;
 					}
 					else if (ViewportLockState.bIsLockedToViewport && !bNewLockState
@@ -95,7 +95,7 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 			}
 		}
 		
-		static void UpdateLockState(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, EViewportFlags ViewportFlags, AActor* ActorToLockWith = nullptr)
+		static void UpdateLockState(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, EViewportFlags ViewportFlags, AActor& ActorToLockWith)
 		{
 			const bool bForceUse = (ViewportFlags & EViewportFlags::ForceUse) != EViewportFlags::None;
 			const bool bIsUsed = (ViewportFlags & EViewportFlags::IsNotUsed) == EViewportFlags::None;
@@ -120,7 +120,7 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 		}
 	}
 
-	void UpdateViewportLocksFromOutputs(TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders, FVCamViewportLocker& LockData, AActor* ActorToLockWith)
+	void UpdateViewportLocksFromOutputs(TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders, FVCamViewportLocker& LockData, AActor& ActorToLockWith)
 	{
 		TSet<EVCamTargetViewportID> Viewports;
 		TSet<EVCamTargetViewportID> ForcefullyLockedViewports;
@@ -148,11 +148,11 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 		}
 	}
 
-	void UnlockAllViewports(FVCamViewportLocker& LockData)
+	void UnlockAllViewports(FVCamViewportLocker& LockData, AActor& ActorToLockWith)
 	{
 		for (TPair<EVCamTargetViewportID, FVCamViewportLockState>& ViewportData : LockData.Locks)
 		{
-			Locking::UpdateLockState(ViewportData.Value, ViewportData.Key, Locking::EViewportFlags::IsNotUsed);
+			Locking::UpdateLockState(ViewportData.Value, ViewportData.Key, Locking::EViewportFlags::IsNotUsed, ActorToLockWith);
 		}
 	}
 
@@ -160,14 +160,6 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 	TSharedPtr<SLevelViewport> GetLevelViewport(EVCamTargetViewportID TargetViewport)
 	{
 		TSharedPtr<SLevelViewport> OutLevelViewport = nullptr;
-
-		if (TargetViewport == EVCamTargetViewportID::CurrentlySelected)
-		{
-			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
-			return LevelEditorModule
-				? LevelEditorModule->GetFirstActiveLevelViewport()
-				: nullptr;;
-		}
 
 		if (!GEditor)
 		{
@@ -201,9 +193,7 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 	
 	FString GetConfigKeyFor(EVCamTargetViewportID TargetViewport)
 	{
-		return TargetViewport == EVCamTargetViewportID::CurrentlySelected
-			? FName(EName::None).ToString()
-			: FString::Printf(TEXT("Viewport %d.Viewport"), (int32)TargetViewport);
+		return FString::Printf(TEXT("Viewport %d.Viewport"), static_cast<int32>(TargetViewport) + 1);
 	}
 #endif
 }

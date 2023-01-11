@@ -49,4 +49,14 @@ struct FVCamViewportLocker
 		{ EVCamTargetViewportID::Viewport3, {} },
 		{ EVCamTargetViewportID::Viewport4, {} }
 	};
+
+	void Reset()
+	{
+		for (TPair<EVCamTargetViewportID, FVCamViewportLockState>& Pair : Locks)
+		{
+			Pair.Value.bIsLockedToViewport = false;
+			Pair.Value.Backup_ActorLock = nullptr;
+			Pair.Value.Backup_ViewTarget = nullptr;
+		}
+	}
 };

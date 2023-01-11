@@ -372,7 +372,7 @@ public:
 	 * See FVCamCoreCustomVersion::MoveTargetViewportFromComponentToOutput.
 	 */
 	UPROPERTY()
-	EVCamTargetViewportID TargetViewport_DEPRECATED = EVCamTargetViewportID::CurrentlySelected;
+	EVCamTargetViewportID TargetViewport_DEPRECATED = EVCamTargetViewportID::Viewport1;
 
 private:
 	

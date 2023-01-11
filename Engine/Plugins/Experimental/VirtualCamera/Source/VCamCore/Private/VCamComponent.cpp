@@ -100,7 +100,7 @@ UVCamComponent::UVCamComponent()
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	bLockViewportToCamera_DEPRECATED = false;
-	UpdateActorViewportLocks();
+	UnlockAllViewports();
 
 	for (UVCamOutputProviderBase* Provider : OutputProviders)
 	{
@@ -158,19 +158,26 @@ void UVCamComponent::HandleObjectReplaced(const TMap<UObject*, UObject*>& Replac
 
 void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent)
 {
-	// This function should only ever be called when we have a valid component replacing us
 	check(ReplacementComponent);
 
 	// Make sure to copy over our delegate bindings to the component replacing us
 	ReplacementComponent->OnComponentReplaced = OnComponentReplaced;
-
 	OnComponentReplaced.Clear();
+	
+	const bool bWasEnabled = bEnabled;
 	// Ensure all modifiers and output providers get deinitialized
-	SetEnabled(false);
-
-	// Refresh the enabled state on the new component to prevent any stale state from the replacement
-	if (ReplacementComponent->IsEnabled())
+	if (bEnabled)
 	{
+		SetEnabled(false);
+	}
+	
+	// Refresh the enabled state on the new component to prevent any stale state from the replacement but only do so once.
+	// Careful: NotifyComponentWasReplaced can be called multiple times with the same arguments.
+	// If this is not the first time NotifyComponentWasReplaced is called, then bWasEnabled will already be false (see above).
+	const bool bNeedsToStartupOutputProviders = bWasEnabled && ReplacementComponent->IsEnabled();
+	if (bNeedsToStartupOutputProviders)
+	{
+		ReplacementComponent->ViewportLocker.Reset();
 		ReplacementComponent->SetEnabled(false);
 		ReplacementComponent->SetEnabled(true);
 	}
@@ -476,6 +483,7 @@ void UVCamComponent::OnOutputProvidersEdited(FPropertyChangedChainEvent& Propert
 			// Initialized inside the Update() loop
 			if (ChangedProvider && ShouldUpdateOutputProviders())
 			{
+				ChangedProvider->SetTargetCamera(GetTargetCamera());
 				ChangedProvider->Initialize();
 			}
 		}
@@ -1259,7 +1267,7 @@ void UVCamComponent::UpdateActorViewportLocks()
 	if (const UCineCameraComponent* Camera = GetTargetCamera()
 		; Camera && ensure(Camera->GetOwner()))
 	{
-		UE::VCamCore::LevelViewportUtils::Private::UpdateViewportLocksFromOutputs(OutputProviders, ViewportLocker, Camera->GetOwner());
+		UE::VCamCore::LevelViewportUtils::Private::UpdateViewportLocksFromOutputs(OutputProviders, ViewportLocker, *Camera->GetOwner());
 	}
 }
 
@@ -1268,7 +1276,7 @@ void UVCamComponent::UnlockAllViewports()
 	if (const UCineCameraComponent* Camera = GetTargetCamera()
 		; Camera && ensure(Camera->GetOwner()))
 	{
-		UE::VCamCore::LevelViewportUtils::Private::UnlockAllViewports(ViewportLocker);
+		UE::VCamCore::LevelViewportUtils::Private::UnlockAllViewports(ViewportLocker, *Camera->GetOwner());
 	}
 }
 

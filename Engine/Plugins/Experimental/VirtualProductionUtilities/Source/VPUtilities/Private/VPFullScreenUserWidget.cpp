@@ -378,6 +378,10 @@ bool FVPFullScreenUserWidget_PostProcess::InitPostProcessComponent(UWorld* World
 		}
 		
 		PostProcessMaterialInstance = UMaterialInstanceDynamic::Create(PostProcessMaterial, World);
+		if (!ensure(PostProcessMaterialInstance))
+		{
+			return false;
+		}
 
 		// set the parameter immediately
 		PostProcessMaterialInstance->SetTextureParameterValue(NAME_SlateUI, WidgetRenderTarget);
@@ -389,10 +393,11 @@ bool FVPFullScreenUserWidget_PostProcess::InitPostProcessComponent(UWorld* World
 			PostProcessSettings->WeightedBlendables.Array.SetNumZeroed(1);
 			PostProcessSettings->WeightedBlendables.Array[0].Weight = 1.f;
 			PostProcessSettings->WeightedBlendables.Array[0].Object = PostProcessMaterialInstance;
+			return true;
 		}
 	}
 
-	return PostProcessComponent && PostProcessMaterialInstance;
+	return false;
 }
 
 void FVPFullScreenUserWidget_PostProcess::ReleasePostProcessComponent()
