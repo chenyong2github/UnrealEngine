@@ -166,7 +166,7 @@ bool FLoopCleaner::UncrossLoops()
 		}
 #endif
 
-		if (const FIsoSegment* IntersectingSegment = LoopSegmentsIntersectionTool.DoesIntersect(Segment))
+		if (const FIsoSegment* IntersectingSegment = LoopSegmentsIntersectionTool.FindIntersectingSegment(Segment))
 		{
 #ifdef DEBUG_UNCROSS_LOOPS
 			if (bDisplay)
@@ -960,7 +960,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 						return false;
 					}
 
-					if (const FIsoSegment* Intersection = LoopSegmentsIntersectionTool.DoesIntersect(*Node, *GetNext(Node)))
+					if (const FIsoSegment* Intersection = LoopSegmentsIntersectionTool.FindIntersectingSegment(*Node, *GetNext(Node)))
 					{
 						MoveNodeBehindSegment(*Intersection, *GetNext(Node));
 					}
@@ -1634,7 +1634,7 @@ void FLoopCleaner::FindLoopIntersections()
 			return;
 		}
 
-		if (LoopSegmentsIntersectionTool.FindIntersections(*Node, *NextNode, IntersectedSegments))
+		if (LoopSegmentsIntersectionTool.FindIntersectingSegments(*Node, *NextNode, IntersectedSegments))
 		{
 			for (const FIsoSegment* IntersectedSegment : IntersectedSegments)
 			{
