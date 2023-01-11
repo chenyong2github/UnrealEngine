@@ -178,7 +178,7 @@ public:
 			case mu::OP_TYPE::IM_RESIZEREL:
 			{
 				mu::OP::ImageResizeRelArgs Args = Program.GetOpArgs<mu::OP::ImageResizeRelArgs>(RowItem->MutableOperation);
-				OpName += FString::Printf(TEXT(" %.3f x %.3f"), int32(Args.factor[0]), int32(Args.factor[1]));
+				OpName += FString::Printf(TEXT(" %.3f x %.3f"), Args.factor[0], Args.factor[1]);
 				break;
 			}
 
@@ -218,7 +218,7 @@ public:
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
 				OpName += TEXT(" a: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
-				//OpName += FString::Printf(TEXT(" flags %d"), Args.flags);
+				OpName += FString::Printf(TEXT(" flags %d"), Args.flags);
 				break;
 			}
 

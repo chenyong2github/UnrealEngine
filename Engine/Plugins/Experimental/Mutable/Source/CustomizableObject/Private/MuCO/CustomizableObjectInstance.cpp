@@ -67,6 +67,7 @@
 #include "MuCO/MultilayerProjector.h"
 #include "MuCO/UnrealConversionUtils.h"
 #include "MuR/MeshBufferSet.h"
+#include "MuR/OpImagePixelFormat.h"
 #include "MuR/PhysicsBody.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
@@ -2679,7 +2680,7 @@ void CopyTextureProperties(UTexture2D* Texture, const UTexture2D* SourceTexture)
 
 // The memory allocated in the function and pointed by the returned pointer is owned by the caller and must be freed. 
 // If assigned to a UTexture2D, it will be freed by that UTexture2D
-FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatformData(const mu::Image* MutableImage, int32 OnlyLOD, uint16 FullSizeX, uint16 FullSizeY)
+FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatformData(mu::Ptr<const mu::Image> MutableImage, int32 OnlyLOD, uint16 FullSizeX, uint16 FullSizeY)
 {
 	int32 SizeX = FMath::Max(MutableImage->GetSize().x(), FullSizeX);
 	int32 SizeY = FMath::Max(MutableImage->GetSize().y(), FullSizeY);
@@ -2734,7 +2735,6 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 		//return nullptr;
 	}
 
-
 	EPixelFormat PlatformFormat = PF_Unknown;
 	switch (MutableFormat)
 	{
@@ -2762,9 +2762,25 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 	case mu::EImageFormat::IF_ASTC_4x4_RGBA_LDR:PlatformFormat = PF_ASTC_4x4;	break;
 	case mu::EImageFormat::IF_ASTC_4x4_RG_LDR:	PlatformFormat = PF_ASTC_4x4;	break;
 	default:
-		// Cannot prepare texture if it's not in the right format, this can happen if mutable is in debug mode
-		UE_LOG(LogMutable, Warning, TEXT("Building instance: a texture was generated in an unsupported format, which cannot be converted to Unreal."));
-		return nullptr; 
+		// Cannot prepare texture if it's not in the right format, this can happen if mutable is in debug mode or in case of bugs
+		UE_LOG(LogMutable, Warning, TEXT("Building instance: a texture was generated in an unsupported format, it will be converted to Unreal with a performance penalty."));
+
+		switch (mu::GetImageFormatData(MutableFormat).m_channels)
+		{
+		case 1:
+			PlatformFormat = PF_R8;
+			MutableImage = ImagePixelFormat(0, MutableImage.get(), mu::EImageFormat::IF_L_UBYTE);
+			break;
+		case 2:
+		case 3:
+		case 4:
+			PlatformFormat = PF_R8G8B8A8;
+			MutableImage = ImagePixelFormat(0, MutableImage.get(), mu::EImageFormat::IF_RGBA_UBYTE);
+			break;
+		default: 
+			// Absolutely worst case
+			return nullptr;
+		}		
 	}
 
 	FTexturePlatformData* PlatformData = new FTexturePlatformData();
@@ -2969,7 +2985,7 @@ void UCustomizableInstancePrivateData::ConvertImage(UTexture2D* Texture, mu::Ima
 		OnlyLOD = FMath::Min( OnlyLOD, MutableImage->GetLODCount()-1 );
 	}
 
-	Texture->SetPlatformData(MutableCreateImagePlatformData(MutableImage.get(),OnlyLOD,0,0) );
+	Texture->SetPlatformData(MutableCreateImagePlatformData(MutableImage,OnlyLOD,0,0) );
 
 }
 

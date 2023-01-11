@@ -1483,7 +1483,7 @@ namespace impl
 				// If the image is null, it must be in the cache (or repeated in this instance), and we don't need to do anything here.
 				if (MutableImage)
 				{
-					FTexturePlatformData* PlatformData = UCustomizableInstancePrivateData::MutableCreateImagePlatformData(MutableImage.get(), -1, Image.FullImageSizeX, Image.FullImageSizeY);
+					FTexturePlatformData* PlatformData = UCustomizableInstancePrivateData::MutableCreateImagePlatformData(MutableImage, -1, Image.FullImageSizeX, Image.FullImageSizeY);
 					OperationData->ImageToPlatformDataMap.Add(Image.ImageID, PlatformData);
 					OperationData->PendingTextureCoverageQueries.Add({ KeyName, Surface.MaterialIndex, PlatformData });
 				}

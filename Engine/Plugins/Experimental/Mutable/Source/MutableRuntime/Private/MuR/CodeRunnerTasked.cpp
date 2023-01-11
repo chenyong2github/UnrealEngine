@@ -229,7 +229,7 @@ namespace mu
 			}
 
 			// Look for completed streaming ops and complete the rom loading
-			for (auto& o : m_romLoadOps)
+			for (FRomLoadOp& o : m_romLoadOps)
 			{
 				if (o.m_romIndex>=0 && m_pSystem->m_pStreamInterface->IsReadCompleted(o.m_streamID))
 				{
@@ -308,7 +308,7 @@ namespace mu
 
 				// If we reached here it means we didn't find an op to wait for. Try to wait for a loading op.
 				// \todo: unify laoding ops with normal ones?
-				for (auto& o : m_romLoadOps)
+				for (FRomLoadOp& o : m_romLoadOps)
 				{
 					if (o.m_romIndex >= 0)
 					{
@@ -700,6 +700,9 @@ namespace mu
 
 			if (Args.mask && m_mask)
 			{			
+				// Not implemented yet
+				check(Args.flags==0);
+
 				// \todo: precalculated tables for softlight
 				switch (EBlendType(Args.blendType))
 				{
@@ -719,19 +722,40 @@ namespace mu
 			}
 			else
 			{
-				switch (EBlendType(Args.blendType))
+				// Not implemented yet
+				if (Args.flags & OP::ImageLayerArgs::FLAGS::F_BASE_RGB_FROM_ALPHA)
 				{
-				case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_SOFTLIGHT: BufferLayerColour<SoftLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_HARDLIGHT: BufferLayerColour<HardLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_BURN: BufferLayerColour<BurnChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_DODGE: BufferLayerColour<DodgeChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_SCREEN: BufferLayerColour<ScreenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
-				case EBlendType::BT_BLEND: FillPlainColourImage(pNew.get(), m_col); break;
-				default: check(false);
+					switch (EBlendType(Args.blendType))
+					{
+					case EBlendType::BT_NORMAL_COMBINE: check(false); break;
+					case EBlendType::BT_SOFTLIGHT: BufferLayerColourFromAlpha<SoftLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_HARDLIGHT: BufferLayerColourFromAlpha<HardLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_BURN: BufferLayerColourFromAlpha<BurnChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_DODGE: BufferLayerColourFromAlpha<DodgeChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_SCREEN: BufferLayerColourFromAlpha<ScreenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_OVERLAY: BufferLayerColourFromAlpha<OverlayChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_LIGHTEN: BufferLayerColourFromAlpha<LightenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_MULTIPLY: BufferLayerColourFromAlpha<MultiplyChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_BLEND: check(false); break;
+					default: check(false);
+					}
+				}
+				else
+				{
+					switch (EBlendType(Args.blendType))
+					{
+					case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_SOFTLIGHT: BufferLayerColour<SoftLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_HARDLIGHT: BufferLayerColour<HardLightChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_BURN: BufferLayerColour<BurnChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_DODGE: BufferLayerColour<DodgeChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_SCREEN: BufferLayerColour<ScreenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannel, false>(pNew.get(), m_base.get(), vec3f(m_col)); break;
+					case EBlendType::BT_BLEND: FillPlainColourImage(pNew.get(), m_col); break;
+					default: check(false);
+					}
 				}
 			}
 		}
@@ -1224,7 +1248,7 @@ namespace mu
 			check(RomSize>0);
 
 			CodeRunner::FRomLoadOp* op = nullptr;
-			for (auto& o : runner->m_romLoadOps)
+			for (FRomLoadOp& o : runner->m_romLoadOps)
 			{
 				if (o.m_romIndex < 0)
 				{
@@ -1344,7 +1368,7 @@ namespace mu
 			check(RomSize > 0);
 
 			CodeRunner::FRomLoadOp* op = nullptr;
-			for (auto& o : runner->m_romLoadOps)
+			for (FRomLoadOp& o : runner->m_romLoadOps)
 			{
 				if (o.m_romIndex < 0)
 				{
@@ -1454,7 +1478,7 @@ namespace mu
 
 		FProgram& program = m_pModel->GetPrivate()->m_program;
 
-		auto type = program.GetOpType(item.At);
+		OP_TYPE type = program.GetOpType(item.At);
 
 		switch (type)
 		{
