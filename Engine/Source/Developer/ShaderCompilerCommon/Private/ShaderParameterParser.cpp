@@ -730,6 +730,48 @@ void FShaderParameterParser::RemoveMovingParametersFromSource(FString& Preproces
 	}
 }
 
+FString FShaderParameterParser::GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const
+{
+	// NOTE: Macros AUTO_BINDLESS_SAMPLER_INDEX/VARIABLE and AUTO_BINDLESS_RESOURCE_INDEX/VARIABLE in BindlessResources.ush must be kept in sync with this function
+
+	const bool bIsSampler = (ParsedParameter.BindlessConversionType == EBindlessConversionType::Sampler);
+
+	const TCHAR* Kind = bIsSampler ? TEXT("Sampler") : TEXT("Resource");
+	const TCHAR* StorageClass = ParsedParameter.bGloballyCoherent ? TEXT("globallycoherent ") : TEXT("");
+
+	const FStringView Name = ParsedParameter.ParsedName;
+	const FStringView Type = ParsedParameter.ParsedType;
+
+	FString RewriteType(Type);
+
+	FString TypedefText = TEXT("");
+	if (ParsedParameter.BindlessConversionType == EBindlessConversionType::Resource)
+	{
+		RewriteType = FString::Printf(TEXT("SafeType%.*s"), Name.Len(), Name.GetData());
+		TypedefText = FString::Printf(TEXT("typedef %.*s %s;"), Type.Len(), Type.GetData(), *RewriteType);
+	}
+
+	TStringBuilder<512> Result;
+
+	// If we weren't going to be added to a root constant buffer, that means we need to declare our index before we declare our getter.
+	if (ParsedParameter.ConstantBufferParameterType == EShaderParameterType::Num)
+	{
+		// e.g. `uint BindlessResource_##Name;`
+		// or   `uint BindlessSampler_##Name;`
+		Result << TEXT("uint Bindless") << Kind << TEXT("_") << Name << TEXT(";");
+	}
+
+	Result << TypedefText;
+
+	// e.g. `Type GetBindlessResource##Name() { return GetResourceFromHeap(Type, BindlessResource_##Name); } static const Type Name = GetBindlessResource##Name()`
+	// or   `Type GetBindlessSampler##Name() { return GetSamplerFromHeap(Type, BindlessSampler_##Name); } static const Type Name = GetBindlessSampler##Name()`
+	Result << StorageClass << RewriteType << TEXT(" GetBindless") << Kind << Name << TEXT("()");
+	Result << TEXT("{ return Get") << Kind << TEXT("FromHeap(") << StorageClass << RewriteType << TEXT(", Bindless") << Kind << TEXT("_") << Name << TEXT("); } ");
+	Result << TEXT("static const ") << StorageClass << RewriteType << TEXT(" ") << Name << TEXT(" = GetBindless") << Kind << Name << TEXT("();");
+
+	return Result.ToString();
+}
+
 void FShaderParameterParser::ApplyBindlessModifications(FString& PreprocessedShaderSource)
 {
 	if (bBindlessResources || bBindlessSamplers)
@@ -755,38 +797,10 @@ void FShaderParameterParser::ApplyBindlessModifications(FString& PreprocessedSha
 
 			if (ParsedParameter.BindlessConversionType != EBindlessConversionType::None)
 			{
-				const bool bIsSampler = (ParsedParameter.BindlessConversionType == EBindlessConversionType::Sampler);
-
-				const TCHAR* IndexDefine = bIsSampler ? TEXT("AUTO_BINDLESS_SAMPLER_INDEX") : TEXT("AUTO_BINDLESS_RESOURCE_INDEX");
-				const TCHAR* VariableDefine = bIsSampler ? TEXT("AUTO_BINDLESS_SAMPLER_VARIABLE") : TEXT("AUTO_BINDLESS_RESOURCE_VARIABLE");
-				const TCHAR* StorageClass = ParsedParameter.bGloballyCoherent ? TEXT("globallycoherent ") : TEXT("");
-
-				const FStringView Name = ParsedParameter.ParsedName;
-				const FStringView Type = ParsedParameter.ParsedType;
-
-				FString RewriteType(Type);
-
-				FString TypedefText = TEXT("");
-				if (ParsedParameter.BindlessConversionType == EBindlessConversionType::Resource)
-				{
-					RewriteType = FString::Printf(TEXT("SafeType%.*s"), Name.Len(), Name.GetData());
-					TypedefText = FString::Printf(TEXT("typedef %.*s %s;"), Type.Len(), Type.GetData(), *RewriteType);
-				}
-
-				const FString IndexText = FString::Printf(TEXT("%s(%.*s);"), IndexDefine, Name.Len(), Name.GetData());
-				const FString VariableText = FString::Printf(TEXT("%s(%s%s, %.*s);"), VariableDefine, StorageClass, *RewriteType, Name.Len(), Name.GetData());
-
 				FShaderCodeModifications Modif;
 				Modif.CharOffsetStart = ParsedParameter.ParsedCharOffsetStart;
 				Modif.CharOffsetEnd = ParsedParameter.ParsedCharOffsetEnd + 1;
-
-				// If we weren't going to be added to a root constant buffer, that means we need to declare our index before we declare our getter.
-				if (ParsedParameter.ConstantBufferParameterType == EShaderParameterType::Num)
-				{
-					Modif.Replace += IndexText;
-				}
-				Modif.Replace += TypedefText;
-				Modif.Replace += VariableText;
+				Modif.Replace = GenerateBindlessParameterDeclaration(ParsedParameter);
 
 				Modifications.Add(Modif);
 			}

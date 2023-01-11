@@ -66,7 +66,7 @@ public:
 	FShaderParameterParser();
 	FShaderParameterParser(const TCHAR* InConstantBufferType);
 	FShaderParameterParser(const TCHAR* InConstantBufferType, TArrayView<const TCHAR* const> InExtraSRVTypes, TArrayView<const TCHAR* const> InExtraUAVTypes);
-	~FShaderParameterParser();
+	virtual ~FShaderParameterParser();
 
 	/** Parses the preprocessed shader code and applies the necessary modifications to it. */
 	bool ParseAndModify(
@@ -165,6 +165,12 @@ private:
 	);
 
 	void ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const;
+
+	/**
+	* Generates shader source code to declare a bindless resource or sampler (for automatic bindless conversion).
+	* May be overriden to allow custom implementations for different platforms.
+	*/
+	virtual FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const;
 
 	const TCHAR* const ConstantBufferType = nullptr;
 

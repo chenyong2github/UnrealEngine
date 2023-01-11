@@ -33,8 +33,9 @@
 		DEFINE_RESOURCE_VARIABLE(Type, Name); \
 		static const Type Name = GET_RESOURCE(Name);
 
-	COMPILER_DEFINE AUTO_BINDLESS_RESOURCE_INDEX(Name)          uint BindlessResource_##Name
-	COMPILER_DEFINE AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name) Type GetBindlessResource##Name() { return GetResourceFromHeap(Type, BindlessResource_##Name); }; static const Type Name = GetBindlessResource##Name()
+	// NOTE: These macros equivalent to FShaderParameterParser::ApplyBindlessModifications and must be kept in sync
+	#define AUTO_BINDLESS_RESOURCE_INDEX(Name)          uint BindlessResource_##Name
+	#define AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name) Type GetBindlessResource##Name() { return GetResourceFromHeap(Type, BindlessResource_##Name); }; static const Type Name = GetBindlessResource##Name()
 
 	#define UB_RESOURCE_MEMBER_RESOURCE(Type, Name) AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name)
 #else
@@ -59,8 +60,9 @@
 		DEFINE_SAMPLER_VARIABLE(Type, Name); \
 		static const Type Name = GET_SAMPLER(Name);
 
-	COMPILER_DEFINE AUTO_BINDLESS_SAMPLER_INDEX(Name)          uint BindlessSampler_##Name
-	COMPILER_DEFINE AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name) Type GetBindlessSampler##Name() { return GetSamplerFromHeap(Type, BindlessSampler_##Name); }; static const Type Name = GetBindlessSampler##Name()
+	// NOTE: These macros equivalent to FShaderParameterParser::ApplyBindlessModifications and must be kept in sync
+	#define AUTO_BINDLESS_SAMPLER_INDEX(Name)          uint BindlessSampler_##Name
+	#define AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name) Type GetBindlessSampler##Name() { return GetSamplerFromHeap(Type, BindlessSampler_##Name); }; static const Type Name = GetBindlessSampler##Name()
 
 	#define UB_RESOURCE_MEMBER_SAMPLER(Type, Name) AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name)
 #else
