@@ -50,6 +50,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bSupportsMetal = true;
 	bSupportsMetalMRT = false;
 	bDisableHTTPS = false;
+    bSupportsBackgroundAudio = false;
 }
 
 void UIOSRuntimeSettings::PostReloadConfig(class FProperty* PropertyThatWasLoaded)

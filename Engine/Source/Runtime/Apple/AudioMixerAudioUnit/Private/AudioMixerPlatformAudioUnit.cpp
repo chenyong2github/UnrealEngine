@@ -82,6 +82,8 @@ namespace Audio
 			return false;
 		}
 		
+        bSupportsBackgroundAudio = GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsBackgroundAudio"), bSupportsBackgroundAudio, GEngineIni);
+
 		OSStatus Status;
 		GraphSampleRate = (double) InternalPlatformSettings.SampleRate;
 		UInt32 BufferSize = (UInt32) GetNumFrames(InternalPlatformSettings.CallbackBufferFrameSize);
@@ -513,6 +515,12 @@ namespace Audio
 	
 	void FMixerPlatformAudioUnit::SuspendContext()
 	{
+#if PLATFORM_IOS
+        if (bSupportsBackgroundAudio)
+        {
+            return;
+        }
+#endif
 		if (SuspendCounter == 0)
 		{
 			FPlatformAtomics::InterlockedIncrement(&SuspendCounter);

@@ -606,8 +606,20 @@ static IOSAppDelegate* CachedDelegate = nil;
 	
 	self.bAudioActive = bActive;
 	
-	// get the category and settings to use
-	NSString* Category = [self IsFeatureActive:EAudioFeature::DoNotMixWithOthers] ? AVAudioSessionCategorySoloAmbient : AVAudioSessionCategoryAmbient;
+    // get the category and settings to use
+        NSString* Category = AVAudioSessionCategoryAmbient;
+        if([self IsFeatureActive:EAudioFeature::DoNotMixWithOthers])
+        {
+            Category = AVAudioSessionCategorySoloAmbient;
+        }
+    #if !PLATFORM_TVOS
+        bool bSupportsBackgroundAudio = GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsBackgroundAudio"), bSupportsBackgroundAudio, GEngineIni);
+        if (bSupportsBackgroundAudio)
+        {
+            Category = AVAudioSessionCategoryPlayback;
+        }
+    #endif
+    
 	NSString* Mode = AVAudioSessionModeDefault;
 	AVAudioSessionCategoryOptions Options = 0;
 	if (self.bAudioActive || [self IsBackgroundAudioPlaying] || [self IsFeatureActive:EAudioFeature::BackgroundAudio])
@@ -1327,11 +1339,8 @@ FCriticalSection RenderSuspend;
  		FEmbeddedCommunication::KeepAwake(TEXT("Background"), false);
         FGraphEventRef ResignTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]()
         {
-			UE_LOG(LogTemp, Display, TEXT("Calling Delegate"));
-
-			FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();
-
-			FEmbeddedCommunication::AllowSleep(TEXT("Background"));
+            FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();
+            FEmbeddedCommunication::AllowSleep(TEXT("Background"));
         }, TStatId(), NULL, ENamedThreads::GameThread);
 		
 		// Do not wait forever for this task to complete since the game thread may be stuck on waiting for user input from a modal dialog box
@@ -1347,11 +1356,18 @@ FCriticalSection RenderSuspend;
 		}
 		UE_LOG(LogTemp, Display, TEXT("Done with entering background tasks time."));
     }
+    bool bSupportsBackgroundAudio = GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsBackgroundAudio"), bSupportsBackgroundAudio, GEngineIni);
+    
 // fix for freeze on tvOS, moving to applicationDidEnterBackground. Not making the changes for iOS platforms as the bug does not happen and could bring some side effets.
 #if !PLATFORM_TVOS
-    [self ToggleSuspend:true];
+    if (!bSupportsBackgroundAudio)
+    {
+        [self ToggleSuspend:true];
+        [self ToggleAudioSession:false];
+    }
+#else
+    [self ToggleAudioSession:false];
 #endif
-	[self ToggleAudioSession:false];
     
     RenderSuspend.TryLock();
     if (FTaskGraphInterface::IsRunning())

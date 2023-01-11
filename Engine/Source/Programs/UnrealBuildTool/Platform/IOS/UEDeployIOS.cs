@@ -347,6 +347,10 @@ namespace UnrealBuildTool
 			bool bRemoteNotificationsSupported = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableRemoteNotificationsSupport", out bRemoteNotificationsSupported);
 
+			// Add audio as background mode
+			bool bBackgroundAudioSupported = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsBackgroundAudio", out bBackgroundAudioSupported);
+
 			// Add background fetch as background mode
 			bool bBackgroundFetch = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableBackgroundFetch", out bBackgroundFetch);
@@ -539,10 +543,14 @@ namespace UnrealBuildTool
 			}
 
 			// Add remote-notifications as background mode
-			if (bRemoteNotificationsSupported || bBackgroundFetch)
+			if (bRemoteNotificationsSupported || bBackgroundFetch || bBackgroundAudioSupported)
 			{
 				Text.AppendLine("\t<key>UIBackgroundModes</key>");
 				Text.AppendLine("\t<array>");
+				if (bBackgroundAudioSupported)
+				{
+					Text.AppendLine("\t\t<string>audio</string>");
+				}
 				if (bRemoteNotificationsSupported)
 				{
 					Text.AppendLine("\t\t<string>remote-notification</string>");

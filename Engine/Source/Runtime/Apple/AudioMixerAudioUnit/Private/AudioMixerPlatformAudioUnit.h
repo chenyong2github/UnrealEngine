@@ -72,6 +72,8 @@ namespace Audio
 		int32       BytesPerSubmittedBuffer;
 		
 		double GraphSampleRate;
+        
+        bool bSupportsBackgroundAudio;
 		
 		// We may have to grow the circular buffer capacity since Audio Unit callback size is not guaranteed to be constant
 		// Currently, this just zero's-out and reallocates, so it will pop. (We always keep largest capacity)
