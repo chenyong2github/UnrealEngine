@@ -21,7 +21,6 @@ class FMediaTextureClockSink;
 class IMediaTextureSample;
 class UMediaPlayer;
 
-
 UENUM()
 enum MediaTextureOutputFormat : int
 {
@@ -50,6 +49,17 @@ class MEDIAASSETS_API UMediaTexture
 	: public UTexture
 {
 	GENERATED_UCLASS_BODY()
+
+public:
+
+	/** Possible render modes of this media texture. */
+	enum class ERenderMode
+	{
+		Default = 0,
+		JustInTime, // Will defer rendering this media texture until its consumer calls its JustInTimeRender function.
+	};
+
+public:
 
 	/** The addressing mode to use for the X axis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="MediaTexture", meta=(DisplayName="X-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
@@ -210,6 +220,21 @@ public:
 	 */
 	void SetMipMapBias(float InMipMapBias);
 
+	/** Renders this media texture. Only has an effect if its RenderMode is ERenderMode::JustInTime */
+	virtual void JustInTimeRender();
+
+	/** Sets the ERenderMode of this media texture */
+	void SetRenderMode(ERenderMode InRenderMode)
+	{
+		RenderMode = InRenderMode;
+	}
+
+	/** Returns the ERenderMode of this media texture */
+	ERenderMode GetRenderMode()
+	{
+		return RenderMode;
+	}
+
 public:
 
 	//~ UTexture interface.
@@ -314,4 +339,7 @@ private:
 
 	/** Mip-map bias used by the media texture resource sampler. */
 	float MipMapBias;
+
+	/** Current render mode of this media texture. Can be changed using SetRenderMode() */
+	ERenderMode RenderMode = ERenderMode::Default;
 };

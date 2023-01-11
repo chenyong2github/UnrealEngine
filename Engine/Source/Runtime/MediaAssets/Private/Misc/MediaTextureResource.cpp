@@ -731,7 +731,33 @@ void FMediaTextureResource::ReleaseDynamicRHI()
 		 (Format != PF_FloatRGB) &&
 		 (Format != PF_FloatRGBA));
  }
+ 
 
+void FMediaTextureResource::SetJustInTimeRenderParams(const FRenderParams& InJustInTimeRenderParams)
+{
+	check(IsInRenderingThread());
+
+	JustInTimeRenderParams = MakeUnique<FRenderParams>();
+	*JustInTimeRenderParams = InJustInTimeRenderParams;
+}
+
+void FMediaTextureResource::ResetJustInTimeRenderParams()
+{
+	check(IsInRenderingThread());
+
+	JustInTimeRenderParams.Reset();
+}
+
+void FMediaTextureResource::JustInTimeRender()
+{
+	check(IsInRenderingThread());
+
+	if (JustInTimeRenderParams.IsValid())
+	{
+		Render(*JustInTimeRenderParams);
+		JustInTimeRenderParams.Reset();
+	}
+}
 
  bool FMediaTextureResource::RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, uint8 InNumMips) const
  {
