@@ -55,6 +55,11 @@ bool UOptimusSkinnedMeshComponentSource::GetComponentElementCountsForExecutionDo
 	}
 
 	const FSkeletalMeshObject* SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
+	if (!SkeletalMeshObject)
+	{
+		return false;
+	}
+
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[InLodIndex];
 
