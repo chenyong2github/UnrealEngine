@@ -82,7 +82,7 @@ public:
 	/** Number of frames starved of audio */
 	int32 NumFramesStarved;
 	/** Synth component playing this buffer (only valid on remote instances) */
-	UVoipListenerSynthComponent* VoipSynthComponent;
+	TWeakObjectPtr<UVoipListenerSynthComponent> VoipSynthComponent;
 	/** Cached Talker Ptr. Is checked against map before use to ensure it has not been destroyed. */
 	UVOIPTalker* CachedTalkerPtr;
 	/** Boolean used to ensure that we only bind the VOIP talker to the SynthComponent's corresponding envelope delegate once. */
@@ -158,9 +158,9 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 			for (FRemoteTalkerData::TIterator It(VoiceEngine->RemoteTalkerBuffers); It; ++It)
 			{
 				FRemoteTalkerDataImpl& RemoteData = It.Value();
-				if (RemoteData.VoipSynthComponent)
+				if (UVoipListenerSynthComponent* VoipSynthComponent = RemoteData.VoipSynthComponent.GetEvenIfUnreachable())
 				{
-					Collector.AddReferencedObject(RemoteData.VoipSynthComponent);
+					Collector.AddReferencedObject(VoipSynthComponent);
 				}
 			}
 		}
