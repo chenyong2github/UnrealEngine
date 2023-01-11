@@ -421,7 +421,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 			}
 
 			float& NormalizedCurrentTime = *(Instance.TimeAccumulator);
-			if (Context.ShouldResyncToSyncGroup())
+			if (Context.ShouldResyncToSyncGroup() && !Instance.bIsEvaluator)
 			{
 				// Synchronize the asset player time to the other sync group members when (re)joining the group
 				NormalizedCurrentTime = Context.GetAnimationPositionRatio();
@@ -545,7 +545,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 				float ClampedNormalizedPreviousTime = FMath::Clamp<float>(NormalizedPreviousTime, 0.f, 1.f);
 				float ClampedNormalizedCurrentTime = FMath::Clamp<float>(NormalizedCurrentTime, 0.f, 1.f);
 
-				if (Instance.BlendSpace.bIsEvaluator && !Instance.BlendSpace.bTeleportToTime)
+				if (Instance.bIsEvaluator && !Instance.BlendSpace.bTeleportToTime)
 				{
 					// When running under an evaluator the time is being set explicitly and we want to add on the deltas.
 					ClampedNormalizedPreviousTime -= ExtraNormalizedDeltaTime;

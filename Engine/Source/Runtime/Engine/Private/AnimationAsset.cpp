@@ -191,6 +191,11 @@ void FAnimTickRecord::AllocateContextDataContainer()
 }
 
 FAnimTickRecord::FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
+	: FAnimTickRecord(InSequence, bInLooping, InPlayRate, /*bInIsEvaluator*/ false, InFinalBlendWeight, InCurrentTime, InMarkerTickRecord)
+{
+}
+
+FAnimTickRecord::FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, bool bInIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
 {
 	SourceAsset = InSequence;
 	TimeAccumulator = &InCurrentTime;
@@ -198,11 +203,12 @@ FAnimTickRecord::FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping,
 	PlayRateMultiplier = InPlayRate;
 	EffectiveBlendWeight = InFinalBlendWeight;
 	bLooping = bInLooping;
+	bIsEvaluator = bInIsEvaluator;
 }
 
 FAnimTickRecord::FAnimTickRecord(
 	UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, 
-	float InPlayRate, bool bTeleportToTime, bool bIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
+	float InPlayRate, bool bTeleportToTime, bool bInIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
 {
 	SourceAsset = InBlendSpace;
 	BlendSpace.BlendSpacePositionX = InBlendInput.X;
@@ -210,12 +216,12 @@ FAnimTickRecord::FAnimTickRecord(
 	BlendSpace.BlendSampleDataCache = &InBlendSampleDataCache;
 	BlendSpace.BlendFilter = &InBlendFilter;
 	BlendSpace.bTeleportToTime = bTeleportToTime;
-	BlendSpace.bIsEvaluator = bIsEvaluator;
 	TimeAccumulator = &InCurrentTime;
 	MarkerTickRecord = &InMarkerTickRecord;
 	PlayRateMultiplier = InPlayRate;
 	EffectiveBlendWeight = InFinalBlendWeight;
 	bLooping = bInLooping;
+	bIsEvaluator = bInIsEvaluator;
 }
 
 FAnimTickRecord::FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float, float, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord)

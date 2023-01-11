@@ -761,6 +761,7 @@ void FAnimInstanceProxy::MakeSequenceTickRecord(FAnimTickRecord& TickRecord, cla
 	TickRecord.PlayRateMultiplier = PlayRate;
 	TickRecord.EffectiveBlendWeight = FinalBlendWeight;
 	TickRecord.bLooping = bLooping;
+	TickRecord.bIsEvaluator = false;
 }
 
 void FAnimInstanceProxy::MakeBlendSpaceTickRecord(
@@ -772,7 +773,6 @@ void FAnimInstanceProxy::MakeBlendSpaceTickRecord(
 	TickRecord.BlendSpace.BlendSpacePositionY = BlendInput.Y;
 	// This way of making a tick record is deprecated, so just set to defaults here rather than changing the API
 	TickRecord.BlendSpace.bTeleportToTime = false; 
-	TickRecord.BlendSpace.bIsEvaluator = false;
 	TickRecord.BlendSpace.BlendSampleDataCache = &BlendSampleDataCache;
 	TickRecord.BlendSpace.BlendFilter = &BlendFilter;
 	TickRecord.TimeAccumulator = &CurrentTime;
@@ -780,6 +780,7 @@ void FAnimInstanceProxy::MakeBlendSpaceTickRecord(
 	TickRecord.PlayRateMultiplier = PlayRate;
 	TickRecord.EffectiveBlendWeight = FinalBlendWeight;
 	TickRecord.bLooping = bLooping;
+	TickRecord.bIsEvaluator = false;
 }
 
 void FAnimInstanceProxy::MakePoseAssetTickRecord(FAnimTickRecord& TickRecord, class UPoseAsset* PoseAsset, float FinalBlendWeight) const
@@ -3242,8 +3243,39 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 Lin
 						PoseWatch.Object = GetAnimInstanceObject();
 						PoseWatch.PoseWatch->SetIsNodeEnabled(true);
 
-						const TArray<FTransform, FAnimStackAllocator>& BoneTransforms = Pose.GetBones();
-						const TArray<FBoneIndexType>& TmpRequiredBones = Pose.GetBoneContainer().GetBoneIndicesArray();
+						/*
+						for (FCompactPoseBoneIndex BoneIndex : Pose.ForEachBoneIndex())
+						{
+							FMeshPoseBoneIndex MeshBoneIndex = Pose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex);
+
+							int32 ParentIndex = Pose.GetBoneContainer().GetParentBoneIndex(MeshBoneIndex.GetInt());
+
+							if (ParentIndex == INDEX_NONE)
+							{
+								WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * MeshComponent->GetComponentTransform();
+							}
+							else
+							{
+								WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * WorldTransforms[ParentIndex];
+							}
+							BoneColors[MeshBoneIndex.GetInt()] = BoneColor;
+						}
+						*/
+
+						TArray<FTransform> BoneTransforms;
+						BoneTransforms.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
+
+						TArray<FBoneIndexType> TmpRequiredBones;
+						TmpRequiredBones.Reserve(Pose.GetBoneContainer().GetNumBones());
+
+						for (FCompactPoseBoneIndex BoneIndex : Pose.ForEachBoneIndex())
+						{
+							FMeshPoseBoneIndex MeshBoneIndex = Pose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex);
+
+							BoneTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex];
+							TmpRequiredBones.Add(MeshBoneIndex.GetInt());
+						}
+
 						PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
 						PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
 

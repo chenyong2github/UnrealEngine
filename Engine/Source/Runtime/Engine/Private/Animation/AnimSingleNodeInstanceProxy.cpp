@@ -587,7 +587,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		}
 		else if (UAnimSequence* Sequence = Cast<UAnimSequence>(Proxy->CurrentAsset))
 		{
-			FAnimTickRecord TickRecord(Sequence, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			FAnimTickRecord TickRecord(Sequence, Proxy->bLooping, NewPlayRate, false, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
 			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
 			
 			SyncScope.AddTickRecord(TickRecord);
@@ -606,7 +606,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		}
 		else if (UAnimStreamable* Streamable = Cast<UAnimStreamable>(Proxy->CurrentAsset))
 		{
-			FAnimTickRecord TickRecord(Streamable, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			FAnimTickRecord TickRecord(Streamable, Proxy->bLooping, NewPlayRate, false, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
 			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
 			
 			SyncScope.AddTickRecord(TickRecord);
@@ -625,7 +625,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		}
 		else if(UAnimComposite* Composite = Cast<UAnimComposite>(Proxy->CurrentAsset))
 		{
-			FAnimTickRecord TickRecord(Composite, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			FAnimTickRecord TickRecord(Composite, Proxy->bLooping, NewPlayRate, false, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
 			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
 			
 			SyncScope.AddTickRecord(TickRecord);

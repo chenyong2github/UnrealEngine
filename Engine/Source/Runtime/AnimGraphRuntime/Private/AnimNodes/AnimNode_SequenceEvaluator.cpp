@@ -67,12 +67,12 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 			const float DeltaTime = Context.GetDeltaTime();
 			const float RateScale = CurrentSequence->RateScale;
 			const float PlayRate = FMath::IsNearlyZero(DeltaTime) || FMath::IsNearlyZero(RateScale) ? 0.f : (TimeJump / (DeltaTime * RateScale));
-			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), PlayRate);
+			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), PlayRate, true);
 		}
 		else
 		{
 			InternalTimeAccumulator = CurrentExplicitTime;
-			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), 0);
+			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), 0, true);
 		}
 	}
 

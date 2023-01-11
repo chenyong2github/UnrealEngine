@@ -372,6 +372,7 @@ struct FAnimTickRecord
 	float RootMotionWeightModifier = 1.0f;
 
 	bool bLooping = false;
+	bool bIsEvaluator = false;
 	const UMirrorDataTable* MirrorDataTable = nullptr;
 
 	TSharedPtr<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>> ContextData;
@@ -386,7 +387,6 @@ struct FAnimTickRecord
 			float  BlendSpacePositionX;
 			float  BlendSpacePositionY;
 			bool   bTeleportToTime;
-			bool   bIsEvaluator;
 		} BlendSpace;
 
 		struct
@@ -412,27 +412,19 @@ private:
 	void AllocateContextDataContainer();
 
 public:
-	FAnimTickRecord()
-		: SourceAsset(nullptr)
-		, TimeAccumulator(nullptr)
-		, PlayRateMultiplier(1.f)
-		, EffectiveBlendWeight(0.f)
-		, RootMotionWeightModifier(1.f)
-		, bLooping(false)
-		, DeltaTimeRecord(nullptr)
-		, MarkerTickRecord(nullptr)
-		, bCanUseMarkerSync(false)
-		, LeaderScore(0.f)
-	{
-	}
+	FAnimTickRecord() = default;
 
 	// Create a tick record for an anim sequence
+	UE_DEPRECATED(5.2, "Please use the anim sequence FAnimTickRecord constructor which adds bInIsEvaluator (defaulted to false)")
 	ENGINE_API FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
+
+	// Create a tick record for an anim sequence
+	ENGINE_API FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, bool bInIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
 
 	// Create a tick record for a blendspace
 	ENGINE_API FAnimTickRecord(
 		UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, 
-		float InPlayRate, bool bShouldTeleportToTime, bool bIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
+		float InPlayRate, bool bShouldTeleportToTime, bool bInIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
 
 	// Create a tick record for a montage
 	UE_DEPRECATED(5.0, "Please use the montage FAnimTickRecord constructor which removes InPreviousPosition and InMoveDelta")

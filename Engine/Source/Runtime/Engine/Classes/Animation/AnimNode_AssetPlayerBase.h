@@ -30,7 +30,7 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerReleva
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) {};
 
 	// Create a tick record for this node
-	void CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate);
+	void CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, bool bIsEvaluator);
 
 	// Get the sync group name we are using
 	virtual FName GetGroupName() const { return NAME_None; }

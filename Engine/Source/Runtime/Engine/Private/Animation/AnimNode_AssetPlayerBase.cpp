@@ -23,7 +23,7 @@ void FAnimNode_AssetPlayerBase::Update_AnyThread(const FAnimationUpdateContext& 
 	UpdateAssetPlayer(Context);
 }
 
-void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate)
+void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, bool bIsEvaluator)
 {
 	// Create a tick record and push into the closest scope
 	const float FinalBlendWeight = Context.GetFinalBlendWeight();
@@ -41,7 +41,7 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 	}
 
 	const UE::Anim::FAnimSyncParams SyncParams(GroupNameToUse, SyncGroupRole, MethodToUse);
-	FAnimTickRecord TickRecord(Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+	FAnimTickRecord TickRecord(Sequence, bLooping, PlayRate, bIsEvaluator, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 	TickRecord.GatherContextData(Context);
 
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();

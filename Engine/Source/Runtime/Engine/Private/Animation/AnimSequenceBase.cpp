@@ -537,7 +537,7 @@ void UAnimSequenceBase::RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bC
 void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const
 {
 	float CurrentTime = *(Instance.TimeAccumulator);
-	if (Context.ShouldResyncToSyncGroup())
+	if (Context.ShouldResyncToSyncGroup() && !Instance.bIsEvaluator)
 	{
 		// Synchronize the asset player time to the other sync group members when (re)joining the group
 		CurrentTime = Context.GetAnimationPositionRatio() * GetPlayLength();
