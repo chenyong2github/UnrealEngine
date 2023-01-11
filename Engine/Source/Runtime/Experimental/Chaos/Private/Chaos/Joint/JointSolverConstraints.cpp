@@ -579,7 +579,7 @@ namespace Chaos
 		RowData.Limit = 0.0f;
 		RowData.Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings, AxisIndex);
 		RowData.Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex);
-		RowData.bIsAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+		RowData.bIsAccelerationMode = FPBDJointUtilities::GetLinearDriveAccelerationMode(SolverSettings, JointSettings);
 		RowData.bIsSoft = true;
 	}
 
@@ -665,7 +665,7 @@ namespace Chaos
 
 		RowData.Stiffness = FPBDJointUtilities::GetAngularTwistDriveStiffness(SolverSettings, JointSettings);
 		RowData.Damping = FPBDJointUtilities::GetAngularTwistDriveDamping(SolverSettings, JointSettings);
-		RowData.bIsAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+		RowData.bIsAccelerationMode = FPBDJointUtilities::GetAngularDriveAccelerationMode(SolverSettings, JointSettings);
 		RowData.bIsSoft = true;
 	}
 
@@ -688,7 +688,7 @@ namespace Chaos
 
 		RowData.Stiffness = FPBDJointUtilities::GetAngularSwingDriveStiffness(SolverSettings, JointSettings);
 		RowData.Damping = FPBDJointUtilities::GetAngularSwingDriveDamping(SolverSettings, JointSettings);
-		RowData.bIsAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+		RowData.bIsAccelerationMode = FPBDJointUtilities::GetAngularDriveAccelerationMode(SolverSettings, JointSettings);
 		RowData.bIsSoft = true;
 	}
 
@@ -708,7 +708,7 @@ namespace Chaos
 
 		RowData.Stiffness = FPBDJointUtilities::GetAngularSLerpDriveStiffness(SolverSettings, JointSettings);
 		RowData.Damping = FPBDJointUtilities::GetAngularSLerpDriveDamping(SolverSettings, JointSettings);
-		RowData.bIsAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+		RowData.bIsAccelerationMode = FPBDJointUtilities::GetAngularDriveAccelerationMode(SolverSettings, JointSettings);
 		RowData.bIsSoft = true;
 	}
 

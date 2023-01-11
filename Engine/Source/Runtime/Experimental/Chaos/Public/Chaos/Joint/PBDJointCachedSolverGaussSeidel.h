@@ -24,6 +24,12 @@ struct FAxisConstraintDatas
 		const FReal SoftDamping,
 		const FReal HardStiffness);
 
+	/** Initialize the max force ( force is modified for acceleration mode and converted to positional impulse limit) */
+	void SetMaxForce(
+		const int32 ConstraintIndex,
+		const FReal InMaxForce,
+		const FReal Dt);
+
 	/** Update the axis joint datas with axis, limits, arms... */
 	void UpdateDatas(
 		const int32 ConstraintIndex,
@@ -42,11 +48,18 @@ struct FAxisConstraintDatas
 		const FVec3& DatasIA1,
 		const FReal DatasIM,
 		const FReal Dt);
+
+	/** Apply the impulse limits to the impulse delta and net impulse */
+	void ApplyMaxLambda(
+		const int32 ConstraintIndex,
+		FReal& DeltaLambda, 
+		FReal& Lambda);
 	
 	FVec3 ConstraintHardStiffness;
 	FVec3 ConstraintSoftStiffness;
 	FVec3 ConstraintSoftDamping;
-	
+	FVec3 ConstraintMaxLambda;
+
 	FVec3 SettingsSoftDamping;
 	FVec3 SettingsSoftStiffness;
 	

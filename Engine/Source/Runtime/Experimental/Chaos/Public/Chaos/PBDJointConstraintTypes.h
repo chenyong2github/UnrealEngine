@@ -174,6 +174,7 @@ namespace Chaos
 		EJointForceMode LinearDriveForceMode;
 		FVec3 LinearDriveStiffness;
 		FVec3 LinearDriveDamping;
+		FVec3 LinearDriveMaxForce;
 
 		FRotation3 AngularDrivePositionTarget;
 		FVec3 AngularDriveVelocityTarget;
@@ -187,6 +188,7 @@ namespace Chaos
 		EJointForceMode AngularDriveForceMode;
 		FVec3 AngularDriveStiffness;
 		FVec3 AngularDriveDamping;
+		FVec3 AngularDriveMaxTorque;
 
 		FReal LinearBreakForce;
 		FReal LinearPlasticityLimit;

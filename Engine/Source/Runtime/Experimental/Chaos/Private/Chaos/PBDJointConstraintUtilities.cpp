@@ -594,7 +594,14 @@ namespace Chaos
 		return JointSettings.AngularSoftForceMode == EJointForceMode::Acceleration;
 	}
 
-	bool FPBDJointUtilities::GetDriveAccelerationMode(
+	bool FPBDJointUtilities::GetLinearDriveAccelerationMode(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return JointSettings.LinearDriveForceMode == EJointForceMode::Acceleration;
+	}
+
+	bool FPBDJointUtilities::GetAngularDriveAccelerationMode(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{

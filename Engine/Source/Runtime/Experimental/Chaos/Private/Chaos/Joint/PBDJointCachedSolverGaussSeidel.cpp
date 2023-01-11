@@ -819,17 +819,17 @@ void FPBDJointCachedSolver::InitRotationConstraints(
 	const int32 S2 = (int32)EJointAngularConstraintIndex::Swing2;
 
 	RotationConstraints.InitDatas(TW,FPBDJointUtilities::GetSoftTwistLimitEnabled(SolverSettings, JointSettings) && !bAngularLocked[TW],
-FPBDJointUtilities::GetSoftTwistStiffness(SolverSettings, JointSettings),
-							   FPBDJointUtilities::GetSoftTwistDamping(SolverSettings, JointSettings),
+					FPBDJointUtilities::GetSoftTwistStiffness(SolverSettings, JointSettings),
+					FPBDJointUtilities::GetSoftTwistDamping(SolverSettings, JointSettings),
 					FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings));
 
 	RotationConstraints.InitDatas(S1,FPBDJointUtilities::GetSoftSwingLimitEnabled(SolverSettings, JointSettings) && !bAngularLocked[S1],
-	FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings),
+					FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings),
 					FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings),
 					FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings));
 
 	RotationConstraints.InitDatas(S2, FPBDJointUtilities::GetSoftSwingLimitEnabled(SolverSettings, JointSettings) && !bAngularLocked[S2],
-	FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings),
+					FPBDJointUtilities::GetSoftSwingStiffness(SolverSettings, JointSettings),
 					FPBDJointUtilities::GetSoftSwingDamping(SolverSettings, JointSettings),
 					FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings));
 
@@ -1263,7 +1263,7 @@ void FPBDJointCachedSolver::InitPositionDrives(
 			(JointSettings.bLinearPositionDriveEnabled[2] || JointSettings.bLinearVelocityDriveEnabled[2]) && (JointSettings.LinearMotionTypes[2] != EJointMotionType::Locked),
 		};
 	
-		PositionDrives.bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+		PositionDrives.bAccelerationMode = FPBDJointUtilities::GetLinearDriveAccelerationMode(SolverSettings, JointSettings);
 
 		// Rectangular position drives
 		if (bDriven[0] || bDriven[1] || bDriven[2])
@@ -1278,13 +1278,15 @@ void FPBDJointCachedSolver::InitPositionDrives(
 				if (bDriven[AxisIndex])
 				{
 					PositionDrives.InitDatas(AxisIndex, true, FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings, AxisIndex),
-						FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex), 0.0f);
+						FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex), 0);
 					const FVec3 Axis = R0M.GetAxis(AxisIndex);
 				
 					if ((FMath::Abs(FVec3::DotProduct(CX,Axis)) > PositionTolerance) || (PositionDrives.ConstraintSoftDamping[AxisIndex] > 0.0f))
 					{
 						InitAxisPositionDrive(AxisIndex, Axis, CX, VTarget, Dt);
 					}
+
+					PositionDrives.SetMaxForce(AxisIndex, JointSettings.LinearDriveMaxForce[AxisIndex], Dt);
 				}
 			}
 		}
@@ -1553,15 +1555,19 @@ void FPBDJointCachedSolver::ApplyAxisPositionDrive(
 	FReal VelDt = 0;
 	if (PositionDrives.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
 	{
-		const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0]+ Delta0, 1.0f);
-		const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1]+ Delta1, 1.0f);
+		const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0] + Delta0, 1.0f);
+		const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1] + Delta1, 1.0f);
 		VelDt = PositionDrives.ConstraintVX[ConstraintIndex] * Dt + FVec3::DotProduct(V0Dt - V1Dt, PositionDrives.ConstraintAxis[ConstraintIndex] );
 	}
 
-	const FReal DeltaLambda = SolverStiffness * (PositionDrives.ConstraintSoftStiffness[ConstraintIndex] * DeltaPos -
+	FReal DeltaLambda = SolverStiffness * (PositionDrives.ConstraintSoftStiffness[ConstraintIndex] * DeltaPos -
 		PositionDrives.ConstraintSoftDamping[ConstraintIndex] * VelDt - PositionDrives.ConstraintLambda[ConstraintIndex]) /
 		PositionDrives.ConstraintSoftIM[ConstraintIndex];
-	PositionDrives.ConstraintLambda[ConstraintIndex] += DeltaLambda;
+	FReal Lambda = PositionDrives.ConstraintLambda[ConstraintIndex] + DeltaLambda;
+
+	PositionDrives.ApplyMaxLambda(ConstraintIndex, DeltaLambda, Lambda);
+
+	PositionDrives.ConstraintLambda[ConstraintIndex] = Lambda;
 
 	SolvePositionConstraintDelta(ConstraintIndex, DeltaLambda, PositionDrives);
 }
@@ -1659,13 +1665,14 @@ void FPBDJointCachedSolver::InitSwingTwistDrives(
 	RotationDrives.InitDatas(S2, true, FPBDJointUtilities::GetAngularSwingDriveStiffness(SolverSettings, JointSettings),
 		FPBDJointUtilities::GetAngularSwingDriveDamping(SolverSettings, JointSettings), 0.0);
 
-	RotationDrives.bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+	RotationDrives.bAccelerationMode = FPBDJointUtilities::GetAngularDriveAccelerationMode(SolverSettings, JointSettings);
 
 	const bool bUseTwistDrive = bTwistDriveEnabled && (((FMath::Abs(DTwistAngle) > AngleTolerance) && (RotationDrives.ConstraintSoftStiffness[TW] > 0.0f)) || (RotationDrives.ConstraintSoftDamping[TW]  > 0.0f));
 	if (bUseTwistDrive)
 	{
 		InitRotationConstraintDrive(TW, ConnectorRs[1] * FJointConstants::TwistAxis(), Dt, DTwistAngle);
 		RotationDrives.ConstraintVX[TW] = JointSettings.AngularDriveVelocityTarget[TW];
+		RotationDrives.SetMaxForce(TW, JointSettings.AngularDriveMaxTorque[TW], Dt);
 	}
 
 	const bool bUseSwing1Drive = bSwing1DriveEnabled && (((FMath::Abs(DSwing1Angle) > AngleTolerance) && (RotationDrives.ConstraintSoftStiffness[S1] > 0.0f)) || (RotationDrives.ConstraintSoftDamping[S1] > 0.0f));
@@ -1673,6 +1680,7 @@ void FPBDJointCachedSolver::InitSwingTwistDrives(
 	{
 		InitRotationConstraintDrive(S1, ConnectorRs[1] * FJointConstants::Swing1Axis(),  Dt, DSwing1Angle);
 		RotationDrives.ConstraintVX[S1] = JointSettings.AngularDriveVelocityTarget[S1];
+		RotationDrives.SetMaxForce(S1, JointSettings.AngularDriveMaxTorque[S1], Dt);
 	}
 
 	const bool bUseSwing2Drive = bSwing2DriveEnabled && (((FMath::Abs(DSwing2Angle) > AngleTolerance) && (RotationDrives.ConstraintSoftStiffness[S2] > 0.0f)) || (RotationDrives.ConstraintSoftDamping[S2] > 0.0f));
@@ -1680,6 +1688,7 @@ void FPBDJointCachedSolver::InitSwingTwistDrives(
 	{
 		InitRotationConstraintDrive(S2, ConnectorRs[1] * FJointConstants::Swing2Axis(),  Dt, DSwing2Angle);
 		RotationDrives.ConstraintVX[S2] = JointSettings.AngularDriveVelocityTarget[S2];
+		RotationDrives.SetMaxForce(S2, JointSettings.AngularDriveMaxTorque[S2], Dt);
 	}
 }
 
@@ -1693,7 +1702,7 @@ void FPBDJointCachedSolver::InitSLerpDrive(
 		RotationDrives.InitDatas(AxisIndex, true, FPBDJointUtilities::GetAngularSLerpDriveStiffness(SolverSettings, JointSettings),
 						FPBDJointUtilities::GetAngularSLerpDriveDamping(SolverSettings, JointSettings), 0.0);
 	}
-	RotationDrives.bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
+	RotationDrives.bAccelerationMode = FPBDJointUtilities::GetAngularDriveAccelerationMode(SolverSettings, JointSettings);
 
 	const FRotation3 R01 = ConnectorRs[0].Inverse() * ConnectorRs[1];
 	FRotation3 TargetAngPos = JointSettings.AngularDrivePositionTarget;
@@ -1713,6 +1722,10 @@ void FPBDJointCachedSolver::InitSLerpDrive(
 	InitRotationConstraintDrive(0, Axes[0], Dt, AxisAngles[0]);
 	InitRotationConstraintDrive(1, Axes[1], Dt, AxisAngles[1]);
 	InitRotationConstraintDrive(2, Axes[2], Dt, AxisAngles[2]);
+
+	RotationDrives.SetMaxForce(0, JointSettings.AngularDriveMaxTorque[0], Dt);
+	RotationDrives.SetMaxForce(1, JointSettings.AngularDriveMaxTorque[1], Dt);
+	RotationDrives.SetMaxForce(2, JointSettings.AngularDriveMaxTorque[2], Dt);
 
 	// @todo(chaos): pass constraint target velocity into InitRotationConstraintDrive (it currently sets it ConstraintVX to 0)
 	if (!JointSettings.AngularDriveVelocityTarget.IsNearlyZero())
@@ -1754,10 +1767,14 @@ void FPBDJointCachedSolver::ApplyAxisRotationDrive(
 		AngVelDt = RotationDrives.ConstraintVX[ConstraintIndex] * Dt + FVec3::DotProduct(RotationDrives.ConstraintAxis[ConstraintIndex] , W0Dt - W1Dt);
 	}
 
-	const FReal DeltaLambda = SolverStiffness * (RotationDrives.ConstraintSoftStiffness[ConstraintIndex] * DeltaConstraint -
+	FReal DeltaLambda = SolverStiffness * (RotationDrives.ConstraintSoftStiffness[ConstraintIndex] * DeltaConstraint -
 		RotationDrives.ConstraintSoftDamping[ConstraintIndex] * AngVelDt - RotationDrives.ConstraintLambda[ConstraintIndex]) /
 		RotationDrives.ConstraintSoftIM[ConstraintIndex];
-	RotationDrives.ConstraintLambda[ConstraintIndex] += DeltaLambda;
+	FReal Lambda = RotationDrives.ConstraintLambda[ConstraintIndex] + DeltaLambda;
+
+	RotationDrives.ApplyMaxLambda(ConstraintIndex, DeltaLambda, Lambda);
+
+	RotationDrives.ConstraintLambda[ConstraintIndex] = Lambda;
 
 	SolveRotationConstraintDelta(ConstraintIndex, DeltaLambda,true, RotationDrives);
 }
@@ -1789,6 +1806,7 @@ void FAxisConstraintDatas::InitDatas(
 	ConstraintHardStiffness[ConstraintIndex] = HardStiffness;
 	ConstraintSoftStiffness[ConstraintIndex] = SoftStiffness;
 	ConstraintSoftDamping[ConstraintIndex] = SoftDamping;
+	ConstraintMaxLambda[ConstraintIndex] = 0;
 	SettingsSoftStiffness[ConstraintIndex] = SoftStiffness;
 	SettingsSoftDamping[ConstraintIndex] = SoftDamping;
 	bValidDatas[ConstraintIndex] = false;
@@ -1839,6 +1857,47 @@ void FAxisConstraintDatas::UpdateMass(
 		ConstraintSoftIM[ConstraintIndex] = (ConstraintSoftStiffness[ConstraintIndex] + ConstraintSoftDamping[ConstraintIndex]) * ConstraintHardIM[ConstraintIndex] + (FReal)1;
 	}
 }
+
+void FAxisConstraintDatas::SetMaxForce(
+	const int32 ConstraintIndex,
+	const FReal InMaxForce,
+	const FReal Dt)
+{
+	// We use 0 to disable max force clamping. See ApplyMaxLambda
+	ConstraintMaxLambda[ConstraintIndex] = 0;
+
+	if ((InMaxForce > 0) && (InMaxForce < UE_MAX_FLT))
+	{
+		// Convert from force/torque to position/angle impulse
+		FReal MaxLambda = InMaxForce * Dt * Dt;
+		if (bAccelerationMode)
+		{
+			MaxLambda /= ConstraintHardIM[ConstraintIndex];
+		}
+		ConstraintMaxLambda[ConstraintIndex] = MaxLambda;
+	}
+}
+
+void FAxisConstraintDatas::ApplyMaxLambda(
+	const int32 ConstraintIndex,
+	FReal& DeltaLambda,
+	FReal& Lambda)
+{
+	if (ConstraintMaxLambda[ConstraintIndex] > 0)
+	{
+		if (Lambda > ConstraintMaxLambda[ConstraintIndex])
+		{
+			DeltaLambda = ConstraintMaxLambda[ConstraintIndex] - ConstraintLambda[ConstraintIndex];
+			Lambda = ConstraintMaxLambda[ConstraintIndex];
+		}
+		else if (Lambda < -ConstraintMaxLambda[ConstraintIndex])
+		{
+			DeltaLambda = -ConstraintMaxLambda[ConstraintIndex] - ConstraintLambda[ConstraintIndex];
+			Lambda = -ConstraintMaxLambda[ConstraintIndex];
+		}
+	}
+}
+
 	
 }
 
