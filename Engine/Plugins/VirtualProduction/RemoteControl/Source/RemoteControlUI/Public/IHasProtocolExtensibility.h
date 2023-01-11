@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class SWidget;
+
 /**
  * A simple interface provides protocol specific utilities.
  */

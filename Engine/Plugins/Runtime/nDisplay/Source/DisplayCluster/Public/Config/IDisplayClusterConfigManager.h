@@ -5,6 +5,7 @@
 class  UDisplayClusterConfigurationData;
 class  UDisplayClusterConfigurationClusterNode;
 class  UDisplayClusterConfigurationViewport;
+class  FString;
 struct FDisplayClusterConfigurationPostprocess;
 struct FDisplayClusterConfigurationProjection;
 

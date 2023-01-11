@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
 #include "Misc/SecureHash.h"
 
 class FDatasmithFBXHashUtils

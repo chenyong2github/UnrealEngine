@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
 
 class UDisplayClusterConfiguratorBaseNode;
 

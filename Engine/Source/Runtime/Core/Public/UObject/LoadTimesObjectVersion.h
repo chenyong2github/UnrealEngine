@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
+
+struct FGuid;
+
 // Custom serialization version for changes made in LoadTimes stream
 struct CORE_API FLoadTimesObjectVersion
 {

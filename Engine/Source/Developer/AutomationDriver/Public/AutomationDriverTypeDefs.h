@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Templates/SharedPointerFwd.h"
+
 class IAutomationDriver;
 class IDriverElement;
 class IDriverElementCollection;

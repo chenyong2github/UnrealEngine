@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Concert",
 					"ConcertSyncCore",
+					"Launch",
 				}
 			);
 

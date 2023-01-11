@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 		public BlackmagicMedia(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+			IWYUSupport = IWYUSupport.None;
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {

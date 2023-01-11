@@ -7,6 +7,7 @@
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 
 class IElementLocator;
+template<typename ResultType> class TAsyncResult;
 
 class IAsyncActionSequence
 {

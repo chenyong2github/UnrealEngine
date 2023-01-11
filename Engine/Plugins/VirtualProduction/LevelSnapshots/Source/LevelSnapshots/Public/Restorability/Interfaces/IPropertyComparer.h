@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 class AActor;
 class FProperty;
 class UObject;

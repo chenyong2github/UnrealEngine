@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "Math/Quat.h"
+#include "Math/Transform.h"
 #include "Math/Vector.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/Archive.h"

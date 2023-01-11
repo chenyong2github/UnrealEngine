@@ -3,6 +3,7 @@
 
 #include "CADKernel/Core/Entity.h" 
 #include "CADKernel/Math/Point.h"
+#include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/UI/Message.h"
 
 namespace UE::CADKernel

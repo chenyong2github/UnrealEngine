@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
+#include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Point.h"
 
 namespace UE::CADKernel

@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Layout/Geometry.h"
+#include "Rendering/DrawElements.h"
+#include "Styling/AppStyle.h"
 #include "WaveformTransformationRendererBase.h"
 
 

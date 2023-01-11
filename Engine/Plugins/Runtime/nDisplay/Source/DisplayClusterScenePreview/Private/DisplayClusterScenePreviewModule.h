@@ -6,6 +6,7 @@
 
 #include "Containers/Ticker.h"
 #include "DisplayClusterMeshProjectionRenderer.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "UObject/StrongObjectPtr.h"
 
 class ADisplayClusterRootActor;

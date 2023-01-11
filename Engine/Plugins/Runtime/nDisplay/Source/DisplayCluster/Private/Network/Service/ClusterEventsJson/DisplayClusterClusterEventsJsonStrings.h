@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 
 /**
  * JSON cluster event protocol strings

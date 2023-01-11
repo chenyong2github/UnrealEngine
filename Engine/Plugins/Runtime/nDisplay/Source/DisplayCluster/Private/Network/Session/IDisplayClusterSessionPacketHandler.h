@@ -2,8 +2,10 @@
 
 #pragma once
 
-struct FDisplayClusterSessionInfo;
+#include "Templates/SharedPointerFwd.h"
+#include <type_traits>
 
+struct FDisplayClusterSessionInfo;
 
 /**
  * Packet handler interface for all incoming packets

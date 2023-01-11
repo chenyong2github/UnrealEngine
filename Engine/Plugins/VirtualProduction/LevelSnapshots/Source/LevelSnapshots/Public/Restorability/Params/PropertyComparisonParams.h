@@ -6,6 +6,7 @@
 
 class AActor;
 class FProperty;
+class ULevelSnapshot;
 class UObject;
 class UStruct;
 

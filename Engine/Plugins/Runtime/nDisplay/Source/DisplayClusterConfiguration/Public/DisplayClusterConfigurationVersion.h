@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 enum class EDisplayClusterConfigurationVersion : uint8
 {
 	Unknown,     // Unknown version or not a config file

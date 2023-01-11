@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
 
-class IAccessibleWidget;
+#include "CoreMinimal.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
+
 /**
  * An interface that controls how a screen reader user navigates around the accessible widget hierarchy and what accessible widgets can
  * be navigated to from a source widget.

@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+
 class UObject;
 struct FPropertySelectionMap;
 

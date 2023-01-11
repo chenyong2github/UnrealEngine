@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
+
+struct FGuid;
+
 // Custom serialization version for changes made for a private stream
 struct CORE_API FReflectionCaptureObjectVersion
 {

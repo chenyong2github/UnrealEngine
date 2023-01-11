@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
+
+#include "Misc/Timespan.h"
 
 /**
  * A model class that holds all the configuration options for an AutomationDriver

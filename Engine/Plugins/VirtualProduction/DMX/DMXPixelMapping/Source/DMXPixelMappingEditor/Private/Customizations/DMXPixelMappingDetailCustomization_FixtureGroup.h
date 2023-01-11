@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Types/SlateEnums.h"
 
 struct FDMXEntityFixturePatchRef;

@@ -5,13 +5,17 @@
 #include "Views/OutputMapping/IDisplayClusterConfiguratorOutputMappingItem.h"
 #include "EdGraph/EdGraphNode.h"
 
-#include "Views/OutputMapping/Alignment/DisplayClusterConfiguratorNodeAlignmentHelper.h"
+//#include "Views/OutputMapping/Alignment/DisplayClusterConfiguratorNodeAlignmentHelper.h"
 
 #include "DisplayClusterConfiguratorBaseNode.generated.h"
 
 class FDisplayClusterConfiguratorBlueprintEditor;
 class IDisplayClusterConfiguratorOutputMappingSlot;
 class IDisplayClusterConfiguratorTreeItem;
+
+struct FNodeAlignmentAnchors;
+struct FNodeAlignmentPair;
+struct FNodeAlignmentParams;
 
 namespace DisplayClusterConfiguratorGraphLayers
 {

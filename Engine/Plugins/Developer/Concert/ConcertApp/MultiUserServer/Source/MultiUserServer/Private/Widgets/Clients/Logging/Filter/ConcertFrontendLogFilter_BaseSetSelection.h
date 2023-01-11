@@ -7,6 +7,8 @@
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
+struct FConcertLogEntry;
+
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.BaseSetSelection"
 
 namespace UE::MultiUserServer

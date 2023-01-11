@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Async/AsyncResult.h"
+#include "Delegates/Delegate.h"
 #include "Misc/Timespan.h"
 
 struct FStepResult

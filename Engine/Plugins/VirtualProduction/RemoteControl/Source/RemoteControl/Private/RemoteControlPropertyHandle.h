@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IRemoteControlPropertyHandle.h"
+#include "UObject/UnrealType.h"
 #include "UObject/WeakFieldPtr.h"
 
 /**

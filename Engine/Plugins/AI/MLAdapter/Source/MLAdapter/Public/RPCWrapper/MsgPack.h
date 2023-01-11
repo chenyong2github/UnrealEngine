@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+
 #if WITH_RPCLIB
 #include "rpclib_includes.h"
 

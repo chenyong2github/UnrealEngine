@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "Misc/Change.h"
 
 template<class ObservedObjectType, typename DelatgateToBindType>

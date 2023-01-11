@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Templates/SharedPointer.h"
 #include "Serialization/BufferArchive.h"
 
 struct IDMXProtocolPacket

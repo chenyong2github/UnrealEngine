@@ -18,6 +18,7 @@
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
 
+#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
 

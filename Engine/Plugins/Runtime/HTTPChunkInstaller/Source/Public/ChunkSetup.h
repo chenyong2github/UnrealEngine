@@ -2,6 +2,17 @@
 
 #pragma once
 
+#include "HAL/Event.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFile.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/Runnable.h"
+#include "Interfaces/IBuildManifest.h"
+#include "Interfaces/IBuildPatchServicesModule.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/Paths.h"
+#include "Stats/Stats.h"
+
 // Helper class to find all pak/mainfests files.
 class FFileSearchVisitor : public IPlatformFile::FDirectoryVisitor
 {

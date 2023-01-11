@@ -2,6 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DatasmithVariantElements.h"
+#include "IDatasmithSceneElements.h"
+
+class IDatasmithLevelVariantSetsElement;
 
 class FDatasmithUElementsUtils
 {

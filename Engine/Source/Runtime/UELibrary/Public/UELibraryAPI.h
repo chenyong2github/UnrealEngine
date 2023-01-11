@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
+#if PLATFORM_WINDOWS
+
 #ifndef _WIN64
 	#error "UELibrary is currently only supported under 64-bit Windows"
 #endif
@@ -68,3 +72,5 @@ UELIBRARYAPI LRESULT UELibrary_WndProc(HWND hWnd, UINT message, WPARAM wParam, L
  */
 UELIBRARYAPI int UELibrary_Shutdown();
 }
+
+#endif // PLATFORM_WINDOWS

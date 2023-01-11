@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"

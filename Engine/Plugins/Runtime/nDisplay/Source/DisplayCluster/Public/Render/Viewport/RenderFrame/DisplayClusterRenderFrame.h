@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 
 #include "DisplayClusterRenderFrameEnums.h"
+#include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettings.h"
 #include "SceneViewExtension.h"
+
+class IDisplayClusterViewportManager;
 
 // Render frame container
 class FDisplayClusterRenderFrame

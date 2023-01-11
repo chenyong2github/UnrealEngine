@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Containers/ResourceArray.h"
+#include "RenderResource.h"
+#include "RHI.h"
 
 class FPointCloudVertexResourceArray :
 	public FResourceArrayInterface

@@ -8,6 +8,7 @@
 #include "IDataprepProgressReporter.h"
 
 #include "Engine/World.h"
+#include "UObject/Package.h"
 
 #include "DataprepContentProducer.generated.h"
 
