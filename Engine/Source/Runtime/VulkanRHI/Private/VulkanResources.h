@@ -413,13 +413,18 @@ public:
 	void* GetNativeResource() const override final { return (void*)Image; }
 	void* GetTextureBaseRHI() override final { return this; }
 
+	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const override final
+	{
+		checkSlow(DefaultBindlessHandle.IsValid());
+		return DefaultBindlessHandle;
+	}
+
 	inline static FVulkanTexture* Cast(FRHITexture* Texture)
 	{
 		check(Texture);
 		return (FVulkanTexture*)Texture->GetTextureBaseRHI();
 	}
 
-public:
 	struct FImageCreateInfo
 	{
 		VkImageCreateInfo ImageCreateInfo;
@@ -556,6 +561,7 @@ private:
 	VkImageAspectFlags PartialAspectMask;
 	FVulkanCpuReadbackBuffer* CpuReadbackBuffer;
 	VkImageLayout DefaultLayout;
+	FRHIDescriptorHandle DefaultBindlessHandle;
 
 	friend struct FRHICommandSetInitialImageState;
 
@@ -1060,6 +1066,8 @@ public:
 	void Invalidate() override final;
 	void UpdateView();
 
+	virtual FRHIDescriptorHandle GetBindlessHandle() const override final;
+
 protected:
 	// The texture that this UAV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
@@ -1095,6 +1103,8 @@ public:
 
 	void Invalidate() override final;
 	void UpdateView();
+
+	virtual FRHIDescriptorHandle GetBindlessHandle() const override final;
 
 	inline FVulkanBufferView* GetBufferView()
 	{

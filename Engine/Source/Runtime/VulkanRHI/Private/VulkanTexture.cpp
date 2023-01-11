@@ -1705,6 +1705,8 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 		PartialView->Create(InDevice, Image, ViewType, PartialAspectMask, InCreateDesc.Format, ViewFormat, 0, FMath::Max(InCreateDesc.NumMips, (uint8)1u), 0, bArray ? FMath::Max((uint16)1u, InCreateDesc.ArraySize) : FMath::Max((uint16)1u, InCreateDesc.Depth), false);
 	}
 
+	DefaultBindlessHandle = Device->GetBindlessDescriptorManager()->RegisterImage(PartialView->View, SupportsSampling() ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, IsDepthOrStencilAspect());
+
 	if (!InCreateDesc.BulkData)
 	{
 		return;
@@ -1870,6 +1872,11 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 		PartialView = new FVulkanTextureView;
 		PartialView->Create(InDevice, Image, ViewType, PartialAspectMask, InCreateDesc.Format, ViewFormat, 0, FMath::Max(InCreateDesc.NumMips, (uint8)1u), 0, bArray ? FMath::Max((uint16)1u, InCreateDesc.ArraySize) : FMath::Max((uint16)1u, InCreateDesc.Depth), false);
 	}
+
+	if (PartialView->View)
+	{
+		DefaultBindlessHandle = Device->GetBindlessDescriptorManager()->RegisterImage(PartialView->View, SupportsSampling() ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, IsDepthOrStencilAspect());
+	}
 }
 
 FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateDesc& InCreateDesc, FTextureRHIRef& SrcTextureRHI)
@@ -1951,6 +1958,7 @@ void FVulkanTexture::AliasTextureResources(FTextureRHIRef& SrcTextureRHI)
 
 	AliasedTexture = SrcTexture;
 	DefaultLayout = SrcTexture->DefaultLayout;
+	DefaultBindlessHandle = SrcTexture->DefaultBindlessHandle;
 }
 
 void FVulkanTexture::DestroyViews()
@@ -1962,6 +1970,12 @@ void FVulkanTexture::DestroyViews()
 		if (PartialView != &DefaultView && PartialView != nullptr)
 		{
 			PartialView->Destroy(*Device);
+		}
+
+		if (DefaultBindlessHandle.IsValid())
+		{
+			Device->GetDeferredDeletionQueue().EnqueueBindlessHandle(DefaultBindlessHandle);
+			DefaultBindlessHandle = FRHIDescriptorHandle();
 		}
 	}
 }
@@ -1975,18 +1989,25 @@ void FVulkanTexture::InvalidateViews(FVulkanDevice& InDevice)
 	const bool bArray = ViewType == VK_IMAGE_VIEW_TYPE_1D_ARRAY || ViewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY || ViewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 	const uint32 SizeZOrArraySize = bArray ? FMath::Max((uint16)1u, Desc.ArraySize) : FMath::Max((uint16)1u, Desc.Depth);
 
-	if(ViewType != VK_IMAGE_VIEW_TYPE_MAX_ENUM)
+	if (ViewType != VK_IMAGE_VIEW_TYPE_MAX_ENUM)
 	{
 		DefaultView.Create(InDevice, Image, ViewType, GetFullAspectMask(), GetDesc().Format, ViewFormat, 0, FMath::Max(NumMips, 1u), 0, SizeZOrArraySize, !SupportsSampling());
 	}
-	if(PartialView != &DefaultView)
+	if (PartialView != &DefaultView)
 	{
 		PartialView->Destroy(*Device);
 		PartialView->Create(InDevice, Image, ViewType, PartialAspectMask, GetDesc().Format, ViewFormat, 0, FMath::Max(NumMips, 1u), 0, SizeZOrArraySize, false);
 	}
 
+	if (DefaultBindlessHandle.IsValid())
+	{
+		Device->GetDeferredDeletionQueue().EnqueueBindlessHandle(DefaultBindlessHandle);
+	}
+
+	DefaultBindlessHandle = Device->GetBindlessDescriptorManager()->RegisterImage(PartialView->View, SupportsSampling() ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, IsDepthOrStencilAspect());
+
 	VulkanRHI::FVulkanViewBase* View = FirstView;
-	while(View)
+	while (View)
 	{
 		View->Invalidate();
 		View = View->NextView;

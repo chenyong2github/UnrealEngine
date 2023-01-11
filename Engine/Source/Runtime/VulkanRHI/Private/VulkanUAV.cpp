@@ -2,11 +2,23 @@
 
 #include "VulkanRHIPrivate.h"
 #include "VulkanContext.h"
+#include "VulkanDescriptorSets.h"
 #include "ClearReplacementShaders.h"
 
 #if VULKAN_RHI_RAYTRACING
 #include "VulkanRayTracing.h"
 #endif // VULKAN_RHI_RAYTRACING
+
+
+void VulkanRHI::FVulkanViewBase::FreeBindlessHandle()
+{
+	if (BindlessHandle.IsValid())
+	{
+		Device->GetDeferredDeletionQueue().EnqueueBindlessHandle(BindlessHandle);
+		BindlessHandle = FRHIDescriptorHandle();
+	}
+}
+
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIViewableResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset)
 	: FRHIShaderResourceView(InRHIBuffer)
@@ -45,7 +57,7 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 {
 	FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(InSourceTexture);
 	VulkanTexture->AttachView(this);
-
+	UpdateView();
 }
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InOffset)
@@ -68,6 +80,8 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FV
 
 		VkDevice NativeDevice = InDevice->GetInstanceHandle();
 		VERIFYVULKANRESULT(VulkanDynamicAPI::vkCreateAccelerationStructureKHR(NativeDevice, &CreateInfo, VULKAN_CPU_ALLOCATOR, &AccelerationStructureHandle));
+
+		BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterAccelerationStructure(AccelerationStructureHandle);
 	}
 	else
 #endif
@@ -75,6 +89,9 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FV
 		SourceStructuredBuffer = InSourceBuffer;
 		Size = InSourceBuffer->GetSize() - InOffset;
 		Offset = InOffset;
+
+		const uint32 FullMemoryOffset = InSourceBuffer->GetOffset() + InOffset;
+		BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterBuffer(InSourceBuffer->GetHandle(), FullMemoryOffset, Size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 	}
 }
 
@@ -92,19 +109,22 @@ FVulkanShaderResourceView::~FVulkanShaderResourceView()
 
 void FVulkanShaderResourceView::Clear()
 {
-#if VULKAN_RHI_RAYTRACING
-	if (Device && AccelerationStructureHandle)
-	{
-		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::AccelerationStructure, AccelerationStructureHandle);
-	}
-#endif // VULKAN_RHI_RAYTRACING
-
 	SourceRHIBuffer = nullptr;
 	SourceBuffer = nullptr;
 	BufferViews.Empty();
 	SourceStructuredBuffer = nullptr;
 	if (Device)
 	{
+#if VULKAN_RHI_RAYTRACING
+		if (AccelerationStructureHandle)
+		{
+			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::AccelerationStructure, AccelerationStructureHandle);
+			AccelerationStructureHandle = VK_NULL_HANDLE;
+		}
+#endif // VULKAN_RHI_RAYTRACING
+
+		FreeBindlessHandle();
+
 		TextureView.Destroy(*Device);
 	}
 	SourceTexture = nullptr;
@@ -136,9 +156,14 @@ void FVulkanShaderResourceView::Rename(FRHIResource* InRHIBuffer, FVulkanResourc
 	SourceRHIBuffer = InRHIBuffer;
 	VolatileBufferHandle = VK_NULL_HANDLE;
 	VolatileLockCounter = MAX_uint32;
+
+	// todo-jn: make the new bindless handle live in the old one's slot?
+	FreeBindlessHandle();
 }
+
 void FVulkanShaderResourceView::Invalidate()
 {
+	FreeBindlessHandle();
 	TextureView.Destroy(*Device);
 }
 
@@ -168,25 +193,42 @@ void FVulkanShaderResourceView::UpdateView()
 				|| VolatileBufferHandle != SourceVolatileBufferHandle)
 			{
 				BufferViews[0] = nullptr;
+				FreeBindlessHandle();
 			}
 
 			VolatileLockCounter = SourceBuffer->GetVolatileLockCounter();
 			VolatileBufferHandle = SourceVolatileBufferHandle;
 		}
-		else if (SourceBuffer->IsDynamic())
+		else if (SourceBuffer->IsDynamic() && (BufferIndex != SourceBuffer->GetDynamicIndex()))
 		{
 			BufferIndex = SourceBuffer->GetDynamicIndex();
+			FreeBindlessHandle();
 		}
 
 		if (!BufferViews[BufferIndex])
 		{
 			BufferViews[BufferIndex] = new FVulkanBufferView(Device);
 			BufferViews[BufferIndex]->Create(SourceBuffer, BufferViewFormat, SourceBuffer->GetOffset() + Offset, CurrentViewSize);
+			// :todo-jn: the buffer view is actually not needed in bindless anymore
+		}
+
+		if (!BindlessHandle.IsValid())
+		{
+			VkBufferViewCreateInfo ViewInfo;
+			ViewInfo.buffer = SourceBuffer->GetHandle();
+			ViewInfo.offset = SourceBuffer->GetOffset() + Offset;
+			ViewInfo.range = CurrentViewSize;;
+			ViewInfo.format = UEToVkTextureFormat(BufferViewFormat, false);
+			BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterTexelBuffer(ViewInfo, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER);
 		}
 	}
 	else if (SourceStructuredBuffer)
 	{
-		// Nothing...
+		if (!BindlessHandle.IsValid())
+		{
+			const uint32 FullMemoryOffset = SourceStructuredBuffer->GetOffset() + Offset;
+			BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterBuffer(SourceStructuredBuffer->GetHandle(), FullMemoryOffset, Size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		}
 	}
 #if VULKAN_RHI_RAYTRACING
 	else if (AccelerationStructureHandle)
@@ -237,9 +279,19 @@ void FVulkanShaderResourceView::UpdateView()
 			}
 
 			TextureView.Create(*Device, SourceTextureVK->Image, ActualViewType, SourceTextureVK->GetPartialAspectMask(), Format, UEToVkTextureFormat(Format, bSRGB), MipLevel, NumMips, FirstArraySlice, ActualNumArraySlices, false);
+
+			checkSlow(!BindlessHandle.IsValid());
+			BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterImage(TextureView.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, SourceTextureVK->IsDepthOrStencilAspect());
 		}
 	}
 }
+
+FRHIDescriptorHandle FVulkanShaderResourceView::GetBindlessHandle() const
+{
+	checkSlow(BindlessHandle.IsValid());
+	return BindlessHandle;
+}
+
 FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
 	: FRHIUnorderedAccessView(Buffer)
 	, VulkanRHI::FVulkanViewBase(Device)
@@ -250,6 +302,8 @@ FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FV
 	, BufferViewFormat(PF_Unknown)
 	, VolatileLockCounter(MAX_uint32)
 {
+	checkSlow(!bUseUAVCounter && !bAppendBuffer);
+	BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterBuffer(SourceBuffer->GetHandle(), SourceBuffer->GetOffset(), SourceBuffer->GetSize(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 }
 
 FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FRHITexture* TextureRHI, uint32 MipLevel, uint16 InFirstArraySlice, uint16 InNumArraySlices)
@@ -282,6 +336,7 @@ FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FV
 void FVulkanUnorderedAccessView::Invalidate()
 {
 	check(SourceTexture);
+	FreeBindlessHandle();
 	TextureView.Destroy(*Device);
 }
 
@@ -292,6 +347,8 @@ FVulkanUnorderedAccessView::~FVulkanUnorderedAccessView()
 		FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(SourceTexture);
 		VulkanTexture->DetachView(this);
 	}
+
+	FreeBindlessHandle();
 
 	TextureView.Destroy(*Device);
 	BufferView = nullptr;
@@ -314,6 +371,7 @@ void FVulkanUnorderedAccessView::UpdateView()
 			if (SourceBuffer->IsVolatile() && VolatileLockCounter != SourceBuffer->GetVolatileLockCounter())
 			{
 				BufferView = nullptr;
+				FreeBindlessHandle();
 				VolatileLockCounter = SourceBuffer->GetVolatileLockCounter();
 			}
 
@@ -323,6 +381,22 @@ void FVulkanUnorderedAccessView::UpdateView()
 				BufferView = new FVulkanBufferView(Device);
 				BufferView->Create(SourceBuffer.GetReference(), BufferViewFormat, SourceBuffer->GetOffset(), SourceBuffer->GetSize());
 			}
+
+			if ((!BindlessHandle.IsValid()) || SourceBuffer->IsDynamic())
+			{
+				FreeBindlessHandle();
+				VkBufferViewCreateInfo ViewInfo;
+				ViewInfo.buffer = SourceBuffer->GetHandle();
+				ViewInfo.offset = SourceBuffer->GetOffset();
+				ViewInfo.range = SourceBuffer->GetSize();
+				ViewInfo.format = UEToVkTextureFormat(BufferViewFormat, false);
+				BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterTexelBuffer(ViewInfo, VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
+			}
+		}
+		else if (!BindlessHandle.IsValid())
+		{
+			checkSlow(!SourceBuffer->IsDynamic());
+			BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterBuffer(SourceBuffer->GetHandle(), SourceBuffer->GetOffset(), SourceBuffer->GetSize(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		}
 	}
 	else if (TextureView.View == VK_NULL_HANDLE)
@@ -374,7 +448,16 @@ void FVulkanUnorderedAccessView::UpdateView()
 		}
 
 		TextureView.Create(*Device, SourceTextureVK->Image, ActualViewType, SourceTextureVK->GetPartialAspectMask(), Format, UEToVkTextureFormat(Format, false), MipLevel, 1, FirstArraySlice, ActualNumArraySlices, true);
+
+		checkSlow(!BindlessHandle.IsValid());
+		BindlessHandle = Device->GetBindlessDescriptorManager()->RegisterImage(TextureView.View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, SourceTextureVK->IsDepthOrStencilAspect());
 	}
+}
+
+FRHIDescriptorHandle FVulkanUnorderedAccessView::GetBindlessHandle() const
+{
+	checkSlow(BindlessHandle.IsValid());
+	return BindlessHandle;
 }
 
 FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)

@@ -232,13 +232,19 @@ namespace VulkanRHI
 		{
 			check(NextView == 0);
 		}
+
 		FVulkanViewBase(FVulkanDevice* Device = nullptr)
 		: FDeviceChild(Device)
 		, NextView(0)
 		{
 		}
-		virtual void Invalidate(){}
+
+		virtual void Invalidate() {}
 		FVulkanViewBase* NextView;
+
+	protected:
+		void FreeBindlessHandle();
+		FRHIDescriptorHandle BindlessHandle;
 	};
 	// An Allocation off a Device Heap. Lowest level of allocations and bounded by VkPhysicalDeviceLimits::maxMemoryAllocationCount.
 	class FDeviceMemoryAllocation
