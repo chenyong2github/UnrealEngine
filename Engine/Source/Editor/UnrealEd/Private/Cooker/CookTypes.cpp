@@ -173,25 +173,25 @@ bool IsCookIgnoreTimeouts()
 
 }
 
-FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FInitializeConfigSettings& OutValue)
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FInitializeConfigSettings& Value)
 {
 	Writer.BeginObject();
-	Writer << "OutputDirectoryOverride" << OutValue.OutputDirectoryOverride;
-	Writer << "MaxPrecacheShaderJobs" << OutValue.MaxPrecacheShaderJobs;
-	Writer << "MaxConcurrentShaderJobs" << OutValue.MaxConcurrentShaderJobs;
-	Writer << "PackagesPerGC" << OutValue.PackagesPerGC;
-	Writer << "MemoryExpectedFreedToSpreadRatio" << OutValue.MemoryExpectedFreedToSpreadRatio;
-	Writer << "IdleTimeToGC" << OutValue.IdleTimeToGC;
-	Writer << "MemoryMaxUsedVirtual" << OutValue.MemoryMaxUsedVirtual;
-	Writer << "MemoryMaxUsedPhysical" << OutValue.MemoryMaxUsedPhysical;
-	Writer << "MemoryMinFreeVirtual" << OutValue.MemoryMinFreeVirtual;
-	Writer << "MemoryMinFreePhysical" << OutValue.MemoryMinFreePhysical;
-	Writer << "MemoryTriggerGCAtPressureLevel" << static_cast<uint8>(OutValue.MemoryTriggerGCAtPressureLevel);
-	Writer << "MinFreeUObjectIndicesBeforeGC" << OutValue.MinFreeUObjectIndicesBeforeGC;
-	Writer << "MaxNumPackagesBeforePartialGC" << OutValue.MaxNumPackagesBeforePartialGC;
-	Writer << "ConfigSettingDenyList" << OutValue.ConfigSettingDenyList;
-	Writer << "MaxAsyncCacheForType" << OutValue.MaxAsyncCacheForType;
-	Writer << "bHybridIterativeDebug" << OutValue.bHybridIterativeDebug;
+	Writer << "OutputDirectoryOverride" << Value.OutputDirectoryOverride;
+	Writer << "MaxPrecacheShaderJobs" << Value.MaxPrecacheShaderJobs;
+	Writer << "MaxConcurrentShaderJobs" << Value.MaxConcurrentShaderJobs;
+	Writer << "PackagesPerGC" << Value.PackagesPerGC;
+	Writer << "MemoryExpectedFreedToSpreadRatio" << Value.MemoryExpectedFreedToSpreadRatio;
+	Writer << "IdleTimeToGC" << Value.IdleTimeToGC;
+	Writer << "MemoryMaxUsedVirtual" << Value.MemoryMaxUsedVirtual;
+	Writer << "MemoryMaxUsedPhysical" << Value.MemoryMaxUsedPhysical;
+	Writer << "MemoryMinFreeVirtual" << Value.MemoryMinFreeVirtual;
+	Writer << "MemoryMinFreePhysical" << Value.MemoryMinFreePhysical;
+	Writer << "MemoryTriggerGCAtPressureLevel" << static_cast<uint8>(Value.MemoryTriggerGCAtPressureLevel);
+	Writer << "MinFreeUObjectIndicesBeforeGC" << Value.MinFreeUObjectIndicesBeforeGC;
+	Writer << "MaxNumPackagesBeforePartialGC" << Value.MaxNumPackagesBeforePartialGC;
+	Writer << "ConfigSettingDenyList" << Value.ConfigSettingDenyList;
+	Writer << "MaxAsyncCacheForType" << Value.MaxAsyncCacheForType;
+	Writer << "bHybridIterativeDebug" << Value.bHybridIterativeDebug;
 	// Make sure new values are added to LoadFromCompactBinary and MoveOrCopy
 	Writer.EndObject();
 	return Writer;
@@ -298,15 +298,15 @@ FString LexToString(FPlatformMemoryStats::EMemoryPressureStatus Value)
 	}
 }
 
-FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSettings& OutValue)
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSettings& Value)
 {
 	Writer.BeginObject();
-	Writer << "HybridIterativeEnabled" << OutValue.bHybridIterativeEnabled;
-	Writer << "CookShowInstigator" << OutValue.CookShowInstigator;
-	Writer << "NeverCookPackageList" << OutValue.NeverCookPackageList;
+	Writer << "HybridIterativeEnabled" << Value.bHybridIterativeEnabled;
+	Writer << "CookShowInstigator" << Value.CookShowInstigator;
+	Writer << "NeverCookPackageList" << Value.NeverCookPackageList;
 	
 	Writer.BeginArray("PlatformSpecificNeverCookPackages");
-	for (const TPair<const ITargetPlatform*, TSet<FName>>& Pair : OutValue.PlatformSpecificNeverCookPackages)
+	for (const TPair<const ITargetPlatform*, TSet<FName>>& Pair : Value.PlatformSpecificNeverCookPackages)
 	{
 		Writer.BeginObject();
 		Writer << "K" << Pair.Key->PlatformName();
@@ -361,29 +361,29 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FBeginCookConfigSetting
 	return bOk;
 }
 
-FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& OutValue)
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& Value)
 {
 	Writer.BeginObject();
 	// StartupPackages and SessionStartupObjects are process-specific
 
-	Writer << "DlcName" << OutValue.DlcName;
-	Writer << "CreateReleaseVersion" << OutValue.CreateReleaseVersion;
-	Writer << "BasedOnReleaseCookedPackages" << OutValue.BasedOnReleaseCookedPackages;
-	Writer << "SourceToLocalizedPackageVariants" << OutValue.SourceToLocalizedPackageVariants;
-	Writer << "AllCulturesToCook" << OutValue.AllCulturesToCook;
+	Writer << "DlcName" << Value.DlcName;
+	Writer << "CreateReleaseVersion" << Value.CreateReleaseVersion;
+	Writer << "BasedOnReleaseCookedPackages" << Value.BasedOnReleaseCookedPackages;
+	Writer << "SourceToLocalizedPackageVariants" << Value.SourceToLocalizedPackageVariants;
+	Writer << "AllCulturesToCook" << Value.AllCulturesToCook;
 
 	// CookTime is process-specific
 	// CookStartTime is process-specific
 
-	Writer << "StartupOptions" << static_cast<int32>(OutValue.StartupOptions);
-	Writer << "GenerateStreamingInstallManifests" << OutValue.bGenerateStreamingInstallManifests;
-	Writer << "ErrorOnEngineContentUse" << OutValue.bErrorOnEngineContentUse;
-	Writer << "AllowUncookedAssetReferences" << OutValue.bAllowUncookedAssetReferences;
-	Writer << "SkipHardReferences" << OutValue.bSkipHardReferences;
-	Writer << "SkipSoftReferences" << OutValue.bSkipSoftReferences;
-	Writer << "FullLoadAndSave" << OutValue.bFullLoadAndSave;
-	Writer << "CookAgainstFixedBase" << OutValue.bCookAgainstFixedBase;
-	Writer << "DlcLoadMainAssetRegistry" << OutValue.bDlcLoadMainAssetRegistry;
+	Writer << "StartupOptions" << static_cast<int32>(Value.StartupOptions);
+	Writer << "GenerateStreamingInstallManifests" << Value.bGenerateStreamingInstallManifests;
+	Writer << "ErrorOnEngineContentUse" << Value.bErrorOnEngineContentUse;
+	Writer << "AllowUncookedAssetReferences" << Value.bAllowUncookedAssetReferences;
+	Writer << "SkipHardReferences" << Value.bSkipHardReferences;
+	Writer << "SkipSoftReferences" << Value.bSkipSoftReferences;
+	Writer << "FullLoadAndSave" << Value.bFullLoadAndSave;
+	Writer << "CookAgainstFixedBase" << Value.bCookAgainstFixedBase;
+	Writer << "DlcLoadMainAssetRegistry" << Value.bDlcLoadMainAssetRegistry;
 	Writer.EndObject();
 	return Writer;
 }
@@ -418,11 +418,11 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookByTheBookOptions& 
 	return bOk;
 }
 
-FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookOnTheFlyOptions& OutValue)
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookOnTheFlyOptions& Value)
 {
 	Writer.BeginObject();
-	Writer << "BindAnyPort" << OutValue.bBindAnyPort;
-	Writer << "PlatformProtocol" << OutValue.bPlatformProtocol;
+	Writer << "BindAnyPort" << Value.bBindAnyPort;
+	Writer << "PlatformProtocol" << Value.bPlatformProtocol;
 	Writer.EndObject();
 	return Writer;
 }
@@ -450,19 +450,19 @@ FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextForWorkerPlatfor
 	return Writer;
 }
 
-bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorkerPlatform& Value)
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorkerPlatform& OutValue)
 {
 	bool bOk = true;
 	FString PlatformName;
 	LoadFromCompactBinary(Field["Platform"], PlatformName);
-	Value.TargetPlatform = nullptr;
+	OutValue.TargetPlatform = nullptr;
 	if (!PlatformName.IsEmpty())
 	{
 		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		Value.TargetPlatform = TPM.FindTargetPlatform(*PlatformName);
-		bOk = (Value.TargetPlatform != nullptr) & bOk;
+		OutValue.TargetPlatform = TPM.FindTargetPlatform(*PlatformName);
+		bOk = (OutValue.TargetPlatform != nullptr) & bOk;
 	}
-	bOk = LoadFromCompactBinary(Field["FullBuild"], Value.bFullBuild) & bOk;
+	bOk = LoadFromCompactBinary(Field["FullBuild"], OutValue.bFullBuild) & bOk;
 	return bOk;
 }
 
@@ -481,7 +481,7 @@ FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextForWorker& Value
 	return Writer;
 }
 
-bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& Value)
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& OutValue)
 {
-	return LoadFromCompactBinary(Field, Value.PlatformContexts);
+	return LoadFromCompactBinary(Field, OutValue.PlatformContexts);
 }

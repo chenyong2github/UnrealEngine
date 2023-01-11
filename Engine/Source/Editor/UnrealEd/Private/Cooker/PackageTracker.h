@@ -21,210 +21,209 @@ namespace UE::Cook { struct FInstigator; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FRecompileShaderRequest; }
 
-namespace UE
+namespace UE::Cook
 {
-namespace Cook
-{
-	struct FPackageDatas;
 
-	template<typename Type>
-	struct FThreadSafeQueue
+struct FPackageDatas;
+
+template<typename Type>
+struct FThreadSafeQueue
+{
+private:
+	mutable FCriticalSection SynchronizationObject; // made this mutable so this class can have const functions and still be thread safe
+	TRingBuffer<Type> Items;
+public:
+	void Enqueue(const Type& Item)
 	{
-	private:
-		mutable FCriticalSection SynchronizationObject; // made this mutable so this class can have const functions and still be thread safe
-		TRingBuffer<Type> Items;
-	public:
-		void Enqueue(const Type& Item)
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			Items.Add(Item);
-		}
+		FScopeLock ScopeLock(&SynchronizationObject);
+		Items.Add(Item);
+	}
 		
-		void Enqueue(Type&& Item)
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			Items.Add(MoveTempIfPossible(Item));
-		}
+	void Enqueue(Type&& Item)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		Items.Add(MoveTempIfPossible(Item));
+	}
 
-		void EnqueueUnique(const Type& Item)
+	void EnqueueUnique(const Type& Item)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		for (const Type& Existing : Items)
 		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			for (const Type& Existing : Items)
+			if (Existing == Item)
 			{
-				if (Existing == Item)
-				{
-					return;
-				}
+				return;
 			}
+		}
+		Items.PushBack(Item);
+	}
+
+	bool Dequeue(Type* Result)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		if (Items.Num())
+		{
+			*Result = Items.PopFrontValue();
+			return true;
+		}
+		return false;
+	}
+
+	void DequeueAll(TArray<Type>& Results)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		Results.Reserve(Results.Num() + Items.Num());
+		while (!Items.IsEmpty())
+		{
+			Results.Add(Items.PopFrontValue());
+		}
+	}
+
+	bool HasItems() const
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		return Items.Num() > 0;
+	}
+
+	void Remove(const Type& Item)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		Items.Remove(Item);
+	}
+
+	void CopyItems(const TArray<Type>& InItems) const
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		Items.Empty(InItems.Num());
+		for (const Type& Item : InItems)
+		{
 			Items.PushBack(Item);
 		}
+	}
 
-		bool Dequeue(Type* Result)
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			if (Items.Num())
-			{
-				*Result = Items.PopFrontValue();
-				return true;
-			}
-			return false;
-		}
-
-		void DequeueAll(TArray<Type>& Results)
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			Results.Reserve(Results.Num() + Items.Num());
-			while (!Items.IsEmpty())
-			{
-				Results.Add(Items.PopFrontValue());
-			}
-		}
-
-		bool HasItems() const
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			return Items.Num() > 0;
-		}
-
-		void Remove(const Type& Item)
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			Items.Remove(Item);
-		}
-
-		void CopyItems(const TArray<Type>& InItems) const
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			Items.Empty(InItems.Num());
-			for (const Type& Item : InItems)
-			{
-				Items.PushBack(Item);
-			}
-		}
-
-		int Num() const
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			return Items.Num();
-		}
-
-		void Empty()
-		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			Items.Empty();
-		}
-	};
-
-	/** Simple thread safe proxy for TSet<FName> */
-	template <typename T>
-	class FThreadSafeSet
+	int Num() const
 	{
-		TSet<T> InnerSet;
-		FCriticalSection SetCritical;
-	public:
-		void Add(T InValue)
+		FScopeLock ScopeLock(&SynchronizationObject);
+		return Items.Num();
+	}
+
+	void Empty()
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		Items.Empty();
+	}
+};
+
+/** Simple thread safe proxy for TSet<FName> */
+template <typename T>
+class FThreadSafeSet
+{
+	TSet<T> InnerSet;
+	FCriticalSection SetCritical;
+public:
+	void Add(T InValue)
+	{
+		FScopeLock SetLock(&SetCritical);
+		InnerSet.Add(InValue);
+	}
+	bool AddUnique(T InValue)
+	{
+		FScopeLock SetLock(&SetCritical);
+		if (!InnerSet.Contains(InValue))
 		{
-			FScopeLock SetLock(&SetCritical);
 			InnerSet.Add(InValue);
+			return true;
 		}
-		bool AddUnique(T InValue)
-		{
-			FScopeLock SetLock(&SetCritical);
-			if (!InnerSet.Contains(InValue))
-			{
-				InnerSet.Add(InValue);
-				return true;
-			}
-			return false;
-		}
-		bool Contains(T InValue)
-		{
-			FScopeLock SetLock(&SetCritical);
-			return InnerSet.Contains(InValue);
-		}
-		void Remove(T InValue)
-		{
-			FScopeLock SetLock(&SetCritical);
-			InnerSet.Remove(InValue);
-		}
-		void Empty()
-		{
-			FScopeLock SetLock(&SetCritical);
-			InnerSet.Empty();
-		}
-
-		void GetValues(TSet<T>& OutSet)
-		{
-			FScopeLock SetLock(&SetCritical);
-			OutSet.Append(InnerSet);
-		}
-	};
-
-	struct FThreadSafeUnsolicitedPackagesList
+		return false;
+	}
+	bool Contains(T InValue)
 	{
-		void AddCookedPackage(const FFilePlatformRequest& PlatformRequest);
-		void GetPackagesForPlatformAndRemove(const ITargetPlatform* Platform, TArray<FName>& PackageNames);
-		void Empty();
-
-	private:
-		FCriticalSection				SyncObject;
-		TArray<FFilePlatformRequest>	CookedPackages;
-	};
-
-	struct FPackageTracker : public FUObjectArray::FUObjectCreateListener, public FUObjectArray::FUObjectDeleteListener
+		FScopeLock SetLock(&SetCritical);
+		return InnerSet.Contains(InValue);
+	}
+	void Remove(T InValue)
 	{
-	public:
-		FPackageTracker(FPackageDatas& InPackageDatas);
-		~FPackageTracker();
+		FScopeLock SetLock(&SetCritical);
+		InnerSet.Remove(InValue);
+	}
+	void Empty()
+	{
+		FScopeLock SetLock(&SetCritical);
+		InnerSet.Empty();
+	}
 
-		/** Returns all packages that have been loaded since the last time GetNewPackages was called */
-		TMap<UPackage*, FInstigator> GetNewPackages();
+	void GetValues(TSet<T>& OutSet)
+	{
+		FScopeLock SetLock(&SetCritical);
+		OutSet.Append(InnerSet);
+	}
+};
 
-		/** Report whether GetNewPackages has ever been called */
-		bool HasBeenConsumed() const;
+struct FThreadSafeUnsolicitedPackagesList
+{
+	void AddCookedPackage(const FFilePlatformRequest& PlatformRequest);
+	void GetPackagesForPlatformAndRemove(const ITargetPlatform* Platform, TArray<FName>& PackageNames);
+	void Empty();
 
-		virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
-		virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;
-		virtual void OnUObjectArrayShutdown() override;
+private:
+	FCriticalSection				SyncObject;
+	TArray<FFilePlatformRequest>	CookedPackages;
+};
 
-		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
-		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
+struct FPackageTracker : public FUObjectArray::FUObjectCreateListener, public FUObjectArray::FUObjectDeleteListener
+{
+public:
+	FPackageTracker(FPackageDatas& InPackageDatas);
+	~FPackageTracker();
 
-		/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
-		FPackageData* LoadingPackageData = nullptr;
+	/** Returns all packages that have been loaded since the last time GetNewPackages was called */
+	TMap<UPackage*, FInstigator> GetNewPackages();
 
-		FPackageDatas& PackageDatas;
+	/** Report whether GetNewPackages has ever been called */
+	bool HasBeenConsumed() const;
 
-		FThreadSafeUnsolicitedPackagesList UnsolicitedCookedPackages;
-		FThreadSafeQueue<FRecompileShaderRequest> RecompileRequests;
+	virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
+	virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;
+	virtual void OnUObjectArrayShutdown() override;
 
-		/** Packages to never cook - entries are localpaths in FPaths::MakeStandardFilename format. */
-		FThreadSafeSet<FName> NeverCookPackageList;
-		FThreadSafeSet<FName> UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties
-		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
+	/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
+	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
-		bool bHasBeenConsumed = false;
+	/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
+	FPackageData* LoadingPackageData = nullptr;
 
-		// Thread-safe enumeration of loaded package. 
-		// A lock is held during enumeration, keep code simple and optimal so the lock is released as fast as possible.
-		template <typename FunctionType>
-		void ForEachLoadedPackage(FunctionType Function)
+	FPackageDatas& PackageDatas;
+
+	FThreadSafeUnsolicitedPackagesList UnsolicitedCookedPackages;
+	FThreadSafeQueue<FRecompileShaderRequest> RecompileRequests;
+
+	/** Packages to never cook - entries are localpaths in FPaths::MakeStandardFilename format. */
+	FThreadSafeSet<FName> NeverCookPackageList;
+	FThreadSafeSet<FName> UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties
+	TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
+
+	bool bHasBeenConsumed = false;
+
+	// Thread-safe enumeration of loaded package. 
+	// A lock is held during enumeration, keep code simple and optimal so the lock is released as fast as possible.
+	template <typename FunctionType>
+	void ForEachLoadedPackage(FunctionType Function)
+	{
+		FReadScopeLock ScopeLock(Lock);
+		for (UPackage* Package : LoadedPackages)
 		{
-			FReadScopeLock ScopeLock(Lock);
-			for (UPackage* Package : LoadedPackages)
-			{
-				Function(Package);
-			}
+			Function(Package);
 		}
-	private:
-		// Protects data for thread-safety
-		FRWLock Lock;
+	}
+private:
+	// Protects data for thread-safety
+	FRWLock Lock;
 
-		// This is a complete list of currently loaded UPackages
-		TFastPointerSet<UPackage*> LoadedPackages;
+	// This is a complete list of currently loaded UPackages
+	TFastPointerSet<UPackage*> LoadedPackages;
 
-		// This list contains the UPackages loaded since last call to GetNewPackages
-		TMap<UPackage*, FInstigator> NewPackages;
-	}; 
-}
-}
+	// This list contains the UPackages loaded since last call to GetNewPackages
+	TMap<UPackage*, FInstigator> NewPackages;
+};
+
+} // namespace UE::Cook
