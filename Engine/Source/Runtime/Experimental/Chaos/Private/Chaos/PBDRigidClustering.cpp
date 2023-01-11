@@ -1332,6 +1332,11 @@ namespace Chaos
 
 	bool FRigidClustering::BreakCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
+		if (!ClusteredParticle || ClusteredParticle->Disabled())
+		{
+			return false;
+		}
+
 		// max strain will allow to unconditionally release the children when strain is evaluated
 		constexpr FReal MaxStrain = TNumericLimits<FReal>::Max();
 		if (TArray<FPBDRigidParticleHandle*>* ChildrenHandles = GetChildrenMap().Find(ClusteredParticle))
