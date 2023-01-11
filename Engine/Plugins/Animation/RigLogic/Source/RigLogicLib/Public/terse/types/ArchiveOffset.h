@@ -32,7 +32,9 @@ struct ArchiveOffset {
         ArchiveOffset* target;
 
         explicit Proxy(ArchiveOffset& ptr) : target{std::addressof(ptr)} {
-            target->proxy = this;
+            #if !defined(__clang_analyzer__)
+                target->proxy = this;
+            #endif
         }
 
         ~Proxy() {

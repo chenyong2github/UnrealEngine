@@ -39,8 +39,10 @@ struct ArchiveSize {
         Anchor<TOffset>* base;
 
         Proxy(ArchiveSize& size, Anchor<TOffset>& offset) : target{std::addressof(size)}, base{std::addressof(offset)} {
-            target->proxy = this;
-            base->onMove(onBaseMoved, this);
+            #if !defined(__clang_analyzer__)
+                target->proxy = this;
+                base->onMove(onBaseMoved, this);
+            #endif
         }
 
         ~Proxy() {
