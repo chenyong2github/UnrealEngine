@@ -13,6 +13,7 @@
 #include "IRemoteControlModule.h"
 #include "IStructDeserializerBackend.h"
 #include "IStructSerializerBackend.h"
+#include "Misc/ScopeExit.h"
 #include "RCPropertyUtilities.h"
 #include "RCVirtualPropertyContainer.h"
 #include "RCVirtualProperty.h"
