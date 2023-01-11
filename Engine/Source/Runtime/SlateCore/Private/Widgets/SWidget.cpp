@@ -245,6 +245,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 SWidget::~SWidget()
 {
+#if WITH_SLATE_DEBUGGING
+	UE_CLOG(Debug_DestroyedTag != 0xDC, LogSlate, Fatal, TEXT("The widget is already destroyed."));
+	Debug_DestroyedTag = 0xA3;
+#endif
+
 #if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
 	if (FindWidgetMetaData::FoundWidget == this)
 	{
@@ -1543,7 +1548,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	// Detect children that should have been painted, but were skipped during the paint process.
 	// this will result in geometry being left on screen and not cleared, because it's visible, yet wasn't painted.
 #if WITH_SLATE_DEBUGGING
-	if (GSlateIsOnFastUpdatePath && GSlateEnsureAllVisibleWidgetsPaint)
+	if (GSlateIsOnFastUpdatePath && GSlateEnsureAllVisibleWidgetsPaint && !GIntraFrameDebuggingGameThread)
 	{
 		for (TWeakPtr<const SWidget>& DebugChildThatShouldHaveBeenPaintedPtr : DebugChildWidgetsToPaint)
 		{
@@ -1566,7 +1571,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		}
 	}
 
-	if (GSlateEnsureOutgoingLayerId)
+	if (GSlateEnsureOutgoingLayerId && !GIntraFrameDebuggingGameThread)
 	{
 		for (TWeakPtr<const SWidget>& DebugChildWeakPtr : DebugChildWidgetsToPaint)
 		{

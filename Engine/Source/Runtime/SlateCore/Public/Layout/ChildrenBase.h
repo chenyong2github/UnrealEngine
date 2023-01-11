@@ -5,8 +5,12 @@
 #include "CoreMinimal.h"
 #include "SlotBase.h"
 #include "SlateGlobals.h"
-#include "Debugging/SlateDebugging.h"
 #include "Types/ReflectionMetadata.h"
+
+#ifndef UE_WITH_SLATE_CHILDREN_DEBUGGING
+#define UE_WITH_SLATE_CHILDREN_DEBUGGING !(UE_BUILD_SHIPPING)
+#endif
+
 
 class SWidget;
 class FSlotBase;
@@ -51,14 +55,19 @@ public:
 	virtual TSharedRef<const SWidget> GetChildAt( int32 Index ) const = 0;
 
 	/** @return the SWidget that own the FChildren */
-	SWidget& GetOwner() const { return *Owner; }
+	SWidget& GetOwner() const
+	{
+		Debug_TestDestroyTag();
+		return *Owner;
+	}
 
 	/** Applies the predicate to all the widgets contained by the FChildren. */
 	template<typename Predicate>
 	void ForEachWidget(Predicate Pred)
 	{
-#if WITH_SLATE_DEBUGGING 
-		TGuardValue<bool> IteratingGuard(bIsIteratingChildren, true);
+#if UE_WITH_SLATE_CHILDREN_DEBUGGING 
+		Debug_TestDestroyTag();
+		TGuardValue<bool> IteratingGuard(Debug_bIsIteratingChildren, true);
 #endif
 
 		int32 WidgetCount = Num();
@@ -73,8 +82,9 @@ public:
 	template<typename Predicate>
 	void ForEachWidget(Predicate Pred) const
 	{
-#if WITH_SLATE_DEBUGGING 
-		TGuardValue<bool> IteratingGuard(bIsIteratingChildren, true);
+#if UE_WITH_SLATE_CHILDREN_DEBUGGING 
+		Debug_TestDestroyTag();
+		TGuardValue<bool> IteratingGuard(Debug_bIsIteratingChildren, true);
 #endif
 
 		int32 WidgetCount = Num();
@@ -103,6 +113,7 @@ public:
 	/** Option to give a name to Children to SlotAttribute purposes or for debugging. */
 	FName GetName() const
 	{
+		Debug_TestDestroyTag();
 		return Name;
 	}
 
@@ -181,18 +192,32 @@ protected:
 	/** @return ref to the Widget at the specified Index. */
 	virtual FConstWidgetRef GetChildRefAt(int32 Index) const = 0;
 
-
 protected:
-#if !WITH_SLATE_DEBUGGING 
-	virtual ~FChildren() = default;
-#else
+#if UE_WITH_SLATE_CHILDREN_DEBUGGING 
 	virtual ~FChildren()
 	{
-		UE_CLOG(bIsIteratingChildren, LogSlate, Error,
+		Debug_TestDestroyTag();
+		Debug_DestroyedTag = 0xA3;
+		UE_CLOG(Debug_bIsIteratingChildren, LogSlate, Fatal,
 			TEXT("Destroying widget while iterating children! Owner: %s [%s]"),
 			*FReflectionMetaData::GetWidgetDebugInfo(Owner),
 			*Name.ToString());
 	}
+
+	void Debug_TestDestroyTag() const
+	{
+		/** There is no guarantee that it will work. The memory could have been reused and the new data can luckily matches what we are looking for. */
+		UE_CLOG(Debug_DestroyedTag != 0xDC, LogSlate, Fatal, TEXT("The FChildren is destroyed. You probably have 1 widget owned by 2 different FChildren."));
+	}
+
+#else
+
+	virtual ~FChildren() = default;
+
+	void Debug_TestDestroyTag() const
+	{
+	}
+
 #endif // !WITH_SLATE_DEBUGGING
 
 protected:
@@ -202,8 +227,9 @@ protected:
 private:
 	FName Name;
 
-#if WITH_SLATE_DEBUGGING
-	mutable bool bIsIteratingChildren = false;
+#if UE_WITH_SLATE_CHILDREN_DEBUGGING
+	mutable bool Debug_bIsIteratingChildren = false;
+	mutable uint8 Debug_DestroyedTag = 0xDC;
 #endif // WITH_SLATE_DEBUGGING
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

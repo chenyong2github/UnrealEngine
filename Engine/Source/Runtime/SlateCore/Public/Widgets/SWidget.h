@@ -1888,6 +1888,8 @@ private:
 #if WITH_SLATE_DEBUGGING
 	/** The last time this widget got painted. */
 	uint32 LastPaintFrame = 0;
+	/** Flag to help detect when we access an invalid Widget. */
+	uint8 Debug_DestroyedTag = 0xDC;
 #endif
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
