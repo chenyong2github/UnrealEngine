@@ -103,7 +103,7 @@ bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProx
 {
 	if (DIProxy && !DIProxy->SourceDIName.IsNone())
 	{
-		return !SimStageInfo[SimulationStageIndex].IterationSource.IsNone() && (SimStageInfo[SimulationStageIndex].IterationSource == DIProxy->SourceDIName);
+		return SimStageInfo[SimulationStageIndex].IterationSource == ENiagaraIterationSource::DataInterface && (SimStageInfo[SimulationStageIndex].IterationDataInterface == DIProxy->SourceDIName);
 	}
 	return false;
 }
@@ -111,20 +111,20 @@ bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProx
 FNiagaraDataInterfaceProxyRW* FNiagaraComputeExecutionContext::FindIterationInterface(const TArray<FNiagaraDataInterfaceProxyRW*>& InProxies, uint32 SimulationStageIndex) const
 {
 	// Particle stage
-	if ( SimStageInfo[SimulationStageIndex].IterationSource.IsNone() )
+	if ( SimStageInfo[SimulationStageIndex].IterationSource != ENiagaraIterationSource::DataInterface )
 	{
 		return nullptr;
 	}
 
 	for (FNiagaraDataInterfaceProxyRW* Proxy : InProxies)
 	{
-		if (Proxy->SourceDIName == SimStageInfo[SimulationStageIndex].IterationSource)
+		if (Proxy->SourceDIName == SimStageInfo[SimulationStageIndex].IterationDataInterface)
 		{
 			return Proxy;
 		}
 	}
 
-	UE_LOG(LogNiagara, Verbose, TEXT("FNiagaraComputeExecutionContext::FindIterationInterface could not find IterationInterface %s"), *SimStageInfo[SimulationStageIndex].IterationSource.ToString());
+	UE_LOG(LogNiagara, Verbose, TEXT("FNiagaraComputeExecutionContext::FindIterationInterface could not find IterationInterface %s"), *SimStageInfo[SimulationStageIndex].IterationDataInterface.ToString());
 
 	return nullptr;
 }

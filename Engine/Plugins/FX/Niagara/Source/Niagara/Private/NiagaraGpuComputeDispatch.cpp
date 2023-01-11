@@ -599,7 +599,7 @@ void FNiagaraGpuComputeDispatch::DumpDebugFrame()
 				Builder.Appendf(TEXT("Source(%p 0x%08x %d) "), SimStageData.Source, SimStageData.SourceCountOffset, SimStageData.SourceNumInstances);
 				Builder.Appendf(TEXT("Destination(%p 0x%08x %d) "), SimStageData.Destination, SimStageData.DestinationCountOffset, SimStageData.DestinationNumInstances);
 				Builder.Appendf(TEXT("Iteration(%d | %s) "), SimStageData.IterationIndex, SimStageData.AlternateIterationSource ? *SimStageData.AlternateIterationSource->SourceDIName.ToString() : TEXT("Particles"));
-				if (SimStageData.StageMetaData->bOverrideElementCount)
+				if (SimStageData.StageMetaData->IterationSource == ENiagaraIterationSource::DirectSet)
 				{
 					Builder.Appendf(TEXT("ElementCountXYZ(%d, %d, %d) "), SimStageData.ElementCountXYZ.X, SimStageData.ElementCountXYZ.Y, SimStageData.ElementCountXYZ.Z);
 				}
@@ -1429,46 +1429,64 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	ENiagaraGpuDispatchType DispatchType = ENiagaraGpuDispatchType::OneD;
 	FIntVector DispatchCount = FIntVector(0, 0, 0);
 	FIntVector DispatchNumThreads = FIntVector(0, 0, 0);
-	if (SimStageData.AlternateIterationSource)
-	{
-		DispatchType = SimStageData.StageMetaData->GpuDispatchType;
-		DispatchCount = SimStageData.AlternateIterationSource->GetElementCount(Tick.SystemInstanceID);
-		DispatchNumThreads = SimStageData.StageMetaData->GpuDispatchNumThreads;
 
-		// Verify the number of elements isn't higher that what we can handle
-		checkf(uint64(DispatchCount.X) * uint64(DispatchCount.Y) * uint64(DispatchCount.Z) < uint64(TNumericLimits<int32>::Max()), TEXT("DispatchCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"), DispatchCount.X, DispatchCount.Y, DispatchCount.Z, *SimStageData.AlternateIterationSource->SourceDIName.ToString());
-
-		// Data interfaces such as grids / render targets can choose to dispatch in either the correct dimensionality for the target (i.e. RT2D would choose 2D)
-		// or run in linear mode if performance is not beneficial due to increased waves.  It is also possible the we may choose to override on the simulation stage.
-		// Therefore we need to special case OneD and convert our element count back to linear.
-		if (DispatchType == ENiagaraGpuDispatchType::OneD)
-		{
-			DispatchCount.X = DispatchCount.X * DispatchCount.Y * DispatchCount.Z;
-			DispatchCount.Y = 1;
-			DispatchCount.Z = 1;
-		}
-	}
-	else
+	switch (SimStageData.StageMetaData->IterationSource)
 	{
-		DispatchType = ENiagaraGpuDispatchType::OneD;
-		DispatchCount = FIntVector(SimStageData.DestinationNumInstances, 1, 1);
-		DispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
-	}
+		case ENiagaraIterationSource::Particles:
+		{
+			DispatchType = ENiagaraGpuDispatchType::OneD;
+			DispatchCount = FIntVector(SimStageData.DestinationNumInstances, 1, 1);
+			DispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
+			break;
+		}
 
-	if (SimStageData.StageMetaData->bOverrideElementCount)
-	{
-		if (DispatchType == ENiagaraGpuDispatchType::OneD)
+		case ENiagaraIterationSource::DataInterface:
 		{
-			DispatchCount = FIntVector(SimStageData.ElementCountXYZ.X, 1, 1);
+			DispatchType = SimStageData.StageMetaData->GpuDispatchType;
+			DispatchCount = SimStageData.AlternateIterationSource->GetElementCount(Tick.SystemInstanceID);
+			DispatchNumThreads = SimStageData.StageMetaData->GpuDispatchNumThreads;
+
+			// Verify the number of elements isn't higher that what we can handle
+			checkf(uint64(DispatchCount.X) * uint64(DispatchCount.Y) * uint64(DispatchCount.Z) < uint64(TNumericLimits<int32>::Max()), TEXT("DispatchCount(%d, %d, %d) for IterationInterface(%s) overflows an int32 this is not allowed"), DispatchCount.X, DispatchCount.Y, DispatchCount.Z, *SimStageData.AlternateIterationSource->SourceDIName.ToString());
+
+			// Data interfaces such as grids / render targets can choose to dispatch in either the correct dimensionality for the target (i.e. RT2D would choose 2D)
+			// or run in linear mode if performance is not beneficial due to increased waves.  It is also possible the we may choose to override on the simulation stage.
+			// Therefore we need to special case OneD and convert our element count back to linear.
+			if (DispatchType == ENiagaraGpuDispatchType::OneD)
+			{
+				DispatchCount.X = DispatchCount.X * DispatchCount.Y * DispatchCount.Z;
+				DispatchCount.Y = 1;
+				DispatchCount.Z = 1;
+			}
+			break;
 		}
-		else if (DispatchType == ENiagaraGpuDispatchType::TwoD)
+
+		case ENiagaraIterationSource::DirectSet:
 		{
-			DispatchCount = FIntVector(SimStageData.ElementCountXYZ.X, SimStageData.ElementCountXYZ.Y, 1);
+			DispatchType = SimStageData.StageMetaData->GpuDispatchType;
+			DispatchNumThreads = SimStageData.StageMetaData->GpuDispatchNumThreads;
+
+			switch (DispatchType)
+			{
+				case ENiagaraGpuDispatchType::OneD:
+					DispatchCount = FIntVector(SimStageData.ElementCountXYZ.X, 1, 1);
+					break;
+				case ENiagaraGpuDispatchType::TwoD:
+					DispatchCount = FIntVector(SimStageData.ElementCountXYZ.X, SimStageData.ElementCountXYZ.Y, 1);
+					break;
+				case ENiagaraGpuDispatchType::ThreeD:
+					DispatchCount = SimStageData.ElementCountXYZ;
+					break;
+				default:
+					UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown DispatchType(%d)"), DispatchType);
+					break;
+			}
+			break;
 		}
-		else if (DispatchType == ENiagaraGpuDispatchType::ThreeD)
-		{
-			DispatchCount = SimStageData.ElementCountXYZ;
-		}
+
+		default:
+			UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown IterationSouce(%d)"), SimStageData.StageMetaData->IterationSource);
+			return;
 	}
 
 	const int32 TotalDispatchCount = DispatchCount.X * DispatchCount.Y * DispatchCount.Z;
@@ -1503,7 +1521,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 
 	// Setup instance counts
 	DispatchParameters->RWInstanceCounts			= GPUInstanceCounterManager.GetInstanceCountBuffer().UAV;
-	DispatchParameters->ReadInstanceCountOffset	= SimStageData.AlternateIterationSource ? INDEX_NONE : SimStageData.SourceCountOffset;
+	DispatchParameters->ReadInstanceCountOffset		= SimStageData.AlternateIterationSource ? INDEX_NONE : SimStageData.SourceCountOffset;
 	DispatchParameters->WriteInstanceCountOffset	= SimStageData.AlternateIterationSource ? INDEX_NONE : SimStageData.DestinationCountOffset;
 
 	// Simulation Stage Information
@@ -1514,11 +1532,23 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	{
 		DispatchParameters->SimulationStageIterationInfo = FIntVector4(INDEX_NONE, -1, 0, 0);
 		DispatchParameters->SimulationStageNormalizedIterationIndex = 0.0f;
-		if (SimStageData.AlternateIterationSource != nullptr)
+		switch (SimStageData.StageMetaData->IterationSource)
 		{
-			const uint32 IterationInstanceCountOffset = SimStageData.AlternateIterationSource->GetGPUInstanceCountOffset(Tick.SystemInstanceID);
-			DispatchParameters->SimulationStageIterationInfo.X = IterationInstanceCountOffset;
-			DispatchParameters->SimulationStageIterationInfo.Y = IterationInstanceCountOffset == INDEX_NONE ? TotalDispatchCount : 0;
+			case ENiagaraIterationSource::Particles:
+				break;
+
+			case ENiagaraIterationSource::DataInterface:
+				if (SimStageData.AlternateIterationSource != nullptr)
+				{
+					const uint32 IterationInstanceCountOffset = SimStageData.AlternateIterationSource->GetGPUInstanceCountOffset(Tick.SystemInstanceID);
+					DispatchParameters->SimulationStageIterationInfo.X = IterationInstanceCountOffset;
+					DispatchParameters->SimulationStageIterationInfo.Y = IterationInstanceCountOffset == INDEX_NONE ? TotalDispatchCount : 0;
+				}
+				break;
+
+			case ENiagaraIterationSource::DirectSet:
+				DispatchParameters->SimulationStageIterationInfo.Y = TotalDispatchCount;
+				break;
 		}
 
 		const int32 NumIterations = InstanceData.PerStageInfo[SimStageData.StageIndex].NumIterations;

@@ -96,8 +96,7 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 	InVisitor->UpdateString(TEXT("ParticleIterationStateBinding"), ParticleIterationStateBinding.GetDataSetBindableVariable().GetName().ToString());
 	InVisitor->UpdateString(TEXT("ParticleIterationStateRange"), FString::Printf(TEXT("%d,%d"), ParticleIterationStateRange.X, ParticleIterationStateRange.Y));
 	InVisitor->UpdatePOD(TEXT("bGpuDispatchForceLinear"), bGpuDispatchForceLinear ? 1 : 0);
-	InVisitor->UpdatePOD(TEXT("bOverrideGpuDispatchType"), bOverrideGpuDispatchType ? 1 : 0);
-	InVisitor->UpdatePOD(TEXT("OverrideGpuDispatchType"), (int32)OverrideGpuDispatchType);
+	InVisitor->UpdatePOD(TEXT("DirectDispatchType"), (int32)DirectDispatchType);
 	InVisitor->UpdatePOD(TEXT("bOverrideGpuDispatchNumThreads"), bOverrideGpuDispatchNumThreads ? 1 : 0);
 	InVisitor->UpdateString(TEXT("OverrideGpuDispatchNumThreads"), FString::Printf(TEXT("%d,%d,%d"), OverrideGpuDispatchNumThreads.X, OverrideGpuDispatchNumThreads.Y, OverrideGpuDispatchNumThreads.Z));
 
@@ -116,14 +115,14 @@ bool UNiagaraSimulationStageGeneric::FillCompilationData(TArray<FNiagaraSimulati
 	SimStageData.ElementCountZBinding = ElementCountZBinding.GetName();
 	SimStageData.NumIterations = Iterations;
 	SimStageData.NumIterationsBinding = NumIterationsBinding.GetName();
-	SimStageData.IterationSource = IterationSource == ENiagaraIterationSource::DataInterface ? DataInterface.BoundVariable.GetName() : FName();
+	SimStageData.IterationSource = IterationSource;
+	SimStageData.IterationDataInterface = IterationSource == ENiagaraIterationSource::DataInterface ? DataInterface.BoundVariable.GetName() : FName();
 	SimStageData.ExecuteBehavior = ExecuteBehavior;
 	SimStageData.PartialParticleUpdate = bDisablePartialParticleUpdate == false;
 	SimStageData.bParticleIterationStateEnabled = bParticleIterationStateEnabled;
 	SimStageData.ParticleIterationStateRange = ParticleIterationStateRange;
 	SimStageData.bGpuDispatchForceLinear = bGpuDispatchForceLinear;
-	SimStageData.bOverrideGpuDispatchType = bOverrideGpuDispatchType;
-	SimStageData.OverrideGpuDispatchType = OverrideGpuDispatchType;
+	SimStageData.DirectDispatchType = DirectDispatchType;
 	SimStageData.bOverrideGpuDispatchNumThreads = bOverrideGpuDispatchNumThreads;
 	SimStageData.OverrideGpuDispatchNumThreads = OverrideGpuDispatchNumThreads;
 
@@ -147,7 +146,9 @@ void UNiagaraSimulationStageGeneric::PostInitProperties()
 	{
 		using namespace NiagaraSimulationStageLocal;
 		EnabledBinding.Setup(GetDefaultEnabledBinding(), GetDefaultEnabledBinding(), ENiagaraRendererSourceDataMode::Emitter);
+#if WITH_EDITORONLY_DATA
 		ElementCountBinding_DEPRECATED.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
+#endif
 		ElementCountXBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
 		ElementCountYBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
 		ElementCountZBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
@@ -188,11 +189,18 @@ void UNiagaraSimulationStageGeneric::PostLoad()
 		ParticleIterationStateBinding.Setup(GetDefaultParticleStateBinding(), GetDefaultParticleStateBinding(), ENiagaraRendererSourceDataMode::Particles);
 	}
 
+	// Handle Deprecated Properties
 	if (ElementCountBinding_DEPRECATED.IsValid())
 	{
-		bOverrideGpuDispatchType = true;
-		OverrideGpuDispatchType = ENiagaraGpuDispatchType::OneD;
+		bOverrideGpuDispatchType_DEPRECATED = true;
+		OverrideGpuDispatchType_DEPRECATED = ENiagaraGpuDispatchType::OneD;
 		ElementCountXBinding = ElementCountBinding_DEPRECATED;
+	}
+
+	if (bOverrideGpuDispatchType_DEPRECATED)
+	{
+		IterationSource = ENiagaraIterationSource::DirectSet;
+		DirectDispatchType = OverrideGpuDispatchType_DEPRECATED;
 	}
 #endif
 }
@@ -213,80 +221,34 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 		MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
 	}
 
-	bool bNeedsRecompile = false;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, EnabledBinding))
+	static const TSet<FName> ForceCompilePropertyNames =
 	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountXBinding))
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, EnabledBinding),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountXBinding),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountYBinding),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountZBinding),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, Iterations),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, NumIterationsBinding),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, IterationSource),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ExecuteBehavior),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bDisablePartialParticleUpdate),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, DataInterface),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, SimulationStageName),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bParticleIterationStateEnabled),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateBinding),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bGpuDispatchForceLinear),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, DirectDispatchType),
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bOverrideGpuDispatchNumThreads),
+	};
+
+	static const TSet<FName> ForceCompileMemberPropertyNamess =
 	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountYBinding))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ElementCountZBinding))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, Iterations))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, NumIterationsBinding))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, IterationSource))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ExecuteBehavior))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bDisablePartialParticleUpdate))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, DataInterface))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, SimulationStageName))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bParticleIterationStateEnabled))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateBinding))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateRange))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bGpuDispatchForceLinear))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bOverrideGpuDispatchType))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, OverrideGpuDispatchType))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bOverrideGpuDispatchNumThreads))
-	{
-		bNeedsRecompile = true;
-	}
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, OverrideGpuDispatchNumThreads))
+		GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateRange),
+	};
+
+	bool bNeedsRecompile = ForceCompilePropertyNames.Contains(PropertyName) || ForceCompileMemberPropertyNamess.Contains(MemberPropertyName);
+
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, OverrideGpuDispatchNumThreads))
 	{
 		OverrideGpuDispatchNumThreads.X = FMath::Max(OverrideGpuDispatchNumThreads.X, 1);
 		OverrideGpuDispatchNumThreads.Y = FMath::Max(OverrideGpuDispatchNumThreads.Y, 1);
@@ -322,11 +284,19 @@ FVersionedNiagaraEmitter UNiagaraSimulationStageBase::GetOuterEmitter() const
 
 FName UNiagaraSimulationStageGeneric::GetStackContextReplacementName() const 
 {
-	if (IterationSource == ENiagaraIterationSource::Particles)
-		return NAME_None;
-	else if (IterationSource == ENiagaraIterationSource::DataInterface)
-		return DataInterface.BoundVariable.GetName();
-	ensureMsgf(false, TEXT("Should not get here! Need to handle unknown case!"));
+	switch (IterationSource)
+	{
+		case ENiagaraIterationSource::Particles:
+		case ENiagaraIterationSource::DirectSet:
+			return NAME_None;
+
+		case ENiagaraIterationSource::DataInterface:
+			return DataInterface.BoundVariable.GetName();
+
+		default:
+			ensureMsgf(false, TEXT("Should not get here! Need to handle unknown case!"));
+			break;
+	}
 	return NAME_None;
 }
 #endif

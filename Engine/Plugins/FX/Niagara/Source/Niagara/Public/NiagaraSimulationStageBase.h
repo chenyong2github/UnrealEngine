@@ -64,33 +64,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableAttributeBinding EnabledBinding;
 
-	UPROPERTY()
-	FNiagaraVariableAttributeBinding ElementCountBinding_DEPRECATED;
-
-	/**
-	Integer binding to override the number of elements the stage will execute along X.
-	For example, if you want to iterate over a custom source such as triangles on a mesh you can
-	set an int to the triangle count in an emitter script and bind that as the element count.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "ElementCount X"))
-	FNiagaraVariableAttributeBinding ElementCountXBinding;
-
-	/**
-	Integer binding to override the number of elements the stage will execute along Y.
-	For example, if you want to iterate over a 2D texture you can set an int to the texture height
-	in an emitter script and bind that as the element count.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "ElementCount Y"))
-	FNiagaraVariableAttributeBinding ElementCountYBinding;
-
-	/**
-	Integer binding to override the number of elements the stage will execute along Z.
-	For example, if you want to iterate over a 3D texture you can set an int to the texture depth
-	in an emitter script and bind that as the element count.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "ElementCount Z"))
-	FNiagaraVariableAttributeBinding ElementCountZBinding;
-	
 	/**
 	Select what we should be iterating over, particles or data interfaces.
 	The source provides things such as element count (when not overriden) and stack context variables (i.e. attributes on grids)
@@ -110,9 +83,6 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableAttributeBinding NumIterationsBinding;
-
-	UPROPERTY()
-	uint32 bSpawnOnly_DEPRECATED : 1;
 
 	/**
 	Controls when the simulation stage should execute, only valid for data interface iteration stages
@@ -154,23 +124,57 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	uint32 bGpuDispatchForceLinear : 1;
 
-	/**
-	When enabled we use a custom number of element count for the dispatch.
-	NOTE: Cannot be used with GpuDispatchForceLinear.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
-	uint32 bOverrideGpuDispatchType : 1;
-
-	/** Dimensions to use for dispatch. */
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "Gpu Dispatch Type"))
-	ENiagaraGpuDispatchType OverrideGpuDispatchType = ENiagaraGpuDispatchType::OneD;
-
 	/** When enabled we use a custom number of threads for the dispatch. */
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	uint32 bOverrideGpuDispatchNumThreads : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(64, 1, 1);
+
+	/** Dimensions to use for dispatch. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	ENiagaraGpuDispatchType DirectDispatchType = ENiagaraGpuDispatchType::OneD;
+
+	/**
+	Integer binding to override the number of elements the stage will execute along X.
+	For example, if you want to iterate over a custom source such as triangles on a mesh you can
+	set an int to the triangle count in an emitter script and bind that as the element count.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "ElementCount X"))
+	FNiagaraVariableAttributeBinding ElementCountXBinding;
+
+	/**
+	Integer binding to override the number of elements the stage will execute along Y.
+	For example, if you want to iterate over a 2D texture you can set an int to the texture height
+	in an emitter script and bind that as the element count.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "ElementCount Y", EditCondition = "DirectDispatchType == ENiagaraGpuDispatchType::TwoD || DirectDispatchType == ENiagaraGpuDispatchType::ThreeD"))
+	FNiagaraVariableAttributeBinding ElementCountYBinding;
+
+	/**
+	Integer binding to override the number of elements the stage will execute along Z.
+	For example, if you want to iterate over a 3D texture you can set an int to the texture depth
+	in an emitter script and bind that as the element count.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "ElementCount Z", EditCondition = "DirectDispatchType == ENiagaraGpuDispatchType::ThreeD"))
+	FNiagaraVariableAttributeBinding ElementCountZBinding;
+
+#if WITH_EDITORONLY_DATA
+	// Deprecated Properties
+	UPROPERTY()
+	FNiagaraVariableAttributeBinding ElementCountBinding_DEPRECATED;
+
+	UPROPERTY()
+	uint32 bSpawnOnly_DEPRECATED : 1;
+	
+	UPROPERTY()
+	uint32 bOverrideGpuDispatchType_DEPRECATED : 1;
+
+	UPROPERTY()
+	ENiagaraGpuDispatchType OverrideGpuDispatchType_DEPRECATED = ENiagaraGpuDispatchType::OneD;
+#endif
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;

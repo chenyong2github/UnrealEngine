@@ -894,14 +894,6 @@ enum class ENiagaraScriptGroup : uint8
 	Max
 };
 
-
-UENUM()
-enum class ENiagaraIterationSource : uint8
-{
-	Particles = 0,
-	DataInterface
-};
-
 UENUM()
 enum ENiagaraBindingSource : int
 {

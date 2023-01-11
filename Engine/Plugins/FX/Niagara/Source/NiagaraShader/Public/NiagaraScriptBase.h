@@ -6,6 +6,7 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
 #endif
+#include "NiagaraCore.h"
 
 #include "NiagaraScriptBase.generated.h"
 
@@ -61,9 +62,17 @@ public:
 	UPROPERTY()
 	FName ElementCountZBinding;
 
-	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
+	/** The source we are iteration over. */
 	UPROPERTY()
-	FName IterationSource;
+	ENiagaraIterationSource IterationSource = ENiagaraIterationSource::Particles;
+
+	/** When IterationSource is ENiagaraIterationSource::DataInterface this is the data interface name. */
+	UPROPERTY()
+	FName IterationDataInterface;
+
+	/** When IterationSource is ENiagaraIterationSource::IterationDirectBinding this is the variable we are bound to. */
+	UPROPERTY()
+	FName IterationDirectBinding;
 
 	/** Controls when the simulation stage will execute. */
 	UPROPERTY()
@@ -79,10 +88,6 @@ public:
 
 	UPROPERTY()
 	uint32 bParticleIterationStateEnabled : 1;
-
-	/** When enabled the simulation stage uses element count provided by user to dispatch work. */
-	UPROPERTY()
-	uint32 bOverrideElementCount : 1;
 
 	/** When the value is not none this is the binding used for particle state iteration stages. */
 	UPROPERTY()
@@ -102,7 +107,6 @@ public:
 	/** DataInterfaces that we read from in this stage.*/
 	UPROPERTY()
 	TArray<FName> InputDataInterfaces;
-
 
 	/** The number of iterations for the stage. */
 	UPROPERTY()

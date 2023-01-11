@@ -1300,13 +1300,14 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].ExecuteBehavior = CompileSimStageData.ExecuteBehavior;
 					TranslationStages[Index].bPartialParticleUpdate = CompileSimStageData.PartialParticleUpdate;
 					TranslationStages[Index].IterationSource = CompileSimStageData.IterationSource;
+					TranslationStages[Index].IterationDataInterface = CompileSimStageData.IterationDataInterface;
+					TranslationStages[Index].IterationDirectBinding = CompileSimStageData.IterationDirectBinding;
 					TranslationStages[Index].NumIterationsBinding = CompileSimStageData.NumIterationsBinding;
 					TranslationStages[Index].bParticleIterationStateEnabled = CompileSimStageData.bParticleIterationStateEnabled;
 					TranslationStages[Index].ParticleIterationStateBinding = CompileSimStageData.ParticleIterationStateBinding;
 					TranslationStages[Index].ParticleIterationStateRange = CompileSimStageData.ParticleIterationStateRange;
 					TranslationStages[Index].bGpuDispatchForceLinear = CompileSimStageData.bGpuDispatchForceLinear;
-					TranslationStages[Index].bOverrideGpuDispatchType = CompileSimStageData.bOverrideGpuDispatchType;
-					TranslationStages[Index].OverrideGpuDispatchType = CompileSimStageData.OverrideGpuDispatchType;
+					TranslationStages[Index].DirectDispatchType = CompileSimStageData.DirectDispatchType;
 					TranslationStages[Index].bOverrideGpuDispatchNumThreads = CompileSimStageData.bOverrideGpuDispatchNumThreads;
 					TranslationStages[Index].OverrideGpuDispatchNumThreads = CompileSimStageData.OverrideGpuDispatchNumThreads;
 
@@ -1372,6 +1373,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.ElementCountZBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountZBinding;
 					SimulationStageMetaData.ExecuteBehavior = TranslationStages[Index].ExecuteBehavior;
 					SimulationStageMetaData.IterationSource = InCompileData->CompileSimStageData[SourceSimStageIndex].IterationSource;
+					SimulationStageMetaData.IterationDataInterface = InCompileData->CompileSimStageData[SourceSimStageIndex].IterationDataInterface;
+					SimulationStageMetaData.IterationDirectBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].IterationDirectBinding;
 					SimulationStageMetaData.NumIterationsBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].NumIterationsBinding;
 					SimulationStageMetaData.NumIterations = TranslationStages[Index].NumIterations;
 					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
@@ -1379,25 +1382,23 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.bParticleIterationStateEnabled = TranslationStages[Index].bParticleIterationStateEnabled;
 					SimulationStageMetaData.ParticleIterationStateBinding = TranslationStages[Index].ParticleIterationStateBinding;
 					SimulationStageMetaData.ParticleIterationStateRange = TranslationStages[Index].ParticleIterationStateRange;
-					SimulationStageMetaData.bOverrideElementCount = TranslationStages[Index].bOverrideGpuDispatchType;
 
 					// Determine dispatch information from iteration source (if we have one)
 					SimulationStageMetaData.GpuDispatchType = ENiagaraGpuDispatchType::OneD;
 					SimulationStageMetaData.GpuDispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
-					if ( !SimulationStageMetaData.IterationSource.IsNone() )
+					if ( SimulationStageMetaData.IterationSource == ENiagaraIterationSource::DataInterface )
 					{
-						if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
+						if (SimulationStageMetaData.IterationDataInterface.IsNone())
+						{
+							Error(LOCTEXT("NoIterationDataInterface", "An data interface must be bound to a data interface iteration stage"), nullptr, nullptr);
+							return TranslateResults;
+						}
+
+						if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationDataInterface; }))
 						{
 							if ( UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()) )
 							{
-								if (TranslationStages[Index].bGpuDispatchForceLinear)
-								{
-									SimulationStageMetaData.GpuDispatchType = ENiagaraGpuDispatchType::OneD;
-								}
-								else
-								{
-									SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].bOverrideGpuDispatchType ? TranslationStages[Index].OverrideGpuDispatchType : IteratinoSourceCDO->GetGpuDispatchType();
-								}
+								SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].bGpuDispatchForceLinear ? ENiagaraGpuDispatchType::OneD : IteratinoSourceCDO->GetGpuDispatchType();
 
 								if (TranslationStages[Index].bOverrideGpuDispatchNumThreads)
 								{
@@ -1409,6 +1410,10 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 								}
 							}
 						}
+					}
+					else if (SimulationStageMetaData.IterationSource == ENiagaraIterationSource::DirectSet)
+					{
+						SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].DirectDispatchType;
 					}
 
 					// Increment source stage index
@@ -1438,6 +1443,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				if (StageGuid == CompileOptions.TargetUsageId && InCompileData->CompileSimStageData.IsValidIndex(StageIdx))
 				{
 					TranslationStages[0].IterationSource = InCompileData->CompileSimStageData[StageIdx].IterationSource;
+					TranslationStages[0].IterationDataInterface = InCompileData->CompileSimStageData[StageIdx].IterationDataInterface;
+					TranslationStages[0].IterationDirectBinding = InCompileData->CompileSimStageData[StageIdx].IterationDirectBinding;
 				}
 			}
 		}
@@ -1651,7 +1658,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				CurrentParamMapIndices.Add(i);
 				PinToCodeChunks.Empty();
 				PinToCodeChunks.AddDefaulted(1);				
-				FName IterSource = TranslationStages[i].IterationSource;
+				FName IterSource = TranslationStages[i].GetIterationDataInterface();
 				ActiveHistoryForFunctionCalls.BeginUsage(TranslationStages[i].ScriptUsage, IterSource);
 				TranslationStages[i].OutputNode->Compile(ThisTranslator, OutputChunks);
 				HandleSimStageSetupAndTeardown(i, StageSetupAndTeardownHLSL);
@@ -1671,7 +1678,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		if (TranslationStages[0].ShouldDoSpawnOnlyLogic())
 			bInitializedDefaults = false;
 
-		FName IterSource = TranslationStages[0].IterationSource;
+		FName IterSource = TranslationStages[0].GetIterationDataInterface();
 		ActiveHistoryForFunctionCalls.BeginUsage(TranslationStages[0].ScriptUsage, IterSource);
 		TranslationStages[0].OutputNode->Compile(ThisTranslator, OutputChunks);
 		ActiveHistoryForFunctionCalls.EndUsage();
@@ -2153,8 +2160,10 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, FString& OutHlsl)
 {
 	FHlslNiagaraTranslationStage& TranslationStage = TranslationStages[InWhichStage];
+	const FName IterationDataInterface = TranslationStage.GetIterationDataInterface();
+
 	// If we're particles then do nothing different..
-	if (TranslationStage.IterationSource == NAME_None)
+	if (IterationDataInterface == NAME_None)
 		return;
 
 	FExpressionPermutationContext PermutationContext(OutHlsl);
@@ -2162,7 +2171,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 
 	// Ok, we're iterating over a known iteration source. Let's find it in the parameter map history so we know type/etc.
 	FNiagaraVariable IterationSourceVar;
-	const FNiagaraVariable* FoundVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == TranslationStage.IterationSource; });
+	const FNiagaraVariable* FoundVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == IterationDataInterface; });
 	if (FoundVar != nullptr)
 	{
 		IterationSourceVar = *FoundVar;
@@ -2170,14 +2179,14 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 	
 	if (!IterationSourceVar.IsValid())
 	{
-		Error(FText::Format(LOCTEXT("CannotFindIterationSourceInParamMap", "Variable {0} missing in graphs referenced during compile!"), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+		Error(FText::Format(LOCTEXT("CannotFindIterationSourceInParamMap", "Variable {0} missing in graphs referenced during compile!"), FText::FromName(IterationDataInterface)), nullptr, nullptr);
 		return;
 	}
 
 	UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar.GetType().GetClass());
 	if (!CDO || !IterationSourceVar.GetType().GetClass())
 	{
-		Error(FText::Format(LOCTEXT("CannotFindIterationSourceCDOInParamMap", "Variable {0}'s cached CDO for class was missing during compile!"), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+		Error(FText::Format(LOCTEXT("CannotFindIterationSourceCDOInParamMap", "Variable {0}'s cached CDO for class was missing during compile!"), FText::FromName(IterationDataInterface)), nullptr, nullptr);
 		return;
 	}
 
@@ -2194,7 +2203,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		{
 			const FNiagaraVariable& Var = ParamMapHistories[ParamHistoryIdx].Variables[i];
 
-			if (Var.IsInNameSpace(TranslationStage.IterationSource))
+			if (Var.IsInNameSpace(IterationDataInterface))
 			{
 				if (ParamMapHistories[ParamHistoryIdx].PerVariableReadHistory[i].Num() > 0 && !ReadVars.Contains(Var))
 					ReadVars.Emplace(Var);
@@ -2210,7 +2219,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		{
 			const FNiagaraVariable& Var = ParamMapHistories[ParamHistoryIdx].Variables[i];
 
-			if (Var.IsInNameSpace(TranslationStage.IterationSource))
+			if (Var.IsInNameSpace(IterationDataInterface))
 			{
 				if (!AllVars.Contains(Var))
 					AllVars.Emplace(Var);
@@ -2223,7 +2232,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 	for (int32 i = 0; i < CompilationOutput.ScriptData.DataInterfaceInfo.Num(); i++)
 	{
 		FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[i];
-		if (TranslationStage.IterationSource == Info.Name)
+		if (IterationDataInterface == Info.Name)
 		{
 			DataInterfaceOwnerIndex = i;
 			break;
@@ -2235,7 +2244,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 	// 2) Someone called a function that was marked to write 
 	const int32 SourceSimStage = TranslationStage.SimulationStageIndex;
 	ensure(CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(SourceSimStage));
-	bool bWroteToIterationSource = CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].OutputDestinations.Contains(TranslationStage.IterationSource);
+	bool bWroteToIterationSource = CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].OutputDestinations.Contains(TranslationStage.GetIterationDataInterface());
 	if (WriteVars.Num() > 0)
 		bWroteToIterationSource = true;
 
@@ -2278,20 +2287,20 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		// If we haven't created it by now, bail out. 
 		if (DataInterfaceOwnerIndex == INDEX_NONE && bNeedsDIOwner)
 		{
-			Error(FText::Format(LOCTEXT("CannotRegisterDataInterface", "Variable {0}'s cannot register as a data interface!"), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+			Error(FText::Format(LOCTEXT("CannotRegisterDataInterface", "Variable {0}'s cannot register as a data interface!"), FText::FromName(IterationDataInterface)), nullptr, nullptr);
 			return;
 		}
 
 		// It is an invalid state to use the IterationSource and StackContext namespace without implementing SupportsIterationSourceNamespaceAttributesHLSL
 		if (ReadVars.Num() > 0 && !bNeedsAttributeRead)
 		{
-			Error(FText::Format(LOCTEXT("CannotUseContextRead", "Variable {0} cannot be used in conjunction with StackContext namespace variable reads! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+			Error(FText::Format(LOCTEXT("CannotUseContextRead", "Variable {0} cannot be used in conjunction with StackContext namespace variable reads! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(IterationDataInterface)), nullptr, nullptr);
 			return;
 		}
 
 		if (WriteVars.Num() > 0 && !bNeedsAttributeWrite)
 		{
-			Error(FText::Format(LOCTEXT("CannotUseContextWrite", "Variable {0} cannot be used in conjunction with StackContext namespace variable writes! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
+			Error(FText::Format(LOCTEXT("CannotUseContextWrite", "Variable {0} cannot be used in conjunction with StackContext namespace variable writes! It must implement SupportsIterationSourceNamespaceAttributesHLSL."), FText::FromName(IterationDataInterface)), nullptr, nullptr);
 			return;
 		}
 
@@ -3048,8 +3057,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
+			const FName IterationDataInterface = TranslationStages[i].GetIterationDataInterface();
+
 			// No need to load particle data for stages with an iteration source, since those do not run one thread per particle.
-			if (TranslationStages[i].IterationSource != NAME_None)
+			if (IterationDataInterface != NAME_None)
 			{
 				if (TranslationStages[i].CustomReadFunction.IsEmpty())
 				{
@@ -3059,7 +3070,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			PermutationContext.AddBranch(*this, TranslationStages[i]);
 
-			if (TranslationStages[i].IterationSource != NAME_None)
+			if (IterationDataInterface != NAME_None)
 			{
 				if (!TranslationStages[i].CustomReadFunction.IsEmpty())
 				{
@@ -3202,8 +3213,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
+			const FName IterationDataInterface = TranslationStages[i].GetIterationDataInterface();
+
 			// No need to store particle data for stages with an iteration source, since those do not run one thread per particle.
-			if (TranslationStages[i].IterationSource != NAME_None)
+			if (IterationDataInterface != NAME_None)
 			{
 				if (TranslationStages[i].CustomWriteFunction.IsEmpty())
 				{
@@ -3219,8 +3232,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			PermutationContext.AddBranch(*this, TranslationStages[i]);
 
-
-			if (TranslationStages[i].IterationSource != NAME_None)
+			if (IterationDataInterface != NAME_None)
 			{
 				if (!TranslationStages[i].CustomWriteFunction.IsEmpty())
 				{
@@ -3363,7 +3375,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		const FHlslNiagaraTranslationStage& TranslationStage = TranslationStages[i];
 		const bool bInterpolatedSpawning = CompileOptions.AdditionalDefines.Contains(TEXT("InterpolatedSpawn")) || i != 1;
 		const bool bAlwaysRunUpdateScript = CompileOptions.AdditionalDefines.Contains(TEXT("GpuAlwaysRunParticleUpdateScript"));
-		const bool bParticleIterationStage = TranslationStage.IterationSource.IsNone();
 		const bool bParticleSpawnStage = i == 1;
 
 		HlslOutput.Appendf(
@@ -3374,7 +3385,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		);
 
 		// Particle iteration stage
-		if (bParticleIterationStage)
+		if (TranslationStage.IterationSource == ENiagaraIterationSource::Particles)
 		{
 			// Do we have particle state iteration enable
 			HlslOutput.Append(TEXT("	bool bRunSpawnUpdateLogic = true;\n"));
@@ -3426,8 +3437,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				);
 			}
 		}
-		// Iteration interface stage
-		else
+		// Iteration Data Interface
+		else if (TranslationStage.IterationSource == ENiagaraIterationSource::DataInterface)
 		{
 			//	if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
 			//	{
@@ -3447,6 +3458,22 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				"	const bool bRunUpdateLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart != 1);\n"
 				"	const bool bRunSpawnLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart == 1);\n"
 			);
+		}
+		// Iteration Direct Value
+		else if (TranslationStage.IterationSource == ENiagaraIterationSource::DirectSet)
+		{
+			HlslOutput += TEXT(
+				"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
+				"	const bool bValidInstance = all(GDispatchThreadId < DispatchThreadIdBounds);\n"
+				"	const bool bRunUpdateLogic = bValidInstance;\n"
+				"	const bool bRunSpawnLogic = false;\n"
+				"	GLinearThreadId = bValidInstance ? GLinearThreadId : MaxInstances;\n"
+				"	GSpawnStartInstance = MaxInstances;\n"
+			);
+		}
+		else
+		{
+			checkf(false, TEXT("Unsupported iteration source"));
 		}
 
 		HlslOutput += TEXT(
@@ -3474,7 +3501,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		// Add Spawn Logic
 		HlslOutput.Append(TEXT("	else if (bRunSpawnLogic)\n"));
 		HlslOutput.Append(TEXT("	{\n"));
-		if (bParticleIterationStage)
+		if (TranslationStage.IterationSource == ENiagaraIterationSource::Particles)
 		{
 			HlslOutput.Append(TEXT("		SetupExecIndexAndSpawnInfoForGPU();\n"));
 		}
@@ -4907,7 +4934,7 @@ bool FHlslNiagaraTranslationStage::IsExternalConstantNamespace(const FNiagaraVar
 {
 	if (FNiagaraParameterMapHistory::IsExternalConstantNamespace(InVar, InTargetUsage, InTargetBitmask))
 	{
-		if (IterationSource != NAME_None && InVar.IsInNameSpace(IterationSource))
+		if (IterationSource == ENiagaraIterationSource::DataInterface && InVar.IsInNameSpace(IterationDataInterface))
 			return false;
 		else
 			return true;
@@ -4924,13 +4951,12 @@ bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParam
 
 	if ((ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript) && (ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset))
 	{
-		if (IterationSource == NAME_None)
+		switch ( IterationSource )
 		{
-			return InHistory.IsPrimaryDataSetOutput(InAliasedVar, ENiagaraScriptUsage::EmitterSpawnScript);
-		}
-		else
-		{
-			return InVar.IsInNameSpace(IterationSource) && !InVar.IsDataInterface();
+			case ENiagaraIterationSource::Particles:		return InVar.IsInNameSpace(IterationDataInterface) && !InVar.IsDataInterface();
+			case ENiagaraIterationSource::DataInterface:	return InHistory.IsPrimaryDataSetOutput(InAliasedVar, ENiagaraScriptUsage::EmitterSpawnScript);
+			case ENiagaraIterationSource::DirectSet:		return false;
+			default:										check(false);
 		}
 	}
 	return false;
@@ -6328,9 +6354,9 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 		bIsPerInstanceAttribute = true;
 	}
 
-	if (TranslationStages[ActiveStageIdx].IterationSource != NAME_None && TranslationStages[ActiveStageIdx].ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && !bIsPerInstanceAttribute)
+	if (TranslationStages[ActiveStageIdx].IterationSource == ENiagaraIterationSource::DataInterface && TranslationStages[ActiveStageIdx].ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && !bIsPerInstanceAttribute)
 	{
-		bIsPerInstanceAttribute = Var.IsInNameSpace(TranslationStages[ActiveStageIdx].IterationSource);
+		bIsPerInstanceAttribute = Var.IsInNameSpace(TranslationStages[ActiveStageIdx].IterationDataInterface);
 	}
 
 	// Make sure to leave IsAlive alone if copying over previous stage params.

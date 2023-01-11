@@ -1714,7 +1714,7 @@ bool FVersionedNiagaraEmitterData::BuildParameterStoreRendererBindings(FNiagaraP
 			{
 				bAnyBindingsAdded |= ParameterStore.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), SimStageMetaData.EnabledBinding), false);
 			}
-			if (SimStageMetaData.bOverrideElementCount)
+			if (SimStageMetaData.IterationSource == ENiagaraIterationSource::DirectSet)
 			{
 				if (!SimStageMetaData.ElementCountXBinding.IsNone())
 				{

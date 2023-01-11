@@ -222,7 +222,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 							NumIterations = StageEnabled.GetValue() ? NumIterations : 0;
 						}
 					}
-					if (SimStageMetaData.bOverrideElementCount)
+					if (SimStageMetaData.IterationSource == ENiagaraIterationSource::DirectSet)
 					{
 						if (!SimStageMetaData.ElementCountXBinding.IsNone() && (SimStageMetaData.GpuDispatchType >= ENiagaraGpuDispatchType::OneD))
 						{

@@ -369,7 +369,9 @@ public:
 	bool bInterpolatePreviousParams = false;
 	bool bCopyPreviousParams = true;
 	ENiagaraCodeChunkMode ChunkModeIndex = (ENiagaraCodeChunkMode)-1;
-	FName IterationSource;
+	ENiagaraIterationSource IterationSource = ENiagaraIterationSource::Particles;
+	FName IterationDataInterface;
+	FName IterationDirectBinding;
 	int32 SimulationStageIndex = -1;
 	FName EnabledBinding;
 	FName ElementCountXBinding;
@@ -386,8 +388,7 @@ public:
 	bool bWritesParticles = false;
 	bool bPartialParticleUpdate = false;
 	bool bGpuDispatchForceLinear = false;
-	bool bOverrideGpuDispatchType = false;
-	ENiagaraGpuDispatchType OverrideGpuDispatchType = ENiagaraGpuDispatchType::OneD;
+	ENiagaraGpuDispatchType DirectDispatchType = ENiagaraGpuDispatchType::OneD;
 	bool bOverrideGpuDispatchNumThreads = false;
 	bool bShouldUpdateInitialAttributeValues = false;
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
@@ -400,6 +401,9 @@ public:
 	bool IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar, const FNiagaraVariable& InVar) const;
 
 	bool IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InTargetUsage, uint32 InTargetBitmask);
+
+	FName GetIterationDataInterface() const { return IterationSource == ENiagaraIterationSource::DataInterface ? IterationDataInterface : NAME_None; }
+
 	int32 CurrentCallID = 0;
 	bool bCallIDInitialized = false;
 };
