@@ -19,7 +19,10 @@ namespace NiagaraDataSetPrivate
 	inline uint8* GetComponentPtrFloat(FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
 	inline uint8* GetComponentPtrHalf(FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
 	inline uint8* GetComponentPtrInt32(FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
-	inline uint32 GetNumInstances(FNiagaraDataBuffer* DataBuffer);
+	inline const uint8* GetComponentPtrFloat(const FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
+	inline const uint8* GetComponentPtrHalf(const FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
+	inline const uint8* GetComponentPtrInt32(const FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
+	inline uint32 GetNumInstances(const FNiagaraDataBuffer* DataBuffer);
 }
 
 template<typename TType>
@@ -531,9 +534,8 @@ struct FNiagaraDataSetReaderStruct
 {
 	FORCEINLINE FNiagaraDataSetReaderStruct() {}
 
-	explicit FNiagaraDataSetReaderStruct(FNiagaraDataBuffer* DataBuffer, int32 FloatComponentIndex, int32 Int32ComponentIndex)
+	explicit FNiagaraDataSetReaderStruct(const FNiagaraDataBuffer* DataBuffer, int32 FloatComponentIndex, int32 Int32ComponentIndex)
 	{
-		using namespace NiagaraDataSetPrivate;
 		bIsValid  = DataBuffer != nullptr;
 		bIsValid &= (FNiagaraDataSetAccessorTypeInfo<TType>::NumFloatComponents == 0) || (FloatComponentIndex != INDEX_NONE);
 		bIsValid &= (FNiagaraDataSetAccessorTypeInfo<TType>::NumInt32Components == 0) || (Int32ComponentIndex != INDEX_NONE);
@@ -542,13 +544,13 @@ struct FNiagaraDataSetReaderStruct
 			int32 ComponentIndex = 0;
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumFloatComponents; ++i)
 			{
-				ComponentData[ComponentIndex++] = GetComponentPtrFloat(DataBuffer, FloatComponentIndex + i);
+				ComponentData[ComponentIndex++] = NiagaraDataSetPrivate::GetComponentPtrFloat(DataBuffer, FloatComponentIndex + i);
 			}
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumInt32Components; ++i)
 			{
-				ComponentData[ComponentIndex++] = GetComponentPtrInt32(DataBuffer, Int32ComponentIndex + i);
+				ComponentData[ComponentIndex++] = NiagaraDataSetPrivate::GetComponentPtrInt32(DataBuffer, Int32ComponentIndex + i);
 			}
-			NumInstances = GetNumInstances(DataBuffer);
+			NumInstances = NiagaraDataSetPrivate::GetNumInstances(DataBuffer);
 		}
 	}
 
@@ -577,6 +579,8 @@ struct FNiagaraDataSetReaderStruct
 		}
 		return Default;
 	}
+
+	FORCEINLINE int32 GetNumInstances()const { return NumInstances; }
 
 private:
 	bool bIsValid = false;
@@ -632,6 +636,7 @@ struct FNiagaraDataSetAccessorStruct
 	FORCEINLINE FNiagaraDataSetReaderStruct<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderStruct<TType>(NiagaraDataSetPrivate::GetCurrentData(DataSet), FloatComponentIndex, Int32ComponentIndex); }
 	//FNiagaraDataSetReaderStruct<TType> GetWriter(const FNiagaraDataSet& DataSet) { return FNiagaraDataSetReaderStruct<TType>(NiagaraDataSetPrivate::GetDestinationData(DataSet), FloatComponentIndex, Int32ComponentIndex); }
 
+	FORCEINLINE FNiagaraDataSetReaderStruct<TType> GetReader(const FNiagaraDataBuffer* DataBuffer) const { return FNiagaraDataSetReaderStruct<TType>(DataBuffer, FloatComponentIndex, Int32ComponentIndex); }
 private:
 	bool bIsValid = false;
 	int32 FloatComponentIndex = INDEX_NONE;

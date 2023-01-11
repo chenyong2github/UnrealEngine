@@ -72,6 +72,34 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 	void Empty();
 
 	static FNiagaraDataSetCompiledData DummyCompiledData;
+
+	uint32 GetLayoutHash()const
+	{
+		if(CachedLayoutHash == INDEX_NONE)
+		{
+			CachedLayoutHash = 0;
+			for(const FNiagaraVariableBase& Var : Variables)
+			{
+				CachedLayoutHash = HashCombine(CachedLayoutHash, GetTypeHash(Var));
+			}
+		}
+		return CachedLayoutHash;
+	}
+
+	bool CheckHashConflict(const FNiagaraDataSetCompiledData& Other)const
+	{
+		//If we have the same hash ensure we have the same data.
+		if(GetLayoutHash() == Other.GetLayoutHash())
+		{
+			return Variables != Other.Variables;			
+		}
+		return false;
+	}
+
+private:
+	/** A hash of all variables in this layout. NOT persistent. Will differ from run to run. */
+	mutable uint32 CachedLayoutHash = INDEX_NONE;
+
 };
 
 //////////////////////////////////////////////////////////////////////////
