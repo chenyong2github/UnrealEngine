@@ -7,10 +7,12 @@
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
 
+
 #include "Virtualization/VirtualizationSystem.h"
 
 class IConsoleObject;
 class FOutputDevice;
+struct FAnalyticsEventAttribute;
 
 /**
  * Configuring the backend hierarchy
@@ -136,6 +138,8 @@ private:
 
 	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const override;
 
+	virtual void GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes) const override;
+
 	virtual FOnNotification& GetNotificationEvent() override
 	{
 		return NotificationEvent;
@@ -154,7 +158,6 @@ private:
 	void OnUpdateDebugMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
 	void OnUpdateDebugMissChanceFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
 	void OnUpdateDebugMissCountFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
-
 	void UpdateBackendDebugState();
 
 	bool ShouldDebugDisablePulling(FStringView BackendConfigName) const;	
@@ -175,7 +178,7 @@ private:
 
 	void PullDataFromAllBackends(TArrayView<FPullRequest> Requests);
 	void PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests);
-
+	
 	bool ShouldVirtualizeAsset(const UObject* Owner) const;
 
 	/** 

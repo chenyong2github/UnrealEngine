@@ -6,6 +6,7 @@
 #include "ZenSerialization.h"
 #include "ZenServerHttp.h"
 
+#include "AnalyticsEventAttribute.h"
 #include "Async/Async.h"
 #include "Dom/JsonValue.h"
 #include "HAL/FileManager.h"
@@ -1695,6 +1696,94 @@ FZenServiceInstance::RequestGC(const bool* OverrideCollectSmallObjects, const ui
 		return (ResponseStatus == "Started") || (ResponseStatus == "Running");
 	}
 	return false;
+}
+
+bool 
+FZenServiceInstance::GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes)
+{
+	FZenStats ZenStats;
+
+	if (GetStats(ZenStats) == false)
+		return false;
+
+	const FString BaseName = TEXT("Zen");
+
+	{
+		FString AttrName = BaseName + TEXT(".Enabled");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.IsValid);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.HitRatio");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.HitRatio);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Hits");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Hits);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Misses");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Misses);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Size.Disk");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Disk);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Size.Memory");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Memory);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.UpstreamHits");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamHits);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.UpstreamRatio");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamRatio);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.TotalUploadedMB");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Upstream.TotalDownloadedMB");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalDownloadedMB);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Upstream.TotalUploadedMB");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Large");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Large);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Small");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Small);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Tiny");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Tiny);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Total");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Total);
+	}
+
+	return true;
 }
 
 #endif // UE_WITH_ZEN

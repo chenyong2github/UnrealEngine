@@ -34,6 +34,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/CompactBinary.h"
@@ -332,7 +333,7 @@ private:
 	bool EndIsServiceReady(THttpUniquePtr<IHttpResponse>& Response, TArray64<uint8>& Body);
 	bool AcquireAccessToken(IHttpClient* Client = nullptr);
 	void SetAccessToken(FStringView Token, double RefreshDelay = 0.0);
-
+	
 	enum class EOperationCategory
 	{
 		Get,
@@ -2313,6 +2314,30 @@ void FHttpCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
 	OutNode = {TEXT("Unreal Cloud DDC"), FString::Printf(TEXT("%s (%s)"), *Domain, *Namespace), /*bIsLocal*/ false};
 	OutNode.UsageStats.Add(TEXT(""), UsageStats);
+
+#if ENABLE_COOK_STATS
+	const int64 GetHits = UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+	const int64 GetMisses = UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
+	const int64 PutHits = UsageStats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+	const int64 PutMisses = UsageStats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
+	const int64 TotalGets = GetHits + GetMisses;
+	const int64 TotalPuts = PutHits + PutMisses;
+
+	const FString BaseName(TEXTVIEW("CloudDDC."));
+
+	OutNode.CustomStats = FCookStatsManager::CreateKeyValueArray(	FString(WriteToString<64>(BaseName, TEXTVIEW("Domain"))), Domain,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("EffectiveDomain"))), *EffectiveDomain,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("Namespace"))), Namespace,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("LoginAttempts"))), LoginAttempts,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("InteractiveLoginAttempts"))), InteractiveLoginAttempts,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("FailedLoginAttempts"))), FailedLoginAttempts,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("GetHits"))), GetHits,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("GetMisses"))), GetMisses,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("TotalGets"))), TotalGets,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("PutHits"))), PutHits,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("PutMisses"))), PutMisses,
+																	FString(WriteToString<64>(BaseName, TEXTVIEW("TotalPuts"))), TotalPuts);
+#endif
 }
 
 void FHttpCacheStore::Put(

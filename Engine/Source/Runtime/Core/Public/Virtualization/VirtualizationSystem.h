@@ -23,6 +23,7 @@
 class FPackagePath;
 class FText;
 class UObject;
+struct FAnalyticsEventAttribute;
 
 namespace UE::Virtualization
 {
@@ -781,6 +782,9 @@ public:
 
 	/** Access profiling info relating to accumulated payload activity. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const = 0;
+
+	/** Gather analytics data. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
+	virtual void GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes) const =0;
 
 	//* Notification messages
 	enum ENotification

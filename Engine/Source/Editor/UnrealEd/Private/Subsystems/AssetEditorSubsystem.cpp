@@ -3,6 +3,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetEditorMessages.h"
 #include "MessageEndpoint.h"
+#include "StudioAnalytics.h"
 #include "EngineAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "UObject/Package.h"

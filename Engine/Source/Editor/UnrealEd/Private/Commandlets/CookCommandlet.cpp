@@ -41,7 +41,6 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "ShaderCompiler.h"
 #include "Stats/StatsMisc.h"
-#include "StudioAnalytics.h"
 #include "UObject/Class.h"
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"

@@ -9,7 +9,8 @@ public class Zen : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Sockets", "SSL", "Json" });
 		PrivateIncludePathModuleNames.Add("DesktopPlatform");
-
+		PrivateIncludePathModuleNames.Add("Analytics");
+		
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 

@@ -135,8 +135,6 @@ void FStudioAnalytics::RecordEvent(const FString& EventName, const TArray<FAnaly
 
 void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double SecondsSpentLoading, const TArray<FAnalyticsEventAttribute>& InAttributes)
 {
-	using namespace UE::Virtualization;
-
 	// Ignore anything less than a 1/4th a second.
 	if (SecondsSpentLoading < 0.250)
 	{
@@ -161,213 +159,17 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 
 #if ENABLE_COOK_STATS
 
-		TArray<FDerivedDataCacheResourceStat> DDCResourceStats;
+		// Gather DDC analytics
+		GetDerivedDataCacheRef().GatherAnalytics(Attributes);
 
-		// Grab the latest resource stats
-		GetDerivedDataCacheRef().GatherResourceStats(DDCResourceStats);
-
-		FDerivedDataCacheResourceStat DDCResourceStatsTotal(TEXT("Total"));
-
-		// Accumulate Totals
-		for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
-		{
-			DDCResourceStatsTotal += Stat;
-		}
-
-		DDCResourceStats.Emplace(DDCResourceStatsTotal);
-
-		for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
-		{
-			FString BaseName = TEXT("DDC.Resource.") + Stat.AssetType;
-
-			BaseName = BaseName.Replace(TEXT("("), TEXT("")).Replace(TEXT(")"), TEXT(""));
-			
-			{
-				FString AttrName = BaseName + TEXT(".BuildCount");
-				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildCount);
-			}
-			
-			{
-				FString AttrName = BaseName + TEXT(".BuildTimeSec");
-				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildTimeSec);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".BuildSizeMB");
-				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildSizeMB);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".LoadCount");
-				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadCount);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".LoadTimeSec");
-				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadTimeSec);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".LoadSizeMB");
-				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadSizeMB);
-			}
-		}
-
-		// Grab the DDC summary stats
-		{
-			FDerivedDataCacheSummaryStats DDCSummaryStats;
-			GetDerivedDataCacheRef().GatherSummaryStats(DDCSummaryStats);
-
-			for (const FDerivedDataCacheSummaryStat& Stat : DDCSummaryStats.Stats)
-			{
-				FString FormattedAttrName = "DDC.Summary." + Stat.Key;
-				Attributes.Emplace(FormattedAttrName, Stat.Value);
-			}
-
-			// Grab the Virtualization stats
-			if (IVirtualizationSystem::IsInitialized())
-			{
-				IVirtualizationSystem& System = IVirtualizationSystem::Get();
-
-				FPayloadActivityInfo PayloadActivityInfo = System.GetAccumualtedPayloadActivityInfo();
-
-				const FString BaseName = TEXT("Virtualization");
-
-				{
-					FString AttrName = BaseName + TEXT(".Enabled");
-					Attributes.Emplace(MoveTemp(AttrName), System.IsEnabled());
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Cache.TimeSpent");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Cache.CyclesSpent * FPlatformTime::GetSecondsPerCycle());
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Cache.PayloadCount");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Cache.PayloadCount);
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Cache.TotalBytes");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Cache.TotalBytes);
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Push.TimeSpent");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Push.CyclesSpent * FPlatformTime::GetSecondsPerCycle());
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Push.PayloadCount");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Push.PayloadCount);
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Push.TotalBytes");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Push.TotalBytes);
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Pull.TimeSpent");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.CyclesSpent * FPlatformTime::GetSecondsPerCycle());
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Pull.PayloadCount");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.PayloadCount);
-				}
-
-				{
-					FString AttrName = BaseName + TEXT(".Pull.TotalBytes");
-					Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.TotalBytes);
-				}
-			}
-		}
+		// Gather Virtualization analytics
+		UE::Virtualization::IVirtualizationSystem::Get().GatherAnalytics(Attributes);
 
 #if UE_WITH_ZEN
+		// Gather Zen analytics
 		if (UE::Zen::IsDefaultServicePresent())
 		{
-			// Grab the Zen summary stats
-			UE::Zen::FZenStats ZenStats;
-			UE::Zen::GetDefaultServiceInstance().GetStats(ZenStats);
-
-			const FString BaseName = TEXT("Zen");
-
-			{
-				FString AttrName = BaseName + TEXT(".Enabled");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.IsValid);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.HitRatio");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.HitRatio);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.Hits");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Hits);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.Misses");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Misses);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.Size.Disk");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Disk);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.Size.Memory");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Memory);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.UpstreamHits");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamHits);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.UpstreamRatio");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamRatio);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cache.TotalUploadedMB");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Upstream.TotalDownloadedMB");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalDownloadedMB);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Upstream.TotalUploadedMB");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cas.Size.Large");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Large);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cas.Size.Small");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Small);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cas.Size.Tiny");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Tiny);
-			}
-
-			{
-				FString AttrName = BaseName + TEXT(".Cas.Size.Total");
-				Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Total);
-			}
+			UE::Zen::GetDefaultServiceInstance().GatherAnalytics(Attributes);
 		}
 #endif
 

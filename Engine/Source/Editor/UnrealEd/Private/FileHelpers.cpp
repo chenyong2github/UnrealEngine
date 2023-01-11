@@ -70,7 +70,6 @@
 #include "AutoSaveUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/NamePermissionList.h"
-#include "EngineAnalytics.h"
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "HierarchicalLOD.h"

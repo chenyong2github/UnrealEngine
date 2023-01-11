@@ -150,6 +150,11 @@ public:
 		return FPayloadActivityInfo();
 	}
 
+	virtual void GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes) const override
+	{
+		// The null implementation has analytics to capture
+	}
+
 	virtual FOnNotification& GetNotificationEvent() override
 	{
 		return NotificationEvent;

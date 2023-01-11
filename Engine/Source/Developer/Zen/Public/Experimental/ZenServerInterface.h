@@ -23,6 +23,8 @@
 
 #define UE_API ZEN_API
 
+struct FAnalyticsEventAttribute;
+
 namespace UE::Zen
 {
 
@@ -183,6 +185,8 @@ public:
 	UE_API bool TryRecovery();
 
 	UE_API bool GetStats(FZenStats& Stats);
+	UE_API bool GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes);
+
 	UE_API bool GetGCStatus(FGCStatus& Status);
 	UE_API bool RequestGC(const bool* OverrideCollectSmallObjects = nullptr, const uint32* OverrideMaxCacheDuration = nullptr);
 
@@ -194,7 +198,7 @@ private:
 	void PromptUserToStopRunningServerInstance(const FString& ServerFilePath);
 	FString ConditionalUpdateLocalInstall();
 	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
-
+	
 	mutable TPimplPtr<class FZenHttpRequest> GCStatusHttpRequest;
 	mutable TFuture<TOptional<FGCStatus>> GCStatusRequest;
 	mutable TOptional<FGCStatus> LastGCStatus;

@@ -38,7 +38,9 @@
 #include "AnalyticsEventAttribute.h"
 #include "IAnalyticsProviderET.h"
 #include "StudioAnalytics.h"
+#include "DerivedDataCacheInterface.h"
 #include "Virtualization/VirtualizationSystem.h"
+#include "Experimental/ZenServerInterface.h"
 #endif
 
 #if OUTPUT_COOKTIMING
@@ -696,24 +698,37 @@ void LogCookStats(ECookMode::Type CookMode)
 	{
 
 		// convert filtered stats directly to an analytics event
-		TArray<FAnalyticsEventAttribute> StatAttrs;
+		TArray<FAnalyticsEventAttribute> Attributes;
 
 		// Sends each cook stat to the studio analytics system.
-		auto SendCookStatsToAnalytics = [&StatAttrs](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
+		auto SendCookStatsToAnalytics = [&Attributes](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
 		{
 			for (const auto& Attr : StatAttributes)
 			{
 				FString FormattedAttrName = StatName + "." + Attr.Key;
-
-				StatAttrs.Emplace(FormattedAttrName, Attr.Value);
+				Attributes.Emplace(FormattedAttrName, Attr.Value);
 			}
 		};
 
 		// Now actually grab the stats 
 		FCookStatsManager::LogCookStats(SendCookStatsToAnalytics);
 
+		// Gather DDC analytics
+		GetDerivedDataCacheRef().GatherAnalytics(Attributes);
+
+		// Gather Virtualization analytics
+		UE::Virtualization::IVirtualizationSystem::Get().GatherAnalytics(Attributes);
+
+#if UE_WITH_ZEN
+		// Gather Zen analytics
+		if (UE::Zen::IsDefaultServicePresent())
+		{
+			UE::Zen::GetDefaultServiceInstance().GatherAnalytics(Attributes);
+		}
+#endif
+
 		// Record them all under cooking event
-		FStudioAnalytics::GetProvider().RecordEvent(TEXT("Core.Cooking"), StatAttrs);
+		FStudioAnalytics::GetProvider().RecordEvent(TEXT("Core.Cooking"), Attributes);
 
 		FStudioAnalytics::GetProvider().BlockUntilFlushed(60.0f);
 	}

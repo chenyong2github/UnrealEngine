@@ -127,6 +127,13 @@ enum class EDerivedDataCacheStatus
 	Deactivation
 };
 
+COOK_STAT(using FDerivedDataCacheSummaryStat = FCookStatsManager::StringKeyValue);
+
+struct FDerivedDataCacheSummaryStats
+{
+	COOK_STAT(TArray<FDerivedDataCacheSummaryStat> Stats);
+};
+
 /**
  *  Hierarchical usage stats for the DDC nodes.
  */
@@ -198,6 +205,7 @@ public:
 
 	TMap<FString, FDerivedDataCacheUsageStats> UsageStats;
 	FDerivedDataCacheSpeedStats SpeedStats;
+	COOK_STAT(TArray<FCookStatsManager::StringKeyValue> CustomStats);
 
 	TArray<TSharedRef<FDerivedDataCacheStatsNode>> Children;
 
@@ -283,11 +291,4 @@ struct FDerivedDataCacheResourceStatKeyFuncs : BaseKeyFuncs<FDerivedDataCacheRes
 	static const FString& GetSetKey(const FDerivedDataCacheResourceStat& Element) { return Element.AssetType; }
 	static bool Matches(const FString& A, const FString& B) { return A == B; }
 	static uint32 GetKeyHash(const FString& Key) { return GetTypeHash(Key); }
-};
-
-COOK_STAT(using FDerivedDataCacheSummaryStat = FCookStatsManager::StringKeyValue);
-
-struct FDerivedDataCacheSummaryStats
-{
-	COOK_STAT(TArray<FDerivedDataCacheSummaryStat> Stats);
 };

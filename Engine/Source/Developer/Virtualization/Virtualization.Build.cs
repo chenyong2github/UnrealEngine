@@ -7,6 +7,8 @@ public class Virtualization : ModuleRules
 {
 	public Virtualization(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePathModuleNames.Add("Analytics");
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

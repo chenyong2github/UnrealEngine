@@ -9,10 +9,10 @@ public class DerivedDataCache : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("Zen");
-
+		
 		// Dependencies for "S3" and "HTTP" backends
 		PrivateDependencyModuleNames.AddRange(new string[] { "SSL", "Json", "Zen" });
-		PrivateIncludePathModuleNames.AddRange(new string[] { "DesktopPlatform", "Zen"});
+		PrivateIncludePathModuleNames.AddRange(new string[] { "DesktopPlatform", "Zen", "Analytics" });
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 

@@ -14,6 +14,7 @@ class FDerivedDataCacheStatsNode;
 class IDDCCleanup;
 struct FDerivedDataCacheResourceStat;
 struct FDerivedDataCacheSummaryStats;
+struct FAnalyticsEventAttribute;
 
 /** 
  * Interface for the derived data cache
@@ -306,6 +307,8 @@ public:
 	virtual void GatherResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats) const = 0;
 
 	virtual void GatherSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats) const = 0;
+
+	virtual void GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes) const = 0;
 
 	//-----------------------
 	// Notification Interface
