@@ -1775,7 +1775,7 @@ class FStartupMessages
 {
 	friend class FStatsThread;
 
-	TArray<FStatMessage> DelayedMessages;
+	TArray64<FStatMessage> DelayedMessages;
 	FCriticalSection CriticalSection;
 
 public:

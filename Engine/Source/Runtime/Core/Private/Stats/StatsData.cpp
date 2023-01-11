@@ -807,6 +807,16 @@ void FStatsThreadState::ProcessMetaDataOnly(TArray<FStatMessage>& Data)
 	}
 }
 
+void FStatsThreadState::ProcessMetaDataOnly(TArray64<FStatMessage>& Data)
+{
+	for (int64 Index = 0; Index < Data.Num(); Index++)
+	{
+		FStatMessage& Item = Data[Index];
+		EStatOperation::Type Op = Item.NameAndInfo.GetField<EStatOperation>();
+		check(Op == EStatOperation::SetLongName);
+		FindOrAddMetaData(Item);
+	}
+}
 
 void FStatsThreadState::ToggleFindMemoryExtensiveStats()
 {

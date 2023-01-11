@@ -611,7 +611,7 @@ bool FStatsReadFile::PrepareLoading()
 	}
 
 	// Read metadata.
-	TArray<FStatMessage> MetadataMessages;
+	TArray64<FStatMessage> MetadataMessages;
 	Stream.ReadFNamesAndMetadataMessages( *Reader, MetadataMessages );
 	State.ProcessMetaDataOnly( MetadataMessages );
 

@@ -968,7 +968,7 @@ private:
 			INC_DWORD_STAT_BY(STAT_StatFramePacketsRecv, NowData.Packets.Num());
 			{
 				SCOPE_CYCLE_COUNTER(STAT_StatsNewParseMeta);
-				TArray<FStatMessage> MetaMessages;
+				TArray64<FStatMessage> MetaMessages;
 				{
 					FScopeLock Lock(&FStartupMessages::Get().CriticalSection);
 					Exchange(FStartupMessages::Get().DelayedMessages, MetaMessages);

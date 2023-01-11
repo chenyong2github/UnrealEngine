@@ -806,6 +806,7 @@ public:
 	 *	Reads FNames and metadata messages from the specified archive, only valid for finalized stats files.
 	 *	Allow unordered file access.
 	 */
+	UE_DEPRECATED(5.2, "Please use the overload that takes TArray64.")
 	void ReadFNamesAndMetadataMessages( FArchive& Ar, TArray<FStatMessage>& out_MetadataMessages )
 	{
 		// Read FNames.
@@ -822,6 +823,25 @@ public:
 		for( int32 Index = 0; Index < Header.NumMetadataMessages; Index++ )
 		{
 			new(out_MetadataMessages)FStatMessage( ReadMessage( Ar, false ) );
+		}
+	}
+
+	void ReadFNamesAndMetadataMessages(FArchive& Ar, TArray64<FStatMessage>& out_MetadataMessages)
+	{
+		// Read FNames.
+		Ar.Seek(Header.FNameTableOffset);
+		out_MetadataMessages.Reserve(Header.NumFNames);
+		for (uint64 Index = 0; Index < Header.NumFNames; Index++)
+		{
+			ReadFName(Ar, false);
+		}
+
+		// Read metadata messages.
+		Ar.Seek(Header.MetadataMessagesOffset);
+		out_MetadataMessages.Reserve(Header.NumMetadataMessages);
+		for (uint64 Index = 0; Index < Header.NumMetadataMessages; Index++)
+		{
+			new(out_MetadataMessages)FStatMessage(ReadMessage(Ar, false));
 		}
 	}
 };

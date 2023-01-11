@@ -168,7 +168,7 @@ void FRawProfilerSession::PrepareLoading()
 	if( Stream.Header.bRawStatsFile )
 	{
 		// Read metadata.
-		TArray<FStatMessage> MetadataMessages;
+		TArray64<FStatMessage> MetadataMessages;
 		Stream.ReadFNamesAndMetadataMessages( *FileReader, MetadataMessages );
 		StatsThreadStats.ProcessMetaDataOnly( MetadataMessages );
 

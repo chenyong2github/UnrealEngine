@@ -513,7 +513,10 @@ class CORE_API FStatsThreadState
 
 public:
 	/** Internal method to update the internal metadata. **/
+	UE_DEPRECATED(5.2, "Please use the overload that takes TArray64.")
 	void ProcessMetaDataOnly(TArray<FStatMessage>& Data);
+
+	void ProcessMetaDataOnly(TArray64<FStatMessage>& Data);
 
 	/** Toggles tracking the most memory expensive stats. */
 	void ToggleFindMemoryExtensiveStats();
