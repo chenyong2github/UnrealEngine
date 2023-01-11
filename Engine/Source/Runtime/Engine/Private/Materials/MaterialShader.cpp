@@ -1064,11 +1064,14 @@ void FMaterialShaderMapId::AppendStaticParametersString(FString& ParamsString) c
 	}
 }
 
-void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSourceHashes) const
+void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSourceAndMaterialState) const
 {
 	check(IsContentValid());
-	BaseMaterialId.AppendString(KeyString);
-	KeyString.AppendChar('_');
+	if (bIncludeSourceAndMaterialState)
+	{
+		BaseMaterialId.AppendString(KeyString);
+		KeyString.AppendChar('_');
+	}
 
 	GetMaterialQualityLevelFName(QualityLevel).AppendString(KeyString);
 	KeyString.AppendChar('_');
@@ -1097,10 +1100,13 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSour
 		KeyString.AppendChar('_');
 	}
 
-	// Add any referenced functions to the key so that we will recompile when they are changed
-	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedFunctions.Num(); FunctionIndex++)
+	if (bIncludeSourceAndMaterialState)
 	{
-		ReferencedFunctions[FunctionIndex].AppendString(KeyString);
+		// Add any referenced functions to the key so that we will recompile when they are changed
+		for (int32 FunctionIndex = 0; FunctionIndex < ReferencedFunctions.Num(); FunctionIndex++)
+		{
+			ReferencedFunctions[FunctionIndex].AppendString(KeyString);
+		}
 	}
 
 	{
@@ -1112,9 +1118,12 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSour
 
 	KeyString.AppendChar('_');
 
-	for (int32 CollectionIndex = 0; CollectionIndex < ReferencedParameterCollections.Num(); CollectionIndex++)
+	if (bIncludeSourceAndMaterialState)
 	{
-		ReferencedParameterCollections[CollectionIndex].AppendString(KeyString);
+		for (int32 CollectionIndex = 0; CollectionIndex < ReferencedParameterCollections.Num(); CollectionIndex++)
+		{
+			ReferencedParameterCollections[CollectionIndex].AppendString(KeyString);
+		}
 	}
 
 	// Add the inputs for any shaders that are stored inline in the shader map
@@ -1124,7 +1133,7 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSour
 		MakeArrayView(VertexFactoryTypeDependencies),
 		LayoutParams, 
 		KeyString,
-		bIncludeSourceHashes);
+		bIncludeSourceAndMaterialState);
 
 	BytesToHex(&TextureReferencesHash.Hash[0], sizeof(TextureReferencesHash.Hash), KeyString);
 

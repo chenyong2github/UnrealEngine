@@ -2747,8 +2747,13 @@ FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform, const FMaterialS
 {
 	FString IdKeyStr;
 	// append the portion of the DDC key string associated with the shadermapid, but exclude the source code
-	// hashes, such that this name remains stable when source code edits are applied (including version bumps)
-	ShaderMapId.AppendKeyString(IdKeyStr, /* bIncludeSourceHashes */ false);
+	// hashes and material function/parameter collection guids, such that this name remains stable when edits
+	// to this data are applied (including source version bumps)
+	ShaderMapId.AppendKeyString(IdKeyStr, /* bIncludeSourceAndMaterialState */ false);
+	// append the base material path as well to differentiate materials with the same name and different paths.
+	// note we explicitly _do not_ use the path of the asset itself as if the asset is a material instance we 
+	// want it to properly deduplicate against other instances which might end up pointing to the same shadermap.
+	IdKeyStr.Append(GetBaseMaterialPathName());
 	uint64 Hash = CityHash64((const char*)*IdKeyStr, IdKeyStr.Len() * sizeof(TCHAR));
 	return FString::Printf(TEXT("%s_%llx"), *GetFriendlyName(), Hash);
 }
