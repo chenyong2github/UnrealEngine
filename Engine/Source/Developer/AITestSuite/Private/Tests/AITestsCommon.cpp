@@ -107,6 +107,7 @@ void FAITestBase::TearDown()
 	for (auto AutoDestroyedObject : SpawnedObjects)
 	{
 		AutoDestroyedObject->RemoveFromRoot();
+		AutoDestroyedObject->MarkAsGarbage();
 	}
 	SpawnedObjects.Reset();
 }

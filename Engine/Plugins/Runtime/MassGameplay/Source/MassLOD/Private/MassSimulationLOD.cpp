@@ -3,6 +3,7 @@
 #include "MassSimulationLOD.h"
 
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
@@ -119,7 +120,7 @@ void UMassSimulationLODProcessor::Execute(FMassEntityManager& EntityManager, FMa
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("PrepareExecution"));
 
-		const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntityManager.GetWorld());
+		const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>();
 		const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 
 		EntityManager.ForEachSharedFragment<FMassSimulationLODSharedFragment>([&Viewers](FMassSimulationLODSharedFragment& LODSharedFragment)

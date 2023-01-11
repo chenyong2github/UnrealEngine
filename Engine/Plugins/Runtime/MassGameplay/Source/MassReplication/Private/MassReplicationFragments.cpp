@@ -3,6 +3,7 @@
 #include "MassReplicationFragments.h"
 #include "MassReplicationSubsystem.h"
 #include "MassReplicationProcessor.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
@@ -32,9 +33,9 @@ void UMassNetworkIDFragmentInitializer::Execute(FMassEntityManager& EntityManage
 	if (NetMode != NM_Client)
 	{
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-		EntityQuery.ForEachEntityChunk(EntityManager, Context, [World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 			{
-				UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>(World);
+				UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>();
 
 				const TArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetMutableFragmentView<FMassNetworkIDFragment>();
 				const int32 NumEntities = Context.GetNumEntities();

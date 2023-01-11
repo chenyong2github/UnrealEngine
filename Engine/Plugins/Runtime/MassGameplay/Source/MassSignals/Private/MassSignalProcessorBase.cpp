@@ -3,6 +3,7 @@
 #include "MassSignalProcessorBase.h"
 #include "MassSignalSubsystem.h"
 #include "MassArchetypeTypes.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 #include "Misc/ScopeLock.h"
 

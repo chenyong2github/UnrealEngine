@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassLODTypes.h"
-
+#include "MassExecutionContext.h"
 #include "MassLODFragments.generated.h"
 
 USTRUCT()

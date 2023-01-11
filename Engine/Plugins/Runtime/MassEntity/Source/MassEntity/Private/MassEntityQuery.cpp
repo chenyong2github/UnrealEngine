@@ -5,6 +5,7 @@
 #include "MassEntityManager.h"
 #include "MassArchetypeData.h"
 #include "MassCommandBuffer.h"
+#include "MassExecutionContext.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Async/ParallelFor.h"
 #include "Containers/UnrealString.h"
@@ -161,14 +162,12 @@ void FMassEntityQuery::ForEachEntityChunk(FMassEntityManager& EntityManager, FMa
 		FScopedSubsystemRequirementsRestore(FMassExecutionContext& ExecutionContext)
 			: CachedExecutionContext(ExecutionContext)
 		{
-			ConstSubsystemsBitSet = ExecutionContext.ConstSubsystemsBitSet;
-			MutableSubsystemsBitSet = ExecutionContext.MutableSubsystemsBitSet;
+			CachedExecutionContext.GetSubsystemRequirementBits(ConstSubsystemsBitSet, MutableSubsystemsBitSet);
 		}
 
 		~FScopedSubsystemRequirementsRestore()
 		{
-			CachedExecutionContext.ConstSubsystemsBitSet = ConstSubsystemsBitSet;
-			CachedExecutionContext.MutableSubsystemsBitSet = MutableSubsystemsBitSet;
+			CachedExecutionContext.SetSubsystemRequirementBits(ConstSubsystemsBitSet, MutableSubsystemsBitSet);
 		}
 
 		FMassExecutionContext& CachedExecutionContext;

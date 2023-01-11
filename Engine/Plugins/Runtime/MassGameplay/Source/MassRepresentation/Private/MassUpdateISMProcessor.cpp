@@ -6,6 +6,7 @@
 #include "MassEntityManager.h"
 #include "MassRepresentationFragments.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassLODFragments.h"
 #include "Engine/World.h"
 

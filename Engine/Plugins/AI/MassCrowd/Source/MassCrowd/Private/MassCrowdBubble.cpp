@@ -5,6 +5,7 @@
 #include "DrawDebugHelpers.h"
 #include "MassSpawnerTypes.h"
 #include "MassEntityView.h"
+#include "MassExecutionContext.h"
 #include "MassCommonFragments.h"
 #include "MassMovementFragments.h"
 

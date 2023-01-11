@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSignalSubsystem.h"
+#include "MassExecutionContext.h"
 #include "MassCommandBuffer.h"
 #include "MassSignalTypes.h"
 #include "VisualLogger/VisualLogger.h"

@@ -4,6 +4,7 @@
 #include "MassCommonUtils.h"
 #include "MassCommandBuffer.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
 #include "Math/UnrealMathUtility.h"
 #include "MassSimulationLOD.h"

@@ -8,6 +8,7 @@
 #include "MassProcessingTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
+#include "MassExecutionContext.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
@@ -111,7 +112,7 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 		
 		int TotalProcessed = 0;
 
-		FMassExecutionContext ExecContext;
+		FMassExecutionContext ExecContext(*EntityManager.Get());
 		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct() });
 		Query.ForEachEntityChunk(*EntityManager, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
@@ -155,7 +156,7 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 		EntityManager->BatchCreateEntities(FloatsIntsArchetype, FloatsIntsArchetypeCreated, EntitiesCreated);
 
 		int TotalProcessed = 0;
-		FMassExecutionContext ExecContext;
+		FMassExecutionContext ExecContext(*EntityManager.Get());
 		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct() });
 		Query.ForEachEntityChunk(*EntityManager, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
@@ -211,7 +212,7 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 
 		int TotalProcessed = 0;
 
-		FMassExecutionContext ExecContext;
+		FMassExecutionContext ExecContext(*EntityManager.Get());
 		FMassEntityQuery TestQuery;
 		TestQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
 		TestQuery.ForEachEntityChunk(FMassArchetypeEntityCollection(FloatsArchetype, EntitiesToProcess, FMassArchetypeEntityCollection::NoDuplicates)
@@ -439,7 +440,7 @@ struct FQueryTest_UsingOptionalFragment : FEntityTestBase
 		FMassEntityQuery Query;
 		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
 		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
-		FMassExecutionContext ExecContext;
+		FMassExecutionContext ExecContext(*EntityManager.Get());
 		Query.ForEachEntityChunk(*EntityManager, ExecContext, [&TotalProcessed, &EmptyIntsViewCount, IntValueSet](FMassExecutionContext& Context) {
 			++TotalProcessed;
 			TArrayView<FTestFragment_Int> Ints = Context.GetMutableFragmentView<FTestFragment_Int>();
@@ -496,7 +497,7 @@ struct FQueryTest_AnyFragment : FEntityTestBase
 			EntityManager->CreateEntity(ArchetypeHandle);
 		}
 
-		FMassExecutionContext TestContext;
+		FMassExecutionContext TestContext(*EntityManager.Get());
 		Query.ForEachEntityChunk(*EntityManager, TestContext, [this](FMassExecutionContext& Context)
 			{
 				TArrayView<FTestFragment_Bool> BoolView = Context.GetMutableFragmentView<FTestFragment_Bool>();

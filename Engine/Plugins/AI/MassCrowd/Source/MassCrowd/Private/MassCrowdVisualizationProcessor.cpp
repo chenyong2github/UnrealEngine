@@ -2,6 +2,7 @@
 
 #include "MassCrowdVisualizationProcessor.h"
 #include "MassCrowdFragments.h"
+#include "MassExecutionContext.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MassActorSubsystem.h"

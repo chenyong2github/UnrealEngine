@@ -4,6 +4,7 @@
 #include "MassProcessingTypes.h"
 #include "MassProcessor.h"
 #include "MassCommandBuffer.h"
+#include "MassExecutionContext.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
 namespace UE::Mass::Executor
@@ -84,7 +85,7 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunProcessorsView")
 
-	FMassExecutionContext ExecutionContext(ProcessingContext.EntityManager, ProcessingContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(*ProcessingContext.EntityManager.Get(), ProcessingContext.DeltaSeconds);
 	if (EntityCollection)
 	{
 		ExecutionContext.SetEntityCollection(*EntityCollection);
@@ -186,7 +187,7 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunParallel")
 
 	// not going through FMassEntityManager::CreateExecutionContext on purpose - we do need a separate command buffer
-	FMassExecutionContext ExecutionContext(ProcessingContext.EntityManager, ProcessingContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(*ProcessingContext.EntityManager.Get(), ProcessingContext.DeltaSeconds);
 	TSharedPtr<FMassCommandBuffer> CommandBuffer = ProcessingContext.CommandBuffer
 		? ProcessingContext.CommandBuffer : MakeShareable(new FMassCommandBuffer());
 	ExecutionContext.SetDeferredCommandBuffer(CommandBuffer);

@@ -7,7 +7,10 @@
 #include "MassEntityManager.h"
 #include "AITestsCommon.h"
 #include "Math/RandomStream.h"
+#include "Subsystems/EngineSubsystem.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/LocalPlayerSubsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "Misc/MTAccessDetector.h"
 #include "MassExternalSubsystemTraits.h"
 #include "MassEntityTestTypes.generated.h"
@@ -191,6 +194,7 @@ public:
 struct MASSENTITYTESTSUITE_API FExecutionTestBase : FAITestBase
 {
 	TSharedPtr<FMassEntityManager> EntityManager;
+	bool bMakeWorldEntityManagersOwner = false;
 
 	virtual bool SetUp() override;
 };
@@ -234,6 +238,80 @@ private:
 
 template<>
 struct TMassExternalSubsystemTraits<UMassTestWorldSubsystem>
+{
+	enum
+	{
+		GameThreadOnly = false,
+		ThreadSafeRead = true,
+		ThreadSafeWrite = false,
+	};
+};
+
+UCLASS()
+class UMassTestEngineSubsystem : public UEngineSubsystem
+{
+	GENERATED_BODY()
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassTestEngineSubsystem>
+{
+	enum
+	{
+		GameThreadOnly = false,
+		ThreadSafeRead = true,
+		ThreadSafeWrite = false,
+	};
+};
+
+UCLASS()
+class UMassTestCustomSubsystem : public USubsystem
+{
+	GENERATED_BODY()
+
+public:
+	static UMassTestCustomSubsystem* Create();
+	static UMassTestCustomSubsystem* Get();
+private:
+	static TWeakObjectPtr<UMassTestCustomSubsystem> Instance;
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassTestCustomSubsystem>
+{
+	enum
+	{
+		GameThreadOnly = false,
+		ThreadSafeRead = true,
+		ThreadSafeWrite = false,
+	};
+};
+
+UCLASS()
+class UMassTestLocalPlayerSubsystem : public ULocalPlayerSubsystem
+{
+	GENERATED_BODY()
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassTestLocalPlayerSubsystem>
+{
+	enum
+	{
+		GameThreadOnly = false,
+		ThreadSafeRead = true,
+		ThreadSafeWrite = false,
+	};
+}; 
+
+UCLASS()
+class UMassTestGameInstanceSubsystem : public UGameInstanceSubsystem
+{
+	GENERATED_BODY()
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassTestGameInstanceSubsystem>
 {
 	enum
 	{

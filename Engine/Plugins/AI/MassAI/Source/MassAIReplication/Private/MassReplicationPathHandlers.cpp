@@ -3,6 +3,7 @@
 #include "MassReplicationPathHandlers.h"
 #include "MassEntityQuery.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassSimulationSubsystem.h"
 #include "MassZoneGraphNavigationUtils.h"
 #include "ZoneGraphSubsystem.h"

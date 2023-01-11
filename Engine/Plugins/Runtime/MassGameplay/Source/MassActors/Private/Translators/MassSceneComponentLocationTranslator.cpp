@@ -5,6 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "MassEntityManager.h"
 #include "MassCommonTypes.h"
+#include "MassExecutionContext.h"
 
 //----------------------------------------------------------------------//
 //  UMassSceneComponentLocationToMassTranslator

@@ -6,6 +6,7 @@
 #include "MassCommonFragments.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "MassEntityManager.h"
+#include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
 
 //----------------------------------------------------------------------//
@@ -31,9 +32,9 @@ void UDebugVisLocationProcessor::Execute(FMassEntityManager& EntityManager, FMas
 #if WITH_EDITORONLY_DATA
 	QUICK_SCOPE_CYCLE_COUNTER(DebugVisLocationProcessor_Run);
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 	{
-		UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>(World);
+		UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>();
 		UMassDebugVisualizationComponent* Visualizer = Debugger.GetVisualizationComponent();
 		check(Visualizer);
 		TArrayView<UHierarchicalInstancedStaticMeshComponent*> VisualDataISMCs = Visualizer->GetVisualDataISMCs();
@@ -93,9 +94,9 @@ void UMassProcessor_UpdateDebugVis::Execute(FMassEntityManager& EntityManager, F
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassProcessor_UpdateDebugVis_Run);
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 		{
-			UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>(World);
+			UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>();
 
 			const int32 NumEntities = Context.GetNumEntities();
 			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();

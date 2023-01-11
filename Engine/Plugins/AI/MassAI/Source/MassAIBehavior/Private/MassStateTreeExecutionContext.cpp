@@ -3,6 +3,7 @@
 #include "MassStateTreeExecutionContext.h"
 #include "MassStateTreeTypes.h"
 #include "MassEntityManager.h"
+#include "MassExecutionContext.h"
 #include "MassSignalSubsystem.h"
 #include "Engine/World.h"
 

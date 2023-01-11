@@ -6,6 +6,7 @@
 #include "MassEntitySettings.h"
 #include "MassExecutor.h"
 #include "MassEntityView.h"
+#include "MassExecutionContext.h"
 
 #define LOCTEXT_NAMESPACE "MassTest"
 

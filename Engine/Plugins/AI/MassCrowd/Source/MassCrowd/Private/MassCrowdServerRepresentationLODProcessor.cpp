@@ -2,6 +2,7 @@
 
 #include "MassCrowdServerRepresentationLODProcessor.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassRepresentationFragments.h"
 
 namespace UE::MassCrowd
@@ -50,7 +51,7 @@ void UMassCrowdServerRepresentationLODProcessor::Execute(FMassEntityManager& Ent
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("CrowdServerRepresentationLOD"))
 
-	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntityManager.GetWorld());
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>();
 	const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 	LODCalculator.PrepareExecution(Viewers);
 	

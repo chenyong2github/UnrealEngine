@@ -2,6 +2,7 @@
 
 #include "Example/MassVelocityRandomizerTrait.h"
 #include "MassEntityTemplateRegistry.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 #include "MassMovementFragments.h"
 

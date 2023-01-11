@@ -6,6 +6,7 @@
 #include "Engine/CollisionProfile.h"
 #include "MassEntityUtils.h"
 #include "MassExecutor.h"
+#include "MassExecutionContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MassEntityTestFarmPlot)
 

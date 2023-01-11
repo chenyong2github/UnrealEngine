@@ -4,6 +4,7 @@
 
 #include "Elements/Columns/TypedElementSlateWidgetColumns.h"
 #include "MassCommonTypes.h"
+#include "MassExecutionContext.h"
 
 UTypedElementSlateWidgetReferenceColumnUpdateProcessor::UTypedElementSlateWidgetReferenceColumnUpdateProcessor()
 	: ColumnRemovalQuery(*this)

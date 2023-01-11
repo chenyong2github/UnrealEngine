@@ -3,6 +3,7 @@
 #include "MassLODCollectorProcessor.h"
 #include "MassLODUtils.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 #include "MassSimulationLOD.h"
 
@@ -80,7 +81,7 @@ void UMassLODCollectorProcessor::ExecuteInternal(FMassEntityManager& EntityManag
 
 void UMassLODCollectorProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntityManager.GetWorld());
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>();
 	const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 	Collector.PrepareExecution(Viewers);
 

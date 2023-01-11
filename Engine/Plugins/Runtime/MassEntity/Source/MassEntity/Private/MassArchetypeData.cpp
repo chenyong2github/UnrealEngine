@@ -2,6 +2,7 @@
 
 #include "MassArchetypeData.h"
 #include "MassEntityTypes.h"
+#include "MassExecutionContext.h"
 #include "Misc/StringBuilder.h"
 
 //////////////////////////////////////////////////////////////////////

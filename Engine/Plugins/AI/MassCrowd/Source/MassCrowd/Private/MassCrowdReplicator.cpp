@@ -5,6 +5,7 @@
 #include "MassClientBubbleHandler.h"
 #include "MassCrowdBubble.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassLODSubsystem.h"
 #include "MassCrowdFragments.h"
 #include "MassReplicationPathHandlers.h"

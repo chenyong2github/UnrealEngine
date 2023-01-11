@@ -3,6 +3,7 @@
 #include "Translators/MassCapsuleComponentTranslators.h"
 #include "MassCommonTypes.h"
 #include "MassEntityManager.h"
+#include "MassExecutionContext.h"
 #include "Components/CapsuleComponent.h"
 
 

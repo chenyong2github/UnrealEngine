@@ -10,6 +10,7 @@
 #include "MassMovementTypes.h"
 #include "MassMovementFragments.h"
 #include "MassEntityView.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 
 
@@ -195,9 +196,9 @@ void UMassNavigationObstacleGridProcessor::ConfigureQueries()
 void UMassNavigationObstacleGridProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	// can't be ParallelFor due to MovementSubsystem->GetGridMutable().Move not being thread-safe
-	AddToGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	AddToGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager](FMassExecutionContext& Context)
 	{
-		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>(World).GetObstacleGridMutable();
+		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>().GetObstacleGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 
 		TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
@@ -222,9 +223,9 @@ void UMassNavigationObstacleGridProcessor::Execute(FMassEntityManager& EntityMan
 		}
 	});
 
-	UpdateGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	UpdateGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager](FMassExecutionContext& Context)
 	{
-		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>(World).GetObstacleGridMutable();
+		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>().GetObstacleGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 
 		TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
@@ -256,9 +257,9 @@ void UMassNavigationObstacleGridProcessor::Execute(FMassEntityManager& EntityMan
 		}
 	});
 
-	RemoveFromGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	RemoveFromGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager](FMassExecutionContext& Context)
 	{
-		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>(World).GetObstacleGridMutable();
+		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>().GetObstacleGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 
 		TArrayView<FMassNavigationObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableFragmentView<FMassNavigationObstacleGridCellLocationFragment>();
@@ -293,9 +294,9 @@ void UMassNavigationObstacleRemoverProcessor::ConfigureQueries()
 
 void UMassNavigationObstacleRemoverProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 	{
-		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>(World).GetObstacleGridMutable();
+		FNavigationObstacleHashGrid2D& HashGrid = Context.GetMutableSubsystemChecked<UMassNavigationSubsystem>().GetObstacleGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 		const TArrayView<FMassNavigationObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableFragmentView<FMassNavigationObstacleGridCellLocationFragment>();
 

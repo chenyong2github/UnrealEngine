@@ -5,6 +5,7 @@
 
 #include "Engine/World.h"
 #include "MassEntityManager.h"
+#include "MassExecutionContext.h"
 #include "MassProcessingTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"

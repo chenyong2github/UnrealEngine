@@ -4,7 +4,7 @@
 #include "MassGameplayDebugTypes.h"
 #include "MassDebugVisualizationComponent.h"
 #include "MassDebuggerSubsystem.h"
-#include "Engine/World.h"
+#include "MassExecutionContext.h"
 
 //----------------------------------------------------------------------//
 // UAssignDebugVisProcessor
@@ -31,19 +31,18 @@ void UAssignDebugVisProcessor::Execute(FMassEntityManager& EntityManager, FMassE
 #if WITH_EDITORONLY_DATA
 	QUICK_SCOPE_CYCLE_COUNTER(AssignDebugVisProcessor_Execute);
 	
-	UWorld* World = EntityManager.GetWorld();
 	// @todo this code bit is temporary, so is the Visualizer->DirtyVisuals at the end of the function. Will be wrapped in
 	// "executable task" once that's implemented. 
 	UMassDebugVisualizationComponent* Visualizer = nullptr;
-	UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>(World);
+	UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>();
 	check(Debugger.GetVisualizationComponent());
 	Visualizer = Debugger.GetVisualizationComponent();
 	// note that this function will create the "visual components" only it they're missing or out of sync. 
 	Debugger.GetVisualizationComponent()->ConditionallyConstructVisualComponent();
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, World](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 	{
-		UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>(World);
+		UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>();
 		UMassDebugVisualizationComponent* Visualizer = Debugger.GetVisualizationComponent();
 		check(Visualizer);
 

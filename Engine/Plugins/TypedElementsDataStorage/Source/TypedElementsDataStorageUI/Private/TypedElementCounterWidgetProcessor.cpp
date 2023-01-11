@@ -10,6 +10,7 @@
 #include "TypedElementCounterWidgetConstructor.h"
 #include "TypedElementSubsystems.h"
 #include "MassCommonTypes.h"
+#include "MassExecutionContext.h"
 #include "Widgets/Text/STextBlock.h"
 
 UTypedElementCounterWidgetProcessor::UTypedElementCounterWidgetProcessor()
@@ -33,7 +34,7 @@ void UTypedElementCounterWidgetProcessor::ConfigureQueries()
 void UTypedElementCounterWidgetProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	ITypedElementDataStorageInterface* DataInterface = 
-		Context.GetMutableSubsystemChecked<UTypedElementDataStorageSubsystem>(EntityManager.GetWorld()).Get();
+		Context.GetMutableSubsystemChecked<UTypedElementDataStorageSubsystem>().Get();
 	checkf(DataInterface, TEXT(
 		"FTypedElementsDataStorageUiModule tried to process widgets before the "
 		"Typed Elements Data Storage interface is available."));

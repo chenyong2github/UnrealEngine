@@ -540,7 +540,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 		const FMassArchetypeHandle& ArchetypeHandle = MassEntityTemplate->GetArchetype();
 
 
-		FMassExecutionContext ExecContext;
+		FMassExecutionContext ExecContext(EntityManager);
 		FMassEntityQuery Query;
 
 		AddRequirementsForSpawnQuery(Query);

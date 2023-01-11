@@ -4,6 +4,7 @@
 #include "SmoothOrientation/MassSmoothOrientationFragments.h"
 #include "MassCommandBuffer.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassNavigationFragments.h"
 #include "MassMovementFragments.h"
 #include "Math/UnrealMathUtility.h"

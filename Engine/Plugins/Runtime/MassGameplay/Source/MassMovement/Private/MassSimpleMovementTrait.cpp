@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "MassMovementFragments.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassSimulationLOD.h"
 
 

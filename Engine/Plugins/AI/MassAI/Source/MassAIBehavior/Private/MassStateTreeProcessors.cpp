@@ -4,6 +4,7 @@
 #include "StateTree.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassEntityView.h"
+#include "MassExecutionContext.h"
 #include "MassNavigationTypes.h"
 #include "MassSimulationLOD.h"
 #include "MassComponentHitTypes.h"
@@ -229,9 +230,9 @@ void UMassStateTreeFragmentDestructor::Execute(FMassEntityManager& EntityManager
 	UE::MassBehavior::FCachedExternalData CachedExternalData;
 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context,
-		[&EntityManager, &CachedExternalData, SignalSubsystem = SignalSubsystem, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+		[&EntityManager, &CachedExternalData, SignalSubsystem = SignalSubsystem](FMassExecutionContext& Context)
 		{
-			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
+			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>();
 			const TArrayView<FMassStateTreeInstanceFragment> StateTreeInstanceList = Context.GetMutableFragmentView<FMassStateTreeInstanceFragment>();
 			const FMassStateTreeSharedFragment& SharedStateTree = Context.GetConstSharedFragment<FMassStateTreeSharedFragment>();
 
@@ -281,7 +282,7 @@ void UMassStateTreeActivationProcessor::ConfigureQueries()
 
 void UMassStateTreeActivationProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(EntityManager.GetWorld());
+	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>();
 
 	const UMassBehaviorSettings* BehaviorSettings = GetDefault<UMassBehaviorSettings>();
 	check(BehaviorSettings);
@@ -295,9 +296,9 @@ void UMassStateTreeActivationProcessor::Execute(FMassEntityManager& EntityManage
 	int32 ActivationCounts[EMassLOD::Max] {0,0,0,0};
 	
 	EntityQuery.ForEachEntityChunk(EntityManager, Context,
-		[&EntitiesToSignal, &ActivationCounts, &CachedExternalData, SignalSubsystem = &SignalSubsystem, &EntityManager, MaxActivationsPerLOD = BehaviorSettings->MaxActivationsPerLOD, TimeInSeconds, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+		[&EntitiesToSignal, &ActivationCounts, &CachedExternalData, SignalSubsystem = &SignalSubsystem, &EntityManager, MaxActivationsPerLOD = BehaviorSettings->MaxActivationsPerLOD, TimeInSeconds](FMassExecutionContext& Context)
 		{
-			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
+			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>();
 			const int32 NumEntities = Context.GetNumEntities();
 			// Check if we already reached the maximum for this frame
 			const EMassLOD::Type ChunkLOD = FMassSimulationVariableTickChunkFragment::GetChunkLOD(Context);
@@ -405,8 +406,7 @@ void UMassStateTreeProcessor::ConfigureQueries()
 
 void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
-	UWorld* World = EntityManager.GetWorld();
-	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(World);
+	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>();
 	
 	QUICK_SCOPE_CYCLE_COUNTER(StateTreeProcessor_Run);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExecute);
@@ -417,12 +417,12 @@ void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, 
 	TArray<FMassEntityHandle> EntitiesToSignal;
 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context,
-		[this, &TimeInSeconds, &EntitiesToSignal, &CachedExternalData, &EntityManager, SignalSubsystem = &SignalSubsystem, World, &EntitySignals](FMassExecutionContext& Context)
+		[this, &TimeInSeconds, &EntitiesToSignal, &CachedExternalData, &EntityManager, SignalSubsystem = &SignalSubsystem, &EntitySignals](FMassExecutionContext& Context)
 		{
 			// Keep stats regarding the amount of tree instances ticked per frame
 			CSV_CUSTOM_STAT(StateTreeProcessor, NumTickedStateTree, Context.GetNumEntities(), ECsvCustomStatOp::Accumulate);
 
-			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
+			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>();
 
 			UE::MassBehavior::ForEachEntityInChunk(CachedExternalData, Context, EntityManager, *SignalSubsystem, MassStateTreeSubsystem,
 				[TimeInSeconds, &EntitiesToSignal, &EntitySignals, &MassStateTreeSubsystem]

@@ -5,6 +5,7 @@
 #include "MassReplicationTypes.h"
 #include "MassReplicationFragments.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
@@ -46,11 +47,9 @@ void UMassReplicationGridProcessor::ConfigureQueries()
 
 void UMassReplicationGridProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UWorld* World = EntityManager.GetWorld();
-
-	AddToGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [World](FMassExecutionContext& Context)
+	AddToGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 	{
-		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>(World);
+		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>();
 		FReplicationHashGrid2D& ReplicationGrid = ReplicationSubsystem.GetGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 
@@ -72,9 +71,9 @@ void UMassReplicationGridProcessor::Execute(FMassEntityManager& EntityManager, F
 		}
 	});
 
-	UpdateGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [World](FMassExecutionContext& Context)
+	UpdateGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 	{
-		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>(World);
+		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>();
 		FReplicationHashGrid2D& ReplicationGrid = ReplicationSubsystem.GetGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 
@@ -103,9 +102,9 @@ void UMassReplicationGridProcessor::Execute(FMassEntityManager& EntityManager, F
 		}
 	});
 
-	RemoveFromGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [World](FMassExecutionContext& Context)
+	RemoveFromGridEntityQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 	{
-		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>(World);
+		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>();
 		FReplicationHashGrid2D& ReplicationGrid = ReplicationSubsystem.GetGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 
@@ -140,9 +139,9 @@ void UMassReplicationGridRemoverProcessor::ConfigureQueries()
 
 void UMassReplicationGridRemoverProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 	{
-		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>(World);
+		UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>();
 		FReplicationHashGrid2D& ReplicationGrid = ReplicationSubsystem.GetGridMutable();
 		const int32 NumEntities = Context.GetNumEntities();
 		const TArrayView<FMassReplicationGridCellLocationFragment> ReplicationCellLocationList = Context.GetMutableFragmentView<FMassReplicationGridCellLocationFragment>();

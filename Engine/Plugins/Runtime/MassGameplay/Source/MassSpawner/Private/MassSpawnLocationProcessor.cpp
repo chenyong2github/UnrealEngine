@@ -3,6 +3,7 @@
 #include "MassSpawnLocationProcessor.h"
 #include "MassCommonFragments.h"
 #include "MassEntityManager.h"
+#include "MassExecutionContext.h"
 #include "MassSpawnerTypes.h"
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"

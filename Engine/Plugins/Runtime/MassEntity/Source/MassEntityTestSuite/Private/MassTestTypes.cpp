@@ -3,6 +3,7 @@
 #include "MassEntityTestTypes.h"
 #include "MassEntityManager.h"
 #include "MassExecutor.h"
+#include "MassExecutionContext.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
@@ -10,7 +11,7 @@
 //----------------------------------------------------------------------//
 bool FExecutionTestBase::SetUp()
 {
-	EntityManager = MakeShareable(new FMassEntityManager);
+	EntityManager = MakeShareable(new FMassEntityManager(bMakeWorldEntityManagersOwner ? FAITestHelpers::GetWorld() : nullptr));
 	EntityManager->SetDebugName(TEXT("MassEntityTestSuite"));
 	EntityManager->Initialize();
 

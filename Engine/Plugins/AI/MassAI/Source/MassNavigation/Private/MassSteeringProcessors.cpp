@@ -4,6 +4,7 @@
 #include "MassCommonUtils.h"
 #include "MassCommandBuffer.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
 #include "MassNavigationFragments.h"
 #include "Steering/MassSteeringFragments.h"

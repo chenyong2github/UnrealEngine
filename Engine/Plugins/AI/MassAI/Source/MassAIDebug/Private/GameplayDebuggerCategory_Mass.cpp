@@ -5,6 +5,7 @@
 #if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 #include "MassGameplayDebugTypes.h"
 #include "MassEntityView.h"
+#include "MassExecutionContext.h"
 #include "GameplayDebuggerConfig.h"
 #include "GameplayDebuggerCategoryReplicator.h"
 #include "MassDebuggerSubsystem.h"
@@ -140,7 +141,7 @@ void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC
 	{
 		TArray<FMassEntityHandle> Entities;
 		TArray<FVector> Locations;
-		FMassExecutionContext ExecutionContext;
+		FMassExecutionContext ExecutionContext(EntityManager);
 		FMassEntityQuery Query;
 		Query.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 		Query.ForEachEntityChunk(EntityManager, ExecutionContext, [&Entities, &Locations](FMassExecutionContext& Context)
@@ -389,7 +390,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		
 		if (MassStateTreeSubsystem && SignalSubsystem && SmartObjectSubsystem)
 		{
-			FMassExecutionContext Context(EntityManager.AsShared(), 0.0f);
+			FMassExecutionContext Context(EntityManager, 0.0f);
 		
 			EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, MassStateTreeSubsystem, SignalSubsystem, SmartObjectSubsystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
 			{
@@ -635,7 +636,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			FMassEntityQuery EntityColliderQuery;
 			EntityColliderQuery.AddRequirement<FMassAvoidanceColliderFragment>(EMassFragmentAccess::ReadOnly);
 			EntityColliderQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
-			FMassExecutionContext Context(EntityManager.AsShared(), 0.f);
+			FMassExecutionContext Context(EntityManager, 0.f);
 			EntityColliderQuery.ForEachEntityChunk(EntityManager, Context, [this, ViewLocation, ViewDirection](const FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();

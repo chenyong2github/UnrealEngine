@@ -4,6 +4,7 @@
 #include "Avoidance/MassAvoidanceFragments.h"
 #include "DrawDebugHelpers.h"
 #include "MassEntityView.h"
+#include "MassExecutionContext.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Math/Vector2D.h"
 #include "Logging/LogMacros.h"

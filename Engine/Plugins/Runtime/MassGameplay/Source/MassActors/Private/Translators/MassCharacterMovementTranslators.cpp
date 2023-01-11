@@ -6,6 +6,7 @@
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityManager.h"
 #include "MassCommonTypes.h"
+#include "MassExecutionContext.h"
 #include "MassMovementFragments.h"
 #include "MassSpawnerTypes.h"
 

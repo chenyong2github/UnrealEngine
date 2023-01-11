@@ -2,6 +2,7 @@
 
 #include "MassCrowdVisualizationLODProcessor.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 #include "MassCrowdFragments.h"
 
 namespace UE::MassCrowd

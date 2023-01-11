@@ -3,6 +3,7 @@
 #include "MassSmartObjectHandler.h"
 #include "MassSmartObjectBehaviorDefinition.h"
 #include "MassCommonTypes.h"
+#include "MassExecutionContext.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassCommandBuffer.h"

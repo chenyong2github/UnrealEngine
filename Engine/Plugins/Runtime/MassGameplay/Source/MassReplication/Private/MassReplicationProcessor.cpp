@@ -4,6 +4,7 @@
 #include "MassClientBubbleHandler.h"
 #include "MassLODSubsystem.h"
 #include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
 
 namespace UE::Mass::Replication
 {
@@ -168,7 +169,7 @@ void UMassReplicationProcessor::Execute(FMassEntityManager& EntityManager, FMass
 		PrepareExecution(EntityManager);
 	}
 
-	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntityManager.GetWorld());
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>();
 	const TArray<FViewerInfo>& AllViewersInfo = LODSubsystem.GetViewers();
 	const TArray<FMassClientHandle>& ClientHandles = ReplicationSubsystem->GetClientReplicationHandles();
 	for (const FMassClientHandle ClientHandle : ClientHandles)

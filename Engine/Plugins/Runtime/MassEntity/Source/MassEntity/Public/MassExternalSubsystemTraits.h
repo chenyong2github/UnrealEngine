@@ -36,20 +36,22 @@ struct TMassExternalSubsystemTraits final
 
 namespace FMassExternalSubsystemTraits
 {
-	/** 
-	Every TMassExternalSubsystemTraits specialization needs to implement the following. Not supplying default implementations
-	to be able to catch missing implementations and header inclusion at compilation time.
-	
-	This is a getter function that given a UWorld* fetches an instance.
+	/**
+	 * Every TMassExternalSubsystemTraits specialization needs to implement the following. Not supplying default implementations
+	 * to be able to catch missing implementations and header inclusion at compilation time.
+	 * 
+	 * This is a getter function that given a UWorld* fetches an instance.
 	*/
 	template<typename T, typename = typename TEnableIf<TIsDerivedFrom<T, UWorldSubsystem>::IsDerived>::Type>
+	UE_DEPRECATED(5.2, "FMassExternalSubsystemTraits::GetInstance has been marked as deprecated. Use FMassSubsystemAccess::FetchSubsystemInstance instead.")
 	FORCEINLINE T* GetInstance(const UWorld* World)
 	{ 
 		// note that the default implementation works only for UWorldSubsystems
 		return UWorld::GetSubsystem<T>(World);
 	}
 
-	template<typename T>
+	template<typename T, typename = typename TEnableIf<TIsDerivedFrom<T, UWorldSubsystem>::IsDerived>::Type>
+	UE_DEPRECATED(5.2, "FMassExternalSubsystemTraits::GetInstance has been marked as deprecated. Use FMassSubsystemAccess::FetchSubsystemInstance instead.")
 	FORCEINLINE T* GetInstance(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
 	{
 		return World ? Cast<T>(World->GetSubsystemBase(SubsystemClass)) : (T*)nullptr;

@@ -2,6 +2,7 @@
 
 #include "MassZoneGraphAnnotationFragments.h"
 #include "MassEntityManager.h"
+#include "MassExecutionContext.h"
 #include "MassSimulationLOD.h"
 
 namespace UE::Mass::ZoneGraphAnnotations

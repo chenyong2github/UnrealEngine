@@ -26,9 +26,10 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (Target.bBuildEditor == true)
+			if (Target.bBuildEditor || Target.bCompileAgainstEditor)
 			{
 				PrivateDependencyModuleNames.Add("UnrealEd");
+				PrivateDependencyModuleNames.Add("EditorSubsystem");
 			}
 
 			if (Target.bBuildDeveloperTools == true)
