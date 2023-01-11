@@ -88,13 +88,27 @@ namespace SourceControlReview
 	private:
 		TOptional<const UClass*> CachedIconClass;
 	};
-
+	
 	namespace ColumnIds
 	{
 		inline const FName Status = TEXT("Status");
 		inline const FName File = TEXT("File");
 		inline const FName Tools = TEXT("Tools");
 	}
+
+	struct FChangelistLightInfo
+	{
+		explicit FChangelistLightInfo(const FText& Number)
+			: Number(Number)
+		{}
+		FChangelistLightInfo(const FText& Number, const FText& Author, const FText& Description)
+			: Number(Number), Author(Author), Description(Description)
+		{}
+		
+		FText Number;
+		FText Author;
+		FText Description;
+	};
 }
 
 
@@ -127,6 +141,11 @@ private:
 	FReply OnLoadChangelistClicked();
 	void OnChangelistNumChanged(const FText& Text);
 	void OnChangelistNumCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+
+	TSharedRef<SWidget> MakeCLComboOption(TSharedPtr<SourceControlReview::FChangelistLightInfo>Item) const;
+	void OnCLComboSelection(TSharedPtr<SourceControlReview::FChangelistLightInfo> Item, ESelectInfo::Type SelectInfo) const;
+	void SaveCLHistory();
+	void LoadCLHistory();
 	
 	/**
 	 * Called when file is retrieved from
@@ -185,8 +204,11 @@ private:
 	TArray<TSharedPtr<FChangelistFileData>> ChangelistFiles;
 	TMap<FString, TWeakPtr<FChangelistFileData>> RedirectorsFound;
 	TSharedPtr<FGetChangelistDetails> GetChangelistDetailsCommand;
+	TArray<TSharedPtr<SourceControlReview::FChangelistLightInfo>> CLHistory;
+	bool bUncommittedChangelistNum = false;
 	
-	TSharedPtr<SEditableTextBox> ChangelistNumWidget;
+	TSharedPtr<SComboBox<TSharedPtr<SourceControlReview::FChangelistLightInfo>>> ChangelistNumComboBox;
+	TSharedPtr<SEditableText> ChangelistNumText;
 	TSharedPtr<STextBlock> EnterChangelistTextBlock;
 	TSharedPtr<STextBlock> LoadingTextBlock;
 	TSharedPtr<SProgressBar> LoadingProgressBar;
