@@ -494,24 +494,14 @@ USTRUCT(BlueprintType)
 struct GAMEPLAYABILITIES_API FGameplayModifierInfo
 {
 	GENERATED_USTRUCT_BODY()
-
-	FGameplayModifierInfo()	
-	: ModifierOp(EGameplayModOp::Additive)
-	{
-
-	}
-
+	
 	/** The Attribute we modify or the GE we modify modifies. */
 	UPROPERTY(EditDefaultsOnly, Category=GameplayModifier, meta=(FilterMetaTag="HideFromModifiers"))
 	FGameplayAttribute Attribute;
 
 	/** The numeric operation of this modifier: Override, Add, Multiply, etc  */
 	UPROPERTY(EditDefaultsOnly, Category=GameplayModifier)
-	TEnumAsByte<EGameplayModOp::Type> ModifierOp;
-
-	/** Now "deprecated," though being handled in a custom manner to avoid engine version bump. */
-	UPROPERTY()
-	FScalableFloat Magnitude;
+	TEnumAsByte<EGameplayModOp::Type> ModifierOp = EGameplayModOp::Additive;
 
 	/** Magnitude of the modifier */
 	UPROPERTY(EditDefaultsOnly, Category=GameplayModifier)

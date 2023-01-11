@@ -84,14 +84,6 @@ void UGameplayEffect::PostLoad()
 	// Temporary post-load fix-up to preserve magnitude data
 	for (FGameplayModifierInfo& CurModInfo : Modifiers)
 	{
-		// If the old magnitude actually had some value in it, copy it over and then clear out the old data
-		static const FString GameplayEffectPostLoadContext(TEXT("UGameplayEffect::PostLoad"));
-		if (CurModInfo.Magnitude.Value != 0.f || CurModInfo.Magnitude.Curve.IsValid(GameplayEffectPostLoadContext))
-		{
-			CurModInfo.ModifierMagnitude.ScalableFloatMagnitude = CurModInfo.Magnitude;
-			CurModInfo.Magnitude = FScalableFloat();
-		}
-
 #if WITH_EDITOR
 		CurModInfo.ModifierMagnitude.ReportErrors(GetPathName());
 #endif // WITH_EDITOR
@@ -3472,7 +3464,7 @@ bool FActiveGameplayEffectsContainer::RemoveActiveGameplayEffect(FActiveGameplay
 			if (UE_LOG_ACTIVE(VLogAbilitySystem, Log))
 			{
 				ABILITY_VLOG(OwnerActor, Log, TEXT("Removed %s"), *Effect.Spec.Def->GetFName().ToString());
-				for (FGameplayModifierInfo Modifier : Effect.Spec.Def->Modifiers)
+				for (const FGameplayModifierInfo& Modifier : Effect.Spec.Def->Modifiers)
 				{
 					float Magnitude = 0.f;
 					Modifier.ModifierMagnitude.AttemptCalculateMagnitude(Effect.Spec, Magnitude);
@@ -3499,7 +3491,7 @@ void FActiveGameplayEffectsContainer::InternalExecutePeriodicGameplayEffect(FAct
 		{
 			AActor* OwnerActor = Owner->GetOwnerActor();
 			ABILITY_VLOG(OwnerActor, Log, TEXT("Executed Periodic Effect %s"), *ActiveEffect.Spec.Def->GetFName().ToString());
-			for (FGameplayModifierInfo Modifier : ActiveEffect.Spec.Def->Modifiers)
+			for (const FGameplayModifierInfo& Modifier : ActiveEffect.Spec.Def->Modifiers)
 			{
 				float Magnitude = 0.f;
 				Modifier.ModifierMagnitude.AttemptCalculateMagnitude(ActiveEffect.Spec, Magnitude);
