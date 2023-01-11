@@ -2,42 +2,30 @@
 
 #include "SSceneOutliner.h"
 
-#include "EdMode.h"
 #include "Editor.h"
-#include "Editor/UnrealEdEngine.h"
-#include "EditorModeManager.h"
 #include "Styling/AppStyle.h"
 #include "Engine/GameViewportClient.h"
-#include "Engine/Selection.h"
-#include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ISceneOutlinerColumn.h"
-#include "Kismet2/ComponentEditorUtils.h"
 #include "Layout/WidgetPath.h"
 #include "Modules/ModuleManager.h"
-#include "SceneOutlinerDelegates.h"
 #include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
 #include "Textures/SlateIcon.h"
 #include "ToolMenus.h"
-#include "UnrealEdGlobals.h"
 #include "UObject/PackageReload.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SOverlay.h"
-#include "SceneOutlinerMenuContext.h"
 #include "ISceneOutlinerMode.h"
 #include "FolderTreeItem.h"
 #include "EditorFolderUtils.h"
 #include "SceneOutlinerConfig.h"
-#include "Algo/ForEach.h"
 #include "SceneOutlinerFilterBar.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -133,7 +121,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 		SNew( SHeaderRow )
 			// Only show the list header if the user configured the outliner for that
 			.Visibility(InInitOptions.bShowHeaderRow ? EVisibility::Visible : EVisibility::Collapsed)
-			.CanSelectGeneratedColumn(true)
+			.CanSelectGeneratedColumn(InInitOptions.bCanSelectGeneratedColumns)
 			.OnHiddenColumnsListChanged(this, &SSceneOutliner::HandleHiddenColumnsChanged);
 
 	SetupColumns(*HeaderRowWidget);
@@ -507,27 +495,37 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 				ColumnArgs.ShouldGenerateWidget(true);
 			}
 
-			if (SharedData->ColumnMap[ID].FillSize.IsSet())
+			if (FilteredColumnMap[ID].FillSize.IsSet())
 			{
-				ColumnArgs.FillWidth(SharedData->ColumnMap[ID].FillSize.GetValue());
+				ColumnArgs.FillWidth(FilteredColumnMap[ID].FillSize.GetValue());
 			}
 
+			if (FilteredColumnMap[ID].OnGetHeaderContextMenuContent.IsBound())
+			{
+				ColumnArgs.MenuContent()
+				[
+					FilteredColumnMap[ID].OnGetHeaderContextMenuContent.Execute()
+				];
+			}
+
+			ColumnArgs.HideHeaderMenuButton(FilteredColumnMap[ID].bHideMenuContentButton);
+
 			HeaderRow.AddColumn(ColumnArgs);
-			HeaderRowWidget->SetShowGeneratedColumn(ID, bIsVisible);
+			HeaderRow.SetShowGeneratedColumn(ID, bIsVisible);
 		}
 	}
 	Columns.Shrink();
 	bNeedsColumRefresh = false;
 }
 
-void SSceneOutliner::RefreshColums()
+void SSceneOutliner::RefreshColumns()
 {
 	bNeedsColumRefresh = true;
 }
 
 void SSceneOutliner::OnColumnPermissionListChanged()
 {
-	RefreshColums();
+	RefreshColumns();
 	FullRefresh();
 }
 
@@ -1160,7 +1158,7 @@ void SSceneOutliner::AddColumn(FName ColumId, const FSceneOutlinerColumnInfo& Co
 	if (!SharedData->ColumnMap.Contains(ColumId))
 	{
 		SharedData->ColumnMap.Add(ColumId, ColumInfo);
-		RefreshColums();
+		RefreshColumns();
 	}
 }
 
@@ -1169,7 +1167,7 @@ void SSceneOutliner::RemoveColumn(FName ColumId)
 	if (SharedData->ColumnMap.Contains(ColumId))
 	{
 		SharedData->ColumnMap.Remove(ColumId);
-		RefreshColums();
+		RefreshColumns();
 	}
 }
 
