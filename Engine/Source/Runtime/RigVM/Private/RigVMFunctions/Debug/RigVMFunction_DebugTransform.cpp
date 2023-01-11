@@ -45,7 +45,6 @@ FRigVMStructUpgradeInfo FRigVMFunction_DebugTransform::GetUpgradeInfo() const
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Transform"), TEXT("Value"));
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	return Info;
 }
 
@@ -74,7 +73,6 @@ FRigVMStructUpgradeInfo FRigVMFunction_DebugTransformMutable::GetUpgradeInfo() c
 	NewNode.bEnabled = bEnabled;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	return Info;
 }
 
@@ -157,7 +155,6 @@ FRigVMStructUpgradeInfo FRigVMFunction_DebugTransformArrayMutable::GetUpgradeInf
 	NewNode.bEnabled = bEnabled;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	return Info;
 }
 

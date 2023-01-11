@@ -27,7 +27,6 @@ FRigVMStructUpgradeInfo FRigVMFunction_DebugRectangle::GetUpgradeInfo() const
 	NewNode.bEnabled = bEnabled;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	return Info;
 }
 
@@ -70,7 +69,6 @@ FRigVMStructUpgradeInfo FRigVMFunction_DebugArc::GetUpgradeInfo() const
 	NewNode.bEnabled = bEnabled;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	return Info;
 }
 

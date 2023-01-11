@@ -27,7 +27,6 @@ FRigVMStructUpgradeInfo FRigVMFunction_DebugLine::GetUpgradeInfo() const
 	NewNode.bEnabled = bEnabled;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	return Info;
 }
 

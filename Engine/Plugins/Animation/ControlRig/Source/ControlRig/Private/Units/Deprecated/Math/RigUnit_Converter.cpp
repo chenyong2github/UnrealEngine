@@ -17,7 +17,6 @@ FRigVMStructUpgradeInfo FRigUnit_ConvertTransform::GetUpgradeInfo() const
 	NewNode.Value = Input;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
-	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
 	Info.AddRemappedPin(TEXT("Input"), TEXT("Value"));
 	return Info;
 }
