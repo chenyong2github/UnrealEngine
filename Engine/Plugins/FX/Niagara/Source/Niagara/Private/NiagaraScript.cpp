@@ -3515,7 +3515,7 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 			SimStageMetaData.EnabledBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
 		}
 
-		if (SimStageMetaData.IterationSource == ENiagaraIterationSource::DirectSet)
+		if (SimStageMetaData.IterationSourceType == ENiagaraIterationSource::DirectSet)
 		{
 			if (!SimStageMetaData.ElementCountXBinding.IsNone())
 			{

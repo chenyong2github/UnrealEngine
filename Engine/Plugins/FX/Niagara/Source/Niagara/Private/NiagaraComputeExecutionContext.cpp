@@ -103,7 +103,7 @@ bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProx
 {
 	if (DIProxy && !DIProxy->SourceDIName.IsNone())
 	{
-		return SimStageInfo[SimulationStageIndex].IterationSource == ENiagaraIterationSource::DataInterface && (SimStageInfo[SimulationStageIndex].IterationDataInterface == DIProxy->SourceDIName);
+		return SimStageInfo[SimulationStageIndex].IterationSourceType == ENiagaraIterationSource::DataInterface && (SimStageInfo[SimulationStageIndex].IterationDataInterface == DIProxy->SourceDIName);
 	}
 	return false;
 }
@@ -111,7 +111,7 @@ bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProx
 FNiagaraDataInterfaceProxyRW* FNiagaraComputeExecutionContext::FindIterationInterface(const TArray<FNiagaraDataInterfaceProxyRW*>& InProxies, uint32 SimulationStageIndex) const
 {
 	// Particle stage
-	if ( SimStageInfo[SimulationStageIndex].IterationSource != ENiagaraIterationSource::DataInterface )
+	if ( SimStageInfo[SimulationStageIndex].IterationSourceType != ENiagaraIterationSource::DataInterface )
 	{
 		return nullptr;
 	}

@@ -14,7 +14,7 @@ struct FNiagaraSimulationStageCompilationData
 	FName                           ElementCountZBinding;
 	uint32                          NumIterations = 1;
 	FName                           NumIterationsBinding;
-	ENiagaraIterationSource			IterationSource = ENiagaraIterationSource::Particles;
+	ENiagaraIterationSource			IterationSourceType = ENiagaraIterationSource::Particles;
 	FName							IterationDataInterface;
 	FName							IterationDirectBinding;
 	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;

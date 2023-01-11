@@ -369,7 +369,7 @@ public:
 	bool bInterpolatePreviousParams = false;
 	bool bCopyPreviousParams = true;
 	ENiagaraCodeChunkMode ChunkModeIndex = (ENiagaraCodeChunkMode)-1;
-	ENiagaraIterationSource IterationSource = ENiagaraIterationSource::Particles;
+	ENiagaraIterationSource IterationSourceType = ENiagaraIterationSource::Particles;
 	FName IterationDataInterface;
 	FName IterationDirectBinding;
 	int32 SimulationStageIndex = -1;
@@ -402,7 +402,7 @@ public:
 
 	bool IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InTargetUsage, uint32 InTargetBitmask);
 
-	FName GetIterationDataInterface() const { return IterationSource == ENiagaraIterationSource::DataInterface ? IterationDataInterface : NAME_None; }
+	FName GetIterationDataInterface() const { return IterationSourceType == ENiagaraIterationSource::DataInterface ? IterationDataInterface : NAME_None; }
 
 	int32 CurrentCallID = 0;
 	bool bCallIDInitialized = false;

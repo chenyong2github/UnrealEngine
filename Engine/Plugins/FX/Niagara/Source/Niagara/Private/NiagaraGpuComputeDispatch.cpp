@@ -599,7 +599,7 @@ void FNiagaraGpuComputeDispatch::DumpDebugFrame()
 				Builder.Appendf(TEXT("Source(%p 0x%08x %d) "), SimStageData.Source, SimStageData.SourceCountOffset, SimStageData.SourceNumInstances);
 				Builder.Appendf(TEXT("Destination(%p 0x%08x %d) "), SimStageData.Destination, SimStageData.DestinationCountOffset, SimStageData.DestinationNumInstances);
 				Builder.Appendf(TEXT("Iteration(%d | %s) "), SimStageData.IterationIndex, SimStageData.AlternateIterationSource ? *SimStageData.AlternateIterationSource->SourceDIName.ToString() : TEXT("Particles"));
-				if (SimStageData.StageMetaData->IterationSource == ENiagaraIterationSource::DirectSet)
+				if (SimStageData.StageMetaData->IterationSourceType == ENiagaraIterationSource::DirectSet)
 				{
 					Builder.Appendf(TEXT("ElementCountXYZ(%d, %d, %d) "), SimStageData.ElementCountXYZ.X, SimStageData.ElementCountXYZ.Y, SimStageData.ElementCountXYZ.Z);
 				}
@@ -1430,7 +1430,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	FIntVector DispatchCount = FIntVector(0, 0, 0);
 	FIntVector DispatchNumThreads = FIntVector(0, 0, 0);
 
-	switch (SimStageData.StageMetaData->IterationSource)
+	switch (SimStageData.StageMetaData->IterationSourceType)
 	{
 		case ENiagaraIterationSource::Particles:
 		{
@@ -1485,7 +1485,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 		}
 
 		default:
-			UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown IterationSouce(%d)"), SimStageData.StageMetaData->IterationSource);
+			UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown IterationSouce(%d)"), SimStageData.StageMetaData->IterationSourceType);
 			return;
 	}
 
@@ -1532,7 +1532,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	{
 		DispatchParameters->SimulationStageIterationInfo = FIntVector4(INDEX_NONE, -1, 0, 0);
 		DispatchParameters->SimulationStageNormalizedIterationIndex = 0.0f;
-		switch (SimStageData.StageMetaData->IterationSource)
+		switch (SimStageData.StageMetaData->IterationSourceType)
 		{
 			case ENiagaraIterationSource::Particles:
 				break;

@@ -115,7 +115,7 @@ bool UNiagaraSimulationStageGeneric::FillCompilationData(TArray<FNiagaraSimulati
 	SimStageData.ElementCountZBinding = ElementCountZBinding.GetName();
 	SimStageData.NumIterations = Iterations;
 	SimStageData.NumIterationsBinding = NumIterationsBinding.GetName();
-	SimStageData.IterationSource = IterationSource;
+	SimStageData.IterationSourceType = IterationSource;
 	SimStageData.IterationDataInterface = IterationSource == ENiagaraIterationSource::DataInterface ? DataInterface.BoundVariable.GetName() : FName();
 	SimStageData.ExecuteBehavior = ExecuteBehavior;
 	SimStageData.PartialParticleUpdate = bDisablePartialParticleUpdate == false;

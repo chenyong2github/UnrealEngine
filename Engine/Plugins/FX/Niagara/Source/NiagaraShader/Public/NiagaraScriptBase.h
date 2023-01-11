@@ -64,7 +64,7 @@ public:
 
 	/** The source we are iteration over. */
 	UPROPERTY()
-	ENiagaraIterationSource IterationSource = ENiagaraIterationSource::Particles;
+	ENiagaraIterationSource IterationSourceType = ENiagaraIterationSource::Particles;
 
 	/** When IterationSource is ENiagaraIterationSource::DataInterface this is the data interface name. */
 	UPROPERTY()
