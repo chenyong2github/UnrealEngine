@@ -189,11 +189,13 @@ bool UMenuAnchor::IsUseApplicationMenuStack() const
 
 void UMenuAnchor::InitShouldDeferPaintingAfterWindowContent(bool InShouldDeferPaintingAfterWindowContent)
 {
+	ensureMsgf(!MyMenuAnchor.IsValid(), TEXT("The widget is already created."));
 	ShouldDeferPaintingAfterWindowContent = InShouldDeferPaintingAfterWindowContent;
 }
 
 void UMenuAnchor::InitUseApplicationMenuStack(bool InUseApplicationMenuStack)
 {
+	ensureMsgf(!MyMenuAnchor.IsValid(), TEXT("The widget is already created."));
 	UseApplicationMenuStack = InUseApplicationMenuStack;
 }
 

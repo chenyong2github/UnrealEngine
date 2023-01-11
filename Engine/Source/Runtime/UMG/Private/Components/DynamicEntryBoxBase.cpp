@@ -506,26 +506,31 @@ void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 
 void UDynamicEntryBoxBase::InitEntryBoxType(EDynamicBoxType InEntryBoxType)
 {
+	ensureMsgf(!MyPanelWidget.IsValid(), TEXT("The widget is already created."));
 	EntryBoxType = InEntryBoxType;
 }
 
 void UDynamicEntryBoxBase::InitEntrySizeRule(FSlateChildSize InEntrySizeRule)
 {
+	ensureMsgf(!MyPanelWidget.IsValid(), TEXT("The widget is already created."));
 	EntrySizeRule = InEntrySizeRule;
 }
 
 void UDynamicEntryBoxBase::InitEntryHorizontalAlignment(EHorizontalAlignment InEntryHorizontalAlignment)
 {
+	ensureMsgf(!MyPanelWidget.IsValid(), TEXT("The widget is already created."));
 	EntryHorizontalAlignment = InEntryHorizontalAlignment;
 }
 
 void UDynamicEntryBoxBase::InitEntryVerticalAlignment(EVerticalAlignment InEntryVerticalAlignment)
 {
+	ensureMsgf(!MyPanelWidget.IsValid(), TEXT("The widget is already created."));
 	EntryVerticalAlignment = InEntryVerticalAlignment;
 }
 
 void UDynamicEntryBoxBase::InitMaxElementSize(int32 InMaxElementSize)
 {
+	ensureMsgf(!MyPanelWidget.IsValid(), TEXT("The widget is already created."));
 	MaxElementSize = InMaxElementSize;
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

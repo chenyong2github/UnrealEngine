@@ -49,27 +49,27 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = EntryLayout)
 	TArray<FVector2D> SpacingPattern;
 
-	UE_DEPRECATED(5.2, "Direct access to EntryBoxType is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to EntryBoxType is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The type of box panel into which created entries are added. Some differences in functionality exist between each type. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "GetBoxType", Category = DynamicEntryBox, meta = (DesignerRebuild))
 	EDynamicBoxType EntryBoxType;
 
-	UE_DEPRECATED(5.2, "Direct access to EntrySizeRule is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to EntrySizeRule is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** Sizing rule to apply to generated entries. Horizontal/Vertical boxes only. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = EntryLayout)
 	FSlateChildSize EntrySizeRule;
 
-	UE_DEPRECATED(5.2, "Direct access to EntryHorizontalAlignment is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to EntryHorizontalAlignment is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** Horizontal alignment of generated entries. Horizontal/Vertical/Wrap boxes only. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = EntryLayout)
 	TEnumAsByte<EHorizontalAlignment> EntryHorizontalAlignment;
 
-	UE_DEPRECATED(5.2, "Direct access to EntryVerticalAlignment is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to EntryVerticalAlignment is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** Vertical alignment of generated entries. Horizontal/Vertical/Wrap boxes only. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = EntryLayout)
 	TEnumAsByte<EVerticalAlignment> EntryVerticalAlignment;
 
-	UE_DEPRECATED(5.2, "Direct access to MaxElementSize is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to MaxElementSize is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** The maximum size of each entry in the dominant axis of the box. Vertical/Horizontal boxes only. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category = EntryLayout)
 	int32 MaxElementSize = 0;

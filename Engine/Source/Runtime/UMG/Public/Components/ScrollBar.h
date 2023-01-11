@@ -61,21 +61,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Scrolling")
 	void SetState(float InOffsetFraction, float InThumbSizeFraction);
 
-	///** @return true if scrolling is possible; false if the view is big enough to fit all the content */
-	//bool IsNeeded() const;
-
-	///** @return normalized distance from top */
-	//float DistanceFromTop() const;
-
-	///** @return normalized distance from bottom */
-	//float DistanceFromBottom() const;
-
-	///** @return the scrollbar's visibility as a product of internal rules and user-specified visibility */
-	//EVisibility ShouldBeVisible() const;
-
-	///** @return True if the user is scrolling by dragging the scroll bar thumb. */
-	//bool IsScrolling() const;
-
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface

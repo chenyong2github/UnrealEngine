@@ -33,7 +33,7 @@ protected:
 	bool bRetainRender = true;
 
 public:
-	UE_DEPRECATED(5.2, "Direct access to RenderOnInvalidation is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to RenderOnInvalidation is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/**
 	 * Should this widget redraw the contents it has every time it receives an invalidation request
 	 * from it's children, similar to the invalidation panel.
@@ -41,14 +41,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsRenderOnInvalidation", Category = "Render Rules", meta = (EditCondition = bRetainRender))
 	bool RenderOnInvalidation;
 
-	UE_DEPRECATED(5.2, "Direct access to RenderOnPhase is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to RenderOnPhase is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/**
 	 * Should this widget redraw the contents it has every time the phase occurs.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsRenderOnPhase", Category = "Render Rules", meta = (EditCondition = bRetainRender))
 	bool RenderOnPhase;
 
-	UE_DEPRECATED(5.2, "Direct access to Phase is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to Phase is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/**
 	 * The Phase this widget will draw on.
 	 *
@@ -59,7 +59,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Render Rules", meta=(UIMin=0, ClampMin=0))
 	int32 Phase;
 
-	UE_DEPRECATED(5.2, "Direct access to PhaseCount is deprecated. Please use the getter.")
+	UE_DEPRECATED(5.2, "Direct access to PhaseCount is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/**
 	 * The PhaseCount controls how many phases are possible know what to modulus the current frame 
 	 * count by to determine if this is the current frame to draw the widget on.
@@ -179,6 +179,17 @@ protected:
 #endif
 	//~ End UObject interface
 
+	// Initialize RenderOnInvalidation in the constructor before the SWidget is constructed.
+	void InitRenderOnInvalidation(bool InRenderOnInvalidation);
+
+	// Initialize RenderOnPhase in the constructor before the SWidget is constructed.
+	void InitRenderOnPhase(bool InRenderOnPhase);
+
+	// Initialize Phase in the constructor before the SWidget is constructed.
+	void InitPhase(int32 InPhase);
+
+	// Initialize PhaseCount in the constructor before the SWidget is constructed.
+	void InitPhaseCount(int32 InPhaseCount);
 public:
 	/**
 	* Gets the name of the texture parameter to set the render target to on the material.

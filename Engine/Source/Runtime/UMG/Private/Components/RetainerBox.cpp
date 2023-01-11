@@ -215,6 +215,32 @@ FGeometry URetainerBox::GetCachedAllottedGeometry() const
 	return TempGeo;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void URetainerBox::InitRenderOnInvalidation(bool InRenderOnInvalidation)
+{
+	ensureMsgf(!MyRetainerWidget.IsValid(), TEXT("The widget is already created."));
+	RenderOnInvalidation = InRenderOnInvalidation;
+}
+
+void URetainerBox::InitRenderOnPhase(bool InRenderOnPhase)
+{
+	ensureMsgf(!MyRetainerWidget.IsValid(), TEXT("The widget is already created."));
+	RenderOnPhase = InRenderOnPhase;
+}
+
+void URetainerBox::InitPhase(int32 InPhase)
+{
+	ensureMsgf(!MyRetainerWidget.IsValid(), TEXT("The widget is already created."));
+	Phase = InPhase;
+}
+
+void URetainerBox::InitPhaseCount(int32 InPhaseCount)
+{
+	ensureMsgf(!MyRetainerWidget.IsValid(), TEXT("The widget is already created."));
+	PhaseCount = InPhaseCount;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITOR
 bool URetainerBox::CanEditChange(const FProperty* InProperty) const
 {
