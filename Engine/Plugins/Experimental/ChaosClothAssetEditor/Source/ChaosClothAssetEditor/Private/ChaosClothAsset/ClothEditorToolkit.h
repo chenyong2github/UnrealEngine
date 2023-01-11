@@ -12,6 +12,7 @@ class SClothCollectionOutliner;
 class UDataflow;
 class UChaosClothAsset;
 class SGraphEditor;
+class SDataflowGraphEditor;
 class IStructureDetailsView;
 class UEdGraphNode;
 class UChaosClothComponent;
@@ -96,6 +97,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 
 	void InitDetailsViewPanel();
+	void OnFinishedChangingAssetProperties(const FPropertyChangedEvent&);
 
 	/** Scene in which the 3D sim space preview meshes live. Ownership shared with AdvancedPreviewSettingsWidget*/
 	TSharedPtr<FChaosClothPreviewScene> ClothPreviewScene;
@@ -119,9 +121,12 @@ private:
 	 
 	UDataflow* Dataflow = nullptr;
 
+	void EvaluateNode(FDataflowNode* Node, FDataflowOutput* Out);
+
 	static const FName GraphCanvasTabId;
-	TSharedPtr<SGraphEditor> GraphEditor;
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IStructureDetailsView> PropertiesEditor);
+	TSharedPtr<SDataflowGraphEditor> GraphEditor;
+	TSharedRef<SDataflowGraphEditor> CreateGraphEditorWidget();
+	void ReinitializeGraphEditorWidget();
 
 	static const FName NodeDetailsTabId;
 	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;

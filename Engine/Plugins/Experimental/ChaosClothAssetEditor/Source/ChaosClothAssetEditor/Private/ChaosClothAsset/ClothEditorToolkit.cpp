@@ -284,7 +284,7 @@ void FChaosClothAssetEditorToolkit::CreateWidgets()
 			Dataflow->Schema = UDataflowSchema::StaticClass();
 
 			NodeDetailsEditor = CreateNodeDetailsEditorWidget(ClothAsset);
-			GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
+			GraphEditor = CreateGraphEditorWidget();
 		}
 	}
 }
@@ -670,6 +670,7 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 		ensure(ObjectToEditInDetailsView->HasAnyFlags(RF_Transactional));		// Ensure all objects are transactable for undo/redo in the details panel
 		SetEditingObject(ObjectToEditInDetailsView);
 	}
+	DetailsView->OnFinishedChangingProperties().AddSP(this, &FChaosClothAssetEditorToolkit::OnFinishedChangingAssetProperties);
 
 	TArray<FAdvancedPreviewSceneModule::FDetailDelegates> Delegates;	
 
@@ -704,43 +705,94 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 
 		ClothCollectionGroupNames = ClothCollection->GroupNames();
 	}
-
 }
 
-TSharedRef<SGraphEditor> FChaosClothAssetEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
+void FChaosClothAssetEditorToolkit::OnFinishedChangingAssetProperties(const FPropertyChangedEvent& Event)
 {
-	ensure(DataflowToEdit);
+	const FProperty* const ChangedProperty = Event.Property;
+
+	if (ChangedProperty && ChangedProperty->GetFName() == TEXT("DataflowAsset"))
+	{
+		const UChaosClothAsset* const ClothAsset = GetAsset();
+		if (ClothAsset)
+		{
+			Dataflow = ClothEditorToolkitHelpers::GetDataflowFrom(ClothAsset);
+
+			if (Dataflow)
+			{
+				Dataflow->Schema = UDataflowSchema::StaticClass();
+				ReinitializeGraphEditorWidget();
+			}
+		}
+	}
+}
+
+void FChaosClothAssetEditorToolkit::EvaluateNode(FDataflowNode* Node, FDataflowOutput* Out)
+{
+	if (Dataflow)
+	{
+		UObject* const Asset = GetAsset();
+
+		if (!DataflowContext)
+		{
+			DataflowContext = TSharedPtr<Dataflow::FEngineContext>(new Dataflow::FClothAssetDataflowContext(Asset, Dataflow, Dataflow::FTimestamp::Invalid));
+		}
+		LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
+
+		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, Node, Out, Asset, DataflowTerminalPath);
+	}
+};
+
+TSharedRef<SDataflowGraphEditor> FChaosClothAssetEditorToolkit::CreateGraphEditorWidget()
+{
+	ensure(Dataflow);
 	using namespace Dataflow;
 
-	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [this, DataflowToEdit](FDataflowNode* Node, FDataflowOutput* Out)
+	const auto EvalLambda = [this](FDataflowNode* Node, FDataflowOutput* Out)
 	{
-		if (DataflowToEdit)
-		{
-			UObject* const Asset = GetAsset();
-
-			if (!DataflowContext)
-			{
-				DataflowContext = TSharedPtr<Dataflow::FEngineContext>(new Dataflow::FClothAssetDataflowContext(Asset, Dataflow, Dataflow::FTimestamp::Invalid));
-			}
-			LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
-			
-			FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, Node, Out, Asset, DataflowTerminalPath);
-		}
+		this->EvaluateNode(Node, Out);
 	};
 
 	SGraphEditor::FGraphEditorEvents InEvents;
 	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeTitleCommitted);
 
-	TSharedRef<SDataflowGraphEditor> NewGraphEditor = SNew(SDataflowGraphEditor, DataflowToEdit)
-		.GraphToEdit(DataflowToEdit)
+	TSharedRef<SDataflowGraphEditor> NewGraphEditor = SNew(SDataflowGraphEditor, Dataflow)
+		.GraphToEdit(Dataflow)
 		.GraphEvents(InEvents)
-		.DetailsView(InNodeDetailsEditor)
-		.EvaluateGraph(Evaluate);
+		.DetailsView(NodeDetailsEditor)
+		.EvaluateGraph(EvalLambda);
 
 	NewGraphEditor->OnSelectionChangedMulticast.AddSP(this, &FChaosClothAssetEditorToolkit::OnNodeSelectionChanged);
 
 	return NewGraphEditor;
+}
+
+
+void FChaosClothAssetEditorToolkit::ReinitializeGraphEditorWidget()
+{
+	ensure(Dataflow);
+
+	const auto EvalLambda = [this](FDataflowNode* Node, FDataflowOutput* Out)
+	{
+		EvaluateNode(Node, Out);
+	};
+
+	SGraphEditor::FGraphEditorEvents InEvents;
+	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit);
+	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeTitleCommitted);
+
+	SDataflowGraphEditor::FArguments Args;
+	Args._GraphToEdit = Dataflow;
+	Args._GraphEvents = InEvents;
+	Args._DetailsView = NodeDetailsEditor;
+	Args._EvaluateGraph = EvalLambda;
+
+	UChaosClothAsset* const ClothAsset = GetAsset();
+	GraphEditor->Construct(Args, ClothAsset);
+
+	GraphEditor->OnSelectionChangedMulticast.Clear();
+	GraphEditor->OnSelectionChangedMulticast.AddSP(this, &FChaosClothAssetEditorToolkit::OnNodeSelectionChanged);
 }
 
 TSharedPtr<IStructureDetailsView> FChaosClothAssetEditorToolkit::CreateNodeDetailsEditorWidget(UObject* ObjectToEdit)
