@@ -1045,7 +1045,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 				if (OutOptResult)
 				{
 					Chaos::FMTDInfo MTDInfo;
-					if (Chaos::Utilities::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->GetGeometry(), FullActorTM, Downcast, GeomTransform, /*Thickness=*/0, &MTDInfo); }))
+					if (Chaos::Utilities::CastHelper(InGeom, GeomTransform, [&](const auto& Downcast, const auto& FullGeomTransform) { return Chaos::OverlapQuery(*Shape->GetGeometry(), ActorTM, Downcast, FullGeomTransform, /*Thickness=*/0, &MTDInfo); }))
 					{
 						OutOptResult->Distance = MTDInfo.Penetration;
 						OutOptResult->Direction = MTDInfo.Normal;
@@ -1054,7 +1054,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 				}
 				else	//question: why do we even allow user to not pass in MTD info?
 				{
-					if (Chaos::Utilities::CastHelper(InGeom, ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::OverlapQuery(*Shape->GetGeometry(), FullActorTM, Downcast, GeomTransform); }))
+					if (Chaos::Utilities::CastHelper(InGeom, GeomTransform, [&](const auto& Downcast, const auto& FullGeomTransform) { return Chaos::OverlapQuery(*Shape->GetGeometry(), ActorTM, Downcast, FullGeomTransform); }))
 					{
 						return true;
 					}
