@@ -864,17 +864,37 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 		}
 		else
 		{
-			FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_start", "Importing");
-			FAsyncTaskNotificationConfig NotificationConfig;
-			NotificationConfig.bIsHeadless = false;
-			NotificationConfig.bKeepOpenOnFailure = true;
-			NotificationConfig.TitleText = TitleText;
-			NotificationConfig.LogCategory = UE::Interchange::Private::GetLogInterchangePtr();
-			NotificationConfig.bCanCancel.Set(true);
-			NotificationConfig.bKeepOpenOnFailure.Set(true);
+			bool bCanShowNotification = false;
+			{
+				int32 ImportTaskCount = ImportTasks.Num();
+				for (int32 TaskIndex = 0; TaskIndex < ImportTaskCount; ++TaskIndex)
+				{
+					TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = ImportTasks[TaskIndex];
+					if (AsyncHelper.IsValid())
+					{
+						//Allow notification if at least one task is not automated
+						if (!AsyncHelper->TaskData.bIsAutomated)
+						{
+							bCanShowNotification = true;
+							break;
+						}
+					}
+				}
+			}
+			if (bCanShowNotification)
+			{
+				FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_start", "Importing");
+				FAsyncTaskNotificationConfig NotificationConfig;
+				NotificationConfig.bIsHeadless = false;
+				NotificationConfig.bKeepOpenOnFailure = true;
+				NotificationConfig.TitleText = TitleText;
+				NotificationConfig.LogCategory = UE::Interchange::Private::GetLogInterchangePtr();
+				NotificationConfig.bCanCancel.Set(true);
+				NotificationConfig.bKeepOpenOnFailure.Set(true);
 
-			Notification = MakeShared<FAsyncTaskNotification>(NotificationConfig);
-			Notification->SetNotificationState(FAsyncNotificationStateData(TitleText, FText::GetEmpty(), EAsyncTaskNotificationState::Pending));
+				Notification = MakeShared<FAsyncTaskNotification>(NotificationConfig);
+				Notification->SetNotificationState(FAsyncNotificationStateData(TitleText, FText::GetEmpty(), EAsyncTaskNotificationState::Pending));
+			}
 		}
 	};
 
