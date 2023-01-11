@@ -30,9 +30,12 @@ void SPropertyAccessNode::Construct(const FArguments& InArgs, UK2Node_PropertyAc
 	UpdateGraphNode();
 
 	// Centre the pin slot
-	SVerticalBox::FSlot& PinSlot = RightNodeBox->GetSlot(0);
-	PinSlot.SetVerticalAlignment(VAlign_Center);
-	PinSlot.SetFillHeight(1.0f);
+	if(RightNodeBox->GetChildren()->Num() > 0)
+	{
+		SVerticalBox::FSlot& PinSlot = RightNodeBox->GetSlot(0);
+		PinSlot.SetVerticalAlignment(VAlign_Center);
+		PinSlot.SetFillHeight(1.0f);
+	}
 }
 
 bool SPropertyAccessNode::CanBindProperty(FProperty* InProperty) const
