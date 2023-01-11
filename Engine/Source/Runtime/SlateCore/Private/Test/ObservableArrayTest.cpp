@@ -22,16 +22,14 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 	int32 Counter = 0;
 	TArray<int32> ExpectedArray;
 	FObservableArrayTest* Self = this;
-	auto TestExpectedAction = [Self , &ExpectedAction, &Counter, &ExpectedArray](::UE::Slate::Containers::TObservableArray<int32>::ObservableArrayChangedArgsType Args)
+	auto TestExpectedAction = [Self, &ExpectedAction, &Counter, &ExpectedArray](::UE::Slate::Containers::TObservableArray<int32>::ObservableArrayChangedArgsType Args)
 	{
 		Self->AddErrorIfFalse(Args.GetAction() == ExpectedAction, TEXT("The notification occurs with the wrong action"));
-		if (Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::Add)
+		if (Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::Add
+			|| Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::Remove
+			|| Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::RemoveSwap)
 		{
 			Self->AddErrorIfFalse(ExpectedArray == Args.GetItems(), TEXT("The notification occurs with the GetItems"));
-		}
-		else if (Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::Remove)
-		{
-			Self->AddErrorIfFalse(ExpectedArray == Args.GetItems(), TEXT("The notification occurs with the wrong GetItmes"));
 		}
 		++Counter;
 	};
@@ -53,7 +51,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -64,7 +62,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -75,7 +73,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -86,7 +84,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -97,7 +95,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -108,7 +106,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -119,18 +117,54 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 			}
 			{
-				ExpectedAction = ::UE::Slate::Containers::EObservableArrayChangedAction::Swap;
-				ExpectedArray.Reset();
+				int32 ExpectedFirstIndex = INDEX_NONE;
+				int32 ExpectedSecondIndex = INDEX_NONE;
+				TArray<int32> PreviousObservableArray;
+				auto TestExpectedSwapAction = [Self, &ExpectedFirstIndex, &ExpectedSecondIndex, &ObservableValues, &PreviousObservableArray](::UE::Slate::Containers::TObservableArray<int32>::ObservableArrayChangedArgsType Args)
+				{
+					if (Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::Swap)
+					{
+						int32 FirstIndex = Args.GetSwapIndex().FirstIndex;
+						int32 SecondIndex = Args.GetSwapIndex().SecondIndex;
 
-				ArrayValues.Swap(1, 2);
-				ObservableValues.Swap(1, 2);
-				AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
-				++ExpectedCounter;
-				AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+						Self->AddErrorIfFalse(FirstIndex != SecondIndex, TEXT("SecondIndex != FirstIndex."));
+						Self->AddErrorIfFalse(ObservableValues.IsValidIndex(FirstIndex) && ObservableValues.IsValidIndex(SecondIndex), TEXT("The swap index are invalid."));
+						Self->AddErrorIfFalse(ObservableValues[FirstIndex] == PreviousObservableArray[SecondIndex], TEXT("The swap of FirstIndex do not matches"));
+						Self->AddErrorIfFalse(ObservableValues[SecondIndex] == PreviousObservableArray[FirstIndex], TEXT("The swap of SecondIndex do not matches"));
+					}
+				};
+
+				ExpectedAction = ::UE::Slate::Containers::EObservableArrayChangedAction::Swap;
+				FDelegateHandle SwapHandle = ObservableValues.OnArrayChanged().AddLambda(TestExpectedSwapAction);
+				{
+					ExpectedArray.Reset();
+					PreviousObservableArray = TArray<int32>(ObservableValues.GetData(), ObservableValues.Num());
+					ExpectedFirstIndex = 1;
+					ExpectedSecondIndex = 2;
+
+					ArrayValues.Swap(ExpectedFirstIndex, ExpectedSecondIndex);
+					ObservableValues.Swap(ExpectedFirstIndex, ExpectedSecondIndex);
+					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
+					++ExpectedCounter;
+					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+				}
+				{
+					ExpectedArray.Reset();
+					PreviousObservableArray = TArray<int32>(ObservableValues.GetData(), ObservableValues.Num());
+					ExpectedFirstIndex = 3;
+					ExpectedSecondIndex = 1;
+
+					ArrayValues.Swap(ExpectedFirstIndex, ExpectedSecondIndex);
+					ObservableValues.Swap(ExpectedFirstIndex, ExpectedSecondIndex);
+					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
+					++ExpectedCounter;
+					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+				}
+				ObservableValues.OnArrayChanged().Remove(SwapHandle);
 			}
 			{
 				ExpectedAction = ::UE::Slate::Containers::EObservableArrayChangedAction::Remove;
@@ -144,7 +178,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					bool bContains = ObservableValues.Contains(2);
@@ -161,18 +195,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 					}
 					AddErrorIfFalse(bWasRemoved == bContains, TEXT("ObservableValues.Contains == ObservableValues.RemoveSingle"));
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
-				}
-				{
-					ExpectedArray.Reset();
-					ExpectedArray.Add(3);
-
-					ArrayValues.RemoveSingleSwap(3);
-					ObservableValues.RemoveSingleSwap(3);
-
-					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
-					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -183,7 +206,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 				{
 					ExpectedArray.Reset();
@@ -202,48 +225,7 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
-				}
-				{
-					ExpectedArray.Reset();
-					ExpectedArray.Add(ObservableValues[1]);
-
-					ArrayValues.RemoveAtSwap(1);
-					ObservableValues.RemoveAtSwap(1);
-
-					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
-					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
-				}
-				{
-					ExpectedArray.Reset();
-					ExpectedArray.Add(ObservableValues[0]);
-
-					ArrayValues.RemoveAtSwap(0);
-					ObservableValues.RemoveAtSwap(0);
-
-					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
-					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
-				}
-				{
-					ExpectedArray.Reset();
-					int32 ToRemoveIndex = 1;
-					int32 NumberToRemove = 4;
-					for (int32 Index = ToRemoveIndex; Index < ToRemoveIndex + NumberToRemove; ++Index)
-					{
-						if (ObservableValues.IsValidIndex(Index))
-						{
-							ExpectedArray.Add(ObservableValues[Index]);
-						}
-					}
-
-					ArrayValues.RemoveAtSwap(ToRemoveIndex, NumberToRemove);
-					ObservableValues.RemoveAtSwap(ToRemoveIndex, NumberToRemove);
-
-					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
-					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
 			}
 			{
@@ -260,15 +242,124 @@ bool FObservableArrayTest::RunTest(const FString& Parameters)
 
 				{
 					ExpectedArray.Reset();
-					ExpectedArray.Add(2);
+					ExpectedArray.Append({ 6, 6, 7, 7, 7, 8, 9, 10, 11, 12, 12 });
 
-					ArrayValues.Add(2);
-					ObservableValues.Add(2);
+					ArrayValues.Append(ExpectedArray);
+					ObservableValues.Append(ExpectedArray);
 
 					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
 					++ExpectedCounter;
-					AddErrorIfFalse(Counter == ExpectedCounter, "The delegate was not executed");
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
 				}
+			}
+			{
+				ExpectedAction = ::UE::Slate::Containers::EObservableArrayChangedAction::RemoveSwap;
+
+				bool bExpectPreviousMovedElemenentIndexToBeValid = true;
+				int32 ExpectedRemoveIndex = INDEX_NONE;
+				TArray<int32> ExpectedBeforeSwapArray;
+				auto TestExpectedSwapAction = [Self, &bExpectPreviousMovedElemenentIndexToBeValid , &ExpectedRemoveIndex, &ExpectedBeforeSwapArray, &ObservableValues](::UE::Slate::Containers::TObservableArray<int32>::ObservableArrayChangedArgsType Args)
+				{
+					if (Args.GetAction() == Slate::Containers::EObservableArrayChangedAction::RemoveSwap)
+					{
+						int32 RemoveIndex = Args.GetRemovedSwapIndexes().RemoveIndex;
+						int32 PreviousMovedElmenentIndex = Args.GetRemovedSwapIndexes().PreviousMovedElmenentIndex;
+
+						Self->AddErrorIfFalse(ExpectedRemoveIndex == RemoveIndex, TEXT("The RemoveIndex is not the expected value."));
+						if (ObservableValues.Num() > 0)
+						{
+							if (bExpectPreviousMovedElemenentIndexToBeValid)
+							{
+								Self->AddErrorIfFalse(ExpectedBeforeSwapArray.IsValidIndex(PreviousMovedElmenentIndex), TEXT("PreviousMovedElmenentIndex is invalid."));
+							}
+							else
+							{
+								Self->AddErrorIfFalse(!ExpectedBeforeSwapArray.IsValidIndex(PreviousMovedElmenentIndex), TEXT("PreviousMovedElmenentIndex is invalid."));
+							}
+
+							if (ObservableValues.IsValidIndex(RemoveIndex)
+								&& ExpectedBeforeSwapArray.IsValidIndex(PreviousMovedElmenentIndex))
+							{
+								Self->AddErrorIfFalse(ObservableValues[RemoveIndex] == ExpectedBeforeSwapArray[PreviousMovedElmenentIndex], TEXT("The swap index doesn't matches"));
+							}
+						}
+					}
+				};
+				FDelegateHandle RemoveSwapHandle = ObservableValues.OnArrayChanged().AddLambda(TestExpectedSwapAction);
+
+				{
+					ExpectedArray.Reset();
+					ExpectedArray.Append({7});
+					ExpectedBeforeSwapArray = TArray<int32>(ObservableValues.GetData(), ObservableValues.Num());
+					ExpectedRemoveIndex = ArrayValues.Find(7);
+					bExpectPreviousMovedElemenentIndexToBeValid = true;
+
+					ArrayValues.RemoveSingleSwap(7);
+					ObservableValues.RemoveSingleSwap(7);
+
+					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
+					++ExpectedCounter;
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
+				}
+				{
+					ExpectedArray.Reset();
+					ExpectedBeforeSwapArray = TArray<int32>(ObservableValues.GetData(), ObservableValues.Num());
+					ExpectedRemoveIndex = 0;
+					ExpectedArray.Add(ArrayValues[ExpectedRemoveIndex]);
+					bExpectPreviousMovedElemenentIndexToBeValid = true;
+
+					ArrayValues.RemoveAtSwap(ExpectedRemoveIndex);
+					ObservableValues.RemoveAtSwap(ExpectedRemoveIndex);
+
+					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
+					++ExpectedCounter;
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
+				}
+				{
+					ExpectedArray.Reset();
+					ExpectedBeforeSwapArray = TArray<int32>(ObservableValues.GetData(), ObservableValues.Num());
+					ExpectedRemoveIndex = 1;
+					for (int32 Index = 0; Index < 4; ++Index)
+					{
+						ExpectedArray.Add(ArrayValues[Index+ ExpectedRemoveIndex]);
+					}
+					bExpectPreviousMovedElemenentIndexToBeValid = true;
+
+					ArrayValues.RemoveAtSwap(ExpectedRemoveIndex, 4);
+					ObservableValues.RemoveAtSwap(ExpectedRemoveIndex, 4);
+
+					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
+					++ExpectedCounter;
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
+				}
+				{
+					ExpectedArray.Reset();
+					ExpectedBeforeSwapArray = TArray<int32>(ObservableValues.GetData(), ObservableValues.Num());
+					ExpectedRemoveIndex = ArrayValues.Num() - 2;
+					for (int32 Index = 0; Index < 2; ++Index)
+					{
+						ExpectedArray.Add(ArrayValues[Index+ ExpectedRemoveIndex]);
+					}
+					bExpectPreviousMovedElemenentIndexToBeValid = false;
+
+					ArrayValues.RemoveAtSwap(ExpectedRemoveIndex, 2);
+					ObservableValues.RemoveAtSwap(ExpectedRemoveIndex, 2);
+
+					AddErrorIfFalse(ArrayValues == ObservableValues, TEXT("ObservableValues == ArrayValues"));
+					++ExpectedCounter;
+					AddErrorIfFalse(Counter == ExpectedCounter, TEXT("The delegate was not executed"));
+				}
+
+				ObservableValues.OnArrayChanged().Remove(RemoveSwapHandle);
+			}
+			{
+				TArray<int32> ItteratingArrayValues;
+				ItteratingArrayValues.Reserve(ObservableValues.Num());
+				for (int32 Value : ObservableValues)
+				{
+					ItteratingArrayValues.Add(Value);
+				}
+				AddErrorIfFalse(ItteratingArrayValues == ArrayValues, TEXT("ItteratingArrayValues == ArrayValues after itterator."));
 			}
 		}
 	}

@@ -61,20 +61,20 @@ private:
 		return Result;
 	}
 
-	static TObservableArrayChangedArgs MakeRemoveAction(const ArrayViewType InRemoveItems, int32 InRemoveStartedIndex)
+	static TObservableArrayChangedArgs MakeRemoveAction(const ArrayViewType InRemovedItems, int32 InRemoveStartedIndex)
 	{
 		TObservableArrayChangedArgs Result;
-		Result.Array = InRemoveItems;
+		Result.Array = InRemovedItems;
 		Result.StartIndex = InRemoveStartedIndex;
 		Result.Action = EObservableArrayChangedAction::Remove;
 		check(Result.Array.Num() > 0 && Result.StartIndex >= 0);
 		return Result;
 	}
 	
-	static TObservableArrayChangedArgs MakeRemoveSwapAction(const ArrayViewType InRemoveItems, int32 InRemoveStartedIndex, int32 InPreviousMovedItemLocation)
+	static TObservableArrayChangedArgs MakeRemoveSwapAction(const ArrayViewType InRemovedItems, int32 InRemoveStartedIndex, int32 InPreviousMovedItemLocation)
 	{
 		TObservableArrayChangedArgs Result;
-		Result.Array = InRemoveItems;
+		Result.Array = InRemovedItems;
 		Result.StartIndex = InRemoveStartedIndex;
 		Result.MoveIndex = InPreviousMovedItemLocation;
 		Result.Action = EObservableArrayChangedAction::RemoveSwap;
@@ -122,13 +122,13 @@ public:
 			
 		}
 		/**
-		 * The removed elements index.
-		 * The removed index is still valid if the array is not empty.
-		 * The moved elements are now at that location (if any).
+		 * The index of the removed elements before their removal.
+		 * The index can now be out of bound.
+		 * The swapped elements (if any) are now at that location.
 		 */
 		SizeType RemoveIndex;
 		/**
-		 * The previous location of the elements (if any) before they moved to the new location.
+		 * The previous location of the swapped elements (if any) before the swap.
 		 * The index is not valid anymore.
 		 * Set to INDEX_NONE, if no element was moved.
 		 */
@@ -189,6 +189,8 @@ public:
 	using SizeType = typename ArrayType::SizeType;
 	using ElementType = typename ArrayType::ElementType;
 	using AllocatorType = typename ArrayType::AllocatorType;
+	using RangedForIteratorType = typename ArrayType::RangedForIteratorType;
+	using RangedForConstIteratorType = typename ArrayType::RangedForConstIteratorType;
 	using ObservableArrayChangedArgsType = TObservableArrayChangedArgs<InElementType>;
 	
 	DECLARE_MULTICAST_DELEGATE_OneParam(FArrayChangedDelegate, ObservableArrayChangedArgsType);
@@ -238,14 +240,14 @@ public:
 	}
 
 public:
-	int32 Add(const ElementType& Item)
+	SizeType Add(const ElementType& Item)
 	{
-		int32 NewIndex = Array.Add(Item);
+		SizeType NewIndex = Array.Add(Item);
 		ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeAddAction({ GetData() + NewIndex, 1 }, NewIndex));
 		return NewIndex;
 	}
 
-	int32 Add(ElementType&& Item)
+	SizeType Add(ElementType&& Item)
 	{
 		int32 NewIndex = Array.Add(MoveTempIfPossible(Item));
 		ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeAddAction({ GetData() + NewIndex, 1 }, NewIndex));
@@ -253,9 +255,9 @@ public:
 	}
 
 	template <typename... InArgTypes>
-	int32 Emplace(InArgTypes&&... Args)
+	SizeType Emplace(InArgTypes&&... Args)
 	{
-		int32 NewIndex = Array.Emplace(Forward<InArgTypes>(Args)...);
+		SizeType NewIndex = Array.Emplace(Forward<InArgTypes>(Args)...);
 		ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeAddAction({ GetData() + NewIndex, 1 }, NewIndex));
 		return NewIndex;
 	}
@@ -276,9 +278,9 @@ public:
 	template <typename OtherElementType, typename OtherAllocatorType>
 	void Append(const TArray<OtherElementType, OtherAllocatorType>& Source)
 	{
-		SizeType PreviousNum = Array.Num();
-		if (PreviousNum > 0)
+		if (Source.Num() > 0)
 		{
+			SizeType PreviousNum = Array.Num();
 			Array.Append(Source);
 			SizeType NewNum = Array.Num();
 			ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeAddAction({ GetData() + PreviousNum, NewNum - PreviousNum }, PreviousNum));
@@ -288,9 +290,9 @@ public:
 	template <typename OtherElementType, typename OtherAllocator>
 	void Append(TArray<OtherElementType, OtherAllocator>&& Source)
 	{
-		SizeType PreviousNum = Array.Num();
-		if (PreviousNum > 0)
+		if (Source.Num() > 0)
 		{
+			SizeType PreviousNum = Array.Num();
 			Array.Append(MoveTempIfPossible(Source));
 			SizeType NewNum = Array.Num();
 			ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeAddAction({ GetData() + PreviousNum, NewNum - PreviousNum }, PreviousNum));
@@ -343,13 +345,13 @@ public:
 				FMemMark Mark(FMemStack::Get());
 				TArray<ElementType, TMemStackAllocator<>> RemovedElements;
 				RemovedElements.Reserve(NumToRemove);
-				for (int32 RemoveIndex = 0; RemoveIndex < NumToRemove; ++RemoveIndex)
+				for (SizeType RemoveIndex = 0; RemoveIndex < NumToRemove; ++RemoveIndex)
 				{
 					RemovedElements.Add(MoveTemp(Array[RemoveIndex + Index]));
 				}
 				
 				Array.RemoveAt(Index, NumToRemove, bAllowShrinking);
-				ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeRemoveAction({ (ElementType*)RemovedElements.GetData(), NumToRemove }, Index));
+				ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeRemoveAction({ RemovedElements.GetData(), NumToRemove }, Index));
 			}
 		}
 	}
@@ -366,12 +368,14 @@ public:
 		check((NumToRemove > 0) & (Index >= 0) & (Index + NumToRemove <= Num()));
 		if (NumToRemove > 0)
 		{
+			SizeType PreviousNum = Array.Num();
+			SizeType SwapAmount = FPlatformMath::Min(NumToRemove, PreviousNum - (Index + NumToRemove));
 			if (NumToRemove == 1)
 			{
 				ElementType RemovedElement = MoveTemp(Array[Index]);
 				
 				Array.RemoveAtSwap(Index, NumToRemove, bAllowShrinking);
-				ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeRemoveAction({ &RemovedElement, 1 }, Index));
+				ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeRemoveSwapAction({ &RemovedElement, 1 }, Index, PreviousNum - SwapAmount));
 			}
 			else
 			{
@@ -379,13 +383,13 @@ public:
 				FMemMark Mark(FMemStack::Get());
 				TArray<ElementType, TMemStackAllocator<>> RemovedElements;
 				RemovedElements.Reserve(NumToRemove);
-				for (int32 RemoveIndex = 0; RemoveIndex < NumToRemove; ++RemoveIndex)
+				for (SizeType RemoveIndex = 0; RemoveIndex < NumToRemove; ++RemoveIndex)
 				{
 					RemovedElements.Add(MoveTemp(Array[RemoveIndex + Index]));
 				}
-				
+
 				Array.RemoveAtSwap(Index, NumToRemove, bAllowShrinking);
-				ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeRemoveAction({ RemovedElements.GetData(), NumToRemove }, Index));
+				ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeRemoveSwapAction({ RemovedElements.GetData(), NumToRemove }, Index, PreviousNum - SwapAmount));
 			}
 		}
 	}
@@ -402,9 +406,10 @@ public:
 
 	void Reset(SizeType NewSize = 0)
 	{
-		if (Num())
+		SizeType PreviousNum = Array.Num();
+		Array.Reset(NewSize);
+		if (PreviousNum > 0)
 		{
-			Array.Reset(NewSize);
 			ArrayChangedDelegate.Broadcast(ObservableArrayChangedArgsType::MakeResetAction());
 		}
 	}
@@ -437,6 +442,16 @@ public:
 	const ElementType& operator[](SizeType Index) const
 	{
 		return GetData()[Index];
+	}
+
+	ElementType* GetData()
+	{
+		return Array.GetData();
+	}
+
+	const ElementType* GetData() const
+	{
+		return Array.GetData();
 	}
 
 	template <typename ComparisonType>
@@ -474,17 +489,6 @@ public:
 		return Array.IndexByPredicate(Pred);
 	}
 
-private:
-	ElementType* GetData()
-	{
-		return Array.GetData();
-	}
-
-	const ElementType* GetData() const
-	{
-		return Array.GetData();
-	}
-
 public:
 	template <typename InOtherAllocatorType>
 	bool operator==(TArray<ElementType, InOtherAllocatorType>& OtherArray) const
@@ -504,24 +508,24 @@ public:
 	}
 
 public:
-	ElementType* begin(TObservableArray& Arr)
+	RangedForIteratorType begin()
 	{
-		return Arr.Array.begin();
+		return Array.begin();
 	}
 
-	const ElementType* begin(const TObservableArray& Arr) const
+	RangedForConstIteratorType begin() const
 	{
-		return Arr.Array.begin();
+		return Array.begin();
 	}
 
-	ElementType* end(TObservableArray& Arr)
+	RangedForIteratorType end()
 	{
-		return Arr.Array.end();
+		return Array.end();
 	}
 
-	const ElementType* end(const TObservableArray& Arr) const
+	RangedForConstIteratorType end() const
 	{
-		return Arr.Array.end();
+		return Array.end();
 	}
 	
 private:
