@@ -42,9 +42,7 @@ public:
 
 	virtual void FinalizeCommand(FRayTracingMeshCommand& RayTracingMeshCommand) override final 
 	{
-		FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
-		NewVisibleMeshCommand.RayTracingMeshCommand = &RayTracingMeshCommand;
-		NewVisibleMeshCommand.InstanceIndex = RayTracingInstanceIndex;
+		FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&RayTracingMeshCommand, RayTracingInstanceIndex);
 		VisibleCommandStorage.Add(NewVisibleMeshCommand);
 		check(NewVisibleMeshCommand.RayTracingMeshCommand);
 	}

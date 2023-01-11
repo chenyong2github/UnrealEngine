@@ -2222,9 +2222,17 @@ private:
 class FVisibleRayTracingMeshCommand
 {
 public:
-	const FRayTracingMeshCommand* RayTracingMeshCommand;
+	FVisibleRayTracingMeshCommand(const FRayTracingMeshCommand* InRayTracingMeshCommand, uint32 InInstanceIndex, bool bInHidden = false)
+		: RayTracingMeshCommand(InRayTracingMeshCommand)
+		, InstanceIndex(InInstanceIndex)
+		, bHidden(bInHidden)
+	{
+		check(InstanceIndex != INDEX_NONE);
+	}
 
+	const FRayTracingMeshCommand* RayTracingMeshCommand;
 	uint32 InstanceIndex;
+	bool bHidden;
 };
 
 template <>
@@ -2280,13 +2288,15 @@ public:
 	(
 		FDynamicRayTracingMeshCommandStorage& InDynamicCommandStorage,
 		FRayTracingMeshCommandOneFrameArray& InVisibleCommands,
-		uint32 InGeometrySegmentIndex = ~0u,
-		uint32 InRayTracingInstanceIndex = ~0u
+		uint32 InGeometrySegmentIndex,
+		uint32 InRayTracingInstanceIndex,
+		uint32 InRayTracingDecalInstanceIndex = INDEX_NONE
 	) :
 		DynamicCommandStorage(InDynamicCommandStorage),
 		VisibleCommands(InVisibleCommands),
 		GeometrySegmentIndex(InGeometrySegmentIndex),
-		RayTracingInstanceIndex(InRayTracingInstanceIndex)
+		RayTracingInstanceIndex(InRayTracingInstanceIndex),
+		RayTracingDecalInstanceIndex(InRayTracingDecalInstanceIndex)
 	{}
 
 	virtual FRayTracingMeshCommand& AddCommand(const FRayTracingMeshCommand& Initializer) override final
@@ -2299,10 +2309,20 @@ public:
 
 	virtual void FinalizeCommand(FRayTracingMeshCommand& RayTracingMeshCommand) override final
 	{
-		FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
-		NewVisibleMeshCommand.RayTracingMeshCommand = &RayTracingMeshCommand;
-		NewVisibleMeshCommand.InstanceIndex = RayTracingInstanceIndex;
-		VisibleCommands.Add(NewVisibleMeshCommand);
+		const bool bHasDecalInstanceIndex = RayTracingDecalInstanceIndex != INDEX_NONE;
+
+		{
+			const bool bHidden = bHasDecalInstanceIndex && RayTracingMeshCommand.bDecal;
+			FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&RayTracingMeshCommand, RayTracingInstanceIndex, bHidden);
+			VisibleCommands.Add(NewVisibleMeshCommand);
+		}
+
+		if (bHasDecalInstanceIndex)
+		{
+			const bool bHidden = !RayTracingMeshCommand.bDecal;
+			FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&RayTracingMeshCommand, RayTracingDecalInstanceIndex, bHidden);
+			VisibleCommands.Add(NewVisibleMeshCommand);
+		}
 	}
 
 private:
@@ -2310,6 +2330,7 @@ private:
 	FRayTracingMeshCommandOneFrameArray& VisibleCommands;
 	uint32 GeometrySegmentIndex;
 	uint32 RayTracingInstanceIndex;
+	uint32 RayTracingDecalInstanceIndex;
 };
 
 class FRayTracingShaderCommand

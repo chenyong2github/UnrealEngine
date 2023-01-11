@@ -1044,7 +1044,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			const FPrimitiveSceneProxy* SceneProxy = nullptr;
 			TArray<FMeshBatch> MeshBatchesOwned;
 			TArrayView<const FMeshBatch> MeshBatchesView;
-			uint32 InstanceIndex = 0;
+			uint32 InstanceIndex;
+			uint32 DecalInstanceIndex;
 
 			TArrayView<const FMeshBatch> GetMeshBatches() const
 			{
@@ -1103,7 +1104,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 								const FMeshBatch& MeshBatch = MeshBatches[SegmentIndex];
 								FDynamicRayTracingMeshCommandContext CommandContext(
 									*TaskDynamicCommandStorage, *TaskVisibleCommands,
-									SegmentIndex, WorkItem.InstanceIndex);
+									SegmentIndex, WorkItem.InstanceIndex, WorkItem.DecalInstanceIndex);
 								FMeshPassProcessorRenderState PassDrawRenderState;
 								FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &View, PassDrawRenderState, Scene->CachedRayTracingMeshCommandsMode);
 								RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, WorkItem.SceneProxy);
@@ -1183,13 +1184,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					// Autobuild of InstanceMaskAndFlags if the mask and flags are not built
 					UpdateRayTracingInstanceMaskAndFlagsIfNeeded(Instance, *SceneProxy, &ViewFamily);
 
-					if (Instance.MaskAndFlags.bAnySegmentsDecal && !Instance.MaskAndFlags.bAllSegmentsDecal)
-					{
-						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
-						continue;
-					}
+					// if primitive has mixed decal and non-decal segments we need to have two ray tracing instances
+					// one containing non-decal segments and the other with decal segments
+					// masking of segments is done using "hidden" hitgroups
+					// TODO: Debug Visualization to highlight primitives using this?
+					const bool bNeedSeparateDecalInstance = Instance.MaskAndFlags.bAnySegmentsDecal && !Instance.MaskAndFlags.bAllSegmentsDecal;
 
-					if (GRayTracingExcludeDecals && Instance.MaskAndFlags.bAnySegmentsDecal)
+					if (GRayTracingExcludeDecals && Instance.MaskAndFlags.bAnySegmentsDecal && !bNeedSeparateDecalInstance)
 					{
 						continue;
 					}
@@ -1199,7 +1200,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					checkf(RayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
 					RayTracingInstance.DefaultUserData = PrimitiveIndex;
 					RayTracingInstance.bApplyLocalBoundsTransform = Instance.bApplyLocalBoundsTransform;
-					RayTracingInstance.LayerIndex = (uint8)(Instance.MaskAndFlags.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
+					RayTracingInstance.LayerIndex = (uint8)(Instance.MaskAndFlags.bAnySegmentsDecal && !bNeedSeparateDecalInstance ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
 					RayTracingInstance.Mask = Instance.MaskAndFlags.Mask;
 
 					if (Instance.MaskAndFlags.bForceOpaque)
@@ -1239,7 +1240,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						}
 					}
 
-					const uint32 InstanceIndex = RayTracingScene.AddInstance(MoveTemp(RayTracingInstance), SceneProxy, true);
+					const uint32 InstanceIndex = RayTracingScene.AddInstance(RayTracingInstance, SceneProxy, true);
+
+					uint32 DecalInstanceIndex = INDEX_NONE;
+					if (bNeedSeparateDecalInstance && !GRayTracingExcludeDecals)
+					{
+						FRayTracingGeometryInstance DecalRayTracingInstance = RayTracingInstance;
+						DecalRayTracingInstance.LayerIndex = (uint8)ERayTracingSceneLayer::Decals;
+
+						DecalInstanceIndex = RayTracingScene.AddInstance(MoveTemp(DecalRayTracingInstance), SceneProxy, true);
+					}
 
 					if (bParallelMeshBatchSetup)
 					{
@@ -1278,6 +1288,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 						WorkItem.SceneProxy = SceneProxy;
 						WorkItem.InstanceIndex = InstanceIndex;
+						WorkItem.DecalInstanceIndex = DecalInstanceIndex;
 					}
 					else
 					{
@@ -1285,7 +1296,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						for (int32 SegmentIndex = 0; SegmentIndex < InstanceMaterials.Num(); SegmentIndex++)
 						{
 							const FMeshBatch& MeshBatch = InstanceMaterials[SegmentIndex];
-							FDynamicRayTracingMeshCommandContext CommandContext(View.DynamicRayTracingMeshCommandStorage, View.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
+							FDynamicRayTracingMeshCommandContext CommandContext(View.DynamicRayTracingMeshCommandStorage, View.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex, DecalInstanceIndex);
 							FMeshPassProcessorRenderState PassDrawRenderState;
 							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &View, PassDrawRenderState, Scene->CachedRayTracingMeshCommandsMode);
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
@@ -1352,6 +1363,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 		struct FAutoInstanceBatch
 		{
 			int32 Index = INDEX_NONE;
+			int32 DecalIndex = INDEX_NONE;
 
 			// Copies the next InstanceSceneDataOffset and user data into the current batch, returns true if arrays were re-allocated.
 			bool Add(FRayTracingScene& InRayTracingScene, uint32 InInstanceSceneDataOffset, uint32 InUserData)
@@ -1453,22 +1465,22 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}
 					
 					// TODO: Consider requesting a recache of all ray tracing commands during which decals are excluded
+					
+					// if primitive has mixed decal and non-decal segments we need to have two ray tracing instances
+					// one containing non-decal segments and the other with decal segments
+					// masking of segments is done using "hidden" hitgroups
+					// TODO: Debug Visualization to highlight primitives using this?
+					const bool bNeedSeparateDecalInstance = SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal && !SceneInfo->bCachedRayTracingInstanceAllSegmentsDecal;
 
-					if (SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal && !SceneInfo->bCachedRayTracingInstanceAllSegmentsDecal)
-					{
-						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
-						continue;
-					}
-
-					if (GRayTracingExcludeDecals && SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal)
+					if (GRayTracingExcludeDecals && SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal && !bNeedSeparateDecalInstance)
 					{
 						continue;
 					}
 
 					checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-					FRayTracingGeometryInstance NewInstance = SceneInfo->CachedRayTracingInstance;
 
-					NewInstance.LayerIndex = (uint8)(SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
+					FRayTracingGeometryInstance NewInstance = SceneInfo->CachedRayTracingInstance;
+					NewInstance.LayerIndex = (uint8)(SceneInfo->bCachedRayTracingInstanceAnySegmentsDecal && !bNeedSeparateDecalInstance ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
 
 					const Experimental::FHashElementId GroupId = Scene.PrimitiveRayTracingGroupIds[PrimitiveIndex];
 					const bool bUseGroupBounds = CullingParameters.bCullUsingGroupIds && GroupId.IsValid();
@@ -1505,18 +1517,39 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 					AddDebugRayTracingInstanceFlags(NewInstance.Flags);
 
-					const int32 NewInstanceIndex = RayTracingScene.AddInstance(MoveTemp(NewInstance), SceneInfo->Proxy, false);
+					const int32 NewInstanceIndex = RayTracingScene.AddInstance(NewInstance, SceneInfo->Proxy, false);
+
+					uint32 DecalInstanceIndex = INDEX_NONE;
+					if (bNeedSeparateDecalInstance && !GRayTracingExcludeDecals)
+					{
+						FRayTracingGeometryInstance DecalRayTracingInstance = NewInstance;
+						DecalRayTracingInstance.LayerIndex = (uint8)ERayTracingSceneLayer::Decals;
+
+						DecalInstanceIndex = RayTracingScene.AddInstance(MoveTemp(DecalRayTracingInstance), SceneInfo->Proxy, false);
+					}
 
 					// At the moment we only support SM & ISMs on this path
 					check(EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands));
 					if (SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Num() > 0 && SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex].Num() > 0)
 					{
+						const bool bHasDecalInstanceIndex = DecalInstanceIndex != INDEX_NONE;
+
 						for (int32 CommandIndex : SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex])
 						{
-							FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
-							NewVisibleMeshCommand.RayTracingMeshCommand = &Scene.CachedRayTracingMeshCommands[CommandIndex];
-							NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
-							VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+							const FRayTracingMeshCommand& MeshCommand = Scene.CachedRayTracingMeshCommands[CommandIndex];
+
+							{
+								const bool bHidden = bHasDecalInstanceIndex && MeshCommand.bDecal;
+								FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&MeshCommand, NewInstanceIndex, bHidden);
+								VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+							}
+
+							if(bHasDecalInstanceIndex)
+							{
+								const bool bHidden = !MeshCommand.bDecal;
+								FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&MeshCommand, DecalInstanceIndex, bHidden);
+								VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+							}
 						}
 					}
 				}
@@ -1529,9 +1562,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						continue; // skip dynamic primitives and other 
 					}
 
-					if (RelevantPrimitive.bAnySegmentsDecal && !RelevantPrimitive.bAllSegmentsDecal)
+					// if primitive has mixed decal and non-decal segments we need to have two ray tracing instances
+					// one containing non-decal segments and the other with decal segments
+					// masking of segments is done using "hidden" hitgroups
+					// TODO: Debug Visualization to highlight primitives using this?
+					const bool bNeedSeparateDecalInstance = RelevantPrimitive.bAnySegmentsDecal && !RelevantPrimitive.bAllSegmentsDecal;
+
+					if (GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal && !bNeedSeparateDecalInstance)
 					{
-						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
 						continue;
 					}
 
@@ -1543,48 +1581,46 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}
 
 					// location if this is a new entry
-					const int32 NewInstanceIndex = RayTracingScene.GetInstances().Num();
 					const uint64 InstanceKey = RelevantPrimitive.InstancingKey();
 
-					FAutoInstanceBatch DummyInstanceBatch = { NewInstanceIndex };
+					FAutoInstanceBatch DummyInstanceBatch = { };
 					FAutoInstanceBatch& InstanceBatch = bAutoInstance ? InstanceBatches.FindOrAdd(InstanceKey, DummyInstanceBatch) : DummyInstanceBatch;
 
-					if (InstanceBatch.Index != NewInstanceIndex)
+					if (InstanceBatch.IsValid())
 					{
 						// Reusing a previous entry, just append to the instance list.
 
-						FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.GetInstance(InstanceBatch.Index);
 						bool bReallocated = InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
 
-						++RayTracingInstance.NumTransforms;
-						check(RayTracingInstance.NumTransforms == InstanceBatch.Cursor); // sanity check
-
-						if (bReallocated)
+						check(InstanceBatch.Index != INDEX_NONE);
 						{
-							RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
-							RayTracingInstance.UserData = InstanceBatch.UserData;
+							FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.GetInstance(InstanceBatch.Index);
+							++RayTracingInstance.NumTransforms;
+							check(RayTracingInstance.NumTransforms == InstanceBatch.Cursor); // sanity check
+
+							if (bReallocated)
+							{
+								RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
+								RayTracingInstance.UserData = InstanceBatch.UserData;
+							}
+						}
+
+						if(InstanceBatch.DecalIndex != INDEX_NONE)
+						{
+							FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.GetInstance(InstanceBatch.DecalIndex);
+							++RayTracingInstance.NumTransforms;
+							check(RayTracingInstance.NumTransforms == InstanceBatch.Cursor); // sanity check
+
+							if (bReallocated)
+							{
+								RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
+								RayTracingInstance.UserData = InstanceBatch.UserData;
+							}
 						}
 					}
 					else
 					{
 						// Starting new instance batch
-
-						for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
-						{
-							if (CommandIndex >= 0)
-							{
-								FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
-
-								NewVisibleMeshCommand.RayTracingMeshCommand = &Scene.CachedRayTracingMeshCommands[CommandIndex];
-								NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
-								VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
-							}
-							else
-							{
-								// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
-								// Do nothing in this case
-							}
-						}
 
 						InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
 
@@ -1607,11 +1643,45 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						}
 						AddDebugRayTracingInstanceFlags(RayTracingInstance.Flags);
 
-						RayTracingInstance.LayerIndex = (uint8)(RelevantPrimitive.bAnySegmentsDecal ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
+						RayTracingInstance.LayerIndex = (uint8)(RelevantPrimitive.bAnySegmentsDecal && !bNeedSeparateDecalInstance ? ERayTracingSceneLayer::Decals : ERayTracingSceneLayer::Base);
 
-						const uint32 ActualInstanceIndex = RayTracingScene.AddInstance(MoveTemp(RayTracingInstance), SceneInfo->Proxy, false);
+						InstanceBatch.Index = RayTracingScene.AddInstance(RayTracingInstance, SceneInfo->Proxy, false);
 
-						check(NewInstanceIndex == ActualInstanceIndex);
+						if (bNeedSeparateDecalInstance && !GRayTracingExcludeDecals)
+						{
+							FRayTracingGeometryInstance DecalRayTracingInstance = RayTracingInstance;
+							DecalRayTracingInstance.LayerIndex = (uint8)ERayTracingSceneLayer::Decals;
+
+							InstanceBatch.DecalIndex = RayTracingScene.AddInstance(MoveTemp(DecalRayTracingInstance), SceneInfo->Proxy, false);
+						}
+
+						const bool bHasDecalInstanceIndex = InstanceBatch.DecalIndex != INDEX_NONE;
+
+						for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
+						{
+							if (CommandIndex >= 0)
+							{
+								const FRayTracingMeshCommand& MeshCommand = Scene.CachedRayTracingMeshCommands[CommandIndex];
+
+								{
+									const bool bHidden = bHasDecalInstanceIndex && MeshCommand.bDecal;
+									FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&MeshCommand, InstanceBatch.Index, bHidden);
+									VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+								}
+
+								if (bHasDecalInstanceIndex)
+								{
+									const bool bHidden = !MeshCommand.bDecal;
+									FVisibleRayTracingMeshCommand NewVisibleMeshCommand(&MeshCommand, InstanceBatch.DecalIndex, bHidden);
+									VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+								}
+							}
+							else
+							{
+								// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
+								// Do nothing in this case
+							}
+						}
 					}
 				}
 			}

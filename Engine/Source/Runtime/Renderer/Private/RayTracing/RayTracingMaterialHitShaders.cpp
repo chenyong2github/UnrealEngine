@@ -813,17 +813,17 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 						if (bIsMeshDecalShader)
 						{
 							checkf(bSupportMeshDecals && MeshCommand.bDecal, TEXT("Unexpected ray tracing mesh command using Mesh Decal payload. Fix logic adding the command or update bSupportMeshDecals as appropriate."));
-							HitGroupIndex = OpaqueMeshDecalHitGroupIndex;
+							HitGroupIndex = VisibleMeshCommand.bHidden ? HiddenMeshDecalHitGroupIndex : OpaqueMeshDecalHitGroupIndex;
 						}
 						else
 						{
 							checkf((!bIsPathTracing && MeshCommand.MaterialShader->RayTracingPayloadType == (uint32)ERayTracingPayloadType::RayTracingMaterial)
 								|| (bIsPathTracing && MeshCommand.MaterialShader->RayTracingPayloadType == (uint32)ERayTracingPayloadType::PathTracingMaterial),
 								TEXT("Incorrectly using RayTracingMaterial when path tracer is enabled or vice-versa."));
-							HitGroupIndex = OpaqueShadowMaterialIndex;
+							HitGroupIndex = VisibleMeshCommand.bHidden ? HiddenMaterialIndex : OpaqueShadowMaterialIndex;
 						}
 
-						if (bEnableMaterials)
+						if (bEnableMaterials && !VisibleMeshCommand.bHidden)
 						{
 							const int32 FoundIndex = FindRayTracingHitGroupIndex(PipelineState, MeshCommand.MaterialShader, false);
 							if (FoundIndex != INDEX_NONE)
@@ -846,7 +846,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 
 						// Bind shadow shader
 
-						if (MeshCommand.bCastRayTracedShadows)
+						if (MeshCommand.bCastRayTracedShadows && !VisibleMeshCommand.bHidden)
 						{
 							if (MeshCommand.bOpaque || !bEnableShadowMaterials)
 							{
