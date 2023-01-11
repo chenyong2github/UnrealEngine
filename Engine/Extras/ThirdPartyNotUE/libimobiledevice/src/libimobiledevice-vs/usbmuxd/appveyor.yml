@@ -1,0 +1,17 @@
+environment:
+  VCPKG_ROOT: C:\tools\vcpkg-libimobiledevice
+
+before_build:
+  - vcpkg version
+  - git clone -q --depth 1 -b ports/libimobiledevice https://github.com/libimobiledevice-win32/vcpkg %VCPKG_ROOT%
+  - cmd: "%VCPKG_ROOT%\\bootstrap-vcpkg.bat"
+  - cmd: "%VCPKG_ROOT%\\vcpkg version"
+  - cmd: "%VCPKG_ROOT%\\vcpkg integrate install"
+  - cmd: "%VCPKG_ROOT%\\vcpkg install libimobiledevice:x86-windows libusb:x86-windows libusb-win32:x86-windows pthreads:x86-windows"
+  - cmd: "%VCPKG_ROOT%\\vcpkg install libimobiledevice:x64-windows libusb:x64-windows libusb-win32:x64-windows pthreads:x64-windows"
+
+build_script:
+  - msbuild usbmuxd.sln /p:Configuration=Debug /p:Platform=x86 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  - msbuild usbmuxd.sln /p:Configuration=Release /p:Platform=x86 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  - msbuild usbmuxd.sln /p:Configuration=Debug /p:Platform=x64 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  - msbuild usbmuxd.sln /p:Configuration=Release /p:Platform=x64 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"

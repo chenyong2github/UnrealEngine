@@ -1,0 +1,54 @@
+services:
+  
+  # The WebRTC TURN server (note that you will need TCP and UDP ports 3478 and 49152-65535 exposed for TURN relaying to function correctly)
+  turnserver:
+    image: "coturn/coturn:4.5.2"
+    init: true
+    network_mode: "host"
+    command: ["-a", "-v", "-n", "-u", "user:password", "-p", "3478", "-r", "default-realm", "--no-dtls", "--no-tls"]
+  
+  # The Cirrus signalling server
+  # (Note that we use the short release number, e.g. "5.1" rather than "5.1.0", to match the new signalling server image tagging scheme)
+  signalling:
+    image: "ghcr.io/epicgames/pixel-streaming-signalling-server:${UNREAL_ENGINE_RELEASE_SHORT}"
+    init: true
+    network_mode: "host"
+    command:
+      - "--publicIp=${PUBLIC_IP}"
+      - >-
+        --peerConnectionOptions={
+            "iceServers":[
+              {
+                "urls": ["stun:stun.l.google.com:19302"]
+              },
+              {
+                "urls": ["turn:${PUBLIC_IP}:3478"],
+                "username": "user",
+                "credential": "password"
+              }
+            ]
+            ${EXTRA_PEERCONNECTION_OPTIONS}
+          }
+    depends_on:
+      - turnserver
+  
+  # The Pixel Streaming demo project
+  project:
+    image: "pixel-streaming-example/project"
+    build:
+      context: project
+      args:
+        RELEASE: "${UNREAL_ENGINE_RELEASE}"
+    network_mode: "host"
+    command: ["-RenderOffscreen", "-Windowed", "-ForceRes", "-ResX=1920", "-ResY=1080", "-PixelStreamingIP=127.0.0.1", "-PixelStreamingPort=8888"]
+    
+    depends_on:
+      - signalling
+    
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            capabilities: [gpu]
+            count: 1

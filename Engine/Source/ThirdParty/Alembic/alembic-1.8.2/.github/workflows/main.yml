@@ -1,0 +1,80 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+#     branches: [ master ]
+  pull_request:
+#     branches: [ master ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  linux:
+    name: 'Linux CentOS 7 VFX CY2020
+      <${{ matrix.compiler-desc }}
+       cxx=${{ matrix.cxx-standard }}>'
+    # GH-hosted VM. The build runs in CentOS 7 'container' defined below.
+    runs-on: ubuntu-latest
+    container:
+      # DockerHub: https://hub.docker.com/u/aswf
+      # Source: https://github.com/AcademySoftwareFoundation/aswf-docker
+      image: aswf/ci-ocio:2020
+    strategy:
+      matrix:
+        build: [1,2,3,4]
+        include:
+        - build: 1
+          cxx-standard: 14
+          cxx-compiler: g++
+          cc-compiler: gcc
+          compiler-desc: GCC 6.3.1
+        - build: 2
+          cxx-standard: 11
+          cxx-compiler: g++
+          cc-compiler: gcc
+          compiler-desc: GCC 6.3.1
+        - build: 3
+          cxx-standard: 14
+          cxx-compiler: clang++
+          cc-compiler: clang
+          compiler-desc: Clang 7
+        - build: 4
+          cxx-standard: 11
+          cxx-compiler: clang++
+          cc-compiler: clang
+          compiler-desc: Clang 7
+    env:
+      CXX: ${{ matrix.cxx-compiler }}
+      CC: ${{ matrix.cc-compiler }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Create build directories
+        run: |
+          mkdir _install
+          mkdir _build
+      - name: Configure
+        run: |
+          cmake ../. \
+                -DCMAKE_INSTALL_PREFIX=../_install \
+                -DCMAKE_CXX_STANDARD=${{ matrix.cxx-standard }} \
+                -DCMAKE_CXX_FLAGS=${{ matrix.cxx-flags }}
+        working-directory: _build
+      - name: Build
+        run: |
+          cmake --build . \
+                --target install \
+                --config ${{ matrix.build-type }} \
+                -- -j4
+        working-directory: _build
+      - name: Test
+        run: |
+          ctest -T Test \
+                --timeout 7200 \
+                --output-on-failure \
+                -VV
+        working-directory: _build

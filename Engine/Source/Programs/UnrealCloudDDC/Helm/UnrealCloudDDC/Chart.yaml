@@ -1,0 +1,23 @@
+apiVersion: v2
+name: unreal-cloud-ddc
+description: A Helm chart for Kubernetes deploying UnrealCloudDDC
+
+type: application
+
+version: 0.1.0
+
+icon: https://devtools-misc.s3.amazonaws.com/ue4logo.png
+home: https://unrealengine.com
+
+maintainers:
+  - name: Joakim Lindqvist
+    email: joakim.lindqvist@epicgames.com
+  - name: UE-DevTools
+    email: ue-devtools@epicgames.com
+
+dependencies:
+- name: common
+  repository: https://charts.bitnami.com/bitnami
+  tags:
+    - bitnami-common
+  version: 1.x.x

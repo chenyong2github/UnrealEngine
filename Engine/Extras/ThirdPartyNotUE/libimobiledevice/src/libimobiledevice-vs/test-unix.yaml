@@ -1,0 +1,19 @@
+steps:
+- script: |
+    set -e
+    mkdir test
+    cd test
+
+    cp $BUILD_ARTIFACTSTAGINGDIRECTORY/libimobiledevice/$RID/bin/* .
+    cp $BUILD_ARTIFACTSTAGINGDIRECTORY/libimobiledevice/$RID/sbin/* .
+    cp $BUILD_ARTIFACTSTAGINGDIRECTORY/libimobiledevice/$RID/lib/lib* .
+
+    ls -l .
+
+    ./iproxy --help
+    ./idevice_id --help
+    ./ideviceactivation --help
+    ./usbmuxd --help
+    ./ideviceinstaller --help
+    ./irecovery
+  displayName: Test executables

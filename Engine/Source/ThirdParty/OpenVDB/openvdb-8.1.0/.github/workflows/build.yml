@@ -1,0 +1,206 @@
+
+name: Build
+
+on:
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - 'CHANGES'
+      - 'doc/**'
+      - 'openvdb_maya/**'
+      - 'openvdb_houdini/**'
+      - 'openvdb_ax/**'
+      - '**.md'
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - 'CHANGES'
+      - 'doc/**'
+      - 'openvdb_maya/**'
+      - 'openvdb_houdini/**'
+      - 'openvdb_ax/**'
+      - '**.md'
+  schedule:
+    # run this workflow every day at 7am UTC
+    - cron:  '0 7 * * *'
+    # run this workflow every Monday 00:00 UTC
+    # warning: This pattern is checked in various places below
+    - cron:  '0 0 * * 1'
+
+jobs:
+  linux-vfx:
+    runs-on: ubuntu-16.04
+    name: linux-vfx:${{ matrix.config.image }}-abi:${{ matrix.config.abi }}-cxx:${{ matrix.config.cxx }}-type:${{ matrix.config.build }}
+    container:
+      image: aswf/ci-openvdb:${{ matrix.config.image }}
+    env:
+      CXX: ${{ matrix.config.cxx }}
+    strategy:
+      matrix:
+        config:
+          - { cxx: clang++, image: '2019', abi: '6', build: 'Release', test: 'ON'  }
+          - { cxx: clang++, image: '2020', abi: '7', build: 'Release', test: 'ON'  }
+          - { cxx: clang++, image: '2021', abi: '8', build: 'Release', test: 'ON'  }
+          - { cxx: clang++, image: '2021', abi: '9', build: 'Release', test: 'ON'  }
+          - { cxx: clang++, image: '2021', abi: '8', build: 'Debug',   test: 'OFF' }
+          - { cxx: g++,     image: '2020', abi: '7', build: 'Release', test: 'ON'  }
+          - { cxx: g++,     image: '2021', abi: '8', build: 'Release', test: 'ON'  }
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v1
+    - name: install_gtest
+      run: ./ci/install_gtest.sh 1.8.0
+    - name: build
+      run: ./ci/build.sh ${{ matrix.config.build }} ${{ matrix.config.abi }} ON None "core,python,bin,test" -DOPENVDB_CXX_STRICT=ON
+    - name: test
+      # Always run tests on weekly builds
+      # https://github.community/t/distinct-job-for-each-schedule/17811/2
+      if: contains(github.event.schedule, '0 0 * * 1') || matrix.config.test == 'ON'
+      run: |
+        ./ci/test.sh
+        ./ci/test_install.sh
+
+  windows:
+    runs-on: windows-2019
+    name: windows-vc:${{ matrix.config.vc }}-type:${{ matrix.config.build }}
+    env:
+      VCPKG_DEFAULT_TRIPLET: ${{ matrix.config.vc }}
+    strategy:
+      matrix:
+        config:
+          # static build of blosc from vcpkg does not build internal sources.
+          # USE_STATIC_DEPENDENCIES is required for IlmBase/OpenEXR defines and
+          # Boost as both shared and static libs are installed.
+          - { vc: 'x64-windows-static', build: 'Release', test: 'ON',  cmake: '-DOPENVDB_CORE_SHARED=OFF -DUSE_STATIC_DEPENDENCIES=ON -DBLOSC_USE_EXTERNAL_SOURCES=ON' }
+          - { vc: 'x64-windows-static', build: 'Debug',   test: 'OFF', cmake: '-DOPENVDB_CORE_SHARED=OFF -DUSE_STATIC_DEPENDENCIES=ON -DBLOSC_USE_EXTERNAL_SOURCES=ON' }
+          - { vc: 'x64-windows',        build: 'Release', test: 'ON',  cmake: '-DOPENVDB_CORE_STATIC=OFF' }
+          - { vc: 'x64-windows',        build: 'Debug',   test: 'OFF', cmake: '-DOPENVDB_CORE_STATIC=OFF' }
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: path
+      run: |
+        # note: system path must be modified in a previous step to it's use
+        echo "$Env:VCPKG_INSTALLATION_ROOT\installed\${{ matrix.config.vc }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "${{github.workspace}}\build\openvdb\openvdb\${{ matrix.config.build }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    - name: install
+      shell: bash
+      run: ./ci/install_windows.sh
+    - name: build
+      shell: bash
+      run: ./ci/build_windows.sh ${{ matrix.config.build }} ${{ matrix.config.cmake }}
+    - name: test
+      shell: bash
+      # Always run tests on weekly builds
+      # https://github.community/t/distinct-job-for-each-schedule/17811/2
+      if: contains(github.event.schedule, '0 0 * * 1') || matrix.config.test == 'ON'
+      run: ./ci/test.sh
+
+  testabi8lite:
+    runs-on: ubuntu-16.04
+    env:
+      CXX: clang++
+    container:
+      image: aswf/ci-openvdb:2021
+    steps:
+    - uses: actions/checkout@v1
+    - name: install_gtest
+      run: ./ci/install_gtest.sh 1.10.0
+    - name: build
+      run: ./ci/build.sh Release 8 OFF None "core,python,bin,test" -DOPENVDB_CXX_STRICT=ON -DUSE_ZLIB=OFF
+    - name: test
+      run: ./ci/test.sh
+
+  testabi8half:
+    runs-on: ubuntu-16.04
+    env:
+      CXX: clang++
+    container:
+      image: aswf/ci-openvdb:2021
+    steps:
+    - uses: actions/checkout@v1
+    - name: install_gtest
+      run: ./ci/install_gtest.sh 1.10.0
+    - name: build
+      run: ./ci/build.sh Release 8 OFF None "core,python,bin,test" -DOPENVDB_CXX_STRICT=ON -DUSE_IMATH_HALF=ON
+    - name: test
+      run: ./ci/test.sh
+
+  testabi8sse:
+    runs-on: ubuntu-16.04
+    env:
+      CXX: clang++
+    container:
+      image: aswf/ci-openvdb:2021
+    steps:
+    - uses: actions/checkout@v1
+    - name: install_gtest
+      run: ./ci/install_gtest.sh 1.10.0
+    - name: build
+      run: ./ci/build.sh Release 8 ON SSE42 "core,python,bin,test" -DOPENVDB_CXX_STRICT=ON
+    - name: test
+      run: ./ci/test.sh
+
+  testabi8gcc10:
+    runs-on: ubuntu-20.04
+    env:
+      CXX: g++-10
+    steps:
+    - uses: actions/checkout@v1
+    - name: install_boost
+      run: sudo apt-get -q install -y libboost-dev libboost-system-dev libboost-iostreams-dev
+    - name: install_tbb
+      run: sudo apt-get -q install -y libtbb-dev
+    - name: install_gtest
+      run: sudo apt-get -q install -y libgtest-dev
+    - name: build
+      run: ./ci/build.sh Release 8 OFF None "core,test" -DUSE_ZLIB=OFF -DCMAKE_INSTALL_PREFIX=`pwd`
+    - name: test
+      run: ./ci/test.sh
+
+  testabi8clang10:
+    runs-on: ubuntu-20.04
+    env:
+      CXX: clang++-10
+    steps:
+    - uses: actions/checkout@v1
+    - name: install_boost
+      run: sudo apt-get -q install -y libboost-dev libboost-system-dev libboost-iostreams-dev
+    - name: install_tbb
+      run: sudo apt-get -q install -y libtbb-dev
+    - name: install_gtest
+      run: sudo apt-get -q install -y libgtest-dev
+    - name: build
+      run: ./ci/build.sh Release 8 OFF None "core,test" -DUSE_ZLIB=OFF -DCMAKE_INSTALL_PREFIX=`pwd`
+    - name: test
+      run: ./ci/test.sh
+
+  testmacos1015:
+    runs-on: macos-10.15
+    env:
+      CXX: clang++
+    steps:
+    - uses: actions/checkout@v2
+    - name: install
+      shell: bash
+      # brew boost-python3 installs a "Keg-only" version of python which is
+      # not installed to PATH. We must manually provide the location of the
+      # required python installation to CMake through a hint variable which
+      # is exported in install_macos.sh
+      run: ./ci/install_macos.sh
+    - name: install
+      shell: bash
+      run: ./ci/install_blosc.sh 1.5.0
+    - name: install
+      shell: bash
+      run: ./ci/install_gtest.sh 1.10.0
+    - name: build
+      shell: bash
+      # Also need to disable compiler warnings for ABI 6 and above due to
+      # the version of clang installed
+      run: ./ci/build.sh Release 8 ON SSE42 "core,python,bin,test" -DOPENVDB_CXX_STRICT=OFF
+    - name: test
+      shell: bash
+      run: ./ci/test.sh
