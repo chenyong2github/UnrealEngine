@@ -739,6 +739,14 @@ static FAutoConsoleVariableRef CVarEnableMutableProgressiveMipStreaming(
 	ECVF_Default);
 
 
+int32 FCustomizableObjectSystemPrivate::EnableMutableLiveUpdate = 1;
+
+static FAutoConsoleVariableRef CVarEnableMutableLiveUpdate(
+	TEXT("mutable.EnableMutableLiveUpdate"), FCustomizableObjectSystemPrivate::EnableMutableLiveUpdate,
+	TEXT("If set to 1 or greater Mutable can use the live update mode if set in the current Mutable state. If disabled, it will never use live update mode even if set in the current Mutable state."),
+	ECVF_Default);
+
+
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
 void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance)
 {
@@ -2172,9 +2180,14 @@ namespace impl
 
 		CandidateInstance->CommitMinMaxLOD();
 
-		FString StateName = CandidateInstance->GetCustomizableObject()->GetStateName(CandidateInstance->GetState());
-		const FParameterUIData* StateData = CandidateInstance->GetCustomizableObject()->StateUIDataMap.Find(StateName);
-		bool bLiveUpdateMode = StateData ? StateData->bLiveUpdateMode : false;
+		bool bLiveUpdateMode = false;
+
+		if (SystemPrivateData->EnableMutableLiveUpdate)
+		{
+			FString StateName = CandidateInstance->GetCustomizableObject()->GetStateName(CandidateInstance->GetState());
+			const FParameterUIData* StateData = CandidateInstance->GetCustomizableObject()->StateUIDataMap.Find(StateName);
+			bLiveUpdateMode = StateData ? StateData->bLiveUpdateMode : false;
+		}
 
 		if (bLiveUpdateMode && (!Operation->bNeverStream || Operation->MipsToSkip > 0))
 		{

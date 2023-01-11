@@ -490,6 +490,7 @@ public:
 	TQueue<FMutableTask> PendingTasks;
 
 	static int32 EnableMutableProgressiveMipStreaming;
+	static int32 EnableMutableLiveUpdate;
 	static int32 EnableMutableAnimInfoDebugging;
 
 	/** */

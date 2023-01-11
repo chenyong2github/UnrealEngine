@@ -88,7 +88,7 @@ namespace impl
 
 		// For now, we are forcing the recreation of mutable-side instances with every update.
 		mu::Instance::ID InstanceID = System->NewInstance(Model);
-		UE_LOG(LogMutable, Log, TEXT("Creating instance with id [%d] "), InstanceID)
+		UE_LOG(LogMutable, Verbose, TEXT("Creating Mutable instance with id [%d] for a single UpdateImage"), InstanceID)
 
 		const mu::Instance* Instance = nullptr;
 
