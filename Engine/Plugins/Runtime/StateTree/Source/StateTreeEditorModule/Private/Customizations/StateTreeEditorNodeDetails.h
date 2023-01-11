@@ -10,6 +10,7 @@
 
 class IPropertyHandle;
 class SWidget;
+class SSearchBox;
 class UStateTree;
 class UStateTreeState;
 class UStateTreeEditorData;
