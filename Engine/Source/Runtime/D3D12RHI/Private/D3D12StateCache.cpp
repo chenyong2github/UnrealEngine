@@ -83,11 +83,6 @@ inline bool operator!=(D3D12_CPU_DESCRIPTOR_HANDLE lhs, D3D12_CPU_DESCRIPTOR_HAN
 	return lhs.ptr != rhs.ptr;
 }
 
-// Define template functions that are only declared in the header.
-
-template void FD3D12StateCache::ApplyState<ED3D12PipelineType::Graphics>();
-template void FD3D12StateCache::ApplyState<ED3D12PipelineType::Compute>();
-
 #if D3D12_STATE_CACHE_RUNTIME_TOGGLE
 
 // Default the state caching system to on.
@@ -394,8 +389,7 @@ void FD3D12StateCache::InternalSetPipelineState(FD3D12PipelineState* InPipelineS
 	}
 }
 
-template <ED3D12PipelineType PipelineType>
-void FD3D12StateCache::ApplyState()
+void FD3D12StateCache::ApplyState(ED3D12PipelineType PipelineType)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateTime);
 	const bool bForceState = false;
@@ -682,14 +676,7 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 	if (CurrentShaderDirtyUAVSlots)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetUAVTime);
-		if (UAVStage == SF_Pixel)
-		{
-			DescriptorCache.SetUAVs<SF_Pixel>(pRootSignature, PipelineState.Common.UAVCache, CurrentShaderDirtyUAVSlots, NumUAVs, ViewHeapSlot);
-		}
-		else
-		{
-			DescriptorCache.SetUAVs<SF_Compute>(pRootSignature, PipelineState.Common.UAVCache, CurrentShaderDirtyUAVSlots, NumUAVs, ViewHeapSlot);
-		}
+		DescriptorCache.SetUAVs(UAVStage, pRootSignature, PipelineState.Common.UAVCache, CurrentShaderDirtyUAVSlots, NumUAVs, ViewHeapSlot);
 	}
 
 	// Shader resource views
@@ -697,26 +684,13 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 		//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetSRVTime);
 		FD3D12ShaderResourceViewCache& SRVCache = PipelineState.Common.SRVCache;
 
-#define CONDITIONAL_SET_SRVS(Shader) \
-		if (CurrentShaderDirtySRVSlots[Shader]) \
-		{ \
-			DescriptorCache.SetSRVs<Shader>(pRootSignature, SRVCache, CurrentShaderDirtySRVSlots[Shader], NumSRVs[Shader], ViewHeapSlot); \
-		}
-
-		if (StartStage == SF_Compute)
+		for (uint32 Index = StartStage; Index < EndStage; Index++)
 		{
-			// Note that ray tracing pipeline shares state with compute
-			CONDITIONAL_SET_SRVS(SF_Compute);
+			if (CurrentShaderDirtySRVSlots[Index])
+			{
+				DescriptorCache.SetSRVs(static_cast<EShaderFrequency>(Index), pRootSignature, SRVCache, CurrentShaderDirtySRVSlots[Index], NumSRVs[Index], ViewHeapSlot);
+			}
 		}
-		else
-		{
-			CONDITIONAL_SET_SRVS(SF_Vertex);
-			CONDITIONAL_SET_SRVS(SF_Mesh);
-			CONDITIONAL_SET_SRVS(SF_Amplification);
-			CONDITIONAL_SET_SRVS(SF_Geometry);
-			CONDITIONAL_SET_SRVS(SF_Pixel);
-		}
-#undef CONDITIONAL_SET_SRVS
 	}
 
 #if USE_STATIC_ROOT_SIGNATURE
@@ -725,26 +699,13 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 		//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetConstantBufferTime);
 		FD3D12ConstantBufferCache& CBVCache = PipelineState.Common.CBVCache;
 
-	#define CONDITIONAL_SET_CBVS(Shader) \
-		if (CurrentShaderDirtyCBVSlots[Shader]) \
-		{ \
-			DescriptorCache.SetConstantBufferViews(Shader, pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[Shader], NumCBVs[Shader], ViewHeapSlot); \
-		}
-
-		if (StartStage == SF_Compute)
+		for (uint32 Index = StartStage; Index < EndStage; Index++)
 		{
-			// Note that ray tracing pipeline shares state with compute
-			CONDITIONAL_SET_CBVS(SF_Compute);
+			if (CurrentShaderDirtyCBVSlots[Index])
+			{
+				DescriptorCache.SetConstantBufferViews(static_cast<EShaderFrequency>(Index), pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[Index], NumCBVs[Index], ViewHeapSlot);
+			}
 		}
-		else
-		{
-			CONDITIONAL_SET_CBVS(SF_Vertex);
-			CONDITIONAL_SET_CBVS(SF_Mesh);
-			CONDITIONAL_SET_CBVS(SF_Amplification);
-			CONDITIONAL_SET_CBVS(SF_Geometry);
-			CONDITIONAL_SET_CBVS(SF_Pixel);
-		}
-#undef CONDITIONAL_SET_CBVS
 	}
 #endif // USE_STATIC_ROOT_SIGNATURE
 }
@@ -787,26 +748,13 @@ void FD3D12StateCache::ApplyConstants(const FD3D12RootSignature* const pRootSign
 		//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetConstantBufferTime);
 		FD3D12ConstantBufferCache& CBVCache = PipelineState.Common.CBVCache;
 
-#define CONDITIONAL_SET_CBVS(Shader) \
-		if (CurrentShaderDirtyCBVSlots[##Shader]) \
-		{ \
-			DescriptorCache.SetRootConstantBuffers(##Shader, pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[##Shader]); \
-		}
-
-		if (StartStage == SF_Compute)
+		for (uint32 Index = StartStage; Index < EndStage; Index++)
 		{
-			// Note that ray tracing pipeline shares state with compute
-			CONDITIONAL_SET_CBVS(SF_Compute);
+			if (CurrentShaderDirtyCBVSlots[Index])
+			{
+				DescriptorCache.SetRootConstantBuffers(static_cast<EShaderFrequency>(Index), pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[Index]);
+			}
 		}
-		else
-		{
-			CONDITIONAL_SET_CBVS(SF_Vertex);
-			CONDITIONAL_SET_CBVS(SF_Mesh);
-			CONDITIONAL_SET_CBVS(SF_Amplification);
-			CONDITIONAL_SET_CBVS(SF_Geometry);
-			CONDITIONAL_SET_CBVS(SF_Pixel);
-		}
-#undef CONDITIONAL_SET_CBVS
 	}
 #endif // !USE_STATIC_ROOT_SIGNATURE
 }
@@ -946,25 +894,13 @@ void FD3D12StateCache::ApplySamplers(const FD3D12RootSignature* const pRootSigna
 	}
 	uint32 SamplerHeapSlot = SamplerHeap->ReserveSlots(NumSamplers[SF_NumStandardFrequencies]);
 
-#define CONDITIONAL_SET_SAMPLERS(Shader) \
-	if (CurrentShaderDirtySamplerSlots[Shader]) \
-	{ \
-		DescriptorCache.SetSamplers<Shader>(pRootSignature, Cache, CurrentShaderDirtySamplerSlots[Shader], NumSamplers[Shader], SamplerHeapSlot); \
-	}
-
-	if (StartStage == SF_Compute)
+	for (uint32 Index = StartStage; Index < EndStage; Index++)
 	{
-		CONDITIONAL_SET_SAMPLERS(SF_Compute);
+		if (CurrentShaderDirtySamplerSlots[Index])
+		{
+			DescriptorCache.SetSamplers(static_cast<EShaderFrequency>(Index), pRootSignature, Cache, CurrentShaderDirtySamplerSlots[Index], NumSamplers[Index], SamplerHeapSlot);
+		}
 	}
-	else
-	{
-		CONDITIONAL_SET_SAMPLERS(SF_Vertex);
-		CONDITIONAL_SET_SAMPLERS(SF_Mesh);
-		CONDITIONAL_SET_SAMPLERS(SF_Amplification);
-		CONDITIONAL_SET_SAMPLERS(SF_Geometry);
-		CONDITIONAL_SET_SAMPLERS(SF_Pixel);
-	}
-#undef CONDITIONAL_SET_SAMPLERS
 
 	SamplerHeap->SetNextSlot(SamplerHeapSlot);
 }

@@ -158,7 +158,7 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 
 	CommitComputeShaderConstants();
 	CommitComputeResourceTables();
-	StateCache.ApplyState<ED3D12PipelineType::Compute>();
+	StateCache.ApplyState(ED3D12PipelineType::Compute);
 
 	GraphicsCommandList()->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	
@@ -181,7 +181,7 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<ED3D12PipelineType::Compute>();
+	StateCache.ApplyState(ED3D12PipelineType::Compute);
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect arg transition and flush here.
 	D3D12_RESOURCE_STATES IndirectState = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
@@ -1591,7 +1591,7 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
 	}
 
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 	GraphicsCommandList()->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
 
 	ConditionalSplitCommandList();
@@ -1614,7 +1614,7 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -1661,7 +1661,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 
 	FD3D12ResourceLocation& Location = ArgumentsBuffer->ResourceLocation;
 
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -1712,7 +1712,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	// determine 16bit vs 32bit indices
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 
 	GraphicsCommandList()->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
 
@@ -1742,7 +1742,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -1776,7 +1776,7 @@ void FD3D12CommandContext::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint3
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 
 	GraphicsCommandList6()->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
@@ -1800,7 +1800,7 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
+	StateCache.ApplyState(ED3D12PipelineType::Graphics);
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
