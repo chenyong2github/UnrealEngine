@@ -5,6 +5,7 @@
 #include "CADKernel/Core/KernelParameters.h" 
 #include "CADKernel/Core/System.h"
 #include "CADKernel/Math/Geometry.h"
+#include "CADKernel/Math/Point.h"
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Utils/Util.h"
 
@@ -12,23 +13,18 @@ namespace UE::CADKernel
 {
 double ComputeCurvature(const FPoint& Gradient, const FPoint& Laplacian)
 {
-	FPoint GradientCopy = Gradient;
-	FPoint LaplacianCopy = Laplacian;
-	GradientCopy.Normalize();
-	LaplacianCopy.Normalize();
-	FPoint Normal = GradientCopy ^ LaplacianCopy;
+	const FPoint GradientCopy = Gradient.Normalize();
+	const FPoint LaplacianCopy = Laplacian.Normalize();
+	const FPoint Normal = GradientCopy ^ LaplacianCopy;
 	return (Normal.Length() * Laplacian.Length()) / (Gradient.Length() * Gradient.Length());
 }
 
 double ComputeCurvature(const FPoint& Normal, const FPoint& Gradient, const FPoint& Laplacian)
 {
-	FPoint GradientCopy = Gradient;
-	FPoint LaplacianCopy = Laplacian;
-	FPoint NormalCopy = Normal;
-	GradientCopy.Normalize();
-	LaplacianCopy.Normalize();
-	NormalCopy.Normalize();
-	FPoint Coef = (LaplacianCopy ^ GradientCopy) ^ NormalCopy;
+	const FPoint GradientCopy = Gradient.Normalize();
+	const FPoint LaplacianCopy = Laplacian.Normalize();
+	const FPoint NormalCopy = Normal.Normalize();
+	const FPoint Coef = (LaplacianCopy ^ GradientCopy) ^ NormalCopy;
 	return (Coef.Length() * Laplacian.Length()) / Gradient.SquareLength();
 }
 
@@ -36,8 +32,8 @@ void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, con
 {
 	OutIntersections.Empty(8);
 
-	int32 UIndex = Iso == EIso::IsoU ? 0 : 1;
-	int32 VIndex = Iso == EIso::IsoU ? 1 : 0;
+	const int32 UIndex = Iso == EIso::IsoU ? 0 : 1;
+	const int32 VIndex = Iso == EIso::IsoU ? 1 : 0;
 
 	TFunction<void(const FPoint2D&, const FPoint2D&)> ComputeIntersection = [&](const FPoint2D& Point1, const FPoint2D& Point2)
 	{
@@ -72,8 +68,8 @@ void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, con
 
 bool IntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
 {
-	constexpr const double Min = -DOUBLE_SMALL_NUMBER;
-	constexpr const double Max = 1. + DOUBLE_SMALL_NUMBER;
+	constexpr const double Min = -DOUBLE_KINDA_SMALL_NUMBER;
+	constexpr const double Max = 1. + DOUBLE_KINDA_SMALL_NUMBER;
 
 	TFunction<bool(double, double, double, double)> Intersect = [](double A, double B, double C, double D)
 	{
@@ -106,9 +102,9 @@ bool IntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPo
 		}
 	};
 
-	FPoint2D AB = SegmentAB[1] - SegmentAB[0];
-	FPoint2D CD = SegmentCD[1] - SegmentCD[0];
-	FPoint2D CA = SegmentAB[0] - SegmentCD[0];
+	const FPoint2D AB = SegmentAB[1] - SegmentAB[0];
+	const FPoint2D CD = SegmentCD[1] - SegmentCD[0];
+	const FPoint2D CA = SegmentAB[0] - SegmentCD[0];
 
 	const double ParallelCoef = CD ^ AB;
 	if (FMath::IsNearlyZero(ParallelCoef))
@@ -133,4 +129,5 @@ bool IntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPo
 	const double CDIntersectionCoordinate = (CA ^ AB) / ParallelCoef;
 	return (ABIntersectionCoordinate <= Max && ABIntersectionCoordinate >= Min && CDIntersectionCoordinate <= Max && CDIntersectionCoordinate >= Min);
 }
+
 }

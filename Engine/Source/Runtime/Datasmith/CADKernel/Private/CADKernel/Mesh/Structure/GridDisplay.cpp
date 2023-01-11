@@ -316,7 +316,6 @@ void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 			}
 		}
 	}
-	ensureCADKernel(NbNum == CountOfInnerNodes);
 
 	{
 		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Outside Point"));

@@ -116,6 +116,10 @@ public:
 
 	FPoint operator/(double InvScale) const
 	{
+		if (FMath::IsNearlyZero(InvScale))
+		{
+			return *this;
+		}
 		return FPoint(X / InvScale, Y / InvScale, Z / InvScale);
 	}
 
@@ -181,6 +185,11 @@ public:
 
 	FPoint& operator/=(double InvScale)
 	{
+		if (FMath::IsNearlyZero(InvScale))
+		{
+			return *this;
+		}
+
 		X /= InvScale;
 		Y /= InvScale;
 		Z /= InvScale;
@@ -266,15 +275,26 @@ public:
 		double Norm = Length();
 		if (FMath::IsNearlyZero(Norm))
 		{
-			X = Y = Z = 0.0;
+			*this = FPoint::UnitPoint.Normalize();
 		}
 		else
 		{
-			X /= Norm;
-			Y /= Norm;
-			Z /= Norm;
+			*this /= Norm;
 		}
 		return *this;
+	}
+
+	FPoint Normalize() const 
+	{
+		double Norm = Length();
+		if (FMath::IsNearlyZero(Norm))
+		{
+			return FPoint::UnitPoint.Normalize();
+		}
+		else
+		{
+			return *this / Norm;
+		}
 	}
 
 	FPoint Middle(const FPoint& Point) const
@@ -602,6 +622,11 @@ public:
 
 	FPoint2D operator/(double InvScale) const
 	{
+		if (FMath::IsNearlyZero(InvScale))
+		{
+			return *this;
+		}
+
 		return FPoint2D(U / InvScale, V / InvScale);
 	}
 
@@ -633,6 +658,11 @@ public:
 
 	FPoint2D& operator/=(double InvScale)
 	{
+		if (FMath::IsNearlyZero(InvScale))
+		{
+			return *this;
+		}
+
 		U /= InvScale;
 		V /= InvScale;
 		return *this;

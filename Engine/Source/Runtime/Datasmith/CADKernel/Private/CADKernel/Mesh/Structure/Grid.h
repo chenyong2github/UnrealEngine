@@ -695,7 +695,11 @@ public:
 		F3DDebugSession _(Message);
 		for (int32 Index = 0; Index < Points.Num(); ++Index)
 		{
-			if (IsNodeInsideAndMeshable(Index))
+			if (IsNodeInsideAndCloseToLoop(Index))
+			{
+				DisplayPoint(Points[Index] * DisplayScale, EVisuProperty::OrangePoint, Index);
+			}
+			else if (IsNodeInsideAndMeshable(Index))
 			{
 				DisplayPoint(Points[Index] * DisplayScale, EVisuProperty::BluePoint, Index);
 			}
@@ -705,7 +709,7 @@ public:
 			}
 			else
 			{
-				DisplayPoint(Points[Index] * DisplayScale, IsNodeCloseToLoop(Index) ? EVisuProperty::YellowPoint : EVisuProperty::GreenPoint, Index);
+				DisplayPoint(Points[Index] * DisplayScale, IsNodeCloseToLoop(Index) ? EVisuProperty::YellowPoint : EVisuProperty::GreenPoint , Index);
 			}
 		}
 	}

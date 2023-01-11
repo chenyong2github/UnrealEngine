@@ -66,17 +66,28 @@ void FGrid::ProcessPointCloud()
 
 	DisplayGridNormal();
 
+	DisplayInnerDomainPoints(TEXT("FGrid::PointCloud before FindInnerFacePoints"), GetInner2DPoints(EGridSpace::UniformScaled));
+
 	Wait(bDisplay);
 #endif
 
 	FindInnerFacePoints();
 
 #ifdef DEBUG_GRID
-	DisplayGridPoints(DisplaySpace);
-	Wait(bDisplay);
+	DisplayInnerDomainPoints(TEXT("FGrid::PointCloud after FindInnerFacePoints"), GetInner2DPoints(EGridSpace::UniformScaled));
 #endif
+
 	FindPointsCloseToLoop();
+
+#ifdef DEBUG_GRID
+	DisplayInnerDomainPoints(TEXT("FGrid::PointCloud after FindPointsCloseToLoop"), GetInner2DPoints(EGridSpace::UniformScaled));
+#endif
+
 	RemovePointsCloseToLoop();
+
+#ifdef DEBUG_GRID
+	DisplayInnerDomainPoints(TEXT("FGrid::PointCloud after RemovePointsCloseToLoop"), GetInner2DPoints(EGridSpace::UniformScaled));
+#endif
 
 	// Removed of Thin zone boundary (the last boundaries). In case of thin zone, the number of 2d boundary will be biggest than 3d boundary one.
 	// Only EGridSpace::Default2D is needed.
@@ -407,10 +418,10 @@ void FGrid::FindPointsCloseToLoop()
 		if (bDisplay)
 		{
 			F3DDebugSession _(*FString::Printf(TEXT("Cell %d"), CellIndex++));
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex]);
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1]);
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]]);
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]]);
+			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex] * DisplayScale);
+			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1] * DisplayScale);
+			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]] * DisplayScale);
+			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]] * DisplayScale);
 			Wait(bWaitCell);
 		}
 	};
@@ -571,7 +582,7 @@ void FGrid::FindPointsCloseToLoop()
 			if (bDisplay)
 			{
 				F3DDebugSession _(TEXT("SEG"));
-				DisplaySegment(*PointB, *PointA);
+				DisplaySegment(*PointB * DisplayScale, *PointA * DisplayScale);
 			}
 #endif
 
