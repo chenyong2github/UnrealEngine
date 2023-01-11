@@ -14,7 +14,7 @@ class STableViewBase;
 class IStructureDetailsView;
 class FStructOnScope;
 class SHeaderRow;
-class SVerticalBox;
+class SScrollBox;
 
 namespace EColumnSortMode
 {
@@ -179,7 +179,7 @@ private:
 
 	
 	/** value view */
-	TSharedPtr<SVerticalBox> ValueViewBox;
+	TSharedPtr<SScrollBox> ValueViewBox;
 	bool bShouldRefreshValueView;
 	TOptional<FAnimAttributeEntry> SelectedAttribute;
 

@@ -12,6 +12,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "SAnimAttributeView"
 
@@ -256,7 +257,7 @@ void SAnimAttributeView::Construct(const FArguments& InArgs)
 		.Value(0.4)
 		.MinSize(30.0f)
 		[
-			SAssignNew(ValueViewBox, SVerticalBox)
+			SAssignNew(ValueViewBox, SScrollBox)
 		]	
 	];
 }
@@ -606,7 +607,6 @@ void SAnimAttributeView::RefreshValueView()
 		const FAttributeValueView& ValueView = SelectedAttributeSnapshotValueViews[ViewIndex];
 		// slots are added in reverse order
 		ValueViewBox->AddSlot()
-		.AutoHeight()
 		[
 			ValueView.ViewWidget->GetWidget().ToSharedRef()
 		];	
