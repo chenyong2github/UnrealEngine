@@ -17,6 +17,7 @@
 #include "Shadows/ShadowSceneRenderer.h"
 #include "RenderCore.h"
 #include "TranslucentLighting.h"
+#include "MobileBasePassRendering.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light
@@ -337,6 +338,14 @@ IMPLEMENT_SHADER_TYPE(,FShadowProjectionNoTransformVS,TEXT("/Engine/Private/Shad
 
 IMPLEMENT_SHADER_TYPE(,FShadowVolumeBoundProjectionVS,TEXT("/Engine/Private/ShadowProjectionVertexShader.usf"),TEXT("ShadowVolumeBoundProjectionVS"),SF_Vertex);
 
+template<uint32 T>
+TModulatedShadowProjection<T>::TModulatedShadowProjection(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+TShadowProjectionPS<T, false, true>(Initializer)
+{
+	ModulatedShadowColorParameter.Bind(Initializer.ParameterMap, TEXT("ModulatedShadowColor"));
+	MobileBasePassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
+} 
+
 /**
  * Implementations for TShadowProjectionPS.  
  */
@@ -381,6 +390,7 @@ IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(5, false, false, true);
 #undef IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER
 
 #define IMPLEMENT_MODULATED_SHADOW_PROJECTION_PIXEL_SHADER(Quality) \
+	template class TModulatedShadowProjection<Quality>; \
 	using FShadowModulatedProjectionPS##Quality = TShadowProjectionPS<Quality, false, true>; \
 	IMPLEMENT_TEMPLATE_TYPE_LAYOUT(template<>, FShadowModulatedProjectionPS##Quality); \
 	IMPLEMENT_SHADER_TYPE(template<>, TModulatedShadowProjection<Quality>, TEXT("/Engine/Private/ShadowProjectionPixelShader.usf"), TEXT("Main"), SF_Pixel);

@@ -27,6 +27,7 @@
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "Common.ush"
 
+// Needs to bind MobileBasePass UB since the modulated shadow is in mobile base pass. 
 #if MODULATED_SHADOWS
 	#define MobileSceneTextures MobileBasePass.SceneTextures
 #endif

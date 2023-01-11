@@ -1289,11 +1289,7 @@ public:
 
 	TModulatedShadowProjection() {}
 
-	TModulatedShadowProjection(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		TShadowProjectionPS<Quality, false, true>(Initializer)
-	{
-		ModulatedShadowColorParameter.Bind(Initializer.ParameterMap, TEXT("ModulatedShadowColor"));
-	}
+	TModulatedShadowProjection(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	void SetParameters(
 		FRHICommandList& RHICmdList,
@@ -1308,6 +1304,7 @@ public:
 
 protected:
 	LAYOUT_FIELD(FShaderParameter, ModulatedShadowColorParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, MobileBasePassUniformBuffer);
 };
 
 /** Translucency shadow projection uniform buffer containing data needed for Fourier opacity maps. */
