@@ -142,6 +142,7 @@ public:
 	{
 		bIsNaniteMesh  = true;
 		bHasProgrammableRaster = false;
+		bReverseCulling = false;
 	}
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;
@@ -179,6 +180,11 @@ public:
 	inline EFilterFlags GetFilterFlags() const
 	{
 		return FilterFlags;
+	}
+
+	inline bool IsCullingReversedByComponent() const
+	{
+		return bReverseCulling;
 	}
 
 	virtual FResourceMeshInfo GetResourceMeshInfo() const = 0;
@@ -240,6 +246,7 @@ protected:
 	uint32 InstanceWPODisableDistance = 0;
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
+	uint8 bReverseCulling : 1;
 
 private:
 
@@ -373,7 +380,6 @@ protected:
 
 	FMaterialRelevance CombinedMaterialRelevance;
 
-	uint32 bReverseCulling : 1;
 	uint32 bHasMaterialErrors : 1;
 
 	const UStaticMesh* StaticMesh = nullptr;

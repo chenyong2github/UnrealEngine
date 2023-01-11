@@ -3034,7 +3034,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					}
 				}
 
-				Nanite::FRasterState RasterState;
 				Nanite::FRasterContext RasterContext;
 
 				// Nanite::VisBuffer (Visibility Buffer Clear)
@@ -3127,7 +3126,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 							SharedContext,
 							CullingContext,
 							RasterContext,
-							RasterState,
 							/*OptionalInstanceDraws*/ nullptr,
 							bExtractStats
 						);

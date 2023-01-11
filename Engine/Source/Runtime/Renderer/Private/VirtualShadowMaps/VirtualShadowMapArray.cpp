@@ -2587,7 +2587,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 		int32 NumPrimaryViews = VirtualShadowViews.Num();
 		CreateMipViews(VirtualShadowViews);
 
-		Nanite::FRasterState RasterState;
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
 		CullingConfig.bTwoPassOcclusion = UseTwoPassHzbOcclusion();
@@ -2621,7 +2620,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 			SharedContext,
 			CullingContext,
 			RasterContext,
-			RasterState,
 			nullptr,
 			this,
 			bExtractStats

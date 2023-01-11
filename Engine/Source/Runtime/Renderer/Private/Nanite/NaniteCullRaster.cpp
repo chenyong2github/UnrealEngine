@@ -155,46 +155,40 @@ static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
 	TEXT("")
 );
 
-int32 GNaniteBoxCullingHZB = 1;
-static FAutoConsoleVariableRef CVarNaniteBoxCullingHZB(
-	TEXT("r.Nanite.BoxCullingHZB"),
-	GNaniteBoxCullingHZB,
-	TEXT("")
+int32 GNaniteCullingHZB = 1;
+static FAutoConsoleVariableRef CVarNaniteCullingHZB(
+	TEXT("r.Nanite.Culling.HZB"),
+	GNaniteCullingHZB,
+	TEXT("Set to 0 to test disabling Nanite culling due to occlusion by the hierarchical depth buffer.")
 );
 
-int32 GNaniteBoxCullingFrustum = 1;
-static FAutoConsoleVariableRef CVarNaniteBoxCullingFrustum(
-	TEXT("r.Nanite.BoxCullingFrustum"),
-	GNaniteBoxCullingFrustum,
-	TEXT("")
+int32 GNaniteCullingFrustum = 1;
+static FAutoConsoleVariableRef CVarNaniteCullingFrustum(
+	TEXT("r.Nanite.Culling.Frustum"),
+	GNaniteCullingFrustum,
+	TEXT("Set to 0 to test disabling Nanite culling due to being outside of the view frustum.")
 );
 
-int32 GNaniteSphereCullingHZB = 1;
-static FAutoConsoleVariableRef CVarNaniteSphereCullingHZB(
-	TEXT("r.Nanite.SphereCullingHZB"),
-	GNaniteSphereCullingHZB,
-	TEXT("")
+int32 GNaniteCullingGlobalClipPlane = 1;
+static FAutoConsoleVariableRef CVarNaniteCullingGlobalClipPlane(
+	TEXT("r.Nanite.Culling.GlobalClipPlane"),
+	GNaniteCullingGlobalClipPlane,
+	TEXT("Set to 0 to test disabling Nanite culling due to being beyond the global clip plane.\n")
+	TEXT("NOTE: Has no effect if r.AllowGlobalClipPlane=0.")
 );
 
-int32 GNaniteSphereCullingFrustum = 1;
-static FAutoConsoleVariableRef CVarNaniteSphereCullingFrustum(
-	TEXT("r.Nanite.SphereCullingFrustum"),
-	GNaniteSphereCullingFrustum,
-	TEXT("")
+int32 GNaniteCullingDrawDistance = 1;
+static FAutoConsoleVariableRef CVarNaniteCullingDrawDistance(
+	TEXT("r.Nanite.Culling.DrawDistance"),
+	GNaniteCullingDrawDistance,
+	TEXT("Set to 0 to test disabling Nanite culling due to instance draw distance.")
 );
 
-int32 GNaniteCameraDistanceCulling = 1;
-static FAutoConsoleVariableRef CVarNaniteCameraDistanceCulling(
-	TEXT("r.Nanite.CameraDistanceCulling"),
-	GNaniteCameraDistanceCulling,
-	TEXT("")
-);
-
-int32 GNaniteWPODistanceDisable = 1;
-static FAutoConsoleVariableRef CVarNaniteWPODistanceDisable(
-	TEXT("r.Nanite.WPODistanceDisable"),
-	GNaniteWPODistanceDisable,
-	TEXT("")
+int32 GNaniteCullingWPODisableDistance = 1;
+static FAutoConsoleVariableRef CVarNaniteCullingWPODisableDistance(
+	TEXT("r.Nanite.Culling.WPODisableDistance"),
+	GNaniteCullingWPODisableDistance,
+	TEXT("Set to 0 to test disabling 'World Position Offset Disable Distance' for Nanite instances.")
 );
 
 static TAutoConsoleVariable<int32> CVarLargePageRectThreshold(
@@ -1804,32 +1798,27 @@ FCullingContext InitCullingContext(
 
 	// TODO: Exclude from shipping builds
 	{
-		if (GNaniteSphereCullingFrustum == 0)
+		if (GNaniteCullingFrustum == 0)
 		{
-			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM;
 		}
 
-		if (GNaniteSphereCullingHZB == 0)
+		if (GNaniteCullingHZB == 0)
 		{
-			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB;
 		}
 
-		if (GNaniteBoxCullingFrustum == 0)
+		if (GNaniteCullingGlobalClipPlane == 0)
 		{
-			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE;
 		}
 
-		if (GNaniteBoxCullingHZB == 0)
+		if (GNaniteCullingDrawDistance == 0)
 		{
-			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_DRAW_DISTANCE;
 		}
 
-		if (GNaniteCameraDistanceCulling == 0)
-		{
-			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_CAMERA_DISTANCE;
-		}
-
-		if (GNaniteWPODistanceDisable == 0)
+		if (GNaniteCullingWPODisableDistance == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_WPO_DISABLE_DISTANCE;
 		}
@@ -2261,7 +2250,6 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState,
 	const FGPUSceneParameters &GPUSceneParameters,
 	FRDGBufferRef MainAndPostNodesAndClusterBatchesBuffer,
 	FRDGBufferRef MainAndPostCandididateClustersBuffer,
@@ -2619,7 +2607,6 @@ FBinningData AddPass_Rasterize(
 	const FViewInfo& SceneView,
 	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState,
 	FIntVector4 PageConstants,
 	uint32 RenderFlags,
 	FRDGBufferRef ViewsBuffer,
@@ -2961,10 +2948,6 @@ FBinningData AddPass_Rasterize(
 
 	auto* RasterPassParameters = GraphBuilder.AllocParameters<FRasterizePassParameters>();
 	RasterPassParameters->RenderFlags = RenderFlags;
-	if (RasterState.bReverseCulling)
-	{
-		RasterPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
-	}
 
 	RasterPassParameters->View = SceneView.ViewUniformBuffer;
 	RasterPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
@@ -3033,7 +3016,7 @@ FBinningData AddPass_Rasterize(
 
 			Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 
-			// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
+			// NOTE: We do *not* use any CullMode overrides here because HWRasterize[VS/MS] already
 			// changes the index order in cases where the culling should be flipped.
 			// The exception is if CM_None is specified for two sided materials, or if the entire raster pass has CM_None specified.
 			const bool bCullModeNone = RasterizerPass.RasterPipeline.bIsTwoSided;
@@ -3378,7 +3361,6 @@ static void CullRasterizeMultiPass(
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState,
 	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
 	FVirtualShadowMapArray* VirtualShadowMapArray,
 	bool bExtractStats
@@ -3437,7 +3419,6 @@ static void CullRasterizeMultiPass(
 			SharedContext,
 			CullingContext,
 			RasterContext,
-			RasterState,
 			OptionalInstanceDraws,
 			VirtualShadowMapArray,
 			bExtractStats
@@ -3456,7 +3437,6 @@ void CullRasterize(
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState,
 	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
 	// VirtualShadowMapArray is the supplier of virtual to physical translation, probably could abstract this a bit better,
 	FVirtualShadowMapArray* VirtualShadowMapArray,
@@ -3480,7 +3460,6 @@ void CullRasterize(
 			SharedContext,
 			CullingContext,
 			RasterContext,
-			RasterState,
 			OptionalInstanceDraws,
 			VirtualShadowMapArray,
 			bExtractStats
@@ -3714,7 +3693,6 @@ void CullRasterize(
 			SharedContext,
 			CullingContext,
 			RasterContext,
-			RasterState,
 			GPUSceneParameters,
 			MainAndPostNodesAndClusterBatchesBuffer,
 			MainAndPostCandididateClustersBuffer,
@@ -3732,7 +3710,6 @@ void CullRasterize(
 			SceneView,
 			SharedContext,
 			RasterContext,
-			RasterState,
 			CullingContext.PageConstants,
 			CullingContext.RenderFlags,
 			CullingContext.ViewsBuffer,
@@ -3810,7 +3787,6 @@ void CullRasterize(
 			SharedContext,
 			CullingContext,
 			RasterContext,
-			RasterState,
 			GPUSceneParameters,
 			MainAndPostNodesAndClusterBatchesBuffer,
 			MainAndPostCandididateClustersBuffer,
@@ -3829,7 +3805,6 @@ void CullRasterize(
 			SceneView,
 			SharedContext,
 			RasterContext,
-			RasterState,
 			CullingContext.PageConstants,
 			CullingContext.RenderFlags,
 			CullingContext.ViewsBuffer,
@@ -3881,7 +3856,6 @@ void CullRasterize(
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState,
 	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
 	bool bExtractStats
 )
@@ -3897,7 +3871,6 @@ void CullRasterize(
 		SharedContext,
 		CullingContext,
 		RasterContext,
-		RasterState,
 		OptionalInstanceDraws,
 		nullptr,
 		bExtractStats

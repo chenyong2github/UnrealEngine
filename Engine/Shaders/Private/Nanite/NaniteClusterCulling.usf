@@ -178,7 +178,7 @@ bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData,
 	}
 	else
 	{
-		bUseHWRaster = ProjectedEdgeScale < InstanceData.NonUniformScale.w * abs( EdgeLength ) * NaniteView.LODScaleHW; // TODO: EdgeLength shouldn't have sign
+		bUseHWRaster |= ProjectedEdgeScale < InstanceData.NonUniformScale.w * abs( EdgeLength ) * NaniteView.LODScaleHW; // TODO: EdgeLength shouldn't have sign
 	}
 
 	return bVisible;
@@ -267,11 +267,13 @@ struct FNaniteTraversalClusterCullCallback
 		const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
 
 #if DEBUG_FLAGS
-		const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
-		const bool bSkipBoxCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
+		const bool bSkipCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM) != 0u;
+		const bool bSkipCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB) != 0u;
+		const bool bSkipCullGlobalClipPlane = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE) != 0u;
 #else
-		const bool bSkipBoxCullFrustum = false;
-		const bool bSkipBoxCullHZB = false;
+		const bool bSkipCullFrustum = false;
+		const bool bSkipCullHZB = false;
+		const bool bSkipCullGlobalClipPlane = false;
 #endif
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -291,8 +293,12 @@ struct FNaniteTraversalClusterCullCallback
 			const float3 NodeBoxBoundsCenter = HierarchyNodeSlice.BoxBoundsCenter;
 			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent * GetPrimitiveData(InstanceData.PrimitiveId).BoundsScale;
 
+		#if USE_GLOBAL_CLIP_PLANE
+			bVisible = GlobalClipPlaneCullBox(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
+		#endif // USE_GLOBAL_CLIP_PLANE
+
 			BRANCH
-			if (bUseViewRangeDistanceCull)
+			if (bVisible && bUseViewRangeDistanceCull)
 			{
 				const float3 BoundsCenterTranslatedWorld = mul(float4(NodeBoxBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
 				const float BoundsRadius = length(NodeBoxBoundsExtent * InstanceData.NonUniformScale.xyz);
@@ -310,7 +316,7 @@ struct FNaniteTraversalClusterCullCallback
 			BRANCH
 			if (bVisible)
 			{
-				FFrustumCullData Cull = BoxCullFrustum(NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
+				FFrustumCullData Cull = BoxCullFrustum(NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum );
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 				bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
@@ -326,12 +332,12 @@ struct FNaniteTraversalClusterCullCallback
 
 		// VSM supports one-pass occlusion culling hijacking CULLING_PASS_NO_OCCLUSION (using only previous-frame with artifacts as a result), hence the || here
 		#if (CULLING_PASS == CULLING_PASS_NO_OCCLUSION && VIRTUAL_TEXTURE_TARGET) || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-				TestPrevHZB(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, /*bClampToPageLevel*/false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
+				TestPrevHZB(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipCullFrustum, bSkipCullHZB, /*bClampToPageLevel*/false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
 			#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION
 				bVisible = bVisible && !bWasOccluded;
 			#endif
 		#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, /*bClampToPageLevel*/false, bVisible, bWasOccluded);
+				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipCullHZB, /*bClampToPageLevel*/false, bVisible, bWasOccluded);
 		#endif
 			}
 		}
@@ -482,11 +488,13 @@ struct FNaniteTraversalClusterCullCallback
 		const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
 
 #if DEBUG_FLAGS
-		const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
-		const bool bSkipBoxCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
+		const bool bSkipCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM) != 0u;
+		const bool bSkipCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB) != 0u;
+		const bool bSkipCullGlobalClipPlane = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE) != 0u;
 #else
-		const bool bSkipBoxCullFrustum = false;
-		const bool bSkipBoxCullHZB = false;
+		const bool bSkipCullFrustum = false;
+		const bool bSkipCullHZB = false;
+		const bool bSkipCullGlobalClipPlane = false;
 #endif
 
 		FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
@@ -512,8 +520,16 @@ struct FNaniteTraversalClusterCullCallback
 		uint4 RectPages = uint4(1U, 1U, 0U, 0U);
 #endif // VIRTUAL_TEXTURE_TARGET
 		{
+		#if USE_GLOBAL_CLIP_PLANE
+			{
+				EClipPlaneTestResult GlobalClipResult = GlobalClipPlaneCullBox(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale, bSkipCullGlobalClipPlane);
+				bVisible = GlobalClipResult != EClipPlaneTestResult::AllOut;
+				bUseHWRaster |= GlobalClipResult == EClipPlaneTestResult::Intersecting; // Let HW handle SV_ClipDistance
+			}
+		#endif // USE_GLOBAL_CLIP_PLANE
+
 			BRANCH
-			if (bUseViewRangeDistanceCull)
+			if (bVisible && bUseViewRangeDistanceCull)
 			{
 				const float3 BoundsCenterTranslatedWorld = mul(float4(ClusterBoxBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
 				const float BoundsRadius = length(ClusterBoxBoundsExtent * InstanceData.NonUniformScale.xyz);
@@ -534,7 +550,7 @@ struct FNaniteTraversalClusterCullCallback
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 				else
 				{
-					bUseHWRaster = (VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW) != 0;
+					bUseHWRaster |= (VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW) != 0;
 				}
 #endif
 			}
@@ -544,7 +560,7 @@ struct FNaniteTraversalClusterCullCallback
 		BRANCH
 		if (bVisible)
 		{
-			Cull = BoxCullFrustum(ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
+			Cull = BoxCullFrustum(ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
 			Rect = GetScreenRect(NaniteView.ViewRect, Cull, 4);
 
 			bVisible = Cull.bIsVisible && (Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane);	// Rect from box isn't valid if crossing near plane
@@ -579,12 +595,12 @@ struct FNaniteTraversalClusterCullCallback
 #endif // VIRTUAL_TEXTURE_TARGET
 
 #if (CULLING_PASS == CULLING_PASS_NO_OCCLUSION && VIRTUAL_TEXTURE_TARGET) || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		TestPrevHZB(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, /*bClampToPageLevel*/true, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
+		TestPrevHZB(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipCullFrustum, bSkipCullHZB, /*bClampToPageLevel*/true, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION
 		bVisible = bVisible && !bWasOccluded;
 #endif // CULLING_PASS == CULLING_PASS_NO_OCCLUSION
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, /*bClampToPageLevel*/true, bVisible, bWasOccluded);
+		TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipCullHZB, /*bClampToPageLevel*/true, bVisible, bWasOccluded);
 		bVisible = bVisible && !bWasOccluded;
 #endif
 

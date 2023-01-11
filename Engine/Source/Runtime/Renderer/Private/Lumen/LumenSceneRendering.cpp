@@ -3025,7 +3025,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 					{
 						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::RasterizeLumenCards");
 
-						Nanite::FRasterState RasterState;
 						Nanite::CullRasterize(
 							GraphBuilder,
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
@@ -3036,7 +3035,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 							SharedContext,
 							CullingContext,
 							RasterContext,
-							RasterState,
 							&NaniteInstanceDraws
 						);
 					}
@@ -3049,8 +3047,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				{
 					if (CardPageRenderData.bDistantScene)
 					{
-						Nanite::FRasterState RasterState;
-
 						CardPageRenderData.PatchView(Scene, SharedView);
 						Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 							*SharedView,
@@ -3069,8 +3065,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 							{ PackedView },
 							SharedContext,
 							CullingContext,
-							RasterContext,
-							RasterState);
+							RasterContext);
 					}
 				}
 

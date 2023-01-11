@@ -117,3 +117,52 @@ void DrawDistanceCull(
 	// "Disable" WPO if the instance isn't visible
 	bEnableWPO &= bVisible;
 }
+
+float GetGlobalClipPlaneDistance(FNaniteView NaniteView, float3 TranslatedWorldPosition)
+{
+	return dot(NaniteView.TranslatedGlobalClipPlane, float4(TranslatedWorldPosition, 1.0f));
+}
+
+enum class EClipPlaneTestResult : int
+{
+	AllOut			= -1,
+	Intersecting	=  0,
+	AllIn			=  1
+};
+
+EClipPlaneTestResult GlobalClipPlaneCullBox(
+	FNaniteView NaniteView,
+	float3 LocalBoundsCenter,
+	float3 LocalBoundsExtent,
+	float4x4 LocalToTranslatedWorld,
+	float3 NonUniformScale,
+	bool bSkipGlobalClipPlaneTest)
+{
+	// Prevent the result being "intersecting" when the global plane is invalid (effectively disabled). This prevents clusters that
+	// should rasterize in SW from being sent down the HW path
+	if (bSkipGlobalClipPlaneTest || all(NaniteView.TranslatedGlobalClipPlane.xyz == (float3)0.0f))
+	{
+		return EClipPlaneTestResult::AllIn;
+	}
+
+	// Get the global clipping plane in local space (multiply by inverse transpose)
+	const float4 PlaneLocal = mul(LocalToTranslatedWorld, NaniteView.TranslatedGlobalClipPlane);
+
+	// AABB/Plane intersection test
+	const float3 ScaledExtents = LocalBoundsExtent * NonUniformScale;
+	const float ExtentAlongPlaneN = dot(abs(ScaledExtents * PlaneLocal.xyz), (float3)1.0f);
+	const float CenterDist = dot(PlaneLocal, float4(LocalBoundsCenter, 1.0f));
+
+	if (CenterDist < -ExtentAlongPlaneN)
+	{
+		return EClipPlaneTestResult::AllOut;
+	}
+	else if (CenterDist >= ExtentAlongPlaneN)
+	{
+		return EClipPlaneTestResult::AllIn;
+	}
+	else
+	{
+		return EClipPlaneTestResult::Intersecting;
+	}
+}

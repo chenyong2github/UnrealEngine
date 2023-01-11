@@ -1430,8 +1430,6 @@ static void RenderShadowDepthAtlasNanite(
 
 		if (PackedViews.Num() > 0)
 		{
-			Nanite::FRasterState RasterState;
-
 			FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
 			Nanite::CullRasterize(
@@ -1444,7 +1442,6 @@ static void RenderShadowDepthAtlasNanite(
 				SharedContext,
 				CullingContext,
 				RasterContext,
-				RasterState,
 				nullptr,	// InstanceDraws
 				bExtractStats
 			);
@@ -1701,10 +1698,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				
 				FRDGTextureRef RDGShadowMap = GraphBuilder.RegisterExternalTexture( ShadowMap.RenderTargets.DepthTarget, TEXT("ShadowDepthBuffer") );
 
-				// Cubemap shadows reverse the cull mode due to the face matrices (see FShadowDepthPassMeshProcessor::AddMeshBatch)
-				Nanite::FRasterState RasterState;
-				RasterState.bReverseCulling = true;
-
 				const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 
 				FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
@@ -1766,6 +1759,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						Params.PrevViewMatrices = Params.ViewMatrices;
 						Params.HZBTestViewRect = ShadowViewRect;
 						Params.MaxPixelsPerEdgeMultipler = 1.0f;
+
+						// Cubemap shadows reverse the cull mode due to the face matrices (see FShadowDepthPassMeshProcessor::AddMeshBatch)
+						Params.Flags |= NANITE_VIEW_FLAG_REVERSE_CULLING;
+
 						UpdatePackedViewParamsFromPrevShadowState(Params, PrevShadowState);
 
 						PackedViews.Add(Nanite::CreatePackedView(Params));
@@ -1790,7 +1787,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						SharedContext,
 						CullingContext,
 						RasterContext,
-						RasterState,
 						nullptr,
 						bExtractStats
 					);

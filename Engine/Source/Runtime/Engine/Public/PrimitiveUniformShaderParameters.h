@@ -95,7 +95,8 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL			0x2000000
 #define PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE					0x4000000
 #define PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL			0x8000000
-#define PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT                               0x10000000
+#define PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING						0x10000000
+#define PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT                               0x20000000
 
 struct FPrimitiveUniformShaderParametersBuilder
 {
@@ -132,6 +133,7 @@ public:
 		bHasInstanceDrawDistanceCull				= false;
 		bHasWPODisableDistance						= false;
 		bWritesCustomDepthStencil					= false;
+		bReverseCulling								= false;
 		bHoldout                                    = false;
 
 		Parameters.BoundsScale						= 1.0f;
@@ -183,6 +185,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			EvaluateWorldPositionOffset);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInGame);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInEditor);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ReverseCulling);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInReflectionCaptures);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRealTimeSkyCaptures);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInRayTracing);
@@ -450,6 +453,7 @@ public:
 		Parameters.Flags |= bHasInstanceDrawDistanceCull ? PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL : 0u;
 		Parameters.Flags |= bHasWPODisableDistance ? PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE : 0u;
 		Parameters.Flags |= bWritesCustomDepthStencil ? PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL : 0u;
+		Parameters.Flags |= bReverseCulling ? PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING : 0u;
 		Parameters.Flags |= bHoldout ? PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT : 0u;
 		return Parameters;
 	}
@@ -491,6 +495,7 @@ private:
 	uint32 bHasInstanceDrawDistanceCull : 1;
 	uint32 bHasWPODisableDistance : 1;
 	uint32 bWritesCustomDepthStencil : 1;
+	uint32 bReverseCulling: 1;
 	uint32 bHoldout : 1;
 };
 

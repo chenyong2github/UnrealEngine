@@ -32,6 +32,8 @@ struct FPackedNaniteView
 	float3		ViewForward;
 	float 		NearPlane;
 
+	float4		TranslatedGlobalClipPlane; // Not actually used unless project setting is enabled
+
 	float3		MatrixTilePosition;
 	float		Padding1;
 

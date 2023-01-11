@@ -130,6 +130,8 @@ struct FNaniteView
 	float4x4	PrevViewToClip;
 	FLWCMatrix	PrevClipToWorld;
 
+	float4		TranslatedGlobalClipPlane;
+
 	int4		ViewRect;
 	float4		ViewSizeAndInvSize;
 	float4		ClipSpaceScaleOffset;
@@ -661,6 +663,7 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 	NaniteView.PrevViewToClip				= PackedView.PrevViewToClip;
 	NaniteView.PrevClipToWorld				= MakeLWCMatrix(PackedView.MatrixTilePosition, PackedView.PrevClipToRelativeWorld);
 
+	NaniteView.TranslatedGlobalClipPlane	= PackedView.TranslatedGlobalClipPlane;
 
 	NaniteView.ViewRect						= PackedView.ViewRect;
 	NaniteView.ViewSizeAndInvSize			= PackedView.ViewSizeAndInvSize;
@@ -710,6 +713,8 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.PrevTranslatedWorldToClip	= LocalView.PrevTranslatedWorldToClip;
 	NaniteView.PrevViewToClip				= LocalView.PrevViewToClip;
 	NaniteView.PrevClipToWorld				= LocalView.PrevClipToWorld;
+
+	NaniteView.TranslatedGlobalClipPlane	= LocalView.GlobalClippingPlane;
 
 	NaniteView.ViewSizeAndInvSize			= LocalView.ViewSizeAndInvSize;
 	NaniteView.ViewRect						= int4(int2(LocalView.ViewRectMin.xy + 0.5f), int2(LocalView.ViewRectMin.xy + LocalView.ViewSizeAndInvSize.xy + 0.5f));

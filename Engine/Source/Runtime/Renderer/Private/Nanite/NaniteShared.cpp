@@ -158,6 +158,9 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 
 	PackedView.HZBTestViewRect = FIntVector4(Params.HZBTestViewRect.Min.X, Params.HZBTestViewRect.Min.Y, Params.HZBTestViewRect.Max.X, Params.HZBTestViewRect.Max.Y);
 
+	FPlane TranslatedPlane(Params.GlobalClippingPlane.TranslateBy(Params.ViewMatrices.GetPreViewTranslation()));
+	PackedView.TranslatedGlobalClipPlane = FVector4f(TranslatedPlane.X, TranslatedPlane.Y, TranslatedPlane.Z, -TranslatedPlane.W);
+
 	return PackedView;
 
 }
@@ -179,13 +182,14 @@ FPackedView CreatePackedViewFromViewInfo
 	Params.PrevViewMatrices = View.PrevViewInfo.ViewMatrices;
 	Params.ViewRect = View.ViewRect;
 	Params.RasterContextSize = RasterContextSize;
-	Params.Flags = Flags;
+	Params.Flags = Flags | (View.bReverseCulling ? NANITE_VIEW_FLAG_REVERSE_CULLING : 0);
 	Params.StreamingPriorityCategory = StreamingPriorityCategory;
 	Params.MinBoundsRadius = MinBoundsRadius;
 	Params.LODScaleFactor = LODScaleFactor;
 	// Note - it is incorrect to use ViewRect as it is in a different space, but keeping this for backward compatibility reasons with other callers
 	Params.HZBTestViewRect = InHZBTestViewRect ? *InHZBTestViewRect : View.PrevViewInfo.ViewRect;
 	Params.MaxPixelsPerEdgeMultipler = MaxPixelsPerEdgeMultipler;
+	Params.GlobalClippingPlane = View.GlobalClippingPlane;
 	return CreatePackedView(Params);
 }
 

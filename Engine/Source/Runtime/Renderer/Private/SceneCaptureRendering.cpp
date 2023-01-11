@@ -601,12 +601,6 @@ void SetupViewFamilyForSceneCapture(
 	// Initialize frame number
 	ViewFamily.FrameNumber = ViewFamily.Scene->GetFrameNumber();
 
-	// Disable Nanite in planar reflections for now because Nanite doesn't support the global clip plane
-	if (bIsPlanarReflection)
-	{
-		ViewFamily.EngineShowFlags.NaniteMeshes = 0;
-	}
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		const FSceneCaptureViewInfo& SceneCaptureViewInfo = Views[ViewIndex];

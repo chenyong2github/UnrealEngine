@@ -542,7 +542,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
 , RenderData(Component->GetStaticMesh()->GetRenderData())
-, bReverseCulling(Component->bReverseCulling)
 , StaticMesh(Component->GetStaticMesh())
 #if WITH_EDITOR
 , bHasSelectedInstances(false)
@@ -740,6 +739,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.LocalToPrimitive.SetIdentity();
 
 	FilterFlags = EFilterFlags::StaticMesh;
+
+	bReverseCulling = Component->bReverseCulling;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)

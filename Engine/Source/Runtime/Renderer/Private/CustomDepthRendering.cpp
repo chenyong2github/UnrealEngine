@@ -328,7 +328,6 @@ bool FSceneRenderer::RenderCustomDepthPass(
 					CullingConfig
 				);
 
-				Nanite::FRasterState RasterState;
 				Nanite::CullRasterize(
 					GraphBuilder,
 					Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
@@ -339,7 +338,6 @@ bool FSceneRenderer::RenderCustomDepthPass(
 					SharedContext,
 					CullingContext,
 					RasterContext,
-					RasterState,
 					&NaniteDrawLists[ViewIndex]
 				);
 			}

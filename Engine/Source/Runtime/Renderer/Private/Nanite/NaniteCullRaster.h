@@ -195,7 +195,6 @@ void CullRasterize(
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState = FRasterState(),
 	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
 	bool bExtractStats = false
 );
@@ -216,7 +215,6 @@ void CullRasterize(
 	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	const FRasterState& RasterState = FRasterState(),
 	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
 	// VirtualShadowMapArray is the supplier of virtual to physical translation, probably could abstract this a bit better,
 	FVirtualShadowMapArray* VirtualShadowMapArray = nullptr,

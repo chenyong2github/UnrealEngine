@@ -10,6 +10,7 @@
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #include "NaniteWritePixel.ush"
 #include "NaniteTessellation.ush"
+#include "NaniteCullingCommon.ush"
 
 
 #if PIXELSHADER
@@ -135,16 +136,23 @@ uint2 GetVisualizeValues()
 }
 
 // Default cull mode is CW. If this returns true, CCW culling is required
-bool ReverseWindingOrder(FInstanceSceneData InstanceData)
+bool ReverseWindingOrder(FNaniteView NaniteView, FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData)
 {
 	// Negative determinant sign for non uniform scale means
 	// that an odd number of components are negative, so
 	// we need to reverse the triangle winding order.
-	bool bReverseInstanceCull = (InstanceData.DeterminantSign < 0.0f);
-	bool bRasterStateReverseCull = (RenderFlags & NANITE_RENDER_FLAG_REVERSE_CULLING);
+	float DeterminantSign = InstanceData.DeterminantSign;
+	bool bReverseInstanceCull = (DeterminantSign < 0.0f);
+	if (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING)
+	{
+		// reverse culling if the primitive has elected to do so
+		bReverseInstanceCull = !bReverseInstanceCull;
+	}
+
+	bool bViewReverseCull = (NaniteView.Flags & NANITE_VIEW_FLAG_REVERSE_CULLING);
 	
 	// Logical XOR
-	return (bReverseInstanceCull != bRasterStateReverseCull);
+	return (bReverseInstanceCull != bViewReverseCull);
 }
 
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
@@ -178,7 +186,7 @@ int FindNthSetBit( uint2 Mask, int Index )
 	return firstbitlow( WaveBallot( MaskedBitCount( Mask ) == Index ) ) - 1;
 }*/
 
-uint DeduplicateVertIndexes( FInstanceSceneData InstanceData, FCluster Cluster, uint BatchTriCount, uint TriIndex, uint LaneIndex, out uint MyVertIndex, out uint3 VertLaneIndexes )
+uint DeduplicateVertIndexes( FNaniteView NaniteView, FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FCluster Cluster, uint BatchTriCount, uint TriIndex, uint LaneIndex, out uint MyVertIndex, out uint3 VertLaneIndexes )
 {
 	uint3 VertIndexes = 0;
 	uint2 UsedVertMask = 0;
@@ -186,7 +194,7 @@ uint DeduplicateVertIndexes( FInstanceSceneData InstanceData, FCluster Cluster, 
 	if( LaneIndex < BatchTriCount )
 	{
 		VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
-		if (ReverseWindingOrder(InstanceData))
+		if (ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData))
 		{
 			VertIndexes.yz = VertIndexes.zy;
 		}
@@ -293,6 +301,7 @@ void MicropolyRasterize(
 	// Should be all scalar.
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 	const bool bEvaluateWPO = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 
@@ -373,7 +382,7 @@ void MicropolyRasterize(
 
 	uint3 VertLaneIndexes;
 	uint MyVertIndex;
-	uint NumUniqueVerts = DeduplicateVertIndexes( InstanceData, Cluster, TriRange.Num, TriIndex, GroupThreadIndex, MyVertIndex, VertLaneIndexes );
+	uint NumUniqueVerts = DeduplicateVertIndexes( NaniteView, PrimitiveData, InstanceData, Cluster, TriRange.Num, TriIndex, GroupThreadIndex, MyVertIndex, VertLaneIndexes );
 
 	FNaniteTransformedVert Vert;
 	
@@ -492,7 +501,7 @@ void MicropolyRasterize(
 		const uint ThreadIndex = GroupThreadIndex + j;
 		const uint TriIndex = ThreadIndex + TriRange.Start;
 		uint3 VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
-		if (ReverseWindingOrder(InstanceData))
+		if (ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData))
 		{
 			VertIndexes.yz = VertIndexes.zy;
 		}
@@ -595,6 +604,10 @@ struct VSOut
 #if !PIXELSHADER
 	float4 Position								: SV_Position;	 // Reading SV_Position in the pixel shader limits launch rate on some hardware. Interpolate manually instead.
 #endif
+
+#if USE_GLOBAL_CLIP_PLANE && !PIXELSHADER
+	float OutGlobalClipPlaneDistance			: SV_ClipDistance;
+#endif
 };
 
 #if NANITE_MESH_SHADER
@@ -683,6 +696,10 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 
 #if BARYCENTRIC_MODE_INTRINSICS
 	Out.VertexID = VertIndex;
+#endif
+
+#if USE_GLOBAL_CLIP_PLANE && !PIXELSHADER
+	Out.OutGlobalClipPlaneDistance = GetGlobalClipPlaneDistance(NaniteView, PointTranslatedWorld);
 #endif
 
 	return Out;
@@ -802,6 +819,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	// Should be all scalar.
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 #if NANITE_VERTEX_PROGRAMMABLE
@@ -828,7 +846,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	
 	uint3 VertLaneIndexes;
 	uint MyVertIndex;
-	uint NumUniqueVerts = DeduplicateVertIndexes(InstanceData, Cluster, TriRange.Num, TriIndex, GroupThreadID, MyVertIndex, VertLaneIndexes);
+	uint NumUniqueVerts = DeduplicateVertIndexes(NaniteView, PrimitiveData, InstanceData, Cluster, TriRange.Num, TriIndex, GroupThreadID, MyVertIndex, VertLaneIndexes);
 
 	PrimitiveOutput PrimOutput;
 	PrimOutput.VertCount = NumUniqueVerts;
@@ -878,7 +896,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if (GroupThreadID < TriRange.Num)
 	{
 		VertIndexes = ReadTriangleIndices(Cluster, TriRange.Start + GroupThreadID);
-		if (ReverseWindingOrder(InstanceData))
+		if (ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData))
 		{
 			VertIndexes.yz = VertIndexes.zy;
 		}
@@ -1046,7 +1064,7 @@ void HWRasterizeMS(
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleIndex, VIRTUAL_TEXTURE_TARGET);
 	FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
-
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
 
 #if NANITE_VERTEX_PROGRAMMABLE
@@ -1062,12 +1080,12 @@ void HWRasterizeMS(
 	uint NumUniqueVerts;
 
 #if NANITE_VERT_REUSE_BATCH	
-	NumUniqueVerts = DeduplicateVertIndexes(InstanceData, Cluster, TriRange.Num, TriIndex, GroupThreadID, MyVertIndex, VertIndexes);
+	NumUniqueVerts = DeduplicateVertIndexes(NaniteView, PrimitiveData, InstanceData, Cluster, TriRange.Num, TriIndex, GroupThreadID, MyVertIndex, VertIndexes);
 #else
 	if (GroupThreadID < TriRange.Num)
 	{
 		VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
-		if (ReverseWindingOrder(InstanceData))
+		if (ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData))
 		{
 			VertIndexes.yz = VertIndexes.zy;
 		}
@@ -1154,7 +1172,7 @@ VSOut HWRasterizeVS(
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
-
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 #if NANITE_VERTEX_PROGRAMMABLE
@@ -1169,7 +1187,7 @@ VSOut HWRasterizeVS(
 	{
 		const uint TriIndex = TriRange.Start + LocalTriIndex;
 		uint3 VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
-		if (ReverseWindingOrder(InstanceData))
+		if (ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData))
 		{
 			VertIndexes.yz = VertIndexes.zy;
 		}

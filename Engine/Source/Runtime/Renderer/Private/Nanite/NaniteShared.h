@@ -56,6 +56,8 @@ struct FPackedView
 	FVector3f	ViewForward;
 	float		NearPlane;
 
+	FVector4f	TranslatedGlobalClipPlane;
+
 	FVector3f	MatrixTilePosition;
 	uint32		Padding1;
 
@@ -105,6 +107,8 @@ struct FPackedViewParams
 
 	bool bOverrideDrawDistanceOrigin = false;
 	FVector DrawDistanceOrigin = FVector::ZeroVector;
+
+	FPlane GlobalClippingPlane = {0.0f, 0.0f, 0.0f, 0.0f};
 };
 
 FPackedView CreatePackedView(const FPackedViewParams& Params);
@@ -129,11 +133,6 @@ struct FVisualizeResult
 	int32 ModeID;
 	uint8 bCompositeScene : 1;
 	uint8 bSkippedTile    : 1;
-};
-
-struct FRasterState
-{
-	bool bReverseCulling = false;
 };
 
 struct FBinningData

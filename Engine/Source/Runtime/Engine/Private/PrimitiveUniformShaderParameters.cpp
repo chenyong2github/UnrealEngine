@@ -146,6 +146,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	uint32 NaniteImposterIndex = INDEX_NONE;
 	uint32 NaniteFilterFlags = 0u;
 	uint32 NaniteRayTracingDataOffset = INDEX_NONE;
+	bool bReverseCulling = false;
 
 	if (Proxy->IsNaniteMesh())
 	{
@@ -153,6 +154,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		NaniteProxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
 		NaniteFilterFlags = uint32(NaniteProxy->GetFilterFlags());
 		NaniteRayTracingDataOffset = NaniteProxy->GetRayTracingDataOffset();
+		bReverseCulling = NaniteProxy->IsCullingReversedByComponent(); // needed because Nanite doesn't use raster state
 	}
 
 	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
@@ -199,7 +201,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.NaniteFilterFlags(NaniteFilterFlags)
 		.NaniteRayTracingDataOffset(NaniteRayTracingDataOffset)
 		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
-		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor());
+		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor())
+		.ReverseCulling(bReverseCulling);
 
 	FVector2f InstanceDrawDistanceMinMax;
 	if (Proxy->GetInstanceDrawDistanceMinMax(InstanceDrawDistanceMinMax))
