@@ -271,6 +271,7 @@ void FLogFilteringAsyncTask::DoWork()
 	bool bCanceled = false;
 	FilteredMessages.Reset();
 
+#if !WITH_EDITOR
 	if (Filter.IsFilterSetByText())
 	{
 		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d] by Text (\"%s\")"), StartIndex, EndIndex, *Filter.GetFilterText().ToString());
@@ -279,6 +280,7 @@ void FLogFilteringAsyncTask::DoWork()
 	{
 		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d]"), StartIndex, EndIndex);
 	}
+#endif // !WITH_EDITOR
 
 	for (int32 Index = StartIndex; Index < EndIndex && !bCanceled; ++Index)
 	{
@@ -295,11 +297,15 @@ void FLogFilteringAsyncTask::DoWork()
 	if (bCanceled)
 	{
 		FilteredMessages.Reset();
+#if !WITH_EDITOR
 		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork CANCELED"));
+#endif // !WITH_EDITOR
 	}
 	else
 	{
+#if !WITH_EDITOR
 		UE_LOG(TraceInsights, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork DONE (%d filtered messages)"), FilteredMessages.Num());
+#endif // !WITH_EDITOR
 	}
 }
 
