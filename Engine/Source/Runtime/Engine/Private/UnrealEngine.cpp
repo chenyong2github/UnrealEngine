@@ -2478,7 +2478,11 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 	bool bTimeWasManipulatedDebug = bTimeWasManipulated;	//Just used for logging of previous frame
 
 															// Figure out whether we want to use real or fixed time step.
+#if WITH_FIXED_TIME_STEP_SUPPORT
 	const bool bUseFixedTimeStep = FApp::IsBenchmarking() || FApp::UseFixedTimeStep();
+#else
+	const bool bUseFixedTimeStep = false;
+#endif
 	static bool bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 	// Updates logical last time to match logical current time from last tick

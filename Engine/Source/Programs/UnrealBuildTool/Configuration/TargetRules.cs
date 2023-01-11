@@ -1179,6 +1179,12 @@ namespace UnrealBuildTool
 		public bool bWithDirectXMath = false;
 
 		/// <summary>
+		/// Whether to enable the support for FixedTimeStep in the engine
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithFixedTimeStepSupport = true;
+
+		/// <summary>
 		/// Whether to turn on logging for test/shipping builds.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -3056,6 +3062,11 @@ namespace UnrealBuildTool
 		public bool bWithDirectXMath
 		{
 			get { return Inner.bWithDirectXMath; }
+		}
+
+		public bool bWithFixedTimeStepSupport
+		{
+			get { return Inner.bWithFixedTimeStepSupport; }
 		}
 
 		public bool bUseLoggingInShipping

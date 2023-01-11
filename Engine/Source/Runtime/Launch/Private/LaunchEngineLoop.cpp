@@ -2414,12 +2414,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	FApp::SetBenchmarking(false);
 #endif // !UE_BUILD_SHIPPING
 
+#if WITH_FIXED_TIME_STEP_SUPPORT
 	// "-Deterministic" is a shortcut for "-UseFixedTimeStep -FixedSeed"
 	bool bDeterministic = FParse::Param(FCommandLine::Get(), TEXT("Deterministic"));
 
 	FApp::SetUseFixedTimeStep(bDeterministic || FParse::Param(FCommandLine::Get(), TEXT("UseFixedTimeStep")));
 
 	FApp::bUseFixedSeed = bDeterministic || FApp::IsBenchmarking() || FParse::Param(FCommandLine::Get(), TEXT("FixedSeed"));
+#endif
 
 	// Initialize random number generator.
 	{

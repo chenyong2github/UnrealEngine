@@ -495,7 +495,11 @@ public:
 	 */
 	static bool UseFixedTimeStep()
 	{
+#if WITH_FIXED_TIME_STEP_SUPPORT
 		return bUseFixedTimeStep;
+#else
+		return false;
+#endif
 	}
 
 	/**

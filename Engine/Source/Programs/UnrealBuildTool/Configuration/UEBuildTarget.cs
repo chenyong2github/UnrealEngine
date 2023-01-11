@@ -4117,6 +4117,15 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_PERFCOUNTERS=0");
 			}
 
+			if (Rules.bWithFixedTimeStepSupport)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_FIXED_TIME_STEP_SUPPORT=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_FIXED_TIME_STEP_SUPPORT=0");
+			}
+
 			if (Rules.bUseLoggingInShipping)
 			{
 				GlobalCompileEnvironment.Definitions.Add("USE_LOGGING_IN_SHIPPING=1");
