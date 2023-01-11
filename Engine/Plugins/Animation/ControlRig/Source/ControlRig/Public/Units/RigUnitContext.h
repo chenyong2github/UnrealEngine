@@ -7,8 +7,6 @@
 #include "Rigs/RigCurveContainer.h"
 #include "AnimationDataSource.h"
 #include "Animation/AttributesRuntime.h"
-#include "GameFramework/Actor.h"
-#include "Components/SceneComponent.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigUnitContext.generated.h"
 
@@ -49,10 +47,6 @@ struct FRigUnitContext
 		, DataSourceRegistry(nullptr)
 		, InteractionType((uint8)EControlRigInteractionType::None)
 		, ElementsBeingInteracted()
-		, ToWorldSpaceTransform(FTransform::Identity)
-		, OwningComponent(nullptr)
-		, OwningActor(nullptr)
-		, World(nullptr)
 	{
 	}
 
@@ -71,18 +65,6 @@ struct FRigUnitContext
 	/** The elements being interacted with. */
 	TArray<FRigElementKey> ElementsBeingInteracted;
 
-	/** The current transform going from rig (global) space to world space */
-	FTransform ToWorldSpaceTransform;
-
-	/** The current component this rig is owned by */
-	USceneComponent* OwningComponent;
-
-	/** The current actor this rig is owned by */
-	const AActor* OwningActor;
-
-	/** The world this rig is running in */
-	const UWorld* World;
-
 	/**
 	 * Returns a given data source and cast it to the expected class.
 	 *
@@ -97,54 +79,6 @@ struct FRigUnitContext
 			return nullptr;
 		}
 		return DataSourceRegistry->RequestSource<T>(InName);
-	}
-
-	/**
-	 * Converts a transform from rig (global) space to world space
-	 */
-	FTransform ToWorldSpace(const FTransform& InTransform) const
-	{
-		return InTransform * ToWorldSpaceTransform;
-	}
-
-	/**
-	 * Converts a transform from world space to rig (global) space
-	 */
-	FTransform ToRigSpace(const FTransform& InTransform) const
-	{
-		return InTransform.GetRelativeTransform(ToWorldSpaceTransform);
-	}
-
-	/**
-	 * Converts a location from rig (global) space to world space
-	 */
-	FVector ToWorldSpace(const FVector& InLocation) const
-	{
-		return ToWorldSpaceTransform.TransformPosition(InLocation);
-	}
-
-	/**
-	 * Converts a location from world space to rig (global) space
-	 */
-	FVector ToRigSpace(const FVector& InLocation) const
-	{
-		return ToWorldSpaceTransform.InverseTransformPosition(InLocation);
-	}
-
-	/**
-	 * Converts a rotation from rig (global) space to world space
-	 */
-	FQuat ToWorldSpace(const FQuat& InRotation) const
-	{
-		return ToWorldSpaceTransform.TransformRotation(InRotation);
-	}
-
-	/**
-	 * Converts a rotation from world space to rig (global) space
-	 */
-	FQuat ToRigSpace(const FQuat& InRotation) const
-	{
-		return ToWorldSpaceTransform.InverseTransformRotation(InRotation);
 	}
 
 	/**

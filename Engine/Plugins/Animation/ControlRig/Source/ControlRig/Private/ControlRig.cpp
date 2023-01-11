@@ -391,67 +391,34 @@ bool UControlRig::Execute(const FName& InEventName)
 	// disable any controller access outside of the construction event
 	FRigHierarchyEnableControllerBracket DisableHierarchyController(PublicContext.Hierarchy, bIsConstructionEvent);
 
-	// setup the context with further fields
-	Context.ToWorldSpaceTransform = FTransform::Identity;
-	Context.OwningComponent = nullptr;
-	Context.OwningActor = nullptr;
-	Context.World = nullptr;
-	
-	if (!OuterSceneComponent.IsValid())
-	{
-		USceneComponent* SceneComponentFromRegistry = Context.DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
-		if (SceneComponentFromRegistry)
-		{
-			OuterSceneComponent = SceneComponentFromRegistry;
-		}
-		else
-		{
-			UObject* Parent = this;
-			while (Parent)
-			{
-				Parent = Parent->GetOuter();
-				if (Parent)
-				{
-					if (USceneComponent* SceneComponent = Cast<USceneComponent>(Parent))
-					{
-						OuterSceneComponent = SceneComponent;
-						break;
-					}
-				}
-			}
-		}
-	}
-
 	// given the outer scene component configure
 	// the transform lookups to map transforms from rig space to world space
-	if (OuterSceneComponent.IsValid())
+	if (USceneComponent* SceneComponent = GetOwningSceneComponent())
 	{
-		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
-		Context.OwningComponent = OuterSceneComponent.Get();
-		Context.OwningActor = Context.OwningComponent->GetOwner();
-		Context.World = Context.OwningComponent->GetWorld();
+		PublicContext.SetOwningComponent(SceneComponent);
 	}
 	else
 	{
+		PublicContext.SetOwningComponent(nullptr);
+		
 		if (ObjectBinding.IsValid())
 		{
 			AActor* HostingActor = ObjectBinding->GetHostingActor();
 			if (HostingActor)
 			{
-				Context.OwningActor = HostingActor;
-				Context.World = HostingActor->GetWorld();
+				PublicContext.SetOwningActor(HostingActor);
 			}
 			else if (UObject* Owner = ObjectBinding->GetBoundObject())
 			{
-				Context.World = Owner->GetWorld();
+				PublicContext.SetWorld(Owner->GetWorld());
 			}
 		}
 
-		if (Context.World == nullptr)
+		if (PublicContext.GetWorld() == nullptr)
 		{
 			if (UObject* Outer = GetOuter())
 			{
-				Context.World = Outer->GetWorld();
+				PublicContext.SetWorld(Outer->GetWorld());
 			}
 		}
 	}
@@ -459,7 +426,7 @@ bool UControlRig::Execute(const FName& InEventName)
 	// if we have any referenced elements dirty them
 	if(GetHierarchy())
 	{
-		GetHierarchy()->UpdateReferences(&Context);
+		GetHierarchy()->UpdateReferences(&PublicContext);
 	}
 
 	// guard against recursion
@@ -2536,7 +2503,30 @@ void UControlRig::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstru
 	OutConstructClasses.Add(FTopLevelAssetPath(URigHierarchy::StaticClass()));
 	OutConstructClasses.Add(FTopLevelAssetPath(UAnimationDataSourceRegistry::StaticClass()));
 }
+
 #endif
+
+USceneComponent* UControlRig::GetOwningSceneComponent()
+{
+	if(OuterSceneComponent == nullptr)
+	{
+		FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
+		const FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicDataSafe<FControlRigExecuteContext>();
+		const FRigUnitContext& Context = PublicContext.UnitContext;
+
+		USceneComponent* SceneComponentFromRegistry = Context.DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
+		if (SceneComponentFromRegistry)
+		{
+			OuterSceneComponent = SceneComponentFromRegistry;
+		}
+
+		if(OuterSceneComponent == nullptr)
+		{
+			OuterSceneComponent = Super::GetOwningSceneComponent();
+		}
+	}
+	return OuterSceneComponent.Get();
+}
 
 void UControlRig::PostInitInstance(URigVMHost* InCDO)
 {

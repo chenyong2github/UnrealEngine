@@ -91,7 +91,7 @@ const TArray<FRigVMTemplateArgument::ETypeCategory>& FRigDispatch_AnimAttributeB
 static uint8* GetAnimAttributeValue(
 	bool bAddIfNotFound,
 	UScriptStruct* InAttributeScriptStruct,
-	const FRigUnitContext& Context,
+	const FControlRigExecuteContext& Context,
 	const FName& Name,
 	const FName& BoneName,
 	FName& CachedBoneName,
@@ -107,12 +107,12 @@ static uint8* GetAnimAttributeValue(
 		return nullptr;
 	}
 
-	if (!Context.AnimAttributeContainer)
+	if (!Context.UnitContext.AnimAttributeContainer)
 	{
 		return nullptr;
 	}
 	
-	const USkeletalMeshComponent* OwningComponent = Cast<USkeletalMeshComponent>(Context.OwningComponent);
+	const USkeletalMeshComponent* OwningComponent = Cast<USkeletalMeshComponent>(Context.GetOwningComponent());
 
 	if (!OwningComponent ||
 		!OwningComponent->GetSkeletalMeshAsset())
@@ -140,8 +140,8 @@ static uint8* GetAnimAttributeValue(
 	{
 		const UE::Anim::FAttributeId Id = {Name, FCompactPoseBoneIndex(CachedBoneIndex)} ;
 		uint8* Attribute = bAddIfNotFound ?
-			Context.AnimAttributeContainer->FindOrAdd(InAttributeScriptStruct, Id) :
-			Context.AnimAttributeContainer->Find(InAttributeScriptStruct, Id);
+			Context.UnitContext.AnimAttributeContainer->FindOrAdd(InAttributeScriptStruct, Id) :
+			Context.UnitContext.AnimAttributeContainer->Find(InAttributeScriptStruct, Id);
 		
 		if (Attribute)
 		{
@@ -180,7 +180,7 @@ void FRigDispatch_GetAnimAttribute::GetAnimAttributeDispatch(FRigVMExtendedExecu
 	{
 		UScriptStruct* ScriptStruct = StructProperty->Struct;
 		bool Registered = true;
-		const FRigUnitContext& Context = GetRigUnitContext(InContext);
+		const FControlRigExecuteContext& Context = InContext.GetPublicDataSafe<FControlRigExecuteContext>();
 
 #if WITH_EDITOR
 		{
@@ -242,7 +242,7 @@ void FRigDispatch_SetAnimAttribute::SetAnimAttributeDispatch(FRigVMExtendedExecu
 	{
 		UScriptStruct* ScriptStruct = StructProperty->Struct;
 		bool Registered = true;
-		const FRigUnitContext& Context = GetRigUnitContext(InContext);
+		const FControlRigExecuteContext& Context = InContext.GetPublicDataSafe<FControlRigExecuteContext>();
 
 #if WITH_EDITOR
 		{

@@ -201,6 +201,8 @@ public:
 	const FRigVMDrawContainer& GetDrawContainer() const { return DrawContainer; };
 	FRigVMDrawContainer& GetDrawContainer() { return DrawContainer; };
 
+	virtual USceneComponent* GetOwningSceneComponent(); 
+
 	virtual void PostInitInstanceIfRequired() {};
 	void SwapVMToNativizedIfRequired(UClass* InNativizedClass = nullptr);
 	static bool AreNativizedVMsDisabled() ;

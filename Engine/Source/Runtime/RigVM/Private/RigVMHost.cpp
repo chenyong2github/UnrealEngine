@@ -419,6 +419,7 @@ bool URigVMHost::Execute(const FName& InEventName)
 	PublicContext.SetDeltaTime(DeltaTime);
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 	PublicContext.SetFramesPerSecond(GetCurrentFramesPerSecond());
+	PublicContext.SetOwningComponent(GetOwningSceneComponent());
 
 	if (VM)
 	{
@@ -711,6 +712,11 @@ URigVM* URigVMHost::GetVM()
 		check(VM);
 	}
 	return VM;
+}
+
+USceneComponent* URigVMHost::GetOwningSceneComponent()
+{
+	return GetTypedOuter<USceneComponent>();
 }
 
 void URigVMHost::SwapVMToNativizedIfRequired(UClass* InNativizedClass)

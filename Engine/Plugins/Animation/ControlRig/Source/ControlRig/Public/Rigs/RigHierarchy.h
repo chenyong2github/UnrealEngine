@@ -174,7 +174,7 @@ public:
 	/**
 	 * Update all elements that depend on external references
 	 */
-	void UpdateReferences(const FRigUnitContext* InContext);
+	void UpdateReferences(const FRigVMExecuteContext* InContext);
 
 	/**
 	 * Resets the current pose of a filtered list of elements to the initial / ref pose.
@@ -3868,7 +3868,7 @@ private:
 	
 	mutable TMap<uint32, FRigElementKeyCollection> KeyCollectionCache;
 
-	FTransform GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial);
+	FTransform GetWorldTransformForReference(const FRigVMExecuteContext* InContext, const FRigElementKey& InKey, bool bInitial);
 	
 	static float GetWeightForLerp(const float WeightA, const float WeightB)
 	{

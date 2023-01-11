@@ -615,7 +615,7 @@ void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bIn
 	EnsureCacheValidity();
 }
 
-void URigHierarchy::UpdateReferences(const FRigUnitContext* InContext)
+void URigHierarchy::UpdateReferences(const FRigVMExecuteContext* InContext)
 {
 	check(InContext);
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
@@ -627,8 +627,8 @@ void URigHierarchy::UpdateReferences(const FRigUnitContext* InContext)
 			const FTransform InitialWorldTransform = Reference->GetReferenceWorldTransform(InContext, true);
 			const FTransform CurrentWorldTransform = Reference->GetReferenceWorldTransform(InContext, false);
 
-			const FTransform InitialGlobalTransform = InitialWorldTransform.GetRelativeTransform(InContext->ToWorldSpaceTransform);
-			const FTransform CurrentGlobalTransform = CurrentWorldTransform.GetRelativeTransform(InContext->ToWorldSpaceTransform);
+			const FTransform InitialGlobalTransform = InitialWorldTransform.GetRelativeTransform(InContext->GetToWorldSpaceTransform());
+			const FTransform CurrentGlobalTransform = CurrentWorldTransform.GetRelativeTransform(InContext->GetToWorldSpaceTransform());
 
 			const FTransform InitialParentTransform = GetParentTransform(Reference, ERigTransformType::InitialGlobal); 
 			const FTransform CurrentParentTransform = GetParentTransform(Reference, ERigTransformType::CurrentGlobal);
@@ -5246,7 +5246,7 @@ bool URigHierarchy::ShouldBeGrouped(const FRigControlElement* InControlElement) 
 	return false;
 }
 
-FTransform URigHierarchy::GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial)
+FTransform URigHierarchy::GetWorldTransformForReference(const FRigVMExecuteContext* InContext, const FRigElementKey& InKey, bool bInitial)
 {
 	if(const USceneComponent* OuterSceneComponent = GetTypedOuter<USceneComponent>())
 	{

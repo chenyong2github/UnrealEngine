@@ -16,7 +16,7 @@ FRigUnit_SphereTraceWorld_Execute()
 	HitLocation = FVector::ZeroVector;
 	HitNormal = FVector(0.f, 0.f, 1.f);
 
-	if(ExecuteContext.UnitContext.World == nullptr)
+	if(ExecuteContext.GetWorld() == nullptr)
 	{
 		return;
 	}
@@ -24,11 +24,11 @@ FRigUnit_SphereTraceWorld_Execute()
 	FCollisionQueryParams QueryParams;
 	QueryParams.bTraceComplex = true;
 
-	if (ExecuteContext.UnitContext.OwningActor)
+	if (ExecuteContext.GetOwningActor())
 	{
-		QueryParams.AddIgnoredActor(ExecuteContext.UnitContext.OwningActor);
+		QueryParams.AddIgnoredActor(ExecuteContext.GetOwningActor());
 	}
-	else if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ExecuteContext.UnitContext.OwningComponent))
+	else if (const UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ExecuteContext.GetOwningComponent()))
 	{
 		QueryParams.AddIgnoredComponent(PrimitiveComponent);
 	}
@@ -39,13 +39,13 @@ FRigUnit_SphereTraceWorld_Execute()
 	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(Radius);
 
 	FHitResult HitResult;
-	bHit = ExecuteContext.UnitContext.World->SweepSingleByChannel(HitResult, ExecuteContext.UnitContext.ToWorldSpace(Start), ExecuteContext.UnitContext.ToWorldSpace(End), 
+	bHit = ExecuteContext.GetWorld()->SweepSingleByChannel(HitResult, ExecuteContext.ToWorldSpace(Start), ExecuteContext.ToWorldSpace(End), 
 			FQuat::Identity, Channel, CollisionShape, QueryParams, ResponseParams);
 
 	if (bHit)
 	{
-		HitLocation = ExecuteContext.UnitContext.ToRigSpace(HitResult.ImpactPoint);
-		HitNormal = ExecuteContext.UnitContext.ToWorldSpaceTransform.InverseTransformVector(HitResult.ImpactNormal);
+		HitLocation = ExecuteContext.ToVMSpace(HitResult.ImpactPoint);
+		HitNormal = ExecuteContext.GetToWorldSpaceTransform().InverseTransformVector(HitResult.ImpactNormal);
 	}
 }
 
@@ -67,7 +67,7 @@ FRigUnit_SphereTraceByTraceChannel_Execute()
 	HitLocation = FVector::ZeroVector;
 	HitNormal = FVector(0.f, 0.f, 1.f);
 
-	if (ExecuteContext.UnitContext.World == nullptr)
+	if (ExecuteContext.GetWorld() == nullptr)
 	{
 		return;
 	}
@@ -78,22 +78,22 @@ FRigUnit_SphereTraceByTraceChannel_Execute()
 	FCollisionQueryParams QueryParams;
 	QueryParams.bTraceComplex = true;
 
-	if (ExecuteContext.UnitContext.OwningActor)
+	if (ExecuteContext.GetOwningActor())
 	{
-		QueryParams.AddIgnoredActor(ExecuteContext.UnitContext.OwningActor);
+		QueryParams.AddIgnoredActor(ExecuteContext.GetOwningActor());
 	}
-	else if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ExecuteContext.UnitContext.OwningComponent))
+	else if (const UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ExecuteContext.GetOwningComponent()))
 	{
 		QueryParams.AddIgnoredComponent(PrimitiveComponent);
 	}
 
 	FHitResult HitResult;
-	bHit = ExecuteContext.UnitContext.World->SweepSingleByChannel(HitResult, ExecuteContext.UnitContext.ToWorldSpace(Start), ExecuteContext.UnitContext.ToWorldSpace(End), FQuat::Identity, CollisionChannel, CollisionShape, QueryParams);
+	bHit = ExecuteContext.GetWorld()->SweepSingleByChannel(HitResult, ExecuteContext.ToWorldSpace(Start), ExecuteContext.ToWorldSpace(End), FQuat::Identity, CollisionChannel, CollisionShape, QueryParams);
 	
 	if (bHit)
 	{
-		HitLocation = ExecuteContext.UnitContext.ToRigSpace(HitResult.ImpactPoint);
-		HitNormal = ExecuteContext.UnitContext.ToWorldSpaceTransform.InverseTransformVector(HitResult.ImpactNormal);
+		HitLocation = ExecuteContext.ToVMSpace(HitResult.ImpactPoint);
+		HitNormal = ExecuteContext.GetToWorldSpaceTransform().InverseTransformVector(HitResult.ImpactNormal);
 	}
 }
 
@@ -105,7 +105,7 @@ FRigUnit_SphereTraceByObjectTypes_Execute()
 	HitLocation = FVector::ZeroVector;
 	HitNormal = FVector(0.f, 0.f, 1.f);
 
-	if (ExecuteContext.UnitContext.World == nullptr)
+	if (ExecuteContext.GetWorld() == nullptr)
 	{
 		return;
 	}
@@ -133,22 +133,22 @@ FRigUnit_SphereTraceByObjectTypes_Execute()
 	FCollisionQueryParams QueryParams;
 	QueryParams.bTraceComplex = true;
 
-	if (ExecuteContext.UnitContext.OwningActor)
+	if (ExecuteContext.GetOwningActor())
 	{
-		QueryParams.AddIgnoredActor(ExecuteContext.UnitContext.OwningActor);
+		QueryParams.AddIgnoredActor(ExecuteContext.GetOwningActor());
 	}
-	else if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ExecuteContext.UnitContext.OwningComponent))
+	else if (const UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(ExecuteContext.GetOwningComponent()))
 	{
 		QueryParams.AddIgnoredComponent(PrimitiveComponent);
 	} 
 
 	FHitResult HitResult;
-	bHit = ExecuteContext.UnitContext.World->SweepSingleByObjectType(HitResult, ExecuteContext.UnitContext.ToWorldSpace(Start), ExecuteContext.UnitContext.ToWorldSpace(End), FQuat::Identity, ObjectParams, CollisionShape, QueryParams);
+	bHit = ExecuteContext.GetWorld()->SweepSingleByObjectType(HitResult, ExecuteContext.ToWorldSpace(Start), ExecuteContext.ToWorldSpace(End), FQuat::Identity, ObjectParams, CollisionShape, QueryParams);
 
 	if (bHit)
 	{
-		HitLocation = ExecuteContext.UnitContext.ToRigSpace(HitResult.ImpactPoint);
-		HitNormal = ExecuteContext.UnitContext.ToWorldSpaceTransform.InverseTransformVector(HitResult.ImpactNormal);
+		HitLocation = ExecuteContext.ToVMSpace(HitResult.ImpactPoint);
+		HitNormal = ExecuteContext.GetToWorldSpaceTransform().InverseTransformVector(HitResult.ImpactNormal);
 	}
 }
 

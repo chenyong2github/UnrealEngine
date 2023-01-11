@@ -8,35 +8,35 @@
 FRigUnit_ToWorldSpace_Transform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    World = ExecuteContext.UnitContext.ToWorldSpace(Value);
+    World = ExecuteContext.ToWorldSpace(Value);
 }
 
 FRigUnit_ToRigSpace_Transform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    Global = ExecuteContext.UnitContext.ToRigSpace(Value);
+    Global = ExecuteContext.ToVMSpace(Value);
 }
 
 FRigUnit_ToWorldSpace_Location_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    World = ExecuteContext.UnitContext.ToWorldSpace(Value);
+    World = ExecuteContext.ToWorldSpace(Value);
 }
 
 FRigUnit_ToRigSpace_Location_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    Global = ExecuteContext.UnitContext.ToRigSpace(Value);
+    Global = ExecuteContext.ToVMSpace(Value);
 }
 
 FRigUnit_ToWorldSpace_Rotation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    World = ExecuteContext.UnitContext.ToWorldSpace(Value);
+    World = ExecuteContext.ToWorldSpace(Value);
 }
 
 FRigUnit_ToRigSpace_Rotation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    Global = ExecuteContext.UnitContext.ToRigSpace(Value);
+    Global = ExecuteContext.ToVMSpace(Value);
 }

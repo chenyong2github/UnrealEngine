@@ -3,7 +3,7 @@
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchy.h"
 #include "Rigs/RigControlHierarchy.h"
-#include "Units/RigUnitContext.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 #include "ControlRigObjectVersion.h"
 #include "ControlRigGizmoLibrary.h"
 #include "AnimationCoreLibrary.h"
@@ -1331,7 +1331,7 @@ void FRigReferenceElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement*
 	GetWorldTransformDelegate = Source->GetWorldTransformDelegate;
 }
 
-FTransform FRigReferenceElement::GetReferenceWorldTransform(const FRigUnitContext* InContext, bool bInitial) const
+FTransform FRigReferenceElement::GetReferenceWorldTransform(const FRigVMExecuteContext* InContext, bool bInitial) const
 {
 	if(GetWorldTransformDelegate.IsBound())
 	{

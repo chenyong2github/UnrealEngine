@@ -4,6 +4,35 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMExecuteContext)
 
+void FRigVMExecuteContext::SetOwningComponent(const USceneComponent* InOwningComponent)
+{
+	OwningComponent = InOwningComponent;
+	OwningActor = nullptr;
+	World = nullptr;
+	ToWorldSpaceTransform = FTransform::Identity;
+	
+	if(OwningComponent)
+	{
+		ToWorldSpaceTransform = OwningComponent->GetComponentToWorld();
+		SetOwningActor(OwningComponent->GetOwner());
+	}
+}
+
+void FRigVMExecuteContext::SetOwningActor(const AActor* InActor)
+{
+	OwningActor = InActor;
+	World = nullptr;
+	if(OwningActor)
+	{
+		World = OwningActor->GetWorld();
+	}
+}
+
+void FRigVMExecuteContext::SetWorld(const UWorld* InWorld)
+{
+	World = InWorld;
+}
+
 bool FRigVMExecuteContext::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
 	static const FName ControlRigExecuteContextName("ControlRigExecuteContext");

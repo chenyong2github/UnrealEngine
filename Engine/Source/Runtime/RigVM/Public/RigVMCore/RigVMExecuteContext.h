@@ -25,6 +25,8 @@
 #include "RigVMLog.h"
 #include "RigVMDrawInterface.h"
 #include "RigVMDrawContainer.h"
+#include "GameFramework/Actor.h"
+#include "Components/SceneComponent.h"
 
 #include "RigVMExecuteContext.generated.h"
 
@@ -237,6 +239,10 @@ struct RIGVM_API FRigVMExecuteContext
 #endif
 		, DrawInterfacePtr(nullptr)
 		, DrawContainerPtr(nullptr)
+		, ToWorldSpaceTransform(FTransform::Identity)
+		, OwningComponent(nullptr)
+		, OwningActor(nullptr)
+		, World(nullptr)
 	{
 	}
 
@@ -288,6 +294,74 @@ struct RIGVM_API FRigVMExecuteContext
 
 	double GetFramesPerSecond() const { return FramesPerSecond; } 
 	void SetFramesPerSecond(double InFramesPerSecond) { FramesPerSecond = InFramesPerSecond; }
+
+	/** The current transform going from rig (global) space to world space */
+	const FTransform& GetToWorldSpaceTransform() const { return ToWorldSpaceTransform; };
+
+	/** The current component this VM is owned by */
+	const USceneComponent* GetOwningComponent() const { return OwningComponent; }
+
+	/** The current actor this VM is owned by */
+	const AActor* GetOwningActor() const { return OwningActor; }
+
+	/** The world this VM is running in */
+	const UWorld* GetWorld() const { return World; }
+
+	void SetOwningComponent(const USceneComponent* InOwningComponent);
+
+	void SetOwningActor(const AActor* InActor);
+
+	void SetWorld(const UWorld* InWorld);
+
+	void SetToWorldSpaceTransform(const FTransform& InToWorldSpaceTransform) { ToWorldSpaceTransform = InToWorldSpaceTransform; }
+
+	/**
+	 * Converts a transform from VM (global) space to world space
+	 */
+	FTransform ToWorldSpace(const FTransform& InTransform) const
+	{
+		return InTransform * ToWorldSpaceTransform;
+	}
+
+	/**
+	 * Converts a transform from world space to VM (global) space
+	 */
+	FTransform ToVMSpace(const FTransform& InTransform) const
+	{
+		return InTransform.GetRelativeTransform(ToWorldSpaceTransform);
+	}
+
+	/**
+	 * Converts a location from VM (global) space to world space
+	 */
+	FVector ToWorldSpace(const FVector& InLocation) const
+	{
+		return ToWorldSpaceTransform.TransformPosition(InLocation);
+	}
+
+	/**
+	 * Converts a location from world space to VM (global) space
+	 */
+	FVector ToVMSpace(const FVector& InLocation) const
+	{
+		return ToWorldSpaceTransform.InverseTransformPosition(InLocation);
+	}
+
+	/**
+	 * Converts a rotation from VM (global) space to world space
+	 */
+	FQuat ToWorldSpace(const FQuat& InRotation) const
+	{
+		return ToWorldSpaceTransform.TransformRotation(InRotation);
+	}
+
+	/**
+	 * Converts a rotation from world space to VM (global) space
+	 */
+	FQuat ToVMSpace(const FQuat& InRotation) const
+	{
+		return ToWorldSpaceTransform.InverseTransformRotation(InRotation);
+	}
 	
 	FRigVMNameCache* GetNameCache() const { return NameCache; }
 
@@ -354,6 +428,19 @@ protected:
 #endif
 	FRigVMDrawInterface* DrawInterfacePtr;
 	FRigVMDrawContainer* DrawContainerPtr;
+
+	/** The current transform going from rig (global) space to world space */
+	FTransform ToWorldSpaceTransform;
+
+	/** The current component this VM is owned by */
+	const USceneComponent* OwningComponent;
+
+	/** The current actor this VM is owned by */
+	const AActor* OwningActor;
+
+	/** The world this VM is running in */
+	const UWorld* World;
+
 
 #if UE_RIGVM_DEBUG_EXECUTION
 	FString DebugMemoryString;
