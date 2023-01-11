@@ -4,8 +4,9 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 #include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Input/SComboBox.h"
 
-class SEditableTextBox;
+class SEditableText;
 class STableViewBase;
 class STextBlock;
 template <typename ItemType> class SListView;

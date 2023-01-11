@@ -16,6 +16,7 @@
 #include "Styling/StarshipCoreStyle.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/App.h"
@@ -26,6 +27,8 @@
 #include "Internationalization/Regex.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
+#include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlReview"
 
