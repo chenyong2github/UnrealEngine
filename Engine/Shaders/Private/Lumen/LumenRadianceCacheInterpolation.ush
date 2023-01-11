@@ -237,6 +237,7 @@ float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint Pro
 	float3 ProbeWorldPosition = GetProbeWorldPosition(ProbeCoord, ProbeClipmapIndex, ProbeIndex);
 
 	float3 ReprojectedDirection = WorldSpaceDirection;
+	float CorrectionFactor = 1.0f;
 
 #define SIMPLE_SPHERE_PARALLAX 1
 #define TRACE_THROUGH_PROBE_DEPTHS_REFERENCE 0
@@ -244,8 +245,12 @@ float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint Pro
 #if SIMPLE_SPHERE_PARALLAX
 
 	float ReprojectionRadius = ReprojectionRadiusScale * ProbeTMin;
-	float3 IntersectionPosition = WorldSpacePosition + WorldSpaceDirection * RayIntersectSphere(WorldSpacePosition, WorldSpaceDirection, float4(ProbeWorldPosition, ReprojectionRadius)).y;
+	float T = RayIntersectSphere(WorldSpacePosition, WorldSpaceDirection, float4(ProbeWorldPosition, ReprojectionRadius)).y;
+	float3 IntersectionPosition = WorldSpacePosition + WorldSpaceDirection * T;
 	ReprojectedDirection = IntersectionPosition - ProbeWorldPosition;
+	// Cancel out the attenuation effect when moving towards/away from a probe texel to mitigate the grid like pattern
+	// CorrectionFactor = T^2 / R^2 / dot(normalize(ReprojectedDirection), WorldSpaceDirection)
+	CorrectionFactor = T * T / (ReprojectionRadius * dot(ReprojectedDirection, WorldSpaceDirection));
 
 	// Depth test the parallax corrected direction, if it's distant lighting then we can skip the parallax correction and the bias that comes with it without leaking
 	// Currently disabled, needs more work
@@ -292,7 +297,7 @@ float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint Pro
 
 #endif
 
-	return SampleRadianceCacheProbe(ProbeIndex, ReprojectedDirection, MipLevel);
+	return SampleRadianceCacheProbe(ProbeIndex, ReprojectedDirection, MipLevel) * CorrectionFactor;
 }
 
 float3 SampleRadianceCacheInterpolated(FRadianceCacheCoverage Coverage, float3 WorldSpacePosition, float3 WorldSpaceDirection, float ConeHalfAngle)
