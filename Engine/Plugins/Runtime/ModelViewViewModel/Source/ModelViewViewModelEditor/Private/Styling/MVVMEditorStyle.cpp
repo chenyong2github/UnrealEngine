@@ -38,10 +38,29 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 
 	Set("BlueprintView.TabIcon", new IMAGE_BRUSH_SVG("Slate/ViewModel", Icon16x16));
 
-	Set("BindingView.ManageViewModels", new IMAGE_BRUSH_SVG("Slate/ViewModel", Icon16x16));
 	Set("BindingView.AddBinding", new IMAGE_BRUSH_SVG("Slate/ViewModel_AddBinding", Icon16x16));
 	Set("BindingView.Background", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 0.0f, FStyleColors::Panel, 4.0f));
 	Set("BindingView.ViewModelWarning", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover, 1.0f));
+	Set("BindingView.WidgetRow", FTableRowStyle(FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+		.SetEvenRowBackgroundBrush(*FAppStyle::Get().GetBrush("Brushes.Header"))
+		.SetOddRowBackgroundBrush(*FAppStyle::Get().GetBrush("Brushes.Header"))
+		.SetEvenRowBackgroundHoveredBrush(*FAppStyle::Get().GetBrush("Brushes.Dropdown"))
+		.SetOddRowBackgroundHoveredBrush(*FAppStyle::Get().GetBrush("Brushes.Dropdown"))
+	);
+
+	Set("BindingView.BindingRow", FTableRowStyle(FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+		.SetEvenRowBackgroundBrush(*FAppStyle::Get().GetBrush("Brushes.Panel"))
+		.SetOddRowBackgroundBrush(*FAppStyle::Get().GetBrush("Brushes.Panel"))
+		.SetEvenRowBackgroundHoveredBrush(*FAppStyle::Get().GetBrush("Brushes.Header"))
+		.SetOddRowBackgroundHoveredBrush(*FAppStyle::Get().GetBrush("Brushes.Header"))
+	);
+
+	Set("BindingView.ParameterRow", FTableRowStyle(FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+		.SetEvenRowBackgroundBrush(*FAppStyle::Get().GetBrush("Brushes.Panel"))
+		.SetOddRowBackgroundBrush(*FAppStyle::Get().GetBrush("Brushes.Panel"))
+		.SetEvenRowBackgroundHoveredBrush(*FAppStyle::Get().GetBrush("Brushes.Header"))
+		.SetOddRowBackgroundHoveredBrush(*FAppStyle::Get().GetBrush("Brushes.Header"))
+	);
 
 	// ViewModelSelectionWidget Icons
 	{
@@ -69,6 +88,8 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 	Set("FieldSelector.ComboButton", 
 		FComboButtonStyle(FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 		.SetDownArrowImage(*FCoreStyle::Get().GetBrush("Icons.Edit")));
+
+	Set("FunctionParameter.Border", new FSlateColorBrush(FStyleColors::Input));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
