@@ -499,7 +499,7 @@ namespace Chaos
 					AABBs.Emplace(TAABB<OtherType, d>(Box.AABB));
 				}
 			}
-			else if (TAreTypesEqual<T, OtherType>::Value)
+			else if (std::is_same_v<T, OtherType>)
 			{
 				Ar << AABBs;
 			}

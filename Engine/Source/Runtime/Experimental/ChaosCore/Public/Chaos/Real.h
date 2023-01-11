@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Templates/AreTypesEqual.h"
+#include <type_traits>
 
 namespace Chaos
 {
@@ -25,5 +25,5 @@ namespace Chaos
 	* ISPC optimization supports float and double, this allows classes that uses ISPC to branch to the right implementation 
 	* without having to check the actual underlying type of FReal
 	*/
-	inline constexpr bool bRealTypeCompatibleWithISPC = (TAreTypesEqual<FReal, float>::Value == true) || (TAreTypesEqual<FReal, double>::Value == true);
+	inline constexpr bool bRealTypeCompatibleWithISPC = std::is_same_v<FReal, float> || std::is_same_v<FReal, double>;
 }

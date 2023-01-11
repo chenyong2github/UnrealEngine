@@ -16,7 +16,6 @@
 #include <initializer_list>
 #include "Templates/TypeHash.h"
 #include "Containers/SparseArray.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/Decay.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/MemoryImageWriter.h"
@@ -165,7 +164,14 @@ public:
 	FORCEINLINE TSetElementBase() {}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = std::enable_if_t<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+	template <
+		typename InitType,
+		typename = std::enable_if_t<!std::is_same_v<TSetElementBase, typename TDecay<InitType>::Type>>
+	>
+	explicit FORCEINLINE TSetElementBase(InitType&& InValue)
+		: Value(Forward<InitType>(InValue))
+	{
+	}
 
 	TSetElementBase(TSetElementBase&&) = default;
 	TSetElementBase(const TSetElementBase&) = default;
@@ -192,7 +198,14 @@ public:
 	FORCEINLINE TSetElementBase() {}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = std::enable_if_t<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+	template <
+		typename InitType,
+		typename = std::enable_if_t<!std::is_same_v<TSetElementBase, typename TDecay<InitType>::Type>>
+	>
+	explicit FORCEINLINE TSetElementBase(InitType&& InValue)
+		: Value(Forward<InitType>(InValue))
+	{
+	}
 
 	TSetElementBase(TSetElementBase&&) = default;
 	TSetElementBase(const TSetElementBase&) = default;
@@ -220,7 +233,14 @@ public:
 	{}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = std::enable_if_t<!TAreTypesEqual<TSetElement, typename TDecay<InitType>::Type>::Value>> explicit FORCEINLINE TSetElement(InitType&& InValue) : Super(Forward<InitType>(InValue)) {}
+	template <
+		typename InitType,
+		typename = std::enable_if_t<!std::is_same_v<TSetElement, typename TDecay<InitType>::Type>>
+	>
+	explicit FORCEINLINE TSetElement(InitType&& InValue)
+		: Super(Forward<InitType>(InValue))
+	{
+	}
 
 	TSetElement(TSetElement&&) = default;
 	TSetElement(const TSetElement&) = default;

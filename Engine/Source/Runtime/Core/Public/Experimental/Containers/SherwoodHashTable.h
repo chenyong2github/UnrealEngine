@@ -41,7 +41,7 @@ struct TSherwoodHashTable
 
 	// TSherwoodHashTable can be used to implement a set or a map.
 	// In map mode we allocate memory for keys and values, but in set mode we only allocate keys.
-	static constexpr bool bIsMap = !TAreTypesEqual<ValueType, FNoopStruct>::Value;
+	static constexpr bool bIsMap = !std::is_same_v<ValueType, FNoopStruct>;
 
 	// Minimum probing distance when searching for an entry slot.
 	static constexpr uint32 MinNumLookups = 4;

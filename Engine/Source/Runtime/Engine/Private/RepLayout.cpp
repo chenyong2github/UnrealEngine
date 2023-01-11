@@ -135,7 +135,7 @@ namespace UE_RepLayout_Private
 		using BaseBufferType = typename TRemovePointer<typename TDecay<BufferType>::Type>::Type;
 
 		static_assert(!TIsPointer<OutputType>::Value, "GetTypedProperty invalid OutputType!  Don't specify output as a pointer.");
-		static_assert(TOr<TAreTypesEqual<uint8, BaseBufferType>, TAreTypesEqual<void, BaseBufferType>>::Value, "GetTypedProperty invalid BufferType! Only TRepDataBufferBase, void*, and uint8* are supported!");
+		static_assert(std::is_same_v<uint8, BaseBufferType> || std::is_same_v<void, BaseBufferType>, "GetTypedProperty invalid BufferType! Only TRepDataBufferBase, void*, and uint8* are supported!");
 
 		// TODO: Conditionally compilable runtime type validation.
 		return reinterpret_cast<ConstOrNotOutputType *>(Buffer);

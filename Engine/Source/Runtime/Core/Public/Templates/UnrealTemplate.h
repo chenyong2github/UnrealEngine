@@ -7,7 +7,6 @@
 #include "HAL/UnrealMemory.h"
 #include "Templates/EnableIf.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/CopyQualifiersAndRefsFromTo.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -468,7 +467,7 @@ FORCEINLINE typename TRemoveReference<T>::Type&& MoveTemp(T&& Obj)
 
 	// Validate that we're not being passed an rvalue or a const object - the former is redundant, the latter is almost certainly a mistake
 	static_assert(TIsLValueReferenceType<T>::Value, "MoveTemp called on an rvalue");
-	static_assert(!TAreTypesEqual<CastType&, const CastType&>::Value, "MoveTemp called on a const object");
+	static_assert(!std::is_same_v<CastType&, const CastType&>, "MoveTemp called on a const object");
 
 	return (CastType&&)Obj;
 }
@@ -618,7 +617,7 @@ template <typename T> struct TRValueToLValueReference<T&&> { typedef T& Type; };
  * @return The bit-swapped value.
  */
 template <typename T>
-FORCEINLINE typename TEnableIf<TAreTypesEqual<T, uint32>::Value, T>::Type ReverseBits( T Bits )
+FORCEINLINE typename TEnableIf<std::is_same_v<T, uint32>, T>::Type ReverseBits( T Bits )
 {
 	Bits = ( Bits << 16) | ( Bits >> 16);
 	Bits = ( (Bits & 0x00ff00ff) << 8 ) | ( (Bits & 0xff00ff00) >> 8 );

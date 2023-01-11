@@ -17,7 +17,7 @@ bool RunOnRenderThreadSynchronous(TFunctionRef<bool(FRHICommandListImmediate&)> 
 template <typename ValueType>
 static inline FString ClearValueToString(const ValueType & ClearValue)
 {
-	if (TAreTypesEqual<ValueType, FVector4>::Value)
+	if constexpr (std::is_same_v<ValueType, FVector4>)
 	{
 		return FString::Printf(TEXT("%f %f %f %f"), ClearValue.X, ClearValue.Y, ClearValue.Z, ClearValue.W);
 	}

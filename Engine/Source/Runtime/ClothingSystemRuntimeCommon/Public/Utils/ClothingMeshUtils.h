@@ -277,7 +277,7 @@ namespace ClothingMeshUtils
 		{
 			// Enforce the interp func signature (returns T and takes a bary and 3 Ts)
 			// If you hit this then either the return type isn't T or your arguments aren't convertible to T
-			static_assert(TAreTypesEqual<T, typename TDecay<decltype(Func(DeclVal<FVector3f>(), DeclVal<T>(), DeclVal<T>(), DeclVal<T>()))>::Type>::Value, "Invalid Lambda signature passed to Map");
+			static_assert(std::is_same_v<T, typename TDecay<decltype(Func(DeclVal<FVector3f>(), DeclVal<T>(), DeclVal<T>(), DeclVal<T>()))>::Type>, "Invalid Lambda signature passed to Map");
 
 			const int32 NumMesh0Positions = Mesh0Positions.Num();
 			const int32 NumMesh0Normals = Mesh0Normals.Num();

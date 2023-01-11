@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
 #include "Templates/UnrealTypeTraits.h"
 #include <new> // IWYU pragma: export
@@ -21,12 +20,10 @@ namespace UE::Core::Private::MemoryOps
 		enum
 		{
 			Value =
-				TOr<
-					TAreTypesEqual<DestinationElementType, SourceElementType>,
-					TAnd<
-						TIsBitwiseConstructible<DestinationElementType, SourceElementType>,
-						TIsTriviallyDestructible<SourceElementType>
-					>
+				std::is_same_v<DestinationElementType, SourceElementType> ||
+				TAnd<
+					TIsBitwiseConstructible<DestinationElementType, SourceElementType>,
+					TIsTriviallyDestructible<SourceElementType>
 				>::Value
 		};
 	};

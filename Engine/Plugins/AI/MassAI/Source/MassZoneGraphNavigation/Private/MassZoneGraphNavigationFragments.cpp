@@ -166,7 +166,7 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 
 
 	// The current distance can come from a quantized lane distance. Check against quantized bounds, but clamp it to the actual path length when calculating the path.
-	static_assert(TAreTypesEqual<decltype(FMassZoneGraphPathPoint::Distance), FMassInt16Real>::Value, "Assuming FMassZoneGraphPathPoint::Distance is quantized to 10 units.");
+	static_assert(std::is_same_v<decltype(FMassZoneGraphPathPoint::Distance), FMassInt16Real>, "Assuming FMassZoneGraphPathPoint::Distance is quantized to 10 units.");
 	const float LaneLengthQuantized = FMath::CeilToFloat(CachedLane.LaneLength / 10.0f) * 10.0f;
 
 	static constexpr float Epsilon = 0.1f;

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/Decay.h"
 #include "Delegates/IntegerSequence.h"

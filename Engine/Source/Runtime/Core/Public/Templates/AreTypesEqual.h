@@ -2,20 +2,13 @@
 
 #pragma once
 
+#include <type_traits>
+
 /** Tests whether two typenames refer to the same type. */
 template<typename A,typename B>
-struct TAreTypesEqual;
-
-template<typename,typename>
-struct TAreTypesEqual
+struct UE_DEPRECATED(5.2, "TAreTypesEqual has been deprecated, please use std::is_same instead.") TAreTypesEqual
 {
-	enum { Value = false };
+	enum { Value = std::is_same_v<A, B> };
 };
 
-template<typename A>
-struct TAreTypesEqual<A,A>
-{
-	enum { Value = true };
-};
-
-#define ARE_TYPES_EQUAL(A,B) TAreTypesEqual<A,B>::Value
+#define ARE_TYPES_EQUAL(A,B) std::is_same_v<A, B>

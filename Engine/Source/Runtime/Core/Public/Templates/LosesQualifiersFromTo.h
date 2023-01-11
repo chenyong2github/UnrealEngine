@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Templates/AreTypesEqual.h"
 #include "Templates/CopyQualifiersFromTo.h"
+#include <type_traits>
 
 /**
  * Tests if qualifiers are lost between one type and another, e.g.:
@@ -14,5 +14,5 @@
 template <typename From, typename To>
 struct TLosesQualifiersFromTo
 {
-	enum { Value = !TAreTypesEqual<typename TCopyQualifiersFromTo<From, To>::Type, To>::Value };
+	enum { Value = !std::is_same_v<typename TCopyQualifiersFromTo<From, To>::Type, To> };
 };

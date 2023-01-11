@@ -171,7 +171,6 @@
 #include "Stats/Stats.h"
 #include "Templates/AlignmentTemplates.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/Decay.h"
 #include "Templates/EnableIf.h"

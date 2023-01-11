@@ -8,7 +8,6 @@
 #include "Logging/LogMacros.h"
 #include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -354,46 +353,39 @@ private:
 		PointerType& OutValuePointer
 		)
 	{
-		if(TAreTypesEqual<TypeA,Subtype>::Value)
+		if constexpr (std::is_same_v<TypeA,Subtype>)
 		{
 			OutIndex = 0;
 			OutValuePointer = (PointerType)&Union.Values.A;
 		}
-		else if(TAreTypesEqual<TypeB,Subtype>::Value)
+		else if constexpr (std::is_same_v<TypeB,Subtype>)
 		{
 			OutIndex = 1;
 			OutValuePointer = (PointerType)&Union.Values.B;
 		}
-		else if(TAreTypesEqual<TypeC,Subtype>::Value)
+		else if constexpr (std::is_same_v<TypeC,Subtype>)
 		{
 			OutIndex = 2;
 			OutValuePointer = (PointerType)&Union.Values.C;
 		}
-		else if(TAreTypesEqual<TypeD,Subtype>::Value)
+		else if constexpr (std::is_same_v<TypeD,Subtype>)
 		{
 			OutIndex = 3;
 			OutValuePointer = (PointerType)&Union.Values.D;
 		}
-		else if(TAreTypesEqual<TypeE,Subtype>::Value)
+		else if constexpr (std::is_same_v<TypeE,Subtype>)
 		{
 			OutIndex = 4;
 			OutValuePointer = (PointerType)&Union.Values.E;
 		}
-		else if(TAreTypesEqual<TypeF,Subtype>::Value)
+		else if constexpr (std::is_same_v<TypeF,Subtype>)
 		{
 			OutIndex = 5;
 			OutValuePointer = (PointerType)&Union.Values.F;
 		}
 		else
 		{
-			static_assert(
-				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeA, Subtype)>::Value ||
-				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeB, Subtype)>::Value ||
-				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeC, Subtype)>::Value ||
-				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeD, Subtype)>::Value ||
-				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeE, Subtype)>::Value ||
-				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeF, Subtype)>::Value,
-				"Type is not subtype of union.");
+			static_assert(sizeof(TypeA) == 0, "Type is not subtype of union.");
 			OutIndex = (uint8)-1;
 			OutValuePointer = NULL;
 		}

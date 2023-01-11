@@ -894,8 +894,6 @@ int32 main(int32 ArgC, ANSICHAR* Utf8ArgV[]) \
 int32 tchar_main(int32 ArgC, TCHAR* ArgV[])
 #endif
 
-template<typename,typename> struct TAreTypesEqual;
-
 //--------------------------------------------------------------------------------------------
 // POD types refactor for porting old code:
 //
@@ -994,16 +992,10 @@ typedef FPlatformTypes::TYPE_OF_NULLPTR	TYPE_OF_NULLPTR;
 namespace TypeTests
 {
 	template <typename A, typename B>
-	struct TAreTypesEqual
-	{
-		static constexpr bool Value = false;
-	};
+	inline constexpr bool TAreTypesEqual_V = false;
 
 	template <typename T>
-	struct TAreTypesEqual<T, T>
-	{
-		static constexpr bool Value = true;
-	};
+	inline constexpr bool TAreTypesEqual_V<T, T> = true;
 
 #if PLATFORM_TCHAR_IS_4_BYTES
 	static_assert(sizeof(TCHAR) == 4, "TCHAR size must be 4 bytes.");
@@ -1023,24 +1015,24 @@ namespace TypeTests
 
 	static_assert(char(-1) < char(0), "Unsigned char type test failed.");
 
-	static_assert((!TAreTypesEqual<ANSICHAR, WIDECHAR>::Value),  "ANSICHAR and WIDECHAR should be different types.");
-	static_assert((!TAreTypesEqual<ANSICHAR, UTF8CHAR>::Value),  "ANSICHAR and UTF8CHAR should be different types.");
+	static_assert((!TAreTypesEqual_V<ANSICHAR, WIDECHAR>),  "ANSICHAR and WIDECHAR should be different types.");
+	static_assert((!TAreTypesEqual_V<ANSICHAR, UTF8CHAR>),  "ANSICHAR and UTF8CHAR should be different types.");
 #if !PLATFORM_UCS2CHAR_IS_UTF16CHAR
 	// We want these types to be different, because we want to be able to determine whether an encoding
 	// is fixed-width (UCS2CHAR) or variable-width (UTF16CHAR) at compile time.
-	static_assert((!TAreTypesEqual<UCS2CHAR, UTF16CHAR>::Value), "UCS2CHAR and UTF16CHAR should be different types.");
+	static_assert((!TAreTypesEqual_V<UCS2CHAR, UTF16CHAR>), "UCS2CHAR and UTF16CHAR should be different types.");
 #else
 	// We don't want these types to be equal, but while this macro exists, they ought to be equal
-	static_assert(TAreTypesEqual<UCS2CHAR, UTF16CHAR>::Value, "UCS2CHAR and UTF16CHAR are expected to be the same type.");
+	static_assert(TAreTypesEqual_V<UCS2CHAR, UTF16CHAR>, "UCS2CHAR and UTF16CHAR are expected to be the same type.");
 #endif
-	static_assert((!TAreTypesEqual<ANSICHAR, UCS2CHAR>::Value),  "ANSICHAR and UCS2CHAR should be different types.");
-	static_assert((!TAreTypesEqual<WIDECHAR, UCS2CHAR>::Value),  "WIDECHAR and UCS2CHAR should be different types.");
-	static_assert(TAreTypesEqual<TCHAR, ANSICHAR>::Value || TAreTypesEqual<TCHAR, WIDECHAR>::Value || TAreTypesEqual<TCHAR, UTF8CHAR>::Value, "TCHAR should either be ANSICHAR, WIDECHAR or UTF8CHAR.");
+	static_assert((!TAreTypesEqual_V<ANSICHAR, UCS2CHAR>),  "ANSICHAR and UCS2CHAR should be different types.");
+	static_assert((!TAreTypesEqual_V<WIDECHAR, UCS2CHAR>),  "WIDECHAR and UCS2CHAR should be different types.");
+	static_assert(TAreTypesEqual_V<TCHAR, ANSICHAR> || TAreTypesEqual_V<TCHAR, WIDECHAR> || TAreTypesEqual_V<TCHAR, UTF8CHAR>, "TCHAR should either be ANSICHAR, WIDECHAR or UTF8CHAR.");
 
 #if PLATFORM_WIDECHAR_IS_CHAR16
-	static_assert(TAreTypesEqual<WIDECHAR, char16_t>::Value, "WIDECHAR should be char16_t");
+	static_assert(TAreTypesEqual_V<WIDECHAR, char16_t>, "WIDECHAR should be char16_t");
 #else
-	static_assert(TAreTypesEqual<WIDECHAR, wchar_t>::Value, "WIDECHAR should be wchar_t");
+	static_assert(TAreTypesEqual_V<WIDECHAR, wchar_t>, "WIDECHAR should be wchar_t");
 #endif
 
 	static_assert(sizeof(uint8) == 1, "uint8 type size test failed.");

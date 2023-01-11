@@ -80,7 +80,7 @@ class FRHIBufferTests
 		});
 
 		FString ClearValueStr;
-		if (TAreTypesEqual<ValueType, FVector4f>::Value)
+		if constexpr (std::is_same_v<ValueType, FVector4f>)
 		{
 			ClearValueStr = FString::Printf(TEXT("%f %f %f %f"), ClearValue.X, ClearValue.Y, ClearValue.Z, ClearValue.W);
 		}

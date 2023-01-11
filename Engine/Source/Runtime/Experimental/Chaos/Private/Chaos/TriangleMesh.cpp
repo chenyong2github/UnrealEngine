@@ -311,7 +311,7 @@ void FTriangleMesh::GetFaceNormals(TArray<TVec3<T>>& Normals, const TConstArrayV
 	else
 	{
 #if INTEL_ISPC
-		if (bChaos_TriangleMesh_ISPC_Enabled && TAreTypesEqual<T, FRealSingle>::Value)
+		if (bChaos_TriangleMesh_ISPC_Enabled && std::is_same_v<T, FRealSingle>)
 		{
 			Normals.SetNumUninitialized(MElements.Num());
 			ispc::GetFaceNormals(

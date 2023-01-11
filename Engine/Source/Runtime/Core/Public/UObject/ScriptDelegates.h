@@ -5,7 +5,6 @@
 #include "CoreTypes.h"
 #include "Delegates/DelegateMacros.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Array.h"
@@ -23,7 +22,7 @@ class TScriptDelegate
 {
 	// Although templated, the parameter is not intended to be anything other than the default,
 	// and is only a template for module organization reasons.
-	static_assert(TAreTypesEqual<TWeakPtr, FWeakObjectPtr>::Value, "TWeakPtr should not be overridden");
+	static_assert(std::is_same_v<TWeakPtr, FWeakObjectPtr>, "TWeakPtr should not be overridden");
 
 public:
 

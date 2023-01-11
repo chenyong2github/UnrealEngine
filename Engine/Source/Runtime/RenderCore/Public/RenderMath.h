@@ -46,8 +46,8 @@ FORCEINLINE int8 GetBasisDeterminantSignByte(const FPackedNormal& XAxis, const F
 template<typename VectorType>
 FORCEINLINE FVector GenerateYAxis(const VectorType& XAxis, const VectorType& ZAxis)
 {
-	static_assert(ARE_TYPES_EQUAL(VectorType, FPackedNormal) ||
-		ARE_TYPES_EQUAL(VectorType, FPackedRGBA16N), "ERROR: Must be FPackedNormal or FPackedRGBA16N");
+	static_assert(std::is_same_v<VectorType, FPackedNormal> ||
+		std::is_same_v<VectorType, FPackedRGBA16N>, "ERROR: Must be FPackedNormal or FPackedRGBA16N");
 	FVector  x = XAxis.ToFVector();
 	FVector4 z = ZAxis.ToFVector4();
 	return (FVector(z) ^ x) * z.W;

@@ -23,7 +23,6 @@
 #include "Misc/VarArgs.h"
 #include "HAL/PlatformAtomics.h"
 #include "GenericPlatform/GenericPlatformAtomics.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArithmetic.h"

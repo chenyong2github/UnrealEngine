@@ -5,7 +5,6 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/IsSigned.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/UnrealTemplate.h"
@@ -280,23 +279,25 @@ namespace UE4Array_Private
 	}
 
 	template <typename FromArrayType, typename ToArrayType>
-	struct TCanMoveTArrayPointersBetweenArrayTypes
+	constexpr bool CanMoveTArrayPointersBetweenArrayTypes()
 	{
 		typedef typename FromArrayType::AllocatorType FromAllocatorType;
-		typedef typename ToArrayType  ::AllocatorType ToAllocatorType;
+		typedef typename ToArrayType::AllocatorType ToAllocatorType;
 		typedef typename FromArrayType::ElementType   FromElementType;
-		typedef typename ToArrayType  ::ElementType   ToElementType;
+		typedef typename ToArrayType::ElementType   ToElementType;
 
-		enum
+		// Allocators must be equal or move-compatible...
+		if constexpr (std::is_same_v<FromAllocatorType, ToAllocatorType> || TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
 		{
-			Value =
-				TOr<TAreTypesEqual<FromAllocatorType, ToAllocatorType>, TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>>::Value && // Allocators must be equal or move-compatible
-				(
-					TAreTypesEqual         <ToElementType, FromElementType>::Value || // The element type of the container must be the same, or...
-					TIsBitwiseConstructible<ToElementType, FromElementType>::Value    // ... the element type of the source container must be bitwise constructible from the element type in the destination container
-				)
-		};
-	};
+			return
+				std::is_same_v         <ToElementType, FromElementType> ||      // The element type of the container must be the same, or...
+				TIsBitwiseConstructible<ToElementType, FromElementType>::Value; // ... the element type of the source container must be bitwise constructible from the element type in the destination container
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 	// Assume elements are compatible with themselves - avoids problems with generated copy
 	// constructors of arrays of forwarded types, e.g.:
@@ -521,45 +522,45 @@ private:
 	template <typename FromArrayType, typename ToArrayType>
 	static FORCEINLINE void MoveOrCopy(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax)
 	{
-		if constexpr (UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value)
+		if constexpr (UE4Array_Private::CanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>())
 		{
 			// Move
 
-		static_assert(std::is_same_v<TArray, ToArrayType>, "MoveOrCopy is expected to be called with the current array type as the destination");
+			static_assert(std::is_same_v<TArray, ToArrayType>, "MoveOrCopy is expected to be called with the current array type as the destination");
 
-		using FromAllocatorType = typename FromArrayType::AllocatorType;
-		using ToAllocatorType   = typename ToArrayType::AllocatorType;
+			using FromAllocatorType = typename FromArrayType::AllocatorType;
+			using ToAllocatorType   = typename ToArrayType::AllocatorType;
 
-		if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
-		{
-			ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
-		}
-		else
-		{
-			ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
-		}
-
-		ToArray  .ArrayNum = (SizeType)FromArray.ArrayNum;
-		ToArray  .ArrayMax = (SizeType)FromArray.ArrayMax;
-
-		// Ensure the destination container could hold the source range (when the allocator size types shrink)
-		if constexpr (sizeof(USizeType) < sizeof(typename FromArrayType::USizeType))
-		{
-			if (ToArray.ArrayNum != FromArray.ArrayNum || ToArray.ArrayMax != FromArray.ArrayMax)
+			if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
 			{
-				OnInvalidNum((USizeType)ToArray.ArrayNum);
+				ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
 			}
-		}
+			else
+			{
+				ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+			}
 
-		FromArray.ArrayNum = 0;
-		FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
-	}
+			ToArray  .ArrayNum = (SizeType)FromArray.ArrayNum;
+			ToArray  .ArrayMax = (SizeType)FromArray.ArrayMax;
+
+			// Ensure the destination container could hold the source range (when the allocator size types shrink)
+			if constexpr (sizeof(USizeType) < sizeof(typename FromArrayType::USizeType))
+			{
+				if (ToArray.ArrayNum != FromArray.ArrayNum || ToArray.ArrayMax != FromArray.ArrayMax)
+				{
+					OnInvalidNum((USizeType)ToArray.ArrayNum);
+				}
+			}
+
+			FromArray.ArrayNum = 0;
+			FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
+		}
 		else
 		{
 			// Copy
 
-		ToArray.CopyToEmpty(FromArray.GetData(), FromArray.Num(), PrevMax);
-	}
+			ToArray.CopyToEmpty(FromArray.GetData(), FromArray.Num(), PrevMax);
+		}
 	}
 
 	/**
@@ -574,29 +575,29 @@ private:
 	template <typename FromArrayType, typename ToArrayType>
 	static FORCEINLINE void MoveOrCopyWithSlack(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax, SizeType ExtraSlack)
 	{
-		if constexpr (UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value)
+		if constexpr (UE4Array_Private::CanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>())
 		{
 			// Move
 
-		MoveOrCopy(ToArray, FromArray, PrevMax);
+			MoveOrCopy(ToArray, FromArray, PrevMax);
 
-		USizeType LocalArrayNum = (USizeType)ToArray.ArrayNum;
-		USizeType NewMax        = (USizeType)LocalArrayNum + (USizeType)ExtraSlack;
+			USizeType LocalArrayNum = (USizeType)ToArray.ArrayNum;
+			USizeType NewMax        = (USizeType)LocalArrayNum + (USizeType)ExtraSlack;
 
-		// This should only happen when we've underflowed or overflowed SizeType
-		if ((SizeType)NewMax < LocalArrayNum)
-		{
-			OnInvalidNum((USizeType)ExtraSlack);
+			// This should only happen when we've underflowed or overflowed SizeType
+			if ((SizeType)NewMax < LocalArrayNum)
+			{
+				OnInvalidNum((USizeType)ExtraSlack);
+			}
+
+			ToArray.Reserve(NewMax);
 		}
-
-		ToArray.Reserve(NewMax);
-	}
 		else
 		{
 			// Copy
 
-		ToArray.CopyToEmptyWithSlack(FromArray.GetData(), FromArray.Num(), PrevMax, ExtraSlack);
-	}
+			ToArray.CopyToEmptyWithSlack(FromArray.GetData(), FromArray.Num(), PrevMax, ExtraSlack);
+		}
 	}
 
 public:
@@ -1700,7 +1701,7 @@ public:
 	template <typename CountType>
 	FORCEINLINE void RemoveAt(SizeType Index, CountType Count, bool bAllowShrinking = true)
 	{
-		static_assert(!TAreTypesEqual<CountType, bool>::Value, "TArray::RemoveAt: unexpected bool passed as the Count argument");
+		static_assert(!std::is_same_v<CountType, bool>, "TArray::RemoveAt: unexpected bool passed as the Count argument");
 		RemoveAtImpl(Index, (SizeType)Count, bAllowShrinking);
 	}
 
@@ -1765,7 +1766,7 @@ public:
 	template <typename CountType>
 	FORCEINLINE void RemoveAtSwap(SizeType Index, CountType Count, bool bAllowShrinking = true)
 	{
-		static_assert(!TAreTypesEqual<CountType, bool>::Value, "TArray::RemoveAtSwap: unexpected bool passed as the Count argument");
+		static_assert(!std::is_same_v<CountType, bool>, "TArray::RemoveAtSwap: unexpected bool passed as the Count argument");
 		RemoveAtSwapImpl(Index, Count, bAllowShrinking);
 	}
 

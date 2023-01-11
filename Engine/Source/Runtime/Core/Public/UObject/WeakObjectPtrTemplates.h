@@ -5,7 +5,6 @@
 #include "CoreTypes.h"
 #include "Templates/IsPointer.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/LosesQualifiersFromTo.h"
 #include "Containers/Map.h"
@@ -35,7 +34,7 @@ struct TWeakObjectPtr : private TWeakObjectPtrBase
 
 	// Although templated, these parameters are not intended to be anything other than the default,
 	// and are only templates for module organization reasons.
-	static_assert(TAreTypesEqual<TWeakObjectPtrBase, FWeakObjectPtr>::Value, "TWeakObjectPtrBase should not be overridden");
+	static_assert(std::is_same_v<TWeakObjectPtrBase, FWeakObjectPtr>, "TWeakObjectPtrBase should not be overridden");
 
 public:
 	using ElementType = T;

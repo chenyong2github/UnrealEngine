@@ -41,7 +41,6 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "Stats/StatsMisc.h"
 #include "String/ParseTokens.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -2675,7 +2674,7 @@ void FAssetRegistryPackageMessage::Write(FCbWriter& Writer, const FPackageData& 
 	// We cast TMap<FSoftObjectPath,                     ValueType>
 	//      to TMap<FSoftObjectPathSerializationWrapper, ValueType>
 	// to workaround FSoftObjectPath's implicit constructor. See comment in CompactBinaryTCP.h
-	static_assert(ARE_TYPES_EQUAL(decltype(CookTags)::KeyType, FSoftObjectPath), "Expected KeyType of CookTags to be FSoftObjectPath");
+	static_assert(std::is_same_v<decltype(CookTags)::KeyType, FSoftObjectPath>, "Expected KeyType of CookTags to be FSoftObjectPath");
 	Writer << "T" << reinterpret_cast<const TMap<FSoftObjectPathSerializationWrapper, decltype(CookTags)::ValueType>&>(CookTags);
 	Writer << "F" << PackageFlags;
 	Writer << "S" << DiskSize;
@@ -2700,7 +2699,7 @@ bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object, FPackageData& P
 		}
 	}
 
-	static_assert(ARE_TYPES_EQUAL(decltype(CookTags)::KeyType, FSoftObjectPath), "Expected KeyType of CookTags to be FSoftObjectPath");
+	static_assert(std::is_same_v<decltype(CookTags)::KeyType, FSoftObjectPath>, "Expected KeyType of CookTags to be FSoftObjectPath");
 	if (!LoadFromCompactBinary(Object["T"], reinterpret_cast<TMap<FSoftObjectPathSerializationWrapper, decltype(CookTags)::ValueType>&>(CookTags)))
 	{
 		return false;

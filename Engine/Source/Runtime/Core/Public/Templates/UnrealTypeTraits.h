@@ -12,7 +12,6 @@
 #include "Templates/IsPointer.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/AreTypesEqual.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsArithmetic.h"
 #include "Templates/IsEnum.h"
@@ -448,8 +447,8 @@ struct TIsBitwiseConstructible
 		"TIsBitwiseConstructible is not designed to accept reference types");
 
 	static_assert(
-		TAreTypesEqual<T,   typename TRemoveCV<T  >::Type>::Value &&
-		TAreTypesEqual<Arg, typename TRemoveCV<Arg>::Type>::Value,
+		std::is_same_v<T,   typename TRemoveCV<T  >::Type> &&
+		std::is_same_v<Arg, typename TRemoveCV<Arg>::Type>,
 		"TIsBitwiseConstructible is not designed to accept qualified types");
 
 	// Assume no bitwise construction in general
