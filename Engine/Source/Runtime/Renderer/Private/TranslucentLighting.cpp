@@ -64,7 +64,7 @@ FAutoConsoleVariableRef CVarUseTranslucentLightingVolumes(
 	GUseTranslucentLightingVolumes,
 	TEXT("Whether to allow updating the translucent lighting volumes.\n")
 	TEXT("0:off, otherwise on, default is 1"),
-	ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
 float GTranslucentVolumeMinFOV = 45;
@@ -72,7 +72,7 @@ static FAutoConsoleVariableRef CVarTranslucentVolumeMinFOV(
 	TEXT("r.TranslucentVolumeMinFOV"),
 	GTranslucentVolumeMinFOV,
 	TEXT("Minimum FOV for translucent lighting volume.  Prevents popping in lighting when zooming in."),
-	ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
 float GTranslucentVolumeFOVSnapFactor = 10;
@@ -80,7 +80,7 @@ static FAutoConsoleVariableRef CTranslucentVolumeFOVSnapFactor(
 	TEXT("r.TranslucentVolumeFOVSnapFactor"),
 	GTranslucentVolumeFOVSnapFactor,
 	TEXT("FOV will be snapped to a factor of this before computing volume bounds."),
-	ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
 int32 GUseTranslucencyVolumeBlur = 1;
@@ -104,13 +104,13 @@ static TAutoConsoleVariable<float> CVarTranslucencyLightingVolumeInnerDistance(
 	TEXT("r.TranslucencyLightingVolumeInnerDistance"),
 	1500.0f,
 	TEXT("Distance from the camera that the first volume cascade should end"),
-	ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarTranslucencyLightingVolumeOuterDistance(
 	TEXT("r.TranslucencyLightingVolumeOuterDistance"),
 	5000.0f,
 	TEXT("Distance from the camera that the second volume cascade should end"),
-	ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 /** Function returning current translucency lighting volume dimensions. */
 int32 GetTranslucencyLightingVolumeDim()

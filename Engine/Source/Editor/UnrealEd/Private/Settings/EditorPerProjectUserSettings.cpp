@@ -45,7 +45,9 @@ void UEditorPerProjectUserSettings::PostInitProperties()
 	if (bPreviewFeatureLevelWasDefault || PreviewFeatureLevel > GMaxRHIFeatureLevel)
 	{
 		PreviewFeatureLevel = GMaxRHIFeatureLevel;
+		PreviewShaderPlatformName = NAME_None;
 		PreviewShaderFormatName = NAME_None;
+        PreviewPlatformName = NAME_None;
 		bPreviewFeatureLevelActive = false;
 		bPreviewFeatureLevelWasDefault = true;
 		PreviewDeviceProfileName = NAME_None;
