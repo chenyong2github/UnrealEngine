@@ -28,8 +28,10 @@
 #include "/Engine/Private/ShadingCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/SubsurfaceProfileCommon.ush"
+#include "/Engine/Private/BurleyNormalizedSSSCommon.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
+
 
 float AdjustMaterialRoughness(float Roughness, float PathRoughness)
 {
@@ -54,6 +56,22 @@ float GetRefractionIor(FPixelMaterialInputs PixelMaterialInputs)
 #endif
 	return Ior;
 }
+
+float3 DecodeSSSProfileRadius(uint ProfileId, float3 DiffuseColor, float Opacity)
+{
+	// Burley parameterization
+	float3 SurfaceAlbedo = View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, ProfileId, 0)).xyz;
+	float3 DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, ProfileId, 0))).xyz;
+	float WorldUnitScale = DecodeWorldUnitScale(View.SSProfilesTexture.Load(int3(SSSS_TINT_SCALE_OFFSET, ProfileId, 0)).a) * BURLEY_CM_2_MM;
+
+	// Opacity acts as a per-pixel radius multiplier
+	// NOTE: this seems backwards? Opacity=0 acts like default-lit while Opacity=1 acts like SSS?
+	// NOTE2: Confirm if this interpretation of opacity is correct ...
+	float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor, Opacity * WorldUnitScale * DiffuseMeanFreePath);
+
+	return SSSRadius * BURLEY_MM_2_CM;
+}
+
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	FPackedPathTracingPayload, PackedPayload,
@@ -257,21 +275,36 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	else
 #endif
 
-#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE
-	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
-		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
-		Payload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
 		const float3 SubsurfaceColor = GetMaterialSubsurfaceData(PixelMaterialInputs).rgb;
 		Payload.SetSubsurfaceColor(SubsurfaceColor);
 	}
 	else
 #endif
+
+#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN
+	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+		Payload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+	{
+		const float3 SubsurfaceColor = GetMaterialSubsurfaceData(PixelMaterialInputs).rgb;
+		Payload.SetSubsurfaceColor(SubsurfaceColor);
+
+		// TODO: is this accurate enough? hard to measure exactly since the raster path uses a very different approach
+		// TODO: It would be nice to have a dedicated node to control the SSS Radius explicitly instead of this
+		const float SSSRadius = (1 - Payload.Opacity) * 10.0; // simple formula, up to 10cm radius
+		Payload.SetSubsurfaceRadius(SSSRadius);
+		Payload.SetSubsurfacePhaseFunction(0.0); // TODO: expose via a dedicated node?
+		// Reset opacity to avoid special cases elsewhere
+		Payload.Opacity = 1;
+	}
+	else
+#endif
 #if MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE
 	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 	{
-		Payload.CustomData0 = GetMaterialSubsurfaceData(PixelMaterialInputs);
-		uint ProfileId = Payload.GetSubsurfaceProfileId();
+		const uint ProfileId = ExtractSubsurfaceProfileInt(GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).a);
 
 		// Decode dual roughness info
 		float Lobe0Roughness = 0;
@@ -283,6 +316,19 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		Lobe0Roughness = AdjustMaterialRoughness(Lobe0Roughness, PackedPayload.GetPathRoughness());
 		Lobe1Roughness = AdjustMaterialRoughness(Lobe1Roughness, PackedPayload.GetPathRoughness());
 		Payload.SetDualRoughnessSpecular(Lobe0Roughness, Lobe1Roughness, LobeMix);
+
+		if (GetSubsurfaceProfileUseBurley(ProfileId))
+		{
+			// Decode SSS radius
+			float3 DiffuseColor = Payload.BaseColor * (1.0 - Payload.Metallic);
+			Payload.SetSubsurfaceRadius(DecodeSSSProfileRadius(ProfileId, DiffuseColor, Payload.Opacity));
+		}
+		else
+		{
+			Payload.SetSubsurfaceRadius(0.0);
+		}
+		Payload.SetSubsurfacePhaseFunction(0.0); // TODO: extract from profile data
+		Payload.Opacity = 1.0; // Reset opacity to avoid special cases elsewhere
 	}
 	else
 #endif
@@ -339,7 +385,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		const float IrisMask     = saturate(GetMaterialCustomData0(MaterialParameters));
 		const float IrisDistance = saturate(GetMaterialCustomData1(MaterialParameters));
 		Payload.SetEyeIrisMask(IrisMask);
-		Payload.CustomData0.a = GetMaterialSubsurfaceData(PixelMaterialInputs).a; // SubsurfaceProfile
 		Payload.Metallic = 0.0;
 #if NUM_MATERIAL_OUTPUTS_GETTANGENTOUTPUT > 0
 		// Blend in the negative intersection normal to create some concavity
@@ -371,6 +416,21 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// IRIS_NORMAL off
 		Payload.SetEyeIrisNormal(PlaneNormal);
 #endif
+		
+		const uint ProfileId = ExtractSubsurfaceProfileInt(GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).a);
+		if (GetSubsurfaceProfileUseBurley(ProfileId))
+		{
+			// Decode SSS radius
+			float3 DiffuseColor = Payload.BaseColor * (1.0 - Payload.Metallic);
+			Payload.SetSubsurfaceRadius(DecodeSSSProfileRadius(ProfileId, DiffuseColor, Payload.Opacity));
+		}
+		else
+		{
+			Payload.SetSubsurfaceRadius(0.0);
+		}
+		Payload.Opacity = 1.0; // revert to default now that decode is done
+		Payload.SetSubsurfacePhaseFunction(0.0); // TODO: extract from profile data
+
 	}
 	else
 #endif

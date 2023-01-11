@@ -153,6 +153,7 @@ struct FPathTracingPayload : FMinimalPayload
 	float4 CustomData0;
 	float4 CustomData1;
 	float3 WorldTangent;
+	float3 SubsurfaceColor;
 	float3 SubsurfaceRadius;
 	float3 TranslatedWorldPos;
 
@@ -180,12 +181,15 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 GetClearCoatBottomNormal() { return CustomData1.xyz; }
 	void SetClearCoatBottomNormal(float3 BottomNormal) { CustomData1.xyz = BottomNormal; }
 
-	// SHADINGMODELID_SUBSURFACE_PROFILE and SHADINGMODELID_EYE
-	uint GetSubsurfaceProfileId() { return uint(CustomData0.a * 255.0 + 0.5); }
+	// SHADINGMODELID_SUBSURFACE, SHADINGMODELID_SUBSURFACE_PROFILE and SHADINGMODELID_EYE
+	float3 GetSubsurfaceRadius() { return CustomData0.rgb; }
+	void SetSubsurfaceRadius(float3 Radius) { CustomData0.rgb = Radius; }
+	float GetSubsurfacePhaseFunction() { return CustomData0.a; }
+	void SetSubsurfacePhaseFunction(float G) { CustomData0.a = G; }
 
-	// SHADINGMODELID_SUBSURFACE, SHADINGMODELID_TWO_SIDED_FOLIAGE (and SHADINGMODELID_SUBSURFACE_PROFILE, SHADINGMODELID_EYE after decode)
-	float3 GetSubsurfaceColor() { return CustomData0.xyz; }
-	void SetSubsurfaceColor(float3 SubsurfaceColor) { CustomData0.xyz = SubsurfaceColor; }
+	// SHADINGMODELID_SUBSURFACE, SHADINGMODELID_TWO_SIDED_FOLIAGE (note that SHADINGMODELID_SUBSURFACE_PROFILE and SHADINGMODELID_EYE don't use this as they use DiffuseColor directly)
+	float3 GetSubsurfaceColor() { return CustomData1.xyz; }
+	void SetSubsurfaceColor(float3 SubsurfaceColor) { CustomData1.xyz = SubsurfaceColor; }
 	
 	// SHADINGMODELID_SUBSURFACE_PROFILE
 	float3 GetDualRoughnessSpecular() { return CustomData1.xyz; }

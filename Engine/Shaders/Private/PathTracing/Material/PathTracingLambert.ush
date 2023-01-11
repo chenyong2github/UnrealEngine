@@ -38,7 +38,7 @@ FMaterialSample Simplified_SampleMaterial(
 	float3 N_World = Payload.WorldNormal;
 
 	float3 FrontColor = Payload.BaseColor;
-	float3 BackColor = Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ? Payload.GetSubsurfaceColor() : 0.0;
+	float3 BackColor = Payload.SubsurfaceColor;
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 
@@ -59,7 +59,7 @@ FMaterialEval Simplified_EvalMaterial(
 	float NoL = dot(N_World, OutgoingDirection);
 
 	float3 FrontColor = Payload.BaseColor;
-	float3 BackColor = Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ? Payload.GetSubsurfaceColor() : 0.0;
+	float3 BackColor = Payload.SubsurfaceColor;
 	float TransmissionProb = LobeSelectionProb(BackColor, FrontColor);
 
 	float3 Weight = NoL < 0.0 ? BackColor : FrontColor;

@@ -20,7 +20,7 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 
 	// pick back lobe proportionally to its contribution relative to front side
 	const float3 Diff = (1 - Spec.E) * Payload.DiffuseColor;
-	const float3 Back = (1 - Spec.E) * Payload.GetSubsurfaceColor();
+	const float3 Back = (1 - Spec.E) * Payload.SubsurfaceColor;
 	float TransmissionSelectionPdf = LobeSelectionProb(Back, Diff + Spec.E);
 
 	if (RandSample.x < TransmissionSelectionPdf)
@@ -56,7 +56,7 @@ FMaterialEval TwoSidedFoliage_EvalMaterial(
 
 	// pick back lobe proportionally to its contribution relative to front side
 	const float3 Diff = (1 - Spec.E) * Payload.DiffuseColor;
-	const float3 Back = (1 - Spec.E) * Payload.GetSubsurfaceColor();
+	const float3 Back = (1 - Spec.E) * Payload.SubsurfaceColor;
 	float TransmissionSelectionPdf = LobeSelectionProb(Back, Diff + Spec.E);
 
 	float3 N = Payload.WorldNormal;

@@ -22,7 +22,6 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingEye.ush"
 #include "PathTracingHair.ush"
 #include "PathTracingMedium.ush"
-#include "../../BurleyNormalizedSSSCommon.ush"
 
 // Simplified material shaders for GPU Lightmass, supporting Lambert, Two Sided Foliage and Thin Translucent
 // Make sure material evaluation code below matches with hit shader which fills the payload
@@ -142,7 +141,7 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 			return 0;
 #if SIMPLIFIED_MATERIAL_SHADER
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
-			Albedo = BrdfWeight * (Payload.BaseColor + Payload.GetSubsurfaceColor());
+			Albedo = BrdfWeight * (Payload.BaseColor + Payload.SubsurfaceColor);
 			break;
 #else
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
@@ -150,7 +149,7 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
 		case SHADINGMODELID_EYE:
-			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + Payload.GetSubsurfaceColor());
+			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + Payload.SubsurfaceColor);
 			break;
 		case SHADINGMODELID_SINGLELAYERWATER:
 		case SHADINGMODELID_DEFAULT_LIT:
@@ -240,7 +239,7 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 		return;
 #if SIMPLIFIED_MATERIAL_SHADER
 	case SHADINGMODELID_TWOSIDED_FOLIAGE:
-		Albedo += BrdfWeight * PathThroughput * (Payload.BaseColor + Payload.GetSubsurfaceColor());
+		Albedo += BrdfWeight * PathThroughput * (Payload.BaseColor + Payload.SubsurfaceColor);
 		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
 		break;
 #else
@@ -249,7 +248,7 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 	case SHADINGMODELID_PREINTEGRATED_SKIN:
 	case SHADINGMODELID_SUBSURFACE_PROFILE:
 	case SHADINGMODELID_EYE:
-		Albedo += BrdfWeight * PathThroughput * (Payload.DiffuseColor + RoughnessWeight * Payload.SpecularColor + Payload.GetSubsurfaceColor());
+		Albedo += BrdfWeight * PathThroughput * (Payload.DiffuseColor + RoughnessWeight * Payload.SpecularColor + Payload.SubsurfaceColor);
 		Normal += BrdfWeight * Luminance(PathThroughput) * Payload.WorldNormal;
 		break;
 	case SHADINGMODELID_SINGLELAYERWATER:
@@ -332,23 +331,6 @@ float GetAverageRoughness(FPathTracingPayload Payload)
 #endif
 }
 
-
-float3 DecodeSSSProfileRadius(uint ProfileId, float3 DiffuseColor, float Opacity)
-{
-	// Burley parameterization
-	float3 SurfaceAlbedo = View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, ProfileId, 0)).xyz;
-	float3 DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, ProfileId, 0))).xyz;
-	float WorldUnitScale = DecodeWorldUnitScale(View.SSProfilesTexture.Load(int3(SSSS_TINT_SCALE_OFFSET, ProfileId, 0)).a) * BURLEY_CM_2_MM;
-
-	// Opacity acts as a per-pixel radius multiplier
-	// NOTE: this seems backwards? Opacity=0 acts like default-lit while Opacity=1 acts like SSS?
-	// NOTE2: Confirm if this interpretation of opacity is correct ...
-	float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor, Opacity * WorldUnitScale * DiffuseMeanFreePath);
-
-	return SSSRadius * BURLEY_MM_2_CM;
-}
-
-
 FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, FRayDesc Ray)
 {
 	// This function can also do a bit of per-material post-processing to simplify the rest of the code
@@ -360,20 +342,15 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 		case SHADINGMODELID_SUBSURFACE:
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 		{
-			// TODO: is this accurate enough? hard to measure exactly since the raster path uses a very different approach
-			float SSSRadius = (1 - HitPayload.Opacity) * 10.0; // simple formula, up to 10cm radius
-			HitPayload.SubsurfaceRadius = SSSRadius;
-
-			// Reset opacity to avoid special cases elsewhere
-			HitPayload.Opacity = 1;
-			
+			HitPayload.SubsurfaceRadius = HitPayload.GetSubsurfaceRadius();
 			// fallthrough to case below to avoid over-bright SSS
 		}
 #endif
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		{
+			HitPayload.SubsurfaceColor = HitPayload.GetSubsurfaceColor();
 			float3 Front = HitPayload.DiffuseColor;
-			float3 Back = HitPayload.GetSubsurfaceColor();
+			float3 Back = HitPayload.SubsurfaceColor;
 			float3 Sum = Front + Back;
 			float S = max(Sum.x, max(Sum.y, Sum.z));
 			if (S > 1)
@@ -381,56 +358,32 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 				// nudge the material back to something physically plausible
 				// NOTE: we ignore spec here since it should be accounted for by the brdf model itself
 				HitPayload.DiffuseColor = Front / S;
-				HitPayload.SetSubsurfaceColor(Back / S);
+				HitPayload.SubsurfaceColor = Back / S;
 			}
 			break;
 		}
 #if SIMPLIFIED_MATERIAL_SHADER
 		default:
 		{
-			HitPayload.SetSubsurfaceColor(0.0);
+			HitPayload.SubsurfaceColor = 0.0;
 			break;
 		}
 #else
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
 		{
-			uint ProfileId = HitPayload.GetSubsurfaceProfileId();
-			if (GetSubsurfaceProfileUseBurley(ProfileId))
-			{
-				HitPayload.SubsurfaceRadius = DecodeSSSProfileRadius(ProfileId, HitPayload.DiffuseColor, HitPayload.Opacity);
-
-				// burley mode doesn't have any diffuse component
-				HitPayload.SetSubsurfaceColor(HitPayload.DiffuseColor);
-				HitPayload.DiffuseColor = 0;
-			}
-			else
-			{
-				// NOTE: Non-burley scattering is deprecated going forward, so not worth supporting this mode
-				HitPayload.SubsurfaceRadius = 0.0;
-				HitPayload.SetSubsurfaceColor(0);
-			}
-			// Reset opacity to avoid special cases elsewhere
-			HitPayload.Opacity = 1;
+			HitPayload.SubsurfaceRadius = HitPayload.GetSubsurfaceRadius();
+			// NOTE: if radius is 0 the sss color will get flipped back into diffuse
+			HitPayload.SubsurfaceColor = HitPayload.DiffuseColor;
+			HitPayload.DiffuseColor = 0;
 			break;
 		}
 		case SHADINGMODELID_EYE:
 		{
-			uint ProfileId = HitPayload.GetSubsurfaceProfileId();
-			if (GetSubsurfaceProfileUseBurley(ProfileId))
-			{
-				HitPayload.SubsurfaceRadius = DecodeSSSProfileRadius(ProfileId, HitPayload.DiffuseColor, 1.0);
-
-				// eye still needs a diffuse component for the iris center
-				float IrisMask = HitPayload.GetEyeIrisMask();
-				HitPayload.SetSubsurfaceColor((1 - IrisMask) * HitPayload.DiffuseColor);
-				HitPayload.DiffuseColor *= IrisMask;
-			}
-			else
-			{
-				// NOTE: Non-burley scattering is deprecated going forward, so not worth supporting this mode
-				HitPayload.SubsurfaceRadius = 0.0;
-				HitPayload.SetSubsurfaceColor(0);
-			}
+			HitPayload.SubsurfaceRadius = HitPayload.GetSubsurfaceRadius();
+			// eye still needs a diffuse component for the iris center
+			float IrisMask = HitPayload.GetEyeIrisMask();
+			HitPayload.SubsurfaceColor = HitPayload.DiffuseColor - IrisMask * HitPayload.DiffuseColor;
+			HitPayload.DiffuseColor *= IrisMask;
 			break;
 		}
 #endif
