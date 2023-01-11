@@ -316,21 +316,6 @@ UK2Node::ERedirectType UK2Node_MakeStruct::DoPinsMatchForReconstruction(const UE
 	{
 		Result = ERedirectType_Name;
 	}
-
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-	check(K2Schema);
-	if (!K2Schema->ArePinTypesCompatible(NewPin->PinType, OldPin->PinType))
-	{
-		if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType).IsSet())
-		{
-			Result = static_cast<ERedirectType>(static_cast<uint8>(ERedirectType_Name) | static_cast<uint8>(ERedirectType_Type));
-		}
-		else
-		{
-			Result = ERedirectType_None;
-		}
-	}
-
 	return Result;
 }
 

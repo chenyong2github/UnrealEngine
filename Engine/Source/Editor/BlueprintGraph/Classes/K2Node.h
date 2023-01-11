@@ -447,19 +447,14 @@ public:
 
 protected:
 
-	enum ERedirectType : uint8
+	enum ERedirectType
 	{
 		/* The pins do not match */
-		ERedirectType_None	= 0,
-
+		ERedirectType_None,
 		/* The pins match by name or redirect and have the same type (or we're ok with the mismatched type) */
-		ERedirectType_Name	= (1 << 0),
-
+		ERedirectType_Name,
 		/* The pins match via a redirect and the value needs to also be redirected */
-		ERedirectType_Value	= (1 << 1),
-
-		/* The pin types don't match, but can be connected via a cast node */
-		ERedirectType_Type	= (1 << 2),
+		ERedirectType_Value
 	};
 
 	// Handles the actual reconstruction (copying data, links, name, etc...) from two pins that have already been matched together
