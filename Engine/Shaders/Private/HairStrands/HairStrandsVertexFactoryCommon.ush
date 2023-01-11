@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "/Engine/Shared/HairStrandsDefinitions.h"
+
 #define HAIR_CONTROLPOINT_INSIDE 0
 #define HAIR_CONTROLPOINT_START	1
 #define HAIR_CONTROLPOINT_END	2
@@ -74,33 +76,46 @@ bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair attributes
 
-struct FHairAttributes
-{
-	float2 RootUV;
-	float Seed;
-	float WorldLength;
-};
-
-FHairAttributes UnpackHairAttribute(float2 Attributes0, uint Attributes1, float InVF_Length)
+float2 UnpackHairRootUV(uint In)
 {
 	float2 RootUV, RootIndex;
-	RootUV.x		= ((Attributes1    ) & 0x7FF) / 2047.f;	// Coord are encoded on 11 bits
-	RootUV.y		= ((Attributes1>>11) & 0x7FF) / 2047.f;	// Coord are encoded on 11 bits 
-	RootIndex.x		= ((Attributes1>>22) & 0x1F);			// UDIM tile are encoded on 5bits
-	RootIndex.y		= ((Attributes1>>27) & 0x1F);			// UDIM tile are encoded on 5bits
+	RootUV.x	= ((In) & 0x7FF) / 2047.f;			// Coord are encoded on 11 bits
+	RootUV.y	= ((In >> 11) & 0x7FF) / 2047.f;	// Coord are encoded on 11 bits 
+	RootIndex.x = ((In >> 22) & 0x1F);				// UDIM tile are encoded on 5bits
+	RootIndex.y = ((In >> 27) & 0x1F);				// UDIM tile are encoded on 5bits
 
 	// Invert V to compensate image origin flip. Similar to GetHairStrandsRootUV in HairCardsAttributeCommon.ush
 	RootUV.y = 1.0f - RootUV.y;
 
-	FHairAttributes Out;
-	Out.RootUV		= RootUV + RootIndex;
-	Out.WorldLength = Attributes0.x * InVF_Length;
-	Out.Seed		= Attributes0.y;
-	return Out;
+	return RootUV = RootUV + RootIndex;
+}
+
+float UnpackHairLength(uint In)
+{
+	return f16tof32(In & 0xFFFF);
+}
+
+float UnpackHairSeed(uint In)
+{
+	return (In & 0xFF) / 255.f;
+}
+
+float3 UnpackHairBaseColor(uint In)
+{
+	float3 Out;
+	Out.x = (In       & 0xFF) / 255.f;
+	Out.y = ((In>>8)  & 0xFF) / 255.f;
+	Out.z = ((In>>16) & 0xFF) / 255.f;
+	return Out * Out; // Cheap sRGB encoding
+}
+
+float UnpackHairRoughness(uint In)
+{
+	return (In & 0xFF) / 255.f;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hair Curve
+// Hair curve
 
 struct FHairCurve
 {
@@ -136,6 +151,7 @@ float4x4		HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
 Buffer<uint>	HairStrandsVF_CurveBuffer;
+uint4			HairStrandsVF_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
 
 #if defined(PERMUTATION_CULLING) && PERMUTATION_CULLING == 1
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;

@@ -1841,19 +1841,6 @@ static void InitHairStrandsRootData(FHairStrandsRootData& Out, const FHairStrand
 	Out.RootCount = HairStrandsDatas->GetNumCurves();
 	Out.PointCount = HairStrandsDatas->GetNumPoints();
 
-	const uint32 CurveCount = HairStrandsDatas->GetNumCurves();
-	Out.VertexToCurveIndexBuffer.SetNum(HairStrandsDatas->GetNumPoints());
-	
-	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
-	{
-		const uint32 RootIndex = HairStrandsDatas->StrandsCurves.CurvesOffset[CurveIndex];
-		const uint32 PointCount = HairStrandsDatas->StrandsCurves.CurvesCount[CurveIndex];
-		for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
-		{
-			Out.VertexToCurveIndexBuffer[RootIndex + PointIndex] = CurveIndex; // RootIndex;
-		}
-	}
-
 	Out.MeshProjectionLODs.SetNum(LODCount);
 	uint32 LODIndex = 0;
 	for (FHairStrandsRootData::FMeshProjectionLOD& MeshProjectionLOD : Out.MeshProjectionLODs)
@@ -1905,8 +1892,6 @@ static void BuildRootBulkData(
 	Out.RootCount = In.RootCount;
 	Out.PointCount = In.PointCount;
 
-	CopyToBulkData<FHairStrandsIndexFormat>(Out.VertexToCurveIndexBuffer, In.VertexToCurveIndexBuffer);
-
 	const uint32 MeshLODCount = In.MeshProjectionLODs.Num();
 	Out.MeshProjectionLODs.SetNum(MeshLODCount);
 	for (uint32 MeshLODIt = 0; MeshLODIt < MeshLODCount; ++MeshLODIt)
@@ -1952,8 +1937,6 @@ static void BuildRootData(
 {
 	Out.RootCount = In.RootCount;
 	Out.PointCount = In.PointCount;
-
-	CopyFromBulkData<FHairStrandsIndexFormat>(Out.VertexToCurveIndexBuffer, In.VertexToCurveIndexBuffer);
 
 	const uint32 MeshLODCount = In.MeshProjectionLODs.Num();
 	Out.MeshProjectionLODs.SetNum(MeshLODCount);

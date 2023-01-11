@@ -8,6 +8,7 @@
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
 #include "HairStrandsInterface.h"
+#include "HairStrandsDefinitions.h"
 
 class UMeshComponent;
 class UGroomComponent;
@@ -58,6 +59,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER(uint32, ScatterSceneLighing)
 	SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
 	SHADER_PARAMETER(float, GroupIndex)
+	SHADER_PARAMETER_ARRAY(FUintVector4, AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
 
 	SHADER_PARAMETER_SRV(Buffer<float4>, PositionOffsetBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionOffsetBuffer)
@@ -65,9 +67,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER_SRV(Buffer<uint4>, PositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
 
-	SHADER_PARAMETER_SRV(Buffer<float2>, Attribute0Buffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>,   Attribute1Buffer)
-	SHADER_PARAMETER_SRV(Buffer<float4>, MaterialBuffer)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, AttributeBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, VertexToCurveBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
 
 	SHADER_PARAMETER_SRV(Buffer<uint>, CulledVertexIdsBuffer)

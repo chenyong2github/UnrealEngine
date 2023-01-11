@@ -59,7 +59,9 @@ void MainVS(
 
 #if SHADER_PIXEL
 
+#define HAIR_STRANDS_PARAMETERS 0
 #include "HairStrandsVertexFactoryCommon.ush"
+#include "HairStrandsAttributeCommon.ush"
 
 float3 ComputeTangent(
 	const FHairControlPoint CP0,
@@ -83,15 +85,13 @@ uint VertexCount;
 uint PrimitiveCount;
 uint bHasMaterialData;
 
-Buffer<uint4> InVF_PositionBuffer;
-Buffer<float2> InVF_Attribute0Buffer;
-Buffer<uint> InVF_Attribute1Buffer;
-Buffer<float4> InVF_MaterialBuffer;
+Buffer<uint4>		InVF_PositionBuffer;
+ByteAddressBuffer	InVF_AttributeBuffer;
+Buffer<uint>		InVF_VertexToCurveBuffer;
+uint4				InVF_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
 
 float3 InVF_PositionOffset;
 float InVF_Radius;
-float InVF_Length;
-uint InVF_ControlPointCount;
 uint InVF_GroupIndex;
 
 Buffer<float> VertexBuffer;
@@ -271,14 +271,6 @@ bool Trace(
 						const uint4 PackedCP_P0 = InVF_PositionBuffer[P0];
 						const uint4 PackedCP_P1 = InVF_PositionBuffer[P1];
 
-						float4 Material0 = 0;
-						float4 Material1 = 0;
-						if (bHasMaterialData)
-						{
-							Material0 = InVF_MaterialBuffer[P0];
-							Material1 = InVF_MaterialBuffer[P1];
-						}
-
 						const FHairControlPoint CP_Curr = UnpackHairControlPoint(PackedCP_P0, InVF_PositionOffset, InVF_Radius, InVF_RootScale, InVF_TipScale);
 						const FHairControlPoint CP_Next = UnpackHairControlPoint(PackedCP_P1, InVF_PositionOffset, InVF_Radius, InVF_RootScale, InVF_TipScale);
 
@@ -306,13 +298,27 @@ bool Trace(
 							OutTangent = Tangent;
 							OutDepth = Distance;
 
-							const FHairAttributes Attributes0 = UnpackHairAttribute(InVF_Attribute0Buffer[P0], InVF_Attribute1Buffer[P0], InVF_Length);
-							const FHairAttributes Attributes1 = UnpackHairAttribute(InVF_Attribute0Buffer[P1], InVF_Attribute1Buffer[P0], InVF_Length);
+							OutSeed         = UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_ATTRIBUTE_OFFSET_SEED(InVF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_SEED, InVF_AttributeBuffer, InVF_VertexToCurveBuffer));
+							OutRootUV       = UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_ATTRIBUTE_OFFSET_ROOTUV(InVF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_ROOTUV, InVF_AttributeBuffer, InVF_VertexToCurveBuffer));
+							OutU			= lerp(CP_Curr.UCoord, CP_Next.UCoord, VertexU);
+							OutMaterial.xyz = 0;
+							OutMaterial.w   = 0;
 
-							OutSeed		= Attributes0.Seed;
-							OutRootUV	= Attributes0.RootUV;
-							OutU		= lerp(CP_Curr.UCoord, CP_Next.UCoord, VertexU);
-							OutMaterial = lerp(Material0, Material1, VertexU);
+							const uint BaseColorOffset = HAIR_ATTRIBUTE_OFFSET_BASECOLOR(InVF_AttributeOffsets);
+							if (IsAttributeValid(BaseColorOffset))
+							{
+								const float3 C0 = UnpackHairBaseColor(InternalGetHairStrandsAttributesPerVertex(P0, BaseColorOffset, HAIR_ATTRIBUTE_STRIDE_BASECOLOR, InVF_AttributeBuffer));
+								const float3 C1 = UnpackHairBaseColor(InternalGetHairStrandsAttributesPerVertex(P1, BaseColorOffset, HAIR_ATTRIBUTE_STRIDE_BASECOLOR, InVF_AttributeBuffer));
+								OutMaterial.xyz = lerp(C0, C1, VertexU);
+							}
+
+							const uint RoughnessOffset = HAIR_ATTRIBUTE_OFFSET_ROUGHNESS(InVF_AttributeOffsets);
+							if (IsAttributeValid(RoughnessOffset))
+							{
+								const float R0 = UnpackHairRoughness(InternalGetHairStrandsAttributesPerVertex(P0, RoughnessOffset, HAIR_ATTRIBUTE_STRIDE_ROUGHNESS, InVF_AttributeBuffer));
+								const float R1 = UnpackHairRoughness(InternalGetHairStrandsAttributesPerVertex(P1, RoughnessOffset, HAIR_ATTRIBUTE_STRIDE_ROUGHNESS, InVF_AttributeBuffer));
+								OutMaterial.w = lerp(R0, R1, VertexU);
+							}
 
 							bIsValid = true;
 

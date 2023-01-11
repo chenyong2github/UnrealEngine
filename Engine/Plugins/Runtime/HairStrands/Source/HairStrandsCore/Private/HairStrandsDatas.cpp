@@ -19,7 +19,7 @@ void FHairStrandsCurves::SetNum(const uint32 NumCurves)
 	CurvesLength.SetNum(NumCurves);
 	CurvesRootUV.SetNum(NumCurves);
 
-	// Curves clossest guide are not initialized to track if the curves 
+	// Curves closest guide are not initialized to track if the curves 
 	// data contains or not precomputed weights
 	// CurvesClosestGuideIDs.SetNum(0);
 	// CurvesClosestGuideWeights.SetNum(0);
@@ -75,16 +75,6 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	Ar << Vertex.Z;
 	Ar << Vertex.PackedRadiusAndType;
 	Ar << Vertex.UCoord;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairMaterialVertex& Vertex)
-{
-	Ar << Vertex.BaseColorR;
-	Ar << Vertex.BaseColorG;
-	Ar << Vertex.BaseColorB;
-	Ar << Vertex.Roughness;
 
 	return Ar;
 }
@@ -206,9 +196,9 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
 void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
-	static_assert(sizeof(FHairStrandsAttribute0Format::BulkType) == sizeof(FHairStrandsAttribute0Format::Type));
-	static_assert(sizeof(FHairStrandsAttribute1Format::BulkType) == sizeof(FHairStrandsAttribute1Format::Type));
-	static_assert(sizeof(FHairStrandsMaterialFormat::BulkType) == sizeof(FHairStrandsMaterialFormat::Type));
+	static_assert(sizeof(FHairStrandsAttributeFormat::BulkType) == sizeof(FHairStrandsAttributeFormat::Type));
+	static_assert(sizeof(FHairStrandsVertexToCurveFormat16::BulkType) == sizeof(FHairStrandsVertexToCurveFormat16::Type));
+	static_assert(sizeof(FHairStrandsVertexToCurveFormat32::BulkType) == sizeof(FHairStrandsVertexToCurveFormat32::Type));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type)); 
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
@@ -220,6 +210,10 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	Ar << MaxRadius;
 	Ar << BoundingBox;
 	Ar << Flags;
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
+	{
+		Ar << AttributeOffsets[AttributeIt];
+	}
 
 	// Forced not inline means the bulk data won't automatically be loaded when we deserialize
 	// but only when we explicitly take action to load it
@@ -227,9 +221,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
 		Positions.SetBulkDataFlags(BulkFlags);
-		Attributes0.SetBulkDataFlags(BulkFlags);
-		Attributes1.SetBulkDataFlags(BulkFlags);
-		Materials.SetBulkDataFlags(BulkFlags);
+		Attributes.SetBulkDataFlags(BulkFlags);
+		VertexToCurve.SetBulkDataFlags(BulkFlags);
 		Curves.SetBulkDataFlags(BulkFlags);
 	}
 
@@ -239,13 +232,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		bool bAttemptFileMapping = false;
 
 		Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Attributes0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Attributes1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-
-		if (!!(Flags & DataFlags_HasMaterialData))
-		{
-			Materials.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		}
+		Attributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		VertexToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 }
@@ -258,20 +246,21 @@ void FHairStrandsBulkData::Reset()
 	MaxRadius = 0;
 	BoundingBox = FBox(EForceInit::ForceInit);
 	Flags = 0;
-
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
+	{
+		AttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+	}
 	// Deallocate memory if needed
 	Positions.RemoveBulkData();
-	Attributes0.RemoveBulkData();
-	Attributes1.RemoveBulkData();
-	Materials.RemoveBulkData();
+	Attributes.RemoveBulkData();
+	VertexToCurve.RemoveBulkData();
 	Curves.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Positions 	= FByteBulkData();
-	Attributes0 = FByteBulkData();
-	Attributes1 = FByteBulkData();
-	Materials 	= FByteBulkData();
-	Curves		= FByteBulkData();
+	Positions 		= FByteBulkData();
+	Attributes		= FByteBulkData();
+	VertexToCurve	= FByteBulkData();
+	Curves			= FByteBulkData();
 }
 
 void FHairStrandsDatas::Reset()

@@ -67,8 +67,8 @@ private:
 	struct FResources
 	{
 		FRDGBufferSRVRef PositionSRV = nullptr;
-		FRDGBufferSRVRef Attribute0SRV = nullptr;
-		FRDGBufferSRVRef Attribute1SRV = nullptr;
+		FRDGBufferSRVRef AttributeSRV = nullptr;
+		FRDGBufferSRVRef VertexToCurveSRV = nullptr;
 		FRDGBufferSRVRef FallbackSRV = nullptr;
 		FRDGBufferSRVRef CurveSRV = nullptr;
 	};

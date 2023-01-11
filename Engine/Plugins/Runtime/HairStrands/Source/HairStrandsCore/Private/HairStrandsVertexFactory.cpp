@@ -38,23 +38,41 @@ public:
 	FShaderResourceViewRHIRef SRVRGBA;
 	FShaderResourceViewRHIRef SRVRGBA_Uint;
 
+	FShaderResourceViewRHIRef SRVByteAddress;
+	FBufferRHIRef ByteAddressBufferRHI;
+
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyCulledDispatchVertexIdsBuffer"));
-		uint32 NumBytes = sizeof(uint32) * 4;
-		VertexBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		uint32* DummyContents = (uint32*)RHILockBuffer(VertexBufferRHI, 0, NumBytes, RLM_WriteOnly);
-		DummyContents[0] = DummyContents[1] = DummyContents[2] = DummyContents[3] = 0;
-		RHIUnlockBuffer(VertexBufferRHI);
+		{
+			FRHIResourceCreateInfo CreateInfo(TEXT("FDummyCulledDispatchVertexIdsBuffer"));
+			uint32 NumBytes = sizeof(uint32) * 4;
+			VertexBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+			uint32* DummyContents = (uint32*)RHILockBuffer(VertexBufferRHI, 0, NumBytes, RLM_WriteOnly);
+			DummyContents[0] = DummyContents[1] = DummyContents[2] = DummyContents[3] = 0;
+			RHIUnlockBuffer(VertexBufferRHI);
+		}
+
+		{
+			FRHIResourceCreateInfo CreateInfo(TEXT("FDummyByteAddressBufferBuffer"));
+			uint32 NumBytes = sizeof(uint32) * 4;
+			ByteAddressBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_ShaderResource |BUF_ByteAddressBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
+			uint32* DummyContents = (uint32*)RHILockBuffer(ByteAddressBufferRHI, 0, NumBytes, RLM_WriteOnly);
+			DummyContents[0] = DummyContents[1] = DummyContents[2] = DummyContents[3] = 0;
+			RHIUnlockBuffer(ByteAddressBufferRHI);
+		}
 
 		SRVUint = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
 		SRVFloat = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_FLOAT);
 		SRVRGBA = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8);
 		SRVRGBA_Uint = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8_UINT);
+		SRVByteAddress = RHICreateShaderResourceView(ByteAddressBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 
 	virtual void ReleaseRHI() override
 	{
+		ByteAddressBufferRHI.SafeRelease();
+		SRVByteAddress.SafeRelease();
+
 		VertexBufferRHI.SafeRelease();
 		SRVUint.SafeRelease();
 		SRVFloat.SafeRelease();
@@ -85,10 +103,8 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	Out.ScatterSceneLighing			= VFInput.Strands.bScatterSceneLighting;
 	Out.PositionBuffer				= VFInput.Strands.PositionBufferRHISRV;
 	Out.PreviousPositionBuffer		= VFInput.Strands.PrevPositionBufferRHISRV;
-	Out.Attribute0Buffer			= VFInput.Strands.Attribute0BufferRHISRV;
-	Out.Attribute1Buffer			= VFInput.Strands.Attribute1BufferRHISRV;
-	Out.MaterialBuffer 				= VFInput.Strands.MaterialBufferRHISRV;
-	Out.HasMaterial 				= Out.MaterialBuffer != nullptr;
+	Out.AttributeBuffer				= VFInput.Strands.AttributeBufferRHISRV;
+	Out.VertexToCurveBuffer			= VFInput.Strands.VertexToCurveBufferRHISRV;
 	Out.TangentBuffer 				= VFInput.Strands.TangentBufferRHISRV;
 	Out.PositionOffsetBuffer 		= VFInput.Strands.PositionOffsetBufferRHISRV;
 	Out.PreviousPositionOffsetBuffer= VFInput.Strands.PrevPositionOffsetBufferRHISRV;
@@ -96,9 +112,8 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	// swap in some default data for those buffers that are not valid yet
 	if (!Out.PositionBuffer) 				{ Out.PositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.PreviousPositionBuffer) 		{ Out.PreviousPositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.Attribute0Buffer) 				{ Out.Attribute0Buffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.Attribute1Buffer) 				{ Out.Attribute1Buffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.MaterialBuffer) 				{ Out.MaterialBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVRGBA; }
+	if (!Out.AttributeBuffer) 				{ Out.AttributeBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVByteAddress; }
+	if (!Out.VertexToCurveBuffer) 			{ Out.VertexToCurveBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint; }
 	if (!Out.TangentBuffer) 				{ Out.TangentBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.PositionOffsetBuffer) 			{ Out.PositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 	if (!Out.PreviousPositionOffsetBuffer) 	{ Out.PreviousPositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
@@ -114,6 +129,8 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 		Out.CulledVertexIdsBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
 		Out.CulledVertexRadiusScaleBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
 	}
+
+	PACK_HAIR_ATTRIBUTE_OFFSETS(Out.AttributeOffsets, VFInput.Strands.AttributeOffsets);	
 	return Out;
 }
 

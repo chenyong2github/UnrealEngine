@@ -129,7 +129,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	uint32 GetResourcesSize() const 
 	{
 		uint32 Total = 0;
-		Total += GetBufferTotalNumBytes(VertexToCurveIndexBuffer);
 		for (const FLOD& LOD : LODs)
 		{
 			Total += GetBufferTotalNumBytes(LOD.UniqueTriangleIndexBuffer);
@@ -144,8 +143,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 		}
 		return Total;
 	}
-
-	FRDGExternalBuffer VertexToCurveIndexBuffer;
 
 	struct FLOD
 	{
@@ -183,9 +180,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootBulkData& BulkData;
-
-	/* Bulk data request handle */
-	FBulkDataBatchRequest BulkDataRequest;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -318,9 +312,8 @@ struct FHairStrandsRestResource : public FHairCommonResource
 		Total += GetBufferTotalNumBytes(PositionBuffer);
 		Total += GetBufferTotalNumBytes(PositionOffsetBuffer);
 		Total += GetBufferTotalNumBytes(TangentBuffer);
-		Total += GetBufferTotalNumBytes(Attribute0Buffer);
-		Total += GetBufferTotalNumBytes(Attribute1Buffer);
-		Total += GetBufferTotalNumBytes(MaterialBuffer);
+		Total += GetBufferTotalNumBytes(AttributeBuffer);
+		Total += GetBufferTotalNumBytes(VertexToCurveBuffer);
 		Total += GetBufferTotalNumBytes(CurveBuffer);
 		return Total;
 	}
@@ -335,15 +328,12 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	FRDGExternalBuffer TangentBuffer;
 
 	/* Strand hair attribute buffer */
-	FRDGExternalBuffer Attribute0Buffer;
+	FRDGExternalBuffer AttributeBuffer;
 
-	/* Strand hair attribute buffer */
-	FRDGExternalBuffer Attribute1Buffer;
+	/* Strand hair vertex to curve index mapping */
+	FRDGExternalBuffer VertexToCurveBuffer;
 
-	/* Strand hair material buffer */
-	FRDGExternalBuffer MaterialBuffer;
-
-	/* Strand hair curves buffer (contains curves' points offset and count */
+	/* Strand hair curves buffer (contains curves' points offset and count) */
 	FRDGExternalBuffer CurveBuffer;
 
 	/* Reference to the hair strands render data */

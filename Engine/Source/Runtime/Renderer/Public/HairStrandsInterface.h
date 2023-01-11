@@ -209,9 +209,8 @@ public:
 			FRDGImportedBuffer PositionBuffer;
 			FRDGImportedBuffer PrevPositionBuffer;
 			FRDGImportedBuffer TangentBuffer;
-			FRDGImportedBuffer MaterialBuffer;
-			FRDGImportedBuffer Attribute0Buffer;
-			FRDGImportedBuffer Attribute1Buffer;
+			FRDGImportedBuffer AttributeBuffer;
+			FRDGImportedBuffer VertexToCurveBuffer;
 			FRDGImportedBuffer PositionOffsetBuffer;
 			FRDGImportedBuffer PrevPositionOffsetBuffer;
 			FRDGImportedBuffer CurveBuffer;
@@ -219,9 +218,8 @@ public:
 			FRDGExternalBuffer PositionBufferExternal;
 			FRDGExternalBuffer PrevPositionBufferExternal;
 			FRDGExternalBuffer TangentBufferExternal;
-			FRDGExternalBuffer MaterialBufferExternal;
-			FRDGExternalBuffer Attribute0BufferExternal;
-			FRDGExternalBuffer Attribute1BufferExternal;
+			FRDGExternalBuffer AttributeBufferExternal;
+			FRDGExternalBuffer VertexToCurveBufferExternal;
 			FRDGExternalBuffer PositionOffsetBufferExternal;
 			FRDGExternalBuffer PrevPositionOffsetBufferExternal;
 			FRDGExternalBuffer CurveBufferExternal;
@@ -229,15 +227,15 @@ public:
 			FShaderResourceViewRHIRef PositionBufferRHISRV				= nullptr;
 			FShaderResourceViewRHIRef PrevPositionBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef TangentBufferRHISRV				= nullptr;
-			FShaderResourceViewRHIRef MaterialBufferRHISRV				= nullptr;
-			FShaderResourceViewRHIRef Attribute0BufferRHISRV			= nullptr;
-			FShaderResourceViewRHIRef Attribute1BufferRHISRV			= nullptr;
+			FShaderResourceViewRHIRef AttributeBufferRHISRV				= nullptr;
+			FShaderResourceViewRHIRef VertexToCurveBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef PositionOffsetBufferRHISRV		= nullptr;
 			FShaderResourceViewRHIRef PrevPositionOffsetBufferRHISRV	= nullptr;
 			FShaderResourceViewRHIRef CurveBufferRHISRV					= nullptr;
 
 			FVector PositionOffset = FVector::ZeroVector;
 			FVector PrevPositionOffset = FVector::ZeroVector;
+			TArray<uint32> AttributeOffsets;
 
 			uint32 CurveCount = 0;
 			uint32 VertexCount = 0;

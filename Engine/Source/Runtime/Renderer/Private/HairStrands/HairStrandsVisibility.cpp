@@ -2721,12 +2721,8 @@ void AddMeshDrawTransitionPass(
 			ExternalAccessQueue.Add(VFInput.Strands.PositionBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.TangentBuffer.Buffer);
-			ExternalAccessQueue.Add(VFInput.Strands.Attribute0Buffer.Buffer);
-			ExternalAccessQueue.Add(VFInput.Strands.Attribute1Buffer.Buffer);
-			if (VFInput.Strands.MaterialBuffer.Buffer != nullptr)
-			{
-				ExternalAccessQueue.Add(VFInput.Strands.MaterialBuffer.Buffer);
-			}
+			ExternalAccessQueue.Add(VFInput.Strands.AttributeBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.VertexToCurveBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PositionOffsetBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionOffsetBuffer.Buffer);
 
@@ -2743,9 +2739,8 @@ void AddMeshDrawTransitionPass(
 				VFInput.Strands.PositionBuffer				= FRDGImportedBuffer();
 				VFInput.Strands.PrevPositionBuffer			= FRDGImportedBuffer();
 				VFInput.Strands.TangentBuffer				= FRDGImportedBuffer();
-				VFInput.Strands.Attribute0Buffer			= FRDGImportedBuffer();
-				VFInput.Strands.Attribute1Buffer			= FRDGImportedBuffer();
-				VFInput.Strands.MaterialBuffer				= FRDGImportedBuffer();
+				VFInput.Strands.AttributeBuffer				= FRDGImportedBuffer();
+				VFInput.Strands.VertexToCurveBuffer			= FRDGImportedBuffer();
 				VFInput.Strands.PositionOffsetBuffer		= FRDGImportedBuffer();
 				VFInput.Strands.PrevPositionOffsetBuffer	= FRDGImportedBuffer();
 			}
@@ -2817,27 +2812,32 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 	{
 		Out.HairStrandsVF_PositionBuffer		= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
 		Out.HairStrandsVF_PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-		Out.HairStrandsVF_CurveBuffer = Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.HairStrandsVF_CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.HairStrandsVF_VertexToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.VertexToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.HairStrandsVF_AttributeBuffer		= Register(GraphBuilder, VFInput.Strands.AttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 	}
 	else
 	{
 		Out.HairStrandsVF_PositionBuffer		= VFInput.Strands.PositionBuffer.SRV;
 		Out.HairStrandsVF_PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
-		Out.HairStrandsVF_CurveBuffer = VFInput.Strands.CurveBuffer.SRV;
+		Out.HairStrandsVF_CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
+		Out.HairStrandsVF_VertexToCurveBuffer	= VFInput.Strands.VertexToCurveBuffer.SRV;
+		Out.HairStrandsVF_AttributeBuffer		= VFInput.Strands.AttributeBuffer.SRV;
 	}
 
+	Out.HairStrandsVF_VertexCount				= VFInput.Strands.VertexCount;
+	Out.HairStrandsVF_CurveCount				= VFInput.Strands.CurveCount;
+	Out.HairStrandsVF_Radius					= VFInput.Strands.HairRadius;
+	Out.HairStrandsVF_RootScale					= VFInput.Strands.HairRootScale;
+	Out.HairStrandsVF_TipScale					= VFInput.Strands.HairTipScale;
+	Out.HairStrandsVF_Length					= VFInput.Strands.HairLength;
+	Out.HairStrandsVF_bUseStableRasterization	= VFInput.Strands.bUseStableRasterization ? 1 : 0;
+	Out.HairStrandsVF_Density					= VFInput.Strands.HairDensity;
+	Out.HairStrandsVF_bIsCullingEnable			= 0;
+	Out.HairStrandsVF_bHasRaytracedGeometry		= VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
+	Out.HairStrandsVF_PositionOffset			= (FVector3f)VFInput.Strands.PositionOffset;
 
-	Out.HairStrandsVF_VertexCount						= VFInput.Strands.VertexCount;
-	Out.HairStrandsVF_CurveCount						= VFInput.Strands.CurveCount;
-	Out.HairStrandsVF_Radius							= VFInput.Strands.HairRadius;
-	Out.HairStrandsVF_RootScale							= VFInput.Strands.HairRootScale;
-	Out.HairStrandsVF_TipScale							= VFInput.Strands.HairTipScale;
-	Out.HairStrandsVF_Length							= VFInput.Strands.HairLength;
-	Out.HairStrandsVF_bUseStableRasterization			= VFInput.Strands.bUseStableRasterization ? 1 : 0;
-	Out.HairStrandsVF_Density							= VFInput.Strands.HairDensity;
-	Out.HairStrandsVF_bIsCullingEnable					= 0;
-	Out.HairStrandsVF_bHasRaytracedGeometry				= VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
-	Out.HairStrandsVF_PositionOffset					= (FVector3f)VFInput.Strands.PositionOffset;
+	PACK_HAIR_ATTRIBUTE_OFFSETS(Out.HairStrandsVF_AttributeOffsets, VFInput.Strands.AttributeOffsets);
 
 	// Absolute local to world
 	Out.HairStrandsVF_LocalToWorldPrimitiveTransform	= FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss

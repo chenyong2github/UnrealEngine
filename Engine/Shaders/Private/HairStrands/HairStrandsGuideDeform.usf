@@ -37,7 +37,7 @@ Buffer<float4>  SimDeformedPosition1Buffer;
 Buffer<float4>  SimDeformedPosition2Buffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
-Buffer<uint>    SimVertexToRootIndexBuffer;
+Buffer<uint>    SimVertexToCurveBuffer;
 Buffer<uint>	SimRootToUniqueTriangleIndexBuffer;
 
 // Return world position of a guide vertex deformed by a skinned triangle
@@ -83,7 +83,7 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 #endif
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
-	const uint RootIndex = SimVertexToRootIndexBuffer[VertexIndex];
+	const uint RootIndex = SimVertexToCurveBuffer[VertexIndex];
 	const float3 RootBarycentric = DecodeBarycentrics(SimRootBarycentricBuffer[RootIndex]);
 
 	const uint TriangleIndex = SimRootToUniqueTriangleIndexBuffer[RootIndex];

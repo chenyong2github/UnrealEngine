@@ -21,12 +21,6 @@ uint ReadNumCurves_{DataInterfaceName}()
 
 void WritePosition_{DataInterfaceName}(uint ControlPointIndex, float3 Position)
 {
-	FHairControlPoint CP;
-	CP.Position = Position;
-	CP.WorldRadius = 1.f;
-	CP.UCoord = 0;
-	CP.Type = HAIR_CONTROLPOINT_INSIDE;
-
 	const uint WriteIndex = {DataInterfaceName}_OutputStreamStart + ControlPointIndex;
 	if (WriteIndex < {DataInterfaceName}_NumControlPoints)
 	{

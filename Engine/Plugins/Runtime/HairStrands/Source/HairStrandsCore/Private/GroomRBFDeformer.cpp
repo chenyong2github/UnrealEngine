@@ -520,6 +520,23 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			check(InGroomAsset->HairGroupsInterpolation[GroupIt].DecimationSettings.CurveDecimation == 1);
 		}
 
+		// Build Curve index for every vertices
+		auto BuildVertexToCurveMapping = [](const FHairStrandsDatas& In, TArray<uint32>& Out)
+		{
+			const uint32 CurveCount = In.GetNumCurves();
+			Out.SetNum(In.GetNumPoints());
+
+			for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
+			{
+				const uint32 RootIndex = In.StrandsCurves.CurvesOffset[CurveIndex];
+				const uint32 PointCount = In.StrandsCurves.CurvesCount[CurveIndex];
+				for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+				{
+					Out[RootIndex + PointIndex] = CurveIndex; // RootIndex;
+				}
+			}
+		};
+
 		// Note that the GroupID from the HairGroups cannot be used as the GroupIndex since 
 		// the former may not be strictly increasing nor consecutive
 		// but the ordering of the groups does represent the GroupIndex		
@@ -533,6 +550,11 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			FHairStrandsDatas GuidesData;
 			FHairGroupInfo DummyInfo;
 			FGroomBuilder::BuildData(Group, InGroomAsset->HairGroupsInterpolation[GroupIndex], DummyInfo, StrandsData, GuidesData);
+
+			TArray<uint32> SimRootDataVertexToCurveIndexBuffer;
+			TArray<uint32> RenRootDataVertexToCurveIndexBuffer;
+			BuildVertexToCurveMapping(GuidesData, SimRootDataVertexToCurveIndexBuffer);
+			BuildVertexToCurveMapping(StrandsData, RenRootDataVertexToCurveIndexBuffer);
 
 			// Get deformed guides
 			// If the groom override the value, we output dummy value for the guides, since they won't be used
@@ -551,7 +573,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 					GuidesData,
 					MeshLODIndex,
 					SkeletalMeshData_Target,
-					SimRootData.VertexToCurveIndexBuffer,
+					SimRootDataVertexToCurveIndexBuffer,
 					SimRootData.MeshProjectionLODs[MeshLODIndex]);
 			}
 
@@ -565,7 +587,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 					StrandsData,
 					MeshLODIndex,
 					SkeletalMeshData_Target,
-					RenRootData.VertexToCurveIndexBuffer,
+					RenRootDataVertexToCurveIndexBuffer,
 					RenRootData.MeshProjectionLODs[MeshLODIndex]);
 			}
 		}
