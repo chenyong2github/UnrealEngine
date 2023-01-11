@@ -312,12 +312,15 @@ private:
 public:
 	void AttachWidget(const TSharedPtr<SWidget>& InWidget)
 	{
-		WidgetPtr = InWidget;
-		GetOwner().Invalidate(EInvalidateWidgetReason::ChildOrder);
-
-		if (InWidget.IsValid() && InWidget != SNullWidget::NullWidget)
+		if (WidgetPtr != InWidget)
 		{
-			InWidget->AssignParentWidget(GetOwner().AsShared());
+			WidgetPtr = InWidget;
+			GetOwner().Invalidate(EInvalidateWidgetReason::ChildOrder);
+
+			if (InWidget.IsValid() && InWidget != SNullWidget::NullWidget)
+			{
+				InWidget->AssignParentWidget(GetOwner().AsShared());
+			}
 		}
 	}
 

@@ -20,6 +20,12 @@ void STooltipPresenter::SetContent(TSharedPtr<SWidget> InWidget)
 	{
 		ChildSlot.DetachWidget();
 	}
+	Invalidate(EInvalidateWidgetReason::Volatility);
+}
+
+bool STooltipPresenter::ComputeVolatility() const
+{
+	return SPanel::ComputeVolatility() || ChildSlot.Num() > 0;
 }
 
 void STooltipPresenter::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const

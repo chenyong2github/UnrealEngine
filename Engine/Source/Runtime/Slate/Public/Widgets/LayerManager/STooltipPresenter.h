@@ -36,6 +36,7 @@ public:
 	void SetContent(TSharedPtr<SWidget> InWidget);
 
 private:
+	virtual bool ComputeVolatility() const override;
 	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
 
 	virtual FVector2D ComputeDesiredSize(float) const override;
