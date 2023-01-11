@@ -19,19 +19,6 @@
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Stats/Stats.h"
 
-// defines for debug data/logging in AudioMixerThreadCommand execution
-// if this hasn't been explicitly defined, assume it is enabled
-#ifndef WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
-#define WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG 1
-#endif // #ifndef WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
-
-#if WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
-#define AUDIO_MIXER_THREAD_COMMAND_STRING(X) ( FName(X) )
-#else //WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
-static const FName NAME_NONE;
-#define AUDIO_MIXER_THREAD_COMMAND_STRING(X) ( NAME_NONE )
-#endif //WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
-
 
 // Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Manager Update"), STAT_AudioMixerSourceManagerUpdate, STATGROUP_AudioMixer, AUDIOMIXER_API);
@@ -310,15 +297,11 @@ namespace Audio
 		struct FAudioMixerThreadCommand
 		{
 			// ctor
-			FAudioMixerThreadCommand(TFunction<void()> InFunction, FName InCallerDebugInfo, bool bInDeferExecution = false);
+			FAudioMixerThreadCommand(TFunction<void()> InFunction, bool bInDeferExecution = false);
 
 			// function-call operator
 			void operator()() const;
 
-			// data
-#if WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
-			FName CallerDebugInfo;
-#endif // #if WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
 			TFunction<void()> Function;
 
 			// Defers the execution by a single call to PumpCommandQueue()
@@ -326,51 +309,8 @@ namespace Audio
 			// and that source gets initialized after the command executes
 			bool bDeferExecution;
 		};
-		
 
-		struct FCurrentAudioMixerThreadCommandInfo
-		{
-		private:
-			FName CallerDebugInfo;
-			FThreadSafeCounter64 QueueTimeInCycles;
-			
-		public:
-			void SetNewTask(FName InTask);
-			FName GetCurrentTaskName() const
-			{
-				return CallerDebugInfo;
-			}
-
-			float GetCurrentExecutionTimeMs() const
-			{
-				if(!CallerDebugInfo.IsNone())
-				{
-					return static_cast<float>(FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - QueueTimeInCycles.GetValue()));
-				}
-				return 0.f; // no task currently running
-			}
-
-			void LogWarning() const;
-			void LogError() const;
-			void Reset();
-		};
-
-		struct FScopedAudioThreadCommandInfo
-		{
-			// ctor - name the task, reset the counter
-			FScopedAudioThreadCommandInfo() = delete;
-			FScopedAudioThreadCommandInfo(FName InTaskName, FCurrentAudioMixerThreadCommandInfo& InInfoRef);
-
-			// dtor - reset the task name and counter (not in a function)
-			~FScopedAudioThreadCommandInfo();
-
-			FCurrentAudioMixerThreadCommandInfo& InfoRef;
-			
-		};
-
-		mutable FCurrentAudioMixerThreadCommandInfo CurrentAudioMixerThreadCommandInfo; // mutable to allow const functions to register debug info
-
-		void AudioMixerThreadCommand(TFunction<void()> InFunction, FName CallingFunction = {}, bool bInDeferExecution = false);
+		void AudioMixerThreadCommand(TFunction<void()> InFunction, bool bInDeferExecution = false);
 
 		
 		static const int32 NUM_BYTES_PER_SAMPLE = 2;
