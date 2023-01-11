@@ -3203,7 +3203,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 			FNiagaraDataInterfaceUtilities::ForEachVMFunctionEquals(
 				this,
 				Asset,
-				[&](const FVMExternalFunctionBindingInfo& VMFunction) -> bool
+				[&](const UNiagaraScript* Script, const FVMExternalFunctionBindingInfo& VMFunction) -> bool
 				{
 					bCpuAccessWarning |= CpuAccessFunctions.ContainsByPredicate([&](const FNiagaraFunctionSignature& CheckFunction) { return CheckFunction.Name == VMFunction.Name; });
 					return bCpuAccessWarning == false;
@@ -3213,7 +3213,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 			FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(
 				this,
 				Asset,
-				[&](const FNiagaraDataInterfaceGeneratedFunction& GpuFunction) -> bool
+				[&](const UNiagaraScript* Script,const FNiagaraDataInterfaceGeneratedFunction& GpuFunction) -> bool
 				{
 					bCpuAccessWarning |= CpuAccessFunctions.ContainsByPredicate([&](const FNiagaraFunctionSignature& CheckFunction) { return CheckFunction.Name == GpuFunction.DefinitionName; });
 					return bCpuAccessWarning == false;
@@ -3251,7 +3251,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 	{
 		FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(
 			this, Asset, Component,
-			[&](const FNiagaraDataInterfaceGeneratedFunction& FunctionBinding)
+			[&](const UNiagaraScript* Script, const FNiagaraDataInterfaceGeneratedFunction& FunctionBinding)
 			{
 				if (FunctionBinding.DefinitionName == NDIStaticMeshLocal::QueryDistanceFieldName )
 				{
