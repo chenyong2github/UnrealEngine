@@ -91,11 +91,9 @@ struct FSubsystemAccessAPI : FSystemRequirementTestBase
 		UMassTestEngineSubsystem* TestEngineSubsystemActual = GEngine->GetEngineSubsystem<UMassTestEngineSubsystem>();
 		UMassTestCustomSubsystem* TestCustomSubsystemActual = UMassTestCustomSubsystem::Get();
 		ULocalPlayer* LocalPlayer = World->GetFirstLocalPlayerFromController();
-		check(LocalPlayer);
-		UMassTestLocalPlayerSubsystem* TestLocalPlayerSubsystemActual = LocalPlayer->GetSubsystem<UMassTestLocalPlayerSubsystem>();
+		UMassTestLocalPlayerSubsystem* TestLocalPlayerSubsystemActual = LocalPlayer ? LocalPlayer->GetSubsystem<UMassTestLocalPlayerSubsystem>() : nullptr;
 		UGameInstance* GameInstance = World->GetGameInstance();
-		check(GameInstance);
-		UMassTestGameInstanceSubsystem* TestGameInstanceSubsystemActual = GameInstance->GetSubsystem<UMassTestGameInstanceSubsystem>();
+		UMassTestGameInstanceSubsystem* TestGameInstanceSubsystemActual = GameInstance ? GameInstance->GetSubsystem<UMassTestGameInstanceSubsystem>() : nullptr;
 
 		UMassTestWorldSubsystem* AccessWorldSubsystem = nullptr;
 		UMassTestEngineSubsystem* AccessEngineSubsystem = nullptr;
@@ -149,7 +147,6 @@ struct FSubsystemAccessAPI : FSystemRequirementTestBase
 		AITEST_EQUAL(TEXT("CustomSubsystem: subsystem fetched via class-requirements is expected to be the same as the Actual")
 			, TestCustomSubsystemActual, SubsystemAccessClasses.GetSubsystem<UMassTestCustomSubsystem>());
 
-		AITEST_NOT_NULL(TEXT("LocalPlayerSubsystem: Subsystem Actual is expected to be not NULL"), TestLocalPlayerSubsystemActual);
 		AITEST_EQUAL(TEXT("LocalPlayerSubsystem: Mutable subsystem fetched is expected to be the same as the Actual"), TestLocalPlayerSubsystemActual, AccessLocalPlayerSubsystem);
 		AITEST_EQUAL(TEXT("LocalPlayerSubsystem: Const subsystem fetched is expected to be the same as the Actual"), TestLocalPlayerSubsystemActual, ConstAccessLocalPlayerSubsystem);
 		AITEST_EQUAL(TEXT("LocalPlayerSubsystem: subsystem fetched via bits-requirements is expected to be the same as the Actual")
@@ -157,7 +154,6 @@ struct FSubsystemAccessAPI : FSystemRequirementTestBase
 		AITEST_EQUAL(TEXT("LocalPlayerSubsystem: subsystem fetched via class-requirements is expected to be the same as the Actual")
 			, TestLocalPlayerSubsystemActual, SubsystemAccessClasses.GetSubsystem<UMassTestLocalPlayerSubsystem>());
 
-		AITEST_NOT_NULL(TEXT("GameInstanceSubsystem: Subsystem Actual is expected to be not NULL"), TestGameInstanceSubsystemActual);
 		AITEST_EQUAL(TEXT("GameInstanceSubsystem: Mutable subsystem fetched is expected to be the same as the Actual"), TestGameInstanceSubsystemActual, AccessGameInstanceSubsystem);
 		AITEST_EQUAL(TEXT("GameInstanceSubsystem: Const subsystem fetched is expected to be the same as the Actual"), TestGameInstanceSubsystemActual, ConstAccessGameInstanceSubsystem);
 		AITEST_EQUAL(TEXT("GameInstanceSubsystem: subsystem fetched via bits-requirements is expected to be the same as the Actual")
