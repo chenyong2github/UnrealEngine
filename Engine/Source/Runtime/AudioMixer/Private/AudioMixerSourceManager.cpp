@@ -171,33 +171,38 @@ DEFINE_STAT(STAT_AudioMixerSourceOutputBuffers);
 
 #if UE_AUDIO_PROFILERTRACE_ENABLED
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceVolume)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(float, Volume)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceDistanceAttenuation)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(float, DistanceAttenuation)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourcePitch)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(float, Pitch)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceFilters)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(float, LPFFrequency)
 	UE_TRACE_EVENT_FIELD(float, HPFFrequency)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceEnvelope)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(float, Envelope)
 UE_TRACE_EVENT_END()
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
@@ -692,6 +697,9 @@ namespace Audio
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
 		SourceInfo.bModFiltersUpdated = false;
 
+		SourceInfo.AudioComponentID = 0;
+		SourceInfo.PlayOrder = INDEX_NONE;
+
 		SourceInfo.QuantizedCommandHandle.Reset();
 
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
@@ -866,6 +874,7 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = InitParams.bUseHRTFSpatialization;
 			SourceInfo.bIsExternalSend = InitParams.bIsExternalSend;
 			SourceInfo.bIsVorbis = InitParams.bIsVorbis;
+			SourceInfo.PlayOrder = InitParams.PlayOrder;
 			SourceInfo.AudioComponentID = InitParams.AudioComponentID;
 			SourceInfo.bIsSoundfield = InitParams.bIsSoundfield;
 
@@ -2168,8 +2177,9 @@ namespace Audio
 				if (bChannelEnabled)
 				{
 					UE_TRACE_LOG(Audio, MixerSourcePitch, AudioMixerChannel)
+						<< MixerSourcePitch.DeviceId(MixerDevice->DeviceID)
 						<< MixerSourcePitch.Timestamp(FPlatformTime::Cycles64())
-						<< MixerSourcePitch.SourceId(SourceId)
+						<< MixerSourcePitch.PlayOrder(SourceInfo.PlayOrder)
 						<< MixerSourcePitch.Pitch(TargetPitch);
 				}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
@@ -2607,13 +2617,15 @@ namespace Audio
 				if (bChannelEnabled)
 				{
 					UE_TRACE_LOG(Audio, MixerSourceVolume, AudioMixerChannel)
+						<< MixerSourceVolume.DeviceId(MixerDevice->DeviceID)
 						<< MixerSourceVolume.Timestamp(FPlatformTime::Cycles64())
-						<< MixerSourceVolume.SourceId(SourceId)
+						<< MixerSourceVolume.PlayOrder(SourceInfo.PlayOrder)
 						<< MixerSourceVolume.Volume(VolumeDestination);
 
 					UE_TRACE_LOG(Audio, MixerSourceDistanceAttenuation, AudioMixerChannel)
+						<< MixerSourceDistanceAttenuation.DeviceId(MixerDevice->DeviceID)
 						<< MixerSourceDistanceAttenuation.Timestamp(FPlatformTime::Cycles64())
-						<< MixerSourceDistanceAttenuation.SourceId(SourceId)
+						<< MixerSourceDistanceAttenuation.PlayOrder(SourceInfo.PlayOrder)
 						<< MixerSourceDistanceAttenuation.DistanceAttenuation(SourceInfo.DistanceAttenuationSourceDestination);
 				}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
@@ -2750,13 +2762,15 @@ namespace Audio
 					}
 
 					UE_TRACE_LOG(Audio, MixerSourceFilters, AudioMixerChannel)
+						<< MixerSourceFilters.DeviceId(MixerDevice->DeviceID)
 						<< MixerSourceFilters.Timestamp(FPlatformTime::Cycles64())
-						<< MixerSourceFilters.SourceId(SourceId)
+						<< MixerSourceFilters.PlayOrder(SourceInfo.PlayOrder)
 						<< MixerSourceFilters.HPFFrequency(HPFFrequency)
 						<< MixerSourceFilters.LPFFrequency(LPFFrequency);
 					UE_TRACE_LOG(Audio, MixerSourceEnvelope, AudioMixerChannel)
+						<< MixerSourceEnvelope.DeviceId(MixerDevice->DeviceID)
 						<< MixerSourceEnvelope.Timestamp(FPlatformTime::Cycles64())
-						<< MixerSourceEnvelope.SourceId(SourceId)
+						<< MixerSourceEnvelope.PlayOrder(SourceInfo.PlayOrder)
 						<< MixerSourceEnvelope.Envelope(SourceInfo.SourceEnvelopeValue);
 				}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED

@@ -23,14 +23,18 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
 #if UE_AUDIO_PROFILERTRACE_ENABLED
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceStart)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint64, ComponentId)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceStop)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 UE_TRACE_EVENT_END()
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
@@ -689,6 +693,7 @@ namespace Audio
 			InitParams.bEnableBusSends = WaveInstance->bEnableBusSends;
 			InitParams.bEnableBaseSubmix = WaveInstance->bEnableBaseSubmix;
 			InitParams.bEnableSubmixSends = WaveInstance->bEnableSubmixSends;
+			InitParams.PlayOrder = WaveInstance->GetPlayOrder();
 			bPreviousBusEnablement = WaveInstance->bEnableBusSends;
 			DynamicBusSendInfos.Reset();
 
@@ -1248,16 +1253,22 @@ namespace Audio
 			const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 			if (bChannelEnabled && WaveInstance)
 			{
-				int32 TraceSourceId = INDEX_NONE;
-				if (MixerSourceVoice)
+				if (const FActiveSound* ActiveSound = WaveInstance->ActiveSound)
 				{
-					TraceSourceId = MixerSourceVoice->GetSourceId();
-				}
+					int32 TraceSourceId = INDEX_NONE;
+					if (MixerSourceVoice)
+					{
+						TraceSourceId = MixerSourceVoice->GetSourceId();
+					}
 
-				UE_TRACE_LOG(Audio, MixerSourceStart, AudioMixerChannel)
-					<< MixerSourceStart.Timestamp(FPlatformTime::Cycles64())
-					<< MixerSourceStart.SourceId(TraceSourceId)
-					<< MixerSourceStart.Name(*WaveInstance->WaveData->GetPathName());
+					UE_TRACE_LOG(Audio, MixerSourceStart, AudioMixerChannel)
+						<< MixerSourceStart.DeviceId(MixerDevice->DeviceID)
+						<< MixerSourceStart.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourceStart.PlayOrder(WaveInstance->GetPlayOrder())
+						<< MixerSourceStart.SourceId(TraceSourceId)
+						<< MixerSourceStart.ComponentId(ActiveSound->GetAudioComponentID())
+						<< MixerSourceStart.Name(*WaveInstance->WaveData->GetPathName());
+				}
 			}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
 		}
@@ -1355,8 +1366,9 @@ namespace Audio
 					}
 
 					UE_TRACE_LOG(Audio, MixerSourceStop, AudioMixerChannel)
+						<< MixerSourceStop.DeviceId(MixerDevice->DeviceID)
 						<< MixerSourceStop.Timestamp(FPlatformTime::Cycles64())
-						<< MixerSourceStop.SourceId(TraceSourceId);
+						<< MixerSourceStop.PlayOrder(WaveInstance->GetPlayOrder());
 				}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
 

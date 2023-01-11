@@ -760,8 +760,8 @@ FArchive& operator<<( FArchive& Ar, FNotifyBufferFinishedHooks& NotifyHook )
 	FWaveInstance implementation.
 -----------------------------------------------------------------------------*/
 
-/** Helper to create good unique type hashs for FWaveInstance instances */
-uint32 FWaveInstance::TypeHashCounter = 0;
+/** Helper to create good play order for FWaveInstance instances */
+uint32 FWaveInstance::PlayOrderCounter = 0;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FWaveInstance::FWaveInstance(FWaveInstance&&) = default;
@@ -834,11 +834,11 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, PlaybackTime(0.0f)
 	, ReverbSendLevel(0.0f)
 	, ManualReverbSendLevel(0.0f)
-	, TypeHash(0)
+	, PlayOrder(0)
 	, WaveInstanceHash(InWaveInstanceHash)
 	, UserIndex(0)
 {
-	TypeHash = ++TypeHashCounter;
+	PlayOrder = ++PlayOrderCounter;
 }
 
 bool FWaveInstance::IsPlaying() const

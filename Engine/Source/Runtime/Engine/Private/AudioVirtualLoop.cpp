@@ -44,17 +44,21 @@ FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
 
 #if UE_AUDIO_PROFILERTRACE_ENABLED
 UE_TRACE_EVENT_BEGIN(Audio, VirtualLoopVirtualize)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
+	UE_TRACE_EVENT_FIELD(uint64, ComponentId)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, VirtualLoopRealize)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Audio, VirtualLoopUpdate)
+	UE_TRACE_EVENT_FIELD(uint32, DeviceId)
 	UE_TRACE_EVENT_FIELD(double, Timestamp)
 	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
 	UE_TRACE_EVENT_FIELD(float, TimeVirtualized)
@@ -125,10 +129,15 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioChannel);
 	if (bChannelEnabled)
 	{
-		UE_TRACE_LOG(Audio, VirtualLoopVirtualize, AudioChannel)
-			<< VirtualLoopVirtualize.Timestamp(FPlatformTime::Cycles64())
-			<< VirtualLoopVirtualize.PlayOrder(ActiveSound->GetPlayOrder())
-			<< VirtualLoopVirtualize.Name(Sound ? *Sound->GetPathName() : TEXT("N/A"));
+		if (const FAudioDevice* AudioDevice = ActiveSound->AudioDevice)
+		{
+			UE_TRACE_LOG(Audio, VirtualLoopVirtualize, AudioChannel)
+				<< VirtualLoopVirtualize.DeviceId(static_cast<uint32>(AudioDevice->DeviceID))
+				<< VirtualLoopVirtualize.Timestamp(FPlatformTime::Cycles64())
+				<< VirtualLoopVirtualize.PlayOrder(ActiveSound->GetPlayOrder())
+				<< VirtualLoopVirtualize.ComponentId(ActiveSound->GetAudioComponentID())
+				<< VirtualLoopVirtualize.Name(Sound ? *Sound->GetPathName() : TEXT("N/A"));
+		}
 	}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
 	return true;
@@ -266,23 +275,27 @@ bool FAudioVirtualLoop::Update(float DeltaTime, bool bForceUpdate)
 	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioChannel);
 	if (bChannelEnabled)
 	{
-		const USoundBase* Sound = ActiveSound->GetSound();
+		if (const FAudioDevice* AudioDevice = ActiveSound->AudioDevice)
+		{
+			const USoundBase* Sound = ActiveSound->GetSound();
 
-		const FTransform& Transform = ActiveSound->Transform;
-		const FVector& Location = Transform.GetLocation();
-		const FRotator Rotator = Transform.GetRotation().Rotator();
-		UE_TRACE_LOG(Audio, VirtualLoopUpdate, AudioChannel)
-			<< VirtualLoopUpdate.Timestamp(FPlatformTime::Cycles64())
-			<< VirtualLoopUpdate.PlayOrder(ActiveSound->GetPlayOrder())
-			<< VirtualLoopUpdate.TimeVirtualized(TimeVirtualized)
-			<< VirtualLoopUpdate.PlaybackTime(ActiveSound->PlaybackTime)
-			<< VirtualLoopUpdate.UpdateInterval(UpdateInterval)
-			<< VirtualLoopUpdate.LocationX(Location.X)
-			<< VirtualLoopUpdate.LocationY(Location.Y)
-			<< VirtualLoopUpdate.LocationZ(Location.Z)
-			<< VirtualLoopUpdate.RotatorPitch(Rotator.Pitch)
-			<< VirtualLoopUpdate.RotatorYaw(Rotator.Yaw)
-			<< VirtualLoopUpdate.RotatorRoll(Rotator.Roll);
+			const FTransform& Transform = ActiveSound->Transform;
+			const FVector& Location = Transform.GetLocation();
+			const FRotator Rotator = Transform.GetRotation().Rotator();
+			UE_TRACE_LOG(Audio, VirtualLoopUpdate, AudioChannel)
+				<< VirtualLoopUpdate.DeviceId(static_cast<uint32>(AudioDevice->DeviceID))
+				<< VirtualLoopUpdate.Timestamp(FPlatformTime::Cycles64())
+				<< VirtualLoopUpdate.PlayOrder(ActiveSound->GetPlayOrder())
+				<< VirtualLoopUpdate.TimeVirtualized(TimeVirtualized)
+				<< VirtualLoopUpdate.PlaybackTime(ActiveSound->PlaybackTime)
+				<< VirtualLoopUpdate.UpdateInterval(UpdateInterval)
+				<< VirtualLoopUpdate.LocationX(Location.X)
+				<< VirtualLoopUpdate.LocationY(Location.Y)
+				<< VirtualLoopUpdate.LocationZ(Location.Z)
+				<< VirtualLoopUpdate.RotatorPitch(Rotator.Pitch)
+				<< VirtualLoopUpdate.RotatorYaw(Rotator.Yaw)
+				<< VirtualLoopUpdate.RotatorRoll(Rotator.Roll);
+		}
 	}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
@@ -298,9 +311,13 @@ bool FAudioVirtualLoop::Update(float DeltaTime, bool bForceUpdate)
 #if UE_AUDIO_PROFILERTRACE_ENABLED
 	if (bChannelEnabled)
 	{
-		UE_TRACE_LOG(Audio, VirtualLoopRealize, AudioChannel)
-			<< VirtualLoopRealize.Timestamp(FPlatformTime::Cycles64())
-			<< VirtualLoopRealize.PlayOrder(ActiveSound->GetPlayOrder());
+		if (const FAudioDevice* AudioDevice = ActiveSound->AudioDevice)
+		{
+			UE_TRACE_LOG(Audio, VirtualLoopRealize, AudioChannel)
+				<< VirtualLoopRealize.DeviceId(static_cast<uint32>(AudioDevice->DeviceID))
+				<< VirtualLoopRealize.Timestamp(FPlatformTime::Cycles64())
+				<< VirtualLoopRealize.PlayOrder(ActiveSound->GetPlayOrder());
+		}
 	}
 #endif // UE_AUDIO_PROFILERTRACE_ENABLED
 	return true;

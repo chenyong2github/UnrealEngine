@@ -46,7 +46,7 @@ public:
 	// Returns world set when handle was created
 	TWeakObjectPtr<UWorld> GetWorld() const;
 
-	// Checks whether this points to a valid compressed chunk.
+	// Checks whether this points to a valid AudioDevice.
 	bool IsValid() const;
 
 	// Resets handle to invalid state

@@ -874,6 +874,20 @@ FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId InDeviceID
 	return AudioDevice;
 }
 
+const FAudioDevice* FAudioDeviceManager::GetAudioDeviceRaw(Audio::FDeviceId InDeviceID) const
+{
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
+	if (!IsValidAudioDevice(InDeviceID))
+	{
+		return nullptr;
+	}
+
+	const FAudioDevice* AudioDevice = Devices[InDeviceID].Device;
+	check(AudioDevice != nullptr);
+
+	return AudioDevice;
+}
+
 void FAudioDeviceManager::SetAudioDevice(UWorld& InWorld, Audio::FDeviceId InDeviceID)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
@@ -1026,6 +1040,22 @@ void FAudioDeviceManager::IterateOverAllDevices(TUniqueFunction<void(Audio::FDev
 	}
 }
 
+void FAudioDeviceManager::IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const
+{
+	TArray<Audio::FDeviceId> DeviceIDs;
+	{
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+		Devices.GetKeys(DeviceIDs);
+	}
+
+	for (const Audio::FDeviceId DeviceID : DeviceIDs)
+	{
+		if (const FAudioDevice* Device = GetAudioDeviceRaw(DeviceID))
+		{
+			ForEachDevice(DeviceID, Device);
+		}
+	}
+}
 
 void FAudioDeviceManager::AddReferencedObjects(FReferenceCollector& Collector)
 {

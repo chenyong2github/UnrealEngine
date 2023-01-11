@@ -130,7 +130,7 @@ namespace Audio
 
 		FQuartzQuantizedRequestData QuantizedRequestData;
 
-		FSharedISourceBufferListenerPtr SourceBufferListener;		
+		FSharedISourceBufferListenerPtr SourceBufferListener;
 
 		IAudioLinkFactory::FAudioLinkSourcePushedSharedPtr AudioLink;
 
@@ -148,6 +148,8 @@ namespace Audio
 		bool bIsSoundfield = false;
 		bool bIsSeeking = false;
 		bool bShouldSourceBufferListenerZeroBuffer = false;
+
+		uint32 PlayOrder = INDEX_NONE;
 	};
 
 	struct FSourceManagerInitParams
@@ -511,6 +513,8 @@ namespace Audio
 			int32 NumInputChannels;
 			int32 NumPostEffectChannels;
 			int32 NumInputFrames;
+
+			uint32 PlayOrder;
 
 			// ID for associated Audio Component if there is one, 0 otherwise
 			uint64 AudioComponentID;

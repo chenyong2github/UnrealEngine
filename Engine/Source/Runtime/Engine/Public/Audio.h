@@ -180,9 +180,11 @@ enum class EBusSendType : uint8
  */
 struct ENGINE_API FWaveInstance
 {
+private:
 	/** Static helper to create good unique type hashes */
-	static uint32 TypeHashCounter;
+	static uint32 PlayOrderCounter;
 
+public:
 	/** Wave data */
 	USoundWave* WaveData;
 
@@ -216,7 +218,7 @@ struct ENGINE_API FWaveInstance
 
 	/** AudioLink Opt in */
 	bool bShouldUseAudioLink = true;
-	UAudioLinkSettingsAbstract* AudioLinkSettingsOverride = nullptr;	
+	UAudioLinkSettingsAbstract* AudioLinkSettingsOverride = nullptr;
 
 private:
 
@@ -397,9 +399,11 @@ public:
 	/** The submix send settings to use. */
 	TArray<FAttenuationSubmixSendSettings> SubmixSendSettings;
 
-	/** Cached type hash */
-	uint32 TypeHash;
+private:
+	/** Cached play order */
+	uint32 PlayOrder;
 
+public:
 	/** Hash value for finding the wave instance based on the path through the cue to get to it */
 	UPTRINT WaveInstanceHash;
 
@@ -498,7 +502,9 @@ public:
 	/** Whether spatialization is an external send */
 	bool GetSpatializationIsExternalSend() const {	return bSpatializationIsExternalSend;}
 
-	friend inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
+	uint32 GetPlayOrder() const { return PlayOrder; }
+
+	friend inline uint32 GetTypeHash(FWaveInstance* A) { return A->PlayOrder; }
 };
 
 /*-----------------------------------------------------------------------------
