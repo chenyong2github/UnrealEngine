@@ -161,7 +161,7 @@ UCommonButtonInternalBase::UCommonButtonInternalBase(const FObjectInitializer& I
 	{
 		// SButton will have a transparent background and have no padding if Button Style is set to None
 		static const FButtonStyle* TransparentButtonStyle = new FButtonStyle(FUMGCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"));
-		WidgetStyle = *TransparentButtonStyle;
+		SetStyle(*TransparentButtonStyle);
 	}
 }
 
@@ -176,7 +176,7 @@ void UCommonButtonInternalBase::SetButtonEnabled(bool bInIsButtonEnabled)
 
 void UCommonButtonInternalBase::SetButtonFocusable(bool bInIsButtonFocusable)
 {
-	IsFocusable = bInIsButtonFocusable;
+	InitIsFocusable(bInIsButtonFocusable);
 	if (MyCommonButton.IsValid())
 	{
 		MyCommonButton->SetIsButtonFocusable(bInIsButtonFocusable);
@@ -240,10 +240,10 @@ TSharedRef<SWidget> UCommonButtonInternalBase::RebuildWidget()
 		.OnDoubleClicked(BIND_UOBJECT_DELEGATE(FOnClicked, SlateHandleDoubleClicked))
 		.OnPressed(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandlePressedOverride))
 		.OnReleased(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandleReleasedOverride))
-		.ButtonStyle(&WidgetStyle)
-		.ClickMethod(ClickMethod)
-		.TouchMethod(TouchMethod)
-		.IsFocusable(IsFocusable)
+		.ButtonStyle(&GetStyle())
+		.ClickMethod(GetClickMethod())
+		.TouchMethod(GetTouchMethod())
+		.IsFocusable(GetIsFocusable())
 		.IsButtonEnabled(bButtonEnabled)
 		.IsInteractionEnabled(bInteractionEnabled)
 		.OnReceivedFocus(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandleOnReceivedFocus))
@@ -335,7 +335,7 @@ UCommonButtonBase::UCommonButtonBase(const FObjectInitializer& ObjectInitializer
 	, bButtonEnabled(true)
 	, bInteractionEnabled(true)
 {
-	bIsFocusable = true;
+	InitIsFocusable(true);
 }
 
 void UCommonButtonBase::OnWidgetRebuilt()
@@ -394,10 +394,10 @@ bool UCommonButtonBase::Initialize()
 	{
 		UCommonButtonInternalBase* RootButtonRaw = ConstructInternalButton();
 
-		RootButtonRaw->ClickMethod = ClickMethod;
-		RootButtonRaw->TouchMethod = TouchMethod;
-		RootButtonRaw->PressMethod = PressMethod;
-		RootButtonRaw->IsFocusable = bIsFocusable;
+		RootButtonRaw->SetClickMethod(ClickMethod);
+		RootButtonRaw->SetTouchMethod(TouchMethod);
+		RootButtonRaw->SetPressMethod(PressMethod);
+		RootButtonRaw->SetButtonFocusable(IsFocusable());
 		RootButtonRaw->SetButtonEnabled(bButtonEnabled);
 		RootButtonRaw->SetInteractionEnabled(bInteractionEnabled);
 		RootButton = RootButtonRaw;
@@ -561,7 +561,7 @@ void UCommonButtonBase::SetIsInteractionEnabled(bool bInIsInteractionEnabled)
 
 		if (bApplyAlphaOnDisable)
 		{
-			FLinearColor ButtonColor = RootButton->ColorAndOpacity;
+			FLinearColor ButtonColor = RootButton->GetColorAndOpacity();
 			ButtonColor.A = 1.f;
 			RootButton->SetColorAndOpacity(ButtonColor);
 		}
@@ -572,7 +572,7 @@ void UCommonButtonBase::SetIsInteractionEnabled(bool bInIsInteractionEnabled)
 
 		if (bApplyAlphaOnDisable)
 		{
-			FLinearColor ButtonColor = RootButton->ColorAndOpacity;
+			FLinearColor ButtonColor = RootButton->GetColorAndOpacity();
 			ButtonColor.A = 0.5f;
 			RootButton->SetColorAndOpacity(ButtonColor);
 		}
@@ -1540,7 +1540,7 @@ void UCommonButtonBase::DisableButton()
 
 void UCommonButtonBase::SetIsFocusable(bool bInIsFocusable)
 {
-	bIsFocusable = bInIsFocusable;
+	InitIsFocusable(bInIsFocusable);
 
 	if (RootButton.IsValid())
 	{
@@ -1550,6 +1550,6 @@ void UCommonButtonBase::SetIsFocusable(bool bInIsFocusable)
 
 bool UCommonButtonBase::GetIsFocusable() const
 {
-	return bIsFocusable;
+	return IsFocusable();
 }
 

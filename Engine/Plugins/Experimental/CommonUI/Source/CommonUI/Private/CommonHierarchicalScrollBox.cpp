@@ -12,20 +12,20 @@
 UCommonHierarchicalScrollBox::UCommonHierarchicalScrollBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bAnimateWheelScrolling = true;
+	SetAnimateWheelScrolling(true);
 }
 
 TSharedRef<SWidget> UCommonHierarchicalScrollBox::RebuildWidget()
 {
 	MyScrollBox = SNew(SCommonHierarchicalScrollBox)
-		.Style(&WidgetStyle)
-		.ScrollBarStyle(&WidgetBarStyle)
-		.Orientation(Orientation)
-		.ConsumeMouseWheel(ConsumeMouseWheel)
-		.NavigationDestination(NavigationDestination)
-		.NavigationScrollPadding(NavigationScrollPadding)
+		.Style(&GetWidgetStyle())
+		.ScrollBarStyle(&GetWidgetBarStyle())
+		.Orientation(GetOrientation())
+		.ConsumeMouseWheel(GetConsumeMouseWheel())
+		.NavigationDestination(GetNavigationDestination())
+		.NavigationScrollPadding(GetNavigationScrollPadding())
 		.OnUserScrolled(BIND_UOBJECT_DELEGATE(FOnUserScrolled, SlateHandleUserScrolled))
-		.AnimateWheelScrolling(bAnimateWheelScrolling);
+		.AnimateWheelScrolling(IsAnimateWheelScrolling());
 
 	for ( UPanelSlot* PanelSlot : Slots )
 	{

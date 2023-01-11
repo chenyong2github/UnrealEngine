@@ -369,7 +369,12 @@ void SScrollBar::SetStyle(const FScrollBarStyle* InStyle)
 		BottomBrush = &Style->HorizontalBottomSlotImage;
 	}
 
-	Invalidate(EInvalidateWidget::Layout);
+	InvalidateStyle();
+}
+
+void SScrollBar::InvalidateStyle()
+{
+	Invalidate(EInvalidateWidgetReason::Layout);
 }
 
 void SScrollBar::SetDragFocusCause(EFocusCause InDragFocusCause)

@@ -83,9 +83,11 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 {
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsFocusable = false;
 	ColorAndOpacity = FLinearColor::White;
 	ForegroundColor = FSlateColor::UseForeground();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	MinimumDesiredSize = FVector2D(0, 0);
 
@@ -312,15 +314,18 @@ void UUserWidget::SynchronizeProperties()
 	TSharedPtr<SObjectWidget> SafeGCWidget = MyGCWidget.Pin();
 	if ( SafeGCWidget.IsValid() )
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TAttribute<FLinearColor> ColorBinding = PROPERTY_BINDING(FLinearColor, ColorAndOpacity);
 		TAttribute<FSlateColor> ForegroundColorBinding = PROPERTY_BINDING(FSlateColor, ForegroundColor);
 
 		SafeGCWidget->SetColorAndOpacity(ColorBinding);
 		SafeGCWidget->SetForegroundColor(ForegroundColorBinding);
 		SafeGCWidget->SetPadding(Padding);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UUserWidget::SetColorAndOpacity(FLinearColor InColorAndOpacity)
 {
 	ColorAndOpacity = InColorAndOpacity;
@@ -330,6 +335,11 @@ void UUserWidget::SetColorAndOpacity(FLinearColor InColorAndOpacity)
 	{
 		SafeGCWidget->SetColorAndOpacity(ColorAndOpacity);
 	}
+}
+
+const FLinearColor& UUserWidget::GetColorAndOpacity() const
+{
+	return ColorAndOpacity;
 }
 
 void UUserWidget::SetForegroundColor(FSlateColor InForegroundColor)
@@ -343,6 +353,11 @@ void UUserWidget::SetForegroundColor(FSlateColor InForegroundColor)
 	}
 }
 
+const FSlateColor& UUserWidget::GetForegroundColor() const
+{
+	return ForegroundColor;
+}
+
 void UUserWidget::SetPadding(FMargin InPadding)
 {
 	Padding = InPadding;
@@ -353,6 +368,12 @@ void UUserWidget::SetPadding(FMargin InPadding)
 		SafeGCWidget->SetPadding(Padding);
 	}
 }
+
+FMargin UUserWidget::GetPadding() const
+{
+	return Padding;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 UWorld* UUserWidget::GetWorld() const
 {
@@ -1629,6 +1650,7 @@ void UUserWidget::UnregisterInputComponent()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UUserWidget::SetInputActionPriority( int32 NewPriority )
 {
 	if ( InputComponent )
@@ -1636,6 +1658,11 @@ void UUserWidget::SetInputActionPriority( int32 NewPriority )
 		Priority = NewPriority;
 		InputComponent->Priority = Priority;
 	}
+}
+
+int32 UUserWidget::GetInputActionPriority() const
+{
+	return Priority;
 }
 
 void UUserWidget::SetInputActionBlocking( bool bShouldBlock )
@@ -1646,6 +1673,13 @@ void UUserWidget::SetInputActionBlocking( bool bShouldBlock )
 		InputComponent->bBlockInput = bStopAction;
 	}
 }
+
+bool UUserWidget::IsInputActionBlocking() const
+{
+	return bStopAction;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UUserWidget::OnInputAction( FOnInputAction Callback )
 {
@@ -1664,8 +1698,10 @@ void UUserWidget::InitializeInputComponent()
 		// class then this would fail
 		UClass* InputClass = Controller->InputComponent ? Controller->InputComponent->GetClass() : UInputSettings::GetDefaultInputComponentClass();
 		InputComponent = NewObject< UInputComponent >( this, InputClass, NAME_None, RF_Transient );
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		InputComponent->bBlockInput = bStopAction;
 		InputComponent->Priority = Priority;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Controller->PushInputComponent( InputComponent );
 	}
 	else
@@ -1736,10 +1772,24 @@ bool UUserWidget::NativeIsInteractable() const
 	return IsInteractable();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UUserWidget::NativeSupportsKeyboardFocus() const
 {
 	return bIsFocusable;
 }
+
+bool UUserWidget::IsFocusable() const
+{
+	return bIsFocusable;
+}
+
+void UUserWidget::InitIsFocusable(bool InIsFocusable)
+{
+	ensureMsgf(!MyWidget.IsValid(), TEXT("The widget is already created."));
+	bIsFocusable = InIsFocusable;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FReply UUserWidget::NativeOnFocusReceived( const FGeometry& InGeometry, const FFocusEvent& InFocusEvent )
 {

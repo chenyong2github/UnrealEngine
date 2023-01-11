@@ -57,9 +57,10 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 		// Unlink UMG default colors.
 		DefaultScrollBoxBarStyle->UnlinkColors();
 	}
-	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WidgetStyle = *DefaultScrollBoxStyle;
 	WidgetBarStyle = *DefaultScrollBoxBarStyle;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR 
 	if (EditorScrollBoxStyle == nullptr)
@@ -80,15 +81,18 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 	
 	if (IsEditorWidget())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		WidgetStyle = *EditorScrollBoxStyle;
 		WidgetBarStyle = *EditorScrollBoxBarStyle;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bAllowRightClickDragScrolling = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UScrollBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -127,6 +131,7 @@ void UScrollBox::OnSlotRemoved(UPanelSlot* InSlot)
 
 TSharedRef<SWidget> UScrollBox::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyScrollBox = SNew(SScrollBox)
 		.Style(&WidgetStyle)
 		.ScrollBarStyle(&WidgetBarStyle)
@@ -140,7 +145,7 @@ TSharedRef<SWidget> UScrollBox::RebuildWidget()
 		.AnimateWheelScrolling(bAnimateWheelScrolling)
 		.WheelScrollMultiplier(WheelScrollMultiplier)
 		.OnUserScrolled(BIND_UOBJECT_DELEGATE(FOnUserScrolled, SlateHandleUserScrolled));
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for ( UPanelSlot* PanelSlot : Slots )
 	{
 		if ( UScrollBoxSlot* TypedSlot = Cast<UScrollBoxSlot>(PanelSlot) )
@@ -162,6 +167,7 @@ void UScrollBox::SynchronizeProperties()
 		return;
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyScrollBox->SetScrollOffset(DesiredScrollOffset);
 	MyScrollBox->SetOrientation(Orientation);
 	MyScrollBox->SetScrollBarVisibility(UWidget::ConvertSerializedVisibilityToRuntime(ScrollBarVisibility));
@@ -174,6 +180,11 @@ void UScrollBox::SynchronizeProperties()
 	MyScrollBox->SetConsumeMouseWheel(ConsumeMouseWheel);
 	MyScrollBox->SetAnimateWheelScrolling(bAnimateWheelScrolling);
 	MyScrollBox->SetWheelScrollMultiplier(WheelScrollMultiplier);
+	MyScrollBox->SetStyle(&WidgetStyle);
+	MyScrollBox->InvalidateStyle();
+	MyScrollBox->SetScrollBarStyle(&WidgetBarStyle);
+	MyScrollBox->InvalidateScrollBarStyle();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 float UScrollBox::GetScrollOffset() const
@@ -267,20 +278,55 @@ void UScrollBox::Serialize(FArchive& Ar)
 	const bool bDeprecateThickness = Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::ScrollBarThicknessChange;
 	if (bDeprecateThickness)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// Set ScrollbarThickness property to previous default value.
 		ScrollbarThickness.Set(5.0f, 5.0f);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	Super::Serialize(Ar);
 
 	if (bDeprecateThickness)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// Implicit padding of 2 was removed, so ScrollbarThickness value must be incremented by 4.
 		ScrollbarThickness += FVector2D(4.0f, 4.0f);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
 #endif // if WITH_EDITORONLY_DATA
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UScrollBox::SetWidgetStyle(const FScrollBoxStyle& NewWidgetStyle)
+{
+	WidgetStyle = NewWidgetStyle;
+
+	if (MyScrollBox.IsValid())
+	{
+		MyScrollBox->InvalidateStyle();
+	}
+}
+
+const FScrollBoxStyle& UScrollBox::GetWidgetStyle() const
+{
+	return WidgetStyle;
+}
+
+void UScrollBox::SetWidgetBarStyle(const FScrollBarStyle& NewWidgetBarStyle)
+{
+	WidgetBarStyle = NewWidgetBarStyle;
+
+	if (MyScrollBox.IsValid())
+	{
+		MyScrollBox->InvalidateScrollBarStyle();
+	}
+}
+
+const FScrollBarStyle& UScrollBox::GetWidgetBarStyle() const
+{
+	return WidgetBarStyle;
+}
 
 void UScrollBox::SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination)
 {
@@ -290,6 +336,11 @@ void UScrollBox::SetNavigationDestination(const EDescendantScrollDestination New
 	{
 		MyScrollBox->SetNavigationDestination(NewNavigationDestination);
 	}
+}
+
+EDescendantScrollDestination UScrollBox::GetNavigationDestination() const
+{
+	return NavigationDestination;
 }
 
 void UScrollBox::SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel)
@@ -302,6 +353,11 @@ void UScrollBox::SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel)
 	}
 }
 
+EConsumeMouseWheel UScrollBox::GetConsumeMouseWheel() const
+{
+	return ConsumeMouseWheel;
+}
+
 void UScrollBox::SetOrientation(EOrientation NewOrientation)
 {
 	Orientation = NewOrientation;
@@ -310,6 +366,11 @@ void UScrollBox::SetOrientation(EOrientation NewOrientation)
 	{
 		MyScrollBox->SetOrientation(Orientation);
 	}
+}
+
+EOrientation UScrollBox::GetOrientation() const
+{
+	return Orientation;
 }
 
 void UScrollBox::SetScrollBarVisibility(ESlateVisibility NewScrollBarVisibility)
@@ -329,6 +390,11 @@ void UScrollBox::SetScrollBarVisibility(ESlateVisibility NewScrollBarVisibility)
 	}
 }
 
+ESlateVisibility UScrollBox::GetScrollBarVisibility() const
+{
+	return ScrollBarVisibility;
+}
+
 void UScrollBox::SetScrollbarThickness(const FVector2D& NewScrollbarThickness)
 {
 	ScrollbarThickness = NewScrollbarThickness;
@@ -337,6 +403,11 @@ void UScrollBox::SetScrollbarThickness(const FVector2D& NewScrollbarThickness)
 	{
 		MyScrollBox->SetScrollBarThickness(ScrollbarThickness);
 	}
+}
+
+FVector2D UScrollBox::GetScrollbarThickness() const
+{
+	return ScrollbarThickness;
 }
 
 void UScrollBox::SetScrollbarPadding(const FMargin& NewScrollbarPadding)
@@ -349,6 +420,11 @@ void UScrollBox::SetScrollbarPadding(const FMargin& NewScrollbarPadding)
 	}
 }
 
+FMargin UScrollBox::GetScrollbarPadding() const
+{
+	return ScrollbarPadding;
+}
+
 void UScrollBox::SetAlwaysShowScrollbar(bool NewAlwaysShowScrollbar)
 {
 	AlwaysShowScrollbar = NewAlwaysShowScrollbar;
@@ -357,6 +433,11 @@ void UScrollBox::SetAlwaysShowScrollbar(bool NewAlwaysShowScrollbar)
 	{
 		MyScrollBox->SetScrollBarAlwaysVisible(AlwaysShowScrollbar);
 	}
+}
+
+bool UScrollBox::IsAlwaysShowScrollbar() const
+{
+	return AlwaysShowScrollbar;
 }
 
 void UScrollBox::SetAllowOverscroll(bool NewAllowOverscroll)
@@ -369,6 +450,11 @@ void UScrollBox::SetAllowOverscroll(bool NewAllowOverscroll)
 	}
 }
 
+bool UScrollBox::IsAllowOverscroll() const
+{
+	return AllowOverscroll;
+}
+
 void UScrollBox::SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling)
 {
 	bAnimateWheelScrolling = bShouldAnimateWheelScrolling;
@@ -376,6 +462,11 @@ void UScrollBox::SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling)
 	{
 		MyScrollBox->SetAnimateWheelScrolling(bShouldAnimateWheelScrolling);
 	}
+}
+
+bool UScrollBox::IsAnimateWheelScrolling() const
+{
+	return bAnimateWheelScrolling;
 }
 
 void UScrollBox::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
@@ -387,6 +478,11 @@ void UScrollBox::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
 	}
 }
 
+float UScrollBox::GetWheelScrollMultiplier() const
+{
+	return WheelScrollMultiplier;
+}
+
 void UScrollBox::SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges)
 {
 	ScrollWhenFocusChanges = NewScrollWhenFocusChanges;
@@ -396,6 +492,11 @@ void UScrollBox::SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhen
 	}
 }
 
+EScrollWhenFocusChanges UScrollBox::GetScrollWhenFocusChanges() const
+{
+	return ScrollWhenFocusChanges;
+}
+
 void UScrollBox::EndInertialScrolling()
 {
 	if (MyScrollBox.IsValid())
@@ -403,6 +504,68 @@ void UScrollBox::EndInertialScrolling()
 		MyScrollBox->EndInertialScrolling();
 	}
 }
+
+void UScrollBox::SetAlwaysShowScrollbarTrack(bool NewAlwaysShowScrollbarTrack)
+{
+	AlwaysShowScrollbarTrack = NewAlwaysShowScrollbarTrack;
+	if (MyScrollBox)
+	{
+		MyScrollBox->SetScrollBarTrackAlwaysVisible(AlwaysShowScrollbarTrack);
+	}
+}
+
+bool UScrollBox::IsAlwaysShowScrollbarTrack() const
+{
+	return AlwaysShowScrollbarTrack;
+}
+
+float UScrollBox::GetNavigationScrollPadding() const
+{
+	return NavigationScrollPadding;
+}
+
+void UScrollBox::SetAllowRightClickDragScrolling(bool bShouldAllowRightClickDragScrolling)
+{
+	AlwaysShowScrollbarTrack = bShouldAllowRightClickDragScrolling;
+	if (MyScrollBox)
+	{
+		MyScrollBox->SetScrollBarRightClickDragAllowed(AlwaysShowScrollbarTrack);
+	}
+}
+
+bool UScrollBox::IsAllowRightClickDragScrolling() const
+{
+	return AlwaysShowScrollbarTrack;
+}
+
+bool UScrollBox::IsFrontPadScrolling() const
+{
+	return FrontPadScrolling;
+}
+
+bool UScrollBox::IsBackPadScrolling() const
+{
+	return BackPadScrolling;
+}
+
+void UScrollBox::InitBackPadScrolling(bool InBackPadScrolling)
+{
+	ensureMsgf(!MyScrollBox.IsValid(), TEXT("The widget is already created."));
+	BackPadScrolling = InBackPadScrolling;
+}
+
+void UScrollBox::InitFrontPadScrolling(bool InFrontPadScrolling)
+{
+	ensureMsgf(!MyScrollBox.IsValid(), TEXT("The widget is already created."));
+	FrontPadScrolling = InFrontPadScrolling;
+}
+
+void UScrollBox::InitNavigationScrollPadding(float InNavigationScrollPadding)
+{
+	ensureMsgf(!MyScrollBox.IsValid(), TEXT("The widget is already created."));
+	NavigationScrollPadding = InNavigationScrollPadding;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UScrollBox::SlateHandleUserScrolled(float CurrentOffset)
 {

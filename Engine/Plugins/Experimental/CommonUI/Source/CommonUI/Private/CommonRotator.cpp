@@ -12,7 +12,7 @@
 // UCommonRotator
 UCommonRotator::UCommonRotator(const FObjectInitializer& ObjectInitializer)
 {
-	bIsFocusable = true;
+	SetIsFocusable(true);
 }
 
 bool UCommonRotator::Initialize()

@@ -118,6 +118,9 @@ public:
 	/** Set argument Style */
 	void SetStyle(const FScrollBarStyle* InStyle);
 
+	/** Invalidate the style */
+	void InvalidateStyle();
+
 	/** Set UserVisibility attribute */
 	void SetUserVisibility(TAttribute<EVisibility> InUserVisibility) { UserVisibility = InUserVisibility; }
 

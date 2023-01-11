@@ -327,6 +327,15 @@ public:
 	void SetScrollBarPadding(const FMargin& InPadding);
 
 	void SetScrollBarRightClickDragAllowed(bool bIsAllowed);
+
+	void SetStyle(const FScrollBoxStyle* InStyle);
+	
+	void SetScrollBarStyle(const FScrollBarStyle* InBarStyle);
+
+	void InvalidateStyle();
+
+	void InvalidateScrollBarStyle();
+
 public:
 
 	// SWidget interface

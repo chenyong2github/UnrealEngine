@@ -433,7 +433,7 @@ EOrientation FCommonAnalogCursor::DetermineScrollOrientation(const UWidget& Widg
 	}
 	else if (const UScrollBox* AsScrollBox = Cast<const UScrollBox>(&Widget))
 	{
-		return AsScrollBox->Orientation;
+		return AsScrollBox->GetOrientation();
 	}
 	return EOrientation::Orient_Vertical;
 }

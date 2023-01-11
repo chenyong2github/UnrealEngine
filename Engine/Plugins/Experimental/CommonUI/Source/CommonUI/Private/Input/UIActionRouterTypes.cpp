@@ -1307,7 +1307,7 @@ void FActivatableTreeRoot::FocusLeafmostNode()
 		}
 		else
 		{
-			if (LeafWidget->bIsFocusable)
+			if (LeafWidget->IsFocusable())
 			{
 				UE_LOG(LogUIActionRouter, Display, TEXT("[User %d] No focus target for leaf-most node [%s] - setting focus directly to the widget as a last resort."), OwnerSlateId, *LeafWidget->GetName());
 				LeafWidget->SetFocus();

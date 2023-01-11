@@ -31,9 +31,9 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 		// Unlink UMG default colors.
 		DefaultButtonStyle->UnlinkColors();
 	}
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WidgetStyle = *DefaultButtonStyle;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITOR 
 	if (EditorButtonStyle == nullptr)
 	{
@@ -45,13 +45,16 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 
 	if (IsEditorWidget())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		WidgetStyle = *EditorButtonStyle;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ColorAndOpacity = FLinearColor::White;
 	BackgroundColor = FLinearColor::White;
 
@@ -59,6 +62,7 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	TouchMethod = EButtonTouchMethod::DownAndUp;
 
 	IsFocusable = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
@@ -75,6 +79,7 @@ void UButton::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UButton::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyButton = SNew(SButton)
 		.OnClicked(BIND_UOBJECT_DELEGATE(FOnClicked, SlateHandleClicked))
 		.OnPressed(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandlePressed))
@@ -87,7 +92,7 @@ TSharedRef<SWidget> UButton::RebuildWidget()
 		.PressMethod(PressMethod)
 		.IsFocusable(IsFocusable)
 		;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if ( GetChildrenCount() > 0 )
 	{
 		Cast<UButtonSlot>(GetContentSlot())->BuildSlot(MyButton.ToSharedRef());
@@ -105,8 +110,14 @@ void UButton::SynchronizeProperties()
 		return;
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MyButton->SetButtonStyle(&WidgetStyle);
 	MyButton->SetColorAndOpacity( ColorAndOpacity );
 	MyButton->SetBorderBackgroundColor( BackgroundColor );
+	MyButton->SetClickMethod(ClickMethod);
+	MyButton->SetTouchMethod(TouchMethod);
+	MyButton->SetPressMethod(PressMethod);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 UClass* UButton::GetSlotClass() const
@@ -132,6 +143,7 @@ void UButton::OnSlotRemoved(UPanelSlot* InSlot)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UButton::SetStyle(const FButtonStyle& InStyle)
 {
 	WidgetStyle = InStyle;
@@ -139,6 +151,11 @@ void UButton::SetStyle(const FButtonStyle& InStyle)
 	{
 		MyButton->SetButtonStyle(&WidgetStyle);
 	}
+}
+
+const FButtonStyle& UButton::GetStyle() const
+{
+	return WidgetStyle;
 }
 
 void UButton::SetColorAndOpacity(FLinearColor InColorAndOpacity)
@@ -150,6 +167,11 @@ void UButton::SetColorAndOpacity(FLinearColor InColorAndOpacity)
 	}
 }
 
+FLinearColor UButton::GetColorAndOpacity() const
+{
+	return ColorAndOpacity;
+}
+
 void UButton::SetBackgroundColor(FLinearColor InBackgroundColor)
 {
 	BackgroundColor = InBackgroundColor;
@@ -158,6 +180,12 @@ void UButton::SetBackgroundColor(FLinearColor InBackgroundColor)
 		MyButton->SetBorderBackgroundColor(InBackgroundColor);
 	}
 }
+
+FLinearColor UButton::GetBackgroundColor() const
+{
+	return BackgroundColor;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UButton::IsPressed() const
 {
@@ -169,6 +197,7 @@ bool UButton::IsPressed() const
 	return false;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UButton::SetClickMethod(EButtonClickMethod::Type InClickMethod)
 {
 	ClickMethod = InClickMethod;
@@ -176,6 +205,11 @@ void UButton::SetClickMethod(EButtonClickMethod::Type InClickMethod)
 	{
 		MyButton->SetClickMethod(ClickMethod);
 	}
+}
+
+EButtonClickMethod::Type UButton::GetClickMethod() const
+{
+	return ClickMethod;
 }
 
 void UButton::SetTouchMethod(EButtonTouchMethod::Type InTouchMethod)
@@ -187,6 +221,11 @@ void UButton::SetTouchMethod(EButtonTouchMethod::Type InTouchMethod)
 	}
 }
 
+EButtonTouchMethod::Type UButton::GetTouchMethod() const
+{
+	return TouchMethod;
+}
+
 void UButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 {
 	PressMethod = InPressMethod;
@@ -195,6 +234,23 @@ void UButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 		MyButton->SetPressMethod(PressMethod);
 	}
 }
+
+EButtonPressMethod::Type UButton::GetPressMethod() const
+{
+	return PressMethod;
+}
+
+bool UButton::GetIsFocusable() const
+{
+	return IsFocusable;
+}
+
+void UButton::InitIsFocusable(bool InIsFocusable)
+{
+	IsFocusable = InIsFocusable;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UButton::PostLoad()
 {

@@ -894,6 +894,50 @@ protected:
 	virtual void OnAnimationFinishedPlaying(UUMGSequencePlayer& Player);
 
 public:
+	UE_DEPRECATED(5.2, "Direct access to ColorAndOpacity is deprecated. Please use the getter or setter.")
+	/** The color and opacity of this widget.  Tints all child widgets. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetColorAndOpacity", Category = "Appearance")
+	FLinearColor ColorAndOpacity;
+
+	UPROPERTY()
+	FGetLinearColor ColorAndOpacityDelegate;
+
+	UE_DEPRECATED(5.2, "Direct access to ForegroundColor is deprecated. Please use the getter or setter.")
+	/**
+	 * The foreground color of the widget, this is inherited by sub widgets.  Any color property
+	 * that is marked as inherit will use this color.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetForegroundColor", Category = "Appearance")
+	FSlateColor ForegroundColor;
+
+	UPROPERTY()
+	FGetSlateColor ForegroundColorDelegate;
+
+	/** Called when the visibility has changed */
+	UPROPERTY(BlueprintAssignable, Category = "Appearance|Event")
+	FOnVisibilityChangedEvent OnVisibilityChanged;
+	DECLARE_EVENT_OneParam(UUserWidget, FNativeOnVisibilityChangedEvent, ESlateVisibility);
+	FNativeOnVisibilityChangedEvent OnNativeVisibilityChanged;
+
+	UE_DEPRECATED(5.2, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The padding area around the content. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetPadding", Category = "Appearance")
+	FMargin Padding;
+
+	UE_DEPRECATED(5.2, "Direct access to Priority is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetInputActionPriority", Setter = "SetInputActionPriority", BlueprintSetter = "SetInputActionPriority", Category = "Input")
+	int32 Priority;
+
+	UE_DEPRECATED(5.2, "Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
+	/** Setting this flag to true, allows this widget to accept focus when clicked, or when navigated to. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsFocusable", Category = "Interaction")
+	uint8 bIsFocusable : 1;
+	 
+	UE_DEPRECATED(5.2, "Direct access to bStopAction is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsInputActionBlocking", Setter = "SetInputActionBlocking", BlueprintSetter = "SetInputActionBlocking", Category = "Input")
+	uint8 bStopAction : 1;
+
+public:
 
 	/**
 	 * Sets the tint of the widget, this affects all child widgets.
@@ -904,19 +948,50 @@ public:
 	void SetColorAndOpacity(FLinearColor InColorAndOpacity);
 
 	/**
+	 * Gets the tint of the widget.
+	 */
+	const FLinearColor& GetColorAndOpacity() const;
+
+	/**
 	 * Sets the foreground color of the widget, this is inherited by sub widgets.  Any color property 
 	 * that is marked as inherit will use this color.
-	 * 
+	 *
 	 * @param InForegroundColor	The foreground color.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Appearance")
 	void SetForegroundColor(FSlateColor InForegroundColor);
 
 	/**
+	 * Gets the foreground color of the widget, this is inherited by sub widgets.  Any color property
+	 * that is marked as inherit uses this color.
+	 */
+	const FSlateColor& GetForegroundColor() const;
+
+	/**
 	 * Sets the padding for the user widget, putting a larger gap between the widget border and it's root widget.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Appearance")
 	void SetPadding(FMargin InPadding);
+
+	/**
+	 * Gets the padding for the user widget.
+	 */
+	FMargin GetPadding() const;
+
+	/**
+	 * Gets the priority of the input action.
+	 */
+	int32 GetInputActionPriority() const;
+
+	/**
+	 * Returns whether the input action is blocking.
+	 */
+	bool IsInputActionBlocking() const;
+
+	/**
+	 * Returns whether this widget to accept focus when clicked, or when navigated to.
+	 */
+	bool IsFocusable() const;
 
 	/**
 	 * Plays an animation in this widget a specified number of times
@@ -1184,32 +1259,6 @@ private:
 	void ClearStoppedSequencePlayers();
 
 public:
-	/** The color and opacity of this widget.  Tints all child widgets. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
-	FLinearColor ColorAndOpacity;
-
-	UPROPERTY()
-	FGetLinearColor ColorAndOpacityDelegate;
-
-	/**
-	 * The foreground color of the widget, this is inherited by sub widgets.  Any color property
-	 * that is marked as inherit will use this color.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
-	FSlateColor ForegroundColor;
-
-	UPROPERTY()
-	FGetSlateColor ForegroundColorDelegate;
-
-	/** Called when the visibility has changed */
-	UPROPERTY(BlueprintAssignable, Category = "Appearance|Event")
-	FOnVisibilityChangedEvent OnVisibilityChanged;
-	DECLARE_EVENT_OneParam(UUserWidget, FNativeOnVisibilityChangedEvent, ESlateVisibility);
-	FNativeOnVisibilityChangedEvent OnNativeVisibilityChanged;
-
-	/** The padding area around the content. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
-	FMargin Padding;
 
 	/** All the sequence players currently playing */
 	UPROPERTY(Transient)
@@ -1259,16 +1308,6 @@ public:
 	TObjectPtr<UTexture2D> PreviewBackground;
 
 #endif
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	int32 Priority;
-
-	/** Setting this flag to true, allows this widget to accept focus when clicked, or when navigated to. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction")
-	uint8 bIsFocusable : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	uint8 bStopAction : 1;
 
 	/** If a widget has an implemented tick blueprint function */
 	UPROPERTY()
@@ -1419,6 +1458,9 @@ protected:
 	void OnInputAction( FOnInputAction Callback );
 
 	virtual void InitializeInputComponent();
+
+	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
+	void InitIsFocusable(bool InIsFocusable);
 
 private:
 	FVector2D MinimumDesiredSize;

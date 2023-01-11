@@ -465,6 +465,40 @@ bool SScrollBox::InternalScrollDescendantIntoView(const FGeometry& MyGeometry, c
 	return false;
 }
 
+void SScrollBox::SetStyle(const FScrollBoxStyle* InStyle)
+{
+	if (Style != InStyle)
+	{
+		Style = InStyle;
+		InvalidateStyle();
+	}
+}
+
+void SScrollBox::SetScrollBarStyle(const FScrollBarStyle* InBarStyle)
+{
+	if (InBarStyle != ScrollBarStyle)
+	{
+		ScrollBarStyle = InBarStyle;
+		if (!bScrollBarIsExternal && ScrollBar.IsValid())
+		{
+			ScrollBar->SetStyle(ScrollBarStyle);
+		}
+	}
+}
+
+void SScrollBox::InvalidateStyle()
+{
+	Invalidate(EInvalidateWidgetReason::Layout);
+}
+
+void SScrollBox::InvalidateScrollBarStyle()
+{
+	if (ScrollBar.IsValid())
+	{
+		ScrollBar->InvalidateStyle();
+	}
+}
+
 EOrientation SScrollBox::GetOrientation()
 {
 	return Orientation;
