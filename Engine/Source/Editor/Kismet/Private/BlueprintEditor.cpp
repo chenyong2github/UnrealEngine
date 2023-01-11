@@ -756,6 +756,7 @@ const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, boo
 
 FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope, FName VarName, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
 {
+	SecondaryBrushOut = nullptr;
 	if (VarScope != nullptr)
 	{
 		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
@@ -766,6 +767,7 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 
 FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
 {
+	SecondaryBrushOut = nullptr;
 	if (Property != nullptr)
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();

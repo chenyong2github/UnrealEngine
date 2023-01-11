@@ -404,8 +404,8 @@ void FSCSRowDragDropOp::HoverTargetChanged()
 		}
 		else if (FProperty* VariableProperty = GetVariableProperty())
 		{
-			const FSlateBrush* PrimarySymbol;
-			const FSlateBrush* SecondarySymbol;
+			const FSlateBrush* PrimarySymbol = nullptr;
+			const FSlateBrush* SecondarySymbol = nullptr;
 			FSlateColor PrimaryColor;
 			FSlateColor SecondaryColor;
 			GetDefaultStatusSymbol(/*out*/ PrimarySymbol, /*out*/ PrimaryColor, /*out*/ SecondarySymbol, /*out*/ SecondaryColor);

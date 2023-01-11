@@ -961,7 +961,7 @@ public:
 	{
 		FSlateColor BaseColor;
 		FSlateColor SecondaryColor;
-		FSlateBrush const* SecondaryIcon;
+		FSlateBrush const* SecondaryIcon = nullptr;
 		const FSlateBrush* Icon = FBlueprintEditor::GetVarIconAndColorFromProperty(
 			Data->Property.Get(),
 			BaseColor,
