@@ -47,6 +47,11 @@ namespace ChaosTest
 			return Joint;
 		}
 
+		FPBDJointConstraintHandle* GetJoint(const int32 JointIndex)
+		{
+			return Evolution.GetJointConstraints().GetConstConstraintHandles()[JointIndex];
+		}
+
 		void Create()
 		{
 			for (int32 ParticleIndex = 0; ParticleIndex < ParticlePositions.Num(); ++ParticleIndex)
@@ -83,6 +88,12 @@ namespace ChaosTest
 			}
 
 			JointSettings.SetNum(NumParticles - 1);
+		}
+
+		void Advance(const FReal Dt)
+		{
+			Evolution.AdvanceOneTimeStep(Dt);
+			Evolution.EndFrame(Dt);
 		}
 
 		// Initial particles setup

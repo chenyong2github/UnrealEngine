@@ -356,7 +356,7 @@ namespace Chaos
 		void ColorConstraints();
 		void SortConstraints();
 
-		bool CanEvaluate(const int32 ConstraintIndex) const;
+		bool ShouldBeInGraph(const int32 ConstraintIndex) const;
 
 		void ApplyPlasticityLimits(const int32 ConstraintIndex, const FSolverBody& SolverBody0, const FSolverBody& SolverBody1);
 

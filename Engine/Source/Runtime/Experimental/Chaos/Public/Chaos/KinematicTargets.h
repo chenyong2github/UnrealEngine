@@ -34,6 +34,11 @@ namespace Chaos
 			return TKinematicTarget<T, d>(InTransform);
 		}
 
+		static TKinematicTarget<T, d> MakePositionTarget(const TVector<T, d>& InPosition, const TRotation<T, d>& InRotation)
+		{
+			return TKinematicTarget<T, d>(InPosition, InRotation);
+		}
+
 		TKinematicTarget()
 			: Position(0)
 			, Rotation(TRotation<T, d>::FromIdentity())
@@ -142,6 +147,13 @@ namespace Chaos
 		explicit TKinematicTarget(const TRigidTransform<T, d>& InTransform)
 			: Position(InTransform.GetTranslation())
 			, Rotation(InTransform.GetRotation())
+			, Mode(EKinematicTargetMode::Position)
+		{
+		}
+
+		TKinematicTarget(const TVector<T, d>& InPosition, const TRotation<T, d>& InRotation)
+			: Position(InPosition)
+			, Rotation(InRotation)
 			, Mode(EKinematicTargetMode::Position)
 		{
 		}

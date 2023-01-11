@@ -834,7 +834,7 @@ namespace Chaos
 			check(ConstraintHandle != nullptr);
 
 			const bool bIsInGraph = ConstraintHandle->IsInConstraintGraph();
-			const bool bShouldBeInGraph = IsConstraintEnabled(ConstraintIndex) && CanEvaluate(ConstraintIndex);
+			const bool bShouldBeInGraph = ShouldBeInGraph(ConstraintIndex);
 
 			if (bShouldBeInGraph && !bIsInGraph)
 			{
@@ -863,32 +863,36 @@ namespace Chaos
 		}
 	}
 
-	bool FPBDJointConstraints::CanEvaluate(const int32 ConstraintIndex) const
+	bool FPBDJointConstraints::ShouldBeInGraph(const int32 ConstraintIndex) const
 	{
 		if (!IsConstraintEnabled(ConstraintIndex))
 		{
 			return false;
 		}
 
-		int32 Index0, Index1;
-		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
-		const FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index0]);
-		const FGenericParticleHandle Particle1 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index1]);
+		const FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][0]);
+		const FGenericParticleHandle Particle1 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][1]);
 
-		// check for valid and enabled particles
-		if (Particle0->Handle() == nullptr || Particle0->Disabled()
-			|| Particle1->Handle() == nullptr || Particle1->Disabled())
+		// Must have 2 particles
+		if (!Particle0.IsValid() || !Particle1.IsValid())
 		{
 			return false;
 		}
 
-		if ((Particle0->Sleeping() && Particle1->Sleeping())
-			|| (Particle0->IsKinematic() && Particle1->Sleeping())
-			|| (Particle0->Sleeping() && Particle1->IsKinematic())
-			|| (Particle0->IsKinematic() && Particle1->IsKinematic()))
+		// Both particles must be active
+		if (Particle0->Disabled() || Particle1->Disabled())
 		{
 			return false;
 		}
+
+		// Must have at least one dynamic particle
+		if (!Particle0->IsDynamic() && !Particle1->IsDynamic())
+		{
+			return false;
+		}
+
+		// NOTE: Joints between sleeping particles (or a kinematic and sleeper) must stay in the graph 
+		// so that when a kinematic particle moves it will wake the attached particle/island
 
 		return true;
 	}

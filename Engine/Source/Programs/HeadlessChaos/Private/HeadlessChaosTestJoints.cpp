@@ -42,12 +42,15 @@ namespace ChaosTest {
 		FJointConstraintsTest(const int32 NumIterations, const FReal Gravity)
 			: Base(NumIterations, Gravity)
 		{
-			Evolution.AddConstraintContainer(Joints);
 		}
 
 		FPBDJointConstraintHandle* AddJoint(const TVec2<FGeometryParticleHandle*>& InConstrainedParticles, const FVec3& InLocation)
 		{
-			FPBDJointConstraintHandle* Constraint = Joints.AddConstraint(InConstrainedParticles, FRigidTransform3(InLocation, FRotation3::FromIdentity()));
+			FPBDJointConstraintHandle* Constraint = Evolution.GetJointConstraints().AddConstraint(InConstrainedParticles, FRigidTransform3(InLocation, FRotation3::FromIdentity()));
+
+			FPBDJointSettings Settings = Constraint->GetSettings();
+			Settings.LinearProjection = 1.0;
+			Constraint->SetSettings(Settings);
 
 			// @todo(chaos): this should be automatic, but it's handled by the proxy. Fix this
 			InConstrainedParticles[0]->ParticleConstraints().Add(Constraint);
@@ -79,9 +82,6 @@ namespace ChaosTest {
 		// Initial joints setup
 		TArray<FVec3> JointPositions;
 		TArray<TVec2<int32>> JointParticleIndices;
-
-		// Solver state
-		FPBDJointConstraints Joints;
 	};
 
 	/**
@@ -147,7 +147,7 @@ namespace ChaosTest {
 	template <typename TEvolution>
 	void JointConstraint_SingleMoveRoot()
 	{
-		const int32 NumIterations = 5;
+		const int32 NumIterations = 10;
 		const FReal Gravity = 0;
 		const FReal BoxSize = 1;
 		const FReal BoxMass = 1;
@@ -203,7 +203,7 @@ namespace ChaosTest {
 
 		// Move the kinematic body
 		const FVec3 RootPosition = Test.ParticlePositions[0] + RootDelta;
-		Test.GetParticle(Box1Id)->X() = RootPosition;
+		Test.Evolution.SetParticleKinematicTarget(Test.GetParticle(Box1Id)->CastToKinematicParticle(), FKinematicTarget::MakePositionTarget(RootPosition, Test.GetParticle(Box1Id)->R()));
 
 		for (int32 i = 0; i < 1000; ++i)
 		{
@@ -214,13 +214,14 @@ namespace ChaosTest {
 			EXPECT_LT((Test.GetParticle(Box1Id)->X() - RootPosition).Size(), (FReal)0.1 * BoxSize) << "Post-move instability on frame " << i;
 
 			// Particles should remain fixed distance apart (joint point is at Box1 location)
-			const FVec3 Delta = Test.GetParticle(Box2Id)->CastToRigidParticle()->P() - Test.GetParticle(Box1Id)->X();
+			// NOTE: when using linear joints the error can be moderately large
+			const FVec3 Delta = Test.GetParticle(Box2Id)->X() - Test.GetParticle(Box1Id)->X();
 			const FReal Distance = Delta.Size();
-			EXPECT_NEAR(Distance, ExpectedDistance, (FReal)0.1 * BoxSize) << "Post-move instability on frame " << i;
+			EXPECT_NEAR(Distance, ExpectedDistance, (FReal)0.15 * BoxSize) << "Post-move instability on frame " << i;
 
 			// Joint position calculted from pose and local-space joint pos
 			const FVec3 Box2WorldSpaceJointPosition = Test.GetParticle(Box2Id)->R().RotateVector(Box2LocalSpaceJointPosition) + Test.GetParticle(Box2Id)->X();
-			EXPECT_LT((Box2WorldSpaceJointPosition - RootPosition).Size(), (FReal)0.1 * BoxSize) << "Post-move instability on frame " << i;
+			EXPECT_LT((Box2WorldSpaceJointPosition - RootPosition).Size(), (FReal)0.15 * BoxSize) << "Post-move instability on frame " << i;
 		}
 	}
 
@@ -279,7 +280,7 @@ namespace ChaosTest {
 			const FVec3 RootOffset = FMath::Sin((FReal)2 * PI * Time / AnimPeriod) * AnimDelta;
 			const FVec3 RootPosition = Test.ParticlePositions[0] + RootOffset;
 
-			Test.GetParticle(Box1Id)->X() = RootPosition;
+			Test.Evolution.SetParticleKinematicTarget(Test.GetParticle(Box1Id)->CastToKinematicParticle(), FKinematicTarget::MakePositionTarget(RootPosition, Test.GetParticle(Box1Id)->R()));
 
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);
@@ -357,7 +358,7 @@ namespace ChaosTest {
 			const FVec3 RootOffset = FMath::Sin((FReal)2 * PI * Time / AnimPeriod) * AnimDelta;
 			const FVec3 RootPosition = Test.ParticlePositions[0] + RootOffset;
 
-			Test.GetParticle(0)->X() = RootPosition;
+			Test.Evolution.SetParticleKinematicTarget(Test.GetParticle(0)->CastToKinematicParticle(), FKinematicTarget::MakePositionTarget(RootPosition, Test.GetParticle(0)->R()));
 
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);
@@ -443,7 +444,7 @@ namespace ChaosTest {
 			const FVec3 RootOffset = FMath::Sin((FReal)2 * PI * Time / AnimPeriod) * AnimDelta;
 			const FVec3 RootPosition = Test.ParticlePositions[0] + RootOffset;
 
-			Test.GetParticle(0)->X() = RootPosition;
+			Test.Evolution.SetParticleKinematicTarget(Test.GetParticle(0)->CastToKinematicParticle(), FKinematicTarget::MakePositionTarget(RootPosition, Test.GetParticle(0)->R()));
 
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);
