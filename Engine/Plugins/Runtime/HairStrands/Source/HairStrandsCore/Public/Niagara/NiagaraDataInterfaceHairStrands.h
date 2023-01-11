@@ -59,9 +59,6 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Params scale buffer */
 	FNiagaraPooledRWBuffer ParamsScaleBuffer;
 
-	/** Points curve index for fast query */
-	FNiagaraPooledRWBuffer PointsCurveBuffer;
-
 	/** The strand asset resource from which to sample */
 	const FHairStrandsRestResource* SourceRestResources;
 
