@@ -23,6 +23,7 @@ public class RenderGrid : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Json",
 				"LevelSequence",
 				"LevelSequenceEditor",
 				"MovieRenderPipelineCore",

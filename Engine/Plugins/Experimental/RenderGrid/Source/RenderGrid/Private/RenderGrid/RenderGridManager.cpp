@@ -4,7 +4,6 @@
 #include "RenderGrid/RenderGridQueue.h"
 #include "RenderGridUtils.h"
 #include "MoviePipelineHighResSetting.h"
-#include "MoviePipelinePIEExecutor.h"
 
 
 URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueue(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs)
@@ -190,19 +189,21 @@ void UE::RenderGrid::FRenderGridManager::UpdateRenderGridJobsPropValues(URenderG
 	}
 
 	TArray<URenderGridJob*> Jobs = Grid->GetRenderGridJobs();
-	TArray<uint8> BinaryArray;
+	TArray<uint8> Bytes;
 	for (URenderGridPropRemoteControl* Field : PropsSource->GetProps()->GetAllCasted())
 	{
-		if (!Field->GetValue(BinaryArray))
+		if (!Field->GetValue(Bytes))
 		{
 			continue;
 		}
-		const TSharedPtr<FRemoteControlEntity> Entity = Field->GetRemoteControlEntity();
-		for (URenderGridJob* Job : Jobs)
+		if (const TSharedPtr<FRemoteControlEntity> Entity = Field->GetRemoteControlEntity(); Entity.IsValid())
 		{
-			if (!Job->HasRemoteControlValue(Entity))
+			for (URenderGridJob* Job : Jobs)
 			{
-				Job->SetRemoteControlValue(Entity, BinaryArray);
+				if (!Job->HasRemoteControlValueBytes(Entity))
+				{
+					Job->SetRemoteControlValueBytes(Entity, Bytes);
+				}
 			}
 		}
 	}
@@ -229,7 +230,7 @@ FRenderGridManagerPreviousPropValues UE::RenderGrid::FRenderGridManager::ApplyJo
 			}
 
 			TArray<uint8> PropData;
-			if (!Job->ConstGetRemoteControlValue(Prop->GetRemoteControlEntity(), PropData))
+			if (!Job->ConstGetRemoteControlValueBytes(Prop->GetRemoteControlEntity(), PropData))
 			{
 				continue;
 			}

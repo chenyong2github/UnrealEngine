@@ -169,6 +169,17 @@ namespace UE::RenderGrid::Private
 
 
 		/**
+		 * Converts the given bytes to a UTF-16 string, parses it as JSON, obtains the value from it, converts it to a string, and returns that string.
+		 */
+		static FString GetRemoteControlValueJsonFromBytes(const TArray<uint8>& ValueBytes, const bool PrettyPrint = false);
+		
+		/**
+		 * Converts the given bytes to a UTF-16 string, parses it as JSON, and obtains the key from it. Then it wraps the given json to insert the key (found in the given bytes), converts the json to bytes (UTF-16), and then return those bytes.
+		 */
+		static TArray<uint8> GetRemoteControlValueBytesFromJson(const TArray<uint8>& OldValueBytes, const FString& NewValueJson);
+
+
+		/**
 		 * Disables the current FPS limiting, returns the previous settings which allow you to revert back to the previous state.
 		 */
 		static FRenderGridPreviousEngineFpsSettings DisableFpsLimit();

@@ -3,6 +3,7 @@
 #include "RenderGrid/RenderGridPropsSource.h"
 #include "RenderGridLog.h"
 #include "IRemoteControlModule.h"
+#include "RCVirtualProperty.h"
 #include "Backends/JsonStructDeserializerBackend.h"
 #include "Backends/JsonStructSerializerBackend.h"
 
@@ -37,9 +38,9 @@ bool /*URenderGridPropRemoteControl::*/GetObjectRef(const TSharedPtr<FRemoteCont
 	return false;
 }
 
-bool URenderGridPropRemoteControl::GetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray)
+bool URenderGridPropRemoteControl::GetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes)
 {
-	OutBinaryArray.Empty();
+	OutBytes.Empty();
 
 	TSharedPtr<FRemoteControlProperty> Field = StaticCastSharedPtr<FRemoteControlProperty>(RemoteControlEntity);
 	if (!Field.IsValid())
@@ -52,12 +53,12 @@ bool URenderGridPropRemoteControl::GetValueOfEntity(const TSharedPtr<FRemoteCont
 	{
 		return false;
 	}
-	FMemoryWriter Writer = FMemoryWriter(OutBinaryArray);
+	FMemoryWriter Writer = FMemoryWriter(OutBytes);
 	FJsonStructSerializerBackend WriterBackend = FJsonStructSerializerBackend(Writer, EStructSerializerBackendFlags::Default);
 	return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, WriterBackend);
 }
 
-bool URenderGridPropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray)
+bool URenderGridPropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes)
 {
 	TSharedPtr<FRemoteControlProperty> Field = StaticCastSharedPtr<FRemoteControlProperty>(RemoteControlEntity);
 	if (!Field.IsValid())
@@ -68,12 +69,12 @@ bool URenderGridPropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteCont
 	FRCObjectReference ObjectRefRead;
 	if (GetObjectRef(Field, ERCAccess::READ_ACCESS, ObjectRefRead))
 	{
-		TArray<uint8> CurrentBinaryArray;
-		FMemoryWriter Writer = FMemoryWriter(CurrentBinaryArray);
+		TArray<uint8> CurrentBytes;
+		FMemoryWriter Writer = FMemoryWriter(CurrentBytes);
 		FJsonStructSerializerBackend WriterBackend = FJsonStructSerializerBackend(Writer, EStructSerializerBackendFlags::Default);
 		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRefRead, WriterBackend))
 		{
-			if (CurrentBinaryArray == BinaryArray)
+			if (CurrentBytes == Bytes)
 			{
 				// if the given value is already set, don't do anything
 				return true;
@@ -86,7 +87,7 @@ bool URenderGridPropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteCont
 	{
 		return false;
 	}
-	FMemoryReader Reader = FMemoryReader(BinaryArray);
+	FMemoryReader Reader = FMemoryReader(Bytes);
 	FJsonStructDeserializerBackend ReaderBackend = FJsonStructDeserializerBackend(Reader);
 	if (!IRemoteControlModule::Get().SetObjectProperties(ObjectRefWrite, ReaderBackend, ERCPayloadType::Json))
 	{
@@ -119,7 +120,7 @@ bool URenderGridPropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteCont
 	return true;
 }
 
-bool URenderGridPropRemoteControl::CanSetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray)
+bool URenderGridPropRemoteControl::CanSetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes)
 {
 	TSharedPtr<FRemoteControlProperty> Field = StaticCastSharedPtr<FRemoteControlProperty>(RemoteControlEntity);
 	if (!Field.IsValid())
@@ -130,12 +131,12 @@ bool URenderGridPropRemoteControl::CanSetValueOfEntity(const TSharedPtr<FRemoteC
 	FRCObjectReference ObjectRefRead;
 	if (GetObjectRef(Field, ERCAccess::READ_ACCESS, ObjectRefRead))
 	{
-		TArray<uint8> CurrentBinaryArray;
-		FMemoryWriter Writer = FMemoryWriter(CurrentBinaryArray);
+		TArray<uint8> CurrentBytes;
+		FMemoryWriter Writer = FMemoryWriter(CurrentBytes);
 		FJsonStructSerializerBackend WriterBackend = FJsonStructSerializerBackend(Writer, EStructSerializerBackendFlags::Default);
 		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRefRead, WriterBackend))
 		{
-			if (CurrentBinaryArray == BinaryArray)
+			if (CurrentBytes == Bytes)
 			{
 				// if the given value is already set, don't do anything
 				return true;
@@ -196,6 +197,46 @@ TArray<URenderGridPropRemoteControl*> URenderGridPropsRemoteControl::GetAllCaste
 		}
 	}
 	return Result;
+}
+
+URenderGridPropRemoteControl* URenderGridPropsRemoteControl::GetById(const FGuid& Id) const
+{
+	if (IsValid(RemoteControlPreset))
+	{
+		for (const TWeakPtr<FRemoteControlEntity>& PropWeakPtr : RemoteControlPreset->GetExposedEntities<FRemoteControlEntity>())
+		{
+			if (const TSharedPtr<FRemoteControlEntity> Prop = PropWeakPtr.Pin())
+			{
+				if (Prop->GetId() == Id)
+				{
+					URenderGridPropRemoteControl* PropObj = NewObject<URenderGridPropRemoteControl>(const_cast<URenderGridPropsRemoteControl*>(this));
+					PropObj->Initialize(Prop);
+					return PropObj;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+URenderGridPropRemoteControl* URenderGridPropsRemoteControl::GetByLabel(const FString& Label) const
+{
+	if (IsValid(RemoteControlPreset))
+	{
+		for (const TWeakPtr<FRemoteControlEntity>& PropWeakPtr : RemoteControlPreset->GetExposedEntities<FRemoteControlEntity>())
+		{
+			if (const TSharedPtr<FRemoteControlEntity> Prop = PropWeakPtr.Pin())
+			{
+				if (Prop->GetLabel().ToString().TrimStartAndEnd().Equals(Label.TrimStartAndEnd(), ESearchCase::CaseSensitive))
+				{
+					URenderGridPropRemoteControl* PropObj = NewObject<URenderGridPropRemoteControl>(const_cast<URenderGridPropsRemoteControl*>(this));
+					PropObj->Initialize(Prop);
+					return PropObj;
+				}
+			}
+		}
+	}
+	return nullptr;
 }
 
 

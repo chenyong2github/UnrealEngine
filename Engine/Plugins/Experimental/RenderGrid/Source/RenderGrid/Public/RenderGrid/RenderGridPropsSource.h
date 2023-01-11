@@ -128,13 +128,13 @@ class RENDERGRID_API URenderGridPropRemoteControl : public URenderGridPropBase
 
 public:
 	/** Gets the value (as bytes) of the given property (remote control entity). Returns true if the operation was successful, false otherwise. */
-	static bool GetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray);
+	static bool GetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes);
 
 	/** Set the value (as bytes) of the given property (remote control entity). Returns true if the operation was successful, false otherwise. */
-	static bool SetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray);
+	static bool SetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes);
 
 	/** Tests if it can set the value (as bytes) of the given property (remote control entity). Returns true if the set operation would likely be successful, false otherwise. */
-	static bool CanSetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray);
+	static bool CanSetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes);
 
 public:
 	/** Sets the initial values of this instance. */
@@ -144,13 +144,13 @@ public:
 	TSharedPtr<FRemoteControlEntity> GetRemoteControlEntity() const { return RemoteControlEntity; }
 
 	/** Gets the value (as bytes) of this property. Returns true if the operation was successful, false otherwise. */
-	bool GetValue(TArray<uint8>& OutBinaryArray) const { return GetValueOfEntity(RemoteControlEntity, OutBinaryArray); }
+	bool GetValue(TArray<uint8>& OutBytes) const { return GetValueOfEntity(RemoteControlEntity, OutBytes); }
 
 	/** Set the value (as bytes) of this property. Returns true if the operation was successful, false otherwise. */
-	bool SetValue(const TArray<uint8>& BinaryArray) { return SetValueOfEntity(RemoteControlEntity, BinaryArray); }
+	bool SetValue(const TArray<uint8>& Bytes) { return SetValueOfEntity(RemoteControlEntity, Bytes); }
 
 	/** Tests if it can set the value (as bytes) of this property. Returns true if the set operation would likely be successful, false otherwise. */
-	bool CanSetValue(const TArray<uint8>& BinaryArray) { return CanSetValueOfEntity(RemoteControlEntity, BinaryArray); }
+	bool CanSetValue(const TArray<uint8>& Bytes) { return CanSetValueOfEntity(RemoteControlEntity, Bytes); }
 
 protected:
 	/** The property, which is a remote control entity (which can be a field or a function). */
@@ -175,6 +175,12 @@ public:
 
 	/** Returns all props, casted to URenderGridPropRemoteControl, for ease of use. */
 	TArray<URenderGridPropRemoteControl*> GetAllCasted() const;
+
+	/** Returns the prop with the given ID, or NULL if not found. */
+	URenderGridPropRemoteControl* GetById(const FGuid& Id) const;
+
+	/** Returns the prop with the given label, or NULL if not found. */
+	URenderGridPropRemoteControl* GetByLabel(const FString& Label) const;
 
 	/** Returns the remote control preset. */
 	URemoteControlPreset* GetRemoteControlPreset() const { return (IsValid(RemoteControlPreset) ? RemoteControlPreset : nullptr); }
@@ -202,6 +208,9 @@ public:
 
 	/** Returns (in the out parameter) the preset groups that are available in this remote control preset. */
 	void GetAvailablePresetGroups(TArray<FName>& OutPresetGroups) const;
+
+	/** Returns the remote control preset. */
+	URemoteControlPreset* GetRemoteControlPreset() const { return (IsValid(RemoteControlPreset) ? RemoteControlPreset : nullptr); }
 
 protected:
 	/** The source of properties, which is a remote control preset. */

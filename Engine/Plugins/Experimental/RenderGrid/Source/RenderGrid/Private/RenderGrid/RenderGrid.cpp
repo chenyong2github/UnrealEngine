@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGrid/RenderGrid.h"
-#include "RenderGrid/RenderGridManager.h"
-#include "RenderGridUtils.h"
+
 #include "IRenderGridModule.h"
 #include "LevelSequence.h"
 #include "Misc/Base64.h"
-#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieScene.h"
+#include "RenderGrid/RenderGridManager.h"
 #include "RenderGrid/RenderGridQueue.h"
+#include "RenderGridUtils.h"
 #include "UObject/ObjectSaveContext.h"
 
 
@@ -384,64 +385,248 @@ UMoviePipelineOutputSetting* URenderGridJob::GetRenderPresetOutputSettings() con
 	return nullptr;
 }
 
-bool URenderGridJob::HasRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const
+TArray<URemoteControlPreset*> URenderGridJob::GetRemoteControlPresets()
 {
-	if (!RemoteControlEntity.IsValid())
+	TArray<URemoteControlPreset*> Presets;
+	if (URenderGrid* Grid = GetTypedOuter<URenderGrid>(); IsValid(Grid))
 	{
-		return false;
+		if (URenderGridPropsSourceRemoteControl* PropsSource = Grid->GetPropsSource<URenderGridPropsSourceRemoteControl>(); IsValid(PropsSource))
+		{
+			if (URemoteControlPreset* Preset = PropsSource->GetRemoteControlPreset(); IsValid(Preset))
+			{
+				Presets.Add(Preset);
+			}
+		}
 	}
-
-	const FString Key = RemoteControlEntity->GetId().ToString();
-	return !!RemoteControlValues.Find(Key);
+	/*else
+	{
+		TArray<TSoftObjectPtr<URemoteControlPreset>> RemoteControlPresets;
+		IRemoteControlModule::Get().GetPresets(RemoteControlPresets);
+		for (TSoftObjectPtr<URemoteControlPreset> RemoteControlPresetWeakPtr : RemoteControlPresets)
+		{
+			if (URemoteControlPreset* Preset = RemoteControlPresetWeakPtr.Get(); IsValid(Preset))
+			{
+				Presets.Add(Preset);
+			}
+		}
+	}*/
+	return Presets;
 }
 
-bool URenderGridJob::ConstGetRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray) const
+bool URenderGridJob::HasRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const
 {
 	if (!RemoteControlEntity.IsValid())
 	{
 		return false;
 	}
 
-	const FString Key = RemoteControlEntity->GetId().ToString();
-	if (const FRenderGridRemoteControlPropertyData* DataPtr = RemoteControlValues.Find(Key))
+	return HasRemoteControlValueBytes(RemoteControlEntity->GetId());
+}
+
+bool URenderGridJob::ConstGetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes) const
+{
+	if (!RemoteControlEntity.IsValid())
 	{
-		OutBinaryArray.Append((*DataPtr).Bytes);
+		OutBytes.Empty();
+		return false;
+	}
+
+	return ConstGetRemoteControlValueBytes(RemoteControlEntity->GetId(), OutBytes);
+}
+
+bool URenderGridJob::GetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes)
+{
+	OutBytes.Empty();
+	if (!RemoteControlEntity.IsValid())
+	{
+		return false;
+	}
+
+	if (FRenderGridRemoteControlPropertyData* DataPtr = RemoteControlValues.Find(RemoteControlEntity->GetId()))
+	{
+		OutBytes.Append((*DataPtr).Bytes);
+		return true;
+	}
+
+	if (!URenderGridPropRemoteControl::GetValueOfEntity(RemoteControlEntity, OutBytes))
+	{
+		return false;
+	}
+	RemoteControlValues.Add(RemoteControlEntity->GetId(), FRenderGridRemoteControlPropertyData(TArray(OutBytes)));
+	return true;
+}
+
+bool URenderGridJob::SetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes)
+{
+	if (!RemoteControlEntity.IsValid())
+	{
+		return false;
+	}
+
+	return SetRemoteControlValueBytes(RemoteControlEntity->GetId(), Bytes);
+}
+
+bool URenderGridJob::HasRemoteControlValueBytes(const FGuid& FieldId) const
+{
+	if (!FieldId.IsValid())
+	{
+		return false;
+	}
+
+	return !!RemoteControlValues.Find(FieldId);
+}
+
+bool URenderGridJob::ConstGetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes) const
+{
+	OutBytes.Empty();
+	if (!FieldId.IsValid())
+	{
+		return false;
+	}
+
+	if (const FRenderGridRemoteControlPropertyData* DataPtr = RemoteControlValues.Find(FieldId))
+	{
+		OutBytes.Append((*DataPtr).Bytes);
 		return true;
 	}
 	return false;
 }
 
-bool URenderGridJob::GetRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray)
+bool URenderGridJob::GetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes)
 {
-	if (!RemoteControlEntity.IsValid())
+	OutBytes.Empty();
+	if (!FieldId.IsValid())
 	{
 		return false;
 	}
 
-	const FString Key = RemoteControlEntity->GetId().ToString();
-	if (FRenderGridRemoteControlPropertyData* DataPtr = RemoteControlValues.Find(Key))
+	if (FRenderGridRemoteControlPropertyData* DataPtr = RemoteControlValues.Find(FieldId))
 	{
-		OutBinaryArray.Append((*DataPtr).Bytes);
+		OutBytes.Append((*DataPtr).Bytes);
 		return true;
 	}
 
-	if (!URenderGridPropRemoteControl::GetValueOfEntity(RemoteControlEntity, OutBinaryArray))
+	TSharedPtr<FRemoteControlEntity> RemoteControlEntity;
+	for (URemoteControlPreset* RemoteControlPreset : GetRemoteControlPresets())
+	{
+		for (const TWeakPtr<FRemoteControlEntity>& PropWeakPtr : RemoteControlPreset->GetExposedEntities<FRemoteControlEntity>())
+		{
+			if (const TSharedPtr<FRemoteControlEntity> Prop = PropWeakPtr.Pin())
+			{
+				if (Prop->GetId() == FieldId)
+				{
+					RemoteControlEntity = Prop;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!RemoteControlEntity.IsValid() || !URenderGridPropRemoteControl::GetValueOfEntity(RemoteControlEntity, OutBytes))
 	{
 		return false;
 	}
-	RemoteControlValues.Add(Key, FRenderGridRemoteControlPropertyData(TArray(OutBinaryArray)));
+	RemoteControlValues.Add(FieldId, FRenderGridRemoteControlPropertyData(TArray(OutBytes)));
 	return true;
 }
 
-bool URenderGridJob::SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray)
+bool URenderGridJob::SetRemoteControlValueBytes(const FGuid& FieldId, const TArray<uint8>& Bytes)
 {
-	if (!RemoteControlEntity.IsValid())
+	if (!FieldId.IsValid())
 	{
 		return false;
 	}
-	const FString Key = RemoteControlEntity->GetId().ToString();
-	RemoteControlValues.Add(Key, FRenderGridRemoteControlPropertyData(TArray(BinaryArray)));
+
+	RemoteControlValues.Add(FieldId, FRenderGridRemoteControlPropertyData(TArray(Bytes)));
 	return true;
+}
+
+bool URenderGridJob::HasRemoteControlValue(const FGuid& FieldId) const
+{
+	return HasRemoteControlValueBytes(FieldId);
+}
+
+bool URenderGridJob::ConstGetRemoteControlValue(const FGuid& FieldId, FString& OutJson) const
+{
+	OutJson.Empty();
+	TArray<uint8> Bytes;
+	if (!ConstGetRemoteControlValueBytes(FieldId, Bytes))
+	{
+		return false;
+	}
+	OutJson.Append(UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(Bytes));
+	return true;
+}
+
+bool URenderGridJob::GetRemoteControlValue(const FGuid& FieldId, FString& OutJson)
+{
+	OutJson.Empty();
+	TArray<uint8> Bytes;
+	if (!GetRemoteControlValueBytes(FieldId, Bytes))
+	{
+		return false;
+	}
+	OutJson.Append(UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(Bytes));
+	return true;
+}
+
+bool URenderGridJob::SetRemoteControlValue(const FGuid& FieldId, const FString& Json)
+{
+	TArray<uint8> Bytes;
+	if (!GetRemoteControlValueBytes(FieldId, Bytes))
+	{
+		return false;
+	}
+	return SetRemoteControlValueBytes(FieldId, UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueBytesFromJson(Bytes, Json));
+}
+
+bool URenderGridJob::GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& OutFieldId)
+{
+	OutFieldId.Invalidate();
+	const FName LabelName = FName(Label);
+	for (URemoteControlPreset* RemoteControlPreset : GetRemoteControlPresets())
+	{
+		if (const FGuid FieldId = RemoteControlPreset->GetExposedEntityId(LabelName); FieldId.IsValid())
+		{
+			OutFieldId = FieldId;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool URenderGridJob::GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& OutLabel)
+{
+	OutLabel.Empty();
+	for (URemoteControlPreset* RemoteControlPreset : GetRemoteControlPresets())
+	{
+		for (const TWeakPtr<FRemoteControlEntity>& PropWeakPtr : RemoteControlPreset->GetExposedEntities<FRemoteControlEntity>())
+		{
+			if (const TSharedPtr<FRemoteControlEntity> Prop = PropWeakPtr.Pin())
+			{
+				if (Prop->GetId() == FieldId)
+				{
+					OutLabel = Prop->GetLabel().ToString();
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+TMap<FGuid, FString> URenderGridJob::GetRemoteControlValues()
+{
+	TMap<FGuid, FString> Result;
+	for (TTuple<FGuid, FRenderGridRemoteControlPropertyData> Entry : RemoteControlValues)
+	{
+		FString Json;
+		if (GetRemoteControlValue(Entry.Key, Json))
+		{
+			Result.Add(Entry.Key, Json);
+		}
+	}
+	return Result;
 }
 
 
@@ -945,12 +1130,15 @@ URenderGridJob* URenderGrid::CreateTempRenderGridJob()
 
 	if (URenderGridPropsSourceRemoteControl* PropsSource = GetPropsSource<URenderGridPropsSourceRemoteControl>())
 	{
-		TArray<uint8> BinaryArray;
+		TArray<uint8> Bytes;
 		for (URenderGridPropRemoteControl* Field : PropsSource->GetProps()->GetAllCasted())
 		{
-			if (Field->GetValue(BinaryArray))
+			if (Field->GetValue(Bytes))
 			{
-				Job->SetRemoteControlValue(Field->GetRemoteControlEntity(), BinaryArray);
+				if (const TSharedPtr<FRemoteControlEntity> FieldEntity = Field->GetRemoteControlEntity(); FieldEntity.IsValid())
+				{
+					Job->SetRemoteControlValueBytes(FieldEntity, Bytes);
+				}
 			}
 		}
 	}

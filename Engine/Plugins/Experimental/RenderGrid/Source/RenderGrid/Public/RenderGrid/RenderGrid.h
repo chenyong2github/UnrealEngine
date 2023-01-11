@@ -264,11 +264,40 @@ public:
 	void SetRenderPreset(UMoviePipelinePrimaryConfig* NewRenderPreset) { RenderPreset = NewRenderPreset; }
 
 
-	bool HasRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const;
-	bool ConstGetRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray) const;
-	bool GetRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray);
-	bool SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray);
-	TMap<FString, FRenderGridRemoteControlPropertyData>& GetRemoteControlValuesRef() { return RemoteControlValues; }
+	TArray<URemoteControlPreset*> GetRemoteControlPresets();
+
+	bool HasRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const;
+	bool ConstGetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes) const;
+	bool GetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes);
+	bool SetRemoteControlValueBytes(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes);
+
+	bool HasRemoteControlValueBytes(const FGuid& FieldId) const;
+	bool ConstGetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes) const;
+	bool GetRemoteControlValueBytes(const FGuid& FieldId, TArray<uint8>& OutBytes);
+	bool SetRemoteControlValueBytes(const FGuid& FieldId, const TArray<uint8>& Bytes);
+
+	TMap<FGuid, FRenderGridRemoteControlPropertyData>& GetRemoteControlValuesBytesRef() { return RemoteControlValues; }
+
+
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	bool HasRemoteControlValue(const FGuid& FieldId) const;
+
+	bool ConstGetRemoteControlValue(const FGuid& FieldId, FString& OutJson) const;
+
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	bool GetRemoteControlValue(const FGuid& FieldId, FString& OutJson);
+
+	UFUNCTION(BlueprintCallable, Category="Render Grid Job")
+	bool SetRemoteControlValue(const FGuid& FieldId, const FString& Json);
+
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	bool GetRemoteControlFieldIdFromLabel(const FString& Label, FGuid& OutFieldId);
+
+	UFUNCTION(BlueprintPure, Category="Render Grid Job")
+	bool GetRemoteControlLabelFromFieldId(const FGuid& FieldId, FString& OutLabel);
+
+	UFUNCTION(BlueprintCallable, Category="Render Grid Job")
+	TMap<FGuid, FString> GetRemoteControlValues();
 
 private:
 	/** The unique ID of this job. */
@@ -329,7 +358,7 @@ private:
 
 	/** The remote control plugin can be used to customize and modify the way a job is rendered. If remote control is being used, the property values of this job will be stored in this map (remote control entity id -> value as bytes). */
 	UPROPERTY()
-	TMap<FString, FRenderGridRemoteControlPropertyData> RemoteControlValues;
+	TMap<FGuid, FRenderGridRemoteControlPropertyData> RemoteControlValues;
 };
 
 

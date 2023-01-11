@@ -159,22 +159,22 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::OnRemoteControlExpo
 			{
 				if (const TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity<FRemoteControlEntity>(Id).Pin())
 				{
-					TArray<uint8> BinaryArray;
-					if (!URenderGridPropRemoteControl::GetValueOfEntity(Entity, BinaryArray))
+					TArray<uint8> Bytes;
+					if (!URenderGridPropRemoteControl::GetValueOfEntity(Entity, Bytes))
 					{
 						continue;
 					}
-					TArray<uint8> StoredBinaryArray;
-					if (!GetSelectedJobFieldValue(Entity, StoredBinaryArray))
+					TArray<uint8> StoredBytes;
+					if (!GetSelectedJobFieldValue(Entity, StoredBytes))
 					{
 						continue;
 					}
-					if (BinaryArray == StoredBinaryArray)
+					if (Bytes == StoredBytes)
 					{
 						continue;
 					}
 
-					if (!SetSelectedJobFieldValue(Entity, BinaryArray))
+					if (!SetSelectedJobFieldValue(Entity, Bytes))
 					{
 						continue;
 					}
@@ -205,23 +205,29 @@ URenderGridJob* UE::RenderGrid::Private::SRenderGridPropsRemoteControl::GetSelec
 	return nullptr;
 }
 
-bool UE::RenderGrid::Private::SRenderGridPropsRemoteControl::GetSelectedJobFieldValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBinaryArray)
+bool UE::RenderGrid::Private::SRenderGridPropsRemoteControl::GetSelectedJobFieldValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, TArray<uint8>& OutBytes)
 {
-	OutBinaryArray.Empty();
-	if (URenderGridJob* SelectedJob = GetSelectedJob(); IsValid(SelectedJob))
+	OutBytes.Empty();
+	if (RemoteControlEntity.IsValid())
 	{
-		return SelectedJob->GetRemoteControlValue(RemoteControlEntity, OutBinaryArray);
+		if (URenderGridJob* SelectedJob = GetSelectedJob(); IsValid(SelectedJob))
+		{
+			return SelectedJob->GetRemoteControlValueBytes(RemoteControlEntity, OutBytes);
+		}
 	}
 	return false;
 }
 
-bool UE::RenderGrid::Private::SRenderGridPropsRemoteControl::SetSelectedJobFieldValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray)
+bool UE::RenderGrid::Private::SRenderGridPropsRemoteControl::SetSelectedJobFieldValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& Bytes)
 {
-	if (URenderGridJob* SelectedJob = GetSelectedJob(); IsValid(SelectedJob))
+	if (RemoteControlEntity.IsValid())
 	{
-		FScopedTransaction Transaction(LOCTEXT("ChangeJobProperty", "Change Job Property"));
-		SelectedJob->Modify();
-		return SelectedJob->SetRemoteControlValue(RemoteControlEntity, BinaryArray);
+		if (URenderGridJob* SelectedJob = GetSelectedJob(); IsValid(SelectedJob))
+		{
+			FScopedTransaction Transaction(LOCTEXT("ChangeJobProperty", "Change Job Property"));
+			SelectedJob->Modify();
+			return SelectedJob->SetRemoteControlValueBytes(RemoteControlEntity, Bytes);
+		}
 	}
 	return false;
 }

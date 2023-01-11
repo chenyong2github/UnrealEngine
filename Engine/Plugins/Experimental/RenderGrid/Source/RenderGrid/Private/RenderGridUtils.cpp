@@ -7,12 +7,14 @@
 #include "HAL/PlatformFileManager.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
-#include "ImageUtils.h"
 #include "TextureResource.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "Engine/Engine.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 
 bool UE::RenderGrid::Private::FRenderGridUtils::IsImage(const FString& ImagePath)
@@ -306,6 +308,109 @@ FString UE::RenderGrid::Private::FRenderGridUtils::DenormalizeJobOutputDirectory
 	return NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(
 		NormalizedOutputDirectory.Replace(TEXT("{project_dir}"), *FPaths::ProjectDir())
 	));
+}
+
+
+FString UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueJsonFromBytes(const TArray<uint8>& ValueBytes, const bool PrettyPrint)
+{
+	TSharedPtr<FJsonValue> Value;
+	{
+		const FUTF16ToTCHAR ConvertedString(reinterpret_cast<UTF16CHAR*>(const_cast<uint8*>(ValueBytes.GetData())), ValueBytes.Num() / sizeof(UTF16CHAR));
+		const FString Json = FString(ConvertedString.Length(), ConvertedString.Get()).TrimStartAndEnd();
+
+		const TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Json);
+		TSharedPtr<FJsonObject> JsonObjectData;
+		if (!FJsonSerializer::Deserialize(JsonReader, JsonObjectData))
+		{
+			// the given bytes isn't valid json
+			return TEXT("NULL");
+		}
+
+		TArray<TSharedPtr<FJsonValue>> Values;
+		JsonObjectData->Values.GenerateValueArray(Values);
+		if (Values.Num() != 1)
+		{
+			// in the given bytes (json data), there is no key, or there are multiple keys, either way it's invalid
+			return TEXT("NULL");
+		}
+
+		Value = Values[0];
+	}
+
+	FString JsonString;
+	{
+		if (PrettyPrint)
+		{
+			TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonString);
+			FJsonSerializer::Serialize({Value}, JsonWriter);
+			JsonWriter->Close();
+		}
+		else
+		{
+			TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonString);
+			FJsonSerializer::Serialize({Value}, JsonWriter);
+			JsonWriter->Close();
+		}
+
+		JsonString.TrimStartAndEndInline();
+		JsonString.MidInline(1, JsonString.Len() - 2);
+		JsonString.TrimStartAndEndInline();
+	}
+
+	return JsonString;
+}
+
+TArray<uint8> UE::RenderGrid::Private::FRenderGridUtils::GetRemoteControlValueBytesFromJson(const TArray<uint8>& OldValueBytes, const FString& NewValueJson)
+{
+	FString OldValueKey;
+	{
+		const FUTF16ToTCHAR ConvertedString(reinterpret_cast<UTF16CHAR*>(const_cast<uint8*>(OldValueBytes.GetData())), OldValueBytes.Num() / sizeof(UTF16CHAR));
+		const FString Json = FString(ConvertedString.Length(), ConvertedString.Get());
+
+		const TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Json);
+		TSharedPtr<FJsonObject> JsonObjectData;
+		if (!FJsonSerializer::Deserialize(JsonReader, JsonObjectData))
+		{
+			// the given bytes isn't valid json
+			return TArray<uint8>();
+		}
+
+		TArray<FString> Keys;
+		JsonObjectData->Values.GenerateKeyArray(Keys);
+		if (Keys.Num() != 1)
+		{
+			// in the given bytes (json data), there is no key, or there are multiple keys, either way it's invalid
+			return TArray<uint8>();
+		}
+
+		OldValueKey = Keys[0];
+	}
+
+	TSharedPtr<FJsonValue> Value;
+	{
+		const TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(TEXT("{\"value\":") + NewValueJson + TEXT("}"));
+		TSharedPtr<FJsonObject> JsonObjectData;
+		if (!FJsonSerializer::Deserialize(JsonReader, JsonObjectData))
+		{
+			// the given new value (json string) isn't valid json
+			return TArray<uint8>();
+		}
+
+		Value = JsonObjectData->TryGetField(TEXT("value"));
+	}
+
+	FString JsonString;
+	{
+		TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+		JsonObject->SetField(OldValueKey, Value);
+
+		TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonString);
+		FJsonSerializer::Serialize(JsonObject, JsonWriter);
+		JsonWriter->Close();
+	}
+
+	FTCHARToUTF16 UTF16String(*JsonString, JsonString.Len());
+	return TArray(reinterpret_cast<const uint8*>(UTF16String.Get()), UTF16String.Length() * sizeof(UTF16CHAR));
 }
 
 
