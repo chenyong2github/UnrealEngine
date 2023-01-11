@@ -28,7 +28,7 @@ extern const FName LevelEditorApp;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FAreObjectsEditable, const TArray<TWeakObjectPtr<UObject>>&);
 
-class LevelEditorTabIds
+class LEVELEDITOR_API LevelEditorTabIds
 {
 public:
 	static const FName LevelEditorViewport;

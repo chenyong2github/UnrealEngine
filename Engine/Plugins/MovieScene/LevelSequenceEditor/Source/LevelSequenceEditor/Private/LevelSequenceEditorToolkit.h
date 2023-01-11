@@ -106,6 +106,7 @@ public:
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FText GetTabSuffix() const override;
+	virtual void BringToolkitToFront() override;
 
 protected:
 
