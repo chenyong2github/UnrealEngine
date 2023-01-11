@@ -6,6 +6,7 @@
 #include "UnrealClient.h"
 #include "Types/SlateStructs.h"
 #include "IPropertyTypeCustomization.h"
+#include "Widgets/Views/STreeView.h"
 
 class IPropertyHandle;
 class SWidget;
@@ -73,21 +74,64 @@ private:
 	const FSlateBrush* GetDisplayValueIcon() const;
 
 	TSharedRef<SWidget> GeneratePicker();
-
 	void OnStructPicked(const UScriptStruct* InStruct) const;
-	void OnClassPicked(UClass* InClass) const;
+	void OnClassPicked(const UClass* InClass) const;
 
 	void OnIdentifierChanged(const UStateTree& StateTree);
 	void OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
 	void FindOuterObjects();
 
+	// Stores a category path segment, or a node type.
+	struct FStateTreeNodeTypeItem
+	{
+		bool IsNode() const { return Struct != nullptr; }
+		bool IsCategory() const { return CategoryPath.Num() > 0; }
+		FString GetCategoryName() { return CategoryPath.Num() > 0 ? CategoryPath.Last() : FString(); }
+
+		TArray<FString> CategoryPath;
+		const UStruct* Struct = nullptr;
+		TArray<TSharedPtr<FStateTreeNodeTypeItem>> Children;
+	};
+
+	// Stores per session node expansion state for a node type.
+	struct FCategoryExpansionState
+	{
+		TSet<FString> ExpandedCategories;
+	};
+
+	static void SortNodeTypesFunctionItemsRecursive(TArray<TSharedPtr<FStateTreeNodeTypeItem>>& Items);
+	static TSharedPtr<FStateTreeNodeTypeItem> FindOrCreateItemForCategory(TArray<TSharedPtr<FStateTreeNodeTypeItem>>& Items, TArrayView<FString> CategoryPath);
+	void AddNode(const UStruct* Struct);
+	void CacheNodeTypes();
+	
+	TSharedRef<ITableRow> GenerateNodeTypeRow(TSharedPtr<FStateTreeNodeTypeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void GetNodeTypeChildren(TSharedPtr<FStateTreeNodeTypeItem> Item, TArray<TSharedPtr<FStateTreeNodeTypeItem>>& OutItems) const;
+	void OnNodeTypeSelected(TSharedPtr<FStateTreeNodeTypeItem> SelectedItem, ESelectInfo::Type);
+	void OnNodeTypeExpansionChanged(TSharedPtr<FStateTreeNodeTypeItem> ExpandedItem, bool bInExpanded);
+	void OnSearchBoxTextChanged(const FText& NewText);
+	int32 FilterNodeTypesChildren(const TArray<FString>& FilterStrings, const bool bParentMatches, const TArray<TSharedPtr<FStateTreeNodeTypeItem>>& SourceArray, TArray<TSharedPtr<FStateTreeNodeTypeItem>>& OutDestArray);
+	void ExpandAll(const TArray<TSharedPtr<FStateTreeNodeTypeItem>>& Items);
+	TArray<TSharedPtr<FStateTreeNodeTypeItem>> GetPathToItemStruct(const UStruct* Struct) const;
+
+	void SaveExpansionState();
+	void RestoreExpansionState();
+	
+	TSharedPtr<FStateTreeNodeTypeItem> RootNode;
+	TSharedPtr<FStateTreeNodeTypeItem> FilteredRootNode;
+	
 	UScriptStruct* BaseScriptStruct = nullptr;
 	UClass* BaseClass = nullptr;
 	TSharedPtr<class SComboButton> ComboButton;
+	TSharedPtr<SSearchBox> SearchBox;
+	TSharedPtr<STreeView<TSharedPtr<FStateTreeNodeTypeItem>>> NodeTypeTree;
+	bool bIsRestoringExpansion = false;
 
 	UStateTreeEditorData* EditorData = nullptr;
 	UStateTree* StateTree = nullptr;
 
+	// Save expansion state for each base node type. The expansion state does not persist between editor sessions. 
+	static TMap<FObjectKey, FCategoryExpansionState> CategoryExpansionStates;
+	
 	class IPropertyUtilities* PropUtils = nullptr;
 	TSharedPtr<IPropertyHandle> StructProperty;
 	TSharedPtr<IPropertyHandle> NodeProperty;

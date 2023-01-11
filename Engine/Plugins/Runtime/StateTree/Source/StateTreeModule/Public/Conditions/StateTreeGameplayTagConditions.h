@@ -6,9 +6,6 @@
 #include "GameplayTagContainer.h"
 #include "StateTreeGameplayTagConditions.generated.h"
 
-/**
- * Gameplay Tag match condition.
- */
 USTRUCT()
 struct STATETREEMODULE_API FGameplayTagMatchConditionInstanceData
 {
@@ -21,7 +18,10 @@ struct STATETREEMODULE_API FGameplayTagMatchConditionInstanceData
 	FGameplayTag Tag;
 };
 
-USTRUCT(DisplayName="Gameplay Tag Match")
+/**
+ * Gameplay Tag match condition.
+ */
+USTRUCT(DisplayName="Gameplay Tag Match", Category="Gameplay Tags")
 struct STATETREEMODULE_API FGameplayTagMatchCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
@@ -40,9 +40,7 @@ struct STATETREEMODULE_API FGameplayTagMatchCondition : public FStateTreeConditi
 	bool bInvert = false;
 };
 
-/**
-* Gameplay Tag Container match condition.
-*/
+
 USTRUCT()
 struct STATETREEMODULE_API FGameplayTagContainerMatchConditionInstanceData
 {
@@ -55,7 +53,10 @@ struct STATETREEMODULE_API FGameplayTagContainerMatchConditionInstanceData
 	FGameplayTagContainer OtherContainer;
 };
 
-USTRUCT(DisplayName="Gameplay Tag Container Match")
+/**
+ * Gameplay Tag Container match condition.
+ */
+USTRUCT(DisplayName="Gameplay Tag Container Match", Category="Gameplay Tags")
 struct STATETREEMODULE_API FGameplayTagContainerMatchCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
@@ -77,9 +78,7 @@ struct STATETREEMODULE_API FGameplayTagContainerMatchCondition : public FStateTr
 	bool bInvert = false;
 };
 
-/**
-* Gameplay Tag Query match condition.
-*/
+
 USTRUCT()
 struct STATETREEMODULE_API FGameplayTagQueryConditionInstanceData
 {
@@ -89,7 +88,10 @@ struct STATETREEMODULE_API FGameplayTagQueryConditionInstanceData
 	FGameplayTagContainer TagContainer;
 };
 
-USTRUCT(DisplayName="Gameplay Tag Query")
+/**
+ * Gameplay Tag Query match condition.
+ */
+USTRUCT(DisplayName="Gameplay Tag Query", Category="Gameplay Tags")
 struct STATETREEMODULE_API FGameplayTagQueryCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()

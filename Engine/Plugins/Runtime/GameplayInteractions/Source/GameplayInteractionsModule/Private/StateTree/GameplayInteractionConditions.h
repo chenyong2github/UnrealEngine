@@ -19,9 +19,6 @@ enum class EGameplayInteractionMatchSlotTagSource : uint8
 	RuntimeTags,
 };
 
-/**
- * Condition to check if Gameplay Tags on a Smart Object slot match the specified tags.
- */
 USTRUCT()
 struct FGameplayInteractionMatchSlotTagsConditionInstanceData
 {
@@ -34,7 +31,10 @@ struct FGameplayInteractionMatchSlotTagsConditionInstanceData
 	FGameplayTagContainer TagsToMatch;
 };
 
-USTRUCT(DisplayName="(Gameplay Interaction) Match Slot Tags")
+/**
+ * Condition to check if Gameplay Tags on a Smart Object slot match the specified tags.
+ */
+USTRUCT(DisplayName="Match Slot Tags", Category="Gameplay Interactions|Smart Object")
 struct FGameplayInteractionSlotTagsMatchCondition : public FGameplayInteractionStateTreeCondition
 {
 	GENERATED_BODY()
@@ -64,9 +64,6 @@ struct FGameplayInteractionSlotTagsMatchCondition : public FGameplayInteractionS
 };
 
 
-/**
- * Condition to check if Gameplay Tags on a Smart Object slot match the Gameplay Tag query.
- */
 USTRUCT()
 struct FGameplayInteractionQuerySlotTagsConditionInstanceData
 {
@@ -76,7 +73,10 @@ struct FGameplayInteractionQuerySlotTagsConditionInstanceData
 	FSmartObjectSlotHandle Slot;
 };
 
-USTRUCT(DisplayName="(Gameplay Interaction) Query Slot Tags")
+/**
+ * Condition to check if Gameplay Tags on a Smart Object slot match the Gameplay Tag query.
+ */
+USTRUCT(DisplayName="Query Slot Tags", Category="Gameplay Interactions|Smart Object")
 struct FGameplayInteractionQuerySlotTagCondition : public FGameplayInteractionStateTreeCondition
 {
 	GENERATED_BODY()
@@ -102,10 +102,6 @@ struct FGameplayInteractionQuerySlotTagCondition : public FGameplayInteractionSt
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 };
 
-
-/**
- * Condition to check if a Smart Object slot handle is valid. 
- */
 USTRUCT()
 struct FGameplayInteractionIsSlotHandleValidConditionInstanceData
 {
@@ -115,7 +111,10 @@ struct FGameplayInteractionIsSlotHandleValidConditionInstanceData
 	FSmartObjectSlotHandle Slot;
 };
 
-USTRUCT(DisplayName="(Gameplay Interaction) Is Slot Handle Valid")
+/**
+ * Condition to check if a Smart Object slot handle is valid. 
+ */
+USTRUCT(DisplayName="Is Slot Handle Valid", Category="Gameplay Interactions|Smart Object")
 struct FGameplayInteractionIsSlotHandleValidCondition : public FGameplayInteractionStateTreeCondition
 {
 	GENERATED_BODY()

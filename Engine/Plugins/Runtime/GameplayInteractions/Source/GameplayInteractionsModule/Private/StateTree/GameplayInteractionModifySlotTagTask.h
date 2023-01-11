@@ -8,12 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to modify Smart Object Slot tags.
- * The tags can be added or removed, and they can be modified for the duration of the task (OnEnterStateUndoOnExitState),
- * or permanently modified at the beginning or end of the state.
- */
-
 USTRUCT()
 struct FGameplayInteractionModifySlotTagTaskInstanceData
 {
@@ -28,8 +22,12 @@ struct FGameplayInteractionModifySlotTagTaskInstanceData
 	bool bTagRemoved = false;
 };
 
-
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Modify Slot Tag"))
+/**
+ * Task to modify Smart Object Slot tags.
+ * The tags can be added or removed, and they can be modified for the duration of the task (OnEnterStateUndoOnExitState),
+ * or permanently modified at the beginning or end of the state.
+ */
+USTRUCT(meta = (DisplayName = "Modify Slot Tag", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionModifySlotTagTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

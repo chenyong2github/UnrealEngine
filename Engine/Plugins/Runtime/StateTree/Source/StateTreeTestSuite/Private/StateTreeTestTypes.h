@@ -229,7 +229,7 @@ struct FStateTreeTestConditionInstanceData
 	static std::atomic<int32> GlobalCounter;
 };
 
-USTRUCT()
+USTRUCT(meta = (Hidden))
 struct FStateTreeTestCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()

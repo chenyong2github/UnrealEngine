@@ -8,16 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to monitor transition of a Gameplay Tag on the specified Smart Object slot.
- *
- * First the task will wait until it sees TransitionFromTag tag on the target Smart Object slot.
- * - TransitionEventTag event is sent to the target slot, which is assumed to trigger a transition to a state that sets TransitionToTag on the Smart Object slot.
- *
- * Then the task will wait until it sees TransitionToTag tag on the target Smart Object slot.
- * - TransitionEventTag event is sent to running State Tree, which allows the running State Tree to transition a new state that is now executed in sync with the other tree.
- */
-
 UENUM()
 enum class EGameplayInteractionSyncSlotTransitionState : uint8
 {
@@ -42,7 +32,16 @@ struct FGameplayInteractionSyncSlotTagTransitionInstanceData
 	EGameplayInteractionSyncSlotTransitionState State = EGameplayInteractionSyncSlotTransitionState::WaitingForFromTag;
 };
 
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Sync Slot Tag Transition"))
+/**
+ * Task to monitor transition of a Gameplay Tag on the specified Smart Object slot.
+ *
+ * First the task will wait until it sees TransitionFromTag tag on the target Smart Object slot.
+ * - TransitionEventTag event is sent to the target slot, which is assumed to trigger a transition to a state that sets TransitionToTag on the Smart Object slot.
+ *
+ * Then the task will wait until it sees TransitionToTag tag on the target Smart Object slot.
+ * - TransitionEventTag event is sent to running State Tree, which allows the running State Tree to transition a new state that is now executed in sync with the other tree.
+ */
+USTRUCT(meta = (DisplayName = "Sync Slot Tag Transition", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionSyncSlotTagTransitionTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

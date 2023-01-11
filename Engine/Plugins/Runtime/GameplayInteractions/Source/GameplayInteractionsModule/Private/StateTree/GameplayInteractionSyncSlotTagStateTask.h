@@ -8,12 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to monitor existence of a Gameplay Tag on the specified Smart Object slot.
- * If the monitored Gameplay Tag does not exists on the target slot, or this task completes, a BreakEventTag is sent to the the target slot as well as on the running State Tree.
- * This allows to the task to be used to sync State Tree execution between State Tree instances via a Smart Object slot.
- */
-
 USTRUCT()
 struct FGameplayInteractionSyncSlotTagStateInstanceData
 {
@@ -27,7 +21,12 @@ struct FGameplayInteractionSyncSlotTagStateInstanceData
 	bool bBreakSignalled = false;
 };
 
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Sync Slot Tag State"))
+/**
+ * Task to monitor existence of a Gameplay Tag on the specified Smart Object slot.
+ * If the monitored Gameplay Tag does not exists on the target slot, or this task completes, a BreakEventTag is sent to the the target slot as well as on the running State Tree.
+ * This allows to the task to be used to sync State Tree execution between State Tree instances via a Smart Object slot.
+ */
+USTRUCT(meta = (DisplayName = "Sync Slot Tag State", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionSyncSlotTagStateTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

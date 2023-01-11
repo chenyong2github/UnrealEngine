@@ -6,9 +6,6 @@
 #include "StateTreeConditionBase.h"
 #include "StateTreeObjectConditions.generated.h"
 
-/**
- * Condition testing if specified object is valid.
- */
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeObjectIsValidConditionInstanceData
 {
@@ -18,7 +15,10 @@ struct STATETREEMODULE_API FStateTreeObjectIsValidConditionInstanceData
 	TObjectPtr<UObject> Object = nullptr;
 };
 
-USTRUCT(DisplayName="Object Is Valid")
+/**
+ * Condition testing if specified object is valid.
+ */
+USTRUCT(DisplayName = "Object Is Valid", Category = "Object")
 struct STATETREEMODULE_API FStateTreeObjectIsValidCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
@@ -37,22 +37,23 @@ struct STATETREEMODULE_API FStateTreeObjectIsValidCondition : public FStateTreeC
 	bool bInvert = false;
 };
 
-/**
- * Condition testing if two object pointers point to the same object.
- */
+
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeObjectEqualsConditionInstanceData
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UObject> Left = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	TObjectPtr<UObject> Right = nullptr;
 };
 
-USTRUCT(DisplayName="Object Equals")
+/**
+ * Condition testing if two object pointers point to the same object.
+ */
+USTRUCT(DisplayName = "Object Equals", Category = "Object")
 struct STATETREEMODULE_API FStateTreeObjectEqualsCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
@@ -67,26 +68,27 @@ struct STATETREEMODULE_API FStateTreeObjectEqualsCondition : public FStateTreeCo
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	bool bInvert = false;
 };
 
-/**
- * Condition testing if object is child of specified class.
- */
+
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeObjectIsChildOfClassConditionInstanceData
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = "Input")
 	TObjectPtr<UObject> Object = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	TObjectPtr<UClass> Class = nullptr;
 };
 
-USTRUCT(DisplayName="Object Class Is")
+/**
+ * Condition testing if object is child of specified class.
+ */
+USTRUCT(DisplayName = "Object Class Is", Category = "Object")
 struct STATETREEMODULE_API FStateTreeObjectIsChildOfClassCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
@@ -101,6 +103,6 @@ struct STATETREEMODULE_API FStateTreeObjectIsChildOfClassCondition : public FSta
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	bool bInvert = false;
 };

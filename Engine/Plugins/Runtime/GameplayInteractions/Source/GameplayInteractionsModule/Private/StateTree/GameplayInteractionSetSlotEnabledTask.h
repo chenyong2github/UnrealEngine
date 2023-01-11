@@ -8,12 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to set a Smart Object Slot enabled to disabled.
- * The slot can be enabled or disable for the duration of the task (OnEnterStateUndoOnExitState),
- * or permanently at the beginning or end of the state.
- */
-
 USTRUCT()
 struct FGameplayInteractionSetSlotEnabledInstanceData
 {
@@ -28,8 +22,12 @@ struct FGameplayInteractionSetSlotEnabledInstanceData
 	bool bInitialState = false;
 };
 
-
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Set Slot Enabled"))
+/**
+ * Task to set a Smart Object Slot enabled to disabled.
+ * The slot can be enabled or disable for the duration of the task (OnEnterStateUndoOnExitState),
+ * or permanently at the beginning or end of the state.
+ */
+USTRUCT(meta = (DisplayName = "Set Slot Enabled", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionSetSlotEnabledTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

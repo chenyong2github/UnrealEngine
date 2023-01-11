@@ -50,7 +50,6 @@ void FStateTreeStateLinkDetails::CustomizeHeader(TSharedRef<class IPropertyHandl
 		[
 			SNew(SComboButton)
 			.OnGetMenuContent(this, &FStateTreeStateLinkDetails::OnGetStateContent)
-			.ContentPadding(FMargin(6.f, 0.f))
 			.ButtonContent()
 			[
 				SNew(STextBlock)

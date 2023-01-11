@@ -8,12 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to find a Smart Object slot based on a reference slot.
- * The search can look up slots in the whole Smart Object based on Activity tags,
- * or use Smart Object Slot Link annotations on the reference slot.
- */
-
 UENUM()
 enum class EGameplayInteractionSlotReferenceType : uint8
 {
@@ -39,7 +33,12 @@ struct FGameplayInteractionFindSlotTaskInstanceData
 };
 
 
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Find Slot"))
+/**
+ * Task to find a Smart Object slot based on a reference slot.
+ * The search can look up slots in the whole Smart Object based on Activity tags,
+ * or use Smart Object Slot Link annotations on the reference slot.
+ */
+USTRUCT(meta = (DisplayName = "Find Slot", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionFindSlotTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

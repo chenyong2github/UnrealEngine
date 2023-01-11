@@ -8,11 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to listen Smart Object slot events on a specified slot.
- * Any event sent to the specified Smart Object slot will be translated to a State Tree event.
- */
-
 USTRUCT()
 struct FGameplayInteractionListenSlotEventsTaskInstanceData
 {
@@ -24,7 +19,11 @@ struct FGameplayInteractionListenSlotEventsTaskInstanceData
 	FDelegateHandle OnEventHandle;
 };
 
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Listen Slot Events"))
+/**
+ * Task to listen Smart Object slot events on a specified slot.
+ * Any event sent to the specified Smart Object slot will be translated to a State Tree event.
+ */
+USTRUCT(meta = (DisplayName = "Listen Slot Events", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionListenSlotEventsTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

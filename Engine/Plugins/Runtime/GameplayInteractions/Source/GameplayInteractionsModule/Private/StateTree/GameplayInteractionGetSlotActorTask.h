@@ -8,10 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to get an Actor on a specified Smart Object slot. 
- */
-
 USTRUCT()
 struct FGameplayInteractionGetSlotActorTaskInstanceData
 {
@@ -26,8 +22,10 @@ struct FGameplayInteractionGetSlotActorTaskInstanceData
 	TObjectPtr<AActor> ResultActor;
 };
 
-
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Get Slot Actor"))
+/**
+ * Task to get an Actor on a specified Smart Object slot. 
+ */
+USTRUCT(meta = (DisplayName = "Get Slot Actor", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionGetSlotActorTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

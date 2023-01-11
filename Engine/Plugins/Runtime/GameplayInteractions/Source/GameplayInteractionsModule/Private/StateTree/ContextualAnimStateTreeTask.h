@@ -50,7 +50,7 @@ struct FContextualAnimStateTreeTaskInstanceData
 /**
  * Builds context and creates GameplayTask that will control playback of a ContextualAnimScene
  */
-USTRUCT(meta = (DisplayName = "Contextual Anim Task"))
+USTRUCT(meta = (DisplayName = "Contextual Anim Task", Category="Gameplay Interactions"))
 struct FContextualAnimStateTreeTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

@@ -24,7 +24,7 @@ struct FPlayMontageStateTreeTaskInstanceData
 };
 
 
-USTRUCT(meta = (DisplayName = "Play Anim Montage"))
+USTRUCT(meta = (DisplayName = "Play Anim Montage", Category="Gameplay Interactions"))
 struct FPlayMontageStateTreeTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()

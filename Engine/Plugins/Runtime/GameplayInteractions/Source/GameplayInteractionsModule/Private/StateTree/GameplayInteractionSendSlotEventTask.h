@@ -8,10 +8,6 @@
 
 class USmartObjectSubsystem;
 
-/**
- * Task to send event to a specified Smart Object Slot based on the tasks lifetime. 
- */
-
 USTRUCT()
 struct FGameplayInteractionSendSlotEventTaskInstanceData
 {
@@ -22,7 +18,10 @@ struct FGameplayInteractionSendSlotEventTaskInstanceData
 	FSmartObjectSlotHandle TargetSlot;
 };
 
-USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Send Slot Event"))
+/**
+ * Task to send event to a specified Smart Object Slot based on the tasks lifetime. 
+ */
+USTRUCT(meta = (DisplayName = "Send Slot Event", Category="Gameplay Interactions|Smart Object"))
 struct FGameplayInteractionSendSlotEventTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()
