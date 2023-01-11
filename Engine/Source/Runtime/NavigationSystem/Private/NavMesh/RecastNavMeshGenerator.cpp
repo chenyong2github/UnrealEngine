@@ -5064,30 +5064,34 @@ void FRecastNavMeshGenerator::OnNavigationBoundsChanged()
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl() ? DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh() : nullptr;
 	if (!IsGameStaticNavMesh(DestNavMesh) && DestNavMesh->IsResizable() && DetourMesh)
 	{
-		// Check whether Navmesh size needs to be changed
-		const int32 MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.GetTileSizeUU(), AvgLayersPerTile, DestNavMesh->NavMeshVersion);
-		if (DetourMesh->getMaxTiles() != MaxRequestedTiles)
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		if (NavSys && !NavSys->IsNavigationBuildingLocked())
 		{
-			UE_LOG(LogNavigation, Log, TEXT("%s> Navigation bounds changed, rebuilding navmesh"), *DestNavMesh->GetName());
-			// Destroy current NavMesh
-			DestNavMesh->GetRecastNavMeshImpl()->SetRecastMesh(nullptr);
-
-			// if there are any valid bounds recreate detour navmesh instance
-			// and mark all bounds as dirty
-			if (InclusionBounds.Num() > 0)
+			// Check whether Navmesh size needs to be changed
+			const int32 MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.GetTileSizeUU(), AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+			if (DetourMesh->getMaxTiles() != MaxRequestedTiles)
 			{
-				TArray<FNavigationDirtyArea> AsDirtyAreas;
-				AsDirtyAreas.Reserve(InclusionBounds.Num());
-				for (const FBox& BBox : InclusionBounds)
-				{
-					AsDirtyAreas.Add(FNavigationDirtyArea(BBox, ENavigationDirtyFlag::NavigationBounds));
-				}
-				
-				RebuildDirtyAreas(AsDirtyAreas);
-			}
-		}
+				UE_LOG(LogNavigation, Log, TEXT("%s> Navigation bounds changed, rebuilding navmesh"), *DestNavMesh->GetName());
+				// Destroy current NavMesh
+				DestNavMesh->GetRecastNavMeshImpl()->SetRecastMesh(nullptr);
 
-		UE::NavMesh::Private::CheckTileIndicesInValidRange(InclusionBounds, *DestNavMesh);
+				// if there are any valid bounds recreate detour navmesh instance
+				// and mark all bounds as dirty
+				if (InclusionBounds.Num() > 0)
+				{
+					TArray<FNavigationDirtyArea> AsDirtyAreas;
+					AsDirtyAreas.Reserve(InclusionBounds.Num());
+					for (const FBox& BBox : InclusionBounds)
+					{
+						AsDirtyAreas.Add(FNavigationDirtyArea(BBox, ENavigationDirtyFlag::NavigationBounds));
+					}
+				
+					RebuildDirtyAreas(AsDirtyAreas);
+				}
+			}
+
+			UE::NavMesh::Private::CheckTileIndicesInValidRange(InclusionBounds, *DestNavMesh);
+		}
 	}
 }
 

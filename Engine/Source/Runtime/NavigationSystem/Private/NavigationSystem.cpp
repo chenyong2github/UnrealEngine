@@ -3441,19 +3441,19 @@ void UNavigationSystemV1::PerformNavigationBoundsUpdate(const TArray<FNavigation
 		}
 	}
 
-	if (!IsNavigationBuildingLocked())
+	if (UpdatedAreas.Num())
 	{
-		if (UpdatedAreas.Num())
+		for (ANavigationData* NavData : NavDataSet)
 		{
-			for (ANavigationData* NavData : NavDataSet)
+			if (NavData)
 			{
-				if (NavData)
-				{
-					NavData->OnNavigationBoundsChanged();	
-				}
+				NavData->OnNavigationBoundsChanged();	
 			}
 		}
+	}
 
+	if (!IsNavigationBuildingLocked())
+	{
 		// Propagate to generators areas that needs to be updated
 		AddDirtyAreas(UpdatedAreas, ENavigationDirtyFlag::All | ENavigationDirtyFlag::NavigationBounds, "Navigation bounds update");
 	}
