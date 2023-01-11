@@ -57,7 +57,7 @@ namespace SourceControlReview
 		bool IsDataValidForEntry() const
 		{
 			return FileSourceControlAction != ESourceControlAction::Unset && !ReviewFileName.IsEmpty() &&
-				(!PreviousFileName.IsEmpty() || FileSourceControlAction == ESourceControlAction::Add);
+				(!PreviousFileName.IsEmpty() || FileSourceControlAction == ESourceControlAction::Add || FileSourceControlAction == ESourceControlAction::Branch);
 		}
 
 		FString AssetName;

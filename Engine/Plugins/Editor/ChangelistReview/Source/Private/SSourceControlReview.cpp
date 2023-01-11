@@ -415,7 +415,7 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 		
 		ISourceControlModule::Get().GetProvider().Execute(GetFileToReviewCommand, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateLambda(GetFileCommandResponse, &ChangelistFileData->ReviewFileName));
 
-		if (ChangelistFileData->FileSourceControlAction != ESourceControlAction::Add)
+		if (ChangelistFileData->FileSourceControlAction != ESourceControlAction::Add && ChangelistFileData->FileSourceControlAction != ESourceControlAction::Branch)
 		{
 			FilesToLoad++;
 
