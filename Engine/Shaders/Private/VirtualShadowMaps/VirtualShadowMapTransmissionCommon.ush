@@ -49,36 +49,4 @@ float GetShadowFactorSubsurface(float ShadowFactor, float OccluderDistance, floa
 		return Square(lerp(SSSTransmission, 1, ShadowFactor));
 	}
 	return ShadowFactor;
-
-}
-
-/**
-* Sample VSM to determine approximate thickness and compute simple subsurface transmission matching the
-* PCF path.
-*/
-float ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
-	int VirtualShadowMapId, 
-	float3 TranslatedWorldPosition,
-	float SubsurfaceOpacity)
-{
-	// If the receiver is a subsurface material, we do a very simple transmission approximation
-	// This matches the logic in the PCF kernel (ShadowFilteringCommon.ush) and the contact
-	// shadows trace (DeferredLightingCommon.ush). Ideally these should all be unified in a single location.
-	// Could optimize this in the case where we are doing single-sample VSM lookup anyways, but we would need
-	// exclude contact shadows overwriting the occluder distance. Single sample direct shadows are not currently
-	// a common case.
-
-	// Do a separate unfiltered lookup to get approximate occluder distance
-	FVirtualShadowMapSampleResult SSSResult = SampleVirtualShadowMapTranslatedWorld(
-		VirtualShadowMapId,
-		TranslatedWorldPosition,
-		0.0f // RayStartDistance
-	);
-
-	if (SSSResult.bValid)
-	{
-		return GetShadowFactorSubsurface(SSSResult.ShadowFactor, SSSResult.OccluderDistance, SubsurfaceOpacity);
-	}
-
-	return 1.0f;
 }

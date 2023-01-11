@@ -1926,6 +1926,9 @@ void FVirtualShadowMapArray::LogStats(FRDGBuilder& GraphBuilder, const FViewInfo
 
 	if (StatsBufferRDG)
 	{
+		// Convenience, enable shader print automatically
+		ShaderPrint::SetEnabled(true);
+
 		int ShowStatsValue = CVarShowStats.GetValueOnRenderThread();
 
 		FVirtualSmLogStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmLogStatsCS::FParameters>();

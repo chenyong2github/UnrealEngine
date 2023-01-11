@@ -165,7 +165,6 @@ int4 ProjectionRect;
 float ScreenRayLength;
 float NormalBias;
 float SubsurfaceMinSourceRadius;
-int SubsurfaceShadowMode;			// Temp for testing and A/B comparison
 int SMRTRayCount;					// 0 = off
 int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
@@ -628,12 +627,15 @@ void VirtualShadowMapProjection(
 		FLightShaderParameters Light = GetRootLightShaderParameters();
 
 		// Subsurface approximation
+#if DIRECTIONAL_LIGHT
+		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer(PixelPos);
 		// Increases light source radius for subsurface material as the opacity reduces to emulates light diffusion.
-		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
+		// TODO: Does something similar make sense for local lights?
 		if (SubsurfaceOpacity < 1.0f)
 		{
-			Light.SourceRadius = max(Light.SourceRadius, (1-SubsurfaceOpacity)*SubsurfaceMinSourceRadius);
+			Light.SourceRadius = max(Light.SourceRadius, (1.0f - SubsurfaceOpacity) * SubsurfaceMinSourceRadius);
 		}
+#endif
 
 		FVirtualShadowMapSampleResult Result = ProjectLight(
 			VirtualShadowMapId,
@@ -645,24 +647,20 @@ void VirtualShadowMapProjection(
 			TranslatedWorldPosition,
 			Noise);
 
-		float TransmissionShadow = Result.ShadowFactor;
-		if ( SubsurfaceOpacity < 1.0f )
+#if DIRECTIONAL_LIGHT
+		// TODO: Implement occluder distance and similar falloff for local lights, and unify logic into one pass projection path
+		if (SubsurfaceOpacity < 1.0f)
 		{
-			if (SubsurfaceShadowMode > 0)
-			{
-				TransmissionShadow = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacity);
-				Result.ShadowFactor = TransmissionShadow;
-			}
-			else
-			{
-				TransmissionShadow = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
-					VirtualShadowMapId,
-					TranslatedWorldPosition,
-					SubsurfaceOpacity);
-			}
+			// We use a single term for both the shadow and "transmission shadow" in the VSM path to provide a
+			// higher quality filtered result on back faces and avoid artifacts at the point where normals flip.
+			// This is especially important for foliage as normals are often "warped" to provide softer shading
+			// and do not represent the underlying geometry accurately, so having a continuous shadow function
+			// is important.
+			Result.ShadowFactor = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacity);
 		}
+#endif
 
-		OutShadowFactor[ PixelPos ] = float2( Result.ShadowFactor, TransmissionShadow );
+		OutShadowFactor[ PixelPos ] = Result.ShadowFactor.xx;
 
 		if (VisualizeVirtualShadowMapId == VirtualShadowMapId)
 		{

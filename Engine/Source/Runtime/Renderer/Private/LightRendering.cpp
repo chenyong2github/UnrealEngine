@@ -49,8 +49,6 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredL
 
 extern int32 GUseTranslucentLightingVolumes;
 
-extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
-
 static int32 GAllowDepthBoundsTest = 1;
 static FAutoConsoleVariableRef CVarAllowDepthBoundsTest(
 	TEXT("r.AllowDepthBoundsTest"),
@@ -1441,7 +1439,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 					// In certain cases we can skip creating the screen shadow mask texture
 					// In particular right now this is true if we are doing one pass projection with only a virtual shadow map
 					// with no light functions, as in that case we can directly sample the shadow mask bits in the lighting shader.
-					// TODO: Add cvar
 					bElideScreenShadowMask = 
 						CVarOnePassProjectionSkipScreenShadowMask.GetValueOnRenderThread() != 0 &&
 						ShadowSceneRenderer->UsePackedShadowMaskBits() &&

@@ -107,8 +107,6 @@ void VirtualSmInvalidateInstancePagesCS(
 		// TODO: test the flag on the instance instead once it is updated correctly InstanceSceneData.CastShadows
 		if (bCastShadows)
 		{
-			bool bAnyStaticPagesInvalidated = false;
-
 			for (uint VirtualShadowMapId = FirstVirtualShadowMapId; VirtualShadowMapId < EndVirtualShadowMapId; ++VirtualShadowMapId)
 			{
 				// 1. Load cached projection data
@@ -136,7 +134,6 @@ void VirtualSmInvalidateInstancePagesCS(
 
 				bool bInvalidateStaticPage = bForceInvalidateStaticPage || ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
 				uint InvalidationFlags = (bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG) << VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT;
-				bAnyStaticPagesInvalidated = bAnyStaticPagesInvalidated || bInvalidateStaticPage;
 
 				// Go back to clip space
 				float4x4 UVToClip;

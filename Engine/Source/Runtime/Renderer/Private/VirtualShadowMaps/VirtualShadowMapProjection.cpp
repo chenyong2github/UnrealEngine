@@ -45,13 +45,6 @@ static TAutoConsoleVariable<float> CVarNormalBias(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
-	TEXT("r.Shadow.Virtual.OnePassProjection"),
-	0,
-	TEXT("Single pass projects all local VSMs culled with the light grid. Used in conjunction with clustered deferred shading."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarSMRTRayCountLocal(
 	TEXT( "r.Shadow.Virtual.SMRT.RayCountLocal" ),
 	7,
@@ -153,13 +146,6 @@ static TAutoConsoleVariable<int32> CVarForcePerLightShadowMaskClear(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarSubsurfaceShadowMode(
-	TEXT( "r.Shadow.Virtual.SubsurfaceShadowMode" ),
-	0,
-	TEXT( "" ),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarSubsurfaceShadowMinSourceAngle(
 	TEXT("r.Shadow.Virtual.SubsurfaceShadowMinSourceAngle"),
 	5,
@@ -231,7 +217,6 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ScreenRayLength)
 		SHADER_PARAMETER(float, NormalBias)
-		SHADER_PARAMETER(int32, SubsurfaceShadowMode)
 		SHADER_PARAMETER(float, SubsurfaceMinSourceRadius)
 		SHADER_PARAMETER(int32, SMRTRayCount)
 		SHADER_PARAMETER(int32, SMRTSamplesPerRay)
@@ -328,7 +313,6 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
 	PassParameters->ScreenRayLength = CVarScreenRayLength.GetValueOnRenderThread();
 	PassParameters->NormalBias = GetNormalBiasForShader();
-	PassParameters->SubsurfaceShadowMode = CVarSubsurfaceShadowMode.GetValueOnRenderThread();
 	PassParameters->SubsurfaceMinSourceRadius = FMath::Sin(0.5f * FMath::DegreesToRadians(CVarSubsurfaceShadowMinSourceAngle.GetValueOnRenderThread()));
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;

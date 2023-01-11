@@ -31,7 +31,6 @@ TAutoConsoleVariable<int32> CVarMaxDistantLightsPerFrame(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-
 static TAutoConsoleVariable<int32> CVarDistantLightMode(
 	TEXT("r.Shadow.Virtual.DistantLightMode"),
 	0,
@@ -44,6 +43,13 @@ static TAutoConsoleVariable<float> CVarNaniteShadowsLODBias(
 	1.0f,
 	TEXT("LOD bias for nanite geometry in shadows. 0 = full detail. >0 = reduced detail."),
 	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
+	TEXT("r.Shadow.Virtual.OnePassProjection"),
+	1,
+	TEXT("Projects all local light virtual shadow maps in a single pass for better performance."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Total Raster Bins"), STAT_VSMNaniteBasePassTotalRasterBins, STATGROUP_ShadowRendering);
@@ -295,8 +301,6 @@ void FShadowSceneRenderer::PostSetupDebugRender()
 	}
 #endif
 }
-
-extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
 
 void FShadowSceneRenderer::RenderVirtualShadowMapProjectionMaskBits(
 	FRDGBuilder& GraphBuilder,
