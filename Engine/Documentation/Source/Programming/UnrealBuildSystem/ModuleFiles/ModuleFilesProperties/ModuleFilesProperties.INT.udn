@@ -80,7 +80,7 @@ $ AllowedRestrictedFolders (List&lt;String&gt;): List of folders which are allow
 
 $ AliasRestrictedFolders (Dictionary&lt;String, String&gt;): Set of aliased restricted folder references
 
-$ bEnforceIWYU (Boolean): Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
+$ IWYUSupport (IWYUSupport): Allows "include what you use" to modify the source code when run. bEnforceIWYU must be true for this variable to matter.
 
 $ bAddDefaultIncludePaths (Boolean): Whether to add all the default include paths to the module (eg. the Source/Classes folder, subfolders under Source/Public).
 
@@ -183,6 +183,8 @@ $ ShadowVariableWarningLevel (WarningLevel): How to treat shadow variable warnin
 $ UnsafeTypeCastWarningLevel (WarningLevel): How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
 
 $ bUseUnity (Boolean): If unity builds are enabled this can be used to override if this specific module will build using Unity. This is set using the per module configurations in BuildConfiguration.
+
+$ bEnforceIWYU (Boolean): Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
 
 $ bLegacyPublicIncludePaths (Boolean): Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
 
