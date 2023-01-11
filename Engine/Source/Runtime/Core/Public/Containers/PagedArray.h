@@ -194,6 +194,23 @@ public:
 		return Pages[GetPageIndex(Index)][GetPageOffset(Index)];
 	}
 
+	/**
+	 * Helper function to return the amount of memory allocated by this container.
+	 * Only returns the size of allocations made directly by the container, not the elements themselves.
+	 *
+	 * @returns Number of bytes allocated by this container.
+	 */
+	FORCEINLINE SIZE_T GetAllocatedSize() const
+	{
+		SIZE_T Size = 0;
+		Size += Pages.GetAllocatedSize();
+		for (const PageType& Page : Pages)
+		{
+			Size += Page.GetAllocatedSize();
+		}
+		return Size;
+	}
+
 	FORCEINLINE SizeType Max() const
 	{
 		return Pages.Num() * PageTraits::Capacity;

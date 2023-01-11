@@ -206,6 +206,17 @@ public:
 		return Count;
 	}
 
+	/**
+	 * Helper function to return the amount of memory allocated by this container.
+	 * Only returns the size of allocations made directly by the container, not the elements themselves.
+	 *
+	 * @returns Number of bytes allocated by this container.
+	 */
+	FORCEINLINE SIZE_T GetAllocatedSize() const
+	{
+		return Storage.GetAllocatedSize(Capacity, sizeof(ElementType));
+	}
+
 	/*
 	 * Constructs an element in place using the parameter arguments and adds it at the back of the queue.
 	 * This method returns a reference to the constructed element.
