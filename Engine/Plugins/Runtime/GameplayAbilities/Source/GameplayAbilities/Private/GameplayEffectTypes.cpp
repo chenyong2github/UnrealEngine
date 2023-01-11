@@ -78,6 +78,14 @@ EGameplayModEvaluationChannel FGameplayModEvaluationChannelSettings::GetEvaluati
 	return EGameplayModEvaluationChannel::Channel0;
 }
 
+void FGameplayModEvaluationChannelSettings::SetEvaluationChannel(EGameplayModEvaluationChannel NewChannel)
+{
+	if (ensure(UAbilitySystemGlobals::Get().IsGameplayModEvaluationChannelValid(NewChannel)))
+	{
+		Channel = NewChannel;
+	}
+}
+
 float GameplayEffectUtilities::GetModifierBiasByModifierOp(EGameplayModOp::Type ModOp)
 {
 	static const float ModifierOpBiases[EGameplayModOp::Max] = {0.f, 1.f, 1.f, 0.f};

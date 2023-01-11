@@ -85,6 +85,8 @@ struct GAMEPLAYABILITIES_API FGameplayModEvaluationChannelSettings
 	static const FString ForceHideMetadataEnabledValue;
 #endif // #if WITH_EDITORONLY_DATA
 
+	void SetEvaluationChannel(EGameplayModEvaluationChannel NewChannel);
+
 protected:
 
 	/** Channel the settings would prefer to use, if possible/valid */
