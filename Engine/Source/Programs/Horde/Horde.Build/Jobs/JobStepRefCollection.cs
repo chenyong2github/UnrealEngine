@@ -9,6 +9,7 @@ using Horde.Build.Agents.Pools;
 using Horde.Build.Logs;
 using Horde.Build.Server;
 using Horde.Build.Streams;
+using Horde.Build.Telemetry;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
@@ -97,14 +98,17 @@ namespace Horde.Build.Jobs
 		}
 
 		readonly IMongoCollection<JobStepRef> _jobStepRefs;
+		readonly ITelemetrySink _telemetrySink;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
-		public JobStepRefCollection(MongoService mongoService)
+		/// <param name="telemetrySink">Telemetry sink</param>
+		public JobStepRefCollection(MongoService mongoService, ITelemetrySink telemetrySink)
 		{
 			_jobStepRefs = mongoService.GetCollection<JobStepRef>("JobStepRefs", keys => keys.Ascending(x => x.StreamId).Ascending(x => x.TemplateId).Ascending(x => x.Name).Descending(x => x.Change));
+			_telemetrySink = telemetrySink;
 		}
 
 		/// <inheritdoc/>
@@ -112,6 +116,28 @@ namespace Horde.Build.Jobs
 		{
 			JobStepRef newJobStepRef = new JobStepRef(id, jobName, stepName, streamId, templateId, change, logId, poolId, agentId, outcome, updateIssues, lastSuccess, lastWarning, waitTime, initTime, startTimeUtc, finishTimeUtc);
 			await _jobStepRefs.ReplaceOneAsync(Builders<JobStepRef>.Filter.Eq(x => x.Id, newJobStepRef.Id), newJobStepRef, new ReplaceOptions { IsUpsert = true });
+
+			if (_telemetrySink.Enabled)
+			{
+				_telemetrySink.SendEvent("State.JobStepRef", new
+				{
+					Id = id,
+					AgentId = agentId,
+					BatchInitTime = initTime,
+					BatchWaitTime = waitTime,
+					Change = change,
+					FinishTime = finishTimeUtc,
+					JobName = jobName,
+					StepName = stepName,
+					Outcome = outcome,
+					PoolId = poolId,
+					StartTime = startTimeUtc,
+					StreamId = streamId,
+					TemplateId = templateId,
+					UpdateIssues = updateIssues
+				});
+			}
+
 			return newJobStepRef;
 		}
 

@@ -12,6 +12,7 @@ using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
 using Horde.Build.Server;
 using Horde.Build.Streams;
+using Horde.Build.Telemetry;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
@@ -422,12 +423,14 @@ namespace Horde.Build.Issues
 		readonly IMongoCollection<IssueStep> _issueSteps;
 		readonly IMongoCollection<IssueSuspect> _issueSuspects;
 		readonly IAuditLog<int> _auditLog;
+		readonly ITelemetrySink _telemetrySink;
 		readonly ILogger _logger;
 
-		public IssueCollection(MongoService mongoService, RedisService redisService, IUserCollection userCollection, IAuditLogFactory<int> auditLogFactory, ILogger<IssueCollection> logger)
+		public IssueCollection(MongoService mongoService, RedisService redisService, IUserCollection userCollection, IAuditLogFactory<int> auditLogFactory, ITelemetrySink telemetrySink, ILogger<IssueCollection> logger)
 		{
 			_redisService = redisService;
 			_userCollection = userCollection;
+			_telemetrySink = telemetrySink;
 			_logger = logger;
 
 			_ledgerSingleton = new SingletonDocument<IssueLedger>(mongoService);
@@ -455,12 +458,6 @@ namespace Horde.Build.Issues
 			_issueSuspects = mongoService.GetCollection<IssueSuspect>("IssuesV2.Suspects", issueSuspectIndexes);
 
 			_auditLog = auditLogFactory.Create("IssuesV2.History", "IssueId");
-
-			if (!mongoService.ReadOnlyMode)
-			{
-				
-
-			}
 		}
 
 		/// <inheritdoc/>
@@ -490,7 +487,13 @@ namespace Horde.Build.Issues
 			update = update.Set(x => x.UpdateIndex, prevUpdateIndex + 1);
 
 			FindOneAndUpdateOptions<Issue, Issue> options = new FindOneAndUpdateOptions<Issue, Issue> { ReturnDocument = ReturnDocument.After };
-			return await _issues.FindOneAndUpdateAsync<Issue>(x => x.Id == issueDocument.Id && x.UpdateIndex == prevUpdateIndex, update, options);
+
+			Issue? newIssue = await _issues.FindOneAndUpdateAsync<Issue>(x => x.Id == issueDocument.Id && x.UpdateIndex == prevUpdateIndex, update, options);
+			if (newIssue != null)
+			{
+				SendTelemetry(newIssue);
+			}
+			return newIssue;
 		}
 
 		async Task<IssueSpan?> TryUpdateSpanAsync(IIssueSpan issueSpan, UpdateDefinition<IssueSpan> update)
@@ -501,7 +504,13 @@ namespace Horde.Build.Issues
 			update = update.Set(x => x.UpdateIndex, prevUpdateIndex + 1);
 
 			FindOneAndUpdateOptions<IssueSpan, IssueSpan> options = new FindOneAndUpdateOptions<IssueSpan, IssueSpan> { ReturnDocument = ReturnDocument.After };
-			return await _issueSpans.FindOneAndUpdateAsync<IssueSpan>(x => x.Id == issueSpanDocument.Id && x.UpdateIndex == prevUpdateIndex, update, options);
+
+			IssueSpan? newIssueSpan = await _issueSpans.FindOneAndUpdateAsync<IssueSpan>(x => x.Id == issueSpanDocument.Id && x.UpdateIndex == prevUpdateIndex, update, options);
+			if (newIssueSpan != null)
+			{
+				SendTelemetry(newIssueSpan);
+			}
+			return newIssueSpan;
 		}
 
 		#region Issues
@@ -513,11 +522,36 @@ namespace Horde.Build.Issues
 
 			Issue newIssue = new Issue(ledger.NextId, summary);
 			await _issues.InsertOneAsync(newIssue);
+			SendTelemetry(newIssue);
 
 			ILogger issueLogger = GetLogger(newIssue.Id);
 			issueLogger.LogInformation("Created issue {IssueId}", newIssue.Id);
 
 			return newIssue;
+		}
+
+		void SendTelemetry(IIssue issue)
+		{
+			if (_telemetrySink.Enabled)
+			{
+				_telemetrySink.SendEvent("State.Issue", new
+				{
+					Id = issue.Id,
+					AcknowledgedAt = issue.AcknowledgedAt,
+					CreatedAt = issue.CreatedAt,
+					OwnerId = issue.OwnerId,
+					Fingerprints = issue.Fingerprints,
+					FixChange = issue.FixChange,
+					LastSeenAt = issue.LastSeenAt,
+					NominatedAt = issue.NominatedAt,
+					NominatedById = issue.NominatedById,
+					ResolvedAt = issue.ResolvedAt,
+					ResolvedById = issue.ResolvedById,
+					Severity = issue.Severity,
+					Summary = issue.Summary,
+					VerifiedAt = issue.VerifiedAt
+				});
+			}
 		}
 
 		async ValueTask<string> GetUserNameAsync(UserId? UserId)
@@ -1251,7 +1285,26 @@ namespace Horde.Build.Issues
 		{
 			IssueSpan span = new IssueSpan(issueId, newSpan);
 			await _issueSpans.InsertOneAsync(span);
+			SendTelemetry(span);
 			return span;
+		}
+
+		void SendTelemetry(IIssueSpan issueSpan)
+		{
+			if (_telemetrySink.Enabled)
+			{
+				_telemetrySink.SendEvent("State.IssueSpan", new
+				{
+					Id = issueSpan.Id,
+					IssueId = issueSpan.IssueId,
+					Fingerprint = new { Type = issueSpan.Fingerprint.Type, Keys = issueSpan.Fingerprint.Keys },
+					FirstFailure = new { JobId = issueSpan.FirstFailure.JobId, JobName = issueSpan.FirstFailure.JobName, Change = issueSpan.FirstFailure.Change, StepId = issueSpan.FirstFailure.SpanId },
+					LastFailure = (issueSpan.LastFailure != null) ? new { JobId = issueSpan.LastFailure.JobId, JobName = issueSpan.LastFailure.JobName, Change = issueSpan.LastFailure.Change, StepId = issueSpan.LastFailure.SpanId } : null,
+					StreamId = issueSpan.StreamId,
+					StreamName = issueSpan.StreamName,
+					TemplateRefId = issueSpan.TemplateRefId
+				});
+			}
 		}
 
 		/// <inheritdoc/>
@@ -1319,6 +1372,7 @@ namespace Horde.Build.Issues
 				{
 					logger.LogInformation("Added failure for span {SpanId} in job {JobId} at CL {Change}", newSpan.Id, newFailure.JobId, newFailure.Change);
 				}
+				SendTelemetry(newSpan);
 			}
 			return newSpan;
 		}

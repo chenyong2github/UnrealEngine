@@ -16,6 +16,7 @@ using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
 using Horde.Build.Server;
 using Horde.Build.Streams;
+using Horde.Build.Telemetry;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -350,6 +351,7 @@ namespace Horde.Build.Jobs
 		readonly MongoIndex<JobDocument> _createTimeIndex;
 		readonly MongoIndex<JobDocument> _updateTimeIndex;
 		readonly MongoIndex<JobDocument> _streamThenTemplateThenCreationTimeIndex;
+		readonly ITelemetrySink _telemetrySink;
 		readonly IClock _clock;
 		readonly ILogger<JobCollection> _logger;
 
@@ -358,10 +360,12 @@ namespace Horde.Build.Jobs
 		/// </summary>
 		/// <param name="mongoService">The database service singleton</param>
 		/// <param name="clock"></param>
+		/// <param name="telemetrySink">Telemetry sink for data</param>
 		/// <param name="logger">The logger instance</param>
-		public JobCollection(MongoService mongoService, IClock clock, ILogger<JobCollection> logger)
+		public JobCollection(MongoService mongoService, IClock clock, ITelemetrySink telemetrySink, ILogger<JobCollection> logger)
 		{
 			_clock = clock;
+			_telemetrySink = telemetrySink;
 			_logger = logger;
 
 			List<MongoIndex<JobDocument>> indexes = new List<MongoIndex<JobDocument>>();
@@ -406,6 +410,24 @@ namespace Horde.Build.Jobs
 			CreateBatches(newJob, graph, _logger);
 
 			await _jobs.InsertOneAsync(newJob);
+
+			if (_telemetrySink.Enabled)
+			{
+				_telemetrySink.SendEvent("State.Job", new
+				{
+					Arguments = newJob.Arguments,
+					AutoSubmit = newJob.AutoSubmit,
+					Change = newJob.Change,
+					CodeChange = newJob.CodeChange,
+					CreateTimeUtc = newJob.CreateTimeUtc,
+					GraphHash = newJob.GraphHash,
+					Name = newJob.Name,
+					PreflightChange = newJob.PreflightChange,
+					Priority = newJob.Priority,
+					StartedByUserId = newJob.StartedByUserId,
+					TemplateId = newJob.TemplateId
+				});
+			}
 
 			return newJob;
 		}

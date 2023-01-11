@@ -89,6 +89,7 @@ using Horde.Build.Users;
 using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Streams;
+using Horde.Build.Telemetry;
 using Horde.Build.Ugs;
 using Horde.Build.Auditing;
 using Horde.Build.Server.Notices;
@@ -606,6 +607,20 @@ namespace Horde.Build
 						
 				default:
 					throw new ArgumentException($"Invalid auth method {settings.AuthMethod}");
+			}
+
+			TelemetryConfig telemetryConfig = settings.Telemetry;
+			switch (telemetryConfig.Type)
+			{
+				case TelemetrySinkType.None:
+					services.AddSingleton<ITelemetrySink, NullTelemetrySink>();
+					break;
+				case TelemetrySinkType.Epic:
+					services.AddHttpClient(EpicTelemetrySink.HttpClientName, client => { });
+					services.AddSingleton<EpicTelemetrySink>();
+					services.AddSingleton<ITelemetrySink>(sp => sp.GetRequiredService<EpicTelemetrySink>());
+					services.AddHostedService(sp => sp.GetRequiredService<EpicTelemetrySink>());
+					break;
 			}
 
 			authBuilder.AddScheme<JwtBearerOptions, HordeJwtBearerHandler>(HordeJwtBearerHandler.AuthenticationScheme, options => { });

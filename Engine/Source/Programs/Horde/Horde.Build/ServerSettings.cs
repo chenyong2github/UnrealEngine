@@ -9,6 +9,7 @@ using EpicGames.Perforce;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Server;
 using Horde.Build.Storage.Backends;
+using Horde.Build.Telemetry;
 using Horde.Build.Utilities;
 using MongoDB.Driver.Core.Configuration;
 using Serilog.Events;
@@ -161,6 +162,43 @@ namespace Horde.Build
 		/// applied (tighter process packing, higher avg CPU usage).
 		/// </summary>
 		Worker
+	}
+
+	/// <summary>
+	/// Type of telemetry provider to use
+	/// </summary>
+	public enum TelemetrySinkType
+	{
+		/// <summary>
+		/// No telemetry sink (default)
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Use the Epic telemetry sink
+		/// </summary>
+		Epic,
+	}
+
+	/// <summary>
+	/// Configuration for the telemetry sink
+	/// </summary>
+	public class TelemetryConfig : IEpicTelemetrySinkConfig
+	{
+		/// <summary>
+		/// Type of telemetry sink
+		/// </summary>
+		public TelemetrySinkType Type { get; set; } = TelemetrySinkType.None;
+
+		/// <summary>
+		/// Base URL for the telemetry server
+		/// </summary>
+		public Uri? Url { get; set; }
+
+		/// <summary>
+		/// Application name to send in the event messages
+		/// </summary>
+		public string AppId { get; set; } = "Horde";
 	}
 	
 	/// <summary>
@@ -646,6 +684,11 @@ namespace Horde.Build
 		/// Options for the commit service
 		/// </summary>
 		public CommitSettings Commits { get; set; } = new CommitSettings();
+
+		/// <summary>
+		/// Settings for sending telemetry events
+		/// </summary>
+		public TelemetryConfig Telemetry { get; set; } = new TelemetryConfig();
 
 		/// <summary>
 		/// Helper method to check if this process has activated the given mode

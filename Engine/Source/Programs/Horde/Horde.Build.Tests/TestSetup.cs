@@ -62,6 +62,7 @@ using Horde.Build.Storage.Backends;
 using Horde.Build.Compute;
 using Horde.Build.Devices;
 using Moq;
+using Horde.Build.Telemetry;
 
 namespace Horde.Build.Tests
 {
@@ -176,6 +177,7 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
+			services.AddSingleton<ITelemetrySink, NullTelemetrySink>();
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
