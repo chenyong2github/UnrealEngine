@@ -567,10 +567,12 @@ class FUObjectAnnotationChunked : public FUObjectArray::FUObjectDeleteListener
 			CurrentAllocatedMemory += NumAnnotationsPerChunk * sizeof(TAnnotation);
 			MaxAllocatedMemory = FMath::Max(CurrentAllocatedMemory, MaxAllocatedMemory);
 		}
-		check(Chunk.Items[WithinChunkIndex].IsDefault());
-		Chunk.Num++;
-		check(Chunk.Num <= NumAnnotationsPerChunk);
-		NumAnnotations++;
+		if (Chunk.Items[WithinChunkIndex].IsDefault())
+		{
+			Chunk.Num++;
+			check(Chunk.Num <= NumAnnotationsPerChunk);
+			NumAnnotations++;
+		}
 
 		return Chunk.Items[WithinChunkIndex];
 	}
