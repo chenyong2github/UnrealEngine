@@ -78,7 +78,7 @@ void SOutlinerTrackView::Construct(
 		Params.TrackInsertRowIndex = Track->GetMaxRowIndex()+1;
 	}
 
-	TSharedPtr<SWidget> CustomWidget = TrackEditor->BuildOutlinerEditWidget(ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid(), Track, Params);
+	TSharedPtr<SWidget> CustomWidget = TrackEditor ? TrackEditor->BuildOutlinerEditWidget(ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid(), Track, Params) : nullptr;
 
 	TSharedPtr<FChannelGroupModel> TopLevelChannel = TopLevelChannels ? TopLevelChannels->FindFirstChildOfType<FChannelGroupModel>() : nullptr;
 	if (TopLevelChannel)

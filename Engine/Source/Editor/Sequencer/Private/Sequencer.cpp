@@ -679,7 +679,7 @@ TSharedPtr<ISequencerTrackEditor> FSequencer::GetTrackEditor(UMovieSceneTrack* I
 		}
 	}
 
-	checkf(TrackEditor, TEXT("Unable to find a track editor for track type %s"), *TrackClass->GetName());
+	ensureAlwaysMsgf(TrackEditor, TEXT("Unable to find a track editor for track type %s"), *TrackClass->GetName());
 	return TrackEditor;
 }
 

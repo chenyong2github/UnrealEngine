@@ -208,7 +208,7 @@ void FTrackModel::ForceUpdate()
 		for (UMovieSceneSection* Section : Track->GetAllSections())
 		{
 			TSharedPtr<FSectionModel> SectionModel = SectionModelStorage->FindModelForSection(Section);
-			if (!SectionModel)
+			if (!SectionModel && TrackEditor)
 			{
 				TSharedRef<ISequencerSection> SectionInterface = TrackEditor->MakeSectionInterface(*Section, *Track, ObjectBinding);
 				SectionModel = SectionModelStorage->CreateModelForSection(Section, SectionInterface);
@@ -296,7 +296,7 @@ void FTrackModel::ForceUpdate()
 			const int32 RowIndex = Section->GetRowIndex();
 
 			TSharedPtr<FSectionModel> SectionModel = SectionModelStorage->FindModelForSection(Section);
-			if (!SectionModel)
+			if (!SectionModel && TrackEditor)
 			{
 				TSharedRef<ISequencerSection> SectionInterface = TrackEditor->MakeSectionInterface(*Section, *Track, ObjectBinding);
 				SectionModel = SectionModelStorage->CreateModelForSection(Section, SectionInterface);
@@ -646,7 +646,10 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	const int32 TrackRowIndex = GetRowIndex();
 
-	TrackEditor->BuildTrackContextMenu(MenuBuilder, Track);
+	if (TrackEditor)
+	{
+		TrackEditor->BuildTrackContextMenu(MenuBuilder, Track);
+	}
 
 	if (Track && Track->GetSupportedBlendTypes().Num() > 0)
 	{
