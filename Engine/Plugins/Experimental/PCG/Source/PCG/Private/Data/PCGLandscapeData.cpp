@@ -69,6 +69,8 @@ void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>
 
 void UPCGLandscapeData::PostLoad()
 {
+	Super::PostLoad();
+
 	ALandscapeProxy* FirstLandscape = nullptr;
 
 	for (TSoftObjectPtr<ALandscapeProxy> Landscape : Landscapes)
