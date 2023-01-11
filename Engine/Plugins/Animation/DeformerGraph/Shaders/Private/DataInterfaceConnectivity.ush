@@ -3,7 +3,7 @@
 uint {DataInterfaceName}_NumVertices;
 uint {DataInterfaceName}_InputStreamStart;
 uint {DataInterfaceName}_MaxConnectedVertexCount;
-Buffer<uint> {DataInterfaceName}_ConnectivityBuffer;
+StructuredBuffer<uint> {DataInterfaceName}_ConnectivityBuffer;
 
 uint ReadNumVertices_{DataInterfaceName}()
 {
