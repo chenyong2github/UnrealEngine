@@ -20,8 +20,7 @@ bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 {
 	if (!FParse::Value(*ConfigEntry, TEXT("Path="), RootDirectory))
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("[%s] 'Path=' not found in the config file"), *GetDebugName());
-		return false;
+		RootDirectory = *WriteToString<512>(FPaths::ProjectSavedDir(), TEXT("VAPayloads"));
 	}
 
 	FString EnvOverrideName;
