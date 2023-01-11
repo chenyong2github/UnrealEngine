@@ -288,3 +288,33 @@ FRigVMFunction_MathDoubleExponential_Execute()
 	Result = FMath::Exp(Value);
 }
 
+FRigVMFunction_MathDoubleArraySum_Execute()
+{
+	Sum = 0.0;
+	for (double Value : Array)
+	{
+		Sum += Value;
+	}
+}
+
+FRigVMFunction_MathDoubleArrayAverage_Execute()
+{
+	Average = 0.0;
+	if (!Array.IsEmpty())
+	{
+		for (double Value : Array)
+		{
+			Average += Value;
+		}
+		Average = Average / Array.Num();
+	}
+	else
+	{
+		UE_RIGVMSTRUCT_REPORT_WARNING(TEXT("Array is empty"));
+	}
+}
+
+
+
+
+

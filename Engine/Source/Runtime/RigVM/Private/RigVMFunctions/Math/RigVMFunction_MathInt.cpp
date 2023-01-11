@@ -131,3 +131,38 @@ FRigVMFunction_MathIntLessEqual_Execute()
 	Result = A <= B;
 }
 
+FRigVMFunction_MathIntArraySum_Execute()
+{
+	Sum = 0;
+	for (int32 Value : Array)
+	{
+		Sum += Value;
+	}
+}
+
+FRigVMFunction_MathIntArrayAverage_Execute()
+{
+	Average = 0;
+	if (!Array.IsEmpty())
+	{
+		for (int32 Value : Array)
+		{
+			Average += Value;
+		}
+		Average = Average / Array.Num();
+	}
+	else
+	{
+		UE_RIGVMSTRUCT_REPORT_WARNING(TEXT("Array is empty"));
+	}
+}
+
+
+
+
+
+
+
+
+
+

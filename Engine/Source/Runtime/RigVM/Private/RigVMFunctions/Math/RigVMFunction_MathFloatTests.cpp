@@ -410,4 +410,20 @@ IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathFloatLawOfCosine)
 	return true;
 }
 
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathFloatArraySum)
+{
+	Unit.Array = {1.1f, 2.2f, 3.3f};
+	Execute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Sum, 6.6f, 0.01f), TEXT("unexpected sum"));
+	return true;
+}
+
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathFloatArrayAverage)
+{
+	Unit.Array = { 1.1f, 2.2f, 3.3f };
+	Execute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Average, 2.2f, 0.01f), TEXT("unexpected average"));
+	return true;
+}
+
 #endif

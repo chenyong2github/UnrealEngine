@@ -299,3 +299,35 @@ FRigVMFunction_MathFloatExponential_Execute()
 	Result = FMath::Exp(Value);
 }
 
+FRigVMFunction_MathFloatArraySum_Execute()
+{
+	Sum = 0.f;
+	for (float Value : Array)
+	{
+		Sum += Value;
+	}
+}
+
+FRigVMFunction_MathFloatArrayAverage_Execute()
+{
+	Average = 0.f;
+	if (!Array.IsEmpty())
+	{
+		for (float Value : Array)
+		{
+			Average += Value;
+		}
+		Average = Average / Array.Num();
+	}
+	else
+	{
+		UE_RIGVMSTRUCT_REPORT_WARNING(TEXT("Array is empty"));
+	}
+}
+
+
+
+
+
+
+

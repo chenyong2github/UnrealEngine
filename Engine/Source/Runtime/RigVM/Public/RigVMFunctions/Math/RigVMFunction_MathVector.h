@@ -1188,3 +1188,52 @@ struct RIGVM_API FRigVMFunction_MathVectorMirrorTransform : public FRigVMFunctio
 	UPROPERTY(meta=(Output))
 	FVector Result;
 };
+
+/**
+ * Returns the sum of the given array
+ */
+USTRUCT(meta = (DisplayName = "Array Sum", TemplateName = "ArraySum"))
+struct RIGVM_API FRigVMFunction_MathVectorArraySum : public FRigVMFunction_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathVectorArraySum()
+	{
+		Sum = FVector::ZeroVector;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FVector> Array;
+
+	UPROPERTY(meta = (Output))
+	FVector Sum;
+};
+
+
+/**
+ * Returns the average of the given array
+ */
+USTRUCT(meta = (DisplayName = "Array Average", TemplateName = "ArrayAverage"))
+struct RIGVM_API FRigVMFunction_MathVectorArrayAverage : public FRigVMFunction_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathVectorArrayAverage()
+	{
+		Average = FVector::ZeroVector;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FVector> Array;
+
+	UPROPERTY(meta = (Output))
+	FVector Average;
+};

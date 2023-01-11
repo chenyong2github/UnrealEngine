@@ -924,3 +924,51 @@ struct RIGVM_API FRigVMFunction_MathFloatExponential : public FRigVMFunction_Mat
 	RIGVM_METHOD()
 	virtual void Execute() override;
 };
+
+/**
+ * Returns the sum of the given array
+ */
+USTRUCT(meta = (DisplayName = "Array Sum", TemplateName = "ArraySum"))
+struct RIGVM_API FRigVMFunction_MathFloatArraySum : public FRigVMFunction_MathFloatBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathFloatArraySum()
+	{
+		Sum = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<float> Array;
+
+	UPROPERTY(meta = (Output))
+	float Sum;
+};
+
+/**
+ * Returns the average of the given array
+ */
+USTRUCT(meta = (DisplayName = "Array Average", TemplateName = "ArrayAverage"))
+struct RIGVM_API FRigVMFunction_MathFloatArrayAverage : public FRigVMFunction_MathFloatBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathFloatArrayAverage()
+	{
+		Average = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<float> Array;
+
+	UPROPERTY(meta = (Output))
+	float Average;
+};

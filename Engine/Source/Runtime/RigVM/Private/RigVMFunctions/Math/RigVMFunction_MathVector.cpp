@@ -525,3 +525,30 @@ FRigVMFunction_MathVectorMirrorTransform_Execute()
 	FRigVMFunction_MathTransformMirrorTransform::StaticExecute(ExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform);
 	Result = Transform.GetTranslation();
 }
+
+FRigVMFunction_MathVectorArraySum_Execute()
+{
+	Sum = FVector::ZeroVector;
+	for (const FVector& Value : Array)
+	{
+		Sum += Value;
+	}
+}
+
+FRigVMFunction_MathVectorArrayAverage_Execute()
+{
+	Average = FVector::ZeroVector;
+	if (!Array.IsEmpty())
+	{
+		for (const FVector& Value : Array)
+		{
+			Average += Value;
+		}
+		Average = Average / Array.Num();
+	}
+	else
+	{
+		UE_RIGVMSTRUCT_REPORT_WARNING(TEXT("Array is empty"));
+	}
+}
+

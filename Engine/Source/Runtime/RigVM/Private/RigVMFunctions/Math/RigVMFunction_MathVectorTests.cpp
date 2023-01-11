@@ -417,4 +417,20 @@ IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathDistanceToPlane)
 	return true;
 }
 
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathVectorArraySum)
+{
+	Unit.Array = { FVector(1.f, 2.f, 3.f), FVector(3.f, 2.f, 1.f), FVector(-1.f, 2.f, 3.5f) };
+	Execute();
+	AddErrorIfFalse(FRigVMFunction_MathVectorTest_Utils::IsNearlyEqual(Unit.Sum, FVector(3.f, 6.f, 7.5f), KINDA_SMALL_NUMBER), TEXT("unexpected sum"));
+	return true;
+}
+
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathVectorArrayAverage)
+{
+	Unit.Array = { FVector(1.f, 2.f, 3.f), FVector(3.f, 2.f, 1.f), FVector(-1.f, 2.f, 3.5f) };
+	Execute();
+	AddErrorIfFalse(FRigVMFunction_MathVectorTest_Utils::IsNearlyEqual(Unit.Average, FVector(1.f, 2.f, 2.5f), KINDA_SMALL_NUMBER), TEXT("unexpected average"));
+	return true;
+}
+
 #endif

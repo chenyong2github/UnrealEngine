@@ -485,3 +485,52 @@ struct RIGVM_API FRigVMFunction_MathIntLessEqual : public FRigVMFunction_MathInt
 	UPROPERTY(meta=(Output))
 	bool Result;
 };
+
+/**
+ * Returns the sum of the given array
+ */
+USTRUCT(meta = (DisplayName = "Array Sum", TemplateName = "ArraySum"))
+struct RIGVM_API FRigVMFunction_MathIntArraySum : public FRigVMFunction_MathIntBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathIntArraySum()
+	{
+		Sum = 0;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<int32> Array;
+
+	UPROPERTY(meta = (Output))
+	int32 Sum;
+};
+
+
+/**
+ * Returns the average of the given array
+ */
+USTRUCT(meta = (DisplayName = "Array Average", TemplateName = "ArrayAverage"))
+struct RIGVM_API FRigVMFunction_MathIntArrayAverage : public FRigVMFunction_MathIntBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathIntArrayAverage()
+	{
+		Average = 0;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<int32> Array;
+
+	UPROPERTY(meta = (Output))
+	int32 Average;
+};
