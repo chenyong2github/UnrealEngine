@@ -128,12 +128,12 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 					Desc.ID
 				};
 			const int32 ExternalStructIndex = BindingsCompiler.AddSourceStruct(ExtDataDesc);
-			if (const auto Validation = UE::StateTree::Compiler::IsValidIndex8(ExternalStructIndex); Validation.DidFail())
+			if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(ExternalStructIndex); Validation.DidFail())
 			{
 				Validation.Log(Log, TEXT("ExternalStructIndex"), ParametersDesc);
 				return false;
 			}
-			Desc.Handle.DataViewIndex = FStateTreeIndex8(ExternalStructIndex); 
+			Desc.Handle.DataViewIndex = FStateTreeIndex16(ExternalStructIndex); 
 		} 
 	}
 	

@@ -80,9 +80,9 @@ struct FStateTreeLinker
 		{
 			Index = ExternalDataDescs.Add(Desc);
 			check(FStateTreeExternalDataHandle::IsValidIndex(Index + ExternalDataBaseIndex));
-			ExternalDataDescs[Index].Handle.DataViewIndex = FStateTreeIndex8(Index + ExternalDataBaseIndex);
+			ExternalDataDescs[Index].Handle.DataViewIndex = FStateTreeIndex16(Index + ExternalDataBaseIndex);
 		}
-		Handle.DataViewIndex = FStateTreeIndex8(Index + ExternalDataBaseIndex);
+		Handle.DataViewIndex = FStateTreeIndex16(Index + ExternalDataBaseIndex);
 	}
 
 	/** @return linked external data descriptors. */

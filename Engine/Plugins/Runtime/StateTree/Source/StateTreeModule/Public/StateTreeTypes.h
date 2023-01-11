@@ -200,11 +200,21 @@ struct STATETREEMODULE_API FStateTreeIndex16
 	bool operator==(const FStateTreeIndex16& RHS) const { return Value == RHS.Value; }
 	bool operator!=(const FStateTreeIndex16& RHS) const { return Value != RHS.Value; }
 
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+
 protected:
 	UPROPERTY()
 	uint16 Value = InvalidValue;
 };
-	
+
+template<>
+struct TStructOpsTypeTraits<FStateTreeIndex16> : public TStructOpsTypeTraitsBase2<FStateTreeIndex16>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
+};
 
 /** uint8 index that can be invalid. */
 USTRUCT(BlueprintType)
@@ -241,9 +251,20 @@ struct STATETREEMODULE_API FStateTreeIndex8
 	bool operator==(const FStateTreeIndex8& RHS) const { return Value == RHS.Value; }
 	bool operator!=(const FStateTreeIndex8& RHS) const { return Value != RHS.Value; }
 
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	
 protected:
 	UPROPERTY()
 	uint8 Value = InvalidValue;
+};
+
+template<>
+struct TStructOpsTypeTraits<FStateTreeIndex8> : public TStructOpsTypeTraitsBase2<FStateTreeIndex8>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
 };
 
 
@@ -623,11 +644,11 @@ struct STATETREEMODULE_API FStateTreeExternalDataHandle
 
 	static const FStateTreeExternalDataHandle Invalid;
 	
-	static bool IsValidIndex(const int32 Index) { return FStateTreeIndex8::IsValidIndex(Index); }
+	static bool IsValidIndex(const int32 Index) { return FStateTreeIndex16::IsValidIndex(Index); }
 	bool IsValid() const { return DataViewIndex.IsValid(); }
 
 	UPROPERTY()
-	FStateTreeIndex8 DataViewIndex = FStateTreeIndex8::Invalid;
+	FStateTreeIndex16 DataViewIndex = FStateTreeIndex16::Invalid;
 };
 
 /**
