@@ -326,6 +326,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 	Ar << NumPermutations;
+	Ar << BaseCompileHash;
 
 	if (Ar.IsLoading())
 	{

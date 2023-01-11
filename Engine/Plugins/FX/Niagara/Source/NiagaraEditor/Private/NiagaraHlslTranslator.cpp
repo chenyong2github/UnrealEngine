@@ -41,6 +41,8 @@
 #include "ShaderCore.h"
 #include "Misc/FileHelper.h"
 
+#include "NiagaraDataInterfaceUtilities.h"
+
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Translate"), STAT_NiagaraEditor_HlslTranslator_Translate, STATGROUP_NiagaraEditor);
@@ -2310,8 +2312,9 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		}
 
 		// Convert to a FNiagaraDataInterfaceGPUParamInfo to keep the API simple and consistent
+		TArray<FNiagaraFunctionSignature> GeneratedFunctionSignatures;
 		FNiagaraDataInterfaceGPUParamInfo DIInstanceInfo;
-		ConvertCompileInfoToParamInfo(CompilationOutput.ScriptData.DataInterfaceInfo[DataInterfaceOwnerIndex], DIInstanceInfo);
+		ConvertCompileInfoToParamInfo(CompilationOutput.ScriptData.DataInterfaceInfo[DataInterfaceOwnerIndex], DIInstanceInfo, GeneratedFunctionSignatures);
 
 		// This next part might be a big confusing, but because DataInterfaces are in non-editor code, it makes it impossible for them to return graphs or other
 		// structures. We want them to feel free to invoke their own fucntions and not have to do a lot of extra wranging, so we treat them like a custom hlsl node.
@@ -2455,19 +2458,19 @@ void FHlslNiagaraTranslator::GatherVariableForDataSetAccess(const FNiagaraVariab
 	check(Components.Num() == Types.Num());
 	for (int32 CompIdx = 0; CompIdx < Components.Num(); ++CompIdx)
 	{
-		if (Types[CompIdx] == NBT_Float)
+		if (Types[CompIdx] == ENiagaraBaseTypes::Float)
 		{
 			FormatArgs[1] = TEXT("Float");
 			FormatArgs[DefaultIdx] = TEXT("0.0f");
 			FormatArgs[RegIdx] = FloatCounter++;
 		}
-		else if (Types[CompIdx] == NBT_Half)
+		else if (Types[CompIdx] == ENiagaraBaseTypes::Half)
 		{
 			FormatArgs[1] = TEXT("Half");
 			FormatArgs[DefaultIdx] = TEXT("0.0f");
 			FormatArgs[RegIdx] = HalfCounter++;
 		}
-		else if (Types[CompIdx] == NBT_Int32)
+		else if (Types[CompIdx] == ENiagaraBaseTypes::Int32)
 		{
 			FormatArgs[1] = TEXT("Int");
 			FormatArgs[DefaultIdx] = TEXT("0");
@@ -2475,7 +2478,7 @@ void FHlslNiagaraTranslator::GatherVariableForDataSetAccess(const FNiagaraVariab
 		}
 		else
 		{
-			check(Types[CompIdx] == NBT_Bool);
+			check(Types[CompIdx] == ENiagaraBaseTypes::Bool);
 			FormatArgs[1] = TEXT("Bool");
 			FormatArgs[DefaultIdx] = TEXT("false");
 			FormatArgs[RegIdx] = IntCounter++;
@@ -2501,13 +2504,13 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 	//Bools are an awkward special case. TODO: make neater.
 	if (FNiagaraTypeDefinition(Struct) == FNiagaraTypeDefinition::GetBoolDef())
 	{
-		Types.Add(ENiagaraBaseTypes::NBT_Bool);
+		Types.Add(ENiagaraBaseTypes::Bool);
 		Components.Add(VariableSymbol);
 		return;
 	}
 	else if (FNiagaraTypeDefinition(Struct) == FNiagaraTypeDefinition::GetHalfDef())
 	{
-		Types.Add(ENiagaraBaseTypes::NBT_Half);
+		Types.Add(ENiagaraBaseTypes::Half);
 		Components.Add(VariableSymbol);
 		return;
 	}
@@ -2550,22 +2553,22 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 
 			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
-				Types.Add(ENiagaraBaseTypes::NBT_Float);
+				Types.Add(ENiagaraBaseTypes::Float);
 				Components.Add(VarName);
 			}
 			else if (Property->IsA(FIntProperty::StaticClass()))
 			{
-				Types.Add(ENiagaraBaseTypes::NBT_Int32);
+				Types.Add(ENiagaraBaseTypes::Int32);
 				Components.Add(VarName);
 			}
 			else if (Property->IsA(FBoolProperty::StaticClass()))
 			{
-				Types.Add(ENiagaraBaseTypes::NBT_Bool);
+				Types.Add(ENiagaraBaseTypes::Bool);
 				Components.Add(VarName);
 			}
 			else if (Property->IsA(FUInt16Property::StaticClass()))
 			{
-				Types.Add(ENiagaraBaseTypes::NBT_Half);
+				Types.Add(ENiagaraBaseTypes::Half);
 				Components.Add(VarName);
 			}
 		}
@@ -2821,7 +2824,7 @@ void FHlslNiagaraTranslator::DefineDataSetWriteFunction(FString &HlslOutputStrin
 	HlslOutput += TEXT("}\n\n");
 }
 
-void FHlslNiagaraTranslator::ConvertCompileInfoToParamInfo(const FNiagaraScriptDataInterfaceCompileInfo& Info, FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo)
+void FHlslNiagaraTranslator::ConvertCompileInfoToParamInfo(const FNiagaraScriptDataInterfaceCompileInfo& Info, FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TArray<FNiagaraFunctionSignature>& GeneratedFunctionSignatures)
 {
 	FString OwnerIDString = Info.Name.ToString();
 	FString SanitizedOwnerIDString = GetSanitizedSymbolName(OwnerIDString.Replace(TEXT("."), TEXT("_")));
@@ -2833,6 +2836,7 @@ void FHlslNiagaraTranslator::ConvertCompileInfoToParamInfo(const FNiagaraScriptD
 	bool bHasWriteFunctions = false;
 	TSet<FNiagaraFunctionSignature> SeenFunctions;
 	DIInstanceInfo.GeneratedFunctions.Reserve(Info.RegisteredFunctions.Num());
+	GeneratedFunctionSignatures.Reserve(Info.RegisteredFunctions.Num());
 	for (const FNiagaraFunctionSignature& OriginalSig : Info.RegisteredFunctions)
 	{
 		if (SeenFunctions.Contains(OriginalSig))
@@ -2863,6 +2867,27 @@ void FHlslNiagaraTranslator::ConvertCompileInfoToParamInfo(const FNiagaraScriptD
 		{
 			DIFunc.Specifiers.Add(Specifier);
 		}
+
+		auto AddVarsToGPUDIFuncInfo = [](const TArray<FNiagaraVariableBase>& InVars, TArray<FNiagaraVariableCommonReference>& OutVarRefs)
+		{
+			OutVarRefs.Reset(InVars.Num());
+			for(const FNiagaraVariableBase& Var : InVars)
+			{
+				auto& NewVarRef = OutVarRefs.AddDefaulted_GetRef();
+				NewVarRef.Name = Var.GetName();
+				NewVarRef.UnderlyingType = Var.GetType().ClassStructOrEnum;
+			}
+		};
+
+		TArray<FNiagaraVariableBase> TempVars;
+		//Write out our variadic parameters to allow proper binding for VM external functions.
+		Sig.GetVariadicInputs(TempVars);
+		AddVarsToGPUDIFuncInfo(TempVars, DIFunc.VariadicInputs);
+		Sig.GetVariadicOutputs(TempVars);
+		AddVarsToGPUDIFuncInfo(TempVars, DIFunc.VariadicOutputs);
+
+		//Also output the actual signature to help with some hlsl generation.
+		GeneratedFunctionSignatures.Add(Sig);
 	}
 }
 
@@ -2887,10 +2912,16 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString& InHlslOutput)
 				InterfaceClasses.Add(Info.Type.GetFName());
 			}
 
+			TArray<FNiagaraFunctionSignature> GeneratedFunctionSignatures;
 			FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo = ShaderScriptParametersMetadata.DataInterfaceParamInfo.AddDefaulted_GetRef();
-			ConvertCompileInfoToParamInfo(Info, DIInstanceInfo);
+			ConvertCompileInfoToParamInfo(Info, DIInstanceInfo,GeneratedFunctionSignatures);
 
-			CDO->GetParameterDefinitionHLSL(DIInstanceInfo, InterfaceUniformHLSL);
+			FNiagaraDataInterfaceHlslGenerationContext DIHlslGenContext(DIInstanceInfo, GeneratedFunctionSignatures);
+
+			DIHlslGenContext.GetStructHlslTypeNameDelegate.BindStatic(&FHlslNiagaraTranslator::GetStructHlslTypeName);
+			DIHlslGenContext.GetPropertyHlslTypeNameDelegate.BindStatic(&FHlslNiagaraTranslator::GetPropertyHlslTypeName);
+			DIHlslGenContext.GetSanitizedSymbolNameDelegate.BindStatic(&FHlslNiagaraTranslator::GetSanitizedSymbolName);
+			CDO->GetParameterDefinitionHLSL(DIHlslGenContext, InterfaceUniformHLSL);
 
 			// Ask the DI to generate HLSL.
 			TArray<FNiagaraDataInterfaceGeneratedFunction> PreviousHits;
@@ -2898,7 +2929,9 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString& InHlslOutput)
 			{
 				const FNiagaraDataInterfaceGeneratedFunction& DIFunc = DIInstanceInfo.GeneratedFunctions[FunctionInstanceIndex];
 				ensure(!PreviousHits.Contains(DIFunc));
-				const bool HlslOK = CDO->GetFunctionHLSL(DIInstanceInfo, DIFunc, FunctionInstanceIndex, InterfaceFunctionHLSL);
+
+				DIHlslGenContext.FunctionInstanceIndex = FunctionInstanceIndex;
+				const bool HlslOK = CDO->GetFunctionHLSL(DIHlslGenContext, InterfaceFunctionHLSL);
 				if (!HlslOK)
 				{
 					Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotImplemented", "DataInterface {0} function {1} is not implemented for GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(DIFunc.DefinitionName)), nullptr, nullptr);
@@ -7134,20 +7167,24 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 	}
 
 	// Remove input add pin if it exists
+	bool bHasOutputAdd = false;
 	for (int32 i = 0; i < CallOutputs.Num(); i++)
 	{
 		if (FunctionNode->IsAddPin(CallOutputs[i]))
 		{
+			bHasOutputAdd = true;
 			CallOutputs.RemoveAt(i);
 			break;
 		}
 	}
 
 	// Remove output add pin if it exists
+	bool bHasInputAdd = false;
 	for (int32 i = 0; i < CallInputs.Num(); i++)
 	{
 		if (FunctionNode->IsAddPin(CallInputs[i]))
 		{
+			bHasInputAdd = true;
 			CallInputs.RemoveAt(i);
 			break;
 		}
@@ -7256,10 +7293,13 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 
 	GenerateFunctionCall(ScriptUsage, OutputSignature, Inputs, Outputs);
 
-	if (bCustomHlsl)
+	// Re-add the add pins.
+	if (bHasInputAdd)
 	{
-		// Re-add the add pins.
 		Inputs.Add(INDEX_NONE);
+	}
+	if(bHasOutputAdd)
+	{
 		Outputs.Add(INDEX_NONE);
 	}
 	ActiveHistoryForFunctionCalls.ExitFunction(FunctionNode->GetFunctionName(), FunctionNode->FunctionScript, FunctionNode);

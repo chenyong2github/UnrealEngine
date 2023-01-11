@@ -391,8 +391,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 		if (AllowDynamicPins())
 		{
-			CreateAddPin(EGPD_Input);
-			CreateAddPin(EGPD_Output);
+			if(Signature.IsValid())
+			{
+				if(Signature.VariadicInput())
+				{
+					CreateAddPin(EGPD_Input);
+				}
+				if(Signature.VariadicOutput())
+				{
+					CreateAddPin(EGPD_Output);
+				}
+			}
+			else
+			{
+				CreateAddPin(EGPD_Input);
+				CreateAddPin(EGPD_Output);
+			}
 		}
 
 		// We don't reference an external function, so set an invalid id.
@@ -1070,6 +1084,19 @@ void UNiagaraNodeFunctionCall::UpdateReferencedStaticsHashForNode(FSHA1& HashSta
 
 }
 
+void UNiagaraNodeFunctionCall::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+	if(FunctionScript == nullptr)
+	{
+		UClass* DIClass = CastChecked<UClass>(Signature.Inputs[0].GetType().GetClass());
+		if(DIClass)
+		{
+			INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(DIClass, Menu, Context, Signature);
+		}
+	}
+}
+
 bool UNiagaraNodeFunctionCall::HasValidScriptAndGraph() const
 {
 	return FunctionScript != nullptr && GetCalledGraph() != nullptr;
@@ -1490,6 +1517,52 @@ void UNiagaraNodeFunctionCall::AutowireNewNode(UEdGraphPin* FromPin)
 {
 	UNiagaraNode::AutowireNewNode(FromPin);
 	ComputeNodeName();
+}
+
+void UNiagaraNodeFunctionCall::RefreshSignature()
+{
+	if (Signature.IsValid() && Signature.bMemberFunction)
+	{
+		if ((Signature.Inputs.Num() > 0) && Signature.Inputs[0].GetType().IsDataInterface())
+		{
+			UNiagaraDataInterface* CDO = CastChecked<UNiagaraDataInterface>(Signature.Inputs[0].GetType().GetClass()->GetDefaultObject());
+			TArray<FNiagaraFunctionSignature> BaseDIFuncs;
+			CDO->GetFunctions(BaseDIFuncs);
+			if (FNiagaraFunctionSignature* BaseSig = BaseDIFuncs.FindByPredicate([&](const FNiagaraFunctionSignature& CheckSig) { return Signature.Name == CheckSig.Name; }))
+			{
+				//Revert signature to base and re-add dynamic pins as new inputs and outputs.
+				Signature = *BaseSig;				
+
+				FPinCollectorArray FoundPins;
+				GetInputPins(FoundPins);
+
+				for (int32 i = 0; i < FoundPins.Num(); ++i)
+				{
+					UEdGraphPin* Pin = FoundPins[i];
+
+					if (DynamicPins.Contains(Pin->PinId))
+					{
+						Signature.AddInput(UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin), FText::FromString(Pin->PinToolTip));
+					}
+				}
+
+				GetOutputPins(FoundPins);
+
+				for (int32 i = 0; i < FoundPins.Num(); ++i)
+				{
+					UEdGraphPin* Pin = FoundPins[i];
+
+					if (DynamicPins.Contains(Pin->PinId))
+					{
+						Signature.AddOutput(UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin), FText::FromString(Pin->PinToolTip));
+					}
+				}
+
+				return;
+			}
+		}
+	}
+	Signature = FNiagaraFunctionSignature();
 }
 
 void UNiagaraNodeFunctionCall::ComputeNodeName(FString SuggestedName, bool bForceSuggestion)

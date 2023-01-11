@@ -113,6 +113,7 @@ public:
 	virtual bool CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMsg) const override;
 	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	//End UNiagaraNode interface
 
 	virtual void UpdateReferencedStaticsHashForNode(FSHA1& HashState) const;
@@ -191,10 +192,18 @@ protected:
 
 	virtual bool GetValidateDataInterfaces() const { return true; };
 
-	virtual bool AllowDynamicPins() const override { return false; }
-	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return false; }
-	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override { return false; }
-	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override { return false; }
+	virtual bool AllowDynamicPins() const override { return Signature.VariadicInput() || Signature.VariadicOutput(); }
+	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return AllowDynamicPins() && Super::CanRenamePin(Pin); }
+	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override { return AllowDynamicPins() && Super::CanRemovePin(Pin); }
+	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override { return AllowDynamicPins() && Super::CanMovePin(Pin, DirectionToMove); }
+	virtual bool CanModifyExistingPins() const { return false; }
+
+	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) { Super::OnNewTypedPinAdded(NewPin); RefreshSignature(); }
+	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldPinName) override { Super::OnPinRenamed(RenamedPin, OldPinName); RefreshSignature(); }
+	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override { Super::RemoveDynamicPin(Pin); RefreshSignature(); }
+	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 MoveAmount)override { Super::MoveDynamicPin(Pin, MoveAmount); RefreshSignature(); }
+
+	void RefreshSignature();
 
 	/** Resets the node name based on the referenced script or signature. Guaranteed unique within a given graph instance.*/
 	void ComputeNodeName(FString SuggestedName = FString(), bool bForceSuggestion = false);

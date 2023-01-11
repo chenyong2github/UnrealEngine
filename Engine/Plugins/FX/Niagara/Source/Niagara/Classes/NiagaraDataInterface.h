@@ -24,6 +24,7 @@ class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraGPUSystemTick;
 struct FNiagaraSimStageData;
 class FNiagaraSystemInstance;
+struct FNiagaraDataInterfaceHlslGenerationContext;
 
 struct FNDITransformHandlerNoop
 {
@@ -615,6 +616,10 @@ public:
 	virtual void GetCommonHLSL(FString& OutHLSL)
 	{
 	}
+	
+	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceHlslGenerationContext& HlslGenContext, FString& OutHLSL);
+
+	virtual bool GetFunctionHLSL(FNiagaraDataInterfaceHlslGenerationContext& HlslGenContext, FString& OutHLSL);
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 	{

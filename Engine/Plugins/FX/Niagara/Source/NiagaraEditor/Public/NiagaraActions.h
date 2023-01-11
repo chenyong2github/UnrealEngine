@@ -11,6 +11,11 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraActions.generated.h"
 
+
+class UToolMenu;
+class UGraphNodeContextMenuContext;
+
+
 UENUM()
 enum class ENiagaraMenuSections : uint8
 {
@@ -378,3 +383,56 @@ public:
 	FGuid Version;
 	FText FriendlyName;
 };
+
+
+class NIAGARAEDITOR_API INiagaraDataInterfaceNodeActionProvider
+{
+public:
+
+	INiagaraDataInterfaceNodeActionProvider() = default;
+	INiagaraDataInterfaceNodeActionProvider(INiagaraDataInterfaceNodeActionProvider&) = delete;
+	INiagaraDataInterfaceNodeActionProvider(INiagaraDataInterfaceNodeActionProvider&&) = delete;
+	INiagaraDataInterfaceNodeActionProvider& operator=(INiagaraDataInterfaceNodeActionProvider&) = delete;
+	INiagaraDataInterfaceNodeActionProvider& operator=(INiagaraDataInterfaceNodeActionProvider&&) = delete;
+	virtual ~INiagaraDataInterfaceNodeActionProvider() = default;
+
+	/** Pure virtual that sub classes should implement to provide menu actions specific to DIs and their functions. */
+	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const = 0;
+
+	template<typename DIClass, typename ActionProviderClass>
+	static void Register();
+
+	template<typename DIClass>
+	static void Unregister();
+
+	template<typename DIClass>
+	static void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
+
+	/**  */
+	static void GetNodeContextMenuActions(UClass* DIClass, UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
+
+	/** All currently registered action providers. */
+	static TMap<FName, TUniquePtr<INiagaraDataInterfaceNodeActionProvider>> RegisteredActionProviders;
+};
+
+template<typename DIClass, typename ActionProviderClass>
+void INiagaraDataInterfaceNodeActionProvider::Register()
+{
+	TUniquePtr<INiagaraDataInterfaceNodeActionProvider>& Provider = RegisteredActionProviders.FindOrAdd(DIClass::StaticClass()->GetFName());
+	Provider = MakeUnique<ActionProviderClass>();
+}
+
+template<typename DIClass>
+void INiagaraDataInterfaceNodeActionProvider::Unregister()
+{
+	RegisteredActionProviders.Remove(DIClass::StaticClass()->GetFName());
+}
+
+template<typename DIClass>
+void INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature)
+{
+	if(TUniquePtr<INiagaraDataInterfaceNodeActionProvider>* Provider = RegisteredActionProviders.Find(DIClass::StaticClass()->GetFName()))
+	{
+		(*Provider)->GetNodeContextMenuActionsImpl(Menu, Context, Signature);
+	}
+}

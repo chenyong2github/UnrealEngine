@@ -1579,3 +1579,47 @@ EPSCPoolMethod ToPSCPoolMethod(ENCPoolMethod PoolingMethod)
 	}
 	return EPSCPoolMethod::None;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+
+void FNiagaraFunctionSignature::GetVariadicInputs(TArray<FNiagaraVariableBase>& OutVariadicInputs, bool bStripNonExecution/* =true */)const
+{
+	static const FNiagaraVariableBase InstDataVar(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData"));
+	OutVariadicInputs.Reset(NumOptionalInputs());
+	int32 NumInputs = 0;
+	for (const FNiagaraVariableBase& Param : Inputs)
+	{
+		if (bStripNonExecution && (Param.GetType() == FNiagaraTypeDefinition::GetParameterMapDef() || Param == InstDataVar))
+		{
+			continue;
+		}
+
+		if (NumInputs++ < NumRequiredInputs())
+		{
+			continue;
+		}
+
+		OutVariadicInputs.Emplace(Param);
+	}
+}
+
+void FNiagaraFunctionSignature::GetVariadicOutputs(TArray<FNiagaraVariableBase>& OutVariadicOutputs, bool bStripNonExecution/* =true */)const
+{
+	OutVariadicOutputs.Reset(NumOptionalOutputs());
+	int32 NumOutputs = 0;
+	for (const FNiagaraVariableBase& Param : Outputs)
+	{
+		if (bStripNonExecution && (Param.GetType() == FNiagaraTypeDefinition::GetParameterMapDef()))
+		{
+			continue;
+		}
+
+		if (NumOutputs++ < NumRequiredOutputs())
+		{
+			continue;
+		}
+
+		OutVariadicOutputs.Emplace(Param);
+	}
+}

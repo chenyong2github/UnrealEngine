@@ -1091,9 +1091,18 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 //////////////////////////////////////////////////////////////////////////
 bool FNiagaraDataInterfaceGeneratedFunction::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVer = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
 	Ar << DefinitionName;
 	Ar << InstanceName;
 	Ar << Specifiers;
+
+	if (NiagaraVer >= FNiagaraCustomVersion::AddVariadicParametersToGPUFunctionInfo)
+	{
+		Ar << VariadicInputs;
+		Ar << VariadicOutputs;
+	}
 	return true;
 }
 

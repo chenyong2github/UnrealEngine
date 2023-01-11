@@ -67,13 +67,14 @@ inline constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
 inline constexpr ETickingGroup NiagaraLastTickGroup = TG_LastDemotable;
 inline constexpr int NiagaraNumTickGroups = NiagaraLastTickGroup - NiagaraFirstTickGroup + 1;
 
-enum ENiagaraBaseTypes
+UENUM()
+enum class ENiagaraBaseTypes : uint8
 {
-	NBT_Half,
-	NBT_Float,
-	NBT_Int32,
-	NBT_Bool,
-	NBT_Max,
+	Half,
+	Float,
+	Int32,
+	Bool,
+	Max UMETA(Hidden),
 };
 
 /** Niagara supported buffer formats on the GPU. */
@@ -343,10 +344,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	FName Name;
 	/** Input parameters to this function. */
 	UPROPERTY()
-	TArray<FNiagaraVariable> Inputs;
+	TArray<FNiagaraVariable> Inputs; //TODO: Can these be FNiagaraVariableBase?
 	/** Input parameters of this function. */
 	UPROPERTY()
-	TArray<FNiagaraVariable> Outputs;
+	TArray<FNiagaraVariable> Outputs; //TODO: Can these be FNiagaraVariableBase?
 	/** Id of the owner is this is a member function. */
 	UPROPERTY()
 	FName OwnerName;
@@ -407,6 +408,14 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	int32 ContextStageIndex;
 
+	/** Number of required inputs. Can be less than the actual number of inputs when using bVariadicInput. INDEX_NONE when not using bVariadicInput, denoting that all inputs are required. */
+	UPROPERTY()
+	int16 RequiredInputs;
+
+	/** Number of required outputs. Can be less than the actual number of outputs when using bVariadicOutput. INDEX_NONE when not using bVariadicOutput, denoting that all outputs are required. */
+	UPROPERTY()
+	int16 RequiredOutputs;
+
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
@@ -437,6 +446,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageIndex(INDEX_NONE)
+		, RequiredInputs(INDEX_NONE)
+		, RequiredOutputs(INDEX_NONE)
 	{
 	}
 
@@ -455,6 +466,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageIndex(INDEX_NONE)
+		, RequiredInputs(INDEX_NONE)
+		, RequiredOutputs(INDEX_NONE)
 	{
 		Inputs.Reserve(InInputs.Num());
 		for (FNiagaraVariable& Var : InInputs)
@@ -497,8 +510,45 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	bool EqualsIgnoringSpecifiers(const FNiagaraFunctionSignature& Other) const
 	{
 		bool bMatches = Name.ToString().Equals(Other.Name.ToString());
-		bMatches &= Inputs == Other.Inputs;
-		bMatches &= Outputs == Other.Outputs;
+		
+		//Allow divergent inputs for variadic input functions.
+		if (VariadicInput() && bMatches)
+		{
+			if (Other.Inputs.Num() >= RequiredInputs)
+			{
+				for (int32 i = 0; i < RequiredInputs; ++i)
+				{
+					bMatches &= Inputs[i] == Other.Inputs[i];
+				}
+			}
+			else
+			{
+				bMatches = false;
+			}
+		}
+		else
+		{
+			bMatches &= Inputs == Other.Inputs;
+		}
+		//Allow divergent outputs for variadic output functions.
+		if (VariadicOutput() && bMatches)
+		{
+			if (Other.Inputs.Num() >= RequiredInputs)
+			{
+				for (int32 i = 0; i < RequiredOutputs; ++i)
+				{
+					bMatches &= Outputs[i] == Other.Outputs[i];
+				}
+			}
+			else
+			{
+				bMatches = false;
+			}
+		}
+		else
+		{
+			bMatches &= Outputs == Other.Outputs;
+		}
 		bMatches &= bRequiresContext == Other.bRequiresContext;
 		bMatches &= bRequiresExecPin == Other.bRequiresExecPin;
 		bMatches &= bMemberFunction == Other.bMemberFunction;
@@ -570,6 +620,18 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	}
 	
 	bool IsValid()const { return Name != NAME_None && (Inputs.Num() > 0 || Outputs.Num() > 0); }
+
+	bool VariadicInput()const { return RequiredInputs != INDEX_NONE; }
+	bool VariadicOutput()const { return RequiredOutputs != INDEX_NONE; }
+
+	int32 NumRequiredInputs()const { return RequiredInputs == INDEX_NONE ? Inputs.Num() : RequiredInputs; }
+	int32 NumOptionalInputs()const { return Inputs.Num() - NumRequiredInputs(); }
+
+	int32 NumRequiredOutputs()const { return RequiredOutputs == INDEX_NONE ? Outputs.Num() : RequiredOutputs; }
+	int32 NumOptionalOutputs()const { return Outputs.Num() - NumRequiredOutputs(); }
+
+	void GetVariadicInputs(TArray<FNiagaraVariableBase>& OutVariadicInputs, bool bStripNonExecution = true)const;
+	void GetVariadicOutputs(TArray<FNiagaraVariableBase>& OutVariadicOutputs, bool bStripNonExecution = true)const;
 };
 
 USTRUCT()
@@ -707,6 +769,12 @@ struct FVMExternalFunctionBindingInfo
 
 	UPROPERTY()
 	TArray<FVMFunctionSpecifier> FunctionSpecifiers;
+
+	UPROPERTY()
+	TArray<FNiagaraVariableBase> VariadicInputs;
+
+	UPROPERTY()
+	TArray<FNiagaraVariableBase> VariadicOutputs;
 
 	FORCEINLINE int32 GetNumInputs() const { return InputParamLocations.Num(); }
 	FORCEINLINE int32 GetNumOutputs() const { return NumOutputs; }

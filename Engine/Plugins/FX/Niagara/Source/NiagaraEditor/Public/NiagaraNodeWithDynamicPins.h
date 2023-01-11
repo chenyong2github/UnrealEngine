@@ -34,6 +34,9 @@ public:
 	/** Helper to identify if a pin is an Add pin.*/
 	bool IsAddPin(const UEdGraphPin* Pin) const;
 
+	/** Helper to identify if a pin is an Add pin.*/
+	bool IsExecPin(const UEdGraphPin* Pin) const;
+
 	/** Determine whether or not a Niagara type is supported for an Add Pin possibility.*/
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const;
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const { return AllowNiagaraTypeForAddPin(InType); };
@@ -45,6 +48,9 @@ public:
 
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
+
+	/** Will remove any dynamic pins. */
+	void RemoveAllDynamicPins();
 
 protected:
 	virtual bool AllowDynamicPins() const { return true; }
@@ -69,6 +75,9 @@ protected:
 
 	/** Called to determine if a pin can be removed by the user. */
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const;
+
+	/** Called to determine if this node can modify pins that existed on node creation and were not added dynamically. If true, the only pin that cannot be modified is the Add pin. */
+	virtual bool CanModifyExistingPins() const { return true; }
 
 	/** Called to determine if a pin can be moved by the user. Negative values for up, positive for down. */
 	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const;
@@ -100,4 +109,8 @@ private:
 public:
 	/** The sub category for add pins. */
 	static const FName AddPinSubCategory;
+
+	/** Track dynamic pins so that we only allow removing of dynamic pins. */
+	UPROPERTY()
+	TArray<FGuid> DynamicPins;
 };

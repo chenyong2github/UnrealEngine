@@ -45,6 +45,7 @@ public:
 	virtual void AllocateDefaultPins() override;
 
 	//~ UNiagaraNodeFunctionCall interface
+	virtual bool AllowDynamicPins() const override { return true; }
 	virtual bool RefreshFromExternalChanges() override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;

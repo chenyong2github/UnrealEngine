@@ -58,6 +58,8 @@ void UNiagaraNodeWithDynamicPins::PinConnectionListChanged(UEdGraphPin* Pin)
 		Pin->PinName = NewPinName;
 		Pin->PinFriendlyName = NewPinFriendlyName;
 
+		DynamicPins.Add(Pin->PinId);
+
 		CreateAddPin(Pin->Direction);
 		OnNewTypedPinAdded(Pin);
 		MarkNodeRequiresSynchronization(__FUNCTION__, true);
@@ -115,6 +117,8 @@ UEdGraphPin* UNiagaraNodeWithDynamicPins::RequestNewTypedPin(EEdGraphPinDirectio
 	AddPin->Modify();
 	AddPin->PinType = Schema->TypeDefinitionToPinType(Type);
 	AddPin->PinName = InName;
+	
+	DynamicPins.Add(AddPin->PinId);
 
 	CreateAddPin(Direction);
 	// we pass the pointer in as reference in case we want to reallocate so the overriding node has a chance to restore the pointer
@@ -143,19 +147,33 @@ bool UNiagaraNodeWithDynamicPins::IsAddPin(const UEdGraphPin* Pin) const
 		Pin->PinType.PinSubCategory == AddPinSubCategory;
 }
 
+bool UNiagaraNodeWithDynamicPins::IsExecPin(const UEdGraphPin* Pin) const
+{
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	return Pin->PinType == Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()) && Pin->PinName == TEXT("");
+}
+
 bool UNiagaraNodeWithDynamicPins::CanRenamePin(const UEdGraphPin* Pin) const
 {
-	return IsAddPin(Pin) == false;
+	if (CanModifyExistingPins() == false )
+	{
+		return DynamicPins.Contains(Pin->PinId);
+	}
+	return IsAddPin(Pin) == false || IsExecPin(Pin);
 }
 
 bool UNiagaraNodeWithDynamicPins::CanRemovePin(const UEdGraphPin* Pin) const
 {
-	return IsAddPin(Pin) == false;
+	if (CanModifyExistingPins() == false)
+	{
+		return DynamicPins.Contains(Pin->PinId);
+	}
+	return IsAddPin(Pin) == false || IsExecPin(Pin);
 }
 
 bool UNiagaraNodeWithDynamicPins::CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const
 {
-	if(IsAddPin(Pin) || IsParameterMapPin(Pin) || Pin->bOrphanedPin)
+	if(IsAddPin(Pin) || IsExecPin(Pin) || IsParameterMapPin(Pin) || Pin->bOrphanedPin || (CanModifyExistingPins() == false && DynamicPins.Contains(Pin->PinId) == false))
 	{
 		return false;
 	}
@@ -174,7 +192,7 @@ bool UNiagaraNodeWithDynamicPins::CanMovePin(const UEdGraphPin* Pin, int32 Direc
 	if(PinArray.IsValidIndex(Index + DirectionToMove))
 	{
 		const UEdGraphPin* PinToMoveTo = PinArray[Index + DirectionToMove];
-		if(IsAddPin(PinToMoveTo) || IsParameterMapPin(PinToMoveTo) || PinToMoveTo->bOrphanedPin)
+		if(IsAddPin(PinToMoveTo) || IsParameterMapPin(PinToMoveTo) || PinToMoveTo->bOrphanedPin || (CanModifyExistingPins() == false && DynamicPins.Contains(PinToMoveTo->PinId) == false))
 		{
 			return false;
 		}
@@ -452,6 +470,7 @@ void UNiagaraNodeWithDynamicPins::AddExistingParameter(FNiagaraVariable Paramete
 
 void UNiagaraNodeWithDynamicPins::RemoveDynamicPin(UEdGraphPin* Pin)
 {
+	DynamicPins.Remove(Pin->PinId);
 	RemovePin(Pin);
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 }
@@ -490,6 +509,24 @@ void UNiagaraNodeWithDynamicPins::MoveDynamicPinFromMenu(UEdGraphPin* Pin, int32
 {
 	FScopedTransaction MovePinTransaction(LOCTEXT("MovePinTransaction", "Moved pin"));
 	MoveDynamicPin(Pin, DirectionToMove);
+}
+
+void UNiagaraNodeWithDynamicPins::RemoveAllDynamicPins()
+{
+	FScopedTransaction RemovePinTransaction(LOCTEXT("RemoveAllDynamicPinsTransaction", "Remove all dynamic pins"));
+	while(DynamicPins.Num() > 0)
+	{
+		FGuid& PinToRemoveGuid = DynamicPins.Last();
+		if(UEdGraphPin** Pin = Pins.FindByPredicate([&](UEdGraphPin* Pin){ return Pin->PinId == PinToRemoveGuid;}))
+		{
+			RemoveDynamicPin(*Pin);
+		}
+		else
+		{
+			checkf(0, TEXT("Dynamic pin could not be found."));
+			break;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -27,6 +27,7 @@
 #include "Misc/Optional.h"
 #include "NiagaraCompileHash.h"
 #include "NiagaraDataInterfaceBase.h"
+#include "NiagaraCore.h"
 #include "NiagaraShared.generated.h"
 
 class FNiagaraShaderScript;
@@ -155,6 +156,11 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGeneratedFunction
 	using FunctionSpecifier = TTuple<FName, FName>;
 	TArray<FunctionSpecifier> Specifiers;
 
+	UPROPERTY()
+	TArray<FNiagaraVariableCommonReference> VariadicInputs;
+	UPROPERTY()
+	TArray<FNiagaraVariableCommonReference> VariadicOutputs;
+
 	const FName* FindSpecifierValue(const FName& Name) const
 	{
 		for (const TTuple<FName, FName>& Specifier : Specifiers)
@@ -181,6 +187,12 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGeneratedFunction
 			if (Specifiers[i] != Other.Specifiers[i])
 				return false;
 		}
+
+		if(VariadicInputs != Other.VariadicInputs)
+			return false;
+		if(VariadicOutputs != Other.VariadicOutputs)
+			return false;
+
 		return true;
 	}
 
@@ -897,6 +909,8 @@ public:
 	FORCEINLINE int32 GetNumPermutations_RenderThread() const { check(IsInRenderingThread()); return CachedData_RenderThread.NumPermutations; }
 	FORCEINLINE bool IsExternalConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bExternalConstantBufferUsed & (1 << Index)) != 0; }
 	FORCEINLINE bool IsViewUniformBufferUsed_RenderThread() const { return CachedData_RenderThread.bViewUniformBufferUsed != 0; }
+
+	FNiagaraCompileHash GetBaseCompileHash()const { return BaseCompileHash; }
 
 protected:
 #if WITH_EDITOR

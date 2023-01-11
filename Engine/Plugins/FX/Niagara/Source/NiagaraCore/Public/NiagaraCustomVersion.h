@@ -182,6 +182,8 @@ struct FNiagaraCustomVersion
 
 		EventSpawnsUpdateInitialAttributeValues, // Event spawns now optionally update Initial. attribute values. New default is true but old data is kept false to maintain existing behavior.
 
+		AddVariadicParametersToGPUFunctionInfo, // Adds list of variadic parameters to the information about GPU functions.
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,

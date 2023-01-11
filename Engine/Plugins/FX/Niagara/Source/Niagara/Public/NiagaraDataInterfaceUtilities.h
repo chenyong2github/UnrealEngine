@@ -51,3 +51,34 @@ namespace FNiagaraDataInterfaceUtilities
 	// The action should return True to continue iteration or False to stop
 	NIAGARA_API void ForEachDataInterface(UNiagaraSystem* NiagaraSystem, TFunction<bool(const FDataInterfaceUsageContext&)> Action);
 }
+
+#if WITH_EDITOR
+
+/** Helper context object helping to facilitate data interfaces building their hlsl shader code for GPU simulations. */
+struct FNiagaraDataInterfaceHlslGenerationContext
+{
+	DECLARE_DELEGATE_RetVal_OneParam(FString, FGetStructHlslTypeName, const FNiagaraTypeDefinition& /*Type*/)
+	DECLARE_DELEGATE_RetVal_OneParam(FString, FGetPropertyHlslTypeName, const FProperty* /*Property*/)
+	DECLARE_DELEGATE_RetVal_TwoParams(FString, FGetSanitizedSymbolName, FStringView /*SymbolName*/, bool /*bCollapsNamespaces*/)
+
+	FNiagaraDataInterfaceHlslGenerationContext(const FNiagaraDataInterfaceGPUParamInfo& InParameterInfo, TArrayView<const FNiagaraFunctionSignature> InSignatures)
+		: ParameterInfo(InParameterInfo), Signatures(InSignatures)
+	{
+	}
+
+	const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo;
+	TArrayView<const FNiagaraFunctionSignature> Signatures;
+	int32 FunctionInstanceIndex = INDEX_NONE;
+
+	FGetStructHlslTypeName GetStructHlslTypeNameDelegate;
+	FGetPropertyHlslTypeName GetPropertyHlslTypeNameDelegate;
+	FGetSanitizedSymbolName GetSanitizedSymbolNameDelegate;
+
+	const FNiagaraDataInterfaceGeneratedFunction& GetFunctionInfo() const { return ParameterInfo.GeneratedFunctions[FunctionInstanceIndex]; }
+
+	FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type) { return GetStructHlslTypeNameDelegate.Execute(Type); }
+	FString GetPropertyHlslTypeName(const FProperty* Property) { return GetPropertyHlslTypeNameDelegate.Execute(Property); }
+	FString GetSanitizedSymbolName(FStringView SymbolName, bool bCollapsNamespaces = false) { return GetSanitizedSymbolNameDelegate.Execute(SymbolName, bCollapsNamespaces); }
+};
+
+#endif

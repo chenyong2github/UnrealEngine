@@ -6,6 +6,7 @@
 #include "NiagaraNodeParameterMapSet.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraScriptVariable.h"
 #include "Widgets/SWidget.h"
@@ -658,5 +659,23 @@ EVisibility FNiagaraParameterDragOperation::IsTextVisible() const
 	return CurrentHoverText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-#undef LOCTEXT_NAMESPACE
+//////////////////////////////////////////////////////////////////////////
 
+TMap<FName, TUniquePtr<INiagaraDataInterfaceNodeActionProvider>> INiagaraDataInterfaceNodeActionProvider::RegisteredActionProviders;
+
+void INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(UClass* DIClass, UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature)
+{
+	if(ensure(DIClass))
+	{
+		while(DIClass && DIClass != UObject::StaticClass())
+		{
+			if (TUniquePtr<INiagaraDataInterfaceNodeActionProvider>* Provider = RegisteredActionProviders.Find(DIClass->GetFName()))
+			{
+				(*Provider)->GetNodeContextMenuActionsImpl(Menu, Context, Signature);
+			}
+			DIClass = DIClass->GetSuperClass();
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
