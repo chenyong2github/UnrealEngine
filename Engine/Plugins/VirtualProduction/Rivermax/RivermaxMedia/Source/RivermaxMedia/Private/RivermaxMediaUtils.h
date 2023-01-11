@@ -10,8 +10,17 @@
 
 namespace UE::RivermaxMediaUtils::Private
 {
+	struct FSourceBufferDesc
+	{
+		uint32 PixelGroupCount = 0;
+		uint32 BytesPerElement = 0;
+		uint32 ElementsPerRow = 0;
+		uint32 BytesPerRow = 0;
+		uint32 NumberOfElements = 0;
+	};
 
-UE::RivermaxCore::ESamplingType MediaOutputPixelFormatToRivermaxSamplingType(ERivermaxMediaOutputPixelFormat InPixelFormat);
-UE::RivermaxCore::ESamplingType MediaSourcePixelFormatToRivermaxSamplingType(ERivermaxMediaSourcePixelFormat InPixelFormat);
+	UE::RivermaxCore::ESamplingType MediaOutputPixelFormatToRivermaxSamplingType(ERivermaxMediaOutputPixelFormat InPixelFormat);
+	UE::RivermaxCore::ESamplingType MediaSourcePixelFormatToRivermaxSamplingType(ERivermaxMediaSourcePixelFormat InPixelFormat);
+	FSourceBufferDesc GetBufferDescription(const FIntPoint& Resolution, ERivermaxMediaSourcePixelFormat InPixelFormat);
 
 }

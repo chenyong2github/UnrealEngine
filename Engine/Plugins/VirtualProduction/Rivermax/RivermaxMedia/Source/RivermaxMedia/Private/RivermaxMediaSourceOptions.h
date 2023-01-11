@@ -12,4 +12,5 @@ namespace RivermaxMediaOption
 	static const FName Port("Port");
 	static const FName PixelFormat("PixelFormat");
 	static const FName SRGBInput("SRGBInput");
+	static const FName UseGPUDirect("UseGPUDirect");
 }

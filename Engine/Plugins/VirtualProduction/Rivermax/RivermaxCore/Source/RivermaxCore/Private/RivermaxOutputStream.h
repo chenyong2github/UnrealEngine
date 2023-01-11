@@ -19,7 +19,7 @@ namespace UE::RivermaxCore::Private
 	using UE::RivermaxCore::FRivermaxOutputVideoFrameInfo;
 	
 	// Todo make a proper RTP header struct
-	struct FRTPHeader
+	struct FOutputRTPHeader
 	{
 		uint8 RawHeader[20];
 	};
@@ -48,7 +48,7 @@ namespace UE::RivermaxCore::Private
 		TArray<rmax_mem_block> MemoryBlocks;
 		TArray<uint16_t> PayloadSizes; //Array describing stride payload size
 		TArray<uint16_t> HeaderSizes; //Array describing header payload size
-		TArray<FRTPHeader> RTPHeaders;
+		TArray<FOutputRTPHeader> RTPHeaders;
 
 		rmax_buffer_attr BufferAttributes;
 	};
@@ -117,7 +117,7 @@ namespace UE::RivermaxCore::Private
 		void InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame);
 		TSharedPtr<FRivermaxOutputFrame> GetNextFrameToSend();
 		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
-		void BuildRTPHeader(FRTPHeader& OutHeader) const;
+		void BuildRTPHeader(FOutputRTPHeader& OutHeader) const;
 		void DestroyStream();
 		void WaitForNextRound();
 		void GetNextChunk();
@@ -204,6 +204,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Queued identifiers to be consumed by cuda callback when work has been completed */
 		TSpscQueue<uint32> PendingIdentifiers;
+
+		/** Cuda stream used for our operations */
+		void* GPUStream = nullptr;
 	};
 }
 

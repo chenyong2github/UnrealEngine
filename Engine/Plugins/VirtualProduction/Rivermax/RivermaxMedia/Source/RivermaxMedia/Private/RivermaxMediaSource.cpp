@@ -16,6 +16,10 @@ bool URivermaxMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) c
 	{
 		return bIsSRGBInput;
 	}
+	if (Key == RivermaxMediaOption::UseGPUDirect)
+	{
+		return bUseGPUDirect;
+	}
 	return Super::GetMediaOption(Key, DefaultValue);
 }
 
@@ -72,6 +76,7 @@ bool URivermaxMediaSource::HasMediaOption(const FName& Key) const
 		(Key == RivermaxMediaOption::Port) ||
 		(Key == RivermaxMediaOption::PixelFormat) ||
 		(Key == RivermaxMediaOption::SRGBInput) ||
+		(Key == RivermaxMediaOption::UseGPUDirect) ||
 		(Key == FMediaIOCoreMediaOption::FrameRateNumerator) ||
 		(Key == FMediaIOCoreMediaOption::FrameRateDenominator) ||
 		(Key == FMediaIOCoreMediaOption::ResolutionWidth) ||

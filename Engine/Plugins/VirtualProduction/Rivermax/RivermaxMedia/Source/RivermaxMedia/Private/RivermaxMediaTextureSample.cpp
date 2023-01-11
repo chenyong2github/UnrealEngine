@@ -2,7 +2,9 @@
 
 #include "RivermaxMediaTextureSample.h"
 
+#include "RenderGraphUtils.h"
 #include "RivermaxMediaTextureSampleConverter.h"
+#include "RivermaxMediaUtils.h"
 
 FRivermaxMediaTextureSample::FRivermaxMediaTextureSample()
 	: TextureConverter(MakeUnique<FRivermaxMediaTextureSampleConverter>())
@@ -59,5 +61,32 @@ bool FRivermaxMediaTextureSample::ConfigureSample(uint32 InWidth, uint32 InHeigh
 
 	TextureConverter->Setup(InSampleFormat, AsShared(), bInIsSRGBInput);
 	return Super::SetProperties(InStride, InWidth, InHeight, VideoSampleFormat, InTime, InFrameRate, InTimecode, bInIsSRGBInput);
+}
+
+TRefCountPtr<FRDGPooledBuffer> FRivermaxMediaTextureSample::GetGPUBuffer() const
+{
+	return GPUBuffer;
+}
+
+void FRivermaxMediaTextureSample::InitializeGPUBuffer(const FIntPoint& InResolution, ERivermaxMediaSourcePixelFormat InSampleFormat)
+{
+	using namespace UE::RivermaxMediaUtils::Private;
+
+	const FSourceBufferDesc BufferDescription = GetBufferDescription(InResolution, InSampleFormat);
+
+	FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateStructuredDesc(BufferDescription.BytesPerElement, BufferDescription.NumberOfElements);
+	
+	// Required to share resource across different graphics API (DX, Cuda)
+	RDGBufferDesc.Usage |= EBufferUsageFlags::Shared;
+
+	TWeakPtr<FRivermaxMediaTextureSample> WeakSample = AsShared();
+	ENQUEUE_RENDER_COMMAND(RivermaxPlayerBufferCreation)(
+	[WeakSample, RDGBufferDesc](FRHICommandListImmediate& CommandList)
+	{
+		if (TSharedPtr<FRivermaxMediaTextureSample> Sample = WeakSample.Pin())
+		{
+			Sample->GPUBuffer = AllocatePooledBuffer(RDGBufferDesc, TEXT("RmaxInput Buffer"));
+		}
+	});
 }
 

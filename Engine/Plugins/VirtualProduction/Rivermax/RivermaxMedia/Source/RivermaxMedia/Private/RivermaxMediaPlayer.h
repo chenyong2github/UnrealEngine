@@ -65,6 +65,7 @@ namespace  UE::RivermaxMedia
 		virtual void OnInitializationCompleted(bool bHasSucceed) override;
 		virtual bool OnVideoFrameRequested(const FRivermaxInputVideoFrameDescriptor& FrameInfo, FRivermaxInputVideoFrameRequest& OutVideoFrameRequest) override;
 		virtual void OnVideoFrameReceived(const FRivermaxInputVideoFrameDescriptor& FrameInfo, const FRivermaxInputVideoFrameReception& ReceivedVideoFrame) override;
+		virtual void OnStreamError() override;
 		//~ End IRivermaxInputStreamListener interface
 
 	protected:
@@ -83,6 +84,7 @@ namespace  UE::RivermaxMedia
 
 	private:
 		bool ConfigureStream(const IMediaOptions* Options);
+		void AllocateBuffers();
 
 	private:
 

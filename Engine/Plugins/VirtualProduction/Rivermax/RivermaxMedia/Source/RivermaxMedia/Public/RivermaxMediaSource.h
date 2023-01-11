@@ -56,6 +56,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Video")
 	bool bIsSRGBInput = false;
 
+	/** Whether to use GPUDirect if available (Memcopy from NIC to GPU directly bypassing system memory) if available */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Video")
+	bool bUseGPUDirect = true;
+
+
 public:
 	//~ Begin IMediaOptions interface
 	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;

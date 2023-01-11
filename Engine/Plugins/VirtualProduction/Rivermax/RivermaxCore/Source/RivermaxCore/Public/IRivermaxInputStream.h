@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class FRHIBuffer;
+
 namespace UE::RivermaxCore
 {
 	struct FRivermaxStreamOptions;
@@ -14,11 +16,16 @@ namespace UE::RivermaxCore
 		uint32 Width = 0;
 		uint32 Stride = 0;
 		uint32 VideoBufferSize = 0;
+		bool bIsUsingGPUDirect = false;
 	};
 
 	struct RIVERMAXCORE_API FRivermaxInputVideoFrameRequest
 	{
+		/** Buffer pointer in RAM where to write incoming frame */
 		uint8* VideoBuffer = nullptr;
+		
+		/** Buffer pointer in GPU to be mapped to cuda and where to write incoming frame */
+		FRHIBuffer* GPUBuffer = nullptr;
 	};
 
 	struct RIVERMAXCORE_API FRivermaxInputVideoFrameReception
@@ -37,6 +44,9 @@ namespace UE::RivermaxCore
 		
 		/** Called when a frame has been received */
 		virtual void OnVideoFrameReceived(const FRivermaxInputVideoFrameDescriptor& FrameInfo, const FRivermaxInputVideoFrameReception& ReceivedVideoFrame) = 0;
+
+		/** Called when stream has encountered an error and has to stop */
+		virtual void OnStreamError() = 0;
 	};
 
 	class RIVERMAXCORE_API IRivermaxInputStream

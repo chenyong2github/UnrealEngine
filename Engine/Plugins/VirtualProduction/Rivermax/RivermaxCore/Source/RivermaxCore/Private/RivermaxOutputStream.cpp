@@ -183,7 +183,12 @@ namespace UE::RivermaxCore::Private
 						StreamData.FrameFieldTimeIntervalNs = 1E9 / Options.FrameRate.AsDecimal();
 						InitializeStreamTimingSettings();
 
-						UE_LOG(LogRivermax, Display, TEXT("Output started to send %dx%d using %d payloads of size %d"), Options.AlignedResolution.X, Options.AlignedResolution.Y, StreamMemory.PacketsInLine, StreamMemory.PayloadSize);
+						UE_LOG(LogRivermax, Display, TEXT("Output started to send %dx%d using %d payloads of size %d%s")
+						, Options.AlignedResolution.X
+						, Options.AlignedResolution.Y
+						, StreamMemory.PacketsInLine
+						, StreamMemory.PayloadSize
+						, bUseGPUDirect ? TEXT(" using GPUDirect") : TEXT(""));
 
 						bIsActive = true;
 						RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
@@ -277,10 +282,17 @@ namespace UE::RivermaxCore::Private
 			{
 				return;
 			}
+			
+			// Add markup when we start pushing out a frame with its timestamp to track it across network
+			if (StreamData.bHasFrameFirstChunkBeenFetched == false)
+			{
+				const uint32 MediaTimestamp = GetTimestampFromTime(StreamData.NextAlignmentPointNanosec, MediaClockSampleRate);
+				const FString TraceName = FString::Format(TEXT("RmaxOutput::StartSending {0}"), { MediaTimestamp });
+				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+			}
 
-			const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::SendFrame {0}"), { CurrentFrame->FrameIndex });
+			const FString TraceName = FString::Format(TEXT("RmaxOutput::SendFrame {0}"), { CurrentFrame->FrameIndex });
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-
 			do 
 			{
 				if (bIsActive)
@@ -474,7 +486,7 @@ namespace UE::RivermaxCore::Private
 		return NextFrame;
 	}
 
-	void FRivermaxOutputStream::BuildRTPHeader(FRTPHeader& OutHeader) const
+	void FRivermaxOutputStream::BuildRTPHeader(FOutputRTPHeader& OutHeader) const
 	{
 		// build RTP header - 12 bytes
 		/*
@@ -722,7 +734,7 @@ namespace UE::RivermaxCore::Private
 		for (uint32 StrideIndex = 0; StrideIndex < StreamMemory.ChunkSizeInStrides && CurrentFrame->PacketCounter < StreamMemory.PacketsPerFrame; ++StrideIndex)
 		{
 			uint8* NextHeaderRawPtr = HeaderRawPtr + (StrideIndex * StreamMemory.HeaderStrideSize);
-			BuildRTPHeader(*reinterpret_cast<FRTPHeader*>(NextHeaderRawPtr));
+			BuildRTPHeader(*reinterpret_cast<FOutputRTPHeader*>(NextHeaderRawPtr));
 			//todo only for video
 			if (!((StrideIndex + 1) % StreamMemory.PacketsInLine))
 			{
@@ -990,7 +1002,7 @@ namespace UE::RivermaxCore::Private
 			}
 
 			const CUdeviceptr CudaMemoryPointer = reinterpret_cast<CUdeviceptr>(MappedPointer);
-			Result = CudaModule.DriverAPI()->cuMemcpyDtoD(reinterpret_cast<CUdeviceptr>(AvailableFrame->VideoBuffer), CudaMemoryPointer, Options.AlignedResolution.Y * Stride);
+			Result = CudaModule.DriverAPI()->cuMemcpyDtoDAsync(reinterpret_cast<CUdeviceptr>(AvailableFrame->VideoBuffer), CudaMemoryPointer, Options.AlignedResolution.Y * Stride, reinterpret_cast<CUstream>(GPUStream));
 			if (Result != CUDA_SUCCESS)
 			{
 				UE_LOG(LogRivermax, Error, TEXT("Failed to copy captured bufer to cuda memory. Stopping capture. Error: %d"), Result);
@@ -1002,7 +1014,7 @@ namespace UE::RivermaxCore::Private
 			// Callback called by Cuda when stream work has completed on cuda engine (MemCpy -> Callback)
 			// Once Memcpy has been done, we know we can mark that memory as available to be sent. 
 			
-			auto CudaCallback = [](CUstream hStream, CUresult status, void* userData)
+			auto CudaCallback = [](void* userData)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(CudaWorkDoneCallback);
 
@@ -1033,7 +1045,7 @@ namespace UE::RivermaxCore::Private
 			PendingIdentifiers.Enqueue(AvailableFrame->FrameIdentifier);
 
 			// Schedule a callback to make the frame available
-			CudaModule.DriverAPI()->cuStreamAddCallback(0, CudaCallback, this, 0);
+			CudaModule.DriverAPI()->cuLaunchHostFunc(reinterpret_cast<CUstream>(GPUStream), CudaCallback, this);
 			
 			FCUDAModule::CUDA().cuCtxPopCurrent(nullptr);
 
@@ -1157,6 +1169,16 @@ namespace UE::RivermaxCore::Private
 			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to configure memory access. Status: %d"), Status);
 			return false;
 		}
+
+		CUstream CudaStream;
+		Status = CudaModule.DriverAPI()->cuStreamCreate(&CudaStream, CU_STREAM_NON_BLOCKING);
+		if (Status != CUDA_SUCCESS)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to create its stream. Status: %d"), Status);
+			return false;
+		}
+
+		GPUStream = CudaStream;
 		
 		Status = CudaModule.DriverAPI()->cuCtxSynchronize();
 		if (Status != CUDA_SUCCESS)
@@ -1208,6 +1230,13 @@ namespace UE::RivermaxCore::Private
 				}
 			}
 			BufferCudaMemoryMap.Empty();
+
+			Status = CudaModule.DriverAPI()->cuStreamDestroy(reinterpret_cast<CUstream>(GPUStream));
+			if (Status != CUDA_SUCCESS)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Failed to destroy cuda stream. Status: %d"), Status);
+			}
+			GPUStream = nullptr;
 
 			CudaModule.DriverAPI()->cuCtxPopCurrent(nullptr);
 		}

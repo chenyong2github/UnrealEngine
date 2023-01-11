@@ -2,6 +2,8 @@
 
 #include "RivermaxMediaUtils.h"
 
+#include "RivermaxShaders.h"
+
 namespace UE::RivermaxMediaUtils::Private
 {
 	UE::RivermaxCore::ESamplingType MediaOutputPixelFormatToRivermaxSamplingType(ERivermaxMediaOutputPixelFormat InPixelFormat)
@@ -79,4 +81,67 @@ namespace UE::RivermaxMediaUtils::Private
 		}
 		}
 	}
+
+	FSourceBufferDesc GetBufferDescription(const FIntPoint& InResolution, ERivermaxMediaSourcePixelFormat InPixelFormat)
+	{
+		using namespace UE::RivermaxCore;
+		using namespace UE::RivermaxShaders;
+
+		FSourceBufferDesc Description;
+
+		const ESamplingType SamplingType = MediaSourcePixelFormatToRivermaxSamplingType(InPixelFormat);
+		const FVideoFormatInfo Info = FStandardVideoFormat::GetVideoFormatInfo(SamplingType);
+
+		// Compute horizontal byte count (stride) of resolution
+		const uint32 PixelAlignment = Info.PixelGroupCoverage;
+		Description.PixelGroupCount = PixelAlignment > 0 ? InResolution.X / PixelAlignment : 0;
+		Description.BytesPerRow = Description.PixelGroupCount * Info.PixelGroupSize;
+
+		switch (SamplingType)
+		{
+		case ESamplingType::YUV422_8bit:
+		{
+			Description.BytesPerElement = sizeof(FRGBToYUV8Bit422CS::FYUV8Bit422Buffer);
+			break;
+		}
+		case ESamplingType::YUV422_10bit:
+		{
+			Description.BytesPerElement = sizeof(FRGBToYUV10Bit422LittleEndianCS::FYUV10Bit422LEBuffer);
+			break;
+		}
+		case ESamplingType::RGB_8bit:
+		{
+			Description.BytesPerElement = sizeof(FRGBToRGB8BitCS::FRGB8BitBuffer);
+			break;
+		}
+		case ESamplingType::RGB_10bit:
+		{
+			Description.BytesPerElement = sizeof(FRGB10BitToRGBA10CS::FRGB10BitBuffer);
+			break;
+		}
+		case ESamplingType::RGB_12bit:
+		{
+			Description.BytesPerElement = sizeof(FRGBToRGB12BitCS::FRGB12BitBuffer);
+			break;
+		}
+		case ESamplingType::RGB_16bitFloat:
+		{
+			Description.BytesPerElement = sizeof(FRGBToRGB16fCS::FRGB16fBuffer);
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); 
+			return Description;
+		}
+		}
+
+		// Shader encoding might not align with pixel group size so we need to have enough elements to represent the last pixel group
+		Description.ElementsPerRow = Description.BytesPerRow / Description.BytesPerElement;
+		Description.ElementsPerRow += Description.BytesPerRow % Description.BytesPerElement != 0 ? 1 : 0;
+		Description.NumberOfElements = Description.ElementsPerRow * InResolution.Y;
+		
+		return Description;
+	}
+
 }

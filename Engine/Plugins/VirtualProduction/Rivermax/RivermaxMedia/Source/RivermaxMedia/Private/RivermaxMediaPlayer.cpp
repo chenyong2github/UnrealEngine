@@ -9,6 +9,7 @@
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
 #include "Misc/ScopeLock.h"
+#include "RenderCommandFence.h"
 #include "RivermaxMediaLog.h"
 #include "RivermaxMediaOutput.h"
 #include "RivermaxMediaSourceOptions.h"
@@ -88,7 +89,7 @@ namespace UE::RivermaxMedia
 		}
 		if (InputStream == nullptr || !InputStream->Initialize(StreamOptions, *this))
 		{
-			UE_LOG(LogRivermaxMedia, Warning, TEXT("The Rivermax port couldn't be opened."));
+			UE_LOG(LogRivermaxMedia, Warning, TEXT("Failed to initialize Rivermax input stream."));
 			CurrentState = EMediaState::Error;
 			RivermaxThreadNewState = EMediaState::Error;
 			InputStream.Reset();
@@ -97,6 +98,8 @@ namespace UE::RivermaxMedia
 
 		// Setup our different supported channels based on source settings
 		SetupSampleChannels();
+
+		AllocateBuffers();
 
 		// finalize
 		CurrentState = EMediaState::Preparing;
@@ -165,11 +168,36 @@ namespace UE::RivermaxMedia
 
 	bool FRivermaxMediaPlayer::OnVideoFrameRequested(const FRivermaxInputVideoFrameDescriptor& FrameInfo, FRivermaxInputVideoFrameRequest& OutVideoFrameRequest)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxMediaPlayer::OnVideoFrameRequested)
+
+		if (RivermaxThreadNewState != EMediaState::Playing)
+		{
+			return false;
+		}
+
 		if (FrameInfo.VideoBufferSize > 0)
 		{
-			RivermaxThreadCurrentTextureSample = TextureSamplePool->AcquireShared();
-			OutVideoFrameRequest.VideoBuffer = reinterpret_cast<uint8*>(RivermaxThreadCurrentTextureSample->RequestBuffer(FrameInfo.VideoBufferSize));
-			return OutVideoFrameRequest.VideoBuffer != nullptr;
+			if (FrameInfo.bIsUsingGPUDirect)
+			{
+				RivermaxThreadCurrentTextureSample = TextureSamplePool->AcquireShared();
+				if (RivermaxThreadCurrentTextureSample->GetGPUBuffer() == nullptr)
+				{
+					UE_LOG(LogRivermaxMedia, Verbose, TEXT("Video stream overrunning engine. Allocating a new frame."));
+					RivermaxThreadCurrentTextureSample->InitializeGPUBuffer(StreamOptions.AlignedResolution, DesiredPixelFormat);
+				}
+				else
+				{
+					OutVideoFrameRequest.GPUBuffer = RivermaxThreadCurrentTextureSample->GetGPUBuffer()->GetRHI();
+				}
+				
+				return OutVideoFrameRequest.GPUBuffer != nullptr;
+			}
+			else
+			{
+				RivermaxThreadCurrentTextureSample = TextureSamplePool->AcquireShared();
+				OutVideoFrameRequest.VideoBuffer = reinterpret_cast<uint8*>(RivermaxThreadCurrentTextureSample->RequestBuffer(FrameInfo.VideoBufferSize));
+				return OutVideoFrameRequest.VideoBuffer != nullptr;
+			}
 		}
 
 		return false;
@@ -178,6 +206,13 @@ namespace UE::RivermaxMedia
 
 	void FRivermaxMediaPlayer::OnVideoFrameReceived(const FRivermaxInputVideoFrameDescriptor& FrameInfo, const FRivermaxInputVideoFrameReception& ReceivedVideoFrame)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxMediaPlayer::OnVideoFrameReceived)
+
+		if (RivermaxThreadNewState != EMediaState::Playing)
+		{
+			return;
+		}
+
 		FTimespan DecodedTime = FTimespan::FromSeconds(GetPlatformSeconds());
 		TOptional<FTimecode> DecodedTimecode;
 
@@ -299,6 +334,7 @@ namespace UE::RivermaxMedia
 
 		StreamOptions.StreamAddress = Options->GetMediaOption(RivermaxMediaOption::StreamAddress, FString());
 		StreamOptions.Port = Options->GetMediaOption(RivermaxMediaOption::Port, (int64)0);
+		StreamOptions.bUseGPUDirect = Options->GetMediaOption(RivermaxMediaOption::UseGPUDirect, false);
 		StreamOptions.Resolution = VideoTrackFormat.Dim;
 		StreamOptions.FrameRate = VideoFrameRate;
 
@@ -311,6 +347,36 @@ namespace UE::RivermaxMedia
 		StreamOptions.AlignedResolution = FIntPoint(AlignedHorizontalResolution, StreamOptions.Resolution.Y);
 
 		return true;
+	}
+
+	void FRivermaxMediaPlayer::AllocateBuffers()
+	{
+		using namespace UE::RivermaxCore;
+
+		if (StreamOptions.bUseGPUDirect == false)
+		{
+			return;
+		}
+
+		TArray<TSharedPtr<FRivermaxMediaTextureSample>> TempSamples;
+		for (int32 Index = 0; Index < MaxNumVideoFrameBuffer; ++Index)
+		{
+			// Acquire a certain amount of buffer and initialize their gpu buffer to be ready when requested by rivermax stream
+			TSharedPtr<FRivermaxMediaTextureSample> NewSample = TextureSamplePool->AcquireShared();
+			NewSample->InitializeGPUBuffer(StreamOptions.AlignedResolution, DesiredPixelFormat);
+			TempSamples.Add(MoveTemp(NewSample));
+		}
+
+		// Allocation is done on render thread so let's make sure it's completed before pursuing
+		FRenderCommandFence RenderFence;
+		RenderFence.BeginFence();
+		RenderFence.Wait();		
+	}
+
+	void FRivermaxMediaPlayer::OnStreamError()
+	{
+		// If the stream ends up in error, stop the player
+		RivermaxThreadNewState = EMediaState::Error;
 	}
 
 }
