@@ -1008,6 +1008,20 @@ namespace EpicGames.UHT.Types
 				}
 			}
 		}
+
+		/// <summary>
+		/// Resolve all the super and base structures and classes
+		/// </summary>
+		public virtual void BindSuperAndBases()
+		{
+			if (_children != null)
+			{
+				foreach (UhtType child in _children)
+				{
+					child.BindSuperAndBases();
+				}
+			}
+		}
 		#endregion
 
 		#region FindType support

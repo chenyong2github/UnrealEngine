@@ -641,6 +641,14 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
+		public override void BindSuperAndBases()
+		{
+			BindSuper(SuperIdentifier, UhtFindOptions.Class);
+			BindBases(BaseIdentifiers, UhtFindOptions.Class);
+			base.BindSuperAndBases();
+		}
+
+		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
 			base.ResolveSuper(resolvePhase);
@@ -654,8 +662,15 @@ namespace EpicGames.UHT.Types
 			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(SuperIdentifier, UhtFindOptions.Class);
-					BindAndResolveBases(BaseIdentifiers, UhtFindOptions.Class);
+					UhtClass? superClass = SuperClass;
+					if (superClass != null)
+					{
+						superClass.Resolve(UhtResolvePhase.Bases);
+					}
+					foreach (UhtStruct baseStruct in Bases)
+					{
+						baseStruct.Resolve(UhtResolvePhase.Bases);
+					}
 
 					// Force the MatchedSerializers on for anything being exported
 					if (!ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
@@ -667,7 +682,6 @@ namespace EpicGames.UHT.Types
 					{
 						case UhtClassType.Class:
 							{
-								UhtClass? superClass = SuperClass;
 
 								// Merge the super class flags
 								if (superClass != null)
@@ -719,7 +733,6 @@ namespace EpicGames.UHT.Types
 
 						case UhtClassType.Interface:
 							{
-								UhtClass? superClass = SuperClass;
 								if (superClass != null)
 								{
 									ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit;

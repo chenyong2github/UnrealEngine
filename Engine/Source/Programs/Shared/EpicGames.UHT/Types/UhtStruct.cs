@@ -227,7 +227,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="superIdentifier">Token that represent the super</param>
 		/// <param name="findOptions">Find options to restrict types</param>
 		/// <exception cref="UhtException">Thrown if super can not be found</exception>
-		public void BindAndResolveSuper(UhtToken superIdentifier, UhtFindOptions findOptions)
+		public void BindSuper(UhtToken superIdentifier, UhtFindOptions findOptions)
 		{
 			if (superIdentifier)
 			{
@@ -238,7 +238,6 @@ namespace EpicGames.UHT.Types
 				}
 				HeaderFile.AddReferencedHeader(Super);
 				MetaData.Parent = Super.MetaData;
-				Super.Resolve(UhtResolvePhase.Bases);
 			}
 		}
 
@@ -248,7 +247,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="baseIdentifiers">Collection of bases</param>
 		/// <param name="findOptions">Options to restrict types being searched</param>
-		public void BindAndResolveBases(List<UhtToken[]>? baseIdentifiers, UhtFindOptions findOptions)
+		public void BindBases(List<UhtToken[]>? baseIdentifiers, UhtFindOptions findOptions)
 		{
 			if (baseIdentifiers != null)
 			{
@@ -264,7 +263,6 @@ namespace EpicGames.UHT.Types
 						}
 						_bases.Add(baseStruct);
 						HeaderFile.AddReferencedHeader(baseStruct);
-						baseStruct.Resolve(UhtResolvePhase.Bases);
 					}
 				}
 			}

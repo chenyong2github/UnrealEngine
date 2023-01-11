@@ -703,6 +703,14 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Resolution support
+
+		/// <inheritdoc/>
+		public override void BindSuperAndBases()
+		{
+			BindSuper(SuperIdentifier, UhtFindOptions.ScriptStruct);
+			base.BindSuperAndBases();
+		}
+
 		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
@@ -711,12 +719,12 @@ namespace EpicGames.UHT.Types
 			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(SuperIdentifier, UhtFindOptions.ScriptStruct);
 
 					// if we have a base struct, propagate inherited struct flags now
 					UhtScriptStruct? superScriptStruct = SuperScriptStruct;
 					if (superScriptStruct != null)
 					{
+						superScriptStruct.Resolve(UhtResolvePhase.Bases);
 						ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
 					}
 					break;
