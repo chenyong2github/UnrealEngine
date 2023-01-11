@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Views/ITypedTableView.h"
@@ -632,7 +633,7 @@ private:
 	void HandleHiddenColumnsChanged();
 
 	/** Refresh the scene outliner for when a colum was added or removed */
-	void RefreshColumns();
+	void RefreshColums();
 
 	/** Populates OutSearchStrings with the strings associated with TreeItem that should be used in searching */
 	void PopulateSearchStrings( const ISceneOutlinerTreeItem& TreeItem, OUT TArray< FString >& OutSearchStrings ) const;
