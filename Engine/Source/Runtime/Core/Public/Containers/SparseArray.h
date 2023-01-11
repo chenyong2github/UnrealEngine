@@ -1223,7 +1223,7 @@ struct FScriptSparseArrayLayout
 template <typename AllocatorType, typename InDerivedType>
 class TScriptSparseArray
 {
-	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptSparseArray, InDerivedType>::Result;
+	using DerivedType = typename TChooseClass<std::is_void_v<InDerivedType>, TScriptSparseArray, InDerivedType>::Result;
 
 public:
 	static FScriptSparseArrayLayout GetScriptLayout(int32 ElementSize, int32 ElementAlignment)

@@ -30,7 +30,7 @@ public:
 
 	void RegisterInstance(FNetworkPredictionID ID)
 	{
-		npCheckfSlow(!TIsVoidType<InputType>::Value, TEXT("ModelDef %s with null InputCmd type was registered for local input service."), ModelDef::GetName());
+		npCheckfSlow(!std::is_void_v<InputType>, TEXT("ModelDef %s with null InputCmd type was registered for local input service."), ModelDef::GetName());
 
 		TInstanceData<ModelDef>* InstanceData = DataStore->Instances.Find(ID);
 		npCheckSlow(InstanceData);

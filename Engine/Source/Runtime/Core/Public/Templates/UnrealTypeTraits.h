@@ -17,7 +17,6 @@
 #include "Templates/IsArithmetic.h"
 #include "Templates/IsEnum.h"
 #include "Templates/RemoveCV.h"
-#include "Traits/IsVoidType.h"
 #include "Templates/Models.h"
 
 #include "Templates/IsPODType.h"
@@ -161,7 +160,7 @@ template<typename T> struct TIsRValueReferenceType<T&&> { enum { Value = true  }
 template<typename T> 
 struct TIsFundamentalType 
 { 
-	enum { Value = TOr<TIsArithmetic<T>, TIsVoidType<T>>::Value };
+	enum { Value = TIsArithmetic<T>::Value || std::is_void_v<T> };
 };
 
 /**

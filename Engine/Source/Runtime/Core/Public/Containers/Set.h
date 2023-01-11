@@ -1782,7 +1782,7 @@ struct FScriptSetLayout
 template <typename Allocator, typename InDerivedType>
 class TScriptSet
 {
-	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptSet, InDerivedType>::Result;
+	using DerivedType = typename TChooseClass<std::is_void_v<InDerivedType>, TScriptSet, InDerivedType>::Result;
 
 public:
 	static FScriptSetLayout GetScriptLayout(int32 ElementSize, int32 ElementAlignment)

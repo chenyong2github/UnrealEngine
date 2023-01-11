@@ -29,10 +29,9 @@ struct TIsCompatibleRangeIndexType
 {
 	enum
 	{
-		Value = TOr<
-			TIsSame<IndexType, typename TRangeIndexType<RangeType>::Type>,
-			TIsVoidType<typename TRangeIndexType<RangeType>::Type>
-		>::Value
+		Value =
+			std::is_same_v<IndexType, typename TRangeIndexType<RangeType>::Type> ||
+			std::is_void_v<typename TRangeIndexType<RangeType>::Type>
 	};
 };
 

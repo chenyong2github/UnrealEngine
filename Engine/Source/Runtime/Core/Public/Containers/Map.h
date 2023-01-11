@@ -1627,7 +1627,7 @@ struct FScriptMapLayout
 template <typename AllocatorType, typename InDerivedType>
 class TScriptMap
 {
-	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptMap, InDerivedType>::Result;
+	using DerivedType = typename TChooseClass<std::is_void_v<InDerivedType>, TScriptMap, InDerivedType>::Result;
 
 public:
 	static FScriptMapLayout GetScriptLayout(int32 KeySize, int32 KeyAlignment, int32 ValueSize, int32 ValueAlignment)

@@ -180,7 +180,7 @@ public:
 	static void TraceUserState(const StateType* State, ETraceUserState StateTypeEnum)
 	{
 #if UE_NP_TRACE_USER_STATES_ENABLED
-		if (TIsVoidType<StateType>::Value)
+		if (std::is_void_v<StateType>)
 		{
 			return;
 		}

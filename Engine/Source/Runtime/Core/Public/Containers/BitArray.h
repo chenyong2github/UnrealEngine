@@ -17,7 +17,6 @@
 #include "Templates/Invoke.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
-#include "Traits/IsVoidType.h"
 
 class FPointerTableBase;
 class FSHA1;
@@ -2002,7 +2001,7 @@ using TConstDualEitherSetBitIterator = TConstDualSetBitIterator<Allocator, Other
 template <typename Allocator, typename InDerivedType>
 class TScriptBitArray
 {
-	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptBitArray, InDerivedType>::Result;
+	using DerivedType = typename TChooseClass<std::is_void_v<InDerivedType>, TScriptBitArray, InDerivedType>::Result;
 
 public:
 	/**

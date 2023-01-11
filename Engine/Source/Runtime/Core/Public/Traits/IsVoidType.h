@@ -2,11 +2,13 @@
 
 #pragma once
 
+template<typename T> struct TIsVoidTypeBase { enum { Value = false }; };
+template<> struct TIsVoidTypeBase<void> { enum { Value = true }; };
+template<> struct TIsVoidTypeBase<void const> { enum { Value = true }; };
+template<> struct TIsVoidTypeBase<void volatile> { enum { Value = true }; };
+template<> struct TIsVoidTypeBase<void const volatile> { enum { Value = true }; };
+
 /**
  * TIsVoidType
  */
-template<typename T> struct TIsVoidType { enum { Value = false }; };
-template<> struct TIsVoidType<void> { enum { Value = true }; };
-template<> struct TIsVoidType<void const> { enum { Value = true }; };
-template<> struct TIsVoidType<void volatile> { enum { Value = true }; };
-template<> struct TIsVoidType<void const volatile> { enum { Value = true }; };
+template<typename T> struct UE_DEPRECATED(5.2, "TIsVoidType has been deprecated, please use std::is_void instead.") TIsVoidType : TIsVoidTypeBase<T> {};

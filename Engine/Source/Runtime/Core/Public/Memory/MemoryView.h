@@ -15,7 +15,6 @@
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsContiguousContainer.h"
-#include "Traits/IsVoidType.h"
 
 #include <initializer_list>
 
@@ -29,7 +28,7 @@
 template <typename DataType>
 class TMemoryView
 {
-	static_assert(TIsVoidType<DataType>::Value, "DataType must be cv-qualified void");
+	static_assert(std::is_void_v<DataType>, "DataType must be cv-qualified void");
 
 	using ByteType = typename TChooseClass<TIsConst<DataType>::Value, const uint8, uint8>::Result;
 
