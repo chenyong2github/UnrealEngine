@@ -226,7 +226,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityLocalAnimMontage
 
 	/** The ability, if any, that instigated this montage */
 	UPROPERTY()
-	TObjectPtr<UGameplayAbility> AnimatingAbility;
+	TWeakObjectPtr<UGameplayAbility> AnimatingAbility;
 };
 
 
