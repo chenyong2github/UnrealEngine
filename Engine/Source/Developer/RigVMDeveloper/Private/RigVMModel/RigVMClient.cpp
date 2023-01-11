@@ -661,8 +661,10 @@ void FRigVMClient::DestroyObject(UObject* InObject)
 	}
 }
 
-void FRigVMClient::PatchModelsOnLoad()
+FRigVMClientPatchResult FRigVMClient::PatchModelsOnLoad()
 {
+	FRigVMClientPatchResult Result;
+	
 	TArray<URigVMGraph*> AllModels = GetAllModels(true, true);
 	TGuardValue<bool> ClientIgnoreModificationsGuard(bIgnoreModelNotifications, true);
 	for(URigVMGraph* Model : AllModels)
@@ -670,12 +672,15 @@ void FRigVMClient::PatchModelsOnLoad()
 		URigVMController* Controller = GetOrCreateController(Model);
 		TGuardValue<bool> GuardSuspendTemplateComputation(Controller->bSuspendTemplateComputation, true);
 		TGuardValue<bool> GuardIsTransacting(Controller->bIsTransacting, true);
-		Controller->PatchUnitNodesOnLoad();
-		Controller->PatchDispatchNodesOnLoad();
-		Controller->PatchBranchNodesOnLoad();
-		Controller->PatchIfSelectNodesOnLoad();
-		Controller->PatchArrayNodesOnLoad();
+		
+		Result.Merge(Controller->PatchUnitNodesOnLoad());
+		Result.Merge(Controller->PatchDispatchNodesOnLoad());
+		Result.Merge(Controller->PatchBranchNodesOnLoad());
+		Result.Merge(Controller->PatchIfSelectNodesOnLoad());
+		Result.Merge(Controller->PatchArrayNodesOnLoad());
 	}
+
+	return Result;
 }
 
 void FRigVMClient::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)

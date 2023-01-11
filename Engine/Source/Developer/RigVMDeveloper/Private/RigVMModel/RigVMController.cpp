@@ -70,6 +70,16 @@ FRigVMControllerCompileBracketScope::~FRigVMControllerCompileBracketScope()
 	Graph->Notify(ERigVMGraphNotifType::InteractionBracketClosed, nullptr);
 }
 
+void FRigVMClientPatchResult::Merge(const FRigVMClientPatchResult& InOther)
+{
+	bSucceeded = Succeeded() && InOther.Succeeded();
+	bChangedContent = ChangedContent() || InOther.ChangedContent();
+	bRequiresToMarkPackageDirty = RequiresToMarkPackageDirty() || InOther.RequiresToMarkPackageDirty();
+	ErrorMessages.Append(InOther.GetErrorMessages());
+	RemovedNodes.Append(InOther.GetRemovedNodes());
+	AddedNodes.Append(InOther.GetAddedNodes());
+}
+
 URigVMController::URigVMController()
 	: bValidatePinDefaults(true)
 	, bSuspendRecomputingOuterTemplateFilters(false)
@@ -19383,8 +19393,10 @@ FRigVMTemplate::FTypeMap URigVMController::GetCommonlyUsedTypesForTemplate(
 	return Template->GetArgumentTypesFromString(TypesString);
 }
 
-void URigVMController::PatchUnitNodesOnLoad()
+FRigVMClientPatchResult URigVMController::PatchUnitNodesOnLoad()
 {
+	FRigVMClientPatchResult Result;
+	
 	if (const URigVMGraph* Graph = GetGraph())
 	{
 		TArray<URigVMUnitNode*> UnitNodesToTurnToDispatches;
@@ -19426,6 +19438,9 @@ void URigVMController::PatchUnitNodesOnLoad()
 
 			const FRigVMTemplate* Template = UnitNode->GetTemplate();
 
+			Result.RemovedNodes.Add(UnitNode->GetPathName());
+			Result.bChangedContent = true;
+
 			RemoveNode(UnitNode, false, false, false, false);
 
 			URigVMTemplateNode* NewNode = AddTemplateNode(
@@ -19434,6 +19449,8 @@ void URigVMController::PatchUnitNodesOnLoad()
 				NodeName, 
 				false, 
 				false);
+
+			Result.AddedNodes.Add(NewNode);
 
 			TArray<int32> Permutations;
 			Template->Resolve(TypeMap, Permutations, false);
@@ -19457,10 +19474,14 @@ void URigVMController::PatchUnitNodesOnLoad()
 			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
 		}
 	}
+
+	return Result;
 }
 
-void URigVMController::PatchDispatchNodesOnLoad()
+FRigVMClientPatchResult URigVMController::PatchDispatchNodesOnLoad()
 {
+	FRigVMClientPatchResult Result;
+
 	if (const URigVMGraph* Graph = GetGraph())
 	{
 		for(URigVMNode* Node : Graph->GetNodes())
@@ -19472,7 +19493,9 @@ void URigVMController::PatchDispatchNodesOnLoad()
 				{
 					if(Template->GetNotation() != DispatchNode->TemplateNotation)
 					{
+						Result.bChangedContent = Result.bChangedContent || DispatchNode->TemplateNotation != Template->GetNotation(); 
 						DispatchNode->TemplateNotation = Template->GetNotation();
+						
 						if(!DispatchNode->ResolvedFunctionName.IsEmpty())
 						{
 							FString FactoryName, ArgumentsString;
@@ -19491,6 +19514,7 @@ void URigVMController::PatchDispatchNodesOnLoad()
 										{
 											DispatchNode->ResolvedFunctionName = Function->GetName();
 											DispatchNode->ResolvedPermutation = Template->FindPermutation(Function);
+											Result.bChangedContent = true;
 										}
 									}
 								}
@@ -19501,10 +19525,14 @@ void URigVMController::PatchDispatchNodesOnLoad()
 			}
 		}
 	}
+
+	return Result;
 }
 
-void URigVMController::PatchBranchNodesOnLoad()
+FRigVMClientPatchResult URigVMController::PatchBranchNodesOnLoad()
 {
+	FRigVMClientPatchResult Result;
+
 	if (const URigVMGraph* Graph = GetGraph())
 	{
 		TArray<URigVMNode*> BranchNodes = Graph->GetNodes().FilterByPredicate([](URigVMNode* Node)
@@ -19520,9 +19548,14 @@ void URigVMController::PatchBranchNodesOnLoad()
 			const URigVMPin* OldConditionPin = BranchNode->FindPin(GET_MEMBER_NAME_CHECKED(FRigVMFunction_ControlFlowBranch, Condition).ToString());
 			const FString ConditionDefault = GetPinDefaultValue(OldConditionPin->GetPinPath());
 
+			Result.RemovedNodes.Add(BranchNode->GetPathName());
+			Result.bChangedContent = true;
+
 			RemoveNode(BranchNode, false, true, false, false);
 
 			const URigVMNode* NewNode = AddUnitNode(FRigVMFunction_ControlFlowBranch::StaticStruct(), FRigVMStruct::ExecuteName, NodePosition, NodeName, false, false);
+
+			Result.AddedNodes.Add(NewNode);
 
 			if(!ConditionDefault.IsEmpty())
 			{
@@ -19532,10 +19565,14 @@ void URigVMController::PatchBranchNodesOnLoad()
 			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
 		}
 	}
+	
+	return Result;
 }
 
-void URigVMController::PatchIfSelectNodesOnLoad()
+FRigVMClientPatchResult URigVMController::PatchIfSelectNodesOnLoad()
 {
+	FRigVMClientPatchResult Result;
+	
 	if (const URigVMGraph* Graph = GetGraph())
 	{
 		TArray<URigVMNode*> IfOrSelectNodes = Graph->GetNodes().FilterByPredicate([](URigVMNode* Node)
@@ -19552,7 +19589,10 @@ void URigVMController::PatchIfSelectNodesOnLoad()
 			const FString NodeName = IfOrSelectNode->GetName();
 			const TRigVMTypeIndex TypeIndex = IfOrSelectNode->GetPins().Last()->GetTypeIndex();
 			TMap<FString, FPinState> PinStates = GetPinStates(IfOrSelectNode, true);
-			
+
+			Result.RemovedNodes.Add(IfOrSelectNode->GetPathName());
+			Result.bChangedContent = true;
+
 			RemoveNode(IfOrSelectNode, false, true, false, false);
 
 			const FRigVMDispatchFactory* Factory = FRigVMRegistry::Get().FindOrAddDispatchFactory(
@@ -19565,6 +19605,8 @@ void URigVMController::PatchIfSelectNodesOnLoad()
 				NodeName, 
 				false, 
 				false);
+
+			Result.AddedNodes.Add(NewNode);
 
 			if(!FRigVMRegistry::Get().IsWildCardType(TypeIndex))
 			{
@@ -19593,10 +19635,14 @@ void URigVMController::PatchIfSelectNodesOnLoad()
 			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
 		}
 	}
+
+	return Result;
 }
 
-void URigVMController::PatchArrayNodesOnLoad()
+FRigVMClientPatchResult URigVMController::PatchArrayNodesOnLoad()
 {
+	FRigVMClientPatchResult Result;
+	
 	if (const URigVMGraph* Graph = GetGraph())
 	{
 		TArray<URigVMNode*> ArrayNodes = Graph->GetNodes().FilterByPredicate([](URigVMNode* Node)
@@ -19614,14 +19660,22 @@ void URigVMController::PatchArrayNodesOnLoad()
 			UObject* CPPTypeObject = ArrayNode->GetCPPTypeObject();
 			const ERigVMOpCode OpCode = ArrayNode->GetOpCode();
 			TMap<FString, FPinState> PinStates = GetPinStates(ArrayNode, true);
-			
+
+			Result.RemovedNodes.Add(ArrayNode->GetPathName());
+			Result.bChangedContent = true;
+
 			RemoveNode(ArrayNode, false, false, false, false);
 
 			URigVMNode* NewNode = AddArrayNode(OpCode, CPPType, CPPTypeObject, NodePosition, NodeName, false, false, true);
+
+			Result.AddedNodes.Add(NewNode);
+
 			ApplyPinStates(NewNode, PinStates, {}, false);
 			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
 		}
 	}
+
+	return Result;
 }
 
 void URigVMController::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)

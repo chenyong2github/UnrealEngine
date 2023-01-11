@@ -125,6 +125,44 @@ protected:
 	const uint8* Memory;
 };
 
+// A struct describing the result of a backwards compatibility patch
+USTRUCT()
+struct RIGVMDEVELOPER_API FRigVMClientPatchResult
+{
+public:
+
+	GENERATED_BODY()
+	
+	FRigVMClientPatchResult()
+		: bSucceeded(true)
+		, bChangedContent(false)
+		, bRequiresToMarkPackageDirty(false)
+	{}
+
+	bool Succeeded() const { return bSucceeded; }
+	bool ChangedContent() const { return bChangedContent; }
+	bool RequiresToMarkPackageDirty() const { return bRequiresToMarkPackageDirty; }
+
+	const TArray<FString>& GetErrorMessages() const { return ErrorMessages; }
+	const TArray<FString>& GetRemovedNodes() const { return RemovedNodes; }
+	const TArray<TWeakObjectPtr<const URigVMNode>>& GetAddedNodes() const { return AddedNodes; }
+
+private:
+
+	void Merge(const FRigVMClientPatchResult& InOther);
+	
+	bool bSucceeded;
+	bool bChangedContent;
+	bool bRequiresToMarkPackageDirty;
+
+	TArray<FString> ErrorMessages;
+	TArray<FString> RemovedNodes;
+	TArray<TWeakObjectPtr<const URigVMNode>> AddedNodes;
+
+	friend struct FRigVMClient;
+	friend class URigVMController;
+};
+
 /**
  * The Controller is the sole authority to perform changes
  * on the Graph. The Controller itself is stateless.
@@ -1169,11 +1207,11 @@ public:
 protected:
 
 	// backwards compatibility code
-	void PatchUnitNodesOnLoad();
-	void PatchDispatchNodesOnLoad();
-	void PatchBranchNodesOnLoad();
-	void PatchIfSelectNodesOnLoad();
-	void PatchArrayNodesOnLoad();
+	FRigVMClientPatchResult PatchUnitNodesOnLoad();
+	FRigVMClientPatchResult PatchDispatchNodesOnLoad();
+	FRigVMClientPatchResult PatchBranchNodesOnLoad();
+	FRigVMClientPatchResult PatchIfSelectNodesOnLoad();
+	FRigVMClientPatchResult PatchArrayNodesOnLoad();
 
 	// work to do after a duplication of the host asset
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);

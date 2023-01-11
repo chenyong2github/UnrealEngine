@@ -855,7 +855,14 @@ void UControlRigBlueprint::PostLoad()
 		InitializeModelIfRequired(false /* recompile vm */);
 		{
 			TGuardValue<bool> GuardNotifications(bSuspendModelNotificationsForSelf, true);
-			GetRigVMClient()->PatchModelsOnLoad();
+			
+			const FRigVMClientPatchResult PatchResult = GetRigVMClient()->PatchModelsOnLoad();
+			if(PatchResult.RequiresToMarkPackageDirty())
+			{
+				(void)MarkPackageDirty();
+				bDirtyDuringLoad = true;
+			}
+			
 			PatchFunctionReferencesOnLoad();
 			PatchVariableNodesOnLoad();
 			PatchVariableNodesWithIncorrectType();

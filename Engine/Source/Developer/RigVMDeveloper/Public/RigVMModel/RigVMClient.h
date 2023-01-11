@@ -140,7 +140,7 @@ public:
 	static void DestroyObject(UObject* InObject);
 
 	// backwards compatibility
-	void PatchModelsOnLoad();
+	FRigVMClientPatchResult PatchModelsOnLoad();
 
 	// work to be done after a duplication of the source asset
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
