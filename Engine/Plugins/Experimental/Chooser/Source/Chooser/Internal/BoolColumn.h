@@ -83,7 +83,10 @@ class CHOOSER_API UDEPRECATED_ChooserColumnBool : public UObject, public IChoose
 	GENERATED_BODY()
 public:
 	UDEPRECATED_ChooserColumnBool() {};
-	UDEPRECATED_ChooserColumnBool(const FObjectInitializer& ObjectInitializer){};
+	UDEPRECATED_ChooserColumnBool(const FObjectInitializer& ObjectInitializer)
+	{
+		InputValue = ObjectInitializer.CreateDefaultSubobject<UDEPRECATED_ChooserParameterBool_ContextProperty>(this, "InputValue");
+	}	
 	
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TScriptInterface<IChooserParameterBool> InputValue;

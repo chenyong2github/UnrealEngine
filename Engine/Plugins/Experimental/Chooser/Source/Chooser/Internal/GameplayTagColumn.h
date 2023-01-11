@@ -91,7 +91,10 @@ class CHOOSER_API UDEPRECATED_ChooserColumnGameplayTag : public UObject, public 
 	GENERATED_BODY()
 	public:
 	UDEPRECATED_ChooserColumnGameplayTag() {};
-	UDEPRECATED_ChooserColumnGameplayTag(const FObjectInitializer& ObjectInitializer){};
+	UDEPRECATED_ChooserColumnGameplayTag(const FObjectInitializer& ObjectInitializer)
+	{
+		InputValue = ObjectInitializer.CreateDefaultSubobject<UDEPRECATED_ChooserParameterGameplayTag_ContextProperty>(this, "InputValue");
+	}	
 	
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TScriptInterface<IChooserParameterGameplayTag> InputValue;

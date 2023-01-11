@@ -100,7 +100,10 @@ class CHOOSER_API UDEPRECATED_ChooserColumnFloatRange : public UObject, public I
 	GENERATED_BODY()
 	public:
 	UDEPRECATED_ChooserColumnFloatRange() {}
-	UDEPRECATED_ChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer) {};
+	UDEPRECATED_ChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer)
+	{
+		InputValue = ObjectInitializer.CreateDefaultSubobject<UDEPRECATED_ChooserParameterFloat_ContextProperty>(this, "InputValue");
+	}	
 		
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TScriptInterface<IChooserParameterFloat> InputValue;

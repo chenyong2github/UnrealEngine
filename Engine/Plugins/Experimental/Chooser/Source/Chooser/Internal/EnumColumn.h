@@ -151,7 +151,10 @@ class CHOOSER_API UDEPRECATED_ChooserColumnEnum : public UObject, public IChoose
 	GENERATED_BODY()
 public:
 	UDEPRECATED_ChooserColumnEnum() = default;
-	UDEPRECATED_ChooserColumnEnum(const FObjectInitializer& ObjectInitializer){};
+	UDEPRECATED_ChooserColumnEnum(const FObjectInitializer& ObjectInitializer)
+	{
+		InputValue = ObjectInitializer.CreateDefaultSubobject<UDEPRECATED_ChooserParameterEnum_ContextProperty>(this, "InputValue");
+	}	
 
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TScriptInterface<IChooserParameterEnum> InputValue;
