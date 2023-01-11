@@ -845,10 +845,8 @@ void FTopomaker::RemoveThinFaces(TArray<FTopologicalEdge*>& NewBorderEdges)
 		double GapSize = 0;
 		if (Analyer.IsThinFace(GapSize))
 		{
-			Face->Disjoin(NewBorderEdges);
+			Face->Remove(&NewBorderEdges);
 			DeletedFaces.Add(Face.Get());
-			Face->Delete();
-			Face->RemoveOfHost();
 #ifdef CADKERNEL_DEV
 			Report.AddThinFace();
 #endif

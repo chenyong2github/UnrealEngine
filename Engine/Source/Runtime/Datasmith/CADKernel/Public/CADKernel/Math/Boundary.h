@@ -117,7 +117,7 @@ struct CADKERNEL_API FLinearBoundary
 	bool IsDegenerated() const
 	{
 		double DeltaU = (Max - Min);
-		return (DeltaU < DOUBLE_KINDA_SMALL_NUMBER);
+		return (DeltaU < DOUBLE_SMALL_NUMBER);
 	}
 
 	/**

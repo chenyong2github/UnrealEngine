@@ -728,7 +728,7 @@ public:
 	/**
 	 * @return true if the edge is adjacent to only one surface (its carrier surface)
 	 */
-	bool IsBorder()
+	bool IsBorder() const
 	{
 		return GetTwinEntityCount() == 1;
 	}
@@ -736,10 +736,14 @@ public:
 	/**
 	 * @return true if the edge is adjacent to only two surfaces
 	 */
-	bool IsSurfacic()
+	bool IsSurfacic() const
 	{
 		return GetTwinEntityCount() == 2;
 	}
+
+	bool IsConnectedTo(const FTopologicalFace* Face) const;
+
+	TArray<FTopologicalFace*> GetLinkedFaces() const;
 
 	/**
 	 * Merge successive edges of a face in a single edge.

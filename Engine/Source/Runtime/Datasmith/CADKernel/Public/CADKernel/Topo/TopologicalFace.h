@@ -158,7 +158,6 @@ public:
 	{
 	}
 
-
 	// ======   Loop Functions   ======
 
 	void RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop);
@@ -284,16 +283,38 @@ public:
 
 	// ======   Topo Functions   ======
 
+	/** 
+	 * Delete a face i.e. disjoin the face to all its linked elements before setting it as deleted
+	 */
+	void Remove(TArray<FTopologicalEdge*>* NewBorderEdges = nullptr)
+	{
+		Disjoin(NewBorderEdges);
+		RemoveOfHost();
+		SetDeleted();
+	}
+
+	/** Has at least one non manifold edge */
+	bool IsANonManifoldFace() const;
+
+	/** Has at least one border edge */
+	bool IsABorderFace() const;
+
+	/** All its edges are non manifold */
+	bool IsAFullyNonManifoldFace() const;
+
+	/** one adjacent face shares the same loops */
+	bool IsADuplicatedFace() const;
+
 	/**
 	 * Checks if the face and the other face have the same boundaries i.e. each non degenerated edge is linked to an edge of the other face
 	 */
-	bool HasSameBoundariesAs(const TSharedPtr<FTopologicalFace>& OtherFace) const;
+	bool HasSameBoundariesAs(const FTopologicalFace* OtherFace) const;
 
 	/**
 	 * Disconnects the face of its neighbors i.e. remove topological edge and vertex link with its neighbors
 	 * @param OutNewBorderEdges the neighbors edges
 	 */
-	void Disjoin(TArray<FTopologicalEdge*>& OutNewBorderEdges);
+	void Disjoin(TArray<FTopologicalEdge*>* NewBorderEdges = nullptr);
 
 #ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;

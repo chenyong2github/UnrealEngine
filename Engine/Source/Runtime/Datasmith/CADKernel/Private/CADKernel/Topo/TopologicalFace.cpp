@@ -268,87 +268,135 @@ void FTopologicalFace::RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop)
 	}
 }
 
-void FTopologicalFace::Disjoin(TArray<FTopologicalEdge*>& NewBorderEdges)
+void FTopologicalFace::Disjoin(TArray<FTopologicalEdge*>* NewBorderEdges)
 {
-	NewBorderEdges.Reserve(NewBorderEdges.Num() + EdgeCount());
+	if(NewBorderEdges)
+	{
+		NewBorderEdges->Reserve(NewBorderEdges->Num() + EdgeCount());
+	}
+
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
-		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{
-			const TArray<FTopologicalEdge*> Twins = Edge.Entity->GetTwinEntities();
+			FTopologicalEdge* Edge = OrientedEdge.Entity.Get();
+			const TArray<FTopologicalEdge*> Twins = Edge->GetTwinEntities();
 			for (FTopologicalEdge* TwinEdge : Twins)
 			{
-				if (TwinEdge != Edge.Entity.Get())
+				if (NewBorderEdges && TwinEdge != Edge)
 				{
-					NewBorderEdges.Add(TwinEdge);
+					NewBorderEdges->Add(TwinEdge);
 				}
 			}
-			Edge.Entity->RemoveFromLink();
-			Edge.Entity->SetMarker1();
-			Edge.Entity->GetStartVertex()->RemoveFromLink();
-			Edge.Entity->GetEndVertex()->RemoveFromLink();
+			Edge->RemoveFromLink();
+			Edge->SetMarker1();
+			Edge->GetStartVertex()->RemoveFromLink();
+			Edge->GetEndVertex()->RemoveFromLink();
 		}
 	}
 }
 
-bool FTopologicalFace::HasSameBoundariesAs(const TSharedPtr<FTopologicalFace>& OtherFace) const
+bool FTopologicalFace::HasSameBoundariesAs(const FTopologicalFace* OtherFace) const
 {
-	int32 EdgeCount = 0;
+	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
+	{
+		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+		{
+			const FTopologicalEdge& Edge = *OrientedEdge.Entity;
+			if (!Edge.IsDegenerated() && !Edge.IsBorder() && !Edge.IsConnectedTo(OtherFace))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+bool FTopologicalFace::IsADuplicatedFace() const
+{
+	ensureCADKernel(!GetLoops().Num());
+
+	// Find in the adjacent faces of the first (surface or non manifold) edge, a face with the same loops
+	
+	TArray<FTopologicalFace*> AdjacentFaces;
+	const TSharedPtr<FTopologicalLoop>& Loop = GetLoops()[0];
+	for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+	{
+		const FTopologicalEdge& Edge = *OrientedEdge.Entity;
+		if (!Edge.IsDegenerated() && !Edge.IsBorder())
+		{
+			AdjacentFaces = Edge.GetLinkedFaces();
+			break;
+		}
+	}
+
+	for (FTopologicalFace* AdjacentFace : AdjacentFaces)
+	{
+		if (AdjacentFace == this)
+		{
+			continue;
+		}
+
+		if (HasSameBoundariesAs(AdjacentFace))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+bool FTopologicalFace::IsANonManifoldFace() const
+{
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
 		for (const FOrientedEdge& Edge : Loop->GetEdges())
 		{
-			if (Edge.Entity->IsDegenerated())
+			if (Edge.Entity->GetTwinEntityCount() > 2)
 			{
-				continue;
+				return true;
 			}
-			Edge.Entity->GetLinkActiveEntity()->SetMarker1();
-			++EdgeCount;
 		}
 	}
+	return false;
+}
 
-	bool bSameBoundary = true;
-	int32 OtherFaceEdgeCount = 0;
-	for (const TSharedPtr<FTopologicalLoop>& Loop : OtherFace->GetLoops())
-	{
-		OtherFaceEdgeCount += Loop->EdgeCount();
-		for (const FOrientedEdge& Edge : Loop->GetEdges())
-		{
-			if (Edge.Entity->IsDegenerated())
-			{
-				continue;
-			}
-			if (!Edge.Entity->GetLinkActiveEntity()->HasMarker1())
-			{
-				bSameBoundary = false;
-				break;
-			}
-			++OtherFaceEdgeCount;
-		}
-	}
-
+bool FTopologicalFace::IsABorderFace() const
+{
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
-		EdgeCount += Loop->EdgeCount();
 		for (const FOrientedEdge& Edge : Loop->GetEdges())
 		{
-			Edge.Entity->GetLinkActiveEntity()->ResetMarkers();
+			if (Edge.Entity->GetTwinEntityCount() == 1)
+			{
+				return true;
+			}
 		}
 	}
+	return false;
+}
 
-	if (EdgeCount != OtherFaceEdgeCount)
+bool FTopologicalFace::IsAFullyNonManifoldFace() const
+{
+	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
-		bSameBoundary = false;
+		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		{
+			if (!Edge.Entity->IsDegenerated() && Edge.Entity->GetTwinEntityCount() < 3)
+			{
+				return false;
+			}
+		}
 	}
-
-	return bSameBoundary;
+	return true;
 }
 
 const FTopologicalEdge* FTopologicalFace::GetLinkedEdge(const FTopologicalEdge& LinkedEdge) const
 {
 	for (FTopologicalEdge* TwinEdge : LinkedEdge.GetTwinEntities())
 	{
-		if (&*TwinEdge->GetLoop()->GetFace() == this)
+		if (&*TwinEdge->GetFace() == this)
 		{
 			return TwinEdge;
 		}
@@ -465,17 +513,6 @@ void FTopologicalFace::ChooseFinalDeltaUs()
 	ChooseFinalDeltas(CrossingPointDeltaMins[EIso::IsoV], CrossingPointDeltaMaxs[EIso::IsoV]);
 }
 
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-//
-//
-//                                                                            NOT YET REVIEWED
-//
-//
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
 
 // Quad ==============================================================================================================================================================================================================================
 
@@ -583,7 +620,7 @@ void FTopologicalFace::DefineSurfaceType()
 						{
 							continue;
 						}
-						Neighbor = Edge->GetLoop()->GetFace();
+						Neighbor = Edge->GetFace();
 					}
 				}
 
@@ -660,8 +697,6 @@ const TSharedPtr<FTopologicalLoop> FTopologicalFace::GetExternalLoop() const
 	}
 	return TSharedPtr<FTopologicalLoop>();
 }
-
-
 
 void FFaceSubset::SetMainShell(TMap<FTopologicalShapeEntity*, int32>& ShellToFaceCount)
 {

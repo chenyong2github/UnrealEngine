@@ -1182,6 +1182,32 @@ void FTopologicalEdge::Offset2D(const FPoint2D& OffsetDirection)
 	Curve->Offset2D(OffsetDirection);
 }
 
+bool FTopologicalEdge::IsConnectedTo(const FTopologicalFace* Face) const
+{
+	for (FTopologicalEdge* TwinEdge : GetTwinEntities())
+	{
+		if (TwinEdge->GetFace() == Face)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+TArray<FTopologicalFace*> FTopologicalEdge::GetLinkedFaces() const
+{
+	TArray<FTopologicalFace*> NeighborFaces;
+	NeighborFaces.Reserve(GetTwinEntities().Num());
+
+	for (FTopologicalEdge* TwinEdge : GetTwinEntities())
+	{
+		FTopologicalFace* NeighborFace = TwinEdge->GetFace();
+		NeighborFaces.Add(NeighborFace);
+	}
+
+	return MoveTemp(NeighborFaces);
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FEdgeLink::GetInfo(FInfoEntity& Info) const
 {
