@@ -802,7 +802,7 @@ EShaderPlatform SEditorViewport::GetShaderPlatformHelper(const ERHIFeatureLevel:
 	UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
 	const FName& PreviewPlatform = MaterialShaderQualitySettings->GetPreviewPlatform();
 
-	EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(PreviewPlatform);
+	EShaderPlatform ShaderPlatform = PreviewPlatform != NAME_None ? ShaderFormatToLegacyShaderPlatform(PreviewPlatform) : SP_NumPlatforms;
 	if (ShaderPlatform == SP_NumPlatforms)
 	{
 		ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
