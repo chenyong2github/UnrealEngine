@@ -8,6 +8,7 @@
 #include "StateTreeEvents.h"
 #include "StateTreeInstanceData.generated.h"
 
+struct FStateTreeExecutionState;
 
 /**
  * State Tree instance data is used to store the runtime state of a State Tree. It is used together with FStateTreeExecution context to tick the state tree.
@@ -129,6 +130,9 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return const pointer to an instance object   */
 	const UObject* GetObject(const int32 Index) const { return GetStorage().InstanceObjects[Index]; }
 
+	/** @return pointer to StateTree execution state, or null if the instance data is not initialized. */
+	const FStateTreeExecutionState* GetExecutionState() const;
+	
 	/** @return array to store unprocessed events. */
 	UE_DEPRECATED(5.2, "Use GetEventQueue() instead.")
 	TArray<FStateTreeEvent>& GetEvents() const;

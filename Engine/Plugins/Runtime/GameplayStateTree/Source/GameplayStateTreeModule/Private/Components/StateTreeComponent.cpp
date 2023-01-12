@@ -399,22 +399,17 @@ void UStateTreeComponent::SendStateTreeEvent(const FGameplayTag Tag, const FCons
 		return;
 	}
 
-	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
-	if (Context.IsValid())
-	{
-		Context.SendEvent(Tag, Payload, Origin);
-	}
+	InstanceData.GetMutableEventQueue().SendEvent(this, Tag, Payload, Origin);
 }
 
 EStateTreeRunStatus UStateTreeComponent::GetStateTreeRunStatus() const
 {
-	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), const_cast<FStateTreeInstanceData&>(InstanceData));
-	if (Context.IsValid())
+	if (const FStateTreeExecutionState* Exec = InstanceData.GetExecutionState())
 	{
-		return Context.GetStateTreeRunStatus();
+		return Exec->TreeRunStatus;
 	}
 
-	return EStateTreeRunStatus::Unset;
+	return EStateTreeRunStatus::Failed;
 }
 
 #if WITH_GAMEPLAY_DEBUGGER

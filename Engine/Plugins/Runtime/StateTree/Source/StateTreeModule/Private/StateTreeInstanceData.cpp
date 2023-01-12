@@ -73,6 +73,16 @@ FStateTreeInstanceStorage& FStateTreeInstanceData::GetMutableStorage()
 	return *reinterpret_cast<FStateTreeInstanceStorage*>(InstanceStorage.GetMutableMemory());
 }
 
+const FStateTreeExecutionState* FStateTreeInstanceData::GetExecutionState() const
+{
+	if (!IsValid())
+	{
+		return nullptr;
+	}
+	const FConstStructView ExecView = GetStruct(0); // Execution state is fixed at index 0. 
+	return ExecView.GetPtr<FStateTreeExecutionState>();
+}
+
 TArray<FStateTreeEvent>& FStateTreeInstanceData::GetEvents() const
 {
 	return const_cast<FStateTreeInstanceData*>(this)->GetMutableStorage().EventQueue.GetEventsArray();

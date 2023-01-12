@@ -10,8 +10,6 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeExecutionContext)
-
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 
@@ -434,15 +432,12 @@ EStateTreeRunStatus FStateTreeExecutionContext::GetStateTreeRunStatus() const
 		return EStateTreeRunStatus::Failed;
 	}
 
-	if (!InstanceData.IsValid())
+	if (const FStateTreeExecutionState* Exec = InstanceData.GetExecutionState())
 	{
-		STATETREE_LOG(Error, TEXT("%s: GetStateTreeRunStatus called on %s using StateTree %s with invalid instance data. Start() must be called before GetStateTreeRunStatus()."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
-		return EStateTreeRunStatus::Failed;
+		return Exec->TreeRunStatus;
 	}
-
-	const FStateTreeExecutionState& Exec = GetExecState();
-	return Exec.TreeRunStatus;
+	
+	return EStateTreeRunStatus::Failed;
 }
 
 void FStateTreeExecutionContext::SendEvent(const FStateTreeEvent& Event) const

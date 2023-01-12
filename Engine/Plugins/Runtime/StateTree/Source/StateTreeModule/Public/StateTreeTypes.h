@@ -960,3 +960,48 @@ protected:
 	/** Memory pointing at the class or struct */
 	uint8* Memory = nullptr;
 };
+
+struct STATETREEMODULE_API FStateTreeTransitionDelayedState
+{
+	FStateTreeIndex16 TransitionIndex = FStateTreeIndex16::Invalid;
+	float TimeLeft = 0.0f;
+};
+
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeExecutionState
+{
+	GENERATED_BODY()
+
+	/** @returns Delayed transition state for a specific transition, or nullptr if it does not exists. */
+	FStateTreeTransitionDelayedState* FindDelayedTransition(const FStateTreeIndex16 TransitionIndex)
+	{
+		return DelayedTransitions.FindByPredicate([TransitionIndex](const FStateTreeTransitionDelayedState& State){ return State.TransitionIndex == TransitionIndex; });
+	}
+
+	/** Currently active states */
+	FStateTreeActiveStates ActiveStates;
+
+	/** Index of the first task struct in the currently initialized instance data. */
+	FStateTreeIndex16 FirstTaskStructIndex = FStateTreeIndex16::Invalid;
+	
+	/** Index of the first task object in the currently initialized instance data. */
+	FStateTreeIndex16 FirstTaskObjectIndex = FStateTreeIndex16::Invalid;
+
+	/** The index of the task that failed during enter state. Exit state uses it to call ExitState() symmetrically. */
+	FStateTreeIndex16 EnterStateFailedTaskIndex = FStateTreeIndex16::Invalid;
+
+	/** Result of last tick */
+	EStateTreeRunStatus LastTickStatus = EStateTreeRunStatus::Failed;
+
+	/** Running status of the instance */
+	EStateTreeRunStatus TreeRunStatus = EStateTreeRunStatus::Unset;
+
+	/** Handle of the state that was first to report state completed (success or failure), used to trigger completion transitions. */
+	FStateTreeStateHandle CompletedStateHandle = FStateTreeStateHandle::Invalid;
+
+	/** Number of times a new state has been changed. */
+	uint16 StateChangeCount = 0;
+
+	/** Running time of the delayed transition */
+	TArray<FStateTreeTransitionDelayedState> DelayedTransitions;
+};
