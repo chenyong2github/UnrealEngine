@@ -7,7 +7,6 @@
 #include "AssetToolsModule.h"
 #include "ClothAssetEditorStyle.h"
 #include "ClothComponentEditorStyle.h"
-#include "ClothPresetEditorStyle.h"
 #include "ClothingAssetToClothAssetExporter.h"
 #include "ChaosClothAsset/ClothAssetBuilderEditor.h"
 
@@ -22,7 +21,6 @@ namespace UE::Chaos::ClothAsset
 			// Register asset icons
 			FClothAssetEditorStyle::Get();
 			FClothComponentEditorStyle::Get();
-			FClothPresetEditorStyle::Get();
 
 			// Register modular features
 			IModularFeatures::Get().RegisterModularFeature(IClothingAssetExporterClassProvider::FeatureName, static_cast<IClothingAssetExporterClassProvider*>(this));

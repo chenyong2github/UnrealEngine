@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ChaosClothAsset/ClothPreset.h"
 #include "Engine/SkinnedAsset.h"
 #include "ReferenceSkeleton.h"
 #include "RenderCommandFence.h"
@@ -185,10 +184,6 @@ private:
 
 	/** Reregister all components using this asset to reset the simulation in case anything has changed. */
 	void ReregisterComponents();
-
-	/** List of cloth presets for this cloth asset. */
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = ClothPresets)
-	TArray<TObjectPtr<UChaosClothPreset>> ClothPresets;
 
 	// TODO: determine if it should be serialized or transient
 	/** List of materials for this cloth asset. */

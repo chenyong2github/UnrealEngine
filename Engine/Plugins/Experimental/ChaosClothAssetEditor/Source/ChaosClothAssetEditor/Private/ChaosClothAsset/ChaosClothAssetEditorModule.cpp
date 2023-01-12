@@ -13,7 +13,6 @@
 #include "Styling/AppStyle.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions_ClothAsset.h"
-#include "AssetTypeActions_ClothPreset.h"
 
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorModule"
 
@@ -32,9 +31,6 @@ void FChaosClothAssetEditorModule::StartupModule()
 	AssetTypeActions_ClothAsset = new FAssetTypeActions_ClothAsset();
 	AssetTools.RegisterAssetTypeActions(MakeShareable(AssetTypeActions_ClothAsset));
 
-	AssetTypeActions_ClothPreset = new FAssetTypeActions_ClothPreset();
-	AssetTools.RegisterAssetTypeActions(MakeShareable(AssetTypeActions_ClothPreset));
-
 	Dataflow::RegisterClothDataflowNodes();
 
 	// TODO: Register details view customizations
@@ -52,7 +48,6 @@ void FChaosClothAssetEditorModule::ShutdownModule()
 		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 		IAssetTools& AssetTools = AssetToolsModule.Get();
 		AssetTools.UnregisterAssetTypeActions(AssetTypeActions_ClothAsset->AsShared());
-		AssetTools.UnregisterAssetTypeActions(AssetTypeActions_ClothPreset->AsShared());
 	}
 
 	// TODO: Unregister details view customizations
