@@ -22,6 +22,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Navigation, meta = (ClampMin = "0.1", UIMin = "0.1"))
 	float TileRemovalRadius;
 
+	/** restrict navigation generation to specific agents */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	FNavAgentSelector SupportedAgents;
+
 public:
 	UNavigationInvokerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
@@ -36,4 +40,5 @@ public:
 
 	virtual void Activate(bool bReset = false) override;
 	virtual void Deactivate() override;
+	virtual void PostInitProperties() override;
 };

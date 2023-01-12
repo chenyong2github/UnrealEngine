@@ -3406,6 +3406,11 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 
 	for (const FNavigationInvokerRaw& Invoker : InvokerLocations)
 	{
+		if (!Invoker.SupportedAgents.Contains(Config.AgentIndex))
+		{
+			continue;
+		}
+
 		const FVector InvokerRelativeLocation = (NavmeshOrigin - Invoker.Location);
 		const  FVector::FReal TileCenterDistanceToRemoveSq = FMath::Square(TileDim * UE_SQRT_2 / 2 + Invoker.RadiusMax);
 		const  FVector::FReal TileCenterDistanceToAddSq = FMath::Square(TileDim * UE_SQRT_2 / 2 + Invoker.RadiusMin);

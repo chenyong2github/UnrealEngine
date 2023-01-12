@@ -11,6 +11,7 @@ UNavigationInvokerComponent::UNavigationInvokerComponent(const FObjectInitialize
 	, TileRemovalRadius(5000)
 {
 	bAutoActivate = true;
+	SupportedAgents.MarkInitialized();
 }
 
 void UNavigationInvokerComponent::Activate(bool bReset)
@@ -20,7 +21,7 @@ void UNavigationInvokerComponent::Activate(bool bReset)
 	AActor* Owner = GetOwner();
 	if (Owner)
 	{
-		UNavigationSystemV1::RegisterNavigationInvoker(*Owner, TileGenerationRadius, TileRemovalRadius);
+		UNavigationSystemV1::RegisterNavigationInvoker(*Owner, TileGenerationRadius, TileRemovalRadius, SupportedAgents);
 	}
 }
 
@@ -35,6 +36,12 @@ void UNavigationInvokerComponent::Deactivate()
 	}
 }
 
+void UNavigationInvokerComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+	SupportedAgents.MarkInitialized();
+}
+
 void UNavigationInvokerComponent::RegisterWithNavigationSystem(UNavigationSystemV1& NavSys)
 {
 	if (IsActive())
@@ -42,7 +49,7 @@ void UNavigationInvokerComponent::RegisterWithNavigationSystem(UNavigationSystem
 		AActor* Owner = GetOwner();
 		if (Owner)
 		{
-			NavSys.RegisterInvoker(*Owner, TileGenerationRadius, TileRemovalRadius);
+			NavSys.RegisterInvoker(*Owner, TileGenerationRadius, TileRemovalRadius, SupportedAgents);
 		}
 	}
 }
@@ -52,4 +59,3 @@ void UNavigationInvokerComponent::SetGenerationRadii(const float GenerationRadiu
 	TileGenerationRadius = GenerationRadius;
 	TileRemovalRadius = RemovalRadius;
 }
-

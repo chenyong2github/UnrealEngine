@@ -97,9 +97,10 @@ struct FNavigationInvokerRaw
 	FVector Location;
 	float RadiusMin;
 	float RadiusMax;
+	FNavAgentSelector SupportedAgents;
 
-	FNavigationInvokerRaw(const FVector& InLocation, float Min, float Max)
-		: Location(InLocation), RadiusMin(Min), RadiusMax(Max)
+	FNavigationInvokerRaw(const FVector& InLocation, float Min, float Max, const FNavAgentSelector& InSupportedAgents)
+		: Location(InLocation), RadiusMin(Min), RadiusMax(Max), SupportedAgents(InSupportedAgents)
 	{}
 };
 
@@ -112,9 +113,11 @@ struct FNavigationInvoker
 	/** tiles over RemovalRadius will get removed.
 	*	@Note needs to be >= GenerationRadius or will get clampped */
 	float RemovalRadius;
+	/** restrict navigation generation to specific agents */
+	FNavAgentSelector SupportedAgents;
 
 	FNavigationInvoker();
-	FNavigationInvoker(AActor& InActor, float InGenerationRadius, float InRemovalRadius);
+	FNavigationInvoker(AActor& InActor, float InGenerationRadius, float InRemovalRadius, const FNavAgentSelector& InSupportedAgents);
 };
 
 namespace NavigationHelper
