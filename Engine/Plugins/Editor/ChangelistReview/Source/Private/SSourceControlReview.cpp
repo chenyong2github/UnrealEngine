@@ -574,9 +574,15 @@ void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFile
 		const UObject* ReviewAsset = FindObject<UObject>(ReviewFilePkg, *ChangelistFileData->AssetName);
 		if(ReviewAsset && ReviewAsset->IsA<UObjectRedirector>())
 		{
-			const UPackage* RedirectedPackage = Cast<UObjectRedirector>(ReviewAsset)->DestinationObject->GetPackage();
-			const FString RedirectPath = IFileManager::Get().ConvertToRelativePath(*RedirectedPackage->GetLoadedPath().GetLocalFullPath());
-			RedirectorsFound.Add(RedirectPath, ChangelistFileData);
+			if (const UObjectRedirector* Redirector = Cast<UObjectRedirector>(ReviewAsset))
+			{
+				if (Redirector->DestinationObject)
+				{
+					const UPackage* RedirectedPackage = Cast<UObjectRedirector>(ReviewAsset)->DestinationObject->GetPackage();
+					const FString RedirectPath = IFileManager::Get().ConvertToRelativePath(*RedirectedPackage->GetLoadedPath().GetLocalFullPath());
+					RedirectorsFound.Add(RedirectPath, ChangelistFileData);
+				}
+			}
 		}
 	}
 

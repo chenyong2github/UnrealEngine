@@ -219,15 +219,18 @@ void SSourceControlReviewEntry::TryBindUAssetDiff()
 		}
 	}
 	UObject* PreviousAsset = nullptr;
-	if (UPackage* PreviousFilePkg = LoadPackage(nullptr, *ChangelistFileData.PreviousFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
+	if (!ChangelistFileData.PreviousFileName.IsEmpty())
 	{
-		if (ChangelistFileData.PreviousAssetName.IsEmpty())
+		if (UPackage* PreviousFilePkg = LoadPackage(nullptr, *ChangelistFileData.PreviousFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks))
 		{
-			PreviousAsset = FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.AssetName);
-		}
-		else
-		{
-			PreviousAsset = FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.PreviousAssetName);
+			if (ChangelistFileData.PreviousAssetName.IsEmpty())
+			{
+				PreviousAsset = FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.AssetName);
+			}
+			else
+			{
+				PreviousAsset = FindObject<UObject>(PreviousFilePkg, *ChangelistFileData.PreviousAssetName);
+			}
 		}
 	}
 	
