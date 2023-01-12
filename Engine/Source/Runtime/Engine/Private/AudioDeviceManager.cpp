@@ -792,6 +792,9 @@ void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InW
 			bDestroyingDevice = true;
 			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
 
+			// Subsystems deinitialization
+			Container.Device->Deinitialize();
+
 			// If this is the active device and being destroyed, set the main device as the active device.
 			if (DeviceID == ActiveAudioDeviceID)
 			{

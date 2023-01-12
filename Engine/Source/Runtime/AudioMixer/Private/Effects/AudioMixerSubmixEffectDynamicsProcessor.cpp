@@ -200,8 +200,10 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 				if (ObjectId != INDEX_NONE)
 				{
 					UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
-					check(AudioBusSubsystem);
-					KeySource.Patch = AudioBusSubsystem->AddPatchOutputForAudioBus(Audio::FAudioBusKey(ObjectId), MixerDevice->GetNumOutputFrames(), KeySource.GetNumChannels());
+					if (AudioBusSubsystem)
+					{
+						KeySource.Patch = AudioBusSubsystem->AddPatchOutputForAudioBus(Audio::FAudioBusKey(ObjectId), MixerDevice->GetNumOutputFrames(), KeySource.GetNumChannels());
+					}
 
 					if (KeySource.Patch.IsValid())
 					{

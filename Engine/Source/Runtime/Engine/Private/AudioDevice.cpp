@@ -689,7 +689,6 @@ void FAudioDevice::OnDeviceDestroyed(Audio::FDeviceId InDeviceID)
 {
 	if (InDeviceID == DeviceID)
 	{
-		Deinitialize();
 		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
 	}
 }
