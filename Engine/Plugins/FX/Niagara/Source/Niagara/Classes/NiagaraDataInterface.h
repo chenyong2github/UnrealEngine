@@ -340,7 +340,7 @@ struct FNiagaraDataInterfaceProxy
 
 	// New data interface path
 	virtual void ResetData(const FNDIGpuComputeResetContext& Context) { }
-	virtual void PreStage(const FNDIGpuComputePostStageContext& Context) {}
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) {}
 	virtual void PostStage(const FNDIGpuComputePostStageContext& Context) {}
 	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) {}
 
