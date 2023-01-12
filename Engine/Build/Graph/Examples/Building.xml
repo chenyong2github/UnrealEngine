@@ -3,13 +3,13 @@
 
 	<Agent Name="Properties Agent" Type="CompileWin64">
 
-		<!-- Compile UnrealHeaderTool -->
-		<Node Name="Compile UnrealHeaderTool">
-			<Compile Target="UnrealHeaderTool" Platform="Win64" Configuration="Development" Tag="#UHTFiles"/>
-			<Log Message="The following files are part of UnrealHeaderTool:" Files="#UHTFiles"/>
+		<!-- Compile UnrealPak -->
+		<Node Name="Compile UnrealPak">
+			<Compile Target="UnrealPak" Platform="Win64" Configuration="Development" Tag="#UnrealPakFiles"/>
+			<Log Message="The following files are part of UnrealPak:" Files="#UnrealPakFiles"/>
 		</Node>
 		
 	</Agent>
 	
-	<Aggregate Name="Building Examples" Requires="Compile UnrealHeaderTool"/>
+	<Aggregate Name="Building Examples" Requires="Compile UnrealPak"/>
 </BuildGraph>

@@ -43,8 +43,6 @@
 		<Property Name="CompileNodeName" Value="Compile $(Project) $(EditorPlatform)"/>
 		<Agent Name="Compile Editor Agent $(EditorPlatform) $(Project)" Type="$(EditorPlatform)">
 			<Node Name="$(CompileNodeName)">
-				<Compile Target="UnrealHeaderTool" Platform="$(EditorPlatform)" Configuration="Development"/>
-				<Compile Target="UnrealHeaderTool" Platform="$(EditorPlatform)" Project="$(Project)" Configuration="Development"/>
 				<Compile Target="ShaderCompileWorker" Platform="$(EditorPlatform)" Configuration="Development"/>
 				<Compile Target="CrashReportClientEditor" Platform="$(EditorPlatform)" Project="$(Project)" Configuration="Shipping"/>
 				<Compile Target="$(EditorTarget)" Platform="$(EditorPlatform)" Project="$(Project)" Configuration="Development"/>
