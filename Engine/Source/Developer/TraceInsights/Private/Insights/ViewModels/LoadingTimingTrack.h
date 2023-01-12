@@ -38,7 +38,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(const TCHAR*, FLoadingTrackGetEventNameDelegat
 class FLoadingSharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FLoadingSharedState>
 {
 public:
-	explicit FLoadingSharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
+	explicit FLoadingSharedState(STimingView* InTimingView);
 	virtual ~FLoadingSharedState() = default;
 
 	//////////////////////////////////////////////////

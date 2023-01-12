@@ -147,7 +147,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(TimingView, STimingView)
+			SAssignNew(TimingView, STimingView, FInsightsManagerTabs::TimingProfilerTabId)
 		];
 
 	TimingView->Reset(true);

@@ -228,10 +228,9 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_TimingView(const FSpawnTab
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(TimingView, STimingView)
+			SAssignNew(TimingView, STimingView, FInsightsManagerTabs::LoadingProfilerTabId)
 		];
 
-	TimingView->EnableAssetLoadingMode();
 	TimingView->Reset(true);
 	TimingView->OnSelectionChanged().AddSP(this, &SLoadingProfilerWindow::OnTimeSelectionChanged);
 	TimingView->SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);

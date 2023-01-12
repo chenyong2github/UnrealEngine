@@ -97,7 +97,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(TimingView, STimingView)
+			SAssignNew(TimingView, STimingView, FInsightsManagerTabs::MemoryProfilerTabId)
 		];
 
 	SharedState->SetTimingView(TimingView);

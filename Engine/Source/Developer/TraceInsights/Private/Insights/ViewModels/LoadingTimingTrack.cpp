@@ -60,6 +60,18 @@ UE_ENABLE_OPTIMIZATION_SHIP
 // FLoadingSharedState
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FLoadingSharedState::FLoadingSharedState(STimingView* InTimingView)
+	: TimingView(InTimingView)
+	, bShowHideAllLoadingTracks(false)
+	//, LoadingTracks
+	, LoadTimeProfilerTimelineCount(0)
+	//, GetEventNameDelegate
+{
+	check(TimingView != nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FLoadingSharedState::OnBeginSession(Insights::ITimingViewSession& InSession)
 {
 	if (&InSession != TimingView)
@@ -67,7 +79,7 @@ void FLoadingSharedState::OnBeginSession(Insights::ITimingViewSession& InSession
 		return;
 	}
 
-	if (TimingView && TimingView->IsAssetLoadingModeEnabled())
+	if (TimingView->GetName() == FInsightsManagerTabs::LoadingProfilerTabId)
 	{
 		bShowHideAllLoadingTracks = true;
 	}
@@ -189,10 +201,7 @@ void FLoadingSharedState::SetAllLoadingTracksToggle(bool bOnOff)
 		Track.SetVisibilityFlag(bShowHideAllLoadingTracks);
 	}
 
-	if (TimingView)
-	{
-		TimingView->OnTrackVisibilityChanged();
-	}
+	TimingView->OnTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

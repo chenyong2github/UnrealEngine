@@ -69,7 +69,10 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, FName InViewName = NAME_None);
+
+	/** Gets the name of the view. */
+	virtual const FName& GetName() const { return ViewName; }
 
 	bool IsCompactModeEnabled() const;
 	void ToggleCompactMode();
@@ -90,9 +93,6 @@ public:
 	TSharedPtr<FThreadTimingSharedState> GetThreadTimingSharedState() const { return ThreadTimingSharedState; }
 	TSharedPtr<FLoadingSharedState> GetLoadingSharedState() const { return LoadingSharedState; }
 	TSharedPtr<FFileActivitySharedState> GetFileActivitySharedState() const { return FileActivitySharedState; }
-
-	bool IsAssetLoadingModeEnabled() const { return bAssetLoadingMode; }
-	void EnableAssetLoadingMode() { bAssetLoadingMode = true; }
 
 	void HideAllDefaultTracks();
 
@@ -509,6 +509,9 @@ protected:
 	void EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator, EnumerateFilteredTracksCallback Callback);
 
 protected:
+	/** The name of the view. */
+	FName ViewName;
+
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FTimingTrackViewport Viewport;
 
@@ -537,7 +540,6 @@ protected:
 
 	// Shared state for Asset Loading tracks
 	TSharedPtr<FLoadingSharedState> LoadingSharedState;
-	bool bAssetLoadingMode;
 
 	// Shared state for File Activity (I/O) tracks
 	TSharedPtr<FFileActivitySharedState> FileActivitySharedState;

@@ -98,7 +98,6 @@ STimingView::STimingView()
 	, FrameSharedState(MakeShared<FFrameSharedState>(this))
 	, ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
 	, LoadingSharedState(MakeShared<FLoadingSharedState>(this))
-	, bAssetLoadingMode(false)
 	, FileActivitySharedState(MakeShared<FFileActivitySharedState>(this))
 	, TimeRulerTrack(MakeShared<FTimeRulerTrack>())
 	, DefaultTimeMarker(MakeShared<Insights::FTimeMarker>())
@@ -151,8 +150,10 @@ STimingView::~STimingView()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::Construct(const FArguments& InArgs)
+void STimingView::Construct(const FArguments& InArgs, FName InViewName)
 {
+	ViewName = InViewName;
+
 	FSlimHorizontalToolBarBuilder LeftToolbar(nullptr, FMultiBoxCustomization::None);
 	LeftToolbar.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar");
 
@@ -3649,13 +3650,10 @@ void STimingView::UpdateHoveredTimingEvent(float InMousePosX, float InMousePosY)
 
 void STimingView::OnSelectedTimingEventChanged()
 {
-	if (!bAssetLoadingMode)
+	if (SelectedEvent.IsValid())
 	{
-		if (SelectedEvent.IsValid())
-		{
-			SelectedEvent->GetTrack()->UpdateEventStats(const_cast<ITimingEvent&>(*SelectedEvent));
-			SelectedEvent->GetTrack()->OnEventSelected(*SelectedEvent);
-		}
+		SelectedEvent->GetTrack()->UpdateEventStats(const_cast<ITimingEvent&>(*SelectedEvent));
+		SelectedEvent->GetTrack()->OnEventSelected(*SelectedEvent);
 	}
 
 	OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);

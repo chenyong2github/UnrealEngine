@@ -359,6 +359,22 @@ static void AddTimingEventToBuilder(ITimingEventsTrackDrawStateBuilder& Builder,
 // FThreadTimingSharedState
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FThreadTimingSharedState::FThreadTimingSharedState(STimingView* InTimingView)
+	: TimingView(InTimingView)
+	, bShowHideAllGpuTracks(false)
+	, bShowHideAllCpuTracks(false)
+	, GpuTrack()
+	, Gpu2Track()
+	//, CpuTracks
+	//, ThreadGroups
+	, TimingProfilerTimelineCount(0)
+	, LoadTimeProfilerTimelineCount(0)
+{
+	check(TimingView != nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedPtr<FCpuTimingTrack> FThreadTimingSharedState::GetCpuTrack(uint32 InThreadId)
 {
 	TSharedPtr<FCpuTimingTrack>*const TrackPtrPtr = CpuTracks.Find(InThreadId);
@@ -404,7 +420,7 @@ void FThreadTimingSharedState::OnBeginSession(Insights::ITimingViewSession& InSe
 		return;
 	}
 
-	if (TimingView && TimingView->IsAssetLoadingModeEnabled())
+	if (TimingView->GetName() == FInsightsManagerTabs::LoadingProfilerTabId)
 	{
 		bShowHideAllGpuTracks = false;
 		bShowHideAllCpuTracks = false;
@@ -551,7 +567,8 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 						FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
 						ThreadGroup.NumTimelines++;
 
-						if (TimingView && TimingView->IsAssetLoadingModeEnabled() && bIsLoadingThread)
+						if (bIsLoadingThread &&
+							TimingView->GetName() == FInsightsManagerTabs::LoadingProfilerTabId)
 						{
 							Track->SetVisibilityFlag(true);
 							ThreadGroup.bIsVisible = true;
@@ -695,10 +712,7 @@ void FThreadTimingSharedState::SetAllCpuTracksToggle(bool bOnOff)
 		KV.Value.bIsVisible = bShowHideAllCpuTracks;
 	}
 
-	if (TimingView)
-	{
-		TimingView->OnTrackVisibilityChanged();
-	}
+	TimingView->OnTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -717,10 +731,7 @@ void FThreadTimingSharedState::SetAllGpuTracksToggle(bool bOnOff)
 	}
 	if (GpuTrack.IsValid() || Gpu2Track.IsValid())
 	{
-		if (TimingView)
-		{
-			TimingView->OnTrackVisibilityChanged();
-		}
+		TimingView->OnTrackVisibilityChanged();
 	}
 }
 
@@ -754,10 +765,7 @@ void FThreadTimingSharedState::ToggleTrackVisibilityByGroup_Execute(const TCHAR*
 			}
 		}
 
-		if (TimingView)
-		{
-			TimingView->OnTrackVisibilityChanged();
-		}
+		TimingView->OnTrackVisibilityChanged();
 	}
 }
 

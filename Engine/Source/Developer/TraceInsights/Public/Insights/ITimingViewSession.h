@@ -66,6 +66,9 @@ class TRACEINSIGHTS_API ITimingViewSession
 public:
 	virtual ~ITimingViewSession() = default;
 
+	/** Gets the name of the view. */
+	virtual const FName& GetName() const = 0;
+
 	/** Adds a new top docked track. */
 	virtual void AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track) = 0;
 	/** Removes a top docked track. Returns whether the track was removed or not. */
@@ -137,7 +140,7 @@ public:
 	/** Prevents mouse movements from throttling application updates. */
 	virtual void PreventThrottling() = 0;
 
-	/** Add a slot to the overlay */
+	/** Adds a slot to the overlay. */
 	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) = 0;
 };
 

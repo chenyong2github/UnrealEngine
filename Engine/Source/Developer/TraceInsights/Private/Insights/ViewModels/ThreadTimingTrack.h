@@ -55,7 +55,7 @@ private:
 	};
 
 public:
-	explicit FThreadTimingSharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
+	explicit FThreadTimingSharedState(STimingView* InTimingView);
 	virtual ~FThreadTimingSharedState() = default;
 
 	TSharedPtr<FGpuTimingTrack> GetGpuTrack() { return GpuTrack; }
