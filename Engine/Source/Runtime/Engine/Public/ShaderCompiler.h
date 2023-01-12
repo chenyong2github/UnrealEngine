@@ -894,8 +894,9 @@ private:
 	int32 MaxShaderJobBatchSize;
 	/** Number of runs through single-threaded compiling before we can retry to compile through workers. -1 if not used. */
 	int32 NumSingleThreadedRunsBeforeRetry;
-	/** Number of preprocessed shader sources that are dumped due to a crash of the shader compiler. Only used for D3DCompile exceptions at the moment. */
-	int32 NumDumpedShaderSources;
+	/** Number of preprocessed shader sources that are dumped due to a crash of the shader compiler. */
+	/** This state is updated when a job is completed, which happens on a worker thread.  The state is read on the Game Thread to see if we should dump the source to begin with. */
+	std::atomic<int32> NumDumpedShaderSources = 0;
 	/** Process Id of UE. */
 	uint32 ProcessId;
 	/** Whether to allow compiling shaders through the worker application, which allows multiple cores to be used. */
@@ -1066,6 +1067,12 @@ public:
 	ENGINE_API FString CreateShaderDebugInfoPath(const FShaderCompilerInput& ShaderCompilerInput) const;
 	ENGINE_API bool ShouldRecompileToDumpShaderDebugInfo(const FShaderCompileJob& Job) const;
 	ENGINE_API bool ShouldRecompileToDumpShaderDebugInfo(const FShaderCompilerInput& Input, const FShaderCompilerOutput& Output, bool bSucceeded) const;
+
+
+	void IncrementNumDumpedShaderSources()
+	{
+		NumDumpedShaderSources++;
+	}
 
 	const FString& GetAbsoluteShaderDebugInfoDirectory() const
 	{
