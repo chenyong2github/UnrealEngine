@@ -61,7 +61,7 @@ public:
 		int32 OutPort;
 		InternetAddr->GetIp(Address.Value);
 		InternetAddr->GetPort(OutPort);
-		Port = OutPort;
+		Port = static_cast<uint16>(OutPort);
 	}
 
 public:
