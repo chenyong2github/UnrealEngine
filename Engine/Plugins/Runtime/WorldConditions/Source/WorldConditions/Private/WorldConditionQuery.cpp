@@ -312,7 +312,7 @@ bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
 	// Append only valid condition.
 	TArray<FConstStructView> ValidConditions;
 	ValidConditions.Reserve(EditableConditions.Num());
-	for (const FWorldConditionEditable& EditableCondition : EditableConditions)
+	for (FWorldConditionEditable& EditableCondition : EditableConditions)
 	{
 		if (EditableCondition.Condition.IsValid())
 		{
