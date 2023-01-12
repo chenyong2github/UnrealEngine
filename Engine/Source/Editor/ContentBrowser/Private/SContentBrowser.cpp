@@ -156,12 +156,6 @@ struct FSlateBrush;
 
 const FString SContentBrowser::SettingsIniSection = TEXT("ContentBrowser");
 
-namespace ContentBrowserSourcesWidgetSwitcherIndex
-{
-	static const int32 PathView = 0;
-	static const int32 CollectionsView = 1;
-}
-
 SContentBrowser::~SContentBrowser()
 {
 	// Remove the listener for when view settings are changed
@@ -245,7 +239,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserCollections")))
 		.AllowCollectionDrag(true)
 		.AllowQuickAssetManagement(true)
-		.IsDocked(this, &SContentBrowser::IsCollectionViewDocked)
+		.IsDocked(true)
 		.ExternalSearch(CollectionSearch);
 
 	static const FName DefaultForegroundName("DefaultForeground");
@@ -277,7 +271,6 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		.CanShowRealTimeThumbnails(Config != nullptr ? Config->bCanShowRealTimeThumbnails : true)
 		.CanShowDevelopersFolder(Config != nullptr ? Config->bCanShowDevelopersFolder : true)
 		.CanShowFavorites(true)
-		.CanDockCollections(true)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserAssets")))
 		.OwningContentBrowser(SharedThis(this))
 		.OnSearchOptionsChanged(this, &SContentBrowser::HandleAssetViewSearchOptionsChanged)
@@ -466,68 +459,51 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 					SNew(SBorder)
 					.Padding(FMargin(0))
 					.BorderImage(FAppStyle::GetBrush("Brushes.Recessed"))
-
 					[
-						// Note: If adding more widgets here, fix ContentBrowserSourcesWidgetSwitcherIndex and the code that uses it!
-						SAssignNew(SourcesWidgetSwitcher, SWidgetSwitcher)
+						SAssignNew(PathFavoriteSplitterPtr, SSplitter)
+						.Clipping(EWidgetClipping::ClipToBounds)
+						.PhysicalSplitterHandleSize(2.0f)
+						.HitDetectionSplitterHandleSize(8.0f)
+						.Orientation(EOrientation::Orient_Vertical)
+						.MinimumSlotHeight(26.0f)
+						.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
 
-						// Paths View
-						+SWidgetSwitcher::Slot()
+						+ SSplitter::Slot()
+						.SizeRule(this, &SContentBrowser::GetFavoritesAreaSizeRule)
+						.MinSize(this, &SContentBrowser::GetFavoritesAreaMinSize)
+						.Value(0.2f)
 						[
-							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
-							.Clipping(EWidgetClipping::ClipToBounds)
-							.PhysicalSplitterHandleSize(2.0f)
-							.HitDetectionSplitterHandleSize(8.0f)
-							.Orientation(EOrientation::Orient_Vertical)
-							.MinimumSlotHeight(26.0f)
-							.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
-							+SSplitter::Slot()
-							.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetFavoritesAreaSizeRule))
-							.MinSize(TAttribute<float>(this, &SContentBrowser::GetFavoritesAreaMinSize))
-							.Value(0.2f)
+							SNew(SBorder)
+							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+							.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 							[
-								SNew(SBorder)
-								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-								.Padding(0.0f, 2.0f, 0.0f, 0.0f)
-								[
-									CreateFavoritesView(Config)
-								]
+								CreateFavoritesView(Config)
 							]
+						]
 								
-							+SSplitter::Slot()
-							.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetPathAreaSizeRule))
-							.MinSize(29.0f)
-							.Value(0.8f)
+						+ SSplitter::Slot()
+						.SizeRule(this, &SContentBrowser::GetPathAreaSizeRule)
+						.MinSize(29.0f)
+						.Value(0.8f)
+						[
+							SNew(SBorder)
+							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+							.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 							[
-								SNew(SBorder)
-								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-								.Padding(0.0f, 2.0f, 0.0f, 0.0f)
-								[
-									CreatePathView(Config)
-								]
-							]
-
-							+SSplitter::Slot()
-							.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &SContentBrowser::GetCollectionsAreaSizeRule))
-							.MinSize(TAttribute<float>(this, &SContentBrowser::GetCollectionsAreaMinSize))
-							.Value(0.4f)
-							[
-								SNew(SBorder)
-								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-								.Padding(0.0f, 2.0f, 0.0f, 0.0f)
-								[
-									CreateDockedCollectionsView(Config)
-								]
+								CreatePathView(Config)
 							]
 						]
 
-						// Collections View
-						+SWidgetSwitcher::Slot()
+						+ SSplitter::Slot()
+						.SizeRule(this, &SContentBrowser::GetCollectionsAreaSizeRule)
+						.MinSize(29.0f)
+						.Value(0.4f)
 						[
-							SNew(SBox)
-							.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
+							SNew(SBorder)
+							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+							.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 							[
-								CollectionViewPtr.ToSharedRef()
+								CreateDockedCollectionsView(Config)
 							]
 						]
 					]
@@ -685,24 +661,9 @@ EVisibility SContentBrowser::GetFavoriteFolderVisibility() const
 	return GetDefault<UContentBrowserSettings>()->GetDisplayFavorites() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-EVisibility SContentBrowser::GetDockedCollectionsVisibility() const
-{
-	return IsCollectionViewDocked() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
 EVisibility SContentBrowser::GetLockButtonVisibility() const
 {
 	return IsLocked() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-bool SContentBrowser::IsCollectionViewDocked() const
-{
-	if (const FContentBrowserInstanceConfig* Config = GetConstInstanceConfig())
-	{
-		return Config->bCollectionsDocked;
-	}
-
-	return GetDefault<UContentBrowserSettings>()->GetDockCollections();
 }
 
 void SContentBrowser::ToggleFolderFavorite(const TArray<FString>& FolderPaths)
@@ -1168,7 +1129,6 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 		.HeaderPadding(FMargin(4.0f, 0.0f))
 		.Padding(0)
-		.Visibility(this, &SContentBrowser::GetDockedCollectionsVisibility)
 		.AllowAnimatedTransition(false)
 		.OnAreaExpansionChanged_Lambda([this](bool bIsExpanded) { if (!bIsExpanded) CollectionSearchToggleButton->SetExpanded(false); })
 		.HeaderContent()
@@ -1422,17 +1382,12 @@ SSplitter::ESizeRule SContentBrowser::GetPathAreaSizeRule() const
 SSplitter::ESizeRule SContentBrowser::GetCollectionsAreaSizeRule() const
 {
 	// Make sure the area is expanded and visible 
-	return CollectionArea->IsExpanded() && GetDockedCollectionsVisibility() == EVisibility::Visible ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent;
+	return CollectionArea->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent;
 }
 
 float SContentBrowser::GetFavoritesAreaMinSize() const
 {
 	return GetFavoriteFolderVisibility() == EVisibility::Visible ? 29.0f : 0.0f;
-}
-
-float SContentBrowser::GetCollectionsAreaMinSize() const
-{
-	return GetDockedCollectionsVisibility() == EVisibility::Visible ? 29.0f : 0.0f;
 }
 
 FText SContentBrowser::GetHighlightedText() const
@@ -3140,19 +3095,6 @@ FReply SContentBrowser::SourcesViewExpandClicked()
 	return FReply::Handled();
 }
 
-EVisibility SContentBrowser::GetSourcesSwitcherVisibility() const
-{
-	return IsCollectionViewDocked() ? EVisibility::Collapsed : EVisibility::Visible;
-}
-
-FReply SContentBrowser::OnSourcesSwitcherClicked()
-{
-	ActiveSourcesWidgetIndex = (ActiveSourcesWidgetIndex + 1) % SourcesWidgetSwitcher->GetNumWidgets();
-	SourcesWidgetSwitcher->SetActiveWidgetIndex(ActiveSourcesWidgetIndex);
-
-	return FReply::Handled();
-}
-
 void SContentBrowser::OnContentBrowserSettingsChanged(FName PropertyName)
 {
 	if (PropertyName.IsNone())
@@ -3548,12 +3490,8 @@ void SContentBrowser::UpdatePath()
 
 	PathBreadcrumbTrail->ClearCrumbs();
 
-	int32 NewSourcesWidgetIndex = ActiveSourcesWidgetIndex;
-
 	if ( SourcesData.HasVirtualPaths() )
 	{
-		NewSourcesWidgetIndex = ContentBrowserSourcesWidgetSwitcherIndex::PathView;
-
 		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 
 		TArray<FString> Crumbs;
@@ -3572,8 +3510,6 @@ void SContentBrowser::UpdatePath()
 	}
 	else if ( SourcesData.HasCollections() )
 	{
-		NewSourcesWidgetIndex = IsCollectionViewDocked() ? ContentBrowserSourcesWidgetSwitcherIndex::PathView : ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
-
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 		TArray<FCollectionNameType> CollectionPathItems;
 
@@ -3601,12 +3537,6 @@ void SContentBrowser::UpdatePath()
 	else
 	{
 		PathBreadcrumbTrail->PushCrumb(LOCTEXT("AllAssets", "All Assets"), TEXT(""));
-	}
-
-	if (ActiveSourcesWidgetIndex != NewSourcesWidgetIndex)
-	{
-		ActiveSourcesWidgetIndex = NewSourcesWidgetIndex;
-		SourcesWidgetSwitcher->SetActiveWidgetIndex(ActiveSourcesWidgetIndex);
 	}
 
 	CachedCanWriteToCurrentPath.Reset();
@@ -4368,7 +4298,6 @@ FContentBrowserInstanceConfig* SContentBrowser::CreateEditorConfigIfRequired()
 	InstanceConfig->bShowEmptyFolders = Settings->DisplayEmptyFolders;
 	InstanceConfig->bShowCppFolders = Settings->GetDisplayCppFolders();
 	InstanceConfig->bOrganizeFolders = Settings->bOrganizeFolders;
-	InstanceConfig->bCollectionsDocked = Settings->GetDockCollections();
 	InstanceConfig->bFavoritesExpanded = Settings->GetDisplayFavorites();
 	InstanceConfig->bSourcesExpanded = Settings->bOpenSourcesPanelByDefault;
 	InstanceConfig->bRealTimeThumbnails = Settings->RealTimeThumbnails;

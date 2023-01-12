@@ -257,7 +257,6 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bCanShowDevelopersFolder = InArgs._CanShowDevelopersFolder;
 
 	bCanShowFavorites = InArgs._CanShowFavorites;
-	bCanDockCollections = InArgs._CanDockCollections;
 
 	SelectionMode = InArgs._SelectionMode;
 
@@ -3246,43 +3245,6 @@ bool SAssetView::IsShowingFavorites() const
 	}
 
 	return GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
-}
-
-void SAssetView::ToggleDockCollections()
-{
-	check(IsToggleDockCollectionsAllowed()); 
-
-	bool bNewState = !GetDefault<UContentBrowserSettings>()->GetDockCollections();
-
-	if (FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
-	{
-		bNewState = !Config->bCollectionsDocked;
-		Config->bCollectionsDocked = bNewState;
-		UContentBrowserConfig::Get()->SaveEditorConfig();
-	}
-
-	GetMutableDefault<UContentBrowserSettings>()->SetDockCollections(bNewState);
-	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
-}
-
-bool SAssetView::IsToggleDockCollectionsAllowed() const
-{
-	return bCanDockCollections;
-}
-
-bool SAssetView::HasDockedCollections() const
-{
-	if (!IsToggleDockCollectionsAllowed())
-	{
-		return false;
-	}
-
-	if (const FContentBrowserInstanceConfig* Config = GetContentBrowserConfig())
-	{
-		return Config->bCollectionsDocked;
-	}
-
-	return GetDefault<UContentBrowserSettings>()->GetDockCollections();
 }
 
 void SAssetView::ToggleShowCppContent()

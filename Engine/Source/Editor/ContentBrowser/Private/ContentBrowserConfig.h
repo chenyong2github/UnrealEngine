@@ -111,9 +111,6 @@ struct FContentBrowserInstanceConfig
 	bool bRealTimeThumbnails = false;
 
 	UPROPERTY()
-	bool bCollectionsDocked = false;
-
-	UPROPERTY()
 	bool bSearchClasses = false;
 
 	UPROPERTY()

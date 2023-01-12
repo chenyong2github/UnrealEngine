@@ -44,7 +44,6 @@ class SFilterList;
 class SPathView;
 class SSearchToggleButton;
 class SWidget;
-class SWidgetSwitcher;
 class UClass;
 class UContentBrowserToolbarMenuContext;
 class UFactory;
@@ -59,10 +58,9 @@ struct FGeometry;
 struct FKeyEvent;
 struct FPointerEvent;
 struct FSlateBrush;
+struct FToolMenuContext;
 
 enum class EFilterBarLayout : uint8;
-
-struct FToolMenuContext;
 
 enum class EContentBrowserViewContext : uint8
 {
@@ -386,18 +384,6 @@ private:
 	/** Handler for clicking the tree expand/collapse button */
 	FReply SourcesViewExpandClicked();
 
-	/** Gets the visibility of the source switch button */
-	EVisibility GetSourcesSwitcherVisibility() const;
-
-	/** Gets the icon used on the source switch button */
-	const FSlateBrush* GetSourcesSwitcherIcon() const;
-
-	/** Gets the tooltip text used on the source switch button */
-	FText GetSourcesSwitcherToolTipText() const;
-
-	/** Handler for clicking the source switch button */
-	FReply OnSourcesSwitcherClicked();
-
 	/** Called to handle the Content Browser settings changing */
 	void OnContentBrowserSettingsChanged(FName PropertyName);
 
@@ -542,14 +528,8 @@ private:
 	/** Gets the visibility of the favorites view */
 	EVisibility GetFavoriteFolderVisibility() const;
 
-	/** Get the visibility of the docked collections view */
-	EVisibility GetDockedCollectionsVisibility() const;
-
 	/** Get the visibility of the lock button */
 	EVisibility GetLockButtonVisibility() const;
-
-	/** Whether or not the collections view is docked or exists in its own panel in the same area as the sources view */
-	bool IsCollectionViewDocked() const;
 
 	/** Toggles the favorite status of an array of folders*/
 	void ToggleFolderFavorite(const TArray<FString>& FolderPaths);
@@ -594,7 +574,6 @@ private:
 
 	/** Gets the min size for various areas. When areas are not visible the min size is 0, otherwise there is a minimum size to prevent overlap */
 	float GetFavoritesAreaMinSize() const;
-	float GetCollectionsAreaMinSize() const;
 
 	/** Called when the layout of the SFilterList is changing */
 	void OnFilterBarLayoutChanging(EFilterBarLayout NewLayout);
@@ -679,9 +658,6 @@ private:
 	/** Toggle button for showing/hiding collection search area */
 	TSharedPtr<SSearchToggleButton> CollectionSearchToggleButton;
 
-	/** Index of the active sources widget */
-	int32 ActiveSourcesWidgetIndex = 0;
-
 	/** The expanded state of the asset tree */
 	bool bSourcesViewExpanded;
 
@@ -717,9 +693,6 @@ private:
 
 	/** Delegate used to create a new folder */
 	FOnCreateNewFolder OnCreateNewFolder;
-
-	/** Switcher between the different sources views */
-	TSharedPtr<SWidgetSwitcher> SourcesWidgetSwitcher;
 
 	/** The splitter between the path & asset view */
 	TSharedPtr<SSplitter> PathAssetSplitterPtr;
