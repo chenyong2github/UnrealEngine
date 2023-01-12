@@ -2927,6 +2927,9 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 	}
 
 #if WITH_EDITOR
+	AssetCompilation::FProcessAsyncTaskParams ProcessAsyncTasksParams;
+	ProcessAsyncTasksParams.bPlayInEditorAssetsOnly = true;
+
 	if (bExecuteNextStep)
 	{
 		// Wait on any async DDC handles
@@ -2960,7 +2963,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		}
 
 		// Gives a chance to any assets being used for PIE/game to complete
-		FAssetCompilingManager::Get().ProcessAsyncTasks();
+		FAssetCompilingManager::Get().ProcessAsyncTasks(ProcessAsyncTasksParams);
 	}
 #endif
 
@@ -3010,7 +3013,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 #if WITH_EDITOR
 	// Gives a chance to any assets being used for PIE/game to complete before calling
 	// BeginPlay on all actors
-	FAssetCompilingManager::Get().ProcessAsyncTasks();
+	FAssetCompilingManager::Get().ProcessAsyncTasks(ProcessAsyncTasksParams);
 #endif
 
 	if( IsGameWorld() && AreActorsInitialized() )
@@ -9056,4 +9059,3 @@ FString ENGINE_API ToString(ENetMode NetMode)
 }
 
 #undef LOCTEXT_NAMESPACE 
-

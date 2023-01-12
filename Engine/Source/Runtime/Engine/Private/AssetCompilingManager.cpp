@@ -521,6 +521,19 @@ void FAssetCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 	UpdateNumRemainingAssets();
 }
 
+void FAssetCompilingManager::ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params)
+{
+	// Reuse ObjectIterator Caching and Reverse lookups for the duration of all asset updates
+	FObjectCacheContextScope ObjectCacheScope;
+
+	for (IAssetCompilingManager* AssetCompilingManager : AssetCompilingManagers)
+	{
+		AssetCompilingManager->ProcessAsyncTasks(Params);
+	}
+
+	UpdateNumRemainingAssets();
+}
+
 void FAssetCompilingManager::UpdateNumRemainingAssets()
 {
 	const int32 NumRemainingAssets = GetNumRemainingAssets();

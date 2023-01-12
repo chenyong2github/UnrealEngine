@@ -4126,6 +4126,17 @@ void FShaderCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 	ProcessAsyncResults(bLimitExecutionTime, false);
 }
 
+void FShaderCompilingManager::ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params)
+{
+	// Shader compilations are not required for PIE to begin.
+	if (Params.bPlayInEditorAssetsOnly)
+	{
+		return;
+	}
+
+	ProcessAsyncResults(Params.bLimitExecutionTime, false);
+}
+
 int32 FShaderCompilingManager::GetNumPendingJobs() const
 {
 	return AllJobs.GetNumPendingJobs();

@@ -28,6 +28,18 @@ struct FAssetCompileData
 	}
 };
 
+namespace AssetCompilation
+{
+	struct FProcessAsyncTaskParams
+	{
+		/* Limits the execution time instead of processing everything */
+		bool bLimitExecutionTime = false;
+
+		/* Limits processing for assets required for PIE only. */
+		bool bPlayInEditorAssetsOnly = false;
+	};
+}
+
 struct IAssetCompilingManager
 {
 	/**
@@ -75,6 +87,14 @@ protected:
 	 */
 	ENGINE_API virtual void ProcessAsyncTasks(bool bLimitExecutionTime = false) = 0;
 
+	/**
+	 * Called once per frame, fetches completed tasks and applies them to the scene.
+	 */
+	ENGINE_API virtual void ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params)
+	{
+		/* Forward for backward compatibility */
+		ProcessAsyncTasks(Params.bLimitExecutionTime);
+	}
 
 	ENGINE_API virtual ~IAssetCompilingManager() {}
 };
@@ -130,6 +150,11 @@ public:
 	 * Called once per frame, fetches completed tasks and applies them to the scene. 
 	 */
 	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+
+	/**
+	 * Called once per frame, fetches completed tasks and applies them to the scene.
+	 */
+	ENGINE_API void ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params);
 
 	/**
 	 * Event called after an asset finishes compilation.
