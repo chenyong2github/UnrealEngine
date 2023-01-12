@@ -84,6 +84,7 @@ private:
 
 private:
 	void UpdateShouldSkipMakingVisibilityTransactionRequest();
+	bool CanChangeVisibility(bool bMakeVisible) const;
 
 	UPROPERTY()
 	bool bShouldBeAlwaysLoaded;

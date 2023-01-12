@@ -478,8 +478,7 @@ void UWorldPartitionRuntimeLevelStreamingCell::Deactivate() const
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 {
-	check(LevelStreaming);
-	if (UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition())
+	if (UWorldPartition* WorldPartition = GetCellOwner()->GetWorldPartition())
 	{
 		WorldPartition->OnCellShown(this);
 	}
@@ -487,10 +486,8 @@ void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden()
 {
-	check(LevelStreaming);
-	if (UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition())
+	if (UWorldPartition* WorldPartition = GetCellOwner()->GetWorldPartition())
 	{
 		WorldPartition->OnCellHidden(this);
 	}
 }
-
