@@ -63,6 +63,8 @@ void UPCGEditorGraphNodeBase::PostTransacted(const FTransactionObjectEvent& Tran
 	{
 		UpdatePosition();
 	}
+
+	ReconstructNode();
 }
 
 void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
