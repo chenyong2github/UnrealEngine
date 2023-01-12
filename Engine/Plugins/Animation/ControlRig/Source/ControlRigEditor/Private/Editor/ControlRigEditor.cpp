@@ -1310,6 +1310,12 @@ void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue, bool bCompile)
 			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 			{
 				RigBlueprint->Validator->SetControlRig(ControlRig);
+
+				if (LastEventQueue == ConstructionEventQueue)
+				{
+					// This will propagate any user bone transformation done during construction to the preview instance
+					ResetAllBoneModification();
+				}
 			}
 		}
 
