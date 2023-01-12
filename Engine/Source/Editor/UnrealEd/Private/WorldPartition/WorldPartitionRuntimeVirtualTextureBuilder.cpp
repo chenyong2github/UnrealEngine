@@ -12,6 +12,7 @@
 #include "AssetCompilingManager.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeVirtualTextureBuilder, All, All);
 
@@ -49,7 +50,12 @@ bool UWorldPartitionRuntimeVirtualTextureBuilder::RunInternal(UWorld* World, con
 	// Load required actors
 	FWorldPartitionHelpers::FForEachActorWithLoadingResult ForEachActorWithLoadingResult;
 	LoadRuntimeVirtualTextureActors(WorldPartition, ForEachActorWithLoadingResult);
-		
+	
+	// Recreate render state after shader compilation complete
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}
+
 	TSet<UPackage*> ModifiedPackages;
 	for (TObjectIterator<URuntimeVirtualTextureComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
 	{
