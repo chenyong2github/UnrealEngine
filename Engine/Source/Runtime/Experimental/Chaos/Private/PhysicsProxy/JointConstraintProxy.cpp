@@ -117,35 +117,7 @@ void FJointConstraintPhysicsProxy::DestroyOnPhysicsThread(FPBDRigidsSolver* InSo
 		// If this constraint disables collisions - need to restore the collisions after we destroy the constraint
 		if(bValidPair && !Settings.bCollisionEnabled)
 		{
-			FPBDRigidParticleHandle* Rigid0 = Particles[0]->CastToRigidParticle();
-			FPBDRigidParticleHandle* Rigid1 = Particles[1]->CastToRigidParticle();
-
-			if(Rigid0 || Rigid1)
-			{
-				// At least one rigid so collisions are possible
-				const FUniqueIdx Id0 = Particles[0]->UniqueIdx();
-				const FUniqueIdx Id1 = Particles[1]->UniqueIdx();
-
-				FIgnoreCollisionManager& IgnoreManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-
-				// Remove the ignore flags for rigid particles. If we end up with no more ignore entries for this particle
-				// then remove the broadphase flag to no longer check the ignore manager for this particles.
-				if(Rigid0)
-				{
-					if(IgnoreManager.RemoveIgnoreCollisionsFor(Id0, Id1) == 0)
-					{
-						Rigid0->RemoveCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-					}
-				}
-
-				if(Rigid1)
-				{
-					if(IgnoreManager.RemoveIgnoreCollisionsFor(Id1, Id0) == 0)
-					{
-						Rigid1->RemoveCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-					}
-				}
-			}
+			InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().RemoveIgnoreCollisions(Particles[0], Particles[1]);
 		}
 
 		// Ensure that our connected particles are aware that this constraint no longer exists
@@ -196,64 +168,21 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(FPBDRigidsSolver* In
 			const FPBDJointSettings& JointSettingsBuffer = *Data;
 			const FPBDJointSettings& CurrentConstraintSettings = Constraint_PT->GetSettings();
 
+			// Handle changes to the CollisionEnabled flag
 			if (CurrentConstraintSettings.bCollisionEnabled != JointSettingsBuffer.bCollisionEnabled)
 			{
-				const TVector<FGeometryParticleHandle*, 2>& BasePairs = Constraint_PT->GetConstrainedParticles();
-				FGeometryParticleHandle * Handle0 = BasePairs[0];
-				FGeometryParticleHandle* Handle1 = BasePairs[1];
-
-				// Three pieces of state to update on the physics thread. 
-				// .. Mask on the particle array
-				// .. Constraint collisions enabled array
-				// .. IgnoreCollisionsManager
-				if (Handle0 && Handle1)
+				const TVector<FGeometryParticleHandle*, 2>& Particles = Constraint_PT->GetConstrainedParticles();
+				if (JointSettingsBuffer.bCollisionEnabled)
 				{
-					FPBDRigidParticleHandle* RigidHandle0 = Handle0->CastToRigidParticle();
-					FPBDRigidParticleHandle* RigidHandle1 = Handle1->CastToRigidParticle();
-
-					// As long as one particle is a rigid we can add the ignore entry, one particle can be a static
-					if (RigidHandle0 || RigidHandle1)
-					{
-						const FUniqueIdx ID0 = Handle0->UniqueIdx();
-						const FUniqueIdx ID1 = Handle1->UniqueIdx();
-						FIgnoreCollisionManager& IgnoreCollisionManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-
-						// For rigid/dynamic particles, add the broadphase flag and the IDs to check for disabled collisions
-						if(RigidHandle0)
-						{
-							if(JointSettingsBuffer.bCollisionEnabled)
-							{
-								if(IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID0, ID1) == 0)
-								{
-									RigidHandle0->RemoveCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-								}
-							}
-							else
-							{
-								RigidHandle0->AddCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-								IgnoreCollisionManager.AddIgnoreCollisionsFor(ID0, ID1);
-							}
-						}
-
-						if(RigidHandle1)
-						{
-							if (JointSettingsBuffer.bCollisionEnabled)
-							{
-								if(IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID1, ID0) == 0)
-								{
-									RigidHandle1->RemoveCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-								}
-							}
-							else
-							{
-								RigidHandle1->AddCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-								IgnoreCollisionManager.AddIgnoreCollisionsFor(ID1, ID0);
-							}
-						}
-					}
+					InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().RemoveIgnoreCollisions(Particles[0], Particles[1]);
+				}
+				else
+				{
+					InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().AddIgnoreCollisions(Particles[0], Particles[1]);
 				}
 			}
 
+			// Update the joint settings
 			Constraint_PT->SetSettings(JointSettingsBuffer);
 		}
 	}

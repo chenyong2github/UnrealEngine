@@ -94,7 +94,7 @@ namespace Chaos
 				bIsKinematic1 = Rigid1->IsKinematic();
 				bIsDynamicAsleep1 = !bIsKinematic1 && Rigid1->IsSleeping();
 				bIsDynamicAwake1 = !bIsKinematic1 && !bIsDynamicAsleep1;
-				bUseIgnoreCollisionManager1 = Rigid1->HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+				bUseIgnoreCollisionManager1 = Rigid1->UseIgnoreCollisionManager();
 				bDisabled1 = Rigid1->Disabled();
 				CollisionGroup1 = Rigid1->CollisionGroup();
 			}
@@ -111,7 +111,7 @@ namespace Chaos
 				bIsKinematic2 = Rigid2->IsKinematic();
 				bIsDynamicAsleep2 = !bIsKinematic2 && Rigid2->IsSleeping();
 				bIsDynamicAwake2 = !bIsKinematic2 && !bIsDynamicAsleep2;
-				bUseIgnoreCollisionManager2 = Rigid2->HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+				bUseIgnoreCollisionManager2 = Rigid2->UseIgnoreCollisionManager();
 				bDisabled2 = Rigid2->Disabled();
 				CollisionGroup2 = Rigid2->CollisionGroup();
 			}
@@ -133,7 +133,7 @@ namespace Chaos
 			// Is this particle interaction governed by the IgnoreCollisionManager? If so, check to see if interaction is allowed
 			if (bUseIgnoreCollisionManager1 || bUseIgnoreCollisionManager2)
 			{
-				if (IgnoreCollisionManager.IgnoresCollision(Particle1->UniqueIdx(), Particle2->UniqueIdx()))
+				if (IgnoreCollisionManager.IgnoresCollision(Particle1, Particle2))
 				{
 					return false;
 				}

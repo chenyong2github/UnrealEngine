@@ -235,39 +235,4 @@ namespace Chaos
 		return Idx;
 	}
 
-	template <>
-	void TPBDRigidParticleHandleImp<FReal, 3, true>::SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc, FPBDRigidsEvolutionBase& Evolution)
-	{
-	
-		if (Disabled() != DynamicMisc.Disabled())
-		{
-			if (DynamicMisc.Disabled())
-			{
-				Evolution.DisableParticle(this);
-			}
-			else
-			{
-				Evolution.EnableParticle(this);
-			}
-		}		
-
-		const bool bDirtyInertiaConditioning = (ObjectState() != DynamicMisc.ObjectState());
-		if (bDirtyInertiaConditioning)
-		{
-			SetInertiaConditioningDirty();
-		}
-
-		SetLinearEtherDrag(DynamicMisc.LinearEtherDrag());
-		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
-		SetMaxLinearSpeedSq(DynamicMisc.MaxLinearSpeedSq());
-		SetMaxAngularSpeedSq(DynamicMisc.MaxAngularSpeedSq());
-		SetCollisionGroup(DynamicMisc.CollisionGroup());
-		SetDisabled(DynamicMisc.Disabled());
-		SetCollisionConstraintFlags(DynamicMisc.CollisionConstraintFlags());
-		SetControlFlags(DynamicMisc.ControlFlags());
-
-		Evolution.SetParticleObjectState(this, DynamicMisc.ObjectState());
-		Evolution.SetParticleSleepType(this, DynamicMisc.SleepType());
-	}
-
 }

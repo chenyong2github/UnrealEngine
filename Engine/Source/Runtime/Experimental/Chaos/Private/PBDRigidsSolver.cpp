@@ -333,7 +333,7 @@ namespace Chaos
 					GeoclObj->FieldParameterUpdateCallback(MSolver);
 				}
 
-				MSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().ProcessPendingQueues();
+				MSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().ProcessPendingQueues(*MSolver);
 			}
 
 			{
@@ -1131,7 +1131,7 @@ namespace Chaos
 				{
 					RewindData->PushGTDirtyData(*Manager, DataIdx, Dirty, ShapeDirtyData);
 				}
-				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData, *GetEvolution(), ExternalDt);
+				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData, ExternalDt);
 			}
 			else
 			{
@@ -1712,18 +1712,24 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 #endif
 	}
 
+	FSingleParticlePhysicsProxy* FPBDRigidsSolver::GetParticleProxy_PT(const FUniqueIdx& Idx)
+	{
+		return SingleParticlePhysicsProxies_PT.IsValidIndex(Idx.Idx) ? SingleParticlePhysicsProxies_PT[Idx.Idx] : nullptr;
+	}
+
+	const FSingleParticlePhysicsProxy* FPBDRigidsSolver::GetParticleProxy_PT(const FUniqueIdx& Idx) const
+	{
+		return SingleParticlePhysicsProxies_PT.IsValidIndex(Idx.Idx) ? SingleParticlePhysicsProxies_PT[Idx.Idx] : nullptr;
+	}
+
 	FSingleParticlePhysicsProxy* FPBDRigidsSolver::GetParticleProxy_PT(const FGeometryParticleHandle& Handle)
 	{
-		const FUniqueIdx UniqueIdx = Handle.UniqueIdx();
-		return SingleParticlePhysicsProxies_PT.IsValidIndex(UniqueIdx.Idx)
-			? SingleParticlePhysicsProxies_PT[UniqueIdx.Idx] : nullptr;
+		return GetParticleProxy_PT(Handle.UniqueIdx());
 	}
 
 	const FSingleParticlePhysicsProxy* FPBDRigidsSolver::GetParticleProxy_PT(const FGeometryParticleHandle& Handle) const
 	{
-		const FUniqueIdx UniqueIdx = Handle.UniqueIdx();
-		return SingleParticlePhysicsProxies_PT.IsValidIndex(UniqueIdx.Idx)
-			? SingleParticlePhysicsProxies_PT[UniqueIdx.Idx] : nullptr;
+		return GetParticleProxy_PT(Handle.UniqueIdx());
 	}
 
 	void FPBDRigidsSolver::PostEvolutionVDBPush() const
@@ -1828,6 +1834,46 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 	void FPBDRigidsSolver::UpdateIsDeterministic()
 	{
 		GetEvolution()->SetIsDeterministic(IsDetemerministic());
+	}
+
+	void FPBDRigidsSolver::SetParticleDynamicMisc(FPBDRigidParticleHandle* Rigid, const FParticleDynamicMisc& DynamicMisc)
+	{
+		if (Rigid == nullptr)
+		{
+			return;
+		}
+
+		// Enable or disable the particle
+		if (Rigid->Disabled() != DynamicMisc.Disabled())
+		{
+			if (DynamicMisc.Disabled())
+			{
+				GetEvolution()->DisableParticle(Rigid);
+			}
+			else
+			{
+				GetEvolution()->EnableParticle(Rigid);
+			}
+		}
+
+		// If we changed kinematics we need to rebuild the inertia conditioning
+		const bool bDirtyInertiaConditioning = (Rigid->ObjectState() != DynamicMisc.ObjectState());
+		if (bDirtyInertiaConditioning)
+		{
+			Rigid->SetInertiaConditioningDirty();
+		}
+
+		Rigid->SetLinearEtherDrag(DynamicMisc.LinearEtherDrag());
+		Rigid->SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
+		Rigid->SetMaxLinearSpeedSq(DynamicMisc.MaxLinearSpeedSq());
+		Rigid->SetMaxAngularSpeedSq(DynamicMisc.MaxAngularSpeedSq());
+		Rigid->SetCollisionGroup(DynamicMisc.CollisionGroup());
+		Rigid->SetDisabled(DynamicMisc.Disabled());
+		Rigid->SetCollisionConstraintFlags(DynamicMisc.CollisionConstraintFlags());
+		Rigid->SetControlFlags(DynamicMisc.ControlFlags());
+
+		GetEvolution()->SetParticleObjectState(Rigid, DynamicMisc.ObjectState());
+		GetEvolution()->SetParticleSleepType(Rigid, DynamicMisc.SleepType());
 	}
 
 

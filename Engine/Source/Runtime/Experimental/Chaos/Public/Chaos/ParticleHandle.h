@@ -1022,7 +1022,8 @@ public:
 		SetInertiaConditioningDirty();
 	}
 
-	void SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc, FPBDRigidsEvolutionBase& Evolution);
+	UE_DEPRECATED(5.2, "Moved to FPBDRigidsSolver")
+	void SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc, FPBDRigidsEvolutionBase& Evolution) {}
 
 	void ResetSmoothedVelocities()
 	{
@@ -1168,6 +1169,21 @@ public:
 	inline void ClearInertiaConditioningDirty()
 	{
 		PBDRigidParticles->TransientFlags(ParticleIdx).ClearInertiaConditioningDirty();
+	}
+
+	inline bool UseIgnoreCollisionManager() const
+	{
+		return PBDRigidParticles->TransientFlags(ParticleIdx).GetUseIgnoreCollisionManager();
+	}
+
+	inline void SetUseIgnoreCollisionManager()
+	{
+		PBDRigidParticles->TransientFlags(ParticleIdx).SetUseIgnoreCollisionManager();
+	}
+
+	inline void ClearUseIgnoreCollisionManager()
+	{
+		PBDRigidParticles->TransientFlags(ParticleIdx).ClearUseIgnoreCollisionManager();
 	}
 
 	ESleepType SleepType() const { return PBDRigidParticles->SleepType(ParticleIdx);}
@@ -1967,6 +1983,31 @@ public:
 		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			RigidHandle->ClearInertiaConditioningDirty();
+		}
+	}
+
+	inline bool UseIgnoreCollisionManager() const
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			return RigidHandle->UseIgnoreCollisionManager();
+		}
+		return false;
+	}
+
+	inline void SetUseIgnoreCollisionManager()
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			RigidHandle->SetUseIgnoreCollisionManager();
+		}
+	}
+
+	inline void ClearUseIgnoreCollisionManager()
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			RigidHandle->ClearUseIgnoreCollisionManager();
 		}
 	}
 

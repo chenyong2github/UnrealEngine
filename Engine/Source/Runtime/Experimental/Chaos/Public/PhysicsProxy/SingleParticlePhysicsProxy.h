@@ -120,7 +120,7 @@ public:
 
 	// Threading API
 
-	void PushToPhysicsState(const FDirtyPropertiesManager& Manager,int32 DataIdx,const FDirtyProxy& Dirty,FShapeDirtyData* ShapesData, FPBDRigidsEvolutionGBF& Evolution, FReal ExternalDt);
+	void PushToPhysicsState(const FDirtyPropertiesManager& Manager,int32 DataIdx,const FDirtyProxy& Dirty,FShapeDirtyData* ShapesData, FReal ExternalDt);
 
 	/**/
 	void ClearAccumulatedData();

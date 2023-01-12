@@ -111,15 +111,12 @@ namespace ChaosTest
 		const FUniqueIdx NonCollidableId = NonCollidableParticle.UniqueIdx();
 		const FUniqueIdx FloorId = FloorParticle.UniqueIdx();
 
-		// Set up the ignore manager
-		FIgnoreCollisionManager& IgnoreManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-		IgnoreManager.AddIgnoreCollisionsFor(NonCollidableId, FloorId);
-
 		// Flush the solver
 		FlushSolver(Solver);
 
-		// Tell the broadphase we're interested in checking the ignore manager for this object
-		NonCollidableProxy->GetHandle_LowLevel()->CastToRigidParticle()->AddCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+		// Set up the ignore manager
+		FIgnoreCollisionManager& IgnoreManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		IgnoreManager.AddIgnoreCollisions(NonCollidableProxy->GetHandle_LowLevel(), FloorProxy->GetHandle_LowLevel());
 
 		RunSolver(Solver, 1.0f, 10);
 
@@ -197,16 +194,13 @@ namespace ChaosTest
 		const FUniqueIdx NonCollidableId = NonCollidableParticle.UniqueIdx();
 		const FUniqueIdx FloorId = FloorParticle.UniqueIdx();
 
-		// Set up the ignore manager (Twice as if two systems requested it)
-		FIgnoreCollisionManager& IgnoreManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-		IgnoreManager.AddIgnoreCollisionsFor(NonCollidableId, FloorId);
-		IgnoreManager.AddIgnoreCollisionsFor(NonCollidableId, FloorId);
-
 		// Flush the solver
 		FlushSolver(Solver);
 
-		// Tell the broadphase we're interested in checking the ignore manager for this object
-		NonCollidableProxy->GetHandle_LowLevel()->CastToRigidParticle()->AddCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+		// Set up the ignore manager (Twice as if two systems requested it)
+		FIgnoreCollisionManager& IgnoreManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		IgnoreManager.AddIgnoreCollisions(NonCollidableProxy->GetHandle_LowLevel(), FloorProxy->GetHandle_LowLevel());
+		IgnoreManager.AddIgnoreCollisions(NonCollidableProxy->GetHandle_LowLevel(), FloorProxy->GetHandle_LowLevel());
 
 		const float Dt = 1.0f;
 		const int32 Steps = 10;
@@ -234,7 +228,7 @@ namespace ChaosTest
 		EXPECT_EQ(Hits[NonCollidableId], 0);	// Non collidable ignored all collisions with the floor
 
 		// Remove one source
-		IgnoreManager.RemoveIgnoreCollisionsFor(NonCollidableId, FloorId);
+		IgnoreManager.RemoveIgnoreCollisions(NonCollidableProxy->GetHandle_LowLevel(), FloorProxy->GetHandle_LowLevel());
 
 		Callback->CollisionPairs.Reset();
 		RunSolver(Solver, 1.0f, 10);
@@ -248,7 +242,7 @@ namespace ChaosTest
 		EXPECT_EQ(Hits[NonCollidableId], 0);	// Non collidable ignored all collisions with the floor
 
 		// Remove final source
-		IgnoreManager.RemoveIgnoreCollisionsFor(NonCollidableId, FloorId);
+		IgnoreManager.RemoveIgnoreCollisions(NonCollidableProxy->GetHandle_LowLevel(), FloorProxy->GetHandle_LowLevel());
 
 		Callback->CollisionPairs.Reset();
 		RunSolver(Solver, 1.0f, 10);

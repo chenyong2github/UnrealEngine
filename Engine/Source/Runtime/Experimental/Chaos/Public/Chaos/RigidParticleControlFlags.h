@@ -101,14 +101,21 @@ namespace Chaos
 		FStorage GetFlags() const { return Bits; }
 		void SetFlags(const FStorage InFlags) { Bits = InFlags; }
 
+		// Set to true when some property of the particle changes and we should regenerate the inertia conditioning vector
 		bool GetInertiaConditioningDirty() const { return Flags.bInertiaConditioningDirty; }
 		void SetInertiaConditioningDirty() { Flags.bInertiaConditioningDirty = true; }
 		void ClearInertiaConditioningDirty() { Flags.bInertiaConditioningDirty = false; }
+
+		// Set to true when the particle has one or more entries in the CollisionIgnoreManager
+		bool GetUseIgnoreCollisionManager() const { return Flags.bUseIgnoreCollisionManager; }
+		void SetUseIgnoreCollisionManager() { Flags.bUseIgnoreCollisionManager = true; }
+		void ClearUseIgnoreCollisionManager() { Flags.bUseIgnoreCollisionManager = false; }
 
 	private:
 		struct FFlags
 		{
 			FStorage bInertiaConditioningDirty : 1;
+			FStorage bUseIgnoreCollisionManager : 1;
 			// Add new properties above this line
 			// Change FStorage typedef if we exceed the max bits
 		};

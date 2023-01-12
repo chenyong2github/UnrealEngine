@@ -302,8 +302,14 @@ namespace Chaos
 		void UpdateExpensiveStatCounters() const;
 
 		// Access particle proxy from physics thread useful for cross thread communication
+		FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FUniqueIdx& Idx);
+		const FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FUniqueIdx& Idx) const;
 		FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FGeometryParticleHandle& Handle);
 		const FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FGeometryParticleHandle& Handle) const;
+
+		// Interop utilities
+		void SetParticleDynamicMisc(FPBDRigidParticleHandle* Rigid, const FParticleDynamicMisc& DynamicMisc);
+
 
 	private:
 
