@@ -34,6 +34,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
+#else
+#include "Engine/Engine.h"
 #endif
 
 

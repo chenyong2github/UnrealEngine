@@ -17,6 +17,9 @@
 #include "Editor.h"
 #include "GameDelegates.h"
 #include "Engine/Blueprint.h"
+#else
+#include "Engine/World.h"
+#include "UObject/Package.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "LevelVariantSets"

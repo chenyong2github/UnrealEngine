@@ -14,6 +14,8 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorSubsystem.h"
+#else
+#include "Engine/Engine.h"
 #endif // WITH_EDITOR
 
 

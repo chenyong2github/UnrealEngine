@@ -3,6 +3,7 @@
 
 
 #include "AnimationRuntime.h"
+#include "Animation/AttributesRuntime.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Features/IModularFeatures.h"

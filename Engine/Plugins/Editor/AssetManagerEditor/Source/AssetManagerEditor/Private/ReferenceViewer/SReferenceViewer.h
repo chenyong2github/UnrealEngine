@@ -8,6 +8,7 @@
 #include "CollectionManagerTypes.h"
 
 class FUICommandList;
+class SComboButton;
 class SReferenceViewerFilterBar;
 class SSearchBox;
 class UEdGraph_ReferenceViewer;

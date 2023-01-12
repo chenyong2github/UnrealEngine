@@ -16,6 +16,9 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "AssetRegistry/AssetData.h"
+#include "Engine/Engine.h"
 #endif
 
 UDataRegistrySubsystem* UDataRegistrySubsystem::Get()

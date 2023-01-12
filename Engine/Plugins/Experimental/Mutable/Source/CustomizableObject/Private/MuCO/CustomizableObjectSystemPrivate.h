@@ -14,10 +14,6 @@
 #include "UObject/GCObject.h"
 #include "WorldCollision.h"
 
-class UCustomizableObjectSystem;
-namespace LowLevelTasks { enum class ETaskPriority : int8; }
-struct FTexturePlatformData;
-
 // This define could come from MuR/System.h
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
 	#include "Tasks/Task.h"
@@ -25,6 +21,9 @@ struct FTexturePlatformData;
 	#include "Async/TaskGraphInterfaces.h"
 #endif
 
+class UCustomizableObjectSystem;
+namespace LowLevelTasks { enum class ETaskPriority : int8; }
+struct FTexturePlatformData;
 
 //! An operation to be performed by Mutable. This could be creating or updating an instance, releasing resources, changing an LOD, etc.
 //! Operations may be done in several tasks in several thread or across frames.

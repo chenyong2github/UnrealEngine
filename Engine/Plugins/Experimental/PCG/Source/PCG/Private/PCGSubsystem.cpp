@@ -23,6 +23,8 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "ObjectTools.h"
+#else
+#include "Engine/World.h"
 #endif
 
 namespace PCGSubsystemConsole

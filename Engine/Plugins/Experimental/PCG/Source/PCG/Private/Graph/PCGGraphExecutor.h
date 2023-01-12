@@ -6,8 +6,6 @@
 #include "PCGGraphCache.h"
 #include "PCGSubsystem.h"
 
-class FTextFormat;
-
 #if WITH_EDITOR
 #include "AsyncCompilationHelpers.h"
 #include "WorldPartition/WorldPartitionHandle.h" // Needed for FWorldPartitionReference
@@ -18,6 +16,7 @@ class UPCGGraph;
 class UPCGNode;
 class UPCGComponent;
 class FPCGGraphCompiler;
+class FTextFormat;
 
 struct FPCGGraphTaskInput
 {

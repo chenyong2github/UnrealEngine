@@ -5,6 +5,8 @@
 
 #if SUPPORTS_IMAGE_UTILS_1_0
 	#include "Apple/ApplePlatformMisc.h"
+	#include "Async/Async.h"
+	#include "Engine/Texture2D.h"
 
 	#import <CoreImage/CIContext.h>
 

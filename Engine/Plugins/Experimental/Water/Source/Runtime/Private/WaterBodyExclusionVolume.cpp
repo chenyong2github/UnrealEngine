@@ -5,6 +5,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
+#include "WaterBodyManager.h"
 #include "WaterEditorServices.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyExclusionVolume)
@@ -14,7 +15,6 @@
 #include "WaterBodyActor.h"
 #include "WaterIconHelper.h"
 #include "Modules/ModuleManager.h"
-#include "WaterBodyManager.h"
 #include "WaterModule.h"
 #endif
 
