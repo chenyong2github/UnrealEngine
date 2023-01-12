@@ -109,7 +109,7 @@ namespace EventCacheStatic
 		while (!bWroteFullString)
 		{
 			// Give some padding. ensure we add at least one char.
-			const int32 StrLen = (int32)(Len + FMath::Max(1.f, Len * (SizeMultiplier)));
+			const int32 StrLen = Len + (int32)FMath::Max(1.f, (float)Len * SizeMultiplier);
 			// make space for the string
 			UTF8Stream.SetNumUninitialized(OldLen + StrLen, false);
 			// convert it to UTF8
@@ -122,9 +122,9 @@ namespace EventCacheStatic
 			else
 			{
 				// we overflowed our buffer. Must be lots of multibyte chars. double the slack and try again.
-				SizeMultiplier *= 2.0;
+				SizeMultiplier *= 2.0f;
 				// if we grow too much, give up and compute the true chars needed.
-				if (SizeMultiplier >= 2.0)
+				if (SizeMultiplier >= 2.0f)
 				{
 					const int32 ActualCharsNeeded = FPlatformString::ConvertedLength<UTF8CHAR>(Str, Len);
 					UTF8Stream.SetNumUninitialized(OldLen + ActualCharsNeeded, false);
@@ -181,7 +181,7 @@ namespace EventCacheStatic
 
 	inline void InitializePayloadBuffer(TArray<uint8>& Buffer, int32 MaximumPayloadSize)
 	{
-		Buffer.Reserve(MaximumPayloadSize * 1.2);
+		Buffer.Reserve((int32)(MaximumPayloadSize * 1.2));
 		// we are going to write UTF8 directly into our payload buffer.
 		AppendString(Buffer, PayloadTemplate, PayloadTemplateLength);
 	}
@@ -385,9 +385,9 @@ void FAnalyticsProviderETEventCache::QueueFlush()
 
 	// see if it took too long or we have a really large payload. If so, log out the events.
 	const double EndTime = FPlatformTime::Seconds();
-	if ((EndTime - StartTime) > EventCacheStatic::PayloadFlushTimeSecForWarning || CachedEventUTF8Stream.Num() > (int32)(MaximumPayloadSize * EventCacheStatic::PayloadPercentageOfMaxForWarning))
+	if ((EndTime - StartTime) > EventCacheStatic::PayloadFlushTimeSecForWarning || CachedEventUTF8Stream.Num() > (int32)((float)MaximumPayloadSize * EventCacheStatic::PayloadPercentageOfMaxForWarning))
 	{
-		UE_LOG(LogAnalytics, Warning, TEXT("EventCache either took too long to flush (%.3f ms) or had a very large payload (%.3f KB, %d events). Listing events in the payload for investigation:"), (EndTime-StartTime) * 1000, CachedEventUTF8Stream.Num() / 1024.f, CachedEventEntries.Num());
+		UE_LOG(LogAnalytics, Warning, TEXT("EventCache either took too long to flush (%.3f ms) or had a very large payload (%.3f KB, %d events). Listing events in the payload for investigation:"), (EndTime-StartTime) * 1000, (float)CachedEventUTF8Stream.Num() / 1024.f, CachedEventEntries.Num());
 		for (const FAnalyticsEventEntry& Entry : CachedEventEntries)
 		{
 			UE_LOG(LogAnalytics, Warning, TEXT("    %s,%d"), *Entry.EventName, Entry.EventSizeChars);

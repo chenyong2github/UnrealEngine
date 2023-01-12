@@ -193,7 +193,7 @@ bool FJsonStructDeserializerBackend::ReadProperty( FProperty* Property, FPropert
 					return false;
 				}
 
-				int32 Value = ByteProperty->Enum->GetValueByName(*StringValue);
+				int64 Value = ByteProperty->Enum->GetValueByName(*StringValue);
 				if (Value == INDEX_NONE)
 				{
 					return false;

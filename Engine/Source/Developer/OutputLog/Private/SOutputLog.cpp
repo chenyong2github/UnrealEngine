@@ -181,7 +181,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 				SNew(SComboButton)
 				.IsEnabled(this, &SConsoleInputBox::IsCommandExecutorMenuEnabled)
 				.ComboButtonStyle(FOutputLogStyle::Get(), "SimpleComboButton")
-				.ContentPadding(0)
+				.ContentPadding(0.f)
 				.OnGetMenuContent(this, &SConsoleInputBox::GetCommandExecutorMenuContent)
 				.ButtonContent()
 				[
@@ -228,8 +228,8 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 			.Padding( FMargin(2) )
 			[
 				SNew(SBox)
-				.HeightOverride(250) // avoids flickering, ideally this would be adaptive to the content without flickering
-				.MinDesiredWidth(300)
+				.HeightOverride(250.f) // avoids flickering, ideally this would be adaptive to the content without flickering
+				.MinDesiredWidth(300.f)
 				.MaxDesiredWidth(this, &SConsoleInputBox::GetSelectionListMaxWidth)
 				[
 					SAssignNew(SuggestionListView, SListView< TSharedPtr<FString> >)
@@ -856,7 +856,7 @@ float FOutputLogTextLayoutMarshaller::GetCategoryHue(FName CategoryName)
 	else
 	{
 		FRandomStream RNG(GetTypeHash(CategoryName));
-		const float Hue = RNG.FRandRange(0.0f, 360.0f);
+		const float Hue = (float)RNG.FRandRange(0.0, 360.0);
 		CategoryHueMap.Add(CategoryName, Hue);
 		return Hue;
 	}

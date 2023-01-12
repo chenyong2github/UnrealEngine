@@ -61,7 +61,7 @@ double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal
 	}
 #endif // ENABLE_COOK_STATS
 
-	return TotalBytes;
+	return (double)TotalBytes;
 }
 
 

@@ -16,8 +16,8 @@ bool MatchExtensionString(const TCHAR* Filename, const TCHAR* Extensions)
 	{
 		return false;
 	}
-
-	const int32 ExtLength = StrLength - (Ext - Filename);
+	
+	const int32 ExtLength = StrLength - UE_PTRDIFF_TO_INT32(Ext - Filename);
 	const TCHAR* Search = FCString::Strchr(Extensions, QueryChar);
 
 	while (Search && *(++Search) != '\0')

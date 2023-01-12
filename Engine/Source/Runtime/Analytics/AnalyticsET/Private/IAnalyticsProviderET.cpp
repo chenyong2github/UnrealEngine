@@ -244,7 +244,7 @@ bool FAnalyticsProviderET::Tick(float DeltaSeconds)
 	// On servers where there may be dozens of provider instances, this will spread out the cost a bit.
 	// If caching is disabled, we still want events to be flushed immediately, so we are only guarding the flush calls from tick,
 	// any other calls to flush are allowed to happen in the same frame.
-	static uint32 LastFrameCounterFlushed = 0;
+	static uint64 LastFrameCounterFlushed = 0;
 
 	const bool bHadFlushesQueued = EventCache.HasFlushesQueued();
 	const bool bShouldFlush = bHadFlushesQueued || (EventCache.CanFlush() && Now >= NextEventFlushTime);
@@ -264,7 +264,7 @@ bool FAnalyticsProviderET::Tick(float DeltaSeconds)
 			// try to keep on the same cadence when flushing, since we could miss our window by several frames.
 			if (!bHadFlushesQueued && Now >= NextEventFlushTime)
 			{
-				const float Multiplier = (int)((Now - NextEventFlushTime) / FlushIntervalSec) + 1.f;
+				const float Multiplier = (FloatCastChecked<float>(Now - NextEventFlushTime, 1./16.) / FlushIntervalSec) + 1.f;
 				NextEventFlushTime += Multiplier * FlushIntervalSec;
 			}
 		}

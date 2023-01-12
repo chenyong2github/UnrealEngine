@@ -148,9 +148,10 @@ bool FCborReader::ReadNext(FCborContext& OutContext)
 			else
 			{
 				OutContext.Length = ReadUIntValue(OutContext, *Stream);
-				OutContext.RawTextValue.SetNumUninitialized(OutContext.Length + 1); // Length doesn't count the null terminating character
+				int32 StringLength = IntCastChecked<int32>(OutContext.Length);
+				OutContext.RawTextValue.SetNumUninitialized(StringLength + 1); // Length doesn't count the null terminating character
 				Stream->Serialize(OutContext.RawTextValue.GetData(), OutContext.Length);
-				OutContext.RawTextValue[OutContext.Length] = '\0';
+				OutContext.RawTextValue[StringLength] = '\0';
 			}
 			break;
 		case ECborCode::Array:

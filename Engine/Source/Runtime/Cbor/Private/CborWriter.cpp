@@ -160,21 +160,21 @@ FCborHeader FCborWriter::WriteUIntValue(FCborHeader Header, FArchive& Ar, uint64
 	{
 		Header.Set(Header.MajorType() | ECborCode::Value_1Byte);
 		Ar << Header;
-		uint8 Temp = Value;
+		uint8 Temp = (uint8)(Value);
 		Ar << Temp;
 	}
 	else if (Value < 65536)
 	{
 		Header.Set((uint8)(Header.MajorType() | ECborCode::Value_2Bytes));
 		Ar << Header;
-		uint16 Temp = Value;
+		uint16 Temp = (uint16)Value;
 		Ar << Temp;
 	}
 	else if (Value < 0x100000000L)
 	{
 		Header.Set((uint8)(Header.MajorType() | ECborCode::Value_4Bytes));
 		Ar << Header;
-		uint32 Temp = Value;
+		uint32 Temp = (uint32)Value;
 		Ar << Temp;
 	}
 	else

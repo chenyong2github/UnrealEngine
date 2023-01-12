@@ -68,8 +68,8 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 						.AutoWidth()
 						[
 							SNew(SBox)
-							.WidthOverride(16)
-							.HeightOverride(16)
+							.WidthOverride(16.f)
+							.HeightOverride(16.f)
 							[
 								SNew(SImage).Image(this, &SDeviceOutputLog::GetSelectedTargetDeviceBrush)
 							]
@@ -342,8 +342,8 @@ TSharedRef<SWidget> SDeviceOutputLog::GenerateWidgetForDeviceComboBox(const FTar
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride(24)
-				.HeightOverride(24)
+				.WidthOverride(24.f)
+				.HeightOverride(24.f)
 				[
 					SNew(SImage).Image(GetTargetDeviceBrush(DeviceEntry))
 				]

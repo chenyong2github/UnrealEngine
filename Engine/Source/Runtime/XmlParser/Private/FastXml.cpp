@@ -76,7 +76,7 @@ protected:
 	{
 		if( FeedbackContext != nullptr )
 		{
-			FeedbackContext->UpdateProgress( Buffer - &XmlFileContents[ 0 ], XmlFileContentsLength );
+			FeedbackContext->UpdateProgress(UE_PTRDIFF_TO_INT32(Buffer - &XmlFileContents[0]), IntCastChecked<int32>(XmlFileContentsLength) );
 		}
 
 		if( Char == L'/' || Char == L'?' )

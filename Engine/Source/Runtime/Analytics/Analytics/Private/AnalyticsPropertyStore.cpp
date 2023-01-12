@@ -10,6 +10,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace AnalyticsPropertyStoreUtils
 {
@@ -631,7 +632,7 @@ IAnalyticsPropertyStore::EStatusCode FAnalyticsPropertyStore::SetFixedSizeValueI
 	else
 	{
 		// Insert the new record at the end.
-		uint32 NewRecordOffset = StorageWriter.TotalSize();
+		int64 NewRecordOffset = StorageWriter.TotalSize();
 		StorageWriter.Seek(NewRecordOffset);
 
 		// Write the type.
@@ -644,7 +645,7 @@ IAnalyticsPropertyStore::EStatusCode FAnalyticsPropertyStore::SetFixedSizeValueI
 		StorageWriter << const_cast<FString&>(Key);
 
 		// Cache the offset to the newly inserted record.
-		NameOffsetMap.Emplace(Key, NewRecordOffset);
+		NameOffsetMap.Emplace(Key, IntCastChecked<uint32>(NewRecordOffset));
 		return EStatusCode::Success;
 	}
 }
@@ -677,7 +678,7 @@ IAnalyticsPropertyStore::EStatusCode FAnalyticsPropertyStore::SetStringValueInte
 	auto InsertFn = [this](const FString& Key, ETypeCode TypeCode, const void* Bytes, uint32 ByteCount, uint32 Capacity)
 	{
 		// Insert the new record at the end.
-		uint32 InsertOffset = StorageWriter.TotalSize();
+		int64 InsertOffset = StorageWriter.TotalSize();
 		StorageWriter.Seek(InsertOffset);
 
 		// Write the value type.
@@ -702,7 +703,7 @@ IAnalyticsPropertyStore::EStatusCode FAnalyticsPropertyStore::SetStringValueInte
 		StorageWriter << const_cast<FString&>(Key);
 
 		// Cache the offset to the newly inserted record.
-		NameOffsetMap.Emplace(Key, InsertOffset);
+		NameOffsetMap.Emplace(Key, IntCastChecked<uint32>(InsertOffset));
 		return EStatusCode::Success;
 	};
 
@@ -985,7 +986,7 @@ bool FAnalyticsPropertyStore::Flush(bool bAsync, const FTimespan& Timeout)
 					return true;
 				}
 			}
-			FPlatformProcess::Sleep(FTimespan::FromMilliseconds(1).GetTotalSeconds());
+			FPlatformProcess::Sleep(FloatCastChecked<float>(FTimespan::FromMilliseconds(1).GetTotalSeconds(), 1./1000.));
 		} while (FPlatformTime::Seconds() - StartTimeSecs < Timeout.GetTotalSeconds());
 
 		return false;

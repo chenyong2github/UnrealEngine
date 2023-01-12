@@ -111,7 +111,7 @@ uint32 FWindowsPlatformInput::GetKeyMap( uint32* KeyCodes, FString* KeyNames, ui
 
 		for (auto It(ScanToVKMap.CreateConstIterator()); It; ++It)
 		{
-			ADDKEYMAP(It.Value(), FString::Chr(It.Key()));
+			ADDKEYMAP(It.Value(), FString::Chr((TCHAR)It.Key()));
 		}
 	}
 

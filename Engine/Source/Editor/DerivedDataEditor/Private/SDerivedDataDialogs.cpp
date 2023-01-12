@@ -666,8 +666,8 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		const int64 TotalRequests = TotalGetHits + TotalGetMisses;
 		const double HitRate = TotalRequests > 0 ? 100.0 * TotalGetHits / TotalRequests : 0.0;
 
-		const double TotalGetMB = FUnitConversion::Convert(TotalGetBytes, EUnit::Bytes, EUnit::Megabytes);
-		const double TotalPutMB = FUnitConversion::Convert(TotalPutBytes, EUnit::Bytes, EUnit::Megabytes);
+		const double TotalGetMB = FUnitConversion::Convert((double)TotalGetBytes, EUnit::Bytes, EUnit::Megabytes);
+		const double TotalPutMB = FUnitConversion::Convert((double)TotalPutBytes, EUnit::Bytes, EUnit::Megabytes);
 
 		SumTotalGetMB += TotalGetMB;
 		SumTotalPutMB += TotalPutMB;
