@@ -13,6 +13,14 @@ void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn,
 	UpdateQueryConfig(QueryConfigIn, bEnableTopologyIDFilteringIn);
 }
 
+void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn, bool bEnableTopologyIDFilteringIn)
+{
+	check(TargetSelectionIn != nullptr);
+	TargetSelection = TargetSelectionIn;
+	FGeometrySelectionHitQueryConfig TmpQueryConfig{TargetSelection->TopologyType, TargetSelection->ElementType, false};
+	UpdateQueryConfig(TmpQueryConfig, bEnableTopologyIDFilteringIn);
+}
+
 
 void FGeometrySelectionEditor::UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig, bool bEnableTopologyIDFilteringIn)
 {

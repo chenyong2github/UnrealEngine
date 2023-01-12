@@ -193,6 +193,73 @@ DYNAMICMESH_API bool ConvertPolygroupSelectionToTopologySelection(
 
 
 /**
+ * Select all elements of the provided Mesh and GroupTopology that pass the provided SelectionIDPredicate, 
+ * and store in the output AllSelection. The type of elements selected is defined by the existing configured
+ * type of the AllSelection parameter. 
+ * @param GroupTopology precomputed group topology for Mesh, can be passed as null for EGeometryTopologyType::Triangle selections
+ * @return true if AllSelection had a known geometry/topology type pair and was populated
+ */
+DYNAMICMESH_API bool MakeSelectAllSelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	TFunctionRef<bool(FGeoSelectionID)> SelectionIDPredicate,
+	FGeometrySelection& AllSelection);
+
+/**
+ * Expand the input ReferenceSelection to include all "connected" elements and return in AllConnectedSelection.
+ * The type of selected element is defined by ReferenceSelection.
+ * @param GroupTopology precomputed group topology for Mesh, can be passed as null for EGeometryTopologyType::Triangle selections
+ * @param SelectionIDPredicate only elements that pass this filter will be expanded "to"  (but elements of ReferenceSelection that fail the filter will still be included in output)
+ * @param IsConnectedPredicate this function determines if "A" should be considered connected to "B", ie can "expand" along that connection
+ * @return true if ReferenceSelection had a known geometry/topology type pair and AllConnectedSelection was populated
+ */
+DYNAMICMESH_API bool MakeSelectAllConnectedSelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	const FGeometrySelection& ReferenceSelection,
+	TFunctionRef<bool(FGeoSelectionID)> SelectionIDPredicate,
+	TFunctionRef<bool(FGeoSelectionID A, FGeoSelectionID B)> IsConnectedPredicate,
+	FGeometrySelection& AllConnectedSelection);
+
+/**
+ * Create a selection of the elements adjacent to the "Border" of the given ReferenceSelection and return in BoundaryConnectedSelection.
+ * The type of selected element is defined by ReferenceSelection.
+ * Currently "adjacency" is defined as "included in the one-ring of the boundary vertices of the ReferenceSelection", ie first the 
+ * vertices on boundary edges are found, and then their one-rings are enumerated. Note that this will include "inside" and "outside" adjacent elements,
+ * and for vertices, the boundary vertices will still also be included. The main purpose of this function is to implement expand/contract selection
+ * operations, which would typically involve first finding the boundary-connected set and then using CombineSelectionInPlace to modify the original selection.
+ * @param GroupTopology precomputed group topology for Mesh, can be passed as null for EGeometryTopologyType::Triangle selections
+ * @param SelectionIDPredicate only elements that pass this filter will be expanded "to"  (but elements of ReferenceSelection that fail the filter will still be included in output)
+ * @return true if ReferenceSelection had a known geometry/topology type pair and BoundaryConnectedSelection was populated
+ */
+DYNAMICMESH_API bool MakeBoundaryConnectedSelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	const FGeometrySelection& ReferenceSelection,
+	TFunctionRef<bool(FGeoSelectionID)> SelectionIDPredicate,
+	FGeometrySelection& BoundaryConnectedSelection);
+
+
+enum class EGeometrySelectionCombineModes : uint8
+{
+	Add,
+	Subtract,
+	Intersection
+};
+
+
+/**
+ * Combine the elements of SelectionA and SelectionB using the provided CombineMode, and store the result in SelectionA.
+ * @return true if the selectins were compatible (ie both the same type) and of supported geometry/topology type.
+ */
+DYNAMICMESH_API bool CombineSelectionInPlace(
+	FGeometrySelection& SelectionA,
+	const FGeometrySelection& SelectionB, 
+	EGeometrySelectionCombineModes CombineMode );
+
+
+
+/**
  * Compute a 3D Frame suitable for use as a 3D transform gizmo position/orientation
  * for the given MeshSelection
  */

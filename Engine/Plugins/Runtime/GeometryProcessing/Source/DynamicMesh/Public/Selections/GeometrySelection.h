@@ -188,6 +188,14 @@ struct DYNAMICMESH_API FGeometrySelection
 		ElementType = FromSelection.ElementType;
 		TopologyType = FromSelection.TopologyType;
 	}
+
+	/**
+	 * @return true if the two selections have the same type
+	 */
+	bool IsSameType(const FGeometrySelection& OtherSelection) const
+	{
+		return ElementType == OtherSelection.ElementType && TopologyType == OtherSelection.TopologyType;
+	}
 };
 
 
@@ -324,6 +332,14 @@ public:
 		const FGeometrySelectionHitQueryConfig& QueryConfigIn,
 		bool bEnableTopologyIDFiltering);
 
+	/**
+	 * Initialize the Editor with the given Selection. The
+	 * TargetSelectionIn must live longer than the FGeometrySelectionEditor
+	 */
+	void Initialize(
+		FGeometrySelection* TargetSelectionIn,
+		bool bEnableTopologyIDFiltering);
+
 	/** @return the Element Type of the Target Selection */
 	EGeometryElementType GetElementType() const { return TargetSelection->ElementType; }
 	/** @return the Topology Type of the Target Selection */
@@ -352,6 +368,17 @@ public:
 
 	/** Access the Selection object this Editor is modifying */
 	const FGeometrySelection& GetSelection() const { return *TargetSelection; }
+
+	/** Add the items to the Target Selection */
+	bool Select(uint64 ID)
+	{
+		if (IsSelected(ID) == false)
+		{
+			TargetSelection->Selection.Add(ID);
+			return true;
+		}
+		return false;
+	}
 
 	/** Add the items in the List to the Target Selection and return change information in DeltaOut */
 	template<typename ListType>

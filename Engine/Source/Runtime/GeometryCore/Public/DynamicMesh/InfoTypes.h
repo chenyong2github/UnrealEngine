@@ -79,7 +79,7 @@ struct FMeshTriEdgeID
 	/**
 	 * Decode an encoded FMeshTriEdgeID from a packed uint32 created by the Encoded() function
 	 */
-	FMeshTriEdgeID(uint32 EncodedEdgeKey)
+	explicit FMeshTriEdgeID(uint32 EncodedEdgeKey)
 	{
 		TriangleID = EncodedEdgeKey & 0x8FFFFFFF;
 		TriEdgeIndex = (EncodedEdgeKey & 0xC0000000) >> 30;
