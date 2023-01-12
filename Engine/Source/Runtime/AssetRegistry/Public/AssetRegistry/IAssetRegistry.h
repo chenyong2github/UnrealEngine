@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetIdentifier.h"
+#include "Containers/Array.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringFwd.h"
 #include "Misc/AssetRegistryInterface.h"
@@ -14,6 +13,7 @@
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AssetRegistry/AssetData.h"
+#include "CoreMinimal.h"
 #endif
 
 #include "IAssetRegistry.generated.h"
@@ -23,11 +23,12 @@
 #endif
 
 class FArchive;
-struct FARFilter;
-struct FARCompiledFilter;
-struct FAssetRegistrySerializationOptions;
 class FAssetRegistryState;
 class FDependsNode;
+struct FARFilter;
+struct FARCompiledFilter;
+struct FAssetData;
+struct FAssetRegistrySerializationOptions;
 struct FPackageFileSummary;
 struct FObjectExport;
 struct FObjectImport;

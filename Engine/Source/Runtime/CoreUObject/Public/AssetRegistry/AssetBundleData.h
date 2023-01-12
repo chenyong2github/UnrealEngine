@@ -4,7 +4,6 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "UObject/Class.h"
@@ -13,6 +12,10 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/TopLevelAssetPath.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
 
 class FOutputDevice;
 class UObject;

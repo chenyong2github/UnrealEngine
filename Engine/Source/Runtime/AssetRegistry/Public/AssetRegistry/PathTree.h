@@ -4,9 +4,12 @@
 
 #include "Containers/Map.h"
 #include "Containers/Set.h"
-#include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
 
 template <typename FuncType> class TFunctionRef;
 

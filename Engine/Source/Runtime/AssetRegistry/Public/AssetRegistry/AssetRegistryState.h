@@ -10,7 +10,6 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/StringFwd.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssetRegistryInterface.h"
@@ -18,6 +17,10 @@
 #include "UObject/NameTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/TopLevelAssetPath.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
 
 class FArchive;
 class FAssetDataTagMap;

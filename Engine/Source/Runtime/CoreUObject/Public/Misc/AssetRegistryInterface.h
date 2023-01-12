@@ -5,13 +5,16 @@
 #include "Containers/Array.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/Set.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Misc/EnumClassFlags.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/NameTypes.h"
 #include "UObject/TopLevelAssetPath.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif
 
 class FLinkerSave;
 class FStructuredArchiveRecord;
