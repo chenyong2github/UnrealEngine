@@ -317,10 +317,17 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
 	uint32 bSkipAgentHeightCheckWhenPickingNavData:1;
 
+#if WITH_EDITOR
 	/** Warnings are logged if exporting the navigation collision for an object exceed this vertex count.
 	 * Use -1 to disable. */
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem)
+	UE_DEPRECATED(5.2, "This property is deprecated. Please use GeometryExportTriangleCountWarningThreshold instead.")
 	int32 GeometryExportVertexCountWarningThreshold = 1000000;
+#endif // WITH_EDITOR
+
+	/** Warnings are logged if exporting the navigation collision for an object exceed this triangle count.
+	 * Use -1 to disable. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem)
+	int32 GeometryExportTriangleCountWarningThreshold = 200000;
 	
 protected:
 	/** If set to true navigation will be generated only around registered "navigation enforcers"

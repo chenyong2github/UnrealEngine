@@ -1027,11 +1027,21 @@ FORCEINLINE_DEBUGGABLE void ValidateGeometryExport(const FRecastGeometryExport& 
 	{
 		if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Owner->GetWorld()))
 		{
-			UE_CLOG(NavSys->GeometryExportVertexCountWarningThreshold > 0 && GeomExport.VertexBuffer.Num() > NavSys->GeometryExportVertexCountWarningThreshold,
-				LogNavigation,
-				Warning, 
-				TEXT("Exporting geometry with too many verticies (%i). This might cause performance and memory issues. Simplify collision or change GeometryExportVertexCountWarningThreshold. See '%s'."), 
-				GeomExport.VertexBuffer.Num(), *GetFullNameSafe(Owner));
+			constexpr int32 CoordinatePerTriangle = 9;
+			if (NavSys->GeometryExportTriangleCountWarningThreshold > 0 && (GeomExport.VertexBuffer.Num() / CoordinatePerTriangle) > NavSys->GeometryExportTriangleCountWarningThreshold)
+			{
+				static uint32 LastNameHash = 0;
+				const FString FullName = GetFullNameSafe(Owner);
+				const uint32 NameHash = GetTypeHash(FullName);
+				if (NameHash != LastNameHash)
+				{
+					UE_LOG(LogNavigation,
+						Warning, 
+						TEXT("Exporting collision geometry with too many triangles (%i). This might cause performance and memory issues. Add a simple collision or change GeometryExportVertexCountWarningThreshold. See '%s'."), 
+						GeomExport.VertexBuffer.Num() / CoordinatePerTriangle, *FullName);
+				}
+				LastNameHash = NameHash;
+			}
 		}
 	}
 }
