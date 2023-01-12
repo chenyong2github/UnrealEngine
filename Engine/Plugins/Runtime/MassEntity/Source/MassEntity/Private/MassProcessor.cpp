@@ -338,7 +338,7 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(const TSharedPtr<
 
 void UMassCompositeProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	for (UMassProcessor* Proc : ChildPipeline.Processors)
+	for (UMassProcessor* Proc : ChildPipeline.GetMutableProcessors())
 	{
 		check(Proc);
 		Proc->CallExecute(EntityManager, Context);
@@ -347,15 +347,7 @@ void UMassCompositeProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 
 void UMassCompositeProcessor::Initialize(UObject& Owner)
 {
-	// remove all nulls
-	ChildPipeline.Processors.RemoveAll([](const UMassProcessor* Proc) { return Proc == nullptr; });
-
-	// from this point on we don't expect to have nulls in ChildPipeline.Processors
-	for (UMassProcessor* Proc : ChildPipeline.Processors)
-	{
-		REDIRECT_OBJECT_TO_VLOG(Proc, this);
-		Proc->Initialize(Owner);
-	}
+	ChildPipeline.Initialize(Owner);
 }
 
 void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProcessorInstances, const TSharedPtr<FMassEntityManager>& EntityManager)
@@ -430,7 +422,7 @@ void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FMassProc
 
 void UMassCompositeProcessor::Populate(TConstArrayView<FMassProcessorOrderInfo> OrderedProcessors)
 {
-	ChildPipeline.Processors.Reset();
+	ChildPipeline.Reset();
 
 	const UWorld* World = GetWorld();
 	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
@@ -452,14 +444,14 @@ void UMassCompositeProcessor::Populate(TConstArrayView<FMassProcessorOrderInfo> 
 void UMassCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
 {
 #if WITH_MASSENTITY_DEBUG
-	if (ChildPipeline.Processors.Num() == 0)
+	if (ChildPipeline.Num() == 0)
 	{
 		Ar.Logf(TEXT("%*sGroup %s: []"), Indent, TEXT(""), *GroupName.ToString());
 	}
 	else
 	{
 		Ar.Logf(TEXT("%*sGroup %s:"), Indent, TEXT(""), *GroupName.ToString());
-		for (UMassProcessor* Proc : ChildPipeline.Processors)
+		for (UMassProcessor* Proc : ChildPipeline.GetProcessors())
 		{
 			check(Proc);
 			Ar.Logf(TEXT("\n"));
@@ -472,7 +464,7 @@ void UMassCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 In
 void UMassCompositeProcessor::SetProcessingPhase(EMassProcessingPhase Phase)
 {
 	Super::SetProcessingPhase(Phase);
-	for (UMassProcessor* Proc : ChildPipeline.Processors)
+	for (UMassProcessor* Proc : ChildPipeline.GetMutableProcessors())
 	{
 		Proc->SetProcessingPhase(Phase);
 	}

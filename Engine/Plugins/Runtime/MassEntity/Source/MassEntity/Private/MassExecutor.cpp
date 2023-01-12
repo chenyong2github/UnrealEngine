@@ -13,20 +13,20 @@ void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Processi
 {
 	if (!ensure(ProcessingContext.EntityManager) || 
 		!ensure(ProcessingContext.DeltaSeconds >= 0.f) ||
-		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE))
+		!ensure(RuntimePipeline.GetProcessors().Find(nullptr) == INDEX_NONE))
 	{
 		return;
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor Run Pipeline")
-	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext);
+	RunProcessorsView(RuntimePipeline.GetMutableProcessors(), ProcessingContext);
 }
 
 void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, FMassArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities)
 {
 	if (!ensure(ProcessingContext.EntityManager) ||
-		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
-		RuntimePipeline.Processors.Num() == 0 ||
+		!ensure(RuntimePipeline.GetProcessors().Find(nullptr) == INDEX_NONE) ||
+		RuntimePipeline.Num() == 0 ||
 		!ensureMsgf(Archetype.IsValid(), TEXT("The Archetype passed in to UE::Mass::Executor::RunSparse is invalid")))
 	{
 		return;
@@ -35,14 +35,14 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparseEntities");
 
 	const FMassArchetypeEntityCollection EntityCollection(Archetype, Entities, FMassArchetypeEntityCollection::NoDuplicates);
-	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &EntityCollection);
+	RunProcessorsView(RuntimePipeline.GetMutableProcessors(), ProcessingContext, &EntityCollection);
 }
 
 void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection)
 {
 	if (!ensure(ProcessingContext.EntityManager) ||
-		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
-		RuntimePipeline.Processors.Num() == 0 ||
+		!ensure(RuntimePipeline.GetProcessors().Find(nullptr) == INDEX_NONE) ||
+		RuntimePipeline.Num() == 0 ||
 		!ensureMsgf(EntityCollection.GetArchetype().IsValid(), TEXT("The Archetype of EntityCollection passed in to UE::Mass::Executor::RunSparse is invalid")))
 	{
 		return;
@@ -50,7 +50,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparse");
 
-	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &EntityCollection);
+	RunProcessorsView(RuntimePipeline.GetMutableProcessors(), ProcessingContext, &EntityCollection);
 }
 
 void Run(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext)

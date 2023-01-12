@@ -314,7 +314,7 @@ TConstArrayView<struct UMassCompositeProcessor::FDependencyNode> FMassDebugger::
 
 TConstArrayView<TObjectPtr<UMassProcessor>> FMassDebugger::GetHostedProcessors(const UMassCompositeProcessor& GraphOwner)
 {
-	return GraphOwner.ChildPipeline.Processors;
+	return GraphOwner.ChildPipeline.GetProcessors();
 }
 
 FString FMassDebugger::GetRequirementsDescription(const FMassFragmentRequirements& Requirements)

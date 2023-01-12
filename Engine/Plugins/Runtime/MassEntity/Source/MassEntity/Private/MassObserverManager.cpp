@@ -226,7 +226,7 @@ void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& Processin
 		ProcessingContext.AuxData.InitializeAs(Type);
 		FMassRuntimePipeline& Pipeline = (*HandlersContainer).FindChecked(Type);
 
-		UE::Mass::Executor::RunProcessorsView(Pipeline.Processors, ProcessingContext, &EntityCollection);
+		UE::Mass::Executor::RunProcessorsView(Pipeline.GetMutableProcessors(), ProcessingContext, &EntityCollection);
 	}
 }
 
@@ -239,7 +239,7 @@ void FMassObserverManager::HandleSingleEntityImpl(const UScriptStruct& FragmentT
 	ProcessingContext.AuxData.InitializeAs(&FragmentType);
 	FMassRuntimePipeline& Pipeline = (*HandlersContainer).FindChecked(&FragmentType);
 
-	UE::Mass::Executor::RunProcessorsView(Pipeline.Processors, ProcessingContext, &EntityCollection);
+	UE::Mass::Executor::RunProcessorsView(Pipeline.GetMutableProcessors(), ProcessingContext, &EntityCollection);
 }
 
 void FMassObserverManager::AddObserverInstance(const UScriptStruct& FragmentOrTagType, const EMassObservedOperation Operation, UMassProcessor& ObserverProcessor)

@@ -316,7 +316,13 @@ public:
 	}
 
 	/** 
-	 * Processes SubsystemRequirements to fetch and process all the indicated subsystems.
+	 * Processes SubsystemRequirements to fetch and process all the indicated subsystems. 
+	 * 
+	 * @param World used to fetch any UWorld-related subsystems. Note that it's perfectly fine to pass a Null World. 
+	 *	The worst case scenario is that any of the UWorldSubsystem subclasses requirements won't be met.
+	 * @oaram SubsystemRequirements indicates all the subsystems that are expected to be accessed. Requesting a subsystem 
+	 *	not indicated by the SubsystemRequirements will result in a failure.
+	 * 
 	 * @return `true` if all required subsystems have been found, `false` otherwise
 	 */
 	bool CacheSubsystemRequirements(const UWorld* World, const FMassSubsystemRequirements& SubsystemRequirements);

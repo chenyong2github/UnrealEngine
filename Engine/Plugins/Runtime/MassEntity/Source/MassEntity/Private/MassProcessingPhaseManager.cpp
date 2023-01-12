@@ -145,7 +145,7 @@ void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEnt
 	TmpPipeline.CreateFromArray(PhaseConfig.ProcessorCDOs, ProcessorOuter);
 
 	TArray<FMassProcessorOrderInfo> SortedProcessors;
-	FMassProcessorDependencySolver Solver(TmpPipeline.Processors, bIsGameRuntime);
+	FMassProcessorDependencySolver Solver(TmpPipeline.GetMutableProcessors(), bIsGameRuntime);
 
 	Solver.ResolveDependencies(SortedProcessors, EntityManager, OutOptionalResult);
 

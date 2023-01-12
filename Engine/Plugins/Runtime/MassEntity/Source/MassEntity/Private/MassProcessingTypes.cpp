@@ -45,11 +45,22 @@ FMassProcessingContext::~FMassProcessingContext()
 //----------------------------------------------------------------------//
 void FMassRuntimePipeline::Reset()
 {
+	for (UMassProcessor* Processor : Processors)
+	{
+		if (Processor)
+		{
+			Processor->MarkAsGarbage();
+		}
+	}
 	Processors.Reset();
 }
 
 void FMassRuntimePipeline::Initialize(UObject& Owner)
 {
+	// having nulls in Processors should be rare so we run the "remove all nulls" operation below only if we know 
+	// for sure that there are any nulls to be removed
+	bool bNullsFound = false;
+
 	for (UMassProcessor* Proc : Processors)
 	{
 		if (Proc)
@@ -57,11 +68,21 @@ void FMassRuntimePipeline::Initialize(UObject& Owner)
 			REDIRECT_OBJECT_TO_VLOG(Proc, &Owner);
 			Proc->Initialize(Owner);
 		}
+		else
+		{
+			bNullsFound = true;
+		}
+	}
+
+	if (bNullsFound)
+	{
+		Processors.RemoveAll([](const UMassProcessor* Proc) { return Proc == nullptr; });
 	}
 }
 
 void FMassRuntimePipeline::SetProcessors(TArray<UMassProcessor*>&& InProcessors)
 {
+	Reset();
 	Processors = InProcessors;
 }
 
@@ -201,6 +222,11 @@ void FMassRuntimePipeline::AppendProcessor(TSubclassOf<UMassProcessor> Processor
 	check(ProcessorClass);
 	UMassProcessor* ProcInstance = NewObject<UMassProcessor>(&InOwner, ProcessorClass);
 	AppendProcessor(*ProcInstance);
+}
+
+void FMassRuntimePipeline::RemoveProcessor(UMassProcessor& InProcessor)
+{
+	Processors.Remove(&InProcessor);
 }
 
 UMassCompositeProcessor* FMassRuntimePipeline::FindTopLevelGroupByName(FName GroupName)
