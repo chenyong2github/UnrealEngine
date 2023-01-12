@@ -24,6 +24,8 @@
 
 #define LOCTEXT_NAMESPACE "EnhancedInput"
 
+const FKey FEnhancedInputKeys::ComboKey("ComboKey");
+
 DEFINE_LOG_CATEGORY(LogEnhancedInput);
 
 class FEnhancedInputModule : public IEnhancedInputModule, public FTickableGameObject
@@ -233,6 +235,10 @@ void FEnhancedInputModule::StartupModule()
 {
 	Library = NewObject<UEnhancedInputLibrary>(GetTransientPackage(), UEnhancedInputLibrary::StaticClass(), NAME_None);
 	Library->AddToRoot();
+	
+	const FName NAME_EnhancedInput(TEXT("EnhancedInput"));
+	EKeys::AddMenuCategoryDisplayInfo(NAME_EnhancedInput, LOCTEXT("EnhancedInputSubCateogry", "Enhanced Input"), TEXT("GraphEditor.KeyEvent_16x"));
+	EKeys::AddKey(FKeyDetails(FEnhancedInputKeys::ComboKey, LOCTEXT("ComboKey", "Combo Key"), FKeyDetails::NotActionBindableKey, NAME_EnhancedInput));
 
 	if (!IsRunningDedicatedServer())
 	{

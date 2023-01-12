@@ -11,6 +11,12 @@ class APlayerController;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInput, Log, All);
 
+struct ENHANCEDINPUT_API FEnhancedInputKeys
+{
+	// Combo FKey that serves as the key combo triggers are automatically mapped to - is not action bindable
+	static const FKey ComboKey;
+};
+
 /**
  * The public interface to this module
  */
