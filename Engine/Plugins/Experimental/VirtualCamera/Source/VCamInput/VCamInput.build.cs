@@ -25,6 +25,7 @@ public class VCamInput : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
+				"Projects",
 				"Slate",
 				"SlateCore",
 				"DeveloperSettings"

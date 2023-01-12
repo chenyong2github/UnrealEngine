@@ -20,7 +20,7 @@ struct VCAMINPUT_API FVCamInputProfile
 	bool operator==(const FVCamInputProfile& OtherProfile) const;
 };
 
-UCLASS(config=Game, DefaultConfig)
+UCLASS(config=Game)
 class VCAMINPUT_API UVCamInputSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -43,4 +43,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="VCam Input")
 	TArray<FName> GetInputProfileNames() const;
+
+	virtual void PostInitProperties() override;
 };
