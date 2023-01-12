@@ -17,7 +17,6 @@
 
 #include "EngineAnalytics.h"
 
-#include "Baking/RenderCaptureFunctions.h"
 #include "Baking/BakingTypes.h"
 #include "Sampling/MeshImageBakingCache.h"
 #include "Sampling/MeshMapBaker.h"
@@ -44,17 +43,9 @@ static FString PackedMRSTexParamName = TEXT("PackedMRS");
 
 
 FRenderCaptureOptions
-MakeRenderCaptureOptions(
-	const URenderCaptureProperties& RenderCaptureProperties,
-	const UBakeRenderCaptureToolProperties& ToolProperties,
-	const UBakeRenderCaptureInputToolProperties& InputMeshSettings)
+MakeRenderCaptureOptions(const URenderCaptureProperties& RenderCaptureProperties)
 {
 	FRenderCaptureOptions Options;
-
-	Options.TargetUVLayer = InputMeshSettings.GetTargetUVLayerIndex();
-
-	Options.RenderCaptureImageSize = static_cast<int32>(RenderCaptureProperties.Resolution);
-	Options.ValidSampleDepthThreshold = ToolProperties.ValidSampleDepthThreshold;
 
 	Options.bBakeBaseColor = RenderCaptureProperties.bBaseColorMap;
 	Options.bBakeNormalMap = RenderCaptureProperties.bNormalMap;
@@ -71,6 +62,7 @@ MakeRenderCaptureOptions(
 	Options.bBakeRoughness = RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bRoughnessMap;
 	Options.bBakeSpecular =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bSpecularMap;
 
+	Options.RenderCaptureImageSize = static_cast<int32>(RenderCaptureProperties.Resolution);
 	Options.bAntiAliasing = RenderCaptureProperties.bAntiAliasing;
 	Options.FieldOfViewDegrees = RenderCaptureProperties.CaptureFieldOfView;
 	Options.NearPlaneDist = RenderCaptureProperties.NearPlaneDist;
@@ -88,10 +80,14 @@ class FRenderCaptureMapBakerOp : public TGenericDataOperator<FMeshMapBaker>
 public:
 	UE::Geometry::FDynamicMesh3* BaseMesh = nullptr;
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents;
-	FRenderCaptureOptions Options;
+	int32 TargetUVLayer;
+	double ValidSampleDepthThreshold;
 	EBakeTextureResolution TextureImageSize;
 	EBakeTextureSamplesPerPixel SamplesPerPixel;
 	FSceneCapturePhotoSet* SceneCapture = nullptr;
+
+	// Used to pass the channels which need baking via the bBakeXXX and bUsePackedMRS members
+	FRenderCaptureOptions PendingBake;
 
 	// Begin TGenericDataOperator interface
 	virtual void CalculateResult(FProgressCancel* Progress) override;
@@ -105,7 +101,7 @@ void FRenderCaptureMapBakerOp::CalculateResult(FProgressCancel*)
 
 	FSceneCapturePhotoSetSampler Sampler(
 		SceneCapture,
-		Options.ValidSampleDepthThreshold,
+		ValidSampleDepthThreshold,
 		BaseMesh,
 		&BaseMeshSpatial,
 		BaseMeshTangents.Get());
@@ -121,7 +117,8 @@ void FRenderCaptureMapBakerOp::CalculateResult(FProgressCancel*)
 		BaseMeshTangents,
 		SceneCapture,
 		&Sampler,
-		Options,
+		PendingBake,
+		TargetUVLayer,
 		TextureImageSize,
 		SamplesPerPixel,
 		&OcclusionHandler);
@@ -210,7 +207,7 @@ void UBakeRenderCaptureTool::Setup()
 	AddToolPropertySource(Settings);
 
 	Settings->MapPreview = BaseColorTexParamName;
-	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
+	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); });
 	Settings->WatchProperty(Settings->SamplesPerPixel, [this](EBakeTextureSamplesPerPixel) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->TextureSize, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->ValidSampleDepthThreshold, [this](float ValidSampleDepthThreshold)
@@ -278,9 +275,6 @@ void UBakeRenderCaptureTool::Setup()
 
 	TargetUVLayerToError.Reset();
 
-	// Used to implement SceneCapture cancellation
-	ComputedRenderCaptureProperties = NewObject<URenderCaptureProperties>(this);
-
 	// Hide the render capture meshes since this baker operates solely in world space which will occlude the preview of
 	// the target mesh.
 	for (int Idx = 1; Idx < NumTargets; ++Idx)
@@ -290,7 +284,6 @@ void UBakeRenderCaptureTool::Setup()
 
 	// Make sure we trigger SceneCapture computation in UpdateResult
 	OpState |= EBakeOpState::Evaluate;
-	ComputedRenderCaptureProperties->NearPlaneDist = 0.f; // Arbitrary invalid value
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Bake Render Capture"));
 	GetToolManager()->DisplayMessage(
@@ -509,10 +502,29 @@ TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewO
 	TUniquePtr<FRenderCaptureMapBakerOp> Op = MakeUnique<FRenderCaptureMapBakerOp>();
 	Op->BaseMesh = &TargetMesh;
 	Op->BaseMeshTangents = TargetMeshTangents;
-	Op->Options = MakeRenderCaptureOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
+	Op->TargetUVLayer = InputMeshSettings->GetTargetUVLayerIndex();
+	Op->ValidSampleDepthThreshold = Settings->ValidSampleDepthThreshold;
 	Op->TextureImageSize = Settings->TextureSize;
 	Op->SamplesPerPixel = Settings->SamplesPerPixel;
 	Op->SceneCapture = SceneCapture.Get();
+
+	auto IsPendingBake = [this](UTexture *CurrentResult, ERenderCaptureType CaptureType) -> bool
+	{
+		const bool bRequested = SceneCapture->GetCaptureTypeEnabled(CaptureType);
+		const bool bBaked = (CurrentResult != nullptr);
+		return (bRequested && !bBaked);
+	};
+
+	Op->PendingBake.bBakeBaseColor = IsPendingBake(ResultSettings->BaseColorMap, ERenderCaptureType::BaseColor);
+	Op->PendingBake.bBakeRoughness = IsPendingBake(ResultSettings->RoughnessMap, ERenderCaptureType::Roughness);
+	Op->PendingBake.bBakeMetallic =  IsPendingBake(ResultSettings->MetallicMap,  ERenderCaptureType::Metallic);
+	Op->PendingBake.bBakeSpecular =  IsPendingBake(ResultSettings->SpecularMap,  ERenderCaptureType::Specular);
+	Op->PendingBake.bUsePackedMRS =  IsPendingBake(ResultSettings->PackedMRSMap, ERenderCaptureType::CombinedMRS);
+	Op->PendingBake.bBakeEmissive =  IsPendingBake(ResultSettings->EmissiveMap,  ERenderCaptureType::Emissive);
+	Op->PendingBake.bBakeNormalMap = IsPendingBake(ResultSettings->NormalMap,    ERenderCaptureType::WorldNormal);
+	Op->PendingBake.bBakeOpacity =   IsPendingBake(ResultSettings->OpacityMap,   ERenderCaptureType::Opacity);
+	Op->PendingBake.bBakeSubsurfaceColor = IsPendingBake(ResultSettings->SubsurfaceColorMap, ERenderCaptureType::SubsurfaceColor);
+
 	return Op;
 }
 
@@ -525,20 +537,48 @@ void UBakeRenderCaptureTool::OnMapsUpdatedRC(const TUniquePtr<FMeshMapBaker>& Ne
 	FRenderCaptureTextures TexturesOut;
 	GetTexturesFromRenderCaptureBaker(NewResult, TexturesOut);
 
-	// Unpack TexturesOut to store in ResultSettings
-	ResultSettings->BaseColorMap = TexturesOut.BaseColorMap;
-	ResultSettings->NormalMap = TexturesOut.NormalMap;
-	ResultSettings->PackedMRSMap = TexturesOut.PackedMRSMap;
-	ResultSettings->MetallicMap = TexturesOut.MetallicMap;
-	ResultSettings->RoughnessMap = TexturesOut.RoughnessMap;
-	ResultSettings->SpecularMap = TexturesOut.SpecularMap;
-	ResultSettings->EmissiveMap = TexturesOut.EmissiveMap;
-	ResultSettings->OpacityMap = TexturesOut.OpacityMap;
-	ResultSettings->SubsurfaceColorMap = TexturesOut.SubsurfaceColorMap;
+	// The NewResult will contain the newly baked textures so we only update those and not overwrite any already baked
+	// valid results. Note that if results are invalidated by some parameter change they are cleared by the
+	// InvalidateResults function, by comparing/syncing with the enabled capture types in SceneCapture
+	if (TexturesOut.BaseColorMap)
+	{
+		ResultSettings->BaseColorMap = TexturesOut.BaseColorMap;
+	}
+	if (TexturesOut.NormalMap)
+	{
+		ResultSettings->NormalMap = TexturesOut.NormalMap;
+	}
+	if (TexturesOut.PackedMRSMap)
+	{
+		ResultSettings->PackedMRSMap = TexturesOut.PackedMRSMap;
+	}
+	if (TexturesOut.MetallicMap)
+	{
+		ResultSettings->MetallicMap = TexturesOut.MetallicMap;
+	}
+	if (TexturesOut.RoughnessMap)
+	{
+		ResultSettings->RoughnessMap = TexturesOut.RoughnessMap;
+	}
+	if (TexturesOut.SpecularMap)
+	{
+		ResultSettings->SpecularMap = TexturesOut.SpecularMap;
+	}
+	if (TexturesOut.EmissiveMap)
+	{
+		ResultSettings->EmissiveMap = TexturesOut.EmissiveMap;
+	}
+	if (TexturesOut.OpacityMap)
+	{
+		ResultSettings->OpacityMap = TexturesOut.OpacityMap;
+	}
+	if (TexturesOut.SubsurfaceColorMap)
+	{
+		ResultSettings->SubsurfaceColorMap = TexturesOut.SubsurfaceColorMap;
+	}
 
 	GatherAnalytics(*NewResult);
 	UpdateVisualization();
-	GetToolManager()->PostInvalidation();
 }
 
 
@@ -682,107 +722,86 @@ void UBakeRenderCaptureTool::InvalidateComputeRC()
 	Compute->InvalidateResult();
 }
 
-
-void UBakeRenderCaptureTool::UpdateResult()
+FRenderCaptureUpdate UBakeRenderCaptureTool::UpdateSceneCapture()
 {
-	if (OpState == EBakeOpState::Clean)
+	for (int Idx = 1; Idx < Targets.Num(); ++Idx)
 	{
-		// Evaluation already launched/complete. Note that the Compute background compute updates ResultSettings when
-		// they are available by calling OnMapsUpdatedRC in its OnResultUpdated delegate.
-		return;
+		UE::ToolTarget::ShowSourceObject(Targets[Idx]);
 	}
 
-	//
-	// Create a set of spatially located render captures of the scene ("photo set"). We need to recompute this if the
-	// render capture properties changed. Note we only compare the URenderCaptureProperties, and not the
-	// ValidSampleDepthThreshold, this is intentional so that we only trigger a scene capture recompute when we go from
-	// a zero to a positive threshold (we need to compute the depth capture), or a positive to a zero threshold (we can
-	// save memory and not compute the depth capture), we don't need to recompute the scene capture when the user is
-	// changing between positive threshold values.
-	//
-	if (*RenderCaptureProperties != *ComputedRenderCaptureProperties)
+	FRenderCaptureUpdate Update;
+
+	if (!SceneCapture)
 	{
-		for (int Idx = 1; Idx < Targets.Num(); ++Idx)
-		{
-			UE::ToolTarget::ShowSourceObject(Targets[Idx]);
-		}
+		constexpr bool bAllowCancel = false;
 
-		// Do not allow user-cancellation on the call that occurs when the Render Capture Tool starts up
-		const bool bAllowCancel = (bFirstEverSceneCapture == false);
+		FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
+		Progress.EnterProgressFrame(1.f);
+		Progress.MakeDialog(bAllowCancel);
 
-		FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
-		{
-			FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
-			Progress.EnterProgressFrame(1.f);
-			Progress.MakeDialog(bAllowCancel);
+		const FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties);
+		SceneCapture = CapturePhotoSet(Actors, Options, Update, bAllowCancel);
+	}
+	else
+	{
+		constexpr bool bAllowCancel = true;
 
-			const bool bRequireFullRecompute = (
-				RenderCaptureProperties->Resolution         != ComputedRenderCaptureProperties->Resolution ||
-				RenderCaptureProperties->bAntiAliasing      != ComputedRenderCaptureProperties->bAntiAliasing ||
-				RenderCaptureProperties->CaptureFieldOfView != ComputedRenderCaptureProperties->CaptureFieldOfView ||
-				RenderCaptureProperties->NearPlaneDist      != ComputedRenderCaptureProperties->NearPlaneDist);
+		FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
+		Progress.EnterProgressFrame(1.f);
+		Progress.MakeDialog(bAllowCancel);
 
-			if (!SceneCapture || (SceneCapture && bRequireFullRecompute))
-			{
-				SceneCapture = CapturePhotoSet(Actors, Options, bAllowCancel);
-			}
-			else
-			{
-				UpdatePhotoSet(SceneCapture, Actors, Options, bAllowCancel);
-			}
-		}
+		// Get already computed options from the existing SceneCapture so we can restore them if the capture is cancelled
+		const FRenderCaptureOptions ComputedOptions = GetComputedPhotoSetOptions(SceneCapture);
 
-		for (int Idx = 1; Idx < Targets.Num(); ++Idx)
-		{
-			UE::ToolTarget::HideSourceObject(Targets[Idx]);
-		}
+		const FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties);
+		Update = UpdatePhotoSets(SceneCapture, Actors, Options, bAllowCancel);
 
 		if (SceneCapture->Cancelled())
 		{
 			// Restore the settings present before the change that invoked the scene capture recompute
-			RenderCaptureProperties->Resolution         = ComputedRenderCaptureProperties->Resolution;
-			RenderCaptureProperties->bBaseColorMap      = ComputedRenderCaptureProperties->bBaseColorMap;
-			RenderCaptureProperties->bNormalMap         = ComputedRenderCaptureProperties->bNormalMap;
-			RenderCaptureProperties->bMetallicMap       = ComputedRenderCaptureProperties->bMetallicMap;
-			RenderCaptureProperties->bRoughnessMap      = ComputedRenderCaptureProperties->bRoughnessMap;
-			RenderCaptureProperties->bSpecularMap       = ComputedRenderCaptureProperties->bSpecularMap;
-			RenderCaptureProperties->bPackedMRSMap      = ComputedRenderCaptureProperties->bPackedMRSMap;
-			RenderCaptureProperties->bEmissiveMap       = ComputedRenderCaptureProperties->bEmissiveMap;
-			RenderCaptureProperties->bOpacityMap        = ComputedRenderCaptureProperties->bOpacityMap;
-			RenderCaptureProperties->bSubsurfaceColorMap = ComputedRenderCaptureProperties->bSubsurfaceColorMap;
-			RenderCaptureProperties->bAntiAliasing      = ComputedRenderCaptureProperties->bAntiAliasing;
-			RenderCaptureProperties->bDeviceDepthMap    = ComputedRenderCaptureProperties->bDeviceDepthMap;
-			RenderCaptureProperties->CaptureFieldOfView = ComputedRenderCaptureProperties->CaptureFieldOfView;
-			RenderCaptureProperties->NearPlaneDist      = ComputedRenderCaptureProperties->NearPlaneDist;
-			Settings->ValidSampleDepthThreshold = ComputedValidDepthThreshold;
+			RenderCaptureProperties->bBaseColorMap      = ComputedOptions.bBakeBaseColor;
+			RenderCaptureProperties->bNormalMap         = ComputedOptions.bBakeNormalMap;
+			RenderCaptureProperties->bMetallicMap       = ComputedOptions.bBakeMetallic;
+			RenderCaptureProperties->bRoughnessMap      = ComputedOptions.bBakeRoughness;
+			RenderCaptureProperties->bSpecularMap       = ComputedOptions.bBakeSpecular;
+			RenderCaptureProperties->bPackedMRSMap      = ComputedOptions.bUsePackedMRS;
+			RenderCaptureProperties->bEmissiveMap       = ComputedOptions.bBakeEmissive;
+			RenderCaptureProperties->bOpacityMap        = ComputedOptions.bBakeOpacity;
+			RenderCaptureProperties->bSubsurfaceColorMap = ComputedOptions.bBakeSubsurfaceColor;
+			RenderCaptureProperties->bDeviceDepthMap    = ComputedOptions.bBakeDeviceDepth;
+			RenderCaptureProperties->bAntiAliasing      = ComputedOptions.bAntiAliasing;
+			RenderCaptureProperties->CaptureFieldOfView = ComputedOptions.FieldOfViewDegrees;
+			RenderCaptureProperties->NearPlaneDist      = ComputedOptions.NearPlaneDist;
+			RenderCaptureProperties->Resolution         = static_cast<EBakeTextureResolution>(ComputedOptions.RenderCaptureImageSize);
 
 			// Silently make the above updates so we don't overwrite the change to OpState below and call this function again
 			RenderCaptureProperties->SilentUpdateWatched();
 			Settings->SilentUpdateWatched();
-
-			OpState = EBakeOpState::Clean;
-
-			return;
 		}
+	}
 
-		// Cache Settings used to compute this SceneCapture so we can restore them if the user cancels a SceneCapture recompute
-		ComputedRenderCaptureProperties->Resolution         = RenderCaptureProperties->Resolution;
-		ComputedRenderCaptureProperties->bBaseColorMap      = RenderCaptureProperties->bBaseColorMap;
-		ComputedRenderCaptureProperties->bNormalMap         = RenderCaptureProperties->bNormalMap;
-		ComputedRenderCaptureProperties->bMetallicMap       = RenderCaptureProperties->bMetallicMap;
-		ComputedRenderCaptureProperties->bRoughnessMap      = RenderCaptureProperties->bRoughnessMap;
-		ComputedRenderCaptureProperties->bSpecularMap       = RenderCaptureProperties->bSpecularMap;
-		ComputedRenderCaptureProperties->bPackedMRSMap      = RenderCaptureProperties->bPackedMRSMap;
-		ComputedRenderCaptureProperties->bEmissiveMap       = RenderCaptureProperties->bEmissiveMap;
-		ComputedRenderCaptureProperties->bOpacityMap        = RenderCaptureProperties->bOpacityMap;
-		ComputedRenderCaptureProperties->bSubsurfaceColorMap = RenderCaptureProperties->bSubsurfaceColorMap;
-		ComputedRenderCaptureProperties->bAntiAliasing      = RenderCaptureProperties->bAntiAliasing;
-		ComputedRenderCaptureProperties->bDeviceDepthMap    = RenderCaptureProperties->bDeviceDepthMap;
-		ComputedRenderCaptureProperties->CaptureFieldOfView = RenderCaptureProperties->CaptureFieldOfView;
-		ComputedRenderCaptureProperties->NearPlaneDist      = RenderCaptureProperties->NearPlaneDist;
-		ComputedValidDepthThreshold = Settings->ValidSampleDepthThreshold;
+	for (int Idx = 1; Idx < Targets.Num(); ++Idx)
+	{
+		UE::ToolTarget::HideSourceObject(Targets[Idx]);
+	}
 
-		bFirstEverSceneCapture = false;
+	return Update;
+}
+
+// Process dirty props and update background compute. Called by UBakeMeshAttributeMapsToolBase::Render
+void UBakeRenderCaptureTool::UpdateResult()
+{
+	// Return if the bake is already launched/complete.
+	if (OpState == EBakeOpState::Clean)
+	{
+		return;
+	}
+
+	// The bake operation, Compute, stores a pointer to the SceneCapture so that must not be modified while baking
+	const bool bComputeInProgress = (Compute && (Compute->GetElapsedComputeTime() > 0.f));
+	if (bComputeInProgress)
+	{
+		return;
 	}
 
 	FText ErrorMessage; // Empty message indicates no error
@@ -833,24 +852,51 @@ void UBakeRenderCaptureTool::UpdateResult()
 	// Calling DisplayMessage with an empty string will clear existing messages
 	GetToolManager()->DisplayMessage(ErrorMessage, EToolMessageLevel::UserWarning);
 
-	InvalidateResults();
-
 	const bool bIsInvalid = (ErrorMessage.IsEmpty() == false);
 	if (bIsInvalid)
 	{
+		// Clear all results and wait for user to fix the invalid tool inputs
+		InvalidateResults(FRenderCaptureUpdate{});
+
+		// Only call UpdateVisualization when we first detect the invalid inputs
 		const bool bWasValid = static_cast<bool>(OpState & EBakeOpState::Invalid) == false;
 		if (bWasValid)
 		{
-			UpdateVisualization(); // Clear the preview mesh material inputs
+			UpdateVisualization();
 		}
+
+		// Set an invalid op state so we re-enter this function until the inputs are valid
 		OpState = EBakeOpState::Invalid;
 	}
 	else
 	{
+		FRenderCaptureUpdate Update = UpdateSceneCapture();
+
+		const bool bInvalidateAll =
+			ComputedTextureSize != Settings->TextureSize ||
+			ComputedSamplesPerPixel != Settings->SamplesPerPixel ||
+			ComputedValidDepthThreshold != Settings->ValidSampleDepthThreshold;
+
+		// Invalidate any results which need re-baking because the SceneCapture was updated, or
+		// Invalidate all results if the any baking parameters were changed
+		InvalidateResults(bInvalidateAll ? FRenderCaptureUpdate{} : Update);
+
+		// Update the preview mesh material with the (possibly invalidated) bake results
+		UpdateVisualization();
+
+		// Start another bake operation
 		InvalidateComputeRC();
+
+		// Cache computed parameters which are used to determine if results need re-baking
+		ComputedTextureSize = Settings->TextureSize;
+		ComputedSamplesPerPixel = Settings->SamplesPerPixel;
+		ComputedValidDepthThreshold = Settings->ValidSampleDepthThreshold;
+
+		// Set a clean op state so we don't render this function until its completed
 		OpState = EBakeOpState::Clean;
 	}
 }
+
 
 
 void UBakeRenderCaptureTool::UpdateVisualization()
@@ -935,21 +981,52 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 
 	Material->SetScalarParameterValue(TEXT("UVChannel"), InputMeshSettings->GetTargetUVLayerIndex());
 	PreviewMesh->SetOverrideRenderMaterial(Material);
+
+	GetToolManager()->PostInvalidation();
 }
 
 
-
-void UBakeRenderCaptureTool::InvalidateResults()
+void UBakeRenderCaptureTool::InvalidateResults(FRenderCaptureUpdate Update)
 {
-	ResultSettings->BaseColorMap = nullptr;
-	ResultSettings->RoughnessMap = nullptr;
-	ResultSettings->MetallicMap = nullptr;
-	ResultSettings->SpecularMap = nullptr;
-	ResultSettings->PackedMRSMap = nullptr;
-	ResultSettings->EmissiveMap = nullptr;
-	ResultSettings->OpacityMap = nullptr;
-	ResultSettings->SubsurfaceColorMap = nullptr;
-	ResultSettings->NormalMap = nullptr;
+	// Note that the bake operation, Compute, updates ResultSettings when results are available via the
+	// Compute->OnResultUpdated delegate.
+
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::BaseColor) || Update.bUpdatedBaseColor)
+	{
+		ResultSettings->BaseColorMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Roughness) || Update.bUpdatedRoughness)
+	{
+		ResultSettings->RoughnessMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Metallic) || Update.bUpdatedMetallic)
+	{
+		ResultSettings->MetallicMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Specular) || Update.bUpdatedSpecular)
+	{
+		ResultSettings->SpecularMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Emissive) || Update.bUpdatedEmissive)
+	{
+		ResultSettings->EmissiveMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::WorldNormal) || Update.bUpdatedNormalMap)
+	{
+		ResultSettings->NormalMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Opacity) || Update.bUpdatedOpacity)
+	{
+		ResultSettings->OpacityMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor) || Update.bUpdatedSubsurfaceColor)
+	{
+		ResultSettings->SubsurfaceColorMap = nullptr;
+	}
+	if (!SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS) || Update.bUpdatedPackedMRS)
+	{
+		ResultSettings->PackedMRSMap = nullptr;
+	}
 }
 
 

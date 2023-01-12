@@ -105,7 +105,6 @@ struct MODELINGCOMPONENTS_API FRenderCaptureOptions
 	// render capture parameters
 	double FieldOfViewDegrees = 45.0;
 	double NearPlaneDist = 1.0;
-	double ValidSampleDepthThreshold = 0;
 
 	//
 	// Material output settings
@@ -122,38 +121,49 @@ struct MODELINGCOMPONENTS_API FRenderCaptureOptions
 	bool bBakeDeviceDepth = true;
 	
 	bool bUsePackedMRS = true;
-
-	//
-	// Mesh settings
-	//
-
-	//  Which UV layer of the Target mesh (the one we're baking to) should be used
-	int32 TargetUVLayer = 0;
-
-	//
-	// For internal use only
-	//
-
-	// A new MIC derived from this material will be created and assigned to the generated mesh
-	// if null, will use /MeshModelingToolsetExp/Materials/FullMaterialBakePreviewMaterial_PackedMRS instead
-	UMaterialInterface* BakeMaterial = nullptr;
 };
 
+struct MODELINGCOMPONENTS_API FRenderCaptureUpdate
+{
+	// Default to true so that we can use the default value to trigger all update code paths
+	bool bUpdatedBaseColor = true;
+	bool bUpdatedRoughness = true;
+	bool bUpdatedMetallic = true;
+	bool bUpdatedSpecular = true;
+	bool bUpdatedEmissive = true;
+	bool bUpdatedNormalMap = true;
+	bool bUpdatedOpacity = true;
+	bool bUpdatedSubsurfaceColor = true;
+	bool bUpdatedDeviceDepth = true;
+	bool bUpdatedPackedMRS = true;
+};
 
 
 MODELINGCOMPONENTS_API
 TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	const TArray<TObjectPtr<AActor>>& Actors,
 	const FRenderCaptureOptions& Options,
+	FRenderCaptureUpdate& Update,
 	bool bAllowCancel);
 
+/**
+* This function efficiently updates the given SceneCapture and returns a struct indicating which channels were updated
+* 
+* - If the requested Options and Actors have already been captured the call is a no-op
+* - If the given Options disable existing capture channels then the call just clears the corresponding photo sets
+* - If the given Options enable a new capture channel then the new photos set are captured and added to the SceneCapture
+* - If the given Actors are different the ones cached in the SceneCapture, or if the given Options changes a parameter
+*   affecting all photo sets (e.g., photo resolution), then all the photo sets are cleared and recomputed
+*/
 MODELINGCOMPONENTS_API
-void UpdatePhotoSet(
-	TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+FRenderCaptureUpdate UpdatePhotoSets(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
 	const TArray<TObjectPtr<AActor>>& Actors,
 	const FRenderCaptureOptions& Options,
 	bool bAllowCancel);
 
+MODELINGCOMPONENTS_API
+FRenderCaptureOptions GetComputedPhotoSetOptions(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture);
 
 
 // Return a render capture baker, note the lifetime of all arguments such match the lifetime of the returned baker
@@ -163,7 +173,8 @@ TUniquePtr<FMeshMapBaker> MakeRenderCaptureBaker(
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents,
 	FSceneCapturePhotoSet* SceneCapture,
 	FSceneCapturePhotoSetSampler* Sampler,
-	FRenderCaptureOptions Options,
+	FRenderCaptureOptions PendingBake,
+	int32 TargetUVLayer,
 	EBakeTextureResolution TextureImageSize,
 	EBakeTextureSamplesPerPixel SamplesPerPixel,
 	FRenderCaptureOcclusionHandler* OcclusionHandler);

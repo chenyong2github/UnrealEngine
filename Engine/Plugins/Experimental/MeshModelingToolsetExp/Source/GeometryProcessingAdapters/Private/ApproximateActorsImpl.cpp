@@ -111,13 +111,22 @@ static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Specular, bSpecular);
 	}
 
+	UWorld* World = Actors.IsEmpty() ? nullptr : Actors[0]->GetWorld();
 
-	SceneCapture->SetCaptureSceneActors(Actors[0]->GetWorld(), Actors);
+	SceneCapture->SetCaptureSceneActors(World, Actors);
 
-	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
-		CaptureDimensions, FieldOfView, NearPlaneDist,
+	const TArray<FSpatialPhotoParams> SpatialParams = ComputeStandardExteriorSpatialPhotoParameters(
+		World,
+		Actors,
+		CaptureDimensions,
+		FieldOfView,
+		NearPlaneDist,
 		true, true, true, true, true);
-	
+
+	SceneCapture->SetSpatialPhotoParams(SpatialParams);
+
+	SceneCapture->Compute();
+
 	return SceneCapture;
 }
 

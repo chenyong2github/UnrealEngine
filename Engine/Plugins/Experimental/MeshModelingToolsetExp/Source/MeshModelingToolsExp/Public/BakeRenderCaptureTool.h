@@ -6,6 +6,7 @@
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "Baking/BakingTypes.h"
+#include "Baking/RenderCaptureFunctions.h"
 #include "BakeMeshAttributeMapsToolBase.h"
 
 // Render Capture algorithm includes
@@ -307,8 +308,8 @@ protected:
 	virtual void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data) override;
 	virtual FString GetAnalyticsEventName() const override { return TEXT("BakeRC"); }
 	// End UBakeMeshAttributeMapsToolBase interface
-	
-	void InvalidateResults();
+
+	void InvalidateResults(UE::Geometry::FRenderCaptureUpdate Update);
 
 	// In this tool we don't call UBakeMeshAttributeMapsToolBase::OnMapsUpdated because it would require e.g, adding
 	// the render capture channels to EBakeMapType.  The implementation is simpler and leads to less coupling if we
@@ -350,13 +351,11 @@ protected:
 
 	// TODO We currently need to compute this on the game thread because the implementation has checks for this
 	TUniquePtr<UE::Geometry::FSceneCapturePhotoSet> SceneCapture;
-	bool bFirstEverSceneCapture = true;
 
-	// If the user cancels a scene capture before the computation completes then the settings which changed to invoke
-	// the capture are reverted to these values
-	UPROPERTY()
-	TObjectPtr<URenderCaptureProperties> ComputedRenderCaptureProperties;
+	// These are used to determine if we need to re-bake results
 	float ComputedValidDepthThreshold;
+	EBakeTextureSamplesPerPixel ComputedSamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
+	EBakeTextureResolution ComputedTextureSize = EBakeTextureResolution::Resolution512;
 
 	TMap<int, FText> TargetUVLayerToError;
 
@@ -367,4 +366,6 @@ protected:
 	void RecordAnalytics() const;
 	void GatherAnalytics(const UE::Geometry::FMeshMapBaker& Result);
 
+private:
+	UE::Geometry::FRenderCaptureUpdate UpdateSceneCapture();
 };

@@ -30,8 +30,14 @@ struct FSpatialPhotoParams
 	/** Pixel dimensions of the photo image */
 	FImageDimensions Dimensions;
 
-	/** Useful to to unproject the DeviceDepth render capture */
-	FViewMatrices ViewMatrices;
+	bool operator==(const FSpatialPhotoParams& Other) const
+	{
+		return Frame.Origin == Other.Frame.Origin &&
+			static_cast<const FVector4d>(Frame.Rotation) == static_cast<const FVector4d>(Other.Frame.Rotation) &&
+			NearPlaneDist == Other.NearPlaneDist &&
+			HorzFOVDegrees == Other.HorzFOVDegrees &&
+			Dimensions == Other.Dimensions;
+	}
 };
 
 /**

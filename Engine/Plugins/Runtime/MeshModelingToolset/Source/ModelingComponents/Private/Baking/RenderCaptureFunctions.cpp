@@ -9,6 +9,7 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
 #include "Algo/NoneOf.h"
+#include "Algo/AnyOf.h"
 
 
 using namespace UE::Geometry;
@@ -209,32 +210,24 @@ bool FSceneCapturePhotoSetSampler::IsValidCorrespondence(const FMeshMapEvaluator
 TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
 	const TArray<TObjectPtr<AActor>>& Actors,
 	const FRenderCaptureOptions& Options,
-	bool bAllowCancel
-)
+	FRenderCaptureUpdate& Update,
+	bool bAllowCancel)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
 
 	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
 
-	UpdatePhotoSet(SceneCapture,Actors, Options, bAllowCancel);
+	Update = UpdatePhotoSets(SceneCapture, Actors, Options, bAllowCancel);
 
 	return SceneCapture;
 }
 
-void UE::Geometry::UpdatePhotoSet(
-	TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+FRenderCaptureUpdate UE::Geometry::UpdatePhotoSets(
+	const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
 	const TArray<TObjectPtr<AActor>>& Actors,
 	const FRenderCaptureOptions& Options,
-	bool bAllowCancel
-)
+	bool bAllowCancel)
 {
-	double FieldOfView = Options.FieldOfViewDegrees;
-	double NearPlaneDist = Options.NearPlaneDist;
-
-	FImageDimensions CaptureDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize);
-
-	SceneCapture->SetAllowCancel(bAllowCancel);
-
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, Options.bBakeDeviceDepth);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::BaseColor,   Options.bBakeBaseColor);
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, Options.bBakeNormalMap);
@@ -258,14 +251,94 @@ void UE::Geometry::UpdatePhotoSet(
 	SceneCapture->SetCaptureConfig(ERenderCaptureType::Opacity,     Config);
 	SceneCapture->SetCaptureConfig(ERenderCaptureType::SubsurfaceColor, Config);
 
-	SceneCapture->SetCaptureSceneActors(Actors[0]->GetWorld(), Actors);
+	UWorld* World = Actors.IsEmpty() ? nullptr : Actors[0]->GetWorld();
 
-	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
-		CaptureDimensions, FieldOfView, NearPlaneDist,
+	SceneCapture->SetCaptureSceneActors(World, Actors);
+
+	const TArray<FSpatialPhotoParams> SpatialParams = ComputeStandardExteriorSpatialPhotoParameters(
+		World,
+		Actors,
+		FImageDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize),
+		Options.FieldOfViewDegrees,
+		Options.NearPlaneDist,
 		true, true, true, true, true);
+
+	SceneCapture->SetSpatialPhotoParams(SpatialParams);
+
+	SceneCapture->SetAllowCancel(bAllowCancel);
+
+	// If the provided Options required some photo sets to recompute they will have been cleared by this point.
+	// The updated photo sets are the ones where the photo sets are empty here but are not empty after the Compute call
+	FRenderCaptureUpdate Update;
+
+	Update.bUpdatedBaseColor       = (SceneCapture->GetBaseColorPhotoSet().Num()       == 0);
+	Update.bUpdatedRoughness       = (SceneCapture->GetRoughnessPhotoSet().Num()       == 0);
+	Update.bUpdatedSpecular        = (SceneCapture->GetSpecularPhotoSet().Num()        == 0);
+	Update.bUpdatedMetallic        = (SceneCapture->GetMetallicPhotoSet().Num()        == 0);
+	Update.bUpdatedPackedMRS       = (SceneCapture->GetPackedMRSPhotoSet().Num()       == 0);
+	Update.bUpdatedNormalMap       = (SceneCapture->GetWorldNormalPhotoSet().Num()     == 0);
+	Update.bUpdatedEmissive        = (SceneCapture->GetEmissivePhotoSet().Num()        == 0);
+	Update.bUpdatedOpacity         = (SceneCapture->GetOpacityPhotoSet().Num()         == 0);
+	Update.bUpdatedSubsurfaceColor = (SceneCapture->GetSubsurfaceColorPhotoSet().Num() == 0);
+	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0);
+
+	SceneCapture->Compute();
+
+	Update.bUpdatedBaseColor       = (SceneCapture->GetBaseColorPhotoSet().Num()       == 0) != Update.bUpdatedBaseColor;
+	Update.bUpdatedRoughness       = (SceneCapture->GetRoughnessPhotoSet().Num()       == 0) != Update.bUpdatedRoughness;
+	Update.bUpdatedSpecular        = (SceneCapture->GetSpecularPhotoSet().Num()        == 0) != Update.bUpdatedSpecular;
+	Update.bUpdatedMetallic        = (SceneCapture->GetMetallicPhotoSet().Num()        == 0) != Update.bUpdatedMetallic;
+	Update.bUpdatedPackedMRS       = (SceneCapture->GetPackedMRSPhotoSet().Num()       == 0) != Update.bUpdatedPackedMRS;
+	Update.bUpdatedNormalMap       = (SceneCapture->GetWorldNormalPhotoSet().Num()     == 0) != Update.bUpdatedNormalMap;
+	Update.bUpdatedEmissive        = (SceneCapture->GetEmissivePhotoSet().Num()        == 0) != Update.bUpdatedEmissive;
+	Update.bUpdatedOpacity         = (SceneCapture->GetOpacityPhotoSet().Num()         == 0) != Update.bUpdatedOpacity;
+	Update.bUpdatedSubsurfaceColor = (SceneCapture->GetSubsurfaceColorPhotoSet().Num() == 0) != Update.bUpdatedSubsurfaceColor;
+	Update.bUpdatedDeviceDepth     = (SceneCapture->GetDeviceDepthPhotoSet().Num()     == 0) != Update.bUpdatedDeviceDepth ;
+
+	return Update;
 }
 
+FRenderCaptureOptions UE::Geometry::GetComputedPhotoSetOptions(const TUniquePtr<FSceneCapturePhotoSet>& SceneCapture)
+{
+	FRenderCaptureOptions Result;
 
+	Result.bBakeBaseColor       = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::BaseColor);
+	Result.bBakeNormalMap       = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::WorldNormal);
+	Result.bBakeMetallic        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Metallic);
+	Result.bBakeRoughness       = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Roughness);
+	Result.bBakeSpecular        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Specular);
+	Result.bUsePackedMRS        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS);
+	Result.bBakeEmissive        = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Emissive);
+	Result.bBakeOpacity         = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Opacity);
+	Result.bBakeSubsurfaceColor = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor);
+	Result.bBakeDeviceDepth     = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth);
+
+	const TArray<FSpatialPhotoParams> SpatialParams = SceneCapture->GetSpatialPhotoParams();
+
+	if (!SpatialParams.IsEmpty())
+	{
+		ensure(SpatialParams[0].Dimensions.IsSquare());
+		Result.RenderCaptureImageSize = SpatialParams[0].Dimensions.GetWidth();
+		Result.FieldOfViewDegrees = SpatialParams[0].HorzFOVDegrees;
+		Result.NearPlaneDist = SpatialParams[0].NearPlaneDist;
+
+		const bool Values[] = {
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::BaseColor).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::WorldNormal).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::Metallic).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::Roughness).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::Specular).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::CombinedMRS).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::Emissive).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::Opacity).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::SubsurfaceColor).bAntiAliasing,
+			SceneCapture->GetCaptureConfig(ERenderCaptureType::DeviceDepth).bAntiAliasing,
+		};
+		Result.bAntiAliasing = Algo::AnyOf(Values);
+	}
+
+	return Result;
+}
 
 
 
@@ -336,7 +409,8 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents,
 	FSceneCapturePhotoSet* SceneCapture,
 	FSceneCapturePhotoSetSampler* Sampler,
-	FRenderCaptureOptions Options,
+	FRenderCaptureOptions PendingBake,
+	int32 TargetUVLayer,
 	EBakeTextureResolution TextureImageSize,
 	EBakeTextureSamplesPerPixel SamplesPerPixel,
 	FRenderCaptureOcclusionHandler* OcclusionHandler)
@@ -365,7 +439,7 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 	Result->SetDimensions(FImageDimensions(static_cast<int32>(TextureImageSize), static_cast<int32>(TextureImageSize)));
 	Result->SetSamplesPerPixel(static_cast<int32>(SamplesPerPixel));
 	Result->SetFilter(FMeshMapBaker::EBakeFilterType::BSpline);
-	Result->SetTargetMeshUVLayer(Options.TargetUVLayer);
+	Result->SetTargetMeshUVLayer(TargetUVLayer);
 	Result->InteriorSampleCallback = RegisterSampleStats;
 	Result->PostWriteToImageCallback = ComputeAndApplyInfill;
 	Result->SetDetailSampler(Sampler);
@@ -394,44 +468,44 @@ TUniquePtr<FMeshMapBaker> UE::Geometry::MakeRenderCaptureBaker(
 		Result->AddEvaluator(Evaluator);
 		OcclusionHandler->PushInfillRequired(true);
 	};
-	
-	if (Options.bBakeDeviceDepth)
+
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth) && PendingBake.bBakeDeviceDepth)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::DeviceDepth>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeBaseColor)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::BaseColor) && PendingBake.bBakeBaseColor)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::BaseColor>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bUsePackedMRS)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS) && PendingBake.bUsePackedMRS)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::CombinedMRS>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeRoughness)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Roughness) && PendingBake.bBakeRoughness)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Roughness>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeMetallic)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Metallic) && PendingBake.bBakeMetallic)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Metallic>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeSpecular)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Specular) && PendingBake.bBakeSpecular)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Specular>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeEmissive)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Emissive) && PendingBake.bBakeEmissive)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Emissive>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeOpacity)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::Opacity) && PendingBake.bBakeOpacity)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Opacity>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeSubsurfaceColor)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::SubsurfaceColor) && PendingBake.bBakeSubsurfaceColor)
 	{
 		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::SubsurfaceColor>(DefaultColorSample, SceneCapture));
 	}
-	if (Options.bBakeNormalMap)
+	if (SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::WorldNormal) && PendingBake.bBakeNormalMap)
 	{
 		TSharedPtr<FRenderCaptureMapEvaluator<FVector3f>> Evaluator = MakeShared<FRenderCaptureMapEvaluator<FVector3f>>();
 

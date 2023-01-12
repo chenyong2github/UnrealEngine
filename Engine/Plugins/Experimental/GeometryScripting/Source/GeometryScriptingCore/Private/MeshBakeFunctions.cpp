@@ -815,10 +815,7 @@ namespace GeometryScriptBakeLocals
 	}
 
 
-	FRenderCaptureOptions MakeRenderCaptureOptions(
-		FGeometryScriptBakeRenderCaptureOptions BakeOptions,
-		FGeometryScriptBakeTargetMeshOptions TargetOptions
-		)
+	FRenderCaptureOptions MakeRenderCaptureOptions(FGeometryScriptBakeRenderCaptureOptions BakeOptions)
 	{
 		FRenderCaptureOptions Options;
 
@@ -834,7 +831,6 @@ namespace GeometryScriptBakeLocals
 			BakeOptions.bRoughnessMap ||
 			BakeOptions.bSpecularMap
 			);
-		Options.ValidSampleDepthThreshold = BakeOptions.CleanupTolerance;
 
 		Options.RenderCaptureImageSize = GeometryScriptBakeLocals::GetDimensions(BakeOptions.RenderCaptureResolution).GetHeight();
 		Options.bAntiAliasing = BakeOptions.bRenderCaptureAntiAliasing;
@@ -851,8 +847,6 @@ namespace GeometryScriptBakeLocals
 		Options.bBakeMetallic =  BakeOptions.bPackedMRSMap ? false : BakeOptions.bMetallicMap;
 		Options.bBakeRoughness = BakeOptions.bPackedMRSMap ? false : BakeOptions.bRoughnessMap;
 		Options.bBakeSpecular =  BakeOptions.bPackedMRSMap ? false : BakeOptions.bSpecularMap;
-
-		Options.TargetUVLayer = static_cast<int32>(TargetOptions.TargetUVLayer);
 
 		return Options;
 	}
@@ -1045,8 +1039,6 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 	FGeometryScriptBakeRenderCaptureOptions BakeOptions,
 	UGeometryScriptDebug* Debug)
 {
-	FRenderCaptureOptions Options = GeometryScriptBakeLocals::MakeRenderCaptureOptions(BakeOptions, TargetOptions);
-
 	// Its possible to pass nullptrs in SourceActors so we filter these out here
 	TArray<TObjectPtr<AActor>> ValidSourceActors;
 	for (AActor* Actor : SourceActors)
@@ -1102,14 +1094,16 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 		return {};
 	}
 
-	if (Options.bBakeNormalMap && !FDynamicMeshTangents(TargetMesh->GetMeshPtr()).HasValidTangents(true))
+	if (BakeOptions.bNormalMap && !FDynamicMeshTangents(TargetMesh->GetMeshPtr()).HasValidTangents(true))
 	{
 		AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs,
 			LOCTEXT("BakeTextureFromRenderCaptures_InvalidMeshTangents", "BakeTextureFromRenderCaptures: TargetMesh has invalid tangents so the requested normal map cannot be baked"));
 		return {};
 	}
 
-	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = CapturePhotoSet(ValidSourceActors, Options, false);
+	const FRenderCaptureOptions Options = GeometryScriptBakeLocals::MakeRenderCaptureOptions(BakeOptions);
+	FRenderCaptureUpdate UnusedUpdate;
+	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = CapturePhotoSet(ValidSourceActors, Options, UnusedUpdate, false);
 
 	const FDynamicMeshAABBTree3 TargetMeshSpatial(TargetMesh->GetMeshPtr());
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents = MakeShared<FMeshTangentsd>(TargetMesh->GetMeshPtr());
@@ -1124,12 +1118,14 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 
 	FRenderCaptureOcclusionHandler OcclusionHandler(GeometryScriptBakeLocals::GetDimensions(BakeOptions.Resolution));
 
+	const FRenderCaptureOptions PendingBake = Options; // All specified channels need baking
 	TUniquePtr<FMeshMapBaker> Baker = MakeRenderCaptureBaker(
 		TargetMesh->GetMeshPtr(),
 		TargetMeshTangents,
 		SceneCapture.Get(),
 		&Sampler,
-		Options,
+		PendingBake,
+		TargetOptions.TargetUVLayer,
 		GeometryScriptBakeLocals::ConvertEnum(BakeOptions.Resolution),
 		GeometryScriptBakeLocals::ConvertEnum(BakeOptions.SamplesPerPixel),
 		&OcclusionHandler);
@@ -1142,39 +1138,39 @@ FGeometryScriptRenderCaptureTextures UGeometryScriptLibrary_MeshBakeFunctions::B
 	GetTexturesFromRenderCaptureBaker(Baker, TexturesOut);
 
 	// Update source data
-	if (Options.bBakeBaseColor && TexturesOut.BaseColorMap)
+	if (TexturesOut.BaseColorMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.BaseColorMap, FTexture2DBuilder::ETextureType::Color);
 	}
-	if (Options.bBakeNormalMap && TexturesOut.NormalMap)
+	if (TexturesOut.NormalMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.NormalMap, FTexture2DBuilder::ETextureType::NormalMap);
 	}
-	if (Options.bUsePackedMRS && TexturesOut.PackedMRSMap)
+	if (TexturesOut.PackedMRSMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.PackedMRSMap, FTexture2DBuilder::ETextureType::ColorLinear);
 	}
-	if (Options.bBakeMetallic && TexturesOut.MetallicMap)
+	if (TexturesOut.MetallicMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.MetallicMap, FTexture2DBuilder::ETextureType::Metallic);
 	}
-	if (Options.bBakeRoughness && TexturesOut.RoughnessMap)
+	if (TexturesOut.RoughnessMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.RoughnessMap, FTexture2DBuilder::ETextureType::Roughness);
 	}
-	if (Options.bBakeSpecular && TexturesOut.SpecularMap)
+	if (TexturesOut.SpecularMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.SpecularMap, FTexture2DBuilder::ETextureType::Specular);
 	}
-	if (Options.bBakeEmissive && TexturesOut.EmissiveMap)
+	if (TexturesOut.EmissiveMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.EmissiveMap, FTexture2DBuilder::ETextureType::EmissiveHDR);
 	}
-	if (Options.bBakeOpacity && TexturesOut.OpacityMap)
+	if (TexturesOut.OpacityMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.OpacityMap, FTexture2DBuilder::ETextureType::ColorLinear);
 	}
-	if (Options.bBakeSubsurfaceColor && TexturesOut.SubsurfaceColorMap)
+	if (TexturesOut.SubsurfaceColorMap)
 	{
 		FTexture2DBuilder::CopyPlatformDataToSourceData(TexturesOut.SubsurfaceColorMap, FTexture2DBuilder::ETextureType::Color);
 	}

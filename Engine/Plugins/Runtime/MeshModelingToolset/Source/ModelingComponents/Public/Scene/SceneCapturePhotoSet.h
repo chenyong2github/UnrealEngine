@@ -49,8 +49,18 @@ public:
 
 	/**
 	 * Set the target World and set of Actors
+	 * If World != this->World or Actors != this->Actors all existing photo sets are cleared
 	 */
 	void SetCaptureSceneActors(UWorld* World, const TArray<AActor*>& Actors);
+	TArray<AActor*> GetCaptureSceneActors();
+	UWorld* GetCaptureTargetWorld();
+
+	/**
+	 * Set the parameters positioning the virtual cameras used to capture the photo sets
+	 * If SpatialParams != this->PhotoSetParams all existing photo sets are cleared (TODO clear on a more granular level)
+	 */
+	void SetSpatialPhotoParams(const TArray<FSpatialPhotoParams>& SpatialParams);
+	const TArray<FSpatialPhotoParams>& GetSpatialPhotoParams() const;
 
 	/**
 	 * Disable all capture types. By default a standard set of capture types is enabled but, for performance reasons,
@@ -60,20 +70,29 @@ public:
 
 	/**
 	 * Enable/Disable a particular capture type
+	 * If bEnabled == false the corresponding photo set will be cleared
 	 */
 	void SetCaptureTypeEnabled(ERenderCaptureType CaptureType, bool bEnabled);
 	bool GetCaptureTypeEnabled(ERenderCaptureType CaptureType) const;
 
 	/**
 	 * Configure the given capture type
+	 * If Config != the existing capture config the corresponding photo set will be cleared
 	 */
 	void SetCaptureConfig(ERenderCaptureType CaptureType, const FRenderCaptureConfig& Config);
 	FRenderCaptureConfig GetCaptureConfig(ERenderCaptureType CaptureType) const;
 
 	/**
+	 * Render the configured scene, for the configured capture types from the configured viewpoints.
+	 * This function the does most of the work.
+	 */
+	void Compute();
+
+	/**
 	 * Add captures at the corners and face centers of the "view box",
 	 * ie the bounding box that contains the view sphere (see AddExteriorCaptures)
 	 */
+	UE_DEPRECATED(5.2, "AddStandardExteriorCapturesFromBoundingBox is deprecated, please use SetSpatialPhotoParams and Compute instead.")
 	void AddStandardExteriorCapturesFromBoundingBox(
 		FImageDimensions PhotoDimensions,
 		double HorizontalFOVDegrees,
@@ -89,6 +108,7 @@ public:
 	 * will be fully contained inside a square image rendered from locations on the sphere, where
 	 * the view direction is towards the sphere center. The Directions array defines the directions.
 	 */
+	UE_DEPRECATED(5.2, "AddExteriorCaptures is deprecated, please use SetSpatialPhotoParams and Compute instead.")
 	void AddExteriorCaptures(
 		FImageDimensions PhotoDimensions,
 		double HorizontalFOVDegrees,
@@ -242,11 +262,17 @@ protected:
 
 	TArray<FSpatialPhotoParams> PhotoSetParams;
 
+	// This used to unproject the DeviceDepth render capture
+	TArray<FViewMatrices> PhotoViewMatricies;
+
 	bool bWriteDebugImages = false;
 	FString DebugImagesFolderName = TEXT("SceneCapturePhotoSet");
 
 	bool bAllowCancel = false;
 	bool bWasCancelled = false;
+
+private:
+	void EmptyAllPhotoSets();
 };
 
 
@@ -321,6 +347,18 @@ FVector4f FSceneCapturePhotoSet::ComputeSampleNearest(
 	return FVector4f::Zero();
 }
 
+MODELINGCOMPONENTS_API
+TArray<FSpatialPhotoParams> ComputeStandardExteriorSpatialPhotoParameters(
+	UWorld* World,
+	const TArray<AActor*>& Actors,
+	FImageDimensions PhotoDimensions,
+	double HorizontalFOVDegrees,
+	double NearPlaneDist,
+	bool bFaces,
+	bool bUpperCorners,
+	bool bLowerCorners,
+	bool bUpperEdges,
+	bool bSideEdges);
 
 } // end namespace UE::Geometry
 } // end namespace UE
