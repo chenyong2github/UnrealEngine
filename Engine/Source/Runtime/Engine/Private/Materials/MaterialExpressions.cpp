@@ -79,6 +79,7 @@
 #include "Materials/MaterialExpressionDBufferTexture.h"
 #include "Materials/MaterialExpressionDDX.h"
 #include "Materials/MaterialExpressionDDY.h"
+#include "Materials/MaterialExpressionDecalColor.h"
 #include "Materials/MaterialExpressionDecalDerivative.h"
 #include "Materials/MaterialExpressionDecalLifetimeOpacity.h"
 #include "Materials/MaterialExpressionDecalMipmapLevel.h"
@@ -19358,6 +19359,56 @@ int32 UMaterialExpressionDecalDerivative::Compile(class FMaterialCompiler* Compi
 void UMaterialExpressionDecalDerivative::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Decal Derivative"));
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionDecalColor
+//
+UMaterialExpressionDecalColor::UMaterialExpressionDecalColor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Vectors;
+		FConstructorStatics()
+			: NAME_Vectors(LOCTEXT("Utils", "Utils"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Vectors);
+
+	bShowOutputNameOnPin = true;
+	bShaderInputData = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("RGB"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("R"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("G"), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("B"), 1, 0, 0, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("A"), 1, 0, 0, 0, 1));
+	Outputs.Add(FExpressionOutput(TEXT("RGBA"), 1, 1, 1, 1, 1));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionDecalColor::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (Material && Material->MaterialDomain != MD_DeferredDecal)
+	{
+		return CompilerError(Compiler, TEXT("Node only works for the deferred decal material domain."));
+	}
+
+	return Compiler->DecalColor();
+}
+
+void UMaterialExpressionDecalColor::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Decal Color"));
 }
 #endif // WITH_EDITOR
 

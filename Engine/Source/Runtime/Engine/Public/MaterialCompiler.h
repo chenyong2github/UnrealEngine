@@ -359,6 +359,7 @@ public:
 
 	virtual int32 TextureDecalMipmapLevel(int32 TextureSizeInput) = 0;
 	virtual int32 TextureDecalDerivative(bool bDDY) = 0;
+	virtual int32 DecalColor() = 0;
 	virtual int32 DecalLifetimeOpacity() = 0;
 
 	virtual int32 Texture(UTexture* Texture,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset,ETextureMipValueMode MipValueMode=TMVM_None) = 0;
@@ -881,6 +882,7 @@ public:
 
 	virtual int32 TextureDecalMipmapLevel(int32 TextureSizeInput) override { return Compiler->TextureDecalMipmapLevel(TextureSizeInput); }
 	virtual int32 TextureDecalDerivative(bool bDDY) override { return Compiler->TextureDecalDerivative(bDDY); }
+	virtual int32 DecalColor() override { return Compiler->DecalColor(); }
 	virtual int32 DecalLifetimeOpacity() override { return Compiler->DecalLifetimeOpacity(); }
 
 	virtual int32 Texture(UTexture* InTexture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource = SSM_FromTextureAsset, ETextureMipValueMode MipValueMode = TMVM_None) override { return Compiler->Texture(InTexture, TextureReferenceIndex, SamplerType, SamplerSource, MipValueMode); }

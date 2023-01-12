@@ -22,6 +22,7 @@ struct FTransientDecalRenderData
 	FDecalBlendDesc BlendDesc;
 	float ConservativeRadius;
 	float FadeAlpha;
+	FLinearColor DecalColor;
 
 	FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy& InDecalProxy, float InConservativeRadius);
 };

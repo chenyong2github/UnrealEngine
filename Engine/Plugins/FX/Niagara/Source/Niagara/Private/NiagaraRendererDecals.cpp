@@ -195,7 +195,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
 			const FVector Size = FVector(SizeReader.GetSafe(ParticleIndex, DefaultSize) * 0.5f);
-			const float Fade = RendererProperties->bUseColorBindingAsFade ? ColorReader.GetSafe(ParticleIndex, FLinearColor::White).A : FadeReader.GetSafe(ParticleIndex, DefaultFade);
+			const FLinearColor DecalColor = ColorReader.GetSafe(ParticleIndex, FLinearColor::White);
+			const float Fade = FadeReader.GetSafe(ParticleIndex, DefaultFade);
 
 			// Create Update Parameters
 			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
@@ -217,6 +218,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			UpdateParams.AbsSpawnTime = World->TimeSeconds - FMath::Clamp(1.0f - Fade, 0.0f, 1.0f);
 			UpdateParams.FadeStartDelay = 0.0f;
 			UpdateParams.FadeDuration = 1.0f;
+			UpdateParams.FadeScreenSize = RendererProperties->DecalScreenSizeFade;
+			UpdateParams.DecalColor = DecalColor;
 		}
 	}
 	// Emitter source mode
@@ -232,10 +235,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
 			const FVector Size = FVector(ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSizeBinding.GetParamMapBindableVariable(), DefaultSize) * 0.5f);
-			const float Fade =
-				RendererProperties->bUseColorBindingAsFade ?
-				ParameterStore.GetParameterValueOrDefault(RendererProperties->ColorBinding.GetParamMapBindableVariable(), FLinearColor::White).A :
-				ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
+			const FLinearColor DecalColor = ParameterStore.GetParameterValueOrDefault(RendererProperties->ColorBinding.GetParamMapBindableVariable(), FLinearColor::White);
+			const float Fade = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
 
 			// Create Update Parameters
 			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
@@ -257,6 +258,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			UpdateParams.AbsSpawnTime = World->TimeSeconds - FMath::Clamp(1.0f - Fade, 0.0f, 1.0f);
 			UpdateParams.FadeStartDelay = 0.0f;
 			UpdateParams.FadeDuration = 1.0f;
+			UpdateParams.FadeScreenSize = RendererProperties->DecalScreenSizeFade;
+			UpdateParams.DecalColor = DecalColor;
 		}
 	}
 

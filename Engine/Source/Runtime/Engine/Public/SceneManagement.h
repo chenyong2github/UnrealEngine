@@ -1452,6 +1452,8 @@ public:
 	float FadeInStartDelayNormalized;
 
 	float FadeScreenSize;
+
+	FLinearColor DecalColor = FLinearColor::White;
 };
 
 struct FDeferredDecalUpdateParams
@@ -1474,6 +1476,7 @@ struct FDeferredDecalUpdateParams
 	float					FadeInStartDelay = 0.0f;
 	float					FadeScreenSize = 0.01f;
 	int32					SortOrder = 0;
+	FLinearColor			DecalColor = FLinearColor::White;
 };
 
 /** Reflection capture shapes. */

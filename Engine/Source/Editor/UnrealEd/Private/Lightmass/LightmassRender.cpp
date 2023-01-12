@@ -217,6 +217,11 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant(0.0f);
 	}
 
+	virtual int32 DecalColor() override
+	{
+		return Compiler->Constant4(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
 	virtual int32 DecalLifetimeOpacity() override
 	{
 		return Compiler->Constant(0.0f);

@@ -29,7 +29,8 @@ FDeferredDecalProxy::FDeferredDecalProxy(const UDecalComponent* InComponent)
 	, InvFadeInDuration(1.0f)
 	, FadeStartDelayNormalized(1.0f)
 	, FadeInStartDelayNormalized(0.0f)
-	, FadeScreenSize( InComponent->FadeScreenSize )
+	, FadeScreenSize(InComponent->FadeScreenSize)
+	, DecalColor(InComponent->DecalColor)
 {
 	UMaterialInterface* EffectiveMaterial = UMaterial::GetDefaultMaterial(MD_DeferredDecal);
 	UMaterialInterface* ComponentMaterial = InComponent->GetDecalMaterial();
@@ -282,6 +283,13 @@ void UDecalComponent::SetFadeScreenSize(float NewFadeScreenSize)
 void UDecalComponent::SetSortOrder(int32 Value)
 {
 	SortOrder = Value;
+
+	MarkRenderStateDirty();
+}
+
+void UDecalComponent::SetDecalColor(const FLinearColor& InColor)
+{
+	DecalColor = InColor;
 
 	MarkRenderStateDirty();
 }

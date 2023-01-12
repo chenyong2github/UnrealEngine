@@ -72,6 +72,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Decal Rendering")
 	int32 RendererVisibility = 0;
 
+	/** When the decal is smaller than this screen size fade out the decal, can be used to reduce the amount of small decals drawn. */
+	UPROPERTY(EditAnywhere, Category = "Decal Rendering")
+	float DecalScreenSizeFade = 0.f;
+
 	/** Position binding for the decals, should be center of the decal */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding PositionBinding;
@@ -84,16 +88,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DecalSizeBinding;
 
-	/** When enabled we use the Color Binding as the fade control, otherwise we use the DecalFade binding. */
+	/** Fade binding for the decal, value can be queried using the Decal Lifetime Opacity material node. */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
-	bool bUseColorBindingAsFade = true;
-
-	/** Fade binding for the decal, can be queried from the decal fade material node.. */
-	UPROPERTY(EditAnywhere, Category = "Bindings", Meta = (EditCondition = "!bUseColorBindingAsFade"))
 	FNiagaraVariableAttributeBinding DecalFadeBinding;
 
-	/** Color binding for the decal, only the alpha channel is used and can be queried from the decal fade material node. */
-	UPROPERTY(EditAnywhere, Category = "Bindings", Meta = (EditCondition = "bUseColorBindingAsFade"))
+	/** Color binding for the decal, value can be queried using the Decal Color material node. */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding ColorBinding;
 
 	/** Visibility tag binding, when valid the returned values is compated with RendererVisibility. */

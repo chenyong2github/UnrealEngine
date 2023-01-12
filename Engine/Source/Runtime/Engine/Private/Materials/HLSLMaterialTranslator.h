@@ -875,6 +875,7 @@ protected:
 	virtual int32 TextureDecalMipmapLevel(int32 TextureSizeInput) override;
 	virtual int32 TextureDecalDerivative(bool bDDY) override;
 
+	virtual int32 DecalColor() override;
 	virtual int32 DecalLifetimeOpacity() override;
 
 	virtual int32 PixelDepth() override;

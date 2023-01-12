@@ -60,6 +60,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDecalParametersRayTracing, )
 	SHADER_PARAMETER(FVector3f, DecalToWorldInvScale)
 	SHADER_PARAMETER(FVector3f, DecalOrientation)
 	SHADER_PARAMETER(FVector2f, DecalParams)
+	SHADER_PARAMETER(FVector4f, DecalColorParam)
 	SHADER_PARAMETER(uint32, DecalWriteFlags)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -85,6 +86,7 @@ static TUniformBufferRef<FDecalParametersRayTracing> CreateDecalParametersBuffer
 	Parameters.DecalToWorld = RelativeDecalToWorldMatrix;
 	Parameters.DecalToWorldInvScale = RelativeDecalToWorldMatrix.GetScaleVector().Reciprocal();
 	Parameters.DecalOrientation = OrientationVector;
+	Parameters.DecalColorParam = DecalData.DecalColor;
 
 	float LifetimeAlpha = 1.0f;
 
@@ -95,6 +97,7 @@ static TUniformBufferRef<FDecalParametersRayTracing> CreateDecalParametersBuffer
 	}
 
 	Parameters.DecalParams = FVector2f(DecalData.FadeAlpha, LifetimeAlpha);
+	Parameters.DecalColorParam = DecalData.DecalColor;
 
 	Parameters.DecalWriteFlags = CalculateDecalWriteFlags(DecalData.BlendDesc);
 

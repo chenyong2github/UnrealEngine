@@ -6565,6 +6565,24 @@ int32 FHLSLMaterialTranslator::TextureDecalDerivative(bool bDDY)
 		);
 }
 
+int32 FHLSLMaterialTranslator::DecalColor()
+{
+	if (Material->GetMaterialDomain() != MD_DeferredDecal)
+	{
+		return Errorf(TEXT("Decal color is only available in the decal material domain."));
+	}
+
+	if (ShaderFrequency != SF_Pixel)
+	{
+		return Errorf(TEXT("Decal color is only available in the pixel shader."));
+	}
+
+	return AddCodeChunkZeroDeriv(
+		MCT_Float4,
+		TEXT("DecalColor()")
+	);
+}
+
 int32 FHLSLMaterialTranslator::DecalLifetimeOpacity()
 {
 	if (Material->GetMaterialDomain() != MD_DeferredDecal)

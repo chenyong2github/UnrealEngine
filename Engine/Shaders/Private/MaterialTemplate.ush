@@ -1093,17 +1093,23 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 	#endif
 	}
 
-#if DECAL_PRIMITIVE
+	float4 DecalColor()
+	{
+	#if DECAL_PRIMITIVE
+		return DecalColorParam;
+	#else
+		return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	#endif
+	}
+
 	float DecalLifetimeOpacity()
 	{
+	#if DECAL_PRIMITIVE
 		return DecalParams.y;
-	}
-#else
-	float DecalLifetimeOpacity()
-	{
+	#else
 		return 0.0f;
+	#endif
 	}
-#endif // DECAL_PRIMITIVE
 
 /** Per Instance Custom Data Getter (Pixel Shader Variant - Visibility Buffer) */
 float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, float DefaultValue)

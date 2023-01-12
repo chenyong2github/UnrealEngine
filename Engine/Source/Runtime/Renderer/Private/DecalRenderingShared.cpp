@@ -28,6 +28,7 @@ FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, cons
 	, MaterialProxy(InDecalProxy.DecalMaterial->GetRenderProxy())
 	, ConservativeRadius(InConservativeRadius)
 	, FadeAlpha(1.0f)
+	, DecalColor(InDecalProxy.DecalColor)
 {
 	// Build BlendDesc from a potentially incomplete material.
 	// If our shader isn't compiled yet then we will potentially render later with a different fallback material.
@@ -81,6 +82,7 @@ public:
 		DecalToWorldInvScale.Bind(Initializer.ParameterMap, TEXT("DecalToWorldInvScale"));
 		DecalOrientation.Bind(Initializer.ParameterMap,TEXT("DecalOrientation"));
 		DecalParams.Bind(Initializer.ParameterMap, TEXT("DecalParams"));
+		DecalColorParam.Bind(Initializer.ParameterMap, TEXT("DecalColorParam"));
 		MobileBasePassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
@@ -147,6 +149,7 @@ public:
 		}
  
 		SetShaderValue(RHICmdList, ShaderRHI, DecalParams, FVector2f(FadeAlphaValue, LifetimeAlpha));
+		SetShaderValue(RHICmdList, ShaderRHI, DecalColorParam, DecalProxy.DecalColor);
 	}
 
 private:
@@ -156,6 +159,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, DecalToWorldInvScale);
 	LAYOUT_FIELD(FShaderParameter, DecalOrientation);
 	LAYOUT_FIELD(FShaderParameter, DecalParams);
+	LAYOUT_FIELD(FShaderParameter, DecalColorParam);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, MobileBasePassUniformBuffer);
 };
 

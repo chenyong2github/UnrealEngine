@@ -3027,6 +3027,7 @@ void FScene::BatchUpdateDecals(TArray<FDeferredDecalUpdateParams>&& UpdateParams
 				DecalUpdate.DecalProxy->InitializeFadingParameters(DecalUpdate.AbsSpawnTime, DecalUpdate.FadeDuration, DecalUpdate.FadeStartDelay, DecalUpdate.FadeInDuration, DecalUpdate.FadeInStartDelay);
 				DecalUpdate.DecalProxy->FadeScreenSize = DecalUpdate.FadeScreenSize;
 				DecalUpdate.DecalProxy->SortOrder = DecalUpdate.SortOrder;
+				DecalUpdate.DecalProxy->DecalColor = DecalUpdate.DecalColor;
 			}
 		}
 	);

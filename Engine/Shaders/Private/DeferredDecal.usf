@@ -39,6 +39,8 @@ float3 DecalOrientation;
 float2 DecalParams;
 // from component to clip space (for decal frustum)
 float4x4 FrustumComponentToClip;
+// Decal color can be accessed using the material node
+float4 DecalColorParam;
 
 // Global decal vertex shader
 void MainVS(

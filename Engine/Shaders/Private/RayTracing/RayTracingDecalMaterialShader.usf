@@ -13,6 +13,7 @@
 #define DecalToWorldInvScale RayTracingDecalParameters.DecalToWorldInvScale
 #define DecalOrientation RayTracingDecalParameters.DecalOrientation
 #define DecalParams RayTracingDecalParameters.DecalParams
+#define DecalColorParam RayTracingDecalParameters.DecalColorParam
 #define DecalWriteFlags RayTracingDecalParameters.DecalWriteFlags
 
 #include "/Engine/Generated/Material.ush"
