@@ -317,26 +317,13 @@ void FSparseDynamicOctree3::ContainmentQuery(
 	const FVector3d& Point,
 	TFunctionRef<void(int)> ObjectIDFunc) const
 {
-	// todo: this should take advantage of raster!
-
 	// always process spill objects
 	for (int ObjectID : SpillObjectSet)
 	{
 		ObjectIDFunc(ObjectID);
 	}
 
-	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue;
-
-	// start at root cells
-	RootCells.AllocatedIteration([&](const uint32* RootCellID)
-	{
-		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
-		if ( GetCellBox(*RootCell, MaxExpandFactor).Contains(Point) )
-		{
-			Queue.Add(&Cells[*RootCellID]);
-		}
-	});
-
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue = InitializeQueryQueue(Point);
 
 	while (Queue.Num() > 0)
 	{
@@ -369,8 +356,6 @@ bool FSparseDynamicOctree3::ContainmentQueryCancellable(
 	const FVector3d& Point,
 	TFunctionRef<bool(int)> ObjectIDFunc) const
 {
-	// todo: this should take advantage of raster!
-
 	// always process spill objects
 	for (int ObjectID : SpillObjectSet)
 	{
@@ -380,17 +365,7 @@ bool FSparseDynamicOctree3::ContainmentQueryCancellable(
 		}
 	}
 
-	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue;
-
-	// start at root cells
-	RootCells.AllocatedIteration([&](const uint32* RootCellID)
-	{
-		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
-		if ( GetCellBox(*RootCell, MaxExpandFactor).Contains(Point) )
-		{
-			Queue.Add(&Cells[*RootCellID]);
-		}
-	});
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue = InitializeQueryQueue(Point);
 
 
 	while (Queue.Num() > 0)
@@ -434,26 +409,13 @@ void FSparseDynamicOctree3::RangeQuery(
 	const FAxisAlignedBox3d& Bounds,
 	TFunctionRef<void(int)> ObjectIDFunc) const
 {
-	// todo: this should take advantage of raster!
-
 	// always process spill objects
 	for (int ObjectID : SpillObjectSet)
 	{
 		ObjectIDFunc(ObjectID);
 	}
 
-	TArray<const FSparseOctreeCell*> Queue;
-
-	// start at root cells
-	RootCells.AllocatedIteration([&](const uint32* RootCellID)
-	{
-		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
-		if ( GetCellBox(*RootCell, MaxExpandFactor).Intersects(Bounds) )
-		{
-			Queue.Add(&Cells[*RootCellID]);
-		}
-	});
-
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue = InitializeQueryQueue(Bounds);
 
 	while (Queue.Num() > 0)
 	{
@@ -489,25 +451,13 @@ void FSparseDynamicOctree3::RangeQuery(
 	const FAxisAlignedBox3d& Bounds,
 	TArray<int>& ObjectIDs) const
 {
-	// todo: this should take advantage of raster!
-
 	// always collect spill objects
 	for (int ObjectID : SpillObjectSet)
 	{
 		ObjectIDs.Add(ObjectID);
 	}
 
-	TArray<const FSparseOctreeCell*> Queue;
-
-	// start at root cells
-	RootCells.AllocatedIteration([&](const uint32* RootCellID)
-	{
-		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
-		if (GetCellBox(*RootCell, MaxExpandFactor).Intersects(Bounds))
-		{
-			Queue.Add(&Cells[*RootCellID]);
-		}
-	});
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue = InitializeQueryQueue(Bounds);
 
 	while (Queue.Num() > 0)
 	{
@@ -546,17 +496,7 @@ void FSparseDynamicOctree3::ParallelRangeQuery(
 		ObjectIDs.Add(ObjectID);
 	}
 
-	TArray<const FSparseOctreeCell*> Queue;
-
-	// start at root cells
-	RootCells.AllocatedIteration([&](const uint32* RootCellID)
-	{
-		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
-		if (GetCellBox(*RootCell, MaxExpandFactor).Intersects(Bounds))
-		{
-			Queue.Add(&Cells[*RootCellID]);
-		}
-	});
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue = InitializeQueryQueue(Bounds);
 
 	// parallel strategy here is to collect each rootcell subtree into a separate
 	// array, and then merge them. Although this means we do some dynamic memory
