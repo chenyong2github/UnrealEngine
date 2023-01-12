@@ -16,7 +16,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraScriptFactoryNew.h"
 #include "NiagaraScriptSource.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
+#include "AssetTypeActions/AssetDefinition_NiagaraScript.h"
 #include "EdGraph/EdGraph.h"
 #include "Modules/ModuleManager.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
@@ -89,34 +89,12 @@ const FSoftObjectPath& UNiagaraScriptFactoryNew::GetDefaultScriptFromSettings(co
 
 FText UNiagaraScriptFactoryNew::GetDisplayName() const
 {
-	// Get the displayname for this factory from the action type.
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-
-	UClass* LocalSupportedClass = GetSupportedClass();
-	if (LocalSupportedClass)
-	{
-		TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsListForClass(LocalSupportedClass);
-		for (auto& CurrentAssetTypeAction : AssetTypeActions)
-		{
-			TSharedPtr<FAssetTypeActions_NiagaraScript> AssetTypeAction = StaticCastSharedPtr<FAssetTypeActions_NiagaraScript>(CurrentAssetTypeAction.Pin());
-			if (AssetTypeAction.IsValid() && AssetTypeAction->GetTypeName() == GetAssetTypeActionName())
-			{
-				FText Name = AssetTypeAction->GetName();
-				if (!Name.IsEmpty())
-				{
-					return Name;
-				}
-			}
-		}
-	}
-
-	// Factories that have no supported class have no display name.
-	return FText();
+	return FText::FromName(GetAssetTypeActionName());
 }
 
 void UNiagaraScriptFactoryNew::InitializeScript(UNiagaraScript* NewScript)
 {
-	if(NewScript != NULL)
+	if(NewScript != nullptr)
 	{
 		UNiagaraScriptSource* Source = NewObject<UNiagaraScriptSource>(NewScript, NAME_None, RF_Transactional);
 		if(Source)
@@ -240,7 +218,7 @@ FName UNiagaraModuleScriptFactory::GetNewAssetThumbnailOverride() const
 
 FName UNiagaraModuleScriptFactory::GetAssetTypeActionName() const
 {
-	return FAssetTypeActions_NiagaraScriptModules::NiagaraModuleScriptName;
+	return UAssetDefinition_NiagaraScript::ModuleScriptName;
 }
 
 ENiagaraScriptUsage UNiagaraModuleScriptFactory::GetScriptUsage() const
@@ -263,7 +241,7 @@ FName UNiagaraFunctionScriptFactory::GetNewAssetThumbnailOverride() const
 
 FName UNiagaraFunctionScriptFactory::GetAssetTypeActionName() const
 {
-	return FAssetTypeActions_NiagaraScriptFunctions::NiagaraFunctionScriptName;
+	return UAssetDefinition_NiagaraScript::FunctionScriptName;
 }
 
 ENiagaraScriptUsage UNiagaraFunctionScriptFactory::GetScriptUsage() const
@@ -286,7 +264,7 @@ FName UNiagaraDynamicInputScriptFactory::GetNewAssetThumbnailOverride() const
 
 FName UNiagaraDynamicInputScriptFactory::GetAssetTypeActionName() const
 {
-	return FAssetTypeActions_NiagaraScriptDynamicInputs::NiagaraDynamicInputScriptName;
+	return UAssetDefinition_NiagaraScript::DynamicInputScriptName;
 }
 
 ENiagaraScriptUsage UNiagaraDynamicInputScriptFactory::GetScriptUsage() const

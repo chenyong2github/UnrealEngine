@@ -45,52 +45,14 @@ namespace MenuExtension_Texture
 	{
 		const UContentBrowserAssetContextMenuContext* CBContext = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext);
 
-		const FString DefaultSuffix = TEXT("_Mat");
-
-		if ( const FAssetData* TextureAsset = CBContext->GetSingleSelectedAssetOfType(UTexture::StaticClass()) )
-        {
-			if (UTexture* Texture = CastChecked<UTexture>(TextureAsset->GetAsset()))
+		IAssetTools::Get().CreateAssetsFrom<UTexture>(
+			CBContext->LoadSelectedObjects<UTexture>(), UMaterial::StaticClass(), TEXT("_Mat"), [](UTexture* SourceObject)
 			{
-				// Determine an appropriate name
-				FString Name;
-				FString PackagePath;
-				IAssetTools::Get().CreateUniqueAssetName(Texture->GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
-
-				// Create the factory used to generate the asset
 				UMaterialFactoryNew* Factory = NewObject<UMaterialFactoryNew>();
-				Factory->InitialTexture = Texture;
-
-				FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-				ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), UMaterial::StaticClass(), Factory);
+				Factory->InitialTexture = SourceObject;
+				return Factory;
 			}
-		}
-		else
-		{
-			TArray<UObject*> ObjectsToSync;
-
-			for (UTexture* Texture : CBContext->LoadSelectedObjects<UTexture>())
-			{
-				FString Name;
-				FString PackageName;
-				IAssetTools::Get().CreateUniqueAssetName(Texture->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
-
-				// Create the factory used to generate the asset
-				UMaterialFactoryNew* Factory = NewObject<UMaterialFactoryNew>();
-				Factory->InitialTexture = Texture;
-
-				UObject* NewAsset = IAssetTools::Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), UMaterial::StaticClass(), Factory);
-
-				if ( NewAsset )
-				{
-					ObjectsToSync.Add(NewAsset);
-				}
-			}
-
-			if ( ObjectsToSync.Num() > 0 )
-			{
-				IAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
-			}
-		}
+		);
 	}
 
 	static void ExecuteConvertToVirtualTexture(const FToolMenuContext& InContext)
@@ -108,63 +70,6 @@ namespace MenuExtension_Texture
 		{
 			IVirtualTexturingEditorModule* Module = FModuleManager::Get().GetModulePtr<IVirtualTexturingEditorModule>("VirtualTexturingEditor");
 			Module->ConvertVirtualTexturesWithDialog(CBContext->LoadSelectedObjects<UTexture2D>(), true);
-		}
-	}
-
-	static void ExecuteCreateSubUVAnimation(TArray<TWeakObjectPtr<UTexture>> Objects)
-	{
-		const FString DefaultSuffix = TEXT("_SubUV");
-
-		if ( Objects.Num() == 1 )
-		{
-			UTexture2D* Object = Cast<UTexture2D>(Objects[0].Get());
-
-			if ( Object )
-			{
-				// Determine an appropriate name
-				FString Name;
-				FString PackagePath;
-				IAssetTools::Get().CreateUniqueAssetName(Object->GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
-
-				// Create the factory used to generate the asset
-				USubUVAnimationFactory* Factory = NewObject<USubUVAnimationFactory>();
-				Factory->InitialTexture = Object;
-
-				FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-				ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USubUVAnimation::StaticClass(), Factory);
-			}
-		}
-		else
-		{
-			TArray<UObject*> ObjectsToSync;
-
-			for (auto ObjIt = Objects.CreateConstIterator(); ObjIt; ++ObjIt)
-			{
-				UTexture2D* Object = Cast<UTexture2D>((*ObjIt).Get());
-
-				if ( Object )
-				{
-					FString Name;
-					FString PackageName;
-					IAssetTools::Get().CreateUniqueAssetName(Object->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
-
-					// Create the factory used to generate the asset
-					USubUVAnimationFactory* Factory = NewObject<USubUVAnimationFactory>();
-					Factory->InitialTexture = Object;
-					
-					UObject* NewAsset = IAssetTools::Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), USubUVAnimation::StaticClass(), Factory);
-
-					if ( NewAsset )
-					{
-						ObjectsToSync.Add(NewAsset);
-					}
-				}
-			}
-
-			if ( ObjectsToSync.Num() > 0 )
-			{
-				IAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
-			}
 		}
 	}
 

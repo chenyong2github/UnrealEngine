@@ -62,7 +62,8 @@ public class NiagaraEditor : ModuleRules
 				"PythonScriptPlugin",
 				"ImageWrapper",
 				"AssetDefinition",
-				"ContentBrowser"
+				"ContentBrowser",
+				"AssetTools"
 			}
 		);
 
@@ -81,7 +82,6 @@ public class NiagaraEditor : ModuleRules
 				"Engine",
 				"MessageLog",
 				"Messaging",
-				"AssetTools",
 				"ContentBrowser",
                 "DerivedDataCache",
                 "LevelEditor",

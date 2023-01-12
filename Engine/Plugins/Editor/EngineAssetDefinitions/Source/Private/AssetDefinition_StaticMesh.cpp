@@ -521,14 +521,18 @@ namespace MenuExtension_StaticMesh
 						const TAttribute<FText> Label = LOCTEXT("ObjectContext_SaveGeneratedLODsInPackage", "Save Generated LODs");
 						const TAttribute<FText> ToolTip = LOCTEXT("ObjectContext_SaveGeneratedLODsInPackageTooltip", "Run the mesh reduce and save the generated LODs as part of the package.");
 						const FSlateIcon Icon = FSlateIcon();
-						const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteSaveGeneratedLODsInPackage);
+
+						FToolUIAction UIAction;
+						UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteSaveGeneratedLODsInPackage);
 						InSection.AddMenuEntry("ObjectContext_SaveGeneratedLODsInPackage", Label, ToolTip, Icon, UIAction);
 					}
 					{
 						const TAttribute<FText> Label = LOCTEXT("ObjectContext_ClearVertexColors", "Remove Vertex Colors");
 						const TAttribute<FText> ToolTip = LOCTEXT("ObjectContext_ClearVertexColorsTooltip", "Removes vertex colors from all LODS in all selected meshes.");
 						const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.RemoveVertexColors");
-						const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteRemoveVertexColors);
+
+						FToolUIAction UIAction;
+						UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteRemoveVertexColors);
 						InSection.AddMenuEntry("ObjectContext_ClearVertexColors", Label, ToolTip, Icon, UIAction);
 					}
 					{

@@ -2,7 +2,7 @@
 
 #include "NiagaraScriptToolkit.h"
 
-#include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
+#include "AssetTypeActions/AssetDefinition_NiagaraScript.h"
 #include "BusyCursor.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
@@ -152,15 +152,15 @@ FText FNiagaraScriptToolkit::GetGraphEditorDisplayName() const
 	FText DisplayName = LOCTEXT("NiagaraScriptDisplayName", "Niagara Script");
 	if (EditedNiagaraScript.Script->GetUsage() == ENiagaraScriptUsage::Function)
 	{
-		DisplayName = FAssetTypeActions_NiagaraScriptFunctions::GetFormattedName();
+		DisplayName = UAssetDefinition_NiagaraScript::FunctionScriptNameText;
 	}
 	else if (EditedNiagaraScript.Script->GetUsage() == ENiagaraScriptUsage::Module)
 	{
-		DisplayName = FAssetTypeActions_NiagaraScriptModules::GetFormattedName();
+		DisplayName = UAssetDefinition_NiagaraScript::ModuleScriptNameText;
 	}
 	else if (EditedNiagaraScript.Script->GetUsage() == ENiagaraScriptUsage::DynamicInput)
 	{
-		DisplayName = FAssetTypeActions_NiagaraScriptDynamicInputs::GetFormattedName();
+		DisplayName = UAssetDefinition_NiagaraScript::DynamicInputScriptNameText;
 	}
 
 	FVersionedNiagaraScriptData* ScriptData = EditedNiagaraScript.Script->GetScriptData(EditedNiagaraScript.Version);

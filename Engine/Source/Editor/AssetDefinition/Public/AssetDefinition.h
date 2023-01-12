@@ -245,7 +245,9 @@ struct ASSETDEFINITION_API EAssetCategoryPaths
 	static FAssetCategoryPath Animation;
 	static FAssetCategoryPath Audio;
 	static FAssetCategoryPath Blueprint;
+	static FAssetCategoryPath Cinematics;
 	static FAssetCategoryPath Foliage;
+	static FAssetCategoryPath FX;
 	static FAssetCategoryPath Gameplay;
 	static FAssetCategoryPath Input;
 	static FAssetCategoryPath Material;
@@ -253,7 +255,6 @@ struct ASSETDEFINITION_API EAssetCategoryPaths
 	static FAssetCategoryPath Physics;
 	static FAssetCategoryPath Texture;
 	static FAssetCategoryPath UI;
-	static FAssetCategoryPath Cinematics;
 };
 
 struct FAssetOpenSupport

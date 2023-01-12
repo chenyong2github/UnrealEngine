@@ -15,9 +15,6 @@
 #include "Subsystems/ImportSubsystem.h"
 #include "UObject/UObjectThreadContext.h"
 
-#include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraParameterCollection.h"
-
 #include "EdGraphSchema_Niagara.h"
 #include "EdGraphUtilities.h"
 #include "KismetPins/SGraphPinBool.h"
@@ -164,8 +161,6 @@ IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
 const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEditorApp" ) );
 const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0.2f, 0.5f);
-
-EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
 
 int32 GbShowNiagaraDeveloperWindows = 0;
 static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
@@ -859,12 +854,6 @@ void FNiagaraEditorModule::StartupModule()
 
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	NiagaraAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("FX")), LOCTEXT("NiagaraAssetsCategory", "FX"));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptFunctions()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptModules()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptDynamicInputs()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollection())); 
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollectionInstance()));
 
 	// Preload all parameter definition & collection assets so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
 	{
@@ -1264,16 +1253,6 @@ void FNiagaraEditorModule::ShutdownModule()
 {
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
-	
-	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		for (auto CreatedAssetTypeAction : CreatedAssetTypeActions)
-		{
-			AssetTools.UnregisterAssetTypeActions(CreatedAssetTypeAction.ToSharedRef());
-		}
-	}
-	CreatedAssetTypeActions.Empty();
 
 	// Clean up asset registry callbacks
 	if (FModuleManager::Get().IsModuleLoaded("AssetRegistry"))
@@ -1833,12 +1812,6 @@ void FNiagaraEditorModule::RegisterDefaultRendererFactories()
 			NewRenderer->Material = Cast<UMaterialInterface>(DefaultMaterial.TryLoad());
 			return NewRenderer;
 		})));
-}
-
-void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
-{
-	AssetTools.RegisterAssetTypeActions(Action);
-	CreatedAssetTypeActions.Add(Action);
 }
 
 void FNiagaraEditorModule::RegisterSettings()
