@@ -810,6 +810,11 @@ namespace UnrealBuildTool
 
 				if (HeaderFileItems.Count > 0)
 				{
+					if (Target.bIWYUHeadersOnly)
+					{
+						LinkInputFiles.Clear();
+					}
+
 					// Add the compile actions
 					LinkInputFiles.AddRange(ToolChain.CompileAllCPPFiles(CompileEnvironment, HeaderFileItems, IntermediateDirectory, Name, Graph).ObjectFiles);
 				}

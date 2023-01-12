@@ -1282,6 +1282,12 @@ namespace UnrealBuildTool
 		public bool bIWYU = false;
 
 		/// <summary>
+		/// Tells "include what you use" to only compile header files.
+		/// </summary>
+		[CommandLine("-IWYUHeadersOnly")]
+		public bool bIWYUHeadersOnly = false;
+
+		/// <summary>
 		/// Enforce "include what you use" rules; warns if monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
 		/// </summary>
 		public bool bEnforceIWYU = true;
@@ -3153,6 +3159,11 @@ namespace UnrealBuildTool
 		public bool bIWYU
 		{
 			get { return Inner.bIWYU; }
+		}
+
+		public bool bIWYUHeadersOnly
+		{
+			get { return Inner.bIWYUHeadersOnly; }
 		}
 
 		public bool bEnforceIWYU
