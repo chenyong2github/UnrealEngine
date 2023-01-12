@@ -63,7 +63,7 @@ FEOSArtifactSettings FArtifactSettings::ToNative() const
 	Native.ClientId = ClientId;
 	Native.ClientSecret = ClientSecret;
 	Native.DeploymentId = DeploymentId;
-	Native.EncryptionKey = EncryptionKey;
+	Native.EncryptionKey = ClientEncryptionKey;
 	Native.ProductId = ProductId;
 	Native.SandboxId = SandboxId;
 
@@ -118,7 +118,7 @@ FEOSArtifactSettings ParseArtifactSettingsFromConfigString(const FString& RawLin
 		{
 			Result.DeploymentId = StripQuotes(Values[ValueIndex + 1]);
 		}
-		else if (Values[ValueIndex] == TEXT("EncryptionKey"))
+		else if (Values[ValueIndex] == TEXT("ClientEncryptionKey"))
 		{
 			Result.EncryptionKey = StripQuotes(Values[ValueIndex + 1]);
 		}
@@ -353,13 +353,13 @@ void UEOSSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 				}
 			}
 
-			if (!Artifact.EncryptionKey.IsEmpty())
+			if (!Artifact.ClientEncryptionKey.IsEmpty())
 			{
-				if (!IsHex(Artifact.EncryptionKey) || Artifact.EncryptionKey.Len() != 64)
+				if (!IsHex(Artifact.ClientEncryptionKey) || Artifact.ClientEncryptionKey.Len() != 64)
 				{
 					FMessageDialog::Open(EAppMsgType::Ok,
-						LOCTEXT("EncryptionKeyNotHexMsg", "EncryptionKey must contain 64 hex characters"));
-					Artifact.EncryptionKey.Empty();
+						LOCTEXT("EncryptionKeyNotHexMsg", "ClientEncryptionKey must contain 64 hex characters"));
+					Artifact.ClientEncryptionKey.Empty();
 				}
 			}
 		}

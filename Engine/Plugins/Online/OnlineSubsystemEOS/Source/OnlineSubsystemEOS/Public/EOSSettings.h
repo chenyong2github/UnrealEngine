@@ -57,7 +57,8 @@ public:
 	FString DeploymentId;
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
-	FString EncryptionKey;
+	// Config key renamed to ClientEncryptionKey as EncryptionKey gets removed from packaged builds due to IniKeyDenylist=EncryptionKey entry in BaseGame.ini.
+	FString ClientEncryptionKey;
 
 	FEOSArtifactSettings ToNative() const;
 };
