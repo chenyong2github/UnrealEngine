@@ -2956,17 +2956,6 @@ void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 #endif // ENABLE_DRAW_DEBUG
 }
 
-//////////////////////////////////////////////////////////////////////////
-// FModule
-// @todo: clean up this code
-class FModule : public IModuleInterface
-{
-public: // IModuleInterface
-	virtual void StartupModule() override {}
-	virtual void ShutdownModule() override {}
-};
 } // namespace UE::PoseSearch
 
 #undef LOCTEXT_NAMESPACE
-
-IMPLEMENT_MODULE(UE::PoseSearch::FModule, PoseSearch)
