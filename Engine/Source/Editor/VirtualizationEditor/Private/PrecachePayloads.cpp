@@ -142,8 +142,6 @@ TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackageNames)
 	return AllPayloads.Array();
 }
 
-}
-
 /** Utility to turn an array of FIoHash into an array of FPullRequest */
 TArray<UE::Virtualization::FPullRequest> ToRequestArray(TConstArrayView<FIoHash> IdentifierArray)
 {
@@ -157,6 +155,8 @@ TArray<UE::Virtualization::FPullRequest> ToRequestArray(TConstArrayView<FIoHash>
 
 	return Requests;
 }
+
+} // namespace
 
 
 UPrecachePayloadsCommandlet::UPrecachePayloadsCommandlet(const FObjectInitializer& ObjectInitializer)
