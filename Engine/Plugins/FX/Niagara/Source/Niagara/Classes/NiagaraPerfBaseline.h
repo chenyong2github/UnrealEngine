@@ -155,11 +155,6 @@ public:
 	virtual void BeginPlay();
 	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	//AActor Interface END
-
-	FORCEINLINE bool IsBaselineTestFinished()const { return bDone; }
-
-private:
-	bool bDone = false;
 #endif
 };
 
@@ -181,6 +176,8 @@ public:
 	virtual bool NeedsWorldStats()const override { return false; }
 	virtual bool NeedsSystemStats()const override { return true; }
 	virtual bool NeedsComponentStats()const override { return false; }
+	
+	virtual bool AllowOrphaned()const { return true; }
 
 private:
 	/** The baseline actor controlling the test conditions and which we'll send the completed stats to. */

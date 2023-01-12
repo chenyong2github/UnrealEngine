@@ -233,7 +233,7 @@ void FParticlePerfStatsManager::Tick()
 		TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> ToRemove;
 		for (FParticlePerfStatsListenerPtr& Listener : Listeners)
 		{
-			if (Listener.IsValid() == false || Listener.IsUnique() || Listener->Tick() == false)
+			if (Listener.IsValid() == false || (Listener.IsUnique() && Listener->AllowOrphaned() == false) || Listener->Tick() == false)
 			{
 				ToRemove.Add(Listener);
 			}
@@ -720,7 +720,7 @@ void FAccumulatedParticlePerfStats::Tick(FParticlePerfStats& Stats)
 
 void FAccumulatedParticlePerfStats::TickRT(FParticlePerfStats& Stats)
 {
-	check(IsInActualRenderingThread());
+	check(IsInRenderingThread());
 	RenderThreadStats.Tick(Stats);
 	GPUStats.Tick(Stats);
 }

@@ -199,6 +199,13 @@ public:
 	virtual bool NeedsWorldStats()const = 0;
 	virtual bool NeedsSystemStats()const = 0;
 	virtual bool NeedsComponentStats()const = 0;
+
+	/** 
+	Controls whether this listener should be stooped and cleaned up when it's orphaned, i.e. the manager is the only one with a reference.
+	In some cases we want to signal that a listener should stop by clearing an external reference.
+	In other cases we want to have fire and forget listeners that can signal their own termination via their tick function.
+	*/
+	virtual bool AllowOrphaned()const { return false; }
 };
 
 typedef TSharedPtr<FParticlePerfStatsListener, ESPMode::ThreadSafe> FParticlePerfStatsListenerPtr;
@@ -374,6 +381,9 @@ public:
 
 	virtual void End()override;
 	virtual bool Tick()override;
+
+	virtual bool AllowOrphaned()const { return true; }
+
 private:
 	int32 FramesRemaining;
 };
