@@ -5,7 +5,6 @@
 
 #if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 #include "DefaultInstallBundleManagerPrivate.h"
-#include "InstallBundleManagerPrivate.h"
 #include "InstallBundleManagerUtil.h"
 
 #include "Misc/ConfigCacheIni.h"
