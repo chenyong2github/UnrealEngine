@@ -136,7 +136,7 @@ struct FMassDebuggerProcessingGraph
 struct FMassDebuggerEnvironment
 {
 	explicit FMassDebuggerEnvironment(const TSharedRef<const FMassEntityManager>& InEntityManager)
-		: EntityManager(InEntityManager), World(InEntityManager->GetWorld())
+		: EntityManager(InEntityManager), World(InEntityManager->GetWorld()), bNeedsValidWorld(InEntityManager->GetWorld() != nullptr)
 	{}
 
 	bool operator==(const FMassDebuggerEnvironment& Other) const { return EntityManager == Other.EntityManager; }
@@ -144,9 +144,11 @@ struct FMassDebuggerEnvironment
 	FString GetDisplayName() const;
 	const FMassEntityManager* GetEntityManager() const;
 	bool IsWorldValid() const { return World.IsValid(); }
+	bool NeedsValidWorld() const { return bNeedsValidWorld; }
 	
 	TWeakPtr<const FMassEntityManager> EntityManager;
 	TWeakObjectPtr<UWorld> World;
+	bool bNeedsValidWorld = false;
 };
 
 

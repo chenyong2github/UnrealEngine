@@ -267,7 +267,7 @@ void SMassDebugger::RebuildEnvironmentsList()
 		if (const FMassEntityManager* EntityManagerPtr = WeakEntityManager.Pin().Get())
 		{
 			const UWorld* World = EntityManagerPtr->GetWorld();
-			if (World != nullptr && UE::Mass::Debugger::Private::IsSupportedWorldType(World->WorldType))
+			if (World == nullptr || UE::Mass::Debugger::Private::IsSupportedWorldType(World->WorldType))
 			{
 				EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(EntityManagerPtr->AsShared())));
 			}
