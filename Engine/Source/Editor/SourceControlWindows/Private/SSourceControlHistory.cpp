@@ -606,7 +606,8 @@ public:
 			return
 				SNew(STextBlock)
 				.Text(SSourceControlCommon::GetSingleLineChangelistDescription(FText::FromString(RevisionListItem->Description)))
-				.ToolTipText(FText::FromString(RevisionListItem->Description));
+				.ToolTipText(FText::FromString(RevisionListItem->Description))
+				.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
 		}
 		else
 		{
