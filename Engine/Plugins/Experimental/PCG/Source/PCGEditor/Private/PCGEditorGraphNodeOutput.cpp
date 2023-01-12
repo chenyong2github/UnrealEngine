@@ -17,7 +17,10 @@ void UPCGEditorGraphNodeOutput::AllocateDefaultPins()
 {
 	if (PCGNode)
 	{
-		CreatePins(PCGNode->GetInputPins(), /*InOutputPins=*/{});
+		for (const UPCGPin* InputPin : PCGNode->GetInputPins())
+		{
+			CreatePin(EEdGraphPinDirection::EGPD_Input, GetPinType(InputPin), InputPin->Properties.Label);
+		}
 	}
 }
 

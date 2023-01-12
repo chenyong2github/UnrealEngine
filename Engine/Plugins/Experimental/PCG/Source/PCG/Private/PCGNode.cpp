@@ -660,60 +660,30 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 		}
 		else
 		{
-			// Verification that we don't have 2 pins with the same name
-			// If so, mark them to be removed.
-			TSet<FName> AllPinNames;
-			TArray<UPCGPin*> DuplicatedNamePins;
-
-			for (UPCGPin* Pin : Pins)
-			{
-				if (AllPinNames.Contains(Pin->Properties.Label))
-				{
-					DuplicatedNamePins.Add(Pin);
-				}
-
-				AllPinNames.Add(Pin->Properties.Label);
-			}
-
-			if(!UnmatchedPins.IsEmpty() || !UnmatchedProperties.IsEmpty() || !DuplicatedNamePins.IsEmpty())
+			if(!UnmatchedPins.IsEmpty() || !UnmatchedProperties.IsEmpty())
 			{
 				Modify();
 				bChangedPins = true;
 			}
 
-			auto RemovePins = [&Pins, &AllPinNames, &bAppliedEdgeChanges](TArray<UPCGPin*>& PinsToRemove, bool bRemoveFromAllNames)
+			// Remove old pins
+			for (int32 UnmatchedPinIndex = UnmatchedPins.Num() - 1; UnmatchedPinIndex >= 0; --UnmatchedPinIndex)
 			{
-				for (int32 RemovedPinIndex = PinsToRemove.Num() - 1; RemovedPinIndex >= 0; --RemovedPinIndex)
-				{
-					const int32 PinIndex = Pins.IndexOfByKey(PinsToRemove[RemovedPinIndex]);
-					check(PinIndex >= 0);
+				const int32 PinIndex = Pins.IndexOfByKey(UnmatchedPins[UnmatchedPinIndex]);
+				check(PinIndex >= 0);
 
-					if (bRemoveFromAllNames)
-					{
-						AllPinNames.Remove(Pins[PinIndex]->Properties.Label);
-					}
-
-					bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
-					Pins.RemoveAt(PinIndex);
-				}
-			};
-
-			RemovePins(UnmatchedPins, /*bRemoveFromAllNames=*/ true);
-			RemovePins(DuplicatedNamePins, /*bRemoveFromAllNames=*/ false);
+				bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
+				Pins.RemoveAt(PinIndex);
+			}
 
 			// Add new pins
 			for (const FPCGPinProperties& UnmatchedProperty : UnmatchedProperties)
 			{
-				if (ensure(!AllPinNames.Contains(UnmatchedProperty.Label)))
-				{
-					AllPinNames.Add(UnmatchedProperty.Label);
-
-					const int32 InsertIndex = FMath::Min(PinProperties.IndexOfByKey(UnmatchedProperty), Pins.Num());
-					UPCGPin* NewPin = PinAllocator(this);
-					NewPin->Node = this;
-					NewPin->Properties = UnmatchedProperty;
-					Pins.Insert(NewPin, InsertIndex);
-				}
+				const int32 InsertIndex = PinProperties.IndexOfByKey(UnmatchedProperty);
+				UPCGPin* NewPin = PinAllocator(this);
+				NewPin->Node = this;
+				NewPin->Properties = UnmatchedProperty;
+				Pins.Insert(NewPin, InsertIndex);
 			}
 		}
 

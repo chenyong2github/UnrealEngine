@@ -18,8 +18,7 @@ bool FPCGPinProperties::operator==(const FPCGPinProperties& Other) const
 	return Label == Other.Label &&
 		AllowedTypes == Other.AllowedTypes &&
 		bAllowMultipleConnections == Other.bAllowMultipleConnections &&
-		bAllowMultipleData == Other.bAllowMultipleData &&
-		bAdvancedPin == Other.bAdvancedPin;
+		bAllowMultipleData == Other.bAllowMultipleData;
 }
 
 UPCGPin::UPCGPin(const FObjectInitializer& ObjectInitializer)

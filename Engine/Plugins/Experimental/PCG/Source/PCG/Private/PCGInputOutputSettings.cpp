@@ -73,15 +73,14 @@ TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::GetPinProperties() const
 		return FPCGPinProperties(InLabelAndTooltip.Label, DefaultPinDataType, /*bMultiConnections=*/true, /*bMultiData=*/true, InLabelAndTooltip.Tooltip);
 	});
 	
-
-	Algo::Transform(StaticAdvancedLabels(), PinProperties, [this, DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
-		const bool bIsLandscapePin = (InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeLabel || InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeHeightLabel);
-		const EPCGDataType PinType = bIsLandscapePin ? EPCGDataType::Surface : DefaultPinDataType;
-		FPCGPinProperties Res(InLabelAndTooltip.Label, PinType, /*bMultiConnection=*/true, /*bMultiData=*/false, InLabelAndTooltip.Tooltip);
-		Res.bAdvancedPin = true;
-		return Res;
-	});
-
+	if (bShowAdvancedPins)
+	{
+		Algo::Transform(StaticAdvancedLabels(), PinProperties, [DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
+			const bool bIsLandscapePin = (InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeLabel || InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeHeightLabel);
+			const EPCGDataType PinType = bIsLandscapePin ? EPCGDataType::Surface : DefaultPinDataType;
+			return FPCGPinProperties(InLabelAndTooltip.Label, PinType, /*bMultiConnection=*/true, /*bMultiData=*/false, InLabelAndTooltip.Tooltip);
+		});
+	}
 
 	PinProperties.Append(CustomPins);
 	return PinProperties;
@@ -97,16 +96,24 @@ TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::OutputPinProperties() co
 	return GetPinProperties();
 }
 
+bool UPCGGraphInputOutputSettings::IsPinAdvanced(const UPCGPin* Pin) const
+{
+	return Pin && StaticAdvancedLabels().FindByPredicate([Pin](const FLabelAndTooltip& InLabelAndTooltip) -> bool { return InLabelAndTooltip.Label == Pin->Properties.Label; });
+}
+
+void UPCGGraphInputOutputSettings::SetShowAdvancedPins(bool bValue)
+{
+	if (bValue != bShowAdvancedPins)
+	{
+		Modify();
+		bShowAdvancedPins = bValue;
+	}
+}
+
 void UPCGGraphInputOutputSettings::AddCustomPin(const FPCGPinProperties& NewCustomPinProperties)
 {
 	Modify();
 	CustomPins.Add(NewCustomPinProperties);
-}
-
-bool UPCGGraphInputOutputSettings::IsCustomPin(const UPCGPin* InPin) const
-{
-	check(InPin);
-	return CustomPins.Contains(InPin->Properties);
 }
 
 #undef LOCTEXT_NAMESPACE

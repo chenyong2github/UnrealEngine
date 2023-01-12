@@ -47,7 +47,8 @@ public:
 
 	void SetInput(bool bInIsInput) { bIsInput = bInIsInput; }
 
-	bool IsCustomPin(const UPCGPin* InPin) const;
+	bool IsPinAdvanced(const UPCGPin* Pin) const;
+	void SetShowAdvancedPins(bool bValue);
 
 	void AddCustomPin(const FPCGPinProperties& NewCustomPinProperties);
 
@@ -77,6 +78,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input")
 	TArray<FPCGPinProperties> CustomPins;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input")
+	bool bShowAdvancedPins = false;
 
 	TArray<FLabelAndTooltip> StaticInLabels;
 	TArray<FLabelAndTooltip> StaticAdvancedInLabels;

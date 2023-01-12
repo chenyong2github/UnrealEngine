@@ -63,8 +63,6 @@ protected:
 	void UpdateCommentBubblePinned();
 	void UpdatePosition();
 
-	void CreatePins(const TArray<UPCGPin*>& InInputPins, const TArray<UPCGPin*>& InOutputPins);
-
 	UPROPERTY()
 	TObjectPtr<UPCGNode> PCGNode = nullptr;
 
