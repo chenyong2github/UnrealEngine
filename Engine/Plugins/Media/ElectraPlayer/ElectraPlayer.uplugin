@@ -25,12 +25,14 @@
 			"Name": "ElectraPlayerRuntime",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android", "Linux" ],
 			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "ElectraPlayerPlugin",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android", "Linux" ],
 			"TargetDenyList": [ "Server" ]
 		},
 		{
