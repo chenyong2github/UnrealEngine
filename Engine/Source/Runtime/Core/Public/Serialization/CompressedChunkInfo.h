@@ -15,10 +15,10 @@ class FArchive;
 struct FCompressedChunkInfo
 {
 	/** Holds the data's compressed size. */
-	int64 CompressedSize;
+	int64 CompressedSize = 0;
 
 	/** Holds the data's uncompresses size. */
-	int64 UncompressedSize;
+	int64 UncompressedSize = 0;
 
 	/**
 	 * Serializes an FCompressedChunkInfo value from or into an archive.
