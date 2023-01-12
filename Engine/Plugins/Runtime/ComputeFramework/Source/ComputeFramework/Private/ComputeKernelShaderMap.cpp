@@ -148,15 +148,16 @@ void FComputeKernelShaderType::BeginCompileShader(
 		EShaderCompileJobPriority::Normal
 		);
 
-	FString virtualSourcePath = FString::Printf(TEXT("/Engine/Generated/ComputeFramework/Kernel_%s.usf"), *InKernel->GetEntryPoint());
+	TCHAR const* SourceFilePath = TEXT("/Plugin/ComputeFramework/Private/ComputeKernel.usf");
+	TCHAR const* GeneratedSourceFilePath = TEXT("/Engine/Generated/ComputeKernel.ush");
 
 	NewJob->ShaderParameters = MakeShared<const FParameters, ESPMode::ThreadSafe>(*InKernel->GetShaderParamMetadata());
 	NewJob->Input.SharedEnvironment = InCompilationEnvironment;
 	NewJob->Input.Target = InTarget;
 	NewJob->Input.ShaderFormat = LegacyShaderPlatformToShaderFormat(InPlatform);
-	NewJob->Input.VirtualSourceFilePath = virtualSourcePath;
+	NewJob->Input.VirtualSourceFilePath = SourceFilePath;
 	NewJob->Input.EntryPointName = InKernel->GetEntryPoint();
-	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(virtualSourcePath, InKernel->GetHLSLSource());
+	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(GeneratedSourceFilePath, InKernel->GetHLSLSource());
 	UE_LOG(LogComputeFramework, Verbose, TEXT("%s"), *InKernel->GetHLSLSource());
 	
 	AddUniformBufferIncludesToEnvironment(NewJob->Input.Environment, InPlatform);
@@ -177,7 +178,7 @@ void FComputeKernelShaderType::BeginCompileShader(
 		this,
 		nullptr,//ShaderPipeline,
 		PermutationId,
-		*virtualSourcePath,
+		SourceFilePath,
 		*InKernel->GetEntryPoint(),
 		FShaderTarget(GetFrequency(), InPlatform),
 		NewJob->Input

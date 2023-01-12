@@ -536,11 +536,6 @@ FString UComputeGraph::BuildKernelSource(
 	HLSL += InKernelSource.GetSource();
 
 	FString Declaration;
-
-	// Add include at top of code. This is required to get platform.ush early enough to provide platform specific types.
-	Declaration += TEXT("#include \"/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush\"\n\n");
-	GetShaderFileHash(TEXT("/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(OutHashKey);
-
 	for (const FString& StructDeclaration : StructDeclarations)
 	{
 		Declaration += StructDeclaration;
@@ -552,6 +547,9 @@ FString UComputeGraph::BuildKernelSource(
 	HashState.UpdateWithString(*HLSL, HLSL.Len());
 	// Finalize hash state and add to the final hash key.
 	HashState.Finalize().AppendString(OutHashKey);
+
+	// Add the our boilerplate wrapper to the final hash key.
+	GetShaderFileHash(TEXT("/Plugin/ComputeFramework/Private/ComputeKernel.usf"), EShaderPlatform::SP_PCD3D_SM5).AppendString(OutHashKey);
 
 	return HLSL;
 }
