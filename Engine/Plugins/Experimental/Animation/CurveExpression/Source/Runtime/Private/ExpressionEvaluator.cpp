@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExpressionEvaluator.h"
-
+#include <limits> // IWYU pragma: keep
 
 namespace CurveExpression::Evaluator
 {

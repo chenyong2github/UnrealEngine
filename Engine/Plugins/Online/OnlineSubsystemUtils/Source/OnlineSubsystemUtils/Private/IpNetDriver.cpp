@@ -21,6 +21,7 @@ Notes:
 #include "Sockets.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "NetAddressResolution.h"
+#include <limits> // IWYU pragma: keep
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IpNetDriver)
 
