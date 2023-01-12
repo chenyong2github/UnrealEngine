@@ -231,9 +231,9 @@ private:
 #undef Print
 
 
-#define CASE(GType, Type) case Ort::GraphTensorDataType::GType: return EMLTensorDataType::Type
+#define CASE(GType, Type) case Ort::GraphTensorDataType::GType: return ENNETensorDataType::Type
 
-EMLTensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorDataType)
+ENNETensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorDataType)
 {
 	switch (TensorDataType)
 	{
@@ -255,7 +255,7 @@ EMLTensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorData
 		CASE(kBFloat16, BFloat16);
 
 		default:
-			return EMLTensorDataType::None;
+			return ENNETensorDataType::None;
 	}
 }
 
@@ -500,7 +500,7 @@ private:
 		{
 			Ort::GraphTensorInfo TensorInfo = Graph->GetGraphInput(Idx);
 
-			EMLTensorDataType DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
+			ENNETensorDataType DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
 
 			auto Tensor = 
 				Builder->AddTensor(
@@ -517,7 +517,7 @@ private:
 		{
 			Ort::GraphTensorInfo TensorInfo = Graph->GetGraphOutput(Idx);
 
-			EMLTensorDataType DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
+			ENNETensorDataType DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
 
 			auto Tensor =
 				Builder->AddTensor(
@@ -579,7 +579,7 @@ private:
 			{
 				Ort::GraphTensorInfo		TensorInfo = Graph->GetNodeInput(Node, InIdx);
 				Ort::GraphTensorInitializer	TensorInit = Graph->GetTensorInitializer(TensorInfo.name);
-				EMLTensorDataType			DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
+				ENNETensorDataType			DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
 				const void*					Data = nullptr;
 				uint64						DataSize = 0;
 
@@ -613,7 +613,7 @@ private:
 			for (int OutIdx = 0; OutIdx < NodeInfo.outputCount; ++OutIdx)
 			{
 				Ort::GraphTensorInfo		TensorInfo = Graph->GetNodeOutput(Node, OutIdx);
-				EMLTensorDataType			DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
+				ENNETensorDataType			DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
 				
 				auto Tensor =
 					Builder->AddTensor(

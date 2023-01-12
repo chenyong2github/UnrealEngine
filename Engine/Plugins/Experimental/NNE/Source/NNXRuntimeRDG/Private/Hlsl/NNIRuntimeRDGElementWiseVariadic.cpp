@@ -3,10 +3,12 @@
 #include "NNIRuntimeRDGElementWiseVariadic.h"
 #include "NNEHlslShadersElementWiseVariadicCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorElementWiseVariadic, TEXT("NNI.Operator.Hlsl.ElementWise.Variadic"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorElementWiseVariadic, TEXT("NNE.Operator.Hlsl.ElementWise.Variadic"));
 
 	using TElementWiseVariadicCS = typename UE::NNEHlslShaders::Internal::TElementWiseVariadicCS;
 	using FElementWiseVariadicConstants = UE::NNEHlslShaders::Internal::FElementWiseVariadicConstants;
@@ -92,7 +94,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() > 0);
 			check(OutputTensors.Num() == 1);
@@ -104,9 +106,9 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				OutputRank = FMath::Max(OutputRank, InputTensors[i]->GetShape().Rank());
 			}
 
-			NNX::FTensorShape OutputShape;
+			TArray<uint32> OutputShapeData;
 
-			OutputShape.Data.SetNumUninitialized(OutputRank);
+			OutputShapeData.SetNumUninitialized(OutputRank);
 
 			for (int32 i = 0; i < OutputRank; ++i)
 			{
@@ -114,7 +116,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				for (int32 InputIdx = 0; InputIdx < NumInput; ++InputIdx)
 				{
 					int32 InputIndex = InputTensors[InputIdx]->GetShape().Rank() - 1 - i;
-					int32 InputValue = InputIndex >= 0 ? InputTensors[InputIdx]->GetShape().Data[InputIndex] : 1;
+					int32 InputValue = InputIndex >= 0 ? InputTensors[InputIdx]->GetShape().GetData()[InputIndex] : 1;
 					if (InputValue != OutputValue && InputValue != 1 && OutputValue != 1)
 					{
 						UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise variadic op, input shapes are not compatible"));
@@ -122,8 +124,10 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 					}
 					OutputValue = FMath::Max(InputValue, OutputValue);
 				}
-				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
+				OutputShapeData[OutputRank - 1 - i] = OutputValue;
 			}
+
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
 
 			OutputTensors[0]->SetShape(OutputShape);
 
@@ -143,8 +147,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			check(InOutputTensors.Num() == 1);
 			check(InOutputTensors[0] != nullptr);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.ElementWise.Variadic");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorElementWiseVariadic);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.ElementWise.Variadic");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorElementWiseVariadic);
 
 			NNX::FTensorRDGRef PassInputTensors[FElementWiseVariadicConstants::MAX_NUM_INPUT];
 			for (int32 InputOffset = 0; InputOffset < InInputTensors.Num(); InputOffset += FElementWiseVariadicConstants::MAX_NUM_INPUT)
@@ -175,7 +179,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateElementWiseVariadicOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseVariadicOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -189,7 +193,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 		for (int32 i = 0; i < InputTypes.Num(); ++i)
 		{
-			if (InputTypes[i] != EMLTensorDataType::Float)
+			if (InputTypes[i] != ENNETensorDataType::Float)
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Element-wise variadic operator input '%d' of type '%d' is not supported, should be float at the moment."), i, InputTypes[i]);
 				bIsValid = false;
@@ -197,7 +201,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 		
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		bIsValid &= InputValidator.Validate(InputTypes);

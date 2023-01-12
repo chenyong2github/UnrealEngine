@@ -3,10 +3,12 @@
 #include "NNIRuntimeRDGPad.h"
 #include "NNEHlslShadersPadCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorPad, TEXT("NNI.Operator.Hlsl.Pad"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorPad, TEXT("NNE.Operator.Hlsl.Pad"));
 
 	using EPadMode = UE::NNEHlslShaders::Internal::EPadMode;
 
@@ -26,33 +28,34 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
 
-			const NNX::FTensor& X = *InputTensors[0];
+			const NNECore::Internal::FTensor& X = *InputTensors[0];
 
-			NNX::FTensorShape OutputShape;
+			TArray<uint32> OutputShapeData;
 			for (int32 i = 0; i < X.GetShape().Rank(); ++i)
 			{
 				int32 PrePad = Pads[i];
 				int32 PostPad = Pads[i + X.GetShape().Rank()];
-				int32 OutputDim = PrePad + X.GetShape().Data[i] + PostPad;
+				int32 OutputDim = PrePad + X.GetShape().GetData()[i] + PostPad;
 				if (OutputDim < 1)
 				{
-					UE_LOG(LogNNX, Warning, TEXT("Pads cannot reduce dimension below 1, but would for tensor (name:%s) at rank %d of size %d with prepad %d and postpad %d."), *X.GetName(), i, X.GetShape().Data[i], PrePad, PostPad);
+					UE_LOG(LogNNX, Warning, TEXT("Pads cannot reduce dimension below 1, but would for tensor (name:%s) at rank %d of size %d with prepad %d and postpad %d."), *X.GetName(), i, X.GetShape().GetData()[i], PrePad, PostPad);
 					return -1;
 				}
-				OutputShape.Data.Emplace(OutputDim);
+				OutputShapeData.Emplace(OutputDim);
 			}
 
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
 			OutputTensors[0]->SetShape(OutputShape);
 
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 			
@@ -109,12 +112,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			TShaderMapRef<FPadCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.Pad");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorPad);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Pad");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorPad);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.Pad.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.Pad.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
@@ -122,7 +125,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidatePadOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidatePadOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -144,7 +147,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 		
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		bIsValid &= InputValidator.Validate(InputTypes);
 

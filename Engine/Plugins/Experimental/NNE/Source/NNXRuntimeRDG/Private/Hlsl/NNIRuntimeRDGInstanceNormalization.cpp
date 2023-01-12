@@ -3,11 +3,13 @@
 #include "NNIRuntimeRDGInstanceNormalization.h"
 #include "NNEHlslShadersInstanceNormalizationCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace
 {
 
-int ValidateInput(const NNX::FTensorShape& Input, const NNX::FTensorShape& Scale, const NNX::FTensorShape& Bias)
+int ValidateInput(const UE::NNECore::FTensorShape& Input, const UE::NNECore::FTensorShape& Scale, const UE::NNECore::FTensorShape& Bias)
 {
 	if (Input.Rank() < 3)
 	{
@@ -20,15 +22,15 @@ int ValidateInput(const NNX::FTensorShape& Input, const NNX::FTensorShape& Scale
 		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input scale should be of rank 1: %d"), Scale.Rank());
 		return -1;
 	}
-	if (Scale.Data[0] != Input.Data[1])
+	if (Scale.GetData()[0] != Input.GetData()[1])
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input scale size should be equal to channel count: %d vs %d"), Scale.Data[0], Input.Data[1]);
+		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization input scale size should be equal to channel count: %d vs %d"), Scale.GetData()[0], Input.GetData()[1]);
 		return -1;
 	}
 
-	if (Bias.Data[0] != Input.Data[1])
+	if (Bias.GetData()[0] != Input.GetData()[1])
 	{
-		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization intput B size should be equal to channel count: : %d vs %d"), Bias.Data[0], Input.Data[1]);
+		UE_LOG(LogNNX, Warning, TEXT("InstanceNormalization intput B size should be equal to channel count: : %d vs %d"), Bias.GetData()[0], Input.GetData()[1]);
 		return -1;
 	}
 	if (Bias.Rank() != 1)
@@ -44,7 +46,7 @@ int ValidateInput(const NNX::FTensorShape& Input, const NNX::FTensorShape& Scale
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorInstanceNormalization, TEXT("NNI.Operator.Hlsl.InstanceNormalization"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorInstanceNormalization, TEXT("NNE.Operator.Hlsl.InstanceNormalization"));
 
 	using EInstanceNormalizationAlgorithm = UE::NNEHlslShaders::Internal::EInstanceNormalizationAlgorithm;
 
@@ -66,7 +68,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 3);
 			check(OutputTensors.Num() == 1);
@@ -81,7 +83,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
@@ -131,8 +133,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			TShaderMapRef<TInstanceNormalizationCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 			FIntVector ThreadGroupCount = TInstanceNormalizationCS::GetGroupCount(*Parameters, DispatchAlgorithm);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.InstanceNormalization");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorInstanceNormalization);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.InstanceNormalization");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorInstanceNormalization);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -144,7 +146,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateInstanceNormalizationOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateInstanceNormalizationOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -154,7 +156,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();

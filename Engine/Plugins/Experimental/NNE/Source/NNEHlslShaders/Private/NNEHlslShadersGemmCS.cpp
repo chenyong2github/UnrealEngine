@@ -2,6 +2,7 @@
 
 #include "NNEHlslShadersGemmCS.h"
 #include "NNXCore.h"
+#include "NNECoreTensor.h"
 #include "Algo/Accumulate.h"
 
 namespace UE::NNEHlslShaders::Internal
@@ -17,7 +18,7 @@ namespace UE::NNEHlslShaders::Internal
 		TArray<uint32> StackStrideB;
 	};
 
-	static GemmMatrixParameters GetMatrixParametersMatMul(const NNX::FTensor& InputA, const NNX::FTensor& InputB)
+	static GemmMatrixParameters GetMatrixParametersMatMul(const NNECore::Internal::FTensor& InputA, const NNECore::Internal::FTensor& InputB)
 	{
 		check(InputA.GetShape().Rank() != 0);
 		check(InputB.GetShape().Rank() != 0);
@@ -35,8 +36,8 @@ namespace UE::NNEHlslShaders::Internal
 			const int32 NumDimToCheck = FMath::Min(NumStackDimensionsA, NumStackDimensionsB);
 			for (int32 i = 0; i < NumDimToCheck; i++)
 			{
-				const uint32 VolumeA = InputA.GetShape().Data[NumStackDimensionsA - 1 - i];
-				const uint32 VolumeB = InputB.GetShape().Data[NumStackDimensionsB - 1 - i];
+				const uint32 VolumeA = InputA.GetShape().GetData()[NumStackDimensionsA - 1 - i];
+				const uint32 VolumeB = InputB.GetShape().GetData()[NumStackDimensionsB - 1 - i];
 
 				check(VolumeA == 1 || VolumeB == 1 || VolumeA == VolumeB);
 			}
@@ -45,10 +46,10 @@ namespace UE::NNEHlslShaders::Internal
 		const bool IsVectorA = InputA.GetShape().Rank() == 1;
 		const bool IsVectorB = InputB.GetShape().Rank() == 1;
 
-		Result.M = IsVectorA ? 1 : InputA.GetShape().Data[InputA.GetShape().Rank() - 2];
-		Result.N = IsVectorB ? 1 : InputB.GetShape().Data[InputB.GetShape().Rank() - 1];
-		Result.K = InputA.GetShape().Data[IsVectorA ? 0 : InputA.GetShape().Rank() - 1];
-		check(InputB.GetShape().Data[IsVectorB ? 0 : InputB.GetShape().Rank() - 2] == Result.K);
+		Result.M = IsVectorA ? 1 : InputA.GetShape().GetData()[InputA.GetShape().Rank() - 2];
+		Result.N = IsVectorB ? 1 : InputB.GetShape().GetData()[InputB.GetShape().Rank() - 1];
+		Result.K = InputA.GetShape().GetData()[IsVectorA ? 0 : InputA.GetShape().Rank() - 1];
+		check(InputB.GetShape().GetData()[IsVectorB ? 0 : InputB.GetShape().Rank() - 2] == Result.K);
 
 		Result.StackShapeA.Init(1, NumStackDimensions);
 		Result.StackShapeB.Init(1, NumStackDimensions);
@@ -58,8 +59,8 @@ namespace UE::NNEHlslShaders::Internal
 			int32 IdxA = InputA.GetShape().Rank() - 3 - i;
 			int32 IdxB = InputB.GetShape().Rank() - 3 - i;
 
-			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = IdxA >= 0 ? InputA.GetShape().Data[IdxA] : 1;
-			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = IdxB >= 0 ? InputB.GetShape().Data[IdxB] : 1;
+			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = IdxA >= 0 ? InputA.GetShape().GetData()[IdxA] : 1;
+			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = IdxB >= 0 ? InputB.GetShape().GetData()[IdxB] : 1;
 		}
 
 		Result.StackStrideA.Init(1, NumStackDimensions);
@@ -80,15 +81,15 @@ namespace UE::NNEHlslShaders::Internal
 		OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), FGemmConstants::MAX_NUM_STACK_DIMENSIONS);
 	}
 
-	void TGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FTensor& InputA, const NNX::FTensor& InputB, const NNX::FTensor* InputC, float CScalar, TGemmCS::FParameters& Parameters)
+	void TGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNECore::Internal::FTensor& InputA, const NNECore::Internal::FTensor& InputB, const NNECore::Internal::FTensor* InputC, float CScalar, TGemmCS::FParameters& Parameters)
 	{
 		check(InputA.GetShape().Rank() == 2);
 		check(InputB.GetShape().Rank() == 2);
 
-		uint32 M = TransA != 0 ? InputA.GetShape().Data[1] : InputA.GetShape().Data[0];
-		uint32 K = TransA != 0 ? InputA.GetShape().Data[0] : InputA.GetShape().Data[1];
-		uint32 N = TransB != 0 ? InputB.GetShape().Data[0] : InputB.GetShape().Data[1];
-		check(K == (TransB != 0 ? InputB.GetShape().Data[1] : InputB.GetShape().Data[0]));
+		uint32 M = TransA != 0 ? InputA.GetShape().GetData()[1] : InputA.GetShape().GetData()[0];
+		uint32 K = TransA != 0 ? InputA.GetShape().GetData()[0] : InputA.GetShape().GetData()[1];
+		uint32 N = TransB != 0 ? InputB.GetShape().GetData()[0] : InputB.GetShape().GetData()[1];
+		check(K == (TransB != 0 ? InputB.GetShape().GetData()[1] : InputB.GetShape().GetData()[0]));
 
 		Parameters.Alpha = Alpha;
 		Parameters.Beta = Beta;
@@ -104,14 +105,14 @@ namespace UE::NNEHlslShaders::Internal
 		Parameters.CHeight = 0;
 		if (InputC != nullptr)
 		{
-			Parameters.CWidth = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Data[InputC->GetShape().Rank() - 1];;
-			Parameters.CHeight = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Rank() == 1 ? 1 : InputC->GetShape().Data[InputC->GetShape().Rank() - 2];
+			Parameters.CWidth = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().GetData()[InputC->GetShape().Rank() - 1];;
+			Parameters.CHeight = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Rank() == 1 ? 1 : InputC->GetShape().GetData()[InputC->GetShape().Rank() - 2];
 		}
 		
 		Parameters.CScalar = CScalar;
 	}
 
-	void TGemmCS::FillInParametersMatMul(const NNX::FTensor& InputA, const NNX::FTensor& InputB, TGemmCS::FParameters& Parameters)
+	void TGemmCS::FillInParametersMatMul(const NNECore::Internal::FTensor& InputA, const NNECore::Internal::FTensor& InputB, TGemmCS::FParameters& Parameters)
 	{
 		GemmMatrixParameters Params = GetMatrixParametersMatMul(InputA, InputB);
 

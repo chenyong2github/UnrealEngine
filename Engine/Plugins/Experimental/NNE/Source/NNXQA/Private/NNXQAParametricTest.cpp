@@ -3,7 +3,7 @@
 #include "NNXQAParametricTest.h"
 
 #include "NNXCore.h"
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
 #include "NNXRuntimeFormat.h"
 #include "NNECoreAttributeMap.h"
 #include "NNXQAUtils.h"
@@ -21,6 +21,8 @@
 
 namespace NNX 
 {
+using FSymbolicTensorShape = UE::NNECore::FSymbolicTensorShape;
+	
 namespace Test
 {
 	class FParametricTests : public FTests
@@ -127,11 +129,11 @@ namespace Test
 			return ConcreteShape;
 		}
 
-		static EMLTensorDataType GetTensorTypeFromJson(const FString& TypeName, EMLTensorDataType DefaultValue)
+		static ENNETensorDataType GetTensorTypeFromJson(const FString& TypeName, ENNETensorDataType DefaultValue)
 		{
-			int64 Value = StaticEnum<EMLTensorDataType>()->GetValueByNameString(TypeName);
+			int64 Value = StaticEnum<ENNETensorDataType>()->GetValueByNameString(TypeName);
 			
-			return (Value == INDEX_NONE) ? DefaultValue : (EMLTensorDataType)Value;
+			return (Value == INDEX_NONE) ? DefaultValue : (ENNETensorDataType)Value;
 		}
 
 		class ElementWiseFromJsonStringTensorInitializer
@@ -185,7 +187,7 @@ namespace Test
 			return TArray<char>();
 		}
 
-		static void ApplyDatasetConfig(FTests::FTestSetup& TestSetup, const Json::FTestConfigDataset& TestDataset, EMLTensorDataType DefaultInputType, EMLTensorDataType DefaultOutputType)
+		static void ApplyDatasetConfig(FTests::FTestSetup& TestSetup, const Json::FTestConfigDataset& TestDataset, ENNETensorDataType DefaultInputType, ENNETensorDataType DefaultOutputType)
 		{
 			ApplyRuntimesConfig(TestSetup, TestDataset.Runtimes);
 
@@ -198,7 +200,7 @@ namespace Test
 			for (auto&& JsonTensor : TestDataset.Inputs)
 			{
 				FTensorShape Shape = GetConcreteShapeFromJsonArray(JsonTensor.Shape);
-				EMLTensorDataType TensorType = GetTensorTypeFromJson(JsonTensor.Type, DefaultInputType);
+				ENNETensorDataType TensorType = GetTensorTypeFromJson(JsonTensor.Type, DefaultInputType);
 				FTensor Tensor = FTensor::Make(FString::Printf(TEXT("input%d"), i), Shape, TensorType);
 				TArray<char> TensorData = GetInputTensorDataFromJson(Tensor, i, JsonTensor.Source);
 
@@ -210,7 +212,7 @@ namespace Test
 			for (auto&& JsonTensor : TestDataset.Weights)
 			{
 				FTensorShape Shape = GetConcreteShapeFromJsonArray(JsonTensor.Shape);
-				EMLTensorDataType TensorType = GetTensorTypeFromJson(JsonTensor.Type, EMLTensorDataType::Float);
+				ENNETensorDataType TensorType = GetTensorTypeFromJson(JsonTensor.Type, ENNETensorDataType::Float);
 				FTensor Tensor = FTensor::Make(FString::Printf(TEXT("weights%d"), i), Shape, TensorType);
 				TArray<char> TensorData = GetInputTensorDataFromJson(Tensor, i, JsonTensor.Source);
 
@@ -222,7 +224,7 @@ namespace Test
 			for (auto&& JsonTensor : TestDataset.Outputs)
 			{
 				FTensorShape Shape = GetConcreteShapeFromJsonArray(JsonTensor.Shape);
-				EMLTensorDataType TensorType = GetTensorTypeFromJson(JsonTensor.Type, DefaultOutputType);
+				ENNETensorDataType TensorType = GetTensorTypeFromJson(JsonTensor.Type, DefaultOutputType);
 				FTensor Tensor = FTensor::Make(FString::Printf(TEXT("output%d"), i), Shape, TensorType);
 				TArray<char> TensorData = GetOutputTensorDataFromJson(Tensor, i, JsonTensor.Source);
 
@@ -234,7 +236,7 @@ namespace Test
 			if (TestDataset.Outputs.Num() == 0 && TestDataset.Inputs.Num() > 0)
 			{
 				FTensorShape Shape = GetConcreteShapeFromJsonArray(TestDataset.Inputs[0].Shape);
-				EMLTensorDataType TensorType = GetTensorTypeFromJson(TestDataset.Inputs[0].Type, DefaultOutputType);
+				ENNETensorDataType TensorType = GetTensorTypeFromJson(TestDataset.Inputs[0].Type, DefaultOutputType);
 				FTensor Tensor = FTensor::Make(FString::Printf(TEXT("output"), i), Shape, TensorType);
 				TArray<char> TensorData = GetOutputTensorDataFromJson(Tensor, i, TestDataset.Inputs[0].Source);
 				
@@ -359,8 +361,8 @@ namespace Test
 					}
 
 					const FString& TestBaseName = TestTarget.Target;
-					EMLTensorDataType InputTypeFromTarget = GetTensorTypeFromJson(TestTarget.InputType, EMLTensorDataType::Float);
-					EMLTensorDataType OutputTypeFromTarget = GetTensorTypeFromJson(TestTarget.OutputType, EMLTensorDataType::Float);
+					ENNETensorDataType InputTypeFromTarget = GetTensorTypeFromJson(TestTarget.InputType, ENNETensorDataType::Float);
+					ENNETensorDataType OutputTypeFromTarget = GetTensorTypeFromJson(TestTarget.OutputType, ENNETensorDataType::Float);
 					bool bAtLeastATestWasAdded = false;
 					
 					for (const Json::FTestConfigInputOutputSet& InputOutputSet : InputOutputSets)

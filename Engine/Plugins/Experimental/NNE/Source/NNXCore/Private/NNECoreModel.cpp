@@ -113,7 +113,7 @@ TArray<int32> UNNEModel::GetInputShapes(int32 Index)
 		return TArray<int32>();
 	}
 
-	return TArray<int32>(Desc[Index].GetShape().Data);
+	return TArray<int32>(Desc[Index].GetShape().GetData());
 }
 
 TArray<int32> UNNEModel::GetOutputShapes(int32 Index)
@@ -131,7 +131,7 @@ TArray<int32> UNNEModel::GetOutputShapes(int32 Index)
 		return TArray<int32>();
 	}
 
-	return TArray<int32>(Desc[Index].GetShape().Data);
+	return TArray<int32>(Desc[Index].GetShape().GetData());
 }
 
 bool UNNEModel::SetInput(const TArray<FNNETensor>& Input)
@@ -156,7 +156,7 @@ bool UNNEModel::SetInput(const TArray<FNNETensor>& Input)
 	for (int32 i = 0; i < Input.Num(); i++)
 	{
 		InputBindings.Add(NNX::FMLTensorBinding::FromCPU((void*)(Input[i].Data.GetData()), sizeof(float) * Input[i].Data.Num()));
-		InputShapes.Add(NNX::FTensorShape::MakeFromSymbolic(NNX::FSymbolicTensorShape::Make(Input[i].Shape)));
+		InputShapes.Add(NNX::FTensorShape::MakeFromSymbolic(UE::NNECore::FSymbolicTensorShape::Make(Input[i].Shape)));
 	}
 
 	if (Model->SetInputTensorShapes(InputShapes) != 0)
@@ -238,7 +238,7 @@ bool UNNEModel::RunAsync(FNNETaskPriority TaskPriority, FNNEModelOnAsyncResult O
 		for (int32 i = 0; i < OutputDescs.Num(); i++)
 		{
 			OutputTensors.Add(FNNETensor());
-			OutputTensors[i].Shape = OutputDescs[i].GetShape().Data;
+			OutputTensors[i].Shape = OutputDescs[i].GetShape().GetData();
 			int32 Size = OutputTensors[i].Shape.Num() > 0 ? 1 : 0;
 			for (int32 j = 0; j < OutputTensors[i].Shape.Num(); j++)
 			{

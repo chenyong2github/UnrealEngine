@@ -3,10 +3,12 @@
 #include "NNIRuntimeRDGConvTranspose.h"
 #include "NNEHlslShadersConvTransposeCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorConvTranspose, TEXT("NNI.Operator.Hlsl.ConvTranspose"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorConvTranspose, TEXT("NNE.Operator.Hlsl.ConvTranspose"));
 
 	using EConvTransposeAutoPad = UE::NNEHlslShaders::Internal::EConvTransposeAutoPad;
 
@@ -39,35 +41,36 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
 			
-			const NNX::FTensorShape& Input = InputTensors[0]->GetShape();
-			const NNX::FTensorShape& Weights = InputTensors[1]->GetShape();
-			NNX::FSymbolicTensorShape OutputShape;
+			const NNECore::FTensorShape& Input = InputTensors[0]->GetShape();
+			const NNECore::FTensorShape& Weights = InputTensors[1]->GetShape();
+
 			
-			OutputShape.Data = UE::NNEHlslShaders::Internal::FConvTransposeCS::GetOutputShape(Input.Data, Weights.Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
+			const TArray<int32> OutputShapeData = NNEHlslShaders::Internal::FConvTransposeCS::GetOutputShape(Input.GetData(), Weights.GetData(), AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
+			const NNECore::FSymbolicTensorShape OutputShape = NNECore::FSymbolicTensorShape::Make(OutputShapeData);
 			if (!OutputShape.IsConcrete())
 			{
 				return -1;
 			}
-			OutputTensors[0]->SetShape(NNX::FTensorShape::MakeFromSymbolic(OutputShape));
+			OutputTensors[0]->SetShape(NNECore::FTensorShape::MakeFromSymbolic(OutputShape));
 
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensorDescs.Num() >= 2 && InputTensorDescs.Num() <= 3);
 			check(OutputTensorDescs.Num() == 1);
 
-            const NNX::FTensorDesc& Input = InputTensorDescs[0];
-			const NNX::FTensorDesc& Weights = InputTensorDescs[1];
-			const NNX::FTensorDesc& Output = OutputTensorDescs[0];
+            const NNECore::FTensorDesc& Input = InputTensorDescs[0];
+			const NNECore::FTensorDesc& Weights = InputTensorDescs[1];
+			const NNECore::FTensorDesc& Output = OutputTensorDescs[0];
 
 			if (Input.GetShape().Rank() < 2)
 			{
@@ -140,11 +143,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			check(Output.GetShape().Rank() == Input.GetShape().Rank());
 			check(NumDimensions == (Input.GetShape().Rank() - 2));
 
-			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.GetShape().Data, Weights.GetShape().Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
+			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.GetShape().GetData(), Weights.GetShape().GetData(), AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
 
 			// Set parameters
 			FConvTransposeCS::FParameters* Params = GraphBuilder.AllocParameters<FConvTransposeCS::FParameters>();
-			FConvTransposeCS::FillInParameters(GroupSize, Input.GetShape().Data, Weights.GetShape().Data, HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
+			FConvTransposeCS::FillInParameters(GroupSize, Input.GetShape().GetData(), Weights.GetShape().GetData(), HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
 			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Input.GetBuffer(), PF_R32_FLOAT));
 			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Weights.GetBuffer(), PF_R32_FLOAT));
 			if (HasBias) {
@@ -157,16 +160,16 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeAlgorithm>(Algorithm);
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeGroupSize>(GroupSize);
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumStackDimensions>(NumDimensions);
-			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumReadsPerThread>(FConvTransposeCS::GetNumReadsPerThread(GroupSize, Weights.GetShape().Data, Dilations, Strides));
+			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumReadsPerThread>(FConvTransposeCS::GetNumReadsPerThread(GroupSize, Weights.GetShape().GetData(), Dilations, Strides));
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeHasB>(HasBias);
 			TShaderMapRef<FConvTransposeCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.ConvTranspose");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorConvTranspose);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.ConvTranspose");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorConvTranspose);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.ConvTranspose.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.ConvTranspose.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
@@ -174,7 +177,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateConvTransposeOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateConvTransposeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -191,7 +194,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		InputValidator.AddOptional();

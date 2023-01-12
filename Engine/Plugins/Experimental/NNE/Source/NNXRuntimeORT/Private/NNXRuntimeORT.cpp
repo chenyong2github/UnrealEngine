@@ -287,16 +287,18 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 
 		TensorsORTType.Emplace(ONNXTensorElementDataTypeEnum);
 
-		std::pair<EMLTensorDataType, uint64> TypeAndSize = TranslateTensorTypeORTToNNI(ONNXTensorElementDataTypeEnum);
+		std::pair<ENNETensorDataType, uint64> TypeAndSize = TranslateTensorTypeORTToNNI(ONNXTensorElementDataTypeEnum);
 		
-		FSymbolicTensorShape Shape;
-		Shape.Data.Reserve(CurrentTensorInfo.GetShape().size());
+		
+		TArray<int32> ShapeData;
+		ShapeData.Reserve(CurrentTensorInfo.GetShape().size());
 		for (const int64_t CurrentTensorSize : CurrentTensorInfo.GetShape())
 		{
-			Shape.Data.Add((int32)CurrentTensorSize);
+			ShapeData.Add((int32)CurrentTensorSize);
 		}
 
-		FTensorDesc SymbolicTensorDesc = FTensorDesc::Make(FString(CurTensorName), Shape, TypeAndSize.first);
+		UE::NNECore::FSymbolicTensorShape Shape = UE::NNECore::FSymbolicTensorShape::Make(ShapeData);
+		UE::NNECore::FTensorDesc SymbolicTensorDesc = UE::NNECore::FTensorDesc::Make(FString(CurTensorName), Shape, TypeAndSize.first);
 		
 		check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
 		SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
@@ -320,7 +322,7 @@ int FMLInferenceModelORT::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 	// Setup concrete input tensor
 	for (int i = 0; i < InputSymbolicTensors.Num(); ++i)
 	{
-		FTensor Tensor = FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
+		UE::NNECore::Internal::FTensor Tensor = UE::NNECore::Internal::FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
 		InputTensors.Emplace(Tensor);
 	}
 
@@ -330,9 +332,9 @@ int FMLInferenceModelORT::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 	// Setup concrete output shapes only if all model output shapes are concretes, otherwise it will be set during Run()
 	for (FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
 	{
-		if (SymbolicTensorDesc.IsConcrete())
+		if (SymbolicTensorDesc.GetShape().IsConcrete())
 		{
-			FTensor Tensor = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+			UE::NNECore::Internal::FTensor Tensor = UE::NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
 			OutputTensors.Emplace(Tensor);
 			OutputTensorShapes.Emplace(Tensor.GetShape());
 		}

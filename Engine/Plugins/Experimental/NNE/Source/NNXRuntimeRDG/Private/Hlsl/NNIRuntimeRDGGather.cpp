@@ -4,10 +4,12 @@
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNEHlslShadersGatherCS.h"
 #include "NNECoreAttributeMap.h"
+#include "NNECoreTypes.h"
+#include "NNECoreTensor.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorGather, TEXT("NNI.Operator.Hlsl.Gather"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorGather, TEXT("NNE.Operator.Hlsl.Gather"));
 
 	/**
 	 * Gather operator implementation
@@ -26,7 +28,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
@@ -34,16 +36,16 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return -1;
 		};
 		
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			const int32 MaxNumDimensions = UE::NNEHlslShaders::Internal::FGatherConstants::MAX_NUM_DIMENSIONS;
 			
 			check(InputTensorDescs.Num() == 2)
 			check(OutputTensorDescs.Num() == 1)
 
-			const NNX::FTensorDesc& Data = InputTensorDescs[0];
-			const NNX::FTensorDesc& Indices = InputTensorDescs[1];
-			const NNX::FTensorDesc& Output = OutputTensorDescs[0];
+			const NNECore::FTensorDesc& Data = InputTensorDescs[0];
+			const NNECore::FTensorDesc& Indices = InputTensorDescs[1];
+			const NNECore::FTensorDesc& Output = OutputTensorDescs[0];
 
 			if (Output.GetShape().Rank() <= MaxNumDimensions)
 			{
@@ -113,8 +115,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			FIntVector ThreadGroupCount = TGatherCS::GetGroupCount(*Parameters);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.Gather");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorGather);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Gather");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorGather);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -126,7 +128,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGatherOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateGatherOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -135,7 +137,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();//Indices should be int32 or int64
 		bIsValid &= InputValidator.Validate(InputTypes);

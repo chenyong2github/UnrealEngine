@@ -3,10 +3,12 @@
 #include "NNIRuntimeRDGUpsample.h"
 #include "NNEHlslShadersUpsampleCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTypes.h"
+#include "NNECoreTensor.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorUpsample, TEXT("NNI.Operator.Hlsl.Upsample"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorUpsample, TEXT("NNE.Operator.Hlsl.Upsample"));
 
 	/**
 	 * Upsample operator implementation
@@ -20,13 +22,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 
-			const NNX::FTensor& X = *InputTensors[0];
-			const NNX::FTensor& Scales = *InputTensors[1];
+			const NNECore::Internal::FTensor& X = *InputTensors[0];
+			const NNECore::Internal::FTensor& Scales = *InputTensors[1];
 			
 			if (!Scales.HasPreparedData())
 			{
@@ -42,13 +44,14 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				return -1;
 			}
 
-			NNX::FTensorShape OutputShape;
+			TArray<uint32> OutputShapeData;
 			for (int32 i = 0; i < X.GetShape().Rank(); ++i)
 			{
 				
-				OutputShape.Data.Emplace(FMath::FloorToInt32(X.GetShape().Data[i] * ScalesData[i]));
+				OutputShapeData.Emplace(FMath::FloorToInt32(X.GetShape().GetData()[i] * ScalesData[i]));
 			}
 
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
 			OutputTensors[0]->SetShape(OutputShape);
 
 			return 0;
@@ -100,12 +103,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			TShaderMapRef<FUpsampleCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.Upsample");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorUpsample);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Upsample");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorUpsample);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.Upsample.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.Upsample.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
@@ -113,7 +116,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateUpsampleOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateUpsampleOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -129,7 +132,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		bIsValid &= InputValidator.Validate(InputTypes);

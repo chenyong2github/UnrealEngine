@@ -109,7 +109,7 @@ public:
 		return !Data.IsEmpty();
 	}
 
-	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize)
+	virtual HTensor AddTensor(const FString& Name, ENNETensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize)
 	{
 		TArray<int32, TInlineAllocator<FTensorShape::MaxRank>> NNIShape;
 		for (int i = 0; i < Shape.Num(); ++i)
@@ -239,7 +239,7 @@ public:
 
 private:
 
-	int AddTensor(const FString& InName, TArrayView<const int32> InShape, EMLTensorDataType InDataType, const void* Data, uint64 DataSize)
+	int AddTensor(const FString& InName, TArrayView<const int32> InShape, ENNETensorDataType InDataType, const void* Data, uint64 DataSize)
 	{
 		int Idx = -1;
 

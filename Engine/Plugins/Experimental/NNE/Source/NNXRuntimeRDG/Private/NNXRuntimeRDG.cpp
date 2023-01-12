@@ -30,8 +30,8 @@ struct FMLInferenceModelRDG::FReadbackEntry
 //
 bool AlwaysValidValidationFunction(
 	const UE::NNECore::FAttributeMap& AttributeMap, 
-	TConstArrayView<EMLTensorDataType> InputTensorTypes,
-	TConstArrayView<FSymbolicTensorShape> InputShapes)
+	TConstArrayView<ENNETensorDataType> InputTensorTypes,
+	TConstArrayView<UE::NNECore::FSymbolicTensorShape> InputShapes)
 {
 	return true;
 }
@@ -46,7 +46,7 @@ FInputValidator::FInputValidator() :
 	TemplateTypes.SetNum(1);
 }
 
-bool FInputValidator::Validate(TConstArrayView<EMLTensorDataType> InputTypes)
+bool FInputValidator::Validate(TConstArrayView<ENNETensorDataType> InputTypes)
 {
 	check(InputTemplateIndices.Num() == NumRequiredInput + NumOptionalInput);
 
@@ -81,7 +81,7 @@ void FInputValidator::SetTemplateCount(int TemplateCount)
 {
 	TemplateTypes.SetNum(TemplateCount);
 }
-void FInputValidator::AddSupportedType(EMLTensorDataType Type, int TemplateIdx)
+void FInputValidator::AddSupportedType(ENNETensorDataType Type, int TemplateIdx)
 {
 	check(TemplateTypes.Num() > TemplateIdx);
 	TemplateTypes[TemplateIdx].Add(Type);
@@ -238,8 +238,8 @@ bool FMLInferenceModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntim
 	{
 		const FMLFormatTensorDesc& FormatTensorDesc = Format.Tensors[Idx];
 
-		FSymbolicTensorShape SymbolicShape = FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
-		FTensorDesc SymbolicTensor = FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
+		const UE::NNECore::FSymbolicTensorShape SymbolicShape = UE::NNECore::FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
+		const UE::NNECore::FTensorDesc SymbolicTensor = UE::NNECore::FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
 		
 		AllSymbolicTensorDescs.Emplace(SymbolicTensor);
 		
@@ -260,13 +260,13 @@ bool FMLInferenceModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntim
 		else if (FormatTensorDesc.Type == EMLFormatTensorType::Initializer)
 		{
 			WeightTensorIndices.Emplace(Idx);
-			if (!SymbolicTensor.IsConcrete())
+			if (!SymbolicTensor.GetShape().IsConcrete())
 			{
 				UE_LOG(LogNNX, Error, TEXT("Weight tensor %s should have a concrete shape"), *SymbolicTensor.GetName());
 				return false;
 			}
 			
-			const FTensorShape TensorShape = FTensorShape::MakeFromSymbolic(SymbolicTensor.GetShape());
+			const UE::NNECore::FTensorShape TensorShape = UE::NNECore::FTensorShape::MakeFromSymbolic(SymbolicTensor.GetShape());
 			FTensorRDG& WeightRDG = WeightTensorRDGs.Emplace_GetRef(FTensorRDG::Make(SymbolicTensor, TensorShape, nullptr));
 			
 			if (WeightRDG.GetDataSize() != FormatTensorDesc.DataSize)

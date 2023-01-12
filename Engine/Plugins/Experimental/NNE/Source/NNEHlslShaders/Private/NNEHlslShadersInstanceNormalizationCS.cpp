@@ -2,7 +2,7 @@
 
 #include "NNEHlslShadersInstanceNormalizationCS.h"
 #include "NNXCore.h"
-#include "NNXTypes.h"
+#include "NNECoreTensor.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -23,13 +23,13 @@ namespace UE::NNEHlslShaders::Internal
 		}
 	}
 
-	void TInstanceNormalizationCS::FillInParameters(float Epsilon, const NNX::FTensor& Input, TInstanceNormalizationCS::FParameters& Parameters)
+	void TInstanceNormalizationCS::FillInParameters(float Epsilon, const  UE::NNECore::Internal::FTensor& Input, TInstanceNormalizationCS::FParameters& Parameters)
 	{
 		check(Input.GetShape().Rank() >= 3);
 		
 		Parameters.Epsilon = Epsilon;
-		const int32 N = Input.GetShape().Data[0];
-		Parameters.C = Input.GetShape().Data[1];
+		const int32 N = Input.GetShape().GetData()[0];
+		Parameters.C = Input.GetShape().GetData()[1];
 		Parameters.NxC = N * Parameters.C;
 		Parameters.W = Input.GetShape().Volume() / (Parameters.NxC);
 	}

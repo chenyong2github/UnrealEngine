@@ -3,10 +3,12 @@
 #include "NNIRuntimeRDGElementWiseBinary.h"
 #include "NNEHlslShadersElementWiseBinaryCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorElementWiseBinary, TEXT("NNI.Operator.Hlsl.ElementWise.Binary"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorElementWiseBinary, TEXT("NNE.Operator.Hlsl.ElementWise.Binary"));
 
 	using TElementWiseBinaryCS = typename UE::NNEHlslShaders::Internal::TElementWiseBinaryCS;
 	using FElementWiseBinaryConstants = UE::NNEHlslShaders::Internal::FElementWiseBinaryConstants;
@@ -24,39 +26,41 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 			
-			const NNX::FTensorShape& LHSInput = InputTensors[0]->GetShape();
-			const NNX::FTensorShape& RHSInput = InputTensors[1]->GetShape();
+			const NNECore::FTensorShape& LHSInput = InputTensors[0]->GetShape();
+			const NNECore::FTensorShape& RHSInput = InputTensors[1]->GetShape();
 			const int32 OutputRank = FMath::Max(LHSInput.Rank(), RHSInput.Rank());
-			NNX::FTensorShape OutputShape;
+			TArray<uint32> OutputShapeData;
 			
-			OutputShape.Data.SetNumUninitialized(OutputRank);
+			OutputShapeData.SetNumUninitialized(OutputRank);
 			
 			for (int32 i = 0; i < OutputRank; ++i)
 			{
 				int32 LHSIndex = LHSInput.Rank() - 1 - i;
 				int32 RHSIndex = RHSInput.Rank() - 1 - i;
-				int32 LHSValue = LHSIndex >= 0 ? LHSInput.Data[LHSIndex] : 1;
-				int32 RHSValue = RHSIndex >= 0 ? RHSInput.Data[RHSIndex] : 1;
+				int32 LHSValue = LHSIndex >= 0 ? LHSInput.GetData()[LHSIndex] : 1;
+				int32 RHSValue = RHSIndex >= 0 ? RHSInput.GetData()[RHSIndex] : 1;
 				if (LHSValue != RHSValue && LHSValue != 1 && RHSValue != 1)
 				{
 					UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise binary op, input shapes are not compatible"));
 					return -1;
 				}
 				int32 OutputValue = FMath::Max(LHSValue, RHSValue);
-				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
+				OutputShapeData[OutputRank - 1 - i] = OutputValue;
 			}
 
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			
 			OutputTensors[0]->SetShape(OutputShape);
 			
 			return 0;
 		}
 		
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() == 2);
 			check(OutputTensorDescs.Num() == 1);
@@ -99,12 +103,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			TShaderMapRef<TElementWiseBinaryCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 		
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.ElementWise.Binary");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorElementWiseBinary);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.ElementWise.Binary");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorElementWiseBinary);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.ElementWise.Binary.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.ElementWise.Binary.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
@@ -112,7 +116,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateElementWiseBinaryOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseBinaryOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -120,7 +124,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		bIsValid &= InputValidator.Validate(InputTypes);

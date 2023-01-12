@@ -4,10 +4,12 @@
 #include "NNEHlslShadersGemmCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNECoreAttributeMap.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNIOperatorGemm, TEXT("NNI.Operator.Hlsl.Gemm"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorGemm, TEXT("NNE.Operator.Hlsl.Gemm"));
 
 	/**
 	 * Gemm operator implementation
@@ -31,7 +33,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
@@ -43,23 +45,26 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				return -1;
 			}
 
-			uint32 M = InputTransA != 0 ? InputA.Data[1] : InputA.Data[0];
-			uint32 N = InputTransB != 0 ? InputB.Data[0] : InputB.Data[1];
-			NNX::FTensorShape OutputShape;
+			uint32 M = InputTransA != 0 ? InputA.GetData()[1] : InputA.GetData()[0];
+			uint32 N = InputTransB != 0 ? InputB.GetData()[0] : InputB.GetData()[1];
+			TArray<uint32> OutputShapeData;
+
+			OutputShapeData.Emplace(M);
+			OutputShapeData.Emplace(N);
 			
-			OutputShape.Data.Emplace(M);
-			OutputShape.Data.Emplace(N);
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			
 			OutputTensors[0]->SetShape(OutputShape);
 			return 0;
 		};
 		
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() >= 2 && InputTensorDescs.Num() <= 3);
 			check(OutputTensorDescs.Num() == 1);
 
-            const NNX::FTensorDesc& InputA = InputTensorDescs[0];
-			const NNX::FTensorDesc& InputB = InputTensorDescs[1];
+            const NNECore::FTensorDesc& InputA = InputTensorDescs[0];
+			const NNECore::FTensorDesc& InputB = InputTensorDescs[1];
 
 			if (InputA.GetShape().Rank() != 2)
 			{
@@ -73,13 +78,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			}
 			if (InputTensorDescs.Num() == 3)
 			{
-				const NNX::FTensorDesc& InputC = InputTensorDescs[2];
+				const NNECore::FTensorDesc& InputC = InputTensorDescs[2];
 				if (InputC.GetShape().Rank() > 2)
 				{
 					UE_LOG(LogNNX, Warning, TEXT("Gemm third input should be of rank 2 or less"));
 					return false;
 				}
-				if (InputC.GetShape().Rank() == 1 && InputC.GetShape().Data[0] == 1)
+				if (InputC.GetShape().Rank() == 1 && InputC.GetShape().GetData()[0] == 1)
 				{
 					UE_LOG(LogNNX, Warning, TEXT("Gemm third input as scalar not supported"));
 					return false;
@@ -141,12 +146,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			FIntVector ThreadGroupCount = TGemmCS::GetGroupCount(*Parameters, Algorithm, 0);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.Gemm");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorGemm);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Gemm");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorGemm);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Parameters,
@@ -154,7 +159,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGemmOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateGemmOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -166,7 +171,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		InputValidator.AddOptional();

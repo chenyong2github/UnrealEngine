@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEHlslShadersGatherCS.h"
+#include "NNECoreTensor.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -15,7 +16,7 @@ namespace UE::NNEHlslShaders::Internal
 	}
 
 	//template <typename DataElementType, typename IndicesElementType>
-	void TGatherCS::FillInParameters(int32 Axis, const NNX::FTensor& Data, const NNX::FTensor& Indices, FParameters& Parameters)
+	void TGatherCS::FillInParameters(int32 Axis, const NNECore::Internal::FTensor& Data, const NNECore::Internal::FTensor& Indices, FParameters& Parameters)
 	{
 		Parameters.Axis = Axis;
 
@@ -25,17 +26,17 @@ namespace UE::NNEHlslShaders::Internal
 		Parameters.OutputSize = 1;
 		for (int32 i = 0; i < Axis; i++, index++)
 		{
-			OutputShape[index] = Data.GetShape().Data[i];
+			OutputShape[index] = Data.GetShape().GetData()[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 		for (int32 i = 0; i < Indices.GetShape().Rank(); i++, index++)
 		{
-			OutputShape[index] = Indices.GetShape().Data[i];
+			OutputShape[index] = Indices.GetShape().GetData()[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 		for (int32 i = (Axis + 1); i < Data.GetShape().Rank(); i++, index++)
 		{
-			OutputShape[index] = Data.GetShape().Data[i];
+			OutputShape[index] = Data.GetShape().GetData()[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 
@@ -47,7 +48,7 @@ namespace UE::NNEHlslShaders::Internal
 		{
 			Parameters.DataStride_IndicesStride_OutputStride[i].X = DataStride;
 			Parameters.OneDivDataStride_OneDivIndicesStride_OneDivOutputStride[i].X = 1.0 / (float)DataStride;
-			DataStride *= Data.GetShape().Data[i];
+			DataStride *= Data.GetShape().GetData()[i];
 		}
 
 		int32 IndicesStride = 1;
@@ -55,7 +56,7 @@ namespace UE::NNEHlslShaders::Internal
 		{
 			Parameters.DataStride_IndicesStride_OutputStride[i].Y = IndicesStride;
 			Parameters.OneDivDataStride_OneDivIndicesStride_OneDivOutputStride[i].Y = 1.0 / (float)IndicesStride;
-			IndicesStride *= Indices.GetShape().Data[i];
+			IndicesStride *= Indices.GetShape().GetData()[i];
 		}
 
 		int32 OutputStride = 1;

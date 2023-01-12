@@ -3,7 +3,7 @@
 #pragma once
 
 #include "NNXRuntimeRDG.h"
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
 #include "NNERuntimeRDGTensorHLSL.h"
 
 class FRDGBuilder;

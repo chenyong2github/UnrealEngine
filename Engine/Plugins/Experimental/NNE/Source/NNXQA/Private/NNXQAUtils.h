@@ -7,11 +7,13 @@
 #include "NNECoreAttributeMap.h"
 #include "NNXRuntime.h"
 #include "NNXRuntimeFormat.h"
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
+#include "NNECoreTensor.h"
 
 
 namespace NNX 
 {
+
 namespace Test 
 {
 	struct FTests
@@ -38,9 +40,9 @@ namespace Test
 			bool IsModelTest;
 			TMap<FString, float> AbsoluteErrorEpsilonForRuntime;
 			TMap<FString, float> RelativeErrorPercentForRuntime;
-			TArray<FTensor> Inputs;
-			TArray<FTensor> Weights;
-			TArray<FTensor> Outputs;
+			TArray<UE::NNECore::Internal::FTensor> Inputs;
+			TArray<UE::NNECore::Internal::FTensor> Weights;
+			TArray<UE::NNECore::Internal::FTensor> Outputs;
 			TArray<FTensorData> InputsData;
 			TArray<FTensorData> WeightsData;
 			TArray<FTensorData> OutputsData;
@@ -74,18 +76,18 @@ namespace Test
 	
 	class ElementWiseCosTensorInitializer
 	{
-		EMLTensorDataType DataType;
+		ENNETensorDataType DataType;
 		uint32 TensorIndex;
 
 	public:
-		ElementWiseCosTensorInitializer(EMLTensorDataType InDataType, uint32 InTensorIndex);
+		ElementWiseCosTensorInitializer(ENNETensorDataType InDataType, uint32 InTensorIndex);
 		float operator () (uint32 ElementIndex) const;
 	};
 
-	FString TensorToString(const FTensor& Tensor);
-	FString TensorToString(const FTensor& Tensor, TConstArrayView<char> TensorData);
+	FString TensorToString(const UE::NNECore::Internal::FTensor& Tensor);
+	FString TensorToString(const UE::NNECore::Internal::FTensor& Tensor, TConstArrayView<char> TensorData);
 	template<typename T> FString ShapeToString(TConstArrayView<T> Shape);
-	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, std::function<float(uint32)> ElementInitializer);
+	TArray<char> GenerateTensorDataForTest(const UE::NNECore::Internal::FTensor& Tensor, std::function<float(uint32)> ElementInitializer);
 
 } // namespace Test
 } // namespace NNX

@@ -4,6 +4,8 @@
 
 #include "NNECoreAttributeMap.h"
 #include "NNECoreAttributeValue.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 #include "NNXCore.h"
 #include "NNXModelOptimizerInterface.h"
 #include "NNXRuntime.h"
@@ -31,11 +33,12 @@ class FRDGBuilder;
 struct FMLRuntimeFormat;
 struct FNNIModelRaw;
 
+namespace UE::NNECore { class FTensorDesc; }
+
 namespace NNX
 {
 
 struct FTensorBinding;
-class FTensorDesc;
 
 /**
  * Interface for all operators to prepare the model tensors at scheduling time
@@ -43,7 +46,7 @@ class FTensorDesc;
 struct IPrepareOperator
 {
 	virtual ~IPrepareOperator() = default;
-	virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const = 0;
+	virtual int PrepareOutputs(TConstArrayView<UE::NNECore::Internal::FTensorRef> InputTensors, TArrayView<UE::NNECore::Internal::FTensorRef> OutputTensors) const = 0;
 };
 
 /**
@@ -54,7 +57,7 @@ struct IOperatorRDG
 	virtual ~IOperatorRDG() = default;
 };
 
-class FTensorRDG : public FTensor
+class FTensorRDG : public UE::NNECore::Internal::FTensor
 {
 	FRDGBufferRef Buffer{};
 	
@@ -68,7 +71,7 @@ public:
 		TensorRDG.DataType = TensorDesc.GetDataType();
 		TensorRDG.Shape = Shape;
 		TensorRDG.Volume = Shape.Volume();
-		TensorRDG.DataSize = (uint64)GetTensorDataTypeSizeInBytes(TensorRDG.DataType) * TensorRDG.Volume;
+		TensorRDG.DataSize = (uint64)UE::NNECore::GetTensorDataTypeSizeInBytes(TensorRDG.DataType) * TensorRDG.Volume;
 		TensorRDG.Buffer = Buffer;
 		check(TensorRDG.Volume <= TNumericLimits<uint32>::Max());
 		return TensorRDG;
@@ -150,7 +153,7 @@ protected:
 };
 
 //TODO jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
-bool AlwaysValidValidationFunction(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<FSymbolicTensorShape> InputShapes);
+bool AlwaysValidValidationFunction(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<UE::NNECore::FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
 {
@@ -159,11 +162,11 @@ public:
 	void AddRequired(int32 TemplateIdx = 0);
 	void AddOptional(int32 TemplateIdx = 0);
 	void SetTemplateCount(int32 TemplateCount);
-	void AddSupportedType(EMLTensorDataType Type, int32 TemplateIdx = 0);
-	bool Validate(TConstArrayView<EMLTensorDataType> InputTypes);
+	void AddSupportedType(ENNETensorDataType Type, int32 TemplateIdx = 0);
+	bool Validate(TConstArrayView<ENNETensorDataType> InputTypes);
 
 private:
-	TArray<TArray<EMLTensorDataType>> TemplateTypes;
+	TArray<TArray<ENNETensorDataType>> TemplateTypes;
 	TArray<int32> InputTemplateIndices;
 	int32 NumRequiredInput;
 	int32 NumOptionalInput;
@@ -205,7 +208,7 @@ class TOperatorRegistryRDG
 public:
 
 	typedef TOperatorType* (*OperatorCreateFunc)();
-	typedef bool (*OperatorValidateFunc)(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<FSymbolicTensorShape> InputShapes);
+	typedef bool (*OperatorValidateFunc)(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<UE::NNECore::FSymbolicTensorShape> InputShapes);
 
 	static TOperatorRegistryRDG* Get()
 	{
@@ -290,14 +293,14 @@ public:
 
 		for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 		{
-			TArray<EMLTensorDataType> InputTensorTypes;
-			TArray<FSymbolicTensorShape> InputTensorShapes;
+			TArray<ENNETensorDataType> InputTensorTypes;
+			TArray<UE::NNECore::FSymbolicTensorShape> InputTensorShapes;
 			UE::NNECore::FAttributeMap AttributeMap;
 			
 			for (int32 InputTensorIndex: Format.Operators[Idx].InTensors)
 			{
 				InputTensorTypes.Add(Format.Tensors[InputTensorIndex].DataType);
-				InputTensorShapes.Add(FSymbolicTensorShape::Make(Format.Tensors[InputTensorIndex].Shape));
+				InputTensorShapes.Add(UE::NNECore::FSymbolicTensorShape::Make(Format.Tensors[InputTensorIndex].Shape));
 			}
 			for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 			{

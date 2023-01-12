@@ -7,7 +7,6 @@
 #include "Serialization/JsonSerializerMacros.h"
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
-#include "NNXTypes.h"
 
 namespace NNX 
 {

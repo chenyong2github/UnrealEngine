@@ -3,7 +3,8 @@
 #pragma once
 
 #include "HAL/UnrealMemory.h"
-#include "NNXTypes.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 #include "NNXRuntime.h"
 #include "NNXThirdPartyWarningDisabler.h"
 NNX_THIRD_PARTY_INCLUDES_START
@@ -14,98 +15,98 @@ NNX_THIRD_PARTY_INCLUDES_END
 
 DECLARE_STATS_GROUP(TEXT("MachineLearning"), STATGROUP_MachineLearning, STATCAT_Advanced);
 
-using TypeInfoORT = std::pair<EMLTensorDataType, uint64>;
+using TypeInfoORT = std::pair<ENNETensorDataType, uint64>;
 
 inline TypeInfoORT TranslateTensorTypeORTToNNI(unsigned int OrtDataType)
 {
-	EMLTensorDataType DataType = EMLTensorDataType::None;
+	ENNETensorDataType DataType = ENNETensorDataType::None;
 	uint64 ElementSize = 0;
 
 	switch (OrtDataType) {
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED:
-		DataType = EMLTensorDataType::None;
+		DataType = ENNETensorDataType::None;
 		ElementSize = 0;
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
-		DataType = EMLTensorDataType::Float;
+		DataType = ENNETensorDataType::Float;
 		ElementSize = sizeof(float);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
-		DataType = EMLTensorDataType::UInt8;
+		DataType = ENNETensorDataType::UInt8;
 		ElementSize = sizeof(uint8);
 		break;
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
-		DataType = EMLTensorDataType::Int8;
+		DataType = ENNETensorDataType::Int8;
 		ElementSize = sizeof(int8);
 		break;
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
-		DataType = EMLTensorDataType::UInt16;
+		DataType = ENNETensorDataType::UInt16;
 		ElementSize = sizeof(uint16);
 		break;
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
-		DataType = EMLTensorDataType::Int16;
+		DataType = ENNETensorDataType::Int16;
 		ElementSize = sizeof(int16);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
-		DataType = EMLTensorDataType::Int32;
+		DataType = ENNETensorDataType::Int32;
 		ElementSize = sizeof(int32);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
-		DataType = EMLTensorDataType::Int64;
+		DataType = ENNETensorDataType::Int64;
 		ElementSize = sizeof(int64);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING:
-		DataType = EMLTensorDataType::Char;
+		DataType = ENNETensorDataType::Char;
 		ElementSize = sizeof(char);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
-		DataType = EMLTensorDataType::Boolean;
+		DataType = ENNETensorDataType::Boolean;
 		ElementSize = sizeof(bool);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16:
-		DataType = EMLTensorDataType::Half;
+		DataType = ENNETensorDataType::Half;
 		ElementSize = 2;
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE:
-		DataType = EMLTensorDataType::Double;
+		DataType = ENNETensorDataType::Double;
 		ElementSize = sizeof(double);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32:
-		DataType = EMLTensorDataType::UInt32;
+		DataType = ENNETensorDataType::UInt32;
 		ElementSize = sizeof(uint32);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64:
-		DataType = EMLTensorDataType::UInt64;
+		DataType = ENNETensorDataType::UInt64;
 		ElementSize = sizeof(uint64);
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64:
-		DataType = EMLTensorDataType::Complex64;
+		DataType = ENNETensorDataType::Complex64;
 		ElementSize = 8;
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128:
-		DataType = EMLTensorDataType::Complex128;
+		DataType = ENNETensorDataType::Complex128;
 		ElementSize = 16;
 		break;
 
 	case ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16:
-		DataType = EMLTensorDataType::BFloat16;
+		DataType = ENNETensorDataType::BFloat16;
 		ElementSize = 2;
 		break;
 
 	default:
-		DataType = EMLTensorDataType::None;
+		DataType = ENNETensorDataType::None;
 		break;
 	}
 
@@ -114,7 +115,7 @@ inline TypeInfoORT TranslateTensorTypeORTToNNI(unsigned int OrtDataType)
 
 inline void BindTensorsToORT(
 	TConstArrayView<const NNX::FMLTensorBinding> InBindingTensors,
-	TConstArrayView<NNX::FTensor> InTensors,
+	TConstArrayView<UE::NNECore::Internal::FTensor> InTensors,
 	TConstArrayView<ONNXTensorElementDataType> InTensorsORTType,
 	const Ort::MemoryInfo* InAllocatorInfo,
 	TArray<Ort::Value>& OutOrtTensors
@@ -132,14 +133,14 @@ inline void BindTensorsToORT(
 	for (uint32 Index = 0; Index < NumBinding; ++Index)
 	{
 		const NNX::FMLTensorBinding& Binding = InBindingTensors[Index];
-		const NNX::FTensor& Tensor = InTensors[Index];
+		const UE::NNECore::Internal::FTensor& Tensor = InTensors[Index];
 		const ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
 
 		TUniquePtr<int64_t[]> SizesInt64t;
 		SizesInt64t = MakeUnique<int64_t[]>(Tensor.GetShape().Rank());
 		for (int32 DimIndex = 0; DimIndex < Tensor.GetShape().Rank(); ++DimIndex)
 		{
-			SizesInt64t.Get()[DimIndex] = Tensor.GetShape().Data[DimIndex];
+			SizesInt64t.Get()[DimIndex] = Tensor.GetShape().GetData()[DimIndex];
 		}
 
 		const uint64 ByteCount{ InTensors[Index].GetDataSize() };
@@ -160,8 +161,8 @@ inline void BindTensorsToORT(
 inline void CopyFromORTToBindings(
 	TConstArrayView<Ort::Value> InOrtTensors,
 	TConstArrayView<const NNX::FMLTensorBinding> InBindingTensors,
-	TConstArrayView<NNX::FTensorDesc> InTensorDescs,
-	TArray<NNX::FTensor>& OutTensors
+	TConstArrayView<UE::NNECore::FTensorDesc> InTensorDescs,
+	TArray<UE::NNECore::Internal::FTensor>& OutTensors
 )
 {
 	const uint32 NumBinding = InOrtTensors.Num();
@@ -176,18 +177,19 @@ inline void CopyFromORTToBindings(
 	for (uint32 Index = 0; Index < NumBinding; ++Index)
 	{
 		const NNX::FMLTensorBinding& Binding = InBindingTensors[Index];
-		const NNX::FTensorDesc& TensorDesc = InTensorDescs[Index];
+		const UE::NNECore::FTensorDesc& TensorDesc = InTensorDescs[Index];
 		const Ort::Value& OrtTensor = InOrtTensors[Index];
 		const std::vector<int64_t>& OrtShape = OrtTensor.GetTensorTypeAndShapeInfo().GetShape();
 
-		NNX::FTensorShape Shape;
+		TArray<uint32> ShapeData;
 		for (int32 DimIndex = 0; DimIndex < OrtShape.size(); ++DimIndex)
 		{
 			check(OrtShape[DimIndex] >= 0);
-			Shape.Data.Add(OrtShape[DimIndex]);
+			ShapeData.Add(OrtShape[DimIndex]);
 		}
 
-		NNX::FTensor Tensor = NNX::FTensor::Make(TensorDesc.GetName(), Shape, TensorDesc.GetDataType());
+		UE::NNECore::FTensorShape Shape = UE::NNECore::FTensorShape::Make(ShapeData);
+		UE::NNECore::Internal::FTensor Tensor = UE::NNECore::Internal::FTensor::Make(TensorDesc.GetName(), Shape, TensorDesc.GetDataType());
 		OutTensors.Emplace(Tensor);
 
 		void* CpuMemory = (uint8_t*)Binding.CpuMemory + Binding.OffsetInBytes;

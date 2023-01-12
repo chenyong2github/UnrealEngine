@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
+#include "NNECoreTensor.h"
 
 namespace UE::NNECore { class FAttributeMap; }
 struct FNNEAttributeValue;
@@ -9,6 +10,7 @@ struct FNNIModelRaw;
 
 namespace NNX
 {
+using FTensor = UE::NNECore::Internal::FTensor;
 
 class IMLModelBuilder
 {
@@ -52,7 +54,7 @@ public:
 	virtual bool End(TArray<uint8>& Data) = 0;
 
 	/** Add tensor */
-	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape, const void* Data = nullptr, uint64 DataSize = 0) = 0;
+	virtual HTensor AddTensor(const FString& Name, ENNETensorDataType DataType, TArrayView<const int32> Shape, const void* Data = nullptr, uint64 DataSize = 0) = 0;
 
 	/** Add model input */
 	virtual bool AddInput(HTensor InTensor) = 0;

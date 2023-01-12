@@ -6,7 +6,7 @@
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
 
-namespace NNX { class FTensor; }
+namespace UE::NNECore::Internal { class FTensor; }
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -40,7 +40,7 @@ namespace UE::NNEHlslShaders::Internal
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, Output)
 		END_SHADER_PARAMETER_STRUCT()
 
-		static void FillInParameters(float Epsilon, const NNX::FTensor& Input, FParameters& Parameters);
+		static void FillInParameters(float Epsilon, const NNECore::Internal::FTensor& Input, FParameters& Parameters);
 
 		static FIntVector GetGroupCount(const FParameters& Parameters, EInstanceNormalizationAlgorithm Algorithm);
 		static EInstanceNormalizationAlgorithm GetAlgorithm(const FParameters& Parameters);

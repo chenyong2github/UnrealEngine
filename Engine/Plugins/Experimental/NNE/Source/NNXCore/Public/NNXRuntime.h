@@ -2,28 +2,19 @@
 
 #pragma once
 
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
 #include "CoreMinimal.h"
 
 class FRDGBuffer;
-
-// TODO: 
-/*
-- OperatorRegistry
-	- Q: Should registry be an internal part of runtime ModelOptimizer, i.e. never exposed to the NNX utils?
-
-- ModelOptimizer interface for runtime dependent model optimizations
-*/
-
-class UMLInferenceModel;
 class FRDGBuilder;
+class UMLInferenceModel;
 
 namespace NNX
 {
-class FMLInferenceModel;
-//class IModelOptimizer;
+using FTensorDesc = UE::NNECore::FTensorDesc;
+using FTensorShape = UE::NNECore::FTensorShape;
 
-//class IOperatorRegistry;
+class FMLInferenceModel;
 
 /** Runtime support flags */
 enum class EMLRuntimeSupportFlags : uint32

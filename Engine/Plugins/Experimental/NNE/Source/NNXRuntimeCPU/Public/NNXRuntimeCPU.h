@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "NNXCore.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
+#include "NNEProfilingStatistics.h"
 #include "NNXRuntime.h"
 #include "NNXInferenceModel.h"
-#include "NNEProfilingStatistics.h"
 #include "NNXModelOptimizerInterface.h"
 
 #include "NNXThirdPartyWarningDisabler.h"
@@ -117,8 +119,8 @@ namespace NNX
 		TArray<const char*> InputTensorNames;
 		TArray<const char*> OutputTensorNames;
 
-		TArray<FTensor> InputTensors;
-		TArray<FTensor> OutputTensors;
+		TArray<UE::NNECore::Internal::FTensor> InputTensors;
+		TArray<UE::NNECore::Internal::FTensor> OutputTensors;
 
 		bool InitializedAndConfigureMembers();
 		bool ConfigureTensors(const bool InIsInput);

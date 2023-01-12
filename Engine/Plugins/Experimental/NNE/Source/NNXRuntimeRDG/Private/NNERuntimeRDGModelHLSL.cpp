@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGModelHLSL.h"
+#include "NNECoreTensor.h"
 #include "NNXRuntimeHLSLOp.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
@@ -319,8 +320,8 @@ int FModel::PrepareTensorShapesAndData()
 	// Run model preparation (including shape inference) on all operators
 	// This loop could be abstracted to a different engine/system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<NNX::FTensorRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
-	TArray<NNX::FTensorRef> OutputTensors;
+	TArray<NNECore::Internal::FTensorRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	TArray<NNECore::Internal::FTensorRef> OutputTensors;
 	TArray<bool> AllInitializedTensors;
 
 	checkCode(

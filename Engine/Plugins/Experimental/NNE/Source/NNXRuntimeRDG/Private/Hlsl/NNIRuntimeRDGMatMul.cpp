@@ -3,10 +3,12 @@
 #include "NNIRuntimeRDGMatMul.h"
 #include "NNEHlslShadersGemmCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreTensor.h"
+#include "NNECoreTypes.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-    DECLARE_GPU_STAT_NAMED(FNNIOperatorMatMul, TEXT("NNI.Operator.Hlsl.MatMul"));
+    DECLARE_GPU_STAT_NAMED(FNNEOperatorMatMul, TEXT("NNE.Operator.Hlsl.MatMul"));
 
 	/**
 	 * MatMul operator implementation
@@ -20,7 +22,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
@@ -38,44 +40,45 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				UE_LOG(LogNNX, Warning, TEXT("Matmul second input should be at least of rank 2"));
 				return -1;
 			}
-			if (InputA.Data[InputA.Rank() - 1] != InputB.Data[InputB.Rank() - 2])
+			if (InputA.GetData()[InputA.Rank() - 1] != InputB.GetData()[InputB.Rank() - 2])
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Matmul first input last dimension should be equal to second input last dimension"));
 				return -1;
 			}
 
 			const int32 OutputRank = FMath::Max(InputA.Rank(), InputB.Rank());
-			NNX::FTensorShape OutputShape;
-			
-			OutputShape.Data.SetNumUninitialized(OutputRank);
+			TArray<uint32> OutputShapeData;
+			OutputShapeData.SetNumUninitialized(OutputRank);
 			
 			//Broadcast
 			for (int32 i = 0; i < OutputRank; ++i)
 			{
 				int32 AIndex = InputA.Rank() - 1 - i;
 				int32 BIndex = InputB.Rank() - 1 - i;
-				int32 AValue = AIndex >= 0 ? InputA.Data[AIndex] : 1;
-				int32 BValue = BIndex >= 0 ? InputB.Data[BIndex] : 1;
+				int32 AValue = AIndex >= 0 ? InputA.GetData()[AIndex] : 1;
+				int32 BValue = BIndex >= 0 ? InputB.GetData()[BIndex] : 1;
 				int32 OutputValue = FMath::Max(AValue, BValue);
-				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
+				OutputShapeData[OutputRank - 1 - i] = OutputValue;
 			}
 			
 			//2D Mat
-			OutputShape.Data[OutputRank - 2] = InputA.Data[InputA.Rank() - 2];
-			OutputShape.Data[OutputRank - 1] = InputB.Data[InputB.Rank() - 1];
+			OutputShapeData[OutputRank - 2] = InputA.GetData()[InputA.Rank() - 2];
+			OutputShapeData[OutputRank - 1] = InputB.GetData()[InputB.Rank() - 1];
+
+			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
 
 			OutputTensors[0]->SetShape(OutputShape);
 
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() == 2);
 			check(OutputTensorDescs.Num() == 1);
 
-			const NNX::FTensorDesc& InputA = InputTensorDescs[0];
-			const NNX::FTensorDesc& InputB = InputTensorDescs[1];
+			const NNECore::FTensorDesc& InputA = InputTensorDescs[0];
+			const NNECore::FTensorDesc& InputB = InputTensorDescs[1];
 
 			if (InputA.GetShape().Rank() < 2)
 			{
@@ -123,12 +126,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			FIntVector ThreadGroupCount = TGemmCS::GetGroupCount(*Parameters, Algorithm, NumStackDimensions);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.MatMul");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorMatMul);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.MatMul");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorMatMul);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNI.Operator.Hlsl.MatMul.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.MatMul.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Parameters,
@@ -136,7 +139,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateMatMulOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateMatMulOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -144,7 +147,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;
-		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddSupportedType(ENNETensorDataType::Float);
 		InputValidator.AddRequired();
 		InputValidator.AddRequired();
 		bIsValid &= InputValidator.Validate(InputTypes);

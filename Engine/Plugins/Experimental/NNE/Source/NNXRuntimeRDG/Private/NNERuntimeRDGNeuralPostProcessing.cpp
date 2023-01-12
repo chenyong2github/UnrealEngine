@@ -253,14 +253,14 @@ void FNNENeuralPostProcessing::PrePostProcessPass_RenderThread(FRDGBuilder& Grap
 						InputSize = *InputSizes.Find(Pair.Key);
 					}
 
-					NNX::FSymbolicTensorShape InputShape = Pair.Value->GetInputTensorDescs()[0].GetShape();
+					UE::NNECore::FSymbolicTensorShape InputShape = Pair.Value->GetInputTensorDescs()[0].GetShape();
 
 					checkf(InputShape.Rank() == 4, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
-					checkf(InputShape.Data[0] == 1, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
-					checkf(InputShape.Data[1] == 3, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
+					checkf(InputShape.GetData()[0] == 1, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
+					checkf(InputShape.GetData()[1] == 3, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
 
-					int32 NeuralNetworkInputWidth = InputShape.Data[3] >= 0 ? InputShape.Data[3] : (InputSize.X >= 0 ? InputSize.X : TextureSize.X);
-					int32 NeuralNetworkInputHeight = InputShape.Data[2] >= 0 ? InputShape.Data[2] : (InputSize.Y >= 0 ? InputSize.Y : TextureSize.Y);
+					int32 NeuralNetworkInputWidth = InputShape.GetData()[3] >= 0 ? InputShape.GetData()[3] : (InputSize.X >= 0 ? InputSize.X : TextureSize.X);
+					int32 NeuralNetworkInputHeight = InputShape.GetData()[2] >= 0 ? InputShape.GetData()[2] : (InputSize.Y >= 0 ? InputSize.Y : TextureSize.Y);
 
 					FRDGBufferDesc InputBufferDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NeuralNetworkInputWidth * NeuralNetworkInputHeight * 3);
 					FRDGBufferRef InputBuffer = GraphBuilder.CreateBuffer(InputBufferDesc, *(FString("NNENeuralPostProcessing::NeuralNetowrkInput_") + FString::FromInt(Pair.Key)));
@@ -297,13 +297,13 @@ void FNNENeuralPostProcessing::PrePostProcessPass_RenderThread(FRDGBuilder& Grap
 					NNX::FTensorShape OutputShape = Pair.Value->GetOutputTensorShapes()[0];
 
 					checkf(OutputShape.Rank() == 4, TEXT("Neural Post Processing requires models with output shape 1 x 3 x height x width!"))
-					checkf(OutputShape.Data[0] == 1, TEXT("Neural Post Processing requires models with output shape 1 x 3 x height x width!"))
-					checkf(OutputShape.Data[1] == 3, TEXT("Neural Post Processing requires models with output shape 1 x 3 x height x width!"))
-					checkf(OutputShape.Data[2] > 0, TEXT("Neural Post Processing requires models with output height > 0!"))
-					checkf(OutputShape.Data[3] > 0, TEXT("Neural Post Processing requires models with output width > 0!"))
+					checkf(OutputShape.GetData()[0] == 1, TEXT("Neural Post Processing requires models with output shape 1 x 3 x height x width!"))
+					checkf(OutputShape.GetData()[1] == 3, TEXT("Neural Post Processing requires models with output shape 1 x 3 x height x width!"))
+					checkf(OutputShape.GetData()[2] > 0, TEXT("Neural Post Processing requires models with output height > 0!"))
+					checkf(OutputShape.GetData()[3] > 0, TEXT("Neural Post Processing requires models with output width > 0!"))
 
-					int32 NeuralNetworkOutputWidth = OutputShape.Data[3];
-					int32 NeuralNetworkOutputHeight = OutputShape.Data[2];
+					int32 NeuralNetworkOutputWidth = OutputShape.GetData()[3];
+					int32 NeuralNetworkOutputHeight = OutputShape.GetData()[2];
 
 					FRDGBufferDesc OutputBufferDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NeuralNetworkOutputWidth * NeuralNetworkOutputHeight * 3);
 					FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer(OutputBufferDesc, *(FString("NNENeuralPostProcessing::NeuralNetowrkOutput_") + FString::FromInt(Pair.Key)));

@@ -5,7 +5,8 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
-#include "NNXTypes.h"
+
+namespace UE::NNECore::Internal { class FTensor; }
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -42,7 +43,7 @@ namespace UE::NNEHlslShaders::Internal
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 
-		static void FillInParameters(int32 Axis, const NNX::FTensor& Data, const NNX::FTensor& Indices, FParameters& Parameters);
+		static void FillInParameters(int32 Axis, const NNECore::Internal::FTensor& Data, const NNECore::Internal::FTensor& Indices, FParameters& Parameters);
 
 		static FIntVector GetGroupCount(const FParameters& Parameters);
 	};

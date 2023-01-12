@@ -4,7 +4,7 @@
 
 #include "UObject/Object.h"
 #include "NNECoreAttributeValue.h"
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
 #include "NNXRuntime.h"
 #include "NNXRuntimeFormat.generated.h"
 
@@ -88,7 +88,7 @@ struct FMLFormatTensorDesc
 	EMLFormatTensorType	Type = EMLFormatTensorType::None;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	EMLTensorDataType	DataType = EMLTensorDataType::None;
+	ENNETensorDataType	DataType = ENNETensorDataType::None;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	uint64	DataSize = 0;

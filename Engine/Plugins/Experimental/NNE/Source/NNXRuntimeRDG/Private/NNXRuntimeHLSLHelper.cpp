@@ -1,21 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNXRuntimeHLSLHelper.h"
-
+#include "NNECoreTypes.h"
+#include "NNECoreTensor.h"
 #include "RHI.h"
 
 namespace NNX
 {
-	void FillTensorSizeShaderParameters(const FTensor& Tensor, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, int32 Idx)
+	void FillTensorSizeShaderParameters(const UE::NNECore::Internal::FTensor& Tensor, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, int32 Idx)
 	{
-		static_assert(FTensorShape::MaxRank <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
+		static_assert(UE::NNECore::FTensorShape::MaxRank <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
 		for (int32 i = 0; i < Tensor.GetShape().Rank(); ++i)
 		{
-			OutShaderParam[i][Idx] = Tensor.GetShape().Data[i];
+			OutShaderParam[i][Idx] = Tensor.GetShape().GetData()[i];
 		}
 	}
 
-	void FillTensorStrideShaderParameters(const FTensor& Tensor, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, int32 Idx, int32 TargetNumdimensionForBroadcast)
+	void FillTensorStrideShaderParameters(const UE::NNECore::Internal::FTensor& Tensor, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, int32 Idx, int32 TargetNumdimensionForBroadcast)
 	{
 		if (TargetNumdimensionForBroadcast == -1)
 		{
@@ -24,7 +25,7 @@ namespace NNX
 		checkf(TargetNumdimensionForBroadcast >= Tensor.GetShape().Rank(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), Tensor.GetShape().Rank(), TargetNumdimensionForBroadcast);
 		int32 Offset = TargetNumdimensionForBroadcast - Tensor.GetShape().Rank();
 
-		static_assert(FTensorShape::MaxRank <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
+		static_assert(UE::NNECore::FTensorShape::MaxRank <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
 		for (int32 i = 7; i >= 0; --i)
 		{
 			if (i >= TargetNumdimensionForBroadcast || i < Offset)
@@ -37,12 +38,12 @@ namespace NNX
 			}
 			else
 			{
-				OutShaderParam[i][Idx] = OutShaderParam[i + 1][Idx] * Tensor.GetShape().Data[i + 1 - Offset];
+				OutShaderParam[i][Idx] = OutShaderParam[i + 1][Idx] * Tensor.GetShape().GetData()[i + 1 - Offset];
 			}
 		}
 	}
 
-	void FillTensorStrideForBroadcastShaderParameters(const FTensor& Tensor, int32 OutputNumdimension, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, int32 Idx)
+	void FillTensorStrideForBroadcastShaderParameters(const UE::NNECore::Internal::FTensor& Tensor, int32 OutputNumdimension, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, int32 Idx)
 	{
 		checkf(OutputNumdimension >= Tensor.GetShape().Rank(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), Tensor.GetShape().Rank(), OutputNumdimension);
 		FillTensorStrideShaderParameters(Tensor, OutShaderParam, Idx, OutputNumdimension);
@@ -50,7 +51,7 @@ namespace NNX
 		for (int32 i = Offset; i < OutputNumdimension; ++i)
 		{
 			// the stride for broadcast dimension is kept as 0
-			if (Tensor.GetShape().Data[i - Offset] == 1)
+			if (Tensor.GetShape().GetData()[i - Offset] == 1)
 			{
 				OutShaderParam[i][Idx] = 0;
 			}

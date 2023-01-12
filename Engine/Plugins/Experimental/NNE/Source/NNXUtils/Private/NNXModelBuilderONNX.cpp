@@ -112,7 +112,7 @@ public:
 	}
 
 	/** Add tensor */
-	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize) override
+	virtual HTensor AddTensor(const FString& Name, ENNETensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize) override
 	{
 		auto Value = onnx::ValueInfoProto().New(Graph->GetArena());
 		
@@ -132,7 +132,7 @@ public:
 				Tensor->add_dims(Shape[Idx]);
 			}
 
-			checkf(DataType != EMLTensorDataType::Char, TEXT("Char tensors not supported yet!"));
+			checkf(DataType != ENNETensorDataType::Char, TEXT("Char tensors not supported yet!"));
 			// raw_data is not supported for strings, when implementing those one will need to use string_data from TensorProto
 			std::string* raw_data = Tensor->mutable_raw_data();
 			raw_data->assign((const char*)Data, DataSize);
@@ -260,7 +260,7 @@ public:
 
 private:
 
-	bool SetValue(onnx::ValueInfoProto* Value, const FString& Name, EMLTensorDataType DataType, const TArrayView<const int32>& InShape)
+	bool SetValue(onnx::ValueInfoProto* Value, const FString& Name, ENNETensorDataType DataType, const TArrayView<const int32>& InShape)
 	{
 		onnx::TypeProto*		Type = Value->mutable_type();
 		onnx::TypeProto_Tensor* TensorType = Type->mutable_tensor_type();
@@ -279,27 +279,27 @@ private:
 		return true;
 	}
 
-	onnx::TensorProto_DataType ToTensorProtoDataType(EMLTensorDataType DataType)
+	onnx::TensorProto_DataType ToTensorProtoDataType(ENNETensorDataType DataType)
 	{
 		switch (DataType)
 		{
-			case EMLTensorDataType::None: return onnx::TensorProto_DataType_UNDEFINED;
-			case EMLTensorDataType::Float: return onnx::TensorProto_DataType_FLOAT;
-			case EMLTensorDataType::UInt8: return onnx::TensorProto_DataType_UINT8;
-			case EMLTensorDataType::Int8: return onnx::TensorProto_DataType_INT8;
-			case EMLTensorDataType::UInt16: return onnx::TensorProto_DataType_UINT16;
-			case EMLTensorDataType::Int16: return onnx::TensorProto_DataType_INT16;
-			case EMLTensorDataType::Int32: return onnx::TensorProto_DataType_INT32;
-			case EMLTensorDataType::Int64: return onnx::TensorProto_DataType_INT64;
-			//case EMLTensorDataType::String: return onnx::TensorProto_DataType_STRING;
-			case EMLTensorDataType::Boolean: return onnx::TensorProto_DataType_BOOL;
-			case EMLTensorDataType::Half: return onnx::TensorProto_DataType_FLOAT16;
-			case EMLTensorDataType::Double: return onnx::TensorProto_DataType_DOUBLE;
-			case EMLTensorDataType::UInt32: return onnx::TensorProto_DataType_UINT32;
-			case EMLTensorDataType::UInt64: return onnx::TensorProto_DataType_UINT64;
-			case EMLTensorDataType::Complex64: return onnx::TensorProto_DataType_COMPLEX64;
-			case EMLTensorDataType::Complex128: return onnx::TensorProto_DataType_COMPLEX128;
-			case EMLTensorDataType::BFloat16: return onnx::TensorProto_DataType_BFLOAT16;
+			case ENNETensorDataType::None: return onnx::TensorProto_DataType_UNDEFINED;
+			case ENNETensorDataType::Float: return onnx::TensorProto_DataType_FLOAT;
+			case ENNETensorDataType::UInt8: return onnx::TensorProto_DataType_UINT8;
+			case ENNETensorDataType::Int8: return onnx::TensorProto_DataType_INT8;
+			case ENNETensorDataType::UInt16: return onnx::TensorProto_DataType_UINT16;
+			case ENNETensorDataType::Int16: return onnx::TensorProto_DataType_INT16;
+			case ENNETensorDataType::Int32: return onnx::TensorProto_DataType_INT32;
+			case ENNETensorDataType::Int64: return onnx::TensorProto_DataType_INT64;
+			//case ENNETensorDataType::String: return onnx::TensorProto_DataType_STRING;
+			case ENNETensorDataType::Boolean: return onnx::TensorProto_DataType_BOOL;
+			case ENNETensorDataType::Half: return onnx::TensorProto_DataType_FLOAT16;
+			case ENNETensorDataType::Double: return onnx::TensorProto_DataType_DOUBLE;
+			case ENNETensorDataType::UInt32: return onnx::TensorProto_DataType_UINT32;
+			case ENNETensorDataType::UInt64: return onnx::TensorProto_DataType_UINT64;
+			case ENNETensorDataType::Complex64: return onnx::TensorProto_DataType_COMPLEX64;
+			case ENNETensorDataType::Complex128: return onnx::TensorProto_DataType_COMPLEX128;
+			case ENNETensorDataType::BFloat16: return onnx::TensorProto_DataType_BFLOAT16;
 			default: return onnx::TensorProto_DataType_UNDEFINED;
 		}
 	}
@@ -313,7 +313,7 @@ void BuildShapeForModel(bool ConvertToVariadicShape, const FTensorShape& InShape
 	OutShape.Empty();
 	for (int32 Idx = 0; Idx < InShape.Rank(); ++Idx)
 	{
-		int32 Dim = static_cast<int32>(InShape.Data[Idx]);
+		int32 Dim = static_cast<int32>(InShape.GetData()[Idx]);
 		if (ConvertToVariadicShape)
 		{
 			Dim = -1;

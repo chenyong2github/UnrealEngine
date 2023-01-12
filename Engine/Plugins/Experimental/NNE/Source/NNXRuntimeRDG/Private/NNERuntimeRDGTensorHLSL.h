@@ -3,7 +3,7 @@
 #pragma once
 
 #include "NNXRuntimeRDG.h"
-#include "NNXTypes.h"
+#include "NNECoreTypes.h"
 #include "RHIGPUReadback.h"
 
 using FCpuBufferRef = void*;
@@ -33,13 +33,13 @@ public:
 		this->PreparedData = TensorRDG.GetPreparedData<uint8>();//This copy the data, we should find another way
 	}
 	
-	FTensorHLSL(const FString& Name, EMLTensorDataType DataType, const NNX::FTensorShape& Shape)
+	FTensorHLSL(const FString& Name, ENNETensorDataType DataType, const NNX::FTensorShape& Shape)
 	{
 		this->Name = Name;
 		this->DataType = DataType;
 		this->Shape = Shape;
 		Volume = Shape.Volume();
-		DataSize = (uint64)NNX::GetTensorDataTypeSizeInBytes(DataType) * Volume;
+		DataSize = (uint64)UE::NNECore::GetTensorDataTypeSizeInBytes(DataType) * Volume;
 	}
 
 	bool HasUploadBuffer() const { return UploadBuffer != FCpuBufferRef{}; }

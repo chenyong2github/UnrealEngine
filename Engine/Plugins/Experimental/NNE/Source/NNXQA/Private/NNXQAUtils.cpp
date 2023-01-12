@@ -13,22 +13,22 @@ namespace NNX
 namespace Test 
 {
 	static void FillTensors(
-		TConstArrayView<FTensor> TensorsFromTestSetup,
-		TConstArrayView<FTensorDesc> TensorDescsFromModel,
-		TArray<FTensor>& OutTensors)
+		TConstArrayView<UE::NNECore::Internal::FTensor> TensorsFromTestSetup,
+		TConstArrayView<UE::NNECore::FTensorDesc> TensorDescsFromModel,
+		TArray<UE::NNECore::Internal::FTensor>& OutTensors)
 	{
 		OutTensors = TensorsFromTestSetup;
 		if (OutTensors.IsEmpty())
 		{
 			for (const FTensorDesc& SymbolicTensorDesc : TensorDescsFromModel)
 			{
-				FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+				UE::NNECore::Internal::FTensor TensorDesc = UE::NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
 				OutTensors.Emplace(TensorDesc);
 			}
 		}
 	}
 	
-	ElementWiseCosTensorInitializer::ElementWiseCosTensorInitializer(EMLTensorDataType InDataType, uint32 InTensorIndex)
+	ElementWiseCosTensorInitializer::ElementWiseCosTensorInitializer(ENNETensorDataType InDataType, uint32 InTensorIndex)
 	: DataType(InDataType), TensorIndex(InTensorIndex)
 	{
 	}
@@ -39,37 +39,37 @@ namespace Test
 		switch (DataType)
 		{
 
-		case EMLTensorDataType::Boolean:
+		case ENNETensorDataType::Boolean:
 			return (ElementIndex + IndexOffsetBetweenTensor * TensorIndex) % 2;
-		case EMLTensorDataType::Char:
-		case EMLTensorDataType::Int8:
-		case EMLTensorDataType::Int16:
-		case EMLTensorDataType::Int32:
-		case EMLTensorDataType::Int64:
+		case ENNETensorDataType::Char:
+		case ENNETensorDataType::Int8:
+		case ENNETensorDataType::Int16:
+		case ENNETensorDataType::Int32:
+		case ENNETensorDataType::Int64:
 			return 10.0f * FMath::Cos((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex));
-		case EMLTensorDataType::UInt8:
-		case EMLTensorDataType::UInt16:
-		case EMLTensorDataType::UInt32:
-		case EMLTensorDataType::UInt64:
+		case ENNETensorDataType::UInt8:
+		case ENNETensorDataType::UInt16:
+		case ENNETensorDataType::UInt32:
+		case ENNETensorDataType::UInt64:
 			return 10.0f * FMath::Abs(FMath::Cos((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex)));
 		default:
-			//case EMLTensorDataType::None:
-			//case EMLTensorDataType::Half:
-			//case EMLTensorDataType::Double:
-			//case EMLTensorDataType::Float:
-			//case EMLTensorDataType::Complex64:
-			//case EMLTensorDataType::Complex128:
-			//case EMLTensorDataType::BFloat16:
+			//case ENNETensorDataType::None:
+			//case ENNETensorDataType::Half:
+			//case ENNETensorDataType::Double:
+			//case ENNETensorDataType::Float:
+			//case ENNETensorDataType::Complex64:
+			//case ENNETensorDataType::Complex128:
+			//case ENNETensorDataType::BFloat16:
 			return FMath::Cos((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex));
 		}
 	};
 
-	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, std::function<float(uint32)> ElementInitializer)
+	TArray<char> GenerateTensorDataForTest(const UE::NNECore::Internal::FTensor& Tensor, std::function<float(uint32)> ElementInitializer)
 	{
 		const uint32 NumberOfElements = Tensor.GetVolume();
 		const int32 ElementByteSize = Tensor.GetElemByteSize();
 		const uint64 BufferSize = Tensor.GetDataSize();
-		const EMLTensorDataType DataType = Tensor.GetDataType();
+		const ENNETensorDataType DataType = Tensor.GetDataType();
 		TArray<char> Buffer;
 			
 		Buffer.SetNum(BufferSize);
@@ -84,19 +84,19 @@ namespace Test
 			const char BoolData = FloatData != 0.0f ? 1 : 0;
 			switch (DataType)
 			{
-			case EMLTensorDataType::Float:
+			case ENNETensorDataType::Float:
 				check(sizeof(FloatData) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &FloatData, ElementByteSize); break;
-			case EMLTensorDataType::Int32:
+			case ENNETensorDataType::Int32:
 				check(sizeof(IntData) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &IntData, ElementByteSize); break;
-			case EMLTensorDataType::Int64:
+			case ENNETensorDataType::Int64:
 				check(sizeof(Int64Data) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &Int64Data, ElementByteSize); break;
-			case EMLTensorDataType::UInt32:
+			case ENNETensorDataType::UInt32:
 				check(sizeof(UIntData) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &UIntData, ElementByteSize); break;
-			case EMLTensorDataType::Boolean:
+			case ENNETensorDataType::Boolean:
 				check(sizeof(BoolData) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &BoolData, ElementByteSize); break;
 			default:
@@ -108,7 +108,7 @@ namespace Test
 		return Buffer;
 	}
 
-	static void FillInputTensorBindings(TConstArrayView<FTensor> Tensors, TConstArrayView<FTests::FTensorData> TensorsData, 
+	static void FillInputTensorBindings(TConstArrayView<UE::NNECore::Internal::FTensor> Tensors, TConstArrayView<FTests::FTensorData> TensorsData,
 		TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings)
 	{
 		OutBindings.Empty();
@@ -117,7 +117,7 @@ namespace Test
 
 		for (int Index = 0; Index < Tensors.Num(); ++Index)
 		{
-			const FTensor& Tensor = Tensors[Index];
+			const UE::NNECore::Internal::FTensor& Tensor = Tensors[Index];
 			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
 			if (TensorsData.Num() == 0 || TensorsData[Index].Num() == 0)
 			{
@@ -133,7 +133,7 @@ namespace Test
 		}
 	}
 
-	static void FillOutputTensorBindings(TConstArrayView<FTensor> Tensors, TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings)
+	static void FillOutputTensorBindings(TConstArrayView<UE::NNECore::Internal::FTensor> Tensors, TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings)
 	{
 		OutBindings.Empty();
 		OutMemBuffers.Empty();
@@ -163,21 +163,21 @@ namespace Test
 	template FString ShapeToString<int32>(TConstArrayView<int32> Shape);
 	template FString ShapeToString<uint32>(TConstArrayView<uint32> Shape);
 
-	FString TensorToString(const FTensor& desc)
+	FString TensorToString(const UE::NNECore::Internal::FTensor& desc)
 	{
-		TArrayView<const uint32> Shape(desc.GetShape().Data);
+		TArrayView<const uint32> Shape(desc.GetShape().GetData());
 
 		FString TensorDesc;
 		TensorDesc.Reserve(50);
 		TensorDesc += FString::Printf(TEXT("Name: %s, Shape: "), *desc.GetName());
 		TensorDesc += ShapeToString(Shape);
-		const FString& DataTypeName = StaticEnum<EMLTensorDataType>()->GetNameStringByValue(static_cast<int64>(desc.GetDataType()));
+		const FString& DataTypeName = StaticEnum<ENNETensorDataType>()->GetNameStringByValue(static_cast<int64>(desc.GetDataType()));
 		TensorDesc += FString::Printf(TEXT(" DataType: %s"), *DataTypeName);
 
 		return TensorDesc;
 	}
 
-	FString TensorToString(const FTensor& TensorDesc, TConstArrayView<char> TensorData)
+	FString TensorToString(const UE::NNECore::Internal::FTensor& TensorDesc, TConstArrayView<char> TensorData)
 	{
 		FString TensorLog;
 		TensorLog.Reserve(50);
@@ -196,13 +196,13 @@ namespace Test
 
 			switch (TensorDesc.GetDataType())
 			{
-				case EMLTensorDataType::Float:
+				case ENNETensorDataType::Float:
 					TensorLog += FString::Printf(TEXT("%0.2f"), *(float*)Data); break;
-				case EMLTensorDataType::Int32:
+				case ENNETensorDataType::Int32:
 					TensorLog += FString::Printf(TEXT("%d"), *(int32*)Data); break;
-				case EMLTensorDataType::UInt32:
+				case ENNETensorDataType::UInt32:
 					TensorLog += FString::Printf(TEXT("%u"), *(uint32*)Data); break;
-				case EMLTensorDataType::Boolean:
+				case ENNETensorDataType::Boolean:
 					check(ElementByteSize == 1);
 					TensorLog += FString::Printf(TEXT("%s"), *(bool*)Data ? "true" : "false"); break;
 				default:
@@ -218,8 +218,8 @@ namespace Test
 	}
 
 	template<typename T> bool CompareTensorData(
-		const FTensor& RefTensorDesc,   const TArray<char>& RefRawBuffer,
-		const FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
+		const UE::NNECore::Internal::FTensor& RefTensorDesc,   const TArray<char>& RefRawBuffer,
+		const UE::NNECore::Internal::FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
 		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
 	{
 		const T* RefBuffer = (T*)RefRawBuffer.GetData();
@@ -320,32 +320,32 @@ namespace Test
 	}
 
 	bool VerifyTensorResult(
-		const FTensor& RefTensor, const TArray<char>& RefRawBuffer,
-		const FTensor& OtherTensor, const TArray<char>& OtherRawBuffer,
+		const UE::NNECore::Internal::FTensor& RefTensor, const TArray<char>& RefRawBuffer,
+		const UE::NNECore::Internal::FTensor& OtherTensor, const TArray<char>& OtherRawBuffer,
 		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
 	{
 		if (RefTensor.GetShape() != OtherTensor.GetShape())
 		{
-			TArrayView<const uint32> RefShape(RefTensor.GetShape().Data);
-			TArrayView<const uint32> OtherShape(OtherTensor.GetShape().Data);
+			TArrayView<const uint32> RefShape(RefTensor.GetShape().GetData());
+			TArrayView<const uint32> OtherShape(OtherTensor.GetShape().GetData());
 			UE_LOG(LogNNX, Error, TEXT("Tensor shape do not match.\nExpected: %s\nGot:      %s"), *ShapeToString(RefShape), *ShapeToString(OtherShape));
 			return false;
 		}
 
-		if (RefTensor.GetDataType() == EMLTensorDataType::Float)
+		if (RefTensor.GetDataType() == ENNETensorDataType::Float)
 		{
 			return CompareTensorData<float>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
-		else if (RefTensor.GetDataType() == EMLTensorDataType::Boolean)
+		else if (RefTensor.GetDataType() == ENNETensorDataType::Boolean)
 		{
 			check(RefTensor.GetElemByteSize() == 1);
 			return CompareTensorData<bool>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
-		else if (RefTensor.GetDataType() == EMLTensorDataType::Int32)
+		else if (RefTensor.GetDataType() == ENNETensorDataType::Int32)
 		{
 			return CompareTensorData<int32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
-		else if (RefTensor.GetDataType() == EMLTensorDataType::UInt32)
+		else if (RefTensor.GetDataType() == ENNETensorDataType::UInt32)
 		{
 			return CompareTensorData<uint32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
@@ -359,7 +359,7 @@ namespace Test
 	}
 
 	static bool RunTestInference(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup, 
-		IRuntime* Runtime, TArray<FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
+		IRuntime* Runtime, TArray<UE::NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
 
@@ -372,7 +372,7 @@ namespace Test
 		}
 
 		// If test does not ask for specific input/output, fill with model default converting variable dim to 1 if any.
-		TArray<FTensor> InputTensors;
+		TArray<UE::NNECore::Internal::FTensor> InputTensors;
 		
 		FillTensors(TestSetup.Inputs, InferenceModel->GetInputTensorDescs(), InputTensors);
 		FillTensors(TestSetup.Outputs, InferenceModel->GetOutputTensorDescs(), OutOutputTensors);
@@ -402,8 +402,8 @@ namespace Test
 		}
 		#endif //UE_BUILD_DEBUG
 
-		TArray<FTensorShape> InputShapes;
-		for (const FTensor& Tensor : InputTensors)
+		TArray<UE::NNECore::FTensorShape> InputShapes;
+		for (const UE::NNECore::Internal::FTensor& Tensor : InputTensors)
 		{
 			InputShapes.Emplace(Tensor.GetShape());
 		}
@@ -423,7 +423,7 @@ namespace Test
 		}
 
 		// Verify output shapes are as expected
-		TConstArrayView<FTensorShape> OutputShapes = InferenceModel->GetOutputTensorShapes();
+		TConstArrayView<UE::NNECore::FTensorShape> OutputShapes = InferenceModel->GetOutputTensorShapes();
 		if (OutputShapes.Num() != OutOutputTensors.Num())
 		{
 			UE_LOG(LogNNX, Error, TEXT("Expected %d output tensors, got %d."), OutOutputTensors.Num(), OutputShapes.Num());
@@ -431,12 +431,12 @@ namespace Test
 		}
 		for (int i = 0; i < OutOutputTensors.Num(); ++i)
 		{
-			const FTensorShape& RefTensorShape = OutOutputTensors[i].GetShape();
-			const FTensorShape& OtherTensorShape = OutputShapes[i];
+			const UE::NNECore::FTensorShape& RefTensorShape = OutOutputTensors[i].GetShape();
+			const UE::NNECore::FTensorShape& OtherTensorShape = OutputShapes[i];
 			if (RefTensorShape != OtherTensorShape)
 			{
-				TArrayView<const uint32> RefShape(RefTensorShape.Data);
-				TArrayView<const uint32> OtherShape(OtherTensorShape.Data);
+				TArrayView<const uint32> RefShape(RefTensorShape.GetData());
+				TArrayView<const uint32> OtherShape(OtherTensorShape.GetData());
 				UE_LOG(LogNNX, Error, TEXT("Output shape do not match at index %d.\nExpected: %s\nGot:      %s"), i, *ShapeToString(RefShape), *ShapeToString(OtherShape));
 				return false;
 			}
@@ -446,10 +446,10 @@ namespace Test
 	}
 
 	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, IRuntime* Runtime, const FNNIModelRaw& ONNXModel, 
-		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<FTensor> RefOutputTensors)
+		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<UE::NNECore::Internal::FTensor> RefOutputTensors)
 	{
 		TArray<TArray<char>> OutputMemBuffers;
-		TArray<FTensor> OutputTensors;
+		TArray<UE::NNECore::Internal::FTensor> OutputTensors;
 
 		const FString& RuntimeName = Runtime->GetRuntimeName();
 		const float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
@@ -501,7 +501,7 @@ namespace Test
 		const float AbsoluteRefErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RefName);
 		const float RelativeRefErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RefName);
 		TArray<TArray<char>> RefOutputMemBuffers;
-		TArray<FTensor> RefOutputTensors;
+		TArray<UE::NNECore::Internal::FTensor> RefOutputTensors;
 		bool bAllTestsSucceeded = true;
 
 		if (!RunTestInference(ONNXModel, TestSetup, RefRuntime, RefOutputTensors, RefOutputMemBuffers))

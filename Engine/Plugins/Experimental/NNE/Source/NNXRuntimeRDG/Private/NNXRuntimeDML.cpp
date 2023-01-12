@@ -169,7 +169,7 @@ namespace DmlUtil
 		TArray<uint32, TInlineAllocator<FTensorShape::MaxRank>>		Strides;
 	};
 
-	void SetTensorStrides(FTensorDesc& TensorDesc, const FTensor& InputDesc)
+	void SetTensorStrides(FTensorDesc& TensorDesc, const UE::NNECore::Internal::FTensor& InputDesc)
 	{
 		uint32 CurrStride = 1;
 
@@ -178,11 +178,11 @@ namespace DmlUtil
 		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
 		{
 			TensorDesc.Strides[i] = CurrStride;
-			CurrStride *= InputDesc.GetShape().Data[i];
+			CurrStride *= InputDesc.GetShape().GetData()[i];
 		}
 	}
 
-	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const FTensor& InputDesc, const FTensor& TargetDesc)
+	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const UE::NNECore::Internal::FTensor& InputDesc, const UE::NNECore::Internal::FTensor& TargetDesc)
 	{
 		static_assert(FTensorShape::MaxRank <= 8);
 		
@@ -196,23 +196,23 @@ namespace DmlUtil
 		
 		for (int32 i = 0; i < (int32) TargetDimension; ++i)
 		{
-			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.GetShape().Data[i - DimensionOffset];
+			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.GetShape().GetData()[i - DimensionOffset];
 		}
 
 		uint32 CurrStride = 1;
 
 		for (int32 i = TargetDimension - 1; i >= 0; --i)
 		{
-			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.GetShape().Data[i];
+			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.GetShape().GetData()[i];
 
 			TensorDesc.Strides[i] = bBroadcast ? 0 : CurrStride;
 			CurrStride *= TensorDesc.Sizes[i];
 
-			TensorDesc.Sizes[i] = TargetDesc.GetShape().Data[i];
+			TensorDesc.Sizes[i] = TargetDesc.GetShape().GetData()[i];
 		}
 	}
 
-	inline bool IsSameShape(const FTensor& Left, const FTensor& Right)
+	inline bool IsSameShape(const UE::NNECore::Internal::FTensor& Left, const UE::NNECore::Internal::FTensor& Right)
 	{
 		if (Left.GetShape().Rank() != Right.GetShape().Rank())
 		{
@@ -221,7 +221,7 @@ namespace DmlUtil
 		
 		for (int32 Idx = 0; Idx < Left.GetShape().Rank(); ++Idx)
 		{
-			if (Left.GetShape().Data[Idx] != Right.GetShape().Data[Idx])
+			if (Left.GetShape().GetData()[Idx] != Right.GetShape().GetData()[Idx])
 			{
 				return false;
 			}
@@ -230,41 +230,41 @@ namespace DmlUtil
 		return true;
 	}
 
-	DML_TENSOR_DATA_TYPE GetTensorDataType(EMLTensorDataType DataType)
+	DML_TENSOR_DATA_TYPE GetTensorDataType(ENNETensorDataType DataType)
 	{
 		switch (DataType)
 		{
-		case EMLTensorDataType::Double:
+		case ENNETensorDataType::Double:
 			return DML_TENSOR_DATA_TYPE_FLOAT64;
 
-		case EMLTensorDataType::Float:
+		case ENNETensorDataType::Float:
 			return DML_TENSOR_DATA_TYPE_FLOAT32;
 
-		case EMLTensorDataType::Half:
+		case ENNETensorDataType::Half:
 			return DML_TENSOR_DATA_TYPE_FLOAT16;
 
-		case EMLTensorDataType::UInt64:
+		case ENNETensorDataType::UInt64:
 			return DML_TENSOR_DATA_TYPE_UINT64;
 
-		case EMLTensorDataType::UInt32:
+		case ENNETensorDataType::UInt32:
 			return DML_TENSOR_DATA_TYPE_UINT32;
 
-		case EMLTensorDataType::UInt16:
+		case ENNETensorDataType::UInt16:
 			return DML_TENSOR_DATA_TYPE_UINT16;
 
-		case EMLTensorDataType::UInt8:
+		case ENNETensorDataType::UInt8:
 			return DML_TENSOR_DATA_TYPE_UINT8;
 
-		case EMLTensorDataType::Int64:
+		case ENNETensorDataType::Int64:
 			return DML_TENSOR_DATA_TYPE_INT64;
 
-		case EMLTensorDataType::Int32:
+		case ENNETensorDataType::Int32:
 			return DML_TENSOR_DATA_TYPE_INT32;
 
-		case EMLTensorDataType::Int16:
+		case ENNETensorDataType::Int16:
 			return DML_TENSOR_DATA_TYPE_INT16;
 
-		case EMLTensorDataType::Int8:
+		case ENNETensorDataType::Int8:
 			return DML_TENSOR_DATA_TYPE_INT8;
 
 		default:
@@ -272,7 +272,7 @@ namespace DmlUtil
 		}
 	}
 
-	inline uint64 CalculateBufferSize(const FTensorDesc& DmlTensor, const FTensor& Desc)
+	inline uint64 CalculateBufferSize(const FTensorDesc& DmlTensor, const UE::NNECore::Internal::FTensor& Desc)
 	{
 		uint64 ElemSizeInBytes = Desc.GetElemByteSize();
 		
@@ -320,7 +320,7 @@ public:
 
 	virtual ~FMLOperatorDml() = default;
 
-	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
+	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const UE::NNECore::Internal::FTensor> InputTensors, TArrayView<const UE::NNECore::Internal::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
 
 	IDMLOperator* GetOperator()
 	{
@@ -329,7 +329,7 @@ public:
 
 protected:
 
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const FTensor& TensorDesc)
+	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const UE::NNECore::Internal::FTensor& TensorDesc)
 	{
 		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.GetDataType());
 
@@ -341,7 +341,7 @@ protected:
 			return false;
 		}
 
-		DmlTensorDesc.Sizes = TensorDesc.GetShape().Data;
+		DmlTensorDesc.Sizes = TensorDesc.GetShape().GetData();
 		// TODO: Support tensor padding using strides defined in FMLTensorDesc
 		//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
 		
@@ -360,7 +360,7 @@ protected:
 		return true;
 	}
 
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const FTensor& TensorDesc, const FTensor& BroadcastDesc)
+	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const UE::NNECore::Internal::FTensor& TensorDesc, const UE::NNECore::Internal::FTensor& BroadcastDesc)
 	{
 		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.GetDataType());
 
@@ -374,7 +374,7 @@ protected:
 
 		if (DmlUtil::IsSameShape(TensorDesc, BroadcastDesc))
 		{
-			DmlTensorDesc.Sizes = TensorDesc.GetShape().Data;
+			DmlTensorDesc.Sizes = TensorDesc.GetShape().GetData();
 			DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc);
 		}
 		else if (TensorDesc.GetShape().Rank() > BroadcastDesc.GetShape().Rank())
@@ -479,14 +479,14 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const UE::NNECore::Internal::FTensor> InputTensors, TArrayView<const UE::NNECore::Internal::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		Num = InputTensors[0].GetVolume();
 
 		DevCtx = InDevCtx;
 
-		const FTensor& InputTensorDesc = InputTensors[0];
-		const FTensor& OutputTensorDesc = OutputTensors[0];
+		const UE::NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
+		const UE::NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
 
 		Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
 		Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
@@ -609,16 +609,16 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const UE::NNECore::Internal::FTensor> InputTensors, TArrayView<const UE::NNECore::Internal::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
 		Num = OutputTensors[0].GetVolume();
 
 		DevCtx = InDevCtx;
 
-		const FTensor& InputATensorDesc = InputTensors[0];
-		const FTensor& InputBTensorDesc = InputTensors[1];
-		const FTensor& OutputTensorDesc = OutputTensors[0];
+		const UE::NNECore::Internal::FTensor& InputATensorDesc = InputTensors[0];
+		const UE::NNECore::Internal::FTensor& InputBTensorDesc = InputTensors[1];
+		const UE::NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
 
 		// Initialize tensor descriptors
 		DmlUtil::FTensorDesc	DmlInputATensorDesc{};
@@ -695,7 +695,7 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const UE::NNECore::Internal::FTensor> InputTensors, TArrayView<const UE::NNECore::Internal::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// Setup attributes
 		float Alpha = 1.0f;
@@ -710,9 +710,9 @@ public:
 		
 		DevCtx = InDevCtx;
 
-		const FTensor& InputATensorDesc = InputTensors[0];
-		const FTensor& InputBTensorDesc = InputTensors[1];
-		const FTensor& OutputTensorDesc = OutputTensors[0];
+		const UE::NNECore::Internal::FTensor& InputATensorDesc = InputTensors[0];
+		const UE::NNECore::Internal::FTensor& InputBTensorDesc = InputTensors[1];
+		const UE::NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
 
 		// Initialize tensor descriptors
 		DmlUtil::FTensorDesc	DmlInputATensorDesc{};
@@ -734,7 +734,7 @@ public:
 
 		if (InputTensors.Num() > 2)
 		{
-			const FTensor& InputCTensorDesc = InputTensors[2];
+			const UE::NNECore::Internal::FTensor& InputCTensorDesc = InputTensors[2];
 
 			if (!InitDmlTensorDesc(DmlInputCTensorDesc, InputCTensorDesc, OutputTensorDesc))
 			{
@@ -795,7 +795,7 @@ private:
 
 	bool InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize);
 
-	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const FTensor> InputTensorDesc, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
+	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const UE::NNECore::Internal::FTensor> InputTensorDesc, TArrayView<const UE::NNECore::Internal::FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
 		
 	FBufferRHIRef CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName);
 	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
@@ -1370,7 +1370,7 @@ public:
 
 	struct FGraphDesc
 	{
-		TConstArrayView<FTensor>	AllTensors;
+		TConstArrayView<UE::NNECore::Internal::FTensor>	AllTensors;
 		TConstArrayView<int32>		InputIndices;
 		TConstArrayView<int32>		OutputIndices;
 		TConstArrayView<int32>		WeightIndices;
@@ -1812,12 +1812,12 @@ bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContext
 
 	// DirectML requires all tensors to be concrete
 	// TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-	TArray<FTensor>	Tensors;
+	TArray<UE::NNECore::Internal::FTensor>	Tensors;
 
 	Tensors.Reset(AllSymbolicTensorDescs.Num());
-	for (const FTensorDesc& TensorDesc : AllSymbolicTensorDescs)
+	for (const UE::NNECore::FTensorDesc& TensorDesc : AllSymbolicTensorDescs)
 	{
-		Tensors.Emplace(FTensor::MakeFromSymbolicDesc(TensorDesc));
+		Tensors.Emplace(UE::NNECore::Internal::FTensor::MakeFromSymbolicDesc(TensorDesc));
 	}
 
 	FGraphBuilder				DmlGraphBuilder;
@@ -1841,8 +1841,8 @@ bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContext
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
 		FGraphBuilder::FOpDesc		OpDesc;
-		TArray<FTensor>				OpInputTensors;
-		TArray<FTensor>				OpOutputTensors;
+		TArray<UE::NNECore::Internal::FTensor>				OpInputTensors;
+		TArray<UE::NNECore::Internal::FTensor>				OpOutputTensors;
 		UE::NNECore::FAttributeMap	AttributeMap;
 
 		OpDesc.InputStart = OpInputIndices.Num();
@@ -1862,7 +1862,7 @@ bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContext
 			{
 				FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
 				//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-				OpInputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+				OpInputTensors.Emplace(UE::NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 			}
 
 			OpInputIndices.Emplace(InputTensorIndex);
@@ -1872,7 +1872,7 @@ bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContext
 		{
 			FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
 			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-			OpOutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			OpOutputTensors.Emplace(UE::NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 			OpOutputIndices.Emplace(OutputTensorIndex);
 		}
 
@@ -2191,7 +2191,7 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 //
 // Create operator
 //
-FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const FTensor> InputTensorDescs, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes)
+FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const UE::NNECore::Internal::FTensor> InputTensorDescs, TArrayView<const UE::NNECore::Internal::FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes)
 {
 	FMLOperatorRegistryDml::OperatorCreateFunc CreateFn = FMLOperatorRegistryDml::Get()->OpFind(OpName);
 
@@ -2268,7 +2268,7 @@ int FMLInferenceModelDml::PrepareTensorShapesAndData()
 {
 	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
-		if (!SymbolicTensorDesc.IsConcrete())
+		if (!SymbolicTensorDesc.GetShape().IsConcrete())
 		{
 			UE_LOG(LogNNX, Warning, TEXT("DML engine does not support model with variable shapes yet."));
 			return -1;
