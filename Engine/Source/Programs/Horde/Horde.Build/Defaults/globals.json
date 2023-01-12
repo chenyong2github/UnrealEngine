@@ -8,7 +8,7 @@
 	"compute": [
 		{
 			"id": "default",
-			"namespaceid": "horde.compute"
+			"namespaceId": "horde.compute"
 		}
 	],
 	"storage": {
