@@ -31,6 +31,8 @@ UContextualAnimSceneActorComponent::UContextualAnimSceneActorComponent(const FOb
 	PrimaryComponentTick.bCanEverTick = false;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(true);
+
+	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void UContextualAnimSceneActorComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
