@@ -104,6 +104,11 @@ public:
 	void DetectProbeCollisions(FReal Dt);
 
 	/**
+	 * Apply modifiers to particle pair midphases
+	 */
+	void ApplyMidPhaseModifier(const TArray<ISimCallbackObject*>& MidPhaseModifiers, FReal Dt);
+
+	/**
 	 * Apply modifiers to the constraints and specify which constraints should be disabled.
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
 	 * so you don't have to worry about constraint iterator/indices changing.

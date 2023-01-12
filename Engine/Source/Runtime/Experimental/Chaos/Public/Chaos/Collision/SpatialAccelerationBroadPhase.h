@@ -372,11 +372,11 @@ namespace Chaos
 				CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_AssignMidPhases);
 
 				// Find or assign a midphase to each overlapping particle pair
-				const auto& AssignMidphasesWorker = [this, Dt](const int32 ContextIndex)
+				const auto& AssignMidPhasesWorker = [this, Dt](const int32 ContextIndex)
 				{
-					AssignMidphases(BroadphaseContexts[ContextIndex]);
+					AssignMidPhases(BroadphaseContexts[ContextIndex]);
 				};
-				PhysicsParallelFor(NumActiveBroadphaseContexts, AssignMidphasesWorker, bDisableCollisionParallelFor);
+				PhysicsParallelFor(NumActiveBroadphaseContexts, AssignMidPhasesWorker, bDisableCollisionParallelFor);
 
 				// Merge all the midphases from each worker into the primary allocator
 				Allocator->ProcessNewMidPhases();
@@ -389,11 +389,11 @@ namespace Chaos
 		void ProduceCollisions(FReal Dt)
 		{
 			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_MidPhase);
-			const auto& ProcessMidphasesWorker = [this, Dt](const int32 ContextIndex)
+			const auto& ProcessMidPhasesWorker = [this, Dt](const int32 ContextIndex)
 			{
-				ProcessMidphases(Dt, BroadphaseContexts[ContextIndex]);
+				ProcessMidPhases(Dt, BroadphaseContexts[ContextIndex]);
 			};
-			PhysicsParallelFor(NumActiveBroadphaseContexts, ProcessMidphasesWorker, bDisableCollisionParallelFor);
+			PhysicsParallelFor(NumActiveBroadphaseContexts, ProcessMidPhasesWorker, bDisableCollisionParallelFor);
 		}
 	
 		
@@ -580,7 +580,7 @@ namespace Chaos
 
 		// Find or assign midphases to each of the overlapping particle pairs
 		// @todo(chaos): optimize
-		void AssignMidphases(Private::FBroadPhaseContext& BroadphaseContext)
+		void AssignMidPhases(Private::FBroadPhaseContext& BroadphaseContext)
 		{
 			Private::FCollisionContextAllocator* ContextAllocator = BroadphaseContext.CollisionContext.GetAllocator();
 
@@ -590,12 +590,17 @@ namespace Chaos
 			{
 				Private::FBroadPhaseOverlap& Overlap = BroadphaseContext.Overlaps[OverlapIndex];
 
-				BroadphaseContext.MidPhases[OverlapIndex] = ContextAllocator->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[Overlap.SearchParticleIndex], BroadphaseContext.CollisionContext);
+				// Get the midphase for this pair
+				FParticlePairMidPhase* MidPhase = ContextAllocator->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[Overlap.SearchParticleIndex], BroadphaseContext.CollisionContext);
+				BroadphaseContext.MidPhases[OverlapIndex] = MidPhase;
+
+				// Reset any modifications that may have occurred to this midphase on the previous frame
+				MidPhase->ResetModifications();
 			}
 		}
 
 		// Process all the midphases: generate constraints and execute the narrowphase
-		void ProcessMidphases(const FReal Dt, const Private::FBroadPhaseContext& BroadphaseContext)
+		void ProcessMidPhases(const FReal Dt, const Private::FBroadPhaseContext& BroadphaseContext)
 		{
 			// Prefetch initial set of MidPhases
 			const int32 PrefetchLookahead = 4;

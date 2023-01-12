@@ -372,6 +372,11 @@ namespace Chaos
 		void Reset();
 
 		/**
+		 *
+		 */
+		void ResetModifications();
+
+		/**
 		 * @brief Create collision constraints for all colliding shape pairs
 		*/
 		void GenerateCollisions(
@@ -433,6 +438,14 @@ namespace Chaos
 			}
 		}
 
+		/**
+		 *
+		 */
+		void SetCCDIsActive(bool bCCDIsActive)
+		{
+			Flags.bIsCCDActive = bCCDIsActive;
+		}
+
 	private:
 		/**
 		 * @brief Build the list of potentially colliding shape pairs.
@@ -466,7 +479,8 @@ namespace Chaos
 			FFlags() : Bits(0) {}
 			struct
 			{
-				uint32 bIsCCD : 1;
+				uint32 bIsCCD : 1;       // True if CCD is supported by either particle
+				uint32 bIsCCDActive : 1; // True if CCD is active for this midphase on this frame. Resets to bIsCCD each frame.
 				uint32 bIsInitialized : 1;
 				uint32 bIsSleeping : 1;
 			};

@@ -610,6 +610,7 @@ namespace Chaos
 	TUniquePtr<FPendingSpatialDataQueue> PendingSpatialOperations_External;
 
 	TArray<ISimCallbackObject*> SimCallbackObjects;
+	TArray<ISimCallbackObject*> MidPhaseModifiers;
 	TArray<ISimCallbackObject*> ContactModifiers;
 	TArray<ISimCallbackObject*> RegistrationWatchers;
 	TArray<ISimCallbackObject*> UnregistrationWatchers;

@@ -59,6 +59,18 @@ namespace Chaos
 		void RemoveMidPhase(FGeometryParticleHandle* InParticle, FParticlePairMidPhase* InMidPhase);
 
 		/**
+		 * @brief Get a midphase by its index
+		 */
+		inline FParticlePairMidPhase* GetMidPhase(const int32 InIndex)
+		{
+			if (MidPhases.IsValidIndex(InIndex))
+			{
+				return MidPhases[InIndex].Value;
+			}
+			return nullptr;
+		}
+
+		/**
 		 * @brief Find the mid phase with the matching key
 		 * @param InKey The internal key from a FCollisionParticlePairKey
 		 * @todo(chaos): we should use FCollisionParticlePairKey here

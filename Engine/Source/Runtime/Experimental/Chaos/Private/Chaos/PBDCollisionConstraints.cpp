@@ -4,6 +4,7 @@
 
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/ContactModification.h"
+#include "Chaos/MidPhaseModification.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionPruning.h"
@@ -328,6 +329,15 @@ namespace Chaos
 				}
 #endif
 			}
+		}
+	}
+
+	void FPBDCollisionConstraints::ApplyMidPhaseModifier(const TArray<ISimCallbackObject*>& MidPhaseModifiers, FReal Dt)
+	{
+		FMidPhaseModifierAccessor ModifierAccessor;
+		for(ISimCallbackObject* ModifierCallback : MidPhaseModifiers)
+		{
+			ModifierCallback->MidPhaseModification_Internal(ModifierAccessor);
 		}
 	}
 

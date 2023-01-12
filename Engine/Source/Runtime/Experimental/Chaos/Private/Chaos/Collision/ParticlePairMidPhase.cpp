@@ -847,6 +847,11 @@ namespace Chaos
 		Flags.bIsSleeping = false;
 	}
 
+	void FParticlePairMidPhase::ResetModifications()
+	{
+		Flags.bIsCCDActive = Flags.bIsCCD;
+	}
+
 	void FParticlePairMidPhase::Init(
 		FGeometryParticleHandle* InParticle0,
 		FGeometryParticleHandle* InParticle1,
@@ -859,7 +864,16 @@ namespace Chaos
 		Particle1 = InParticle1;
 		Key = InKey;
 
-		Flags.bIsCCD = Context.GetSettings().bAllowCCD && (FConstGenericParticleHandle(Particle0)->CCDEnabled() || FConstGenericParticleHandle(Particle1)->CCDEnabled());
+		// If CCD is allowed in the current context and for at least one of
+		// the particles involved, enable it for this midphase.
+		//
+		// bIsCCDActive is reset to bIsCCD each frame, but can be overridden
+		// by modifiers.
+		const bool bIsCCD = Context.GetSettings().bAllowCCD && (
+			FConstGenericParticleHandle(Particle0)->CCDEnabled() ||
+			FConstGenericParticleHandle(Particle1)->CCDEnabled());
+		Flags.bIsCCD = bIsCCD;
+		Flags.bIsCCDActive = bIsCCD;
 
 		BuildDetectors();
 
@@ -925,7 +939,11 @@ namespace Chaos
 
 	bool FParticlePairMidPhase::ShouldEnableCCD(const FReal Dt)
 	{
-		if (Flags.bIsCCD)
+		// bIsCCDActive is set to bIsCCD at the beginning of every frame, but may be
+		// overridden in midphase modification or potentially other systems which run
+		// in between mid and narrow phase. bIsCCDActive indicates the final
+		// overridden value so we use that here instead of bIsCCD.
+		if (Flags.bIsCCDActive)
 		{
 			FConstGenericParticleHandle ConstParticle0 = FConstGenericParticleHandle(Particle0);
 			FConstGenericParticleHandle ConstParticle1 = FConstGenericParticleHandle(Particle1);

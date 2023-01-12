@@ -10,6 +10,7 @@
 namespace Chaos
 {
 class FPhysicsSolverBase;
+class FMidPhaseModifierAccessor;
 class FCollisionContactModifier;
 class FSingleParticlePhysicsProxy;
 
@@ -21,11 +22,12 @@ namespace Utilities
 enum class ESimCallbackOptions : uint8
 {
 	Presimulate				= 1 << 0,
-	ContactModification		= 1 << 1,
-	ParticleRegister		= 1 << 2,
-	ParticleUnregister		= 1 << 3,
-	RunOnFrozenGameThread	= 1 << 4,
-	Rewind					= 1 << 5
+	MidPhaseModification	= 1 << 1,
+	ContactModification		= 1 << 2,
+	ParticleRegister		= 1 << 3,
+	ParticleUnregister		= 1 << 4,
+	RunOnFrozenGameThread	= 1 << 5,
+	Rewind					= 1 << 6
 };
 ENUM_CLASS_FLAGS(ESimCallbackOptions)
 
@@ -63,6 +65,11 @@ public:
 	void PreSimulate_Internal()
 	{
 		OnPreSimulate_Internal();
+	}
+
+	void MidPhaseModification_Internal(FMidPhaseModifierAccessor& Modifier)
+	{
+		OnMidPhaseModification_Internal(Modifier);
 	}
 
 	void ContactModification_Internal(FCollisionContactModifier& Modifier)
@@ -153,6 +160,16 @@ private:
 	* Called before simulation step
 	*/
 	virtual void OnPreSimulate_Internal() = 0;
+
+	/**
+	* Called once per simulation step. Allows user to modify midphase pairs
+	*
+	* NOTE: you must explicitly request midphase modification when registering the callback for this to be called
+	*/
+	virtual void OnMidPhaseModification_Internal(FMidPhaseModifierAccessor& Modifier)
+	{
+		check(false);
+	}
 
 	/**
 	* Called once per simulation step. Allows user to modify contacts
