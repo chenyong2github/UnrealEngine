@@ -36,6 +36,7 @@
 
 class FRHIComputeCommandList;
 class FRHICommandListImmediate;
+class FRHITextureReference;
 struct FClearValueBinding;
 struct FRHIResourceInfo;
 struct FGenerateMipsStruct;
@@ -2121,91 +2122,6 @@ private:
 	FRHITextureDesc TextureDesc;
 
 	FLastRenderTimeContainer LastRenderTime;
-};
-
-class RHI_API FRHITextureReference final : public FRHITexture
-{
-public:
-	explicit FRHITextureReference()
-		: FRHITexture(RRT_TextureReference)
-	{
-		check(DefaultTexture);
-		ReferencedTexture = DefaultTexture;
-	}
-
-	virtual class FRHITextureReference* GetTextureReference() override
-	{
-		return this;
-	}
-
-	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const override 
-	{ 
-		check(ReferencedTexture);
-		return ReferencedTexture->GetDefaultBindlessHandle();
-	}
-
-	virtual void* GetNativeResource() const override 
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetNativeResource();
-	}
-
-	virtual void* GetNativeShaderResourceView() const override
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetNativeShaderResourceView();
-	}
-
-	virtual void* GetTextureBaseRHI() override 
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetTextureBaseRHI();
-	}
-
-	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize) override
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetWriteMaskProperties(OutData, OutSize);
-	}
-
-#if ENABLE_RHI_VALIDATION
-	// Implement RHIValidation::FTextureResource::GetTrackerResource to use the tracker info
-	// for the referenced texture.
-	virtual RHIValidation::FResource* GetTrackerResource() final override
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetTrackerResource();
-	}
-#endif
-
-	inline FRHITexture* GetReferencedTexture() const
-	{
-		return ReferencedTexture.GetReference();
-	}
-
-	virtual const FRHITextureDesc& GetDesc() const override
-	{
-		check(ReferencedTexture);
-		return ReferencedTexture->GetDesc();
-	}
-
-private:
-	friend class FRHICommandListImmediate;
-	// Called only from FRHICommandListImmediate::UpdateTextureReference()
-	void SetReferencedTexture(FRHITexture* InTexture)
-	{
-		ReferencedTexture = InTexture
-			? InTexture
-			: DefaultTexture.GetReference();
-	}
-
-	TRefCountPtr<FRHITexture> ReferencedTexture;
-
-	// This pointer is set by the InitRHI() function on the FBlackTextureWithSRV global resource,
-	// to allow FRHITextureReference to use the global black texture when the reference is nullptr.
-	// A pointer is required since FBlackTextureWithSRV is defined in RenderCore.
-	friend class FBlackTextureWithSRV;
-	static TRefCountPtr<FRHITexture> DefaultTexture;
 };
 
 //
@@ -4612,3 +4528,5 @@ struct FRHIShaderParameterResource
 	uint16        Index = 0;
 	EType         Type = EType::Texture;
 };
+
+#include "RHITextureReference.h"
