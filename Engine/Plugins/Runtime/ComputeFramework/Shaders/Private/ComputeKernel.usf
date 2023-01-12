@@ -3,4 +3,4 @@
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
 // Include the generated kernel source.
-#include "/Engine/Generated/ComputeKernel.ush"
+#include "/Plugin/ComputeFramework/Generated/ComputeKernel.ush"
