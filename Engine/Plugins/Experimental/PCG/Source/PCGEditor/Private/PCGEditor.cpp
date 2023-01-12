@@ -804,26 +804,6 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	InputFromSubgraphPins = InputFromSubgraphPins.Difference(AllSubgraphPins);
 	OutputToSubgraphPins = OutputToSubgraphPins.Difference(AllSubgraphPins);
 
-	// Function that check if the pin is part of the advanced pins of the input/output node of the PCGGraph.
-	// If so, enable advanced pins on the subgraph.
-	auto IsAdvancedAndSet = [&PCGGraph, &NewPCGGraph](UPCGPin* Pin, bool bIsInput)
-	{
-		TObjectPtr<UPCGNode> InputOutputNode = bIsInput ? PCGGraph->GetInputNode() : PCGGraph->GetOutputNode();
-		TObjectPtr<UPCGNode> NewInputOutputNode = bIsInput ? NewPCGGraph->GetInputNode() : NewPCGGraph->GetOutputNode();
-
-		TObjectPtr<UPCGGraphInputOutputSettings> InputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(InputOutputNode->GetSettings());
-		if (InputOutputSettings->IsPinAdvanced(Pin))
-		{
-			TObjectPtr<UPCGGraphInputOutputSettings> NewInputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(NewInputOutputNode->GetSettings());
-			NewInputOutputSettings->SetShowAdvancedPins(true);
-			NewInputOutputNode->UpdateAfterSettingsChangeDuringCreation();
-
-			return true;
-		}
-
-		return false;
-	};
-
 	// Function that will create a new pin in the input/output node of the subgraph, with a unique name that will
 	// be the related to the pin passed as argument. It will be formatted like this:
 	// "{NodeName} {PinName} {OptionalIndex}"
@@ -915,7 +895,9 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 
 			if (Edge->InputPin->Node == PCGGraph->GetInputNode())
 			{
-				if (Edge->InputPin == PCGGraph->GetInputNode()->GetOutputPins()[0] || IsAdvancedAndSet(Edge->InputPin, true))
+				const UPCGGraphInputOutputSettings* Settings = Cast<const UPCGGraphInputOutputSettings>(Edge->InputPin->Node->GetSettings());
+
+				if (Settings && !Settings->IsCustomPin(Edge->InputPin))
 				{
 					OutsideSubgraphEdge.OutputPinLabel = Edge->InputPin->Properties.Label;
 					InsideSubgraphEdge.InputPin = NewPCGGraph->GetInputNode()->GetOutputPin(Edge->InputPin->Properties.Label);
@@ -946,7 +928,9 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 
 			if (Edge->OutputPin->Node == PCGGraph->GetOutputNode())
 			{
-				if (Edge->OutputPin == PCGGraph->GetOutputNode()->GetInputPins()[0] || IsAdvancedAndSet(Edge->OutputPin, false))
+				const UPCGGraphInputOutputSettings* Settings = Cast<const UPCGGraphInputOutputSettings>(Edge->OutputPin->Node->GetSettings());
+
+				if (Settings && !Settings->IsCustomPin(Edge->OutputPin))
 				{
 					OutsideSubgraphEdge.InputPinLabel = Edge->OutputPin->Properties.Label;
 					InsideSubgraphEdge.OutputPin = NewPCGGraph->GetOutputNode()->GetInputPin(Edge->OutputPin->Properties.Label);
