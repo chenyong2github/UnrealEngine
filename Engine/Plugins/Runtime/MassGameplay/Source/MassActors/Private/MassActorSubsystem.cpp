@@ -86,14 +86,13 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	
 	if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 	{
-		EntityManager = EntitySubsystem->GetMutableEntityManager().AsShared();
+		ActorManager = MakeShareable(new FMassActorManager(EntitySubsystem->GetMutableEntityManager().AsShared()));
 	}
 }
 
 void UMassActorSubsystem::Deinitialize()
 {
-	EntityManager.Reset();
-	ActorHandleMap.Reset();
+	ActorManager.Reset();
 }
 
 bool UMassActorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -101,7 +100,17 @@ bool UMassActorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType)
 	return WorldType == EWorldType::Type::EditorStorage || Super::DoesSupportWorldType(WorldType);
 }
 
-FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
+//----------------------------------------------------------------------//
+//  FMassActorManager
+//----------------------------------------------------------------------//
+FMassActorManager::FMassActorManager(const TSharedPtr<FMassEntityManager>& InEntityManager, UObject* InOwner)
+	: EntityManager(InEntityManager)
+	, Owner(InOwner)
+{
+
+}
+
+FMassEntityHandle FMassActorManager::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
 {
 	UE_MT_SCOPED_READ_ACCESS(ActorHandleMapDetector);
 	FMassEntityHandle* Entity = ActorHandleMap.Find(Actor);
@@ -114,26 +123,26 @@ FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey
 	return *Entity;
 }
 
-AActor* UMassActorSubsystem::GetActorFromHandle(const FMassEntityHandle Handle, FMassActorFragment::EActorAccess Access) const
+AActor* FMassActorManager::GetActorFromHandle(const FMassEntityHandle Handle, FMassActorFragment::EActorAccess Access) const
 {
 	check(EntityManager);
 	FMassActorFragment* Data = EntityManager->GetFragmentDataPtr<FMassActorFragment>(Handle);
 	return Data != nullptr ? Data->GetMutable(Access) : nullptr;
 }
 
-void UMassActorSubsystem::SetHandleForActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
+void FMassActorManager::SetHandleForActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
 {
 	UE_MT_SCOPED_WRITE_ACCESS(ActorHandleMapDetector);
 	ActorHandleMap.Add(Actor, Handle);
 }
 
-void UMassActorSubsystem::RemoveHandleForActor(const TObjectKey<const AActor> Actor)
+void FMassActorManager::RemoveHandleForActor(const TObjectKey<const AActor> Actor)
 {
 	UE_MT_SCOPED_WRITE_ACCESS(ActorHandleMapDetector);
 	ActorHandleMap.Remove(Actor);
 }
 
-void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
+void FMassActorManager::DisconnectActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
 {
 	if (Handle.IsValid() == false)
 	{
@@ -163,7 +172,7 @@ void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, 
 	else
 	{
 		// unexpected mismatch. Add back and notify.
-		UE_VLOG_UELOG(this, LogMass, Warning, TEXT("%s: Trying to disconnect actor %s while the Handle given doesn't match the system\'s records")
+		UE_VLOG_UELOG(Owner.Get(), LogMass, Warning, TEXT("%s: Trying to disconnect actor %s while the Handle given doesn't match the system\'s records")
 			, ANSI_TO_TCHAR(__FUNCTION__), *AActor::GetDebugName(Actor.ResolveObjectPtr()));
 		SetHandleForActor(Actor, Handle);
 	}
