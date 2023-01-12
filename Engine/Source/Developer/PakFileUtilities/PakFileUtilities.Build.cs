@@ -6,6 +6,7 @@ public class PakFileUtilities : ModuleRules
 {
 	public PakFileUtilities(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 		PrivateDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"PakFile",

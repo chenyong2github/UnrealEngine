@@ -6,7 +6,8 @@ public class CookOnTheFlyNetServer : ModuleRules
 {
     public CookOnTheFlyNetServer(ReadOnlyTargetRules Target) : base(Target)
     {
-        PrivateDependencyModuleNames.AddRange(
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "TargetPlatform"

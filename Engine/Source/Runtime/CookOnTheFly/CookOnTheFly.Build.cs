@@ -6,7 +6,8 @@ public class CookOnTheFly : ModuleRules
 {
 	public CookOnTheFly(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicDependencyModuleNames.AddRange(
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		PublicDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
                 "Sockets",
