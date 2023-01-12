@@ -96,8 +96,8 @@ struct FMovieSceneChannelProxyData
 	template<typename ChannelType>
 	void Add(ChannelType& InChannel, const FMovieSceneChannelMetaData& InMetaData)
 	{
-		static_assert(TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "Must supply extended editor data according to the channel's traits.");
-		static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type.");
+		static_assert(std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "Must supply extended editor data according to the channel's traits.");
+		static_assert(!std::is_same_v<ChannelType, FMovieSceneChannel>, "Cannot add channels by their base FMovieSceneChannel type.");
 
 		// Add the channel
 		const int32 ChannelTypeIndex = AddInternal(InChannel);
@@ -114,8 +114,8 @@ struct FMovieSceneChannelProxyData
 	template<typename ChannelType>
 	FMovieSceneChannelHandle AddWithDefaultEditorData(ChannelType& InChannel, const FMovieSceneChannelMetaData& InMetaData)
 	{
-		static_assert(!TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "This method is for channels with typed editor data. You *must* call SetExtendedEditorData afterwards.");
-		static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type.");
+		static_assert(!std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "This method is for channels with typed editor data. You *must* call SetExtendedEditorData afterwards.");
+		static_assert(!std::is_same_v<ChannelType, FMovieSceneChannel>, "Cannot add channels by their base FMovieSceneChannel type.");
 
 		// Add the channel
 		const int32 ChannelTypeIndex = AddInternal(InChannel);
@@ -136,8 +136,8 @@ struct FMovieSceneChannelProxyData
 	template<typename ChannelType, typename ExtendedEditorDataType>
 	void Add(ChannelType& InChannel, const FMovieSceneChannelMetaData& InMetaData, ExtendedEditorDataType&& InExtendedEditorData)
 	{
-		static_assert(!TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "Must supply typed editor data according to the channel's traits. Define TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType to use this function.");
-		static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type.");
+		static_assert(!std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "Must supply typed editor data according to the channel's traits. Define TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType to use this function.");
+		static_assert(!std::is_same_v<ChannelType, FMovieSceneChannel>, "Cannot add channels by their base FMovieSceneChannel type.");
 
 		// Add the channel
 		const int32 ChannelTypeIndex = AddInternal(InChannel);
@@ -448,7 +448,7 @@ ChannelType* FMovieSceneChannelProxy::GetChannel(int32 ChannelIndex) const
 template<typename ChannelType>
 FMovieSceneChannelProxy::FMovieSceneChannelProxy(ChannelType& InChannel)
 {
-	static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type..");
+	static_assert(!std::is_same_v<ChannelType, FMovieSceneChannel>, "Cannot add channels by their base FMovieSceneChannel type..");
 
 	const FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
 	Entries.Add(FMovieSceneChannelEntry(ChannelTypeName, InChannel));
@@ -466,8 +466,8 @@ FMovieSceneChannelProxy::FMovieSceneChannelProxy(ChannelType& InChannel)
 template<typename ChannelType>
 FMovieSceneChannelProxy::FMovieSceneChannelProxy(ChannelType& InChannel, const FMovieSceneChannelMetaData& InMetaData)
 {
-	static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type..");
-	static_assert(TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "Must supply typed editor data according to the channel's traits.");
+	static_assert(!std::is_same_v<ChannelType, FMovieSceneChannel>, "Cannot add channels by their base FMovieSceneChannel type..");
+	static_assert(std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "Must supply typed editor data according to the channel's traits.");
 
 	const FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
 	Entries.Add(FMovieSceneChannelEntry(ChannelTypeName, InChannel));
@@ -483,8 +483,8 @@ FMovieSceneChannelProxy::FMovieSceneChannelProxy(ChannelType& InChannel, const F
 template<typename ChannelType, typename ExtendedEditorDataType>
 FMovieSceneChannelProxy::FMovieSceneChannelProxy(ChannelType& InChannel, const FMovieSceneChannelMetaData& InMetaData, ExtendedEditorDataType&& InExtendedEditorDataType)
 {
-	static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type..");
-	static_assert(!TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "Must supply typed editor data according to the channel's traits. Define TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType to use this function.");
+	static_assert(!std::is_same_v<ChannelType, FMovieSceneChannel>, "Cannot add channels by their base FMovieSceneChannel type..");
+	static_assert(!std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "Must supply typed editor data according to the channel's traits. Define TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType to use this function.");
 
 	const FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
 	Entries.Add(FMovieSceneChannelEntry(ChannelTypeName, InChannel));

@@ -30,7 +30,7 @@ namespace MovieSceneClipboard
 	template<typename T> static FName GetKeyTypeName()
 	{
 		// Use the template type here to stop the compiler generating the code unless it's actually used
-		static_assert(!TIsSame<T, T>::Value, "This function must be specialized to use with the specified type");
+		static_assert(!std::is_same_v<T, T>, "This function must be specialized to use with the specified type");
 		return NAME_None;
 	}
 }

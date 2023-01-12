@@ -1481,7 +1481,7 @@ struct TEntityTaskCaller<TaskImpl, NumComponents, false>
 {
 	FORCEINLINE static void ForEachEntityImpl(...)
 	{
-		static_assert(TNot<TIsSame<TaskImpl, TaskImpl>>::Value, "non-expanded entity iteration is not supported");
+		static_assert(!std::is_same_v<TaskImpl, TaskImpl>, "non-expanded entity iteration is not supported");
 	}
 
 	template<typename... AccessorTypes>

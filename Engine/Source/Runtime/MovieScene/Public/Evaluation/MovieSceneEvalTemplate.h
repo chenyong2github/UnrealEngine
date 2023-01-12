@@ -225,7 +225,7 @@ struct FMovieSceneEvalTemplatePtr
 	FMovieSceneEvalTemplatePtr(T&& In)
 		: TInlineValue(Forward<T>(In))
 	{
-		static_assert(!TIsSame<typename TDecay<T>::Type, FMovieSceneEvalTemplate>::Value, "Direct usage of FMovieSceneEvalTemplate is prohibited.");
+		static_assert(!std::is_same_v<typename TDecay<T>::Type, FMovieSceneEvalTemplate>, "Direct usage of FMovieSceneEvalTemplate is prohibited.");
 		
 #if WITH_EDITOR
 		checkf(T::StaticStruct() == &In.GetScriptStruct() && T::StaticStruct() != FMovieSceneEvalTemplate::StaticStruct(), TEXT("%s does not correctly override GetScriptStructImpl. Template will not serialize correctly."), *T::StaticStruct()->GetName());

@@ -56,7 +56,7 @@ protected:
 	template<typename ChannelType>
 	void AddMetaData(const FMovieSceneChannelMetaData& MetaData)
 	{
-		static_assert(TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "Must supply extended editor data according to the channel's traits.");
+		static_assert(std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "Must supply extended editor data according to the channel's traits.");
 
 		// Add the editor meta-data
 		MetaDataArray.Add(MetaData);
@@ -93,7 +93,7 @@ protected:
 	template<typename ChannelType>
 	TArrayView<const typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType> GetAllExtendedEditorData() const
 	{
-		static_assert(!TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "This channel type does not define any extended editor data.");
+		static_assert(!std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>, "This channel type does not define any extended editor data.");
 
 		const auto& TypedImpl = static_cast<const TMovieSceneExtendedEditorDataArray<ChannelType>&>(ExtendedEditorDataArray.GetValue());
 		return TypedImpl.Data;

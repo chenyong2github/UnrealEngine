@@ -559,9 +559,9 @@ struct TPropertyDefinitionBuilder
 
 		Definition->CompositeSize = 1;
 
-		static_assert(!TIsSame<typename PropertyTraits::StorageType, float>::Value, "Please use double-precision composites");
+		static_assert(!std::is_same_v<typename PropertyTraits::StorageType, float>, "Please use double-precision composites");
 
-		if (TIsSame<typename PropertyTraits::StorageType, double>::Value)
+		if constexpr (std::is_same_v<typename PropertyTraits::StorageType, double>)
 		{
 			Definition->DoubleCompositeMask = 1;
 		}
@@ -639,9 +639,9 @@ struct TCompositePropertyDefinitionBuilder
 		FPropertyCompositeDefinition NewChannel = { InComponent, static_cast<uint16>(CompositeOffset) };
 		Registry->CompositeDefinitions.Add(NewChannel);
 
-		static_assert(!TIsSame<T, float>::Value, "Please use double-precision composites");
+		static_assert(!std::is_same_v<T, float>, "Please use double-precision composites");
 
-		if (TIsSame<T, double>::Value)
+		if constexpr (std::is_same_v<T, double>)
 		{
 			Definition->DoubleCompositeMask |= 1 << Definition->CompositeSize;
 		}

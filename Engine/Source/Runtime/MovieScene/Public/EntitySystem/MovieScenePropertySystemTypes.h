@@ -93,7 +93,7 @@ namespace Private
 			using StorageType = bool;
 		};
 		static_assert(PropertyTraitsHaveCustomAccessorStorageType<TestNormal> == false, "Normal has no custom storage type");
-		static_assert(TIsSame<TCustomPropertyAccessorStorageType<TestNormal>::Value, bool>::Value, "Normal has bool storage type");
+		static_assert(std::is_same_v<TCustomPropertyAccessorStorageType<TestNormal>::Value, bool>, "Normal has bool storage type");
 
 		struct TestCustom
 		{
@@ -101,7 +101,7 @@ namespace Private
 			using CustomAccessorStorageType = int;
 		};
 		static_assert(PropertyTraitsHaveCustomAccessorStorageType<TestCustom> == true, "Custom does have custom storage type");
-		static_assert(TIsSame<TCustomPropertyAccessorStorageType<TestCustom>::Value, int>::Value, "Custom has int storage type");
+		static_assert(std::is_same_v<TCustomPropertyAccessorStorageType<TestCustom>::Value, int>, "Custom has int storage type");
 	}
 }
 

@@ -79,7 +79,7 @@ struct MOVIESCENE_API FMovieSceneSequenceInstanceDataPtr
 	{
 		typedef typename TDecay<T>::Type ClientType;
 
-		static_assert(!TIsSame<ClientType, FMovieSceneSequenceInstanceData>::Value, "Direct usage of FMovieSceneSequenceInstanceData is prohibited.");
+		static_assert(!std::is_same_v<ClientType, FMovieSceneSequenceInstanceData>, "Direct usage of FMovieSceneSequenceInstanceData is prohibited.");
 
 #if WITH_EDITOR && DO_CHECK
 		const UStruct* ClientStruct = ClientType::StaticStruct();

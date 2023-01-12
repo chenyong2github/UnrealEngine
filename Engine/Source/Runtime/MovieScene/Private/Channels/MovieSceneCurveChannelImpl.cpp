@@ -1445,7 +1445,7 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::SerializeChannelValue(ChannelValu
 		return false;
 	}
 
-	if constexpr(TIsSame<CurveValueType, double>::Value)
+	if constexpr(std::is_same_v<CurveValueType, double>)
 	{
 		if(Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
 		{

@@ -25,7 +25,7 @@ template<typename T> struct TMovieSceneBlendingActuator;
 template<typename T> FMovieSceneAnimTypeID GetBlendingDataType()
 {
 	// Always assert on instantiation
-	static_assert(TIsSame<T, void>::Value, "GetBlendingDataType must be specialized for a type in order to use it with an accumulator.");
+	static_assert(std::is_same_v<T, void>, "GetBlendingDataType must be specialized for a type in order to use it with an accumulator.");
 	return FMovieSceneAnimTypeID::Unique();
 }
 

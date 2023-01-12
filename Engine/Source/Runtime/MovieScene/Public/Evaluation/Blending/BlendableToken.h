@@ -80,7 +80,7 @@ namespace MovieScene
 	void BlendValue(WorkingDataType& OutBlend, InType InValue, float Weight, EMovieSceneBlendType BlendType, TMovieSceneInitialValueStore<SourceDataType>& InitialValueStore)
 	{
 		// Always assert on instantiation
-		static_assert(TIsSame<WorkingDataType, void>::Value, "BlendValue must be implemented for the specified types in order to blend them with Sequencer.");
+		static_assert(std::is_same_v<WorkingDataType, void>, "BlendValue must be implemented for the specified types in order to blend them with Sequencer.");
 	}
 } // namespace MovieScene
 } // namespace UE

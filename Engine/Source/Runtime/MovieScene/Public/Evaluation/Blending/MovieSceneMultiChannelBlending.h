@@ -151,7 +151,7 @@ namespace MovieScene
 	template<typename T, typename SourceData, uint8 N>
 	void MultiChannelFromData(SourceData InSourceData, TMultiChannelValue<T, N>& OutChannelData)
 	{
-		static_assert(TIsSame<T, void>::Value, "MultiChannelFromData must be implemented to blend SourceData with multi-channel data.");
+		static_assert(std::is_same_v<T, void>, "MultiChannelFromData must be implemented to blend SourceData with multi-channel data.");
 	}
 
 	/**
@@ -161,7 +161,7 @@ namespace MovieScene
 	template<typename T, typename SourceData, uint8 N>
 	void ResolveChannelsToData(const TMultiChannelValue<T, N>& OutChannelData, SourceData& OutData)
 	{
-		static_assert(TIsSame<T, void>::Value, "ResolveChannelsToData must be implemented to blend SourceData with multi-channel data.");
+		static_assert(std::is_same_v<T, void>, "ResolveChannelsToData must be implemented to blend SourceData with multi-channel data.");
 	}
 
 	/** Working data type used to blend multi-channel values */

@@ -141,7 +141,7 @@ struct FMovieSceneTrackImplementationPtr
 	FMovieSceneTrackImplementationPtr(T&& In)
 		: TInlineValue(Forward<T>(In))
 	{
-		static_assert(!TIsSame<typename TDecay<T>::Type, FMovieSceneTrackImplementation>::Value, "Direct usage of FMovieSceneTrackImplementation is prohibited.");
+		static_assert(!std::is_same_v<typename TDecay<T>::Type, FMovieSceneTrackImplementation>, "Direct usage of FMovieSceneTrackImplementation is prohibited.");
 
 #if WITH_EDITOR
 		checkf(T::StaticStruct() == &In.GetScriptStruct() && T::StaticStruct() != FMovieSceneTrackImplementation::StaticStruct(), TEXT("%s type does not correctly override GetScriptStructImpl. Track will not serialize correctly."), *T::StaticStruct()->GetName());

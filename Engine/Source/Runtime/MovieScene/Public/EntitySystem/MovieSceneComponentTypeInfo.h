@@ -32,7 +32,7 @@ typename TEnableIf<TPointerIsConvertibleFromTo<T, UObject>::Value>::Type AddRefe
 }
 
 template<typename T>
-typename TEnableIf< TIsSame<decltype(T::StaticStruct()), decltype(T::StaticStruct())>::Value >::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T* Component)
+typename TEnableIf< std::is_same_v<decltype(T::StaticStruct()), decltype(T::StaticStruct())> >::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T* Component)
 {
 	for (TPropertyValueIterator<const FObjectProperty> It(T::StaticStruct(), Component); It; ++It)
 	{
@@ -43,7 +43,7 @@ typename TEnableIf< TIsSame<decltype(T::StaticStruct()), decltype(T::StaticStruc
 template<typename T>
 struct THasAddReferencedObjectForComponent
 {
-	static constexpr bool Value = !TIsSame< FNotImplemented*, decltype( AddReferencedObjectForComponent((FReferenceCollector*)0, (T*)0) ) >::Value;
+	static constexpr bool Value = !std::is_same_v< FNotImplemented*, decltype( AddReferencedObjectForComponent((FReferenceCollector*)0, (T*)0) ) >;
 };
 
 /**
