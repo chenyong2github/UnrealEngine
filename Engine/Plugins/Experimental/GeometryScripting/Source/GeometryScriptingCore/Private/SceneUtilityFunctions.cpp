@@ -15,8 +15,10 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Components/SplineMeshComponent.h"
 #include "ConversionUtils/VolumeToDynamicMesh.h"
 #include "ConversionUtils/SkinnedMeshToDynamicMesh.h"
+#include "ConversionUtils/SplineComponentDeformDynamicMesh.h"
 #include "Physics/ComponentCollisionUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SceneUtilityFunctions)
@@ -69,6 +71,28 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 			}
 		}
 
+	}
+	else if (USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(Component))
+	{
+		LocalToWorld = SplineMeshComponent->GetComponentTransform();
+		UStaticMesh* StaticMesh = SplineMeshComponent->GetStaticMesh();
+		if (StaticMesh)
+		{
+			FGeometryScriptCopyMeshFromAssetOptions AssetOptions;
+			AssetOptions.bApplyBuildSettings = (Options.bWantNormals || Options.bWantTangents);
+			AssetOptions.bRequestTangents = Options.bWantTangents;
+			UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMesh(
+				StaticMesh, ToDynamicMesh, AssetOptions, Options.RequestedLOD, Outcome, Debug);	// will set Outcome pin
+
+			// deform the dynamic mesh and its tangent space with the spline
+			constexpr bool bUpdateTangentSpace = true;
+			UE::Geometry::SplineDeformDynamicMesh(*SplineMeshComponent, ToDynamicMesh->GetMeshRef(), bUpdateTangentSpace);
+
+		}
+		else
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshFromSplineMeshComponent_MissingStaticMesh", "CopyMeshFromComponent: SplineMeshComponent has a null StaticMesh"));
+		}
 	}
 	else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 	{
