@@ -1785,7 +1785,6 @@ bool UUserWidget::IsFocusable() const
 
 void UUserWidget::InitIsFocusable(bool InIsFocusable)
 {
-	ensureMsgf(!MyWidget.IsValid(), TEXT("The widget is already created."));
 	bIsFocusable = InIsFocusable;
 }
 
