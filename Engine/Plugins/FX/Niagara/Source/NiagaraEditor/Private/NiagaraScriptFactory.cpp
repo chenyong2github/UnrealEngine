@@ -16,7 +16,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraScriptFactoryNew.h"
 #include "NiagaraScriptSource.h"
-#include "AssetTypeActions/AssetDefinition_NiagaraScript.h"
+#include "AssetDefinitions/AssetDefinition_NiagaraScript.h"
 #include "EdGraph/EdGraph.h"
 #include "Modules/ModuleManager.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"

@@ -2,7 +2,7 @@
 
 #include "NiagaraScriptToolkit.h"
 
-#include "AssetTypeActions/AssetDefinition_NiagaraScript.h"
+#include "AssetDefinitions/AssetDefinition_NiagaraScript.h"
 #include "BusyCursor.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
