@@ -475,7 +475,8 @@ public class MakeCookedEditor : BuildCommand
 			string[] EditorLocalizationTargetsToStage = { "Category", "Engine", "Editor", "EditorTutorials", "Keywords", "PropertyNames", "ToolTips" };
 			foreach (string EditorLocalizationTargetToStage in EditorLocalizationTargetsToStage)
 			{
-				if (Project.ShouldStageLocalizationTarget(SC, null, EditorLocalizationTargetToStage))
+				// Note: We skip "ShouldStageLocalizationTarget" below as games may disable certain targets that they don't need at runtime (eg, Engine), but all of these targets are still needed for an editor!
+				//if (Project.ShouldStageLocalizationTarget(SC, null, EditorLocalizationTargetToStage))
 				{
 					Project.StageLocalizationDataForTarget(SC, CulturesToStage, DirectoryReference.Combine(Unreal.EngineDirectory, "Content", "Localization", EditorLocalizationTargetToStage));
 				}
