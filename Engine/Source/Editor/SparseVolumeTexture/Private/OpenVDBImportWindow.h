@@ -76,6 +76,7 @@ class SOpenVDBImportWindow : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SOpenVDBImportWindow)
 		: _PackedDataA()
+		, _PackedDataB()
 		, _OpenVDBGridComponentInfo()
 		, _FileInfoString()
 		, _OpenVDBSupportedTargetFormats()
@@ -86,6 +87,7 @@ public:
 	{}
 
 		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedDataA)
+		SLATE_ARGUMENT(FSparseVolumeRawSourcePackedData*, PackedDataB)
 		SLATE_ARGUMENT(TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*, OpenVDBGridComponentInfo)
 		SLATE_ARGUMENT(FString, FileInfoString)
 		SLATE_ARGUMENT(TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*, OpenVDBSupportedTargetFormats)
@@ -104,9 +106,11 @@ public:
 
 private:
 	FSparseVolumeRawSourcePackedData*					PackedDataA;
+	FSparseVolumeRawSourcePackedData*					PackedDataB;
 	TArray<TSharedPtr<FOpenVDBGridComponentInfo>>*		OpenVDBGridComponentInfo;
 	TArray<TSharedPtr<ESparseVolumePackedDataFormat>>*	OpenVDBSupportedTargetFormats;
 	TSharedPtr<SOpenVDBPackedDataConfigurator>			PackedDataAConfigurator;
+	TSharedPtr<SOpenVDBPackedDataConfigurator>			PackedDataBConfigurator;
 	TSharedPtr<SButton>									ImportButton;
 	TWeakPtr<SWindow>									WidgetWindow;
 	bool												bShouldImport;

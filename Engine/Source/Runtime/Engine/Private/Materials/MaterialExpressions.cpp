@@ -25234,9 +25234,9 @@ UMaterialExpressionSparseVolumeTextureSample::UMaterialExpressionSparseVolumeTex
 #endif
 
 #if WITH_EDITOR
-	// SVT_TODO update that when attribute setup has been clarified
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Density"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("PackedData A"), 1, 1, 1, 1, 1));
+	Outputs.Add(FExpressionOutput(TEXT("PackedData B"), 1, 1, 1, 1, 1));
 	bShowOutputNameOnPin = true;
 	bShowMaskColorsOnPin = false;
 #endif
@@ -25273,7 +25273,8 @@ uint32 UMaterialExpressionSparseVolumeTextureSample::GetOutputType(int32 OutputI
 	switch (OutputIndex)
 	{
 	case 0:
-		return MCT_Float;	// Density defined in constructor for now
+	case 1:
+		return MCT_Float;	// PackedData A and B defined in constructor for now
 		break;
 	}
 
@@ -25313,7 +25314,7 @@ int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompi
 		}
 
 		int32 PhysicalTileTextureReferenceIndex = INDEX_NONE;
-		int32 PhysicalTileSubTextureIndex = 1;
+		int32 PhysicalTileSubTextureIndex = 1 + OutputIndex; // index 0 is used by the page table texture, so we start at 1
 		int32 PhysicalTileTextureParamCodeChunkIndex = INDEX_NONE;
 		if (bIsParameter)
 		{
@@ -25345,6 +25346,9 @@ int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompi
 		int32 UVWPageTable = Compiler->Mul(UVW, UniformCodeChunkIndex[ESparseVolumeTexture_PhysicalUVToPageUV]);
 		int32 CoordPageTable = Compiler->Mul(UVWPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_PageTableSize]);
 
+		// Code chunks have the same ID when they map to the same string of code. PackedPhysicalTileCoord will automatically end up being the same code chunk used
+		// when calling Compile() for Output 0 (PackedDataA) and Output 1 (PackedDataB). This is perfect for this use case: 
+		// PackedPhysicalTileCoord will end up being evaluated only once for both outputs, so they both share a single page table lookup.
 		int32 PackedPhysicalTileCoord = Compiler->SparseVolumeTextureSample(PageTableTextureParamCodeChunkIndex, CoordPageTable);
 
 		int32 CoordVolume = Compiler->Mul(CoordPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_TileSize]);

@@ -64,7 +64,8 @@ class FVisualizeSparseVolumeTexturePS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, SparseVolumeTextureResolution)
 		SHADER_PARAMETER(FVector3f, SparseVolumeTexturePageTableResolution)
 		SHADER_PARAMETER(uint32, ComponentToVisualize)
-		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTexture)
+		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureA)
+		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureB)
 		SHADER_PARAMETER_TEXTURE(Texture3D<uint>, SparseVolumeTexturePageTable)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -132,7 +133,8 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			PsPassParameters->VolumeBoundMaxWorld = FVector3f(SVTProxyBound.Origin + SVTProxyBound.BoxExtent);
 			PsPassParameters->SparseVolumeTextureResolution = FVector3f::OneVector;
 			PsPassParameters->SparseVolumeTexturePageTableResolution = FVector3f::OneVector;
-			PsPassParameters->SparseVolumeTexture = GBlackVolumeTexture->TextureRHI;
+			PsPassParameters->SparseVolumeTextureA = GBlackVolumeTexture->TextureRHI;
+			PsPassParameters->SparseVolumeTextureB = GBlackVolumeTexture->TextureRHI;
 			PsPassParameters->SparseVolumeTexturePageTable = GBlackUintVolumeTexture->TextureRHI;
 
 
@@ -143,10 +145,15 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 				PsPassParameters->SparseVolumeTextureResolution = FVector3f(Header.SourceVolumeResolution);
 				PsPassParameters->SparseVolumeTexturePageTableResolution = FVector3f(Header.PageTableVolumeResolution);
 
-				FRHITexture* Texture = SVTProxy->SparseVolumeTextureSceneProxy->GetTileDataTextureRHI();
-				if (Texture)
+				FRHITexture* TextureA = SVTProxy->SparseVolumeTextureSceneProxy->GetPhysicalTileDataATextureRHI();
+				if (TextureA)
 				{
-					PsPassParameters->SparseVolumeTexture = Texture;
+					PsPassParameters->SparseVolumeTextureA = TextureA;
+				}
+				FRHITexture* TextureB = SVTProxy->SparseVolumeTextureSceneProxy->GetPhysicalTileDataBTextureRHI();
+				if (TextureB)
+				{
+					PsPassParameters->SparseVolumeTextureB = TextureB;
 				}
 				FRHITexture* PageTableTexture = SVTProxy->SparseVolumeTextureSceneProxy->GetPageTableTextureRHI();
 				if (PageTableTexture)

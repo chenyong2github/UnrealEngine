@@ -17,12 +17,19 @@ namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 
 #define SPARSE_VOLUME_TILE_RES	16
 
-DECLARE_DELEGATE_RetVal_EightParams(bool, FConvertOpenVDBToSparseVolumeTextureDelegate, 
+struct ENGINE_API FOpenVDBToSVTConversionResult
+{
+	struct FSparseVolumeAssetHeader* Header;
+	TArray<uint32>* PageTable;
+	TArray<uint8>* PhysicalTileDataA;
+	TArray<uint8>* PhysicalTileDataB;
+};
+
+DECLARE_DELEGATE_RetVal_SevenParams(bool, FConvertOpenVDBToSparseVolumeTextureDelegate, 
 	TArray<uint8>& SourceFile,
-	struct FSparseVolumeRawSourcePackedData& PackedData,
-	struct FSparseVolumeAssetHeader* OutHeader,
-	TArray<uint32>* OutDensityPage,
-	TArray<uint8>* OutDensityData,
+	struct FSparseVolumeRawSourcePackedData& PackedDataA,
+	struct FSparseVolumeRawSourcePackedData& PackedDataB,
+	FOpenVDBToSVTConversionResult* OutResult,
 	bool bOverrideActiveMinMax,
 	FVector ActiveMin,
 	FVector ActiveMax);
@@ -42,6 +49,7 @@ struct ENGINE_API FSparseVolumeAssetHeader
 	FIntVector3 TileDataVolumeResolution;
 	FIntVector3 SourceVolumeResolution;
 	EPixelFormat PackedDataAFormat;
+	EPixelFormat PackedDataBFormat;
 
 	// The current data format version for the header.
 	static const uint32 kVersion = 0;
@@ -70,10 +78,13 @@ struct ENGINE_API FSparseVolumeRawSourcePackedData
 	bool bRemapInputForUnorm; // Maps the input from its minimum and maximum value into the [0-1] range. Clamps to [0-1] otherwise.
 };
 
+ENGINE_API FArchive& operator<<(FArchive& Ar, FSparseVolumeRawSourcePackedData& PackedData);
+
 // The structure represent the source asset in high quality. It is used to cook the runtime data
 struct ENGINE_API FSparseVolumeRawSource
 {
 	FSparseVolumeRawSourcePackedData PackedDataA;
+	FSparseVolumeRawSourcePackedData PackedDataB;
 	TArray<uint8> SourceAssetFile;
 
 	// The current data format version for the raw source data.
@@ -94,8 +105,9 @@ struct ENGINE_API FSparseVolumeRawSource
 struct ENGINE_API FSparseVolumeTextureRuntime
 {
 	FSparseVolumeAssetHeader	Header;
-	TArray<uint32>				DensityPage;
-	TArray<uint8>				DensityData;
+	TArray<uint32>				PageTable;
+	TArray<uint8>				PhysicalTileDataA;
+	TArray<uint8>				PhysicalTileDataB;
 
 	void SetAsDefaultTexture();
 
@@ -130,13 +142,17 @@ public:
 		return SparseVolumeTextureRuntime->Header;
 	}
 
-	FTextureRHIRef GetTileDataTextureRHI() const
+	FTextureRHIRef GetPhysicalTileDataATextureRHI() const
 	{
-		return  TileDataTextureRHI;
+		return PhysicalTileDataATextureRHI;
+	}
+	FTextureRHIRef GetPhysicalTileDataBTextureRHI() const
+	{
+		return PhysicalTileDataBTextureRHI;
 	}
 	FTextureRHIRef GetPageTableTextureRHI() const
 	{
-		return  PageTableTextureRHI;
+		return PageTableTextureRHI;
 	}
 
 	virtual void InitRHI() override;
@@ -147,7 +163,8 @@ private:
 	FSparseVolumeTextureRuntime*		SparseVolumeTextureRuntime;
 
 	FTextureRHIRef						PageTableTextureRHI;
-	FTextureRHIRef						TileDataTextureRHI;
+	FTextureRHIRef						PhysicalTileDataATextureRHI;
+	FTextureRHIRef						PhysicalTileDataBTextureRHI;
 };
 
 

@@ -12405,15 +12405,16 @@ int32 FHLSLMaterialTranslator::SparseVolumeTextureSample(int32 TextureIndex, int
 		int32 VirtualTextureIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Volume].Find(TextureUniformExpression);
 		check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Volume].IsValidIndex(VirtualTextureIndex));
 
-		check(TextureUniformExpression->GetTextureLayerIndex() != INDEX_NONE);
-		if (TextureUniformExpression->GetTextureLayerIndex() == 0)
+		const int32 TextureLayerIndex = TextureUniformExpression->GetTextureLayerIndex();
+		check(TextureLayerIndex != INDEX_NONE);
+		if (TextureLayerIndex == 0)
 		{
 			FString SampleCode = FString::Printf(TEXT("%s.Load(int4(int3(%s), 0)).x"), *TextureName, *GetParameterCode(CoordinateIndex));
 			AddEstimatedTextureSample();
 			// We ignore derivative for now, see IsAnalyticDerivEnabled() and IsDerivativeValid(UvDerivativeStatus)
 			SamplingCodeIndex = AddCodeChunk(MCT_UInt1, *SampleCode);
 		}
-		else if (TextureUniformExpression->GetTextureLayerIndex() == 1)
+		else if (TextureLayerIndex == 1 || TextureLayerIndex == 2)
 		{
 			FString SampleCode = FString::Printf(TEXT("%s.Load(int4(int3(%s), 0))"), *TextureName, *GetParameterCode(CoordinateIndex));
 			AddEstimatedTextureSample();

@@ -47,10 +47,9 @@ bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, TArray<FOpenVDBGridInfo>* Out
 
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,
-	struct FSparseVolumeRawSourcePackedData& PackedData,
-	struct FSparseVolumeAssetHeader* OutHeader,
-	TArray<uint32>* OutDensityPage,
-	TArray<uint8>* OutDensityData,
+	struct FSparseVolumeRawSourcePackedData& PackedDataA,
+	struct FSparseVolumeRawSourcePackedData& PackedDataB,
+	struct FOpenVDBToSVTConversionResult* OutResult,
 	bool bOverrideActiveMinMax,
 	FVector ActiveMin,
 	FVector ActiveMax);

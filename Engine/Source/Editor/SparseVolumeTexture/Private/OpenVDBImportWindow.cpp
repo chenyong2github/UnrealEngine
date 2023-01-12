@@ -40,6 +40,7 @@ static FText GetFormatComboBoxItemText(TSharedPtr<ESparseVolumePackedDataFormat>
 void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 {
 	PackedDataA = InArgs._PackedDataA;
+	PackedDataB = InArgs._PackedDataB;
 	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
 	OpenVDBSupportedTargetFormats = InArgs._OpenVDBSupportedTargetFormats;
 	WidgetWindow = InArgs._WidgetWindow;
@@ -150,6 +151,16 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
 			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataA", "Packed Data A"))
 		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SAssignNew(PackedDataBConfigurator, SOpenVDBPackedDataConfigurator)
+			.PackedData(PackedDataB)
+			.OpenVDBGridComponentInfo(OpenVDBGridComponentInfo)
+			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
+			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataB", "Packed Data B"))
+		]
 	);
 
 	SetDefaultGridAssignment();
@@ -229,14 +240,19 @@ EActiveTimerReturnType SOpenVDBImportWindow::SetFocusPostConstruct(double InCurr
 
 bool SOpenVDBImportWindow::CanImport() const
 {
-	const FUintVector4& GridIndices = PackedDataA->SourceGridIndex;
-	const FUintVector4& ComponentIndices = PackedDataA->SourceComponentIndex;
-	if ((GridIndices.X != INDEX_NONE && ComponentIndices.X != INDEX_NONE)
-		|| (GridIndices.Y != INDEX_NONE && ComponentIndices.Y != INDEX_NONE)
-		|| (GridIndices.Z != INDEX_NONE && ComponentIndices.Z != INDEX_NONE)
-		|| (GridIndices.W != INDEX_NONE && ComponentIndices.W != INDEX_NONE))
+	const FUintVector4& GridIndicesA = PackedDataA->SourceGridIndex;
+	const FUintVector4& ComponentIndicesA = PackedDataA->SourceComponentIndex;
+	const FUintVector4& GridIndicesB = PackedDataB->SourceGridIndex;
+	const FUintVector4& ComponentIndicesB = PackedDataB->SourceComponentIndex;
+
+	for (uint32 i = 0; i < 4; ++i)
 	{
-		return true;
+		const bool bGridAValid = GridIndicesA[i] != INDEX_NONE && ComponentIndicesA[i] != INDEX_NONE;
+		const bool bGridBValid = GridIndicesB[i] != INDEX_NONE && ComponentIndicesB[i] != INDEX_NONE;
+		if (bGridAValid || bGridBValid)
+		{
+			return true;
+		}
 	}
 	return false;
 }
@@ -256,25 +272,36 @@ void SOpenVDBImportWindow::SetDefaultGridAssignment()
 {
 	check(OpenVDBGridComponentInfo);
 
-	PackedDataA->Format = ESparseVolumePackedDataFormat::Float32;
-	PackedDataA->SourceGridIndex = FUintVector4(INDEX_NONE);
-	PackedDataA->SourceComponentIndex = FUintVector4(INDEX_NONE);
-	PackedDataA->bRemapInputForUnorm = false;
+	FSparseVolumeRawSourcePackedData* PackedData[] = { PackedDataA , PackedDataB };
+	for (FSparseVolumeRawSourcePackedData* Data : PackedData)
+	{
+		Data->Format = ESparseVolumePackedDataFormat::Float32;
+		Data->SourceGridIndex = FUintVector4(INDEX_NONE);
+		Data->SourceComponentIndex = FUintVector4(INDEX_NONE);
+		Data->bRemapInputForUnorm = false;
+	}
 
 	const TCHAR* SearchNames[] = { TEXT("density"), TEXT("heat"), TEXT("temperature"), TEXT("motion") };
 
+	// Try to find grids named like the SearchNames in the source file and assign them to the components of the output SVT.
+	uint32 CurrentOutputPackedData = 0;
 	uint32 CurrentOutputComponent = 0;
 	for (const TCHAR* SearchName : SearchNames)
 	{
-		for (uint32 InputComponent = 0; InputComponent < 4; ++InputComponent)
+		for (const TSharedPtr<FOpenVDBGridComponentInfo>& GridComponent : *OpenVDBGridComponentInfo)
 		{
-			for (const TSharedPtr<FOpenVDBGridComponentInfo>& Grid : *OpenVDBGridComponentInfo)
+			for (uint32 InputComponent = 0; InputComponent < 4; ++InputComponent)
 			{
-				if (Grid->Name == SearchName && Grid->ComponentIndex == InputComponent)
+				if (GridComponent->Name == SearchName && GridComponent->ComponentIndex == InputComponent)
 				{
-					PackedDataA->SourceGridIndex[CurrentOutputComponent] = Grid->Index;
-					PackedDataA->SourceComponentIndex[CurrentOutputComponent] = Grid->ComponentIndex;
+					PackedData[CurrentOutputPackedData]->SourceGridIndex[CurrentOutputComponent] = GridComponent->Index;
+					PackedData[CurrentOutputPackedData]->SourceComponentIndex[CurrentOutputComponent] = GridComponent->ComponentIndex;
 					++CurrentOutputComponent;
+					if (CurrentOutputComponent == 4)
+					{
+						CurrentOutputComponent = 0;
+						++CurrentOutputPackedData;
+					}
 					break;
 				}
 			}
@@ -282,6 +309,7 @@ void SOpenVDBImportWindow::SetDefaultGridAssignment()
 	}
 
 	PackedDataAConfigurator->RefreshUIFromData();
+	PackedDataBConfigurator->RefreshUIFromData();
 }
 
 void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)

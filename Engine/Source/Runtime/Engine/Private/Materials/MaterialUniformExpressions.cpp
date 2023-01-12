@@ -496,6 +496,14 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
 				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 			}
+			else if (Parameter.VirtualTextureLayerIndex == 2)
+			{
+				check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureNames[i], TEXT("Texture3D"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+				new(Members) FShaderParametersMetadata::FMember(*VolumeTextureSamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+				NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+			}
 		}
 
 
@@ -1192,8 +1200,8 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					const int32 LayerIndex = Parameter.VirtualTextureLayerIndex;
 					// 0 is page table
-					// 1 is density
-					// SVT_TODO update that when attribute setup has been clarified
+					// 1 is tile data A
+					// 2 is tile data B
 
 					const FSparseVolumeTextureSceneProxy* SVTextureProxy = SVTexture->GetSparseVolumeTextureSceneProxy();
 					if (SVTextureProxy)
@@ -1205,9 +1213,13 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 						}
 						else if(LayerIndex == 1)
 						{
-
-							check(SVTextureProxy->GetTileDataTextureRHI());
-							*ResourceTableTexturePtr = SVTextureProxy->GetTileDataTextureRHI();
+							FTextureRHIRef TileDataATexture = SVTextureProxy->GetPhysicalTileDataATextureRHI();
+							*ResourceTableTexturePtr = TileDataATexture ? TileDataATexture : GBlackVolumeTexture->TextureRHI;
+						}
+						else if (LayerIndex == 2)
+						{
+							FTextureRHIRef TileDataBTexture = SVTextureProxy->GetPhysicalTileDataBTextureRHI();
+							*ResourceTableTexturePtr = TileDataBTexture ? TileDataBTexture : GBlackVolumeTexture->TextureRHI;
 						}
 						else
 						{

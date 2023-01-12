@@ -196,6 +196,9 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			SparseVolumeRawSource.PackedDataA.Format = ESparseVolumePackedDataFormat::Unorm8;
 			SparseVolumeRawSource.PackedDataA.SourceGridIndex = FUintVector4(0, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 			SparseVolumeRawSource.PackedDataA.SourceComponentIndex = FUintVector4(0, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+			SparseVolumeRawSource.PackedDataB.Format = ESparseVolumePackedDataFormat::Unorm8;
+			SparseVolumeRawSource.PackedDataB.SourceGridIndex = FUintVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+			SparseVolumeRawSource.PackedDataB.SourceComponentIndex = FUintVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 			SparseVolumeRawSource.SourceAssetFile = MoveTemp(LoadedFile);
 			LoadedFile.Reset();
 
@@ -309,6 +312,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		// Show import dialog
 		FSparseVolumeRawSourcePackedData PackedDataA{};
+		FSparseVolumeRawSourcePackedData PackedDataB{};
 		{
 			TSharedPtr<SWindow> ParentWindow;
 
@@ -345,6 +349,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			(
 				SAssignNew(OpenVDBOptionWindow, SOpenVDBImportWindow)
 				.PackedDataA(&PackedDataA)
+				.PackedDataB(&PackedDataB)
 				.OpenVDBGridComponentInfo(&GridComponentInfoPtrs)
 				.FileInfoString(FileInfoString)
 				.OpenVDBSupportedTargetFormats(&SupportedFormats)
@@ -368,6 +373,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		FSparseVolumeRawSource SparseVolumeRawSource{};
 		SparseVolumeRawSource.PackedDataA = PackedDataA;
+		SparseVolumeRawSource.PackedDataB = PackedDataB;
 		SparseVolumeRawSource.SourceAssetFile = MoveTemp(LoadedFile);
 		LoadedFile.Reset();
 

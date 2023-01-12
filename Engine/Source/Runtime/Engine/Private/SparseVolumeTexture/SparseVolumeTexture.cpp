@@ -44,11 +44,20 @@ void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
 		Ar << TileDataVolumeResolution;
 		Ar << SourceVolumeResolution;
 
-		uint32 FormatAsUint = (uint32)PackedDataAFormat;
+		uint32 FormatAsUint;
+		
+		FormatAsUint = (uint32)PackedDataAFormat;
 		Ar << FormatAsUint;
 		if (Ar.IsLoading())
 		{
 			PackedDataAFormat = static_cast<EPixelFormat>(FormatAsUint);
+		}
+		
+		FormatAsUint = (uint32)PackedDataBFormat;
+		Ar << FormatAsUint;
+		if (Ar.IsLoading())
+		{
+			PackedDataBFormat = static_cast<EPixelFormat>(FormatAsUint);
 		}
 	}
 	else
@@ -58,22 +67,29 @@ void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
 	}
 }
 
+FArchive& operator<<(FArchive& Ar, FSparseVolumeRawSourcePackedData& PackedData)
+{
+	uint32 FormatAsUint = (uint32)PackedData.Format;
+	Ar << FormatAsUint;
+	if (Ar.IsLoading())
+	{
+		PackedData.Format = static_cast<ESparseVolumePackedDataFormat>(FormatAsUint);
+	}
+	Ar << PackedData.SourceGridIndex;
+	Ar << PackedData.SourceComponentIndex;
+	Ar << PackedData.bRemapInputForUnorm;
+
+	return Ar;
+}
+
 void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 {
 	Ar << Version;
 
 	if (Version == 0)
 	{
-		uint32 FormatAsUint = (uint32)PackedDataA.Format;
-		Ar << FormatAsUint;
-		if (Ar.IsLoading())
-		{
-			PackedDataA.Format = static_cast<ESparseVolumePackedDataFormat>(FormatAsUint);
-		}
-		Ar << PackedDataA.SourceGridIndex;
-		Ar << PackedDataA.SourceComponentIndex;
-		Ar << PackedDataA.bRemapInputForUnorm;
-
+		Ar << PackedDataA;
+		Ar << PackedDataB;
 		Ar << SourceAssetFile;
 	}
 	else
@@ -91,8 +107,9 @@ void FSparseVolumeTextureRuntime::Serialize(FArchive& Ar)
 
 	if (Version == 0)
 	{
-		Ar << DensityPage;
-		Ar << DensityData;
+		Ar << PageTable;
+		Ar << PhysicalTileDataA;
+		Ar << PhysicalTileDataB;
 	}
 	else
 	{
@@ -104,8 +121,9 @@ void FSparseVolumeTextureRuntime::Serialize(FArchive& Ar)
 void FSparseVolumeTextureRuntime::SetAsDefaultTexture()
 {
 	const uint32 VolumeSize = 1;
-	DensityPage.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
-	DensityData.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
+	PageTable.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
+	PhysicalTileDataA.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
+	PhysicalTileDataB.SetNumZeroed(VolumeSize * VolumeSize * VolumeSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -246,13 +264,18 @@ void UStaticSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRuntim
 		FSparseVolumeRawSource SparseVolumeRawSource;
 		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
 
+		FOpenVDBToSVTConversionResult SVTResult;
+		SVTResult.Header = &StaticFrame.SparseVolumeTextureRuntime.Header;
+		SVTResult.PageTable = &StaticFrame.SparseVolumeTextureRuntime.PageTable;
+		SVTResult.PhysicalTileDataA = &StaticFrame.SparseVolumeTextureRuntime.PhysicalTileDataA;
+		SVTResult.PhysicalTileDataB = &StaticFrame.SparseVolumeTextureRuntime.PhysicalTileDataB;
+
 		// Then, cook the runtime data and serialize it out.
 		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
 			SparseVolumeRawSource.SourceAssetFile,
 			SparseVolumeRawSource.PackedDataA,
-			&StaticFrame.SparseVolumeTextureRuntime.Header,
-			&StaticFrame.SparseVolumeTextureRuntime.DensityPage,
-			&StaticFrame.SparseVolumeTextureRuntime.DensityData,
+			SparseVolumeRawSource.PackedDataB,
+			&SVTResult,
 			false, FVector::Zero(), FVector::Zero());
 		ensure(bSuccess);
 
@@ -385,7 +408,8 @@ FSparseVolumeTextureSceneProxy::FSparseVolumeTextureSceneProxy()
 	: FRenderResource()
 	, SparseVolumeTextureRuntime(nullptr)
 	, PageTableTextureRHI(nullptr)
-	, TileDataTextureRHI(nullptr)
+	, PhysicalTileDataATextureRHI(nullptr)
+	, PhysicalTileDataBTextureRHI(nullptr)
 {
 }
 
@@ -413,23 +437,43 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 
 		const int32 FormatSize = GPixelFormats[PageEntryFormat].BlockBytes;
 		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, PageTableVolumeResolution.X, PageTableVolumeResolution.Y, PageTableVolumeResolution.Z);
-		RHIUpdateTexture3D(PageTableTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->DensityPage.GetData());
+		RHIUpdateTexture3D(PageTableTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PageTable.GetData());
 	}
 
 	// Tile data
 	{
-		EPixelFormat VoxelFormat = SparseVolumeTextureRuntime->Header.PackedDataAFormat;
 		FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime->Header.TileDataVolumeResolution;
-		const FRHITextureCreateDesc Desc =
-			FRHITextureCreateDesc::Create3D(TEXT("SparseVolumeTexture.TileData.RHITexture"),
-				TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z, VoxelFormat)
-			.SetFlags(ETextureCreateFlags::ShaderResource);
-
-		TileDataTextureRHI = RHICreateTexture(Desc);
-
-		const int32 FormatSize = GPixelFormats[VoxelFormat].BlockBytes;
+		EPixelFormat VoxelFormatA = SparseVolumeTextureRuntime->Header.PackedDataAFormat;
+		EPixelFormat VoxelFormatB = SparseVolumeTextureRuntime->Header.PackedDataBFormat;
 		const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z);
-		RHIUpdateTexture3D(TileDataTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->DensityData.GetData());
+
+		// A
+		if (VoxelFormatA != PF_Unknown)
+		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("SparseVolumeTexture.PhysicalTileDataA.RHITexture"),
+					TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z, VoxelFormatA)
+				.SetFlags(ETextureCreateFlags::ShaderResource);
+
+			PhysicalTileDataATextureRHI = RHICreateTexture(Desc);
+
+			const int32 FormatSize = GPixelFormats[VoxelFormatA].BlockBytes;
+			RHIUpdateTexture3D(PhysicalTileDataATextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PhysicalTileDataA.GetData());
+		}
+		
+		// B
+		if (VoxelFormatB != PF_Unknown)
+		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("SparseVolumeTexture.PhysicalTileDataB.RHITexture"),
+					TileDataVolumeResolution.X, TileDataVolumeResolution.Y, TileDataVolumeResolution.Z, VoxelFormatB)
+				.SetFlags(ETextureCreateFlags::ShaderResource);
+
+			PhysicalTileDataBTextureRHI = RHICreateTexture(Desc);
+
+			const int32 FormatSize = GPixelFormats[VoxelFormatB].BlockBytes;
+			RHIUpdateTexture3D(PhysicalTileDataBTextureRHI, 0, UpdateRegion, UpdateRegion.Width * FormatSize, UpdateRegion.Width * UpdateRegion.Height * FormatSize, (const uint8*)SparseVolumeTextureRuntime->PhysicalTileDataB.GetData());
+		}
 	}
 }
 
@@ -549,13 +593,18 @@ void UAnimatedSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRunt
 		FSparseVolumeRawSource SparseVolumeRawSource;
 		SparseVolumeRawSource.Serialize(RawDataArchiveReader);
 
+		FOpenVDBToSVTConversionResult SVTResult;
+		SVTResult.Header = &Frame.SparseVolumeTextureRuntime.Header;
+		SVTResult.PageTable = &Frame.SparseVolumeTextureRuntime.PageTable;
+		SVTResult.PhysicalTileDataA = &Frame.SparseVolumeTextureRuntime.PhysicalTileDataA;
+		SVTResult.PhysicalTileDataB = &Frame.SparseVolumeTextureRuntime.PhysicalTileDataB;
+
 		// Then, cook the runtime data and serialize it out.
 		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
 			SparseVolumeRawSource.SourceAssetFile,
 			SparseVolumeRawSource.PackedDataA,
-			&Frame.SparseVolumeTextureRuntime.Header,
-			&Frame.SparseVolumeTextureRuntime.DensityPage,
-			&Frame.SparseVolumeTextureRuntime.DensityData,
+			SparseVolumeRawSource.PackedDataB,
+			&SVTResult,
 			false, FVector::Zero(), FVector::Zero());
 		ensure(bSuccess);
 
