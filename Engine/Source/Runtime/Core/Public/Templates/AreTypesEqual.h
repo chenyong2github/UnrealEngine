@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Deprecated
+
 #include <type_traits>
 
 /** Tests whether two typenames refer to the same type. */

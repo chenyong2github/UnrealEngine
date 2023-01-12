@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Deprecated
+
 template<typename T> struct TIsVoidTypeBase { enum { Value = false }; };
 template<> struct TIsVoidTypeBase<void> { enum { Value = true }; };
 template<> struct TIsVoidTypeBase<void const> { enum { Value = true }; };

@@ -6,6 +6,7 @@
 #include "UnrealClient.h"
 #include "Types/SlateStructs.h"
 #include "IPropertyTypeCustomization.h"
+#include "UObject/ObjectKey.h"
 #include "Widgets/Views/STreeView.h"
 
 class IPropertyHandle;
