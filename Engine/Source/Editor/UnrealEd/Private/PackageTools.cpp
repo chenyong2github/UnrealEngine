@@ -850,6 +850,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 							{
 								CurrentWorldPtr->RemoveFromWorld(Level);
 								StreamingLevel->RemoveLevelFromCollectionForReload();
+								ULevelStreaming::RemoveLevelAnnotation(Level);
 								RemovedStreamingLevels.Add(StreamingLevel);
 								break;
 							}
@@ -959,6 +960,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				for (ULevelStreaming* StreamingLevel : RemovedStreamingLevels)
 				{
 					ULevel* NewLevel = StreamingLevel->GetLoadedLevel();
+					ULevelStreaming::LevelAnnotations.AddAnnotation(
+						NewLevel,
+						ULevelStreaming::FLevelAnnotation(StreamingLevel));
 					CurrentWorldPtr->AddToWorld(NewLevel, StreamingLevel->LevelTransform, false);
 					StreamingLevel->AddLevelToCollectionAfterReload();
 				}
