@@ -104,11 +104,15 @@
     <Resource Include="..\UnrealVS.2019\Resources\Icon.ico">
       <Link>Resources\Icon.ico</Link>
     </Resource>
-    <Resource Include="..\UnrealVS.2019\Resources\Icon.png">
+    <Content Include="..\UnrealVS.2019\Resources\Icon.png">
       <Link>Resources\Icon.png</Link>
-    </Resource>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Resource Include="..\UnrealVS.2019\Resources\Preview.png">
       <Link>Resources\Preview.png</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Resource>
     <Resource Include="..\UnrealVS.2019\Resources\RefreshProjects.png">
       <Link>Resources\RefreshProjects.png</Link>

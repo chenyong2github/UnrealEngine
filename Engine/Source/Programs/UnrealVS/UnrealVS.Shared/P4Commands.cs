@@ -43,6 +43,8 @@ namespace UnrealVS
 		private const int P4TimelapseButtonID = 0x1458;
 		private const int P4RevisionGraphButtonID = 0x1459;
 		private const int P4FileHistoryButtonID = 0x1460;
+		private const int P4RevertButtonID = 0x1461;
+
 		private OleMenuCommand SubMenuCommand;
 
 		//private System.Diagnostics.Process ChildProcess;
@@ -164,6 +166,7 @@ namespace UnrealVS
 
 			// add commands
 			P4CommandsList.Add(new P4Command(P4CheckoutButtonID, P4CheckoutButtonHandler));
+			P4CommandsList.Add(new P4Command(P4RevertButtonID, P4RevertButtonHandler));
 			P4CommandsList.Add(new P4Command(P4AnnotateButtonID, P4AnnotateButtonHandler));
 			P4CommandsList.Add(new P4Command(P4DiffinVSButtonID, P4DiffHandler));
 			P4CommandsList.Add(new P4Command(P4GetLast10ChangesID, P4GetLast10ChangesHandler));
@@ -270,6 +273,29 @@ namespace UnrealVS
 					OldProcess.WaitForExit();
 				}
 				OldProcess.Dispose();
+			}
+		}
+
+		private void P4RevertButtonHandler(object Sender, EventArgs Args)
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
+			DTE DTE = UnrealVSPackage.Instance.DTE;
+
+			// Check we've got a file open
+			if (DTE.ActiveDocument == null)
+			{
+				Logging.WriteLine("P4Checkout called without an active document");
+
+				P4OutputPane.Activate();
+				P4OutputPane.OutputStringThreadSafe($"1>------ P4Revert called without an active document{Environment.NewLine}");
+
+				return;
+			}
+
+			if (VSConstants.MessageBoxResult.IDOK == (VSConstants.MessageBoxResult) VsShellUtilities.ShowMessageBox(UnrealVSPackage.Instance, string.Empty, $"Are you sure you want to revert {DTE.ActiveDocument.Name}?", OLEMSGICON.OLEMSGICON_QUERY, OLEMSGBUTTON.OLEMSGBUTTON_OKCANCEL, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST))
+			{
+				TryP4Command($"revert {DTE.ActiveDocument.FullName}", out _, out _);
 			}
 		}
 
@@ -738,8 +764,16 @@ namespace UnrealVS
 			}
 			else
 			{
+				string StdOut, StdErr;
+
 				// sync edit command - will lock the UI but be safer (no risk of a locally writeable file that is not checked out)
-				TryP4Command($"edit \"{FileName}\"", out _, out _);
+				bool Success = TryP4Command($"edit \"{FileName}\"", out StdOut, out StdErr);
+
+				if (!Success && StdErr.Contains("file(s) not on client."))
+				{
+					P4OutputPane.OutputStringThreadSafe($"{FileName} has not been added yet, adding now.{Environment.NewLine}");
+					TryP4Command($"add \"{FileName}\"", out _, out _);
+				}
 			}
 		}
 
@@ -789,33 +823,57 @@ namespace UnrealVS
 					bool Pause = false;
 					foreach (string Line in Lines)
 					{
-						string TrimLine = Line.Trim();
-						if (TrimLine.Length > 0)
+						string FileName = Line.Trim();
+						if (FileName.Length > 0)
 						{
-							bool Success = await TryP4CommandAsync($"edit \"{TrimLine}\"");
-							lock (CheckoutQueueLock)
+							bool Success = false;
+
+							(bool EditSuccess, string StdOut, string StdErr) = await TryP4CommandExAsync(P4Exe, $"edit \"{FileName}\"");
+							if (EditSuccess)
 							{
-								if (Success)
+								Success = true;
+
+								Logging.WriteLine($"Performed async checkout of {FileName}.");
+								lock (CheckoutQueueLock)
 								{
-									Logging.WriteLine($"Performed async checkout of {TrimLine}.");
+									string[] NewLines = File.ReadAllLines(QueueFile);
+									File.WriteAllLines(QueueFile, NewLines.Where(x => !x.Equals(Line, StringComparison.Ordinal)));
+								}
+							}
+
+							if (!EditSuccess && StdErr.Contains("file(s) not on client."))
+							{
+								await ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+								{
+									await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+									P4OutputPane.OutputStringThreadSafe($"{FileName} has not been added yet, adding now.{Environment.NewLine}");
+								});
+								(bool AddSuccess, string _, string _) = await TryP4CommandExAsync(P4Exe, $"add \"{FileName}\"");
+
+								if (AddSuccess)
+								{
+									Success = true;
+
+									Logging.WriteLine($"Performed async add of {FileName}.");
 									lock (CheckoutQueueLock)
 									{
 										string[] NewLines = File.ReadAllLines(QueueFile);
 										File.WriteAllLines(QueueFile, NewLines.Where(x => !x.Equals(Line, StringComparison.Ordinal)));
 									}
 								}
-								else
-								{
-									// Set the UpdateCheckoutQueue flag again, to force another loop
-									Logging.WriteLine($"Unable to check out file {TrimLine}. Will retry.");
-									CheckoutQueueFiles.Add(QueueFile);
-									Pause = true;
-								}
+							}
+
+							if (!Success)
+							{
+								// Re-add to checkout queue, to force another loop
+								Logging.WriteLine($"Unable to check out file {FileName}. Will retry.");
+								CheckoutQueueFiles.Add(QueueFile);
+								Pause = true;
 							}
 						}
 					}
 
-					// Check if we're done
+					// Check if we've looped over everything and should pause
 					if (Pause)
 					{
 						await Task.Delay(TimeSpan.FromSeconds(10.0));
