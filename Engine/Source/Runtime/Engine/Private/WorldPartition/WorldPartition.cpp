@@ -902,7 +902,7 @@ void UWorldPartition::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 	if ((World == InWorld) && (InLevel == GetTypedOuter<UWorld>()->PersistentLevel))
 	{
 		check(!CanStream());
-		UpdateStreamingState();
+		Uninitialize();
 	}
 }
 
