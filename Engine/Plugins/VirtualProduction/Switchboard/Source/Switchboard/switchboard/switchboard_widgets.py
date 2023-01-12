@@ -361,6 +361,7 @@ class SearchableComboBox(QtWidgets.QComboBox):
         self.search_line.setPlaceholderText("Search")
 
         self.search_line.textChanged.connect(self.text_changed)
+        self.wheel_only_on_focus = True
 
     def showPopup(self):
         super().showPopup()
@@ -387,6 +388,14 @@ class SearchableComboBox(QtWidgets.QComboBox):
                 self.view().setRowHidden(self.findText(item), False)
             else:
                 self.view().setRowHidden(self.findText(item), True)
+
+    def wheelEvent(self, event) -> None:
+
+        if self.wheel_only_on_focus:
+            if self.hasFocus():
+                super().wheelEvent(event)
+        else:
+            super().wheelEvent(event)
 
 
 class HostnameValidator(QtGui.QValidator):

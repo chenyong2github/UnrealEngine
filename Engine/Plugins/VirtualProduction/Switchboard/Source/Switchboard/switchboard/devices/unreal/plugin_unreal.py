@@ -299,6 +299,8 @@ class LiveLinkPresetSetting(Setting):
 
         combo = sb_widgets.SearchableComboBox(None)
         combo.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        combo.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+
         self._update_combo_items(combo, override_device_name)
 
         combo.currentTextChanged.connect(
