@@ -152,6 +152,8 @@ $ bUseDebugLiveCodingConsole (Boolean): Whether to enable support for live codin
 
 $ bWithDirectXMath (Boolean): Whether to enable support for DirectX Math LWC_TODO: No longer supported. Needs removing.
 
+$ bWithFixedTimeStepSupport (Boolean): Whether to enable the support for FixedTimeStep in the engine
+
 $ bUseLoggingInShipping (Boolean): Whether to turn on logging for test/shipping builds.
 
 $ bLoggingToMemoryEnabled (Boolean): Whether to turn on logging to memory for test/shipping builds.
