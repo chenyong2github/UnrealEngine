@@ -525,21 +525,6 @@ namespace Horde.Build
 		public string? JobNotificationChannel { get; set; }
 
 		/// <summary>
-		/// URI to the SmtpServer to use for sending email notifications
-		/// </summary>
-		public string? SmtpServer { get; set; }
-
-		/// <summary>
-		/// The email address to send email notifications from
-		/// </summary>
-		public string? EmailSenderAddress { get; set; }
-
-		/// <summary>
-		/// The name for the sender when sending email notifications
-		/// </summary>
-		public string? EmailSenderName { get; set; }
-
-		/// <summary>
 		/// The URl to use for generating links back to the dashboard.
 		/// </summary>
 		public Uri DashboardUrl { get; set; } = new Uri("https://localhost:3000");
@@ -553,26 +538,6 @@ namespace Horde.Build
 		/// Help slack channel that users can use for issues
 		/// </summary>
 		public string? HelpSlackChannel { get; set; }
-
-		/// <summary>
-		/// The p4 bridge server
-		/// </summary>
-		public string? P4BridgeServer { get; set; }
-
-		/// <summary>
-		/// The p4 bridge service username
-		/// </summary>
-		public string? P4BridgeServiceUsername { get; set; }
-
-		/// <summary>
-		/// The p4 bridge service password
-		/// </summary>
-		public string? P4BridgeServicePassword { get; set; }
-
-		/// <summary>
-		/// Whether the p4 bridge service account can impersonate other users
-		/// </summary>
-		public bool P4BridgeCanImpersonate { get; set; } = false;
 
 		/// <summary>
 		/// Url of P4 Swarm installation
