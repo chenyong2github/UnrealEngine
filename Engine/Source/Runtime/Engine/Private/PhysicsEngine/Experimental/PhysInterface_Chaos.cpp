@@ -1031,6 +1031,12 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 
 	const FTransform ActorTM(RigidBody->GetGameThreadAPI().R(), RigidBody->GetGameThreadAPI().X());
 
+	if (OutOptResult)
+	{
+		OutOptResult->Distance = 0.0;
+	}
+
+	bool bHasOverlap = false;
 	// Iterate over each shape
 	for (int32 ShapeIdx = 0; ShapeIdx < NumShapes; ++ShapeIdx)
 	{
@@ -1050,9 +1056,12 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 					Chaos::FMTDInfo MTDInfo;
 					if (Chaos::Utilities::CastHelper(InGeom, GeomTransform, [&](const auto& Downcast, const auto& FullGeomTransform) { return Chaos::OverlapQuery(*Shape->GetGeometry(), ActorTM, Downcast, FullGeomTransform, /*Thickness=*/0, &MTDInfo); }))
 					{
-						OutOptResult->Distance = MTDInfo.Penetration;
-						OutOptResult->Direction = MTDInfo.Normal;
-						return true;	//question: should we take most shallow penetration?
+						bHasOverlap = true;
+						if (MTDInfo.Penetration > OutOptResult->Distance)
+						{
+							OutOptResult->Distance = MTDInfo.Penetration;
+							OutOptResult->Direction = MTDInfo.Normal;
+						}
 					}
 				}
 				else	//question: why do we even allow user to not pass in MTD info?
@@ -1067,7 +1076,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 		}
 	}
 
-	return false;
+	return bHasOverlap;
 }
 
 bool FPhysInterface_Chaos::Overlap_Geom(const FBodyInstance* InBodyInstance, const FPhysicsGeometryCollection& InGeometry, const FTransform& InShapeTransform, FMTDResult* OutOptResult, bool bTraceComplex)

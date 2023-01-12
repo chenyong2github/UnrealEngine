@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Chaos/PhysicsObjectInterface.h"
 
 #include "Chaos/CastingUtilities.h"
@@ -215,6 +214,12 @@ namespace Chaos
 			return false;
 		}
 
+		if (OutMTD)
+		{
+			OutMTD->Penetration = 0.0;
+		}
+
+		bool bFoundOverlap = false;
 		for (FPerShapeData* B : ShapesB)
 		{
 			if (!B)
@@ -254,25 +259,35 @@ namespace Chaos
 					continue;
 				}
 
+				Chaos::FMTDInfo TmpMTDInfo;
 				const bool bOverlap = Chaos::Utilities::CastHelper(
 					*GeomB,
 					TransformB,
-					[A, &TransformA, OutMTD](const auto& Downcast, const auto& FullTransformB)
+					[A, &TransformA, OutMTD, &TmpMTDInfo](const auto& Downcast, const auto& FullTransformB)
 					{
-						return Chaos::OverlapQuery(*A->GetGeometry(), TransformA, Downcast, FullTransformB, 0, OutMTD);
+						return Chaos::OverlapQuery(*A->GetGeometry(), TransformA, Downcast, FullTransformB, 0, OutMTD ? &TmpMTDInfo : nullptr);
 					}
 				);
 
-				// Is this actually correct? For now I'm mirroring the behavior in Overlap_GeomInternal
-				// but if the goal is to compute the MTD, shouldn't we need to iterate over all pairs of shapes?
 				if (bOverlap)
 				{
-					return true;
+					bFoundOverlap = true;
+					if (!OutMTD)
+					{
+						// Don't care about the MTD so as soon as we find an overlap we can return.
+						return true;
+					}
+					else if (TmpMTDInfo.Penetration > OutMTD->Penetration)
+					{
+						// TODO: I don't think this math is actually correct to find the total overlap between the two objects composed of multiple shapes.
+						// If we need to find the MTD we need to find the largest overlap.
+						*OutMTD = TmpMTDInfo;
+					}
 				}
 			}
 		}
 
-		return false;
+		return bFoundOverlap;
 	}
 
 	template<EThreadContext Id>
