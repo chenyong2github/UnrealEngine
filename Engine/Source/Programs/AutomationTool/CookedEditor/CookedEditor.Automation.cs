@@ -472,7 +472,7 @@ public class MakeCookedEditor : BuildCommand
 		{
 			List<string> CulturesToStage = Project.GetCulturesToStage(Params, ConfigHelper.GameConfig);
 
-			string[] EditorLocalizationTargetsToStage = { "Category", "Editor", "EditorTutorials", "Keywords", "PropertyNames", "ToolTips" };
+			string[] EditorLocalizationTargetsToStage = { "Category", "Engine", "Editor", "EditorTutorials", "Keywords", "PropertyNames", "ToolTips" };
 			foreach (string EditorLocalizationTargetToStage in EditorLocalizationTargetsToStage)
 			{
 				if (Project.ShouldStageLocalizationTarget(SC, null, EditorLocalizationTargetToStage))
