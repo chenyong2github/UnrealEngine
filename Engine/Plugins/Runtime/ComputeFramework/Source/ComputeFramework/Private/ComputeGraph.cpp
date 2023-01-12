@@ -80,7 +80,10 @@ void UComputeGraph::PostLoad()
 	}
 #endif
 
-	UpdateResources();
+	if (!ComputeFramework::IsDeferredCompilation())
+	{
+		UpdateResources();
+	}
 }
 
 bool UComputeGraph::ValidateGraph(FString* OutErrors)
@@ -600,7 +603,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 
 			KernelResource->OnCompilationComplete().BindUObject(this, &UComputeGraph::ShaderCompileCompletionCallback);
 
-			CacheShadersForResource(ShaderPlatform, nullptr, CompilationFlags | uint32(EComputeKernelCompilationFlags::Force), KernelResource);
+			CacheShadersForResource(ShaderPlatform, nullptr, CompilationFlags, KernelResource);
 		}
 	}
 }

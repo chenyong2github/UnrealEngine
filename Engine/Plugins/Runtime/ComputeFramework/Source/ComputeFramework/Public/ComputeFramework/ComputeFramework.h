@@ -20,6 +20,9 @@ namespace ComputeFramework
 	/** Returns true if ComputeFramework is currently enabled. */
 	COMPUTEFRAMEWORK_API bool IsEnabled();
 
+	/** Returns true if compute graphs are compiled on first use instead of on PostLoad(). */
+	bool IsDeferredCompilation();
+
 	/** Rebuild all compute graphs. */
 	COMPUTEFRAMEWORK_API void RebuildComputeGraphs();
 

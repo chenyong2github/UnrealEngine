@@ -52,8 +52,12 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 	}
 
 	FComputeGraphRenderProxy const* GraphRenderProxy = InComputeGraph->GetRenderProxy();
-	if (!ensure(GraphRenderProxy))
+	if (GraphRenderProxy == nullptr)
 	{
+		// This can happen if we have deferred compilation.
+		// Trigger compilation now.
+		ensure(ComputeFramework::IsDeferredCompilation());
+		InComputeGraph->UpdateResources();
 		return false;
 	}
 

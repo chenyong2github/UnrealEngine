@@ -23,6 +23,14 @@ static FAutoConsoleVariableRef CVarComputeFrameworkEnable(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+static int32 GComputeFrameworkDeferredCompilation = 1;
+static FAutoConsoleVariableRef CVarComputeFrameworkDeferredCompilation(
+	TEXT("r.ComputeFramework.DeferredCompilation"),
+	GComputeFrameworkDeferredCompilation,
+	TEXT("Compile compute graphs on first usage instead of on PostLoad().\n"),
+	ECVF_Default
+);
+
 FAutoConsoleCommand CmdRebuildComputeGraphs(
 	TEXT("r.ComputeFramework.RebuildComputeGraphs"),
 	TEXT("Force all loaded UComputeGraph objects to rebuild."),
@@ -39,6 +47,15 @@ namespace ComputeFramework
 	bool IsEnabled()
 	{
 		return GComputeFrameworkEnable > 0 && FComputeFrameworkModule::GetComputeSystem() != nullptr;
+	}
+
+	bool IsDeferredCompilation()
+	{
+#if WITH_EDITOR
+		return GComputeFrameworkDeferredCompilation != 0;
+#else
+		return false;
+#endif
 	}
 
 	void RebuildComputeGraphs()
