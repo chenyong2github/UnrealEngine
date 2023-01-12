@@ -120,7 +120,7 @@ FMassActorSpawnRequestHandle UMassActorSpawnerSubsystem::RequestActorSpawnIntern
 	if (!SpawnRequests.IsValidIndex(Index))
 	{
 		checkf(SpawnRequests.Num() == Index, TEXT("This case should only be when we need to grow the array of one element."));
-		SpawnRequests.Add(SpawnRequestView);
+		SpawnRequests.Emplace(SpawnRequestView);
 	}
 	else
 	{

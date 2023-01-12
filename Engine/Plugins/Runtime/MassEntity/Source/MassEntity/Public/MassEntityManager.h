@@ -383,7 +383,7 @@ public:
 	void ForEachSharedFragment(TFunction< void(T& /*SharedFragment*/) > ExecuteFunction)
 	{
 		FStructTypeEqualOperator Predicate(T::StaticStruct());
-		for (const FSharedStruct& Struct : SharedFragments)
+		for (FSharedStruct& Struct : SharedFragments)
 		{
 			if (Predicate(Struct))
 			{

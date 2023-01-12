@@ -112,11 +112,11 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		if (!Composition.Fragments.Contains(*FragmentType))
 		{
 			Composition.Fragments.Add(*FragmentType);
-			InitialFragmentValues.Add(Fragment);
+			InitialFragmentValues.Emplace(Fragment);
 		}
 		else if (!InitialFragmentValues.ContainsByPredicate(FStructTypeEqualOperator(FragmentType)))
 		{
-			InitialFragmentValues.Add(Fragment);
+			InitialFragmentValues.Emplace(Fragment);
 		}
 	}
 
@@ -128,7 +128,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		{
 			Composition.Fragments.Add<T>();
 		}
-		else if (const FInstancedStruct* Fragment = InitialFragmentValues.FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
+		else if (FInstancedStruct* Fragment = InitialFragmentValues.FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
 		{
 			return Fragment->template GetMutable<T>();
 		}

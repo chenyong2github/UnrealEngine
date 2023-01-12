@@ -17,7 +17,7 @@
 
 namespace FTemplateRegistryHelpers
 {
-	uint32 CalcHash(const FInstancedStruct& StructInstance)
+	uint32 CalcHash(const FConstStructView StructInstance)
 	{
 		const UScriptStruct* Type = StructInstance.GetScriptStruct();
 		const uint8* Memory = StructInstance.GetMemory();
@@ -75,7 +75,7 @@ UMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& UMassEntityTempla
 	return StructBasedBuilders.FindOrAdd(&DataType);
 }
 
-const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildStructTemplate(const FInstancedStruct& StructInstance)
+const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildStructTemplate(const FConstStructView StructInstance)
 {
 	// thou shall not call this function on CDO
 	check(HasAnyFlags(RF_ClassDefaultObject) == false);
@@ -128,7 +128,7 @@ const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildStructTemplat
 	return NewTemplate;
 }
 
-bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FInstancedStruct& StructInstance, FMassEntityTemplate& OutTemplate)
+bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate)
 {
 	UWorld* World = GetWorld();
 	FMassEntityTemplateBuildContext Context(OutTemplate);

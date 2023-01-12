@@ -204,7 +204,7 @@ class MASSSPAWNER_API UMassEntityTemplateRegistry : public UObject
 	GENERATED_BODY()
 public:
 	// @todo consider TFunction instead
-	DECLARE_DELEGATE_ThreeParams(FStructToTemplateBuilderDelegate, const UWorld* /*World*/, const FInstancedStruct& /*InStructInstance*/, FMassEntityTemplateBuildContext& /*BuildContext*/);
+	DECLARE_DELEGATE_ThreeParams(FStructToTemplateBuilderDelegate, const UWorld* /*World*/, const FConstStructView /*InStructInstance*/, FMassEntityTemplateBuildContext& /*BuildContext*/);
 
 	UMassEntityTemplateRegistry() = default;
 	virtual void BeginDestroy() override;
@@ -212,7 +212,7 @@ public:
 
 	static FStructToTemplateBuilderDelegate& FindOrAdd(const UScriptStruct& DataType);
 
-	const FMassEntityTemplate* FindOrBuildStructTemplate(const FInstancedStruct& StructInstance);
+	const FMassEntityTemplate* FindOrBuildStructTemplate(const FConstStructView StructInstance);
 
 	/** Removes all the cached template instances */
 	void DebugReset();
@@ -226,7 +226,7 @@ public:
 
 protected:
 	/** @return true if a template has been built, false otherwise */
-	bool BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FInstancedStruct& StructInstance, FMassEntityTemplate& OutTemplate);
+	bool BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate);
 
 protected:
 	static TMap<const UScriptStruct*, FStructToTemplateBuilderDelegate> StructBasedBuilders;

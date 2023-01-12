@@ -399,7 +399,7 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 			{
 				PrevSharedFragmentValuesHash = SharedFragmentValuesHash;
 				BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ConstSharedFragments);
-				BindSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.SharedFragments);
+				BindSharedFragmentRequirements(RunContext, Chunk.GetMutableSharedFragmentValues(), RequirementMapping.SharedFragments);
 			}
 
 			checkf((ChunkIterator->SubchunkStart + ChunkLength) <= Chunk.GetNumInstances() && ChunkLength > 0, TEXT("Invalid subchunk, it is going over the number of instances in the chunk or it is empty."));
@@ -433,7 +433,7 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 			{
 				PrevSharedFragmentValuesHash = SharedFragmentValuesHash;
 				BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ConstSharedFragments);
-				BindSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.SharedFragments);
+				BindSharedFragmentRequirements(RunContext, Chunk.GetMutableSharedFragmentValues(), RequirementMapping.SharedFragments);
 			}
 
 			RunContext.SetCurrentChunkSerialModificationNumber(Chunk.GetSerialModificationNumber());
@@ -456,7 +456,7 @@ void FMassArchetypeData::ExecutionFunctionForChunk(FMassExecutionContext RunCont
 	if (ChunkLength)
 	{
 		BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ChunkFragments);
-		BindSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ChunkFragments);
+		BindSharedFragmentRequirements(RunContext, Chunk.GetMutableSharedFragmentValues(), RequirementMapping.ChunkFragments);
 
 		RunContext.SetCurrentArchetypesTagBitSet(GetTagBitSet());
 		RunContext.SetCurrentChunkSerialModificationNumber(Chunk.GetSerialModificationNumber());
@@ -721,7 +721,7 @@ void FMassArchetypeData::BindConstSharedFragmentRequirements(FMassExecutionConte
 			const int32 FragmentIndex = FragmentsMapping[i];
 
 			check(FragmentIndex != INDEX_NONE || Requirement.Requirement.IsOptional());
-			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? SharedFragmentValues.GetConstSharedFragments()[FragmentIndex] : FConstSharedStruct();
+			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? FConstStructView(SharedFragmentValues.GetConstSharedFragments()[FragmentIndex]) : FConstStructView();
 		}
 	}
 	else
@@ -730,12 +730,12 @@ void FMassArchetypeData::BindConstSharedFragmentRequirements(FMassExecutionConte
 		{
 			const FConstSharedStruct* SharedFragment = SharedFragmentValues.GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType) );
 			check(SharedFragment != nullptr || Requirement.Requirement.IsOptional());
-			Requirement.FragmentView = SharedFragment ? *SharedFragment : FConstSharedStruct();
+			Requirement.FragmentView = SharedFragment ? FConstStructView(*SharedFragment) : FConstStructView();
 		}
 	}
 }
 
-void FMassArchetypeData::BindSharedFragmentRequirements(FMassExecutionContext& RunContext, const FMassArchetypeSharedFragmentValues& SharedFragmentValues, const FMassFragmentIndicesMapping& FragmentsMapping)
+void FMassArchetypeData::BindSharedFragmentRequirements(FMassExecutionContext& RunContext, FMassArchetypeSharedFragmentValues& SharedFragmentValues, const FMassFragmentIndicesMapping& FragmentsMapping)
 {
 	if (FragmentsMapping.Num() > 0)
 	{
@@ -747,16 +747,16 @@ void FMassArchetypeData::BindSharedFragmentRequirements(FMassExecutionContext& R
 			const int32 FragmentIndex = FragmentsMapping[i];
 
 			check(FragmentIndex != INDEX_NONE || Requirement.Requirement.IsOptional());
-			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? SharedFragmentValues.GetSharedFragments()[FragmentIndex] : FSharedStruct();
+			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? FStructView(SharedFragmentValues.GetMutableSharedFragments()[FragmentIndex]) : FStructView();
 		}
 	}
 	else
 	{
 		for (FMassExecutionContext::FSharedFragmentView& Requirement : RunContext.GetMutableSharedRequirements())
 		{
-			const FSharedStruct* SharedFragment = SharedFragmentValues.GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType));
+			FSharedStruct* SharedFragment = SharedFragmentValues.GetMutableSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType));
 			check(SharedFragment != nullptr || Requirement.Requirement.IsOptional());
-			Requirement.FragmentView = SharedFragment ? *SharedFragment : FSharedStruct();
+			Requirement.FragmentView = SharedFragment ? FStructView(*SharedFragment) : FStructView();
 		}
 	}
 }

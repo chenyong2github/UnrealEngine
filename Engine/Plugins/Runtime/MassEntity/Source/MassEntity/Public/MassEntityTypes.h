@@ -276,6 +276,11 @@ struct MASSENTITY_API FMassArchetypeSharedFragmentValues
 		return ConstSharedFragments;
 	}
 
+	FORCEINLINE TArray<FSharedStruct>& GetMutableSharedFragments()
+	{
+		return SharedFragments;
+	}
+	
 	FORCEINLINE const TArray<FSharedStruct>& GetSharedFragments() const
 	{
 		return SharedFragments;

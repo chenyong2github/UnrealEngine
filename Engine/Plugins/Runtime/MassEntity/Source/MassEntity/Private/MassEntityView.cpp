@@ -58,14 +58,16 @@ const void* FMassEntityView::GetConstSharedFragmentPtrChecked(const UScriptStruc
 void* FMassEntityView::GetSharedFragmentPtr(const UScriptStruct& FragmentType) const
 {
 	const FSharedStruct* SharedFragment = Archetype->GetSharedFragmentValues(Entity).GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(&FragmentType));
-	return (SharedFragment != nullptr) ? SharedFragment->GetMutableMemory() : nullptr;
+	// @todo: fix constness, should the getter be non-const too?
+	return (SharedFragment != nullptr) ? const_cast<uint8*>(SharedFragment->GetMemory()) : nullptr;
 }
 
 void* FMassEntityView::GetSharedFragmentPtrChecked(const UScriptStruct& FragmentType) const
 {
 	const FSharedStruct* SharedFragment = Archetype->GetSharedFragmentValues(Entity).GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(&FragmentType));
 	check(SharedFragment != nullptr);
-	return SharedFragment->GetMutableMemory();
+	// @todo: fix constness, should the getter be non-const too?
+	return const_cast<uint8*>(SharedFragment->GetMemory());
 }
 
 bool FMassEntityView::HasTag(const UScriptStruct& TagType) const
