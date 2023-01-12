@@ -125,6 +125,7 @@ RWTexture2D<float4> PassDebugOutput;
 uint bLumenSupportBackfaceDiffuse;
 uint bLumenReflectionInputIsSSR;
 float LumenFoliageOcclusionStrength;
+float LumenMaxAOMultibounceAlbedo;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions
@@ -147,7 +148,7 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 	const float3 BentNormal = ScreenBentNormal[InPixelPos].xyz * 2 - 1;
 	const float AO = length(BentNormal);
 	Out.SpecularOcclusion = CalculateSpecularOcclusion(N, Roughness, AO, V, BentNormal);
-	Out.DiffuseOcclusion  = DistantIlluminationRescale(DiffuseColor, AO);
+	Out.DiffuseOcclusion = DistantIlluminationRescale(min(DiffuseColor, LumenMaxAOMultibounceAlbedo), AO);
   #else
 	Out.SpecularOcclusion = InAO;
 	Out.DiffuseOcclusion = InAO;

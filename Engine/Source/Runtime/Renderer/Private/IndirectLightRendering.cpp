@@ -157,6 +157,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		SHADER_PARAMETER(uint32, bLumenSupportBackfaceDiffuse)
 		SHADER_PARAMETER(uint32, bLumenReflectionInputIsSSR)
 		SHADER_PARAMETER(float, LumenFoliageOcclusionStrength)
+		SHADER_PARAMETER(float, LumenMaxAOMultibounceAlbedo)
 
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, DiffuseIndirect)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DiffuseIndirectSampler)
@@ -1203,8 +1204,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
 			PassParameters->bLumenSupportBackfaceDiffuse = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && DenoiserOutputs.Textures[1] != SystemTextures.Black;
 			PassParameters->bLumenReflectionInputIsSSR = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR;
-			extern float GLumenScreenBentNormalFoliageOcclusionStrength;
-			PassParameters->LumenFoliageOcclusionStrength = GLumenScreenBentNormalFoliageOcclusionStrength;
+			extern float GLumenShortRangeAOFoliageOcclusionStrength;
+			PassParameters->LumenFoliageOcclusionStrength = GLumenShortRangeAOFoliageOcclusionStrength;
+			extern float GLumenMaxShortRangeAOMultibounceAlbedo;
+			PassParameters->LumenMaxAOMultibounceAlbedo = GLumenMaxShortRangeAOMultibounceAlbedo;
 
 			PassParameters->bVisualizeDiffuseIndirect = bIsVisualizePass;
 
@@ -1260,7 +1263,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 				{
 					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(3);
-					PermutationVector.Set<FDiffuseIndirectCompositePS::FScreenBentNormal>(ScreenBentNormalParameters.UseScreenBentNormal != 0);
+					PermutationVector.Set<FDiffuseIndirectCompositePS::FScreenBentNormal>(ScreenBentNormalParameters.UseShortRangeAO != 0);
 					if (Strata::IsStrataEnabled() && TileType != EStrataTileType::ECount)
 					{
 						PermutationVector.Set<FDiffuseIndirectCompositePS::FStrataTileType>(TileType);

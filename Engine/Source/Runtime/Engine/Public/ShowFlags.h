@@ -486,7 +486,7 @@ private:
 		SetLumenGlobalTraces(true);
 		SetLumenFarFieldTraces(true);
 		SetLumenSecondaryBounces(true);
-		SetLumenScreenSpaceDirectionalOcclusion(true);
+		SetLumenShortRangeAmbientOcclusion(true);
 	}
 
 

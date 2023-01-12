@@ -956,6 +956,13 @@ float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal,
 	float3 DiffuseLighting = 0.0f;
 	const float PreintegratedTwoSidedBxDF = 1.0f / PI;
 
+	float3 ProbeLightingNormal = WorldNormal;
+
+#if SHORT_RANGE_AO 
+	// Use more bent normal in occluded corners
+	ProbeLightingNormal = normalize(lerp(UnitBentNormal, WorldNormal, AO));
+#endif
+
 	#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 	{
 		FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeSample.AtlasCoord[0], ScreenProbeSample.Weights.x);
@@ -964,13 +971,6 @@ float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal,
 			LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[1], ScreenProbeSample.Weights.y));
 			LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[2], ScreenProbeSample.Weights.z));
 			LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[3], ScreenProbeSample.Weights.w));
-		#endif
-
-		float3 ProbeLightingNormal = WorldNormal;
-
-		#if SCREEN_SPACE_BENT_NORMAL 
-			// Use more bent normal in occluded corners
-			ProbeLightingNormal = normalize(lerp(UnitBentNormal, WorldNormal, AO));
 		#endif
 
 		float3 SHDiffuseLighting = EvaluateSHIrradiance(ProbeLightingNormal, 1 - AO, LightingSH);
@@ -986,7 +986,7 @@ float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal,
 	}
 	#else
 	{
-		DiffuseLighting += InterpolateScreenProbeIrradiance(ScreenProbeSample, WorldNormal);
+		DiffuseLighting += InterpolateScreenProbeIrradiance(ScreenProbeSample, ProbeLightingNormal);
 
 #if SUPPORT_BACKFACE_DIFFUSE
 		if (ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE)
@@ -1115,6 +1115,7 @@ float3 InverseTonemapLighting(float3 TonemappedLighting)
 #define TILE_CLASSIFICATION_DISABLED TILE_CLASSIFICATION_NUM
 
 uint ApplyMaterialAO;
+float MaxAOMultibounceAlbedo;
 uint LumenReflectionInputIsSSR;
 
 StructuredBuffer<uint> IntegrateTileData;
@@ -1230,14 +1231,13 @@ void ScreenProbeIntegrateCS(
 			float3 DiffuseLighting = 0;
 			float3 BackfaceDiffuseLighting = 0;
 
-			#if SCREEN_SPACE_BENT_NORMAL 
-			if (UseScreenBentNormal > 0)
+			#if SHORT_RANGE_AO 
 			{
 				float3 BentNormal = ScreenBentNormal[Coord.SvPositionFlatten].xyz * 2 - 1;
 				AO = length(BentNormal);
 				UnitBentNormal = AO > 0 ? BentNormal / AO : Material.WorldNormal;
 			}
-			#endif // SCREEN_SPACE_BENT_NORMAL
+			#endif // SHORT_RANGE_AO
 
 			const uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(Material);
 
@@ -1272,7 +1272,7 @@ void ScreenProbeIntegrateCS(
 						float DirectionVisibility = 1.0f;
 					#endif
 
-					#if SCREEN_SPACE_BENT_NORMAL
+					#if SHORT_RANGE_AO
 						float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
 						DirectionVisibility *= LVisibility;
 					#endif
@@ -1285,7 +1285,7 @@ void ScreenProbeIntegrateCS(
 				#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
 				if (ApplyMaterialAO > 0)
 				{
-					DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, Material.MaterialAO) * (Material.MaterialAO > 0.0 ? rcp(Material.MaterialAO) : 0.0);
+					DiffuseLighting *= AOMultiBounce(min(Material.GBufferData.BaseColor, MaxAOMultibounceAlbedo), Material.MaterialAO) * (Material.MaterialAO > 0.0 ? rcp(Material.MaterialAO) : 0.0);
 				}
 				#endif
 			}
@@ -1346,7 +1346,7 @@ void ScreenProbeIntegrateCS(
 							}
 							float DirectionalOcclusion = 1.0f;
 
-							#if SCREEN_SPACE_BENT_NORMAL
+							#if SHORT_RANGE_AO
 								float LVisibility = saturate(Evaluate(VisibleSG, WorldConeDirection) / Evaluate(HemisphereSG, WorldConeDirection));
 								DirectionalOcclusion *= LVisibility;
 							#endif
@@ -1384,13 +1384,13 @@ void ScreenProbeIntegrateCS(
 			#if !GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
 			if (ApplyMaterialAO > 0)
 			{
-				DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, Material.MaterialAO);
+				DiffuseLighting *= AOMultiBounce(min(Material.GBufferData.BaseColor, MaxAOMultibounceAlbedo), Material.MaterialAO);
 			}
 			#endif
 
-			#if SCREEN_SPACE_BENT_NORMAL && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
+			#if SHORT_RANGE_AO && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
 			{
-				DiffuseLighting *= DistantIlluminationRescale(Material.GBufferData.BaseColor, AO);
+				DiffuseLighting *= DistantIlluminationRescale(min(Material.GBufferData.BaseColor, MaxAOMultibounceAlbedo), AO);
 			}
 			#endif
 
@@ -1525,7 +1525,7 @@ void ScreenProbeIntegrateCS(
 
 					float DirectionVisibility = 1.0f;
 
-					#if SCREEN_SPACE_BENT_NORMAL
+					#if SHORT_RANGE_AO
 						float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
 						DirectionVisibility *= LVisibility;
 					#endif

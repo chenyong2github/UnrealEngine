@@ -10,6 +10,7 @@
 #include "../SceneTextureParameters.ush"
 #define IS_SSGI_SHADER 1
 #include "LumenScreenTracing.ush"
+#include "LumenHairTracing.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -23,7 +24,7 @@ Texture2D FurthestHZBTexture;
 float4 HZBUvFactorAndInvFactor;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+void ScreenSpaceShortRangeAOCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 #if STRATA_ENABLED && PERMUTATION_OVERFLOW
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
@@ -84,7 +85,7 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 					TranslatedWorldPosition, RayDirection,
 					/* WorldTMax = */ TraceDistance,
 					/* SceneDepth = */ SceneDepth,
-					/* SlopeCompareToleranceScale */ SlopeCompareToleranceScale * DepthThresholdScale,
+					/* SlopeCompareToleranceScale */ SlopeCompareToleranceScale * DepthThresholdScale * (float)NumSteps,
 					/* bExtendRayToScreenBorder = */ false,
 					/* out */ bRayWasClipped);
 
@@ -103,7 +104,62 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 					/* out */ bHit,
 					/* out */ bUncertain);
 
-				DirectionVisible = bHit && !bUncertain ? 0.0f : 1.0f;
+#if USE_HAIRSTRANDS_SCREEN
+				if (!bHit)
+				{
+					float3 Hair_DebugOutput;
+					float3 Hair_HitUVz;
+					float Hair_Level;
+					bool Hair_bHit = false;
+					bool Hair_bUncertain = bUncertain;
+
+					CastScreenSpaceRay(
+						HairStrands.HairOnlyDepthFurthestHZBTexture, FurthestHZBTextureSampler,
+						StartMipLevel,
+						CastSettings,
+						Ray, RayRoughness, NumSteps, StepOffset,
+						HZBUvFactorAndInvFactor, false,
+						/* out */ Hair_DebugOutput,
+						/* out */ Hair_HitUVz,
+						/* out */ Hair_Level,
+						/* out */ Hair_bHit,
+						/* out */ Hair_bUncertain);
+
+					if (Hair_bHit && !Hair_bUncertain)
+					{
+						DebugOutput = Hair_DebugOutput;
+						HitUVz = Hair_HitUVz;
+						bHit = Hair_bHit;
+						bUncertain = Hair_bUncertain;
+					}
+				}
+#endif
+
+				bHit = bHit && !bUncertain;
+
+#if USE_HAIRSTRANDS_VOXEL
+				if (!bHit)
+				{
+					bool bHairHit;
+					float HairTransparency;
+					float HairHitT;
+
+					TraceHairVoxels(
+						NoiseCoord,
+						SceneDepth,
+						TranslatedWorldPosition,
+						RayDirection,
+						TraceDistance,
+						false,
+						bHairHit,
+						HairTransparency,
+						HairHitT);
+
+					bHit = bHairHit && HairHitT < TraceDistance;
+				}
+#endif
+
+				DirectionVisible = bHit ? 0.0f : 1.0f;
 			}
 			#endif
 

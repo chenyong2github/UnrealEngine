@@ -12,7 +12,6 @@
 
 #define IS_SSGI_SHADER 0
 #include "../SHCommon.ush"
-
 #include "LumenScreenTracing.ush"
 #include "LumenHairTracing.ush"
 #include "../SceneTextureParameters.ush"
@@ -512,9 +511,31 @@ void TraceMeshSDFs(
 			// Trace against hair voxel structure, if enabled and not already done by other tracing method
 			#if USE_HAIRSTRANDS_VOXEL
 			{
-				// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
-				// the voxel structure does not cause any self shadowing issue
-				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, TranslatedWorldPosition, RayWorldDirection, TraceInput.MaxTraceDistance, false, TraceResult);
+				float HairTraceDistance = min(TraceInput.MaxTraceDistance, TraceResult.OpaqueHitDistance);
+
+				bool bHairHit;
+				float HairTransparency;
+				float HairHitT;
+
+				TraceHairVoxels(
+					ScreenProbeScreenPosition,
+					SceneDepth,
+					// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+					// the voxel structure does not cause any self shadowing issue
+					TranslatedWorldPosition,
+					RayWorldDirection,
+					HairTraceDistance,
+					false,
+					bHairHit,
+					HairTransparency,
+					HairHitT);
+
+				if (bHairHit && HairHitT < HairTraceDistance)
+				{
+					TraceResult.Lighting *= HairTransparency;
+					TraceResult.Transparency *= HairTransparency;
+					TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
+				}
 			}
 			#endif
 
@@ -654,9 +675,31 @@ void TraceVoxels(
 			// Trace against hair voxel structure, if enabled and not already done by other tracing method
 			#if USE_HAIRSTRANDS_VOXEL
 			{
-				// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
-				// the voxel structure does not cause any self shadowing issue
-				TraceHairVoxels(ScreenProbeScreenPosition, SceneDepth, TranslatedWorldPosition, RayWorldDirection, TraceDistance, false, TraceResult);
+				float HairTraceDistance = min(TraceDistance, TraceResult.OpaqueHitDistance);
+
+				bool bHairHit;
+				float HairTransparency;
+				float HairHitT;
+
+				TraceHairVoxels(
+					ScreenProbeScreenPosition,
+					SceneDepth,
+					// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+					// the voxel structure does not cause any self shadowing issue
+					TranslatedWorldPosition,
+					RayWorldDirection,
+					HairTraceDistance,
+					false,
+					bHairHit,
+					HairTransparency,
+					HairHitT);
+
+				if (bHairHit && HairHitT < HairTraceDistance)
+				{
+					TraceResult.Lighting *= HairTransparency;
+					TraceResult.Transparency *= HairTransparency;
+					TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
+				}
 			}
 			#endif
 

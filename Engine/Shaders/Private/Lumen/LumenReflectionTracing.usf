@@ -433,9 +433,31 @@ void TraceMeshSDFs(
 	// Trace against hair voxel structure, if enabled and not already done by other tracing method
 	#if USE_HAIRSTRANDS_VOXEL
 	{
-		// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
-		// the voxel structure does not cause any self shadowing issue
-		TraceHairVoxels(ReflectionTracingCoord.Coord, SceneDepth, TranslatedWorldPosition, RayData.Direction, TraceHitDistance, true, TraceResult);
+		float HairTraceDistance = min(RayData.TraceDistance, TraceResult.OpaqueHitDistance);
+
+		bool bHairHit;
+		float HairTransparency;
+		float HairHitT;
+		
+		TraceHairVoxels(
+			ReflectionTracingCoord.Coord, 
+			SceneDepth, 
+			// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+			// the voxel structure does not cause any self shadowing issue
+			TranslatedWorldPosition, 
+			RayData.Direction, 
+			HairTraceDistance,
+			true, 
+			bHairHit,
+			HairTransparency,
+			HairHitT);
+
+		if (bHairHit && HairHitT < HairTraceDistance)
+		{
+			TraceResult.Lighting *= HairTransparency;
+			TraceResult.Transparency *= HairTransparency;
+			TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
+		}
 	}
 	#endif
 
@@ -547,9 +569,31 @@ void TraceVoxels(
 	// Trace against hair voxel structure, if enabled and not already done by other tracing method
 	#if USE_HAIRSTRANDS_VOXEL
 	{
-		// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
-		// the voxel structure does not cause any self shadowing issue
-		TraceHairVoxels(ReflectionTracingCoord.Coord, SceneDepth, TranslatedWorldPosition, RayData.Direction, RayData.TraceDistance, true, TraceResult);
+		float HairTraceDistance = min(RayData.TraceDistance, TraceResult.OpaqueHitDistance);
+
+		bool bHairHit;
+		float HairTransparency;
+		float HairHitT;
+
+		TraceHairVoxels(
+			ReflectionTracingCoord.Coord,
+			SceneDepth,
+			// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+			// the voxel structure does not cause any self shadowing issue
+			TranslatedWorldPosition,
+			RayData.Direction,
+			HairTraceDistance,
+			true,
+			bHairHit,
+			HairTransparency,
+			HairHitT);
+
+		if (bHairHit && HairHitT < HairTraceDistance)
+		{
+			TraceResult.Lighting *= HairTransparency;
+			TraceResult.Transparency *= HairTransparency;
+			TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
+		}
 	}
 	#endif
 

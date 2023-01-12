@@ -13,6 +13,9 @@
 #include "LumenHardwareRayTracingCommon.ush"
 #endif
 
+#define USE_HAIRSTRANDS_VOXEL DIM_HAIRSTRANDS_VOXEL
+#include "LumenHairTracing.ush"
+
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
 #endif
@@ -530,22 +533,53 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.bIsRadianceCompleted));
 #endif // DIM_TRACE_MODE
 
+		FConeTraceResult TraceResult;
+		TraceResult.Lighting = Result.Radiance;
+		TraceResult.Transparency = 1;
+		TraceResult.OpaqueHitDistance = Result.TraceHitDistance;
+
+		// Trace against hair voxel structure, if enabled
+#if DIM_HAIRSTRANDS_VOXEL
+		{
+			float HairTraceDistance = min(Ray.TMax, TraceResult.OpaqueHitDistance);
+
+			bool bHairHit;
+			float HairTransparency;
+			float HairHitT;
+
+			TraceHairVoxels(
+				TraceCoord,
+				Result.TraceHitDistance,
+				Ray.Origin,
+				Ray.Direction,
+				HairTraceDistance,
+				true,
+				bHairHit,
+				HairTransparency,
+				HairHitT);
+
+			if (bHairHit && HairHitT < HairTraceDistance)
+			{
+				TraceResult.Lighting *= HairTransparency;
+				TraceResult.Transparency *= HairTransparency;
+				TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
+			}
+		}
+#endif
+
 		if (ApplySkylightStage != 0 && !Result.bIsHit)
 		{
-			FConeTraceResult TraceResult = (FConeTraceResult)0;
-			TraceResult.Transparency = 1;
 			ApplySkylightToTraceResult(Ray.Direction, TraceResult);
-			Result.Radiance = TraceResult.Lighting;
 		}
 
-		//Result.Radiance += GetSkylightLeaking(Ray.Direction, Result.TraceHitDistance);
+		//TraceResult.Lighting += GetSkylightLeaking(Ray.Direction, TraceResult.OpaqueHitDistance);
 
-		Result.Radiance *= View.PreExposure;
+		TraceResult.Lighting *= View.PreExposure;
 
 		// The overview outputs after the tonemapper to overwrite editor primitives and must apply its own tonemapping
-		Result.Radiance.rgb = VisualizeTonemap(Result.Radiance.rgb);
+		float3 TonemappedLighting = VisualizeTonemap(TraceResult.Lighting);
 
-		RWRadiance[OutputScreenCoord] = Result.Radiance;
+		RWRadiance[OutputScreenCoord] = TonemappedLighting;
 	}
 }
 

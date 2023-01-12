@@ -31,6 +31,14 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTraces(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeGatherHierarchicalScreenTracesFullResDepth = 1;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesFullResDepth(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.FullResDepth"),
+	GLumenScreenProbeGatherHierarchicalScreenTracesFullResDepth,
+	TEXT("Whether the HZB traversal should go all the way down to the full resolution depth, which is more accurate but adds incoherency to the inner loop."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits(
 	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.SkipFoliageHits"),
@@ -95,7 +103,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHairStrands_VoxelTrace(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenScreenProbeGatherHairStrands_ScreenTrace = 1;
+int32 GLumenScreenProbeGatherHairStrands_ScreenTrace = 0;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherHairStrands_ScreenTrace(
 	TEXT("r.Lumen.ScreenProbeGather.HairStrands.ScreenTrace"),
 	GLumenScreenProbeGatherHairStrands_ScreenTrace,
@@ -180,18 +188,24 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 	class FHierarchicalScreenTracing : SHADER_PERMUTATION_BOOL("HIERARCHICAL_SCREEN_TRACING");
+	class FTraceFullResDepth : SHADER_PERMUTATION_BOOL("HZB_TRACE_INCLUDE_FULL_RES_DEPTH");
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_SCREEN");
 	class FTerminateOnLowOccupancy : SHADER_PERMUTATION_BOOL("TERMINATE_ON_LOW_OCCUPANCY");
 	class FTraceLightSamples : SHADER_PERMUTATION_BOOL("TRACE_LIGHT_SAMPLES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHierarchicalScreenTracing, FRadianceCache, FHairStrands, FTerminateOnLowOccupancy, FTraceLightSamples>;
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHierarchicalScreenTracing, FTraceFullResDepth, FRadianceCache, FHairStrands, FTerminateOnLowOccupancy, FTraceLightSamples>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		if (PermutationVector.Get<FTerminateOnLowOccupancy>() && !RHISupportsWaveOperations(Parameters.Platform))
+		{
+			return false;
+		}
+
+		if (PermutationVector.Get<FTraceFullResDepth>() && !PermutationVector.Get<FHierarchicalScreenTracing>())
 		{
 			return false;
 		}
@@ -696,9 +710,12 @@ void TraceScreenProbes(
 				&& GRHIMinimumWaveSize >= 32
 				&& RHISupportsWaveOperations(View.GetShaderPlatform());
 
+			const bool bHZBTraversal = GLumenScreenProbeGatherHierarchicalScreenTraces != 0;
+
 			FScreenProbeTraceScreenTexturesCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FRadianceCache >(LumenScreenProbeGather::UseRadianceCache(View) && !bTraceLightSamples);
-			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHierarchicalScreenTracing >(GLumenScreenProbeGatherHierarchicalScreenTraces != 0);
+			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHierarchicalScreenTracing >(bHZBTraversal);
+			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FTraceFullResDepth >(bHZBTraversal && GLumenScreenProbeGatherHierarchicalScreenTracesFullResDepth != 0);
 			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHairStrands>(bHasHairStrands);
 			PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FTerminateOnLowOccupancy>(bTerminateOnLowOccupancy);

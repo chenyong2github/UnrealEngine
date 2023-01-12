@@ -18,6 +18,8 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenHardwareRayTracingPipelineCommon.ush"
 #include "LumenScreenTracing.ush"
+#define USE_HAIRSTRANDS_VOXEL DIM_HAIRSTRANDS_VOXEL
+#include "LumenHairTracing.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -176,12 +178,48 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #endif // DIM_LIGHTING_MODE
 
+		FConeTraceResult TraceResult;
+		TraceResult.Lighting = Result.Radiance;
+		TraceResult.Transparency = 1;
+		TraceResult.OpaqueHitDistance = Result.TraceHitDistance;
 
 #if DIM_WRITE_FINAL_LIGHTING
+
+		// Trace against hair voxel structure, if enabled
+		#if DIM_HAIRSTRANDS_VOXEL && !ENABLE_FAR_FIELD_TRACING
+		{
+			float HairTraceDistance = min(DitheredMaxTraceDistance, TraceResult.OpaqueHitDistance);
+
+			bool bHairHit;
+			float HairTransparency;
+			float HairHitT;
+
+			TraceHairVoxels(
+				TraceCoord,
+				SceneDepth,
+				// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
+				// the voxel structure does not cause any self shadowing issue
+				TranslatedWorldPosition,
+				RayData.Direction,
+				HairTraceDistance,
+				true,
+				bHairHit,
+				HairTransparency,
+				HairHitT);
+
+			if (bHairHit && HairHitT < HairTraceDistance)
+			{
+				TraceResult.Lighting *= HairTransparency;
+				TraceResult.Transparency *= HairTransparency;
+				TraceResult.OpaqueHitDistance = min(HairHitT, TraceResult.OpaqueHitDistance);
+			}
+		}
+		#endif
+
 		if (Result.bIsHit && SampleSceneColor > 0)
 		{
-			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * Result.TraceHitDistance;
-			SampleSceneColorAtHit(HitTranslatedWorldPosition, TraceCoord, RelativeDepthThickness, Result.Radiance);
+			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * TraceResult.OpaqueHitDistance;
+			SampleSceneColorAtHit(HitTranslatedWorldPosition, TraceCoord, RelativeDepthThickness, TraceResult.Lighting);
 		}
 #endif
 
@@ -189,30 +227,16 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		// If we're tracing a near field ray that missed, which has valid Radiance Cache coverage, use that for final lighting
 		if (!Result.bIsHit && RayData.bUseRadianceCache)
 		{
-			FConeTraceResult TraceResult;
-			TraceResult.Lighting = 0;
-			TraceResult.Transparency = 1;
-
 			float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, RayData.Direction, InterleavedGradientNoise(TraceCoord, View.StateFrameIndexMod8));
 			SampleRadianceCacheAndApply(Coverage, WorldPosition, RayData.Direction, RayData.ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
-			Result.TraceHitDistance = RayData.TraceDistance;
-			Result.Radiance = TraceResult.Lighting;
-
 			Result.bIsHit = true;
 		}
 #endif
 
 		if ((ApplySkyLight != 0) && !Result.bIsHit)
 		{
-			FConeTraceResult TraceResult;
-			TraceResult.Lighting = Result.Radiance;
-			TraceResult.Transparency = 1;
-
 			ApplySkylightToTraceResult(RayData.Direction, TraceResult);
-
-			Result.TraceHitDistance = MaxTraceDistance;
-			Result.Radiance = TraceResult.Lighting;
 			Result.bIsHit = true;
 		}
 
@@ -229,18 +253,18 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #if DIM_WRITE_FINAL_LIGHTING
 
-		Result.Radiance += GetSkylightLeaking(Ray.Direction, Result.TraceHitDistance);
-		Result.Radiance *= View.PreExposure;
+		TraceResult.Lighting += GetSkylightLeaking(Ray.Direction, TraceResult.OpaqueHitDistance);
+		TraceResult.Lighting *= View.PreExposure;
 
-		float MaxLighting = max3(Result.Radiance.x, Result.Radiance.y, Result.Radiance.z);
+		float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
 
 		if (MaxLighting > MaxRayIntensity)
 		{
-			Result.Radiance *= MaxRayIntensity / MaxLighting;
+			TraceResult.Lighting *= MaxRayIntensity / MaxLighting;
 		}
 
-		RWTraceRadiance[TraceCoord] = Result.Radiance;
-		RWTraceHit[TraceCoord] = EncodeRayDistance(Result.TraceHitDistance, Result.bIsHit);
+		RWTraceRadiance[TraceCoord] = TraceResult.Lighting;
+		RWTraceHit[TraceCoord] = EncodeRayDistance(TraceResult.OpaqueHitDistance, Result.bIsHit);
 
 		#define DEBUG_SUPPORT_VISUALIZE_TRACE_COHERENCY 0
 		#if DEBUG_SUPPORT_VISUALIZE_TRACE_COHERENCY
@@ -253,7 +277,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 				if (DebugTraceIndex >= 0 && DebugTraceIndex < 32)
 				{
 					float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
-					WriteTraceForVisualization(DebugTraceIndex, WorldPosition, RayData.Direction, Result.TraceHitDistance, /*Result.Radiance*/float3(1, 0, 0));
+					WriteTraceForVisualization(DebugTraceIndex, WorldPosition, RayData.Direction, TraceResult.OpaqueHitDistance, /*TraceResult.Lighting*/float3(1, 0, 0));
 				}
 			}
 		#endif

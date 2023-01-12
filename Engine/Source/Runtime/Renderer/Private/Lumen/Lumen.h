@@ -94,6 +94,7 @@ namespace Lumen
 	bool UseHardwareRayTracedDirectLighting(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedReflections(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedScreenProbeGather(const FSceneViewFamily& ViewFamily);
+	bool UseHardwareRayTracedShortRangeAO(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedRadianceCache(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedVisualize(const FSceneViewFamily& ViewFamily);

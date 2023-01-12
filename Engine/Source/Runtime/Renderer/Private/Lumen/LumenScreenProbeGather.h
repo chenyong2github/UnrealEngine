@@ -181,6 +181,15 @@ void RenderHardwareRayTracingScreenProbe(
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters);
 
+extern void RenderHardwareRayTracingShortRangeAO(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
+	const FScreenProbeParameters& ScreenProbeParameters,
+	const FViewInfo& View,
+	FRDGTextureRef ScreenBentNormal,
+	uint32 NumPixelRays);
+
 extern void FilterScreenProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -190,7 +199,7 @@ extern void FilterScreenProbes(
 	FScreenProbeGatherParameters& GatherParameters,
 	ERDGPassFlags ComputePassFlags);
 
-extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
+extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceShortRangeAO(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,

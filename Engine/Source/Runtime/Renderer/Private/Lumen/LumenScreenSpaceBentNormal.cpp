@@ -12,26 +12,50 @@
 #include "ShaderParameterStruct.h"
 #include "PixelShaderUtils.h"
 
-float GLumenScreenBentNormalSlopeCompareToleranceScale = 2.0f;
-FAutoConsoleVariableRef CVarLumenScreenBentNormalSlopeCompareToleranceScale(
-	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal.SlopeCompareToleranceScale"),
-	GLumenScreenBentNormalSlopeCompareToleranceScale,
+float GLumenShortRangeAOSlopeCompareToleranceScale = .5f;
+FAutoConsoleVariableRef CVarLumenShortRangeAOSlopeCompareToleranceScale(
+	TEXT("r.Lumen.ScreenProbeGather.ShortRangeAO.ScreenSpace.SlopeCompareToleranceScale"),
+	GLumenShortRangeAOSlopeCompareToleranceScale,
 	TEXT("Scales the slope threshold that screen space traces use to determine whether there was a hit."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenScreenBentNormalFoliageOcclusionStrength = .7f;
-FAutoConsoleVariableRef CVarLumenScreenBentNormalFoliageOcclusionStrength(
-	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal.FoliageOcclusionStrength"),
-	GLumenScreenBentNormalFoliageOcclusionStrength,
+float GLumenShortRangeAOFoliageOcclusionStrength = .7f;
+FAutoConsoleVariableRef CVarLumenShortRangeAOFoliageOcclusionStrength(
+	TEXT("r.Lumen.ScreenProbeGather.ShortRangeAO.ScreenSpace.FoliageOcclusionStrength"),
+	GLumenShortRangeAOFoliageOcclusionStrength,
 	TEXT("Maximum strength of ScreenSpaceBentNormal occlusion on foliage and subsurface pixels.  Useful for reducing max occlusion to simulate subsurface scattering."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-class FScreenSpaceBentNormalCS : public FGlobalShader
+float GLumenMaxShortRangeAOMultibounceAlbedo = .5f;
+FAutoConsoleVariableRef CVarLumenMaxShortRangeAOMultibounceAlbedo(
+	TEXT("r.Lumen.ScreenProbeGather.ShortRangeAO.MaxMultibounceAlbedo"),
+	GLumenMaxShortRangeAOMultibounceAlbedo,
+	TEXT("Maximum albedo used for the AO multi-bounce approximation.  Useful for forcing near-white albedo to have some occlusion."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenShortRangeAOHairStrandsVoxelTrace = 1;
+FAutoConsoleVariableRef GVarLumenShortRangeAOHairStrandsVoxelTrace(
+	TEXT("r.Lumen.ScreenProbeGather.ShortRangeAO.HairVoxelTrace"),
+	GLumenShortRangeAOHairStrandsVoxelTrace,
+	TEXT("Whether to trace against hair voxel structure for hair casting shadow onto opaques."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenShortRangeAOHairStrandsScreenTrace = 0;
+FAutoConsoleVariableRef GVarShortRangeAOHairStrandsScreenTrace(
+	TEXT("r.Lumen.ScreenProbeGather.ShortRangeAO.HairScreenTrace"),
+	GLumenShortRangeAOHairStrandsScreenTrace,
+	TEXT("Whether to trace against hair depth for hair casting shadow onto opaques."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+class FScreenSpaceShortRangeAOCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenSpaceBentNormalCS)
-	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceBentNormalCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FScreenSpaceShortRangeAOCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceShortRangeAOCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenBentNormal)
@@ -45,12 +69,16 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 		SHADER_PARAMETER(float, SlopeCompareToleranceScale)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FNumPixelRays : SHADER_PERMUTATION_SPARSE_INT("NUM_PIXEL_RAYS", 4, 8, 16);
-	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
-	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays, FOverflow>;
+	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW"); 
+	class FHairStrandsScreen : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_SCREEN");
+	class FHairStrandsVoxel : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
+	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays, FOverflow, FHairStrandsScreen, FHairStrandsVoxel>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -77,9 +105,9 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FScreenSpaceBentNormalCS, "/Engine/Private/Lumen/LumenScreenSpaceBentNormal.usf", "ScreenSpaceBentNormalCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenSpaceShortRangeAOCS, "/Engine/Private/Lumen/LumenScreenSpaceBentNormal.usf", "ScreenSpaceShortRangeAOCS", SF_Compute);
 
-FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
+FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceShortRangeAO(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
@@ -108,74 +136,103 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 		NumPixelRays = 8;
 	}
 
-	auto ScreenSpaceBentNormal = [&](bool bOverflow)
+	if (Lumen::UseHardwareRayTracedShortRangeAO(*View.Family))
 	{
-		FScreenSpaceBentNormalCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceBentNormalCS::FParameters>();
-		PassParameters->RWScreenBentNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenBentNormal));
-		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-		PassParameters->SceneTextures = SceneTextureParameters;
-
-		if (!PassParameters->SceneTextures.GBufferVelocityTexture)
-		{
-			PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
-		}
-
-		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
-
-		const FVector2D ViewportUVToHZBBufferUV(
-			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
-		);
-
-		PassParameters->HZBUvFactorAndInvFactor = FVector4f(
-			ViewportUVToHZBBufferUV.X,
-			ViewportUVToHZBBufferUV.Y,
-			1.0f / ViewportUVToHZBBufferUV.X,
-			1.0f / ViewportUVToHZBBufferUV.Y);
-
-		PassParameters->FurthestHZBTexture = View.HZB;
-		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
-		PassParameters->SlopeCompareToleranceScale = GLumenScreenBentNormalSlopeCompareToleranceScale;
-
-		FScreenSpaceBentNormalCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenSpaceBentNormalCS::FNumPixelRays >(NumPixelRays);
-		PermutationVector.Set< FScreenSpaceBentNormalCS::FOverflow>(bOverflow);
-		auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceBentNormalCS>(PermutationVector);
-
-		if (bOverflow)
-		{
-			PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ScreenSpaceBentNormal(Rays=%u, Overflow)", NumPixelRays),
-				ComputePassFlags,
-				ComputeShader,
-				PassParameters,
-				View.StrataViewData.BSDFTileDispatchIndirectBuffer,
-				0);
-		}
-		else
-		{
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ScreenSpaceBentNormal(Rays=%u)", NumPixelRays),
-				ComputePassFlags,
-				ComputeShader,
-				PassParameters,
-				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceBentNormalCS::GetGroupSize()));
-		}
-	};
-
-	ScreenSpaceBentNormal(false);
-	if (Strata::IsStrataEnabled())
+		RenderHardwareRayTracingShortRangeAO(
+			GraphBuilder,
+			Scene,
+			SceneTextureParameters,
+			ScreenProbeParameters,
+			View,
+			ScreenBentNormal,
+			NumPixelRays);
+	}
+	else
 	{
-		ScreenSpaceBentNormal(true);
+		const bool bNeedTraceHairVoxel = HairStrands::HasViewHairStrandsVoxelData(View) && GLumenShortRangeAOHairStrandsVoxelTrace > 0;
+		const bool bNeedTraceHairScreen = HairStrands::HasViewHairStrandsData(View) && GLumenShortRangeAOHairStrandsScreenTrace > 0;
+		
+		auto ScreenSpaceShortRangeAO = [&](bool bOverflow)
+		{
+			FScreenSpaceShortRangeAOCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceShortRangeAOCS::FParameters>();
+			PassParameters->RWScreenBentNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenBentNormal));
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+			PassParameters->SceneTextures = SceneTextureParameters;
+
+			if (!PassParameters->SceneTextures.GBufferVelocityTexture)
+			{
+				PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+			}
+
+			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->LightingChannelsTexture = LightingChannelsTexture;
+
+			const FVector2D ViewportUVToHZBBufferUV(
+				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
+			);
+
+			PassParameters->HZBUvFactorAndInvFactor = FVector4f(
+				ViewportUVToHZBBufferUV.X,
+				ViewportUVToHZBBufferUV.Y,
+				1.0f / ViewportUVToHZBBufferUV.X,
+				1.0f / ViewportUVToHZBBufferUV.Y);
+
+			PassParameters->FurthestHZBTexture = View.HZB;
+			PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+			PassParameters->SlopeCompareToleranceScale = GLumenShortRangeAOSlopeCompareToleranceScale;
+
+			if (bNeedTraceHairScreen)
+			{
+				PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
+			}
+
+			if (bNeedTraceHairVoxel)
+			{
+				PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+			}
+
+			FScreenSpaceShortRangeAOCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FScreenSpaceShortRangeAOCS::FNumPixelRays >(NumPixelRays);
+			PermutationVector.Set< FScreenSpaceShortRangeAOCS::FOverflow>(bOverflow);
+			PermutationVector.Set< FScreenSpaceShortRangeAOCS::FHairStrandsScreen>(bNeedTraceHairScreen);
+			PermutationVector.Set< FScreenSpaceShortRangeAOCS::FHairStrandsVoxel>(bNeedTraceHairVoxel);
+			auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceShortRangeAOCS>(PermutationVector);
+
+			if (bOverflow)
+			{
+				PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("ShortRangeAO_ScreenSpace(Rays=%u, Overflow)", NumPixelRays),
+					ComputePassFlags,
+					ComputeShader,
+					PassParameters,
+					View.StrataViewData.BSDFTileDispatchIndirectBuffer,
+					0);
+			}
+			else
+			{
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("ShortRangeAO_ScreenSpace(Rays=%u)", NumPixelRays),
+					ComputePassFlags,
+					ComputeShader,
+					PassParameters,
+					FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceShortRangeAOCS::GetGroupSize()));
+			}
+		};
+
+		ScreenSpaceShortRangeAO(false);
+		if (Strata::IsStrataEnabled())
+		{
+			ScreenSpaceShortRangeAO(true);
+		}
 	}
 
 	OutParameters.ScreenBentNormal = ScreenBentNormal;
-	OutParameters.UseScreenBentNormal = 1;
+	OutParameters.UseShortRangeAO = 1;
 	return OutParameters;
 }

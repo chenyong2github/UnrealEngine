@@ -1816,6 +1816,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 					if (DoesPlatformSupportLumenGI(ShaderPlatform) && Lumen::UseHardwareRayTracing(ViewFamily))
 					{
 						PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
+						PrepareLumenHardwareRayTracingShortRangeAO(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingRadianceCache(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
