@@ -326,7 +326,7 @@ bool USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObje
 	return true;
 }
 
-void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, const FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef)
+void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef)
 {
 	// Abort everything before removing since abort flow may require access to runtime data
 	AbortAll(SmartObjectRuntime);
@@ -1111,7 +1111,7 @@ void USmartObjectSubsystem::AddSlotDataDeferred(const FSmartObjectClaimHandle& C
 			EntityManager->Defer().PushCommand<FMassDeferredAddCommand>(
 			[EntityHandle = FMassEntityHandle(ClaimHandle.SlotHandle), DataView = InData](FMassEntityManager& System)
 			{
-				FInstancedStruct Struct = DataView;
+				FInstancedStruct Struct(DataView);
 				System.AddFragmentInstanceListToEntity(EntityHandle, MakeArrayView(&Struct, 1));
 			});
 

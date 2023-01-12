@@ -78,7 +78,7 @@ class SMARTOBJECTSMODULE_API USmartObjectOctree : public USmartObjectSpacePartit
 
 protected:
 	virtual FInstancedStruct Add(const FSmartObjectHandle Handle, const FBox& Bounds) override;
-	virtual void Remove(const FSmartObjectHandle Handle, const FStructView& EntryData) override;
+	virtual void Remove(const FSmartObjectHandle Handle, FStructView EntryData) override;
 	virtual void Find(const FBox& QueryBox, TArray<FSmartObjectHandle>& OutResults) override;
 	virtual void SetBounds(const FBox& Bounds) override;
 

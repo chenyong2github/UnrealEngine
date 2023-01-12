@@ -218,7 +218,7 @@ class SMARTOBJECTSMODULE_API USmartObjectSpacePartition : public UObject
 public:
 	virtual void SetBounds(const FBox& Bounds) {}
 	virtual FInstancedStruct Add(const FSmartObjectHandle Handle, const FBox& Bounds) { return FInstancedStruct(); }
-	virtual void Remove(const FSmartObjectHandle Handle, const FStructView& EntryData) {}
+	virtual void Remove(const FSmartObjectHandle Handle, FStructView EntryData) {}
 	virtual void Find(const FBox& QueryBox, TArray<FSmartObjectHandle>& OutResults) {}
 
 #if UE_ENABLE_DEBUG_DRAWING

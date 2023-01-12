@@ -73,9 +73,9 @@ FInstancedStruct USmartObjectOctree::Add(const FSmartObjectHandle Handle, const 
 	return FInstancedStruct::Make(EntryData);
 }
 
-void USmartObjectOctree::Remove(const FSmartObjectHandle Handle, const FStructView& EntryData)
+void USmartObjectOctree::Remove(const FSmartObjectHandle Handle, FStructView EntryData)
 {
-	const FSmartObjectOctreeEntryData& OctreeEntryData = EntryData.GetMutable<FSmartObjectOctreeEntryData>();
+	const FSmartObjectOctreeEntryData& OctreeEntryData = EntryData.Get<FSmartObjectOctreeEntryData>();
 	FSmartObjectOctreeID& SharedOctreeID = OctreeEntryData.SharedOctreeID.Get();
 	if (SharedOctreeID.ID.IsValidId())
 	{

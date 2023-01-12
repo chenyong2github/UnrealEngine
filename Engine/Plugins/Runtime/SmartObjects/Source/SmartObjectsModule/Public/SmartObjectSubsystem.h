@@ -738,7 +738,7 @@ protected:
 	void RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
 
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
-	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, const FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
+	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
 
 	/**
 	 * Name of the Space partition class to use.
