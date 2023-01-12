@@ -983,6 +983,7 @@ bool UInterchangeManager::ImportScene(const FString& ContentPath, const UInterch
 {
 	using namespace UE::Interchange;
 	TTuple<FAssetImportResultRef, FSceneImportResultRef> ImportResults = ImportInternal(ContentPath, SourceData, ImportAssetParameters, UE::Interchange::EImportType::ImportType_Scene);
+	
 	ImportResults.Get<0>()->WaitUntilDone();
 	ImportResults.Get<1>()->WaitUntilDone();
 	return ImportResults.Get<0>()->IsValid() && ImportResults.Get<1>()->IsValid();
