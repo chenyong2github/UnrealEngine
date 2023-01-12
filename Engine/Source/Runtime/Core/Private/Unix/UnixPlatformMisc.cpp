@@ -107,26 +107,6 @@ void FUnixPlatformMisc::NormalizePath(FStringBuilderBase& InPath)
 	}
 }
 
-size_t CORE_API GCacheLineSize = PLATFORM_CACHE_LINE_SIZE;
-
-void UnixPlatform_UpdateCacheLineSize()
-{
-	// sysfs "API", as usual ;/
-	FILE * SysFsFile = fopen("/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
-	if (SysFsFile)
-	{
-		int SystemLineSize = 0;
-		if (1 == fscanf(SysFsFile, "%d", &SystemLineSize))
-		{
-			if (SystemLineSize > 0)
-			{
-				GCacheLineSize = SystemLineSize;
-			}
-		}
-		fclose(SysFsFile);
-	}
-}
-
 // Defined in UnixPlatformMemory
 extern bool GUseKSM;
 extern bool GKSMMergeAllPages;
@@ -223,8 +203,6 @@ void FUnixPlatformMisc::PlatformInit()
 	UE_LOG(LogInit, Log, TEXT(" - CPU: %s '%s' (signature: 0x%X)"), *FPlatformMisc::GetCPUVendor(), *FPlatformMisc::GetCPUBrand(), FPlatformMisc::GetCPUInfo());
 	UE_LOG(LogInit, Log, TEXT(" - Number of physical cores available for the process: %d"), FPlatformMisc::NumberOfCores());
 	UE_LOG(LogInit, Log, TEXT(" - Number of logical cores available for the process: %d"), FPlatformMisc::NumberOfCoresIncludingHyperthreads());
-	UnixPlatform_UpdateCacheLineSize();
-	UE_LOG(LogInit, Log, TEXT(" - Cache line size: %zu"), GCacheLineSize);
 
 	if (!GPUBrandInfo.IsEmpty())
 	{

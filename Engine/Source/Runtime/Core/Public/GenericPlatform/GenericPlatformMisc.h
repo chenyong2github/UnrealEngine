@@ -10,6 +10,10 @@
 #include "Misc/CompressionFlags.h"
 #include "Misc/EnumClassFlags.h"
 
+#if PLATFORM_CPU_X86_FAMILY
+#include <xmmintrin.h>
+#endif
+
 class Error;
 class FOutputDevice;
 class FString;
@@ -1373,13 +1377,35 @@ public:
 	{
 	}
 
-	FORCEINLINE static void PrefetchBlock(const void* InPtr, int32 NumBytes = 1)
+	FORCEINLINE static void Prefetch(const void* Ptr)
 	{
+#if PLATFORM_CPU_X86_FAMILY
+		_mm_prefetch(static_cast<const char*>(Ptr), _MM_HINT_T0);
+#elif PLATFORM_CPU_ARM_FAMILY
+		__asm__ __volatile__("prfm pldl1keep, [%[ptr]]\n" ::[ptr] "r"(Ptr) : );
+#else
+#error Unknown architecture
+#endif
 	}
 
-	/** Platform-specific instruction prefetch */
-	FORCEINLINE static void Prefetch(void const* x, int32 offset = 0)
+	FORCEINLINE static void Prefetch(const void* Ptr, int32 Offset)
 	{
+		Prefetch(reinterpret_cast<const void*>(reinterpret_cast<UPTRINT>(Ptr) + Offset));
+	}
+
+	UE_DEPRECATED(5.2, "Must supply size when prefetching a block of data")
+	FORCEINLINE static void PrefetchBlock(const void* Ptr)
+	{
+		Prefetch(Ptr);
+	}
+
+	FORCEINLINE static void PrefetchBlock(const void* Ptr, int32 NumBytes)
+	{
+		// Use compile-time PLATFORM_CACHE_LINE_SIZE to avoid having to load a value before issuing prefetch instructions
+		for (int32 Line = 0, NumLines = (NumBytes + PLATFORM_CACHE_LINE_SIZE - 1) / PLATFORM_CACHE_LINE_SIZE; Line < NumLines; ++Line)
+		{
+			Prefetch(Ptr, Line * PLATFORM_CACHE_LINE_SIZE);
+		}
 	}
 
 	/**

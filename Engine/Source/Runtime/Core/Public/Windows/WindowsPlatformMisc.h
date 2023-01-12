@@ -163,30 +163,6 @@ struct CORE_API FWindowsPlatformMisc
 	static void PromptForRemoteDebugging(bool bIsEnsure);
 #endif	//#if !UE_BUILD_SHIPPING
 
-	FORCEINLINE static void PrefetchBlock(const void* InPtr, int32 NumBytes = 1)
-	{
-		const char* Ptr           = (const char*)InPtr;
-		const int32 CacheLineSize = GetCacheLineSize();
-		for (int32 LinesToPrefetch = (NumBytes + CacheLineSize - 1) / CacheLineSize; LinesToPrefetch; --LinesToPrefetch)
-		{
-#if PLATFORM_CPU_X86_FAMILY
-			_mm_prefetch( Ptr, _MM_HINT_T0 );
-#elif PLATFORM_CPU_ARM_FAMILY
-			__prefetch(Ptr);
-#endif
-			Ptr += CacheLineSize;
-		}
-	}
-
-	FORCEINLINE static void Prefetch(void const* x, int32 offset = 0)
-	{
-#if PLATFORM_CPU_X86_FAMILY
-		_mm_prefetch((char const*)(x)+offset, _MM_HINT_T0);
-#elif PLATFORM_CPU_ARM_FAMILY
-		__prefetch((char const*)(x)+offset);
-#endif
-		
-	}
 
 	/** 
 	 * Determines if the cpuid instruction is supported on this processor
