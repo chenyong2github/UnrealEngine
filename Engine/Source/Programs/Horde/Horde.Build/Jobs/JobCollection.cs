@@ -415,6 +415,7 @@ namespace Horde.Build.Jobs
 			{
 				_telemetrySink.SendEvent("State.Job", new
 				{
+					Id = newJob.Id,
 					Arguments = newJob.Arguments,
 					AutoSubmit = newJob.AutoSubmit,
 					Change = newJob.Change,
