@@ -890,35 +890,42 @@ bool FPluginUtils::UnloadPluginsAssets(const TConstArrayView<TSharedRef<IPlugin>
 
 bool FPluginUtils::UnloadPluginsAssets(const TSet<FString>& PluginNames, FText* OutFailReason /*= nullptr*/)
 {
-	TArray<UPackage*> PackagesToUnload;
-	for (TObjectIterator<UPackage> It; It; ++It)
+	bool bSuccess = true;
+	if (!PluginNames.IsEmpty())
 	{
-		const FNameBuilder PackageName(It->GetFName());
-		const FStringView PackageMountPointName = FPathViews::GetMountPointNameFromPath(PackageName);
-		if (PluginNames.ContainsByHash(GetTypeHash(PackageMountPointName), PackageMountPointName))
-		{
-			PackagesToUnload.Add(*It);
-		}
-	}
+		const double StartTime = FPlatformTime::Seconds();
 
-	if (PackagesToUnload.Num() > 0)
-	{
-		FText ErrorMsg;
-		UPackageTools::UnloadPackages(PackagesToUnload, ErrorMsg, /*bUnloadDirtyPackages=*/true);
-
-		// @note UnloadPackages returned bool indicates whether some packages were unloaded
-		// To tell whether all packages were successfully unloaded we must check the ErrorMsg output param
-		if (!ErrorMsg.IsEmpty())
+		TArray<UPackage*> PackagesToUnload;
+		for (TObjectIterator<UPackage> It; It; ++It)
 		{
-			if (OutFailReason)
+			const FNameBuilder PackageName(It->GetFName());
+			const FStringView PackageMountPointName = FPathViews::GetMountPointNameFromPath(PackageName);
+			if (PluginNames.ContainsByHash(GetTypeHash(PackageMountPointName), PackageMountPointName))
 			{
-				*OutFailReason = MoveTemp(ErrorMsg);
+				PackagesToUnload.Add(*It);
 			}
-			return false;
 		}
-	}
 
-	return true;
+		if (PackagesToUnload.Num() > 0)
+		{
+			FText ErrorMsg;
+			UPackageTools::UnloadPackages(PackagesToUnload, ErrorMsg, /*bUnloadDirtyPackages=*/true);
+
+			// @note UnloadPackages returned bool indicates whether some packages were unloaded
+			// To tell whether all packages were successfully unloaded we must check the ErrorMsg output param
+			if (!ErrorMsg.IsEmpty())
+			{
+				if (OutFailReason)
+				{
+					*OutFailReason = MoveTemp(ErrorMsg);
+				}
+				bSuccess = false;
+			}
+		}
+
+		UE_LOG(LogPluginUtils, Log, TEXT("Unloading assets from %d plugins took %0.2f sec"), PluginNames.Num(), FPlatformTime::Seconds() - StartTime);
+	}
+	return bSuccess;
 }
 
 bool FPluginUtils::UnloadPluginsAssets(const TConstArrayView<FString> PluginNames, FText* OutFailReason /*= nullptr*/)
