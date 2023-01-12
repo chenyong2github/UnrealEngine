@@ -5048,7 +5048,8 @@ void AInstancedFoliageActor::OnLevelActorOuterChanged(AActor* InActor, UObject* 
 		return;
 	}
 
-	if (OldLevel)
+	UActorPartitionSubsystem* ActorPartitionSubsystem = OldLevel ? UWorld::GetSubsystem<UActorPartitionSubsystem>(OldLevel->GetWorld()) : nullptr;
+	if (ActorPartitionSubsystem && ActorPartitionSubsystem->IsLevelPartition())
 	{
 		AInstancedFoliageActor* OldIFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(OldLevel, false);
 		check(OldIFA);
