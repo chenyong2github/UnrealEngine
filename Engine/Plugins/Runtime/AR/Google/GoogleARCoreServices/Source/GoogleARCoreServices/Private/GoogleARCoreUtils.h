@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #if PLATFORM_ANDROID || PLATFORM_IOS
 #define ARCORE_SERVICE_SUPPORTED_PLATFORM 1
 #else

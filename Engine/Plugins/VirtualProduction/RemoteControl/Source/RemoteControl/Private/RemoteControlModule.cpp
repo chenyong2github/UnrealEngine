@@ -39,6 +39,8 @@
 #include "HAL/IConsoleManager.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdGlobals.h"
+#else
+#include "Misc/ScopeExit.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogRemoteControl);

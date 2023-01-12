@@ -17,6 +17,7 @@
 	#include "WmfMediaSettings.h"
 #else
 	#include "Internationalization/Internationalization.h"
+	#include "Misc/Guid.h"
 #endif
 
 #include "../../WmfMedia/Public/IWmfMediaModule.h"
