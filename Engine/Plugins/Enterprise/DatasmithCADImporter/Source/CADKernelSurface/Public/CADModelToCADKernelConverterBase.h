@@ -42,12 +42,11 @@ public:
 		// Apply stitching if applicable
 		if(ImportParameters.GetStitchingTechnique() != StitchingNone)
 		{
-			const double JoiningTolerance = FImportParameters::GStitchingTolerance * 10.; //CM to MM
-			const double ForceFactor = FImportParameters::GStitchingForceFactor;
-			bool bForceJoining = FImportParameters::bGStitchingForceSew;
-			bool bRemoveThinFaces = FImportParameters::bGStitchingRemoveThinFaces;
-			UE::CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance, ForceFactor);
-			Topomaker.Sew(bForceJoining, bRemoveThinFaces);
+			const double StitchingTolerance = FImportParameters::GStitchingTolerance * 10.; //CM to MM
+			UE::CADKernel::FTopomakerOptions TopomakerOptions((UE::CADKernel::ESewOption)SewOption::GetFromImportParameters(), StitchingTolerance, FImportParameters::GStitchingForceFactor);
+
+			UE::CADKernel::FTopomaker Topomaker(CADKernelSession, TopomakerOptions);
+			Topomaker.Sew();
 			Topomaker.OrientShells();
 		}
 

@@ -17,6 +17,33 @@ class FTopologicalEdge;
 class FTopologicalFace;
 class FTopologicalVertex;
 
+enum class ESewOption : uint8
+{
+	None = 0x00u,	// No flags.
+
+	ForceJoining = 0x01u,
+	RemoveThinFaces = 0x02u, 
+	RemoveDuplicatedFaces = 0x04u,
+
+	All = 0x07u
+};
+
+ENUM_CLASS_FLAGS(ESewOption);
+
+struct FTopomakerOptions
+{
+	ESewOption SewOptions;
+	double Tolerance;
+	double ForceJoinFactor;
+
+	FTopomakerOptions(ESewOption InSewOptions, double InTolerance, double InForceJoinFactor)
+		: SewOptions(InSewOptions)
+		, Tolerance(InTolerance)
+		, ForceJoinFactor(InForceJoinFactor)
+	{}
+};
+
+
 class CADKERNEL_API FTopomaker
 {
 
@@ -33,14 +60,15 @@ protected:
 
 public:
 
-	FTopomaker(FSession& InSession, double InTolerance, double InForceFactor);
-	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double InTolerance, double InForceFactor);
-	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double InTolerance, double InForceFactor);
+	FTopomaker(FSession& InSession, const FTopomakerOptions& InOptions);
+	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, const FTopomakerOptions& InOptions);
+	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, const FTopomakerOptions& InOptions);
 
-	void SetTolerance(double InTolerance, double InForceFactor)
+	void SetTolerance(const FTopomakerOptions Options)
 	{
-		Tolerance = InTolerance;
-		ForceJoinFactor = InForceFactor;
+		SewOptions = Options.SewOptions;
+		Tolerance = Options.Tolerance;
+		ForceJoinFactor = Options.ForceJoinFactor;
 
 		SewTolerance = Tolerance * UE_DOUBLE_SQRT_2;
 
@@ -58,7 +86,7 @@ public:
 		ThinFaceWidth = Tolerance * ForceJoinFactor;
 	}
 
-	void Sew(bool bForceJoining, bool bRemoveThinFaces);
+	void Sew();
 
 	/**
 	 * Check topology of each body
@@ -105,6 +133,8 @@ private:
 
 	void RemoveEmptyShells();
 
+	void RemoveDuplicatedFaces();
+
 	/**
 	 * Return an array of active vertices.
 	 */
@@ -138,6 +168,8 @@ private:
 	 *              /                                                                   |
 	 */
 	void MergeUnconnectedSuccessiveEdges();
+
+	ESewOption SewOptions;
 
 	double Tolerance;
 	double ForceJoinFactor;

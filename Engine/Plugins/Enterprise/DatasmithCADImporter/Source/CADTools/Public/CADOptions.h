@@ -19,6 +19,19 @@ namespace CADLibrary
 		StitchingSew,
 	};
 
+	enum class ESewOption : uint8  // Same as UE::CADKernel::ESewOption
+	{
+		None = 0x00u,	// No flags.
+
+		ForceJoining = 0x01u,
+		RemoveThinFaces = 0x02u,
+		RemoveDuplicatedFaces = 0x04u,
+
+		All = 0x07u
+	};
+
+	ENUM_CLASS_FLAGS(ESewOption);
+
 	class FImportParameters
 	{
 	private:
@@ -39,6 +52,7 @@ namespace CADLibrary
 		CADTOOLS_API static float GStitchingTolerance;
 		CADTOOLS_API static bool bGStitchingForceSew;
 		CADTOOLS_API static bool bGStitchingRemoveThinFaces;
+		CADTOOLS_API static bool bGStitchingRemoveDuplicatedFaces;
 		CADTOOLS_API static float GStitchingForceFactor;
 		CADTOOLS_API static float GUnitScale;
 		CADTOOLS_API static float GMeshingParameterFactor;
@@ -73,7 +87,7 @@ namespace CADLibrary
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
-			for (bool Param : {bGStitchingForceSew, bGStitchingRemoveThinFaces, bGDisableCADKernelTessellation, bGPreferJtFileEmbeddedTessellation})
+			for (bool Param : {bGStitchingForceSew, bGStitchingRemoveThinFaces, bGStitchingRemoveDuplicatedFaces, bGDisableCADKernelTessellation, bGPreferJtFileEmbeddedTessellation})
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
@@ -98,6 +112,7 @@ namespace CADLibrary
 			Ar << ImportParameters.GStitchingTolerance;
 			Ar << ImportParameters.bGStitchingForceSew;
 			Ar << ImportParameters.bGStitchingRemoveThinFaces;
+			Ar << ImportParameters.bGStitchingRemoveDuplicatedFaces;
 			Ar << ImportParameters.GStitchingForceFactor;
 			Ar << ImportParameters.GMaxMaterialCountPerMesh;
 			return Ar;
@@ -135,6 +150,33 @@ namespace CADLibrary
 
 		CADTOOLS_API friend uint32 GetTypeHash(const FImportParameters& ImportParameters);
 	};
+
+	namespace SewOption
+	{
+
+	static ESewOption GetFromImportParameters()
+	{
+		ESewOption Option = ESewOption::None;
+
+		if (FImportParameters::bGStitchingForceSew)
+		{
+			Option |= ESewOption::ForceJoining;
+		}
+
+		if (FImportParameters::bGStitchingRemoveThinFaces)
+		{
+			Option |= ESewOption::RemoveThinFaces;
+		}
+
+		if (FImportParameters::bGStitchingRemoveDuplicatedFaces)
+		{
+			Option |= ESewOption::RemoveDuplicatedFaces;
+		}
+
+		return Option;
+	}
+
+	} // ns SewOption
 
 	inline FString BuildCadCachePath(const TCHAR* CachePath, uint32 FileHash)
 	{

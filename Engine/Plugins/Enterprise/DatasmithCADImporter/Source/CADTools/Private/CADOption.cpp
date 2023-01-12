@@ -90,6 +90,15 @@ Only available with CADKernel.\n\
 Default value of RemoveThinFaces is true\n"),
 ECVF_Default);
 
+bool FImportParameters::bGStitchingRemoveDuplicatedFaces = true;
+FAutoConsoleVariableRef GCADTranslatorStitchingRemoveDuplicatedFaces(
+	TEXT("ds.CADTranslator.Stitching.RemoveDuplicatedFaces"),
+	FImportParameters::bGStitchingRemoveDuplicatedFaces,
+	TEXT("During the welding process, duplicated faces (i.e. faces with the same loops) are removed. \n\
+Only available with CADKernel.\n\
+Default value of RemoveDuplicatedFaces is true\n"),
+ECVF_Default);
+
 float FImportParameters::GUnitScale = 1.f;
 FAutoConsoleVariableRef GCADTranslatorUnitScale(
 	TEXT("ds.CADTranslator.UnitScale"),

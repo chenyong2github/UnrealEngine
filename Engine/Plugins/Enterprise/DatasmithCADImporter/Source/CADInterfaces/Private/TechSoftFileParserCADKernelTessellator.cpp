@@ -28,8 +28,6 @@ namespace CADLibrary
 FTechSoftFileParserCADKernelTessellator::FTechSoftFileParserCADKernelTessellator(FCADFileData& InCADData, const FString& EnginePluginsPath)
 	: FTechSoftFileParser(InCADData, EnginePluginsPath)
 	, LastHostIdUsed(1 << 30)
-	, GeometricTolerance(FImportParameters::GStitchingTolerance * 10) // cm to mm
-	, ForceFactor(FImportParameters::GStitchingForceFactor)
 {
 }
 
@@ -90,8 +88,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 
 	using namespace UE::CADKernel;
 
-	const bool bTryToImproveSew = FImportParameters::bGStitchingForceSew;
-	const bool bRemoveThinSurface = FImportParameters::bGStitchingRemoveThinFaces;
+	const double GeometricTolerance = FImportParameters::GStitchingTolerance * 10; // cm to mm
 
 	FSession CADKernelSession(GeometricTolerance);
 	CADKernelSession.SetFirstNewHostId(LastHostIdUsed);
@@ -112,15 +109,17 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 	}
 
 	// Sew if needed
-	FTopomaker Topomaker(CADKernelSession, GeometricTolerance, ForceFactor);
-	Topomaker.Sew(bTryToImproveSew, bRemoveThinSurface);
+	UE::CADKernel::FTopomakerOptions TopomakerOptions((UE::CADKernel::ESewOption) SewOption::GetFromImportParameters(), GeometricTolerance, FImportParameters::GStitchingForceFactor);
+
+	FTopomaker Topomaker(CADKernelSession, TopomakerOptions);
+	Topomaker.Sew();
 	Topomaker.SplitIntoConnectedShells();
 	Topomaker.OrientShells();
 
 	// The Sew + SplitIntoConnectedShells change the bodies: some are deleted some are create
 	// but at the end the count of body is always <= than the initial count
 	// We need to found the unchanged bodies to link them to their FArchiveBody
-	// The new bodies will be linked to FArchiveBody of deleted bodies but the metadata of these FArchiveBody havbe to be cleaned
+	// The new bodies will be linked to FArchiveBody of deleted bodies but the metadata of these FArchiveBody have to be cleaned
 
 	int32 BodyCount = CADKernelModel.GetBodies().Num();
 
@@ -211,6 +210,7 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh);
 	using namespace UE::CADKernel;
 
+	const double GeometricTolerance = FImportParameters::GStitchingTolerance * 10; // cm to mm
 	FSession CADKernelSession(GeometricTolerance);
 	CADKernelSession.SetFirstNewHostId(LastHostIdUsed);
 	FModel& CADKernelModel = CADKernelSession.GetModel();
@@ -226,11 +226,10 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 
 	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingHeal)
 	{
-		const bool bTryToImproveSew = FImportParameters::bGStitchingForceSew;
-		const bool bRemoveThinSurface = FImportParameters::bGStitchingRemoveThinFaces;
+		UE::CADKernel::FTopomakerOptions TopomakerOptions((UE::CADKernel::ESewOption)SewOption::GetFromImportParameters(), GeometricTolerance, FImportParameters::GStitchingForceFactor);
 
-		FTopomaker Topomaker(CADKernelSession, GeometricTolerance, ForceFactor);
-		Topomaker.Sew(bTryToImproveSew, bRemoveThinSurface);
+		FTopomaker Topomaker(CADKernelSession, TopomakerOptions);
+		Topomaker.Sew();
 		Topomaker.OrientShells();
 	}
 

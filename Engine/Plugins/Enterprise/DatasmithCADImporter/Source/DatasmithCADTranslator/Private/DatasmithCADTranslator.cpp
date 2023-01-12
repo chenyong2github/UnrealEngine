@@ -177,9 +177,10 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	if (!FImportParameters::bGDisableCADKernelTessellation)
 	{
 		UE_LOG(LogCADTranslator, Display, TEXT("     - Stitching Options:"));
-		UE_LOG(LogCADTranslator, Display, TEXT("         - ForceSew:        %s"), ImportParameters.bGStitchingForceSew ? TEXT("True") : TEXT("False"));
-		UE_LOG(LogCADTranslator, Display, TEXT("         - RemoveThinFaces: %s"), ImportParameters.bGStitchingRemoveThinFaces ? TEXT("True") : TEXT("False"));
-		UE_LOG(LogCADTranslator, Display, TEXT("         - ForceFactor:     %f"), ImportParameters.GStitchingForceFactor);
+		UE_LOG(LogCADTranslator, Display, TEXT("         - ForceSew:              %s"), ImportParameters.bGStitchingForceSew ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogCADTranslator, Display, TEXT("         - RemoveThinFaces:       %s"), ImportParameters.bGStitchingRemoveThinFaces ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogCADTranslator, Display, TEXT("         - RemoveDuplicatedFaces: %s"), ImportParameters.bGStitchingRemoveDuplicatedFaces ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogCADTranslator, Display, TEXT("         - ForceFactor:           %f"), ImportParameters.GStitchingForceFactor);
 	}
 
 	switch (FileDescriptor.GetFileFormat())
