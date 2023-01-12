@@ -4,6 +4,7 @@
 #include "HeadlessChaos.h"
 #include "HeadlessChaosTestUtility.h"
 #include "Modules/ModuleManager.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/HeightField.h"
 
 namespace ChaosTest {
@@ -932,6 +933,78 @@ namespace ChaosTest {
 		SweepBoxTest();
 	}
 
+
+	void OverlapConsistentTest()
+	{
+		const FReal CountToWorldScale = 1;
+		const int32 Columns = 10;
+		const int32 Rows = 10;
+
+		TArray<FReal> Heights = CreateMountain(Columns, Rows);
+
+		TArray<FReal> HeightsCopy = Heights;
+		FVec3 Scale(1.0, 1.0, 1.0);
+		FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+		const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+		{
+			TBox<FReal, 3> Box(FVec3(-0.5, -0.5, -0.5), FVec3(0.5, 0.5, 0.5));
+			FCapsule Capsule(FVec3(0.0, 0.0, 0.0), FVec3(0.0, 0.0, 9.0), 1.14);
+			Chaos::FSphere Sphere1(FVec3(0.0, 0.0, -2.0), 0.6);
+
+			FMTDInfo OutBoxMTD;
+			FMTDInfo OutCapsuleMTD;
+			FMTDInfo OutSphereMTD;
+
+			for (int32 Row = 0; Row < Rows; ++Row)
+			{
+				for (int32 Col = 0; Col < Columns; ++Col)
+				{
+					for (FReal Height = 0; Height < 12; Height+=0.5)
+					{
+
+						const FVec3 Translation(Col, Row, Height);
+						FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>::Identity);
+						FVec3 Dir(1, 0, 0);
+						bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+						bool BoxResultMTD = Heightfield.OverlapGeom(Box, QueryTM, 0.0, &OutBoxMTD);
+						// EXPECT_EQ(BoxResult, BoxResultMTD); // TODO Enable test
+
+						bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
+						bool CapsuleResultMTD = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, &OutCapsuleMTD);
+						EXPECT_EQ(CapsuleResult, CapsuleResultMTD);
+
+						bool SphereResult = Heightfield.OverlapGeom(Sphere1, QueryTM, 0.0, nullptr);
+						bool SphereResultMTD = Heightfield.OverlapGeom(Sphere1, QueryTM, 0.0, &OutSphereMTD);
+						EXPECT_EQ(SphereResult, SphereResultMTD);
+					}
+				}
+			}
+		}
+		// Testing capsule upside down
+		{
+			FCapsule Capsule(FVec3(0.0, 0.0, 9.0), FVec3(0.0, 0.0, 0.0), 1.14);
+			FMTDInfo OutCapsuleMTD;
+
+			for (int32 Row = 0; Row < Rows; ++Row)
+			{
+				for (int32 Col = 0; Col < Columns; ++Col)
+				{
+					for (FReal Height = 0; Height < 12; Height += 0.5)
+					{
+
+						const FVec3 Translation(Col, Row, Height);
+						FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>::Identity);
+						FVec3 Dir(1, 0, 0);
+
+						bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
+						bool CapsuleResultMTD = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, &OutCapsuleMTD);
+						EXPECT_EQ(CapsuleResult, CapsuleResultMTD);
+					}
+				}
+			}
+		}
+	}
+
 	void OverlapTest()
 	{
 		const FReal CountToWorldScale = 1;
@@ -1099,6 +1172,7 @@ namespace ChaosTest {
 		ChaosTest::RaycastVariousWalkOnHeightField();
 		ChaosTest::SweepTest();
 		ChaosTest::OverlapTest();
+		ChaosTest::OverlapConsistentTest();
 		EditHeights();
 		SUCCEED();
 	}

@@ -36,36 +36,105 @@ namespace Chaos
 		// Mask to compare the distance of the triangle edge plane to the capsule radius.
 		constexpr static int32 AllEdges = 0b1111;
 		{
-			const VectorRegister4Float PlaneCA = VectorNormalize(VectorCross(CA, Normal));
-			const VectorRegister4Float EdgeX1 = VectorDot3(AX1, PlaneCA);
-			const VectorRegister4Float EdgeX2 = VectorDot3(AX2, PlaneCA);
-			const VectorRegister4Float Edge = VectorMoveLh(EdgeX1, EdgeX2);
-			const VectorRegister4Float EdgeGTRadius = VectorCompareGT(Edge, RadiusSimd);
-			if (VectorMaskBits(EdgeGTRadius) == AllEdges)
+			VectorRegister4Float PlaneCA = VectorNormalize(VectorCross(CA, Normal));
+			FRealSingle EdgeX1 = VectorDot3Scalar(AX1, PlaneCA);
+			FRealSingle EdgeX2 = VectorDot3Scalar(AX2, PlaneCA);
+			FRealSingle Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+
+			if (Edge > Radius)
 			{
 				return false;
 			}
-		}
-		{
-			const VectorRegister4Float PlaneAB = VectorNormalize(VectorCross(AB, Normal));
-			const VectorRegister4Float EdgeX1 = VectorDot3(BX1, PlaneAB);
-			const VectorRegister4Float EdgeX2 = VectorDot3(VectorSubtract(X2, B), PlaneAB);
-			const VectorRegister4Float Edge = VectorMoveLh(EdgeX1, EdgeX2);
-			const VectorRegister4Float EdgeGTRadius = VectorCompareGT(Edge, RadiusSimd);
-			if (VectorMaskBits(EdgeGTRadius) == AllEdges)
+			// Make a check on another similar separating plane, but instead of using the triangle normal
+			// use the capsule and the edge.
+			// Make sure the other plane is on the right side of the triangle
+			if (Edge > 0.0f)
 			{
-				return false;
+				VectorRegister4Float OtherNormal = VectorCross(AX1, CA);
+				PlaneCA = VectorNormalize(VectorCross(CA, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(AX1, PlaneCA);
+				EdgeX2 = VectorDot3Scalar(AX2, PlaneCA);
+				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+				if (Edge > Radius)
+				{
+					return false;
+				}
+
+				OtherNormal = VectorCross(AX2, CA);
+				PlaneCA = VectorNormalize(VectorCross(CA, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(AX1, PlaneCA);
+				EdgeX2 = VectorDot3Scalar(AX2, PlaneCA);
+				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+				if (Edge > Radius)
+				{
+					return false;
+				}
 			}
 		}
 		{
-			const VectorRegister4Float PlaneBC = VectorNormalize(VectorCross(BC, Normal));
-			const VectorRegister4Float EdgeX1 = VectorDot3(CX1, PlaneBC);
-			const VectorRegister4Float EdgeX2 = VectorDot3(VectorSubtract(X2, C), PlaneBC);
-			const VectorRegister4Float Edge = VectorMoveLh(EdgeX1, EdgeX2);
-			const VectorRegister4Float EdgeGTRadius = VectorCompareGT(Edge, RadiusSimd);
-			if (VectorMaskBits(EdgeGTRadius) == AllEdges)
+			VectorRegister4Float PlaneAB = VectorNormalize(VectorCross(AB, Normal));
+			FRealSingle EdgeX1 = VectorDot3Scalar(BX1, PlaneAB);
+			FRealSingle EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), PlaneAB);
+			FRealSingle Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+			if (Edge > Radius)
 			{
 				return false;
+			}
+			
+			if (Edge > 0.0f)
+			{
+				VectorRegister4Float OtherNormal = VectorCross(BX1, AB);
+				PlaneAB = VectorNormalize(VectorCross(AB, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(BX1, PlaneAB);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), PlaneAB);
+				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+				if (Edge > Radius)
+				{
+					return false;
+				}
+
+				OtherNormal = VectorCross(VectorSubtract(X2, B), AB);
+				PlaneAB = VectorNormalize(VectorCross(AB, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(BX1, PlaneAB);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, B), PlaneAB);
+				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+				if (Edge > Radius)
+				{
+					return false;
+				}
+			}
+		}
+		{
+			VectorRegister4Float PlaneBC = VectorNormalize(VectorCross(BC, Normal));
+			FRealSingle EdgeX1 = VectorDot3Scalar(CX1, PlaneBC);
+			FRealSingle EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), PlaneBC);
+			FRealSingle Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+			if (Edge > Radius)
+			{
+				return false;
+			}
+
+			if (Edge > 0.0f)
+			{
+				VectorRegister4Float OtherNormal = VectorCross(CX1, BC);
+				PlaneBC = VectorNormalize(VectorCross(BC, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(CX1, PlaneBC);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), PlaneBC);
+				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+				if (Edge > Radius)
+				{
+					return false;
+				}
+
+				OtherNormal = VectorCross(VectorSubtract(X2, C), BC);
+				PlaneBC = VectorNormalize(VectorCross(BC, OtherNormal));
+				EdgeX1 = VectorDot3Scalar(CX1, PlaneBC);
+				EdgeX2 = VectorDot3Scalar(VectorSubtract(X2, C), PlaneBC);
+				Edge = FMath::Min<FRealSingle>(EdgeX1, EdgeX2);
+				if (Edge > Radius)
+				{
+					return false;
+				}
 			}
 		}
 
