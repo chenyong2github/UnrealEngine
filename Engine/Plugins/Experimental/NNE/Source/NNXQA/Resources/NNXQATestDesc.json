@@ -11,7 +11,7 @@
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 1.0 },
 						{ "name": "NNXRuntimeHlsl",  "skip": true, "comment": "Missing BatchNormalisation operator." },
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				},
 				{
@@ -23,7 +23,7 @@
 						},
 						{ "name": "NNXRuntimeORTCpu", "absolute_error": 1e-3, "relative_error": 3.0 },
 						{ "name": "NNXRuntimeHlsl", "absolute_error": 0.03, "relative_error": 55.0, "comment": "TODO check, errors are very high." },
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				}
 			]
@@ -37,8 +37,8 @@
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 0.025 },
-						{ "name": "NNXRuntimeDml", "relative_error": 0.025 },
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	}
+						{ "name": "NNXRuntimeHlsl", "relative_error": 0.025 },
+						{ "name": "NNXRuntimeDml", "relative_error": 0.025 }
 					]
 				},
 				{
@@ -46,8 +46,8 @@
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "skip": true, "comment": "" },
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model not supported yet."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				},
 				{
@@ -56,7 +56,7 @@
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 0.04 },
 						{ "name": "NNXRuntimeHlsl",  "skip": true, "comment": "Missing Reshape operator." },
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				},
 				{
@@ -64,7 +64,7 @@
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error": 1e-4, "relative_error": 10.0, "comment": "TODO check, relative error is very high."	},
 						{ "name": "NNXRuntimeHlsl", "absolute_error": 1e-4, "relative_error": 3.0 },
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				}
 			]
@@ -77,16 +77,22 @@
 					"target": "OneLayerWithWeights",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Weights from model not yet implemented." }
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				},
 				{
 					"target": "TwoLayersNoWeight",
-					"tags": [ "SmokeTest" ]
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
+					]
 				},
 				{
 					"target": "MultiOutput",
-					"tags": [ "SmokeTest" ]
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
+					]
 				}
 			]
 		},
@@ -152,7 +158,7 @@
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
-					], "additional_datasets": [ "Elementwise.Slow.OneInput" ]},
+					]},
 				{	"target": "Erf", "tags": [ "SmokeTest" ], "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
