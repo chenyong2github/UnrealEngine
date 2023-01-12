@@ -6,8 +6,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Factories/IRemoteControlMaskingFactory.h"
-
-class IRemoteControlInterceptionFeatureProcessor;
+#include "IRemoteControlInterceptionFeature.h"
 
 /**
  * Implementation of the RemoteControl interface

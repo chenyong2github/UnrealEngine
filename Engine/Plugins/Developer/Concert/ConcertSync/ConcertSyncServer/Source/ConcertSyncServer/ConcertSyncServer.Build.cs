@@ -9,6 +9,9 @@ namespace UnrealBuildTool.Rules
 			// Make the linking path shorter (to prevent busting the Windows limit) when linking ConcertSyncServer.lib against an executable that have a long name.
 			ShortName = "CncrtSyncSvr";
 
+			// ConcertSyncServerLoop.inl depends on LaunchEngineLoop.h, but is never included in this module.
+			IWYUSupport = IWYUSupport.None;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
