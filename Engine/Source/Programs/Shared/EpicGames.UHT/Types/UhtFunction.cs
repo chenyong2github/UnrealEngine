@@ -638,7 +638,8 @@ namespace EpicGames.UHT.Types
 						UhtStruct? outerSuperStruct = outerStruct.SuperStruct;
 						if (outerSuperStruct != null)
 						{
-							UhtType? overriddenFunction = outerSuperStruct.FindType(UhtFindOptions.SourceName | UhtFindOptions.Function, SourceName);
+							// We use the engine name as the find option for a caseless compare.
+							UhtType? overriddenFunction = outerSuperStruct.FindType(UhtFindOptions.EngineName | UhtFindOptions.Function, SourceName);
 							if (overriddenFunction != null)
 							{
 								// Native function overrides should be done in CPP text, not in a UFUNCTION() declaration (you can't change flags, and it'd otherwise be a burden to keep them identical)
