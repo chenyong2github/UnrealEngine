@@ -201,6 +201,7 @@ namespace Chaos
 	template<EThreadContext Id>
 	bool FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FMTDInfo* OutMTD)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap);
 		TArray<FPerShapeData*> ShapesA = GetAllShapes({ &ObjectA, 1 });
 		const FTransform TransformA(GetR(ObjectA), GetX(ObjectA));
 		const FBox BoxA = GetWorldBounds({&ObjectA, 1});
