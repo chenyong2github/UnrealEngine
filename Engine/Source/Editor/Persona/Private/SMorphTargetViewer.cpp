@@ -16,6 +16,7 @@
 #include "GPUSkinCache.h"
 #include "Engine/RendererSettings.h"
 #include "IPersonaPreviewScene.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 
 #define LOCTEXT_NAMESPACE "SMorphTargetViewer"
 
@@ -531,6 +532,27 @@ void SMorphTargetViewer::OnDeleteMorphTargets()
 
 			//Clean up override usage
 			AddMorphTargetOverride(SelectedRows[RowIndex]->Name, 0.0f, true);
+
+			//Remove the morph target from the raw import data
+			FSkeletalMeshImportData SkelMeshImportData;
+			SkeletalMesh->LoadLODImportedData(0, SkelMeshImportData);
+			int32 ToDeleteIndex = INDEX_NONE;
+			for (int32 MoprhTargetIndex = 0; MoprhTargetIndex < SkelMeshImportData.MorphTargetNames.Num(); ++MoprhTargetIndex)
+			{
+				if (SkelMeshImportData.MorphTargetNames[MoprhTargetIndex].Equals(SelectedRows[RowIndex]->Name.ToString()))
+				{
+					ToDeleteIndex = MoprhTargetIndex;
+					break;
+				}
+			}
+
+			if (ToDeleteIndex != INDEX_NONE)
+			{
+				SkelMeshImportData.MorphTargetNames.RemoveAt(ToDeleteIndex);
+				SkelMeshImportData.MorphTargetModifiedPoints.RemoveAt(ToDeleteIndex);
+				SkelMeshImportData.MorphTargets.RemoveAt(ToDeleteIndex);
+				SkeletalMesh->SaveLODImportedData(0, SkelMeshImportData);
+			}
 
 			SkeletalMesh->UnregisterMorphTarget(MorphTarget);
 		}

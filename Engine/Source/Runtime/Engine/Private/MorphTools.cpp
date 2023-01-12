@@ -268,7 +268,28 @@ void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh, 
 			//which happen before the serialization of that cook skeletalmesh
 			if (!bIsSerializeSaving)
 			{
-				MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+				//Avoid recycling morphtarget with NewObject it cannot be done asynchronously
+				//Find the UMorphTarget and simply clear the data if it exist.
+				TArray<UObject*> SubObjects;
+				GetObjectsWithOuter(SkeletalMesh, SubObjects, true);
+				for (UObject* SubObject : SubObjects)
+				{
+					if (SubObject->GetFName() == MorphTargetName)
+					{
+						if (UMorphTarget* SubMorphTarget = Cast<UMorphTarget>(SubObject))
+						{
+							MorphTarget = SubMorphTarget;
+							MorphTarget->EmptyMorphLODModels();
+							MorphTarget->ClearGarbage();
+							break;
+						}
+					}
+				}
+				//Create a new morph target, if the object do not exist (creating a new uobject is ok to do asynchronously)
+				if (!MorphTarget)
+				{
+					MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+				}
 				check(MorphTarget);
 			}
 			else
