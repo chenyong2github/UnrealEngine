@@ -131,7 +131,7 @@ namespace Horde.Build.Jobs
 					StepName = stepName,
 					Outcome = outcome,
 					PoolId = poolId,
-					StartTime = startTimeUtc,
+					StartTimeUtc = startTimeUtc,
 					StreamId = streamId,
 					TemplateId = templateId,
 					UpdateIssues = updateIssues
