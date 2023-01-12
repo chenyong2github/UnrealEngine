@@ -33,7 +33,7 @@ TAutoConsoleVariable<int32> GAllowPresentOnComputeQueue(
 	TEXT("1 to allow presenting on the compute queue if available")
 );
 
-static TAutoConsoleVariable<int32> GCVarRobustBufferAccess(
+TAutoConsoleVariable<int32> GCVarRobustBufferAccess(
 	TEXT("r.Vulkan.RobustBufferAccess"),
 	1,
 	TEXT("0 to disable robust buffer access")
