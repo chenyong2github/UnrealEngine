@@ -85,6 +85,9 @@ namespace GitDependencies
 		const string IncomingFileSuffix = ".incoming";
 		const string TempManifestExtension = ".tmp";
 
+		const string ManifestFilename = ".uedependencies";
+		const string LegacyManifestFilename = ".ue4dependencies";
+
 		static readonly string InstanceSuffix = Guid.NewGuid().ToString().Replace("-", "");
 
 		static int Main(string[] Args)
@@ -94,7 +97,7 @@ namespace GitDependencies
 			NormalizeArguments(ArgsList);
 
 			// Find the default arguments from the UE_GITDEPS_ARGS environment variable. These arguments do not cause an error if duplicated or redundant, but can still override defaults.
-			List<string> DefaultArgsList = SplitArguments(GetLegacyEnvironmentVariable("UE_GITDEPS_ARGS", "UE4_GITDEPS_ARGS"));
+			List<string> DefaultArgsList = SplitArguments(Environment.GetEnvironmentVariable("UE_GITDEPS_ARGS"));
 			NormalizeArguments(DefaultArgsList);
 
 			// Parse the parameters
@@ -113,7 +116,7 @@ namespace GitDependencies
 			string CachePath = null;
 			if (!ParseSwitch(ArgsList, "-no-cache"))
 			{
-				string CachePathParam = ParseParameter(ArgsList, DefaultArgsList, "-cache=", GetLegacyEnvironmentVariable("UE_GITDEPS", "UE4_GITDEPS"));
+				string CachePathParam = ParseParameter(ArgsList, DefaultArgsList, "-cache=", Environment.GetEnvironmentVariable("UE_GITDEPS"));
 				if (String.IsNullOrEmpty(CachePathParam))
 				{
 					string CheckPath = Path.GetFullPath(RootPath);
@@ -122,10 +125,15 @@ namespace GitDependencies
 						string GitPath = Path.Combine(CheckPath, ".git");
 						if (Directory.Exists(GitPath))
 						{
-							CachePath = Path.Combine(GitPath, "ue4-gitdeps");
+							CachePath = Path.Combine(GitPath, "ue-gitdeps");
 							if (!Directory.Exists(CachePath))
 							{
-								CachePath = Path.Combine(GitPath, "ue-gitdeps");
+								// Migrate the ue4 path to ue.
+								string UE4CachePath = Path.Combine(GitPath, "ue4-gitdeps");
+								if (Directory.Exists(UE4CachePath))
+								{
+									Directory.Move(UE4CachePath, CachePath);
+								}
 							}
 							break;
 						}
@@ -232,16 +240,6 @@ namespace GitDependencies
 				return 1;
 			}
 			return 0;
-		}
-
-		static string GetLegacyEnvironmentVariable(string Name, string LegacyName)
-		{
-			string Value = Environment.GetEnvironmentVariable(Name);
-			if (string.IsNullOrEmpty(Value))
-			{
-				Value = Environment.GetEnvironmentVariable(LegacyName);
-			}
-			return Value;
 		}
 
 		static void NormalizeArguments(List<string> ArgsList)
@@ -400,10 +398,10 @@ namespace GitDependencies
 			}
 
 			// Figure out the path to the working manifest
-			string WorkingManifestPath = Path.Combine(RootPath, ".uedependencies");
+			string WorkingManifestPath = Path.Combine(RootPath, ManifestFilename);
 			if (!File.Exists(WorkingManifestPath))
 			{
-				string LegacyManifestPath = Path.Combine(RootPath, ".ue4dependencies");
+				string LegacyManifestPath = Path.Combine(RootPath, LegacyManifestFilename);
 				if (File.Exists(LegacyManifestPath) || File.Exists(LegacyManifestPath + TempManifestExtension))
 				{
 					WorkingManifestPath = LegacyManifestPath;
@@ -637,6 +635,14 @@ namespace GitDependencies
 						FilesToDownload.Remove(TargetFile);
 					}
 				}
+			}
+
+			// If the file is the old extension, delete and change the file name for future writes.
+			if (Path.GetExtension(WorkingManifestPath) == LegacyManifestFilename)
+			{
+				SafeDeleteFile(WorkingManifestPath);
+				WorkingManifestPath = Path.ChangeExtension(WorkingManifestPath, ManifestFilename);
+				TempWorkingManifestPath = WorkingManifestPath + TempManifestExtension;
 			}
 
 			// Write out the new working manifest, so we can track any files that we're going to download. We always verify missing files on startup, so it's ok that things don't exist yet.
