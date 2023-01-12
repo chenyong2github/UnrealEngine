@@ -17,6 +17,12 @@ FRHITextureReference* FRHITextureReference::GetTextureReference()
 	return this;
 }
 
+FRHIDescriptorHandle FRHITextureReference::GetDefaultBindlessHandle() const
+{ 
+	check(ReferencedTexture);
+	return ReferencedTexture->GetDefaultBindlessHandle();
+}
+
 void* FRHITextureReference::GetNativeResource() const
 {
 	check(ReferencedTexture);

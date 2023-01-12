@@ -11,6 +11,7 @@ public:
 	~FRHITextureReference();
 
 	virtual class FRHITextureReference* GetTextureReference() override;
+	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const override;
 
 	virtual void* GetNativeResource() const override;
 	virtual void* GetNativeShaderResourceView() const override;
