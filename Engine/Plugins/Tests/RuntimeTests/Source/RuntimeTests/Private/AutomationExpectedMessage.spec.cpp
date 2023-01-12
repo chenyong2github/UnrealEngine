@@ -14,10 +14,10 @@ void FAutomationExpectedErrorTest::Define()
 			// Suppress error logged when adding entry with invalid occurrence count
 			AddExpectedError(TEXT("number of expected occurrences must be >= 0"), EAutomationExpectedErrorFlags::Contains, 1);
 
-			AddExpectedError(TEXT("The two values are not equal"), EAutomationExpectedErrorFlags::Contains, -1);
+			AddExpectedError(TEXT("The two values are not equal"), EAutomationExpectedErrorFlags::Contains,  -1);
 
-			TArray<FAutomationExpectedError> Errors;
-			GetExpectedErrors(Errors);
+			TArray<FAutomationExpectedMessage> Errors;
+			GetExpectedMessages(Errors, ELogVerbosity::Warning);
 
 			// Only the first expected error should exist in the list.
 			TestEqual("Expected Errors Count", Errors.Num(), 1);
@@ -27,8 +27,8 @@ void FAutomationExpectedErrorTest::Define()
 		{
 			AddExpectedError(TEXT("Expected Error"), EAutomationExpectedErrorFlags::Contains, 0);
 
-			TArray<FAutomationExpectedError> Errors;
-			GetExpectedErrors(Errors);
+			TArray<FAutomationExpectedMessage> Errors;
+			GetExpectedMessages(Errors, ELogVerbosity::Warning);
 			TestEqual("Expected Errors Count", Errors.Num(), 1);
 
 			// Add the expected error to ensure all test conditions pass
@@ -43,8 +43,8 @@ void FAutomationExpectedErrorTest::Define()
 			AddExpectedError(TEXT("Expected Error"), EAutomationExpectedErrorFlags::Contains, 1);
 			AddExpectedError(TEXT("Expected Error"), EAutomationExpectedErrorFlags::Contains, 1);
 
-			TArray<FAutomationExpectedError> Errors;
-			GetExpectedErrors(Errors);
+			TArray<FAutomationExpectedMessage> Errors;
+			GetExpectedMessages(Errors, ELogVerbosity::Warning);
 			TestEqual("Expected Errors Count", Errors.Num(), 2);
 
 			// Add the expected error to ensure all test conditions pass
@@ -62,8 +62,8 @@ void FAutomationExpectedErrorTest::Define()
 			AddExpectedError(TEXT("Expected Contains Error"), EAutomationExpectedErrorFlags::Contains, 1);
 			AddExpectedError(TEXT("Expected Contains Error"), EAutomationExpectedErrorFlags::Exact, 1);
 
-			TArray<FAutomationExpectedError> Errors;
-			GetExpectedErrors(Errors);
+			TArray<FAutomationExpectedMessage> Errors;
+			GetExpectedMessages(Errors, ELogVerbosity::Warning);
 			TestEqual("Expected Errors Count", Errors.Num(), 3);
 
 			// Add the expected errors to ensure all test conditions pass
@@ -76,8 +76,8 @@ void FAutomationExpectedErrorTest::Define()
 		{
 			AddExpectedError(TEXT("invalid regex }])([{"), EAutomationExpectedErrorFlags::Contains, 0);
 
-			TArray<FAutomationExpectedError> Errors;
-			GetExpectedErrors(Errors);
+			TArray<FAutomationExpectedMessage> Errors;
+			GetExpectedMessages(Errors, ELogVerbosity::Warning);
 
 			TestEqual("Expected Errors Count", Errors.Num(), 0);
 		});
@@ -122,7 +122,6 @@ void FAutomationExpectedErrorTest::Define()
 // must be run manually.
 BEGIN_DEFINE_SPEC(FAutomationExpectedErrorFailureTest, "System.Automation.ExpectedError", EAutomationTestFlags::NegativeFilter | EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::RequiresUser)
 END_DEFINE_SPEC(FAutomationExpectedErrorFailureTest)
-
 void FAutomationExpectedErrorFailureTest::Define()
 {
 	Describe("An expected error failure", [this]()
@@ -169,4 +168,47 @@ void FAutomationExpectedErrorFailureTest::Define()
 			AddError(TEXT("Expected error"));
 		});
 	});
+}
+
+BEGIN_DEFINE_SPEC(FAutomationExpectedMessageTest, "System.Automation.ExpectedMessage", EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
+END_DEFINE_SPEC(FAutomationExpectedMessageTest)
+void FAutomationExpectedMessageTest::Define()
+{
+	Describe("A defined expected message with a specified verbosity ", [this]()
+	{
+
+		It("will include error and fatal categories when checking for warning messages", [this]()
+		{
+			AddExpectedMessage(TEXT("suppress this error message"), ELogVerbosity::Error, EAutomationExpectedMessageFlags::Contains, 1);
+			AddExpectedMessage(TEXT("suppress this fatal message"), ELogVerbosity::Fatal, EAutomationExpectedMessageFlags::Contains, 1);
+
+			TArray<FAutomationExpectedMessage> Messages;
+			GetExpectedMessages(Messages, ELogVerbosity::Warning);
+
+			TestEqual(TEXT("Both the error and fatal messages are returned when Warning is specified as the maximum verbosity"), Messages.Num(), 2);
+
+			TestTrue(TEXT("An Error message also counts as an error"), LogCategoryMatchesSeverityInclusive(Messages[0].Verbosity, ELogVerbosity::Warning));
+			TestTrue(TEXT("A Fatal message also counts as an error"), LogCategoryMatchesSeverityInclusive(Messages[1].Verbosity, ELogVerbosity::Warning));
+
+			AddError(TEXT("suppress this error message please"));
+			AddError(TEXT("also suppress this fatal message"));
+		});
+
+
+		// An expected message with a verbosity of "all" behaves as "any"
+		It("will be included when the message is \"all\" but the queried verbosity is NOT \"all\"", [this]()
+		{
+			AddExpectedMessage(TEXT("suppress this message"), ELogVerbosity::All, EAutomationExpectedMessageFlags::Contains, 1);
+
+			// Message with verbosity "all" should always be returned regardless of requested verbosity here
+			TArray<FAutomationExpectedMessage> Messages;
+			GetExpectedMessages(Messages, ELogVerbosity::Warning);
+
+			TestEqual(TEXT("The message with the intention of being any category is returned when something other than \"all\" is specified as the maximum verbosity to query"), Messages.Num(), 1);
+
+			AddInfo(TEXT("suppress this message please"));
+		});
+
+	});
+
 }
