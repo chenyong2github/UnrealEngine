@@ -884,7 +884,7 @@ TIoStatusOr<FIoContainerHeader> FFileIoStoreReader::ReadContainerHeader() const
 	// Check for flag - compressed containers still have CompressionBlockSize != 0 and CompressionMethod "None".
 	if (EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Compressed)) 
 	{
-		FileCache_PostIoStoreCompressionBlockSize(CompressionBlockSize, Partition.FilePath);
+		FileCache_PostIoStoreCompressionBlockSize(IntCastChecked<int32>(CompressionBlockSize), Partition.FilePath);
 	}
 #endif
 

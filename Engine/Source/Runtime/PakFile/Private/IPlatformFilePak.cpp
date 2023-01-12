@@ -189,7 +189,7 @@ static FAutoConsoleCommand CVar_TestRegisterEncryptionKey(
 TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes)
 {
 #if PAKHASH_USE_CRC
-	return FCrc::MemCrc32(InData, InDataSizeInBytes);
+	return FCrc::MemCrc32(InData, IntCastChecked<int32>(InDataSizeInBytes));
 #else
 	FSHAHash Hash;
 	FSHA1::HashBuffer(InData, InDataSizeInBytes, Hash.Hash);
@@ -427,11 +427,12 @@ DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("PakCache Decrypt Time"), STAT_PakCache_Decr
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("PakCache Async Decrypts (Compressed Path)"), STAT_PakCache_CompressedDecrypts, STATGROUP_PakFile);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("PakCache Async Decrypts (Uncompressed Path)"), STAT_PakCache_UncompressedDecrypts, STATGROUP_PakFile);
 
-void DecryptData(uint8* InData, uint32 InDataSize, FGuid InEncryptionKeyGuid)
+void DecryptData(uint8* InData, uint64 InDataSize, FGuid InEncryptionKeyGuid)
 {
+	uint32 DataSize = IntCastChecked<uint32>(InDataSize);
 	if (FPakPlatformFile::GetPakCustomEncryptionDelegate().IsBound())
 	{
-		FPakPlatformFile::GetPakCustomEncryptionDelegate().Execute(InData, InDataSize, InEncryptionKeyGuid);
+		FPakPlatformFile::GetPakCustomEncryptionDelegate().Execute(InData, DataSize, InEncryptionKeyGuid);
 	}
 	else
 	{
@@ -439,7 +440,7 @@ void DecryptData(uint8* InData, uint32 InDataSize, FGuid InEncryptionKeyGuid)
 		FAES::FAESKey Key;
 		FPakPlatformFile::GetPakEncryptionKey(Key, InEncryptionKeyGuid);
 		check(Key.IsValid());
-		FAES::DecryptData(InData, InDataSize, Key);
+		FAES::DecryptData(InData, DataSize, Key);
 	}
 }
 
@@ -1527,7 +1528,7 @@ public:
 				return nullptr;
 			}
 			CachedPakData.Add(FPakData(InActualPakFile, Handle, File, PakFileSize));
-			PakIndexPtr = &CachedPaks.Add(InActualPakFile, CachedPakData.Num() - 1);
+			PakIndexPtr = &CachedPaks.Add(InActualPakFile, static_cast<uint16>(CachedPakData.Num() - 1));
 			FPakData& Pak = CachedPakData[*PakIndexPtr];
 
 
@@ -1633,7 +1634,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 
 		int64 FirstByte = AlignDown(Offset, PAK_CACHE_GRANULARITY);
 		int64 LastByte = Align(Offset + Size, PAK_CACHE_GRANULARITY) - 1;
-		uint32 NumBits = (PAK_CACHE_GRANULARITY + LastByte - FirstByte) / PAK_CACHE_GRANULARITY;
+		uint32 NumBits = IntCastChecked<uint32>((PAK_CACHE_GRANULARITY + LastByte - FirstByte) / PAK_CACHE_GRANULARITY);
 		uint32 NumQWords = (NumBits + 63) >> 6;
 		InFlightOrDone.Reset();
 		InFlightOrDone.AddZeroed(NumQWords);
@@ -1702,7 +1703,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 
 		int64 FirstByte = AlignDown(Offset, PAK_CACHE_GRANULARITY);
 		int64 LastByte = Align(Offset + Request.Size, PAK_CACHE_GRANULARITY) - 1;
-		uint32 NumBits = (PAK_CACHE_GRANULARITY + LastByte - FirstByte) / PAK_CACHE_GRANULARITY;
+		uint32 NumBits = IntCastChecked<uint32>((PAK_CACHE_GRANULARITY + LastByte - FirstByte) / PAK_CACHE_GRANULARITY);
 		uint32 NumQWords = (NumBits + 63) >> 6;
 		InFlightOrDone.Reset();
 		InFlightOrDone.AddZeroed(NumQWords);
@@ -1858,7 +1859,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 		if (GPakCache_UseNewTrim && !bDiscardAll)
 		{
 			StartPakIndex = 0;
-			uint16 EndPakIndex = CachedPakData.Num();
+			uint16 EndPakIndex = IntCastChecked<uint16>(CachedPakData.Num());
 
 			// TODO: remove this array, add a bool to the cache object
 			TArray<bool> CacheVisitedAlready;
@@ -2018,7 +2019,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 			else
 			{
 				StartPakIndex = 0;
-				EndPakIndex = CachedPakData.Num();
+				EndPakIndex = IntCastChecked<uint16>(CachedPakData.Num());
 			}
 
 			// CachedFilesScopeLock is locked
@@ -2285,7 +2286,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 		int64 LastByte = FMath::Min(Align(FirstByte + (GPakCache_MaxRequestSizeToLowerLevelKB * 1024), PAK_CACHE_GRANULARITY) - 1, Pak.TotalSize - 1);
 		check(FirstByte >= 0 && LastByte < Pak.TotalSize && LastByte >= 0 && LastByte >= FirstByte);
 
-		uint32 NumBits = (PAK_CACHE_GRANULARITY + LastByte - FirstByte) / PAK_CACHE_GRANULARITY;
+		uint32 NumBits = IntCastChecked<uint32>((PAK_CACHE_GRANULARITY + LastByte - FirstByte) / PAK_CACHE_GRANULARITY);
 		uint32 NumQWords = (NumBits + 63) >> 6;
 
 		static TArray<uint64> InFlightOrDone;
@@ -3182,7 +3183,7 @@ static void WaitPrecache(const TArray<FString>& Args)
 	}
 	Loads = FPakPrecacher::Get().GetLoads() - Loads;
 	LoadSize = FPakPrecacher::Get().GetLoadSize() - LoadSize;
-	float TimeSpent = FPlatformTime::Seconds() - StartTime;
+	float TimeSpent = FloatCastChecked<float>(FPlatformTime::Seconds() - StartTime, UE::LWC::DefaultFloatPrecision);
 	float LoadSizeMB = float(LoadSize) / (1024.0f * 1024.0f);
 	float MBs = LoadSizeMB / TimeSpent;
 	UE_LOG(LogPakFile, Log, TEXT("Loaded %4d blocks (align %4dKB) totalling %7.2fMB in %4.2fs   = %6.2fMB/s"), Loads, PAK_CACHE_GRANULARITY / 1024, LoadSizeMB, TimeSpent, MBs);
@@ -3338,7 +3339,7 @@ public:
 			}
 			else
 			{
-				WaitEvent->Wait(TimeLimitSeconds * 1000.0f);
+				WaitEvent->Wait(static_cast<uint32>(TimeLimitSeconds * 1000.0f));
 			}
 			FScopeLock Lock(&FPakReadRequestEvent);
 			FPlatformProcess::ReturnSynchEventToPool(WaitEvent);
@@ -3593,7 +3594,7 @@ public:
 			}
 			else
 			{
-				WaitEvent->Wait(TimeLimitSeconds * 1000.0f);
+				WaitEvent->Wait(static_cast<uint32>(TimeLimitSeconds * 1000.0f));
 			}
 			FScopeLock Lock(&FPakReadRequestEvent);
 			FPlatformProcess::ReturnSynchEventToPool(WaitEvent);
@@ -3737,7 +3738,7 @@ void FPakPrecacher::StartSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Re
 
 void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Request, int32 Index)
 {
-	int64 SignatureIndex = -1;
+	int32 SignatureIndex = -1;
 	int64 NumSignaturesToCheck = 0;
 	const uint8* Data = nullptr;
 	int64 RequestSize = 0;
@@ -3768,7 +3769,7 @@ void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Reque
 		RequestSize = RequestToLower.RequestSize;
 		PakIndex = GetRequestPakIndex(Block.OffsetAndPakIndex);
 		Data = RequestToLower.Memory;
-		SignatureIndex = RequestOffset / FPakInfo::MaxChunkDataSize;
+		SignatureIndex = IntCastChecked<int32>(RequestOffset / FPakInfo::MaxChunkDataSize);
 
 		FPakData& PakData = CachedPakData[PakIndex];
 		PrincipalSignatureHash = PakData.Signatures->DecryptedHash;
@@ -3999,8 +4000,8 @@ public:
 		{
 			FScopeLock ScopedLock(&CriticalSection);
 			check(Blocks.Num());
-			int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
-			int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
+			int32 FirstBlock = IntCastChecked<int32>(Offset / FileEntry.CompressionBlockSize);
+			int32 LastBlock = IntCastChecked<int32>((Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize);
 
 			check(FirstBlock >= 0 && FirstBlock < Blocks.Num() && LastBlock >= 0 && LastBlock < Blocks.Num() && FirstBlock <= LastBlock);
 
@@ -4037,7 +4038,7 @@ public:
 		FCachedAsyncBlock& Block = GetBlock(BlockIndex);
 		Block.bInFlight = true;
 		check(!Block.RawRequest && !Block.Processed && !Block.Raw && !Block.CPUWorkGraphEvent.GetReference() && !Block.ProcessedSize && !Block.RawSize && !Block.bCPUWorkIsComplete);
-		Block.RawSize = FileEntry.CompressionBlocks[BlockIndex].CompressedEnd - FileEntry.CompressionBlocks[BlockIndex].CompressedStart;
+		Block.RawSize = IntCastChecked<int32>(FileEntry.CompressionBlocks[BlockIndex].CompressedEnd - FileEntry.CompressionBlocks[BlockIndex].CompressedStart);
 		Block.DecompressionRawSize = Block.RawSize;
 		if (FileEntry.IsEncrypted())
 		{
@@ -4099,8 +4100,8 @@ public:
 			bool bCorrupted = false;
 			if (GPakCache_ForceDecompressionFails && FMath::FRand() < 0.001f)
 			{
-				int32 CorruptOffset = FMath::Clamp(int32(FMath::FRandRange(0.f, Block.RawSize - 1.f)), 0, Block.RawSize - 1);
-				uint8 CorruptValue = uint8(FMath::Clamp(int32(FMath::FRandRange(0.f, 255.f)), 0, 255));
+				int32 CorruptOffset = FMath::Clamp(FMath::RandRange(0, Block.RawSize - 1), 0, Block.RawSize - 1);
+				uint8 CorruptValue = uint8(FMath::Clamp(FMath::RandRange(0, 255), 0, 255));
 				if (Block.Raw[CorruptOffset] != CorruptValue)
 				{
 					UE_LOG(LogPakFile, Error, TEXT("Forcing corruption of decompression source data (predecryption) to verify panic read recovery.  Offset = %d, Value = 0x%x"), CorruptOffset, int32(CorruptValue));
@@ -4311,8 +4312,8 @@ public:
 
 		check(LiveRequests.Contains(Req));
 		LiveRequests.Remove(Req);
-		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
-		int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
+		int32 FirstBlock = IntCastChecked<int32>(Offset / FileEntry.CompressionBlockSize);
+		int32 LastBlock = IntCastChecked<int32>((Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize);
 		check(FirstBlock >= 0 && FirstBlock < Blocks.Num() && LastBlock >= 0 && LastBlock < Blocks.Num() && FirstBlock <= LastBlock);
 
 		for (int32 BlockIndex = FirstBlock; BlockIndex <= LastBlock; BlockIndex++)
@@ -4345,8 +4346,8 @@ public:
 		check(!bHasCancelledRef);
 		bHasCancelledRef = true;
 		check(LiveRequests.Contains(Req));
-		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
-		int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
+		int32 FirstBlock = IntCastChecked<int32>(Offset / FileEntry.CompressionBlockSize);
+		int32 LastBlock = IntCastChecked<int32>((Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize);
 		check(FirstBlock >= 0 && FirstBlock < Blocks.Num() && LastBlock >= 0 && LastBlock < Blocks.Num() && FirstBlock <= LastBlock);
 
 		for (int32 BlockIndex = FirstBlock; BlockIndex <= LastBlock; BlockIndex++)
@@ -4382,8 +4383,8 @@ public:
 	void GatherResults(uint8* Memory, int64 Offset, int64 BytesToRead)
 	{
 		// CriticalSection is locked
-		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
-		int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
+		int32 FirstBlock = IntCastChecked<int32>(Offset / FileEntry.CompressionBlockSize);
+		int32 LastBlock = IntCastChecked<int32>((Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize);
 		check(FirstBlock >= 0 && FirstBlock < Blocks.Num() && LastBlock >= 0 && LastBlock < Blocks.Num() && FirstBlock <= LastBlock);
 
 		for (int32 BlockIndex = FirstBlock; BlockIndex <= LastBlock; BlockIndex++)
@@ -4456,8 +4457,8 @@ bool FPakProcessedReadRequest::CheckCompletion(const FPakEntry& FileEntry, int32
 			return false;
 		}
 	}
-	int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
-	int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
+	int32 FirstBlock = IntCastChecked<int32>(Offset / FileEntry.CompressionBlockSize);
+	int32 LastBlock = IntCastChecked<int32>((Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize);
 	check(FirstBlock >= 0 && FirstBlock < Blocks.Num() && LastBlock >= 0 && LastBlock < Blocks.Num() && FirstBlock <= LastBlock);
 
 	for (int32 MyBlockIndex = FirstBlock; MyBlockIndex <= LastBlock; MyBlockIndex++)
@@ -4975,7 +4976,7 @@ public:
 	void Serialize(int64 DesiredPosition, void* V, int64 Length)
 	{
 		const int32 CompressionBlockSize = PakEntry.CompressionBlockSize;
-		uint32 CompressionBlockIndex = DesiredPosition / CompressionBlockSize;
+		uint32 CompressionBlockIndex = (uint32)(DesiredPosition / CompressionBlockSize);
 		uint8* WorkingBuffers[2];
 		int64 DirectCopyStart = DesiredPosition % PakEntry.CompressionBlockSize;
 		FAsyncTask<FPakUncompressTask> UncompressTask;
@@ -4996,8 +4997,8 @@ public:
 		{
 			// an amount to extra allocate, in case one block's compressed size is bigger than GetMaximumCompressedSize
 			// @todo this should not be needed, can it be removed?
-			float SlopMultiplier = 1.1f;
-			WorkingBufferRequiredSize = (int64)( WorkingBufferRequiredSize * SlopMultiplier );
+			double SlopMultiplier = 1.1f;
+			WorkingBufferRequiredSize = (int64)((double)WorkingBufferRequiredSize * SlopMultiplier );
 		}
 
 		WorkingBufferRequiredSize = EncryptionPolicy::AlignReadRequest(WorkingBufferRequiredSize);
@@ -5056,9 +5057,9 @@ public:
 					// Block can be decompressed directly into output buffer
 					TaskDetails.CompressionFormat = CompressionMethod;
 					TaskDetails.UncompressedBuffer = (uint8*)V;
-					TaskDetails.UncompressedSize = UncompressedBlockSize;
+					TaskDetails.UncompressedSize = IntCastChecked<int32>(UncompressedBlockSize);
 					TaskDetails.CompressedBuffer = WorkingBuffers[CompressionBlockIndex & 1];
-					TaskDetails.CompressedSize = CompressedBlockSize;
+					TaskDetails.CompressedSize = IntCastChecked<int32>(CompressedBlockSize);
 					TaskDetails.CopyOut = nullptr;
 					ScratchSpace->LastDecompressedBlock = 0xFFFFFFFF;
 					ScratchSpace->LastPakIndexHash = FSHAHash();
@@ -5069,9 +5070,9 @@ public:
 					// Block needs to be copied from a working buffer
 					TaskDetails.CompressionFormat = CompressionMethod;
 					TaskDetails.UncompressedBuffer = ScratchSpace->TempBuffer.Get();
-					TaskDetails.UncompressedSize = UncompressedBlockSize;
+					TaskDetails.UncompressedSize = IntCastChecked<int32>(UncompressedBlockSize);
 					TaskDetails.CompressedBuffer = WorkingBuffers[CompressionBlockIndex & 1];
-					TaskDetails.CompressedSize = CompressedBlockSize;
+					TaskDetails.CompressedSize = IntCastChecked<int32>(CompressedBlockSize);
 					TaskDetails.CopyOut = V;
 					TaskDetails.CopyOffset = DirectCopyStart;
 					TaskDetails.CopyLength = WriteSize;
@@ -5542,7 +5543,7 @@ bool FPakFile::LoadIndexInternal(FArchive& Reader)
 	}
 	TArray<uint8> PrimaryIndexData;
 	Reader.Seek(Info.IndexOffset);
-	PrimaryIndexData.SetNum(Info.IndexSize);
+	PrimaryIndexData.SetNum(IntCastChecked<int32>(Info.IndexSize));
 	{
 		SCOPED_BOOT_TIMING("PakFile_LoadPrimaryIndex");
 		Reader.Serialize(PrimaryIndexData.GetData(), Info.IndexSize);
@@ -5677,7 +5678,7 @@ bool FPakFile::LoadIndexInternal(FArchive& Reader)
 			return false;
 		}
 		Reader.Seek(PathHashIndexOffset);
-		PathHashIndexData.SetNum(PathHashIndexSize);
+		PathHashIndexData.SetNum(IntCastChecked<int32>(PathHashIndexSize));
 		{
 			SCOPED_BOOT_TIMING("PakFile_LoadPathHashIndex");
 			Reader.Serialize(PathHashIndexData.GetData(), PathHashIndexSize);
@@ -5734,7 +5735,7 @@ bool FPakFile::LoadIndexInternal(FArchive& Reader)
 		}
 		TArray<uint8> FullDirectoryIndexData;
 		Reader.Seek(FullDirectoryIndexOffset );
-		FullDirectoryIndexData.SetNum(FullDirectoryIndexSize);
+		FullDirectoryIndexData.SetNum(IntCastChecked<int32>(FullDirectoryIndexSize));
 		{
 			SCOPED_BOOT_TIMING("PakFile_LoadDirectoryIndex");
 			Reader.Serialize(FullDirectoryIndexData.GetData(), FullDirectoryIndexSize);
@@ -5809,7 +5810,7 @@ bool FPakFile::LoadLegacyIndex(FArchive& Reader)
 	}
 
 	Reader.Seek(Info.IndexOffset);
-	IndexData.SetNum(Info.IndexSize);
+	IndexData.SetNum(IntCastChecked<int32>(Info.IndexSize));
 	Reader.Serialize(IndexData.GetData(), Info.IndexSize);
 
 	FSHAHash ComputedHash;
@@ -6477,7 +6478,7 @@ bool FPakFile::EncodePakEntry(FArchive& Ar, const FPakEntry& InPakEntry, const F
 		{
 			for (int CompressionBlockIndex = 0; CompressionBlockIndex < PakEntry.CompressionBlocks.Num(); ++CompressionBlockIndex)
 			{
-				uint32 Value = PakEntry.CompressionBlocks[CompressionBlockIndex].CompressedEnd - PakEntry.CompressionBlocks[CompressionBlockIndex].CompressedStart;
+				uint32 Value = IntCastChecked<uint32>(PakEntry.CompressionBlocks[CompressionBlockIndex].CompressedEnd - PakEntry.CompressionBlocks[CompressionBlockIndex].CompressedStart);
 				Ar << Value;
 			}
 		}
@@ -6583,7 +6584,7 @@ void FPakFile::DecodePakEntry(const uint8* SourcePtr, FPakEntry& OutEntry, const
 		// Per the comment in Encode, if CompressionBlocksCount == 1, we use UncompressedSize for CompressionBlockSize
 		if (CompressionBlocksCount == 1)
 		{
-			OutEntry.CompressionBlockSize = OutEntry.UncompressedSize;
+			OutEntry.CompressionBlockSize = IntCastChecked<uint32>(OutEntry.UncompressedSize);
 		}
 		ensure(OutEntry.CompressionBlockSize != 0);
 	}
@@ -7556,18 +7557,18 @@ bool FPakFile::bSomePakNeedsPruning = false;
 #endif
 
 #if !UE_BUILD_SHIPPING
-int32 GetRecursiveAllocatedSize(const FPakDirectory& Index)
+uint64 GetRecursiveAllocatedSize(const FPakDirectory& Index)
 {
-	int32 Size = Index.GetAllocatedSize();
+	uint64 Size = Index.GetAllocatedSize();
 	for (const TPair<FString, FPakEntryLocation>& kvpair : Index)
 	{
 		Size += kvpair.Key.GetAllocatedSize();
 	}
 	return Size;
 }
-int32 GetRecursiveAllocatedSize(const FPakFile::FDirectoryIndex& Index)
+uint64 GetRecursiveAllocatedSize(const FPakFile::FDirectoryIndex& Index)
 {
-	int32 Size = Index.GetAllocatedSize();
+	uint64 Size = Index.GetAllocatedSize();
 	for (const TPair<FString, FPakDirectory>& kvpair : Index)
 	{
 		Size += kvpair.Key.GetAllocatedSize();
@@ -7656,9 +7657,9 @@ void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
 #endif
 
 #if !UE_BUILD_SHIPPING
-	uint32 DirectoryHashSize = 0;
-	uint32 PathHashSize = 0;
-	uint32 EntriesSize = 0;
+	uint64 DirectoryHashSize = 0;
+	uint64 PathHashSize = 0;
+	uint64 EntriesSize = 0;
 
 	for (auto& Pak : Paks)
 	{

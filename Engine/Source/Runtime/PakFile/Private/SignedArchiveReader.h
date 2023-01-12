@@ -230,7 +230,7 @@ class FSignedArchiveReader : public FArchive
 	};
 
 	/** Number of chunks in the archive */
-	int32 ChunkCount;	
+	int64 ChunkCount;	
 	/** Reader archive */
 	FArchive* PakReader;
 	/** Size of the archive on disk */
@@ -247,9 +247,9 @@ class FSignedArchiveReader : public FArchive
 	/** 
 	 * Calculate index of a chunk that contains the specified offset 
 	 */
-	FORCEINLINE int32 CalculateChunkIndex(int64 ReadOffset) const
+	FORCEINLINE int64 CalculateChunkIndex(int64 ReadOffset) const
 	{
-		return (int32)(ReadOffset / FPakInfo::MaxChunkDataSize);
+		return (ReadOffset / FPakInfo::MaxChunkDataSize);
 	}	
 
 	/** 
@@ -269,7 +269,7 @@ class FSignedArchiveReader : public FArchive
 	 */
 	FORCEINLINE int64 CalculateChunkOffset(int64 ReadOffset, int64& OutDataOffset) const
 	{
-		const int32 ChunkIndex = CalculateChunkIndex(ReadOffset);
+		const int64 ChunkIndex = CalculateChunkIndex(ReadOffset);
 		OutDataOffset = ReadOffset;
 		return CalculateChunkOffsetFromIndex(ChunkIndex);
 	}

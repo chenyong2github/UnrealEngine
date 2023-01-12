@@ -120,7 +120,7 @@ public:
 		RequestHeader.Timestamp		= FDateTime::UtcNow().GetTicks();
 
 		FBufferArchive RequestPayload;
-		RequestPayload.Reserve(Request.TotalSize());
+		RequestPayload.Reserve(IntCastChecked<int32>(Request.TotalSize()));
 
 		RequestPayload << Request;
 

@@ -318,7 +318,7 @@ struct FPakInfo
 		return CompressionMethods.Add(CompressionMethod);
 	}
 
-	FName GetCompressionMethod(uint8 Index) const
+	FName GetCompressionMethod(uint32 Index) const
 	{
 		return CompressionMethods[Index];
 	}

@@ -139,7 +139,7 @@ bool FCookOnTheFlyClientConnectionBase::ProcessPayload(FArchive& Payload)
 bool FCookOnTheFlyClientConnectionBase::SendMessage(const UE::Cook::FCookOnTheFlyMessage& Message)
 {
 	FBufferArchive Payload;
-	Payload.Reserve(Message.TotalSize());
+	Payload.Reserve(IntCastChecked<int32>(Message.TotalSize()));
 	Payload << const_cast<UE::Cook::FCookOnTheFlyMessage&>(Message);
 	return SendPayload(Payload);
 }

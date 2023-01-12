@@ -375,15 +375,15 @@ int64 FSignedArchiveReader::PrecacheChunks(TArray<FSignedArchiveReader::FReadInf
 	// Request all the chunks that are needed to complete this read
 	int64 DataOffset = 0;
 	int64 DestOffset = 0;
-	const int32 FirstChunkIndex = CalculateChunkIndex(PakOffset);
-	const int32 LastChunkIndex = CalculateChunkIndex(PakOffset + Length - 1);
+	const int64 FirstChunkIndex = CalculateChunkIndex(PakOffset);
+	const int64 LastChunkIndex = CalculateChunkIndex(PakOffset + Length - 1);
 	const int64 NumChunks = LastChunkIndex - FirstChunkIndex + 1;
 	int64 ChunkStartOffset = 0;
 	int64 RemainingLength = Length;
 	int64 ArchiveOffset = PakOffset;
 
-	Chunks.Empty(NumChunks);
-	for (int32 ChunkIndex = FirstChunkIndex; ChunkIndex <= LastChunkIndex; ++ChunkIndex)
+	Chunks.Empty(IntCastChecked<int32>(NumChunks));
+	for (int32 ChunkIndex = IntCastChecked<int32>(FirstChunkIndex); ChunkIndex <= LastChunkIndex; ++ChunkIndex)
 	{
 		ChunkStartOffset = RemainingLength > 0 ? CalculateChunkOffset(ArchiveOffset, DataOffset) : CalculateChunkOffsetFromIndex(ChunkIndex);
 		int64 SizeToReadFromBuffer = RemainingLength;
@@ -429,8 +429,8 @@ void FSignedArchiveReader::Serialize(void* Data, int64 Length)
 	
 	// First make sure the chunks we're going to read are actually cached.
 	TArray<FReadInfo> QueuedChunks;
-	int64 ChunksToRead = PrecacheChunks(QueuedChunks, Length, ChunkReadEvent);
-	int64 FirstPrecacheChunkIndex = ChunksToRead;
+	int32 ChunksToRead = IntCastChecked<int32>(PrecacheChunks(QueuedChunks, Length, ChunkReadEvent));
+	int32 FirstPrecacheChunkIndex = ChunksToRead;
 
 	// If we aren't multithreaded then flush the signature checking now so there will be some data ready
 	// for us in the loop
