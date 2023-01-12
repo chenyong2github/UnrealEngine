@@ -3950,7 +3950,7 @@ void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavDat
 #if WITH_EDITOR
 	if (GetWorld()->IsGameWorld() == false)
 	{
-		UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation data generation finished for %s (%s)."), *NavData.GetActorLabel(), *NavData.GetFullName());
+		UE_LOG(LogNavigationDataBuild, Verbose, TEXT("Navigation data generation finished for %s (%s)."), *NavData.GetActorLabel(), *NavData.GetFullName());
 	}
 
 	// Reset bIsBuildingOnLoad
