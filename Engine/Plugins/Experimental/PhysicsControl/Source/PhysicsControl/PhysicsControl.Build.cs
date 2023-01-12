@@ -14,7 +14,6 @@ public class PhysicsControl : ModuleRules
 				"Core"
 			}
 		);
-			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
