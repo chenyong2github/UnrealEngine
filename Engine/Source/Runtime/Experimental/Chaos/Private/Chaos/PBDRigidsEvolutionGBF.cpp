@@ -368,6 +368,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 		CollisionDetector.RunBroadPhase(Dt, GetCurrentStepResimCache());
 
+		if (MidPhaseModifiers)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Evolution_MidPhaseModifierCallback);
 			CollisionConstraints.ApplyMidPhaseModifier(*MidPhaseModifiers, Dt);
