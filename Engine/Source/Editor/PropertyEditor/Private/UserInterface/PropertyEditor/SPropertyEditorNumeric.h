@@ -267,8 +267,6 @@ public:
 			TNumericPropertyParams<NumericType> NumericPropertyParams(Property, MetaDataGetter);
 
 			FObjectPropertyNode* ObjectPropertyNode = PropertyNode->FindObjectItemParent();
-			const bool bAllowSpin = (!ObjectPropertyNode || (1 == ObjectPropertyNode->GetNumObjects()))
-				&& !PropertyHandle->GetBoolMetaData("NoSpinbox");
 
 			// Set up the correct type interface if we want to display units on the property editor
 
@@ -321,6 +319,8 @@ public:
 					TypeInterface->SetupFixedDisplay(Value.GetValue());
 				}
 			}
+
+			const bool bAllowSpin = !PropertyHandle->GetBoolMetaData("NoSpinbox");
 
 			ChildSlot
 			[
