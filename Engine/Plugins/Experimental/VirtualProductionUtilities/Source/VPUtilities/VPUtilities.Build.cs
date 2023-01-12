@@ -20,6 +20,7 @@ public class VPUtilities : ModuleRules
 				"TimeManagement",
 				"UMG",
 				"VPBookmark",
+				"VPSettings"
 			}
 		);
 

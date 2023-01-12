@@ -12,7 +12,7 @@
 #include "VPBlueprintLibrary.h"
 #include "VPBookmark.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "VPSettings.h"
+#include "VPBookmarkSettings.h"
 
 AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

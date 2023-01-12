@@ -49,7 +49,8 @@ public class VCamCore : ModuleRules
 				"MediaIOCore",
 				"RemoteSession",
 				"InputCore",
-				"VPRoles"
+				"VPRoles",
+				"VPSettings"
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

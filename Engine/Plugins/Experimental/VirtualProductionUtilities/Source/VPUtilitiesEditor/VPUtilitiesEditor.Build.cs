@@ -41,6 +41,7 @@ public class VPUtilitiesEditor : ModuleRules
 				"UnrealEd",
 				"VPBookmark",
 				"VPRoles",
+				"VPSettings",
 				"WorkspaceMenuStructure",
             }
 		);

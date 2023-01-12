@@ -40,16 +40,6 @@
 			"LoadingPhase": "PostDefault"
 		},
 		{
-			"Name": "VPRoles",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "VPRolesEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "VPSpline",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
@@ -86,7 +76,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "GameplayTagsEditor",
+			"Name": "VPRoles",
+			"Enabled": true
+		},
+		{
+			"Name": "VPSettings",
 			"Enabled": true
 		},
 		{
