@@ -2,10 +2,7 @@
 
 #include "DumpGPUServices.h"
 #include "DumpGPU.h"
-#include "CoreMinimal.h"
-#include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
 #include "IDumpGPUServices.h"
 #include "DumpGPU.h"
 

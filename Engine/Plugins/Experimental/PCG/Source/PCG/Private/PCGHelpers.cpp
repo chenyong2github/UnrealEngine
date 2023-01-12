@@ -3,16 +3,12 @@
 #include "PCGHelpers.h"
 
 #include "PCGComponent.h"
+#include "PCGModule.h"
 #include "PCGSubsystem.h"
-#include "PCGWorldActor.h"
 #include "Grid/PCGPartitionActor.h"
 
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
 #include "Landscape.h"
-#include "LandscapeInfo.h"
 #include "UObject/UObjectIterator.h"
-#include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

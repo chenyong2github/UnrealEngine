@@ -2,9 +2,9 @@
 
 #include "CommonConversationRuntimeModule.h"
 #include "GameplayTagsManager.h"
-#include "GameplayTagsModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "CommonConversationRuntimeLogging.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/CoreRedirects.h"
 
 DEFINE_LOG_CATEGORY(LogCommonConversationRuntime);

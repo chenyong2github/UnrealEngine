@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
 
 #include "PCGVolumeFactory.generated.h"

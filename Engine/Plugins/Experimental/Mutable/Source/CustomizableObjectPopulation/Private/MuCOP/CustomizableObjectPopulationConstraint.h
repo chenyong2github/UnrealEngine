@@ -3,11 +3,6 @@
 #pragma once
 
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "CoreTypes.h"
-#include "Math/Color.h"
-#include "UObject/ObjectPtr.h"
 
 #include "CustomizableObjectPopulationConstraint.generated.h"
 

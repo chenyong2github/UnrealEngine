@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "KismetNodes/SGraphNodeK2Var.h"
 
 class UK2Node_PropertyAccess;

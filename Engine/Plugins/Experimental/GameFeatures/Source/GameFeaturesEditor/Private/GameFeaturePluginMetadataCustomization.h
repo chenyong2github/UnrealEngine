@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "IDetailCustomization.h"
 #include "Features/IPluginsEditorFeature.h"
 #include "GameFeatureTypesFwd.h"
 

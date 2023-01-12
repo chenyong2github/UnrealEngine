@@ -2,9 +2,6 @@
 
 #include "MuCOE/CustomizableObjectEditorNodeContextCommands.h"
 
-#include "Framework/Commands/InputChord.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "InputCoreTypes.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditorNodeContextCommands"
 

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ParameterDictionary.h"
-#include "PlayerTime.h"
+#include "Templates/SharedPointer.h"
+
+namespace Electra { class FParamDict; }
+namespace Electra { class FTimeValue; }
 
 namespace ElectraTTMLParser
 {

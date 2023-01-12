@@ -3,10 +3,6 @@
 #pragma once
 
 #include "IFilterPreset.h"
-#include "UObject/ObjectMacros.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "ITraceObject.h"
 
 #include "FilterPresets.generated.h"
 

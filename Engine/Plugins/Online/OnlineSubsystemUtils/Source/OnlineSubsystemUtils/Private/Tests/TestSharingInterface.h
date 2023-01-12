@@ -4,7 +4,6 @@
 
 // UE includes
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineSharingInterface.h"
 

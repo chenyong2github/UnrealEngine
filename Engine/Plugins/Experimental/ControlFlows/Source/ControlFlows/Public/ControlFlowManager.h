@@ -2,10 +2,11 @@
 
 #pragma once
 
+// IWYU pragma: begin_keep
 #include "ControlFlow.h"
-
 #include "UObject/StrongObjectPtr.h"
 #include "ControlFlowContainer.h"
+// IWYU pragma: end_keep
 
 class CONTROLFLOWS_API FControlFlowStatics
 {

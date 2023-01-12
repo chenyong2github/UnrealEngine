@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "ElectraSubtitleDecoder.h"
-#include "ElectraSubtitleDecoderFactory.h"
-#include "ttml/TTMLSubtitleHandler.h"
+#include "IElectraSubtitleDecoder.h"
+#include "PlayerTime.h"
+
+class IElectraSubtitleDecoderFactoryRegistry;
+namespace ElectraTTMLParser { class ITTMLSubtitleHandler; }
 
 /**
  * TTML / IMSC1 subtitle decoder (https://www.w3.org/TR/ttml2/ and https://www.w3.org/TR/ttml-imsc1.2/)

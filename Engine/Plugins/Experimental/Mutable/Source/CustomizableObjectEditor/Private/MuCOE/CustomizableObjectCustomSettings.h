@@ -2,23 +2,13 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Input/Reply.h"
-#include "Math/Color.h"
-#include "Misc/Optional.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Views/SListView.h"
 
 #include "CustomizableObjectCustomSettings.generated.h"
+
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+template <typename ItemType> class SListView;
 
 class SWidget;
 struct FAssetData;

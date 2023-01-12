@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class ISessionSourceFilterService;
 class FClassFilterObject;

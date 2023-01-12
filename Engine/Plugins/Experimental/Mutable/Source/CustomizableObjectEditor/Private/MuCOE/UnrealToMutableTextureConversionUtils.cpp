@@ -2,26 +2,10 @@
 
 #include "MuCOE/UnrealToMutableTextureConversionUtils.h"
 
-#include "Containers/ArrayView.h"
-#include "Containers/ContainersFwd.h"
-#include "Containers/EnumAsByte.h"
-#include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
-#include "Engine/TextureDefines.h"
-#include "HAL/PlatformCrt.h"
-#include "HAL/UnrealMemory.h"
-#include "ImageCore.h"
 #include "ImageCoreUtils.h"
 //#include "MuCO/CustomizableObject.h"	// For the LogMutable logging category
 #include "ImageUtils.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/UnrealMathUtility.h"
-#include "Math/Vector.h"
-#include "Misc/AssertionMacros.h"
-#include "MuR/Ptr.h"
-#include "MuR/RefCounted.h"
-#include "Templates/UnrealTemplate.h"
 
 namespace UnrealToMutableImageConversion_Interanl
 {

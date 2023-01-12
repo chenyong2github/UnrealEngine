@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemUtilsModule.h"
-#include "Modules/ModuleManager.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "OnlineSubsystem.h"
+#include "Online.h"
 #include "OnlineSubsystemUtils.h"
 #include "OnlineServicesEngineUtilsImpl.h"
 #include "OnlineDelegates.h"
 #include "OnlinePIESettings.h"
+#include "OnlineSubsystemNames.h"
 
 IMPLEMENT_MODULE(FOnlineSubsystemUtilsModule, OnlineSubsystemUtils);
 

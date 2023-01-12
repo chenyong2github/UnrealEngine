@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "IMessageContext.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Transport/TcpSerializedMessage.h"
+
+class IMessageContext;
+struct TStatId;
 
 class FTcpMessageTransportConnection;
 

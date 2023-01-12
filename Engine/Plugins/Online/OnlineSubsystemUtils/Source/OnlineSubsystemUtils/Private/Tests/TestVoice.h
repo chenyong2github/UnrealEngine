@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/CoreMisc.h"
 #include "Containers/Ticker.h"
 

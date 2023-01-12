@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
-#include "Tests/PCGTestsCommon.h"
 
+#include "Elements/Metadata/PCGMetadataMakeTransform.h"
 #include "PCGComponent.h"
-#include "PCGData.h"
+#include "Metadata/PCGMetadataAccessor.h"
 #include "PCGParamData.h"
 
 #include "Data/PCGPointData.h"
 #include "Elements/Metadata/PCGMetadataBreakTransform.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
-#include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "PCGContext.h"
 
 #if WITH_EDITOR
 

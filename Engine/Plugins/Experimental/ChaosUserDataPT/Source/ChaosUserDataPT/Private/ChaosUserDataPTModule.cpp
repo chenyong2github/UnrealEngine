@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosUserDataPTModule.h"
+#include "Modules/ModuleManager.h"
 
 void FChaosUserDataPTModule::StartupModule()
 {

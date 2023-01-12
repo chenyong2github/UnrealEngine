@@ -2,18 +2,11 @@
 
 #include "SWorldTraceFilteringWidget.h"
 
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
-#include "Internationalization/Internationalization.h"
-#include "Algo/Transform.h"
-#include "Widgets/Views/SListView.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "SWorldObjectWidget.h"
 #include "SourceFilterStyle.h"
 #include "ISessionSourceFilterService.h"
-#include "WorldObject.h"
 
 #define LOCTEXT_NAMESPACE "SWorldFilterWidget"
 

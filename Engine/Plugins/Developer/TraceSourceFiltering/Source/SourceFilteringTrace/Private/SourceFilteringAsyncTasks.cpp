@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceFilteringAsyncTasks.h"
-#include "Stats/Stats.h"
 
 #include "SourceFilterManager.h"
 

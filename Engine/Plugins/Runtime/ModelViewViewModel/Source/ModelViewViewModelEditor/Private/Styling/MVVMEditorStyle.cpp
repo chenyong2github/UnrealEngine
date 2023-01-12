@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Styling/MVVMEditorStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
-#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/StyleColors.h"
 #include "Interfaces/IPluginManager.h"

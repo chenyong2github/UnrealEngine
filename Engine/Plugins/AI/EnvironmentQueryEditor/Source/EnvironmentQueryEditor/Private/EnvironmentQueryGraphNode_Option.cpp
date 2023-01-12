@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQueryGraphNode_Option.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "ToolMenus.h"
-#include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "EnvironmentQuery/EnvQueryOption.h"
 #include "EnvironmentQueryGraphNode_Test.h"
 #include "EdGraph/EdGraph.h"
 #include "SGraphEditorActionMenuAI.h"
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_Composite.h"
+#include "ToolMenu.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryGraphNode_Option)
 

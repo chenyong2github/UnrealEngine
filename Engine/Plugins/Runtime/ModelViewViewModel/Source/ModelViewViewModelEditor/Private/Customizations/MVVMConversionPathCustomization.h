@@ -3,13 +3,10 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-#include "Layout/Visibility.h"
-#include "MVVMPropertyPath.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMBindingMode.h"
 #include "Types/MVVMBindingSource.h"
-#include "Types/MVVMFieldVariant.h"
+
+enum class EMVVMBindingMode : uint8;
+namespace ETextCommit { enum Type : int; }
 
 struct FMVVMPropertyPathBase;
 class FStructOnScope;

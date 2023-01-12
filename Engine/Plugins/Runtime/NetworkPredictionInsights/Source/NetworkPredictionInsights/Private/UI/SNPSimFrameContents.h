@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Geometry.h"
-#include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SNPWindow.h"
+
+class SHorizontalBox;
+class STextBlock;
+class SVerticalBox;
+struct FSimContentsView;
 
 class SNPWindow;
 

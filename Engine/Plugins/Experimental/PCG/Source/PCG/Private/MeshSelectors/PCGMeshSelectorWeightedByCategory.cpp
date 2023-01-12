@@ -2,16 +2,14 @@
 
 #include "MeshSelectors/PCGMeshSelectorWeightedByCategory.h"
 
-#include "Elements/PCGPointFilter.h"
+#include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
+#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "Math/RandomStream.h"
-#include "Engine/StaticMesh.h"
+#include "MeshSelectors/PCGMeshSelectorBase.h"
+#include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeightedByCategory)
 

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Delegates/Delegate.h"
-#include "Delegates/DelegateCombinations.h"
 #include "Modules/ModuleInterface.h"
 #include "UObject/StrongObjectPtr.h"
 

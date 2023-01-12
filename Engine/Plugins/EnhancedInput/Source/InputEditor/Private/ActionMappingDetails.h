@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Layout/Margin.h"
-#include "PropertyHandle.h"
 #include "IDetailCustomNodeBuilder.h"
-#include "IDetailCustomization.h"
 
 // TODO: This is derived from (and will eventually replace) InputSettingsDetails.h
 

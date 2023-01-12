@@ -4,7 +4,6 @@
 
 #include "GameplayInteractionContext.h"
 #include "Tasks/AITask.h"
-#include "SmartObjectRuntime.h"
 #include "AITask_UseGameplayInteraction.generated.h"
 
 class AAIController;

@@ -2,11 +2,11 @@
 
 #include "Data/PCGPointData.h"
 
+#include "Data/PCGSpatialData.h"
 #include "PCGHelpers.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
 #include "GameFramework/Actor.h"
-#include "Misc/ScopeLock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointData)
 

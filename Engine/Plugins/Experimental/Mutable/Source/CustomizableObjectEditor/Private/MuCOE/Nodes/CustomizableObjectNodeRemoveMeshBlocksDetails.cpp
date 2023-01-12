@@ -2,22 +2,11 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeRemoveMeshBlocksDetails.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailsView.h"
-#include "Internationalization/Internationalization.h"
-#include "Math/IntPoint.h"
-#include "Math/IntRect.h"
-#include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeRemoveMeshBlocks.h"
-#include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksSelector.h"
-#include "Templates/Casts.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 

@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "GraphEditor.h"
 #include "Misc/NotifyHook.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AIGraphEditor.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+
+class SGraphEditor;
+struct FGraphAppearanceInfo;
 
 class FConversationDebugger;
 class FConversationEditorToolbar;

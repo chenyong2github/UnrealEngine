@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FindInConversationGraph.h"
+#include "ConversationEditor.h"
 #include "EdGraph/EdGraph.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
 #include "ConversationGraphNode.h"
 //#include "ConversationGraphNode_Decorator.h"
 //#include "ConversationGraphNode_Service.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "FindInBT"
 

@@ -1,20 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceFilteringEditorModule.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Modules/ModuleManager.h"
 
-#include "TraceServices/ITraceServicesModule.h"
-#include "HAL/IConsoleManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Framework/Commands/Commands.h"
-#include "Framework/Docking/LayoutExtender.h"
-#include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigContext.h"
-#include "WorkspaceMenuStructureModule.h"
-#include "WorkspaceMenuStructure.h"
-#include "Features/IModularFeatures.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EmptySourceFilter.h"

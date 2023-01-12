@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BackChannel/Transport/IBackChannelTransport.h"
-#include "BackChannel/Utils/BackChannelThreadedConnection.h"
-#include "BackChannelCommon.h"
-#include "HAL/PlatformProcess.h"
-#include "Misc/AutomationTest.h"
+#include "CoreTypes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS && 0
 

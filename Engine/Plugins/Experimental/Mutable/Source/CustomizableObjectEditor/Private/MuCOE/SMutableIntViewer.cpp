@@ -2,11 +2,6 @@
 
 #include "MuCOE/SMutableIntViewer.h"
 
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
-#include "Layout/Children.h"
-#include "Misc/Attribute.h"
-#include "SlotBase.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 

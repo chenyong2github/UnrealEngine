@@ -3,7 +3,6 @@
 #include "MfFileMediaSourceFactory.h"
 
 #include "FileMediaSource.h"
-#include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MfFileMediaSourceFactory)
 

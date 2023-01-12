@@ -11,10 +11,13 @@
 #include "PCGSubsystem.h"
 
 #include "Styling/AppStyle.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphProfilingView"
 

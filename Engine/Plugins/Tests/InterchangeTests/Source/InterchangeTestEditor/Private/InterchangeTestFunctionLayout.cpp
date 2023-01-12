@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeTestFunctionLayout.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "InterchangeTestFunction.h"
 
 #include "IDetailChildrenBuilder.h"
@@ -9,7 +10,6 @@
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ScopedTransaction.h"
 

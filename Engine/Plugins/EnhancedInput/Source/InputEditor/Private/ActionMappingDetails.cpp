@@ -1,24 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActionMappingDetails.h"
-#include "AssetRegistry/AssetData.h"
-#include "DetailCategoryBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "EnhancedActionKeyMapping.h"
-#include "InputAction.h"
 #include "InputMappingContext.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailDragDropHandler.h"
 #include "IDetailGroup.h"
-#include "IDetailPropertyRow.h"
-#include "IDocumentation.h"
+#include "Misc/PackageName.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "ActionMappingDetails"
 

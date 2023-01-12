@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "SplineMetadataDetailsFactory.h"
 #include "Layout/Visibility.h"
-#include "Types/SlateEnums.h"
 #include "ScopedTransaction.h"
 #include "WaterSplineMetadataDetails.generated.h"
+
+namespace ETextCommit { enum Type : int; }
 
 class USplineComponent;
 class IDetailGroup;

@@ -2,13 +2,12 @@
 
 #include "Tests/Elements/PCGPropertyToParamDataElementTest.h"
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGGraph.h"
 #include "PCGParamData.h"
 #include "PCGVolume.h"
 #include "Elements/PCGPropertyToParamData.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
+#include "Tests/PCGTestsCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPropertyToParamDataElementTest)
 

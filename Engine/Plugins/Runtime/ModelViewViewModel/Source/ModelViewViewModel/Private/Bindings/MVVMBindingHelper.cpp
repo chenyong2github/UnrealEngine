@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "FieldNotification/FieldNotificationHelpers.h"
-#include "UObject/Class.h"
+#include "Templates/ValueOrError.h"
 #include "UObject/PropertyAccessUtil.h"
-#include "UObject/UnrealType.h"
+#include "Types/MVVMBindingName.h"
+#include "Types/MVVMFieldContext.h"
+#include "Types/MVVMFunctionContext.h"
 
 #define LOCTEXT_NAMESPACE "MVVMBindingHelper"
 

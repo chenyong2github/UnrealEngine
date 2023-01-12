@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelViewViewModelBlueprintModule.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-#include "KismetCompilerModule.h"
 #include "ViewModel/MVVMViewModelBlueprint.h"
 #include "ViewModel/MVVMViewModelBlueprintCompiler.h"
 

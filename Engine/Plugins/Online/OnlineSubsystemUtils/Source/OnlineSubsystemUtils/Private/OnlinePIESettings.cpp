@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlinePIESettings.h"
-#include "UObject/UnrealType.h"
 #include "OnlineSubsystem.h"
 #include "Misc/AES.h"
 

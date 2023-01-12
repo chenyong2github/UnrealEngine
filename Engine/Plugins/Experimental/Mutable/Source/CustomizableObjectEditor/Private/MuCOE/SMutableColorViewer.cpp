@@ -2,16 +2,7 @@
 
 #include "MuCOE/SMutableColorViewer.h"
 
-#include "HAL/Platform.h"
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
-#include "Layout/Children.h"
-#include "Math/Color.h"
-#include "Misc/Attribute.h"
 #include "MuCOE/SMutableColorPreviewBox.h"
-#include "SlotBase.h"
-#include "Styling/SlateColor.h"
-#include "Templates/SharedPointer.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 

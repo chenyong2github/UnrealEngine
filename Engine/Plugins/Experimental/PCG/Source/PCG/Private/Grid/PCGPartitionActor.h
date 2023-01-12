@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ActorPartition/PartitionActor.h"
 
 #include "PCGPartitionActor.generated.h"
+
+namespace EEndPlayReason { enum Type : int; }
 
 class UPCGComponent;
 class UPCGSubsystem;

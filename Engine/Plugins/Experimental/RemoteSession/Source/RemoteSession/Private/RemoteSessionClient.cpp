@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteSessionClient.h"
+#include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
 #include "BackChannel/Transport/IBackChannelTransport.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
-#include "Framework/Application/SlateApplication.h"	
-#include "Channels/RemoteSessionInputChannel.h"
-#include "Channels/RemoteSessionXRTrackingChannel.h"
-#include "Channels/RemoteSessionARCameraChannel.h"
-#include "Channels/RemoteSessionFrameBufferChannel.h"
-#include "IImageWrapper.h"
-#include "IImageWrapperModule.h"
-#include "Sockets.h"
+#include "BackChannel/Transport/IBackChannelSocketConnection.h"
 #include "RemoteSession.h"
 #include "Async/Async.h"
 

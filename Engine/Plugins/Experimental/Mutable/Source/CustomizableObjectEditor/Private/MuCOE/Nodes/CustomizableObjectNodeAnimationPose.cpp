@@ -2,31 +2,11 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeAnimationPose.h"
 
-#include "Animation/AnimCurveTypes.h"
-#include "Animation/AnimInstance.h"
-#include "Animation/AnimTypes.h"
-#include "Animation/AnimationAsset.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/AttributesRuntime.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/PoseAsset.h"
-#include "Animation/SmartName.h"
-#include "BoneContainer.h"
-#include "BoneIndices.h"
 #include "BonePose.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Engine/SkeletalMesh.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "Math/TransformVectorized.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/MemStack.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "ReferenceSkeleton.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 struct FPropertyChangedEvent;

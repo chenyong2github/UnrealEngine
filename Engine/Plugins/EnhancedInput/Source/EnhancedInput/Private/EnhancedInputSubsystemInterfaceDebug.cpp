@@ -5,16 +5,11 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
+#include "EnhancedInputLibrary.h"
 #include "EnhancedInputModule.h"
-#include "EnhancedPlayerInput.h"
-#include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "InputMappingContext.h"
-#include "InputModifiers.h"
-#include "InputTriggers.h"
 #include "ImageUtils.h"
-#include "EnhancedInputPlatformSettings.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "UObject/Package.h"
 
 /* Shared input subsystem debug functionality.

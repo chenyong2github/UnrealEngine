@@ -2,23 +2,15 @@
 
 #include "SCaptureDialog.h"
 
-#include "CoreMinimal.h"
-#include "CoreGlobals.h"
 #include "Editor.h"
-#include "Styling/AppStyle.h"
-#include "Misc/CString.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/SWindow.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Dialogs/SCapturedPropertiesWidget.h"
 #include "Dialogs/SCapturedActorsWidget.h"
 #include "Misc/ConfigCacheIni.h"
 #include "VariantManagerLog.h"
-#include "UnrealEngine.h"
 #include "VariantManagerPropertyCapturer.h"
-#include "CapturableProperty.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Application/SlateApplicationBase.h"
 

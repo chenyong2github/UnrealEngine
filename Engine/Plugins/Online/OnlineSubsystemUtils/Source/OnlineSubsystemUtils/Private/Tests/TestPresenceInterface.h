@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
 #include "Containers/Ticker.h"
-#include "TimerManager.h"
-#include "OnlineSubsystemTypes.h"
+#include "Engine/TimerHandle.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineFriendsInterface.h"
+#include "Interfaces/OnlineSessionDelegates.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
+
+class FOnlineFriend;
 
 #if WITH_DEV_AUTOMATION_TESTS
 

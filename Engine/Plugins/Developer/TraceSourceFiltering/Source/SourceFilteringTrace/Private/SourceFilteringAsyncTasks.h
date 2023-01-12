@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 
 class FSourceFilterManager;

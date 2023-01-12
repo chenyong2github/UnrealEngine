@@ -3,7 +3,7 @@
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
-#include "Templates/Function.h"
+#include "PCGPoint.h"
 
 ////////////////////////////////////////////////////////////////////
 

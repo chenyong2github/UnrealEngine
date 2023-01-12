@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PeakPicker.h"
-#include "CoreMinimal.h"
 #include "DSP/FloatArrayMath.h"
 
 namespace Audio

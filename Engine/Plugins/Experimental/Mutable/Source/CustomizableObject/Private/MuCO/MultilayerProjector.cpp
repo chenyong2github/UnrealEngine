@@ -2,13 +2,8 @@
 
 #include "MuCO/MultilayerProjector.h"
 
-#include "HAL/PlatformCrt.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "Templates/Tuple.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MultilayerProjector)
 

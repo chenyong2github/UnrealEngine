@@ -7,7 +7,6 @@
 #include "Engine/StaticMeshSourceData.h"
 #include "StaticMeshEditorModule.h"
 #include "FbxMeshUtils.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "Misc/MessageDialog.h"
 #include "StaticMeshCompiler.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"

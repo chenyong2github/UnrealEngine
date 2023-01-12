@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "TraceServices/Model/AnalysisSession.h"
-#include "Containers/UnrealString.h"
-#include "Misc/IFilter.h"
-#include "Framework/Views/TreeFilterHandler.h"
-#include "Misc/TextFilter.h"
 
-#include "ITraceObject.h"
+#include "Widgets/SCompoundWidget.h"
+
+class SHorizontalBox;
+class STableViewBase;
+namespace TraceServices { class IAnalysisSession; }
+template <typename ItemType> class STreeView;
+template <typename ItemType> class TTextFilter;
+template <typename ItemType> class TreeFilterHandler;
 
 class ITableRow;
 class SFilterPresetList;

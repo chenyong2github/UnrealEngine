@@ -2,30 +2,22 @@
 
 #include "Helpers/PCGActorHelpers.h"
 
+#include "Materials/MaterialInterface.h"
 #include "PCGHelpers.h"
 
 #include "PCGComponent.h"
 #include "PCGManagedResource.h"
 #include "EngineUtils.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/InheritableComponentHandler.h"
-#include "Engine/Level.h"
 #include "Engine/SCS_Node.h"
-#include "Engine/SimpleConstructionScript.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/World.h"
-#include "WorldPartition/WorldPartition.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
+#include "PCGModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGActorHelpers)
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "SourceControlHelpers.h"
-#include "PackageSourceControlHelper.h"
-#include "FileHelpers.h"
-#include "ObjectTools.h"
 #endif
 
 UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor)

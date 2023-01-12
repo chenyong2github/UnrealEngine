@@ -3,6 +3,7 @@
 #include "AndroidFileServerEditor.h"
 #include "ISettingsModule.h"
 #include "AndroidFileServerRuntimeSettings.h"
+#include "Modules/ModuleManager.h"
 
 /**
  * Implements the AndroidFileServerEditor module.

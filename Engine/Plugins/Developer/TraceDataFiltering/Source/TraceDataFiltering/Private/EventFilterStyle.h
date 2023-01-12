@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/SlateStyle.h"
-#include "Styling/SlateTypes.h"
+
+class ISlateStyle;
+struct FTextBlockStyle;
 
 class FEventFilterStyle
 {

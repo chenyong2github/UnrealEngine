@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDataTableRowToParamData.h"
-#include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadata.h"
 #include "Engine/DataTable.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataTableRowToParamData)
 

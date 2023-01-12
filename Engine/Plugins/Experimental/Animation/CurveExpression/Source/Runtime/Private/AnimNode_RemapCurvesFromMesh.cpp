@@ -2,10 +2,11 @@
 
 #include "AnimNode_RemapCurvesFromMesh.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/ExposedValueHandler.h"
 #include "CurveExpressionModule.h"
 #include "Engine/SkeletalMesh.h"
-#include "ExpressionEvaluator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RemapCurvesFromMesh)
 

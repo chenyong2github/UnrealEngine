@@ -1,23 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailCustomizations/EnvQueryTestDetails.h"
-#include "UObject/Class.h"
-#include "Layout/Margin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SBoxPanel.h"
 #include "SlateOptMacros.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
-#include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
 #include "STestFunctionWidget.h"
 
 #define LOCTEXT_NAMESPACE "EnvQueryTestDetails"

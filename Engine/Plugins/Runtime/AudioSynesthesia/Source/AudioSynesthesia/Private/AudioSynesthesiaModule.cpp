@@ -4,11 +4,7 @@
 
 #include "AudioAnalyzerModule.h"
 #include "AudioSynesthesiaLog.h"
-#include "CoreMinimal.h"
-#include "Features/IModularFeatures.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "LoudnessNRTFactory.h"
-#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesia);
 

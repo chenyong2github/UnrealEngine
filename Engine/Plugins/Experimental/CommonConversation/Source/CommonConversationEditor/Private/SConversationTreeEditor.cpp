@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SConversationTreeEditor.h"
-#include "EdGraph/EdGraph.h"
-#include "Layout/WidgetPath.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "ConversationGraphNode.h"
+#include "ConversationEditor.h"
 #include "ConversationGraph.h"
-#include "ConversationDatabase.h"
 #include "ConversationCompiler.h"
 #include "ConversationGraphNode_EntryPoint.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Framework/Views/TableViewMetadata.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "FConversationTreeNode"
 

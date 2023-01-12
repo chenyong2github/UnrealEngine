@@ -4,7 +4,6 @@
 
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "Chaos/ChaosSolver.h"
-#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

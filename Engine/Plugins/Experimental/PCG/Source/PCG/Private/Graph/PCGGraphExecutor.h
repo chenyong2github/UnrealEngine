@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGContext.h"
-#include "PCGData.h"
 #include "PCGElement.h"
 #include "PCGGraphCache.h"
 #include "PCGSubsystem.h"
+
+class FTextFormat;
 
 #if WITH_EDITOR
 #include "AsyncCompilationHelpers.h"

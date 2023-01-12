@@ -4,9 +4,10 @@
 
 #include "DataRegistryTypesPrivate.h"
 #include "DataRegistrySettings.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "Engine/AssetManager.h"
+#include "Engine/CurveTable.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Engine/StreamableManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistrySource_CurveTable)
 

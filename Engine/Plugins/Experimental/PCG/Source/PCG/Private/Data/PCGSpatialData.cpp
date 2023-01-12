@@ -3,6 +3,7 @@
 #include "Data/PCGSpatialData.h"
 #include "Data/PCGDifferenceData.h"
 #include "Data/PCGIntersectionData.h"
+#include "Data/PCGPointData.h"
 #include "Data/PCGProjectionData.h"
 #include "Data/PCGUnionData.h"
 

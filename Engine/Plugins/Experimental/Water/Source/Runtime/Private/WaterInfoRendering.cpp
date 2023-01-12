@@ -2,25 +2,25 @@
 
 #include "WaterInfoRendering.h"
 
+#include "CommonRenderResources.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "EngineModule.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "Modules/ModuleManager.h"
 #include "RenderCaptureInterface.h"
-#include "WaterBodyActor.h"
+#include "RHIStaticStates.h"
 #include "WaterBodySceneProxy.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "ScenePrivate.h"
-#include "RendererModule.h"
 #include "SceneCaptureRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "Math/OrthoMatrix.h"
 #include "GameFramework/WorldSettings.h"
+#include "ScreenRendering.h"
 #include "WaterZoneActor.h"
-#include "Rendering/NaniteStreamingManager.h"
-#include "SceneViewExtension.h"
 #include "LandscapeRender.h"
 #include "LandscapeModule.h"
 #include "TextureResource.h"
+#include "WaterBodyComponent.h"
 
 static int32 RenderCaptureNextWaterInfoDraws = 0;
 static FAutoConsoleVariableRef CVarRenderCaptureNextWaterInfoDraws(

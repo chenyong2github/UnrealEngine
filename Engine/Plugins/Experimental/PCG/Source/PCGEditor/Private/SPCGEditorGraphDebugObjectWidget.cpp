@@ -2,17 +2,15 @@
 
 #include "SPCGEditorGraphDebugObjectWidget.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "PCGComponent.h"
 #include "PCGEditor.h"
 #include "PCGEditorGraph.h"
-#include "PCGGraph.h"
 
-#include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "PropertyCustomizationHelpers.h"
 #include "UnrealEdGlobals.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphDebugObjectWidget"
 

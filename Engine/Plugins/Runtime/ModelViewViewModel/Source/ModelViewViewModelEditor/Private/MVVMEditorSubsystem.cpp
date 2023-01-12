@@ -2,13 +2,12 @@
 
 #include "MVVMEditorSubsystem.h"
 
-#include "Algo/Reverse.h"
 #include "Bindings/MVVMBindingHelper.h"
 #include "Bindings/MVVMConversionFunctionHelper.h"
 #include "Blueprint/WidgetTree.h"
 #include "BlueprintActionDatabase.h"
+#include "BlueprintActionFilter.h"
 #include "BlueprintNodeSpawner.h"
-#include "Containers/Deque.h"
 #include "Engine/Engine.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -21,9 +20,8 @@
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "ScopedTransaction.h"
+#include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMBindingSource.h"
-#include "UObject/MetaData.h"
-#include "WidgetBlueprint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMEditorSubsystem)
 

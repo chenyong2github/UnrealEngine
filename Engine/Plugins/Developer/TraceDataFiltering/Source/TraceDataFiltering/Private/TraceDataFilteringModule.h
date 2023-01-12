@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+
+class FName;
+class FString;
 
 struct FInsightsMajorTabExtender;
 

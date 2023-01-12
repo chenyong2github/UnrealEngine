@@ -2,19 +2,13 @@
 
 #include "OnlineBeaconClient.h"
 #include "Engine/GameInstance.h"
+#include "PacketHandler.h"
 #include "TimerManager.h"
-#include "GameFramework/OnlineReplStructs.h"
 #include "OnlineBeaconHostObject.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "PacketHandlers/StatelessConnectHandlerComponent.h"
 #include "Engine/PackageMapClient.h"
 #include "Engine/LocalPlayer.h"
 #include "Net/DataChannel.h"
-#include "Misc/NetworkVersion.h"
-#include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystemUtils.h"
-#include "Containers/StringFwd.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBeaconClient)
 

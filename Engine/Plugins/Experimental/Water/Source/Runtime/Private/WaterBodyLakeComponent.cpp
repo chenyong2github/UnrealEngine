@@ -1,23 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyLakeComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "WaterModule.h"
+#include "DynamicMesh/InfoTypes.h"
 #include "WaterSplineComponent.h"
 #include "WaterSubsystem.h"
-#include "Components/SplineMeshComponent.h"
-#include "PhysicsEngine/ConvexElem.h"
 #include "Engine/StaticMesh.h"
 #include "LakeCollisionComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Polygon2.h"
 #include "ConstrainedDelaunay2.h"
 #include "Operations/InsetMeshRegion.h"
-#include "DynamicMesh/DynamicMeshChangeTracker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyLakeComponent)
 
 #if WITH_EDITOR
-#include "WaterIconHelper.h"
 #endif
 
 // ----------------------------------------------------------------------------------

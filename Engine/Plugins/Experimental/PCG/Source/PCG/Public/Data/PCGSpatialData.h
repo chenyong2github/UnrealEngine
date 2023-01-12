@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "PCGContext.h"
 #include "PCGData.h"
-#include "PCGPoint.h"
+#include "PCGPoint.h" // IWYU pragma: keep
 #include "Elements/PCGProjectionParams.h"
 #include "Metadata/PCGMetadata.h"
 

@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "Internationalization/Text.h"
-#include "Styling/SlateColor.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SMutableColorPreviewBox;

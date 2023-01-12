@@ -2,10 +2,10 @@
 
 #include "Data/PCGVolumeData.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "PCGHelpers.h"
 #include "Elements/PCGVolumeSampler.h"
 
-#include "Components/BrushComponent.h"
 #include "GameFramework/Volume.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolumeData)

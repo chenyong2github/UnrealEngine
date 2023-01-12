@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
+
+struct FOnlineError;
 
 class IOnlineSubsystem;
 

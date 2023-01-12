@@ -3,11 +3,9 @@
 #pragma once
 
 #include "Styling/CoreStyle.h"
-#include "Styling/ISlateStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Types/MVVMBindingSource.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SImage;

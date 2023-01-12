@@ -10,6 +10,7 @@
 #include "PCGEditorModule.h"
 
 #include "EdGraph/EdGraphPin.h"
+#include "PCGPin.h"
 
 void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 {

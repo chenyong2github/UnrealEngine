@@ -6,7 +6,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "UObject/Package.h"
 
-#include "Concepts/StaticStructProvider.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationEditorModes.h"
+#include "ConversationEditor.h"
 #include "ConversationEditorTabs.h"
 #include "ConversationEditorTabFactories.h"
 #include "ConversationEditorToolbar.h"

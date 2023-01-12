@@ -2,22 +2,12 @@
 
 #include "MuCOP/CustomizableObjectPopulation.h"
 
-#include "Containers/Map.h"
-#include "Curves/RichCurve.h"
-#include "HAL/PlatformCrt.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCOP/CustomizableObjectPopulationCharacteristic.h"
 #include "MuCOP/CustomizableObjectPopulationClass.h"
 #include "MuCOP/CustomizableObjectPopulationConstraint.h"
 #include "MuCOP/CustomizableObjectPopulationCustomVersion.h"
 #include "MuCOP/CustomizableObjectPopulationGenerator.h"
-#include "Templates/Casts.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/Tuple.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectPopulation)
 
@@ -29,7 +19,6 @@ class UCustomizableObjectInstance;
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
 #include "MuCOP/CustomizableObjectPopulationGeneratorPrivate.h"
-#include "MuCOP/CustomizableObjectPopulationSamplers.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectPopulation"

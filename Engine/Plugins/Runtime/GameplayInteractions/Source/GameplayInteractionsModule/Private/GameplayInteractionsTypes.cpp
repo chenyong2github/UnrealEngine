@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionsTypes.h"
+#include "NavigationData.h"
 #include "VisualLogger/VisualLogger.h"
 #include "NavCorridor.h"
-#include "NavigationPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionsTypes)
 

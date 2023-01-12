@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Widgets/Input/SSearchBox.h"
+
+class ITableRow;
+class SSearchBox;
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+template <typename ItemType> class STreeView;
 
 class FPCGEditor;
 class UEdGraphNode;

@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EndTurnCallbackProxy.h"
-#include "Serialization/BitWriter.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
+#include "Interfaces/TurnBasedMatchInterface.h"
 #include "OnlineSubsystemBPCallHelper.h"
 #include "Interfaces/OnlineTurnBasedInterface.h"
 #include "OnlineSubsystem.h"

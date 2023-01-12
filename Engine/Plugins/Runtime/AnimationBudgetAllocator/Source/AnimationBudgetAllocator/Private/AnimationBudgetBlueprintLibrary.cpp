@@ -2,7 +2,6 @@
 
 #include "AnimationBudgetBlueprintLibrary.h"
 #include "AnimationBudgetAllocatorModule.h"
-#include "Modules/ModuleManager.h"
 #include "IAnimationBudgetAllocator.h"
 #include "Engine/Engine.h"
 

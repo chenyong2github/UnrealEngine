@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AndroidFileServer.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FAndroidFileServerModule"
 

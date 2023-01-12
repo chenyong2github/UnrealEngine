@@ -2,15 +2,11 @@
 
 #include "GizmoEdMode.h"
 #include "DefaultAssetEditorGizmoFactory.h"
-#include "Components/SceneComponent.h"
 #include "EditorModeManager.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveGizmo.h"
-#include "BaseGizmos/CombinedTransformGizmo.h"
+#include "InteractiveGizmoManager.h"
 #include "Settings/LevelEditorViewportSettings.h"
-#include "UnrealWidgetFwd.h"
-#include "Utils.h"
-#include "Stats/Stats2.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoEdMode)
 

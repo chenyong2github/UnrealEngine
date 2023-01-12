@@ -10,7 +10,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
 #include "ToolMenuSection.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"

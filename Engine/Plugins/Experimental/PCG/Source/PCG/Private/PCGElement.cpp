@@ -2,19 +2,13 @@
 
 #include "PCGElement.h"
 
-#include "PCGComponent.h"
 #include "PCGContext.h"
-#include "PCGModule.h"
-#include "PCGParamData.h"
-#include "PCGSettings.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGDebugElement.h"
 #include "Elements/PCGSelfPruning.h"
-#include "Graph/PCGGraphCache.h"
 #include "HAL/IConsoleManager.h"
 #include "Utils/PCGExtraCapture.h"
 
-#include "Algo/Find.h"
 
 static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 	TEXT("pcg.debug.ValidatePointMetadata"),

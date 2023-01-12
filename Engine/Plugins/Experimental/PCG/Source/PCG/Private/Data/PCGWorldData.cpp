@@ -2,7 +2,9 @@
 
 #include "Data/PCGWorldData.h"
 
+#include "Data/PCGSurfaceData.h"
 #include "PCGComponent.h"
+#include "Data/PCGVolumeData.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGSurfaceSampler.h"

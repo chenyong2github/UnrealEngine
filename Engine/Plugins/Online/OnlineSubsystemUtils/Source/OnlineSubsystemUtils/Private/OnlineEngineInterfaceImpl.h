@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Online/CoreOnline.h"
 #include "Net/OnlineEngineInterface.h"
 #include "OnlineEngineInterfaceImpl.generated.h"
+
+struct FJoinabilitySettings;
+struct FUniqueNetIdWrapper;
 
 class Error;
 class FVoicePacket;

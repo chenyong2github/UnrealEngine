@@ -2,8 +2,6 @@
 
 #include "MuCOP/CustomizableObjectPopulationCustomVersion.h"
 
-#include "HAL/Platform.h"
-#include "Misc/Guid.h"
 #include "Serialization/CustomVersion.h"
 
 using namespace CustomizableObjectPopulation;

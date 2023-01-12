@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Internationalization/Text.h"
 
 
 /*

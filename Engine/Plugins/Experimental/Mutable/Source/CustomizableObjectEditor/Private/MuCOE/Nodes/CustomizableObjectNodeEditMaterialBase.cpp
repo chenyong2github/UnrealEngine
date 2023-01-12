@@ -2,11 +2,8 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
 
-#include "MuCO/CustomizableObject.h"
 #include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
-#include "Templates/Casts.h"
-#include "Templates/SharedPointer.h"
 
 
 void UCustomizableObjectNodeEditMaterialBase::BeginPostDuplicate(bool bDuplicateForPIE)

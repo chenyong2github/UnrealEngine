@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MoviePipelinePanoramicBlender.h"
+#include "Math/PerspectiveMatrix.h"
 #include "MoviePipelinePanoramicPass.h"
-#include "Async/ParallelFor.h"
 
 FMoviePipelinePanoramicBlender::FMoviePipelinePanoramicBlender(TSharedPtr<MoviePipeline::IMoviePipelineOutputMerger> InOutputMerger, const FIntPoint InOutputResolution)
 	: OutputMerger(InOutputMerger)

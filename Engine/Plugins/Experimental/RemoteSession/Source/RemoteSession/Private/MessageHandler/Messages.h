@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Serialization/BufferArchive.h"
-#include "Serialization/MemoryReader.h"
 
 struct NoParamMsg
 {

@@ -14,7 +14,6 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 

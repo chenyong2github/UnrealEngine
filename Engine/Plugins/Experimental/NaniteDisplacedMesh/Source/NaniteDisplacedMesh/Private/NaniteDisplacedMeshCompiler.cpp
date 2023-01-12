@@ -1,25 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMeshCompiler.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 
 #include "Algo/NoneOf.h"
-#include "AssetCompilingManager.h"
+#include "Misc/QueuedThreadPool.h"
 #include "ObjectCacheContext.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "Misc/Optional.h"
-#include "EngineModule.h"
-#include "Misc/ScopedSlowTask.h"
 #include "Misc/App.h"
-#include "UObject/StrongObjectPtr.h"
-#include "Misc/IQueuedWork.h"
+#include "NaniteDisplacedMesh.h"
 #include "StaticMeshCompiler.h"
 #include "NaniteDisplacedMeshLog.h"
-#include "NaniteDisplacedMeshComponent.h"
 #include "ProfilingDebugging/CountersTrace.h"
-#include "Components/PrimitiveComponent.h"
 
 #define LOCTEXT_NAMESPACE "NaniteDisplacedMeshCompiler"
 

@@ -1,53 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
+#include "Drawing/LineSetComponent.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
 
+#include "Drawing/PreviewGeometryActor.h"
 #include "ToolSetupUtil.h"
 
-#include "Generators/SphereGenerator.h"
 
-#include "DynamicMesh/DynamicMesh3.h"
-#include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
-#include "Selection/SelectClickedAction.h"
-#include "DynamicMeshEditor.h"
-#include "DynamicMesh/MeshTransforms.h"
-#include "DynamicMesh/MeshTangents.h"
+#include "Materials/MaterialInterface.h"
 #include "Util/ColorConstants.h"
 
-#include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
 
-#include "Selection/ToolSelectionUtil.h"
 
+#include "Physics/CollisionPropertySets.h"
 #include "Physics/PhysicsDataCollection.h"
 #include "Physics/CollisionGeometryVisualization.h"
 
 #include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
 
 #include "Misc/Paths.h"
 #include "EditorAssetLibrary.h"
-#include "AssetToolsModule.h"
-#include "IAssetTools.h"
 
-#include "Materials/Material.h"
-#include "Materials/MaterialInstanceConstant.h"
-#include "Factories/MaterialInstanceConstantFactoryNew.h"
 
-#include "Graphs/GenerateStaticMeshLODProcess.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
 #include "Generators/GridBoxMeshGenerator.h"
-#include "Polygroups/PolygroupSet.h"
-#include "Polygroups/PolygroupUtil.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/Docking/TabManager.h"
+#include "TargetInterfaces/MaterialProvider.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "ToolContextInterfaces.h"
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 

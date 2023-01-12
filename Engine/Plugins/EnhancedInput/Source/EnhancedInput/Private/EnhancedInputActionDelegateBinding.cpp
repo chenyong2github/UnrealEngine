@@ -2,7 +2,6 @@
 
 #include "EnhancedInputActionDelegateBinding.h"
 #include "EnhancedInputComponent.h"
-#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputActionDelegateBinding)
 

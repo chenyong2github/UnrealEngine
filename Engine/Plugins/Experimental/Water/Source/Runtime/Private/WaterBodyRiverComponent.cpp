@@ -1,27 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyRiverComponent.h"
+#include "Chaos/CollisionConvexMesh.h"
 #include "WaterSplineComponent.h"
+#include "DynamicMesh/InfoTypes.h"
 #include "WaterSubsystem.h"
 #include "WaterUtils.h"
 #include "Algo/ForEach.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SplineMeshComponent.h"
-#include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
-#include "Algo/Transform.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
 // for working around Chaos issue
-#include "Chaos/Particles.h"
 #include "Chaos/Convex.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyRiverComponent)
 
 #if WITH_EDITOR
-#include "WaterIconHelper.h"
 #endif
 
 // ----------------------------------------------------------------------------------

@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "Blueprint/WidgetTree.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMViewBlueprintCompiler.h"
-#include "MVVMViewModelBase.h"
-#include "WidgetBlueprintCompiler.h"
 #include "View/MVVMViewClass.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMWidgetBlueprintExtension_View)

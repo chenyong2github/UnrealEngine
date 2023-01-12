@@ -2,7 +2,6 @@
 
 #include "LandscapeTexturePatchVisualizer.h"
 
-#include "Landscape.h"
 #include "LandscapeTexturePatch.h"
 
 #include "SceneManagement.h" // FPrimitiveDrawInterface

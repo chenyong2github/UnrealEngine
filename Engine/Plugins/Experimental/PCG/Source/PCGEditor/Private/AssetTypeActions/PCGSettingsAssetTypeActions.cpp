@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGSettingsAssetTypeActions.h"
-#include "PCGGraph.h"
+#include "PCGSettings.h"
 
 FText FPCGSettingsAssetTypeActions::GetName() const
 {

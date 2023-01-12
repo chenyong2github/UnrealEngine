@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/RemoteSessionInputChannel.h"
+#include "BackChannel/IBackChannelConnection.h"
 #include "Framework/Application/SlateApplication.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
+#include "BackChannel/IBackChannelPacket.h"
 #include "MessageHandler/RecordingMessageHandler.h"
+#include "Channels/RemoteSessionChannel.h"
 #include "RemoteSessionUtils.h"
+#include "MessageHandler/ProxyMessageHandler.h"
 
 
 class FRemoteSessionInputChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker

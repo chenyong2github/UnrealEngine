@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/VariantManagerDisplayNode.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Styling/AppStyle.h"
 #include "VariantManager.h"
 #include "VariantManagerNodeTree.h"
-#include "Input/DragAndDrop.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerDisplayNode"

@@ -3,9 +3,7 @@
 #include "Tests/PCGTestsCommon.h"
 
 #include "Data/PCGTextureData.h"
-#include "Data/PCGRenderTargetData.h"
 
-#include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
 

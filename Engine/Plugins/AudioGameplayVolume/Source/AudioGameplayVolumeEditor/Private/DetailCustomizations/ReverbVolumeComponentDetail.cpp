@@ -4,9 +4,8 @@
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
 #include "ReverbVolumeComponent.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
 
 void FReverbVolumeComponentDetail::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {

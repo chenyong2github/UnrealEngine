@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/STextComboBox.h"
+
+namespace ESelectInfo { enum Type : int; }
+template <typename OptionType> class SComboBox;
 
 class FPCGEditor;
 class UPCGComponent;

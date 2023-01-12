@@ -2,8 +2,6 @@
 
 #include "InputBlueprintNodesModule.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "InputBlueprintNodes"

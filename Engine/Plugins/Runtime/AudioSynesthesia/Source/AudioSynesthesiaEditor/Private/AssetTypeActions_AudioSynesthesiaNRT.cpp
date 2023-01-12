@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_AudioSynesthesiaNRT.h"
-#include "AssetTypeCategories.h"
 #include "AudioSynesthesiaNRT.h"
 
 FAssetTypeActions_AudioSynesthesiaNRT::FAssetTypeActions_AudioSynesthesiaNRT(UAudioSynesthesiaNRT* InSynesthesia)

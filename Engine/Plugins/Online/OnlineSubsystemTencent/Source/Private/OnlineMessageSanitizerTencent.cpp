@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineMessageSanitizerTencent.h"
+#include "OnlineAsyncTaskManagerTencent.h"
 #include "OnlineSubsystemTencent.h"
-#include "OnlineIdentityTencent.h"
-#include "RailSdkWrapper.h"
 
 /* Returns a bool indicating whether or not any words were replaced in the InOut string. */
 static bool FilterProfanity(FString& InOutString)

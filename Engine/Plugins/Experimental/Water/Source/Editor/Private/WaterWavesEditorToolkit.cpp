@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterWavesEditorToolkit.h"
+#include "DetailsViewArgs.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Modules/ModuleManager.h"
+#include "IDetailsView.h"
 #include "PropertyEditorModule.h"
-#include "WaterUIStyle.h"
 #include "EditorViewportTabContent.h"
-#include "EditorViewportLayout.h"
-#include "EditorViewportCommands.h"
+#include "WaterWaves.h"
 #include "WaterWavesEditorCommands.h"
 #include "WaterWavesEditorViewport.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "WaterEditorToolkit"
 

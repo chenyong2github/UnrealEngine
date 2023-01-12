@@ -3,20 +3,7 @@
 #pragma once
 
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
 #include "Framework/SlateDelegates.h"
-#include "Input/Reply.h"
-#include "Internationalization/Text.h"
-#include "Misc/Attribute.h"
-#include "Misc/Optional.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class ITableRow;

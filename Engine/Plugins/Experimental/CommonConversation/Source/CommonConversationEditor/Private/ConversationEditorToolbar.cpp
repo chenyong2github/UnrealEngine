@@ -1,20 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationEditorToolbar.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ConversationEditor.h"
-#include "WorkflowOrientedApp/SModeWidget.h"
 #include "ConversationEditorCommands.h"
 
 

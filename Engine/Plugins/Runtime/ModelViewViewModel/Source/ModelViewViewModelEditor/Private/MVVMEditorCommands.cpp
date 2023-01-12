@@ -2,8 +2,6 @@
 
 #include "MVVMEditorCommands.h"
 #include "Styling/AppStyle.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "MVVMEditorCommands"
 

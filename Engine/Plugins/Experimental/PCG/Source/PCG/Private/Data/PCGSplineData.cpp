@@ -2,12 +2,14 @@
 
 #include "Data/PCGSplineData.h"
 
+#include "Data/PCGPolyLineData.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
-#include "Data/PCGSurfaceData.h"
+#include "Data/PCGProjectionData.h"
 #include "Elements/PCGSplineSampler.h"
 
 #include "Components/SplineComponent.h"
+#include "Data/PCGSpatialData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSplineData)
 

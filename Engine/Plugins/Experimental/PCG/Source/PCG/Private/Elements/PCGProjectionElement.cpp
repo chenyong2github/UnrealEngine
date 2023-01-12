@@ -2,9 +2,13 @@
 
 #include "Elements/PCGProjectionElement.h"
 
+#include "Data/PCGProjectionData.h"
 #include "PCGCustomVersion.h"
+#include "Data/PCGSpatialData.h"
 #include "PCGEdge.h"
 #include "Helpers/PCGSettingsHelpers.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGProjectionElement)
 

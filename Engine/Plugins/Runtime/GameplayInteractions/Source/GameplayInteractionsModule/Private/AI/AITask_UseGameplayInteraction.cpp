@@ -2,7 +2,6 @@
 
 #include "AITask_UseGameplayInteraction.h"
 #include "GameplayInteractionSmartObjectBehaviorDefinition.h"
-#include "GameplayInteractionsTypes.h"
 #include "AIController.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectSubsystem.h"

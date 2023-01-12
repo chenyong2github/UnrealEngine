@@ -3,9 +3,6 @@
 #pragma once
 
 #include "AssetTypeActions_Base.h"
-#include "CoreMinimal.h"
-#include "Styling/ISlateStyle.h"
-#include "Toolkits/IToolkitHost.h"
 
 class FLevelVariantSetsAssetActions : public FAssetTypeActions_Base
 {

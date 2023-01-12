@@ -2,12 +2,14 @@
 
 #include "EventFilterStyle.h"
 
-#include "HAL/LowLevelMemTracker.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/StyleColors.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateTypes.h"
+#include "Misc/Paths.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/StarshipCoreStyle.h"
 #include "Styling/SlateStyleMacros.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up

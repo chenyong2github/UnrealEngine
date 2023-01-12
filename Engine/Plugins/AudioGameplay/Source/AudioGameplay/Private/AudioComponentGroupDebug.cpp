@@ -4,8 +4,7 @@
 #include "AudioComponentGroup.h"
 #include "Components/AudioComponent.h"
 #include "DrawDebugHelpers.h"
-#include "Kismet/GameplayStatics.h"
-#include "Math/Color.h"
+#include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "Sound/SoundBase.h"
 

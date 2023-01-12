@@ -2,12 +2,10 @@
 
 #pragma once
 
+#include "Online/OnlineAsyncOpHandle.h"
 #include "Online/OnlineServicesEngineUtils.h"
-#include "OnlineDelegates.h"
-#include "OnlinePIESettings.h"
-#include "Modules/ModuleManager.h"
-#include "Engine/Engine.h"
-#include "OnlineSubsystemUtilsModule.h"
+
+class FOnlineSubsystemUtilsModule;
 
 namespace UE::Online
 {

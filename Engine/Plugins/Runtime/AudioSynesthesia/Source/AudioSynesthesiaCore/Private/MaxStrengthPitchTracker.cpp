@@ -4,7 +4,6 @@
 
 #include "Algo/MaxElement.h"
 #include "AudioSynesthesiaCoreLog.h"
-#include "CoreMinimal.h"
 
 namespace Audio
 {

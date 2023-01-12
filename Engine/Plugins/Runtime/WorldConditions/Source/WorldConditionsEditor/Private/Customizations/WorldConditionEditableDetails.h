@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "PropertyHandle.h"
-#include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
+
+struct EVisibility;
+struct FOptionalSize;
 
 class IPropertyHandle;
 class IPropertyUtilities;

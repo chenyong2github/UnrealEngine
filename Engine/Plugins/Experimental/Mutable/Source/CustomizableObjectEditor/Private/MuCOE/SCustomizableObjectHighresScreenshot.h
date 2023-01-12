@@ -2,21 +2,9 @@
 
 #pragma once
 
-#include "HAL/PlatformCrt.h"
 #include "HighResScreenshot.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Math/IntRect.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/Optional.h"
 #include "Slate/SceneViewport.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
 
 class SButton;

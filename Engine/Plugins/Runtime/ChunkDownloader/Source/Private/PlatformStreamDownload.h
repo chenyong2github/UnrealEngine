@@ -3,7 +3,9 @@
 #pragma once
 
 #include "HAL/Platform.h"
-#include "Templates/Function.h"
+
+class FString;
+template <typename FuncType> class TFunction;
 
 typedef TFunction<void(int32 HttpStatus)> FDownloadComplete;
 typedef TFunction<void(int32 BytesReceived)> FDownloadProgress;

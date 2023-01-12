@@ -2,14 +2,9 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeObjectGroup.h"
 
-#include "EdGraph/EdGraphPin.h"
-#include "Internationalization/Internationalization.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-#include "Serialization/Archive.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 struct FPropertyChangedEvent;

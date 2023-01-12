@@ -2,13 +2,15 @@
 
 #include "NiagaraDataInterfaceGeometryCollection.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
-#include "ShaderParameterUtils.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGeometryCollection)
 

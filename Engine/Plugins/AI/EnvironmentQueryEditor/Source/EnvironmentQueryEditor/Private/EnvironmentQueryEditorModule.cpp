@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQueryEditorModule.h"
-#include "EnvironmentQuery/EnvQueryNode.h"
-#include "SGraphNode.h"
 #include "EnvironmentQueryGraphNode.h"
 #include "PropertyEditorModule.h"
-#include "IEnvironmentQueryEditor.h"
 #include "EnvironmentQueryEditor.h"
 
 #include "DetailCustomizations/EnvDirectionCustomization.h"
@@ -17,7 +14,6 @@
 
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_BlueprintBase.h"
 #include "AssetTypeActions_EnvironmentQuery.h"
-#include "AssetToolsModule.h"
  
 IMPLEMENT_MODULE( FEnvironmentQueryEditorModule, EnvironmentQueryEditor );
 DEFINE_LOG_CATEGORY(LogEnvironmentQueryEditor);

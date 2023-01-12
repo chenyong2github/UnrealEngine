@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGInputOutputSettings.h"
-#include "PCGCommon.h"
 
-#include "Algo/Transform.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInputOutputSettings)
 

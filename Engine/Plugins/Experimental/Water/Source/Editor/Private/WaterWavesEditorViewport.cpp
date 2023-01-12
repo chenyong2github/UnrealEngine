@@ -4,11 +4,8 @@
 
 #include "WaterWavesEditorToolkit.h"
 #include "AdvancedPreviewScene.h"
-#include "EditorViewportClient.h"
 #include "WaterBodyCustomActor.h"
-#include "SCommonEditorViewportToolbarBase.h"
 #include "WaterEditorSettings.h"
-#include "WaterEditorModule.h"
 #include "WaterSplineComponent.h"
 
 #include "WaterSubsystem.h"

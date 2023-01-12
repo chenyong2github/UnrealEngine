@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "IDetailCustomization.h"
 #include "Misc/Guid.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+
+namespace ESelectInfo { enum Type : int; }
 
 class FCustomizableObjectNodeParentedMaterial;
 class IDetailLayoutBuilder;

@@ -2,15 +2,13 @@
 
 #include "PCGEditorStyle.h"
 
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
-#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/StyleColors.h"
 
 void FPCGEditorStyle::Register()
 {

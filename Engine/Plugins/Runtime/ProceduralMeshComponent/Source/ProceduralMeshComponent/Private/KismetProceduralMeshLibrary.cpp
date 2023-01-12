@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "KismetProceduralMeshLibrary.h"
-#include "RawIndexBuffer.h"
+#include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Materials/MaterialInterface.h"
 #include "ProceduralMeshComponentPluginPrivate.h"
+#include "ProceduralMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "Engine/StaticMesh.h"
 #include "GeomTools.h"
 
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 

@@ -2,16 +2,15 @@
 
 #include "Data/PCGLandscapeData.h"
 
+#include "Data/PCGSurfaceData.h"
 #include "PCGHelpers.h"
+#include "Engine/World.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
-#include "Data/PCGPolyLineData.h"
-#include "Data/PCGSpatialData.h"
 #include "Grid/PCGLandscapeCache.h"
-#include "Helpers/PCGAsync.h"
 
-#include "Landscape.h"
-#include "LandscapeEdit.h"
+#include "LandscapeInfo.h"
+#include "LandscapeProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeData)
 

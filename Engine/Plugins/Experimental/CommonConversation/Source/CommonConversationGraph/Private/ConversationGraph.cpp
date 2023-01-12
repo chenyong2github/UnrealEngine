@@ -3,7 +3,6 @@
 #include "ConversationGraph.h"
 #include "ConversationGraphSchema.h"
 #include "ConversationDatabase.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "AIGraphNode.h"
 #include "ConversationCompiler.h"
 

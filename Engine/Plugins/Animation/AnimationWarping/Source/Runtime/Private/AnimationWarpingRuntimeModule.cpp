@@ -2,8 +2,8 @@
 
 #include "AnimationWarpingRuntimeModule.h"
 #include "Animation/AnimRootMotionProvider.h"
-#include "Animation/AnimNodeBase.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AttributesRuntime.h"
 #include "Animation/BuiltInAttributeTypes.h"
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"

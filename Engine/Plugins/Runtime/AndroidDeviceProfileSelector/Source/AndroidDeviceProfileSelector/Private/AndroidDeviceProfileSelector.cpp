@@ -3,11 +3,8 @@
 #include "AndroidDeviceProfileSelector.h"
 #include "AndroidDeviceProfileMatchingRules.h"
 #include "AndroidJavaSurfaceViewDevices.h"
-#include "Templates/Casts.h"
 #include "Internationalization/Regex.h"
 #include "Misc/CommandLine.h"
-#include "Misc/SecureHash.h"
-#include "Containers/StringConv.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidPlatformMisc.h"

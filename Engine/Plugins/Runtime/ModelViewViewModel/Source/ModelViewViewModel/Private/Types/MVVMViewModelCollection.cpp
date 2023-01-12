@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Types/MVVMViewModelCollection.h"
-#include "MVVMViewModelBase.h"
+#include "Types/MVVMViewModelContextInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelCollection)
 

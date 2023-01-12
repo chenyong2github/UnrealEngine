@@ -2,11 +2,9 @@
 
 #include "VariantManagerStyle.h"
 
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
-#include "SlateOptMacros.h"
-#include "Styling/CoreStyle.h"
-#include "Styling/SlateStyleRegistry.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateStyleMacros.h"
 

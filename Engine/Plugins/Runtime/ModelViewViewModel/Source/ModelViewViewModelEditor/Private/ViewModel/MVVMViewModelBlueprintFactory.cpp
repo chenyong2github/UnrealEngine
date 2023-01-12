@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModel/MVVMViewModelBlueprintFactory.h"
+#include "MVVMViewModelBase.h"
 #include "ViewModel/MVVMViewModelBlueprint.h"
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 
-#include "Blueprint/UserWidget.h"
-#include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/SClassPickerDialog.h"

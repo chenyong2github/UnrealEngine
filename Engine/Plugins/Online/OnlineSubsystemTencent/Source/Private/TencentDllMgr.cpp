@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TencentDllMgr.h"
-#include "OnlineSubsystemTencentPrivate.h"
 #include "Misc/Paths.h"
+#include "OnlineSubsystem.h"
 
 FTencentDll::FTencentDll()
 	: DllHandle(nullptr)

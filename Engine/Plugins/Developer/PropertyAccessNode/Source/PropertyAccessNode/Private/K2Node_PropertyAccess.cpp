@@ -1,25 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_PropertyAccess.h"
-#include "Algo/Accumulate.h"
-#include "EdGraphSchema_K2.h"
-#include "PropertyAccess.h"
-#include "Engine/Blueprint.h"
+#include "AnimGraphNode_Base.h"
 #include "FindInBlueprintManager.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintNodeSpawner.h"
-#include "KismetCompiler.h"
 #include "K2Node_VariableGet.h"
-#include "AnimationGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimBlueprintExtension_PropertyAccess.h"
 #include "IPropertyAccessEditor.h"
-#include "IPropertyAccessCompiler.h"
 #include "Features/IModularFeatures.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "IPropertyAccessBlueprintBinding.h"
-#include "Animation/AnimBlueprint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_PropertyAccess)
 

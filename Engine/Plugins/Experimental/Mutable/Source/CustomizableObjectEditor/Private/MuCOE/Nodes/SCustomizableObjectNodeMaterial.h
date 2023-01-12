@@ -3,8 +3,6 @@
 #pragma once
 
 #include "SGraphNode.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SGraphPin;
 class UEdGraphNode;

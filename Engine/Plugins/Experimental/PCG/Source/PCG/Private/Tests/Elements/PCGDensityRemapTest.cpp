@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
-#include "Tests/PCGTestsCommon.h"
 
+#include "Data/PCGSpatialData.h"
 #include "PCGComponent.h"
-#include "PCGData.h"
-#include "PCGHelpers.h"
 
 #include "Data/PCGPointData.h"
 #include "Elements/PCGDensityRemapElement.h"
+#include "PCGContext.h"
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDensityRemapTest, FPCGTestBaseClass, "pcg.tests.DensityRemap.Basic", PCGTestsCommon::TestFlags)
 

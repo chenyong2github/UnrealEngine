@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DisplayNodes/VariantManagerPropertyNode.h"
 #include "Widgets/Input/SComboBox.h"
 

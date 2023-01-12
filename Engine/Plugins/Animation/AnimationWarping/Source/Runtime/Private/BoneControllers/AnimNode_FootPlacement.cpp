@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_FootPlacement.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Components/CapsuleComponent.h"
 #include "Animation/AnimRootMotionProvider.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_FootPlacement)

@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNPSimFrameContents.h"
+#include "UI/SNPWindow.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/SBoxPanel.h"
-#include "INetworkPredictionProvider.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Framework/Text/RichTextLayoutMarshaller.h"
-#include "Styling/AppStyle.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SNPSimFrameContents"
 

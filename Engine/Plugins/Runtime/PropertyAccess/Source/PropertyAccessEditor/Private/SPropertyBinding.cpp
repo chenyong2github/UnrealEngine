@@ -1,29 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPropertyBinding.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 
 #if WITH_EDITOR
-#include "Components/PrimitiveComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #endif // WITH_EDITOR
 
-#include "EdGraph/EdGraph.h"
-#include "EdGraphSchema_K2.h"
 
 #include "DetailLayoutBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
-#include "Components/WidgetComponent.h"
-#include "Binding/PropertyBinding.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Algo/Transform.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "UObject/UObjectIterator.h"
 #include "Kismet/BlueprintFunctionLibrary.h"

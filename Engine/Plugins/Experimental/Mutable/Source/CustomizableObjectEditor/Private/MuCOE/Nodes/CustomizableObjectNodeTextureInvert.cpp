@@ -2,13 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureInvert.h"
 
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Internationalization.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "Serialization/Archive.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 

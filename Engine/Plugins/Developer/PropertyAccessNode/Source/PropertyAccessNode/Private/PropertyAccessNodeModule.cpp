@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "EdGraphUtilities.h"
 #include "PropertyAccessNodeFactory.h"
 
 class FPropertyAccessNodeModule : public IModuleInterface

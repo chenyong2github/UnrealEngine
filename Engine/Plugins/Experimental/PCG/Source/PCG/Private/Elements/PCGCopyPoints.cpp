@@ -2,6 +2,7 @@
 
 #include "Elements/PCGCopyPoints.h"
 
+#include "PCGContext.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"

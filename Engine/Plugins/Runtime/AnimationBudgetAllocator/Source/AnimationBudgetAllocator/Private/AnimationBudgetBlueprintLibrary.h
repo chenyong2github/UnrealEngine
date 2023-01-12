@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "AnimationBudgetAllocatorParameters.h"
 #include "AnimationBudgetBlueprintLibrary.generated.h"
+
+struct FAnimationBudgetAllocatorParameters;
 
 /**
  * Function library to expose the budget allocator to Blueprints

@@ -1,18 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVMViewBlueprintCompiler.h"
-#include "Blueprint/WidgetTree.h"
 #include "Bindings/MVVMBindingHelper.h"
-#include "Bindings/MVVMCompiledBindingLibraryCompiler.h"
 #include "Bindings/MVVMConversionFunctionHelper.h"
 #include "Bindings/MVVMFieldPathHelper.h"
-#include "EdGraphSchema_K2.h"
+#include "Components/Widget.h"
 #include "MVVMBlueprintView.h"
+#include "HAL/IConsoleManager.h"
 #include "MVVMFunctionGraphHelper.h"
-#include "MVVMViewModelBase.h"
-#include "MVVMWidgetBlueprintExtension_View.h"
-#include "WidgetBlueprintCompiler.h"
+#include "Templates/ValueOrError.h"
 #include "View/MVVMViewClass.h"
+#include "Types/MVVMBindingName.h"
+#include "UObject/LinkerLoad.h"
 
 #define LOCTEXT_NAMESPACE "MVVMViewBlueprintCompiler"
 

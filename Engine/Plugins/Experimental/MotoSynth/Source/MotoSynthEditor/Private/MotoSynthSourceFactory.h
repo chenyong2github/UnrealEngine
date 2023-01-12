@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "AssetToolsModule.h"
 #include "Factories/Factory.h"
 #include "AssetTypeActions_Base.h"
-#include "Sound/SampleBufferIO.h"
 #include "MotoSynthSourceFactory.generated.h"
+
+class USoundWave;
 
 class FAssetTypeActions_MotoSynthPreset : public FAssetTypeActions_Base
 {

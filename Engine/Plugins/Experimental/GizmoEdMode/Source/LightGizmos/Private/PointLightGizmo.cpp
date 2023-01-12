@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PointLightGizmo.h"
+#include "BaseGizmos/ScalableSphereGizmo.h"
 #include "Components/PointLightComponent.h"
+#include "Engine/PointLight.h"
+#include "InteractiveGizmoManager.h"
+#include "SubTransformProxy.h"
+#include "ToolContextInterfaces.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PointLightGizmo)
 

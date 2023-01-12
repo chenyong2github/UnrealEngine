@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Class.h"
-#include "UObject/ObjectMacros.h"
 #include "ClassViewerFilter.h"
 
 class FSoundCueTemplateAssetParentFilter : public IClassViewerFilter

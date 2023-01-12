@@ -2,7 +2,9 @@
 
 #include "PCGEditorGraphNodeOutput.h"
 
+#include "EdGraph/EdGraphPin.h"
 #include "PCGNode.h"
+#include "PCGPin.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNodeOutput"
 

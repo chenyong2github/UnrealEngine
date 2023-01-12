@@ -2,8 +2,9 @@
 
 #include "TTMLSubtitleList.h"
 
-#include "ElectraSubtitleDecoder.h"
+#include "ParameterDictionary.h"
 #include "TTMLXMLElements.h"
+#include "ttml/TTMLSubtitleHandler.h"
 
 namespace ElectraTTMLParser
 {

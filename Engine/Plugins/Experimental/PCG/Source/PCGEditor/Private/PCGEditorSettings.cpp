@@ -4,6 +4,7 @@
 #include "PCGEditorCommon.h"
 
 #include "EdGraph/EdGraphPin.h"
+#include "PCGSettings.h"
 
 UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -1,22 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Types/UIFWidgetTree.h"
+#include "Types/UIFWidgetTreeOwner.h"
 #include "UIFLog.h"
-#include "UIFPlayerComponent.h"
 #include "UIFWidget.h"
 
 #if UE_UIFRAMEWORK_WITH_DEBUG
 #include "Components/PanelWidget.h"
-#include "Components/Widget.h"
 #endif
 
 #include "Engine/ActorChannel.h"
-#include "Engine/Engine.h"
-#include "Engine/NetDriver.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/PlayerController.h"
-#include "Net/UnrealNetwork.h"
-#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFWidgetTree)
 

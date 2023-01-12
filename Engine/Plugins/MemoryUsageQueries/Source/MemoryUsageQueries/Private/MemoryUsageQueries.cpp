@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemoryUsageQueries.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MemoryUsageQueriesConfig.h"
+#include "ConsoleSettings.h"
 #include "MemoryUsageQueriesPrivate.h"
 
 #include "Engine/BlueprintGeneratedClass.h"
-#include "Misc/CoreMisc.h"
 #include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/GCObject.h"
+#include "Templates/Greater.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectIterator.h"
 

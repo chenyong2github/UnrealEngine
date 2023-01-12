@@ -2,8 +2,6 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
-#include "PCGCommon.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGActorHelpers.h"

@@ -2,11 +2,8 @@
 
 #include "NetworkPredictionDrawHelpers.h"
 
-#include "Fonts/FontMeasure.h"
-#include "Fonts/SlateFontInfo.h"
 
 #include "Insights/Common/PaintUtils.h"
-#include "Insights/Common/TimeUtils.h"
 
 
 void FNetworkPredictionDrawHelpers::DrawBackground(

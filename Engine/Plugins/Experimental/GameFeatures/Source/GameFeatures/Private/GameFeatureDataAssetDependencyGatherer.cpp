@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "GameFeatureDataAssetDependencyGatherer.h"
+#include "Misc/PackageName.h"
 
 #if WITH_EDITOR
 
+#include "AssetRegistry/ARFilter.h"
 #include "GameFeatureData.h"
-#include "HAL/FileManager.h" 
+#include "AssetRegistry/AssetRegistryState.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
-#include "AssetRegistry/AssetData.h"
 #include "Engine/Level.h"
 
 // Register FGameFeatureDataAssetDependencyGatherer for UGameFeatureData class

@@ -1,30 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationEditor.h"
+#include "DetailsViewArgs.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Engine/Blueprint.h"
-#include "Widgets/Layout/SBorder.h"
-#include "UObject/Package.h"
-#include "Modules/ModuleManager.h"
-#include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Factories/DataAssetFactory.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Misc/PackageName.h"
 #include "UnrealEdGlobals.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "WorkflowOrientedApp/WorkflowTabFactory.h"
-#include "WorkflowOrientedApp/WorkflowTabManager.h"
-#include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
-#include "ClassViewerModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #include "ConversationGraph.h"
 #include "ConversationGraphNode.h"
-#include "ConversationGraphSchema.h"
 #include "ConversationDatabase.h"
 
-#include "AssetToolsModule.h"
+#include "Misc/Paths.h"
 #include "PropertyEditorModule.h"
 
 #include "ConversationDebugger.h"
@@ -32,7 +23,6 @@
 #include "IDetailsView.h"
 #include "GraphEditorActions.h"
 #include "ScopedTransaction.h"
-#include "ConversationEditorColors.h"
 
 #include "ConversationEditorModes.h"
 #include "ConversationEditorToolbar.h"

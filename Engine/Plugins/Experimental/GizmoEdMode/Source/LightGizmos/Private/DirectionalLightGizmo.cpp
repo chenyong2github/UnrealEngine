@@ -1,19 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DirectionalLightGizmo.h"
-#include "BaseGizmos/GizmoBoxComponent.h"
 #include "BaseGizmos/GizmoViewContext.h"
 #include "Components/SphereComponent.h"
 #include "ContextObjectStore.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/DirectionalLight.h"
 #include "Engine/World.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoCircleComponent.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "InteractiveGizmoManager.h"
 #include "SceneManagement.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "InteractiveToolManager.h"
+#include "SubTransformProxy.h"
+#include "ToolContextInterfaces.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightGizmo)
 

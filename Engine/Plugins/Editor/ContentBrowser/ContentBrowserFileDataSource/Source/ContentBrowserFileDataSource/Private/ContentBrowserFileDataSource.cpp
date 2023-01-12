@@ -2,22 +2,19 @@
 
 #include "ContentBrowserFileDataSource.h"
 #include "ContentBrowserFileDataCore.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
-#include "Misc/Paths.h"
 #include "Misc/PathViews.h"
-#include "Misc/ScopeLock.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "HAL/Runnable.h"
-#include "HAL/FileManager.h"
 #include "HAL/RunnableThread.h"
-#include "HAL/ThreadSafeCounter.h"
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataUtils.h"
-#include "AssetTypeCategories.h"
 #include "AssetTypeActions_Base.h"
+#include "ToolMenuSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserFileDataSource)
 

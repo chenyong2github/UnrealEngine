@@ -2,9 +2,7 @@
 
 #include "InterchangeTestsModule.h"
 #include "InterchangeTestsLog.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "InterchangeImportTestSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "InterchangeEditorModule"

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+template <typename OptionType> class SComboBox;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class SNPWindow;

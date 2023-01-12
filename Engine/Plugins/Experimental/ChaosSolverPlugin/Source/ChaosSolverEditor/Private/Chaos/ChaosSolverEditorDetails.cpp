@@ -2,12 +2,13 @@
 
 #include "ChaosSolverEditorDetails.h"
 
-#include "PropertyHandle.h"
-#include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
 #include "EditorFontGlyphs.h"
 #include "Chaos/ChaosSolverActor.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 TSharedRef<IPropertyTypeCustomization> FChaosDebugSubstepControlCustomization::MakeInstance()
 {

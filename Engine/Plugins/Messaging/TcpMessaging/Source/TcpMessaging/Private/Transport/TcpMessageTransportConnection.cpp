@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/TcpMessageTransportConnection.h"
+#include "HAL/RunnableThread.h"
 #include "Serialization/ArrayWriter.h"
 #include "Common/TcpSocketBuilder.h"
+#include "Serialization/ArrayReader.h"
 #include "TcpMessagingPrivate.h"
+#include "TcpSerializedMessage.h"
 #include "Transport/TcpDeserializedMessage.h"
-#include "Misc/ScopeLock.h"
 
 /** Header sent over the connection as soon as it's opened */
 struct FTcpMessageHeader

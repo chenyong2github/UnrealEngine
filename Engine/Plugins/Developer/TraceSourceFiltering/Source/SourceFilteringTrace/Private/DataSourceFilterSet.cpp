@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataSourceFilterSet.h"
-#include "Algo/Transform.h"
+#include "DataSourceFiltering.h"
 #include "SourceFilterTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataSourceFilterSet)

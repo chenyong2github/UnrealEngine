@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationModifiers/OrientationWarpingModifier.h"
-#include "Animation/AnimTypes.h"
 #include "Animation/AnimSequence.h"
+#include "AnimationBlueprintLibrary.h"
+#include "EngineLogs.h"
 
 #define LOCTEXT_NAMESPACE "OrientationWarpingModifier"
 

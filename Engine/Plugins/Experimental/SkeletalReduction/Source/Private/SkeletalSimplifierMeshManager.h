@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Components.h" // for MAX_TEXCOORDS
-#include "Containers/BinaryHeap.h"
-#include "Containers/HashTable.h"
 #include "MeshSimplifyElements.h"
 
+#include "MeshUVChannelInfo.h"
 #include "SkeletalSimplifierVertex.h"
-#include "SkeletalSimplifierLinearAlgebra.h"
 
 
 namespace SkeletalSimplifier

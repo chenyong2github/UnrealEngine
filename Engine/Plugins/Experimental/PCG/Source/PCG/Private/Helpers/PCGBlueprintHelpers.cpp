@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Helpers/PCGBlueprintHelpers.h"
-#include "LandscapeComponent.h"
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGHelpers.h"
-#include "PCGSettings.h"
+#include "PCGPoint.h"
 #include "PCGSubsystem.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Grid/PCGLandscapeCache.h"
 #include "Engine/World.h"
-#include "UObject/UObjectIterator.h"
 #include "LandscapeProxy.h"
 #include "LandscapeInfo.h"
 

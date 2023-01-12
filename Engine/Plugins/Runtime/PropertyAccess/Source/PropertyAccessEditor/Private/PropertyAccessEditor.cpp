@@ -3,10 +3,6 @@
 #include "PropertyAccessEditor.h"
 #include "PropertyAccess.h"
 #include "PropertyPathHelpers.h"
-#include "Algo/Transform.h"
-#include "IPropertyAccessEditor.h"
-#include "EdGraph/EdGraphPin.h"
-#include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "PropertyAccessEditor"

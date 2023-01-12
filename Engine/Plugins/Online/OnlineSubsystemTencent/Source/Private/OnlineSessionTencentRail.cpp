@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionTencentRail.h"
-#include "OnlineSubsystemTencentPrivate.h"
-#include "OnlinePresenceTencent.h"
-#include "Misc/CommandLine.h"
-#include "Misc/App.h"
 
 #if WITH_TENCENT_RAIL_SDK
 #include "OnlineAsyncTasksTencent.h"

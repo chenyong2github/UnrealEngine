@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "TransformTypes.h"
-#include "EdgeLoop.h"
 #include "FrameTypes.h"
+#include "GeometryBase.h"
 #include "Polygon2.h"
-#include "VectorTypes.h"
-#include "DynamicMesh/DynamicMesh3.h"
+
+namespace UE::Geometry { class FDynamicMesh3; }
+namespace UE::Geometry { class FEdgeLoop; }
 
 using namespace UE::Geometry;
 

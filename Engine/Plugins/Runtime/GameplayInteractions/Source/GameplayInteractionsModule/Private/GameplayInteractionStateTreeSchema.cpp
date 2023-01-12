@@ -3,11 +3,7 @@
 #include "GameplayInteractionStateTreeSchema.h"
 #include "GameplayInteractionsTypes.h"
 #include "SmartObjectRuntime.h"
-#include "StateTreeConditionBase.h"
 #include "StateTreeEvaluatorBase.h"
-#include "StateTreeTaskBase.h"
-#include "GameFramework/Actor.h"
-#include "Components/ActorComponent.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionStateTreeSchema)

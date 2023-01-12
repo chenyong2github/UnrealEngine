@@ -3,8 +3,8 @@
 #include "AnimGraph/AnimGraphNode_OffsetRootBone.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "AnimationWarping"

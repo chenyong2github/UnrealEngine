@@ -2,21 +2,13 @@
 
 #include "MuCOE/CustomizableObjectCompileRunnable.h"
 
-#include "Engine/Texture.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformCrt.h"
-#include "HAL/PlatformTime.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
-#include "Misc/Guid.h"
-#include "MuCO/CustomizableObject.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
-#include "MuR/Ptr.h"
+#include "MuR/Model.h"
 #include "MuT/Compiler.h"
 #include "MuT/ErrorLog.h"
-#include "Serialization/Archive.h"
 #include "Serialization/MemoryWriter.h"
-#include "Trace/Detail/Channel.h"
+#include "Trace/Trace.inl"
 
 class ITargetPlatform;
 

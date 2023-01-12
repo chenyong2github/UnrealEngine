@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMeshComponent.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/StaticMesh.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "NaniteDisplacedMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NaniteDisplacedMeshComponent)
 

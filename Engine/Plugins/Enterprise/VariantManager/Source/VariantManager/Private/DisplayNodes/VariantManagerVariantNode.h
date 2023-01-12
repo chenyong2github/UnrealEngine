@@ -4,7 +4,8 @@
 
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 
-#include "CoreMinimal.h"
+
+enum class ECheckBoxState : uint8;
 
 class FDragDropEvent;
 class FMenuBuilder;

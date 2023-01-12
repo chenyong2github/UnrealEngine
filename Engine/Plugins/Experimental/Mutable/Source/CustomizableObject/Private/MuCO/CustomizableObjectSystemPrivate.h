@@ -2,16 +2,21 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObjectSystem.h"
-#include "MuCO/CustomizableObjectInstance.h"
+#include "Containers/Queue.h"
 #include "MuCO/CustomizableObject.h"
-#include "HAL/ThreadSafeBool.h"
 #include "Containers/Ticker.h"
 
+#include "MuCO/CustomizableObjectInstanceDescriptor.h"
 #include "MuR/Mesh.h"
 #include "MuR/Parameters.h"
 #include "MuR/System.h"
 #include "MuR/Image.h"
+#include "UObject/GCObject.h"
+#include "WorldCollision.h"
+
+class UCustomizableObjectSystem;
+namespace LowLevelTasks { enum class ETaskPriority : int8; }
+struct FTexturePlatformData;
 
 // This define could come from MuR/System.h
 #ifdef MUTABLE_USE_NEW_TASKGRAPH

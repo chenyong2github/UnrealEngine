@@ -2,12 +2,8 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeExposePin.h"
 
-#include "EdGraph/EdGraphPin.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeExternalPin.h"
-#include "Templates/Casts.h"
-#include "UObject/UnrealType.h"
 
 class UCustomizableObjectNodeRemapPins;
 

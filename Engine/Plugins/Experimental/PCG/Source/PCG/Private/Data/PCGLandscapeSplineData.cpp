@@ -2,14 +2,12 @@
 
 #include "Data/PCGLandscapeSplineData.h"
 
+#include "Data/PCGPolyLineData.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGSplineSampler.h"
 
-#include "Landscape.h"
-#include "LandscapeSplinesComponent.h"
 #include "LandscapeSplineSegment.h"
-#include "LandscapeSplineControlPoint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeSplineData)
 

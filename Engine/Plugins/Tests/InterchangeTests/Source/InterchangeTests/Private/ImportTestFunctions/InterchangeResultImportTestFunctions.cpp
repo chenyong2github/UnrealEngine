@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImportTestFunctions/InterchangeResultImportTestFunctions.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 #include "InterchangeResultsContainer.h"
+#include "InterchangeTestFunction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeResultImportTestFunctions)
 

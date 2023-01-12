@@ -4,6 +4,7 @@
 
 #include "PixelShaderUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIImmutableSamplerState.h"
 
 bool FLandscapeCircleHeightPatchPS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {

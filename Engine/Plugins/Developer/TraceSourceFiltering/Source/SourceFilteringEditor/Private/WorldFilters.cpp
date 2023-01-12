@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldFilters.h"
-#include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Algo/Transform.h"
 #include "Widgets/Input/SCheckBox.h" 
 #include "Widgets/SBoxPanel.h"
 
 #include "SourceFilteringEditorModule.h"
 #include "SourceFilterStyle.h"
+#include "Widgets/Text/STextBlock.h"
 
 #if WITH_ENGINE
 #include "Engine/EngineBaseTypes.h"

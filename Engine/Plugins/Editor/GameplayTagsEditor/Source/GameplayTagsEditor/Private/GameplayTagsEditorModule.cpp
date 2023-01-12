@@ -23,7 +23,6 @@
 #include "Editor.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
-#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Stats/StatsMisc.h"
 #include "Subsystems/ImportSubsystem.h"

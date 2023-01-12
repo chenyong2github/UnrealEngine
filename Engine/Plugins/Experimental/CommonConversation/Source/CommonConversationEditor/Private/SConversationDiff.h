@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "AssetDefinition.h"
 #include "GraphEditor.h"
-#include "IAssetTypeActions.h"
-#include "IDetailsView.h"
+
+class FUICommandList;
+class ITableRow;
+class SBorder;
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
 
 class UEdGraph;
 struct FTreeDiffResultItem;

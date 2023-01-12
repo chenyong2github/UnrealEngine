@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGData.h"
-#include "PCGElement.h"
+
+class IPCGElement;
 
 class UPCGSettings;
 class UPCGComponent;

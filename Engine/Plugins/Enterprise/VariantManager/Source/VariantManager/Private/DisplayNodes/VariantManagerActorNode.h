@@ -4,9 +4,6 @@
 
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 
-#include "CoreMinimal.h"
-#include "PropertyPath.h"
-#include "Widgets/SWidget.h"
 
 class FDragDropEvent;
 class FMenuBuilder;

@@ -3,9 +3,8 @@
 #include "DataRegistrySource.h"
 #include "AssetRegistry/AssetData.h"
 #include "DataRegistrySubsystem.h"
-#include "DataRegistryTypesPrivate.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "Engine/AssetManager.h"
+#include "Templates/SubclassOf.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistrySource)
 

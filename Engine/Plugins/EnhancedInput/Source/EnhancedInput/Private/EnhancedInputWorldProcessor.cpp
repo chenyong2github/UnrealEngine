@@ -4,7 +4,6 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
-#include "GameFramework/PlayerInput.h"
 
 void FEnhancedInputWorldProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {

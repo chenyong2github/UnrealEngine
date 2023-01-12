@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PartyBeaconClient.h"
+#include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
 #include "PartyBeaconHost.h"
 

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "DisplayNodes/VariantManagerDisplayNode.h"
-#include "VariantManagerNodeTree.h"
 #include "Widgets/Views/STreeView.h"
+
+class FVariantManagerDisplayNode;
+class FVariantManagerNodeTree;
 
 typedef TSharedRef<FVariantManagerDisplayNode> FDisplayNodeRef;
 

@@ -2,17 +2,13 @@
 
 #include "MfMediaFactoryPrivate.h"
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "IMediaModule.h"
 #include "IMediaOptions.h"
 #include "IMediaPlayerFactory.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/NameTypes.h"
 
 #include "../../MfMedia/Public/IMfMediaModule.h"
 

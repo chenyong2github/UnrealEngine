@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STraceDataFilterWidget.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Framework/Views/TreeFilterHandler.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Misc/TextFilter.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Templates/SharedPointer.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 
 #include "STraceObjectRowWidget.h"
 #include "SFilterPresetList.h"
-#include "ITraceObject.h"
 #include "TraceChannel.h"
 #include "FilterPresets.h"
-#include "IFilterPreset.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Trace/StoreClient.h"
-#include "Trace/SessionTraceFilterService.h"
 #include "SessionEditorFilterService.h"
 #include "EventFilterStyle.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "Widgets/Views/STreeView.h"
+
+#if !WITH_EDITOR
+#include "Trace/SessionTraceFilterService.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "STraceDataFilterWidget"
 

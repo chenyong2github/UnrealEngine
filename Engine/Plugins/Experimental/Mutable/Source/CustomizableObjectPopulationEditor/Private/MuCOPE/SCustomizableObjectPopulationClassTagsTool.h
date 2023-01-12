@@ -2,14 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
-#include "Input/Reply.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
 
 class FText;
 class SExpandableArea;

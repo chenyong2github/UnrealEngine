@@ -2,9 +2,10 @@
 
 #include "Types/MVVMBindingSource.h"
 #include "Blueprint/WidgetTree.h"
-#include "Components/Widget.h"
 #include "Editor.h"
+#include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
+#include "Types/MVVMBindingName.h"
 #include "WidgetBlueprint.h"
 
 FMVVMBindingName UE::MVVM::FBindingSource::ToBindingName(const UWidgetBlueprint* WidgetBlueprint) const

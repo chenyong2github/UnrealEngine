@@ -5,6 +5,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "LandscapeTexturePatch.h"
 #include "LandscapeTexturePatchVisualizer.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "UnrealEdGlobals.h"
 

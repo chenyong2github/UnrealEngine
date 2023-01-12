@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SMVVMFunctionParameter.h" 
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphPin.h"
 #include "Editor.h"
-#include "K2Node_CallFunction.h"
+#include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
 #include "NodeFactory.h"
 #include "SGraphPin.h"
-#include "Types/MVVMBindingMode.h"
 #include "WidgetBlueprint.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SMVVMFieldSelector.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldBinding"
 

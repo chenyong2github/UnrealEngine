@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GauntletTestControllerErrorTest.h"
-#include "Engine/Engine.h"
+#include "GauntletModule.h"
 #include "Misc/CommandLine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GauntletTestControllerErrorTest)

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyActorFactory.h"
-#include "WaterBodyActor.h"
 #include "WaterEditorSettings.h"
 #include "WaterBodyRiverActor.h"
 #include "WaterBodyOceanActor.h"
@@ -10,7 +9,6 @@
 #include "WaterBodyOceanComponent.h"
 #include "WaterBodyRiverComponent.h"
 #include "WaterSplineComponent.h"
-#include "WaterWaves.h"
 #include "WaterZoneActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyActorFactory)

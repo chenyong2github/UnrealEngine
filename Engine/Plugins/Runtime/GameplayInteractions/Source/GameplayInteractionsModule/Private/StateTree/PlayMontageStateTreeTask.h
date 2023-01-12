@@ -5,6 +5,9 @@
 #include "GameplayInteractionsTypes.h"
 #include "PlayMontageStateTreeTask.generated.h"
 
+enum class EStateTreeRunStatus : uint8;
+struct FStateTreeTransitionResult;
+
 class UAnimMontage;
 
 USTRUCT()

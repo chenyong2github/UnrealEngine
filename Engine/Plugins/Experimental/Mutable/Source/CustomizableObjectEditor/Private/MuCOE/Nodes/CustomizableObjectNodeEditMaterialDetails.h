@@ -3,11 +3,7 @@
 #pragma once
 
 
-#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Math/MathFwd.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
 
 class FString;
 class IDetailLayoutBuilder;

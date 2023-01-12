@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioSynesthesiaCoreModule.h"
 
-#include "AudioAnalyzerModule.h"
 #include "AudioSynesthesiaCoreLog.h"
 #include "ConstantQNRTFactory.h"
-#include "CoreMinimal.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "LoudnessFactory.h"
 #include "LoudnessNRTFactory.h"
 #include "MeterFactory.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "OnsetNRTFactory.h"
 #include "SynesthesiaSpectrumAnalysisFactory.h"

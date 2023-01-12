@@ -4,11 +4,8 @@
 
 #include "OnlineSubsystem.h"
 
-#include "OnlineSubsystemTencent.h"
-#include "OnlineSubsystemTencentTypes.h"
 
 #if WITH_ENGINE
-#include "OnlineSubsystemUtils.h"
 #endif
 
 #define RAIL_METADATA_KEY_SEPARATOR TEXT(",")

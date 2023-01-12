@@ -2,11 +2,8 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameter.h"
 
-#include "EdGraph/EdGraphPin.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
-#include "UObject/UnrealType.h"
 
 class UCustomizableObjectNodeRemapPins;
 

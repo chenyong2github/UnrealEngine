@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/ITableRow.h"
+#include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+struct FDeterminismTestResult;
 
 class FPCGEditor;
 

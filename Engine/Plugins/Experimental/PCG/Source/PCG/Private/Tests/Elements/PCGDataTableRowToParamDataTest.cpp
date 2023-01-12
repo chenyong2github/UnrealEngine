@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
-#include "Tests/PCGTestsCommon.h"
 
 #include "PCGComponent.h"
-#include "PCGData.h"
-#include "PCGHelpers.h"
-#include "PCGParamData.h"
 
 #include "Elements/PCGDataTableRowToParamData.h"
-#include "Tests/Elements/PCGDataTableRowToParamDataTestStruct.h"
+#include "PCGContext.h"
 #include "Tests/Elements/PCGDataTableRowToParamDataTestHelpers.h"
 #include "Engine/DataTable.h"
 

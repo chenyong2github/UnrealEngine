@@ -3,10 +3,8 @@
 #include "AudioSynesthesiaSettingsFactory.h"
 
 #include "AudioAnalytics.h"
-#include "ClassViewerModule.h"
-#include "ClassViewerFilter.h"
+#include "AudioSynesthesia.h"
 #include "Kismet2/SClassPickerDialog.h"
-#include "Modules/ModuleManager.h"
 #include "AudioSynesthesiaClassFilter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSynesthesiaSettingsFactory)

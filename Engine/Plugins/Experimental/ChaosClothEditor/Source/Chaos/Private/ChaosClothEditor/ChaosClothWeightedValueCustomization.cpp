@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothWeightedValueCustomization.h"
-#include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "ChaosClothEditorPrivate.h"

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGActorSelector.h"
+#include "GameFramework/Actor.h"
 #include "Helpers/PCGActorHelpers.h"
 
-#include "Kismet/GameplayStatics.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGActorSelector)
 

@@ -2,30 +2,10 @@
 
 #include "MuCO/CustomizableObjectMipDataProvider.h"
 
-#include "Async/Fundamental/Task.h"
-#include "Containers/ArrayView.h"
-#include "Containers/IndirectArray.h"
-#include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "HAL/UnrealMemory.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/ScopeLock.h"
-#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectSystemPrivate.h"
-#include "MuR/Instance.h"
-#include "MuR/Mesh.h"
 #include "MuR/Model.h"
-#include "MuR/MutableTrace.h"
-#include "MuR/Ptr.h"
-#include "MuR/Types.h"
-#include "Serialization/BulkData.h"
-#include "Templates/Casts.h"
-#include "Templates/Function.h"
 #include "TextureResource.h"
-#include "Trace/Detail/Channel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectMipDataProvider)
 

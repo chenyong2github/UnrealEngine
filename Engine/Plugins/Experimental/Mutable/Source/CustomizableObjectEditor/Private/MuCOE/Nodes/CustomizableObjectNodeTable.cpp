@@ -2,25 +2,9 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 
-#include "Containers/EnumAsByte.h"
-#include "Containers/IndirectArray.h"
-#include "CoreTypes.h"
-#include "DataTableUtils.h"
-#include "Delegates/Delegate.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "Logging/TokenizedMessage.h"
-#include "MaterialTypes.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
-#include "Materials/MaterialInterface.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/Guid.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuCOE/CustomizableObjectEditor.h"
 #include "MuCOE/CustomizableObjectEditorLogger.h"
@@ -32,11 +16,6 @@
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "StaticMeshResources.h"
-#include "Templates/Casts.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/Tuple.h"
-#include "UObject/Object.h"
 
 class ICustomizableObjectEditor;
 class UCustomizableObjectNodeRemapPins;

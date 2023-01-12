@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "IPropertyAccessEditor.h"
 #include "Modules/ModuleManager.h"
 #include "SPropertyBinding.h"
-#include "EdGraphUtilities.h"
 #include "PropertyAccessEditor.h"
-#include "Algo/Accumulate.h"
-#include "Modules/ModuleInterface.h"
 #include "Features/IModularFeatures.h"
 
 class FPropertyAccessEditorModule : public IPropertyAccessEditor, public IModuleInterface

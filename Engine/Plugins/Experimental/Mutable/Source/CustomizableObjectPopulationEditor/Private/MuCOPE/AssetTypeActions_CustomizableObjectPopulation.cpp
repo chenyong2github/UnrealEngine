@@ -2,19 +2,10 @@
 
 #include "MuCOPE/AssetTypeActions_CustomizableObjectPopulation.h"
 
-#include "Delegates/Delegate.h"
-#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "Modules/ModuleManager.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOP/CustomizableObjectPopulation.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
-#include "Templates/Casts.h"
-#include "Textures/SlateIcon.h"
-#include "Toolkits/IToolkit.h"
-#include "UObject/Object.h"
 
 class IToolkitHost;
 class UClass;

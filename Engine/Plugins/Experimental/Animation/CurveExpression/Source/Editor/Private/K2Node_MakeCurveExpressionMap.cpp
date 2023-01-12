@@ -9,7 +9,6 @@
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
 #include "String/ParseLines.h"
-#include "Textures/SlateIcon.h"
 #include "Styling/AppStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_MakeCurveExpressionMap)

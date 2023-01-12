@@ -4,7 +4,6 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "Materials/Material.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"

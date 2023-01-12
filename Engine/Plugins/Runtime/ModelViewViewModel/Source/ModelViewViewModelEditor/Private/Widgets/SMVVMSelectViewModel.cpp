@@ -2,23 +2,15 @@
 
 #include "Widgets/SMVVMSelectViewModel.h"
 
-#include "Bindings/MVVMBindingHelper.h"
 #include "Components/Widget.h"
-#include "Editor.h"
-#include "FieldNotification/IFieldValueChanged.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
-#include "MVVMBlueprintViewModelContext.h"
-#include "MVVMEditorSubsystem.h"
-#include "MVVMViewModelBase.h"
 #include "SPrimaryButton.h"
-#include "Styling/MVVMEditorStyle.h"
-#include "Widgets/Input/SButton.h"
+#include "Types/MVVMBindingSource.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
 
 #include "ClassViewerModule.h"
-#include "SClassViewer.h"
 
 #define LOCTEXT_NAMESPACE "SMVVMSelectViewModel"
 

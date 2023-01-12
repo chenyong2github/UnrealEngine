@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "Metadata/PCGMetadataAttributeTpl.h"
 #include "PCGParamData.h"
 #include "Tests/Elements/PCGDataTableRowToParamDataTestStruct.h"
 #include "Tests/PCGTestsCommon.h"
+
+class FPCGMetadataAttributeBase;
+template <typename T> class FPCGMetadataAttribute;
 
 namespace PCGDataTableRowToParamDataTestHelpers
 {

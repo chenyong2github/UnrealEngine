@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "Containers/UnrealString.h"
 
 class UObject;
 class UTexture2D;

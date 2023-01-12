@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "Templates/Function.h"
+
+template <typename FuncType> class TFunctionRef;
 
 struct FAssetData;
 struct FARFilter;

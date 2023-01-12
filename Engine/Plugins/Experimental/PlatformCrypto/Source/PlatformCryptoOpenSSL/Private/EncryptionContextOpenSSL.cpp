@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EncryptionContextOpenSSL.h"
-#include "PlatformCryptoOpenSSLTypes.h"
 #include "PlatformCryptoAesEncryptorsOpenSSL.h"
 #include "PlatformCryptoAesDecryptorsOpenSSL.h"
 
-#include "Misc/AssertionMacros.h"
+#include "Stats/Stats.h"
+#include <openssl/bn.h>
+#include <openssl/obj_mac.h>
+#include <openssl/opensslv.h>
+#include <openssl/rand.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
 
 DEFINE_LOG_CATEGORY(LogPlatformCryptoOpenSSL);
 

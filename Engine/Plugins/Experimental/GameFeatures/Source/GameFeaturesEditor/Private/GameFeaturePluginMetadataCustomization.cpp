@@ -1,24 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFeaturePluginMetadataCustomization.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SSegmentedControl.h"
-#include "Widgets/Notifications/SErrorText.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
 #include "Dom/JsonValue.h"
-#include "Features/IPluginsEditorFeature.h"
-#include "PluginDescriptor.h"
 #include "Interfaces/IPluginManager.h"
 #include "SGameFeatureStateWidget.h"
 
-#include "GameFeatureData.h"
 #include "GameFeaturesSubsystem.h"
 #include "GameFeatureTypes.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 

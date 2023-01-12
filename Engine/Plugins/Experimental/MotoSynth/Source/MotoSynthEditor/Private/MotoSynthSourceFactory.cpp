@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MotoSynthSourceFactory.h"
 #include "AudioAnalytics.h"
+#include "MotoSynthPreset.h"
 #include "MotoSynthSourceAsset.h"
 #include "MotoSynthEditorModule.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Sound/SoundWave.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotoSynthSourceFactory)

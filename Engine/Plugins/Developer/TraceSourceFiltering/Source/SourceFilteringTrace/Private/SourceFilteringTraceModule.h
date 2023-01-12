@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-#include "SourceFilterCollection.h"
 
 class FSourceFilteringTraceModule : public IModuleInterface
 {

@@ -2,11 +2,10 @@
 
 #include "PCGEditorGraphSchema.h"
 
+#include "Blueprint/BlueprintSupport.h"
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGPin.h"
-#include "PCGSettings.h"
-#include "Elements/PCGExecuteBlueprint.h"
 
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
@@ -15,7 +14,6 @@
 #include "PCGEditorSettings.h"
 #include "PCGEditorUtils.h"
 
-#include "Algo/Find.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Application/SlateApplication.h"

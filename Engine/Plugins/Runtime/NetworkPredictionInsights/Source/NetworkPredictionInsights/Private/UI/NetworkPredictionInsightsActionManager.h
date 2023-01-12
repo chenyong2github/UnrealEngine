@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 /**
  * Class that provides helper functions for the commands to avoid cluttering profiler manager with many small functions.

@@ -6,6 +6,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "AnimationWarping"

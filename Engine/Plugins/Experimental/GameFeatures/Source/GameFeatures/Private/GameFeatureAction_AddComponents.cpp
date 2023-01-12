@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFeatureAction_AddComponents.h"
+#include "AssetRegistry/AssetBundleData.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Engine/GameInstance.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "Engine/AssetManager.h"
 
 //@TODO: Just for log category
-#include "GameFeaturesSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddComponents)
 

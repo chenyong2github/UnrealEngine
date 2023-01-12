@@ -2,16 +2,13 @@
 
 #include "DisplayNodes/VariantManagerOptionPropertyNode.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "PropertyValue.h"
 #include "SwitchActor.h"
 #include "VariantManagerLog.h"
 #include "VariantObjectBinding.h"
 
-#include "Algo/Transform.h"
-#include "Styling/AppStyle.h"
-#include "GameFramework/Actor.h"
 #include "ScopedTransaction.h"
-#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "FVariantManagerOptionPropertyNode"
 

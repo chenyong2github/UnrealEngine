@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGSubsystem.h"
+#include "Engine/Level.h"
 #include "PCGComponent.h"
+#include "Graph/PCGGraphCache.h"
 #include "PCGHelpers.h"
+#include "Grid/PCGLandscapeCache.h"
 #include "PCGWorldActor.h"
 #include "Graph/PCGGraphExecutor.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
-#include "Engine/Engine.h"
-#include "Engine/World.h"
-#include "HAL/IConsoleManager.h"
-#include "Math/GenericOctree.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubsystem)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
+#include "PCGModule.h"
 #include "WorldPartition/WorldPartition.h"
+#include "PackageSourceControlHelper.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "ObjectTools.h"

@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
 #include "Interfaces/OnlineUserCloudInterface.h"
 #include "Interfaces/OnlineSharedCloudInterface.h"
+#include "Online/CoreOnlineFwd.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

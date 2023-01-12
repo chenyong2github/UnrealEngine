@@ -3,8 +3,7 @@
 #include "LevelVariantSets.h"
 
 #include "Engine/BlueprintGeneratedClass.h"
-#include "Engine/World.h"
-#include "UObject/Package.h"
+#include "Engine/Level.h"
 #include "VariantSet.h"
 #include "Variant.h"
 #include "VariantObjectBinding.h"

@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PropertyPath.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+template <typename ItemType> class SListView;
 
 class ITableRow;
 class STableViewBase;

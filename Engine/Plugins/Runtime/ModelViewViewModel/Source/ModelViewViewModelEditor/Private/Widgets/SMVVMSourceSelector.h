@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "Hierarchy/SReadOnlyHierarchyView.h"
-#include "Layout/Visibility.h"
-#include "Templates/SharedPointer.h"
+#include "Styling/CoreStyle.h"
 #include "Types/MVVMBindingSource.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SMenuAnchor.h"
+#include "Styling/SlateWidgetStyleAsset.h"
+
+class SMenuAnchor;
+class SReadOnlyHierarchyView;
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+template <typename ItemType> class SListView;
 
 namespace UE::MVVM
 {

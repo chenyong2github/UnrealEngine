@@ -6,7 +6,6 @@
 #include "ClothingSystemEditorInterfaceModule.h"
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 #include "ChaosClothWeightedValueCustomization.h"
 
 IMPLEMENT_MODULE(FChaosClothEditorModule, ChaosClothEditor);

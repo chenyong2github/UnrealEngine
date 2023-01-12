@@ -2,16 +2,11 @@
 
 #include "EnhancedInputLibrary.h"
 
-#include "Engine/Engine.h"
+#include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputComponent.h"
-#include "EnhancedInputModule.h"
-#include "EnhancedPlayerInput.h"
-#include "GameFramework/PlayerController.h"
-#include "InputCoreTypes.h"
-#include "InputMappingContext.h"
-#include "InputModifiers.h"
-#include "InputTriggers.h"
+#include "EnhancedInputSubsystems.h"
 #include "UObject/UObjectIterator.h"
+#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputLibrary)
 

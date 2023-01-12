@@ -3,6 +3,7 @@
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 
 #include "Channels/RemoteSessionImageChannel.h"
+#include "IRemoteSessionRole.h"
 #include "Modules/ModuleManager.h"
 #include "RemoteSessionModule.h"
 

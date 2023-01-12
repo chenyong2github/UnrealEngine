@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGUnionElement.h"
+#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGSettingsHelpers.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGUnionElement)
 

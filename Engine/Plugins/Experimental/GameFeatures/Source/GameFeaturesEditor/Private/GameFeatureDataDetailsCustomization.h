@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
 #include "IDetailCustomization.h"
-#include "GameFeaturesSubsystem.h"
 #include "GameFeatureTypesFwd.h"
+#include "UObject/WeakObjectPtr.h"
+
+namespace UE::GameFeatures { struct FResult; }
 
 class IDetailLayoutBuilder;
 class SErrorText;

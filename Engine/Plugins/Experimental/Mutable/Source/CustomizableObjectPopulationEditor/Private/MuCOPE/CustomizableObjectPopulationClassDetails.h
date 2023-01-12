@@ -2,27 +2,15 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Math/Vector2D.h"
-#include "Misc/Optional.h"
-#include "MuCOP/CustomizableObjectPopulationConstraint.h"
 #include "Styling/SlateBrush.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/SCompoundWidget.h"
+
+enum class EPopulationConstraintType : uint8;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+struct FConstraintRanges;
+template <typename OptionType> class SComboBox;
 
 class FPaintArgs;
 class FSlateRect;

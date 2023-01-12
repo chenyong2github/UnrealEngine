@@ -1,25 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCameraShakePreviewer.h"
-#include "Camera/CameraActor.h"
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceActor.h"
 #include "Camera/CameraShakeSourceComponent.h"
-#include "Camera/PlayerCameraManager.h"
 #include "CameraShakePreviewerModule.h"
-#include "EditorDirectories.h"
-#include "Styling/AppStyle.h"
-#include "LevelEditor.h"
+#include "Engine/Level.h"
 #include "LevelEditorViewport.h"
-#include "LegacyCameraShake.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Modules/ModuleManager.h"
-#include "Slate/SceneViewport.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Views/SListView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SCameraShakePreviewer)
 

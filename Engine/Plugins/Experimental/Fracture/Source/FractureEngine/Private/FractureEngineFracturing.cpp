@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FractureEngineFracturing.h"
+#include "Dataflow/DataflowSelection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionProximityUtility.h"
-#include "GeometryCollection/GeometryCollection.h"
-#include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/TransformCollection.h"
 #include "Voronoi/Voronoi.h"
 #include "PlanarCut.h"
 #include "GeometryCollection/Facades/CollectionMeshFacade.h"

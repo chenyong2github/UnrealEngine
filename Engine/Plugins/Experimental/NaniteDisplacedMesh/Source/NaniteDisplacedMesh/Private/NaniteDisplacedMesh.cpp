@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMesh.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/Texture2D.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "NaniteDisplacedMeshLog.h"
-#include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -13,11 +14,11 @@
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
+#include "RenderUtils.h"
 #include "Serialization/MemoryHasher.h"
-#include "Async/Async.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
+#include "Serialization/MemoryReader.h"
 #include "StaticMeshAttributes.h"
+#include "Serialization/MemoryWriter.h"
 #include "StaticMeshBuilder.h"
 #include "Experimental/Misc/ExecutionResource.h"
 #include "MeshDescriptionHelper.h"

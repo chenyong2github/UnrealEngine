@@ -2,11 +2,9 @@
 
 #include "MVVMBlueprintView.h"
 
-#include "Containers/StringFwd.h"
-#include "Blueprint/WidgetTree.h"
+#include "Components/Widget.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintView)
 

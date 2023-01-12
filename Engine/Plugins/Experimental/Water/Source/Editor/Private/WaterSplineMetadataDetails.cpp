@@ -2,18 +2,12 @@
 
 #include "WaterSplineMetadataDetails.h"
 #include "WaterSplineMetadata.h"
-#include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Internationalization/Internationalization.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "ScopedTransaction.h"
 #include "ComponentVisualizer.h"
-#include "Widgets/Input/SVectorInputBox.h"
 #include "Editor.h"
-#include "WaterBodyActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSplineMetadataDetails)
 

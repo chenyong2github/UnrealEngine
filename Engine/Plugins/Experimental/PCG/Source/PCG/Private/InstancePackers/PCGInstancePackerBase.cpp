@@ -2,10 +2,8 @@
 
 #include "InstancePackers/PCGInstancePackerBase.h"
 
+#include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerBase)
 

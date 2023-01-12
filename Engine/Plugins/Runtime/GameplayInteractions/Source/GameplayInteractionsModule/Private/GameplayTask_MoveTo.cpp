@@ -3,15 +3,13 @@
 #include "GameplayTask_MoveTo.h"
 #include "AISystem.h"
 #include "GameFramework/Pawn.h"
+#include "NavFilters/NavigationQueryFilter.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AIResources.h"
 #include "GameplayTasksComponent.h"
-#include "NavigationData.h"
 #include "NavigationSystem.h"
 #include "GameplayActuationComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameplayInteractionsTypes.h"
-#include "GameplayTaskTransition.h"
 #include "Navigation/PathFollowingComponent.h" // LogPathHelper
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_MoveTo)

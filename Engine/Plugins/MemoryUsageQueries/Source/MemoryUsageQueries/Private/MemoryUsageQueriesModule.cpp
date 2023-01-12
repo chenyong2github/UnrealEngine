@@ -4,6 +4,7 @@
 #include "MemoryUsageQueries.h"
 
 #include "Engine/Console.h"
+#include "Modules/ModuleManager.h"
 
 void FMemoryUsageQueriesModule::StartupModule()
 {

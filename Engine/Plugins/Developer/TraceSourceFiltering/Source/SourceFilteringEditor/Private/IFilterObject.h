@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "Input/DragAndDrop.h"
-#include "Input/Reply.h"
+
+class FDragDropEvent;
+class FReply;
 
 class FText;
 class UObject;

@@ -2,16 +2,9 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshClipWithMesh.h"
 
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "Misc/Guid.h"
 #include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
-#include "Templates/Casts.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 

@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PCGEditorGraphNodeBase.h"
 
 #include "PCGEditorGraphNodeInput.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 UCLASS()
 class UPCGEditorGraphNodeInput : public UPCGEditorGraphNodeBase

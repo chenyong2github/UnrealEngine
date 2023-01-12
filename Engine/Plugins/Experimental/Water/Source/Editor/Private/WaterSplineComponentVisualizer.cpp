@@ -1,23 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterSplineComponentVisualizer.h"
-#include "CoreMinimal.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Commands/InputChord.h"
-#include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "UnrealWidget.h"
-#include "Editor.h"
 #include "EditorViewportClient.h"
-#include "EditorViewportCommands.h"
-#include "LevelEditorActions.h"
-#include "Components/SplineComponent.h"
 #include "ScopedTransaction.h"
-#include "ActorEditorUtils.h"
-#include "WorldCollision.h"
 #include "WaterEditorSettings.h"
+#include "WaterSplineComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSplineComponentVisualizer)
 

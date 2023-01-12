@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlatformCryptoTypes.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 class FPlatformCryptoTypesModule : public IModuleInterface

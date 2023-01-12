@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RailSDK.h"
-#include "OnlineSubsystemTencentPrivate.h"
-#include "RailSdkWrapper.h"
 
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 
-#include "RailSdkWrapper.h"
 
 FString LexToString(const rail::RailSystemState State)
 {

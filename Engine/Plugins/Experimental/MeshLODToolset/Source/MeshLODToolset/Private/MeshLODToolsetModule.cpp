@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshLODToolsetModule.h"
+#include "Misc/CoreDelegates.h"
 #include "Tools/LODGenerationSettingsAsset.h"
 #include "AssetTypeActions_Base.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Tools/DetailsCustomizations/AutoLODToolCustomizations.h"
 #include "Tools/GenerateStaticMeshLODAssetTool.h"

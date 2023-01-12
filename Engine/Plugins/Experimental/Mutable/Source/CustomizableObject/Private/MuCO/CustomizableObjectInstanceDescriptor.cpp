@@ -2,22 +2,13 @@
 
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
 
-#include "HAL/PlatformCrt.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
-#include "Math/Vector.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectPrivate.h"
-#include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/DefaultImageProvider.h"
 #include "MuR/Model.h"
+#include "MuR/MutableMemory.h"
 #include "MuR/Parameters.h"
-#include "MuR/RefCounted.h"
-#include "Serialization/Archive.h"
-#include "Serialization/StructuredArchiveAdapters.h"
-#include "Templates/TypeHash.h"
-#include "Trace/Detail/Channel.h"
+#include "MuR/Ptr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectInstanceDescriptor)
 

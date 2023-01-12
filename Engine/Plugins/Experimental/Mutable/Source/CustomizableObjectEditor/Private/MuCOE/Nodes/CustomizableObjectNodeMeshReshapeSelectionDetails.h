@@ -3,9 +3,6 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-#include "Math/Color.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
 
 class IPropertyHandle;
 class IPropertyHandleArray;

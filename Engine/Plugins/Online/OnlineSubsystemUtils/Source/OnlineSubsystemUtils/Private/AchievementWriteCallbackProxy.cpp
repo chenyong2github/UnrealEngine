@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AchievementWriteCallbackProxy.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
 #include "OnlineSubsystemBPCallHelper.h"

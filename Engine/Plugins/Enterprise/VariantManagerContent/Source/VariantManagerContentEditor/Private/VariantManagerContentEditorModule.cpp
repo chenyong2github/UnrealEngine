@@ -10,11 +10,7 @@
 #include "UObject/UObjectIterator.h"
 #include "VariantManagerContentEditorLog.h"
 
-#include "ActorFactories/ActorFactory.h"
-#include "AssetToolsModule.h"
-#include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "PropertyEditorModule.h"

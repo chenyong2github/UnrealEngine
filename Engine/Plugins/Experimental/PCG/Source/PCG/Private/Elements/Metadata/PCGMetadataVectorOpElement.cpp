@@ -2,13 +2,7 @@
 
 #include "Elements/Metadata/PCGMetadataVectorOpElement.h"
 
-#include "PCGParamData.h"
-#include "Data/PCGSpatialData.h"
-#include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Elements/Metadata/PCGMetadataElementCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataVectorOpElement)
 

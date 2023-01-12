@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SEnvQueryLoadGraph.h"
-#include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
 
 void SEnvQueryLoadGraph::Construct(const FArguments& InArgs)
 {

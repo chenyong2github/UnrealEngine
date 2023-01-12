@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Delegates/DelegateCombinations.h"
+
+enum class ECheckBoxState : uint8;
 
 struct IFilterPreset;
 

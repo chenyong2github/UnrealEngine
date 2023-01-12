@@ -2,8 +2,6 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeObjectChild.h"
 
-#include "HAL/Platform.h"
-#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

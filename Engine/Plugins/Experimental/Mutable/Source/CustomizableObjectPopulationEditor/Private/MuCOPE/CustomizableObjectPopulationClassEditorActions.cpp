@@ -2,12 +2,7 @@
 
 #include "MuCOPE/CustomizableObjectPopulationClassEditorActions.h"
 
-#include "Framework/Commands/InputChord.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

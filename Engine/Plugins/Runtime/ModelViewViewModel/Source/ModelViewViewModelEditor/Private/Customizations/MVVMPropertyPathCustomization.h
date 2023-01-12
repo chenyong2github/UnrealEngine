@@ -3,9 +3,10 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
-#include "MVVMBlueprintView.h"
-#include "PropertyHandle.h"
-#include "Types/MVVMFieldVariant.h"
+#include "MVVMBlueprintViewBinding.h"
+
+enum class EMVVMBindingMode : uint8;
+struct FMVVMBlueprintPropertyPath;
 
 namespace UE::MVVM
 {

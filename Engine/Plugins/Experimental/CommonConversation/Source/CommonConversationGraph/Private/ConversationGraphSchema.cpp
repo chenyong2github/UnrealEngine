@@ -2,7 +2,6 @@
 
 #include "ConversationGraphSchema.h"
 #include "ConversationGraphTypes.h"
-#include "ConversationGraphNode.h"
 #include "ConversationGraphConnectionDrawingPolicy.h"
 
 #include "ConversationEntryPointNode.h"
@@ -22,10 +21,10 @@
 #include "ConversationGraphNode_Knot.h"
 
 #include "EdGraph/EdGraph.h"
-#include "EdGraphNode_Comment.h"
 #include "GraphEditorActions.h"
 #include "ToolMenu.h"
 #include "ScopedTransaction.h"
+#include "ToolMenuSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphSchema)
 

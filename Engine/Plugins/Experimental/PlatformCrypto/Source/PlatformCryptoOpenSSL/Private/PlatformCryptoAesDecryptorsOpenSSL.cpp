@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlatformCryptoAesDecryptorsOpenSSL.h"
+#include <openssl/opensslv.h>
 
 #define OPENSSL_CIPHER_SUCCESS 1
 

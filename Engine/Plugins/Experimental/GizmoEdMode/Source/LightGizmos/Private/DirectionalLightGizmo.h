@@ -2,19 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoBuilder.h"
-#include "SubTransformProxy.h"
 #include "BaseGizmos/GizmoActor.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
-#include "Engine/DirectionalLight.h"
-#include "BaseGizmos/CombinedTransformGizmo.h"
-#include "SubTransformProxy.h"
-#include "BaseGizmos/GizmoBaseComponent.h"
 
+#include "UObject/Package.h"
 #include "DirectionalLightGizmo.generated.h"
+
+class ADirectionalLight;
+class UGizmoBaseComponent;
+class USubTransformProxy;
+class UTransformProxy;
 
 class UGizmoViewContext;
 

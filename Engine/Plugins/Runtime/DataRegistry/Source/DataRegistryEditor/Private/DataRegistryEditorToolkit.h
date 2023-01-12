@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/SimpleAssetEditor.h"
+#include "DataRegistryTypes.h"
 #include "DataTableEditorUtils.h"
-#include "DataRegistry.h"
-#include "SAnimAttributeView.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Widgets/Views/SHeaderRow.h"
+
+class FSpawnTabArgs;
+class FToolBarBuilder;
+class SSearchBox;
+class UDataRegistry;
+template <typename ItemType> class SListView;
 
 class ITableRow;
 class STableViewBase;

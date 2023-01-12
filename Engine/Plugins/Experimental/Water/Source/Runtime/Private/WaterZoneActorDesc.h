@@ -3,8 +3,6 @@
 #pragma once
 
 #if WITH_EDITOR
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 /**

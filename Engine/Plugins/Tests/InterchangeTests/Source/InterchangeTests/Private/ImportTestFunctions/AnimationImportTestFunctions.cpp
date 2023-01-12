@@ -3,6 +3,7 @@
 #include "ImportTestFunctions/AnimationImportTestFunctions.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationImportTestFunctions)
 

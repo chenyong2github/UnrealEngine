@@ -3,6 +3,8 @@
 #pragma once
 #include "INetworkPredictionProvider.h"
 
+namespace TraceServices { class IAnalysisSession; }
+
 
 class FNetworkPredictionProvider : public INetworkPredictionProvider
 {

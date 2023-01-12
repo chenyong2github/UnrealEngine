@@ -2,6 +2,7 @@
 
 #include "Elements/PCGSpawnActor.h"
 
+#include "Data/PCGSpatialData.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGManagedResource.h"
@@ -9,20 +10,16 @@
 #include "Data/PCGPointData.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
-#include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
-#include "GameFramework/Actor.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSpawnActor)
 

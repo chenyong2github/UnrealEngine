@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <CoreMinimal.h>
+#include "HAL/PlatformString.h"
 
 namespace ElectraSubtitleUtils
 {

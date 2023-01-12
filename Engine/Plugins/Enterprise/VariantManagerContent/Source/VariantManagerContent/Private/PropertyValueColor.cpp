@@ -3,11 +3,8 @@
 #include "PropertyValueColor.h"
 
 #include "VariantManagerContentLog.h"
-#include "VariantObjectBinding.h"
 
 #include "Components/LightComponent.h"
-#include "CoreMinimal.h"
-#include "HAL/UnrealMemory.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyValueColor)

@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameFeatureStateWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SSegmentedControl.h"
-#include "GameFeatureData.h"
 #include "GameFeatureTypes.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"

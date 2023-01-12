@@ -9,10 +9,7 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "Styling/StyleColors.h"
-#include "UObject/UnrealType.h"
-#include "WidgetBlueprint.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MVVMPropertyBindingExtension"

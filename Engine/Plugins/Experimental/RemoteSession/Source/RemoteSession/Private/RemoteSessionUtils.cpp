@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteSessionUtils.h"
-#include "Widgets/SViewport.h"
 #include "Engine/GameEngine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/SWindow.h"
 
 #if WITH_EDITOR
 	#include "Editor.h"
-	#include "Editor/EditorEngine.h"
 	#include "IAssetViewport.h"
 #endif
 

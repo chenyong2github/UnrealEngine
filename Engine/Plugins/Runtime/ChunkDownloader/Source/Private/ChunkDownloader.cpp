@@ -3,20 +3,21 @@
 #include "ChunkDownloader.h"
 
 #include "ChunkDownloaderLog.h"
-#include "CoreMinimal.h"
-#include "Templates/UniquePtr.h"
-#include "Containers/Ticker.h"
 #include "Async/AsyncWork.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformProperties.h"
-#include "HAL/PlatformApplicationMisc.h"
+#include "HttpModule.h"
 #include "Misc/CoreDelegates.h"
+#include "Interfaces/IHttpRequest.h"
 #include "Misc/SecureHash.h"
-#include "Misc/Paths.h"
+#include "Interfaces/IHttpResponse.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Download.h"
+#include "Modules/ModuleManager.h"
+
+#if PLATFORM_ANDROID || PLATFORM_IOS
+#include "HAL/PlatformApplicationMisc.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "ChunkDownloader"
 

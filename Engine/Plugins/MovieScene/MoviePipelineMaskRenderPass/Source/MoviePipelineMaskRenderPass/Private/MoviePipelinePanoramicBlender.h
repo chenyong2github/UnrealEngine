@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "MoviePipelineImagePassBase.h"
 #include "MovieRenderPipelineDataTypes.h"
 
 // Forward Declares

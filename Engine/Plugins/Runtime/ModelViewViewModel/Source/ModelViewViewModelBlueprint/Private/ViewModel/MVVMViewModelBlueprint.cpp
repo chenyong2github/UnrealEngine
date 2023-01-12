@@ -4,7 +4,6 @@
 #include "ViewModel/MVVMViewModelBlueprintCompiler.h"
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 
-#include "Kismet2/CompilerResultsLog.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBlueprint)
 

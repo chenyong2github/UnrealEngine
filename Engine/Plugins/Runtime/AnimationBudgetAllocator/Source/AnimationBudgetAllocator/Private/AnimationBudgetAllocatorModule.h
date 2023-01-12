@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
 #include "Engine/World.h"
 #include "IAnimationBudgetAllocatorModule.h"
 #include "Engine/World.h"

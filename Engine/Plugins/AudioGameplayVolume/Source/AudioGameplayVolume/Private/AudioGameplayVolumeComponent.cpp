@@ -2,8 +2,6 @@
 
 #include "AudioGameplayVolumeComponent.h"
 #include "AudioGameplayVolumeSubsystem.h"
-#include "AudioGameplayVolumeProxy.h"
-#include "Interfaces/IAudioGameplayVolumeInteraction.h"
 #include "AudioDevice.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeComponent)

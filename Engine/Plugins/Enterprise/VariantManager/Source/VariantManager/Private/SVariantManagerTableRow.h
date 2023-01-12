@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"
-#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h" // IWYU pragma: keep
+
+class STableViewBase;
 
 typedef TSharedRef<FVariantManagerDisplayNode> FDisplayNodeRef;
 

@@ -2,7 +2,6 @@
 
 #include "VariantManagerClipboard.h"
 
-#include "CoreMinimal.h"
 
 
 TArray<TStrongObjectPtr<UVariant>> FVariantManagerClipboard::StoredVariants = TArray<TStrongObjectPtr<UVariant>>();

@@ -24,13 +24,3 @@ public:
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override;
 	// UAssetDefinition End
 };
-
-class FAssetActionExtender_SoundCueTemplate
-{
-public:
-	static void RegisterMenus();
-private:
-	static void ExecuteCreateSoundCueTemplate(const FToolMenuContext& MenuContext);
-	/** Converts the provided SoundCue Template to a fully-modifiable SoundCue */
-	static void ExecuteCopyToSoundCue(const FToolMenuContext& MenuContext);
-};

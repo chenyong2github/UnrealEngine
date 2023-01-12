@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Math/RotationMatrix.h"
 #include "Misc/MessageDialog.h"
 #include "SceneView.h"
 #include "Model.h"

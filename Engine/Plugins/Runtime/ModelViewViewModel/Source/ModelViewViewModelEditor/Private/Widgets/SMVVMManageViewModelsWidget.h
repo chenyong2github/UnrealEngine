@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Widgets/SCompoundWidget.h"
-#include "Input/Reply.h"
-#include "MVVMBlueprintViewBinding.h"
-#include "MVVMBlueprintViewModelContext.h"
+
+namespace ESelectInfo { enum Type : int; }
+struct FMVVMBlueprintViewModelContext;
+template <typename T> class TSubclassOf;
 
 class ITableRow;
 template<typename T>

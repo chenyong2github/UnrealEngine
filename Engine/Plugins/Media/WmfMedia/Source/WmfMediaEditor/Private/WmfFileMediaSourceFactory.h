@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
 
 #include "WmfFileMediaSourceFactory.generated.h"

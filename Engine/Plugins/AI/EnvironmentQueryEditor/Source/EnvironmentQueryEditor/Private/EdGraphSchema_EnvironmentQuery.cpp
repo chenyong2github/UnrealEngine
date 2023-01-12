@@ -3,16 +3,12 @@
 #include "EdGraphSchema_EnvironmentQuery.h"
 #include "Modules/ModuleManager.h"
 #include "EdGraph/EdGraph.h"
-#include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
-#include "EnvironmentQueryGraphNode.h"
 #include "EnvironmentQueryGraphNode_Option.h"
 #include "EnvironmentQueryGraphNode_Root.h"
 #include "EnvironmentQueryGraphNode_Test.h"
 #include "EnvironmentQueryEditorModule.h"
-#include "IEnvironmentQueryEditor.h"
-#include "Toolkits/ToolkitManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphSchema_EnvironmentQuery)
 

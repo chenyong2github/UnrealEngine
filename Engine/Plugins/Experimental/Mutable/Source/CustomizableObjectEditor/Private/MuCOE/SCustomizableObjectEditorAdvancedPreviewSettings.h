@@ -3,14 +3,7 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "HAL/PlatformMisc.h"
-#include "Input/Reply.h"
-#include "Misc/Attribute.h"
 #include "SAdvancedPreviewDetailsTab.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
 
 class FAdvancedPreviewScene;

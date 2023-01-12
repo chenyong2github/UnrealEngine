@@ -2,8 +2,8 @@
 
 #include "ConversationGraphConnectionDrawingPolicy.h"
 #include "ConversationEditorColors.h"
-#include "Rendering/DrawElements.h"
 #include "ConversationGraphNode.h"
+#include "SGraphNode.h"
 
 FConversationGraphConnectionDrawingPolicy::FConversationGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
 	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements)

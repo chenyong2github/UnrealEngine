@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "MoviePipelineDeferredPasses.h"
-#include "MovieRenderOverlappedMask.h"
+#include "MoviePipelineImagePassBase.h"
 #include "MoviePipelineObjectIdPass.generated.h"
 
 UENUM(BlueprintType)

@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGComponent.h"
+#include "Data/PCGProjectionData.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
+#include "Data/PCGSpatialData.h"
 #include "PCGGraph.h"
+#include "LandscapeComponent.h"
 #include "PCGHelpers.h"
+#include "LandscapeProxy.h"
 #include "PCGInputOutputSettings.h"
+#include "PCGContext.h"
 #include "PCGParamData.h"
-#include "PCGVolume.h"
+#include "PCGSubsystem.h"
 #include "PCGManagedResource.h"
 #include "Data/PCGDifferenceData.h"
 #include "Data/PCGIntersectionData.h"
@@ -18,22 +22,15 @@
 #include "Data/PCGSplineData.h"
 #include "Data/PCGUnionData.h"
 #include "Data/PCGVolumeData.h"
-#include "Graph/PCGGraphExecutor.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
-#include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SplineComponent.h"
 #include "Components/ShapeComponent.h"
 #include "GameFramework/Volume.h"
 #include "Kismet/GameplayStatics.h"
-#include "Landscape.h"
-#include "LandscapeInfo.h"
-#include "LandscapeSplineActor.h"
 #include "LandscapeSplinesComponent.h"
-#include "Misc/ScopeLock.h"
-#include "WorldPartition/WorldPartition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGComponent)
 

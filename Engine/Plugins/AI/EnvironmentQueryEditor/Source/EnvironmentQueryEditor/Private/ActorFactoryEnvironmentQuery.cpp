@@ -2,6 +2,7 @@
 
 #include "ActorFactoryEnvironmentQuery.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EQSTestingPawn.h"
 

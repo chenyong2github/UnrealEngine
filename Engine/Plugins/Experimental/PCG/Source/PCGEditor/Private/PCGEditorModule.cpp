@@ -2,6 +2,7 @@
 
 #include "PCGEditorModule.h"
 
+#include "AssetTypeActions/PCGCommonAssetTypeActions.h"
 #include "AssetTypeActions/PCGGraphAssetTypeActions.h"
 #include "AssetTypeActions/PCGSettingsAssetTypeActions.h"
 #include "PCGEditorCommands.h"
@@ -11,22 +12,16 @@
 #include "PCGEditorUtils.h"
 #include "PCGSubsystem.h"
 #include "PCGVolumeFactory.h"
-#include "PCGWorldActor.h"
 
 #include "Details/PCGBlueprintSettingsDetails.h"
-#include "Details/PCGComponentDetails.h"
 #include "Details/PCGGraphDetails.h"
 #include "Details/PCGVolumeDetails.h"
 #include "Details/PCGAttributePropertySelectorDetails.h"
 
-#include "EdGraphUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IAssetTools.h"
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "Toolkits/IToolkit.h"
 
 #define LOCTEXT_NAMESPACE "FPCGEditorModule"
 

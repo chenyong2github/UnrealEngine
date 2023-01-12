@@ -2,12 +2,10 @@
 
 #include "MeshSelectors/PCGMeshSelectorByAttribute.h"
 
-#include "Elements/PCGPointFilter.h"
+#include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Data/PCGSpatialData.h"
+#include "MeshSelectors/PCGMeshSelectorBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorByAttribute)
 

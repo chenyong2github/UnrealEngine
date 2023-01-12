@@ -2,12 +2,12 @@
 
 #include "ElectraSubtitleModule.h"
 
-#include "CoreMinimal.h"
-#include "Misc/ScopeLock.h"
 
+#include "Features/IModularFeatures.h"
 #include "IElectraSubtitleModule.h"
 #include "ElectraSubtitleDecoderFactory.h"
 
+#include "Modules/ModuleManager.h"
 #include "tx3g/ElectraSubtitleDecoder_TX3G.h"
 #include "wvtt/ElectraSubtitleDecoder_WVTT.h"
 #include "ttml/ElectraSubtitleDecoder_TTML.h"

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "EditorViewportClient.h"
-#include "Templates/SharedPointer.h"
 
 class FAdvancedPreviewScene;
 

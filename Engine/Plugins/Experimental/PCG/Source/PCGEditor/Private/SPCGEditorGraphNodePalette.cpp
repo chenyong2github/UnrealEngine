@@ -2,8 +2,8 @@
 
 #include "SPCGEditorGraphNodePalette.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "PCGGraph.h"
-#include "Elements/PCGExecuteBlueprint.h"
 
 #include "PCGEditorGraphSchema.h"
 #include "PCGEditorGraphSchemaActions.h"
@@ -11,7 +11,6 @@
 #include "PCGSettingsDragDropAction.h"
 
 #include "SEnumCombo.h"
-#include "SGraphActionMenu.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 

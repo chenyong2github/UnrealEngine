@@ -5,7 +5,6 @@
 #include "AssetRegistry/AssetIdentifier.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Factories/MaterialFunctionInstanceFactory.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "IAssetTools.h"

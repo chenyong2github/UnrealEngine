@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
 
 class FAssetTypeActions_EnvironmentQuery : public FAssetTypeActions_Base

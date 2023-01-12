@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PlayerTime.h"
-#include "ParameterDictionary.h"
+#include "Templates/SharedPointer.h"
 
 namespace ElectraTTMLParser
 {

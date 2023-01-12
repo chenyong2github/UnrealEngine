@@ -2,20 +2,14 @@
 
 #pragma once
 
-#include "Delegates/Delegate.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Math/Axis.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Misc/Optional.h"
+#include "MuR/MutableMemory.h"
 #include "MuR/Parameters.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "MuR/Ptr.h"
 #include "Widgets/SCompoundWidget.h"
+
+enum class ECheckBoxState : uint8;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
 
 class FString;
 class SMutableTextSearchBox;

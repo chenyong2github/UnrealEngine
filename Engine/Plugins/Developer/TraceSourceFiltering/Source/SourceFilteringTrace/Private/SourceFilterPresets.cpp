@@ -4,13 +4,12 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "HAL/IConsoleManager.h"
-#include "Internationalization/Text.h"
-#include "Logging/LogMacros.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/BlueprintSupport.h"
 
-#include "TraceSourceFilteringProjectSettings.h"
+#include "Modules/ModuleManager.h"
 #include "TraceSourceFiltering.h"
+#include "SourceFilterCollection.h"
 #include "SourceFilterTrace.h"
 
 #if SOURCE_FILTER_TRACE_ENABLED

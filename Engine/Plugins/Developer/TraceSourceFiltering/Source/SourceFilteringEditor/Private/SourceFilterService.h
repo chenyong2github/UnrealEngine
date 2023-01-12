@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "ISessionSourceFilterService.h"
+#include "Templates/SharedPointer.h"
+
+class ISessionSourceFilterService;
 
 namespace TraceServices
 {

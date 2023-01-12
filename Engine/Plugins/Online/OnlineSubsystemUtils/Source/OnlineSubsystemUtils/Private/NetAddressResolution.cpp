@@ -2,9 +2,9 @@
 
 // Includes
 #include "NetAddressResolution.h"
-#include "SocketSubsystem.h"
-#include "IpNetDriver.h"
+#include "IpConnection.h"
 #include "Sockets.h"
+#include "Trace/Trace.inl"
 
 
 // Stats

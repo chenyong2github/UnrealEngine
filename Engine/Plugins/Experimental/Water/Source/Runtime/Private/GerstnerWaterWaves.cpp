@@ -3,8 +3,8 @@
 #include "GerstnerWaterWaves.h"
 #include "Engine/Engine.h"
 #include "GerstnerWaterWaveSubsystem.h"
+#include "Math/RandomStream.h"
 #include "Misc/LargeWorldRenderPosition.h"
-#include "WaterModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GerstnerWaterWaves)
 

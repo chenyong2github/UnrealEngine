@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SessionEditorFilterService.h"
-#include "TraceServices/ITraceServicesModule.h"
-#include "Templates/SharedPointer.h"
-#include "Misc/CoreDelegates.h"
-#include "Trace/Trace.h"
 
 FSessionEditorFilterService::FSessionEditorFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession) : FBaseSessionFilterService(InHandle, InSession)
 {	

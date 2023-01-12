@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SynesthesiaSpectrumAnalysisFactory.h"
-#include "AudioSynesthesiaCustomVersion.h"
 #include "DSP/DeinterleaveView.h"
 #include "DSP/FloatArrayMath.h"
 #include "DSP/SlidingWindow.h"

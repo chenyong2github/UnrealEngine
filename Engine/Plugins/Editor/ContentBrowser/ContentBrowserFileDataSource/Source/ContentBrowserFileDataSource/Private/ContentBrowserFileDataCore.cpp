@@ -2,11 +2,11 @@
 
 #include "ContentBrowserFileDataCore.h"
 #include "ContentBrowserDataSource.h"
-#include "HAL/FileManager.h"
+#include "ContentBrowserFileDataPayload.h"
 #include "Misc/FileHelper.h"
+#include "IAssetTools.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/Paths.h"
-#include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
 #include "AssetToolsModule.h"
 

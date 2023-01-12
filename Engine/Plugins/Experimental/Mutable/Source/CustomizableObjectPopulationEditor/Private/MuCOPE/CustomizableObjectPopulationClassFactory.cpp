@@ -2,9 +2,7 @@
 
 #include "MuCOPE/CustomizableObjectPopulationClassFactory.h"
 
-#include "MuCOP/CustomizableObjectPopulationCharacteristic.h"
 #include "MuCOP/CustomizableObjectPopulationClass.h"
-#include "Templates/SubclassOf.h"
 
 class FFeedbackContext;
 class UClass;

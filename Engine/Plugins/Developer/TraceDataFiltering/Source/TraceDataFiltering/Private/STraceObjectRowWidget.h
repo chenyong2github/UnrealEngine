@@ -2,15 +2,10 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "Misc/Attribute.h"
-#include "Internationalization/Text.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/DeclarativeSyntaxSupport.h" 
 
-#include "ITraceObject.h"
+
+class ITraceObject;
 
 class STableViewBase;
 

@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PCGEditorGraphNodeBase.h"
 
 #include "PCGEditorGraphNode.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class UToolMenu;
 

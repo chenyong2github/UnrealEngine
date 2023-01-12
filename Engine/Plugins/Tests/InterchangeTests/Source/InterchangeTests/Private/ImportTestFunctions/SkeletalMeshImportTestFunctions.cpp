@@ -5,8 +5,12 @@
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "InterchangeTestFunction.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Materials/MaterialInterface.h"
+#include "Rendering/SkeletalMeshLODModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshImportTestFunctions)
 

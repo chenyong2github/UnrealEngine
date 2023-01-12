@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPropertyAccessNode.h"
+#include "Rendering/SlateRenderer.h"
 #include "SLevelOfDetailBranchNode.h"
-#include "PropertyAccess.h"
-#include "Styling/AppStyle.h"
-#include "EdGraphSchema_K2.h"
 #include "IPropertyAccessEditor.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "K2Node_PropertyAccess.h"
@@ -12,12 +10,13 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Features/IModularFeatures.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SWrapBox.h"
 #include "Features/IModularFeatures.h"
 #include "IPropertyAccessBlueprintBinding.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SPropertyAccessNode"
 

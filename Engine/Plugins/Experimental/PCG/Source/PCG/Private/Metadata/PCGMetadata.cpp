@@ -2,8 +2,8 @@
 
 #include "Metadata/PCGMetadata.h"
 
-#include "Misc/ScopeRWLock.h"
 #include "Helpers/PCGPropertyHelpers.h"
+#include "PCGPoint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadata)
 

@@ -5,7 +5,6 @@
 #include "DataRegistrySource.h"
 #include "DataRegistrySettings.h"
 #include "DataRegistrySubsystem.h"
-#include "Misc/StringBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryTypes)
 

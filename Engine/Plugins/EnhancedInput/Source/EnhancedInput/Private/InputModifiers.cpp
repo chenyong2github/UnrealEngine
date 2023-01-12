@@ -3,7 +3,6 @@
 #include "InputModifiers.h"
 #include "Curves/CurveFloat.h"
 #include "EnhancedPlayerInput.h"
-#include "GameFramework/InputSettings.h"
 #include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputModifiers)

@@ -2,19 +2,14 @@
 
 #include "DisplayNodes/VariantManagerEnumPropertyNode.h"
 
-#include "PropertyTemplateObject.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "PropertyValue.h"
 #include "SVariantManager.h"
+#include "VariantManager.h"
 #include "VariantManagerLog.h"
-#include "VariantObjectBinding.h"
 
-#include "GameFramework/Actor.h"
 #include "IDocumentation.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "FVariantManagerEnumPropertyNode"
 

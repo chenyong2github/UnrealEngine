@@ -5,15 +5,14 @@
 #include "Landscape.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeLayerInfoObject.h" // VisibilityLayer->LayerName
-#include "LandscapeInfo.h"
 #include "LandscapePatchLogging.h"
 #include "LandscapePatchManager.h"
 #include "LandscapePatchUtil.h" // CopyTextureOnRenderThread
-#include "LandscapeTexturePatchPS.h"
 #include "MathUtil.h"
-#include "RenderGraph.h"
 #include "RHIStaticStates.h"
+#include "RenderGraphUtils.h"
 #include "TextureResource.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTexturePatch)
 

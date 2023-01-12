@@ -2,11 +2,8 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshReshape.h"
 
-#include "EdGraph/EdGraphPin.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeCommon.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 

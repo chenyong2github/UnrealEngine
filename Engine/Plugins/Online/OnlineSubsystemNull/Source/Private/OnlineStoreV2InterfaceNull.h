@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/OnlineStoreInterfaceV2.h"
 #include "OnlineSubsystemNullPackage.h"
 

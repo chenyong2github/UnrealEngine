@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "Input/Reply.h"
 #include "SViewportToolBar.h"
-#include "Styling/SlateColor.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+namespace ETextCommit { enum Type : int; }
 
 class SMenuAnchor;
 class SWidget;

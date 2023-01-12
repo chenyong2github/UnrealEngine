@@ -2,7 +2,9 @@
 
 #include "DisplayNodes/VariantManagerVariantSetNode.h"
 
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "DisplayNodes/VariantManagerVariantNode.h"
+#include "DisplayNodes/VariantManagerActorNode.h"
 #include "LevelVariantSets.h"
 #include "SVariantManager.h"
 #include "SVariantManagerTableRow.h"
@@ -21,21 +23,15 @@
 #include "AssetThumbnail.h"
 #include "Brushes/SlateImageBrush.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
 #include "Engine/Texture2D.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Input/DragAndDrop.h"
 #include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
-#include "Textures/SlateIcon.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Views/SExpanderArrow.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerVariantSetNode"
 

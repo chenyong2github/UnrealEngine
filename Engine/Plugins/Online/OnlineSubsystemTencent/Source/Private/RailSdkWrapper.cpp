@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RailSdkWrapper.h"
-#include "OnlineSubsystemTencentPrivate.h"
-#include "Misc/Paths.h"
-#include "Misc/CommandLine.h"
-#include "HAL/PlatformProcess.h"
 
 
 #if PLATFORM_WINDOWS
+#include "HAL/Platform.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <ShellAPI.h>

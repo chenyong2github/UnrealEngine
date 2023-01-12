@@ -2,6 +2,7 @@
 
 #include "DisplayNodes/VariantManagerActorNode.h"
 
+#include "ISceneOutliner.h"
 #include "SVariantManager.h"
 #include "Variant.h"
 #include "VariantManager.h"
@@ -10,24 +11,14 @@
 #include "VariantManagerSelection.h"
 #include "VariantObjectBinding.h"
 
-#include "Containers/ArrayBuilder.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "GameFramework/Actor.h"
-#include "Input/DragAndDrop.h"
 #include "Modules/ModuleManager.h"
 #include "SceneOutlinerModule.h"
-#include "SceneOutlinerPublicTypes.h"
 #include "ActorTreeItem.h"
 #include "ScopedTransaction.h"
-#include "Styling/SlateIconFinder.h"
-#include "Textures/SlateIcon.h"
-#include "UObject/StrongObjectPtr.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "FVariantManagerActorNode"
 

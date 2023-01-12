@@ -2,30 +2,15 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/UnrealString.h"
-#include "CoreTypes.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
 #include "Misc/NotifyHook.h"
-#include "Misc/Optional.h"
 #include "MuCOE/StatePerformanceTesting.h"
 #include "MuCOE/StressTest.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UnrealTemplate.h"
-#include "UObject/GCObject.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/SCompoundWidget.h"
 
+#include "Widgets/Views/ITableRow.h"
 #include "SCustomizableObjectEditorPerformanceReport.generated.h"
+
+template <typename NumericType> class SNumericEntryBox;
 
 class ITableRow;
 class STableViewBase;

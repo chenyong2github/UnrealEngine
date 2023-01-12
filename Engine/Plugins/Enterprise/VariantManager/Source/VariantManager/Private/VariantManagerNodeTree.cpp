@@ -3,9 +3,6 @@
 #include "VariantManagerNodeTree.h"
 
 #include "VariantObjectBinding.h"
-#include "GameFramework/Actor.h"
-#include "DisplayNodes/VariantManagerDisplayNode.h"
-#include "DisplayNodes/VariantManagerActorNode.h"
 #include "DisplayNodes/VariantManagerVariantNode.h"
 #include "DisplayNodes/VariantManagerVariantSetNode.h"
 #include "LevelVariantSets.h"

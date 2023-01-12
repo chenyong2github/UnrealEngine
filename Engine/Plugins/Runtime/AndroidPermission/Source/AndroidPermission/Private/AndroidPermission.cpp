@@ -3,6 +3,7 @@
 #include "AndroidPermission.h"
 #include "AndroidPermissionFunctionLibrary.h"
 #include "AndroidPermissionCallbackProxy.h"
+#include "Modules/ModuleManager.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #endif

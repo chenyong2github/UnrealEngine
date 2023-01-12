@@ -1,29 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/LODManagerTool.h"
+#include "Drawing/LineSetComponent.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
 
-#include "ToolSetupUtil.h"
-#include "MathUtil.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
+#include "Drawing/PreviewGeometryActor.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "IndexedMeshToDynamicMesh.h"
 #include "ModelingToolTargetUtil.h"
 
-#include "MeshDescription.h"
+#include "PreviewMesh.h"
 #include "StaticMeshAttributes.h"
-#include "StaticMeshOperations.h"
 
 // for lightmap access
-#include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 
-#include "Components/PrimitiveComponent.h"
 
+#include "StaticMeshResources.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "ToolContextInterfaces.h"
 #include "ToolTargetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LODManagerTool)

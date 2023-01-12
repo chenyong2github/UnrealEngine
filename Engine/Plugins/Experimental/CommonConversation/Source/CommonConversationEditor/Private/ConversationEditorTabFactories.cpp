@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationEditorTabFactories.h"
+#include "ConversationEditor.h"
 #include "Engine/Blueprint.h"
-#include "Styling/AppStyle.h"
 #include "ConversationEditorTabs.h"
+#include "EdGraph/EdGraph.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "ConversationDatabase.h"
 

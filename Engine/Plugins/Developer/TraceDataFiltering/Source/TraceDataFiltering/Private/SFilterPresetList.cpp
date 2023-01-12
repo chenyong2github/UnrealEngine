@@ -2,33 +2,19 @@
 
 #include "SFilterPresetList.h"
 
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Input/SEditableText.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Styling/SlateTypes.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Layout/WidgetPath.h"
-#include "Textures/SlateIcon.h"
-#include "Styling/AppStyle.h"
 
-#include "SFilterPreset.h"
 #include "TraceDataFilteringModule.h"
 #include "FilterPresets.h"
 
 #if WITH_EDITOR
 #include "SSettingsEditorCheckoutNotice.h"
 #endif
-#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "InsightsFilterList"
 

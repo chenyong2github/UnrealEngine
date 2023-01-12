@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 
+#include "Stats/Stats2.h"
 #include "Tickable.h"
 
 class AActor;

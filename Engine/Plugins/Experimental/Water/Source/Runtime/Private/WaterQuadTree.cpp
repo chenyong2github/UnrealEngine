@@ -2,10 +2,10 @@
 
 #include "WaterQuadTree.h"
 #include "Materials/MaterialInterface.h"
+#include "Math/ColorList.h"
 #include "SceneManagement.h"
 
 #if WITH_WATER_SELECTION_SUPPORT
-#include "HitProxies.h"
 #endif // WITH_WATER_SELECTION_SUPPORT
 
 void FWaterQuadTree::FNode::AddNodeForRender(const FNodeData& InNodeData, const FWaterBodyRenderData& InWaterBodyRenderData, int32 InDensityLevel, int32 InLODLevel, const FTraversalDesc& InTraversalDesc, FTraversalOutput& Output) const

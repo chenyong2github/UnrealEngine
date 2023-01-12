@@ -2,12 +2,11 @@
 
 #include "SpotLightGizmoFactory.h"
 #include "EditorModeManager.h"
-#include "Engine/Selection.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
+#include "InteractiveGizmoManager.h"
 #include "SubTransformProxy.h"
-#include "Math/Rotator.h"
-#include "UnrealWidgetFwd.h"
 #include "Engine/SpotLight.h"
+#include "Selection.h"
 #include "SpotLightGizmo.h"
 #include "LightGizmosModule.h"
 

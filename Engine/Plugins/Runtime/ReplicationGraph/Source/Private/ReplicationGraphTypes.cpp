@@ -2,26 +2,13 @@
 
 #include "ReplicationGraphTypes.h"
 
+#include "Engine/NetConnection.h"
 #include "ReplicationGraph.h"
-#include "Engine/World.h"
 
-#include "EngineUtils.h"
-#include "Engine/Engine.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Net/DataReplication.h"
-#include "Engine/ActorChannel.h"
-#include "Engine/NetworkObjectList.h"
-#include "Net/RepLayout.h"
-#include "GameFramework/SpectatorPawn.h"
-#include "GameFramework/SpectatorPawnMovement.h"
-#include "Net/UnrealNetwork.h"
-#include "Net/NetworkProfiler.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Level.h"
-#include "Templates/UnrealTemplate.h"
-#include "Misc/CoreDelegates.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReplicationGraphTypes)
 

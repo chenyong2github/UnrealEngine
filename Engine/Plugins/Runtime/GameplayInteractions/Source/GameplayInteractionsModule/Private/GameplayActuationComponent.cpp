@@ -4,7 +4,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayTasksComponent.h"
-#include "ContextualAnimSceneInstance.h"
 #include "GameplayInteractionsTypes.h"
 #include "GameplayTaskTransition.h"
 #include "GameplayActuationStateProvider.h"

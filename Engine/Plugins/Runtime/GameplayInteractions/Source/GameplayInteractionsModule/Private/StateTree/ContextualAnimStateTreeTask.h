@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "ContextualAnimTypes.h"
 #include "GameplayInteractionsTypes.h"
 #include "ContextualAnimStateTreeTask.generated.h"
+
+enum class EStateTreeRunStatus : uint8;
+struct FStateTreeTransitionResult;
 
 class UGameplayTask_PlayContextualAnim;
 class UContextualAnimSceneAsset;

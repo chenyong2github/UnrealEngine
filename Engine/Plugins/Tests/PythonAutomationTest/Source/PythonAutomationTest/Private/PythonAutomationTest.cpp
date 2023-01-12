@@ -7,6 +7,7 @@
 #include "Misc/AutomationTest.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "PythonScriptTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PythonAutomationTest)
 

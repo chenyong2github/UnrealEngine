@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQueryFactory.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "EnvironmentQuery/EnvQuery.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryFactory)

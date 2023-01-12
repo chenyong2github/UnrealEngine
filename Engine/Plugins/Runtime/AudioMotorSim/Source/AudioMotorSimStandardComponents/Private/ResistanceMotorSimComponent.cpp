@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ResistanceMotorSimComponent.h"
+#include "AudioMotorSimTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ResistanceMotorSimComponent)
 

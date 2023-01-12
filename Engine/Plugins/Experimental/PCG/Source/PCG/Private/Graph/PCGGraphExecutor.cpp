@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraphExecutor.h"
+#include "GameFramework/Actor.h"
 #include "PCGComponent.h"
-#include "PCGData.h"
+#include "Graph/PCGGraphCache.h"
 #include "PCGGraph.h"
+#include "PCGContext.h"
 #include "PCGGraphCompiler.h"
 #include "PCGHelpers.h"
 #include "PCGInputOutputSettings.h"
-#include "PCGSubgraph.h"
 
 #include "Async/Async.h"
+#include "PCGModule.h"
+#include "PCGPin.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -18,7 +21,6 @@
 // World partition support for in-editor workflows needs these includes
 #if WITH_EDITOR
 #include "FileHelpers.h"
-#include "WorldPartition/WorldPartition.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarMaxNumTasks(

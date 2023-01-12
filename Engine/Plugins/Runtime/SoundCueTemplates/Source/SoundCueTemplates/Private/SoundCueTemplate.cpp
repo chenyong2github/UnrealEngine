@@ -2,6 +2,7 @@
 
 #include "SoundCueTemplate.h"
 #include "ObjectEditorUtils.h"
+#include "Sound/SoundWave.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueTemplate)
 

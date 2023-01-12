@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MVVMBlueprintViewBinding.h"
 #include "MVVMBlueprintViewModelContext.h"
 #include "Widgets/SCompoundWidget.h"
+
+class UMVVMViewModelBase;
+struct FMVVMBlueprintViewBinding;
 
 class ITableRow;
 template<typename T>

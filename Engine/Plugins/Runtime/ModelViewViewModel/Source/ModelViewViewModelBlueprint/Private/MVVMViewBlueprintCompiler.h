@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Bindings/MVVMCompiledBindingLibraryCompiler.h"
-#include "MVVMBlueprintViewBinding.h"
 #include "MVVMBlueprintViewModelContext.h"
-#include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldVariant.h"
-#include "UObject/Object.h"
 #include "WidgetBlueprintCompiler.h"
+
+struct FMVVMBlueprintPropertyPath;
 
 struct FMVVMViewModelPropertyPath;
 struct FMVVMBlueprintViewBinding;

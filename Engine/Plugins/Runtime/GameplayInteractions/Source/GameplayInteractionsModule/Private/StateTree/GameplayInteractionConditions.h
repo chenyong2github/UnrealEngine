@@ -1,10 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "GameplayInteractionsTypes.h"
-#include "SmartObjectTypes.h"
-#include "GameplayTagContainer.h"
 #include "GameplayInteractionConditions.generated.h"
 
 class USmartObjectSubsystem;

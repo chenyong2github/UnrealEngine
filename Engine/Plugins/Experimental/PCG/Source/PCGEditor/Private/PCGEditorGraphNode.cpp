@@ -2,12 +2,12 @@
 
 #include "PCGEditorGraphNode.h"
 
-#include "PCGEditorGraphSchema.h"
+#include "EdGraph/EdGraphPin.h"
 #include "PCGEditorModule.h"
 #include "PCGNode.h"
 
 #include "Framework/Commands/GenericCommands.h"
-#include "GraphEditorActions.h"
+#include "PCGPin.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 

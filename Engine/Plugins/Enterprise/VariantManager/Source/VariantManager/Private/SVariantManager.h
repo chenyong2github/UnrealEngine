@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
 #include "Misc/NotifyHook.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "Widgets/Views/SListView.h"
-#include "Framework/Commands/UICommandList.h"
-#include "UObject/WeakObjectPtr.h"
-#include "PropertyCustomizationHelpers.h"
-#include "VariantManager.h"
+
+class FUICommandList;
+class SScrollBar;
+class UVariantObjectBinding;
+class UVariantSet;
+enum class EItemDropZone;
+struct FSplitterStyle;
+struct FTableColumnHeaderStyle;
+template <typename ItemType> class SListView;
+template <typename ItemType> class STableRow;
 
 class FExtender;
 class FTransactionObjectEvent;

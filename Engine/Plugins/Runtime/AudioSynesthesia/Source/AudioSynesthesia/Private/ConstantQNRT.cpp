@@ -3,8 +3,9 @@
 #include "ConstantQNRT.h"
 #include "ConstantQNRTFactory.h"
 #include "AudioSynesthesiaLog.h"
+#include "DSP/FloatArrayMath.h"
 #include "InterpolateSorted.h"
-#include "DSP/ConstantQ.h"
+#include "Sound/SoundSubmix.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConstantQNRT)
 

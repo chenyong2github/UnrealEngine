@@ -2,14 +2,16 @@
 
 #include "SMVVMSourceSelector.h"
 
-#include "Algo/Transform.h"
 #include "Editor.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "MVVMEditorSubsystem.h"
+#include "Hierarchy/SReadOnlyHierarchyView.h"
 #include "SPrimaryButton.h"
+#include "MVVMBlueprintView.h"
 #include "SSimpleButton.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SMVVMFieldIcon.h"
+#include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/SMVVMSourceEntry.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "MVVMSourceSelector"
 

@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationParticipantComponent.h"
+#include "ConversationContext.h"
 #include "ConversationInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "ConversationTaskNode.h"
-#include "ConversationSubNode.h"
-#include "ConversationSideEffectNode.h"
-#include "Misc/StringBuilder.h"
 #include "CommonConversationRuntimeLogging.h"
-#include "ConversationRegistry.h"
 #include "Net/Core/PushModel/PushModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationParticipantComponent)

@@ -3,6 +3,7 @@
 #include "Elements/PCGWorldQuery.h"
 
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGHelpers.h"
 
 #include "GameFramework/Actor.h"

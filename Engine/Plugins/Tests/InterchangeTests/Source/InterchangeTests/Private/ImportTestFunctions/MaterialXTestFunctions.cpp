@@ -6,8 +6,6 @@
 
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
-#include "Materials/MaterialInterface.h"
-#include "Materials/MaterialInterface.h"
 
 namespace UE::Interchange::Tests::Private
 {

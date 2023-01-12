@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "VoipListenerSynthComponent.h"
+#include "VoicePacketBuffer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VoipListenerSynthComponent)
 

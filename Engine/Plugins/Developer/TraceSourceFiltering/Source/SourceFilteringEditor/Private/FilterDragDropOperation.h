@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/DragAndDrop.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
 
 #include "SourceFilterStyle.h"
 

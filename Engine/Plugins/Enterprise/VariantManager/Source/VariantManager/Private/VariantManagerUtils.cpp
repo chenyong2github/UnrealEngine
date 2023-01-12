@@ -2,13 +2,9 @@
 
 #include "VariantManagerUtils.h"
 
-#include "UObject/UnrealType.h"
-#include "UObject/UObjectGlobals.h"
-#include "Components/SceneComponent.h"
+#include "CineCameraSettings.h"
 #include "Components/MeshComponent.h"
 #include "Components/LightComponent.h"
-#include "Engine/Scene.h"  // So we can check FPostProcessSettings exists
-#include "CineCameraComponent.h"  // So we can check the CineCamera structs exist
 #include "CineCameraActor.h"	  // So we can check the CineCamera structs exist
 
 #define GET_STRUCT_NAME_CHECKED(StructName) \

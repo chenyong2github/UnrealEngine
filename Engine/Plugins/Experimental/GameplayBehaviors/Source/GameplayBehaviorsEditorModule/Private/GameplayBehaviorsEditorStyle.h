@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Styling/SlateStyle.h"
-#include "Templates/UniquePtr.h"
 
 class FGameplayBehaviorsEditorStyle final : public FSlateStyleSet
 {

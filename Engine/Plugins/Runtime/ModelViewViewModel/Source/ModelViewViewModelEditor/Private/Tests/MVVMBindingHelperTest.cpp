@@ -4,6 +4,8 @@
 #include "Misc/AutomationTest.h"
 
 #include "Bindings/MVVMBindingHelper.h"
+#include "Misc/TVariantMeta.h"
+#include "Templates/ValueOrError.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBindingHelperTest)
 

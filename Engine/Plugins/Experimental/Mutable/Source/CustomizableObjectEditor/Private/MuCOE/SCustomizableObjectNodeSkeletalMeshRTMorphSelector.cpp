@@ -2,27 +2,13 @@
 
 #include "MuCOE/SCustomizableObjectNodeSkeletalMeshRTMorphSelector.h"
 
-#include "Animation/MorphTarget.h"
-#include "CoreTypes.h"
 #include "Engine/SkeletalMesh.h"
-#include "Framework/Views/ITypedTableView.h"
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
-#include "Layout/Children.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/Attribute.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "ScopedTransaction.h"
-#include "SlotBase.h"
-#include "Templates/Decay.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
 
 class ITableRow;
 class STableViewBase;

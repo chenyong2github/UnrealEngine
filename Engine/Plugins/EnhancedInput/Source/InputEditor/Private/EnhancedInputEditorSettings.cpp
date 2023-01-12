@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnhancedInputEditorSettings.h"
+#include "EnhancedInputDeveloperSettings.h"
 #include "EnhancedPlayerInput.h"
-#include "InputMappingContext.h"
-#include "EnhancedInputEditorSubsystem.h"
-#include "Editor.h"
+#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputEditorSettings)
 

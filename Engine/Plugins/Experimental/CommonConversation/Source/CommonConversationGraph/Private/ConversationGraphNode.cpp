@@ -3,6 +3,7 @@
 #include "ConversationGraphNode.h"
 #include "ConversationGraphSchema.h"
 
+#include "ConversationGraphTypes.h"
 #include "SConversationGraphNode.h"
 
 #include "ConversationDatabase.h"

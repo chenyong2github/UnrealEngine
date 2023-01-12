@@ -5,6 +5,8 @@
 #include "TTMLSubtitleList.h"
 #include "ElectraSubtitleUtils.h"
 #include "expat.h"
+#include "ttml/TTMLSubtitleHandler.h"
+#include <expat_external.h>
 
 
 #define XML_NAMESPACE_SEPARATOR_CHAR ':'

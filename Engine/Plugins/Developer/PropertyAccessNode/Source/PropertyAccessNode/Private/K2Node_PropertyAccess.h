@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node.h"
 #include "IClassVariableCreator.h"
 #include "EdGraph/EdGraphPin.h"
 
+#include "UObject/FieldPath.h"
 #include "K2Node_PropertyAccess.generated.h"
+
+struct FSearchTagDataPair;
 
 UCLASS(MinimalAPI)
 class UK2Node_PropertyAccess : public UK2Node, public IClassVariableCreator

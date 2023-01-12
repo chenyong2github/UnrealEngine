@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineBeacon.h"
+#include "Engine/Channel.h"
 #include "Engine/NetConnection.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBeacon)

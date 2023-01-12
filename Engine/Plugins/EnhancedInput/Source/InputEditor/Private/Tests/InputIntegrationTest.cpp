@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "InputTestFramework.h"
-#include "InputTriggers.h"
-#include "InputModifiers.h"
 #include "Misc/AutomationTest.h"
 
 constexpr auto BasicIntegrationTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;	// TODO: Run as Smoke/Client? No world on RunSmokeTests startup...

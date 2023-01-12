@@ -2,17 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "InputCoreTypes.h"
-#include "EdGraph/EdGraph.h"
-#include "Textures/SlateIcon.h"
 #include "EdGraph/EdGraphNodeUtils.h"
-#include "BlueprintNodeSignature.h"
 #include "K2Node.h"
 #include "K2Node_EventNodeInterface.h"
 
 #include "K2Node_InputDebugKey.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
+struct FBlueprintNodeSignature;
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;

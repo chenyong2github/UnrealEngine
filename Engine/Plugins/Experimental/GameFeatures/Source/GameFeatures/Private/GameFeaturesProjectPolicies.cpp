@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFeaturesProjectPolicies.h"
-#include "GameFeaturesSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "Misc/CoreMisc.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeaturesProjectPolicies)
 

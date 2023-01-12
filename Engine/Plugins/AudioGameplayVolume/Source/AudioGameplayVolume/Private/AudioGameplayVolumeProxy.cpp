@@ -8,7 +8,6 @@
 #include "AudioGameplayVolumeComponent.h"
 #include "Engine/World.h"
 #include "Interfaces/IAudioGameplayCondition.h"
-#include "Components/BrushComponent.h"
 #include "Components/PrimitiveComponent.h"
 
 namespace AudioGameplayVolumeConsoleVariables

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "OnlineSubsystem.h"
 #include "Interfaces/IMessageSanitizerInterface.h"
 #include "Containers/Ticker.h"
 

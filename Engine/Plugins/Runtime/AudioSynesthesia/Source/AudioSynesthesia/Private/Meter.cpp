@@ -2,10 +2,6 @@
 
 #include "Meter.h"
 #include "MeterFactory.h"
-#include "InterpolateSorted.h"
-#include "AudioSynesthesiaLog.h"
-#include "DSP/EnvelopeFollower.h"
-#include "DSP/Dsp.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Meter)
 

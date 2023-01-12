@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/TestSessionInterface.h"
-#include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameMode.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "Online/CoreOnlineFwd.h"
+#include "Online/OnlineSessionNames.h"
 #include "OnlineSubsystemUtils.h"
-#include "OnlineSubsystemSessionSettings.h"
 
 
 #if WITH_DEV_AUTOMATION_TESTS

@@ -5,7 +5,8 @@
 #include "PCGComponent.h"
 #include "PCGEdge.h"
 #include "PCGHelpers.h"
-#include "PCGSettings.h"
+#include "PCGPin.h"
+#include "UObject/EnumProperty.h"
 
 namespace PCGSettingsHelpers
 {

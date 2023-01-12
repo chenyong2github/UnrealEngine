@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/GameFrameworkInitStateInterface.h"
-#include "Components/GameFrameworkComponent.h"
+#include "Components/GameFrameworkComponentDelegates.h"
 #include "Components/GameFrameworkComponentManager.h"
-#include "Engine/World.h"
-#include "Engine/GameInstance.h"
-#include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 #include "ModularGameplayLogs.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFrameworkInitStateInterface)

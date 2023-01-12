@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EnhancedInputSubsystems.h"
-#include "InputMappingContext.h"
-#include "InputActionValue.h"
 
+#include "EnhancedInputSubsystemInterface.h"
 #include "InputTestFramework.generated.h"
 
 struct FEnhancedActionKeyMapping;

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistryId.h"
-#include "DataRegistryTypes.h"
-#include "Misc/StringBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryId)
 

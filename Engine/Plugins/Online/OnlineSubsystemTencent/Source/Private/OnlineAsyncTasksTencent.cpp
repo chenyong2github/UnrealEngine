@@ -1,18 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineAsyncTasksTencent.h"
-#include "OnlineSubsystemTencentPrivate.h"
-#include "OnlineSubsystemTencentTypes.h"
-#include "Interfaces/OnlineExternalUIInterface.h"
-#include "Interfaces/OnlinePresenceInterface.h"
-#include "Internationalization/Culture.h"
-#include "Internationalization/FastDecimalFormat.h"
-#include "PlayTimeLimitImpl.h"
 
 #if WITH_TENCENT_RAIL_SDK
 
+#include "Interfaces/OnlineExternalUIInterface.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/FastDecimalFormat.h"
+#include "OnlineIdentityTencent.h"
 #include "OnlineSessionTencentRail.h"
 #include "OnlinePresenceTencent.h"
+#include "OnlineSubsystemTencent.h"
 #include "MetadataKeysRail.h"
 #include "OnlineSubsystemSessionSettings.h"
 #include "OnlineFriendsTencent.h"

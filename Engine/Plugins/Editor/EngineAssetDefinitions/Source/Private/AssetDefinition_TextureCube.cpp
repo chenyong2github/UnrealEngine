@@ -3,7 +3,6 @@
 #include "AssetDefinition_TextureCube.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "Factories/TextureCubeArrayFactory.h"

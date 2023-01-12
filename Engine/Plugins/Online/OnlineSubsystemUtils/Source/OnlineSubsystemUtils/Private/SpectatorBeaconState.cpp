@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpectatorBeaconState.h"
-#include "OnlineBeacon.h"
 #include "OnlineSubsystemTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SpectatorBeaconState)

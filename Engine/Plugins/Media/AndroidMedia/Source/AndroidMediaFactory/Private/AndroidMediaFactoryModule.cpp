@@ -2,17 +2,12 @@
 
 #include "AndroidMediaFactoryPrivate.h"
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "IMediaModule.h"
 #include "IMediaPlayerFactory.h"
-#include "UObject/NameTypes.h"
 
 #include "../../AndroidMedia/Public/IAndroidMediaModule.h"
 

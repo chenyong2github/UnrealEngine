@@ -2,7 +2,6 @@
 
 #include "MVVMViewModelBase.h"
 
-#include "Bindings/MVVMBindingHelper.h"
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBase)

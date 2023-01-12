@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "View/MVVMView.h"
+#include "FieldNotification/FieldMulticastDelegate.h"
 #include "View/MVVMViewClass.h"
+#include "Misc/MemStack.h"
 #include "View/MVVMViewWorldSubsystem.h"
 
 #include "Debugging/MVVMDebugging.h"
 #include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetTree.h"
-#include "Engine/World.h"
 #include "MVVMMessageLog.h"
-#include "MVVMViewModelBase.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMFieldContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMView)
 

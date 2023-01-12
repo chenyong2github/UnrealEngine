@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
 #include "MuT/NodeModifierMeshClipWithMesh.h"
 #include "MuT/Table.h"
+
+class FName;
+class FString;
 
 class UCustomizableObjectNode;
 class UEdGraphPin;

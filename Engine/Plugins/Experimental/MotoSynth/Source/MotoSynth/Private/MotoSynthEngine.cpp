@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotoSynthEngine.h"
-#include "MotoSynthModule.h"
-#include "MotoSynthDataManager.h"
 #include "DSP/FloatArrayMath.h"
+#include "HAL/IConsoleManager.h"
+#include "MotoSynthPreset.h"
+#include "MotoSynthSourceAsset.h"
 
 static int32 MotosynthDisabledCVar = 0;
 FAutoConsoleVariableRef CVarDisableMotoSynth(

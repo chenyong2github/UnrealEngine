@@ -2,10 +2,9 @@
 
 #include "GameplayBehaviorsBlueprintFunctionLibrary.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/BTNode.h"
 #include "BehaviorTree/BTFunctionLibrary.h"
 #include "BlackboardKeyType_GameplayTag.h"
-#include "GameFramework/Actor.h"
+#include "GameplayBehavior.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorsBlueprintFunctionLibrary)
 

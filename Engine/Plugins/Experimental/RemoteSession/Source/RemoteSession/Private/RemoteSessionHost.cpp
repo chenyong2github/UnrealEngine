@@ -1,25 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteSessionHost.h"
+#include "BackChannel/IBackChannelPacket.h"
 #include "BackChannel/Transport/IBackChannelTransport.h"
-#include "FrameGrabber.h"
-#include "Widgets/SViewport.h"
-#include "BackChannel/Utils/BackChannelThreadedConnection.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
-#include "Channels/RemoteSessionInputChannel.h"
-#include "Channels/RemoteSessionFrameBufferChannel.h"
-#include "Engine/GameEngine.h"
+#include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Misc/ConfigCacheIni.h"
-#include "RemoteSession.h"
+#include "BackChannel/Transport/IBackChannelSocketConnection.h"
 #include "RemoteSessionModule.h"
+#include "Trace/Trace.inl"
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "IAssetViewport.h"
 #endif
-#include "Async/Async.h"
 
 namespace RemoteSessionEd
 {

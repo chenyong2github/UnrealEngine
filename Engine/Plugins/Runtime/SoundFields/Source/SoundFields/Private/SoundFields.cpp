@@ -2,8 +2,6 @@
 
 #include "SoundFields.h"
 #include "AudioAnalytics.h"
-#include "DSP/AlignedBuffer.h"
-#include "DSP/Dsp.h"
 #include "DSP/FloatArrayMath.h"
 #include "SoundFieldRendering.h"
 #include "HAL/IConsoleManager.h"

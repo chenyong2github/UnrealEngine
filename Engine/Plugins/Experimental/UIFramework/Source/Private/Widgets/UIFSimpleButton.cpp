@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/UIFSimpleButton.h"
-#include "UIFPlayerComponent.h"
 
-#include "Blueprint/WidgetTree.h"
-#include "Components/Button.h"
-#include "Components/TextBlock.h"
+#include "Blueprint/UserWidget.h"
 #include "MVVMSubsystem.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
+#include "Types/MVVMEventField.h"
 #include "View/MVVMView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFSimpleButton)

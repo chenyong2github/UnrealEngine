@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "GauntletModule.h"
-#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "UObject/Package.h"
-#include "CoreMinimal.h"
 #include "Misc/CommandLine.h"
 #include "GauntletTestController.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "Containers/Ticker.h"
 #include "GameFramework/GameStateBase.h"

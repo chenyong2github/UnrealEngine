@@ -3,40 +3,23 @@
 #include "MuCO/CustomizableInstanceLODManagement.h"
 
 #include "Camera/CameraActor.h"
-#include "Camera/CameraComponent.h"
-#include "Camera/CameraTypes.h"
-#include "Containers/Array.h"
-#include "Containers/EnumAsByte.h"
-#include "Containers/Map.h"
-#include "Engine/EngineTypes.h"
 #include "Engine/SkeletalMesh.h"
-#include "Engine/World.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "HAL/IConsoleManager.h"
-#include "HAL/PlatformCrt.h"
 #include "Kismet/GameplayStatics.h"
-#include "Math/BoxSphereBounds.h"
-#include "Math/Matrix.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
-#include "PerPlatformProperties.h"
-#include "SceneManagement.h"
-#include "Serialization/StructuredArchiveAdapters.h"
-#include "Templates/Casts.h"
-#include "UObject/ObjectPtr.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableInstanceLODManagement)
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
 #include "LevelEditorViewport.h"
+#else
+#include "Camera/CameraComponent.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarNumGeneratedInstancesLimit(

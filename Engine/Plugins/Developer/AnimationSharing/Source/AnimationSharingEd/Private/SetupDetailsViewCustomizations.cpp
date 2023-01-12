@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SetupDetailsViewCustomizations.h"
+#include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
-#include "Styling/AppStyle.h"
-#include "UObject/UObjectGlobals.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "AnimationSharingTypes.h"
-#include "Templates/SharedPointer.h"
 
 #define LOCTEXT_NAMESPACE "AnimationSharingSetupCustomization"
 

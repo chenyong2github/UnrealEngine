@@ -5,6 +5,7 @@
 #include "ConversationGraphTypes.h"
 #include "SGraphEditorActionMenuAI.h"
 #include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_Task)
 

@@ -2,21 +2,20 @@
 
 #pragma once
 
-#include "MuR/Model.h"
-#include "MuR/System.h"
-#include "MuR/Mesh.h"
-#include "MuR/Image.h"
-#include "Engine/StaticMesh.h"
-#include "Engine/StreamableManager.h"
 
+#include "Materials/MaterialInterface.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectSystemPrivate.h"
-#include "Engine/Texture2D.h"
 
-#include "ClothingAsset.h"
 #include "GameplayTagContainer.h"
 
+#include "UObject/Package.h"
 #include "CustomizableInstancePrivateData.generated.h"
+
+namespace mu { class PhysicsBody; }
+struct FMutableModelImageProperties;
+struct FMutableRefSkeletalMeshData;
+struct FStreamableHandle;
 
 /** CustomizableObject Instance flags for internal use  */
 enum ECOInstanceFlags

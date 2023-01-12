@@ -2,19 +2,13 @@
 
 #include "EnhancedInputSubsystemInterface.h"
 
-#include "EnhancedInputComponent.h"
 #include "EnhancedInputModule.h"
 #include "EnhancedInputPlatformSettings.h"
-#include "EnhancedPlayerInput.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
-#include "InputCoreTypes.h"
 #include "InputMappingContext.h"
-#include "InputModifiers.h"
-#include "InputTriggers.h"
+#include "InputMappingQuery.h"
 #include "PlayerMappableInputConfig.h"
-#include "PlayerMappableKeySettings.h"
-#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputSubsystemInterface)
 

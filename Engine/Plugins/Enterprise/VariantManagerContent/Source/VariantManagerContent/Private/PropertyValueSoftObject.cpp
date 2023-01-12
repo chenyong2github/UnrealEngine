@@ -7,8 +7,6 @@
 #include "VariantObjectBinding.h"
 
 #include "Components/ActorComponent.h"
-#include "CoreMinimal.h"
-#include "HAL/UnrealMemory.h"
 #include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyValueSoftObject)

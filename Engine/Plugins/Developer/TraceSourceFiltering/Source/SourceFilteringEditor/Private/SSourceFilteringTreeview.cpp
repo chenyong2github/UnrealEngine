@@ -2,6 +2,7 @@
 
 #include "SSourceFilteringTreeview.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "ISessionSourceFilterService.h"
 #include "FilterDragDropOperation.h"
 #include "SUserTraceFilteringWidget.h"

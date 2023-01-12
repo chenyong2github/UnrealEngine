@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenshotComparisonCommandlet.h"
-#include "Misc/Paths.h"
+#include "ImageComparer.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IScreenShotToolsModule.h"
-#include "Interfaces/IScreenShotManager.h"
-#include "HAL/FileManager.h"
-#include "PlatformInfo.h"
 #include "Misc/FileHelper.h"
 #include "AutomationWorkerMessages.h"
 #include "JsonObjectConverter.h"

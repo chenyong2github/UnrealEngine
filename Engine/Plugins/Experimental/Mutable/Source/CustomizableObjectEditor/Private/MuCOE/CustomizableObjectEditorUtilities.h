@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 static bool CompareNames(const TSharedPtr<FString>& sp1, const TSharedPtr<FString>& sp2)
 {

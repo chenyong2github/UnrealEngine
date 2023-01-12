@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 #include "IProceduralMeshComponentPlugin.h"
 
 class FProceduralMeshComponentPlugin : public IProceduralMeshComponentPlugin

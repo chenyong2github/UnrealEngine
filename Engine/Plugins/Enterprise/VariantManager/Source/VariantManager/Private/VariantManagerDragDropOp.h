@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DisplayNodes/VariantManagerDisplayNode.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "Input/DragAndDrop.h"
+
+class FVariantManagerDisplayNode;
 
 
 class FVariantManagerDragDropOp : public FDecoratedDragDropOp

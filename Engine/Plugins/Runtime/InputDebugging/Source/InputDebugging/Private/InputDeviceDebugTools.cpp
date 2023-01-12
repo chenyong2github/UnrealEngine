@@ -4,17 +4,11 @@
 
 #if SUPPORT_INPUT_DEVICE_DEBUGGING
 
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"
-#include "HAL/IConsoleManager.h"
-#include "GameFramework/InputDeviceSubsystem.h"
 #include "GameFramework/InputDeviceProperties.h"
-#include "GameFramework/InputSettings.h"
 #include "GameFramework/HUD.h"
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"
-#include "UObject/ObjectPtr.h"
-#include "Logging/LogMacros.h"
 #include "DrawDebugHelpers.h"
 
 FInputDeviceDebugTools::FInputDeviceDebugTools()

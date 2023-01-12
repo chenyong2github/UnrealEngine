@@ -3,6 +3,7 @@
 #include "PCGSubgraph.h"
 #include "PCGGraph.h"
 #include "PCGComponent.h"
+#include "PCGPin.h"
 #include "PCGSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubgraph)

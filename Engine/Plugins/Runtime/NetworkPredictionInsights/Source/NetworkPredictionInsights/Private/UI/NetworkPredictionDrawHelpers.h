@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Math/Color.h"
+
+struct FLinearColor;
 
 struct FDrawContext;
 struct FSlateBrush;

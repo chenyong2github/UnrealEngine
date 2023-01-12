@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationEditorTabs.h"
+#include "UObject/NameTypes.h"
 
 // Tab identifiers
 const FName FConversationEditorTabs::GraphDetailsID(TEXT("ConversationEditor_Properties"));

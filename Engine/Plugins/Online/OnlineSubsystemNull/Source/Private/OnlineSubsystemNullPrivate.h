@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystem.h"
-#include "Modules/ModuleManager.h"
 
 #define INVALID_INDEX -1
 

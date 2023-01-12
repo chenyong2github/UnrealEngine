@@ -1,14 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTask_MoveToStandTransition.h"
-#include "AISystem.h"
 #include "GameFramework/Pawn.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AIResources.h"
 #include "GameplayTasksComponent.h"
 #include "NavigationData.h"
-#include "NavigationSystem.h"
-#include "GameplayActuationComponent.h"
 #include "NavCorridor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayInteractionsTypes.h"

@@ -2,6 +2,7 @@
 
 #include "SPCGEditorGraphLogView.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "PCGComponent.h"
 #include "PCGEditor.h"
 #include "PCGEditorGraph.h"
@@ -9,13 +10,12 @@
 #include "PCGGraph.h"
 #include "PCGSubgraph.h"
 
-#include "Styling/AppStyle.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "PCGSettings.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SWidget.h"
 
 #include "Styling/StyleColors.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphLogView"
 

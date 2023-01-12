@@ -2,7 +2,7 @@
 
 
 #include "SGraphNode_EnvironmentQuery.h"
-#include "Types/SlateStructs.h"
+#include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Layout/SBox.h"
@@ -10,7 +10,6 @@
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "EnvironmentQuery/EnvQueryOption.h"
 #include "EnvironmentQueryGraph.h"
-#include "EnvironmentQueryGraphNode.h"
 #include "EnvironmentQueryGraphNode_Option.h"
 #include "EnvironmentQueryGraphNode_Test.h"
 #include "GraphEditorSettings.h"
@@ -18,8 +17,10 @@
 #include "NodeFactory.h"
 #include "SGraphPanel.h"
 #include "EnvironmentQueryColors.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SLevelOfDetailBranchNode.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "EnvironmentQueryEditor"
 

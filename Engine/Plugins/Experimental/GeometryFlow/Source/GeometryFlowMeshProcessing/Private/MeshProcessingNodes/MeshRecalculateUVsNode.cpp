@@ -4,7 +4,6 @@
 
 #include "Selections/MeshConnectedComponents.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
-#include "Parameterization/MeshUVTransforms.h"
 
 
 using namespace UE::Geometry;

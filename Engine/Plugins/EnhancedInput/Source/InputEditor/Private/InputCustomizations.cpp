@@ -3,17 +3,20 @@
 #include "InputCustomizations.h"
 
 #include "ActionMappingDetails.h"
-#include "DetailCategoryBuilder.h"
+#include "AssetRegistry/ARFilter.h"
 #include "DetailLayoutBuilder.h"
-#include "EnhancedActionKeyMapping.h"
+#include "Engine/Blueprint.h"
 #include "IDetailChildrenBuilder.h"
 #include "InputMappingContext.h"
+#include "KeyStructCustomization.h"
 #include "PropertyCustomizationHelpers.h"
 #include "EnhancedInputDeveloperSettings.h"
-#include "InputEditorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/BlueprintSupport.h"
+#include "Misc/PackageName.h"
 #include "UObject/UObjectIterator.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "InputCustomization"
 

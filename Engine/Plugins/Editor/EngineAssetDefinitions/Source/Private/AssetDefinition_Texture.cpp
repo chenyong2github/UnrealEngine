@@ -5,7 +5,6 @@
 #include "AssetRegistry/AssetIdentifier.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Engine/Texture2D.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "Misc/PackageName.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"

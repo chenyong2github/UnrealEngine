@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioGameplayVolumeMutator.h"
-#include "AudioGameplayVolumeListener.h"
+#include "AudioGameplayVolumeComponent.h"
 #include "AudioGameplayVolumeSubsystem.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeMutator)
 

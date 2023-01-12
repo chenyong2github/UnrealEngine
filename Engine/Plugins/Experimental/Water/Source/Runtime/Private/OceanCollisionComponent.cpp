@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OceanCollisionComponent.h"
-#include "PhysicsEngine/BoxElem.h"
+#include "BodySetupEnums.h"
 #include "WaterBodyActor.h"
-#include "DrawDebugHelpers.h"
+#include "Chaos/CollisionConvexMesh.h"
 #include "PrimitiveSceneProxy.h"
+#include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "PhysicsEngine/ConvexElem.h"
+#include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
 #include "ShaderCore.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "WaterUtils.h"
 
 // for working around Chaos issue
-#include "Chaos/Particles.h"
 #include "Chaos/Convex.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OceanCollisionComponent)

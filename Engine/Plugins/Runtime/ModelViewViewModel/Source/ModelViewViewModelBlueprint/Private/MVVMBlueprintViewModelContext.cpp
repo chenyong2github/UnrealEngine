@@ -2,7 +2,6 @@
 
 #include "MVVMBlueprintViewModelContext.h"
 
-#include "FieldNotification/IFieldValueChanged.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintViewModelContext)
 

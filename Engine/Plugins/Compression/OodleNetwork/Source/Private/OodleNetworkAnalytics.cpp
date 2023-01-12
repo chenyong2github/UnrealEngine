@@ -3,7 +3,6 @@
 // Includes
 #include "OodleNetworkAnalytics.h"
 #include "OodleNetworkHandlerComponent.h"
-#include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 
 

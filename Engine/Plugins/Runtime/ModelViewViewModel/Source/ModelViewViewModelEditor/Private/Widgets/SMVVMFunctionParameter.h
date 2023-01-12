@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Delegates/DelegateCombinations.h"
-#include "MVVMPropertyPath.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FMVVMBlueprintPropertyPath;
 
 class SGraphPin;
 class UK2Node_CallFunction;

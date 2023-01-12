@@ -2,22 +2,17 @@
 
 #include "PCGEditorUtils.h"
 
+#include "Blueprint/BlueprintSupport.h"
 #include "PCGGraph.h"
-#include "PCGSettings.h"
 #include "Elements/PCGExecuteBlueprint.h"
 
 #include "AssetToolsModule.h"
-#include "AssetTypeCategories.h"
 #include "AssetRegistry/ARFilter.h"
-#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/Blueprint.h"
+#include "IAssetTools.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
-#include "Modules/ModuleManager.h"
-#include "ObjectTools.h"
-#include "UObject/NoExportTypes.h"
 
 bool PCGEditorUtils::IsAssetPCGBlueprint(const FAssetData& InAssetData)
 {

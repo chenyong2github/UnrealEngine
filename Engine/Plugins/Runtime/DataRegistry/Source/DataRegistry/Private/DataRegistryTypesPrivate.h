@@ -3,8 +3,9 @@
 #pragma once
 
 #include "DataRegistryTypes.h"
-#include "Containers/SortedMap.h"
-#include "Templates/UniquePtr.h"
+
+class UDataRegistrySource;
+struct FStreamableHandle;
 
 // Types private to the module, code in DataRegistryTypes.cpp
 

@@ -4,7 +4,6 @@
 
 #include "EdGraph/EdGraphSchema.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/SoftObjectPath.h"
 
 #include "PCGEditorGraphSchemaActions.generated.h"
 

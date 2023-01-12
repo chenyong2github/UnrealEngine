@@ -2,6 +2,7 @@
 
 #include "AI/GameplayBehaviorConfig_BehaviorTree.h"
 #include "AI/GameplayBehavior_BehaviorTree.h"
+#include "BehaviorTree/BehaviorTree.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorConfig_BehaviorTree)
 

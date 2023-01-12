@@ -2,16 +2,8 @@
 
 #include "MuCOE/CustomizableObjectGraph.h"
 
-#include "Containers/Array.h"
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-#include "Templates/Casts.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/ObjectPtr.h"
 
 class UObject;
 

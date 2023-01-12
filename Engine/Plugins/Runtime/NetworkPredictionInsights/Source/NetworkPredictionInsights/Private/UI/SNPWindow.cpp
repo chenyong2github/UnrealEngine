@@ -2,22 +2,11 @@
 
 #include "SNPWindow.h"
 
-#include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
-#include "Insights/Common/PaintUtils.h"
-#include "Widgets/Input/SNumericEntryBox.h"
 #include "SNPSimFrameContents.h"
 #include "Modules/ModuleManager.h"
 #include "Insights/IUnrealInsightsModule.h"

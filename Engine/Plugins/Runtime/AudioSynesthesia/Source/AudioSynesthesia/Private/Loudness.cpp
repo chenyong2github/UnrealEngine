@@ -2,8 +2,6 @@
 
 #include "Loudness.h"
 #include "LoudnessFactory.h"
-#include "InterpolateSorted.h"
-#include "AudioSynesthesiaLog.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Loudness)
 

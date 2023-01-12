@@ -4,7 +4,9 @@
 
 #include "Logging/MessageLog.h"
 
-#include "Blueprint/UserWidget.h"
+#include "UObject/WeakObjectPtr.h"
+
+class UUserWidget;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMVVM, Log, All);
 

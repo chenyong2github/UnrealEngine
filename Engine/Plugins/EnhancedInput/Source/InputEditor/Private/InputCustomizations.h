@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "IDetailCustomNodeBuilder.h"
 #include "IPropertyTypeCustomization.h"
-#include "KeyStructCustomization.h"
+
+class FKeyStructCustomization;
 
 class IDetailPropertyRow;
 class IDetailLayoutBuilder;

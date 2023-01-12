@@ -4,7 +4,6 @@
 
 #include "NiagaraSystemInstance.h"
 #include "WaterBodyComponent.h"
-#include "WaterSplineComponent.h"
 #include "WaterModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceWater)

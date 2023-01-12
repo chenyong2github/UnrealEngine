@@ -2,17 +2,16 @@
 
 #include "SVariantManagerActorListView.h"
 
-#include "CoreMinimal.h"
+#include "DisplayNodes/VariantManagerActorNode.h"
 #include "DisplayNodes/VariantManagerVariantNode.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "DragAndDrop/DecoratedDragDropOp.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ScopedTransaction.h"
 #include "SVariantManager.h"
 #include "SVariantManagerTableRow.h"
 #include "VariantManager.h"
-#include "VariantManagerEditorCommands.h"
 #include "VariantManagerSelection.h"
 #include "VariantSet.h"
 

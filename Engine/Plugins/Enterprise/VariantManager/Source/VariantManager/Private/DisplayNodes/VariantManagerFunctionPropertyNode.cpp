@@ -3,13 +3,11 @@
 #include "DisplayNodes/VariantManagerFunctionPropertyNode.h"
 
 #include "PropertyValue.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "SVariantManager.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "K2Node_FunctionEntry.h"
 #include "PropertyCustomizationHelpers.h"
-#include "Algo/Sort.h"
 #include "LevelVariantSets.h"
+#include "VariantManager.h"
 #include "VariantObjectBinding.h"
 #include "BlueprintEditorModule.h"
 #include "FunctionCaller.h"
@@ -17,6 +15,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "EdGraph/EdGraph.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 

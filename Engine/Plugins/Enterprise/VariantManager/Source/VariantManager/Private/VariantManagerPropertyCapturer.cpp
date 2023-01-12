@@ -2,18 +2,10 @@
 
 #include "VariantManagerPropertyCapturer.h"
 
-#include "Components/ActorComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/LightComponent.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "UObject/ObjectMacros.h"
-#include "PropertyValue.h"  // For the delimiter character to use and category
-#include "VariantManagerLog.h"
 #include "CapturableProperty.h"
 #include "EdGraphSchema_K2.h"
-#include "Engine/BlueprintGeneratedClass.h"
 #include "VariantManagerUtils.h"
 #include "SwitchActor.h"
 

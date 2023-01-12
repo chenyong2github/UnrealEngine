@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
-#include "EditorUndoClient.h"
+
+class FStructOnScope;
+class SWidget;
+namespace ESelectInfo { enum Type : int; }
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;

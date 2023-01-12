@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/Guid.h"
 #include "HAL/Runnable.h"
 #include "Containers/Queue.h"

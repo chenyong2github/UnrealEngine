@@ -2,7 +2,9 @@
 
 #include "SClassTraceFilteringWidget.h"
 
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
 

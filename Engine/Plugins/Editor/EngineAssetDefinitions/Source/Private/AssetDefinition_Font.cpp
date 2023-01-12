@@ -3,7 +3,6 @@
 #include "AssetDefinition_Font.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "EditorReimportHandler.h"
 #include "FontEditorModule.h"

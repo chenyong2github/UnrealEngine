@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SignificanceManager.h"
-#include "EngineGlobals.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/HUD.h"
 #include "Engine/Engine.h"
 #include "Modules/ModuleManager.h"
 #include "Async/ParallelFor.h"
+#include "Stats/StatsTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SignificanceManager)
 

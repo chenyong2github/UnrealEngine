@@ -2,9 +2,6 @@
 
 #include "MuCOE/SMutableConstrainedBox.h"
 
-#include "Layout/Children.h"
-#include "Math/UnrealMathUtility.h"
-#include "Widgets/SWidget.h"
 
 void SMutableConstrainedBox::Construct(const FArguments& InArgs)
 {

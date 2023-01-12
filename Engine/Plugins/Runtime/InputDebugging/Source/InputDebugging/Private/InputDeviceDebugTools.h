@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Misc/Build.h"
+#include "Misc/Build.h" // IWYU: pragma: keep
 
 // Allow you to enable this debug drawing in a build.cs if you want, but default to when we are not in shipping.
 #if !defined(SUPPORT_INPUT_DEVICE_DEBUGGING)

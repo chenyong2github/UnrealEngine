@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
+#include "UObject/ObjectMacros.h"
+
+enum class ECheckBoxState : uint8;
+namespace ESelectInfo { enum Type : int; }
 
 class FString;
 class IDetailLayoutBuilder;

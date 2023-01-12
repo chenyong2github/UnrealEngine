@@ -1,15 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionEditableDetails.h"
-#include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
-#include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SComboButton.h"
 #include "DetailLayoutBuilder.h"
 #include "WorldConditionQuery.h"
-#include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/StyleColors.h"
 #include "StructViewerModule.h"
@@ -19,7 +16,6 @@
 #include "WorldConditionSchema.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 

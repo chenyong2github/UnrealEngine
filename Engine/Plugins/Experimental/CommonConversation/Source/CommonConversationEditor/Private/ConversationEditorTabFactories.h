@@ -2,14 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "EdGraph/EdGraph.h"
-#include "Widgets/SWidget.h"
-#include "WorkflowOrientedApp/WorkflowTabFactory.h"
-#include "GraphEditor.h"
-#include "ConversationEditor.h"
+#include "EdGraph/EdGraph.h" // IWYU pragma: keep
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
+
+class SGraphEditor;
 
 class FConversationEditor;
 

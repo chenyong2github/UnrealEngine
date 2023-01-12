@@ -4,7 +4,6 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "FontEditorModule.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "EditorReimportHandler.h"
 #include "ToolMenu.h"

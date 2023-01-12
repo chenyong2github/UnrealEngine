@@ -3,8 +3,11 @@
 #include "FastBuildJobProcessor.h"
 #include "FastBuildControllerModule.h"
 #include "FastBuildUtilities.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformTime.h"
 #include "Misc/Paths.h"
+#include "HAL/RunnableThread.h"
 
 namespace FastBuildJobProcessorOptions
 {

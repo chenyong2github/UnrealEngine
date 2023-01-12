@@ -2,18 +2,9 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
 #include "Containers/Ticker.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "UObject/GCObject.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "StatePerformanceTesting.generated.h"
 

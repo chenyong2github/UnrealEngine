@@ -3,7 +3,6 @@
 #include "SPluginTile.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "HAL/PlatformFileManager.h"
-#include "HAL/PlatformFile.h"
 #include "Misc/MessageDialog.h"
 #include "IDesktopPlatform.h"
 #include "Misc/App.h"

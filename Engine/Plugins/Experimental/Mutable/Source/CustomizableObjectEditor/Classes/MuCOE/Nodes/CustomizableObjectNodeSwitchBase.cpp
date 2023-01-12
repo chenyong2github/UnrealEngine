@@ -2,16 +2,9 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeSwitchBase.h"
 
-#include "Delegates/Delegate.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEnumParameter.h"
-#include "Serialization/Archive.h"
-#include "Templates/Casts.h"
-#include "UObject/WeakObjectPtr.h"
 
 class UCustomizableObjectNodeRemapPins;
 

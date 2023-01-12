@@ -2,14 +2,12 @@
 
 #pragma once
 
+#include "UObject/WeakInterfacePtr.h"
 #include "WaterLandscapeBrush.h"
 #include "WaterBrushCacheContainer.h"
-#include "WaterBodyHeightmapSettings.h"
-#include "WaterBodyWeightmapSettings.h"
-#include "WaterCurveSettings.h"
-#include "WaterBodyActor.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "WaterBrushManager.generated.h"
+
+class UMaterialInterface;
 
 
 class UTextureRenderTarget2D;

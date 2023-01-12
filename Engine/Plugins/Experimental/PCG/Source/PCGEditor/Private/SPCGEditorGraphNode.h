@@ -3,7 +3,8 @@
 #pragma once
 
 #include "SGraphNode.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+struct FOverlayBrushInfo;
 
 class UPCGEditorGraphNodeBase;
 

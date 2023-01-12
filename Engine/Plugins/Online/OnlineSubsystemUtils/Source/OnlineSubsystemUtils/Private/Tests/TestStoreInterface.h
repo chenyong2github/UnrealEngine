@@ -4,11 +4,10 @@
 
 // UE includes
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 
 // Module includes
 #include "Interfaces/OnlineStoreInterfaceV2.h"
+#include "Online/CoreOnlineFwd.h"
 
 class IOnlineSubsystem;
 

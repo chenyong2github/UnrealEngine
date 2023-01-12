@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemoryUsageInfoProvider.h"
-#include "HAL/LowLevelMemTracker.h"
 
 uint64 FMemoryUsageInfoProviderLLM::GetAssetMemoryUsage(FName Asset, FOutputDevice* ErrorOutput /* = GLog */) const
 {

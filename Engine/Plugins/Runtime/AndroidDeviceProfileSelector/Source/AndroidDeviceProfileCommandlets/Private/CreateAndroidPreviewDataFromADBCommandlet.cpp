@@ -9,7 +9,6 @@
 #include "Serialization/Csv/CsvParser.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
-#include "Internationalization/Regex.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CreateAndroidPreviewDataFromADBCommandlet)
 

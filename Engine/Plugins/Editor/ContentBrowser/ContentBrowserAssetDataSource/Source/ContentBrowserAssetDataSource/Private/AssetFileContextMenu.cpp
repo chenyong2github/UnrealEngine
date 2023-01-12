@@ -11,7 +11,6 @@
 #include "IAssetTypeActions.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "Internationalization/TextLocalizationManager.h"
 #include "UObject/MetaData.h"
 #include "ToolMenu.h"
 #include "UObject/PackageFileSummary.h"

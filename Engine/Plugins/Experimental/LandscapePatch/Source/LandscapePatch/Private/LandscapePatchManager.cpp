@@ -2,15 +2,14 @@
 
 #include "LandscapePatchManager.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "Modules/ModuleManager.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Landscape.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapePatchComponent.h"
 #include "LandscapePatchLogging.h"
-#include "RenderGraph.h" // RDG_EVENT_NAME
 #include "LandscapeModule.h"
 #include "LandscapeEditorServices.h"
 

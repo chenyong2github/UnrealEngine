@@ -2,10 +2,7 @@
 #include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
 
 #include "Brushes/SlateImageBrush.h"
-#include "HAL/PlatformMath.h"
 #include "Interfaces/IPluginManager.h"
-#include "Math/Vector2D.h"
-#include "Misc/AssertionMacros.h"
 #include "Misc/Paths.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"

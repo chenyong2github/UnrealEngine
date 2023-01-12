@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "Delegates/Delegate.h"
 #include "MVVMPropertyPath.h"
 #include "Styling/CoreStyle.h"
-#include "Templates/ValueOrError.h"
-#include "UObject/UnrealType.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Styling/SlateWidgetStyleAsset.h"
+
+template <typename ValueType, typename ErrorType> class TValueOrError;
 
 class SHorizontalBox;
 

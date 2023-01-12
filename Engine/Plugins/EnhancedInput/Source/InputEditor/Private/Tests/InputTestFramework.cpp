@@ -2,15 +2,11 @@
 
 #include "InputTestFramework.h"
 
-#include "CoreMinimal.h"
-#include "Editor.h"
-#include "Engine/LocalPlayer.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
-#include "EnhancedPlayerInput.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "InputMappingContext.h"
-#include "Misc/AutomationTest.h"
 #include "Tests/AutomationEditorCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputTestFramework)

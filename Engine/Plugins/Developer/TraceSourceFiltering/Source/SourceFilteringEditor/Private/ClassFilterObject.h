@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
 
 class FClassFilterObject : public TSharedFromThis<FClassFilterObject>

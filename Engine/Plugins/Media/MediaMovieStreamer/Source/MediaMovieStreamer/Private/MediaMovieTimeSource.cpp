@@ -3,7 +3,6 @@
 #include "MediaMovieTimeSource.h"
 
 #include "HAL/PlatformTime.h"
-#include "Misc/App.h"
 #include "Misc/Timespan.h"
 
 FTimespan FMediaMovieTimeSource::GetTimecode()

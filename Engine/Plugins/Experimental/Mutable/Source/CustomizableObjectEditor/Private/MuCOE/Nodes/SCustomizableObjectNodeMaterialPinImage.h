@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "Internationalization/Text.h"
-#include "Layout/Visibility.h"
 #include "SGraphPin.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SWidget;
 class UEdGraphPin;

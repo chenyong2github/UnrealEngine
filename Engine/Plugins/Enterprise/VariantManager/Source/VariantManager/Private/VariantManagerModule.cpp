@@ -9,12 +9,7 @@
 #include "VariantManagerEditorCommands.h"
 #include "VariantManagerStyle.h"
 
-#include "Editor.h"
-#include "Framework/Docking/TabManager.h"
-#include "IAssetTypeActions.h"
 #include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
-#include "Styling/SlateStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"

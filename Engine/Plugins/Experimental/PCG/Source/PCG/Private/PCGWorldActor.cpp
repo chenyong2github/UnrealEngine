@@ -2,7 +2,9 @@
 
 #include "PCGWorldActor.h"
 
+#include "Grid/PCGLandscapeCache.h"
 #include "PCGComponent.h"
+#include "PCGModule.h"
 #include "PCGSubsystem.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"

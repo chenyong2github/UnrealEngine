@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterEditorSettings.h"
-#include "Engine/Texture.h"
 #include "Engine/StaticMesh.h"
-#include "Materials/MaterialParameterCollection.h"
+#include "Engine/TextureDefines.h"
 #include "Materials/MaterialInterface.h"
 #include "WaterLandscapeBrush.h"
 #include "WaterZoneActor.h"

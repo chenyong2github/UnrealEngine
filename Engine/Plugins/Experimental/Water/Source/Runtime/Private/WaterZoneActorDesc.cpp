@@ -4,10 +4,6 @@
 
 #if WITH_EDITOR
 #include "WaterZoneActor.h"
-#include "WorldPartition/ActorDescContainer.h"
-#include "WorldPartition/WorldPartitionHandle.h"
-#include "UObject/UE5MainStreamObjectVersion.h"
-#include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 void FWaterZoneActorDesc::Init(const AActor* InActor)
 {

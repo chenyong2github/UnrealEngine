@@ -2,15 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Math/UnrealMathSSE.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
 #include "UObject/GCObject.h"
-#include "UObject/NameTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+namespace ESelectInfo { enum Type : int; }
 
 class FReferenceCollector;
 class ICustomizableObjectInstanceEditor;

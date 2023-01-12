@@ -4,9 +4,9 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "Blueprint/WidgetTree.h"
+#include "Templates/ValueOrError.h"
 #include "View/MVVMView.h"
-#include "MVVMViewModelBase.h"
-#include "Types/MVVMViewModelCollection.h"
+#include "Types/MVVMAvailableBinding.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMSubsystem)
 

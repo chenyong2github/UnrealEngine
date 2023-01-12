@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FractureEngineSelection.h"
+#include "Dataflow/DataflowSelection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
-#include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "Algo/RemoveIf.h"
+#include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/TransformCollection.h"
 
 static void ConvertSelectionSetToSelectionArr(const TSet<int32>& SelectionSet, TArray<int32>& SelectionArr)
 {

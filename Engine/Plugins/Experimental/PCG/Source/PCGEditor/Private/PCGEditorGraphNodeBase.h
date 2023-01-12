@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
 
-#include "PCGCommon.h"
 
 #include "PCGEditorGraphNodeBase.generated.h"
+
+enum class EPCGChangeType : uint8;
 
 class UPCGNode;
 class UPCGPin;

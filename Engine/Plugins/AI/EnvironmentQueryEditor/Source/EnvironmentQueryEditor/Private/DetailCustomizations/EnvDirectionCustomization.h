@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
+
+struct EVisibility;
 
 class IPropertyHandle;
 

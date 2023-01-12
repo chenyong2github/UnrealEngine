@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "HAL/Platform.h"
-#include "MuT/NodeModifierMeshClipWithMesh.h"
 #include "MuT/NodeSurfaceNew.h"
 
 class FString;

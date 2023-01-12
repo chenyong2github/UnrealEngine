@@ -2,9 +2,9 @@
 
 #include "ConstantQNRTFactory.h"
 #include "AudioSynesthesiaCustomVersion.h"
-#include "DSP/ConstantQ.h"
 #include "DSP/DeinterleaveView.h"
 #include "DSP/FloatArrayMath.h"
+#include "DSP/SlidingWindow.h"
 
 namespace Audio 
 {

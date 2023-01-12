@@ -3,12 +3,10 @@
 #include "SCapturedPropertiesWidget.h"
 
 #include "CapturableProperty.h"
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/SListView.h"
-#include "VariantManagerPropertyCapturer.h"
 
 #define LOCTEXT_NAMESPACE "SCapturedPropertiesWidget"
 

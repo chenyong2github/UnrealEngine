@@ -2,23 +2,12 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialDetails.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailsView.h"
-#include "Internationalization/Internationalization.h"
-#include "Math/IntPoint.h"
-#include "Math/IntRect.h"
-#include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterial.h"
-#include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksSelector.h"
 #include "MuCOE/PinViewer/SPinViewer.h"
-#include "Templates/Casts.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 

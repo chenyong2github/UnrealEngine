@@ -2,12 +2,9 @@
 
 #include "GameFeatureData.h"
 #include "AssetRegistry/AssetData.h"
-#include "Engine/AssetManager.h"
 #include "GameFeaturesSubsystem.h"
-#include "GameFeaturesSubsystemSettings.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigContext.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/CoreRedirects.h"
 #include "GameFeatureAction_AddWPContent.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"

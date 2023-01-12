@@ -2,12 +2,7 @@
 
 #include "MuCOE/SCustomizableObjectSystemVersion.h"
 
-#include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
-#include "Layout/Children.h"
-#include "Misc/Attribute.h"
 #include "MuCO/ICustomizableObjectModule.h"
-#include "SlotBase.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"

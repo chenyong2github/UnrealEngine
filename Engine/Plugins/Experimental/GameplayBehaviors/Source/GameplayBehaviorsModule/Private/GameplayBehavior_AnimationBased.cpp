@@ -4,8 +4,6 @@
 #include "GameplayBehaviorConfig_Animation.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AbilitySystemComponent.h"
-#include "GameFramework/Actor.h"
-#include "Animation/AnimMontage.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehavior_AnimationBased)

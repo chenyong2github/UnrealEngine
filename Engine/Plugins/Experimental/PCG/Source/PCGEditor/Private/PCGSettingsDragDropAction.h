@@ -3,8 +3,8 @@
 #pragma once
 
 #include "GraphEditorDragDropAction.h"
-#include "Input/DragAndDrop.h"
-#include "Input/Reply.h"
+
+class FReply;
 
 class UPCGEditorGraph;
 class UPCGSettings;

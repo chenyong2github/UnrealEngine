@@ -2,9 +2,10 @@
 
 #pragma once
 #include "IPropertyTypeCustomization.h"
-#include "Input/Reply.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SButton.h"
+
+class FReply;
+class SButton;
+class STextBlock;
 
 class IDetailLayoutBuilder;
 

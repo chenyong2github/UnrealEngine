@@ -3,11 +3,13 @@
 #include "ImportTestFunctions/StaticMeshImportTestFunctions.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
-#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 #include "StaticMeshAttributes.h"
+#include "InterchangeTestFunction.h"
 #include "StaticMeshResources.h"
-#include "ObjectTools.h"
+#include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshImportTestFunctions)
 

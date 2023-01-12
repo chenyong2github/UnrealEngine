@@ -2,8 +2,10 @@
 #pragma once
 
 #include "MoviePipelineImagePassBase.h"
-#include "OpenColorIODisplayExtension.h"
 #include "MoviePipelinePanoramicPass.generated.h"
+
+class FCanvas;
+class FOpenColorIODisplayExtension;
 
 class UTextureRenderTarget2D;
 struct FImageOverlappedAccumulator;

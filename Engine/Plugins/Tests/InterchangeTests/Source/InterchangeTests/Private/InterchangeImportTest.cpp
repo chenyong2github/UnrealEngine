@@ -1,31 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "HAL/PlatformFileManager.h"
+#include "AssetRegistry/ARFilter.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Misc/WildcardString.h"
 #include "Misc/AutomationTest.h"
-#include "InterchangeTestsLog.h"
-#include "ImportTestFunctions/StaticMeshImportTestFunctions.h"
 #include "InterchangeDispatcher.h"
 #include "InterchangeImportTestData.h"
-#include "InterchangeImportTestSettings.h"
 #include "InterchangeImportTestPlan.h"
 #include "InterchangeImportTestStepBase.h"
-#include "InterchangeManager.h"
-#include "InterchangeTestsModule.h"
-#include "UObject/StrongObjectPtr.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Editor/Transactor.h"
 
-#include "UObject/SavePackage.h"
+#include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
 
-#include "Engine/StaticMesh.h"
-#include "InterchangeGenericAssetsPipeline.h"
 
 
 IMPLEMENT_COMPLEX_AUTOMATION_TEST(FInterchangeImportTest, "Editor.Interchange.Import", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

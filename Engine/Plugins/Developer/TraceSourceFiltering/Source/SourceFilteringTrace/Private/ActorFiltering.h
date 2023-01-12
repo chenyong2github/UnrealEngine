@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "EngineUtils.h"
-#include "UObject/GCObject.h"
 #include "DataSourceFiltering.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 
 /** Simplified version of TActorIterator */
 struct FFilteredActorIterator

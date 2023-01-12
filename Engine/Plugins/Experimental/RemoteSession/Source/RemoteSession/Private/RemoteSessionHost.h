@@ -4,6 +4,8 @@
 
 #include "RemoteSessionRole.h"
 
+struct FRemoteSessionChannelInfo;
+
 class IBackChannelSocketConnection;
 class FRecordingMessageHandler;
 class FFrameGrabber;

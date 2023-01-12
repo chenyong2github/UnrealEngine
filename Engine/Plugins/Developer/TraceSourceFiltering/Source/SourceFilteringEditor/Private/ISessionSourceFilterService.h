@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
-#include "Templates/SharedPointer.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+class FExtender;
 
 enum class EFilterSetMode : uint8;
 

@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNPSimFrameView.h"
+#include "Insights/Common/PaintUtils.h"
 #include "NetworkPredictionDrawHelpers.h"
+#include "Layout/WidgetPath.h"
 #include "SNPWindow.h"
 #include "Insights/IUnrealInsightsModule.h"
-#include "Styling/AppStyle.h"
-#include "Styling/CoreStyle.h"
 #include "Modules/ModuleManager.h"
-#include "Framework/Commands/UIAction.h"
-#include "Textures/SlateIcon.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "UI/NPAxisViewportDouble.h"
+#include "UI/NPAxisViewportInt32.h"
+#include "Widgets/Layout/SScrollBar.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsights"
 

@@ -3,11 +3,9 @@
 #include "FFTPeakPitchDetector.h"
 
 #include "AudioSynesthesiaCoreLog.h"
-#include "CoreMinimal.h"
 #include "PeakPicker.h"
 #include "DSP/Dsp.h"
 #include "DSP/FFTAlgorithm.h"
-#include "DSP/SlidingWindow.h"
 #include "DSP/FloatArrayMath.h"
 
 namespace Audio

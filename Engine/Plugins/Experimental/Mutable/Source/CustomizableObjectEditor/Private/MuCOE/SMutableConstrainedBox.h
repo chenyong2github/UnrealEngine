@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "Math/Vector2D.h"
-#include "Misc/Attribute.h"
-#include "Misc/Optional.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SWidget;

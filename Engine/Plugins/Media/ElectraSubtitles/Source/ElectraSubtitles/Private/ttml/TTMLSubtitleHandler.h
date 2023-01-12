@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ParameterDictionary.h"
+#include "Containers/UnrealString.h"
 #include "PlayerTime.h"
+
+struct FScriptContainerElement;
 
 namespace ElectraTTMLParser
 {

@@ -2,12 +2,9 @@
 
 #include "NetworkPredictionDebug.h"
 #include "EngineUtils.h"
-#include "HAL/IConsoleManager.h"
-#include "GameFramework/Actor.h"
 #include "DrawDebugHelpers.h"
 #include "NetworkPredictionWorldManager.h"
 #include "Engine/NetConnection.h"
-#include "Engine/NetDriver.h"
 #include "EngineUtils.h"
 #include "UObject/UObjectIterator.h"
 

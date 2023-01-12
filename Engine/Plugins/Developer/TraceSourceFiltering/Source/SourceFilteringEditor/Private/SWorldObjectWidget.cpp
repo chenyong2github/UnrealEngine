@@ -2,9 +2,7 @@
 
 #include "SWorldObjectWidget.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SBoxPanel.h"
 #include "WorldObject.h"
-#include "Widgets/Views/STableRow.h"
 
 #include "ISessionSourceFilterService.h"
 

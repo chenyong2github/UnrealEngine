@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/Attribute.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Layout/Visibility.h"
 #include "IDetailCustomization.h"
+
+struct EVisibility;
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;

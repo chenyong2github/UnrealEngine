@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundFieldsModule.h"
-#include "Features/IModularFeatures.h"
+#include "Modules/ModuleManager.h"
 
 
 void FSoundFieldsModule::StartupModule()

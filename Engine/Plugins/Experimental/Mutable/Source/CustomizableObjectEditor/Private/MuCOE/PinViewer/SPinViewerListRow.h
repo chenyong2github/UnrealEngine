@@ -2,17 +2,9 @@
 
 #pragma once
 
-#include "Containers/BitArray.h"
-#include "Delegates/IDelegateInstance.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Layout/Visibility.h"
-#include "Misc/Guid.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UnrealTemplate.h"
-#include "UObject/NameTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/ITableRow.h"
 
 class SPinViewer;
 class STableViewBase;

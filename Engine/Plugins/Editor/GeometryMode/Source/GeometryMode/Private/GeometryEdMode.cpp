@@ -3,7 +3,6 @@
 #include "GeometryEdMode.h"
 #include "EditorViewportClient.h"
 #include "Engine/Texture2D.h"
-#include "Math/RotationMatrix.h"
 #include "Misc/FeedbackContext.h"
 #include "SceneView.h"
 #include "Selection.h"

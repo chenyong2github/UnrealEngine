@@ -3,8 +3,9 @@
 #pragma once
 
 
+#include "MuR/Image.h"
 #include "MuT/NodeImageConstant.h"
-#include "MuT/NodeScalarEnumParameter.h"
+#include "MuT/NodeRange.h"
 
 class FCustomizableObjectCompiler;
 class UCustomizableObjectNode;

@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraph/AnimGraphNode_FootPlacement.h"
-#include "Animation/AnimRootMotionProvider.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "DetailLayoutBuilder.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_FootPlacement

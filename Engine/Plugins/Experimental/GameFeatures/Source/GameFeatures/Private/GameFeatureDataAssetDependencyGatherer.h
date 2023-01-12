@@ -5,8 +5,6 @@
 #if WITH_EDITOR
 
 #include "AssetRegistry/AssetDependencyGatherer.h"
-#include "AssetRegistry/AssetData.h"
-#include "GameFeatureData.h"
 
 class FGameFeatureDataAssetDependencyGatherer : public IAssetDependencyGatherer
 {

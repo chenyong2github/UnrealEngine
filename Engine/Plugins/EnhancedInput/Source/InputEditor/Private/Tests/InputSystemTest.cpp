@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "InputMappingContext.h"
 #include "Misc/AutomationTest.h"
-#include "EnhancedInputModule.h"
-#include "EnhancedPlayerInput.h"
 #include "InputMappingQuery.h"
-#include "InputModifiers.h"
 #include "InputTestFramework.h"
 
 // Tests focused on the underlying enhanced input system

@@ -2,12 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeColorArithmeticOp.h"
 
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "UObject/Class.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 struct FPropertyChangedEvent;

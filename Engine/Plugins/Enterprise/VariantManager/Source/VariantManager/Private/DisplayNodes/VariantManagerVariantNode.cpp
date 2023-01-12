@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/VariantManagerVariantNode.h"
+#include "DisplayNodes/VariantManagerActorNode.h"
 #include "Engine/Texture2D.h"
 #include "SVariantManager.h"
 #include "ThumbnailGenerator.h"
 #include "Variant.h"
+#include "VariantManager.h"
 #include "VariantManagerDragDropOp.h"
 #include "VariantManagerEditorCommands.h"
-#include "VariantManagerNodeTree.h"
 #include "VariantManagerSelection.h"
 #include "VariantManagerStyle.h"
 #include "VariantObjectBinding.h"
@@ -16,16 +17,13 @@
 #include "AssetThumbnail.h"
 #include "Brushes/SlateImageBrush.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "ObjectTools.h"
 #include "ScopedTransaction.h"
-#include "Textures/SlateIcon.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerVariantNode"
 

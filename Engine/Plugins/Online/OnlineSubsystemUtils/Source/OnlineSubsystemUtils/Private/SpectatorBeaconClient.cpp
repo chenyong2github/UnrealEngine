@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpectatorBeaconClient.h"
+#include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
 #include "SpectatorBeaconHost.h"
 

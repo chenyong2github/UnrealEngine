@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstancePackers/PCGInstancePackerByAttribute.h"
-#include "Metadata/PCGMetadataAttribute.h"
+#include "Data/PCGSpatialData.h"
+#include "InstancePackers/PCGInstancePackerBase.h"
+#include "PCGContext.h"
+#include "PCGElement.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerByAttribute)
 

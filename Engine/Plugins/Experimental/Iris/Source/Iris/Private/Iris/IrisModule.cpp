@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTypes.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 class FIrisModule : public IModuleInterface

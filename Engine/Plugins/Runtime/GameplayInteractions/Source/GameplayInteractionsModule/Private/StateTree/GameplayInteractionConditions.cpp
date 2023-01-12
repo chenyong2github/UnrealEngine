@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTree/GameplayInteractionConditions.h"
-#include "GameplayTagContainer.h"
 #include "StateTreeExecutionContext.h"
 #include "SmartObjectSubsystem.h"
 #include "StateTreeLinker.h"

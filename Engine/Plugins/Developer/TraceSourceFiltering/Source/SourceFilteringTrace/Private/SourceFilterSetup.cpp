@@ -5,10 +5,7 @@
 #include "Algo/Accumulate.h"
 #include "Misc/CoreDelegates.h"
 
-#include "SourceFilterSet.h"
-#include "SourceFilter.h"
 
-#include "DataSourceFilter.h"
 #include "DataSourceFilterSet.h"
 #include "TraceSourceFiltering.h"
 #include "TraceSourceFilteringSettings.h"

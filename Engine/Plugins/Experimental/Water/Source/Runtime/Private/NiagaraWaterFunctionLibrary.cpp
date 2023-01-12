@@ -2,8 +2,8 @@
 
 #include "NiagaraWaterFunctionLibrary.h"
 #include "NiagaraComponent.h"
-#include "WaterBodyActor.h"
 #include "NiagaraDataInterfaceWater.h"
+#include "WaterBodyComponent.h"
 #include "WaterModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraWaterFunctionLibrary)

@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
-#include "Input/Reply.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FCustomizableObjectEditor;

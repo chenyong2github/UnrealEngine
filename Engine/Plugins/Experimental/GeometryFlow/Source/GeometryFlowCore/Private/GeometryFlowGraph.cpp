@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryFlowGraph.h"
-#include "Util/ProgressCancel.h"
 #include "Async/Async.h"
 #include "Algo/Find.h"
 

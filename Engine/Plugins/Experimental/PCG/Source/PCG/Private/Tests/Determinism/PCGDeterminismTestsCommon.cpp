@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
+#include "Data/PCGPolyLineData.h"
 #include "PCGComponent.h"
-#include "PCGData.h"
+#include "Data/PCGSpatialData.h"
 #include "PCGGraph.h"
+#include "PCGContext.h"
 #include "PCGHelpers.h"
-#include "PCGNode.h"
 #include "PCGParamData.h"
 #include "PCGPin.h"
-#include "PCGPoint.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPrimitiveData.h"
 #include "Data/PCGSplineData.h"
@@ -16,13 +16,9 @@
 #include "Data/PCGVolumeData.h"
 #include "Graph/PCGGraphCache.h"
 #include "Graph/PCGGraphExecutor.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "GameFramework/Actor.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDeterminismTestsCommon)

@@ -6,7 +6,6 @@
 #include "ContentBrowserMenuContexts.h"
 #include "IAssetTools.h"
 #include "ToolMenus.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 

@@ -3,22 +3,10 @@
 #include "MuCOE/CustomizableObjectWidget.h"
 
 #include "DynamicMeshBuilder.h"
-#include "Engine/EngineTypes.h"
-#include "EngineDefines.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialInstance.h"
+#include "Editor/UnrealEdTypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Math/IntRect.h"
-#include "Math/NumericLimits.h"
-#include "Math/Plane.h"
-#include "Math/RotationMatrix.h"
-#include "Math/Rotator.h"
-#include "Math/ScaleMatrix.h"
-#include "Math/TranslationMatrix.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "SceneManagement.h"
-#include "Templates/UnrealTemplate.h"
-#include "UObject/UObjectGlobals.h"
 #include "UnrealWidget.h"
 
 class FMaterialRenderProxy;

@@ -2,8 +2,6 @@
 
 #include "FractureEnginePlugin.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 
 
 

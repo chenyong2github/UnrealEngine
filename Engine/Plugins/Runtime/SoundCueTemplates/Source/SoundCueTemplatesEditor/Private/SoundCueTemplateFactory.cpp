@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundCueTemplateFactory.h"
+#include "SoundCueTemplate.h"
 #include "SoundCueTemplateClassFilter.h"
 
 #include "AudioAnalytics.h"
-#include "ClassViewerModule.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Engine/Engine.h"
 #include "Kismet2/SClassPickerDialog.h"
-#include "SoundCueGraph/SoundCueGraphNode.h"
-#include "Sound/SoundCue.h"
-#include "UObject/Class.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueTemplateFactory)
 

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Views/TableViewTypeTraits.h"
-#include "Types/MVVMBindingName.h"
+#include "UObject/Class.h"
+
+struct FMVVMBindingName;
 
 class UWidgetBlueprint;
 

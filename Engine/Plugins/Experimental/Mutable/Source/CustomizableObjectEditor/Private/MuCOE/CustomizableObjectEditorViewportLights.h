@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Math/Color.h"
 #include "CustomizableObjectEditorViewportLights.generated.h"
 
 USTRUCT()

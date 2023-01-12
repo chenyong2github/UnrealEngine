@@ -4,9 +4,8 @@
 
 #include "ConversationDatabase.h"
 #include "ConversationCompiler.h"
-#include "Engine/AssetManager.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/ObjectSaveContext.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/CoreRedirects.h"
 
 #if WITH_EDITOR

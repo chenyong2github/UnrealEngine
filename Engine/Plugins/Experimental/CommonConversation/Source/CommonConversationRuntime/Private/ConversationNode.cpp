@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationNode.h"
-#include "ConversationInstance.h"
 
 #include "Engine/World.h"
 #include "UObject/Package.h"

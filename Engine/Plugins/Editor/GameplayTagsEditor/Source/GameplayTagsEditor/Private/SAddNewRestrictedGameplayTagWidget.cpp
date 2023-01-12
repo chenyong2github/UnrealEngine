@@ -6,7 +6,6 @@
 #include "GameplayTagsEditorModule.h"
 #include "GameplayTagsManager.h"
 #include "GameplayTagsModule.h"
-#include "HAL/PlatformProcess.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Notifications/SNotificationList.h"

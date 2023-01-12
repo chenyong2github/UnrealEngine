@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationLinkNode.h"
+#include "ConversationContext.h"
 #include "ConversationRegistry.h"
 #include "ConversationInstance.h"
 

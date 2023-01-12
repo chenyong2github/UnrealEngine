@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GizmoEdModeModule.h"
-#include "GizmoEdMode.h"
-#include "EditorModeRegistry.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FGizmoEdModeModule"
 

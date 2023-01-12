@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Misc/Attribute.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 /** Custom widget designed to display a color on a box */

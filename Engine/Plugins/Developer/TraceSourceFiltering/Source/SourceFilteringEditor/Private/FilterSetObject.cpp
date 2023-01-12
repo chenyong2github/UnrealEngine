@@ -2,20 +2,15 @@
 
 #include "FilterSetObject.h"
 
-#include "Widgets/SBoxPanel.h"
+#include "DataSourceFiltering.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Framework/Application/SlateApplication.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "UObject/Package.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISessionSourceFilterService.h"
 #include "IDataSourceFilterInterface.h"
 #include "IDataSourceFilterSetInterface.h"
-#include "SourceFilterStyle.h"
 #include "FilterDragDropOperation.h"
 
 #define LOCTEXT_NAMESPACE "FilterSetObject"

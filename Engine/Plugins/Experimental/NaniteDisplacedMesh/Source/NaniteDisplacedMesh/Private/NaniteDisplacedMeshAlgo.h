@@ -4,7 +4,9 @@
 
 #if WITH_EDITOR
 
-#include "NaniteBuilder.h"
+#include "Containers/Array.h"
+
+struct FStaticMeshBuildVertex;
 
 struct FNaniteDisplacedMeshParams;
 

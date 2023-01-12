@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "PropertyHandle.h"
-#include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;

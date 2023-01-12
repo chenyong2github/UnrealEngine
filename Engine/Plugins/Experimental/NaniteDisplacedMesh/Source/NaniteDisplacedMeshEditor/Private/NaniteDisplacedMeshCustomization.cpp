@@ -2,16 +2,11 @@
 
 #include "NaniteDisplacedMeshCustomization.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
-#include "Misc/AssertionMacros.h"
+#include "NaniteDisplacedMesh.h"
 #include "ScopedTransaction.h"
 #include "UObject/StructOnScope.h"
-#include "UObject/UnrealType.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 

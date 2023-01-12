@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
-#include "GameFeaturesSubsystem.h"
 #include "GameFeatureTypesFwd.h"
 
 //////////////////////////////////////////////////////////////////////////

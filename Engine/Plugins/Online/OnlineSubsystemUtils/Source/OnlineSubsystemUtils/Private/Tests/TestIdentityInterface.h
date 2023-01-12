@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+
+class FUserOnlineAccount;
 
 class Error;
 

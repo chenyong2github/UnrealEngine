@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "DisplayNodes/VariantManagerActorNode.h"
 #include "Widgets/Views/SListView.h"
+
+class FVariantManagerDisplayNode;
 
 
 class FVariantManager;

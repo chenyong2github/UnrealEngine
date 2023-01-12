@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNPToolbar.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "SNPWindow.h"
 #include "NetworkPredictionInsightsManager.h"
 #include "NetworkPredictionInsightsCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/SBoxPanel.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
-#include "Styling/AppStyle.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsightsModule"
 

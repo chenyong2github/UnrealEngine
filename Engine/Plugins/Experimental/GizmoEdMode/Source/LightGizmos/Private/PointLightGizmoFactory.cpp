@@ -2,14 +2,13 @@
 
 #include "PointLightGizmoFactory.h"
 #include "EditorModeManager.h"
-#include "Engine/Selection.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
+#include "InteractiveGizmoManager.h"
 #include "SubTransformProxy.h"
-#include "Math/Rotator.h"
-#include "UnrealWidgetFwd.h"
 #include "Engine/PointLight.h"
 #include "PointLightGizmo.h"
 #include "LightGizmosModule.h"
+#include "Selection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PointLightGizmoFactory)
 

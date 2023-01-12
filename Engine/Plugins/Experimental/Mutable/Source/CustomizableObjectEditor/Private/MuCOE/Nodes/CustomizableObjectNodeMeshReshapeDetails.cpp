@@ -2,7 +2,6 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeDetails.h"
 
-#include "Templates/SharedPointer.h"
 
 class IDetailLayoutBuilder;
 

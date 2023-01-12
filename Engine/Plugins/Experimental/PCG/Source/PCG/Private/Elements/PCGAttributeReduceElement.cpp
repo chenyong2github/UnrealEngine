@@ -2,16 +2,14 @@
 
 #include "Elements/PCGAttributeReduceElement.h"
 
-#include "PCGData.h"
+#include "Data/PCGSpatialData.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
-#include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
-#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeReduceElement)
 

@@ -2,9 +2,10 @@
 
 #include "ImportTestFunctions/MaterialImportTestFunctions.h"
 
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 #include "Materials/Material.h"
+#include "InterchangeTestFunction.h"
 #include "Materials/MaterialInstance.h"
-#include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialImportTestFunctions)
 

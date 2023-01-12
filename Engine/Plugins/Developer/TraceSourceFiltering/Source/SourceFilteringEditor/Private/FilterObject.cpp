@@ -7,12 +7,8 @@
 #include "ISessionSourceFilterService.h"
 #include "FilterDragDropOperation.h"
 #include "IDataSourceFilterInterface.h"
-#include "SourceFilterStyle.h"
 
 #if WITH_EDITOR
-#include "Editor/EditorEngine.h"
-#include "Editor.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 #endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "FilterObject"

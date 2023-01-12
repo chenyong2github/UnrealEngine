@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/TcpSerializeMessageTask.h"
+#include "IMessageContext.h"
 #include "Transport/TcpMessageTransportConnection.h"
 #include "Backends/JsonStructSerializerBackend.h"
 #include "StructSerializer.h"
+#include "TcpSerializedMessage.h"
 
 
 /* FTcpSerializeMessageTask interface

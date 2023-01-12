@@ -4,7 +4,6 @@
 
 #include "ContextualAnimSceneAsset.h"
 #include "StateTreeExecutionContext.h"
-#include "StateTreeLinker.h"
 #include "GameplayTask_PlayContextualAnim.h"
 #include "VisualLogger/VisualLogger.h"
 

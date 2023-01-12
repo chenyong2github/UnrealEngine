@@ -2,7 +2,6 @@
 
 #include "VariantManagerDragDropOp.h"
 
-#include "CoreMinimal.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerDragDropOp"
 

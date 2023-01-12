@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlinePlayTimeLimitTencent.h"
-#include "OnlineSubsystemTencentPrivate.h"
 
 #if WITH_TENCENT_RAIL_SDK
 

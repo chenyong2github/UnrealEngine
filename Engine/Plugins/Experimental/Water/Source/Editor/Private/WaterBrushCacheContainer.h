@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "WaterBrushCacheContainer.generated.h"
 
 class UTextureRenderTarget2D;

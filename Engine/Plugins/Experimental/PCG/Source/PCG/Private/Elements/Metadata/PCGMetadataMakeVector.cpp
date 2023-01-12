@@ -2,9 +2,6 @@
 
 #include "Elements/Metadata/PCGMetadataMakeVector.h"
 
-#include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Elements/Metadata/PCGMetadataElementCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataMakeVector)
 

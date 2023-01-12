@@ -22,7 +22,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/StyleColors.h"
 #include "SWarningOrErrorBox.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/SListView.h" // IWYU pragma: keep
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 

@@ -2,6 +2,8 @@
 
 #include "ImportTestFunctions/ActorImportTestFunctions.h"
 #include "GameFramework/Actor.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
+#include "InterchangeTestFunction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorImportTestFunctions)
 

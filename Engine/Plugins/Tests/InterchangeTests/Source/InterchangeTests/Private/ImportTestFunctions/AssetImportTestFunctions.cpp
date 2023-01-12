@@ -2,9 +2,9 @@
 
 #include "ImportTestFunctions/AssetImportTestFunctions.h"
 
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 #include "UObject/MetaData.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Package.h"
+#include "InterchangeTestFunction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetImportTestFunctions)
 

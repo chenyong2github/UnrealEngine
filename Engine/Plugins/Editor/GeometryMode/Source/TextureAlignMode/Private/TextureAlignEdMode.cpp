@@ -6,7 +6,6 @@
 #include "Engine/Brush.h"
 #include "Modules/ModuleManager.h"
 #include "EditorModeManager.h"
-#include "Math/RotationMatrix.h"
 #include "ScopedTransaction.h"
 #include "SurfaceIterators.h"
 #include "EditorSupportDelegates.h"

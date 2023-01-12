@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterVertexFactory.h"
-#include "ShaderParameterUtils.h"
-#include "RHIStaticStates.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "Materials/Material.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "MeshDrawShaderBindings.h"
+#include "MeshBatch.h"
 #include "MeshMaterialShader.h"
-#include "WaterInstanceDataBuffer.h"
+#include "RenderUtils.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FWaterVertexFactoryParameters, "WaterVF");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FWaterVertexFactoryRaytracingParameters, "WaterRaytracingVF");

@@ -4,7 +4,6 @@
 
 #include "Framework/Views/TableViewTypeTraits.h"
 #include "MVVMPropertyPath.h"
-#include "Types/MVVMFieldVariant.h"
 
 template <>
 struct TIsValidListItem<UE::MVVM::FMVVMFieldVariant>

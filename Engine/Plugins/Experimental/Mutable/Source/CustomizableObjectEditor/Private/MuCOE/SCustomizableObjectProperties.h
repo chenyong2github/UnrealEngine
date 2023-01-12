@@ -3,21 +3,11 @@
 #pragma once
 
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Delegates/Delegate.h"
-#include "HAL/PlatformCrt.h"
-#include "Misc/Optional.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateConstants.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STreeView.h"
+
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+template <typename ItemType> class STreeView;
 
 class FString;
 class ITableRow;

@@ -2,7 +2,6 @@
 
 #include "PCGEditorCommands.h"
 
-#include "Framework/Commands/InputChord.h"
 #include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorCommands"

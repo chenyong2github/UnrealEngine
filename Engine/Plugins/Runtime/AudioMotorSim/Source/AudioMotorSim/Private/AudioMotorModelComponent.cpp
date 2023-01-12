@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMotorModelComponent.h"
+#include "IAudioMotorSim.h"
+#include "IAudioMotorSimOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMotorModelComponent)
 

@@ -2,10 +2,7 @@
 
 #include "DataRegistryTypeCustomization.h"
 #include "DataRegistryEditorModule.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SToolTip.h"
-#include "Widgets/Text/STextBlock.h"
-#include "PropertyHandle.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "DataRegistryEditor"

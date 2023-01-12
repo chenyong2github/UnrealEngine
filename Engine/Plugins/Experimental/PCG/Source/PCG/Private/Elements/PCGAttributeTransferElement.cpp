@@ -2,11 +2,10 @@
 
 #include "Elements/PCGAttributeTransferElement.h"
 
-#include "PCGData.h"
-#include "PCGParamData.h"
 #include "Data/PCGPointData.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
+#include "Data/PCGSpatialData.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeTransferElement)
 

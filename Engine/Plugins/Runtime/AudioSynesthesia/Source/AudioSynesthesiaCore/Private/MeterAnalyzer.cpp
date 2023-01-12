@@ -2,9 +2,6 @@
 
 
 #include "MeterAnalyzer.h"
-#include "AudioMixer.h"
-#include "DSP/BufferVectorOperations.h"
-#include "DSP/DeinterleaveView.h"
 
 
 namespace Audio

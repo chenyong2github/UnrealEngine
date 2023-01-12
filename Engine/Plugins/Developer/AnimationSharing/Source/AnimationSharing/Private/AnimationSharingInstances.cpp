@@ -2,8 +2,6 @@
 
 #include "AnimationSharingInstances.h"
 #include "AnimationSharingManager.h"
-#include "Algo/Transform.h"
-#include "Stats/Stats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationSharingInstances)
 

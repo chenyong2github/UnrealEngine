@@ -2,10 +2,12 @@
 
 #include "Elements/PCGDifferenceElement.h"
 
-#include "PCGCommon.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGSettingsHelpers.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDifferenceElement)
 

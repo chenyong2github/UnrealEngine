@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixSendVolumeComponent.h"
-#include "ActiveSound.h"
-#include "AudioGameplayFlags.h"
+#include "Sound/AudioVolume.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixSendVolumeComponent)
 

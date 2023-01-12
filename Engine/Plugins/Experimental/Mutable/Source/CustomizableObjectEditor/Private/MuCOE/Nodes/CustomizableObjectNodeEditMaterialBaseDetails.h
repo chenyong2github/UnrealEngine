@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterialDetails.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
 
 class FString;
 class IDetailCustomization;

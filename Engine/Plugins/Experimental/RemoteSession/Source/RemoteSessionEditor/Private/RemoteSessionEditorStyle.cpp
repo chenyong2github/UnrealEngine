@@ -3,6 +3,7 @@
 #include "RemoteSessionEditorStyle.h"
 
 #include "Brushes/SlateImageBrush.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"

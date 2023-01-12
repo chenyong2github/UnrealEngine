@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/ISlateStyle.h"
-#include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
 
 class FWaterUIStyle
 {

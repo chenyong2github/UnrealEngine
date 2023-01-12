@@ -4,14 +4,12 @@
 
 #include "MotoSynthModule.h"
 #include "MotoSynthDataManager.h"
+#include "Sound/SampleBufferIO.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
-#include "AudioDeviceManager.h"
 #include "AudioDevice.h"
-#include "DSP/Filter.h"
 #include "DSP/DynamicsProcessor.h"
-#include "DSP/Dsp.h"
 #include "DSP/FloatArrayMath.h"
 #include "DSP/SampleRateConverter.h"
 #endif

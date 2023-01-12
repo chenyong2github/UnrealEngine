@@ -3,9 +3,10 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "MVVMBlueprintView.h"
-#include "Widgets/SMVVMFieldIcon.h"
-#include "Types/MVVMFieldVariant.h"
+
+class UWidgetBlueprint;
+namespace UE::MVVM { struct FMVVMConstFieldVariant; }
+struct FMVVMBlueprintPropertyPath;
 
 namespace UE::MVVM
 {

@@ -3,12 +3,9 @@
 #include "AutoCorrelationPitchDetector.h"
 
 #include "AudioSynesthesiaCoreLog.h"
-#include "CoreMinimal.h"
+#include "DSP/Dsp.h"
 #include "PeakPicker.h"
 #include "DSP/BlockCorrelator.h"
-#include "DSP/SlidingWindow.h"
-#include "DSP/FloatArrayMath.h"
-#include "SignalProcessingModule.h"
 
 namespace Audio
 {

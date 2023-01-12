@@ -2,16 +2,10 @@
 
 #include "MuCOE/CustomizableObjectCustomSettingsDetails.h"
 
-#include "Containers/Array.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailsView.h"
-#include "Internationalization/Text.h"
 #include "MuCOE/CustomizableObjectCustomSettings.h"
-#include "Templates/Casts.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 TSharedRef<IDetailCustomization> FCustomizableObjectCustomSettingsDetails::MakeInstance()
 {

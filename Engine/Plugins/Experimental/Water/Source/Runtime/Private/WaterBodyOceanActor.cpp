@@ -8,7 +8,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyOceanActor)
 
 #if WITH_EDITOR
-#include "WaterIconHelper.h"
 #endif
 
 // ----------------------------------------------------------------------------------

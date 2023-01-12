@@ -1,19 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistryIdCustomization.h"
-#include "DataRegistryEditorModule.h"
+#include "DataRegistry.h"
 #include "DataRegistrySubsystem.h"
 #include "DataTableEditorUtils.h"
-#include "Editor.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Text/STextBlock.h"
+#include "IDetailChildrenBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
-#include "Components/WidgetSwitcher.h"
 #include "PropertyCustomizationHelpers.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameplayTagsEditorModule.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryIdCustomization)
 

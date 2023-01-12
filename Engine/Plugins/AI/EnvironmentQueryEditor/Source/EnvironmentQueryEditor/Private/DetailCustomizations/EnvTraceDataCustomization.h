@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
 #include "IPropertyTypeCustomization.h"
+
+class SWidget;
+struct EVisibility;
 
 class IPropertyHandle;
 

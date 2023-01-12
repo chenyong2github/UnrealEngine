@@ -4,6 +4,7 @@
 
 #include "LandscapeUtils.h"
 #include "PixelShaderUtils.h"
+#include "RHIImmutableSamplerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTexturePatchPS)
 

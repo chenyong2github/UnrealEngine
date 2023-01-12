@@ -2,38 +2,17 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/EnumAsByte.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "EdGraph/EdGraphNode.h"
 #include "EditorUndoClient.h"
-#include "Engine/TextureDefines.h"
 #include "GraphEditor.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Math/Vector2D.h"
 #include "Misc/NotifyHook.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
-#include "PixelFormat.h"
-#include "Stats/Stats2.h"
-#include "Templates/SharedPointer.h"
 #include "TickableEditorObject.h"
-#include "Toolkits/IToolkit.h"
-#include "Types/SlateEnums.h"
-#include "UObject/GCObject.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectEditor.generated.h"
+
+enum class ECustomizableObjectProjectorType : uint8;
+namespace ESelectInfo { enum Type : int; }
 
 class FCustomizableObjectEditorViewportClient;
 class FProperty;

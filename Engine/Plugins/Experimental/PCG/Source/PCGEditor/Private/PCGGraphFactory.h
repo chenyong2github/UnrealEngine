@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Factories/Factory.h"
-#include "UObject/ObjectMacros.h"
 
 #include "PCGGraphFactory.generated.h"
 

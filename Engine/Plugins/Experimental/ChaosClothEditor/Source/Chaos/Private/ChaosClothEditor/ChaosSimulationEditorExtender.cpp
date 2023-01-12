@@ -2,10 +2,8 @@
 
 #include "ChaosClothEditor/ChaosSimulationEditorExtender.h"
 
-#include "ChaosClothEditorPrivate.h"
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
-#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Rendering/SkeletalMeshRenderData.h"

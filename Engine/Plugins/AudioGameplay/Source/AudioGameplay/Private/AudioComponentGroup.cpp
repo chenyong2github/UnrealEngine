@@ -2,10 +2,9 @@
 
 #include "AudioComponentGroup.h"
 #include "AudioComponentGroupDebug.h"
-#include "AudioParameter.h"
-#include "Kismet/GameplayStatics.h"
 
-#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Components/AudioComponent.h"
+#include "GameFramework/Actor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioComponentGroup)
 

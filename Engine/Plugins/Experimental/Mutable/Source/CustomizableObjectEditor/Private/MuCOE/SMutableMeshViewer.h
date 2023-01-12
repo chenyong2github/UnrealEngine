@@ -2,23 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
-#include "Math/Vector2D.h"
-#include "Misc/Optional.h"
 #include "MuR/Mesh.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+template <typename ItemType> class SListView;
 
 class FAssetThumbnail;
 class FAssetThumbnailPool;

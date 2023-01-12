@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDataRegistryListViewRow.h"
+#include "AssetRegistry/AssetIdentifier.h"
 #include "DataRegistryEditorToolkit.h"
 
-#include "AssetRegistry/AssetData.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Misc/MessageDialog.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "DetailWidgetRow.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Views/SListView.h"
+#include "Layout/WidgetPath.h"
 
 #define LOCTEXT_NAMESPACE "SDataRegistryListViewRowName"
 

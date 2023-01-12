@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LegacyCameraShake.h"
+#include "CameraAnimationSequence.h"
 #include "SequenceCameraShake.h"
-#include "Camera/CameraActor.h"
-#include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
+#include "MovieScene.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLegacyCameraShake, Warning, All);
 

@@ -2,7 +2,6 @@
 
 #include "K2Node_InputDebugKey.h"
 #include "GraphEditorSettings.h"
-#include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
 #include "K2Node_AssignmentStatement.h"
 #include "K2Node_TemporaryVariable.h"

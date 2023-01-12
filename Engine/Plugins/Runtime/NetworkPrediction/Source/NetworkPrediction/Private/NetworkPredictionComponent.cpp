@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionComponent.h"
-#include "Net/UnrealNetwork.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/Pawn.h"
 #include "Engine/World.h"
-#include "NetworkPredictionCheck.h"
 #include "NetworkPredictionWorldManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionComponent)

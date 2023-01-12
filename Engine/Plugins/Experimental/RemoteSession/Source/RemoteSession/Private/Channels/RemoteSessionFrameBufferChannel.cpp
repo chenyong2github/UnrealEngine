@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/RemoteSessionFrameBufferChannel.h"
+#include "Channels/RemoteSessionChannel.h"
 #include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
 
-#include "Misc/ConfigCacheIni.h"
 #include "RemoteSessionUtils.h"
 
 

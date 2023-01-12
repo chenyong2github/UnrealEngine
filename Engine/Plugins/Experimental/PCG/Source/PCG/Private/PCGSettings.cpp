@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGSettings.h"
+#include "PCGContext.h"
 #include "PCGCustomVersion.h"
-#include "PCGNode.h"
+#include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "UObject/ObjectSaveContext.h"

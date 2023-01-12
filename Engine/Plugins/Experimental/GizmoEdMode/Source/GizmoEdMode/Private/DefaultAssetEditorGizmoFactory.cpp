@@ -2,10 +2,10 @@
 
 #include "DefaultAssetEditorGizmoFactory.h"
 #include "EditorModeManager.h"
-#include "Engine/Selection.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
-#include "UnrealWidgetFwd.h"
+#include "InteractiveGizmoManager.h"
+#include "Selection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultAssetEditorGizmoFactory)
 

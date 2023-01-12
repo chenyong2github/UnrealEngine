@@ -2,21 +2,11 @@
 
 #include "MuCOE/CustomizableInstanceDetails.h"
 
-#include "Containers/Array.h"
-#include "Delegates/Delegate.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "HAL/PlatformCrt.h"
 #include "IDetailsView.h"
-#include "Internationalization/Internationalization.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObjectInstance.h"
-#include "MuCO/CustomizableObjectSystem.h"
 #include "MuCOE/SCustomizableInstanceProperties.h"
-#include "Templates/Casts.h"
-#include "UObject/NameTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class UObject;
 

@@ -2,10 +2,8 @@
 
 #include "AssetTagsSubsystem.h"
 
-#include "AssetRegistry/IAssetRegistry.h"
-#include "AssetRegistry/AssetRegistryState.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Containers/StringView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetTagsSubsystem)
 

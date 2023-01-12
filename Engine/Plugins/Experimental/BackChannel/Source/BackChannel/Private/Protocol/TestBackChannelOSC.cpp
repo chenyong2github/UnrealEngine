@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BackChannel/Protocol/OSC/BackChannelOSC.h"
-#include "BackChannel/Transport/IBackChannelTransport.h"
-#include "BackChannelCommon.h"
+#include "BackChannel/Protocol/OSC/BackChannelOSCBundle.h"
 #include "Misc/AutomationTest.h"
+#include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
 
 
 #if WITH_DEV_AUTOMATION_TESTS

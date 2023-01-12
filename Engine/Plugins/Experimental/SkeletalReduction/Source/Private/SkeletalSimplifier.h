@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "SkeletalSimplifierLinearAlgebra.h"
-#include "SkeletalSimplifierMeshManager.h"
+#include "Containers/BinaryHeap.h"
 #include "SkeletalSimplifierQuadricCache.h"
-#include "SkeletalSimplifierQuadrics.h"
-#include "SkeletalSimplifierVertex.h"
 
 
 namespace SkeletalSimplifier

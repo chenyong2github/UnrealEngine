@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraph.h"
-#include "PCGEdge.h"
 #include "PCGInputOutputSettings.h"
-#include "PCGSubgraph.h"
+#include "PCGModule.h"
 #include "PCGSubsystem.h"
-#include "UObject/Package.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
 

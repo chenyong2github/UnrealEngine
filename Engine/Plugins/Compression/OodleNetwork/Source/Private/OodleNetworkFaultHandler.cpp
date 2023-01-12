@@ -4,7 +4,6 @@
 // Includes
 #include "OodleNetworkFaultHandler.h"
 #include "Net/Core/Connection/NetConnectionFaultRecoveryBase.h"
-#include "Engine/NetConnection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OodleNetworkFaultHandler)
 

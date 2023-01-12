@@ -2,13 +2,12 @@
 
 #include "ConversationTaskNode.h"
 #include "CommonConversationRuntimeLogging.h"
+#include "ConversationContext.h"
 #include "ConversationRegistry.h"
 #include "ConversationChoiceNode.h"
 #include "ConversationRequirementNode.h"
 #include "ConversationSideEffectNode.h"
-#include "ConversationInstance.h"
 #include "Engine/World.h"
-#include "ConversationTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationTaskNode)
 

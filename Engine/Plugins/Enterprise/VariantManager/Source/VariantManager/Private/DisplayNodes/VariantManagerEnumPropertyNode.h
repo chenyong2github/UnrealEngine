@@ -4,9 +4,7 @@
 
 #include "DisplayNodes/VariantManagerPropertyNode.h"
 
-#include "CoreMinimal.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/SWidget.h"
 
 class SToolTip;
 

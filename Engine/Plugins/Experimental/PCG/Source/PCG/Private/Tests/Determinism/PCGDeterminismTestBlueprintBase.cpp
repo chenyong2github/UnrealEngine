@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
+#include "PCGNode.h"
+#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDeterminismTestBlueprintBase)
 

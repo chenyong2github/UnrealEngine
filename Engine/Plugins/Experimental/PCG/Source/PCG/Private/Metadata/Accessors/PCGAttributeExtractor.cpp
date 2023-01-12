@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Metadata/Accessors/PCGAttributeExtractor.h"
+#include "Metadata/Accessors/IPCGAttributeAccessorTpl.h"
 #include "Metadata/Accessors/PCGCustomAccessor.h"
 
 #include "Internationalization/Regex.h"

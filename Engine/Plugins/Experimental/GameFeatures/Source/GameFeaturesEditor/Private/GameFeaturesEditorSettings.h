@@ -3,11 +3,8 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Engine/DeveloperSettings.h"
-#include "Engine/EngineTypes.h"
+#include "Templates/SubclassOf.h"
 #include "GameFeaturesEditorSettings.generated.h"
 
 class UGameFeatureData;

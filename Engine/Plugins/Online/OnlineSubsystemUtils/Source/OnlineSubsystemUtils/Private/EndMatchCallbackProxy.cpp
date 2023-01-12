@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EndMatchCallbackProxy.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
+#include "Interfaces/OnlineTurnBasedInterface.h"
 #include "OnlineSubsystemBPCallHelper.h"
 #include "GameFramework/PlayerController.h"
 #include "OnlineSubsystem.h"
-#include "Interfaces/TurnBasedMatchInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EndMatchCallbackProxy)
 

@@ -2,7 +2,6 @@
 
 #include "AnimGraphNode_RemapCurvesFromMesh.h"
 
-#include "CurveExpressionModule.h"
 #include "SGraphNode.h"
 
 #include "Animation/AnimAttributes.h"

@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionPhysicsComponent.h"
-#include "Net/UnrealNetwork.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/Pawn.h"
-#include "Engine/World.h"
-#include "NetworkPredictionCheck.h"
 #include "NetworkPredictionPhysics.h"
 #include "NetworkPredictionProxyInit.h"
 #include "NetworkPredictionPhysics.h"
 #include "NetworkPredictionModelDefRegistry.h"
-#include "Components/PrimitiveComponent.h"
-#include "UObject/Object.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionPhysicsComponent)
 

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
 
 class FChaosSolverEditorStyle final : public FSlateStyleSet

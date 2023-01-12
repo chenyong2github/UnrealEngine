@@ -3,8 +3,10 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboBox.h"
+
+class SHorizontalBox;
+class SVerticalBox;
+template <typename ItemType> class SListView;
 
 class SComboButton;
 class ISessionSourceFilterService;

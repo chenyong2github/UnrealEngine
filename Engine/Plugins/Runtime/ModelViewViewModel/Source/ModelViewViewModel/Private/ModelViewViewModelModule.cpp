@@ -2,6 +2,7 @@
 
 #include "ModelViewViewModelModule.h"
 #include "HAL/IConsoleManager.h"
+#include "Modules/ModuleManager.h"
 #include "Types/MVVMExecutionMode.h"
 
 #define LOCTEXT_NAMESPACE "ModelViewViewModelModule"

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PlatformCryptoTypes.h"
 #include "PlatformCryptoOpenSSLTypes.h"
+
+template <typename OptionalType> struct TOptional;
 
 class FPlatformCryptoEncryptor_AES_Base_OpenSSL
 	: public IPlatformCryptoEncryptor

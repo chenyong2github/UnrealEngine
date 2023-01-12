@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "EnhancedInputModule.h"
-#include "InputMappingContext.h"
 #include "InputTestFramework.h"
 #include "Misc/AutomationTest.h"
 

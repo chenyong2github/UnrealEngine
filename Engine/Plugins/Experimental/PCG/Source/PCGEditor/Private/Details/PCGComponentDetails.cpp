@@ -3,13 +3,10 @@
 #include "Details/PCGComponentDetails.h"
 #include "PCGComponent.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
-#include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"
 

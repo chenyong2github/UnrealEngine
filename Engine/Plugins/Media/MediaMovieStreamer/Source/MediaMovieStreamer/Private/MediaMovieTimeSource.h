@@ -4,6 +4,8 @@
 
 #include "IMediaTimeSource.h"
 
+struct FTimespan;
+
 
 /**
  * Implements the a media time source that derives its time from the application's global time.

@@ -2,21 +2,13 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/SparseArray.h"
 #include "Containers/Ticker.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Math/IntVector.h"
-#include "Math/UnrealMathSSE.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "MuCOE/StatePerformanceTesting.h"
-#include "PixelFormat.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "StressTest.generated.h"
+
+enum EPixelFormat : uint8;
+struct MeasuredData;
 
 class UCustomizableObject;
 class UCustomizableObjectInstance;

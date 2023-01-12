@@ -2,7 +2,6 @@
 
 #include "ViewModel/MVVMFieldNotificationDelegates.h"
 
-#include "Bindings/MVVMBindingHelper.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldNotificationDelegates"
 

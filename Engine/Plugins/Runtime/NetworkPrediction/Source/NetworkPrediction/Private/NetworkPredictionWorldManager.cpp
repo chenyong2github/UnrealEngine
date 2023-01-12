@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionWorldManager.h"
-#include "NetworkPredictionCVars.h"
-#include "Debug/DebugDrawService.h"
-#include "GameFramework/PlayerController.h"
-#include "NetworkPredictionTrace.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PBDRigidsSolver.h"
 #include "ChaosSolversModule.h"
-#include "RewindData.h"
 #include "NetworkPredictionReplicatedManager.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionWorldManager)
 

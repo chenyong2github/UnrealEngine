@@ -3,13 +3,12 @@
 #include "WaterBodyCustomComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "WaterSubsystem.h"
 #include "Misc/UObjectToken.h"
+#include "WaterBodyActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyCustomComponent)
 
 #if WITH_EDITOR
-#include "WaterIconHelper.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"

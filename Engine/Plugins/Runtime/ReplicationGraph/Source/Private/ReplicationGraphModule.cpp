@@ -7,6 +7,7 @@ IMPLEMENT_MODULE( FReplicationGraphModule, ReplicationGraph );
 #include "HAL/IConsoleManager.h"
 #include "Misc/HotReloadInterface.h"
 #include "Misc/FeedbackContext.h"
+#include "UObject/UObjectGlobals.h"
 
 void RecompileReplicationGraph(const TArray<FString>& Args)
 {

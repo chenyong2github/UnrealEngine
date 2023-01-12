@@ -3,9 +3,10 @@
 #pragma once
 
 #include "AssetTypeCategories.h"
-#include "IAssetTypeActions.h"
 #include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
+
+class IAssetTypeActions;
 
 // Logs
 DECLARE_LOG_CATEGORY_EXTERN(LogPCGEditor, Log, All);

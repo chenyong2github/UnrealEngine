@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModel/MVVMViewModelBlueprintCompiler.h"
+#include "HAL/IConsoleManager.h"
 #include "ViewModel/MVVMViewModelBlueprint.h"
+#include "KismetCompiledFunctionContext.h"
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 #include "MVVMViewModelBase.h"
 
 #include "FieldNotification/CustomizationHelper.h"
 #include "FieldNotification/FieldNotificationHelpers.h"
 #include "K2Node_FunctionEntry.h"
-#include "K2Node_VariableSet.h"
-#include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "MVVMFunctionGraphHelper.h"
 

@@ -2,22 +2,11 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterial.h"
 
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
 #include "MaterialTypes.h"
-#include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
 #include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
-#include "Serialization/Archive.h"
-#include "Templates/Casts.h"
-#include "Trace/Detail/Channel.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Package.h"
 
 class FCustomizableObjectNodeParentedMaterial;
 class UCustomizableObjectNodeRemapPins;

@@ -3,7 +3,6 @@
 #include "HLODBuilderMeshMerge.h"
 
 #include "Algo/ForEach.h"
-#include "Concepts/StaticStructProvider.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"

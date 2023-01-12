@@ -4,8 +4,6 @@
 
 #include "DisplayNodes/VariantManagerPropertyNode.h"
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 
 class UPropertyValue;
 

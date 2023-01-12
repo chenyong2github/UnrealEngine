@@ -1,17 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionContextDataRefDetails.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
 #include "DetailWidgetRow.h"
-#include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SComboButton.h"
 #include "DetailLayoutBuilder.h"
-#include "IPropertyUtilities.h"
-#include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
-#include "WorldConditionTypes.h"
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
 #include "Editor.h"

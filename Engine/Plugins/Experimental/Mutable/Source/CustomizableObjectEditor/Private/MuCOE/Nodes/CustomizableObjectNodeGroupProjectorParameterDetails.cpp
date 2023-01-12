@@ -3,9 +3,9 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeGroupProjectorParameterDetails.h"
 
 #include "DetailLayoutBuilder.h"
-#include "EdGraph/EdGraphPin.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeGroupProjectorParameter.h"
+#include "PropertyHandle.h"
 
 
 TSharedRef<IDetailCustomization> FCustomizableObjectNodeGroupProjectorParameterDetails::MakeInstance()

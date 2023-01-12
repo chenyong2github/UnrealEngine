@@ -2,14 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "PropertyHandle.h"
 #include "IPropertyAccessEditor.h"
+
+namespace ETextCommit { enum Type : int; }
 
 class FMenuBuilder;
 class UEdGraph;

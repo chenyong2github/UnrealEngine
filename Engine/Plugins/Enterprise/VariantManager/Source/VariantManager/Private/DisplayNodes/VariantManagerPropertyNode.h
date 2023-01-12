@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 #include "UObject/StrongObjectPtr.h"
 

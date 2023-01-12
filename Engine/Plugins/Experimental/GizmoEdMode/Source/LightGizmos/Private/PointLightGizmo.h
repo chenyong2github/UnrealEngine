@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "BaseGizmos/ScalableSphereGizmo.h"
-#include "Engine/PointLight.h"
 #include "InteractiveGizmo.h"
-#include "SubTransformProxy.h"
 
+#include "InteractiveGizmoBuilder.h"
+#include "UObject/Package.h"
 #include "PointLightGizmo.generated.h"
+
+class APointLight;
+class UScalableSphereGizmo;
+class USubTransformProxy;
 
 UCLASS()
 class UPointLightGizmoBuilder : public UInteractiveGizmoBuilder

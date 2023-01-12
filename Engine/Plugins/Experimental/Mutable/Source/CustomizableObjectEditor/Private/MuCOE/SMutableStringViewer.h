@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Internationalization/Text.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 /**

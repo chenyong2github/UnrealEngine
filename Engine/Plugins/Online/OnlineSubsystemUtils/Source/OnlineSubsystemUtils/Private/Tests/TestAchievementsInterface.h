@@ -4,8 +4,6 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
 

@@ -2,9 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterialDetails.h"
 
-#include "Containers/Array.h"
 #include "DetailLayoutBuilder.h"
-#include "UObject/NameTypes.h"
 
 TSharedRef<IDetailCustomization> FCustomizableObjectNodeCopyMaterialDetails::MakeInstance()
 {

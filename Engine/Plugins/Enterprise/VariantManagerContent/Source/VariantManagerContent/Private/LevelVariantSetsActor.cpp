@@ -5,11 +5,6 @@
 #include "LevelVariantSets.h"
 #include "VariantSet.h"
 #include "Variant.h"
-#include "VariantObjectBinding.h"
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelVariantSetsActor)
 

@@ -3,15 +3,14 @@
 #include "SPCGEditorGraphFind.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Layout/WidgetPath.h"
 #include "PCGEditor.h"
 #include "PCGEditorGraph.h"
-#include "PCGEditorGraphNodeBase.h"
 
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphSchema.h"
-#include "Widgets/SWidget.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphFind"
 

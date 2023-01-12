@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "NetworkPredictionInsightsActionManager.h"
 #include "Containers/Ticker.h"
 

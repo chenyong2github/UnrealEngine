@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFeatureAction_DataRegistrySource.h"
-#include "Engine/AssetManager.h"
+#include "AssetRegistry/AssetBundleData.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "GameFeaturesSubsystem.h"
+#include "Engine/CurveTable.h"
 #include "GameFeaturesProjectPolicies.h"
 #include "DataRegistrySubsystem.h"
-#include "Engine/Engine.h"
+#include "Engine/DataTable.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_DataRegistrySource)
 

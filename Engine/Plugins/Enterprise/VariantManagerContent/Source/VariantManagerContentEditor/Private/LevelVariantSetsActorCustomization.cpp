@@ -8,17 +8,12 @@
 #include "VariantManagerContentEditorModule.h"
 
 #include "AssetToolsModule.h"
-#include "CoreMinimal.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Editor.h"
-#include "IAssetTools.h"
-#include "Modules/ModuleManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "UObject/Object.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "LevelVariantSetsActorCustomization"
 

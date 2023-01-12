@@ -3,10 +3,10 @@
 #include "VariantManager.h"
 
 #include "CapturableProperty.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsFunctionDirector.h"
-#include "PropertyValue.h"
 #include "PropertyValueColor.h"
 #include "PropertyValueMaterial.h"
 #include "PropertyValueOption.h"
@@ -21,16 +21,13 @@
 #include "VariantObjectBinding.h"
 #include "VariantSet.h"
 
-#include "CoreMinimal.h"
 #include "Dialogs/SCaptureDialog.h"
 #include "Editor.h"
 #include "FunctionCaller.h"
-#include "HAL/UnrealMemory.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_FunctionEntry.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ObjectTools.h"
-#include "PropertyPath.h"
 #include "UObject/StrongObjectPtr.h"
 
 DEFINE_LOG_CATEGORY(LogVariantManager);

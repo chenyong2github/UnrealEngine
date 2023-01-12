@@ -2,15 +2,12 @@
 
 #include "NiagaraDataInterfacePhysicsField.h"
 #include "Engine/World.h"
-#include "NiagaraShader.h"
-#include "NiagaraComponent.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
-#include "ShaderParameterUtils.h"
-#include "Field/FieldSystemNodes.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
-#include "ChaosStats.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfacePhysicsField)
 

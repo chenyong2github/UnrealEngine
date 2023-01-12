@@ -1,20 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQueryEditor.h"
+#include "DetailsViewArgs.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Modules/ModuleManager.h"
-#include "Styling/AppStyle.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryOption.h"
 #include "EnvironmentQueryGraph.h"
-#include "EnvironmentQueryGraphNode.h"
 #include "EnvironmentQueryGraphNode_Option.h"
 #include "EnvironmentQueryGraphNode_Root.h"
 #include "EnvironmentQueryGraphNode_Test.h"
+#include "IDesktopPlatform.h"
 #include "PropertyEditorModule.h"
 #include "EnvironmentQueryEditorModule.h"
+#include "Misc/Paths.h"
 #include "SEnvQueryProfiler.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Application/SlateApplication.h"
@@ -22,7 +21,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "EnvironmentQuery/EnvQuery.h"
-#include "EnvironmentQuery/EnvQueryManager.h"
 
 #include "IDetailsView.h"
 #include "Widgets/Docking/SDockTab.h"

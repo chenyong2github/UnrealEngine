@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-#include "Tests/PCGTestsCommon.h"
 
 #include "PCGPropertyToParamDataElementTest.generated.h"
 

@@ -4,9 +4,10 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "Engine/Engine.h"
+#include "FieldNotification/IClassDescriptor.h"
 #include "MVVMSubsystem.h"
-#include "Types/MVVMObjectVariant.h"
-#include <limits>
+#include "FieldNotification/IFieldValueChanged.h"
+#include "Misc/TVariantMeta.h"
 
 #define LOCTEXT_NAMESPACE "CompiledBindingLibraryCompiler"
 

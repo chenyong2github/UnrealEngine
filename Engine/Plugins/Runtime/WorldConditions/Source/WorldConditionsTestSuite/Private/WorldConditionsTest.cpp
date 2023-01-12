@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
 #include "Engine/World.h"
 #include "WorldConditionTestTypes.h"
-#include "WorldConditionQuery.h"
-#include "WorldConditionSchema.h"
-#include "WorldConditionContext.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_WorldConditionsTest"
 

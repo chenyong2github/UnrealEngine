@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionBase.h"
-#include "WorldConditionQuery.h"
-#include "WorldConditionSchema.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldConditionBase)
 

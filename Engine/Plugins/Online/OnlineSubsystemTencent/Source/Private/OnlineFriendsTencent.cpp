@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineFriendsTencent.h"
-#include "OnlineSubsystemTencentPrivate.h"
-#include "OnlineIdentityTencent.h"
-#include "OnlinePresenceTencent.h"
-#include "OnlineAsyncTasksTencent.h"
 
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK

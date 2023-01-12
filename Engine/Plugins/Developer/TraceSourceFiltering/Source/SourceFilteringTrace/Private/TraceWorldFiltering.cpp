@@ -2,15 +2,10 @@
 
 #include "TraceWorldFiltering.h"
 #include "SourceFilterTrace.h"
-#include "Misc/ScopeLock.h"
 #include "TraceFilters.h"
-#include "TraceFilter.h"
-#include "Engine/World.h"
-#include "Engine/Level.h"
 
 #include "ObjectTrace.h"
 #include "SourceFilterManager.h"
-#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

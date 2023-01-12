@@ -3,10 +3,6 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Internationalization/Text.h"
-#include "Styling/SlateColor.h"
-#include "Math/Color.h"
 
 /*
 * Mutable viewer to show a representation of a bool variable held by mutable.

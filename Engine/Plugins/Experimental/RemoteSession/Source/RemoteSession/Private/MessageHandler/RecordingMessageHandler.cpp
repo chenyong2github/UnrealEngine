@@ -1,20 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RecordingMessageHandler.h"
+#include "Engine/Engine.h"
 #include "RemoteSession.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSC.h"
+#include "MessageHandler/ProxyMessageHandler.h"
 #include "Messages.h"
-#include "Engine/GameEngine.h"
 #include "Engine/GameViewportClient.h"
-#include "Async/Async.h"
 
-#include "Components/CanvasPanelSlot.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Input/HittestGrid.h"
 #include "Layout/WidgetPath.h"
-#include "Misc/ScopeLock.h"
 #include "Slate/SceneViewport.h"
+#include "Widgets/SViewport.h"
 #include "Widgets/SWindow.h"
 
 // helper to serialize out const params

@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "MuT/Table.h"
+
+class FProperty;
+class FString;
 
 class UCustomizableObjectNodeTable;
 class UEdGraphPin;

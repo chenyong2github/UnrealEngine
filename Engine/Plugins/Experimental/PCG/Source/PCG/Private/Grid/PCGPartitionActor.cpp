@@ -4,11 +4,11 @@
 #include "Engine/World.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
+#include "PCGModule.h"
 #include "PCGSubsystem.h"
 #include "PCGWorldActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
-#include "Landscape.h"
 #include "Components/BoxComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPartitionActor)

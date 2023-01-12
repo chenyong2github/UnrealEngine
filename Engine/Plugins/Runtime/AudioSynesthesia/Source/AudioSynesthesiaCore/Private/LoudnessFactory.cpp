@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LoudnessFactory.h"
-#include "AudioSynesthesiaCustomVersion.h"
 #include "DSP/SlidingWindow.h"
 
 namespace Audio

@@ -2,16 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureProject.h"
 
-#include "Containers/EnumAsByte.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "Serialization/Archive.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UnrealType.h"
 
 class UCustomizableObjectNodeRemapPins;
 

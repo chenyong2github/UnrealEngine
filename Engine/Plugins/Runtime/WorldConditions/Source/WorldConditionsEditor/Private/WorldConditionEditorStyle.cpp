@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionEditorStyle.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/StyleColors.h"
-#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 
 TUniquePtr<FWorldConditionEditorStyle> FWorldConditionEditorStyle::Instance(nullptr);

@@ -2,7 +2,6 @@
 
 #include "AppleImageUtilsBlueprintSupport.h"
 #include "AppleImageUtilsBlueprintProxy.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AppleImageUtilsBlueprintSupport)

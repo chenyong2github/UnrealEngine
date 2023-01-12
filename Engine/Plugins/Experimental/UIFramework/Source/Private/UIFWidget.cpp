@@ -2,20 +2,16 @@
 
 #include "UIFWidget.h"
 //#include "UIFManagerSubsystem.h"
-#include "UIFPlayerComponent.h"
 
 #include "Blueprint/UserWidget.h"
 
-#include "Engine/ActorChannel.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/Engine.h"
 #include "Engine/NetDriver.h"
-#include "Engine/StreamableManager.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "Templates/NonNullPointer.h"
 #include "Types/UIFWidgetTree.h"
+#include "Types/UIFWidgetOwner.h"
+#include "Types/UIFWidgetTreeOwner.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFWidget)
 

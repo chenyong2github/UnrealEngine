@@ -3,9 +3,6 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
 
 class ITraceObject : public TSharedFromThis<ITraceObject>
 {

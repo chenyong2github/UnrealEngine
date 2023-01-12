@@ -3,25 +3,16 @@
 #include "Grid/PCGLandscapeCache.h"
 
 #include "Engine/World.h"
-#include "PCGSubsystem.h"
-#include "Data/PCGPointData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 #include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
 
-#include "UObject/WeakObjectPtr.h"
 
-#include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeComponent.h"
-#include "LandscapeInfo.h"
 #include "LandscapeInfoMap.h"
 #include "LandscapeProxy.h"
 #include "LandscapeDataAccess.h"
-#include "Landscape.h"
 #include "Kismet/GameplayStatics.h"
-#include "Serialization/BufferReader.h"
+#include "PCGPoint.h"
 #include "Serialization/BufferWriter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeCache)

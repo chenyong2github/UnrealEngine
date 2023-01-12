@@ -2,8 +2,9 @@
 
 #include "BoneControllers/AnimNode_OffsetRootBone.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "Animation/AnimRootMotionProvider.h"
-#include "Math/UnrealMathUtility.h"
+#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_OffsetRootBone)
 

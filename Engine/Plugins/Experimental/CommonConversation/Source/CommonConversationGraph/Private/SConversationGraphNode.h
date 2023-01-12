@@ -2,18 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SNodePanel.h"
-#include "ConversationGraphTypes.h"
-#include "SGraphNode.h"
-#include "SGraphPin.h"
 #include "SGraphNodeAI.h"
 #include "Misc/NotifyHook.h"
 #include "Widgets/SBoxPanel.h"
+
+class SBorder;
+struct FNodeBounds;
+struct FOverlayBrushInfo;
+struct FOverlayWidgetInfo;
 
 class SHorizontalBox;
 class SToolTip;

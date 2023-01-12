@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "ResultCache.h"
 
-#include "Containers/Array.h"
+#include "SourceFilter.h"
+#include "SourceFilterSet.h"
+
+struct FActorClassFilter;
 
 struct FFilter;
 struct FFilterSet;

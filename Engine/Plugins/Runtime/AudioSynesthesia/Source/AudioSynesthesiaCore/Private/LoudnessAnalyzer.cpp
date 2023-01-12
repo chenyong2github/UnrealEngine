@@ -3,7 +3,6 @@
 
 #include "LoudnessAnalyzer.h"
 #include "AudioMixer.h"
-#include "DSP/AlignedBuffer.h"
 #include "DSP/DeinterleaveView.h"
 #include "DSP/FloatArrayMath.h"
 

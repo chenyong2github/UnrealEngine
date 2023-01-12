@@ -2,22 +2,13 @@
 
 #include "Bindings/MVVMConversionFunctionHelper.h"
 
-#include "BlueprintTypePromotion.h"
 #include "Components/Widget.h"
 #include "Containers/Deque.h"
-#include "EdGraph/EdGraph.h"
-#include "EngineLogs.h"
-#include "K2Node_PromotableOperator.h"
+#include "K2Node_CallFunction.h"
 #include "K2Node_VariableGet.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "MVVMBlueprintView.h"
-#include "MVVMBlueprintViewModelContext.h"
-#include "MVVMViewModelBase.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "Misc/StringBuilder.h"
 #include "UObject/MetaData.h"
-#include "View/MVVMView.h"
-#include "WidgetBlueprint.h"
 
 namespace UE::MVVM::ConversionFunctionHelper
 {

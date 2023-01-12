@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Containers/ArrayView.h"
 #include "Delegates/Delegate.h"
 #include "HAL/PlatformTime.h"
 

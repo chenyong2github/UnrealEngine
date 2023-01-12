@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationSharingModule.h"
-#include "Engine/Engine.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "AnimationSharingManager.h"
 
 IMPLEMENT_MODULE( FAnimSharingModule, AnimationSharing);

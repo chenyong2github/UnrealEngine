@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Variant.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+class UVariant;
 
 struct FColumnSizeData;
 struct FVariantDependency;

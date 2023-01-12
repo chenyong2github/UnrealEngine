@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScalableConeGizmo.h"
-#include "Components/SphereComponent.h"
-#include "BaseGizmos/GizmoBoxComponent.h"
-#include "Engine/CollisionProfile.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "SceneManagement.h"
+#include "Engine/HitResult.h"
+#include "InteractiveGizmoManager.h"
+#include "ToolContextInterfaces.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ScalableConeGizmo)
 

@@ -4,7 +4,6 @@
 
 #include "ClassViewerFilter.h"
 #include "ContentBrowserMenuContexts.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ObjectTools.h"
 #include "SDetailsDiff.h"
 #include "ToolMenu.h"

@@ -2,7 +2,6 @@
 
 #include "Tests/TestExternalUIInterface.h"
 #include "OnlineSubsystem.h"
-#include "Internationalization/Text.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

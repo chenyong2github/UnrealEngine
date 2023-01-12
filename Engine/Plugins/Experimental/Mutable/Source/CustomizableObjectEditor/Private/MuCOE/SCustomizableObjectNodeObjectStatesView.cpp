@@ -2,30 +2,14 @@
 
 #include "MuCOE/SCustomizableObjectNodeObjectStatesView.h"
 
-#include "Framework/Views/ITypedTableView.h"
-#include "GenericPlatform/ICursor.h"
-#include "HAL/PlatformCrt.h"
-#include "Input/Reply.h"
-#include "Internationalization/Internationalization.h"
-#include "Layout/Children.h"
-#include "Misc/Attribute.h"
-#include "Misc/CString.h"
-#include "MuCO/CustomizableObject.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-#include "SlotBase.h"
-#include "Styling/AppStyle.h"
-#include "Templates/Casts.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/ITableRow.h"
-#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h"
 
 class STableViewBase;
 struct FSlateBrush;

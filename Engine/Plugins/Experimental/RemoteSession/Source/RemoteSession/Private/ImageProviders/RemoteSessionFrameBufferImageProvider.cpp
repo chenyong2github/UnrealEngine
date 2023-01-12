@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
-#include "Channels/RemoteSessionFrameBufferChannel.h"
-#include "RemoteSession.h"
-#include "HAL/IConsoleManager.h"
 #include "FrameGrabber.h"
 #include "Async/Async.h"
-#include "IImageWrapper.h"
-#include "IImageWrapperModule.h"
-#include "Engine/Texture2D.h"
-#include "Modules/ModuleManager.h"
+#include "Slate/SceneViewport.h"
 #include "Widgets/SWindow.h"
 
 

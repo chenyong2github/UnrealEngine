@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Types/UIFParentWidget.h"
-#include "GameFramework/PlayerController.h"
 #include "UIFWidget.h"
 #include "UIFPlayerComponent.h"
 

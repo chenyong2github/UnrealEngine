@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShowLoginUICallbackProxy.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"

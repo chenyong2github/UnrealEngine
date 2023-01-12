@@ -2,17 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DataRegistryTypes.h"
 #include "DataRegistryEditorModule.h"
+#include "DataRegistryId.h"
 #include "IPropertyTypeCustomization.h"
-#include "IPropertyUtilities.h"
-#include "IDetailChildrenBuilder.h"
-#include "EdGraphUtilities.h"
-#include "GameplayTagContainer.h"
 #include "KismetPins/SGraphPinStructInstance.h"
-#include "Widgets/SCompoundWidget.h"
 #include "DataRegistryIdCustomization.generated.h"
+
+struct FGameplayTag;
 
 /** This allows using this customization with blueprint pins */
 USTRUCT()

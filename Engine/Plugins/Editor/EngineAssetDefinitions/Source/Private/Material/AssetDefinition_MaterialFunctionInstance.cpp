@@ -3,7 +3,6 @@
 #include "AssetDefinition_MaterialFunctionInstance.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "IAssetTools.h"

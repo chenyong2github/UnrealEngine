@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebBrowserNativeProxyModule.h"
-#include "Modules/ModuleManager.h"
 #include "WebBrowserModule.h"
-#include "IWebBrowserSingleton.h"
 #include "IWebBrowserWindow.h"
 #include "IWebBrowserPopupFeatures.h"
 #include "SWebBrowser.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/App.h"
+#include "Widgets/SWindow.h"
 
 class FWebBrowserNativeProxyModule : public IWebBrowserNativeProxyModule
 {

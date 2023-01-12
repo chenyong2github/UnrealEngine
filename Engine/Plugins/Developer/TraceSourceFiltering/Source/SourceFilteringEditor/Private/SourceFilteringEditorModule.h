@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Framework/Docking/TabManager.h"
 
 #include "Templates/SharedPointer.h"
+
+class FTabManager;
 
 struct FInsightsMajorTabExtender;
 

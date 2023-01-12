@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveAssetActionExtenderMotoSynth.h"
+#include "Misc/PackageName.h"
 #include "ToolMenus.h"
-#include "AssetTypeActions_Base.h"
-#include "IContentBrowserSingleton.h"
 #include "Logging/MessageLog.h"
-#include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
-#include "ObjectEditorUtils.h"
-#include "Styling/AppStyle.h"
-#include "Sound/SoundWave.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "MotoSynthSourceFactory.h"
 #include "MotoSynthSourceAsset.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

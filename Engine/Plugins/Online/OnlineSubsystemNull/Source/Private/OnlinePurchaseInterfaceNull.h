@@ -5,6 +5,8 @@
 #include "Interfaces/OnlinePurchaseInterface.h"
 #include "OnlineSubsystemNullTypes.h"
 
+class FOnlineStoreOffer;
+
 class FOnlineSubsystemNull;
 
 class FOnlinePurchaseNull

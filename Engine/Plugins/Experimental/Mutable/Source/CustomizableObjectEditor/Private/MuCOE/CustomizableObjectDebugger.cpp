@@ -2,20 +2,9 @@
 
 #include "MuCOE/CustomizableObjectDebugger.h"
 
-#include "Framework/Docking/TabManager.h"
-#include "Internationalization/Internationalization.h"
-#include "Logging/LogMacros.h"
-#include "Misc/Attribute.h"
-#include "MuCO/CustomizableObject.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/SMutableObjectViewer.h"
-#include "Styling/ISlateStyle.h"
-#include "Toolkits/AssetEditorToolkit.h"
-#include "Types/SlateEnums.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 
 struct FSlateBrush;

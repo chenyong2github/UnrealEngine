@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+
+class FString;
 
 /**
  * Singleton wrapper to manage the Tcls proxy connection

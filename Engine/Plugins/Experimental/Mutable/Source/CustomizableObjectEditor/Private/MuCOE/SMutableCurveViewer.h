@@ -2,25 +2,13 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/ArrayView.h"
-#include "Containers/BitArray.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "CurveEditorTypes.h"
 #include "CurveModel.h"
-#include "Curves/KeyHandle.h"
 #include "Curves/RichCurve.h"
-#include "Delegates/Delegate.h"
-#include "HAL/Platform.h"
-#include "Misc/Optional.h"
 #include "MuR/ParametersPrivate.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/Tuple.h"
-#include "UObject/UnrealType.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+enum class ECurvePointType : uint8;
+template <typename ItemType> class SListView;
 
 class FCurveEditor;
 class ITableRow;

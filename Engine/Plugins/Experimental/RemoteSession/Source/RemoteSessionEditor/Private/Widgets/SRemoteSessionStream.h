@@ -2,21 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Blueprint/UserWidget.h"
 #include "Engine/AssetUserData.h"
-#include "IRemoteSessionRole.h"
-#include "SlateFwd.h"
-#include "SlateOptMacros.h"
+#include "Styling/SlateBrush.h"
 #include "TickableEditorObject.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/StrongObjectPtr.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Layout/SScaleBox.h"
+#include "Templates/SubclassOf.h"
 #include "Widgets/SCompoundWidget.h"
+#include "UObject/GCObject.h"
 #include "SRemoteSessionStream.generated.h"
+
+class IRemoteSessionChannel;
+class IRemoteSessionRole;
+class IRemoteSessionUnmanagedRole;
+enum class ERemoteSessionChannelChange : int32;
+namespace EStretch { enum Type : int; }
 
 struct FAssetData;
 struct FCanDeleteAssetResult;

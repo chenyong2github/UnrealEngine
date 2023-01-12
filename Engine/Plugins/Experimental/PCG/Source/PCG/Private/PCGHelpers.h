@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectPtr.h"
+#include "Math/Box.h"
 
 class AActor;
 class APCGWorldActor;

@@ -2,49 +2,44 @@
 
 #include "Graphs/GenerateStaticMeshLODProcess.h"
 
+#include "BodySetupEnums.h"
 #include "MeshLODToolsetModule.h"
 
 #include "Async/Async.h"
-#include "Async/ParallelFor.h"
 
+#include "Engine/StaticMeshSourceData.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "AssetUtils/Texture2DUtil.h"
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
 
+#include "Engine/Texture2D.h"
 #include "Physics/PhysicsDataCollection.h"
 
+#include "Graphs/GenerateMeshLODGraph.h"
 #include "Misc/Paths.h"
 #include "EditorAssetLibrary.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
-#include "FileHelpers.h"
+#include "Misc/PackageName.h"
 #include "UObject/MetaData.h"
 
-#include "Engine/Engine.h"
 #include "Editor.h"
 
-#include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MaterialGraph/MaterialGraph.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "WeightMapUtil.h"
 
-#include "Sampling/MeshResampleImageBaker.h"
 
-#include "Engine/StaticMesh.h"
-#include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "RenderingThread.h"
 #include "StaticMeshAttributes.h"
-#include "GeometryFlowTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GenerateStaticMeshLODProcess)
 

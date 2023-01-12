@@ -2,8 +2,6 @@
 
 #include "CausticsGeneratorActor.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CausticsGeneratorActor)
 

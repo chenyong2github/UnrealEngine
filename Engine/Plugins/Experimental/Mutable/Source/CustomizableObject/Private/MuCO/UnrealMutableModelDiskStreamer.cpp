@@ -3,22 +3,9 @@
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
 
 #include "Async/AsyncFileHandle.h"
-#include "Containers/UnrealString.h"
-#include "CoreGlobals.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/IConsoleManager.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
-#include "Misc/AssertionMacros.h"
-#include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuR/Model.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/Ptr.h"
-#include "Serialization/Archive.h"
-#include "Stats/Stats2.h"
-#include "Templates/UnrealTemplate.h"
-#include "Trace/Detail/Channel.h"
 
 #if WITH_EDITOR
 #include "HAL/PlatformFileManager.h"

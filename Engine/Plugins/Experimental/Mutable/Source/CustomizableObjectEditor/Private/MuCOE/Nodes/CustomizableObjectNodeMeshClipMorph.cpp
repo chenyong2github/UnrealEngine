@@ -2,14 +2,9 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshClipMorph.h"
 
-#include "Internationalization/Internationalization.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
-#include "Serialization/Archive.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/UnrealType.h"
 
 class UCustomizableObjectNodeRemapPins;
 class UEdGraphPin;

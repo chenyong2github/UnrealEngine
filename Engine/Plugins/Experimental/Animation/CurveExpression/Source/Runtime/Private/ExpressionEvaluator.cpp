@@ -2,7 +2,6 @@
 
 #include "ExpressionEvaluator.h"
 
-#include <limits>
 
 namespace CurveExpression::Evaluator
 {

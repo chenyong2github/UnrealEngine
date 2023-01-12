@@ -2,7 +2,8 @@
 
 #include "AESGCMHandlerComponent.h"
 
-#include "Net/Core/Connection/NetCloseResult.h"
+#include "IPlatformCrypto.h"
+#include "PlatformCryptoTypes.h"
 
 IMPLEMENT_MODULE( FAESGCMHandlerComponentModule, AESGCMHandlerComponent )
 

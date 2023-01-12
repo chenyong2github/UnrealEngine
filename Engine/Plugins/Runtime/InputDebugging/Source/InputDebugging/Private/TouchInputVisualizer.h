@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Misc/Build.h"
+#include "Math/Vector2D.h"
 
 #if !defined(SUPPORT_TOUCH_INPUT_DISPLAY)
 #define SUPPORT_TOUCH_INPUT_DISPLAY !UE_BUILD_SHIPPING
@@ -10,9 +10,6 @@
 
 #if SUPPORT_TOUCH_INPUT_DISPLAY
 #include "Framework/Application/IInputProcessor.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Containers/Map.h"
-#include "Templates/SharedPointer.h"
 
 class FTouchInputVisualizer : public IInputProcessor, public TSharedFromThis<FTouchInputVisualizer>
 {

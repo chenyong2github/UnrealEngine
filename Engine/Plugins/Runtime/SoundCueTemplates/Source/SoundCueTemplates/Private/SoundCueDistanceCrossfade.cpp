@@ -4,22 +4,14 @@
 #include "SoundCueDistanceCrossfade.h"
 
 
-#include "Sound/SoundCue.h"
-#include "Sound/SoundWave.h"
-#include "Sound/SoundNode.h"
 #include "Sound/SoundNodeModulator.h"
 #include "Sound/SoundNodeWavePlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueDistanceCrossfade)
 
 #if WITH_EDITOR
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "Sound/AudioSettings.h"
-#include "SoundCueGraph/SoundCueGraphNode.h"
-#include "SoundCueGraph/SoundCueGraph.h"
-#include "SoundCueGraph/SoundCueGraphNode_Root.h"
-#include "SoundCueGraph/SoundCueGraphSchema.h"
+#include "PropertyEditorModule.h"
 #endif // WITH_EDITOR
 
 

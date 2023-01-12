@@ -2,25 +2,18 @@
 
 #include "K2Node_GetInputActionValue.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/InputSettings.h"
-#include "EdGraphSchema_K2.h"
+#include "InputAction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "KismetCompiler.h"
 #include "Editor.h"
-#include "Kismet2/CompilerResultsLog.h"
 #include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabase.h"
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "EnhancedInputActionDelegateBinding.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputModule.h"
 #include "K2Node_Self.h"
 #include "K2Node_InputActionValueAccessor.h"
-#include "K2Node_TemporaryVariable.h"
-#include "K2Node_AssignmentStatement.h"
+#include "Misc/PackageName.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_GetInputActionValue)
 

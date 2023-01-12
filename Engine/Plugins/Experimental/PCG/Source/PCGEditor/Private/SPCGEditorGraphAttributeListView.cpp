@@ -2,28 +2,18 @@
 
 #include "SPCGEditorGraphAttributeListView.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "PCGComponent.h"
-#include "PCGData.h"
 #include "PCGEditor.h"
 #include "PCGEditorGraphNodeBase.h"
-#include "PCGNode.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Styling/SlateBrush.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Images/SLayeredImage.h"
-#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphAttributeListView"
 

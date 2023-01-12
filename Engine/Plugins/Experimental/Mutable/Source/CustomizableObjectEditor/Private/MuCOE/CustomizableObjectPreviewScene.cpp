@@ -2,7 +2,6 @@
 
 #include "MuCOE/CustomizableObjectPreviewScene.h"
 
-#include "PreviewScene.h"
 
 class UStaticMeshComponent;
 

@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "Fonts/SlateFontInfo.h"
 #include "NPAxisViewportInt32.h"
 #include "NPAxisViewportDouble.h"
 #include "INetworkPredictionProvider.h"
-#include "Insights/Common/PaintUtils.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FMenuBuilder;
+struct FDrawContext;
 
 enum class ESimFrameStatus : uint8
 {

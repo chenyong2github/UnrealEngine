@@ -2,8 +2,9 @@
 
 #include "Elements/PCGPointExtentsModifier.h"
 
-#include "PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
+#include "PCGContext.h"
+#include "PCGPoint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointExtentsModifier)
 

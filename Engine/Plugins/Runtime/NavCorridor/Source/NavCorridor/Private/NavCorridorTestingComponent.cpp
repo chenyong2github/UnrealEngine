@@ -1,11 +1,10 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavCorridorTestingComponent.h"
+#include "NavFilters/NavigationQueryFilter.h"
 #include "PrimitiveViewRelevance.h"
-#include "PrimitiveSceneProxy.h"
+#include "NavMesh/NavMeshPath.h"
 #include "NavigationSystem.h"
-#include "NavigationData.h"
-#include "GeomUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavCorridorTestingComponent)
 

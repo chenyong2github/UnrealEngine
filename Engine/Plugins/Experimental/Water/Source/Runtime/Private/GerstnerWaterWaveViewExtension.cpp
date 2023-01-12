@@ -2,13 +2,11 @@
 
 #include "GerstnerWaterWaveViewExtension.h"
 #include "GerstnerWaterWaveSubsystem.h"
-#include "WaterBodyActor.h"
-#include "GerstnerWaterWaves.h"
 #include "Containers/DynamicRHIResourceArray.h"
-#include "Engine/Engine.h"
+#include "RenderingThread.h"
 #include "SceneView.h"
+#include "WaterBodyComponent.h"
 #include "WaterBodyManager.h"
-#include "WaterSubsystem.h"
 
 FGerstnerWaterWaveViewExtension::FGerstnerWaterWaveViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld) : FWorldSceneViewExtension(AutoReg, InWorld), WaveGPUData(MakeShared<FWaveGPUResources, ESPMode::ThreadSafe>())
 {

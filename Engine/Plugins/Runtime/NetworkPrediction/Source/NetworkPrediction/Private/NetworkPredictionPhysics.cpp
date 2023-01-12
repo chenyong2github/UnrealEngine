@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionPhysics.h"
-#include "Physics/Experimental/PhysInterface_Chaos.h"
-#include "Chaos/ParticleHandle.h"
-#include "Components/PrimitiveComponent.h"
+#include "NetworkPredictionTrace.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 // -------------------------------------------------------------------------------------------------------------------------

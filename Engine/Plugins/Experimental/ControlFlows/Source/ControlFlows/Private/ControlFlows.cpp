@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlFlows.h"
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogControlFlows);
 

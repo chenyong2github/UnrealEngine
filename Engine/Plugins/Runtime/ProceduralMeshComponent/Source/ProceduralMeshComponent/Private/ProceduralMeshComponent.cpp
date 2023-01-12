@@ -1,19 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "ProceduralMeshComponent.h"
+#include "BodySetupEnums.h"
 #include "PrimitiveViewRelevance.h"
-#include "RenderResource.h"
-#include "RenderingThread.h"
 #include "PrimitiveSceneProxy.h"
-#include "Containers/ResourceArray.h"
-#include "EngineGlobals.h"
-#include "VertexFactory.h"
 #include "MaterialDomain.h"
-#include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
-#include "LocalVertexFactory.h"
 #include "Engine/Engine.h"
+#include "RenderUtils.h"
 #include "SceneManagement.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "ProceduralMeshComponentPluginPrivate.h"
@@ -21,7 +16,6 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "SceneInterface.h"
 #include "StaticMeshResources.h"
-#include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralMeshComponent)

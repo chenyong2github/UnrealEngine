@@ -4,6 +4,9 @@
 #include "Misc/AutomationTest.h"
 
 #include "Bindings/MVVMBindingHelper.h"
+#include "Types/MVVMFieldContext.h"
+#include "Types/MVVMFunctionContext.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBindingExecuteTest)
 

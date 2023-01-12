@@ -11,10 +11,12 @@
 #include "SGraphPin.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "SPinTypeSelector.h"
-#include "Styling/SlateBrush.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/SBoxPanel.h"
 
 /** PCG pin primarily to give more control over pin coloring. */
 class SPCGEditorGraphNodePin : public SGraphPin

@@ -12,12 +12,10 @@
 #include "OnlineStoreV2InterfaceNull.h"
 #include "OnlinePurchaseInterfaceNull.h"
 #include "OnlineMessageSanitizerNull.h"
-#include "Stats/Stats.h"
-#include "Misc/ConfigCacheIni.h"
+#include "VoiceInterfaceImpl.h"
 #include "Misc/CommandLine.h"
 
 #if WITH_ENGINE
-#include "VoiceInterfaceNull.h"
 #endif //WITH_ENGINE
 
 FThreadSafeCounter FOnlineSubsystemNull::TaskCounter;

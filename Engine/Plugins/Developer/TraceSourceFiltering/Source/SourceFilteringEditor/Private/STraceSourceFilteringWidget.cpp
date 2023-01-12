@@ -1,24 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STraceSourceFilteringWidget.h"
-#include "Styling/AppStyle.h"
 
-#include "UObject/SoftObjectPtr.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Class.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Package.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/SComboButton.h"
 
-#include "Widgets/Layout/SSeparator.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ISessionSourceFilterService.h"
 #include "Widgets/Images/SThrobber.h"
+#include "SourceFilterService.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/ITraceServicesModule.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/EnumRange.h"
 
 #include "Insights/IUnrealInsightsModule.h"
 #include "Trace/StoreClient.h"

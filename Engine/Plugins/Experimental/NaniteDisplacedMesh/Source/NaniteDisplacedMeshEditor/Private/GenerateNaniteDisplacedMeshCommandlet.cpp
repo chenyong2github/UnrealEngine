@@ -2,10 +2,11 @@
 
 #include "GenerateNaniteDisplacedMeshCommandlet.h"
 
+#include "AssetRegistry/ARFilter.h"
 #include "CollectionManagerModule.h"
-#include "CollectionManagerTypes.h"
 #include "Engine/World.h"
 #include "ICollectionManager.h"
+#include "Misc/PackageName.h"
 #include "NaniteDisplacedMesh.h"
 #include "NaniteDisplacedMeshLog.h"
 #include "NaniteDisplacedMeshEditorModule.h"
@@ -14,7 +15,6 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "Engine/Level.h"
 #include "HAL/FileManager.h"
 #include "UObject/GCObjectScopeGuard.h"

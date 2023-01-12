@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Containers/UnrealString.h"
-#include "CoreTypes.h"
-#include "Engine/EngineTypes.h"
-#include "MemoryUsageInfoProvider.h"
 #include "UObject/FastReferenceCollector.h"
+
+class FAssetRegistryModule;
+class IMemoryUsageInfoProvider;
+enum class EGCTokenType : uint32;
 
 namespace MemoryUsageQueries::Internal
 {

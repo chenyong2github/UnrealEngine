@@ -6,14 +6,11 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MVVMBlueprintViewBinding.h"
 #include "MVVMEditorSubsystem.h"
-#include "MVVMSubsystem.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
-#include "Types/MVVMFieldVariant.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SMenuAnchor.h"
-#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "MVVMConversionPath"
 

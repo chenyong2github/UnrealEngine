@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineBaseTypes.h"
-#include "InputAction.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_InputActionValueAccessor.generated.h"
+
+class UInputAction;
 
 UCLASS()
 class INPUTBLUEPRINTNODES_API UK2Node_InputActionValueAccessor : public UK2Node_CallFunction

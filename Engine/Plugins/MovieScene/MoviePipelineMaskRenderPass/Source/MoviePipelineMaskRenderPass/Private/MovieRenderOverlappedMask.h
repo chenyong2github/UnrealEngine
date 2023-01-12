@@ -2,11 +2,8 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
 
-#include "ImagePixelData.h"
 #include "MovieRenderOverlappedImage.h"
-#include "MovieRenderPipelineDataTypes.h"
 
 struct FMaskPixelSamples
 {

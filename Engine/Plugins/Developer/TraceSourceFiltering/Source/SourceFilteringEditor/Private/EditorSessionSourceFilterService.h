@@ -9,10 +9,9 @@
 #include "UObject/GCObject.h"
 #include "EditorUndoClient.h"
 
-#include "SourceFilterCollection.h"
-#include "TreeViewBuilder.h"
-#include "DataSourceFilter.h"
-#include "TraceSourceFilteringSettings.h"
+
+class UBlueprint;
+class USourceFilterCollection;
 
 class UDataSourceFilter;
 class UDataSourceFilterSet;

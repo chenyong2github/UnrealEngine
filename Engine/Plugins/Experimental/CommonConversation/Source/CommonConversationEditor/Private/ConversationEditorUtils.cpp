@@ -2,7 +2,6 @@
 
 #include "ConversationEditorUtils.h"
 #include "ConversationGraphNode.h"
-#include "EdGraph/EdGraph.h"
 
 TArray<UObject*> ConversationEditorUtils::GetSelectionForPropertyEditor(const TSet<UObject*>& InSelection, FPropertySelectionInfo& OutSelectionInfo)
 {

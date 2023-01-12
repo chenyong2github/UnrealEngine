@@ -2,7 +2,6 @@
 
 #include "VariantManagerContentModule.h"
 
-#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerContentModule"
 

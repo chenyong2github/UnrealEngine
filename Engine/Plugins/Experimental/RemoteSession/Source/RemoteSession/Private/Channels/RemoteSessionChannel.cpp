@@ -2,7 +2,6 @@
 
 #include "Channels/RemoteSessionChannel.h"
 #include "RemoteSession.h"
-#include "Containers/StringFwd.h"
 
 
 void FRemoteSessionChannelRegistry::RegisterChannelFactory(const TCHAR* InChannelName, ERemoteSessionChannelMode InHostMode, TWeakPtr<IRemoteSessionChannelFactoryWorker> InFactory)

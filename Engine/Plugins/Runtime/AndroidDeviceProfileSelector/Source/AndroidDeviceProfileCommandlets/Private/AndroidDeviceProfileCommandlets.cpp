@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AndroidDeviceProfileCommandlets.h"
-#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 
 
 class FAndroidDeviceProfileCommandlets : public IModuleInterface

@@ -4,9 +4,6 @@
 
 #include "MuCO/CustomizableObject.h"
 #include "MuCOE/CustomizableObjectGraph.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UnrealNames.h"
 
 class FFeedbackContext;
 class UClass;

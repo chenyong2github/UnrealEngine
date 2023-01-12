@@ -2,9 +2,6 @@
 
 #include "FractureEngineEdit.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
-#include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionProximityUtility.h"
-#include "Algo/RemoveIf.h"
 #include "GeometryCollection/Facades/CollectionTransformSelectionFacade.h"
 
 #include "PlanarCut.h"

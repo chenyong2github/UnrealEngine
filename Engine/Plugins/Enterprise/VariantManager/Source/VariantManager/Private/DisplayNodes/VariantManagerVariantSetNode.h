@@ -4,8 +4,6 @@
 
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
 
 class FAssetThumbnailPool;
 class FDragDropEvent;

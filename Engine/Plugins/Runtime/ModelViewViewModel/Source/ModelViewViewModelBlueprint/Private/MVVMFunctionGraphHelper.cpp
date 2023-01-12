@@ -2,19 +2,10 @@
 
 #include "MVVMFunctionGraphHelper.h"
 
-#include "BlueprintTypePromotion.h"
-#include "EngineLogs.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_DynamicCast.h"
-#include "K2Node_EditablePinBase.h"
 #include "K2Node_FunctionEntry.h"
-#include "K2Node_IfThenElse.h"
-#include "K2Node_PromotableOperator.h"
 #include "K2Node_VariableGet.h"
-#include "K2Node_VariableSet.h"
 #include "KismetCompiler.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 

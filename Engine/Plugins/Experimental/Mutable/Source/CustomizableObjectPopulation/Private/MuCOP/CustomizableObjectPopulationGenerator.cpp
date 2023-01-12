@@ -2,16 +2,11 @@
 
 #include "MuCOP/CustomizableObjectPopulationGenerator.h"
 
-#include "HAL/PlatformTime.h"
-#include "Math/Color.h"
 #include "Math/RandomStream.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCOP/CustomizableObjectPopulationCustomVersion.h"
 #include "MuCOP/CustomizableObjectPopulationGeneratorPrivate.h"
-#include "MuCOP/CustomizableObjectPopulationSamplers.h"
-#include "Serialization/Archive.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectPopulationGenerator)
 

@@ -3,7 +3,9 @@
 #include "Data/PCGProjectionData.h"
 
 #include "Data/PCGLandscapeSplineData.h"
+#include "Data/PCGPointData.h"
 #include "Data/PCGSplineData.h"
+#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
 #include "Metadata/PCGMetadataAccessor.h"
 

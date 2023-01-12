@@ -4,7 +4,6 @@
 #include "EnhancedInputEditorSubsystem.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Editor.h"		// For GEditor
-#include "GameFramework/PlayerInput.h"
 
 void FEnhancedInputEditorProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {

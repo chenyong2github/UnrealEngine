@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "DisplayNodes/VariantManagerPropertyNode.h"
-#include "Widgets/Input/SComboBox.h"
 
 class SVariantManagerTableRow;
 class FReply;

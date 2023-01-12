@@ -4,7 +4,6 @@
 
 #include "DataRegistryEditorToolkit.h"
 #include "DataRegistry.h"
-#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "DataRegistryEditor"
 

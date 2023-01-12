@@ -2,9 +2,13 @@
 
 #include "CurveExpressionEditorStyle.h"
 
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/CoreStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateTypes.h"
 
 

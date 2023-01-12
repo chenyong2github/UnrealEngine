@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationGraphNode_Knot.h"
-#include "Kismet2/Kismet2NameValidators.h"
-#include "EdGraph/EdGraphPin.h"
 #include "SGraphNodeKnot.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_Knot)

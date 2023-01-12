@@ -2,12 +2,6 @@
 
 #include "MuCOE/SMutableBoolViewer.h"
 
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
-#include "Layout/Children.h"
-#include "Misc/Attribute.h"
-#include "SlotBase.h"
-#include "Styling/SlateColor.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 

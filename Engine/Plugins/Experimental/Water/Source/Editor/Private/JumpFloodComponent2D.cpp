@@ -2,11 +2,8 @@
 
 #include "JumpFloodComponent2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "Kismet/KismetMaterialLibrary.h"
 #include "Kismet/KismetRenderingLibrary.h"
 #include "WaterEditorModule.h"
-#include "WaterEditorSettings.h"
 #include "WaterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(JumpFloodComponent2D)

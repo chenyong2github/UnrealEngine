@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
 #include "Factories/Factory.h"
-#include "Engine/Blueprint.h"
-#include "MVVMViewModelBase.h"
 
 #include "MVVMViewModelBlueprintFactory.generated.h"
 

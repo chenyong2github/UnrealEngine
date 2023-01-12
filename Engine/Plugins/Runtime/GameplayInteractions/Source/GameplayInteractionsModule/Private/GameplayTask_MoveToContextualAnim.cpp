@@ -5,8 +5,6 @@
 #include "GameplayTasksComponent.h"
 #include "GameplayActuationComponent.h"
 #include "ContextualAnimSceneAsset.h"
-#include "ContextualAnimSceneInstance.h"
-#include "GameplayTask_PlayContextualAnim.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_MoveToContextualAnim)
 

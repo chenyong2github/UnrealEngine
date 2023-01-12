@@ -4,6 +4,7 @@
 #include "MotoSynthModule.h"
 
 #include "HAL/IConsoleManager.h"
+#include "MotoSynthSourceAsset.h"
 
 
 // Log all loaded data in moto synth data manager

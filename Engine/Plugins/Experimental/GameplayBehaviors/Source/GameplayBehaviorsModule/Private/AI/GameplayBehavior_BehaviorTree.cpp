@@ -2,6 +2,7 @@
 
 #include "AI/GameplayBehavior_BehaviorTree.h"
 #include "AI/GameplayBehaviorConfig_BehaviorTree.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "AIController.h"

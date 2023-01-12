@@ -2,17 +2,11 @@
 
 #include "WmfMediaFactoryPrivate.h"
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "IMediaModule.h"
 #include "IMediaOptions.h"
 #include "IMediaPlayerFactory.h"
-#include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
-#include "Misc/Guid.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/NameTypes.h"
 
 #if PLATFORM_WINDOWS
 	#include "Windows/WindowsHWrapper.h"
@@ -20,9 +14,6 @@
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
-	#include "Templates/SharedPointer.h"
-	#include "UObject/Class.h"
-	#include "UObject/WeakObjectPtr.h"
 	#include "WmfMediaSettings.h"
 #endif
 

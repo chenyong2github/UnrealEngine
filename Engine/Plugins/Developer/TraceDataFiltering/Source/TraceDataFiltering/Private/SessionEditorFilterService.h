@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ISessionTraceFilterService.h"
 #include "BaseSessionFilterService.h"
 
 namespace TraceServices

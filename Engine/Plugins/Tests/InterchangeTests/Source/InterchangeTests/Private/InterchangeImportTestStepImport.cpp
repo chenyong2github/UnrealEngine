@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeImportTestStepImport.h"
+#include "HAL/FileManager.h"
 #include "InterchangeImportTestData.h"
-#include "InterchangeTestFunction.h"
+#include "Misc/PackageName.h"
 #include "UObject/SavePackage.h"
-#include "UObject/ReferenceChainSearch.h"
-#include "PackageTools.h"
-#include "Editor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestStepImport)
 

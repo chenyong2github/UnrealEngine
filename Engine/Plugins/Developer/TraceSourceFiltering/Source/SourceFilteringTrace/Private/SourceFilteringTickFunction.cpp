@@ -2,8 +2,6 @@
 
 #include "SourceFilteringTickFunction.h"
 
-#include "Engine/EngineBaseTypes.h"
-#include "Async/TaskGraphInterfaces.h"
 
 #include "TraceSourceFilteringSettings.h"
 #include "SourceFilterManager.h"

@@ -1,27 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyOceanComponent.h"
+#include "DynamicMesh/InfoTypes.h"
 #include "WaterModule.h"
 #include "WaterSplineComponent.h"
-#include "Components/SplineMeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "OceanCollisionComponent.h"
-#include "WaterBodyOceanActor.h"
 #include "WaterBooleanUtils.h"
 #include "WaterSubsystem.h"
-#include "WaterZoneActor.h"
-#include "UObject/UObjectIterator.h"
-#include "UObject/FortniteMainBranchObjectVersion.h"
-#include "Polygon2.h"
 #include "ConstrainedDelaunay2.h"
 #include "Operations/InsetMeshRegion.h"
-#include "DynamicMesh/DynamicMeshChangeTracker.h"
-#include "Algo/Transform.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyOceanComponent)
 
 #if WITH_EDITOR
-#include "WaterIconHelper.h"
 #endif
 
 // ----------------------------------------------------------------------------------

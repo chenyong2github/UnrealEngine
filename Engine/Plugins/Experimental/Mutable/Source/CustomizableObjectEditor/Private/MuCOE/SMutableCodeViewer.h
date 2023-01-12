@@ -2,35 +2,14 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "HAL/Platform.h"
-#include "Input/Reply.h"
-#include "Internationalization/Text.h"
-#include "Layout/Visibility.h"
-#include "Misc/Optional.h"
-#include "MuR/Image.h"
-#include "MuR/Mesh.h"
-#include "MuR/Model.h"
 #include "MuR/ModelPrivate.h"
-#include "MuR/MutableMath.h"
-#include "MuR/Operations.h"
-#include "MuR/System.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/TypeHash.h"
-#include "Types/SlateConstants.h"
-#include "Types/SlateEnums.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STreeView.h"
-#include "Widgets/Input/SComboBox.h"
+
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+template <typename ItemType> class STreeView;
+template <typename OptionType> class SComboBox;
 
 
 class FMutableCodeTreeElement;

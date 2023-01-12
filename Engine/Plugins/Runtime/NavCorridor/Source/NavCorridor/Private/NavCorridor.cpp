@@ -2,11 +2,9 @@
 
 #include "NavCorridor.h"
 #include "GeomUtils.h"
-#include "Algo/Sort.h"
+#include "NavigationData.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-#include "VisualLogger/VisualLogger.h"
-#include "AI/NavigationSystemBase.h" 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavCorridor)
 

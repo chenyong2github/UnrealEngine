@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "IEnvironmentQueryEditor.h"
 #include "AIGraphEditor.h"
+
+class FSpawnTabArgs;
 
 class IDetailsView;
 class SEnvQueryProfiler;

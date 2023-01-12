@@ -2,11 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureParameter.h"
 
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "UObject/NameTypes.h"
 
 class UCustomizableObjectNodeRemapPins;
 

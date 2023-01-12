@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationLibrary.h"
-#include "ConversationInstance.h"
 #include "ConversationContext.h"
 #include "ConversationSettings.h"
 #include "Engine/Engine.h"

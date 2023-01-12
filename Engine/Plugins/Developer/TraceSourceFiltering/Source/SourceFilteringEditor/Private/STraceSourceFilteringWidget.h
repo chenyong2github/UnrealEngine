@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 
-#include "SourceFilterService.h"
-#include "ISessionSourceFilterService.h"
+#include "Widgets/SCompoundWidget.h"
+
+class ISessionSourceFilterService;
+class SVerticalBox;
+class UTraceSourceFilteringSettings;
+namespace TraceServices { class IAnalysisSession; }
 
 #if WITH_EDITOR
-#include "TraceSourceFilteringSettings.h"
 #endif // WITH_EDITOR
 
 class SWorldTraceFilteringWidget;

@@ -3,14 +3,8 @@
 
 #include "Chaos/ChaosSolverEditorPlugin.h"
 
-#include "AssetToolsModule.h"
-#include "CoreMinimal.h"
-#include "Chaos/ChaosSolver.h"
 #include "Chaos/AssetTypeActions_ChaosSolver.h"
 #include "Chaos/ChaosSolverEditorStyle.h"
-#include "Chaos/ChaosSolverEditorCommands.h"
-#include "HAL/ConsoleManager.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ChaosSolverEditorDetails.h"
 

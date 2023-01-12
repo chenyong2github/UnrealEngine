@@ -5,12 +5,12 @@
 #if WITH_EDITOR
 #include "Elements/PCGDifferenceElement.h"
 
+#include "Modules/ModuleManager.h"
 #include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDifferenceDeterminismTest.h"
 
 #endif
 
-#include "Modules/ModuleInterface.h"
 
 class FPCGModule final : public IModuleInterface
 {

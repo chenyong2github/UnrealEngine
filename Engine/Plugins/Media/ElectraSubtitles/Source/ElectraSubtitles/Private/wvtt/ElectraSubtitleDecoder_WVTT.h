@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "ElectraSubtitleDecoder.h"
-#include "ElectraSubtitleDecoderFactory.h"
+#include "IElectraSubtitleDecoder.h"
+
+class IElectraSubtitleDecoderFactoryRegistry;
 
 /**
  * WebVTT subtitle decoder (https://www.w3.org/TR/webvtt1/)

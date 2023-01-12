@@ -2,23 +2,17 @@
 
 #include "DisplayNodes/VariantManagerStringPropertyNode.h"
 
-#include "GameFramework/Actor.h"
 #include "PropertyValue.h"
 #include "PropertyTemplateObject.h"
-#include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Package.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SButton.h"
-#include "ScopedTransaction.h"
-#include "SVariantManager.h"
 #include "VariantManagerLog.h"
 #include "PropertyHandle.h"
-#include "VariantObjectBinding.h"
 #include "ISinglePropertyView.h"
-#include "PropertyCustomizationHelpers.h"
 #include "UObject/TextProperty.h"
-#include "Input/Reply.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FVariantManagerStringPropertyNode"
 

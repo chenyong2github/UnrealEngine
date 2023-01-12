@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UIFPresenter.h"
-#include "UIFPlayerComponent.h"
 
 #include "Blueprint/GameViewportSubsystem.h"
 #include "Components/Widget.h"
-#include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFPresenter)
 

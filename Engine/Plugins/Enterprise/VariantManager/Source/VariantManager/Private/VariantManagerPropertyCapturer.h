@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "PropertyValue.h"
+#include "Templates/SharedPointer.h"
 
 class SCapturedPropertiesWidget;
 class SCapturedActorsWidget;

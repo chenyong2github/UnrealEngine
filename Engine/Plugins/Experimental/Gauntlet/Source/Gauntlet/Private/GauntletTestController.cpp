@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GauntletTestController.h"
-#include "Engine/Engine.h"
-#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
+#include "GauntletModule.h"
+#include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GauntletTestController)
 

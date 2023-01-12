@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InputTriggers.h"
-#include "InputAction.h"
-#include "InputActionValue.h"
 #include "EnhancedPlayerInput.h"
-#include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputTriggers)
 

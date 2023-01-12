@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProceduralMeshConversion.h"
-#include "Engine/StaticMesh.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "ProceduralMeshComponent.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescription.h"
 
 
 TMap<UMaterialInterface*, FPolygonGroupID> BuildMaterialMap(UProceduralMeshComponent* ProcMeshComp, FMeshDescription& MeshDescription)

@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationDatabase.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
+#include "Engine/Blueprint.h"
 #include "UObject/ObjectSaveContext.h"
 #endif
-#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetRegistryState.h"
 

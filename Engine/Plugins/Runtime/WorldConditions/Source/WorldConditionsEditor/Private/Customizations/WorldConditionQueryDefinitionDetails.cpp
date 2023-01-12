@@ -1,14 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionQueryDefinitionDetails.h"
-#include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
-#include "DetailLayoutBuilder.h"
-#include "IPropertyUtilities.h"
-#include "ScopedTransaction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "WorldConditionQuery.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"

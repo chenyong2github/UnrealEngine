@@ -2,8 +2,9 @@
 
 #include "SubmixOverrideVolumeComponent.h"
 #include "AudioDevice.h"
-#include "AudioGameplayFlags.h"
 #include "AudioGameplayVolumeListener.h"
+#include "Sound/SoundEffectSubmix.h"
+#include "Sound/SoundSubmix.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixOverrideVolumeComponent)
 

@@ -10,7 +10,6 @@
 #include "VariantObjectBinding.h"
 #include "VariantSet.h"
 
-#include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
 

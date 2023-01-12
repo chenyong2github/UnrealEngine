@@ -2,21 +2,13 @@
 
 #include "SwitchActorCustomization.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "SwitchActor.h"
 
-#include "Algo/Transform.h"
-#include "AssetToolsModule.h"
-#include "CoreMinimal.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Editor.h"
-#include "IAssetTools.h"
-#include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
-#include "UObject/Object.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "SwitchActorCustomization"
 

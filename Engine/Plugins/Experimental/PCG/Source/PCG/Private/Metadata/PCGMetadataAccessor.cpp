@@ -2,8 +2,7 @@
 
 #include "Metadata/PCGMetadataAccessor.h"
 #include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "PCGModule.h"
+#include "PCGPoint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataAccessor)
 

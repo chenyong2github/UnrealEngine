@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "AssetTypeActions_ImagePlateFileSequence.h"
-#include "IAssetTools.h"
 #include "ISettingsModule.h"
-#include "ImagePlateFileSequence.h"
 
 #define LOCTEXT_NAMESPACE "ImagePlateEditor"
 

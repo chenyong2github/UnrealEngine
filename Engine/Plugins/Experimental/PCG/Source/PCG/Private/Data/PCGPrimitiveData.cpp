@@ -2,7 +2,9 @@
 
 #include "Data/PCGPrimitiveData.h"
 
+#include "CollisionShape.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "Elements/PCGVolumeSampler.h"
 #include "Components/PrimitiveComponent.h"
 

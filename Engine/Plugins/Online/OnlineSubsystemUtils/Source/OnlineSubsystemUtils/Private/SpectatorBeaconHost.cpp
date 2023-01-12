@@ -2,9 +2,9 @@
 
 #include "SpectatorBeaconHost.h"
 #include "Misc/CommandLine.h"
+#include "OnlineSessionSettings.h"
 #include "UObject/Package.h"
 #include "Engine/NetConnection.h"
-#include "OnlineSubsystemTypes.h"
 #include "OnlineSubsystemUtils.h"
 #include "SpectatorBeaconClient.h"
 

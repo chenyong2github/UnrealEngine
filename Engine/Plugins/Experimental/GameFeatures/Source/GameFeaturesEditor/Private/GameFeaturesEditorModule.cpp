@@ -1,23 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Features/IModularFeatures.h"
-#include "Modules/ModuleManager.h"
 
 #include "GameFeatureData.h"
-#include "Features/IPluginsEditorFeature.h"
 #include "Features/EditorFeatures.h"
 
+#include "GameFeaturesSubsystem.h"
 #include "Interfaces/IPluginManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
-#include "ContentBrowserModule.h"
+#include "IAssetTools.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "GameFeatureDataDetailsCustomization.h"
 #include "GameFeaturesEditorSettings.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "GameFeaturePluginMetadataCustomization.h"
 #include "Logging/MessageLog.h"
+#include "Misc/Paths.h"
 #include "SSettingsEditorCheckoutNotice.h"
 #include "Engine/AssetManagerSettings.h"
 #include "Widgets/Notifications/SNotificationList.h"

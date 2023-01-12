@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "OnlineKeyValuePair.h"
 #include "OnlineSubsystem.h"
 

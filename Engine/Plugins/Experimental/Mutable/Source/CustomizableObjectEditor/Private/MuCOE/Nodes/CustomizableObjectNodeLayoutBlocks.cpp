@@ -2,23 +2,11 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
 
-#include "Containers/ArrayView.h"
-#include "Delegates/Delegate.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
-#include "Math/Vector2D.h"
-#include "Misc/Guid.h"
-#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
-#include "Serialization/Archive.h"
-#include "Templates/Casts.h"
-#include "UObject/NameTypes.h"
-#include "UObject/WeakObjectPtr.h"
 
 class UCustomizableObjectNodeRemapPins;
 class UObject;

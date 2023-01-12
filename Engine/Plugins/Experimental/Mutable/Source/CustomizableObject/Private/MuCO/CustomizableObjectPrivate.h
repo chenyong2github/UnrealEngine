@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "MuR/Model.h"
-#include "MuR/Serialisation.h"
+#include "Templates/SharedPointer.h"
+
+namespace mu { class Model; }
 
 
 

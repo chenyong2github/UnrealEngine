@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineMessageSanitizerNull.h"
-#include "Containers/Ticker.h"
+#include "OnlineSubsystem.h"
 #include "Stats/Stats.h"
 
 FMessageSanitizerNull::FMessageSanitizerNull()

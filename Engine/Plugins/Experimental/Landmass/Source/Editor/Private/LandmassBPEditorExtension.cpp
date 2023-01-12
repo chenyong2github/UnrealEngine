@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandmassBPEditorExtension.h"
-#include "CoreMinimal.h"
 
-#include "Editor.h"
-#include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandmassBPEditorExtension)

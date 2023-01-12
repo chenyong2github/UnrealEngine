@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundCueTemplatesModule.h"
 
-#include "Logging/MessageLog.h"
+#include "Modules/ModuleManager.h"
 #include "SoundCueContainer.h"
 #include "SoundCueDistanceCrossfade.h"
-#include "SoundCueTemplateSettings.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #include "PropertyEditorModule.h"
 #endif // WITH_EDITOR
 

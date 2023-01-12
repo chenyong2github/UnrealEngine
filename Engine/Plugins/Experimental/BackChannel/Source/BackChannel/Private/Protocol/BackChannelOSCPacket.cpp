@@ -3,7 +3,6 @@
 #include "BackChannel/Protocol/OSC/BackChannelOSCPacket.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCBundle.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
-#include "BackChannelCommon.h"
 
 
 

@@ -3,11 +3,8 @@
 
 #include "GameplayInteractionContext.h"
 #include "GameplayInteractionSmartObjectBehaviorDefinition.h"
-#include "GameplayInteractionsTypes.h"
-#include "GameFramework/Actor.h"
 #include "Engine/World.h"
-#include "Subsystems/WorldSubsystem.h"
-#include "StateTreeReference.h"
+#include "StateTreeExecutionContext.h"
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayInteractionStateTreeSchema.h"
 #include "SmartObjectSubsystem.h"

@@ -2,10 +2,11 @@
 
 #include "Elements/PCGTextureSampler.h"
 
+#include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGHelpers.h"
-#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 

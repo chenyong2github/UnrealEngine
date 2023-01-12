@@ -1,17 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
-#include "Tests/PCGTestsCommon.h"
 
 #include "PCGComponent.h"
-#include "PCGData.h"
+#include "PCGContext.h"
 #include "PCGParamData.h"
 
-#include "Data/PCGPointData.h"
 #include "Elements/Metadata/PCGMetadataBooleanOpElement.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #if WITH_EDITOR
 

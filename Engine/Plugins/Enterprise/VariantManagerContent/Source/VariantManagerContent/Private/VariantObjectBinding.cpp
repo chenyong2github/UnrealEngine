@@ -3,24 +3,18 @@
 #include "VariantObjectBinding.h"
 
 #include "LevelVariantSets.h"
-#include "LevelVariantSetsFunctionDirector.h"
 #include "PropertyValue.h"
 #include "Variant.h"
 #include "VariantManagerContentLog.h"
 #include "VariantManagerObjectVersion.h"
 #include "VariantSet.h"
 
-#include "Algo/Sort.h"
 #include "Engine/World.h"
 #include "FunctionCaller.h"
-#include "GameFramework/Actor.h"
-#include "UObject/LazyObjectPtr.h"
-#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VariantObjectBinding)
 
 #if WITH_EDITORONLY_DATA
-#include "K2Node_FunctionEntry.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "VariantObjectBinding"

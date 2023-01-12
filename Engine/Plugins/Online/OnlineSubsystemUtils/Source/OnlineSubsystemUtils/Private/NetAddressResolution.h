@@ -4,14 +4,10 @@
 
 
 // Includes
-#include "Misc/EnumClassFlags.h"
 #include "SocketSubsystem.h"
-#include "Templates/Function.h"
-#include "Templates/SharedPointer.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Engine/EngineBaseTypes.h"
-#include "IpConnection.h"
+
+class UIpConnection;
+struct FURL;
 
 
 // Forward declarations

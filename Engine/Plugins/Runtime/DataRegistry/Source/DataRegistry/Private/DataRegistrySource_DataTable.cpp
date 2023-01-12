@@ -5,10 +5,12 @@
 #include "AssetRegistry/AssetData.h"
 #include "DataRegistryTypesPrivate.h"
 #include "DataRegistrySettings.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "Engine/AssetManager.h"
+#include "Engine/DataTable.h"
 #include "UObject/CoreRedirects.h"
+#include "Engine/StreamableManager.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Misc/PackageName.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistrySource_DataTable)
 

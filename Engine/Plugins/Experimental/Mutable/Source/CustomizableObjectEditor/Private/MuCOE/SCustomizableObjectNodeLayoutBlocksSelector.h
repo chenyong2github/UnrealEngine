@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Math/UnrealMathSSE.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FReferenceCollector;

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestPresenceInterface.h"
-#include "EngineGlobals.h"
+#include "Online/OnlineSessionNames.h"
 #include "OnlineSubsystemUtils.h"
+#include "OnlineSessionSettings.h"
+#include "TimerManager.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

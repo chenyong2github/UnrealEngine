@@ -2,9 +2,7 @@
 
 #include "Chaos/ChaosSolverFactory.h"
 
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "Engine/Selection.h"
+#include "Chaos/ChaosSolver.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosSolverFactory)
 

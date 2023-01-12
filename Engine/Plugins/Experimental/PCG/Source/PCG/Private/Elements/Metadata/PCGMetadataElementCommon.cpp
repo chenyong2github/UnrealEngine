@@ -4,7 +4,6 @@
 
 #include "PCGParamData.h"
 #include "Data/PCGSpatialData.h"
-#include "Helpers/PCGSettingsHelpers.h"
 
 namespace PCGMetadataElementCommon
 {

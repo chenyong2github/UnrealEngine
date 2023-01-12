@@ -2,10 +2,6 @@
 
 #include "MuCOE/CompilationMessageCache.h"
 
-#include "Containers/Array.h"
-#include "HAL/PlatformCrt.h"
-#include "Logging/TokenizedMessage.h"
-#include "Misc/AssertionMacros.h"
 
 
 void FCompilationMessageCache::AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, EMessageSeverity::Type MessageSeverity /* = EMessageSeverity::Warning */)

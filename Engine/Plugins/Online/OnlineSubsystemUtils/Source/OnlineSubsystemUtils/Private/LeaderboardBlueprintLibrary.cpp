@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LeaderboardBlueprintLibrary.h"
-#include "Online/CoreOnline.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "OnlineSubsystem.h"
-#include "OnlineStats.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeaderboardBlueprintLibrary)

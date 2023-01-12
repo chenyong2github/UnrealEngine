@@ -2,20 +2,15 @@
 
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
+#include "Metadata/Accessors/IPCGAttributeAccessorTpl.h"
 #include "PCGParamData.h"
-#include "PCGPoint.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
-#include "Helpers/PCGPropertyHelpers.h"
 #include "Metadata/PCGAttributePropertySelector.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/Accessors/PCGAttributeAccessor.h"
-#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/Accessors/PCGPropertyAccessor.h"
 #include "Metadata/Accessors/PCGAttributeExtractor.h"
 
-#include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 
 namespace PCGAttributeAccessorHelpers

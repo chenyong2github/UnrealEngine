@@ -3,6 +3,7 @@
 #include "BuoyancyManager.h"
 #include "BuoyancyComponent.h"
 #include "PBDRigidsSolver.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "WaterSubsystem.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Engine/Engine.h"

@@ -2,14 +2,12 @@
 
 #include "DirectionalLightGizmoFactory.h"
 #include "EditorModeManager.h"
-#include "Engine/Selection.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
-#include "BaseGizmos/TransformProxy.h"
-#include "Math/Rotator.h"
-#include "UnrealWidgetFwd.h"
 #include "Engine/DirectionalLight.h"
 #include "DirectionalLightGizmo.h"
+#include "InteractiveGizmoManager.h"
 #include "LightGizmosModule.h"
+#include "Selection.h"
 #include "SubTransformProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightGizmoFactory)

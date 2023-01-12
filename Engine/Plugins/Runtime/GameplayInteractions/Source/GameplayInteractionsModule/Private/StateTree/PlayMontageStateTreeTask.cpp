@@ -4,7 +4,6 @@
 #include "StateTreeExecutionContext.h"
 #include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
-#include "StateTreeLinker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayMontageStateTreeTask)
 

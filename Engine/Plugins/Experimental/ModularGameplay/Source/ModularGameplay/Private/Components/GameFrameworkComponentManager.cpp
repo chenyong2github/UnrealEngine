@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/GameFrameworkComponentManager.h"
-#include "Components/GameFrameworkComponent.h"
-#include "Engine/World.h"
+#include "Components/GameFrameworkComponentDelegates.h"
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "ModularGameplayLogs.h"
-#include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFrameworkComponentManager)
 
 #if !UE_BUILD_SHIPPING
-#include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
 static FAutoConsoleCommand CVarDumpGameFrameworkComponentManagers(
 	TEXT("ModularGameplay.DumpGameFrameworkComponentManagers"),

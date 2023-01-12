@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/SimpleAssetEditor.h"
 #include "Misc/NotifyHook.h"
-#include "WaterWaves.h"
+#include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
+class FToolBarBuilder;
+class UWaterWavesAssetReference;
 
 class FEditorViewportTabContent;
 class IDetailsView;

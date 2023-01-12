@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ThumbnailRendering/ThumbnailRenderer.h"
 #include "ThumbnailRendering/TextureThumbnailRenderer.h"
 #include "WaterBodyBrushCacheContainerThumbnailRenderer.generated.h"
 

@@ -2,13 +2,9 @@
 
 #include "VoiceInterfaceImpl.h"
 #include "Misc/ConfigCacheIni.h"
-#include "EngineGlobals.h"
-#include "GameFramework/OnlineReplStructs.h"
-#include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "OnlineSubsystemImpl.h"
-#include "VoiceModule.h"
 #include "VoiceEngineImpl.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineSessionInterface.h"

@@ -3,8 +3,9 @@
 #include "Download.h"
 
 #include "ChunkDownloaderLog.h"
-#include "CoreMinimal.h"
-#include "Containers/Ticker.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFile.h"
+#include "Interfaces/IHttpResponse.h"
 
 #define LOCTEXT_NAMESPACE "ChunkDownloader"
 

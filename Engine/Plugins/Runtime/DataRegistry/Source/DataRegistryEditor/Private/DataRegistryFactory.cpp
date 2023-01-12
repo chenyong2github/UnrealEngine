@@ -3,7 +3,6 @@
 #include "DataRegistryFactory.h"
 
 #include "DataRegistry.h"
-#include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "Modules/ModuleManager.h"
 #include "Kismet2/SClassPickerDialog.h"

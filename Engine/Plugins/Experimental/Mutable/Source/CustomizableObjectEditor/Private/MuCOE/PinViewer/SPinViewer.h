@@ -2,24 +2,9 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "HAL/Platform.h"
-#include "Input/Reply.h"
-#include "Internationalization/Text.h"
-#include "Misc/Optional.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/GCObject.h"
-#include "UObject/NameTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
-#include "Widgets/Views/SListView.h"
+
+template <typename ItemType> class SListView;
 
 class FReferenceCollector;
 class IDetailLayoutBuilder;

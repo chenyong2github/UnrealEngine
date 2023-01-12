@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "DisplayNodes/VariantManagerPropertyNode.h"
-#include "FunctionCaller.h"
+
+class UK2Node_FunctionEntry;
+enum class EVariantManagerNodeType : uint8;
+struct FFunctionCaller;
 
 class SVariantManagerTableRow;
 class UVariantObjectBinding;

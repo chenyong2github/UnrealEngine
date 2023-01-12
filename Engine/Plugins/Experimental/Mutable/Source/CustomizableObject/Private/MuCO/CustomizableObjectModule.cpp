@@ -1,14 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Containers/UnrealString.h"
-#include "CoreGlobals.h"
-#include "HAL/Platform.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
 #include "MuCO/ICustomizableObjectModule.h"
-#include "PluginDescriptor.h"
-#include "Templates/SharedPointer.h"
 
 /**
  * Customizable Object module implementation (private)

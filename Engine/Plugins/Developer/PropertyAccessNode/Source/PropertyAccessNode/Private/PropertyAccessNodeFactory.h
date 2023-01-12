@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraphUtilities.h"
 
 class FPropertyAccessNodeFactory : public FGraphPanelNodeFactory

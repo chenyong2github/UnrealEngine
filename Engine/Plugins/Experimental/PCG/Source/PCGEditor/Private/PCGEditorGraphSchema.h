@@ -4,9 +4,10 @@
 
 #include "EdGraph/EdGraphSchema.h"
 #include "ConnectionDrawingPolicy.h"
-#include "PCGEditorCommon.h"
 
 #include "PCGEditorGraphSchema.generated.h"
+
+enum class EPCGElementType : uint8;
 
 class UPCGEditorGraph;
 

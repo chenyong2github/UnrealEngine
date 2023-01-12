@@ -2,7 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+
+class FArrayProperty;
+class FBoolProperty;
+class FDelegateHandle;
+class FProperty;
+class FStructProperty;
 
 enum class EHotReloadedClassFlags;
 

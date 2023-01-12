@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+class STextBlock;
+template <typename OptionType> class SComboBox;
 
 class FPCGEditor;
 class FPCGMetadataAttributeBase;

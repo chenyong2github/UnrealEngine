@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Tests/PCGTestsCommon.h"
+#include "Data/PCGSpatialData.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include "PCGComponent.h"
-#include "PCGData.h"
+#include "PCGContext.h"
 #include "PCGHelpers.h"
 
 #include "Data/PCGPointData.h"

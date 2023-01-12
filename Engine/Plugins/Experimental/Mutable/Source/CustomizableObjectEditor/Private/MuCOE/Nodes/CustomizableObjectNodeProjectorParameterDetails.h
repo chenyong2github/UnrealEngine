@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
+
+class FReply;
+namespace ESelectInfo { enum Type : int; }
 
 class FString;
 class IDetailLayoutBuilder;

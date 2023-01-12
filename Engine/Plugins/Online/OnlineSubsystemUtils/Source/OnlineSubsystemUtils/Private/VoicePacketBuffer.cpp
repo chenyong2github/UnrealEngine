@@ -2,6 +2,7 @@
 
 #include "VoicePacketBuffer.h"
 #include "Audio.h"
+#include "Trace/Trace.inl"
 
 #define DEBUG_SORTING 0
 #define DEBUG_POPPING 0

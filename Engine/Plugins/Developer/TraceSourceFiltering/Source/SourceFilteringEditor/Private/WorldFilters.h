@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Templates/Function.h"
 
 #include "ISessionSourceFilterService.h"
-#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 
 /** World filter implementation, that marks Worlds as traceable according to their EWorldType */
 class FWorldTypeTraceFilter : public IWorldTraceFilter

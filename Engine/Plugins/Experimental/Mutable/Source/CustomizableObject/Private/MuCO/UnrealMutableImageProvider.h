@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "HAL/Platform.h"
 #include "MuR/Image.h"
 #include "MuR/System.h"
-#include "MuR/Types.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/GCObject.h"
+
+class UTexture2D;
 
 
 /** Implementation of a mutable core provider for image parameters that are application-specific. */

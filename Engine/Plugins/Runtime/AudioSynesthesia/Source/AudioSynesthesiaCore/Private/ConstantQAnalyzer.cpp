@@ -2,10 +2,7 @@
 
 #include "ConstantQAnalyzer.h"
 
-#include "DSP/ConstantQ.h"
-#include "DSP/AudioFFT.h"
 #include "DSP/FloatArrayMath.h"
-#include "DSP/FFTAlgorithm.h"
 
 namespace Audio
 {

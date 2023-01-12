@@ -2,15 +2,6 @@
 
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
 
-#include "AssetToolsModule.h"
-#include "Containers/StringConv.h"
-#include "Delegates/Delegate.h"
-#include "HAL/PlatformMath.h"
-#include "HAL/UnrealMemory.h"
-#include "IAssetTools.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
-#include "Modules/ModuleManager.h"
 #include "MuCO/CustomizableObject.h"	// For the LogMutable log category
 #include "MuCOPE/AssetTypeActions_CustomizableObjectPopulation.h"
 #include "MuCOPE/AssetTypeActions_CustomizableObjectPopulationClass.h"
@@ -18,10 +9,7 @@
 #include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
-#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
-#include "Toolkits/AssetEditorToolkit.h"
-#include "Trace/Detail/Channel.h"
 
 class ICustomizableObjectPopulationClassEditor;
 class ICustomizableObjectPopulationEditor;

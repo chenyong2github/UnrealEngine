@@ -1,17 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseSessionFilterService.h"
+#include "IFilterPreset.h"
 #include "TraceServices/Model/Channel.h"
-#include "TraceServices/ITraceServicesModule.h"
-#include "Templates/SharedPointer.h"
 #include "Misc/CoreDelegates.h"
-#include "Algo/Transform.h"
-#include "Modules/ModuleManager.h"
-#include <Insights/IUnrealInsightsModule.h>
-#include <Trace/StoreClient.h>
-#include <Trace/ControlClient.h>
-#include <IPAddress.h>
-#include <SocketSubsystem.h>
 
 FBaseSessionFilterService::FBaseSessionFilterService(TraceServices::FSessionHandle InHandle, TSharedPtr<const TraceServices::IAnalysisSession> InSession) : Session(InSession), Handle(InHandle)
 {

@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "OnlineSubsystem.h"
 #include "Interfaces/IMessageSanitizerInterface.h"
-#include "OnlineSubsystemTencent.h"
-#include "OnlineAsyncTaskManagerTencent.h"
 #include "Async/AsyncWork.h"
 #include "Containers/Ticker.h"
+#include "OnlineAsyncTaskManager.h"
 
 class FOnlineSubsystemTencent;
 

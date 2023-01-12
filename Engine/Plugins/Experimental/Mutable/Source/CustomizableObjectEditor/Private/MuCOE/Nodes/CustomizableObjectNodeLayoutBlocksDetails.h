@@ -3,11 +3,9 @@
 #pragma once
 
 
-#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Math/MathFwd.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
+
+namespace ESelectInfo { enum Type : int; }
 
 class FString;
 class IDetailLayoutBuilder;

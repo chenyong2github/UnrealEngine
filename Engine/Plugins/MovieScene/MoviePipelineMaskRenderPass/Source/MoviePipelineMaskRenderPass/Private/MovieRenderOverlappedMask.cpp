@@ -2,13 +2,8 @@
 
 #include "MovieRenderOverlappedMask.h"
 
-#include "Math/Vector.h"
-#include "Math/VectorRegister.h"
 
 #include "MovieRenderPipelineCoreModule.h"
-#include "Math/Float16.h"
-#include "HAL/PlatformTime.h"
-#include "Async/ParallelFor.h"
 
 DECLARE_CYCLE_STAT(TEXT("MaskedAccumulator_AccumulateSinglePlane"), STAT_AccumulateSinglePlane, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("MaskedAccumulator_AccumulateMultiplePlanes"), STAT_AccumulateMultiplePlanes, STATGROUP_MoviePipeline);

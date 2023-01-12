@@ -3,6 +3,7 @@
 #include "FilterPresets.h"
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "ITraceObject.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FilterPresets)
 

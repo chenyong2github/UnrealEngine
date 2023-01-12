@@ -5,17 +5,15 @@
 #include "CapturableProperty.h"
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsActor.h"
-#include "PropertyValue.h"
+#include "Trace/Trace.inl"
 #include "Variant.h"
+#include "UObject/TextProperty.h"
 #include "VariantManager.h"
 #include "VariantManagerContentEditorModule.h"
 #include "VariantManagerLog.h"
-#include "VariantManagerPropertyCapturer.h"
 #include "VariantObjectBinding.h"
 #include "VariantSet.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 
 TUniquePtr<FVariantManager> UVariantManagerBlueprintLibrary::VariantManager;
 

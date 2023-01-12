@@ -4,22 +4,21 @@
 
 #include "EditorSessionSourceFilterService.h"
 
-#include "UObject/UObjectGlobals.h"
-#include "UObject/SoftObjectPath.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
+#include "IAssetTools.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Factories/BlueprintFactory.h"
 
+#include "SourceFilterCollection.h"
 #include "TraceSourceFiltering.h"
-#include "IFilterObject.h"
 #include "FilterObject.h"
 #include "FilterSetObject.h"
 #include "ClassFilterObject.h"
 
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
-#include "DataSourceFilter.h"
 #include "DataSourceFilterSet.h"
 
 #include "PackageHelperFunctions.h"
@@ -29,13 +28,14 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorDirectories.h"
 #include "AssetToolsModule.h"
+#include "TraceSourceFilteringSettings.h"
 #include "TraceWorldFiltering.h"
+#include "TreeViewBuilder.h"
 #include "WorldObject.h"
+#include "Widgets/SBoxPanel.h"
 #include "WorldFilters.h"
 #include "SourceFilterStyle.h"
 #include "TraceFilter.h"
-#include "TraceSourceFilteringProjectSettings.h"
-#include "Editor/EditorEngine.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FEditorSourceFilterService"

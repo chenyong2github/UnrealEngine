@@ -2,19 +2,13 @@
 
 #include "CameraAnimationCameraModifier.h"
 #include "Camera/CameraAnimationHelper.h"
-#include "Camera/PlayerCameraManager.h"
 #include "CameraAnimationSequence.h"
 #include "CameraAnimationSequencePlayer.h"
-#include "DisplayDebugHelpers.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayCamerasModule.h"
 #include "Kismet/GameplayStatics.h"
-#include "MovieSceneFwd.h"
-#include "ProfilingDebugging/CountersTrace.h"
-#include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationCameraModifier)
 

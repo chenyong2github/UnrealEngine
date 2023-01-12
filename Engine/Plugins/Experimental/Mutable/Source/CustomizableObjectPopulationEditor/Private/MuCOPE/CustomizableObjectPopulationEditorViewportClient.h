@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
 #include "EditorViewportClient.h"
-#include "Engine/EngineBaseTypes.h"
-#include "HAL/Platform.h"
-#include "InputCoreTypes.h"
-#include "Templates/SharedPointer.h"
 
 class FAdvancedPreviewScene;
 class FReferenceCollector;

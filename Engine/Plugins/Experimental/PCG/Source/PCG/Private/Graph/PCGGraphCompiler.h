@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGGraphExecutor.h"
+#include "PCGCommon.h"
+
+class UPCGGraph;
+struct FPCGGraphTask;
 
 /** 
 * FPCGGraphCompiler

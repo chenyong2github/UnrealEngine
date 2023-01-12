@@ -2,11 +2,12 @@
 
 #include "Tests/TestVoice.h"
 #include "Components/AudioComponent.h"
+#include "Interfaces/VoiceCapture.h"
 #include "Tests/TestVoiceData.h"
 
+#include "Interfaces/VoiceCodec.h"
 #include "OnlineSubsystemUtils.h"
 #include "VoiceModule.h"
-#include "Voice.h"
 #include "Sound/SoundWaveProcedural.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

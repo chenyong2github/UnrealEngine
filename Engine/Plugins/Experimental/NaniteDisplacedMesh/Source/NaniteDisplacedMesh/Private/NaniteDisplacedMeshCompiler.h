@@ -5,11 +5,7 @@
 
 #include "AssetCompilingManager.h"
 #include "AsyncCompilationHelpers.h"
-#include "Containers/Set.h"
-#include "CoreTypes.h"
-#include "NaniteDisplacedMesh.h"
 #include "UObject/GCObject.h"
-#include "UObject/WeakObjectPtr.h"
 
 class UNaniteDisplacedMesh;
 class FQueuedThreadPool;

@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Object.h"
+#include "Containers/StringFwd.h"
+
+class FName;
+class FProperty;
+class UObject;
+enum EFunctionFlags : uint32;
+template <typename T> class TSubclassOf;
 
 class FKismetCompilerContext;
 class UBlueprint;

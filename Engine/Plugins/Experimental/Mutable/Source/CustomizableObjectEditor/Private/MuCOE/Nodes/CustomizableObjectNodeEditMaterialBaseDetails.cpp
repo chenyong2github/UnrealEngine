@@ -2,33 +2,12 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBaseDetails.h"
 
-#include "Containers/UnrealString.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "IDetailsView.h"
-#include "Internationalization/Internationalization.h"
-#include "Layout/Margin.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/Attribute.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
 #include "PropertyCustomizationHelpers.h"
-#include "PropertyHandle.h"
-#include "SlotBase.h"
-#include "Styling/AppStyle.h"
-#include "Templates/Casts.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 
 class IDetailCustomization;
 class UObject;

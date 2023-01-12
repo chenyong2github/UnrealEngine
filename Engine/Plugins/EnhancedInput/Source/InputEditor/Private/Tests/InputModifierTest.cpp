@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "EnhancedActionKeyMapping.h"
-#include "EnhancedPlayerInput.h"
-#include "InputModifiers.h"
 #include "InputTestFramework.h"
 #include "Misc/AutomationTest.h"
 

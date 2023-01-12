@@ -3,31 +3,20 @@
 #include "AnimationSharingManager.h"
 #include "Animation/Skeleton.h"
 #include "AnimationSharingModule.h"
-#include "Stats/Stats.h"
-#include "Components/SkinnedMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "TransitionBlendInstance.h"
-#include "Animation/AnimationAsset.h"
 #include "Animation/AnimSequence.h"
 #include "SignificanceManager.h"
 #include "AnimationSharingSetup.h"
-#include "AdditiveAnimationInstance.h"
 #include "AnimationSharingInstances.h"
 
 #include "Materials/MaterialInterface.h"
-#include "Misc/CoreMisc.h"
 #include "DrawDebugHelpers.h"
-#include "Math/NumericLimits.h"
-#include "Logging/LogMacros.h"
 #include "Engine/Engine.h"
-#include "ProfilingDebugging/CsvProfiler.h"
-#include "Misc/DefaultValueHelper.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationSharingManager)
 
 #if WITH_EDITOR
-#include "PlatformInfo.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/ITargetPlatform.h"
 #endif // WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(LogAnimationSharing);

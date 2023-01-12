@@ -2,7 +2,6 @@
 
 #include "AnimationBudgetAllocatorModule.h"
 #include "AnimationBudgetAllocator.h"
-#include "Engine/World.h"
 
 IMPLEMENT_MODULE(FAnimationBudgetAllocatorModule, AnimationBudgetAllocator);
 

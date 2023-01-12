@@ -2,22 +2,11 @@
 
 #include "TraceDataFilteringModule.h"
 
-#include "HAL/LowLevelMemTracker.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-#include "Features/IModularFeatures.h"
-#include "Framework/Docking/LayoutExtender.h"
-#include "Framework/Docking/TabManager.h"
-#include "Templates/SharedPointer.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigContext.h"
 
-#include "TraceServices/ModuleService.h"
-#include "TraceServices/ITraceServicesModule.h"
 #include "Insights/IUnrealInsightsModule.h"
 
 #include "STraceDataFilterWidget.h"

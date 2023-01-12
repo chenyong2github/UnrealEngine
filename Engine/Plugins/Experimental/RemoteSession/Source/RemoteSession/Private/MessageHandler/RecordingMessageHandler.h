@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/CriticalSection.h"
-#include "Layout/WidgetPath.h"
 #include "ProxyMessageHandler.h"
+
+class FWidgetPath;
 
 class SWindow;
 class FSceneViewport;

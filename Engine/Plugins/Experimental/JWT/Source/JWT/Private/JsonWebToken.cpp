@@ -2,6 +2,7 @@
 
 #include "JsonWebToken.h"
 #include "Algo/Count.h"
+#include "JwtGlobals.h"
 #include "Misc/Base64.h"
 #include "Serialization/JsonSerializer.h"
 

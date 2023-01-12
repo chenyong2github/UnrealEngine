@@ -11,9 +11,8 @@
 #include "MediaSource.h"
 #include "MediaTexture.h"
 
-#include "Rendering/RenderingCommon.h"
+#include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
-#include "Slate/SlateTextures.h"
 
 DEFINE_LOG_CATEGORY(LogMediaMovieStreamer);
 

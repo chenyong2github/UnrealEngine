@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "View/MVVMViewClass.h"
+#include "Types/MVVMFieldContext.h"
 #include "View/MVVMView.h"
 
-#include "Bindings/MVVMBindingHelper.h"
 #include "Bindings/MVVMFieldPathHelper.h"
 #include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetTree.h"
 #include "Engine/Engine.h"
-#include "FieldNotification/IFieldValueChanged.h"
 #include "MVVMMessageLog.h"
 #include "MVVMViewModelBase.h"
 #include "MVVMSubsystem.h"

@@ -2,6 +2,8 @@
 
 #include "ImportTestFunctions/TextureImportTestFunctions.h"
 #include "Engine/Texture.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
+#include "InterchangeTestFunction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureImportTestFunctions)
 

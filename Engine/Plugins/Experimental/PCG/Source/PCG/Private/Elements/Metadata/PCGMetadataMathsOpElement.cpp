@@ -2,13 +2,7 @@
 
 #include "Elements/Metadata/PCGMetadataMathsOpElement.h"
 
-#include "PCGParamData.h"
-#include "Data/PCGSpatialData.h"
-#include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Elements/Metadata/PCGMetadataElementCommon.h"
 
 #include "Elements/Metadata/PCGMetadataMaths.inl"
 

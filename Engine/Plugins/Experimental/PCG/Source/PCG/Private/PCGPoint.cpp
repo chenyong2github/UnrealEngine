@@ -2,7 +2,9 @@
 
 #include "PCGPoint.h"
 
+#include "Math/BoxSphereBounds.h"
 #include "Metadata/Accessors/PCGCustomAccessor.h"
+#include "Metadata/Accessors/IPCGAttributeAccessorTpl.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPoint)
 

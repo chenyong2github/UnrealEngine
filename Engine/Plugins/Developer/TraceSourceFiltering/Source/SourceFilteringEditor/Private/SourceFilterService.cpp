@@ -2,10 +2,7 @@
 
 #include "SourceFilterService.h"
 
-#include "Modules/ModuleManager.h"
-#include "Templates/SharedPointer.h"
 
-#include "TraceServices/Model/AnalysisSession.h"
 
 #if WITH_EDITOR
 #include "EditorSessionSourceFilterService.h"

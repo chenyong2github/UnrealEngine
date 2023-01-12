@@ -2,6 +2,7 @@
 
 #include "Data/PCGTextureData.h"
 
+#include "Engine/Texture2D.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"

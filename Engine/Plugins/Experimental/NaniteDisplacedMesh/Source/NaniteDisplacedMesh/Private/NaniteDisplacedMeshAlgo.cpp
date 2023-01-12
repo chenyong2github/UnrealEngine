@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Async/ParallelFor.h"
+#include "EngineLogs.h"
 #include "NaniteDisplacedMesh.h"
 #include "DisplacementMap.h"
 #include "Engine/Texture2D.h"

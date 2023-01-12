@@ -3,7 +3,7 @@
 #pragma once
 
 #include "RemoteSession.h"
-#include "RemoteSessionRole.h"
+#include "Stats/Stats2.h"
 #include "Tickable.h"
 
 class FRemoteSessionHost;

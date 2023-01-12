@@ -3,7 +3,6 @@
 #include "OnsetAnalyzer.h"
 #include "PeakPicker.h"
 #include "DSP/FloatArrayMath.h"
-#include "DSP/FFTAlgorithm.h"
 
 namespace Audio
 {

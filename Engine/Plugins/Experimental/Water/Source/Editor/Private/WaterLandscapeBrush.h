@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/WeakInterfacePtr.h"
-#include "GameFramework/Actor.h"
 #include "LandscapeBlueprintBrush.h"
-#include "Containers/Map.h"
 #include "WaterBrushActorInterface.h"
 #include "WaterLandscapeBrush.generated.h"
+
+class ALandscape;
+class UBillboardComponent;
+class UTexture2D;
+template <class T> struct TWeakInterfacePtr;
+template <typename InterfaceType> class TScriptInterface;
 
 class AWaterBody;
 class AWaterBodyIsland;

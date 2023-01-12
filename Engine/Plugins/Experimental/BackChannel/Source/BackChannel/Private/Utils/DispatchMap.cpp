@@ -2,7 +2,6 @@
 
 #include "BackChannel/Utils/DispatchMap.h"
 #include "BackChannel/IBackChannelPacket.h"
-#include "Containers/StringView.h"
 
 
 FBackChannelDispatchMap::FBackChannelDispatchMap()

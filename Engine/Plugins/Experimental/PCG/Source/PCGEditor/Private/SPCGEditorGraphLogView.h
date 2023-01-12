@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGElement.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SHeaderRow.h"
-#include "Widgets/Views/SListView.h"
-#include "Logging/LogVerbosity.h"
+#include "Widgets/Views/ITableRow.h"
+#include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
 
 class FPCGEditor;
 class UPCGComponent;

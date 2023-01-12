@@ -2,6 +2,12 @@
 
 #include "PlatformStreamDownload.h"
 #include "ChunkDownloaderLog.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFile.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Modules/ModuleManager.h"
 
 //////////////////////////////////////////////////////////////////////////////////
 #if 0 && PLATFORM_ANDROID

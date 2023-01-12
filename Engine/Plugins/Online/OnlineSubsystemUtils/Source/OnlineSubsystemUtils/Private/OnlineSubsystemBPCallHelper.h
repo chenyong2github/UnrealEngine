@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "Online/CoreOnlineFwd.h"
 
 class APlayerController;
 class IOnlineSubsystem;

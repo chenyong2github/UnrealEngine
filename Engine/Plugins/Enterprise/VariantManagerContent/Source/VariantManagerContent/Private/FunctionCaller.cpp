@@ -13,7 +13,6 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_FunctionEntry.h"
-#include "UObject/PropertyPortFlags.h"
 
 // This file is based on MovieSceneEvent.cpp
 

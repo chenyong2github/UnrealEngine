@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "BackChannel/Types.h"
 #include "IRemoteSessionRole.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
-#include "HAL/CriticalSection.h"
+
+class IBackChannelConnection;
+class IBackChannelSocketConnection;
 
 class FBackChannelOSCConnection;
 enum class ERemoteSessionChannelMode;

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FindSessionsCallbackProxy.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSubsystem.h"
+#include "Online/OnlineSessionNames.h"
 #include "OnlineSubsystemBPCallHelper.h"
 #include "GameFramework/PlayerController.h"
 

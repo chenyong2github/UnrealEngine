@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Input/Reply.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Application/MenuStack.h"
-#include "Framework/Application/SlateApplication.h"
 #include "DataTableEditorUtils.h"
-#include "DragAndDrop/DecoratedDragDropOp.h"
+
+class STableViewBase;
 
 class FDataRegistryEditorToolkit;
 class SDataRegistryListViewRow;

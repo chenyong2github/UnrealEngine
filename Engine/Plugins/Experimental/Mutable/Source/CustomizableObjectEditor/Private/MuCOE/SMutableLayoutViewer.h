@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Internationalization/Text.h"
-#include "Math/MathFwd.h"
-#include "Misc/Attribute.h"
 #include "MuR/Layout.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SCustomizableObjectLayoutGrid;

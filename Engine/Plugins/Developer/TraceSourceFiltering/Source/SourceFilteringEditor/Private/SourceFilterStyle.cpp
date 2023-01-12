@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceFilterStyle.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Styling/SlateTypes.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/CoreStyle.h"
-#include "Styling/StarshipCoreStyle.h"
-#include "SlateOptMacros.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Misc/Paths.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
 #define RootToContentDir StyleSet->RootToContentDir

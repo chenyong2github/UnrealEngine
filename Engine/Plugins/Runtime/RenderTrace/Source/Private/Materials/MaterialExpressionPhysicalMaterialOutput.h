@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "MaterialExpressionIO.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "MaterialValueType.h"
 
 #include "MaterialExpressionPhysicalMaterialOutput.generated.h"
+
+class UPhysicalMaterial;
 
 /** Structure linking a material expression input with a physical material. For use by UMaterialExpressionPhysicalMaterialOutput. */
 USTRUCT()

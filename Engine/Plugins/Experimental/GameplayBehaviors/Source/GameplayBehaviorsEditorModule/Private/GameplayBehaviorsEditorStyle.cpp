@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayBehaviorsEditorStyle.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
 
 TUniquePtr<FGameplayBehaviorsEditorStyle> FGameplayBehaviorsEditorStyle::Instance(nullptr);

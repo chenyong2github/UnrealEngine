@@ -2,11 +2,14 @@
 
 #include "SUserTraceFilteringWidget.h"
 
-#include "Algo/Transform.h"
 
+#include "DataSourceFiltering.h"
 #include "Framework/Application/SlateApplication.h"
+#include "DetailsViewArgs.h"
 #include "SourceFilterStyle.h"
+#include "Framework/Commands/UICommandList.h"
 #include "SSourceFilteringTreeview.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SFilterObjectWidget.h"
 #include "IDataSourceFilterSetInterface.h"
 #include "TreeViewBuilder.h"

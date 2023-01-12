@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "wvtt/ElectraSubtitleDecoder_WVTT.h"
-#include "Containers/StringConv.h"
+#include "ElectraSubtitleDecoderFactory.h"
+#include "ElectraSubtitleModule.h"
+#include "MediaDecoderOutput.h"
+#include "ParameterDictionary.h"
+#include "PlayerTime.h"
 
 namespace ElectraSubtitleDecoderWVTTUtils
 {

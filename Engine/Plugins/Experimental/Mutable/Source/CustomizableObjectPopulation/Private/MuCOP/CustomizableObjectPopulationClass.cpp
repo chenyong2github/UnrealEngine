@@ -2,9 +2,8 @@
 
 #include "MuCOP/CustomizableObjectPopulationClass.h"
 
-#include "MuCOP/CustomizableObjectPopulationCharacteristic.h"
+#include "MuCOP/CustomizableObjectPopulationConstraint.h"
 #include "MuCOP/CustomizableObjectPopulationCustomVersion.h"
-#include "Serialization/Archive.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectPopulationClass)
 

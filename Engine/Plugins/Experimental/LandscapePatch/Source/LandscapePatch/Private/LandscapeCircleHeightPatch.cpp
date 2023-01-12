@@ -5,8 +5,9 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "LandscapeCircleHeightPatchPS.h"
 #include "LandscapePatchManager.h"
-#include "RenderGraph.h" // RDG_EVENT_NAME
+#include "RenderGraphUtils.h"
 #include "TextureResource.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeCircleHeightPatch)
 

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "Widgets/Views/STreeView.h"
 
 class SUserTraceFilteringWidget;

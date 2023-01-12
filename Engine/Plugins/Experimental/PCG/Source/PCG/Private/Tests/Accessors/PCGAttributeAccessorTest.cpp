@@ -2,16 +2,11 @@
 
 #include "Tests/PCGTestsCommon.h"
 
-#include "PCGPoint.h"
 #include "Data/PCGPointData.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadata.h"
+#include "Metadata/Accessors/IPCGAttributeAccessorTpl.h"
 #include "Metadata/Accessors/PCGAttributeAccessor.h"
-#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 #include "UObject/Package.h"
-#include "UObject/UnrealType.h"
-#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 

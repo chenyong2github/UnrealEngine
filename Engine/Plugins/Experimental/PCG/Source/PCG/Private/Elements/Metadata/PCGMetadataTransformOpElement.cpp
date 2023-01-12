@@ -2,12 +2,7 @@
 
 #include "Elements/Metadata/PCGMetadataTransformOpElement.h"
 
-#include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Elements/Metadata/PCGMetadataRotatorOpElement.h"
-#include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "Math/DualQuat.h"
 

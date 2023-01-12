@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
 #include "Containers/Ticker.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
+#include "Interfaces/OnlineSessionDelegates.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
+
+class FOnlineFriend;
 
 class TestOnlineGameSettings;
 class TestOnlineSearchSettings;

@@ -1,21 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceFilterTrace.h"
+#include "Trace/Detail/Field.h"
+#include "Trace/Detail/Trace.h"
 
 #if SOURCE_FILTER_TRACE_ENABLED
 
-#include "UObject/UnrealType.h"
-#include "UObject/Class.h"
-#include "Engine/EngineBaseTypes.h"
+#include "DataSourceFilterSet.h"
 #include "Trace/Trace.inl"
 
-#include "DataSourceFilter.h"
+#include "ObjectTrace.h"
 #include "TraceWorldFiltering.h"
 #include "EmptySourceFilter.h"
-#include "TraceFilter.h"
 
 #if WITH_EDITOR
-#include "Editor.h"
 #endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "SourceFilterTrace"

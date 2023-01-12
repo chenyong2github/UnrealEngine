@@ -3,19 +3,9 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
-#include "Logging/TokenizedMessage.h"
-#include "MuCO/CustomizableObject.h"
 #include "MuCOE/CompilationMessageCache.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
-#include "MuT/Node.h"
-#include "MuT/NodeObject.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
-#include "UObject/NameTypes.h"
 
 class FCustomizableObjectCompileRunnable;
 class FCustomizableObjectSaveDDRunnable;

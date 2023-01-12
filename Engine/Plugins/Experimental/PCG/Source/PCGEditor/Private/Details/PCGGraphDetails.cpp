@@ -3,12 +3,8 @@
 #include "Details/PCGGraphDetails.h"
 #include "PCGGraph.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SButton.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
 
 #define LOCTEXT_NAMESPACE "PCGGraphDetails"

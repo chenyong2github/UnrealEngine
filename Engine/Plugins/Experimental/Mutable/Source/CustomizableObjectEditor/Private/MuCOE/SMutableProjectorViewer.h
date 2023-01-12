@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Misc/Optional.h"
-#include "MuR/Parameters.h"
 #include "MuR/ParametersPrivate.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+namespace mu { enum class PROJECTOR_TYPE : uint32; }
 
 
 class SMutableProjectorViewer final : public SCompoundWidget

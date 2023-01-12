@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBooleanUtils.h"
-#include "TransformTypes.h"
-#include "VectorUtil.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "Operations/MeshBoolean.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
+#include "Operations/MeshRegionOperator.h"
 #include "Selections/MeshConnectedComponents.h"
-#include "DynamicMeshEditor.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "MeshSimplification.h"
 #include "MeshQueries.h"
@@ -15,8 +13,6 @@
 #include "MeshBoundaryLoops.h"
 #include "Operations/MinimalHoleFiller.h"
 #include "Operations/MeshPlaneCut.h"
-#include "Curve/PlanarComplex.h"
-#include "DynamicSubmesh3.h"
 #include "PhysicsEngine/ConvexElem.h"
 
 #include "WaterBodyExclusionVolume.h"

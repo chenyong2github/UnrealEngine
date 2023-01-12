@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Transport/TcpSerializedMessage.h"
 #include "HAL/Runnable.h"
 #include "Containers/Queue.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "Common/UdpSocketReceiver.h"
+
+class FArrayReader;
 
 class FTcpDeserializedMessage;
 

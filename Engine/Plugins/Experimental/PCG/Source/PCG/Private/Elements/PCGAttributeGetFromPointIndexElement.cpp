@@ -2,16 +2,13 @@
 
 #include "Elements/PCGAttributeGetFromPointIndexElement.h"
 
-#include "PCGData.h"
-#include "PCGHelpers.h"
-#include "PCGParamData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGSettingsHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeGetFromPointIndexElement)
 

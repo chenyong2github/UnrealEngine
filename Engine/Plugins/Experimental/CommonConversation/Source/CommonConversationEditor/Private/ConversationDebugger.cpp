@@ -2,26 +2,16 @@
 
 #include "ConversationDebugger.h"
 
-#include "Editor/EditorEngine.h"
-#include "Editor.h"
 
 #define USE_CONVERSATION_DEBUGGER 0
 
-#include "GameFramework/Actor.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/Controller.h"
-#include "EngineGlobals.h"
-#include "Editor/EditorEngine.h"
-#include "Editor.h"
 // #include "Conversation/BTNode.h"
 // #include "Conversation/BTTaskNode.h"
 // #include "Conversation/BTAuxiliaryNode.h"
 //#include "ConversationGraphNode_CompositeDecorator.h"
 #include "ConversationEditor.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Engine/Selection.h"
-#include "GameFramework/PlayerController.h"
-#include "EngineUtils.h"
+#include "Selection.h"
 #include "UnrealEdGlobals.h"
 //#include "ConversationGraphNode_Requirement.h"
 //#include "ConversationGraphNode_Task.h"

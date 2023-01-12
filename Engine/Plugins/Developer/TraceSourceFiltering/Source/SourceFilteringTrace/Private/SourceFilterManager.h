@@ -2,20 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Tickable.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Stats/StatsMisc.h"
 
-#include "DataSourceFiltering.h"
-#include "TraceSourceFilteringProjectSettings.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "SourceFilteringTickFunction.h"
-#include "SourceFilteringAsyncTasks.h"
 #include "ActorFiltering.h"
-#include "ResultCache.h"
 #include "SourceFilterSetup.h"
 
 class UDataSourceFilter;

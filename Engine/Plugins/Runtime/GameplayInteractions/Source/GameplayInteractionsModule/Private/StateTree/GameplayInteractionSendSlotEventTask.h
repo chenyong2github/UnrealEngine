@@ -1,10 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "GameplayInteractionsTypes.h"
-#include "SmartObjectTypes.h"
 #include "GameplayInteractionSendSlotEventTask.generated.h"
+
+enum class EDataValidationResult : uint8;
 
 class USmartObjectSubsystem;
 

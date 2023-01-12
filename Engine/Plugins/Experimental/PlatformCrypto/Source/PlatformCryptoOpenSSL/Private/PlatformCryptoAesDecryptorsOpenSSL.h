@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PlatformCryptoTypes.h"
 #include "PlatformCryptoOpenSSLTypes.h"
 

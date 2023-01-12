@@ -37,35 +37,27 @@
  */
 
 #include "ReplicationGraph.h"
-#include "EngineGlobals.h"
-#include "Engine/World.h"
 
-#include "Engine/LocalPlayer.h"
+#include "Engine/ChildConnection.h"
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
+#include "Engine/PackageMapClient.h"
 #include "Net/DataReplication.h"
 #include "Engine/ActorChannel.h"
-#include "Engine/NetworkObjectList.h"
+#include "GameFramework/PlayerController.h"
 #include "Net/RepLayout.h"
-#include "Net/UnrealNetwork.h"
-#include "Net/NetworkProfiler.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "Net/Core/Trace/Private/NetTraceInternal.h"
 #include "UObject/UObjectIterator.h"
-#include "Engine/Level.h"
-#include "Templates/UnrealTemplate.h"
-#include "Stats/StatsMisc.h"
-#include "Net/DataChannel.h"
-#include "UObject/UObjectGlobals.h"
 #include "DrawDebugHelpers.h"
 #include "Misc/ScopeExit.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Engine/ServerStatReplicator.h"
+#include "Stats/StatsTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReplicationGraph)
 
 #if USE_SERVER_PERF_COUNTERS
-#include "PerfCountersModule.h"
 #endif
 
 namespace UE::Net::Private

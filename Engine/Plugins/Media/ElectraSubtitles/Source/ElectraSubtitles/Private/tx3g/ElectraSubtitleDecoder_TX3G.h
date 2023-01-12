@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "ElectraSubtitleDecoder.h"
-#include "ElectraSubtitleDecoderFactory.h"
+#include "IElectraSubtitleDecoder.h"
+
+class IElectraSubtitleDecoderFactoryRegistry;
 
 /**
  * 3GPP / TX3G subtitle decoder (ETSI TS 126 245 V11.0.0)

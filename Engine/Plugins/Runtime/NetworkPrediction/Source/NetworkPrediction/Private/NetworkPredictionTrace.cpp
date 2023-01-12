@@ -3,19 +3,12 @@
 
 #include "NetworkPredictionTrace.h"
 #include "Engine/GameInstance.h"
-#include "CoreMinimal.h"
-#include "HAL/PlatformTime.h"
-#include "UObject/ObjectKey.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "GameFramework/Actor.h"
-#include "Engine/NetConnection.h"
-#include "UObject/CoreNet.h"
-#include "Engine/PackageMapClient.h"
-#include "Logging/LogMacros.h"
 #include "NetworkPredictionLog.h"
+#include "Trace/Detail/Field.h"
 #include "Trace/Trace.inl"
+#include "Trace/Detail/Trace.h"
 
 // TODO:
 // Should update string tracing with UE::Trace::AnsiString
@@ -320,10 +313,6 @@ void FNetworkPredictionTrace::TraceOOBStateMod(int32 TraceID, int32 Frame, const
 		<< OOBStateMod.Source(StrView.GetData(), StrView.Len());
 }
 
-#include "CoreTypes.h"
-#include "Misc/VarArgs.h"
-#include "HAL/UnrealMemory.h"
-#include "Templates/UnrealTemplate.h"
 
 // Copied from VarargsHelper.h
 #define GROWABLE_LOGF(SerializeFunc) \

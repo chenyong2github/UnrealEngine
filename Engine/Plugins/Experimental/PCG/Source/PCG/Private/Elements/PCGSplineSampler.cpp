@@ -2,15 +2,17 @@
 
 #include "Elements/PCGSplineSampler.h"
 
-#include "PCGCommon.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeSplineData.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGPolyLineData.h"
 #include "Data/PCGSplineData.h"
+#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Components/SplineComponent.h"
+#include "PCGContext.h"
 #include "Voronoi/Voronoi.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSplineSampler)

@@ -2,16 +2,9 @@
 
 #include "GameplayTask_StandAt.h"
 #include "GameFramework/Pawn.h"
-#include "TimerManager.h"
-#include "AISystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AIResources.h"
 #include "GameplayTasksComponent.h"
-#include "NavigationPath.h"
-#include "NavigationData.h"
-#include "NavigationSystem.h"
-#include "Tasks/AITask.h"
-#include "GameplayActuationComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_StandAt)

@@ -2,14 +2,20 @@
 
 #pragma once
 
-#include "ScalableConeGizmo.h"
-#include "Engine/SpotLight.h"
+#include "BaseBehaviors/AnyButtonInputBehavior.h"
 #include "InteractiveGizmo.h"
-#include "SubTransformProxy.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "BaseGizmos/GizmoBaseComponent.h"
 
+#include "BaseGizmos/GizmoActor.h"
+#include "InteractiveGizmoBuilder.h"
+#include "UObject/Package.h"
 #include "SpotLightGizmo.generated.h"
+
+class ASpotLight;
+class UGizmoBaseComponent;
+class UScalableConeGizmo;
+class USubTransformProxy;
+class UTransformProxy;
 
 class UGizmoViewContext;
 

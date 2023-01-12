@@ -2,18 +2,19 @@
 
 #pragma once 
 
-#include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Containers/Array.h"
 #include "EditorUndoClient.h"
-#include "Engine/Scene.h"
-#include "Templates/SharedPointer.h"
 #include "TickableEditorObject.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
 #include "SCameraShakePreviewer.generated.h"
+
+class SButton;
+class UCameraModifier_CameraShake;
+namespace ESelectInfo { enum Type : int; }
+struct FActiveCameraShakeInfo;
+struct FAddCameraShakeParams;
+template <typename ItemType> class SListView;
 
 class AActor;
 class ACameraActor;

@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioParameterComponent.h"
-#include "Audio.h"
-#include "Components/AudioComponent.h"
-#include "GameFramework/Actor.h"
-#include "UObject/UObjectHash.h"
 #include "AudioDevice.h"
 #include "ActiveSound.h"
+#include "IAudioParameterTransmitter.h"
 #include "Kismet/KismetStringLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioParameterComponent)

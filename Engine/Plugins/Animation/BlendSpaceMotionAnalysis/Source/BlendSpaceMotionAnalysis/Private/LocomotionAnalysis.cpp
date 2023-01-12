@@ -2,8 +2,6 @@
 
 #include "LocomotionAnalysis.h"
 #include "BlendSpaceMotionAnalysis.h"
-#include "Engine/Engine.h"
-#include "Logging/LogMacros.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LocomotionAnalysis)
 

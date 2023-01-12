@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceFilterCollection.h"
+#include "DataSourceFilterSet.h"
 #include "SourceFilterTrace.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/AssetData.h"
 #include "Async/Async.h"
-#include "UObject/UObjectIterator.h"
 #include "EmptySourceFilter.h"
+#include "ObjectTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceFilterCollection)
 

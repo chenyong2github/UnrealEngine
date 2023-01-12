@@ -2,14 +2,15 @@
 
 #include "SVariantManagerNodeTreeView.h"
 
-#include "CoreMinimal.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "VariantManager.h"
 #include "SVariantManager.h"
 #include "SVariantManagerTableRow.h"
+#include "VariantManagerNodeTree.h"
 #include "VariantManagerSelection.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "VariantManagerSelection.h"
 #include "VariantManager.h"
 #include "SVariantManager.h"

@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/World.h"
-#include "Stats/Stats.h"
-#include "Containers/Set.h"
-#include "Engine/EngineTypes.h"
+#include "Engine/EngineBaseTypes.h"
 #include "IAnimationBudgetAllocator.h"
 #include "UObject/GCObject.h"
 #include "AnimationBudgetAllocatorParameters.h"

@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DataRegistryTypes.h"
+#include "DataRegistryId.h"
 #include "IPropertyTypeCustomization.h"
-#include "IPropertyUtilities.h"
-#include "IDetailChildrenBuilder.h"
-#include "EdGraphUtilities.h"
 #include "SGraphPin.h"
 
 /** Data Registry type, reads list from subsystem */

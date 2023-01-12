@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
 #include "MuR/Mesh.h"
 #include "SEditorViewport.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FAdvancedPreviewScene;
 class FEditorViewportClient;

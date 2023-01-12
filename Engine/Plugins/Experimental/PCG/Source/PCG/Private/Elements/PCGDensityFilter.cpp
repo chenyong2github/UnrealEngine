@@ -2,11 +2,12 @@
 
 #include "Elements/PCGDensityFilter.h"
 
+#include "Data/PCGSpatialData.h"
 #include "PCGCustomVersion.h"
-#include "PCGEdge.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
+#include "PCGContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityFilter)
 

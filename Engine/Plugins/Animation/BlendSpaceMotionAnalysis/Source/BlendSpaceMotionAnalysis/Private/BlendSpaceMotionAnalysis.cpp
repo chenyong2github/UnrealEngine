@@ -2,9 +2,7 @@
 
 #include "BlendSpaceMotionAnalysis.h"
 #include "Features/IModularFeatures.h"
-#include "Engine/Engine.h"
 #include "Modules/ModuleManager.h"
-#include "Logging/LogMacros.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlendSpaceMotionAnalysis)
 

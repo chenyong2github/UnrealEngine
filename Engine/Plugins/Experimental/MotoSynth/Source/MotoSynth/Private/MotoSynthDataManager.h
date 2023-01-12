@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MotoSynthSourceAsset.h"
+#include "Curves/RichCurve.h"
+
+struct FGrainTableEntry;
 
 struct FMotoSynthSourceData
 {

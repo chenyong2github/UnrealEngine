@@ -2,29 +2,13 @@
 
 #include "MuCOE/SMutableTextSearchBox.h"
 
-#include "CoreTypes.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Views/ITypedTableView.h"
-#include "HAL/PlatformCrt.h"
-#include "Input/Events.h"
-#include "InputCoreTypes.h"
-#include "Layout/Children.h"
-#include "Layout/Margin.h"
-#include "Layout/Visibility.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Layout/WidgetPath.h"
-#include "Math/Color.h"
-#include "Misc/AssertionMacros.h"
-#include "Styling/AppStyle.h"
-#include "Styling/SlateColor.h"
-#include "Types/SlateStructs.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
 
 class ITableRow;
 class STableViewBase;

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Templates/Tuple.h"
 
 #include "MuR/Image.h"
 

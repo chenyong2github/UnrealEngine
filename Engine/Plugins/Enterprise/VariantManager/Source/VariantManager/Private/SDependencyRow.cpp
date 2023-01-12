@@ -2,11 +2,8 @@
 
 #include "SDependencyRow.h"
 
-#include "CoreMinimal.h"
-#include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ScopedTransaction.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -14,9 +11,8 @@
 #include "LevelVariantSets.h"
 #include "SVariantManager.h"
 #include "Variant.h"
-#include "VariantManager.h"
-#include "VariantManagerUtils.h"
 #include "VariantSet.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "SDependencyRow"
 

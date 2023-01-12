@@ -2,21 +2,14 @@
 
 #include "PropertyValue.h"
 
+#include "UObject/EnumProperty.h"
 #include "VariantManagerContentLog.h"
 #include "VariantManagerObjectVersion.h"
 #include "VariantObjectBinding.h"
 
-#include "Components/ActorComponent.h"
-#include "CoreMinimal.h"
-#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SCS_Node.h"
-#include "HAL/UnrealMemory.h"
-#include "UObject/Package.h"
-#include "UObject/PropertyPortFlags.h"
-#include "UObject/Script.h"
 #include "UObject/TextProperty.h"
 #include "UObject/CoreObjectVersion.h"
-#include "UObject/UnrealTypePrivate.h" // Only for converting deprecated UProperties!
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyValue)
 

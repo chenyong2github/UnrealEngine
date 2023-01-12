@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FPaintArgs;

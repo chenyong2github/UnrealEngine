@@ -2,16 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/ContainersFwd.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
 #include "HAL/Runnable.h"
-#include "Internationalization/Text.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuR/Model.h"
+#include "MuR/Ptr.h"
 #include "MuT/Node.h"
-#include "Templates/SharedPointer.h"
 
 class ITargetPlatform;
 

@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "PCGEditorModule.h"
-#include "PCGSettings.h"
 
 #include "EditorUndoClient.h"
+#include "PCGContext.h"
 #include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
+enum class ECheckBoxState : uint8;
+namespace ETextCommit { enum Type : int; }
 
 struct FPropertyAndParent;
 class FUICommandList;

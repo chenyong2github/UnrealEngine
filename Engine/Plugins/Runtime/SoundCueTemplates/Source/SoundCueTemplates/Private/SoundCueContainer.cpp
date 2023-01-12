@@ -1,30 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundCueContainer.h"
 
-#include "Sound/SoundCue.h"
-#include "Sound/SoundWave.h"
-#include "Sound/SoundNode.h"
 #include "Sound/SoundNodeConcatenator.h"
 #include "Sound/SoundNodeMixer.h"
 #include "Sound/SoundNodeModulator.h"
 #include "Sound/SoundNodeQualityLevel.h"
 #include "Sound/SoundNodeRandom.h"
 #include "Sound/SoundNodeWavePlayer.h"
+#include "SoundCueTemplateSettings.h"
 #include "SoundCueTemplatesModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueContainer)
 
 #if WITH_EDITORONLY_DATA
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "Sound/AudioSettings.h"
-#include "SoundCueGraph/SoundCueGraphNode.h"
-#include "SoundCueGraph/SoundCueGraph.h"
-#include "SoundCueGraph/SoundCueGraphNode_Root.h"
-#include "SoundCueGraph/SoundCueGraphSchema.h"
+#include "PropertyEditorModule.h"
 #endif // WITH_EDITORONLY_DATA
 
 #define LOCTEXT_NAMESPACE "SoundCueContainer"
+
 USoundCueContainer::USoundCueContainer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

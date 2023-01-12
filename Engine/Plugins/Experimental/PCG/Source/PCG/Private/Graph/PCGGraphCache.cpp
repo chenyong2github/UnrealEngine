@@ -2,11 +2,8 @@
 
 #include "PCGGraphCache.h"
 #include "PCGComponent.h"
-#include "PCGSettings.h"
 
 #include "Misc/ScopeRWLock.h"
-#include "Algo/AnyOf.h"
-#include "GameFramework/Actor.h"
 
 namespace PCGGraphCache
 {

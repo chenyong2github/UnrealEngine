@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TouchInputVisualizer.h"
-#include "CoreMinimal.h"
 #include "Engine/Canvas.h"
 #include "Misc/CoreDelegates.h"
-#include "HAL/IConsoleManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "CanvasItem.h"
-#include "CanvasTypes.h"
 
 #if SUPPORT_TOUCH_INPUT_DISPLAY
 

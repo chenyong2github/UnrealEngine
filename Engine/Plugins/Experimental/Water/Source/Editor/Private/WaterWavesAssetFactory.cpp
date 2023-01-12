@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterWavesAssetFactory.h"
-#include "AssetTypeCategories.h"
 #include "WaterWaves.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterWavesAssetFactory)

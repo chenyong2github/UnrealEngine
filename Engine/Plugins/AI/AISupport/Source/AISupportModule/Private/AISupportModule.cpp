@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AISupportModule.h"
-#include "Modules/ModuleManager.h"
 #include "AITypes.h"
 
 #define LOCTEXT_NAMESPACE "AISupport"

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
 #include "Templates/SharedPointer.h"
 
 class IFilterObject;

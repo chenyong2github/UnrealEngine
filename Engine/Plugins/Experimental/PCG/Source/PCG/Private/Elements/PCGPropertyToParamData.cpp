@@ -2,15 +2,12 @@
 
 #include "Elements/PCGPropertyToParamData.h"
 
-#include "PCGCommon.h"
+#include "GameFramework/Actor.h"
 #include "PCGContext.h"
 #include "PCGComponent.h"
 #include "PCGParamData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
 
-#include "EngineUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPropertyToParamData)
 

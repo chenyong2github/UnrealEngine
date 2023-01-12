@@ -2,9 +2,8 @@
 
 #include "SCapturedActorsWidget.h"
 
-#include "CoreMinimal.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "GameFramework/Actor.h"
-#include "UObject/ObjectMacros.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/SListView.h"

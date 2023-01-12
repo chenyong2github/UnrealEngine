@@ -3,15 +3,8 @@
 #include "NaniteDisplacedMeshEditorModule.h"
 
 #include "AssetTypeActions_NaniteDisplacedMesh.h"
-#include "IAssetTools.h"
-#include "ISettingsModule.h"
-#include "Modules/ModuleManager.h"
-#include "Modules/ModuleManager.h"
 #include "NaniteDisplacedMeshCustomization.h"
 #include "PropertyEditorModule.h"
-#include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "UObject/Package.h"
 #include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NaniteDisplacedMeshEditor"

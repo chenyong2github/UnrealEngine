@@ -2,7 +2,7 @@
 
 #include "InterchangeImportTestStepReimport.h"
 #include "InterchangeImportTestData.h"
-#include "InterchangeTestFunction.h"
+#include "Misc/PackageName.h"
 #include "UObject/SavePackage.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestStepReimport)

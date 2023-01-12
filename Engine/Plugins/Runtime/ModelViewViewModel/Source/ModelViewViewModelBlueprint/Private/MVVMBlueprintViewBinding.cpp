@@ -3,12 +3,9 @@
 #include "MVVMBlueprintViewBinding.h"
 
 #include "Bindings/MVVMConversionFunctionHelper.h"
-#include "EdGraph/EdGraphPin.h"
 #include "K2Node_CallFunction.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "WidgetBlueprint.h"
-#include "WidgetBlueprintExtension.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintViewBinding)
 

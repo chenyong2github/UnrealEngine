@@ -2,17 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/PropertyViewer/IFieldExpander.h"
 #include "Framework/PropertyViewer/IFieldIterator.h"
-#include "Misc/EnumClassFlags.h"
 #include "MVVMPropertyPath.h"
-#include "Templates/SubclassOf.h"
-#include "Templates/Tuple.h"
-#include "Types/MVVMBindingSource.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
+
+namespace UE::MVVM { struct FBindingSource; }
 
 class UWidgetBlueprint;
 class UWidget;

@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LakeCollisionComponent.h"
-#include "PhysicsEngine/BoxElem.h"
+#include "BodySetupEnums.h"
 #include "WaterBodyActor.h"
-#include "Components/SplineComponent.h"
+#include "Physics/PhysicsInterfaceTypes.h"
 #include "WaterSplineComponent.h"
-#include "DrawDebugHelpers.h"
 #include "GeomTools.h"
 #include "PrimitiveSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "PhysicsEngine/ConvexElem.h"
 #include "AI/NavigationSystemHelpers.h"
+#include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
 #include "ShaderCore.h"
 #include "WaterUtils.h"
-#include "Algo/Transform.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LakeCollisionComponent)
 

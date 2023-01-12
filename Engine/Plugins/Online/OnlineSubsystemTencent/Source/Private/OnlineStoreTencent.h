@@ -4,9 +4,7 @@
 
 #if WITH_TENCENTSDK
 
-#include "RailSDK.h"
 #include "Interfaces/OnlineStoreInterfaceV2.h"
-#include "OnlineSubsystemTencentTypes.h"
 #include "OnlineSubsystemTencentPackage.h"
 
 class FOnlineSubsystemTencent;

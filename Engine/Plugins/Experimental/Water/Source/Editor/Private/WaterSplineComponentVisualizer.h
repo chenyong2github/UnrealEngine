@@ -2,14 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "HitProxies.h"
-#include "ComponentVisualizer.h"
 #include "SplineComponentVisualizer.h"
-#include "Components/SplineComponent.h"
-#include "WaterSplineComponent.h"
 #include "WaterSplineComponentVisualizer.generated.h"
+
+class UWaterSplineComponent;
 
 class AActor;
 class FEditorViewportClient;

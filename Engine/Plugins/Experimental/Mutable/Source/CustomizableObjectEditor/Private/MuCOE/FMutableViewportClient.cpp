@@ -3,7 +3,6 @@
 #include "MuCOE/FMutableViewportClient.h"
 
 #include "AdvancedPreviewScene.h"
-#include "Editor.h"
 #include "UnrealWidget.h"
 
 FMutableMeshViewportClient::FMutableMeshViewportClient(const TSharedRef<FAdvancedPreviewScene>& InPreviewScene)

@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/TcpDeserializedMessage.h"
-#include "UObject/Package.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "TcpMessagingPrivate.h"
 #include "Backends/JsonStructDeserializerBackend.h"
+#include "Serialization/ArrayReader.h"
 #include "StructDeserializer.h"
 
 

@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Styling/SlateColor.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
 
 class FText;

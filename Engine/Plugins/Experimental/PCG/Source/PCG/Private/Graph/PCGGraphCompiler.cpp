@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraphCompiler.h"
+#include "Graph/PCGGraphExecutor.h"
 #include "PCGGraph.h"
 #include "PCGEdge.h"
+#include "PCGModule.h"
 #include "PCGSubgraph.h"
-#include "PCGSettings.h" // Needed for trivial element
+#include "PCGPin.h"
 
 TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId)
 {

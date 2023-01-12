@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Commandlets/Commandlet.h"
 #include "GenerateNaniteDisplacedMeshCommandlet.generated.h"
 

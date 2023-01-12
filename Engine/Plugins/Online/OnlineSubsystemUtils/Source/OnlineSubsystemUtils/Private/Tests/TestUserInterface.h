@@ -4,8 +4,6 @@
 
 // UE includes
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 
 // Module includes
 #include "Interfaces/OnlineUserInterface.h"

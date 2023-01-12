@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
-#include "DataRegistry.h"
 #include "DataRegistryFactory.generated.h"
+
+class UDataRegistry;
 
 UCLASS(hidecategories = Object)
 class UDataRegistryFactory : public UFactory

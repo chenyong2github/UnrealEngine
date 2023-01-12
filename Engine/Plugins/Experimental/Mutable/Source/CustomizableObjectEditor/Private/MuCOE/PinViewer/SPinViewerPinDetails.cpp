@@ -2,20 +2,8 @@
 
 #include "MuCOE/PinViewer/SPinViewerPinDetails.h"
 
-#include "Delegates/Delegate.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Text.h"
-#include "Layout/Clipping.h"
-#include "Layout/Margin.h"
-#include "Misc/Attribute.h"
 #include "MuCOE/PinViewer/SPinViewerDetailRowIndent.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
-#include "SlotBase.h"
-#include "Styling/AppStyle.h"
-#include "Styling/ISlateStyle.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 class SWidget;

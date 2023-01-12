@@ -2,6 +2,7 @@
 
 #include "WorldConditionsEditorModule.h"
 
+#include "PropertyEditorModule.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "WorldConditionEditorStyle.h"

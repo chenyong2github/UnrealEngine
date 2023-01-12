@@ -2,25 +2,9 @@
 
 #include "MVVMPropertyPathCustomization.h"
 
-#include "Algo/RemoveIf.h"
-#include "Algo/Transform.h"
-#include "Bindings/MVVMBindingHelper.h"
-#include "BlueprintEditor.h"
-#include "Components/Widget.h"
 #include "DetailWidgetRow.h"
-#include "MVVMEditorSubsystem.h"
-#include "MVVMSubsystem.h"
-#include "MVVMWidgetBlueprintExtension_View.h"
-#include "PropertyHandle.h"
-#include "SSimpleButton.h"
-#include "Templates/UnrealTemplate.h"
 #include "WidgetBlueprint.h"
-#include "Widgets/Images/SLayeredImage.h"
-#include "Widgets/Input/SComboBox.h" 
-#include "Widgets/SMVVMFieldIcon.h"
 #include "Widgets/SMVVMFieldSelector.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MVVMPropertyPathCustomization"
 

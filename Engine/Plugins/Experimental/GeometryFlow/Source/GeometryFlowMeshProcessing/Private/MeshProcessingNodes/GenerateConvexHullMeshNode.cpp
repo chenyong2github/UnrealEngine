@@ -2,7 +2,6 @@
 
 #include "MeshProcessingNodes/GenerateConvexHullMeshNode.h"
 #include "Operations/MeshConvexHull.h"
-#include "Util/ProgressCancel.h"
 
 using namespace UE::Geometry;
 using namespace UE::GeometryFlow;

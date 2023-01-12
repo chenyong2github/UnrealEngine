@@ -3,7 +3,9 @@
 #include "WaterUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/Package.h"
+#include "RHI.h"
 #include "RenderingThread.h"
 
 extern TAutoConsoleVariable<int32> CVarWaterEnabled;

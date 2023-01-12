@@ -2,14 +2,6 @@
 
 #include "MuCOE/GraphTraversal.h"
 
-#include "Containers/EnumAsByte.h"
-#include "Containers/Set.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "MuCO/CustomizableObject.h"
 #include "MuCOE/CustomizableObjectPin.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEnumParameter.h"
@@ -30,10 +22,6 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeAnimationPose.h"
-#include "Templates/Casts.h"
-#include "Templates/Function.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
 #include "UObject/UObjectIterator.h"
 
 

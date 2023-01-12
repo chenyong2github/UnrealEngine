@@ -2,7 +2,9 @@
 
 #include "SPCGEditorGraphDeterminism.h"
 
-#include "PCGEditor.h"
+#include "Framework/Views/TableViewMetadata.h"
+#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "PCGDeterminism"
 

@@ -4,8 +4,11 @@
 
 #if WITH_TENCENTSDK
 
-#include "RailSDK.h"
 #include "OnlineAsyncTaskManager.h"
+
+#if WITH_TENCENT_RAIL_SDK
+#include "RailSDK.h"
+#endif
 
 class FOnlineSubsystemTencent;
 

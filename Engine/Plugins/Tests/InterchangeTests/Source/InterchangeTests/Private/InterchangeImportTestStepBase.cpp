@@ -2,6 +2,8 @@
 
 #include "InterchangeImportTestStepBase.h"
 #include "InterchangeImportTestData.h"
+#include "InterchangeTestFunction.h"
+#include "Misc/AutomationTest.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestStepBase)
 

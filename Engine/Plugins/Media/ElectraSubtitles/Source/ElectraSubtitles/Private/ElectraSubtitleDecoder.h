@@ -2,5 +2,3 @@
 
 #pragma once
 
-#include "IElectraSubtitleDecoder.h"
-#include "ElectraSubtitleModule.h"

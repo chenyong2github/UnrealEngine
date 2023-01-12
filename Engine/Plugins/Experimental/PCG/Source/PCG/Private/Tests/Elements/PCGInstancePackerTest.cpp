@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Tests/PCGTestsCommon.h"
+#include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
+#include "Metadata/PCGMetadataAccessor.h"
 #include "PCGComponent.h"
 #include "PCGManagedResource.h"
 #include "Data/PCGPointData.h"
@@ -11,10 +12,6 @@
 #include "InstancePackers/PCGInstancePackerByAttribute.h"
 #include "InstancePackers/PCGInstancePackerByRegex.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"

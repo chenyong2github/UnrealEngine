@@ -1,15 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeTestEditorModule.h"
-#include "InterchangeImportTestPlan.h"
-#include "InterchangeImportTestSettings.h"
-#include "InterchangeTestsModule.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 #include "InterchangeTestFunctionLayout.h"
 #include "InterchangeTestFunction.h"
 #include "AssetTypeActions_InterchangeImportTestPlan.h"
-#include "AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "InterchangeTestEditorModule"

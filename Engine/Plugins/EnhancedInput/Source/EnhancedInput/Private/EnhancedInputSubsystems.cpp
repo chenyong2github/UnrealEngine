@@ -2,21 +2,15 @@
 
 #include "EnhancedInputSubsystems.h"
 
+#include "Components/InputComponent.h"
 #include "Engine/LocalPlayer.h"
-#include "EnhancedInputComponent.h"
 #include "EnhancedInputDeveloperSettings.h"
-#include "EnhancedInputModule.h"
-#include "EnhancedPlayerInput.h"
 #include "Engine/Canvas.h"
 #include "Engine/World.h"
+#include "EnhancedInputWorldProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
-#include "InputCoreTypes.h"
 #include "InputMappingContext.h"
-#include "InputModifiers.h"
-#include "InputTriggers.h"
-#include "GameFramework/InputSettings.h"
-#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputSubsystems)
 

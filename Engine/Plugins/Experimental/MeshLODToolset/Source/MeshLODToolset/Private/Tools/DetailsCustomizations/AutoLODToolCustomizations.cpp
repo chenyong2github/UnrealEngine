@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/DetailsCustomizations/AutoLODToolCustomizations.h"
-#include "UObject/Class.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
-#include "PropertyHandle.h"
-#include "PropertyRestriction.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
 

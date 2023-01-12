@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Misc/CommandLine.h"
 #include "Misc/AutomationTest.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "OnlineSubsystem.h"
-#include "Interfaces/OnlineIdentityInterface.h"
 #include "Tests/TestIdentityInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

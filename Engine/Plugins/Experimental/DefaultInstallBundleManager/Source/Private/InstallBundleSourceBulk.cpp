@@ -3,16 +3,13 @@
 #include "InstallBundleSourceBulk.h"
 
 #include "DefaultInstallBundleManagerPrivate.h"
+#include "HAL/PlatformFile.h"
 #include "IPlatformFilePak.h"
-#include "Containers/Ticker.h"
+#include "InstallBundleManagerUtil.h"
 #include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
-#include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
-#include "Stats/Stats.h"
-#include "Serialization/JsonSerializerMacros.h"
 
 #define LOG_SOURCE_BULK(Verbosity, Format, ...) LOG_INSTALL_BUNDLE_MAN(Verbosity, TEXT("InstallBundleSourceBulk: ") Format, ##__VA_ARGS__)
 

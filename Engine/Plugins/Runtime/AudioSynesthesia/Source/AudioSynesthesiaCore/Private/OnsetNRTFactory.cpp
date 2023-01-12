@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnsetNRTFactory.h"
-#include "OnsetAnalyzer.h"
 #include "AudioSynesthesiaCustomVersion.h"
 #include "DSP/DeinterleaveView.h"
 #include "DSP/FloatArrayMath.h"

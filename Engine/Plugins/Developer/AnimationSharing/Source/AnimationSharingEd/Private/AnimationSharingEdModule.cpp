@@ -2,7 +2,7 @@
 
 #include "AnimationSharingEdModule.h"
 #include "AssetTypeActions_AnimationSharingSetup.h"
-#include "AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 #include "SetupDetailsViewCustomizations.h"
 
 IMPLEMENT_MODULE(FAnimSharingEdModule, AnimationSharingEd );

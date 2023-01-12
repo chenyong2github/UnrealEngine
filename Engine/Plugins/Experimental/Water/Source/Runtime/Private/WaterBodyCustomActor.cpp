@@ -2,13 +2,13 @@
 
 #include "WaterBodyCustomActor.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "WaterBodyCustomComponent.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyCustomActor)
 
 #if WITH_EDITOR
-#include "WaterIconHelper.h"
 #endif
 
 // ----------------------------------------------------------------------------------

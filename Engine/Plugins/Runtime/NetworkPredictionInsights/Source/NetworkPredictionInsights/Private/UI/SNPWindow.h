@@ -2,22 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Framework/Docking/TabManager.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Misc/Guid.h"
-#include "SlateFwd.h"
-#include "TraceServices/Model/NetProfiler.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "Insights/Common/PaintUtils.h"
 #include "INetworkPredictionProvider.h"
-#include "Containers/ArrayView.h"
-#include "Framework/Commands/UICommandList.h"
+
+class FMenuBuilder;
+class FSpawnTabArgs;
+class FTabManager;
+class FUICommandList;
+class SDockTab;
+enum class ECheckBoxState : uint8;
+namespace ESelectInfo { enum Type : int; }
+struct FUIAction;
 
 namespace TraceServices
 {

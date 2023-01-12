@@ -3,12 +3,7 @@
 #include "Chaos/ActorFactoryChaosSolver.h"
 #include "Chaos/ChaosSolverActor.h"
 #include "Chaos/ChaosSolver.h"
-#include "Chaos/ChaosSolverFactory.h"
-#include "Misc/FileHelper.h"
-#include "ActorFactories/ActorFactory.h"
 #include "AssetRegistry/AssetData.h"
-#include "Editor.h"
-#include "EditorFramework/AssetImportData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFactoryChaosSolver)
 

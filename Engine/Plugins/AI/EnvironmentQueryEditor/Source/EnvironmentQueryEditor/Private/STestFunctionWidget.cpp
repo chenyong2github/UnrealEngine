@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STestFunctionWidget.h"
-#include "Rendering/DrawElements.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
 
 void STestFunctionWidget::Construct(const FArguments& InArgs)
 {

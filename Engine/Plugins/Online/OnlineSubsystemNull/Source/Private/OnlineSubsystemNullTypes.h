@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemTypes.h"
 #include "IPAddress.h"
+#include "OnlineSubsystemPackage.h"
 
 class FOnlineSubsystemNull;
 

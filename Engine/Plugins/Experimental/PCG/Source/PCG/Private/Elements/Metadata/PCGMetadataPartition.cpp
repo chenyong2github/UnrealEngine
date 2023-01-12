@@ -6,6 +6,7 @@
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Algo/Find.h"
+#include "PCGContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataPartition)
 

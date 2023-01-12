@@ -1,18 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionInterfaceNull.h"
-#include "Misc/Guid.h"
-#include "OnlineSubsystem.h"
+#include "Online/OnlineBase.h"
 #include "OnlineSubsystemNull.h"
-#include "OnlineSubsystemNullTypes.h"
 #if WITH_ENGINE
 #include "OnlineSubsystemUtils.h"
 #endif //WITH_ENGINE
 #include "OnlineAsyncTaskManager.h"
 #include "SocketSubsystem.h"
 #include "NboSerializerNull.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-#include "UObject/CoreNet.h"
 
 
 

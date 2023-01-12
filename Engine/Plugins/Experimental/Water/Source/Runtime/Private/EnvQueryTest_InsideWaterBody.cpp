@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvQueryTest_InsideWaterBody.h"
-#include "UObject/UObjectHash.h"
-#include "GameFramework/Volume.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
 #include "WaterBodyComponent.h"
 #include "WaterBodyManager.h"
-#include "WaterSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_InsideWaterBody)
 

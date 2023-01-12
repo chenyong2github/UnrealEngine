@@ -2,7 +2,6 @@
 
 #include "Tests/TestStatsInterface.h"
 #include "OnlineSubsystemUtils.h"
-#include "Interfaces/OnlineIdentityInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

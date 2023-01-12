@@ -1,9 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "GameplayInteractionsTypes.h"
-#include "SmartObjectTypes.h"
 #include "GameplayInteractionGetSlotActorTask.generated.h"
 
 class USmartObjectSubsystem;

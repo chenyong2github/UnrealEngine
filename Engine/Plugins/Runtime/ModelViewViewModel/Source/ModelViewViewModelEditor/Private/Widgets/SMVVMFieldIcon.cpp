@@ -4,9 +4,6 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "BlueprintEditor.h"
-#include "Styling/SlateBrush.h"
-#include "Styling/SlateColor.h"
-#include "Styling/StyleColors.h"
 #include "Widgets/Images/SLayeredImage.h"
 
 #define LOCTEXT_NAMESPACE "SFieldIcon"

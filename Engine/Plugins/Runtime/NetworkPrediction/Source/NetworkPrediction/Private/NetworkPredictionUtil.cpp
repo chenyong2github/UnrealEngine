@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionUtil.h"
-#include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
 #include "NetworkPredictionLog.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
 
 namespace UE_NP
 {

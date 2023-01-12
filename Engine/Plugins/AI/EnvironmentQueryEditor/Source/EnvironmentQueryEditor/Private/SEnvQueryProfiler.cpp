@@ -3,22 +3,18 @@
 
 #include "SEnvQueryProfiler.h"
 #include "Editor.h"
-#include "Types/SlateStructs.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBox.h"
+#include "Modules/ModuleManager.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "EnvironmentQuery/EnvQueryTest.h"
-#include "EnvironmentQuery/EnvQueryOption.h"
-#include "EnvironmentQuery/EnvQueryManager.h"
 #include "Editor/UnrealEdEngine.h"
+#include "SEnvQueryLoadGraph.h"
 #include "UnrealEdGlobals.h"
-#include "Styling/AppStyle.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "EnvironmentQueryEditor"
 

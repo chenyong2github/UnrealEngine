@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "Styling/ISlateStyle.h"
-#include "Framework/Docking/TabManager.h"
 #include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
 
 class AActor;
 class FMenuBuilder;

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/OnlineTitleFileInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

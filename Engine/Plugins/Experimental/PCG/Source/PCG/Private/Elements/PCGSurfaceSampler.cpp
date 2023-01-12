@@ -3,6 +3,7 @@
 #include "Elements/PCGSurfaceSampler.h"
 
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGCustomVersion.h"
 #include "PCGEdge.h"
 #include "PCGGraph.h"
@@ -11,10 +12,10 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
-#include "Helpers/PCGBlueprintHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Math/RandomStream.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSurfaceSampler)
 

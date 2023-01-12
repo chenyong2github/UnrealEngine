@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/ArrayView.h"
-#include "UObject/Object.h"
 #include "IPropertyAccessEditor.h"
 #include "IPropertyAccessCompiler.h"
 

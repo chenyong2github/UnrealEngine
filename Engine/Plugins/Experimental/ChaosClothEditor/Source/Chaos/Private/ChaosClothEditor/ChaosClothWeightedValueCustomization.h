@@ -4,6 +4,8 @@
 
 #include "Customizations/MathStructCustomizations.h"
 
+template <typename OptionalType> struct TOptional;
+
 /**
  * Customization for all property that also uses weight maps.
  * Works like a FMathStructCustomization with the difference that

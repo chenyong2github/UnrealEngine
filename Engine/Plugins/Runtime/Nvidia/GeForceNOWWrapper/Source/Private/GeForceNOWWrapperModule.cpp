@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "IGeForceNOWWrapperModule.h"
 #include "GeForceNOWWrapperPrivate.h"
+
+#if NV_GEFORCENOW
 #include "GeForceNOWWrapper.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "HAL/IConsoleManager.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogGeForceNow);
 

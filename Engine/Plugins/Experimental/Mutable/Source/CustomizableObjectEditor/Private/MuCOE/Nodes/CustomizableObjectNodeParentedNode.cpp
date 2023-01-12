@@ -2,8 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedNode.h"
 
-#include "Containers/Array.h"
-#include "HAL/PlatformCrt.h"
+#include "EdGraph/EdGraph.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 
 class UCustomizableObject;

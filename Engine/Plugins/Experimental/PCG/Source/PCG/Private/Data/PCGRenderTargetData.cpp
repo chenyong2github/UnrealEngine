@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Data/PCGRenderTargetData.h"
-#include "Kismet/KismetRenderingLibrary.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGRenderTargetData)

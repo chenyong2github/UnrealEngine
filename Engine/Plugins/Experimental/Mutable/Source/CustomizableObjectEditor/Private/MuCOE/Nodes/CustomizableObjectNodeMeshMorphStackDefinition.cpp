@@ -2,21 +2,12 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshMorphStackDefinition.h"
 
-#include "Animation/MorphTarget.h"
-#include "Containers/EnumAsByte.h"
-#include "EdGraph/EdGraphPin.h"
 #include "Engine/SkeletalMesh.h"
-#include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
-#include "Templates/Casts.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
 
 class UCustomizableObjectNodeRemapPins;
 

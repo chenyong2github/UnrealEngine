@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineBaseTypes.h"
-#include "EnhancedPlayerInput.h"
 #include "K2Node_Event.h"
 #include "K2Node_EnhancedInputActionEvent.generated.h"
+
+class UInputAction;
+enum class ETriggerEvent : uint8;
 
 class UDynamicBlueprintBinding;
 

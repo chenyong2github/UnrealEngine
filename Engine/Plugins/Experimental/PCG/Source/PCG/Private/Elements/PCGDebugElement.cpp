@@ -2,7 +2,9 @@
 
 #include "Elements/PCGDebugElement.h"
 
+#include "Data/PCGSpatialData.h"
 #include "PCGComponent.h"
+#include "Engine/CollisionProfile.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGActorHelpers.h"
@@ -10,6 +12,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDebugElement)
 

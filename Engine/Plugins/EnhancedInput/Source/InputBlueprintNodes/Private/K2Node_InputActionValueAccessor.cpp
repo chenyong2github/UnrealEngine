@@ -3,6 +3,7 @@
 #include "K2Node_InputActionValueAccessor.h"
 #include "EnhancedInputActionDelegateBinding.h"
 #include "EnhancedInputLibrary.h"
+#include "InputAction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_InputActionValueAccessor)
 

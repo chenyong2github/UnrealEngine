@@ -3,7 +3,6 @@
 #include "AssetDefinition_MaterialInstanceConstant.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "Misc/DelayedAutoRegister.h"
 #include "ToolMenus.h"
 #include "IAssetTools.h"
 #include "MaterialEditorModule.h"

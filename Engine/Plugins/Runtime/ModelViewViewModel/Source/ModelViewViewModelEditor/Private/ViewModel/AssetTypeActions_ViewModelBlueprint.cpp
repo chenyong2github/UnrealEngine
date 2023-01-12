@@ -2,7 +2,6 @@
 
 #include "AssetTypeActions_ViewModelBlueprint.h"
 #include "Misc/MessageDialog.h"
-#include "Engine/Blueprint.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "SBlueprintDiff.h"
 

@@ -2,16 +2,12 @@
 
 #include "AudioSynesthesiaEditorModule.h"
 
-#include "AssetToolsModule.h"
 #include "AssetTypeActions_AudioSynesthesiaNRT.h"
 #include "AssetTypeActions_AudioSynesthesiaNRTSettings.h"
 #include "AssetTypeActions_AudioSynesthesiaSettings.h"
 #include "AudioAnalyzerModule.h"
 #include "AudioSynesthesia.h"
 #include "AudioSynesthesiaNRT.h"
-#include "CoreMinimal.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
 
 

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Common/UdpSocketReceiver.h"
-#include "IMessageAttachment.h"
 #include "IMessageContext.h"
+#include "Misc/DateTime.h"
+
+class FArrayReader;
 
 /**
  * Holds a deserialized message.

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SFilterPreset.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "EventFilterStyle.h"
 #include "IFilterPreset.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SFilterPreset"
 

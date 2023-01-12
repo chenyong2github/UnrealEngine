@@ -3,22 +3,19 @@
 #if WITH_EDITOR
 
 #include "PluginUtils.h"
+#include "IDesktopPlatform.h"
 #include "SourceControlHelpers.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Editor.h"
 #include "GameProjectUtils.h"
 #include "Interfaces/IProjectManager.h"
 #include "Interfaces/IPluginManager.h"
-#include "PluginDescriptor.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/AssetData.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "DesktopPlatformModule.h"
+#include "LocalizationDescriptor.h"
 #include "PackageTools.h"
-#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "Misc/Paths.h"
@@ -26,6 +23,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/FeedbackContext.h"
+#include "PluginReferenceDescriptor.h"
 #include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPluginUtils, Log, All);

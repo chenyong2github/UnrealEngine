@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Framework/Commands/InputChord.h"
 #include "K2Node_Event.h"
 #include "K2Node_InputDebugKeyEvent.generated.h"
+
+enum EInputEvent : int;
 
 class UDynamicBlueprintBinding;
 

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineStatsInterface.h"
 #include "OnlineSubsystem.h"
 

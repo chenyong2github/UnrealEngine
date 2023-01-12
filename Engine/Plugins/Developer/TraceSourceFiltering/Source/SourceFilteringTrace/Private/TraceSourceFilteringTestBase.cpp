@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceSourceFilteringTestBase.h"
+#include "PreviewScene.h"
 #include "SourceFilterManager.h"
+#include "TraceFilter.h"
+#include "TraceSourceFiltering.h"
+#include "TraceWorldFiltering.h"
 
 #if WITH_AUTOMATION_TESTS
 bool FTraceSourceFilteringTestBase::RunTest(const FString& Parameters)

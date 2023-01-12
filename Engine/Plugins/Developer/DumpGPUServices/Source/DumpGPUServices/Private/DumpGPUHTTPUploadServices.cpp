@@ -3,15 +3,14 @@
 #include "DumpGPU.h"
 #include "DumpGPUServices.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "HAL/PlatformFile.h"
 #include "Misc/App.h"
+#include "Interfaces/IHttpRequest.h"
 #include "Misc/Paths.h"
+#include "Misc/Compression.h"
 #include "Misc/FileHelper.h"
-#include "Misc/ScopedSlowTask.h"
-#include "Serialization/JsonTypes.h"
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "HttpModule.h"
-#include "HttpManager.h"
 #include "Interfaces/IHttpResponse.h"
 
 #if WITH_EDITOR

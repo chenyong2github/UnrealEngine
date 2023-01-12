@@ -3,9 +3,12 @@
 #include "Bindings/MVVMCompiledBindingLibrary.h"
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetTree.h"
+#include "FieldNotification/IClassDescriptor.h"
 #include "UObject/PropertyAccessUtil.h"
+#include "FieldNotification/IFieldValueChanged.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMFieldContext.h"
+#include "Types/MVVMFunctionContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMCompiledBindingLibrary)
 

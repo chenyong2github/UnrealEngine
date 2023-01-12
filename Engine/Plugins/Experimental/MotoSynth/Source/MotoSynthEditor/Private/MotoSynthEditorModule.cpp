@@ -1,17 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotoSynthEditorModule.h"
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-#include "AssetToolsModule.h"
-#include "Factories/Factory.h"
-#include "AssetTypeActions_Base.h"
 #include "AudioEditorModule.h"
 #include "ToolMenus.h"
-#include "Misc/AssertionMacros.h"
-#include "MotoSynthSourceAsset.h"
 #include "MotoSynthSourceFactory.h"
 #include "SoundWaveAssetActionExtenderMotoSynth.h"
 

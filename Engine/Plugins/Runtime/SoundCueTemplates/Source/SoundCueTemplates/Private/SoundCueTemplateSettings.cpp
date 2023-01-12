@@ -2,17 +2,14 @@
 #include "SoundCueTemplateSettings.h"
 
 #include "Sound/AudioSettings.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "SoundCueContainer.h"
-#include "SoundCueTemplatesModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueTemplateSettings)
 
 #if WITH_EDITOR
 
 #include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif // WITH_EDITOR
 

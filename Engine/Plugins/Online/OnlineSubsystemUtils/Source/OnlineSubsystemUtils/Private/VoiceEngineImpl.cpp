@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VoiceEngineImpl.h"
-#include "Components/AudioComponent.h"
+#include "Interfaces/VoiceCodec.h"
 #include "VoiceModule.h"
-#include "Voice.h"
 
-#include "DSP/BufferVectorOperations.h"
-#include "Sound/SoundWaveProcedural.h"
 #include "OnlineSubsystemUtils.h"
-#include "GameFramework/GameSession.h"
 #include "OnlineSubsystemBPCallHelper.h"
+#include "VoicePacketBuffer.h"
+#include "VoipListenerSynthComponent.h"
 
 /** Largest size allowed to carry over into next buffer */
 #define MAX_VOICE_REMAINDER_SIZE 4 * 1024

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IJwt.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "JsonWebToken.h"
+#include "JwtGlobals.h"
 
 DEFINE_LOG_CATEGORY(LogJwt);
 
