@@ -2942,7 +2942,7 @@ protected:
 
 	/** Default mesh deformer to use with this mesh. */
 	UE_DEPRECATED(5.1, "This must be protected for async build, always use the accessors even internally.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer", Meta=(Filter="/Script/Engine.SkinnedMeshComponent"))
 	TObjectPtr<UMeshDeformer> DefaultMeshDeformer;
 
 private:
