@@ -126,6 +126,59 @@ namespace UnrealBuildBase
 		}
 
 		/// <summary>
+		/// Searches base directories for an existing relative pathed file
+		/// </summary>
+		/// <param name="File">File to search for</param>
+		/// <param name="Logger"></param>
+		/// <returns>A FileReference for the existing file, otherwise null</returns>
+		public static FileReference? FindRelativeFileReference(string File, ILogger Logger)
+		{
+			return EnumerateBaseDirectories(Logger)
+					.Select(x => FileReference.Combine(x, File))
+					.FirstOrDefault(x => FileReference.Exists(x));
+		}
+
+		/// <summary>
+		/// Searches base directories for an existing relative pathed directory
+		/// </summary>
+		/// <param name="Directory">Directory to search for</param>
+		/// <param name="Logger"></param>
+		/// <returns>A DirectoryReference for the existing directory, otherwise null</returns>
+		public static DirectoryReference? FindRelativeDirectoryReference(string Directory, ILogger Logger)
+		{
+			return EnumerateBaseDirectories(Logger)
+					.Select(x => DirectoryReference.Combine(x, Directory))
+					.FirstOrDefault(x => DirectoryReference.Exists(x));
+		}
+
+		/// <summary>
+		/// Takes a project name (e.g "ShooterGame") or path and attempt to find the existing uproject file in the base directories
+		/// </summary>
+		/// <param name="FilePath"></param>
+		/// <returns>A FileReference to an existing .uproject file, otherwise null</returns>
+		public static FileReference? FindProjectFile(string Project, ILogger Logger)
+		{
+			// Handle absolute paths, or relative paths from the current working directory
+			if (File.Exists(Project))
+			{
+				return new FileReference(Project);
+			}
+
+			if (Path.IsPathFullyQualified(Project))
+			{
+				// Absolute path not found, return null instead of searching
+				return null;
+			}
+
+			string ProjectName = Path.GetFileNameWithoutExtension(Project);
+
+			// Search known .uprojects by name, then as relative path, then relative path for Project/Project.uproject
+			return EnumerateProjectFiles(Logger).FirstOrDefault(x => string.Equals(x.GetFileNameWithoutExtension(), ProjectName, StringComparison.OrdinalIgnoreCase)) ??
+				FindRelativeFileReference(Project, Logger) ??
+				FindRelativeFileReference(Path.Combine(ProjectName, $"{ProjectName}.uproject"), Logger);
+		}
+
+		/// <summary>
 		/// Finds all target files under a given folder, and add them to the target name to project file map
 		/// </summary>
 		/// <param name="Directory">Directory to search</param>

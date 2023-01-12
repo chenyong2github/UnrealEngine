@@ -50,12 +50,23 @@ namespace AutomationToolDriver
 				{
 					throw new Exception("The -ScriptsForProject argument may only be specified once");
 				}
+
 				string ProjectFileName = CurrentParam.Substring(CurrentParam.IndexOf('=') + 1).Replace("\"", "");
-				if (!File.Exists(ProjectFileName))
+				FileReference ProjectReference = NativeProjectsBase.FindProjectFile(ProjectFileName, Logger);
+
+				if (ProjectReference != null)
+				{
+					AutomationToolCommandLine.SetUnchecked(Option_ScriptsForProject, ProjectReference.FullName);
+					Logger.LogDebug("Found project file: {0}", ProjectReference.FullName);
+				}
+				else if (Path.IsPathFullyQualified(ProjectFileName))
 				{
 					throw new Exception($"Project '{ProjectFileName}' does not exist");
 				}
-				AutomationToolCommandLine.SetUnchecked(Option_ScriptsForProject, Path.GetFullPath(ProjectFileName));
+				else
+				{
+					throw new Exception($"Project '{ProjectFileName}' does not exist relative to any entries in *.uprojectdirs");
+				}
 			}
 			else if (CurrentParam.StartsWith(Option_ScriptDir + "=", StringComparison.InvariantCultureIgnoreCase))
 			{
@@ -63,13 +74,29 @@ namespace AutomationToolDriver
 				if (Directory.Exists(ScriptDir))
 				{
 					List<string> OutAdditionalScriptDirectories = (List<string>)AutomationToolCommandLine.GetValueUnchecked(Option_ScriptDir) ?? new List<string>();
-					OutAdditionalScriptDirectories.Add(ScriptDir);
+					OutAdditionalScriptDirectories.Add(Path.GetFullPath(ScriptDir));
 					AutomationToolCommandLine.SetUnchecked(Option_ScriptDir, OutAdditionalScriptDirectories);
-					Logger.LogDebug("Found additional script dir: {0}", ScriptDir);
+					Logger.LogDebug("Found additional script dir: {0}", Path.GetFullPath(ScriptDir));
 				}
 				else
 				{
-					throw new Exception($"Specified ScriptDir doesn't exist: {ScriptDir}");
+					DirectoryReference ScriptDirReference = NativeProjectsBase.FindRelativeDirectoryReference(ScriptDir, Logger);
+
+					if (ScriptDirReference != null)
+					{
+						List<string> OutAdditionalScriptDirectories = (List<string>)AutomationToolCommandLine.GetValueUnchecked(Option_ScriptDir) ?? new List<string>();
+						OutAdditionalScriptDirectories.Add(ScriptDirReference.FullName);
+						AutomationToolCommandLine.SetUnchecked(Option_ScriptDir, OutAdditionalScriptDirectories);
+						Logger.LogDebug("Found additional script dir: {0}", ScriptDirReference.FullName);
+					}
+					else if (Path.IsPathFullyQualified(ScriptDir))
+					{
+						throw new Exception($"Specified ScriptDir doesn't exist: {ScriptDir}");
+					}
+					else
+					{
+						throw new Exception($"Specified ScriptDir doesn't exist relative to any entries in *.uprojectdirs: {ScriptDir}");
+					}
 				}
 			}
 			else if (CurrentParam.StartsWith(Option_Telemetry + "=", StringComparison.InvariantCultureIgnoreCase))
