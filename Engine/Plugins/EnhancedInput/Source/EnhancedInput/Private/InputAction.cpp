@@ -133,10 +133,15 @@ EDataValidationResult UInputAction::IsDataValid(TArray<FText>& ValidationErrors)
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
 
 	// Validate the triggers
+	bool bContainsComboTrigger = false;
+	bool bContainsNonComboTrigger = false;
 	for (const TObjectPtr<UInputTrigger> Trigger : Triggers)
 	{
 		if (Trigger)
 		{
+			// check if it the trigger is a combo or not
+			Trigger.IsA(UInputTriggerCombo::StaticClass()) ? bContainsComboTrigger = true : bContainsNonComboTrigger = true;
+			
 			Result = CombineDataValidationResults(Result, Trigger->IsDataValid(ValidationErrors));
 		}
 		else
@@ -144,6 +149,11 @@ EDataValidationResult UInputAction::IsDataValid(TArray<FText>& ValidationErrors)
 			Result = EDataValidationResult::Invalid;
 			ValidationErrors.Add(LOCTEXT("NullInputTrigger", "There cannot be a null Input Trigger on an Input Action!"));
 		}
+	}
+	if (bContainsComboTrigger && bContainsNonComboTrigger)
+	{
+		Result = EDataValidationResult::Invalid;
+		ValidationErrors.Add(LOCTEXT("ComboAndNonComboInputTrigger", "Combo triggers are not intended to interact with other input triggers. Consider adding the combo and other triggers later in a context or creating a seperate action for the combo."));
 	}
 	
 	// Validate the modifiers
