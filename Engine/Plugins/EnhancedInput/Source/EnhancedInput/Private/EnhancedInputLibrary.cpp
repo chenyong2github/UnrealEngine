@@ -4,6 +4,7 @@
 
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputModule.h"
 #include "EnhancedInputSubsystems.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/Actor.h"
