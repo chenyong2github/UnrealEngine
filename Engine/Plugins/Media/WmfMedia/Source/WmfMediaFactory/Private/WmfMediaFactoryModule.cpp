@@ -15,6 +15,8 @@
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
 	#include "WmfMediaSettings.h"
+#else
+	#include "Internationalization/Internationalization.h"
 #endif
 
 #include "../../WmfMedia/Public/IWmfMediaModule.h"
