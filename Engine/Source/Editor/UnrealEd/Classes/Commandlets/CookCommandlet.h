@@ -26,8 +26,9 @@ class UCookCommandlet
 {
 	GENERATED_UCLASS_BODY()
 
+protected:
 	/** List of asset types that will force GC after loading them during cook */
-	UPROPERTY(config)
+	UE_DEPRECATED(5.2, "No longer used")
 	TArray<FString> FullGCAssetClassNames;
 
 	/** If true, iterative cooking is being done */
@@ -48,8 +49,6 @@ class UCookCommandlet
 	bool bGenerateStreamingInstallManifests;
 	/** Error if we access engine content (useful for dlc) */
 	bool bErrorOnEngineContentUse;
-	/** Use historical serialization system for generating package dependencies (use for historical reasons only this method has been depricated, only affects cooked manifests) */
-	bool bUseSerializationForGeneratingPackageDependencies;
 	/** Only cook packages specified on commandline options (for debugging)*/
 	bool bCookSinglePackage;
 	/** Modification to bCookSinglePackage - cook transitive hard references in addition to the packages on the commandline */

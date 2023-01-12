@@ -51,7 +51,7 @@ enum class ECookInitializationFlags
 	AsyncSave =									0x00000020, // save packages async
 	// unused =									0x00000040,
 	IncludeServerMaps =							0x00000080, // should we include the server maps when cooking
-	UseSerializationForPackageDependencies =	0x00000100, // should we use the serialization code path for generating package dependencies (old method will be deprecated)
+	UseSerializationForPackageDependencies UE_DEPRECATED(4.26, "No longer used.") = 0x00000100,
 	BuildDDCInBackground =						0x00000200, // build ddc content in background while the editor is running (only valid for modes which are in editor IsCookingInEditor())
 	// unused =									0x00000400,
 	OutputVerboseCookerWarnings =				0x00000800, // output additional cooker warnings about content issues
@@ -90,7 +90,6 @@ enum class ECookByTheBookOptions
 
 	// Deprecated flags
 	NoSlatePackages UE_DEPRECATED(5.0, "The [UI]ContentDirectories is deprecated. You may use DirectoriesToAlwaysCook in your project settings instead.") = 0x00000400, // don't include slate content
-	DisableUnsolicitedPackages UE_DEPRECATED(4.26, "Use SkipSoftReferences and/or SkipHardReferences instead") = SkipSoftReferences | SkipHardReferences,
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -663,9 +662,6 @@ public:
 	/** Is the local CookOnTheFlyServer in a cook session in CookByTheBook Mode? */
 	bool IsCookByTheBookRunning() const;
 
-	UE_DEPRECATED(4.26, "Unsolicited packages are now added directly to the savequeue and are not marked as unsolicited")
-	TArray<UPackage*> GetUnsolicitedPackages(const TArray<const ITargetPlatform*>& TargetPlatforms) const;
-
 	/** Execute class-specific special case cook postloads and reference discovery on a given package. */
 	void PostLoadPackageFixup(UE::Cook::FPackageData& PackageData, UPackage* Package);
 
@@ -703,19 +699,12 @@ public:
 	 */
 	void ClearCachedCookedPlatformDataForPlatform(const ITargetPlatform* TargetPlatform);
 
-	UE_DEPRECATED(4.25, "Use version that takes const ITargetPlatform* instead")
-	void ClearCachedCookedPlatformDataForPlatform(const FName& PlatformName);
-
-
 	/**
 	 * Clear all the previously cooked data for the platform passed in 
 	 * 
 	 * @param TargetPlatform the platform to clear the cooked packages for
 	 */
 	void ClearPlatformCookedData(const ITargetPlatform* TargetPlatform);
-
-	UE_DEPRECATED(4.25, "Use version that takes const ITargetPlatform* instead")
-	void ClearPlatformCookedData(const FString& PlatformName);
 
 	/**
 	 * Clear platforms' explored flags for all PackageDatas and optionally clear the cookresult flags.
@@ -732,10 +721,6 @@ public:
 	 * @return return true if shaders were recompiled
 	 */
 	bool RecompileChangedShaders(const TArray<const ITargetPlatform*>& TargetPlatforms);
-
-	UE_DEPRECATED(4.25, "Use version that takes const ITargetPlatform* instead")
-	bool RecompileChangedShaders(const TArray<FName>& TargetPlatformNames);
-
 
 	/**
 	 * Force stop whatever pending cook requests are going on and clear all the cooked data
@@ -815,16 +800,6 @@ public:
 	/** Returns the configured amount of idle time before forcing a GC */
 	double GetIdleTimeToGC() const;
 
-	/** Returns the configured amount of memory allowed before forcing a GC */
-	UE_DEPRECATED(4.26, "Use HasExceededMaxMemory instead")
-	uint64 GetMaxMemoryAllowance() const;
-
-	/** Mark package as keep around for the cooker (don't GC) */
-	UE_DEPRECATED(4.25, "UCookOnTheFlyServer now uses FGCObject to interact with garbage collection")
-	void MarkGCPackagesToKeepForCooker()
-	{
-	}
-
 	bool HasExceededMaxMemory();
 	void EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
 		int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
@@ -840,10 +815,6 @@ public:
 	 * @param bForceFrontOfQueue should package go to front of the cook queue (next to be processed) or the end
 	 */
 	bool RequestPackage(const FName& StandardFileName, const TArrayView<const ITargetPlatform* const>& TargetPlatforms,
-		const bool bForceFrontOfQueue);
-
-	UE_DEPRECATED(4.25, "Use Version that takes TArray<const ITargetPlatform*> instead")
-	bool RequestPackage(const FName& StandardFileName, const TArrayView<const FName>& TargetPlatformNames,
 		const bool bForceFrontOfQueue);
 
 	/**

@@ -1243,21 +1243,6 @@ bool UCookOnTheFlyServer::RequestPackage(const FName& StandardFileName, const TA
 	return true;
 }
 
-bool UCookOnTheFlyServer::RequestPackage(const FName& StandardFileName, const TArrayView<const FName>& TargetPlatformNames, const bool bForceFrontOfQueue)
-{
-	TArray<const ITargetPlatform*> TargetPlatforms;
-	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-	for (const FName& TargetPlatformName : TargetPlatformNames)
-	{
-		const ITargetPlatform* TargetPlatform = TPM.FindTargetPlatform(TargetPlatformName.ToString());
-		if (TargetPlatform)
-		{
-			TargetPlatforms.Add(TargetPlatform);
-		}
-	}
-	return RequestPackage(StandardFileName, TargetPlatforms, bForceFrontOfQueue);
-}
-
 bool UCookOnTheFlyServer::RequestPackage(const FName& StandardPackageFName, const bool bForceFrontOfQueue)
 {
 	check(!IsCookOnTheFlyMode()); // Invalid to call RequestPackage without a list of TargetPlatforms if we are in CookOnTheFly
@@ -4488,12 +4473,12 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory()
 		// check validity of trigger :
 		// if the MaxUsed config exceeds the system memory, it can never be triggered and will prevent any GC :
 		uint64 MaxMaxUsed = FMath::Max(MemoryMaxUsedVirtual,MemoryMaxUsedPhysical);
-		if ( MaxMaxUsed >= MemStats.TotalPhysical )
+		if (MaxMaxUsed >= MemStats.TotalPhysical)
 		{
-			UE_CALL_ONCE( [&](){
+			UE_CALL_ONCE([&]() {
 				UE_LOG(LogCook, Warning, TEXT("Warning MemoryMaxUsed condition is larger than total memory (%dMiB >= %dMiB).  System does not have enough memory to cook this project."),
-			static_cast<uint32>(MaxMaxUsed / 1024 / 1024), static_cast<uint32>(MemStats.TotalPhysical / 1024 / 1024));			
-			} );
+				static_cast<uint32>(MaxMaxUsed / 1024 / 1024), static_cast<uint32>(MemStats.TotalPhysical / 1024 / 1024));
+				});
 		}
 
 		if (MemoryMaxUsedVirtual > 0 && MemStats.UsedVirtual >= MemoryMaxUsedVirtual)
@@ -4518,7 +4503,7 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory()
 		{
 			UE_CALL_ONCE([&]() {
 				UE_LOG(LogCook, Error,
-					TEXT("MemoryPressureStatus is not available from the operating system. We may run out of memory due to lack of knowledge of when to collect garbage."));
+				TEXT("MemoryPressureStatus is not available from the operating system. We may run out of memory due to lack of knowledge of when to collect garbage."));
 				});
 		}
 		else
@@ -4797,12 +4782,6 @@ void UCookOnTheFlyServer::GetDirectAndTransitiveResourceSize(FResourceSizeEx& Ou
 	}
 }
 
-TArray<UPackage*> UCookOnTheFlyServer::GetUnsolicitedPackages(const TArray<const ITargetPlatform*>& TargetPlatforms) const
-{
-	// No longer supported
-	return TArray<UPackage*>();
-}
-
 void UCookOnTheFlyServer::OnObjectModified( UObject *ObjectMoving )
 {
 	if (IsGarbageCollecting())
@@ -4986,11 +4965,6 @@ double UCookOnTheFlyServer::GetIdleTimeToGC() const
 	{
 		return IdleTimeToGC;
 	}
-}
-
-uint64 UCookOnTheFlyServer::GetMaxMemoryAllowance() const
-{
-	return MemoryMaxUsedPhysical;
 }
 
 const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName& PackageName ) const
@@ -8924,11 +8898,6 @@ void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*
 	}
 }
 
-void UCookOnTheFlyServer::ClearPlatformCookedData(const FString& PlatformName)
-{
-	ClearPlatformCookedData(GetTargetPlatformManagerRef().FindTargetPlatform(PlatformName));
-}
-
 void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform(const ITargetPlatform* TargetPlatform)
 {
 	if (TargetPlatform)
@@ -8938,13 +8907,6 @@ void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform(const ITarget
 			It->ClearCachedCookedPlatformData(TargetPlatform);
 		}
 	}
-}
-
-void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform(const FName& PlatformName)
-{
-	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-	const ITargetPlatform* TargetPlatform = TPM.FindTargetPlatform(PlatformName.ToString());
-	return ClearCachedCookedPlatformDataForPlatform(TargetPlatform);
 }
 
 void UCookOnTheFlyServer::OnTargetPlatformChangedSupportedFormats(const ITargetPlatform* TargetPlatform)
@@ -10244,16 +10206,6 @@ bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<const ITargetPlat
 	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 	{
 		bShadersRecompiled |= RecompileChangedShadersForPlatform(TargetPlatform->PlatformName());
-	}
-	return bShadersRecompiled;
-}
-
-bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<FName>& TargetPlatformNames)
-{
-	bool bShadersRecompiled = false;
-	for (const FName& TargetPlatformName : TargetPlatformNames)
-	{
-		bShadersRecompiled |= RecompileChangedShadersForPlatform(TargetPlatformName.ToString());
 	}
 	return bShadersRecompiled;
 }
