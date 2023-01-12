@@ -155,6 +155,8 @@ public:
 #if WITH_EDITOR
 	void OnDirectoryChanged(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
 		TArray<FFileChangeData>& FileChangesProcessed);
+	void OnDirectoryRescanRequired(Impl::FEventContext& EventContext,
+		Impl::FClassInheritanceContext& InheritanceContext, FString& DirPath, int64 BeforeTimeStamp);
 	void AddLoadedAssetToProcess(const UObject& AssetLoaded);
 #endif
 	void OnContentPathMounted(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,

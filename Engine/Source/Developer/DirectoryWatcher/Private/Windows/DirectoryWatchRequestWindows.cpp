@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DirectoryWatchRequestWindows.h"
+
 #include "DirectoryWatcherPrivate.h"
+#include "Misc/DateTime.h"
 
 FDirectoryWatchRequestWindows::FDirectoryWatchRequestWindows(uint32 Flags)
 {
 	bPendingDelete = false;
 	bEndWatchRequestInvoked = false;
+	WatchStartedTimestamp = 0;
 
 	bWatchSubtree = (Flags & IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree) == 0;
 	bool bIncludeDirectoryEvents = (Flags & IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges) != 0;
@@ -107,6 +110,7 @@ bool FDirectoryWatchRequestWindows::Init(const FString& InDirectory)
 		DirectoryHandle = INVALID_HANDLE_VALUE;
 		return false;
 	}
+	WatchStartedTimestamp = FDateTime::UtcNow().ToUnixTimestamp();
 	bBufferInUse = true;
 
 	return true;
@@ -200,7 +204,9 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 		UE_CLOG(!IsEngineExitRequested(), LogDirectoryWatcher, Log, TEXT("A directory notification for '%s' was aborted."), *Directory);
 		return; 
 	}
-	const bool bValidNotification = Error != ERROR_IO_INCOMPLETE && NumBytes > 0;
+	bool bValidNotification = Error != ERROR_IO_INCOMPLETE && NumBytes > 0;
+	bool bIsRescan = false;
+	int64 PreviousWatchStartedTimeStamp = 0;
 	if (bValidNotification)
 	{
 		// Swap the pointer to the backbuffer so we can start a new read as soon as possible
@@ -227,6 +233,12 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 		CloseHandleAndMarkForDelete();
 		UE_LOG(LogDirectoryWatcher, Display, TEXT("A directory notification failed for '%s' because it could not be accessed. Aborting watch request..."), *Directory);
 		return;
+	}
+	else if (Error == ERROR_NOTIFY_ENUM_DIR)
+	{
+		bValidNotification = true;
+		bIsRescan = true;
+		PreviousWatchStartedTimeStamp = WatchStartedTimestamp;
 	}
 	else if (Error != ERROR_SUCCESS)
 	{
@@ -256,6 +268,7 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 		CloseHandleAndMarkForDelete();
 		return;
 	}
+	WatchStartedTimestamp = FDateTime::UtcNow().ToUnixTimestamp();
 	bBufferInUse = true;
 
 	// No need to process the change if we can not execute any delegates
@@ -264,56 +277,64 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 		return;
 	}
 
-	// Process the change
-	uint8* InfoBase = BackBuffer.Get();
-	do
+	if (!bIsRescan)
 	{
-		FILE_NOTIFY_INFORMATION* NotifyInfo = (FILE_NOTIFY_INFORMATION*)InfoBase;
-
-		// Copy the WCHAR out of the NotifyInfo so we can put a NULL terminator on it and convert it to a FString
-		FString LeafFilename;
+		// Process the change
+		uint8* InfoBase = BackBuffer.Get();
+		do
 		{
-			// The Memcpy below assumes that WCHAR and TCHAR are equivalent (which they should be on Windows)
-			static_assert(sizeof(WCHAR) == sizeof(TCHAR), "WCHAR is assumed to be the same size as TCHAR on Windows!");
+			FILE_NOTIFY_INFORMATION* NotifyInfo = (FILE_NOTIFY_INFORMATION*)InfoBase;
 
-			const int32 LeafFilenameLen = NotifyInfo->FileNameLength / sizeof(WCHAR);
-			LeafFilename.GetCharArray().AddZeroed(LeafFilenameLen + 1);
-			FMemory::Memcpy(LeafFilename.GetCharArray().GetData(), NotifyInfo->FileName, NotifyInfo->FileNameLength);
+			// Copy the WCHAR out of the NotifyInfo so we can put a NULL terminator on it and convert it to a FString
+			FString LeafFilename;
+			{
+				// The Memcpy below assumes that WCHAR and TCHAR are equivalent (which they should be on Windows)
+				static_assert(sizeof(WCHAR) == sizeof(TCHAR), "WCHAR is assumed to be the same size as TCHAR on Windows!");
+
+				const int32 LeafFilenameLen = NotifyInfo->FileNameLength / sizeof(WCHAR);
+				LeafFilename.GetCharArray().AddZeroed(LeafFilenameLen + 1);
+				FMemory::Memcpy(LeafFilename.GetCharArray().GetData(), NotifyInfo->FileName, NotifyInfo->FileNameLength);
+			}
+
+			FFileChangeData::EFileChangeAction Action;
+			switch(NotifyInfo->Action)
+			{
+				case FILE_ACTION_ADDED:
+				case FILE_ACTION_RENAMED_NEW_NAME:
+					Action = FFileChangeData::FCA_Added;
+					break;
+
+				case FILE_ACTION_REMOVED:
+				case FILE_ACTION_RENAMED_OLD_NAME:
+					Action = FFileChangeData::FCA_Removed;
+					break;
+
+				case FILE_ACTION_MODIFIED:
+					Action = FFileChangeData::FCA_Modified;
+					break;
+
+				default:
+					Action = FFileChangeData::FCA_Unknown;
+					break;
+			}
+			FileChanges.Emplace(Directory / LeafFilename, Action);
+
+			// If there is not another entry, break the loop
+			if ( NotifyInfo->NextEntryOffset == 0 )
+			{
+				break;
+			}
+
+			// Adjust the offset and update the NotifyInfo pointer
+			InfoBase = InfoBase + NotifyInfo->NextEntryOffset;
 		}
-
-		FFileChangeData::EFileChangeAction Action;
-		switch(NotifyInfo->Action)
-		{
-			case FILE_ACTION_ADDED:
-			case FILE_ACTION_RENAMED_NEW_NAME:
-				Action = FFileChangeData::FCA_Added;
-				break;
-
-			case FILE_ACTION_REMOVED:
-			case FILE_ACTION_RENAMED_OLD_NAME:
-				Action = FFileChangeData::FCA_Removed;
-				break;
-
-			case FILE_ACTION_MODIFIED:
-				Action = FFileChangeData::FCA_Modified;
-				break;
-
-			default:
-				Action = FFileChangeData::FCA_Unknown;
-				break;
-		}
-		FileChanges.Emplace(Directory / LeafFilename, Action);
-
-		// If there is not another entry, break the loop
-		if ( NotifyInfo->NextEntryOffset == 0 )
-		{
-			break;
-		}
-
-		// Adjust the offset and update the NotifyInfo pointer
-		InfoBase = InfoBase + NotifyInfo->NextEntryOffset;
+		while(true);
 	}
-	while(true);
+	else
+	{
+		FFileChangeData& ChangeData = FileChanges.Emplace_GetRef(Directory, FFileChangeData::FCA_RescanRequired);
+		ChangeData.TimeStamp = PreviousWatchStartedTimeStamp;
+	}
 }
 
 void FDirectoryWatchRequestWindows::ChangeNotification(::DWORD Error, ::DWORD NumBytes, LPOVERLAPPED InOverlapped)

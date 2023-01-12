@@ -43,7 +43,7 @@ private:
 
 	FString Directory;
 	HANDLE DirectoryHandle;
-	bool bWatchSubtree;
+	int64 WatchStartedTimestamp;
 	uint32 NotifyFilter;
 	uint32 BufferLength = 0;
 	struct FDeleterFree
@@ -60,6 +60,7 @@ private:
 	bool bPendingDelete;
 	bool bEndWatchRequestInvoked;
 	bool bBufferInUse = false;
+	bool bWatchSubtree;
 
 	TArray<IDirectoryWatcher::FDirectoryChanged> Delegates;
 	TArray<FFileChangeData> FileChanges;

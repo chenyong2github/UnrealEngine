@@ -12,7 +12,8 @@ struct FFileChangeData
 		FCA_Unknown,
 		FCA_Added,
 		FCA_Modified,
-		FCA_Removed
+		FCA_Removed,
+		FCA_RescanRequired,
 	};
 
 	FFileChangeData(const FString& InFilename, EFileChangeAction InAction)
@@ -22,8 +23,20 @@ struct FFileChangeData
 		FPaths::MakeStandardFilename(Filename);
 	}
 
+	/**
+	 * If the Action references a specific file, the name of the file.
+	 * Applies To: FCA_Added, FCA_Modified, FCA_Removed, FCA_RescanRequired.
+	 * For all other actions value will be emptystring.
+	 */
 	FString Filename;
-	EFileChangeAction Action;
+	/**
+	 * If the Action references a timestamp, the timezone UTC UnixTimeStamp (e.g. FDateTime::ToUnixTimeStamp) of the Action.
+	 * Applies to: FCA_RescanRequired.
+	 * For all other actions value will be 0.
+	 */
+	int64 TimeStamp = 0;
+	/** The reported Action. */
+	EFileChangeAction Action = EFileChangeAction::FCA_Unknown;
 };
 
 

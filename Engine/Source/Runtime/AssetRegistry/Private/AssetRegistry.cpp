@@ -5251,6 +5251,12 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext,
 	TArray<FString> ModifiedFiles;
 	for (int32 FileIdx = 0; FileIdx < FileChangesProcessed.Num(); ++FileIdx)
 	{
+		if (FileChangesProcessed[FileIdx].Action == FFileChangeData::FCA_RescanRequired)
+		{
+			OnDirectoryRescanRequired(EventContext, InheritanceContext, FileChangesProcessed[FileIdx].Filename,
+				FileChangesProcessed[FileIdx].TimeStamp);
+			continue;
+		}
 		FString LongPackageName;
 		const FString File = FString(FileChangesProcessed[FileIdx].Filename);
 		const bool bIsPackageFile = FPackageName::IsPackageExtension(*FPaths::GetExtension(File, true));
@@ -5369,6 +5375,100 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext,
 			
 	}
 
+	if (NewFiles.Num() || NewDirs.Num())
+	{
+		if (GlobalGatherer.IsValid())
+		{
+			for (FString& NewDir : NewDirs)
+			{
+				GlobalGatherer->OnDirectoryCreated(NewDir);
+			}
+			GlobalGatherer->OnFilesCreated(NewFiles);
+			if (GlobalGatherer->IsSynchronous())
+			{
+				Impl::FScanPathContext Context(EventContext, InheritanceContext, NewDirs, NewFiles,
+					false /* bForceRescan */, false /* bIgnoreDenyListScanFilters */, nullptr /* OutFoundAssets */);
+				ScanPathsSynchronous(Context);
+			}
+		}
+	}
+	ScanModifiedAssetFiles(EventContext, InheritanceContext, ModifiedFiles);
+}
+
+void FAssetRegistryImpl::OnDirectoryRescanRequired(Impl::FEventContext& EventContext,
+	Impl::FClassInheritanceContext& InheritanceContext, FString& DirPath, int64 BeforeTimeStamp)
+{
+	FString PackageNamePath;
+	FString NormalizedDirPath = FPaths::CreateStandardFilename(DirPath);
+	if (!FPackageName::TryConvertFilenameToLongPackageName(NormalizedDirPath, PackageNamePath))
+	{
+		return;
+	}
+
+	TArray<FString> NewFiles;
+	TArray<FString> NewDirs;
+	TArray<FString> ModifiedFiles;
+	TSet<FName> RemovedLongPackageNames;
+
+	FDateTime BeforeDateTime = FDateTime::FromUnixTimestamp(BeforeTimeStamp);
+	EnumerateAssetsByPathNoTags(*PackageNamePath, [&RemovedLongPackageNames](const FAssetData& AssetData)
+		{
+			RemovedLongPackageNames.Add(AssetData.PackageName);
+			return true;
+		}, true /* bRecursive */, true /* bIncludeOnlyOnDiskAssets */);
+
+	FPackageName::IteratePackagesInDirectory(DirPath,
+		[&DirPath, &PackageNamePath, &BeforeDateTime, &NewFiles, &ModifiedFiles, &RemovedLongPackageNames, &NormalizedDirPath]
+		(const TCHAR* Filename, const FFileStatData& StatData)
+		{
+			// Convert Filename to a PackagePath. We know the base dir so its faster to use that than FPackageName
+			// which has to scan all mount dirs
+			FStringView RelPath;
+			FString NormalizedFilename = FPaths::CreateStandardFilename(Filename);
+			if (!FPathViews::TryMakeChildPathRelativeTo(NormalizedFilename, NormalizedDirPath, RelPath))
+			{
+				return true;
+			}
+			const bool bIsPackageFile = FPackageName::IsPackageExtension(*FString(FPathViews::GetExtension(RelPath, true /* bIncludeDot */)));
+			RelPath = FPathViews::GetBaseFilenameWithPath(RelPath);
+			TStringBuilder<256> FilePackagePath;
+			FilePackagePath << PackageNamePath;
+			FPathViews::AppendPath(FilePackagePath, RelPath);
+			for (int32 Index = 0; Index < FilePackagePath.Len(); ++Index)
+			{
+				TCHAR& Char = FilePackagePath.GetData()[Index];
+				if (Char == '\\')
+				{
+					Char = '/';
+				}
+			}
+			const bool bIsValidPackageName = FPackageName::IsValidTextForLongPackageName(FilePackagePath);
+			if (!bIsPackageFile || !bIsValidPackageName)
+			{
+				return true;
+			}
+
+			if (StatData.CreationTime > BeforeDateTime)
+			{
+				NewFiles.Add(NormalizedFilename);
+			}
+			else if (StatData.ModificationTime > BeforeDateTime)
+			{
+				ModifiedFiles.Add(NormalizedFilename);
+			}
+			RemovedLongPackageNames.Remove(FName(FilePackagePath.ToView()));
+
+			return true;
+		});
+
+	for (FName LongPackageName : RemovedLongPackageNames)
+	{
+		// This file was deleted. Remove all assets in the package from the registry.
+		RemovePackageData(EventContext, LongPackageName);
+		// If the package was a package we were tracking as empty (due to e.g. a rename in editor), remove it.
+		// Disk now matches editor
+		RemoveEmptyPackage(LongPackageName);
+	}
 	if (NewFiles.Num() || NewDirs.Num())
 	{
 		if (GlobalGatherer.IsValid())
