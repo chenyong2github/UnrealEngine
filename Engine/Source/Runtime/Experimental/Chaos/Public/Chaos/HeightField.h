@@ -275,10 +275,10 @@ namespace Chaos
 
 			// Only supporting unsigned int types for the height range - really no difference using
 			// this or signed but this is a little nicer overall
-			static_assert(TIsSame<StorageType, uint8>::Value || 
-				TIsSame<StorageType, uint16>::Value || 
-				TIsSame<StorageType, uint32>::Value || 
-				TIsSame<StorageType, uint64>::Value,
+			static_assert(std::is_same_v<StorageType, uint8> ||
+				std::is_same_v<StorageType, uint16> ||
+				std::is_same_v<StorageType, uint32> ||
+				std::is_same_v<StorageType, uint64>,
 				"Expected unsigned integer type for heightfield data storage");
 
 			// Data sizes to validate during serialization

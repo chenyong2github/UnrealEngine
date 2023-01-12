@@ -417,11 +417,11 @@ private:
 				// If the currently stored type is one of these types, and the archive is from before bulk serialization for these types was enabled,
 				// we need to still use per element serialization for legacy data.
 				constexpr bool bIsLWCBulkSerializedDoubleType =
-					TIsSame<Type, FVector2d>::Value ||
-					TIsSame<Type, FVector3d>::Value ||
-					TIsSame<Type, FVector4d>::Value ||
-					TIsSame<Type, FQuat4d>::Value ||
-					TIsSame<Type, FTransform3d>::Value;
+					std::is_same_v<Type, FVector2d> ||
+					std::is_same_v<Type, FVector3d> ||
+					std::is_same_v<Type, FVector4d> ||
+					std::is_same_v<Type, FQuat4d> ||
+					std::is_same_v<Type, FTransform3d>;
 				const bool bUseBulkSerialization = TCanBulkSerialize<Type>::Value && !(bIsLWCBulkSerializedDoubleType && Ar.UEVer() <
 					EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES);
 

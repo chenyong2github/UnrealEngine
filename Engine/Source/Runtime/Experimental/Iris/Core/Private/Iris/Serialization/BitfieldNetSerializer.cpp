@@ -68,7 +68,7 @@ void FBitfieldNetSerializer::Dequantize(FNetSerializationContext& Context, const
 
 bool FBitfieldNetSerializer::IsEqual(FNetSerializationContext& Context, const FNetIsEqualArgs& Args)
 {
-	static_assert(TIsSame<SourceType, QuantizedType>::Value, "FBitfieldNetSerializer::IsEqual needs to be re-implemented");
+	static_assert(std::is_same_v<SourceType, QuantizedType>, "FBitfieldNetSerializer::IsEqual needs to be re-implemented");
 
 	const SourceType Value0 = *reinterpret_cast<const SourceType*>(Args.Source0);
 	const SourceType Value1 = *reinterpret_cast<const SourceType*>(Args.Source1);

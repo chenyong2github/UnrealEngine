@@ -210,11 +210,12 @@ public:
 
 	static const TImplicitObjectInstanced<TConcrete>& AsInstancedChecked(const FImplicitObject& Obj)
 	{
-		if(TIsSame<TConcrete,FImplicitObject>::Value)
+		if constexpr (std::is_same_v<TConcrete,FImplicitObject>)
 		{
 			//can cast any instanced to ImplicitObject base
 			check(IsInstanced(Obj.GetType()));
-		} else
+		}
+		else
 		{
 			check(StaticType() == Obj.GetType());
 		}
@@ -516,7 +517,7 @@ public:
 
 	static const TImplicitObjectScaled<TConcrete>& AsScaledChecked(const FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, FImplicitObject>::Value)
+		if constexpr (std::is_same_v<TConcrete, FImplicitObject>)
 		{
 			//can cast any scaled to ImplicitObject base
 			check(IsScaled(Obj.GetType()));
@@ -530,7 +531,7 @@ public:
 
 	static TImplicitObjectScaled<TConcrete>& AsScaledChecked(FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, FImplicitObject>::Value)
+		if constexpr (std::is_same_v<TConcrete, FImplicitObject>)
 		{
 			//can cast any scaled to ImplicitObject base
 			check(IsScaled(Obj.GetType()));
@@ -544,7 +545,7 @@ public:
 
 	static const TImplicitObjectScaled<TConcrete>* AsScaled(const FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, FImplicitObject>::Value)
+		if constexpr (std::is_same_v<TConcrete, FImplicitObject>)
 		{
 			//can cast any scaled to ImplicitObject base
 			return IsScaled(Obj.GetType()) ? static_cast<const TImplicitObjectScaled<TConcrete>*>(&Obj) : nullptr;
@@ -557,7 +558,7 @@ public:
 
 	static TImplicitObjectScaled<TConcrete>* AsScaled(FImplicitObject& Obj)
 	{
-		if (TIsSame<TConcrete, FImplicitObject>::Value)
+		if constexpr (std::is_same_v<TConcrete, FImplicitObject>)
 		{
 			//can cast any scaled to ImplicitObject base
 			return IsScaled(Obj.GetType()) ? static_cast<TImplicitObjectScaled<TConcrete>*>(&Obj) : nullptr;

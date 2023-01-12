@@ -733,8 +733,8 @@ public:
 	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
 	static constexpr int32 DefaultMaxTreeDepth = 16;
 	static constexpr int32 DefaultMaxNumToProcess = 0; // 0 special value for processing all without timeslicing
-	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
-		(TIsSame<TBoundingVolume<TPayloadType>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
+	static constexpr ESpatialAcceleration StaticType = std::is_same_v<TAABBTreeLeafArray<TPayloadType>, TLeafType> ? ESpatialAcceleration::AABBTree :
+		(std::is_same_v<TBoundingVolume<TPayloadType>, TLeafType> ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, bDynamicTree(false)

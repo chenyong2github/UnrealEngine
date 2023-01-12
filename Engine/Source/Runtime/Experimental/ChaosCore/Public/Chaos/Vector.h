@@ -1311,7 +1311,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	template<typename T, int d>
 	inline FArchive& SerializeReal(FArchive& Ar, TVector<T, d>& ValueIn)
 	{
-		static_assert(TIsSame<T, float>::Value || TIsSame<T, double>::Value, "only float or double are supported by this function");
+		static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>, "only float or double are supported by this function");
 		for (int32 Idx = 0; Idx < d; ++Idx)
 		{
 			FRealSingle RealSingle = (FRealSingle)ValueIn[Idx];

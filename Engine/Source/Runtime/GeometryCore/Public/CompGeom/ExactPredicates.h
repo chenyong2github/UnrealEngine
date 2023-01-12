@@ -123,7 +123,7 @@ RealType Orient3(const TVector<RealType>& A, const TVector<RealType>& B, const T
 	double PB[3]{ (double)B.X, (double)B.Y, (double)B.Z };
 	double PC[3]{ (double)C.X, (double)C.Y, (double)C.Z };
 	double PD[3]{ (double)D.X, (double)D.Y, (double)D.Z };
-	if constexpr (TIsSame<RealType, double>::Value)
+	if constexpr (std::is_same_v<RealType, double>)
 	{
 		return Orient3D(PA, PB, PC, PD);
 	}
@@ -160,7 +160,7 @@ RealType Facing3(const TVector<RealType>& A, const TVector<RealType>& B, const T
 	double PB[3]{ (double)B.X, (double)B.Y, (double)B.Z };
 	double PC[3]{ (double)C.X, (double)C.Y, (double)C.Z };
 	double Dir[3]{ (double)Direction.X, (double)Direction.Y, (double)Direction.Z };
-	if constexpr (TIsSame<RealType, double>::Value)
+	if constexpr (std::is_same_v<RealType, double>)
 	{
 		return Facing3D(PA, PB, PC, Dir);
 	}
@@ -187,7 +187,7 @@ RealType InCircle2(const TVector2<RealType>& A, const TVector2<RealType>& B, con
 	double PB[2]{ (double)B.X, (double)B.Y };
 	double PC[2]{ (double)C.X, (double)C.Y };
 	double PD[2]{ (double)D.X, (double)D.Y };
-	if constexpr (TIsSame<RealType, double>::Value)
+	if constexpr (std::is_same_v<RealType, double>)
 	{
 		return InCircle(PA, PB, PC, PD);
 	}
