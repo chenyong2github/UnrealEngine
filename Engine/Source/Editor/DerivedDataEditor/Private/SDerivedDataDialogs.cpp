@@ -83,7 +83,7 @@ TSharedRef<SWidget> SDerivedDataRemoteStoreDialog::GetGridPanel()
 	}
 
 	const int64 TotalCount = DDCResourceStatsTotal.LoadCount + DDCResourceStatsTotal.BuildCount;
-	const double Efficiency = TotalCount > 0 ? (double)DDCResourceStatsTotal.LoadCount / TotalCount : 0.0;
+	const double Efficiency = TotalCount > 0 ? static_cast<double>(DDCResourceStatsTotal.LoadCount) / static_cast<double>(TotalCount) : 0.0;
 
 	const double DownloadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(true, false), EUnit::Bytes, EUnit::Megabytes);
 	const double UploadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(false, false), EUnit::Bytes, EUnit::Megabytes);
@@ -664,10 +664,10 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		const int64 TotalGetHits = Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
 		const int64 TotalGetMisses = Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
 		const int64 TotalRequests = TotalGetHits + TotalGetMisses;
-		const double HitRate = TotalRequests > 0 ? 100.0 * TotalGetHits / TotalRequests : 0.0;
+		const double HitRate = TotalRequests > 0 ? 100.0 * static_cast<double>(TotalGetHits) / static_cast<double>(TotalRequests) : 0.0;
 
-		const double TotalGetMB = FUnitConversion::Convert((double)TotalGetBytes, EUnit::Bytes, EUnit::Megabytes);
-		const double TotalPutMB = FUnitConversion::Convert((double)TotalPutBytes, EUnit::Bytes, EUnit::Megabytes);
+		const double TotalGetMB = FUnitConversion::Convert(static_cast<double>(TotalGetBytes), EUnit::Bytes, EUnit::Megabytes);
+		const double TotalPutMB = FUnitConversion::Convert(static_cast<double>(TotalPutBytes), EUnit::Bytes, EUnit::Megabytes);
 
 		SumTotalGetMB += TotalGetMB;
 		SumTotalPutMB += TotalPutMB;
@@ -759,7 +759,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 			.Text(FText::FromString(SingleDecimalFormat(TotalPutMB)))
 		];
 
-		if (Node->SpeedStats.LatencyMS)
+		if (Node->SpeedStats.LatencyMS != 0.0)
 		{
 			Panel->AddSlot(6, Row)
 			.HAlign(HAlign_Right)
@@ -770,7 +770,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 			];
 		}
 
-		if (Node->SpeedStats.ReadSpeedMBs)
+		if (Node->SpeedStats.ReadSpeedMBs != 0.0)
 		{
 			Panel->AddSlot(7, Row)
 			.HAlign(HAlign_Right)
@@ -781,7 +781,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 			];
 		}
 
-		if (Node->SpeedStats.WriteSpeedMBs)
+		if (Node->SpeedStats.WriteSpeedMBs != 0.0)
 		{
 			Panel->AddSlot(8, Row)
 			.HAlign(HAlign_Right)

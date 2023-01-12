@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 				);
 
 			PublicIncludePathModuleNames.Add("Analytics");
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
 	}
 }

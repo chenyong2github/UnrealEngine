@@ -39,5 +39,6 @@ public class DerivedDataEditor : ModuleRules
 			new string[] {
 				"MainFrame",
 			});
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

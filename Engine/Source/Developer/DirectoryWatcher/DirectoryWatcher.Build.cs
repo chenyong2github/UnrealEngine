@@ -7,5 +7,6 @@ public class DirectoryWatcher : ModuleRules
 	public DirectoryWatcher(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.Add("Core");
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

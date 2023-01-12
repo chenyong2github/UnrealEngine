@@ -10,7 +10,7 @@ public class XmlParser : ModuleRules
 			new string[] 
 			{ 
 				"Core",
-			}
-			);
+			});
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

@@ -16,5 +16,6 @@ public class InputCore : ModuleRules
 		{
 			PrivateIncludePathModuleNames.Add("SDL2");
 		}
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }
