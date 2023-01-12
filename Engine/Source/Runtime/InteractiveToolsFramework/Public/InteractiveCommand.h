@@ -31,6 +31,18 @@ protected:
 
 
 /**
+ * UInteractiveCommandResult subclasses are returned from UInteractiveCommands, to allow
+ * commands to return custom information.
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API UInteractiveCommandResult : public UObject
+{
+	GENERATED_BODY()
+
+};
+
+
+/**
  * A UInteractiveCommand is an atomic action that can be executed via some user interaction.
  * For example clicking a button that deletes an active selection can be considered an Interactive Command.
  * This differs from an Interactive Tool in that there is no ongoing user interaction once the
@@ -61,8 +73,9 @@ public:
 
 	/**
 	 * Execute the command with the given Arguments
+	 * @param Result optional command result. Command would have to allocate the UInteractiveCommandResult object to return it, but is not required to. Caller should not assume that a non-null Result is necessarily returned.
 	 */
-	virtual void ExecuteCommand(UInteractiveCommandArguments* Arguments)
+	virtual void ExecuteCommand(UInteractiveCommandArguments* Arguments, UInteractiveCommandResult** Result = nullptr)
 	{
 	}
 };

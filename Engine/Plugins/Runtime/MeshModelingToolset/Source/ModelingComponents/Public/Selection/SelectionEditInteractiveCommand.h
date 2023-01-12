@@ -29,6 +29,16 @@ public:
 };
 
 
+UCLASS()
+class MODELINGCOMPONENTS_API UGeometrySelectionEditCommandResult : public UInteractiveCommandResult
+{
+	GENERATED_BODY()
+public:
+	FGeometrySelectionHandle SourceHandle;
+
+	UE::Geometry::FGeometrySelection OutputSelection;
+};
+
 
 /**
  * UGeometrySelectionEditCommand is a command that edits geometry based on a selection.
@@ -40,13 +50,14 @@ class MODELINGCOMPONENTS_API UGeometrySelectionEditCommand : public UInteractive
 	GENERATED_BODY()
 public:
 	virtual bool AllowEmptySelection() const { return false; }
+	virtual bool IsModifySelectionCommand() const { return false; }
 
 	virtual bool CanExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* SelectionArgs)
 	{
 		return false;
 	}
 	
-	virtual void ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* Arguments)
+	virtual void ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* Arguments, UInteractiveCommandResult** Result = nullptr)
 	{
 	}
 
@@ -65,12 +76,12 @@ public:
 		return false;
 	}
 
-	virtual void ExecuteCommand(UInteractiveCommandArguments* Arguments) override
+	virtual void ExecuteCommand(UInteractiveCommandArguments* Arguments, UInteractiveCommandResult** Result = nullptr) override
 	{
 		UGeometrySelectionEditCommandArguments* SelectionArgs = Cast<UGeometrySelectionEditCommandArguments>(Arguments);
 		if ( SelectionArgs && (SelectionArgs->IsSelectionEmpty() == false || AllowEmptySelection()) )
 		{
-			ExecuteCommandForSelection(SelectionArgs);
+			ExecuteCommandForSelection(SelectionArgs, Result);
 		}
 	}
 

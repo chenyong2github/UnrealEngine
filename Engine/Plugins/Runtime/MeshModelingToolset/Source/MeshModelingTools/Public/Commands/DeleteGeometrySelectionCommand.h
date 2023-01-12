@@ -20,5 +20,5 @@ public:
 	virtual FText GetCommandShortString() const override;
 
 	virtual bool CanExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* Arguments) override;
-	virtual void ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* Arguments) override;
+	virtual void ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* Arguments, UInteractiveCommandResult** Result) override;
 };

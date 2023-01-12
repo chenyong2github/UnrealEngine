@@ -29,8 +29,14 @@ bool UDeleteGeometrySelectionCommand::CanExecuteCommandForSelection(UGeometrySel
 }
 
 
-void UDeleteGeometrySelectionCommand::ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* SelectionArgs)
+void UDeleteGeometrySelectionCommand::ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* SelectionArgs, UInteractiveCommandResult** Result)
 {
+	// delete never returns a new selection
+	if (Result != nullptr)
+	{
+		*Result = nullptr;
+	}
+
 	// should have been verified by CanExecute
 	check(SelectionArgs->IsMatchingType(FGeometryIdentifier::ETargetType::MeshContainer, FGeometryIdentifier::EObjectType::DynamicMesh));
 	

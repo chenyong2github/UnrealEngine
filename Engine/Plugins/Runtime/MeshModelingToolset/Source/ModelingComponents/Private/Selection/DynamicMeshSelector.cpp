@@ -109,7 +109,67 @@ bool FBaseDynamicMeshSelector::Restore()
 }
 
 
+void FBaseDynamicMeshSelector::InitializeSelectionFromPredicate(
+	FGeometrySelection& SelectionOut,
+	TFunctionRef<bool(UE::Geometry::FGeoSelectionID)> SelectionIDPredicate,
+	EInitializeSelectionMode InitializeMode,
+	const FGeometrySelection* ReferenceSelection)
+{
+	const FGroupTopology* UseGroupTopology = ( SelectionOut.TopologyType == EGeometryTopologyType::Polygroup ) ? 
+		GetGroupTopology() : nullptr;
 
+	if (InitializeMode != EInitializeSelectionMode::All && ! ensure(ReferenceSelection != nullptr) )
+	{
+		return;
+	}
+
+	GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) 
+	{ 
+		if (InitializeMode == EInitializeSelectionMode::Connected)
+		{
+			UE::Geometry::MakeSelectAllConnectedSelection(Mesh, UseGroupTopology, *ReferenceSelection,
+				SelectionIDPredicate, 
+				[](FGeoSelectionID, FGeoSelectionID) { return true; },
+				SelectionOut);
+		}
+		else if (InitializeMode == EInitializeSelectionMode::AdjacentToBorder)
+		{
+			UE::Geometry::FGeometrySelectionEditor TmpReadOnlyEditor;
+			TmpReadOnlyEditor.Initialize( const_cast<FGeometrySelection*>(ReferenceSelection), 
+				(ReferenceSelection->TopologyType == EGeometryTopologyType::Polygroup) );
+			UE::Geometry::MakeBoundaryConnectedSelection(Mesh, UseGroupTopology, *ReferenceSelection,
+				SelectionIDPredicate, SelectionOut);			
+		}
+		else   // All
+		{
+			UE::Geometry::MakeSelectAllSelection(Mesh, UseGroupTopology, SelectionIDPredicate, SelectionOut);
+		}
+	});
+}
+
+
+
+void FBaseDynamicMeshSelector::UpdateSelectionFromSelection(
+	const FGeometrySelection& FromSelection,
+	bool bAllowConversion,
+	FGeometrySelectionEditor& SelectionEditor,
+	const FGeometrySelectionUpdateConfig& UpdateConfig,
+	FGeometrySelectionDelta* SelectionDelta )
+{
+	if ( FromSelection.IsSameType(SelectionEditor.GetSelection()) )
+	{
+		UE::Geometry::UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType,
+			FromSelection.Selection.Array(), SelectionDelta);
+		return;
+	}
+
+	if (bAllowConversion == false)
+	{
+		return;
+	}
+
+	check(false);		// todo: convert selection
+}
 
 
 
@@ -230,7 +290,8 @@ void FBaseDynamicMeshSelector::UpdateSelectionViaRaycast_GroupEdges(
 					{
 						FMeshTriEdgeID TriEdgeID;
 						GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) { TriEdgeID = Mesh.GetTriEdgeIDFromEdgeID(Segment.ID); });
-						ResultOut.bSelectionModified = UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType, TArray<uint64>{(uint64)TriEdgeID.Encoded()}, & ResultOut.SelectionDelta);
+						FGeoSelectionID SelectionID(TriEdgeID.Encoded(), GroupEdgeID);
+						ResultOut.bSelectionModified = UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType, TArray<uint64>{SelectionID.Encoded()}, & ResultOut.SelectionDelta);
 						ResultOut.bSelectionMissed = false;
 					}
 				}

@@ -163,6 +163,15 @@ public:
 
 
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Delete;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Disconnect;
+
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_SelectAll;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ExpandToConnected;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Invert;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_InvertConnected;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Expand;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Contract;
+
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Extrude;
 
 	// For connecting ModelingMode with UVEditor plugin

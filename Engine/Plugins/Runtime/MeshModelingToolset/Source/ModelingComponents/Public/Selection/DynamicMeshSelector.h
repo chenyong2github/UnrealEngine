@@ -67,6 +67,22 @@ public:
 		return Identifier;
 	}
 
+	virtual void InitializeSelectionFromPredicate(	
+		FGeometrySelection& SelectionInOut,
+		TFunctionRef<bool(UE::Geometry::FGeoSelectionID)> SelectionIDPredicate,
+		EInitializeSelectionMode InitializeMode = EInitializeSelectionMode::All,
+		const FGeometrySelection* ReferenceSelection = nullptr) override;
+
+
+
+	virtual void UpdateSelectionFromSelection(	
+		const FGeometrySelection& FromSelection,
+		bool bAllowConversion,
+		FGeometrySelectionEditor& SelectionEditor,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		UE::Geometry::FGeometrySelectionDelta* SelectionDelta = nullptr ) override;
+
+
 	virtual bool RayHitTest(
 		const FWorldRayQueryInfo& RayInfo,
 		UE::Geometry::FGeometrySelectionHitQueryConfig QueryConfig,

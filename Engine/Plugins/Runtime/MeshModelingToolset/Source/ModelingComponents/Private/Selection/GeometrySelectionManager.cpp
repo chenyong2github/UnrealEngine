@@ -625,7 +625,7 @@ void UGeometrySelectionManager::AccumulateSelectionUpdate_Raycast(
 	QueryAPI->GetCurrentViewState(RayQueryInfo.CameraState);
 
 	Target->Selector->UpdateSelectionViaRaycast(
-		RayQueryInfo, *Target->SelectionEditor, ActiveTrackedUpdateConfig, ResultOut	);
+		RayQueryInfo, *Target->SelectionEditor, ActiveTrackedUpdateConfig, ResultOut );
 
 	if (ResultOut.bSelectionModified)
 	{
@@ -885,6 +885,9 @@ void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCo
 	{
 		if (Target->Selection.IsEmpty()) continue;
 
+		// TODO: can use Command->IsModifySelectionCommand() to check if this is a command that only affects selection
+		// and not geometry. In that case we can skip the intermediate clear-selection and emit a single change.
+
 		// When initially executing the command, we do not clear the selection, because we pass it to the command.
 		// However, when we later *undo* any changes emitted by the command, we need to restore the selection aftewards.
 		// So we emit a clearing change here, so that undo un-clears. 
@@ -899,17 +902,34 @@ void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCo
 		GetTransactionsAPI()->AppendChange(this, MoveTemp(ClearChange), LOCTEXT("ClearSelection", "Clear Selection"));
 
 		// q: we could clear the selection here, and pass the Handle a copy. Perhaps safer?
-
-		SelectionArguments->SelectionHandle = FGeometrySelectionHandle{ Target->Selector->GetIdentifier(), &Target->Selection };
+		UInteractiveCommandResult* ResultPtr = nullptr;
+		SelectionArguments->SelectionHandle = FGeometrySelectionHandle{ Target->Selector->GetIdentifier(), &Target->Selection, Target->Selector.Get() };
 		SelectionArguments->SetTransactionsAPI(TransactionsAPI);
-		Command->ExecuteCommand(SelectionArguments);
+		Command->ExecuteCommand(SelectionArguments, &ResultPtr);
 
-		// clear selection after executing command
+		// actually clear selection after executing command. 
 		FGeometrySelectionDelta ClearDelta;
 		Target->SelectionEditor->ClearSelection(ClearDelta);
 
-		// 
-		// if commands could emit new selections, this is where we would set them up and emit changes!
+		// if selection returned a result, and it was a non-empty selection, select it
+		if ( UGeometrySelectionEditCommandResult* SelectionResult = Cast<UGeometrySelectionEditCommandResult>(ResultPtr) )
+		{
+			if (SelectionResult->OutputSelection.IsEmpty() == false )
+			{
+				FGeometrySelectionDelta AfterDelta;
+				Target->Selector->UpdateSelectionFromSelection(
+					SelectionResult->OutputSelection, true, *Target->SelectionEditor, 
+					FGeometrySelectionUpdateConfig{EGeometrySelectionChangeType::Add}, &AfterDelta);
+				if (Target->Selection.IsEmpty() == false)
+				{
+					TUniquePtr<FGeometrySelectionReplaceChange> NewSelectionChange = MakeUnique<FGeometrySelectionReplaceChange>();
+					NewSelectionChange->Identifier = Target->Selector->GetIdentifier();
+					NewSelectionChange->After = Target->Selection;
+					NewSelectionChange->Before.InitializeTypes(Target->Selection);
+					GetTransactionsAPI()->AppendChange(this, MoveTemp(NewSelectionChange), LOCTEXT("NewSelection", "New Selection"));
+				}
+			}
+		}
 	}
 
 	GetTransactionsAPI()->EndUndoTransaction();
@@ -929,6 +949,7 @@ void UGeometrySelectionManager::ProcessActiveSelections(TFunctionRef<void(FGeome
 			FGeometrySelectionHandle Handle;
 			Handle.Selection = & Target->Selection;
 			Handle.Identifier = Target->Selector->GetIdentifier();
+			Handle.Selector = Target->Selector.Get();
 			ProcessFunc(Handle);
 		}
 	}

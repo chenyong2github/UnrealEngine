@@ -382,6 +382,29 @@ TSharedRef<SWidget> MakeMenu_SelectionConfigSettings(FModelingToolsEditorModeToo
 	return MenuWidget;
 }
 
+
+
+
+TSharedRef<SWidget> MakeMenu_SelectionEdits(FModelingToolsEditorModeToolkit* Toolkit)
+{
+	FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands() );
+
+	MenuBuilder.BeginSection("Section_SelectionEdits", LOCTEXT("Section_SelectionEdits", "Selection Edits"));
+
+	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
+
+	MenuBuilder.AddMenuEntry(Commands.BeginSelectionAction_SelectAll);
+	MenuBuilder.AddMenuEntry(Commands.BeginSelectionAction_ExpandToConnected);
+	MenuBuilder.AddMenuEntry(Commands.BeginSelectionAction_Invert);
+	MenuBuilder.AddMenuEntry(Commands.BeginSelectionAction_InvertConnected);
+	MenuBuilder.AddMenuEntry(Commands.BeginSelectionAction_Expand);
+	MenuBuilder.AddMenuEntry(Commands.BeginSelectionAction_Contract);
+
+	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
+	return MenuWidget;
+}
+
+
 } // end namespace UELocal
 
 
@@ -413,6 +436,22 @@ void FModelingToolsEditorModeToolkit::MakeSelectionPaletteOverlayWidget()
 		.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 		.OnGetMenuContent(FOnGetContent::CreateLambda([this]()
 		{
+			return UELocal::MakeMenu_SelectionEdits(this);
+		}))
+		.ContentPadding(FMargin(1.0f, 1.0f))
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.Image(FModelingToolsEditorModeStyle::Get()->GetBrush("ModelingModeSelection.Edits_Right"))
+		] );
+
+	ToolbarBuilder.AddWidget(
+		SNew(SComboButton)
+		.HasDownArrow(false)
+		.MenuPlacement(EMenuPlacement::MenuPlacement_MenuRight)
+		.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+		.OnGetMenuContent(FOnGetContent::CreateLambda([this]()
+		{
 			return UELocal::MakeMenu_SelectionConfigSettings(this);
 		}))
 		.ContentPadding(FMargin(1.0f, 1.0f))
@@ -421,6 +460,7 @@ void FModelingToolsEditorModeToolkit::MakeSelectionPaletteOverlayWidget()
 			SNew(SImage)
 			.Image(FModelingToolsEditorModeStyle::Get()->GetBrush("ModelingModeSelection.More_Right"))
 		] );
+
 
 	ToolbarBuilder.AddWidget( SNew(SSpacer).Size(FVector2D(1,10)) );
 

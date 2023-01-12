@@ -125,6 +125,9 @@ struct MODELINGCOMPONENTS_API FGeometryIdentifier
 
 
 
+class IGeometrySelector;
+
+
 /**
  * FGeometrySelectionHandle stores a Selection and an Identifier for
  * the geometry object that the Selection is defined relative to
@@ -133,10 +136,11 @@ struct MODELINGCOMPONENTS_API FGeometrySelectionHandle
 {
 	FGeometryIdentifier Identifier;
 	const UE::Geometry::FGeometrySelection* Selection;
+
+	/** optional Selector for SelectionHandle */
+ 	IGeometrySelector* Selector = nullptr;
 };
 
-
-class IGeometrySelector;
 
 
 /**
@@ -256,6 +260,51 @@ public:
 	 * @return a FGeometryIdentifier for this Selector. 
 	 */
 	virtual FGeometryIdentifier GetIdentifier() const = 0;
+
+
+	enum class EInitializeSelectionMode
+	{
+		// create a selection of all geometry elements
+		All,
+		// create a selection of all geometry elements connected to a ReferenceSelection
+		Connected,
+		// create a selection of all geometry elements directly connected to a ReferenceSelection (ie adjacent/one-ring/etc)
+		AdjacentToBorder
+	};
+
+	/**
+	 * Populate a Selection using the provided ReferenceMode, with a Predicate and optional ReferenceSelection.
+	 * Note that this method does not modify/access any selection that might be "owned" by the Selector.
+	 * It is part of the IGeometrySelector API because often a Selector has access to internal data structures
+	 * (like a Mesh, GroupTopology, etc) that are required to initialize a Selection.
+	 * @param SelectionInOut the Selection to initialize, the input Geometry/Topology types define what type of element will be selected
+	 * @param SelectionIDPredicate only Elements that pass this predicate will be included in SelectionInOut
+	 * @param InitializeMode method to use to initialize SelectionInOut
+	 * @param ReferenceSelection optional Selection to select "relative to", based on the InitializeMode
+	 */
+	virtual void InitializeSelectionFromPredicate(	
+		FGeometrySelection& SelectionInOut,
+		TFunctionRef<bool(UE::Geometry::FGeoSelectionID)> SelectionIDPredicate,
+		EInitializeSelectionMode InitializeMode = EInitializeSelectionMode::All,
+		const FGeometrySelection* ReferenceSelection = nullptr 
+	) = 0;
+
+
+	/**
+	 * Combine FromSelection with the current Selection owned/referenced by the Selector, 
+	 * using the provided SelectionEditor and UpdateConfig. This can be used to explicitly
+	 * initialize the Selection, restore it to a previous state for undo/redo, etc.
+	 * @param bAllowConversion if true, FromSelection's Geometry/Topology type will be converted to the internal types of the Selector/SelectionEditor
+	 * @param SelectionDelta if passed as non-null, this Delta will be initialized based on the change in the internal Selection
+	 */
+	virtual void UpdateSelectionFromSelection(	
+		const FGeometrySelection& FromSelection,
+		bool bAllowConversion,
+		FGeometrySelectionEditor& SelectionEditor,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		UE::Geometry::FGeometrySelectionDelta* SelectionDelta = nullptr
+	) = 0;
+
 
 	struct FWorldRayQueryInfo
 	{
