@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NiagaraValidationRuleSet.h"
 #include "AssetDefinitionDefault.h"
 
 #include "AssetDefinition_NiagaraValidationRuleSet.generated.h"
@@ -13,9 +14,17 @@ class UAssetDefinition_NiagaraValidationRuleSet : public UAssetDefinitionDefault
 	GENERATED_BODY()
 
 public:
-	// UAssetDefinition Implementation
-	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetDefinition", "NiagaraValidationRuleSet", "Niagara Validation Rule Set"); }
+	// UAssetDefinition Begin
+	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_NiagaraValidationRuleSet", "Niagara Validation Rule Set"); }
 	virtual FLinearColor GetAssetColor() const override;
-	virtual TSoftClassPtr<UObject> GetAssetClass() const override;
-	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override;
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UNiagaraValidationRuleSet::StaticClass(); }
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
+	{
+		static const auto Categories = {
+			EAssetCategoryPaths::FX / NSLOCTEXT("Niagara", "NiagaraAssetSubMenu_Advanced", "Advanced")
+		};
+		
+		return Categories;
+	}
+	// UAssetDefinition End
 };

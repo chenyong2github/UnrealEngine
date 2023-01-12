@@ -1,47 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetDefinitions/AssetDefinition_NiagaraSimCache.h"
+#include "AssetDefinition_NiagaraSimCache.h"
 
 #include "NiagaraEditorStyle.h"
-#include "NiagaraSimCache.h"
 #include "NiagaraSimCacheToolkit.h"
-
-#define LOCTEXT_NAMESPACE "UAssetDefinition_NiagaraSimCache"
 
 FLinearColor UAssetDefinition_NiagaraSimCache::GetAssetColor() const
 {
-	return FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.AssetColors.SimCache");
-}
-
-TSoftClassPtr<> UAssetDefinition_NiagaraSimCache::GetAssetClass() const
-{
-	return UNiagaraSimCache::StaticClass();
-}
-
-TConstArrayView<FAssetCategoryPath> UAssetDefinition_NiagaraSimCache::GetAssetCategories() const
-{
-	static FAssetCategoryPath AssetPaths[] = { FAssetCategoryPath(LOCTEXT("NiagaraAssetsCategory", "FX"), LOCTEXT("NiagaraSimCache_SubCategory", "Advanced")) };
-	return AssetPaths;
+	return FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.AssetColors.SimCache").ToFColor(true);
 }
 
 EAssetCommandResult UAssetDefinition_NiagaraSimCache::OpenAssets(const FAssetOpenArgs& OpenArgs) const
 {
-	if (OpenArgs.OpenMethod == EAssetOpenMethod::Edit)
+	for (UNiagaraSimCache* SimCache : OpenArgs.LoadObjects<UNiagaraSimCache>())
 	{
-		EToolkitMode::Type Mode = OpenArgs.ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
-		TArray<UObject*> Objects = OpenArgs.LoadObjects<UObject>();
-		for (UObject* OpenObj : Objects)
-		{
-			if (UNiagaraSimCache* Cache = Cast<UNiagaraSimCache>(OpenObj))
-			{
-				TSharedRef<FNiagaraSimCacheToolkit> NewNiagaraSystemToolkit(new FNiagaraSimCacheToolkit());
-				NewNiagaraSystemToolkit->Initialize(Mode, OpenArgs.ToolkitHost, Cache);
-			}
-		}
-		return EAssetCommandResult::Handled;
+		const TSharedRef< FNiagaraSimCacheToolkit > NewNiagaraSimCacheToolkit(new FNiagaraSimCacheToolkit());
+		NewNiagaraSimCacheToolkit->Initialize(OpenArgs.GetToolkitMode(), OpenArgs.ToolkitHost, SimCache);
 	}
 
-	return EAssetCommandResult::Unhandled;
+	return EAssetCommandResult::Handled;
 }
-
-#undef LOCTEXT_NAMESPACE
