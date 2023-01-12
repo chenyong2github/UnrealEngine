@@ -30,7 +30,7 @@ FChaosClothPreviewScene::FChaosClothPreviewScene(FPreviewScene::ConstructionValu
 
 	if (PreviewSceneDescription->SkeletalMeshAsset)
 	{
-		InitializeSkeletalMeshActor();
+		CreateSkeletalMeshActor();
 	}
 }
 
@@ -38,6 +38,11 @@ FChaosClothPreviewScene::~FChaosClothPreviewScene()
 {
 	if (SkeletalMeshActor)
 	{
+		if (SkeletalMeshActor->GetSkeletalMeshComponent())
+		{
+			SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.RemoveAll(this);
+		}
+
 		SkeletalMeshActor->UnregisterAllComponents();
 	}
 
@@ -54,6 +59,7 @@ void FChaosClothPreviewScene::AddReferencedObjects(FReferenceCollector& Collecto
 	Collector.AddReferencedObject(PreviewSceneDescription);
 	Collector.AddReferencedObject(ClothComponent);
 	Collector.AddReferencedObject(SkeletalMeshActor);
+	Collector.AddReferencedObject(ClothActor);
 }
 
 void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -62,7 +68,7 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyCh
 	{
 		if (PreviewSceneDescription->SkeletalMeshAsset)
 		{
-			InitializeSkeletalMeshActor();
+			CreateSkeletalMeshActor();
 		}
 	}
 
@@ -70,16 +76,28 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyCh
 	{
 		if (SkeletalMeshActor)
 		{
-			SkeletalMeshActor->SetActorTransform(PreviewSceneDescription->SkeletalMeshTransform);
+			SkeletalMeshActor->GetSkeletalMeshComponent()->SetComponentToWorld(PreviewSceneDescription->SkeletalMeshTransform);
 		}
 	}
 }
 
 
-void FChaosClothPreviewScene::InitializeSkeletalMeshActor()
+void FChaosClothPreviewScene::SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
+{
+	ensure(UpdatedComponent == SkeletalMeshActor->GetSkeletalMeshComponent());
+	PreviewSceneDescription->SkeletalMeshTransform = UpdatedComponent->GetComponentToWorld();
+}
+
+
+void FChaosClothPreviewScene::CreateSkeletalMeshActor()
 {
 	if (SkeletalMeshActor)
 	{
+		if (SkeletalMeshActor->GetSkeletalMeshComponent())
+		{
+			SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.RemoveAll(this);
+		}
+
 		SkeletalMeshActor->UnregisterAllComponents();
 	}
 
@@ -92,14 +110,27 @@ void FChaosClothPreviewScene::InitializeSkeletalMeshActor()
 	}
 
 	SkeletalMeshActor->RegisterAllComponents();
+
+	SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.AddRaw(this, &FChaosClothPreviewScene::SkeletalMeshTransformChanged);
 }
 
 
-void FChaosClothPreviewScene::CreateClothComponent(UChaosClothAsset* Asset)
+void FChaosClothPreviewScene::CreateClothActor(UChaosClothAsset* Asset)
 {
-	ClothComponent = NewObject<UChaosClothComponent>();
+	if (ClothActor)
+	{
+		ClothActor->UnregisterAllComponents();
+	}
+
+	ClothActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass());
+
+	check(ClothActor);
+
+	ClothComponent = NewObject<UChaosClothComponent>(ClothActor);
 	ClothComponent->SetClothAsset(Asset);
-	ClothComponent->RegisterComponentWithWorld(PreviewWorld);
+
+	ClothActor->SetRootComponent(ClothComponent);
+	ClothActor->RegisterAllComponents();
 }
 
 

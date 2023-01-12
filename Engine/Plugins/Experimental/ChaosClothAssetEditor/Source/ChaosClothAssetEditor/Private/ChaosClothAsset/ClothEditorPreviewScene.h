@@ -60,13 +60,13 @@ public:
 	const UChaosClothPreviewSceneDescription* GetPreviewSceneDescription() const { return PreviewSceneDescription; }
 	UChaosClothPreviewSceneDescription* GetPreviewSceneDescription() { return PreviewSceneDescription; }
 
+	void CreateClothActor(UChaosClothAsset* Asset);
+
 	// Update Scene in response to the SceneDescription changing
 	void SceneDescriptionPropertyChanged(struct FPropertyChangedEvent& PropertyChangedEvent);
 
-	void CreateClothComponent(UChaosClothAsset* Asset);
-
-
 	// Preview simulation mesh
+	TObjectPtr<AActor> ClothActor;
 	TObjectPtr<UChaosClothComponent> ClothComponent;
 
 	// Skeletal Mesh
@@ -74,9 +74,11 @@ public:
 
 private:
 
-	TObjectPtr<UChaosClothPreviewSceneDescription> PreviewSceneDescription;
+	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 
-	void InitializeSkeletalMeshActor();
+	void CreateSkeletalMeshActor();
+
+	TObjectPtr<UChaosClothPreviewSceneDescription> PreviewSceneDescription;
 };
 
 

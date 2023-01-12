@@ -590,12 +590,7 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	{
 		if (UChaosClothAsset* ChaosClothAsset = Cast<UChaosClothAsset>(Asset))
 		{
-			PreviewScene->CreateClothComponent(ChaosClothAsset);
-
-			USelection* SelectedComponents = GetModeManager()->GetSelectedComponents();
-			SelectedComponents->Modify();
-			SelectedComponents->Select(PreviewScene->ClothComponent);
-
+			PreviewScene->CreateClothActor(ChaosClothAsset);
 			break;
 		}
 	}

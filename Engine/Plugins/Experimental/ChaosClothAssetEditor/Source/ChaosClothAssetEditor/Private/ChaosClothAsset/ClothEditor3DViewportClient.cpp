@@ -9,6 +9,12 @@
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowActor.h"
 #include "Dataflow/DataflowRenderingFactory.h"
+#include "EdModeInteractiveToolsContext.h"
+#include "BaseGizmos/TransformProxy.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
+#include "Engine/Selection.h"
+#include "EngineUtils.h"
 
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, 
@@ -20,8 +26,31 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 
 	// Call this once with the default value to get everything in a consistent state
 	EnableRenderMeshWireframe(bRenderMeshWireframe);
+
+	// Set up Gizmo and TransformProxy
+
+	UModeManagerInteractiveToolsContext* const InteractiveToolsContext = ModeTools->GetInteractiveToolsContext();
+	TransformProxy = NewObject<UTransformProxy>();
+
+	UInteractiveGizmoManager* const GizmoManager = InteractiveToolsContext->GizmoManager;
+	const FString GizmoIdentifier = TEXT("ChaosClothAssetEditor3DViewportClientGizmoIdentifier");
+	Gizmo = GizmoManager->Create3AxisTransformGizmo(this, GizmoIdentifier);
+
+	UInteractiveToolManager* const ToolManager = InteractiveToolsContext->ToolManager;
+	Gizmo->SetActiveTarget(TransformProxy, ToolManager);
+	Gizmo->SetVisibility(true);
+	Gizmo->bUseContextGizmoMode = false;
+	Gizmo->bUseContextCoordinateSystem = false;
+	Gizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
 }
 
+void FChaosClothAssetEditor3DViewportClient::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	FEditorViewportClient::AddReferencedObjects(Collector);
+
+	Collector.AddReferencedObject(TransformProxy);
+	Collector.AddReferencedObject(Gizmo);
+}
 
 void FChaosClothAssetEditor3DViewportClient::Tick(float DeltaSeconds)
 {
@@ -88,6 +117,12 @@ void FChaosClothAssetEditor3DViewportClient::EnableRenderMeshWireframe(bool bEna
 void FChaosClothAssetEditor3DViewportClient::SetClothComponent(TObjectPtr<UChaosClothComponent> InClothComponent)
 {
 	ClothComponent = InClothComponent;
+
+	if (ClothComponent)
+	{
+		TransformProxy->AddComponent(ClothComponent);
+		TransformProxy->SetTransform(ClothComponent->GetComponentToWorld());
+	}
 }
 
 void FChaosClothAssetEditor3DViewportClient::SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> InClothEdMode)
@@ -144,13 +179,7 @@ bool FChaosClothAssetEditor3DViewportClient::IsSimulationSuspended() const
 
 void FChaosClothAssetEditor3DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	if (!bSimMeshWireframe)
-	{
-		return;
-	}
-
-	// TODO: Draw simulation mesh wireframe
-
+	FEditorViewportClient::Draw(View, PDI);
 }
 
 FBox FChaosClothAssetEditor3DViewportClient::PreviewBoundingBox() const
@@ -161,4 +190,81 @@ FBox FChaosClothAssetEditor3DViewportClient::PreviewBoundingBox() const
 	}
 
 	return FBox(ForceInitToZero);
+}
+
+void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
+{
+	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
+
+	const bool bIsShiftKeyDown = Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift);
+	const bool bIsCtrlKeyDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
+
+	USelection* SelectedComponents = ModeTools->GetSelectedComponents();
+	SelectedComponents->Modify();
+
+	if (!bIsShiftKeyDown && !bIsCtrlKeyDown)
+	{
+		SelectedComponents->DeselectAll();
+	}
+
+	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
+	{
+		const HActor* const ActorProxy = static_cast<HActor*>(HitProxy);
+		if (ActorProxy && ActorProxy->Actor)
+		{
+			const AActor* const Actor = ActorProxy->Actor;		
+			USceneComponent* RootComponent = Actor->GetRootComponent();
+			if (RootComponent)
+			{
+				if (bIsShiftKeyDown)
+				{
+					SelectedComponents->Select(RootComponent);
+				}
+				else if (bIsCtrlKeyDown)
+				{
+					// Don't use USelection::ToggleSelect here because that checks membership in GObjectSelection, not the given USelection...
+					TArray<USceneComponent*> Components;
+					SelectedComponents->GetSelectedObjects(Components);
+					const bool bIsSelected = Components.Contains(RootComponent);	
+
+					if (bIsSelected)
+					{
+						SelectedComponents->Deselect(RootComponent);
+					}
+					else
+					{
+						SelectedComponents->Select(RootComponent);
+					}
+				}
+				else
+				{
+					SelectedComponents->Select(RootComponent);
+				}
+			}
+		}
+	}
+
+	// Update TransformProxy
+
+	TransformProxy = NewObject<UTransformProxy>();
+	TArray<USceneComponent*> Components;
+	SelectedComponents->GetSelectedObjects(Components);
+	for (USceneComponent* SelectedComponent : Components)
+	{
+		TransformProxy->AddComponent(SelectedComponent);
+	}
+
+	// Update gizmo
+
+	if (Components.Num() > 0)
+	{
+		Gizmo->SetActiveTarget(TransformProxy);
+		Gizmo->SetVisibility(true);
+	}
+	else
+	{
+		Gizmo->ClearActiveTarget();
+		Gizmo->SetVisibility(false);
+	}
+
 }
