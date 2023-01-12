@@ -37,7 +37,6 @@
 #include "ClassViewerFilter.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
-#include "AssetTypeActions/AssetTypeActions_SkeletalMesh.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprintInterface.h"
@@ -63,7 +62,6 @@
 #include "AssetTypeActions/AssetTypeActions_MirrorDataTable.h"
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
 #include "AssetTypeActions/AssetTypeActions_PhysicalMaterialMask.h"
-#include "AssetTypeActions/AssetTypeActions_Skeleton.h"
 #include "WorldPartition/WorldPartition.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetFixUpRedirectors.h"
@@ -1354,8 +1352,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MirrorDataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ParticleSystem));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterialMask));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SkeletalMesh));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Skeleton));
 
 	// Note: Please don't add any more actions here!  They belong in an editor-only module that is more tightly
 	// coupled to your new system, and you should not create a dependency on your new system from AssetTools.
@@ -1657,15 +1653,16 @@ void UAssetToolsImpl::CreateAssetsFrom(TConstArrayView<UObject*> SourceObjects, 
 	{
 		if (UObject* SourceObject = SourceObjects[0])
 		{
-			// Create an appropriate and unique name 
-			FString Name;
-			FString PackageName;
-			CreateUniqueAssetName(SourceObject->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
+			if (UFactory* Factory = FactoryConstructor(SourceObject))
+			{
+				// Create an appropriate and unique name 
+				FString Name;
+				FString PackageName;
+				CreateUniqueAssetName(SourceObject->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
 
-			UFactory* Factory = FactoryConstructor(SourceObject);
-
-			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-			ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackageName), CreateAssetType, Factory);
+				FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+				ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackageName), CreateAssetType, Factory);
+			}
 		}
 	}
 	else
@@ -1675,17 +1672,18 @@ void UAssetToolsImpl::CreateAssetsFrom(TConstArrayView<UObject*> SourceObjects, 
 		{
 			if ( SourceObject )
 			{
-				// Determine an appropriate name
-				FString Name;
-				FString PackageName;
-				CreateUniqueAssetName(SourceObject->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
-
 				// Create the factory used to generate the asset
-				UFactory* Factory = FactoryConstructor(SourceObject);
-					
-				if (UObject* NewAsset = CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), CreateAssetType, Factory, CallingContext))
+				if (UFactory* Factory = FactoryConstructor(SourceObject))
 				{
-					ObjectsToSync.Add(NewAsset);
+					// Determine an appropriate name
+					FString Name;
+					FString PackageName;
+					CreateUniqueAssetName(SourceObject->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
+					
+					if (UObject* NewAsset = CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), CreateAssetType, Factory, CallingContext))
+					{
+						ObjectsToSync.Add(NewAsset);
+					}
 				}
 			}
 		}

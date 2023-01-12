@@ -301,9 +301,19 @@ public:
 	 * it needed a utility.  In the case that you only have a single SourceObject, we'll lean on the content browser
 	 * to create the asset and focus you to it so you can rename it inline.  However in the case that multiple assets
 	 * get created we'll construct each one and then sync the content browser to them.
+	 *
+	 * You can return null for a factory if you need to skip a given SourceObject.
 	 */
 	virtual void CreateAssetsFrom(TConstArrayView<UObject*> SourceObjects, UClass* CreateAssetType, const FString& DefaultSuffix, TFunctionRef<UFactory*(UObject*)> FactoryConstructor, FName CallingContext = NAME_None) = 0;
 
+	/**
+	 * Creates one or more assets using the source objects as the basis for the next type.  This is a common enough operation
+	 * it needed a utility.  In the case that you only have a single SourceObject, we'll lean on the content browser
+	 * to create the asset and focus you to it so you can rename it inline.  However in the case that multiple assets
+	 * get created we'll construct each one and then sync the content browser to them.
+	 *
+	 * You can return null for a factory if you need to skip a given SourceObject.
+	 */
 	template<typename SourceObjectType, typename = typename TEnableIf<TIsDerivedFrom<SourceObjectType, UObject>::Value>::Type>
 	void CreateAssetsFrom(TConstArrayView<SourceObjectType*> SourceObjects, UClass* CreateAssetType, const FString& DefaultSuffix, TFunctionRef<UFactory*(SourceObjectType*)> FactoryConstructor, FName CallingContext = NAME_None)
 	{

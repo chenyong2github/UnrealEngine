@@ -218,6 +218,20 @@ protected:
 
 		return TypedObjects;
 	}
+	
+	template <typename T>
+    static TArray<TSoftObjectPtr<T>> GetTypedSoftObjectPtrs(const TArray<UObject*>& InObjects)
+    {
+    	check(InObjects.Num() > 0);
+
+    	TArray<TSoftObjectPtr<T>> TypedObjects;
+    	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+    	{
+    		TypedObjects.Add( CastChecked<T>(*ObjIt) );
+    	}
+
+    	return TypedObjects;
+    }
 
 	template <typename T>
 	static TArray<T*> GetTypedObjectPtrs(const TArray<UObject*>& InObjects)

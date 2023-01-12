@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StringTableEditorModule.h"
+
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 #include "Modules/ModuleManager.h"
 #include "IStringTableEditor.h"
 #include "Internationalization/StringTableRegistry.h"
 #include "StringTableEditor.h"
-#include "AssetTypeActions_StringTable.h"
+
 #include "PackageMigrationContext.h"
+#include "Internationalization/StringTable.h"
 
 IMPLEMENT_MODULE(FStringTableEditorModule, StringTableEditor);
 
@@ -18,8 +22,6 @@ void FStringTableEditorModule::StartupModule()
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_StringTable()));
-
 	AssetTools.GetOnPackageMigration().AddRaw(this, &FStringTableEditorModule::OnPackageMigration);
 }
 

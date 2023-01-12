@@ -1048,7 +1048,7 @@ void FSkeletalAnimationTrackEditor::HandleCreatePoseAsset(FGuid InObjectBinding)
 	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(InObjectBinding, GetSequencer());
 	if (Skeleton)
 	{
-		TArray<TWeakObjectPtr<UObject>> Skeletons;
+		TArray<TSoftObjectPtr<UObject>> Skeletons;
 		Skeletons.Add(Skeleton);
 		AnimationEditorUtils::ExecuteNewAnimAsset<UPoseAssetFactory, UPoseAsset>(Skeletons, FString("_PoseAsset"), FAnimAssetCreated::CreateSP(this, &FSkeletalAnimationTrackEditor::CreatePoseAsset, InObjectBinding), false, false);
 	}
@@ -1533,7 +1533,7 @@ void FSkeletalAnimationTrackEditor::HandleCreateAnimationSequence(USkeletalMeshC
 {
 	if (SkelMeshComp)
 	{
-		TArray<TWeakObjectPtr<UObject>> Skels;
+		TArray<TSoftObjectPtr<UObject>> Skels;
 		if (SkelMeshComp->GetSkeletalMeshAsset())
 		{
 			Skels.Add(SkelMeshComp->GetSkeletalMeshAsset());

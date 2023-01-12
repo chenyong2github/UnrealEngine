@@ -186,6 +186,32 @@ public:
 	const FAssetData* GetSingleSelectedAssetOfType(const UClass* AssetClass, EIncludeSubclasses IncludeSubclasses = EIncludeSubclasses::Yes) const;
 
 	/**
+	 * Get the selected assets as an array of SoftObjectPtr<T>'s.
+	 */
+	template<typename ExpectedAssetType>
+	TArray<TSoftObjectPtr<ExpectedAssetType>> GetSelectedAssetSoftObjects(EIncludeSubclasses IncludeSubclasses = EIncludeSubclasses::Yes) const
+	{
+		TArray<TSoftObjectPtr<ExpectedAssetType>> Result;
+		Result.Reserve(SelectedAssets.Num());
+		if (IncludeSubclasses == EIncludeSubclasses::Yes)
+		{
+			Algo::TransformIf(SelectedAssets, Result,
+				[](const FAssetData& AssetData) { return AssetData.IsInstanceOf(ExpectedAssetType::StaticClass()); },
+				[](const FAssetData& AssetData) { return TSoftObjectPtr<ExpectedAssetType>(AssetData.ToSoftObjectPath()); }
+			);
+		}
+		else
+		{
+			Algo::TransformIf(SelectedAssets, Result,
+				[](const FAssetData& AssetData) { return AssetData.GetClass() == ExpectedAssetType::StaticClass(); },
+				[](const FAssetData& AssetData) { return TSoftObjectPtr<ExpectedAssetType>(AssetData.ToSoftObjectPath()); }
+			);
+		}
+
+		return Result;
+	}
+
+	/**
 	 * Finds the Content Browser MenuContext from a Menu or Section, and returns the context provided there are some
 	 * selected assets.
 	 */

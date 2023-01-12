@@ -19,6 +19,7 @@ public class StringTableEditor : ModuleRules
 				"EditorFramework",
                 "UnrealEd",
 				"AssetTools",
+				"AssetDefinition",
 			});
 
         DynamicallyLoadedModuleNames.Add("WorkspaceMenuStructure");

@@ -25,11 +25,4 @@ public:
 	
 	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
 	// UAssetDefinition End
-
-private:
-	/** Can we execute a reimport for the selected objects? */
-	bool CanExecuteReimport(const TArray<TWeakObjectPtr<UFont>> Objects) const;
-
-	/** Handler for when Reimport is selected */
-	void ExecuteReimport(const TArray<TWeakObjectPtr<UFont>> Objects) const;
 };

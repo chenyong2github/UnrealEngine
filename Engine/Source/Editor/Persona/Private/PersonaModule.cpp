@@ -1255,7 +1255,7 @@ TSharedRef< SWidget > FPersonaModule::GenerateCreateAssetMenu(TWeakPtr<IPersonaT
 	MenuBuilder.EndSection();
 
 	TSharedRef<IPersonaToolkit> PersonaToolkit = InWeakPersonaToolkit.Pin().ToSharedRef();
-	TArray<TWeakObjectPtr<UObject>> Objects;
+	TArray<TSoftObjectPtr<UObject>> Objects;
 	if (PersonaToolkit->GetPreviewMesh())
 	{
 		Objects.Add(PersonaToolkit->GetPreviewMesh());
@@ -1273,7 +1273,7 @@ TSharedRef< SWidget > FPersonaModule::GenerateCreateAssetMenu(TWeakPtr<IPersonaT
 void FPersonaModule::FillCreateAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit)
 {
 	TSharedRef<IPersonaToolkit> PersonaToolkit = InWeakPersonaToolkit.Pin().ToSharedRef();
-	TArray<TWeakObjectPtr<UObject>> Objects;
+	TArray<TSoftObjectPtr<UObject>> Objects;
 	if (PersonaToolkit->GetPreviewMesh())
 	{
 		Objects.Add(PersonaToolkit->GetPreviewMesh());
@@ -1326,7 +1326,7 @@ void FPersonaModule::FillCreateAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr
 void FPersonaModule::FillCreateAnimationFromCurrentAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) 
 {
 	TSharedRef<IPersonaToolkit> PersonaToolkit = InWeakPersonaToolkit.Pin().ToSharedRef();
-	TArray<TWeakObjectPtr<UObject>> Objects;
+	TArray<TSoftObjectPtr<UObject>> Objects;
 
 	if (PersonaToolkit->GetPreviewMesh())
 	{
@@ -1367,7 +1367,7 @@ void FPersonaModule::FillCreateAnimationFromCurrentAnimationMenu(FMenuBuilder& M
 void FPersonaModule::FillCreatePoseAssetMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit)
 {
 	TSharedRef<IPersonaToolkit> PersonaToolkit = InWeakPersonaToolkit.Pin().ToSharedRef();
-	TArray<TWeakObjectPtr<UObject>> Objects;
+	TArray<TSoftObjectPtr<UObject>> Objects;
 
 	if (PersonaToolkit->GetPreviewMesh())
 	{

@@ -461,16 +461,16 @@ namespace AnimationEditorUtils
 		AssetToolsModule.Get().CreateUniqueAssetName(InBasePackageName, InSuffix, OutPackageName, OutAssetName);
 	}
 
-	void CreateAnimationAssets(const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject /*= nullptr*/, bool bDoNotShowNameDialog /*= false*/, bool bAllowReplaceExisting /*= false*/)
+	void CreateAnimationAssets(const TArray<TSoftObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject /*= nullptr*/, bool bDoNotShowNameDialog /*= false*/, bool bAllowReplaceExisting /*= false*/)
 	{
 		TArray<UObject*> ObjectsToSync;
 		for(auto SkelIt = SkeletonsOrSkeletalMeshes.CreateConstIterator(); SkelIt; ++SkelIt)
 		{
 			USkeletalMesh* SkeletalMesh = nullptr;
-			USkeleton* Skeleton = Cast<USkeleton>(SkelIt->Get());
+			USkeleton* Skeleton = Cast<USkeleton>(SkelIt->LoadSynchronous());
 			if (Skeleton == nullptr)
 			{
-				SkeletalMesh = CastChecked<USkeletalMesh>(SkelIt->Get());
+				SkeletalMesh = CastChecked<USkeletalMesh>(SkelIt->LoadSynchronous());
 				Skeleton = SkeletalMesh->GetSkeleton();
 			}
 
@@ -565,17 +565,17 @@ namespace AnimationEditorUtils
 		}
 	}
 
-	void CreateNewAnimBlueprint(TArray<TWeakObjectPtr<UObject>> SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
+	void CreateNewAnimBlueprint(TArray<TSoftObjectPtr<UObject>> SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
 	{
 		const FString DefaultSuffix = TEXT("_AnimBlueprint");
 
 		if (SkeletonsOrSkeletalMeshes.Num() == 1)
 		{
 			USkeletalMesh* SkeletalMesh = nullptr;
-			USkeleton* Skeleton = Cast<USkeleton>(SkeletonsOrSkeletalMeshes[0].Get());
+			USkeleton* Skeleton = Cast<USkeleton>(SkeletonsOrSkeletalMeshes[0].LoadSynchronous());
 			if (Skeleton == nullptr)
 			{
-				SkeletalMesh = CastChecked<USkeletalMesh>(SkeletonsOrSkeletalMeshes[0].Get());
+				SkeletalMesh = CastChecked<USkeletalMesh>(SkeletonsOrSkeletalMeshes[0].LoadSynchronous());
 				Skeleton = SkeletalMesh->GetSkeleton();
 			}
 
@@ -625,10 +625,10 @@ namespace AnimationEditorUtils
 			for (auto ObjIt = SkeletonsOrSkeletalMeshes.CreateConstIterator(); ObjIt; ++ObjIt)
 			{
 				USkeletalMesh* SkeletalMesh = nullptr;
-				USkeleton* Skeleton = Cast<USkeleton>(ObjIt->Get());
+				USkeleton* Skeleton = Cast<USkeleton>(ObjIt->LoadSynchronous());
 				if (Skeleton == nullptr)
 				{
-					SkeletalMesh = CastChecked<USkeletalMesh>(ObjIt->Get());
+					SkeletalMesh = CastChecked<USkeletalMesh>(ObjIt->LoadSynchronous());
 					Skeleton = SkeletalMesh->GetSkeleton();
 				}
 
@@ -677,7 +677,7 @@ namespace AnimationEditorUtils
 		return AssetTools.IsAssetClassSupported(InClass);
 	}
 
-	void FillCreateAssetMenu(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
+	void FillCreateAssetMenu(FMenuBuilder& MenuBuilder, const TArray<TSoftObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
 	{
 		const bool bAllowReplaceExisting = false;
 
