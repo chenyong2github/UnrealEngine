@@ -224,6 +224,11 @@ namespace UnrealBuildBase
 					NewDirectories = new Dictionary<string, DirectoryItem>(Directories.Length, DirectoryReference.Comparer);
 					foreach (DirectoryInfo SubDirectoryInfo in Directories)
 					{
+						if (NewDirectories.ContainsKey(SubDirectoryInfo.Name))
+						{
+							throw new Exception($"Trying to add {SubDirectoryInfo.FullName} as '{SubDirectoryInfo.Name}' yet exists as {NewDirectories[SubDirectoryInfo.Name].FullName}");
+						}
+
 						NewDirectories.Add(SubDirectoryInfo.Name, DirectoryItem.GetItemByDirectoryInfo(SubDirectoryInfo));
 					}
 				}

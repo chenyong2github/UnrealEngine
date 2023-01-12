@@ -420,7 +420,7 @@ namespace AutomationToolDriver
 			}
 			catch (Exception Ex)
             {
-				Logger.LogError(Ex, "Unhandled exception: {Message}", Ex.Message);
+				Logger.LogError(Ex, "Unhandled exception: {Message}", ExceptionUtils.FormatException(Ex));
             }
             finally
             {
