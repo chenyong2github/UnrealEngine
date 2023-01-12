@@ -42,18 +42,12 @@ TMap<FComputeKernelShaderMapId, FComputeKernelShaderMap*> FComputeKernelShaderMa
 TArray<FComputeKernelShaderMap*> FComputeKernelShaderMap::AllComputeKernelShaderMaps;
 
 #if WITH_EDITOR
-
-// The Id of 0 is reserved for global shaders
-uint32 FComputeKernelShaderMap::NextCompilingId = 2;
-
-
 /** 
  * Tracks FComputeKernelResource and their shader maps that are being compiled.
  * Uses a TRefCountPtr as this will be the only reference to a shader map while it is being compiled.
  */
 TMap<TRefCountPtr<FComputeKernelShaderMap>, TArray<FComputeKernelResource*> > FComputeKernelShaderMap::ComputeKernelShaderMapsBeingCompiled;
 #endif // WITH_EDITOR
-
 
 
 static inline bool ShouldCacheComputeKernelShader(const FComputeKernelShaderType* InShaderType, EShaderPlatform InPlatform, const FComputeKernelResource* InKernel)
@@ -342,13 +336,10 @@ void FComputeKernelShaderMap::Compile(
 		else
 		{
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
-			CompilingId = NextCompilingId;
+			CompilingId = FShaderCommonCompileJob::GetNextJobId();
 			UE_LOG(LogComputeFramework, Log, TEXT("CompilingId = %p %d"), InKernel, CompilingId);
 			InKernel->AddCompileId(CompilingId);
 
-			check(NextCompilingId < UINT_MAX);
-			NextCompilingId++;
-  
 			// Setup the compilation environment.
 			InKernel->SetupShaderCompilationEnvironment(InPlatform, *InCompilationEnvironment);
   

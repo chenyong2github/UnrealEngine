@@ -253,9 +253,6 @@ private:
 	static TArray<FComputeKernelShaderMap*> AllComputeKernelShaderMaps;
 
 #if WITH_EDITOR
-	/** Next value for CompilingId. */
-	static uint32 NextCompilingId;
-
 	/** Tracks resources and their shader maps that need to be compiled but whose compilation is being deferred. */
 	static TMap<TRefCountPtr<FComputeKernelShaderMap>, TArray<FComputeKernelResource*> > ComputeKernelShaderMapsBeingCompiled;
 #endif
