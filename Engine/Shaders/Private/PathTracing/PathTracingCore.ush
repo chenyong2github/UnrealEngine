@@ -6,7 +6,6 @@
 
 #define USE_PATH_TRACING_LIGHT_GRID	1
 #define USE_RAY_TRACING_DECAL_GRID	1
-#define USE_ENERGY_CONSERVATION 1
 
 // Ignore hair strands if the ray origin is beyond this radius. This is meant to workaround a performance cliff that can occur on some hardware.
 // In ordinary scenes, the most likely occurance of this problem is when combining hair and volumetric atmosphere as rays from several Km can travel back towards the hair and cause long delays or even TDRs
@@ -146,9 +145,6 @@ void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
 	{
 		HitPayload.Radiance += Params.GetEmissive() * DecalAlpha;
 	}
-
-	HitPayload.DiffuseColor = HitPayload.BaseColor - HitPayload.BaseColor * HitPayload.Metallic;
-	HitPayload.SpecularColor = ComputeF0(HitPayload.Specular, HitPayload.BaseColor, HitPayload.Metallic);
 
 	// TODO: Payload.Opacity?
 }
@@ -367,8 +363,9 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		}
 
 		// Unpack the payload
-		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray);
+		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray, bIsCameraRay);
 
+		float SumDecalOpacity = 0;
 		if (PathState.PathRoughness < MeshDecalRoughnessCutoff && HitPayload.IsDecalReceiver())
 		{
 			FRayDesc DecalRay = (FRayDesc)0;
@@ -404,11 +401,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			{
 				ApplyDecal(HitPayload, DecalPayload.Params);
 
-				if (ApproximateCaustics)
-				{
-					Payload.Roughness = max(Payload.Roughness, PathState.PathRoughness);
-				}
-				HitPayload.WorldNormal = AdjustShadingNormal(HitPayload.WorldNormal, HitPayload.WorldGeoNormal, PathState.Ray.Direction);
+				SumDecalOpacity += DecalPayload.Params.GetOpacity();
 			}
 		}
 
@@ -418,7 +411,6 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			const float3 TranslatedWorldPos = HitPayload.TranslatedWorldPos;
 
 			FDecalLoopCount DecalLoopCount = DecalGridLookup(TranslatedWorldPos);
-
 			for (uint Index = 0, Num = DecalLoopCount.NumDecals; Index < Num; ++Index)
 			{
 				uint DecalId = GetDecalId(Index, DecalLoopCount);
@@ -430,14 +422,27 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 				ApplyDecal(HitPayload, Params);
 
-				if (ApproximateCaustics)
-				{
-					Payload.Roughness = max(Payload.Roughness, PathState.PathRoughness);
-				}
-				HitPayload.WorldNormal = AdjustShadingNormal(HitPayload.WorldNormal, HitPayload.WorldGeoNormal, PathState.Ray.Direction);
+				SumDecalOpacity += Params.GetOpacity();
 			}
 		}
 #endif
+		if (SumDecalOpacity > 0)
+		{
+			// if we ran any decal logic, update the payload
+			if (ApproximateCaustics)
+			{
+				Payload.Roughness = max(Payload.Roughness, PathState.PathRoughness);
+			}
+			HitPayload.WorldNormal = AdjustShadingNormal(HitPayload.WorldNormal, HitPayload.WorldGeoNormal, PathState.Ray.Direction);
+			HitPayload.DiffuseColor = HitPayload.BaseColor - HitPayload.BaseColor * HitPayload.Metallic;
+			HitPayload.SpecularColor = ComputeF0(HitPayload.Specular, HitPayload.BaseColor, HitPayload.Metallic);
+			if (bIsCameraRay)
+			{
+				HitPayload.DiffuseColor = HitPayload.DiffuseColor * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
+				HitPayload.SpecularColor = HitPayload.SpecularColor * View.SpecularOverrideParameter.w + View.SpecularOverrideParameter.xyz;
+			}
+		}
+
 		// account for Beer's law through the currently active medium
 		// TODO: merge this with the volume raymarching?
 		PathState.PathThroughput *= select(PathState.SigmaT > 0.0, exp(-PathState.SigmaT * (HitPayload.HitT - PathState.Ray.TMin)), 1.0);

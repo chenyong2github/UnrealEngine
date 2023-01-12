@@ -331,10 +331,16 @@ float GetAverageRoughness(FPathTracingPayload Payload)
 #endif
 }
 
-FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, FRayDesc Ray)
+FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, FRayDesc Ray, bool bApplyOverrides)
 {
 	// This function can also do a bit of per-material post-processing to simplify the rest of the code
 	FPathTracingPayload HitPayload = UnpackPathTracingPayload(PackedInput, Ray);
+
+	if (bApplyOverrides)
+	{
+		HitPayload.DiffuseColor  = HitPayload.DiffuseColor  * View.DiffuseOverrideParameter.w  + View.DiffuseOverrideParameter.xyz;
+		HitPayload.SpecularColor = HitPayload.SpecularColor * View.SpecularOverrideParameter.w + View.SpecularOverrideParameter.xyz;
+	}
 
 	switch (HitPayload.ShadingModelID)
 	{
@@ -360,6 +366,10 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 				HitPayload.DiffuseColor = Front / S;
 				HitPayload.SubsurfaceColor = Back / S;
 			}
+			if (bApplyOverrides)
+			{
+				HitPayload.SubsurfaceColor = HitPayload.SubsurfaceColor * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
+			}
 			break;
 		}
 #if SIMPLIFIED_MATERIAL_SHADER
@@ -384,6 +394,24 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 			float IrisMask = HitPayload.GetEyeIrisMask();
 			HitPayload.SubsurfaceColor = HitPayload.DiffuseColor - IrisMask * HitPayload.DiffuseColor;
 			HitPayload.DiffuseColor *= IrisMask;
+			break;
+		}
+		case SHADINGMODELID_HAIR:
+		{
+			if (bApplyOverrides)
+			{
+				// This is not ideal since hair is technically specular transmission
+				HitPayload.BaseColor = HitPayload.BaseColor  * View.DiffuseOverrideParameter.w  + View.DiffuseOverrideParameter.xyz;
+				HitPayload.Specular = HitPayload.Specular * View.SpecularOverrideParameter.w + View.SpecularOverrideParameter.x;
+			}
+			break;
+		}
+		case SHADINGMODELID_CLEAR_COAT:
+		{
+			if (bApplyOverrides)
+			{
+				HitPayload.SetClearCoat(HitPayload.GetClearCoat() * View.SpecularOverrideParameter.w + View.SpecularOverrideParameter.x);
+			}
 			break;
 		}
 #endif
