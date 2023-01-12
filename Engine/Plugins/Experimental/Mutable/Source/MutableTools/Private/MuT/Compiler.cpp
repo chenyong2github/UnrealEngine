@@ -240,7 +240,7 @@ namespace mu
         }
 
         // Set the runtime parameter indices.
-        for( auto& s: states )
+        for( STATE_COMPILATION_DATA& s: states )
         {
             for ( int32 p=0; p<s.nodeState.m_runtimeParams.Num(); ++p )
             {
@@ -261,16 +261,13 @@ namespace mu
                 }
                 else
                 {
-                    char temp[256];
-                    mutable_snprintf( temp, 256,
-                                      "The state [%s] refers to a parameter [%s] "
-                                      "that has not been found in the model. This error can be "
-                                      "safely dismissed in case of partial compilation.",
-                                      s.nodeState.m_name.c_str(),
-                                      s.nodeState.m_runtimeParams[p].c_str()
-                                      );
-                    m_pD->m_pErrorLog->GetPrivate()->Add
-                            ( temp, ELMT_WARNING, pNode->GetBasePrivate()->m_errorContext );
+					FString Temp = FString::Printf(TEXT(
+						"The state [%s] refers to a parameter [%s] "
+						"that has not been found in the model. This error can be "
+						"safely dismissed in case of partial compilation."), 
+						s.nodeState.m_name.c_str(),
+						s.nodeState.m_runtimeParams[p].c_str());
+                    m_pD->m_pErrorLog->GetPrivate()->Add(Temp, ELMT_WARNING, pNode->GetBasePrivate()->m_errorContext );
                 }
             }
 
@@ -326,16 +323,6 @@ namespace mu
         }
 
 		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.Num()));
-
-        // Optimize the generated code
-        {        
-//            CodeOptimiser optimiser( m_pD->m_gpuPlatformProps,
-//                                     m_pD->m_optimisationOptions,
-//                                     states );
-//            optimiser.Optimise( pResult.get() );
-
-//            m_pD->m_pModelReport = optimiser.m_pModelReport;
-        }
 
         // Merge the log in the right order
         genErrorLog->Merge( m_pD->m_pErrorLog.get() );

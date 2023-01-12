@@ -601,8 +601,7 @@ void Visitor_TopDown_Unique_Cloning::Process()
                 // Proceed with children
                 if (processChildren)
                 {
-                    // TODO: Shouldn't we recurse newAt?
-					m_pending.Add({ true,at });
+					m_pending.Add({ true, newAt });
 
                     at->ForEachChild( [&](ASTChild& ref)
                     {

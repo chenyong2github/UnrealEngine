@@ -135,12 +135,29 @@ namespace mu
 							{
 							case MESH_BUFFER_FORMAT::MBF_UINT8:
 							{
-								*Data = (uint8)RemapedBoneIndices[*SourceData];
+								int32 SourceIndex = *SourceData;
+								if (SourceIndex < RemapedBoneIndices.Num())
+								{
+									*Data = (uint8)RemapedBoneIndices[SourceIndex];
+								}
 								break;
 							}
 							case MESH_BUFFER_FORMAT::MBF_UINT16:
 							{
-								*Data = (uint8)RemapedBoneIndices[*((uint16*)SourceData)];
+								int32 SourceIndex = *((uint16*)SourceData);
+								if (SourceIndex< RemapedBoneIndices.Num())
+								{
+									*Data = (uint8)RemapedBoneIndices[SourceIndex];
+								}
+								break;
+							}
+							case MESH_BUFFER_FORMAT::MBF_INT32:
+							{
+								int32 SourceIndex = *((int32*)SourceData);
+								if (SourceIndex < RemapedBoneIndices.Num())
+								{
+									*Data = (uint8)RemapedBoneIndices[SourceIndex];
+								}
 								break;
 							}
 							default:
