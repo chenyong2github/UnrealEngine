@@ -1165,7 +1165,7 @@ void RunHairStrandsDebug(
 			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, false);
 		}
 
-		if (ViewMode == EGroomViewMode::RenderHairControlPoints)
+		if (ViewMode == EGroomViewMode::ControlPoints)
 		{
 			AddDrawDebugStrandsCVsPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, SceneColorTexture, SceneDepthTexture);
 		}

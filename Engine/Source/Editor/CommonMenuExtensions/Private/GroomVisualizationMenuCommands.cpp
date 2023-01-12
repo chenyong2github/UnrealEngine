@@ -67,21 +67,22 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 			{
 				Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MacroGroups);
 			}
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairGroup);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderLODColoration);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Group);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::LODColoration);
 			Menu.EndSection();
 		}
 
 		// Attributes
 		{
 			Menu.BeginSection("LevelViewportGroomVisualizationAttributes", LOCTEXT("GroomVisualizationAttributes", "Groom Attributes"));
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairSeed);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairRootUV);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairRootUDIM);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairUV);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairDimension);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairRadiusVariation);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairTangent);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Seed);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RootUV);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RootUDIM);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::UV);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Dimension);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RadiusVariation);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Tangent);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::ClumpID);
 			Menu.EndSection();
 
 		}
@@ -97,14 +98,15 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 		// Strands
 		{
 			Menu.BeginSection("LevelViewportGroomVisualizationStrands", LOCTEXT("GroomVisualizationMaterial", "Groom Strands"));
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairControlPoints);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::ControlPoints);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Color);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Roughness);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::AO);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialDepth);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialBaseColor);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialRoughness);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialSpecular);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialTangent);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairBaseColor);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairRoughness);
 			Menu.EndSection();
 		}
 
@@ -112,8 +114,8 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 		{
 			Menu.BeginSection("LevelViewportGroomVisualizationAdvanced", LOCTEXT("GroomVisualizationAdvanced", "Groom Strands Advanced"));
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::VoxelsDensity);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderVisCluster);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderVisClusterAABB);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Cluster);
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::ClusterAABB);
 			if (!bIsGroomEditor)
 			{
 				Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::LightBounds);

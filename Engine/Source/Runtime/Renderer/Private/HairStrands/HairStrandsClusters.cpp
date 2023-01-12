@@ -281,8 +281,8 @@ static void AddClusterCullingPass(
 		};
 
 		static IConsoleVariable* CVarClusterDebug = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HairStrands.Cluster.Debug"));
-		bClusterDebugAABBBuffer = GetGroomViewMode(View) == EGroomViewMode::RenderVisClusterAABB;
-		bClusterDebug = GetGroomViewMode(View) == EGroomViewMode::RenderVisCluster;
+		bClusterDebugAABBBuffer = GetGroomViewMode(View) == EGroomViewMode::ClusterAABB;
+		bClusterDebug = GetGroomViewMode(View) == EGroomViewMode::Cluster;
 		ClusterDebugInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FHairClusterDebugInfo), ClusterData.ClusterCount), TEXT("Hair.CulledCompactedIndexBuffer"));
 	}
 #endif

@@ -1110,7 +1110,7 @@ static void AddDrawDebugClusterPass(
 	const FViewInfo& View)
 {
 	const EGroomViewMode ViewMode = GetGroomViewMode(View);
-	const bool bDebugEnable = ViewMode == EGroomViewMode::RenderVisClusterAABB || ViewMode == EGroomViewMode::RenderVisCluster;
+	const bool bDebugEnable = ViewMode == EGroomViewMode::ClusterAABB || ViewMode == EGroomViewMode::Cluster;
 	const bool bCullingEnable = IsHairStrandsClusterCullingEnable();
 	if (!bDebugEnable || !bCullingEnable)
 	{
@@ -1124,7 +1124,7 @@ static void AddDrawDebugClusterPass(
 
 	for (const FHairStrandsMacroGroupData& MacroGroupData : View.HairStrandsViewData.MacroGroupDatas)
 	{
-		const bool bDebugAABB = GetGroomViewMode(View) == EGroomViewMode::RenderVisClusterAABB;
+		const bool bDebugAABB = GetGroomViewMode(View) == EGroomViewMode::ClusterAABB;
 
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 		{
@@ -1156,7 +1156,7 @@ static void AddDrawDebugClusterPass(
 					Parameters->ClusterCount = HairGroupClusters.ClusterCount;
 					Parameters->TriangleCount = HairGroupClusters.VertexCount * 2; // VertexCount is actually the number of control points
 					Parameters->HairGroupId = DataIndex;
-					Parameters->ClusterDebugMode = ViewMode == EGroomViewMode::RenderVisCluster ? 1 : (ViewMode == EGroomViewMode::RenderVisClusterAABB ? 2 : 0);
+					Parameters->ClusterDebugMode = ViewMode == EGroomViewMode::Cluster ? 1 : (ViewMode == EGroomViewMode::ClusterAABB ? 2 : 0);
 					Parameters->ClusterAABBBuffer = HairGroupClusters.ClusterAABBBuffer->SRV;
 					Parameters->CulledDispatchIndirectParametersClusterCountBuffer = GraphBuilder.CreateSRV(HairGroupClusters.CulledClusterCountBuffer, EPixelFormat::PF_R32_UINT);
 					Parameters->CulledDrawIndirectParameters = DrawIndirectBuffer.SRV;
@@ -1214,7 +1214,7 @@ static void InternalRenderHairStrandsDebugInfo(
 	const EGroomViewMode ViewMode = GetGroomViewMode(View);
 
 	// Display tangent vector for strands/cards/meshes
-	if (ViewMode == EGroomViewMode::RenderHairTangent)
+	if (ViewMode == EGroomViewMode::Tangent)
 	{
 		AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
 	}
@@ -1369,7 +1369,7 @@ static void InternalRenderHairStrandsDebugInfo(
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::PPLLDebug"), ComputeShader, PassParameters, FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
 	}
 
-	if (ViewMode == EGroomViewMode::RenderVisCluster || ViewMode == EGroomViewMode::RenderVisClusterAABB)
+	if (ViewMode == EGroomViewMode::Cluster || ViewMode == EGroomViewMode::ClusterAABB)
 	{
 		AddDrawDebugClusterPass(GraphBuilder, HairClusterData, View);
 	}

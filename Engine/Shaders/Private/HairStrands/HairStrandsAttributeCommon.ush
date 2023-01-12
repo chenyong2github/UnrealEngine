@@ -172,7 +172,7 @@ float GetHairStrandsAO(uint HairPrimitiveId, float2 HairPrimitiveUV)
 	}
 	else
 	{
-		return 0;
+		return 1.f;
 	}
 }
 

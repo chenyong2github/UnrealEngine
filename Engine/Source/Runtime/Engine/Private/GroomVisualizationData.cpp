@@ -56,21 +56,23 @@ EGroomViewMode GetGroomViewMode(const FSceneView& View)
 		case 20: return EGroomViewMode::None;
 		case 21: return EGroomViewMode::SimHairStrands;
 		case 22: return EGroomViewMode::RenderHairStrands;
-		case 23: return EGroomViewMode::RenderHairRootUV;
-		case 24: return EGroomViewMode::RenderHairRootUDIM;
-		case 25: return EGroomViewMode::RenderHairUV;
-		case 26: return EGroomViewMode::RenderHairSeed;
-		case 27: return EGroomViewMode::RenderHairDimension;
-		case 28: return EGroomViewMode::RenderHairRadiusVariation;
-		case 29: return EGroomViewMode::RenderHairBaseColor;
-		case 30: return EGroomViewMode::RenderHairRoughness;
-		case 31: return EGroomViewMode::RenderVisCluster;
-		case 32: return EGroomViewMode::RenderVisClusterAABB;
-		case 33: return EGroomViewMode::RenderHairTangent;
-		case 34: return EGroomViewMode::RenderHairControlPoints;
-		case 35: return EGroomViewMode::RenderHairGroup;
-		case 36: return EGroomViewMode::RenderLODColoration;
+		case 23: return EGroomViewMode::RootUV;
+		case 24: return EGroomViewMode::RootUDIM;
+		case 25: return EGroomViewMode::UV;
+		case 26: return EGroomViewMode::Seed;
+		case 27: return EGroomViewMode::Dimension;
+		case 28: return EGroomViewMode::RadiusVariation;
+		case 29: return EGroomViewMode::Color;
+		case 30: return EGroomViewMode::Roughness;
+		case 31: return EGroomViewMode::Cluster;
+		case 32: return EGroomViewMode::ClusterAABB;
+		case 33: return EGroomViewMode::Tangent;
+		case 34: return EGroomViewMode::ControlPoints;
+		case 35: return EGroomViewMode::Group;
+		case 36: return EGroomViewMode::LODColoration;
 		case 37: return EGroomViewMode::CardGuides;
+		case 38: return EGroomViewMode::AO;
+		case 39: return EGroomViewMode::ClumpID;
 		default: break;
 		}
 
@@ -81,7 +83,7 @@ EGroomViewMode GetGroomViewMode(const FSceneView& View)
 		}
 		else if (View.Family && View.Family->EngineShowFlags.LODColoration)
 		{
-			Out = EGroomViewMode::RenderLODColoration;
+			Out = EGroomViewMode::LODColoration;
 		}
 	}
 	return Out;
@@ -110,20 +112,22 @@ const TCHAR* GetGroomViewModeName(EGroomViewMode In)
 	case EGroomViewMode::Tile:						return TEXT("Tile");
 	case EGroomViewMode::SimHairStrands:			return TEXT("SimHairStrands");
 	case EGroomViewMode::RenderHairStrands:			return TEXT("RenderHairStrands");
-	case EGroomViewMode::RenderHairRootUV:			return TEXT("RenderHairRootUV");
-	case EGroomViewMode::RenderHairRootUDIM:		return TEXT("RenderHairRootUDIM");
-	case EGroomViewMode::RenderHairUV:				return TEXT("RenderHairUV");
-	case EGroomViewMode::RenderHairSeed:			return TEXT("RenderHairSeed");
-	case EGroomViewMode::RenderHairDimension:		return TEXT("RenderHairDimension");
-	case EGroomViewMode::RenderHairRadiusVariation:	return TEXT("RenderHairRadiusVariation");
-	case EGroomViewMode::RenderHairBaseColor:		return TEXT("RenderHairBaseColor");
-	case EGroomViewMode::RenderHairRoughness:		return TEXT("RenderHairRoughness");
-	case EGroomViewMode::RenderVisCluster:			return TEXT("RenderVisCluster");
-	case EGroomViewMode::RenderVisClusterAABB:		return TEXT("RenderVisClusterAABB");
-	case EGroomViewMode::RenderHairTangent:			return TEXT("RenderHairTangent");
-	case EGroomViewMode::RenderHairControlPoints:	return TEXT("RenderHairControlPoints");
-	case EGroomViewMode::RenderHairGroup:			return TEXT("RenderHairGroup");
-	case EGroomViewMode::RenderLODColoration:		return TEXT("RenderLODColoration");
+	case EGroomViewMode::RootUV:					return TEXT("RootUV");
+	case EGroomViewMode::RootUDIM:					return TEXT("RootUDIM");
+	case EGroomViewMode::UV:						return TEXT("UV");
+	case EGroomViewMode::Seed:						return TEXT("Seed");
+	case EGroomViewMode::Dimension:					return TEXT("Dimension");
+	case EGroomViewMode::RadiusVariation:			return TEXT("RadiusVariation");
+	case EGroomViewMode::Color:						return TEXT("Color");
+	case EGroomViewMode::Roughness:					return TEXT("Roughness");
+	case EGroomViewMode::AO:						return TEXT("AO");
+	case EGroomViewMode::ClumpID:					return TEXT("ClumpID");
+	case EGroomViewMode::Cluster:					return TEXT("Cluster");
+	case EGroomViewMode::ClusterAABB:				return TEXT("ClusterAABB");
+	case EGroomViewMode::Tangent:					return TEXT("Tangent");
+	case EGroomViewMode::ControlPoints:				return TEXT("ControlPoints");
+	case EGroomViewMode::Group:						return TEXT("Group");
+	case EGroomViewMode::LODColoration:				return TEXT("LODColoration");
 	case EGroomViewMode::CardGuides:				return TEXT("CardGuides");
 	}
 	return TEXT("None");
@@ -197,20 +201,22 @@ void FGroomVisualizationData::Initialize()
 		AddVisualizationMode(ModeMap, true, EGroomViewMode::SimHairStrands,				LOCTEXT("SimHairStrands", "Guides"),						LOCTEXT("SimHairStrandsDesc", "Simulation strands"));
 		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairStrands,			LOCTEXT("RenderHairStrands", "Stands Guides Influences"),	LOCTEXT("RenderHairStrandsDesc", "Rendering strands influences"));
 		AddVisualizationMode(ModeMap, true, EGroomViewMode::CardGuides, 				LOCTEXT("CardGuides", "Cards Guides"),						LOCTEXT("CardGuidesDesc", "Cards Guides"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairRootUV,			LOCTEXT("RenderHairRootUV", "Root UV"),						LOCTEXT("RenderHairRootUVDesc", "Roots UV"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairRootUDIM,			LOCTEXT("RenderHairRootUDIM", "Root UDIM"),					LOCTEXT("RenderHairRootUDIMDesc", "Roots UV UDIM texture index"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairUV,				LOCTEXT("RenderHairUV", "UV"),								LOCTEXT("RenderHairUVDesc", "Hair UV"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairSeed,				LOCTEXT("RenderHairSeed", "Seed"),							LOCTEXT("RenderHairSeedDesc", "Hair seed"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairDimension,		LOCTEXT("RenderHairDimension", "Dimension"),				LOCTEXT("RenderHairDimensionDesc", "Hair dimensions"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairRadiusVariation,	LOCTEXT("RenderHairRadiusVariation", "Radius Variation"),	LOCTEXT("RenderHairRadiusVariationDesc", "Hair radius variation"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairTangent,			LOCTEXT("RenderHairTangent", "Tangent"),					LOCTEXT("RenderHairTangentDesc", "Hair tangent"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairControlPoints,	LOCTEXT("RenderHairControlPoints", "Control Points"),		LOCTEXT("RenderHairControlPointsDesc", "Hair control points"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairBaseColor,		LOCTEXT("RenderHairBaseColor", "Per-CV Color"),				LOCTEXT("RenderHairBaseColorDesc", "CV color"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairRoughness,		LOCTEXT("RenderHairRoughness", "Per-CV Roughness"),			LOCTEXT("RenderHairRoughnessDesc", "CV roughness"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderVisCluster,			LOCTEXT("RenderVisCluster", "Clusters"),					LOCTEXT("RenderVisClusterDesc", "Hair visility clusters"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderVisClusterAABB,		LOCTEXT("RenderVisClusterAABB", "Clusters Bounds"),			LOCTEXT("RenderVisClusterAABBDesc", "Hair visility clusters AABBs"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderHairGroup,			LOCTEXT("RenderHairGroup", "Groups"),						LOCTEXT("RenderHairGroupDesc", "Hair hair groups"));
-		AddVisualizationMode(ModeMap, true, EGroomViewMode::RenderLODColoration,		LOCTEXT("RenderLODColoration", "LOD Color"),				LOCTEXT("RenderLODColorationDesc", "Hair LOD coloring"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::RootUV,						LOCTEXT("RootUV", "Root UV"),								LOCTEXT("RootUVDesc", "Roots UV"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::RootUDIM,					LOCTEXT("RootUDIM", "Root UDIM"),							LOCTEXT("RootUDIMDesc", "Roots UV UDIM texture index"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::UV,							LOCTEXT("UV", "UV"),										LOCTEXT("UVDesc", "Hair UV"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Seed,						LOCTEXT("Seed", "Seed"),									LOCTEXT("SeedDesc", "Hair seed"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Dimension,					LOCTEXT("Dimension", "Dimension"),							LOCTEXT("DimensionDesc", "Hair dimensions"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::RadiusVariation,			LOCTEXT("RadiusVariation", "Radius Variation"),				LOCTEXT("RadiusVariationDesc", "Hair radius variation"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Tangent,					LOCTEXT("Tangent", "Tangent"),								LOCTEXT("TangentDesc", "Hair tangent"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::ControlPoints,				LOCTEXT("ControlPoints", "Control Points"),					LOCTEXT("ControlPointsDesc", "Hair control points"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Color,						LOCTEXT("Color", "Per-CV Color"),							LOCTEXT("ColorDesc", "Control point color (optional)"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Roughness,					LOCTEXT("Roughness", "Per-CV Roughness"),					LOCTEXT("RoughnessDesc", "Control point roughness  (optional)"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Cluster,					LOCTEXT("Cluster", "Clusters"),								LOCTEXT("ClusterDesc", "Hair visility clusters"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::ClusterAABB,				LOCTEXT("ClusterAABB", "Clusters Bounds"),					LOCTEXT("ClusterAABBDesc", "Hair visility clusters AABBs"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Group,						LOCTEXT("Group", "Groups"),									LOCTEXT("GroupDesc", "Hair hair groups"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::LODColoration,				LOCTEXT("LODColoration", "LOD Color"),						LOCTEXT("LODColorationDesc", "Hair LOD coloring"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::AO,							LOCTEXT("AO", "Per-CV AO"),									LOCTEXT("AODesc", "Control point AO  (optional)"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::ClumpID,					LOCTEXT("ClumpID", "Clump ID"),								LOCTEXT("ClumpIDDesc", "Curve clumpID  (optional)"));
 
 		ConsoleDocumentationVisualizationMode = ConfigureConsoleCommand(ModeMap);
 	}
