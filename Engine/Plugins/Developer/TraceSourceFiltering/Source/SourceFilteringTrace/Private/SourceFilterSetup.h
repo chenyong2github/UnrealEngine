@@ -5,7 +5,6 @@
 #include "Delegates/Delegate.h"
 #include "ResultCache.h"
 
-#include "SourceFilter.h"
 #include "SourceFilterSet.h"
 
 struct FActorClassFilter;

@@ -6,6 +6,7 @@
 #include "IMessageTransportHandler.h"
 #include "TcpMessagingPrivate.h"
 
+#include "TcpSerializedMessage.h"
 #include "Transport/TcpDeserializedMessage.h"
 #include "Transport/TcpMessageTransportConnection.h"
 #include "Transport/TcpSerializeMessageTask.h"

@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Misc/NotifyHook.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
-#include "Widgets/SMVVMViewModelBindingListWidget.h"
-#include "Widgets/SCompoundWidget.h"
+
+namespace ETextCommit { enum Type : int; }
+namespace UE::MVVM { class FFieldIterator_Bindable; }
+namespace UE::PropertyViewer { class FFieldExpander_Default; }
 
 class FWidgetBlueprintEditor;
 class SInlineEditableTextBlock;
@@ -30,6 +31,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> Editor);
+	SMVVMViewModelPanel();
 	virtual ~SMVVMViewModelPanel();
 
 	void OpenAddViewModelMenu();

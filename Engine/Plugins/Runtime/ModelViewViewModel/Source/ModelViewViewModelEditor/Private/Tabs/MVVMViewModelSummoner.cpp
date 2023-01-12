@@ -13,7 +13,7 @@ namespace UE::MVVM
 
 const FName FViewModelSummoner::TabID(TEXT("ViewModelPanel"));
 
-FViewModelSummoner::FViewModelSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor)
+FViewModelSummoner::FViewModelSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
 		: FWorkflowTabFactory(TabID, InBlueprintEditor)
 		, BlueprintEditor(InBlueprintEditor)
 {

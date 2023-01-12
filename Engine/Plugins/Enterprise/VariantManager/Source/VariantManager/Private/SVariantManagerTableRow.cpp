@@ -10,7 +10,6 @@
 
 #include "GameFramework/Actor.h"
 #include "Styling/SlateIconFinder.h"
-#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SVariantManagerTableRow"
 

@@ -2,39 +2,25 @@
 
 #include "Widgets/SMVVMViewModelPanel.h"
 
-#include "Bindings/MVVMBindingHelper.h"
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
+#include "DetailsViewArgs.h"
 #include "IStructureDetailsView.h"
-#include "Kismet2/Kismet2NameValidators.h"
 #include "MVVMBlueprintView.h"
-#include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorSubsystem.h"
-#include "MVVMSubsystem.h"
-#include "MVVMViewModelBase.h"
 #include "PropertyEditorModule.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
 
 #include "Framework/Commands/GenericCommands.h"
-#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "Styling/AppStyle.h"
-#include "Styling/SlateIconFinder.h"
-#include "Styling/MVVMEditorStyle.h"
 
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/PropertyViewer/SFieldIcon.h"
-#include "Widgets/PropertyViewer/SFieldName.h"
-#include "Widgets/PropertyViewer/SPropertyViewer.h"
 #include "Widgets/SMVVMSelectViewModel.h"
+#include "Widgets/SMVVMViewModelBindingListWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Text/STextBlock.h"
 #include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "ViewModelPanel"
@@ -117,6 +103,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 	];
 }
 
+SMVVMViewModelPanel::SMVVMViewModelPanel() = default;
 
 SMVVMViewModelPanel::~SMVVMViewModelPanel()
 {

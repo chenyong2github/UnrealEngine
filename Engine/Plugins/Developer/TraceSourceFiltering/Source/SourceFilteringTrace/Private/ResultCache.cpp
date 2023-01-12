@@ -2,7 +2,6 @@
 
 #include "ResultCache.h"
 #include "DataSourceFiltering.h"
-#include "SourceFilter.h"
 #include "SourceFilterSet.h"
 
 void FResultCache::Reset()

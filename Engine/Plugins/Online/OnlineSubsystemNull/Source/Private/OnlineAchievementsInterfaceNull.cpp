@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineAchievementsInterfaceNull.h"
-#include "OnlineSubsystem.h"
-#include "OnlineSubsystemNullTypes.h"
+#include "OnlineSubsystem.h" // IWYU pragma: keep
+#include "OnlineSubsystemNullTypes.h" // IWYU pragma: keep
 
 FOnlineAchievementsNull::FOnlineAchievementsNull(class FOnlineSubsystemNull* InSubsystem)
 	:	NullSubsystem(InSubsystem)

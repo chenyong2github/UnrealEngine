@@ -8,7 +8,6 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Views/SListView.h"
 
 class ITableRow;
 class STableViewBase;

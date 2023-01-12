@@ -4,7 +4,8 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 #include "Widgets/Views/SHeaderRow.h"
-#include "Widgets/Input/SComboBox.h"
+
+template <typename OptionType> class SComboBox;
 
 class SEditableText;
 class STableViewBase;

@@ -2,9 +2,8 @@
 
 #include "WorldConditionsEditorModule.h"
 
+#include "ComponentVisualizer.h" // IWYU pragma: keep
 #include "PropertyEditorModule.h"
-#include "UnrealEdGlobals.h"
-#include "Editor/UnrealEdEngine.h"
 #include "WorldConditionEditorStyle.h"
 #include "Customizations/WorldConditionEditableDetails.h"
 #include "Customizations/WorldConditionQueryDefinitionDetails.h"

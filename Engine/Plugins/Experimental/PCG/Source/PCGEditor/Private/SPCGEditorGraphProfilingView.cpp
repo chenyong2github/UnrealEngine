@@ -2,6 +2,7 @@
 
 #include "SPCGEditorGraphProfilingView.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "PCGComponent.h"
 #include "PCGEditor.h"
 #include "PCGEditorGraph.h"
@@ -10,13 +11,9 @@
 #include "PCGSubgraph.h"
 #include "PCGSubsystem.h"
 
-#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphProfilingView"

@@ -3,17 +3,17 @@
 #include "AssetDefinition_SoundCueTemplate.h"
 
 #include "AssetToolsModule.h"
-#include "SoundCueTemplate.h"
+#include "IAssetTools.h"
 #include "SoundCueTemplateFactory.h"
 
 #include "AudioEditorSettings.h"
-#include "Components/AudioComponent.h"
+#include "Misc/PackageName.h"
 #include "ToolMenus.h"
+#include "ToolMenu.h"
 #include "ToolMenuSection.h"
 #include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
 #include "IContentBrowserSingleton.h"
-#include "ObjectEditorUtils.h"
 #include "Sound/SoundWaveProcedural.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

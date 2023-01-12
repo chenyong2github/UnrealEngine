@@ -3,29 +3,12 @@
 #pragma once
 
 #include "Animation/Skeleton.h"
-#include "Containers/Array.h"
-#include "Containers/EnumAsByte.h"
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphPin.h"
 #include "Engine/SkeletalMesh.h"
-#include "Engine/Texture.h"
-#include "Engine/TextureDefines.h"
-#include "Math/NumericLimits.h"
-#include "Math/Transform.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/Guid.h"
-#include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectClothingTypes.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-#include "MuR/Mesh.h"
-#include "MuR/RefCounted.h"
-#include "MuT/Node.h"
+#include "MuR/MutableMemory.h"
 #include "MuT/NodeComponentNew.h"
+#include "MuR/Ptr.h"
 #include "MuT/NodeImageConstant.h"
 #include "MuT/NodeMeshApplyPose.h"
 #include "MuT/NodeModifierMeshClipWithMesh.h"
@@ -35,13 +18,11 @@
 #include "MuT/NodeScalarParameter.h"
 #include "MuT/NodeSurfaceNew.h"
 #include "MuT/Table.h"
-#include "RHIDefinitions.h"
-#include "ReferenceSkeleton.h"
-#include "Templates/TypeHash.h"
-#include "UObject/NameTypes.h"
 #include "UObject/Package.h"
-#include "UObject/SoftObjectPtr.h"
-#include "UObject/UnrealNames.h"
+
+class UCustomizableObjectNodeMeshClipWithMesh;
+class UCustomizableObjectNodeTable;
+struct FCustomizableObjectClothingAssetData;
 
 class FCustomizableObjectCompiler;
 class UAnimInstance;
@@ -542,6 +523,8 @@ private:
 struct FMutableGraphGenerationContext
 {
 	FMutableGraphGenerationContext(UCustomizableObject* CustomizableObject, class FCustomizableObjectCompiler* InCompiler, const FCompilationOptions& InOptions);
+	~FMutableGraphGenerationContext();
+
 	UCustomizableObject* Object = nullptr;
 
 	// Non-owned reference to the compiler object

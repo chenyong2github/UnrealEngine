@@ -2,7 +2,6 @@
 
 #include "EnvironmentQueryEditor.h"
 #include "DetailsViewArgs.h"
-#include "Widgets/Text/STextBlock.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvironmentQuery/EnvQueryOption.h"

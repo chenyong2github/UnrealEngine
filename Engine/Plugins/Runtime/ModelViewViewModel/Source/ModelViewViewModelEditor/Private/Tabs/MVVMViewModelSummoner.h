@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
-#include "WidgetBlueprintEditor.h"
+
+class FWidgetBlueprintEditor;
 
 namespace UE::MVVM
 {
@@ -16,12 +15,12 @@ public:
 	static const FName TabID;
 	
 public:
-	FViewModelSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor);
+	FViewModelSummoner(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 	
 protected:
-	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
+	TWeakPtr<FWidgetBlueprintEditor> BlueprintEditor;
 };
 
 } // namespace

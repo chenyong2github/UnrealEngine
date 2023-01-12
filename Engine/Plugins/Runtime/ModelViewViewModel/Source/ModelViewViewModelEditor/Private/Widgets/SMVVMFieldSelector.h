@@ -2,21 +2,19 @@
 
 #pragma once
 
-#include "Misc/TVariant.h"
 #include "MVVMPropertyPath.h"
 #include "Styling/CoreStyle.h"
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMBindingMode.h"
+#include "Styling/SlateTypes.h"
 #include "Types/MVVMBindingSource.h"
-#include "Types/MVVMFieldVariant.h"
-#include "UObject/UnrealType.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/SMVVMFieldEntry.h"
-#include "Widgets/SMVVMViewModelBindingListWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STreeView.h"
+
+enum class EMVVMBindingMode : uint8;
+namespace ESelectInfo { enum Type : int; }
+namespace UE::MVVM { class SFieldEntry; }
+namespace UE::MVVM { enum class EFieldVisibility : uint8; }
+template <typename ItemType> class SListView;
+template <typename ItemType> class STreeView;
 
 class SComboButton;
 class SSearchBox;

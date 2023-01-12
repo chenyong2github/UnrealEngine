@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SoundCueTemplate.h"
 #include "AssetTypeActions/AssetDefinition_SoundBase.h"
 
 #include "AssetDefinition_SoundCueTemplate.generated.h"
+
+struct FAssetCategoryPath;
 
 class USoundCueTemplate;
 struct FToolMenuContext;

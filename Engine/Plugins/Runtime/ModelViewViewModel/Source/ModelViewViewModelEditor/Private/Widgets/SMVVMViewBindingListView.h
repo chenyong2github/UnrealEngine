@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+namespace ESelectInfo { enum Type : int; }
 
 class ITableRow;
 template <typename ItemType> class STreeView;

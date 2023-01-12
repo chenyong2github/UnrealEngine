@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/SListView.h" // IWYU pragma: keep
 
 class SEnvQueryLoadGraph;

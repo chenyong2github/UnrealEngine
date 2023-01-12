@@ -2,9 +2,7 @@
 
 #include "SoundCueTemplatesEditorModule.h"
 
-#include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
-#include "HAL/LowLevelMemTracker.h"
 
 void FSoundCueTemplatesEditorModule::StartupModule()
 {

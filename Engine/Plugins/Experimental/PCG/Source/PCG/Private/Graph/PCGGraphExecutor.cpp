@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraphExecutor.h"
-#include "GameFramework/Actor.h"
 #include "PCGComponent.h"
 #include "Graph/PCGGraphCache.h"
 #include "PCGGraph.h"

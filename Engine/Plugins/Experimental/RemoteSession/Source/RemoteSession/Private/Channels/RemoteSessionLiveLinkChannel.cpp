@@ -2,6 +2,7 @@
 
 #include "Channels/RemoteSessionLiveLinkChannel.h"
 #include "BackChannel/IBackChannelConnection.h"
+#include "Channels/RemoteSessionChannel.h"
 #include "RemoteSession.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
 

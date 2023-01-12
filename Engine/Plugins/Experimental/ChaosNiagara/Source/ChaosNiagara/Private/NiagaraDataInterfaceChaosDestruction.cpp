@@ -18,8 +18,6 @@
 #include "PBDRigidsSolver.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "RenderGraphBuilder.h"
-#include "RenderGraphTrace.h"
-#include "RenderGraphValidation.h"
 #include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceChaosDestruction)

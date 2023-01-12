@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/SkeletalMesh.h"
 #include "AssetDefinitionDefault.h"
 
 #include "AssetDefinition_SkeletalMesh.generated.h"
+
+struct EVisibility;
 
 UCLASS()
 class UAssetDefinition_SkeletalMesh : public UAssetDefinitionDefault

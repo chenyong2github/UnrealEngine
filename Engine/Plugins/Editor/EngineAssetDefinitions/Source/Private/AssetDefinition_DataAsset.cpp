@@ -10,7 +10,6 @@
 #include "ToolMenus.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Engine/Engine.h"
-#include "Misc/AssetFilterData.h"
 #include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_DataAsset"

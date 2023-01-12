@@ -4,7 +4,7 @@
 
 #include "IDetailCustomization.h"
 #include "GameFeatureTypesFwd.h"
-#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 namespace UE::GameFeatures { struct FResult; }
 

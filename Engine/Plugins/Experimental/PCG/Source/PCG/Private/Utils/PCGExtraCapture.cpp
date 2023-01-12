@@ -3,6 +3,7 @@
 #include "Utils/PCGExtraCapture.h"
 
 #include "PCGComponent.h"
+#include "PCGContext.h"
 
 #if WITH_EDITOR
 

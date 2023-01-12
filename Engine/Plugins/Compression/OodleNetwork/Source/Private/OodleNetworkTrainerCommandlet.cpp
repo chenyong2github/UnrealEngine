@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OodleNetworkTrainerCommandlet.h"
+#include "HAL/PlatformFile.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"

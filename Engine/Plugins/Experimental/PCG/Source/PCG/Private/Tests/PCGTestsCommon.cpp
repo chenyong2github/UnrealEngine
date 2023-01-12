@@ -3,18 +3,18 @@
 #include "Tests/PCGTestsCommon.h"
 
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGGraph.h"
 #include "PCGParamData.h"
-#include "PCGSettings.h"
 #include "Data/PCGPointData.h"
-#include "Data/PCGPolyLineData.h"
-#include "Data/PCGPrimitiveData.h"
-#include "Data/PCGSurfaceData.h"
+#include "Data/PCGPolyLineData.h" // IWYU pragma: keep
+#include "Data/PCGPrimitiveData.h" // IWYU pragma: keep
+#include "Data/PCGSurfaceData.h" // IWYU pragma: keep
 #include "Data/PCGVolumeData.h"
+#include "PCGPin.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Engine/World.h"
 #endif
 
 namespace PCGTestsCommon

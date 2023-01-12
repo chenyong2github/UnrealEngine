@@ -14,7 +14,6 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "EnvironmentQueryEditor"
 

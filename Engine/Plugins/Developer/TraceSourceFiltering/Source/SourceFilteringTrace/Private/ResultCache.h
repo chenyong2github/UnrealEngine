@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "SourceFilterSet.h"
-#include "SourceFilter.h"
+#include "Containers/Map.h"
+
+class AActor;
+struct FFilter;
+struct FFilterSet;
 
 /** Whether or not to use a BitArray to store per-actor/filter results */
 #define USE_BITSET_STORAGE 1

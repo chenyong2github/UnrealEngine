@@ -3,6 +3,7 @@
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
 
 #include "Async/AsyncFileHandle.h"
+#include "HAL/PlatformFile.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuR/Model.h"
 #include "MuR/MutableTrace.h"

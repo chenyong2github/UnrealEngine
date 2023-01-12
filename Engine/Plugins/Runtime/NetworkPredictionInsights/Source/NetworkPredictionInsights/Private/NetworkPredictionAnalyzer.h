@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Trace/Analyzer.h"
-#include "TraceServices/Model/AnalysisSession.h"
 #include "Containers/Map.h"
 
 class FNetworkPredictionProvider;

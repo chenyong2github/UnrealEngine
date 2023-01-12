@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "Modules/ModuleInterface.h"
 #include "NetworkPredictionTraceModule.h"
-#include "Framework/Docking/TabManager.h"
-#include "INetworkPredictionInsightsModule.h"
 #include "Trace/StoreService.h"
 
 struct FInsightsMajorTabExtender;

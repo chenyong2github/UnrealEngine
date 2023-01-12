@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Animation/Skeleton.h"
 #include "AssetDefinitionDefault.h"
 

@@ -10,7 +10,6 @@
 #include "PCGGraph.h"
 #include "PCGSubgraph.h"
 
-#include "PCGSettings.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #include "Styling/StyleColors.h"

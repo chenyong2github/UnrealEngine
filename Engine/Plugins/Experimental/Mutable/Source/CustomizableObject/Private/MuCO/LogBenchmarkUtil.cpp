@@ -2,6 +2,7 @@
 
 #include "MuCO/LogBenchmarkUtil.h"
 
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "MuCO/UnrealPortabilityHelpers.h"

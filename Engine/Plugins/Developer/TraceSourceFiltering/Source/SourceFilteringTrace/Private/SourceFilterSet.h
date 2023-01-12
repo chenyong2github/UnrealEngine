@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "SourceFilter.h"
-#include "DataSourceFiltering.h"
+#include "Containers/Array.h"
+#include "SourceFilter.h" // IWYU pragma: keep
+
+enum class EFilterSetMode : uint8;
 
 typedef TInlineAllocator<8> FilterSetAllocator;
 
