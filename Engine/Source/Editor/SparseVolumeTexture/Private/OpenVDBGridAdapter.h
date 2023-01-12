@@ -20,6 +20,24 @@ using FOpenVDBDouble3Grid = openvdb::Vec3DGrid;
 using FOpenVDBDouble4Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4d, 5, 4, 3>::Type>;
 
 template<typename ValueType>
+constexpr uint32 GetOpenVDBValueNumComponents()
+{
+	return (uint32)ValueType::size;
+}
+
+template<>
+constexpr uint32 GetOpenVDBValueNumComponents<float>()
+{
+	return 1;
+}
+
+template<>
+constexpr uint32 GetOpenVDBValueNumComponents<double>()
+{
+	return 1;
+}
+
+template<typename ValueType>
 float GetOpenVDBValueComponent(const ValueType& Value, uint32 ComponentIndex)
 {
 	return (float)Value[FMath::Min(ComponentIndex, (uint32)ValueType::size)];
@@ -77,7 +95,8 @@ double GetOpenVDBMinComponent<double>(const double& ValueA, const double& ValueB
 class IOpenVDBGridAdapterBase
 {
 public:
-	virtual float Sample(const openvdb::Coord& VoxelCoord, uint32 ComponentIndex) const = 0;
+	virtual void IteratePhysical(TFunctionRef<void(const FIntVector3& Coord, uint32 NumComponents, float* VoxelValues)> OnVisit) const = 0;
+	virtual float Sample(const FIntVector3& VoxelCoord, uint32 ComponentIndex) const = 0;
 	virtual void GetMinMaxValue(uint32 ComponentIndex, float* OutMinVal, float* OutMaxVal) const = 0;
 	virtual float GetBackgroundValue(uint32 ComponentIndex) const = 0;
 	virtual ~IOpenVDBGridAdapterBase() = default;
@@ -93,9 +112,31 @@ public:
 	{
 	}
 
-	float Sample(const openvdb::Coord& VoxelCoord, uint32 ComponentIndex) const override
+	void IteratePhysical(TFunctionRef<void(const FIntVector3& Coord, uint32 NumComponents, float* VoxelValues)> OnVisit) const override
 	{
-		ValueType VoxelValue = Accessor.getValue(VoxelCoord);
+		constexpr uint32 NumComponents = GetOpenVDBValueNumComponents<ValueType>();
+		static_assert(NumComponents <= 4);
+		for (auto LeafIt = Grid->constTree().cbeginLeaf(); LeafIt; ++LeafIt)
+		{
+			for (auto ValueIt = LeafIt->cbeginValueOn(); ValueIt; ++ValueIt)
+			{
+				const ValueType VoxelValue = ValueIt.getValue();
+				float VoxelValueComponents[4]{};
+				for (uint32 ComponentIdx = 0; ComponentIdx < NumComponents; ++ComponentIdx)
+				{
+					VoxelValueComponents[ComponentIdx] = GetOpenVDBValueComponent(VoxelValue, ComponentIdx);
+				}
+
+				const openvdb::Coord CoordVDB = ValueIt.getCoord();
+				const FIntVector3 Coord(CoordVDB[0], CoordVDB[1], CoordVDB[2]);
+				OnVisit(Coord, NumComponents, VoxelValueComponents);
+			}
+		}
+	}
+
+	float Sample(const FIntVector3& VoxelCoord, uint32 ComponentIndex) const override
+	{
+		ValueType VoxelValue = Accessor.getValue(openvdb::Coord(VoxelCoord.X, VoxelCoord.Y, VoxelCoord.Z));
 		return GetOpenVDBValueComponent(VoxelValue, ComponentIndex);
 	}
 
