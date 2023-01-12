@@ -47,25 +47,29 @@ namespace UE::Python
 /**
  * Finds the UFunction corresponding to the name specified by 'HasNativeMake' or 'HasNativeBreak' meta data key.
  * @param The structure to inspect for the 'HasNativeMake' or 'HasNativeBreak' meta data keys.
- * @param InMetaDataKey The meta data key name. Can only be 'HasNativeMake' or 'HasNativeBreak'.
+ * @param InNativeMetaDataKey The native meta data key name. Can only be 'HasNativeMake' or 'HasNativeBreak'.
+ * @param InScriptDefaultMetaDataKey The script default meta data key name. Can only be 'ScriptDefaultMake' or 'ScriptDefaultBreak'.
  * @param NotFoundFn Function invoked if the structure specifies as Make or Break function, but the function couldn't be found.
  * @return The function, if the struct has the meta key and if the function was found. Null otherwise.
  */
 template<typename NotFoundFuncT>
-UFunction* FindMakeBreakFunction(const UScriptStruct* InStruct, const FName& InMetaDataKey, const NotFoundFuncT& NotFoundFn)
+UFunction* FindMakeBreakFunction(const UScriptStruct* InStruct, const FName& InNativeMetaDataKey, const FName& InScriptDefaultMetaDataKey, const NotFoundFuncT& NotFoundFn)
 {
-	check(InMetaDataKey == PyGenUtil::HasNativeMakeMetaDataKey || InMetaDataKey == PyGenUtil::HasNativeBreakMetaDataKey);
+	check(InNativeMetaDataKey == PyGenUtil::HasNativeMakeMetaDataKey || InNativeMetaDataKey == PyGenUtil::HasNativeBreakMetaDataKey);
+	check(InScriptDefaultMetaDataKey == PyGenUtil::ScriptDefaultMakeMetaDataKey || InScriptDefaultMetaDataKey == PyGenUtil::ScriptDefaultBreakMetaDataKey);
 
 	UFunction* MakeBreakFunc = nullptr;
-
-	const FString MakeBreakFunctionName = InStruct->GetMetaData(InMetaDataKey);
-	if (!MakeBreakFunctionName.IsEmpty())
+	if (!InStruct->HasMetaData(InScriptDefaultMetaDataKey))
 	{
-		// Find the function.
-		MakeBreakFunc = FindObject<UFunction>(/*Outer*/nullptr, *MakeBreakFunctionName, /*ExactClass*/true);
-		if (!MakeBreakFunc)
+		const FString MakeBreakFunctionName = InStruct->GetMetaData(InNativeMetaDataKey);
+		if (!MakeBreakFunctionName.IsEmpty())
 		{
-			NotFoundFn(MakeBreakFunctionName);
+			// Find the function.
+			MakeBreakFunc = FindObject<UFunction>(/*Outer*/nullptr, *MakeBreakFunctionName, /*ExactClass*/true);
+			if (!MakeBreakFunc)
+			{
+				NotFoundFn(MakeBreakFunctionName);
+			}
 		}
 	}
 	return MakeBreakFunc;
@@ -2016,14 +2020,14 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 	StructMetaData->PythonDeprecatedProperties = MoveTemp(PythonDeprecatedProperties);
 
 	// If the struct has the 'HasNativeMake' meta and the function is found, set it, otherwise, postpone maybe its going to be loaded later.
-	if (UFunction* MakeFunc = UE::Python::FindMakeBreakFunction(InStruct, PyGenUtil::HasNativeMakeMetaDataKey,
+	if (UFunction* MakeFunc = UE::Python::FindMakeBreakFunction(InStruct, PyGenUtil::HasNativeMakeMetaDataKey, PyGenUtil::ScriptDefaultMakeMetaDataKey, 
 		[this, &StructMetaData](const FString& MakeFuncName){ UnresolvedMakeFuncs.Emplace(MakeFuncName, StructMetaData); }))
 	{
 		UE::Python::SetMakeFunction(*StructMetaData, MakeFunc);
 	}
 
 	// If the struct has the 'HasNativeBreak' meta and the function is found, set it, otherwise, postpone maybe its going to be loaded later.
-	if (UFunction* BreakFunc = UE::Python::FindMakeBreakFunction(InStruct, PyGenUtil::HasNativeBreakMetaDataKey,
+	if (UFunction* BreakFunc = UE::Python::FindMakeBreakFunction(InStruct, PyGenUtil::HasNativeBreakMetaDataKey, PyGenUtil::ScriptDefaultBreakMetaDataKey, 
 		[this, &StructMetaData](const FString& BreakFuncName) { UnresolvedBreakFuncs.Emplace(BreakFuncName, StructMetaData); }))
 	{
 		UE::Python::SetBreakFunction(*StructMetaData, BreakFunc);

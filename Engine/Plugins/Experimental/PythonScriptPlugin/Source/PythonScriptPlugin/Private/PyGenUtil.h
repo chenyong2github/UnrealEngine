@@ -44,12 +44,15 @@ namespace PyGenUtil
 	extern const FName ScriptOperatorMetaDataKey;
 	extern const FName ScriptConstantMetaDataKey;
 	extern const FName ScriptConstantHostMetaDataKey;
+	extern const FName ScriptDefaultMakeMetaDataKey;
+	extern const FName ScriptDefaultBreakMetaDataKey;
 	extern const FName BlueprintTypeMetaDataKey;
 	extern const FName NotBlueprintTypeMetaDataKey;
 	extern const FName BlueprintSpawnableComponentMetaDataKey;
 	extern const FName BlueprintGetterMetaDataKey;
 	extern const FName BlueprintSetterMetaDataKey;
 	extern const FName BlueprintInternalUseOnlyMetaDataKey;
+	extern const FName BlueprintInternalUseOnlyHierarchicalMetaDataKey;
 	extern const FName CustomThunkMetaDataKey;
 	extern const FName HasNativeMakeMetaDataKey;
 	extern const FName HasNativeBreakMetaDataKey;

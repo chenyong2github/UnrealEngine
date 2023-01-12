@@ -61,12 +61,15 @@ const FName ScriptMethodMutableMetaDataKey = TEXT("ScriptMethodMutable");
 const FName ScriptOperatorMetaDataKey = TEXT("ScriptOperator");
 const FName ScriptConstantMetaDataKey = TEXT("ScriptConstant");
 const FName ScriptConstantHostMetaDataKey = TEXT("ScriptConstantHost");
+const FName ScriptDefaultMakeMetaDataKey = TEXT("ScriptDefaultMake");
+const FName ScriptDefaultBreakMetaDataKey = TEXT("ScriptDefaultBreak");
 const FName BlueprintTypeMetaDataKey = TEXT("BlueprintType");
 const FName NotBlueprintTypeMetaDataKey = TEXT("NotBlueprintType");
 const FName BlueprintSpawnableComponentMetaDataKey = TEXT("BlueprintSpawnableComponent");
 const FName BlueprintGetterMetaDataKey = TEXT("BlueprintGetter");
 const FName BlueprintSetterMetaDataKey = TEXT("BlueprintSetter");
 const FName BlueprintInternalUseOnlyMetaDataKey = TEXT("BlueprintInternalUseOnly");
+const FName BlueprintInternalUseOnlyHierarchicalMetaDataKey = TEXT("BlueprintInternalUseOnlyHierarchical");
 const FName CustomThunkMetaDataKey = TEXT("CustomThunk");
 const FName DeprecatedPropertyMetaDataKey = TEXT("DeprecatedProperty");
 const FName DeprecatedFunctionMetaDataKey = TEXT("DeprecatedFunction");
@@ -1646,6 +1649,19 @@ bool ShouldExportClass(const UClass* InClass)
 
 bool ShouldExportStruct(const UScriptStruct* InStruct)
 {
+	if (InStruct->HasMetaData(BlueprintInternalUseOnlyMetaDataKey))
+	{
+		return false;
+	}
+
+	for (const UScriptStruct* ParentStruct = InStruct; ParentStruct; ParentStruct = Cast<UScriptStruct>(ParentStruct->GetSuperStruct()))
+	{
+		if (ParentStruct->HasMetaData(BlueprintInternalUseOnlyHierarchicalMetaDataKey))
+		{
+			return false;
+		}
+	}
+
 	return IsScriptExposedStruct(InStruct) || HasScriptExposedFields(InStruct);
 }
 
