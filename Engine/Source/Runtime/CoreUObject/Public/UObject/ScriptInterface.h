@@ -238,6 +238,18 @@ public:
 	}
 
 	/**
+	 * Comparison operator, taking a nullptr
+	 */
+	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
+	{
+		return GetInterface() == nullptr;
+	}
+	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
+	{
+		return GetInterface() != nullptr;
+	}
+
+	/**
 	 * Member access operator.  Provides transparent access to the interface pointer contained by this TScriptInterface
 	 */
 	FORCEINLINE InterfaceType* operator->() const
