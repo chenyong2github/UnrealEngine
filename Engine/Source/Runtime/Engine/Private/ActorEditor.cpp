@@ -84,7 +84,7 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 		{
 			UWorld* World = GetTypedOuter<UWorld>();
 			UWorldPartition* WorldPartition = World ? World->GetWorldPartition() : nullptr;
-			if (!WorldPartition || (!WorldPartition->IsStreamingEnabled() && !bIsDataLayersProperty))
+			if (!WorldPartition || (!WorldPartition->IsStreamingEnabled() && !bIsDataLayersProperty && !bIsHLODLayerProperty))
 			{
 				return false;
 			}
