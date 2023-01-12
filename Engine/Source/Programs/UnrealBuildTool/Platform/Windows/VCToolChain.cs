@@ -1161,15 +1161,21 @@ namespace UnrealBuildTool
 
 				// Explicitly declare that the executable is compatible with Data Execution Prevention.
 				Arguments.Add("/NXCOMPAT");
+			}
 
-				// Set the default stack size.
-				if (LinkEnvironment.DefaultStackSizeCommit > 0)
+			// Set the default stack size.
+			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Microsoft))
+			{
+				if (LinkEnvironment.DefaultStackSize > 0)
 				{
-					Arguments.Add("/STACK:" + LinkEnvironment.DefaultStackSize + "," + LinkEnvironment.DefaultStackSizeCommit);
-				}
-				else
-				{
-					Arguments.Add("/STACK:" + LinkEnvironment.DefaultStackSize);
+					if (LinkEnvironment.DefaultStackSizeCommit > 0)
+					{
+						Arguments.Add("/STACK:" + LinkEnvironment.DefaultStackSize + "," + LinkEnvironment.DefaultStackSizeCommit);
+					}
+					else
+					{
+						Arguments.Add("/STACK:" + LinkEnvironment.DefaultStackSize);
+					}
 				}
 			}
 
