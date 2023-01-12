@@ -92,6 +92,14 @@ public:
 	}
 
 	/**
+	 * Returns the commandline of the process which will be executed if Launch is called
+	 */
+	FString GetCommandline() const
+	{
+		return FString::Printf(TEXT("%s %s"), *URL, *Params);
+	}
+
+	/**
 	* Checks whether the process is still running. In single threaded mode, this will tick the thread processing
 	*
 	* @return true if the process is running, false otherwise.
