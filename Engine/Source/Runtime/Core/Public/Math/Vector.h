@@ -41,6 +41,8 @@ namespace UE
 namespace Math
 {
 
+struct TVectorConstInit {};
+
 /**
  * A vector in 3-D space composed of components (X, Y, Z) with floating point precision.
  */
@@ -152,6 +154,8 @@ public:
      * @param InF Value to set all components to.
      */
     explicit FORCEINLINE TVector(T InF);
+
+	FORCEINLINE constexpr TVector(T InF, TVectorConstInit);
 
     /**
      * Constructor using initial values for each component.
@@ -1388,6 +1392,12 @@ FORCEINLINE TVector<T>::TVector(T InF)
     : X(InF), Y(InF), Z(InF)
 {
     DiagnosticCheckNaN();
+}
+
+template<typename T>
+FORCEINLINE constexpr TVector<T>::TVector(T InF, TVectorConstInit)
+	: X(InF), Y(InF), Z(InF)
+{
 }
 
 template<typename T>

@@ -19,6 +19,8 @@
 namespace UE {
 namespace Math {
 
+struct TBoxConstInit {};
+
 template<typename T>
 struct TBox
 {
@@ -47,6 +49,11 @@ public:
 	explicit TBox( EForceInit )
 	{
 		Init();
+	}
+
+	constexpr TBox(EForceInit, TBoxConstInit)
+		: Min(0, TVectorConstInit{}), Max(0, TVectorConstInit{}), IsValid(0)
+	{
 	}
 
 	/**

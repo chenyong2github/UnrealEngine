@@ -48,9 +48,9 @@ namespace FNavigationSystem
 	/** used as a fallback value for navigation agent height, when none specified via UNavigationSystemV1::SupportedAgents */
 	extern ENGINE_API const float FallbackAgentHeight;
 
-	static const FBox InvalidBoundingBox(ForceInit);
+	inline constexpr FBox InvalidBoundingBox(ForceInit, UE::Math::TBoxConstInit{});
 
-	static const FVector InvalidLocation = FVector(TNumericLimits<FVector::FReal>::Max());
+	inline constexpr FVector InvalidLocation = FVector(TNumericLimits<FVector::FReal>::Max(), UE::Math::TVectorConstInit{});
 
 	FORCEINLINE bool IsValidLocation(const FVector& TestLocation)
 	{
