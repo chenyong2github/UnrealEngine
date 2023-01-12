@@ -1872,7 +1872,6 @@ void FDataLayerMode::ChooseRepresentingWorld()
 	if (RepresentingWorld == nullptr)
 	{
 		// still not world so fallback to old logic where we just prefer PIE over Editor
-
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
 			if (Context.WorldType == EWorldType::PIE)
@@ -1883,16 +1882,6 @@ void FDataLayerMode::ChooseRepresentingWorld()
 			else if (Context.WorldType == EWorldType::Editor)
 			{
 				RepresentingWorld = Context.World();
-				if (RepresentingWorld.IsValid())
-				{
-					// Favor Current Level's outer world if exists
-					ULevel* CurrentLevel = RepresentingWorld->GetCurrentLevel();
-					if (CurrentLevel && !CurrentLevel->IsPersistentLevel() && CurrentLevel->GetWorldDataLayers())
-					{
-						RepresentingWorld = CurrentLevel->GetTypedOuter<UWorld>();
-						check(RepresentingWorld.IsValid());
-					}
-				}
 			}
 		}
 	}
