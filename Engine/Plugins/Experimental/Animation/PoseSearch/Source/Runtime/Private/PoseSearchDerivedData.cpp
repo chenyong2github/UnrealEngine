@@ -128,7 +128,7 @@ static TArray<float> ComputeChannelsDeviations(TConstArrayView<FPoseSearchIndexB
 			const TArray<FFeatureChannelLayoutSet::FEntry>& Entries = Pair.Value;
 			for (const FFeatureChannelLayoutSet::FEntry& Entry : Entries)
 			{
-				if (Entry.SchemaIndex == ThisSchemaIndex)
+				if (Entry.Cardinality > 0 && Entry.SchemaIndex == ThisSchemaIndex)
 				{
 					const float FeatureMeanDeviation = ComputeFeatureMeanDeviation(Entries, SearchIndexBases, Schemas);
 					// the associated data to all the Entries data is going to be used to calculate the deviation of Deviation[Entry.DataOffset] to Deviation[Entry.DataOffset + Entry.Cardinality]

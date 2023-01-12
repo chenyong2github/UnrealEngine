@@ -318,12 +318,13 @@ class USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIs
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Position
 
-void UPoseSearchFeatureChannel_Position::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+void UPoseSearchFeatureChannel_Position::InitializeSchema(UPoseSearchSchema* Schema)
 {
-	Super::InitializeSchema(Initializer);
+	ChannelDataOffset = Schema->SchemaCardinality;
 	ChannelCardinality = UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
-	Initializer.SetCurrentChannelDataOffset(ChannelDataOffset + ChannelCardinality);
-	SchemaBoneIdx = Initializer.AddBoneReference(Bone);
+	Schema->SchemaCardinality += ChannelCardinality;
+
+	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 }
 
 void UPoseSearchFeatureChannel_Position::FillWeights(TArray<float>& Weights) const
@@ -356,7 +357,7 @@ void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexe
 	}
 }
 
-bool UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
@@ -371,23 +372,22 @@ bool UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, SearchContext.GetCurrentResultPrevPoseVector(), SearchContext.GetCurrentResultPoseVector(), SearchContext.GetCurrentResultNextPoseVector(), LerpValue);
 		}
 		// else leave the InOutQuery set to zero since the SearchContext.History is invalid and it'll fail if we continue
-		return bSkip;
 	}
-
-	bool bAnyError = false;
-	FTransform Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx, bAnyError);
-
-	if (!bUseSampleTimeOffsetRootBone)
+	else
 	{
-		const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(0.f, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx, bAnyError);
-		const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx, bAnyError);
-		Transform = Transform * (RootTransformPrev * RootTransform.Inverse());
-	}
+		FTransform Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx);
 
-	int32 DataOffset = ChannelDataOffset;
-	FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, Transform.GetTranslation());
-	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-	return !bAnyError;
+		if (!bUseSampleTimeOffsetRootBone)
+		{
+			const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(0.f, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+			const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+			Transform = Transform * (RootTransformPrev * RootTransform.Inverse());
+		}
+
+		int32 DataOffset = ChannelDataOffset;
+		FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, Transform.GetTranslation());
+		check(DataOffset == ChannelDataOffset + ChannelCardinality);
+	}
 }
 
 void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
@@ -426,12 +426,12 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Heading
 
-void UPoseSearchFeatureChannel_Heading::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+void UPoseSearchFeatureChannel_Heading::InitializeSchema(UPoseSearchSchema* Schema)
 {
-	Super::InitializeSchema(Initializer);
+	ChannelDataOffset = Schema->SchemaCardinality;
 	ChannelCardinality = UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
-	Initializer.SetCurrentChannelDataOffset(ChannelDataOffset + ChannelCardinality);
-	SchemaBoneIdx = Initializer.AddBoneReference(Bone);
+	Schema->SchemaCardinality += ChannelCardinality;
+	SchemaBoneIdx = Schema->AddBoneReference(Bone);
 }
 
 void UPoseSearchFeatureChannel_Heading::FillWeights(TArray<float>& Weights) const
@@ -481,7 +481,7 @@ void UPoseSearchFeatureChannel_Heading::IndexAsset(UE::PoseSearch::IAssetIndexer
 	}
 }
 
-bool UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
@@ -497,24 +497,22 @@ bool UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContex
 			check(DataOffset == ChannelDataOffset + ChannelCardinality);
 		}
 		// else leave the InOutQuery set to zero since the SearchContext.History is invalid and it'll fail if we continue
-		return bSkip;
 	}
-
-	bool bAnyError = false;
-	FTransform Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx, bAnyError);
-
-	if (!bUseSampleTimeOffsetRootBone)
+	else
 	{
-		const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(0.f, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx, bAnyError);
-		const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx, bAnyError);
-		Transform = Transform * (RootTransformPrev * RootTransform.Inverse());
+		FTransform Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx);
+
+		if (!bUseSampleTimeOffsetRootBone)
+		{
+			const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(0.f, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+			const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+			Transform = Transform * (RootTransformPrev * RootTransform.Inverse());
+		}
+
+		int32 DataOffset = ChannelDataOffset;
+		FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, GetAxis(Transform.GetRotation()));
+		check(DataOffset == ChannelDataOffset + ChannelCardinality);
 	}
-
-	int32 DataOffset = ChannelDataOffset;
-	FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, GetAxis(Transform.GetRotation()));
-	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-
-	return !bAnyError;
 }
 
 void UPoseSearchFeatureChannel_Heading::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
@@ -553,42 +551,38 @@ void UPoseSearchFeatureChannel_Heading::DebugDraw(const UE::PoseSearch::FDebugDr
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Pose
 
-void UPoseSearchFeatureChannel_Pose::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+void UPoseSearchFeatureChannel_Pose::InitializeSchema(UPoseSearchSchema* Schema)
 {
 	using namespace UE::PoseSearch;
 
-	Super::InitializeSchema(Initializer);
-
-	int32 DataOffset = ChannelDataOffset;
+	ChannelDataOffset = Schema->SchemaCardinality;
 	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
 	{
 		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Position))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVectorCardinality;
 		}
 		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeQuatCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeQuatCardinality;
 		}
 		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVectorCardinality;
 		}
 		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Phase))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 	}
 
-	ChannelCardinality = DataOffset - ChannelDataOffset;
-
-	Initializer.SetCurrentChannelDataOffset(DataOffset);
+	ChannelCardinality = Schema->SchemaCardinality - ChannelDataOffset;
 
 	SchemaBoneIdx.Reset();
 	for (const FPoseSearchBone& Bone : SampledBones)
 	{
-		SchemaBoneIdx.Add(Initializer.AddBoneReference(Bone.Reference));
+		SchemaBoneIdx.Add(Schema->AddBoneReference(Bone.Reference));
 	}
 }
 
@@ -782,7 +776,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::IAssetIndex
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
-bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
@@ -819,106 +813,99 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& 
 			}
 		}
 		// else leave the InOutQuery set to zero since the SearchContext.History is invalid and it'll fail if we continue
-		return bSkip;
 	}
-
-	struct CachedTransforms
+	else
 	{
-		FTransform Current;
-		FTransform Previous;
-		bool Valid = false;
-	};
-	TArray<CachedTransforms, TInlineAllocator<32>> CachedTransforms;
-	CachedTransforms.AddUninitialized(SampledBones.Num());
-
-	bool bAnyError = false;
-	float SampleTime = 0.f;
-
-	for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
-	{
-		CachedTransforms[SampledBoneIdx].Current = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), SchemaBoneIdx[SampledBoneIdx], bAnyError);
-		const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
-
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
+		struct CachedTransforms
 		{
-			check(SearchContext.History);
-			const float HistorySameplInterval = SearchContext.History->GetSampleTimeInterval();
+			FTransform Current;
+			FTransform Previous;
+			bool Valid = false; // @todo: remove this
+		};
+		TArray<CachedTransforms, TInlineAllocator<32>> CachedTransforms;
+		CachedTransforms.AddUninitialized(SampledBones.Num());
 
-			CachedTransforms[SampledBoneIdx].Previous = SearchContext.TryGetTransformAndCacheResults(SampleTime - HistorySameplInterval, InOutQuery.GetSchema(), SchemaBoneIdx[SampledBoneIdx], bAnyError);
+		float SampleTime = 0.f;
 
-			if (!UE::PoseSearch::UseCharacterSpaceVelocities)
+		for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
+		{
+			CachedTransforms[SampledBoneIdx].Current = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), SchemaBoneIdx[SampledBoneIdx]);
+			const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
+
+			if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
 			{
-				const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx, bAnyError);
-				const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTime - HistorySameplInterval, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx, bAnyError);
+				check(SearchContext.History);
+				const float HistorySameplInterval = SearchContext.History->GetSampleTimeInterval();
 
-				// animation space velocity
-				CachedTransforms[SampledBoneIdx].Previous = CachedTransforms[SampledBoneIdx].Previous * (RootTransformPrev * RootTransform.Inverse());
+				CachedTransforms[SampledBoneIdx].Previous = SearchContext.TryGetTransformAndCacheResults(SampleTime - HistorySameplInterval, InOutQuery.GetSchema(), SchemaBoneIdx[SampledBoneIdx]);
+
+				if (!UE::PoseSearch::UseCharacterSpaceVelocities)
+				{
+					const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+					const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTime - HistorySameplInterval, InOutQuery.GetSchema(), FSearchContext::SchemaRootBoneIdx);
+
+					// animation space velocity
+					CachedTransforms[SampledBoneIdx].Previous = CachedTransforms[SampledBoneIdx].Previous * (RootTransformPrev * RootTransform.Inverse());
+				}
+			}
+			CachedTransforms[SampledBoneIdx].Valid = true;
+		}
+
+		int32 DataOffset = ChannelDataOffset;
+		for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
+		{
+			const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
+			if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Position))
+			{
+				if (CachedTransforms[SampledBoneIdx].Valid)
+				{
+					FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, CachedTransforms[SampledBoneIdx].Current.GetTranslation());
+				}
+				else
+				{
+					// preserve the InOutQuery.EditValues() and increase the DataOffset
+					DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+				}
+			}
+
+			if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
+			{
+				if (CachedTransforms[SampledBoneIdx].Valid)
+				{
+					FFeatureVectorHelper::EncodeQuat(InOutQuery.EditValues(), DataOffset, CachedTransforms[SampledBoneIdx].Current.GetRotation());
+				}
+				else
+				{
+					// preserve the InOutQuery.EditValues() and increase the DataOffset
+					DataOffset += FFeatureVectorHelper::EncodeQuatCardinality;
+				}
+			}
+
+			if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
+			{
+				if (CachedTransforms[SampledBoneIdx].Valid)
+				{
+					const FVector LinearVelocity = (CachedTransforms[SampledBoneIdx].Current.GetTranslation() - CachedTransforms[SampledBoneIdx].Previous.GetTranslation()) / SearchContext.History->GetSampleTimeInterval();
+					FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, LinearVelocity);
+				}
+				else
+				{
+					// preserve the InOutQuery.EditValues() and increase the DataOffset
+					DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+				}
+			}
+
+			if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Phase))
+			{
+				DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+
+				// @todo: Support phase in BuildQuery
+				// FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, ???);
 			}
 		}
-		CachedTransforms[SampledBoneIdx].Valid = true;
+
+		check(DataOffset == ChannelDataOffset + ChannelCardinality);
 	}
-
-	if (bAnyError)
-	{
-		return false;
-	}
-
-	int32 DataOffset = ChannelDataOffset;
-	for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
-	{
-		const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Position))
-		{
-			if (CachedTransforms[SampledBoneIdx].Valid)
-			{
-				FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, CachedTransforms[SampledBoneIdx].Current.GetTranslation());
-			}
-			else
-			{
-				// preserve the InOutQuery.EditValues() and increase the DataOffset
-				DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
-			}
-		}
-
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
-		{
-			if (CachedTransforms[SampledBoneIdx].Valid)
-			{
-				FFeatureVectorHelper::EncodeQuat(InOutQuery.EditValues(), DataOffset, CachedTransforms[SampledBoneIdx].Current.GetRotation());
-			}
-			else
-			{
-				// preserve the InOutQuery.EditValues() and increase the DataOffset
-				DataOffset += FFeatureVectorHelper::EncodeQuatCardinality;
-			}
-		}
-
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
-		{
-			if (CachedTransforms[SampledBoneIdx].Valid)
-			{
-				const FVector LinearVelocity = (CachedTransforms[SampledBoneIdx].Current.GetTranslation() - CachedTransforms[SampledBoneIdx].Previous.GetTranslation()) / SearchContext.History->GetSampleTimeInterval();
-				FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, LinearVelocity);
-			}
-			else
-			{
-				// preserve the InOutQuery.EditValues() and increase the DataOffset
-				DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
-			}
-		}
-
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Phase))
-		{
-			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
-
-			// @todo: Support phase in BuildQuery
-			// FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, ???);
-		}
-	}
-
-	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-
-	return true;
 }
 
 void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const
@@ -1132,56 +1119,52 @@ void UPoseSearchFeatureChannel_Trajectory::PreSave(FObjectPreSaveContext ObjectS
 	Super::PreSave(ObjectSaveContext);
 }
 
-void UPoseSearchFeatureChannel_Trajectory::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+void UPoseSearchFeatureChannel_Trajectory::InitializeSchema(UPoseSearchSchema* Schema)
 {
 	using namespace UE::PoseSearch;
 
-	Super::InitializeSchema(Initializer);
-
-	int32 DataOffset = ChannelDataOffset;
+	ChannelDataOffset = Schema->SchemaCardinality;
 
 	for (const FPoseSearchTrajectorySample& Sample : Samples)
 	{
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVectorCardinality;
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVectorCardinality;
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityXY))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVectorCardinality;
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVectorCardinality;
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
 		{
-			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+			Schema->SchemaCardinality += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 	}
 
-	ChannelCardinality = DataOffset - ChannelDataOffset;
-
-	Initializer.SetCurrentChannelDataOffset(DataOffset);
+	ChannelCardinality = Schema->SchemaCardinality - ChannelDataOffset;
 }
 
 void UPoseSearchFeatureChannel_Trajectory::FillWeights(TArray<float>& Weights) const
@@ -1365,14 +1348,14 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
-bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
 	if (!SearchContext.Trajectory)
 	{
 		// @todo: do we want to reuse the SearchContext.CurrentResult data if valid?
-		return false;
+		return;
 	}
 
 	int32 NextIterStartIdx = 0;
@@ -1424,8 +1407,6 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 		}
 	}
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-
-	return true;
 }
 
 // lazy initialized helper to interpolate or extrapolate (linearly) UPoseSearchFeatureChannel_Trajectory trajectory positions from FPoseSearchTrajectorySample containing EPoseSearchTrajectoryFlags::Position for samples without it
@@ -2074,16 +2055,16 @@ static float ComputeCrashingLegsValue(const FVector& RightThighPos, const FVecto
 	return CrashingLegsValue;
 }
 
-void UPoseSearchFeatureChannel_FilterCrashingLegs::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+void UPoseSearchFeatureChannel_FilterCrashingLegs::InitializeSchema(UPoseSearchSchema* Schema)
 {
-	Super::InitializeSchema(Initializer);
+	ChannelDataOffset = Schema->SchemaCardinality;
 	ChannelCardinality = UE::PoseSearch::FFeatureVectorHelper::EncodeFloatCardinality;
-	Initializer.SetCurrentChannelDataOffset(ChannelDataOffset + ChannelCardinality);
+	Schema->SchemaCardinality += ChannelCardinality;
 
-	LeftThighIdx = Initializer.AddBoneReference(LeftThigh);
-	RightThighIdx = Initializer.AddBoneReference(RightThigh);
-	LeftFootIdx = Initializer.AddBoneReference(LeftFoot);
-	RightFootIdx = Initializer.AddBoneReference(RightFoot);
+	LeftThighIdx = Schema->AddBoneReference(LeftThigh);
+	RightThighIdx = Schema->AddBoneReference(RightThigh);
+	LeftFootIdx = Schema->AddBoneReference(LeftFoot);
+	RightFootIdx = Schema->AddBoneReference(RightFoot);
 }
 
 void UPoseSearchFeatureChannel_FilterCrashingLegs::FillWeights(TArray<float>& Weights) const
@@ -2116,7 +2097,7 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::IndexAsset(UE::PoseSearch::IA
 	}
 }
 
-bool UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
@@ -2132,19 +2113,18 @@ bool UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FS
 			FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), DataOffset, SearchContext.GetCurrentResultPrevPoseVector(), SearchContext.GetCurrentResultPoseVector(), SearchContext.GetCurrentResultNextPoseVector(), LerpValue);
 		}
 		// else leave the InOutQuery set to zero since the SearchContext.History is invalid and it'll fail if we continue
-		return bSkip;
 	}
+	else
+	{
+		const float SampleTime = 0.f;
+		const FTransform LeftThighTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), LeftThighIdx);
+		const FTransform RightThighTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), RightThighIdx);
+		const FTransform LeftFootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), LeftFootIdx);
+		const FTransform RightFootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), RightFootIdx);
 
-	const float SampleTime = 0.f;
-	bool bAnyError = false;
-	const FTransform LeftThighTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), LeftThighIdx, bAnyError);
-	const FTransform RightThighTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), RightThighIdx, bAnyError);
-	const FTransform LeftFootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), LeftFootIdx, bAnyError);
-	const FTransform RightFootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), RightFootIdx, bAnyError);
-
-	const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), RightFootTransform.GetTranslation(), LeftFootTransform.GetTranslation());
-	FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), DataOffset, CrashingLegsValue);
-	return !bAnyError;
+		const float CrashingLegsValue = ComputeCrashingLegsValue(RightThighTransform.GetTranslation(), LeftThighTransform.GetTranslation(), RightFootTransform.GetTranslation(), LeftFootTransform.GetTranslation());
+		FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), DataOffset, CrashingLegsValue);
+	}
 }
 
 void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const

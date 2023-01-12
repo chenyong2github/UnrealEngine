@@ -100,11 +100,6 @@ void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, T
 	VR = ((VA - VB) * VW).square();
 }
 
-static inline bool IsSamplingRangeValid(FFloatInterval Range)
-{
-	return Range.IsValid() && (Range.Min >= 0.0f);
-}
-
 /**
 * Algo::LowerBound adapted to TIndexedContainerIterator for use with indexable but not necessarily contiguous containers. Used here with TRingBuffer.
 *
@@ -145,16 +140,10 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 	return Start;
 }
 
-template <typename IteratorType, typename ValueType, typename SortPredicateType>
+template <typename IteratorType, typename ValueType, typename SortPredicateType = TLess<>()>
 FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueType& Value, SortPredicateType SortPredicate) -> decltype(First.GetIndex())
 {
 	return LowerBound(First, Last, Value, FIdentityFunctor(), SortPredicate);
-}
-
-template <typename IteratorType, typename ValueType>
-FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueType& Value) -> decltype(First.GetIndex())
-{
-	return LowerBound(First, Last, Value, FIdentityFunctor(), TLess<>());
 }
 
 typedef TArray<size_t, TInlineAllocator<128>> FNonSelectableIdx;
@@ -363,12 +352,6 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel
-void UPoseSearchFeatureChannel::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
-{
-	ChannelIdx = Initializer.GetCurrentChannelIdx();
-	ChannelDataOffset = Initializer.GetCurrentChannelDataOffset();
-}
-
 #if WITH_EDITOR
 void UPoseSearchFeatureChannel::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
 {
@@ -380,16 +363,6 @@ void UPoseSearchFeatureChannel::ComputeCostBreakdowns(UE::PoseSearch::ICostBreak
 	CostBreakDownData.AddEntireBreakDownSection(FText::FromString(GetName()), Schema, ChannelDataOffset, ChannelCardinality);
 }
 #endif // WITH_EDITOR
-
-//////////////////////////////////////////////////////////////////////////
-// FSchemaInitializer
-namespace UE::PoseSearch
-{
-int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
-{
-	return BoneReferences.AddUnique(BoneReference);
-}
-} // namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
@@ -404,19 +377,16 @@ void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
 
 	BoneReferences.Reset();
 
-	FSchemaInitializer Initializer;
+	int32 CurrentChannelDataOffset = 0;
+
+	SchemaCardinality = 0;
 	for (int32 ChannelIdx = 0; ChannelIdx != Channels.Num(); ++ChannelIdx)
 	{
-		if (Channels[ChannelIdx].Get())
+		if (UPoseSearchFeatureChannel* Channel = Channels[ChannelIdx].Get())
 		{
-			Initializer.CurrentChannelIdx = ChannelIdx;
-			Channels[ChannelIdx]->InitializeSchema(Initializer);
+			Channel->InitializeSchema(this);
 		}
 	}
-
-	SchemaCardinality = Initializer.GetCurrentChannelDataOffset();
-
-	BoneReferences = MoveTemp(Initializer.BoneReferences);
 
 	ResolveBoneReferences();
 }
@@ -503,20 +473,16 @@ void UPoseSearchSchema::ResolveBoneReferences()
 	}
 }
 
-bool UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
 
 	InOutQuery.Init(this);
 
-	bool bSuccess = true;
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
 	{
-		bool bChannelSuccess = Channel->BuildQuery(SearchContext, InOutQuery);
-		bSuccess &= bChannelSuccess;
+		Channel->BuildQuery(SearchContext, InOutQuery);
 	}
-
-	return bSuccess;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1488,7 +1454,7 @@ void FPoseIndicesHistory::Update(const FSearchResult& SearchResult, float DeltaT
 	}
 }
 
-FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& bError)
+FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx)
 {
 	check(History && Schema);
 
@@ -1503,7 +1469,6 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 
 	if (Entry)
 	{
-		bError = false;
 		return Entry->Transform;
 	}
 
@@ -1521,11 +1486,9 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 				CachedEntries.Emplace(SampleTime, SampledComponentPose[NewEntryBoneIndexType], NewEntryBoneIndexType);
 			}
 
-			bError = false;
 			return SampledComponentPose[BoneIndexType];
 		}
 
-		bError = true;
 		return FTransform::Identity;
 	}
 	
@@ -1537,11 +1500,9 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 		NewEntry.BoneIndexType = BoneIndexType;
 		NewEntry.Transform = SampledRootTransform;
 
-		bError = false;
 		return SampledRootTransform;
 	}
 	
-	bError = true;
 	return FTransform::Identity;
 }
 
@@ -1579,20 +1540,20 @@ const FPoseSearchFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPos
 	return nullptr;
 }
 
-bool FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder)
+void FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder)
 {
 	const FPoseSearchFeatureVectorBuilder* CachedFeatureVectorBuilder = GetCachedQuery(Database);
 	if (CachedFeatureVectorBuilder)
 	{
 		FeatureVectorBuilder = *CachedFeatureVectorBuilder;
-		return true;
 	}
-
-	FSearchContext::FCachedQuery& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
-	NewCachedQuery.Database = Database;
-	Database->BuildQuery(*this, NewCachedQuery.FeatureVectorBuilder);
-	FeatureVectorBuilder = NewCachedQuery.FeatureVectorBuilder;
-	return false;
+	else
+	{
+		FSearchContext::FCachedQuery& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
+		NewCachedQuery.Database = Database;
+		Database->BuildQuery(*this, NewCachedQuery.FeatureVectorBuilder);
+		FeatureVectorBuilder = NewCachedQuery.FeatureVectorBuilder;
+	}
 }
 
 bool FSearchContext::IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const
@@ -1995,18 +1956,7 @@ float FFeatureVectorHelper::DecodeFloatInternal(TConstArrayView<float> Values, i
 bool FDebugDrawParams::CanDraw() const
 {
 #if ENABLE_DRAW_DEBUG
-	if (!World)
-	{
-		return false;
-	}
-
-	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	if (!SearchIndex)
-	{
-		return false;
-	}
-
-	return true;
+	return World && Database && Database->Schema && Database->Schema->IsValid();
 #else // ENABLE_DRAW_DEBUG
 	return false;
 #endif // ENABLE_DRAW_DEBUG

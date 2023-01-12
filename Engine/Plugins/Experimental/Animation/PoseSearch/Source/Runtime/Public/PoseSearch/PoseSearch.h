@@ -36,11 +36,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 //////////////////////////////////////////////////////////////////////////
 // Forward declarations
 
-class UAnimSequence;
 class UBlendSpace;
 struct FCompactPose;
 struct FPoseContext;
-struct FReferenceSkeleton;
 class UAnimNotifyState_PoseSearchBase;
 class UPoseSearchSchema;
 
@@ -54,23 +52,13 @@ constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::ForceSingleThr
 constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 #endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
 
-
-
 namespace UE::PoseSearch
 {
 class FPoseHistory;
 struct FDebugDrawParams;
-struct FSchemaInitializer;
 struct FQueryBuildingContext;
 struct FSearchContext;
 } // namespace UE::PoseSearch
-
-#if WITH_EDITOR
-namespace UE::DerivedData
-{
-	class IRequestOwner;
-} // namespace UE::DerivedData
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 // Constants
@@ -479,12 +467,11 @@ class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneRef
 	GENERATED_BODY()
 
 public:
-	int32 GetChannelIndex() const { checkSlow(ChannelIdx >= 0); return ChannelIdx; }
 	int32 GetChannelCardinality() const { checkSlow(ChannelCardinality >= 0); return ChannelCardinality; }
 	int32 GetChannelDataOffset() const { checkSlow(ChannelDataOffset >= 0); return ChannelDataOffset; }
 
 	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
-	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer);
+	virtual void InitializeSchema(UPoseSearchSchema* Schema) PURE_VIRTUAL(UPoseSearchFeatureChannel::InitializeSchema, );
 	
 	// Called at database build time to collect feature weights.
 	// Weights is sized to the cardinality of the schema and the feature channel should write
@@ -495,7 +482,7 @@ public:
 	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
 	// Called at runtime to add this channel's data to the query pose vector
-	virtual bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
+	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
 
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
@@ -510,42 +497,15 @@ private:
 	// Note this function is exclusively for FBoneReference details customization
 	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
+protected:
 	friend class ::UPoseSearchSchema;
 
-	UPROPERTY(meta = (ExcludeFromHash))
-	int32 ChannelIdx = INDEX_NONE;
-
-protected:
 	UPROPERTY(meta = (ExcludeFromHash))
 	int32 ChannelDataOffset = INDEX_NONE;
 
 	UPROPERTY(meta = (ExcludeFromHash))
 	int32 ChannelCardinality = INDEX_NONE;
 };
-
-namespace UE::PoseSearch
-{
-
-struct POSESEARCH_API FSchemaInitializer
-{
-public:
-	int32 AddBoneReference(const FBoneReference& BoneReference);
-
-	// Gets the index into the schema's channel array for the channel currently being initialized
-	int32 GetCurrentChannelIdx() const { return CurrentChannelIdx; }
-
-	int32 GetCurrentChannelDataOffset() const { return CurrentChannelDataOffset; }
-	void SetCurrentChannelDataOffset(int32 DataOffset) { CurrentChannelDataOffset = DataOffset; }
-
-private:
-	friend class ::UPoseSearchSchema;
-
-	int32 CurrentChannelIdx = 0;
-	int32 CurrentChannelDataOffset = 0;
-	TArray<FBoneReference> BoneReferences;
-};
-
-} // namespace UE::PoseSearch
 
 USTRUCT()
 struct FPoseSearchSchemaColorPreset
@@ -562,7 +522,7 @@ struct FPoseSearchSchemaColorPreset
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
 */
-UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Motion Database Config"))
+UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Motion Database Config"), CollapseCategories)
 class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
@@ -647,12 +607,14 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	int32 AddBoneReference(const FBoneReference& BoneReference) { return BoneReferences.AddUnique(BoneReference); }
+
 private:
 	void Finalize(bool bRemoveEmptyChannels = true);
 	void ResolveBoneReferences();
 
 public:
-	bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
+	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1376,14 +1338,14 @@ struct POSESEARCH_API FSearchContext
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;
 
-	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error);
+	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx);
 	void ClearCachedEntries();
 
 	void ResetCurrentBestCost();
 	void UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost);
 	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
 
-	bool GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
+	void GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
 	const FPoseSearchFeatureVectorBuilder* GetCachedQuery(const UPoseSearchDatabase* Database) const;
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
