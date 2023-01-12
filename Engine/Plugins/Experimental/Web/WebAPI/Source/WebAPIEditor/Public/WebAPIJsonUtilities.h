@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,9 +18,8 @@ namespace UE::Json
 		{
 			template <typename T>
 			auto Requires() -> decltype(
-				TAnd<
-					TIsSame<typename TNumericLimits<T>::NumericType, T>,
-					TNot<TIsSame<T, bool>>>::Value);
+				std::is_same_v<typename TNumericLimits<T>::NumericType, T> &&
+				!std::is_same_v<T, bool>);
 		};
 
 		/** Describes a type that provides a FromJson function. */
@@ -56,10 +55,9 @@ namespace UE::Json
 		struct TIsStringLike<
 				ValueType,
 				typename TEnableIf<
-					TOr<
-						TIsSame<ValueType, FString>,
-						TIsSame<ValueType, FName>,
-						TIsSame<ValueType, FText>>::Value>::Type>
+					std::is_same_v<ValueType, FString> ||
+					std::is_same_v<ValueType, FName> ||
+					std::is_same_v<ValueType, FText>>::Type>
 		{
 			enum
 			{
@@ -280,7 +278,7 @@ namespace UE::Json
 
 	// Bool
 	template <typename ValueType>
-	constexpr typename TEnableIf<TIsSame<ValueType, bool>::Value, void>::Type
+	constexpr typename TEnableIf<std::is_same_v<ValueType, bool>, void>::Type
 	As(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue)
 	{
 		OutValue = InJsonValue->AsBool();
@@ -315,11 +313,11 @@ namespace UE::Json
 
 	// Bool
 	template <typename ValueType>
-	constexpr typename TEnableIf<TIsSame<ValueType, bool>::Value, bool>::Type
+	constexpr typename TEnableIf<std::is_same_v<ValueType, bool>, bool>::Type
 	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
 
 	template <typename ValueType>
-	constexpr typename TEnableIf<TIsSame<ValueType, bool>::Value, bool>::Type
+	constexpr typename TEnableIf<std::is_same_v<ValueType, bool>, bool>::Type
 	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue);
 
 	// Array
@@ -385,11 +383,11 @@ namespace UE::Json
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TJsonReference<ValueType>& OutValue);
 
 	template <typename ValueType>
-	typename TEnableIf<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>::Value, bool>::Type
+	typename TEnableIf<std::is_same_v<ValueType, TJsonReference<typename ValueType::ElementType>>, bool>::Type
 	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
 
 	template <typename ValueType>
-	typename TEnableIf<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>::Value, bool>::Type
+	typename TEnableIf<std::is_same_v<ValueType, TJsonReference<typename ValueType::ElementType>>, bool>::Type
 	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue);
 
 	// Object (with FromJson)
@@ -410,27 +408,25 @@ namespace UE::Json
 	// Object (without FromJson)
 	template <typename ValueType>
 	typename TEnableIf<
-		TAnd<
-			TNot<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>>,
-			TNot<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>>,
-			TNot<TIsTMap<ValueType>>,
-			TNot<TIsTArray<ValueType>>,
-			TNot<TypeTraits::TIsStringLike<ValueType>>,
-			TNot<TIsPODType<ValueType>>,
-			TNot<TypeTraits::THasFromJson<ValueType>>>::Value, bool>::Type
+		!std::is_same_v<ValueType, TSharedPtr<typename ValueType::ElementType>> &&
+		!std::is_same_v<ValueType, TJsonReference<typename ValueType::ElementType>> &&
+		!TIsTMap<ValueType>::Value &&
+		!TIsTArray<ValueType>::Value &&
+		!TypeTraits::TIsStringLike<ValueType>::Value &&
+		!TIsPODType<ValueType>::Value &&
+		!TypeTraits::THasFromJson<ValueType>::Value, bool>::Type
 	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
 
 	// TIsTMap<ContainerType>,
 	template <typename ValueType>
 	typename TEnableIf<
-		TAnd<
-			TNot<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>>,
-			TNot<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>>,
-			TNot<TIsTMap<ValueType>>,
-			TNot<TIsTArray<ValueType>>,
-			TNot<TypeTraits::TIsStringLike<ValueType>>,
-			TNot<TIsPODType<ValueType>>,
-			TNot<TypeTraits::THasFromJson<ValueType>>>::Value, bool>::Type
+		!std::is_same_v<ValueType, TSharedPtr<typename ValueType::ElementType>> &&
+		!std::is_same_v<ValueType, TJsonReference<typename ValueType::ElementType>> &&
+		!TIsTMap<ValueType>::Value &&
+		!TIsTArray<ValueType>::Value &&
+		!TypeTraits::TIsStringLike<ValueType>::Value &&
+		!TIsPODType<ValueType>::Value &&
+		!TypeTraits::THasFromJson<ValueType>::Value, bool>::Type
 	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue);
 
 	// UniqueObj
@@ -448,11 +444,11 @@ namespace UE::Json
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TSharedPtr<ValueType>& OutValue);
 
 	template <typename ValueType>
-	typename TEnableIf<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>::Value, bool>::Type
+	typename TEnableIf<std::is_same_v<ValueType, TSharedPtr<typename ValueType::ElementType>>, bool>::Type
 	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
 
 	template <typename ValueType>
-	typename TEnableIf<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>::Value, bool>::Type
+	typename TEnableIf<std::is_same_v<ValueType, TSharedPtr<typename ValueType::ElementType>>, bool>::Type
 	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue);
 
 	// SharedRef
@@ -495,10 +491,10 @@ namespace UE::Json
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TOptional<TSharedRef<ValueType>>& OutValue);
 
 	// JsonObject
-	template <typename ValueType, typename = typename TEnableIf<TIsSame<ValueType, TSharedPtr<FJsonObject>>::Value>::Type>
+	template <typename ValueType, typename = typename TEnableIf<std::is_same_v<ValueType, TSharedPtr<FJsonObject>>>::Type>
 	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
 
-	template <typename ValueType, typename = typename TEnableIf<TIsSame<ValueType, TSharedPtr<FJsonObject>>::Value>::Type>
+	template <typename ValueType, typename = typename TEnableIf<std::is_same_v<ValueType, TSharedPtr<FJsonObject>>>::Type>
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TSharedPtr<FJsonObject>& OutValue);
 
 	// Variant

@@ -1235,18 +1235,19 @@ struct TStructOpsTypeTraits<FNiagaraTypeDefinition> : public TStructOpsTypeTrait
 template<typename T>
 const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 {
-	if (TIsSame<T, float>::Value) { return GetFloatDef(); }
-	if (TIsSame<T, FVector2f>::Value) { return GetVec2Def(); }
-	if (TIsSame<T, FVector3f>::Value) { return GetVec3Def(); }	
-	if (TIsSame<T, FNiagaraPosition>::Value) { return GetPositionDef(); }	
-	if (TIsSame<T, FVector4f>::Value) { return GetVec4Def(); }
-	if (TIsSame<T, int32>::Value) { return GetIntDef(); }
-	if (TIsSame<T, FNiagaraBool>::Value) { return GetBoolDef(); }
-	if (TIsSame<T, FQuat4f>::Value) { return GetQuatDef(); }
-	if (TIsSame<T, FMatrix44f>::Value) { return GetMatrix4Def(); }
-	if (TIsSame<T, FLinearColor>::Value) { return GetColorDef(); }
-	if (TIsSame<T, FNiagaraID>::Value) { return GetIDDef(); }
-	if (TIsSame<T, FNiagaraRandInfo>::Value) { return GetRandInfoDef(); }
+	     if constexpr (std::is_same_v<T, float>) { return GetFloatDef(); }
+	else if constexpr (std::is_same_v<T, FVector2f>) { return GetVec2Def(); }
+	else if constexpr (std::is_same_v<T, FVector3f>) { return GetVec3Def(); }
+	else if constexpr (std::is_same_v<T, FNiagaraPosition>) { return GetPositionDef(); }
+	else if constexpr (std::is_same_v<T, FVector4f>) { return GetVec4Def(); }
+	else if constexpr (std::is_same_v<T, int32>) { return GetIntDef(); }
+	else if constexpr (std::is_same_v<T, FNiagaraBool>) { return GetBoolDef(); }
+	else if constexpr (std::is_same_v<T, FQuat4f>) { return GetQuatDef(); }
+	else if constexpr (std::is_same_v<T, FMatrix44f>) { return GetMatrix4Def(); }
+	else if constexpr (std::is_same_v<T, FLinearColor>) { return GetColorDef(); }
+	else if constexpr (std::is_same_v<T, FNiagaraID>) { return GetIDDef(); }
+	else if constexpr (std::is_same_v<T, FNiagaraRandInfo>) { return GetRandInfoDef(); }
+	else { static_assert(sizeof(T) == 0, "Unsupported type"); }
 }
 
 //////////////////////////////////////////////////////////////////////////

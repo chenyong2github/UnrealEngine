@@ -84,7 +84,7 @@ Name(const T& Value, const T& ExpectedValue, const char* ValueText, const char* 
 		return UE::Net::CreateTestFailure() << TEXT("Expected ") << ValueText << TEXT(' ') << TEXT(#Operator) <<  TEXT(' ') << ExpectedValueText << TEXT(". ") << Value << TEXT(" was compared to ") << ExpectedValue << TEXT(". "); \
 	} \
 } \
-template<typename T, typename U, typename TEnableIf<TIsPointer<T>::Value && TIsSame<U, nullptr_t>::Value, U>::Type X = nullptr> \
+template<typename T, typename U, typename TEnableIf<TIsPointer<T>::Value && std::is_same_v<U, nullptr_t>, U>::Type X = nullptr> \
 UE::Net::FTestResult \
 Name(const T& Value, U ExpectedValue, const char* ValueText, const char* ExpectedValueText) \
 { \

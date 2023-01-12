@@ -113,7 +113,7 @@ namespace Metasound
 		static_assert(TIsEnum<EnumType>::Value, "Expecting an Enum type");
 		
 		// Allow Non-enum class Enum or Enum class that's are derived from int32
-		static_assert(TIsSame<typename std::underlying_type<EnumType>::type, int32>::Value || 
+		static_assert(std::is_same_v<typename std::underlying_type<EnumType>::type, int32> ||
 			!TIsEnumClass<EnumType>::Value, "We serialize to int32, so limit to that for now");
 
 		// Default.

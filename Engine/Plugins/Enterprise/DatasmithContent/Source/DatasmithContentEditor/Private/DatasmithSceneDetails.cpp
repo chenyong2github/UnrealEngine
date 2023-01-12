@@ -25,7 +25,7 @@ void FDatasmithSceneDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	UDatasmithScene* DatasmithScene = Cast< UDatasmithScene >( Objects[0].Get() );
 	check( DatasmithScene );
 
-	static_assert( TIsSame< typename TRemovePointer< typename TRemoveObjectPointer<decltype( UDatasmithScene::AssetImportData )>::Type >::Type, UDatasmithSceneImportData >::Value, "Please update this details customization" );
+	static_assert( std::is_same_v< typename TRemovePointer< typename TRemoveObjectPointer<decltype( UDatasmithScene::AssetImportData )>::Type >::Type, UDatasmithSceneImportData >, "Please update this details customization" );
 	static_assert( TIsDerivedFrom < UDatasmithSceneImportData, UAssetImportData >::IsDerived, "Please update this details customization" );
 
 	TSharedRef< IPropertyHandle > AssetImportDataPropertyHandle = DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( UDatasmithScene, AssetImportData ) );

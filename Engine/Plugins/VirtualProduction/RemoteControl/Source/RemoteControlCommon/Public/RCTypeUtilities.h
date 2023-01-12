@@ -441,7 +441,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<TIsSame<ValueType, FStructOnScope>::Value, TSharedPtr<ValueType>>::Type
+	static typename TEnableIf<std::is_same_v<ValueType, FStructOnScope>, TSharedPtr<ValueType>>::Type
 	GetDefaultMappingValueMin(const FStructProperty* InProperty)
 	{
 		check(InProperty);
@@ -493,7 +493,7 @@ namespace RemoteControlTypeUtilities
 	}
 
 	template <typename ValueType>
-	static typename TEnableIf<TIsSame<ValueType, FStructOnScope>::Value, TSharedPtr<ValueType>>::Type
+	static typename TEnableIf<std::is_same_v<ValueType, FStructOnScope>, TSharedPtr<ValueType>>::Type
 	GetDefaultMappingValueMax(const FStructProperty* InProperty)
 	{
 		check(InProperty);

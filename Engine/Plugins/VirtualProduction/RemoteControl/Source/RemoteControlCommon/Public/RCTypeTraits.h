@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,9 +20,8 @@ namespace RemoteControlTypeTraits
 		{
 			template <typename T>
 			auto Requires() -> decltype(
-				TAnd<
-					TIsSame<typename TNumericLimits<T>::NumericType, T>,
-					TNot<TIsSame<T, bool>>>::Value);
+				std::is_same_v<typename TNumericLimits<T>::NumericType, T> &&
+				!std::is_same_v<T, bool>);
 		};
 
 		/** Concept to check if PropertyType::TCppType matches ValueType */
@@ -36,7 +35,7 @@ namespace RemoteControlTypeTraits
 		struct CPropertyHasTCppType
 		{
 			template <typename PropertyType>
-			auto Requires() -> decltype(TIsSame<typename PropertyType::TCppType, void>::Value);
+			auto Requires() -> decltype(std::is_same_v<typename PropertyType::TCppType, void>);
 		};
 	}
 
@@ -51,10 +50,9 @@ namespace RemoteControlTypeTraits
 	struct TIsStringLikeProperty<
 			PropertyType,
 			typename TEnableIf<
-				TOr<
-					TIsSame<PropertyType, FStrProperty>,
-					TIsSame<PropertyType, FNameProperty>,
-					TIsSame<PropertyType, FTextProperty>>::Value>::Type>
+					std::is_same_v<PropertyType, FStrProperty> ||
+					std::is_same_v<PropertyType, FNameProperty> ||
+					std::is_same_v<PropertyType, FTextProperty>>::Type>
 	{
 		enum
 		{
@@ -73,10 +71,9 @@ namespace RemoteControlTypeTraits
 	struct TIsStringLikeValue<
 			ValueType,
 			typename TEnableIf<
-				TOr<
-					TIsSame<ValueType, FString>,
-					TIsSame<ValueType, FName>,
-					TIsSame<ValueType, FText>>::Value>::Type>
+					std::is_same_v<ValueType, FString> ||
+					std::is_same_v<ValueType, FName> ||
+					std::is_same_v<ValueType, FText>>::Type>
 	{
 		enum
 		{

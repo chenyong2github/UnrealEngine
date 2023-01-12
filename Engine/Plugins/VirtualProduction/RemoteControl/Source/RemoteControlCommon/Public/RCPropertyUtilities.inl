@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 
@@ -206,13 +206,12 @@ namespace RemoteControlPropertyUtilities
 	/** Reads the raw data from InSrc and deserializes to OutDst. */
 	template <typename PropertyType>
 	typename TEnableIf<
-		TOr<
-			TAnd<
-				TIsDerivedFrom<PropertyType, FProperty>,
-				TNot<TIsSame<PropertyType, FProperty>>,
-				TNot<TIsSame<PropertyType, FNumericProperty>>>,
-			TIsSame<PropertyType, FEnumProperty>
-			>::Value, bool>::Type
+		(
+			TIsDerivedFrom<PropertyType, FProperty>::Value &&
+			!std::is_same_v<PropertyType, FProperty> &&
+			!std::is_same_v<PropertyType, FNumericProperty>
+		) ||
+		std::is_same_v<PropertyType, FEnumProperty>, bool>::Type
 	Deserialize(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
 		using ValueType = typename TRemoteControlPropertyTypeTraits<PropertyType>::ValueType;
@@ -275,13 +274,12 @@ namespace RemoteControlPropertyUtilities
 	/** Reads the property value from InSrc and serializes to OutDst. */
 	template <typename PropertyType>
 	typename TEnableIf<
-		TOr<
-			TAnd<
-				TIsDerivedFrom<PropertyType, FProperty>,
-				TNot<TIsSame<PropertyType, FProperty>>,
-				TNot<TIsSame<PropertyType, FNumericProperty>>>,
-			TIsSame<PropertyType, FEnumProperty>
-			>::Value, bool>::Type
+		(
+			TIsDerivedFrom<PropertyType, FProperty>::Value &&
+			!std::is_same_v<PropertyType, FProperty> &&
+			!std::is_same_v<PropertyType, FNumericProperty>
+		) ||
+		std::is_same_v<PropertyType, FEnumProperty>, bool>::Type
 	Serialize(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
 		using ValueType = typename TRemoteControlPropertyTypeTraits<PropertyType>::ValueType;
@@ -341,9 +339,8 @@ namespace RemoteControlPropertyUtilities
 	/** Specialization for FProperty casts and forwards to specializations. */
 	template <typename PropertyType>
 	typename TEnableIf<
-		TOr<
-			TIsSame<PropertyType, FProperty>,
-			TIsSame<PropertyType, FNumericProperty>>::Value, bool>::Type
+		std::is_same_v<PropertyType, FProperty> ||
+		std::is_same_v<PropertyType, FNumericProperty>, bool>::Type
 	Deserialize(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
 		const FProperty* Property = OutDst.GetProperty();
@@ -355,9 +352,8 @@ namespace RemoteControlPropertyUtilities
 	/** Specialization for FProperty casts and forwards to specializations. */
 	template <typename PropertyType>
 	typename TEnableIf<
-		TOr<
-			TIsSame<PropertyType, FProperty>,
-			TIsSame<PropertyType, FNumericProperty>>::Value, bool>::Type
+		std::is_same_v<PropertyType, FProperty> ||
+		std::is_same_v<PropertyType, FNumericProperty>, bool>::Type
 	Serialize(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
 		const FProperty* Property = InSrc.GetProperty();

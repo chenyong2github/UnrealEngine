@@ -78,14 +78,14 @@ inline FTestMessage& operator<<(FTestMessage& Message, const void* Value)
 }
 
 // uintptr_t streaming
-template<typename T, typename = typename TEnableIf<TIsSame<T, uintptr_t>::Value && !TIsSame<uintptr_t, unsigned>::Value && !TIsSame<uintptr_t, uint64>::Value, uintptr_t>::Type>
+template<typename T, typename = typename TEnableIf<std::is_same_v<T, uintptr_t> && !std::is_same_v<uintptr_t, unsigned> && !std::is_same_v<uintptr_t, uint64>, uintptr_t>::Type>
 inline FTestMessage& operator<<(FTestMessage& Message, T Value)
 {
 	return Message << TStringBuilder<32>().Appendf(TEXT("0x%" UPTRINT_X_FMT), UPTRINT(Value)).ToString();
 }
 
 // ptrdiff_t streaming
-template<typename T, typename = typename TEnableIf<TIsSame<T, ptrdiff_t>::Value, ptrdiff_t>::Type, typename = typename TEnableIf<TIsSame<T, ptrdiff_t>::Value && !TIsSame<ptrdiff_t, int32>::Value && !TIsSame<ptrdiff_t, int64>::Value, ptrdiff_t>::Type>
+template<typename T, typename = typename TEnableIf<std::is_same_v<T, ptrdiff_t>, ptrdiff_t>::Type, typename = typename TEnableIf<std::is_same_v<T, ptrdiff_t> && !std::is_same_v<ptrdiff_t, int32> && !std::is_same_v<ptrdiff_t, int64>, ptrdiff_t>::Type>
 inline FTestMessage& operator<<(FTestMessage& Message, T Value)
 {
 	return Message << TStringBuilder<32>().Appendf(TEXT("%" SSIZE_T_FMT), SSIZE_T(Value)).ToString();

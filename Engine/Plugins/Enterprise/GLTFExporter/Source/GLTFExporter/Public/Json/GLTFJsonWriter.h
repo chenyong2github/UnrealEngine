@@ -68,7 +68,7 @@ public:
 		Write(FGLTFJsonUtilities::GetValue(Enum));
 	}
 
-	template <class ElementType, typename = typename TEnableIf<TNot<TIsSame<ElementType, TCHAR>>::Value>::Type>
+	template <class ElementType, typename = typename TEnableIf<!std::is_same_v<ElementType, TCHAR>>::Type>
 	void Write(const ElementType* Array, SIZE_T ArraySize)
 	{
 		StartArray();
@@ -79,7 +79,7 @@ public:
 		EndArray();
 	}
 
-	template <class ElementType, SIZE_T ArraySize, typename = typename TEnableIf<TNot<TIsSame<ElementType, TCHAR>>::Value>::Type>
+	template <class ElementType, SIZE_T ArraySize, typename = typename TEnableIf<!std::is_same_v<ElementType, TCHAR>>::Type>
 	void Write(const ElementType (&Array)[ArraySize])
 	{
 		Write(Array, ArraySize);
@@ -175,14 +175,14 @@ public:
 		Write(Enum);
 	}
 
-	template <class ElementType, typename = typename TEnableIf<TNot<TIsSame<ElementType, TCHAR>>::Value>::Type>
+	template <class ElementType, typename = typename TEnableIf<!std::is_same_v<ElementType, TCHAR>>::Type>
 	void Write(const FString& Identifier, const ElementType* Array, SIZE_T ArraySize)
 	{
 		SetIdentifier(Identifier);
 		Write(Array, ArraySize);
 	}
 
-	template <class ElementType, SIZE_T ArraySize, typename = typename TEnableIf<TNot<TIsSame<ElementType, TCHAR>>::Value>::Type>
+	template <class ElementType, SIZE_T ArraySize, typename = typename TEnableIf<!std::is_same_v<ElementType, TCHAR>>::Type>
 	void Write(const FString& Identifier, const ElementType (&Array)[ArraySize])
 	{
 		SetIdentifier(Identifier);

@@ -20,7 +20,7 @@ class DMXPROTOCOL_API FDMXConversions
 
 public:
 	/** Converts a uint32 to a byte array */
-	template <typename T, typename U = typename TEnableIf<TIsSame<T, uint32>::Value>::Type>
+	template <typename T, typename U = typename TEnableIf<std::is_same_v<T, uint32>>::Type>
 	static TArray<uint8> UnsignedInt32ToByteArray(T Value, EDMXFixtureSignalFormat SignalFormat, bool bLSBOrder)
 	{
 		const uint8 NumBytes = GetSizeOfSignalFormat(SignalFormat);
@@ -42,7 +42,7 @@ public:
 	}
 
 	/** Converts a normalized value to a byte array. Normalized value has to be in the 0-1 range. Assumes max signal format is 24bit. */
-	template <typename T, typename U = typename TEnableIf<TIsSame<T, float>::Value>::Type>
+	template <typename T, typename U = typename TEnableIf<std::is_same_v<T, float>>::Type>
 	static TArray<uint8> NormalizedDMXValueToByteArray(T NormalizedValue, EDMXFixtureSignalFormat SignalFormat, bool bLSBOrder)
 	{
 		NormalizedValue = FMath::Clamp(NormalizedValue, 0.f, 1.f);

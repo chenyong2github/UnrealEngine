@@ -251,7 +251,7 @@ namespace
 		BEGIN_JSON_SERIALIZER
 			if (Serializer.IsSaving())
 			{
-				static_assert(TIsSame<decltype(RailAssetInfo.asset_id), uint64>::Value, "Change how we format asset_id");
+				static_assert(std::is_same_v<decltype(RailAssetInfo.asset_id), uint64>, "Change how we format asset_id");
 				FString AssetId = FString::Printf(TEXT("%llu"), RailAssetInfo.asset_id);
 				JSON_SERIALIZE("asset_id", AssetId);
 				JSON_SERIALIZE("product_id", RailAssetInfo.product_id);
@@ -298,8 +298,8 @@ namespace
 			FPurchaseReceipt::FLineItemInfo LineItemInfo;
 
 			const rail::RailAssetInfo& AssetInfo(AssetInfos[AssetIndex]);
-			static_assert(TIsSame<decltype(AssetInfo.product_id), uint32>::Value, "Change how we construct string from AssetInfo.product_id");
-			static_assert(TIsSame<decltype(AssetInfo.asset_id), uint64>::Value, "Change how we construct string from AssetInfo.asset_id");
+			static_assert(std::is_same_v<decltype(AssetInfo.product_id), uint32>, "Change how we construct string from AssetInfo.product_id");
+			static_assert(std::is_same_v<decltype(AssetInfo.asset_id), uint64>, "Change how we construct string from AssetInfo.asset_id");
 			LineItemInfo.ItemName = FString::Printf(TEXT("%u"), AssetInfo.product_id);
 			LineItemInfo.UniqueId = FString::Printf(TEXT("%llu"), AssetInfo.asset_id);
 			if (AssetInfo.state == rail::EnumRailAssetState::kRailAssetStateNormal)
@@ -2392,7 +2392,7 @@ void FOnlineAsyncTaskRailRequestAllPurchasableProducts::OnRailRequestAllPurchasa
 			const rail::RailPurchaseProductInfo& ProductInfo(Response->purchasable_products[Index]);
 			
 			FOnlineStoreOfferRef StoreOffer = MakeShared<FOnlineStoreOffer>();
-			static_assert(TIsSame<decltype(ProductInfo.product_id), uint32>::Value, "Change how we construct string from ProductInfo.product_id");
+			static_assert(std::is_same_v<decltype(ProductInfo.product_id), uint32>, "Change how we construct string from ProductInfo.product_id");
 			StoreOffer->OfferId = FString::Printf(TEXT("%u"), ProductInfo.product_id);
 			StoreOffer->Title = FText::FromString(LexToString(ProductInfo.name));
 			StoreOffer->Description = FText::FromString(LexToString(ProductInfo.description));

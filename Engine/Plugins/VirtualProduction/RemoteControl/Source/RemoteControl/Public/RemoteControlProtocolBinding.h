@@ -87,7 +87,7 @@ public:
 
 	/** Get Binding Range Struct Value */
 	template <typename ValueType, typename PropertyType>
-	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, ValueType>::Type
+	typename TEnableIf<std::is_same_v<FStructProperty, PropertyType>, ValueType>::Type
 	GetRangeValue()
 	{
 		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType))
@@ -105,7 +105,7 @@ public:
 
 	/** Set Binding Range Struct Value based on templated value input */
 	template <typename ValueType, typename PropertyType>
-	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, void>::Type
+	typename TEnableIf<std::is_same_v<FStructProperty, PropertyType>, void>::Type
 	SetRangeValue(ValueType InRangeValue)
 	{
 		check(InterpolationRangePropertyData.Num() && InterpolationRangePropertyData.Num() == sizeof(ValueType));
@@ -135,7 +135,7 @@ public:
 
 	/** Get Mapping Property Struct Value as a primitive type */
 	template <typename ValueType, typename PropertyType>
-	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, ValueType>::Type
+	typename TEnableIf<std::is_same_v<FStructProperty, PropertyType>, ValueType>::Type
 	GetMappingValueAsPrimitive()
 	{
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));
@@ -155,7 +155,7 @@ public:
 
 	/** Set primitive Mapping Property Struct Value based on template value input */
 	template <typename ValueType, typename PropertyType>
-	typename TEnableIf<TIsSame<FStructProperty, PropertyType>::Value, void>::Type
+	typename TEnableIf<std::is_same_v<FStructProperty, PropertyType>, void>::Type
 	SetMappingValueAsPrimitive(ValueType InMappingPropertyValue)
 	{
 		check(InterpolationMappingPropertyData.Num() && InterpolationMappingPropertyData.Num() == sizeof(ValueType));

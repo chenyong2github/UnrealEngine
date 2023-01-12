@@ -33,7 +33,7 @@ private:
 
 public:
 	constexpr FWidgetId() : Value(0) {}
-	template<typename T, typename U = typename TEnableIf<TIsSame<T, uint64>::Value>::Type>
+	template<typename T, typename U = typename TEnableIf<std::is_same_v<T, uint64>>::Type>
 	constexpr FWidgetId(T InValue) : Value(InValue) {}
 	explicit operator bool() const { return Value != 0; }
 	uint64 GetValue() const { return Value; }

@@ -371,7 +371,7 @@ namespace PCGDeterminismTests
 	{
 		check(FirstAttributeBase && SecondAttributeBase);
 
-		if constexpr (TIsSame<FTransform, MetadataAttributeType>::Value)
+		if constexpr (std::is_same_v<FTransform, MetadataAttributeType>)
 		{
 			const FTransform FirstTypedAttribute = static_cast<const FPCGMetadataAttribute<FTransform>*>(FirstAttributeBase)->GetValue(ValueKey);
 			const FTransform SecondTypedAttribute = static_cast<const FPCGMetadataAttribute<FTransform>*>(SecondAttributeBase)->GetValue(ValueKey);

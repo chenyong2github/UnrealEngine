@@ -48,7 +48,7 @@ public:
 	 * });
 	 */
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<TIsSame<TargetType, IDatasmithLevelVariantSetsElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithScene>& RootObject, Func Function)
+	static inline typename TEnableIf<std::is_same_v<TargetType, IDatasmithLevelVariantSetsElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithScene>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetLevelVariantSetsCount(); ++Index)
 		{
@@ -61,7 +61,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<!TIsSame<TargetType, IDatasmithLevelVariantSetsElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithScene>& RootObject, Func Function)
+	static inline typename TEnableIf<!std::is_same_v<TargetType, IDatasmithLevelVariantSetsElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithScene>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetLevelVariantSetsCount(); ++Index)
 		{
@@ -74,7 +74,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<TIsSame<TargetType, IDatasmithVariantSetElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithLevelVariantSetsElement>& RootObject, Func Function)
+	static inline typename TEnableIf<std::is_same_v<TargetType, IDatasmithVariantSetElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithLevelVariantSetsElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetVariantSetsCount(); ++Index)
 		{
@@ -87,7 +87,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<!TIsSame<TargetType, IDatasmithVariantSetElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithLevelVariantSetsElement>& RootObject, Func Function)
+	static inline typename TEnableIf<!std::is_same_v<TargetType, IDatasmithVariantSetElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithLevelVariantSetsElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetVariantSetsCount(); ++Index)
 		{
@@ -101,7 +101,7 @@ public:
 	}
 
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<TIsSame<TargetType, IDatasmithVariantElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantSetElement>& RootObject, Func Function)
+	static inline typename TEnableIf<std::is_same_v<TargetType, IDatasmithVariantElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantSetElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetVariantsCount(); ++Index)
 		{
@@ -114,7 +114,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<!TIsSame<TargetType, IDatasmithVariantElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantSetElement>& RootObject, Func Function)
+	static inline typename TEnableIf<!std::is_same_v<TargetType, IDatasmithVariantElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantSetElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetVariantsCount(); ++Index)
 		{
@@ -127,7 +127,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<TIsSame<TargetType, IDatasmithActorBindingElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantElement>& RootObject, Func Function)
+	static inline typename TEnableIf<std::is_same_v<TargetType, IDatasmithActorBindingElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetActorBindingsCount(); ++Index)
 		{
@@ -140,7 +140,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<!TIsSame<TargetType, IDatasmithActorBindingElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantElement>& RootObject, Func Function)
+	static inline typename TEnableIf<!std::is_same_v<TargetType, IDatasmithActorBindingElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithVariantElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetActorBindingsCount(); ++Index)
 		{
@@ -153,7 +153,7 @@ public:
 		return true;
 	}
 	template<typename TargetType, typename Func>
-	static inline typename TEnableIf<TIsSame<TargetType, IDatasmithBasePropertyCaptureElement>::Value, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithActorBindingElement>& RootObject, Func Function)
+	static inline typename TEnableIf<std::is_same_v<TargetType, IDatasmithBasePropertyCaptureElement>, bool>::Type ForVariantElement(const TSharedPtr<IDatasmithActorBindingElement>& RootObject, Func Function)
 	{
 		for (int32 Index = 0; Index < RootObject->GetPropertyCapturesCount(); ++Index)
 		{
