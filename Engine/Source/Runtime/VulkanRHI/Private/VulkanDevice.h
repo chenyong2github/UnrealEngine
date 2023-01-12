@@ -294,6 +294,12 @@ public:
 		return GpuSubgroupProps;
 	}
 
+	inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT& GetDescriptorBufferProperties() const
+	{
+		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
+		return DescriptorBufferProps;
+	}
+
 #if VULKAN_RHI_RAYTRACING
 	inline const FRayTracingProperties& GetRayTracingProperties() const
 	{
@@ -560,8 +566,10 @@ private:
 	TArray<VkPhysicalDeviceFragmentShadingRateKHR> FragmentShadingRates;
 #endif
 
+	// Extension specific properties
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
 	VkPhysicalDeviceSubgroupProperties GpuSubgroupProps;
+	VkPhysicalDeviceDescriptorBufferPropertiesEXT DescriptorBufferProps;
 
 #if VULKAN_RHI_RAYTRACING
 	FRayTracingProperties RayTracingProperties;

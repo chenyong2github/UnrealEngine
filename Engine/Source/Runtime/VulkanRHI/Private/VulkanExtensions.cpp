@@ -1040,6 +1040,69 @@ public:
 };
 
 
+// ***** VK_EXT_descriptor_buffer
+class FVulkanEXTDescriptorBuffer : public FVulkanDeviceExtension
+{
+public:
+	FVulkanEXTDescriptorBuffer(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED)
+	{
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(DescriptorBufferFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT);
+		AddToPNext(PhysicalDeviceFeatures2, DescriptorBufferFeatures);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		// only enable descriptor buffers if we also support mutable descriptor types (value filled prior)
+		bSupportsDescriptorBuffer = (DescriptorBufferFeatures.descriptorBuffer == VK_TRUE);
+		ExtensionFlags.HasEXTDescriptorBuffer = bSupportsDescriptorBuffer ? 1 : 0;
+	}
+
+	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
+	{
+		if (bSupportsDescriptorBuffer)
+		{
+			VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = const_cast<VkPhysicalDeviceDescriptorBufferPropertiesEXT&>(Device->GetDescriptorBufferProperties());
+			ZeroVulkanStruct(DescriptorBufferProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT);
+			AddToPNext(PhysicalDeviceProperties2, DescriptorBufferProperties);
+		}
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		if (bSupportsDescriptorBuffer)
+		{
+			AddToPNext(DeviceCreateInfo, DescriptorBufferFeatures);
+
+			VkPhysicalDeviceDescriptorBufferPropertiesEXT& DescriptorBufferProperties = const_cast<VkPhysicalDeviceDescriptorBufferPropertiesEXT&>(Device->GetDescriptorBufferProperties());
+
+			UE_LOG(LogVulkanRHI, Display, TEXT("Enabling Vulkan Descriptor Buffers with: ")
+				TEXT("allowSamplerImageViewPostSubmitCreation=%u, maxDescriptorBufferBindings=%u, ")
+				TEXT("maxSamplerDescriptorBufferBindings=%u, maxResourceDescriptorBufferBindings=%u, ")
+				TEXT("samplerDescriptorBufferAddressSpaceSize=%llu, resourceDescriptorBufferAddressSpaceSize=%llu, ")
+				TEXT("maxSamplerDescriptorBufferRange=%llu, maxResourceDescriptorBufferRange=%llu, ")
+				TEXT("descriptorBufferAddressSpaceSize=%llu, descriptorBufferOffsetAlignment=%llu, ")
+				TEXT("samplerDescriptorSize=%llu"),
+				DescriptorBufferProperties.allowSamplerImageViewPostSubmitCreation, DescriptorBufferProperties.maxDescriptorBufferBindings,
+				DescriptorBufferProperties.maxSamplerDescriptorBufferBindings, DescriptorBufferProperties.maxResourceDescriptorBufferBindings,
+				DescriptorBufferProperties.samplerDescriptorBufferAddressSpaceSize, DescriptorBufferProperties.resourceDescriptorBufferAddressSpaceSize,
+				DescriptorBufferProperties.maxSamplerDescriptorBufferRange, DescriptorBufferProperties.maxResourceDescriptorBufferRange,
+				DescriptorBufferProperties.descriptorBufferAddressSpaceSize, DescriptorBufferProperties.descriptorBufferOffsetAlignment,
+				DescriptorBufferProperties.samplerDescriptorSize);
+		}
+	}
+
+private:
+	VkPhysicalDeviceDescriptorBufferFeaturesEXT DescriptorBufferFeatures;
+	bool bSupportsDescriptorBuffer = false;
+};
+
+
+
 
 template <typename ExtensionType>
 static void FlagExtensionSupport(const TArray<VkExtensionProperties>& ExtensionProperties, TArray<TUniquePtr<ExtensionType>>& UEExtensions, const TCHAR* ExtensionTypeName)
@@ -1115,6 +1178,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanEXTHostQueryResetExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTSubgroupSizeControlExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTCalibratedTimestampsExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanEXTDescriptorBuffer);
 
 	// Needed for Raytracing
 	ADD_CUSTOM_EXTENSION(FVulkanKHRBufferDeviceAddressExtension);

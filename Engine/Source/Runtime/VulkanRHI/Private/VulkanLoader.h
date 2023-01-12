@@ -208,7 +208,12 @@
 	EnumMacro(PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT, vkGetPhysicalDeviceCalibrateableTimeDomainsEXT) \
 	EnumMacro(PFN_vkGetCalibratedTimestampsEXT, vkGetCalibratedTimestampsEXT) \
 	EnumMacro(PFN_vkBindBufferMemory2KHR, vkBindBufferMemory2KHR) \
-	EnumMacro(PFN_vkBindImageMemory2KHR, vkBindImageMemory2KHR)
+	EnumMacro(PFN_vkBindImageMemory2KHR, vkBindImageMemory2KHR) \
+	EnumMacro(PFN_vkGetDescriptorSetLayoutSizeEXT, vkGetDescriptorSetLayoutSizeEXT) \
+	EnumMacro(PFN_vkGetDescriptorSetLayoutBindingOffsetEXT, vkGetDescriptorSetLayoutBindingOffsetEXT) \
+	EnumMacro(PFN_vkCmdBindDescriptorBuffersEXT, vkCmdBindDescriptorBuffersEXT) \
+	EnumMacro(PFN_vkCmdSetDescriptorBufferOffsetsEXT, vkCmdSetDescriptorBufferOffsetsEXT) \
+	EnumMacro(PFN_vkGetDescriptorEXT, vkGetDescriptorEXT)
 
 
 // List of all Vulkan entry points

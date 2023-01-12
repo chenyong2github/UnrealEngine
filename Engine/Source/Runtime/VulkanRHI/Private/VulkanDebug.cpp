@@ -4373,7 +4373,7 @@ void FWrapLayer::GetBufferDeviceAddressKHR(VkResult Result, VkDevice Device, con
 	if (Result == VK_RESULT_MAX_ENUM)
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
-		PrintfBeginResult(FString::Printf(TEXT("vkGetBufferDeviceAddressKHR")));
+		PrintfBeginResult(FString::Printf(TEXT("vkGetBufferDeviceAddressKHR(Device=0x%p, Buffer=0x%p)"), Device, Info->buffer));
 #endif
 	}
 	else
@@ -4447,7 +4447,7 @@ void FWrapLayer::ResetQueryPoolEXT(VkResult Result, VkDevice Device, VkQueryPool
 	}
 }
 
-void FWrapLayer::GetPhysicalDeviceCalibrateableTimeDomainsEXT(VkPhysicalDevice PhysicalDevice, uint32_t* TimeDomainCount, VkTimeDomainEXT* TimeDomains)
+void FWrapLayer::GetPhysicalDeviceCalibrateableTimeDomainsEXT(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32_t* TimeDomainCount, VkTimeDomainEXT* TimeDomains)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
 	{
@@ -4483,6 +4483,65 @@ void FWrapLayer::BindImageMemory2KHR(VkResult Result, VkDevice Device, uint32_t 
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
 		PrintfBeginResult(FString::Printf(TEXT("BindImageMemory2KHR(Device=0x%p, BindInfoCount=%u)"), Device, BindInfoCount));
+#endif
+	}
+}
+
+void FWrapLayer::GetDescriptorSetLayoutSizeEXT(VkResult Result, VkDevice Device, VkDescriptorSetLayout Layout, VkDeviceSize* OutLayoutSizeInBytes)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("GetDescriptorSetLayoutSizeEXT(Device=0x%p, Layout=0x%p)"), Device, Layout));
+#endif
+	}
+}
+
+void FWrapLayer::GetDescriptorSetLayoutBindingOffsetEXT(VkResult Result, VkDevice Device, VkDescriptorSetLayout Layout, uint32_t Binding, VkDeviceSize* Offset)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("GetDescriptorSetLayoutBindingOffsetEXT(Device=0x%p, Layout=0x%p)"), Device, Layout));
+#endif
+	}
+}
+
+void FWrapLayer::CmdBindDescriptorBuffersEXT(VkResult Result, VkCommandBuffer CommandBuffer, uint32_t BufferCount, const VkDescriptorBufferBindingInfoEXT* BindingInfos)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("CmdBindDescriptorBuffersEXT(CommandBuffer=0x%p, BufferCount=%u)"), CommandBuffer, BufferCount));
+		for (uint32_t Index = 0; Index  < BufferCount; ++Index)
+		{
+			DebugLog += FString::Printf(TEXT("%s%d - Address=0x%p Usage=0x%X\n"), Tabs, Index, BindingInfos[Index].address, BindingInfos[Index].usage);
+		}
+#endif
+	}
+}
+
+void FWrapLayer::CmdSetDescriptorBufferOffsetsEXT(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipelineLayout Layout, uint32_t FirstSet, uint32_t SetCount, const uint32_t* BufferIndices, const VkDeviceSize* Offsets)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("CmdSetDescriptorBufferOffsetsEXT(CommandBuffer=0x%p, BindPoint=%s, PipelineLayout=0x%p, FirstSet=%u, SetCount=%u)"), 
+			CommandBuffer, VK_TYPE_TO_STRING(VkPipelineBindPoint, PipelineBindPoint), Layout, FirstSet, SetCount));
+		for (uint32_t Index = 0; Index < SetCount; ++Index)
+		{
+			DebugLog += FString::Printf(TEXT("%sSet %u - BufferIndex=%u Offset=%llu\n"), Tabs, FirstSet + Index, BufferIndices[Index], Offsets[Index]);
+		}
+#endif
+	}
+}
+
+void FWrapLayer::GetDescriptorEXT(VkResult Result, VkDevice Device, const VkDescriptorGetInfoEXT* DescriptorInfo, size_t DataSize, void* Descriptor)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("GetDescriptorEXT(Device=0x%p, DataSize=%llu DescriptorType=%s)"), Device, DataSize, VK_TYPE_TO_STRING(VkDescriptorType, DescriptorInfo->type)));
 #endif
 	}
 }
