@@ -20,7 +20,6 @@ using Jupiter.Implementation.Blob;
 using Jupiter.Implementation.LeaderElection;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation.TransactionLog;
-using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,7 +57,7 @@ namespace Jupiter
         {
             services.AddHttpClient(Options.DefaultName, (provider, client) =>
             {
-                string GetPlatformName()
+                static string GetPlatformName()
                 {
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     {
@@ -296,6 +295,10 @@ namespace Jupiter
                 .WithExecutionProfiles(options =>
                     options.WithProfile("default", builder => builder.WithConsistencyLevel(ConsistencyLevel.LocalOne)));
 
+            if (settings.ReadTimeout != -1)
+            {
+                clusterBuilder.SocketOptions.SetReadTimeoutMillis(settings.ReadTimeout);
+            }
             if (settings.UseAzureCosmosDB)
             {
                 CassandraConnectionStringBuilder connectionStringBuilder = new CassandraConnectionStringBuilder(connectionString);

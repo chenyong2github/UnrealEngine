@@ -59,6 +59,12 @@ public class ScyllaSettings : IValidatableObject
     public bool UseSSL { get; set; } = true;
 
     /// <summary>
+    /// Read timeout in milliseconds
+    /// Set to -1 to get the default timeout, set to 0 to disable timeouts
+    /// </summary>
+    public int ReadTimeout { get; set; } = 2000; // timeout after 2 seconds
+
+    /// <summary>
     /// Enable to scan database per shard, this requires setting more information about your cluster
     /// </summary>
     public bool UsePerShardScanning { get; set; } = false;
