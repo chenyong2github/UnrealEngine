@@ -540,7 +540,6 @@ namespace Horde.Build.Issues
 					AcknowledgedAt = issue.AcknowledgedAt,
 					CreatedAt = issue.CreatedAt,
 					OwnerId = issue.OwnerId,
-					Fingerprints = issue.Fingerprints,
 					FixChange = issue.FixChange,
 					LastSeenAt = issue.LastSeenAt,
 					NominatedAt = issue.NominatedAt,
