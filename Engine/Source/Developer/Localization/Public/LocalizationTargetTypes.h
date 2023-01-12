@@ -6,7 +6,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
-#include "Engine/EngineTypes.h"
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
 #include "Misc/AssertionMacros.h"
