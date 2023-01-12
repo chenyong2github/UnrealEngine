@@ -24,6 +24,7 @@
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "ObjectTools.h"
 #else
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #endif
 

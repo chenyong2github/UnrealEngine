@@ -22,6 +22,8 @@
 #include "RendererInterface.h"
 #include "TextureCompiler.h"
 #include "ObjectTools.h"
+#else
+#include "Engine/World.h"
 #endif
 
 namespace ThumbnailGeneratorImpl

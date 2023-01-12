@@ -9,6 +9,8 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#else
+#include "UObject/Package.h"
 #endif // WITH_EDITOR
 
 FDelegateHandle FTraceWorldFiltering::WorldInitHandle;
