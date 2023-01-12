@@ -120,7 +120,7 @@ public:
 	 *
 	 * @returns Size in bytes of array type.
 	 */
-	uint32 GetTypeSize() const
+	static constexpr uint32 GetTypeSize()
 	{
 		return sizeof(T*);
 	}

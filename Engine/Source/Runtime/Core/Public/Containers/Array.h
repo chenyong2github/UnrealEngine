@@ -700,7 +700,7 @@ public:
 	 *
 	 * @returns Size in bytes of array type.
 	 */
-	FORCEINLINE uint32 GetTypeSize() const
+	FORCEINLINE static constexpr uint32 GetTypeSize()
 	{
 		return sizeof(ElementType);
 	}
