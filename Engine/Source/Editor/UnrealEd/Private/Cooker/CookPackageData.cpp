@@ -1662,9 +1662,10 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 		GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect() &&
 		(ReleaseSaveReason == EReleaseSaveReason::Demoted || ReleaseSaveReason == EReleaseSaveReason::RecreateObjectCache))
 	{
-		UE_LOG(LogCook, Error, TEXT("CookPackageSplitter failure: We are demoting a generated package from save and removing our references that keep its objects loaded.\n")
+		UE_LOG(LogCook, Error, TEXT("CookPackageSplitter failure: We are demoting a %s package from save and removing our references that keep its objects loaded.\n")
 			TEXT("This will allow the objects to be garbage collected and cause failures in the splitter which expects them to remain loaded.\n")
 			TEXT("Package=%s, Splitter=%s, ReleaseSaveReason=%s"),
+			Info.IsGenerator() ? TEXT("generator") : TEXT("generated"),
 			Info.PackageData ? *Info.PackageData->GetPackageName().ToString() : *Info.RelativePath,
 			*GetSplitDataObjectName().ToString(), LexToString(ReleaseSaveReason));
 	}

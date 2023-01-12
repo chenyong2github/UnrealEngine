@@ -9584,7 +9584,8 @@ void UCookOnTheFlyServer::GetPackagesToRetract(int32 NumToRetract, TArray<FName>
 			return true;
 		}
 
-		if (PackageData->GetWorkerAssignmentConstraint().IsValid() || PackageData->IsGenerated())
+		if (PackageData->GetWorkerAssignmentConstraint().IsValid() || PackageData->IsGenerated() ||
+			PackageData->GetGeneratorPackage())
 		{
 			// Don't send back Packages that are constrained to this worker. Doing so will just
 			// cause the CookDirector to send it back to us, and this can cause the cooker to crash
