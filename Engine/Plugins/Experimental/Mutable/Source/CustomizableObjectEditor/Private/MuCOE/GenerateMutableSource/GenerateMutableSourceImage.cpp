@@ -175,6 +175,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 		TextureNode->SetName(TCHAR_TO_ANSI(*TypedNodeParam->ParameterName));
 		TextureNode->SetUid(TCHAR_TO_ANSI(*GenerationContext.GetNodeIdUnique(Node).ToString()));
+		
 		if (NodeRange)
 		{
 			TextureNode->SetRangeCount(1);
@@ -203,8 +204,6 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		}
 		FormatNode->SetSource(TextureNode);
 
-		
-
 		mu::NodeImageResizePtr ResizeNode = new mu::NodeImageResize();
 		ResizeNode->SetBase(FormatNode);
 		ResizeNode->SetRelative(false);
@@ -212,19 +211,16 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		const UTexture2D* ReferenceTexture = TypedNodeParam->DefaultValue;
 		if (ReferenceTexture)
 		{
-			const int32 LODBias = ComputeLODBias(GenerationContext, ReferenceTexture, MaxTextureSize, nullptr, INDEX_NONE);
-
-			int32 Width = MaxTextureSize > 0 ? FMath::Min(MaxTextureSize, ReferenceTexture->GetImportedSize().X) : ReferenceTexture->GetImportedSize().X;
-			int32 Height = MaxTextureSize > 0 ? FMath::Min(MaxTextureSize, ReferenceTexture->GetImportedSize().Y) : ReferenceTexture->GetImportedSize().Y;
-			Width = Width >> LODBias;
-			Height = Height >> LODBias;
-
-			ResizeNode->SetSize(FMath::Max(Width,1), FMath::Max(Height, 1));
+			ResizeNode->SetSize(FMath::Max(ReferenceTexture->GetImportedSize().X,1), FMath::Max(ReferenceTexture->GetImportedSize().X, 1));
 		}
 		else
 		{
-			// \TODO: Let the user specify this in the node?
-			ResizeNode->SetSize(1024, 1024);
+			if (TypedNodeParam->TextureSizeX <= 0 || TypedNodeParam->TextureSizeY <= 0)
+			{
+				GenerationContext.Compiler->CompilerLog(LOCTEXT("TextureParameterSize0", "Texture size not specified. Add a reference texture or set a valid value to the Texture Size variables."), Node);
+			}
+
+			ResizeNode->SetSize(FMath::Max(TypedNodeParam->TextureSizeX, 1), FMath::Max(TypedNodeParam->TextureSizeY, 1));
 		}
 
 		Result = ResizeNode;
@@ -579,7 +575,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		// Calculating Texture size using Reference texture parameters
 		if (TypedNodeProject->ReferenceTexture)
 		{
-			int32 LODBias = ComputeLODBias(GenerationContext, TypedNodeProject->ReferenceTexture, TypedNodeProject->ReferenceTexture->MaxTextureSize, nullptr, INDEX_NONE);
+			int32 LODBias = ComputeLODBias(GenerationContext, TypedNodeProject->ReferenceTexture, TypedNodeProject->ReferenceTexture->MaxTextureSize, nullptr, INDEX_NONE, false);
 
 			if (TextureSize.X > 0 && TextureSize.Y > 0)
 			{
