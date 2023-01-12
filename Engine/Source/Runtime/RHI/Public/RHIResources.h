@@ -31,6 +31,8 @@
 #include "Misc/CoreDelegates.h"
 #include "RHIFwd.h"
 #include "RHIImmutableSamplerState.h"
+#include "RHITransition.h"
+#include "MultiGPU.h"
 
 class FRHIComputeCommandList;
 class FRHICommandListImmediate;
@@ -231,6 +233,194 @@ private:
 		TArray<FRHIResource*>	Resources;
 		uint32					FrameDeleted{};
 	};
+};
+
+enum class EClearBinding
+{
+	ENoneBound, //no clear color associated with this target.  Target will not do hardware clears on most platforms
+	EColorBound, //target has a clear color bound.  Clears will use the bound color, and do hardware clears.
+	EDepthStencilBound, //target has a depthstencil value bound.  Clears will use the bound values and do hardware clears.
+};
+
+struct FClearValueBinding
+{
+	struct DSVAlue
+	{
+		float Depth;
+		uint32 Stencil;
+	};
+
+	FClearValueBinding()
+		: ColorBinding(EClearBinding::EColorBound)
+	{
+		Value.Color[0] = 0.0f;
+		Value.Color[1] = 0.0f;
+		Value.Color[2] = 0.0f;
+		Value.Color[3] = 0.0f;
+	}
+
+	FClearValueBinding(EClearBinding NoBinding)
+		: ColorBinding(NoBinding)
+	{
+		check(ColorBinding == EClearBinding::ENoneBound);
+	}
+
+	explicit FClearValueBinding(const FLinearColor& InClearColor)
+		: ColorBinding(EClearBinding::EColorBound)
+	{
+		Value.Color[0] = InClearColor.R;
+		Value.Color[1] = InClearColor.G;
+		Value.Color[2] = InClearColor.B;
+		Value.Color[3] = InClearColor.A;
+	}
+
+	explicit FClearValueBinding(float DepthClearValue, uint32 StencilClearValue = 0)
+		: ColorBinding(EClearBinding::EDepthStencilBound)
+	{
+		Value.DSValue.Depth = DepthClearValue;
+		Value.DSValue.Stencil = StencilClearValue;
+	}
+
+	FLinearColor GetClearColor() const
+	{
+		ensure(ColorBinding == EClearBinding::EColorBound);
+		return FLinearColor(Value.Color[0], Value.Color[1], Value.Color[2], Value.Color[3]);
+	}
+
+	void GetDepthStencil(float& OutDepth, uint32& OutStencil) const
+	{
+		ensure(ColorBinding == EClearBinding::EDepthStencilBound);
+		OutDepth = Value.DSValue.Depth;
+		OutStencil = Value.DSValue.Stencil;
+	}
+
+	bool operator==(const FClearValueBinding& Other) const
+	{
+		if (ColorBinding == Other.ColorBinding)
+		{
+			if (ColorBinding == EClearBinding::EColorBound)
+			{
+				return
+					Value.Color[0] == Other.Value.Color[0] &&
+					Value.Color[1] == Other.Value.Color[1] &&
+					Value.Color[2] == Other.Value.Color[2] &&
+					Value.Color[3] == Other.Value.Color[3];
+
+			}
+			if (ColorBinding == EClearBinding::EDepthStencilBound)
+			{
+				return
+					Value.DSValue.Depth == Other.Value.DSValue.Depth &&
+					Value.DSValue.Stencil == Other.Value.DSValue.Stencil;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	friend inline uint32 GetTypeHash(FClearValueBinding const& Binding)
+	{
+		uint32 Hash = GetTypeHash(Binding.ColorBinding);
+
+		if (Binding.ColorBinding == EClearBinding::EColorBound)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Binding.Value.Color[0]));
+			Hash = HashCombine(Hash, GetTypeHash(Binding.Value.Color[1]));
+			Hash = HashCombine(Hash, GetTypeHash(Binding.Value.Color[2]));
+			Hash = HashCombine(Hash, GetTypeHash(Binding.Value.Color[3]));
+		}
+		else if (Binding.ColorBinding == EClearBinding::EDepthStencilBound)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Binding.Value.DSValue.Depth  ));
+			Hash = HashCombine(Hash, GetTypeHash(Binding.Value.DSValue.Stencil));
+		}
+
+		return Hash;
+	}
+
+	EClearBinding ColorBinding;
+
+	union ClearValueType
+	{
+		float Color[4];
+		DSVAlue DSValue;
+	} Value;
+
+	// common clear values
+	static RHI_API const FClearValueBinding None;
+	static RHI_API const FClearValueBinding Black;
+	static RHI_API const FClearValueBinding BlackMaxAlpha;
+	static RHI_API const FClearValueBinding White;
+	static RHI_API const FClearValueBinding Transparent;
+	static RHI_API const FClearValueBinding DepthOne;
+	static RHI_API const FClearValueBinding DepthZero;
+	static RHI_API const FClearValueBinding DepthNear;
+	static RHI_API const FClearValueBinding DepthFar;	
+	static RHI_API const FClearValueBinding Green;
+	static RHI_API const FClearValueBinding DefaultNormal8Bit;
+};
+
+class FResourceBulkDataInterface;
+class FResourceArrayInterface;
+
+struct FRHIResourceCreateInfo
+{
+	FRHIResourceCreateInfo(const TCHAR* InDebugName)
+		: BulkData(nullptr)
+		, ResourceArray(nullptr)
+		, ClearValueBinding(FLinearColor::Transparent)
+		, GPUMask(FRHIGPUMask::All())
+		, bWithoutNativeResource(false)
+		, DebugName(InDebugName)
+		, ExtData(0)
+	{
+		check(InDebugName);
+	}
+
+	// for CreateTexture calls
+	FRHIResourceCreateInfo(const TCHAR* InDebugName, FResourceBulkDataInterface* InBulkData)
+		: FRHIResourceCreateInfo(InDebugName)
+	{
+		BulkData = InBulkData;
+	}
+
+	// for CreateBuffer calls
+	FRHIResourceCreateInfo(const TCHAR* InDebugName, FResourceArrayInterface* InResourceArray)
+		: FRHIResourceCreateInfo(InDebugName)
+	{
+		ResourceArray = InResourceArray;
+	}
+
+	FRHIResourceCreateInfo(const TCHAR* InDebugName, const FClearValueBinding& InClearValueBinding)
+		: FRHIResourceCreateInfo(InDebugName)
+	{
+		ClearValueBinding = InClearValueBinding;
+	}
+
+	FRHIResourceCreateInfo(uint32 InExtData)
+		: FRHIResourceCreateInfo(TEXT(""))
+	{
+		ExtData = InExtData;
+	}
+
+	// for CreateTexture calls
+	FResourceBulkDataInterface* BulkData;
+
+	// for CreateBuffer calls
+	FResourceArrayInterface* ResourceArray;
+
+	// for binding clear colors to render targets.
+	FClearValueBinding ClearValueBinding;
+
+	// set of GPUs on which to create the resource
+	FRHIGPUMask GPUMask;
+
+	// whether to create an RHI object with no underlying resource
+	bool bWithoutNativeResource;
+	const TCHAR* DebugName;
+
+	// optional data that would have come from an offline cooker or whatever - general purpose
+	uint32 ExtData;
 };
 
 class FExclusiveDepthStencil
@@ -3680,6 +3870,97 @@ inline ERenderTargetActions GetStencilActions(EDepthStencilTargetActions Action)
 {
 	return (ERenderTargetActions)((uint8)Action & ((1 << (uint8)EDepthStencilTargetActions::DepthMask) - 1));
 }
+
+struct FResolveRect
+{
+	int32 X1;
+	int32 Y1;
+	int32 X2;
+	int32 Y2;
+
+	// e.g. for a a full 256 x 256 area starting at (0, 0) it would be 
+	// the values would be 0, 0, 256, 256
+	FResolveRect(int32 InX1 = -1, int32 InY1 = -1, int32 InX2 = -1, int32 InY2 = -1)
+		: X1(InX1)
+		, Y1(InY1)
+		, X2(InX2)
+		, Y2(InY2)
+	{}
+
+	FResolveRect(const FResolveRect& Other)
+		: X1(Other.X1)
+		, Y1(Other.Y1)
+		, X2(Other.X2)
+		, Y2(Other.Y2)
+	{}
+
+	explicit FResolveRect(FIntRect Other)
+		: X1(Other.Min.X)
+		, Y1(Other.Min.Y)
+		, X2(Other.Max.X)
+		, Y2(Other.Max.Y)
+	{}
+
+	bool operator==(FResolveRect Other) const
+	{
+		return X1 == Other.X1 && Y1 == Other.Y1 && X2 == Other.X2 && Y2 == Other.Y2;
+	}
+
+	bool operator!=(FResolveRect Other) const
+	{
+		return !(*this == Other);
+	}
+
+	bool IsValid() const
+	{
+		return X1 >= 0 && Y1 >= 0 && X2 - X1 > 0 && Y2 - Y1 > 0;
+	}
+};
+
+struct FResolveParams
+{
+	/** used to specify face when resolving to a cube map texture */
+	ECubeFace CubeFace;
+	/** resolve RECT bounded by [X1,Y1]..[X2,Y2]. Or -1 for fullscreen */
+	FResolveRect Rect;
+	FResolveRect DestRect;
+	/** The mip index to resolve in both source and dest. */
+	int32 MipIndex;
+	/** Array index to resolve in the source. */
+	int32 SourceArrayIndex;
+	/** Array index to resolve in the dest. */
+	int32 DestArrayIndex;
+	/** States to transition to at the end of the resolve operation. */
+	ERHIAccess SourceAccessFinal = ERHIAccess::SRVMask;
+	ERHIAccess DestAccessFinal = ERHIAccess::SRVMask;
+
+	/** constructor */
+	FResolveParams(
+		const FResolveRect& InRect = FResolveRect(),
+		ECubeFace InCubeFace = CubeFace_PosX,
+		int32 InMipIndex = 0,
+		int32 InSourceArrayIndex = 0,
+		int32 InDestArrayIndex = 0,
+		const FResolveRect& InDestRect = FResolveRect())
+		: CubeFace(InCubeFace)
+		, Rect(InRect)
+		, DestRect(InDestRect)
+		, MipIndex(InMipIndex)
+		, SourceArrayIndex(InSourceArrayIndex)
+		, DestArrayIndex(InDestArrayIndex)
+	{}
+
+	FORCEINLINE FResolveParams(const FResolveParams& Other)
+		: CubeFace(Other.CubeFace)
+		, Rect(Other.Rect)
+		, DestRect(Other.DestRect)
+		, MipIndex(Other.MipIndex)
+		, SourceArrayIndex(Other.SourceArrayIndex)
+		, DestArrayIndex(Other.DestArrayIndex)
+		, SourceAccessFinal(Other.SourceAccessFinal)
+		, DestAccessFinal(Other.DestAccessFinal)
+	{}
+};
 
 struct FRHIRenderPassInfo
 {

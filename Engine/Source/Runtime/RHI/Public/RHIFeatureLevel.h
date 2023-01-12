@@ -106,18 +106,9 @@ private:
 using FStaticFeatureLevel = FGenericStaticFeatureLevel;
 #endif
 
-
-/** Finds a corresponding ERHIFeatureLevel::Type given an FName, or returns false if one could not be found. */
-extern RHI_API bool GetFeatureLevelFromName(FName Name, ERHIFeatureLevel::Type& OutFeatureLevel);
-
-/** Creates a string for the given feature level. */
-extern RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FString& OutName);
-
-/** Creates an FName for the given feature level. */
-extern RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FName& OutName);
-
-/** Stringifies ERHIFeatureLevel */
-extern RHI_API FString LexToString(ERHIFeatureLevel::Type Level);
-
 // The maximum feature level available on this system
 extern RHI_API ERHIFeatureLevel::Type GMaxRHIFeatureLevel;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "RHIStrings.h"
+#endif

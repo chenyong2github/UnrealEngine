@@ -161,13 +161,6 @@ private:
 	}
 };
 
-RHI_API FName LegacyShaderPlatformToShaderFormat(EShaderPlatform Platform);
-RHI_API EShaderPlatform ShaderFormatToLegacyShaderPlatform(FName ShaderFormat);
-RHI_API FName ShaderPlatformToPlatformName(EShaderPlatform Platform);
-
-/** Stringifies EShaderPlatform */
-extern RHI_API FString LexToString(EShaderPlatform Platform, bool bError = true);
-
 // The maximum shader platform available on this system
 extern RHI_API EShaderPlatform GMaxRHIShaderPlatform;
 
@@ -176,3 +169,6 @@ inline bool IsCustomPlatform(const FStaticShaderPlatform Platform)
 	return (Platform >= SP_CUSTOM_PLATFORM_FIRST && Platform < SP_CUSTOM_PLATFORM_LAST);
 }
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "RHIStrings.h"
+#endif

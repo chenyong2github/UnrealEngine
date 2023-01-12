@@ -9,6 +9,9 @@
 // HEADER_UNIT_SKIP - Should always be included through RHI.h (this code needs cleanup.. this file is included in the middle of RHI.h)
 
 #include "Experimental/ConcurrentLinearAllocator.h"
+#include "PixelFormat.h"
+#include "RHIPipeline.h"
+#include "RHIStrings.h"
 
 #if ENABLE_RHI_VALIDATION
 extern RHI_API bool GRHIValidationEnabled;
@@ -19,11 +22,12 @@ const bool GRHIValidationEnabled = false;
 #if ENABLE_RHI_VALIDATION
 
 class FRHIUniformBuffer;
+class FValidationComputeContext;
+class FValidationContext;
 class FValidationRHI;
-struct FRHITextureCreateDesc;
 
-// Forward declaration of function defined in RHIUtilities.h
-static inline bool IsStencilFormat(EPixelFormat Format);
+struct FRHITextureCreateDesc;
+struct FRHITransitionInfo;
 
 namespace RHIValidation
 {
@@ -35,25 +39,6 @@ namespace RHIValidation
 		void Reset();
 		void ValidateSetShaderUniformBuffer(FRHIUniformBuffer* UniformBuffer);
 	};
-
-	static bool IsValidCopyFormat(EPixelFormat SourceFormat, EPixelFormat DestFormat)
-	{
-		if (SourceFormat == DestFormat)
-		{
-			return true;
-		}
-		// Acceptable conversions follow. Add more as required.
-		if (SourceFormat == PF_R32G32_UINT && (DestFormat == PF_DXT1 || DestFormat == PF_BC4))
-		{
-			return true;
-		}
-		if (SourceFormat == PF_R32G32B32A32_UINT && (DestFormat == PF_DXT3 || DestFormat == PF_DXT5 || DestFormat == PF_BC5 || DestFormat == PF_BC7))
-		{
-			return true;
-		}
-		// No valid conversion found
-		return false;
-	}
 
 	class  FTracker;
 	class  FResource;
@@ -398,7 +383,7 @@ namespace RHIValidation
 	public:
 	};
 
-	class FTextureResource
+	class RHI_API FTextureResource
 	{
 	private:
 		// Don't use inheritance here. Because FRHITextureReferences exist, we have to
@@ -407,7 +392,7 @@ namespace RHIValidation
 
 	public:
 		FTextureResource() = default;
-		RHI_API FTextureResource(FRHITextureCreateDesc const& CreateDesc);
+		FTextureResource(FRHITextureCreateDesc const& CreateDesc);
 
 		virtual ~FTextureResource() {}
 
@@ -422,104 +407,10 @@ namespace RHIValidation
 			return const_cast<FTextureResource*>(this)->GetTrackerResource()->IsBarrierTrackingInitialized();
 		}
 
-		inline void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName)
-		{
-			FResource* Resource = GetTrackerResource();
-			if (!Resource)
-				return;
+		void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName);
 
-			int32 InNumPlanes = 1;
-
-			// @todo: htile tracking
-			if (IsStencilFormat(PixelFormat))
-			{
-				InNumPlanes = 2; // Depth + Stencil
-			}
-			else
-			{
-				InNumPlanes = 1; // Depth only
-			}
-
-			Resource->InitBarrierTracking(InNumMips, InNumArraySlices, InNumPlanes, InResourceState, InDebugName);
-		}
-
-		inline FResourceIdentity GetViewIdentity(uint32 InMipIndex, uint32 InNumMips, uint32 InArraySlice, uint32 InNumArraySlices, uint32 InPlaneIndex, uint32 InNumPlanes)
-		{
-			FResource* Resource = GetTrackerResource();
-
-			checkSlow((InMipIndex + InNumMips) <= Resource->NumMips);
-			checkSlow((InArraySlice + InNumArraySlices) <= Resource->NumArraySlices);
-			checkSlow((InPlaneIndex + InNumPlanes) <= Resource->NumPlanes);
-
-			if (InNumMips == 0)
-			{
-				InNumMips = Resource->NumMips;
-			}
-			if (InNumArraySlices == 0)
-			{
-				InNumArraySlices = Resource->NumArraySlices;
-			}
-			if (InNumPlanes == 0)
-			{
-				InNumPlanes = Resource->NumPlanes;
-			}
-
-			FResourceIdentity Identity;
-			Identity.Resource = Resource;
-			Identity.SubresourceRange.MipIndex = InMipIndex;
-			Identity.SubresourceRange.NumMips = InNumMips;
-			Identity.SubresourceRange.ArraySlice = InArraySlice;
-			Identity.SubresourceRange.NumArraySlices = InNumArraySlices;
-			Identity.SubresourceRange.PlaneIndex = InPlaneIndex;
-			Identity.SubresourceRange.NumPlanes = InNumPlanes;
-			return Identity;
-		}
-
-		inline FResourceIdentity GetTransitionIdentity(const FRHITransitionInfo& Info)
-		{
-			FResource* Resource = GetTrackerResource();
-
-			FResourceIdentity Identity;
-			Identity.Resource = Resource;
-
-			if (Info.IsAllMips())
-			{
-				Identity.SubresourceRange.MipIndex = 0;
-				Identity.SubresourceRange.NumMips = Resource->NumMips;
-			}
-			else
-			{
-				check(Info.MipIndex < uint32(Resource->NumMips));
-				Identity.SubresourceRange.MipIndex = Info.MipIndex;
-				Identity.SubresourceRange.NumMips = 1;
-			}
-
-			if (Info.IsAllArraySlices())
-			{
-				Identity.SubresourceRange.ArraySlice = 0;
-				Identity.SubresourceRange.NumArraySlices = Resource->NumArraySlices;
-			}
-			else
-			{
-				check(Info.ArraySlice < uint32(Resource->NumArraySlices));
-				Identity.SubresourceRange.ArraySlice = Info.ArraySlice;
-				Identity.SubresourceRange.NumArraySlices = 1;
-			}
-
-			if (Info.IsAllPlaneSlices())
-			{
-				Identity.SubresourceRange.PlaneIndex = 0;
-				Identity.SubresourceRange.NumPlanes = Resource->NumPlanes;
-			}
-			else
-			{
-				check(Info.PlaneSlice < uint32(Resource->NumPlanes));
-				Identity.SubresourceRange.PlaneIndex = Info.PlaneSlice;
-				Identity.SubresourceRange.NumPlanes = 1;
-			}
-
-			return Identity;
-		}
+		FResourceIdentity GetViewIdentity(uint32 InMipIndex, uint32 InNumMips, uint32 InArraySlice, uint32 InNumArraySlices, uint32 InPlaneIndex, uint32 InNumPlanes);
+		FResourceIdentity GetTransitionIdentity(const FRHITransitionInfo& Info);
 
 		inline FResourceIdentity GetWholeResourceIdentity()
 		{
@@ -911,6 +802,16 @@ namespace RHIValidation
 		}
 	};
 
+	struct FTransitionResource
+	{
+		RHIValidation::FOperationsList PendingSignals;
+		RHIValidation::FOperationsList PendingWaits;
+		RHIValidation::FOperationsList PendingAliases;
+		RHIValidation::FOperationsList PendingAliasingOverlaps;
+		RHIValidation::FOperationsList PendingOperationsBegin;
+		RHIValidation::FOperationsList PendingOperationsEnd;
+	};
+
 	enum class EUAVMode
 	{
 		Graphics,
@@ -984,7 +885,7 @@ namespace RHIValidation
 			: Pipeline(InPipeline)
 		{}
 
-		inline void AddOp(const FOperation& Op);
+		RHI_API void AddOp(const FOperation& Op);
 
 		inline void AddOps(const FOperationsList::ListType& Ops)
 		{

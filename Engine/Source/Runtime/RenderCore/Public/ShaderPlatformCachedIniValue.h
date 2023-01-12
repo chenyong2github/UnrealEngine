@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "RHIShaderPlatform.h"
+#include "RHIStrings.h"
 
 RENDERCORE_API EShaderPlatform GetEditorShaderPlatform(EShaderPlatform ShaderPlatform);
 

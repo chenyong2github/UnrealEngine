@@ -84,6 +84,105 @@ namespace RHIValidation
 			CreateDesc.InitialState,
 			CreateDesc.DebugName);
 	}
+
+	void FTextureResource::InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName)
+	{
+		FResource* Resource = GetTrackerResource();
+		if (!Resource)
+			return;
+
+		int32 InNumPlanes = 1;
+
+		// @todo: htile tracking
+		if (IsStencilFormat(PixelFormat))
+		{
+			InNumPlanes = 2; // Depth + Stencil
+		}
+		else
+		{
+			InNumPlanes = 1; // Depth only
+		}
+
+		Resource->InitBarrierTracking(InNumMips, InNumArraySlices, InNumPlanes, InResourceState, InDebugName);
+	}
+
+	FResourceIdentity FTextureResource::GetViewIdentity(uint32 InMipIndex, uint32 InNumMips, uint32 InArraySlice, uint32 InNumArraySlices, uint32 InPlaneIndex, uint32 InNumPlanes)
+	{
+		FResource* Resource = GetTrackerResource();
+
+		checkSlow((InMipIndex + InNumMips) <= Resource->NumMips);
+		checkSlow((InArraySlice + InNumArraySlices) <= Resource->NumArraySlices);
+		checkSlow((InPlaneIndex + InNumPlanes) <= Resource->NumPlanes);
+
+		if (InNumMips == 0)
+		{
+			InNumMips = Resource->NumMips;
+		}
+		if (InNumArraySlices == 0)
+		{
+			InNumArraySlices = Resource->NumArraySlices;
+		}
+		if (InNumPlanes == 0)
+		{
+			InNumPlanes = Resource->NumPlanes;
+		}
+
+		FResourceIdentity Identity;
+		Identity.Resource = Resource;
+		Identity.SubresourceRange.MipIndex = InMipIndex;
+		Identity.SubresourceRange.NumMips = InNumMips;
+		Identity.SubresourceRange.ArraySlice = InArraySlice;
+		Identity.SubresourceRange.NumArraySlices = InNumArraySlices;
+		Identity.SubresourceRange.PlaneIndex = InPlaneIndex;
+		Identity.SubresourceRange.NumPlanes = InNumPlanes;
+		return Identity;
+	}
+
+	FResourceIdentity FTextureResource::GetTransitionIdentity(const FRHITransitionInfo& Info)
+	{
+		FResource* Resource = GetTrackerResource();
+
+		FResourceIdentity Identity;
+		Identity.Resource = Resource;
+
+		if (Info.IsAllMips())
+		{
+			Identity.SubresourceRange.MipIndex = 0;
+			Identity.SubresourceRange.NumMips = Resource->NumMips;
+		}
+		else
+		{
+			check(Info.MipIndex < uint32(Resource->NumMips));
+			Identity.SubresourceRange.MipIndex = Info.MipIndex;
+			Identity.SubresourceRange.NumMips = 1;
+		}
+
+		if (Info.IsAllArraySlices())
+		{
+			Identity.SubresourceRange.ArraySlice = 0;
+			Identity.SubresourceRange.NumArraySlices = Resource->NumArraySlices;
+		}
+		else
+		{
+			check(Info.ArraySlice < uint32(Resource->NumArraySlices));
+			Identity.SubresourceRange.ArraySlice = Info.ArraySlice;
+			Identity.SubresourceRange.NumArraySlices = 1;
+		}
+
+		if (Info.IsAllPlaneSlices())
+		{
+			Identity.SubresourceRange.PlaneIndex = 0;
+			Identity.SubresourceRange.NumPlanes = Resource->NumPlanes;
+		}
+		else
+		{
+			check(Info.PlaneSlice < uint32(Resource->NumPlanes));
+			Identity.SubresourceRange.PlaneIndex = Info.PlaneSlice;
+			Identity.SubresourceRange.NumPlanes = 1;
+		}
+
+		return Identity;
+	}
 }
 
 TSet<uint32> FValidationRHI::SeenFailureHashes;
@@ -1725,6 +1824,20 @@ namespace RHIValidation
 		}
 
 		return EReplayStatus::Normal;
+	}
+
+	void FTracker::AddOp(const RHIValidation::FOperation& Op)
+	{
+		if (GRHICommandList.Bypass() && CurrentList.Operations.Num() == 0)
+		{
+			auto& OpQueue = OpQueues[GetOpQueueIndex(Pipeline)];
+			if (!EnumHasAllFlags(Op.Replay(Pipeline, OpQueue.bAllowAllUAVsOverlap, OpQueue.Breadcrumbs), EReplayStatus::Waiting))
+			{
+				return;
+			}
+		}
+
+		CurrentList.Operations.Add(Op);
 	}
 
 	void FTracker::ReplayOpQueue(ERHIPipeline DstOpQueue, FOperationsList&& InOpsList)
