@@ -320,6 +320,7 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 	this->OnCategoryDragged = InArgs._OnCategoryDragged;
 	this->OnCreateWidgetForAction = InArgs._OnCreateWidgetForAction;
 	this->OnCreateCustomRowExpander = InArgs._OnCreateCustomRowExpander;
+	this->OnGetActionList = InArgs._OnGetActionList;
 	this->OnCollectAllActions = InArgs._OnCollectAllActions;
 	this->OnCollectStaticSections = InArgs._OnCollectStaticSections;
 	this->OnCategoryTextCommitted = InArgs._OnCategoryTextCommitted;
@@ -331,6 +332,18 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 	this->OnActionMatchesName = InArgs._OnActionMatchesName;	
 	this->DraggedFromPins = InArgs._DraggedFromPins;
 	this->GraphObj = InArgs._GraphObj;
+
+	// Default graph action list (also provides an empty source list to start with)
+	AllActions = MakeShared<FGraphActionListBuilderBase>();
+	
+	if(OnGetActionList.IsBound())
+	{
+		// If we are obtaining a new action list at refresh time, ensure that the indirect collection delegate is unbound
+		if (!ensureMsgf(!OnCollectAllActions.IsBound(), TEXT("The OnCollectAllActions delegate is bound, but will not be invoked, because OnGetActionList has also been bound and will be used to obtain the action list for this menu. To resolve this, one of these events should be removed from its construction.")))
+		{
+			OnCollectAllActions.Unbind();
+		}
+	}
 
 	// If a delegate for filtering text is passed in, assign it so that it will be used instead of the built-in filter box
 	if(InArgs._OnGetFilterText.IsBound())
@@ -400,11 +413,18 @@ void SGraphActionMenu::RefreshAllActions(bool bPreserveExpansion, bool bHandleOn
 	TArray< TSharedPtr<FGraphActionNode> > SelectedNodes = TreeView->GetSelectedItems();
 	TSharedPtr<FGraphActionNode> SelectedAction = SelectedNodes.Num() > 0 ? SelectedNodes[0] : nullptr;
 
+	if (OnGetActionList.IsBound())
+	{
+		// Obtain the source action list directly.
+		AllActions = OnGetActionList.Execute();
+	}
+	else
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SGraphActionMenu::CollectAllActions);
 
-		AllActions.Empty();
-		OnCollectAllActions.ExecuteIfBound(AllActions);
+		// Collect actions into our local list context.
+		AllActions->Empty();
+		OnCollectAllActions.ExecuteIfBound(*AllActions);
 	}
 
 	GenerateFilteredItems(bPreserveExpansion);
@@ -752,9 +772,9 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 	const UEdGraphSchema* ActionSchema = GraphObj ? GraphObj->GetSchema() : GetDefault<UEdGraphSchema>();
 	check(ActionSchema);
 
-	for (int32 CurTypeIndex=0; CurTypeIndex < AllActions.GetNumActions(); ++CurTypeIndex)
+	for (int32 CurTypeIndex = 0; CurTypeIndex < AllActions->GetNumActions(); ++CurTypeIndex)
 	{
-		FGraphActionListBuilderBase::ActionGroup& CurrentAction = AllActions.GetAction( CurTypeIndex );
+		FGraphActionListBuilderBase::ActionGroup& CurrentAction = AllActions->GetAction(CurTypeIndex);
 
 		// If we're filtering, search check to see if we need to show this action
 		bool bShowAction = true;
@@ -807,7 +827,7 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 	// If theres a BestMatchIndex find it in the actions nodes and select it (maybe this should check the current selected suggestion first ?)
 	if( BestMatchIndex != INDEX_NONE ) 
 	{
-		FGraphActionListBuilderBase::ActionGroup& FilterSelectAction = AllActions.GetAction( BestMatchIndex );
+		FGraphActionListBuilderBase::ActionGroup& FilterSelectAction = AllActions->GetAction( BestMatchIndex );
 		if( FilterSelectAction.Actions[0].IsValid() == true )
 		{
 			for (int32 iNode = 0; iNode < FilteredActionNodes.Num() ; iNode++)
@@ -850,7 +870,7 @@ bool SGraphActionMenu::ShouldExpandNodes() const
 {
 	// Expand all the categories that have filter results, or when there are only a few to show
 	const bool bFilterActive = !GetFilterText().IsEmpty();
-	const bool bOnlyAFewTotal = AllActions.GetNumActions() < 10;
+	const bool bOnlyAFewTotal = AllActions->GetNumActions() < 10;
 
 	return bFilterActive || bOnlyAFewTotal || bAutoExpandActionMenu;
 }
@@ -1280,9 +1300,9 @@ void SGraphActionMenu::MarkActiveSuggestion()
 
 void SGraphActionMenu::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	for (int32 CurTypeIndex=0; CurTypeIndex < AllActions.GetNumActions(); ++CurTypeIndex)
+	for (int32 CurTypeIndex = 0; CurTypeIndex < AllActions->GetNumActions(); ++CurTypeIndex)
 	{
-		FGraphActionListBuilderBase::ActionGroup& Action = AllActions.GetAction( CurTypeIndex );
+		FGraphActionListBuilderBase::ActionGroup& Action = AllActions->GetAction(CurTypeIndex);
 
 		for ( int32 ActionIndex = 0; ActionIndex < Action.Actions.Num(); ActionIndex++ )
 		{

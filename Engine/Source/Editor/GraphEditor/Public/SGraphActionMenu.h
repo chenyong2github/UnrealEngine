@@ -11,7 +11,6 @@
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "EdGraph/EdGraphSchema.h"
 #include "Framework/SlateDelegates.h"
 #include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
@@ -48,6 +47,7 @@ struct FGeometry;
 struct FGraphActionNode;
 struct FKeyEvent;
 struct FPointerEvent;
+struct FGraphActionListBuilderBase;
 
 /** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */
 DECLARE_DELEGATE( FOnRenameRequestActionNode );
@@ -141,6 +141,8 @@ public:
 	DECLARE_DELEGATE_RetVal( FText, FGetFilterText);
 	/** Delegate to check if an action matches a specified name (used for renaming items etc.) */
 	DECLARE_DELEGATE_RetVal_TwoParams( bool, FOnActionMatchesName, FEdGraphSchemaAction*, const FName& );
+	/** Delegate that can be used to create and/or get a custom action list. */
+	DECLARE_DELEGATE_RetVal(TSharedRef<FGraphActionListBuilderBase>, FOnGetActionList);
 
 	SLATE_BEGIN_ARGS(SGraphActionMenu)
 		: _AutoExpandActionMenu(false)
@@ -159,6 +161,7 @@ public:
 		SLATE_EVENT( FOnContextMenuOpening, OnContextMenuOpening )
 		SLATE_EVENT( FOnCreateWidgetForAction, OnCreateWidgetForAction )
 		SLATE_EVENT( FOnCreateCustomRowExpander, OnCreateCustomRowExpander )
+		SLATE_EVENT( FOnGetActionList, OnGetActionList )
 		SLATE_EVENT( FOnCollectAllActions, OnCollectAllActions )
 		SLATE_EVENT( FOnCollectStaticSections, OnCollectStaticSections )
 		SLATE_EVENT( FOnCategoryTextCommitted, OnCategoryTextCommitted )
@@ -205,7 +208,7 @@ protected:
 	TSharedPtr<SSearchBox> FilterTextBox;
 
 	/** List of all actions we can browser */
-	FGraphActionListBuilderBase AllActions;
+	TSharedPtr<FGraphActionListBuilderBase> AllActions;
 
 	/** Flattened list of all actions passing the filter */
 	TArray< TSharedPtr<FGraphActionNode> > FilteredActionNodes; 
@@ -242,6 +245,8 @@ protected:
 	FOnCreateWidgetForAction OnCreateWidgetForAction;
 	/** Delegate to call for creating a custom "expander" widget for indenting a menu row with */
 	FOnCreateCustomRowExpander OnCreateCustomRowExpander;
+	/** Delegate to call to get a custom action list */
+	FOnGetActionList OnGetActionList;
 	/** Delegate to call to collect all actions */
 	FOnCollectAllActions OnCollectAllActions;
 	/** Delegate to call to collect all always visible sections */
