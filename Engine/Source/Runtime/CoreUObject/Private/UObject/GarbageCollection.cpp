@@ -5661,13 +5661,21 @@ void DumpMemoryStats(FOutputDevice& OutputDevice)
 // Coordinates worker starting, tail spinning and stopping
 class FWorkCoordinator
 {
-	struct alignas(PLATFORM_CACHE_LINE_SIZE) FStealableContext : public std::atomic<FWorkerContext*> {};
+	class FStealableContext : public std::atomic<FWorkerContext*>
+	{
+		// Put each atomic on its own cache line to avoid false sharing
+		char CacheLinePadding[PLATFORM_CACHE_LINE_SIZE - sizeof(std::atomic<FWorkerContext*>)];
+	};
+	static_assert(sizeof(FStealableContext) == PLATFORM_CACHE_LINE_SIZE);
+
 	const TArrayView<FStealableContext> Contexts;
-	alignas(PLATFORM_CACHE_LINE_SIZE) std::atomic<int32> NumUsedContexts {0};
+	// Ensure the immutable Contexts is on a different cache line than NumUsedContexts 
+	char CacheLinePadding[PLATFORM_CACHE_LINE_SIZE - sizeof(Contexts)]; 
+
+	std::atomic<int32> NumUsedContexts {0};
 	std::atomic<int32> NumWorkless{0}; // Number of workless workers spinning to steal work
 	std::atomic<int32> NumStopDirectly; // Stop a few workless workers directly to pick up non-GC tasks
 	std::atomic<int32> NumStopped{0}; // Synchronize when all workers are done
-
 
 public:
 	FWorkCoordinator(TArrayView<FWorkerContext*> InContexts, int32 NumTaskgraphWorkers)
