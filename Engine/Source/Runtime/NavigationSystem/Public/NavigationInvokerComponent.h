@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+#include "AI/Navigation/NavigationTypes.h"
 #include "Components/ActorComponent.h"
 #include "NavigationInvokerComponent.generated.h"
 
