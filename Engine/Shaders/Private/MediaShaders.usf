@@ -357,6 +357,9 @@ void P010ConvertPS(
 	Color.y = dot(P010ConvertUB.ColorTransform[1], YUV4);
 	Color.z = dot(P010ConvertUB.ColorTransform[2], YUV4);
 
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
+
 	// Go linear
 	Color = P010ConvertUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
 
@@ -398,6 +401,9 @@ void P010ConvertAsUINT16sPS(
 	Color.x = dot(P010ConvertAsUINT16sUB.ColorTransform[0], YUV4);
 	Color.y = dot(P010ConvertAsUINT16sUB.ColorTransform[1], YUV4);
 	Color.z = dot(P010ConvertAsUINT16sUB.ColorTransform[2], YUV4);
+
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
 
 	// Go linear
 	Color = P010ConvertAsUINT16sUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
@@ -443,6 +449,9 @@ void P010_2101010ConvertPS(
 	Color.x = dot(P010_2101010ConvertUB.ColorTransform[0], YUV4);
 	Color.y = dot(P010_2101010ConvertUB.ColorTransform[1], YUV4);
 	Color.z = dot(P010_2101010ConvertUB.ColorTransform[2], YUV4);
+
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
 
 	// Go linear
 	Color = P010_2101010ConvertUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
