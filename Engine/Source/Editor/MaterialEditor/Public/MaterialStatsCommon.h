@@ -59,6 +59,7 @@ enum class ERepresentativeShader
 	FirstVertexShader,
 	StaticMesh = FirstVertexShader,
 	SkeletalMesh,
+	SkinnedCloth,
 
 	UIDefaultVertexShader,
 	UIInstancedVertexShader,
