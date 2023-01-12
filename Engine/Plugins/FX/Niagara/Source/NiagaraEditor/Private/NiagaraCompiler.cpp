@@ -1598,6 +1598,8 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 
 TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(int32 JobID, bool bWait)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FNiagaraEditorModule::GetCompilationResult);
+
 	TSharedPtr<FHlslNiagaraCompiler>* MapEntry = ActiveCompilations.Find(JobID);
 	check(MapEntry && *MapEntry);
 
