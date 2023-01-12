@@ -224,10 +224,10 @@ struct TStateTreeInstanceDataStructRef
 
 	bool IsValid() const { return Storage.IsValidStructIndex(StructIndex); }
 
-	T& operator*() const
+	T& operator*()
 	{
 		check(IsValid());
-		const FStructView Struct = Storage.GetMutableStruct(StructIndex);
+		FStructView Struct = Storage.GetMutableStruct(StructIndex);
 		check(Struct.GetScriptStruct() == TBaseStructure<T>::Get());
 		return *reinterpret_cast<T*>(Struct.GetMutableMemory());
 	}
