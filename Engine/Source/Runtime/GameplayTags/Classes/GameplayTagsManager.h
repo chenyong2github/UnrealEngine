@@ -655,8 +655,19 @@ public:
 	/** Returns information about tag. If not found return false */
 	bool GetTagEditorData(FName TagName, FString& OutComment, FName &OutTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
 
+#if WITH_EDITOR
+	/** This is called after EditorRefreshGameplayTagTree. Useful if you need to do anything editor related when tags are added or removed */
+	static FSimpleMulticastDelegate OnEditorRefreshGameplayTagTree;
+
 	/** Refresh the gameplaytag tree due to an editor change */
 	void EditorRefreshGameplayTagTree();
+
+	/** Suspends EditorRefreshGameplayTagTree requests */
+	void SuspendEditorRefreshGameplayTagTree(FGuid SuspendToken);
+
+	/** Resumes EditorRefreshGameplayTagTree requests; triggers a refresh if a request was made while it was suspended */
+	void ResumeEditorRefreshGameplayTagTree(FGuid SuspendToken);
+#endif //if WITH_EDITOR
 
 	/** Gets a Tag Container containing all of the tags in the hierarchy that are children of this tag, and were explicitly added to the dictionary */
 	FGameplayTagContainer RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const;
@@ -665,8 +676,6 @@ public:
 	FGameplayTagContainer RequestGameplayTagDirectDescendantsInDictionary(const FGameplayTag& GameplayTag, EGameplayTagSelectionType SelectionType) const;
 #endif // WITH_EDITORONLY_DATA
 
-	/** This is called when EditorRefreshGameplayTagTree. Useful if you need to do anything editor related when tags are added or removed */
-	static FSimpleMulticastDelegate OnEditorRefreshGameplayTagTree;
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGameplayTagDoubleClickedEditor, FGameplayTag, FSimpleMulticastDelegate& /* OUT */)
 	FOnGameplayTagDoubleClickedEditor OnGatherGameplayTagDoubleClickedEditor;
@@ -854,7 +863,10 @@ private:
 
 	// Transient editor-only tags to support quick-iteration PIE workflows
 	TSet<FName> TransientEditorTags;
-#endif
+
+	TSet<FGuid> EditorRefreshGameplayTagTreeSuspendTokens;
+	bool bEditorRefreshGameplayTagTreeRequestedDuringSuspend = false;
+#endif //if WITH_EDITOR
 
 	/** Sorted list of nodes, used for network replication */
 	TArray<TSharedPtr<FGameplayTagNode>> NetworkGameplayTagNodeIndex;

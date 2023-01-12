@@ -1679,8 +1679,16 @@ bool UGameplayTagsManager::GetTagEditorData(FName TagName, FString& OutComment, 
 	return false;
 }
 
+#if WITH_EDITOR
+
 void UGameplayTagsManager::EditorRefreshGameplayTagTree()
 {
+	if (!EditorRefreshGameplayTagTreeSuspendTokens.IsEmpty())
+	{
+		bEditorRefreshGameplayTagTreeRequestedDuringSuspend = true;
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(UGameplayTagsManager::EditorRefreshGameplayTagTree)
 
 	// Clear out source path info so it will reload off disk
@@ -1695,6 +1703,23 @@ void UGameplayTagsManager::EditorRefreshGameplayTagTree()
 
 	OnEditorRefreshGameplayTagTree.Broadcast();
 }
+
+void UGameplayTagsManager::SuspendEditorRefreshGameplayTagTree(FGuid SuspendToken)
+{
+	EditorRefreshGameplayTagTreeSuspendTokens.Add(SuspendToken);
+}
+
+void UGameplayTagsManager::ResumeEditorRefreshGameplayTagTree(FGuid SuspendToken)
+{
+	EditorRefreshGameplayTagTreeSuspendTokens.Remove(SuspendToken);
+	if (EditorRefreshGameplayTagTreeSuspendTokens.IsEmpty() && bEditorRefreshGameplayTagTreeRequestedDuringSuspend)
+	{
+		bEditorRefreshGameplayTagTreeRequestedDuringSuspend = false;
+		EditorRefreshGameplayTagTree();
+;	}
+}
+
+#endif //if WITH_EDITOR
 
 FGameplayTagContainer UGameplayTagsManager::RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const
 {
