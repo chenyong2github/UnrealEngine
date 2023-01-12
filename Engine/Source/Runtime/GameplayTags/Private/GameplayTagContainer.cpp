@@ -1293,13 +1293,16 @@ void FGameplayTag::PostSerialize(const FArchive& Ar)
 
 bool FGameplayTag::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
-	FString ImportedTag = TEXT("");
+	FString ImportedTag;
 	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedTag, true);
 	if (!NewBuffer)
 	{
 		// Failed to read buffer. Maybe normal ImportText will work.
 		return false;
 	}
+	
+	const TCHAR* OriginalBuffer = Buffer;
+	Buffer = NewBuffer;
 
 	if (ImportedTag == TEXT("None") || ImportedTag.IsEmpty())
 	{
@@ -1312,7 +1315,7 @@ bool FGameplayTag::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject
 	{
 		// Let normal ImportText handle this before handling fixups
 		UScriptStruct* ScriptStruct = FGameplayTag::StaticStruct();
-		Buffer = ScriptStruct->ImportText(Buffer, this, Parent, PortFlags, ErrorText, ScriptStruct->GetName(), false);
+		Buffer = ScriptStruct->ImportText(OriginalBuffer, this, Parent, PortFlags, ErrorText, ScriptStruct->GetName(), false);
 		UGameplayTagsManager::Get().ImportSingleGameplayTag(*this, TagName, !!(PortFlags & PPF_SerializedAsImportText));
 		return true;
 	}
