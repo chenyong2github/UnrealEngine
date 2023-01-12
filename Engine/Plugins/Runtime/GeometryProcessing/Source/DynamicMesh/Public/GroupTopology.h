@@ -319,6 +319,9 @@ public:
 	/** Add the groups connected to all the GroupEdgeIDs to the GroupsOut list. This is not the either-side pair, but the set of groups on the one-ring of each connected corner. */
 	void FindEdgeNbrGroups(const TArray<int>& GroupEdgeIDs, TArray<int>& GroupsOut) const;
 
+	/** Add the edges connected to the given GroupEdgeID to the EdgesOut list. This is somewhat expensive. */
+	void FindEdgeNbrEdges(int GroupEdgeID, TArray<int>& EdgesOut) const;
+
 	/** @return true if the FGroupEdge identified by the GroupEdgeID is on the mesh boundary */
 	bool IsBoundaryEdge(int32 GroupEdgeID) const;
 	/** @return true if group edge is a "simple" edge, meaning it only has one mesh edge */
@@ -337,6 +340,11 @@ public:
 	void FindCornerNbrGroups(int CornerID, TArray<int>& GroupsOut) const;
 	/** Add all the groups connected to the given Corners to the GroupsOut list */
 	void FindCornerNbrGroups(const TArray<int>& CornerIDs, TArray<int>& GroupsOut) const;
+
+	/** Add all the Edges connected to the given Corner to the EdgesOut list. This is somewhat expensive as there is no connection from Corners to Edges, must iterate over adjacent faces */
+	void FindCornerNbrEdges(int CornerID, TArray<int>& EdgesOut) const;
+	/** Add all the Corners connected to the given Corner to the EdgesOut list. This is somewhat expensive as there is no connection from Corners to Corners, must iterate over adjacent faces/edges */
+	void FindCornerNbrCorners(int CornerID, TArray<int>& CornersOut) const;
 
 	/** Add all the groups connected to the given Mesh Vertex to the GroupsOut list */
 	void FindVertexNbrGroups(int VertexID, TArray<int>& GroupsOut ) const;

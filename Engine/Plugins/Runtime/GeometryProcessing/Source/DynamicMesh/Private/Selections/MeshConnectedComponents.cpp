@@ -738,3 +738,71 @@ void FMeshConnectedComponents::GrowToConnectedTriangles(const FDynamicMesh3* Mes
 		}
 	}
 }
+
+
+
+void FMeshConnectedComponents::GrowToConnectedVertices(const FDynamicMesh3& Mesh,
+	const TArray<int>& InputROI, TSet<int>& ResultROI,
+	TArray<int32>* QueueBuffer,
+	TFunctionRef<bool(int32, int32)> CanGrowPredicate )
+{
+	TArray<int32> LocalQueue;
+	QueueBuffer = (QueueBuffer == nullptr) ? &LocalQueue : QueueBuffer;
+	QueueBuffer->Reset();
+	QueueBuffer->Insert(InputROI, 0);
+
+	ResultROI.Reset();
+	ResultROI.Append(InputROI);
+
+	while (QueueBuffer->Num() > 0)
+	{
+		int32 CurVertexID = QueueBuffer->Pop(false);
+		ResultROI.Add(CurVertexID);
+
+		Mesh.EnumerateVertexVertices(CurVertexID, [&](int32 NbrVertexID)
+		{
+			if (ResultROI.Contains(NbrVertexID) == false && CanGrowPredicate(CurVertexID, NbrVertexID))
+			{
+				QueueBuffer->Add(NbrVertexID);
+				ResultROI.Add(NbrVertexID);
+			}
+		});
+
+	}
+}
+
+
+
+void FMeshConnectedComponents::GrowToConnectedEdges(const FDynamicMesh3& Mesh,
+	const TArray<int>& InputROI, TSet<int>& ResultROI,
+	TArray<int32>* QueueBuffer,
+	TFunctionRef<bool(int32, int32)> CanGrowPredicate )
+{
+	TArray<int32> LocalQueue;
+	QueueBuffer = (QueueBuffer == nullptr) ? &LocalQueue : QueueBuffer;
+	QueueBuffer->Reset();
+	QueueBuffer->Insert(InputROI, 0);
+
+	ResultROI.Reset();
+	ResultROI.Append(InputROI);
+
+	while (QueueBuffer->Num() > 0)
+	{
+		int32 CurEdgeID = QueueBuffer->Pop(false);
+		ResultROI.Add(CurEdgeID);
+
+		FIndex2i EdgeV = Mesh.GetEdgeV(CurEdgeID);
+		for (int32 k = 0; k < 2; ++k)
+		{
+			Mesh.EnumerateVertexEdges(EdgeV[k], [&](int32 NbrEdgeID)
+			{
+				if (NbrEdgeID != CurEdgeID && ResultROI.Contains(NbrEdgeID) == false && CanGrowPredicate(CurEdgeID, NbrEdgeID))
+				{
+					QueueBuffer->Add(NbrEdgeID);
+					ResultROI.Add(NbrEdgeID);
+				}
+			});
+		}
+
+	}
+}

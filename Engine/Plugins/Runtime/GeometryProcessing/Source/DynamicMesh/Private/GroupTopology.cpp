@@ -325,6 +325,22 @@ void FGroupTopology::FindEdgeNbrGroups(const TArray<int>& GroupEdgeIDs, TArray<i
 	}
 }
 
+void FGroupTopology::FindEdgeNbrEdges(int GroupEdgeID, TArray<int>& EdgesOut) const
+{
+	check(GroupEdgeID >= 0 && GroupEdgeID < Edges.Num());
+	const FGroupEdge& Edge = Edges[GroupEdgeID];
+	if ( Edge.EndpointCorners.A != IndexConstants::InvalidID )
+	{
+		FindCornerNbrEdges(Edge.EndpointCorners.A, EdgesOut);
+	}
+	if ( Edge.EndpointCorners.B != IndexConstants::InvalidID )
+	{
+		FindCornerNbrEdges(Edge.EndpointCorners.B, EdgesOut);
+	}
+}
+
+
+
 bool FGroupTopology::IsBoundaryEdge(int32 GroupEdgeID) const
 {
 	return Mesh->IsBoundaryEdge(Edges[GroupEdgeID].Span.Edges[0]);
@@ -444,6 +460,50 @@ void FGroupTopology::FindCornerNbrGroups(const TArray<int>& CornerIDs, TArray<in
 	for (int cid : CornerIDs)
 	{
 		FindCornerNbrGroups(cid, GroupsOut);
+	}
+}
+
+
+void FGroupTopology::FindCornerNbrEdges(int CornerID, TArray<int>& EdgesOut) const
+{
+	check(CornerID >= 0 && CornerID < Corners.Num());
+	for (int GroupID : Corners[CornerID].NeighbourGroupIDs)
+	{
+		const FGroup* Group = FindGroupByID(GroupID);
+		for (const FGroupBoundary& Boundary : Group->Boundaries)
+		{
+			for (int32 EdgeID : Boundary.GroupEdges)
+			{
+				const FGroupEdge& Edge = Edges[EdgeID];
+				if (Edge.EndpointCorners.A == CornerID || Edge.EndpointCorners.B == CornerID)
+				{
+					EdgesOut.AddUnique(EdgeID);
+				}
+			}
+		}
+
+	}
+}
+
+void FGroupTopology::FindCornerNbrCorners(int CornerID, TArray<int>& CornersOut) const
+{
+	check(CornerID >= 0 && CornerID < Corners.Num());
+	for (int GroupID : Corners[CornerID].NeighbourGroupIDs)
+	{
+		const FGroup* Group = FindGroupByID(GroupID);
+		for (const FGroupBoundary& Boundary : Group->Boundaries)
+		{
+			for (int32 EdgeID : Boundary.GroupEdges)
+			{
+				const FGroupEdge& Edge = Edges[EdgeID];
+				if (Edge.EndpointCorners.A == CornerID || Edge.EndpointCorners.B == CornerID)
+				{
+					int32 OtherCornerID = Edge.EndpointCorners.OtherElement(CornerID);
+					CornersOut.AddUnique(OtherCornerID);
+				}
+			}
+		}
+
 	}
 }
 

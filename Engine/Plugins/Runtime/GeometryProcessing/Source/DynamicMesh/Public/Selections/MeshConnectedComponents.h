@@ -239,6 +239,40 @@ public:
 	);
 
 
+	/**
+	 * Utility function to expand a vertex selection to all vertices considered "connected".
+	 * @param Mesh Mesh to calculate on
+	 * @param InputROI input set of vertices
+	 * @param ResultROI output set of vertices connected to InputROI
+	 * @param QueueBuffer optional buffer used as internal Queue. If passed as nullptr, a TArray will be locally allocated
+	 * @param CanGrowPredicate determines whether two connected mesh vertices should be considered connected while growing
+	 */
+	static void GrowToConnectedVertices(
+		const FDynamicMesh3& Mesh,
+		const TArray<int>& InputROI,
+		TSet<int>& ResultROI,
+		TArray<int32>* QueueBuffer = nullptr,
+		TFunctionRef<bool(int32, int32)> CanGrowPredicate = [](int32, int32) { return true; }
+	);
+
+
+	/**
+	 * Utility function to expand an edge selection to all edges considered "connected".
+	 * @param Mesh Mesh to calculate on
+	 * @param InputROI input set of edges
+	 * @param ResultROI output set of edges connected to InputROI
+	 * @param QueueBuffer optional buffer used as internal Queue. If passed as nullptr, a TArray will be locally allocated
+	 * @param CanGrowPredicate determines whether two connected mesh edges should be considered connected while growing
+	 */
+	static void GrowToConnectedEdges(
+		const FDynamicMesh3& Mesh,
+		const TArray<int>& InputROI,
+		TSet<int>& ResultROI,
+		TArray<int32>* QueueBuffer = nullptr,
+		TFunctionRef<bool(int32, int32)> CanGrowPredicate = [](int32, int32) { return true; }
+	);
+
+
 };
 
 
