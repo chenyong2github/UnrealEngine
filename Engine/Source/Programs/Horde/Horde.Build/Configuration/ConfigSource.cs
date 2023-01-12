@@ -353,10 +353,6 @@ namespace Horde.Build.Configuration
 			}
 
 			IPerforceConnection connection = await PerforceConnection.CreateAsync(connectionSettings.ToPerforceSettings(), _logger);
-			if (connectionSettings.Credentials?.Password != null)
-			{
-				await connection.LoginAsync(connectionSettings.Credentials.Password, cancellationToken);
-			}
 			return connection;
 		}
 	}
