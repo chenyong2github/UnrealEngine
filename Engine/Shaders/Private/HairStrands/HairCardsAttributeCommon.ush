@@ -111,6 +111,11 @@ float  GetHairStrandsSeed(float2 HairPrimitiveUV)
 	return GetHairStrandsAttributes(HairPrimitiveUV).HairSeed;
 }
 
+uint GetHairStrandsClumpID(float2 HairPrimitiveUV)
+{
+	return 0;
+}
+
 float3 GetHairStrandsBaseColor(float2 InAtlasUV, float3 InBaseColor)
 {
 	if (HairCardsVF.Flags & EHairCardsFVFlags_TextureBaseColor)
@@ -125,6 +130,11 @@ float GetHairStrandsRoughness(float2 HairPrimitiveUV, float InRoughness)
 {
 	// For meshes, we don't support roughness yet
 	return (HairCardsVF.Flags & EHairCardsFVFlags_TextureRoughness) ? 0 : InRoughness;
+}
+
+float GetHairStrandsAO(float2 HairPrimitiveUV, float InAO)
+{
+	return 1.0f;
 }
 
 float GetHairStrandsGroupIndex(float2 InAtlasUV, float InHairPrimitiveGroupIndex)

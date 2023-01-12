@@ -37,6 +37,7 @@ static void HairStrandsDataToEditableHairGuides(const FHairStrandsDatas& In, TAr
 static void HairStrandsDataToEditableHairStrands(const FHairStrandsDatas& In, TArray<FEditableHairStrand>& Out)
 {
 	const bool bHasValidStrandsIDs = In.StrandsCurves.StrandIDs.Num() > 0;
+	const bool bHasValidClumpIDs = In.StrandsCurves.ClumpIDs.Num() > 0;	
 	const bool bHasValidClosestGuide = In.StrandsCurves.CurvesClosestGuideIDs.Num() > 0;
 	const uint32 StrandsCount = In.GetNumCurves();
 	Out.SetNum(StrandsCount);
@@ -46,6 +47,7 @@ static void HairStrandsDataToEditableHairStrands(const FHairStrandsDatas& In, TA
 		const FVector3f GuideWeights = bHasValidClosestGuide ? (FVector3f)In.StrandsCurves.CurvesClosestGuideIDs[StrandsIt] : FVector3f::ZeroVector;
 
 		Out[StrandsIt].StrandID		= bHasValidStrandsIDs ? In.StrandsCurves.StrandIDs[StrandsIt] : StrandsIt;
+		Out[StrandsIt].ClumpID		= bHasValidClumpIDs ? In.StrandsCurves.ClumpIDs[StrandsIt] : 0;
 		Out[StrandsIt].RootUV		= In.StrandsCurves.CurvesRootUV[StrandsIt];
 		Out[StrandsIt].GuideIDs[0]  = GuideIDs.X;
 		Out[StrandsIt].GuideIDs[1]  = GuideIDs.Y;
@@ -66,6 +68,7 @@ static void HairStrandsDataToEditableHairStrands(const FHairStrandsDatas& In, TA
 			Out[StrandsIt].ControlPoints[PointIt].Radius	= In.StrandsPoints.PointsRadius[EffectiveIndex] * In.StrandsCurves.MaxRadius;
 			Out[StrandsIt].ControlPoints[PointIt].BaseColor	= In.StrandsPoints.PointsBaseColor[EffectiveIndex];
 			Out[StrandsIt].ControlPoints[PointIt].Roughness	= In.StrandsPoints.PointsRoughness[EffectiveIndex];
+			Out[StrandsIt].ControlPoints[PointIt].AO		= In.StrandsPoints.PointsAO[EffectiveIndex];
 		}
 	}
 }
@@ -112,6 +115,7 @@ static void EditableGroomGroupToHairDescription(FHairDescription& OutHairDescrip
 		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::VertexCount, (int32)PointCount);
 		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::RootUV,      Strands.RootUV);
 		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::ID,          int(Strands.StrandID));
+		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::ClumpID,     int(Strands.ClumpID));
 		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::GroupID,     int(GroupID));
 		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::GroupName,   GroupName);
 		SetHairStrandAttribute(OutHairDescription, StrandID, HairAttribute::Strand::Guide,       0);
@@ -138,6 +142,7 @@ static void EditableGroomGroupToHairDescription(FHairDescription& OutHairDescrip
 			SetHairVertexAttribute(OutHairDescription, VertexID, HairAttribute::Vertex::Width,     Point.Radius * 2.f);
 			SetHairVertexAttribute(OutHairDescription, VertexID, HairAttribute::Vertex::Color,     FVector3f(Point.BaseColor.R, Point.BaseColor.G, Point.BaseColor.B));
 			SetHairVertexAttribute(OutHairDescription, VertexID, HairAttribute::Vertex::Roughness, Point.Roughness);
+			SetHairVertexAttribute(OutHairDescription, VertexID, HairAttribute::Vertex::AO,        Point.AO);
 		}
 	}
 }

@@ -19,8 +19,8 @@ void FHairStrandsCurves::SetNum(const uint32 NumCurves)
 	CurvesLength.SetNum(NumCurves);
 	CurvesRootUV.SetNum(NumCurves);
 
-	// Curves closest guide are not initialized to track if the curves 
-	// data contains or not precomputed weights
+	// Not initialized to track if the data are available
+	// ClumpIDs.SetNum(0);
 	// CurvesClosestGuideIDs.SetNum(0);
 	// CurvesClosestGuideWeights.SetNum(0);
 }
@@ -30,8 +30,11 @@ void FHairStrandsPoints::SetNum(const uint32 NumPoints)
 	PointsPosition.SetNum(NumPoints);
 	PointsRadius.SetNum(NumPoints);
 	PointsCoordU.SetNum(NumPoints);
-	PointsBaseColor.SetNum(NumPoints);
-	PointsRoughness.SetNum(NumPoints);
+
+	// Not initialized to track if the data are available
+	// PointsBaseColor.SetNum(0);
+	// PointsRoughness.SetNum(0);
+	// PointsAO.SetNum(0);
 }
 
 void FHairStrandsInterpolationDatas::Reset()
@@ -48,6 +51,7 @@ void FHairStrandsCurves::Reset()
 	CurvesCount.Reset();
 	CurvesLength.Reset();
 	CurvesRootUV.Reset();
+	ClumpIDs.Reset();
 	CurvesClosestGuideIDs.Reset();
 	CurvesClosestGuideWeights.Reset();
 }
@@ -57,6 +61,9 @@ void FHairStrandsPoints::Reset()
 	PointsPosition.Reset();
 	PointsRadius.Reset();
 	PointsCoordU.Reset();
+	PointsBaseColor.Reset();
+	PointsRoughness.Reset();
+	PointsAO.Reset();
 }
 
 FArchive& operator<<(FArchive& Ar, FVector4_16& Vertex)

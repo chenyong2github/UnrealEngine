@@ -17,6 +17,7 @@ struct FEditableHairStrandControlPoint
 	float U;
 	FLinearColor BaseColor;
 	float Roughness;
+	float AO;
 };
 
 struct FEditableHairStrand
@@ -24,6 +25,7 @@ struct FEditableHairStrand
 	TArray<FEditableHairStrandControlPoint> ControlPoints;
 
 	uint32 StrandID;
+	uint32 ClumpID;
 	FVector2f RootUV;
 
 	// Pre-computed Simulation

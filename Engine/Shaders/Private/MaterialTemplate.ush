@@ -409,9 +409,9 @@ struct FMaterialPixelParameters
 #if HAIR_CARD_MESH_FACTORY
 	float2	HairPrimitiveUV;		// AtlasUV
 	float2  HairPrimitiveRootUV;	// RootUV
-	float4	HairPrimitiveMaterial;	// Card material
-	float   HairPrimitiveLength;	// Card length
-	float	HairPrimitiveGroupIndex;// Card group index
+	half4	HairPrimitiveMaterial;	// Card material
+	half    HairPrimitiveLength;	// Card length
+	half	HairPrimitiveGroupIndex;// Card group index
 #endif
 
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS
@@ -1492,6 +1492,17 @@ float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 #endif
 }
 
+uint MaterialExpressionGetHairClumpId(FMaterialPixelParameters Parameters)
+{
+#if HAIR_STRAND_MESH_FACTORY
+	return GetHairStrandsClumpID(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsClumpID(Parameters.HairPrimitiveUV);
+#else
+	return 0;
+#endif
+}
+
 float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 {
 #if HAIR_STRAND_MESH_FACTORY
@@ -1509,6 +1520,17 @@ float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 	return GetHairStrandsRoughness(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #elif HAIR_CARD_MESH_FACTORY
 	return GetHairStrandsRoughness(Parameters.HairPrimitiveUV, Parameters.HairPrimitiveMaterial.w);
+#else
+	return 0;
+#endif
+}
+
+float MaterialExpressionGetHairAO(FMaterialPixelParameters Parameters)
+{
+#if HAIR_STRAND_MESH_FACTORY
+	return GetHairStrandsAO(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsAO(Parameters.HairPrimitiveUV, 1.0f);
 #else
 	return 0;
 #endif

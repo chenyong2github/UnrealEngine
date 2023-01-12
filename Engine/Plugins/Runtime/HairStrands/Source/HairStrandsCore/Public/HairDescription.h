@@ -96,9 +96,11 @@ public:
 	// #ueent_todo: Expose "remove" operations to allow editing HairDescription
 
 	bool HasRootUV() const;
+	bool HasClumpID() const;
 	bool HasGuideWeights() const;
 	bool HasColorAttributes() const;
 	bool HasRoughnessAttributes() const;
+	bool HasAOAttributes() const;
 
 private:
 	TAttributesSet<FVertexID> VertexAttributesSet;

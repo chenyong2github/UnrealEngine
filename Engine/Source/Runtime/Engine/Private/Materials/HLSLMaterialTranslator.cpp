@@ -9385,6 +9385,11 @@ int32 FHLSLMaterialTranslator::GetHairSeed()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairSeed(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetHairClumpID()
+{
+	return AddCodeChunk(MCT_UInt1, TEXT("MaterialExpressionGetHairClumpID(Parameters)"));
+}
+
 int32 FHLSLMaterialTranslator::GetHairTangent(bool bUseTangentSpace)
 {
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairTangent(Parameters, %s)"), bUseTangentSpace ? TEXT("true") : TEXT("false"));
@@ -9403,6 +9408,11 @@ int32 FHLSLMaterialTranslator::GetHairBaseColor()
 int32 FHLSLMaterialTranslator::GetHairRoughness()
 {
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairRoughness(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairAO()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairAO(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::GetHairDepth()

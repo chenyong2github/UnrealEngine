@@ -359,11 +359,14 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 	/** Normalized length */
 	TArray<float> PointsCoordU; // [0..1]
 
-	/** Material base color */
+	/** Material per-vertex 'baked' base color (optional) */
 	TArray<FLinearColor> PointsBaseColor; // [0..1]
 
-	/** Material roughness */
+	/** Material per-vertex 'baked' roughness (optional) */
 	TArray<float> PointsRoughness; // [0..1]
+
+	/** Material per-vertex 'baked' AO (optional) */
+	TArray<float> PointsAO; // [0..1]	
 };
 
 /** Hair strands Curves attribute */
@@ -395,13 +398,16 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	/** Strand ID associated with each curve */
 	TArray<int> StrandIDs;
 
+	/** Clump ID associated with each curve (optional) */
+	TArray<uint16> ClumpIDs;
+
 	/** Mapping of imported Groom ID to index */
 	TMap<int, int> GroomIDToIndex;
 
-	/** Custom guide IDs (indexed with StrandID) */
+	/** Custom guide IDs (indexed with StrandID) (optional) */
 	TArray<FIntVector> CurvesClosestGuideIDs;
 
-	/** Custom guid weights (indexed with StrandID) */
+	/** Custom guid weights (indexed with StrandID) (optional) */
 	TArray<FVector> CurvesClosestGuideWeights;
 
 	/** Max strands Curves length */

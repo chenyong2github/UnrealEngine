@@ -1007,9 +1007,11 @@ protected:
 	virtual int32 GetHairUV() override;
 	virtual int32 GetHairDimensions() override;
 	virtual int32 GetHairSeed() override;
+	virtual int32 GetHairClumpID() override;
 	virtual int32 GetHairTangent(bool bUseTangentSpace) override;
 	virtual int32 GetHairRootUV() override;
 	virtual int32 GetHairBaseColor() override;
+	virtual int32 GetHairAO() override;
 	virtual int32 GetHairRoughness() override;
 	virtual int32 GetHairDepth() override;
 	virtual int32 GetHairCoverage() override;

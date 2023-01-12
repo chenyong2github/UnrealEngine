@@ -214,8 +214,10 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 	const FText FalseText = LOCTEXT("GroomOptionsWindow_AttributeFalse", "False");
 
 	FText HasRootUVText = FalseText;
-	FText HasColorAttributeText = FalseText;
-	FText HasRoughnessAttributeText = FalseText;
+	FText HasClumpIDText = FalseText;
+	FText HasColorText = FalseText;
+	FText HasRoughnessText = FalseText;
+	FText HasAOText = FalseText;
 	FText HasGuideWeightsText = FalseText;
 
 	if (GroupsPreview)
@@ -223,8 +225,10 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		for (const FGroomHairGroupPreview& Group : GroupsPreview->Groups)
 		{
 			if (Group.bHasRootUV)				{ HasRootUVText = TrueText; }
-			if (Group.bHasColorAttributes)		{ HasColorAttributeText = TrueText; }
-			if (Group.bHasRoughnessAttributes)	{ HasRoughnessAttributeText = TrueText; }
+			if (Group.bHasClumpID)				{ HasClumpIDText = TrueText; }
+			if (Group.bHasColor)				{ HasColorText = TrueText; }
+			if (Group.bHasRoughness)			{ HasRoughnessText = TrueText; }
+			if (Group.bHasAO)					{ HasAOText = TrueText; }
 			if (Group.bHasPrecomputedWeights)	{ HasGuideWeightsText = TrueText; }
 		}
 	}
@@ -320,6 +324,35 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 			]
 		]
 
+		// Clump ID
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(3))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Font(AttributeFont)
+					.Text(LOCTEXT("GroomOptionsWindow_HasClumpID", "Has Clump ID: "))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(5, 0, 0, 0)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(AttributeResultFont)
+					.Text(HasClumpIDText)
+					.ColorAndOpacity(AttributeColor)
+				]
+			]
+		]
 
 		// Color attributes
 		+ SVerticalBox::Slot()
@@ -336,7 +369,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(AttributeFont)
-					.Text(LOCTEXT("GroomOptionsWindow_HasColor", "Has Color Attributes: "))
+					.Text(LOCTEXT("GroomOptionsWindow_HasColor", "Has Color: "))
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(5, 0, 0, 0)
@@ -345,7 +378,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(AttributeResultFont)
-					.Text(HasColorAttributeText)
+					.Text(HasColorText)
 					.ColorAndOpacity(AttributeColor)
 				]
 			]
@@ -366,7 +399,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(AttributeFont)
-					.Text(LOCTEXT("GroomOptionsWindow_HasRoughness", "Has Roughness Attributes: "))
+					.Text(LOCTEXT("GroomOptionsWindow_HasRoughness", "Has Roughness: "))
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(5, 0, 0, 0)
@@ -375,7 +408,37 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(AttributeResultFont)
-					.Text(HasRoughnessAttributeText)
+					.Text(HasRoughnessText)
+					.ColorAndOpacity(AttributeColor)
+				]
+			]
+		]
+
+		// AO attributes
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(3))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Font(AttributeFont)
+					.Text(LOCTEXT("GroomOptionsWindow_HasAO", "Has AO: "))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(5, 0, 0, 0)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(AttributeResultFont)
+					.Text(HasAOText)
 					.ColorAndOpacity(AttributeColor)
 				]
 			]

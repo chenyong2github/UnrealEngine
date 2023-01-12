@@ -21065,6 +21065,8 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("AuxilaryData"), 1, 1, 1, 1, 1));
 	Outputs.Add(FExpressionOutput(TEXT("AtlasUVs"), 1, 1, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Group Index"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("AO"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Clump ID"), 1, 1, 0, 0, 0));
 #endif
 }
 
@@ -21118,6 +21120,14 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	else if (OutputIndex == 13)
 	{
 		return Compiler->GetHairGroupIndex();
+	}
+	else if (OutputIndex == 14)
+	{
+		return Compiler->GetHairAO();
+	}
+	else if (OutputIndex == 15)
+	{
+		return Compiler->GetHairClumpID();
 	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));
