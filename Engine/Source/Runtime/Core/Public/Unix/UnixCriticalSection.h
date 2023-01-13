@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/PThreadCriticalSection.h"
 #include "HAL/PThreadRWLock.h"
 #include "Misc/Timespan.h"
+
+class FString;
 
 /**
 	* Unix implementation of the FSystemWideCriticalSection. Uses exclusive file locking.
