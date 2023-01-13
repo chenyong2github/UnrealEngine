@@ -114,7 +114,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 	ID3D12Resource* SharedCrossGpuTexture = nullptr;
 
-	HANDLE NamedSharedGpuTextureHandle = nullptr;
+	HANDLE NamedSharedGpuTextureHandle = INVALID_HANDLE_VALUE;
 	HRESULT HResult = D3D12Device->OpenSharedHandleByName(*SharedGpuTextureName, GENERIC_ALL, &NamedSharedGpuTextureHandle);
 
 	if (FAILED(HResult))
@@ -136,6 +136,8 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 		return nullptr;
 	}
+
+	NamedSharedGpuTextureHandle = INVALID_HANDLE_VALUE;
 
 	check(SharedCrossGpuTexture);
 
@@ -163,7 +165,8 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 			UE_LOG(LogDisplayClusterMedia, Error, TEXT("Could not find a known pixel format for SharedCrossGpuTexture DXGI_FORMAT %d."),
 				SharedGpuTextureDesc.Format);
 
-			::CloseHandle(NamedSharedGpuTextureHandle);
+			SharedCrossGpuTexture->Release();
+			SharedCrossGpuTexture = nullptr;
 
 			return nullptr;
 		}

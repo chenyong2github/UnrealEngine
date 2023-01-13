@@ -289,13 +289,14 @@ void USharedMemoryMediaCapture::AddCopyToSharedGpuTexturePass(FRDGBuilder& Graph
 				// Update shared memory metadata to indicate to the receiver that there is new data
 
 				FSharedMemoryMediaFrameMetadata* SharedMemoryData = static_cast<FSharedMemoryMediaFrameMetadata*>(SharedMemory[SharedTextureIdx]->GetAddress());
+				{
+					FSharedMemoryMediaFrameMetadata::FSender SenderMetadata;
+					SenderMetadata.FrameNumber = FrameNumber;
+					SenderMetadata.TextureGuid = SharedCrossGpuTextureGuids[SharedTextureIdx];
 
-				FSharedMemoryMediaFrameMetadata FrameMetadata;
-				FrameMetadata.Sender.FrameNumber = FrameNumber;
-				FrameMetadata.Sender.TextureGuid = SharedCrossGpuTextureGuids[SharedTextureIdx];
-
-				// We only send the sender structure
-				FMemory::Memcpy(SharedMemoryData, &FrameMetadata, sizeof(FSharedMemoryMediaFrameMetadata::FSender));
+					// We only send the sender structure
+					FMemory::Memcpy(&SharedMemoryData->Sender, &SenderMetadata, sizeof(FSharedMemoryMediaFrameMetadata::FSender));
+				}
 
 				// Wait for FrameNumber ack
 
