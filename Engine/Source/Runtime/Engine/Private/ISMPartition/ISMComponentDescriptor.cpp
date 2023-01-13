@@ -62,7 +62,10 @@ void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, boo
 	bVisible = Template->GetVisibleFlag();
 	bVisibleInRayTracing = Template->bVisibleInRayTracing;
 	bEvaluateWorldPositionOffset = Template->bEvaluateWorldPositionOffset;
-	bIsLocalToWorldDeterminantNegative = Template->GetRenderMatrix().Determinant() < 0;
+
+	// Determine if this instance must render with reversed culling based on both scale and the component property
+	const bool bIsLocalToWorldDeterminantNegative = Template->GetRenderMatrix().Determinant() < 0;
+	bReverseCulling = Template->bReverseCulling != bIsLocalToWorldDeterminantNegative;
 
 #if WITH_EDITORONLY_DATA
 	HLODBatchingPolicy = Template->HLODBatchingPolicy;
@@ -131,7 +134,7 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	bVisible == Other.bVisible &&
 	bVisibleInRayTracing == Other.bVisibleInRayTracing &&
 	bEvaluateWorldPositionOffset == Other.bEvaluateWorldPositionOffset &&
-	bIsLocalToWorldDeterminantNegative == Other.bIsLocalToWorldDeterminantNegative &&
+	bReverseCulling == Other.bReverseCulling &&
 #if WITH_EDITORONLY_DATA
 	HLODBatchingPolicy == Other.HLODBatchingPolicy &&
 	bIncludeInHLOD == Other.bIncludeInHLOD &&
@@ -212,7 +215,7 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 	ISMComponent->SetVisibleFlag(bVisible);
 	ISMComponent->bVisibleInRayTracing = bVisibleInRayTracing;
 	ISMComponent->bEvaluateWorldPositionOffset = bEvaluateWorldPositionOffset;
-	ISMComponent->bReverseCulling = bIsLocalToWorldDeterminantNegative;
+	ISMComponent->bReverseCulling = bReverseCulling;
 	
 #if WITH_EDITORONLY_DATA
 	ISMComponent->HLODBatchingPolicy = HLODBatchingPolicy;

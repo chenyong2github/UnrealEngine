@@ -1545,7 +1545,7 @@ void UStaticMeshComponent::PrecachePSOs()
 	FPSOPrecacheParams PrecachePSOParams;
 	SetupPrecachePSOParams(PrecachePSOParams);
 	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
-	PrecachePSOParams.bReverseCulling = bReverseCulling || bIsLocalToWorldDeterminantNegative;
+	PrecachePSOParams.bReverseCulling = bReverseCulling != bIsLocalToWorldDeterminantNegative;
 	PrecachePSOParams.bForceLODModel = ForcedLodModel > 0;
 
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType :  &FLocalVertexFactory::StaticType;

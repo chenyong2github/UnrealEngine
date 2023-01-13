@@ -579,7 +579,9 @@ bool FStaticMeshSceneProxy::GetShadowMeshElement(int32 LODIndex, int32 BatchInde
 	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
-	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && LOD.bHasReversedDepthOnlyIndices;
+	const bool bUseReversedIndices = GUseReversedIndexBuffer &&
+		ShouldRenderBackFaces() &&
+		LOD.bHasReversedDepthOnlyIndices;
 	const bool bNoIndexBufferAvailable = !bUseReversedIndices && !LOD.bHasDepthOnlyIndices;
 
 	if (bNoIndexBufferAvailable)
@@ -694,8 +696,12 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 
 	const bool bWireframe = false;
 
+	// Determine based on the primitive option to reverse culling and current scale if we want to use reversed indices.
 	// Two sided material use bIsFrontFace which is wrong with Reversed Indices.
-	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !Material.IsTwoSided();
+	const bool bUseReversedIndices = GUseReversedIndexBuffer &&
+		ShouldRenderBackFaces() &&
+		(LOD.bHasReversedIndices != 0) &&
+		!Material.IsTwoSided();
 
 	// No support for stateless dithered LOD transitions for movable meshes
 	const bool bDitheredLODTransition = !IsMovable() && Material.IsDitheredLODTransition();
@@ -1085,9 +1091,15 @@ void FStaticMeshSceneProxy::SetMeshElementScreenSize(int32 LODIndex, bool bDithe
 	}
 }
 
+bool FStaticMeshSceneProxy::ShouldRenderBackFaces() const
+{
+	// Use != to ensure consistent face direction between negatively and positively scaled primitives
+	return bReverseCulling != IsLocalToWorldDeterminantNegative();
+}
+
 bool FStaticMeshSceneProxy::IsReversedCullingNeeded(bool bUseReversedIndices) const
 {
-	return (bReverseCulling || IsLocalToWorldDeterminantNegative()) && !bUseReversedIndices;
+	return ShouldRenderBackFaces() && !bUseReversedIndices;
 }
 
 // FPrimitiveSceneProxy interface.

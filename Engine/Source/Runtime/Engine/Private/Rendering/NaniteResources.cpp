@@ -1905,7 +1905,11 @@ uint32 FSceneProxy::SetMeshElementGeometrySource(
 
 bool FSceneProxy::IsReversedCullingNeeded(bool bUseReversedIndices) const
 {
-	return (bReverseCulling || IsLocalToWorldDeterminantNegative()) && !bUseReversedIndices;
+	// Use != to ensure consistent face directions between negatively and positively scaled primitives
+	// NOTE: This is only used by debug draw mesh elements (Nanite determines cull mode on the GPU. See
+	// ReverseWindingOrder() in NaniteRasterizer.usf)
+	const bool bReverseNeeded = IsCullingReversedByComponent() != IsLocalToWorldDeterminantNegative();
+	return bReverseNeeded && !bUseReversedIndices;
 }
 
 #endif

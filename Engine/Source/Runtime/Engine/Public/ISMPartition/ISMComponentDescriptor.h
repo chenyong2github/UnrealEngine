@@ -165,7 +165,7 @@ public:
 	uint8 bEvaluateWorldPositionOffset : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
-	uint8 bIsLocalToWorldDeterminantNegative : 1;
+	uint8 bReverseCulling : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Component Settings")

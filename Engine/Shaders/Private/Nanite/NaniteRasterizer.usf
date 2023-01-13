@@ -138,10 +138,14 @@ uint2 GetVisualizeValues()
 // Default cull mode is CW. If this returns true, CCW culling is required
 bool ReverseWindingOrder(FNaniteView NaniteView, FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData)
 {
-	// Negative determinant sign for non uniform scale means
-	// that an odd number of components are negative, so
+	// Negative determinant sign for non uniform scale means that an odd number of components are negative, so
 	// we need to reverse the triangle winding order.
-	float DeterminantSign = InstanceData.DeterminantSign;
+	//
+	// TODO: We should eventually use the instance's determinant sign here. Temporarily using the primitive's
+	// determinant sign to fix bugs where Nanite behavior doesn't match non-Nanite ISMs and so that fallback meshes
+	// will render consistently on platforms that do not support Nanite (fallbacks cannot change cull mode per-instance).
+	//float DeterminantSign = InstanceData.DeterminantSign;
+	float DeterminantSign = GetPrimitive_DeterminantSign_FromFlags(PrimitiveData.Flags);
 	bool bReverseInstanceCull = (DeterminantSign < 0.0f);
 	if (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING)
 	{

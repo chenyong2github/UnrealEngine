@@ -88,6 +88,9 @@ protected:
 	/** Sets the screen size on a mesh element. */
 	void SetMeshElementScreenSize(int32 LODIndex, bool bDitheredLODTransition, FMeshBatch& OutMeshBatch) const;
 
+	/** Returns whether this mesh should render back-faces instead of front-faces - either with reversed indices or reversed cull mode */
+	bool ShouldRenderBackFaces() const;
+
 	/** Returns whether this mesh needs reverse culling when using reversed indices. */
 	bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
 
