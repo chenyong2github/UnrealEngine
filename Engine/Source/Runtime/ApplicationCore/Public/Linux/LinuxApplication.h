@@ -215,6 +215,9 @@ private:
 	/** Gets the location from a given touch event. */
 	FVector2D GetTouchEventLocation(SDL_HWindow NativeWindow, SDL_Event TouchEvent);
 
+	/** Searches for a free touch index. */
+	int GetFirstFreeTouchId();
+
 public:
 	virtual IInputInterface* GetInputInterface() override
 	{
@@ -246,6 +249,9 @@ private:
 
 	/** Holds currently active touches (i.e. fingers pressed but not released) */
 	TMap<uint64, FTouchContext> Touches;
+
+	/** Maps touch indexes to SDL touch IDs. */
+	TArray<TOptional<uint64>> TouchIds;
 
 	struct SDLControllerState
 	{

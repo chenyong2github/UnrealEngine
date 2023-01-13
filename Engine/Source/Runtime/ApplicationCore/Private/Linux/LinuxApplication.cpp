@@ -1000,19 +1000,23 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 			{
 				// remove touch context even if it existed
 				uint64 FingerId = static_cast<uint64>(Event.tfinger.fingerId);
+
+				FTouchContext* TouchContext = Touches.Find(FingerId);
 				if (UNLIKELY(Touches.Find(FingerId) != nullptr))
 				{
+					TouchIds[TouchContext->TouchIndex] = TOptional<uint64>();
 					Touches.Remove(FingerId);
 					UE_LOG(LogLinuxWindow, Warning, TEXT("Received another SDL_FINGERDOWN for finger %llu which was already down."), FingerId);
 				}
 
 				FTouchContext NewTouch;
-				NewTouch.TouchIndex = Touches.Num();
+				NewTouch.TouchIndex = GetFirstFreeTouchId();
 				NewTouch.Location = GetTouchEventLocation(NativeWindow, Event);
 				NewTouch.DeviceId = Event.tfinger.touchId;
 				Touches.Add(FingerId, NewTouch);
+				TouchIds[NewTouch.TouchIndex] = TOptional<uint64>(FingerId);
 
-				UE_LOG(LogLinuxWindow, Verbose, TEXT("OnTouchStarted at (%f, %f), finger %d (system touch id %llu)"), NewTouch.Location.X, NewTouch.Location.Y, NewTouch.TouchIndex, FingerId);
+				UE_LOG(LogLinuxWindow, Verbose, TEXT("OnTouchStarted at (%f, %f), finger %d (system touch id %llu)"), NewTouch.Location.X, NewTouch.Location.Y, FingerId, NewTouch.TouchIndex);
 				MessageHandler->OnTouchStarted(CurrentEventWindow, NewTouch.Location, 1.0f, NewTouch.TouchIndex, 0);// NewTouch.DeviceId);
 			}
 			else
@@ -1041,10 +1045,11 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					TouchContext->Location = GetTouchEventLocation(NativeWindow, Event);
 					// check touch device?
 
-					UE_LOG(LogLinuxWindow, Verbose, TEXT("OnTouchEnded at (%f, %f), finger %d (system touch id %llu)"), TouchContext->Location.X, TouchContext->Location.Y, TouchContext->TouchIndex, FingerId);
+					UE_LOG(LogLinuxWindow, Verbose, TEXT("OnTouchEnded at (%f, %f), finger %d (system touch id %llu)"), TouchContext->Location.X, TouchContext->Location.Y, FingerId, TouchContext->TouchIndex);
 					MessageHandler->OnTouchEnded(TouchContext->Location, TouchContext->TouchIndex, 0);// TouchContext->DeviceId);
 
 					// remove the touch
+					TouchIds[TouchContext->TouchIndex] = TOptional<uint64>();
 					Touches.Remove(FingerId);
 				}
 			}
@@ -1116,6 +1121,19 @@ void FLinuxApplication::CheckIfApplicatioNeedsDeactivation()
 			FocusOutDeactivationTime = 0.0;
 		}
 	}
+}
+
+int FLinuxApplication::GetFirstFreeTouchId()
+{
+	for (int i = 0; i < TouchIds.Num(); i++)
+	{
+		if (TouchIds[i].IsSet() == false)
+		{
+			return i;
+		}
+	}
+
+	return TouchIds.Add(TOptional<uint64>()); 
 }
 
 FVector2D FLinuxApplication::GetTouchEventLocation(SDL_HWindow NativeWindow, SDL_Event TouchEvent)
