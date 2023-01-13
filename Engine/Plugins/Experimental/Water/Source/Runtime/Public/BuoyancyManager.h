@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "GameFramework/Actor.h"
+#include "BuoyancyTypes.h" // IWYU pragma: keep
 #include "Chaos/SimCallbackObject.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "GameFramework/Actor.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 #include "BuoyancyManager.generated.h"
 
@@ -77,6 +78,5 @@ private:
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "BuoyancyTypes.h"
 #include "WaterBodyTypes.h"
 #endif

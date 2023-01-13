@@ -50,6 +50,8 @@ FMVVMCompiledBindingLibrary::FMVVMCompiledBindingLibrary()
 
 }
 
+FMVVMCompiledBindingLibrary::~FMVVMCompiledBindingLibrary() = default;
+
 
 void FMVVMCompiledBindingLibrary::Load()
 {

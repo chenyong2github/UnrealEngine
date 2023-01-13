@@ -8,6 +8,7 @@
 #include "MVVMSubsystem.h"
 #include "FieldNotification/IFieldValueChanged.h"
 #include "Misc/TVariantMeta.h"
+#include <limits> // IWYU pragma: keep
 
 #define LOCTEXT_NAMESPACE "CompiledBindingLibraryCompiler"
 

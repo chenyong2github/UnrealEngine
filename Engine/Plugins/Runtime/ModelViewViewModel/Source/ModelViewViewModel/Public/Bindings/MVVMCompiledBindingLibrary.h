@@ -243,6 +243,7 @@ struct MODELVIEWVIEWMODEL_API FMVVMCompiledBindingLibrary
 
 public:
 	FMVVMCompiledBindingLibrary();
+	~FMVVMCompiledBindingLibrary();
 
 public:
 	/** */
