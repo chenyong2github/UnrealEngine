@@ -1,6 +1,14 @@
 @echo off
 setlocal
 
+rem Note that for OpenEXR v3.1.5, we've apply the following patch to the
+rem OpenEXR source:
+rem     openexr_v3.1.5_PR_1268_OSS_Fuzz.patch
+rem Issues in the OpenEXR source were identified by OSS Fuzz that have been
+rem addressed in the development branch but not yet incorporated into an
+rem official release, so we apply the patch in the meantime to bring in those
+rem fixes. See the OpenEXR pull request for more detail:
+rem     https://github.com/AcademySoftwareFoundation/openexr/pull/1268/files
 set OPENEXR_VERSION=3.1.5
 
 if [%1]==[] goto usage

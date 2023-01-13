@@ -2,6 +2,14 @@
 
 set -e
 
+# Note that for OpenEXR v3.1.5, we've apply the following patch to the
+# OpenEXR source:
+#     openexr_v3.1.5_PR_1268_OSS_Fuzz.patch
+# Issues in the OpenEXR source were identified by OSS Fuzz that have been
+# addressed in the development branch but not yet incorporated into an
+# official release, so we apply the patch in the meantime to bring in those
+# fixes. See the OpenEXR pull request for more detail:
+#     https://github.com/AcademySoftwareFoundation/openexr/pull/1268/files
 OPENEXR_VERSION=3.1.5
 
 UE_THIRD_PARTY_LOCATION=`cd $(pwd)/..; pwd`
