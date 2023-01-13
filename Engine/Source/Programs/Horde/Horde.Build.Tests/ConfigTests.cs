@@ -27,6 +27,7 @@ namespace Horde.Build.Tests
 			public SubObject? ValueC { get; set; }
 		}
 
+		[ConfigIncludeRoot]
 		class ConfigObject
 		{
 			public List<ConfigInclude> Include { get; set; } = new List<ConfigInclude>();

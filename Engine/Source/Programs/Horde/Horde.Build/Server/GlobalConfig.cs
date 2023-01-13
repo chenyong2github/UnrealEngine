@@ -25,10 +25,23 @@ namespace Horde.Build.Server
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 
 	/// <summary>
+	/// Directive to merge config data from another source
+	/// </summary>
+	public class ConfigInclude
+	{
+		/// <summary>
+		/// Path to the config data to be included. May be relative to the including file's location.
+		/// </summary>
+		[Required, ConfigInclude, ConfigRelativePath]
+		public string Path { get; set; } = null!;
+	}
+
+	/// <summary>
 	/// Global configuration
 	/// </summary>
 	[JsonSchema("https://unrealengine.com/horde/global")]
 	[JsonSchemaCatalog("Horde Globals", "Horde global configuration file", "globals.json")]
+	[ConfigIncludeRoot]
 	public class GlobalConfig
 	{
 		/// <summary>
@@ -189,7 +202,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Config path for the project
 		/// </summary>
-		[Required, ConfigPath]
+		[Required, ConfigRelativePath]
 		public string Path { get; set; } = null!;
 
 		/// <summary>

@@ -70,7 +70,7 @@ namespace Horde.Build.Projects
 		/// <summary>
 		/// Path to the configuration file
 		/// </summary>
-		[Required, ConfigPath]
+		[Required, ConfigRelativePath]
 		public string Path { get; set; } = null!;
 
 		/// <summary>
