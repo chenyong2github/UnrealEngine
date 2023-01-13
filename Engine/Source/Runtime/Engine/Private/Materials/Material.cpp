@@ -6244,6 +6244,26 @@ void UMaterial::ForceRecompileForRendering()
 	CacheResourceShadersForRendering( false );
 }
 
+bool UMaterial::CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const
+{
+	bool bSuccess = true;
+	
+	// Check and report errors due to duplicate parameters set to distinct values.
+	if (!CachedExpressionData->DuplicateParameterErrors.IsEmpty())
+	{
+		for (const TPair<TObjectPtr<UMaterialExpression>, FName>& Error : CachedExpressionData->DuplicateParameterErrors)
+		{
+			// Although this is an error, log it as a warning for now (it should instead be an error logged to the compiler).
+			// We need to first solve this error for all existing materials before we can turn it into a compilation blocking error.
+			UE_LOG(LogMaterial, Warning, TEXT("Parameter '%s' is set multiple times to different values. Make sure each parameter is set once or always to the same value (e.g. same texture)."), *Error.Get<1>().ToString());
+		}
+
+		bSuccess = false;
+	}
+
+	return bSuccess;
+}
+
 UMaterial::FMaterialCompilationFinished UMaterial::MaterialCompilationFinishedEvent;
 UMaterial::FMaterialCompilationFinished& UMaterial::OnMaterialCompilationFinished()
 {

@@ -87,31 +87,32 @@ void FMaterialCachedExpressionData::AppendReferencedParameterCollectionIdsTo(TAr
 }
 
 #if WITH_EDITOR
-static int32 TryAddParameter(FMaterialCachedExpressionData& CachedData,
+static bool TryAddParameter(FMaterialCachedExpressionData& CachedData,
 	EMaterialParameterType Type,
 	const FMaterialParameterInfo& ParameterInfo,
-	const FMaterialCachedParameterEditorInfo& InEditorInfo)
+	const FMaterialCachedParameterEditorInfo& InEditorInfo,
+	int32& OutIndex)
 {
 	check(CachedData.EditorOnlyData);
 	FMaterialCachedParameterEntry& Entry = CachedData.GetParameterTypeEntry(Type);
 	FMaterialCachedParameterEditorEntry& EditorEntry = CachedData.EditorOnlyData->EditorEntries[(int32)Type];
 
 	FSetElementId ElementId = Entry.ParameterInfoSet.FindId(ParameterInfo);
-	int32 Index = INDEX_NONE;
+	OutIndex = INDEX_NONE;
 	if (!ElementId.IsValidId())
 	{
 		ElementId = Entry.ParameterInfoSet.Add(ParameterInfo);
-		Index = ElementId.AsInteger();
-		EditorEntry.EditorInfo.Insert(InEditorInfo, Index);
+		OutIndex = ElementId.AsInteger();
+		EditorEntry.EditorInfo.Insert(InEditorInfo, OutIndex);
 		// should be valid as long as we don't ever remove elements from ParameterInfoSet
 		check(Entry.ParameterInfoSet.Num() == EditorEntry.EditorInfo.Num());
-		return Index;
+		return true;
 	}
 
 	// Update any editor values that haven't been set yet
 	// TODO still need to do this??
-	Index = ElementId.AsInteger();
-	FMaterialCachedParameterEditorInfo& EditorInfo = EditorEntry.EditorInfo[Index];
+	OutIndex = ElementId.AsInteger();
+	FMaterialCachedParameterEditorInfo& EditorInfo = EditorEntry.EditorInfo[OutIndex];
 	if (!EditorInfo.ExpressionGuid.IsValid())
 	{
 		EditorInfo.ExpressionGuid = InEditorInfo.ExpressionGuid;
@@ -126,11 +127,11 @@ static int32 TryAddParameter(FMaterialCachedExpressionData& CachedData,
 		EditorInfo.SortPriority = InEditorInfo.SortPriority;
 	}
 	
-	// Still return INDEX_NONE, to signify this parameter was already added (don't want to add it again)
-	return INDEX_NONE;
+	// Still return false, to signify this parameter was already added (don't want to add it again)
+	return false;
 }
 
-void FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta, UObject*& OutReferencedTexture)
+bool FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta, UObject*& OutReferencedTexture)
 {
 	check(EditorOnlyData);
 	int32 AssetIndex = INDEX_NONE;
@@ -140,8 +141,8 @@ void FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& P
 	}
 
 	const FMaterialCachedParameterEditorInfo EditorInfo(ParameterMeta.ExpressionGuid, ParameterMeta.Description, ParameterMeta.Group, ParameterMeta.SortPriority, AssetIndex);
-	const int32 Index = TryAddParameter(*this, ParameterMeta.Value.Type, ParameterInfo, EditorInfo);
-	if (Index != INDEX_NONE)
+	int32 Index = INDEX_NONE;
+	if (TryAddParameter(*this, ParameterMeta.Value.Type, ParameterInfo, EditorInfo, Index))
 	{
 		switch (ParameterMeta.Value.Type)
 		{
@@ -161,20 +162,24 @@ void FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& P
 				EditorOnlyData->ScalarCurveAtlasValues.Insert(nullptr, Index);
 			}
 			break;
+
 		case EMaterialParameterType::Vector:
 			VectorValues.Insert(ParameterMeta.Value.AsLinearColor(), Index);
 			EditorOnlyData->VectorChannelNameValues.Insert(ParameterMeta.ChannelNames, Index);
 			EditorOnlyData->VectorUsedAsChannelMaskValues.Insert(ParameterMeta.bUsedAsChannelMask, Index);
 			VectorPrimitiveDataIndexValues.Insert(ParameterMeta.PrimitiveDataIndex, Index);
 			break;
+
 		case EMaterialParameterType::DoubleVector:
 			DoubleVectorValues.Insert(ParameterMeta.Value.AsVector4d(), Index);
 			break;
+
 		case EMaterialParameterType::Texture:
 			TextureValues.Insert(ParameterMeta.Value.Texture, Index);
 			EditorOnlyData->TextureChannelNameValues.Insert(ParameterMeta.ChannelNames, Index);
 			OutReferencedTexture = ParameterMeta.Value.Texture;
 			break;
+
 		case EMaterialParameterType::Font:
 			FontValues.Insert(ParameterMeta.Value.Font.Value, Index);
 			FontPageValues.Insert(ParameterMeta.Value.Font.Page, Index);
@@ -183,25 +188,72 @@ void FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& P
 				OutReferencedTexture = ParameterMeta.Value.Font.Value->Textures[ParameterMeta.Value.Font.Page];
 			}
 			break;
+
 		case EMaterialParameterType::RuntimeVirtualTexture:
 			RuntimeVirtualTextureValues.Insert(ParameterMeta.Value.RuntimeVirtualTexture, Index);
 			OutReferencedTexture = ParameterMeta.Value.RuntimeVirtualTexture;
 			break;
+
 		case EMaterialParameterType::SparseVolumeTexture:
 			SparseVolumeTextureValues.Insert(ParameterMeta.Value.SparseVolumeTexture, Index);
 			OutReferencedTexture = ParameterMeta.Value.SparseVolumeTexture;
 			break;
+
 		case EMaterialParameterType::StaticSwitch:
 			EditorOnlyData->StaticSwitchValues.Insert(ParameterMeta.Value.AsStaticSwitch(), Index);
 			break;
+
 		case EMaterialParameterType::StaticComponentMask:
 			EditorOnlyData->StaticComponentMaskValues.Insert(ParameterMeta.Value.AsStaticComponentMask(), Index);
 			break;
+
 		default:
 			checkNoEntry();
 			break;
 		}
 	}
+	else
+	{
+		bool bSameValue;
+		switch (ParameterMeta.Value.Type)
+		{
+		case EMaterialParameterType::Scalar:
+			bSameValue = ScalarValues[Index] == ParameterMeta.Value.AsScalar();
+			break;
+
+		case EMaterialParameterType::Vector:
+			bSameValue = VectorValues[Index] == ParameterMeta.Value.AsLinearColor();
+			break;
+
+		case EMaterialParameterType::DoubleVector:
+			bSameValue = DoubleVectorValues[Index] == ParameterMeta.Value.AsVector4d();
+			break;
+
+		case EMaterialParameterType::Texture:
+			bSameValue = TextureValues[Index] == ParameterMeta.Value.Texture;
+			break;
+
+		case EMaterialParameterType::Font:
+			bSameValue = FontValues[Index] == ParameterMeta.Value.Font.Value && FontPageValues[Index] == ParameterMeta.Value.Font.Page;
+			break;
+
+		case EMaterialParameterType::RuntimeVirtualTexture:
+			bSameValue = RuntimeVirtualTextureValues[Index] == ParameterMeta.Value.RuntimeVirtualTexture;
+			break;
+
+		case EMaterialParameterType::SparseVolumeTexture:
+			bSameValue = SparseVolumeTextureValues[Index] == ParameterMeta.Value.SparseVolumeTexture;
+			break;
+
+		default:
+			bSameValue = true;
+			break;
+		}
+
+		return bSameValue;
+	}
+
+	return true;
 }
 
 void FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpressionContext& Context, UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex)
@@ -280,7 +332,12 @@ void FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			}
 
 			const FMaterialParameterInfo ParameterInfo(ParameterName, Association, ParameterIndex);
-			AddParameter(ParameterInfo, ParameterMeta, ReferencedTexture);
+
+			// Try add the parameter. If this fails, the parameter is being added twice with different values. Report it as error.
+			if (!AddParameter(ParameterInfo, ParameterMeta, ReferencedTexture))
+			{
+				DuplicateParameterErrors.AddUnique({ Expression, ParameterName });
+			}
 		}
 
 		// We first try to extract the referenced texture from the parameter value, that way we'll also get the proper texture in case value is overriden by a function instance

@@ -764,9 +764,9 @@ bool FHLSLMaterialTranslator::Translate()
 	STAT(double HLSLTranslateTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(HLSLTranslateTime);
-		bSuccess = true;
 
 		check(ScopeStack.Num() == 0);
+		bSuccess = true;
 
 		// WARNING: No compile outputs should be stored on the UMaterial / FMaterial / FMaterialResource, unless they are transient editor-only data (like error expressions)
 		// Compile outputs that need to be saved must be stored in MaterialCompilationOutput, which will be saved to the DDC.
@@ -774,8 +774,11 @@ bool FHLSLMaterialTranslator::Translate()
 		Material->CompileErrors.Empty();
 		Material->ErrorExpressions.Empty();
 
-		bEnableExecutionFlow = Material->IsUsingControlFlow();
+		// Verify that no pre-compilation errors have occured.
+		// Note: ideally returned value should fail compilation if false. We need to first fix content before we can make this error fatal.
+		Material->CheckInValidStateForCompilation(this);
 
+		bEnableExecutionFlow = Material->IsUsingControlFlow();
 		bCompileForComputeShader = Material->IsLightFunction();
 
 		const bool bStrataEnabled = Engine_IsStrataEnabled();
@@ -7046,7 +7049,13 @@ int32 FHLSLMaterialTranslator::TextureParameter(FName ParameterName, UTexture* I
 
 	EMaterialValueType ShaderType = DefaultValue->GetMaterialType();
 	TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultValue);
-	checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->TextureParameter() without implementing UMaterialExpression::GetReferencedTexture properly"));
+	if (TextureReferenceIndex == INDEX_NONE)
+	{
+		FString TextureName;
+		DefaultValue->GetName(TextureName);
+		Errorf(TEXT("Could not resolve referenced texture '%s'."), *TextureName);
+		return INDEX_NONE;
+	}
 
 	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 	ParameterInfo.Name = ParameterName;
