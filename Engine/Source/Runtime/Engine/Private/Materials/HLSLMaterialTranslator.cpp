@@ -799,7 +799,7 @@ bool FHLSLMaterialTranslator::Translate()
 			
 				FExpressionInput* SurfaceThickness = Material->IsThinSurface() && Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->SurfaceThickness : nullptr;
 				StrataThicknessStackPush(nullptr, SurfaceThickness);
-				FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0);
+				FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, FrontMaterialInput->OutputIndex);
 				StrataThicknessStackPop();
 
 				check(StrataThicknessStack.Num() == 0);
