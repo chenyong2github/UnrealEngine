@@ -273,12 +273,12 @@ protected:
 	void InitNotifyFlags(NotifyChildExecution, NotifyNodeActivation, NotifyNodeDeactivation,
 						 CanNotifyDecoratorsOnActivation, CanNotifyDecoratorsOnDeactivation, CanNotifyDecoratorsOnFailedActivation)
 	{
-		bUseChildExecutionNotify = !TIsSame<decltype(&UBTCompositeNode::NotifyChildExecution), NotifyChildExecution>::Value;
-		bUseNodeActivationNotify = !TIsSame<decltype(&UBTCompositeNode::NotifyNodeActivation), NotifyNodeActivation>::Value;
-		bUseNodeDeactivationNotify = !TIsSame<decltype(&UBTCompositeNode::NotifyNodeDeactivation), NotifyNodeDeactivation>::Value;
-		bUseDecoratorsActivationCheck = !TIsSame<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnActivation), CanNotifyDecoratorsOnActivation>::Value;
-		bUseDecoratorsDeactivationCheck = !TIsSame<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnDeactivation), CanNotifyDecoratorsOnDeactivation>::Value;
-		bUseDecoratorsFailedActivationCheck = !TIsSame<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnFailedActivation), CanNotifyDecoratorsOnFailedActivation>::Value;
+		bUseChildExecutionNotify = !std::is_same_v<decltype(&UBTCompositeNode::NotifyChildExecution), NotifyChildExecution>;
+		bUseNodeActivationNotify = !std::is_same_v<decltype(&UBTCompositeNode::NotifyNodeActivation), NotifyNodeActivation>;
+		bUseNodeDeactivationNotify = !std::is_same_v<decltype(&UBTCompositeNode::NotifyNodeDeactivation), NotifyNodeDeactivation>;
+		bUseDecoratorsActivationCheck = !std::is_same_v<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnActivation), CanNotifyDecoratorsOnActivation>;
+		bUseDecoratorsDeactivationCheck = !std::is_same_v<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnDeactivation), CanNotifyDecoratorsOnDeactivation>;
+		bUseDecoratorsFailedActivationCheck = !std::is_same_v<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnFailedActivation), CanNotifyDecoratorsOnFailedActivation>;
 	}
 };
 

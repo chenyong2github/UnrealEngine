@@ -131,12 +131,12 @@ protected:
 	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant,
 					 OnNodeActivation, OnNodeDeactivation, OnNodeProcessed)
 	{
-		bNotifyTick = !TIsSame<decltype(&UBTDecorator::TickNode), TickNode>::Value;
-		bNotifyBecomeRelevant = !TIsSame<decltype(&UBTDecorator::OnBecomeRelevant), OnBecomeRelevant>::Value;
-		bNotifyCeaseRelevant = !TIsSame<decltype(&UBTDecorator::OnCeaseRelevant), OnCeaseRelevant>::Value;
-		bNotifyActivation = !TIsSame<decltype(&UBTDecorator::OnNodeActivation), OnNodeActivation>::Value;
-		bNotifyDeactivation = !TIsSame<decltype(&UBTDecorator::OnNodeDeactivation), OnNodeDeactivation>::Value;
-		bNotifyProcessed = !TIsSame<decltype(&UBTDecorator::OnNodeProcessed), OnNodeProcessed>::Value;
+		bNotifyTick = !std::is_same_v<decltype(&UBTDecorator::TickNode), TickNode>;
+		bNotifyBecomeRelevant = !std::is_same_v<decltype(&UBTDecorator::OnBecomeRelevant), OnBecomeRelevant>;
+		bNotifyCeaseRelevant = !std::is_same_v<decltype(&UBTDecorator::OnCeaseRelevant), OnCeaseRelevant>;
+		bNotifyActivation = !std::is_same_v<decltype(&UBTDecorator::OnNodeActivation), OnNodeActivation>;
+		bNotifyDeactivation = !std::is_same_v<decltype(&UBTDecorator::OnNodeDeactivation), OnNodeDeactivation>;
+		bNotifyProcessed = !std::is_same_v<decltype(&UBTDecorator::OnNodeProcessed), OnNodeProcessed>;
 	}
 };
 

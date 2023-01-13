@@ -88,10 +88,10 @@ protected:
 	template<typename TickNode, typename OnBecomeRelevant, typename OnCeaseRelevant, typename OnSearchStart>
 	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant, OnSearchStart)
 	{
-		bNotifyTick = !TIsSame<decltype(&UBTService::TickNode), TickNode>::Value;
-		bNotifyBecomeRelevant = !TIsSame<decltype(&UBTService::OnBecomeRelevant), OnBecomeRelevant>::Value;
-		bNotifyCeaseRelevant = !TIsSame<decltype(&UBTService::OnCeaseRelevant), OnCeaseRelevant>::Value;
-		bNotifyOnSearch = !TIsSame<decltype(&UBTService::OnSearchStart), OnSearchStart>::Value;
+		bNotifyTick = !std::is_same_v<decltype(&UBTService::TickNode), TickNode>;
+		bNotifyBecomeRelevant = !std::is_same_v<decltype(&UBTService::OnBecomeRelevant), OnBecomeRelevant>;
+		bNotifyCeaseRelevant = !std::is_same_v<decltype(&UBTService::OnCeaseRelevant), OnCeaseRelevant>;
+		bNotifyOnSearch = !std::is_same_v<decltype(&UBTService::OnSearchStart), OnSearchStart>;
 	}
 };
 

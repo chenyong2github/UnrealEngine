@@ -127,8 +127,8 @@ protected:
 	template<typename TickTask,	typename OnTaskFinished>
 	void InitNotifyFlags(TickTask, OnTaskFinished)
 	{
-		bNotifyTick = !TIsSame<decltype(&UBTTaskNode::TickTask), TickTask>::Value;
-		bNotifyTaskFinished = !TIsSame<decltype(&UBTTaskNode::OnTaskFinished), OnTaskFinished>::Value;
+		bNotifyTick = !std::is_same_v<decltype(&UBTTaskNode::TickTask), TickTask>;
+		bNotifyTaskFinished = !std::is_same_v<decltype(&UBTTaskNode::OnTaskFinished), OnTaskFinished>;
 	}
 
 	/** if set, conditional tick will use remaining time from node's memory */

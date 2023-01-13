@@ -96,17 +96,21 @@ namespace Audio
 	template<typename From, typename To>
 	static constexpr float GetConvertScalar()
 	{
-		if (TIsSame<From, To>::Value)
+		if constexpr (std::is_same_v<From, To>)
 		{
 			return 1.0f;
 		}
-		else if (TIsSame<From, int16>::Value && TIsSame<To, float>::Value)
+		else if constexpr (std::is_same_v<From, int16> && std::is_same_v<To, float>)
 		{
 			return 1.f / (static_cast<float>(TNumericLimits<int16>::Max()) + 1.f);
 		}
-		else if (TIsSame<From, float>::Value && TIsSame<To, int16>::Value)
+		else if constexpr (std::is_same_v<From, float> && std::is_same_v<To, int16>)
 		{
 			return static_cast<float>(TNumericLimits<int16>::Max()) + 1.f;
+		}
+		else
+		{
+			static_assert(sizeof(From) == 0, "Unsupported conversion");
 		}
 	}
 		
@@ -490,7 +494,7 @@ namespace Audio
 			int32 AvailSpace = Buffer.Num() - Offset;
 			int32 Num = FMath::Min(AvailSpace, InAudio.Num());
 
-			if (TIsSame<TSampleType, T>::Value)
+			if constexpr (std::is_same_v<TSampleType, T>)
 			{
 				FMemory::Memcpy(Dst, Src, Num * sizeof(T));
 			}
@@ -526,7 +530,7 @@ namespace Audio
 			TArrayView<T> InExternalBuffer )
 		{
 			check(InExternalBuffer.Num() > 0);
-			if (TIsSame<T, TSampleType>::Value && Offset > 0)
+			if (std::is_same_v<T, TSampleType> && Offset > 0)
 			{
 				int32 NumSamplesPopped = Offset;
 				Offset = 0;
@@ -589,7 +593,7 @@ namespace Audio
 		int32 PushAudioInternal(
 			const FPushedAudioDetails& InDetails, TArrayView<const T> InBuffer) 
 		{
-			if (TIsSame<T, TSampleType>::Value)
+			if constexpr (std::is_same_v<T, TSampleType>)
 			{
 				return Buffer.Push(reinterpret_cast<const TSampleType*>(InBuffer.GetData()), InBuffer.Num());
 			}
@@ -620,7 +624,7 @@ namespace Audio
 		}
 		int32 PopAudio(TArrayView<int16> InExternalInt16Buffer, FPushedAudioDetails& OutDetails) override
 		{
-			if( TIsSame<TSampleType, int16>::Value )
+			if constexpr (std::is_same_v<TSampleType, int16>)
 			{
 				return Buffer.Pop(reinterpret_cast<TSampleType*>(InExternalInt16Buffer.GetData()), InExternalInt16Buffer.Num());
 			}
@@ -630,7 +634,7 @@ namespace Audio
 
 		int32 PopAudio(TArrayView<float> InExternalFloat32Buffer, FPushedAudioDetails& OutDetails) override
 		{
-			if( TIsSame<TSampleType, float>::Value )
+			if constexpr (std::is_same_v<TSampleType, float>)
 			{
 				return Buffer.Pop(reinterpret_cast<TSampleType*>(InExternalFloat32Buffer.GetData()), InExternalFloat32Buffer.Num());
 			}

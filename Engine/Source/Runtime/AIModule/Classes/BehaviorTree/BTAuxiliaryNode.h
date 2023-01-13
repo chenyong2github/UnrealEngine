@@ -107,9 +107,9 @@ protected:
 	template<typename TickNode,	typename OnBecomeRelevant, typename OnCeaseRelevant>
 	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant)
 	{
-		bNotifyTick = !TIsSame<decltype(&UBTAuxiliaryNode::TickNode), TickNode>::Value;
-		bNotifyBecomeRelevant = !TIsSame<decltype(&UBTAuxiliaryNode::OnBecomeRelevant), OnBecomeRelevant>::Value;
-		bNotifyCeaseRelevant = !TIsSame<decltype(&UBTAuxiliaryNode::OnCeaseRelevant), OnCeaseRelevant>::Value;
+		bNotifyTick = !std::is_same_v<decltype(&UBTAuxiliaryNode::TickNode), TickNode>;
+		bNotifyBecomeRelevant = !std::is_same_v<decltype(&UBTAuxiliaryNode::OnBecomeRelevant), OnBecomeRelevant>;
+		bNotifyCeaseRelevant = !std::is_same_v<decltype(&UBTAuxiliaryNode::OnCeaseRelevant), OnCeaseRelevant>;
 	}
 };
 

@@ -68,7 +68,7 @@ FORCEINLINE FVector3d ToXYZ(const FVector2d& Coordinate)
 template<typename T>
 FORCEINLINE UE::Math::TMatrix<T> Transpose(const FMatrix44d& Transform)
 {
-	if constexpr (TIsSame<T, double>::Value)
+	if constexpr (std::is_same_v<T, double>)
 	{
 		return Transform.GetTransposed();
 	}
