@@ -90,7 +90,7 @@ void FMinimalGameplayCueReplicationProxyNetSerializer::Serialize(FNetSerializati
 
 void FMinimalGameplayCueReplicationProxyNetSerializer::Deserialize(FNetSerializationContext& Context, const FNetDeserializeArgs& Args)
 {
-	FNetDeserializeArgs NetDeserializeArgs;
+	FNetDeserializeArgs NetDeserializeArgs = Args;
 	NetDeserializeArgs.NetSerializerConfig = &StructNetSerializerConfig;
 	StructNetSerializer->Deserialize(Context, NetDeserializeArgs);
 }
