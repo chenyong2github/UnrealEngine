@@ -969,11 +969,11 @@ struct FDecalShaderParams
 	}
 	float GetAO() { return asfloat(Data[12]); }
 
-	void SetOpacity(float In)
+	void SetTransparency(float In)
 	{
 		Data[13] = asuint(In);
 	}
-	float GetOpacity() { return asfloat(Data[13]); }
+	float GetTransparency() { return asfloat(Data[13]); }
 
 	void SetFlags(uint In) { Data[14] = In; }
 	uint GetFlags() { return Data[14]; }

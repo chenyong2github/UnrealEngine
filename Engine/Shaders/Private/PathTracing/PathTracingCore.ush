@@ -116,26 +116,26 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 
 void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
 {
-	const float DecalAlpha = Params.GetOpacity();
+	const float DecalTransparency = Params.GetTransparency();
 	const uint DecalFlags = Params.GetFlags();
 
 	if (DecalFlags & DECAL_WRITE_BASE_COLOR_FLAG)
 	{
-		HitPayload.BaseColor = lerp(HitPayload.BaseColor, Params.GetBaseColor(), DecalAlpha);
+		HitPayload.BaseColor = HitPayload.BaseColor * DecalTransparency + Params.GetBaseColor();
 	}
 
 	if (DecalFlags & DECAL_WRITE_NORMAL_FLAG)
 	{
-		HitPayload.WorldNormal = lerp(HitPayload.WorldNormal, Params.GetWorldNormal(), DecalAlpha);
+		HitPayload.WorldNormal = HitPayload.WorldNormal * DecalTransparency + Params.GetWorldNormal();
 	}
 
 	if (DecalFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
 		const float3 MetallicSpecularRoughness = Params.GetMetallicSpecularRoughness();
-		
-		HitPayload.Metallic = lerp(HitPayload.Metallic, MetallicSpecularRoughness.x, DecalAlpha);
-		HitPayload.Specular = lerp(HitPayload.Specular, MetallicSpecularRoughness.y, DecalAlpha);
-		HitPayload.Roughness = lerp(HitPayload.Roughness, MetallicSpecularRoughness.z, DecalAlpha);
+
+		HitPayload.Metallic = HitPayload.Metallic * DecalTransparency + MetallicSpecularRoughness.x;
+		HitPayload.Specular = HitPayload.Specular * DecalTransparency + MetallicSpecularRoughness.y;
+		HitPayload.Roughness = HitPayload.Roughness * DecalTransparency + MetallicSpecularRoughness.z;
 	}
 
 	if (DecalFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
@@ -145,7 +145,7 @@ void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
 
 	if (DecalFlags & DECAL_WRITE_EMISSIVE_FLAG)
 	{
-		HitPayload.Radiance += Params.GetEmissive() * DecalAlpha;
+		HitPayload.Radiance += Params.GetEmissive();
 	}
 
 	// TODO: Payload.Opacity?
@@ -367,7 +367,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		// Unpack the payload
 		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray, bIsCameraRay);
 
-		float SumDecalOpacity = 0;
+		float DecalThroughput = 1.0f;
 		if (PathState.PathRoughness < MeshDecalRoughnessCutoff && HitPayload.IsDecalReceiver())
 		{
 			FRayDesc DecalRay = (FRayDesc)0;
@@ -403,7 +403,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			{
 				ApplyDecal(HitPayload, DecalPayload.Params);
 
-				SumDecalOpacity += DecalPayload.Params.GetOpacity();
+				DecalThroughput *= DecalPayload.Params.GetTransparency();
 			}
 		}
 
@@ -424,11 +424,11 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 				ApplyDecal(HitPayload, Params);
 
-				SumDecalOpacity += Params.GetOpacity();
+				DecalThroughput *= Params.GetTransparency();
 			}
 		}
 #endif
-		if (SumDecalOpacity > 0)
+		if (DecalThroughput < 1.0f)
 		{
 			// if we ran any decal logic, update the payload
 			if (ApproximateCaustics)

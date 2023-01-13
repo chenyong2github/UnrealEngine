@@ -6,7 +6,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDefaultOpaqueDecalMaterialCHS,
 {
 	Payload.HitT = RayTCurrent();
 
-	Payload.Params.SetOpacity(1.0f);
+	Payload.Params.SetTransparency(0.0f);
 	Payload.Params.SetBaseColor(float3(0, 0, 0));
 	Payload.Params.SetFlags(DECAL_WRITE_BASE_COLOR_FLAG);
 }

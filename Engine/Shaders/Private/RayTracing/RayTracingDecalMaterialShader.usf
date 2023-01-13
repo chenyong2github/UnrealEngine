@@ -29,6 +29,7 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Pa
 	if (any(abs(DecalPos.xyz) > 1))
 	{
 		// clip content outside the decal
+		Params.SetTransparency(1.0f);
 		return;
 	}
 
@@ -64,31 +65,32 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Pa
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 
 	const float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
-	Params.SetOpacity(GetMaterialOpacity(PixelMaterialInputs) * DecalFading);
+	const float Opacity = GetMaterialOpacity(PixelMaterialInputs) * DecalFading;
+	Params.SetTransparency(1.0f - Opacity);
 
 	if (DecalWriteFlags & DECAL_WRITE_BASE_COLOR_FLAG)
 	{
-		Params.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs));
+		Params.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs) * Opacity);
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_NORMAL_FLAG)
 	{
-		Params.SetWorldNormal(MaterialParameters.WorldNormal);
+		Params.SetWorldNormal(MaterialParameters.WorldNormal * Opacity);
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		Params.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)));
+		Params.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)) * Opacity);
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
 	{
-		Params.SetAO(GetMaterialAmbientOcclusion(PixelMaterialInputs));
+		Params.SetAO(GetMaterialAmbientOcclusion(PixelMaterialInputs) * Opacity);
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_EMISSIVE_FLAG)
 	{
-		Params.SetEmissive(GetMaterialEmissive(PixelMaterialInputs));
+		Params.SetEmissive(GetMaterialEmissive(PixelMaterialInputs) * Opacity);
 	}
 
 	Params.SetFlags(DecalWriteFlags);
@@ -144,32 +146,33 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDecalMaterialCHS,
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 		// #endif
 	}
-	
-	Payload.Params.SetOpacity(GetMaterialOpacity(PixelMaterialInputs));
+
+	const float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Payload.Params.SetTransparency(1.0f - Opacity);
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_BASE_COLOR_FLAG)
 	{
-		Payload.Params.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs));
+		Payload.Params.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs) * Opacity);
 	}
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_NORMAL_FLAG)
 	{
-		Payload.Params.SetWorldNormal(MaterialParameters.WorldNormal);
+		Payload.Params.SetWorldNormal(MaterialParameters.WorldNormal * Opacity);
 	}
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		Payload.Params.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)));
+		Payload.Params.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)) * Opacity);
 	}
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
 	{
-		Payload.Params.SetAO(GetMaterialAmbientOcclusion(PixelMaterialInputs));
+		Payload.Params.SetAO(GetMaterialAmbientOcclusion(PixelMaterialInputs) * Opacity);
 	}
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_EMISSIVE_FLAG)
 	{
-		Payload.Params.SetEmissive(GetMaterialEmissive(PixelMaterialInputs));
+		Payload.Params.SetEmissive(GetMaterialEmissive(PixelMaterialInputs) * Opacity);
 	}
 
 	Payload.Params.SetFlags(DECAL_PAYLOAD_FLAGS);
