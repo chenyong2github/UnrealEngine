@@ -67,7 +67,6 @@ int32 UMaterialExpressionLandscapeLayerCoords::Compile(class FMaterialCompiler* 
 	const float Cos = FMath::Cos(MappingRotation * PI / 180.0f);
 	const float Sin = FMath::Sin(MappingRotation * PI / 180.0f);
 
-	int32 ResultUV = INDEX_NONE;
 	int32 TransformedUV = Compiler->Add(
 		Compiler->Mul(RealScale,
 		Compiler->AppendVector(
@@ -76,8 +75,6 @@ int32 UMaterialExpressionLandscapeLayerCoords::Compile(class FMaterialCompiler* 
 		),
 		Compiler->Constant2(MappingPanU, MappingPanV)
 		);
-
-	ResultUV = TransformedUV;
 	
 	return TransformedUV;
 }
