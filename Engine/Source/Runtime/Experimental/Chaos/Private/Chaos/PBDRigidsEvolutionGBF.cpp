@@ -68,6 +68,9 @@ namespace Chaos
 		int32 ChaosSolverSuspensionPriority = 0;
 		FAutoConsoleVariableRef CVarChaosSolverSuspensionPriority(TEXT("p.Chaos.Solver.Suspension.Priority"), ChaosSolverSuspensionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
 
+		int32 ChaosSolverCharacterGroundConstraintPriority = 0;
+		FAutoConsoleVariableRef CVarChaosSolverChaosCharacterGroundConstraintPriority(TEXT("p.Chaos.Solver.CharacterGroundConstraint.Priority"), ChaosSolverCharacterGroundConstraintPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
+
 		bool DoTransferJointConstraintCollisions = true;
 		FAutoConsoleVariableRef CVarDoTransferJointConstraintCollisions(TEXT("p.Chaos.Solver.Joint.TransferCollisions"), DoTransferJointConstraintCollisions, TEXT("Allows joints to apply collisions to the parent from the child when the Joints TransferCollisionScale is not 0 [def:true]"));
 
@@ -679,6 +682,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THan
 	AddConstraintContainer(SuspensionConstraints, ChaosSolverSuspensionPriority);
 	AddConstraintContainer(CollisionConstraints, ChaosSolverCollisionPriority);
 	AddConstraintContainer(JointConstraints, ChaosSolverJointPriority);
+	AddConstraintContainer(CharacterGroundConstraints, ChaosSolverCharacterGroundConstraintPriority);
 
 	SetInternalParticleInitilizationFunction([](const FGeometryParticleHandle*, const FGeometryParticleHandle*) {});
 }

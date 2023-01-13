@@ -4,6 +4,7 @@
 
 #include "Chaos/Core.h"
 #include "Chaos/ChaosArchive.h"
+#include "Chaos/Character/CharacterGroundConstraintSettings.h"
 #include "Chaos/Box.h"
 #include "Chaos/Particles.h"
 #include "Chaos/PhysicalMaterials.h"

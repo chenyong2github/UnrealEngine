@@ -15,6 +15,7 @@ enum class EPhysicsProxyType : uint32
 	SkeletalMeshType = 4,
 	JointConstraintType = 8,	//left gap when removed some types in case these numbers actually matter to someone, should remove
 	SuspensionConstraintType = 9,
+	CharacterGroundConstraintType = 10,
 	SingleParticleProxy,
 	Count
 };

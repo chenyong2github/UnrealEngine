@@ -26,4 +26,6 @@ namespace Chaos
 	class FPBDJointConstraints;
 
 	class FSimulationSpace;
+
+	class FCharacterGroundConstraintContainer;
 }

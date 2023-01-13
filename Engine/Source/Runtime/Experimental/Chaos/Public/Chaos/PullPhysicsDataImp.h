@@ -12,6 +12,8 @@
 
 namespace Chaos
 {
+
+class FCharacterGroundConstraintProxy;
 class FJointConstraintPhysicsProxy;
 
 template <typename TProxy, typename TTimeStamp>
@@ -75,6 +77,12 @@ struct FDirtyJointConstraintData : public TBasePullData<FJointConstraintPhysicsP
 	FJointConstraintOutputData OutputData;
 };
 
+struct FDirtyCharacterGroundConstraintData : public TBasePullData<FCharacterGroundConstraintProxy, FProxyTimestampBase>
+{
+	FVector Force = FVector(0);
+	FVector Torque = FVector(0);
+};
+
 //A simulation frame's result of dirty particles. These are all the particles that were dirtied in this particular sim step
 class FPullPhysicsData
 {
@@ -82,6 +90,7 @@ public:
 	TArray<FDirtyRigidParticleData> DirtyRigids;
 	TArray<FDirtyGeometryCollectionData> DirtyGeometryCollections;
 	TArray<FDirtyJointConstraintData> DirtyJointConstraints;
+	TArray<FDirtyCharacterGroundConstraintData> DirtyCharacterGroundConstraints;
 
 	int32 SolverTimestamp;
 	FReal ExternalStartTime;	//The start time associated with this result. The time is synced using the external time

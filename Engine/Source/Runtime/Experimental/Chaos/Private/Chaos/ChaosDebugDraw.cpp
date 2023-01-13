@@ -3,6 +3,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/CCDUtilities.h"
+#include "Chaos/Character/CharacterGroundConstraintContainer.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/ParticlePairMidPhase.h"
 #include "Chaos/Convex.h"
@@ -1250,6 +1251,32 @@ namespace Chaos
 			}
 		}
 
+		void DrawCharacterGroundConstraintImpl(const FRigidTransform3& SpaceTransform, const FCharacterGroundConstraintHandle* Constraint, const FChaosDebugDrawSettings& Settings)
+		{
+			if (!Constraint->IsEnabled())
+			{
+				return;
+			}
+
+			const FRealSingle GroundDistance = FRealSingle(Constraint->GetData().GroundDistance);
+			const FRealSingle TargetHeight = FRealSingle(Constraint->GetSettings().TargetHeight);
+
+			if (GroundDistance < TargetHeight)
+			{
+				const FVec3 Pa = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(Constraint->GetCharacterParticle())).GetTranslation();
+				const FVec3 Start = SpaceTransform.TransformPosition(Pa);
+				const FVec3 Up = SpaceTransform.TransformVector(Constraint->GetSettings().VerticalAxis);
+
+				const FRealSingle ArrowLength = Settings.DrawScale * Settings.BodyAxisLen;
+				const FRealSingle ArrowSize = Settings.DrawScale * Settings.ArrowSize;
+
+				Chaos::FDebugDrawQueue& DrawQueue = FDebugDrawQueue::GetInstance();
+				DrawQueue.DrawDebugLine(Pa, Pa - GroundDistance * Up, FColor::Emerald);
+				DrawQueue.DrawDebugLine(Pa - GroundDistance * Up, Pa - TargetHeight * Up, FColor::Red);
+				DrawQueue.DrawDebugDirectionalArrow(Pa - GroundDistance * Up, Pa - (GroundDistance - ArrowLength) * Up, ArrowSize, FColor::Cyan);
+			}
+		}
+
 		void DrawSimulationSpaceImpl(const FSimulationSpace& SimSpace, const FChaosDebugDrawSettings& Settings)
 		{
 			const FVec3 Pos = SimSpace.Transform.GetLocation();
@@ -1798,6 +1825,17 @@ namespace Chaos
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
 				{
 					DrawSuspensionConstraintsImpl(SpaceTransform, Constraints, ConstraintIndex, GetChaosDebugDrawSettings(Settings));
+				}
+			}
+		}
+
+		void DrawCharacterGroundConstraints(const FRigidTransform3& SpaceTransform, const FCharacterGroundConstraintContainer& Constraints, const FChaosDebugDrawSettings* Settings)
+		{
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
+				{
+					DrawCharacterGroundConstraintImpl(SpaceTransform, Constraints.GetConstraint(ConstraintIndex), GetChaosDebugDrawSettings(Settings));
 				}
 			}
 		}

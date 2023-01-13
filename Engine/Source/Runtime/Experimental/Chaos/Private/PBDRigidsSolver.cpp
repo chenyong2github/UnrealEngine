@@ -4,6 +4,7 @@
 
 #include "Async/AsyncWork.h"
 #include "Chaos/ChaosArchive.h"
+#include "Chaos/Character/CharacterGroundConstraint.h"
 #include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Chaos/Utilities.h"
 #include "Chaos/ChaosDebugDraw.h"
@@ -13,6 +14,7 @@
 #include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
+#include "PhysicsProxy/CharacterGroundConstraintProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
@@ -51,6 +53,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveManifoldPoints"), STAT_ChaosCounter_Nu
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumRestoredManifoldPoints"), STAT_ChaosCounter_NumRestoredManifoldPoints, STATGROUP_ChaosCounters);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumUpdatedManifoldPoints"), STAT_ChaosCounter_NumUpdatedManifoldPoints, STATGROUP_ChaosCounters);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumJoints"), STAT_ChaosCounter_NumJoints, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumCharacterGroundConstraints"), STAT_ChaosCounter_NumCharacterGroundConstraints, STATGROUP_ChaosCounters);
 
 // Stat Iteration counters
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumPositionIterations"), STAT_ChaosCounter_NumPositionIterations, STATGROUP_ChaosCounters);
@@ -80,6 +83,7 @@ namespace Chaos
 		int32 ChaosSolverDrawShapesShowKinematic = 1;
 		int32 ChaosSolverDrawShapesShowDynamic = 1;
 		int32 ChaosSolverDrawJoints = 0;
+		int32 ChaosSolverDrawCharacterGroundConstraints = 0;
 		int32 ChaosSolverDebugDrawSpatialAccelerationStructure = 0;
 		int32 ChaosSolverDebugDrawSpatialAccelerationStructureShowLeaves = 0;
 		int32 ChaosSolverDebugDrawSpatialAccelerationStructureShowNodes = 0;
@@ -100,6 +104,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesKinematic(TEXT("p.Chaos.Solver.DebugDraw.ShowKinematics"), ChaosSolverDrawShapesShowKinematic, TEXT("If DebugDrawShapes is enabled, whether to show kinematic objects"));
 		FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesDynamic(TEXT("p.Chaos.Solver.DebugDraw.ShowDynamics"), ChaosSolverDrawShapesShowDynamic, TEXT("If DebugDrawShapes is enabled, whether to show dynamic objects"));
 		FAutoConsoleVariableRef CVarChaosSolverDrawJoints(TEXT("p.Chaos.Solver.DebugDrawJoints"), ChaosSolverDrawJoints, TEXT("Draw joints"));
+		FAutoConsoleVariableRef CVarChaosSolverDrawCharacterGroundConstraints(TEXT("p.Chaos.Solver.DebugDrawCharacterGroundConstraints"), ChaosSolverDrawCharacterGroundConstraints, TEXT("Draw character ground constraints"));
 		FAutoConsoleVariableRef CVarChaosSolverDebugDrawSpatialAccelerationStructure(TEXT("p.Chaos.Solver.DebugDrawSpatialAccelerationStructure"), ChaosSolverDebugDrawSpatialAccelerationStructure, TEXT("Draw spatial acceleration structure"));
 		FAutoConsoleVariableRef CVarChaosSolverDebugDrawSpatialAccelerationStructureShowLeaves(TEXT("p.Chaos.Solver.DebugDrawSpatialAccelerationStructure.ShowLeaves"), ChaosSolverDebugDrawSpatialAccelerationStructureShowLeaves, TEXT("Show spatial acceleration structure leaves when its debug draw is enabled"));
 		FAutoConsoleVariableRef CVarChaosSolverDebugDrawSpatialAccelerationStructureShowNodes(TEXT("p.Chaos.Solver.DebugDrawSpatialAccelerationStructure.ShowNodes"), ChaosSolverDebugDrawSpatialAccelerationStructureShowNodes, TEXT("Show spatial acceleration structure nodes when its debug draw is enabled"));
@@ -712,6 +717,43 @@ namespace Chaos
 		});
 	}
 
+	void FPBDRigidsSolver::RegisterObject(Chaos::FCharacterGroundConstraint* GTConstraint)
+	{
+		LLM_SCOPE(ELLMTag::ChaosConstraint);
+		FCharacterGroundConstraintProxy* ConstraintProxy = new FCharacterGroundConstraintProxy(GTConstraint);
+		ConstraintProxy->SetSolver(this);
+
+		AddDirtyProxy(ConstraintProxy);
+	}
+
+	void FPBDRigidsSolver::UnregisterObject(Chaos::FCharacterGroundConstraint* GTConstraint)
+	{
+		FCharacterGroundConstraintProxy* ConstraintProxy = GTConstraint->GetProxy<FCharacterGroundConstraintProxy>();
+		check(ConstraintProxy);
+
+		RemoveDirtyProxy(ConstraintProxy);
+
+		// mark proxy timestamp so we avoid trying to pull from sim after deletion
+		GTConstraint->GetProxy()->MarkDeleted();
+		GTConstraint->SetProxy(static_cast<FCharacterGroundConstraintProxy*>(nullptr));
+
+		ConstraintProxy->DestroyOnGameThread();	//destroy the game thread portion of the proxy
+
+		// Finish de-registration on the physics thread...
+		EnqueueCommandImmediate([ConstraintProxy, this]()
+			{
+				// TODO: Add character ground constraint to rewind data
+				//if (FRewindData* RewindData = GetRewindData())
+				//{
+				//	RewindData->RemoveObject(ConstraintProxy->GetPhysicsThreadAPI());
+				//}
+
+				ConstraintProxy->DestroyOnPhysicsThread(this);
+				CharacterGroundConstraintProxies_Internal.RemoveSingle(ConstraintProxy);
+				delete ConstraintProxy;
+			});
+	}
+
 	void FPBDRigidsSolver::RegisterObject(Chaos::FSuspensionConstraint* GTConstraint)
 	{
 		LLM_SCOPE(ELLMTag::ChaosConstraint);
@@ -1032,6 +1074,13 @@ namespace Chaos
 				Proxy->ResetDirtyIdx();
 				break;
 			}
+			case EPhysicsProxyType::CharacterGroundConstraintType:
+			{
+				auto Proxy = static_cast<FCharacterGroundConstraintProxy*>(Dirty.Proxy);
+				Proxy->PushStateOnGameThread(*Manager, DataIdx, Dirty.PropertyData);
+				Proxy->ResetDirtyIdx();
+				break;
+			}
 
 			default:
 			ensure(0 && TEXT("Unknown proxy type in physics solver."));
@@ -1042,9 +1091,10 @@ namespace Chaos
 		{
 			int32 NumJoints = 0;
 			int32 NumSuspension = 0;
+			int32 NumCharacterGroundConstraints = 0;
 			int32 NumParticles = 0;
 			UE_LOG(LogChaos, Warning, TEXT("LogDirtyParticles:"));
-			DirtyProxiesData->ForEachProxy([&NumJoints, &NumSuspension, &NumParticles](int32 DataIdx, FDirtyProxy& Dirty)
+			DirtyProxiesData->ForEachProxy([&NumJoints, &NumSuspension, &NumCharacterGroundConstraints, &NumParticles](int32 DataIdx, FDirtyProxy& Dirty)
 			{
 				switch (Dirty.Proxy->GetType())
 				{
@@ -1068,12 +1118,17 @@ namespace Chaos
 						++NumSuspension;
 						break;
 					}
+					case EPhysicsProxyType::CharacterGroundConstraintType:
+					{
+						++NumCharacterGroundConstraints;
+						break;
+					}
 
 					default: break;
 				}
 			});
 
-			UE_LOG(LogChaos, Warning, TEXT("Num Particles:%d Num Shapes:%d Num Joints:%d Num Suspensions:%d"), NumParticles, DirtyProxiesData->NumDirtyShapes(), NumJoints, NumSuspension);
+			UE_LOG(LogChaos, Warning, TEXT("Num Particles:%d Num Shapes:%d Num Joints:%d Num Suspensions:%d Num CharGround:%d"), NumParticles, DirtyProxiesData->NumDirtyShapes(), NumJoints, NumSuspension, NumCharacterGroundConstraints);
 		}
 
 		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PushProducerStorageData_External(MarshallingManager.GetExternalTimestamp_External());
@@ -1193,6 +1248,7 @@ namespace Chaos
 					}
 					case EPhysicsProxyType::JointConstraintType:
 					case EPhysicsProxyType::SuspensionConstraintType:
+					case EPhysicsProxyType::CharacterGroundConstraintType:
 					{
 						// Pass until after all bodies are created. 
 						break;
@@ -1246,6 +1302,28 @@ namespace Chaos
 						SuspensionProxy->SetInitialized();
 					}
 					SuspensionProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
+					Dirty.Proxy->ResetDirtyIdx();
+					break;
+				}
+
+				case EPhysicsProxyType::CharacterGroundConstraintType:
+				{
+					auto ConstraintProxy = static_cast<FCharacterGroundConstraintProxy*>(Dirty.Proxy);
+					const bool bIsNew = !ConstraintProxy->IsInitialized();
+					if (bIsNew)
+					{
+						CharacterGroundConstraintProxies_Internal.Add(ConstraintProxy);
+						ConstraintProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
+						ConstraintProxy->SetInitialized(GetCurrentFrame());
+					}
+
+					//TODO: Support rewind for character ground constraints
+					//if (RewindData)
+					//{
+					//	RewindData->PushGTDirtyData(*Manager, DataIdx, Dirty, nullptr);
+					//}
+
+					ConstraintProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 					Dirty.Proxy->ResetDirtyIdx();
 					break;
 				}
@@ -1495,9 +1573,18 @@ namespace Chaos
 				JointConstraintPhysicsProxies_Internal[Idx]->BufferPhysicsResults(PullData->DirtyJointConstraints.Last());
 			}
 		}
-		
 
-		
+		{
+			ensure(PullData->DirtyCharacterGroundConstraints.Num() == 0);	//we only fill this once per frame
+			PullData->DirtyCharacterGroundConstraints.Reserve(CharacterGroundConstraintProxies_Internal.Num());
+
+			for (int32 Idx = 0; Idx < CharacterGroundConstraintProxies_Internal.Num(); ++Idx)
+			{
+				PullData->DirtyCharacterGroundConstraints.AddDefaulted();
+				CharacterGroundConstraintProxies_Internal[Idx]->BufferPhysicsResults(PullData->DirtyCharacterGroundConstraints.Last());
+			}
+		}
+
 		// Now that results have been buffered we have completed a solve step so we can broadcast that event
 		EventPostSolve.Broadcast(MLastDt);
 
@@ -1554,6 +1641,7 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 		CHAOS_COUNTER_STAT(NumIslandGroups, GetEvolution()->GetIslandGroupManager().GetNumActiveGroups());
 		CHAOS_COUNTER_STAT(NumContacts, NumCollisionConstraints());
 		CHAOS_COUNTER_STAT(NumJoints, NumJointConstraints());
+		CHAOS_COUNTER_STAT(NumCharacterGroundConstraints, GetEvolution()->GetCharacterGroundConstraints().GetNumConstraints());
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		UpdateExpensiveStatCounters();
@@ -1692,6 +1780,10 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 		if (ChaosSolverDrawJoints == 1)
 		{
 			DebugDraw::DrawJointConstraints(FRigidTransform3(), MEvolution->GetJointConstraints(), 1.0f, ChaosSolverDrawJointFeatures, &ChaosSolverDebugDebugDrawSettings);
+		}
+		if (ChaosSolverDrawCharacterGroundConstraints == 1)
+		{
+			DebugDraw::DrawCharacterGroundConstraints(FRigidTransform3(), MEvolution->GetCharacterGroundConstraints(), &ChaosSolverDebugDebugDrawSettings);
 		}
 		if (ChaosSolverDebugDrawSpatialAccelerationStructure)
 		{

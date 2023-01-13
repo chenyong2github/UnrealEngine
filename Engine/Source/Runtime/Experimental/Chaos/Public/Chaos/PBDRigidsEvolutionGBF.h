@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/ChaosPerfTest.h"
+#include "Chaos/Character/CharacterGroundConstraintContainer.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/SpatialAccelerationCollisionDetector.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
@@ -118,6 +119,9 @@ namespace Chaos
 
 		FORCEINLINE FPBDSuspensionConstraints& GetSuspensionConstraints() { return SuspensionConstraints; }
 		FORCEINLINE const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
+
+		FORCEINLINE FCharacterGroundConstraintContainer& GetCharacterGroundConstraints() { return CharacterGroundConstraints; }
+		FORCEINLINE const FCharacterGroundConstraintContainer& GetCharacterGroundConstraints() const { return CharacterGroundConstraints; }
 
 
 		//
@@ -347,6 +351,7 @@ namespace Chaos
 
 		FPBDJointConstraints JointConstraints;
 		FPBDSuspensionConstraints SuspensionConstraints;
+		FCharacterGroundConstraintContainer CharacterGroundConstraints;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;

@@ -53,6 +53,8 @@ namespace Chaos
 {
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
+	class FCharacterGroundConstraint;
+	class FCharacterGroundConstraintProxy;
 	class FSingleParticleProxy;
 	class FGeometryParticleBuffer;
 
@@ -135,6 +137,9 @@ namespace Chaos
 		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
+		void RegisterObject(Chaos::FCharacterGroundConstraint* GTConstraint);
+		void UnregisterObject(Chaos::FCharacterGroundConstraint* GTConstraint);
+
 		//
 		//  Simulation API
 		//
@@ -191,12 +196,12 @@ namespace Chaos
 		/**
 		 * @brief True if the simulation is running in deterministic mode
 		 * This will be true if determinism is explicitly requested (via SetIsDeterministic()) or if required
-		 * by some otyher system like Rewind/Resim support.
+		 * by some other system like Rewind/Resim support.
 		*/
 		bool IsDetemerministic() const;
 
 		/**
-		 * @brief Request that the sim be determinitic (or not)
+		 * @brief Request that the sim be deterministic (or not)
 		 * @note Even if set to false, the sim may still be deterministic if some other feature is enabled and requires it.
 		 * @see IsDetemerministic()
 		*/
@@ -209,6 +214,9 @@ namespace Chaos
 		FPBDSuspensionConstraints& GetSuspensionConstraints() { return MEvolution->GetSuspensionConstraints(); }
 		const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return MEvolution->GetSuspensionConstraints(); }
 		void SetSuspensionTarget(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, const FVector& Normal, bool Enabled);
+
+		FCharacterGroundConstraintContainer& GetCharacterGroundConstraints() { return MEvolution->GetCharacterGroundConstraints(); }
+		const FCharacterGroundConstraintContainer& GetCharacterGroundConstraints() const { return MEvolution->GetCharacterGroundConstraints(); }
 
 		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
 
@@ -347,6 +355,7 @@ namespace Chaos
 		TSparseArray< FSingleParticlePhysicsProxy* > SingleParticlePhysicsProxies_PT;
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
+		TArray< FCharacterGroundConstraintProxy* > CharacterGroundConstraintProxies_Internal;
 
 		TUniquePtr<FPerSolverFieldSystem> PerSolverField;
 

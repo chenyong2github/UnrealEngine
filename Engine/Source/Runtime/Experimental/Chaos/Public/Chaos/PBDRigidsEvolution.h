@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Character/CharacterGroundConstraintContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDRigidClustering.h"
@@ -596,14 +597,18 @@ public:
 			{
 				RemoveConstraintFromConstraintGraph(ConstraintHandle);
 			}
+			else if (FCharacterGroundConstraintHandle* CharacterGroundConstraint = BaseConstraintHandle->As<FCharacterGroundConstraintHandle>())
+			{
+				RemoveConstraintFromConstraintGraph(CharacterGroundConstraint);
+			}
 		}
 	}
 
 	/** 
 	* Disconnect constraints from a set of particles to be destroyed. 
-	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr.
+	* this will set the constraints to Enabled = false and set their respective bodies handles to nullptr.
 	* Once this is done, the constraints cannot be re-enabled.
-	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisons)
+	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisions)
 	* @see DestroyTransientConstraints()
 	*/
 	CHAOS_API void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
@@ -623,7 +628,7 @@ public:
 	* Disconnect constraints from a particle to be removed (or destroyed)
 	* this will set the constraints to Enabled = false, but leave connections to the particles to support
 	* re-enabling at a later time.
-	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisons)
+	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisions)
 	* @see DestroyTransientConstraints()
 	*/
 	CHAOS_API void DisableConstraints(FGeometryParticleHandle* ParticleHandle)

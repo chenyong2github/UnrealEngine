@@ -20,7 +20,8 @@ enum class EConstraintType
 	NoneType = 0,
 	JointConstraintType = 1,
 	SpringConstraintType = 2,
-	SuspensionConstraintType = 3
+	SuspensionConstraintType = 3,
+	CharacterGroundConstraintType = 4,
 };
 
 #define CONSTRAINT_JOINT_PROPERPETY_IMPL(TYPE, FNAME, ENAME, VNAME)\

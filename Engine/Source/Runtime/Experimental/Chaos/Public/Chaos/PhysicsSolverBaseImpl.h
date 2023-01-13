@@ -8,6 +8,7 @@
 
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PullPhysicsDataImp.h"
+#include "PhysicsProxy/CharacterGroundConstraintProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/JointConstraintProxy.h"
@@ -129,6 +130,16 @@ namespace Chaos
 
 			//latest data may be used multiple times during interpolation, so for non interpolated joints we clear it
 			LatestData->DirtyJointConstraints.Reset();
+
+			for (const FDirtyCharacterGroundConstraintData& DirtyData : LatestData->DirtyCharacterGroundConstraints)
+			{
+				if (auto Proxy = DirtyData.GetProxy())
+				{
+					// todo: Do we need to add a callback?
+					Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp);
+				}
+			}
+			LatestData->DirtyCharacterGroundConstraints.Reset();
 		}
 	}
 
