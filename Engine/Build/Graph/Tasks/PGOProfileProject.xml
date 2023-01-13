@@ -39,7 +39,7 @@
 		<Property Name="PGOHostAgentType" Value="Linux" If="'$(Platform)' == 'Linux'"/>
 		
 		<!-- Compiling will require this - built via BuildAndTestProject.xml for example -->
-		<Property Name="PGOPlatformToolsNodeName" Value="Compile Tools $(PGOHostAgentType)" />
+		<Property Name="PGOPlatformToolsNodeName" Value="$(PreNodeName)Compile Tools $(PGOHostAgentType)" />
 		
 		<!-- Set reasonable default agent type -->
 		<Property Name="PGOAgentType" Value="$(PGOHostAgentType)"/>
@@ -49,7 +49,7 @@
 		<Agent Name="PGO Profile Replay Agent $(Platform)" Type="$(PGOAgentType)">
 
 			<!-- copy the given source build (cooked data etc) to a cleaned local staging directory -->
-			<Node Name="Copy $(Platform) Build" Produces="#$(Platform) PGO Build" Requires="$(BuildRequires)">
+			<Node Name="$(PreNodeName)Copy $(Platform) Build" Produces="#$(Platform) PGO Build" Requires="$(BuildRequires)">
 				<Log Message="Cleaning local staging directory..."/>
 				<Delete Files="$(LocalStagingDir)/..."/>
 
@@ -58,7 +58,7 @@
 			</Node>
 
 			<!-- build a PGO profiling executable and copy the results over to the local staging directory -->
-			<Node Name="Compile PGO Profile $(Platform)" Requires="$(PGOPlatformToolsNodeName);#$(Platform) PGO Build" Produces="#$(Platform) PGO Profile Binaries">
+			<Node Name="$(PreNodeName)Compile PGO Profile $(Platform)" Requires="$(PGOPlatformToolsNodeName);#$(Platform) PGO Build" Produces="#$(Platform) PGO Profile Binaries">
 				<Compile Target="$(TargetName)" Platform="$(Platform)" Configuration="$(PGOConfiguration)" Arguments="-skipdeploy -PGOProfile $(CompileArgs) $(PGOCompileArgs$(Platform))" Tag="#$(Platform) PGOProfile Compile Results"/>
 
 				<Log Message="Copying binaries to local staging directory..."/> 
@@ -70,13 +70,13 @@
 			</Node>
 			
 			<!-- run the basic replay PGO profile build to generate PGO profiling data -->
-			<Node Name="Run PGO Profile $(Platform)" Requires="#$(Platform) PGO Profile Binaries">
+			<Node Name="$(PreNodeName)Run PGO Profile $(Platform)" Requires="#$(Platform) PGO Profile Binaries">
 				<Expand Name="PGOPrepareBuildForProfiling$(Platform)" LocalStagingDir="$(LocalStagingDir)" Configuration="$(Configuration)"/>
 				<Command Name="RunUnreal" Arguments="-test=BasicReplayPGONode -project='$(ProjectPath)/$(ProjectName).uproject' -platform=$(Platform) -configuration=$(PGOConfiguration) -build=$(LocalStagingDir) -LocalReplay='$(LocalReplay)' -ProfileOutputDirectory='$(PGOProfileOutput$(Platform))' -PgcFilenamePrefix=$(TargetName) -MaxDuration=$(PGOProfileTimeout) -AdditionalCommandLine='$(LaunchCommandLine) $(PGOProfileCommandLine$(Platform))'"/>
 			</Node>
 
 			<!-- submit the PGO profiling data -->
-			<Node Name="Gather PGO Profile Results $(Platform)" Requires="Run PGO Profile $(Platform)" Produces="#$(Platform) PGO Profile Complete">
+			<Node Name="$(PreNodeName)Gather PGO Profile Results $(Platform)" Requires="$(PreNodeName)Run PGO Profile $(Platform)" Produces="#$(Platform) PGO Profile Complete">
 				<Tag Files="$(PGOProfileOutput$(Platform))/..." Filter="$(PGOProfileOutputFilter$(Platform))" With="#$(Platform) PGO Profile Results"/>
 				<Do If="$(PGOAutoSubmitResults)">
 					<Submit Files="#$(Platform) PGO Profile Results" FileType="+w" Description="Automated update of $(Platform) PGO files"/>
@@ -84,7 +84,7 @@
 			</Node>
 			
 			<!-- all done -->
-			<Node Name ="PGO Profile Replay $(Platform)" Requires="Gather PGO Profile Results $(Platform)">
+			<Node Name="$(PreNodeName)PGO Profile Replay $(Platform)" Requires="$(PreNodeName)Gather PGO Profile Results $(Platform)">
 				<Log Message="PGO Profiling completed for $(Platform)"/>
 			</Node>
 		</Agent>
