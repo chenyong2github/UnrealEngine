@@ -817,7 +817,7 @@ const FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAs
 {
 	if (AnimationAssets.IsValidIndex(AnimationAssetIndex))
 	{
-		return AnimationAssets[AnimationAssetIndex].GetMutablePtr<FPoseSearchDatabaseAnimationAssetBase>();
+		return AnimationAssets[AnimationAssetIndex].GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
 	}
 
 	return nullptr;
