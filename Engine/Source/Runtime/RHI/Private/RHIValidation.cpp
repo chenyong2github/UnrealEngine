@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "RHIValidation.h"
+#include "RHIValidationContext.h"
 #include "HAL/IConsoleManager.h"
 #include "RHIValidationTransientResourceAllocator.h"
 #include "HAL/PlatformStackWalk.h"
