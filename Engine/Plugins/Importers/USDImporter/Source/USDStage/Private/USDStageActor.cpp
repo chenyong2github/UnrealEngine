@@ -2927,7 +2927,23 @@ void AUsdStageActor::HandlePropertyChangedEvent(FPropertyChangedEvent& PropertyC
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, RootLayer))
 	{
+#if WITH_EDITOR
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("USD.DiscardUndoBufferOnStageOpenClose"));
+		const bool bDiscardUndo = CVar && CVar->GetBool();
+#endif // WITH_EDITOR
+
 		SetRootLayer(RootLayer.FilePath);
+
+#if WITH_EDITOR
+		if (bDiscardUndo && GEditor)
+		{
+			if (UTransactor* EditorTransactor = GEditor->Trans)
+			{
+				const FText Reason = LOCTEXT("DiscardTransactionReason", "Resetting because USD.DiscardUndoBufferOnStageOpenClose is enabled");
+				EditorTransactor->Reset(Reason);
+			}
+		}
+#endif // WITH_EDITOR
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, Time))
 	{
