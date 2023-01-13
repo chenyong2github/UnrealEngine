@@ -31,8 +31,8 @@ bool Audio::FAudioCaptureRtAudioStream::GetCaptureDeviceInfo(FCaptureDeviceInfo&
 
 	RtAudio::DeviceInfo DeviceInfo = CaptureDevice.getDeviceInfo(InputDeviceId);
 
-	OutInfo.DeviceName = FString(ANSI_TO_TCHAR(DeviceInfo.name.c_str()));
-	OutInfo.DeviceId = FString(ANSI_TO_TCHAR(DeviceInfo.deviceId.c_str()));
+	OutInfo.DeviceName = FString(FUTF8ToTCHAR(DeviceInfo.name.c_str()));
+	OutInfo.DeviceId = FString(FUTF8ToTCHAR(DeviceInfo.deviceId.c_str()));
 	OutInfo.InputChannels = DeviceInfo.inputChannels;
 	OutInfo.PreferredSampleRate = DeviceInfo.preferredSampleRate;
 
