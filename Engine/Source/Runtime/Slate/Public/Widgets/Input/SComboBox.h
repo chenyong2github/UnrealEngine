@@ -194,13 +194,14 @@ public:
 		check(InArgs._ComboBoxStyle);
 
 		ItemStyle = InArgs._ItemStyle;
-		MenuRowPadding = InArgs._ComboBoxStyle->MenuRowPadding;
+		ComboBoxStyle = InArgs._ComboBoxStyle;
+		MenuRowPadding = ComboBoxStyle->MenuRowPadding;
 
 		// Work out which values we should use based on whether we were given an override, or should use the style's version
-		const FComboButtonStyle& OurComboButtonStyle = InArgs._ComboBoxStyle->ComboButtonStyle;
+		const FComboButtonStyle& OurComboButtonStyle = ComboBoxStyle->ComboButtonStyle;
 		const FButtonStyle* const OurButtonStyle = InArgs._ButtonStyle ? InArgs._ButtonStyle : &OurComboButtonStyle.ButtonStyle;
-		PressedSound = InArgs._PressedSoundOverride.Get(InArgs._ComboBoxStyle->PressedSlateSound);
-		SelectionChangeSound = InArgs._SelectionChangeSoundOverride.Get(InArgs._ComboBoxStyle->SelectionChangeSlateSound);
+		PressedSound = InArgs._PressedSoundOverride.Get(ComboBoxStyle->PressedSlateSound);
+		SelectionChangeSound = InArgs._SelectionChangeSoundOverride.Get(ComboBoxStyle->SelectionChangeSlateSound);
 
 		this->OnComboBoxOpening = InArgs._OnComboBoxOpening;
 		this->OnSelectionChanged = InArgs._OnSelectionChanged;
@@ -371,6 +372,34 @@ public:
 	void SetMaxHeight(float InMaxHeight)
 	{
 		ComboBoxMenuContent->SetMaxDesiredHeight(InMaxHeight);
+	}
+
+	void SetStyle(const FComboBoxStyle* InStyle) 
+	{ 
+		if (ComboBoxStyle != InStyle)
+		{
+			ComboBoxStyle = InStyle;
+			InvalidateStyle();
+		}
+	}
+
+	void InvalidateStyle() 
+	{ 
+		Invalidate(EInvalidateWidgetReason::Layout); 
+	}
+
+	void SetItemStyle(const FTableRowStyle* InItemStyle) 
+	{ 
+		if (ItemStyle != InItemStyle)
+		{
+			ItemStyle = InItemStyle;
+			InvalidateItemStyle();
+		}
+	}
+
+	void InvalidateItemStyle() 
+	{ 
+		Invalidate(EInvalidateWidgetReason::Layout); 
 	}
 
 	/** @return the item currently selected by the combo box. */
@@ -630,6 +659,9 @@ private:
 	/** The item style to use. */
 	const FTableRowStyle* ItemStyle;
 
+	/** The combo box style to use. */
+	const FComboBoxStyle* ComboBoxStyle;
+	
 	/** The padding around each menu row */
 	FMargin MenuRowPadding;
 

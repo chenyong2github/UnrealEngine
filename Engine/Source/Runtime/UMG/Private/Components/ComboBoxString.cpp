@@ -371,16 +371,22 @@ FSlateColor UComboBoxString::GetForegroundColor() const
 	return ForegroundColor;
 }
 
-void UComboBoxString::InitWidgetStyle(const FComboBoxStyle& InWidgetStyle)
+void UComboBoxString::SetWidgetStyle(const FComboBoxStyle& InWidgetStyle)
 {
-	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
 	WidgetStyle = InWidgetStyle;
+	if (MyComboBox.IsValid())
+	{
+		MyComboBox->InvalidateStyle();
+	}
 }
 
-void UComboBoxString::InitItemStyle(const FTableRowStyle& InItemStyle)
+void UComboBoxString::SetItemStyle(const FTableRowStyle& InItemStyle)
 {
-	ensureMsgf(!MyComboBox.IsValid(), TEXT("The widget is already created."));
 	ItemStyle = InItemStyle;
+	if (MyComboBox.IsValid())
+	{
+		MyComboBox->InvalidateItemStyle();
+	}
 }
 
 void UComboBoxString::InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle)

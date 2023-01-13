@@ -37,14 +37,14 @@ private:
 
 public:
 
-	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
+	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
 	/** The style. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category=Style, meta=( DisplayName="Style" ))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Style, meta=( DisplayName="Style" ))
 	FComboBoxStyle WidgetStyle;
 
-	UE_DEPRECATED(5.2, "Direct access to ItemStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
+	UE_DEPRECATED(5.2, "Direct access to ItemStyle is deprecated. Please use the getter or setter.")
 	/** The item row style. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category=Style)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Style)
 	FTableRowStyle ItemStyle;
 	
 	UE_DEPRECATED(5.2, "Direct access to ScrollBarStyle is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
@@ -188,8 +188,14 @@ public:
 	/** Get the style of the combobox. */
 	const FComboBoxStyle& GetWidgetStyle() const;
 
+	/** Set the style of the combobox. */
+	void SetWidgetStyle(const FComboBoxStyle& InWidgetStyle);
+
 	/** Get the style of the items. */
 	const FTableRowStyle& GetItemStyle() const;
+
+	/** Set the style of the items. */
+	void SetItemStyle(const FTableRowStyle& InItemStyle);
 
 	/** Get the style of the scrollbar. */
 	const FScrollBarStyle& GetScrollBarStyle() const;
@@ -226,12 +232,6 @@ protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
-
-	/** Initialize the widget style in the constructor before the SWidget is constructed. */
-	void InitWidgetStyle(const FComboBoxStyle& InWidgetStyle);
-
-	/** Initialize the item style in the constructor before the SWidget is constructed. */
-	void InitItemStyle(const FTableRowStyle& InItemStyle);
 
 	/** Initialize the scrollbar style in the constructor before the SWidget is constructed. */
 	void InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle);
