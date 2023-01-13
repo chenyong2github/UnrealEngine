@@ -191,7 +191,8 @@ void FOnlineUserCloudEOS::EnumerateUserFiles(const FUniqueNetId& UserId)
 	}
 
 	EOS_PlayerDataStorage_QueryFileListOptions Options = {};
-	Options.ApiVersion = EOS_PLAYERDATASTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_QUERYFILELISTOPTIONS_API_LATEST, 1);
 	Options.LocalUserId = LocalUserId;
 
 	FOnQueryFileListCallback* CallbackObj = new FOnQueryFileListCallback(FOnlineUserCloudEOSWeakPtr(AsShared()));
@@ -213,7 +214,8 @@ void FOnlineUserCloudEOS::EnumerateUserFiles(const FUniqueNetId& UserId)
 				for (uint32 Index = 0; Index < FileCount; ++Index)
 				{
 					EOS_PlayerDataStorage_CopyFileMetadataAtIndexOptions CopyFileMetadataAtIndexOptions = { };
-					CopyFileMetadataAtIndexOptions.ApiVersion = EOS_PLAYERDATASTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST;
+					CopyFileMetadataAtIndexOptions.ApiVersion = 1;
+					UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST, 1);
 					CopyFileMetadataAtIndexOptions.LocalUserId = Data->LocalUserId;
 					CopyFileMetadataAtIndexOptions.Index = Index;
 
@@ -423,7 +425,8 @@ bool FOnlineUserCloudEOS::ReadUserFile(const FUniqueNetId& UserId, const FString
 	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
 
 	EOS_PlayerDataStorage_ReadFileOptions ReadFileOptions = {};
-	ReadFileOptions.ApiVersion = EOS_PLAYERDATASTORAGE_READFILEOPTIONS_API_LATEST;
+	ReadFileOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_READFILEOPTIONS_API_LATEST, 1);
 	ReadFileOptions.LocalUserId = UserEOSId.GetProductUserId();
 	ReadFileOptions.Filename = FileNameUtf8.Get();
 	ReadFileOptions.ReadChunkLengthBytes = (uint32_t)ReadChunkSize;
@@ -601,7 +604,8 @@ bool FOnlineUserCloudEOS::WriteUserFile(const FUniqueNetId& UserId, const FStrin
 	const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
 
 	EOS_PlayerDataStorage_WriteFileOptions WriteFileOptions = {};
-	WriteFileOptions.ApiVersion = EOS_PLAYERDATASTORAGE_WRITEFILEOPTIONS_API_LATEST;
+	WriteFileOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_WRITEFILEOPTIONS_API_LATEST, 1);
 	WriteFileOptions.LocalUserId = UserEOSId.GetProductUserId();
 	WriteFileOptions.Filename = FileNameUtf8.Get();
 	WriteFileOptions.ChunkLengthBytes = (uint32_t)ReadChunkSize;
@@ -755,7 +759,8 @@ bool FOnlineUserCloudEOS::DeleteUserFile(const FUniqueNetId& UserId, const FStri
 		const FUniqueNetIdEOS& UserEOSId = FUniqueNetIdEOS::Cast(UserId);
 
 		EOS_PlayerDataStorage_DeleteFileOptions Options = {};
-		Options.ApiVersion = EOS_PLAYERDATASTORAGE_DELETEFILEOPTIONS_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_DELETEFILEOPTIONS_API_LATEST, 1);
 		Options.LocalUserId = UserEOSId.GetProductUserId();
 		Options.Filename = FileNameUtf8.Get();
 

@@ -43,7 +43,8 @@ struct FQueryStatsOptions :
 	FQueryStatsOptions(const uint32 InNumStatIds) :
 		EOS_Stats_QueryStatsOptions()
 	{
-		ApiVersion = EOS_STATS_QUERYSTATS_API_LATEST;
+		ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_STATS_QUERYSTATS_API_LATEST, 3);
 
 		StartTime = EOS_STATS_TIME_UNDEFINED;
 		EndTime = EOS_STATS_TIME_UNDEFINED;
@@ -166,7 +167,8 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 			{
 				char StatNameANSI[EOS_OSS_STRING_BUFFER_LENGTH];
 				EOS_Stats_CopyStatByNameOptions Options = { };
-				Options.ApiVersion = EOS_STATS_COPYSTATBYNAME_API_LATEST;
+				Options.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_STATS_COPYSTATBYNAME_API_LATEST, 1);
 				Options.TargetUserId = Data->TargetUserId;
 				Options.Name = StatNameANSI;
 
@@ -290,7 +292,8 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserI
 	for (const TPair<FString, FOnlineStatUpdate>& Stat : PlayerStats.Stats)
 	{
 		EOS_Stats_IngestData& EOSStat = EOSData[Index];
-		EOSStat.ApiVersion = EOS_STATS_INGESTDATA_API_LATEST;
+		EOSStat.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_STATS_INGESTDATA_API_LATEST, 1);
 
 		EOSStat.IngestAmount = GetVariantValue(Stat.Value.GetValue());
 		FCStringAnsi::Strncpy(EOSStatNames[Index].StatName, TCHAR_TO_UTF8(*Stat.Key.ToUpper()), EOS_OSS_STRING_BUFFER_LENGTH);
@@ -300,7 +303,8 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserI
 	}
 
 	EOS_Stats_IngestStatOptions Options = { };
-	Options.ApiVersion = EOS_STATS_INGESTSTAT_API_LATEST;
+	Options.ApiVersion = 3;
+	UE_EOS_CHECK_API_MISMATCH(EOS_STATS_INGESTSTAT_API_LATEST, 3);
 	Options.LocalUserId = LocalUserId;
 	Options.TargetUserId = UserId;
 	Options.Stats = EOSData.GetData();

@@ -41,7 +41,8 @@ void FSocialEOS::Initialize()
 
 	// Register for friend updates
 	EOS_Friends_AddNotifyFriendsUpdateOptions Options = { };
-	Options.ApiVersion = EOS_FRIENDS_ADDNOTIFYFRIENDSUPDATE_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_ADDNOTIFYFRIENDSUPDATE_API_LATEST, 1);
 	NotifyFriendsUpdateNotificationId = EOS_Friends_AddNotifyFriendsUpdate(FriendsHandle, &Options, this, [](const EOS_Friends_OnFriendsUpdateInfo* Data)
 	{
 		FSocialEOS* This = reinterpret_cast<FSocialEOS*>(Data->ClientData);
@@ -87,7 +88,8 @@ TOnlineAsyncOpHandle<FQueryFriends> FSocialEOS::QueryFriends(FQueryFriends::Para
 	.Then([this](TOnlineAsyncOp<FQueryFriends>& Op, TPromise<const EOS_Friends_QueryFriendsCallbackInfo*>&& Promise)
 	{
 		EOS_Friends_QueryFriendsOptions QueryFriendsOptions = { };
-		QueryFriendsOptions.ApiVersion = EOS_FRIENDS_QUERYFRIENDS_API_LATEST;
+		QueryFriendsOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_QUERYFRIENDS_API_LATEST, 1);
 		QueryFriendsOptions.LocalUserId = GetEpicAccountIdChecked(Op.GetParams().LocalAccountId);
 
 		EOS_Async(EOS_Friends_QueryFriends, FriendsHandle, QueryFriendsOptions, MoveTemp(Promise));
@@ -212,7 +214,8 @@ TOnlineAsyncOpHandle<FSendFriendInvite> FSocialEOS::SendFriendInvite(FSendFriend
 		const FSendFriendInvite::Params& Params = Op.GetParams();
 
 		EOS_Friends_SendInviteOptions SendInviteOptions = {};
-		SendInviteOptions.ApiVersion = EOS_FRIENDS_SENDINVITE_API_LATEST;
+		SendInviteOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_SENDINVITE_API_LATEST, 1);
 		SendInviteOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		SendInviteOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetAccountId);
 
@@ -263,7 +266,8 @@ TOnlineAsyncOpHandle<FAcceptFriendInvite> FSocialEOS::AcceptFriendInvite(FAccept
 		const FAcceptFriendInvite::Params& Params = Op.GetParams();
 
 		EOS_Friends_AcceptInviteOptions AcceptInviteOptions = {};
-		AcceptInviteOptions.ApiVersion = EOS_FRIENDS_ACCEPTINVITE_API_LATEST;
+		AcceptInviteOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_ACCEPTINVITE_API_LATEST, 1);
 		AcceptInviteOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		AcceptInviteOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetAccountId);
 
@@ -314,7 +318,8 @@ TOnlineAsyncOpHandle<FRejectFriendInvite> FSocialEOS::RejectFriendInvite(FReject
 		const FRejectFriendInvite::Params& Params = Op.GetParams();
 
 		EOS_Friends_RejectInviteOptions RejectInviteOptions = {};
-		RejectInviteOptions.ApiVersion = EOS_FRIENDS_REJECTINVITE_API_LATEST;
+		RejectInviteOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_REJECTINVITE_API_LATEST, 1);
 		RejectInviteOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		RejectInviteOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetAccountId);
 
@@ -371,7 +376,8 @@ TOnlineAsyncOpHandle<FBlockUser> FSocialEOS::BlockUser(FBlockUser::Params&& Para
 		const FBlockUser::Params& Params = Op.GetParams();
 
 		EOS_UI_ShowBlockPlayerOptions ShowBlockPlayerOptions = {};
-		ShowBlockPlayerOptions.ApiVersion = EOS_UI_SHOWBLOCKPLAYER_API_LATEST;
+		ShowBlockPlayerOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_UI_SHOWBLOCKPLAYER_API_LATEST, 1);
 		ShowBlockPlayerOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		ShowBlockPlayerOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetAccountId);
 

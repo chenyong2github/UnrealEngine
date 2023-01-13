@@ -59,8 +59,8 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 			const char* SearchTagPtr = Utf8SearchTag.Get();
 
 			EOS_TitleStorage_QueryFileListOptions Options = {};
-			Options.ApiVersion = EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
-			static_assert(EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST == 1, "EOS_TitleStorage_QueryFileListOptions updated, check new fields");
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST, 1);
 			Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 			Options.ListOfTagsCount = 1;
 			Options.ListOfTags = &SearchTagPtr;
@@ -80,8 +80,8 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 			const EOS_ProductUserId LocalUserPuid = GetProductUserIdChecked(Params.LocalAccountId);
 
 			EOS_TitleStorage_GetFileMetadataCountOptions GetCountOptions;
-			GetCountOptions.ApiVersion = EOS_TITLESTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST;
-			static_assert(EOS_TITLESTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST == 1, "EOS_TitleStorage_GetFileMetadataCountOptions updated, check new fields");
+			GetCountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST, 1);
 			GetCountOptions.LocalUserId = LocalUserPuid;
 
 			const uint32_t NumFiles = EOS_TitleStorage_GetFileMetadataCount(TitleStorageHandle, &GetCountOptions);
@@ -92,8 +92,8 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 			for (uint32_t FileIdx = 0; FileIdx < NumFiles; FileIdx++)
 			{
 				EOS_TitleStorage_CopyFileMetadataAtIndexOptions CopyOptions;
-				CopyOptions.ApiVersion = EOS_TITLESTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST;
-				static_assert(EOS_TITLESTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST == 1, "EOS_TitleStorage_CopyFileMetadataAtIndexOptions updated, check new fields");
+				CopyOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST, 1);
 				CopyOptions.LocalUserId = LocalUserPuid;
 				CopyOptions.Index = FileIdx;
 
@@ -182,8 +182,8 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 			const FTCHARToUTF8 Utf8Filename(*Params.Filename);
 
 			EOS_TitleStorage_ReadFileOptions Options = {};
-			Options.ApiVersion = EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST;
-			static_assert(EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST == 1, "EOS_TitleStorage_ReadFileOptions updated, check new fields");
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST, 1);
 			Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 			Options.Filename = Utf8Filename.Get();
 			Options.ReadChunkLengthBytes = Config.ReadChunkLengthBytes;

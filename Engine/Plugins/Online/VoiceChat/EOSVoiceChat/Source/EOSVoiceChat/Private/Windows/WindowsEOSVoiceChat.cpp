@@ -20,8 +20,8 @@ IEOSPlatformHandlePtr FWindowsEOSVoiceChat::EOSPlatformCreate(EOS_Platform_Optio
 	const FTCHARToUTF8 Utf8XAudioPath(*XAudioPath);
 
 	EOS_Windows_RTCOptions WindowsRTCOptions = { 0 };
-	WindowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
-	static_assert(EOS_WINDOWS_RTCOPTIONS_API_LATEST == 1, "EOS_Windows_RTCOptions updated, check new fields");
+	WindowsRTCOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_WINDOWS_RTCOPTIONS_API_LATEST, 1);
 	WindowsRTCOptions.XAudio29DllPath = Utf8XAudioPath.Get();
 
 	const_cast<EOS_Platform_RTCOptions*>(PlatformOptions.RTCOptions)->PlatformSpecificOptions = &WindowsRTCOptions;

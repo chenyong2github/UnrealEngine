@@ -3,6 +3,7 @@
 #include "SocketEOS.h"
 #include "SocketTypes.h"
 #include "SocketSubsystemEOS.h"
+#include "EOSShared.h"
 
 #if WITH_EOS_SDK
 	#include "eos_p2p.h"
@@ -107,11 +108,13 @@ bool FSocketEOS::Close()
 	if (LocalAddress.IsValid())
 	{
 		EOS_P2P_SocketId SocketId = { };
-		SocketId.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
+		SocketId.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SOCKETID_API_LATEST, 1);
 		FCStringAnsi::Strcpy(SocketId.SocketName, LocalAddress.GetSocketName());
 
 		EOS_P2P_CloseConnectionsOptions Options = { };
-		Options.ApiVersion = EOS_P2P_CLOSECONNECTIONS_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_P2P_CLOSECONNECTIONS_API_LATEST, 1);
 		Options.LocalUserId = SocketSubsystem.GetLocalUserId();
 		Options.SocketId = &SocketId;
 
@@ -195,11 +198,13 @@ bool FSocketEOS::Listen(int32)
 #if WITH_EOS_SDK
 	// Add listener for inbound connections
 	EOS_P2P_SocketId SocketId = { };
-	SocketId.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
+	SocketId.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SOCKETID_API_LATEST, 1);
 	FCStringAnsi::Strcpy(SocketId.SocketName, LocalAddress.GetSocketName());
 
 	EOS_P2P_AddNotifyPeerConnectionRequestOptions Options = { };
-	Options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONREQUEST_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_ADDNOTIFYPEERCONNECTIONREQUEST_API_LATEST, 1);
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.SocketId = &SocketId;
 
@@ -222,11 +227,13 @@ bool FSocketEOS::Listen(int32)
 			ClosedRemotes.Remove(RemoteAddress);
 
 			EOS_P2P_SocketId SocketId = { };
-			SocketId.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
+			SocketId.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SOCKETID_API_LATEST, 1);
 			FCStringAnsi::Strcpy(SocketId.SocketName, Info->SocketId->SocketName);
 
 			EOS_P2P_AcceptConnectionOptions Options = { };
-			Options.ApiVersion = EOS_P2P_ACCEPTCONNECTION_API_LATEST;
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_P2P_ACCEPTCONNECTION_API_LATEST, 1);
 			Options.LocalUserId = LocalAddress.GetLocalUserId();
 			Options.RemoteUserId = Info->RemoteUserId;
 			Options.SocketId = &SocketId;
@@ -273,7 +280,8 @@ bool FSocketEOS::HasPendingData(uint32& PendingDataSize)
 
 #if WITH_EOS_SDK
 	EOS_P2P_GetNextReceivedPacketSizeOptions Options = { };
-	Options.ApiVersion = EOS_P2P_GETNEXTRECEIVEDPACKETSIZE_API_LATEST;
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_GETNEXTRECEIVEDPACKETSIZE_API_LATEST, 2);
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	uint8 Channel = LocalAddress.GetChannel();
 	Options.RequestedChannel = &Channel;
@@ -383,11 +391,13 @@ bool FSocketEOS::SendTo(const uint8* Data, int32 Count, int32& OutBytesSent, con
 	RegisterClosedNotification();
 
 	EOS_P2P_SocketId SocketId = { };
-	SocketId.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
+	SocketId.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SOCKETID_API_LATEST, 1);
 	FCStringAnsi::Strcpy(SocketId.SocketName, DestinationAddress.GetSocketName());
 
 	EOS_P2P_SendPacketOptions Options = { };
-	Options.ApiVersion = EOS_P2P_SENDPACKET_API_LATEST;
+	Options.ApiVersion = 3;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SENDPACKET_API_LATEST, 3);
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.RemoteUserId = DestinationAddress.GetRemoteUserId();
 	Options.SocketId = &SocketId;
@@ -445,7 +455,8 @@ bool FSocketEOS::RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FInte
 
 #if WITH_EOS_SDK
 	EOS_P2P_ReceivePacketOptions Options = { };
-	Options.ApiVersion = EOS_P2P_RECEIVEPACKET_API_LATEST;
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_RECEIVEPACKET_API_LATEST, 2);
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.MaxDataSizeBytes = BufferSize;
 	uint8 Channel = LocalAddress.GetChannel();
@@ -621,11 +632,13 @@ bool FSocketEOS::Close(const FInternetAddrEOS& RemoteAddress)
 	ClosedRemotes.Add(RemoteAddress);
 
 	EOS_P2P_SocketId SocketId = { };
-	SocketId.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
+	SocketId.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SOCKETID_API_LATEST, 1);
 	FCStringAnsi::Strcpy(SocketId.SocketName, RemoteAddress.GetSocketName());
 
 	EOS_P2P_CloseConnectionOptions Options = { };
-	Options.ApiVersion = EOS_P2P_CLOSECONNECTION_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_CLOSECONNECTION_API_LATEST, 1);
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.RemoteUserId = RemoteAddress.GetRemoteUserId();
 	Options.SocketId = &SocketId;
@@ -656,11 +669,13 @@ void FSocketEOS::RegisterClosedNotification()
 	}
 	
 	EOS_P2P_SocketId SocketId = { };
-	SocketId.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
+	SocketId.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SOCKETID_API_LATEST, 1);
 	FCStringAnsi::Strcpy(SocketId.SocketName, LocalAddress.GetSocketName());
 
 	EOS_P2P_AddNotifyPeerConnectionClosedOptions Options = { };
-	Options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONCLOSED_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_P2P_ADDNOTIFYPEERCONNECTIONCLOSED_API_LATEST, 1);
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.SocketId = &SocketId;
 

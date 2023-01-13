@@ -126,7 +126,8 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		// Once all local members are joined and the lobby attributes have been set the privacy setting will be moved to the user setting.
 
 		EOS_Lobby_CreateLobbyOptions CreateLobbyOptions = {};
-		CreateLobbyOptions.ApiVersion = EOS_LOBBY_CREATELOBBY_API_LATEST;
+		CreateLobbyOptions.ApiVersion = 8;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_CREATELOBBY_API_LATEST, 8);
 		CreateLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		CreateLobbyOptions.MaxLobbyMembers = Params.MaxMembers;
 		// Prevent lobby from appearing in search results until fully created with all user attributes.
@@ -136,7 +137,6 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		CreateLobbyOptions.BucketId = BucketTanslator.GetBucketIdEOS();
 		CreateLobbyOptions.bDisableHostMigration = false; // todo: handle
 		CreateLobbyOptions.bEnableRTCRoom = false; // todo: handle
-		static_assert(EOS_LOBBY_CREATELOBBY_API_LATEST == 8, "EOS_Lobby_CreateLobbyOptions updated, check new fields");
 
 		EOS_Async(EOS_Lobby_CreateLobby, LobbyPrerequisites->LobbyInterfaceHandle, CreateLobbyOptions, MoveTemp(Promise)); 
 	})
@@ -383,12 +383,12 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOSGS::JoinLobby(FJoinLobby::Params&& I
 		const TSharedRef<FLobbyDetailsEOS>& LobbyDetails = GetOpDataChecked<TSharedRef<FLobbyDetailsEOS>>(InAsyncOp, LobbyDetailsKeyName);
 
 		EOS_Lobby_JoinLobbyOptions JoinLobbyOptions = {};
-		JoinLobbyOptions.ApiVersion = EOS_LOBBY_JOINLOBBY_API_LATEST;
+		JoinLobbyOptions.ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_JOINLOBBY_API_LATEST, 3);
 		JoinLobbyOptions.LobbyDetailsHandle = LobbyDetails->GetEOSHandle();
 		JoinLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		JoinLobbyOptions.bPresenceEnabled = false; // todo
 		JoinLobbyOptions.LocalRTCOptions = nullptr;
-		static_assert(EOS_LOBBY_JOINLOBBY_API_LATEST == 3, "EOS_Lobby_JoinLobbyOptions updated, check new fields");
 
 		EOS_Async(EOS_Lobby_JoinLobby, LobbyPrerequisites->LobbyInterfaceHandle, JoinLobbyOptions, MoveTemp(Promise));
 	})
@@ -1401,61 +1401,61 @@ void FLobbiesEOSGS::RegisterHandlers()
 	OnLobbyUpdatedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYLOBBYUPDATERECEIVED_API_LATEST,
+		1,
 		&EOS_Lobby_AddNotifyLobbyUpdateReceived,
 		&EOS_Lobby_RemoveNotifyLobbyUpdateReceived,
 		&FLobbiesEOSGS::HandleLobbyUpdated);
-	static_assert(EOS_LOBBY_ADDNOTIFYLOBBYUPDATERECEIVED_API_LATEST == 1, "EOS_Lobby_AddNotifyLobbyUpdateReceived updated, check new fields");
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_ADDNOTIFYLOBBYUPDATERECEIVED_API_LATEST, 1);
 
 	// Register for lobby member updates.
 	OnLobbyMemberUpdatedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYLOBBYMEMBERUPDATERECEIVED_API_LATEST,
+		1,
 		&EOS_Lobby_AddNotifyLobbyMemberUpdateReceived,
 		&EOS_Lobby_RemoveNotifyLobbyMemberUpdateReceived,
 		&FLobbiesEOSGS::HandleLobbyMemberUpdated);
-	static_assert(EOS_LOBBY_ADDNOTIFYLOBBYMEMBERUPDATERECEIVED_API_LATEST == 1, "EOS_Lobby_AddNotifyLobbyMemberUpdateReceived updated, check new fields");
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_ADDNOTIFYLOBBYMEMBERUPDATERECEIVED_API_LATEST, 1);
 
 	// Register for lobby member status changed.
 	OnLobbyMemberStatusReceivedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYLOBBYMEMBERSTATUSRECEIVED_API_LATEST,
+		1,
 		&EOS_Lobby_AddNotifyLobbyMemberStatusReceived,
 		&EOS_Lobby_RemoveNotifyLobbyMemberStatusReceived,
 		&FLobbiesEOSGS::HandleLobbyMemberStatusReceived);
-	static_assert(EOS_LOBBY_ADDNOTIFYLOBBYMEMBERSTATUSRECEIVED_API_LATEST == 1, "EOS_Lobby_AddNotifyLobbyMemberStatusReceived updated, check new fields");
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_ADDNOTIFYLOBBYMEMBERSTATUSRECEIVED_API_LATEST, 1);
 
 	// Register for lobby invite received.
 	OnLobbyInviteReceivedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYLOBBYINVITERECEIVED_API_LATEST,
+		1,
 		&EOS_Lobby_AddNotifyLobbyInviteReceived,
 		&EOS_Lobby_RemoveNotifyLobbyInviteReceived,
 		&FLobbiesEOSGS::HandleLobbyInviteReceived);
-	static_assert(EOS_LOBBY_ADDNOTIFYLOBBYINVITERECEIVED_API_LATEST == 1, "EOS_Lobby_AddNotifyLobbyInviteReceived updated, check new fields");
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_ADDNOTIFYLOBBYINVITERECEIVED_API_LATEST, 1);
 
 	// Register for lobby invite accepted.
 	OnLobbyInviteAcceptedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYLOBBYINVITEACCEPTED_API_LATEST,
+		1,
 		&EOS_Lobby_AddNotifyLobbyInviteAccepted,
 		&EOS_Lobby_RemoveNotifyLobbyInviteAccepted,
 		&FLobbiesEOSGS::HandleLobbyInviteAccepted);
-	static_assert(EOS_LOBBY_ADDNOTIFYLOBBYINVITEACCEPTED_API_LATEST == 1, "EOS_Lobby_AddNotifyLobbyInviteAccepted updated, check new fields");
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_ADDNOTIFYLOBBYINVITEACCEPTED_API_LATEST, 1);
 
 	// Register for join lobby accepted via overlay.
 	OnJoinLobbyAcceptedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYJOINLOBBYACCEPTED_API_LATEST,
+		1,
 		&EOS_Lobby_AddNotifyJoinLobbyAccepted,
 		&EOS_Lobby_RemoveNotifyJoinLobbyAccepted,
 		&FLobbiesEOSGS::HandleJoinLobbyAccepted);
-	static_assert(EOS_LOBBY_ADDNOTIFYJOINLOBBYACCEPTED_API_LATEST == 1, "EOS_Lobby_AddNotifyJoinLobbyAccepted updated, check new fields");
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_ADDNOTIFYJOINLOBBYACCEPTED_API_LATEST, 1);
 }
 
 void FLobbiesEOSGS::UnregisterHandlers()
@@ -1536,10 +1536,10 @@ TFuture<TDefaultErrorResult<FLobbiesLeaveLobbyImpl>> FLobbiesEOSGS::LeaveLobbyIm
 
 	// Start operation.
 	EOS_Lobby_LeaveLobbyOptions LeaveLobbyOptions = {};
-	LeaveLobbyOptions.ApiVersion = EOS_LOBBY_LEAVELOBBY_API_LATEST;
+	LeaveLobbyOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_LEAVELOBBY_API_LATEST, 1);
 	LeaveLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	LeaveLobbyOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
-	static_assert(EOS_LOBBY_LEAVELOBBY_API_LATEST == 1, "EOS_Lobby_LeaveLobbyOptions updated, check new fields");
 
 	TPromise<TDefaultErrorResult<FLobbiesLeaveLobbyImpl>> Promise;
 	TFuture<TDefaultErrorResult<FLobbiesLeaveLobbyImpl>> Future = Promise.GetFuture();
@@ -1585,10 +1585,10 @@ TFuture<TDefaultErrorResult<FLobbiesDestroyLobbyImpl>> FLobbiesEOSGS::DestroyLob
 	// Start operation.
 	FTCHARToUTF8 LobbyIdTranslator(*Params.LobbyIdString);
 	EOS_Lobby_DestroyLobbyOptions DestroyLobbyOptions = {};
-	DestroyLobbyOptions.ApiVersion = EOS_LOBBY_DESTROYLOBBY_API_LATEST;
+	DestroyLobbyOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_DESTROYLOBBY_API_LATEST, 1);
 	DestroyLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	DestroyLobbyOptions.LobbyId = LobbyIdTranslator.Get();
-	static_assert(EOS_LOBBY_DESTROYLOBBY_API_LATEST == 1, "EOS_Lobby_DestroyLobbyOptions updated, check new fields");
 
 	TPromise<TDefaultErrorResult<FLobbiesDestroyLobbyImpl>> Promise;
 	TFuture<TDefaultErrorResult<FLobbiesDestroyLobbyImpl>> Future = Promise.GetFuture();
@@ -1633,11 +1633,11 @@ TFuture<TDefaultErrorResult<FLobbiesInviteLobbyMemberImpl>> FLobbiesEOSGS::Invit
 
 	// Start operation.
 	EOS_Lobby_SendInviteOptions SendInviteOptions = {};
-	SendInviteOptions.ApiVersion = EOS_LOBBY_SENDINVITE_API_LATEST;
+	SendInviteOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_SENDINVITE_API_LATEST, 1);
 	SendInviteOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	SendInviteOptions.TargetUserId = GetProductUserIdChecked(Params.TargetAccountId);
 	SendInviteOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
-	static_assert(EOS_LOBBY_SENDINVITE_API_LATEST == 1, "EOS_Lobby_SendInviteOptions updated, check new fields");
 
 	TPromise<TDefaultErrorResult<FLobbiesInviteLobbyMemberImpl>> Promise;
 	TFuture<TDefaultErrorResult<FLobbiesInviteLobbyMemberImpl>> Future = Promise.GetFuture();
@@ -1692,10 +1692,10 @@ TFuture<TDefaultErrorResult<FLobbiesDeclineLobbyInvitationImpl>> FLobbiesEOSGS::
 
 	// Start operation.
 	EOS_Lobby_RejectInviteOptions RejectInviteOptions = {};
-	RejectInviteOptions.ApiVersion = EOS_LOBBY_REJECTINVITE_API_LATEST;
+	RejectInviteOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_REJECTINVITE_API_LATEST, 1);
 	RejectInviteOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	RejectInviteOptions.InviteId = InviteData->GetInviteIdEOS();
-	static_assert(EOS_LOBBY_REJECTINVITE_API_LATEST == 1, "EOS_Lobby_RejectInviteOptions updated, check new fields");
 
 	TPromise<TDefaultErrorResult<FLobbiesDeclineLobbyInvitationImpl>> Promise;
 	TFuture<TDefaultErrorResult<FLobbiesDeclineLobbyInvitationImpl>> Future = Promise.GetFuture();
@@ -1751,11 +1751,11 @@ TFuture<TDefaultErrorResult<FLobbiesKickLobbyMemberImpl>> FLobbiesEOSGS::KickLob
 
 	// Start operation.
 	EOS_Lobby_KickMemberOptions KickMemberOptions = {};
-	KickMemberOptions.ApiVersion = EOS_LOBBY_KICKMEMBER_API_LATEST;
+	KickMemberOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_KICKMEMBER_API_LATEST, 1);
 	KickMemberOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	KickMemberOptions.TargetUserId = GetProductUserIdChecked(Params.TargetAccountId);
 	KickMemberOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
-	static_assert(EOS_LOBBY_KICKMEMBER_API_LATEST == 1, "EOS_Lobby_KickMemberOptions updated, check new fields");
 
 	TPromise<TDefaultErrorResult<FLobbiesKickLobbyMemberImpl>> Promise;
 	TFuture<TDefaultErrorResult<FLobbiesKickLobbyMemberImpl>> Future = Promise.GetFuture();
@@ -1808,11 +1808,11 @@ TFuture<TDefaultErrorResult<FLobbiesPromoteLobbyMemberImpl>> FLobbiesEOSGS::Prom
 
 	// Start operation.
 	EOS_Lobby_PromoteMemberOptions PromoteMemberOptions = {};
-	PromoteMemberOptions.ApiVersion = EOS_LOBBY_PROMOTEMEMBER_API_LATEST;
+	PromoteMemberOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_PROMOTEMEMBER_API_LATEST, 1);
 	PromoteMemberOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	PromoteMemberOptions.TargetUserId = GetProductUserIdChecked(Params.TargetAccountId);
 	PromoteMemberOptions.LobbyId = Params.LobbyData->GetLobbyIdEOS();
-	static_assert(EOS_LOBBY_PROMOTEMEMBER_API_LATEST == 1, "EOS_Lobby_PromoteMemberOptions updated, check new fields");
 
 	TPromise<TDefaultErrorResult<FLobbiesPromoteLobbyMemberImpl>> Promise;
 	TFuture<TDefaultErrorResult<FLobbiesPromoteLobbyMemberImpl>> Future = Promise.GetFuture();

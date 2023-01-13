@@ -59,7 +59,8 @@ void FOnlineStoreEOS::QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnli
 	CachedOffers.Reset();
 
 	EOS_Ecom_QueryOffersOptions Options = { };
-	Options.ApiVersion = EOS_ECOM_QUERYOFFERS_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_QUERYOFFERS_API_LATEST, 1);
 	Options.LocalUserId = AccountId;
 
 	FQueryOffersCallback* CallbackObj = new FQueryOffersCallback(FOnlineStoreEOSWeakPtr(AsShared()));
@@ -73,12 +74,14 @@ void FOnlineStoreEOS::QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnli
 		}
 
 		EOS_Ecom_GetOfferCountOptions CountOptions = { };
-		CountOptions.ApiVersion = EOS_ECOM_GETOFFERCOUNT_API_LATEST;
+		CountOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_GETOFFERCOUNT_API_LATEST, 1);
 		CountOptions.LocalUserId = Data->LocalUserId;
 		uint32 OfferCount = EOS_Ecom_GetOfferCount(EOSSubsystem->EcomHandle, &CountOptions);
 
 		EOS_Ecom_CopyOfferByIndexOptions OfferOptions = { };
-		OfferOptions.ApiVersion = EOS_ECOM_COPYOFFERBYINDEX_API_LATEST;
+		OfferOptions.ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_COPYOFFERBYINDEX_API_LATEST, 3);
 		OfferOptions.LocalUserId = Data->LocalUserId;
 		// Iterate and parse the offer list
 		for (uint32 OfferIndex = 0; OfferIndex < OfferCount; OfferIndex++)
@@ -176,13 +179,15 @@ void FOnlineStoreEOS::Checkout(const FUniqueNetId& UserId, const FPurchaseChecko
 	// Convert the items
 	for (int32 Index = 0; Index < NumItems; Index++)
 	{
-		Entries[Index].ApiVersion = EOS_ECOM_CHECKOUTENTRY_API_LATEST;
+		Entries[Index].ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_CHECKOUTENTRY_API_LATEST, 1);
 		Entries[Index].OfferId = Items[Index];
 		FCStringAnsi::Strncpy(Items[Index], TCHAR_TO_UTF8(*CheckoutRequest.PurchaseOffers[Index].OfferId), EOS_ECOM_TRANSACTIONID_MAXIMUM_LENGTH);
 	}
 
 	EOS_Ecom_CheckoutOptions Options = { };
-	Options.ApiVersion = EOS_ECOM_CHECKOUT_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_CHECKOUT_API_LATEST, 1);
 	Options.LocalUserId = AccountId;
 	Options.EntryCount = NumItems;
 	Options.Entries = (const EOS_Ecom_CheckoutEntry*)Entries.GetData();
@@ -266,7 +271,8 @@ void FOnlineStoreEOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreRec
 	CachedReceipts.Reset();
 
 	EOS_Ecom_QueryEntitlementsOptions Options = { };
-	Options.ApiVersion = EOS_ECOM_QUERYENTITLEMENTS_API_LATEST;
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_QUERYENTITLEMENTS_API_LATEST, 2);
 	Options.LocalUserId = AccountId;
 	Options.bIncludeRedeemed = bRestoreReceipts ? EOS_TRUE : EOS_FALSE;
 
@@ -282,13 +288,15 @@ void FOnlineStoreEOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreRec
 		}
 
 		EOS_Ecom_GetEntitlementsCountOptions CountOptions = { };
-		CountOptions.ApiVersion = EOS_ECOM_GETENTITLEMENTSCOUNT_API_LATEST;
+		CountOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_GETENTITLEMENTSCOUNT_API_LATEST, 1);
 		CountOptions.LocalUserId = Data->LocalUserId;
 		uint32 Count = EOS_Ecom_GetEntitlementsCount(EOSSubsystem->EcomHandle, &CountOptions);
 		CachedReceipts.AddZeroed(Count);
 
 		EOS_Ecom_CopyEntitlementByIndexOptions CopyOptions = { };
-		CopyOptions.ApiVersion = EOS_ECOM_COPYENTITLEMENTBYINDEX_API_LATEST;
+		CopyOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_COPYENTITLEMENTBYINDEX_API_LATEST, 1);
 		CopyOptions.LocalUserId = Data->LocalUserId;
 
 		for (uint32 Index = 0; Index < Count; Index++)
@@ -348,7 +356,8 @@ void FOnlineStoreEOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, 
 	Ids[0] = EntitlementId.Get();
 
 	EOS_Ecom_RedeemEntitlementsOptions Options = { };
-	Options.ApiVersion = EOS_ECOM_REDEEMENTITLEMENTS_API_LATEST;
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_REDEEMENTITLEMENTS_API_LATEST, 2);
 	Options.LocalUserId = AccountId;
 	Options.EntitlementIdCount = 1;
 	Options.EntitlementIds = Ids;

@@ -74,7 +74,8 @@ void FPresenceEOS::Initialize()
 
 	// Register for friend updates
 	EOS_Presence_AddNotifyOnPresenceChangedOptions Options = { };
-	Options.ApiVersion = EOS_PRESENCE_ADDNOTIFYONPRESENCECHANGED_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_ADDNOTIFYONPRESENCECHANGED_API_LATEST, 1);
 	NotifyPresenceChangedNotificationId = EOS_Presence_AddNotifyOnPresenceChanged(PresenceHandle, &Options, this, [](const EOS_Presence_PresenceChangedCallbackInfo* Data)
 	{
 		FPresenceEOS* This = reinterpret_cast<FPresenceEOS*>(Data->ClientData);
@@ -164,7 +165,8 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 			{
 				const FQueryPresence::Params& Params = InAsyncOp.GetParams();
 				EOS_Presence_QueryPresenceOptions QueryPresenceOptions = { };
-				QueryPresenceOptions.ApiVersion = EOS_PRESENCE_QUERYPRESENCE_API_LATEST;
+				QueryPresenceOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_QUERYPRESENCE_API_LATEST, 1);
 				QueryPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 				QueryPresenceOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetAccountId);
 
@@ -221,7 +223,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 		const FUpdatePresence::Params& Params = InAsyncOp.GetParams();
 		EOS_HPresenceModification ChangeHandle = nullptr;
 		EOS_Presence_CreatePresenceModificationOptions Options = { };
-		Options.ApiVersion = EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST, 1);
 		Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		EOS_EResult CreatePresenceModificationResult = EOS_Presence_CreatePresenceModification(PresenceHandle, &Options, &ChangeHandle);
 		if (CreatePresenceModificationResult == EOS_EResult::EOS_Success)
@@ -230,7 +233,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 
 			// State
 			EOS_PresenceModification_SetStatusOptions StatusOptions = { };
-			StatusOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETSTATUS_API_LATEST;
+			StatusOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_SETSTATUS_API_LATEST, 1);
 			StatusOptions.Status = ToEOS_Presence_EStatus(Params.Presence->Status);
 			EOS_EResult SetStatusResult = EOS_PresenceModification_SetStatus(ChangeHandle, &StatusOptions);
 			if (SetStatusResult != EOS_EResult::EOS_Success)
@@ -244,7 +248,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 			// Raw rich text
 			// Convert the status string as the rich text string
 			EOS_PresenceModification_SetRawRichTextOptions RawRichTextOptions = { };
-			RawRichTextOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETRAWRICHTEXT_API_LATEST;
+			RawRichTextOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_SETRAWRICHTEXT_API_LATEST, 1);
 
 			const FTCHARToUTF8 Utf8RawRichText(*Params.Presence->StatusString);
 			RawRichTextOptions.RichText = Utf8RawRichText.Get();
@@ -281,14 +286,16 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 					const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(*RemovedProperty);
 
 					EOS_PresenceModification_DataRecordId& RecordId = RecordIds.Emplace_GetRef();
-					RecordId.ApiVersion = EOS_PRESENCEMODIFICATION_DATARECORDID_API_LATEST;
+					RecordId.ApiVersion = 1;
+					UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_DATARECORDID_API_LATEST, 1);
 					RecordId.Key = Utf8Key.Get();
 
 					UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: Removing field %s"), *RemovedProperty); // Temp logging
 				}
 
 				EOS_PresenceModification_DeleteDataOptions DataOptions = { };
-				DataOptions.ApiVersion = EOS_PRESENCEMODIFICATION_DELETEDATA_API_LATEST;
+				DataOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_DELETEDATA_API_LATEST, 1);
 				DataOptions.RecordsCount = RecordIds.Num();
 				DataOptions.Records = RecordIds.GetData();
 				EOS_EResult DeleteDataResult = EOS_PresenceModification_DeleteData(ChangeHandle, &DataOptions);
@@ -321,14 +328,16 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 					const FTCHARToUTF8& Utf8Value = Utf8Strings.Emplace_GetRef(*UpdatedProperty.Value); // TODO: Better serialization
 
 					EOS_Presence_DataRecord& Record = Records.Emplace_GetRef();
-					Record.ApiVersion = EOS_PRESENCE_DATARECORD_API_LATEST;
+					Record.ApiVersion = 1;
+					UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_DATARECORD_API_LATEST, 1);
 					Record.Key = Utf8Key.Get();
 					Record.Value = Utf8Value.Get();
 					UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: Set field [%s] to [%s]"), *UpdatedProperty.Key, *UpdatedProperty.Value); // Temp logging
 				}
 
 				EOS_PresenceModification_SetDataOptions DataOptions = { };
-				DataOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETDATA_API_LATEST;
+				DataOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_SETDATA_API_LATEST, 1);
 				DataOptions.RecordsCount = Records.Num();
 				DataOptions.Records = Records.GetData();
 				EOS_EResult SetDataResult = EOS_PresenceModification_SetData(ChangeHandle, &DataOptions);
@@ -342,7 +351,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 			}
 
 			EOS_Presence_SetPresenceOptions SetPresenceOptions = { };
-			SetPresenceOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
+			SetPresenceOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_SETPRESENCE_API_LATEST, 1);
 			SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 			SetPresenceOptions.PresenceModificationHandle = ChangeHandle;
 
@@ -404,7 +414,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 				const FPartialUpdatePresence::Params& Params = InAsyncOp.GetParams();
 				EOS_HPresenceModification ChangeHandle = nullptr;
 				EOS_Presence_CreatePresenceModificationOptions Options = { };
-				Options.ApiVersion = EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST;
+				Options.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST, 1);
 				Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 				EOS_EResult CreatePresenceModificationResult = EOS_Presence_CreatePresenceModification(PresenceHandle, &Options, &ChangeHandle);
 				if (CreatePresenceModificationResult == EOS_EResult::EOS_Success)
@@ -415,7 +426,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 					if (Params.Mutations.Status.IsSet())
 					{
 						EOS_PresenceModification_SetStatusOptions StatusOptions = { };
-						StatusOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETSTATUS_API_LATEST;
+						StatusOptions.ApiVersion = 1;
+						UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_SETSTATUS_API_LATEST, 1);
 						StatusOptions.Status = ToEOS_Presence_EStatus(Params.Mutations.Status.GetValue());
 						EOS_EResult SetStatusResult = EOS_PresenceModification_SetStatus(ChangeHandle, &StatusOptions);
 						if (SetStatusResult != EOS_EResult::EOS_Success)
@@ -436,7 +448,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 					{
 						// Convert the status string as the rich text string
 						EOS_PresenceModification_SetRawRichTextOptions RawRichTextOptions = { };
-						RawRichTextOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETRAWRICHTEXT_API_LATEST;
+						RawRichTextOptions.ApiVersion = 1;
+						UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_SETRAWRICHTEXT_API_LATEST, 1);
 
 						const FTCHARToUTF8 Utf8RawRichText(*Params.Mutations.StatusString.GetValue());
 						RawRichTextOptions.RichText = Utf8RawRichText.Get();
@@ -466,14 +479,16 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 							const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(*RemovedProperty);
 
 							EOS_PresenceModification_DataRecordId& RecordId = RecordIds.Emplace_GetRef();
-							RecordId.ApiVersion = EOS_PRESENCEMODIFICATION_DATARECORDID_API_LATEST;
+							RecordId.ApiVersion = 1;
+							UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_DATARECORDID_API_LATEST, 1);
 							RecordId.Key = Utf8Key.Get();
 
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: Removing field %s"), *RemovedProperty); // Temp logging
 						}
 
 						EOS_PresenceModification_DeleteDataOptions DataOptions = { };
-						DataOptions.ApiVersion = EOS_PRESENCEMODIFICATION_DELETEDATA_API_LATEST;
+						DataOptions.ApiVersion = 1;
+						UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_DELETEDATA_API_LATEST, 1);
 						DataOptions.RecordsCount = RecordIds.Num();
 						DataOptions.Records = RecordIds.GetData();
 						EOS_EResult DeleteDataResult = EOS_PresenceModification_DeleteData(ChangeHandle, &DataOptions);
@@ -506,14 +521,16 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 							const FTCHARToUTF8& Utf8Value = Utf8Strings.Emplace_GetRef(*UpdatedProperty.Value); // TODO: Better serialization
 
 							EOS_Presence_DataRecord& Record = Records.Emplace_GetRef();
-							Record.ApiVersion = EOS_PRESENCE_DATARECORD_API_LATEST;
+							Record.ApiVersion = 1;
+							UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_DATARECORD_API_LATEST, 1);
 							Record.Key = Utf8Key.Get();
 							Record.Value = Utf8Value.Get();
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: Set field [%s] to [%s]"), *UpdatedProperty.Key, *UpdatedProperty.Value); // Temp logging
 						}
 
 						EOS_PresenceModification_SetDataOptions DataOptions = { };
-						DataOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETDATA_API_LATEST;
+						DataOptions.ApiVersion = 1;
+						UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCEMODIFICATION_SETDATA_API_LATEST, 1);
 						DataOptions.RecordsCount = Records.Num();
 						DataOptions.Records = Records.GetData();
 						EOS_EResult SetDataResult = EOS_PresenceModification_SetData(ChangeHandle, &DataOptions);
@@ -527,7 +544,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 					}
 
 					EOS_Presence_SetPresenceOptions SetPresenceOptions = { };
-					SetPresenceOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
+					SetPresenceOptions.ApiVersion = 1;
+					UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_SETPRESENCE_API_LATEST, 1);
 					SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 					SetPresenceOptions.PresenceModificationHandle = ChangeHandle;
 					EOS_Async(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions, MoveTemp(Promise));
@@ -610,7 +628,8 @@ void FPresenceEOS::UpdateUserPresence(FAccountId LocalAccountId, FAccountId Pres
 	// Get presence from EOS
 	EOS_Presence_Info* PresenceInfo = nullptr;
 	EOS_Presence_CopyPresenceOptions Options = { };
-	Options.ApiVersion = EOS_PRESENCE_COPYPRESENCE_API_LATEST;
+	Options.ApiVersion = 3;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_COPYPRESENCE_API_LATEST, 3);
 	Options.LocalUserId = GetEpicAccountIdChecked(LocalAccountId);
 	Options.TargetUserId = GetEpicAccountIdChecked(PresenceAccountId);
 	EOS_EResult CopyPresenceResult = EOS_Presence_CopyPresence(PresenceHandle, &Options, &PresenceInfo);

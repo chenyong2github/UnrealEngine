@@ -131,7 +131,8 @@ struct FEOSPlatformOptions :
 	FEOSPlatformOptions() :
 		EOS_Platform_Options()
 	{
-		ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
+		ApiVersion = 12;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PLATFORM_OPTIONS_API_LATEST, 12);
 		ProductId = ProductIdAnsi;
 		SandboxId = SandboxIdAnsi;
 		DeploymentId = DeploymentIdAnsi;
@@ -249,7 +250,8 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 
 #if WITH_EOS_RTC
 	EOS_Platform_RTCOptions RtcOptions = { 0 };
-	RtcOptions.ApiVersion = EOS_PLATFORM_RTCOPTIONS_API_LATEST;
+	RtcOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PLATFORM_RTCOPTIONS_API_LATEST, 1);
 	RtcOptions.PlatformSpecificOptions = nullptr;
 	PlatformOptions.RTCOptions = &RtcOptions;
 #endif

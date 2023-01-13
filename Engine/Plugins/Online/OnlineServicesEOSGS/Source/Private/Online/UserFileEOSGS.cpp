@@ -55,8 +55,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 			const FUserFileEnumerateFiles::Params& Params = Op.GetParams();
 
 			EOS_PlayerDataStorage_QueryFileListOptions Options = {};
-			Options.ApiVersion = EOS_PLAYERDATASTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
-			static_assert(EOS_PLAYERDATASTORAGE_QUERYFILELISTOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_QueryFileListOptions updated, check new fields");
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_QUERYFILELISTOPTIONS_API_LATEST, 1);
 			Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 
 			EOS_Async(EOS_PlayerDataStorage_QueryFileList, PlayerDataStorageHandle, Options, MoveTemp(Promise));
@@ -76,8 +76,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 			const EOS_ProductUserId LocalUserPuid = GetProductUserIdChecked(Params.LocalAccountId);
 
 			EOS_PlayerDataStorage_GetFileMetadataCountOptions GetCountOptions;
-			GetCountOptions.ApiVersion = EOS_PLAYERDATASTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST;
-			static_assert(EOS_PLAYERDATASTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_GetFileMetadataCountOptions updated, check new fields");
+			GetCountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST, 1);
 			GetCountOptions.LocalUserId = LocalUserPuid;
 
 			int32_t NumFiles;
@@ -97,8 +97,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 			for (int32_t FileIdx = 0; FileIdx < NumFiles; FileIdx++)
 			{
 				EOS_PlayerDataStorage_CopyFileMetadataAtIndexOptions CopyOptions;
-				CopyOptions.ApiVersion = EOS_PLAYERDATASTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST;
-				static_assert(EOS_PLAYERDATASTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_CopyFileMetadataAtIndexOptions updated, check new fields");
+				CopyOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_COPYFILEMETADATAATINDEXOPTIONS_API_LATEST, 1);
 				CopyOptions.LocalUserId = LocalUserPuid;
 				CopyOptions.Index = FileIdx;
 
@@ -186,8 +186,8 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileEOSGS::ReadFile(FUserFileReadFi
 			const auto Utf8Filename = StringCast<UTF8CHAR>(*Params.Filename);
 
 			EOS_PlayerDataStorage_ReadFileOptions Options = {};
-			Options.ApiVersion = EOS_PLAYERDATASTORAGE_READFILEOPTIONS_API_LATEST;
-			static_assert(EOS_PLAYERDATASTORAGE_READFILEOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_ReadFileOptions updated, check new fields");
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_READFILEOPTIONS_API_LATEST, 1);
 			Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 			Options.Filename = (const char*)Utf8Filename.Get();
 			Options.ReadChunkLengthBytes = Config.ChunkLengthBytes;
@@ -268,8 +268,8 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileEOSGS::WriteFile(FUserFileWrit
 		const auto Utf8Filename = StringCast<UTF8CHAR>(*Params.Filename);
 
 		EOS_PlayerDataStorage_WriteFileOptions Options = {};
-		Options.ApiVersion = EOS_PLAYERDATASTORAGE_WRITEFILEOPTIONS_API_LATEST;
-		static_assert(EOS_PLAYERDATASTORAGE_WRITEFILEOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_WriteFileOptions updated, check new fields");
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_WRITEFILEOPTIONS_API_LATEST, 1);
 		Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		Options.Filename = (const char*)Utf8Filename.Get();
 		Options.ChunkLengthBytes = Config.ChunkLengthBytes;
@@ -328,8 +328,8 @@ TOnlineAsyncOpHandle<FUserFileCopyFile> FUserFileEOSGS::CopyFile(FUserFileCopyFi
 		const auto Utf8TargetFilename = StringCast<UTF8CHAR>(*Params.TargetFilename);
 
 		EOS_PlayerDataStorage_DuplicateFileOptions Options = {};
-		Options.ApiVersion = EOS_PLAYERDATASTORAGE_DUPLICATEFILEOPTIONS_API_LATEST;
-		static_assert(EOS_PLAYERDATASTORAGE_DUPLICATEFILEOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_DuplicateFileOptions updated, check new fields");
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_DUPLICATEFILEOPTIONS_API_LATEST, 1);
 		Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		Options.SourceFilename = (const char*)Utf8SourceFilename.Get();
 		Options.DestinationFilename = (const char*)Utf8TargetFilename.Get();
@@ -377,8 +377,8 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileEOSGS::DeleteFile(FUserFileDe
 		const auto Utf8Filename = StringCast<UTF8CHAR>(*Params.Filename);
 
 		EOS_PlayerDataStorage_DeleteFileOptions Options = {};
-		Options.ApiVersion = EOS_PLAYERDATASTORAGE_DELETEFILEOPTIONS_API_LATEST;
-		static_assert(EOS_PLAYERDATASTORAGE_DELETEFILEOPTIONS_API_LATEST == 1, "EOS_PlayerDataStorage_DeleteFileOptions updated, check new fields");
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PLAYERDATASTORAGE_DELETEFILEOPTIONS_API_LATEST, 1);
 		Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		Options.Filename = (const char*)Utf8Filename.Get();
 

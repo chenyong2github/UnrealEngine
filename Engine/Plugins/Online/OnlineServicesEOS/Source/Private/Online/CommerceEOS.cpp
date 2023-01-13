@@ -77,7 +77,8 @@ TOnlineAsyncOpHandle<FCommerceQueryOffers> FCommerceEOS::QueryOffers(FCommerceQu
 		{
 			const FCommerceQueryOffers::Params& Params = Op.GetParams();
 			EOS_Ecom_QueryOffersOptions Options = { };
-			Options.ApiVersion = EOS_ECOM_QUERYOFFERS_API_LATEST;
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_QUERYOFFERS_API_LATEST, 1);
 			Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 			EOS_Async(EOS_Ecom_QueryOffers, EcomHandle, Options, MoveTemp(Promise));
 		})
@@ -91,7 +92,8 @@ TOnlineAsyncOpHandle<FCommerceQueryOffers> FCommerceEOS::QueryOffers(FCommerceQu
 			}
 
 			EOS_Ecom_GetOfferCountOptions CountOptions = { };
-			CountOptions.ApiVersion = EOS_ECOM_GETOFFERCOUNT_API_LATEST;
+			CountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_GETOFFERCOUNT_API_LATEST, 1);
 			CountOptions.LocalUserId = Data->LocalUserId;
 			uint32 OfferCount = EOS_Ecom_GetOfferCount(EcomHandle, &CountOptions);
 
@@ -99,7 +101,8 @@ TOnlineAsyncOpHandle<FCommerceQueryOffers> FCommerceEOS::QueryOffers(FCommerceQu
 			Offers.Empty(OfferCount);
 
 			EOS_Ecom_CopyOfferByIndexOptions OfferOptions = { };
-			OfferOptions.ApiVersion = EOS_ECOM_COPYOFFERBYINDEX_API_LATEST;
+			OfferOptions.ApiVersion = 3;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_COPYOFFERBYINDEX_API_LATEST, 3);
 			OfferOptions.LocalUserId = Data->LocalUserId;
 			// Iterate and parse the offer list
 			for (uint32 OfferIndex = 0; OfferIndex < OfferCount; OfferIndex++)
@@ -207,12 +210,14 @@ TOnlineAsyncOpHandle<FCommerceCheckout> FCommerceEOS::Checkout(FCommerceCheckout
 			Utf8CheckoutIds.Emplace(*Offer.OfferId);
 
 			EosCheckoutEntries.AddDefaulted();
-			EosCheckoutEntries.Last().ApiVersion = EOS_ECOM_CHECKOUTENTRY_API_LATEST;
+			EosCheckoutEntries.Last().ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_CHECKOUTENTRY_API_LATEST, 1);
 			EosCheckoutEntries.Last().OfferId = Utf8CheckoutIds.Last().Get();
 		}
 
 		EOS_Ecom_CheckoutOptions Options = { };
-		Options.ApiVersion = EOS_ECOM_CHECKOUT_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_CHECKOUT_API_LATEST, 1);
 		Options.LocalUserId = LocalUserEasId;
 		Options.EntryCount = Params.Offers.Num();
 		Options.Entries = EosCheckoutEntries.GetData();
@@ -261,7 +266,8 @@ TOnlineAsyncOpHandle<FCommerceQueryTransactionEntitlements> FCommerceEOS::QueryT
 			EOS_Ecom_HTransaction OutTransaction;
 			FTCHARToUTF8 Utf8TransactionId(*Params.TransactionId);
 			EOS_Ecom_CopyTransactionByIdOptions CopyTransactionOptions = { };
-			CopyTransactionOptions.ApiVersion = EOS_ECOM_COPYTRANSACTIONBYID_API_LATEST;
+			CopyTransactionOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_COPYTRANSACTIONBYID_API_LATEST, 1);
 			CopyTransactionOptions.LocalUserId = LocalUserEasId;
 			CopyTransactionOptions.TransactionId = Utf8TransactionId.Get();
 
@@ -274,7 +280,8 @@ TOnlineAsyncOpHandle<FCommerceQueryTransactionEntitlements> FCommerceEOS::QueryT
 			}
 
 			EOS_Ecom_Transaction_GetEntitlementsCountOptions EntitlementCountOptions = { };
-			EntitlementCountOptions.ApiVersion = EOS_ECOM_TRANSACTION_GETENTITLEMENTSCOUNT_API_LATEST;
+			EntitlementCountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_TRANSACTION_GETENTITLEMENTSCOUNT_API_LATEST, 1);
 			int32 NumTransactionsFound = EOS_Ecom_Transaction_GetEntitlementsCount(OutTransaction, &EntitlementCountOptions);
 
 			if (NumTransactionsFound > 0)
@@ -285,7 +292,8 @@ TOnlineAsyncOpHandle<FCommerceQueryTransactionEntitlements> FCommerceEOS::QueryT
 				{
 					EOS_Ecom_Entitlement* EosEntitlement;
 					EOS_Ecom_Transaction_CopyEntitlementByIndexOptions CopyTransactionEntitlementOptions = {};
-					CopyTransactionEntitlementOptions.ApiVersion = EOS_ECOM_TRANSACTION_COPYENTITLEMENTBYINDEX_API_LATEST;
+					CopyTransactionEntitlementOptions.ApiVersion = 1;
+					UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_TRANSACTION_COPYENTITLEMENTBYINDEX_API_LATEST, 1);
 					CopyTransactionEntitlementOptions.EntitlementIndex = i;
 
 					EOS_EResult Result = EOS_Ecom_Transaction_CopyEntitlementByIndex(OutTransaction, &CopyTransactionEntitlementOptions, &EosEntitlement);
@@ -334,7 +342,8 @@ TOnlineAsyncOpHandle<FCommerceQueryEntitlements> FCommerceEOS::QueryEntitlements
 		{
 			const FCommerceQueryEntitlements::Params& Params = Op.GetParams();
 			EOS_Ecom_QueryEntitlementsOptions Options = { };
-			Options.ApiVersion = EOS_ECOM_QUERYENTITLEMENTS_API_LATEST;
+			Options.ApiVersion = 2;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_QUERYENTITLEMENTS_API_LATEST, 2);
 			Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 			Options.bIncludeRedeemed = EOS_TRUE;
 			EOS_Async(EOS_Ecom_QueryEntitlements, EcomHandle, Options, MoveTemp(Promise));
@@ -350,14 +359,16 @@ TOnlineAsyncOpHandle<FCommerceQueryEntitlements> FCommerceEOS::QueryEntitlements
 			}
 
 			EOS_Ecom_GetEntitlementsCountOptions CountOptions = { };
-			CountOptions.ApiVersion = EOS_ECOM_GETENTITLEMENTSCOUNT_API_LATEST;
+			CountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_GETENTITLEMENTSCOUNT_API_LATEST, 1);
 			CountOptions.LocalUserId = Data->LocalUserId;
 			uint32 Count = EOS_Ecom_GetEntitlementsCount(EcomHandle, &CountOptions);
 			TArray<FEntitlement>& Entitlements = CachedEntitlements.FindOrAdd(Op.GetParams().LocalAccountId, TArray<FEntitlement>());
 			Entitlements.Reset(Count);
 
 			EOS_Ecom_CopyEntitlementByIndexOptions CopyOptions = { };
-			CopyOptions.ApiVersion = EOS_ECOM_COPYENTITLEMENTBYINDEX_API_LATEST;
+			CopyOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_COPYENTITLEMENTBYINDEX_API_LATEST, 1);
 			CopyOptions.LocalUserId = Data->LocalUserId;
 
 			for (uint32 Index = 0; Index < Count; Index++)
@@ -418,7 +429,8 @@ TOnlineAsyncOpHandle<FCommerceRedeemEntitlement> FCommerceEOS::RedeemEntitlement
 		FTCHARToUTF8 Utf8EntitlementId(*Op.GetParams().EntitlementId);
 		const char* EntitlementIdPtr = Utf8EntitlementId.Get();
 		EOS_Ecom_RedeemEntitlementsOptions Options = { };
-		Options.ApiVersion = EOS_ECOM_REDEEMENTITLEMENTS_API_LATEST;
+		Options.ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_REDEEMENTITLEMENTS_API_LATEST, 2);
 		Options.LocalUserId = LocalUserEasId;
 		Options.EntitlementIdCount = 1;
 		Options.EntitlementIds = &EntitlementIdPtr;
@@ -465,7 +477,8 @@ TOnlineAsyncOpHandle<FCommerceRetrieveS2SToken> FCommerceEOS::RetrieveS2SToken(F
 		{
 			const FCommerceRetrieveS2SToken::Params& Params = Op.GetParams();
 			EOS_Ecom_QueryOwnershipTokenOptions Options = {};
-			Options.ApiVersion = EOS_ECOM_QUERYOWNERSHIPTOKEN_API_LATEST;
+			Options.ApiVersion = 2;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ECOM_QUERYOWNERSHIPTOKEN_API_LATEST, 2);
 			Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 			EOS_Async(EOS_Ecom_QueryOwnershipToken, EcomHandle, Options, MoveTemp(Promise));
 		})

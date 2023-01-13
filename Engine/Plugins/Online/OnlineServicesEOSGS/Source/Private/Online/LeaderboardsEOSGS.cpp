@@ -53,8 +53,8 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 			}
 
 			EOS_Leaderboards_UserScoresQueryStatInfo StatInfo;
-			StatInfo.ApiVersion = EOS_LEADERBOARDS_USERSCORESQUERYSTATINFO_API_LATEST;
-			static_assert(EOS_LEADERBOARDS_USERSCORESQUERYSTATINFO_API_LATEST == 1, "EOS_Leaderboards_UserScoresQueryStatInfo updated, check new fields");
+			StatInfo.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_USERSCORESQUERYSTATINFO_API_LATEST, 1);
 
 			char StatNameANSI[EOS_LEADERBOARD_STAT_NAME_MAX_LENGTH];
 			FCStringAnsi::Strncpy(StatNameANSI, TCHAR_TO_UTF8(*Params.BoardName), EOS_LEADERBOARD_STAT_NAME_MAX_LENGTH);
@@ -63,8 +63,8 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 			StatInfo.Aggregation = EOS_ELeaderboardAggregation::EOS_LA_Latest; // TODO: Use Stats definitions
 
 			EOS_Leaderboards_QueryLeaderboardUserScoresOptions Options = { };
-			Options.ApiVersion = EOS_LEADERBOARDS_QUERYLEADERBOARDUSERSCORES_API_LATEST;
-			static_assert(EOS_LEADERBOARDS_QUERYLEADERBOARDUSERSCORES_API_LATEST == 2, "EOS_Leaderboards_QueryLeaderboardUserScores updated, check new fields");
+			Options.ApiVersion = 2;
+			UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_QUERYLEADERBOARDUSERSCORES_API_LATEST, 2);
 			Options.UserIds = ProductUserIds.GetData();
 			Options.UserIdsCount = ProductUserIds.Num();
 			Options.StatInfo = &StatInfo;
@@ -94,8 +94,8 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 			for (const FAccountId& AccountId : Params.AccountIds)
 			{
 				EOS_Leaderboards_CopyLeaderboardUserScoreByUserIdOptions UserCopyOptions = { };
-				UserCopyOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDUSERSCOREBYUSERID_API_LATEST;
-				static_assert(EOS_LEADERBOARDS_COPYLEADERBOARDUSERSCOREBYUSERID_API_LATEST == 1, "EOS_Leaderboards_CopyLeaderboardUserScoreByUserIdOptions updated, check new fields");
+				UserCopyOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_COPYLEADERBOARDUSERSCOREBYUSERID_API_LATEST, 1);
 
 				UserCopyOptions.UserId = GetProductUserIdChecked(AccountId);
 				UserCopyOptions.StatName = StatNameANSI;
@@ -131,8 +131,8 @@ void QueryLeaderboardsEOS(EOS_HLeaderboards LeaderboardsHandle, const FAccountId
 {
 	EOS_Leaderboards_QueryLeaderboardRanksOptions Options;
 	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
-	Options.ApiVersion = EOS_LEADERBOARDS_QUERYLEADERBOARDRANKS_API_LATEST;
-	static_assert(EOS_LEADERBOARDS_QUERYLEADERBOARDRANKS_API_LATEST == 2, "EOS_Leaderboards_QueryLeaderboardRanks updated, check new fields");
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_QUERYLEADERBOARDRANKS_API_LATEST, 2);
 
 	char LeaderboardNameANSI[EOS_LEADERBOARD_STAT_NAME_MAX_LENGTH];
 	FCStringAnsi::Strncpy(LeaderboardNameANSI, TCHAR_TO_UTF8(*BoardName), EOS_LEADERBOARD_STAT_NAME_MAX_LENGTH);
@@ -146,8 +146,8 @@ void ReadEntriesInRange(EOS_HLeaderboards LeaderboardsHandle, uint32 StartIndex,
 	for (uint32 i = StartIndex; i <= EndIndex; ++i)
 	{
 		EOS_Leaderboards_CopyLeaderboardRecordByIndexOptions CopyRecordOptions;
-		CopyRecordOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYINDEX_API_LATEST;
-		static_assert(EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYINDEX_API_LATEST == 2, "EOS_Leaderboards_CopyLeaderboardRecordByIndexOptions updated, check new fields");
+		CopyRecordOptions.ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYINDEX_API_LATEST, 2);
 		CopyRecordOptions.LeaderboardRecordIndex = i;
 
 		EOS_Leaderboards_LeaderboardRecord* LeaderboardRecord = nullptr;
@@ -248,8 +248,8 @@ TOnlineAsyncOpHandle<FReadEntriesAroundUser> FLeaderboardsEOSGS::ReadEntriesArou
 
 			EOS_Leaderboards_LeaderboardRecord* LeaderboardRecord = nullptr;
 			EOS_Leaderboards_CopyLeaderboardRecordByUserIdOptions CopyRecordByUserIdOptions;
-			CopyRecordByUserIdOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYUSERID_API_LATEST;
-			static_assert(EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYUSERID_API_LATEST == 2, "EOS_Leaderboards_CopyLeaderboardRecordByUserIdOptions updated, check new fields");
+			CopyRecordByUserIdOptions.ApiVersion = 2;
+			UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYUSERID_API_LATEST, 2);
 			CopyRecordByUserIdOptions.UserId = GetProductUserIdChecked(Params.AccountId);
 			EOS_EResult CopyResult = EOS_Leaderboards_CopyLeaderboardRecordByUserId(LeaderboardsHandle, &CopyRecordByUserIdOptions, &LeaderboardRecord);
 			if (CopyResult == EOS_EResult::EOS_Success)

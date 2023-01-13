@@ -202,10 +202,10 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 
 		// Get display name
 		EOS_UserInfo_CopyUserInfoOptions Options = { };
-		Options.ApiVersion = EOS_USERINFO_COPYUSERINFO_API_LATEST;
+		Options.ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_USERINFO_COPYUSERINFO_API_LATEST, 3);
 		Options.LocalUserId = AccountInfoEOS->EpicAccountId;
 		Options.TargetUserId = AccountInfoEOS->EpicAccountId;
-		static_assert(EOS_USERINFO_COPYUSERINFO_API_LATEST == 3, "EOS_UserInfo_CopyUserInfoOptions updated, check new fields");
 
 		EOS_UserInfo* UserInfo = nullptr;
 
@@ -291,8 +291,8 @@ TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> FAuthEOS::QueryExternal
 			}
 
 			EOS_Auth_CopyUserAuthTokenOptions CopyUserAuthTokenOptions = {};
-			CopyUserAuthTokenOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
-			static_assert(EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST == 1, "EOS_Auth_CopyUserAuthTokenOptions updated, check new fields");
+			CopyUserAuthTokenOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST, 1);
 
 			EOS_Auth_Token* AuthToken = nullptr;
 
@@ -417,12 +417,12 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 	Algo::Transform(EpicAccountIdStrsToQuery, EpicAccountIdStrPtrs, [](const FEpicAccountIdStrBuffer& Str) { return &Str[0]; });
 
 	EOS_Connect_QueryExternalAccountMappingsOptions Options = {};
-	Options.ApiVersion = EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST, 1);
 	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 	Options.ExternalAccountIds = (const char**)EpicAccountIdStrPtrs.GetData();
 	Options.ExternalAccountIdCount = 1;
-	static_assert(EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST == 1, "EOS_Connect_QueryExternalAccountMappingsOptions updated, check new fields");
 
 	EOS_Async(EOS_Connect_QueryExternalAccountMappings, ConnectHandle, Options,
 	[this, WeakThis = AsWeak(), InEpicAccountIds, Promise = MoveTemp(Promise)](const EOS_Connect_QueryExternalAccountMappingsCallbackInfo* Data) mutable -> void
@@ -434,10 +434,10 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 			if (Data->ResultCode == EOS_EResult::EOS_Success)
 			{
 				EOS_Connect_GetExternalAccountMappingsOptions Options = {};
-				Options.ApiVersion = EOS_CONNECT_GETEXTERNALACCOUNTMAPPING_API_LATEST;
+				Options.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_GETEXTERNALACCOUNTMAPPING_API_LATEST, 1);
 				Options.LocalUserId = Data->LocalUserId;
 				Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
-				static_assert(EOS_CONNECT_GETEXTERNALACCOUNTMAPPING_API_LATEST == 1, "EOS_Connect_GetExternalAccountMappingsOptions updated, check new fields");
 
 				for (const EOS_EpicAccountId EpicAccountId : InEpicAccountIds)
 				{
@@ -503,11 +503,11 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 	TFuture<TArray<FAccountId>> Future = Promise.GetFuture();
 
 	EOS_Connect_QueryProductUserIdMappingsOptions Options = {};
-	Options.ApiVersion = EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST;
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST, 2);
 	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	Options.ProductUserIds = MissingProductUserIds.GetData();
 	Options.ProductUserIdCount = MissingProductUserIds.Num();
-	static_assert(EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST == 2, "EOS_Connect_QueryProductUserIdMappingsOptions updated, check new fields");
 	
 	EOS_Async(EOS_Connect_QueryProductUserIdMappings, ConnectHandle, Options,
 	[this, WeakThis = AsWeak(), InProductUserIds, Promise = MoveTemp(Promise)](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data) mutable -> void
@@ -518,10 +518,10 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalA
 			if (Data->ResultCode == EOS_EResult::EOS_Success)
 			{
 				EOS_Connect_GetProductUserIdMappingOptions Options = {};
-				Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
+				Options.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST, 1);
 				Options.LocalUserId = Data->LocalUserId;
 				Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
-				static_assert(EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST == 1, "EOS_Connect_GetProductUserIdMappingOptions updated, check new fields");
 
 				for (const EOS_ProductUserId ProductUserId : InProductUserIds)
 				{

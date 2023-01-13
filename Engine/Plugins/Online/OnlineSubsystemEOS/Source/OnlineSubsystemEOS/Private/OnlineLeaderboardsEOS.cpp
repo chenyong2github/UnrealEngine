@@ -23,7 +23,8 @@ struct FQueryLeaderboardForUserOptions :
 		: EOS_Leaderboards_QueryLeaderboardUserScoresOptions()
 		, ProductUserIds(MoveTemp(InProductUserIds))
 	{
-		ApiVersion = EOS_LEADERBOARDS_QUERYLEADERBOARDUSERSCORES_API_LATEST;
+		ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_QUERYLEADERBOARDUSERSCORES_API_LATEST, 2);
 
 		StartTime = EOS_LEADERBOARDS_TIME_UNDEFINED;
 		EndTime = EOS_LEADERBOARDS_TIME_UNDEFINED;
@@ -108,7 +109,8 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboards(const TArray<FUniqueNetIdRef>& Pla
 	{
 		FCStringAnsi::Strncpy(Options.PointerArray[Index], TCHAR_TO_UTF8(*Column.ColumnName.ToString()), EOS_OSS_STRING_BUFFER_LENGTH);
 		EOS_Leaderboards_UserScoresQueryStatInfo& StatInfo = Options.StatInfoArray[Index];
-		StatInfo.ApiVersion = EOS_LEADERBOARDS_USERSCORESQUERYSTATINFO_API_LATEST;
+		StatInfo.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_USERSCORESQUERYSTATINFO_API_LATEST, 1);
 		StatInfo.StatName = Options.PointerArray[Index];
 		StatInfo.Aggregation = EOS_ELeaderboardAggregation::EOS_LA_Latest;
 		Index++;
@@ -145,7 +147,8 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboards(const TArray<FUniqueNetIdRef>& Pla
 			FOnlineStatsRow Row(Nickname, NetId);
 
 			EOS_Leaderboards_CopyLeaderboardUserScoreByUserIdOptions UserCopyOptions = { };
-			UserCopyOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDUSERSCOREBYUSERID_API_LATEST;
+			UserCopyOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_COPYLEADERBOARDUSERSCOREBYUSERID_API_LATEST, 1);
 			UserCopyOptions.UserId = UserId;
 			UserCopyOptions.StatName = StatName;
 
@@ -248,7 +251,8 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 
 	char LeaderboardId[EOS_OSS_STRING_BUFFER_LENGTH];
 	EOS_Leaderboards_QueryLeaderboardRanksOptions Options = { };
-	Options.ApiVersion = EOS_LEADERBOARDS_QUERYLEADERBOARDRANKS_API_LATEST;
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_QUERYLEADERBOARDRANKS_API_LATEST, 2);
 	Options.LeaderboardId = LeaderboardId;
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
 	FCStringAnsi::Strncpy(LeaderboardId, TCHAR_TO_UTF8(*ReadObject->LeaderboardName.ToString()), EOS_OSS_STRING_BUFFER_LENGTH);
@@ -266,7 +270,8 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 			return;
 		}
 		EOS_Leaderboards_GetLeaderboardRecordCountOptions CountOptions = { };
-		CountOptions.ApiVersion = EOS_LEADERBOARDS_GETLEADERBOARDRECORDCOUNT_API_LATEST;
+		CountOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_GETLEADERBOARDRECORDCOUNT_API_LATEST, 1);
 
 		uint32 LeaderboardCount = EOS_Leaderboards_GetLeaderboardRecordCount(EOSSubsystem->LeaderboardsHandle, &CountOptions);
 		// Handle fewer entries than our start index
@@ -280,10 +285,12 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 		uint32 NewEndIndex = FMath::Clamp<uint32>(EndIndex, 0, LeaderboardCount - 1);
 
 		EOS_Leaderboards_CopyLeaderboardRecordByIndexOptions CopyOptions = { };
-		CopyOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYINDEX_API_LATEST;
+		CopyOptions.ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYINDEX_API_LATEST, 2);
 
 		EOS_Connect_GetProductUserIdMappingOptions Options = { };
-		Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST, 1);
 		Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 		Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
 

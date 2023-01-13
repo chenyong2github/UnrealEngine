@@ -89,16 +89,16 @@ TArray<FVoiceChatDeviceInfo> FEOSAudioDevicePool::GetRtcInputDeviceInfos(int32& 
 	EOS_HRTCAudio RTCAudioHandle = EOS_RTC_GetAudioInterface(EosRtcInterface);
 
 	EOS_RTCAudio_GetAudioInputDevicesCountOptions CountOptions = {};
-	CountOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOINPUTDEVICESCOUNT_API_LATEST;
-	static_assert(EOS_RTCAUDIO_GETAUDIOINPUTDEVICESCOUNT_API_LATEST == 1, "EOS_RTCAudio_GetAudioInputDevicesCountOptions updated, check new fields");
+	CountOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_RTCAUDIO_GETAUDIOINPUTDEVICESCOUNT_API_LATEST, 1);
 
 	uint32_t Count = EOS_RTCAudio_GetAudioInputDevicesCount(RTCAudioHandle, &CountOptions);
 
 	for (uint32_t Index = 0; Index < Count; Index++)
 	{
 		EOS_RTCAudio_GetAudioInputDeviceByIndexOptions GetByIndexOptions = {};
-		GetByIndexOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOINPUTDEVICEBYINDEX_API_LATEST;
-		static_assert(EOS_RTCAUDIO_GETAUDIOINPUTDEVICEBYINDEX_API_LATEST == 1, "EOS_RTCAudio_GetAudioInputDeviceByIndexOptions updated, check new fields");
+		GetByIndexOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_RTCAUDIO_GETAUDIOINPUTDEVICEBYINDEX_API_LATEST, 1);
 		GetByIndexOptions.DeviceInfoIndex = Index;
 		if (const EOS_RTCAudio_AudioInputDeviceInfo* DeviceInfo = EOS_RTCAudio_GetAudioInputDeviceByIndex(RTCAudioHandle, &GetByIndexOptions))
 		{
@@ -135,16 +135,16 @@ TArray<FVoiceChatDeviceInfo> FEOSAudioDevicePool::GetRtcOutputDeviceInfos(int32&
 	EOS_HRTCAudio RTCAudioHandle = EOS_RTC_GetAudioInterface(EosRtcInterface);
 
 	EOS_RTCAudio_GetAudioOutputDevicesCountOptions CountOptions = {};
-	CountOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICESCOUNT_API_LATEST;
-	static_assert(EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICESCOUNT_API_LATEST == 1, "EOS_RTCAudio_GetAudioOutputDevicesCountOptions updated, check new fields");
+	CountOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICESCOUNT_API_LATEST, 1);
 
 	uint32_t Count = EOS_RTCAudio_GetAudioOutputDevicesCount(RTCAudioHandle, &CountOptions);
 
 	for (uint32_t Index = 0; Index < Count; Index++)
 	{
 		EOS_RTCAudio_GetAudioOutputDeviceByIndexOptions GetByIndexOptions = {};
-		GetByIndexOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICEBYINDEX_API_LATEST;
-		static_assert(EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICEBYINDEX_API_LATEST == 1, "EOS_RTCAudio_GetAudioOutputDeviceByIndexOptions updated, check new fields");
+		GetByIndexOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICEBYINDEX_API_LATEST, 1);
 		GetByIndexOptions.DeviceInfoIndex = Index;
 		if (const EOS_RTCAudio_AudioOutputDeviceInfo* DeviceInfo = EOS_RTCAudio_GetAudioOutputDeviceByIndex(RTCAudioHandle, &GetByIndexOptions))
 		{

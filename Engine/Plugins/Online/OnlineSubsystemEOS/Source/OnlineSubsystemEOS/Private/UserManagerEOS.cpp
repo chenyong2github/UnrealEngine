@@ -159,7 +159,8 @@ void FUserManagerEOS::Init()
 	{
 		// Adding subscription to external ui display change event
 		EOS_UI_AddNotifyDisplaySettingsUpdatedOptions Options = {};
-		Options.ApiVersion = EOS_UI_ADDNOTIFYDISPLAYSETTINGSUPDATED_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_UI_ADDNOTIFYDISPLAYSETTINGSUPDATED_API_LATEST, 1);
 
 		FOnDisplaySettingsUpdatedCallback* CallbackObj = new FOnDisplaySettingsUpdatedCallback(AsWeak());
 		DisplaySettingsUpdatedCallback = CallbackObj;
@@ -324,7 +325,8 @@ struct FAuthCredentials :
 	FAuthCredentials() :
 		EOS_Auth_Credentials()
 	{
-		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
+		ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_CREDENTIALS_API_LATEST, 3);
 		Id = IdAnsi;
 		Token = TokenAnsi;
 
@@ -377,7 +379,8 @@ struct FAuthCredentials :
 
 	void Init(EOS_EExternalCredentialType InExternalType, const FString& InTokenString)
 	{
-		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
+		ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_CREDENTIALS_API_LATEST, 3);
 		Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
 		ExternalType = InExternalType;
 		Id = IdAnsi;
@@ -388,7 +391,8 @@ struct FAuthCredentials :
 
 	void Init(EOS_EExternalCredentialType InExternalType, const TArray<uint8>& InToken)
 	{
-		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
+		ApiVersion = 3;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_CREDENTIALS_API_LATEST, 3);
 		Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
 		ExternalType = InExternalType;
 		Id = IdAnsi;
@@ -439,7 +443,8 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	}
 
 	EOS_Auth_LoginOptions LoginOptions = { };
-	LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
+	LoginOptions.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_LOGIN_API_LATEST, 2);
 
 	LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_NoFlags;
 	for (const FString& FlagsStr : Settings.AuthScopeFlags)
@@ -537,7 +542,8 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 				};
 
 				EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions;
-				DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
+				DeletePersistentAuthOptions.ApiVersion = 2;
+				UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST, 2);
 				DeletePersistentAuthOptions.RefreshToken = nullptr;
 				EOS_Auth_DeletePersistentAuth(EOSSubsystem->AuthHandle, &DeletePersistentAuthOptions, (void*)DeleteAuthCallbackObj, DeleteAuthCallbackObj->GetCallbackPtr());
 			}
@@ -567,7 +573,8 @@ void FUserManagerEOS::LoginViaExternalAuth(int32 LocalUserNum)
 				}
 
 				EOS_Auth_LoginOptions LoginOptions = { };
-				LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
+				LoginOptions.ApiVersion = 2;
+				UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_LOGIN_API_LATEST, 2);
 				LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_BasicProfile | EOS_EAuthScopeFlags::EOS_AS_FriendsList | EOS_EAuthScopeFlags::EOS_AS_Presence;
 
 				check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
@@ -605,7 +612,8 @@ struct FLinkAccountOptions :
 	FLinkAccountOptions(EOS_ContinuanceToken Token)
 		: EOS_Auth_LinkAccountOptions()
 	{
-		ApiVersion = EOS_AUTH_LINKACCOUNT_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_LINKACCOUNT_API_LATEST, 1);
 		ContinuanceToken = Token;
 	}
 };
@@ -655,7 +663,8 @@ struct FConnectCredentials :
 
 	void Init(EOS_EExternalCredentialType InType, const FString& InTokenString)
 	{
-		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_CREDENTIALS_API_LATEST, 1);
 		Token = TokenAnsi;
 		Type = InType;
 
@@ -664,7 +673,8 @@ struct FConnectCredentials :
 
 	void Init(EOS_EExternalCredentialType InType, const TArray<uint8>& InToken)
 	{
-		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_CREDENTIALS_API_LATEST, 1);
 		Token = TokenAnsi;
 		Type = InType;
 
@@ -694,12 +704,14 @@ bool FUserManagerEOS::ConnectLoginNoEAS(int32 LocalUserNum)
 				check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
 				FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken);
 				EOS_Connect_LoginOptions Options = { };
-				Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+				Options.ApiVersion = 2;
+				UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_LOGIN_API_LATEST, 2);
 				Options.Credentials = &Credentials;
 
 #if ADD_USER_LOGIN_INFO
 				EOS_Connect_UserLoginInfo UserLoginInfo = {};
-				UserLoginInfo.ApiVersion = EOS_CONNECT_USERLOGININFO_API_LATEST;
+				UserLoginInfo.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_USERLOGININFO_API_LATEST, 1);
 				const FTCHARToUTF8 DisplayNameUtf8(*GetPlatformDisplayName(LocalUserNum));
 				UserLoginInfo.DisplayName = DisplayNameUtf8.Get();
 
@@ -737,18 +749,21 @@ bool FUserManagerEOS::ConnectLoginEAS(int32 LocalUserNum, EOS_EpicAccountId Acco
 {
 	EOS_Auth_Token* AuthToken = nullptr;
 	EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
-	CopyOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
+	CopyOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST, 1);
 
 	EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &CopyOptions, AccountId, &AuthToken);
 	if (CopyResult == EOS_EResult::EOS_Success)
 	{
 		EOS_Connect_Credentials Credentials = { };
-		Credentials.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+		Credentials.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_CREDENTIALS_API_LATEST, 1);
 		Credentials.Type = EOS_EExternalCredentialType::EOS_ECT_EPIC;
 		Credentials.Token = AuthToken->AccessToken;
 
 		EOS_Connect_LoginOptions Options = { };
-		Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+		Options.ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_LOGIN_API_LATEST, 2);
 		Options.Credentials = &Credentials;
 
 		FConnectLoginCallback* CallbackObj = new FConnectLoginCallback(AsWeak());
@@ -796,7 +811,8 @@ void FUserManagerEOS::RefreshConnectLogin(int32 LocalUserNum)
 		EOS_EpicAccountId AccountId = UserNumToAccountIdMap[LocalUserNum];
 		EOS_Auth_Token* AuthToken = nullptr;
 		EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
-		CopyOptions.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
+		CopyOptions.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST, 1);
 
 		EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &CopyOptions, AccountId, &AuthToken);
 		if (CopyResult == EOS_EResult::EOS_Success)
@@ -808,12 +824,14 @@ void FUserManagerEOS::RefreshConnectLogin(int32 LocalUserNum)
 			UpdateUserInfo(UserAccountRef, AccountId, AccountId);
 
 			EOS_Connect_Credentials Credentials = { };
-			Credentials.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+			Credentials.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_CREDENTIALS_API_LATEST, 1);
 			Credentials.Type = EOS_EExternalCredentialType::EOS_ECT_EPIC;
 			Credentials.Token = AuthToken->AccessToken;
 
 			EOS_Connect_LoginOptions Options = { };
-			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+			Options.ApiVersion = 2;
+			UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_LOGIN_API_LATEST, 2);
 			Options.Credentials = &Credentials;
 
 			FConnectLoginCallback* CallbackObj = new FConnectLoginCallback(AsWeak());
@@ -856,7 +874,8 @@ void FUserManagerEOS::RefreshConnectLogin(int32 LocalUserNum)
 					EOS_EExternalCredentialType CredType = ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), Creds);
 					FConnectCredentials Credentials(CredType, AuthToken);
 					EOS_Connect_LoginOptions Options = { };
-					Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+					Options.ApiVersion = 2;
+					UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_LOGIN_API_LATEST, 2);
 					Options.Credentials = &Credentials;
 
 					FConnectLoginCallback* CallbackObj = new FConnectLoginCallback(AsWeak());
@@ -879,7 +898,8 @@ typedef TEOSCallback<EOS_Connect_OnCreateUserCallback, EOS_Connect_CreateUserCal
 void FUserManagerEOS::CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ContinuanceToken Token)
 {
 	EOS_Connect_CreateUserOptions Options = { };
-	Options.ApiVersion = EOS_CONNECT_CREATEUSER_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_CREATEUSER_API_LATEST, 1);
 	Options.ContinuanceToken = Token;
 
 	FCreateUserCallback* CallbackObj = new FCreateUserCallback(AsWeak());
@@ -917,7 +937,8 @@ void FUserManagerEOS::FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId Ac
 		};
 
 		EOS_Auth_AddNotifyLoginStatusChangedOptions Options = { };
-		Options.ApiVersion = EOS_AUTH_ADDNOTIFYLOGINSTATUSCHANGED_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_ADDNOTIFYLOGINSTATUSCHANGED_API_LATEST, 1);
 		LoginNotificationId = EOS_Auth_AddNotifyLoginStatusChanged(EOSSubsystem->AuthHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 	}
 	// Register for friends updates if not set yet
@@ -931,7 +952,8 @@ void FUserManagerEOS::FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId Ac
 		};
 
 		EOS_Friends_AddNotifyFriendsUpdateOptions Options = { };
-		Options.ApiVersion = EOS_FRIENDS_ADDNOTIFYFRIENDSUPDATE_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_ADDNOTIFYFRIENDSUPDATE_API_LATEST, 1);
 		FriendsNotificationId = EOS_Friends_AddNotifyFriendsUpdate(EOSSubsystem->FriendsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 	}
 	// Register for presence updates if not set yet
@@ -950,7 +972,8 @@ void FUserManagerEOS::FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId Ac
 		};
 
 		EOS_Presence_AddNotifyOnPresenceChangedOptions Options = { };
-		Options.ApiVersion = EOS_PRESENCE_ADDNOTIFYONPRESENCECHANGED_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_ADDNOTIFYONPRESENCECHANGED_API_LATEST, 1);
 		PresenceNotificationId = EOS_Presence_AddNotifyOnPresenceChanged(EOSSubsystem->PresenceHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 	}
 	// Add auth refresh notification if not set for this user yet
@@ -967,7 +990,8 @@ void FUserManagerEOS::FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId Ac
 		};
 
 		EOS_Connect_AddNotifyAuthExpirationOptions Options = { };
-		Options.ApiVersion = EOS_CONNECT_ADDNOTIFYAUTHEXPIRATION_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_ADDNOTIFYAUTHEXPIRATION_API_LATEST, 1);
 		NotificationPair->NotificationId = EOS_Connect_AddNotifyAuthExpiration(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 	}
 
@@ -1011,13 +1035,15 @@ bool FUserManagerEOS::Logout(int32 LocalUserNum)
 		};
 
 		EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions;
-		DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
+		DeletePersistentAuthOptions.ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST, 2);
 		DeletePersistentAuthOptions.RefreshToken = nullptr;
 		EOS_Auth_DeletePersistentAuth(EOSSubsystem->AuthHandle, &DeletePersistentAuthOptions, (void*)DeleteAuthCallbackObj, DeleteAuthCallbackObj->GetCallbackPtr());
 	};
 
 	EOS_Auth_LogoutOptions LogoutOptions = { };
-	LogoutOptions.ApiVersion = EOS_AUTH_LOGOUT_API_LATEST;
+	LogoutOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_LOGOUT_API_LATEST, 1);
 	LogoutOptions.LocalUserId = UserId->GetEpicAccountId();
 
 	EOS_Auth_Logout(EOSSubsystem->AuthHandle, &LogoutOptions, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -1083,7 +1109,8 @@ void FUserManagerEOS::AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 	// Get auth token info
 	EOS_Auth_Token* AuthToken = nullptr;
 	EOS_Auth_CopyUserAuthTokenOptions Options = { };
-	Options.ApiVersion = EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_AUTH_COPYUSERAUTHTOKEN_API_LATEST, 1);
 
 	EOS_EResult CopyResult = EOS_Auth_CopyUserAuthToken(EOSSubsystem->AuthHandle, &Options, EpicAccountId, &AuthToken);
 	if (CopyResult == EOS_EResult::EOS_Success)
@@ -1098,7 +1125,8 @@ void FUserManagerEOS::AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 void FUserManagerEOS::UpdateUserInfo(IAttributeAccessInterfaceRef AttributeAccessRef, EOS_EpicAccountId LocalId, EOS_EpicAccountId AccountId)
 {
 	EOS_UserInfo_CopyUserInfoOptions Options = { };
-	Options.ApiVersion = EOS_USERINFO_COPYUSERINFO_API_LATEST;
+	Options.ApiVersion = 3;
+	UE_EOS_CHECK_API_MISMATCH(EOS_USERINFO_COPYUSERINFO_API_LATEST, 3);
 	Options.LocalUserId = LocalId;
 	Options.TargetUserId = AccountId;
 
@@ -1284,7 +1312,8 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	int32 EpicIdStrSize = sizeof(EpicIdStr);
 
 	EOS_Connect_GetProductUserIdMappingOptions Options = { };
-	Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST, 1);
 	Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 	Options.LocalUserId = GetLocalProductUserId();
 	Options.TargetProductUserId = ProductUserId;
@@ -1340,7 +1369,8 @@ void FUserManagerEOS::ResolveUniqueNetIds(const TArray<EOS_ProductUserId>& Produ
 	if (!ProductUserIdsToResolve.IsEmpty())
 	{
 		EOS_Connect_QueryProductUserIdMappingsOptions QueryProductUserIdMappingsOptions = {};
-		QueryProductUserIdMappingsOptions.ApiVersion = EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST;
+		QueryProductUserIdMappingsOptions.ApiVersion = 2;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST, 2);
 		QueryProductUserIdMappingsOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
 		QueryProductUserIdMappingsOptions.ProductUserIds = ProductUserIdsToResolve.GetData();
 		QueryProductUserIdMappingsOptions.ProductUserIdCount = ProductUserIdsToResolve.Num();
@@ -1602,7 +1632,8 @@ typedef TEOSCallback<EOS_UI_OnShowFriendsCallback, EOS_UI_ShowFriendsCallbackInf
 bool FUserManagerEOS::ShowFriendsUI(int32 LocalUserNum)
 {
 	EOS_UI_ShowFriendsOptions Options = {};
-	Options.ApiVersion = EOS_UI_SHOWFRIENDS_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_UI_SHOWFRIENDS_API_LATEST, 1);
 	Options.LocalUserId = GetLocalEpicAccountId(LocalUserNum);
 
 	FOnShowFriendsCallback* CallbackObj = new FOnShowFriendsCallback(AsWeak());
@@ -1780,7 +1811,8 @@ void FUserManagerEOS::AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccoun
 	LocalUserNumToFriendsListMap[LocalUserNum]->Add(NetId, FriendRef);
 
 	EOS_Friends_GetStatusOptions Options = { };
-	Options.ApiVersion = EOS_FRIENDS_GETSTATUS_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_GETSTATUS_API_LATEST, 1);
 	Options.LocalUserId = UserNumToAccountIdMap[LocalUserNum];
 	Options.TargetUserId = EpicAccountId;
 	EOS_EFriendsStatus Status = EOS_Friends_GetStatus(EOSSubsystem->FriendsHandle, &Options);
@@ -1893,7 +1925,8 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 	}
 
 	EOS_Friends_QueryFriendsOptions Options = { };
-	Options.ApiVersion = EOS_FRIENDS_QUERYFRIENDS_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_QUERYFRIENDS_API_LATEST, 1);
 	Options.LocalUserId = UserNumToAccountIdMap[LocalUserNum];
 
 	FReadFriendsCallback* CallbackObj = new FReadFriendsCallback(AsWeak());
@@ -1910,7 +1943,8 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 		if (bWasSuccessful)
 		{
 			EOS_Friends_GetFriendsCountOptions Options = { };
-			Options.ApiVersion = EOS_FRIENDS_GETFRIENDSCOUNT_API_LATEST;
+			Options.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_GETFRIENDSCOUNT_API_LATEST, 1);
 			Options.LocalUserId = UserNumToAccountIdMap[LocalUserNum];
 			int32 FriendCount = EOS_Friends_GetFriendsCount(EOSSubsystem->FriendsHandle, &Options);
 
@@ -1922,7 +1956,8 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 			for (int32 Index = 0; Index < FriendCount; Index++)
 			{
 				EOS_Friends_GetFriendAtIndexOptions FriendIndexOptions = { };
-				FriendIndexOptions.ApiVersion = EOS_FRIENDS_GETFRIENDATINDEX_API_LATEST;
+				FriendIndexOptions.ApiVersion = 1;
+				UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_GETFRIENDATINDEX_API_LATEST, 1);
 				FriendIndexOptions.Index = Index;
 				FriendIndexOptions.LocalUserId = Options.LocalUserId;
 				EOS_EpicAccountId FriendEpicAccountId = EOS_Friends_GetFriendAtIndex(EOSSubsystem->FriendsHandle, &FriendIndexOptions);
@@ -2047,7 +2082,8 @@ bool FUserManagerEOS::SendInvite(int32 LocalUserNum, const FUniqueNetId& FriendI
 	};
 
 	EOS_Friends_SendInviteOptions Options = { };
-	Options.ApiVersion = EOS_FRIENDS_SENDINVITE_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_SENDINVITE_API_LATEST, 1);
 	Options.LocalUserId = UserNumToAccountIdMap[LocalUserNum];
 	Options.TargetUserId = AccountId;
 	EOS_Friends_SendInvite(EOSSubsystem->FriendsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -2090,7 +2126,8 @@ bool FUserManagerEOS::AcceptInvite(int32 LocalUserNum, const FUniqueNetId& Frien
 	};
 
 	EOS_Friends_AcceptInviteOptions Options = { };
-	Options.ApiVersion = EOS_FRIENDS_ACCEPTINVITE_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_ACCEPTINVITE_API_LATEST, 1);
 	Options.LocalUserId = UserNumToAccountIdMap[LocalUserNum];
 	Options.TargetUserId = AccountId;
 	EOS_Friends_AcceptInvite(EOSSubsystem->FriendsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -2119,7 +2156,8 @@ bool FUserManagerEOS::RejectInvite(int32 LocalUserNum, const FUniqueNetId& Frien
 	}
 
 	EOS_Friends_RejectInviteOptions Options{ 0 };
-	Options.ApiVersion = EOS_FRIENDS_REJECTINVITE_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_FRIENDS_REJECTINVITE_API_LATEST, 1);
 	Options.LocalUserId = UserNumToAccountIdMap[LocalUserNum];
 	Options.TargetUserId = AccountId;
 	EOS_Friends_RejectInvite(EOSSubsystem->FriendsHandle, &Options, nullptr, &EOSRejectInviteCallback);
@@ -2419,7 +2457,8 @@ struct FRichTextOptions :
 	FRichTextOptions() :
 		EOS_PresenceModification_SetRawRichTextOptions()
 	{
-		ApiVersion = EOS_PRESENCE_SETRAWRICHTEXT_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_SETRAWRICHTEXT_API_LATEST, 1);
 		RichText = RichTextAnsi;
 	}
 	char RichTextAnsi[EOS_PRESENCE_RICH_TEXT_MAX_VALUE_LENGTH];
@@ -2439,7 +2478,8 @@ void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserP
 
 	EOS_HPresenceModification ChangeHandle = nullptr;
 	EOS_Presence_CreatePresenceModificationOptions Options = { };
-	Options.ApiVersion = EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST, 1);
 	Options.LocalUserId = AccountId;
 	EOS_Presence_CreatePresenceModification(EOSSubsystem->PresenceHandle, &Options, &ChangeHandle);
 	if (ChangeHandle == nullptr)
@@ -2449,7 +2489,8 @@ void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserP
 	}
 
 	EOS_PresenceModification_SetStatusOptions StatusOptions = { };
-	StatusOptions.ApiVersion = EOS_PRESENCE_SETSTATUS_API_LATEST;
+	StatusOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_SETSTATUS_API_LATEST, 1);
 	StatusOptions.Status = ToEOS_Presence_EStatus(Status.State);
 	EOS_EResult SetStatusResult = EOS_PresenceModification_SetStatus(ChangeHandle, &StatusOptions);
 	if (SetStatusResult != EOS_EResult::EOS_Success)
@@ -2475,12 +2516,14 @@ void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserP
 		const FPresenceStrings& RawString = RawStrings.Emplace_GetRef(It.Key(), It.Value().ToString());
 
 		EOS_Presence_DataRecord& Record = Records.Emplace_GetRef();
-		Record.ApiVersion = EOS_PRESENCE_DATARECORD_API_LATEST;
+		Record.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_DATARECORD_API_LATEST, 1);
 		Record.Key = RawString.Key.Get();
 		Record.Value = RawString.Value.Get();
 	}
 	EOS_PresenceModification_SetDataOptions DataOptions = { };
-	DataOptions.ApiVersion = EOS_PRESENCE_SETDATA_API_LATEST;
+	DataOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_SETDATA_API_LATEST, 1);
 	DataOptions.RecordsCount = Records.Num();
 	DataOptions.Records = Records.GetData();
 	EOS_EResult SetDataResult = EOS_PresenceModification_SetData(ChangeHandle, &DataOptions);
@@ -2503,7 +2546,8 @@ void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserP
 	};
 
 	EOS_Presence_SetPresenceOptions PresOptions = { };
-	PresOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
+	PresOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_SETPRESENCE_API_LATEST, 1);
 	PresOptions.LocalUserId = AccountId;
 	PresOptions.PresenceModificationHandle = ChangeHandle;
 	// Last step commit the changes
@@ -2532,7 +2576,8 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 	}
 
 	EOS_Presence_HasPresenceOptions HasOptions = { };
-	HasOptions.ApiVersion = EOS_PRESENCE_HASPRESENCE_API_LATEST;
+	HasOptions.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_HASPRESENCE_API_LATEST, 1);
 	HasOptions.LocalUserId = UserNumToAccountIdMap[DefaultLocalUser];
 	HasOptions.TargetUserId = AccountId;
 	EOS_Bool bHasPresence = EOS_Presence_HasPresence(EOSSubsystem->PresenceHandle, &HasOptions);
@@ -2556,7 +2601,8 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 
 		// Query for updated presence
 		EOS_Presence_QueryPresenceOptions Options = { };
-		Options.ApiVersion = EOS_PRESENCE_QUERYPRESENCE_API_LATEST;
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_QUERYPRESENCE_API_LATEST, 1);
 		Options.LocalUserId = HasOptions.LocalUserId;
 		Options.TargetUserId = HasOptions.TargetUserId;
 		EOS_Presence_QueryPresence(EOSSubsystem->PresenceHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -2573,7 +2619,8 @@ void FUserManagerEOS::UpdatePresence(EOS_EpicAccountId AccountId)
 {
 	EOS_Presence_Info* PresenceInfo = nullptr;
 	EOS_Presence_CopyPresenceOptions Options = { };
-	Options.ApiVersion = EOS_PRESENCE_COPYPRESENCE_API_LATEST;
+	Options.ApiVersion = 3;
+	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_COPYPRESENCE_API_LATEST, 3);
 	Options.LocalUserId = UserNumToAccountIdMap[DefaultLocalUser];
 	Options.TargetUserId = AccountId;
 	EOS_EResult CopyResult = EOS_Presence_CopyPresence(EOSSubsystem->PresenceHandle, &Options, &PresenceInfo);
@@ -2708,7 +2755,8 @@ void FUserManagerEOS::ReadUserInfo(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 	};
 
 	EOS_UserInfo_QueryUserInfoOptions Options = { };
-	Options.ApiVersion = EOS_USERINFO_QUERYUSERINFO_API_LATEST;
+	Options.ApiVersion = 1;
+	UE_EOS_CHECK_API_MISMATCH(EOS_USERINFO_QUERYUSERINFO_API_LATEST, 1);
 	Options.LocalUserId = UserNumToAccountIdMap[DefaultLocalUser];
 	Options.TargetUserId = EpicAccountId;
 	EOS_UserInfo_QueryUserInfo(EOSSubsystem->UserInfoHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -2753,7 +2801,8 @@ struct FQueryByDisplayNameOptions :
 	FQueryByDisplayNameOptions() :
 		EOS_UserInfo_QueryUserInfoByDisplayNameOptions()
 	{
-		ApiVersion = EOS_USERINFO_QUERYUSERINFOBYDISPLAYNAME_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_USERINFO_QUERYUSERINFOBYDISPLAYNAME_API_LATEST, 1);
 		DisplayName = DisplayNameAnsi;
 	}
 	char DisplayNameAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
@@ -2823,7 +2872,8 @@ struct FQueryByStringIdsOptions :
 		{
 			PointerArray[Index] = new char[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1];
 		}
-		ApiVersion = EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST, 1);
 		AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 		ExternalAccountIds = (const char**)PointerArray.GetData();
 		ExternalAccountIdCount = InNumStringIds;
@@ -2846,7 +2896,8 @@ struct FGetAccountMappingOptions :
 	FGetAccountMappingOptions() :
 		EOS_Connect_GetExternalAccountMappingsOptions()
 	{
-		ApiVersion = EOS_CONNECT_GETEXTERNALACCOUNTMAPPINGS_API_LATEST;
+		ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_GETEXTERNALACCOUNTMAPPINGS_API_LATEST, 1);
 		AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 		TargetExternalUserId = AccountId;
 	}

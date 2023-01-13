@@ -10,6 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "OnlineSubsystemUtils.h"
+#include "EOSShared.h"
 
 #if WITH_EOS_SDK
 	#include "eos_sdk.h"
@@ -99,8 +100,8 @@ bool FSocketSubsystemEOS::Init(FString& Error)
 	if (!RelayControlStr.IsEmpty())
 	{
 		EOS_P2P_SetRelayControlOptions Options = {};
-		Options.ApiVersion = EOS_P2P_SETRELAYCONTROL_API_LATEST;
-		static_assert(EOS_P2P_SETRELAYCONTROL_API_LATEST == 1, "EOS_P2P_SetRelayControlOptions updated, check new fields");
+		Options.ApiVersion = 1;
+		UE_EOS_CHECK_API_MISMATCH(EOS_P2P_SETRELAYCONTROL_API_LATEST, 1);
 
 		Options.RelayControl = LexFromString(RelayControlStr);
 

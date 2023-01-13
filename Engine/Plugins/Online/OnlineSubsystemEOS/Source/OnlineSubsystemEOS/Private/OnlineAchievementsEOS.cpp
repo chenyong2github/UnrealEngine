@@ -40,13 +40,10 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 	}
 
 	EOS_Achievements_QueryPlayerAchievementsOptions Options = { };
-	Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST;
-#if EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST >= 2
+	Options.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST, 2);
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 	Options.TargetUserId = Options.LocalUserId;
-#else
-	Options.UserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
-#endif
 
 	FQueryProgressCallback* CallbackObj = new FQueryProgressCallback(FOnlineAchievementsEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, LambdaPlayerId = PlayerId.AsShared(), OnComplete = FOnQueryAchievementsCompleteDelegate(Delegate)](const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo* Data)
@@ -61,18 +58,16 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 			EOS_ProductUserId UserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserNum);
 
 			EOS_Achievements_GetPlayerAchievementCountOptions CountOptions = { };
-			CountOptions.ApiVersion = EOS_ACHIEVEMENTS_GETPLAYERACHIEVEMENTCOUNT_API_LATEST;
+			CountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_GETPLAYERACHIEVEMENTCOUNT_API_LATEST, 1);
 			CountOptions.UserId = UserId;
 			uint32 Count = EOS_Achievements_GetPlayerAchievementCount(EOSSubsystem->AchievementsHandle, &CountOptions);
 
 			EOS_Achievements_CopyPlayerAchievementByIndexOptions CopyOptions = { };
-			CopyOptions.ApiVersion = EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST;
-#if EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST >= 2
+			CopyOptions.ApiVersion = 2;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST, 2);
 			CopyOptions.LocalUserId = UserId;
 			CopyOptions.TargetUserId = UserId;
-#else
-			CopyOptions.UserId = UserId;
-#endif
 
 			for (uint32 Index = 0; Index < Count; Index++)
 			{
@@ -129,7 +124,8 @@ void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& Pl
 	}
 
 	EOS_Achievements_QueryDefinitionsOptions Options = { };
-	Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST;
+	Options.ApiVersion = 3;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST, 3);
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 
 	FQueryDefinitionsCallback* CallbackObj = new FQueryDefinitionsCallback(FOnlineAchievementsEOSWeakPtr(AsShared()));
@@ -139,11 +135,13 @@ void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& Pl
 		if (bWasSuccessful)
 		{
 			EOS_Achievements_GetAchievementDefinitionCountOptions CountOptions = { };
-			CountOptions.ApiVersion = EOS_ACHIEVEMENTS_GETACHIEVEMENTDEFINITIONCOUNT_API_LATEST;
+			CountOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_GETACHIEVEMENTDEFINITIONCOUNT_API_LATEST, 1);
 			uint32 Count = EOS_Achievements_GetAchievementDefinitionCount(EOSSubsystem->AchievementsHandle, &CountOptions);
 
 			EOS_Achievements_CopyAchievementDefinitionByIndexOptions CopyOptions = { };
-			CopyOptions.ApiVersion = EOS_ACHIEVEMENTS_COPYDEFINITIONBYINDEX_API_LATEST;
+			CopyOptions.ApiVersion = 1;
+			UE_EOS_CHECK_API_MISMATCH(EOS_ACHIEVEMENTS_COPYDEFINITIONBYINDEX_API_LATEST, 1);
 			CachedAchievementDefinitions.Empty(Count);
 			CachedAchievementDefinitionsMap.Empty();
 

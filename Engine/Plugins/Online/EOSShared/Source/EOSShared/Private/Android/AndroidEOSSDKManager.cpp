@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AndroidEOSSDKManager.h"
-#include "HAL/FileManager.h"
 
 #if WITH_EOS_SDK
+
+#include "HAL/FileManager.h"
+#include "EOSShared.h"
 
 #include "eos_android.h"
 
 EOS_EResult FAndroidEOSSDKManager::EOSInitialize(EOS_InitializeOptions& Options)
 {
 	EOS_Android_InitializeOptions SystemInitializeOptions = { 0 };
-	SystemInitializeOptions.ApiVersion = EOS_ANDROID_INITIALIZEOPTIONS_API_LATEST;
-	static_assert(EOS_ANDROID_INITIALIZEOPTIONS_API_LATEST == 2, "EOS_Android_InitializeOptions updated, check new fields");
+	SystemInitializeOptions.ApiVersion = 2;
+	UE_EOS_CHECK_API_MISMATCH(EOS_ANDROID_INITIALIZEOPTIONS_API_LATEST, 2);
 	SystemInitializeOptions.Reserved = nullptr;
 	SystemInitializeOptions.OptionalInternalDirectory = nullptr;
 	SystemInitializeOptions.OptionalExternalDirectory = nullptr;
