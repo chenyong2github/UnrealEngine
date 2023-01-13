@@ -774,10 +774,6 @@ bool FHLSLMaterialTranslator::Translate()
 		Material->CompileErrors.Empty();
 		Material->ErrorExpressions.Empty();
 
-		// Verify that no pre-compilation errors have occured.
-		// Note: ideally returned value should fail compilation if false. We need to first fix content before we can make this error fatal.
-		Material->CheckInValidStateForCompilation(this);
-
 		bEnableExecutionFlow = Material->IsUsingControlFlow();
 		bCompileForComputeShader = Material->IsLightFunction();
 
