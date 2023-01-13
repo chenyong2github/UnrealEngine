@@ -53,8 +53,8 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bEnablePinValueInspectionTooltips(true)
 	, bEnableNamespaceEditorFeatures(true)
 	// Experimental
-	, bFavorPureCastNodes(false)
 	, bEnableContextMenuTimeSlicing(false)
+	, bFavorPureCastNodes(false)
 	// Compiler Settings
 	, SaveOnCompile(SoC_Never)
 	, bJumpToNodeErrors(false)
