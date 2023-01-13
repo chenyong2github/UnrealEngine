@@ -38,8 +38,6 @@ public:
 	void ShowResourceUsageTab();
 	void ShowCacheStatisticsTab();
 	
-	void ShowSettingsDialog();
-
 private:
 
 	TSharedPtr<SWidget> CreateResourceUsageDialog();
@@ -47,8 +45,6 @@ private:
 
 	TSharedRef<SDockTab> CreateResourceUsageTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> CreateCacheStatisticsTab(const FSpawnTabArgs& Args);
-
-	void OnSettingsDialogClosed(const TSharedRef<SWindow>& InWindow);
 
 	TWeakPtr<SDockTab> ResourceUsageTab;
 	TWeakPtr<SDockTab> CacheStatisticsTab;

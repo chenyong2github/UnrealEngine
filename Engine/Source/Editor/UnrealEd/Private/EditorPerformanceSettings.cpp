@@ -19,7 +19,6 @@ UEditorPerformanceSettings::UEditorPerformanceSettings(const FObjectInitializer&
 	, bThrottleCPUWhenNotForeground(true)
 	, bDisableRealtimeViewportsInRemoteSessions(true)
 	, bMonitorEditorPerformance(false)
-	, bEnableSharedDDCPerformanceNotifications(true)
 	, bEnableScalabilityWarningIndicator(true)
 	, bDisplayHighDPIViewports(true)
 	, bOverridePIEScreenPercentage(true)

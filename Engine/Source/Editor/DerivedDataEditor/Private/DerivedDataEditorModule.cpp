@@ -6,7 +6,6 @@
 #include "Experimental/ZenServerInterface.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Modules/ModuleManager.h"
-#include "SDerivedDataCacheSettings.h"
 #include "SDerivedDataDialogs.h"
 #include "SDerivedDataStatusBar.h"
 #include "Styling/AppStyle.h"
@@ -119,46 +118,6 @@ TSharedRef<SDockTab> FDerivedDataEditorModule::CreateCacheStatisticsTab(const FS
 void FDerivedDataEditorModule::ShowCacheStatisticsTab()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(FTabId(DerivedDataCacheStatisticsTabName));
-}
-
-void FDerivedDataEditorModule::ShowSettingsDialog()
-{
-	if (SettingsWindow.IsValid())
-	{
-		SettingsWindow->BringToFront();
-	}
-	else
-	{
-		// Create the window
-		SettingsWindow = SNew(SWindow)
-			.Title(LOCTEXT("DerrivedDataCacheSettingsWindowTitle", "Cache Settings"))
-			.HasCloseButton(true)
-			.SupportsMaximize(false)
-			.SupportsMinimize(true)
-			.SizingRule(ESizingRule::Autosized);
-
-		// Set the closed callback
-		SettingsWindow->SetOnWindowClosed(FOnWindowClosed::CreateRaw(this,&FDerivedDataEditorModule::OnSettingsDialogClosed));
-
-		// Setup the content for the created window.
-		SettingsWindow->SetContent(SAssignNew(SettingsDialog, SDerivedDataCacheSettingsDialog));
-
-		TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
-		if (RootWindow.IsValid())
-		{
-			FSlateApplication::Get().AddWindowAsNativeChild(SettingsWindow.ToSharedRef(), RootWindow.ToSharedRef());
-		}
-		else
-		{
-			FSlateApplication::Get().AddWindow(SettingsWindow.ToSharedRef());
-		}
-	}
-}
-
-void FDerivedDataEditorModule::OnSettingsDialogClosed(const TSharedRef<SWindow>& InWindow)
-{
-	SettingsWindow = nullptr;
-	SettingsDialog = nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

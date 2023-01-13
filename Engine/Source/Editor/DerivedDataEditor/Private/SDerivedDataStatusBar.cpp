@@ -268,7 +268,7 @@ EActiveTimerReturnType SDerivedDataStatusBarWidget::UpdateWarnings(double InCurr
 			Info.FadeOutDuration = 0.0f;
 			Info.ExpireDuration = 0.0f;
 
-			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("UpdateSettings", "Update Settings"), FText(), FSimpleDelegate::CreateLambda([NotificationFuture = NotificationPromise.GetFuture().Share()]() {
+			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("OpenSettings", "Open Settings"), FText(), FSimpleDelegate::CreateLambda([NotificationFuture = NotificationPromise.GetFuture().Share()]() {
 				FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "Global");
 
 				TWeakPtr<SNotificationItem> NotificationPtr = NotificationFuture.Get();

@@ -50,7 +50,7 @@ class UEditorPerformanceSettings : public UDeveloperSettings
 	uint32 bMonitorEditorPerformance:1;
 
 	/** When enabled, Shared Data Cache performance notifications may be displayed when not connected to a shared cache */
-	UPROPERTY(EditAnywhere, config, Category = EditorPerformance, meta = (DisplayName = "Enable Shared Data Cache Performance Notifications"))
+	UE_DEPRECATED(5.2, "No longer supported")
 	uint32 bEnableSharedDDCPerformanceNotifications : 1;
 
 	/** When enabled, a warning will appear in the viewport when your editors scalability settings are non-default and you may be viewing a low quality scene */

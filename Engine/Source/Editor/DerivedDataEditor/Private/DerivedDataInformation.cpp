@@ -107,11 +107,11 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 bool FDerivedDataInformation::GetHasRemoteCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
-		{
-		if (!Usage->IsLocal())
 	{
-			return true;
-	}
+		if (!Usage->IsLocal())
+		{
+				return true;
+		}
 	}
 	return false;
 }
@@ -119,11 +119,11 @@ bool FDerivedDataInformation::GetHasRemoteCache()
 bool FDerivedDataInformation::GetHasZenCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
-		{
-		if (Usage->GetCacheType().Equals(TEXT("Zen")))
 	{
-			return true;
-	}
+		if (Usage->GetCacheType().Equals(TEXT("Zen")))
+		{
+				return true;
+		}
 	}
 	return false;
 }
@@ -131,11 +131,11 @@ bool FDerivedDataInformation::GetHasZenCache()
 bool FDerivedDataInformation::GetHasUnrealCloudCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
-		{
-		if (Usage->GetCacheType().Equals(TEXT("Unreal Cloud DDC")))
 	{
-			return true;
-	}
+		if (Usage->GetCacheType().Equals(TEXT("Unreal Cloud DDC")))
+		{
+				return true;
+		}
 	}
 	return false;
 }
@@ -174,30 +174,30 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 
 		if (EditorSettings && EditorSettings->bEnableDDCNotifications)
 		{
-			if (DDCProjectSettings->RecommendEveryoneUseUnrealCloudDDC && EditorSettings->bNotifyUseUnrealCloudDDC && !GetHasZenCache() && !GetHasUnrealCloudCache() && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter")) != 0))
+			if (DDCProjectSettings->RecommendEveryoneUseUnrealCloudDDC && EditorSettings->bNotifyUseUnrealCloudDDC && !GetHasZenCache() && !GetHasUnrealCloudCache())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("UnrealCloudDDCWarning", "It is recommended that you use a DDC graph that supports Unreal Cloud DDC. Please check any -ddc commandline overrides."));
+				RemoteCacheWarningMessage = FText(LOCTEXT("UnrealCloudDDCWarning", "It is recommended that you use Unreal Cloud DDC.\nDisable this notification in the settings."));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Local DDC Path"));
+				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Local DDC Path.\nDisable this notification or set up a valid Global Local DDC Path in the settings."));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalSharedDDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalSharedDDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalSharedDDCPathWarning", "It is recommended that you set up a valid Global Shared DDC Path"));
+				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalSharedDDCPathWarning", "It is recommended that you set up a valid Global Shared DDC Path.\nDisable this notification or set up a valid Global Shared DDC Path in the settings."));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && EditorSettings->bNotifyEnableS3DD && !EditorSettings->bEnableS3DDC)
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("AWSS3CacheEnabledWarning", "It is recommended that you enable the AWS S3 Cache"));
+				RemoteCacheWarningMessage = FText(LOCTEXT("AWSS3CacheEnabledWarning", "It is recommended that you enable the AWS S3 Cache.\nDisable this notification or enable the AWS S3 Cache in the settings."));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalS3DDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalS3DDCPath.Path.IsEmpty())
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathWarning", "It is recommended that you set up a valid Global Local S3 DDC Path"));
+				RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathWarning", "It is recommended that you set up a valid Global Local S3 DDC Path.\nDisable this notification or set up a valid Global Local S3 DDC Path in the settings."));
 			}
 		}
 	}
