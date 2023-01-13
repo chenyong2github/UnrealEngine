@@ -177,7 +177,7 @@ static bool IsNewKeyDifferent(const FRichCurveKey& LastKey, float NewValue)
 void FCompressibleAnimData::BakeOutAdditiveIntoRawData(const FFrameRate& SampleRate, TArray<FBoneAnimationTrack>& ResampledTrackData, TArray<FFloatCurve>& FloatCurves)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCompressibleAnimData::BakeOutAdditiveIntoRawData);
-	const UAnimSequence* AnimSequence = WeakSequence.Get();
+	const UAnimSequence* AnimSequence = WeakSequence.GetEvenIfUnreachable();
 	checkf(AnimSequence, TEXT("Animation Sequence is invalid"));
 
 	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
@@ -386,7 +386,7 @@ static void FindAnimatedVirtualBones(const TArray<FBoneAnimationTrack>& Animated
 
 void FCompressibleAnimData::ResampleAnimationTrackData(const FFrameRate& SampleRate, TArray<FBoneAnimationTrack>& ResampledTrackData) const
 {
-	UAnimSequence* AnimSequence = WeakSequence.Get();
+	UAnimSequence* AnimSequence = WeakSequence.GetEvenIfUnreachable();
 	checkf(AnimSequence, TEXT("Animation Sequence is invalid"));
 	
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ResampleAnimationTrackData);
@@ -729,11 +729,16 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 	if (bDataFetched)
 		return;
 
+	checkf(InPlatform, TEXT("Invalid target platform while trying to fetch to-compress animation data"));
+
 	bDataFetched = true;
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCompressibleAnimData::FetchData);
 
-	const UAnimSequence* AnimSequence = WeakSequence.Get();
+	const UAnimSequence* AnimSequence = WeakSequence.GetEvenIfUnreachable();
+	checkf(AnimSequence, TEXT("Invalid animation sequence while trying to fetch to-compress animation data"));
 	USkeleton* Skeleton = AnimSequence->GetSkeleton();
+	checkf(Skeleton, TEXT("Invalid Skeleton while trying to fetch to-compress animation data, %s"), *Skeleton->GetPathName());
+	
 	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
 
 	const FFrameRate DefaultSamplingFrameRate = AnimSequence->GetSamplingFrameRate();

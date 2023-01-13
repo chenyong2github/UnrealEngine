@@ -116,7 +116,14 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	RefSkeleton = nullptr;
-	UObject* AssetObj = Asset.Get();
+
+	UObject* AssetObj =
+#if WITH_EDITOR
+		Asset.GetEvenIfUnreachable();
+#else
+		Asset.Get();
+#endif
+	
 	USkeletalMesh* AssetSkeletalMeshObj = Cast<USkeletalMesh>(AssetObj);
 	USkeleton* AssetSkeletonObj = nullptr;
 

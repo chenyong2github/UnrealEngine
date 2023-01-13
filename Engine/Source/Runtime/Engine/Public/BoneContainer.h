@@ -273,7 +273,12 @@ public:
 	/** Returns true if FBoneContainer is Valid. Needs an Asset, a RefPoseArray, and a RequiredBonesArray. */
 	const bool IsValid() const
 	{
-		return (Asset.IsValid() && (RefSkeleton != NULL) && (BoneIndicesArray.Num() > 0));
+		return (Asset.IsValid(
+#if WITH_EDITOR
+			true, true
+#endif
+			)
+				&& (RefSkeleton != nullptr) && (BoneIndicesArray.Num() > 0));
 	}
 
 	/** Get Asset this BoneContainer was made for. Typically a SkeletalMesh, but could also be a USkeleton. */
@@ -289,9 +294,13 @@ public:
 	}
 
 	/** Get Skeleton Asset. Could either be the SkeletalMesh's Skeleton, or the Skeleton this BoneContainer was made for. Is non NULL is BoneContainer is valid. */
-	USkeleton* GetSkeletonAsset() const
+	USkeleton* GetSkeletonAsset(bool bEvenIfUnreachable = false) const
 	{
-		return AssetSkeleton.Get();
+		return
+#if WITH_EDITOR
+		bEvenIfUnreachable ? AssetSkeleton.GetEvenIfUnreachable() : 
+#endif
+		AssetSkeleton.Get();
 	}
 
 	/** Disable Retargeting for debugging. */

@@ -5,6 +5,8 @@
 =============================================================================*/ 
 
 #include "Animation/Skeleton.h"
+
+#include "AnimationSequenceCompiler.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "UObject/LinkerLoad.h"
 #include "Engine/AssetUserData.h"
@@ -313,6 +315,10 @@ USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 
 void USkeleton::BeginDestroy()
 {
+#if WITH_EDITOR
+	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
+#endif // WITH_EDITOR
+	
 	Super::BeginDestroy();
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{

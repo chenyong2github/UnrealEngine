@@ -449,6 +449,8 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 void UAnimSequence::WillNeverCacheCookedPlatformDataAgain()
 {
 	Super::WillNeverCacheCookedPlatformDataAgain();
+
+	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});	
 	ClearCompressedCurveData();
 	ClearCompressedBoneData();
 
@@ -962,7 +964,7 @@ void UAnimSequence::BeginDestroy()
 {
 #if WITH_EDITOR
 	// Could already be compressing
-	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
+	WaitOnExistingCompression(false);
 #endif // WITH_EDITOR
 
 	Super::BeginDestroy();
@@ -4996,6 +4998,8 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
 	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 	
+	check(!IsUnreachable());
+	
 	if(bBlockCompressionRequests)
 	{
 		UE_LOG(LogAnimation, Warning, TEXT("Animation Compression request for %s was blocked, bBlockCompressionRequests == true."), *GetName());
@@ -5192,10 +5196,10 @@ void UAnimSequence::FinishAsyncTasks()
 		COOK_STAT(Timer.TrackCyclesOnly());
 	
 #if WITH_EDITOR
-		SynchronousAnimatedBoneAttributesCompression();
 		//This is only safe during sync anim compression
 		if (GetSkeleton())
 		{
+			SynchronousAnimatedBoneAttributesCompression();
 			SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
 		}
 #endif

@@ -8,6 +8,7 @@
 #include "AsyncCompilationHelpers.h"
 
 class UAnimSequence;
+class USkeleton;
 class FQueuedThreadPool;
 enum class EQueuedWorkPriority : uint8;
 
@@ -32,6 +33,7 @@ namespace UE::Anim
 
 		void AddAnimSequences(TArrayView<UAnimSequence* const> InAnimSequences);
 		void FinishCompilation(TArrayView<UAnimSequence* const> InAnimSequences);
+		void FinishCompilation(TArrayView<USkeleton* const> InSkeletons);
 
 	protected:
 		virtual void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
@@ -41,11 +43,14 @@ namespace UE::Anim
 		void ApplyCompilation(UAnimSequence* InAnimSequence);
 
 		void UpdateCompilationNotification();
+
+		void OnPostReachabilityAnalysis();
 	private:
 		friend class FAssetCompilingManager;
 	
 		TSet<TWeakObjectPtr<UAnimSequence>> RegisteredAnimSequences;
 		FAsyncCompilationNotification Notification;
+		FDelegateHandle PostReachabilityAnalysisHandle;
 	};
 }
 

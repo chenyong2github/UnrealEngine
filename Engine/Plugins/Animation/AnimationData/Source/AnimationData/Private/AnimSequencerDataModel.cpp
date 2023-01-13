@@ -1118,7 +1118,7 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 					const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
 					if (BoneIndex != INDEX_NONE)
 					{
-						const int32 SkeletonBoneIndex = RequiredBones.GetSkeletonAsset()->GetReferenceSkeleton().FindBoneIndex(BoneName);
+						const int32 SkeletonBoneIndex = RefSkeleton.FindBoneIndex(BoneName);
 						const FCompactPoseBoneIndex CompactPoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
 						if (CompactPoseBoneIndex != INDEX_NONE)
 						{
@@ -1133,7 +1133,8 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 
 				if (Curve.IsValid())
 				{
-					const FSmartNameMapping* SmartNameMapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+					// Called during compression that can occur while GC is in progress, marking weakptrs as unreachable temporarily
+					const FSmartNameMapping* SmartNameMapping = RequiredBones.GetSkeletonAsset(true)->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 					RigHierarchy->ForEach<FRigCurveElement>([this, &RigHierarchy, &Curve, SmartNameMapping](const FRigCurveElement* CurveElement) -> bool
 					{
 						const FName& CurveName = CurveElement->GetName();

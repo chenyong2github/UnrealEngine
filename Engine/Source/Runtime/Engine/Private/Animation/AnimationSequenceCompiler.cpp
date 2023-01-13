@@ -10,6 +10,9 @@
 
 #include "ObjectCacheContext.h"
 #include "UObject/Package.h"
+#include "Animation/Skeleton.h"
+#include "Animation/AnimSequence.h"
+#include "UObject/StrongObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceCompilingManager"
 
@@ -24,6 +27,7 @@ namespace UE::Anim
 	FAnimSequenceCompilingManager::FAnimSequenceCompilingManager()
 		: Notification(FAnimSequenceCompilingManager::GetAssetNameFormat())
 	{
+		PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FAnimSequenceCompilingManager::OnPostReachabilityAnalysis);
 	}
 	
 	TRACE_DECLARE_INT_COUNTER(QueuedAnimationSequenceCompilation, TEXT("AsyncCompilation/QueuedAnimationSequences"));
@@ -74,6 +78,8 @@ namespace UE::Anim
 
 			FinishCompilation(PendingAnimationSequences);
 		}
+		
+		FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
 	}
 
 	FName FAnimSequenceCompilingManager::GetAssetTypeName() const
@@ -169,7 +175,7 @@ namespace UE::Anim
 					return true;
 				}
 
-				UAnimSequence* AnimSequence;
+				TStrongObjectPtr<UAnimSequence> AnimSequence;
 				virtual FName GetName() override { return AnimSequence->GetOutermost()->GetFName(); }
 			};
 
@@ -182,7 +188,7 @@ namespace UE::Anim
 				LogAnimation,
 				[this](AsyncCompilationHelpers::ICompilable* Object)
 				{
-					UAnimSequence* AnimSequence = static_cast<FCompilableAnimationSequence*>(Object)->AnimSequence;
+					UAnimSequence* AnimSequence = static_cast<FCompilableAnimationSequence*>(Object)->AnimSequence.Get();
 					ApplyCompilation(AnimSequence);
 					RegisteredAnimSequences.Remove(AnimSequence);
 				}
@@ -191,6 +197,23 @@ namespace UE::Anim
 			PostCompilation(PendingAnimationSequences);
 		}
 		
+	}
+
+	void FAnimSequenceCompilingManager::FinishCompilation(TArrayView<USkeleton* const> InSkeletons)
+	{
+		TArray<UAnimSequence*> PendingAnimationSequences;	
+		for (const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence : RegisteredAnimSequences)
+		{
+			if (UAnimSequence* AnimSequence = WeakAnimSequence.GetEvenIfUnreachable())
+			{
+				if (InSkeletons.Contains(AnimSequence->GetSkeleton()))
+				{
+					PendingAnimationSequences.Add(AnimSequence);
+				}
+			}
+		}
+
+		FinishCompilation(PendingAnimationSequences);
 	}
 
 	void FAnimSequenceCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
@@ -281,14 +304,52 @@ namespace UE::Anim
 		if (!IsEngineExitRequested())
 		{
 			check(IsInGameThread());
-			TRACE_CPUPROFILER_EVENT_SCOPE(PostCompilation);			
-			InAnimSequence->FinishAsyncTasks();
+			TRACE_CPUPROFILER_EVENT_SCOPE(PostCompilation);
+			if (InAnimSequence && !InAnimSequence->IsUnreachable() && InAnimSequence->GetSkeleton() && !InAnimSequence->GetSkeleton()->IsUnreachable())
+			{
+				InAnimSequence->FinishAsyncTasks();
+			}
 		}
 	}
 	void FAnimSequenceCompilingManager::UpdateCompilationNotification()
 	{
 		TRACE_COUNTER_SET(QueuedAnimationSequenceCompilation, GetNumRemainingAssets());
 		Notification.Update(GetNumRemainingAssets());
+	}
+
+	void FAnimSequenceCompilingManager::OnPostReachabilityAnalysis()
+	{
+		if (GetNumRemainingAssets())
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FNaniteDisplacedMeshCompilingManager::CancelUnreachableMeshes);
+
+			TArray<UAnimSequence*> PendingAnimationSequences;
+			PendingAnimationSequences.Reserve(GetNumRemainingAssets());
+
+			for (auto Iterator = RegisteredAnimSequences.CreateIterator(); Iterator; ++Iterator)
+			{
+				if (UAnimSequence* AnimSequence = Iterator->GetEvenIfUnreachable())
+				{
+					const bool bAnimSequenceUnreachable = AnimSequence->IsUnreachable();
+					const bool bNullSkeleton = AnimSequence->GetSkeleton() == nullptr;
+					const bool bSkeletonUnreachable = bNullSkeleton ? true : AnimSequence->GetSkeleton()->IsUnreachable();
+					
+					if(bAnimSequenceUnreachable||bNullSkeleton||bSkeletonUnreachable)
+					{
+						if (AnimSequence->TryCancelAsyncTasks())
+						{
+							Iterator.RemoveCurrent();
+						}
+						else
+						{
+							PendingAnimationSequences.Add(AnimSequence);
+						}
+					}
+				}
+			}
+
+			FinishCompilation(PendingAnimationSequences);
+		}
 	}
 }
 

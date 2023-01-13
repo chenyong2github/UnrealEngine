@@ -8,6 +8,7 @@
 #include "Animation/AnimationSequenceCompiler.h"
 #include "Animation/AnimCompress.h"
 #include "DerivedDataCache.h"
+#include "Animation/Skeleton.h"
 
 namespace UE::Anim
 {	
@@ -31,6 +32,9 @@ FAnimationSequenceAsyncCacheTask::FAnimationSequenceAsyncCacheTask(const FIoHash
 		, CompressibleAnimPtr(InCompressibleAnimPtr)
 		, TargetPlatform(InTargetPlatform)
 {
+	check(!InAnimSequence.IsUnreachable());
+	check(!InAnimSequence.GetSkeleton()->IsUnreachable());
+		
 	BeginCache(InKeyHash);
 }
 
@@ -193,6 +197,7 @@ bool FAnimationSequenceAsyncCacheTask::BuildData() const
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*(FString(TEXT("FAnimationSequenceAsyncCacheTask::BuildData ") + CompressibleAnimPtr->Name)));
 	UE_LOG(LogAnimationCompression, Display, TEXT("Building compressed animation data for %s"), *CompressibleAnimPtr->FullName);
 
+	check(CompressibleAnimPtr.IsValid());
 	FCompressibleAnimData& DataToCompress = *CompressibleAnimPtr.Get();
 	FCompressedAnimSequence& OutData = *CompressedData;
 
