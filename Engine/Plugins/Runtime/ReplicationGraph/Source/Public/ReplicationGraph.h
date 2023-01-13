@@ -1216,7 +1216,7 @@ public:
 	bool bEnableDebugging;
 
 	UPROPERTY()
-	TObjectPtr<class AReplicationGraphDebugActor> DebugActor = nullptr;
+	TWeakObjectPtr<class AReplicationGraphDebugActor> DebugActor;
 
 	/** Index of the connection in the global list. Will be reassigned when any client disconnects so it is a key that can be referenced only during a single tick */
 	int32 ConnectionOrderNum;

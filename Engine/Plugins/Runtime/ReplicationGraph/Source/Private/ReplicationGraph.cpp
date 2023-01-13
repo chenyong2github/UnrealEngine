@@ -1196,11 +1196,11 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 #if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 			{
 				RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_ReplicateDebugActor);
-				if (ConnectionManager->DebugActor)
+				if (AReplicationGraphDebugActor* DebugActor = ConnectionManager->DebugActor.Get())
 				{
-					FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(ConnectionManager->DebugActor);
-					FConnectionReplicationActorInfo& ActorInfo = ConnectionActorInfoMap.FindOrAdd(ConnectionManager->DebugActor);
-					int64 DebugActorBits = ReplicateSingleActor(ConnectionManager->DebugActor, ActorInfo, GlobalInfo, ConnectionActorInfoMap, *ConnectionManager, FrameNum);
+					FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(DebugActor);
+					FConnectionReplicationActorInfo& ActorInfo = ConnectionActorInfoMap.FindOrAdd(DebugActor);
+					int64 DebugActorBits = ReplicateSingleActor(DebugActor, ActorInfo, GlobalInfo, ConnectionActorInfoMap, *ConnectionManager, FrameNum);
 					// Do not count the debug actor towards our bandwidth limit
 					NetConnection->QueuedBits -= DebugActorBits;
 				}
@@ -2531,7 +2531,7 @@ void UNetReplicationGraphConnection::Serialize(FArchive& Ar)
 void UNetReplicationGraphConnection::TearDown()
 {
 #if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
-	if (DebugActor)
+	if (DebugActor.IsValid())
 	{
 		DebugActor->Destroy();
 	}
@@ -2634,7 +2634,7 @@ void UNetReplicationGraphConnection::InitForConnection(UNetConnection* InConnect
 #if DO_ENABLE_REPGRAPH_DEBUG_ACTOR
 	UReplicationGraph* Graph = Cast<UReplicationGraph>(GetOuter());
 	DebugActor = Graph->CreateDebugActor();
-	if (DebugActor)
+	if (DebugActor.IsValid())
 	{
 		DebugActor->ConnectionManager = this;
 		DebugActor->ReplicationGraph = Graph;
