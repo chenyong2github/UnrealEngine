@@ -2,6 +2,7 @@
 
 #include "View/MVVMViewClass.h"
 #include "Types/MVVMFieldContext.h"
+#include "Types/MVVMViewModelContextInstance.h"
 #include "View/MVVMView.h"
 
 #include "Bindings/MVVMFieldPathHelper.h"

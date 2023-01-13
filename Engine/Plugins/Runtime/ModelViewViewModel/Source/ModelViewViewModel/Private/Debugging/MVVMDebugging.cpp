@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Debugging/MVVMDebugging.h"
+
+#if UE_WITH_MVVM_DEBUGGING
+
+#include "FieldNotification/FieldId.h"
 #include "View/MVVMView.h"
 
 #define LOCTEXT_NAMESPACE "MVVMDebugging"
 
-#if UE_WITH_MVVM_DEBUGGING
 namespace UE::MVVM
 {
 /** */
@@ -99,6 +102,7 @@ void FDebugging::BroadcastLibraryBindingExecuted(const UMVVMView* InView, const 
 	}
 }
 } // namespace UE::MVVM
-#endif //UE_WITH_MVVM_DEBUGGING
 
 #undef LOCTEXT_NAMESPACE
+
+#endif //UE_WITH_MVVM_DEBUGGING

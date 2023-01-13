@@ -9,6 +9,7 @@
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMFieldContext.h"
+#include "Types/MVVMViewModelContextInstance.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldPathHelper"
 
