@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 
 #include "PCGDeterminismSettings.generated.h"
@@ -23,3 +22,7 @@ struct FPCGDeterminismSettings
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Determinism, meta = (EditCondition = "bUseBlueprintDeterminismTest"))
 	TSubclassOf<UPCGDeterminismTestBlueprintBase> DeterminismTestBlueprint;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

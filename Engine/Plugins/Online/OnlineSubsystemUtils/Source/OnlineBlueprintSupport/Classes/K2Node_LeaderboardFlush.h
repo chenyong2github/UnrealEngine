@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_BaseAsyncTask.h"
 #include "K2Node_LeaderboardFlush.generated.h"
 
@@ -21,3 +19,7 @@ class ONLINEBLUEPRINTSUPPORT_API UK2Node_LeaderboardFlush : public UK2Node_BaseA
 	virtual FText GetMenuCategory() const override;
 	//~ End UK2Node Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

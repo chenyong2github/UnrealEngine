@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeTextureToChannels.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCustomizableObjectNodeRemapPins;

@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "Components/ActorComponent.h"
-#include "UObject/Interface.h"
 #include "IAudioMotorSim.generated.h"
+
+struct FAudioMotorSimInputContext;
+struct FAudioMotorSimRuntimeContext;
 
 UINTERFACE(BlueprintType)
 class UAudioMotorSim : public UInterface
@@ -32,3 +33,7 @@ public:
 	
 	virtual void Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo) override {};
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

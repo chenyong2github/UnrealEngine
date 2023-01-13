@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "JsonObjectConverter.h"
 #include "Serialization/JsonWriter.h"
-#include "Serialization/JsonSerializer.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
-#include "Serialization/Archive.h"
 #include "AssetRegistry/AssetData.h"
+
+template <class CharType> struct TCondensedJsonPrintPolicy;
 
 class IAssetIndexer;
 
@@ -80,3 +77,10 @@ private:
 
 	TArray<UObject*> NestedAssets;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "JsonObjectConverter.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonSerializer.h"
+#endif

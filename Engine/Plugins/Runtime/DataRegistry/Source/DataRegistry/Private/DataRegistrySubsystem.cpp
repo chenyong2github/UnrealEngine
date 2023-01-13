@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistrySubsystem.h"
-#include "DataRegistry.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/AssetManagerTypes.h"
 #include "GameplayTagsManager.h"

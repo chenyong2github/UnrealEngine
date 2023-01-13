@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ConversationSubNode.h"
-#include "ConversationContext.h"
 #include "ConversationRequirementNode.generated.h"
 
 /**
@@ -35,3 +34,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	EConversationRequirementResult IsRequirementSatisfied(const FConversationContext& Context) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationContext.h"
+#endif

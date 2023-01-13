@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "GameFramework/OnlineReplStructs.h"
 #include "SpectatorBeaconState.h"
 #include "OnlineBeaconHostObject.h"
 #include "SpectatorBeaconHost.generated.h"
+
+struct FPlayerReservation;
+struct FUniqueNetIdRepl;
 
 class ASpectatorBeaconClient;
 
@@ -277,3 +276,7 @@ protected:
 	void NotifyReservationEventNextFrame(FOnReservationUpdate& ReservationEvent);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

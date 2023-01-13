@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Serialization/JsonSerializerMacros.h"
+#include "InstallBundleTypes.h"
 #include "Interfaces/IBuildInstaller.h"
 
-#include "InstallBundleManagerInterface.h"
 #include "InstallBundleUtils.h"
+
+class FConfigFile;
 
 #define INSTALL_BUNDLE_ALLOW_ERROR_SIMULATION (!UE_BUILD_SHIPPING)
 
@@ -836,3 +837,7 @@ namespace InstallBundleManagerAnalytics
 	 */
 	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_PersistentPatchStats_Foreground(IAnalyticsProviderET* AnalyticsProvider, const InstallBundleManagerUtil::FPersistentStatContainer::FPersistentStatsInformation& PersistentStatInformation);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InstallBundleManagerInterface.h"
+#endif

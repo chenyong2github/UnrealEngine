@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "Engine/DataAsset.h"
 #include "GameFeatureStateChangeObserver.h"
 #include "GameplayTagContainer.h"
-#include "ConversationDatabase.h"
-#include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include "ConversationRegistry.generated.h"
+
+class UConversationNode;
+class UConversationRegistry;
 
 class UGameFeatureData;
 class UConversationDatabase;
@@ -120,3 +120,9 @@ private:
 private:
 	bool bDependenciesBuilt = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationDatabase.h"
+#include "Engine/DataAsset.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#endif

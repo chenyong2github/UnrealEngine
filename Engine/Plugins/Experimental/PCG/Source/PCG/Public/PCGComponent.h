@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ComponentInstanceDataCache.h"
 #include "Components/ActorComponent.h"
+#include "PCGNode.h"
 #include "PCGSettings.h"
 #include "Utils/PCGExtraCapture.h"
 
 #include "PCGComponent.generated.h"
+
+namespace EEndPlayReason { enum Type : int; }
 
 class APCGPartitionActor;
 struct FPCGContext;
@@ -423,3 +426,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<const UPCGComponent> SourceComponent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

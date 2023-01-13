@@ -47,20 +47,12 @@ UReplicationGraph::InitConnectionGraphNodes
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Serialization/BitReader.h"
-#include "Misc/NetworkGuid.h"
-#include "Engine/EngineBaseTypes.h"
-#include "GameFramework/Actor.h"
-#include "Misc/EngineVersion.h"
-#include "GameFramework/PlayerController.h"
 #include "Engine/NetDriver.h"
-#include "Engine/PackageMapClient.h"
-#include "Misc/NetworkVersion.h"
 #include "Engine/ReplicationDriver.h"
+#include "Engine/World.h"
 #include "ReplicationGraphTypes.h"
 
+#include "UObject/Package.h"
 #include "ReplicationGraph.generated.h"
 
 struct FReplicationGraphDestructionSettings;
@@ -1463,3 +1455,10 @@ struct FReplicationGraphDestructionSettings
 	float OutOfRangeDistanceCheckThresholdSquared;
 	float MaxPendingListDistanceSquared; 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/PackageMapClient.h"
+#include "GameFramework/PlayerController.h"
+#include "Misc/EngineVersion.h"
+#endif

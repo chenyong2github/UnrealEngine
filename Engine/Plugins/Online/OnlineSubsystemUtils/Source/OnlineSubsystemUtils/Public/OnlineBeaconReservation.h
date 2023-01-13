@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "GameFramework/Actor.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "OnlineBeaconReservation.generated.h"
 
@@ -39,3 +36,8 @@ struct FPlayerReservation
 	UPROPERTY(Transient)
 		float ElapsedTime;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFeatureAction.h"
 #include "GameFeatureAction_DataRegistry.generated.h"
 
@@ -42,3 +41,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	bool bPreloadInEditor;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

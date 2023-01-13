@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "GeometryFlowCoreNodes.h"
 #include "BaseNodes/BinaryOpLambdaNode.h"
 
 
@@ -25,3 +24,7 @@ namespace GeometryFlow
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowCoreNodes.h"
+#endif

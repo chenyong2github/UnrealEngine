@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectKey.h"
-#include "UObject/Interface.h"
-#include "UObject/ClassTree.h"
 #include "Templates/SubclassOf.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameFrameworkComponentDelegates.h"
-#include "GameplayTagContainer.h"
 
 #include "GameFrameworkComponentManager.generated.h"
+
+class UGameFrameworkComponentManager;
 
 class AActor;
 class UActorComponent;
@@ -459,3 +457,9 @@ private:
 	int32 GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FDelegateHandle SearchHandle) const;
 	int32 GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FActorInitStateChangedBPDelegate SearchDelegate) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ClassTree.h"
+#include "UObject/Interface.h"
+#endif

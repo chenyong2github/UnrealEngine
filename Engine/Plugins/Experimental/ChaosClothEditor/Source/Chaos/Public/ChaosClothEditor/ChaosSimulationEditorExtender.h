@@ -3,7 +3,6 @@
 #pragma once
 
 #include "SimulationEditorExtender.h"
-#include "Containers/BitArray.h"
 
 namespace Chaos
 {

@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "InputCoreTypes.h"
 #include "BehaviorTree/BTTaskNode.h"
 #include "BTTask_StopGameplayBehavior.generated.h"
 
@@ -30,3 +27,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Node")
 	TSubclassOf<UGameplayBehavior> BehaviorToStop;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

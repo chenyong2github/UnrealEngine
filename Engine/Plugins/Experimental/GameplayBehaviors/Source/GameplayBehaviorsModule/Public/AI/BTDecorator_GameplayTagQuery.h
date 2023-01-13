@@ -1,14 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "GameplayTagContainer.h"
 #include "BehaviorTree/BTDecorator.h"
-#include "BehaviorTree/BehaviorTreeTypes.h"
-#include "Delegates/IDelegateInstance.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Templates/Tuple.h"
 
 #include "BTDecorator_GameplayTagQuery.generated.h"
 
@@ -70,3 +63,7 @@ protected:
 
 	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGElement.h"
-#include "PCGSettings.h"
 #include "PCGSubgraph.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 
-#include "Templates/SubclassOf.h"
 
 #include "PCGSpawnActor.generated.h"
 
@@ -140,3 +136,7 @@ protected:
 private:
 	TArray<FName> GetNewActorTags(FPCGContext* Context, AActor* TargetActor, bool bInheritActorTags, const TArray<FName>& AdditionalTags) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

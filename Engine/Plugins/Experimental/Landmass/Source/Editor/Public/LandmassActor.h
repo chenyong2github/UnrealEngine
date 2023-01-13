@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/GCObject.h"
-#include "Tickable.h"
 #include "GameFramework/Actor.h"
 #include "LandmassActor.generated.h"
 
@@ -44,3 +39,9 @@ private:
 	void HandleActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Tickable.h"
+#include "UObject/GCObject.h"
+#endif

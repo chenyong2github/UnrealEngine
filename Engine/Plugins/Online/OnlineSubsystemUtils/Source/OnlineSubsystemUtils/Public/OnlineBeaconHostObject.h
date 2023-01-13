@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "GameFramework/Actor.h"
 #include "OnlineBeacon.h"
 #include "OnlineBeaconHostObject.generated.h"
 
@@ -89,3 +85,7 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<AOnlineBeaconClient>> ClientActors;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

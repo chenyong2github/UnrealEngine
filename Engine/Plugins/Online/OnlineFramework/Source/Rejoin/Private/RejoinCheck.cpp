@@ -2,6 +2,7 @@
 
 #include "RejoinCheck.h"
 #include "Engine/GameInstance.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "TimerManager.h"

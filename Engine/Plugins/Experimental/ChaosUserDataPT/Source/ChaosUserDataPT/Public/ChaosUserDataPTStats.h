@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 
 DECLARE_STATS_GROUP(TEXT("ChaosUserDataPT"), STATGROUP_ChaosUserDataPT, STATCAT_Advanced);
 
@@ -16,3 +16,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("ChaosUserDataPT::OnPreSimulate::ClearData"), STAT_UserDataPT_ClearData_PT, STATGROUP_ChaosUserDataPT, CHAOSUSERDATAPT_API);
 }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Stats/Stats.h"
+#endif

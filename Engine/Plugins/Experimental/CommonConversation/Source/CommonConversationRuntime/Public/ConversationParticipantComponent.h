@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "Components/ActorComponent.h"
-#include "GameplayTagContainer.h"
-#include "ConversationNode.h"
-#include "GameFramework/Actor.h"
 #include "ConversationMemory.h"
 #include "ConversationTypes.h"
 
 #include "ConversationParticipantComponent.generated.h"
+
+class UConversationInstance;
+struct FConversationNodeHandle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnConversationStatusChanged, bool, bIsInConversation);
 
@@ -160,3 +159,7 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFramework/Actor.h"
+#endif

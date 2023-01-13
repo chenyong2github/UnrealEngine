@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "GeometryFlowCoreNodes.h"
 #include "GeometryFlowImmutableData.h"
 #include "DataTypes/DynamicMeshData.h"
 
-#include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "GeometryFlowMovableData.h"
 #include "Sampling/MeshImageBakingCache.h"
+#include "Image/ImageOccupancyMap.h"
 
 namespace UE
 {

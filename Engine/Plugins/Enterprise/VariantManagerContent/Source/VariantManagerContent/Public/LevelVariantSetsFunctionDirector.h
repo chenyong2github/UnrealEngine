@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "LevelVariantSetsFunctionDirector.generated.h"
 
 class ULevelVariantSetsFunctionDirector;

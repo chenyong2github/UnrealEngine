@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "UObject/ObjectMacros.h"
 
 #include "VariantManagerTestActor.generated.h"
 
@@ -110,3 +108,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Template", meta=(ToolTip="Captured FVector array property"))
 	TArray<FVector> CapturedVectorArrayProperty;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

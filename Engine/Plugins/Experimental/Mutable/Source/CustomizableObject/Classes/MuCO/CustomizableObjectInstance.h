@@ -2,27 +2,13 @@
 
 #pragma once
 
-#include "Async/TaskGraphInterfaces.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/AssertionMacros.h"
+#include "Async/TaskGraphFwd.h"
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "MuCO/MultilayerProjector.h"
-#include "Serialization/Archive.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableObjectInstance.generated.h"
+
+class USkeletalMesh;
 
 class AActor;
 class FProperty;
@@ -740,3 +726,8 @@ private:
 #if WITH_EDITOR
 CUSTOMIZABLEOBJECT_API void CopyTextureProperties(UTexture2D* Texture, const UTexture2D* SourceTexture);
 #endif	
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/TaskGraphInterfaces.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#endif

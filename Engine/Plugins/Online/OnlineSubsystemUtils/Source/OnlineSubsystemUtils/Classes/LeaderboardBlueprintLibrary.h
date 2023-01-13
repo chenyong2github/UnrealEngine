@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "LeaderboardBlueprintLibrary.generated.h"
 
@@ -24,3 +22,7 @@ class ONLINESUBSYSTEMUTILS_API ULeaderboardBlueprintLibrary : public UBlueprintF
 private:
 	static bool WriteLeaderboardObject(APlayerController* PlayerController, class FOnlineLeaderboardWrite& WriteObject);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

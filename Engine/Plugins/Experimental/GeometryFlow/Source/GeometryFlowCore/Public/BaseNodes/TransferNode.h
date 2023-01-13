@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "GeometryFlowMovableData.h"
 #include "GeometryFlowNode.h"
+
+namespace UE::GeometryFlow { template <typename T, int32 DataTypeIdentifier> class TMovableData; }
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TBasicNodeInput; }
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TBasicNodeOutput; }
 
 
 namespace UE
@@ -79,3 +82,7 @@ public:
 }	// end namespace UE
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowMovableData.h"
+#endif

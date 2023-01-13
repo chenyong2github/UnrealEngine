@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Containers/UnrealString.h"
-#include "Containers/ArrayView.h"
+#include "Containers/Array.h"
 
 // Helper struct to encapsulate optional, delayed writing of new element to TNetworkSimAuxBuffer buffer
 template<typename ElementType>
@@ -234,3 +233,8 @@ struct TNetworkPredictionBuffer<ElementType, true>
 private:
 	ElementType Element;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
 #include "ConnectionCallbackProxy.generated.h"
@@ -52,3 +50,7 @@ private:
 	// The world context object in which this call is taking place
 	UObject* WorldContextObject;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

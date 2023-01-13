@@ -3,9 +3,12 @@
 #pragma once
 
 #include "BoneControllers/BoneControllerTypes.h"
-#include "BoneControllers/BoneControllerSolvers.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_OffsetRootBone.generated.h"
+
+struct FAnimationInitializeContext;
+struct FComponentSpacePoseContext;
+struct FNodeDebugData;
 
 UENUM(BlueprintType)
 enum class EOffsetRootBoneMode : uint8
@@ -143,3 +146,7 @@ private:
 
 	FGraphTraversalCounter UpdateCounter;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BoneControllers/BoneControllerSolvers.h"
+#endif

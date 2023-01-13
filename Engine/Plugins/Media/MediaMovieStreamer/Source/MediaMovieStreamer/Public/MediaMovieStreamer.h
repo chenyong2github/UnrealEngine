@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MoviePlayer.h"
+
+class FSlateTexture2DRHIRef;
+class ISlateViewport;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaMovieStreamer, Log, All);
 
@@ -126,3 +128,7 @@ private:
 	/** Stores the previous time source so we can restore it when we are done. */
 	TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe> PreviousTimeSource;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

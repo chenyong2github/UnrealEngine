@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Volume.h"
 
 #include "PCGVolume.generated.h"
@@ -27,3 +25,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PCG)
 	TObjectPtr<UPCGComponent> PCGComponent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

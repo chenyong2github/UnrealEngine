@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "MuCO/UnrealPortabilityHelpers.h"
 #include "Engine/Texture2D.h"
-#include "UObject/ObjectMacros.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectCustomVersion.h"
 #include "CustomizableObjectUIData.generated.h"
@@ -311,3 +309,7 @@ struct FParameterUIData
 
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuCO/UnrealPortabilityHelpers.h"
+#endif

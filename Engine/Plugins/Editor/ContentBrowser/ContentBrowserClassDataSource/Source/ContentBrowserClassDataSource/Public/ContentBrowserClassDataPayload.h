@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ContentBrowserItemData.h"
 #include "AssetRegistry/AssetData.h"
 
@@ -64,3 +63,7 @@ private:
 	mutable bool bHasCachedFilename = false;
 	mutable FString CachedFilename;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

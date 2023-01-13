@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Framework/Views/ITypedTableView.h"
 #include "ModuleDescriptor.h"
-#include "Styling/SlateTypes.h"
-#include "Types/SlateEnums.h"
-#include "Features/IPluginsEditorFeature.h"
+
+enum class ECheckBoxState : uint8;
+namespace ESelectInfo { enum Type : int; }
+struct FPluginTemplateDescription;
 
 class IPluginWizardDefinition : public TSharedFromThis<IPluginWizardDefinition>
 {
@@ -72,3 +71,11 @@ public:
 	/** Called when a plugin is created, with a bool indicating whether creation was actually successful. */
 	virtual void PluginCreated(const FString& PluginName, bool bWasSuccessful) const = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Features/IPluginsEditorFeature.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "Styling/SlateTypes.h"
+#include "Types/SlateEnums.h"
+#endif

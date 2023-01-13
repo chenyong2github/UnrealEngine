@@ -3,8 +3,6 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "FalloffSettings.h"
 #include "BrushEffectsList.h"
 #include "TerrainCarvingSettings.generated.h"
@@ -45,3 +43,7 @@ struct FLandmassTerrainCarvingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TerrainCarvingSettings)
 	int32 Priority;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

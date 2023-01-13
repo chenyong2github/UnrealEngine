@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "FieldNotification/FieldId.h"
 #include "Templates/SubclassOf.h"
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMFieldContext.h"
-#include "UObject/FieldPath.h"
-#include "UObject/Object.h"
+
+namespace UE::MVVM { struct FFieldContext; }
+namespace UE::MVVM { struct FMVVMConstFieldVariant; }
+namespace UE::MVVM { struct FMVVMFieldVariant; }
+template <typename ValueType, typename ErrorType> class TValueOrError;
 
 
 namespace UE::MVVM::FieldPathHelper
@@ -63,3 +63,10 @@ namespace UE::MVVM::FieldPathHelper
 	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSource);
 
 } // namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMFieldContext.h"
+#include "UObject/FieldPath.h"
+#endif

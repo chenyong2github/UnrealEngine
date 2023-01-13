@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "Templates/ValueOrError.h"
 
 namespace UE::GameFeatures
@@ -58,3 +58,7 @@ namespace UE::GameFeatures
 
 	GAMEFEATURES_API FString ToString(const FResult& Result);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

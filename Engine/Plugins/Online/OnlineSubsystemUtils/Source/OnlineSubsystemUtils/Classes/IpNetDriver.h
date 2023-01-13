@@ -6,16 +6,16 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "Engine/NetDriver.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include "Containers/CircularQueue.h"
-#include "SocketTypes.h"
 #include "SocketSubsystem.h"
-#include "Templates/PimplPtr.h"
 #include "Containers/SpscQueue.h"
 #include "IpNetDriver.generated.h"
+
+struct FPacketBufferView;
+struct FReceivedPacketView;
+struct FURL;
 
 
 // Forward declarations
@@ -464,3 +464,7 @@ private:
 	/** NetConnection specific address resolution */
 	TPimplPtr<UE::Net::Private::FNetDriverAddressResolution> Resolver;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "HAL/RunnableThread.h"
+#endif

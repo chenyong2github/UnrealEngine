@@ -5,6 +5,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SkeletalMeshComponentBudgeted.generated.h"
 
+namespace EEndPlayReason { enum Type : int; }
+
 class IAnimationBudgetAllocator;
 class USkeletalMeshComponentBudgeted;
 

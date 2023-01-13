@@ -3,8 +3,8 @@
 #pragma once
 
 #include "ControlFlowNode.h"
-#include "HAL/Platform.h"
-#include "Templates/UnrealTypeTraits.h"
+
+template <typename OptionalType> struct TOptional;
 
 class UObject;
 class FControlFlowTask_Branch;

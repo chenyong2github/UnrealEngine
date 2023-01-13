@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/StringConv.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFile.h"
 
@@ -88,3 +88,7 @@ protected:
 	static void WritePlatformCompilerDependenciesToFile(FArchive& ScriptFile);
 	static void WriteDependenciesForShaderToScript(const TArray<FTask*>& InCompilationTasks, FArchive& ScriptFile);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

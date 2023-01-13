@@ -2,6 +2,13 @@
 
 #pragma once
 
+#include "NetworkPredictionCVars.h"
+#include "NetworkPredictionLog.h"
+#include "NetworkPredictionTickState.h"
+#include "NetworkPredictionTrace.h"
+#include "NetworkPredictionUtil.h"
+#include "Services/NetworkPredictionInstanceData.h"
+
 // Interpolation does generic linear interpolation on received replicated data.
 // Calls FinalizeFrame and DispatchCues every render frame for smooth motion and event dispatching.
 // This is a client side service: the server does not interpolate anything.

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "PCGPointData.h"
 #include "PCGSpatialData.h"
-#include "Elements/PCGProjectionParams.h"
 
 #include "PCGProjectionData.generated.h"
 
@@ -60,3 +58,7 @@ protected:
 	UPROPERTY(BlueprintReadwrite, VisibleAnywhere, Category = SpatialData)
 	FPCGProjectionParams ProjectionParams;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PCGPointData.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "LandscapeBlueprintBrushBase.h"
 
@@ -95,3 +94,7 @@ protected:
 	TObjectPtr<ALandscape> DetailPanelLandscape = nullptr;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "PrimitiveSceneProxy.h"
-#include "UObject/ObjectMacros.h"
-#include "WaterInstanceDataBuffer.h"
+#include "Materials/MaterialRelevance.h"
 #include "WaterQuadTree.h"
 #include "WaterVertexFactory.h"
 #include "RayTracingGeometry.h"
+
+class FMeshElementCollector;
+struct FRayTracingMaterialGatheringContext;
 
 class UWaterMeshComponent;
 
@@ -125,3 +126,8 @@ private:
 	TArray<TArray<FRayTracingWaterData>> RayTracingWaterData;	
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Materials/Material.h"
+#endif

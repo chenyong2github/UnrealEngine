@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/TextProperty.h"
 
 #include "VariantSet.generated.h"
+
+class UTexture2D;
 
 class UVariant;
 
@@ -91,3 +90,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTexture2D> Thumbnail;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/TextProperty.h"
+#endif

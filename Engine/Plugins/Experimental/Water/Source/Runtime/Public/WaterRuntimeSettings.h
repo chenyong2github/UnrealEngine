@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Engine/DeveloperSettings.h"
-#include "Engine/EngineTypes.h"
+#include "Templates/SubclassOf.h"
 #include "WaterRuntimeSettings.generated.h"
+
+enum ECollisionChannel : int;
 
 class UMaterialInterface;
 class UMaterialParameterCollection;
@@ -90,3 +89,8 @@ private:
 	float WaterBodyIconWorldSize_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

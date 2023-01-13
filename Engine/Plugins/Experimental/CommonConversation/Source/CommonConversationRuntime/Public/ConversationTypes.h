@@ -3,9 +3,8 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
+#include "GameFramework/Actor.h" // IWYU pragma: keep
 #include "ConversationNode.h"
-#include "ConversationMemory.h"
-#include "GameFramework/Actor.h"
 #include "ConversationTypes.generated.h"
 
 class UActorComponent;
@@ -466,3 +465,7 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationMemory.h"
+#endif

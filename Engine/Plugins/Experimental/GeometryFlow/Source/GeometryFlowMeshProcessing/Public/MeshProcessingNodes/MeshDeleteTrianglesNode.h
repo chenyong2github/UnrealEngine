@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "GeometryFlowNodeUtil.h"
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "DataTypes/IndexSetsData.h"
 #include "DynamicMeshEditor.h"
 

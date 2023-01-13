@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ConversationNode.h"
+#include "GameplayTagContainer.h"
 #include "ConversationEntryPointNode.generated.h"
 
 UCLASS(meta=(DisplayName="Entry Point"))

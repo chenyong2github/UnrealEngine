@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/AlignedBuffer.h"
 
 namespace Audio
 {
@@ -83,3 +82,8 @@ namespace Audio
 			virtual void Finalize(TArray<FPitchTrackInfo>& OutPitchTracks) = 0;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
+#endif

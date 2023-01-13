@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "UniformBuffer.h"
+#include "ShaderParameterMacros.h"
 #include "VertexFactory.h"
 #include "Containers/DynamicRHIResourceArray.h"
-#include "SceneManagement.h"
 #include "WaterInstanceDataBuffer.h"
+
+class FShaderParameterMap;
+struct FShaderCompilerEnvironment;
 
 /**
  * Uniform buffer to hold parameters specific to this vertex factory. Only set up once
@@ -272,3 +271,9 @@ struct TWaterMeshUserDataBuffers
 };
 
 #include "WaterVertexFactory.inl"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "SceneManagement.h"
+#include "UniformBuffer.h"
+#endif

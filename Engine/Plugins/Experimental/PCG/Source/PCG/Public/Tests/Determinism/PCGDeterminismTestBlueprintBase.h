@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include "PCGDeterminismTestBlueprintBase.generated.h"
+
+struct FDeterminismTestResult;
 
 class UPCGNode;
 
@@ -17,3 +18,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintPure, CallInEditor, Category = Determinism)
 	void ExecuteTest(const UPCGNode* InPCGNode, UPARAM(ref)FDeterminismTestResult& InOutTestResult);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
+#endif

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 /** default beacon port, if not specified by other means */
 #define DEFAULT_BEACON_PORT 15000
@@ -150,3 +150,7 @@
 /** Team a user is searching for */
 #define SEARCH_USER_ATTRIBUTE_TEAM TEXT("TEAM")
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

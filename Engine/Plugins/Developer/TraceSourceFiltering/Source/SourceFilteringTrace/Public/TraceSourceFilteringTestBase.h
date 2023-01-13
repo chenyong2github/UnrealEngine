@@ -4,19 +4,14 @@
 
 #include "Misc/AutomationTest.h"
 
-#if WITH_AUTOMATION_TESTS
-#include "UObject/StrongObjectPtr.h"
-#include "Engine/World.h"
-#include "TraceFilter.h"
-#include "PreviewScene.h"
+class FPreviewScene;
+class UDataSourceFilter;
 
-#include "DataSourceFiltering.h"
-#include "TraceWorldFiltering.h"
+#if WITH_AUTOMATION_TESTS
+#include "Engine/World.h" // IWYU pragma: keep
 #include "DataSourceFilterSet.h"
-#include "TraceSourceFiltering.h"
 #include "SourceFilterCollection.h"
-#include "DataSourceFilter.h"
-#include "TraceSourceFilteringProjectSettings.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FSourceFilterManager;
 
@@ -159,3 +154,11 @@ protected:
 };
 
 #endif // WITH_AUTOMATION_TESTS
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PreviewScene.h"
+#include "TraceFilter.h"
+#include "TraceSourceFiltering.h"
+#include "TraceSourceFilteringProjectSettings.h"
+#include "TraceWorldFiltering.h"
+#endif

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma  once
 
-#include "CoreTypes.h"
-#include "Misc/EnumClassFlags.h"
 #include "Templates/UnrealTypeTraits.h"
+
+class FArchive;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	NetSimCue Traits: compile time settings for NetSimeCue types that determine who can invoke the event and who it replicates to.

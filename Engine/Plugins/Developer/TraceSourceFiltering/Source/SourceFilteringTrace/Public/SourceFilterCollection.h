@@ -3,12 +3,13 @@
 #pragma once
 
 #include "DataSourceFilter.h"
-#include "DataSourceFilterSet.h"
+#include "DataSourceFiltering.h"
 #include "UObject/ObjectKey.h"
 #include "Engine/DataAsset.h"
-#include "Delegates/DelegateCombinations.h"
 
 #include "SourceFilterCollection.generated.h"
+
+class UDataSourceFilterSet;
 
 UCLASS()
 class SOURCEFILTERINGTRACE_API USourceFilterCollection : public UDataAsset
@@ -120,3 +121,8 @@ protected:
 	
 	FSimpleMulticastDelegate SourceFiltersUpdatedDelegate;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataSourceFilterSet.h"
+#include "Delegates/DelegateCombinations.h"
+#endif

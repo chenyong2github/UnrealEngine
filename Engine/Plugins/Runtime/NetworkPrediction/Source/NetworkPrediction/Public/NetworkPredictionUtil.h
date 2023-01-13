@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "NetworkPredictionCheck.h"
 #include "UObject/NameTypes.h"
 

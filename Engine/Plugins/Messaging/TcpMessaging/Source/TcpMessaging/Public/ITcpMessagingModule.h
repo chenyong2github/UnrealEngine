@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "Containers/ContainersFwd.h"
 #include "Modules/ModuleInterface.h"
+
+class FString;
 
 
 /**
@@ -17,3 +18,7 @@ public:
 	virtual void AddOutgoingConnection(const FString& Endpoint) = 0;
 	virtual void RemoveOutgoingConnection(const FString& Endpoint) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/ContainersFwd.h"
+#endif

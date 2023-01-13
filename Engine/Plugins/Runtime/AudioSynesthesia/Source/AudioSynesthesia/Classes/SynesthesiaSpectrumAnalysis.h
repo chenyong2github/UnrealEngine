@@ -4,8 +4,9 @@
 
 #include "AudioSynesthesia.h"
 #include "Sound/SoundSubmix.h"
-#include "SynesthesiaSpectrumAnalysisFactory.h"
 #include "SynesthesiaSpectrumAnalysis.generated.h"
+
+class USynesthesiaSpectrumAnalyzer;
 
 /** USynesthesiaSpectrumAnalysisSettings
  *
@@ -123,3 +124,7 @@ protected:
 	/** Return the name of the IAudioAnalyzerFactory associated with this UAudioAnalyzer */
 	FName GetAnalyzerFactoryName() const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SynesthesiaSpectrumAnalysisFactory.h"
+#endif

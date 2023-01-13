@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "UObject/UnrealType.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 class IPCGAttributeAccessor;
 
@@ -60,3 +60,7 @@ namespace PCGAttributeExtractor
 
 	TUniquePtr<IPCGAttributeAccessor> CreateTransformExtractor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/UnrealType.h"
+#endif

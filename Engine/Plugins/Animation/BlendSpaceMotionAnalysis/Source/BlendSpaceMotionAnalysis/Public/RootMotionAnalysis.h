@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "BlendSpaceAnalysis.h"
 #include "RootMotionAnalysis.generated.h"
 
@@ -74,3 +72,8 @@ bool CalculateRootMotion(
 	const URootMotionAnalysisProperties* AnalysisProperties,
 	const UAnimSequence&                 Animation,
 	const float                          RateScale);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleInterface.h"
+#endif

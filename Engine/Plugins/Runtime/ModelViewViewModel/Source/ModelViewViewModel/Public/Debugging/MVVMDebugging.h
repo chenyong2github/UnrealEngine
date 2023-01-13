@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Optional.h"
+#include "HAL/Platform.h" // IWYU pragma: keep
 
 #ifndef UE_WITH_MVVM_DEBUGGING
 #define UE_WITH_MVVM_DEBUGGING !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -120,4 +119,8 @@ class FDebugging
 };
 } // UE::MVVM
 
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #endif

@@ -3,10 +3,11 @@
 #pragma once
 
 #include "ActiveSoundUpdateInterface.h"
+#include "AudioDefines.h"
 #include "Subsystems/AudioEngineSubsystem.h"
 #include "AudioGameplayFlags.h"
 #include "AudioGameplayVolumeListener.h"
-#include "Templates/SharedPointer.h"
+#include "Sound/ReverbSettings.h"
 #include "AudioGameplayVolumeSubsystem.generated.h"
 
 // Forward Declarations 

@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "PCGPin.h"
 #include "PCGSettings.h"
-#include "PCGElement.h"
-#include "PCGNode.h"
 
 #include "PCGPointSampler.generated.h"
 
@@ -44,3 +42,8 @@ class FPCGPointSamplerElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGNode.h"
+#endif

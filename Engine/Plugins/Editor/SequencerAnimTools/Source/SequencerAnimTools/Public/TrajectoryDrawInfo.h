@@ -2,16 +2,14 @@
 
 #pragma once
 
+#include "Math/Vector2D.h"
 #include "Misc/Guid.h"
-#include "Containers/Map.h"
-#include "Containers/Array.h"
 #include "Math/Color.h"
 #include "Math/Range.h"
-#include "Math/Vector.h"
-#include "Misc/Optional.h"
 
-#include "SceneView.h"
-#include "UnrealClient.h"
+
+class FSceneView;
+template <typename OptionalType> struct TOptional;
 
 namespace UE
 {
@@ -77,3 +75,9 @@ protected:
 
 } // namespace MovieScene
 } // namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Math/Vector.h"
+#include "SceneView.h"
+#include "UnrealClient.h"
+#endif

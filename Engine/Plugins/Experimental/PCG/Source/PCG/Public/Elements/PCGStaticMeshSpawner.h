@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "PCGContext.h"
 #include "PCGSettings.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
-#include "MeshSelectors/PCGMeshSelectorBase.h"
 
 #include "Engine/CollisionProfile.h"
-#include "Templates/SubclassOf.h"
 
+#include "PCGPin.h"
 #include "PCGStaticMeshSpawner.generated.h"
+
+class UPCGInstancePackerBase;
+class UPCGMeshSelectorBase;
+class UPCGSpatialData;
+struct FPCGMeshInstanceList;
+struct FPCGPackedCustomData;
 
 class UStaticMesh;
 
@@ -121,3 +125,9 @@ protected:
 	void SpawnStaticMeshInstances(FPCGContext* Context, const FPCGMeshInstanceList& InstanceList, AActor* TargetActor, const FPCGPackedCustomData& PackedCustomData) const;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "InstancePackers/PCGInstancePackerBase.h"
+#include "MeshSelectors/PCGMeshSelectorBase.h"
+#endif

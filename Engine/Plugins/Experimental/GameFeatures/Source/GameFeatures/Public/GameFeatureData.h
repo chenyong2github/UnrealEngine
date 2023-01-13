@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Engine/AssetManagerTypes.h"
 #include "GameFeatureAction.h"
-#include "Misc/Guid.h"
 
 #include "GameFeatureData.generated.h"
+
+class FConfigFile;
+struct FPrimaryAssetTypeInfo;
 
 struct FAssetData;
 
@@ -67,3 +67,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Game Feature | Asset Manager", meta=(TitleProperty="PrimaryAssetType"))
 	TArray<FPrimaryAssetTypeInfo> PrimaryAssetTypesToScan;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/AssetManagerTypes.h"
+#endif

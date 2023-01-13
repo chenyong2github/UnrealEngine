@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "LandscapePatchComponent.h"
 #include "LandscapeTextureBackedRenderTarget.h"
 
 #include "LandscapeTexturePatch.generated.h"
+
+class ULandscapeTexturePatch;
 
 class ULandscapeHeightTextureBackedRenderTarget;
 class UTexture;
@@ -595,3 +596,7 @@ private:
 	UPROPERTY()
 	TEnumAsByte<ETextureRenderTargetFormat> HeightRenderTargetFormat = ETextureRenderTargetFormat::RTF_R32f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

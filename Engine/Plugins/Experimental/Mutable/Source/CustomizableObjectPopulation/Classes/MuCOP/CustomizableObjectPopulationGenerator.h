@@ -2,12 +2,6 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "CoreTypes.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 //#include "MuCOP/CustomizableObjectPopulationSamplers.h"
 

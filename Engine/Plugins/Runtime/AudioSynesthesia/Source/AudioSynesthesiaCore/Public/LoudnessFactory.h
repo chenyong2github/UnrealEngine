@@ -4,7 +4,8 @@
 
 #include "LoudnessAnalyzer.h"
 #include "IAudioAnalyzerInterface.h"
-#include "DSP/SlidingWindow.h"
+
+namespace Audio { template <typename InSampleType> class TSlidingBuffer; }
 
 namespace Audio
 {
@@ -106,3 +107,7 @@ namespace Audio
 	};
 }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DSP/SlidingWindow.h"
+#endif

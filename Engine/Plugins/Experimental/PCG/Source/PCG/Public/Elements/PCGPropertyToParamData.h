@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "PCGElement.h"
+#include "PCGPin.h"
 #include "PCGSettings.h"
 #include "Elements/PCGActorSelector.h"
 

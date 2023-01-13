@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "EditorSubsystem.h"
-#include "Engine/EngineTypes.h"
-#include "TickableEditorObject.h"
-#include "WaterModule.h"
+#include "WaterEditorServices.h"
 #include "WaterEditorSubsystem.generated.h"
 
 class AWaterZone;
@@ -44,3 +40,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTexture2D> ErrorSprite;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "TickableEditorObject.h"
+#include "WaterModule.h"
+#endif

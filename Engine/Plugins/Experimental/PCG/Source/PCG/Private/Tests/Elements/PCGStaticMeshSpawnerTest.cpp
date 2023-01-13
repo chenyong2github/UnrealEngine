@@ -9,7 +9,6 @@
 #include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
 
-#include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 #include "MeshSelectors/PCGMeshSelectorByAttribute.h"
 #include "MeshSelectors/PCGMeshSelectorWeightedByCategory.h"

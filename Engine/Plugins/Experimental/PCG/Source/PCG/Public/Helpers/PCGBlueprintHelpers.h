@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Math/RandomStream.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
-#include "PCGPoint.h"
-#include "PCGContext.h"
 
+#include "Math/Box.h"
 #include "PCGBlueprintHelpers.generated.h"
+
+class UPCGComponent;
+struct FPCGContext;
+struct FPCGLandscapeLayerWeight;
+struct FPCGPoint;
 
 class UPCGSettings;
 class UPCGData;
@@ -75,3 +77,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Helpers", meta = (ScriptMethod))
 	static TArray<FPCGLandscapeLayerWeight> GetInterpolatedPCGLandscapeLayerWeights(UObject* WorldContextObject, const FVector& Location);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Math/RandomStream.h"
+#include "PCGContext.h"
+#include "PCGPoint.h"
+#endif

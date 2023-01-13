@@ -1,15 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "AITypes.h"
 #include "NavCorridor.h"
 #include "GameplayTask.h"
 #include "GameplayTaskTransition.h"
 #include "GameplayActuationState.h"
 #include "GameplayActuationStateProvider.h"
-#include "Templates/SharedPointer.h"
 #include "GameplayInteractionsTypes.h"
+#include "NavigationData.h"
 #include "GameplayTask_MoveTo.generated.h"
 
 class UCharacterMovementComponent;

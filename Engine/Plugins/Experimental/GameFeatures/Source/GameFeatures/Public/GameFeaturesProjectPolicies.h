@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/PrimaryAssetId.h"
 #include "GameFeaturesSubsystem.h"
 
@@ -60,3 +59,7 @@ public:
 	virtual const TArray<FName> GetPreloadBundleStateForGameFeature() const override;
 	//~End of UGameFeaturesProjectPolicies interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

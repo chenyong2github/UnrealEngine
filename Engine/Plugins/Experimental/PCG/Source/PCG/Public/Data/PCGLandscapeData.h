@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGSurfaceData.h"
 
 #include "PCGLandscapeData.generated.h"
+
+class UPCGSpatialData;
+struct FPCGProjectionParams;
 
 class ALandscapeProxy;
 class ULandscapeInfo;
@@ -73,3 +75,7 @@ private:
 	TArray<TPair<FBox, ULandscapeInfo*>> LandscapeInfos;
 	UPCGLandscapeCache* LandscapeCache = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

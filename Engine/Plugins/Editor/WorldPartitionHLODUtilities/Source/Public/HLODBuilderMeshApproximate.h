@@ -7,6 +7,8 @@
 
 #include "HLODBuilderMeshApproximate.generated.h"
 
+class UMaterialInterface;
+
 class UMaterial;
 
 

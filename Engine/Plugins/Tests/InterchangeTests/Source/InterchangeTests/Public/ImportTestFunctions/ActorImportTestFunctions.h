@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
 #include "ActorImportTestFunctions.generated.h"
 
 class AActor;
@@ -24,3 +23,7 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckImportedActorCount(const TArray<AActor*>& Actors, int32 ExpectedNumberOfImportedActors);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTestFunction.h"
+#endif

@@ -2,8 +2,6 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
-#include "Containers/Array.h"
-#include "UObject/Object.h"
 #include "AudioParameter.h"
 #include "AudioParameterControllerInterface.h"
 #include "Audio/ActorSoundParameterInterface.h"

@@ -7,6 +7,10 @@
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_StrideWarping.generated.h"
 
+struct FAnimationInitializeContext;
+struct FComponentSpacePoseContext;
+struct FNodeDebugData;
+
 // Foot definition specifying the IK/FK foot bones and Thigh bone
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMATIONWARPINGRUNTIME_API FStrideWarpingFootDefinition

@@ -2,24 +2,12 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Layout/Visibility.h"
-#include "Math/Color.h"
-#include "Math/Vector2D.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMesh.h"
 #include "SGraphNode.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "CustomizableObjectNodeStaticMesh.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class FAssetThumbnail;

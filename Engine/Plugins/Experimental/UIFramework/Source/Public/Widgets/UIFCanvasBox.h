@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "Layout/Margin.h"
 #include "Types/UIFSlotBase.h"
 #include "UIFWidget.h"
 #include "Widgets/Layout/Anchors.h"
 
 #include "UIFCanvasBox.generated.h"
+
+struct FUIFrameworkWidgetId;
 
 class UUIFrameworkCanvasBox;
 

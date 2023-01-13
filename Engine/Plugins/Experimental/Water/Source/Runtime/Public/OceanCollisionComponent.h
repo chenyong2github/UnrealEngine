@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Components/ShapeComponent.h"
 #include "Components/BoxComponent.h"
-#include "PhysicsEngine/ConvexElem.h"
 #include "OceanCollisionComponent.generated.h"
+
+struct FKConvexElem;
 
 UCLASS(ClassGroup = (Custom))
 class WATER_API UOceanCollisionComponent : public UPrimitiveComponent
@@ -53,3 +51,8 @@ public:
 	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PhysicsEngine/ConvexElem.h"
+#endif

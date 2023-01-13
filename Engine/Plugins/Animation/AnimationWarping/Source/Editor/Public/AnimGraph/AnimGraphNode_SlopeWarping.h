@@ -7,6 +7,8 @@
 
 #include "AnimGraphNode_SlopeWarping.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 UCLASS(Experimental)
 class ANIMATIONWARPINGEDITOR_API UAnimGraphNode_SlopeWarping : public UAnimGraphNode_SkeletalControlBase
 {

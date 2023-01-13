@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
-#include "Input/Reply.h"
+
+class FReply;
 
 class UToolMenu;
 class SWindow;
@@ -249,3 +249,8 @@ private:
 	/** */
 	int32 ChunkIDSelected = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Input/Reply.h"
+#endif

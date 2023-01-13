@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "FunctionalTest.h"
 #include "ScreenshotFunctionalTest.h"
 #include "EditorFunctionalTest.generated.h"
 

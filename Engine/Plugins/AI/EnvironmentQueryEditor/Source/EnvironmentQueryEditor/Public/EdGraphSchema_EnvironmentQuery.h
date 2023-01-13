@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "AIGraphTypes.h"
-#include "EdGraph/EdGraphSchema.h"
 #include "AIGraphSchema.h"
 #include "EdGraphSchema_EnvironmentQuery.generated.h"
+
+struct FGraphContextMenuBuilder;
+struct FPinConnectionResponse;
 
 class UEdGraph;
 
@@ -27,3 +26,8 @@ class UEdGraphSchema_EnvironmentQuery : public UAIGraphSchema
 	virtual void GetSubNodeClasses(int32 SubNodeFlags, TArray<FGraphNodeClassData>& ClassData, UClass*& GraphNodeClass) const override;
 	//~ End UAIGraphSchema Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AIGraphTypes.h"
+#include "CoreMinimal.h"
+#endif

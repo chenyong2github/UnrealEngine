@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/PrimitiveComponent.h"
+#include "Physics/PhysicsInterfaceTypes.h"
 #include "ImagePlateComponent.generated.h"
+
+class UMaterialInstanceDynamic;
 
 class FPrimitiveSceneProxy;
 class UImagePlateFrustumComponent;
@@ -144,3 +145,7 @@ private:
 	TObjectPtr<UImagePlateFrustumComponent> EditorFrustum;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

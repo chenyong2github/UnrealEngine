@@ -3,8 +3,6 @@
 #pragma once
 
 
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "AndroidMediaSettings.generated.h"
 

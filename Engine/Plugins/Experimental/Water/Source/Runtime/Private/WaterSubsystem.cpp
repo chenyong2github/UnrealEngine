@@ -23,8 +23,9 @@
 #if WITH_EDITOR
 #include "WaterZoneActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
-
 extern UNREALED_API UEditorEngine* GEditor;
+#else
+#include "BuoyancyTypes.h"
 #endif // WITH_DITOR
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSubsystem)

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "IPropertyTypeCustomization.h"
-#include "GameplayTagContainer.h"
-#include "GameplayTagCustomizationOptions.h"
-#include "GameplayTagContainerCustomizationOptions.h"
+
+class IPropertyTypeCustomization;
+struct FGameplayTag;
+struct FGameplayTagContainer;
+struct FGameplayTagContainerCustomizationOptions;
+struct FGameplayTagCustomizationOptions;
 
 DECLARE_DELEGATE_OneParam(FOnSetGameplayTag, const FGameplayTag&);
 DECLARE_DELEGATE_OneParam(FOnSetGameplayTagContainer, const FGameplayTagContainer&);
@@ -97,3 +97,11 @@ struct GAMEPLAYTAGSEDITOR_API FRestrictedGameplayTagCustomizationPublic
 {
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "GameplayTagContainerCustomizationOptions.h"
+#include "GameplayTagCustomizationOptions.h"
+#include "IPropertyTypeCustomization.h"
+#endif

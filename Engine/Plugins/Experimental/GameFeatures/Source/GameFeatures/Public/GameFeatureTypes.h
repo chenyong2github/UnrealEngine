@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "GameFeatureTypesFwd.h"
 #include "Misc/EnumRange.h"
+
+class FString;
 
 #define GAME_FEATURE_PLUGIN_STATE_LIST(XSTATE)	\
 	XSTATE(Uninitialized,				NSLOCTEXT("GameFeatures", "UninitializedStateDisplayName", "Uninitialized"))								/* Unset. Not yet been set up. */ \
@@ -64,3 +65,7 @@ enum class EGameFeaturePluginProtocol : uint8
 #undef GAME_FEATURE_PLUGIN_PROTOCOL_ENUM
 
 ENUM_RANGE_BY_COUNT(EGameFeaturePluginProtocol, EGameFeaturePluginProtocol::Count);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFeatureTypesFwd.h"
+#endif

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Channels/RemoteSessionImageChannel.h"
 #include "MediaCapture.h"
-#include "MediaOutput.h"
 #include "RemoteSessionMediaOutput.generated.h"
+
+class FRemoteSessionImageChannel;
 
 UCLASS(BlueprintType)
 class REMOTESESSION_API URemoteSessionMediaOutput : public UMediaOutput
@@ -52,3 +52,7 @@ private:
 
 	TSharedPtr<FRemoteSessionImageChannel> ImageChannel;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Channels/RemoteSessionImageChannel.h"
+#endif

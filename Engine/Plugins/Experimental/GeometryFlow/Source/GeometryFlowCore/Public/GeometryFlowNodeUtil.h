@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "GeometryFlowCoreNodes.h"
-#include "GeometryFlowMovableData.h"
+#include "GeometryFlowNode.h"
+
+namespace UE::GeometryFlow { template <typename T, int32 DataTypeIdentifier> class TMovableData; }
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TBasicNodeInput; }
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TBasicNodeOutput; }
 
 namespace UE
 {
@@ -58,3 +61,8 @@ EGeometryFlowResult ExtractData(TSafeSharedPtr<IData> Data,
 
 }	// end namespace GeometryFlow
 }	// end n
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowCoreNodes.h"
+#include "GeometryFlowMovableData.h"
+#endif

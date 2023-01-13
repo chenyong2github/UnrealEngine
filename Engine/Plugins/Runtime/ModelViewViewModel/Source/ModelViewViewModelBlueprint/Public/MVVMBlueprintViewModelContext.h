@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
 #include "MVVMViewModelBase.h"
 
@@ -132,3 +130,7 @@ struct TStructOpsTypeTraits<FMVVMBlueprintViewModelContext> : public TStructOpsT
 		WithPostSerialize = true,
 	};
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "WaterBodyTypes.h"
 #include "BuoyancyTypes.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "DrawDebugHelpers.h"
 #include "Chaos/Particle/ParticleUtilities.h"
-#include "Kismet/KismetMathLibrary.h"
 
 // Frequently accessed runtime physical values
 struct FBuoyancyPhysicsState
@@ -611,3 +609,7 @@ public:
 		}
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Kismet/KismetMathLibrary.h"
+#endif

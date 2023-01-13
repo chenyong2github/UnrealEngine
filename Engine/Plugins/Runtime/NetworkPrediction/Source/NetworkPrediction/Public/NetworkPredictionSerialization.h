@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Net/UnrealNetwork.h" // For MakeRelative
+#include "NetworkPredictionReplicationProxy.h"
 #include "NetworkPredictionTickState.h"
-#include "Serialization/Archive.h"
 #include "NetworkPredictionTrace.h"
 #include "Services/NetworkPredictionInstanceData.h"
+#include "UObject/CoreNet.h"
 
 #define NETSIM_ENABLE_CHECKSUMS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #if NETSIM_ENABLE_CHECKSUMS 

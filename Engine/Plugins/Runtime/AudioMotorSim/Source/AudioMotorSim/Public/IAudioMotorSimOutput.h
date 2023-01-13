@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "UObject/Interface.h"
 #include "IAudioMotorSimOutput.generated.h"
+
+struct FAudioMotorSimInputContext;
+struct FAudioMotorSimRuntimeContext;
 
 UINTERFACE()
 class UAudioMotorSimOutput : public UInterface
@@ -21,3 +23,7 @@ public:
 	virtual void StartOutput() = 0;
 	virtual void StopOutput() = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

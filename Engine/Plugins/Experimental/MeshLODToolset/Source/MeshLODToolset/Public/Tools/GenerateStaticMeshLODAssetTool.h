@@ -2,17 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
-#include "InteractiveToolBuilder.h"
-#include "ModelingOperators.h" //IDynamicMeshOperatorFactory
-#include "DynamicMesh/DynamicMesh3.h"
-#include "PreviewMesh.h"
-#include "Drawing/PreviewGeometryActor.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Graphs/GenerateStaticMeshLODProcess.h"
-#include "Physics/CollisionPropertySets.h"
 #include "GenerateStaticMeshLODAssetTool.generated.h"
+
+class UCollisionGeometryVisualizationProperties;
+class UPhysicsObjectToolPropertySet;
+class UPreviewGeometry;
+namespace UE::Geometry { class IDynamicMeshOperatorFactory; }
 
 
 // predeclarations
@@ -345,3 +343,12 @@ protected:
 
 	bool ValidateSettings() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Drawing/PreviewGeometryActor.h"
+#include "ModelingOperators.h" //IDynamicMeshOperatorFactory
+#include "Physics/CollisionPropertySets.h"
+#include "PreviewMesh.h"
+#include "UObject/NoExportTypes.h"
+#endif

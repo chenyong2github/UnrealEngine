@@ -2,15 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 
-#include "FieldNotification/FieldId.h"
-#include "FieldNotification/FieldNotificationDeclaration.h"
-#include "FieldNotification/FieldMulticastDelegate.h"
-#include "FieldNotification/IFieldValueChanged.h"
-#include "Types/MVVMAvailableBinding.h"
-#include "Types/MVVMBindingName.h"
+#include "FieldNotification/IClassDescriptor.h"
 #include "ViewModel/MVVMFieldNotificationDelegates.h"
 
 #include "MVVMViewModelBase.generated.h"
@@ -82,3 +75,10 @@ private:
 private:
 	UE::MVVM::FMVVMFieldNotificationDelegates NotificationDelegates;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "FieldNotification/FieldNotificationDeclaration.h"
+#include "Types/MVVMAvailableBinding.h"
+#include "Types/MVVMBindingName.h"
+#endif

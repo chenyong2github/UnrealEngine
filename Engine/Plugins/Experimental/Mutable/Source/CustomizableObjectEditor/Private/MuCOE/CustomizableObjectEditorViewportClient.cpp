@@ -13,7 +13,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "ContentBrowserModule.h"
 #include "DynamicMeshBuilder.h"
-#include "EdGraph/EdGraph.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Editor/UnrealEdTypes.h"
 #include "EditorModeManager.h"

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "Online/Auth.h"
 #include "Online/OnlineServices.h"
 
@@ -88,3 +86,7 @@ inline IOnlineServicesPtr GetServices(const UWorld* World, EOnlineServices Onlin
 }
 
 /* UE::Online */ }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

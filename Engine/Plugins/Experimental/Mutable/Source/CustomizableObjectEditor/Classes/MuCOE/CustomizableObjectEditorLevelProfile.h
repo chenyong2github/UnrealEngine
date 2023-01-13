@@ -4,7 +4,6 @@
 
 
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 
 struct FPreviewSceneProfile;
 
@@ -38,3 +37,7 @@ public:
 										FPreviewSceneProfile& PreviewSceneProfile);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/UnrealString.h"
+#endif

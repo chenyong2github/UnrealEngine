@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "MVVMViewModelBase.h"
 #include "MVVMViewModelContext.h"
 
 #include "MVVMViewModelContextInstance.generated.h"
@@ -55,3 +55,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMVVMViewModelBase> Instance = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

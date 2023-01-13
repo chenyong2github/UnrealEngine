@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MuR/System.h"
 #include "MuR/Mesh.h"
 
 class USkeletalMesh;
@@ -28,3 +27,7 @@ namespace MutableMeshPreviewUtils
 		mu::MeshPtrConst InMutableMesh, const USkeletalMesh* InReferenceSkeletalMesh);
 
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuR/System.h"
+#endif

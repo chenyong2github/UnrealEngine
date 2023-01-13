@@ -3,7 +3,6 @@
 #include "GameFeatureAction_DataRegistry.h"
 #include "AssetRegistry/AssetBundleData.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "DataRegistry.h"
 #include "GameFeaturesSubsystem.h"
 #include "DataRegistrySubsystem.h"
 

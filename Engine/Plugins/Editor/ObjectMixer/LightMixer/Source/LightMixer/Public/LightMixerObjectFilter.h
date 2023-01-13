@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "Components/LightComponent.h"
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
 #include "Engine/Light.h"
-#include "GameFramework/Actor.h"
 
 #include "LightMixerObjectFilter.generated.h"
 

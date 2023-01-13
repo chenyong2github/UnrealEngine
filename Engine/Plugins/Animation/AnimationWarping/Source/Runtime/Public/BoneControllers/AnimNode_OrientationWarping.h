@@ -6,6 +6,10 @@
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_OrientationWarping.generated.h"
 
+struct FAnimationInitializeContext;
+struct FComponentSpacePoseContext;
+struct FNodeDebugData;
+
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNode_SkeletalControlBase
 {

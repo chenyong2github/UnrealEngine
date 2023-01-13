@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "NaniteDisplacedMesh.h"
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
-#include "Misc/Attribute.h"
-#include "PropertyHandle.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+class FReply;
+class IPropertyHandle;
+struct FNaniteDisplacedMeshParams;
+template <typename ObjectType> class TAttribute;
 
 class UNaniteDisplacedMesh;
 
@@ -41,3 +39,10 @@ private:
 private:
 	TArray<TPair<TWeakObjectPtr<UNaniteDisplacedMesh>, FNaniteDisplacedMeshParams>> CustomizedPairs;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/Reply.h"
+#include "Misc/Attribute.h"
+#include "NaniteDisplacedMesh.h"
+#include "PropertyHandle.h"
+#endif

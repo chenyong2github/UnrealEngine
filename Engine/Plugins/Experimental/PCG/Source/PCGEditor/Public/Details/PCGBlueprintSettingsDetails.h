@@ -3,14 +3,10 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "IPropertyTypeCustomization.h"
-#include "Input/Reply.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
-#include "PCGSettings.h"
-#include "Elements/PCGExecuteBlueprint.h"
+
+class FReply;
 
 class IDetailLayoutBuilder;
 class UFunction;
@@ -35,3 +31,10 @@ private:
 private:
 	TWeakObjectPtr<UPCGBlueprintElement> SelectedObject;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Elements/PCGExecuteBlueprint.h"
+#include "IPropertyTypeCustomization.h"
+#include "Input/Reply.h"
+#include "PCGSettings.h"
+#endif

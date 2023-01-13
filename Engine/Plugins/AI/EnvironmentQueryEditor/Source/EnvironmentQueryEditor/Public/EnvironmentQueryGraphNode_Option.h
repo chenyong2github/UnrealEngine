@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EnvironmentQueryGraphNode.h"
 #include "EnvironmentQueryGraphNode_Option.generated.h"
 
@@ -36,3 +34,7 @@ protected:
 
 	virtual void ResetNodeOwner() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

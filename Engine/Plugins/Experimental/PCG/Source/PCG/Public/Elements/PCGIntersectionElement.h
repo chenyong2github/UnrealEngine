@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGElement.h"
 #include "PCGSettings.h"
 #include "Data/PCGIntersectionData.h"
 
@@ -45,3 +43,7 @@ class FPCGIntersectionElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

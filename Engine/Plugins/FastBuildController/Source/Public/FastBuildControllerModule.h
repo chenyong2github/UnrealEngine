@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
+#include "Async/Future.h"
 #include "Containers/Queue.h"
 #include "DistributedBuildControllerInterface.h"
 

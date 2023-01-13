@@ -4,9 +4,10 @@
 
 //#include "SSourceControlReview.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/StrongObjectPtr.h"
-#include "Widgets/Docking/SDockTab.h"
+
+class FSpawnTabArgs;
+class SDockTab;
+class SWidget;
 
 class UContentBrowserAliasDataSource;
 
@@ -24,3 +25,9 @@ private:
 	TWeakPtr<SDockTab> ReviewTab;
 	//TWeakPtr<SSourceControlReview> ReviewWidget;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/StrongObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "Widgets/Docking/SDockTab.h"
+#endif

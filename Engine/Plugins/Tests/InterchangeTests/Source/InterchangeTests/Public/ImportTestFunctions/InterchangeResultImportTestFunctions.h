@@ -3,9 +3,11 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
-#include "InterchangeResultsContainer.h"
+#include "UObject/Package.h"
 #include "InterchangeResultImportTestFunctions.generated.h"
+
+class UInterchangeResult;
+class UInterchangeResultsContainer;
 
 struct FInterchangeTestFunctionResult;
 
@@ -24,3 +26,8 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckIfErrorOrWarningWasGenerated(UInterchangeResultsContainer* ResultsContainer, TSubclassOf<UInterchangeResult> ErrorOrWarningClass);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeResultsContainer.h"
+#include "InterchangeTestFunction.h"
+#endif

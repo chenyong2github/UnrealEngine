@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "AndroidJavaSurfaceViewDevices.generated.h"
 
 USTRUCT()
@@ -29,3 +27,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Matching Rules")
 	TArray<FJavaSurfaceViewDevice> SurfaceViewDevices;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

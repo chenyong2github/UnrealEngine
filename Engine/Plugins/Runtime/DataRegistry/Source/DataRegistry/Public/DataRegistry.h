@@ -7,6 +7,9 @@
 
 #include "DataRegistry.generated.h"
 
+struct FDataRegistryId;
+struct FPropertyChangedEvent;
+
 class UDataRegistrySource;
 struct FDataRegistryCache;
 struct FCachedDataRegistryItem;

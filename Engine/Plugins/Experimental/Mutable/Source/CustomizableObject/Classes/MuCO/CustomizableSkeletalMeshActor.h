@@ -3,13 +3,10 @@
 #pragma once
 
 #include "Animation/SkeletalMeshActor.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableSkeletalMeshActor.generated.h"
+
+class UCustomizableSkeletalComponent;
 
 class UObject;
 

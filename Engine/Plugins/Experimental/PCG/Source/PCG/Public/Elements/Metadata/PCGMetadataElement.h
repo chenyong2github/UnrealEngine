@@ -2,9 +2,8 @@
 
 #pragma once
 
+#include "PCGPin.h"
 #include "PCGSettings.h"
-#include "PCGElement.h"
-#include "PCGPoint.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 
 #include "PCGMetadataElement.generated.h"

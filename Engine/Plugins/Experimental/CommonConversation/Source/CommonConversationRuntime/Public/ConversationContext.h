@@ -4,7 +4,6 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ConversationParticipantComponent.h"
-#include "UObject/Class.h"
 
 #include "ConversationContext.generated.h"
 

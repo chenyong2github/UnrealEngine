@@ -4,7 +4,6 @@
 
 #if WITH_EDITOR
 
-#include "CoreMinimal.h"
 #include "PluginDescriptor.h"
 #include "ModuleDescriptor.h"
 
@@ -396,3 +395,7 @@ public:
 };
 
 #endif //if WITH_EDITOR
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

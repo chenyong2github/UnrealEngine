@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGDistance.h"
+#include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Math/Box2D.h"
 #include "Data/PCGPointData.h"
+#include "PCGContext.h"
+#include "PCGPin.h"
 
 namespace PCGDistance
 {

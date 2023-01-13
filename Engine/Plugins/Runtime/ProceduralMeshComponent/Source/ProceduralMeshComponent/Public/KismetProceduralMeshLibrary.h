@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "ProceduralMeshComponent.h"
 #include "KismetProceduralMeshLibrary.generated.h"
+
+class UMaterialInterface;
+class UProceduralMeshComponent;
+struct FProcMeshTangent;
 
 class UStaticMesh;
 class UStaticMeshComponent;
@@ -105,3 +106,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|ProceduralMesh")
 	static void SliceProceduralMesh(UProceduralMeshComponent* InProcMesh, FVector PlanePosition, FVector PlaneNormal, bool bCreateOtherHalf, UProceduralMeshComponent*& OutOtherHalfProcMesh, EProcMeshSliceCapOption CapOption, UMaterialInterface* CapMaterial);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ProceduralMeshComponent.h"
+#endif

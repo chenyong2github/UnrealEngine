@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 
 #include "MVVMBindingName.generated.h"
 
@@ -58,3 +56,7 @@ private:
 	UPROPERTY(EditAnywhere, Category="MVVM")
 	FName BindingName;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

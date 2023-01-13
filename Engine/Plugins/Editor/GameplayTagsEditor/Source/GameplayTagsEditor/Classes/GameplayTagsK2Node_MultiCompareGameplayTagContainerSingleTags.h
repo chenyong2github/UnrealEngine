@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameplayTagsK2Node_MultiCompareBase.h"
 #include "GameplayTagsK2Node_MultiCompareGameplayTagContainerSingleTags.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FBlueprintActionDatabaseRegistrar;
 class UEdGraph;
@@ -29,3 +29,7 @@ private:
 
 	virtual void AddPinToSwitchNode() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

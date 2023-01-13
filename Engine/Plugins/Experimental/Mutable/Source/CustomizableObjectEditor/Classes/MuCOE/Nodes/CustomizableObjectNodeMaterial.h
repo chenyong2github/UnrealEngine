@@ -2,27 +2,13 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "MaterialTypes.h"
-#include "Math/Color.h"
-#include "Misc/Guid.h"
-#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableObjectNodeMaterial.generated.h"
+
+enum class EMaterialParameterType : uint8;
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class SGraphNode;
@@ -362,3 +348,8 @@ class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMaterialPinDataScalar 
 {
 	GENERATED_BODY()
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MaterialTypes.h"
+#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
+#endif

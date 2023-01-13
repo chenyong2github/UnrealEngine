@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "Math/InterpCurve.h"
 #include "GerstnerWaterWaves.h"
 #include "Components/SplineComponent.h"
 #include "WaterBodyTypes.generated.h"
@@ -206,3 +202,7 @@ struct FSolverSafeWaterBodyData
 };
 
 /* async structs end here */
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

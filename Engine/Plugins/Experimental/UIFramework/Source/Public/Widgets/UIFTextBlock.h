@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "Framework/Text/TextLayout.h"
+#include "Styling/SlateTypes.h"
 #include "UIFWidget.h"
 
 #include "UIFTextBlock.generated.h"
+
+namespace ETextJustify { enum Type : int; }
 
 class UTextBlock;
 
@@ -151,3 +153,7 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_ShadowColor)
 	FLinearColor ShadowColor = FLinearColor::Black;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Framework/Text/TextLayout.h"
+#endif

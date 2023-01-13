@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "GeometryCollection/GeometryCollection.h"
-#include "Dataflow/DataflowSelection.h"
+#include "Containers/ContainersFwd.h" // IWYU pragma: keep
+
+class FGeometryCollection;
+struct FManagedArrayCollection;
 
 class FRACTUREENGINE_API FFractureEngineEdit
 {
@@ -18,3 +20,9 @@ public:
 	static void Merge(FGeometryCollection& GeometryCollection, const TArray<int32>& InBoneSelection);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/Array.h"
+#include "Dataflow/DataflowSelection.h"
+#include "GeometryCollection/GeometryCollection.h"
+#endif

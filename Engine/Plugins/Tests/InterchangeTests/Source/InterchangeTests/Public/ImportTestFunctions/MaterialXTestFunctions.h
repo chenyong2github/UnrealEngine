@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
+#include "ImportTestFunctions/ImportTestFunctionsBase.h"
 
 #include "MaterialXTestFunctions.generated.h"
+
+class UImportTestFunctionsBase;
+
+struct FInterchangeTestFunctionResult;
 
 class UMaterialInterface;
 
@@ -27,3 +30,8 @@ public:
 	UFUNCTION(Exec, meta = (DisplayName = "MX: Check Input Is Connected"))
 	static FInterchangeTestFunctionResult CheckInputConnected(const UMaterialInterface* MaterialInterface, const FString& InputName, bool bIsConnected);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ImportTestFunctionsBase.h"
+#include "InterchangeTestFunction.h"
+#endif

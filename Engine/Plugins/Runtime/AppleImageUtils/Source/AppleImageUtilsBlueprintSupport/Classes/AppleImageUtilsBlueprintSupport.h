@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_BaseAsyncTask.h"
 
 #include "AppleImageUtilsBlueprintSupport.generated.h"
@@ -35,3 +33,7 @@ class APPLEIMAGEUTILSBLUEPRINTSUPPORT_API UK2Node_ConvertToPNG :
 {
 	GENERATED_UCLASS_BODY()
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

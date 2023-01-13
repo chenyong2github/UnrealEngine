@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "AssetRegistry/ARFilter.h"
 #include "ContentBrowserDataSource.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
-#include "UObject/GCObject.h"
+#include "ContentBrowserDataFilter.h"
 #include "Misc/NamePermissionList.h"
 #include "ContentBrowserDataMenuContexts.h"
-#include "ContentBrowserAssetDataPayload.h"
-#include "Input/Reply.h"
 #include "ContentBrowserAssetDataSource.generated.h"
+
+class FContentBrowserAssetFileItemDataPayload;
+class FContentBrowserAssetFolderItemDataPayload;
+class FReply;
+struct FPropertyChangedEvent;
 
 class IAssetTools;
 class IAssetTypeActions;
@@ -378,3 +382,10 @@ private:
 	 */
 	TSet<FName> VisitedEmptyAssetFolders;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContentBrowserAssetDataPayload.h"
+#include "CoreMinimal.h"
+#include "Input/Reply.h"
+#include "UObject/GCObject.h"
+#endif

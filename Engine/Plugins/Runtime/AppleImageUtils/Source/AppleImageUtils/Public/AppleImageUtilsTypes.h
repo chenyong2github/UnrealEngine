@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
 #if PLATFORM_MAC || PLATFORM_IOS
 	#import <CoreVideo/CoreVideo.h>
@@ -64,3 +62,7 @@ public:
 	virtual id<MTLTexture> GetMetalTexture() const { return nullptr; }
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

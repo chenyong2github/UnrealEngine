@@ -3,8 +3,6 @@
 #pragma once
 
 #include "SViewportToolBar.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SCustomizableObjectEditorTransformViewportToolbar : public SViewportToolBar
 {

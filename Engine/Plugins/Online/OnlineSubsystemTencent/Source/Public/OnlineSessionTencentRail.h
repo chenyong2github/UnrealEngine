@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
+#if WITH_TENCENT_RAIL_SDK
+
 #include "OnlineSessionTencent.h"
 #include "OnlineSubsystemTencentTypes.h"
 #include "OnlineSubsystemTencentPackage.h"
-
-#if WITH_TENCENT_RAIL_SDK
 
 class FOnlineSubsystemTencent;
 class FUniqueNetIdRail;

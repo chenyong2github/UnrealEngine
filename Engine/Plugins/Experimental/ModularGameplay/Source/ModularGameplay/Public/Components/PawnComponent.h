@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "GameFramework/Pawn.h"
 #include "GameFrameworkComponent.h"
+#include "GameFramework/Pawn.h" // IWYU pragma: keep
 #include "PawnComponent.generated.h"
+
+class APlayerState;
 
 /**
  * PawnComponent is an actor component made for APawn and receives pawn events.

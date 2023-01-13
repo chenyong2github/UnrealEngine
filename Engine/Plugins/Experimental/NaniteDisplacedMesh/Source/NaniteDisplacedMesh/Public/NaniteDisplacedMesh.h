@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/QueuedThreadPool.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "RenderCommandFence.h"
-#include "Rendering/NaniteResources.h"
-#include "UObject/ObjectMacros.h"
 #include "StaticMeshResources.h"
 
 #include "NaniteDisplacedMesh.generated.h"
+
+class FQueuedThreadPool;
+enum class EQueuedWorkPriority : uint8;
+struct FPropertyChangedEvent;
 
 class FNaniteBuildAsyncCacheTask;
 class UNaniteDisplacedMesh;
@@ -241,3 +242,7 @@ private:
 #endif
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/QueuedThreadPool.h"
+#endif

@@ -1,9 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "IPluginWizardDefinition.h"
+#include "Styling/SlateTypes.h"
 
 /**
  * New plugin wizard definition used by PluginBrowser

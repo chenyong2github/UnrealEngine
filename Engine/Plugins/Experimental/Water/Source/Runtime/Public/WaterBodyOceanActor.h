@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "WaterBodyActor.h"
 #include "WaterBodyOceanActor.generated.h"
 
@@ -40,3 +39,7 @@ protected:
 	FVector CollisionExtents_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

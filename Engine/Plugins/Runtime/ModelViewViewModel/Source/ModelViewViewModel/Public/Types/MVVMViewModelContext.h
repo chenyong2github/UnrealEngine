@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 
-#include "MVVMViewModelBase.h"
 
 #include "MVVMViewModelContext.generated.h"
 
@@ -31,3 +29,8 @@ public:
 	bool IsCompatibleWith(const TSubclassOf<UMVVMViewModelBase>& OtherClass) const;
 	bool IsCompatibleWith(const UMVVMViewModelBase* Other) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MVVMViewModelBase.h"
+#endif

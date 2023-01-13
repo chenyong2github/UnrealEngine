@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "OodleNetworkHandlerComponent.h"
 #include "Commandlets/Commandlet.h"
 
+#include "OodleNetworkArchives.h"
 #include "OodleNetworkTrainerCommandlet.generated.h"
 
 // don't compile this in for non-editor
@@ -327,4 +325,9 @@ private:
 	 */
 	void Cleanup();
 };
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OodleNetworkHandlerComponent.h"
 #endif

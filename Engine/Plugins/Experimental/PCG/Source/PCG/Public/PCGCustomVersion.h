@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "HAL/Platform.h"
+
+struct FGuid;
 
 // Custom serialization version for assets/classes in the PCG plugin
 struct PCG_API FPCGCustomVersion
@@ -36,3 +37,8 @@ struct PCG_API FPCGCustomVersion
 private:
 	FPCGCustomVersion() {}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/Guid.h"
+#endif

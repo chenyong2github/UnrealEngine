@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "NetworkPredictionDriver.h"
+#include "NetworkPredictionUtil.h"
+#include "Services/NetworkPredictionInstanceData.h"
+
 class IFinalizeService
 {
 public:

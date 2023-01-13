@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "AssetRegistry/AssetData.h"
 #include "DataRegistry.h"
-#include "Templates/SubclassOf.h"
 
+#include "Engine/AssetManagerTypes.h"
+#include "UObject/Package.h"
 #include "DataRegistrySource.generated.h"
+
+enum class EDataRegistryAcquireStatus : uint8;
+enum class EDataRegistryAvailability : uint8;
+struct FDataRegistrySourceAcquireRequest;
+template <typename T> class TSubclassOf;
 
 /** Specifies a source for DataRegistry items, which is an interface that provides asynchronous access to individual structs */
 UCLASS(Abstract, EditInlineNew, DefaultToInstanced, Within = DataRegistry, CollapseCategories)
@@ -175,3 +180,8 @@ protected:
 	FDelegateHandle NewAssetSearchRootHandle;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "Templates/SubclassOf.h"
+#endif

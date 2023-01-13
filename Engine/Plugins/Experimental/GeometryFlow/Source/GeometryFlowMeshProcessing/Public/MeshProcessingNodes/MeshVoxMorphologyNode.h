@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Generators/MeshShapeGenerator.h"
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Implicit/Morphology.h"

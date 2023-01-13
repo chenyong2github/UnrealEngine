@@ -5,20 +5,20 @@
 #include "EdGraph/EdGraphPin.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 
-#include "MuCO/ICustomizableObjectModule.h"
-#include "Runtime/Launch/Resources/Version.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Framework/Commands/InputChord.h"
 
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "Materials/Material.h"
-#include "UObject/UnrealType.h"
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/DataTable.h"
+#include <exception>
 #include <functional>
+
+class FPositionVertexBuffer;
+class FStaticMeshVertexBuffer;
 
 //---------------------------------------------------------------
 // Helpers to ease portability across unreal engine versions
@@ -122,3 +122,9 @@ inline UAssetEditorSubsystem* Helper_GetEditorSubsystem()
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Framework/Commands/InputChord.h"
+#include "MuCO/ICustomizableObjectModule.h"
+#include "Runtime/Launch/Resources/Version.h"
+#endif

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "AIGraphNode.h"
 #include "EnvironmentQueryGraphNode.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class UEdGraphSchema;
 
@@ -30,3 +30,7 @@ class UEnvironmentQueryGraphNode : public UAIGraphNode
 
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* DesiredSchema) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

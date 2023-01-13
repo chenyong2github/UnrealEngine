@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
-#include "Containers/ArrayView.h"
 #include "OnlineBeacon.h"
 #include "OnlineBeaconClient.generated.h"
+
+struct FEncryptionKeyResponse;
+struct FURL;
 
 class AOnlineBeaconHostObject;
 class FInBunch;
@@ -242,3 +241,7 @@ inline const TCHAR* ToString(EBeaconConnectionState Value)
 	}
 	return TEXT("");
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

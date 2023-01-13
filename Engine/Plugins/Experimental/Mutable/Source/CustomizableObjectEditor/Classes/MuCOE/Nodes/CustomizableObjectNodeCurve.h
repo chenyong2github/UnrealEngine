@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeCurve.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCurveBase;

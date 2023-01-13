@@ -2,7 +2,6 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeUseMaterial.h"
 
-#include "EdGraph/EdGraph.h"
 #include "MuCOE/CustomizableObjectPin.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/ICustomizableObjectEditor.h"

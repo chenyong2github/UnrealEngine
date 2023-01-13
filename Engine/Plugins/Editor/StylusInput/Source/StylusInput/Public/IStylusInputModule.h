@@ -6,11 +6,14 @@
 
 #include "EditorSubsystem.h"
 #include "TickableEditorObject.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #include "IStylusInputModule.generated.h"
+
+class FSpawnTabArgs;
+class IStylusInputDevice;
+class IStylusMessageHandler;
+class SDockTab;
 
 DEFINE_LOG_CATEGORY_STATIC(LogStylusInput, Log, All);
 
@@ -84,3 +87,7 @@ private:
 
 	TSharedRef<SDockTab> OnSpawnPluginTab(const FSpawnTabArgs& Args);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Widgets/Docking/SDockTab.h"
+#endif

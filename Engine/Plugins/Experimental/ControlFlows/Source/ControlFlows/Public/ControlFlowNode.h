@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Delegates/DelegateCombinations.h"
+#include "Delegates/Delegate.h"
 
 class FControlFlow;
 class FControlFlowNode;
@@ -114,3 +113,7 @@ private:
 
 	TSharedRef<FControlFlowSubTaskBase> FlowTask;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

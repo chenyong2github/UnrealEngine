@@ -2,8 +2,15 @@
 
 #pragma once
 
-#include "Misc/Build.h"
-#include "Trace/Config.h"
+#include "Containers/Map.h"
+
+class UDataSourceFilter;
+class UDataSourceFilterSet;
+enum class ESourceActorFilterOperation;
+enum class EWorldFilterOperation;
+namespace UE::Trace { class FChannel; }
+struct FObjectKey;
+template <class TClass> class TSubclassOf;
 
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define SOURCE_FILTER_TRACE_ENABLED 1
@@ -13,15 +20,7 @@
 
 #if SOURCE_FILTER_TRACE_ENABLED
 
-#include "CoreTypes.h"
-#include "Trace/Trace.h"
-#include "UObject/ObjectKey.h"
-#include "Templates/SubclassOf.h"
 
-#include "ObjectTrace.h"
-#include "DataSourceFiltering.h"
-#include "DataSourceFilter.h"
-#include "DataSourceFilterSet.h"
 
 UE_TRACE_CHANNEL_EXTERN(TraceSourceFiltersChannel)
 
@@ -109,4 +108,13 @@ protected:
 
 #define TRACE_FILTER_IDENTIFIER(Object) 0
 
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataSourceFilter.h"
+#include "DataSourceFilterSet.h"
+#include "DataSourceFiltering.h"
+#include "ObjectTrace.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectKey.h"
 #endif

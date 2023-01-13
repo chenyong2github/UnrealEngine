@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "PCGSettings.h"
 
 #include "PCGEditorSettings.generated.h"
+
+class UPCGSettings;
 
 struct FEdGraphPinType;
 
@@ -145,3 +145,8 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = Workflow)
 	bool bGenerateOnDrop = true;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGSettings.h"
+#endif

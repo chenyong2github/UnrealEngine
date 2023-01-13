@@ -6,7 +6,6 @@
 
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
-#include "Tests/AutomationCommon.h"
 
 class UPCGComponent;
 class UPCGParamData;
@@ -73,3 +72,7 @@ protected:
 	/** Generates all valid input combinations */
 	bool SmokeTestAnyValidInput(UPCGSettings* InSettings, TFunction<bool(const FPCGDataCollection&, const FPCGDataCollection&)> ValidationFn = TFunction<bool(const FPCGDataCollection&, const FPCGDataCollection&)>());
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Tests/AutomationCommon.h"
+#endif

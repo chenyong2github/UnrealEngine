@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ReplicationGraph.h"
 #include "BasicReplicationGraph.generated.h"
+
+struct FNewReplicatedActorInfo;
 
 USTRUCT()
 struct FConnectionAlwaysRelevantNodePair
@@ -64,3 +65,7 @@ public:
 
 	UReplicationGraphNode_AlwaysRelevant_ForConnection* GetAlwaysRelevantNodeForConnection(UNetConnection* Connection);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

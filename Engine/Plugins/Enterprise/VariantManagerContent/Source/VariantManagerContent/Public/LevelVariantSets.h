@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 
 #include "LevelVariantSets.generated.h"
 
@@ -109,3 +107,7 @@ private:
 	// Their lifetimes are guaranteed by spawned ALevelVariantSetsActors
 	TMap<UWorld*, TWeakObjectPtr<UObject>> WorldToDirectorInstance;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

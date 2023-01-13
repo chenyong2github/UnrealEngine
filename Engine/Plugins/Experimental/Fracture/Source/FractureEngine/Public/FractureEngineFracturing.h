@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "Algo/Count.h"
-#include "GeometryCollection/GeometryCollection.h"
-#include "GeometryCollection/ManagedArrayCollection.h"
-#include "Dataflow/DataflowSelection.h"
-#include "CoreMinimal.h"
-#include "Dataflow/DataflowSelection.h"
+#include "Math/Box.h"
+
+struct FDataflowTransformSelection;
+struct FManagedArrayCollection;
 
 
 class FRACTUREENGINE_API FFractureEngineFracturing
@@ -48,3 +46,11 @@ public:
 		float InCollisionSampleSpacing);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Algo/Count.h"
+#include "CoreMinimal.h"
+#include "Dataflow/DataflowSelection.h"
+#include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
+#endif

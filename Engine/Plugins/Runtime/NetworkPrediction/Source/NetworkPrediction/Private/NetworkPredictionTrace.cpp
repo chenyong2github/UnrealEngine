@@ -8,7 +8,6 @@
 #include "NetworkPredictionLog.h"
 #include "Trace/Detail/Field.h"
 #include "Trace/Trace.inl"
-#include "Trace/Detail/Trace.h"
 
 // TODO:
 // Should update string tracing with UE::Trace::AnsiString

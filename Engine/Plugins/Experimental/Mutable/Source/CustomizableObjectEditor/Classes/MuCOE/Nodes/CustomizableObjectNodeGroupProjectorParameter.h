@@ -2,16 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameter.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeGroupProjectorParameter.generated.h"
 

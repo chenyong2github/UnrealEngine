@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Subsystems/EngineSubsystem.h"
-#include "GameFeaturePluginOperationResult.h"
 #include "Engine/Engine.h"
 #include "GameFeatureTypesFwd.h"
 
 #include "GameFeaturesSubsystem.generated.h"
+
+namespace UE::GameFeatures { struct FResult; }
 
 class UGameFeaturePluginStateMachine;
 class IGameFeatureStateChangeObserver;
@@ -624,3 +623,8 @@ private:
 
 	bool bInitializedPolicyManager = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFeaturePluginOperationResult.h"
+#endif

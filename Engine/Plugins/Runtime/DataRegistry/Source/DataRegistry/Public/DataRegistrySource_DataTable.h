@@ -3,8 +3,11 @@
 #pragma once
 
 #include "DataRegistrySource.h"
-#include "Engine/DataTable.h"
+#include "Templates/SubclassOf.h"
 #include "DataRegistrySource_DataTable.generated.h"
+
+class UDataTable;
+struct FStreamableHandle;
 
 /** Rules struct for data table access */
 USTRUCT()
@@ -121,3 +124,7 @@ protected:
 	virtual bool DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset) override;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/DataTable.h"
+#endif

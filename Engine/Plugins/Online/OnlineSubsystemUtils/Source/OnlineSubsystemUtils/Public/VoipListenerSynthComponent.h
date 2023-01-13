@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
-#include "VoicePacketBuffer.h"
-#include "DSP/DynamicsProcessor.h"
-#include "DSP/EQ.h"
 #include "DSP/MultithreadedPatching.h"
 #include "VoipListenerSynthComponent.generated.h"
+
+class FVoicePacketBuffer;
+enum class EVoipStreamDataFormat : uint8;
 
 #define DEBUG_BUFFERING 0
 
@@ -129,3 +128,10 @@ private:
 #endif
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/DynamicsProcessor.h"
+#include "DSP/EQ.h"
+#include "VoicePacketBuffer.h"
+#endif

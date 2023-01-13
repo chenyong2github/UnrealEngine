@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
 #include "Tickable.h"
 
 #include "AppleImageUtilsTypes.h"
 
 #include "AppleImageUtilsBlueprintProxy.generated.h"
+
+class UTexture;
 
 class FAppleImageUtilsConversionTaskBase;
 
@@ -110,3 +108,8 @@ private:
 	/** True until the async task completes, then false */
 	bool bShouldTick;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

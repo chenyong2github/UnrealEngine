@@ -2,13 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
 #include "Interfaces/VoiceInterface.h"
-#include "Net/VoiceDataCommon.h"
 #include "VoicePacketImpl.h"
-#include "OnlineSubsystemUtilsPackage.h"
 
 /**
  * The generic implementation of the voice interface 
@@ -161,3 +156,8 @@ public:
 };
 
 typedef TSharedPtr<FOnlineVoiceImpl, ESPMode::ThreadSafe> FOnlineVoiceImplPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystemTypes.h"
+#endif

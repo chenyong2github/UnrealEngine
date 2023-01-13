@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AESHandlerComponent.h"
+#include "PlatformCryptoTypes.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 

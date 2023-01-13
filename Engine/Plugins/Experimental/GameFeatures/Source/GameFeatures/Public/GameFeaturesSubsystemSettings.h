@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "GameFeatureData.h"
 #include "GameFeaturesSubsystemSettings.generated.h"
 
 /** Settings for the Game Features framework */
@@ -46,3 +44,8 @@ public:
 	bool IsValidGameFeaturePlugin(const FString& PluginDescriptorFilename) const;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFeatureData.h"
+#endif

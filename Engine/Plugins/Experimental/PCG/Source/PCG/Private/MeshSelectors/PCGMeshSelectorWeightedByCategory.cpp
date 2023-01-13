@@ -8,7 +8,6 @@
 #include "Helpers/PCGBlueprintHelpers.h"
 
 #include "Math/RandomStream.h"
-#include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeightedByCategory)

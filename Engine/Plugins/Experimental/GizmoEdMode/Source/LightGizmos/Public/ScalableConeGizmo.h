@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoBuilder.h"
-#include "BaseGizmos/TransformProxy.h"
-#include "BaseGizmos/GizmoActor.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
 
+#include "UObject/Package.h"
 #include "ScalableConeGizmo.generated.h"
+
+class UTransformProxy;
+struct FHitResult;
 
 UCLASS()
 class LIGHTGIZMOS_API UScalableConeGizmoBuilder : public UInteractiveGizmoBuilder
@@ -154,3 +155,9 @@ protected:
 	bool bInputDragCaptured;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BaseGizmos/GizmoActor.h"
+#include "BaseGizmos/TransformProxy.h"
+#include "CoreMinimal.h"
+#endif

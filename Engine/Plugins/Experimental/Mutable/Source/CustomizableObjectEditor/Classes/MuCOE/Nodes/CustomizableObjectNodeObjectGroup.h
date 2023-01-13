@@ -2,17 +2,12 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "MuCO/CustomizableObjectUIData.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeObjectGroup.generated.h"
+
+enum class ECustomizableObjectGroupType : uint8;
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCustomizableObjectNodeRemapPins;

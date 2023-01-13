@@ -3,33 +3,105 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "CascadeToNiagaraConverterModule.h"
-#include "CoreMinimal.h"
 #include "Curves/RichCurve.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/PackageName.h"
 #include "NiagaraEmitter.h"
-#include "NiagaraMessages.h"
-#include "Particles/Acceleration/ParticleModuleAccelerationDragScaleOverLife.h"
-#include "Particles/Acceleration/ParticleModuleAccelerationOverLifetime.h"
-#include "Particles/Attractor/ParticleModuleAttractorParticle.h"
-#include "Particles/Camera/ParticleModuleCameraOffset.h"
-#include "Particles/Collision/ParticleModuleCollisionBase.h"
 #include "Particles/Location/ParticleModuleLocationBoneSocket.h"
-#include "Particles/Location/ParticleModuleLocationPrimitiveCylinder.h"
 #include "Particles/Orbit/ParticleModuleOrbit.h"
-#include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic.h"
 #include "Particles/ParticleEmitter.h"
-#include "Particles/ParticleModuleRequired.h"
-#include "Particles/ParticleSpriteEmitter.h"
-#include "Particles/SubUVAnimation.h"
-#include "Particles/Trail/ParticleModuleTrailSource.h"
-#include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
-#include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
-#include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
-#include "Particles/Velocity/ParticleModuleVelocityInheritParent.h"
-#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.generated.h"
+
+class UDistributionFloatConstantCurve;
+class UDistributionFloatParameterBase;
+class UDistributionFloatUniform;
+class UDistributionFloatUniformCurve;
+class UDistributionVectorConstant;
+class UDistributionVectorConstantCurve;
+class UDistributionVectorParameterBase;
+class UDistributionVectorUniform;
+class UDistributionVectorUniformCurve;
+class UNiagaraDataInterfaceCurve;
+class UNiagaraDataInterfaceVector2DCurve;
+class UNiagaraDataInterfaceVector4Curve;
+class UNiagaraDataInterfaceVectorCurve;
+class UNiagaraEmitterConversionContext;
+class UNiagaraMeshRendererProperties;
+class UNiagaraNodeFunctionCall;
+class UNiagaraRibbonRendererProperties;
+class UParticleModuleAcceleration;
+class UParticleModuleAccelerationConstant;
+class UParticleModuleAccelerationDrag;
+class UParticleModuleAccelerationDragScaleOverLife;
+class UParticleModuleAccelerationOverLifetime;
+class UParticleModuleAttractorLine;
+class UParticleModuleAttractorParticle;
+class UParticleModuleAttractorPoint;
+class UParticleModuleCameraOffset;
+class UParticleModuleCollision;
+class UParticleModuleColor;
+class UParticleModuleColorOverLife;
+class UParticleModuleColorScaleOverLife;
+class UParticleModuleKillBox;
+class UParticleModuleLifetime;
+class UParticleModuleLight;
+class UParticleModuleLocation;
+class UParticleModuleLocationDirect;
+class UParticleModuleLocationPrimitiveBase;
+class UParticleModuleLocationPrimitiveCylinder;
+class UParticleModuleLocationPrimitiveSphere;
+class UParticleModuleMeshMaterial;
+class UParticleModuleMeshRotation;
+class UParticleModuleMeshRotationRate;
+class UParticleModuleMeshRotationRateMultiplyLife;
+class UParticleModuleOrientationAxisLock;
+class UParticleModulePivotOffset;
+class UParticleModuleRotation;
+class UParticleModuleRotationOverLifetime;
+class UParticleModuleRotationRate;
+class UParticleModuleSize;
+class UParticleModuleSizeMultiplyLife;
+class UParticleModuleSizeScale;
+class UParticleModuleSizeScaleBySpeed;
+class UParticleModuleSpawn;
+class UParticleModuleSubUV;
+class UParticleModuleSubUVMovie;
+class UParticleModuleTypeDataGpu;
+class UParticleModuleVectorFieldLocal;
+class UParticleModuleVectorFieldRotationRate;
+class UParticleModuleVelocity;
+class UParticleModuleVelocityInheritParent;
+class UParticleModuleVelocityOverLifetime;
+class USkeletalMesh;
+class USubUVAnimation;
+class UUserDefinedStruct;
+class UVectorField;
+enum CylinderHeightAxis : int;
+enum EAttractorParticleSelectionMethod : int;
+enum EDistributionVectorLockFlags : int;
+enum EEmitterNormalsMode : int;
+enum EMeshCameraFacingOptions : int;
+enum EMeshCameraFacingUpAxis : int;
+enum EMeshScreenAlignment : int;
+enum EObjectTypeQuery : int;
+enum EOpacitySourceMode : int;
+enum EParticleCameraOffsetUpdateMethod : int;
+enum EParticleCollisionComplete : int;
+enum EParticleScreenAlignment : int;
+enum EParticleSortMode : int;
+enum EParticleSourceSelectionMethod : int;
+enum ESubUVBoundingVertexCount : int;
+enum ETrail2SourceMethod : int;
+enum ETrailsRenderAxisOption : int;
+enum class ENiagaraMessageSeverity : uint8;
+enum class ENiagaraRendererSourceDataMode : uint8;
+enum class ENiagaraSimTarget : uint8;
+struct FInterpCurveFloat;
+struct FInterpCurveTwoVectors;
+struct FInterpCurveVector2D;
+struct FInterpCurveVector;
+struct FLightingChannels;
 
 class UNiagaraScriptConversionContextInput;
 class UNiagaraScriptConversionContext;
@@ -1522,3 +1594,25 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Results")
 		bool bCancelledByPythonError;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CascadeToNiagaraConverterModule.h"
+#include "CoreMinimal.h"
+#include "NiagaraMessages.h"
+#include "Particles/Acceleration/ParticleModuleAccelerationDragScaleOverLife.h"
+#include "Particles/Acceleration/ParticleModuleAccelerationOverLifetime.h"
+#include "Particles/Attractor/ParticleModuleAttractorParticle.h"
+#include "Particles/Camera/ParticleModuleCameraOffset.h"
+#include "Particles/Collision/ParticleModuleCollisionBase.h"
+#include "Particles/Location/ParticleModuleLocationPrimitiveCylinder.h"
+#include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
+#include "Particles/ParticleModuleRequired.h"
+#include "Particles/ParticleSpriteEmitter.h"
+#include "Particles/SubUVAnimation.h"
+#include "Particles/Trail/ParticleModuleTrailSource.h"
+#include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
+#include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
+#include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
+#include "Particles/Velocity/ParticleModuleVelocityInheritParent.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#endif

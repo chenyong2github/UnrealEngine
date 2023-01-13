@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "PCGPin.h"
 #include "PCGSettings.h"
-#include "PCGElement.h"
 #include "Curves/CurveFloat.h"
 
 #include "PCGSplineSampler.generated.h"

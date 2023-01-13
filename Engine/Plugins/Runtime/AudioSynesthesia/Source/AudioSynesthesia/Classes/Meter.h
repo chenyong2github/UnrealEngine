@@ -5,6 +5,8 @@
 #include "AudioSynesthesia.h"
 #include "Meter.generated.h"
 
+class UMeterAnalyzer;
+
 UENUM(BlueprintType)
 enum class EMeterPeakType : uint8
 {

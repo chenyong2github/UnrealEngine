@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/LazyObjectPtr.h"
-#include "FunctionCaller.h"
 
 #include "VariantObjectBinding.generated.h"
+
+struct FFunctionCaller;
 
 class UPropertyValue;
 
@@ -67,3 +64,8 @@ private:
 	UPROPERTY()
 	TArray<FFunctionCaller> FunctionCallers;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "FunctionCaller.h"
+#endif

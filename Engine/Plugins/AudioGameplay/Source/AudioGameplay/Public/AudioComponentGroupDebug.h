@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioParameter.h"
+#include "HAL/Platform.h"
+
+class FString;
+struct FAudioParameter;
+struct FColor;
 
 class AActor;
 class UAudioComponentGroup;
@@ -27,3 +31,7 @@ public:
 	// print the final debug string above the target actor
 	static void PrintDebugString(const FString& InString, AActor* Owner, const FColor DrawColor);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioParameter.h"
+#endif

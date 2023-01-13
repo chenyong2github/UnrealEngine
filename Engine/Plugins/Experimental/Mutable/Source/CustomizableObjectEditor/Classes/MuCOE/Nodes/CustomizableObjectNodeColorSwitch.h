@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSwitchBase.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeColorSwitch.generated.h"
 

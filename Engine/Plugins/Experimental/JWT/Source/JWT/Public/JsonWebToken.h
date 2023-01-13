@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "JwtGlobals.h"
-#include "Dom/JsonObject.h"
+#include "Dom/JsonObject.h" // IWYU pragma: keep
+
+class FJsonObject;
+class FJsonValue;
+enum class EJson;
 
 class JWT_API FJsonWebToken
 {
@@ -119,3 +121,8 @@ private:
 	/** The decoded signature. */
 	TOptional<TArray<uint8>> Signature;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "JwtGlobals.h"
+#endif

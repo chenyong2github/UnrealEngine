@@ -10,6 +10,8 @@
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Epic_openxr.h"
 
+#include "EnhancedInputLibrary.h"
+#include "EnhancedInputSubsystemInterface.h"
 #include "EnhancedInputModule.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"

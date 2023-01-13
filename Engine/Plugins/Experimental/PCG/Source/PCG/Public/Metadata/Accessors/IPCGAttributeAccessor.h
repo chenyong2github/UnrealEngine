@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "Metadata/PCGMetadataCommon.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
 
-#include "UObject/UnrealType.h"
 
 #include "IPCGAttributeAccessor.generated.h"
 
@@ -159,3 +157,7 @@ template <> bool IPCGAttributeAccessor::GetRange<T>(TArrayView<T> OutValues, int
 template <> bool IPCGAttributeAccessor::SetRange<T>(TArrayView<const T> InValues, int32 Index, IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags Flags);
 PCG_FOREACH_SUPPORTEDTYPES(IACCESSOR_DECL);
 #undef IACCESSOR_DECL
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Metadata/PCGMetadataCommon.h"
+#endif

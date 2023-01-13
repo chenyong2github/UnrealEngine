@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/StaticMeshComponent.h"
-#include "NaniteDisplacedMesh.h"
+#include "Rendering/NaniteResources.h"
 #include "NaniteDisplacedMeshComponent.generated.h"
 
 class FPrimitiveSceneProxy;
@@ -46,3 +44,8 @@ private:
 	void UnbindCallback();
 	void BindCallback();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "NaniteDisplacedMesh.h"
+#endif

@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
+#include "UObject/NameTypes.h"
 
 namespace FAndroidProfileSelectorSourceProperties
 {
@@ -33,3 +34,7 @@ public:
 	static void SetSelectorProperties(const TMap<FName, FString>& Params) { SelectorProperties = Params; VerifySelectorParams(); }
 	static const TMap<FName, FString>& GetSelectorProperties() { return SelectorProperties; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

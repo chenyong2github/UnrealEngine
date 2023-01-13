@@ -2,7 +2,6 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedNode.h"
 
-#include "EdGraph/EdGraph.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 
 class UCustomizableObject;

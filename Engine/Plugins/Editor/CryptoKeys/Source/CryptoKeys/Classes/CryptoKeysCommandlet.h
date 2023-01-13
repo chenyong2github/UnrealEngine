@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
 #include "CryptoKeysCommandlet.generated.h"
 
@@ -19,3 +17,7 @@ class CRYPTOKEYS_API UCryptoKeysCommandlet : public UCommandlet
 		virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
-#include "InteractiveToolBuilder.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/StaticMesh.h"
-#include "PreviewMesh.h"
-#include "Drawing/PreviewGeometryActor.h"
-#include "DynamicMesh/MeshTangents.h"
 #include "LODManagerTool.generated.h"
+
+class UPreviewGeometry;
+class UPreviewMesh;
 
 // predeclarations
 class UMaterialInterface;
@@ -252,3 +251,10 @@ protected:
 	void ClearPreviewLines();
 	bool CacheLODMesh(const FString& Name, FLODName LODName);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Drawing/PreviewGeometryActor.h"
+#include "DynamicMesh/MeshTangents.h"
+#include "PreviewMesh.h"
+#endif

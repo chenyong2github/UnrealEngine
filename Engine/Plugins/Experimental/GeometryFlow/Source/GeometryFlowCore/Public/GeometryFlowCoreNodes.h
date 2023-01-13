@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "GeometryBase.h"
 #include "GeometryFlowNode.h"
-#include "GeometryFlowMovableData.h"
+
+namespace UE::GeometryFlow { template <typename T, int32 DataTypeIdentifier> class TMovableData; }
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TBasicNodeInput; }
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TBasicNodeOutput; }
 
 
 namespace UE
@@ -118,3 +122,7 @@ GEOMETRYFLOW_DECLARE_BASIC_TYPES(Name, FName, (int)EDataTypes::Name)
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowMovableData.h"
+#endif

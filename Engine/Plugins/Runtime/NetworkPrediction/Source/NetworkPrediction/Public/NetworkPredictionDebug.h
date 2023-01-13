@@ -2,9 +2,8 @@
 
 #pragma once
 #include "Math/Box.h"
-#include "Math/Color.h"
-#include "HAL/Platform.h"
-#include "Misc/NetworkGuid.h"
+
+class FNetworkGUID;
 
 // non ModelDef specific debug helpers
 namespace NetworkPredictionDebug
@@ -14,3 +13,7 @@ namespace NetworkPredictionDebug
 	NETWORKPREDICTION_API UObject* FindReplicatedObjectOnPIEServer(UObject* ClientObject);
 	NETWORKPREDICTION_API FNetworkGUID FindObjectNetGUID(UObject* Obj);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/NetworkGuid.h"
+#endif

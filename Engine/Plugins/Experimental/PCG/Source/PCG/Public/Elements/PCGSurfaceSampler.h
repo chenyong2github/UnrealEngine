@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "PCGElement.h"
+#include "Math/Box.h"
 #include "PCGSettings.h"
 
 #include "PCGSurfaceSampler.generated.h"
@@ -121,3 +120,7 @@ namespace PCGSurfaceSampler
 	UPCGPointData* SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData);
 	void SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData, UPCGPointData* SampledData);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

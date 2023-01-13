@@ -6,6 +6,8 @@
 #include "AudioGameplayFlags.h"
 #include "AudioGameplayComponent.generated.h"
 
+namespace EEndPlayReason { enum Type : int; }
+
 UCLASS(Blueprintable, Config = Game, meta = (BlueprintSpawnableComponent))
 class AUDIOGAMEPLAY_API UAudioGameplayComponent : public UActorComponent
 {

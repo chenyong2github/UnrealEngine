@@ -5,6 +5,8 @@
 #include "RemoteSessionChannel.h"
 #include "UObject/GCObject.h"
 
+enum class ERemoteSessionChannelMode : int32;
+
 class FBackChannelOSCMessage;
 class FBackChannelOSCDispatch;
 class FAppleImageUtilsConversionTaskBase;

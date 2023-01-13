@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EnvironmentQueryGraphNode.h"
 #include "EnvironmentQueryGraphNode_Test.generated.h"
 
@@ -33,3 +31,7 @@ class UEnvironmentQueryGraphNode_Test : public UEnvironmentQueryGraphNode
 
 	void SetDisplayedWeight(float Pct, bool bNamed);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

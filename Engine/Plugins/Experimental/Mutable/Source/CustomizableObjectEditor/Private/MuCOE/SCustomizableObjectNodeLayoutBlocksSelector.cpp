@@ -2,7 +2,6 @@
 
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksSelector.h"
 
-#include "EdGraph/EdGraph.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

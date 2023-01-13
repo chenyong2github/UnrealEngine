@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 
-#include "CoreMinimal.h"
-
-#include "BackChannel/Protocol/OSC/BackChannelOSCPacket.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "BackChannel/Protocol/OSC/BackChannelOSCBundle.h"
+#include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
+#include "BackChannel/Protocol/OSC/BackChannelOSCPacket.h"
+#include "CoreMinimal.h"
+#endif

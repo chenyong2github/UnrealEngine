@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ContentBrowserItemData.h"
 #include "AssetRegistry/AssetData.h"
 #include "UObject/GCObject.h"
-#include "Containers/Set.h"
 
 class UAssetDefinition;
 class IAssetTypeActions;
@@ -133,3 +131,7 @@ private:
 	/** The context to use when creating the asset. Used when initializing an asset with another related asset. */
 	TWeakObjectPtr<UObject> SourceObject;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

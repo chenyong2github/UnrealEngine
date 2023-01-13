@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
 #include "RevLimiterMotorSimComponent.generated.h"
 
@@ -47,3 +46,7 @@ public:
 	virtual void Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo) override;
 	virtual void Reset() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

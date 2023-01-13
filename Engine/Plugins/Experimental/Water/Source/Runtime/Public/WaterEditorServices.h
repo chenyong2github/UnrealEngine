@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+
+class UClass;
 
 class UTexture2D;
 
@@ -16,3 +18,7 @@ public:
 	virtual UTexture2D* GetErrorSprite() const = 0;
 };
 #endif // WITH_EDITORONLY_DATA
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

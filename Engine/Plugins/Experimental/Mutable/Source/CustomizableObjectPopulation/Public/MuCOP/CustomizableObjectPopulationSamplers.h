@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "CoreTypes.h"
 #include "Curves/RichCurve.h"
-#include "Math/Color.h"
-#include "Templates/Tuple.h"
 
 class FArchive;
 class UCurveLinearColor;

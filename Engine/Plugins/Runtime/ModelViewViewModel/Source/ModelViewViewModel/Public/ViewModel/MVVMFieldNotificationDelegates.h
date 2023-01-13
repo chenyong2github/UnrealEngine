@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "FieldNotification/FieldId.h"
 #include "FieldNotification/FieldMulticastDelegate.h"
-#include "FieldNotification/IFieldValueChanged.h"
-#include "Net/Core/PushModel/PushModel.h"
+
+class FDelegateHandle;
+namespace UE::FieldNotification { struct FFieldId; }
 
 namespace UE::MVVM
 {
@@ -29,3 +28,8 @@ private:
 };
 
 } //namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Net/Core/PushModel/PushModel.h"
+#endif

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Animation/SkeletalMeshActor.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "HAL/Platform.h"
+
+class UClass;
+class USkeletalMeshComponent;
 
 class UAnimSharingAdditiveInstance;
 class UAnimSequence;
@@ -28,3 +30,8 @@ protected:
 	USkeletalMeshComponent* BaseComponent;
 	bool bLoopingState;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Animation/SkeletalMeshActor.h"
+#include "Components/SkeletalMeshComponent.h"
+#endif

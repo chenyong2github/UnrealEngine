@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "GeometryCollection/GeometryCollection.h"
-#include "Dataflow/DataflowSelection.h"
+#include "Containers/ContainersFwd.h" // IWYU pragma: keep
+
+class FGeometryCollection;
+struct FDataflowTransformSelection;
+struct FManagedArrayCollection;
 
 class FRACTUREENGINE_API FFractureEngineSelection
 {
@@ -41,3 +44,9 @@ public:
 	static void SelectByVolume(FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones, const float VolumeMin, const float VolumeMax);
 	static void SelectByVolume(FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection, const float VolumeMin, const float VolumeMax);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/Array.h"
+#include "Dataflow/DataflowSelection.h"
+#include "GeometryCollection/GeometryCollection.h"
+#endif

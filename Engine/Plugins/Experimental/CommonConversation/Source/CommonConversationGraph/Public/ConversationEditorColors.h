@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Math/Color.h"
 
 namespace ConversationEditorColors
 {
@@ -61,3 +61,7 @@ namespace ConversationEditorColors
 		const FLinearColor DragMarker(1.0f, 1.0f, 0.2f);
 	}
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

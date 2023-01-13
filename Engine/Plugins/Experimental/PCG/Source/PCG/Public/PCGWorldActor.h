@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-#include "Grid/PCGLandscapeCache.h"
 
 #include "PCGWorldActor.generated.h"
+
+class UPCGLandscapeCache;
+namespace EEndPlayReason { enum Type : int; }
 
 UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable)
 class APCGWorldActor : public AActor
@@ -58,3 +59,8 @@ private:
 	void OnPartitionGridSizeChanged();
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Grid/PCGLandscapeCache.h"
+#endif

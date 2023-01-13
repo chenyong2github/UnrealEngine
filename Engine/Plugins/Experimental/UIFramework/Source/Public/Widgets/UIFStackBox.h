@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "Components/SlateWrapperTypes.h"
-#include "Layout/Margin.h"
-#include "Types/SlateEnums.h"
 #include "Types/UIFSlotBase.h"
 #include "UIFWidget.h"
-#include "Widgets/Layout/Anchors.h"
 
 #include "UIFStackBox.generated.h"
+
+struct FUIFrameworkWidgetId;
 
 class UUIFrameworkStackBox;
 struct FUIFrameworkStackBoxSlotList;
@@ -136,3 +134,7 @@ private:
 	UPROPERTY(Replicated)
 	FUIFrameworkStackBoxSlotList ReplicatedSlotList;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Widgets/Layout/Anchors.h"
+#endif

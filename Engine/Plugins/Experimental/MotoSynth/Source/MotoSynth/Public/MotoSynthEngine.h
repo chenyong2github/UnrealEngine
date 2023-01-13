@@ -2,25 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Sound/SoundGenerator.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Engine/EngineTypes.h"
-#include "Async/AsyncWork.h"
-#include "DSP/BufferVectorOperations.h"
-#include "Curves/CurveFloat.h"
-#include "Containers/SortedMap.h"
-#include "AudioDevice.h"
-#include "DSP/Osc.h"
-#include "DSP/Filter.h"
 #include "DSP/DelayStereo.h"
 #include "DSP/Granulator.h"
-#include "DSP/Envelope.h"
-#include "MotoSynthPreset.h"
-#include "MotoSynthSourceAsset.h"
 #include "MotoSynthDataManager.h"
+
+struct FMotoSynthRuntimeSettings;
 
 class UMotoSynthSource;
 class FMotoSynthEnginePreviewer;
@@ -216,3 +203,14 @@ private:
 	bool bRPMWasSet = false;
 	bool bUpdateRPMCalculations = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/AsyncWork.h"
+#include "AudioDevice.h"
+#include "CoreMinimal.h"
+#include "Curves/CurveFloat.h"
+#include "DSP/BufferVectorOperations.h"
+#include "Engine/EngineTypes.h"
+#include "MotoSynthPreset.h"
+#include "MotoSynthSourceAsset.h"
+#endif

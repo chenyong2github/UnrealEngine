@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "AssetTypeCategories.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "TickableEditorObject.h"
-#include "IDetailsView.h"
 
 #include "InputEditorModule.generated.h"
 
@@ -115,3 +112,8 @@ public:
 //	UPROPERTY(EditAnywhere, Category = DataAsset)
 //	TSubclassOf<UDataAsset> DataAssetClass;
 //};
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "IDetailsView.h"
+#endif

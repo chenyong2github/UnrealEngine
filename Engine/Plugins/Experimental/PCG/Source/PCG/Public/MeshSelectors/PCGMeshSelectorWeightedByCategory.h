@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "PCGMeshSelectorBase.h"
+#include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "PCGMeshSelectorWeighted.h"
 
 #include "PCGMeshSelectorWeightedByCategory.generated.h"

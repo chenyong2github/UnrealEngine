@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PropertyPath.h"
 #include "PropertyValue.h" // For ToCapturedPropSegmentArray
 
@@ -64,3 +62,7 @@ struct FCapturableProperty
 		return Result;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

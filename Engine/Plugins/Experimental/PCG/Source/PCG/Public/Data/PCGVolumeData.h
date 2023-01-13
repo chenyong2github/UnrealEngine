@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGSpatialData.h"
 
 #include "PCGVolumeData.generated.h"
@@ -53,3 +52,7 @@ protected:
 	UPROPERTY()
 	FBox StrictBounds = FBox(EForceInit::ForceInit);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

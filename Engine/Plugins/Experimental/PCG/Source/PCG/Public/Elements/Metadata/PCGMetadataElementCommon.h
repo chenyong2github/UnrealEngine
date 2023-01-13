@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "PCGModule.h"
 #include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h" // IWYU pragma: keep
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+
+class IPCGAttributeAccessor;
+template <typename T> class FPCGMetadataAttribute;
 
 struct FPCGTaggedData;
 

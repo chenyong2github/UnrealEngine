@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/UnrealMemory.h"
-#include "VectorTypes.h"
 #include "GeometryFlowTypes.h"
 
-#include <atomic>
+
+namespace UE::GeometryFlow { class FNode; }
 
 
 // TODO
@@ -406,3 +404,8 @@ protected:
 }	// end namespace GeometryFlow
 }	// end namespace UE
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "VectorTypes.h"
+#endif

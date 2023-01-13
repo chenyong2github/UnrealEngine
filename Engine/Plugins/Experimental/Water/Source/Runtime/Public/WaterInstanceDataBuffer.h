@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/ArrayView.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "RenderingThread.h"
+#include "RHI.h"
+#include "RHIFwd.h"
 
 template <bool bWithWaterSelectionSupport>
 class TWaterInstanceDataBuffers
@@ -98,3 +99,7 @@ private:
 	FBufferRHIRef Buffer[NumBuffers];
 	TArrayView<FVector4f> BufferMemory[NumBuffers];
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

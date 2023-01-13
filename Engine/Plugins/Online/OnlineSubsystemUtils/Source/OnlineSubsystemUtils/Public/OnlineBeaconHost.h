@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "OnlineBeacon.h"
 #include "Net/Core/Connection/NetCloseResult.h"
 #include "OnlineBeaconHost.generated.h"
+
+class FUniqueNetId;
 
 class AOnlineBeaconClient;
 class AOnlineBeaconHostObject;
@@ -221,3 +221,7 @@ private:
 	/** Mapping of beacon types to the OnBeaconConnected delegates */
 	TMap<FString, FOnBeaconConnected> OnBeaconConnectedMapping;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

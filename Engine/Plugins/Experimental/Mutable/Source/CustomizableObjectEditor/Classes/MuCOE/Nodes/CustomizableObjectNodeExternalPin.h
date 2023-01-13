@@ -2,20 +2,12 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Delegates/IDelegateInstance.h"
-#include "EdGraph/EdGraphNode.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Misc/Guid.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeExternalPin.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCustomizableObject;

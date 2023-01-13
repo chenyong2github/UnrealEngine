@@ -3,10 +3,14 @@
 #pragma once
 
 #include "BaseNodes/TransformerWithSettingsNode.h"
-#include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 #include "DynamicMesh/MeshTangents.h"
+#include "GeometryFlowCoreNodes.h"
+#include "GeometryFlowMovableData.h"
+
+namespace UE::GeometryFlow { template <typename T, int StorageTypeIdentifier> class TTransferNode; }
 
 
 namespace UE
@@ -85,3 +89,7 @@ public:
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
+#endif

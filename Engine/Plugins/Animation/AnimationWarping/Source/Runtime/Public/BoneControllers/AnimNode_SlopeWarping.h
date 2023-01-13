@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "BoneControllers/BoneControllerTypes.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Engine/SpringInterpolator.h"
 #include "AnimNode_SlopeWarping.generated.h"
+
+struct FAnimationInitializeContext;
+struct FComponentSpacePoseContext;
+struct FNodeDebugData;
 
 /** Per foot definitions */
 USTRUCT()
@@ -161,3 +164,7 @@ private:
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BoneControllers/BoneControllerTypes.h"
+#endif

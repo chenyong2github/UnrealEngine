@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactoryEnvironmentQuery.generated.h"
 

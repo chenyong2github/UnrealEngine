@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/ObjectPtr.h"
 #include "UIFParentWidget.generated.h"
 
 class UObject;

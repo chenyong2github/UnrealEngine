@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "CryptoKeysSettings.generated.h"
 
 
@@ -92,3 +89,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Signing)
 	bool bEnablePakSigning;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

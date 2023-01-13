@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFeatureAction.h"
-#include "GameFramework/CheatManager.h"
 
 #include "GameFeatureAction_AddCheats.generated.h"
+
+class UCheatManager;
+class UCheatManagerExtension;
+template <typename T> class TSubclassOf;
 
 //////////////////////////////////////////////////////////////////////
 // UGameFeatureAction_AddCheats
@@ -51,3 +53,8 @@ private:
 
 	bool bIsActive = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/CheatManager.h"
+#endif

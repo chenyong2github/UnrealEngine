@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "View/MVVMView.h"
 #include "MVVMBlueprintViewBinding.h"
 #include "MVVMBlueprintViewModelContext.h"
 
 #include "MVVMBlueprintView.generated.h"
+
+class UMVVMWidgetBlueprintExtension_View;
 
 class UWidget;
 class UWidgetBlueprint;
@@ -94,3 +94,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	TArray<FMVVMBlueprintViewModelContext> AvailableViewModels;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "View/MVVMView.h"
+#endif

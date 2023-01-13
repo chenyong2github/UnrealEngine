@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "IDataSourceFilterInterface.h"
-#include "DataSourceFiltering.h"
+#include "UObject/Interface.h"
 #include "IDataSourceFilterSetInterface.generated.h"
+
+enum class EFilterSetMode : uint8;
 
 UINTERFACE(Blueprintable)
 class SOURCEFILTERINGCORE_API UDataSourceFilterSetInterface : public UInterface
@@ -23,3 +23,8 @@ public:
 	virtual EFilterSetMode GetFilterSetMode() const = 0;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataSourceFiltering.h"
+#include "IDataSourceFilterInterface.h"
+#endif

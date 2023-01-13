@@ -2,20 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Engine/EngineTypes.h"
 #include "Engine/StreamableManager.h"
-#include "Math/IntVector.h"
-#include "Math/UnrealMathSSE.h"
-#include "PixelFormat.h"
-#include "Stats/Stats2.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 #include "AssetRegistry/AssetData.h"
 
 #if WITH_EDITOR
@@ -441,3 +428,8 @@ private:
 	friend class FCustomizableObjectSystemPrivate;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#include "PixelFormat.h"
+#endif

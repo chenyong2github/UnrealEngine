@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Camera/CameraShakeBase.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "UObject/Object.h"
-#include "GameFramework/Actor.h"
+
+class UCameraShakeSourceComponent;
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 	#include "Evaluation/MovieSceneCameraShakeTemplate.h"
@@ -339,3 +338,8 @@ public:
 		return CastChecked<ULegacyCameraShake>(CameraShake, ECastCheckedType::NullAllowed);
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#endif

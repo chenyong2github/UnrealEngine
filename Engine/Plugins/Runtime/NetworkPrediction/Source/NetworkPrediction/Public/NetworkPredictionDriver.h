@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionCues.h"
 #include "NetworkPredictionConditionalState.h"
 #include "NetworkPredictionSettings.h"
 #include "NetworkPredictionDebug.h"
-#include "NetworkPredictionReplicationProxy.h"
+#include "NetworkPredictionStateTypes.h"
 #include "NetworkPredictionStateView.h"
-#include "Misc/StringBuilder.h"
-#include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
+
+struct FNetSerializeParams;
 
 struct FBodyInstance;
 
@@ -896,3 +895,8 @@ struct FNetworkPredictionDriver : FNetworkPredictionDriverBase<ModelDef>
 {
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "NetworkPredictionModelDef.h"
+#include "NetworkPredictionReplicationProxy.h"
+#endif

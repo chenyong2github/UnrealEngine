@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EnhancedInputSubsystemInterface.h"
 #include "EditorSubsystem.h"
 #include "Tickable.h"
-#include "GameFramework/PlayerInput.h"
 #include "EnhancedInputEditorSubsystem.generated.h"
+
+struct FInputKeyParams;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorInput, Log, All);
 
@@ -101,3 +101,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<UInputComponent>> CurrentInputStack;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

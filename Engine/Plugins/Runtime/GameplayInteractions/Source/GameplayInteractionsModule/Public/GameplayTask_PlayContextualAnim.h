@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "GameplayActuationState.h"
 #include "GameplayTask.h"
 #include "ContextualAnimTypes.h"
 #include "GameplayInteractionsTypes.h"
 #include "GameplayTaskTransition.h"
-#include "GameplayActuationComponent.h"
 #include "GameplayActuationStateProvider.h"
 #include "GameplayTask_PlayContextualAnim.generated.h"
 
@@ -218,3 +218,7 @@ protected:
 	UPROPERTY()
 	bool bTeleportOnTaskEnd = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameplayActuationComponent.h"
+#endif

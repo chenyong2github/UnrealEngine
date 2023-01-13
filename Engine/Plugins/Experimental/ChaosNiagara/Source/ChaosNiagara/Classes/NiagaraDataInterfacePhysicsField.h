@@ -3,11 +3,11 @@
 #pragma once
 
 #include "NiagaraDataInterface.h"
-#include "NiagaraCommon.h"
-#include "VectorVM.h"
-#include "Field/FieldSystem.h"
 
 #include "NiagaraDataInterfacePhysicsField.generated.h"
+
+class FFieldSystemCommand;
+struct FNiagaraDataInterfaceGeneratedFunction;
 
 /** Data stored per physics asset instance on the render thread */
 struct FNDIFieldRenderData
@@ -118,3 +118,7 @@ struct FNDIPhysicsFieldProxy : public FNiagaraDataInterfaceProxy
 	TMap<FNiagaraSystemInstanceID, FNDIFieldRenderData> SystemInstancesToProxyData;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Field/FieldSystem.h"
+#endif

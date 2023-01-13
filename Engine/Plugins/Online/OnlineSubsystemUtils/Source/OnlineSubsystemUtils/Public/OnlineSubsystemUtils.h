@@ -2,17 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 #include "Engine/Engine.h"
 #include "OnlineSubsystem.h"
+#include "Interfaces/OnlineExternalUIInterface.h"
 #include "OnlineSubsystemUtilsModule.h"
+#include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlineIdentityInterface.h"
-#include "Online.h"
-#include "EngineGlobals.h"
 #include "Features/IModularFeatures.h"
+#include "Interfaces/OnlineTitleFileInterface.h"
+#include "Interfaces/OnlineUserCloudInterface.h"
+#include "Interfaces/VoiceInterface.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Interfaces/OnlineEntitlementsInterface.h"
+#include "CoreMinimal.h"
+#include "EngineGlobals.h"
+#include "Online.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "VoipListenerSynthComponent.h"
 #endif
 

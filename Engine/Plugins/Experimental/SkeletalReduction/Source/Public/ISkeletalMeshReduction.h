@@ -3,10 +3,10 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
+#include "IMeshReductionInterfaces.h"
 #include "Modules/ModuleManager.h"
-#include "MeshUtilities.h"  // IMeshMerging , IMeshModuleReduction ,
+
+class IModuleInterface;
 
 
 /**
@@ -44,3 +44,8 @@ public:
 		return FString("SkeletalMeshReduction");
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MeshUtilities.h"  // IMeshMerging , IMeshModuleReduction ,
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/DeveloperSettings.h"
 #include "ConversationInstance.h"
 
@@ -28,3 +26,7 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category=Conversation)
 	TSoftClassPtr<UConversationInstance> ConversationInstanceClass;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

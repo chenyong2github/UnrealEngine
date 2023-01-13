@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
 
 class ISlateStyle;
 

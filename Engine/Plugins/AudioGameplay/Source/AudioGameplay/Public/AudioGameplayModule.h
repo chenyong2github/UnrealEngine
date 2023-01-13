@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "AudioGameplayLogs.h"
 
 /**
  *  FAudioGameplayModule
@@ -17,3 +16,7 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioGameplayLogs.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "WmfMediaSettings.generated.h"
 

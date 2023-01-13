@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DataRegistryId.generated.h"
 
 /**
@@ -231,3 +230,7 @@ struct TStructOpsTypeTraits<FDataRegistryId> : public TStructOpsTypeTraitsBase2<
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

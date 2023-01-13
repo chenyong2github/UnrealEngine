@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubtitleDecoder.h"
+#include "Features/IModularFeatures.h"
+#include "IElectraSubtitleDecoder.h"
 #include "IElectraSubtitleModule.h"
-
 
 namespace Electra
 {

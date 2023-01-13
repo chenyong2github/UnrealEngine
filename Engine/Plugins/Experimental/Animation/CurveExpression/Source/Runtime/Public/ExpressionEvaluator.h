@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Misc/Optional.h"
 #include "Misc/TVariant.h"
+#include "Misc/TVariantMeta.h"
 #include "UObject/NameTypes.h"
+
+template <typename OptionalType> struct TOptional;
 
 namespace CurveExpression::Evaluator
 {

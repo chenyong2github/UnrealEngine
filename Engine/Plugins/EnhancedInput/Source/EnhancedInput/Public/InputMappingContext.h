@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EnhancedActionKeyMapping.h"
-#include "Engine/DataAsset.h"
 
 #include "InputMappingContext.generated.h"
+
+struct FKey;
 
 class UInputAction;
 
@@ -84,3 +84,7 @@ public:
 // ************************************************************************************************
 // ************************************************************************************************
 // ************************************************************************************************
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,25 +2,10 @@
 
 #pragma once
 
-#include "Components/SkeletalMeshComponent.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Editor/UnrealEdTypes.h"
 #include "EditorViewportClient.h"
-#include "Math/Axis.h"
-#include "Math/BoxSphereBounds.h"
-#include "Math/Color.h"
-#include "Math/Matrix.h"
-#include "Math/Rotator.h"
-#include "Math/Sphere.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "UnrealWidgetFwd.h"
+
+namespace EAnimationMode { enum Type : int; }
 
 class FCanvas;
 class FCustomizableObjectWidget;
@@ -531,3 +516,8 @@ private:
 	/** Flag to control the bones visibility in the viewport */
 	bool bShowBones;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/SkeletalMeshComponent.h"
+#include "Editor/UnrealEdTypes.h"
+#endif

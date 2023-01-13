@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EnhancedInputSubsystems.h"
-#include "InputActionValue.h"
-#include "InputMappingQuery.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PlayerMappableKeySlot.h"
-#include "UObject/ObjectMacros.h"
 
 #include "EnhancedInputLibrary.generated.h"
+
+class IEnhancedInputSubsystemInterface;
+enum class EInputActionValueType : uint8;
+struct FEnhancedActionKeyMapping;
+struct FInputActionValue;
 
 class APlayerController;
 class UEnhancedPlayerInput;
@@ -111,3 +111,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Input", meta = (ReturnDisplayName = "Fourth Player Mappable Key Slot"))
 	static FPlayerMappableKeySlot& GetFourthPlayerMappableKeySlot() { return FPlayerMappableKeySlot::FourthKeySlot; };
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputActionValue.h"
+#include "InputMappingQuery.h"
+#endif

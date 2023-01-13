@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
 
 
@@ -31,3 +30,7 @@ private:
 	/** Name of the property of the owned gameplay tag container */
 	FName OwnedGameplayTagPropertyName;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

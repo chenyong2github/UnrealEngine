@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Types/MVVMFieldVariant.h"
 #include "Types/MVVMObjectVariant.h"
 
@@ -43,3 +42,7 @@ namespace UE::MVVM
 	};
 
 } //namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

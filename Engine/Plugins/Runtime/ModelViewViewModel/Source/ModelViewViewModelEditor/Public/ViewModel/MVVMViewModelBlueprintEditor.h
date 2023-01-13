@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BlueprintEditor.h"
+
+struct FGraphAppearanceInfo;
 
 class UMVVMViewModelBlueprint;
 
@@ -48,3 +49,7 @@ protected:
 	virtual bool IsSectionVisible(NodeSectionID::Type SectionID) const override;
 	//~ End FBlueprintEditor interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

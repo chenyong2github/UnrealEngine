@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "Containers/Array.h"
+#include "Modules/ModuleInterface.h"
 
 class FLandscapePatchEditorOnlyModule : public IModuleInterface
 {
@@ -18,3 +18,8 @@ private:
 	TArray<FName> ClassesToUnregisterOnShutdown;
 	TArray<FName> VisualizersToUnregisterOnShutdown;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#endif

@@ -2,22 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 
-#include "InteractiveTool.h"
+#include "Engine/World.h"
 #include "InteractiveToolBuilder.h"
 #include "MultiSelectionTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "BaseGizmos/TransformProxy.h"
 #include "Framework/Commands/Commands.h"
 #include "ISequencer.h"
-#include "TrailHierarchy.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 #include "BaseSequencerAnimTool.h"
 #include "MotionTrailTool.generated.h"
+
+class UInteractiveGizmoManager;
+class UTransformProxy;
+enum class EToolShutdownType : uint8;
+namespace UE::SequencerAnimTools { class FTrailHierarchy; }
+struct FKey;
 
 class USingleClickInputBehavior;
 class UClickDragInputBehavior;
@@ -230,3 +231,9 @@ private:
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BaseGizmos/TransformProxy.h"
+#include "CoreMinimal.h"
+#include "TrailHierarchy.h"
+#endif

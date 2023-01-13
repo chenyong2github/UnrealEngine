@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Engine/NetworkDelegates.h"
 #include "GameFramework/Actor.h"
-#include "Engine/PendingNetGame.h"
 #include "Engine/NetDriver.h"
 #include "OnlineBeacon.generated.h"
+
+namespace EEndPlayReason { enum Type : int; }
+namespace ENetworkFailure { enum Type : int; }
 
 class FInBunch;
 class UChannel;
@@ -125,3 +126,8 @@ protected:
 	/** overridden to return that player controllers are capable of RPCs */
 	virtual bool HasNetOwner() const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/PendingNetGame.h"
+#endif

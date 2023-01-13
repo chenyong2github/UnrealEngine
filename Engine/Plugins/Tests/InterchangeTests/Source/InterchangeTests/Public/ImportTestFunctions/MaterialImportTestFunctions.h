@@ -3,8 +3,9 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
 #include "MaterialImportTestFunctions.generated.h"
+
+class UMaterialInterface;
 
 struct FInterchangeTestFunctionResult;
 
@@ -27,3 +28,7 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckImportedMaterialInstanceCount(const TArray<UMaterialInterface*>& MaterialInterfaces, int32 ExpectedNumberOfImportedMaterialInstances);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTestFunction.h"
+#endif

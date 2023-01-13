@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "Runtime/Launch/Resources/Version.h"
 
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAsset.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Misc/Paths.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
-#include "Rendering/SkeletalMeshModel.h"
-#include "Rendering/SkinWeightVertexBuffer.h"
+
+struct FBoneReference;
 
 // Main engine branch should have 1 here. 
 // Projects with API modifications may set it 0.
@@ -105,3 +104,8 @@ inline FString Helper_GetSavedDir()
 	return FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir());
 }
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Rendering/SkeletalMeshModel.h"
+#include "Runtime/Launch/Resources/Version.h"
+#endif

@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "FieldNotification/FieldId.h"
 
 #include "MVVMViewModelBlueprintGeneratedClass.generated.h"
+
+namespace UE::FieldNotification { struct FFieldId; }
+struct FFieldNotificationId;
 
 class UMVVMViewModelBase;
 
@@ -41,3 +41,8 @@ private:
 
 	int32 FieldNotifyStartBitNumber;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "FieldNotification/FieldId.h"
+#endif

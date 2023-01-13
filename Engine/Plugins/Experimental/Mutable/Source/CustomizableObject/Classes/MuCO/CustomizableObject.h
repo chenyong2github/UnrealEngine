@@ -2,45 +2,14 @@
  
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/BitArray.h"
-#include "Containers/ContainerAllocationPolicies.h"
-#include "Containers/ContainersFwd.h"
-#include "Containers/EnumAsByte.h"
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Engine/Texture.h"
-#include "Engine/TextureDefines.h"
-#include "Input/Reply.h"
-#include "Logging/LogMacros.h"
-#include "Math/BoxSphereBounds.h"
-#include "Math/Rotator.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Math/Vector4.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/Guid.h"
 #include "MuCO/CustomizableObjectClothingTypes.h"
 #include "MuCO/CustomizableObjectIdentifier.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectUIData.h"
 #include "RHIDefinitions.h"
-#include "Serialization/Archive.h"
-#include "Serialization/StructuredArchiveAdapters.h"
-#include "SkeletalMeshTypes.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/SoftObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
+
+class FReply;
 
 #if WITH_EDITORONLY_DATA
-#include "PerPlatformProperties.h"
-#include "PerQualityLevelProperties.h"
 #endif
 
 
@@ -1479,3 +1448,7 @@ private:
 
 	TSharedPtr<FCustomizableObjectPrivateData> PrivateData;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/Reply.h"
+#endif

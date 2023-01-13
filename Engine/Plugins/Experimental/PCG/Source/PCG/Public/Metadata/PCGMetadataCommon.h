@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "PCGMetadataCommon.generated.h"
 
@@ -42,3 +41,7 @@ enum class EPCGMetadataFilterMode : uint8
 	/** Only the listed attributes will be changed by the projection or added from the target data. */
 	IncludeAttributes,
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

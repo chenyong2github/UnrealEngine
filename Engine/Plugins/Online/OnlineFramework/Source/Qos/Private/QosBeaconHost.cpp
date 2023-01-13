@@ -2,6 +2,8 @@
 
 #include "QosBeaconHost.h"
 #include "Engine/NetConnection.h"
+#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
 #include "QosBeaconClient.h"
 #include "OnlineSubsystemUtils.h"
 

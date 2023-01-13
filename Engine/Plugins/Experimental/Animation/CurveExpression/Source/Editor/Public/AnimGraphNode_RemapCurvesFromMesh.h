@@ -8,6 +8,8 @@
 
 #include "AnimGraphNode_RemapCurvesFromMesh.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 
 UCLASS(MinimalAPI)
 class UAnimGraphNode_RemapCurvesFromMesh :

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ObjectKey.h"
 #include "ConversationTaskNode.h"
 
+#include "GameplayTagContainer.h"
 #include "ConversationLinkNode.generated.h"
 
 UCLASS()
@@ -26,3 +24,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Link")
 	FGameplayTag RemoteEntryTag;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectKey.h"
+#endif

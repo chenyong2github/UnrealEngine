@@ -2,7 +2,6 @@
 
 #include "SourceFilterTrace.h"
 #include "Trace/Detail/Field.h"
-#include "Trace/Detail/Trace.h"
 
 #if SOURCE_FILTER_TRACE_ENABLED
 

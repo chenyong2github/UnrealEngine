@@ -2,22 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "Engine/BlendableInterface.h"
 #include "Engine/Scene.h"
-#include "TerrainCarvingSettings.h"
-#include "WaterBrushActorInterface.h"
 #include "WaterBodyWeightmapSettings.h"
 #include "WaterBodyHeightmapSettings.h"
 #include "WaterCurveSettings.h"
 #include "WaterSplineMetadata.h"
-#include "NavAreas/NavArea.h"
-#include "AI/Navigation/NavRelevantInterface.h"
-#include "Interfaces/Interface_PostProcessVolume.h"
-#include "WaterWaves.h"
 #include "WaterBodyTypes.h"
 
+class AWaterBody;
+class UStaticMesh;
+class UWaterWavesBase;
+enum ETextureRenderTargetFormat : int;
+struct FPostProcessVolumeProperties;
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
+#include "NavAreas/NavArea.h"
+#include "TerrainCarvingSettings.h"
+#include "WaterBrushActorInterface.h"
 #include "DynamicMeshBuilder.h"
 #if WITH_EDITOR
 #include "MeshDescription.h"

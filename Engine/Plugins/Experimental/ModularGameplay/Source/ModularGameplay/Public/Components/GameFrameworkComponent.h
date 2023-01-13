@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Engine/GameInstance.h"
-#include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFrameworkComponent.generated.h"
 
@@ -201,3 +199,7 @@ private:
 	FORCEINLINE bool operator==(const TConstComponentIterator& Other) const { return CompIndex == Other.CompIndex; }
 	FORCEINLINE bool operator!=(const TConstComponentIterator& Other) const { return CompIndex != Other.CompIndex; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/GameInstance.h"
+#endif

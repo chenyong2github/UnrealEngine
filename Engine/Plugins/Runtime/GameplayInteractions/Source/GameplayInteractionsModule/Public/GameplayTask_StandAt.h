@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "GameplayTask.h"
 #include "GameplayActuationState.h"
 #include "GameplayActuationStateProvider.h"

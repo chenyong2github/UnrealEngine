@@ -4,11 +4,14 @@
 
 #include "BoneControllers/BoneControllerTypes.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
-#include "Animation/AnimNodeBase.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Engine/EngineTypes.h"
 
 #include "AnimNode_FootPlacement.generated.h"
+
+struct FAnimationInitializeContext;
+struct FComponentSpacePoseContext;
+struct FNodeDebugData;
 
 namespace UE::Anim::FootPlacement
 {

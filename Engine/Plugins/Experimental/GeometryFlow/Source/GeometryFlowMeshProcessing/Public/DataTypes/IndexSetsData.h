@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GeometryFlowCoreNodes.h"
-#include "GeometryFlowMovableData.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 
@@ -59,3 +58,7 @@ GEOMETRYFLOW_DECLARE_BASIC_TYPES(IndexSets, FIndexSets, (int)EMeshProcessingData
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowMovableData.h"
+#endif

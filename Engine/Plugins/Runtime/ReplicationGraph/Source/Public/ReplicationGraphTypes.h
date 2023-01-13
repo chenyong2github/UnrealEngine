@@ -3,19 +3,15 @@
 #pragma once
 
 #include "Containers/StaticArray.h"
-#include "EngineGlobals.h"
-#include "GameFramework/Actor.h"
 #include "GameFramework/WorldSettings.h"
-#include "Misc/EnumClassFlags.h"
 #include "Net/DataBunch.h"
-#include "UObject/ObjectKey.h"
-#include "UObject/UObjectHash.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "UObject/Package.h"
+#include "Templates/Greater.h"
 #include "ReplicationGraphTypes.generated.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "EngineGlobals.h"
+#include "UObject/Package.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/NetConnection.h"

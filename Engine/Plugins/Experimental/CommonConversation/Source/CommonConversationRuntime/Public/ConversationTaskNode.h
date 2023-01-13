@@ -3,11 +3,13 @@
 #pragma once
 
 #include "ConversationNode.h"
-#include "ConversationContext.h"
-#include "ConversationRequirementNode.h"
-#include "ConversationTypes.h"
 
 #include "ConversationTaskNode.generated.h"
+
+enum class EConversationRequirementResult : uint8;
+struct FConversationBranchPointBuilder;
+struct FConversationNodeParameterPair;
+struct FConversationTaskResult;
 
 class UConversationSubNode;
 
@@ -106,3 +108,9 @@ protected:
 #endif
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationContext.h"
+#include "ConversationRequirementNode.h"
+#include "ConversationTypes.h"
+#endif

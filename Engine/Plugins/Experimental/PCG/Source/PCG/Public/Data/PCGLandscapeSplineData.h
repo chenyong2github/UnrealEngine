@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGPolyLineData.h"
-#include "PCGProjectionData.h"
 
 #include "PCGLandscapeSplineData.generated.h"
+
+class UPCGSpatialData;
 
 class ULandscapeSplinesComponent;
 
@@ -42,3 +42,8 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
 	TWeakObjectPtr<ULandscapeSplinesComponent> Spline;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGProjectionData.h"
+#endif

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Engine/World.h"
+#include "HAL/Platform.h"
 
 class UStaticMesh;
 class USkeletalMesh;
@@ -12,3 +12,7 @@ class USkeletalMesh;
 class CHAOSSOLVEREDITOR_API FChaosSolverCommands
 {
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/World.h"
+#endif

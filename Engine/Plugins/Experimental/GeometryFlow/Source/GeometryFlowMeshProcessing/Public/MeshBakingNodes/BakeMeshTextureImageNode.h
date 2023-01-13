@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
-#include "MeshProcessingNodes/MeshTangentsNodes.h"
 #include "DataTypes/MeshImageBakingData.h"
 #include "DataTypes/TextureImageData.h"
 
@@ -62,3 +59,8 @@ public:
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
+#include "MeshProcessingNodes/MeshTangentsNodes.h"
+#endif

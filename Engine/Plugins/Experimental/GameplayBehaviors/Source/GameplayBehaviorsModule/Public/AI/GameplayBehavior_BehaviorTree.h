@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Engine/TimerHandle.h"
 #include "GameplayBehavior.h"
-#include "Engine/EngineTypes.h"
 #include "GameplayBehavior_BehaviorTree.generated.h"
 
 class UBehaviorTree;
@@ -36,3 +36,7 @@ protected:
 	
 	FTimerHandle TimerHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#endif

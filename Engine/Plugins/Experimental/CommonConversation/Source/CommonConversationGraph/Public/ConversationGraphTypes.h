@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "EdGraph/EdGraphPin.h"
 #include "ConversationGraphTypes.generated.h"
 
@@ -53,3 +50,7 @@ class COMMONCONVERSATIONGRAPH_API UConversationGraphTypes : public UObject
 	static const FName PinCategory_SingleTask;
 	static const FName PinCategory_SingleNode;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

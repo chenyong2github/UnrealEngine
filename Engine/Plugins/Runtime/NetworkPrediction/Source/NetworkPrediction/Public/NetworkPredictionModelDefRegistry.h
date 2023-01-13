@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "NetworkPredictionLog.h"
 #include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionCheck.h"

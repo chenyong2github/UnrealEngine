@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
-#include "CapturableProperty.h"
-#include "Variant.h"
-#include "VariantSet.h"
-#include "VariantManager.h"
 
+#include "PropertyValue.h"
 #include "VariantManagerBlueprintLibrary.generated.h"
+
+class FVariantManager;
+struct FVariantDependency;
 
 class ULevelVariantSets;
 class ALevelVariantSetsActor;
@@ -217,3 +215,11 @@ public:
 private:
 	static TUniquePtr<FVariantManager> VariantManager;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CapturableProperty.h"
+#include "CoreMinimal.h"
+#include "Variant.h"
+#include "VariantManager.h"
+#include "VariantSet.h"
+#endif

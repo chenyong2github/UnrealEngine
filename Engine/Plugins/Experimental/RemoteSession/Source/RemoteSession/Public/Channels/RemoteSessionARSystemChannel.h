@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Channels/RemoteSessionChannel.h"
 #include "RemoteSessionXRTrackingChannel.h"
 #include "ARSystem.h"
 #include "ARTraceResult.h"
+#include "UObject/GCObject.h"
+
+class UARTextureCameraDepth;
+class UARTextureCameraImage;
 
 class IBackChannelPacket;
 

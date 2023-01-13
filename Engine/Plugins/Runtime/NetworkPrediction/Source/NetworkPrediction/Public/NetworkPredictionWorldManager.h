@@ -2,17 +2,9 @@
 
 #pragma once
 #include "Subsystems/WorldSubsystem.h"
-#include "Engine/World.h"
 
-#include "NetworkPredictionID.h"
-#include "NetworkPredictionTickState.h"
 #include "Services/NetworkPredictionServiceRegistry.h"
-#include "NetworkPredictionConfig.h"
-#include "NetworkPredictionDriver.h"
 #include "NetworkPredictionSerialization.h"
-#include "NetworkPredictionTrace.h"
-#include "NetworkPredictionSettings.h"
-#include "NetworkPredictionCues.h"
 
 #include "NetworkPredictionWorldManager.generated.h"
 
@@ -627,3 +619,7 @@ void UNetworkPredictionWorldManager::InitClientRecvData(FNetworkPredictionID ID,
 	ClientRecvData.FramesIdx = DataStore->Frames.GetIndexChecked(ID);
 	ClientRecvData.NetRole = NetRole;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/World.h"
+#endif

@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeColorArithmeticOp.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class UCustomizableObjectNodeRemapPins;
 class UEdGraphPin;

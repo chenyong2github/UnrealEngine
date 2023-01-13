@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Engine/Console.h"
-#include "HAL/Platform.h"
 #include "MemoryUsageInfoProvider.h"
+
+struct FAutoCompleteCommand;
 
 class FOutputDevice;
 
@@ -34,3 +34,7 @@ bool MEMORYUSAGEQUERIES_API GetFilteredGroupsWithSize(TMap<FName, uint64>& OutGr
 #endif
 
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/Console.h"
+#endif

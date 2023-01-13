@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptInterface.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
-#include "Interfaces/OnlineTurnBasedInterface.h"
 #include "EndMatchCallbackProxy.generated.h"
+
+namespace EMPMatchOutcome { enum Outcome : int; }
+template <typename InterfaceType> class TScriptInterface;
 
 class APlayerController;
 class ITurnBasedMatchInterface;
@@ -59,3 +58,8 @@ private:
 	// Match outcome for all other players (win/loss/tie)
 	EMPMatchOutcome::Outcome OtherPlayersOutcome;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/OnlineTurnBasedInterface.h"
+#endif

@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
-#include "Interfaces/OnlinePurchaseInterface.h"
 #include "OnlineSubsystem.h"
 #include "GameFramework/OnlineReplStructs.h"
-#include "InAppPurchaseCallbackProxy2.h"
 #include "InAppPurchaseRestoreCallbackProxy2.generated.h"
+
+enum class EInAppPurchaseStatus : uint8;
+struct FInAppPurchaseProductRequest2;
+struct FOnlineError;
 
 /**
  * Micro-transaction purchase information
@@ -84,3 +82,9 @@ private:
 	
 	EInAppPurchaseStatus SavedPurchaseStatus;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "InAppPurchaseCallbackProxy2.h"
+#include "Interfaces/OnlinePurchaseInterface.h"
+#endif

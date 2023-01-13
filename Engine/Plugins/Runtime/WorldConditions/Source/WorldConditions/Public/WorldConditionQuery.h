@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "InstancedStruct.h"
 #include "InstancedStructContainer.h"
-#include "StructView.h"
 #include "WorldConditionBase.h"
-#include "WorldConditionTypes.h"
 #include "Templates/SubclassOf.h"
-#include "WorldConditionSchema.h"
 #include "WorldConditionQuery.generated.h"
 
 struct FWorldConditionContext;
@@ -420,3 +416,7 @@ protected:
 	UPROPERTY(Transient);
 	mutable FWorldConditionQueryState QueryState;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "WorldConditionSchema.h"
+#endif

@@ -2,20 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "Engine/Scene.h"
 #include "TerrainCarvingSettings.h"
 #include "WaterBrushActorInterface.h"
-#include "WaterBodyWeightmapSettings.h"
-#include "WaterBodyHeightmapSettings.h"
-#include "WaterCurveSettings.h"
-#include "WaterSplineMetadata.h"
-#include "NavAreas/NavArea.h"
-#include "AI/Navigation/NavRelevantInterface.h"
-#include "Interfaces/Interface_PostProcessVolume.h"
-#include "WaterBodyTypes.h"
-#include "WaterWaves.h"
 #include "WaterBodyComponent.h"
 #include "WaterBodyActor.generated.h"
 
@@ -263,3 +251,9 @@ protected:
 	float ShapeDilation_DEPRECATED = 4096.0f;
 #endif // WITH_EDITORONLY_DATA
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
+#include "NavAreas/NavArea.h"
+#endif

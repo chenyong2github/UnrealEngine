@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Misc/EnumRange.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/SoftObjectPath.h"
 
 #include "DataSourceFiltering.generated.h"
 

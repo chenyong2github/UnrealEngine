@@ -5,9 +5,7 @@
 #if WITH_TENCENTSDK
 
 #include "Interfaces/OnlineIdentityInterface.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTencentPackage.h"
-#include "OnlineSubsystemTencentTypes.h"
+#include "OnlineSubsystemPackage.h"
 #include "Serialization/JsonSerializerMacros.h"
 
 class FOnlineSubsystemTencent;
@@ -172,3 +170,8 @@ private:
 typedef TSharedPtr<FOnlineIdentityTencent, ESPMode::ThreadSafe> FOnlineIdentityTencentPtr;
 
 #endif // WITH_TENCENTSDK
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "OnlineSubsystemTencentPackage.h"
+#include "OnlineSubsystemTencentTypes.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFrameworkComponent.h"
 #include "ControllerComponent.generated.h"

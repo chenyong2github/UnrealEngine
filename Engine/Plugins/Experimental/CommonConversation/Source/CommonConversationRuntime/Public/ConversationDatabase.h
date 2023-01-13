@@ -4,9 +4,10 @@
 
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "Engine/Blueprint.h"
 
 #include "ConversationDatabase.generated.h"
+
+struct FEditedDocumentInfo;
 
 class UConversationGraph;
 class FConversationCompiler;
@@ -140,3 +141,7 @@ private:
 	friend FConversationCompiler;
 	friend UConversationRegistry;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/Blueprint.h"
+#endif

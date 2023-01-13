@@ -3,7 +3,6 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshClipWithMeshDetails.h"
 
 #include "DetailLayoutBuilder.h"
-#include "EdGraph/EdGraph.h"
 #include "IDetailsView.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"
 #include "MuCOE/GraphTraversal.h"

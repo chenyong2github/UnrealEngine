@@ -7,6 +7,9 @@
 
 #include "NetworkPredictionComponent.generated.h"
 
+enum ENetRole : int;
+namespace EEndPlayReason { enum Type : int; }
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	UNetworkPredictionComponent
 //	This is the base component for running a TNetworkedSimulationModel through an actor component. This contains the boiler plate hooks into getting the system

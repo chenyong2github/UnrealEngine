@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
 #include "SkeletalMeshImportTestFunctions.generated.h"
 
 struct FInterchangeTestFunctionResult;
@@ -80,3 +79,7 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckSkinnedVertexCountForBone(USkeletalMesh* Mesh, const FString& BoneName, bool bTestFirstAlternateProfile, int32 ExpectedSkinnedVertexCount);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTestFunction.h"
+#endif

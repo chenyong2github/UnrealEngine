@@ -2,16 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "ContentBrowserAssetDataPayload.h"
 #include "ContentBrowserDataSource.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/PathTree.h"
-#include "ContentBrowserItemData.h"
-#include "ContentBrowserItemPath.h"
 #include "ContentBrowserAliasDataSource.generated.h"
+
+class IAssetRegistry;
+struct FPropertyChangedEvent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogContentBrowserAliasDataSource, Log, All);
 
@@ -180,3 +179,9 @@ private:
 	/** A set used for removing duplicate aliases in the same query, stored here to avoid constant reallocation */
 	TSet<FSoftObjectPath> AlreadyAddedOriginalAssets;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "ContentBrowserItemPath.h"
+#include "CoreMinimal.h"
+#endif

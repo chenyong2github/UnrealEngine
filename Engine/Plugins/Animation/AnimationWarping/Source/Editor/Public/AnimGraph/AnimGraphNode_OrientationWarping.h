@@ -5,6 +5,8 @@
 #include "BoneControllers/AnimNode_OrientationWarping.h"
 #include "AnimGraphNode_OrientationWarping.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 UCLASS()
 class ANIMATIONWARPINGEDITOR_API UAnimGraphNode_OrientationWarping : public UAnimGraphNode_SkeletalControlBase
 {

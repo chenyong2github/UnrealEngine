@@ -4,9 +4,10 @@
 
 // HEADER_UNIT_SKIP - Not included directly
 
-#include "NetworkPredictionSimulation.h"
 #include "NetworkPredictionInstanceData.h"
 #include "NetworkPredictionTickState.h"
+#include "NetworkPredictionTrace.h"
+#include "NetworkPredictionUtil.h"
 
 // Common util used by the ticking services. Might make sense to move to FNetworkPredictionDriverBase if needed elsewhere
 template<typename ModelDef>
@@ -327,3 +328,7 @@ private:
 	TBitArray<> InstanceBitArray; // Indices into DataStore->ServerRecv_IndependentTick that we are managing
 	TModelDataStore<ModelDef>* DataStore;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "NetworkPredictionSimulation.h"
+#endif

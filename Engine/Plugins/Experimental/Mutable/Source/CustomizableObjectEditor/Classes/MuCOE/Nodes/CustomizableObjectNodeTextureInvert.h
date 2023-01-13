@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeTextureInvert.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCustomizableObjectNodeRemapPins;

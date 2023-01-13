@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "FalloffSettings.generated.h"
 
 UENUM(BlueprintType)
@@ -34,3 +32,7 @@ struct FLandmassFalloffSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FalloffSettings)
 	float ZOffset;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

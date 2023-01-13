@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 
-#include "DataSourceFilter.h"
 
 class UTraceSourceFilteringSettings;
 class USourceFilterCollection;
@@ -50,3 +48,8 @@ protected:
 	/** Mapping for all filtering commands from their name to respective FFilterCommand object */
 	TMap<FString, FFilterCommand> CommandMap;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DataSourceFilter.h"
+#endif

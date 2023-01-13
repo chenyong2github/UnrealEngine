@@ -7,9 +7,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "InputCoreTypes.h"
 #include "GeomModifier_Edit.h"
 #include "GeomModifier_Pen.generated.h"
 
@@ -67,3 +64,8 @@ private:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "InputCoreTypes.h"
+#endif

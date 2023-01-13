@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "EnvQueryTest_InsideWaterBody.generated.h"
 
@@ -28,3 +26,7 @@ class UEnvQueryTest_InsideWaterBody : public UEnvQueryTest
 
 	virtual FText GetDescriptionDetails() const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

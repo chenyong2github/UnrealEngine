@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "NiagaraCommon.h"
-#include "NiagaraShared.h"
-#include "VectorVM.h"
+#include "Chaos/Declares.h"
 #include "NiagaraDataInterface.h"
-#include "EventsData.h"
-#include "Chaos/ChaosSolverActor.h"
-#include "GeometryCollection/GeometryCollectionActor.h"
-#include "RenderGraphDefinitions.h"
+#include "Chaos/ExternalCollisionData.h"
+#include "RenderGraphFwd.h"
 #include "NiagaraDataInterfaceChaosDestruction.generated.h"
+
+class AChaosSolverActor;
+class FPhysScene_Chaos;
+class UGeometryCollectionComponent;
+namespace Chaos { struct FBreakingEventData; }
+namespace Chaos { struct FCollisionEventData; }
+namespace Chaos { struct FTrailingEventData; }
+struct FNiagaraDataInterfaceGeneratedFunction;
 
 struct PhysicsProxyWrapper;
 
@@ -782,3 +784,11 @@ struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterface
 
 	TMap<FNiagaraSystemInstanceID, FNiagaraDIChaosDestruction_GPUData> SystemsToGPUInstanceData;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chaos/ChaosSolverActor.h"
+#include "CoreMinimal.h"
+#include "EventsData.h"
+#include "GeometryCollection/GeometryCollectionActor.h"
+#include "RenderGraphDefinitions.h"
+#endif

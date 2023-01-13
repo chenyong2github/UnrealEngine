@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
 #include "InterchangeImportTestSettings.generated.h"
 
 
@@ -24,3 +20,8 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Automation)
 	TArray<FString> ImportFiles;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

@@ -4,7 +4,8 @@
 
 #include "ConvexVolume.h"
 #include "HitProxies.h"
-#include "Templates/RefCounting.h"
+#include "Math/Box.h"
+#include "Math/Box2D.h"
 
 class FMaterialRenderProxy;
 class UMaterialInterface;

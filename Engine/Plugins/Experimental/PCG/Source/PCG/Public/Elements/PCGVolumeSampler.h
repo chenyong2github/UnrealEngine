@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Math/Box.h"
 #include "PCGSettings.h"
-#include "PCGElement.h"
 
+#include "PCGPin.h"
 #include "PCGVolumeSampler.generated.h"
 
 class UPCGPointData;

@@ -2,7 +2,6 @@
 
 #pragma once
 #include "GameFramework/Actor.h"
-#include "UObject/SoftObjectPtr.h"
 
 #include "NetworkPredictionReplicatedManager.generated.h"
 

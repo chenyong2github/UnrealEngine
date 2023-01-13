@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EnhancedActionKeyMapping.h"
 #include "GameFramework/PlayerInput.h"
 #include "InputAction.h"
-#include "InputActionValue.h"
-#include "InputTriggers.h"
 
 #include "EnhancedPlayerInput.generated.h"
+
+class UInputModifier;
+class UInputTrigger;
+enum class ETriggerEvent : uint8;
+enum class ETriggerState : uint8;
+struct FEnhancedActionKeyMapping;
 
 // Internal representation containing event variants
 enum class ETriggerEventInternal : uint8;
@@ -162,3 +164,8 @@ private:
 	/** Delta seconds between frames calculated with UWorld::GetRealTimeSeconds */
 	float RealTimeDeltaSeconds = 0.0f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EnhancedActionKeyMapping.h"
+#endif

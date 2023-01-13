@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/PlatformTime.h"
+#include "Templates/SharedPointer.h"
 
 class FSocket;
 
@@ -82,3 +82,7 @@ protected:
 	virtual ~IBackChannelSocketConnection() {}
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

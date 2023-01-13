@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PitchTracker.h"
-#include "PeakPicker.h"
-#include "DSP/BufferVectorOperations.h"
-#include "DSP/FFTAlgorithm.h"
 #include "DSP/SlidingWindow.h"
+#include "Templates/UniquePtr.h"
+
+namespace Audio { class FPeakPicker; }
+namespace Audio { class IFFTAlgorithm; }
 
 namespace Audio
 {
@@ -76,3 +76,10 @@ namespace Audio
 			FAlignedFloatBuffer PowerSpectrumBuffer;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
+#include "DSP/FFTAlgorithm.h"
+#include "PeakPicker.h"
+#endif

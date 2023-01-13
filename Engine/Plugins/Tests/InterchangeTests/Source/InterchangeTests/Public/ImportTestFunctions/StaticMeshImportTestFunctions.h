@@ -3,8 +3,10 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
 #include "StaticMeshImportTestFunctions.generated.h"
+
+struct FMeshBuildSettings;
+struct FMeshNaniteSettings;
 
 struct FInterchangeTestFunctionResult;
 class UStaticMesh;
@@ -157,3 +159,7 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckNaniteSettings(UStaticMesh* Mesh, const FMeshNaniteSettings& ExpectedNaniteSettings);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTestFunction.h"
+#endif

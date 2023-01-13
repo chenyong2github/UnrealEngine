@@ -3,11 +3,11 @@
 #pragma once
 
 #include "GeometryFlowCoreNodes.h"
-#include "GeometryFlowMovableData.h"
-#include "BaseNodes/TransferNode.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 #include "ShapeApproximation/SimpleShapeSet3.h"
+
+namespace UE::GeometryFlow { template <typename T, int StorageTypeIdentifier> class TTransferNode; }
 
 
 namespace UE
@@ -34,3 +34,8 @@ typedef TTransferNode<FCollisionGeometry, (int)EMeshProcessingDataTypes::Collisi
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BaseNodes/TransferNode.h"
+#include "GeometryFlowMovableData.h"
+#endif

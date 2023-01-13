@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "BackChannel/Types.h"
+#include "Containers/ArrayView.h"
+
+struct FBackChannelPacketType;
 
 
 /**
@@ -71,3 +73,7 @@ public:
 	/* Read a block of data from the message */
 	virtual int Read(const TCHAR* InName, void* OutBlob, int32 MaxBlobSize, int32& OutBlobSize) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BackChannel/Types.h"
+#endif

@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "PCGPoint.h"
 #include "PCGSettings.h"
-#include "Metadata/PCGMetadataCommon.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGCreateAttribute.generated.h"
@@ -117,3 +114,7 @@ private:
 	/* Set an entry defined by EntryKey (or create one if it is invalid) in the Attribute depending on the selected type. Value can be overridden by params. */
 	PCGMetadataEntryKey SetAttribute(const UPCGCreateAttributeSettings* Settings, FPCGMetadataAttributeBase* Attribute, UPCGMetadata* Metadata, PCGMetadataEntryKey EntryKey, const UPCGParamData* Params = nullptr) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PCGPoint.h"
+#endif

@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "GauntletModule.h"
 #include "GauntletTestController.generated.h"
+
+class FGauntletModule;
 
 class APlayerController;
 
@@ -105,3 +106,7 @@ private:
 	FGauntletModule*  ParentModule;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GauntletModule.h"
+#endif

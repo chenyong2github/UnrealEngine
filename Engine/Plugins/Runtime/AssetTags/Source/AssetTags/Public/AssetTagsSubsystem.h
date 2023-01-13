@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
-#include "AssetRegistry/AssetData.h"
+#include "UObject/Package.h"
 #include "AssetTagsSubsystem.generated.h"
 
 UENUM(DisplayName="Collection Share Type", meta=(ScriptName="CollectionShareType"))
@@ -289,3 +288,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="AssetTags")
 	TArray<FName> GetCollectionsContainingAssetPtr(const UObject* AssetPtr);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "CoreMinimal.h"
+#endif

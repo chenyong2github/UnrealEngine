@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PacketHandler.h"
-#include "IPlatformCrypto.h"
 #include "EncryptionComponent.h"
 #include "AESGCMFaultHandler.h"
+#include "IPlatformCrypto.h" // IWYU pragma: keep
+
+struct FBitWriter;
+struct FEncryptionData;
+struct FOutPacketTraits;
 
 /*
 * AES256 GCM block encryption component.
@@ -77,3 +79,8 @@ public:
 	/* Creates an instance of this component */
 	virtual TSharedPtr<HandlerComponent> CreateComponentInstance(FString& Options) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "IPlatformCrypto.h"
+#endif

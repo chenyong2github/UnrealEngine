@@ -5,6 +5,9 @@
 #include "GameFramework/Volume.h"
 #include "AudioGameplayVolume.generated.h"
 
+enum class ETeleportType : uint8;
+enum class EUpdateTransformFlags : int32;
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAudioGameplayVolumeEvent);
 

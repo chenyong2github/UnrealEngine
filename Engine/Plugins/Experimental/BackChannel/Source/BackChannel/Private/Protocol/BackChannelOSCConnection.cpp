@@ -6,7 +6,6 @@
 #include "BackChannel/Transport/IBackChannelSocketConnection.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
-#include "Misc/ScopeLock.h"
 #include "Sockets.h"
 
 FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)

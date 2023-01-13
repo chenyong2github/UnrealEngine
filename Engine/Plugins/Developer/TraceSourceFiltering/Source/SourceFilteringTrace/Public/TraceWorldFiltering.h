@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Delegates/DelegateCombinations.h"
 #include "Engine/World.h"
 
 class FSourceFilterManager;

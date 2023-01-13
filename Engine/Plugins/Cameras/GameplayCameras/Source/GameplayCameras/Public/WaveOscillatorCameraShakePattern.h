@@ -5,6 +5,11 @@
 #include "SimpleCameraShakePattern.h"
 #include "WaveOscillatorCameraShakePattern.generated.h"
 
+struct FCameraShakeScrubParams;
+struct FCameraShakeStartParams;
+struct FCameraShakeUpdateParams;
+struct FCameraShakeUpdateResult;
+
 /** Shake start offset parameter. */
 UENUM()
 enum class EInitialWaveOscillatorOffsetType : uint8

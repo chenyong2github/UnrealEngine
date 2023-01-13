@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "Engine/World.h"
 #include "NetworkPredictionProxy.h"
-#include "NetworkPredictionReplicationProxy.h"
-#include "NetworkPredictionStateView.h"
 #include "NetworkPredictionWorldManager.h"
-#include "NetworkPredictionConfig.h"
-#include "NetworkPredictionTrace.h"
+#include "Trace/Trace.inl"
+
+struct FNetworkPredictionSettings;
 
 // The init function binds to the templated methods on UNetworkPredictionMAnager. This will "bring in" all the templated systems on NP, so this file should only be 
 // included in your .cpp file that is calling Init.

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 class UWaterBodyComponent;
 class FGerstnerWaterWaveViewExtension;
@@ -46,3 +46,7 @@ private:
 
 	TSharedPtr<FGerstnerWaterWaveViewExtension, ESPMode::ThreadSafe> GerstnerWaterWaveViewExtension;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

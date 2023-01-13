@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "BehaviorTree/BehaviorTreeTypes.h"
-#include "GameplayBehavior.h"
-#include "GameplayTagContainer.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "UObject/ObjectMacros.h"
 #include "GameplayBehaviorsBlueprintFunctionLibrary.generated.h"
+
+class UBlackboardComponent;
+class UGameplayBehavior;
+struct FBlackboardKeySelector;
+struct FGameplayTagContainer;
+template <typename T> class TSubclassOf;
 
 
 class AActor;
@@ -39,3 +40,10 @@ public:
 	static void SetValueAsGameplayTagForBlackboardComp(UBlackboardComponent* BlackboardComp, const FName& KeyName, FGameplayTagContainer GameplayTagValue);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BehaviorTree/BehaviorTreeTypes.h"
+#include "CoreMinimal.h"
+#include "GameplayBehavior.h"
+#include "GameplayTagContainer.h"
+#endif

@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
-#include "UObject/Class.h"
 
 class UConversationTaskNode;
 
@@ -93,3 +89,9 @@ private:
 
 	FTaskMemoryAllocator TaskMemoryAllocator;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#endif

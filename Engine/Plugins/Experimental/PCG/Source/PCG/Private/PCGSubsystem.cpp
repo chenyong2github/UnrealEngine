@@ -4,6 +4,7 @@
 #include "Engine/Level.h"
 #include "PCGComponent.h"
 #include "Graph/PCGGraphCache.h"
+#include "PCGModule.h"
 #include "PCGHelpers.h"
 #include "Grid/PCGLandscapeCache.h"
 #include "PCGWorldActor.h"
@@ -17,7 +18,6 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
-#include "PCGModule.h"
 #include "WorldPartition/WorldPartition.h"
 #include "PackageSourceControlHelper.h"
 #include "WorldPartition/WorldPartitionHelpers.h"

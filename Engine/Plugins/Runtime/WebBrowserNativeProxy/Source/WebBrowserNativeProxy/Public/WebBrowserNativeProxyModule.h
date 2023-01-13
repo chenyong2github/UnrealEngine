@@ -3,7 +3,8 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
-#include "IWebBrowserSingleton.h"
+
+class IWebBrowserWindow;
 
 /**
  * The public interface to this module
@@ -59,3 +60,7 @@ public:
 	virtual FOnBrowserAvailableEvent& OnBrowserAvailable() = 0;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "IWebBrowserSingleton.h"
+#endif

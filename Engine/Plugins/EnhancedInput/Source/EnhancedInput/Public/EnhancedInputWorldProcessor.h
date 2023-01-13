@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Application/IInputProcessor.h"
+#include "Math/Vector2D.h"
 
 struct FInputKeyParams;
 class UWorld;
@@ -59,3 +59,7 @@ private:
 	UWorld* WorldFromSubsystem = nullptr;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

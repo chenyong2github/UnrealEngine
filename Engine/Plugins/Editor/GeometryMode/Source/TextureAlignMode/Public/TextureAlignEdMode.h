@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 #include "EditorModeTools.h"
 
@@ -79,3 +77,7 @@ public:
 private:
 	FVector PreviousInputDrag;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

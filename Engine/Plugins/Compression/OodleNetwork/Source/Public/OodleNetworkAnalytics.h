@@ -3,9 +3,7 @@
 
 
 // Include
-#include "CoreMinimal.h"
 
-#include "Runtime/Launch/Resources/Version.h"
 #include "Net/Core/Analytics/NetAnalytics.h"
 
 
@@ -135,3 +133,8 @@ struct FClientOodleNetAnalyticsData : public FOodleNetAnalyticsData
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Runtime/Launch/Resources/Version.h"
+#endif

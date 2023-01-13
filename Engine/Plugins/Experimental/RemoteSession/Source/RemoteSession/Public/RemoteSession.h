@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RemoteSessionTypes.h"
-#include "Modules/ModuleManager.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+
+class IRemoteSessionRole;
+class IRemoteSessionUnmanagedRole;
+enum class ERemoteSessionChannelMode : int32;
+struct FRemoteSessionChannelInfo;
 
 
 REMOTESESSION_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteSession, Log, All);
@@ -70,3 +74,9 @@ public:
 	/** Returns host that is not controlled by the module */
 	virtual TSharedPtr<IRemoteSessionUnmanagedRole> CreateHost(TArray<FRemoteSessionChannelInfo> SupportedChannels, int32 Port) const = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#include "RemoteSessionTypes.h"
+#endif

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeModifierBase.generated.h"
 

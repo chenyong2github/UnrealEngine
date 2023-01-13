@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetTypeCategories.h"
 #include "AssetTypeActions_Base.h"
 #include "AnimationSharingSetup.h"
 
@@ -24,3 +22,7 @@ public:
 		return SubMenus;
 	};
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

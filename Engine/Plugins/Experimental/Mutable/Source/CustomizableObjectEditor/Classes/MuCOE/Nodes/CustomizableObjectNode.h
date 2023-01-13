@@ -2,22 +2,9 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/ArrayView.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraph.h" // IWYU pragma: keep
 #include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Misc/Guid.h"
 #include "MuCO/CustomizableObject.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNode.generated.h"
 

@@ -2,10 +2,8 @@
 
 #pragma once
 
+#include "Chaos/SimCallbackInput.h"
 #include "WaterBodyTypes.h"
-#include "Chaos/GeometryParticlesfwd.h"
-#include "Physics/PhysicsInterfaceScene.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "BuoyancyTypes.generated.h"
 
 class UBuoyancyComponent;
@@ -440,3 +438,8 @@ struct FBuoyancyManagerAsyncOutput : public Chaos::FSimCallbackOutput
 	}
 };
 /* async structs end here */
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chaos/GeometryParticlesfwd.h"
+#include "Physics/PhysicsInterfaceScene.h"
+#endif

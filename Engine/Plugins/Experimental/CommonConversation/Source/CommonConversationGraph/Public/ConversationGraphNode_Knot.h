@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ConversationGraphNode.h"
+#include "EdGraph/EdGraphNode.h"
 #include "ConversationGraphNode_Knot.generated.h"
 
 class SGraphNode;
@@ -38,3 +38,7 @@ public:
 		return Pins[1];
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationGraphNode.h"
+#endif

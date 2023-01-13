@@ -3,8 +3,8 @@
 #pragma once
 
 #include "PerPlatformProperties.h"
-#include "UObject/Class.h"
-#include "AnimationSharingInstances.h"
+#include "Templates/SubclassOf.h"
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/DeveloperSettings.h"
 #include "Animation/AnimBlueprint.h"
@@ -15,8 +15,11 @@
 #include "AnimationSharingTypes.generated.h"
 
 class UAnimSequence;
+class UAnimSharingAdditiveInstance;
+class UAnimSharingStateInstance;
+class UAnimSharingTransitionInstance;
+class USkeletalMesh;
 class USkeleton;
-class USkeletonMesh;
 
 USTRUCT()
 struct FAnimationSetup
@@ -184,3 +187,7 @@ public:
 	FPerPlatformFloat TickSignificanceValue;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AnimationSharingInstances.h"
+#endif

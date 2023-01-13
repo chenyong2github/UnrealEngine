@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "FunctionCaller.generated.h"
 
 #define TARGET_PIN_NAME TEXT("Target")

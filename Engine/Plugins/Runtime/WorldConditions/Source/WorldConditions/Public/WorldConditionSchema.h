@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "EngineDefines.h"
 #include "WorldConditionTypes.h"
 #include "WorldConditionSchema.generated.h"
 
@@ -115,3 +114,7 @@ protected:
 	UPROPERTY()
 	TArray<FWorldConditionContextDataDesc> ContextDataDescs;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "EngineDefines.h"
+#endif

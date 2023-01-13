@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "GerstnerWaterWaveSubsystem.generated.h"
+
+struct FResourceSizeEx;
 
 class FGerstnerWaterWaveViewExtension;
 
@@ -37,3 +38,7 @@ private:
 	TArray<FGerstnerWaterWaveViewExtension*> GerstnerWaterWaveViewExtensions;
 	bool bRebuildGPUData = true;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

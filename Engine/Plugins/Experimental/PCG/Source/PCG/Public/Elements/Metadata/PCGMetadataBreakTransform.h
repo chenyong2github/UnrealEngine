@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "PCGElement.h"
-#include "PCGSettings.h"
 
 #include "Elements/Metadata/PCGMetadataOpElementBase.h"
-#include "Elements/Metadata/PCGMetadataMakeTransform.h"
 
 #include "PCGMetadataBreakTransform.generated.h"
 
@@ -55,3 +52,7 @@ class FPCGMetadataBreakTransformElement : public FPCGMetadataElementBase
 protected:
 	virtual bool DoOperation(FOperationData& OperationData) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Elements/Metadata/PCGMetadataMakeTransform.h"
+#endif

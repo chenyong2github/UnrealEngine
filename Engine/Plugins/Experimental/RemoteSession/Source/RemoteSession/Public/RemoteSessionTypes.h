@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "RemoteSessionTypes.generated.h"
 
 class IRemoteSessionChannel;
@@ -111,3 +110,7 @@ public:
 	UPROPERTY(config)
 	TArray<FString> DeniedChannels;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

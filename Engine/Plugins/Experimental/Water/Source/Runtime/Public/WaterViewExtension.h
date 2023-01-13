@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SceneViewExtension.h"
 #include "WaterInfoRendering.h"
 
@@ -35,3 +34,7 @@ private:
 	 */
 	TMap<AWaterZone*, FBox2D> UpdateBounds;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

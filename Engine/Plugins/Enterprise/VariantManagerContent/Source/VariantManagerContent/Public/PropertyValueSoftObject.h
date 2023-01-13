@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PropertyValue.h"
 
 #include "PropertyValueSoftObject.generated.h"
@@ -36,3 +34,7 @@ public:
 	virtual void SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0) override;
 	//~ UPropertyValue interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

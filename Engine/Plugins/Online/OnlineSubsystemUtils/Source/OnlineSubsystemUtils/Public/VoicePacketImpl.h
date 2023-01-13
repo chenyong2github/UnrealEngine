@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "Net/VoiceDataCommon.h"
 #include "OnlineSubsystemUtilsPackage.h"
 #include "Net/VoiceConfig.h"
@@ -72,3 +70,7 @@ struct FVoiceDataImpl
 	FVoiceDataImpl() {}
 	~FVoiceDataImpl() {}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

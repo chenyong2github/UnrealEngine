@@ -20,6 +20,7 @@
 #include "LevelEditorViewport.h"
 #else
 #include "Camera/CameraComponent.h"
+#include "SceneManagement.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarNumGeneratedInstancesLimit(

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Algo/Count.h"
-#include "GeometryCollection/GeometryCollection.h"
-#include "DynamicMesh/DynamicMesh3.h"
+#include "Math/Box.h"
+
+namespace UE::Geometry { class FDynamicMesh3; }
 
 //class FDynamicMesh3;
 
@@ -27,3 +27,9 @@ public:
 	static void DeconstructMesh(const UE::Geometry::FDynamicMesh3& InMesh, TArray<FVector3f>& OutVertices, TArray<FIntVector>& OutTriangles);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Algo/Count.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "GeometryCollection/GeometryCollection.h"
+#endif

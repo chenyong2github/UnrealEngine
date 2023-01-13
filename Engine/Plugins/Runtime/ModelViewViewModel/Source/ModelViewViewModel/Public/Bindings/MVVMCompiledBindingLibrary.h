@@ -2,17 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "FieldNotification/FieldId.h"
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMFieldContext.h"
-#include "Types/MVVMFunctionContext.h"
-#include "Types/MVVMFieldVariant.h"
-#include "Types/MVVMObjectVariant.h"
-#include "UObject/FieldPath.h"
-#include "UObject/Object.h"
 
 #include "MVVMCompiledBindingLibrary.generated.h"
+
+namespace UE::FieldNotification { struct FFieldId; }
+namespace UE::MVVM { struct FFieldContext; }
+namespace UE::MVVM { struct FFunctionContext; }
+namespace UE::MVVM { struct FMVVMFieldVariant; }
+template <typename ValueType, typename ErrorType> class TValueOrError;
 
 struct FMVVMCompiledBindingLibrary;
 namespace UE::MVVM
@@ -323,3 +320,14 @@ private:
 	UPROPERTY()
 	TArray<FName> CompiledFieldNames;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "FieldNotification/FieldId.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMFieldContext.h"
+#include "Types/MVVMFieldVariant.h"
+#include "Types/MVVMFunctionContext.h"
+#include "Types/MVVMObjectVariant.h"
+#include "UObject/FieldPath.h"
+#endif

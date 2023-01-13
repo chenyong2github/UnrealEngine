@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGSettings.h"
 
-#include "Elements/PCGPointProcessingElementBase.h"
 
 #include "PCGTransformPoints.generated.h"
 
@@ -81,3 +79,8 @@ class FPCGTransformPointsElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Elements/PCGPointProcessingElementBase.h"
+#endif

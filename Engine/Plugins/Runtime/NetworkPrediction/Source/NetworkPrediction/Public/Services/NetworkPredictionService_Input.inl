@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "NetworkPredictionTrace.h"
+#include "Services/NetworkPredictionInstanceData.h"
+
 // InputService's job is to write InputCmds to a subscribed instance's FrameBuffer[PendingFrame].InputCmd.
 
 class IInputService

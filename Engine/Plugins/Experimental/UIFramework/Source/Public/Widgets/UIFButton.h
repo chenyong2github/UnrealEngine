@@ -8,6 +8,8 @@
 
 #include "UIFButton.generated.h"
 
+struct FUIFrameworkWidgetId;
+
 /**
  *
  */

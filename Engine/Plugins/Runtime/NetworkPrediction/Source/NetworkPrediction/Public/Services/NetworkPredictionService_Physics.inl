@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "NetworkPredictionSimulation.h"
-#include "NetworkPredictionConfig.h"
-#include "Chaos/Particles.h"
-#include "Chaos/ParticleHandle.h"
+#include "NetworkPredictionLog.h"
+#include "NetworkPredictionTickState.h"
+#include "NetworkPredictionTrace.h"
+#include "NetworkPredictionUtil.h"
+#include "Services/NetworkPredictionInstanceData.h"
 
 // The PhysicsService does bookkeeping for physics objects
 //	-Tracing
@@ -144,3 +145,9 @@ private:
 	TBitArray<> InstanceBitArray; // index into DataStore->Instances
 	TModelDataStore<ModelDef>* DataStore;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chaos/ParticleHandle.h"
+#include "Chaos/Particles.h"
+#include "NetworkPredictionSimulation.h"
+#endif

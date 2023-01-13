@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PitchTracker.h"
-#include "PeakPicker.h"
-#include "DSP/BlockCorrelator.h"
 #include "DSP/SlidingWindow.h"
+#include "Templates/UniquePtr.h"
+
+namespace Audio { class FBlockCorrelator; }
+namespace Audio { class FPeakPicker; }
 
 namespace Audio
 {
@@ -71,3 +72,9 @@ namespace Audio
 }
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/BlockCorrelator.h"
+#include "PeakPicker.h"
+#endif

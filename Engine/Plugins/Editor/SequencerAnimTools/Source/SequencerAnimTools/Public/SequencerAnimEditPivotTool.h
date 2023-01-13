@@ -2,20 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 
-#include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MultiSelectionTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Framework/Commands/Commands.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "BaseGizmos/TransformProxy.h"
 #include "BaseSequencerAnimTool.h"
-#include "ControlRig.h"
 #include "Styling/AppStyle.h"
 #include "SequencerAnimEditPivotTool.generated.h"
+
+class FControlRigInteractionScope;
+class SWidget;
+class UControlRig;
+class UInteractiveGizmoManager;
+class UTransformProxy;
+enum class EToolShutdownType : uint8;
+struct FKey;
 
 class USingleClickInputBehavior;
 class UClickDragInputBehavior;
@@ -245,3 +247,9 @@ public:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BaseGizmos/TransformProxy.h"
+#include "ControlRig.h"
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "ComponentVisualizer.h"
 
@@ -14,3 +13,7 @@ class LANDSCAPEPATCHEDITORONLY_API FLandscapeTexturePatchVisualizer : public FCo
 private:
 	virtual void DrawVisualization(const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

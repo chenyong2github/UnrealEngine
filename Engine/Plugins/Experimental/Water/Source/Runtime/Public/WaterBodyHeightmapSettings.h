@@ -3,8 +3,6 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "WaterFalloffSettings.h"
 #include "WaterBrushEffects.h"
 #include "WaterBodyHeightmapSettings.generated.h"
@@ -45,3 +43,7 @@ struct FWaterBodyHeightmapSettings
 	UPROPERTY()
 	int32 Priority_DEPRECATED = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

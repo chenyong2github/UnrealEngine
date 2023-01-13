@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "PCGElement.h"
-#include "PCGSettings.h"
 
 #include "Elements/Metadata/PCGMetadataOpElementBase.h"
 

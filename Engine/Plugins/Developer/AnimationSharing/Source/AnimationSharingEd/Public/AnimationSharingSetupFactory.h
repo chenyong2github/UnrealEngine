@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
 #include "AnimationSharingSetupFactory.generated.h"
 
@@ -23,3 +21,7 @@ class UAnimationSharingSetupFactory : public UFactory
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

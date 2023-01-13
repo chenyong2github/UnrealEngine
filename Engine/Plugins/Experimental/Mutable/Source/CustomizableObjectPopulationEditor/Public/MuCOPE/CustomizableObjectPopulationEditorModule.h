@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Templates/SharedPointer.h"
 #include "Toolkits/IToolkit.h"
-#include "UObject/NameTypes.h"
 
 class ICustomizableObjectPopulationClassEditor;
 class ICustomizableObjectPopulationEditor;

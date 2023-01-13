@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "TraceServices/Containers/Timelines.h"
 #include "Common/PagedArray.h"
-#include "TraceServices/Containers/Allocators.h"
 
 // In the NetworkPrediction system, simulations can individually specify their types used for timing.
 // Since we can't really specialize the insights side per simulation, we are just using single typedefs here that
@@ -647,3 +644,8 @@ public:
 };
 
 NETWORKPREDICTIONINSIGHTS_API const INetworkPredictionProvider* ReadNetworkPredictionProvider(const TraceServices::IAnalysisSession& Session);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "TraceServices/Containers/Timelines.h"
+#endif

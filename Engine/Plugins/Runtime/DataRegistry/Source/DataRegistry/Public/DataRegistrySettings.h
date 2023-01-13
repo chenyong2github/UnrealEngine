@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "DataRegistryTypes.h"
 #include "Engine/DeveloperSettings.h"
 #include "DataRegistrySettings.generated.h"
+
+struct FDirectoryPath;
+
+struct FPropertyChangedEvent;
 
 
 /** Settings for the Data Registry subsystem, these settings are used to scan for registry assets and set runtime access rules */
@@ -36,3 +39,7 @@ public:
 #endif
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataRegistryTypes.h"
+#endif

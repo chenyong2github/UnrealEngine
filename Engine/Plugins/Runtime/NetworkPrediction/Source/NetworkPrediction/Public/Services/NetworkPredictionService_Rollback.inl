@@ -4,8 +4,10 @@
 
 // HEADER_UNIT_SKIP - Not included directly
 
-#include "NetworkPredictionTickState.h"
-#include "Stats/Stats.h"
+#include "NetworkPredictionCVars.h"
+#include "NetworkPredictionLog.h"
+#include "Services/NetworkPredictionInstanceData.h"
+#include "Services/NetworkPredictionService_Ticking.inl"
 
 namespace NetworkPredictionCVars
 {

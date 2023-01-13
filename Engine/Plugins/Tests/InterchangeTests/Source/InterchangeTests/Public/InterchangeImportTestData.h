@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
 
 class UInterchangeImportTestPlan;
@@ -19,3 +18,7 @@ struct FInterchangeImportTestData
 	TArray<UObject*> ResultObjects;
 	TArray<FAssetData> ImportedAssets;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

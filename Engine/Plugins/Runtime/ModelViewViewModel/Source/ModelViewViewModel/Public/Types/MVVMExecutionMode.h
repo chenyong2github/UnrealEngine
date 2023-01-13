@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MVVMExecutionMode.generated.h"
 
 
@@ -17,3 +16,7 @@ enum class EMVVMExecutionMode : uint8
 	/** Always execute the binding at the end of the frame. */
 	Tick,
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

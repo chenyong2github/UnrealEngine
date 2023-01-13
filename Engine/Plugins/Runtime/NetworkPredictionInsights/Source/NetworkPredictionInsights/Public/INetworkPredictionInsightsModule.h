@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "UObject/NameTypes.h"
 
 namespace NetworkPredictionInsightsTabs
 {
 	extern NETWORKPREDICTIONINSIGHTS_API const FName DocumentTab;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

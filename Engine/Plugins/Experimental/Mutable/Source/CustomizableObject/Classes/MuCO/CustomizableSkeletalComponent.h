@@ -3,12 +3,6 @@
 #pragma once
 
 #include "Components/SceneComponent.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Math/UnrealMathSSE.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableSkeletalComponent.generated.h"
 

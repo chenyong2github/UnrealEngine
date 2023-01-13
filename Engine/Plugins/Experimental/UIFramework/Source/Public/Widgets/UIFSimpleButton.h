@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Types/UIFEvents.h"
-#include "Types/MVVMEventField.h"
 #include "UIFWidget.h"
 
 #include "UIFSimpleButton.generated.h"
+
+struct FMVVMEventField;
 
 /**
  *
@@ -52,3 +53,7 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerClick(APlayerController* PlayerController);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Types/MVVMEventField.h"
+#endif

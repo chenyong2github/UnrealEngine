@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
 #include "Types/MVVMViewModelContext.h"
-#include "Types/MVVMViewModelContextInstance.h"
 
 #include "MVVMViewModelCollection.generated.h"
+
+struct FMVVMViewModelContextInstance;
 
 class UMVVMViewModelBase;
 
@@ -90,3 +89,8 @@ private:
 	UPROPERTY(Transient)
 	FMVVMViewModelCollection ViewModelCollection;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Types/MVVMViewModelContextInstance.h"
+#endif

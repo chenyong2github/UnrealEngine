@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IAudioExtensionPlugin.h"
-#include "AudioMixerDevice.h"
-#include "SoundFieldRendering.h"
+#include "ISoundfieldFormat.h"
 #include "SoundFields.generated.h"
 
 UCLASS(config = Engine, editinlinenew, BlueprintType)
@@ -47,3 +44,10 @@ public:
 	virtual bool CanTranscodeToSoundfieldFormat(FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& DestinationEncodingSettings) override;
 	//~End ISoundfieldFactory
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMixerDevice.h"
+#include "CoreMinimal.h"
+#include "IAudioExtensionPlugin.h"
+#include "SoundFieldRendering.h"
+#endif

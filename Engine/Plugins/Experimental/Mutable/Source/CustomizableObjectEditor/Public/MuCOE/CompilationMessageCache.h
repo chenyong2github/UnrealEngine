@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
 #include "Logging/TokenizedMessage.h"
 
 // Forward declarations

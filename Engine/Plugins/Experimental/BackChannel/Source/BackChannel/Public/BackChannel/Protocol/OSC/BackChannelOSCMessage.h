@@ -4,6 +4,8 @@
 
 #include "BackChannel/Protocol/OSC/BackChannelOSCPacket.h"
 #include "BackChannel/IBackChannelPacket.h"
+#include "BackChannel/Types.h"
+#include "Misc/ByteSwap.h"
 
 
 /**

@@ -4,6 +4,8 @@
 
 #include "Details/PCGComponentDetails.h"
 
+class IDetailCustomization;
+
 class FPCGVolumeDetails : public FPCGComponentDetails
 {
 public:

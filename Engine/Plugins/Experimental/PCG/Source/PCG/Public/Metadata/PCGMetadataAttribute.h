@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGMetadataCommon.h"
 
-#include "Misc/ScopeRWLock.h"
-#include "Templates/EnableIf.h"
 
 class UPCGMetadata;
 
@@ -69,3 +66,8 @@ public:
 	FName Name = NAME_None;
 	PCGMetadataAttributeKey AttributeId = -1;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/ScopeRWLock.h"
+#endif

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "GeometryFlowGraph.h"
-#include "GeometryFlowCoreNodes.h"
-#include "BaseNodes/SwitchNode.h"
+
+namespace UE::GeometryFlow { template <typename T, int32 StorageTypeIdentifier> class TSourceNode; }
 
 namespace UE
 {
@@ -95,3 +95,8 @@ inline TArray<int> FindAllConnectionsToNode(FGraph::FHandle ToNodeID, const TArr
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BaseNodes/SwitchNode.h"
+#include "GeometryFlowCoreNodes.h"
+#endif

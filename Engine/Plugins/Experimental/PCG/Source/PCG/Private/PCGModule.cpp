@@ -8,7 +8,8 @@
 #include "Modules/ModuleManager.h"
 #include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDifferenceDeterminismTest.h"
-
+#else
+#include "Modules/ModuleManager.h"
 #endif
 
 

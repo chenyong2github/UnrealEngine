@@ -3,10 +3,6 @@
 #pragma once
 
 #include "ActorFactories/ActorFactory.h"
-#include "Math/Quat.h"
-#include "Math/UnrealMathSSE.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectInstanceFactory.generated.h"
 

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "StructView.h"
-#include "GameplayTagContainer.h"
 #include "WorldConditionTypes.generated.h"
 
 WORLDCONDITIONS_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldCondition, Warning, All);
@@ -231,3 +230,7 @@ protected:
 	/** Type of the context data, copied from the descriptor. */
 	EWorldConditionContextDataType Type = EWorldConditionContextDataType::Dynamic;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameplayTagContainer.h"
+#endif

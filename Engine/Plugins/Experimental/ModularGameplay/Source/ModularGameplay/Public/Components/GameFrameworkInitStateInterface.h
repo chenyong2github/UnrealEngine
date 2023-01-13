@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "GameplayTagContainer.h"
 #include "UObject/Interface.h"
-#include "GameFrameworkComponentDelegates.h"
 #include "GameFrameworkInitStateInterface.generated.h"
+
+class FActorInitStateChangedBPDelegate;
+struct FActorInitStateChangedParams;
 
 class UGameFrameworkComponentManager;
 
@@ -80,3 +83,7 @@ protected:
 	/** Default handle created from calling BindOnActorInitStateChanged */
 	FDelegateHandle ActorInitStateChangedHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFrameworkComponentDelegates.h"
+#endif

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
 #include "Curves/CurveFloat.h"
 #include "BoostMotorSimComponent.generated.h"
@@ -47,3 +46,7 @@ private:
 
 	float ActiveTime = 0.f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

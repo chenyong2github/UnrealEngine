@@ -2,18 +2,16 @@
 
 #pragma once
 
-#include "Misc/Guid.h"
-#include "Containers/Map.h"
-#include "Containers/Array.h"
-#include "Math/Range.h"
-#include "Math/Color.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "GameFramework/Actor.h"
 
-#include "TrajectoryCache.h"
+#include "Math/Box.h"
 #include "TrajectoryDrawInfo.h"
 #include "HitProxies.h"
-#include "Misc/Guid.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FCanvas;
+namespace UE::SequencerAnimTools { class FTrailHierarchy; }
+struct FConvexVolume;
 
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
@@ -148,3 +146,8 @@ protected:
 };
 } // namespace MovieScene
 } // namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFramework/Actor.h"
+#include "TrajectoryCache.h"
+#endif

@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
 #include "OnlineSubsystem.h"
 #include "InAppPurchaseCallbackProxy2.generated.h"
@@ -196,3 +192,7 @@ private:
 
 	EInAppPurchaseStatus SavedPurchaseStatus;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

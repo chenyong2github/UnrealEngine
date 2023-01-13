@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "WorldConditionTypes.h"
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
+
+struct FWorldConditionBase;
 
 /**
  * The World condition context and context data are structs that are created when we want to interact with world conditions.

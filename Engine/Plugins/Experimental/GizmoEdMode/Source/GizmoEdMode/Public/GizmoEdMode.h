@@ -3,12 +3,11 @@
 #pragma once
 
 #include "Tools/UEdMode.h"
-#include "UObject/Object.h"
-#include "UObject/Interface.h"
-#include "UnrealWidgetFwd.h"
-#include "AssetEditorGizmoFactory.h"
 
 #include "GizmoEdMode.generated.h"
+
+class IAssetEditorGizmoFactory;
+template <typename InterfaceType> class TScriptInterface;
 
 class UCombinedTransformGizmo;
 class UInteractiveGizmo;
@@ -55,3 +54,9 @@ private:
 
 	bool bNeedInitialGizmos{false};
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetEditorGizmoFactory.h"
+#include "UObject/Interface.h"
+#include "UnrealWidgetFwd.h"
+#endif

@@ -5,6 +5,11 @@
 #include "SimpleCameraShakePattern.h"
 #include "PerlinNoiseCameraShakePattern.generated.h"
 
+struct FCameraShakeScrubParams;
+struct FCameraShakeStartParams;
+struct FCameraShakeUpdateParams;
+struct FCameraShakeUpdateResult;
+
 /** A perlin noise shaker for a single number. */
 USTRUCT(BlueprintType)
 struct GAMEPLAYCAMERAS_API FPerlinNoiseShaker

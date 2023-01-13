@@ -2,16 +2,18 @@
 
 #pragma once
 
-#include "PCGElement.h"
+#include "PCGContext.h"
 #include "PCGSettings.h"
 
-#include "Data/PCGPointData.h"
-#include "PCGPoint.h"
 
-#include "Math/RandomStream.h"
-#include "Templates/SubclassOf.h"
 
 #include "PCGExecuteBlueprint.generated.h"
+
+class UPCGBlueprintElement;
+class UPCGMetadata;
+class UPCGPointData;
+class UPCGSpatialData;
+struct FPCGPoint;
 
 class UWorld;
 
@@ -264,3 +266,9 @@ protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;	
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Data/PCGPointData.h"
+#include "Math/RandomStream.h"
+#include "PCGPoint.h"
+#endif

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
 #include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 class AActor;
 class UVariant;
@@ -149,3 +147,7 @@ private:
 
 	TSharedRef<FVariantManagerNodeTree> NodeTree;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

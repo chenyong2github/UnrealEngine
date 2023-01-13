@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
 #include "ScreenshotComparisonCommandlet.generated.h"
 
@@ -19,3 +17,7 @@ public:
 	virtual int32 Main(const FString& CmdLineParams) override;
 	//~ End UCommandlet Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

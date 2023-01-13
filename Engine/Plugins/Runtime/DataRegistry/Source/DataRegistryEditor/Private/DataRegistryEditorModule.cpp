@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistryEditorModule.h"
-#include "DataRegistry.h"
 #include "DataRegistryIdCustomization.h"
 #include "DataRegistryTypeCustomization.h"
 #include "DataRegistrySubsystem.h"

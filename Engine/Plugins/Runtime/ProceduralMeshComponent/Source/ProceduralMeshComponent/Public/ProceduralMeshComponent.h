@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Components/MeshComponent.h"
-#include "PhysicsEngine/ConvexElem.h"
 #include "ProceduralMeshComponent.generated.h"
+
+struct FKConvexElem;
 
 class FPrimitiveSceneProxy;
 
@@ -348,3 +347,8 @@ private:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PhysicsEngine/ConvexElem.h"
+#endif

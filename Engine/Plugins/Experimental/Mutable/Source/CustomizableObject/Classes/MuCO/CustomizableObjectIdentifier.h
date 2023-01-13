@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "Serialization/Archive.h"
 
 #include "CustomizableObjectIdentifier.generated.h"
 

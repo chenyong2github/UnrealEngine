@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
-#include "GameplayBehavior.h"
 #include "GameplayBehaviorConfig.generated.h"
+
+class UGameplayBehavior;
 
 
 
@@ -25,3 +23,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = GameplayBehavior)
 	TSubclassOf<UGameplayBehavior> BehaviorClass;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameplayBehavior.h"
+#endif

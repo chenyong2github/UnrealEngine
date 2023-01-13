@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "MeshProcessingNodes/MeshSimplifyNode.h"
 #include "Remesher.h"
 

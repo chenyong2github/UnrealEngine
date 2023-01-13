@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/TypeHash.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "Camera/CameraTypes.h"
 #include "Camera/CameraModifier.h"
-#include "Containers/SparseArray.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "CameraAnimationCameraModifier.generated.h"
+
+enum class ECameraShakePlaySpace : uint8;
 
 class UCameraAnimationSequence;
 class UCameraAnimationSequenceCameraStandIn;
@@ -284,3 +280,9 @@ public:
 	static ECameraAnimationPlaySpace Conv_CameraAnimationPlaySpace(ECameraShakePlaySpace CameraShakePlaySpace);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Camera/CameraTypes.h"
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
+#endif

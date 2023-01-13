@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
 
 #include "MVVMBlueprintViewModel.generated.h"
 
@@ -16,3 +13,8 @@ class MODELVIEWVIEWMODELBLUEPRINT_API UMVVMBlueprintViewModel : public UObject
 
 public:
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
+#endif

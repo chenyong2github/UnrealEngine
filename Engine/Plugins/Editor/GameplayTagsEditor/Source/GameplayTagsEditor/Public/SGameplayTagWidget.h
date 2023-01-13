@@ -2,19 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "UObject/Object.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "GameplayTagsManager.h"
+
+class ITableRow;
+class SSearchBox;
+class STableViewBase;
+enum class ECheckBoxState : uint8;
+struct FGameplayTagContainer;
+struct FGameplayTagNode;
+template <typename ItemType> class STreeView;
 
 class IPropertyHandle;
 class SAddNewGameplayTagWidget;
@@ -431,3 +428,12 @@ private:
 	/** Populate tag items from the gameplay tags manager. */
 	void GetFilteredGameplayRootTags(const FString& InFilterString, TArray<TSharedPtr<FGameplayTagNode>>& OutNodes) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameplayTagsManager.h"
+#include "SlateFwd.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
+#endif

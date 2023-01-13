@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
 #include "BaseSequencerAnimTool.generated.h"
 
@@ -20,3 +18,7 @@ class SEQUENCERANIMTOOLS_API IBaseSequencerAnimTool
 	virtual bool ProcessCommandBindings(const FKey Key, const bool bRepeat) const { return false; }
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

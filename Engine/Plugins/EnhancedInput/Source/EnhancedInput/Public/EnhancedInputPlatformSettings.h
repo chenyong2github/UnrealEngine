@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/PlatformSettings.h"
+#include "Engine/PlatformSettingsManager.h"
 #include "EnhancedInputPlatformSettings.generated.h"
 
 class UInputMappingContext;
@@ -95,3 +95,7 @@ protected:
 	UPROPERTY(Config, EditAnywhere, Category = "Default")
 	bool bShouldLogMappingContextRedirects = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

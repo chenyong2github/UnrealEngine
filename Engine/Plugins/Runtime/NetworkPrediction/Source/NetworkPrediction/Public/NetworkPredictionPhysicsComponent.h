@@ -5,7 +5,11 @@
 #include "NetworkPredictionProxy.h"
 #include "NetworkPredictionReplicationProxy.h"
 
+#include "PhysicsInterfaceDeclaresCore.h"
 #include "NetworkPredictionPhysicsComponent.generated.h"
+
+enum ENetRole : int;
+namespace EEndPlayReason { enum Type : int; }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	UNetworkPredictionPhysicsComponent

@@ -4,7 +4,9 @@
 
 #include "IPropertyTypeCustomization.h"
 
-#include "PCGPoint.h"
+
+enum class EPCGPointProperties : uint8;
+namespace ETextCommit { enum Type : int; }
 
 struct FPCGAttributePropertySelector;
 class SWidget;
@@ -35,3 +37,7 @@ protected:
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PCGPoint.h"
+#endif

@@ -3,8 +3,6 @@
 #pragma once
 
 #include "PCGSettings.h"
-#include "PCGElement.h"
-#include "PCGPoint.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/PCGMetadataTypesConstantStruct.h"
 

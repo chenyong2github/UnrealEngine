@@ -2,7 +2,6 @@
 
 #pragma once
 #include "NetworkPredictionBuffer.h"
-#include "NetworkPredictionSimulation.h"
 
 namespace Chaos { class FRewindData; }
 
@@ -149,3 +148,7 @@ struct FVariableTickState
 		return FServiceTimeStep{PendingFrame, PendingFrame+1, PendingFrameData.TotalMS + PendingFrameData.DeltaMS};
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "NetworkPredictionSimulation.h"
+#endif

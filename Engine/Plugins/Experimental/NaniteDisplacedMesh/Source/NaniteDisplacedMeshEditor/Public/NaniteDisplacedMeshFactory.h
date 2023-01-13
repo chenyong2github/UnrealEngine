@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
 #include "NaniteDisplacedMeshFactory.generated.h"
 
@@ -49,3 +47,7 @@ NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const UNaniteDisplacedMesh& 
 
 NANITEDISPLACEDMESHEDITOR_API FString GetAggregatedIdString(const FNaniteDisplacedMeshParams& DisplacedMeshParams);
 NANITEDISPLACEDMESHEDITOR_API FString GetAggregatedIdString(const UNaniteDisplacedMesh& DisplacedMesh);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineHotfixManager.h"
+#include "Online.h"
 #include "OnlineSubsystemUtils.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "UObject/UObjectIterator.h"

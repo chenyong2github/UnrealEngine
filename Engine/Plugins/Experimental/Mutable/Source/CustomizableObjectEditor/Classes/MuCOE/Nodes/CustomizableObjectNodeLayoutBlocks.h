@@ -2,19 +2,14 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "EdGraph/EdGraphNode.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Math/IntPoint.h"
-#include "Math/UnrealMathSSE.h"
-#include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableObjectNodeLayoutBlocks.generated.h"
+
+class UCustomizableObjectLayout;
+enum class ECustomizableObjectTextureLayoutPackingStrategy : uint8;
+namespace ENodeTitleType { enum Type : int; }
+struct FCustomizableObjectLayoutBlock;
 
 class FArchive;
 class UCustomizableObjectNodeRemapPins;
@@ -83,3 +78,7 @@ private:
 	void SetLayoutSkeletalMesh();
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuCOE/CustomizableObjectLayout.h"
+#endif

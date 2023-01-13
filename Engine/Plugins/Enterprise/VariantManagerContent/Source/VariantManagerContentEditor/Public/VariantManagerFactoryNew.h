@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "UObject/ObjectMacros.h"
 
 #include "VariantManagerFactoryNew.generated.h"
 
@@ -19,3 +17,7 @@ public:
 	virtual bool ShouldShowInNewMenu() const override;
     //~ End UFactory Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

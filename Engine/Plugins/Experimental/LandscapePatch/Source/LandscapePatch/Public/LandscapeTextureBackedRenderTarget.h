@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Engine/TextureRenderTarget2D.h" // ETextureRenderTargetFormat
 #include "LandscapeTexturePatchPS.h" // FLandscapeHeightPatchConvertToNativeParams
@@ -118,3 +117,7 @@ protected:
 	UPROPERTY()
 	TEnumAsByte<ETextureRenderTargetFormat> RenderTargetFormat = ETextureRenderTargetFormat::RTF_R32f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

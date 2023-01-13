@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class UCustomizableObject;
@@ -29,3 +28,7 @@ public:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Toolkits/IToolkitHost.h"
+#endif

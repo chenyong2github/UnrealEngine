@@ -3,10 +3,7 @@
 #pragma once
 
 #include "PCGParamData.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
 
-#include <type_traits>
 
 class UPCGComponent;
 class UPCGNode;

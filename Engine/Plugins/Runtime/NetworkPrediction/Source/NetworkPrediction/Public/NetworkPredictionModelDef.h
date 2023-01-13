@@ -2,7 +2,8 @@
 
 #pragma once
 #include "NetworkPredictionStateTypes.h"
-#include "PhysicsInterfaceDeclaresCore.h"
+
+struct FNetworkPredictionStateView;
 
 // Arbitrary sort values used by system default definitions
 enum class ENetworkPredictionSortPriority : uint8
@@ -81,3 +82,7 @@ struct TNetworkPredictionModelInfo
 	TNetworkPredictionModelInfo(SimulationType* InSimulation=nullptr, DriverType* InDriver=nullptr, FNetworkPredictionStateView* InView=nullptr)
 		: Simulation(InSimulation), Driver(InDriver), View(InView) { }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PhysicsInterfaceDeclaresCore.h"
+#endif

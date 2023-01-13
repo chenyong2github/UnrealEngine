@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Interfaces/OnlineExternalUIInterface.h"
+#include "HAL/Platform.h"
 
 #if WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
@@ -64,3 +63,8 @@ typedef TSharedPtr<FOnlineExternalUITencent, ESPMode::ThreadSafe> FOnlineExterna
 
 #endif // WITH_TENCENT_RAIL_SDK
 #endif // WITH_TENCENTSDK
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/OnlineExternalUIInterface.h"
+#endif

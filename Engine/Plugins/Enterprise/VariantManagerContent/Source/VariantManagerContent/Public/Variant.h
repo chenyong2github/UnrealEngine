@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/TextProperty.h"
 
 #include "Variant.generated.h"
+
+class ULevelVariantSets;
+class UTexture2D;
 
 class UVariant;
 class UVariantSet;
@@ -144,3 +144,8 @@ private:
 	bool bTriedRestoringOldThumbnail;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/TextProperty.h"
+#endif

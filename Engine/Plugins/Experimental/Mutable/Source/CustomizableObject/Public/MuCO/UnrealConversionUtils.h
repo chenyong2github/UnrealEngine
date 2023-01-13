@@ -3,11 +3,9 @@
 #pragma once
 
 #include "MuCO/CustomizableObjectSystemPrivate.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "MuR/MeshBufferSet.h"
-#include "MuR/System.h"
-#include "ReferenceSkeleton.h"
+
+namespace mu { class FMeshBufferSet; }
+struct FReferenceSkeleton;
 
 class FSkeletalMeshLODRenderData;
 class USkeletalMesh;
@@ -100,3 +98,7 @@ namespace UnrealConversionUtils
 		const mu::FMeshBufferSet& InMutableMeshVertexBuffers,
 		const int32 InBoneIndexBuffer);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ReferenceSkeleton.h"
+#endif

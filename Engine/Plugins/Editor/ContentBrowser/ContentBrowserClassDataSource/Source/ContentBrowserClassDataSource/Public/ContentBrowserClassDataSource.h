@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ContentBrowserDataSource.h"
-#include "ContentBrowserDataMenuContexts.h"
-#include "ContentBrowserClassDataPayload.h"
 #include "NativeClassHierarchy.h"
+#include "UObject/Package.h"
 #include "ContentBrowserClassDataSource.generated.h"
+
+class FContentBrowserClassFileItemDataPayload;
+class FContentBrowserClassFolderItemDataPayload;
 
 class IAssetTypeActions;
 class ICollectionManager;
@@ -108,3 +109,9 @@ private:
 
 	ICollectionManager* CollectionManager;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContentBrowserClassDataPayload.h"
+#include "ContentBrowserDataMenuContexts.h"
+#include "CoreMinimal.h"
+#endif

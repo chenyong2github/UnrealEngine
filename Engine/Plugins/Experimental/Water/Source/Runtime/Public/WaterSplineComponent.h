@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Components/SplineComponent.h"
 #include "WaterSplineMetadata.h"
 #include "WaterSplineComponent.generated.h"
 
@@ -86,3 +83,7 @@ private:
 	FOnWaterSplineDataChanged WaterSplineDataChangedEvent;
 #endif // WITH_EDITOR
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

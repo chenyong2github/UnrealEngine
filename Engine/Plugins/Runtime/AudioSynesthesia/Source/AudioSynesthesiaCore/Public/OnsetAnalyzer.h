@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "DSP/AlignedBuffer.h"
 #include "DSP/AudioFFT.h"
-#include "DSP/FFTAlgorithm.h"
 #include "DSP/MelScale.h"
 #include "DSP/SlidingWindow.h"
-#include "PeakPicker.h"
+
+namespace Audio { class IFFTAlgorithm; }
+namespace Audio { struct FPeakPickerSettings; }
 
 namespace Audio
 {
@@ -107,3 +107,7 @@ namespace Audio
 	 */
 	AUDIOSYNESTHESIACORE_API void OnsetBacktrackIndices(TArrayView<const float> InOnsetEnvelope, TArrayView<const int32> InOnsetIndices, TArray<int32>& OutBacktrackedOnsetIndices);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PeakPicker.h"
+#endif

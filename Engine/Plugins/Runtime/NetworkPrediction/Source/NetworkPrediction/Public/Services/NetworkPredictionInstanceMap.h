@@ -2,8 +2,6 @@
 
 #pragma once
 #include "Containers/SparseArray.h"
-#include "HAL/PlatformMath.h"
-#include "Math/UnrealMathUtility.h"
 #include "NetworkPredictionID.h"
 
 // Generic associative container for instance data keyed off of the FNetworkPredictionID

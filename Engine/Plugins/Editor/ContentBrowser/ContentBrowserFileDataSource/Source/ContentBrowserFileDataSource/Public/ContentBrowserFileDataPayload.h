@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/PlatformProcess.h"
-#include "Containers/StringView.h"
 #include "ContentBrowserItemData.h"
 #include "UObject/StructOnScope.h"
 
@@ -215,3 +212,7 @@ public:
 private:
 	FStructOnScope CreationConfig;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "AnalyticsBlueprintLibrary.generated.h"
 
@@ -144,3 +142,7 @@ class UAnalyticsBlueprintLibrary :
 	UFUNCTION(BlueprintCallable, Category="Analytics")
 	static void RecordProgress(const FString& ProgressType, const FString& ProgressName);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

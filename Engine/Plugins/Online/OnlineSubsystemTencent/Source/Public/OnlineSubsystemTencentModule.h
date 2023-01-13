@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
 /**
  * Module used for talking with an Tencent service via Http requests
@@ -62,3 +61,7 @@ public:
 		return false;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

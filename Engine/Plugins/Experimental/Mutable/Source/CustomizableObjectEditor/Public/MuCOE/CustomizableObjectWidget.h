@@ -2,19 +2,12 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "Editor/UnrealEdTypes.h"
 #include "GenericPlatform/ICursor.h"
 #include "HitProxies.h"
-#include "Math/Axis.h"
-#include "Math/Color.h"
-#include "Math/Matrix.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Math/Vector2D.h"
-#include "Math/Vector4.h"
 #include "SceneView.h"
 #include "UObject/GCObject.h"
+
+enum ELevelViewportType : int;
 
 class FPrimitiveDrawInterface;
 class FReferenceCollector;
@@ -425,3 +418,7 @@ struct HCustomizableObjectWidgetAxis : public HHitProxy
 	}
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Editor/UnrealEdTypes.h"
+#endif

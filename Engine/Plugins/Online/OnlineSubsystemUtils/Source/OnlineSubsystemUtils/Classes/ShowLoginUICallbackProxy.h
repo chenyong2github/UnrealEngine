@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Online/CoreOnline.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
+#include "Online/CoreOnlineFwd.h"
 #include "ShowLoginUICallbackProxy.generated.h"
 
 class APlayerController;
@@ -47,3 +45,8 @@ private:
 	// The world context object in which this call is taking place
 	UObject* WorldContextObject;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/CoreOnline.h"
+#endif

@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "DynamicMesh/DynamicMesh3.h"
 #include "GeometryFlowMeshProcessingModule.h"
-#include "GeometryFlowCoreNodes.h"
-#include "GeometryFlowNodeUtil.h"
 #include "DataTypes/DynamicMeshData.h"
+#include "GeometryFlowMovableData.h"
 #include "Util/ProgressCancel.h"
 
 namespace UE
@@ -309,3 +309,7 @@ public:
 }	// end namespace UE
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowNodeUtil.h"
+#endif

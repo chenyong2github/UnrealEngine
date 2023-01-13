@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "RemoteSessionTypes.h"
 
 class IRemoteSessionChannel;
@@ -60,3 +59,7 @@ public:
 	virtual void Tick(float DeltaTime) = 0;
 	virtual void Close(const FString& InReason) = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

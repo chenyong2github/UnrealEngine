@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "JwtIncludes.h"
+
+class FJsonWebToken;
+template <typename OptionalType> struct TOptional;
 
 
 /**
@@ -50,3 +50,8 @@ namespace UE::JWT
 
 	JWT_API bool FromString(const FStringView InEncodedJWT, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "JwtIncludes.h"
+#endif

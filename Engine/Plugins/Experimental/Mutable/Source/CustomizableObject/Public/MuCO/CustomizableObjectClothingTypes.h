@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "ClothCollisionPrim.h"
 #include "ClothLODData.h"
 
+#include "ClothLODData_Legacy.h"
+#include "ClothVertBoneData.h"
+#include "SkeletalMeshTypes.h"
 #include "CustomizableObjectClothingTypes.generated.h"
 
 

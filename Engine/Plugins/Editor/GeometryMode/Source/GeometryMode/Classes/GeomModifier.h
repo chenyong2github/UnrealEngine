@@ -6,13 +6,11 @@
  * Base class of all geometry mode modifiers.
  */
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "InputCoreTypes.h"
-#include "Engine/EngineBaseTypes.h"
-#include "EditorGeometry.h"
+#include "UObject/Package.h"
 #include "GeomModifier.generated.h"
+
+enum EInputEvent : int;
+struct FKey;
 
 class FCanvas;
 class FEditorViewportClient;
@@ -177,3 +175,10 @@ protected:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EditorGeometry.h"
+#include "Engine/EngineBaseTypes.h"
+#include "InputCoreTypes.h"
+#endif

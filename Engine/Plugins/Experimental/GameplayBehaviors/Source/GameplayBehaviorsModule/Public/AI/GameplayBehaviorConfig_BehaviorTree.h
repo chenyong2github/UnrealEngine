@@ -3,8 +3,10 @@
 #pragma once
 
 #include "GameplayBehaviorConfig.h"
-#include "BehaviorTree/BehaviorTree.h"
+#include "UObject/Package.h"
 #include "GameplayBehaviorConfig_BehaviorTree.generated.h"
+
+class UBehaviorTree;
 
 
 UCLASS()
@@ -24,3 +26,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = SmartObject)
 	uint32 bRevertToPreviousBTOnFinish : 1;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BehaviorTree/BehaviorTree.h"
+#endif

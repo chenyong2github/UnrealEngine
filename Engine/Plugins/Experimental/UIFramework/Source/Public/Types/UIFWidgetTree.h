@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/SoftObjectPtr.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "Types/UIFWidgetId.h"
-#include "Types/UIFWidgetTreeOwner.h"
 
 #include "UIFWidgetTree.generated.h"
+
+class IUIFrameworkWidgetTreeOwner;
 
 #ifndef UE_UIFRAMEWORK_WITH_DEBUG
 	#define UE_UIFRAMEWORK_WITH_DEBUG !(UE_BUILD_SHIPPING)
@@ -156,3 +155,8 @@ struct TStructOpsTypeTraits<FUIFrameworkWidgetTree> : public TStructOpsTypeTrait
 {
 	enum { WithNetDeltaSerializer = true };
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Types/UIFWidgetTreeOwner.h"
+#endif

@@ -4,10 +4,7 @@
 
 #if WITH_TENCENTSDK
 
-#include "OnlineSubsystem.h"
 #include "OnlineSubsystemImpl.h"
-#include "OnlineSubsystemTencentTypes.h"
-#include "OnlineSubsystemTencentModule.h"
 #include "OnlineSubsystemTencentPackage.h"
 
 /**
@@ -204,3 +201,8 @@ private:
 typedef TSharedPtr<FOnlineSubsystemTencent, ESPMode::ThreadSafe> FOnlineSubsystemTencentPtr;
 
 #endif // WITH_TENCENTSDK
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "OnlineSubsystemTencentModule.h"
+#include "OnlineSubsystemTencentTypes.h"
+#endif

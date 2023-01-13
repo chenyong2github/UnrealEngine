@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 enum class OSCPacketMode
 {
@@ -53,3 +53,7 @@ public:
 	virtual OSCPacketType GetType() const override { return OSCPacketType::Invalid;  }
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

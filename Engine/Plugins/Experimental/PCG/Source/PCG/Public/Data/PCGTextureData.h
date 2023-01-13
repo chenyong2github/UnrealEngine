@@ -3,9 +3,11 @@
 #pragma once
 
 #include "Data/PCGSurfaceData.h"
-#include "Engine/Texture2D.h"
 
 #include "PCGTextureData.generated.h"
+
+class UPCGSpatialData;
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class EPCGTextureColorChannel : uint8
@@ -114,3 +116,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties)
 	TWeakObjectPtr<UTexture2D> Texture = nullptr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/Texture2D.h"
+#endif

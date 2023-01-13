@@ -5,6 +5,8 @@
 #include "AudioGameplayVolumeMutator.h"
 #include "SubmixSendVolumeComponent.generated.h"
 
+struct FAudioVolumeSubmixSendSettings;
+
 /**
  *  FProxyMutator_SubmixSend - An audio thread representation of Submix Sends
  */

@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "BackChannel/Transport/IBackChannelSocketConnection.h"
+#include "Delegates/Delegate.h"
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeBool.h"
+
+class IBackChannelSocketConnection;
 
 class FSocket;
 
@@ -39,3 +41,7 @@ private:
 	FThreadSafeBool							bIsRunning;
 	FCriticalSection						RunningCS;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BackChannel/Transport/IBackChannelSocketConnection.h"
+#endif

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "GameplayTask.h"
 #include "GameplayTask_MoveTo.h"
 #include "GameplayTask_PlayContextualAnim.h"
 #include "GameplayTask_MoveToContextualAnim.generated.h"

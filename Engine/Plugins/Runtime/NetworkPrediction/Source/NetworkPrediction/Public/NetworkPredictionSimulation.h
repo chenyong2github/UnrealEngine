@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NetworkPredictionBuffer.h"
 #include "NetworkPredictionStateTypes.h"
+
+template <typename ElementType> struct TNetSimLazyWriter;
 
 struct FNetSimCueDispatcher;
 
@@ -25,3 +26,7 @@ struct TNetSimOutput
 	TNetSimOutput(SyncType* InSync, const TNetSimLazyWriter<AuxType>& InAux, FNetSimCueDispatcher& InCueDispatch)
 		: Sync(InSync), Aux(InAux), CueDispatch(InCueDispatch) { }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "NetworkPredictionBuffer.h"
+#endif

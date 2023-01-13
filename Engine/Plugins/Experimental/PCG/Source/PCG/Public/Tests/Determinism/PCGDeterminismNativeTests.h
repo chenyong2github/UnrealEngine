@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #if WITH_EDITOR
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 
 class UPCGSettings;
 
@@ -33,4 +33,8 @@ namespace PCGDeterminismTests
 		TMap<UClass*, TFunction<bool()>> NativeTestMapping;
 	};
 }
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #endif

@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/SynthComponent.h"
-#include "AudioMixerTypes.h"
-#include "Net/VoiceDataCommon.h"
+#include "Containers/Queue.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Net/VoiceConfig.h"
 
 // Set this to 1 to enforce a critical section between FVoicePacketBuffer::PopAudio and FVoicePacketBuffer::SubmitPacket.
 #define SCOPELOCK_VOICE_PACKET_BUFFER 0
@@ -199,3 +198,10 @@ private:
 	FCriticalSection ListHeadCriticalSection;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMixerTypes.h"
+#include "Components/SynthComponent.h"
+#include "CoreMinimal.h"
+#include "Net/VoiceDataCommon.h"
+#endif

@@ -2,22 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "Engine/NetSerialization.h"
-#include "PhysicsInterfaceDeclaresCore.h"
 #include "Chaos/Core.h"
-#include "Chaos/ParticleHandle.h"
-#include "RewindData.h"
+#include "Chaos/Rotation.h"
 #include "NetworkPredictionCVars.h"
-#include "NetworkPredictionLog.h"
 #include "NetworkPredictionModelDef.h"
-#include "Containers/StringFwd.h"
-#include "NetworkPredictionTrace.h"
 #include "Components/PrimitiveComponent.h"
-#include "PhysicsEngine/BodyInstance.h"
-#include "Containers/StringConv.h"
+#include "NetworkPredictionReplicationProxy.h"
+
+namespace Chaos { class FRewindData; }
 
 namespace NetworkPredictionPhysicsCvars
 {
@@ -173,3 +165,11 @@ struct NETWORKPREDICTION_API FGenericPhysicsModelDef : FNetworkPredictionModelDe
 	static constexpr int32 GetSortPriority() { return (int32)ENetworkPredictionSortPriority::Physics; }
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chaos/ParticleHandle.h"
+#include "CoreMinimal.h"
+#include "NetworkPredictionLog.h"
+#include "NetworkPredictionTrace.h"
+#include "RewindData.h"
+#endif

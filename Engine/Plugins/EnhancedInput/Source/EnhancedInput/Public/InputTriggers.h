@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InputActionValue.h"
 
 #include "InputTriggers.generated.h"
@@ -472,3 +471,7 @@ public:
 	/** Determines what kind of trigger events can happen from the behavior of this trigger. */
 	virtual ETriggerEventsSupported GetSupportedTriggerEvents() const override { return ETriggerEventsSupported::All; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

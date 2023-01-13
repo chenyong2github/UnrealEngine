@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GeometryFlowNode.h"
-#include "Templates/TypeHash.h"
 #include "Util/ProgressCancel.h"
 
 class FProgressCancel;
@@ -214,3 +212,7 @@ inline uint32 GetTypeHash(FGraph::FHandle Handle)
 
 }	// end namespace GeometryFlow
 }	//
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

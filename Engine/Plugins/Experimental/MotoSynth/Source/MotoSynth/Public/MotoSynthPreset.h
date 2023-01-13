@@ -2,16 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Engine/EngineTypes.h"
-#include "Async/AsyncWork.h"
-#include "DSP/BufferVectorOperations.h"
 #include "Curves/CurveFloat.h"
 #include "ISubmixBufferListener.h"
 #include "MotoSynthPreset.generated.h"
+
+class UMotoSynthPreset;
+struct FPropertyChangedEvent;
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "AudioDevice.h"
@@ -261,3 +257,10 @@ public:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/AsyncWork.h"
+#include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
+#include "Engine/EngineTypes.h"
+#endif

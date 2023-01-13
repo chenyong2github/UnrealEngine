@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "PythonAutomationTest.generated.h"
@@ -33,3 +31,7 @@ private:
 	static bool IsRunningPyLatentCommand;
 	static float PyLatentCommandTimeout;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_BaseAsyncTask.h"
 #include "K2Node_InAppPurchase2.generated.h"
 
@@ -12,3 +10,7 @@ class ONLINEBLUEPRINTSUPPORT_API UK2Node_InAppPurchase2 : public UK2Node_BaseAsy
 {
 	GENERATED_UCLASS_BODY()
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

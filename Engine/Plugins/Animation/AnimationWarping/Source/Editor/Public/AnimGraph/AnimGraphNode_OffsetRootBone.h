@@ -7,6 +7,8 @@
 
 #include "AnimGraphNode_OffsetRootBone.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 UCLASS(Experimental)
 class ANIMATIONWARPINGEDITOR_API UAnimGraphNode_OffsetRootBone : public UAnimGraphNode_SkeletalControlBase
 {

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_BaseAsyncTask.h"
 #include "K2Node_LeaderboardQuery.generated.h"
 
@@ -12,3 +10,7 @@ class ONLINEBLUEPRINTSUPPORT_API UK2Node_LeaderboardQuery : public UK2Node_BaseA
 {
 	GENERATED_UCLASS_BODY()
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "Engine/EngineTypes.h"
 #include "Layout/Margin.h"
 #include "Net/Serialization/FastArraySerializer.h"
-#include "Types/SlateEnums.h"
 #include "Types/UIFWidgetId.h"
-#include "UObject/ObjectPtr.h"
 
 #include "UIFSlotBase.generated.h"
+
+enum EHorizontalAlignment : int;
+enum EVerticalAlignment : int;
 
 class UUIFrameworkWidget;
 class UWidget;
@@ -81,3 +81,7 @@ struct FUIFrameworkSimpleSlot : public FUIFrameworkSlotBase
 	UPROPERTY(BlueprintReadWrite, Category = "UI Framework")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#endif

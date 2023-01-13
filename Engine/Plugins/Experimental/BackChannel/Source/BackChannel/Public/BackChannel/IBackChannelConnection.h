@@ -3,7 +3,6 @@
 #pragma once
 
 #include "BackChannel/Types.h"
-#include "Containers/StringView.h"
 
 /**
  * Declares the interface for a BackChannel connection

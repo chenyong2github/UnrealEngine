@@ -2,17 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "BlueprintNodeSignature.h"
-#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNodeUtils.h"
-#include "InputAction.h"
 #include "K2Node.h"
 #include "K2Node_EventNodeInterface.h"
-#include "Textures/SlateIcon.h"
-#include "UObject/ObjectMacros.h"
 
 #include "K2Node_EnhancedInputAction.generated.h"
+
+class UInputAction;
+enum class ETriggerEvent : uint8;
+namespace ENodeTitleType { enum Type : int; }
+struct FBlueprintNodeSignature;
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
@@ -64,3 +63,10 @@ private:
 	FNodeTextCache CachedTooltip;
 	FNodeTextCache CachedNodeTitle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
+#include "InputAction.h"
+#include "Textures/SlateIcon.h"
+#endif

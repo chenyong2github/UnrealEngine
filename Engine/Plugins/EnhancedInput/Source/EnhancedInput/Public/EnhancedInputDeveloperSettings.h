@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettingsBackedByCVars.h"
 #include "Engine/PlatformSettings.h"
 #include "EnhancedInputDeveloperSettings.generated.h"
@@ -82,3 +81,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.bShouldLogAllWorldSubsystemInputs"))
 	uint8 bShouldLogAllWorldSubsystemInputs : 1;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

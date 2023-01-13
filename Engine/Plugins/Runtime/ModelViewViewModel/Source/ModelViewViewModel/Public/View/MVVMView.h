@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Object.h"
 
 #include "Extensions/UserWidgetExtension.h"
-#include "FieldNotification/FieldId.h"
-#include "FieldNotification/IFieldValueChanged.h"
-#include "Types/MVVMBindingName.h"
 
 #include "MVVMView.generated.h"
+
+class INotifyFieldValueChanged;
+namespace UE::FieldNotification { struct FFieldId; }
+template <typename InterfaceType> class TScriptInterface;
 
 class UMVVMViewClass;
 struct FMVVMViewClass_CompiledBinding;
@@ -103,3 +101,11 @@ private:
 	/** Is the Construct method was called. */
 	bool bHasEveryTickBinding = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "FieldNotification/FieldId.h"
+#include "FieldNotification/IFieldValueChanged.h"
+#include "Templates/SubclassOf.h"
+#include "Types/MVVMBindingName.h"
+#endif

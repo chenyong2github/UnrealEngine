@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/TextureDefines.h"
 #include "Engine/DeveloperSettings.h"
 #include "WaterCurveSettings.h"
 #include "WaterBodyHeightmapSettings.h"
 #include "WaterBodyWeightmapSettings.h"
 #include "WaterSplineMetadata.h"
 #include "WaterEditorSettings.generated.h"
+
+enum TextureGroup : int;
 
 class UMaterialInterface;
 class UMaterialParameterCollection;
@@ -323,3 +321,8 @@ private:
 	UPROPERTY(EditAnywhere, config, Category = Brush, AdvancedDisplay)
 	TSoftObjectPtr<UMaterialInterface> DefaultRenderRiverSplineDepthsMaterial;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/TextureDefines.h"
+#endif

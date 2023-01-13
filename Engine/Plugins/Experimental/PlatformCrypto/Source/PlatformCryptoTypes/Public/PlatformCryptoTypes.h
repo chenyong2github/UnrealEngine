@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Misc/IEngineCrypto.h"
+#include "Stats/Stats2.h"
 
 /**
  * Generic result type for cryptographic functions.
@@ -228,3 +226,9 @@ protected:
 	/** The size of a complete block of data */
 	int32 BlockSize = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/IEngineCrypto.h"
+#include "Stats/Stats.h"
+#endif

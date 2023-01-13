@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "GameFramework/Actor.h"
-#include "Async/Future.h"
 #include "ImagePlateFileSequence.generated.h"
+
+template <typename ResultType> class TFuture;
+template <typename ResultType> class TSharedFuture;
 
 class UTexture;
 
@@ -103,3 +102,9 @@ private:
 	/** Shared implementation */
 	TSharedPtr<ImagePlateFrameCache::FImagePlateSequenceCache, ESPMode::ThreadSafe> Impl;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/Future.h"
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#endif

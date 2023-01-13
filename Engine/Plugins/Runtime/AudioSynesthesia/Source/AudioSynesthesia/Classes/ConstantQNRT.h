@@ -3,8 +3,10 @@
 #pragma once
 
 #include "AudioSynesthesiaNRT.h"
-#include "AudioMixerBlueprintLibrary.h"
 #include "ConstantQNRT.generated.h"
+
+enum class EAudioSpectrumType : uint8;
+enum class EFFTWindowType : uint8;
 
 /** EConstantQNormalizationEnum
  *
@@ -166,3 +168,7 @@ class AUDIOSYNESTHESIA_API UConstantQNRT : public UAudioSynesthesiaNRT
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMixerBlueprintLibrary.h"
+#endif

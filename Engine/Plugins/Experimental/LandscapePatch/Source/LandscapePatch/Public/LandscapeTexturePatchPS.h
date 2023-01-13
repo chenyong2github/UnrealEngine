@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
@@ -289,3 +288,7 @@ public:
 };
 
 }//end UE::Landscape
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

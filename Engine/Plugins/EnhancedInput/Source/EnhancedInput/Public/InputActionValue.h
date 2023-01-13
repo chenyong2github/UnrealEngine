@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 
 #include "InputActionValue.generated.h"
@@ -226,3 +225,7 @@ inline FInputActionValue::Axis3D FInputActionValue::Get() const
 {
 	return Value;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

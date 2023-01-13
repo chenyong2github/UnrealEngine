@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 #include "DynamicMesh/MeshNormals.h"
 

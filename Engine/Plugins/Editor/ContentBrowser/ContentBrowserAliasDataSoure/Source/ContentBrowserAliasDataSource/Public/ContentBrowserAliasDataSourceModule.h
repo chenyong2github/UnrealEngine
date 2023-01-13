@@ -4,7 +4,6 @@
 
 #include "ContentBrowserAliasDataSource.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/WeakObjectPtr.h"
 #include "UObject/StrongObjectPtr.h"
 
 class FContentBrowserAliasDataSourceModule : public FDefaultModuleImpl

@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "AIGraphTypes.h"
 
 class IEnvironmentQueryEditor;
 
@@ -42,3 +39,9 @@ private:
 	/** Asset type actions */
 	TSharedPtr<class FAssetTypeActions_EnvironmentQuery> ItemDataAssetTypeActions;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AIGraphTypes.h"
+#include "CoreMinimal.h"
+#include "Toolkits/IToolkitHost.h"
+#endif

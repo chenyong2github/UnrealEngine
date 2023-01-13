@@ -6,6 +6,11 @@
 #include "Engine/EngineTypes.h"
 #include "BlueprintMaterialTextureNodesBPLibrary.generated.h"
 
+class UMaterialInstanceConstant;
+class UMaterialInterface;
+class UTexture2D;
+class UTextureRenderTarget2D;
+
 /* 
 *	Function library class.
 *	Each function in it is expected to be static and represents blueprint node that can be called in any blueprint.

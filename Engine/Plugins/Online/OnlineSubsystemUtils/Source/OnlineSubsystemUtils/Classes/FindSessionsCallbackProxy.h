@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Interfaces/OnlineSessionDelegates.h"
 #include "OnlineSessionSettings.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
-#include "Interfaces/OnlineSessionInterface.h"
 #include "FindSessionsCallbackProxy.generated.h"
 
 class APlayerController;
@@ -79,3 +77,8 @@ private:
 	// The world context object in which this call is taking place
 	UObject* WorldContextObject;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/OnlineSessionInterface.h"
+#endif

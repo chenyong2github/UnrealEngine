@@ -2,14 +2,17 @@
 
 #pragma once
 
+#include "DataTypes/NormalMapData.h"
 #include "Engine/StaticMesh.h"
 
-#include "DynamicMesh/DynamicMesh3.h"
-#include "Image/ImageBuilder.h"
 
-#include "Graphs/GenerateMeshLODGraph.h"
 
+#include "DataTypes/TextureImageData.h"
+#include "DynamicMesh/MeshTangents.h"
+#include "ShapeApproximation/SimpleShapeSet3.h"
 #include "GenerateStaticMeshLODProcess.generated.h"
+
+class FGenerateMeshLODGraph;
 
 
 class UTexture2D;
@@ -616,3 +619,7 @@ protected:
 	// Return true if the given path corresponds to a material or texture in SourceMaterials
 	bool IsSourceAsset(const FString& AssetPath) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Graphs/GenerateMeshLODGraph.h"
+#endif

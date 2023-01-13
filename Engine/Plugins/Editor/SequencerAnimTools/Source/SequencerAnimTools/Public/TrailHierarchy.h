@@ -3,11 +3,9 @@
 #pragma once
 
 #include "Trail.h"
-#include "EditorViewportClient.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "SceneView.h"
-#include "UnrealClient.h"
-#include "Misc/Timespan.h"
+
+class HHitProxy;
+struct FFrameNumber;
 
 
 namespace UE
@@ -154,3 +152,10 @@ protected:
 
 } // namespace MovieScene
 } // namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "EditorViewportClient.h"
+#include "SceneView.h"
+#include "UnrealClient.h"
+#include "Widgets/Input/SCheckBox.h"
+#endif

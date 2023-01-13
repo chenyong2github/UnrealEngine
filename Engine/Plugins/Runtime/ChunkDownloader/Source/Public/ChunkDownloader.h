@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/Ticker.h"
+#include "Internationalization/Text.h"
+#include "Misc/DateTime.h"
 
 template<typename TTask> class FAsyncTask;
 class IHttpRequest;
@@ -274,3 +275,7 @@ private:
 	TArray<TSharedRef<FPakFile>> DownloadRequests;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

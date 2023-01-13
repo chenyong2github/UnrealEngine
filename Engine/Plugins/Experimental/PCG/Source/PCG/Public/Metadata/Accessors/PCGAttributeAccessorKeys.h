@@ -3,10 +3,9 @@
 #pragma once
 
 #include "Metadata/PCGMetadataCommon.h"
-#include "PCGPoint.h"
 
-#include "Containers/ArrayView.h"
-#include "UObject/UnrealType.h"
+
+struct FPCGPoint;
 
 class FPCGMetadataAttributeBase;
 
@@ -341,3 +340,7 @@ inline bool IPCGAttributeAccessorKeys::GetKeys(int32 InStart, TArrayView<const O
 		return false;
 	}
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PCGPoint.h"
+#endif

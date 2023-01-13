@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "UObject/Interface.h"
-#include "Internationalization/Internationalization.h"
 #include "IDataSourceFilterInterface.generated.h"
 
 USTRUCT(BlueprintType)

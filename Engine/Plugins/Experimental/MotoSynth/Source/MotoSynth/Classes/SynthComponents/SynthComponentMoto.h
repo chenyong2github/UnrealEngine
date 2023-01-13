@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
-#include "MotoSynthSourceAsset.h"
+#include "MotoSynthPreset.h"
 #include "SynthComponentMoto.generated.h"
 
 
@@ -52,3 +51,8 @@ private:
 	FMotoSynthRuntimeSettings OverrideSettings;
 	bool bSettingsOverridden = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MotoSynthSourceAsset.h"
+#endif

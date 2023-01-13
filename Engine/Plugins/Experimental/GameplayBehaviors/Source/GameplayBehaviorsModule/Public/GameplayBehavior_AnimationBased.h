@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Engine/EngineTypes.h"
 #include "TimerManager.h"
 #include "GameplayBehavior.h"
 #include "GameplayBehavior_AnimationBased.generated.h"
@@ -76,3 +75,7 @@ protected:
 	UPROPERTY()
 	mutable TArray<FMontagePlaybackData> ActivePlayback;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#endif

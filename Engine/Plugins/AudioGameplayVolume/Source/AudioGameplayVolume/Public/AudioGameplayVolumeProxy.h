@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "UObject/Object.h"
 #include "AudioGameplayFlags.h"
-#include "Templates/SharedPointer.h"
 #include "AudioGameplayVolumeProxy.generated.h"
 
 // Forward Declarations 

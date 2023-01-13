@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "CableActor.generated.h"
 
@@ -17,3 +15,7 @@ class CABLECOMPONENT_API ACableActor : public AActor
 	UPROPERTY(Category=Cable, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<class UCableComponent> CableComponent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

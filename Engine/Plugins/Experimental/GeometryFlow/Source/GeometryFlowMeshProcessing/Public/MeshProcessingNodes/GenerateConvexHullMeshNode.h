@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "GeometryFlowCoreNodes.h"
 #include "MeshProcessingBaseNodes.h"
 
 namespace UE

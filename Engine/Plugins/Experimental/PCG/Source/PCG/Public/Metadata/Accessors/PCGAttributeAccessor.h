@@ -5,9 +5,8 @@
 #include "IPCGAttributeAccessorTpl.h"
 
 #include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
-#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+
+template <typename T> class FPCGMetadataAttribute;
 
 
 /**

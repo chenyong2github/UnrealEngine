@@ -2,21 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Engine/EngineTypes.h"
-#include "Async/AsyncWork.h"
-#include "DSP/BufferVectorOperations.h"
 #include "Curves/CurveFloat.h"
-#include "Containers/SortedMap.h"
 #include "DSP/Osc.h"
 #include "DSP/Filter.h"
-#include "DSP/DelayStereo.h"
 #include "ISubmixBufferListener.h"
-#include "MotoSynthPreset.h"
 #include "MotoSynthSourceAsset.generated.h"
+
+class USoundWave;
+struct FPropertyChangedEvent;
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "AudioDevice.h"
@@ -262,3 +255,12 @@ protected:
 	friend class FMotoSynthSourceConverter; // allow async worker to raise flags upon completion
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/AsyncWork.h"
+#include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
+#include "DSP/DelayStereo.h"
+#include "Engine/EngineTypes.h"
+#include "MotoSynthPreset.h"
+#endif

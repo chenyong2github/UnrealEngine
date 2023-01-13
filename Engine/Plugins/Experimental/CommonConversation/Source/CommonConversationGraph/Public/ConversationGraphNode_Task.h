@@ -5,6 +5,9 @@
 #include "ConversationGraphNode.h"
 #include "ConversationGraphNode_Task.generated.h"
 
+class UGraphNodeContextMenuContext;
+class UToolMenu;
+
 class UEdGraph;
 class UEdGraphSchema;
 

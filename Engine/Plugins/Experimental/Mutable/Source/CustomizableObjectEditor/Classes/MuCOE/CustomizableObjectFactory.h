@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Factories/Factory.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectFactory.generated.h"
 

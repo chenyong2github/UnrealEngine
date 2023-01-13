@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptInterface.h"
 #include "Interfaces/OnlineTurnBasedInterface.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
 #include "FindTurnBasedMatchCallbackProxy.generated.h"
+
+template <typename InterfaceType> class TScriptInterface;
 
 class APlayerController;
 class ITurnBasedMatchInterface;
@@ -83,3 +82,7 @@ private:
 
 	TSharedPtr<FFindTurnBasedMatchCallbackProxyMatchmakerDelegate, ESPMode::ThreadSafe> Delegate;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

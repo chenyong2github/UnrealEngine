@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "IBackChannelSocketConnection.h"
 #include "Modules/ModuleManager.h"
+
+class IBackChannelSocketConnection;
 
 /**
  *	Main module and factory interface for Backchannel connections
@@ -33,3 +34,7 @@ protected:
 	IBackChannelTransport() {}
 	virtual ~IBackChannelTransport() {}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "IBackChannelSocketConnection.h"
+#endif

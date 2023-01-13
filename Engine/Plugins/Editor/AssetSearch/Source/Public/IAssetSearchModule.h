@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Async/Future.h"
-#include "Async/AsyncResult.h"
-#include "SearchSerializer.h"
 #include "Modules/ModuleManager.h"
 #include "SearchQuery.h"
 
@@ -62,3 +57,10 @@ public:
 	/** Virtual destructor. */
 	virtual ~IAssetSearchModule() { }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/AsyncResult.h"
+#include "Async/Future.h"
+#include "CoreMinimal.h"
+#include "SearchSerializer.h"
+#endif

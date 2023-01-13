@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "MVVMViewModelBlueprintToolMenuContext.generated.h"
 
@@ -16,3 +15,7 @@ class MODELVIEWVIEWMODELEDITOR_API UMVVMViewModelBlueprintToolMenuContext : publ
 public:
 	TWeakPtr<FMVVMViewModelBlueprintEditor> ViewModelBlueprintEditor;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,20 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Object.h"
 
-#include "Blueprint/UserWidget.h"
 #include "Bindings/MVVMCompiledBindingLibrary.h"
 #include "Extensions/WidgetBlueprintGeneratedClassExtension.h"
-#include "FieldNotification/FieldId.h"
-#include "Types/MVVMBindingMode.h"
-#include "Types/MVVMBindingName.h"
 #include "Types/MVVMExecutionMode.h"
 #include "Types/MVVMViewModelContext.h"
-#include "View/MVVMView.h"
 
+#include "UObject/Package.h"
 #include "MVVMViewClass.generated.h"
 
 
@@ -260,3 +253,12 @@ private:
 	/** */
 	bool bLoaded = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Blueprint/UserWidget.h"
+#include "CoreMinimal.h"
+#include "FieldNotification/FieldId.h"
+#include "Types/MVVMBindingMode.h"
+#include "Types/MVVMBindingName.h"
+#include "View/MVVMView.h"
+#endif

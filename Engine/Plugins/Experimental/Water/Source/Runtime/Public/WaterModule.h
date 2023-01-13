@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
-#include "WaterEditorServices.h"
+
+class IWaterEditorServices;
 
 //////////////////////////////////////////////////////////////////////////
 // IWaterModuleInterface
@@ -21,3 +21,9 @@ public:
 	virtual WATER_API IWaterEditorServices* GetWaterEditorServices() const = 0;
 #endif // WITH_EDITOR
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Stats/Stats.h"
+#include "WaterEditorServices.h"
+#endif

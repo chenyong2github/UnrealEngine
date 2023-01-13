@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+class ISlateStyle;
 
 /**
  * BSP mode slate style
@@ -23,3 +24,8 @@ private:
 	/** Singleton instances of this style. */
 	static TSharedPtr< class FSlateStyleSet > StyleSet;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Styling/SlateStyle.h"
+#endif

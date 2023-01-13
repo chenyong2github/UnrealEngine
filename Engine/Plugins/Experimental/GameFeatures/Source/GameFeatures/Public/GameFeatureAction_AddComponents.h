@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/World.h"
 #include "GameFeatureAction.h"
 #include "GameFeaturesSubsystem.h"
 
@@ -92,3 +90,7 @@ private:
 
 	TMap<FGameFeatureStateChangeContext, FContextHandles> ContextHandles;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

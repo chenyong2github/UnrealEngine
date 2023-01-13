@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
-#include "Chaos/ChaosSolver.h"
 
 #include "ChaosSolverFactory.generated.h"
+
+class UChaosSolver;
 
 
 /**
@@ -27,3 +26,8 @@ class CHAOSSOLVEREDITOR_API UChaosSolverFactory : public UFactory
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Chaos/ChaosSolver.h"
+#include "CoreMinimal.h"
+#endif

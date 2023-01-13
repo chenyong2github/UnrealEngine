@@ -3,11 +3,6 @@
 #pragma once
 
 #include "GeometryFlowGraph.h"
-#include "GeometryFlowTypes.h"
-#include "DataTypes/NormalMapData.h"
-#include "DataTypes/TextureImageData.h"
-#include "DataTypes/CollisionGeometryData.h"
-#include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshTangents.h"
 
 #include "MeshProcessingNodes/MeshSolidifyNode.h"
@@ -16,11 +11,14 @@
 #include "MeshProcessingNodes/MeshSimplifyNode.h"
 #include "MeshProcessingNodes/MeshNormalsNodes.h"
 #include "MeshProcessingNodes/MeshThickenNode.h"
-#include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
 #include "MeshProcessingNodes/MeshAutoGenerateUVsNode.h"
 #include "MeshProcessingNodes/GenerateConvexHullMeshNode.h"
 #include "DataTypes/MeshImageBakingData.h"
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
+
+namespace UE::Geometry { template <typename PixelType> class TImageBuilder; }
+namespace UE::GeometryFlow { struct FNormalMapImage; }
+namespace UE::GeometryFlow { struct FTextureImage; }
 
 using UE::Geometry::FDynamicMesh3;
 
@@ -195,3 +193,9 @@ protected:
 	FName CollisionGroupLayerName = TEXT("Default");
 	
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataTypes/NormalMapData.h"
+#include "DataTypes/TextureImageData.h"
+#include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
+#endif

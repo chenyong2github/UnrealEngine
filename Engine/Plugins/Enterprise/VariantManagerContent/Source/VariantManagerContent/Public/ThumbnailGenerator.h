@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Math/Transform.h"
 
 #define VARIANT_MANAGER_THUMBNAIL_SIZE 256
 
@@ -16,3 +16,7 @@ namespace ThumbnailGenerator
     UTexture2D* GenerateThumbnailFromEditorViewport();
 	UTexture2D* GenerateThumbnailFromObjectThumbnail(UObject* Object);
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

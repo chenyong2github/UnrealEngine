@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Generators/MeshShapeGenerator.h"
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Implicit/Solidify.h"
+#include "Spatial/FastWinding.h"
+#include "Spatial/MeshAABBTree3.h"
 
 
 namespace UE

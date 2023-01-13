@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraph.h"
-#include "BlueprintNodeSignature.h"
 #include "EdGraph/EdGraphNodeUtils.h"
-#include "InputAction.h"
 #include "K2Node.h"
 #include "K2Node_GetInputActionValue.generated.h"
+
+class UInputAction;
+namespace ENodeTitleType { enum Type : int; }
+struct FBlueprintNodeSignature;
 
 class FBlueprintActionDatabaseRegistrar;
 class UDynamicBlueprintBinding;
@@ -55,3 +54,9 @@ private:
 	FNodeTextCache CachedTooltip;
 	FNodeTextCache CachedNodeTitle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
+#include "InputAction.h"
+#endif

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
-#include "Interfaces/OnlineTurnBasedInterface.h"
 #include "QuitMatchCallbackProxy.generated.h"
+
+namespace EMPMatchOutcome { enum Outcome : int; }
 
 class APlayerController;
 
@@ -52,3 +51,8 @@ private:
 	// If the match isn't over, this will be how much time the next player will have to complete their turn
 	int32 TurnTimeoutInSeconds;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/OnlineTurnBasedInterface.h"
+#endif

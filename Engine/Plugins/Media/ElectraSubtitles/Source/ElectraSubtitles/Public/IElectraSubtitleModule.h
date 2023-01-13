@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
-#include "Features/IModularFeatures.h"
 #include "Features/IModularFeature.h"
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
-#include "IElectraSubtitleDecoder.h"
+
+class IElectraSubtitleDecoder;
 
 
 class IElectraSubtitleModularFeature : public IModularFeature
@@ -84,3 +82,10 @@ public:
 #endif
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Features/IModularFeatures.h"
+#include "IElectraSubtitleDecoder.h"
+#include "Modules/ModuleManager.h"
+#endif

@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "NetworkPredictionConfig.h"
-#include "NetworkPredictionReplicatedManager.h"
 #include "Templates/SubclassOf.h"
 
 #include "NetworkPredictionSettings.generated.h"
+
+class ANetworkPredictionReplicatedManager;
+struct FPropertyChangedEvent;
 
 USTRUCT(meta=(ShowOnlyInnerProperties))
 struct FNetworkPredictionSettings
@@ -129,3 +129,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "NetworkPredictionReplicatedManager.h"
+#endif

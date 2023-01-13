@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "WaterBrushEffects.generated.h"
 
 class UTexture2D;
@@ -178,3 +176,7 @@ struct FWaterBrushEffects
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FalloffSettings)
 	FWaterBrushEffectTerracing Terracing;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

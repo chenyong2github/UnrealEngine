@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Delegates/Delegate.h"
 #include "GameFramework/Actor.h"
 
 #include "SwitchActor.generated.h"
@@ -53,3 +51,7 @@ private:
 	UPROPERTY()
 	int32 LastSelectedOption;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

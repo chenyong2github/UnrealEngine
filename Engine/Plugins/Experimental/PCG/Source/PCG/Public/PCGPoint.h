@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
 
+#include "Math/Box.h"
 #include "PCGPoint.generated.h"
 
 class IPCGAttributeAccessor;
@@ -83,3 +82,8 @@ public:
 	static bool HasCustomPropertyGetterSetter(FName Name);
 	static TUniquePtr<IPCGAttributeAccessor> CreateCustomPropertyAccessor(FName Name);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
+#endif

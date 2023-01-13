@@ -3,8 +3,9 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
 #include "TextureImportTestFunctions.generated.h"
+
+class UTexture;
 
 struct FInterchangeTestFunctionResult;
 
@@ -23,3 +24,7 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckImportedTextureCount(const TArray<UTexture*>& Textures, int32 ExpectedNumberOfImportedTextures);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTestFunction.h"
+#endif

@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GeomModifier_Edit.h"
 #include "GeomModifier_Extrude.generated.h"
 
@@ -48,3 +46,7 @@ private:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

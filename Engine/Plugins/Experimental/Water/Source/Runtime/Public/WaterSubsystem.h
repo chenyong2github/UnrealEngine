@@ -2,16 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "WaterBodyActor.h"
-#include "UObject/ObjectMacros.h"
+#include "MaterialShared.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Engine/EngineTypes.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "WaterBodyManager.h"
 #include "WaterZoneActor.h"
 #include "WaterSubsystem.generated.h"
+
+class UStaticMesh;
 
 DECLARE_STATS_GROUP(TEXT("Water"), STATGROUP_Water, STATCAT_Advanced);
 
@@ -265,3 +264,8 @@ private:
 	static bool bAllowWaterSubsystemOnPreviewWorld;
 #endif // WITH_EDITOR
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "WaterBodyActor.h"
+#endif

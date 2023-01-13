@@ -5,6 +5,9 @@
 #include "RemoteSessionChannel.h"
 #include "../Private/MessageHandler/RecordingMessageHandler.h"
 
+class FGenericApplicationMessageHandler;
+enum class ERemoteSessionChannelMode : int32;
+
 class FBackChannelOSCMessage;
 class FBackChannelOSCDispatch;
 class IBackChannelPacket;

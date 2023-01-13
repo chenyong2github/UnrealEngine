@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "DSP/AlignedBuffer.h"
 #include "DSP/AudioFFT.h"
+
+namespace Audio { class IFFTAlgorithm; }
 
 namespace Audio
 {

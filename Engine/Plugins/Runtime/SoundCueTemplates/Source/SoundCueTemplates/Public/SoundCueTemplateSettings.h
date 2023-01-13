@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/SoftObjectPath.h"
 #include "Engine/DeveloperSettings.h"
 
 #include "SoundCueTemplateSettings.generated.h"
@@ -61,3 +58,7 @@ public:
 	int32 GetQualityLevelSettingsNum() const;
 #endif // WITH_EDITOR
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

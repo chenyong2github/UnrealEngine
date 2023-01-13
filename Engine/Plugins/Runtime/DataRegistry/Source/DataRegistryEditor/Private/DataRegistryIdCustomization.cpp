@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistryIdCustomization.h"
-#include "DataRegistry.h"
 #include "DataRegistrySubsystem.h"
 #include "DataTableEditorUtils.h"
 #include "IDetailChildrenBuilder.h"

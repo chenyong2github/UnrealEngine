@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "LandscapePatchComponent.h"
 
@@ -46,3 +45,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
 	bool bExclusiveRadius = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

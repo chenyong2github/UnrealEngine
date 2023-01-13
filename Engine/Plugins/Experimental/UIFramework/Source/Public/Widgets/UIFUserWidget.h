@@ -7,6 +7,8 @@
 
 #include "UIFUserWidget.generated.h"
 
+struct FUIFrameworkWidgetId;
+
 class UUserWidget;
 class UUIFrameworkUserWidget;
 

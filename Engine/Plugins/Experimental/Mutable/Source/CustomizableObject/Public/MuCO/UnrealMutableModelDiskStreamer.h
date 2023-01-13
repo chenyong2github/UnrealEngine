@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/SparseArray.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 
 class FArchive;

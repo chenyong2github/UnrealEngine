@@ -2,7 +2,7 @@
 #pragma once
 #if WITH_EDITOR
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 namespace PCGDeterminismTests
 {
@@ -12,4 +12,8 @@ namespace PCGDeterminismTests
 	}
 }
 
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #endif

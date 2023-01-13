@@ -6,6 +6,8 @@
 #include "GameplayTagContainer.h"
 #include "GameplayBehavior.generated.h"
 
+template <typename OptionalType> struct TOptional;
+
 
 class AActor;
 class APawn;

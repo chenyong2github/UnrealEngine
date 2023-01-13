@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "PCGSpatialData.h"
 #include "PCGVolumeData.h"
 #include "PCGSurfaceData.h"
 
 #include "Engine/EngineTypes.h"
 
 #include "PCGWorldData.generated.h"
+
+class UPCGSpatialData;
 
 class UWorld;
 class UPCGMetadata;

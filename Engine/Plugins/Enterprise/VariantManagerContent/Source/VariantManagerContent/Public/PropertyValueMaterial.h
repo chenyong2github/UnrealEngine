@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PropertyValue.h"
 
 #include "PropertyValueMaterial.generated.h"
@@ -45,3 +43,7 @@ private:
 
 	static FProperty* OverrideMaterialsProperty;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

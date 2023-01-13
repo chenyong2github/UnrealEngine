@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/World.h"
 #include "AssetDefinitionDefault.h"
 
+#include "Styling/AppStyle.h"
 #include "AssetDefinition_World.generated.h"
+
+enum class EAssetCommandResult : uint8;
+struct FAssetActivateArgs;
+struct FAssetCategoryPath;
+struct FAssetOpenArgs;
+struct FAssetSupportResponse;
 
 UCLASS()
 class ENGINEASSETDEFINITIONS_API UAssetDefinition_World : public UAssetDefinitionDefault
@@ -32,3 +38,7 @@ public:
 public:
 	bool IsPartitionWorldInUse(const FAssetData& InAsset) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

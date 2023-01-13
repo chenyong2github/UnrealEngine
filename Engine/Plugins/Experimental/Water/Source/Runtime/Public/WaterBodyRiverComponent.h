@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "WaterBodyComponent.h"
 #include "WaterBodyRiverComponent.generated.h"
 
@@ -69,3 +68,7 @@ protected:
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "OceanTransitionMaterial"))
 	TObjectPtr<UMaterialInstanceDynamic> OceanTransitionMID;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

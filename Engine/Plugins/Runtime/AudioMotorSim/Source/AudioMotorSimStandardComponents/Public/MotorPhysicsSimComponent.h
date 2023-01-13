@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
 #include "MotorPhysicsSimComponent.generated.h"
 
@@ -83,3 +82,7 @@ private:
 
 	float InterpGearRatio(const int32 InGear) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/Blueprint.h"
 
 #include "MVVMViewModelBlueprint.generated.h"
+
+class FKismetCompilerContext;
 
 class FCompilerResultsLog;
 class UEdGraph;
@@ -42,3 +42,7 @@ public:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UEdGraph>> TemporaryGraph;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

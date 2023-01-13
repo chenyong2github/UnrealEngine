@@ -3,12 +3,11 @@
 #pragma once
 
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
-#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "ProjectionTargets.h"
+#include "Spatial/MeshAABBTree3.h"
 
 
 namespace UE

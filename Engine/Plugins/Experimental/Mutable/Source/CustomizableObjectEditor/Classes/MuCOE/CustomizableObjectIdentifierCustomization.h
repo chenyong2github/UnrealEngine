@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "IPropertyTypeCustomization.h"
-#include "Templates/SharedPointer.h"
 
 class IPropertyHandle;
 struct FAssetData;

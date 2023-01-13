@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Bindings/MVVMCompiledBindingLibrary.h"
-#include "MVVMSubsystem.h"
-#include "Templates/PimplPtr.h"
-#include "Templates/TypeHash.h"
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMFieldVariant.h"
+
+namespace UE::MVVM { struct FMVVMConstFieldVariant; }
+template <typename T> class TSubclassOf;
 
 
 namespace UE::MVVM::Private
@@ -195,3 +192,10 @@ private:
 };
 
 } //namespace UE::MVVM
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MVVMSubsystem.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMFieldVariant.h"
+#endif

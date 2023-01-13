@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "Components/SlateWrapperTypes.h"
 #include "Components/Widget.h"
 #include "MVVMViewModelBase.h"
-#include "Templates/NonNullPointer.h"
 #include "Types/UIFParentWidget.h"
 #include "Types/UIFWidgetId.h"
-#include "UObject/SoftObjectPtr.h"
 
 #include "UIFWidget.generated.h"
+
+template <typename ObjectType> class TNonNullPtr;
 
 class FUIFrameworkModule;
 class UUIFrameworkWidget;
@@ -161,3 +160,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> LocalUMGWidget;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Templates/NonNullPointer.h"
+#endif

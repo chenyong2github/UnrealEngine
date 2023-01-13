@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMotoSynthEditor, Log, All);
@@ -20,3 +20,7 @@ public:
 private:
 	void RegisterMenus();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

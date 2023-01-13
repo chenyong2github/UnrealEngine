@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "GameFramework/Actor.h"
 #include "Debug/DebugDrawComponent.h"
-#include "DebugRenderSceneProxy.h"
 #include "NavCorridor.h"
 #include "NavCorridorTestingComponent.generated.h"
+
+class ANavigationData;
+class FDebugRenderSceneProxy;
 
 class UNavCorridorTestingComponent;
 class ANavCorridorTestingActor;

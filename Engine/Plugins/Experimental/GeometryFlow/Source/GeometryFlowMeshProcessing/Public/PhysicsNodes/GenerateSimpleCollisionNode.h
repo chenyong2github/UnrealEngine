@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "GeometryFlowCoreNodes.h"
+#include "GeometryFlowMovableData.h"
 #include "GeometryFlowNodeUtil.h"
 #include "ShapeApproximation/MeshSimpleShapeApproximation.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "DataTypes/DynamicMeshData.h"
 #include "DataTypes/CollisionGeometryData.h"
 #include "DataTypes/IndexSetsData.h"

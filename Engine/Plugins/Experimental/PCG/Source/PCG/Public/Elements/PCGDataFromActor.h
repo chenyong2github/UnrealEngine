@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "PCGElement.h"
+#include "PCGContext.h"
 #include "PCGSettings.h"
 #include "Elements/PCGActorSelector.h"
 
+#include "PCGPin.h"
 #include "PCGDataFromActor.generated.h"
 
 UENUM()

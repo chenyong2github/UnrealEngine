@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node.h"
 #include "GameplayTagsK2Node_LiteralGameplayTag.generated.h"
+
+enum class EEdGraphNodeDeprecationType;
+namespace ENodeTitleType { enum Type : int; }
+struct FEdGraphNodeDeprecationResponse;
 
 class FBlueprintActionDatabaseRegistrar;
 class UEdGraph;
@@ -40,3 +42,7 @@ class UGameplayTagsK2Node_LiteralGameplayTag : public UK2Node
 #endif
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

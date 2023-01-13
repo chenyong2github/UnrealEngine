@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "DataRegistrySource.h"
-#include "Engine/CurveTable.h"
 #include "DataRegistrySource_DataTable.h"
 #include "DataRegistrySource_CurveTable.generated.h"
+
+class UCurveTable;
 
 
 /** Data source that loads from a specific curve table asset */
@@ -107,3 +107,7 @@ protected:
 	virtual bool DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset) override;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/CurveTable.h"
+#endif

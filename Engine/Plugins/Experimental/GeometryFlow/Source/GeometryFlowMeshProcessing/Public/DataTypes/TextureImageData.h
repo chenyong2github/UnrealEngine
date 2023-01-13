@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GeometryFlowCoreNodes.h"
-#include "GeometryFlowImmutableData.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 #include "Image/ImageBuilder.h"
@@ -38,3 +37,7 @@ GEOMETRYFLOW_DECLARE_BASIC_TYPES(MaterialIDToTextureMap, FMaterialIDToTextureMap
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowImmutableData.h"
+#endif

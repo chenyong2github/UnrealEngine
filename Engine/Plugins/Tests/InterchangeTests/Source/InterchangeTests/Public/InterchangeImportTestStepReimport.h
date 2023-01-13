@@ -4,6 +4,7 @@
 
 #include "InterchangeImportTestStepBase.h"
 //#include "InterchangeTestFunction.h"
+#include "Templates/SubclassOf.h"
 #include "InterchangeImportTestStepReimport.generated.h"
 
 struct FInterchangeTestFunction;

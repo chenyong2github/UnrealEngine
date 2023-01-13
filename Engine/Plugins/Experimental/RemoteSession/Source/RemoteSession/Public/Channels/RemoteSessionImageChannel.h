@@ -3,10 +3,10 @@
 #pragma once
 
 #include "RemoteSessionChannel.h"
-#include "HAL/ThreadSafeCounter.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeBool.h"
+
+enum class ERemoteSessionChannelMode : int32;
 
 
 class FBackChannelOSCMessage;
@@ -191,3 +191,7 @@ protected:
 
 	FRemoteSessionImageReceiveStats	ReceiveStats;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "HAL/RunnableThread.h"
+#endif

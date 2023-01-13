@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma  once
 
-#include "Engine/EngineTypes.h"
 #include "NetworkPredictionCueTraits.h"
 #include "NetworkPredictionCheck.h"
-#include "Misc/StringBuilder.h"
+#include "Delegates/Delegate.h"
 
 /*=============================================================================
 Networked Simulation Cues
@@ -935,3 +934,7 @@ private:
 
 #define NETSIMCUESET_REGISTER(THandler, TCueSet) TNetSimCueSetHandlerAutoRegisterHelper<THandler,TCueSet> NetSimCueSetHandlerAr_##THandler_##TCueSet;
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/EngineTypes.h"
+#endif

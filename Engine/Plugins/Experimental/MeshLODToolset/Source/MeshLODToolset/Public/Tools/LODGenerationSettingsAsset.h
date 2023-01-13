@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EngineDefines.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
 #include "Graphs/GenerateStaticMeshLODProcess.h"
 
 #include "LODGenerationSettingsAsset.generated.h"
@@ -49,3 +44,8 @@ public:
 	FGenerateStaticMeshLODProcess_CollisionSettings SimpleCollision;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EngineDefines.h"
+#endif

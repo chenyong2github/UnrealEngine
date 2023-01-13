@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
 #include "Curves/CurveFloat.h"
 #include "VelocitySyncMotorSimComponent.generated.h"
@@ -39,3 +38,7 @@ private:
 	float NoThrottleTimeElapsed = 0.f;
 	float InterpTimeLeft = 0.f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

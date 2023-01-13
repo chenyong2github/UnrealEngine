@@ -3,7 +3,9 @@
 #pragma once
 
 #include "Algo/Count.h"
-#include "GeometryCollection/GeometryCollection.h"
+#include "Math/Box.h"
+
+class FGeometryCollection;
 
 
 class FRACTUREENGINE_API FVoronoiPartitioner
@@ -88,3 +90,7 @@ public:
 		const bool bEnforceConnectivity,
 		const bool bAvoidIsolated);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryCollection/GeometryCollection.h"
+#endif

@@ -5,8 +5,6 @@
 #include "MotoSynthSourceAsset.h"
 #include "MotoSynthEngine.h"
 #include "MotoSynthModule.h"
-#include "Sound/SoundSourceBusSend.h"
-#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentMoto)
 

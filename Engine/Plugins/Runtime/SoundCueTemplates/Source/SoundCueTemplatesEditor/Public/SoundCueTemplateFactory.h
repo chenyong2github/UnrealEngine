@@ -3,12 +3,12 @@
 #pragma once
 
 #include "ClassTemplateEditorSubsystem.h"
-#include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "SoundCueTemplate.h"
-#include "UObject/ObjectMacros.h"
 
 #include "SoundCueTemplateFactory.generated.h"
+
+class USoundCueTemplate;
+class USoundWave;
 
 UCLASS(hidecategories = Object, MinimalAPI)
 class USoundCueTemplateCopyFactory : public UFactory
@@ -47,3 +47,8 @@ class USoundCueTemplateClassTemplate : public UPluginClassTemplate
 {
 	GENERATED_UCLASS_BODY()
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "SoundCueTemplate.h"
+#endif

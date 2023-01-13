@@ -3,7 +3,6 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterialDetails.h"
 
 #include "DetailLayoutBuilder.h"
-#include "EdGraph/EdGraph.h"
 #include "Engine/SkeletalMesh.h"
 #include "IDetailsView.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterial.h"

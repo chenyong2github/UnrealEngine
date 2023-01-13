@@ -3,9 +3,12 @@
 #pragma once
 
 #include "AudioComponentGroupExtension.h"
+#include "AudioParameter.h"
 #include "AudioParameterControllerInterface.h"
-#include "Components/AudioComponent.h"
+#include "Components/SceneComponent.h"
 #include "AudioComponentGroup.generated.h"
+
+template <typename InterfaceType> class TScriptInterface;
 
 class USoundBase;
 class UParamCollection;
@@ -178,3 +181,7 @@ protected:
 
 	friend class FAudioComponentGroupDebug;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/AudioComponent.h"
+#endif

@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "DataRegistry.h"
-#include "Engine/DataTable.h"
-#include "Containers/SortedMap.h"
+#include "DataRegistry.h" // IWYU pragma: keep
 #include "Subsystems/EngineSubsystem.h"
 #include "DataRegistrySubsystem.generated.h"
+
+class UDataRegistry;
+struct FRealCurve;
+struct FTableRowBase;
 
 
 /** Enum used to indicate success or failure of EvaluateCurveTableRow. */
@@ -270,3 +272,7 @@ class ADataRegistryTestActor : public AActor
 	void AsyncReadComplete(const FDataRegistryAcquireResult& Result);
 };
 */
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/DataTable.h"
+#endif

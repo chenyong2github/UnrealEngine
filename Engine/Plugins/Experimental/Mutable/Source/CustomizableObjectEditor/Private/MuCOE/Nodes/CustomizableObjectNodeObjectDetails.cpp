@@ -3,7 +3,6 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeObjectDetails.h"
 
 #include "DetailLayoutBuilder.h"
-#include "EdGraph/EdGraph.h"
 #include "IDetailsView.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"

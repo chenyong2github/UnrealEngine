@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "MuCO/UnrealPortabilityHelpers.h"
-#include "UObject/ObjectMacros.h"
 #include "CustomizableObjectParameterTypeDefinitions.generated.h"
 
 class UTexture2D;
@@ -295,3 +293,7 @@ inline uint32 GetTypeHash(const FCustomizableObjectProjectorParameterValue& Key)
 	
 	return Hash;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuCO/UnrealPortabilityHelpers.h"
+#endif

@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserFileDataPayload.h"
+#include "ContentBrowserItemData.h"
+
+class FContentBrowserFileItemDataPayload;
+class FContentBrowserFileItemDataPayload_Duplication;
+class FContentBrowserFolderItemDataPayload;
+namespace ContentBrowserFileData { class FFileConfigData; }
+namespace ContentBrowserFileData { struct FDirectoryActions; }
+namespace ContentBrowserFileData { struct FFileActions; }
 
 class FAssetThumbnail;
 class UContentBrowserDataSource;
@@ -126,3 +132,8 @@ namespace ContentBrowserFileData
 	CONTENTBROWSERFILEDATASOURCE_API bool GetFileItemAttributes(const FContentBrowserFileItemDataPayload& InFilePayload, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValues& OutAttributeValues);
 
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContentBrowserFileDataPayload.h"
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "PCGMetadataTypesConstantStruct.generated.h"

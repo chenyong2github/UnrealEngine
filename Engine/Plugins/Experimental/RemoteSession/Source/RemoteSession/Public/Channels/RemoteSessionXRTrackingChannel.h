@@ -4,7 +4,10 @@
 
 #include "RemoteSessionChannel.h"
 #include "XRTrackingSystemBase.h"
-#include "ARSystem.h"
+
+class IXRTrackingSystem;
+enum class ERemoteSessionChannelMode : int32;
+enum class EXRTrackedDeviceType : uint8;
 
 class FBackChannelOSCDispatch;
 class IBackChannelPacket;
@@ -73,3 +76,7 @@ private:
 	/** Used to finish construction of the class. Should be called from within the ctors */
 	void Init();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ARSystem.h"
+#endif

@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGMetadataCommon.h"
-#include "PCGPoint.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "PCGMetadataAccessor.generated.h"
+
+struct FPCGPoint;
 
 class UPCGMetadata;
 
@@ -190,3 +190,8 @@ protected:
 	template<typename T>
 	static void SetAttribute(PCGMetadataEntryKey& Key, UPCGMetadata* Metadata, FName AttributeName, const T& Value);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGPoint.h"
+#endif

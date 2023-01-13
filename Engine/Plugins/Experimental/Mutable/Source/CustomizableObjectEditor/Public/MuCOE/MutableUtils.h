@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Engine/SkeletalMesh.h"
-#include "Engine/StaticMesh.h"
-#include "HAL/Platform.h"
 #include "Math/Vector2D.h"
+
+class USkeletalMesh;
+class UStaticMesh;
 
 
 /** Returns the mesh UV. */
@@ -35,3 +34,8 @@ bool IsMeshClosed(const USkeletalMesh* Mesh, int LOD, int MaterialIndex);
 
 /** Check if a given LOD and material in a skeletal mesh is closed. */
 bool IsMeshClosed(const UStaticMesh* Mesh, int LOD, int MaterialIndex);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#endif

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialToolkit.h"
+#include "Interfaces/OnlineUserInterface.h"
 #include "SocialManager.h"
 #include "SocialQuery.h"
 #include "SocialSettings.h"

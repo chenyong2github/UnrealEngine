@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
  
 class FMemoryUsageQueriesModule : public IModuleInterface
 {
@@ -16,3 +15,8 @@ public:
 private:
 	FDelegateHandle Handle_RegisterConsoleAutoCompleteEntries;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#endif

@@ -5,16 +5,14 @@
  */
 
 #pragma once
-#include "OnlineSubsystem.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineSessionDelegates.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "GameFramework/OnlineSession.h"
 #include "OnlineSessionClient.generated.h"
+
+struct FJoinabilitySettings;
 
 class UGameInstance;
 class UNetDriver;
@@ -203,3 +201,8 @@ public:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OnlineSubsystem.h"
+#endif

@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "NavigationData.h"
-#include "NavMesh/NavMeshPath.h"
-#include "Templates/SharedPointer.h"
+#include "AI/Navigation/NavQueryFilter.h"
 #include "NavCorridor.generated.h"
+
+struct FNavPathPoint;
+struct FNavigationPath;
 
 
 USTRUCT(BlueprintType)
@@ -140,3 +141,8 @@ struct NAVCORRIDOR_API FNavCorridor : public TSharedFromThis<FNavCorridor>
 	/** Portal points defining the corridor. */
 	TArray<FNavCorridorPortal> Portals;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "NavMesh/NavMeshPath.h"
+#include "NavigationData.h"
+#endif

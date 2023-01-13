@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EnvironmentQueryGraphNode.h"
 #include "EnvironmentQueryGraphNode_Root.generated.h"
 
@@ -24,3 +22,7 @@ class UEnvironmentQueryGraphNode_Root : public UEnvironmentQueryGraphNode
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual bool HasErrors() const override { return false; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
+#include "Metadata/PCGMetadataCommon.h"
 #include "PCGModule.h"
 
 #include "Helpers/PCGMetadataHelpers.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
+#include "Misc/ScopeRWLock.h"
 
 class UPCGMetadata;
 
@@ -641,3 +642,7 @@ namespace PCGMetadataAttribute
 		}
 	}
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

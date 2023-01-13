@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "Containers/ArrayView.h"
-#include "Containers/Map.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Misc/Optional.h"
 #include "Math/Range.h"
 #include "Math/Transform.h"
 

@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h" 
-#include "UObject/ScriptMacros.h"
-#include "Delegates/Delegate.h"
 #include "AndroidPermissionCallbackProxy.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FAndroidPermissionDynamicDelegate, const TArray<FString>&, Permissions, const TArray<bool>&, GrantResults);
@@ -24,3 +19,7 @@ public:
 	
 	static UAndroidPermissionCallbackProxy *GetInstance();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

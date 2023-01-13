@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GameFramework/PhysicsVolume.h"
-#include "WaterBodyActor.h"
 #include "WaterBodyExclusionVolume.generated.h"
+
+class AWaterBody;
 
 /**
  * WaterBodyExclusionVolume allows players not enter surface swimming when touching a water volume
@@ -58,3 +57,8 @@ public:
 	TObjectPtr<class UBillboardComponent> ActorIcon;
 #endif // WITH_EDITORONLY_DATA
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "WaterBodyActor.h"
+#endif

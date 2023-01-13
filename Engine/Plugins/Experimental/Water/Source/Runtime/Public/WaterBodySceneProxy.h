@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/Scene.h"
-#include "DynamicMesh/DynamicMesh3.h"
+#include "Materials/MaterialInterface.h"
 #include "PrimitiveSceneProxy.h"
+#include "Materials/MaterialRelevance.h"
 #include "StaticMeshResources.h"
 #include "DynamicMeshBuilder.h"
 
@@ -111,3 +110,8 @@ private:
 	EWaterInfoPass CurrentWaterInfoPass = EWaterInfoPass::None;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#endif

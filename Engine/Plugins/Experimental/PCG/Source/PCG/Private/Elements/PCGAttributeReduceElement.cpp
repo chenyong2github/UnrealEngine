@@ -6,7 +6,6 @@
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
-#include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 #include "PCGContext.h"
 #include "PCGPin.h"

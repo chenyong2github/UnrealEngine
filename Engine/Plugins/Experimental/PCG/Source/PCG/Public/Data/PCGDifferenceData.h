@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGSpatialData.h"
 
 #include "PCGDifferenceData.generated.h"
+
+struct FPropertyChangedEvent;
 
 class UPCGUnionData;
 
@@ -78,3 +79,7 @@ protected:
 	UPROPERTY(BlueprintSetter = SetDensityFunction, EditAnywhere, Category = Settings)
 	EPCGDifferenceDensityFunction DensityFunction = EPCGDifferenceDensityFunction::Minimum;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

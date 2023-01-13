@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Animation/AnimInstance.h"
 #include "AnimationSharingInstances.generated.h"
+
+class UAnimSequence;
 
 UCLASS(transient, Blueprintable)
 class ANIMATIONSHARING_API UAnimSharingStateInstance : public UAnimInstance
@@ -80,3 +80,7 @@ protected:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

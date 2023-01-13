@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+
+class FText;
 
 struct FSlateBrush;
 
@@ -13,3 +14,7 @@ public:
 	virtual void UnregisterBspBuilderType( class UClass* InBuilderClass ) = 0;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

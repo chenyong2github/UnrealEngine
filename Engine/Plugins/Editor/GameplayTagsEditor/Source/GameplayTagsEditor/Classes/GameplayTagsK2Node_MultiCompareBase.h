@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node.h"
 #include "GameplayTagsK2Node_MultiCompareBase.generated.h"
 
@@ -43,3 +41,7 @@ protected:
 	virtual void AddPinToSwitchNode(){};
 	FString GetUniquePinName();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

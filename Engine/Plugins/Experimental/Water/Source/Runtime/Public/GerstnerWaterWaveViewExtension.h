@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GerstnerWaterWaves.h"
 #include "SceneViewExtension.h"
 
 class AWaterBody;
@@ -38,3 +36,8 @@ public:
 
 	TSharedRef<FWaveGPUResources, ESPMode::ThreadSafe> WaveGPUData;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GerstnerWaterWaves.h"
+#endif

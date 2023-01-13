@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptInterface.h"
-#include "Interfaces/TurnBasedMatchInterface.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
 #include "EndTurnCallbackProxy.generated.h"
+
+class ITurnBasedMatchInterface;
+class UTurnBasedMatchInterface;
+template <typename InterfaceType> class TScriptInterface;
 
 class APlayerController;
 
@@ -49,3 +49,8 @@ private:
 	// Object that is inheriting from UTurnBasedMatchInterface. Replicated properties will be serialize into the platform specific match data object.
 	UTurnBasedMatchInterface* TurnBasedMatchInterface;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Interfaces/TurnBasedMatchInterface.h"
+#endif

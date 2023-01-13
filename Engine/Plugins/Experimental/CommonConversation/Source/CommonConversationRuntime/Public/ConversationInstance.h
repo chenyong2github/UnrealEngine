@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "GameFramework/Actor.h"
-#include "GameplayTagContainer.h"
-#include "ConversationNode.h"
 #include "ConversationRequirementNode.h"
-#include "ConversationTaskNode.h"
 #include "ConversationMemory.h"
 
+#include "ConversationTypes.h"
+#include "Math/RandomStream.h"
 #include "ConversationInstance.generated.h"
 
 class UConversationInstance;
@@ -152,3 +150,8 @@ private:
 private:
 	bool bConversationStarted = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationTaskNode.h"
+#include "GameFramework/Actor.h"
+#endif

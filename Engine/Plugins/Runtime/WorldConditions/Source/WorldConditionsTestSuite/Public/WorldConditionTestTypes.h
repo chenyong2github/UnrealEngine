@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "StructView.h"
-#include "WorldConditionTypes.h"
-#include "WorldConditionSchema.h"
-#include "WorldConditionBase.h"
 #include "WorldConditionContext.h"
 #include "GameFramework/Actor.h"
 #include "WorldConditionTestTypes.generated.h"

@@ -2,28 +2,12 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/IDelegateInstance.h"
-#include "EdGraph/EdGraphNode.h"
 #include "Engine/DataTable.h"
-#include "HAL/Platform.h"
-#include "HAL/UnrealMemory.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Math/Vector2D.h"
-#include "MuCO/CustomizableObjectUIData.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/Class.h"
-#include "UObject/Field.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/SoftObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/UnrealType.h"
 
 #include "CustomizableObjectNodeTable.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class UCustomizableObjectLayout;
 class UCustomizableObjectNodeRemapPins;

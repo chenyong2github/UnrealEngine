@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EnhancedInputSubsystemInterface.h"
-#include "EnhancedInputWorldProcessor.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
-#include "Subsystems/EngineSubsystem.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include "EnhancedInputSubsystems.generated.h"
+
+class FEnhancedInputWorldProcessor;
+enum class ETickableTickType : uint8;
+struct FInputKeyParams;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldSubsystemInput, Log, All);
 
@@ -117,3 +118,9 @@ private:
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<UInputComponent>> CurrentInputStack;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EnhancedInputWorldProcessor.h"
+#include "Subsystems/EngineSubsystem.h"
+#endif

@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
+#include "GameplayTagContainer.h"
 #include "WorldConditions/SmartObjectWorldConditionBase.h"
 #include "SmartObjectRuntime.h"
 #include "SmartObjectWorldConditionSlotTagQuery.generated.h"

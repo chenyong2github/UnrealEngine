@@ -5,7 +5,6 @@
 #include "NetworkPredictionID.h"
 #include "NetworkPredictionStateView.h"
 #include "NetworkPredictionConfig.h"
-#include "PhysicsInterfaceDeclaresCore.h"
 #include "Engine/EngineTypes.h"
 #include "NetworkPredictionProxy.generated.h"
 
@@ -214,3 +213,7 @@ struct TStructOpsTypeTraits<FNetworkPredictionProxy> : public TStructOpsTypeTrai
 		WithIdentical = true,
 	};
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PhysicsInterfaceDeclaresCore.h"
+#endif

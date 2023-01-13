@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
 #include "InputAction.h"
-#include "InputActionValue.h"
-#include "InputCoreTypes.h"
-#include "Internationalization/Text.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
 
 #include "EnhancedActionKeyMapping.generated.h"
 

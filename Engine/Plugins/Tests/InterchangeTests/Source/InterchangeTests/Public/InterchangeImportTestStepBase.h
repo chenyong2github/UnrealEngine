@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
-#include "Misc/AutomationTest.h"
-#include "InterchangeImportTestData.h"
 #include "InterchangeManager.h"
-#include "InterchangeTestFunction.h"
 #include "InterchangeImportTestStepBase.generated.h"
+
+class FAutomationTestExecutionInfo;
+struct FInterchangeImportTestData;
+struct FInterchangeTestFunction;
 
 
 struct FTestStepResults
@@ -37,3 +35,11 @@ public:
 
 	bool PerformTests(FInterchangeImportTestData& Data, FAutomationTestExecutionInfo& ExecutionInfo);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "InterchangeImportTestData.h"
+#include "InterchangeTestFunction.h"
+#include "Misc/AutomationTest.h"
+#endif

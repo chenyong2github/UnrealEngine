@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "WaterBodyComponent.h"
 #include "WaterBodyLakeComponent.generated.h"
 
@@ -44,3 +43,7 @@ protected:
 	UPROPERTY(NonPIEDuplicateTransient)
 	TObjectPtr<ULakeCollisionComponent> LakeCollision;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

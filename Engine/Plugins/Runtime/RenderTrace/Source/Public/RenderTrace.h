@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Stats/Stats2.h"
 #include "Tickable.h"
-#include "Logging/LogMacros.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRenderTrace, Log, All);
 
@@ -43,3 +42,7 @@ private:
 	TArray<TSharedPtr<struct FRenderTraceTask>> RequestsInFlight;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,11 +2,9 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/GCObject.h"
-#include "Tickable.h"
-#include "Containers/UnrealString.h"
+#include "Logging/LogMacros.h"
 
 /**
 *	Gauntlet states. Define your own states by inheriting from this or some other
@@ -110,3 +108,9 @@ GAUNTLET_API DECLARE_LOG_CATEGORY_EXTERN(LogGauntlet, Log, All);
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#include "Tickable.h"
+#include "UObject/GCObject.h"
+#endif

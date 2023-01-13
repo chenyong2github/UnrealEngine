@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "GameplayTagContainer.h"
 
 #include "ConversationNode.generated.h"
+
+struct FGameplayTag;
 
 class UWorld;
 
@@ -179,3 +177,8 @@ public:
 
 	friend class UConversationRegistry;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#endif

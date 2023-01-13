@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
+#include "Templates/SubclassOf.h"
 #include "InterchangeTestFunction.generated.h"
 
 class FStructOnScope;
@@ -170,3 +168,8 @@ public:
 	/** Return a proxy object which is used to iterate through function parameters of interest */
 	FParameters GetParameters() const { return FParameters(CheckFunction); } 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

@@ -5,17 +5,11 @@
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleManagerUtil.h"
 #include "InstallBundleCache.h"
-#include "InstallBundleUtils.h"
 
-#include "Delegates/IDelegateInstance.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UniquePtr.h"
-#include "Templates/Function.h"
-#include "Containers/Ticker.h"
-#include "Containers/Array.h"
 #include "Containers/StaticArray.h"
-#include "Containers/ArrayView.h"
-#include "PatchCheck.h"
+#include "Templates/ValueOrError.h"
+
+enum class EPatchCheckResult : uint8;
 
 #ifndef INSTALL_BUNDLE_ENABLE_ANALYTICS
 	#define INSTALL_BUNDLE_ENABLE_ANALYTICS (!WITH_EDITOR)
@@ -782,3 +776,7 @@ DEFAULTINSTALLBUNDLEMANAGER_API const TCHAR* LexToString(FDefaultInstallBundleMa
 ENUM_RANGE_BY_COUNT(FDefaultInstallBundleManager::EContentReleaseRequestBatch, FDefaultInstallBundleManager::EContentReleaseRequestBatch::Count);
 
 DEFAULTINSTALLBUNDLEMANAGER_API const TCHAR* LexToString(FDefaultInstallBundleManager::EContentReleaseRequestBatch Val);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PatchCheck.h"
+#endif

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 class FRHICommandListImmediate;
 class FTextureResource;
@@ -14,3 +14,7 @@ namespace PatchUtil {
 	void LANDSCAPEPATCH_API CopyTextureOnRenderThread(FRHICommandListImmediate& RHICmdList, const FTextureResource& Source, FTextureResource& Destination);
 
 }}}//end UE::Landscape::PatchUtil
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

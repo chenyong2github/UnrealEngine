@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnimationModifier.h"
 #include "OrientationWarpingModifier.generated.h"
 
@@ -34,3 +33,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Experimental)
 	float StopSpeedThreshold = 10.0f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

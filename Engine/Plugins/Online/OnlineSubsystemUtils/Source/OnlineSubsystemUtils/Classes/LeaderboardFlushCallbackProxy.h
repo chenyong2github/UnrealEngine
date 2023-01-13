@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
 #include "LeaderboardFlushCallbackProxy.generated.h"
 
@@ -52,3 +48,7 @@ private:
 	/** Did we fail immediately? */
 	bool bFailedToEvenSubmit;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

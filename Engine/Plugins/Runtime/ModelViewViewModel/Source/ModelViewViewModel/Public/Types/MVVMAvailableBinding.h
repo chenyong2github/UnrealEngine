@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "Types/MVVMBindingName.h"
 
 #include "MVVMAvailableBinding.generated.h"
@@ -83,3 +81,7 @@ private:
 	UPROPERTY()
 	bool bHasNotify = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

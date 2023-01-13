@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "GameplayTagContainer.h"
-#include "ConversationInstance.h"
 
+#include "Templates/SubclassOf.h"
 #include "ConversationLibrary.generated.h"
+
+struct FGameplayTag;
 
 class AActor;
 class UConversationInstance;
@@ -25,3 +25,9 @@ public:
 	static UConversationInstance* StartConversation(FGameplayTag ConversationEntryTag, AActor* Instigator, FGameplayTag InstigatorTag,
 		AActor* Target, FGameplayTag TargetTag, const TSubclassOf<UConversationInstance> ConversationInstanceClass = nullptr);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationInstance.h"
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#endif

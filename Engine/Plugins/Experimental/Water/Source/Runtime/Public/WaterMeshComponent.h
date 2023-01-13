@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Engine/EngineTypes.h"
 #include "Components/MeshComponent.h"
 #include "WaterQuadTree.h"
 #include "WaterMeshComponent.generated.h"
@@ -140,3 +135,7 @@ private:
 	//~ Begin USceneComponent Interface
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

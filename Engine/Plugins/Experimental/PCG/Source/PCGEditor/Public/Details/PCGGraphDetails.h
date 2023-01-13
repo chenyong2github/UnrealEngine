@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "UObject/WeakObjectPtr.h"
-#include "Input/Reply.h"
 #include "IDetailCustomization.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UPCGGraph;
 
@@ -18,3 +17,8 @@ public:
 private:
 	TArray<TWeakObjectPtr<UPCGGraph>> SelectedGraphs;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/Reply.h"
+#include "UObject/WeakObjectPtr.h"
+#endif

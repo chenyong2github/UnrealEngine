@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
 #include "PartyBeaconState.h"
 #include "TimerManager.h"
 #include "OnlineBeaconClient.h"
 
 #include "PartyBeaconClient.generated.h"
+
+struct FPlayerReservation;
 
 class FOnlineSessionSearchResult;
 
@@ -345,3 +344,7 @@ protected:
 	 */
 	FTimerHandle DelayResponse(FTimerDelegate& Delegate, float Delay);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

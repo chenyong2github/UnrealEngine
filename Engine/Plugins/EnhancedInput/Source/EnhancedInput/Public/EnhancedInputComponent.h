@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/InputComponent.h"
 #include "InputAction.h"
-#include "InputActionValue.h"
-#include "InputCoreTypes.h"
-#include "UObject/ObjectMacros.h"
 
 #include "EnhancedInputComponent.generated.h"
 
@@ -519,3 +515,7 @@ public:
 	template<class UserClass>
 	FInputGestureBinding& BindGesture(const FKey GestureKey, UserClass* Object, typename FInputGestureHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

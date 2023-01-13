@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ConversationSubNode.h"
-#include "ConversationContext.h"
 #include "ConversationSideEffectNode.generated.h"
 
 struct FConversationContext;
@@ -31,3 +30,7 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic)
 	void ClientCauseSideEffect(const FConversationContext& Context) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationContext.h"
+#endif

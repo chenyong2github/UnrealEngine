@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "Tools/UEdMode.h"
-#include "UObject/Object.h"
 #include "UObject/Interface.h"
-#include "UnrealWidgetFwd.h"
 
 #include "AssetEditorGizmoFactory.generated.h"
+
+class FEditorModeTools;
 
 class UInteractiveGizmo;
 class UInteractiveGizmoManager;
@@ -35,3 +34,8 @@ public:
 	virtual EAssetEditorGizmoFactoryPriority GetPriority() const { return EAssetEditorGizmoFactoryPriority::Normal; }
 	virtual void ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, const TArray<UInteractiveGizmo*>& Gizmos) const = 0;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Tools/UEdMode.h"
+#include "UnrealWidgetFwd.h"
+#endif

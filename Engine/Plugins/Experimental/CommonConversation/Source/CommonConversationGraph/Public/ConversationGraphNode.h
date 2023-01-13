@@ -5,6 +5,8 @@
 #include "AIGraphNode.h"
 #include "ConversationGraphNode.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 
 UCLASS()
 class COMMONCONVERSATIONGRAPH_API UConversationGraphNode : public UAIGraphNode

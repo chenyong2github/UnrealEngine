@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class UCustomizableObjectPopulation;
@@ -20,3 +19,7 @@ public:
 	virtual void SetCustomAsset(UCustomizableObjectPopulation* InCustomAsset) {};
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Toolkits/IToolkitHost.h"
+#endif

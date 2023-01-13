@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Modules/ModuleInterface.h"
-#include "Engine/EngineTypes.h"
 #include "AssetTypeCategories.h"
-#include "IAssetTypeActions.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+
+class AActor;
+class IAssetTypeActions;
 
 class FComponentVisualizer;
 class FWaterWavesEditorToolkit;
@@ -50,3 +51,10 @@ private:
 
 	FDelegateHandle OnLoadCollisionProfileConfigHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "IAssetTypeActions.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#endif

@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "Misc/EnumClassFlags.h"
-#include "NetworkPredictionConditionalState.h"
 #include "HAL/Platform.h"
 
 // Enum to identify the state types
@@ -71,3 +69,8 @@ struct TSyncAuxPair
 	TSyncAuxPair(const TSyncAuxPair<T>& Other)
 		: Sync(Other.Sync), Aux(Other.Aux) { }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/EnumClassFlags.h"
+#include "NetworkPredictionConditionalState.h"
+#endif

@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "PCGPin.h"
 #include "PCGSettings.h"
-#include "PCGElement.h"
-#include "PCGNode.h"
 
 #include "PCGDensityRemap.generated.h"
 
@@ -45,3 +43,8 @@ class FPCGLinearDensityRemapElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGNode.h"
+#endif

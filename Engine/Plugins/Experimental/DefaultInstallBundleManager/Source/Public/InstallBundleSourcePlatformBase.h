@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "InstallBundleSourceInterface.h"
+#include "InstallBundleTypes.h"
+
 #if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
+#include "InstallBundleSourceInterface.h"
 #include "Internationalization/Regex.h"
 
 

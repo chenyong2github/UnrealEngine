@@ -3,11 +3,11 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "PCGContext.h"
-#include "PCGData.h"
-#include "Math/NumericLimits.h"
-#include "Misc/OutputDevice.h"
-#include "Misc/OutputDeviceRedirector.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UPCGSettingsInterface;
+struct FPCGContext;
+struct FPCGDataCollection;
 
 class IPCGElement;
 class UPCGComponent;
@@ -94,3 +94,9 @@ class PCG_API FSimplePCGElement : public IPCGElement
 public:
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/OutputDeviceRedirector.h"
+#include "PCGContext.h"
+#include "PCGData.h"
+#endif

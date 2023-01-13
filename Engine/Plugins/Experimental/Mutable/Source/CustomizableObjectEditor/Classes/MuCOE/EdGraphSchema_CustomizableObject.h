@@ -2,21 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2_Actions.h"
-#include "HAL/PlatformMath.h"
-#include "Internationalization/Text.h"
-#include "MaterialTypes.h"
-#include "Math/Color.h"
-#include "Math/Vector2D.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "EdGraphSchema_CustomizableObject.generated.h"
+
+enum class EMaterialParameterType : uint8;
 
 class UEdGraph;
 class UEdGraphNode;
@@ -178,3 +168,7 @@ public:
 	static const FName& GetPinCategory(EMaterialParameterType Type);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MaterialTypes.h"
+#endif

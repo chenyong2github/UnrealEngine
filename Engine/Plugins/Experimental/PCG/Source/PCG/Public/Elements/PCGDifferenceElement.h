@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGElement.h"
 #include "PCGSettings.h"
 #include "Data/PCGDifferenceData.h"
 
@@ -57,3 +55,7 @@ protected:
 
 	void LabellessProcessing(FPCGContext* Context) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

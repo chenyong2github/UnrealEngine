@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/TopLevelAssetPath.h"
 
 struct FSearchRecord
@@ -73,3 +72,7 @@ private:
 
 typedef TSharedPtr<FSearchQuery, ESPMode::ThreadSafe> FSearchQueryPtr;
 typedef TWeakPtr<FSearchQuery, ESPMode::ThreadSafe> FSearchQueryWeakPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

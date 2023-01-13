@@ -9,7 +9,6 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "DetailsViewArgs.h"
-#include "EdGraph/EdGraph.h"
 #include "FileHelpers.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

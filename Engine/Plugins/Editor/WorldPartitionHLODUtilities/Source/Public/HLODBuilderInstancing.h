@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Templates/SubclassOf.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "HLODBuilderInstancing.generated.h"
 

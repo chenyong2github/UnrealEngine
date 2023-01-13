@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetDefinitionDefault.h"
-#include "UObject/ObjectRedirector.h"
 
 #include "AssetDefinition_Redirector.generated.h"
+
+enum class EAssetCommandResult : uint8;
+struct FAssetActivateArgs;
 
 UCLASS()
 class ENGINEASSETDEFINITIONS_API UAssetDefinition_Redirector : public UAssetDefinitionDefault
@@ -20,3 +21,7 @@ public:
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UObjectRedirector::StaticClass(); }
 	virtual EAssetCommandResult ActivateAssets(const FAssetActivateArgs& ActivateArgs) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

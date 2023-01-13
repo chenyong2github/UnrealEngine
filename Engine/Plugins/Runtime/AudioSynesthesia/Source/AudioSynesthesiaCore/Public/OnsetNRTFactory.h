@@ -6,6 +6,8 @@
 #include "OnsetAnalyzer.h"
 #include "PeakPicker.h"
 
+namespace Audio { template <typename InSampleType> class TSlidingBuffer; }
+
 namespace Audio
 {
 	/** FOnsetNRTSettings

@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "CoreMinimal.h"
 
 #define INTERCHANGETESTS_MODULE_NAME TEXT("InterchangeTests")
 
@@ -18,3 +17,7 @@ public:
 private:
 	virtual void StartupModule() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Modules/ModuleInterface.h"
 #include "EditorModeTools.h"
 #include "EdMode.h"
 
@@ -276,3 +273,8 @@ protected:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Modules/ModuleInterface.h"
+#endif

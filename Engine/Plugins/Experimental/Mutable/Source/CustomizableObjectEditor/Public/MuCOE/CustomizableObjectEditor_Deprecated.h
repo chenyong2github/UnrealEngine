@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "Engine/Texture2D.h"
 
 #include "CustomizableObjectEditor_Deprecated.generated.h"
+
+class UTexture2D;
 
 
 // Place to hide all deprecated data structures. They are still needed for deserialization backwards compatibility.
@@ -85,3 +86,7 @@ struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectNodeExtendMaterialImage
 	UPROPERTY()
 	FString Name;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/Texture2D.h"
+#endif

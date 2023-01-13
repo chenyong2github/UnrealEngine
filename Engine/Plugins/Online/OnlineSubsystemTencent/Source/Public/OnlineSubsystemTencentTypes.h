@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "OnlineSubsystemPackage.h"
 #include "OnlineSubsystemTypes.h"
-#include "OnlineKeyValuePair.h"
 #include "Misc/Guid.h"
 #include "OnlineSubsystemNames.h"
 
@@ -269,3 +269,7 @@ public:
 #endif //WITH_TENCENTSDK
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "OnlineKeyValuePair.h"
+#endif

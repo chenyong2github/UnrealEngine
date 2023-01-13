@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "Internationalization/Text.h"
-#include "UObject/NameTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
 #include "PlayerMappableKeySettings.generated.h"
 
 struct FEnhancedActionKeyMapping;

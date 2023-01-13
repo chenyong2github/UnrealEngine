@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/MemberReference.h"
-#include "Misc/TVariant.h"
-#include <type_traits>
+#include "UObject/Field.h"
 
 class FProperty;
 class UFunction;
@@ -207,3 +204,9 @@ namespace UE::MVVM
 	};
 
 } //namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/MemberReference.h"
+#include "Misc/TVariant.h"
+#endif

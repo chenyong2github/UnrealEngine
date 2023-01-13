@@ -5,6 +5,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "GameplayBehaviorSubsystem.generated.h"
 
+template <typename T> class TSubclassOf;
+
 
 class UGameplayBehavior;
 class AActor;

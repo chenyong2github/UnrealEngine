@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "InputActionValue.h"
-#include "InputMappingQuery.h"
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 
 #include "InputAction.generated.h"
+
+struct FPropertyChangedEvent;
 
 class UPlayerMappableKeySettings;
 
@@ -204,3 +203,8 @@ public:
 	// The source action that this instance is created from
 	const UInputAction* GetSourceAction() const { return SourceAction; }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "InputMappingQuery.h"
+#endif

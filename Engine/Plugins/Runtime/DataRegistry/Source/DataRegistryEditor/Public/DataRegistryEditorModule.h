@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "DataRegistryTypes.h"
+
+class SToolTip;
+struct FDataRegistryId;
+struct FDataRegistryType;
 
 DECLARE_DELEGATE_RetVal(FText, FOnGetDataRegistryDisplayText);
 DECLARE_DELEGATE_OneParam(FOnSetDataRegistryType, FDataRegistryType);
@@ -80,3 +81,8 @@ private:
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 	TSharedPtr<class FDataRegistryGraphPanelPinFactory> DataRegistryGraphPanelPinFactory;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DataRegistryTypes.h"
+#endif

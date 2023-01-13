@@ -2,20 +2,12 @@
 
 #pragma once
 
-#include "EdGraph/EdGraphNode.h"
-#include "Internationalization/Text.h"
-#include "Layout/Visibility.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "SGraphNode.h"
-#include "Styling/SlateBrush.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "CustomizableObjectNodeTexture.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class SOverlay;
 class SVerticalBox;

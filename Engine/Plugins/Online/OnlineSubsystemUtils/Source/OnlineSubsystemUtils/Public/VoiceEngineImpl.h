@@ -2,23 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
-#include "UObject/GCObject.h"
-#include "OnlineSubsystemTypes.h"
 #include "Interfaces/VoiceInterface.h"
 #include "Net/VoiceDataCommon.h"
 #include "Interfaces/VoiceCapture.h"
-#include "Interfaces/VoiceCodec.h"
+#include "Online/OnlineBase.h"
 #include "OnlineSubsystemUtilsPackage.h"
-#include "VoipListenerSynthComponent.h"
 #include "OnlineSubsystemUtilsPackage.h"
 #include "AudioDevice.h"
-#include "AudioMixer.h"
-#include "DSP/MultithreadedPatching.h"
 
-#include "VoicePacketImpl.h"
-#include "Online/CoreOnline.h"
+
+class USoundWaveProcedural;
+class UVOIPTalker;
+class UVoipListenerSynthComponent;
+struct FVoiceSettings;
 
 class IOnlineSubsystem;
 class IVoiceDecoder;
@@ -392,3 +388,12 @@ protected:
 };
 
 typedef TSharedPtr<FVoiceEngineImpl, ESPMode::ThreadSafe> FVoiceEngineImplPtr;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Containers/VersePathFwd.h"
+#include "CoreMinimal.h"
+#include "Interfaces/VoiceCodec.h"
+#include "OnlineSubsystemTypes.h"
+#include "VoicePacketImpl.h"
+#include "VoipListenerSynthComponent.h"
+#endif

@@ -2,22 +2,13 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Misc/Guid.h"
-#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEditLayoutBlocks.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeUseMaterial.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeEditMaterial.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
+struct FCustomizableObjectNodeEditMaterialImage;
 
 class FArchive;
 class FCustomizableObjectNodeParentedMaterial;
@@ -99,3 +90,7 @@ private:
 	TArray<int32> Blocks_DEPRECATED;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
+#endif

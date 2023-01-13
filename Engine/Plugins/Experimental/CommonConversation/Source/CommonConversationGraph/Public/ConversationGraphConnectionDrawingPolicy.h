@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/ArrangedWidget.h"
-#include "Widgets/SWidget.h"
 #include "ConnectionDrawingPolicy.h"
 
 class FSlateWindowElementList;
@@ -31,3 +28,7 @@ public:
 protected:
 	void Internal_DrawLineWithArrow(const FVector2D& StartAnchorPoint, const FVector2D& EndAnchorPoint, const FConnectionParams& Params);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Types/UIFParentWidget.h"
+
+struct FUIFrameworkParentWidget;
+template <class TClass> class TSubclassOf;
 
 class UUIFrameworkPlayerComponent;
 class UUIFrameworkPresenter;
@@ -38,3 +39,8 @@ private:
 	//static UUIFrameworkWidget* AuthorityRenameRecursive(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Widget, UObject* NewOuter);
 	//static void AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Types/UIFParentWidget.h"
+#endif

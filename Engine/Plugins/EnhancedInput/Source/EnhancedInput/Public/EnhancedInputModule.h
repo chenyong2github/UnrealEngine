@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EnhancedInputLibrary.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Stats/Stats.h"
+
+class UEnhancedInputLibrary;
+struct FKey;
 
 class APlayerController;
 
@@ -54,3 +55,8 @@ public:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EnhancedInputLibrary.h"
+#endif

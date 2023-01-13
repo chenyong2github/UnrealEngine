@@ -3,11 +3,11 @@
 #pragma once
 
 #include "AudioDefines.h"
-#include "Sound/AudioVolume.h"
-#include "AudioGameplayFlags.h"
-#include "Templates/SharedPointer.h"
-#include "AudioGameplayVolumeComponent.h"
+#include "AudioGameplayComponent.h"
 #include "AudioGameplayVolumeMutator.generated.h"
+
+struct FInteriorSettings;
+struct FSoundSubmixSendInfo;
 
 // Forward Declarations 
 class FAudioGameplayVolumeListener;
@@ -135,3 +135,8 @@ private:
 	/** Called for you during mutator creation. See CopyAudioDataToMutator for adding data to derived classes */
 	void CopyAudioDataToMutatorBase(TSharedPtr<FProxyVolumeMutator>& Mutator) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioGameplayVolumeComponent.h"
+#include "Sound/AudioVolume.h"
+#endif

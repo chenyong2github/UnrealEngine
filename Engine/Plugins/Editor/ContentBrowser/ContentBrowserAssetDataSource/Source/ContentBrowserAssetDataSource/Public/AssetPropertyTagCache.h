@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "Containers/SortedMap.h"
 
 /**
  * Singleton cache of property tags data for each asset class.
@@ -67,3 +65,7 @@ private:
 	/** Mapping of the asset class name to its cache */
 	TMap<FTopLevelAssetPath, TSharedPtr<FClassPropertyTagCache>> ClassToCacheMap;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

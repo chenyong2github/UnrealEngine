@@ -2,9 +2,7 @@
 
 #pragma once
 #include "NetworkPredictionModelDef.h"
-#include "NetworkPredictionStateTypes.h"
 #include "NetworkPredictionDriver.h"
-#include "GameFramework/Actor.h"
 
 struct FGenericKinematicActorSyncState
 {

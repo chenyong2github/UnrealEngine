@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGCommon.h"
 
 #include "PCGPin.generated.h"
@@ -78,3 +77,7 @@ public:
 	bool IsOutputPin() const;
 	int32 EdgeCount() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

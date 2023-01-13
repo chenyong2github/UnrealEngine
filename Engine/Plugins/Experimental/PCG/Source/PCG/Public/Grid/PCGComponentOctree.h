@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "Math/GenericOctree.h"
+#include "Math/BoxSphereBounds.h"
 #include "Math/GenericOctreePublic.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/ObjectPtr.h"
+
+template <typename ElementType, typename OctreeSemantics> class TOctree2;
 
 class UPCGComponent;
 
@@ -57,3 +58,7 @@ struct PCG_API FPCGComponentRefSemantics
 };
 
 typedef TOctree2<FPCGComponentRef, FPCGComponentRefSemantics> FPCGComponentOctree;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Math/GenericOctree.h"
+#endif

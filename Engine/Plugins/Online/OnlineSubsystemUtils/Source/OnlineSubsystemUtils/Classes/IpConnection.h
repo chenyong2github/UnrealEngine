@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "Engine/NetConnection.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "SocketTypes.h"
 #include "IpConnection.generated.h"
 
 class FInternetAddr;
@@ -177,3 +174,8 @@ protected:
 	 */
 	virtual void HandleConnectionTimeout(const FString& ErrorStr) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/TaskGraphInterfaces.h"
+#include "SocketTypes.h"
+#endif

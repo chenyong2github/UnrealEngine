@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFeatureAction.h"
-#include "Engine/CurveTable.h"
-#include "Engine/DataTable.h"
 #include "GameFeatureAction_DataRegistrySource.generated.h"
+
+class UCurveTable;
+class UDataTable;
 
 /** Defines which source assets to add and conditions for adding */
 USTRUCT()
@@ -79,3 +79,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	bool bPreloadInEditor;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/CurveTable.h"
+#include "Engine/DataTable.h"
+#endif

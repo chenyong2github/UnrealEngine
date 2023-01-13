@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/ArrayView.h"
-#include "PlatformCryptoTypes.h"
 
+#include "Misc/IEngineCrypto.h"
 #include "Templates/PimplPtr.h"
+
+class IPlatformCryptoDecryptor;
+class IPlatformCryptoEncryptor;
+enum class EPlatformCryptoResult;
 
 /** Implementation details for SHA256 computation using OpenSSL */
 struct PLATFORMCRYPTOOPENSSL_API FSHA256HasherOpenSSL final
@@ -97,3 +99,8 @@ public:
 };
 
 typedef FEncryptionContextOpenSSL FEncryptionContext;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PlatformCryptoTypes.h"
+#endif

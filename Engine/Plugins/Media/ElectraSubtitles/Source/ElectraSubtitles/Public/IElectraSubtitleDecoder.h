@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PlayerTime.h"
-#include "ParameterDictionary.h"
 #include "MediaSubtitleDecoderOutput.h"
+#include "Delegates/Delegate.h"
+
+namespace Electra { class FParamDict; }
+namespace Electra { class FTimeValue; }
 
 
 /**
@@ -50,3 +51,9 @@ public:
 
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "ParameterDictionary.h"
+#include "PlayerTime.h"
+#endif

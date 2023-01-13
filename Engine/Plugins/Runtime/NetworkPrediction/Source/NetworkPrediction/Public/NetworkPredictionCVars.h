@@ -2,7 +2,6 @@
 
 #pragma once
 #include "HAL/IConsoleManager.h"
-#include "Logging/LogMacros.h"
 
 // ------------------------------------------------------------------------------------------------------------
 //	"Shipping const" cvars: cvars that should compile out to const functions in shipping/test builds

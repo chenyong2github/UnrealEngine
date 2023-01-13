@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PCGSpatialData.h"
 
 #include "Math/GenericOctreePublic.h"
 #include "Math/GenericOctree.h"
 
 #include "PCGPointData.generated.h"
+
+struct FPCGProjectionParams;
 
 class AActor;
 
@@ -112,3 +113,7 @@ protected:
 	mutable bool bBoundsAreDirty = true;
 	mutable bool bOctreeIsDirty = true;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

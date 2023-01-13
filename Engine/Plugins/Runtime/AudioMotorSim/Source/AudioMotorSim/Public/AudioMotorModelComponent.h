@@ -3,9 +3,10 @@
 
 #include "Components/ActorComponent.h"
 #include "AudioMotorSimTypes.h"
-#include "IAudioMotorSim.h"
-#include "IAudioMotorSimOutput.h"
 #include "AudioMotorModelComponent.generated.h"
+
+class IAudioMotorSim;
+class IAudioMotorSimOutput;
 
 USTRUCT(BlueprintType)
 struct FMotorSimEntry
@@ -68,3 +69,8 @@ private:
 	
 	FAudioMotorSimInputContext CachedInputContext;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "IAudioMotorSim.h"
+#include "IAudioMotorSimOutput.h"
+#endif

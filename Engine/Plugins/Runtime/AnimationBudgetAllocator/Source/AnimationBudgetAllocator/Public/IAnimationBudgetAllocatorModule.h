@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 
+class IModuleInterface;
+
 class IAnimationBudgetAllocator;
 
 class IAnimationBudgetAllocatorModule : public FDefaultGameModuleImpl

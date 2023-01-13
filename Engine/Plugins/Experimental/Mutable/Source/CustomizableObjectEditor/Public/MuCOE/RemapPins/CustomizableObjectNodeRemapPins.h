@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "EdGraph/EdGraphPin.h"
 
 #include "CustomizableObjectNodeRemapPins.generated.h"
+
+class UEdGraphPin;
 
 
 /**
@@ -34,3 +34,7 @@ public:
 	virtual void RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) { check(false) };
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "EdGraph/EdGraphPin.h"
+#endif

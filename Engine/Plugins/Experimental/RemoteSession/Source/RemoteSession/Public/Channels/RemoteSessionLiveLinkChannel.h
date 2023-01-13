@@ -4,6 +4,8 @@
 
 #include "RemoteSessionChannel.h"
 
+enum class ERemoteSessionChannelMode : int32;
+
 
 class FBackChannelOSCDispatch;
 class IBackChannelPacket;

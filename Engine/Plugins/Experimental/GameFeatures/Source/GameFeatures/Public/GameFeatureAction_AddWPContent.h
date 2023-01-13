@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFeatureAction.h"
 
 #include "GameFeatureAction_AddWPContent.generated.h"
@@ -38,3 +37,7 @@ private:
 
 	TSharedPtr<FContentBundleClient> ContentBundleClient;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

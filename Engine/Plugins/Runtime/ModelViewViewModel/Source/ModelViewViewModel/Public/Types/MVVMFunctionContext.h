@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/Casts.h"
-#include "Types/MVVMObjectVariant.h"
 #include "UObject/Class.h"
-#include "UObject/Object.h"
-#include <type_traits>
+
+namespace UE::MVVM { template <bool bConst> struct TObjectVariant; }
 
 namespace UE::MVVM
 {
@@ -104,3 +101,9 @@ namespace UE::MVVM
 	};
 
 } //namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Templates/Casts.h"
+#include "Types/MVVMObjectVariant.h"
+#endif

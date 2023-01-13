@@ -6,6 +6,10 @@
 
 #include "K2Node_MakeCurveExpressionMap.generated.h"
 
+class FCompilerResultsLog;
+class FNodeHandlingFunctor;
+namespace ENodeTitleType { enum Type : int; }
+
 USTRUCT()
 struct FCurveExpressionList
 {

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/BoxComponent.h"
 #include "GameFramework/Actor.h"
-#include "Engine/TextureRenderTarget2D.h"
-#include "MaterialShared.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WaterZoneActor.generated.h"
+
+class UBillboardComponent;
+class UTexture2D;
+class UTextureRenderTarget2D;
+namespace EEndPlayReason { enum Type : int; }
 
 class UWaterMeshComponent;
 class UBoxComponent;
@@ -197,3 +197,11 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 DEFINE_ACTORDESC_TYPE(AWaterZone, FWaterZoneActorDesc);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/BoxComponent.h"
+#include "CoreMinimal.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "MaterialShared.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#endif

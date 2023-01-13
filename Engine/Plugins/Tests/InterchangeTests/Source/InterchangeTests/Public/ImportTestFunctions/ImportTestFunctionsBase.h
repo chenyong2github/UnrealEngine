@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
 #include "ImportTestFunctionsBase.generated.h"
 
 
@@ -28,3 +25,8 @@ public:
 	// UImportTestFunctionsBase interface
 	virtual UClass* GetAssociatedAssetType() const { return UObject::StaticClass(); }
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

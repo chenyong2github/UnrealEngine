@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyEnums.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType.h"
-#include "GameplayTagContainer.h"
 #include "BlackboardKeyType_GameplayTag.generated.h"
+
+struct FGameplayTagContainer;
 
 class UBlackboardComponent;
 
@@ -34,3 +34,8 @@ protected:
 	virtual void Clear(UBlackboardComponent& OwnerComp, uint8* MemoryBlock) override;
 	virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#endif

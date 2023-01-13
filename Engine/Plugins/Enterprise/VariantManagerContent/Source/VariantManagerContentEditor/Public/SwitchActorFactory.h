@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
 #include "SwitchActorFactory.generated.h"
 
@@ -16,3 +14,7 @@ class USwitchActorFactory : public UActorFactory
 {
 	GENERATED_UCLASS_BODY()
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

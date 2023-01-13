@@ -7,6 +7,8 @@
 
 #include "HLODBuilderMeshMerge.generated.h"
 
+class UMaterialInterface;
+
 class UMaterial;
 
 

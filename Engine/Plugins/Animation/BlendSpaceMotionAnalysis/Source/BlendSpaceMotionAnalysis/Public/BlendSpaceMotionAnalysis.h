@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "BlendSpaceAnalysis.h"
 #include "RootMotionAnalysis.h"
 #include "LocomotionAnalysis.h"
 #include "BlendSpaceMotionAnalysis.generated.h"
@@ -26,3 +24,7 @@ public:
 	void StartupModule() override;
 	void ShutdownModule() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

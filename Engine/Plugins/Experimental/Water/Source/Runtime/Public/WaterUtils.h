@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/TextureRenderTarget2D.h"
+#include "UObject/ObjectMacros.h"
+
+enum ETextureRenderTargetFormat : int;
 
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
@@ -44,3 +45,8 @@ struct FWaterUtils
 	static WATER_API bool IsWaterMeshRenderingEnabled(bool bIsRenderThread);
 	static WATER_API float GetWaterMaxFlowVelocity(bool bIsRenderThread);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/TextureRenderTarget2D.h"
+#endif

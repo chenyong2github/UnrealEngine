@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
 class FMotorSimOutputMotoSynthModule : public IModuleInterface
 {
@@ -16,3 +15,7 @@ public:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

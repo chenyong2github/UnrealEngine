@@ -3,10 +3,9 @@
 #pragma once
 
 #include "IAudioAnalyzerNRTInterface.h"
-#include "DSP/AlignedBuffer.h"
-#include "DSP/ConstantQ.h"
-#include "DSP/SlidingWindow.h"
 #include "ConstantQAnalyzer.h"
+
+namespace Audio { template <typename InSampleType> class TSlidingBuffer; }
 
 namespace Audio
 {
@@ -202,3 +201,7 @@ namespace Audio
 		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const override;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DSP/SlidingWindow.h"
+#endif

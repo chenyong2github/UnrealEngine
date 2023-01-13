@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeBool.h"
+
+class FRunnableThread;
 
 class FFastBuildControllerModule;
 class FShaderBatch;
@@ -74,3 +73,9 @@ protected:
 	/** Checks if the FastBuild process is still running properly and handles bad situations */
 	void MonitorFastBuildProcess();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "HAL/FileManager.h"
+#include "HAL/RunnableThread.h"
+#endif

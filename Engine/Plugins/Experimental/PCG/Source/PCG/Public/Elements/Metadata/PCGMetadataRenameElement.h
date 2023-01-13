@@ -3,7 +3,6 @@
 #pragma once
 
 #include "PCGSettings.h"
-#include "PCGElement.h"
 
 #include "PCGMetadataRenameElement.generated.h"
 

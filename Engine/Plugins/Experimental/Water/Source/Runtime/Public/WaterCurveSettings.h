@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "WaterCurveSettings.generated.h"
 
 class UCurveFloat;
@@ -28,3 +26,7 @@ struct FWaterCurveSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
 	float CurveRampWidth = 512.0f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "MuCOE/ICustomizableObjectInstanceEditor.h"
+
+class UEdGraphNode;
 
 class UCustomizableObject;
 class UCustomizableObjectInstance;
@@ -35,3 +35,7 @@ public:
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Toolkits/IToolkitHost.h"
+#endif

@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CameraAnimationCameraModifier.h"
-#include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "UObject/ObjectMacros.h"
 #include "GameplayCamerasSubsystem.generated.h"
+
+class UCameraAnimationSequence;
+struct FCameraAnimationHandle;
+struct FCameraAnimationParams;
 
 /**
  * World subsystem that holds global objects for handling camera animation sequences.
@@ -68,3 +69,8 @@ public:
 	void StopAllCameraAnimations(APlayerController* PlayerController, bool bImmediate = false);
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CameraAnimationCameraModifier.h"
+#include "CoreMinimal.h"
+#endif

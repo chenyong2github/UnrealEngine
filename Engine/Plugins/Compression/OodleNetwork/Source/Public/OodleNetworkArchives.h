@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 /**
  * Whether or not to enable Oodle dev code (packet capturing, dictionary training, and automatic dictionary finding) in shipping mode.
@@ -452,3 +453,7 @@ public:
 
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

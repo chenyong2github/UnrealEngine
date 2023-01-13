@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
-#include "Engine/CollisionProfile.h"
 
-#include <type_traits>
 
 #include "PCGActorHelpers.generated.h"
 
@@ -107,3 +104,8 @@ public:
 	 */
 	static FIntVector GetCellCoord(FVector InPosition, int InGridSize, bool bUse2DGrid);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/CollisionProfile.h"
+#endif

@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "Math/Color.h"
-#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "MuCO/CustomizableObject.h"
 #include "MuCO/MultilayerProjector.h"
-#include "UObject/ObjectPtr.h"
 
 #include "CustomizableObjectInstanceDescriptor.generated.h"
+
+class UTexture2D;
+enum class ECustomizableObjectProjectorType : uint8;
+struct FCustomizableObjectBoolParameterValue;
+struct FCustomizableObjectFloatParameterValue;
+struct FCustomizableObjectIntParameterValue;
+struct FCustomizableObjectProjector;
+struct FCustomizableObjectProjectorParameterValue;
+struct FCustomizableObjectTextureParameterValue;
+struct FCustomizableObjectVectorParameterValue;
 
 class FArchive;
 class UCustomizableInstancePrivateData;
@@ -423,3 +426,8 @@ private:
 	int32 MinLOD = 0;
 	int32 MaxLOD = INT32_MAX;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#endif

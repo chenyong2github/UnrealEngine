@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 
 class IBackChannelConnection;
 class IBackChannelPacket;
@@ -22,3 +22,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FBackChannelRouteDelegate, IBackChannelPacke
 
 template <class ObjectType>
 using TBackChannelSharedPtr = TSharedPtr<ObjectType, ESPMode::ThreadSafe>;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

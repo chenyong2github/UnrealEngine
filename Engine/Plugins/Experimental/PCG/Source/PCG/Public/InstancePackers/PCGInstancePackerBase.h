@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGElement.h"
-#include "MeshSelectors/PCGMeshSelectorBase.h"
 
 #include "PCGInstancePackerBase.generated.h"
+
+class UPCGMetadata;
+struct FPCGContext;
+struct FPCGMeshInstanceList;
 
 class UPCGSpatialData;
 class FPCGMetadataAttributeBase;
@@ -46,3 +47,9 @@ public:
 	/** Build a PackedCustomData by processing each attribute in order for each point in the InstanceList */
 	void PackCustomDataFromAttributes(const FPCGMeshInstanceList& InstanceList, const TArray<const FPCGMetadataAttributeBase*>& Attributes, FPCGPackedCustomData& OutPackedCustomData) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MeshSelectors/PCGMeshSelectorBase.h"
+#include "PCGElement.h"
+#endif

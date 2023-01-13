@@ -2,7 +2,6 @@
 
 #include "MuCOE/CustomizableObjectLayout.h"
 
-#include "EdGraph/EdGraph.h"
 #include "Engine/StaticMesh.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceMesh.h"

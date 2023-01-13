@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
 #include "BackChannel/IBackChannelConnection.h"
 #include "BackChannel/Utils/DispatchMap.h"
 #include "HAL/ThreadSafeBool.h"
@@ -122,3 +120,8 @@ protected:
 	/* How much data do we expect to receive next time? This is for OSC over TCP where the size of a packet is sent, then the packet*/
 	int32				ExpectedSizeOfNextPacket = 4;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "HAL/RunnableThread.h"
+#endif

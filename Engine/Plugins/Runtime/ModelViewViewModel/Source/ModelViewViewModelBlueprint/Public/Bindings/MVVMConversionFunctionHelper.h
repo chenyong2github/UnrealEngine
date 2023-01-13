@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MVVMPropertyPath.h"
+#include "Containers/Map.h"
+
+struct FMVVMBlueprintPropertyPath;
 
 class UClass;
 class UEdGraph;
@@ -35,3 +36,8 @@ namespace UE::MVVM::ConversionFunctionHelper
 	/** Mark the given function node as the conversion function node. */
 	MODELVIEWVIEWMODELBLUEPRINT_API void MarkAsConversionFunction(const UK2Node_CallFunction* FunctionNode, const FMVVMBlueprintViewBinding& Binding);
 } //namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "MVVMPropertyPath.h"
+#endif

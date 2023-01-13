@@ -2,8 +2,6 @@
 #pragma once
 
 #include "NiagaraDataInterface.h"
-#include "NiagaraCommon.h"
-#include "Components/SplineComponent.h"
 #include "NiagaraDataInterfaceWater.generated.h"
 
 class UWaterBodyComponent;
@@ -43,3 +41,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Water") 
 	TObjectPtr<UWaterBodyComponent> SourceBodyComponent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/SplineComponent.h"
+#endif

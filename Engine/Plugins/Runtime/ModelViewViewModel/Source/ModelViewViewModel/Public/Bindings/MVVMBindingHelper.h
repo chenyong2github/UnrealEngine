@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMFieldContext.h"
-#include "Types/MVVMFunctionContext.h"
-#include "Types/MVVMFieldVariant.h"
-#include "Types/MVVMObjectVariant.h"
-#include "Types/MVVMBindingName.h"
+#include "Containers/Array.h"
+
+class UStruct;
+namespace UE::MVVM { struct FFieldContext; }
+namespace UE::MVVM { struct FFunctionContext; }
+namespace UE::MVVM { struct FMVVMConstFieldVariant; }
+namespace UE::MVVM { struct FMVVMFieldVariant; }
+struct FMVVMBindingName;
+template <typename ValueType, typename ErrorType> class TValueOrError;
 
 class FProperty;
 class UFunction;
@@ -162,3 +164,13 @@ namespace UE::MVVM::BindingHelper
 	 */
 	MODELVIEWVIEWMODEL_API void ExecuteBinding_NoCheck(const FFieldContext& Source, const FFieldContext& Destination, const FFunctionContext& ConversionFunction);
 } //namespace
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMBindingName.h"
+#include "Types/MVVMFieldContext.h"
+#include "Types/MVVMFieldVariant.h"
+#include "Types/MVVMFunctionContext.h"
+#include "Types/MVVMObjectVariant.h"
+#endif

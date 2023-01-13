@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IDetailCustomization.h"
-#include "PropertyCustomizationHelpers.h"
+#include "IPropertyTypeCustomization.h"
+
+namespace ESelectInfo { enum Type : int; }
 
 static UEnum* GetStateEnumClass(const TSharedPtr<IPropertyHandle>& InProperty);
 
@@ -75,3 +75,9 @@ protected:
 protected:
 	TSharedPtr<IPropertyHandle> AnimSequencePropertyHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "IDetailCustomization.h"
+#include "PropertyCustomizationHelpers.h"
+#endif

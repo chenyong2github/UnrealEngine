@@ -3,22 +3,16 @@
 #pragma once
 
 #include "Async/TaskGraphInterfaces.h"
-#include "Containers/Array.h"
 #include "Engine/TextureMipDataProviderFactory.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuR/Image.h"
-#include "MuR/Parameters.h"
-#include "MuR/RefCounted.h"
-#include "MuR/System.h"
 #include "Streaming/TextureMipDataProvider.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectMipDataProvider.generated.h"
+
+enum EPixelFormat : uint8;
+namespace mu { class Parameters; }
+namespace mu { class System; }
 
 class FThreadSafeCounter;
 class UCustomizableObjectInstance;
@@ -134,3 +128,8 @@ public:
 	TSharedPtr<FMutableUpdateContext> UpdateContext;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuR/Parameters.h"
+#include "MuR/System.h"
+#endif

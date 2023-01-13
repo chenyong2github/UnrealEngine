@@ -2,13 +2,14 @@
 
 #pragma once
 
+#include "Math/InterpCurve.h"
 #include "PCGPolyLineData.h"
 #include "PCGProjectionData.h"
-#include "Elements/PCGProjectionParams.h"
 
-#include "CoreMinimal.h"
 
 #include "PCGSplineData.generated.h"
+
+class UPCGSpatialData;
 
 class USplineComponent;
 class UPCGSurfaceData;
@@ -78,3 +79,7 @@ protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

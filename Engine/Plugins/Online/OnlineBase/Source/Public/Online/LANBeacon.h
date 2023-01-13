@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Guid.h"
-#include "Online/OnlineBase.h"
 
 /**
  * Generates a random nonce (number used once) of the desired length
@@ -312,3 +310,8 @@ public:
 	FOnValidResponsePacket OnValidResponsePacketDelegates;
 	FOnSearchingTimeout OnSearchTimeoutDelegates;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Online/OnlineBase.h"
+#endif

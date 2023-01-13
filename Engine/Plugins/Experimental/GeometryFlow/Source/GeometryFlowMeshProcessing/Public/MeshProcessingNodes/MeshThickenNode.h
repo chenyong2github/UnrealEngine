@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
-#include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "DataTypes/WeightMapData.h"
 
 namespace UE

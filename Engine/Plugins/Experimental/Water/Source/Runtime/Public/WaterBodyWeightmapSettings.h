@@ -3,8 +3,6 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "WaterBodyWeightmapSettings.generated.h"
 
 class UTexture2D;
@@ -45,3 +43,7 @@ struct FWaterBodyWeightmapSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WaterBodyWeightmapSettings)
 	float FinalOpacity;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

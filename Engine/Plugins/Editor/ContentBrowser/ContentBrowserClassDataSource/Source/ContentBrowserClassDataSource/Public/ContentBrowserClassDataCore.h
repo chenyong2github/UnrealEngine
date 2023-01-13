@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserClassDataPayload.h"
+#include "ContentBrowserItemData.h"
+
+class FContentBrowserClassFileItemDataPayload;
+class FContentBrowserClassFolderItemDataPayload;
 
 class IAssetTypeActions;
 class FAssetThumbnail;
@@ -67,3 +69,8 @@ namespace ContentBrowserClassData
 	CONTENTBROWSERCLASSDATASOURCE_API bool GetClassFileItemAttributes(const FContentBrowserClassFileItemDataPayload& InClassPayload, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValues& OutAttributeValues);
 
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContentBrowserClassDataPayload.h"
+#include "CoreMinimal.h"
+#endif

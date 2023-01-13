@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/Widget.h"
 #include "Engine/DeveloperSettings.h"
-#include "UObject/SoftObjectPtr.h"
 #include "MVVMDeveloperProjectSettings.generated.h"
 
 /**
@@ -46,3 +43,8 @@ private:
 	UPROPERTY(EditAnywhere, config, Category=MVVM)
 	TMap<FSoftClassPath, FMVVMDeveloperProjectWidgetSettings> FieldSelectorPermissions;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/Widget.h"
+#include "CoreMinimal.h"
+#endif

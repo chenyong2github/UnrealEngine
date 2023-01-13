@@ -4,7 +4,7 @@
 
 #include "StateTreeSchema.h"
 #include "GameFramework/Actor.h"
-#include "Templates/SubclassOf.h"
+#include "StateTreeTypes.h"
 #include "GameplayInteractionStateTreeSchema.generated.h"
 
 struct FStateTreeExternalDataDesc;

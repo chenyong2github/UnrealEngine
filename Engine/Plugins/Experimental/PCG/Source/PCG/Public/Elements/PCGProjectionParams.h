@@ -4,7 +4,6 @@
 
 #include "Metadata/PCGMetadataCommon.h"
 
-#include "CoreMinimal.h"
 
 #include "PCGProjectionParams.generated.h"
 
@@ -42,3 +41,7 @@ struct PCG_API FPCGProjectionParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Apply Data")
 	EPCGMetadataOp AttributeMergeOperation = EPCGMetadataOp::TargetValue;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

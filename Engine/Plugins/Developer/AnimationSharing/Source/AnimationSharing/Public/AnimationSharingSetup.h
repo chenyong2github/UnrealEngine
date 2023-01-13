@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "AnimationSharingTypes.h"
 
 #include "AnimationSharingSetup.generated.h"
@@ -24,3 +21,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = AnimationSharing)
 	FAnimationSharingScalability ScalabilitySettings;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

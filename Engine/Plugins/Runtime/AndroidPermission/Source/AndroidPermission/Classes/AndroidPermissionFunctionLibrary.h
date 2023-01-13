@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "AndroidPermissionFunctionLibrary.generated.h"
 
@@ -25,3 +24,7 @@ public:
 	/** initialize java objects and cache them for further usage. called when the module is loaded */
 	static void Initialize();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

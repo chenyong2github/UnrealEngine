@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ContentBrowserDataFilter.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataMenuContexts.h"
 #include "ContentBrowserFileDataPayload.h"
@@ -199,3 +199,7 @@ protected:
 	 */
 	TSet<FString> EmptyFolders;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

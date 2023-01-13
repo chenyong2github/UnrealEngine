@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class FAssetTypeActions_InterchangeImportTestPlan;
 
@@ -25,3 +25,7 @@ public:
 private:
 	TSharedPtr<FAssetTypeActions_InterchangeImportTestPlan> AssetTypeActions;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

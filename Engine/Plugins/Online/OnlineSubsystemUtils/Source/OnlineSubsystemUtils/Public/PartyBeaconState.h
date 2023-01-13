@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Online/CoreOnline.h"
-#include "GameFramework/OnlineReplStructs.h"
 #include "OnlineBeaconReservation.h"
 #include "PartyBeaconState.generated.h"
 
@@ -605,3 +600,7 @@ protected:
 
 	friend class APartyBeaconHost;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "PCGCommon.h"
 #include "PCGSettings.h"
 #include "Tests/PCGTestsCommon.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "PCGDeterminismTestsCommon.generated.h"
+
+class FPCGMetadataAttributeBase;
 
 class UPCGComponent;
 class UPCGData;

@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGElement.h"
 #include "PCGPoint.h"
-#include "Data/PCGPointData.h"
 
 #include "Engine/CollisionProfile.h"
 
 #include "PCGMeshSelectorBase.generated.h"
+
+class UPCGPointData;
+class UPCGSpatialData;
+class UStaticMesh;
+struct FPCGContext;
 
 class UPCGStaticMeshSpawnerSettings;
 class UMaterialInterface;
@@ -85,3 +87,9 @@ public:
 		const float InCullStartDistance,
 		const float InCullEndDistance) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Data/PCGPointData.h"
+#include "PCGElement.h"
+#endif

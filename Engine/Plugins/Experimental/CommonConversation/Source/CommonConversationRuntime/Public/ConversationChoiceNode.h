@@ -3,10 +3,11 @@
 #pragma once
 
 #include "ConversationSubNode.h"
-#include "ConversationContext.h"
 #include "GameplayTagContainer.h"
 
 #include "ConversationChoiceNode.generated.h"
+
+struct FClientConversationOptionEntry;
 
 /**
  * A choice on a task indicates that an option be presented to the user when the owning task is one of
@@ -32,3 +33,7 @@ protected:
 	UFUNCTION(BlueprintNativeEvent)
 	void FillChoice(const FConversationContext& Context, FClientConversationOptionEntry& ChoiceEntry) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ConversationContext.h"
+#endif

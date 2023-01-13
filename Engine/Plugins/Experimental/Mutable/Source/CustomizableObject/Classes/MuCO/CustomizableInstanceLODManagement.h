@@ -1,14 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Containers/Set.h"
 #include "GameFramework/Actor.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableInstanceLODManagement.generated.h"
 

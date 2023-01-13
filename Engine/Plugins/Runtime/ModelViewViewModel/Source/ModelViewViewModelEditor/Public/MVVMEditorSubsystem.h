@@ -4,14 +4,19 @@
 
 #include "EditorSubsystem.h"
 
-#include "MVVMBlueprintView.h"
-#include "Templates/SubclassOf.h"
-#include "Types/MVVMBindingMode.h"
-#include "Types/MVVMBindingSource.h"
-#include "Types/MVVMExecutionMode.h"
-#include "Types/MVVMFieldVariant.h"
 
+#include "UObject/Package.h"
 #include "MVVMEditorSubsystem.generated.h"
+
+class UEdGraphPin;
+class UMVVMBlueprintView;
+enum class EMVVMBindingMode : uint8;
+enum class EMVVMExecutionMode : uint8;
+namespace UE::MVVM { struct FBindingSource; }
+struct FMVVMAvailableBinding;
+struct FMVVMBlueprintPropertyPath;
+struct FMVVMBlueprintViewBinding;
+template <typename T> class TSubclassOf;
 
 class UEdGraph;
 class UK2Node_CallFunction;
@@ -91,3 +96,12 @@ private:
 	FName GetConversionFunctionWrapperName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
 	UEdGraph* CreateConversionFunctionWrapperGraph(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction, bool bSourceToDestination);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MVVMBlueprintView.h"
+#include "Templates/SubclassOf.h"
+#include "Types/MVVMBindingMode.h"
+#include "Types/MVVMBindingSource.h"
+#include "Types/MVVMExecutionMode.h"
+#include "Types/MVVMFieldVariant.h"
+#endif

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
 #include "Curves/CurveFloat.h"
 #include "RpmCurveMotorSimComponent.generated.h"
@@ -46,3 +45,7 @@ public:
 private:
 	int32 GetDesiredGearForSpeed(const float Speed) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioMotorSimTypes.h"
+#endif

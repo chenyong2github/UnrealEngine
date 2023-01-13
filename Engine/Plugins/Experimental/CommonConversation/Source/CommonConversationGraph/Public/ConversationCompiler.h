@@ -2,7 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+
+class FName;
+class FString;
+template <typename FuncType> class TFunctionRef;
 
 class UConversationGraphNode;
 class UConversationGraph;
@@ -30,3 +34,7 @@ private:
 	// Skips over knots.
 	static void ForeachConnectedOutgoingConversationNode(UEdGraphPin* Pin, TFunctionRef<void(UConversationGraphNode*)> Predicate);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

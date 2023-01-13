@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PropertyValue.h"
 
 #include "PropertyValueOption.generated.h"
@@ -23,3 +21,7 @@ public:
 	virtual int32 GetValueSizeInBytes() const override;
 	//~ UPropertyValue interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

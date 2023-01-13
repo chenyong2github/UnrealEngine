@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
-#include "InterchangeTestFunction.h"
 #include "AnimationImportTestFunctions.generated.h"
 
 struct FInterchangeTestFunctionResult;
@@ -55,3 +54,7 @@ public:
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckCurveKeyLeaveTangentWeight(UAnimSequence* AnimSequence, const FString& CurveName, int32 KeyIndex, float ExpectedCurveKeyLeaveTangentWeight);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InterchangeTestFunction.h"
+#endif

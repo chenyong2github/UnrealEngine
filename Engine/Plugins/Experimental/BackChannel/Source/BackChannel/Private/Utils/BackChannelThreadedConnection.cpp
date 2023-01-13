@@ -3,7 +3,6 @@
 #include "BackChannel/Utils/BackChannelThreadedConnection.h"
 #include "BackChannel/Transport/IBackChannelSocketConnection.h"
 #include "HAL/RunnableThread.h"
-#include "Misc/ScopeLock.h"
 
 
 FBackChannelThreadedListener::FBackChannelThreadedListener()

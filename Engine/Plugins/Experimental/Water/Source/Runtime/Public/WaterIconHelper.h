@@ -4,8 +4,9 @@
 
 #if WITH_EDITOR
 
-#include "CoreMinimal.h"
-#include "UObject/ConstructorHelpers.h"
+#include "HAL/Platform.h"
+
+class UClass;
 
 class AActor;
 class UTexture2D;
@@ -27,4 +28,9 @@ private:
 	static UBillboardComponent* EnsureSpriteComponentCreated_Internal(AActor* Actor, UClass* InClass, const TCHAR* InIconTextureName);
 };
 
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ConstructorHelpers.h"
 #endif

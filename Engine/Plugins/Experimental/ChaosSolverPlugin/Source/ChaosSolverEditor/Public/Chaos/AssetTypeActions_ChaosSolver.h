@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
+#include "AssetDefinition.h"
 #include "AssetTypeActions_Base.h"
 
 class FAssetTypeActions_ChaosSolver : public FAssetTypeActions_Base
@@ -17,3 +16,8 @@ public:
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Physics; }
 	virtual UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Toolkits/IToolkitHost.h"
+#endif

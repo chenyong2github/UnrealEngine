@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputActionValue.h"
-#include "InputMappingQuery.h"
 #include "UObject/Interface.h"
-#include "EnhancedActionKeyMapping.h"
 #include "EnhancedPlayerInput.h"
 #include "PlayerMappableKeySlot.h"
 
 #include "EnhancedInputSubsystemInterface.generated.h"
+
+enum class EMappingQueryIssue : uint8;
+enum class EMappingQueryResult : uint8;
+struct FMappingQueryIssue;
 
 class APlayerController;
 class UCanvas;
@@ -387,3 +387,9 @@ private:
 	void ShowDebugActionModifiers(UCanvas* Canvas, const UInputAction* Action);
 	static void PurgeDebugVisualizations();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EnhancedActionKeyMapping.h"
+#include "InputMappingQuery.h"
+#endif

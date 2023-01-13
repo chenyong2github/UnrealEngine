@@ -4,8 +4,6 @@
 
 #include "InstallBundleSourceInterface.h"
 #include "InstallBundleUtils.h"
-#include "InstallBundleManagerUtil.h"
-#include "Containers/Ticker.h"
 
 class DEFAULTINSTALLBUNDLEMANAGER_API FInstallBundleSourceBulk : public IInstallBundleSource
 {
@@ -90,3 +88,7 @@ protected:
 
 	TSharedPtr<IAnalyticsProviderET> AnalyticsProvider;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InstallBundleManagerUtil.h"
+#endif

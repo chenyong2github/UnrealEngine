@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
 
 /// 
 /// Detail customization for UGenerateStaticMeshLODAssetTool (AKA AutoLOD) properties

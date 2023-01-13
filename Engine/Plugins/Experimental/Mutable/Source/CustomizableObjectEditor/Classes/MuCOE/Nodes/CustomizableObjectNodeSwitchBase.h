@@ -2,19 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableObjectNodeSwitchBase.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCustomizableObjectNodeRemapPins;

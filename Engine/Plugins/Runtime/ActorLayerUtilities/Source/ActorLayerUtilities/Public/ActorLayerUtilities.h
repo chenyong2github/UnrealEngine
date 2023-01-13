@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "ActorLayerUtilities.generated.h"

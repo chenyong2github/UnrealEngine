@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
 #include "Modules/ModuleInterface.h"
 
 /**
@@ -38,3 +38,7 @@ public:
 		return false;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

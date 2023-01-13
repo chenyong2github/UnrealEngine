@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
-#include "Components/ActorComponent.h"
-#include "StructView.h"
-#include "InstancedStruct.h"
 #include "GameplayActuationState.h"
 #include "GameplayTaskTypes.h"
 #include "EngineDefines.h"
 #include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
 #include "GameplayActuationComponent.generated.h"
+
+namespace EEndPlayReason { enum Type : int; }
+struct FVisualLogEntry;
 
 class UGameplayTask;
 

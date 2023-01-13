@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "EdGraph/EdGraphNode.h"
-#include "Internationalization/Text.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeCopyMaterial.generated.h"
 

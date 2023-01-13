@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "WaterBodyComponent.h"
 #include "WaterBodyOceanComponent.generated.h"
 
@@ -65,3 +64,7 @@ protected:
 	UPROPERTY(Transient)
 	float HeightOffset = 0.0f;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

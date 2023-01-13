@@ -2,14 +2,9 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
 #include "Logging/TokenizedMessage.h"
-#include "Misc/Attribute.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "Templates/SharedPointer.h"
+
+class UCustomizableObjectNode;
 
 class FCustomizableObjectEditorLogger;
 class FName;
@@ -120,3 +115,7 @@ private:
 	/** Callback. Open the message log window. */
 	void OpenMessageLog() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
+#endif

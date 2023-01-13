@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/StringView.h"
-#include "IRemoteSessionRole.h"
 #include "BackChannel/Types.h"
 #include "RemoteSessionTypes.h"
+
+class IBackChannelConnection;
 
 class REMOTESESSION_API IRemoteSessionChannel
 {
@@ -62,3 +61,8 @@ protected:
 		} \
 	}; \
 	AutoRegister_##ChannelName G##ChannelName
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "IRemoteSessionRole.h"
+#endif

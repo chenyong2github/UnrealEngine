@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 
 class UObject;
 class FSearchSerializer;
@@ -24,3 +24,7 @@ public:
 };
 
 inline IAssetIndexer::~IAssetIndexer() = default;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

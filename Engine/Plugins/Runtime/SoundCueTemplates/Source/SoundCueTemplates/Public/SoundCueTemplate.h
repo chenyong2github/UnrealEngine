@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "UObject/ObjectMacros.h"
 #include "Sound/SoundCue.h"
-#include "Sound/SoundNode.h"
-#include "Templates/SubclassOf.h"
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraphPin.h"
@@ -179,3 +175,7 @@ protected:
 #endif // WITH_EDITOR
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

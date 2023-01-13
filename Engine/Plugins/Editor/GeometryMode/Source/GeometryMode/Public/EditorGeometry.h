@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "GenericPlatform/ICursor.h"
 #include "UObject/GCObject.h"
 #include "HitProxies.h"
-#include "Editor.h"
+#include "Math/Rotator.h"
 
 class ABrush;
 class FGeomObject;
@@ -444,3 +444,8 @@ struct HGeomVertexProxy : public HHitProxy
 		return true;
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Editor.h"
+#endif

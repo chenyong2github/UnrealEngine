@@ -4,7 +4,6 @@
 
 #include "IPCGAttributeAccessorTpl.h"
 
-#include "UObject/UnrealType.h"
 
 class FEnumProperty;
 

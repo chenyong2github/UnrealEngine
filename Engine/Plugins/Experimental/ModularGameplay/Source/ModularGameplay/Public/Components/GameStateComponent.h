@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "GameFramework/GameState.h"
-#include "GameFramework/GameMode.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFrameworkComponent.h"
 #include "GameStateComponent.generated.h"
 
@@ -55,3 +54,8 @@ public:
 	/** Called when gameplay has fully started */
 	virtual void HandleMatchHasStarted() {}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFramework/GameMode.h"
+#include "GameFramework/GameState.h"
+#endif

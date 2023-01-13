@@ -2,18 +2,17 @@
 
 #pragma once
 
-#include "AnimationSharingModule.h"
 #include "AnimationSharingTypes.h"
 
-#include "Tickable.h"
-#include "UObject/SoftObjectPtr.h"
-#include "Engine/SkeletalMesh.h"
-#include "Engine/DeveloperSettings.h"
-#include "Animation/AnimBlueprint.h"
 #include "AdditiveAnimationInstance.h"
-#include "TransitionBlendInstance.h"
 
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "AnimationSharingManager.generated.h"
+
+class UAnimationSharingManager;
+class UAnimationSharingSetup;
+struct FTransitionBlendInstance;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAnimationSharing, Log, All);
 DECLARE_STATS_GROUP(TEXT("Animation Sharing Manager"), STATGROUP_AnimationSharing, STATCAT_Advanced);
@@ -577,3 +576,11 @@ public:
 	static FName GetPlatformName();
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Animation/AnimBlueprint.h"
+#include "AnimationSharingModule.h"
+#include "Engine/DeveloperSettings.h"
+#include "Engine/SkeletalMesh.h"
+#include "TransitionBlendInstance.h"
+#endif

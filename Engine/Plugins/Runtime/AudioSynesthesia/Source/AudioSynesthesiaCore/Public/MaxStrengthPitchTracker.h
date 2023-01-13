@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PitchTracker.h"
-#include "DSP/BufferVectorOperations.h"
+#include "Templates/UniquePtr.h"
 
 namespace Audio
 {
@@ -40,3 +39,8 @@ namespace Audio
 			TArray<FPitchInfo> Observations;
 	};
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "DSP/BufferVectorOperations.h"
+#endif

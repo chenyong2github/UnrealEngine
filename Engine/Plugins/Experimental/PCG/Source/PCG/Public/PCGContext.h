@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "PCGData.h"
 #include "PCGNode.h" // IWYU pragma: keep
 

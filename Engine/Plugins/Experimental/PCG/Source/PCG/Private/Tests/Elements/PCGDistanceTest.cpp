@@ -4,6 +4,7 @@
 #include "Tests/PCGTestsCommon.h"
 
 #include "PCGComponent.h"
+#include "PCGContext.h"
 #include "PCGData.h"
 #include "PCGHelpers.h"
 #include "PCGParamData.h"

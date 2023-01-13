@@ -4,6 +4,8 @@
 
 #include "Channels/RemoteSessionImageChannel.h"
 
+class FThreadSafeCounter;
+
 
 class FFrameGrabber;
 class FSceneViewport;

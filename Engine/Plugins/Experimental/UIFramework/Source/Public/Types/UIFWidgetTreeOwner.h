@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "Types/UIFWidgetOwner.h"
+#include "HAL/Platform.h"
+
+struct FUIFrameworkWidgetOwner;
 
 class APlayerController;
 class UUIFrameworkWidget;
@@ -33,3 +35,7 @@ public:
 	{
 	}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Types/UIFWidgetOwner.h"
+#endif

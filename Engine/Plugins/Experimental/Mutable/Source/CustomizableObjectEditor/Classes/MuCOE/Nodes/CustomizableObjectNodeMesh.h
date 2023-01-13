@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "CoreTypes.h"
-#include "Math/Vector2D.h"
-#include "Misc/AssertionMacros.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeMesh.generated.h"
 

@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGCommon.h"
-#include "PCGPin.h"
 #include "PCGNode.generated.h"
+
+class UPCGNode;
+class UPCGPin;
+enum class EPCGChangeType : uint8;
+struct FPCGPinProperties;
 
 class UPCGSettings;
 class UPCGSettingsInterface;
@@ -193,3 +195,9 @@ protected:
 	// - Generates artifacts (here or element)
 	// - Priority
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGCommon.h"
+#include "PCGPin.h"
+#endif

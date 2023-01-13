@@ -7,6 +7,8 @@
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
+enum class EPCGMetadataTypes : uint8;
+
 class UPCGData;
 
 namespace PCGPropertyHelpers

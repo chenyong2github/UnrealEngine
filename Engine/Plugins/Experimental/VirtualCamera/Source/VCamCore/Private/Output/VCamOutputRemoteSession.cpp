@@ -9,16 +9,19 @@
 #include "Channels/RemoteSessionImageChannel.h"
 #include "Channels/RemoteSessionInputChannel.h"
 #include "GameFramework/PlayerController.h"
-#include "UObject/Package.h"
-#include "UObject/SoftObjectPath.h"
+#include "Modules/ModuleManager.h"
+#include "Engine/GameEngine.h"
 #include "Slate/SceneViewport.h"
-#include "VPFullScreenUserWidget.h"
 #include "Widgets/SVirtualWindow.h"
+#include "UObject/SoftObjectPath.h"
+#include "VPFullScreenUserWidget.h"
 
 #if WITH_EDITOR
 #include "LevelEditor.h"
 #include "SLevelViewport.h"
 #include "SceneView.h"
+#else
+#include "RemoteSession.h"
 #endif
 
 namespace UE::VCamOutputRemoteSession::Private

@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
+#include "GameFramework/Actor.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeConditionBase.h"
 #include "SmartObjectTypes.h"

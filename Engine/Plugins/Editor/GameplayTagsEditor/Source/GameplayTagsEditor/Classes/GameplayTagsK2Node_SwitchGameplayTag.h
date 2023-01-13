@@ -3,12 +3,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphPin.h"
 #include "K2Node_Switch.h"
 #include "GameplayTagContainer.h"
 #include "GameplayTagsK2Node_SwitchGameplayTag.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FBlueprintActionDatabaseRegistrar;
 
@@ -56,3 +55,7 @@ protected:
 	virtual void CreateCasePins() override;
 	virtual void RemovePin(UEdGraphPin* TargetPin) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

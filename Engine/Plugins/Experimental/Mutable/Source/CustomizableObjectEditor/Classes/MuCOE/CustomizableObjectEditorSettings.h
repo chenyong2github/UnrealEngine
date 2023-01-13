@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectEditorSettings.generated.h"
 

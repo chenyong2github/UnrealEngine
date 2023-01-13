@@ -4,12 +4,14 @@
 #include "GameFramework/GameModeBase.h"
 #include "Engine/NetConnection.h"
 #include "Engine/World.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/GameSession.h"
 #include "OnlineBeaconHost.h"
 #include "LobbyBeaconClient.h"
 #include "LobbyBeaconState.h"
 #include "LobbyBeaconPlayerState.h"
+#include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyBeaconHost)

@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
-#include "UObject/ScriptMacros.h"
-#include "OnlineStats.h"
+#include "Engine/TimerHandle.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
 #include "LeaderboardQueryCallbackProxy.generated.h"
 
@@ -70,3 +65,8 @@ private:
 
 	FTimerHandle OnStatsRead_DelayedTimerHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#endif

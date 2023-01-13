@@ -3,13 +3,16 @@
 #pragma once
 
 #include "Subsystems/EngineSubsystem.h"
-#include "Templates/ValueOrError.h"
-#include "Types/MVVMBindingName.h"
 #include "Types/MVVMFieldVariant.h"
 #include "Types/MVVMBindingMode.h"
 #include "Types/MVVMViewModelCollection.h"
 
+#include "UObject/Package.h"
 #include "MVVMSubsystem.generated.h"
+
+struct FMVVMAvailableBinding;
+struct FMVVMBindingName;
+template <typename ValueType, typename ErrorType> class TValueOrError;
 
 class UMVVMView;
 class UMVVMViewModelBase;
@@ -102,3 +105,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMVVMViewModelCollectionObject> GlobalViewModelCollection;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMBindingName.h"
+#endif

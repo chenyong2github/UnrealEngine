@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "GameFramework/PlayerState.h"
 #include "GameFrameworkComponent.h"
+#include "GameFramework/PlayerState.h" // IWYU pragma: keep
 #include "PlayerStateComponent.generated.h"
+
+class APlayerState;
 
 /**
  * PlayerStateComponent is an actor component made for APlayerState and receives PlayerState events.

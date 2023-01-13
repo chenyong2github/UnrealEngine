@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DataRegistryId.h"
-#include "Engine/AssetManagerTypes.h"
-#include "Engine/StreamableManager.h"
-#include "Misc/AssetRegistryInterface.h"
 #include "GameplayTagContainer.h"
 #include "DataRegistryTypes.generated.h"
 
@@ -510,3 +506,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FDataRegistryCacheVersionCallback, class UDa
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDataRegistry, Log, All);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/AssetManagerTypes.h"
+#include "Engine/StreamableManager.h"
+#include "Misc/AssetRegistryInterface.h"
+#endif

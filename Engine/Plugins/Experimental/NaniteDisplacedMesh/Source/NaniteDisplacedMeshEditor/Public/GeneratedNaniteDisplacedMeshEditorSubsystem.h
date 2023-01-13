@@ -4,9 +4,6 @@
 
 #include "EditorSubsystem.h"
 
-#include "Delegates/IDelegateInstance.h"
-#include "GameFramework/Actor.h"
-#include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
 
 
@@ -126,3 +123,7 @@ private:
 
 	void UpdateIsEngineCollectingGarbage(bool bIsCollectingGarbage);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GameFramework/Actor.h"
+#endif

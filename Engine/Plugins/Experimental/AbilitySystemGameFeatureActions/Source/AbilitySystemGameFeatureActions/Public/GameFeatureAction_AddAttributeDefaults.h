@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GameFeatureAction.h"
 
 #include "GameFeatureAction_AddAttributeDefaults.generated.h"
@@ -27,3 +26,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Attributes)
 	TArray<FSoftObjectPath> AttribDefaultTableNames;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

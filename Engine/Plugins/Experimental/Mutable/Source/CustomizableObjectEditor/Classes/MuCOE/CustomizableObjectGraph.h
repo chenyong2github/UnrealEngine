@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Containers/Map.h"
-#include "Containers/Set.h"
 #include "EdGraph/EdGraph.h"
-#include "Misc/Guid.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectGraph.generated.h"
 

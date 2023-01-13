@@ -2,18 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Math/Transform.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeModifierBase.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeMeshClipWithMesh.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class UCustomizableObject;
 class UCustomizableObjectNodeRemapPins;

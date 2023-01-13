@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "HAL/Platform.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeMorphMaterial.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class UCustomizableObjectNodeRemapPins;
 class UEdGraphPin;

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "PCGElement.h"
+#include "Elements/PCGProjectionParams.h"
 #include "PCGSettings.h"
-#include "Data/PCGProjectionData.h"
 
-#include "CoreMinimal.h"
 
 #include "PCGProjectionElement.generated.h"
 
@@ -52,3 +50,8 @@ class FPCGProjectionElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Data/PCGProjectionData.h"
+#endif

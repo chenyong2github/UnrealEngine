@@ -2,18 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "EdGraph/EdGraphNode.h"
-#include "Internationalization/Text.h"
-#include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeModifierBase.h"
-#include "UObject/NameTypes.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeMeshClipMorph.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 class FArchive;
 class UCustomizableObjectNodeRemapPins;

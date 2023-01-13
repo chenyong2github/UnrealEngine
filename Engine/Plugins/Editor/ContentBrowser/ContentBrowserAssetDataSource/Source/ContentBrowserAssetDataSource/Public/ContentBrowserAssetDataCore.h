@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserAssetDataPayload.h"
+#include "ContentBrowserItemData.h"
+
+class FContentBrowserAssetFileItemDataPayload;
+class FContentBrowserAssetFolderItemDataPayload;
 
 class IAssetTools;
 class IAssetRegistry;
@@ -166,3 +168,8 @@ namespace ContentBrowserAssetData
 	CONTENTBROWSERASSETDATASOURCE_API void PopulateAssetFileContextMenu(UContentBrowserDataSource* InOwnerDataSource, UToolMenu* InMenu, FAssetFileContextMenu& InAssetFileContextMenu);
 
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "ContentBrowserAssetDataPayload.h"
+#include "CoreMinimal.h"
+#endif

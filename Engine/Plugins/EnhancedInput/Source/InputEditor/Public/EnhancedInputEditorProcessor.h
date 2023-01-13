@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Application/IInputProcessor.h"
+#include "Math/Vector2D.h"
 
 struct FInputKeyParams;
 
@@ -49,3 +49,7 @@ protected:
 	/** The value of the mouse cursor from the most recent mouse event */
 	FVector2D CachedCursorDelta = FVector2D::ZeroVector;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

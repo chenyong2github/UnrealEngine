@@ -2,7 +2,7 @@
 
 #pragma  once
 
-#include "Modules/ModuleManager.h"
+#include "Modules/ModuleInterface.h"
 
 class FNavCorridorModule : public IModuleInterface
 {
@@ -12,3 +12,7 @@ public:
 	virtual void ShutdownModule() override;
 };
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Modules/ModuleManager.h"
+#endif

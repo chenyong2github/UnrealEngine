@@ -3,11 +3,11 @@
 #pragma once
 
 #include "NiagaraDataInterface.h"
-#include "NiagaraCommon.h"
-#include "VectorVM.h"
-#include "GeometryCollection/GeometryCollectionActor.h"
 
 #include "NiagaraDataInterfaceGeometryCollection.generated.h"
+
+class AGeometryCollectionActor;
+struct FNiagaraDataInterfaceGeneratedFunction;
 
 
 /** Arrays in which the cpu datas will be str */
@@ -195,3 +195,7 @@ struct FNDIGeometryCollectionProxy : public FNiagaraDataInterfaceProxy
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIGeometryCollectionData> SystemInstancesToProxyData;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryCollection/GeometryCollectionActor.h"
+#endif

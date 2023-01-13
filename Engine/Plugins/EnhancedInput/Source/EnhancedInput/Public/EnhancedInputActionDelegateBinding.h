@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Engine/InputDelegateBinding.h"
-#include "EnhancedPlayerInput.h"
+#include "InputTriggers.h"
 #include "EnhancedInputActionDelegateBinding.generated.h"
 
 class UInputComponent;
@@ -55,3 +52,9 @@ class ENHANCEDINPUT_API UEnhancedInputActionValueBinding : public UInputDelegate
 	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
 	//~ End UInputDelegateBinding Interface
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "EnhancedPlayerInput.h"
+#endif

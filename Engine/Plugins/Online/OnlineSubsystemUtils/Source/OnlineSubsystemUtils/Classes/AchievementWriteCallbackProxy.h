@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "OnlineStats.h"
 #include "Net/OnlineBlueprintCallProxyBase.h"
 #include "AchievementWriteCallbackProxy.generated.h"
@@ -63,3 +61,7 @@ private:
 	UObject* WorldContextObject;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

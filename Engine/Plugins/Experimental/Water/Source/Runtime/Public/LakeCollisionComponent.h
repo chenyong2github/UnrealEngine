@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Components/ShapeComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "LakeCollisionComponent.generated.h"
 
 UCLASS(ClassGroup = (Custom))
@@ -40,3 +38,8 @@ private:
 	UPROPERTY()
 	FVector BoxExtent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/ShapeComponent.h"
+#include "CoreMinimal.h"
+#endif

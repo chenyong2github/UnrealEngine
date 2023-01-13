@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "Engine/DeveloperSettingsBackedByCVars.h"
-#include "EnhancedInputDeveloperSettings.h"
 
 #include "EnhancedInputEditorSettings.generated.h"
+
+struct FDefaultContextSetting;
 
 class UEnhancedPlayerInput;
 class UEnhancedInputEditorSubsystem;
@@ -52,3 +52,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Editor, meta=(ConsoleVariable="EnhancedEditorInput.bAutomaticallyStartConsumingInput"))
 	uint8 bAutomaticallyStartConsumingInput : 1;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "EnhancedInputDeveloperSettings.h"
+#endif

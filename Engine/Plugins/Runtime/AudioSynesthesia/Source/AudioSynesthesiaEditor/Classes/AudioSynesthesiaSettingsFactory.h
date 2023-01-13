@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "AudioSynesthesia.h"
 #include "Factories/Factory.h"
 #include "AudioSynesthesiaSettingsFactory.generated.h"
+
+class UAudioSynesthesiaSettings;
 
 /** UAudioSynesthesiaSettingsFactory
  *
@@ -26,3 +27,7 @@ class UAudioSynesthesiaSettingsFactory : public UFactory
 };
 
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AudioSynesthesia.h"
+#endif

@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystemImpl.h"
+#include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemNullPackage.h"
-#include "HAL/ThreadSafeCounter.h"
+
+class FThreadSafeCounter;
 
 class FOnlineAchievementsNull;
 class FOnlineIdentityNull;
@@ -169,3 +170,7 @@ private:
 
 typedef TSharedPtr<FOnlineSubsystemNull, ESPMode::ThreadSafe> FOnlineSubsystemNullPtr;
 
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

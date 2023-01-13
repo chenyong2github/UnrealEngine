@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GeometryFlowCoreNodes.h"
-#include "GeometryFlowMovableData.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
 #include "Image/ImageBuilder.h"
@@ -33,3 +32,7 @@ GEOMETRYFLOW_DECLARE_BASIC_TYPES(NormalMapImage, FNormalMapImage, (int)EMeshProc
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "GeometryFlowMovableData.h"
+#endif

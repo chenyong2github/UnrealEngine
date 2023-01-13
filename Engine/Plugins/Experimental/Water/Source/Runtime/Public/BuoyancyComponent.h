@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Components/ActorComponent.h"
-#include "WaterBodyTypes.h"
-#include "BuoyancyManager.h"
+#include "BuoyancyTypes.h"
 #include "BuoyancyComponent.generated.h"
+
+namespace EEndPlayReason { enum Type : int; }
 
 class UWaterBodyComponent;
 
@@ -149,3 +149,7 @@ public:
 	uint8 bUseAsyncPath : 1;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "BuoyancyManager.h"
+#endif

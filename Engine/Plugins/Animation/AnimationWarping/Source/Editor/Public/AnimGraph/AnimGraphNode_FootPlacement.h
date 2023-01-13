@@ -5,6 +5,8 @@
 #include "BoneControllers/AnimNode_FootPlacement.h"
 #include "AnimGraphNode_FootPlacement.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 UCLASS(Experimental)
 class ANIMATIONWARPINGEDITOR_API UAnimGraphNode_FootPlacement : public UAnimGraphNode_SkeletalControlBase
 {

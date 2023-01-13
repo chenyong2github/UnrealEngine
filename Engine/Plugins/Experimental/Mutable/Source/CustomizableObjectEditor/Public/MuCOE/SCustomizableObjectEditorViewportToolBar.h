@@ -2,19 +2,11 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Input/Reply.h"
-#include "Internationalization/Text.h"
-#include "Layout/Visibility.h"
-#include "Misc/Optional.h"
 #include "SViewportToolBar.h"
-#include "Settings/LevelEditorViewportSettings.h"
-#include "Styling/SlateColor.h"
-#include "Styling/SlateTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "UObject/NameTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+enum ERotationGridMode : int;
+enum class ECheckBoxState : uint8;
+namespace ETextCommit { enum Type : int; }
 
 class FMenuBuilder;
 class SMenuAnchor;
@@ -202,3 +194,8 @@ private:
 
 	TSharedPtr<SMenuAnchor> MenuAnchor;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Settings/LevelEditorViewportSettings.h"
+#include "Styling/SlateTypes.h"
+#endif

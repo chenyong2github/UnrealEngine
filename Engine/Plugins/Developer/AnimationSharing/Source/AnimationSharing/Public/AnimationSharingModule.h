@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/GCObject.h"
 #include "Engine/World.h"
 
 class UAnimationSharingManager;
@@ -46,3 +42,7 @@ private:
 	static TMap<const UWorld*, UAnimationSharingManager*> WorldAnimSharingManagers;
 	static FOnAnimationSharingManagerCreated OnAnimationSharingManagerCreated;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

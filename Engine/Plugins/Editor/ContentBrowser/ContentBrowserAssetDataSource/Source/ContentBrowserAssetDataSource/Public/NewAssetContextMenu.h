@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SharedPointer.h"
 #include "AssetTypeCategories.h"
 #include "Framework/Commands/UIAction.h"
 
@@ -35,3 +33,7 @@ private:
 	/** Create a new asset using the specified factory at the specified path */
 	static void ExecuteNewAsset(FOnNewAssetRequested InOnNewAssetRequested, FName InPath, TWeakObjectPtr<UClass> FactoryClass);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

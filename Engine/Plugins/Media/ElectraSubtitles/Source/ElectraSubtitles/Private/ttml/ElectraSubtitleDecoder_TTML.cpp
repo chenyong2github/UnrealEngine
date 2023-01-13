@@ -6,7 +6,6 @@
 #include "ElectraSubtitleModule.h"
 #include "ttml/TTMLSubtitleHandler.h"
 #include "MediaDecoderOutput.h"
-#include "Misc/ScopeLock.h"
 #include "ParameterDictionary.h"
 
 

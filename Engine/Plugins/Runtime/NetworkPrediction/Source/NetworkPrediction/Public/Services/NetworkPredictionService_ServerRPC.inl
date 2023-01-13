@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "NetworkPredictionDriver.h"
+#include "Services/NetworkPredictionInstanceData.h"
+
 // The ServerRPCService's job is to tell the Driver to call the Server RPC that sends InputCmds upstream.
 // This happens every frame on autonomous proxy clients.
 //

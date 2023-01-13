@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
 
 struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationOptions
 {
@@ -12,3 +12,7 @@ struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationOptions
 	// If true, any created Gameplay Tag Widget created should not offer an 'Add Tag Source' option 
 	bool bForceHideAddTagSource = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreTypes.h"
+#endif

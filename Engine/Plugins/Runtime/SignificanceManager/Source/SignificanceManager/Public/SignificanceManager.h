@@ -2,16 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #endif
-#include "UObject/GCObject.h"
-#include "UObject/SoftObjectPath.h"
 #include "Engine/World.h"
 #include "SignificanceManager.generated.h"
 

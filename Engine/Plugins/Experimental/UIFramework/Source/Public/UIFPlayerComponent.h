@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "Components/ActorComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Types/UIFSlotBase.h"
-#include "Types/UIFWidgetId.h"
 #include "Types/UIFWidgetTree.h"
 
+#include "Types/UIFWidgetTreeOwner.h"
 #include "UIFPlayerComponent.generated.h"
 
 class UUIFrameworkPlayerComponent;

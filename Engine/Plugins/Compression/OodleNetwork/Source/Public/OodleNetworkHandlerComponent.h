@@ -4,17 +4,18 @@
 
 // @todo #JohnB: Separate module-based header code, from other class implementations, so that you can setup the PCH.h file correctly
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
 #include "PacketHandler.h"
-#include "UObject/CoreNet.h"
-#include "OodleNetworkAnalytics.h"
 #include "OodleNetworkArchives.h"
 #include "OodleNetworkFaultHandler.h"
 
 #include "oodle2net.h"
 
 #include "OodleNetworkHandlerComponent.generated.h"
+
+struct FBitWriter;
+struct FOodleNetAnalyticsData;
+struct FOutPacketTraits;
 
 DECLARE_LOG_CATEGORY_EXTERN(OodleNetworkHandlerComponentLog, Log, All);
 
@@ -432,3 +433,9 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "OodleNetworkAnalytics.h"
+#include "UObject/CoreNet.h"
+#endif

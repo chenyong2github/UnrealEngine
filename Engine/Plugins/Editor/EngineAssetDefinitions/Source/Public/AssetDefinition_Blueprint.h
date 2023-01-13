@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetDefinitionDefault.h"
 #include "Engine/Blueprint.h"
 
@@ -31,3 +30,7 @@ public:
 public:
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

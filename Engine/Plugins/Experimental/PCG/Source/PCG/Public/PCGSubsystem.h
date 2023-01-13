@@ -2,14 +2,17 @@
 
 #pragma once
 
+#include "Math/GenericOctree.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include "PCGCommon.h"
-#include "PCGComponent.h"
-#include "PCGVolume.h"
 #include "Grid/PCGComponentOctree.h"
 
 #include "PCGSubsystem.generated.h"
+
+enum class EPCGComponentDirtyFlag : uint8;
+enum class ETickableTickType : uint8;
+struct FPCGContext;
 
 class FPCGGraphExecutor;
 class APCGPartitionActor;
@@ -207,3 +210,8 @@ private:
 	TSet<TObjectPtr<UPCGComponent>> DelayedComponentToUnregister;
 	mutable FCriticalSection DelayedComponentToUnregisterLock;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "PCGComponent.h"
+#include "PCGVolume.h"
+#endif

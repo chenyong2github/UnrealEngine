@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PCGContext.h"
 #include "PCGData.h"
 #include "PCGPoint.h" // IWYU pragma: keep
 #include "Elements/PCGProjectionParams.h"
@@ -170,3 +168,8 @@ private:
 
 	mutable FCriticalSection CacheLock;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "PCGContext.h"
+#endif

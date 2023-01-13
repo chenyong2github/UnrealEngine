@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "PCGDebug.generated.h"
 
@@ -43,3 +42,7 @@ public:
 
 	TSoftObjectPtr<UMaterialInterface> GetMaterial() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

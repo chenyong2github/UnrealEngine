@@ -7,6 +7,8 @@
 
 #include "AnimGraphNode_StrideWarping.generated.h"
 
+namespace ENodeTitleType { enum Type : int; }
+
 UCLASS()
 class ANIMATIONWARPINGEDITOR_API UAnimGraphNode_StrideWarping : public UAnimGraphNode_SkeletalControlBase
 {

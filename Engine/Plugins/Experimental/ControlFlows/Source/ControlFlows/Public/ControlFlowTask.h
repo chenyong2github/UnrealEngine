@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "ControlFlowNode.h"
-#include "ControlFlow.h"
+#include "ControlFlow.h" // IWYU pragma: keep
 
 //Empty Task
 class FControlFlowSubTaskBase : public TSharedFromThis<FControlFlowSubTaskBase>
