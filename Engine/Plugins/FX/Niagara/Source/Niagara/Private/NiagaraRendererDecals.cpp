@@ -153,6 +153,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	const FNiagaraPosition DefaultPos = bUseLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
 	const FQuat4f DefaultRot = UNiagaraDecalRendererProperties::GetDefaultOrientation();
 	const FVector3f DefaultSize = UNiagaraDecalRendererProperties::GetDefaultDecalSize();
+	const FNiagaraBool DefaultVisible = UNiagaraDecalRendererProperties::GetDefaultDecalVisible();
 	const float DefaultFade = UNiagaraDecalRendererProperties::GetDefaultDecalFade();
 
 	// Check for Material Update
@@ -176,15 +177,17 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 		const auto PositionReader = RendererProperties->PositionDataSetAccessor.GetReader(DataSet);
 		const auto RotationReader = RendererProperties->DecalOrientationDataSetAccessor.GetReader(DataSet);
 		const auto SizeReader = RendererProperties->DecalSizeDataSetAccessor.GetReader(DataSet);
-		const auto ColorReader = RendererProperties->ColorDataSetAccessor.GetReader(DataSet);
+		const auto ColorReader = RendererProperties->DecalColorDataSetAccessor.GetReader(DataSet);
 		const auto FadeReader = RendererProperties->DecalFadeDataSetAccessor.GetReader(DataSet);
+		const auto VisibleReader = RendererProperties->DecalVisibleAccessor.GetReader(DataSet);
 		const auto VisTagReader = RendererProperties->RendererVisibilityTagAccessor.GetReader(DataSet);
 
 		for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ++ParticleIndex)
 		{
-			// Check visibility tag
+			// Check if the decal is visible
+			const bool bVisible = VisibleReader.GetSafe(ParticleIndex, DefaultVisible).GetValue();
 			const int32 VisTag = VisTagReader.GetSafe(ParticleIndex, RendererProperties->RendererVisibility);
-			if (VisTag != RendererProperties->RendererVisibility)
+			if (!bVisible || VisTag != RendererProperties->RendererVisibility)
 			{
 				continue;
 			}
@@ -227,15 +230,16 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	{
 		//-OPT: Emitter mode we should be able to cache the parameter offset rather than search each frame
 		const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
+		const bool bVisible = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalVisibleBinding.GetParamMapBindableVariable(), DefaultVisible).GetValue();
 		const int32 VisTag = ParameterStore.GetParameterValueOrDefault(RendererProperties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), RendererProperties->RendererVisibility);
-		if (VisTag == RendererProperties->RendererVisibility)
+		if (bVisible && VisTag == RendererProperties->RendererVisibility)
 		{
 			const FVector3f SimPos = ParameterStore.GetParameterValueOrDefault(RendererProperties->PositionBinding.GetParamMapBindableVariable(), DefaultPos);
 			const FQuat4f SimRot = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalOrientationBinding.GetParamMapBindableVariable(), DefaultRot);
 			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
 			const FVector Size = FVector(ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSizeBinding.GetParamMapBindableVariable(), DefaultSize) * 0.5f);
-			const FLinearColor DecalColor = ParameterStore.GetParameterValueOrDefault(RendererProperties->ColorBinding.GetParamMapBindableVariable(), FLinearColor::White);
+			const FLinearColor DecalColor = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalColorBinding.GetParamMapBindableVariable(), FLinearColor::White);
 			const float Fade = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
 
 			// Create Update Parameters

@@ -46,7 +46,13 @@ namespace NiagaraDecalRendererPropertiesLocal
 
 	static FNiagaraVariable GetDecalFadeVariable()
 	{
-		FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.DecalFade"), UNiagaraDecalRendererProperties::GetDefaultDecalFade());
+		static FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.DecalFade"), UNiagaraDecalRendererProperties::GetDefaultDecalFade());
+		return Variable;
+	}
+
+	static FNiagaraVariable GetDecalVisibleVariable()
+	{
+		static FNiagaraVariable Variable = MakeNiagaraVariableWithValue(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Particles.DecalVisible"), UNiagaraDecalRendererProperties::GetDefaultDecalVisible());
 		return Variable;
 	}
 
@@ -60,7 +66,8 @@ namespace NiagaraDecalRendererPropertiesLocal
 		Props->DecalOrientationBinding.Setup(GetDecalOrientationVariable(), GetDecalOrientationVariable());
 		Props->DecalSizeBinding.Setup(GetDecalSizeVariable(), GetDecalSizeVariable());
 		Props->DecalFadeBinding.Setup(GetDecalFadeVariable(), GetDecalFadeVariable());
-		Props->ColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
+		Props->DecalColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
+		Props->DecalVisibleBinding.Setup(GetDecalVisibleVariable(), GetDecalVisibleVariable());
 		Props->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 
 	#if WITH_EDITORONLY_DATA
@@ -77,7 +84,8 @@ UNiagaraDecalRendererProperties::UNiagaraDecalRendererProperties()
 	AttributeBindings.Add(&DecalOrientationBinding);
 	AttributeBindings.Add(&DecalSizeBinding);
 	AttributeBindings.Add(&DecalFadeBinding);
-	AttributeBindings.Add(&ColorBinding);
+	AttributeBindings.Add(&DecalColorBinding);
+	AttributeBindings.Add(&DecalVisibleBinding);
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
@@ -208,7 +216,8 @@ void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSe
 	DecalOrientationDataSetAccessor.Init(CompiledData, DecalOrientationBinding.GetDataSetBindableVariable().GetName());
 	DecalSizeDataSetAccessor.Init(CompiledData, DecalSizeBinding.GetDataSetBindableVariable().GetName());
 	DecalFadeDataSetAccessor.Init(CompiledData, DecalFadeBinding.GetDataSetBindableVariable().GetName());
-	ColorDataSetAccessor.Init(CompiledData, ColorBinding.GetDataSetBindableVariable().GetName());
+	DecalColorDataSetAccessor.Init(CompiledData, DecalColorBinding.GetDataSetBindableVariable().GetName());
+	DecalVisibleAccessor.Init(CompiledData, DecalVisibleBinding.GetDataSetBindableVariable().GetName());
 	RendererVisibilityTagAccessor.Init(CompiledData, RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
 }
 

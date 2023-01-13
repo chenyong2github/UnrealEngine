@@ -55,6 +55,7 @@ public:
 	static const FQuat4f GetDefaultOrientation() { return FRotator3f(-90.0f, 0.0f, 90.0f).Quaternion(); }
 	static const FVector3f GetDefaultDecalSize() { return FVector3f(50.0f, 50.0f, 50.0f); }
 	static const float GetDefaultDecalFade() { return 1.0f; }
+	static const FNiagaraBool GetDefaultDecalVisible() { return FNiagaraBool(true); }
 
 	/** What material to use for the decal. */
 	UPROPERTY(EditAnywhere, Category = "Decal Rendering")
@@ -94,7 +95,11 @@ public:
 
 	/** Color binding for the decal, value can be queried using the Decal Color material node. */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
-	FNiagaraVariableAttributeBinding ColorBinding;
+	FNiagaraVariableAttributeBinding DecalColorBinding;
+
+	/** Should the decal be visibile or not, works in conjunction with RendererVisibilityTagBinding to determine visibility. */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding DecalVisibleBinding;
 
 	/** Visibility tag binding, when valid the returned values is compated with RendererVisibility. */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
@@ -104,6 +109,7 @@ public:
 	FNiagaraDataSetAccessor<FQuat4f>			DecalOrientationDataSetAccessor;
 	FNiagaraDataSetAccessor<FVector3f>			DecalSizeDataSetAccessor;
 	FNiagaraDataSetAccessor<float>				DecalFadeDataSetAccessor;
-	FNiagaraDataSetAccessor<FLinearColor>		ColorDataSetAccessor;
+	FNiagaraDataSetAccessor<FLinearColor>		DecalColorDataSetAccessor;
+	FNiagaraDataSetAccessor<FNiagaraBool>		DecalVisibleAccessor;
 	FNiagaraDataSetAccessor<int32>				RendererVisibilityTagAccessor;
 };
