@@ -81,9 +81,7 @@ private:
 	NETCORE_API static void DestroyPoller(uint32 HandleIndex);
 
 	class FPimpl;
-#if WITH_PUSH_MODEL
 	static FPimpl* Instance;
-#endif
 };
 
 inline void MarkNetObjectStateDirty(FNetHandle NetHandle)
