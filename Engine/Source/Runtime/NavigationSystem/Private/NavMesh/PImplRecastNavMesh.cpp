@@ -31,9 +31,9 @@ static_assert(sizeof(NavNodeRef) == sizeof(dtPolyRef), "NavNodeRef and dtPolyRef
 static_assert(RECAST_MAX_AREAS <= DT_MAX_AREAS, "Number of allowed areas cannot exceed DT_MAX_AREAS.");
 static_assert(RECAST_STRAIGHTPATH_OFFMESH_CONNECTION == DT_STRAIGHTPATH_OFFMESH_CONNECTION, "Path flags values differ.");
 static_assert(RECAST_UNWALKABLE_POLY_COST == DT_UNWALKABLE_POLY_COST, "Unwalkable poly cost differ.");
-static_assert(TIsSame<FVector::FReal, dtReal>::Value, "FReal and dtReal must be the same type!");
-static_assert(TIsSame<FVector::FReal, rcReal>::Value, "FReal and rcReal must be the same type!");
-static_assert(TIsSame<FVector::FReal, duReal>::Value, "FReal and duReal must be the same type!");
+static_assert(std::is_same_v<FVector::FReal, dtReal>, "FReal and dtReal must be the same type!");
+static_assert(std::is_same_v<FVector::FReal, rcReal>, "FReal and rcReal must be the same type!");
+static_assert(std::is_same_v<FVector::FReal, duReal>, "FReal and duReal must be the same type!");
 
 /// Helper for accessing navigation query from different threads
 #define INITIALIZE_NAVQUERY_SIMPLE(NavQueryVariable, NumNodes)	\

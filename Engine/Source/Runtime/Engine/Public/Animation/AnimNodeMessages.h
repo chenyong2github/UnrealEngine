@@ -155,7 +155,7 @@ struct TScopedGraphMessage : FScopedGraphMessage
 		: FScopedGraphMessage(InContext)
 	{
 		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
-		static_assert(!TIsSame<TGraphMessageType, IGraphMessage>::Value, "Argument TGraphMessageType must not be IGraphMessage");
+		static_assert(!std::is_same_v<TGraphMessageType, IGraphMessage>, "Argument TGraphMessageType must not be IGraphMessage");
 
 		TSharedRef<TGraphMessageType> Message = MakeShared<TGraphMessageType>(Forward<TArgs>(Args)...);
 		PushMessage(InContext, Message, Message->GetTypeName());
@@ -177,7 +177,7 @@ struct TOptionalScopedGraphMessage : FScopedGraphMessage
 		, bCondition(bInCondition)
 	{
 		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
-		static_assert(!TIsSame<TGraphMessageType, IGraphMessage>::Value, "Argument TGraphMessageType must not be IGraphMessage");
+		static_assert(!std::is_same_v<TGraphMessageType, IGraphMessage>, "Argument TGraphMessageType must not be IGraphMessage");
 
 		if(bInCondition)
 		{
@@ -235,7 +235,7 @@ public:
 	void ForEachMessage(TFunctionRef<EEnumerate(TGraphMessageType&)> InFunction) const
 	{
 		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
-		static_assert(!TIsSame<TGraphMessageType, IGraphMessage>::Value, "Argument TGraphMessageType must not be IGraphMessage");
+		static_assert(!std::is_same_v<TGraphMessageType, IGraphMessage>, "Argument TGraphMessageType must not be IGraphMessage");
 
 		ForEachMessage(TGraphMessageType::GetStaticTypeName(), [&InFunction](IGraphMessage& InMessage)
 		{
@@ -249,7 +249,7 @@ public:
 	void TopMessage(TFunctionRef<void(TGraphMessageType&)> InFunction) const
 	{
 		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
-		static_assert(!TIsSame<TGraphMessageType, IGraphMessage>::Value, "Argument TGraphMessageType must not be IGraphMessage");
+		static_assert(!std::is_same_v<TGraphMessageType, IGraphMessage>, "Argument TGraphMessageType must not be IGraphMessage");
 
 		TopMessage(TGraphMessageType::GetStaticTypeName(), [&InFunction](IGraphMessage& InMessage)
 		{
@@ -262,7 +262,7 @@ public:
 	bool HasMessage() const
 	{
 		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
-		static_assert(!TIsSame<TGraphMessageType, IGraphMessage>::Value, "Argument TGraphMessageType must not be IGraphMessage");
+		static_assert(!std::is_same_v<TGraphMessageType, IGraphMessage>, "Argument TGraphMessageType must not be IGraphMessage");
 
 		return HasMessage(TGraphMessageType::GetStaticTypeName());
 	}

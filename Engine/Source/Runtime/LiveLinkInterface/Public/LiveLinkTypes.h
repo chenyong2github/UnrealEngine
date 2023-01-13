@@ -472,7 +472,7 @@ protected:
 	{
 		static Type* Cast(const UScriptStruct* ScriptStruct, BaseType* BaseData)
 		{
-			if (TIsSame<Type, BaseType>::Value)
+			if constexpr (std::is_same_v<Type, BaseType>)
 			{
 				return StaticCast<Type*>(BaseData);
 			}
@@ -489,7 +489,7 @@ protected:
 		}
 		static const Type* ConstCast(const UScriptStruct* ScriptStruct, const BaseType* BaseData)
 		{
-			if (TIsSame<Type, BaseType>::Value)
+			if constexpr (std::is_same_v<Type, BaseType>)
 			{
 				return StaticCast<const Type*>(BaseData);
 			}

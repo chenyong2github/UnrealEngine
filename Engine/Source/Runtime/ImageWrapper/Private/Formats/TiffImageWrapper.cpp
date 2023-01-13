@@ -30,7 +30,7 @@ namespace UE::ImageWrapper::Private
 		template<class DataTypeDest, class DataTypeSrc>
 		DataTypeDest ConvertToWriteFormat(DataTypeSrc ReadValue)
 		{
-			if constexpr ( TIsSame<DataTypeDest, DataTypeSrc>::Value )
+			if constexpr (std::is_same_v<DataTypeDest, DataTypeSrc>)
 			{
 				return ReadValue;
 			}
@@ -42,7 +42,7 @@ namespace UE::ImageWrapper::Private
 
 				// get source value in [0,1]
 				double SrcValue;
-				if constexpr (TIsSame<DataTypeSrc, FFloat16>::Value || TIsFloatingPoint<DataTypeSrc>::Value)
+				if constexpr (std::is_same_v<DataTypeSrc, FFloat16> || TIsFloatingPoint<DataTypeSrc>::Value)
 				{
 					SrcValue = FMath::Clamp((double)ReadValue, 0.0, 1.0);
 				}
@@ -52,7 +52,7 @@ namespace UE::ImageWrapper::Private
 				}
 				
 				// quantize to dest :
-				if constexpr (TIsSame<DataTypeDest, FFloat16>::Value || TIsFloatingPoint<DataTypeDest>::Value)
+				if constexpr (std::is_same_v<DataTypeDest, FFloat16> || TIsFloatingPoint<DataTypeDest>::Value)
 				{
 					return DataTypeDest(SrcValue);
 				}
@@ -767,7 +767,7 @@ namespace UE::ImageWrapper::Private
 
 		const bool bIsTiled = TIFFIsTiled(Tiff) != 0;
 
-		if constexpr (TIsSame<DataTypeDest, uint8>::Value)
+		if constexpr (std::is_same_v<DataTypeDest, uint8>)
 		{
 			if (BitsPerSample == 1)
 			{
@@ -796,7 +796,7 @@ namespace UE::ImageWrapper::Private
 			{
 				if (Photometric == PHOTOMETRIC_PALETTE)
 				{
-					if constexpr (TIsSame<DataTypeDest, uint16>::Value)
+					if constexpr (std::is_same_v<DataTypeDest, uint16>)
 					{
 						switch (BitsPerSample)
 						{
@@ -869,7 +869,7 @@ namespace UE::ImageWrapper::Private
 		
 		if (Photometric == PHOTOMETRIC_MINISWHITE)
 		{
-			if constexpr ( TIsSame<DataTypeDest, FFloat16>::Value || TIsFloatingPoint<DataTypeDest>::Value )
+			if constexpr (std::is_same_v<DataTypeDest, FFloat16> || TIsFloatingPoint<DataTypeDest>::Value)
 			{
 				// miniswhite with floating point tiff is an odd thing to do
 				// it's unclear if you should invert against 1.f or something else?
@@ -1096,7 +1096,7 @@ namespace UE::ImageWrapper::Private
 			ParallelFor(Width * Height, [NumOfChannelDest, &WriteArray](int32 Index)
 				{
 					const int64 WriteIndex = int64(NumOfChannelDest) * Index + 3;
-					if constexpr ( TIsSame<DataTypeDest, FFloat16>::Value || TIsFloatingPoint<DataTypeDest>::Value ) 
+					if constexpr (std::is_same_v<DataTypeDest, FFloat16> || TIsFloatingPoint<DataTypeDest>::Value)
 					{
 						WriteArray[WriteIndex] = DataTypeDest(1.f);
 					}

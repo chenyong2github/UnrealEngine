@@ -606,18 +606,18 @@ public:
 		, DebugParameterStruct(InParameterStruct)
 #endif
 	{		
-		bParallelExecuteAllowed = !TIsSame<TRHICommandList, FRHICommandListImmediate>::Value && !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::NeverParallel);
+		bParallelExecuteAllowed = !std::is_same_v<TRHICommandList, FRHICommandListImmediate> && !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::NeverParallel);
 	}
 
 private:
 	template<class T>
-	typename TEnableIf<!TIsSame<T, FRDGPass>::Value, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
+	typename TEnableIf<!std::is_same_v<T, FRDGPass>, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
 	{
 		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
 	}
 
 	template<class T>
-	typename TEnableIf<TIsSame<T, FRDGPass>::Value, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
+	typename TEnableIf<std::is_same_v<T, FRDGPass>, void>::Type ExecuteLambdaFunc(FRHIComputeCommandList& RHICmdList)
 	{
 		ExecuteLambda(this, static_cast<TRHICommandList&>(RHICmdList));
 	}

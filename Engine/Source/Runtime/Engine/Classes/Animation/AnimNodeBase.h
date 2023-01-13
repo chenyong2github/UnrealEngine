@@ -1028,7 +1028,7 @@ private:
 };
 
 #if WITH_EDITORONLY_DATA
-#define VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) static_assert(TIsSame<decltype(Identifier), Type>::Value, "Incorrect return type used");
+#define VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) static_assert(std::is_same_v<decltype(Identifier), Type>, "Incorrect return type used");
 #else
 #define VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier)
 #endif

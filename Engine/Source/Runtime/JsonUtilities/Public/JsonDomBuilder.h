@@ -71,11 +71,11 @@ public:
 		FObject& Set(const FString& Key, const FString& Str)           { Object->SetField(Key, MakeShared<FJsonValueString>(Str));            return *this; }
 
 		template <class FNumber>
-		typename TEnableIf<!TIsSame<FNumber, bool>::Value && (TIsIntegral<FNumber>::Value || TIsFloatingPoint<FNumber>::Value), FObject&>::Type
+		typename TEnableIf<!std::is_same_v<FNumber, bool> && (TIsIntegral<FNumber>::Value || TIsFloatingPoint<FNumber>::Value), FObject&>::Type
 			Set(const FString& Key, FNumber Number)                    { Object->SetField(Key, MakeShared<FJsonValueNumber>(Number));         return *this; }
 
 		template <class FBool>
-		typename TEnableIf<TIsSame<FBool, bool>::Value, FObject&>::Type
+		typename TEnableIf<std::is_same_v<FBool, bool>, FObject&>::Type
 			Set(const FString& Key, FBool Boolean)                     { Object->SetField(Key, MakeShared<FJsonValueBoolean>(Boolean));       return *this; }
 
 		FObject& Set(const FString& Key, TYPE_OF_NULLPTR)              { Object->SetField(Key, MakeShared<FJsonValueNull>());                 return *this; }

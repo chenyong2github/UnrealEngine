@@ -1202,7 +1202,7 @@ namespace Audio
 		{
 			CheckValidityOfSampleType<OtherSampleType>();
 
-			if (TIsSame<SampleType, OtherSampleType>::Value)
+			if constexpr (std::is_same_v<SampleType, OtherSampleType>)
 			{
 				Sample = InSample;
 				return *this;
@@ -1391,7 +1391,7 @@ namespace Audio
 		{
 			CheckValidityOfSampleType<OtherSampleType>();
 
-			if (TIsSame<SampleType, OtherSampleType>::Value)
+			if constexpr (std::is_same_v<SampleType, OtherSampleType>)
 			{
 				Sample = InSample;
 				return *this;

@@ -285,8 +285,8 @@ template <typename TState>
 inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, TState* State, const FVulkanShader* Shader, const TArray<FVulkanShaderHeader::FGlobalInfo>& GlobalInfos, const TArray<TEnumAsByte<EVulkanBindingType::EType>>& DescriptorTypes, const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo, const FVulkanUniformBuffer* UniformBuffer, const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo)
 {
 #if ENABLE_RHI_VALIDATION
-	static_assert(TIsSame<TState, FVulkanPendingGfxState>::Value || TIsSame<TState, FVulkanPendingComputeState>::Value, "TState must be FVulkanPendingGfxState or FVulkanPendingComputeState");
-	constexpr bool bIsGfx = TIsSame<TState, FVulkanPendingGfxState>::Value;
+	static_assert(std::is_same_v<TState, FVulkanPendingGfxState> || std::is_same_v<TState, FVulkanPendingComputeState>, "TState must be FVulkanPendingGfxState or FVulkanPendingComputeState");
+	constexpr bool bIsGfx = std::is_same_v<TState, FVulkanPendingGfxState>;
 	constexpr ERHIAccess SRVAccess = bIsGfx ? ERHIAccess::SRVGraphics : ERHIAccess::SRVCompute;
 	constexpr ERHIAccess UAVAccess = bIsGfx ? ERHIAccess::UAVGraphics : ERHIAccess::UAVCompute;
 #endif

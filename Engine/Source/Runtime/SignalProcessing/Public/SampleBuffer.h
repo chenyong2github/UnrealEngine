@@ -76,11 +76,11 @@ namespace Audio
 			RawPCMData.Reset(NumSamples);
 			RawPCMData.AddUninitialized(NumSamples);
 
-			if constexpr(TIsSame<SampleType, float>::Value)
+			if constexpr(std::is_same_v<SampleType, float>)
 			{
 				FMemory::Memcpy(RawPCMData.GetData(), InBufferPtr, NumSamples * sizeof(float));
 			}
-			else if constexpr(TIsSame<SampleType, int16>::Value)
+			else if constexpr(std::is_same_v<SampleType, int16>)
 			{
 				// Convert from float to int:
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -109,11 +109,11 @@ namespace Audio
 			RawPCMData.Reset(NumSamples);
 			RawPCMData.AddUninitialized(NumSamples);
 
-			if constexpr(TIsSame<SampleType, int16>::Value)
+			if constexpr(std::is_same_v<SampleType, int16>)
 			{
 				FMemory::Memcpy(RawPCMData.GetData(), InBufferPtr, NumSamples * sizeof(int16));
 			}
-			else if constexpr(TIsSame<SampleType, float>::Value)
+			else if constexpr(std::is_same_v<SampleType, float>)
 			{
 				// Convert from int to float:
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -161,12 +161,12 @@ namespace Audio
 			RawPCMData.Reset(NumSamples);
 			RawPCMData.AddUninitialized(NumSamples);
 
-			if constexpr(TIsSame<SampleType, OtherSampleType>::Value)
+			if constexpr(std::is_same_v<SampleType, OtherSampleType>)
 			{
 				// If buffers are of the same type, copy over:
 				FMemory::Memcpy(RawPCMData.GetData(), Other.RawPCMData.GetData(), NumSamples * sizeof(SampleType));
 			}
-			else if constexpr(TIsSame<SampleType, int16>::Value && TIsSame<OtherSampleType, float>::Value)
+			else if constexpr(std::is_same_v<SampleType, int16> && std::is_same_v<OtherSampleType, float>)
 			{
 				// Convert from float to int:
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -174,7 +174,7 @@ namespace Audio
 					RawPCMData[SampleIndex] = (int16)(Other.RawPCMData[SampleIndex] * 32767.0f);
 				}
 			}
-			else if constexpr(TIsSame<SampleType, float>::Value && TIsSame<OtherSampleType, int16>::Value)
+			else if constexpr(std::is_same_v<SampleType, float> && std::is_same_v<OtherSampleType, int16>)
 			{
 				// Convert from int to float:
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -215,13 +215,13 @@ namespace Audio
 		{
 			int32 StartIndex = RawPCMData.AddUninitialized(InNumSamples);
 
-			if constexpr(TIsSame<SampleType, OtherSampleType>::Value)
+			if constexpr(std::is_same_v<SampleType, OtherSampleType>)
 			{
 				FMemory::Memcpy(&RawPCMData[StartIndex], InputBuffer, InNumSamples * sizeof(SampleType));
 			}
 			else
 			{
-				if constexpr(TIsSame<SampleType, int16>::Value && TIsSame<OtherSampleType, float>::Value)
+				if constexpr(std::is_same_v<SampleType, int16> && std::is_same_v<OtherSampleType, float>)
 				{
 					// Convert from float to int:
 					for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex++)
@@ -229,7 +229,7 @@ namespace Audio
 						RawPCMData[StartIndex + SampleIndex] = (int16)(InputBuffer[SampleIndex] * 32767.0f);
 					}
 				}
-				else if constexpr(TIsSame<SampleType, float>::Value && TIsSame<OtherSampleType, int16>::Value)
+				else if constexpr(std::is_same_v<SampleType, float> && std::is_same_v<OtherSampleType, int16>)
 				{
 					// Convert from int to float:
 					for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex++)
@@ -358,7 +358,7 @@ namespace Audio
 
 		void Clamp(float Ceiling = 1.0f)
 		{
-			if constexpr(TIsSame<SampleType, float>::Value)
+			if constexpr(std::is_same_v<SampleType, float>)
 			{
 				// Float case:
 				float ClampMin = Ceiling * -1.0f;
@@ -368,7 +368,7 @@ namespace Audio
 					RawPCMData[SampleIndex] = static_cast<SampleType>(FMath::Clamp<float>(RawPCMData[SampleIndex], ClampMin, Ceiling));
 				}
 			}
-			else if constexpr(TIsSame<SampleType, int16>::Value)
+			else if constexpr(std::is_same_v<SampleType, int16>)
 			{
 				// int16 case:
 				Ceiling = FMath::Clamp(Ceiling, 0.0f, 1.0f);
@@ -480,7 +480,7 @@ namespace Audio
 			{
 				float SampleA, SampleB;
 
-				if constexpr(TIsSame<SampleType, float>::Value)
+				if constexpr(std::is_same_v<SampleType, float>)
 				{
 					SampleA = RawPCMData[(WholeThisIndex * NumChannels) + i];
 					SampleB = RawPCMData[(WholeNextIndex * NumChannels) + i];

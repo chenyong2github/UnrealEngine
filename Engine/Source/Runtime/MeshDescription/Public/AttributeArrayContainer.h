@@ -403,7 +403,7 @@ public:
 	/**
 	 * Construct a TArrayAttribute<const T> from a TArrayAttribute<T>. 
 	 */
-	template <typename T = AttributeType, typename TEnableIf<TIsSame<T, const T>::Value, int>::Type = 0>
+	template <typename T = AttributeType, typename TEnableIf<std::is_same_v<T, const T>, int>::Type = 0>
 	TArrayAttribute(TArrayAttribute<typename TRemoveCV<T>::Type> InValue)
 		: Array(InValue.Array),
 		  Index(InValue.Index)

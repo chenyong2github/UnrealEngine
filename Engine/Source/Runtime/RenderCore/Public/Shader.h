@@ -2349,7 +2349,7 @@ public:
 		: TShaderRef<ShaderType>(ShaderIndex->template GetShader<ShaderType>(/* PermutationId = */ 0)) // gcc3 needs the template quantifier so it knows the < is not a less-than
 	{
 		static_assert(
-			TIsSame<typename ShaderType::FPermutationDomain, FShaderPermutationNone>::Value,
+			std::is_same_v<typename ShaderType::FPermutationDomain, FShaderPermutationNone>,
 			"Missing permutation vector argument for shader that have a permutation domain.");
 	}
 

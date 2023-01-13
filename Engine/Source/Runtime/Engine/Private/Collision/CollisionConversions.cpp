@@ -416,7 +416,7 @@ EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWor
 		HitType& Hit = Hits[i];
 		if(GetDistance(Hit) <= MaxDistance)
 		{
-			if (TIsSame<HitType, FHitSweep>::Value)
+			if constexpr (std::is_same_v<HitType, FHitSweep>)
 			{
 				if (!HadInitialOverlap(Hit))
 				{
@@ -449,7 +449,7 @@ template <typename Hit>
 EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, Hit* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, FHitResult& OutHit, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat)
 {
 	const FVector Dir = (EndLoc - StartLoc).GetSafeNormal();
-	if (TIsSame<Hit, FHitSweep>::Value)
+	if constexpr (std::is_same_v<Hit, FHitSweep>)
 	{
 		if (!HadInitialOverlap(Hits[0]))
 		{

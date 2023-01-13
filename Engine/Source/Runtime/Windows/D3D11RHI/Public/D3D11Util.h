@@ -241,10 +241,10 @@ struct FD3D11RHIGenericCommandString
 };
 template <
 	typename JobType,
-	typename = TEnableIf<TOr<
-	TIsSame<JobType, TFunction<void()>>,
-	TIsSame<JobType, TFunction<void()>&>>::Value>>
-	class TD3D11RHIGenericCommand final : public FRHICommand<TD3D11RHIGenericCommand<JobType>, FD3D11RHIGenericCommandString>
+	typename = TEnableIf<
+	std::is_same_v<JobType, TFunction<void()>> ||
+	std::is_same_v<JobType, TFunction<void()>&>>>
+class TD3D11RHIGenericCommand final : public FRHICommand<TD3D11RHIGenericCommand<JobType>, FD3D11RHIGenericCommandString>
 {
 public:
 	// InRHIJob is supposed to be called on RHIT (don't capture things that can become outdated here)
