@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "TraceServices/Containers/Tables.h"
 #include "Templates/Function.h"
 #include "Common/PagedArray.h"
