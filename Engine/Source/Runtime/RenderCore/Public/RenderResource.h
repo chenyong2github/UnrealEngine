@@ -11,7 +11,6 @@
 #include "RHIFeatureLevel.h"
 #include "RenderTimer.h"
 #include "CoreGlobals.h"
-#include "RenderCore.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Containers/Array.h"
@@ -28,6 +27,7 @@
 #include "Math/Vector.h"
 #include "Misc/AssertionMacros.h"
 #include "PixelFormat.h"
+#include "RenderCore.h"
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIDefinitions.h"

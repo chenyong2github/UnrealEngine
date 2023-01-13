@@ -14,6 +14,7 @@
 #include "Shader.h"
 #include "ShaderPlatformCachedIniValue.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RenderCore.h"
 
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"

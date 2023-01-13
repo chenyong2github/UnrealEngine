@@ -430,7 +430,9 @@
 // From RenderCore:
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderCore.h"
+#endif
 #include "RenderingThread.h"
 #include "UniformBuffer.h"
 #include "PackedNormal.h"

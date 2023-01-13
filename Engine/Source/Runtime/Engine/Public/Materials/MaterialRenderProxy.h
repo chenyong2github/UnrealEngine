@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
 #include "RenderResource.h"
 #include "RHIImmutableSamplerState.h"
 
@@ -206,10 +208,7 @@ public:
 
 	static void UpdateDeferredCachedUniformExpressions();
 
-	static inline bool HasDeferredUniformExpressionCacheRequests()
-	{
-		return DeferredUniformExpressionCacheRequests.Num() > 0;
-	}
+	static bool HasDeferredUniformExpressionCacheRequests();
 
 	int32 GetExpressionCacheSerialNumber() const { return UniformExpressionCacheSerialNumber; }
 

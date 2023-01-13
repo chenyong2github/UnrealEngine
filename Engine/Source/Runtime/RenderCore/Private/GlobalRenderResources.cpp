@@ -3,6 +3,7 @@
 #include "GlobalRenderResources.h"
 #include "RenderGraphUtils.h"
 #include "Containers/ResourceArray.h"
+#include "RenderCore.h"
 
 // The maximum number of transient vertex buffer bytes to allocate before we start panic logging who is doing the allocations
 int32 GMaxVertexBytesAllocatedPerFrame = 32 * 1024 * 1024;

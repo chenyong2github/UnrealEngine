@@ -432,7 +432,6 @@
 // From RenderCore:
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
-#include "RenderCore.h"
 #include "RenderingThread.h"
 #include "UniformBuffer.h"
 #include "PackedNormal.h"

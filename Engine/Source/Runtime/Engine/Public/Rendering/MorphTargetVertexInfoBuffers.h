@@ -4,6 +4,7 @@
 
 #include "RenderResource.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "Math/Vector4.h"
 
 struct FSkelMeshRenderSection;
 class UMorphTarget;

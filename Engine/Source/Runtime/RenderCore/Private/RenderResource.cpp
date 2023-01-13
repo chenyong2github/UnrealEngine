@@ -13,6 +13,7 @@
 #include "RayTracingGeometryManager.h"
 #include "RenderGraphResources.h"
 #include "Containers/ResourceArray.h"
+#include "RenderCore.h"
 
 /** Whether to enable mip-level fading or not: +1.0f if enabled, -1.0f if disabled. */
 float GEnableMipLevelFading = 1.0f;

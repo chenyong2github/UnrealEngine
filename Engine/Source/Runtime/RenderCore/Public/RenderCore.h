@@ -6,6 +6,10 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Stats/Stats2.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "HAL/PlatformTime.h"
 #include "Logging/LogMacros.h"
@@ -15,10 +19,7 @@
 #include "Math/Vector4.h"
 #include "RHIDefinitions.h"
 #include "Stats/Stats.h"
-#include "Stats/Stats2.h"
 #include "RenderTimer.h"
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "HDRHelper.h"
 #endif
 

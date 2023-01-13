@@ -693,6 +693,11 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 	DeferredUniformExpressionCacheRequests.Reset();
 }
 
+bool FMaterialRenderProxy::HasDeferredUniformExpressionCacheRequests()
+{
+	return DeferredUniformExpressionCacheRequests.Num() > 0;
+}
+
 #if WITH_EDITOR
 TSet<FMaterialRenderProxy*> FMaterialRenderProxy::MaterialRenderProxyMap;
 FCriticalSection FMaterialRenderProxy::MaterialRenderProxyMapLock;
