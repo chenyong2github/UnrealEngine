@@ -439,10 +439,11 @@ namespace Chaos
 		}
 
 		/**
-		 *
+		 * Override the CCD condition for this mid-phase. Used by the MidPhase modifier and gets reset every frame.
 		 */
 		void SetCCDIsActive(bool bCCDIsActive)
 		{
+			Flags.bIsModified = true;
 			Flags.bIsCCDActive = bCCDIsActive;
 		}
 
@@ -480,9 +481,9 @@ namespace Chaos
 			struct
 			{
 				uint32 bIsCCD : 1;       // True if CCD is supported by either particle
-				uint32 bIsCCDActive : 1; // True if CCD is active for this midphase on this frame. Resets to bIsCCD each frame.
-				uint32 bIsInitialized : 1;
+				uint32 bIsCCDActive : 1; // True if CCD is active for this midphase on this frame. This can be changes by modifiers and resets to bIsCCD each frame.
 				uint32 bIsSleeping : 1;
+				uint32 bIsModified : 1;  // True if a modifier applied any changes to this midphase
 			};
 			uint32 Bits;
 		} Flags; // 4 bytes

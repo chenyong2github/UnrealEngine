@@ -843,13 +843,18 @@ namespace Chaos
 		MultiShapePairDetectors.Reset();
 
 		Flags.bIsCCD = false;
-		Flags.bIsInitialized = false;
+		Flags.bIsCCDActive = false;
 		Flags.bIsSleeping = false;
+		Flags.bIsModified = false;
 	}
 
 	void FParticlePairMidPhase::ResetModifications()
 	{
-		Flags.bIsCCDActive = Flags.bIsCCD;
+		if (Flags.bIsModified)
+		{
+			Flags.bIsCCDActive = Flags.bIsCCD;
+			Flags.bIsModified = false;
+		}
 	}
 
 	void FParticlePairMidPhase::Init(
@@ -878,8 +883,6 @@ namespace Chaos
 		BuildDetectors();
 
 		InitThresholds();
-
-		Flags.bIsInitialized = true;
 	}
 
 	void FParticlePairMidPhase::BuildDetectors()
@@ -1025,6 +1028,10 @@ namespace Chaos
 		{
 			NumActiveConstraints += MultiShapePair.GenerateCollisions(CullDistance, Dt, Context);
 		}
+
+		// Reset any modifications applied by the MidPhaseModifier.
+		// In principle this belongs at the start of the frame but it is hard to avoid the cache miss there.
+		ResetModifications();
 
 		LastUsedEpoch = Context.GetAllocator()->GetCurrentEpoch();
 	}

@@ -593,9 +593,6 @@ namespace Chaos
 				// Get the midphase for this pair
 				FParticlePairMidPhase* MidPhase = ContextAllocator->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[Overlap.SearchParticleIndex], BroadphaseContext.CollisionContext);
 				BroadphaseContext.MidPhases[OverlapIndex] = MidPhase;
-
-				// Reset any modifications that may have occurred to this midphase on the previous frame
-				MidPhase->ResetModifications();
 			}
 		}
 
