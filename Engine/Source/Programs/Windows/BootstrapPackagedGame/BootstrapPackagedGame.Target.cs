@@ -15,7 +15,6 @@ public class BootstrapPackagedGameTarget : TargetRules
 
 		bUseStaticCRT = true;
 
-		bUseUnityBuild = false;
 		bUseSharedPCHs = false;
 		bUseMallocProfiler = false;
 
