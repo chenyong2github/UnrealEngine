@@ -78,9 +78,10 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 	{
 		if (EditingProxy.IsValid())
 		{
-			ALandscape* LandscapeActor = EditingProxy->GetLandscapeActor();
-			check(LandscapeActor);
-			LandscapeActors.AddUnique(LandscapeActor);
+			if (ALandscape* LandscapeActor = EditingProxy->GetLandscapeActor())
+			{
+				LandscapeActors.AddUnique(LandscapeActor);
+			}
 		}
 	}
 
