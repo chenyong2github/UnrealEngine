@@ -262,10 +262,6 @@ public:
 
 	LANDSCAPE_API void ModifyObject(UObject* InObject, bool bAlwaysMarkDirty = true);
 	LANDSCAPE_API void MarkObjectDirty(UObject* InObject);
-
-	LANDSCAPE_API void RequestPackageDeprecation(UObject* InObject);
-	LANDSCAPE_API void ShowForceUpdateMapCheckError(UObject* InOutermost);
-	LANDSCAPE_API void ForceUpdateDeprecatedObjects();
 #endif //WITH_EDITOR
 
 	/**

@@ -5513,7 +5513,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 {
 	const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
-	if (PropertyName == FName(TEXT("LandscapeActor")))
+	if (PropertyName == FName(TEXT("LandscapeActorRef")))
 	{
 		if (LandscapeActorRef && IsValidLandscapeActor(LandscapeActorRef.Get()))
 		{
@@ -5601,7 +5601,6 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 		{
 			LandscapeActorRef = LandscapeActor_DEPRECATED.Get();
 			LandscapeActor_DEPRECATED = nullptr;
-			RequestPackageDeprecation();
 		}
 		else if (LandscapeActor_DEPRECATED.IsPending())
 		{
@@ -5611,7 +5610,7 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 			FMessageLog("MapCheck").Error()
 				->AddToken(FUObjectToken::Create(this))
 				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_LandscapeLazyObjectPtrDeprecation_Warning", "Landscape proxy {ProxyName} of {LevelName} points to a LandscapeActor that is not currently loaded. This will lose the property upon save. \
-				Please make sure to load the level containing the parent landscape actor prior to {LevelName} so that data deprecation can be performed adequately."), Arguments)))
+				Please make sure to load the level containing the parent landscape actor prior to {LevelName} so that data deprecation can be performed adequately. It is advised to reassign the \"Landscape Actor\" property of LandscapeStreamingProxies and resave these actors."), Arguments)))
 				->AddToken(FMapErrorToken::Create(FMapErrors::LandscapeLazyObjectPtrDeprecation_Warning));
 
 			// Show MapCheck window

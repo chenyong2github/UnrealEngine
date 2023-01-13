@@ -2166,11 +2166,6 @@ void ULandscapeHeightfieldCollisionComponent::PostLoad()
 	{
 		RenderComponentRef = RenderComponent_DEPRECATED.Get();
 		RenderComponent_DEPRECATED = nullptr;
-		
-		if (ALandscapeProxy* Proxy = GetLandscapeProxy())
-		{
-			Proxy->RequestPackageDeprecation();
-		}
 	}
 #endif // !WITH_EDITORONLY_DATA
 

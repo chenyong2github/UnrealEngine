@@ -1228,11 +1228,6 @@ void ULandscapeComponent::PostLoad()
 	{
 		CollisionComponentRef = CollisionComponent_DEPRECATED.Get();
 		CollisionComponent_DEPRECATED = nullptr;
-
-		if (ALandscapeProxy* Proxy = GetLandscapeProxy())
-		{
-			Proxy->RequestPackageDeprecation();
-		}
 	}
 #endif // !WITH_EDITORONLY_DATA
 
@@ -2334,13 +2329,6 @@ void ALandscapeProxy::PostRegisterAllComponents()
 				LandscapeInfo->FixupProxiesTransform();
 			}
 		}
-
-		if (bPackageDeprecationNeeded)
-		{
-			LandscapeInfo->RequestPackageDeprecation(this);
-			bPackageDeprecationNeeded = false;
-		}
-	}
 #endif // WITH_EDITOR
 }
 
@@ -3945,48 +3933,6 @@ void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
 			ModifiedPackages.Add(InObject->GetPackage());
 		}
 	}
-}
-
-void ULandscapeInfo::RequestPackageDeprecation(UObject* InObject)
-{
-	check(InObject != nullptr);
-	// This is either the first time or the user already deprecated a set of object previously, we need to display the MapCheck error.
-	// We do not display the message during cook as the data will be fixedup in the produced asset, and user cannot click on the action.
-	if (PackagesToDeprecate.IsEmpty() && !GIsCookerLoadingPackage)
-	{
-		UObject* Outermost = InObject->GetOutermostObject();
-		ShowForceUpdateMapCheckError(Outermost);
-	}
-
-	PackagesToDeprecate.Add(InObject);
-}
-
-void ULandscapeInfo::ShowForceUpdateMapCheckError(UObject* InOutermost)
-{
-	check(InOutermost != nullptr)
-
-	FMessageLog("MapCheck").Warning()
-		->AddToken(FUObjectToken::Create(InOutermost))
-		->AddToken(FTextToken::Create(LOCTEXT("ULandscapeInfo_ShowForceUpdateMapCheckError_Message_ForceUpdateNeeded", "Landscape packages are out of date and need updating for landscape to be loaded properly.")))
-		->AddToken(FMapErrorToken::Create(TEXT("ULandscapeInfo_ShowForceUpdateMapCheckError_MapError_ForceUpdateNeeded")))
-		->AddToken(FActionToken::Create(LOCTEXT("ULandscapeInfo_ShowForceUpdateMapCheckError_ActionName_ForceUpdateNeeded", "Update Landscape Packages"), FText(),
-			FOnActionTokenExecuted::CreateUObject(this, &ULandscapeInfo::ForceUpdateDeprecatedObjects), true));
-
-	// Show MapCheck window
-	FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-}
-
-void ULandscapeInfo::ForceUpdateDeprecatedObjects()
-{
-	for (const TWeakObjectPtr<UObject>& ObjectToDeprecate : PackagesToDeprecate)
-	{
-		if (ObjectToDeprecate.IsValid())
-		{
-			ObjectToDeprecate->MarkPackageDirty();
-		}
-	}
-
-	PackagesToDeprecate.Empty();
 }
 
 ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const
