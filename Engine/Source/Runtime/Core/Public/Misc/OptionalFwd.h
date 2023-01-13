@@ -8,3 +8,8 @@
  */
 template<typename OptionalType>
 struct TOptional;
+
+struct FNullOpt
+{
+	explicit constexpr FNullOpt(int) {}
+};

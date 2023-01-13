@@ -2,8 +2,6 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - This needs TOptional to compile properly. Don't know why it is not included?
-
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/OptionalFwd.h"
@@ -12,7 +10,6 @@
 
 class FArchive;
 enum class EDefaultConstructNonNullPtr { UnsafeDoNotUse }; // So we can construct TNonNullPtrs
-struct FNullOpt;
 
 namespace UE::Core::Private::NonNullPtr {
 template <typename...>

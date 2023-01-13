@@ -4,14 +4,11 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/OptionalFwd.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Serialization/Archive.h"
 
-struct FNullOpt
-{
-	explicit constexpr FNullOpt(int) {}
-};
 inline constexpr FNullOpt NullOpt{0};
 
 /**
