@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Views/MainPanel/SConsoleVariablesEditorCustomConsoleInputBox.h"
+#include "SConsoleVariablesEditorCustomConsoleInputBox.h"
 
 #include "ConsoleVariablesEditorCommandInfo.h"
 #include "ConsoleVariablesEditorLog.h"
@@ -21,11 +21,16 @@
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
 void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
-	const FArguments& InArgs, TWeakPtr<SConsoleVariablesEditorMainPanel> InMainPanelWidget)
+	const FArguments& InArgs)
 {
-	check(InMainPanelWidget.IsValid());
-
-	MainPanelWidget = InMainPanelWidget;
+	bHideOnFocusLost = InArgs._HideOnFocusLost;
+	bClearOnCommit = InArgs._ClearOnCommit;
+	IsEnabledAttribute = InArgs._IsEnabled;
+	Font = InArgs._Font;
+	HintText = InArgs._HintText;
+	TextAttribute = InArgs._Text;
+	OnTextCommitted = InArgs._OnTextCommitted;
+	OnTextChanged = InArgs._OnTextChanged;
 	
 	ChildSlot
 	[
@@ -34,9 +39,24 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 		.Placement( MenuPlacement_BelowAnchor )
 		[
 			SAssignNew(InputText, SEditableTextBox)
-			.Font(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
-			.HintText(LOCTEXT("ConsoleCommandExecutorHintText", "Enter Console Command"))
-			.OnTextChanged(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged)
+			.IsEnabled(IsEnabledAttribute)
+			.Text(TextAttribute)
+			.ToolTipText_Lambda([this]()
+			{
+				const FString SanitizedCommand = GetSanitizedCommand(InputText->GetText().ToString());
+
+				FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+				const TWeakPtr<FConsoleVariablesEditorCommandInfo> MatchingCommand = ConsoleVariablesEditorModule.FindCommandInfoByName(SanitizedCommand);
+				if (MatchingCommand.IsValid())
+				{
+					return FText::FromString(MatchingCommand.Pin()->GetHelpText());
+				}
+
+				return FText();
+			})
+			.Font(Font.HasValidFont() ? Font : FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
+			.HintText(!HintText.IsEmpty() ? HintText : LOCTEXT("ConsoleCommandExecutorHintText", "Enter Console Command"))
+			.OnTextChanged(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnInputTextChanged)
 			.OnKeyCharHandler(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnKeyCharHandler)
 			.OnKeyDownHandler(this, &SConsoleVariablesEditorCustomConsoleInputBox::OnKeyDownHandler)
 			.OnTextCommitted_Lambda([this] (const FText& InText, const ETextCommit::Type CommitType)
@@ -49,7 +69,11 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 						FSlateApplication::Get().GetUserFocusedWidget(0) != InputText)
 					{
 						SuggestionBox->SetIsOpen(false);
-						SetVisibility(EVisibility::Collapsed);
+
+						if (bHideOnFocusLost)
+						{
+							SetVisibility(EVisibility::Collapsed);
+						}
 					}
 				}
 			})
@@ -82,11 +106,7 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 					{
 						check(Text.IsValid());
 
-						FString SanitizedText = *Text;
-						SanitizedText.ReplaceInline(TEXT("\r\n"), TEXT("\n"), ESearchCase::CaseSensitive);
-						SanitizedText.ReplaceInline(TEXT("\r"), TEXT(" "), ESearchCase::CaseSensitive);
-						SanitizedText.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
-
+						const FString SanitizedText = GetSanitizedCommand(*Text);
 						const FText DisplayText = FText::FromString(SanitizedText);
 						
 						FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
@@ -130,7 +150,11 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 						if( SelectInfo == ESelectInfo::OnMouseClick )
 						{
 							CommitInput();
-							SetVisibility(EVisibility::Collapsed);
+
+							if (bHideOnFocusLost)
+							{
+								SetVisibility(EVisibility::Collapsed);
+							}
 						}
 					})
 					.ItemHeight(18)
@@ -142,7 +166,6 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 
 SConsoleVariablesEditorCustomConsoleInputBox::~SConsoleVariablesEditorCustomConsoleInputBox()
 {
-	MainPanelWidget.Reset();
 	InputText.Reset();
 	SuggestionBox.Reset();
 	SuggestionListView.Reset();
@@ -220,14 +243,14 @@ bool SConsoleVariablesEditorCustomConsoleInputBox::TakeKeyboardFocus() const
 	return FSlateApplication::Get().SetKeyboardFocus(InputText.ToSharedRef());
 }
 
-void SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged(const FText& InText)
+void SConsoleVariablesEditorCustomConsoleInputBox::OnInputTextChanged(const FText& InText)
 {
 	if(bIgnoreUIUpdate)
 	{
 		return;
 	}
 	
-	const FString& InputTextStr = InputText->GetText().ToString();
+	const FString& InputTextStr = InText.ToString();
 	if(!InputTextStr.IsEmpty())
 	{
 		TArray<FString> AutoCompleteList;
@@ -272,12 +295,14 @@ void SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged(const FText& In
 		});
 
 
-		SetSuggestions(AutoCompleteList, FText::FromString(InputTextStr));
+		SetSuggestions(AutoCompleteList, InText);
 	}
 	else
 	{
 		ClearSuggestions();
 	}
+
+	OnTextChanged.ExecuteIfBound(InText);
 }
 
 FReply SConsoleVariablesEditorCustomConsoleInputBox::OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) const
@@ -358,7 +383,20 @@ void SConsoleVariablesEditorCustomConsoleInputBox::MarkActiveSuggestion()
 		SuggestionListView->SetSelection(SelectedSuggestion);
 		SuggestionListView->RequestScrollIntoView(SelectedSuggestion);	// Ideally this would only scroll if outside of the view
 
-		InputText->SetText(FText::FromString(*SelectedSuggestion));
+		const FText SelectedText = FText::FromString(*SelectedSuggestion);
+		OnTextChanged.ExecuteIfBound(SelectedText);
+
+		if (!TextAttribute.IsBound())
+		{
+			// Update the text input manually if it's not bound to an attribute
+			InputText->SetText(SelectedText);
+		}
+		else
+		{
+			// The input seems to need focus when the suggestions box is open in order to receive updates. This
+			// is only a problem if receiving updates from the bound Text attribute.
+			TakeKeyboardFocus();
+		}
 	}
 	else
 	{
@@ -377,10 +415,35 @@ void SConsoleVariablesEditorCustomConsoleInputBox::CommitInput()
 {
 	const FText CommittedText = InputText->GetText();
 	bIgnoreUIUpdate = true;
-	InputText->SetText(FText::GetEmpty());
+
+	if (bClearOnCommit)
+	{
+		OnTextChanged.ExecuteIfBound(FText::GetEmpty());
+
+		if (!TextAttribute.IsBound())
+		{
+			InputText->SetText(FText::GetEmpty());
+		}
+	}
+	else
+	{
+		OnTextChanged.ExecuteIfBound(CommittedText);
+	}
+
+	OnTextCommitted.ExecuteIfBound(CommittedText);
+
 	SuggestionBox->SetIsOpen( false );
 	bIgnoreUIUpdate = false;
-	MainPanelWidget.Pin()->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
+}
+
+FString SConsoleVariablesEditorCustomConsoleInputBox::GetSanitizedCommand(const FString& InCommand) const
+{
+	FString SanitizedText = InCommand;
+	SanitizedText.ReplaceInline(TEXT("\r\n"), TEXT("\n"), ESearchCase::CaseSensitive);
+	SanitizedText.ReplaceInline(TEXT("\r"), TEXT(" "), ESearchCase::CaseSensitive);
+	SanitizedText.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
+
+	return SanitizedText;
 }
 
 #undef LOCTEXT_NAMESPACE

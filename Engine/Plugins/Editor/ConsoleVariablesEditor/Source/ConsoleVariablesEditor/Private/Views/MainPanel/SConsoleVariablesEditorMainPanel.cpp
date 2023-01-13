@@ -9,7 +9,7 @@
 #include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
-#include "Views/MainPanel/SConsoleVariablesEditorCustomConsoleInputBox.h"
+#include "Views/Widgets/SConsoleVariablesEditorCustomConsoleInputBox.h"
 
 #include "ContentBrowserModule.h"
 #include "DetailsViewArgs.h"
@@ -56,8 +56,9 @@ void SConsoleVariablesEditorMainPanel::Construct(
 		.AutoHeight()
 		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
 		[
-			SAssignNew(AddConsoleObjectInputBoxPtr, SConsoleVariablesEditorCustomConsoleInputBox, SharedThis(this))
+			SAssignNew(AddConsoleObjectInputBoxPtr, SConsoleVariablesEditorCustomConsoleInputBox)
 			.Visibility(EVisibility::Collapsed)
+			.OnTextCommitted(this, &SConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPreset)
 		]
 
 		+SVerticalBox::Slot()
@@ -90,9 +91,9 @@ SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
 	MultiUserDetailsBox.Reset();
 }
 
-FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const
+void SConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const
 {
-	return MainPanel.Pin()->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
+	MainPanel.Pin()->ValidateConsoleInputAndAddToCurrentPreset(CommittedText);
 }
 
 void SConsoleVariablesEditorMainPanel::RefreshMultiUserDetails() const

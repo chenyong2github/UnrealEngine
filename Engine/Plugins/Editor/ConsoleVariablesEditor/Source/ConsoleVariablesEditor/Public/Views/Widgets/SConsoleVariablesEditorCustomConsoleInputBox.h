@@ -6,16 +6,39 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Views/SListView.h"
 
-class SConsoleVariablesEditorMainPanel;
 class SEditableTextBox;
 
-class SConsoleVariablesEditorCustomConsoleInputBox : public SCompoundWidget
+class CONSOLEVARIABLESEDITOR_API SConsoleVariablesEditorCustomConsoleInputBox : public SCompoundWidget
 {
 public:
+	DECLARE_DELEGATE_OneParam(FOnTextCommitted, const FText&);
+	DECLARE_DELEGATE_OneParam(FOnTextChanged, const FText&);
 
 	SLATE_BEGIN_ARGS(SConsoleVariablesEditorCustomConsoleInputBox)
 	{}
+		/** If true, hide the input box when focus is lost. */
+		SLATE_ARGUMENT(bool, HideOnFocusLost)
 
+		/** If true, clear the input box when text is committed. */
+		SLATE_ARGUMENT(bool, ClearOnCommit)
+
+		/** The enable state of the input box. */
+		SLATE_ATTRIBUTE(bool, IsEnabled)
+
+		/** Font override for the input box. */
+		SLATE_ARGUMENT(FSlateFontInfo, Font)
+
+		/** Hint text override for the input box. */
+		SLATE_ARGUMENT(FText, HintText)
+
+		/** The text to show in the input box. */
+		SLATE_ATTRIBUTE(FText, Text)
+
+		/** Called when text in the input box is committed. */
+		SLATE_EVENT(FOnTextCommitted, OnTextCommitted)
+
+		/** Called when text in the input box has changed. */
+		SLATE_EVENT(FOnTextChanged, OnTextChanged)
 	SLATE_END_ARGS()
 	
 	struct FSuggestions
@@ -70,7 +93,7 @@ public:
 		FText SuggestionsHighlight;
 	};
 
-	void Construct(const FArguments& InArgs, TWeakPtr<SConsoleVariablesEditorMainPanel> InMainPanelWidget);
+	void Construct(const FArguments& InArgs);
 
 	virtual ~SConsoleVariablesEditorCustomConsoleInputBox() override;
 
@@ -80,7 +103,7 @@ public:
 
 	bool TakeKeyboardFocus() const;
 
-	void OnTextChanged(const FText& InText);
+	void OnInputTextChanged(const FText& InText);
 
 	FReply OnKeyCharHandler(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) const;
 
@@ -95,8 +118,9 @@ public:
 	void CommitInput();
 
 private:
+	FString GetSanitizedCommand(const FString& InCommand) const;
 
-	TWeakPtr<SConsoleVariablesEditorMainPanel> MainPanelWidget;
+private:
 	
 	/** A reference to the actual text box inside ConsoleInput */
 	TSharedPtr<SEditableTextBox> InputText;
@@ -112,4 +136,13 @@ private:
 
 	/** to prevent recursive calls in UI callback */
 	bool bIgnoreUIUpdate = false;
+
+	bool bHideOnFocusLost = true;
+	bool bClearOnCommit = true;
+	TAttribute<bool> IsEnabledAttribute;
+	FSlateFontInfo Font;
+	FText HintText;
+	TAttribute<FText> TextAttribute;
+	FOnTextCommitted OnTextCommitted;
+	FOnTextChanged OnTextChanged;
 };

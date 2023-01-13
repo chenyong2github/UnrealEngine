@@ -27,7 +27,7 @@ public:
 	virtual ~SConsoleVariablesEditorMainPanel() override;
 
 	/** A handler for when text is committed to the Console Input Box that appears when clicking the "Add Console Variable" button */
-	FReply ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const;
+	void ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const;
 
 	void RefreshMultiUserDetails() const;
 	void ToggleMultiUserDetails(ECheckBoxState CheckState) const;
