@@ -232,6 +232,7 @@ private:
 	FTreeNode Root;
 	TRingBuffer<UE::AssetDataGather::Private::FGatheredPathData> BlockingFiles;
 	TRingBuffer<UE::AssetDataGather::Private::FGatheredPathData> LaterRetryFiles;
+	int32 AvailableFilesNum = 0;
 };
 
 
