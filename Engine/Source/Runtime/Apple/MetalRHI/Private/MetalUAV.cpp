@@ -62,7 +62,7 @@ FMetalResourceViewBase::FMetalResourceViewBase(FRHIBuffer* InBuffer, uint32 InSt
 		}
 		else
 		{
-			check(EnumHasAnyFlags(Usage, BUF_StructuredBuffer));
+			check(EnumHasAnyFlags(Usage, BUF_StructuredBuffer | BUF_ByteAddressBuffer));
 
 			Format = PF_Unknown;
 			Stride = SourceBuffer->GetStride();
