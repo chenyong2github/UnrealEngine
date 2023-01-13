@@ -921,54 +921,62 @@ CHECK_RT_PAYLOAD_SIZE(FPackedMaterialClosestHitPayload)
 #if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS | RT_PAYLOAD_TYPE_MESH_DECALS)
 struct FDecalShaderParams
 {
-	float Data[15];
+	uint Data[15];
 
 	void SetInputTranslatedWorldPosition(float3 In)
 	{
-		Data[0] = In.x;
-		Data[1] = In.y;
-		Data[2] = In.z;
+		Data[0] = asuint(In.x);
+		Data[1] = asuint(In.y);
+		Data[2] = asuint(In.z);
 	}
-	float3 GetInputTranslatedWorldPosition() { return float3(Data[0], Data[1], Data[2]); }
+	float3 GetInputTranslatedWorldPosition() { return float3(asfloat(Data[0]), asfloat(Data[1]), asfloat(Data[2])); }
 
-	void SetMetallic(float In) { Data[0] = In; }
-	float GetMetallic() { return Data[0]; }
-
-	void SetSpecular(float In) { Data[1] = In; }
-	float GetSpecular() { return Data[1]; }
-
-	void SetRoughness(float In) { Data[2] = In; }
-	float GetRoughness() { return Data[2]; }
-
-	void SetAO(float In) { Data[3] = In; }
-	float GetAO() { return Data[3]; }
-
-	void SetBaseColor(float3 In) {
-		Data[4] = In.r;
-		Data[5] = In.g;
-		Data[6] = In.b;
+	void SetMetallicSpecularRoughness(float3 In)
+	{
+		Data[3] = f32tof16(In.r);
+		Data[3] |= f32tof16(In.g) << 16;
+		Data[4] = f32tof16(In.b);
 	}
-	float3 GetBaseColor() { return float3(Data[4], Data[5], Data[6]); }
+	float3 GetMetallicSpecularRoughness() { return float3(f16tof32(Data[3]), f16tof32(Data[3] >> 16), f16tof32(Data[4])); }
 
-	void SetOpacity(float In) { Data[7] = In; }
-	float GetOpacity() { return Data[7]; }
-
-	void SetWorldNormal(float3 In) {
-		Data[8] = In.r;
-		Data[9] = In.g;
-		Data[10] = In.b;
+	void SetBaseColor(float3 In)
+	{
+		Data[5] = f32tof16(In.r);
+		Data[5] |= f32tof16(In.g) << 16;
+		Data[6] = f32tof16(In.b);
 	}
-	float3 GetWorldNormal() { return float3(Data[8], Data[9], Data[10]); }
+	float3 GetBaseColor() { return float3(f16tof32(Data[5]), f16tof32(Data[5] >> 16), f16tof32(Data[6])); }
 
-	void SetFlags(uint In) { Data[11] = asfloat(In); }
-	uint GetFlags() { return asuint(Data[11]); }
-
-	void SetEmissive(float3 In) {
-		Data[12] = In.r;
-		Data[13] = In.g;
-		Data[14] = In.b;
+	void SetWorldNormal(float3 In)
+	{
+		Data[7] = asuint(In.r);
+		Data[8] = asuint(In.g);
+		Data[9] = asuint(In.b);
 	}
-	float3 GetEmissive() { return float3(Data[12], Data[13], Data[14]); }
+	float3 GetWorldNormal() { return float3(asfloat(Data[7]), asfloat(Data[8]), asfloat(Data[9])); }
+
+	void SetEmissive(float3 In)
+	{
+		Data[10] = f32tof16(In.r);
+		Data[10] |= f32tof16(In.g) << 16;
+		Data[11] = f32tof16(In.b);
+	}
+	float3 GetEmissive() { return float3(f16tof32(Data[10]), f16tof32(Data[10] >> 16), f16tof32(Data[11])); }
+
+	void SetAO(float In)
+	{
+		Data[12] = asuint(In);
+	}
+	float GetAO() { return asfloat(Data[12]); }
+
+	void SetOpacity(float In)
+	{
+		Data[13] = asuint(In);
+	}
+	float GetOpacity() { return asfloat(Data[13]); }
+
+	void SetFlags(uint In) { Data[14] = In; }
+	uint GetFlags() { return Data[14]; }
 };
 #endif
 

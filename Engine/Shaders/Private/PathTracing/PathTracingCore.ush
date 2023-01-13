@@ -131,9 +131,11 @@ void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
 
 	if (DecalFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		HitPayload.Metallic = lerp(HitPayload.Metallic, Params.GetMetallic(), DecalAlpha);
-		HitPayload.Specular = lerp(HitPayload.Specular, Params.GetSpecular(), DecalAlpha);
-		HitPayload.Roughness = lerp(HitPayload.Roughness, Params.GetRoughness(), DecalAlpha);
+		const float3 MetallicSpecularRoughness = Params.GetMetallicSpecularRoughness();
+		
+		HitPayload.Metallic = lerp(HitPayload.Metallic, MetallicSpecularRoughness.x, DecalAlpha);
+		HitPayload.Specular = lerp(HitPayload.Specular, MetallicSpecularRoughness.y, DecalAlpha);
+		HitPayload.Roughness = lerp(HitPayload.Roughness, MetallicSpecularRoughness.z, DecalAlpha);
 	}
 
 	if (DecalFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)

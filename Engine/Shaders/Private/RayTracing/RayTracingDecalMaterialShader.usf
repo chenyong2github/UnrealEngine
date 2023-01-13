@@ -78,9 +78,7 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Pa
 
 	if (DecalWriteFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		Params.SetMetallic(GetMaterialMetallic(PixelMaterialInputs));
-		Params.SetSpecular(GetMaterialSpecular(PixelMaterialInputs));
-		Params.SetRoughness(GetMaterialRoughness(PixelMaterialInputs));
+		Params.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)));
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
@@ -161,9 +159,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDecalMaterialCHS,
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		Payload.Params.SetMetallic(GetMaterialMetallic(PixelMaterialInputs));
-		Payload.Params.SetSpecular(GetMaterialSpecular(PixelMaterialInputs));
-		Payload.Params.SetRoughness(GetMaterialRoughness(PixelMaterialInputs));
+		Payload.Params.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)));
 	}
 
 	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
