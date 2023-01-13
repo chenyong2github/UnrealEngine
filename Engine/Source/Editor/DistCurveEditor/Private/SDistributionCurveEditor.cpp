@@ -650,14 +650,9 @@ void SDistributionCurveEditor::OnSetColor()
 	}
 
 	//since the data isn't stored in standard colors, a temp color is used
-	FColor TempColor = InputColor;
-
-	TArray<FColor*> FColorArray;
-	FColorArray.Add(&TempColor);
-
-	FColorPickerArgs PickerArgs;
+	FLinearColor TempColor = InputColor;
+	FColorPickerArgs PickerArgs = FColorPickerArgs(InputColor, FOnLinearColorValueChanged::CreateLambda([&TempColor](FLinearColor NewValue){ TempColor = NewValue.ToFColorSRGB(); }));
 	PickerArgs.bIsModal = true;
-	PickerArgs.ColorArray = &FColorArray;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
 
 	if (OpenColorPicker(PickerArgs))

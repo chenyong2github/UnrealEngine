@@ -363,10 +363,12 @@ bool FCascadeEmitterCanvasClient::InputKey(const FInputKeyEventArgs& EventArgs)
 
 						if (Module || Emitter)
 						{
-							TArray<FColor*> FColorArray;
+							TWeakObjectPtr<UObject> WeakTarget;
+							TOptional<FLinearColor> InitialColor;
 							if (Module)
 							{
-								FColorArray.Add(&Module->ModuleEditorColor);
+								InitialColor = Module->ModuleEditorColor;
+								WeakTarget = Module;
 							}
 							else
 							{
@@ -374,19 +376,33 @@ bool FCascadeEmitterCanvasClient::InputKey(const FInputKeyEventArgs& EventArgs)
 								UParticleLODLevel* LODLevel = CascadePtr.Pin()->GetCurrentlySelectedLODLevel(Emitter);
 								if ( LODLevel )
 								{
-									FColorArray.Add(&Emitter->EmitterEditorColor);
+									InitialColor = Emitter->EmitterEditorColor;
+									WeakTarget = Emitter;
 								}
 							}
 
-							if ( FColorArray.Num() > 0 )
+							if (InitialColor.IsSet())
 							{
 								// Let go of the mouse lock...
 								EventArgs.Viewport->LockMouseToViewport(false);
 								EventArgs.Viewport->CaptureMouse(false);
 
-								FColorPickerArgs PickerArgs;
+								FColorPickerArgs PickerArgs = FColorPickerArgs(InitialColor.GetValue(), FOnLinearColorValueChanged::CreateLambda([WeakTarget](FLinearColor NewValue)
+									{
+										if (UObject* Target = WeakTarget.Get())
+										{
+											if (UParticleModule* Module = Cast<UParticleModule>(Target))
+											{
+												Module->ModuleEditorColor = NewValue.ToFColorSRGB();
+											}
+											else if (UParticleEmitter* Emitter = CastChecked<UParticleEmitter>(Target))
+											{
+												Emitter->EmitterEditorColor = NewValue.ToFColorSRGB();
+											}
+
+										}
+									}));
 								PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-								PickerArgs.ColorArray = &FColorArray;
 
 								OpenColorPicker(PickerArgs);
 							}

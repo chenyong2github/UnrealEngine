@@ -368,35 +368,33 @@ void FPathContextMenu::ExecuteResetColor()
 
 void FPathContextMenu::ExecutePickColor()
 {
+	if (SelectedFolders.Num() == 0)
+	{
+		return;
+	}
+
 	// Spawn a color picker, so the user can select which color they want
-	TArray<FLinearColor*> LinearColorArray;
-	FColorPickerArgs PickerArgs;
-	PickerArgs.bIsModal = false;
-	PickerArgs.ParentWidget = ParentContent.Pin();
+	FLinearColor InitialColor = ContentBrowserUtils::GetDefaultColor();
 	if (SelectedFolders.Num() > 0)
 	{
 		// Make sure an color entry exists for all the paths, otherwise they won't update in realtime with the widget color
-		for (int32 FolderIndex = SelectedFolders.Num() - 1; FolderIndex >= 0; --FolderIndex)
+		for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 		{
-			const FString Path = SelectedFolders[FolderIndex].GetInvariantPath().ToString();
+			const FString Path = SelectedItem.GetInvariantPath().ToString();
 
-			TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
-			if (!Color.IsValid())
-			{
-				Color = MakeShareable(new FLinearColor(ContentBrowserUtils::GetDefaultColor()));
-				ContentBrowserUtils::SaveColor(Path, Color, true);
-			}
-			else
+			TOptional<FLinearColor> Color = ContentBrowserUtils::GetPathColor(Path);
+			if (Color.IsSet())
 			{
 				// Default the color to the first valid entry
-				PickerArgs.InitialColorOverride = *Color.Get();
+				InitialColor = Color.GetValue();
+				break;
 			}
-			LinearColorArray.Add(Color.Get());
 		}
-		PickerArgs.LinearColorArray = &LinearColorArray;
 	}
 
-	PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &FPathContextMenu::NewColorComplete);
+	FColorPickerArgs PickerArgs = FColorPickerArgs(InitialColor, FOnLinearColorValueChanged::CreateSP(this, &FPathContextMenu::OnLinearColorValueChanged));
+	PickerArgs.bIsModal = false;
+	PickerArgs.ParentWidget = ParentContent.Pin();
 
 	OpenColorPicker(PickerArgs);
 }
@@ -423,16 +421,9 @@ void FPathContextMenu::ExecutePrivateContentEdit()
 	OnPrivateContentEditToggled.ExecuteIfBound(PathsToUpdate);
 }
 
-void FPathContextMenu::NewColorComplete(const TSharedRef<SWindow>& Window)
+void FPathContextMenu::OnLinearColorValueChanged(const FLinearColor InColor)
 {
-	// Save the colors back in the config (ptr should have already updated by the widget)
-	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
-	{
-		const FString Path = SelectedItem.GetInvariantPath().ToString();
-		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
-		check(Color.IsValid());
-		ContentBrowserUtils::SaveColor(Path, Color);
-	}
+	OnColorClicked(InColor);
 }
 
 FReply FPathContextMenu::OnColorClicked( const FLinearColor InColor )
@@ -441,13 +432,7 @@ FReply FPathContextMenu::OnColorClicked( const FLinearColor InColor )
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
 		const FString Path = SelectedItem.GetInvariantPath().ToString();
-		TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(Path);
-		if (!Color.IsValid())
-		{
-			Color = MakeShareable(new FLinearColor());
-		}
-		*Color.Get() = InColor;
-		ContentBrowserUtils::SaveColor(Path, Color);
+		ContentBrowserUtils::SetPathColor(Path, InColor);
 	}
 
 	// Dismiss the menu here, as we can't make the 'clear' option appear if a folder has just had a color set for the first time
@@ -461,7 +446,7 @@ void FPathContextMenu::ResetColors()
 	// Clear the custom colors for all the selected paths
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		ContentBrowserUtils::SaveColor(SelectedItem.GetInvariantPath().ToString(), nullptr);
+		ContentBrowserUtils::SetPathColor(SelectedItem.GetInvariantPath().ToString(), TOptional<FLinearColor>());
 	}
 }
 
@@ -610,11 +595,13 @@ bool FPathContextMenu::SelectedHasCustomColors() const
 {
 	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
 	{
-		// Ignore any that are the default color
-		const TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(SelectedItem.GetInvariantPath().ToString());
-		if (Color.IsValid() && !Color->Equals(ContentBrowserUtils::GetDefaultColor()))
+		if (const TOptional<FLinearColor> Color = ContentBrowserUtils::GetPathColor(SelectedItem.GetInvariantPath().ToString()))
 		{
-			return true;
+			// Ignore any that are the default color, in case the user used the deprecated SaveColor with bForce
+			if (!Color->Equals(ContentBrowserUtils::GetDefaultColor()))
+			{
+				return true;
+			}
 		}
 	}
 	return false;

@@ -282,9 +282,6 @@ private:
 	 * Saves favorites to INI                   
 	 */
 	void SaveFavorites();
-	
-	/** Set the color for the property node */
-	void SetColor(FLinearColor NewColor);
 
 	/**
 	 * Requests that a property node's expansion state be changed due to being filtered
@@ -323,8 +320,6 @@ private:
 	FString CurrentFilterText;
 	/** The title of the property view (for a window title) */
 	FString Title;
-	/** The property node that the color picker is currently editing. */
-	FPropertyNode* ColorPropertyNode;
 	/** Notify hook to call when properties are changed */
 	FNotifyHook* NotifyHook;
 	/** True if there is an active filter (text in the filter box) */

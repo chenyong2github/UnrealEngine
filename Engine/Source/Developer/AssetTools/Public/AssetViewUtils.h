@@ -144,7 +144,16 @@ namespace AssetViewUtils
 	 * @param FolderPath - The path to the folder
 	 * @return The color the folder should appear as, will be NULL if not customized
 	 */
+	UE_DEPRECATED(5.0, "LoadColor deprecated, please use GetPathColor")
 	ASSETTOOLS_API const TSharedPtr<FLinearColor> LoadColor(const FString& FolderPath);
+
+	/**
+	 * Returns the color of this path from the config
+	 *
+	 * @param FolderPath - The path to the folder
+	 * @return The color the folder should appear as, will be invalid if not customized
+	 */
+	ASSETTOOLS_API TOptional<FLinearColor> GetPathColor(const FString& FolderPath);
 
 	/**
 	 * Saves the color of the path to the config
@@ -153,7 +162,16 @@ namespace AssetViewUtils
 	 * @param FolderColor - The color the folder should appear as
 	 * @param bForceAdd - If true, force the color to be added for the path
 	 */
+	UE_DEPRECATED(5.0, "SaveColor deprecated, please use SetPathColor")
 	ASSETTOOLS_API void SaveColor(const FString& FolderPath, const TSharedPtr<FLinearColor>& FolderColor, bool bForceAdd = false);
+
+	/**
+	 * Saves the color of the path to the config
+	 *
+	 * @param FolderPath - The path to the folder
+	 * @param FolderColor - The color the folder should appear as
+	 */
+	ASSETTOOLS_API void SetPathColor(const FString& FolderPath, TOptional<FLinearColor> FolderColor);
 
 	/**
 	 * Checks to see if any folder has a custom color, optionally outputs them to a list

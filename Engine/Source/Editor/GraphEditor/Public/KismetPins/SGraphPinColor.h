@@ -40,7 +40,5 @@ protected:
 
 
 private:
-	/** Current selected color */
-	FLinearColor SelectedColor;
 	TSharedPtr<SWidget> DefaultValueWidget;
 };

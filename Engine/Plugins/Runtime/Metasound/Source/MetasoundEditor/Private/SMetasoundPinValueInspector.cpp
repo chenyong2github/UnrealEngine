@@ -419,9 +419,6 @@ namespace Metasound
 				return FReply::Unhandled();
 			}
 
-			FLinearColor Color = InInitColor;
-			TArray<FLinearColor*> LinearColorArray;
-			LinearColorArray.Add(&Color);
 			const FMetasoundFrontendEdgeStyle* EdgeStyle = GetEdgeStyle();
 			if (!EdgeStyle)
 			{
@@ -429,9 +426,8 @@ namespace Metasound
 			}
 
 			FColorPickerArgs PickerArgs = InitPickerArgs();
-
-			PickerArgs.LinearColorArray = &LinearColorArray;
-			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([this, InIndex](FLinearColor NewColor) { OnColorCommitted(NewColor, InIndex); });
+			PickerArgs.InitialColorOverride = InInitColor;
+			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FMetasoundNumericDebugLineItem::OnColorCommitted, InIndex);
 
 			OpenColorPicker(PickerArgs);
 

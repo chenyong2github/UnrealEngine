@@ -959,7 +959,6 @@ void SPropertyTreeViewImpl::PostSetObject()
 	check( !bNodeTreeExternallyManaged );
 
 	DestroyColorPicker();
-	ColorPropertyNode = NULL;
 
 	// Reconstruct the property tree so we don't have a tree filled with data we are about to destroy
 	ConstructPropertyTree();
@@ -1195,52 +1194,66 @@ void SPropertyTreeViewImpl::SaveFavorites()
 	}
 }
 
-/** 
- * Creates the color picker window for this property view.
- *
- * @param Node				The slate property node to edit.
- * @param bUseAlpha			Whether or not alpha is supported
- */
+namespace UE::PropertyEditor::Private
+{
+/** Set the color for the property node */
+void CreateColorPickerWindow_SetColor(FLinearColor NewColor, TWeakPtr<IPropertyHandle> WeakPropertyHandle)
+{
+	if (TSharedPtr<IPropertyHandle> PropertyHandle = WeakPropertyHandle.Pin())
+	{
+		FProperty* NodeProperty = PropertyHandle->GetProperty();
+		check(NodeProperty);
+
+		const UScriptStruct* Struct = CastField<FStructProperty>(NodeProperty)->Struct;
+		if (Struct->GetFName() == NAME_Color)
+		{
+			const bool bSRGB = true;
+			FColor NewFColor = NewColor.ToFColor(bSRGB);
+			ensure(PropertyHandle->SetValueFromFormattedString(NewFColor.ToString(), EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
+		else
+		{
+			check(Struct->GetFName() == NAME_LinearColor);
+			ensure(PropertyHandle->SetValueFromFormattedString(NewColor.ToString(), EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
+	}
+}
+}//namespace
+
 void SPropertyTreeViewImpl::CreateColorPickerWindow(const TSharedRef< class FPropertyEditor >& PropertyEditor, bool bUseAlpha)
 {
-	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();
-	ColorPropertyNode = &PropertyNode.Get();
-
-	check(ColorPropertyNode);
-	FProperty* Property = ColorPropertyNode->GetProperty();
+	const FProperty* Property = PropertyEditor->GetProperty();
 	check(Property);
 
 	FReadAddressList ReadAddresses;
-	ColorPropertyNode->GetReadAddress( false, ReadAddresses, false );
+	PropertyEditor->GetPropertyNode()->GetReadAddress(false, ReadAddresses, false);
 
-	TArray<FLinearColor*> LinearColor;
-	TArray<FColor*> DWORDColor;
-	if( ReadAddresses.Num() ) 
+	// Use the first address for the initial color
+	TOptional<FLinearColor> DefaultColor;
+	if (ReadAddresses.Num())
 	{
 		const uint8* Addr = ReadAddresses.GetAddress(0);
-		if( Addr )
+		if (Addr)
 		{
-			if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
+			if (CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color)
 			{
-				DWORDColor.Add((FColor*)Addr);
+				DefaultColor = *reinterpret_cast<const FColor*>(Addr);
 			}
 			else
 			{
-				check( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
-				LinearColor.Add((FLinearColor*)Addr);
+				check(CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor);
+				DefaultColor = *reinterpret_cast<const FLinearColor*>(Addr);
 			}
 		}
 	}
 
-	if( DWORDColor.Num() || LinearColor.Num() )
+	if (DefaultColor.IsSet())
 	{
-		FColorPickerArgs PickerArgs;
+		TWeakPtr<IPropertyHandle> WeakPropertyHandle = PropertyEditor->GetPropertyHandle();
+		FColorPickerArgs PickerArgs = FColorPickerArgs(DefaultColor.GetValue(), FOnLinearColorValueChanged::CreateStatic(&UE::PropertyEditor::Private::CreateColorPickerWindow_SetColor, WeakPropertyHandle));
 		PickerArgs.ParentWidget = AsShared();
 		PickerArgs.bUseAlpha = bUseAlpha;
-		PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-		PickerArgs.ColorArray = &DWORDColor;
-		PickerArgs.LinearColorArray = &LinearColor;
-		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP( this, &SPropertyTreeViewImpl::SetColor);
+		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 
 		OpenColorPicker(PickerArgs);
 	}
@@ -1265,27 +1278,6 @@ void SPropertyTreeViewImpl::SetIsPropertyVisible(FIsPropertyVisible IsPropertyVi
 
 		// Refresh the entire tree
 		SetObjectArray( Objects );			
-	}
-}
-
-/** Set the color for the property node */
-void SPropertyTreeViewImpl::SetColor(FLinearColor NewColor)
-{
-	check(ColorPropertyNode);
-	FProperty* NodeProperty = ColorPropertyNode->GetProperty();
-	check(NodeProperty);
-	FObjectPropertyNode* ObjectNode = ColorPropertyNode->FindObjectItemParent();
-	
-	// If more than one object is selected, an empty field indicates their values for this property differ.
-	// Don't send it to the objects value in this case (if we did, they would all get set to None which isn't good).
-	if( ObjectNode && ObjectNode->GetNumObjects() == 1 )
-	{
-		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SetColorProperty", "Set Color Property") );
-
-		ColorPropertyNode->NotifyPreChange(NodeProperty, GetNotifyHook());
-
-		FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ValueSet);
-		ColorPropertyNode->NotifyPostChange( ChangeEvent, GetNotifyHook() );
 	}
 }
 

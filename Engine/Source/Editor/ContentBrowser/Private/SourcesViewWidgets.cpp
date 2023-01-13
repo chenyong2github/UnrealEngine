@@ -241,9 +241,10 @@ FSlateColor SAssetTreeItem::GetFolderColor() const
 		}
 		else
 		{
-			if (TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(TreeItemPin->GetItem().GetInvariantPath().ToString()))
+			TOptional<FLinearColor> Color = ContentBrowserUtils::GetPathColor(TreeItemPin->GetItem().GetInvariantPath().ToString());
+			if (Color.IsSet())
 			{
-				FoundColor = *Color;
+				FoundColor = Color.GetValue();
 			}
 		}
 

@@ -922,21 +922,23 @@ bool FFontEditor::OnExportAllEnabled() const
 
 void FFontEditor::OnBackgroundColor()
 {
-	FColor Color = FontPreviewWidget->GetPreviewBackgroundColor();
-	TArray<FColor*> FColorArray;
-	FColorArray.Add(&Color);
+	TWeakPtr<SFontEditorViewport> WeakFontPreviewWidget = FontPreviewWidget;
 
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bIsModal = true;
 	PickerArgs.ParentWidget = FontPreview;
 	PickerArgs.bUseAlpha = true;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-	PickerArgs.ColorArray = &FColorArray;
+	PickerArgs.InitialColorOverride = FontPreviewWidget->GetPreviewBackgroundColor();
+	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([WeakFontPreviewWidget](FLinearColor NewValue)
+		{
+			if (TSharedPtr<SFontEditorViewport> PinnedWidget = WeakFontPreviewWidget.Pin())
+			{
+				PinnedWidget->SetPreviewBackgroundColor(NewValue.ToFColorSRGB());
+			}
+		});
 
-	if (OpenColorPicker(PickerArgs))
-	{
-		FontPreviewWidget->SetPreviewBackgroundColor(Color);
-	}
+	OpenColorPicker(PickerArgs);
 }
 
 bool FFontEditor::OnBackgroundColorEnabled() const
@@ -947,21 +949,23 @@ bool FFontEditor::OnBackgroundColorEnabled() const
 
 void FFontEditor::OnForegroundColor()
 {
-	FColor Color = FontPreviewWidget->GetPreviewForegroundColor();
-	TArray<FColor*> FColorArray;
-	FColorArray.Add(&Color);
+	TWeakPtr<SFontEditorViewport> WeakFontPreviewWidget = FontPreviewWidget;
 
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bIsModal = true;
 	PickerArgs.ParentWidget = FontPreview;
 	PickerArgs.bUseAlpha = true;
 	PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-	PickerArgs.ColorArray = &FColorArray;
+	PickerArgs.InitialColorOverride = FontPreviewWidget->GetPreviewForegroundColor();
+	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([WeakFontPreviewWidget](FLinearColor NewValue)
+		{
+			if (TSharedPtr<SFontEditorViewport> PinnedWidget = WeakFontPreviewWidget.Pin())
+			{
+				PinnedWidget->SetPreviewForegroundColor(NewValue.ToFColorSRGB());
+			}
+		});
 
-	if (OpenColorPicker(PickerArgs))
-	{
-		FontPreviewWidget->SetPreviewForegroundColor(Color);
-	}
+	OpenColorPicker(PickerArgs);
 }
 
 bool FFontEditor::OnForegroundColorEnabled() const

@@ -230,8 +230,14 @@ void SStructureDetailsView::SetStructureData(TSharedPtr<FStructOnScope> InStruct
 	}
 	
 	//POST SET
-	DestroyColorPicker();
-	ColorPropertyNode = NULL;
+	TSharedPtr<SColorPicker> ExistingColorPicker = GetColorPicker();
+	if (ExistingColorPicker.IsValid()
+		&& (!ExistingColorPicker->GetOptionalOwningDetailsView().IsValid()
+			|| ExistingColorPicker->GetOptionalOwningDetailsView().Get() == this))
+	{
+		DestroyColorPicker();
+		bHasOpenColorPicker = false;
+	}
 
 	FPropertyNodeInitParams InitParams;
 	InitParams.ParentNode = NULL;

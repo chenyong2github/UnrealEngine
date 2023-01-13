@@ -58,15 +58,11 @@ FReply SGraphPinColor::OnColorBoxClicked(const FGeometry& MyGeometry, const FPoi
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		SelectedColor = GetColor();
-		TArray<FLinearColor*> LinearColorArray;
-		LinearColorArray.Add(&SelectedColor);
-
 		FColorPickerArgs PickerArgs;
 		PickerArgs.bIsModal = true;
 		PickerArgs.ParentWidget = DefaultValueWidget;
 		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
-		PickerArgs.LinearColorArray = &LinearColorArray;
+		PickerArgs.InitialColorOverride = GetColor();
 		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SGraphPinColor::OnColorCommitted);
 		PickerArgs.bUseAlpha = true;
 

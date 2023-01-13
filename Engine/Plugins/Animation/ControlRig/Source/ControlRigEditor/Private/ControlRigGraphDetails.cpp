@@ -1175,8 +1175,6 @@ FLinearColor FControlRigGraphDetails::GetNodeColor() const
 
 void FControlRigGraphDetails::SetNodeColor(FLinearColor InColor, bool bSetupUndoRedo)
 {
-	TargetColor = InColor;
-
 	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
 	{
 		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
@@ -1186,7 +1184,7 @@ void FControlRigGraphDetails::SetNodeColor(FLinearColor InColor, bool bSetupUndo
 			{
 				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
 				{
-					Controller->SetNodeColor(OuterNode, TargetColor, bSetupUndoRedo, bIsPickingColor, true);
+					Controller->SetNodeColor(OuterNode, InColor, bSetupUndoRedo, bIsPickingColor, true);
 				}
 			}
 		}
@@ -1209,19 +1207,12 @@ void FControlRigGraphDetails::OnNodeColorCancelled(FLinearColor OriginalColor)
 
 FReply FControlRigGraphDetails::OnNodeColorClicked()
 {
-	TargetColor = GetNodeColor();
-	TargetColors.Reset();
-	TargetColors.Add(&TargetColor);
-
-	FColorPickerArgs PickerArgs;
+	FColorPickerArgs PickerArgs = FColorPickerArgs(GetNodeColor(), FOnLinearColorValueChanged::CreateSP(this, &FControlRigGraphDetails::SetNodeColor, true));
 	PickerArgs.ParentWidget = ColorBlock;
 	PickerArgs.bUseAlpha = false;
 	PickerArgs.DisplayGamma = false;
-	PickerArgs.InitialColorOverride = TargetColor;
-	PickerArgs.LinearColorArray = &TargetColors;
 	PickerArgs.OnInteractivePickBegin = FSimpleDelegate::CreateSP(this, &FControlRigGraphDetails::OnNodeColorBegin);
 	PickerArgs.OnInteractivePickEnd = FSimpleDelegate::CreateSP(this, &FControlRigGraphDetails::OnNodeColorEnd);
-	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FControlRigGraphDetails::SetNodeColor, true);
 	PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &FControlRigGraphDetails::OnNodeColorCancelled);
 	OpenColorPicker(PickerArgs);
 	return FReply::Handled();

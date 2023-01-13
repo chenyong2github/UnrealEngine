@@ -542,7 +542,6 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	EditorOptions = NULL;
 	bMaterialDirty = false;
 	bStatsFromPreviewMaterial = false;
-	ColorPickerObject = NULL;
 
 	// Support undo/redo
 	Material->SetFlags(RF_Transactional);
@@ -6711,42 +6710,61 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 	return NULL;
 }
 
-void FMaterialEditor::PreColorPickerCommit(FLinearColor LinearColor)
-{
-	// Begin a property edit transaction.
-	if ( GEditor )
-	{
-		GEditor->BeginTransaction( LOCTEXT("ModifyColorPicker", "Modify Color Picker Value") );
-	}
-
-	NotifyPreChange(NULL);
-
-	UObject* Object = ColorPickerObject.Get(false);
-	if( Object )
-	{
-		Object->PreEditChange(NULL);
-	}
-}
-
-void FMaterialEditor::OnColorPickerCommitted(FLinearColor LinearColor)
+void FMaterialEditor::OnColorPickerCommitted(FLinearColor LinearColor, TWeakObjectPtr<UObject> ColorPickerObject)
 {	
-	UObject* Object = ColorPickerObject.Get(false);
-	if( Object )
+	if (UObject* Object = ColorPickerObject.Get())
 	{
+		// Begin a property edit transaction.
+		if (GEditor)
+		{
+			GEditor->BeginTransaction(LOCTEXT("ModifyColorPicker", "Modify Color Picker Value"));
+		}
+
+		NotifyPreChange(NULL);
+
+		Object->PreEditChange(NULL);
+
+		FName PropertyName;
+		if (UMaterialExpressionConstant3Vector* Constant3Expression = Cast<UMaterialExpressionConstant3Vector>(Object))
+		{
+			Constant3Expression->Constant = LinearColor;
+			PropertyName = TEXT("Constant");
+		}
+		else if (UMaterialExpressionConstant4Vector* Constant4Expression = Cast<UMaterialExpressionConstant4Vector>(Object))
+		{
+			Constant4Expression->Constant = LinearColor;
+			PropertyName = TEXT("Constant");
+		}
+		else if (UMaterialExpressionFunctionInput* InputExpression = Cast<UMaterialExpressionFunctionInput>(Object))
+		{
+			InputExpression->PreviewValue = LinearColor;
+		}
+		else if (UMaterialExpressionVectorParameter* VectorExpression = Cast<UMaterialExpressionVectorParameter>(Object))
+		{
+			VectorExpression->DefaultValue = LinearColor;
+			PropertyName = TEXT("DefaultValue");
+		}
+		else
+		{
+			checkf(false, TEXT("The expression type is supported in OnNodeDoubleClicked but not in OnColorPickerCommitted"));
+		}
+
 		Object->MarkPackageDirty();
-		FPropertyChangedEvent Event(ColorPickerProperty.Get(false));
+
+		FProperty* ColorPickerProperty = PropertyName.IsNone() ? nullptr : Object->GetClass()->FindPropertyByName(PropertyName);
+		FPropertyChangedEvent Event(ColorPickerProperty);
 		Object->PostEditChangeProperty(Event);
+
+		NotifyPostChange(NULL, NULL);
+
+		if (GEditor)
+		{
+			GEditor->EndTransaction();
+		}
+
+		RefreshExpressionPreviews();
+		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 	}
-
-	NotifyPostChange(NULL,NULL);
-
-	if ( GEditor )
-	{
-		GEditor->EndTransaction();
-	}
-
-	RefreshExpressionPreviews();
-	MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
 }
 
 /** Create new tab for the supplied graph - don't call this directly, instead call OpenDocument to track history.*/
@@ -7265,69 +7283,38 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 	}
 	else if (GraphNode && GraphNode->MaterialExpression)
 	{
-		UMaterialExpressionConstant3Vector* Constant3Expression = Cast<UMaterialExpressionConstant3Vector>(GraphNode->MaterialExpression);
-		UMaterialExpressionConstant4Vector* Constant4Expression = Cast<UMaterialExpressionConstant4Vector>(GraphNode->MaterialExpression);
-		UMaterialExpressionFunctionInput* InputExpression = Cast<UMaterialExpressionFunctionInput>(GraphNode->MaterialExpression);
-		UMaterialExpressionVectorParameter* VectorExpression = Cast<UMaterialExpressionVectorParameter>(GraphNode->MaterialExpression);
-
-		FColorChannels ChannelEditStruct;
-
-		// Reset to default
-		ColorPickerProperty = NULL;
-
-		if( Constant3Expression )
+		TOptional<FLinearColor> InitialColor;
+		bool bCanEditAlpha = true;
+		if(UMaterialExpressionConstant3Vector* Constant3Expression = Cast<UMaterialExpressionConstant3Vector>(GraphNode->MaterialExpression))
 		{
-			ChannelEditStruct.Red = &Constant3Expression->Constant.R;
-			ChannelEditStruct.Green = &Constant3Expression->Constant.G;
-			ChannelEditStruct.Blue = &Constant3Expression->Constant.B;
-			static FName ConstantName = FName(TEXT("Constant"));
-			ColorPickerProperty = Constant3Expression->GetClass()->FindPropertyByName(ConstantName);
+			InitialColor = Constant3Expression->Constant;
+			bCanEditAlpha = false;
 		}
-		else if( Constant4Expression )
+		else if(UMaterialExpressionConstant4Vector* Constant4Expression = Cast<UMaterialExpressionConstant4Vector>(GraphNode->MaterialExpression))
 		{
-			ChannelEditStruct.Red = &Constant4Expression->Constant.R;
-			ChannelEditStruct.Green = &Constant4Expression->Constant.G;
-			ChannelEditStruct.Blue = &Constant4Expression->Constant.B;
-			ChannelEditStruct.Alpha = &Constant4Expression->Constant.A;
-			static FName ConstantName = FName(TEXT("Constant"));
-			ColorPickerProperty = Constant4Expression->GetClass()->FindPropertyByName(ConstantName);
+			InitialColor = Constant4Expression->Constant;
 		}
-		else if (InputExpression)
+		else if (UMaterialExpressionFunctionInput* InputExpression = Cast<UMaterialExpressionFunctionInput>(GraphNode->MaterialExpression))
 		{
-			ChannelEditStruct.Red = &InputExpression->PreviewValue.X;
-			ChannelEditStruct.Green = &InputExpression->PreviewValue.Y;
-			ChannelEditStruct.Blue = &InputExpression->PreviewValue.Z;
-			ChannelEditStruct.Alpha = &InputExpression->PreviewValue.W;
+			InitialColor = InputExpression->PreviewValue;
 		}
-		else if (VectorExpression)
+		else if (UMaterialExpressionVectorParameter* VectorExpression = Cast<UMaterialExpressionVectorParameter>(GraphNode->MaterialExpression))
 		{
-			ChannelEditStruct.Red = &VectorExpression->DefaultValue.R;
-			ChannelEditStruct.Green = &VectorExpression->DefaultValue.G;
-			ChannelEditStruct.Blue = &VectorExpression->DefaultValue.B;
-			ChannelEditStruct.Alpha = &VectorExpression->DefaultValue.A;
-			static FName DefaultValueName = FName(TEXT("DefaultValue"));
-			// Store off the property the color picker will be manipulating, so we can construct a useful PostEditChangeProperty later
-			ColorPickerProperty = VectorExpression->GetClass()->FindPropertyByName(DefaultValueName);
+			InitialColor = VectorExpression->DefaultValue;
 		}
 
-		if (ChannelEditStruct.Red || ChannelEditStruct.Green || ChannelEditStruct.Blue || ChannelEditStruct.Alpha)
+		if (InitialColor.IsSet())
 		{
-			TArray<FColorChannels> Channels;
-			Channels.Add(ChannelEditStruct);
-
-			ColorPickerObject = GraphNode->MaterialExpression;
+			TWeakObjectPtr<UObject> ColorPickerObject = GraphNode->MaterialExpression;
 
 			// Open a color picker 
-			FColorPickerArgs PickerArgs;
+			FColorPickerArgs PickerArgs = FColorPickerArgs(InitialColor.GetValue(), FOnLinearColorValueChanged::CreateSP(this, &FMaterialEditor::OnColorPickerCommitted, ColorPickerObject));
 			PickerArgs.ParentWidget = FocusedGraphEdPtr.Pin();
-			PickerArgs.bUseAlpha = ChannelEditStruct.Alpha != nullptr;
+			PickerArgs.bUseAlpha = bCanEditAlpha;
 			PickerArgs.bOnlyRefreshOnOk = false;
 			PickerArgs.bOnlyRefreshOnMouseUp = true;
 			PickerArgs.bExpandAdvancedSection = true;
 			PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-			PickerArgs.ColorChannelsArray = &Channels;
-			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FMaterialEditor::OnColorPickerCommitted);
-			PickerArgs.PreColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FMaterialEditor::PreColorPickerCommit);
 			PickerArgs.OptionalOwningDetailsView = MaterialDetailsView;
 			OpenColorPicker(PickerArgs);
 		}

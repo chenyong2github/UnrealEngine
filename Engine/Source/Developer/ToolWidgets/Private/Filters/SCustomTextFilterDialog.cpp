@@ -207,14 +207,9 @@ FReply SCustomTextFilterDialog::ColorBlock_OnMouseButtonDown(const FGeometry& My
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		TArray<FLinearColor*> LinearColorArray;
-		LinearColorArray.Add(&(FilterData.FilterColor));
-
-		FColorPickerArgs PickerArgs;
+		FColorPickerArgs PickerArgs = FColorPickerArgs(FilterData.FilterColor, FOnLinearColorValueChanged::CreateSP(this, &SCustomTextFilterDialog::HandleColorValueChanged));
 		PickerArgs.bIsModal = true;
 		PickerArgs.ParentWidget = ColorBlock;
-		PickerArgs.LinearColorArray = &LinearColorArray;
-
 		OpenColorPicker(PickerArgs);
 
 		return FReply::Handled();
@@ -222,8 +217,12 @@ FReply SCustomTextFilterDialog::ColorBlock_OnMouseButtonDown(const FGeometry& My
 	else
 	{
 		return FReply::Unhandled();
-	}
-		
+	}		
+}
+
+void SCustomTextFilterDialog::HandleColorValueChanged(FLinearColor NewValue)
+{
+	FilterData.FilterColor = NewValue;
 }
 
 bool SCustomTextFilterDialog::CheckFilterValidity() const

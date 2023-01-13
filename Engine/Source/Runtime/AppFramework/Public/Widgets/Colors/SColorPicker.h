@@ -502,40 +502,40 @@ private:
 struct FColorPickerArgs
 {
 	/** Whether or not the new color picker is modal. */
-	bool bIsModal;
+	bool bIsModal = false;
 
 	/** The parent for the new color picker window */
 	TSharedPtr<SWidget> ParentWidget;
 
 	/** Whether or not to enable the alpha slider. */
-	bool bUseAlpha;
+	bool bUseAlpha = false;
 
 	/** Whether to disable the refresh except on mouse up for performance reasons. */
-	bool bOnlyRefreshOnMouseUp;
+	bool bOnlyRefreshOnMouseUp = false;
 
 	/** Whether to disable the refresh until the picker closes. */
-	bool bOnlyRefreshOnOk;
+	bool bOnlyRefreshOnOk = false;
 
 	/** Whether to automatically expand the Advanced section. */
-	bool bExpandAdvancedSection;
+	bool bExpandAdvancedSection = true;
 	
 	/** Whether to open the color picker as a menu window. */
-	bool bOpenAsMenu;
+	bool bOpenAsMenu = false;
 
 	/** The current display gamma used to correct colors picked from the display. */
-	TAttribute<float> DisplayGamma;
+	TAttribute<float> DisplayGamma = 2.2f;
 
 	/** If set overrides the global option for the desired setting of sRGB mode. */
-	TOptional<bool> sRGBOverride;
+	TOptional<bool> sRGBOverride = TOptional<bool>();
 
 	/** An array of FColors to target. */
-	const TArray<FColor*>* ColorArray;
+	const TArray<FColor*>* ColorArray = nullptr;
 
 	/** An array of FLinearColors to target. */
-	const TArray<FLinearColor*>* LinearColorArray;
+	const TArray<FLinearColor*>* LinearColorArray = nullptr;
 
 	/** An array of FColorChannels to target. (deprecated now that wx is gone?) */
-	const TArray<FColorChannels>* ColorChannelsArray;
+	const TArray<FColorChannels>* ColorChannelsArray = nullptr;
 
 	/** A delegate to be called when the color changes. */
 	FOnLinearColorValueChanged OnColorCommitted;
@@ -556,34 +556,18 @@ struct FColorPickerArgs
 	FSimpleDelegate OnInteractivePickEnd;
 
 	/** Overrides the initial color set on the color picker. */
-	FLinearColor InitialColorOverride;
+	FLinearColor InitialColorOverride = FLinearColor::White;
 
 	/** Allows a details view to own the color picker so refreshing another details view doesn't close it */
 	TSharedPtr<SWidget> OptionalOwningDetailsView;
 
 	/** Default constructor. */
-	FColorPickerArgs()
-		: bIsModal(false)
-		, ParentWidget(nullptr)
-		, bUseAlpha(false)
-		, bOnlyRefreshOnMouseUp(false)
-		, bOnlyRefreshOnOk(false)
-		, bExpandAdvancedSection(true)
-		, bOpenAsMenu(false)
-		, DisplayGamma(2.2f)
-		, sRGBOverride()
-		, ColorArray(nullptr)
-		, LinearColorArray(nullptr)
-		, ColorChannelsArray(nullptr)
-		, OnColorCommitted()
-		, PreColorCommitted()
-		, OnColorPickerWindowClosed()
-		, OnColorPickerCancelled()
-		, OnInteractivePickBegin()
-		, OnInteractivePickEnd()
-		, InitialColorOverride()
-		, OptionalOwningDetailsView(nullptr)
-	{ }
+	FColorPickerArgs() = default;
+
+	FColorPickerArgs(FLinearColor InInitialColor, FOnLinearColorValueChanged InOnColorCommitted)
+		: OnColorCommitted(MoveTemp(InOnColorCommitted))
+		, InitialColorOverride(InInitialColor)
+	{}
 };
 
 /** Get a pointer to the static color picker, or nullptr if it does not exist. */

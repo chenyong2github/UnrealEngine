@@ -387,78 +387,76 @@ void SDetailsViewBase::EnqueueDeferredAction(FSimpleDelegate& DeferredAction)
 	DeferredActions.Add(DeferredAction);
 }
 
-/**
-* Creates the color picker window for this property view.
-*
-* @param Node				The slate property node to edit.
-* @param bUseAlpha			Whether or not alpha is supported
-*/
+namespace UE::PropertyEditor::Private
+{
+/** Set the color for the property node */
+void SDetailsViewBase_SetColor(FLinearColor NewColor, TWeakPtr<IPropertyHandle> WeakPropertyHandle)
+{
+	if (TSharedPtr<IPropertyHandle> PropertyHandle = WeakPropertyHandle.Pin())
+	{
+		const FProperty* NodeProperty = PropertyHandle->GetProperty();
+		check(NodeProperty);
+
+		const UScriptStruct* Struct = CastField<FStructProperty>(NodeProperty)->Struct;
+		if (Struct->GetFName() == NAME_Color)
+		{
+			const bool bSRGB = true;
+			FColor NewFColor = NewColor.ToFColor(bSRGB);
+			ensure(PropertyHandle->SetValueFromFormattedString(NewFColor.ToString(), EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
+		else
+		{
+			check(Struct->GetFName() == NAME_LinearColor);
+			ensure(PropertyHandle->SetValueFromFormattedString(NewColor.ToString(), EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
+	}
+}
+}//namespace
+
 void SDetailsViewBase::CreateColorPickerWindow(const TSharedRef< FPropertyEditor >& PropertyEditor, bool bUseAlpha)
 {
-	const TSharedRef< FPropertyNode > PinnedColorPropertyNode = PropertyEditor->GetPropertyNode();
-	ColorPropertyNode = PinnedColorPropertyNode;
-
-	FProperty* Property = PinnedColorPropertyNode->GetProperty();
+	const FProperty* Property = PropertyEditor->GetProperty();
 	check(Property);
 
 	FReadAddressList ReadAddresses;
-	PinnedColorPropertyNode->GetReadAddress(false, ReadAddresses, false);
+	PropertyEditor->GetPropertyNode()->GetReadAddress(false, ReadAddresses, false);
 
-	TArray<FLinearColor*> LinearColor;
-	TArray<FColor*> DWORDColor;
-	for (int32 ColorIndex = 0; ColorIndex < ReadAddresses.Num(); ++ColorIndex)
+	TOptional<FLinearColor> DefaultColor;
+	if (ReadAddresses.Num())
 	{
-		const uint8* Addr = ReadAddresses.GetAddress(ColorIndex);
-		if (Addr)
+		for (int32 ColorIndex = 0; ColorIndex < ReadAddresses.Num(); ++ColorIndex)
 		{
-			if (CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color)
+			const uint8* Addr = ReadAddresses.GetAddress(ColorIndex);
+			if (Addr)
 			{
-				DWORDColor.Add((FColor*)Addr);
-			}
-			else
-			{
-				check(CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor);
-				LinearColor.Add((FLinearColor*)Addr);
+				if (CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color)
+				{
+					DefaultColor = *reinterpret_cast<const FColor*>(Addr);
+				}
+				else
+				{
+					check(CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor);
+					DefaultColor = *reinterpret_cast<const FLinearColor*>(Addr);
+				}
 			}
 		}
 	}
 
-	bHasOpenColorPicker = true;
-
-	FColorPickerArgs PickerArgs;
-	PickerArgs.ParentWidget = AsShared();
-	PickerArgs.bUseAlpha = bUseAlpha;
-	PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
-	PickerArgs.ColorArray = &DWORDColor;
-	PickerArgs.LinearColorArray = &LinearColor;
-	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SDetailsViewBase::SetColorPropertyFromColorPicker);
-	PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &SDetailsViewBase::OnColorPickerWindowClosed);
-	PickerArgs.OptionalOwningDetailsView = AsShared();
-	OpenColorPicker(PickerArgs);
-}
-
-void SDetailsViewBase::SetColorPropertyFromColorPicker(FLinearColor NewColor)
-{
-	const TSharedPtr< FPropertyNode > PinnedColorPropertyNode = ColorPropertyNode.Pin();
-	if (ensure(PinnedColorPropertyNode.IsValid()))
+	if (DefaultColor.IsSet())
 	{
-		FProperty* Property = PinnedColorPropertyNode->GetProperty();
-		check(Property);
+		bHasOpenColorPicker = true;
+		ColorPropertyNode = PropertyEditor->GetPropertyNode();
 
-		FObjectPropertyNode* ObjectNode = PinnedColorPropertyNode->FindObjectItemParent();
-
-		if (ObjectNode && ObjectNode->GetNumObjects())
-		{
-			FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "SetColorProperty", "Set Color Property"));
-
-			PinnedColorPropertyNode->NotifyPreChange(Property, GetNotifyHook());
-
-			FPropertyChangedEvent ChangeEvent(Property, EPropertyChangeType::ValueSet);
-			PinnedColorPropertyNode->NotifyPostChange(ChangeEvent, GetNotifyHook());
-		}
+		TWeakPtr<IPropertyHandle> WeakPropertyHandle = PropertyEditor->GetPropertyHandle();
+		FColorPickerArgs PickerArgs = FColorPickerArgs(DefaultColor.GetValue(), FOnLinearColorValueChanged::CreateStatic(&UE::PropertyEditor::Private::SDetailsViewBase_SetColor, WeakPropertyHandle));
+		PickerArgs.ParentWidget = AsShared();
+		PickerArgs.bUseAlpha = bUseAlpha;
+		PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
+		PickerArgs.OnColorPickerWindowClosed = FOnWindowClosed::CreateSP(this, &SDetailsViewBase::OnColorPickerWindowClosed);
+		PickerArgs.OptionalOwningDetailsView = AsShared();
+		OpenColorPicker(PickerArgs);
 	}
 }
-
 
 void SDetailsViewBase::UpdatePropertyMaps()
 {
@@ -566,18 +564,6 @@ void SDetailsViewBase::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> 
 
 void SDetailsViewBase::OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window)
 {
-	const TSharedPtr< FPropertyNode > PinnedColorPropertyNode = ColorPropertyNode.Pin();
-	if (ensure(PinnedColorPropertyNode.IsValid()))
-	{
-		FProperty* Property = PinnedColorPropertyNode->GetProperty();
-		if (Property && PropertyUtilities.IsValid())
-		{
-			FPropertyChangedEvent ChangeEvent(Property, EPropertyChangeType::ArrayAdd);
-			PinnedColorPropertyNode->FixPropertiesInEvent(ChangeEvent);
-			PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
-		}
-	}
-
 	// A color picker window is no longer open
 	bHasOpenColorPicker = false;
 	ColorPropertyNode.Reset();

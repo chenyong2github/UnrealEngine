@@ -1910,21 +1910,27 @@ void FCurveEditor::SetCurveColorsForSelected()
 		return;
 	}
 
+	TWeakPtr<FCurveEditor> WeakSelf = AsShared();
+
 	FColorPickerArgs PickerArgs;
 	PickerArgs.bUseAlpha = false;
 	PickerArgs.InitialColorOverride = FindCurve(*CurveModelIDs.CreateIterator())->GetColor();
-	PickerArgs.OnColorCommitted.BindLambda([this, CurveModelIDs](FLinearColor NewColor) {
-		for (const FCurveModelID& CurveModelID : CurveModelIDs)
+	PickerArgs.OnColorCommitted.BindLambda([WeakSelf, CurveModelIDs](FLinearColor NewColor)
+	{
+		if (TSharedPtr<FCurveEditor> Self = WeakSelf.Pin())
 		{
-			if (FCurveModel* Curve = FindCurve(CurveModelID))
+			for (const FCurveModelID& CurveModelID : CurveModelIDs)
 			{
-				UObject* Object = nullptr;
-				FString Name;
-				Curve->GetCurveColorObjectAndName(&Object, Name);
-				if (Object)
+				if (FCurveModel* Curve = Self->FindCurve(CurveModelID))
 				{
-					Settings->SetCustomColor(Object->GetClass(), Name, NewColor);
-					Curve->SetColor(NewColor);
+					UObject* Object = nullptr;
+					FString Name;
+					Curve->GetCurveColorObjectAndName(&Object, Name);
+					if (Object)
+					{
+						Self->Settings->SetCustomColor(Object->GetClass(), Name, NewColor);
+						Curve->SetColor(NewColor);
+					}
 				}
 			}
 		}

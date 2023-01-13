@@ -555,10 +555,10 @@ void SColorPicker::GenerateDefaultColorPickerContent( bool bAdvancedSectionExpan
 
 										+ SHorizontalBox::Slot()
 											.AutoWidth()
-											.MaxWidth(72.0f)
+											.MaxWidth(80.0f)
 											[
 												SNew(SEditableTextBox)
-													.MinDesiredWidth(72.0f)
+													.MinDesiredWidth(80.0f)
 													.Text(this, &SColorPicker::HandleHexLinearBoxText)
 													.OnTextCommitted(this, &SColorPicker::HandleHexLinearInputTextCommitted)
 											]
@@ -584,10 +584,10 @@ void SColorPicker::GenerateDefaultColorPickerContent( bool bAdvancedSectionExpan
 
 										+ SHorizontalBox::Slot()
 											.AutoWidth()
-											.MaxWidth(72.0f)
+											.MaxWidth(80.0f)
 											[
 												SNew(SEditableTextBox)
-												.MinDesiredWidth(72.0f)
+												.MinDesiredWidth(80.0f)
 												.Text(this, &SColorPicker::HandleHexSRGBBoxText)
 												.OnTextCommitted(this, &SColorPicker::HandleHexSRGBInputTextCommitted)
 											]

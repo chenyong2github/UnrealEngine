@@ -4069,16 +4069,21 @@ void FCascade::OnBackgroundColor()
 {
 	if (PreviewViewport.IsValid() && PreviewViewport->GetViewportClient().IsValid())
 	{
-		TArray<FColor*> FColorArray;
+		if (UParticleSystem* LocalParticleSystem = GetParticleSystem())
+		{
+			TWeakObjectPtr<UParticleSystem> WeakParticleSystem = LocalParticleSystem;
+			FColorPickerArgs PickerArgs = FColorPickerArgs(LocalParticleSystem->BackgroundColor, FOnLinearColorValueChanged::CreateLambda([WeakParticleSystem](FLinearColor NewValue)
+				{
+					if (UParticleSystem* PinnedParticleSystem = WeakParticleSystem.Get())
+					{
+						PinnedParticleSystem->BackgroundColor = NewValue.ToFColorSRGB();
+					}
+				}));
+			PickerArgs.ParentWidget = PreviewViewport;
+			PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 
-		FColorArray.Add(&GetParticleSystem()->BackgroundColor);
-
-		FColorPickerArgs PickerArgs;
-		PickerArgs.ParentWidget = PreviewViewport;
-		PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-		PickerArgs.ColorArray = &FColorArray;
-
-		OpenColorPicker(PickerArgs);
+			OpenColorPicker(PickerArgs);
+		}
 	}
 }
 

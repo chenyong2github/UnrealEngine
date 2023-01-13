@@ -858,15 +858,9 @@ private:
 	 */
 	FMatExpressionPreview* GetExpressionPreview(UMaterialExpression* MaterialExpression, bool& bNewlyCreated);
 
-	/** Pointer to the object that the current color picker is working on. Can be NULL and stale. */
-	TWeakObjectPtr<UObject> ColorPickerObject;
-	TWeakFieldPtr<FProperty> ColorPickerProperty;
-
-	/** Called before the color picker commits a change. */
-	void PreColorPickerCommit(FLinearColor LinearColor);
 
 	/** Called whenever the color picker is used and accepted. */
-	void OnColorPickerCommitted(FLinearColor LinearColor);
+	void OnColorPickerCommitted(FLinearColor LinearColor, TWeakObjectPtr<UObject> ColorPickerObject);
 
 	/** Create new graph editor widget */
 	TSharedRef<class SGraphEditor> CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph);

@@ -310,7 +310,7 @@ void SSingleProperty::CreateColorPickerWindow( const TSharedRef< class FProperty
 {
 	if( HasValidProperty() )
 	{
-		auto Node = PropertyEditor->GetPropertyNode();
+		TSharedRef<FPropertyNode> Node = PropertyEditor->GetPropertyNode();
 		check( &Node.Get() == ValueNode.Get() );
 		FProperty* Property = Node->GetProperty();
 		check(Property);
@@ -318,8 +318,8 @@ void SSingleProperty::CreateColorPickerWindow( const TSharedRef< class FProperty
 		FReadAddressList ReadAddresses;
 		Node->GetReadAddress( false, ReadAddresses, false );
 
-		TArray<FLinearColor*> LinearColor;
-		TArray<FColor*> DWORDColor;
+		// Use the first address for the initial color
+		TOptional<FLinearColor> DefaultColor;
 		if( ReadAddresses.Num() ) 
 		{
 			const uint8* Addr = ReadAddresses.GetAddress(0);
@@ -327,25 +327,25 @@ void SSingleProperty::CreateColorPickerWindow( const TSharedRef< class FProperty
 			{
 				if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 				{
-					DWORDColor.Add((FColor*)Addr);
+					DefaultColor = *reinterpret_cast<const FColor*>(Addr);
 				}
 				else
 				{
 					check( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
-					LinearColor.Add((FLinearColor*)Addr);
+					DefaultColor = *reinterpret_cast<const FLinearColor*>(Addr);
 				}
 			}
 		}
 
-		FColorPickerArgs PickerArgs;
-		PickerArgs.ParentWidget = AsShared();
-		PickerArgs.bUseAlpha = bUseAlpha;
-		PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-		PickerArgs.ColorArray = &DWORDColor;
-		PickerArgs.LinearColorArray = &LinearColor;
-		PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP( this, &SSingleProperty::SetColorPropertyFromColorPicker);
+		if (DefaultColor.IsSet())
+		{
+			FColorPickerArgs PickerArgs = FColorPickerArgs(DefaultColor.GetValue(), FOnLinearColorValueChanged::CreateSP(this, &SSingleProperty::SetColorPropertyFromColorPicker));
+			PickerArgs.ParentWidget = AsShared();
+			PickerArgs.bUseAlpha = bUseAlpha;
+			PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 
-		OpenColorPicker(PickerArgs);
+			OpenColorPicker(PickerArgs);
+		}
 	}
 }
 
@@ -355,11 +355,17 @@ void SSingleProperty::SetColorPropertyFromColorPicker(FLinearColor NewColor)
 	{
 		FProperty* NodeProperty = ValueNode->GetProperty();
 		check(NodeProperty);
+		check(GetPropertyHandle());
 
-		//@todo if multiple objects we need to iterate
-		ValueNode->NotifyPreChange(NodeProperty, GetNotifyHook());
-
-		FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ValueSet);
-		ValueNode->NotifyPostChange( ChangeEvent, GetNotifyHook() );
+		if (CastField<FStructProperty>(NodeProperty)->Struct->GetFName() == NAME_Color)
+		{
+			const bool bSRGB = true;
+			FColor NewFColor = NewColor.ToFColor(bSRGB);
+			ensure(GetPropertyHandle()->SetValueFromFormattedString(NewFColor.ToString(), EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
+		else
+		{
+			ensure(GetPropertyHandle()->SetValueFromFormattedString(NewColor.ToString(), EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+		}
 	}
 }

@@ -205,12 +205,6 @@ private:
 	/** The color block widget */
 	TSharedPtr<SColorBlock> ColorBlock;
 
-	/** The color to change */
-	FLinearColor TargetColor;
-
-	/** The color array to change */
-	TArray<FLinearColor*> TargetColors;
-
 	/** Set to true if the UI is currently picking a color */
 	bool bIsPickingColor;
 

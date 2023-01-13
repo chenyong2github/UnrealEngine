@@ -1495,9 +1495,9 @@ FSlateColor SAssetViewItem::GetAssetColor() const
 			}
 			else
 			{
-				if (TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(AssetItem->GetItem().GetInvariantPath().ToString()))
+				if (TOptional<FLinearColor> Color = ContentBrowserUtils::GetPathColor(AssetItem->GetItem().GetInvariantPath().ToString()))
 				{
-					return *Color;
+					return Color.GetValue();
 				}
 			}
 		}

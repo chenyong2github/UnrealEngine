@@ -5565,14 +5565,23 @@ FReply FBlueprintGraphActionDetails::ColorBlock_OnMouseButtonDown(const FGeometr
 	{
 		if (FKismetUserDeclaredFunctionMetadata* Metadata = GetMetadataBlock())
 		{
-			TArray<FLinearColor*> LinearColorArray;
-			LinearColorArray.Add(&(Metadata->InstanceTitleColor));
+			TWeakPtr<FBlueprintGraphActionDetails> WeakSelf = SharedThis(this);
 
 			FColorPickerArgs PickerArgs;
 			PickerArgs.bIsModal = true;
 			PickerArgs.ParentWidget = ColorBlock;
 			PickerArgs.DisplayGamma = TAttribute<float>::Create( TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma) );
-			PickerArgs.LinearColorArray = &LinearColorArray;
+			PickerArgs.InitialColorOverride = Metadata->InstanceTitleColor;
+			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([WeakSelf](FLinearColor NewValue)
+			{
+				if (TSharedPtr<FBlueprintGraphActionDetails> Self = WeakSelf.Pin())
+				{
+					if (FKismetUserDeclaredFunctionMetadata* Metadata = Self->GetMetadataBlock())
+					{
+						Metadata->InstanceTitleColor = NewValue;
+					}
+				}
+			});
 
 			OpenColorPicker(PickerArgs);
 		}

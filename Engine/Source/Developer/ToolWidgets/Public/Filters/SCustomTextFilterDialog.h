@@ -50,6 +50,8 @@ protected:
 
 	/* Handler for when the color block is clicked to open the color picker */
 	FReply ColorBlock_OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
+	void HandleColorValueChanged(FLinearColor NewValue);
 	
 	FReply OnDeleteButtonClicked() const;
 	

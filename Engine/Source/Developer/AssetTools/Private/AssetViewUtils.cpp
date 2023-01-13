@@ -59,7 +59,7 @@ namespace AssetViewUtils
 	static FOnFolderPathChanged OnFolderPathChangedDelegate;
 
 	/** Keep a map of all the paths that have custom colors, so updating the color in one location updates them all */
-	static TMap< FString, TSharedPtr< FLinearColor > > PathColors;
+	static TMap< FString, FLinearColor > PathColors;
 
 	/** Internal function to delete a folder from disk, but only if it is empty. InPathToDelete is in FPackageName format. */
 	bool DeleteEmptyFolderFromDisk(const FString& InPathToDelete);
@@ -578,11 +578,11 @@ bool AssetViewUtils::RenameFolder(const FString& DestPath, const FString& Source
 	}
 
 	// set color of folder to new path
-	const TSharedPtr<FLinearColor> FolderColor = LoadColor(SourcePath);
-	if (FolderColor.IsValid())
+	const TOptional<FLinearColor> FolderColor = GetPathColor(SourcePath);
+	if (FolderColor.IsSet())
 	{
-		SaveColor(SourcePath, nullptr);
-		SaveColor(DestPath, FolderColor);
+		SetPathColor(SourcePath, TOptional<FLinearColor>());
+		SetPathColor(DestPath, FolderColor);
 	}
 
 	{
@@ -629,10 +629,10 @@ bool AssetViewUtils::CopyFolders(const TArray<FString>& InSourcePathNames, const
 			ObjectTools::DuplicateObjects( PathIt.Value(), SourcePath, Destination, /*bOpenDialog=*/false );
 		}
 
-		const TSharedPtr<FLinearColor> FolderColor = LoadColor(SourcePath);
-		if (FolderColor.IsValid())
+		const TOptional<FLinearColor> FolderColor = GetPathColor(SourcePath);
+		if (FolderColor.IsSet())
 		{
-			SaveColor(Destination, FolderColor);
+			SetPathColor(Destination, FolderColor);
 		}
 	}
 
@@ -710,11 +710,11 @@ bool AssetViewUtils::MoveFolders(const TArray<FString>& InSourcePathNames, const
 			AssetRegistryModule.Get().RemovePath(SourcePath);
 		}
 
-		const TSharedPtr<FLinearColor> FolderColor = LoadColor(SourcePath);
-		if (FolderColor.IsValid())
+		const TOptional<FLinearColor> FolderColor = GetPathColor(SourcePath);
+		if (FolderColor.IsSet())
 		{
-			SaveColor(SourcePath, nullptr);
-			SaveColor(Destination, FolderColor);
+			SetPathColor(SourcePath, TOptional<FLinearColor>());
+			SetPathColor(Destination, FolderColor);
 		}
 
 		ChangedPaths.Add(MakeTuple(SourcePath, Destination));
@@ -1111,13 +1111,23 @@ bool AssetViewUtils::DoesFolderExist(const FString& FolderPath)
 
 const TSharedPtr<FLinearColor> AssetViewUtils::LoadColor(const FString& FolderPath)
 {
-	auto LoadColorInternal = [](const FString& InPath) -> TSharedPtr<FLinearColor>
+	TOptional<FLinearColor> FoundColor = GetPathColor(FolderPath);
+	if (FoundColor.IsSet())
+	{
+		return MakeShared<FLinearColor>(FoundColor.GetValue());
+	}
+	return TSharedPtr<FLinearColor>();
+}
+
+TOptional<FLinearColor> AssetViewUtils::GetPathColor(const FString& FolderPath)
+{
+	auto GetPathColorInternal = [](const FString& InPath) -> TOptional<FLinearColor>
 	{
 		// See if we have a value cached first
-		TSharedPtr<FLinearColor> CachedColor = PathColors.FindRef(InPath);
-		if(CachedColor.IsValid())
+		FLinearColor* CachedColor = PathColors.Find(InPath);
+		if(CachedColor)
 		{
-			return CachedColor;
+			return *CachedColor;
 		}
 		
 		// Loads the color of folder at the given path from the config
@@ -1130,21 +1140,21 @@ const TSharedPtr<FLinearColor> AssetViewUtils::LoadColor(const FString& FolderPa
 				FLinearColor Color;
 				if(Color.InitFromString(ColorStr) && !Color.Equals(GetDefaultColor()))
 				{
-					return PathColors.Add(InPath, MakeShareable(new FLinearColor(Color)));
+					return PathColors.Add(InPath, FLinearColor(Color));
 				}
 			}
 			else
 			{
-				return PathColors.Add(InPath, MakeShareable(new FLinearColor(GetDefaultColor())));
+				return PathColors.Add(InPath, FLinearColor(GetDefaultColor()));
 			}
 		}
 
-		return nullptr;
+		return TOptional<FLinearColor>();
 	};
 
 	// First try and find the color using the given path, as this works correctly for both assets and classes
-	TSharedPtr<FLinearColor> FoundColor = LoadColorInternal(FolderPath);
-	if(FoundColor.IsValid())
+	TOptional<FLinearColor> FoundColor = GetPathColorInternal(FolderPath);
+	if(FoundColor.IsSet())
 	{
 		return FoundColor;
 	}
@@ -1154,21 +1164,35 @@ const TSharedPtr<FLinearColor> AssetViewUtils::LoadColor(const FString& FolderPa
 		FString RelativePath;
 		if (FPackageName::TryConvertLongPackageNameToFilename(FolderPath / FString(), RelativePath))
 		{
-			return LoadColorInternal(RelativePath);
+			return GetPathColorInternal(RelativePath);
 		}
 	}
 
-	return nullptr;
+	return TOptional<FLinearColor>();
 }
 
 void AssetViewUtils::SaveColor(const FString& FolderPath, const TSharedPtr<FLinearColor>& FolderColor, bool bForceAdd)
 {
-	auto SaveColorInternal = [](const FString& InPath, const TSharedPtr<FLinearColor>& InFolderColor)
+	TOptional<FLinearColor> OptionalFolderColor;
+	if (FolderColor)
+	{
+		OptionalFolderColor = *FolderColor.Get();
+	}
+	else if (bForceAdd)
+	{
+		OptionalFolderColor = GetDefaultColor();
+	}
+	SetPathColor(FolderPath, OptionalFolderColor);
+}
+
+void AssetViewUtils::SetPathColor(const FString& FolderPath, TOptional<FLinearColor> FolderColor)
+{
+	auto SetPathColorInternal = [](const FString& InPath, FLinearColor InFolderColor)
 	{
 		// Saves the color of the folder to the config
 		if(FPaths::FileExists(GEditorPerProjectIni))
 		{
-			GConfig->SetString(TEXT("PathColor"), *InPath, *InFolderColor->ToString(), GEditorPerProjectIni);
+			GConfig->SetString(TEXT("PathColor"), *InPath, *InFolderColor.ToString(), GEditorPerProjectIni);
 		}
 
 		// Update the map too
@@ -1188,15 +1212,14 @@ void AssetViewUtils::SaveColor(const FString& FolderPath, const TSharedPtr<FLine
 	};
 
 	// Remove the color if it's invalid or default
-	const bool bRemove = !FolderColor.IsValid() || (!bForceAdd && FolderColor->Equals(GetDefaultColor()));
-
+	const bool bRemove = !FolderColor.IsSet() || FolderColor->Equals(GetDefaultColor());
 	if(bRemove)
 	{
 		RemoveColorInternal(FolderPath);
 	}
 	else
 	{
-		SaveColorInternal(FolderPath, FolderColor);
+		SetPathColorInternal(FolderPath, FolderColor.GetValue());
 	}
 
 	// Make sure and remove any colors using the legacy path format
