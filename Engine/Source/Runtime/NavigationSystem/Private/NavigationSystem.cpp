@@ -2607,6 +2607,12 @@ void UNavigationSystemV1::UnregisterNavAreaClass(UClass* NavAreaClass)
 		// notify navigation data
 		// notify existing nav data
 		OnNavigationAreaEvent(NavAreaClass, ENavAreaEvent::Unregistered);
+
+		const UWorld* const World = GetWorld();
+		if (ensure(World))
+		{
+			UNavigationSystemBase::OnNavAreaUnregisteredDelegate().Broadcast(*World, NavAreaClass);
+		}
 	}
 }
 
@@ -2675,6 +2681,12 @@ void UNavigationSystemV1::RegisterNavAreaClass(UClass* AreaClass)
 		SwitchByAgentCDO->UpdateAgentConfig();
 	}
 #endif
+
+	const UWorld* const World = GetWorld();
+	if (ensure(World))
+	{
+		UNavigationSystemBase::OnNavAreaRegisteredDelegate().Broadcast(*World, AreaClass);
+	}
 }
 
 void UNavigationSystemV1::OnNavigationAreaEvent(UClass* AreaClass, ENavAreaEvent::Type Event)

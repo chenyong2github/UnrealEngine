@@ -695,6 +695,7 @@ public:
 
 	/** update area data */
 	void OnAreaAdded(const UClass* AreaClass, int32 AreaID);
+	void OnAreaRemoved(const UClass* AreaClass);
 		
 	//--- accessors --- //
 	FORCEINLINE class UWorld* GetWorld() const { return DestNavMesh->GetWorld(); }

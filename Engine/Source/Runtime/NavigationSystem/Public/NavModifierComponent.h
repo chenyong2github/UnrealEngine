@@ -36,6 +36,13 @@ class NAVIGATIONSYSTEM_API UNavModifierComponent : public UNavRelevantComponent
 
 protected:
 	void OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
+	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
+	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
+
+	//~ Begin UActorComponent Interface
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+	//~ End UActorComponent Interface
 
 	struct FRotatedBox
 	{
@@ -51,4 +58,7 @@ protected:
 	/** cached in CalcAndCacheBounds and tested in GetNavigationData to see if
 	 *	cached data is still valid */
 	mutable FTransform CachedTransform;
+
+	FDelegateHandle OnNavAreaRegisteredDelegateHandle;
+	FDelegateHandle OnNavAreaUnregisteredDelegateHandle;
 };

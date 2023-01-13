@@ -34,6 +34,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Default, AdvancedDisplay)
 	ENavigationDataResolution NavMeshResolution;
 
+	FDelegateHandle OnNavAreaRegisteredDelegateHandle;
+	FDelegateHandle OnNavAreaUnregisteredDelegateHandle;
+
 public:
 	ANavModifierVolume(const FObjectInitializer& ObjectInitializer);
 
@@ -50,4 +53,11 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+
+protected:
+	virtual void PostInitProperties() override;
+	virtual void BeginDestroy() override;
+
+	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
+	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
 };

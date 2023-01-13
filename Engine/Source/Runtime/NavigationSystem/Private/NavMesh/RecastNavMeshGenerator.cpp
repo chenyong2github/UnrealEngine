@@ -5121,6 +5121,11 @@ void FRecastNavMeshGenerator::OnAreaAdded(const UClass* AreaClass, int32 AreaID)
 	AdditionalCachedData.OnAreaAdded(AreaClass, AreaID);
 }
 
+void FRecastNavMeshGenerator::OnAreaRemoved(const UClass* AreaClass)
+{
+	AdditionalCachedData.OnAreaRemoved(AreaClass);
+}
+
 int32 FRecastNavMeshGenerator::FindInclusionBoundEncapsulatingBox(const FBox& Box) const
 {
 	for (int32 Index = 0; Index < InclusionBounds.Num(); ++Index)

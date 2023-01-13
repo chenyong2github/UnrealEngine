@@ -6,6 +6,7 @@
 #include "AI/NavigationModifier.h"
 #include "NavAreas/NavArea_Null.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "NavigationSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavModifierComponent)
 
@@ -14,6 +15,59 @@ UNavModifierComponent::UNavModifierComponent(const FObjectInitializer& ObjectIni
 	AreaClass = UNavArea_Null::StaticClass();
 	FailsafeExtent = FVector(100, 100, 100);
 	bIncludeAgentHeight = true;
+}
+
+void UNavModifierComponent::OnRegister()
+{
+	Super::OnRegister();
+
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		OnNavAreaRegisteredDelegateHandle = UNavigationSystemBase::OnNavAreaRegisteredDelegate().AddUObject(this, &UNavModifierComponent::OnNavAreaRegistered);
+		OnNavAreaUnregisteredDelegateHandle = UNavigationSystemBase::OnNavAreaUnregisteredDelegate().AddUObject(this, &UNavModifierComponent::OnNavAreaUnregistered);
+	}
+#endif // WITH_EDITOR 
+}
+
+void UNavModifierComponent::OnUnregister()
+{
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UNavigationSystemBase::OnNavAreaRegisteredDelegate().Remove(OnNavAreaRegisteredDelegateHandle);
+		UNavigationSystemBase::OnNavAreaUnregisteredDelegate().Remove(OnNavAreaUnregisteredDelegateHandle);
+	}
+#endif // WITH_EDITOR 
+
+	Super::OnUnregister();
+}
+
+namespace UE::Navigation::Private
+{
+	void OnNavAreaRegistrationChanged(UNavModifierComponent& ModifierComponent, const UWorld& World, const UClass* NavAreaClass)
+	{
+#if WITH_EDITOR
+		if (NavAreaClass && NavAreaClass == ModifierComponent.AreaClass && &World == ModifierComponent.GetWorld())
+		{
+			// Reregister the component, this follows the same pattern in editor to editing the values of components member variables,
+			// actor that owns the component will have it reregistered.
+			ModifierComponent.ReregisterComponent();
+		}
+#endif // WITH_EDITOR 
+	}
+}
+
+// This function is only called if GIsEditor == true for non default objects components that are registered.
+void UNavModifierComponent::OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass)
+{
+	UE::Navigation::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
+}
+
+// This function is only called if GIsEditor == true for non default objects components that are registered.
+void UNavModifierComponent::OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass)
+{
+	UE::Navigation::Private::OnNavAreaRegistrationChanged(*this, World, NavAreaClass);
 }
 
 void UNavModifierComponent::CalcAndCacheBounds() const

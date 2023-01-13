@@ -1164,6 +1164,7 @@ public:
 	//----------------------------------------------------------------------//
 	virtual void OnNavAreaChanged() override;
 	virtual void OnNavAreaAdded(const UClass* NavAreaClass, int32 AgentIndex) override;
+	virtual void OnNavAreaRemoved(const UClass* NavAreaClass) override;
 	virtual int32 GetNewAreaID(const UClass* AreaClass) const override;
 	virtual int32 GetMaxSupportedAreas() const override { return RECAST_MAX_AREAS; }
 
@@ -1468,6 +1469,7 @@ struct FRecastNavMeshCachedData
 
 	static FRecastNavMeshCachedData Construct(const ARecastNavMesh* RecastNavMeshActor);
 	void OnAreaAdded(const UClass* AreaClass, int32 AreaID);
+	void OnAreaRemoved(const UClass* AreaClass);
 };
 
 #endif // WITH_RECAST

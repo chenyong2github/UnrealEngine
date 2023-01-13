@@ -835,6 +835,20 @@ void ARecastNavMesh::OnNavAreaAdded(const UClass* NavAreaClass, int32 AgentIndex
 	}
 }
 
+void ARecastNavMesh::OnNavAreaRemoved(const UClass* NavAreaClass)
+{
+	// In an ideal world we'd reset the DefaultQueryFilter Costs here for the AreaID but its
+	// not really worth changing the API as we shouldn't be using these values anyway.
+
+	FRecastNavMeshGenerator* MyGenerator = static_cast<FRecastNavMeshGenerator*>(GetGenerator());
+	if (MyGenerator)
+	{
+		MyGenerator->OnAreaRemoved(NavAreaClass);
+	}
+
+	Super::OnNavAreaRemoved(NavAreaClass);
+}
+
 void ARecastNavMesh::OnNavAreaChanged()
 {
 	if (RecastNavMeshImpl)
@@ -3626,6 +3640,19 @@ void FRecastNavMeshCachedData::OnAreaAdded(const UClass* AreaClass, int32 AreaID
 			FlagsPerOffMeshLinkArea[AreaID] = FlagsPerArea[AreaID] | NavLinkFlag;
 		}
 	}		
+}
+
+void FRecastNavMeshCachedData::OnAreaRemoved(const UClass* AreaClass)
+{
+	const int32* AreaID = AreaClass ? AreaClassToIdMap.Find(AreaClass) : nullptr;
+
+	if (AreaID != nullptr)
+	{
+		AreaClassToIdMap.Remove(AreaClass);
+
+		FlagsPerArea[*AreaID] = 0;
+		FlagsPerOffMeshLinkArea[*AreaID] = 0;
+	}
 }
 
 uint32 ARecastNavMesh::GetLinkUserId(NavNodeRef LinkPolyID) const
