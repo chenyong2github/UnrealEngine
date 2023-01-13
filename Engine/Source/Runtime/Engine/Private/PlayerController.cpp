@@ -3585,6 +3585,10 @@ void APlayerController::SeamlessTravelFrom(APlayerController* OldPC)
 		OldPC->PlayerState->Destroy();
 		OldPC->PlayerState = NULL;
 	}
+
+	// Copy seamless travel state
+	SeamlessTravelCount = OldPC->SeamlessTravelCount;
+	LastCompletedSeamlessTravelCount = OldPC->LastCompletedSeamlessTravelCount;
 }
 
 void APlayerController::PostSeamlessTravel()

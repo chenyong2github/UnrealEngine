@@ -6803,20 +6803,17 @@ bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InU
 			}
 			else
 			{
-				if (CurrentMapName == DestinationMapName)
+				UNetDriver* const NetDriver = CurrentWorld->GetNetDriver();
+				if (NetDriver)
 				{
-					UNetDriver* const NetDriver = CurrentWorld->GetNetDriver();
-					if (NetDriver)
+					for (int32 ClientIdx = 0; ClientIdx < NetDriver->ClientConnections.Num(); ClientIdx++)
 					{
-						for (int32 ClientIdx = 0; ClientIdx < NetDriver->ClientConnections.Num(); ClientIdx++)
+						UNetConnection* Connection = NetDriver->ClientConnections[ClientIdx];
+						if (Connection)
 						{
-							UNetConnection* Connection = NetDriver->ClientConnections[ClientIdx];
-							if (Connection)
-							{
-								// Empty the current map name in case we are going A -> transition -> A and the server loads fast enough
-								// that the clients are not on the transition map yet causing the server to think its loaded
-								Connection->SetClientWorldPackageName(NAME_None);
-							}
+							// Empty the current map name on all transitions because the server could try to spawn actors 
+							// before the client starts the transfer causing the server to think its loaded
+							Connection->SetClientWorldPackageName(NAME_None);
 						}
 					}
 				}
