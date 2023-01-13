@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
 using static System.Int32;
 
 namespace CruncherSharp
@@ -27,8 +28,11 @@ namespace CruncherSharp
         private readonly List<string> _FunctionsToIgnore;
         private readonly Stack<SymbolInfo> _NavigationStack;
 		private readonly Stack<SymbolInfo> _RedoNavigationStack;
-		private readonly SymbolAnalyzer _SymbolAnalyzer;
-        private readonly DataTable _Table;
+		private SymbolAnalyzer _SymbolAnalyzerDia;
+#if RAWPDB
+		private SymbolAnalyzer _SymbolAnalyzerRawPDB;
+#endif
+		private readonly DataTable _Table;
 		private readonly List<uint> _MemPools;
 		public bool _CloseRequested = false;
         public bool _HasInstancesCount = false;
@@ -41,12 +45,27 @@ namespace CruncherSharp
 
         private SymbolInfo _SelectedSymbol;
 
-        public CruncherSharpForm(SymbolAnalyzer symbolAnalyzer)
+		private SymbolAnalyzer CurrentSymbolAnalyzer
+		{
+			get
+			{
+#if RAWPDB
+				return useRawPDBToolStripMenuItem.Checked ? _SymbolAnalyzerRawPDB : _SymbolAnalyzerDia;
+#else
+				return _SymbolAnalyzerDia;
+#endif
+			}
+		}
+
+        public CruncherSharpForm()
         {
             InitializeComponent();
 
-            _SymbolAnalyzer = symbolAnalyzer;
-            _Table = CreateDataTable();
+			_SymbolAnalyzerDia = new SymbolAnalyzerDIA();
+#if RAWPDB
+			_SymbolAnalyzerRawPDB = new SymbolAnalyzerRawPDB();
+#endif
+			_Table = CreateDataTable();
             _Table.CaseSensitive = checkBoxMatchCase.Checked;
             _NavigationStack = new Stack<SymbolInfo>();
 			_RedoNavigationStack = new Stack<SymbolInfo>();
@@ -81,7 +100,10 @@ namespace CruncherSharp
 			_RestrictToSymbolsImportedFromCSV = false;
 			_MemPools.Clear();
 			labelCurrentSymbol.Text = "";
-            _SymbolAnalyzer.Reset();
+			_SymbolAnalyzerDia.Reset();
+#if RAWPDB
+			_SymbolAnalyzerRawPDB.Reset();
+#endif
 			UpdateBtnLoadText();
 		}
 
@@ -108,8 +130,12 @@ namespace CruncherSharp
 
 			Reset();
 
-			_SymbolAnalyzer.FileName = openPdbDialog.FileName;
-            Text = "Cruncher# - " + _SymbolAnalyzer.FileName;
+			_SymbolAnalyzerDia.FileName = openPdbDialog.FileName;
+#if RAWPDB
+			_SymbolAnalyzerRawPDB.FileName = openPdbDialog.FileName;
+			_SymbolAnalyzerRawPDB.OpenAsync(openPdbDialog.FileName);
+#endif
+			Text = "Cruncher# - " + openPdbDialog.FileName;
 
             btnLoad.Enabled = true;
             btnReset.Enabled = true;
@@ -303,7 +329,7 @@ namespace CruncherSharp
 
             var selectedRow = dataGridSymbols.SelectedRows[0];
             var symbolName = selectedRow.Cells[0].Value.ToString();
-            return _SymbolAnalyzer.FindSymbolInfo(symbolName);
+			return CurrentSymbolAnalyzer.FindSymbolInfo(symbolName);
         }
 
         private string GetFilterString()
@@ -345,7 +371,7 @@ namespace CruncherSharp
             dataGridSymbols.ClearSelection();
             if (TrySelectSymbol(sender.ToString()) == false)
             {
-                var symbolInfo = _SymbolAnalyzer.FindSymbolInfo(sender.ToString());
+                var symbolInfo = CurrentSymbolAnalyzer.FindSymbolInfo(sender.ToString());
 				if (symbolInfo != null)
 				{
 					ShowSymbolInfo(symbolInfo);
@@ -369,7 +395,7 @@ namespace CruncherSharp
             foreach (DataGridViewRow selectedRow in dataGridSymbols.SelectedRows)
             {
                 var symbolName = selectedRow.Cells[0].Value.ToString();
-                var symbolInfo = _SymbolAnalyzer.FindSymbolInfo(symbolName);
+                var symbolInfo = CurrentSymbolAnalyzer.FindSymbolInfo(symbolName);
 
                 if (_HasInstancesCount)
                 {
@@ -583,7 +609,7 @@ namespace CruncherSharp
                     }
                 }
 
-                var baseInfo = _SymbolAnalyzer.FindSymbolInfo(member.TypeName);
+                var baseInfo = CurrentSymbolAnalyzer.FindSymbolInfo(member.TypeName);
                 var expand = "";
                 if (member.Expanded)
                     expand = whitespaceIncrementText + "- ";
@@ -746,7 +772,7 @@ namespace CruncherSharp
         {
             if (e.KeyCode == Keys.Return && !loadPDBBackgroundWorker.IsBusy && !loadCSVBackgroundWorker.IsBusy)
             {
-                LoadPdb(_SymbolAnalyzer.FileName, false);
+                LoadPdb(CurrentSymbolAnalyzer.FileName, false);
                 btnLoad.Text = "Cancel";
             }
         }
@@ -831,7 +857,7 @@ namespace CruncherSharp
                 }
 
 				Cursor.Current = Cursors.WaitCursor;
-				var jumpToSymbolInfo = _SymbolAnalyzer.FindSymbolInfo(typeName, true);
+				var jumpToSymbolInfo = CurrentSymbolAnalyzer.FindSymbolInfo(typeName, true);
                 if (jumpToSymbolInfo != null)
 				{
                     if (e.ColumnIndex == 0)
@@ -913,7 +939,7 @@ namespace CruncherSharp
 
             if (!loadPdbSuccess)
             {
-                MessageBox.Show(this, _SymbolAnalyzer.LastError);
+                MessageBox.Show(this, CurrentSymbolAnalyzer.LastError);
                 toolStripStatusLabel.Text = "Failed to load PDB.";
                 return;
             }
@@ -923,7 +949,7 @@ namespace CruncherSharp
 
         private void loadPDBBackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            e.Result = _SymbolAnalyzer.LoadPdb(sender, e);
+            e.Result = CurrentSymbolAnalyzer.LoadPdb(sender, e);
         }
 
 
@@ -956,14 +982,14 @@ namespace CruncherSharp
 
 			if (!loadCSVSuccess)
 			{
-				MessageBox.Show(this, _SymbolAnalyzer.LastError);
+				MessageBox.Show(this, CurrentSymbolAnalyzer.LastError);
 				toolStripStatusLabel.Text = "Failed to load CSV.";
 				return;
 			}
 
-			foreach (var symbol in _SymbolAnalyzer.Symbols.Values)
+			foreach (var symbol in CurrentSymbolAnalyzer.Symbols.Values)
 				if (symbol.NumInstances > 0)
-					symbol.UpdateTotalCount(_SymbolAnalyzer, symbol.NumInstances);
+					symbol.UpdateTotalCount(CurrentSymbolAnalyzer, symbol.NumInstances);
 
 			AddInstancesCount();
 			OnPDBLoaded();
@@ -971,7 +997,7 @@ namespace CruncherSharp
 
 		private void loadCSVBackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
 		{
-			e.Result = _SymbolAnalyzer.LoadCSV(sender, e);
+			e.Result = CurrentSymbolAnalyzer.LoadCSV(sender, e);
 		}
 
 
@@ -994,7 +1020,7 @@ namespace CruncherSharp
             PopulateDataTable();
 
             checkedListBoxNamespaces.Items.Clear();
-            foreach (var name in _SymbolAnalyzer.RootNamespaces) checkedListBoxNamespaces.Items.Add(name);
+            foreach (var name in CurrentSymbolAnalyzer.RootNamespaces) checkedListBoxNamespaces.Items.Add(name);
 
             // Sort by name by default (ascending)
             dataGridSymbols.Sort(dataGridSymbols.Columns[0], ListSortDirection.Ascending);
@@ -1022,7 +1048,7 @@ namespace CruncherSharp
             Cursor.Current = Cursors.WaitCursor;
 
             if (_HasInstancesCount)
-                foreach (var symbol in _SymbolAnalyzer.Symbols.Values)
+                foreach (var symbol in CurrentSymbolAnalyzer.Symbols.Values)
                 {
                     symbol.NumInstances = 0;
                     symbol.TotalCount = 0;
@@ -1079,7 +1105,7 @@ namespace CruncherSharp
                     writer.WriteLine(
                         "Name,Size,Padding,Padding zones,Total padding,Num Instances,Total size,Total waste,");
 
-                    foreach (var symbolInfo in _SymbolAnalyzer.Symbols.Values)
+                    foreach (var symbolInfo in CurrentSymbolAnalyzer.Symbols.Values)
                         writer.WriteLine("{0},{1},{2},{3},{4},{5},{6},{7},", symbolInfo.Name, symbolInfo.Size,
                             symbolInfo.Padding, symbolInfo.PaddingZonesCount, symbolInfo.TotalPadding.Value,
                             symbolInfo.NumInstances, symbolInfo.NumInstances * symbolInfo.Size,
@@ -1298,7 +1324,7 @@ namespace CruncherSharp
 
             _Table.BeginLoadData();
 
-            foreach (var symbolInfo in _SymbolAnalyzer.Symbols.Values)
+            foreach (var symbolInfo in CurrentSymbolAnalyzer.Symbols.Values)
 			{
 				if (restrictToSymbolsImportedFroCSVToolStripMenuItem.Checked && ! symbolInfo.IsImportedFromCSV)
 				{
@@ -1375,7 +1401,7 @@ namespace CruncherSharp
             }
             else
             {
-                LoadPdb(_SymbolAnalyzer.FileName, false);
+                LoadPdb(CurrentSymbolAnalyzer.FileName, false);
                 btnLoad.Text = "Cancel";
             }
         }
@@ -1435,7 +1461,7 @@ namespace CruncherSharp
 		private void checkBoxFunctionAnalysis_CheckedChanged(object sender, EventArgs e)
 		{
 			Cursor.Current = Cursors.WaitCursor;
-			_SymbolAnalyzer.FunctionAnalysis = checkBoxFunctionAnalysis.Checked;
+			CurrentSymbolAnalyzer.FunctionAnalysis = checkBoxFunctionAnalysis.Checked;
 			Cursor.Current = Cursors.Default;
 		}
 
@@ -1477,5 +1503,10 @@ namespace CruncherSharp
 			PopulateDataTable();
 		}
 
+		private void useRawPDBToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			useRawPDBToolStripMenuItem.Checked = !useRawPDBToolStripMenuItem.Checked;
+			PopulateDataTable();
+		}
 	}
 }

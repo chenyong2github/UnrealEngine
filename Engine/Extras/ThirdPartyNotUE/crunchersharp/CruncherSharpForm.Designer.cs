@@ -112,6 +112,7 @@
             this.contextMenuStripFunctions = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ignoreFunctionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bindingSourceSymbols = new System.Windows.Forms.BindingSource(this.components);
+            this.useRawPDBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainMenu.SuspendLayout();
             this.statusStripBar.SuspendLayout();
             this.contextMenuStripMembers.SuspendLayout();
@@ -157,6 +158,7 @@
             this.compareWithPDBToolStripMenuItem,
             this.loadInstanceCountToolStripMenuItem,
             this.exportCsvToolStripMenuItem,
+            this.useRawPDBToolStripMenuItem,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
@@ -925,6 +927,13 @@
             this.ignoreFunctionToolStripMenuItem.Text = "Ignore function";
             this.ignoreFunctionToolStripMenuItem.Click += new System.EventHandler(this.ignoreFunctionToolStripMenuItem_Click);
             // 
+            // useRawPDBToolStripMenuItem
+            // 
+            this.useRawPDBToolStripMenuItem.Name = "useRawPDBToolStripMenuItem";
+            this.useRawPDBToolStripMenuItem.Size = new System.Drawing.Size(190, 22);
+            this.useRawPDBToolStripMenuItem.Text = "Use RawPDB";
+            this.useRawPDBToolStripMenuItem.Click += new System.EventHandler(this.useRawPDBToolStripMenuItem_Click);
+            // 
             // CruncherSharpForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1051,6 +1060,7 @@
 		private System.Windows.Forms.ToolStripMenuItem restrictToSymbolsImportedFroCSVToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem unrealEngineToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem addMemPoolsToolStripMenuItem;
-	}
+        private System.Windows.Forms.ToolStripMenuItem useRawPDBToolStripMenuItem;
+    }
 }
 

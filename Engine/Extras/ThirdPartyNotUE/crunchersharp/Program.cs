@@ -13,7 +13,7 @@ namespace CruncherSharp
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            var mainForm = new CruncherSharpForm(new SymbolAnalyzer());
+            var mainForm = new CruncherSharpForm();
             if (args.Length > 0)
             {
                 // Let's assume our arg is indeed the full path of a pdb file...

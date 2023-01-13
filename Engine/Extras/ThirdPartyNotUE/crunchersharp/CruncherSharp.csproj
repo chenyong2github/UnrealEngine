@@ -39,29 +39,36 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;RAWPDB</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;RAWPDB</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>crunchersharp.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>CruncherSharp.Program</StartupObject>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -87,6 +94,8 @@
     <Compile Include="CruncherSharpForm.Designer.cs">
       <DependentUpon>CruncherSharpForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="PDB.cs" />
+    <Compile Include="PDBReader.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="MemPoolsForm.cs">
@@ -102,6 +111,8 @@
       <DependentUpon>SelectNamespaceForm.cs</DependentUpon>
     </Compile>
     <Compile Include="SymbolAnalyzer.cs" />
+    <Compile Include="SymbolAnalyzerDIA.cs" />
+    <Compile Include="SymbolAnalyzerRawPDB.cs" />
     <Compile Include="SymbolFunctionInfo.cs" />
     <Compile Include="SymbolMemberInfo.cs" />
     <Compile Include="SymbolInfo.cs" />
@@ -167,6 +178,9 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>IF DEFINED GEARSTUDIO_CI regsvr32 /s \\ubisoft.org\projects\TechGroup\Public\Prism\GearStudio\GitLabBuild\extern\msdia\msdia140.dll</PreBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>xcopy $(SolutionDir)x64\$(ConfigurationName)\PDBReader.dll $(TargetDir) /Y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

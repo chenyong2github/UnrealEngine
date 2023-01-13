@@ -1,8 +1,8 @@
-using Dia2Lib;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace CruncherSharp
 {
@@ -43,14 +43,18 @@ namespace CruncherSharp
                 IsTemplate = true;
         }
 
-        private void AddMember(SymbolMemberInfo member)
+        public void AddMember(SymbolMemberInfo member)
         {
             Members.Add(member);
         }
 
-        private void AddFunction(SymbolFunctionInfo function)
+        public void AddFunction(SymbolFunctionInfo function)
         {
             Functions.Add(function);
+			if (function.IsPure)
+			{
+				IsAbstract = true;
+			}
         }
 
         private bool ComputeOffsetCollision(int index)
@@ -118,6 +122,21 @@ namespace CruncherSharp
 
             }
         }
+
+		public void SortAndCalculate()
+		{
+			// Sort members by offset, recompute padding.
+			// Sorting is usually not needed (for data fields), but sometimes base class order is wrong.
+			Members.Sort(SymbolMemberInfo.CompareOffsets);
+			for (int i = 0; i < Members.Count; ++i)
+			{
+				var member = Members[i];
+				member.AlignWithPrevious = ComputeOffsetCollision(i);
+				member.PaddingBefore = ComputePadding(i);
+				member.BitPaddingAfter = ComputeBitPadding(i);
+			}
+			EndPadding = ComputeEndPadding();
+		}
 
         private ulong ComputePadding(int index)
         {
@@ -292,177 +311,6 @@ namespace CruncherSharp
                         referencedInfo.UpdateTotalCount(symbolAnalyzer,count);
                     }
                 }
-            }
-        }
-
-        public void ProcessChildren(IDiaSymbol symbol)
-        {
-            symbol.findChildren(SymTagEnum.SymTagNull, null, 0, out var children);
-            if (children == null)
-                return;
-            foreach (IDiaSymbol child in children)
-            {
-                if (child.symTag == (uint)SymTagEnum.SymTagFunction)
-                {
-                    var functionInfo = ProcessFunction(child);
-                    if (functionInfo != null)
-                    {
-                        AddFunction(functionInfo);
-                        if (functionInfo.IsPure)
-                            IsAbstract = true;
-                    }
-                }
-                else
-                {
-                    var memberInfo = ProcessMember(child);
-                    if (memberInfo != null)
-                    {
-                        AddMember(memberInfo);
-                    }
-                }
-            }
-            // Sort members by offset, recompute padding.
-            // Sorting is usually not needed (for data fields), but sometimes base class order is wrong.
-            Members.Sort(SymbolMemberInfo.CompareOffsets);
-            for (int i = 0; i < Members.Count; ++i)
-            {
-                var member = Members[i];
-                member.AlignWithPrevious = ComputeOffsetCollision(i);
-                member.PaddingBefore = ComputePadding(i);
-                member.BitPaddingAfter = ComputeBitPadding(i);
-            }
-            EndPadding = ComputeEndPadding();
-        }
-
-        public SymbolMemberInfo ProcessMember(IDiaSymbol symbol)
-        {
-            if (symbol.symTag == (uint)SymTagEnum.SymTagVTable)
-            {
-                return new SymbolMemberInfo(SymbolMemberInfo.MemberCategory.VTable, string.Empty, string.Empty, 8, 0, (ulong)symbol.offset, symbol.bitPosition);
-            }
-
-            if (symbol.isStatic != 0 || (symbol.symTag != (uint)SymTagEnum.SymTagData && symbol.symTag != (uint)SymTagEnum.SymTagBaseClass))
-            {
-                return null;
-            }
-
-            // LocIsThisRel || LocIsNull || LocIsBitField
-            if (symbol.locationType != 4 && symbol.locationType != 0 && symbol.locationType != 6)
-            {
-                return null;
-            }
-
-            var typeSymbol = symbol.type;
-
-            var typeName = GetType(typeSymbol);
-
-            var symbolName = symbol.name;
-            var category = SymbolMemberInfo.MemberCategory.Member;
-
-            if ((SymTagEnum)symbol.symTag == SymTagEnum.SymTagBaseClass)
-                category = SymbolMemberInfo.MemberCategory.Base;
-            else if ((SymTagEnum)typeSymbol.symTag == SymTagEnum.SymTagUDT)
-                category = SymbolMemberInfo.MemberCategory.UDT;
-            else if ((SymTagEnum)typeSymbol.symTag == SymTagEnum.SymTagPointerType)
-                category = SymbolMemberInfo.MemberCategory.Pointer;
-
-            var info = new SymbolMemberInfo(category, symbolName, typeName, typeSymbol.length, symbol.length, (ulong)symbol.offset, symbol.bitPosition);
-
-            if (typeSymbol.volatileType == 1)
-                info.Volatile = true;
-            if (symbol.locationType == 6)
-                info.BitField = true;
-
-            return info;
-        }
-
-        public SymbolFunctionInfo ProcessFunction(IDiaSymbol symbol)
-        {
-            if (symbol.compilerGenerated > 0)
-                return null;
-
-            var info = new SymbolFunctionInfo();
-            if (symbol.isStatic > 0)
-            {
-                info.Category = SymbolFunctionInfo.FunctionCategory.StaticFunction;
-            }
-            else if (symbol.classParent.name.EndsWith(symbol.name))
-            {
-                info.Category = SymbolFunctionInfo.FunctionCategory.Constructor;
-            }
-            else if (symbol.name.StartsWith("~"))
-            {
-                info.Category = SymbolFunctionInfo.FunctionCategory.Destructor;
-            }
-            else
-            {
-                info.Category = SymbolFunctionInfo.FunctionCategory.Function;
-            }
-
-            info.Virtual = (symbol.@virtual == 1);
-            info.IsOverride = info.Virtual && (symbol.intro == 0);
-            info.IsPure = info.Virtual && (symbol.pure != 0);
-            info.IsConst = symbol.constType != 0;
-            if (symbol.wasInlined == 0 && symbol.inlSpec != 0)
-                info.WasInlineRemoved = true;
-
-            info.Name = GetType(symbol.type.type) + " " + symbol.name;
-
-            symbol.type.findChildren(SymTagEnum.SymTagFunctionArgType, null, 0, out var syms);
-            if (syms.count == 0)
-            {
-                info.Name += "(void)";
-            }
-            else
-            {
-                var parameters = new List<string>();
-                foreach (IDiaSymbol argSym in syms)
-                {
-                    parameters.Add(GetType(argSym.type));
-                }
-                info.Name += "(" + string.Join(",", parameters) + ")";
-            }
-            return info;
-        }
-
-        private string GetType(IDiaSymbol typeSymbol)
-        {
-            switch ((SymTagEnum)typeSymbol.symTag)
-            {
-                case SymTagEnum.SymTagFunctionType:
-                    var returnType = GetType(typeSymbol.type);
-
-                    typeSymbol.findChildren(SymTagEnum.SymTagFunctionArgType, null, 0, out var syms);
-                    if (syms.count == 0)
-                    {
-                        returnType += "(void)";
-                    }
-                    else
-                    {
-                        var parameters = new List<string>();
-                        foreach (IDiaSymbol argSym in syms)
-                        {
-                            parameters.Add(GetType(argSym.type));
-                        }
-                        returnType += "(" + string.Join(",",parameters) + ")";
-                    }
-                    return returnType;
-                case SymTagEnum.SymTagPointerType:
-                    return typeSymbol.reference != 0 ? $"{GetType(typeSymbol.type)}&" : $"{GetType(typeSymbol.type)}*";
-                case SymTagEnum.SymTagBaseType:
-                    if (typeSymbol.constType != 0)
-                        return "const " + SymbolMemberInfo.GetBaseType(typeSymbol);
-                    return SymbolMemberInfo.GetBaseType(typeSymbol);
-                case SymTagEnum.SymTagArrayType:
-                    // get array dimension:
-                    var dimension = typeSymbol.count.ToString();
-                    return $"{GetType(typeSymbol.type)}[{dimension}]";
-                case SymTagEnum.SymTagUDT:
-                    return typeSymbol.name;
-                case SymTagEnum.SymTagEnum:
-                    return $"enum {typeSymbol.name}";
-                default:
-                    return string.Empty;
             }
         }
 
