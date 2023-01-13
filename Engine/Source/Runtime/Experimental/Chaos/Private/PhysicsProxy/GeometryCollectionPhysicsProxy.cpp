@@ -483,7 +483,12 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 
 			GTParticles[Index]->SetUniqueIdx(Evolution->GenerateUniqueIdx());
 
-			const FTransform& T = Parameters.WorldTransform * GameThreadCollection.Transform[Index];
+			// Note that this transform must match the physics thread transform computation for initialization.
+			// Take for example, a geometry collection in the editor that is linked with a joint constraint. The joint
+			// constraint will query the game thread particle position/rotation for the geometry collection to compute its
+			// reference frame. If that position/rotation does not match up with the physics thread's position/rotation,
+			// the geometry collection particle will have an added velocity computed by the joint constraint solver.
+			const FTransform& T = GameThreadCollection.MassToLocal[Index] * GameThreadCollection.Transform[Index] * Parameters.WorldTransform;
 			P->SetX(T.GetTranslation(), false);
 			P->SetR(T.GetRotation(), false);
 			P->SetM(Mass[Index] * MassScale);
