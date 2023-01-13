@@ -2111,11 +2111,15 @@ void FCustomizableObjectInstanceDescriptor::SetCurrentState(const FString& State
 {
 	check(CustomizableObject);
 
-	if (const int32 Result = CustomizableObject->FindState(StateName);
-		ensureAlwaysMsgf(Result != -1, TEXT("Unknown %s state."), *StateName))
+	const int32 Result = CustomizableObject->FindState(StateName);
+	if (ensureMsgf(Result != -1, TEXT("Unknown %s state."), *StateName))
 	{
 		SetState(Result);
-	}	
+	}
+	else
+	{
+		UE_LOG(LogMutable, Error, TEXT("%s: Unknown %s state."), ANSI_TO_TCHAR(__FUNCTION__), *StateName);
+	}
 }
 
 
