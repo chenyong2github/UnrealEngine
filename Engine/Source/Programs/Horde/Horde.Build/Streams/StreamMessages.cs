@@ -267,23 +267,17 @@ namespace Horde.Build.Streams
 		public List<ChangeQueryConfig>? DefaultChange { get; set; }
 
 		/// <summary>
-		/// ACL for this template
-		/// </summary>
-		public GetAclResponse? Acl { get; set; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="id">The template ref id</param>
 		/// <param name="templateRef">The template ref</param>
-		/// <param name="template">The template instance</param>
+		/// <param name="template">The actual template</param>
 		/// <param name="stepStates">The template step states</param>
-		/// <param name="includeAcl">Whether to include the ACL in the response</param>
-		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, bool includeAcl)
+		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates)
 			: base(template)
 		{
 			Id = id.ToString();
-			Hash = templateRef.Hash.ToString();
+			Hash = template.Hash.ToString();
 			ShowUgsBadges = templateRef.Config.ShowUgsBadges;
 			ShowUgsAlerts = templateRef.Config.ShowUgsAlerts;
 			NotificationChannel = templateRef.Config.NotificationChannel;
@@ -292,7 +286,6 @@ namespace Horde.Build.Streams
 			ChainedJobs = (templateRef.Config.ChainedJobs != null && templateRef.Config.ChainedJobs.Count > 0) ? templateRef.Config.ChainedJobs : null;
 			StepStates = stepStates;
 			DefaultChange = templateRef.Config.DefaultChange;
-			Acl = (includeAcl && templateRef.Acl != null) ? new GetAclResponse(templateRef.Acl) : null;
 		}
 	}
 
@@ -377,11 +370,6 @@ namespace Horde.Build.Streams
 		public List<GetTemplateRefResponse> Templates { get; set; }
 
 		/// <summary>
-		/// Custom permissions for this object
-		/// </summary>
-		public GetAclResponse? Acl { get; set; }
-
-		/// <summary>
 		/// Stream paused for new builds until this date
 		/// </summary>
 		public DateTime? PausedUntil { get; set; }
@@ -399,43 +387,27 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="id">Unique id of the stream</param>
-		/// <param name="projectId">Unique id of the project containing the stream</param>
-		/// <param name="name">Name of the stream</param>
-		/// <param name="configRevision">The config file path on the server</param>
-		/// <param name="order">Order to display this stream</param>
-		/// <param name="notificationChannel"></param>
-		/// <param name="notificationChannelFilter"></param>
-		/// <param name="triageChannel"></param>
-		/// <param name="defaultPreflight">The default template to use for preflights</param>
-		/// <param name="tabs">List of tabs to display for this stream</param>
-		/// <param name="agentTypes">Map of agent type name to description</param>
-		/// <param name="workspaceTypes">Map of workspace name to description</param>
+		/// <param name="stream">The stream to construct from</param>
 		/// <param name="templates">Templates for this stream</param>
-		/// <param name="acl">Permissions for this object</param>
-		/// <param name="pausedUntil">Stream paused for new builds until this date</param>
-		/// <param name="pauseComment">Reason for stream being paused</param>
-		/// <param name="workflows">Workflows for this stream</param>
-		public GetStreamResponse(string id, string projectId, string name, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightConfig? defaultPreflight, List<TabConfig> tabs, Dictionary<string, AgentConfig> agentTypes, Dictionary<string, WorkspaceConfig>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment, List<WorkflowConfig> workflows)
+		public GetStreamResponse(IStream stream, List<GetTemplateRefResponse> templates)
 		{
-			Id = id;
-			ProjectId = projectId;
-			Name = name;
-			ConfigRevision = configRevision;
-			Order = order;
-			NotificationChannel = notificationChannel;
-			NotificationChannelFilter = notificationChannelFilter;
-			TriageChannel = triageChannel;
-			DefaultPreflightTemplate = defaultPreflight?.TemplateId?.ToString();
-			DefaultPreflight = defaultPreflight;
-			Tabs = tabs;
-			AgentTypes = agentTypes;
-			WorkspaceTypes = workspaceTypes;
+			Id = stream.Id.ToString();
+			ProjectId = stream.Config.ProjectConfig.Id.ToString();
+			Name = stream.Config.Name;
+			ConfigRevision = stream.Config.Revision;
+			Order = stream.Config.Order;
+			NotificationChannel = stream.Config.NotificationChannel;
+			NotificationChannelFilter = stream.Config.NotificationChannelFilter;
+			TriageChannel = stream.Config.TriageChannel;
+			DefaultPreflightTemplate = stream.Config.DefaultPreflight?.TemplateId?.ToString();
+			DefaultPreflight = stream.Config.DefaultPreflight;
+			Tabs = stream.Config.Tabs;
+			AgentTypes = stream.Config.AgentTypes;
+			WorkspaceTypes = stream.Config.WorkspaceTypes;
 			Templates = templates;
-			Acl = acl;
-			PausedUntil = pausedUntil;
-			PauseComment = pauseComment;
-			Workflows = workflows;
+			PausedUntil = stream.PausedUntil;
+			PauseComment = stream.PauseComment;
+			Workflows = stream.Config.Workflows;
 		}
 	}
 
@@ -449,20 +421,17 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="IStream.Id"/>
 		public StreamId Id => _stream.Id;
 
-		/// <inheritdoc cref="IStream.ProjectId"/>
-		public ProjectId ProjectId => _stream.ProjectId;
+		/// <inheritdoc cref="ProjectConfig.Id"/>
+		public ProjectId ProjectId => _stream.Config.ProjectConfig.Id;
 
-		/// <inheritdoc cref="IStream.Name"/>
-		public string Name => _stream.Name;
+		/// <inheritdoc cref="StreamConfig.Name"/>
+		public string Name => _stream.Config.Name;
 
-		/// <inheritdoc cref="IStream.ConfigRevision"/>
-		public string ConfigRevision => _stream.ConfigRevision;
+		/// <inheritdoc cref="StreamConfig.Revision"/>
+		public string ConfigRevision => _stream.Config.Revision;
 
 		/// <inheritdoc cref="IStream.Config"/>
 		public StreamConfig? Config { get; }
-
-		/// <inheritdoc cref="IStream.Deleted"/>
-		public bool Deleted => _stream.Deleted;
 
 		/// <inheritdoc cref="IStream.Templates"/>
 		public List<GetTemplateRefResponseV2> Templates { get; }
@@ -473,11 +442,11 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="IStream.PauseComment"/>
 		public string? PauseComment => _stream.PauseComment;
 
-		internal GetStreamResponseV2(IStream stream, bool includeConfig)
+		internal GetStreamResponseV2(IStream stream, bool includeConfig, List<GetTemplateRefResponseV2> templates)
 		{
 			_stream = stream;
 
-			Templates = stream.Templates.Values.Select(x => new GetTemplateRefResponseV2(x)).ToList();
+			Templates = templates;
 
 			if (includeConfig)
 			{
@@ -491,16 +460,18 @@ namespace Horde.Build.Streams
 	/// </summary>
 	public class GetTemplateRefResponseV2
 	{
+		readonly ITemplate _template;
 		readonly ITemplateRef _templateRef;
 
 		/// <inheritdoc cref="ITemplateRef.Id"/>
 		public TemplateId Id => _templateRef.Id;
 
-		/// <inheritdoc cref="ITemplateRef.Hash"/>
-		public ContentHash Hash => _templateRef.Hash;
+		/// <inheritdoc cref="ITemplate.Hash"/>
+		public ContentHash Hash => _template.Hash;
 
-		internal GetTemplateRefResponseV2(ITemplateRef templateRef)
+		internal GetTemplateRefResponseV2(ITemplate template, ITemplateRef templateRef)
 		{
+			_template = template;
 			_templateRef = templateRef;
 		}
 	}

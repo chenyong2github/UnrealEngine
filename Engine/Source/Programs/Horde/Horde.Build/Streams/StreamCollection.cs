@@ -2,26 +2,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Acls;
-using Horde.Build.Configuration;
 using Horde.Build.Jobs;
-using Horde.Build.Jobs.Schedules;
-using Horde.Build.Jobs.Templates;
-using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.IO;
-using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
@@ -46,34 +36,23 @@ namespace Horde.Build.Streams
 			[BsonRequired, BsonId]
 			public StreamId Id { get; set; }
 
-			[BsonRequired]
-			public ProjectId ProjectId { get; set; }
-
-			public string ConfigRevision { get; set; } = String.Empty;
-
 			public Dictionary<TemplateId, TemplateRefDoc> Templates { get; set; } = new Dictionary<TemplateId, TemplateRefDoc>();
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
 
-			public Acl? Acl { get; set; }
 			public int UpdateIndex { get; set; }
-			public bool Deleted { get; set; }
 
 			[BsonConstructor]
 			private StreamDoc()
 			{
 			}
 
-			public StreamDoc(StreamId id, ProjectId projectId)
+			public StreamDoc(StreamId id)
 			{
 				Id = id;
-				ProjectId = projectId;
 			}
 
 			#region IStream Implementation
-
-			[BsonIgnore]
-			public string Name => Config?.Name!;
 
 			[BsonIgnore]
 			public StreamConfig Config { get; private set; } = null!;
@@ -90,30 +69,30 @@ namespace Horde.Build.Streams
 				}
 			}
 
-			public async Task PostLoadAsync(ConfigCollection configCollection, ILogger logger)
+			public bool PostLoad(StreamConfig config, DateTime utcNow)
 			{
-				try
+				Config = config;
+
+				bool replaceDocument = false;
+
+				Dictionary<TemplateId, TemplateRefDoc> templateRefDocs = new Dictionary<TemplateId, TemplateRefDoc>(config.Templates.Count);
+				foreach (TemplateRefConfig templateRefConfig in config.Templates)
 				{
-					Config = await configCollection.GetConfigAsync<StreamConfig>(ConfigRevision);
-				}
-				catch (Exception)
-				{
-					if (Deleted)
+					TemplateRefDoc? templateRefDoc;
+					if (!Templates.TryGetValue(templateRefConfig.Id, out templateRefDoc))
 					{
-						logger.LogWarning("Unable to get stream config for {StreamId} at {Revision}; using default.", Id, ConfigRevision);
-						Config = new StreamConfig();
+						templateRefDoc = new TemplateRefDoc();
+						replaceDocument = true;
 					}
-					else
-					{
-						logger.LogError("Unable to get stream config for {StreamId} at {Revision}", Id, ConfigRevision);
-						throw;
-					}
+					replaceDocument |= templateRefDoc.PostLoad(templateRefConfig, utcNow);
+
+					templateRefDocs.Add(templateRefConfig.Id, templateRefDoc);
 				}
 
-				foreach (KeyValuePair<TemplateId, TemplateRefDoc> pair in Templates)
-				{
-					pair.Value.PostLoad(this, pair.Key);
-				}
+				replaceDocument |= Templates.Count != templateRefDocs.Count;
+				Templates = templateRefDocs;
+
+				return replaceDocument;
 			}
 
 			#endregion
@@ -121,56 +100,51 @@ namespace Horde.Build.Streams
 
 		class TemplateRefDoc : ITemplateRef
 		{
-			[BsonRequired]
-			public ContentHash Hash { get; set; } = null!;
-
 			[BsonIgnoreIfNull]
 			public TemplateScheduleDoc? Schedule { get; set; }
 
 			[BsonIgnoreIfNull]
 			public List<TemplateStepDoc>? StepStates { get; set; }
 
-			[BsonIgnoreIfNull]
-			public Acl? Acl { get; set; }
-
 			#region ITemplateRef implementation
-
-			[BsonIgnore]
-			StreamDoc? _owner;
 
 			[BsonIgnore]
 			public TemplateId Id { get; private set; }
 
 			[BsonIgnore]
-			TemplateRefConfig? _config;
-
-			[BsonIgnore]
-			public TemplateRefConfig Config
-			{
-				get
-				{
-					if (_config == null && _owner != null && _owner.Config != null)
-					{
-						// This should generally always succeed, but adding a fallback to handle legacy data.
-						_config = _owner.Config.Templates.FirstOrDefault(x => x.Id == Id) ?? new TemplateRefConfig { Id = Id, Name = Id.ToString() };
-					}
-					return _config!;
-				}
-			}
+			public TemplateRefConfig Config { get; private set; } = null!;
 
 			ITemplateSchedule? ITemplateRef.Schedule => Schedule;
 			IReadOnlyList<ITemplateStep> ITemplateRef.StepStates => (IReadOnlyList<ITemplateStep>?)StepStates ?? Array.Empty<ITemplateStep>();
 
-			public void PostLoad(StreamDoc owner, TemplateId id)
+			public bool PostLoad(TemplateRefConfig config, DateTime utcNow)
 			{
-				_owner = owner;
-				Id = id;
+				Id = config.Id;
+				Config = config;
+
+				bool replaceDocument = false;
+
+				if (Config.Schedule == null)
+				{
+					Schedule = null;
+					replaceDocument = true;
+				}
+				else if (Schedule == null)
+				{
+					Schedule = new TemplateScheduleDoc();
+					Schedule.LastTriggerTimeUtc = utcNow;
+					replaceDocument = true;
+				}
+
 				Schedule?.PostLoad(this);
 
 				if (StepStates != null)
 				{
-					StepStates.RemoveAll(x => x.PausedByUserId == null);
+					int count = StepStates.RemoveAll(x => x.PausedByUserId == null);
+					replaceDocument |= count > 0;
 				}
+
+				return replaceDocument;
 			}
 
 			#endregion
@@ -233,99 +207,77 @@ namespace Horde.Build.Streams
 			}
 		}
 
-		/// <summary>
-		/// Projection of a stream definition to just include permissions info
-		/// </summary>
-		[SuppressMessage("Design", "CA1812: Class is never instantiated")]
-		private class StreamPermissions : IStreamPermissions
-		{
-			public Acl? Acl { get; set; }
-			public ProjectId ProjectId { get; set; }
-
-			public static readonly ProjectionDefinition<StreamDoc> Projection = Builders<StreamDoc>.Projection.Include(x => x.Acl).Include(x => x.ProjectId);
-		}
-
 		readonly IMongoCollection<StreamDoc> _streams;
-		readonly ConfigCollection _configCollection;
 		readonly IClock _clock;
-		readonly ITemplateCollection _templateCollection;
-		readonly ILogger<StreamCollection> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
-		/// <param name="configCollection"></param>
 		/// <param name="clock"></param>
-		/// <param name="templateCollection"></param>
-		/// <param name="logger"></param>
-		public StreamCollection(MongoService mongoService, ConfigCollection configCollection, IClock clock, ITemplateCollection templateCollection, ILogger<StreamCollection> logger)
+		public StreamCollection(MongoService mongoService, IClock clock)
 		{
 			_streams = mongoService.GetCollection<StreamDoc>("Streams");
-			_configCollection = configCollection;
 			_clock = clock;
-			_templateCollection = templateCollection;
-			_logger = logger;
 		}
-
-		Task PostLoadAsync(StreamDoc stream) => stream.PostLoadAsync(_configCollection, _logger);
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string revision, ProjectId projectId)
+		public async Task<IStream> GetAsync(StreamConfig streamConfig) => await GetInternalAsync(streamConfig);
+
+		async Task<StreamDoc> GetInternalAsync(StreamConfig streamConfig)
 		{
-			StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(revision);
-			Validate(id, config);
+			FindOneAndUpdateOptions<StreamDoc, StreamDoc> options = new FindOneAndUpdateOptions<StreamDoc, StreamDoc>();
+			options.IsUpsert = true;
+			options.ReturnDocument = ReturnDocument.After;
 
-			StreamDoc? streamDoc = (StreamDoc?)stream;
-			Dictionary<TemplateId, TemplateRefDoc> templateRefs = await CreateTemplateRefsAsync(streamDoc, config.Templates);
-
-			Acl? acl = Acl.Merge(new Acl(), config.Acl);
-			if (streamDoc == null)
+			for (; ; )
 			{
-				return await TryCreateAsync(id, projectId, revision, templateRefs, acl);
-			}
-			else
-			{
-				return await TryReplaceAsync(streamDoc, projectId, revision, config, templateRefs, acl);
+				StreamDoc stream = await _streams.FindOneAndUpdateAsync<StreamDoc>(x => x.Id == streamConfig.Id, Builders<StreamDoc>.Update.SetOnInsert(x => x.UpdateIndex, 0), options);
+				if (await PostLoadAsync(stream, streamConfig))
+				{
+					return stream;
+				}
 			}
 		}
 
-		/// <summary>
-		/// Creates a list of template refs from a set of request objects
-		/// </summary>
-		/// <param name="requests">Request objects</param>
-		/// <param name="stream">The current stream state</param>
-		/// <returns>List of new template references</returns>
-		async Task<Dictionary<TemplateId, TemplateRefDoc>> CreateTemplateRefsAsync(StreamDoc? stream, List<TemplateRefConfig> requests)
+		/// <inheritdoc/>
+		public async Task<List<IStream>> GetAsync(IReadOnlyList<StreamConfig> streamConfigs) => await GetInternalAsync(streamConfigs).ConvertAllAsync<StreamDoc, IStream>();
+
+		async Task<List<StreamDoc>> GetInternalAsync(IReadOnlyList<StreamConfig> streamConfigs)
 		{
-			Dictionary<TemplateId, TemplateRefDoc> newTemplateRefs = new Dictionary<TemplateId, TemplateRefDoc>();
-			foreach (TemplateRefConfig request in requests)
+			FilterDefinition<StreamDoc> filter = Builders<StreamDoc>.Filter.In(x => x.Id, streamConfigs.Select(x => x.Id));
+			List<StreamDoc> matches = await _streams.Find(filter).ToListAsync();
+
+			List<StreamDoc> results = new List<StreamDoc>(streamConfigs.Count);
+			foreach (StreamConfig streamConfig in streamConfigs)
 			{
-				// Create the template
-				ITemplate template = await _templateCollection.AddAsync(request.Name, request.Priority, request.AllowPreflights, request.UpdateIssues, request.PromoteIssuesByDefault, request.InitialAgentType, request.SubmitNewChange, request.SubmitDescription, request.Arguments, request.Parameters.ConvertAll(x => x.ToModel()));
-
-				// Get an identifier for the new template ref
-				TemplateId templateId = request.Id;
-
-				// Get the existing template ref or create a new one
-				TemplateRefDoc? templateRef;
-				if (stream == null || !stream.Templates.TryGetValue(templateId, out templateRef))
+				StreamDoc? stream = matches.FirstOrDefault(x => x.Id == streamConfig.Id);
+				if (stream == null)
 				{
-					templateRef = new TemplateRefDoc();
+					stream = await GetInternalAsync(streamConfig);
 				}
-
-				// Update the hash
-				templateRef.Hash = template.Id;
-				if (request.Schedule != null)
+				else
 				{
-					templateRef.Schedule ??= new TemplateScheduleDoc();
-					templateRef.Schedule.LastTriggerTimeUtc = _clock.UtcNow;
+					stream.PostLoad(streamConfig, _clock.UtcNow);
 				}
-
-				// Add it to the new lookup
-				newTemplateRefs.Add(templateId, templateRef);
+				results.Add(stream);
 			}
-			return newTemplateRefs;
+			return results;
+		}
+
+		async ValueTask<bool> PostLoadAsync(StreamDoc streamDoc, StreamConfig streamConfig)
+		{
+			if (streamDoc.PostLoad(streamConfig, _clock.UtcNow))
+			{
+				int updateIndex = streamDoc.UpdateIndex++;
+
+				ReplaceOneResult result = await _streams.ReplaceOneAsync(x => x.Id == streamDoc.Id && x.UpdateIndex == updateIndex, streamDoc);
+				if (result.MatchedCount != 1)
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 
 		/// <inheritdoc/>
@@ -417,89 +369,6 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, Dictionary<TemplateId, TemplateRefDoc> templateRefs, Acl? acl)
-		{
-			StreamDoc newStream = new StreamDoc(id, projectId);
-			newStream.ConfigRevision = configRevision;
-			newStream.Templates = templateRefs;
-			newStream.Acl = acl;
-
-			try
-			{
-				await _streams.InsertOneAsync(newStream);
-				await PostLoadAsync(newStream);
-				return newStream;
-			}
-			catch (MongoWriteException ex)
-			{
-				if (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
-				{
-					return null;
-				}
-				else
-				{
-					throw;
-				}
-			}
-		}
-
-		/// <inheritdoc/>
-		async Task<IStream?> TryReplaceAsync(StreamDoc stream, ProjectId projectId, string configRevision, StreamConfig config, Dictionary<TemplateId, TemplateRefDoc> templateRefs, Acl? acl)
-		{
-			UpdateDefinitionBuilder<StreamDoc> updateBuilder = Builders<StreamDoc>.Update;
-
-			List<UpdateDefinition<StreamDoc>> updates = new List<UpdateDefinition<StreamDoc>>();
-			updates.Add(updateBuilder.Set(x => x.ProjectId, projectId));
-			updates.Add(updateBuilder.Set(x => x.ConfigRevision, configRevision));
-			updates.Add(updateBuilder.Set(x => x.Templates, templateRefs));
-			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.Acl, acl));
-			updates.Add(updateBuilder.Unset(x => x.Deleted));
-
-			return await TryUpdateStreamAsync(stream, updateBuilder.Combine(updates));
-		}
-
-		/// <inheritdoc/>
-		public async Task<IStream?> GetAsync(StreamId streamId)
-		{
-			StreamDoc? stream = await _streams.Find<StreamDoc>(x => x.Id == streamId).FirstOrDefaultAsync();
-			if (stream != null)
-			{
-				await PostLoadAsync(stream);
-			}
-			return stream;
-		}
-
-		/// <inheritdoc/>
-		public async Task<IStreamPermissions?> GetPermissionsAsync(StreamId streamId)
-		{
-			return await _streams.Find<StreamDoc>(x => x.Id == streamId).Project<StreamPermissions>(StreamPermissions.Projection).FirstOrDefaultAsync();
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<IStream>> FindAllAsync()
-		{
-			List<StreamDoc> results = await _streams.Find(Builders<StreamDoc>.Filter.Ne(x => x.Deleted, true)).ToListAsync();
-			foreach (StreamDoc result in results)
-			{
-				await PostLoadAsync(result);
-			}
-			return results.ConvertAll<IStream>(x => x);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<IStream>> FindForProjectsAsync(ProjectId[] projectIds)
-		{
-			FilterDefinition<StreamDoc> filter = Builders<StreamDoc>.Filter.In(x => x.ProjectId, projectIds) & Builders<StreamDoc>.Filter.Ne(x => x.Deleted, true);
-
-			List<StreamDoc> results = await _streams.Find(filter).ToListAsync();
-			foreach (StreamDoc result in results)
-			{
-				await PostLoadAsync(result);
-			}
-			return results.ConvertAll<IStream>(x => x);
-		}
-
-		/// <inheritdoc/>
 		public async Task<IStream?> TryUpdatePauseStateAsync(IStream streamInterface, DateTime? newPausedUntil, string? newPauseComment)
 		{
 			StreamDoc stream = (StreamDoc)streamInterface;
@@ -560,17 +429,11 @@ namespace Horde.Build.Streams
 			FindOneAndUpdateOptions<StreamDoc> options = new FindOneAndUpdateOptions<StreamDoc> { ReturnDocument = ReturnDocument.After };
 
 			StreamDoc? result = await _streams.FindOneAndUpdateAsync(filter, update, options);
-			if(result != null)
+			if (result != null)
 			{
-				await PostLoadAsync(result);
+				result.PostLoad(stream.Config, _clock.UtcNow);
 			}
 			return result;
-		}
-
-		/// <inheritdoc/>
-		public async Task DeleteAsync(StreamId streamId)
-		{
-			await _streams.UpdateOneAsync<StreamDoc>(x => x.Id == streamId, Builders<StreamDoc>.Update.Set(x => x.Deleted, true).Inc(x => x.UpdateIndex, 1));
 		}
 
 		/// <summary>

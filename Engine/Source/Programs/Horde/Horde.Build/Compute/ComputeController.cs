@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Impl;
 using Horde.Build.Acls;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Compute
 {
@@ -20,18 +22,16 @@ namespace Horde.Build.Compute
 	[Route("[controller]")]
 	public class ComputeController : HordeControllerBase
 	{
-		readonly AclService _aclService;
 		readonly ComputeService _computeService;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService"></param>
-		/// <param name="computeService">The compute service singleton</param>
-		public ComputeController(AclService aclService, ComputeService computeService)
+		public ComputeController(ComputeService computeService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_aclService = aclService;
 			_computeService = computeService;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -44,7 +44,7 @@ namespace Horde.Build.Compute
 		[Route("/api/v1/compute/{clusterId}")]
 		public async Task<ActionResult<GetComputeClusterInfo>> GetClusterInfoAsync([FromRoute] ClusterId clusterId)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.ViewComputeTasks, User))
+			if (!_globalConfig.Value.Authorize(AclAction.ViewComputeTasks, User))
 			{
 				return Forbid(AclAction.ViewComputeTasks);
 			}
@@ -79,7 +79,7 @@ namespace Horde.Build.Compute
 		[Route("/api/v1/compute/{clusterId}")]
 		public async Task<ActionResult> AddTasksAsync([FromRoute] ClusterId clusterId, [FromBody] AddTasksRequest request)
 		{
-			if(!await _aclService.AuthorizeAsync(AclAction.AddComputeTasks, User))
+			if(!_globalConfig.Value.Authorize(AclAction.AddComputeTasks, User))
 			{
 				return Forbid(AclAction.AddComputeTasks);
 			}
@@ -104,7 +104,7 @@ namespace Horde.Build.Compute
 		[Route("/api/v1/compute/{clusterId}/updates/{channelId}")]
 		public async Task<ActionResult<GetTaskUpdatesResponse>> GetUpdatesAsync([FromRoute] ClusterId clusterId, [FromRoute] ChannelId channelId, [FromQuery] int wait = 0)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.ViewComputeTasks, User))
+			if (!_globalConfig.Value.Authorize(AclAction.ViewComputeTasks, User))
 			{
 				return Forbid(AclAction.ViewComputeTasks);
 			}

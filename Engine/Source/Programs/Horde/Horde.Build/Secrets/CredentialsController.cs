@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Credentials;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 
 namespace Horde.Build.Secrets
@@ -19,25 +21,16 @@ namespace Horde.Build.Secrets
 	[Route("[controller]")]
 	public class CredentialsController : ControllerBase
 	{
-		/// <summary>
-		/// Singleton instance of the ACL service
-		/// </summary>
-		private readonly AclService _aclService;
-
-		/// <summary>
-		/// Singleton instance of the credential service
-		/// </summary>
 		private readonly CredentialService _credentialService;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">The ACL service</param>
-		/// <param name="credentialService">The credential service</param>
-		public CredentialsController(AclService aclService, CredentialService credentialService)
+		public CredentialsController(CredentialService credentialService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_aclService = aclService;
 			_credentialService = credentialService;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -49,7 +42,7 @@ namespace Horde.Build.Secrets
 		[Route("/api/v1/credentials")]
 		public async Task<ActionResult<CreateCredentialResponse>> CreateCredentialAsync([FromBody] CreateCredentialRequest create)
 		{
-			if(!await _aclService.AuthorizeAsync(AclAction.CreateCredential, User))
+			if(!_globalConfig.Value.Authorize(AclAction.CreateCredential, User))
 			{
 				return Forbid();
 			}
@@ -69,21 +62,19 @@ namespace Horde.Build.Secrets
 		[ProducesResponseType(typeof(List<GetCredentialResponse>), 200)]
 		public async Task<ActionResult<object>> FindCredentialAsync([FromQuery] string? name = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.ListCredentials, User))
+			if (!_globalConfig.Value.Authorize(AclAction.ListCredentials, User))
 			{
 				return Forbid();
 			}
 
 			List<Credential> credentials = await _credentialService.FindCredentialsAsync(name);
-			GlobalPermissionsCache cache = new GlobalPermissionsCache();
 
 			List<object> responses = new List<object>();
 			foreach (Credential credential in credentials)
 			{
-				if (await _credentialService.AuthorizeAsync(credential, AclAction.ViewCredential, User, cache))
+				if (_globalConfig.Value.Authorize(AclAction.ViewCredential, User))
 				{
-					bool includeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
-					responses.Add(new GetCredentialResponse(credential, includeAcl).ApplyFilter(filter));
+					responses.Add(new GetCredentialResponse(credential).ApplyFilter(filter));
 				}
 			}
 			return responses;
@@ -108,14 +99,12 @@ namespace Horde.Build.Secrets
 				return NotFound();
 			}
 
-			GlobalPermissionsCache cache = new GlobalPermissionsCache();
-			if (!await _credentialService.AuthorizeAsync(credential, AclAction.ViewCredential, User, cache))
+			if (!_globalConfig.Value.Authorize(AclAction.ViewCredential, User))
 			{
 				return Forbid();
 			}
 
-			bool includeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
-			return new GetCredentialResponse(credential, includeAcl).ApplyFilter(filter);
+			return new GetCredentialResponse(credential).ApplyFilter(filter);
 		}
 
 		/// <summary>
@@ -136,17 +125,16 @@ namespace Horde.Build.Secrets
 				return NotFound();
 			}
 
-			GlobalPermissionsCache cache = new GlobalPermissionsCache();
-			if (!await _credentialService.AuthorizeAsync(credential, AclAction.UpdateCredential, User, cache))
+			if (!_globalConfig.Value.Authorize(AclAction.UpdateCredential, User))
 			{
 				return Forbid();
 			}
-			if (update.Acl != null && !await _credentialService.AuthorizeAsync(credential, AclAction.ChangePermissions, User, cache))
+			if (update.Acl != null && !_globalConfig.Value.Authorize(AclAction.ChangePermissions, User))
 			{
 				return Forbid();
 			}
 
-			await _credentialService.UpdateCredentialAsync(credentialIdValue, update.Name, update.Properties, Acl.Merge(credential.Acl, update.Acl));
+			await _credentialService.UpdateCredentialAsync(credentialIdValue, update.Name, update.Properties);
 			return new OkResult();
 		}
 
@@ -166,7 +154,7 @@ namespace Horde.Build.Secrets
 			{
 				return NotFound();
 			}
-			if (!await _credentialService.AuthorizeAsync(credential, AclAction.DeleteCredential, User, null))
+			if (!_globalConfig.Value.Authorize(AclAction.DeleteCredential, User))
 			{
 				return Forbid();
 			}

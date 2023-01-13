@@ -21,9 +21,6 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task BlobCollectionTest()
 		{
-			ConfigUpdateService configUpdateService = ServiceProvider.GetRequiredService<ConfigUpdateService>();
-			await configUpdateService.StartAsync(default);
-
 			StorageService storageService = ServiceProvider.GetRequiredService<StorageService>();
 			IStorageClient client = await storageService.GetClientAsync(new NamespaceId("memory"), default);
 

@@ -35,13 +35,11 @@ namespace Horde.Build.Tests.Compute
 		}
 
 		[TestInitialize]
-		public async Task Setup()
+		public void Setup()
 		{
 			GlobalConfig globalConfig = new GlobalConfig();
 			globalConfig.Compute.Add(_clusterConfig);
-
-			await ConfigCollection.AddConfigAsync("globals", globalConfig);
-			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
+			SetConfig(globalConfig);
 		}
 		
 		[TestMethod]

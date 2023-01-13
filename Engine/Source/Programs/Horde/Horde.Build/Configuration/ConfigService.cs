@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Redis;
-using Horde.Build.Notifications;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Streams;
@@ -25,9 +24,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Configuration
 {
-	using ProjectId = StringId<IProject>;
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Service which processes runtime configuration data.
 	/// </summary>
@@ -38,13 +34,7 @@ namespace Horde.Build.Configuration
 		class ConfigSnapshot
 		{
 			[ProtoMember(1)]
-			public byte[] Global = null!;
-
-			[ProtoMember(2)]
-			public Dictionary<ProjectId, byte[]> Projects { get; set; } = new Dictionary<ProjectId, byte[]>();
-
-			[ProtoMember(3)]
-			public Dictionary<StreamId, byte[]> Streams { get; set; } = new Dictionary<StreamId, byte[]>();
+			public byte[] Data { get; set; } = null!;
 
 			[ProtoMember(4)]
 			public Dictionary<Uri, string> Dependencies { get; set; } = new Dictionary<Uri, string>();
@@ -114,8 +104,7 @@ namespace Horde.Build.Configuration
 		record class ConfigState(IoHash Hash, GlobalConfig GlobalConfig);
 
 		readonly RedisService _redisService;
-		readonly INotificationService _notificationService;
-		readonly ServerSettings _settings;
+		readonly ServerSettings _serverSettings;
 		readonly Dictionary<string, IConfigSource> _sources;
 		readonly JsonSerializerOptions _jsonOptions;
 		readonly RedisKey _snapshotKey = "config";
@@ -134,13 +123,17 @@ namespace Horde.Build.Configuration
 		string IOptionsChangeTokenSource<GlobalConfig>.Name => String.Empty;
 
 		/// <summary>
+		/// Event for notifications that the config has been updated
+		/// </summary>
+		public event Action<Exception?>? OnConfigUpdate;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(RedisService redisService, INotificationService notificationService, IOptions<ServerSettings> settings, IEnumerable<IConfigSource> sources, IClock clock, ILogger<ConfigService> logger)
+		public ConfigService(RedisService redisService, IOptions<ServerSettings> serverSettings, IEnumerable<IConfigSource> sources, IClock clock, ILogger<ConfigService> logger)
 		{
 			_redisService = redisService;
-			_notificationService = notificationService;
-			_settings = settings.Value;
+			_serverSettings = serverSettings.Value;
 			_sources = sources.ToDictionary(x => x.Scheme, x => x, StringComparer.OrdinalIgnoreCase);
 			_logger = logger;
 
@@ -175,6 +168,28 @@ namespace Horde.Build.Configuration
 			await _ticker.StopAsync();
 		}
 
+		/// <summary>
+		/// Accessor for tests to update the global config
+		/// </summary>
+		/// <param name="hash">Hash for the config data</param>
+		/// <param name="globalConfig">New config value</param>
+		public void Set(IoHash hash, GlobalConfig globalConfig)
+		{
+			// Set the new state
+			_stateTask = Task.FromResult(new ConfigState(hash, globalConfig));
+
+			// Notify any watchers of the new config object
+			for (; ; )
+			{
+				ChangeToken? token = _currentChangeToken;
+				if (Interlocked.CompareExchange(ref _currentChangeToken, null, token) == token)
+				{
+					token?.TriggerChange();
+					break;
+				}
+			}
+		}
+
 		/// <inheritdoc/>
 		public GlobalConfig Create(string name) => _stateTask.Result.GlobalConfig;
 
@@ -202,7 +217,7 @@ namespace Horde.Build.Configuration
 		async Task<ConfigState> GetStartupStateAsync()
 		{
 			ReadOnlyMemory<byte> data = ReadOnlyMemory<byte>.Empty;
-			if (!_settings.ForceConfigUpdateOnStartup)
+			if (!_serverSettings.ForceConfigUpdateOnStartup)
 			{
 				data = await ReadSnapshotDataAsync();
 			}
@@ -266,13 +281,13 @@ namespace Horde.Build.Configuration
 			try
 			{
 				ConfigSnapshot snapshot = await CreateSnapshotAsync(cancellationToken);
-				_notificationService.NotifyConfigUpdate(null);
+				OnConfigUpdate?.Invoke(null);
 				return snapshot;
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Exception while updating config: {Message}", ex.Message);
-				_notificationService.NotifyConfigUpdate(ex);
+				OnConfigUpdate?.Invoke(ex);
 				return null;
 			}
 		}
@@ -286,15 +301,15 @@ namespace Horde.Build.Configuration
 		{
 			// Get the path to the root config file
 			Uri globalConfigUri;
-			if (Path.IsPathRooted(_settings.ConfigPath) && !_settings.ConfigPath.StartsWith("//", StringComparison.Ordinal))
+			if (Path.IsPathRooted(_serverSettings.ConfigPath) && !_serverSettings.ConfigPath.StartsWith("//", StringComparison.Ordinal))
 			{
 				// absolute path to config
-				globalConfigUri = new Uri(_settings.ConfigPath);
+				globalConfigUri = new Uri(_serverSettings.ConfigPath);
 			}
 			else
 			{
 				// relative (development) or perforce path
-				globalConfigUri = ConfigType.CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), _settings.ConfigPath);
+				globalConfigUri = ConfigType.CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), _serverSettings.ConfigPath);
 			}
 
 			// Read the config files
@@ -304,23 +319,7 @@ namespace Horde.Build.Configuration
 				ConfigSnapshot snapshot = new ConfigSnapshot();
 
 				GlobalConfig globalConfig = await ConfigType.ReadAsync<GlobalConfig>(globalConfigUri, context, cancellationToken);
-				snapshot.Global = JsonSerializer.SerializeToUtf8Bytes(globalConfig, context.JsonOptions);
-
-				foreach (ProjectConfigRef projectConfigRef in globalConfig.Projects)
-				{
-					context.PropertyPathToFile.Clear();
-
-					ProjectConfig projectConfig = await ConfigType.ReadAsync<ProjectConfig>(new Uri(projectConfigRef.Path), context, cancellationToken);
-					snapshot.Projects.Add(projectConfigRef.Id, JsonSerializer.SerializeToUtf8Bytes(projectConfig, context.JsonOptions));
-
-					foreach (StreamConfigRef streamConfigRef in projectConfig.Streams)
-					{
-						context.PropertyPathToFile.Clear();
-
-						StreamConfig streamConfig = await ConfigType.ReadAsync<StreamConfig>(new Uri(streamConfigRef.Path), context, cancellationToken);
-						snapshot.Streams.Add(streamConfigRef.Id, JsonSerializer.SerializeToUtf8Bytes(streamConfig, context.JsonOptions));
-					}
-				}
+				snapshot.Data = JsonSerializer.SerializeToUtf8Bytes(globalConfig, context.JsonOptions);
 
 				// Save all the dependencies
 				foreach ((Uri depUri, IConfigFile depFile) in context.Files)
@@ -410,18 +409,7 @@ namespace Horde.Build.Configuration
 			{
 				// Update the config object
 				GlobalConfig globalConfig = CreateGlobalConfig(data);
-				_stateTask = Task.FromResult(new ConfigState(hash, globalConfig));
-
-				// Notify any watchers of the new config object
-				for (; ; )
-				{
-					ChangeToken? token = _currentChangeToken;
-					if (Interlocked.CompareExchange(ref _currentChangeToken, null, token) == token)
-					{
-						token?.TriggerChange();
-						break;
-					}
-				}
+				Set(hash, globalConfig);
 			}
 		}
 
@@ -431,18 +419,21 @@ namespace Horde.Build.Configuration
 			ConfigSnapshot snapshot = DeserializeSnapshot(data);
 
 			// Build the new config and store the project and stream configs inside it
-			GlobalConfig globalConfig = JsonSerializer.Deserialize<GlobalConfig>(snapshot.Global, _jsonOptions)!;
-			foreach (ProjectConfigRef projectConfigRef in globalConfig.Projects)
-			{
-				ProjectConfig projectConfig = JsonSerializer.Deserialize<ProjectConfig>(snapshot.Projects[projectConfigRef.Id], _jsonOptions)!;
-				projectConfigRef.Target = projectConfig;
+			GlobalConfig globalConfig = JsonSerializer.Deserialize<GlobalConfig>(snapshot.Data, _jsonOptions)!;
+			globalConfig.Revision = IoHash.Compute(data.Span).ToString();
 
-				foreach (StreamConfigRef streamConfigRef in projectConfig.Streams)
+			// Compute hashes for all the stream objects
+			foreach (ProjectConfig projectConfig in globalConfig.Projects)
+			{
+				foreach (StreamConfig streamConfig in projectConfig.Streams)
 				{
-					StreamConfig streamConfig = JsonSerializer.Deserialize<StreamConfig>(snapshot.Streams[streamConfigRef.Id], _jsonOptions)!;
-					streamConfigRef.Target = streamConfig;
+					byte[] streamData = JsonSerializer.SerializeToUtf8Bytes(streamConfig, _jsonOptions);
+					streamConfig.Revision = IoHash.Compute(streamData).ToString();
 				}
 			}
+
+			// Run the postload callbacks on all the config objects
+			globalConfig.PostLoad(_serverSettings);
 			return globalConfig;
 		}
 	}

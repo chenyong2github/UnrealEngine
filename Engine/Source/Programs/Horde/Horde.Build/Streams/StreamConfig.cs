@@ -5,22 +5,27 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Datadog.Trace;
+using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
-using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
+using Horde.Build.Configuration;
 using Horde.Build.Issues;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Perforce;
+using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 
 namespace Horde.Build.Streams
 {
+	using StreamId = StringId<IStream>;
 	using PoolId = StringId<IPool>;
 	using TemplateId = StringId<ITemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
@@ -69,12 +74,40 @@ namespace Horde.Build.Streams
 	/// </summary>
 	[JsonSchema("https://unrealengine.com/horde/stream")]
 	[JsonSchemaCatalog("Horde Stream", "Horde stream configuration file", new[] { "*.stream.json", "Streams/*.json" })]
+	[ConfigIncludeRoot]
 	public class StreamConfig
 	{
 		/// <summary>
+		/// Accessor for the project containing this stream
+		/// </summary>
+		[JsonIgnore]
+		public ProjectConfig ProjectConfig { get; private set; } = null!;
+
+		/// <summary>
+		/// Identifier for the stream
+		/// </summary>
+		public StreamId Id { get; set; }
+
+		/// <summary>
+		/// Direct include path for the stream config. For backwards compatibility with old config files when including from a ProjectConfig object.
+		/// </summary>
+		[ConfigInclude, ConfigRelativePath]
+		public string? Path { get; set; }
+
+		/// <summary>
+		/// Includes for other configuration files
+		/// </summary>
+		public List<ConfigInclude> Include { get; set; } = new List<ConfigInclude>();
+
+		/// <summary>
+		/// Revision identifier for this configuration object
+		/// </summary>
+		[JsonIgnore]
+		public string Revision { get; set; } = String.Empty;
+
+		/// <summary>
 		/// Name of the stream
 		/// </summary>
-		[Required]
 		public string Name { get; set; } = String.Empty;
 
 		/// <summary>
@@ -186,6 +219,32 @@ namespace Horde.Build.Streams
 		/// Tokens to create for each job step
 		/// </summary>
 		public List<TokenConfig> Tokens { get; set; } = new List<TokenConfig>();
+		
+		/// <summary>
+		/// Callback after reading this stream configuration
+		/// </summary>
+		/// <param name="id">The stream id</param>
+		/// <param name="projectConfig">Owning project</param>
+		public void PostLoad(StreamId id, ProjectConfig projectConfig)
+		{
+			Id = id;
+			ProjectConfig = projectConfig;
+
+			foreach (TemplateRefConfig template in Templates)
+			{
+				template.PostLoad(this);
+			}
+		}
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return Acl?.Authorize(action, user) ?? ProjectConfig.Authorize(action, user);
+		}
 
 		/// <summary>
 		/// Enumerates all commit tags, including the default tags for code and content.
@@ -312,8 +371,25 @@ namespace Horde.Build.Streams
 			workflowConfig = Workflows.FirstOrDefault(x => x.Id == workflowId);
 			return workflowConfig != null;
 		}
-	}
 
+		/// <summary>
+		/// The escaped name of this stream. Removes all non-identifier characters.
+		/// </summary>
+		/// <returns>Escaped name for the stream</returns>
+		public string GetEscapedName()
+		{
+			return Regex.Replace(Name, @"[^a-zA-Z0-9_]", "+");
+		}
+
+		/// <summary>
+		/// Gets the default identifier for workspaces created for this stream. Just includes an escaped depot name.
+		/// </summary>
+		/// <returns>The default workspace identifier</returns>
+		public string GetDefaultWorkspaceIdentifier()
+		{
+			return Regex.Replace(GetEscapedName(), @"^(\+\+[^+]*).*$", "$1");
+		}
+	}
 
 	/// <summary>
 	/// Information about a page to display in the dashboard for a stream
@@ -590,16 +666,16 @@ namespace Horde.Build.Streams
 	/// </summary>
 	public class TemplateRefConfig : TemplateConfig
 	{
-		TemplateId _id;
+		/// <summary>
+		/// The owning stream config
+		/// </summary>
+		[JsonIgnore]
+		public StreamConfig StreamConfig { get; private set; } = null!;
 
 		/// <summary>
 		/// Optional identifier for this ref. If not specified, an id will be generated from the name.
 		/// </summary>
-		public TemplateId Id
-		{
-			get => _id.IsEmpty ? TemplateId.Sanitize(Name) : _id;
-			set => _id = value;
-		}
+		public TemplateId Id { get; set; }
 
 		/// <summary>
 		/// Whether to show badges in UGS for these jobs
@@ -654,6 +730,30 @@ namespace Horde.Build.Streams
 		/// The ACL for this template
 		/// </summary>
 		public AclConfig? Acl { get; set; }
+
+		/// <summary>
+		/// Callback after the config is loaded
+		/// </summary>
+		/// <param name="streamConfig"></param>
+		public void PostLoad(StreamConfig streamConfig)
+		{
+			StreamConfig = streamConfig;
+
+			if (Id.IsEmpty)
+			{
+				Id = TemplateId.Sanitize(Name);
+			}
+		}
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return Acl?.Authorize(action, user) ?? StreamConfig.Authorize(action, user);
+		}
 	}
 
 	/// <summary>

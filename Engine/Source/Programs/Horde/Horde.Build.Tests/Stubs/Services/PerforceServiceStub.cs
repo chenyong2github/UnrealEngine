@@ -124,7 +124,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			streamChanges.Add(number, new Commit(streamId, number, originalNumber, author.Id, owner.Id, description, files.ToList()));
 		}
 
-		public Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int? numResults, CancellationToken cancellationToken)
+		public Task<List<ICommit>> GetChangesAsync(StreamConfig stream, int? minChange, int? maxChange, int? numResults, CancellationToken cancellationToken)
 		{
 			List<ICommit> results = new List<ICommit>();
 
@@ -151,12 +151,12 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.FromResult(results);
 		}
 
-		public Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(IStream stream, int changeNumber, CancellationToken cancellationToken)
+		public Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(StreamConfig stream, int changeNumber, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<List<ICommit>> GetChangeDetailsAsync(IStream stream, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
+		public Task<List<ICommit>> GetChangeDetailsAsync(StreamConfig stream, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
 		{
 			List<ICommit> results = new List<ICommit>();
 			foreach (int changeNumber in changeNumbers)
@@ -176,7 +176,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			throw new NotImplementedException();
 		}
 
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(IStream stream, int shelvedChange, int originalChange, CancellationToken cancellationToken)
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(StreamConfig stream, int shelvedChange, int originalChange, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
@@ -209,12 +209,12 @@ namespace Horde.Build.Tests.Stubs.Services
 		class CommitCollection : ICommitCollection
 		{
 			readonly PerforceServiceStub _owner;
-			readonly IStream _stream;
+			readonly StreamConfig _streamConfig;
 
-			public CommitCollection(PerforceServiceStub owner, IStream stream)
+			public CommitCollection(PerforceServiceStub owner, StreamConfig stream)
 			{
 				_owner = owner;
-				_stream = stream;
+				_streamConfig = stream;
 			}
 
 			public Task<int> CreateNewAsync(string path, string description, CancellationToken cancellationToken = default)
@@ -224,7 +224,7 @@ namespace Horde.Build.Tests.Stubs.Services
 
 			public async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, IReadOnlyList<CommitTag>? tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 			{
-				foreach (ICommit commit in await _owner.GetChangesAsync(_stream, minChange, maxChange, null, cancellationToken))
+				foreach (ICommit commit in await _owner.GetChangesAsync(_streamConfig, minChange, maxChange, null, cancellationToken))
 				{
 					if (tags != null && tags.Count > 0)
 					{
@@ -240,13 +240,13 @@ namespace Horde.Build.Tests.Stubs.Services
 
 			public async Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default)
 			{
-				List<ICommit> commits = await _owner.GetChangeDetailsAsync(_stream, new[] { changeNumber }, cancellationToken);
+				List<ICommit> commits = await _owner.GetChangeDetailsAsync(_streamConfig, new[] { changeNumber }, cancellationToken);
 				return commits[0];
 			}
 
 			public async Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
 			{
-				List<ICommit> commits = await _owner.GetChangesAsync(_stream, null, null, 1, cancellationToken);
+				List<ICommit> commits = await _owner.GetChangesAsync(_streamConfig, null, null, 1, cancellationToken);
 				return commits[0].Number;
 			}
 
@@ -256,9 +256,9 @@ namespace Horde.Build.Tests.Stubs.Services
 			}
 		}
 
-		public ICommitCollection GetCommits(IStream stream)
+		public ICommitCollection GetCommits(StreamConfig streamConfig)
 		{
-			return new CommitCollection(this, stream);
+			return new CommitCollection(this, streamConfig);
 		}
 	}
 }

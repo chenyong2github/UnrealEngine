@@ -67,7 +67,7 @@ namespace Horde.Build.Tests
 	        Fixture fixture = await CreateFixtureAsync();
 	        IJob job = fixture.Job1;
 	        string[] templates = { job.TemplateId.ToString() };
-	        object obj = (await JobsController.FindJobTimingsAsync(fixture.Stream!.Id.ToString(), templates)).Value!;
+	        object obj = (await JobsController.FindJobTimingsAsync(fixture.StreamConfig!.Id.ToString(), templates)).Value!;
 	        FindJobTimingsResponse res = (obj as FindJobTimingsResponse)!;
 	        Assert.AreEqual(1, res.Timings.Count);
 	        GetJobTimingResponse timingResponse = res.Timings[job.Id.ToString()];

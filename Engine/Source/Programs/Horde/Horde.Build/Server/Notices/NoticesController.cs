@@ -22,45 +22,18 @@ namespace Horde.Build.Server.Notices
 	[Route("[controller]")]
 	public class NoticesController : ControllerBase
 	{
-		/// <summary>
-		/// The acl service singleton
-		/// </summary>
-		readonly AclService _aclService;
-
-		/// <summary>
-		/// Reference to the user collection
-		/// </summary>
+		private readonly AclService _aclService;
 		private readonly IUserCollection _userCollection;
-
-		/// <summary>
-		/// Notice service
-		/// </summary>
 		private readonly NoticeService _noticeService;
-
-		/// <summary>
-		/// cached globals
-		/// </summary>
-		readonly LazyCachedValue<Task<IGlobals>> _cachedGlobals;
-
-		/// <summary>
-		/// cached notices
-		/// </summary>
-		readonly LazyCachedValue<Task<List<INotice>>> _cachedNotices;
-
-		/// <summary>
-		/// Time information
-		/// </summary>
-		readonly IClock _clock;
+		private readonly LazyCachedValue<Task<IGlobals>> _cachedGlobals;
+		private readonly LazyCachedValue<Task<List<INotice>>> _cachedNotices;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
+		private readonly IClock _clock;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="globalsService">The globals service singleton</param>
-		/// <param name="noticeService">The notice service singleton</param>
-		/// <param name="aclService">The acl service singleton</param>
-		/// <param name="userCollection">The user collection singleton</param>
-		/// <param name="clock"></param>
-		public NoticesController(GlobalsService globalsService, NoticeService noticeService, AclService aclService, IUserCollection userCollection, IClock clock)
+		public NoticesController(GlobalsService globalsService, NoticeService noticeService, AclService aclService, IUserCollection userCollection, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{			
 			_aclService = aclService;
 			_userCollection = userCollection;
@@ -68,6 +41,7 @@ namespace Horde.Build.Server.Notices
 			_cachedGlobals = new LazyCachedValue<Task<IGlobals>>(async () => await globalsService.GetAsync(), TimeSpan.FromSeconds(30.0));
 			_cachedNotices = new LazyCachedValue<Task<List<INotice>>>(() => noticeService.GetNoticesAsync(), TimeSpan.FromMinutes(1));
 			_clock = clock;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -78,7 +52,7 @@ namespace Horde.Build.Server.Notices
 		[HttpPost("/api/v1/notices")]
 		public async Task<ActionResult> AddNoticeAsync(CreateNoticeRequest request)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
@@ -97,7 +71,7 @@ namespace Horde.Build.Server.Notices
 		[HttpPut("/api/v1/notices")]
 		public async Task<ActionResult> UpdateNoticeAsync(UpdateNoticeRequest request)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
@@ -112,7 +86,7 @@ namespace Horde.Build.Server.Notices
 		[HttpDelete("/api/v1/notices/{id}")]
 		public async Task<ActionResult> DeleteNoticeAsync(string id)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
@@ -131,11 +105,9 @@ namespace Horde.Build.Server.Notices
 		{
 			List<GetNoticeResponse> messages = new List<GetNoticeResponse>();
 
-			IGlobals globals = await _cachedGlobals.GetCached();
-
 			DateTimeOffset now = TimeZoneInfo.ConvertTime(new DateTimeOffset(_clock.UtcNow), _clock.TimeZone);
 						
-			foreach (ScheduledDowntime schedule in globals.Config.Downtime)
+			foreach (ScheduledDowntime schedule in _globalConfig.Value.Downtime)
 			{
 				DateTimeOffset start = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(schedule.GetNext(now).StartTime, "UTC");
 				DateTimeOffset finish = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(schedule.GetNext(now).FinishTime, "UTC");

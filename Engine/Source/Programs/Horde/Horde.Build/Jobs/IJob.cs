@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Security.Claims;
 using EpicGames.Core;
+using Horde.Build.Acls;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
@@ -12,6 +14,7 @@ using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Timing;
 using Horde.Build.Logs;
+using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Ugs;
 using Horde.Build.Users;
@@ -741,6 +744,26 @@ namespace Horde.Build.Jobs
 	/// </summary>
 	public static class JobExtensions
 	{
+		/// <summary>
+		/// Determines if the user is authorized to perform an action on a particular stream
+		/// </summary>
+		/// <param name="globalConfig">Current global config instance</param>
+		/// <param name="job">Job to authorize for</param>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to authorize</param>
+		/// <returns>True if the action is authorized</returns>
+		public static bool Authorize(this GlobalConfig globalConfig, IJob? job, AclAction action, ClaimsPrincipal user)
+		{
+			if (job != null && globalConfig.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
+			{
+				return streamConfig.Authorize(action, user);
+			}
+			else
+			{
+				return globalConfig.Authorize(action, user);
+			}
+		}
+
 		/// <summary>
 		/// Attempts to get a step with a given ID
 		/// </summary>

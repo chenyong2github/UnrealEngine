@@ -117,18 +117,6 @@ namespace Horde.Build.Tests
 		readonly DirectoryReference _autoSdkDir;
 		readonly DirectoryReference _workspaceDir;
 
-		async Task<IStream> CreateStreamAsync(ProjectId projectId, StreamId streamId, string streamName)
-		{
-			string revision = $"config:{streamId}";
-
-			StreamConfig streamConfig = new StreamConfig { Name = streamName };
-			streamConfig.Tabs.Add(new JobsTabConfig { Title = "General", Templates = new List<TemplateId> { new TemplateId("test-template") } });
-			streamConfig.Templates.Add(new TemplateRefConfig { Id = new TemplateId("test-template") });
-			await ConfigCollection.AddConfigAsync(revision, streamConfig);
-
-			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, revision, projectId));
-		}
-
 		public IssueServiceTests()
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -142,13 +130,29 @@ namespace Horde.Build.Tests
 				_workspaceDir = new DirectoryReference("/Horde");
 			}
 
-			const string ProjectConfigRevision = "projectconfig";
-			ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" }).Wait();
-			IProject project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), ProjectConfigRevision, 0).Result!;
+			ProjectId projectId = new ProjectId("ue5");
 
-			IStream mainStream = CreateStreamAsync(project.Id, _mainStreamId, MainStreamName).Result;
-			IStream releaseStream = CreateStreamAsync(project.Id, _releaseStreamId, ReleaseStreamName).Result;
-			IStream devStream = CreateStreamAsync(project.Id, _devStreamId, DevStreamName).Result;
+			ProjectConfig projectConfig = new ProjectConfig();
+			projectConfig.Id = projectId;
+			projectConfig.Streams.Add(CreateStream(_mainStreamId, MainStreamName));
+			projectConfig.Streams.Add(CreateStream(_releaseStreamId, ReleaseStreamName));
+			projectConfig.Streams.Add(CreateStream(_devStreamId, DevStreamName));
+
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Projects.Add(projectConfig);
+
+			SetConfig(globalConfig);
+
+			static StreamConfig CreateStream(StreamId streamId, string streamName)
+			{
+				return new StreamConfig
+				{
+					Id = streamId,
+					Name = streamName,
+					Tabs = new List<TabConfig> { new JobsTabConfig { Title = "General", Templates = new List<TemplateId> { new TemplateId("test-template") } } },
+					Templates = new List<TemplateRefConfig> { new TemplateRefConfig { Id = new TemplateId("test-template") } }
+				};
+			}
 
 			IUser bill = UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
 			IUser anne = UserCollection.FindOrAddUserByLoginAsync("Anne").Result;
@@ -330,7 +334,7 @@ namespace Horde.Build.Tests
 			// Scenario: Stream is deleted
 			// Expected: Issue is closed
 			{
-				await StreamCollection.DeleteAsync(_mainStreamId);
+				UpdateConfig(x => x.Projects.Clear());
 				await Clock.AdvanceAsync(TimeSpan.FromHours(1.0));
 
 				List<IIssue> issues = await IssueCollection.FindIssuesAsync();

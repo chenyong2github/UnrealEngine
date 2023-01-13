@@ -12,10 +12,12 @@ using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 
@@ -30,35 +32,22 @@ namespace Horde.Build.Jobs.Artifacts
 	[Route("[controller]")]
 	public class ArtifactsController : ControllerBase
 	{
-		/// <summary>
-		/// Instance of the globals service
-		/// </summary>
 		private readonly GlobalsService _globalsService;
-
-		/// <summary>
-		/// Instance of the artifact collection
-		/// </summary>
 		private readonly IArtifactCollection _artifactCollection;
-
-		/// <summary>
-		/// Instance of the ACL service
-		/// </summary>
 		private readonly AclService _aclService;
-
-		/// <summary>
-		/// Instance of the Job service
-		/// </summary>
 		private readonly JobService _jobService;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ArtifactsController(GlobalsService globalsService, IArtifactCollection artifactCollection, AclService aclService, JobService jobService)
+		public ArtifactsController(GlobalsService globalsService, IArtifactCollection artifactCollection, AclService aclService, JobService jobService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_globalsService = globalsService;
 			_artifactCollection = artifactCollection;
 			_aclService = aclService;
 			_jobService = jobService;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -76,10 +65,15 @@ namespace Horde.Build.Jobs.Artifacts
 			IJob? job = await _jobService.GetJobAsync(jobId);
 			if(job == null)
 			{
-				return NotFound();
+				return NotFound(jobId);
 			}
 
-			if (!await _jobService.AuthorizeAsync(job, AclAction.UploadArtifact, User, null))
+			StreamConfig? streamConfig;
+			if (!_globalConfig.Value.TryGetStream(job.StreamId, out streamConfig))
+			{
+				return NotFound(job.StreamId);
+			}
+			if (!streamConfig.Authorize(AclAction.UploadArtifact, User))
 			{
 				return Forbid();
 			}
@@ -121,7 +115,7 @@ namespace Horde.Build.Jobs.Artifacts
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.UploadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.UploadArtifact, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -144,7 +138,7 @@ namespace Horde.Build.Jobs.Artifacts
 		[ProducesResponseType(typeof(List<GetArtifactResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetArtifacts([FromQuery] JobId jobId, [FromQuery] string? stepId = null, [FromQuery] bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -194,7 +188,7 @@ namespace Horde.Build.Jobs.Artifacts
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.DownloadArtifact, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -218,7 +212,7 @@ namespace Horde.Build.Jobs.Artifacts
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(artifact.JobId, AclAction.DownloadArtifact, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -240,7 +234,7 @@ namespace Horde.Build.Jobs.Artifacts
 		{
 			SubResourceId stepIdValue = stepId.ToSubResourceId();
 
-			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, null))
+			if (!await _jobService.AuthorizeAsync(jobId, AclAction.DownloadArtifact, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -349,7 +343,7 @@ namespace Horde.Build.Jobs.Artifacts
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(job, AclAction.DownloadArtifact, User, null))
+			if (!_globalConfig.Value.Authorize(job, AclAction.DownloadArtifact, User))
 			{
 				return Forbid();
 			}

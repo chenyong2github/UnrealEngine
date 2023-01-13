@@ -30,17 +30,17 @@ namespace Horde.Build.Tasks
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
 
 		readonly AgentSoftwareService _agentSoftwareService;
-		readonly GlobalsService _globalsService;
 		readonly ILogFileService _logService;
-		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+		readonly IOptions<ServerSettings> _serverSettings;
 		readonly IClock _clock;
 
-		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, GlobalsService globalsService, ILogFileService logService, IOptionsMonitor<ServerSettings> settings, IClock clock)
+		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, ILogFileService logService, IOptionsMonitor<GlobalConfig> globalConfig, IOptions<ServerSettings> serverSettings, IClock clock)
 		{
 			_agentSoftwareService = agentSoftwareService;
-			_globalsService = globalsService;
 			_logService = logService;
-			_settings = settings;
+			_globalConfig = globalConfig;
+			_serverSettings = serverSettings;
 			_clock = clock;
 
 			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
@@ -48,7 +48,7 @@ namespace Horde.Build.Tasks
 
 		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
-			if (!_settings.CurrentValue.EnableUpgradeTasks)
+			if (!_serverSettings.Value.EnableUpgradeTasks)
 			{
 				return Skip(cancellationToken);
 			}
@@ -92,11 +92,10 @@ namespace Horde.Build.Tasks
 		/// <returns>Unique id of the client version this agent should be running</returns>
 		public async Task<string?> GetRequiredSoftwareVersion(IAgent agent)
 		{
-			IGlobals globals = await _globalsService.GetAsync();
-			GlobalConfig config = globals.Config;
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
 			AgentSoftwareChannelName channelName = AgentSoftwareService.DefaultChannelName;
-			foreach (AgentSoftwareConfig softwareConfig in config.Software)
+			foreach (AgentSoftwareConfig softwareConfig in globalConfig.Software)
 			{
 				if (softwareConfig.Condition != null && agent.SatisfiesCondition(softwareConfig.Condition))
 				{

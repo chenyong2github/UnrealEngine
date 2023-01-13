@@ -3,15 +3,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
+using System.Text.Json.Serialization;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Perforce;
+using Horde.Build.Acls;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Server;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Telemetry;
 using Horde.Build.Utilities;
-using MongoDB.Driver.Core.Configuration;
 using Serilog.Events;
 
 namespace Horde.Build
@@ -654,6 +656,56 @@ namespace Horde.Build
 		/// Settings for sending telemetry events
 		/// </summary>
 		public TelemetryConfig Telemetry { get; set; } = new TelemetryConfig();
+
+		/// <summary>
+		/// Default pre-baked ACL for authentication of well-known roles
+		/// </summary>
+		[JsonIgnore]
+		public AclConfig DefaultAcl
+		{
+			get
+			{
+				_defaultAcl ??= GetDefaultAcl();
+				return _defaultAcl;
+			}
+		}
+		
+		[JsonIgnore]
+		AclConfig? _defaultAcl;
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return DefaultAcl.Authorize(action, user) ?? false;
+		}
+
+		/// <summary>
+		/// Create the default ACL for the server, including all predefined roles.
+		/// </summary>
+		/// <returns></returns>
+		AclConfig GetDefaultAcl()
+		{
+			AclConfig defaultAcl = new AclConfig();
+			defaultAcl.Entries.Add(new AclEntryConfig(new AclClaimConfig(ClaimTypes.Role, "internal:AgentRegistration"), new[] { AclAction.CreateAgent, AclAction.CreateSession }));
+			defaultAcl.Entries.Add(new AclEntryConfig(HordeClaims.AgentRegistrationClaim, new[] { AclAction.CreateAgent, AclAction.CreateSession, AclAction.UpdateAgent, AclAction.DownloadSoftware, AclAction.CreatePool, AclAction.UpdatePool, AclAction.ViewPool, AclAction.DeletePool, AclAction.ListPools, AclAction.ViewStream, AclAction.ViewProject, AclAction.ViewJob, AclAction.ViewCosts }));
+			defaultAcl.Entries.Add(new AclEntryConfig(HordeClaims.AgentRoleClaim, new[] { AclAction.ViewProject, AclAction.ViewStream, AclAction.CreateEvent, AclAction.DownloadSoftware }));
+			defaultAcl.Entries.Add(new AclEntryConfig(HordeClaims.DownloadSoftwareClaim, new[] { AclAction.DownloadSoftware }));
+			defaultAcl.Entries.Add(new AclEntryConfig(HordeClaims.UploadSoftwareClaim, new[] { AclAction.UploadSoftware }));
+			defaultAcl.Entries.Add(new AclEntryConfig(HordeClaims.ConfigureProjectsClaim, new[] { AclAction.CreateProject, AclAction.UpdateProject, AclAction.ViewProject, AclAction.CreateStream, AclAction.UpdateStream, AclAction.ViewStream, AclAction.ChangePermissions }));
+			defaultAcl.Entries.Add(new AclEntryConfig(HordeClaims.StartChainedJobClaim, new[] { AclAction.CreateJob, AclAction.ExecuteJob, AclAction.UpdateJob, AclAction.ViewJob, AclAction.ViewTemplate, AclAction.ViewStream }));
+
+			if (AdminClaimType != null && AdminClaimValue != null)
+			{
+				AclAction[] actions = Enum.GetValues(typeof(AclAction)).OfType<AclAction>().ToArray();
+				defaultAcl.Entries.Add(new AclEntryConfig(new AclClaimConfig(AdminClaimType, AdminClaimValue), actions));
+			}
+
+			return defaultAcl;
+		}
 
 		/// <summary>
 		/// Helper method to check if this process has activated the given mode

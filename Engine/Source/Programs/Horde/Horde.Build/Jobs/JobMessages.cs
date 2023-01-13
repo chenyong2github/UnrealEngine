@@ -164,11 +164,6 @@ namespace Horde.Build.Jobs
 		/// New list of arguments for the job. Only -Target= arguments can be modified after the job has started.
 		/// </summary>
 		public List<string>? Arguments { get; set; }
-
-		/// <summary>
-		/// Custom permissions for this object
-		/// </summary>
-		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>
@@ -352,11 +347,6 @@ namespace Horde.Build.Jobs
 		/// Whether issues are being updated by this job
 		/// </summary>
 		public bool UpdateIssues { get; set; }
-
-		/// <summary>
-		/// Per-object permissions
-		/// </summary>
-		public GetAclResponse? Acl { get; set; }
 
 		/// <summary>
 		/// Constructor

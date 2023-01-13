@@ -40,9 +40,6 @@ namespace Horde.Build.Server
 			public int? SchemaVersion { get; set; }
 
 			[BsonIgnore]
-			public GlobalConfig Config { get; set; } = null!;
-
-			[BsonIgnore]
 			string IGlobals.JwtIssuer => _owner._jwtIssuer;
 
 			[BsonIgnore]
@@ -65,7 +62,6 @@ namespace Horde.Build.Server
 		}
 
 		readonly MongoService _mongoService;
-		readonly ConfigCollection _configCollection;
 		readonly string _jwtIssuer;
 		readonly byte[]? _fixedJwtSecret;
 
@@ -73,12 +69,10 @@ namespace Horde.Build.Server
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService"></param>
-		/// <param name="configCollection"></param>
 		/// <param name="settings">Global settings instance</param>
-		public GlobalsService(MongoService mongoService, ConfigCollection configCollection, IOptions<ServerSettings> settings)
+		public GlobalsService(MongoService mongoService, IOptions<ServerSettings> settings)
 		{
 			_mongoService = mongoService;
-			_configCollection = configCollection;
 
 			if (String.IsNullOrEmpty(settings.Value.JwtIssuer))
 			{
@@ -96,20 +90,6 @@ namespace Horde.Build.Server
 			}
 		}
 
-		async Task PostLoadAsync(Globals globals)
-		{
-			globals._owner = this;
-
-			if (String.IsNullOrEmpty(globals.ConfigRevision))
-			{
-				globals.Config = new GlobalConfig();
-			}
-			else
-			{
-				globals.Config = await _configCollection.GetConfigAsync<GlobalConfig>(globals.ConfigRevision);
-			}
-		}
-
 		/// <summary>
 		/// Gets the current globals instance
 		/// </summary>
@@ -117,7 +97,7 @@ namespace Horde.Build.Server
 		public async ValueTask<IGlobals> GetAsync()
 		{
 			Globals globals = await _mongoService.GetSingletonAsync<Globals>(() => CreateGlobals());
-			await PostLoadAsync(globals);
+			globals._owner = this;
 			return globals;
 		}
 

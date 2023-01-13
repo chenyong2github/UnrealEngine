@@ -32,7 +32,8 @@ namespace Horde.Build.Tests
 		public IJob Job2 { get; private set; } = null!;
 		public ITemplate Template { get; private set; } = null!;
 		public IGraph Graph { get; private set; } = null!;
-		public IStream? Stream { get; private set; }
+		public StreamId StreamId { get; private set; }
+		public StreamConfig? StreamConfig { get; private set; }
 		public TemplateId TemplateRefId1 { get; private set; }
 		public TemplateId TemplateRefId2 { get; private set; }
 		public IArtifact Job1Artifact { get; private set; } = null!;
@@ -41,10 +42,10 @@ namespace Horde.Build.Tests
 		public string Agent1Name { get; private set; } = null!;
 		public const string PoolName = "TestingPool";
 
-		public static async Task<Fixture> Create(ConfigCollection configCollection, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, StreamService streamService, AgentService agentService)
+		public static async Task<Fixture> Create(ConfigService configService, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, AgentService agentService, ServerSettings serverSettings)
 		{
 			Fixture fixture = new Fixture();
-			await fixture.Populate(configCollection, graphCollection, templateCollection, jobService, artifactCollection, streamService, agentService);
+			await fixture.Populate(configService, graphCollection, templateCollection, jobService, artifactCollection, agentService, serverSettings);
 
 //			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 112233, "leet.coder", "Did stuff", new []{"file.cpp"});
 //			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 1111, "swarm", "A shelved CL here", new []{"renderer.cpp"});
@@ -52,7 +53,7 @@ namespace Horde.Build.Tests
 			return fixture;
 		}
 
-		private async Task Populate(ConfigCollection configCollection, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, StreamService streamService, AgentService agentService)
+		private async Task Populate(ConfigService configService, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, AgentService agentService, ServerSettings serverSettings)
 		{
 			FixtureGraph fg = new FixtureGraph();
 			fg.Id = ContentHash.Empty;
@@ -61,7 +62,7 @@ namespace Horde.Build.Tests
 			fg.Aggregates = new List<IAggregate>();
 			fg.Labels = new List<ILabel>();
 
-			Template = await templateCollection.AddAsync("Test template");
+			Template = await templateCollection.GetOrAddAsync(new TemplateConfig { Name = "Test template" });
 			Graph = await graphCollection.AddAsync(Template, null);
 
 			TemplateRefId1 = new TemplateId("template1");
@@ -79,22 +80,24 @@ namespace Horde.Build.Tests
 				{ "Win64", new() { Pool = new PoolId(PoolName) } }
 			};
 
-			StreamConfig config = new StreamConfig { Name = "//UE5/Main", Tabs = tabs, Templates = templates, AgentTypes = agentTypes };
-			await configCollection.AddConfigAsync("rev1", config);
+			StreamId streamId = new StreamId("ue5-main");
+			StreamConfig streamConfig = new StreamConfig { Id = streamId, Name = "//UE5/Main", Tabs = tabs, Templates = templates, AgentTypes = agentTypes };
 
-			Stream = await streamService.StreamCollection.GetAsync(new StreamId("ue5-main"));
-			Stream = await streamService.StreamCollection.TryCreateOrReplaceAsync(
-				new StreamId("ue5-main"),
-				Stream,
-				"rev1",
-				new ProjectId("does-not-exist")
-			);
-			
+			ProjectId projectId = new ProjectId("ue5");
+			ProjectConfig projectConfig = new ProjectConfig { Id = projectId, Name = "UE5", Streams = new List<StreamConfig> { streamConfig } };
+
+			GlobalConfig globalConfig = new GlobalConfig { Projects = new List<ProjectConfig> { projectConfig } };
+			globalConfig.PostLoad(serverSettings);
+			configService.Set(IoHash.Zero, globalConfig);
+
+			StreamId = streamId;
+			StreamConfig = streamConfig;
+
 			Job1 = await jobService.CreateJobAsync(
 				jobId: new JobId("5f283932841e7fdbcafb6ab5"),
-				stream: Stream!,
+				streamConfig: streamConfig,
 				templateRefId: TemplateRefId1,
-				templateHash: Template.Id,
+				templateHash: Template.Hash,
 				graph: Graph,
 				name: "hello1",
 				change: 1000001,
@@ -105,7 +108,7 @@ namespace Horde.Build.Tests
 
 			Job2 = await jobService.CreateJobAsync(
 				jobId: new JobId("5f69ea1b68423e921b035106"),
-				stream: Stream!,
+				streamConfig: streamConfig,
 				templateRefId: new TemplateId("template-id-1"),
 				templateHash: ContentHash.MD5("made-up-template-hash"),
 				graph: fg,

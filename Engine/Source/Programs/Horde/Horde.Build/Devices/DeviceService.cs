@@ -89,18 +89,16 @@ namespace Horde.Build.Devices
 	/// </summary>
 	public sealed class DeviceService : IHostedService, IDisposable
 	{
-		readonly GlobalsService _globalsService;
-		readonly AclService _aclService;
 		readonly INotificationService _notificationService;
 		readonly JobService _jobService;
-		readonly StreamService _streamService;
-		readonly ProjectService _projectService;
-		IUserCollection UserCollection { get; set; }
+		readonly IStreamCollection _streamCollection;
+		readonly IUserCollection _userCollection;
 		readonly ILogger<DeviceService> _logger;
 		readonly IDeviceCollection _devices;
 		readonly ITicker _ticker;
 		readonly ITicker _telemetryTicker;
 		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Platform map V1 singleton
@@ -117,22 +115,19 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(GlobalsService globalsService, IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, IOptionsMonitor<ServerSettings> settings, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
+		public DeviceService(IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, IStreamCollection streamCollection, IOptionsMonitor<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
 		{
-			UserCollection = userCollection;
-			_globalsService = globalsService;
+			_userCollection = userCollection;
 			_devices = devices;
 			_jobService = jobService;
-			_projectService = projectService;
-			_streamService = streamService;
-			_aclService = aclService;
+			_streamCollection = streamCollection;
 			_notificationService = notificationService;
 			_ticker = clock.AddSharedTicker<DeviceService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 			_telemetryTicker = clock.AddSharedTicker("DeviceService.Telemetry", TimeSpan.FromMinutes(10.0), TickTelemetryAsync, logger);
 			_logger = logger;
 			_settings = settings;
+			_globalConfig = globalConfig;
 			_platformMapSingleton = platformMapSingleton;
-
 		}
 
 		/// <inheritdoc/>
@@ -163,16 +158,15 @@ namespace Horde.Build.Devices
 		{
 			try
 			{
-				IGlobals globals = await _globalsService.GetAsync();
-
-				if (globals.Config.Devices != null)
+				GlobalConfig globalConfig = _globalConfig.CurrentValue;
+				if (globalConfig.Devices != null)
 				{
 					await _platformMapSingleton.UpdateAsync(platformMap => {
 
 						platformMap.PlatformMap.Clear();
 						platformMap.PerfSpecHighMap.Clear();
 
-						foreach (DevicePlatformConfig platform in globals.Config.Devices.Platforms)
+						foreach (DevicePlatformConfig platform in globalConfig.Devices.Platforms)
 						{
 							DevicePlatformId id = new DevicePlatformId(platform.Id);
 							foreach (string name in platform.Names)
@@ -211,6 +205,8 @@ namespace Horde.Build.Devices
 			{
 				using IScope scope = GlobalTracer.Instance.BuildSpan("DeviceService.TickAsync").StartActive();
 
+				GlobalConfig globalConfig = _globalConfig.CurrentValue;
+
 				if (runUpgrade)
 				{
 					try
@@ -245,7 +241,7 @@ namespace Horde.Build.Devices
 					{
 						foreach ((UserId, IDevice) expiredDevice in expireNotifications)
 						{
-							await NotifyDeviceServiceAsync($"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout will expire in 24 hours.  Please visit https://horde.devtools.epicgames.com/devices to renew the checkout if needed.", null, null, null, expiredDevice.Item1);
+							await NotifyDeviceServiceAsync(globalConfig, $"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout will expire in 24 hours.  Please visit https://horde.devtools.epicgames.com/devices to renew the checkout if needed.", null, null, null, expiredDevice.Item1);
 						}
 					}
 
@@ -255,7 +251,7 @@ namespace Horde.Build.Devices
 					{
 						foreach ((UserId, IDevice) expiredDevice in expireCheckouts)
 						{
-							await NotifyDeviceServiceAsync($"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout has expired.  The device has been returned to the shared pool and should no longer be accessed.  Please visit https://horde.devtools.epicgames.com/devices to checkout devices as needed.", null, null, null, expiredDevice.Item1);
+							await NotifyDeviceServiceAsync(globalConfig, $"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout has expired.  The device has been returned to the shared pool and should no longer be accessed.  Please visit https://horde.devtools.epicgames.com/devices to checkout devices as needed.", null, null, null, expiredDevice.Item1);
 						}
 					}
 				}
@@ -497,12 +493,7 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="message"></param>
-		/// <param name="deviceId"></param>
-		/// <param name="jobId"></param>
-		/// <param name="stepId"></param>
-		/// <param name="userId"></param>
-		public async Task NotifyDeviceServiceAsync(string message, DeviceId? deviceId = null, string? jobId = null, string? stepId = null, UserId? userId = null)
+		public async Task NotifyDeviceServiceAsync(GlobalConfig globalConfig, string message, DeviceId? deviceId = null, string? jobId = null, string? stepId = null, UserId? userId = null)
 		{
 			try 
 			{
@@ -511,12 +502,12 @@ namespace Horde.Build.Devices
 				IJob? job = null;
 				IJobStep? step = null;
 				INode? node = null;
-				IStream? stream = null;
+				StreamConfig? streamConfig = null;
 				IUser? user = null;
 
 				if (userId.HasValue)
 				{
-					user = await UserCollection.GetUserAsync(userId.Value);
+					user = await _userCollection.GetUserAsync(userId.Value);
 					if (user == null)
 					{
 						_logger.LogError("Unable to send device notification, can't find User {UserId}", userId.Value);
@@ -536,7 +527,7 @@ namespace Horde.Build.Devices
 
 					if (job != null)
 					{
-						stream = await _streamService.GetStreamAsync(job.StreamId);
+						globalConfig.TryGetStream(job.StreamId, out streamConfig);
 
 						if (stepId != null)
 						{
@@ -554,7 +545,7 @@ namespace Horde.Build.Devices
 					}
 				}
 
-				_notificationService.NotifyDeviceService(message, device, pool, stream, job, step, node, user);
+				_notificationService.NotifyDeviceService(message, device, pool, streamConfig, job, step, node, user);
 
 			}
 			catch (Exception ex)
@@ -568,10 +559,11 @@ namespace Horde.Build.Devices
 		/// </summary>
 		/// <param name="action"></param>
 		/// <param name="user"></param>
+		/// <param name="globalConfig"></param>
 		/// <returns></returns>
-		public async Task<bool> AuthorizeAsync(AclAction action, ClaimsPrincipal user)
+		public static bool Authorize(AclAction action, ClaimsPrincipal user, GlobalConfig globalConfig)
 		{
-			// Tihs is deprecated and device auth should be going through GetUserPoolAuthorizationsAsync
+			// This is deprecated and device auth should be going through GetUserPoolAuthorizationsAsync
 
 			if (action == AclAction.DeviceRead)
 			{
@@ -583,46 +575,46 @@ namespace Horde.Build.Devices
 				return true;
 			}
 
-			if (await _aclService.AuthorizeAsync(AclAction.AdminWrite, user))
+			if (globalConfig.Authorize(AclAction.AdminWrite, user))
 			{
 				return true;
 			}
 
 			return false;
-
 		}
 
 		/// <summary>
 		/// Get list of pool authorizations for a user
 		/// </summary>
 		/// <param name="user"></param>
+		/// <param name="globalConfig"></param>
 		/// <returns></returns>
-		public async Task<List<DevicePoolAuthorization>> GetUserPoolAuthorizationsAsync(ClaimsPrincipal user)
+		public async Task<List<DevicePoolAuthorization>> GetUserPoolAuthorizationsAsync(ClaimsPrincipal user, GlobalConfig globalConfig)
 		{
-			
 			List<DevicePoolAuthorization> authPools = new List<DevicePoolAuthorization>();
 
 			List<IDevicePool> allPools = await GetPoolsAsync();
-			List<IProject> projects = await _projectService.GetProjectsAsync();
+			IReadOnlyList<ProjectConfig> projects = globalConfig.Projects;
 
 			// Set of projects associated with device pools
 			HashSet<ProjectId> projectIds = new HashSet<ProjectId>(allPools.Where(x => x.ProjectIds != null).SelectMany(x => x.ProjectIds!));
 
 			Dictionary<ProjectId, bool> deviceRead = new Dictionary<ProjectId, bool>();
 			Dictionary<ProjectId, bool> deviceWrite = new Dictionary<ProjectId, bool>();
-			ProjectPermissionsCache permissionsCache = new ProjectPermissionsCache();
 
 			foreach (ProjectId projectId in projectIds)
 			{
-
 				if (projects.Where(x => x.Id == projectId).FirstOrDefault() == null)
 				{
 					_logger.LogWarning("Device pool authorization references missing project id {ProjectId}", projectId);
 					continue;
 				}
 
-				deviceRead.Add(projectId,  await _projectService.AuthorizeAsync(projectId, AclAction.DeviceRead, user, permissionsCache));
-				deviceWrite.Add(projectId, await _projectService.AuthorizeAsync(projectId, AclAction.DeviceWrite, user, permissionsCache));
+				if (globalConfig.TryGetProject(projectId, out ProjectConfig? projectConfig))
+				{
+					deviceRead.Add(projectId, projectConfig.Authorize(AclAction.DeviceRead, user));
+					deviceWrite.Add(projectId, projectConfig.Authorize(AclAction.DeviceWrite, user));
+				}
 			}
 
 			// for global pools which aren't associated with a project
@@ -630,7 +622,7 @@ namespace Horde.Build.Devices
 
 			if (!globalPoolAccess)
 			{
-				if (await _aclService.AuthorizeAsync(AclAction.AdminWrite, user))
+				if (globalConfig.Authorize(AclAction.AdminWrite, user))
 				{
 					globalPoolAccess = true;
 				}
@@ -680,10 +672,11 @@ namespace Horde.Build.Devices
 		/// </summary>
 		/// <param name="id"></param>
 		/// <param name="user"></param>
+		/// <param name="globalConfig"></param>
 		/// <returns></returns>
-		public async Task<DevicePoolAuthorization?> GetUserPoolAuthorizationAsync(DevicePoolId id, ClaimsPrincipal user)
+		public async Task<DevicePoolAuthorization?> GetUserPoolAuthorizationAsync(DevicePoolId id, ClaimsPrincipal user, GlobalConfig globalConfig)
 		{
-			List<DevicePoolAuthorization> auth = await GetUserPoolAuthorizationsAsync(user);
+			List<DevicePoolAuthorization> auth = await GetUserPoolAuthorizationsAsync(user, globalConfig);
 			return auth.Where(x => x.Pool.Id == id).FirstOrDefault();
 		}
 

@@ -6,11 +6,13 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Configuration;
 using Horde.Build.Perforce;
+using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Commands.Bundles
 {
@@ -27,31 +29,30 @@ namespace Horde.Build.Commands.Bundles
 
 		readonly IConfiguration _configuration;
 		readonly ILoggerProvider _loggerProvider;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
-		public PerforceCommand(IConfiguration configuration, ILoggerProvider loggerProvider)
+		public PerforceCommand(IConfiguration configuration, ILoggerProvider loggerProvider, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_configuration = configuration;
 			_loggerProvider = loggerProvider;
+			_globalConfig = globalConfig;
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
-			ConfigUpdateService configUpdateService = serviceProvider.GetRequiredService<ConfigUpdateService>();
-			await configUpdateService.ForceUpdateAsync(CancellationToken.None);
-
 			PerforceReplicator replicator = serviceProvider.GetRequiredService<PerforceReplicator>();
 			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
 
-			IStream? stream = await streamCollection.GetAsync(new StreamId(StreamId));
-			if (stream == null)
+			StreamConfig? streamConfig;
+			if (!_globalConfig.Value.TryGetStream(new StreamId(StreamId), out streamConfig))
 			{
-				throw new FatalErrorException($"Stream '{stream}' not found");
+				throw new FatalErrorException($"Stream '{StreamId}' not found");
 			}
 
 			PerforceReplicationOptions options = new PerforceReplicationOptions();
-			await replicator.WriteAsync(stream, Change, options, default);
+			await replicator.WriteAsync(streamConfig, Change, options, default);
 
 			return 0;
 		}

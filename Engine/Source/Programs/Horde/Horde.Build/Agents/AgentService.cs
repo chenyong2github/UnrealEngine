@@ -175,10 +175,10 @@ namespace Horde.Build.Agents
 		/// <returns>Bearer token for the agent</returns>
 		public async ValueTask<string> IssueSessionTokenAsync(AgentId agentId, SessionId sessionId)
 		{
-			List<AclClaim> claims = new List<AclClaim>();
-			claims.Add(AclService.AgentRoleClaim);
-			claims.Add(AclService.GetAgentClaim(agentId));
-			claims.Add(AclService.GetSessionClaim(sessionId));
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(HordeClaims.AgentRoleClaim);
+			claims.Add(HordeClaims.GetAgentClaim(agentId));
+			claims.Add(HordeClaims.GetSessionClaim(sessionId));
 			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
@@ -1012,20 +1012,6 @@ namespace Horde.Build.Agents
 			_dogStatsd.Gauge("agents.total.stopping.count", numAgentsTotalStopping);
 			_dogStatsd.Gauge("agents.total.unhealthy.count", numAgentsTotalUnhealthy);
 			_dogStatsd.Gauge("agents.total.unspecified.count", numAgentsTotalUnspecified);
-		}
-
-		/// <summary>
-		/// Determines if the user is authorized to perform an action on a particular agent
-		/// </summary>
-		/// <param name="agent">The agent to check</param>
-		/// <param name="action">The action being performed</param>
-		/// <param name="user">The principal to authorize</param>
-		/// <param name="cache">The permissions cache</param>
-		/// <returns>True if the action is authorized</returns>
-		public async Task<bool> AuthorizeAsync(IAgent agent, AclAction action, ClaimsPrincipal user, GlobalPermissionsCache? cache)
-		{
-			_ = agent;
-			return await _aclService.AuthorizeAsync(action, user, cache);
 		}
 
 		/// <summary>

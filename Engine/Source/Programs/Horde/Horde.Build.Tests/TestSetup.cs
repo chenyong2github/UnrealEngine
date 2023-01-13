@@ -66,9 +66,6 @@ using Horde.Build.Telemetry;
 
 namespace Horde.Build.Tests
 {
-	using StreamId = StringId<IStream>;
-	using ProjectId = StringId<IProject>;
-
 	/// <summary>
 	/// Handles set up of collections, services, fixtures etc during testing
 	///
@@ -79,7 +76,6 @@ namespace Horde.Build.Tests
 		public FakeClock Clock => ServiceProvider.GetRequiredService<FakeClock>();
 		public IMemoryCache Cache => ServiceProvider.GetRequiredService<IMemoryCache>();
 
-		public ConfigCollection ConfigCollection => ServiceProvider.GetRequiredService<ConfigCollection>();
 		public IGraphCollection GraphCollection => ServiceProvider.GetRequiredService<IGraphCollection>();
 		public INotificationTriggerCollection NotificationTriggerCollection => ServiceProvider.GetRequiredService<INotificationTriggerCollection>();
 		public IStreamCollection StreamCollection => ServiceProvider.GetRequiredService<IStreamCollection>();
@@ -109,8 +105,6 @@ namespace Horde.Build.Tests
 		public ITemplateCollection TemplateCollection => ServiceProvider.GetRequiredService<ITemplateCollection>();
 		internal PerforceServiceStub PerforceService => (PerforceServiceStub)ServiceProvider.GetRequiredService<IPerforceService>();
 		public ILogFileService LogFileService => ServiceProvider.GetRequiredService<ILogFileService>();
-		public ProjectService ProjectService => ServiceProvider.GetRequiredService<ProjectService>();
-		public StreamService StreamService => ServiceProvider.GetRequiredService<StreamService>();
 		public ISubscriptionCollection SubscriptionCollection => ServiceProvider.GetRequiredService<ISubscriptionCollection>();
 		public INotificationService NotificationService => ServiceProvider.GetRequiredService<INotificationService>();
 		public IssueService IssueService => ServiceProvider.GetRequiredService<IssueService>();
@@ -137,11 +131,29 @@ namespace Horde.Build.Tests
 		public DevicesController DevicesController => GetDevicesController();
 		public TestDataController TestDataController => GetTestDataController();
 
+		public ConfigService ConfigService => ServiceProvider.GetRequiredService<ConfigService>();
+		public IOptionsMonitor<GlobalConfig> GlobalConfig => ServiceProvider.GetRequiredService<IOptionsMonitor<GlobalConfig>>();
+		public IOptionsSnapshot<GlobalConfig> GlobalConfigSnapshot => ServiceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>();
+
 		private static bool s_datadogWriterPatched;
 
 		public TestSetup()
 		{
 			PatchDatadogWriter();
+		}
+
+		protected void SetConfig(GlobalConfig globalConfig)
+		{
+			globalConfig.PostLoad(ServerSettings);
+			ConfigService.Set(IoHash.Zero, globalConfig);
+		}
+
+		protected void UpdateConfig(Action<GlobalConfig> action)
+		{
+			GlobalConfig globalConfig = GlobalConfig.CurrentValue;
+			action(globalConfig);
+			globalConfig.PostLoad(ServerSettings);
+			ConfigService.Set(IoHash.Zero, globalConfig);
 		}
 
 		protected override void ConfigureSettings(ServerSettings settings)
@@ -178,6 +190,12 @@ namespace Horde.Build.Tests
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
 			services.AddSingleton<ITelemetrySink, NullTelemetrySink>();
+
+			services.AddSingleton<ConfigService>();
+			services.AddSingleton<IOptionsFactory<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
+			services.AddSingleton<IOptionsChangeTokenSource<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
+
+			services.AddSingleton<IConfigSource, FileConfigSource>();
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
@@ -221,7 +239,6 @@ namespace Horde.Build.Tests
 			services.AddSingleton<AgentSoftwareService>();
 			services.AddSingleton<FleetService>();
 			services.AddSingleton<ConsistencyService>();
-			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<ComputeService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<GlobalsService>();
@@ -240,10 +257,8 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IPerforceService, PerforceServiceStub>();
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
-			services.AddSingleton<ProjectService>();
 			services.AddSingleton<RpcService>();
 			services.AddSingleton<ScheduleService>();
-			services.AddSingleton<StreamService>();
 			services.AddSingleton<DeviceService>();
 			services.AddSingleton<TestDataService>();
 
@@ -256,36 +271,22 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<ILegacyStorageClient, BasicStorageClient>();
 
-			services.AddSingleton<ConfigUpdateService>();
 			services.AddSingleton<StorageService>();
 
 			services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 			services.AddSingleton<ISingletonDocument<DevicePlatformMapV1>>(new SingletonDocumentStub<DevicePlatformMapV1>());
 		}
 
-		public async Task<IStream?> CreateOrReplaceStreamAsync(StreamId streamId, IStream? stream, ProjectId projectId, StreamConfig config)
-		{
-			JsonSerializerOptions options = new JsonSerializerOptions();
-			Startup.ConfigureJsonSerializer(options);
-
-			byte[] data = JsonSerializer.SerializeToUtf8Bytes(config, options);
-			IoHash hash = IoHash.Compute(data);
-			string revision = hash.ToString();
-			await ConfigCollection.AddConfigDataAsync(revision, data);
-
-			return await StreamService.StreamCollection.TryCreateOrReplaceAsync(streamId, stream, hash.ToString(), projectId);
-		}
-
 		public Task<Fixture> CreateFixtureAsync()
 		{
-			return Fixture.Create(ConfigCollection, GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService);
+			return Fixture.Create(ConfigService, GraphCollection, TemplateCollection, JobService, ArtifactCollection, AgentService, ServerSettings);
 		}
 
 		private JobsController GetJobsController()
         {
 			ILogger<JobsController> logger = ServiceProvider.GetRequiredService<ILogger<JobsController>>();
-			JobsController jobsCtrl = new JobsController(GraphCollection, CommitService, PerforceService, StreamService, JobService,
-		        TemplateCollection, ArtifactCollection, UserCollection, NotificationService, AgentService, logger);
+			JobsController jobsCtrl = new JobsController(GraphCollection, CommitService, PerforceService, StreamCollection, JobService,
+		        TemplateCollection, ArtifactCollection, UserCollection, NotificationService, AgentService, GlobalConfigSnapshot, logger);
 	        jobsCtrl.ControllerContext = GetControllerContext();
 	        return jobsCtrl;
         }
@@ -293,35 +294,35 @@ namespace Horde.Build.Tests
 		private DevicesController GetDevicesController()
 		{
 			ILogger<DevicesController> logger = ServiceProvider.GetRequiredService<ILogger<DevicesController>>();
-			DevicesController devicesCtrl = new DevicesController(DeviceService, AclService, UserCollection, logger);
+			DevicesController devicesCtrl = new DevicesController(UserCollection, DeviceService, GlobalConfigSnapshot, logger);
 			devicesCtrl.ControllerContext = GetControllerContext();
 			return devicesCtrl;
 		}
 
 		private TestDataController GetTestDataController()
 		{
-			TestDataController dataCtrl = new TestDataController(TestDataService, StreamService, JobService, TestDataCollection);
+			TestDataController dataCtrl = new TestDataController(TestDataService, StreamCollection, JobService, TestDataCollection, GlobalConfigSnapshot);
 			dataCtrl.ControllerContext = GetControllerContext();
 			return dataCtrl;
 		}
 
 		private AgentsController GetAgentsController()
 		{
-			AgentsController agentCtrl = new AgentsController(AclService, AgentService);
+			AgentsController agentCtrl = new AgentsController(AgentService, GlobalConfigSnapshot);
 			agentCtrl.ControllerContext = GetControllerContext();
 			return agentCtrl;
 		}
 		
 		private PoolsController GetPoolsController()
 		{
-			PoolsController controller = new PoolsController(AclService, PoolService);
+			PoolsController controller = new PoolsController(PoolService, GlobalConfigSnapshot);
 			controller.ControllerContext = GetControllerContext();
 			return controller;
 		}
 		
 		private LeasesController GetLeasesController()
 		{
-			LeasesController controller = new LeasesController(AclService, AgentService);
+			LeasesController controller = new LeasesController(AgentService, GlobalConfigSnapshot);
 			controller.ControllerContext = GetControllerContext();
 			return controller;
 		}

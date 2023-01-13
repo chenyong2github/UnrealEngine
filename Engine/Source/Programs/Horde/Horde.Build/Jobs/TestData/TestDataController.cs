@@ -15,6 +15,8 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using System.Threading;
+using Microsoft.Extensions.Options;
+using Horde.Build.Server;
 
 namespace Horde.Build.Jobs.TestData
 {
@@ -46,21 +48,20 @@ namespace Horde.Build.Jobs.TestData
 
 		readonly TestDataService _testDataService;
 
-		readonly StreamService _streamService;
+		readonly IStreamCollection _streamCollection;
+	
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="testDataService"></param>
-		/// <param name="streamService"></param>
-		/// <param name="jobService"></param>
-		/// <param name="testDataCollection"></param>
-		public TestDataController(TestDataService testDataService, StreamService streamService, JobService jobService, ITestDataCollection testDataCollection)
+		public TestDataController(TestDataService testDataService, IStreamCollection streamCollection, JobService jobService, ITestDataCollection testDataCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_jobService = jobService;
 			_testDataCollection = testDataCollection;
 			_testDataService = testDataService;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -136,13 +137,9 @@ namespace Horde.Build.Jobs.TestData
 			// authorize streams
 			foreach (StreamId streamId in streamIdValues)
 			{
-				IStream? stream = await _streamService.GetCachedStream(streamId);
-				if (stream != null)
+				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(AclAction.ViewJob, User))
 				{
-					if (await _streamService.AuthorizeAsync(stream, AclAction.ViewJob, User, null))
-					{
-						queryStreams.Add(stream.Id);
-					}
+					queryStreams.Add(streamId);
 				}
 			}
 
@@ -280,13 +277,9 @@ namespace Horde.Build.Jobs.TestData
 			// authorize streams
 			foreach (StreamId streamId in streamIdValues)
 			{
-				IStream? stream = await _streamService.GetCachedStream(streamId);
-				if (stream != null)
+				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(AclAction.ViewJob, User))
 				{
-					if (await _streamService.AuthorizeAsync(stream, AclAction.ViewJob, User, null))
-					{
-						queryStreams.Add(stream.Id);
-					}
+					queryStreams.Add(streamId);
 				}
 			}
 
@@ -315,7 +308,7 @@ namespace Horde.Build.Jobs.TestData
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(job, AclAction.UpdateJob, User, null))
+			if (!_globalConfig.Value.Authorize(job, AclAction.UpdateJob, User))
 			{
 				return Forbid();
 			}
@@ -354,14 +347,12 @@ namespace Horde.Build.Jobs.TestData
 				streamIdValue = new StreamId(streamId);
 			}
 
-			JobPermissionsCache cache = new JobPermissionsCache();
-
 			List<object> results = new List<object>();
 
 			List<ITestData> documents = await _testDataCollection.FindAsync(streamIdValue, minChange, maxChange, jobId?.ToObjectId<IJob>(), jobStepId?.ToSubResourceId(), key, index, count);
 			foreach (ITestData document in documents)
 			{
-				if (await _jobService.AuthorizeAsync(document.JobId, AclAction.ViewJob, User, cache))
+				if (await _jobService.AuthorizeAsync(document.JobId, AclAction.ViewJob, User, _globalConfig.Value))
 				{
 					results.Add(PropertyFilter.Apply(new GetTestDataResponse(document), filter));
 				}
@@ -386,7 +377,7 @@ namespace Horde.Build.Jobs.TestData
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(testData.JobId, AclAction.ViewJob, User, null))
+			if (!await _jobService.AuthorizeAsync(testData.JobId, AclAction.ViewJob, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}

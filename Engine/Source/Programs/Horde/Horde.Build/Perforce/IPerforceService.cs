@@ -89,10 +89,10 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Gets a cached stream view for the given stream
 		/// </summary>
-		/// <param name="stream">Stream to find the view for</param>
+		/// <param name="streamConfig">Stream to find the view for</param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		ValueTask<PerforceViewMap> GetCachedStreamViewAsync(IStream stream, CancellationToken cancellationToken);
+		ValueTask<PerforceViewMap> GetCachedStreamViewAsync(StreamConfig streamConfig, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
@@ -104,26 +104,26 @@ namespace Horde.Build.Perforce
 		/// Map files from a <see cref="DescribeRecord"/> to relative paths within a stream
 		/// </summary>
 		/// <param name="perforce">Perforce connection</param>
-		/// <param name="stream">Stream to target</param>
+		/// <param name="streamConfig">Config for the stream to target</param>
 		/// <param name="describeRecord">Description of the change</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of files relative to the stream</returns>
-		public static Task<List<string>> GetStreamFilesAsync(this IPooledPerforceConnection perforce, IStream stream, DescribeRecord describeRecord, CancellationToken cancellationToken)
+		public static Task<List<string>> GetStreamFilesAsync(this IPooledPerforceConnection perforce, StreamConfig streamConfig, DescribeRecord describeRecord, CancellationToken cancellationToken)
 		{
-			return GetStreamFilesAsync(perforce, stream, describeRecord.Files.ConvertAll(x => x.DepotFile), cancellationToken);
+			return GetStreamFilesAsync(perforce, streamConfig, describeRecord.Files.ConvertAll(x => x.DepotFile), cancellationToken);
 		}
 
 		/// <summary>
 		/// Map files from a <see cref="DescribeRecord"/> to relative paths within a stream
 		/// </summary>
 		/// <param name="perforce">Perforce connection</param>
-		/// <param name="stream">Stream to target</param>
+		/// <param name="streamConfig">Stream to target</param>
 		/// <param name="depotPaths">Paths within the depot</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of files relative to the stream</returns>
-		public static async Task<List<string>> GetStreamFilesAsync(this IPooledPerforceConnection perforce, IStream stream, List<string> depotPaths, CancellationToken cancellationToken)
+		public static async Task<List<string>> GetStreamFilesAsync(this IPooledPerforceConnection perforce, StreamConfig streamConfig, List<string> depotPaths, CancellationToken cancellationToken)
 		{
-			PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(stream, cancellationToken);
+			PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(streamConfig, cancellationToken);
 			InfoRecord infoRecord = await perforce.GetInfoAsync(cancellationToken);
 			return viewMap.MapFiles(depotPaths, infoRecord.PathComparison).ToList();
 		}
@@ -155,11 +155,11 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Checks a shelf is valid for the given stream
 		/// </summary>
-		/// <param name="stream">The stream to query</param>
+		/// <param name="streamConfig">The stream to query</param>
 		/// <param name="changeNumber">Shelved changelist number</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Whether the shelf is valid, plus the description for it</returns>
-		public Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(IStream stream, int changeNumber, CancellationToken cancellationToken = default);
+		public Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(StreamConfig streamConfig, int changeNumber, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Duplicates a shelved changelist
@@ -173,12 +173,12 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Submit a shelved changelist
 		/// </summary>
-		/// <param name="stream">Stream to submit to</param>
+		/// <param name="streamConfig">Stream to submit to</param>
 		/// <param name="shelvedChange">The shelved changelist number, created by <see cref="DuplicateShelvedChangeAsync(String,Int32,CancellationToken)"/></param>
 		/// <param name="originalChange">The original changelist number</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Tuple consisting of the submitted changelist number and message</returns>
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(IStream stream, int shelvedChange, int originalChange, CancellationToken cancellationToken = default);
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(StreamConfig streamConfig, int shelvedChange, int originalChange, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Deletes a changelist containing shelved files.
@@ -202,8 +202,8 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Creates a commit source for the given stream
 		/// </summary>
-		/// <param name="stream">Stream to create a commit source for</param>
+		/// <param name="streamConfig">Stream to create a commit source for</param>
 		/// <returns>Commit source instance</returns>
-		public ICommitCollection GetCommits(IStream stream);
+		public ICommitCollection GetCommits(StreamConfig streamConfig);
 	}
 }

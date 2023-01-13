@@ -32,25 +32,16 @@ namespace Horde.Build.Server
 			"table { margin:10px 20px; } " +
 			"td { margin:5px; font-size:13px; }";
 
-		/// <summary>
-		/// The ACL service singleton
-		/// </summary>
-		readonly AclService _aclService;
-
-		/// <summary>
-		/// Authentication scheme in use
-		/// </summary>
 		readonly string _authenticationScheme;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">ACL service instance</param>
-		/// <param name="serverSettings">Server settings</param>
-		public AccountController(AclService aclService, IOptionsMonitor<ServerSettings> serverSettings)
+		public AccountController(IOptionsMonitor<ServerSettings> serverSettings, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_aclService = aclService;
 			_authenticationScheme = GetAuthScheme(serverSettings.CurrentValue.AuthMethod);
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -75,14 +66,14 @@ namespace Horde.Build.Server
 		/// <returns>The current login state</returns>
 		[HttpGet]
 		[Route("/account")]
-		public async Task<ActionResult> State()
+		public ActionResult State()
 		{
 			StringBuilder content = new StringBuilder();
 			content.Append($"<html><style>{StyleSheet}</style><h1>Horde Server</h1>");
 			if (User.Identity?.IsAuthenticated ?? false)
 			{
 				content.Append(CultureInfo.InvariantCulture, $"<p>User <b>{User.Identity?.Name}</b> is logged in. <a href=\"/account/logout\">Log out</a></p>");
-				if (await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+				if (_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 				{
 					content.Append("<p>");
 					content.Append("<a href=\"/api/v1/admin/token\">Get bearer token</a><br/>");

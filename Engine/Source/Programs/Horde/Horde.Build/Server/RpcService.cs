@@ -39,6 +39,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Server
 {
@@ -68,7 +69,7 @@ namespace Horde.Build.Server
 		internal TimeSpan _longPollTimeout = TimeSpan.FromMinutes(9);
 		readonly AclService _aclService;
 		readonly AgentService _agentService;
-		readonly StreamService _streamService;
+		readonly IStreamCollection _streamCollection;
 		readonly JobService _jobService;
 		readonly AgentSoftwareService _agentSoftwareService;
 		readonly IArtifactCollection _artifactCollection;
@@ -82,16 +83,17 @@ namespace Horde.Build.Server
 		readonly ConformTaskSource _conformTaskSource;
 		readonly HttpClient _httpClient;
 		readonly IClock _clock;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		readonly ILogger<RpcService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AclService aclService, AgentService agentService, StreamService streamService, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollection artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ITemplateCollection templateCollection, ConformTaskSource conformTaskSource, HttpClient httpClient, IClock clock, ILogger<RpcService> logger)
+		public RpcService(AclService aclService, AgentService agentService, IStreamCollection streamCollection, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollection artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ITemplateCollection templateCollection, ConformTaskSource conformTaskSource, HttpClient httpClient, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
 		{
 			_aclService = aclService;
 			_agentService = agentService;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_jobService = jobService;
 			_agentSoftwareService = agentSoftwareService;
 			_artifactCollection = artifactCollection;
@@ -105,6 +107,7 @@ namespace Horde.Build.Server
 			_conformTaskSource = conformTaskSource;
 			_httpClient = httpClient;
 			_clock = clock;
+			_globalConfig = globalConfig;
 			_logger = logger;
 		}
 
@@ -218,7 +221,7 @@ namespace Horde.Build.Server
 				List<AgentWorkspace> newWorkspaces = request.Workspaces.Select(x => new AgentWorkspace(x)).ToList();
 
 				// Get the set of workspaces that are currently required
-				HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow);
+				HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow, _globalConfig.Value);
 				bool pendingConform = !conformWorkspaces.SetEquals(newWorkspaces) || (agent.RequestFullConform && !request.RemoveUntrackedFiles);
 
 				// Update the workspaces
@@ -293,11 +296,13 @@ namespace Horde.Build.Server
 			AgentId agentId = new AgentId(request.Name);
 			using IDisposable scope = _logger.BeginScope("CreateSession({AgentId})", agentId.ToString());
 
+			GlobalConfig globalConfig = _globalConfig.Value;
+
 			// Find the agent
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
 			if (agent == null)
 			{
-				if (!await _aclService.AuthorizeAsync(AclAction.CreateAgent, context.GetHttpContext().User))
+				if (!globalConfig.Authorize(AclAction.CreateAgent, context.GetHttpContext().User))
 				{
 					throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create new agents");
 				}
@@ -306,7 +311,7 @@ namespace Horde.Build.Server
 			}
 
 			// Make sure we're allowed to create sessions on this agent
-			if (!await _agentService.AuthorizeAsync(agent, AclAction.CreateSession, context.GetHttpContext().User, null))
+			if (!globalConfig.Authorize(AclAction.CreateSession, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create session for {AgentId}", request.Name);
 			}
@@ -419,21 +424,21 @@ namespace Horde.Build.Server
 		/// <param name="request">Request arguments</param>
 		/// <param name="context">Context for the RPC call</param>
 		/// <returns>Information about the new agent</returns>
-		public override async Task<RpcGetStreamResponse> GetStream(GetStreamRequest request, ServerCallContext context)
+		public override Task<RpcGetStreamResponse> GetStream(GetStreamRequest request, ServerCallContext context)
 		{
 			StreamId streamIdValue = new StreamId(request.StreamId);
 
-			IStream? stream = await _streamService.GetStreamAsync(streamIdValue);
-			if (stream == null)
+			StreamConfig? streamConfig;
+			if (!_globalConfig.Value.TryGetStream(streamIdValue, out streamConfig))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} does not exist", request.StreamId);
 			}
-			if (!await _streamService.AuthorizeAsync(stream, AclAction.ViewStream, context.GetHttpContext().User, null))
+			if (!streamConfig.Authorize(AclAction.ViewStream, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Not authenticated to access stream {StreamId}", request.StreamId);
 			}
 
-			return stream.ToRpcResponse();
+			return Task.FromResult(streamConfig.ToRpcResponse());
 		}
 
 		/// <summary>
@@ -498,9 +503,13 @@ namespace Horde.Build.Server
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
 			}
+			if(!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
+			}
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			job = await _jobService.UpdateBatchAsync(job, batchId, null, JobStepBatchState.Starting);
+			job = await _jobService.UpdateBatchAsync(job, batchId, streamConfig, newState: JobStepBatchState.Starting);
 
 			if (job == null)
 			{
@@ -528,9 +537,13 @@ namespace Horde.Build.Server
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
 			}
+			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
+			}
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			await _jobService.UpdateBatchAsync(job, batch.Id, null, JobStepBatchState.Complete);
+			await _jobService.UpdateBatchAsync(job, batch.Id, streamConfig, newState: JobStepBatchState.Complete);
 			return new Empty();
 		}
 
@@ -560,6 +573,10 @@ namespace Horde.Build.Server
 			if (job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
+			}
+			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
 			}
 
 			// Find the batch being executed
@@ -617,7 +634,7 @@ namespace Horde.Build.Server
 			//				}
 
 			// Update the step state
-			IJob? newJob = await _jobService.TryUpdateStepAsync(job, batch.Id, step.Id, JobStepState.Running, JobStepOutcome.Unspecified, newLogId: log.Value.Id);
+			IJob? newJob = await _jobService.TryUpdateStepAsync(job, batch.Id, step.Id, streamConfig, JobStepState.Running, JobStepOutcome.Unspecified, newLogId: log.Value.Id);
 			if (newJob != null)
 			{
 				BeginStepResponse response = new BeginStepResponse();
@@ -689,28 +706,24 @@ namespace Horde.Build.Server
 					}
 				}
 
-				IStream? stream = await _streamService.GetStreamAsync(job.StreamId);
-				if (stream != null)
+				List<TokenConfig> tokenConfigs = new List<TokenConfig>(streamConfig.Tokens);
+
+				INodeGroup group = graph.Groups[batch.GroupIdx];
+				if (streamConfig.AgentTypes.TryGetValue(group.AgentType, out AgentConfig? agentConfig) && agentConfig.Tokens != null)
 				{
-					List<TokenConfig> tokenConfigs = new List<TokenConfig>(stream.Config.Tokens);
+					tokenConfigs.AddRange(agentConfig.Tokens);
+				}
 
-					INodeGroup group = graph.Groups[batch.GroupIdx];
-					if (stream.Config.AgentTypes.TryGetValue(group.AgentType, out AgentConfig? agentConfig) && agentConfig.Tokens != null)
+				foreach (TokenConfig tokenConfig in tokenConfigs)
+				{
+					string? value = await AllocateTokenAsync(tokenConfig, context.CancellationToken);
+					if (value == null)
 					{
-						tokenConfigs.AddRange(agentConfig.Tokens);
+						_logger.LogWarning("Unable to allocate token for job {JobId}:{BatchId}:{StepId} from {Url}", job.Id, batch.Id, step.Id, tokenConfig.Url);
 					}
-
-					foreach (TokenConfig tokenConfig in tokenConfigs)
+					else
 					{
-						string? value = await AllocateTokenAsync(tokenConfig, context.CancellationToken);
-						if (value == null)
-						{
-							_logger.LogWarning("Unable to allocate token for job {JobId}:{BatchId}:{StepId} from {Url}", job.Id, batch.Id, step.Id, tokenConfig.Url);
-						}
-						else
-						{
-							response.Credentials.Add(tokenConfig.EnvVar, value);
-						}
+						response.Credentials.Add(tokenConfig.EnvVar, value);
 					}
 				}
 
@@ -798,6 +811,10 @@ namespace Horde.Build.Server
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", request.JobId);
 			}
+			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
+			}
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
 
@@ -813,7 +830,7 @@ namespace Horde.Build.Server
 				error = JobStepError.TimedOut;
 			}
 
-			await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), request.State, request.Outcome, error, null, null, null, null, null);
+			await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), streamConfig, request.State, request.Outcome, error, null, null, null, null, null);
 			return new Empty();
 		}
 
@@ -910,7 +927,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<Empty> CreateEvents(CreateEventsRequest request, ServerCallContext context)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.CreateEvent, context.GetHttpContext().User))
+			if (!_globalConfig.Value.Authorize(AclAction.CreateEvent, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Access denied");
 			}
@@ -959,7 +976,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<UploadSoftwareResponse> UploadSoftware(UploadSoftwareRequest request, ServerCallContext context)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.UploadSoftware, context.GetHttpContext().User))
+			if (!_globalConfig.Value.Authorize(AclAction.UploadSoftware, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access to software is forbidden");
 			}
@@ -984,7 +1001,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task DownloadSoftware(DownloadSoftwareRequest request, IServerStreamWriter<DownloadSoftwareResponse> responseStream, ServerCallContext context)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.DownloadSoftware, context.GetHttpContext().User))
+			if (!_globalConfig.Value.Authorize(AclAction.DownloadSoftware, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Access to software is forbidden");
 			}
@@ -1122,6 +1139,11 @@ namespace Horde.Build.Server
 		public override async Task<CreateReportResponse> CreateReport(CreateReportRequest request, ServerCallContext context)
 		{
 			IJob job = await GetJobAsync(new JobId(request.JobId));
+			if (!_globalConfig.Value.TryGetStream(job.StreamId, out StreamConfig? streamConfig))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} not found", job.StreamId);
+			}
+
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
 
 			Report newReport = new Report { Name = request.Name, Placement = request.Placement, ArtifactId = request.ArtifactId.ToObjectId() };
@@ -1133,7 +1155,7 @@ namespace Horde.Build.Server
 			else
 			{
 				_logger.LogDebug("Adding report to step {JobId}:{BatchId}:{StepId}: {Name} -> {ArtifactId}", job.Id, batch.Id, request.StepId, request.Name, request.ArtifactId);
-				await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), newReports: new List<Report> { newReport });
+				await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), streamConfig, newReports: new List<Report> { newReport });
 			}
 
 			return new CreateReportResponse();

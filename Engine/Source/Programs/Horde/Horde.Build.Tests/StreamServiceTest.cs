@@ -16,21 +16,21 @@ namespace Horde.Build.Tests
         {
 			Fixture fixture = await CreateFixtureAsync();
 
-	        IStream stream = (await StreamService.GetStreamAsync(fixture!.Stream!.Id))!;
+	        IStream stream = (await StreamCollection.GetAsync(fixture!.StreamConfig!))!;
 	        Assert.IsFalse(stream.IsPaused(DateTime.UtcNow));
 	        Assert.IsNull(stream.PausedUntil);
 	        Assert.IsNull(stream.PauseComment);
 
 	        DateTime pausedUntil = DateTime.UtcNow.AddHours(1);
-	        await StreamService.UpdatePauseStateAsync(stream, newPausedUntil: pausedUntil, newPauseComment: "mycomment");
-	        stream = (await StreamService.GetStreamAsync(fixture!.Stream!.Id))!;
+	        await StreamCollection.UpdatePauseStateAsync(stream, newPausedUntil: pausedUntil, newPauseComment: "mycomment");
+	        stream = (await StreamCollection.GetAsync(fixture!.StreamConfig!))!;
 	        // Comparing by string to avoid comparing exact milliseconds as those are not persisted in MongoDB fields
 	        Assert.IsTrue(stream.IsPaused(DateTime.UtcNow));
 	        Assert.AreEqual(pausedUntil.ToString(CultureInfo.InvariantCulture), stream.PausedUntil!.Value.ToString(CultureInfo.InvariantCulture));
 	        Assert.AreEqual("mycomment", stream.PauseComment);
 	        
-	        await StreamService.UpdatePauseStateAsync(stream, newPausedUntil: null, newPauseComment: null);
-	        stream = (await StreamService.GetStreamAsync(fixture!.Stream!.Id))!;
+	        await StreamCollection.UpdatePauseStateAsync(stream, newPausedUntil: null, newPauseComment: null);
+	        stream = (await StreamCollection.GetAsync(fixture!.StreamConfig!))!;
 	        Assert.IsFalse(stream.IsPaused(DateTime.UtcNow));
 	        Assert.IsNull(stream.PausedUntil);
 	        Assert.IsNull(stream.PauseComment);

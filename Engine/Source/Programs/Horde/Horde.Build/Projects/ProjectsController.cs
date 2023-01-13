@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
+using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Projects
 {
@@ -20,25 +23,16 @@ namespace Horde.Build.Projects
 	[Route("[controller]")]
 	public class ProjectsController : HordeControllerBase
 	{
-		/// <summary>
-		/// Singleton instance of the project service
-		/// </summary>
-		private readonly ProjectService _projectService;
-
-		/// <summary>
-		/// Singleton instance of the stream service
-		/// </summary>
-		private readonly StreamService _streamService;
+		private readonly IProjectCollection _projectCollection;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="projectService">The project service</param>
-		/// <param name="streamService">The stream service</param>
-		public ProjectsController(ProjectService projectService, StreamService streamService)
+		public ProjectsController(IProjectCollection projectCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_projectService = projectService;
-			_streamService = streamService;
+			_projectCollection = projectCollection;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -51,24 +45,21 @@ namespace Horde.Build.Projects
 		[HttpGet]
 		[Route("/api/v1/projects")]
 		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetProjectsAsync([FromQuery(Name = "Streams")] bool includeStreams = false, [FromQuery(Name = "Categories")] bool includeCategories = false, [FromQuery] PropertyFilter? filter = null)
+		public ActionResult<List<object>> GetProjects([FromQuery(Name = "Streams")] bool includeStreams = false, [FromQuery(Name = "Categories")] bool includeCategories = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			List<IProject> projects = await _projectService.GetProjectsAsync();
-			ProjectPermissionsCache permissionsCache = new ProjectPermissionsCache();
-
-			List<IStream>? streams = null;
-			if (includeStreams || includeCategories)
-			{
-				streams = await _streamService.GetStreamsAsync();
-			}
+			GlobalConfig globalConfig = _globalConfig.Value;
 
 			List<object> responses = new List<object>();
-			foreach (IProject project in projects)
+			foreach (ProjectConfig projectConfig in globalConfig.Projects)
 			{
-				if (await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, permissionsCache))
+				if (projectConfig.Authorize(AclAction.ViewProject, User))
 				{
-					bool includeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, permissionsCache);
-					responses.Add(project.ToResponse(includeStreams, includeCategories, streams, includeAcl).ApplyFilter(filter));
+					List<StreamConfig>? visibleStreams = null;
+					if (includeStreams || includeCategories)
+					{
+						visibleStreams = projectConfig.Streams.Where(x => x.Authorize(AclAction.ViewStream, User)).ToList();
+					}
+					responses.Add(GetProjectResponse.FromConfig(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter));
 				}
 			}
 			return responses;
@@ -83,16 +74,14 @@ namespace Horde.Build.Projects
 		[HttpGet]
 		[Route("/api/v1/projects/{projectId}")]
 		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult<object>> GetProjectAsync(ProjectId projectId, [FromQuery] PropertyFilter? filter = null)
+		public ActionResult<object> GetProject(ProjectId projectId, [FromQuery] PropertyFilter? filter = null)
 		{
-			IProject? project = await _projectService.GetProjectAsync(projectId);
-			if (project == null)
+			ProjectConfig? projectConfig;
+			if(!_globalConfig.Value.TryGetProject(projectId, out projectConfig))
 			{
 				return NotFound(projectId);
 			}
-
-			ProjectPermissionsCache cache = new ProjectPermissionsCache();
-			if (!await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, cache))
+			if (!projectConfig.Authorize(AclAction.ViewProject, User))
 			{
 				return Forbid(AclAction.ViewProject, projectId);
 			}
@@ -100,23 +89,13 @@ namespace Horde.Build.Projects
 			bool includeStreams = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Streams));
 			bool includeCategories = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Categories));
 
-			List<IStream>? visibleStreams = null;
+			List<StreamConfig>? visibleStreams = null;
 			if (includeStreams || includeCategories)
 			{
-				visibleStreams = new List<IStream>();
-
-				List<IStream> streams = await _streamService.GetStreamsAsync(project.Id);
-				foreach (IStream stream in streams)
-				{
-					if (await _streamService.AuthorizeAsync(stream, AclAction.ViewStream, User, cache))
-					{
-						visibleStreams.Add(stream);
-					}
-				}
+				visibleStreams = projectConfig.Streams.Where(x => x.Authorize(AclAction.ViewStream, User)).ToList();
 			}
 
-			bool includeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, cache);
-			return project.ToResponse(includeStreams, includeCategories, visibleStreams, includeAcl).ApplyFilter(filter);
+			return GetProjectResponse.FromConfig(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter);
 		}
 
 		/// <summary>
@@ -128,17 +107,17 @@ namespace Horde.Build.Projects
 		[Route("/api/v1/projects/{projectId}/logo")]
 		public async Task<ActionResult<object>> GetProjectLogoAsync(ProjectId projectId)
 		{
-			IProject? project = await _projectService.GetProjectAsync(projectId);
-			if (project == null)
+			ProjectConfig? projectConfig;
+			if (!_globalConfig.Value.TryGetProject(projectId, out projectConfig))
 			{
 				return NotFound(projectId);
 			}
-			if (!await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, null))
+			if (!projectConfig.Authorize(AclAction.ViewProject, User))
 			{
 				return Forbid(AclAction.ViewProject, projectId);
 			}
 
-			IProjectLogo? projectLogo = await _projectService.Collection.GetLogoAsync(projectId);
+			IProjectLogo? projectLogo = await _projectCollection.GetLogoAsync(projectId);
 			if (projectLogo == null)
 			{
 				return NotFound();

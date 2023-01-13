@@ -54,29 +54,9 @@ namespace Horde.Build.Streams
 		StreamId Id { get; }
 
 		/// <summary>
-		/// The project that this stream belongs to
-		/// </summary>
-		ProjectId ProjectId { get; }
-
-		/// <summary>
-		/// The stream name
-		/// </summary>
-		string Name { get; }
-
-		/// <summary>
-		/// The revision of config file used for this stream
-		/// </summary>
-		string ConfigRevision { get; }
-
-		/// <summary>
 		/// Configuration settings for the stream
 		/// </summary>
 		StreamConfig Config { get; }
-
-		/// <summary>
-		/// Whether this stream has been deleted
-		/// </summary>
-		bool Deleted { get; }
 
 		/// <summary>
 		/// List of templates available for this stream
@@ -92,11 +72,6 @@ namespace Horde.Build.Streams
 		/// Comment/reason for why the stream was paused
 		/// </summary>
 		string? PauseComment { get; }
-
-		/// <summary>
-		/// The ACL for this object
-		/// </summary>
-		Acl? Acl { get; }
 	}
 
 	/// <summary>
@@ -115,11 +90,6 @@ namespace Horde.Build.Streams
 		TemplateRefConfig Config { get; }
 
 		/// <summary>
-		/// Hash of the template definition
-		/// </summary>
-		ContentHash Hash { get; }
-
-		/// <summary>
 		/// List of schedules for this template
 		/// </summary>
 		ITemplateSchedule? Schedule { get; }
@@ -128,11 +98,6 @@ namespace Horde.Build.Streams
 		/// List of template step states
 		/// </summary>
 		IReadOnlyList<ITemplateStep> StepStates { get; }
-
-		/// <summary>
-		/// Custom permissions for this template
-		/// </summary>
-		Acl? Acl { get; set; }
 	}
 
 	/// <summary>
@@ -199,98 +164,26 @@ namespace Horde.Build.Streams
 		}
 
 		/// <summary>
-		/// Tries to get an agent workspace definition from the given type name
-		/// </summary>
-		/// <param name="stream">The stream object</param>
-		/// <param name="agentType">The agent type</param>
-		/// <param name="workspace">Receives the agent workspace definition</param>
-		/// <returns>True if the agent type was valid, and an agent workspace could be created</returns>
-		public static bool TryGetAgentWorkspace(this IStream stream, AgentConfig agentType, [NotNullWhen(true)] out (AgentWorkspace, bool)? workspace)
-		{
-			// Get the workspace settings
-			if (agentType.Workspace == null)
-			{
-				// Use the default settings (fast switching workspace, clean 
-				workspace = (new AgentWorkspace(null, null, GetDefaultWorkspaceIdentifier(stream), stream.Name, null, false, null), true);
-				return true;
-			}
-			else
-			{
-				// Try to get the matching workspace type
-				WorkspaceConfig? workspaceType;
-				if (!stream.Config.WorkspaceTypes.TryGetValue(agentType.Workspace, out workspaceType))
-				{
-					workspace = null;
-					return false;
-				}
-
-				// Get the workspace identifier
-				string identifier;
-				if (workspaceType.Identifier != null)
-				{
-					identifier = workspaceType.Identifier;
-				}
-				else if (workspaceType.Incremental)
-				{
-					identifier = $"{stream.GetEscapedName()}+{agentType.Workspace}";
-				}
-				else
-				{
-					identifier = GetDefaultWorkspaceIdentifier(stream);
-				}
-
-				// Create the new workspace
-				workspace = (new AgentWorkspace(workspaceType.Cluster, workspaceType.UserName, identifier, workspaceType.Stream ?? stream.Name, workspaceType.View, workspaceType.Incremental, workspaceType.Method), workspaceType.UseAutoSdk);
-				return true;
-			}
-		}
-
-		/// <summary>
-		/// The escaped name of this stream. Removes all non-identifier characters.
-		/// </summary>
-		/// <param name="stream">The stream object</param>
-		/// <returns>Escaped name for the stream</returns>
-		public static string GetEscapedName(this IStream stream)
-		{
-			return Regex.Replace(stream.Name, @"[^a-zA-Z0-9_]", "+");
-		}
-
-		/// <summary>
-		/// Gets the default identifier for workspaces created for this stream. Just includes an escaped depot name.
-		/// </summary>
-		/// <param name="stream">The stream object</param>
-		/// <returns>The default workspace identifier</returns>
-		private static string GetDefaultWorkspaceIdentifier(IStream stream)
-		{
-			return Regex.Replace(stream.GetEscapedName(), @"^(\+\+[^+]*).*$", "$1");
-		}
-
-		/// <summary>
 		/// Converts to a public response object
 		/// </summary>
 		/// <param name="stream">The stream object</param>
-		/// <param name="includeAcl">Whether to include the ACL in the response object</param>
 		/// <param name="apiTemplateRefs">The template refs for this stream. Passed separately because they have their own ACL.</param>
 		/// <returns>New response instance</returns>
-		public static GetStreamResponse ToApiResponse(this IStream stream, bool includeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
+		public static GetStreamResponse ToApiResponse(this IStream stream, List<GetTemplateRefResponse> apiTemplateRefs)
 		{
-			List<TabConfig> apiTabs = stream.Config.Tabs;
-			Dictionary<string, AgentConfig> apiAgentTypes = stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value);
-			Dictionary<string, WorkspaceConfig> apiWorkspaceTypes = stream.Config.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value);
-			GetAclResponse? apiAcl = (includeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
-			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Config.Order, stream.Config.NotificationChannel, stream.Config.NotificationChannelFilter, stream.Config.TriageChannel, stream.Config.DefaultPreflight, apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
+			return new GetStreamResponse(stream, apiTemplateRefs);
 		}
 
 		/// <summary>
 		/// Converts to an RPC response object
 		/// </summary>
-		/// <param name="stream">The stream object</param>
+		/// <param name="streamConfig">The stream config object</param>
 		/// <returns>New response instance</returns>
-		public static HordeCommon.Rpc.GetStreamResponse ToRpcResponse(this IStream stream)
+		public static HordeCommon.Rpc.GetStreamResponse ToRpcResponse(this StreamConfig streamConfig)
 		{
 			HordeCommon.Rpc.GetStreamResponse response = new HordeCommon.Rpc.GetStreamResponse();
-			response.Name = stream.Name;
-			response.AgentTypes.Add(stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
+			response.Name = streamConfig.Name;
+			response.AgentTypes.Add(streamConfig.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
 			return response;
 		}
 
@@ -304,21 +197,5 @@ namespace Horde.Build.Streams
 		{
 			return stream.PausedUntil != null && stream.PausedUntil > currentTime;
 		}
-	}
-
-	/// <summary>
-	/// Projection of a stream definition to just include permissions info
-	/// </summary>
-	public interface IStreamPermissions
-	{
-		/// <summary>
-		/// ACL for the stream
-		/// </summary>
-		public Acl? Acl { get; }
-
-		/// <summary>
-		/// The project containing this stream
-		/// </summary>
-		public ProjectId ProjectId { get; }
 	}
 }

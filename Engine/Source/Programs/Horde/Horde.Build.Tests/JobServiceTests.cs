@@ -39,37 +39,37 @@ namespace Horde.Build.Tests
 		public async Task TestChainedJobs()
 		{
 			ProjectId projectId = new ProjectId("ue5");
-
-			const string ProjectConfigRevision = "projectconfig";
-			await ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" });
-			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(projectId, ProjectConfigRevision, 0);
-			Assert.IsNotNull(project);
-
-			ITemplate template = await TemplateCollection.AddAsync("Test template");
-			IGraph graph = await GraphCollection.AddAsync(template, null);
-
+			StreamId streamId = new StreamId("ue5-main");
 			TemplateId templateRefId1 = new TemplateId("template1");
 			TemplateId templateRefId2 = new TemplateId("template2");
 
-			StreamConfig streamConfig = new StreamConfig();
+			StreamConfig streamConfig = new StreamConfig { Id = streamId };
 			streamConfig.Templates.Add(new TemplateRefConfig { Id = templateRefId1, Name = "Test Template", ChainedJobs = new List<ChainedJobTemplateConfig> { new ChainedJobTemplateConfig { TemplateId = templateRefId2, Trigger = "Setup Build" } } });
 			streamConfig.Templates.Add(new TemplateRefConfig { Id = templateRefId2, Name = "Test Template" });
 			streamConfig.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { templateRefId1, templateRefId2 } });
 
-			StreamId streamId = new StreamId("ue5-main");
-			IStream? stream = await StreamService.GetStreamAsync(streamId);
-			stream = await CreateOrReplaceStreamAsync(new StreamId("ue5-main"), stream, projectId, streamConfig);
+			ProjectConfig projectConfig = new ProjectConfig { Id = projectId };
+			projectConfig.Streams.Add(streamConfig);
+
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Projects.Add(projectConfig);
+
+			SetConfig(globalConfig);
 
 			CreateJobOptions options = new CreateJobOptions();
 			options.PreflightChange = 999;
-			options.JobTriggers.AddRange(stream!.Templates[templateRefId1].Config.ChainedJobs!);
+			options.JobTriggers.AddRange(streamConfig.Templates[0].ChainedJobs!);
 
-			IJob job = await JobService.CreateJobAsync(null, stream!, templateRefId1, template.Id, graph, "Hello", 1234, 1233, options);
+			ITemplate template = await TemplateCollection.GetOrAddAsync(streamConfig.Templates[0]);
+
+			IGraph graph = await GraphCollection.AddAsync(template, null);
+
+			IJob job = await JobService.CreateJobAsync(null, streamConfig, templateRefId1, template.Hash, graph, "Hello", 1234, 1233, options);
 			Assert.AreEqual(1, job.ChainedJobs.Count);
 
-			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, streamConfig, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, streamConfig, JobStepState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, streamConfig, JobStepState.Completed, JobStepOutcome.Success));
 
 			Assert.IsNotNull(job.ChainedJobs[0].JobId);
 
@@ -86,17 +86,13 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task ChangeQueryTestAsync()
 		{
-			ProjectId projectId = new ProjectId("ue5");
-			const string ProjectConfigRevision = "projectconfig";
-			await ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" });
-			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(projectId, ProjectConfigRevision, 0);
-			Assert.IsNotNull(project);
-
 			StreamId streamId = new StreamId("ue5-main");
-			const string StreamConfigRevision = "streamconfig";
-			await ConfigCollection.AddConfigAsync(StreamConfigRevision, new StreamConfig { });
-			IStream? stream = await CreateOrReplaceStreamAsync(streamId, null, projectId, new StreamConfig());
-			Assert.IsNotNull(stream);
+			StreamConfig streamConfig = new StreamConfig { Id = streamId };
+
+			ProjectId projectId = new ProjectId("ue5");
+			ProjectConfig projectConfig = new ProjectConfig { Id = projectId, Name = "UE4", Streams = new List<StreamConfig> { streamConfig } };
+
+			SetConfig(new GlobalConfig { Projects = new List<ProjectConfig> { projectConfig } });
 
 			IUser user = await UserCollection.FindOrAddUserByLoginAsync("Bob");
 
@@ -106,22 +102,22 @@ namespace Horde.Build.Tests
 			PerforceService.AddChange(streamId, 1003, user, "", new[] { "Foo.uasset" });
 			PerforceService.AddChange(streamId, 1004, user, "", new[] { "Foo.uasset" });
 
-			ICommitCollection commits = PerforceService.GetCommits(stream);
+			ICommitCollection commits = PerforceService.GetCommits(streamConfig);
 
 			{
-				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Code }, null, commits, CancellationToken.None);
+				int? change = await JobService.EvaluateChangeQueryAsync(streamId, new ChangeQueryConfig { CommitTag = CommitTag.Code }, null, commits, CancellationToken.None);
 				Assert.AreEqual(1002, change);
 			}
 			{
-				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Content }, null, commits, CancellationToken.None);
+				int? change = await JobService.EvaluateChangeQueryAsync(streamId, new ChangeQueryConfig { CommitTag = CommitTag.Content }, null, commits, CancellationToken.None);
 				Assert.AreEqual(1004, change);
 			}
 			{
-				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Content, Condition = "tag.code == 1" }, new List<CommitTag> { CommitTag.Code }, commits, CancellationToken.None);
+				int? change = await JobService.EvaluateChangeQueryAsync(streamId, new ChangeQueryConfig { CommitTag = CommitTag.Content, Condition = "tag.code == 1" }, new List<CommitTag> { CommitTag.Code }, commits, CancellationToken.None);
 				Assert.AreEqual(1004, change);
 			}
 			{
-				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Content, Condition = "tag.content == 1" }, new List<CommitTag> { CommitTag.Code }, commits, CancellationToken.None);
+				int? change = await JobService.EvaluateChangeQueryAsync(streamId, new ChangeQueryConfig { CommitTag = CommitTag.Content, Condition = "tag.content == 1" }, new List<CommitTag> { CommitTag.Code }, commits, CancellationToken.None);
 				Assert.IsNull(change);
 			}
 		}
@@ -165,7 +161,7 @@ namespace Horde.Build.Tests
 
 			return await JobService.CreateJobAsync(
 				jobId: JobId.GenerateNewId(),
-				stream: fixture!.Stream!,
+				streamConfig: fixture!.StreamConfig!,
 				templateRefId: new TemplateId(templateRefId),
 				templateHash: new ContentHash(Encoding.ASCII.GetBytes(templateHash)),
 				graph: fixture!.Graph,
@@ -203,19 +199,20 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task TestRunEarly()
 		{
+			StreamId streamId = new StreamId("ue5-main");
+			StreamConfig streamConfig = new StreamConfig { Id = streamId };
+
+			ProjectId projectId = new ProjectId("ue5");
+			ProjectConfig projectConfig = new ProjectConfig { Id = projectId, Name = "UE5", Streams = new List<StreamConfig> { streamConfig } };
+
+			SetConfig(new GlobalConfig { Projects = new List<ProjectConfig> { projectConfig } });
+
+			// ----
+
 			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, new List<StringId<IPool>> { new StringId<IPool>("win") });
 			await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 
-			const string ProjectConfigRevision = "projectconfig";
-			await ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" });
-			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), ProjectConfigRevision, 0);
-			Assert.IsNotNull(project);
-
-			StreamId streamId = new StreamId("ue5-main");
-			IStream? stream = await StreamCollection.GetAsync(streamId);
-			stream = await CreateOrReplaceStreamAsync(streamId, stream, project!.Id, new StreamConfig { Name = "//UE5/Main" });
-
-			ITemplate template = await TemplateCollection.AddAsync("Test template");
+			ITemplate template = await TemplateCollection.GetOrAddAsync(new TemplateConfig { Name = "Test template" });
 			IGraph graph = await GraphCollection.AddAsync(template, null);
 
 			NewGroup groupA = new NewGroup("win", new List<NewNode>());
@@ -232,18 +229,18 @@ namespace Horde.Build.Tests
 			options.PreflightChange = 999;
 			options.Arguments.Add("-Target=Pak");
 
-			IJob job = await JobService.CreateJobAsync(null, stream!, new TemplateId("temp"), template.Id, graph, "Hello", 1234, 1233, options);
+			IJob job = await JobService.CreateJobAsync(null, streamConfig!, new TemplateId("temp"), new ContentHash(new byte[] { 1, 2, 3 }), graph, "Hello", 1234, 1233, options);
 
-			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, streamConfig, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, streamConfig, JobStepState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, streamConfig, JobStepState.Completed, JobStepOutcome.Success));
 
-			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[1].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[1].Id, job.Batches[1].Steps[0].Id, JobStepState.Running));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[1].Id, streamConfig, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[1].Id, job.Batches[1].Steps[0].Id, streamConfig, JobStepState.Running));
 
-			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[2].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[2].Id, job.Batches[2].Steps[0].Id, JobStepState.Running));
-			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[2].Id, job.Batches[2].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
+			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[2].Id, streamConfig, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[2].Id, job.Batches[2].Steps[0].Id, streamConfig, JobStepState.Running));
+			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[2].Id, job.Batches[2].Steps[0].Id, streamConfig, JobStepState.Completed, JobStepOutcome.Success));
 
 			Assert.AreEqual(JobStepState.Waiting, job.Batches[2].Steps[1].State);
 		}

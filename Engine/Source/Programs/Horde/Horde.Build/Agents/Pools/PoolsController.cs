@@ -6,9 +6,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Fleet;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Agents.Pools
 {
@@ -22,25 +24,16 @@ namespace Horde.Build.Agents.Pools
 	[Route("[controller]")]
 	public class PoolsController : HordeControllerBase
 	{
-		/// <summary>
-		/// Singleton instance of the ACL service
-		/// </summary>
-		private readonly AclService _aclService;
-
-		/// <summary>
-		/// Singleton instance of the pool service
-		/// </summary>
 		private readonly PoolService _poolService;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">The ACL service</param>
-		/// <param name="poolService">The pool service</param>
-		public PoolsController(AclService aclService, PoolService poolService)
+		public PoolsController(PoolService poolService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_aclService = aclService;
 			_poolService = poolService;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -52,7 +45,7 @@ namespace Horde.Build.Agents.Pools
 		[Route("/api/v1/pools")]
 		public async Task<ActionResult<CreatePoolResponse>> CreatePoolAsync([FromBody] CreatePoolRequest create)
 		{
-			if(!await _aclService.AuthorizeAsync(AclAction.CreatePool, User))
+			if(!_globalConfig.Value.Authorize(AclAction.CreatePool, User))
 			{
 				return Forbid(AclAction.CreatePool);
 			}
@@ -83,7 +76,7 @@ namespace Horde.Build.Agents.Pools
 		[ProducesResponseType(typeof(List<GetPoolResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetPoolsAsync([FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.ListPools, User))
+			if (!_globalConfig.Value.Authorize(AclAction.ListPools, User))
 			{
 				return Forbid(AclAction.ListPools);
 			}
@@ -109,7 +102,7 @@ namespace Horde.Build.Agents.Pools
 		[ProducesResponseType(typeof(GetPoolResponse), 200)]
 		public async Task<ActionResult<object>> GetPoolAsync(string poolId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.ViewPool, User))
+			if (!_globalConfig.Value.Authorize(AclAction.ViewPool, User))
 			{
 				return Forbid(AclAction.ViewPool);
 			}
@@ -135,7 +128,7 @@ namespace Horde.Build.Agents.Pools
 		[Route("/api/v1/pools/{poolId}")]
 		public async Task<ActionResult> UpdatePoolAsync(string poolId, [FromBody] UpdatePoolRequest update)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.UpdatePool, User))
+			if (!_globalConfig.Value.Authorize(AclAction.UpdatePool, User))
 			{
 				return Forbid(AclAction.UpdatePool);
 			}
@@ -169,7 +162,7 @@ namespace Horde.Build.Agents.Pools
 		[Route("/api/v1/pools/{poolId}")]
 		public async Task<ActionResult> DeletePoolAsync(string poolId)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.DeletePool, User))
+			if (!_globalConfig.Value.Authorize(AclAction.DeletePool, User))
 			{
 				return Forbid(AclAction.DeletePool);
 			}
@@ -191,7 +184,7 @@ namespace Horde.Build.Agents.Pools
 		[Route("/api/v1/pools")]
 		public async Task<ActionResult> UpdatePoolAsync([FromBody] List<BatchUpdatePoolRequest> batchUpdates)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.UpdatePool, User))
+			if (!_globalConfig.Value.Authorize(AclAction.UpdatePool, User))
 			{
 				return Forbid(AclAction.UpdatePool);
 			}

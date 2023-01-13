@@ -19,6 +19,7 @@ using System.Security.Claims;
 using Horde.Build.Logs;
 using System.Linq;
 using System.Threading;
+using Horde.Build.Server;
 
 namespace Horde.Build.Tests
 {
@@ -74,26 +75,24 @@ namespace Horde.Build.Tests
 			return node.Object;
 		}
 
-		async Task<IStream> CreateStreamAsync(ProjectId projectId, StreamId streamId, string streamName)
+		static StreamConfig CreateStream(StreamId streamId, string streamName)
 		{
-			string revision = $"config:{streamId}";
-
-			StreamConfig streamConfig = new StreamConfig { Name = streamName };
+			StreamConfig streamConfig = new StreamConfig { Id = streamId, Name = streamName };
 			streamConfig.Tabs.Add(new JobsTabConfig { Title = "General", Templates = new List<TemplateId> { new TemplateId("test-template") } });
 			streamConfig.Templates.Add(new TemplateRefConfig { Id = new TemplateId("test-template") });
-			await ConfigCollection.AddConfigAsync(revision, streamConfig);
-
-			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, revision, projectId));
+			return streamConfig;
 		}
 
 		public TestDataTests()
 		{
-			const string ProjectConfigRevision = "projectconfig";
-			ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" }).Wait();
-			IProject project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), ProjectConfigRevision, 0).Result!;
+			ProjectConfig projectConfig = new ProjectConfig { Id = new ProjectId("ue5"), Name = "UE5" };
+			projectConfig.Streams.Add(CreateStream(_mainStreamId, MainStreamName));
+			projectConfig.Streams.Add(CreateStream(_releaseStreamId, ReleaseStreamName));
 
-			IStream mainStream = CreateStreamAsync(project.Id, _mainStreamId, MainStreamName).Result;
-			IStream releaseStream = CreateStreamAsync(project.Id, _releaseStreamId, ReleaseStreamName).Result;
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Projects.Add(projectConfig);
+
+			SetConfig(globalConfig);
 
 			List<INode> nodes = new List<INode>();
 			nodes.Add(MockNode("Update Version Files", NodeAnnotations.Empty));

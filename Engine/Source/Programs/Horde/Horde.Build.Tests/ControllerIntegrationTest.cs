@@ -21,6 +21,7 @@ using Horde.Build.Configuration;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Artifacts;
 using Moq;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tests;
 
@@ -91,16 +92,15 @@ public class ControllerIntegrationTest : IDisposable
 	private async Task<Fixture> CreateFixture()
 	{
 		IServiceProvider services = Factory.Services;
-		ConfigCollection configCollection = services.GetRequiredService<ConfigCollection>();
+		ConfigService configService = services.GetRequiredService<ConfigService>();
 		MongoService mongoService = services.GetRequiredService<MongoService>();
 		ITemplateCollection templateService = services.GetRequiredService<ITemplateCollection>();
 		JobService jobService = services.GetRequiredService<JobService>();
 		IArtifactCollection artifactCollection = services.GetRequiredService<IArtifactCollection>();
-		StreamService streamService = services.GetRequiredService<StreamService>();
 		AgentService agentService = services.GetRequiredService<AgentService>();
 		GraphCollection graphCollection = new(mongoService);
+		IOptions<ServerSettings> serverSettings = services.GetRequiredService<IOptions<ServerSettings>>();
 
-		return await Fixture.Create(configCollection, graphCollection, templateService, jobService, artifactCollection, streamService,
-			agentService);
+		return await Fixture.Create(configService, graphCollection, templateService, jobService, artifactCollection, agentService, serverSettings.Value);
 	}
 }

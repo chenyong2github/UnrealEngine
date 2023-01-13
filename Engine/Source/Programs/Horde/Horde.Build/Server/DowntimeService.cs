@@ -39,21 +39,19 @@ namespace Horde.Build.Server
 			private set;
 		}
 
-		readonly GlobalsService _globalsService;
 		readonly IClock _clock;
-		readonly ITicker _ticker;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
+
+		readonly ITicker _ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="globalsService">The database service instance</param>
-		/// <param name="clock"></param>
-		/// <param name="logger">Logger instance</param>
-		public DowntimeService(GlobalsService globalsService, IClock clock, ILogger<DowntimeService> logger)
+		public DowntimeService(IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<DowntimeService> logger)
 		{
-			_globalsService = globalsService;
 			_clock = clock;
+			_globalConfig = globalConfig;
 			_logger = logger;
 
 			// Ensure the initial value to be correct
@@ -76,15 +74,15 @@ namespace Horde.Build.Server
 		/// </summary>
 		/// <param name="stoppingToken">Token indicating that the service should stop</param>
 		/// <returns>Async task</returns>
-		async ValueTask TickAsync(CancellationToken stoppingToken)
+		ValueTask TickAsync(CancellationToken stoppingToken)
 		{
-			IGlobals globals = await _globalsService.GetAsync();
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
 			DateTimeOffset now = TimeZoneInfo.ConvertTime(new DateTimeOffset(_clock.UtcNow), _clock.TimeZone);
-			bool isActive = globals.Config.Downtime.Any(x => x.IsActive(now));
+			bool isActive = globalConfig.Downtime.Any(x => x.IsActive(now));
 
 			DateTimeOffset? next = null;
-			foreach (ScheduledDowntime schedule in globals.Config.Downtime)
+			foreach (ScheduledDowntime schedule in globalConfig.Downtime)
 			{
 				DateTimeOffset start = schedule.GetNext(now).StartTime;
 				if (next == null || start < next)
@@ -110,6 +108,8 @@ namespace Horde.Build.Server
 					_logger.LogInformation("Leaving downtime");
 				}
 			}
+
+			return new ValueTask();
 		}
 	}
 }

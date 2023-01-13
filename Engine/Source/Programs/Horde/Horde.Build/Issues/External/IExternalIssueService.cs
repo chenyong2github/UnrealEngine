@@ -77,9 +77,9 @@ namespace Horde.Build.Issues.External
 		/// <summary>
 		///  Get projects for provided keys
 		/// </summary>
-		/// <param name="stream"></param>
+		/// <param name="streamConfig"></param>
 		/// <returns></returns>;
-		Task<List<IExternalIssueProject>> GetProjects(IStream stream);
+		Task<List<IExternalIssueProject>> GetProjects(StreamConfig streamConfig);
 	}
 
 	/// <summary>
@@ -106,7 +106,7 @@ namespace Horde.Build.Issues.External
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IExternalIssueProject>> GetProjects(IStream stream)
+		public Task<List<IExternalIssueProject>> GetProjects(StreamConfig streamConfig)
 		{
 			return Task.FromResult(new List<IExternalIssueProject>());
 		}

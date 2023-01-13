@@ -57,11 +57,6 @@ namespace Horde.Build.Jobs
 		internal class QueueItem
 		{
 			/// <summary>
-			/// The stream for this job
-			/// </summary>
-			public IStream _stream;
-
-			/// <summary>
 			/// The job instance
 			/// </summary>
 			public IJob _job;
@@ -104,15 +99,13 @@ namespace Horde.Build.Jobs
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="stream">The stream containing this job</param>
 			/// <param name="job">The job instance</param>
 			/// <param name="batchIdx">The batch index to execute</param>
 			/// <param name="poolId">Unique id of the pool of machines to allocate from</param>
 			/// <param name="workspace">The workspace that this job should run in</param>
 			/// <param name="useAutoSdk">Whether or not to use the AutoSDK</param>
-			public QueueItem(IStream stream, IJob job, int batchIdx, PoolId poolId, AgentWorkspace workspace, bool useAutoSdk)
+			public QueueItem(IJob job, int batchIdx, PoolId poolId, AgentWorkspace workspace, bool useAutoSdk)
 			{
-				_stream = stream;
 				_job = job;
 				_batchIdx = batchIdx;
 				_poolId = poolId;
@@ -187,7 +180,7 @@ namespace Horde.Build.Jobs
 		}
 
 		readonly GlobalsService _globalsService;
-		readonly StreamService _streamService;
+		readonly IStreamCollection _streamCollection;
 		readonly ILogFileService _logFileService;
 		readonly IAgentCollection _agentsCollection;
 		readonly IJobCollection _jobs;
@@ -198,6 +191,7 @@ namespace Horde.Build.Jobs
 		readonly PerforceLoadBalancer _perforceLoadBalancer;
 		readonly IClock _clock;
 		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger<JobTaskSource> _logger;
 		readonly ITicker _ticker;
 
@@ -216,9 +210,6 @@ namespace Horde.Build.Jobs
 		// During a background queue refresh operation, any updated batches are added to this dictionary for merging into the updated queue.
 		List<QueueItem>? _newQueueItemsDuringUpdate;
 
-		// Cache of stream objects. Used to resolve agent types.
-		private Dictionary<StreamId, IStream> _streams = new Dictionary<StreamId, IStream>();
-
 		/// <summary>
 		/// Delegate for job schedule events
 		/// </summary>
@@ -235,7 +226,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobTaskSource(GlobalsService globalsService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
+		public JobTaskSource(GlobalsService globalsService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, IStreamCollection streamCollection, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<JobTaskSource> logger)
 		{
 			_globalsService = globalsService;
 			_agentsCollection = agents;
@@ -244,11 +235,12 @@ namespace Horde.Build.Jobs
 			_graphs = graphs;
 			_poolCollection = pools;
 			_ugsMetadataCollection = ugsMetadataCollection;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_logFileService = logFileService;
 			_perforceLoadBalancer = perforceLoadBalancer;
 			_clock = clock;
 			_ticker = clock.AddTicker<JobTaskSource>(s_refreshInterval, TickAsync, logger);
+			_globalConfig = globalConfig;
 			_settings = settings;
 			_logger = logger;
 
@@ -362,8 +354,9 @@ namespace Horde.Build.Jobs
 			}
 
 			// Query all the current streams
-			List<IStream> streamsList = await _streamService.GetStreamsAsync();
-			_streams = streamsList.ToDictionary(x => x.Id, x => x);
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
+			List<IStream> streamsList = await _streamCollection.GetAsync(globalConfig.Streams);
+			Dictionary<StreamId, IStream> streams = streamsList.ToDictionary(x => x.Id, x => x);
 
 			// Find all the pools which are valid (ie. have at least one online agent)
 			List<IAgent> agents = await _agentsCollection.FindAsync();
@@ -398,7 +391,7 @@ namespace Horde.Build.Jobs
 
 				// Get the stream. If it fails, skip the whole job.
 				IStream? stream;
-				if (!_streams.TryGetValue(newJob.StreamId, out stream))
+				if (!streams.TryGetValue(newJob.StreamId, out stream))
 				{
 					newJob = await _jobs.SkipAllBatchesAsync(newJob, graph, JobStepBatchError.UnknownStream);
 					continue;
@@ -429,7 +422,7 @@ namespace Horde.Build.Jobs
 					{
 						newJob = await SkipBatchAsync(newJob, batch.Id, graph, JobStepBatchError.NoAgentsInPool);
 					}
-					else if (!stream.TryGetAgentWorkspace(agentType, out (AgentWorkspace, bool)? workspaceResult))
+					else if (!stream.Config.TryGetAgentWorkspace(agentType, out (AgentWorkspace, bool)? workspaceResult))
 					{
 						newJob = await SkipBatchAsync(newJob, batch.Id, graph, JobStepBatchError.UnknownWorkspace);
 					}
@@ -466,7 +459,7 @@ namespace Horde.Build.Jobs
 						if (newJob != null)
 						{
 							(AgentWorkspace workspace, bool useAutoSdk) = workspaceResult.Value;
-							QueueItem newQueueItem = new QueueItem(stream, newJob, batchIdx, agentType.Pool, workspace, useAutoSdk);
+							QueueItem newQueueItem = new QueueItem(newJob, batchIdx, agentType.Pool, workspace, useAutoSdk);
 							newQueue.Add(newQueueItem);
 							newBatchIdToQueueItem[(newJob.Id, batch.Id)] = newQueueItem;
 
@@ -545,19 +538,6 @@ namespace Horde.Build.Jobs
 			}
 		}
 
-		/// <summary>
-		/// Updates the current state of a job
-		/// </summary>
-		/// <param name="job">The job that has been updated</param>
-		/// <param name="graph">Graph for the job</param>
-		/// <returns>Async task</returns>
-		public void UpdateQueuedJob(IJob job, IGraph graph)
-		{
-			IStream? stream;
-			_streams.TryGetValue(job.StreamId, out stream);
-			UpdateQueuedJob(job, graph, stream);
-		}
-
 		void AssignAnyQueueItemToWaiter(QueueWaiter waiter)
 		{
 			lock (_waiters)
@@ -625,16 +605,18 @@ namespace Horde.Build.Jobs
 		/// </summary>
 		/// <param name="job">The job that has been updated</param>
 		/// <param name="graph">Graph for the job</param>
-		/// <param name="stream">The stream containing the job</param>
-		public void UpdateQueuedJob(IJob job, IGraph graph, IStream? stream)
+		public void UpdateQueuedJob(IJob job, IGraph graph)
 		{
+			StreamConfig? streamConfig;
+			_globalConfig.CurrentValue.TryGetStream(job.StreamId, out streamConfig);
+
 			List<TaskCompletionSource<bool>> completeWaiters = new List<TaskCompletionSource<bool>>();
 			lock (_lockObject)
 			{
 				for (int batchIdx = 0; batchIdx < job.Batches.Count; batchIdx++)
 				{
 					IJobStepBatch batch = job.Batches[batchIdx];
-					if (batch.State == JobStepBatchState.Ready && stream != null && batch.AgentId == null)
+					if (batch.State == JobStepBatchState.Ready && streamConfig != null && batch.AgentId == null)
 					{
 						// Check if this item is already in the list.
 						QueueItem? existingItem;
@@ -651,7 +633,7 @@ namespace Horde.Build.Jobs
 								else
 								{
 									RemoveQueueItem(existingItem);
-									InsertQueueItem(stream, job, batchIdx, existingItem._poolId, existingItem._workspace, existingItem._useAutoSdk);
+									InsertQueueItem(job, batchIdx, existingItem._poolId, existingItem._workspace, existingItem._useAutoSdk);
 								}
 							}
 							continue;
@@ -662,13 +644,13 @@ namespace Horde.Build.Jobs
 
 						// Get the requirements for the new queue item
 						AgentConfig? agentType;
-						if (stream.Config.AgentTypes.TryGetValue(group.AgentType, out agentType))
+						if (streamConfig.AgentTypes.TryGetValue(group.AgentType, out agentType))
 						{
 							(AgentWorkspace, bool)? result;
-							if (stream.TryGetAgentWorkspace(agentType, out result))
+							if (streamConfig.TryGetAgentWorkspace(agentType, out result))
 							{
 								(AgentWorkspace agentWorkspace, bool useAutoSdk) = result.Value;
-								InsertQueueItem(stream, job, batchIdx, agentType.Pool, agentWorkspace, useAutoSdk);
+								InsertQueueItem(job, batchIdx, agentType.Pool, agentWorkspace, useAutoSdk);
 							}
 						}
 					}
@@ -766,8 +748,14 @@ namespace Horde.Build.Jobs
 			{
 				job = newJob;
 
+				StreamConfig? streamConfig;
+				if (!_globalConfig.CurrentValue.TryGetStream(newJob.StreamId, out streamConfig))
+				{
+					return null;
+				}
+
 				// Get the lease name
-				StringBuilder leaseName = new StringBuilder($"{item._stream.Name} - ");
+				StringBuilder leaseName = new StringBuilder($"{streamConfig.Name} - ");
 				if (job.PreflightChange > 0)
 				{
 					leaseName.Append((job.Change > 0) ? $"Preflight CL {job.PreflightChange} against CL {job.Change}" : $"Preflight CL {job.PreflightChange} against latest");
@@ -782,7 +770,7 @@ namespace Horde.Build.Jobs
 				IGlobals globals = await _globalsService.GetAsync();
 
 				// Encode the payload
-				ExecuteJobTask? task = await CreateExecuteJobTaskAsync(item._stream, job, batch, agent, item._workspace, item._useAutoSdk, logId);
+				ExecuteJobTask? task = await CreateExecuteJobTaskAsync(streamConfig, job, batch, agent, item._workspace, item._useAutoSdk, logId);
 				if (task != null)
 				{
 					byte[] payload = Any.Pack(task).ToByteArray();
@@ -832,10 +820,10 @@ namespace Horde.Build.Jobs
 			return null;
 		}
 
-		async Task<ExecuteJobTask?> CreateExecuteJobTaskAsync(IStream stream, IJob job, IJobStepBatch batch, IAgent agent, AgentWorkspace workspace, bool useAutoSdk, LogId logId)
+		async Task<ExecuteJobTask?> CreateExecuteJobTaskAsync(StreamConfig streamConfig, IJob job, IJobStepBatch batch, IAgent agent, AgentWorkspace workspace, bool useAutoSdk, LogId logId)
 		{
 			// Get the lease name
-			StringBuilder leaseName = new StringBuilder($"{stream.Name} - ");
+			StringBuilder leaseName = new StringBuilder($"{streamConfig.Name} - ");
 			if (job.PreflightChange > 0)
 			{
 				leaseName.Append((job.Change > 0) ? $"Preflight CL {job.PreflightChange} against CL {job.Change}" : $"Preflight CL {job.PreflightChange} against latest");
@@ -847,7 +835,7 @@ namespace Horde.Build.Jobs
 			leaseName.Append(CultureInfo.InvariantCulture, $" - {job.Name}");
 
 			// Get the global settings
-			IGlobals globals = await _globalsService.GetAsync();
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
 			// Encode the payload
 			ExecuteJobTask task = new ExecuteJobTask();
@@ -859,7 +847,7 @@ namespace Horde.Build.Jobs
 
 			List<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces = new ();
 
-			PerforceCluster? cluster = globals.Config.FindPerforceCluster(workspace.Cluster);
+			PerforceCluster? cluster = globalConfig.FindPerforceCluster(workspace.Cluster);
 			if (cluster == null)
 			{
 				return null;
@@ -935,7 +923,7 @@ namespace Horde.Build.Jobs
 			}
 
 			// Cached stream for this job
-			IStream? stream = null;
+			StreamConfig? streamConfig = null;
 
 			// Send all the updates
 			Dictionary<int, IUgsMetadata> metadataCache = new Dictionary<int, IUgsMetadata>();
@@ -956,10 +944,9 @@ namespace Horde.Build.Jobs
 				}
 
 				// Get the stream
-				if (stream == null)
+				if (streamConfig == null)
 				{
-					stream = await _streamService.GetStreamAsync(job.StreamId);
-					if (stream == null)
+					if (!_globalConfig.CurrentValue.TryGetStream(job.StreamId, out streamConfig))
 					{
 						_logger.LogError("Unable to fetch definition for stream {StreamId}", job.StreamId);
 						break;
@@ -981,7 +968,7 @@ namespace Horde.Build.Jobs
 				IUgsMetadata? metadata;
 				if (!metadataCache.TryGetValue(change, out metadata))
 				{
-					metadata = await _ugsMetadataCollection.FindOrAddAsync(stream.Name, change, label.UgsProject);
+					metadata = await _ugsMetadataCollection.FindOrAddAsync(streamConfig.Name, change, label.UgsProject);
 					metadataCache[change] = metadata;
 				}
 
@@ -1099,18 +1086,17 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Inserts an item into the queue
 		/// </summary>
-		/// <param name="stream">The stream containing the job</param>
 		/// <param name="job"></param>
 		/// <param name="batchIdx"></param>
 		/// <param name="poolId">The pool to use</param>
 		/// <param name="workspace">The workspace for this item to run in</param>
 		/// <param name="useAutoSdk">Whether or not to use the AutoSDK</param>
 		/// <returns></returns>
-		void InsertQueueItem(IStream stream, IJob job, int batchIdx, PoolId poolId, AgentWorkspace workspace, bool useAutoSdk)
+		void InsertQueueItem(IJob job, int batchIdx, PoolId poolId, AgentWorkspace workspace, bool useAutoSdk)
 		{
 			_logger.LogDebug("Adding queued job {JobId}, batch {BatchId} [Pool: {Pool}, Workspace: {Workspace}]", job.Id, job.Batches[batchIdx].Id, poolId, workspace.Identifier);
 
-			QueueItem newItem = new QueueItem(stream, job, batchIdx, poolId, workspace, useAutoSdk);
+			QueueItem newItem = new QueueItem(job, batchIdx, poolId, workspace, useAutoSdk);
 			_batchIdToQueueItem[newItem.Id] = newItem;
 			_queue.Add(newItem);
 

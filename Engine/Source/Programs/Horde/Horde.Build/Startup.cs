@@ -364,7 +364,6 @@ namespace Horde.Build
 			services.AddSingleton<IDeviceCollection, DeviceCollection>();
 			services.AddSingleton<INoticeCollection, NoticeCollection>();
 
-			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<ToolCollection>();
 
 			services.AddSingleton<IConfigSource, InMemoryConfigSource>();
@@ -416,7 +415,6 @@ namespace Horde.Build
 			});
 			services.AddSingleton<ICommitService, CommitService>();
 			services.AddSingleton<IClock, Clock>();
-			services.AddSingleton<ConfigUpdateService>();
 			services.AddSingleton<IDowntimeService, DowntimeService>();
 			services.AddSingleton<IssueService>();
 			services.AddSingleton<JobService>();
@@ -439,7 +437,6 @@ namespace Horde.Build
 
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
-			services.AddSingleton<ProjectService>();
 			services.AddSingleton<ReplicationService>();
 			services.AddSingleton<ScheduleService>();
 
@@ -450,7 +447,6 @@ namespace Horde.Build
 				services.AddSingleton<INotificationSink, SlackNotificationSink>(sp => sp.GetRequiredService<SlackNotificationSink>());
 			}
 
-			services.AddSingleton<StreamService>();
 			services.AddSingleton<DeviceService>();						
 			services.AddSingleton<NoticeService>();
 			services.AddSingleton<StorageService>();
@@ -669,7 +665,6 @@ namespace Horde.Build
 					services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
 				}
 				services.AddHostedService(provider => provider.GetRequiredService<ConfigService>());
-				services.AddHostedService(provider => provider.GetRequiredService<ConfigUpdateService>());
 				services.AddHostedService<TelemetryService>();
 				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
 				services.AddHostedService(provider => provider.GetRequiredService<TestDataService>());
@@ -956,9 +951,6 @@ namespace Horde.Build
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new StringIdSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new ObjectIdSerializationProvider());
-
-                // Register all the custom class maps
-                BsonClassMap.RegisterClassMap<AclV2>(AclV2.ConfigureClassMap);
 			}
 		}
 

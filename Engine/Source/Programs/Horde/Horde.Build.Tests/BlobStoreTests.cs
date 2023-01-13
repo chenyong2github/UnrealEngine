@@ -26,8 +26,7 @@ namespace Horde.Build.Tests
 			GlobalConfig globalConfig = new GlobalConfig();
 			globalConfig.Storage.Backends.Add(new BackendConfig { Id = new BackendId("default-backend"), Type = StorageBackendType.Memory });
 			globalConfig.Storage.Namespaces.Add(new NamespaceConfig { Id = new NamespaceId("default"), Backend = new BackendId("default-backend"), GcDelayHrs = 0.0 });
-			await ConfigCollection.AddConfigAsync("globals", globalConfig);
-			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
+			SetConfig(globalConfig);
 
 			return await StorageService.GetClientAsync(new NamespaceId("default"), CancellationToken.None);
 		}

@@ -4,8 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Security.Claims;
+using System.Text.Json.Serialization;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
+using Horde.Build.Server;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Utilities;
 
@@ -53,6 +58,41 @@ namespace Horde.Build.Storage
 		/// List of namespaces for storage
 		/// </summary>
 		public List<NamespaceConfig> Namespaces { get; set; } = new List<NamespaceConfig>();
+
+		private readonly Dictionary<BackendId, BackendConfig> _backendLookup = new Dictionary<BackendId, BackendConfig>();
+		private readonly Dictionary<NamespaceId, NamespaceConfig> _namespaceLookup = new Dictionary<NamespaceId, NamespaceConfig>();
+
+		/// <summary>
+		/// Called after the config has been read from disk
+		/// </summary>
+		internal void PostLoad(GlobalConfig globalConfig)
+		{
+			foreach (BackendConfig backendConfig in Backends)
+			{
+				_backendLookup.Add(backendConfig.Id, backendConfig);
+			}
+			foreach (NamespaceConfig namespaceConfig in Namespaces)
+			{
+				namespaceConfig.PostLoad(globalConfig);
+				_namespaceLookup.Add(namespaceConfig.Id, namespaceConfig);
+			}
+		}
+
+		/// <summary>
+		/// Gets a backend with the given id
+		/// </summary>
+		/// <param name="backendId">Identifier for the backend</param>
+		/// <param name="backendConfig">Receives the backend config on success</param>
+		/// <returns>True on success</returns>
+		public bool TryGetBackend(BackendId backendId, [NotNullWhen(true)] out BackendConfig? backendConfig) => _backendLookup.TryGetValue(backendId, out backendConfig);
+
+		/// <summary>
+		/// Gets a namespace with the given id
+		/// </summary>
+		/// <param name="namespaceId">Identifier for the backend</param>
+		/// <param name="namespaceConfig">Receives the backend config on success</param>
+		/// <returns>True on success</returns>
+		public bool TryGetNamespace(NamespaceId namespaceId, [NotNullWhen(true)] out NamespaceConfig? namespaceConfig) => _namespaceLookup.TryGetValue(namespaceId, out namespaceConfig);
 	}
 
 	/// <summary>
@@ -110,6 +150,12 @@ namespace Horde.Build.Storage
 	public class NamespaceConfig
 	{
 		/// <summary>
+		/// Owner of this config object
+		/// </summary>
+		[JsonIgnore]
+		public GlobalConfig GlobalConfig { get; private set; } = null!;
+
+		/// <summary>
 		/// Identifier for this namespace
 		/// </summary>
 		[Required]
@@ -145,5 +191,24 @@ namespace Horde.Build.Storage
 		/// Access list for this namespace
 		/// </summary>
 		public AclConfig Acl { get; set; } = new AclConfig();
+
+		/// <summary>
+		/// Callback once the configuration has been read from disk
+		/// </summary>
+		/// <param name="globalConfig"></param>
+		public void PostLoad(GlobalConfig globalConfig)
+		{
+			GlobalConfig = globalConfig;
+		}
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return Acl?.Authorize(action, user) ?? GlobalConfig.Authorize(action, user);
+		}
 	}
 }

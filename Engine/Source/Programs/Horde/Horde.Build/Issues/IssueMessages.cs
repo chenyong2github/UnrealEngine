@@ -163,12 +163,12 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="stream">The stream to construct from</param>
+		/// <param name="streamId">The stream to construct from</param>
 		/// <param name="spans">List of spans for the given stream</param>
 		/// <param name="steps">List of steps for the given stream</param>
-		public GetIssueStreamResponse(IStream stream, List<IIssueSpan> spans, List<IIssueStep> steps)
+		public GetIssueStreamResponse(StreamId streamId, List<IIssueSpan> spans, List<IIssueStep> steps)
 		{
-			StreamId = stream.Id.ToString();
+			StreamId = streamId.ToString();
 
 			foreach (IIssueSpan span in spans)
 			{
@@ -330,9 +330,9 @@ namespace Horde.Build.Issues
 		/// Constructor
 		/// </summary>
 		/// <param name="details">Issue to construct from</param>
-		/// <param name="stream"></param>
+		/// <param name="streamConfig"></param>
 		/// <param name="spans">The spans to construct from</param>
-		public GetIssueAffectedStreamResponse(IIssueDetails details, IStream? stream, IEnumerable<IIssueSpan> spans)
+		public GetIssueAffectedStreamResponse(IIssueDetails details, StreamConfig? streamConfig, IEnumerable<IIssueSpan> spans)
 		{
 			IIssueSpan firstSpan = spans.First();
 			StreamId = firstSpan.StreamId.ToString();
@@ -343,9 +343,9 @@ namespace Horde.Build.Issues
 			foreach (IGrouping<TemplateId, IIssueSpan> template in spans.GroupBy(x => x.TemplateRefId))
 			{
 				string templateName = template.Key.ToString();
-				if (stream != null && stream.Templates.TryGetValue(template.Key, out ITemplateRef? templateRef))
+				if (streamConfig != null && streamConfig.TryGetTemplate(template.Key, out TemplateRefConfig? templateRefConfig))
 				{
-					templateName = templateRef.Config.Name;
+					templateName = templateRefConfig.Name;
 				}
 
 				HashSet<ObjectId> unresolvedTemplateSpans = new HashSet<ObjectId>(template.Where(x => x.NextSuccess == null).Select(x => x.Id));

@@ -246,8 +246,9 @@ namespace Horde.Build.Agents.Pools
 		/// </summary>
 		/// <param name="agent">The agent to return workspaces for</param>
 		/// <param name="validAtTime">Absolute time at which we expect the results to be valid. Values may be cached as long as they are after this time.</param>
+		/// <param name="globalConfig">Current configuration</param>
 		/// <returns>List of workspaces</returns>
-		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent agent, DateTime validAtTime)
+		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent agent, DateTime validAtTime, GlobalConfig globalConfig)
 		{
 			bool addAutoSdkWorkspace = false;
 			HashSet<AgentWorkspace> workspaces = new HashSet<AgentWorkspace>();
@@ -265,8 +266,7 @@ namespace Horde.Build.Agents.Pools
 
 			if (addAutoSdkWorkspace)
 			{
-				IGlobals globals = await _globalsService.GetAsync();
-				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globals, workspaces.ToList()));
+				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globalConfig, workspaces.ToList()));
 			}
 
 			return workspaces;

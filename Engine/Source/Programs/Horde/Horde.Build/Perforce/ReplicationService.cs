@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Horde.Build.Server;
 using Horde.Build.Storage;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
@@ -16,6 +17,7 @@ using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Perforce
 {
@@ -42,12 +44,13 @@ namespace Horde.Build.Perforce
 		readonly StorageService _storageService;
 		readonly IMemoryCache _memoryCache;
 		readonly ITicker _ticker;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReplicationService(IStreamCollection streamCollection, IPerforceService perforceService, PerforceReplicator replicator, StorageService storageService, IMemoryCache memoryCache, IClock clock, ILogger<ReplicationService> logger)
+		public ReplicationService(IStreamCollection streamCollection, IPerforceService perforceService, PerforceReplicator replicator, StorageService storageService, IMemoryCache memoryCache, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ReplicationService> logger)
 		{
 			_streamCollection = streamCollection;
 			_perforceService = perforceService;
@@ -55,6 +58,7 @@ namespace Horde.Build.Perforce
 			_storageService = storageService;
 			_memoryCache = memoryCache;
 			_ticker = clock.AddSharedTicker<ReplicationService>(TimeSpan.FromSeconds(20.0), TickSharedAsync, logger);
+			_globalConfig = globalConfig;
 			_logger = logger;
 		}
 
@@ -77,18 +81,18 @@ namespace Horde.Build.Perforce
 			{
 				for (; ; )
 				{
-					List<IStream> streams = await _streamCollection.FindAllAsync();
+					IReadOnlyList<StreamConfig> streamConfigs = _globalConfig.CurrentValue.Streams;
 
 					HashSet<StreamId> removeStreams = new HashSet<StreamId>(streamIdToTask.Keys);
-					foreach (IStream stream in streams)
+					foreach (StreamConfig streamConfig in streamConfigs)
 					{
-						if (stream.Config.ReplicationMode == ContentReplicationMode.Full)
+						if (streamConfig.ReplicationMode == ContentReplicationMode.Full)
 						{
-							removeStreams.Remove(stream.Id);
-							if (!streamIdToTask.ContainsKey(stream.Id))
+							removeStreams.Remove(streamConfig.Id);
+							if (!streamIdToTask.ContainsKey(streamConfig.Id))
 							{
-								streamIdToTask.Add(stream.Id, BackgroundTask.StartNew(ctx => RunReplicationGuardedAsync(stream, ctx)));
-								_logger.LogInformation("Started replication of {StreamId}", stream.Id);
+								streamIdToTask.Add(streamConfig.Id, BackgroundTask.StartNew(ctx => RunReplicationGuardedAsync(streamConfig, ctx)));
+								_logger.LogInformation("Started replication of {StreamId}", streamConfig.Id);
 							}
 						}
 					}
@@ -111,13 +115,13 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		async Task RunReplicationGuardedAsync(IStream stream, CancellationToken cancellationToken)
+		async Task RunReplicationGuardedAsync(StreamConfig streamConfig, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
 				try
 				{
-					await RunReplicationAsync(stream, cancellationToken);
+					await RunReplicationAsync(streamConfig, cancellationToken);
 				}
 				catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 				{
@@ -125,22 +129,22 @@ namespace Horde.Build.Perforce
 				}
 				catch (Exception ex)
 				{
-					_logger.LogError(ex, "Exception running replication for {StreamId}: {Message}", stream.Id, ex.Message);
+					_logger.LogError(ex, "Exception running replication for {StreamId}: {Message}", streamConfig.Id, ex.Message);
 				}
 
 				await Task.Delay(TimeSpan.FromSeconds(20.0), cancellationToken);
 			}
 		}
 
-		async Task RunReplicationAsync(IStream stream, CancellationToken cancellationToken)
+		async Task RunReplicationAsync(StreamConfig streamConfig, CancellationToken cancellationToken)
 		{
-			RefName refName = new RefName(stream.Id.ToString());
+			RefName refName = new RefName(streamConfig.Id.ToString());
 
 			IStorageClientImpl store = await _storageService.GetClientAsync(Namespace.Perforce, cancellationToken);
 			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
 
 			CommitNode? lastCommitNode = await reader.TryReadNodeAsync<CommitNode>(refName, cancellationToken: cancellationToken);
-			ICommitCollection commits = _perforceService.GetCommits(stream);
+			ICommitCollection commits = _perforceService.GetCommits(streamConfig);
 
 			PerforceReplicationOptions options = new PerforceReplicationOptions();
 
@@ -156,8 +160,8 @@ namespace Horde.Build.Perforce
 
 			for (; ; )
 			{
-				_logger.LogInformation("Replicating {StreamId} change {Change}", stream.Id, commit.Number);
-				await _replicator.WriteAsync(stream, commit.Number, options, cancellationToken);
+				_logger.LogInformation("Replicating {StreamId} change {Change}", streamConfig.Id, commit.Number);
+				await _replicator.WriteAsync(streamConfig, commit.Number, options, cancellationToken);
 				commit = await commits.SubscribeAsync(commit.Number, cancellationToken: cancellationToken).FirstAsync(cancellationToken);
 			}
 		}

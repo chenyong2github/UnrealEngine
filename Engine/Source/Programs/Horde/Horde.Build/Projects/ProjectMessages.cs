@@ -2,7 +2,10 @@
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Horde.Build.Acls;
+using Horde.Build.Streams;
 
 namespace Horde.Build.Projects
 {
@@ -113,11 +116,6 @@ namespace Horde.Build.Projects
 		public List<GetProjectCategoryResponse>? Categories { get; set; }
 
 		/// <summary>
-		/// Custom permissions for this object
-		/// </summary>
-		public GetAclResponse? Acl { get; set; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="id">Unique id of the project</param>
@@ -125,15 +123,80 @@ namespace Horde.Build.Projects
 		/// <param name="order">Order to show this project on the dashboard</param>
 		/// <param name="streams">List of streams to display</param>
 		/// <param name="categories">List of stream categories to display</param>
-		/// <param name="acl">Custom permissions for this object</param>
-		public GetProjectResponse(string id, string name, int order, List<GetProjectStreamResponse>? streams, List<GetProjectCategoryResponse>? categories, GetAclResponse? acl)
+		public GetProjectResponse(string id, string name, int order, List<GetProjectStreamResponse>? streams, List<GetProjectCategoryResponse>? categories)
 		{
 			Id = id;
 			Name = name;
 			Order = order;
 			Streams = streams;
 			Categories = categories;
-			Acl = acl;
+		}
+
+		/// <summary>
+		/// Converts this object to a public response
+		/// </summary>
+		/// <param name="projectConfig">The project instance</param>
+		/// <param name="includeStreams">Whether to include streams in the response</param>
+		/// <param name="includeCategories">Whether to include categories in the response</param>
+		/// <param name="streams">The list of streams</param>
+		/// <returns>Response instance</returns>
+		public static GetProjectResponse FromConfig(ProjectConfig projectConfig, bool includeStreams, bool includeCategories, List<StreamConfig>? streams)
+		{
+			List<GetProjectStreamResponse>? streamResponses = null;
+			if (includeStreams)
+			{
+				streamResponses = streams!.ConvertAll(x => new GetProjectStreamResponse(x.Id.ToString(), x.Name));
+			}
+
+			List<GetProjectCategoryResponse>? categoryResponses = null;
+			if (includeCategories)
+			{
+				categoryResponses = projectConfig.Categories.ConvertAll(x => new GetProjectCategoryResponse(x));
+				if (streams != null)
+				{
+					foreach (IStream stream in streams)
+					{
+						GetProjectCategoryResponse? categoryResponse = categoryResponses.FirstOrDefault(x => MatchCategory(stream.Config.Name, x));
+						if (categoryResponse == null)
+						{
+							int row = (categoryResponses.Count > 0) ? categoryResponses.Max(x => x.Row) : 0;
+							if (categoryResponses.Count(x => x.Row == row) >= 3)
+							{
+								row++;
+							}
+
+							ProjectCategoryConfig otherCategory = new ProjectCategoryConfig();
+							otherCategory.Name = "Other";
+							otherCategory.Row = row;
+							otherCategory.IncludePatterns.Add(".*");
+
+							categoryResponse = new GetProjectCategoryResponse(otherCategory);
+							categoryResponses.Add(categoryResponse);
+						}
+						categoryResponse.Streams!.Add(stream.Id.ToString());
+					}
+				}
+			}
+
+			return new GetProjectResponse(projectConfig.Id.ToString(), projectConfig.Name, projectConfig.Order, streamResponses, categoryResponses);
+		}
+
+		/// <summary>
+		/// Tests if a category response matches a given stream name
+		/// </summary>
+		/// <param name="name">The stream name</param>
+		/// <param name="category">The category response</param>
+		/// <returns>True if the category matches</returns>
+		static bool MatchCategory(string name, GetProjectCategoryResponse category)
+		{
+			if (category.IncludePatterns.Any(x => Regex.IsMatch(name, x)))
+			{
+				if (!category.ExcludePatterns.Any(x => Regex.IsMatch(name, x)))
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 	}
 }

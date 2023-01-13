@@ -47,12 +47,13 @@ namespace Horde.Build.Tasks
 		readonly ILogFileService _logService;
 		readonly ILogger _logger;
 		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ITicker _tickConformList;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConformTaskSource(MongoService mongoService, GlobalsService globalsService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConformTaskSource> logger)
+		public ConformTaskSource(MongoService mongoService, GlobalsService globalsService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ConformTaskSource> logger)
 		{
 			_mongoService = mongoService;
 			_globalsService = globalsService;
@@ -62,6 +63,7 @@ namespace Horde.Build.Tasks
 			_perforceLoadBalancer = perforceLoadBalancer;
 			_logService = logService;
 			_settings = settings;
+			_globalConfig = globalConfig;
 			_logger = logger;
 			_tickConformList = clock.AddSharedTicker<ConformTaskSource>(TimeSpan.FromMinutes(1.0), CleanConformListAsync, logger);
 
@@ -208,12 +210,12 @@ namespace Horde.Build.Tasks
 		/// <inheritdoc/>
 		public async Task<bool> GetWorkspacesAsync(IAgent agent, IList<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces)
 		{
-			IGlobals globals = await _globalsService.GetAsync();
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
-			HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow);
+			HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow, globalConfig);
 			foreach (AgentWorkspace conformWorkspace in conformWorkspaces)
 			{
-				PerforceCluster? cluster = globals.Config.FindPerforceCluster(conformWorkspace.Cluster);
+				PerforceCluster? cluster = globalConfig.FindPerforceCluster(conformWorkspace.Cluster);
 				if (cluster == null || !await agent.TryAddWorkspaceMessage(conformWorkspace, cluster, _perforceLoadBalancer, workspaces))
 				{
 					return false;
@@ -238,11 +240,11 @@ namespace Horde.Build.Tasks
 		/// <returns>True if the resource was allocated, false otherwise</returns>
 		private async Task<bool> AllocateConformLeaseAsync(AgentId agentId, IEnumerable<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces, LeaseId leaseId)
 		{
-			IGlobals globals = await _globalsService.GetAsync();
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 			for (; ; )
 			{
 				ConformList currentValue = await _conformList.GetAsync();
-				if (globals.Config.MaxConformCount != 0 && currentValue.Entries.Count + currentValue.Servers.Sum(x => x.Entries.Count) >= globals.Config.MaxConformCount)
+				if (globalConfig.MaxConformCount != 0 && currentValue.Entries.Count + currentValue.Servers.Sum(x => x.Entries.Count) >= globalConfig.MaxConformCount)
 				{
 					return false;
 				}
@@ -252,7 +254,7 @@ namespace Horde.Build.Tasks
 				{
 					if (servers.Add(workspace.ServerAndPort))
 					{
-						PerforceCluster? cluster = globals.Config.FindPerforceCluster(workspace.Cluster);
+						PerforceCluster? cluster = globalConfig.FindPerforceCluster(workspace.Cluster);
 						if (cluster == null)
 						{
 							_logger.LogWarning("Unable to find perforce cluster '{Cluster}' for conform", workspace.Cluster);
@@ -325,6 +327,8 @@ namespace Horde.Build.Tasks
 		/// <returns>True if the agent should be conformed</returns>
 		private async Task<bool> IsConformPendingAsync(IAgent agent, DateTime utcNow)
 		{
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
+
 			// If a conform was manually requested, allow it to run even if the agent is disabled
 			if (agent.RequestConform || agent.RequestFullConform)
 			{
@@ -366,10 +370,10 @@ namespace Horde.Build.Tasks
 				}
 
 				// Check if the workspaces have changed (first check against a cached list of workspaces, then an accurate one)
-				HashSet<AgentWorkspace> workspaces = await _poolService.GetWorkspacesAsync(agent, utcNow - TimeSpan.FromSeconds(30.0));
+				HashSet<AgentWorkspace> workspaces = await _poolService.GetWorkspacesAsync(agent, utcNow - TimeSpan.FromSeconds(30.0), globalConfig);
 				if (!workspaces.SetEquals(agent.Workspaces))
 				{
-					workspaces = await _poolService.GetWorkspacesAsync(agent, utcNow);
+					workspaces = await _poolService.GetWorkspacesAsync(agent, utcNow, globalConfig);
 					if (!workspaces.SetEquals(agent.Workspaces))
 					{
 						return true;

@@ -86,21 +86,14 @@ namespace Horde.Build.Credentials
 		public Dictionary<string, string> Properties { get; set; }
 
 		/// <summary>
-		/// Custom permissions for this object
-		/// </summary>
-		public GetAclResponse? Acl { get; set; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="credential">The credential to construct from</param>
-		/// <param name="includeAcl">Whether to include the ACL in the response</param>
-		public GetCredentialResponse(Credential credential, bool includeAcl)
+		public GetCredentialResponse(Credential credential)
 		{
 			Id = credential.Id.ToString();
 			Name = credential.Name;
 			Properties = credential.Properties;
-			Acl = (includeAcl && credential.Acl != null)? new GetAclResponse(credential.Acl) : null;
 		}
 	}
 }

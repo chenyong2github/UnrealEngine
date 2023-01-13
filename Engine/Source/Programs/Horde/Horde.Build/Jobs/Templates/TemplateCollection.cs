@@ -48,6 +48,7 @@ namespace Horde.Build.Jobs.Templates
 			public List<string> Arguments { get; private set; } = new List<string>();
 			public List<Parameter> Parameters { get; private set; } = new List<Parameter>();
 
+			ContentHash ITemplate.Hash => Id;
 			IReadOnlyList<string> ITemplate.Arguments => Arguments;
 			IReadOnlyList<Parameter> ITemplate.Parameters => Parameters;
 
@@ -57,19 +58,19 @@ namespace Horde.Build.Jobs.Templates
 				Name = null!;
 			}
 
-			public TemplateDocument(string name, Priority? priority, bool allowPreflights, bool updateIssues, bool promoteIssuesByDefault, string? initialAgentType, string? submitNewChange, string? submitDescription, List<string>? arguments, List<Parameter>? parameters)
+			public TemplateDocument(TemplateConfig config)
 			{
-				Name = name;
-				Priority = priority;
-				AllowPreflights = allowPreflights;
-				UpdateIssues = updateIssues;
-				PromoteIssuesByDefault = promoteIssuesByDefault;
-				InitialAgentType = initialAgentType;
-				SubmitNewChange = submitNewChange;
-				SubmitDescription = submitDescription;
-				Arguments = arguments ?? new List<string>();
-				Parameters = parameters ?? new List<Parameter>();
-
+				Name = config.Name;
+				Priority = config.Priority;
+				AllowPreflights = config.AllowPreflights;
+				UpdateIssues = config.UpdateIssues;
+				PromoteIssuesByDefault = config.PromoteIssuesByDefault;
+				InitialAgentType = config.InitialAgentType;
+				SubmitNewChange = config.SubmitNewChange;
+				SubmitDescription = config.SubmitDescription;
+				Arguments = config.Arguments ?? new List<string>();
+				Parameters = config.Parameters.ConvertAll(x => x.ToModel());
+			
 				// Compute the hash once all other fields have been set
 				Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
 			}
@@ -104,24 +105,6 @@ namespace Horde.Build.Jobs.Templates
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITemplate> AddAsync(string name, Priority? priority, bool allowPreflights, bool updateIssues, bool promoteIssuesByDefault, string? initialAgentType, string? submitNewChange, string? submitDescription, List<string>? arguments, List<Parameter>? parameters)
-		{
-			TemplateDocument template = new TemplateDocument(name, priority, allowPreflights, updateIssues, promoteIssuesByDefault, initialAgentType, submitNewChange, submitDescription, arguments, parameters);
-			if (await GetAsync(template.Id) == null)
-			{
-				await _templates.ReplaceOneAsync(x => x.Id == template.Id, template, new ReplaceOptions { IsUpsert = true });
-			}
-			return template;
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ITemplate>> FindAllAsync()
-		{
-			List<TemplateDocument> results = await _templates.Find(FilterDefinition<TemplateDocument>.Empty).ToListAsync();
-			return results.ConvertAll<ITemplate>(x => x);
-		}
-
-		/// <inheritdoc/>
 		public async Task<ITemplate?> GetAsync(ContentHash templateId)
 		{
 			object? result;
@@ -140,6 +123,26 @@ namespace Horde.Build.Jobs.Templates
 				}
 			}
 
+			return template;
+		}
+
+		/// <inheritdoc/>
+		public async Task<ITemplate> GetOrAddAsync(TemplateConfig config)
+		{
+			if (config.CachedHash != null)
+			{
+				ITemplate? existingTemplate = await GetAsync(config.CachedHash);
+				if (existingTemplate != null)
+				{
+					return existingTemplate;
+				}
+			}
+
+			TemplateDocument template = new TemplateDocument(config);
+			if (await GetAsync(template.Id) == null)
+			{
+				await _templates.ReplaceOneAsync(x => x.Id == template.Id, template, new ReplaceOptions { IsUpsert = true });
+			}
 			return template;
 		}
 	}

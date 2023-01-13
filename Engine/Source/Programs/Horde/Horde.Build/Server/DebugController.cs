@@ -245,60 +245,22 @@ namespace Horde.Build.Server
 	{
 		private static readonly Random s_random = new ();
 		
-		/// <summary>
-		/// The ACL service singleton
-		/// </summary>
 		private readonly AclService _aclService;
-
-		/// <summary>
-		/// The database service instance
-		/// </summary>
 		private readonly MongoService _mongoService;
-
-		/// <summary>
-		/// The job task source singleton
-		/// </summary>
 		private readonly JobTaskSource _jobTaskSource;
-
-		/// <summary>
-		/// Collection of template documents
-		/// </summary>
 		private readonly ITemplateCollection _templateCollection;
-		
-		/// <summary>
-		/// The graph collection singleton
-		/// </summary>
 		private readonly IGraphCollection _graphCollection;
-
-		/// <summary>
-		/// The log file collection singleton
-		/// </summary>
 		private readonly ILogFileCollection _logFileCollection;
-
-		/// <summary>
-		/// Settings
-		/// </summary>
-		private readonly IOptionsMonitor<ServerSettings> _settings;
-		
-		/// <summary>
-		/// Logger
-		/// </summary>
+		private readonly IOptions<ServerSettings> _settings;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		private readonly ILogger<SecureDebugController> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">The ACL service singleton</param>
-		/// <param name="mongoService">The database service instance</param>
-		/// <param name="jobTaskSource">The dispatch service singleton</param>
-		/// <param name="templateCollection">Collection of template documents</param>
-		/// <param name="graphCollection">The graph collection</param>
-		/// <param name="logFileCollection">The log file collection</param>
-		/// <param name="settings">Settings</param>
-		/// <param name="logger">Logger</param>
 		public SecureDebugController(AclService aclService, MongoService mongoService, JobTaskSource jobTaskSource,
 			ITemplateCollection templateCollection, IGraphCollection graphCollection,
-			ILogFileCollection logFileCollection, IOptionsMonitor<ServerSettings> settings, ILogger<SecureDebugController> logger)
+			ILogFileCollection logFileCollection, IOptions<ServerSettings> settings, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<SecureDebugController> logger)
 		{
 			_aclService = aclService;
 			_mongoService = mongoService;
@@ -307,6 +269,7 @@ namespace Horde.Build.Server
 			_graphCollection = graphCollection;
 			_logFileCollection = logFileCollection;
 			_settings = settings;
+			_globalConfig = globalConfig;
 			_logger = logger;
 		}
 
@@ -316,9 +279,9 @@ namespace Horde.Build.Server
 		/// <returns>Http result</returns>
 		[HttpGet]
 		[Route("/api/v1/debug/environment")]
-		public async Task<ActionResult> GetServerEnvVars()
+		public ActionResult GetServerEnvVars()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -342,9 +305,9 @@ namespace Horde.Build.Server
 		/// <returns>Information about the queue</returns>
 		[HttpGet]
 		[Route("/api/v1/debug/queue")]
-		public async Task<ActionResult<object>> GetQueueStatusAsync()
+		public ActionResult<object> GetQueueStatus()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -358,9 +321,9 @@ namespace Horde.Build.Server
 		/// <returns>Information about the config</returns>
 		[HttpGet]
 		[Route("/api/v1/debug/config")]
-		public async Task<ActionResult> GetConfig()
+		public ActionResult GetConfig()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -370,7 +333,7 @@ namespace Horde.Build.Server
 				WriteIndented = true
 			};
 
-			return Ok(JsonSerializer.Serialize(_settings.CurrentValue, options));
+			return Ok(JsonSerializer.Serialize(_settings.Value, options));
 		}
 		
 		/// <summary>
@@ -379,14 +342,14 @@ namespace Horde.Build.Server
 		/// <returns>Information about the log message generated</returns>
 		[HttpGet]
 		[Route("/api/v1/debug/generate-log-msg")]
-		public async Task<ActionResult> GenerateLogMessage(
+		public ActionResult GenerateLogMessage(
 			[FromQuery] string? logLevel = null,
 			[FromQuery] int messageLen = 0,
 			[FromQuery] int exceptionMessageLen = 0,
 			[FromQuery] int argCount = 0,
 			[FromQuery] int argLen = 10)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -439,7 +402,7 @@ namespace Horde.Build.Server
 		[ProducesResponseType(200, Type = typeof(GetGraphResponse))]
 		public async Task<ActionResult<List<object>>> GetGraphsAsync([FromQuery] int? index = null, [FromQuery] int? count = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -457,57 +420,13 @@ namespace Horde.Build.Server
 		[ProducesResponseType(200, Type = typeof(GetGraphResponse))]
 		public async Task<ActionResult<object>> GetGraphAsync(string graphId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
 
 			IGraph graph = await _graphCollection.GetAsync(ContentHash.Parse(graphId));
 			return new GetGraphResponse(graph).ApplyFilter(filter);
-		}
-
-		/// <summary>
-		/// Query all the job templates.
-		/// </summary>
-		/// <param name="filter">Filter for properties to return</param>
-		/// <returns>Information about all the job templates</returns>
-		[HttpGet]
-		[Route("/api/v1/debug/templates")]
-		[ProducesResponseType(typeof(List<GetTemplateResponse>), 200)]
-		public async Task<ActionResult<object>> GetTemplatesAsync([FromQuery] PropertyFilter? filter = null)
-		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
-			{
-				return Forbid();
-			}
-
-			List<ITemplate> templates = await _templateCollection.FindAllAsync();
-			return templates.ConvertAll(x => new GetTemplateResponse(x).ApplyFilter(filter));
-		}
-
-		/// <summary>
-		/// Retrieve information about a specific job template.
-		/// </summary>
-		/// <param name="templateHash">Id of the template to get information about</param>
-		/// <param name="filter">List of properties to return</param>
-		/// <returns>Information about the requested template</returns>
-		[HttpGet]
-		[Route("/api/v1/debug/templates/{TemplateHash}")]
-		[ProducesResponseType(typeof(GetTemplateResponse), 200)]
-		public async Task<ActionResult<object>> GetTemplateAsync(string templateHash, [FromQuery] PropertyFilter? filter = null)
-		{
-			ContentHash templateHashValue = ContentHash.Parse(templateHash);
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
-			{
-				return Forbid();
-			}
-
-			ITemplate? template = await _templateCollection.GetAsync(templateHashValue);
-			if (template == null)
-			{
-				return NotFound();
-			}
-			return template.ApplyFilter(filter);
 		}
 
 		/// <summary>
@@ -520,7 +439,7 @@ namespace Horde.Build.Server
 		[Route("/api/v1/debug/logs/{LogFileId}")]
 		public async Task<ActionResult<object>> GetLogAsync(ObjectId<ILogFile> logFileId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -542,7 +461,7 @@ namespace Horde.Build.Server
 		[Route("/api/v1/debug/collections/{Name}")]
 		public async Task<ActionResult<object>> GetDocumentsAsync(string name, [FromQuery] string? filter = null, [FromQuery] int index = 0, [FromQuery] int count = 10)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}

@@ -8,6 +8,7 @@ using Horde.Build.Server;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Perforce
 {
@@ -19,29 +20,16 @@ namespace Horde.Build.Perforce
 	[Route("[controller]")]
 	public class PerforceController : ControllerBase
 	{
-		/// <summary>
-		/// The globals service instance
-		/// </summary>
-		private readonly GlobalsService _globalsService;
-
-		/// <summary>
-		/// The ACL service instance
-		/// </summary>
-		private readonly AclService _aclService;
-
-		/// <summary>
-		/// Load balancer instance
-		/// </summary>
 		private readonly PerforceLoadBalancer _perforceLoadBalancer;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceController(GlobalsService globalsService, AclService aclService, PerforceLoadBalancer perforceLoadBalancer)
+		public PerforceController(PerforceLoadBalancer perforceLoadBalancer, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_globalsService = globalsService;
-			_aclService = aclService;
 			_perforceLoadBalancer = perforceLoadBalancer;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -68,15 +56,16 @@ namespace Horde.Build.Perforce
 		/// <returns>List of Perforce clusters</returns>
 		[HttpGet]
 		[Route("/api/v1/perforce/settings")]
-		public async Task<ActionResult<List<PerforceCluster>>> GetPerforceSettingsAsync()
+		public ActionResult<List<PerforceCluster>> GetPerforceSettingsAsync()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			GlobalConfig globalConfig = _globalConfig.Value;
+
+			if (!globalConfig.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
 
-			IGlobals globals = await _globalsService.GetAsync();
-			return globals.Config.PerforceClusters;
+			return globalConfig.PerforceClusters;
 		}
 	}
 
@@ -87,9 +76,6 @@ namespace Horde.Build.Perforce
 	[Route("[controller]")]
 	public class PublicPerforceController : ControllerBase
 	{
-		/// <summary>
-		/// Logger instance
-		/// </summary>
 		private readonly ILogger<PerforceController> _logger;
 
 		/// <summary>

@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Projects;
+using Horde.Build.Server;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -28,21 +29,9 @@ namespace Horde.Build.Devices
 	/// </summary>
 	public class DevicesController : ControllerBase
 	{
-
-		/// <summary>
-		/// The acl service singleton
-		/// </summary>
-		readonly AclService _aclService;
-
-		/// <summary>
-		/// The user collection instance
-		/// </summary>
-		IUserCollection UserCollection { get; set; }
-
-		/// <summary>
-		/// Singleton instance of the device service
-		/// </summary>
+		readonly IUserCollection _userCollection;
 		readonly DeviceService _deviceService;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		///  Logger for controller
@@ -52,12 +41,12 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DevicesController(DeviceService deviceService, AclService aclService, IUserCollection userCollection, ILogger<DevicesController> logger)
+		public DevicesController(IUserCollection userCollection, DeviceService deviceService, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<DevicesController> logger)
 		{
-			UserCollection = userCollection;
+			_userCollection = userCollection;
 			_deviceService = deviceService;
+			_globalConfig = globalConfig;
 			_logger = logger;
-			_aclService = aclService;
 		}
 
 		// DEVICES
@@ -70,15 +59,14 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices")]
 		public async Task<ActionResult<CreateDeviceResponse>> CreateDeviceAsync([FromBody] CreateDeviceRequest deviceRequest)
 		{
-
-			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(new DevicePoolId(deviceRequest.PoolId!), User);
+			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(new DevicePoolId(deviceRequest.PoolId!), User, _globalConfig.Value);
 
 			if (poolAuth == null || !poolAuth.Write)
 			{
 				return Forbid();
 			}
 
-			IUser? internalUser = await UserCollection.GetUserAsync(User);
+			IUser? internalUser = await _userCollection.GetUserAsync(User);
 			if (internalUser == null)
 			{
 				return NotFound();
@@ -132,8 +120,7 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(List<GetDeviceResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetDevicesAsync()
 		{
-
-			List<DevicePoolAuthorization> poolAuth = await _deviceService.GetUserPoolAuthorizationsAsync(User);
+			List<DevicePoolAuthorization> poolAuth = await _deviceService.GetUserPoolAuthorizationsAsync(User, _globalConfig.Value);
 
 			List<IDevice> devices = await _deviceService.GetDevicesAsync();
 
@@ -179,7 +166,7 @@ namespace Horde.Build.Devices
 				return BadRequest($"Unable to find device with id {deviceId}");
 			}
 
-			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User);
+			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User, _globalConfig.Value);
 
 			if (poolAuth == null || !poolAuth.Write)
 			{
@@ -204,7 +191,7 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(List<GetDeviceResponse>), 200)]
 		public async Task<ActionResult> UpdateDeviceAsync(string deviceId, [FromBody] UpdateDeviceRequest update)
 		{
-			IUser? internalUser = await UserCollection.GetUserAsync(User);
+			IUser? internalUser = await _userCollection.GetUserAsync(User);
 			if (internalUser == null)
 			{
 				return NotFound();
@@ -219,7 +206,7 @@ namespace Horde.Build.Devices
 				return BadRequest($"Device with id ${deviceId} does not exist");
 			}
 
-			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User);
+			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User, _globalConfig.Value);
 
 			if (poolAuth == null || !poolAuth.Write)
 			{
@@ -270,7 +257,7 @@ namespace Horde.Build.Devices
 		public async Task<ActionResult> CheckoutDeviceAsync(string deviceId, [FromBody] CheckoutDeviceRequest request)
 		{
 
-			IUser? internalUser = await UserCollection.GetUserAsync(User);
+			IUser? internalUser = await _userCollection.GetUserAsync(User);
 			if (internalUser == null)
 			{
 				return NotFound();
@@ -285,7 +272,7 @@ namespace Horde.Build.Devices
 				return BadRequest($"Device with id ${deviceId} does not exist");
 			}
 
-			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User);
+			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User, _globalConfig.Value);
 
 			if (poolAuth == null || !poolAuth.Write)
 			{
@@ -318,7 +305,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/{deviceId}")]
 		public async Task<ActionResult> DeleteDeviceAsync(string deviceId)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -331,7 +318,7 @@ namespace Horde.Build.Devices
 				return NotFound();
 			}
 
-			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User);
+			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(device.PoolId, User, _globalConfig.Value);
 
 			if (poolAuth == null || !poolAuth.Write)
 			{
@@ -352,7 +339,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/platforms")]
 		public async Task<ActionResult<CreateDevicePlatformResponse>> CreatePlatformAsync([FromBody] CreateDevicePlatformRequest request)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -377,7 +364,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/platforms/{platformId}")]
 		public async Task<ActionResult<CreateDevicePlatformResponse>> UpdatePlatformAsync(string platformId, [FromBody] UpdateDevicePlatformRequest request)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -396,8 +383,7 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(List<GetDevicePlatformResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetDevicePlatformsAsync()
 		{
-
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
+			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -425,7 +411,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/pools")]
 		public async Task<ActionResult<CreateDevicePoolResponse>> CreatePoolAsync([FromBody] CreateDevicePoolRequest request)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -451,8 +437,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/pools")]
 		public async Task<ActionResult> UpdatePoolAsync([FromBody] UpdateDevicePoolRequest request)
 		{
-
-			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(new DevicePoolId(request.Id), User);
+			DevicePoolAuthorization? poolAuth = await _deviceService.GetUserPoolAuthorizationAsync(new DevicePoolId(request.Id), User, _globalConfig.Value);
 
 			if (poolAuth == null || !poolAuth.Write)
 			{
@@ -480,8 +465,7 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(List<GetDevicePoolResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetDevicePoolsAsync()
 		{
-
-			List<DevicePoolAuthorization> poolAuth = await _deviceService.GetUserPoolAuthorizationsAsync(User);
+			List<DevicePoolAuthorization> poolAuth = await _deviceService.GetUserPoolAuthorizationsAsync(User, _globalConfig.Value);
 
 			List<IDevicePool> pools = await _deviceService.GetPoolsAsync();
 
@@ -515,7 +499,7 @@ namespace Horde.Build.Devices
 			[FromQuery] int index = 0,
 			[FromQuery] int count = 1024)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
+			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -563,8 +547,7 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(CreateDeviceReservationResponse), 200)]
 		public async Task<ActionResult<CreateDeviceReservationResponse>> CreateDeviceReservation([FromBody] CreateDeviceReservationRequest request)
 		{
-
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -646,7 +629,7 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(List<GetDeviceReservationResponse>), 200)]
 		public async Task<ActionResult<List<GetDeviceReservationResponse>>> GetDeviceReservations()
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
+			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -688,7 +671,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/reservations/{reservationId}")]
 		public async Task<ActionResult> UpdateReservationAsync(string reservationId)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -713,7 +696,7 @@ namespace Horde.Build.Devices
 		[Route("/api/v2/devices/reservations/{reservationId}")]
 		public async Task<ActionResult> DeleteReservationAsync(string reservationId)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceWrite, User))
+			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -748,7 +731,7 @@ namespace Horde.Build.Devices
 			[FromQuery] int index = 0,
 			[FromQuery] int count = 1024)
 		{
-			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
+			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}

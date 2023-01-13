@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -62,6 +63,48 @@ namespace EpicGames.Core
 		public static void SortBy<TElement, TField>(this List<TElement> list, Func<TElement, TField> selector, IComparer<TField> comparer)
 		{
 			list.Sort((x, y) => comparer.Compare(selector(x), selector(y)));
+		}
+
+		/// <summary>
+		/// Convert all elements of a list to a base type
+		/// </summary>
+		/// <typeparam name="TInput">Input element type</typeparam>
+		/// <typeparam name="TOutput">Output element type</typeparam>
+		/// <param name="input">List to convert</param>
+		/// <returns>Converted list</returns>
+		public static List<TOutput> ConvertAll<TInput, TOutput>(this List<TInput> input) where TInput : TOutput
+		{
+			List<TOutput> output = new List<TOutput>(input.Count);
+			foreach (TInput inputItem in input)
+			{
+				output.Add(inputItem);
+			}
+			return output;
+		}
+
+		/// <summary>
+		/// Convert all elements of a list to a base type
+		/// </summary>
+		/// <typeparam name="TInput">Input element type</typeparam>
+		/// <typeparam name="TOutput">Output element type</typeparam>
+		/// <param name="input">List to convert</param>
+		/// <returns>Converted list</returns>
+		public static async Task<List<TOutput>> ConvertAllAsync<TInput, TOutput>(this Task<List<TInput>> input) where TInput : TOutput
+		{
+			return ConvertAll<TInput, TOutput>(await input);
+		}
+
+		/// <summary>
+		/// Convert all elements of a list to a base type
+		/// </summary>
+		/// <typeparam name="TInput">Input element type</typeparam>
+		/// <typeparam name="TOutput">Output element type</typeparam>
+		/// <param name="input">List to convert</param>
+		/// <param name="converter">Converter for elements</param>
+		/// <returns>Converted list</returns>
+		public static async Task<List<TOutput>> ConvertAllAsync<TInput, TOutput>(this Task<List<TInput>> input, Converter<TInput, TOutput> converter)
+		{
+			return (await input).ConvertAll(converter);
 		}
 	}
 }

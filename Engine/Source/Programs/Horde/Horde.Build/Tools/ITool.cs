@@ -25,34 +25,14 @@ namespace Horde.Build.Tools
 		ToolId Id { get; }
 
 		/// <summary>
-		/// Name of the tool
-		/// </summary>
-		string Name { get; }
-
-		/// <summary>
-		/// Description for the tool
-		/// </summary>
-		string Description { get; }
-
-		/// <summary>
-		/// Last time that the tool was updated
-		/// </summary>
-		DateTime LastUpdateTime { get; }
-
-		/// <summary>
 		/// Current deployments of this tool, sorted by time.
 		/// </summary>
 		IReadOnlyList<IToolDeployment> Deployments { get; }
 
 		/// <summary>
-		/// Whether this tool should be exposed for download on a public endpoint without authentication
+		/// Config object for this tool
 		/// </summary>
-		bool Public { get; }
-
-		/// <summary>
-		/// Access list for this tool
-		/// </summary>
-		public AclV2? Acl { get; }
+		ToolConfig Config { get; }
 	}
 
 	/// <summary>
@@ -132,22 +112,6 @@ namespace Horde.Build.Tools
 	/// </summary>
 	public static class ToolExtensions
 	{
-		/// <summary>
-		/// Test whether a user can perform an action on this tool 
-		/// </summary>
-		public static Task<bool> AuthorizeAsync(this ITool tool, AclAction action, ClaimsPrincipal user, AclService aclService, GlobalPermissionsCache? cache)
-		{
-			bool? result = tool.Acl?.Authorize(action, user);
-			if (result == null)
-			{
-				return aclService.AuthorizeAsync(action, user, cache);
-			}
-			else
-			{
-				return Task.FromResult(result.Value);
-			}
-		}
-
 		/// <summary>
 		/// Get the progress fraction for a particular deployment and time
 		/// </summary>

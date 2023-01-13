@@ -36,11 +36,6 @@ namespace Horde.Build.Secrets
 		public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
 
 		/// <summary>
-		/// The ACL for this credential
-		/// </summary>
-		public Acl? Acl { get; set; }
-
-		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		[BsonConstructor]

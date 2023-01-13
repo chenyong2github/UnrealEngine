@@ -143,12 +143,12 @@ namespace Horde.Build.Notifications
 		/// <param name="message">The message to send</param>
 		/// <param name="device">The device</param>
 		/// <param name="pool">The pool</param>
-		/// <param name="stream"></param>
+		/// <param name="streamConfig"></param>
 		/// <param name="job"></param>
 		/// <param name="step"></param>
 		/// <param name="node"></param>
 		/// <param name="user"></param>
-		void NotifyDeviceService(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null);
+		void NotifyDeviceService(string message, IDevice? device = null, IDevicePool? pool = null, StreamConfig? streamConfig = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null);
 
 		/// <summary>
 		/// Post a notification for the open issues in a stream

@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
@@ -16,13 +18,19 @@ using Horde.Build.Agents.Software;
 using Horde.Build.Configuration;
 using Horde.Build.Projects;
 using Horde.Build.Storage;
+using Horde.Build.Streams;
 using Horde.Build.Tools;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Server
 {
+	using UserId = ObjectId<IUser>;
 	using ProjectId = StringId<IProject>;
+	using StreamId = StringId<IStream>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using ToolId = StringId<ITool>;
 
 	/// <summary>
 	/// Directive to merge config data from another source
@@ -45,6 +53,18 @@ namespace Horde.Build.Server
 	public class GlobalConfig
 	{
 		/// <summary>
+		/// Global server settings object
+		/// </summary>
+		[JsonIgnore]
+		public ServerSettings ServerSettings { get; private set; } = null!;
+
+		/// <summary>
+		/// Unique identifier for this config revision. Useful to detect changes.
+		/// </summary>
+		[JsonIgnore]
+		public string Revision { get; set; } = String.Empty;
+
+		/// <summary>
 		/// Other paths to include
 		/// </summary>
 		public List<ConfigInclude> Include { get; set; } = new List<ConfigInclude>();
@@ -52,7 +72,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// List of projects
 		/// </summary>
-		public List<ProjectConfigRef> Projects { get; set; } = new List<ProjectConfigRef>();
+		public List<ProjectConfig> Projects { get; set; } = new List<ProjectConfig>();
 
 		/// <summary>
 		/// List of pools
@@ -108,6 +128,117 @@ namespace Horde.Build.Server
 		/// Access control list
 		/// </summary>
 		public AclConfig Acl { get; set; } = new AclConfig();
+
+		/// <summary>
+		/// Enumerates all the streams
+		/// </summary>
+		[JsonIgnore]
+		public IReadOnlyList<StreamConfig> Streams { get; private set; } = null!;
+
+		private readonly Dictionary<ProjectId, ProjectConfig> _projectLookup = new Dictionary<ProjectId, ProjectConfig>();
+		private readonly Dictionary<StreamId, StreamConfig> _streamLookup = new Dictionary<StreamId, StreamConfig>();
+		private readonly Dictionary<ToolId, ToolConfig> _toolLookup = new Dictionary<ToolId, ToolConfig>();
+
+		/// <summary>
+		/// Called after the config file has been read
+		/// </summary>
+		public void PostLoad(ServerSettings serverSettings)
+		{
+			ServerSettings = serverSettings;
+
+			Streams = Projects.SelectMany(x => x.Streams).ToList();
+
+			_projectLookup.Clear();
+			_streamLookup.Clear();
+			foreach (ProjectConfig project in Projects)
+			{
+				_projectLookup.Add(project.Id, project);
+				project.PostLoad(project.Id, this);
+
+				foreach (StreamConfig stream in project.Streams)
+				{
+					_streamLookup.Add(stream.Id, stream);
+				}
+			}
+
+			_toolLookup.Clear();
+			foreach (ToolConfig tool in Tools)
+			{
+				_toolLookup.Add(tool.Id, tool);
+				tool.PostLoad(this);
+			}
+
+			Storage.PostLoad(this);
+		}
+
+		/// <summary>
+		/// Attempts to get configuration for a project from this object
+		/// </summary>
+		/// <param name="projectId">The stream identifier</param>
+		/// <param name="config">Configuration for the stream</param>
+		/// <returns>True if the stream configuration was found</returns>
+		public bool TryGetProject(ProjectId projectId, [NotNullWhen(true)] out ProjectConfig? config) => _projectLookup.TryGetValue(projectId, out config);
+
+		/// <summary>
+		/// Attempts to get configuration for a stream from this object
+		/// </summary>
+		/// <param name="streamId">The stream identifier</param>
+		/// <param name="config">Configuration for the stream</param>
+		/// <returns>True if the stream configuration was found</returns>
+		public bool TryGetStream(StreamId streamId, [NotNullWhen(true)] out StreamConfig? config) => _streamLookup.TryGetValue(streamId, out config);
+
+		/// <summary>
+		/// Attempts to get configuration for a tool from this object
+		/// </summary>
+		/// <param name="toolId">The tool identifier</param>
+		/// <param name="config">Configuration for the stream</param>
+		/// <returns>True if the stream configuration was found</returns>
+		public bool TryGetTool(ToolId toolId, [NotNullWhen(true)] out ToolConfig? config) => _toolLookup.TryGetValue(toolId, out config);
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return Acl.Authorize(action, user) ?? ServerSettings.Authorize(action, user);
+		}
+
+		/// <summary>
+		/// Determines whether the given user can masquerade as a given user
+		/// </summary>
+		/// <param name="user"></param>
+		/// <param name="userId"></param>
+		/// <returns></returns>
+		public bool AuthorizeAsUser(ClaimsPrincipal user, UserId userId)
+		{
+			UserId? currentUserId = user.GetUserId();
+			if (currentUserId != null && currentUserId.Value == userId)
+			{
+				return true;
+			}
+			else
+			{
+				return Authorize(AclAction.Impersonate, user);
+			}
+		}
+
+		/// <summary>
+		/// Finds a perforce cluster with the given name or that contains the provided server
+		/// </summary>
+		/// <param name="name">Name of the cluster</param>
+		/// <param name="serverAndPort">Find cluster which contains server</param>
+		/// <returns></returns>
+		public PerforceCluster GetPerforceCluster(string? name, string? serverAndPort = null)
+		{
+			PerforceCluster? cluster = FindPerforceCluster(name, serverAndPort);
+			if (cluster == null)
+			{
+				throw new Exception($"Unknown Perforce cluster '{name}'");
+			}
+			return cluster;
+		}
 
 		/// <summary>
 		/// Finds a perforce cluster with the given name or that contains the provided server
@@ -185,31 +316,6 @@ namespace Horde.Build.Server
 		/// Access control list
 		/// </summary>
 		public AclConfig? Acl { get; set; }
-	}
-
-	/// <summary>
-	/// References a project configuration
-	/// </summary>
-	[DebuggerDisplay("{Id}")]
-	public class ProjectConfigRef
-	{
-		/// <summary>
-		/// Unique id for the project
-		/// </summary>
-		[Required]
-		public ProjectId Id { get; set; } = ProjectId.Empty;
-
-		/// <summary>
-		/// Config path for the project
-		/// </summary>
-		[Required, ConfigRelativePath]
-		public string Path { get; set; } = null!;
-
-		/// <summary>
-		/// Configuration for this project
-		/// </summary>
-		[JsonIgnore]
-		public ProjectConfig Target { get; set; } = null!;
 	}
 
 	/// <summary>

@@ -25,7 +25,6 @@ using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
 using StackExchange.Redis;
-using TimeZoneConverter;
 
 namespace Horde.Build.Jobs.Schedules
 {
@@ -65,7 +64,7 @@ namespace Horde.Build.Jobs.Schedules
 		readonly ICommitService _commitService;
 		readonly IJobCollection _jobCollection;
 		readonly JobService _jobService;
-		readonly StreamService _streamService;
+		readonly IStreamCollection _streamCollection;
 		readonly ITemplateCollection _templateCollection;
 		readonly IClock _clock;
 		readonly ILogger _logger;
@@ -73,20 +72,22 @@ namespace Horde.Build.Jobs.Schedules
 		static readonly RedisKey s_baseLockKey = "scheduler/locks";
 		static readonly RedisKey s_tickLockKey = s_baseLockKey.Append("/tick"); // Lock to tick the queue
 		static readonly RedisSortedSetKey<QueueItem> s_queueKey = "scheduler/queue"; // Items to tick, ordered by time
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ITicker _ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ScheduleService(RedisService redis, IGraphCollection graphs, ICommitService commitService, IJobCollection jobCollection, JobService jobService, StreamService streamService, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ScheduleService> logger)
+		public ScheduleService(RedisService redis, IGraphCollection graphs, ICommitService commitService, IJobCollection jobCollection, JobService jobService, IStreamCollection streamCollection, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ScheduleService> logger)
 		{
 			_graphs = graphs;
 			_commitService = commitService;
 			_jobCollection = jobCollection;
 			_jobService = jobService;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_templateCollection = templateCollection;
 			_clock = clock;
+			_globalConfig = globalConfig;
 			_logger = logger;
 
 			_redis = redis;
@@ -200,9 +201,10 @@ namespace Horde.Build.Jobs.Schedules
 		{
 			List<SortedSetEntry<QueueItem>> queueItems = new List<SortedSetEntry<QueueItem>>();
 
-			List<IStream> streams = await _streamService.GetStreamsAsync();
-			foreach (IStream stream in streams)
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
+			foreach(StreamConfig streamConfig in globalConfig.Streams)
 			{
+				IStream stream = await _streamCollection.GetAsync(streamConfig);
 				foreach ((TemplateId templateId, ITemplateRef templateRef) in stream.Templates)
 				{
 					if (templateRef.Schedule != null)
@@ -215,7 +217,7 @@ namespace Horde.Build.Jobs.Schedules
 								double score = QueueItem.GetScoreFromTime(nextTriggerTimeUtc.Value);
 								queueItems.Add(new SortedSetEntry<QueueItem>(new QueueItem(stream.Id, templateId), score));
 
-								await _streamService.UpdateScheduleTriggerAsync(stream, templateId, utcNow);
+								await _streamCollection.UpdateScheduleTriggerAsync(stream, templateId, utcNow);
 							}
 						}
 					}
@@ -235,7 +237,13 @@ namespace Horde.Build.Jobs.Schedules
 		/// <returns>Async task</returns>
 		internal async Task<bool> TriggerAsync(StreamId streamId, TemplateId templateId, DateTime utcNow, CancellationToken cancellationToken)
 		{
-			IStream? stream = await _streamService.GetStreamAsync(streamId);
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
+			if (!globalConfig.TryGetStream(streamId, out StreamConfig? streamConfig))
+			{
+				return false;
+			}
+
+			IStream? stream = await _streamCollection.GetAsync(streamConfig);
 			if (stream == null || !stream.Templates.TryGetValue(templateId, out ITemplateRef? templateRef))
 			{
 				return false;
@@ -265,7 +273,7 @@ namespace Horde.Build.Jobs.Schedules
 					removeJobIds.Add(activeJobId);
 				}
 			}
-			await _streamService.UpdateScheduleTriggerAsync(stream, templateId, removeJobs: removeJobIds);
+			await _streamCollection.UpdateScheduleTriggerAsync(stream, templateId, removeJobs: removeJobIds);
 
 			// If the stream is paused, bail out
 			if (stream.IsPaused(utcNow))
@@ -346,7 +354,7 @@ namespace Horde.Build.Jobs.Schedules
 			}
 
 			// Cache the Perforce history as we're iterating through changes to improve query performance
-			ICommitCollection commits = _commitService.GetCollection(stream);
+			ICommitCollection commits = _commitService.GetCollection(stream.Config);
 			IAsyncEnumerable<ICommit> commitEnumerable = commits.FindAsync(minChangeNumber, null, null, schedule.Config.Commits, cancellationToken);
 			await using IAsyncEnumerator<ICommit> commitEnumerator = commitEnumerable.GetAsyncEnumerator(cancellationToken);
 
@@ -362,7 +370,7 @@ namespace Horde.Build.Jobs.Schedules
 
 				if (schedule.Config.Gate != null)
 				{
-					change = await GetNextChangeForGateAsync(stream, templateId, schedule.Config.Gate, minChangeNumber, maxChangeNumber, cancellationToken);
+					change = await GetNextChangeForGateAsync(stream.Id, templateId, schedule.Config.Gate, minChangeNumber, maxChangeNumber, cancellationToken);
 					commit = await commits.FindAsync(change, change, 1, null, cancellationToken).FirstOrDefaultAsync(cancellationToken); // May be a change in a different stream
 				}
 				else if (await commitEnumerator.MoveNextAsync(cancellationToken))
@@ -431,12 +439,7 @@ namespace Horde.Build.Jobs.Schedules
 			}
 
 			// Get the matching template
-			ITemplate? template = await _templateCollection.GetAsync(templateRef.Hash);
-			if (template == null)
-			{
-				_logger.LogWarning("Unable to find template '{TemplateHash}' for '{TemplateId}'", templateRef.Hash, templateId);
-				return;
-			}
+			ITemplate template = await _templateCollection.GetOrAddAsync(templateRef.Config);
 
 			// Register the graph for it
 			IGraph graph = await _graphs.AddAsync(template, stream.Config.InitialAgentType);
@@ -460,9 +463,9 @@ namespace Horde.Build.Jobs.Schedules
 				options.Priority = template.Priority;
 				options.Arguments.AddRange(template.GetDefaultArguments());
 
-				IJob newJob = await _jobService.CreateJobAsync(null, stream, templateId, template.Id, graph, template.Name, change, codeChange, options);
+				IJob newJob = await _jobService.CreateJobAsync(null, stream.Config, templateId, template.Hash, graph, template.Name, change, codeChange, options);
 				_logger.LogInformation("Started new job for {StreamId} template {TemplateId} at CL {Change} (Code CL {CodeChange}): {JobId}", stream.Id, templateId, change, codeChange, newJob.Id);
-				await _streamService.UpdateScheduleTriggerAsync(stream, templateId, utcNow, change, new List<JobId> { newJob.Id }, new List<JobId>());
+				await _streamCollection.UpdateScheduleTriggerAsync(stream, templateId, utcNow, change, new List<JobId> { newJob.Id }, new List<JobId>());
 			}
 		}
 
@@ -504,13 +507,13 @@ namespace Horde.Build.Jobs.Schedules
 		/// Gets the next change to build for a schedule on a gate
 		/// </summary>
 		/// <returns></returns>
-		private async Task<int> GetNextChangeForGateAsync(IStream stream, TemplateId templateRefId, ScheduleGateConfig gate, int? minChange, int? maxChange, CancellationToken cancellationToken)
+		private async Task<int> GetNextChangeForGateAsync(StreamId streamId, TemplateId templateRefId, ScheduleGateConfig gate, int? minChange, int? maxChange, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
 				cancellationToken.ThrowIfCancellationRequested();
 
-				List<IJob> jobs = await _jobCollection.FindAsync(streamId: stream.Id, templates: new[] { gate.TemplateId }, minChange: minChange, maxChange: maxChange, count: 1);
+				List<IJob> jobs = await _jobCollection.FindAsync(streamId: streamId, templates: new[] { gate.TemplateId }, minChange: minChange, maxChange: maxChange, count: 1);
 				if (jobs.Count == 0)
 				{
 					return 0;
@@ -529,7 +532,7 @@ namespace Horde.Build.Jobs.Schedules
 						{
 							return job.Change;
 						}
-						_logger.LogInformation("Skipping trigger of {StreamName} template {TemplateId} - last {OtherTemplateRefId} job ({JobId}) ended with errors", stream.Id, templateRefId, gate.TemplateId, job.Id);
+						_logger.LogInformation("Skipping trigger of {StreamName} template {TemplateId} - last {OtherTemplateRefId} job ({JobId}) ended with errors", streamId, templateRefId, gate.TemplateId, job.Id);
 					}
 				}
 

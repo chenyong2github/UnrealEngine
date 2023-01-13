@@ -114,12 +114,16 @@ namespace Horde.Build.Tests.Fleet
 			string agentTypeName1 = "bogusAgentType1";
 			Dictionary<string, AgentConfig> agentTypes = new() { {agentTypeName1, new() { Pool = new PoolId(pool.Name) } }, };
 
-			IStream stream = (await CreateOrReplaceStreamAsync(
-				new StreamId("ue5-main"),
-				null,
-				new ProjectId("does-not-exist"),
-				new StreamConfig { Name = "//UE5/Main", AgentTypes = agentTypes }
-			))!;
+			StreamConfig streamConfig = new StreamConfig { Id = new StreamId("ue5"), Name = "//UE5/Main", AgentTypes = agentTypes };
+
+			ProjectConfig projectConfig = new ProjectConfig();
+			projectConfig.Id = new ProjectId("ue5");
+			projectConfig.Streams.Add(streamConfig);
+
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Projects.Add(projectConfig);
+
+			SetConfig(globalConfig);
 
 			string nodeForAgentType1 = "bogusNodeOnAgentType1";
 			IGraph graph = await GraphCollection.AppendAsync(null, new()
@@ -132,18 +136,17 @@ namespace Horde.Build.Tests.Fleet
 
 			for (int i = 0; i < numBatchesRunning; i++)
 			{
-				IJob job = await AddPlaceholderJob(graph, stream.Id, nodeForAgentType1);
+				IJob job = await AddPlaceholderJob(graph, streamConfig.Id, nodeForAgentType1);
 				await JobCollection.TryUpdateBatchAsync(job, graph, job.Batches[0].Id, null, JobStepBatchState.Running, null);
 			}
 			
 			for (int i = 0; i < numBatchesReady; i++)
 			{
-				IJob job = await AddPlaceholderJob(graph, stream.Id, nodeForAgentType1);
+				IJob job = await AddPlaceholderJob(graph, streamConfig.Id, nodeForAgentType1);
 				await JobCollection.TryUpdateBatchAsync(job, graph, job.Batches[0].Id, null, JobStepBatchState.Ready, null);
 			}
 
-			JobQueueSettings settings = new ();
-			return (new (JobCollection, GraphCollection, StreamService, Clock, Cache, settings), poolSize, pool, agents);
+			return (new (JobCollection, GraphCollection, StreamCollection, Clock, Cache, GlobalConfig), poolSize, pool, agents);
 		}
 		
 		private async Task<IJob> AddPlaceholderJob(IGraph graph, StreamId streamId, string nodeNameToExecute)

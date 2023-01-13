@@ -12,8 +12,8 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Gets a commit collection for the given stream
 		/// </summary>
-		/// <param name="stream">Stream to get commits for</param>
+		/// <param name="streamConfig">Stream to get commits for</param>
 		/// <returns>Collection object</returns>
-		ICommitCollection GetCollection(IStream stream);
+		ICommitCollection GetCollection(StreamConfig streamConfig);
 	}
 }

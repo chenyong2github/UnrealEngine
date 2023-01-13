@@ -41,12 +41,11 @@ namespace Horde.Build.Tests
 		{
 			IUser bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
 
-			const string ProjectConfigRevision = "projectconfig";
-			ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" }).Wait();
-			IProject? project = ProjectService.Collection.AddOrUpdateAsync(ProjectId, ProjectConfigRevision, 0).Result;
-			Assert.IsNotNull(project);
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Projects.Add(new ProjectConfig { Id = ProjectId, Name = "UE4" });
+			SetConfig(globalConfig);
 
-			_template = TemplateCollection.AddAsync("Test template").Result;
+			_template = TemplateCollection.GetOrAddAsync(new TemplateConfig { Name = "Test template" }).Result;
 
 			_initialJobIds = new HashSet<JobId>(JobCollection.FindAsync().Result.Select(x => x.Id));
 
@@ -60,14 +59,15 @@ namespace Horde.Build.Tests
 		{
 			await ScheduleService.ResetAsync();
 
-			IStream? stream = await StreamService.GetStreamAsync(StreamId);
+			StreamConfig streamConfig = new StreamConfig();
+			streamConfig.Id = StreamId;
+			streamConfig.Name = "//UE5/Main";
+			streamConfig.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { TemplateId } });
+			streamConfig.Templates.Add(new TemplateRefConfig { Id = TemplateId, Name = "Test", Schedule = schedule });
 
-			StreamConfig config = new StreamConfig();
-			config.Name = "//UE5/Main";
-			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { TemplateId } });
-			config.Templates.Add(new TemplateRefConfig { Id = TemplateId, Name = "Test", Schedule = schedule });
+			UpdateConfig(x => x.Projects[0].Streams = new List<StreamConfig> { streamConfig });
 
-			return (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!; 
+			return await StreamCollection.GetAsync(streamConfig);
 		}
 
 		public async Task<List<IJob>> FileTestHelperAsync(params string[] files)
@@ -234,7 +234,7 @@ namespace Horde.Build.Tests
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
 			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
-			IStream stream = await SetScheduleAsync(schedule);
+			await SetScheduleAsync(schedule);
 
 			// Initial tick
 			await ScheduleService.TickForTestingAsync();
@@ -251,7 +251,10 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(102, jobs2[0].Change);
 			Assert.AreEqual(100, jobs2[0].CodeChange);
 
-			IStream stream2 = (await StreamCollection.GetAsync(stream.Id))!;
+			StreamConfig? streamConfig;
+			GlobalConfig.CurrentValue.TryGetStream(StreamId, out streamConfig);
+
+			IStream stream2 = (await StreamCollection.GetAsync(streamConfig!))!;
 			ITemplateSchedule schedule2 = stream2.Templates.First().Value.Schedule!;
 			Assert.AreEqual(102, schedule2.LastTriggerChange);
 			Assert.AreEqual(Clock.UtcNow, schedule2.LastTriggerTimeUtc);
@@ -419,11 +422,11 @@ namespace Horde.Build.Tests
 			Clock.UtcNow = startTime;
 
 			// Create two templates, the second dependent on the first
-			ITemplate? newTemplate1 = await TemplateCollection.AddAsync("Test template 1");
+			ITemplate? newTemplate1 = await TemplateCollection.GetOrAddAsync(new TemplateConfig { Name = "Test template 1" });
 			//TemplateRef newTemplateRef1 = new TemplateRef(newTemplate1);
 			TemplateId newTemplateRefId1 = new TemplateId("new-template-1");
 
-			ITemplate? newTemplate2 = await TemplateCollection.AddAsync("Test template 2");
+			ITemplate? newTemplate2 = await TemplateCollection.GetOrAddAsync(new TemplateConfig { Name = "Test template 2" });
 //			TemplateRef newTemplateRef2 = new TemplateRef(newTemplate2);
 //			newTemplateRef2.Schedule = new Schedule(Clock.UtcNow);
 //			newTemplateRef2.Schedule.Gate = new ScheduleGate(newTemplateRefId1, "TriggerNext");
@@ -431,14 +434,14 @@ namespace Horde.Build.Tests
 //			newTemplateRef2.Schedule.LastTriggerTime = startTime;
 			TemplateId newTemplateRefId2 = new TemplateId("new-template-2");
 
-			IStream? stream = await StreamService.GetStreamAsync(StreamId);
-
 			StreamConfig config = new StreamConfig();
+			config.Id = StreamId;
 			config.Name = "//UE5/Main";
 			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { newTemplateRefId1, newTemplateRefId2 } });
 			config.Templates = new() { new TemplateRefConfig { Id = newTemplateRefId1 }, new TemplateRefConfig { Id = newTemplateRefId2 }  };
+			UpdateConfig(x => x.Projects[0].Streams = new List<StreamConfig> { config });
 
-			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
+			IStream stream = await StreamCollection.GetAsync(config);
 
 			// Create the TriggerNext step and mark it as complete
 			IGraph graphA = await GraphCollection.AddAsync(newTemplate1, null);
@@ -455,12 +458,12 @@ namespace Horde.Build.Tests
 			options1.PreflightChange = 999;
 			options1.Arguments.Add("-Target=TriggerNext");
 
-			IJob job1 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", 1234, 1233, options1);
+			IJob job1 = await JobService.CreateJobAsync(null, config, newTemplateRefId1, newTemplate1.Hash, graphA, "Hello", 1234, 1233, options1);
 			SubResourceId batchId1 = job1.Batches[0].Id;
 			SubResourceId stepId1 = job1.Batches[0].Steps[0].Id;
-			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Running));
-			job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, JobStepState.Completed, JobStepOutcome.Failure));
-			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Complete));
+			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, config, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, config, JobStepState.Completed, JobStepOutcome.Failure));
+			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, config, LogId.GenerateNewId(), JobStepBatchState.Complete));
 			Assert.IsNotNull(job1);
 			await GetNewJobs();
 
@@ -475,11 +478,11 @@ namespace Horde.Build.Tests
 			options2.PreflightChange = 999;
 			options2.Arguments.Add("-Target=TriggerNext");
 
-			IJob job2 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", 1234, 1233, options2);
+			IJob job2 = await JobService.CreateJobAsync(null, config, newTemplateRefId1, newTemplate1.Hash, graphA, "Hello", 1234, 1233, options2);
 			SubResourceId batchId2 = job2.Batches[0].Id;
 			SubResourceId stepId2 = job2.Batches[0].Steps[0].Id;
-			job2 = Deref(await JobService.UpdateBatchAsync(job2, batchId2, LogId.GenerateNewId(), JobStepBatchState.Running));
-			job2 = Deref(await JobService.UpdateStepAsync(job2, batchId2, stepId2, JobStepState.Completed, JobStepOutcome.Success));
+			job2 = Deref(await JobService.UpdateBatchAsync(job2, batchId2, config, LogId.GenerateNewId(), JobStepBatchState.Running));
+			job2 = Deref(await JobService.UpdateStepAsync(job2, batchId2, stepId2, config, JobStepState.Completed, JobStepOutcome.Success));
 			Assert.IsNotNull(job2);
 
 			// Tick the schedule and make sure it does trigger
@@ -520,19 +523,23 @@ namespace Horde.Build.Tests
 			newTemplate2.Schedule.Patterns.Add(new SchedulePatternConfig { Interval = 10 });// (null, 0, null, 10));
 //			NewTemplate2.Schedule.LastTriggerTime = StartTime;
 
-			IStream? stream = await StreamService.GetStreamAsync(StreamId);
+//			IStream? stream = await StreamService.GetStreamAsync(StreamId);
 
 			StreamConfig config = new StreamConfig();
+			config.Id = StreamId;
 			config.Name = "//UE5/Main";
 			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { newTemplateRefId1, newTemplateRefId2 } });
 			config.Templates.Add(newTemplate1);
 			config.Templates.Add(newTemplate2);
+			UpdateConfig(x => x.Projects[0].Streams = new List<StreamConfig> { config });
 
-			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
+			IStream stream = await StreamCollection.GetAsync(config);
 
-			ITemplate template1 = (await TemplateCollection.GetAsync(stream.Templates[newTemplateRefId1].Hash))!;
+//			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
+
+			ITemplate template1 = (await TemplateCollection.GetOrAddAsync(config.Templates[0]))!;
 			Assert.IsNotNull(template1);
-			ITemplate template2 = (await TemplateCollection.GetAsync(stream.Templates[newTemplateRefId2].Hash))!;
+			ITemplate template2 = (await TemplateCollection.GetOrAddAsync(config.Templates[1]))!;
 			Assert.IsNotNull(template2);
 
 			// Create the graph
@@ -548,17 +555,17 @@ namespace Horde.Build.Tests
 				CreateJobOptions options1 = new CreateJobOptions();
 				options1.Arguments.Add("-Target=TriggerNext");
 
-				IJob job1 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", change, codeChange, options1);
+				IJob job1 = await JobService.CreateJobAsync(null, config, newTemplateRefId1, _template.Hash, graphA, "Hello", change, codeChange, options1);
 				for (int batchIdx = 0; batchIdx < job1.Batches.Count; batchIdx++)
 				{
 					SubResourceId batchId1 = job1.Batches[batchIdx].Id;
-					job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Running));
+					job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, config, LogId.GenerateNewId(), JobStepBatchState.Running));
 					for (int stepIdx = 0; stepIdx < job1.Batches[batchIdx].Steps.Count; stepIdx++)
 					{
 						SubResourceId stepId1 = job1.Batches[batchIdx].Steps[stepIdx].Id;
-						job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, JobStepState.Completed, JobStepOutcome.Success, newLogId: LogId.GenerateNewId()));
+						job1 = Deref(await JobService.UpdateStepAsync(job1, batchId1, stepId1, config, JobStepState.Completed, JobStepOutcome.Success, newLogId: LogId.GenerateNewId()));
 					}
-					job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Complete));
+					job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, config, LogId.GenerateNewId(), JobStepBatchState.Complete));
 				}
 			}
 			await GetNewJobs();
@@ -595,7 +602,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(100, jobs1[0].CodeChange);
 
 			// Make sure the job is registered
-			IStream? stream1 = await StreamService.GetStreamAsync(StreamId);
+			IStream? stream1 = await StreamCollection.GetAsync(GlobalConfig.CurrentValue.Streams[0]);
 			ITemplateRef templateRef1 = stream1!.Templates.First().Value;
 			Assert.AreEqual(1, templateRef1.Schedule!.ActiveJobs.Count);
 			Assert.AreEqual(jobs1[0].Id, templateRef1.Schedule!.ActiveJobs[0]);
@@ -604,7 +611,7 @@ namespace Horde.Build.Tests
 			await SetScheduleAsync(schedule);
 
 			// Make sure the job is still registered
-			IStream? stream2 = await StreamService.GetStreamAsync(StreamId);
+			IStream? stream2 = await StreamCollection.GetAsync(GlobalConfig.CurrentValue.Streams[0]);
 			ITemplateRef templateRef2 = stream2!.Templates.First().Value;
 			Assert.AreEqual(1, templateRef2.Schedule!.ActiveJobs.Count);
 			Assert.AreEqual(jobs1[0].Id, templateRef2.Schedule!.ActiveJobs[0]);

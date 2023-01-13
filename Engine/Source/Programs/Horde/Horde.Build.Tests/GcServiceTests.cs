@@ -19,13 +19,12 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public sealed class GcServiceTests : TestSetup
 	{
-		async Task SetupNamespaceAsync()
+		void SetupNamespace()
 		{
 			GlobalConfig globalConfig = new GlobalConfig();
 			globalConfig.Storage.Backends.Add(new BackendConfig { Id = new BackendId("default-backend"), Type = StorageBackendType.Memory });
 			globalConfig.Storage.Namespaces.Add(new NamespaceConfig { Id = new NamespaceId("default"), Backend = new BackendId("default-backend"), GcDelayHrs = 0.0 });
-			await ConfigCollection.AddConfigAsync("globals", globalConfig);
-			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
+			SetConfig(globalConfig);
 		}
 
 		[TestMethod]
@@ -34,7 +33,7 @@ namespace Horde.Build.Tests
 			await StorageService.StartAsync(CancellationToken.None);
 
 			BlobId.UseDeterministicIds();
-			await SetupNamespaceAsync();
+			SetupNamespace();
 			IStorageClientImpl store = await StorageService.GetClientAsync(new NamespaceId("default"), CancellationToken.None);
 
 			Random random = new Random(0);

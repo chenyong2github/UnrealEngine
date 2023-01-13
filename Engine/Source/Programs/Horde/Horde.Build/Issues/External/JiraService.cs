@@ -20,6 +20,7 @@ using System.Threading;
 using System.Linq;
 using Horde.Build.Streams;
 using Horde.Build.Users;
+using Horde.Build.Server;
 
 namespace Horde.Build.Issues.External
 {
@@ -112,17 +113,12 @@ namespace Horde.Build.Issues.External
 		/// <summary>
 		/// Singleton instance of the stream service
 		/// </summary>
-		readonly StreamService _streamService;
+		readonly IStreamCollection _streamCollection;
 
 		/// <summary>
 		/// Singleton instance of the project service
 		/// </summary>
 		readonly IssueService _issueService;
-
-		/// <summary>
-		/// Config collection
-		/// </summary>
-		readonly ConfigCollection _configCollection;
 
 		readonly ITicker _ticker;
 
@@ -130,24 +126,26 @@ namespace Horde.Build.Issues.External
 
 		readonly Dictionary<string, JiraProject> _cachedJiraProjects = new Dictionary<string, JiraProject>();
 
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+
 		/// <summary>
 		/// Jira service constructor
 		/// </summary>
 		/// <param name="settings"></param>
-		/// <param name="streamService"></param>
+		/// <param name="streamCollection"></param>
 		/// <param name="issueService"></param>
-		/// <param name="configCollection"></param>
 		/// <param name="clock"></param>
+		/// <param name="globalConfig"></param>
 		/// <param name="logger"></param>
-		public JiraService(IOptions<ServerSettings> settings, StreamService streamService, IssueService issueService, ConfigCollection configCollection, IClock clock, ILogger<JiraService> logger)
+		public JiraService(IOptions<ServerSettings> settings, IStreamCollection streamCollection, IssueService issueService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<JiraService> logger)
 		{
 			_settings = settings.Value;
 			_logger = logger;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_issueService = issueService;
-			_configCollection = configCollection;
 			_ticker = clock.AddTicker<JiraService>(TimeSpan.FromMinutes(2.0), TickAsync, logger);
 			_jiraUrl = _settings.JiraUrl!;
+			_globalConfig = globalConfig;
 
 			// setup http client for Jira rest api queries
 			_client = new HttpClient();
@@ -173,29 +171,17 @@ namespace Horde.Build.Issues.External
 		/// <inheritdoc/>
 		public string? GetIssueUrl(string key) => $"{_jiraUrl}browse/{key}";
 
-		public async Task<List<IExternalIssueProject>> GetProjects(IStream stream)
+		public Task<List<IExternalIssueProject>> GetProjects(StreamConfig streamConfig)
 		{
 			HashSet<string> projectKeys = new HashSet<string>();
 			List<IExternalIssueProject> result = new List<IExternalIssueProject>();
 
-			StreamConfig? config = null;
-
-			try
+			if (streamConfig == null || streamConfig.Workflows == null)
 			{
-				config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Unable to get stream config for {StreamId}", stream.Id);
-
+				return Task.FromResult(result);
 			}
 
-			if (config == null || config.Workflows == null)
-			{
-				return result;
-			}
-
-			config.Workflows.ForEach(workflow =>
+			streamConfig.Workflows.ForEach(workflow =>
 			{
 				if (workflow.ExternalIssues != null)
 				{
@@ -211,7 +197,7 @@ namespace Horde.Build.Issues.External
 				}
 			}
 
-			return result;
+			return Task.FromResult(result);
 		}
 
 		async Task UpdateJiraProjects(string[] jiraProjectKeys)
@@ -319,21 +305,11 @@ namespace Horde.Build.Issues.External
 
 			HashSet<string> jiraProjectKeys = new HashSet<string>();
 
-			List<IStream> cachedStreams = await _streamService.StreamCollection.FindAllAsync();
-			foreach (IStream cachedStream in cachedStreams)
-			{
-				StreamConfig? config = null;
-				try
-				{
-					config = await _configCollection.GetConfigAsync<StreamConfig>(cachedStream.ConfigRevision);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Unable to get stream config for {StreamId}", cachedStream.Id);
-					continue;
-				}
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
-				foreach (WorkflowConfig workflow in config.Workflows)
+			foreach(StreamConfig streamConfig in globalConfig.Streams)
+			{
+				foreach (WorkflowConfig workflow in streamConfig.Workflows)
 				{
 					if (workflow.ExternalIssues == null || String.IsNullOrEmpty(workflow.ExternalIssues.ProjectKey))
 					{

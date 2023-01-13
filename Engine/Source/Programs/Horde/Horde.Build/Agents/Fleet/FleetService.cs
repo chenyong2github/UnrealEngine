@@ -71,7 +71,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly ILeaseCollection _leaseCollection;
 		private readonly IPoolCollection _poolCollection;
 		private readonly IDowntimeService _downtimeService;
-		private readonly StreamService _streamService;
+		private readonly IStreamCollection _streamCollection;
 		private readonly IDogStatsd _dogStatsd;
 		private readonly IFleetManagerFactory _fleetManagerFactory;
 		private readonly IClock _clock;
@@ -81,6 +81,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly TimeSpan _defaultScaleOutCooldown;
 		private readonly TimeSpan _defaultScaleInCooldown;
 		private readonly IOptions<ServerSettings> _settings;
+		private readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		private readonly ILogger<FleetService> _logger;
 		
 		/// <summary>
@@ -93,12 +94,13 @@ namespace Horde.Build.Agents.Fleet
 			ILeaseCollection leaseCollection,
 			IPoolCollection poolCollection,
 			IDowntimeService downtimeService,
-			StreamService streamService,
+			IStreamCollection streamCollection,
 			IDogStatsd dogStatsd,
 			IFleetManagerFactory fleetManagerFactory,
 			IClock clock,
 			IMemoryCache cache,
 			IOptions<ServerSettings> settings,
+			IOptionsMonitor<GlobalConfig> globalConfig,
 			ILogger<FleetService> logger)
 		{
 			_agentCollection = agentCollection;
@@ -107,11 +109,12 @@ namespace Horde.Build.Agents.Fleet
 			_leaseCollection = leaseCollection;
 			_poolCollection = poolCollection;
 			_downtimeService = downtimeService;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_dogStatsd = dogStatsd;
 			_fleetManagerFactory = fleetManagerFactory;
 			_clock = clock;
 			_cache = cache;
+			_globalConfig = globalConfig;
 			_logger = logger;
 			_ticker = clock.AddSharedTicker<FleetService>(TimeSpan.FromSeconds(30), TickLeaderAsync, _logger);
 			_tickerHighFrequency = clock.AddSharedTicker("FleetService.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
@@ -337,7 +340,7 @@ namespace Horde.Build.Agents.Fleet
 						{
 							case PoolSizeStrategy.JobQueue:
 								JobQueueSettings jqSettings = DeserializeConfig<JobQueueSettings>(info.Config);
-								JobQueueStrategy jqStrategy = new (_jobCollection, _graphCollection, _streamService, _clock, _cache, jqSettings);
+								JobQueueStrategy jqStrategy = new (_jobCollection, _graphCollection, _streamCollection, _clock, _cache, _globalConfig, jqSettings);
 								return info.ExtraAgentCount != 0 ? new ExtraAgentCountStrategy(jqStrategy, info.ExtraAgentCount) : jqStrategy;
 							
 							case PoolSizeStrategy.LeaseUtilization:
@@ -365,7 +368,7 @@ namespace Horde.Build.Agents.Fleet
 			switch (pool.SizeStrategy ?? _settings.Value.DefaultAgentPoolSizeStrategy)
 			{
 				case PoolSizeStrategy.JobQueue:
-					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, pool.JobQueueSettings);
+					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamCollection, _clock, _cache, _globalConfig, pool.JobQueueSettings);
 				case PoolSizeStrategy.LeaseUtilization:
 					LeaseUtilizationSettings luSettings = new();
 					if (pool.MinAgents != null) luSettings.MinAgents = pool.MinAgents.Value;

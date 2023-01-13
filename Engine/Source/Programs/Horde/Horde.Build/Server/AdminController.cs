@@ -54,17 +54,17 @@ namespace Horde.Build.Server
 	public class AdminController : HordeControllerBase
 	{
 		readonly AclService _aclService;
-		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
+		readonly IOptions<ServerSettings> _serverSettings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">The ACL service singleton</param>
-		/// <param name="settings">Server settings</param>
-		public AdminController(AclService aclService, IOptionsMonitor<ServerSettings> settings)
+		public AdminController(AclService aclService, IOptionsSnapshot<GlobalConfig> globalConfig, IOptions<ServerSettings> serverSettings)
 		{
 			_aclService = aclService;
-			_settings = settings;
+			_globalConfig = globalConfig;
+			_serverSettings = serverSettings;
 		}
 
 		/// <summary>
@@ -75,7 +75,7 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/token")]
 		public async Task<ActionResult<string>> GetTokenAsync()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.IssueBearerToken, User))
+			if (!_globalConfig.Value.Authorize(AclAction.IssueBearerToken, User))
 			{
 				return Forbid(AclAction.IssueBearerToken);
 			}
@@ -92,7 +92,7 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/roletoken")]
 		public async Task<ActionResult<string>> GetRoleTokenAsync([FromQuery] string roles)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
@@ -111,14 +111,14 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/registrationtoken")]
 		public async Task<ActionResult<string>> GetRegistrationTokenAsync()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			List<AclClaim> claims = new List<AclClaim>();
-			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			claims.Add(AclService.AgentRegistrationClaim);
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(new AclClaimConfig(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(HordeClaims.AgentRegistrationClaim);
 
 			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
@@ -131,14 +131,14 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/softwaretoken")]
 		public async Task<ActionResult<string>> GetSoftwareTokenAsync()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
 			{
 				return Forbid(AclAction.AdminWrite);
 			}
 
-			List<AclClaim> claims = new List<AclClaim>();
-			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			claims.Add(AclService.UploadSoftwareClaim);
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(new AclClaimConfig(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(HordeClaims.UploadSoftwareClaim);
 
 			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
@@ -151,14 +151,14 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/softwaredownloadtoken")]
 		public async Task<ActionResult<string>> GetSoftwareDownloadTokenAsync()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			List<AclClaim> claims = new List<AclClaim>();
-			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			claims.Add(AclService.DownloadSoftwareClaim);
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(new AclClaimConfig(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(HordeClaims.DownloadSoftwareClaim);
 
 			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
@@ -171,14 +171,14 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/configtoken")]
 		public async Task<ActionResult<string>> GetConfigToken()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			List<AclClaim> claims = new List<AclClaim>();
-			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
-			claims.Add(AclService.ConfigureProjectsClaim);
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(new AclClaimConfig(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
+			claims.Add(HordeClaims.ConfigureProjectsClaim);
 
 			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
@@ -191,14 +191,14 @@ namespace Horde.Build.Server
 		[Route("/api/v1/admin/chainedjobtoken")]
 		public async Task<ActionResult<string>> GetChainedJobToken()
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
 			{
 				return Forbid(AclAction.AdminRead);
 			}
 
-			List<AclClaim> claims = new List<AclClaim>();
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
 			//Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
-			claims.Add(AclService.StartChainedJobClaim);
+			claims.Add(HordeClaims.StartChainedJobClaim);
 
 			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
@@ -209,10 +209,12 @@ namespace Horde.Build.Server
 		/// <returns></returns>
 		private TimeSpan? GetDefaultExpiryTime()
 		{
+			ServerSettings serverSettings = _serverSettings.Value;
+
 			TimeSpan? expiryTime = null;
-			if (_settings.CurrentValue.JwtExpiryTimeHours != -1)
+			if (serverSettings.JwtExpiryTimeHours != -1)
 			{
-				expiryTime = TimeSpan.FromHours(_settings.CurrentValue.JwtExpiryTimeHours);
+				expiryTime = TimeSpan.FromHours(serverSettings.JwtExpiryTimeHours);
 			}
 			return expiryTime;
 		}

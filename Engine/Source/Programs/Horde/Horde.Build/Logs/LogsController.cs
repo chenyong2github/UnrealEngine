@@ -15,6 +15,7 @@ using Horde.Build.Acls;
 using Horde.Build.Issues;
 using Horde.Build.Jobs;
 using Horde.Build.Logs.Data;
+using Horde.Build.Server;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
@@ -57,19 +58,19 @@ namespace Horde.Build.Logs
 		private readonly AclService _aclService;
 		private readonly JobService _jobService;
 		private readonly StorageService _storageService;
-		private readonly IOptions<ServerSettings> _settings;
+		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, AclService aclService, JobService jobService, StorageService storageService, IOptions<ServerSettings> settings)
+		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, AclService aclService, JobService jobService, StorageService storageService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_logFileService = logFileService;
 			_issueCollection = issueCollection;
 			_aclService = aclService;
 			_jobService = jobService;
 			_storageService = storageService;
-			_settings = settings;
+			_globalConfig = globalConfig;
  		}
 
 		/// <summary>
@@ -84,7 +85,7 @@ namespace Horde.Build.Logs
 		[ProducesResponseType(typeof(GetLogFileResponse), 200)]
 		public async Task<ActionResult<object>> CreateLog(CreateLogFileRequest request, CancellationToken cancellationToken = default)
 		{
-			if (!await _aclService.AuthorizeAsync(AclAction.CreateLog, User, null))
+			if (!_globalConfig.Value.Authorize(AclAction.CreateLog, User))
 			{
 				return Forbid();
 			}
@@ -110,7 +111,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -136,7 +137,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User))
 			{
 				return Forbid();
 			}
@@ -167,7 +168,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -202,7 +203,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -297,7 +298,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -326,7 +327,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -370,7 +371,7 @@ namespace Horde.Build.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User, null))
+			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User))
 			{
 				return Forbid();
 			}
@@ -389,19 +390,19 @@ namespace Horde.Build.Logs
 		/// <param name="logFile">The template to check</param>
 		/// <param name="action">The action being performed</param>
 		/// <param name="user">The principal to authorize</param>
-		/// <param name="permissionsCache">Permissions cache</param>
 		/// <returns>True if the action is authorized</returns>
-		async Task<bool> AuthorizeAsync(ILogFile logFile, AclAction action, ClaimsPrincipal user, JobPermissionsCache? permissionsCache)
+		async Task<bool> AuthorizeAsync(ILogFile logFile, AclAction action, ClaimsPrincipal user)
 		{
-			if (logFile.JobId != JobId.Empty && await _jobService.AuthorizeAsync(logFile.JobId, action, user, permissionsCache))
+			GlobalConfig globalConfig = _globalConfig.Value;
+			if (logFile.JobId != JobId.Empty && await _jobService.AuthorizeAsync(logFile.JobId, action, user, globalConfig))
 			{
 				return true;
 			}
-			if (action == AclAction.ViewLog && logFile.SessionId != null && await _aclService.AuthorizeAsync(AclAction.ViewSession, user, permissionsCache))
+			if (action == AclAction.ViewLog && logFile.SessionId != null && globalConfig.Authorize(AclAction.ViewSession, user))
 			{
 				return true;
 			}
-			if (await _aclService.AuthorizeAsync(action, user, permissionsCache))
+			if (globalConfig.Authorize(action, user))
 			{
 				return true;
 			}

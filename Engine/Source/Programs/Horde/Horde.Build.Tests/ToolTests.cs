@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Horde.Build.Server;
 using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -25,18 +26,17 @@ namespace Horde.Build.Tests
 			ToolCollection collection = ServiceProvider.GetRequiredService<ToolCollection>();
 
 			ToolId toolId = new ToolId("ugs");
-			await collection.ConfigureAsync(new List<ToolConfig> { new ToolConfig(toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" } });
+			SetConfig(new GlobalConfig { Tools = new List<ToolConfig> { new ToolConfig(toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" } } });
 
-			ITool tool = Deref(await collection.GetAsync(toolId));
+			ITool tool = Deref(await collection.GetAsync(toolId, GlobalConfig.CurrentValue));
 			Assert.AreEqual(tool.Id, new ToolId("ugs"));
-			Assert.AreEqual(tool.Name, "UnrealGameSync");
-			Assert.AreEqual(tool.Description, "Tool for syncing content from source control");
+			Assert.AreEqual(tool.Config.Name, "UnrealGameSync");
+			Assert.AreEqual(tool.Config.Description, "Tool for syncing content from source control");
 
-			ITool tool2 = Deref(await collection.GetAsync(tool.Id));
+			ITool tool2 = Deref(await collection.GetAsync(tool.Id, GlobalConfig.CurrentValue));
 			Assert.AreEqual(tool.Id, tool2.Id);
-			Assert.AreEqual(tool.LastUpdateTime, tool2.LastUpdateTime);
-			Assert.AreEqual(tool.Name, tool2.Name);
-			Assert.AreEqual(tool.Description, tool2.Description);
+			Assert.AreEqual(tool.Config.Name, tool2.Config.Name);
+			Assert.AreEqual(tool.Config.Description, tool2.Config.Description);
         }
 
 		[TestMethod]
@@ -45,12 +45,12 @@ namespace Horde.Build.Tests
 			ToolCollection collection = ServiceProvider.GetRequiredService<ToolCollection>();
 
 			ToolId toolId = new ToolId("ugs");
-			await collection.ConfigureAsync(new List<ToolConfig> { new ToolConfig(toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" } });
+			SetConfig(new GlobalConfig { Tools = new List<ToolConfig> { new ToolConfig(toolId) { Name = "UnrealGameSync", Description = "Tool for syncing content from source control" } } });
 
-			ITool tool = Deref(await collection.GetAsync(toolId));
+			ITool tool = Deref(await collection.GetAsync(toolId, GlobalConfig.CurrentValue));
 			Assert.AreEqual(new ToolId("ugs"), tool.Id);
-			Assert.AreEqual("UnrealGameSync", tool.Name);
-			Assert.AreEqual("Tool for syncing content from source control", tool.Description);
+			Assert.AreEqual("UnrealGameSync", tool.Config.Name);
+			Assert.AreEqual("Tool for syncing content from source control", tool.Config.Description);
 			Assert.AreEqual(0, tool.Deployments.Count);
 
 			byte[] deploymentData = Encoding.UTF8.GetBytes("hello world");
@@ -58,7 +58,7 @@ namespace Horde.Build.Tests
 			ToolDeploymentId deploymentId;
 			using (MemoryStream stream = new MemoryStream(deploymentData))
 			{
-				tool = Deref(await collection.CreateDeploymentAsync(tool, new ToolDeploymentConfig { Version = "1.0", Duration = TimeSpan.FromMinutes(5.0), CreatePaused = true }, stream));
+				tool = Deref(await collection.CreateDeploymentAsync(tool, new ToolDeploymentConfig { Version = "1.0", Duration = TimeSpan.FromMinutes(5.0), CreatePaused = true }, stream, GlobalConfig.CurrentValue));
 				Assert.AreEqual(1, tool.Deployments.Count);
 				Assert.IsNull(tool.Deployments[0].StartedAt);
 				deploymentId = tool.Deployments[^1].Id;
@@ -68,7 +68,7 @@ namespace Horde.Build.Tests
 			FakeClock clock = ServiceProvider.GetRequiredService<FakeClock>();
 			await clock.AdvanceAsync(TimeSpan.FromHours(1.0));
 
-			tool = Deref(await collection.GetAsync(tool.Id));
+			tool = Deref(await collection.GetAsync(tool.Id, GlobalConfig.CurrentValue));
 			Assert.AreEqual(1, tool.Deployments.Count);
 			Assert.IsNull(tool.Deployments[0].StartedAt);
 
@@ -87,7 +87,7 @@ namespace Horde.Build.Tests
 
 			// Check it stays paused
 			await clock.AdvanceAsync(TimeSpan.FromHours(1.0));
-			tool = Deref(await collection.GetAsync(tool.Id));
+			tool = Deref(await collection.GetAsync(tool.Id, GlobalConfig.CurrentValue));
 			Assert.AreEqual(1, tool.Deployments.Count);
 			Assert.IsNull(tool.Deployments[0].StartedAt);
 			Assert.IsTrue((tool.Deployments[0].Progress - 0.5) < 0.1);

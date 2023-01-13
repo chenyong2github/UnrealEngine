@@ -23,6 +23,7 @@ using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 using StackExchange.Redis;
@@ -126,7 +127,7 @@ namespace Horde.Build.Compute
 		readonly RedisMessageQueue<ComputeTaskStatus> _messageQueue;
 		readonly ITicker _expireTasksTicker;
 		readonly IMemoryCache _requirementsCache;
-		readonly LazyCachedValue<Task<IGlobals>> _globals;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
 
 		static ComputeService()
@@ -137,14 +138,14 @@ namespace Horde.Build.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeService(GlobalsService globalsService, RedisService redisService, ILegacyStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
+		public ComputeService(GlobalsService globalsService, RedisService redisService, ILegacyStorageClient storageClient, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ComputeService> logger)
 		{
 			_storageClient = storageClient;
 			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redisService.ConnectionPool, "compute/tasks/", logger);
 			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redisService.GetDatabase(), "compute/messages/");
 			_expireTasksTicker = clock.AddTicker<ComputeService>(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, logger);
 			_requirementsCache = new MemoryCache(new MemoryCacheOptions());
-			_globals = new LazyCachedValue<Task<IGlobals>>(async () => await globalsService.GetAsync(), TimeSpan.FromSeconds(120.0));
+			_globalConfig = globalConfig;
 			_logger = logger;
 
 			OnLeaseStartedProperties.Add(x => x.TaskRefId);
@@ -206,14 +207,14 @@ namespace Horde.Build.Compute
 		}
 
 		/// <inheritdoc/>
-		public async Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId clusterId)
+		public Task<IComputeClusterInfo> GetClusterInfoAsync(ClusterId clusterId)
 		{
-			ComputeClusterConfig? config = await GetClusterAsync(clusterId);
+			ComputeClusterConfig? config = GetCluster(clusterId);
 			if (config == null)
 			{
 				throw new KeyNotFoundException();
 			}
-			return new ClusterInfo(config);
+			return Task.FromResult<IComputeClusterInfo>(new ClusterInfo(config));
 		}
 
 		/// <inheritdoc/>
@@ -229,10 +230,9 @@ namespace Horde.Build.Compute
 			await Task.WhenAll(tasks);
 		}
 
-		async ValueTask<ComputeClusterConfig?> GetClusterAsync(ClusterId clusterId)
+		ComputeClusterConfig? GetCluster(ClusterId clusterId)
 		{
-			IGlobals globals = await _globals.GetCached();
-			return globals.Config.Compute.FirstOrDefault(x => new ClusterId(x.Id) == clusterId);
+			return _globalConfig.CurrentValue.Compute.FirstOrDefault(x => new ClusterId(x.Id) == clusterId);
 		}
 
 		/// <inheritdoc/>
@@ -266,7 +266,7 @@ namespace Horde.Build.Compute
 		{
 			(QueueKey queueKey, ComputeTaskInfo taskInfo) = entry;
 
-			ComputeClusterConfig? cluster = await GetClusterAsync(taskInfo.ClusterId);
+			ComputeClusterConfig? cluster = GetCluster(taskInfo.ClusterId);
 			if (cluster == null)
 			{
 				_logger.LogWarning("Invalid cluster '{ClusterId}'; failing task {TaskRefId}", taskInfo.ClusterId, taskInfo.TaskRefId);
@@ -452,7 +452,7 @@ namespace Horde.Build.Compute
 		{
 			Requirements? requirements = null;
 
-			ComputeClusterConfig? clusterConfig = await GetClusterAsync(queueKey.ClusterId);
+			ComputeClusterConfig? clusterConfig = GetCluster(queueKey.ClusterId);
 			if (clusterConfig != null)
 			{
 				NamespaceId namespaceId = new NamespaceId(clusterConfig.NamespaceId);

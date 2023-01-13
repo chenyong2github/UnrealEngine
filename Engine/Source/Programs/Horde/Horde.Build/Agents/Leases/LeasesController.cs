@@ -6,9 +6,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Sessions;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -25,25 +27,16 @@ namespace Horde.Build.Agents.Leases
 	[Route("[controller]")]
 	public class LeasesController : HordeControllerBase
 	{
-		/// <summary>
-		/// Singleton instance of the ACL service
-		/// </summary>
-		readonly AclService _aclService;
-
-		/// <summary>
-		/// Singleton instance of the agent service
-		/// </summary>
 		readonly AgentService _agentService;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">The ACL service singleton</param>
-		/// <param name="agentService">The agent service</param>
-		public LeasesController(AclService aclService, AgentService agentService)
+		public LeasesController(AgentService agentService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_aclService = aclService;
 			_agentService = agentService;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -73,28 +66,12 @@ namespace Horde.Build.Agents.Leases
 			[FromQuery] int count = 1000,
 			[FromQuery] PropertyFilter? filter = null)
 		{
-			GlobalPermissionsCache permissionsCache = new GlobalPermissionsCache();
-			if (agentId == null)
+			if (!_globalConfig.Value.Authorize(AclAction.ViewLeases, User))
 			{
-				if (!await _aclService.AuthorizeAsync(AclAction.ViewLeases, User, permissionsCache))
-				{
-					return Forbid(AclAction.ViewLeases);
-				}
-			}
-			else
-			{
-				IAgent? agent = await _agentService.GetAgentAsync(agentId.Value);
-				if (agent == null)
-				{
-					return NotFound(agentId.Value);
-				}
-				if (!await _agentService.AuthorizeAsync(agent, AclAction.ViewLeases, User, permissionsCache))
-				{
-					return Forbid(AclAction.ViewLeases, agentId.Value);
-				}
+				return Forbid(AclAction.ViewLeases);
 			}
 
-			bool includeCosts = await _aclService.AuthorizeAsync(AclAction.ViewCosts, User, permissionsCache);
+			bool includeCosts = _globalConfig.Value.Authorize(AclAction.ViewCosts, User);
 
 			List<ILease> leases;
 			if (minFinishTime == null && maxFinishTime == null)
@@ -138,6 +115,11 @@ namespace Horde.Build.Agents.Leases
 		[Route("/api/v1/leases/{leaseId}")]
 		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(LeaseId leaseId)
 		{
+			if (!_globalConfig.Value.Authorize(AclAction.ViewLeases, User))
+			{
+				return Forbid(AclAction.ViewLeases);
+			}
+
 			ILease? lease = await _agentService.GetLeaseAsync(leaseId);
 			if (lease == null)
 			{
@@ -150,14 +132,8 @@ namespace Horde.Build.Agents.Leases
 				return NotFound(lease.AgentId);
 			}
 
-			GlobalPermissionsCache permissionsCache = new GlobalPermissionsCache();
-			if (!await _agentService.AuthorizeAsync(agent, AclAction.ViewLeases, User, permissionsCache))
-			{
-				return Forbid(AclAction.ViewLeases);
-			}
-
 			double? agentRate = null;
-			if (await _aclService.AuthorizeAsync(AclAction.ViewCosts, User, permissionsCache))
+			if (_globalConfig.Value.Authorize(AclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agent.Id);
 			}
@@ -176,6 +152,11 @@ namespace Horde.Build.Agents.Leases
 		[Route("/api/v1/leases/{leaseId}")]
 		public async Task<ActionResult> UpdateLeaseAsync(LeaseId leaseId, [FromBody] UpdateLeaseRequest request)
 		{
+			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			{
+				return Forbid(AclAction.AdminWrite);
+			}
+
 			// only update supported right now is abort
 			if (!request.Aborted.HasValue || !request.Aborted.Value)
 			{
@@ -192,11 +173,6 @@ namespace Horde.Build.Agents.Leases
 			if (agent == null)
 			{
 				return NotFound(lease.AgentId);
-			}
-
-			if (!await _agentService.AuthorizeAsync(agent, AclAction.AdminWrite, User, null))
-			{
-				return Forbid(AclAction.AdminWrite, lease.AgentId);
 			}
 
 			AgentLease? agentLease = agent.Leases.FirstOrDefault(x => x.Id == leaseId);

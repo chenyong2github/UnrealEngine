@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Redis;
 using Horde.Build.Agents.Pools;
+using Horde.Build.Configuration;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
 using Horde.Build.Jobs;
@@ -70,9 +71,9 @@ namespace Horde.Build.Notifications
 		private readonly JobService _jobService;
 
 		/// <summary>
-		/// Instance of the <see cref="_streamService"/>.
+		/// Instance of the <see cref="IStreamCollection"/>.
 		/// </summary>
-		private readonly StreamService _streamService;
+		private readonly IStreamCollection _streamCollection;
 
 		/// <summary>
 		/// 
@@ -134,7 +135,9 @@ namespace Horde.Build.Notifications
 		/// Interval at which queued notifications should be sent as a batch 
 		/// </summary>
 		internal TimeSpan _notificationBatchInterval = TimeSpan.FromHours(12);
-		
+
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+
 		static string RedisQueueListKey(string notificationType) => "NotificationService.queued." + notificationType;
 
 		/// <summary>
@@ -149,12 +152,14 @@ namespace Horde.Build.Notifications
 			INotificationTriggerCollection triggerCollection,
 			IUserCollection userCollection,
 			JobService jobService,
-			StreamService streamService,
+			IStreamCollection streamCollection,
 			IssueService issueService,
 			ILogFileService logFileService,
 			IDogStatsd dogStatsd,
 			IMemoryCache cache,
 			RedisService redisService,
+			ConfigService configService,
+			IOptionsMonitor<GlobalConfig> globalConfig,
 			IClock clock)
 		{
 			_sinks = sinks.ToList();
@@ -165,18 +170,20 @@ namespace Horde.Build.Notifications
 			_triggerCollection = triggerCollection;
 			_userCollection = userCollection;
 			_jobService = jobService;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_issueService = issueService;
 			_logFileService = logFileService;
 			_dogStatsd = dogStatsd;
 			_cache = cache;
 			_redisConnectionPool = redisService.ConnectionPool;
+			_globalConfig = globalConfig;
 
 			issueService.OnIssueUpdated += NotifyIssueUpdated;
 			jobService.OnJobStepComplete += NotifyJobStepComplete;
 			jobService.OnJobScheduled += NotifyJobScheduled;
 			jobService.OnLabelUpdate += NotifyLabelUpdate;
-			
+			configService.OnConfigUpdate += NotifyConfigUpdate;
+
 			_ticker = clock.AddSharedTicker<NotificationService>(_notificationBatchInterval, TickEveryTwelveHoursAsync, logger);
 		}
 
@@ -290,9 +297,9 @@ namespace Horde.Build.Notifications
 		}
 
 		/// <inheritdoc/>
-		public void NotifyDeviceService(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null)
+		public void NotifyDeviceService(string message, IDevice? device = null, IDevicePool? pool = null, StreamConfig? streamConfig = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null)
 		{
-			EnqueueTasks(sink => sink.NotifyDeviceServiceAsync(message, device, pool, stream, job, step, node, user));
+			EnqueueTasks(sink => sink.NotifyDeviceServiceAsync(message, device, pool, streamConfig, job, step, node, user));
 		}
 
 		/// <summary>
@@ -489,13 +496,6 @@ namespace Horde.Build.Notifications
 			job.GetJobState(job.GetStepForNodeMap(), out _, out LabelOutcome outcome);
 			JobCompleteEventRecord jobCompleteEvent = new JobCompleteEventRecord(job.StreamId, job.TemplateId, outcome);
 
-			IStream? jobStream = await _streamService.GetStreamAsync(job.StreamId);
-			if (jobStream == null)
-			{
-				_logger.LogError("Unable to get stream {StreamId}", job.StreamId);
-				return;
-			}
-
 			List<IUser> usersToNotify = await GetUsersToNotify(jobCompleteEvent, job.NotificationTriggerId, true);
 			foreach (IUser userToNotify in usersToNotify)
 			{
@@ -506,12 +506,12 @@ namespace Horde.Build.Notifications
 						continue;
 					}
 				}
-				EnqueueTasks(sink => sink.NotifyJobCompleteAsync(userToNotify, jobStream, job, graph, outcome));
+				EnqueueTasks(sink => sink.NotifyJobCompleteAsync(userToNotify, job, graph, outcome));
 			}
 
 			if (job.PreflightChange == 0)
 			{
-				EnqueueTasks(sink => sink.NotifyJobCompleteAsync(jobStream, job, graph, outcome));
+				EnqueueTasks(sink => sink.NotifyJobCompleteAsync(job, graph, outcome));
 			}
 
 			_logger.LogDebug("Finished sending notifications for job {JobId}", job.Id);
@@ -644,14 +644,7 @@ namespace Horde.Build.Notifications
 				return;
 			}
 
-			IStream? jobStream = await _streamService.GetStreamAsync(job.StreamId);
-			if (jobStream == null)
-			{
-				_logger.LogError("Unable to find stream {StreamId}", job.StreamId);
-				return;
-			}
-
-			if(step.LogId == null)
+			if (step.LogId == null)
 			{
 				_logger.LogError("Step does not have a log file");
 				return;
@@ -681,20 +674,13 @@ namespace Horde.Build.Notifications
 						continue;
 					}
 				}
-				EnqueueTasks(sink => sink.NotifyJobStepCompleteAsync(slackUser, jobStream, job, batch, step, node, jobStepEventData));
+				EnqueueTasks(sink => sink.NotifyJobStepCompleteAsync(slackUser, job, batch, step, node, jobStepEventData));
 			}
 			_logger.LogDebug("Finished sending notifications for step {JobId}:{BatchId}:{StepId}", job.Id, batchId, stepId);
 		}
 
 		private async Task SendAllLabelNotificationsAsync(IJob job, IReadOnlyList<(LabelState State, LabelOutcome Outcome)> oldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> newLabelStates)
 		{
-			IStream? stream = await _streamService.GetStreamAsync(job.StreamId);
-			if (stream == null)
-			{
-				_logger.LogError("Unable to find stream {StreamId} for job {JobId}", job.StreamId, job.Id);
-				return;
-			}
-
 			IGraph? graph = await _graphCollection.GetAsync(job.GraphHash);
 			if (graph == null)
 			{
@@ -755,7 +741,7 @@ namespace Horde.Build.Notifications
 
 					if (usersToNotify.Count > 0)
 					{
-						SendLabelUpdateNotifications(job, stream, graph, stepForNode, graph.Labels[labelIdx], labelIdx, newLabel.Outcome, usersToNotify);
+						SendLabelUpdateNotifications(job, graph, stepForNode, graph.Labels[labelIdx], labelIdx, newLabel.Outcome, usersToNotify);
 					}
 					else
 					{
@@ -765,7 +751,7 @@ namespace Horde.Build.Notifications
 			}
 		}
 
-		private void SendLabelUpdateNotifications(IJob job, IStream stream, IGraph graph, IReadOnlyDictionary<NodeRef, IJobStep> stepForNode, ILabel label, int labelIdx, LabelOutcome outcome, List<IUser> slackUsers)
+		private void SendLabelUpdateNotifications(IJob job, IGraph graph, IReadOnlyDictionary<NodeRef, IJobStep> stepForNode, ILabel label, int labelIdx, LabelOutcome outcome, List<IUser> slackUsers)
 		{
 			List<(string, JobStepOutcome, Uri)> stepData = new List<(string, JobStepOutcome, Uri)>();
 			if (outcome != LabelOutcome.Success)
@@ -780,7 +766,7 @@ namespace Horde.Build.Notifications
 
 			foreach (IUser slackUser in slackUsers)
 			{
-				EnqueueTasks(sink => sink.NotifyLabelCompleteAsync(slackUser, job, stream, label, labelIdx, outcome, stepData));
+				EnqueueTasks(sink => sink.NotifyLabelCompleteAsync(slackUser, job, label, labelIdx, outcome, stepData));
 			}
 
 			_logger.LogDebug("Finished sending label notifications for label {DashboardName}/{UgsName} in job {JobId}", label.DashboardName, label.UgsName, job.Id);
@@ -797,7 +783,7 @@ namespace Horde.Build.Notifications
 				}
 				catch (Exception e)
 				{
-					string streamsWithChannel = String.Join(", ", report.Reports.Select(x => x.Stream.Name + " " + x.TriageChannel));
+					string streamsWithChannel = String.Join(", ", report.Reports.Select(x => $"{x.StreamId} {x.TriageChannel}"));
 					_logger.LogError(e, "Failed sending issue report to {Channel} for streams/channels {StreamsWithChannels})", report.Channel, streamsWithChannel);
 				}
 			}

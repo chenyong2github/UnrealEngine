@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Xml;
 
 namespace EpicGames.Core
@@ -435,9 +436,12 @@ namespace EpicGames.Core
 			PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
 			foreach (PropertyInfo property in properties)
 			{
-				string? description = GetPropertyDescription(type, property.Name, xmlDoc);
-				JsonSchemaType propertyType = CreateSchemaType(property.PropertyType, typeCache, xmlDoc);
-				obj.Properties.Add(new JsonSchemaProperty(property.Name, description, propertyType));
+				if (property.GetCustomAttribute<JsonIgnoreAttribute>() == null)
+				{
+					string? description = GetPropertyDescription(type, property.Name, xmlDoc);
+					JsonSchemaType propertyType = CreateSchemaType(property.PropertyType, typeCache, xmlDoc);
+					obj.Properties.Add(new JsonSchemaProperty(property.Name, description, propertyType));
+				}
 			}
 		}
 	}

@@ -3,7 +3,6 @@
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using Horde.Build.Acls;
 using Horde.Build.Server;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
@@ -33,51 +32,26 @@ namespace Horde.Build.Tools
 	{
 		class Tool : VersionedDocument<ToolId, Tool>, ITool
 		{
-			/// <summary>
-			/// Name of the tool
-			/// </summary>
-			[BsonElement("nam")]
-			public string Name { get; set; }
-
-			/// <summary>
-			/// Description for the tool
-			/// </summary>
-			[BsonElement("dsc")]
-			public string Description { get; set; }
+			[BsonIgnore]
+			public ToolConfig Config { get; set; } = null!;
 
 			[BsonElement("dep")]
 			public List<ToolDeployment> Deployments { get; set; } = new List<ToolDeployment>();
 
+			// ITool interface
 			IReadOnlyList<IToolDeployment> ITool.Deployments => Deployments;
-
-			[BsonElement("pub")]
-			public bool Public { get; set; }
-
-			[BsonElement("acl")]
-			public AclV2? Acl
-			{
-				get => _acl;
-				set => _acl = (value is not null && !value.IsDefault()) ? value : null;
-			}
-
-			private AclV2? _acl;
 
 			[BsonConstructor]
 			public Tool(ToolId id)
 				: base(id)
 			{
-				Id = id;
-				Name = id.ToString();
-				Description = String.Empty;
+				Config = null!;
 			}
 
 			public Tool(ToolConfig config)
 				: base(config.Id)
 			{
-				Name = config.Name;
-				Description = config.Description;
-				Public = config.Public;
-				Acl = config.Acl;
+				Config = config;
 			}
 
 			/// <inheritdoc/>
@@ -185,7 +159,6 @@ namespace Horde.Build.Tools
 			public List<ToolId> Ids { get; set; } = new List<ToolId>();
 		}
 
-		private readonly RedisService _redisService;
 		private readonly VersionedCollection<ToolId, Tool> _tools;
 		private readonly ILegacyStorageClient _storage;
 		private readonly IClock _clock;
@@ -193,16 +166,14 @@ namespace Horde.Build.Tools
 		private readonly ILogger _logger;
 
 		private static readonly RedisKey s_baseKey = "tools/v1/";
-		private static readonly RedisKey s_indexKey = s_baseKey.Append("index");
 
 		private static readonly IReadOnlyDictionary<int, Type> s_types = RegisterTypes();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ToolCollection(MongoService mongoService, RedisService redisService, ILegacyStorageClient storage, IClock clock, IOptions<ServerSettings> options, ILogger<ToolCollection> logger)
+		public ToolCollection(MongoService mongoService, RedisService redisService, ILegacyStorageClient storage, IClock clock, ILogger<ToolCollection> logger)
 		{
-			_redisService = redisService;
 			_tools = new VersionedCollection<ToolId, Tool>(mongoService, "Tools", redisService, s_baseKey, s_types);
 			_storage = storage;
 			_clock = clock;
@@ -223,188 +194,36 @@ namespace Horde.Build.Tools
 			{
 				cm.AutoMap();
 				cm.MapCreator(t => new Tool(t.Id));
-				cm.MapMember(x => x.Acl).SetIgnoreIfDefault(true).SetDefaultValue(new AclV2());
 			});
 
 			return versionToType;
 		}
 
 		/// <summary>
-		/// Configures all the available tools
+		/// Gets a tool with the given identifier
 		/// </summary>
-		/// <param name="tools">The list of configured tools</param>
-		public async Task ConfigureAsync(List<ToolConfig> tools)
-		{
-			List<ToolId> ids = await FindAllIdsAsync();
-
-			List<ToolId> removeIds = ids.Except(tools.Select(x => x.Id)).ToList();
-			foreach (ToolId removeId in removeIds)
-			{
-				_logger.LogInformation("Removing tool {ToolId}", removeId);
-				await _tools.DeleteAsync(removeId);
-			}
-
-			foreach (ToolConfig tool in tools)
-			{
-				if (!ids.Contains(tool.Id))
-				{
-					_logger.LogInformation("Creating tool {ToolId}", tool.Id);
-				}
-				await AddOrUpdateAsync(tool);
-			}
-		}
-
-		/// <summary>
-		/// Finds or adds a tool with the given identifier
-		/// </summary>
-		/// <param name="options">Options for the tool</param>
-		/// <returns>Document describing the tool</returns>
-		private async Task<ITool> AddOrUpdateAsync(ToolConfig options)
-		{
-			for (; ; )
-			{
-				// Check for the common case where the tool already exists and is set to the right values already
-				Tool tool = await _tools.FindOrAddAsync(options.Id, () => new Tool(options));
-				if (tool.Name.Equals(options.Name, StringComparison.Ordinal) && tool.Description.Equals(options.Description, StringComparison.Ordinal) && tool.Public == options.Public && AclV2.Equals(tool.Acl, options.Acl))
-				{
-					return tool;
-				}
-
-				// Otherwise attempt to do an in-place upgrade
-				UpdateDefinition<Tool> update = Builders<Tool>.Update.Set(x => x.Name, options.Name).Set(x => x.Description, options.Description).Set(x => x.Public, options.Public);
-				if (AclV2.IsNullOrDefault(options.Acl))
-				{
-					update = update.Unset(x => x.Acl);
-				}
-				else
-				{
-					update = update.Set(x => x.Acl, options.Acl);
-				}
-
-				// Update the existing tool
-				Tool? updatedTool = await _tools.UpdateAsync(tool, update);
-				if (updatedTool != null)
-				{
-					await ClearCachedIndexAsync();
-					return updatedTool;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Removes a tool with the given identifier
-		/// </summary>
-		/// <param name="id">The tool to remove</param>
-		/// <returns>True if a tool with the given identifier was deleted</returns>
-		public async Task<bool> DeleteAsync(ToolId id)
-		{
-			bool deleted = await _tools.DeleteAsync(id);
-			if (deleted)
-			{
-				await ClearCachedIndexAsync();
-			}
-			return deleted;
-		}
-
-		private async Task ClearCachedIndexAsync()
-		{
-			CachedIndex newIndexData = new CachedIndex { Rev = ObjectId.GenerateNewId().ToString() };
-			await _redisService.GetDatabase().StringSetAsync(s_indexKey, CbSerializer.SerializeToByteArray(newIndexData));
-		}
-
-		/// <summary>
-		/// Finds all tools matching a set of criteria
-		/// </summary>
-		/// <returns>Sequence of tool documents</returns>
-		async Task<List<ToolId>> FindAllIdsAsync()
-		{
-			IDatabase redis = _redisService.GetDatabase();
-			CachedIndex? index;
-			for (; ; )
-			{
-				// Get the cached index, and check if it has valid data
-				RedisValue value = await redis.StringGetAsync(s_indexKey);
-				if (!value.IsNullOrEmpty)
-				{
-					index = CbSerializer.Deserialize<CachedIndex>((byte[])value!);
-					if (index.Empty || index.Ids.Count > 0)
-					{
-						break;
-					}
-				}
-
-				// Create a new index object
-				index = new CachedIndex();
-				index.Rev = ObjectId.GenerateNewId().ToString();
-				index.Ids = await _tools.BaseCollection.Find(FilterDefinition<VersionedDocument<ToolId, Tool>>.Empty).Project(x => x.Id).ToListAsync();
-				index.Empty = index.Ids.Count == 0;
-
-				// Try to replace the existing one
-				RedisValue newValue = CbSerializer.SerializeToByteArray(index);
-				if (value.IsNull)
-				{
-					if (await redis.StringSetAsync(s_indexKey, newValue, when: When.NotExists))
-					{
-						break;
-					}
-				}
-				else
-				{
-					ITransaction transaction = redis.CreateTransaction();
-					transaction.AddCondition(Condition.StringEqual(s_indexKey, value));
-					_ = transaction.StringSetAsync(s_indexKey, newValue, flags: CommandFlags.FireAndForget);
-
-					if (await transaction.ExecuteAsync())
-					{
-						break;
-					}
-				}
-			}
-			return index.Ids;
-		}
-
-		/// <summary>
-		/// Finds all tools matching a set of criteria
-		/// </summary>
-		/// <returns>Sequence of tool documents</returns>
-		public async Task<List<ITool>> FindAllAsync()
-		{
-			// Fetch all the tools in parallel
-			IEnumerable<ToolId> toolIds =await FindAllIdsAsync();
-			List<Task<ITool?>> tasks = toolIds.Select(x => Task.Run(() => GetAsync(x))).ToList();
-
-			// Return all the successful results
-			List<ITool> results = new List<ITool>();
-			foreach (Task<ITool?> task in tasks)
-			{
-				ITool? tool = await task;
-				if (tool != null)
-				{
-					results.Add(tool);
-				}
-			}
-			return results;
-		}
+		/// <param name="id">The tool identifier</param>
+		/// <param name="globalConfig">The current global configuration</param>
+		/// <returns></returns>
+		public async Task<ITool?> GetAsync(ToolId id, GlobalConfig globalConfig) => await GetInternalAsync(id, globalConfig);
 
 		/// <summary>
 		/// Gets a tool with the given identifier
 		/// </summary>
-		/// <param name="id">The tool identifier</param>
+		/// <param name="toolId">The tool identifier</param>
+		/// <param name="globalConfig">The current global configuration</param>
 		/// <returns></returns>
-		public async Task<ITool?> GetAsync(ToolId id) => await GetInternalAsync(id);
-
-		/// <summary>
-		/// Gets a tool with the given identifier
-		/// </summary>
-		/// <param name="id">The tool identifier</param>
-		/// <returns></returns>
-		async Task<Tool?> GetInternalAsync(ToolId id)
+		async Task<Tool?> GetInternalAsync(ToolId toolId, GlobalConfig globalConfig)
 		{
-			Tool? tool = await _tools.GetAsync(id);
-			if (tool != null)
+			ToolConfig? toolConfig;
+			if (!globalConfig.TryGetTool(toolId, out toolConfig))
 			{
-				tool.UpdateTemporalState(_clock.UtcNow);
+				return null;
 			}
+
+			Tool tool = await _tools.FindOrAddAsync(toolId, () => new Tool(toolId));
+			tool.Config = toolConfig;
+			tool.UpdateTemporalState(_clock.UtcNow);
 			return tool;
 		}
 
@@ -414,8 +233,9 @@ namespace Horde.Build.Tools
 		/// <param name="tool">The tool to update</param>
 		/// <param name="options">Options for the new deployment</param>
 		/// <param name="stream">Stream containing the tool data</param>
+		/// <param name="globalConfig">The current configuration</param>
 		/// <returns>Updated tool document, or null if it does not exist</returns>
-		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream)
+		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream, GlobalConfig globalConfig)
 		{
 			// Upload the tool data first
 			IoHash hash = await _storage.WriteBlobAsync(_namespaceId, stream);
@@ -449,7 +269,7 @@ namespace Horde.Build.Tools
 					break;
 				}
 
-				newTool = await GetInternalAsync(tool.Id);
+				newTool = await GetInternalAsync(tool.Id, globalConfig);
 				if (newTool == null)
 				{
 					return null;

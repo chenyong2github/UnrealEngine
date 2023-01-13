@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Utilities;
 
@@ -13,28 +12,6 @@ namespace Horde.Build.Projects
 	/// </summary>
 	public interface IProjectCollection
 	{
-		/// <summary>
-		/// Updates the project configuration
-		/// </summary>
-		/// <param name="id">The project id</param>
-		/// <param name="configRevision">The config file revision. Can be referenced withing the config collection.</param>
-		/// <param name="order">Order of the project</param>
-		/// <returns>New project instance</returns>
-		Task<IProject?> AddOrUpdateAsync(ProjectId id, string configRevision, int order);
-
-		/// <summary>
-		/// Gets all the available projects
-		/// </summary>
-		/// <returns>List of project documents</returns>
-		Task<List<IProject>> FindAllAsync();
-
-		/// <summary>
-		/// Gets a project by ID
-		/// </summary>
-		/// <param name="projectId">Unique id of the project</param>
-		/// <returns>The project document</returns>
-		Task<IProject?> GetAsync(ProjectId projectId);
-
 		/// <summary>
 		/// Gets the logo for a project
 		/// </summary>
@@ -52,19 +29,5 @@ namespace Horde.Build.Projects
 		/// <param name="data"></param>
 		/// <returns></returns>
 		Task SetLogoAsync(ProjectId projectId, string path, string revision, string mimeType, byte[] data);
-
-		/// <summary>
-		/// Gets a project's permissions info by ID
-		/// </summary>
-		/// <param name="projectId">Unique id of the project</param>
-		/// <returns>The project document</returns>
-		Task<IProjectPermissions?> GetPermissionsAsync(ProjectId projectId);
-
-		/// <summary>
-		/// Deletes a project by id
-		/// </summary>
-		/// <param name="projectId">Unique id of the project</param>
-		/// <returns>True if the project was deleted</returns>
-		Task DeleteAsync(ProjectId projectId);
 	}
 }

@@ -80,19 +80,19 @@ namespace Horde.Build.Perforce
 		}
 
 		// Partial mirror of FileSysType from P4 API (filesys.h)
-		const uint FST_TEXT = 0x0001;
+//		const uint FST_TEXT = 0x0001;
 		const uint FST_BINARY = 0x0002;
-		const uint FST_UNICODE = 0x000c;
+//		const uint FST_UNICODE = 0x000c;
 		const uint FST_UTF16 = 0x000e;
-		const uint FST_UTF8 = 0x000f;
+//		const uint FST_UTF8 = 0x000f;
 		const uint FST_MASK = 0x000f;
 
 		// Mirrors FilePerm from P4 API (filesys.h)
 		const uint FPM_RO = 0;     // leave file read-only
-		const uint FPM_RW = 1;     // leave file read-write
+//		const uint FPM_RW = 1;     // leave file read-write
 		const uint FPM_ROO = 2;    // leave file read-only (owner)
 		const uint FPM_RXO = 3;    // set file read-execute (owner) NO W
-		const uint FPM_RWO = 4;    // set file read-write (owner) NO X
+//		const uint FPM_RWO = 4;    // set file read-write (owner) NO X
 		const uint FPM_RWXO = 5;   // set file read-write-execute (owner)
 
 		[DebuggerDisplay("{_path}")]
@@ -249,11 +249,11 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Replicates a change to storage
 		/// </summary>
-		/// <param name="stream">Stream to replicate data from</param>
+		/// <param name="streamConfig">Stream to replicate data from</param>
 		/// <param name="change">Changelist to replicate</param>
 		/// <param name="options">Options for replication</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task WriteAsync(IStream stream, int change, PerforceReplicationOptions options, CancellationToken cancellationToken)
+		public async Task WriteAsync(StreamConfig streamConfig, int change, PerforceReplicationOptions options, CancellationToken cancellationToken)
 		{
 			IStorageClient store = await _storageService.GetClientAsync(Namespace.Perforce, cancellationToken);
 
@@ -263,13 +263,13 @@ namespace Horde.Build.Perforce
 			TreeReader reader = new TreeReader(store, _memoryCache, readerOptions, _logger);
 
 			// Find the parent node
-			RefName refName = GetRefName(stream.Id);
+			RefName refName = GetRefName(streamConfig.Id);
 			CommitNode? parent = await FindParentAsync(reader, refName, change, cancellationToken);
 			TreeNodeRef<CommitNode>? parentRef = (parent == null) ? null : new TreeNodeRef<CommitNode>(parent);
 			int parentChange = parent?.Number ?? 0;
 
 			// Read the current incremental state or create a new node to track the incremental state
-			RefName incRefName = GetIncrementalRefName(stream.Id);
+			RefName incRefName = GetIncrementalRefName(streamConfig.Id);
 			SyncNode? syncNode = await reader.TryReadNodeAsync<SyncNode>(incRefName, cancellationToken: cancellationToken);
 			if (syncNode == null || syncNode.Change != change || syncNode.ParentChange != parentChange)
 			{
@@ -278,7 +278,7 @@ namespace Horde.Build.Perforce
 			DirectoryNode root = await syncNode.Contents.ExpandAsync(reader, cancellationToken);
 
 			// Create a client to replicate from this stream
-			ReplicationClient clientInfo = await FindOrAddReplicationClientAsync(stream);
+			ReplicationClient clientInfo = await FindOrAddReplicationClientAsync(streamConfig);
 
 			// Connect to the server and flush the workspace
 			using IPerforceConnection perforce = await PerforceConnection.CreateAsync(clientInfo.Settings, _logger);
@@ -371,7 +371,7 @@ namespace Horde.Build.Perforce
 
 				syncedSize += size;
 				double syncPct = (totalSize == 0) ? 100.0 : (syncedSize * 100.0) / totalSize;
-				_logger.LogInformation("Syncing {StreamId} to {Change} [{SyncPct:n1}%] ({Size:n1}mb)", stream.Id, change, syncPct, size / (1024.0 * 1024.0));
+				_logger.LogInformation("Syncing {StreamId} to {Change} [{SyncPct:n1}%] ({Size:n1}mb)", streamConfig.Id, change, syncPct, size / (1024.0 * 1024.0));
 
 				// Copy them to a separate list and remove any redundant paths
 				List<string> syncPaths = new List<string>();
@@ -636,12 +636,12 @@ namespace Horde.Build.Perforce
 			return path.Substring(clientRoot.Length);
 		}
 
-		async Task<ReplicationClient?> FindReplicationClientAsync(IStream stream)
+		async Task<ReplicationClient?> FindReplicationClientAsync(StreamConfig streamConfig)
 		{
 			ReplicationClient? clientInfo;
-			if (_cachedPerforceClients.TryGetValue(stream.Id, out clientInfo))
+			if (_cachedPerforceClients.TryGetValue(streamConfig.Id, out clientInfo))
 			{
-				if (!String.Equals(clientInfo.ClusterName, stream.Config.ClusterName, StringComparison.Ordinal) && String.Equals(clientInfo.Client.Stream, stream.Name, StringComparison.Ordinal))
+				if (!String.Equals(clientInfo.ClusterName, streamConfig.ClusterName, StringComparison.Ordinal) && String.Equals(clientInfo.Client.Stream, streamConfig.Name, StringComparison.Ordinal))
 				{
 					PerforceSettings serverSettings = new PerforceSettings(clientInfo.Settings);
 					serverSettings.ClientName = null;
@@ -649,19 +649,19 @@ namespace Horde.Build.Perforce
 					using IPerforceConnection perforce = await PerforceConnection.CreateAsync(_logger);
 					await perforce.DeleteClientAsync(DeleteClientOptions.None, clientInfo.Client.Name);
 
-					_cachedPerforceClients.Remove(stream.Id);
+					_cachedPerforceClients.Remove(streamConfig.Id);
 					clientInfo = null;
 				}
 			}
 			return clientInfo;
 		}
 
-		async Task<ReplicationClient> FindOrAddReplicationClientAsync(IStream stream)
+		async Task<ReplicationClient> FindOrAddReplicationClientAsync(StreamConfig streamConfig)
 		{
-			ReplicationClient? clientInfo = await FindReplicationClientAsync(stream);
+			ReplicationClient? clientInfo = await FindReplicationClientAsync(streamConfig);
 			if (clientInfo == null)
 			{
-				using IPerforceConnection? perforce = await _perforceService.ConnectAsync(stream.Config.ClusterName);
+				using IPerforceConnection? perforce = await _perforceService.ConnectAsync(streamConfig.ClusterName);
 				if (perforce == null)
 				{
 					throw new PerforceException($"Unable to create connection to Perforce server");
@@ -669,21 +669,21 @@ namespace Horde.Build.Perforce
 
 				InfoRecord serverInfo = await perforce.GetInfoAsync(InfoOptions.ShortOutput);
 
-				ClientRecord newClient = new ClientRecord($"Horde.Build_Rep_{serverInfo.ClientHost}_{stream.Id}", perforce.Settings.UserName, "/p4/");
+				ClientRecord newClient = new ClientRecord($"Horde.Build_Rep_{serverInfo.ClientHost}_{streamConfig.Id}", perforce.Settings.UserName, "/p4/");
 				newClient.Description = "Created to mirror Perforce content to Horde Storage";
 				newClient.Owner = perforce.Settings.UserName;
 				newClient.Host = serverInfo.ClientHost;
-				newClient.Stream = stream.Config.ReplicationStream ?? stream.Name;
+				newClient.Stream = streamConfig.ReplicationStream ?? streamConfig.Name;
 				newClient.Type = "readonly";
 				await perforce.CreateClientAsync(newClient);
-				_logger.LogInformation("Created client {ClientName} for {StreamName}", newClient.Name, stream.Name);
+				_logger.LogInformation("Created client {ClientName} for {StreamName}", newClient.Name, streamConfig.Name);
 
 				PerforceSettings settings = new PerforceSettings(perforce.Settings);
 				settings.ClientName = newClient.Name;
 				settings.PreferNativeClient = true;
 
-				clientInfo = new ReplicationClient(settings, stream.Config.ClusterName, serverInfo, newClient, -1);
-				_cachedPerforceClients.Add(stream.Id, clientInfo);
+				clientInfo = new ReplicationClient(settings, streamConfig.ClusterName, serverInfo, newClient, -1);
+				_cachedPerforceClients.Add(streamConfig.Id, clientInfo);
 			}
 			return clientInfo;
 		}

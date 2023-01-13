@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
+using Horde.Build.Server;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Notifications
 {
@@ -21,25 +23,16 @@ namespace Horde.Build.Notifications
 	[Route("[controller]")]
 	public class SubscriptionsController : ControllerBase
 	{
-		/// <summary>
-		/// The ACL service singleton
-		/// </summary>
-		readonly AclService _aclService;
-
-		/// <summary>
-		/// Collection of subscription documents
-		/// </summary>
 		readonly ISubscriptionCollection _subscriptionCollection;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="aclService">The acl service singleton</param>
-		/// <param name="subscriptionCollection">The collection of subscription documents</param>
-		public SubscriptionsController(AclService aclService, ISubscriptionCollection subscriptionCollection)
+		public SubscriptionsController(ISubscriptionCollection subscriptionCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_aclService = aclService;
 			_subscriptionCollection = subscriptionCollection;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -58,7 +51,7 @@ namespace Horde.Build.Notifications
 			{
 				return BadRequest("Invalid user id");
 			}
-			if (!await _aclService.AuthorizeAsUserAsync(User, userIdValue))
+			if (!_globalConfig.Value.AuthorizeAsUser(User, userIdValue))
 			{
 				return Forbid();
 			}
@@ -83,7 +76,7 @@ namespace Horde.Build.Notifications
 			{
 				return NotFound();
 			}
-			if (!await _aclService.AuthorizeAsUserAsync(User, subscription.UserId))
+			if (!_globalConfig.Value.AuthorizeAsUser(User, subscription.UserId))
 			{
 				return Forbid();
 			}
@@ -106,7 +99,7 @@ namespace Horde.Build.Notifications
 			{
 				return NotFound();
 			}
-			if (!await _aclService.AuthorizeAsUserAsync(User, subscription.UserId))
+			if (!_globalConfig.Value.AuthorizeAsUser(User, subscription.UserId))
 			{
 				return Forbid();
 			}
@@ -132,8 +125,6 @@ namespace Horde.Build.Notifications
 				authorizedUsers.Add(currentUserId.Value);
 			}
 
-			GlobalPermissionsCache cache = new GlobalPermissionsCache();
-
 			List<NewSubscription> newSubscriptions = new List<NewSubscription>();
 			foreach (CreateSubscriptionRequest subscription in subscriptions)
 			{
@@ -142,7 +133,7 @@ namespace Horde.Build.Notifications
 				{
 					return BadRequest($"Invalid user id: '{subscription.UserId}'.");
 				}
-				if (authorizedUsers.Add(newUserId) && !await _aclService.AuthorizeAsync(AclAction.Impersonate, User, cache))
+				if (authorizedUsers.Add(newUserId) && !_globalConfig.Value.Authorize(AclAction.Impersonate, User))
 				{
 					return Forbid();
 				}

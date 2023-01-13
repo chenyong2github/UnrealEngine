@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using Horde.Build.Streams;
 using HordeCommon;
@@ -450,6 +451,12 @@ namespace Horde.Build.Jobs.Templates
 		/// The executor to use for this job. Mainly used for debugging.
 		/// </summary>
 		public string? Executor { get; set; }
+
+		/// <summary>
+		/// The cached hash of this template.
+		/// </summary>
+		[JsonIgnore]
+		internal ContentHash? CachedHash { get; set; }
 	}
 
 	/// <summary>
@@ -551,7 +558,7 @@ namespace Horde.Build.Jobs.Templates
 		public GetTemplateResponse(ITemplate template)
 			: base(template)
 		{
-			Id = template.Id.ToString();
+			Id = template.Hash.ToString();
 		}
 	}
 }

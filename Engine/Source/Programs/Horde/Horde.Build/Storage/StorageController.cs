@@ -11,10 +11,12 @@ using Amazon.EC2.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 
 namespace Horde.Build.Storage
@@ -147,14 +149,15 @@ namespace Horde.Build.Storage
 	public class StorageController : HordeControllerBase
 	{
 		readonly StorageService _storageService;
+		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="storageService"></param>
-		public StorageController(StorageService storageService)
+		public StorageController(StorageService storageService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_storageService = storageService;
+			_globalConfig = globalConfig;
 		}
 
 		/// <summary>
@@ -168,9 +171,14 @@ namespace Horde.Build.Storage
 		[Route("/api/v1/storage/{namespaceId}/blobs")]
 		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(NamespaceId namespaceId, IFormFile? file, [FromForm] string? prefix = default, CancellationToken cancellationToken = default)
 		{
-			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.WriteBlobs, null, cancellationToken))
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
 			{
-				return Forbid(AclAction.WriteBlobs);
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.WriteBlobs, User))
+			{
+				return Forbid(AclAction.WriteBlobs, namespaceId);
 			}
 
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -242,9 +250,14 @@ namespace Horde.Build.Storage
 		[Route("/api/v1/storage/{namespaceId}/blobs/{*locator}")]
 		public async Task<ActionResult> ReadBlobAsync(NamespaceId namespaceId, BlobLocator locator, [FromQuery] int? offset = null, [FromQuery] int? length = null, CancellationToken cancellationToken = default)
 		{
-			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.ReadBlobs, null, cancellationToken))
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
 			{
-				return Forbid(AclAction.WriteBlobs);
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			{
+				return Forbid(AclAction.ReadBlobs, namespaceId);
 			}
 
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -284,9 +297,14 @@ namespace Horde.Build.Storage
 		[Route("/api/v1/storage/{namespaceId}/nodes")]
 		public async Task<ActionResult<FindNodesResponse>> FindNodesAsync(NamespaceId namespaceId, string alias, CancellationToken cancellationToken = default)
 		{
-			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.ReadBlobs, null, cancellationToken))
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
 			{
-				return Forbid(AclAction.WriteBlobs);
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			{
+				return Forbid(AclAction.ReadBlobs, namespaceId);
 			}
 
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -316,9 +334,14 @@ namespace Horde.Build.Storage
 		[Route("/api/v1/storage/{namespaceId}/refs/{*refName}")]
 		public async Task<ActionResult> WriteRefAsync(NamespaceId namespaceId, RefName refName, [FromBody] WriteRefRequest request, CancellationToken cancellationToken)
 		{
-			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.WriteRefs, null, cancellationToken))
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
 			{
-				return Forbid(AclAction.WriteBlobs);
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.WriteRefs, User))
+			{
+				return Forbid(AclAction.WriteRefs, namespaceId);
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -338,9 +361,14 @@ namespace Horde.Build.Storage
 		[Route("/api/v1/storage/{namespaceId}/refs/{*refName}")]
 		public async Task<ActionResult<ReadRefResponse>> ReadRefAsync(NamespaceId namespaceId, RefName refName, CancellationToken cancellationToken)
 		{
-			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.ReadRefs, null, cancellationToken))
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
 			{
-				return Forbid(AclAction.ReadRefs);
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.ReadRefs, User))
+			{
+				return Forbid(AclAction.ReadRefs, namespaceId);
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);

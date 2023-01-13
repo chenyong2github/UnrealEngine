@@ -9,10 +9,12 @@ using System.Threading.Tasks;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
+using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -97,26 +99,29 @@ namespace Horde.Build.Agents.Fleet
 		
 		private readonly IJobCollection _jobs;
 		private readonly IGraphCollection _graphs;
-		private readonly StreamService _streamService;
+		private readonly IStreamCollection _streamCollection;
 		private readonly IClock _clock;
 		private readonly IMemoryCache _cache;
-		
+		private readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="jobs"></param>
 		/// <param name="graphs"></param>
-		/// <param name="streamService"></param>
+		/// <param name="streamCollection"></param>
 		/// <param name="clock"></param>
 		/// <param name="cache"></param>
+		/// <param name="globalConfig"></param>
 		/// <param name="settings"></param>
-		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, IMemoryCache cache, JobQueueSettings? settings = null)
+		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, IStreamCollection streamCollection, IClock clock, IMemoryCache cache, IOptionsMonitor<GlobalConfig> globalConfig, JobQueueSettings? settings = null)
 		{
 			_jobs = jobs;
 			_graphs = graphs;
-			_streamService = streamService;
+			_streamCollection = streamCollection;
 			_clock = clock;
 			_cache = cache;
+			_globalConfig = globalConfig;
 			Settings = settings ?? new JobQueueSettings();
 		}
 
@@ -129,7 +134,7 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="job">Job to extract from</param>
 		/// <param name="streams">Cached lookup table of streams</param>
 		/// <returns></returns>
-		private async Task<List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)>> GetJobBatchesWithPools(IJob job, Dictionary<StreamId, IStream> streams)
+		private async Task<List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)>> GetJobBatchesWithPools(IJob job, Dictionary<StreamId, StreamConfig> streams)
 		{
 			IGraph graph = await _graphs.GetAsync(job.GraphHash);
 
@@ -151,13 +156,13 @@ namespace Horde.Build.Agents.Fleet
 					continue;
 				}
 
-				if (!streams.TryGetValue(job.StreamId, out IStream? stream))
+				if (!streams.TryGetValue(job.StreamId, out StreamConfig? streamConfig))
 				{
 					continue;
 				}
 
 				string batchAgentType = graph.Groups[batch.GroupIdx].AgentType;
-				if (!stream.Config.AgentTypes.TryGetValue(batchAgentType, out AgentConfig? agentType))
+				if (!streamConfig.AgentTypes.TryGetValue(batchAgentType, out AgentConfig? agentType))
 				{
 					continue;
 				}
@@ -171,9 +176,8 @@ namespace Horde.Build.Agents.Fleet
 		internal async Task<Dictionary<PoolId, int>> GetPoolQueueSizesAsync(DateTimeOffset jobsCreatedAfter)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("JobQueueStrategy.GetPoolQueueSizes").StartActive();
-			
-			List<IStream> streamsList = await _streamService.GetStreamsAsync();
-			Dictionary<StreamId, IStream> streams = streamsList.ToDictionary(x => x.Id, x => x);
+
+			Dictionary<StreamId, StreamConfig> streams = _globalConfig.CurrentValue.Streams.ToDictionary(x => x.Id, x => (StreamConfig)x);
 			List<IJob> recentJobs = await _jobs.FindAsync(minCreateTime: jobsCreatedAfter);
 
 			List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)> jobBatches = new();

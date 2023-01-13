@@ -28,6 +28,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -271,13 +272,11 @@ namespace Horde.Build.Storage
 		{
 			public NamespaceConfig Config { get; }
 			public StorageClient Client { get; }
-			public Acl? Acl { get; }
 
 			public NamespaceInfo(NamespaceConfig config, StorageClient client)
 			{
 				Config = config;
 				Client = client;
-				Acl = Acl.Merge(null, config.Acl);
 			}
 
 			public void Dispose() => (Client as IDisposable)?.Dispose();
@@ -443,6 +442,7 @@ namespace Horde.Build.Storage
 		readonly IClock _clock;
 		readonly IMemoryCache _cache;
 		readonly IServiceProvider _serviceProvider;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
 
 		readonly IMongoCollection<BlobInfo> _blobCollection;
@@ -464,7 +464,7 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StorageService(GlobalsService globalsService, MongoService mongoService, RedisService redisService, AclService aclService, IClock clock, IMemoryCache cache, IServiceProvider serviceProvider, ILogger<StorageService> logger)
+		public StorageService(GlobalsService globalsService, MongoService mongoService, RedisService redisService, AclService aclService, IClock clock, IMemoryCache cache, IServiceProvider serviceProvider, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<StorageService> logger)
 		{
 			_globalsService = globalsService;
 			_redisService = redisService;
@@ -472,7 +472,8 @@ namespace Horde.Build.Storage
 			_clock = clock;
 			_cache = cache;
 			_serviceProvider = serviceProvider;
-			_cachedState = new AsyncCachedValue<State>(() => GetNextState(), TimeSpan.FromMinutes(1.0));
+			_cachedState = new AsyncCachedValue<State>(() => Task.FromResult(GetNextState()), TimeSpan.FromMinutes(1.0));
+			_globalConfig = globalConfig;
 			_logger = logger;
 
 			List<MongoIndex<BlobInfo>> blobIndexes = new List<MongoIndex<BlobInfo>>();
@@ -566,38 +567,14 @@ namespace Horde.Build.Storage
 		/// <inheritdoc/>
 		async ValueTask<IStorageClient> IStorageClientFactory.GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken) => await GetClientAsync(namespaceId, cancellationToken);
 
-		/// <summary>
-		/// Authorize operations for the given store
-		/// </summary>
-		/// <param name="namespaceId"></param>
-		/// <param name="user"></param>
-		/// <param name="action"></param>
-		/// <param name="cache">Global permissions cache</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public async Task<bool> AuthorizeAsync(NamespaceId namespaceId, ClaimsPrincipal user, AclAction action, GlobalPermissionsCache? cache, CancellationToken cancellationToken)
-		{
-			NamespaceInfo namespaceInfo = await GetNamespaceInfoAsync(namespaceId, cancellationToken);
-
-			bool? result = namespaceInfo.Acl?.Authorize(action, user);
-			if (result == null)
-			{
-				return await _aclService.AuthorizeAsync(action, user, cache);
-			}
-			else
-			{
-				return result.Value;
-			}
-		}
-
 		#region Config
 
-		async Task<State> GetNextState()
+		State GetNextState()
 		{
-			IGlobals globals = await _globalsService.GetAsync();
-			if (_lastState == null || !String.Equals(_lastConfigRevision, globals.ConfigRevision, StringComparison.Ordinal))
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
+			if (_lastState == null || !String.Equals(_lastConfigRevision, globalConfig.Revision, StringComparison.Ordinal))
 			{
-				StorageConfig storageConfig = globals.Config.Storage;
+				StorageConfig storageConfig = globalConfig.Storage;
 
 				// Create a lookup for backend config objects by their id
 				Dictionary<BackendId, BackendConfig> backendIdToConfig = new Dictionary<BackendId, BackendConfig>();
@@ -643,7 +620,7 @@ namespace Horde.Build.Storage
 				_lastState?.Dispose();
 				_lastState = nextState;
 
-				_lastConfigRevision = globals.ConfigRevision;
+				_lastConfigRevision = globalConfig.Revision;
 			}
 			return _lastState;
 		}

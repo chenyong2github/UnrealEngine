@@ -425,7 +425,7 @@ namespace Horde.Build.Jobs.Templates
 		/// <summary>
 		/// Hash of this template
 		/// </summary>
-		public ContentHash Id { get; }
+		public ContentHash Hash { get; }
 
 		/// <summary>
 		/// Name of the template.

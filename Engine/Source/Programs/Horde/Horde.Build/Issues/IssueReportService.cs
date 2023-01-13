@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Configuration;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Notifications;
@@ -16,11 +15,13 @@ using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
 
 namespace Horde.Build.Issues
 {
+	using StreamId = StringId<IStream>;
 	using TemplateId = StringId<ITemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
 
@@ -33,18 +34,18 @@ namespace Horde.Build.Issues
 
 	public class IssueReport
 	{
+		public StreamId StreamId { get; }
 		public WorkflowId WorkflowId { get; }
-		public IStream Stream { get; }
 		public WorkflowStats WorkflowStats { get; }
 		public string? TriageChannel { get; }
 		public List<IIssue> Issues { get; } = new List<IIssue>();
 		public List<IIssueSpan> IssueSpans { get; } = new List<IIssueSpan>();
 		public bool GroupByTemplate { get; }
 
-		public IssueReport(WorkflowId workflowId, IStream stream, WorkflowStats workflowStats, string? triageChannel, bool groupByTemplate)
+		public IssueReport(StreamId streamId, WorkflowId workflowId, WorkflowStats workflowStats, string? triageChannel, bool groupByTemplate)
 		{
+			StreamId = streamId;
 			WorkflowId = workflowId;
-			Stream = stream;
 			WorkflowStats = workflowStats;
 			TriageChannel = triageChannel;
 			GroupByTemplate = groupByTemplate;
@@ -83,26 +84,26 @@ namespace Horde.Build.Issues
 		readonly IIssueCollection _issueCollection;
 		readonly IGraphCollection _graphCollection;
 		readonly IJobCollection _jobCollection;
-		readonly ConfigCollection _configCollection;
 		readonly INotificationService _notificationService;
 		readonly IClock _clock;
 		readonly ITicker _ticker;
+		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger<IssueReportService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueReportService(MongoService mongoService, IStreamCollection streamCollection, IIssueCollection issueCollection, IGraphCollection graphCollection, IJobCollection jobCollection, ConfigCollection configCollection, INotificationService notificationService, IClock clock, ILogger<IssueReportService> logger)
+		public IssueReportService(MongoService mongoService, IStreamCollection streamCollection, IIssueCollection issueCollection, IGraphCollection graphCollection, IJobCollection jobCollection, INotificationService notificationService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<IssueReportService> logger)
 		{
 			_state = new SingletonDocument<IssueReportState>(mongoService);
 			_streamCollection = streamCollection;
 			_issueCollection = issueCollection;
 			_graphCollection = graphCollection;
 			_jobCollection = jobCollection;
-			_configCollection = configCollection;
 			_notificationService = notificationService;
 			_clock = clock;
 			_ticker = clock.AddSharedTicker<IssueReportService>(TimeSpan.FromMinutes(5.0), TickAsync, logger);
+			_globalConfig = globalConfig;
 			_logger = logger;
 		}
 
@@ -128,23 +129,22 @@ namespace Horde.Build.Issues
 			List<string> updateKeys = new List<string>();
 			List<IssueReportGroup> groups = new List<IssueReportGroup>();
 
-			List<IStream> streams = await _streamCollection.FindAllAsync();
-			foreach (IStream stream in streams)
+			GlobalConfig globalConfig = _globalConfig.CurrentValue;
+			foreach (StreamConfig streamConfig in globalConfig.Streams)
 			{
-				StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
-				if (config.Workflows.Count > 0)
+				if (streamConfig.Workflows.Count > 0)
 				{
 					List<IIssue>? issues = null;
 					List<IIssueSpan>? spans = null;
 
-					foreach (WorkflowConfig workflow in config.Workflows)
+					foreach (WorkflowConfig workflowConfig in streamConfig.Workflows)
 					{
-						if (workflow.ReportChannel == null)
+						if (workflowConfig.ReportChannel == null)
 						{
 							continue;
 						}
 
-						string key = $"{stream.Id}:{workflow.Id}";
+						string key = $"{streamConfig.Id}:{workflowConfig.Id}";
 						invalidKeys.Remove(key);
 						
 						DateTime lastReportTime;
@@ -154,29 +154,29 @@ namespace Horde.Build.Issues
 							continue;
 						}
 
-						DateTime lastScheduledReportTime = GetLastScheduledReportTime(workflow, currentTime, _clock.TimeZone);
+						DateTime lastScheduledReportTime = GetLastScheduledReportTime(workflowConfig, currentTime, _clock.TimeZone);
 						if (lastReportTime > lastScheduledReportTime)
 						{
 							continue;
 						}
 
-						DateTime prevScheduledReportTime = GetLastScheduledReportTime(workflow, lastScheduledReportTime - TimeSpan.FromMinutes(1.0), _clock.TimeZone);
+						DateTime prevScheduledReportTime = GetLastScheduledReportTime(workflowConfig, lastScheduledReportTime - TimeSpan.FromMinutes(1.0), _clock.TimeZone);
 
-						_logger.LogInformation("Creating report for {StreamId} workflow {WorkflowId}", stream.Id, workflow.Id);
+						_logger.LogInformation("Creating report for {StreamId} workflow {WorkflowId}", streamConfig.Id, workflowConfig.Id);
 
-						issues ??= await _issueCollection.FindIssuesAsync(streamId: stream.Id);
+						issues ??= await _issueCollection.FindIssuesAsync(streamId: streamConfig.Id);
 						spans ??= await _issueCollection.FindSpansAsync(issueIds: issues.Select(x => x.Id).ToArray());
 
-						Dictionary<WorkflowId, WorkflowStats> workflowIdToStats = await GetWorkflowStatsAsync(stream, prevScheduledReportTime);
-						if (!workflowIdToStats.TryGetValue(workflow.Id, out WorkflowStats? workflowStats))
+						Dictionary<WorkflowId, WorkflowStats> workflowIdToStats = await GetWorkflowStatsAsync(streamConfig, prevScheduledReportTime);
+						if (!workflowIdToStats.TryGetValue(workflowConfig.Id, out WorkflowStats? workflowStats))
 						{
 							workflowStats = new WorkflowStats();
 						}
 
-						IssueReport report = new IssueReport(workflow.Id, stream, workflowStats, workflow.TriageChannel, workflow.GroupIssuesByTemplate);
+						IssueReport report = new IssueReport(streamConfig.Id, workflowConfig.Id, workflowStats, workflowConfig.TriageChannel, workflowConfig.GroupIssuesByTemplate);
 						foreach (IIssueSpan span in spans)
 						{
-							if (span.LastSuccess != null && span.LastFailure.Annotations.WorkflowId == workflow.Id)
+							if (span.LastSuccess != null && span.LastFailure.Annotations.WorkflowId == workflowConfig.Id)
 							{
 								report.IssueSpans.Add(span);
 							}
@@ -187,10 +187,10 @@ namespace Horde.Build.Issues
 
 						DateTime reportTime = lastScheduledReportTime;
 
-						IssueReportGroup? group = groups.FirstOrDefault(x => x.Channel == workflow.ReportChannel && x.Time == reportTime);
+						IssueReportGroup? group = groups.FirstOrDefault(x => x.Channel == workflowConfig.ReportChannel && x.Time == reportTime);
 						if (group == null)
 						{
-							group = new IssueReportGroup(workflow.ReportChannel, reportTime);
+							group = new IssueReportGroup(workflowConfig.ReportChannel, reportTime);
 							groups.Add(group);
 						}
 						group.Reports.Add(report);
@@ -222,15 +222,15 @@ namespace Horde.Build.Issues
 			}
 		}
 
-		private async Task<Dictionary<WorkflowId, WorkflowStats>> GetWorkflowStatsAsync(IStream stream, DateTime minTime)
+		private async Task<Dictionary<WorkflowId, WorkflowStats>> GetWorkflowStatsAsync(StreamConfig streamConfig, DateTime minTime)
 		{
-			List<IJob> jobs = await _jobCollection.FindAsync(streamId: stream.Id, minCreateTime: minTime);
+			List<IJob> jobs = await _jobCollection.FindAsync(streamId: streamConfig.Id, minCreateTime: minTime);
 
 			Dictionary<WorkflowId, WorkflowStats> workflowIdToStats = new Dictionary<WorkflowId, WorkflowStats>();
 			foreach (IGrouping<TemplateId, IJob> templateGroup in jobs.GroupBy(x => x.TemplateId))
 			{
 				WorkflowId? templateWorkflowId = null;
-				if (stream.Config.TryGetTemplate(templateGroup.Key, out TemplateRefConfig? templateRefConfig))
+				if (streamConfig.TryGetTemplate(templateGroup.Key, out TemplateRefConfig? templateRefConfig))
 				{
 					templateWorkflowId = templateRefConfig.Annotations.WorkflowId;
 				}

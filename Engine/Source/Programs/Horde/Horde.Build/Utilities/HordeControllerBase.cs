@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
@@ -75,6 +76,15 @@ namespace Horde.Build.Utilities
 		protected ActionResult Forbid(AclAction action, JobId jobId)
 		{
 			return Forbid(action, "job {JobId}", jobId);
+		}
+
+		/// <summary>
+		/// Returns a 403 (forbidden) response with the given action and object
+		/// </summary>
+		[NonAction]
+		protected ActionResult Forbid(AclAction action, NamespaceId namespaceId)
+		{
+			return Forbid(action, "namespace {NamespaceId}", namespaceId);
 		}
 
 		/// <summary>

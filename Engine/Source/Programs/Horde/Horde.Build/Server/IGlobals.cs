@@ -28,16 +28,6 @@ namespace Horde.Build.Server
 		ObjectId InstanceId { get; }
 
 		/// <summary>
-		/// Revision string for the current config
-		/// </summary>
-		string ConfigRevision { get; }
-
-		/// <summary>
-		/// The global config object
-		/// </summary>
-		GlobalConfig Config { get; }
-
-		/// <summary>
 		/// Issuer for JWT keys. Can be overridden by config file.
 		/// </summary>
 		string JwtIssuer { get; }

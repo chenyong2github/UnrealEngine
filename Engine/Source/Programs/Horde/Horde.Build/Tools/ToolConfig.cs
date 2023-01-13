@@ -3,7 +3,10 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Security.Claims;
+using System.Text.Json.Serialization;
 using Horde.Build.Acls;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Tools
@@ -16,22 +19,38 @@ namespace Horde.Build.Tools
 	[DebuggerDisplay("{Id}")]
 	public class ToolConfig
 	{
-		/// <inheritdoc cref="VersionedDocument{ToolId, Tool}.Id"/>
+		/// <summary>
+		/// The global config containing this tool
+		/// </summary>
+		[JsonIgnore]
+		public GlobalConfig GlobalConfig { get; private set; } = null!;
+
+		/// <summary>
+		/// Unique identifier for the tool
+		/// </summary>
 		[Required]
 		public ToolId Id { get; set; }
 
-		/// <inheritdoc cref="ITool.Name"/>
+		/// <summary>
+		/// Name of the tool
+		/// </summary>
 		[Required]
 		public string Name { get; set; }
 
-		/// <inheritdoc cref="ITool.Description"/>
+		/// <summary>
+		/// Description for the tool
+		/// </summary>
 		public string Description { get; set; }
 
-		/// <inheritdoc cref="ITool.Public"/>
+		/// <summary>
+		/// Whether this tool should be exposed for download on a public endpoint without authentication
+		/// </summary>
 		public bool Public { get; set; }
 
-		/// <inheritdoc cref="ITool.Acl"/>
-		public AclV2? Acl { get; set; }
+		/// <summary>
+		/// Permissions for the tool
+		/// </summary>
+		public AclConfig? Acl { get; set; }
 
 		/// <summary>
 		/// Default constructor for serialization
@@ -50,6 +69,25 @@ namespace Horde.Build.Tools
 			Id = id;
 			Name = id.ToString();
 			Description = String.Empty;
+		}
+
+		/// <summary>
+		/// Called after the config has been read
+		/// </summary>
+		/// <param name="globalConfig">Parent GlobalConfig object</param>
+		public void PostLoad(GlobalConfig globalConfig)
+		{
+			GlobalConfig = globalConfig;
+		}
+
+		/// <summary>
+		/// Authorizes a user to perform a given action
+		/// </summary>
+		/// <param name="action">The action being performed</param>
+		/// <param name="user">The principal to validate</param>
+		public bool Authorize(AclAction action, ClaimsPrincipal user)
+		{
+			return Acl?.Authorize(action, user) ?? GlobalConfig.Authorize(action, user);
 		}
 	}
 
