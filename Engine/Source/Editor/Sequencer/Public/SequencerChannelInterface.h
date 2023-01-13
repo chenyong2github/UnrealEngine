@@ -295,6 +295,6 @@ struct TSequencerChannelInterfaceBase<ChannelType, true> : TSequencerChannelInte
 
 /** Generic sequencer channel interface to any channel type */
 template<typename ChannelType>
-struct TSequencerChannelInterface : TSequencerChannelInterfaceBase<ChannelType, !TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value>
+struct TSequencerChannelInterface : TSequencerChannelInterfaceBase<ChannelType, !std::is_same_v<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>>
 {
 };

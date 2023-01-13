@@ -39,13 +39,13 @@ public:
 	virtual const ILandscapeWeightmapFileFormat* GetWeightmapFormatByExtension(const TCHAR* Extension) const = 0;
 
 	template<typename T>
-	typename TEnableIf<TIsSame<T, uint16>::Value, const ILandscapeHeightmapFileFormat*>::Type GetFormatByExtension(const TCHAR* Extension)
+	typename TEnableIf<std::is_same_v<T, uint16>, const ILandscapeHeightmapFileFormat*>::Type GetFormatByExtension(const TCHAR* Extension)
 	{
 		return GetHeightmapFormatByExtension(Extension);
 	}
 
 	template<typename T>
-	typename TEnableIf<TIsSame<T, uint8>::Value, const ILandscapeWeightmapFileFormat*>::Type GetFormatByExtension(const TCHAR* Extension)
+	typename TEnableIf<std::is_same_v<T, uint8>, const ILandscapeWeightmapFileFormat*>::Type GetFormatByExtension(const TCHAR* Extension)
 	{
 		return GetWeightmapFormatByExtension(Extension);
 	}
