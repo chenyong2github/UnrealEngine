@@ -4,6 +4,7 @@
 
 #include "Engine/MapBuildDataRegistry.h"
 #include "Engine/MeshMerging.h"
+#include "Engine/StaticMeshSocket.h"
 
 #include "MaterialOptions.h"
 #include "IMaterialBakingModule.h"
@@ -2302,6 +2303,46 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		ExtractPhysicsDataFromComponents(ComponentsToMerge, PhysicsGeometry, BodySetupSource);
 	}
 
+	// Merge sockets
+	TMap<FName, UStaticMeshSocket*> MergedSockets;
+	if (InSettings.bMergeMeshSockets)
+	{
+		const FTransform PivotTransform = FTransform(MergedAssetPivot);
+		for (UPrimitiveComponent* PrimitiveComponent : ComponentsToMerge)
+		{
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimitiveComponent))
+			{
+				if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+				{
+					for (UStaticMeshSocket* Socket : StaticMesh->Sockets)
+					{
+						if (Socket)
+						{
+							UStaticMeshSocket* SocketCopy = DuplicateObject<UStaticMeshSocket>(Socket, nullptr);
+
+						    // Fix name - rename if duplicates are found
+							FString PlainName = SocketCopy->SocketName.GetPlainNameString();
+						    int32 CurrentNumber = SocketCopy->SocketName.GetNumber();
+						    while (MergedSockets.Contains(SocketCopy->SocketName))
+						    {
+							    SocketCopy->SocketName = FName(PlainName, CurrentNumber++);
+						    }
+    
+						    // Fix transform - make relative to pivot
+						    FTransform SocketTransformWorldSpace = StaticMeshComponent->GetSocketTransform(Socket->SocketName, RTS_World);
+						    FTransform SocketTransformPivotSpace = SocketTransformWorldSpace.GetRelativeTransform(PivotTransform);
+						    SocketCopy->RelativeLocation = SocketTransformPivotSpace.GetLocation();
+						    SocketCopy->RelativeRotation = FRotator(SocketTransformPivotSpace.GetRotation());
+						    SocketCopy->RelativeScale = SocketTransformPivotSpace.GetScale3D();
+
+							MergedSockets.Add(SocketCopy->SocketName, SocketCopy);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Find all unique materials and remap section to unique materials
 	TArray<UMaterialInterface*> UniqueMaterials;
 	TMap<UMaterialInterface*, int32> MaterialIndices;
@@ -3063,6 +3104,16 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			for (FKConvexElem& ConvexElem : StaticMesh->GetBodySetup()->AggGeom.ConvexElems)
 			{
 				ConvexElem.BakeTransformToVerts();
+			}
+		}
+
+		// Add merged sockets
+		if (InSettings.bMergeMeshSockets)
+		{
+			for (auto& [SocketName, Socket] : MergedSockets)
+			{
+				Socket->Rename(nullptr, StaticMesh);
+				StaticMesh->AddSocket(Socket);
 			}
 		}
 
