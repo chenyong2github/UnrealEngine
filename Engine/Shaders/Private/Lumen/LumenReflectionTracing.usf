@@ -281,7 +281,7 @@ void ReflectionCompactTracesCS(
 			if (SceneDepth > 0 
 				&& !bHit
 				&& (CullByDistanceFromCamera == 0 || SceneDepth < CompactionTracingEndDistanceFromCamera)
-				&& TraceHitDistance < CompactionMaxTraceDistance)
+				&& TraceHitDistance <= CompactionMaxTraceDistance)
 			{
 #if ORDERED_COMPACTION
 				bTraceValid = true;
