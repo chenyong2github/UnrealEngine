@@ -220,6 +220,8 @@ private:
 	bool DeferredRebuildTabList(float DeltaTime);
 	void RebuildTabList();
 
+	void RemoveTab_Internal(const FName TabNameID, const FCommonRegisteredTabInfo& TabInfo);
+
 	/** Info about each of the currently registered tabs organized by a given registration name ID */
 	UPROPERTY(Transient)
 	TMap<FName, FCommonRegisteredTabInfo> RegisteredTabsByID;
