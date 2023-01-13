@@ -14,6 +14,7 @@ using Horde.Build.Perforce;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.IO;
+using Horde.Build.Server;
 
 namespace Horde.Build.Tests
 {
