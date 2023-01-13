@@ -1407,8 +1407,9 @@ bool ACharacter::RestoreReplicatedMove(const FSimulatedRootMotionReplicatedMove&
 			FVector BaseLocation;
 			FQuat BaseRotation;
 			MovementBaseUtility::GetMovementBaseTransform(ServerBase, ServerBaseBoneName, BaseLocation, BaseRotation);
-
-			const FVector ServerLocation = BaseLocation + RootMotionRepMove.RootMotion.Location;
+			const FTransform BaseTransform(BaseRotation, BaseLocation);
+			
+			const FVector ServerLocation = BaseTransform.TransformPositionNoScale(RootMotionRepMove.RootMotion.Location);
 			FRotator ServerRotation;
 			if (RootMotionRepMove.RootMotion.bRelativeRotation)
 			{
