@@ -141,13 +141,15 @@ public:
 	/** Needs to be called before destruction, ideally before owner's BeginDestroy (a FGCObject's limitation) */
 	void Deinitialize();
 
+	const FGraphEventRef& TriggerPhase(const EMassProcessingPhase Phase, const float DeltaTime, const FGraphEventRef& MyCompletionGraphEvent);
+
 	/** 
 	 *  Stores EntityManager associated with given world's MassEntitySubsystem and kicks off phase ticking.
 	 */
 	void Start(UWorld& World);
 	
 	/**
-	 *  Stores InEntityManager as the entity manager and kicks off phase ticking.
+	 *  Stores InEntityManager as the entity manager. It also kicks off phase ticking if the given InEntityManager is tied to a UWorld.
 	 */
 	void Start(const TSharedPtr<FMassEntityManager>& InEntityManager);
 	void Stop();
@@ -204,4 +206,6 @@ protected:
 	TWeakObjectPtr<UObject> Owner;
 
 	FDelegateHandle OnNewArchetypeHandle;
+
+	bool bIsAllowedToTick = false;
 };

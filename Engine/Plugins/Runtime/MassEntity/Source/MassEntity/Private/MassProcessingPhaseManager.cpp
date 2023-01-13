@@ -151,6 +151,22 @@ void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEnt
 
 	PhaseProcessor.Populate(SortedProcessors);
 
+#if WITH_MASSENTITY_DEBUG
+	for (FMassProcessorOrderInfo& ProcessorOrderInfo : SortedProcessors)
+	{
+		TmpPipeline.RemoveProcessor(*ProcessorOrderInfo.Processor);
+	}
+	
+	if (TmpPipeline.Num())
+	{
+		UE_VLOG_UELOG(&PhaseProcessor, LogMass, Verbose, TEXT("Discarding processors due to not having anything to do (no relevant Archetypes):"));
+		for (const UMassProcessor* Processor : TmpPipeline.GetProcessors())
+		{
+			UE_VLOG_UELOG(&PhaseProcessor, LogMass, Verbose, TEXT("\t%s"), *Processor->GetProcessorName());
+		}
+	}
+#endif // WITH_MASSENTITY_DEBUG
+
 	if (Solver.IsSolvingForSingleThread() == false)
 	{
 		PhaseProcessor.BuildFlatProcessingGraph(SortedProcessors);
@@ -208,6 +224,8 @@ void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<F
 		}
 #endif // WITH_EDITOR
 	}
+
+	bIsAllowedToTick = true;
 }
 
 void FMassProcessingPhaseManager::Deinitialize()
@@ -216,6 +234,18 @@ void FMassProcessingPhaseManager::Deinitialize()
 	{
 		Phase.PhaseProcessor = nullptr;
 	}
+}
+
+const FGraphEventRef& FMassProcessingPhaseManager::TriggerPhase(const EMassProcessingPhase Phase, const float DeltaTime, const FGraphEventRef& MyCompletionGraphEvent)
+{
+	check(Phase != EMassProcessingPhase::MAX);
+
+	if (bIsAllowedToTick)
+	{
+		ProcessingPhases[(int)Phase].ExecuteTick(DeltaTime, LEVELTICK_All, ENamedThreads::GameThread, MyCompletionGraphEvent);
+	}
+
+	return MyCompletionGraphEvent;
 }
 
 void FMassProcessingPhaseManager::Start(UWorld& World)
@@ -234,13 +264,16 @@ void FMassProcessingPhaseManager::Start(UWorld& World)
 
 void FMassProcessingPhaseManager::Start(const TSharedPtr<FMassEntityManager>& InEntityManager)
 {
-	UWorld* World = InEntityManager->GetWorld();
-	check(World);
 	EntityManager = InEntityManager;
 
 	OnNewArchetypeHandle = EntityManager->GetOnNewArchetypeEvent().AddRaw(this, &FMassProcessingPhaseManager::OnNewArchetype);
 
-	EnableTickFunctions(*World);
+	if (UWorld* World = InEntityManager->GetWorld())
+	{
+		EnableTickFunctions(*World);
+	}
+
+	bIsAllowedToTick = true;
 }
 
 void FMassProcessingPhaseManager::AddReferencedObjects(FReferenceCollector& Collector)
@@ -286,6 +319,8 @@ void FMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 
 void FMassProcessingPhaseManager::Stop()
 {
+	bIsAllowedToTick = false;
+
 	if (EntityManager)
 	{
 		EntityManager->GetOnNewArchetypeEvent().Remove(OnNewArchetypeHandle);
