@@ -7,7 +7,7 @@
 #include "TokenTest.h"
 #include "TestUtils.h"
 
-#include "Tests/TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 namespace Deque
 { 

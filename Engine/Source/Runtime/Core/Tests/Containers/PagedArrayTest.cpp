@@ -7,7 +7,7 @@
 #include "TestUtils.h"
 #include "TokenTest.h"
 
-#include "Tests/TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 namespace PagedArray
 {
