@@ -61,6 +61,68 @@ public:
 };
 
 /**
+ * Information about a camera feed, including its dimensions and aspect ratio.
+ * The camera feed represents (potentially) an inner rect of a media input, excluding any masks / extractions that may surround it.
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FCameraFeedInfo
+{
+	GENERATED_BODY()
+
+public:
+	FIntPoint GetDimensions()
+	{
+		return Dimensions;
+	}
+
+	void SetDimensions(FIntPoint InDimensions)
+	{
+		Dimensions = InDimensions;
+
+		// If one of the dimensions is set to 0, the description of the feed is invalid
+		if (Dimensions.X == 0 || Dimensions.Y == 0)
+		{
+			AspectRatio = 0.0f;
+			bIsValid = false;
+		}
+		else
+		{
+			AspectRatio = Dimensions.X / (float)Dimensions.Y;
+			bIsValid = true;
+		}
+	}
+
+	float GetAspectRatio()
+	{
+		return AspectRatio;
+	}
+
+	void Invalidate()
+	{
+		Dimensions = FIntPoint(0, 0);
+		AspectRatio = 0.0f;
+		bIsValid = false;
+	}
+
+	bool IsValid()
+	{
+		return bIsValid;
+	}
+
+private:
+	/** Dimensions of the Camera Feed */
+	UPROPERTY(EditAnywhere, Category = "Camera Feed Info")
+	FIntPoint Dimensions = FIntPoint(0, 0);
+
+	/** Aspect Ratio of the Camera Feed */
+	UPROPERTY(VisibleAnywhere, Category = "Camera Feed Info")
+	float AspectRatio = 0.0f;
+
+	/** Whether the dimensions of the feed are valid (false if either X or Y is 0) */
+	bool bIsValid = false;
+};
+
+/**
  * Information about the simulcam composition
  */
 USTRUCT(BlueprintType)

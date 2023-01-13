@@ -242,30 +242,9 @@ bool FCameraCalibrationStepsController::OnTick(float DeltaTime)
 	// If either the CG or the Media was resized, then recompute the aspect ratio correction for the comp material
 	if (bCompElementsResized)
 	{
-		if (MaterialPass.IsValid())
+		if (ULensFile* LensFilePtr = GetLensFile())
 		{
-			const float MediaAspectRatio = (MediaPlateRenderTarget->SizeY != 0) ? (float)MediaPlateRenderTarget->SizeX / (float)MediaPlateRenderTarget->SizeY : 0.0f;
-
-			const FIntPoint CGResolution = CGLayer->GetRenderResolution();
-			const float CGLayerAspectRatio = (CGResolution.Y != 0) ? (float)CGResolution.X / (float)CGResolution.Y : 0.0f;
-
-			if (CGLayerAspectRatio > MediaAspectRatio)
-			{
-				const float AspectRatioCorrection = (MediaAspectRatio != 0.0f) ? CGLayerAspectRatio / MediaAspectRatio : 1.0f;
-				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), 1.0f);
-				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), AspectRatioCorrection);
-			}
-			else if (MediaAspectRatio > CGLayerAspectRatio)
-			{
-				const float AspectRatioCorrection = (CGLayerAspectRatio != 0.0f) ? MediaAspectRatio / CGLayerAspectRatio : 1.0f;
-				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), AspectRatioCorrection);
-				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), 1.0f);
-			}
-			else
-			{
-				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), 1.0f);
-				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), 1.0f);
-			}
+			UpdateAspectRatioCorrection(LensFilePtr->CameraFeedInfo.GetDimensions());
 		}
 	}
 
@@ -278,6 +257,126 @@ bool FCameraCalibrationStepsController::OnTick(float DeltaTime)
 	}
 
 	return true;
+}
+
+void FCameraCalibrationStepsController::UpdateCameraFeedInfo(FVector2D MousePosition)
+{
+	// Compute the size of the camera feed, using the MousePosition as one of its corners.
+	// We assume that the camera feed will always be centered in the media. If that assumption proves false, this math should be updated in the future.
+	FIntPoint CameraFeedDimensions = FIntPoint(0, 0);
+	CameraFeedDimensions.X = FMath::Abs((MediaPlateRenderTarget->SizeX / 2) - FMath::Floor(MousePosition.X)) * 2;
+	CameraFeedDimensions.Y = FMath::Abs((MediaPlateRenderTarget->SizeY / 2) - FMath::Floor(MousePosition.Y)) * 2;
+
+	// Early-out if the dimensions are invalid
+	if ((CameraFeedDimensions.X == 0) || (CameraFeedDimensions.Y == 0))
+	{
+		return;
+	}
+
+	if (ULensFile* LensFilePtr = GetLensFile())
+	{
+		// Compare the aspect ratio of the selected camera to the cg layer's aspect ratio to determine if the cg layer needs to be resized
+		if (CineCameraComponent.IsValid())
+		{
+			const float CameraFeedAspectRatio = CameraFeedDimensions.X / (float)CameraFeedDimensions.Y;
+			const float CameraAspectRatio = CineCameraComponent->Filmback.SensorAspectRatio;
+
+			// If the two aspect ratios are within the acceptable tolerance, attempt to minimze the aspect ratio difference by adjusting the camera feed dimensions
+			constexpr float AspectRatioNudgeTolerance = 0.1f;
+			if (FMath::IsNearlyEqual(CameraAspectRatio, CameraFeedAspectRatio, AspectRatioNudgeTolerance))
+			{
+				MinimizeAspectRatioError(CameraFeedDimensions, CameraAspectRatio);
+			}
+
+			LensFilePtr->CameraFeedInfo.SetDimensions(CameraFeedDimensions);
+
+			UpdateAspectRatioCorrection(CameraFeedDimensions);
+		}
+	}
+}
+
+void FCameraCalibrationStepsController::UpdateAspectRatioCorrection(FIntPoint CameraFeedDimensions)
+{
+	if (!MaterialPass.IsValid())
+	{
+		return;
+	}
+
+	// If the camera feed dimensions are invalid, use the ratios of the media and CG layers to set the aspect ratio correction material parameters
+	if ((CameraFeedDimensions.X == 0) || (CameraFeedDimensions.Y == 0))
+	{
+		const float MediaAspectRatio = (MediaPlateRenderTarget->SizeY != 0) ? (float)MediaPlateRenderTarget->SizeX / (float)MediaPlateRenderTarget->SizeY : 0.0f;
+
+		const FIntPoint CGResolution = CGLayer->GetRenderResolution();
+		const float CGLayerAspectRatio = (CGResolution.Y != 0) ? (float)CGResolution.X / (float)CGResolution.Y : 0.0f;
+
+		if (CGLayerAspectRatio > MediaAspectRatio)
+		{
+			const float AspectRatioCorrection = (MediaAspectRatio != 0.0f) ? CGLayerAspectRatio / MediaAspectRatio : 1.0f;
+			MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), 1.0f);
+			MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), AspectRatioCorrection);
+		}
+		else if (MediaAspectRatio > CGLayerAspectRatio)
+		{
+			const float AspectRatioCorrection = (CGLayerAspectRatio != 0.0f) ? MediaAspectRatio / CGLayerAspectRatio : 1.0f;
+			MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), AspectRatioCorrection);
+			MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), 1.0f);
+		}
+		else
+		{
+			MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), 1.0f);
+			MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), 1.0f);
+		}
+	}
+	else
+	{
+		// If the camera feed dimensions are valid, use them and the dimensions of the media to set the aspect ratio correction material parameters
+		MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), MediaPlateRenderTarget->SizeX / (float)CameraFeedDimensions.X);
+		MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), MediaPlateRenderTarget->SizeY / (float)CameraFeedDimensions.Y);
+	}
+}
+
+void FCameraCalibrationStepsController::MinimizeAspectRatioError(FIntPoint& CameraFeedDimensions, float CameraAspectRatio)
+{
+	float CameraFeedAspectRatio = (CameraFeedDimensions.Y > 0) ? CameraFeedDimensions.X / (float)CameraFeedDimensions.Y : 0.0f;
+
+	// Track the number of iterations to ensure that the minimization does not continue infinitely
+	int32 NumIterations = 0;
+	constexpr int32 MaxIterations = 20;
+
+	constexpr float AspectRatioErrorTolerance = 0.001f;
+	while ((!FMath::IsNearlyEqual(CameraAspectRatio, CameraFeedAspectRatio, AspectRatioErrorTolerance)) && NumIterations < MaxIterations)
+	{
+		// The camera feed needs to be wider and/or shorter
+		if (CameraFeedAspectRatio < CameraAspectRatio)
+		{
+			// Use modulus to determine whether to alter the width or height each iteration
+			if (NumIterations % 2 == 0)
+			{
+				CameraFeedDimensions.X += 2;
+			}
+			else
+			{
+				CameraFeedDimensions.Y -= 2;
+			}
+		}
+		else // The camera feed needs to be narrower or taller
+		{
+			// Use modulus to determine whether to change the width or height each iteration
+			if (NumIterations % 2 == 0)
+			{
+				CameraFeedDimensions.X -= 2;
+			}
+			else
+			{
+				CameraFeedDimensions.Y += 2;
+			}
+		}
+
+		CameraFeedAspectRatio = (CameraFeedDimensions.Y > 0) ? CameraFeedDimensions.X / (float)CameraFeedDimensions.Y : 0.0f;
+
+		NumIterations++;
+	}
 }
 
 TWeakObjectPtr<ACompositingElement> FCameraCalibrationStepsController::AddElement(ACompositingElement* Parent, FString& ClassPath, FString& ElementName) const

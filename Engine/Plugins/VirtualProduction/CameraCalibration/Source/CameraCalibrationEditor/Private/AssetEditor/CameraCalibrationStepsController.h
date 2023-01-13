@@ -137,6 +137,12 @@ public:
 	/** Redraw the overlay material used by the input overlay pass */
 	void RefreshOverlay(EOverlayPassType OverlayPass = EOverlayPassType::ToolOverlay);
 
+	/** Use the input mouse position (representing any corner of the camera feed) and the dimensions of the media source to calculate the new size of the camera feed */
+	void UpdateCameraFeedInfo(FVector2D MousePosition);
+
+	/** Update the material parameters that control the CG layer's aspect ratio correction based on the camera feed (if it is valid) or on the aspect ratio of the camera actor */
+	void UpdateAspectRatioCorrection(FIntPoint CameraFeedDimensions);
+
 public:
 
 	/** Called by the UI when the Simulcam Viewport is clicked */
@@ -227,6 +233,9 @@ private:
 
 	/** Returns the overlay material used by the input overlay pass type */
 	UMaterialInterface* GetOverlayMaterial(EOverlayPassType OverlayPass) const;
+
+	/** Iteratively attempt to resize the camera feed until its aspect ratio matches the input camera aspect ratio */
+	void MinimizeAspectRatioError(FIntPoint& CameraFeedDimensions, float CameraAspectRatio);
 
 private:
 

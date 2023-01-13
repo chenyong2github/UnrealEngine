@@ -11,6 +11,7 @@
 #include "ScopedTransaction.h"
 #include "SResetToDefaultMenu.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "LensInfoStep"
@@ -46,6 +47,15 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 		}
 	});
 
+	/** Camera Feed Info Details View */
+	FStructureDetailsViewArgs CameraFeedInfoStructDetailsView;
+
+	TSharedRef<FStructOnScope> CameraFeedInfoStructOnScope = MakeShared<FStructOnScope>(FCameraFeedInfo::StaticStruct(), reinterpret_cast<uint8*>(&LensFile->CameraFeedInfo));
+	TSharedPtr<IStructureDetailsView> CameraFeedInfoStructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, CameraFeedInfoStructDetailsView, CameraFeedInfoStructOnScope);
+
+	CameraFeedInfoStructureDetailsView->GetDetailsView()->OnFinishedChangingProperties().AddUObject(this, &ULensInfoStep::OnCameraFeedInfoChanged);
+
+	/** Simulcam Info Details View */
 	FStructureDetailsViewArgs SimulcamInfoStructDetailsView;
 
 	TSharedRef<FStructOnScope> SimulcamInfoStructOnScope = MakeShared<FStructOnScope>(FSimulcamInfo::StaticStruct(), reinterpret_cast<uint8*>(&LensFile->SimulcamInfo));
@@ -72,7 +82,26 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 				.DiffersFromDefault(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateUObject(this, &ULensInfoStep::DiffersFromDefault)))
 			]
 		]
-	
+
+		+ SVerticalBox::Slot() // Camera Feed information structure
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[CameraFeedInfoStructureDetailsView->GetWidget().ToSharedRef() ]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(4.0f, 4.0f, 4.0f, 4.0f))
+		.HAlign(HAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ControllerWarningToolTip", "The aspect ratios of the camera feed and the CG camera do not match."))
+			.ColorAndOpacity(FSlateColor(FLinearColor::Yellow))
+			.Visibility_UObject(this, &ULensInfoStep::HandleAspectRatioWarningVisibility)
+		]
+
 		+ SVerticalBox::Slot() // Simulcam information structure
 		.AutoHeight()
 		[
@@ -171,6 +200,65 @@ void ULensInfoStep::OnSaveLensInformation()
 		// Cache the newly modified LensInfo as the most recently saved state
 		CachedLensInfo = LensFile->LensInfo;
 	}
+}
+
+bool ULensInfoStep::OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	// User interaction is Ctrl + Left Mouse Button
+	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) && (MouseEvent.GetModifierKeys().IsControlDown()))
+	{
+		if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+		{
+			const FVector2D LocalInPixels = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+			StepsController->UpdateCameraFeedInfo(LocalInPixels);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ULensInfoStep::OnCameraFeedInfoChanged(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Ignore temporary interaction (dragging sliders, etc.)
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	{
+		if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+		{
+			if (ULensFile* LensFile = StepsController->GetLensFile())
+			{
+				LensFile->CameraFeedInfo.SetDimensions(LensFile->CameraFeedInfo.GetDimensions());
+				StepsController->UpdateAspectRatioCorrection(LensFile->CameraFeedInfo.GetDimensions());
+			}
+		}
+	}
+}
+
+EVisibility ULensInfoStep::HandleAspectRatioWarningVisibility() const
+{
+	if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+	{
+		if (ULensFile* LensFile = CameraCalibrationStepsController.Pin()->GetLensFile())
+		{
+			// Do not display the warning if the camera feed info is invalid
+			if (!LensFile->CameraFeedInfo.IsValid())
+			{
+				return EVisibility::Collapsed;
+			}
+
+			const float CameraFeedAspectRatio = LensFile->CameraFeedInfo.GetAspectRatio();
+			const float CGCameraAspectRatio = LensFile->SimulcamInfo.CGLayerAspectRatio;
+
+			// Display the warning if the difference between the two aspect ratios is higher than the acceptable tolerance
+			constexpr float AspectRatioErrorTolerance = 0.01f;
+			if (!FMath::IsNearlyEqual(CameraFeedAspectRatio, CGCameraAspectRatio, AspectRatioErrorTolerance))
+			{
+				return EVisibility::Visible;
+			}
+		}
+	}
+
+	return EVisibility::Collapsed;
 }
 
 bool ULensInfoStep::IsActive() const

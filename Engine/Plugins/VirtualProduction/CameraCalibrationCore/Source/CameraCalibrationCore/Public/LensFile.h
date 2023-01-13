@@ -238,9 +238,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens info")
 	FLensInfo LensInfo;
 
+#if WITH_EDITORONLY_DATA
+	/** Camera feed information */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Feed")
+	FCameraFeedInfo CameraFeedInfo;
+
 	/** Simulcam information */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Simulcam info")
 	FSimulcamInfo SimulcamInfo;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Type of data used for lens mapping */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens mapping")
