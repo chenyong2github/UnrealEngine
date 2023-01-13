@@ -84,6 +84,21 @@ namespace Horde.Build.Server
 		}
 
 		/// <summary>
+		/// Returns the fully parsed config object.
+		/// </summary>
+		[HttpGet]
+		[Route("/api/v1/admin/config")]
+		public ActionResult<object> GetConfig()
+		{
+			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			{
+				return Forbid(AclAction.AdminRead);
+			}
+
+			return _globalConfig.Value;
+		}
+
+		/// <summary>
 		/// Issues a token for the given roles. Issues a token for the current user if not specified.
 		/// </summary>
 		/// <param name="roles">Roles for the new token</param>
