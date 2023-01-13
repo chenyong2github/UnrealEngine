@@ -257,17 +257,12 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 		MessageLog.Error(*LOCTEXT("NoPrimaryNodeError", "Primary cluster node not set. Please set a primary node.").ToString());
 	}
 
-	bool bAtLeastOneViewportFound = false;
-
 	TMap<FString, UDisplayClusterConfigurationViewport*> ViewportsByName;
 	
 	for (const auto& ClusterNodes : BlueprintData->Cluster->Nodes)
 	{
 		if (ClusterNodes.Value->Viewports.Num() > 0)
 		{
-			// Pass with at least one set.
-			bAtLeastOneViewportFound = true;
-			
 			for (const auto& Viewport : ClusterNodes.Value->Viewports)
 			{
 				const FString ViewportName = Viewport.Value->GetName();
@@ -292,11 +287,15 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 				}
 			}
 		}
-	}
-
-	if (!bAtLeastOneViewportFound)
-	{
-		MessageLog.Warning(*LOCTEXT("NoViewportsError", "No viewports found. Please add a viewport.").ToString());
+		else
+		{
+			// It's allowed not to have any viewports when rendering offscreen. For example, we're going to render
+			// ICVFX inner views only which don't require any viewports. In other cases continue throwing a warning.
+			if (!ClusterNodes.Value->bRenderHeadless)
+			{
+				MessageLog.Warning(*LOCTEXT("NoViewportsError", "Node @@ has no viewports. Please add a viewport.").ToString(), *ClusterNodes.Key);
+			}
+		}
 	}
 }
 

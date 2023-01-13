@@ -22,6 +22,8 @@
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/Parse.h"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 int32 GDisplayClusterEnableAlphaChannelRendering = 0;
@@ -405,6 +407,23 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 							ViewportIt->RenderSettings.bFreezeRendering = true;
 						}
 					}
+				}
+			}
+		}
+		else
+		{
+			// We need to be able to render inner views (ICVFX camera view) without any outers. Current pipeline has
+			// a bunch of optimizations that block inner rendering if no outers available. To avoid the limitation
+			// we force inner data initialization if no outers found.
+			static const bool bIsRenderingOffscreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffscreen"));
+
+			// Cherry-pick ICVFX cameras initialization from IF-block above
+			if (bIsRenderingOffscreen)
+			{
+				ImplGetCameras();
+				for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
+				{
+					CameraIt.Update();
 				}
 			}
 		}

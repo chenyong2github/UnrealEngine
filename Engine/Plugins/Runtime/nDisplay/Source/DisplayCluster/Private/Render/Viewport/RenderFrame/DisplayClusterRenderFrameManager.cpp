@@ -7,6 +7,8 @@
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
+#include "Misc/Parse.h"
+
 
 ///////////////////////////////////////////////////////////////
 // FDisplayClusterRenderTargetFrame
@@ -187,7 +189,15 @@ bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(FViewport* InViewpor
 
 	if (OutFrameTargetRect.Width() <= 0 || OutFrameTargetRect.Height() <= 0)
 	{
-		return false;
+		// We need to be able to render inner views (ICVFX camera view) without any outers. Current pipeline has
+		// a bunch of optimizations that block inner rendering if no outers available. To avoid the limitation
+		// we force inner data initialization if no outers found.
+		static const bool bIsRenderingOffscreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffscreen"));
+
+		if (bIsRenderingOffscreen)
+		{
+			bIsUsed = true;
+		}
 	}
 
 	return bIsUsed;
