@@ -309,7 +309,10 @@ namespace UnrealBuildTool
 					if (FirstQuotation != -1 && (FirstAngleBracket == -1 || FirstQuotation < FirstAngleBracket)) // Handle #include <foo.h> // Some text with "
 					{
 						int SecondQuotation = Line.IndexOf('"', FirstQuotation + 1);
-						Includes.Add(Line.Substring(FirstQuotation + 1, SecondQuotation - FirstQuotation - 1));
+						if (SecondQuotation != -1)
+						{
+							Includes.Add(Line.Substring(FirstQuotation + 1, SecondQuotation - FirstQuotation - 1));
+						}
 					}
 				}
 
