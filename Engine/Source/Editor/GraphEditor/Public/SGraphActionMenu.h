@@ -47,6 +47,7 @@ struct FGeometry;
 struct FGraphActionNode;
 struct FKeyEvent;
 struct FPointerEvent;
+struct FEdGraphSchemaAction;
 struct FGraphActionListBuilderBase;
 
 /** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */
