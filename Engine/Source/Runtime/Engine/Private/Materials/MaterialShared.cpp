@@ -4426,6 +4426,39 @@ int32 UMaterialInterface::CompileProperty(FMaterialCompiler* Compiler, EMaterial
 void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData)
 {
 #if WITH_EDITORONLY_DATA
+	FMaterialAnalysisResult Result;
+	AnalyzeMaterialPropertyEx(InProperty, Result);
+
+	OutNumTextureCoordinates = Result.TextureCoordinates.FindLast(true) + 1;
+	bOutRequiresVertexData = Result.bRequiresVertexData;
+#endif
+}
+
+void UMaterialInterface::AnalyzeMaterialPropertyEx(EMaterialProperty InProperty, FMaterialAnalysisResult& OutResult)
+{
+#if WITH_EDITORONLY_DATA
+	AnalyzeMaterialCompilationInCallback([InProperty, this](FMaterialCompiler* Compiler)
+	{
+		Compiler->SetMaterialProperty(InProperty);
+		this->CompileProperty(Compiler, InProperty);
+	}, OutResult);
+#endif
+}
+
+void UMaterialInterface::AnalyzeMaterialCustomOutput(UMaterialExpressionCustomOutput* InCustomOutput, int32 InOutputIndex, FMaterialAnalysisResult& OutResult)
+{
+#if WITH_EDITORONLY_DATA
+	AnalyzeMaterialCompilationInCallback([InCustomOutput, InOutputIndex](FMaterialCompiler* Compiler)
+	{
+		Compiler->SetMaterialProperty(MP_MAX, InCustomOutput->GetShaderFrequency());
+		InCustomOutput->Compile(Compiler, InOutputIndex);
+	}, OutResult);
+#endif
+}
+
+void UMaterialInterface::AnalyzeMaterialCompilationInCallback(TFunctionRef<void (FMaterialCompiler*)> InCompilationCallback, FMaterialAnalysisResult& OutResult)
+{
+#if WITH_EDITORONLY_DATA
 	// FHLSLMaterialTranslator collects all required information during translation, but these data are protected. Needs to
 	// derive own class from it to get access to these data.
 	class FMaterialAnalyzer : public FHLSLMaterialTranslator
@@ -4434,34 +4467,15 @@ void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, i
 		FMaterialAnalyzer(FMaterial* InMaterial, FMaterialCompilationOutput& InMaterialCompilationOutput, const FStaticParameterSet& StaticParameters, EShaderPlatform InPlatform, EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel)
 			: FHLSLMaterialTranslator(InMaterial, InMaterialCompilationOutput, StaticParameters, InPlatform, InQualityLevel, InFeatureLevel)
 		{}
-		int32 GetTextureCoordsCount() const
-		{
-			return GetNumUserTexCoords();
-		}
-		bool UsesVertexColor() const
-		{
-			return bUsesVertexColor;
-		}
 
-		bool UsesTransformVector() const
-		{
-			return bUsesTransformVector;
-		}
-
-		bool UsesWorldPositionExcludingShaderOffsets() const
-		{
-			return bNeedsWorldPositionExcludingShaderOffsets;
-		}
-
-		bool UsesPrecomputedAOMask() const
-		{
-			return bUsesAOMaterialMask;
-		}
-
-		bool UsesVertexPosition() const 
-		{
-			return bUsesVertexPosition;
-		}
+		using FHLSLMaterialTranslator::AllocatedUserTexCoords;
+		using FHLSLMaterialTranslator::ShadingModelsFromCompilation;
+		using FHLSLMaterialTranslator::bUsesVertexColor;
+		using FHLSLMaterialTranslator::bUsesTransformVector;
+		using FHLSLMaterialTranslator::bNeedsWorldPositionExcludingShaderOffsets;
+		using FHLSLMaterialTranslator::bUsesAOMaterialMask;
+		using FHLSLMaterialTranslator::bUsesLightmapUVs;
+		using FHLSLMaterialTranslator::bUsesVertexPosition;
 	};
 
 	FMaterialCompilationOutput TempOutput;
@@ -4477,12 +4491,19 @@ void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, i
 	FStaticParameterSet StaticParamSet;
 	MaterialResource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 	FMaterialAnalyzer MaterialTranslator(MaterialResource, TempOutput, StaticParamSet, GMaxRHIShaderPlatform, MaterialResource->GetQualityLevel(), GMaxRHIFeatureLevel);
-	
-	static_cast<FMaterialCompiler*>(&MaterialTranslator)->SetMaterialProperty(InProperty); // FHLSLMaterialTranslator hides this interface, so cast to parent
-	CompileProperty(&MaterialTranslator, InProperty);
+
+	InCompilationCallback(&MaterialTranslator);
+
 	// Request data from translator
-	OutNumTextureCoordinates = MaterialTranslator.GetTextureCoordsCount();
-	bOutRequiresVertexData = MaterialTranslator.UsesVertexColor() || MaterialTranslator.UsesTransformVector() || MaterialTranslator.UsesWorldPositionExcludingShaderOffsets() || MaterialTranslator.UsesPrecomputedAOMask() || MaterialTranslator.UsesVertexPosition();
+	OutResult.TextureCoordinates = MaterialTranslator.AllocatedUserTexCoords;
+	OutResult.ShadingModels = MaterialTranslator.ShadingModelsFromCompilation;
+	OutResult.bRequiresVertexData =
+		MaterialTranslator.bUsesVertexColor ||
+		MaterialTranslator.bUsesTransformVector ||
+		MaterialTranslator.bNeedsWorldPositionExcludingShaderOffsets ||
+		MaterialTranslator.bUsesAOMaterialMask ||
+		MaterialTranslator.bUsesLightmapUVs ||
+		MaterialTranslator.bUsesVertexPosition;
 #endif
 }
 

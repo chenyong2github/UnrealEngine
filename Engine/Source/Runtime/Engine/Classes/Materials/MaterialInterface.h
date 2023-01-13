@@ -64,6 +64,7 @@ struct FParameterChannelNames;
 #endif
 enum EShaderPlatform : uint16;
 struct FStrataCompilationConfig;
+class UMaterialExpressionCustomOutput;
 
 typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
 
@@ -210,6 +211,21 @@ struct FMaterialInheritanceChain
 
 	inline const UMaterial* GetBaseMaterial() const { checkSlow(BaseMaterial); return BaseMaterial; }
 	inline const FMaterialCachedExpressionData& GetCachedExpressionData() const { checkSlow(CachedExpressionData); return *CachedExpressionData; }
+};
+
+/**
+ * Holds data about what is used in the shader graph of a specific material property or custom output
+ */
+struct FMaterialAnalysisResult
+{
+	/** The texture coordinates used */
+	TBitArray<> TextureCoordinates;
+
+	/** The shading models used (only relevant when analyzing property MP_ShadingModel) */
+	FMaterialShadingModelField ShadingModels;
+
+	/** Whether any vertex data is used */
+	bool bRequiresVertexData = false;
 };
 
 UCLASS(Optional)
@@ -994,6 +1010,15 @@ public:
 
 	/** Return number of used texture coordinates and whether or not the Vertex data is used in the shader graph */
 	ENGINE_API void AnalyzeMaterialProperty(EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData);
+
+	/** Return insight on what (e.g. texture coordinates, vertex data, etc) is used in the shader graph of a material property */
+	ENGINE_API void AnalyzeMaterialPropertyEx(EMaterialProperty InProperty, FMaterialAnalysisResult& OutResult);
+
+	/** Return insight on what (e.g. texture coordinates, vertex data, etc) is used in the shader graph of a material custom output */
+	ENGINE_API void AnalyzeMaterialCustomOutput(UMaterialExpressionCustomOutput* InCustomOutput, int32 InOutputIndex, FMaterialAnalysisResult& OutResult);
+
+	/** Return insight on what (e.g. texture coordinates, vertex data, etc) is used in the shader graph compiled by a callback */
+	ENGINE_API void AnalyzeMaterialCompilationInCallback(TFunctionRef<void (FMaterialCompiler*)> InCompilationCallback, FMaterialAnalysisResult& OutResult);
 
 #if WITH_EDITOR
 	/** Checks to see if the given property references the texture */
