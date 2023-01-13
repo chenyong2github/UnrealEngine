@@ -175,12 +175,14 @@ void USoundWaveThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32
 
 }
 
-bool USoundWaveThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const
+EThumbnailRenderFrequency USoundWaveThumbnailRenderer::GetThumbnailRenderFrequency(UObject* Object) const
 {
 	if (USoundWave* SoundWave = Cast<USoundWave>(Object))
 	{
-		return SoundWave->CanVisualizeAsset();
+		return SoundWave->CanVisualizeAsset()
+			? EThumbnailRenderFrequency::Realtime
+			: EThumbnailRenderFrequency::OnPropertyChange;
 	}
 
-	return false;
+	return EThumbnailRenderFrequency::OnPropertyChange;
 }

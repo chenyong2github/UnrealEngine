@@ -296,6 +296,8 @@ private:
 
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 
+	void OnObjectPreSave(UObject* InObject, class FObjectPreSaveContext InObjectPreSaveContext);
+
 	void OnPathAdded(const FString& InPath);
 
 	void OnPathRemoved(const FString& InPath);

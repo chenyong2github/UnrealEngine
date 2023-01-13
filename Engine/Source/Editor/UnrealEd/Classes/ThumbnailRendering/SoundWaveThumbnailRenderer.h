@@ -23,7 +23,7 @@ class USoundWaveThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 	// Begin UThumbnailRenderer Object
 	virtual bool CanVisualizeAsset(UObject* Object);
 	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily) override;
-	virtual bool AllowsRealtimeThumbnails(UObject* Object) const override;
+	virtual EThumbnailRenderFrequency GetThumbnailRenderFrequency(UObject* Object) const override;
 	// End UThumbnailRenderer Object
 };
 

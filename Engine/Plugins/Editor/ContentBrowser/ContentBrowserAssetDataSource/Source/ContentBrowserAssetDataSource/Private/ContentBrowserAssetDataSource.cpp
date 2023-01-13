@@ -10,6 +10,7 @@
 #include "AssetViewUtils.h"
 #include "ContentBrowserItemPath.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Factories/Factory.h"
 #include "HAL/FileManager.h"
 #include "Editor.h"
@@ -65,6 +66,9 @@ void UContentBrowserAssetDataSource::Initialize(const bool InAutoRegister)
 
 	// Listen for when assets are loaded or changed
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UContentBrowserAssetDataSource::OnObjectPropertyChanged);
+	
+	// Listen for when assets are saved, listerns are notified in time despite presave because we queue updates for later processing 
+	FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UContentBrowserAssetDataSource::OnObjectPreSave);
 
 	// Listen for new mount roots
 	FPackageName::OnContentPathMounted().AddUObject(this, &UContentBrowserAssetDataSource::OnContentPathMounted);
@@ -190,6 +194,7 @@ void UContentBrowserAssetDataSource::Shutdown()
 	}
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 
 	AssetViewUtils::OnAlwaysShowPath().RemoveAll(this);
 
@@ -1787,6 +1792,15 @@ void UContentBrowserAssetDataSource::OnAssetUpdated(const FAssetData& InAssetDat
 }
 
 void UContentBrowserAssetDataSource::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	if (InObject && InObject->IsAsset() && ContentBrowserAssetData::IsPrimaryAsset(InObject))
+	{
+		FAssetData AssetData(InObject);
+		QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFileItem(AssetData)));
+	}
+}
+
+void UContentBrowserAssetDataSource::OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InObjectPreSaveContext)
 {
 	if (InObject && InObject->IsAsset() && ContentBrowserAssetData::IsPrimaryAsset(InObject))
 	{

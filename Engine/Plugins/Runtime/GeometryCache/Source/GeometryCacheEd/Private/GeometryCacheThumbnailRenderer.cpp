@@ -53,8 +53,8 @@ void UGeometryCacheThumbnailRenderer::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-bool UGeometryCacheThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const
+EThumbnailRenderFrequency UGeometryCacheThumbnailRenderer::GetThumbnailRenderFrequency(UObject* Object) const
 {
-	return false;
+	return EThumbnailRenderFrequency::OnPropertyChange;
 }
 

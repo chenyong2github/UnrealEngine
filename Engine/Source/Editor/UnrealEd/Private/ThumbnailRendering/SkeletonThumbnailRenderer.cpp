@@ -46,21 +46,19 @@ void USkeletonThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 
 	ThumbnailScene->SetSkeletalMesh(nullptr);
 }
 
-bool USkeletonThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const
+EThumbnailRenderFrequency USkeletonThumbnailRenderer::GetThumbnailRenderFrequency(UObject* Object) const
 {
-	if (!Super::AllowsRealtimeThumbnails(Object))
-	{
-		return false;
-	}
 	USkeleton* Skeleton = Cast<USkeleton>(Object);
 	if(Skeleton)
 	{
 		if(USkeletalMesh* SkeletalMesh = Skeleton->GetPreviewMesh())
 		{
-			return SkeletalMesh->GetResourceForRendering() != nullptr;
+			return SkeletalMesh->GetResourceForRendering() != nullptr 
+				? EThumbnailRenderFrequency::Realtime
+				: EThumbnailRenderFrequency::OnPropertyChange;
 		}
 	}
-	return false;
+	return EThumbnailRenderFrequency::OnPropertyChange;
 }
 
 void USkeletonThumbnailRenderer::BeginDestroy()

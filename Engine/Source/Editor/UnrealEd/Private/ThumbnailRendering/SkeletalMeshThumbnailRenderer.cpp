@@ -35,14 +35,12 @@ void USkeletalMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 	ThumbnailScene->SetSkeletalMesh(nullptr);
 }
 
-bool USkeletalMeshThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const
+EThumbnailRenderFrequency USkeletalMeshThumbnailRenderer::GetThumbnailRenderFrequency(UObject* Object) const
 {
-	if (!Super::AllowsRealtimeThumbnails(Object))
-	{
-		return false;
-	}
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object);
-	return SkeletalMesh && SkeletalMesh->GetResourceForRendering();
+	return SkeletalMesh && SkeletalMesh->GetResourceForRendering() 
+		? EThumbnailRenderFrequency::Realtime
+		: EThumbnailRenderFrequency::OnPropertyChange;
 }
 
 bool USkeletalMeshThumbnailRenderer::CanVisualizeAsset(UObject* Object)

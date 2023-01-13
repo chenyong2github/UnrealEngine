@@ -31,6 +31,6 @@ class UGeometryCacheThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 private:
 	FGeometryCacheThumbnailScene* ThumbnailScene;
 public:
-	virtual bool AllowsRealtimeThumbnails(UObject* Object) const override;
+	virtual EThumbnailRenderFrequency GetThumbnailRenderFrequency(UObject* Object) const override;
 
 };

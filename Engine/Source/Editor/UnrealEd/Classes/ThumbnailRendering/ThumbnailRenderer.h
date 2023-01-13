@@ -1,12 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- *
- * This is an abstract base class that is used to define the interface that
- * UnrealEd will use when rendering a given object's thumbnail. The editor
- * only calls the virtual rendering function.
- */
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -17,6 +10,24 @@
 class FCanvas;
 class FRenderTarget;
 
+/** Refresh frequency for thumbnail rendering, listed from most to least CPU demanding / frequent */
+enum class EThumbnailRenderFrequency : uint8
+{
+	/** Always render when requested, used for assets needing live animated thumbnails like materials */
+	Realtime,
+	/** Render whenever a property has changed on request */
+	OnPropertyChange,
+	/** Render only on asset save */
+	OnAssetSave,
+	/** Render thumbnail only once */
+	Once,
+};
+
+/**
+ * This is an abstract base class that is used to define the interface that
+ * UnrealEd will use when rendering a given object's thumbnail. The editor
+ * only calls the virtual rendering function.
+ */
 UCLASS(abstract, MinimalAPI)
 class UThumbnailRenderer : public UObject
 {
@@ -78,9 +89,21 @@ public:
 	 *
 	 * @return True if the thumbnail needs to always be redrawn, false if it can be just drawn once and then reused.
 	 */
+	UE_DEPRECATED(5.2, "Please override GetThumbnailRenderFrequency instead, AllowsRealtimeThumbnails is not used.")
 	virtual bool AllowsRealtimeThumbnails(UObject* Object) const { return true; }
 
-
+	/**
+	 * Override this method to control the render frequency for thumbnails in your editor
+	 * Generally speaking you should use Realtime if you want an animated thumbnail, but if not it is expensive to use (per-frame draws)
+	 * If not using realtime, the next best default is OnAssetSave, which updates the thumbnail only save.
+	 * Remaining types are not suggested unless you have specific asset thumbnail update needs.
+	 * 
+	 * @TODO: The current default of Realtime maintains legacy behavior, but is overally agressive / for frequent than needed for most.
+	 *
+	 * @return ThumbnailRenderer-specific frequency for thumbnail updates
+	 */
+	virtual EThumbnailRenderFrequency GetThumbnailRenderFrequency(UObject* Object) const { return EThumbnailRenderFrequency::Realtime; }
+	 
 protected:
 	/** Renders the thumbnail's view family. */
 	UNREALED_API static void RenderViewFamily(FCanvas* Canvas, class FSceneViewFamily* ViewFamily, class FSceneView* View);

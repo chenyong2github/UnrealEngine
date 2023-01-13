@@ -1180,19 +1180,20 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 			if (RenderInfo != nullptr && RenderInfo->Renderer != nullptr)
 			{
 				FThumbnailInfo_RenderThread ThumbInfo = ThumbnailInfo.Get();
-				ENQUEUE_RENDER_COMMAND(SyncSlateTextureCommand)(
-					[ThumbInfo](FRHICommandListImmediate& RHICmdList)
-				{
-					if (ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
-					{
-						ThumbInfo.ThumbnailTexture->ClearTextureData();
-						ThumbInfo.ThumbnailTexture->ReleaseDynamicRHI();
-						ThumbInfo.ThumbnailTexture->SetRHIRef(ThumbInfo.ThumbnailRenderTarget->GetTextureRHI(), ThumbInfo.Width, ThumbInfo.Height);
-					}
-				});
 
-				if (ThumbnailInfo->LastUpdateTime <= 0.0f || RenderInfo->Renderer->AllowsRealtimeThumbnails(Asset))
+				auto EnqueueThumbnailRender = [Asset, ThumbInfo, ThumbnailInfo]()
 				{
+					ENQUEUE_RENDER_COMMAND(SyncSlateTextureCommand)(
+						[ThumbInfo](FRHICommandListImmediate& RHICmdList)
+						{
+							if (ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
+							{
+								ThumbInfo.ThumbnailTexture->ClearTextureData();
+								ThumbInfo.ThumbnailTexture->ReleaseDynamicRHI();
+								ThumbInfo.ThumbnailTexture->SetRHIRef(ThumbInfo.ThumbnailRenderTarget->GetTextureRHI(), ThumbInfo.Width, ThumbInfo.Height);
+							}
+						});
+
 					//@todo: this should be done on the GPU only but it is not supported by thumbnail tools yet
 					ThumbnailTools::RenderThumbnail(
 						Asset,
@@ -1201,9 +1202,41 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 						ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush,
 						ThumbnailInfo->ThumbnailRenderTarget
 					);
-				}
+				};
 
-				return true;
+				EThumbnailRenderFrequency ThumbnailRenderFrequency = RenderInfo->Renderer->GetThumbnailRenderFrequency(Asset);
+
+				switch (ThumbnailRenderFrequency)
+				{
+					case EThumbnailRenderFrequency::Realtime:
+					{
+						EnqueueThumbnailRender();
+						return true;
+					}
+					case EThumbnailRenderFrequency::OnPropertyChange:
+					{
+						if (ThumbnailInfo->LastUpdateTime <= 0.0f)
+						{
+							EnqueueThumbnailRender();
+							return true;
+						}
+						break;
+					}
+					case EThumbnailRenderFrequency::OnAssetSave:
+					{
+						// OnAssetSave is default behavior below, so nohing to do
+						break;
+					}
+					case EThumbnailRenderFrequency::Once:
+					{
+						// Eagerly return if we aren't interested in cached thumbnails
+						return true;
+					}
+					default:
+					{
+						break;
+					}
+				}
 			}
 		}
 	}
