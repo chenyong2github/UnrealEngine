@@ -88,6 +88,9 @@ public:
 	/** Return float clamp in [0,MaxF16Float] , no negatives or infinites or nans returned **/
 	FFloat16 GetClampedNonNegativeAndFinite() const;
 	
+	/** Return float clamp in [-MaxF16Float,MaxF16Float] , no infinites or nans returned **/
+	FFloat16 GetClampedFinite() const;
+
 	/** Convert from Fp16 to Fp32. */
 	float GetFloat() const;
 
@@ -247,5 +250,36 @@ FORCEINLINE FFloat16 FFloat16::GetClampedNonNegativeAndFinite() const
 	else // NaNs or anything negative turns into 0
 		ReturnValue.Encoded = 0;
 
+	return ReturnValue;
+}
+
+
+/** Return float clamp in [-MaxF16Float,MaxF16Float] , no infinites or nans returned **/
+FORCEINLINE FFloat16 FFloat16::GetClampedFinite() const
+{	
+	FFloat16 ReturnValue;
+
+	if ( (Encoded&0x7c00) == 0x7c00 )
+	{
+		// inf or nan
+		if ( Encoded == 0x7C00 ) //+inf
+		{
+			ReturnValue.Encoded = 0x7bff; // max finite
+		}
+		else if ( Encoded == 0xFC00 ) //-inf
+		{
+			ReturnValue.Encoded = 0xfbff; // max finite negative
+		}
+		else
+		{
+			// nan
+			ReturnValue.Encoded = 0;
+		}
+	}
+	else
+	{
+		ReturnValue.Encoded = Encoded;
+	}
+	
 	return ReturnValue;
 }
