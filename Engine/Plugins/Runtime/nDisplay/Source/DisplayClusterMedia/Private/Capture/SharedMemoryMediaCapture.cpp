@@ -31,12 +31,12 @@ bool USharedMemoryMediaCapture::InitializeCapture()
 	{
 		const ERHIInterfaceType RhiInterfaceType = GDynamicRHI->GetInterfaceType();
 
-		PlatformData = FSharedMemoryMediaPlatform::CreateInstanceForRhi(RhiInterfaceType);
+		PlatformData = FSharedMemoryMediaPlatformFactory::Get()->CreateInstanceForRhi(RhiInterfaceType);
 
 		if (!PlatformData.IsValid())
 		{
 			UE_LOG(LogDisplayClusterMedia, Error, TEXT("Unfortunately, SharedMemoryMedia doesn't support the current RHI type '%s'"),
-				*FSharedMemoryMediaPlatform::GetRhiTypeString(RhiInterfaceType));
+				*FSharedMemoryMediaPlatformFactory::GetRhiTypeString(RhiInterfaceType));
 
 			return false;
 		}

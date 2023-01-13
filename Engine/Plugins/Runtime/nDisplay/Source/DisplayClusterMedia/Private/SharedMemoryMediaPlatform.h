@@ -12,26 +12,8 @@
  */
 class FSharedMemoryMediaPlatform
 {
-public:
-
-	/** This is the type definition of the rhi platform factory function that each rhi platfom implementation can register with.  */
-	typedef TSharedPtr<FSharedMemoryMediaPlatform>(*CreateSharedMemoryMediaPlatform)();
 
 public:
-
-	/** TMap of the collection of registered rhi platform factory functions */
-	static TMap<ERHIInterfaceType, CreateSharedMemoryMediaPlatform> PlatformCreators;
-
-public:
-
-	/** Helper function to get a stringified ERHIInterfaceType */
-	static FString GetRhiTypeString(const ERHIInterfaceType RhiType);
-
-	/** Rhi platform implementations call this function to register their factory creation function */
-	static bool RegisterPlatformForRhi(ERHIInterfaceType RhiType, CreateSharedMemoryMediaPlatform PlatformCreator);
-
-	/** This factory function will create an instance of the rhi platform specific implementation, if it has been registered. */
-	static TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> CreateInstanceForRhi(ERHIInterfaceType RhiType);
 
 	/** Creates a cross gpu texture */
 	virtual FTextureRHIRef CreateSharedCrossGpuTexture(EPixelFormat Format, int32 Width, int32 Height, const FGuid& Guid, uint32 BufferIdx)
@@ -47,6 +29,32 @@ public:
 
 	/** Release any platform specific resources related to the indexed texture */
 	virtual void ReleaseSharedCrossGpuTexture(uint32 BufferIdx) {};
-
 };
 
+/** Factory of registered FSharedMemoryMediaPlatform RHI implementations. Use RegisterPlatformForRhi to register them. */
+class FSharedMemoryMediaPlatformFactory
+{
+public:
+
+	/** This is the type definition of the rhi platform factory function that each rhi platfom implementation can register with.  */
+	typedef TSharedPtr<FSharedMemoryMediaPlatform>(*CreateSharedMemoryMediaPlatform)();
+
+public:
+
+	/** Rhi platform implementations call this function to register their factory creation function */
+	bool RegisterPlatformForRhi(ERHIInterfaceType RhiType, CreateSharedMemoryMediaPlatform PlatformCreator);
+
+	/** This factory function will create an instance of the rhi platform specific implementation, if it has been registered. */
+	TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> CreateInstanceForRhi(ERHIInterfaceType RhiType);
+
+	/** Gets the singleton instance of this factory */
+	static FSharedMemoryMediaPlatformFactory* Get();
+
+	/** Helper function to get a stringified ERHIInterfaceType */
+	static FString GetRhiTypeString(const ERHIInterfaceType RhiType);
+
+private:
+
+	/** TMap of the collection of registered rhi platform factory functions */
+	TMap<ERHIInterfaceType, CreateSharedMemoryMediaPlatform> PlatformCreators;
+};

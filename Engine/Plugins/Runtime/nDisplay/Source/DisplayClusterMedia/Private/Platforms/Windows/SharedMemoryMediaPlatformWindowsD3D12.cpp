@@ -8,7 +8,7 @@
 
 
 // This should run when the module starts and register the creation function for this rhi platform.
-bool FSharedMemoryMediaPlatformWindowsD3D12::bRegistered = FSharedMemoryMediaPlatform::RegisterPlatformForRhi(
+bool FSharedMemoryMediaPlatformWindowsD3D12::bRegistered = FSharedMemoryMediaPlatformFactory::Get()->RegisterPlatformForRhi(
 	ERHIInterfaceType::D3D12, &FSharedMemoryMediaPlatformWindowsD3D12::CreateInstance);
 
 TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> FSharedMemoryMediaPlatformWindowsD3D12::CreateInstance()

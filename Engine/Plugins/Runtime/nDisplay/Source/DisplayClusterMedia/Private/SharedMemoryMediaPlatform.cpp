@@ -2,9 +2,7 @@
 
 #include "SharedMemoryMediaPlatform.h"
 
-TMap<ERHIInterfaceType, FSharedMemoryMediaPlatform::CreateSharedMemoryMediaPlatform> FSharedMemoryMediaPlatform::PlatformCreators;
-
-FString FSharedMemoryMediaPlatform::GetRhiTypeString(const ERHIInterfaceType RhiType)
+FString FSharedMemoryMediaPlatformFactory::GetRhiTypeString(const ERHIInterfaceType RhiType)
 {
 	static TMap<ERHIInterfaceType, FString> Rhis;
 
@@ -25,13 +23,13 @@ FString FSharedMemoryMediaPlatform::GetRhiTypeString(const ERHIInterfaceType Rhi
 	return RhiString ? *RhiString : TEXT("Unknown");
 }
 
-bool FSharedMemoryMediaPlatform::RegisterPlatformForRhi(ERHIInterfaceType RhiType, CreateSharedMemoryMediaPlatform PlatformCreator)
+bool FSharedMemoryMediaPlatformFactory::RegisterPlatformForRhi(ERHIInterfaceType RhiType, CreateSharedMemoryMediaPlatform PlatformCreator)
 {
 	PlatformCreators.Add(RhiType, PlatformCreator);
 	return true;
 }
 
-TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> FSharedMemoryMediaPlatform::CreateInstanceForRhi(ERHIInterfaceType RhiType)
+TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> FSharedMemoryMediaPlatformFactory::CreateInstanceForRhi(ERHIInterfaceType RhiType)
 {
 	if (const CreateSharedMemoryMediaPlatform* Creator = PlatformCreators.Find(RhiType))
 	{
@@ -40,4 +38,11 @@ TSharedPtr<FSharedMemoryMediaPlatform, ESPMode::ThreadSafe> FSharedMemoryMediaPl
 
 	return nullptr;
 }
+
+FSharedMemoryMediaPlatformFactory* FSharedMemoryMediaPlatformFactory::Get()
+{
+	static FSharedMemoryMediaPlatformFactory Instance;
+	return &Instance;
+}
+
 
