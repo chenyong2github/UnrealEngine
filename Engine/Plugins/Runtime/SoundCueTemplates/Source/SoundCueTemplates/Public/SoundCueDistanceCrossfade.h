@@ -5,13 +5,13 @@
 #include "SoundCueTemplate.h"
 #include "Sound/SoundNodeDistanceCrossFade.h"
 
-class FPropertyEditorModule;
-
 #if WITH_EDITOR
 #include "IDetailCustomization.h"
 #endif // WITH_EDITOR
 
 #include "SoundCueDistanceCrossfade.generated.h"
+
+class FPropertyEditorModule;
 
 // ========================================================================
 // USoundCueDistanceCrossfade

@@ -4,15 +4,14 @@
 
 #include "SoundCueTemplate.h"
 
-class FPropertyEditorModule;
-struct FSoundCueTemplateQualitySettings;
-
 #if WITH_EDITOR
 #include "IDetailCustomization.h"
 #endif // WITH_EDITOR
 
 #include "SoundCueContainer.generated.h"
 
+class FPropertyEditorModule;
+struct FSoundCueTemplateQualitySettings;
 
 // ========================================================================
 // USoundCueContainer

@@ -4,9 +4,6 @@
 
 #include "Misc/AutomationTest.h"
 
-class FPreviewScene;
-class UDataSourceFilter;
-
 #if WITH_AUTOMATION_TESTS
 #include "Engine/World.h" // IWYU pragma: keep
 #include "DataSourceFilterSet.h"
@@ -14,6 +11,9 @@ class UDataSourceFilter;
 #include "UObject/StrongObjectPtr.h"
 
 class FSourceFilterManager;
+class FPreviewScene;
+class UDataSourceFilter;
+
 
 /** Base class for setting up functional Trace Source Filtering tests */
 class SOURCEFILTERINGTRACE_API FTraceSourceFilteringTestBase : public FAutomationTestBase
