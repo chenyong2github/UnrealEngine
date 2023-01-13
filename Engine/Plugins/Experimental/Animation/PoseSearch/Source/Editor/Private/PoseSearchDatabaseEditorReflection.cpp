@@ -27,7 +27,7 @@ void UPoseSearchDatabaseSequenceReflection::PostEditChangeProperty(struct FPrope
 		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 		if (IsValid(Database))
 		{
-			const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
+			FInstancedStruct& DatabaseAsset = Database->GetMutableAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
 			if (FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetMutablePtr<FPoseSearchDatabaseSequence>())
 			{
 				*DatabaseSequence = Sequence;
@@ -49,7 +49,7 @@ void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(struct FPro
 		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 		if (IsValid(Database))
 		{
-			const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
+			FInstancedStruct& DatabaseAsset = Database->GetMutableAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
 			if (FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetMutablePtr<FPoseSearchDatabaseBlendSpace>())
 			{
 				*DatabaseBlendSpace = BlendSpace;
@@ -71,7 +71,7 @@ void UPoseSearchDatabaseAnimCompositeReflection::PostEditChangeProperty(struct F
 		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 		if (IsValid(Database))
 		{
-			const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
+			FInstancedStruct& DatabaseAsset = Database->GetMutableAnimationAssetStruct(WeakAssetTreeNode.Pin()->SourceAssetIdx);
 			if (FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetMutablePtr<FPoseSearchDatabaseAnimComposite>())
 			{
 				*DatabaseAnimComposite = AnimComposite;

@@ -813,6 +813,17 @@ const FInstancedStruct& UPoseSearchDatabase::GetAnimationAssetStruct(const FPose
 	return GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
 }
 
+FInstancedStruct& UPoseSearchDatabase::GetMutableAnimationAssetStruct(int32 AnimationAssetIndex)
+{
+	check(AnimationAssets.IsValidIndex(AnimationAssetIndex));
+	return AnimationAssets[AnimationAssetIndex];
+}
+
+FInstancedStruct& UPoseSearchDatabase::GetMutableAnimationAssetStruct(const FPoseSearchIndexAsset& SearchIndexAsset)
+{
+	return GetMutableAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
+}
+
 const FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(int32 AnimationAssetIndex) const
 {
 	if (AnimationAssets.IsValidIndex(AnimationAssetIndex))

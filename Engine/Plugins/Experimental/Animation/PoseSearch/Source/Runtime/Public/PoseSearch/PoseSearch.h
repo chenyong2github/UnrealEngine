@@ -1167,6 +1167,8 @@ public:
 
 	const FInstancedStruct& GetAnimationAssetStruct(int32 AnimationAssetIndex) const;
 	const FInstancedStruct& GetAnimationAssetStruct(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	FInstancedStruct& GetMutableAnimationAssetStruct(int32 AnimationAssetIndex);
+	FInstancedStruct& GetMutableAnimationAssetStruct(const FPoseSearchIndexAsset& SearchIndexAsset);
 	const FPoseSearchDatabaseAnimationAssetBase* GetAnimationAssetBase(int32 AnimationAssetIndex) const;
 	const FPoseSearchDatabaseAnimationAssetBase* GetAnimationAssetBase(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	FPoseSearchDatabaseAnimationAssetBase* GetMutableAnimationAssetBase(int32 AnimationAssetIndex);
