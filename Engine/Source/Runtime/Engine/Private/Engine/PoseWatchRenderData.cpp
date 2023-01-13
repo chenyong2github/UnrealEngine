@@ -29,11 +29,15 @@ void FAnimNodePoseWatch::CopyPoseWatchData(const FReferenceSkeleton& RefSkeleton
 	ParentIndices.Empty();
 	ViewportMaskAllowedList.Empty();
 
+	ParentIndices.AddUninitialized(RefSkeleton.GetNum());
+	for (uint16 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+	{
+		ParentIndices[BoneIndex] = RefSkeleton.GetParentIndex(BoneIndex);
+	}
+
 	const UBlendProfile* Mask = PoseWatchPoseElement->ViewportMask;
 	for (const FBoneIndexType& BoneIndex : RequiredBones)
 	{
-		ParentIndices.Add(RefSkeleton.GetParentIndex(BoneIndex));
-
 		if (Mask)
 		{
 			const FName& BoneName = RefSkeleton.GetBoneName(BoneIndex);
@@ -79,12 +83,12 @@ FVector FAnimNodePoseWatch::GetViewportOffset() const
 	return ViewportOffset;
 }
 
-TArray<int32> FAnimNodePoseWatch::GetViewportAllowList() const
+const TArray<int32>& FAnimNodePoseWatch::GetViewportAllowList() const
 { 
 	return ViewportMaskAllowedList;
 }
 
-TArray<int32> FAnimNodePoseWatch::GetParentIndices() const
+const TArray<int32>& FAnimNodePoseWatch::GetParentIndices() const
 { 
 	return ParentIndices; 
 }

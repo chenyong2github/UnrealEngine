@@ -50,9 +50,9 @@ public:
 
 	FVector GetViewportOffset() const;
 
-	TArray<int32> GetViewportAllowList() const;
+	const TArray<int32>& GetViewportAllowList() const;
 
-	TArray<int32> GetParentIndices() const;
+	const TArray<int32>& GetParentIndices() const;
 
 private:
 	FTransform WorldTransform;

@@ -186,30 +186,28 @@ void DrawBonesFromPoseWatch(
 	const FTransform WorldTransform = bUseWorldTransform ? PoseWatch.GetWorldTransform() : FTransform::Identity;
 	const FVector RelativeOffset = WorldTransform.GetRotation().RotateVector(PoseWatch.GetViewportOffset());
 
+	const TArray<int32>& ViewportMaskAllowList = PoseWatch.GetViewportAllowList();
+	const TArray<int32>& ParentIndices = PoseWatch.GetParentIndices();
+
 	TArray<FTransform> UseWorldTransforms;
-	UseWorldTransforms.AddDefaulted(InRequiredBones.Num());
+	UseWorldTransforms.AddDefaulted(ParentIndices.Num());
 	
 	TArray<FBoneIndexType> UseRequiredBones;
 	UseRequiredBones.Reserve(InRequiredBones.Num());
 
-	TArray<int32> ViewportMaskAllowList = PoseWatch.GetViewportAllowList();
-	TArray<int32> ParentIndices = PoseWatch.GetParentIndices();
-	
-	for (int32 Index = 0; Index < InRequiredBones.Num(); ++Index)
+	for (const FBoneIndexType& BoneIndex : InRequiredBones)
 	{
-		const FBoneIndexType& BoneIndex = InRequiredBones[Index];
-
 		check(ParentIndices.IsValidIndex(BoneIndex));
 		const int32 ParentIndex = ParentIndices[BoneIndex];
 
 		if (ParentIndex == INDEX_NONE)
 		{
-			UseWorldTransforms[BoneIndex] = InBoneTransforms[Index] * WorldTransform;
+			UseWorldTransforms[BoneIndex] = InBoneTransforms[BoneIndex] * WorldTransform;
 			UseWorldTransforms[BoneIndex].AddToTranslation(RelativeOffset);
 		}
 		else
 		{
-			UseWorldTransforms[BoneIndex] = InBoneTransforms[Index] * UseWorldTransforms[ParentIndex];
+			UseWorldTransforms[BoneIndex] = InBoneTransforms[BoneIndex] * UseWorldTransforms[ParentIndex];
 		}
 
 		if (!ViewportMaskAllowList.Contains(BoneIndex))
