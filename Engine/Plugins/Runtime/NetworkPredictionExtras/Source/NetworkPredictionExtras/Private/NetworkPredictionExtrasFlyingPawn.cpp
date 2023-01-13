@@ -257,6 +257,9 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 			Cmd = FFlyingMovementInputCmd();
 		}
 
+		CachedMoveInput = FVector3f::ZeroVector;
+		CachedLookInput = FVector2D::ZeroVector;
+
 		// We don't have a local controller so we can't run the code below. This is ok. Simulated proxies will just use previous input when extrapolating
 		return;
 	}
@@ -416,10 +419,6 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 			break;
 		}
 	}
-				
-
-	CachedMoveInput = FVector3f::ZeroVector;
-	CachedLookInput = FVector2D::ZeroVector;
 }
 
 // ------------------------------------------------------------------------

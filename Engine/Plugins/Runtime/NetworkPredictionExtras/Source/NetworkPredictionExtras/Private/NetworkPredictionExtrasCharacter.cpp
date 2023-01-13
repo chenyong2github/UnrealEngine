@@ -258,6 +258,9 @@ void ANetworkPredictionExtrasCharacter::ProduceInput(const int32 DeltaMS, FChara
 			Cmd = FCharacterMotionInputCmd();
 		}
 
+		CachedMoveInput = FVector::ZeroVector;
+		CachedLookInput = FVector2D::ZeroVector;
+
 		// We don't have a local controller so we can't run the code below. This is ok. Simulated proxies will just use previous input when extrapolating
 		return;
 	}
@@ -418,11 +421,7 @@ void ANetworkPredictionExtrasCharacter::ProduceInput(const int32 DeltaMS, FChara
 			}
 			break;
 		}
-	}
-				
-
-	CachedMoveInput = FVector::ZeroVector;
-	CachedLookInput = FVector2D::ZeroVector;
+	}				
 }
 
 // ------------------------------------------------------------------------
