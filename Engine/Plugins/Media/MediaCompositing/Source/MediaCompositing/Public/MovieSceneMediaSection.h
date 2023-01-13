@@ -65,6 +65,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "!bHasMediaPlayerProxy", HideEditConditionToggle = true, EditConditionHides), AdvancedDisplay)
 	FMediaSourceCacheSettings CacheSettings;
 
+	/** If using an object like a MediaPlate, then this determines which texture to use for crossfading purposes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bHasMediaPlayerProxy", HideEditConditionToggle = true, EditConditionHides), AdvancedDisplay)
+	int32 TextureIndex;
+
 	/** True if the object bound to this track has a media player proxy. */
 	UPROPERTY(Transient)
 	bool bHasMediaPlayerProxy;

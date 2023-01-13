@@ -296,6 +296,8 @@ FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSce
 	{
 		Params.SectionEndFrame = InSection.GetRange().GetUpperBoundValue();
 	}
+
+	Params.ProxyTextureIndex = InSection.TextureIndex;
 }
 
 
@@ -388,7 +390,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 
 		// Add section data.
 		SectionData = &PersistentData.AddSectionData<FMovieSceneMediaData>();
-		SectionData->Setup(MediaPlayer, PlayerProxy);
+		SectionData->Setup(MediaPlayer, PlayerProxy, Params.ProxyTextureIndex);
 	}
 
 	if (!ensure(SectionData != nullptr))

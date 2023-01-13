@@ -27,6 +27,7 @@ UMovieSceneMediaSection::UMovieSceneMediaSection(const FObjectInitializer& Objec
 	: Super(ObjectInitializer)
 	, MediaSourceProxyIndex(0)
 	, bLooping(true)
+	, TextureIndex(0)
 	, bHasMediaPlayerProxy(false)
 {
 #if WITH_EDITORONLY_DATA

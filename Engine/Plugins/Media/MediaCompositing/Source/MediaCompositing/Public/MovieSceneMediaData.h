@@ -46,7 +46,7 @@ public:
 	void SeekOnOpen(FTimespan Time);
 
 	/** Set up this persistent data object. */
-	void Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy);
+	void Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 ProxyTextureIndex);
 
 	/**
 	 * Called from FMovieSceneMediaSectionTemplate::Initialize.
@@ -60,14 +60,14 @@ public:
 
 private:
 	/**
-	 * Sets up our proxy media texture.
+	 * Does the work needed so we can use our proxy media texture.
 	 */
-	void AllocProxyMediaTexture();
+	void StartUsingProxyMediaTexture();
 
 	/**
-	 * Removes our proxy media texture.
+	 * Does the work needed when we no longer use our proxy media texture.
 	 */
-	void DeallocProxyMediaTexture();
+	void StopUsingProxyMediaTexture();
 
 	/** Callback for media player events. */
 	void HandleMediaPlayerEvent(EMediaEvent Event);

@@ -59,19 +59,14 @@ public:
 	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const = 0;
 
 	/**
-	 * Get a media texture that we can assign a media player to.
-	 */
-	virtual UMediaTexture* ProxyAllocMediaTexture() = 0;
-
-	/**
 	 * Close the player.
 	 */
 	virtual void ProxyClose() = 0;
 
 	/**
-	 * Return a media texture received from ProxyAllocMediaTexture.
+	 * Get a media texture that we can assign a media player to.
 	 */
-	virtual void ProxyDeallocMediaTexture(UMediaTexture* InMediaTexture) = 0;
+	virtual UMediaTexture* ProxyGetMediaTexture(int32 TextureIndex) = 0;
 
 	/**
 	 * Ask if a specific track in the playlist is playing.

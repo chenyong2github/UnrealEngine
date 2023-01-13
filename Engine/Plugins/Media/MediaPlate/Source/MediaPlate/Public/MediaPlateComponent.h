@@ -242,9 +242,8 @@ public:
 	virtual bool IsExternalControlAllowed() override;
 	virtual const FMediaSourceCacheSettings& GetCacheSettings() const override;
 	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const override;
-	virtual UMediaTexture* ProxyAllocMediaTexture() override;
 	virtual void ProxyClose() override;
-	virtual void ProxyDeallocMediaTexture(UMediaTexture* MediaTexture) override;
+	virtual UMediaTexture* ProxyGetMediaTexture(int32 TextureIndex) override;
 	virtual bool ProxyIsPlaylistIndexPlaying(int32 Index) const override;
 	virtual void ProxyOpenPlaylistIndex(int32 Index) override;
 	virtual void ProxySetPlayOnOpen(bool bInPlayOnOpen) override;

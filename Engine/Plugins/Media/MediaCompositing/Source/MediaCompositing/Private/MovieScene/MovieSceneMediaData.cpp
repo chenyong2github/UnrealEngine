@@ -46,7 +46,7 @@ void FMovieSceneMediaData::SeekOnOpen(FTimespan Time)
 }
 
 
-void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy)
+void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy, int32 ProxyTextureIndex)
 {
 	// Ensure we don't already have a media player set. Setup should only be called once
 	check(!MediaPlayer);
@@ -70,7 +70,11 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InP
 	if ((InPlayerProxy != nullptr) && (InPlayerProxy->Implements<UMediaPlayerProxyInterface>()))
 	{
 		PlayerProxy = InPlayerProxy;
-		
+		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+		if (PlayerProxyInterface != nullptr)
+		{
+			ProxyMediaTexture = PlayerProxyInterface->ProxyGetMediaTexture(ProxyTextureIndex);
+		}
 	}
 	else
 	{
@@ -82,32 +86,23 @@ void FMovieSceneMediaData::Initialize(bool bIsEvaluating)
 {
 	if (bIsEvaluating)
 	{
-		AllocProxyMediaTexture();
+		StartUsingProxyMediaTexture();
 	}
 	else
 	{
-		DeallocProxyMediaTexture();
+		StopUsingProxyMediaTexture();
 	}
 }
 
 void FMovieSceneMediaData::TearDown()
 {
-	DeallocProxyMediaTexture();
+	StopUsingProxyMediaTexture();
 }
 
-void FMovieSceneMediaData::AllocProxyMediaTexture()
+void FMovieSceneMediaData::StartUsingProxyMediaTexture()
 {
 	if (PlayerProxy != nullptr)
 	{
-		if (ProxyMediaTexture == nullptr)
-		{
-			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
-			if (PlayerProxyInterface != nullptr)
-			{
-				ProxyMediaTexture = PlayerProxyInterface->ProxyAllocMediaTexture();
-			}
-		}
-
 		if (ProxyMediaTexture != nullptr)
 		{
 			ProxyMediaTexture->SetMediaPlayer(MediaPlayer);
@@ -115,7 +110,7 @@ void FMovieSceneMediaData::AllocProxyMediaTexture()
 	}
 }
 
-void FMovieSceneMediaData::DeallocProxyMediaTexture()
+void FMovieSceneMediaData::StopUsingProxyMediaTexture()
 {
 	if (PlayerProxy != nullptr)
 	{
@@ -125,13 +120,6 @@ void FMovieSceneMediaData::DeallocProxyMediaTexture()
 			{
 				ProxyMediaTexture->SetMediaPlayer(nullptr);
 			}
-		
-			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
-			if (PlayerProxyInterface != nullptr)
-			{
-				PlayerProxyInterface->ProxyDeallocMediaTexture(ProxyMediaTexture.Get());
-			}
-			ProxyMediaTexture = nullptr;
 		}
 	}
 }
