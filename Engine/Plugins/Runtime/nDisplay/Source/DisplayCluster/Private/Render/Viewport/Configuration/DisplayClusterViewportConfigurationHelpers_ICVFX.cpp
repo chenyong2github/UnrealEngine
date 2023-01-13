@@ -565,20 +565,18 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 	// Set media related configuration (runtime only for now)
 	if (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		const FDisplayClusterConfigurationMedia& MediaSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
+		const FDisplayClusterConfigurationMediaICVFX& MediaICVFXSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
 
-		const FString ThisClusterNodeId = DstViewport.GetClusterNodeId();
-		const bool bThisNodeSharesMedia = MediaSettings.IsMediaSharingUsed() && MediaSettings.MediaSharingNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
+		if (MediaICVFXSettings.bEnable)
+		{
+			const FString ThisClusterNodeId = DstViewport.GetClusterNodeId();
 
-		// Don't render the viewport if media input assigned
-		DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.IsMediaSharingUsed() ?
-			!bThisNodeSharesMedia :
-			!!MediaSettings.MediaSource;
+			// Don't render the viewport if media input assigned
+			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaICVFXSettings.IsMediaInputAssigned(ThisClusterNodeId);
 
-		// Mark this viewport is going to be captured by a capture device
-		DstViewport.RenderSettings.bIsBeingCaptured = MediaSettings.IsMediaSharingUsed() ?
-			bThisNodeSharesMedia :
-			!!MediaSettings.MediaOutput;
+			// Mark this viewport is going to be captured by a capture device
+			DstViewport.RenderSettings.bIsBeingCaptured = MediaICVFXSettings.IsMediaOutputAssigned(ThisClusterNodeId);
+		}
 	}
 }
 

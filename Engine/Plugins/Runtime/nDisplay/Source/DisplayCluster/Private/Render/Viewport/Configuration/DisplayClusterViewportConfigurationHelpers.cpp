@@ -213,18 +213,14 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 	{
 		const FDisplayClusterConfigurationMedia& MediaSettings = InConfigurationViewport.RenderSettings.Media;
 
-		const FString ThisClusterNodeId = IDisplayCluster::Get().GetClusterMgr()->GetNodeId();
-		const bool bThisNodeSharesMedia = MediaSettings.IsMediaSharingUsed() && MediaSettings.MediaSharingNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
+		if (MediaSettings.bEnable)
+		{
+			// Don't render the viewport if media input assigned
+			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = !!MediaSettings.MediaSource;
 
-		// Don't render the viewport if media input assigned
-		DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.IsMediaSharingUsed() ?
-			!bThisNodeSharesMedia :
-			!!MediaSettings.MediaSource;
-
-		// Mark this viewport is going to be captured by a capture device
-		DstViewport.RenderSettings.bIsBeingCaptured = MediaSettings.IsMediaSharingUsed() ?
-			bThisNodeSharesMedia :
-			!!MediaSettings.MediaOutput;
+			// Mark this viewport is going to be captured by a capture device
+			DstViewport.RenderSettings.bIsBeingCaptured = !!MediaSettings.MediaOutput;
+		}
 	}
 
 	// FDisplayClusterConfigurationViewport_ICVFX property:
