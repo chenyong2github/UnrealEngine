@@ -186,6 +186,8 @@ $ bUseXGEController (Boolean): Whether the XGE controller worker and modules sho
 
 $ bIWYU (Boolean): Enables "include what you use" by default for modules in this target. Changes the default PCH mode for any module in this project to PCHUsageMode.UseExplicitOrSharedPCHs.
 
+$ bIWYUHeadersOnly (Boolean): Tells "include what you use" to only compile header files.
+
 $ bEnforceIWYU (Boolean): Enforce "include what you use" rules; warns if monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
 
 $ bPrecompile (Boolean): Make static libraries for all engine modules as intermediates for this target.
