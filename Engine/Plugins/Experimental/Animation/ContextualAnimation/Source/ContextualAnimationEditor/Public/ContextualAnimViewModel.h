@@ -15,7 +15,6 @@ class FContextualAnimPreviewScene;
 class UContextualAnimSceneAsset;
 class UContextualAnimManager;
 class UContextualAnimMovieSceneSequence;
-class UContextualAnimSceneInstance;
 class UMovieScene;
 class UMovieSceneTrack;
 class UMovieSceneSection;
@@ -78,7 +77,6 @@ public:
 	UMovieScene* GetMovieScene() const { return MovieScene; }
 	UContextualAnimMovieSceneSequence* GetMovieSceneSequence() const { return MovieSceneSequence; }
 	UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset; }
-	UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstance.Get(); }
 	UContextualAnimMovieSceneTrack* FindTrackByRole(const FName& Role) const;
 	TSharedPtr<IDetailsView> GetDetailsView() { return DetailsView; }
 
@@ -95,6 +93,8 @@ public:
 	void SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx);
 	int32 GetActiveAnimSetForSection(int32 SectionIdx) const;
 
+	void StartSimulateMode();
+	void StopSimulateMode();
 	void ToggleSimulateMode();
 	bool IsSimulateModeInactive()	const { return SimulateModeState == ESimulateModeState::Inactive; }
 	bool IsSimulateModePaused()		const { return SimulateModeState == ESimulateModeState::Paused; }
@@ -169,10 +169,6 @@ private:
 
 	/** Weak pointer to the PreviewScene */
 	TWeakPtr<FContextualAnimPreviewScene> PreviewScenePtr;
-
-	TObjectPtr<UContextualAnimManager> ContextualAnimManager;
-
-	TWeakObjectPtr<UContextualAnimSceneInstance> SceneInstance;
 
 	/** Copy of the bindings so we can access them even when simulation mode is not playing (and SceneInstance is not valid) */
 	FContextualAnimSceneBindings SceneBindings;
