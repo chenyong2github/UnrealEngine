@@ -12,6 +12,14 @@
 #include "GameplayPrediction.h"
 #include "GameplayCueInterface.generated.h"
 
+#if UE_WITH_IRIS
+struct FMinimalGameplayCueReplicationProxyForNetSerializer;
+namespace UE::Net
+{
+	class FMinimalGameplayCueReplicationProxyReplicationFragment;
+}
+#endif
+
 /** Interface for actors that wish to handle GameplayCue events from GameplayEffects. Native only because blueprints can't implement interfaces with native functions */
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UGameplayCueInterface: public UInterface
@@ -220,6 +228,10 @@ struct GAMEPLAYABILITIES_API FMinimalGameplayCueReplicationProxy
 	bool operator!=(const FMinimalGameplayCueReplicationProxy& Other) const { return !(*this == Other); }
 
 private:
+#if UE_WITH_IRIS
+	friend FMinimalGameplayCueReplicationProxyForNetSerializer;
+	friend UE::Net::FMinimalGameplayCueReplicationProxyReplicationFragment;
+#endif
 
 	enum { NumInlineTags = 16 };
 
