@@ -813,7 +813,7 @@ const FInstancedStruct& UPoseSearchDatabase::GetAnimationAssetStruct(const FPose
 	return GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
 }
 
-FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(int32 AnimationAssetIndex) const
+const FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(int32 AnimationAssetIndex) const
 {
 	if (AnimationAssets.IsValidIndex(AnimationAssetIndex))
 	{
@@ -823,9 +823,24 @@ FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBas
 	return nullptr;
 }
 
-FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(const FPoseSearchIndexAsset& SearchIndexAsset) const
+const FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetAnimationAssetBase(const FPoseSearchIndexAsset& SearchIndexAsset) const
 {
 	return GetAnimationAssetBase(SearchIndexAsset.SourceAssetIdx);
+}
+
+FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetMutableAnimationAssetBase(int32 AnimationAssetIndex)
+{
+	if (AnimationAssets.IsValidIndex(AnimationAssetIndex))
+	{
+		return AnimationAssets[AnimationAssetIndex].GetMutablePtr<FPoseSearchDatabaseAnimationAssetBase>();
+	}
+
+	return nullptr;
+}
+
+FPoseSearchDatabaseAnimationAssetBase* UPoseSearchDatabase::GetMutableAnimationAssetBase(const FPoseSearchIndexAsset& SearchIndexAsset)
+{
+	return GetMutableAnimationAssetBase(SearchIndexAsset.SourceAssetIdx);
 }
 
 const bool UPoseSearchDatabase::IsSourceAssetLooping(const FPoseSearchIndexAsset& SearchIndexAsset) const
