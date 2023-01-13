@@ -15,6 +15,8 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "SmartObjectContainerRenderingComponent.h"
+#include "LevelUtils.h"
+#include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectPersistentCollection)
 
@@ -36,13 +38,26 @@ namespace UE::SmartObjects
 
 struct FSmartObjectHandleFactory
 {
-	static FSmartObjectHandle CreateSOHandle(const UWorld& World, const FSoftObjectPath ObjectPath)
+	static FSmartObjectHandle CreateSOHandle(const UWorld& World, const USmartObjectComponent& Component)
 	{
+		const FSoftObjectPath ObjectPath = &Component;
 		FString AssetPathString = ObjectPath.GetAssetPathString();
+
+		bool bIsStreamedByWorldPartition = false;
+		if (World.IsPartitionedWorld())
+		{
+			if (const AActor* OwnerActor = Component.GetOwner())
+			{
+				if (ULevelStreaming* BaseLevelStreaming = FLevelUtils::FindStreamingLevel(OwnerActor->GetLevel()))
+				{
+					bIsStreamedByWorldPartition = BaseLevelStreaming->IsA<UWorldPartitionLevelStreamingDynamic>();
+				}
+			}
+		}
 
 		// We are not using asset path for partitioned world since they are not stable between editor and runtime.
 		// SubPathString should be enough since all actors are part of the main level.
-		if (World.IsPartitionedWorld())
+		if (bIsStreamedByWorldPartition)
 		{
 			AssetPathString.Reset();
 		}
@@ -233,12 +248,12 @@ FSmartObjectCollectionEntry* FSmartObjectContainer::AddSmartObject(USmartObjectC
 		return Entry;
 	}
 
-	const FSoftObjectPath SmartObjectPath = &SOComponent;
 	check(World);
-	const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, SmartObjectPath);
+	const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, SOComponent);
 
 	if (const FSoftObjectPath* ExistingSmartObjectPath = RegisteredIdToObjectMap.Find(Handle))
 	{
+		const FSoftObjectPath SmartObjectPath = &SOComponent;
 		ensureMsgf(*ExistingSmartObjectPath == SmartObjectPath, TEXT("There's already an entry for a given handle that points to a different SmartObject. New SmartObject %s, Existing one %s")
 			, *ExistingSmartObjectPath->ToString(), *SmartObjectPath.ToString());
 
@@ -644,11 +659,10 @@ void ASmartObjectPersistentCollection::AppendToCollection(const TConstArrayView<
 			{
 				Component->InvalidateRegisteredHandle();
 
-				const FSoftObjectPath SmartObjectPath = Component;
 				const USmartObjectDefinition* Definition = Component->GetDefinition();
 				check(Definition);
 
-				const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, SmartObjectPath);
+				const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, *Component);
 
 				const FSmartObjectCollectionEntry* Entry = SmartObjectContainer.AddSmartObjectInternal(Handle, *Definition, *Component);
 				check(Entry);
