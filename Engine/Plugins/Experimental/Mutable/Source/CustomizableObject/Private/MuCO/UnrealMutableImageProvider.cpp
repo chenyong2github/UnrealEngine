@@ -115,8 +115,7 @@ mu::EImageFormat GetMutablePixelFormat(EPixelFormat InTextureFormat)
 
 
 //-------------------------------------------------------------------------------------------------
-
-mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip )
+TTuple<FGraphEventRef, TFunction<void()>> FUnrealMutableImageProvider::GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void (mu::Ptr<mu::Image>)>& ResultCallback)
 {
 	// Thread: worker
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableImageProvider::GetImage);
@@ -125,7 +124,7 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 	mu::ImagePtr Image;
 
 	// Some data that may have to be copied from the GlobalExternalImages while it's locked
-	TUniquePtr<IBulkDataIORequest> IORequest;
+	IBulkDataIORequest* IORequest = nullptr;
 	const int32 LODs = 1;
 
 	EPixelFormat Format = EPixelFormat::PF_Unknown;
@@ -133,15 +132,25 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 
 	mu::EImageFormat MutImageFormat = mu::EImageFormat::IF_NONE;
 	int32 MutImageDataSize = 0;
-	
+
+	auto TrivialReturn = []() -> TTuple<FGraphEventRef, TFunction<void()>>
+	{
+		FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+		CompletionEvent->DispatchSubsequents();
+
+		return MakeTuple(CompletionEvent, []() -> void {});
+	};
+
 	{
 		FScopeLock Lock(&ExternalImagesLock);
 		// Inside this scope it's safe to access GlobalExternalImages
 
+
 		if (!GlobalExternalImages.Contains(id))
 		{
 			// Null case, no image was provided
-			return CreateDummy();
+			ResultCallback(CreateDummy());
+			return Invoke(TrivialReturn);
 		}
 
 		const FUnrealMutableImageInfo& ImageInfo = GlobalExternalImages[id];
@@ -149,7 +158,8 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 		if (ImageInfo.Image)
 		{
 			// Easy case where the image was directly provided
-			return ImageInfo.Image;
+			ResultCallback(ImageInfo.Image);
+			return Invoke(TrivialReturn);
 		}
 		else if (UTexture2D* TextureToLoad = ImageInfo.TextureToLoad)
 		{
@@ -170,7 +180,8 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 
 #if WITH_EDITOR
 			// In the editor the src data can be directly accessed
-			return ConvertTextureUnrealToMutable(TextureToLoad, MipIndex);
+			ResultCallback(ConvertTextureUnrealToMutable(TextureToLoad, MipIndex));
+			return Invoke(TrivialReturn);
 #else
 			// Texture format and the equivalent mutable format
 			Format = TextureToLoad->GetPlatformData()->PixelFormat;
@@ -180,7 +191,8 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 			if (MutImageFormat == mu::EImageFormat::IF_NONE)
 			{
 				UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. Unexpected image format. EImageFormat [%s]."), GetPixelFormatString(Format));
-				return CreateDummy();
+				ResultCallback(CreateDummy());
+				return Invoke(TrivialReturn);
 			}
 
 			int SizeX = TextureToLoad->GetSizeX() >> MipIndex;
@@ -201,13 +213,106 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 				UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. Bulk data size is different than the expected size. BulkData size [%d]. Mutable image data size [%d]."),
 					BulkDataSize, MutImageDataSize);
 
-				return CreateDummy();
+				ResultCallback(CreateDummy());
+				return Invoke(TrivialReturn);
 			}
 
 			// Create a streaming request if the data is not loaded or copy the mip data
 			if (!BulkData.IsBulkDataLoaded())
 			{
-				IORequest.Reset(BulkData.CreateStreamingRequest(EAsyncIOPriorityAndFlags::AIOP_High, nullptr, Image->GetData()));
+				FGraphEventRef IORequestCompletionEvent = FGraphEvent::CreateGraphEvent();
+
+				TFunction<void(bool, IBulkDataIORequest*)> IOCallback =
+					[
+						MutImageDataSize,
+						MutImageFormat,
+						Format,
+						Image,
+						BulkDataSize,	
+						ResultCallback, // Notice ResultCallback is captured by copy
+						IORequestCompletionEvent
+					](bool bWasCancelled, IBulkDataIORequest* IORequest)
+				{
+					ON_SCOPE_EXIT
+					{
+						if (IORequestCompletionEvent.IsValid())
+						{
+							IORequestCompletionEvent->DispatchSubsequents();
+						}
+					};
+					
+					// Should we do someting different than returning a dummy image if cancelled?
+					if (bWasCancelled)
+					{
+						ResultCallback(CreateDummy());
+						return;
+					}
+
+					uint8* Results = IORequest->GetReadResults(); // required?
+
+					if (Results && Image->GetDataSize() == (int32)IORequest->GetSize())
+					{
+						check(BulkDataSize == (int32)IORequest->GetSize());
+						check(Results == Image->GetData());
+
+						ResultCallback(Image);
+						return;
+					}
+
+					if (!Results)
+					{
+						UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. IO Request failed. Request results [%hhd]. Format: [%s]. MutableFormat: [%d]."),
+							(Results != nullptr),
+							GetPixelFormatString(Format),
+							(int32)MutImageFormat);
+					}
+					else if (MutImageDataSize != (int32)IORequest->GetSize())
+					{
+						UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. Requested size is different than the expected size. RequestSize: [%lld]. ExpectedSize: [%d]. Format: [%s]. MutableFormat: [%d]."),
+							IORequest->GetSize(),
+							Image->GetDataSize(),
+							GetPixelFormatString(Format),
+							(int32)MutImageFormat);
+					}
+					else
+					{
+						UE_LOG(LogMutable, Warning, TEXT("Failed to get external image."));
+					}
+
+					// Something failed when loading the bulk data, just return a dummy
+					ResultCallback(CreateDummy());
+				};
+			
+				// Is the resposability of the CreateStreamingRequest caller to delete the IORequest. 
+				// This can *not* be done in the IOCallback because it would cause a deadlock so it is deferred to the returned
+				// cleanup function. Another solution could be to spwan a new task that depends on the 
+				// IORequestComplitionEvent which deletes it.
+				IORequest = BulkData.CreateStreamingRequest(EAsyncIOPriorityAndFlags::AIOP_High, &IOCallback, Image->GetData());
+
+				if (IORequest)
+				{
+					// Make the lambda mutable and set the IORequest pointer to null when deleted so it is safer 
+					// agains multiple calls.
+					const auto DeleteIORequest = [IORequest]() mutable -> void
+					{
+						if (IORequest)
+						{
+							delete IORequest;
+						}
+						
+						IORequest = nullptr;
+					};
+
+					return MakeTuple(IORequestCompletionEvent, DeleteIORequest);
+
+				}
+				else
+				{
+					UE_LOG(LogMutable, Warning, TEXT("Failed to create an IORequest for a UTexture2D BulkData for an application-specific image parameter."));
+
+					ResultCallback(CreateDummy());
+					return Invoke(TrivialReturn);
+				}
 			}
 			else
 			{
@@ -219,12 +324,14 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 					FMemory::Memcpy(Image->GetData(), Data, BulkDataSize);
 
 					BulkData.Unlock();
-					return Image;
+					ResultCallback(Image);
+					return Invoke(TrivialReturn);
 				}
 				else
 				{
 					UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. Bulk data already locked or null."));
-					return CreateDummy();
+					ResultCallback(CreateDummy());
+					return Invoke(TrivialReturn);
 				}
 			}
 #endif
@@ -233,52 +340,83 @@ mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uin
 		{
 			// No UTexture2D was provided, cannot do anything, just provide a dummy texture
 			UE_LOG(LogMutable, Warning, TEXT("No UTexture2D was provided for an application-specific image parameter."));
-			return CreateDummy();
+			ResultCallback(CreateDummy());
+			return Invoke(TrivialReturn);
 		}
 	}
 
+	// Make sure the returned event is dispatched at some point for all code paths, 
+	// in this case returning Invoke(TrivialReturn) or through the IORequest callback.
+}
 
-	if (IORequest)
+
+// This should mantain parity with the descriptor of the images generated by GetImageAsync 
+mu::FImageDesc FUnrealMutableImageProvider::GetImageDesc(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) 
+{
+	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableImageProvider::GetImageDesc);
+
+	mu::FImageDesc Result;	
 	{
-		// It's OK to wait since this must run on the Mutable thread
-		bool bComplete = IORequest->WaitCompletion();
-		uint8* Results = IORequest->GetReadResults(); // required?
+		FScopeLock Lock(&ExternalImagesLock);
+		// Inside this scope it's safe to access GlobalExternalImages
 
-		if (bComplete && Results && Image->GetDataSize() == (int32)IORequest->GetSize())
+		if (!GlobalExternalImages.Contains(id))
 		{
-			check(BulkDataSize == (int32)IORequest->GetSize());
-			check(Results == Image->GetData());
-			return Image;
+			// Null case, no image was provided
+			return CreateDummyDesc();
 		}
 
-		if (!bComplete || !Results)
+		const FUnrealMutableImageInfo& ImageInfo = GlobalExternalImages[id];
+
+		if (ImageInfo.Image)
 		{
-			UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. IO Request failed. Request completed: [%hhd]. Request results [%hhd]. Format: [%s]. MutableFormat: [%d]."),
-				bComplete,
-				(Results != nullptr),
-				GetPixelFormatString(Format),
-				(int32)MutImageFormat);
+			// Easy case where the image was directly provided
+			Result = mu::FImageDesc(ImageInfo.Image->GetSize(), ImageInfo.Image->GetFormat(), ImageInfo.Image->GetLODCount());
 		}
-		else if (MutImageDataSize != (int32)IORequest->GetSize())
+		else if (UTexture2D* TextureToLoad = ImageInfo.TextureToLoad)
 		{
-			UE_LOG(LogMutable, Warning, TEXT("Failed to get external image. Requested size is different than the expected size. RequestSize: [%lld]. ExpectedSize: [%d]. Format: [%s]. MutableFormat: [%d]."),
-				IORequest->GetSize(),
-				Image->GetDataSize(),
-				GetPixelFormatString(Format),
-				(int32)MutImageFormat);
+			// It's safe to access TextureToLoad because ExternalImagesLock guarantees that the data in GlobalExternalImages is valid,
+			// not being modified by the game thread at the moment and the texture cannot be GCed because of the AddReferencedObjects
+			// in the FUnrealMutableImageProvider
+
+			uint8 MipIndex = MipmapsToSkip < TextureToLoad->GetNumMips() ? MipmapsToSkip : TextureToLoad->GetNumMips() - 1;
+
+			// Mips in the mip tail are inlined and can't be streamed, find the smallest mip available.
+			for (; MipIndex > 0; --MipIndex)
+			{
+				if (TextureToLoad->GetPlatformData()->Mips[MipIndex].BulkData.CanLoadFromDisk())
+				{
+					break;
+				}
+			}
+
+			// Texture format and the equivalent mutable format
+			const EPixelFormat Format = TextureToLoad->GetPlatformData()->PixelFormat;
+			const mu::EImageFormat MutableFormat = GetMutablePixelFormat(Format);
+
+			// Check if it's a format we support
+			if (MutableFormat == mu::EImageFormat::IF_NONE)
+			{
+				UE_LOG(LogMutable, Warning, TEXT("Failed to get external image descriptor. Unexpected image format. EImageFormat [%s]."), GetPixelFormatString(Format));
+				return CreateDummyDesc();
+			}
+
+			const mu::FImageSize ImageSize = mu::FImageSize(
+					TextureToLoad->GetSizeX() >> MipIndex,
+					TextureToLoad->GetSizeY() >> MipIndex);
+
+			const int32 Lods = 1;
+
+			Result = mu::FImageDesc(ImageSize, MutableFormat, Lods);
 		}
 		else
 		{
-			UE_LOG(LogMutable, Warning, TEXT("Failed to get external image."));
+			// No UTexture2D was provided, cannot do anything, just provide a dummy texture
+			UE_LOG(LogMutable, Warning, TEXT("No UTexture2D was provided for an application-specific image parameter descriptor."));
+			return CreateDummyDesc();
 		}
 
-		// Something failed when loading the bulk data, just return a dummy
-		return CreateDummy();
-	}
-	else
-	{
-		UE_LOG(LogMutable, Warning, TEXT("Failed to create an IORequest for a UTexture2D BulkData for an application-specific image parameter."));
-		return CreateDummy();
+		return Result;
 	}
 }
 
@@ -391,12 +529,12 @@ void FUnrealMutableImageProvider::ClearCache()
 mu::ImagePtr FUnrealMutableImageProvider::CreateDummy()
 {
 	// Create a dummy image
-	const int size = 32;
+	const int size = DUMMY_IMAGE_DESC.m_size[0];
 	const int checkerSize = 4;
 	constexpr int checkerTileCount = 2;
 	uint8_t colours[checkerTileCount][4] = { { 255,255,0,255 },{ 0,0,255,255 } };
 
-	mu::ImagePtr pResult = new mu::Image(size, size, 1, mu::EImageFormat::IF_RGBA_UBYTE);
+	mu::ImagePtr pResult = new mu::Image(size, size, DUMMY_IMAGE_DESC.m_lods, DUMMY_IMAGE_DESC.m_format);
 
 	uint8_t* pData = pResult->GetData();
 	for (int x = 0; x < size; ++x)
@@ -413,6 +551,12 @@ mu::ImagePtr FUnrealMutableImageProvider::CreateDummy()
 	}
 
 	return pResult;
+}
+
+
+mu::FImageDesc FUnrealMutableImageProvider::CreateDummyDesc()
+{
+	return DUMMY_IMAGE_DESC;
 }
 
 

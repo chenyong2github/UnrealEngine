@@ -20,6 +20,7 @@
 #include "MuR/Types.h"
 #include "Templates/RefCounting.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
 
 // This define could come from MuR/System.h
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
@@ -101,9 +102,14 @@ namespace  mu
 
 		void RunCodeImageDesc(FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
 
+    public:
 
-        ImagePtr LoadExternalImage( EXTERNAL_IMAGE_ID, uint8 MipmapsToSkip );
+		//! Load an external image asynchronously, retuns an event to wait for complition and a cleanup function 
+		//! that must be called once the event has completed.
+        TTuple<FGraphEventRef, TFunction<void()>> LoadExternalImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void (Ptr<Image>)>& ResultCallback);
+ 	    mu::FImageDesc GetExternalImageDesc(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip);
 
+    protected:
         //! Heap of intermediate data pushed by some instructions and referred by others.
         //! It is not released until no operations are pending.
 		TArray< FScheduledOpData > m_heapData;

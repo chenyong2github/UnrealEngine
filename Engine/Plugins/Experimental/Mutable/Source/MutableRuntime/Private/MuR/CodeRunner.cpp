@@ -111,17 +111,15 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtr CodeRunner::LoadExternalImage( EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip )
+	TTuple<FGraphEventRef, TFunction<void()>> CodeRunner::LoadExternalImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void(Ptr<Image>)>& ResultCallback)
     {
-		MUTABLE_CPUPROFILER_SCOPE(LoadExternalImage);
+		MUTABLE_CPUPROFILER_SCOPE(LoadExternalImageAsync);
 
 		check(m_pSystem);
 
-		ImagePtr pResult;
-
 		if (m_pSystem->m_pImageParameterGenerator)
 		{
-			pResult = m_pSystem->m_pImageParameterGenerator->GetImage(Id, MipmapsToSkip);
+			return m_pSystem->m_pImageParameterGenerator->GetImageAsync(Id, MipmapsToSkip, ResultCallback);
 
 			// Don't cache for now. Need to figure out how to invalidate them.
 			// \TODO: Like constants? attached to a cache level?
@@ -133,10 +131,35 @@ namespace mu
 			check(false);
 		}
 
-		return pResult;
+		// Not needed as it should never reach this point, but added for correctness.
+		FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+		CompletionEvent->DispatchSubsequents();
+
+		return MakeTuple(CompletionEvent, []() -> void {});
 	}
 
+	
+    //---------------------------------------------------------------------------------------------
+	FImageDesc CodeRunner::GetExternalImageDesc(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(GetExternalImageDesc);
 
+		check(m_pSystem);
+
+		if (m_pSystem->m_pImageParameterGenerator)
+		{
+			return m_pSystem->m_pImageParameterGenerator->GetImageDesc(Id, MipmapsToSkip);
+		}
+		else
+		{
+			// Not found and there is no generator!
+			check(false);
+		}
+
+		return FImageDesc();
+	}
+
+	
     //---------------------------------------------------------------------------------------------
     void CodeRunner::RunCode_Conditional( FScheduledOp& item,
                                           const Model* pModel
@@ -2421,19 +2444,6 @@ namespace mu
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 		switch (type)
         {
-
-        case OP_TYPE::IM_PARAMETER:
-        {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
-			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, pParams, pModel, args.variable);
-
-			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable, Index);
-
-			uint8 MipmapsToSkip = item.ExecutionOptions;
-			ImagePtr pResult = LoadExternalImage(id, MipmapsToSkip);
-			GetMemory().SetImage(item, pResult);
-            break;
-        }
 
         case OP_TYPE::IM_LAYERCOLOUR:
         {
@@ -5302,10 +5312,7 @@ namespace mu
 			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
 			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable);
 			uint8 MipsToSkip = item.ExecutionOptions;
-			ImagePtr pResult = LoadExternalImage(id, MipsToSkip);
-			m_heapImageDesc[item.CustomState].m_format = pResult->GetFormat();
-			m_heapImageDesc[item.CustomState].m_size = pResult->GetSize();
-			m_heapImageDesc[item.CustomState].m_lods = pResult->GetLODCount();
+			m_heapImageDesc[item.CustomState] = GetExternalImageDesc(id, MipsToSkip);
 			GetMemory().SetValidDesc(item);
 			break;
 		}

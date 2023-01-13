@@ -69,8 +69,10 @@ namespace mu
         //! Ensure virtual destruction
         virtual ~ImageParameterGenerator() = default;
 
-        //!
-        virtual Ptr<Image> GetImage( EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) = 0;
+        //! Returns the completion event and a cleanup function that must be called once event is completed.
+        virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void (Ptr<Image>)>& ResultCallback) = 0;
+
+        virtual mu::FImageDesc GetImageDesc(EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) = 0;
     };
 
 

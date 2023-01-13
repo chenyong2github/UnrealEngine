@@ -1472,6 +1472,70 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
+	class FImageExternalLoadTask : public CodeRunner::FIssuedTask
+	{
+	public:
+		FImageExternalLoadTask(FScheduledOp InItem, uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId);
+
+		// FIssuedTask interface
+		virtual bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) override;
+		virtual void Complete(CodeRunner* Runner) override;
+		
+	private:
+		FScheduledOp Item;
+		uint8 MipmapsToSkip;
+		EXTERNAL_IMAGE_ID Id;
+
+		Ptr<Image> Result;
+		
+		TFunction<void()> ExternalCleanUpFunc;
+	};
+
+
+	//---------------------------------------------------------------------------------------------
+	FImageExternalLoadTask::FImageExternalLoadTask(FScheduledOp InItem,  uint8 InMipmapsToSkip, EXTERNAL_IMAGE_ID InId)
+	{
+		Item = InItem;
+		MipmapsToSkip = InMipmapsToSkip;
+		Id = InId;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	bool FImageExternalLoadTask::Prepare(CodeRunner* Runner, const TSharedPtr<const Model>&, bool& bOutFailed)
+	{
+		// LoadExternalImageAsync will always generate some image even if it is a dummy one.
+		bOutFailed = false;
+
+		// Capturing this here should not be a problem. The lifetime of the callback lambda is tied to 
+		// the task and the later will always outlive the former. 
+		
+		// Probably we could simply pass a reference to the result image. 
+		TFunction<void (Ptr<Image>)> ResultCallback = [this](Ptr<Image> InResult)
+		{
+			Result = InResult;
+		};
+
+		Tie(Event, ExternalCleanUpFunc) = Runner->LoadExternalImageAsync(Id, MipmapsToSkip, ResultCallback);
+
+		// return false indicating there is no work to do so Event is not overriden by a DoWork task.
+		return false;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void FImageExternalLoadTask::Complete(CodeRunner* Runner)
+	{
+		if (ExternalCleanUpFunc)
+		{
+			Invoke(ExternalCleanUpFunc);
+		}
+
+		Runner->GetMemory().SetImage(Item, Result);
+	}	
+
+	
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
 	TSharedPtr<CodeRunner::FIssuedTask> CodeRunner::IssueOp(FScheduledOp item)
 	{
 		TSharedPtr<FIssuedTask> Issued;
@@ -1534,6 +1598,19 @@ namespace mu
 			break;
 		}		
 
+		case OP_TYPE::IM_PARAMETER:
+		{
+			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
+			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, m_pParams, m_pModel.Get(), args.variable);
+
+			const EXTERNAL_IMAGE_ID Id = m_pParams->GetImageValue(args.variable, Index);
+			const uint8 MipmapsToSkip = item.ExecutionOptions;
+			
+			Issued = MakeShared<FImageExternalLoadTask>(item, MipmapsToSkip, Id);
+
+			break;
+		}
+			
 		case OP_TYPE::IM_PIXELFORMAT:
 		{
 			if (item.Stage == 1)

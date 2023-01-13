@@ -12,12 +12,16 @@ class UTexture2D;
 /** Implementation of a mutable core provider for image parameters that are application-specific. */
 class FUnrealMutableImageProvider : public mu::ImageParameterGenerator, public FGCObject
 {
+
 public:
 
 	// mu::ImageParameterGenerator interface
 	// Thread: worker
-	mu::ImagePtr GetImage(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) override;
+	virtual TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip, TFunction<void (mu::Ptr<mu::Image>)>& ResultCallback) override;
 
+	virtual mu::FImageDesc GetImageDesc(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) override;
+
+	
 	// Own interface
 	// Thread: Game
 	void CacheImage(mu::EXTERNAL_IMAGE_ID id);
@@ -49,8 +53,12 @@ private:
 		UTexture2D* TextureToLoad = nullptr;
 	};
 
+	static inline const mu::FImageDesc DUMMY_IMAGE_DESC = 
+			mu::FImageDesc(mu::FImageSize(32, 32), mu::EImageFormat::IF_RGBA_UBYTE, 1);
+
 	/** This will be called if an image Id has been requested by Mutable core but it has not been provided by any provider. */
-	mu::ImagePtr CreateDummy();
+	static mu::ImagePtr CreateDummy();
+	static mu::FImageDesc CreateDummyDesc();
 
 	/** Map of Ids to external textures that may be required for any instance or Mutable texture mip under construction.
 	* This is only safely written from the game thread protected by the following critical section, and it

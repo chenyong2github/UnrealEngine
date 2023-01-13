@@ -2142,17 +2142,19 @@ namespace
 	/** Test implementation to provide image parameters. It will generate some images of a fixed size and format. */
 	class TestImageProvider : public mu::ImageParameterGenerator
 	{
+		static inline const mu::FImageDesc IMAGE_DESC = 
+			mu::FImageDesc(mu::FImageSize(1024, 1024), mu::EImageFormat::IF_RGBA_UBYTE, 1);
+		
 	public:
-		mu::Ptr<mu::Image> GetImage(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) override
+		TTuple<FGraphEventRef, TFunction<void()>> GetImageAsync(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip, TFunction<void (mu::Ptr<mu::Image>)>& ResultCallback) override
 		{
 			MUTABLE_CPUPROFILER_SCOPE(TestImageProvider_GetImage);
 
-			int32 Size = 1024;
+			int32 Size = IMAGE_DESC.m_size[0];
 			Size = FMath::Max(4, Size / (1 << MipmapsToSkip));
 
-			const int32 LODCount = 1;
-			const mu::EImageFormat Format = mu::EImageFormat::IF_RGBA_UBYTE;
-			mu::Ptr<mu::Image> Image = new mu::Image(Size, Size, LODCount, Format);
+			mu::Ptr<mu::Image> Image = 
+					new mu::Image(IMAGE_DESC.m_size[0], IMAGE_DESC.m_size[1], IMAGE_DESC.m_lods, IMAGE_DESC.m_format);
 
 			// Generate an alphatested circle with an horizontal gradient color.
 			uint8* Data = Image->GetData();
@@ -2174,9 +2176,17 @@ namespace
 				}
 			}
 
-			return Image;
+			ResultCallback(Image);
+			FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+			CompletionEvent->DispatchSubsequents();
+
+			return MakeTuple(CompletionEvent, []() -> void {});
 		}
 
+		mu::FImageDesc GetImageDesc(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) override
+		{
+			return IMAGE_DESC;
+		}
 	};
 }
 
