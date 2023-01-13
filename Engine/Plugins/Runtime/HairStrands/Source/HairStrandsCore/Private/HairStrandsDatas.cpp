@@ -54,6 +54,8 @@ void FHairStrandsCurves::Reset()
 	ClumpIDs.Reset();
 	CurvesClosestGuideIDs.Reset();
 	CurvesClosestGuideWeights.Reset();
+	MaxLength = 0;
+	MaxRadius = 0;
 }
 
 void FHairStrandsPoints::Reset()
@@ -274,4 +276,6 @@ void FHairStrandsDatas::Reset()
 {
 	StrandsCurves.Reset();
 	StrandsPoints.Reset();
+	HairDensity = 1;
+	BoundingBox = FBox(EForceInit::ForceInit);
 }
