@@ -1,0 +1,45 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "EditorSubsystem.h"
+#include "MassProcessingPhaseManager.h"
+#include "MassEntityEditorSubsystem.generated.h"
+
+
+struct FMassEntityManager;
+namespace UE::Mass
+{
+	struct FMassEditorTickFunction;
+}
+
+UCLASS()
+class MASSENTITYEDITOR_API UMassEntityEditorSubsystem : public UEditorSubsystem
+{
+	GENERATED_BODY()
+
+public:
+	UMassEntityEditorSubsystem();
+	~UMassEntityEditorSubsystem();
+
+	FMassEntityManager& GetMutableEntityManager() { return EntityManager.Get(); }
+
+protected:
+	// USubsystem interface begin
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	// USubsystem interface end
+	void StopAndCleanUp();
+
+	friend UE::Mass::FMassEditorTickFunction;
+	void Tick(float DeltaTime);
+
+	UE::Mass::FMassEditorTickFunction* EditorTickFunction = nullptr;
+
+	TSharedRef<FMassEntityManager> EntityManager;
+
+	TSharedRef<FMassProcessingPhaseManager> PhaseManager;
+	FGraphEventRef CompletionEvent;
+
+	FMassProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EMassProcessingPhase::MAX];
+};

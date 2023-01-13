@@ -27,9 +27,12 @@ namespace UnrealBuildTool.Rules
 				"PropertyEditor",
 				"MassSpawner",
 				"MassEntity",
+				"MassEntityEditor",
+				"MassActors",
 				"DetailCustomizations",
 				"ComponentVisualizers",
 				"Projects",
+				"EditorSubsystem"
 			}
 			);
 

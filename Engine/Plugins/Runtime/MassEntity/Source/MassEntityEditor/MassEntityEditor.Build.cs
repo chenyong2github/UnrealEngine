@@ -7,7 +7,6 @@ namespace UnrealBuildTool.Rules
 		public MassEntityEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-			//BinariesSubFolder = "NotForLicensees";
 
 			PublicIncludePaths.AddRange(
 			new string[] {
@@ -29,6 +28,7 @@ namespace UnrealBuildTool.Rules
 				"DetailCustomizations",
 				"ComponentVisualizers",
 				"Projects",
+				"EditorSubsystem"
 			}
 			);
 
