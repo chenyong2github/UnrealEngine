@@ -3,6 +3,7 @@
 #include "AssetDefinition.h"
 #include "AssetDefinitionRegistry.h"
 #include "Misc/AssetFilterData.h"
+#include "EditorFramework/AssetImportData.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition"
 
@@ -65,6 +66,23 @@ TConstArrayView<FAssetCategoryPath> UAssetDefinition::GetAssetCategories() const
 {
 	static const auto Categories = { EAssetCategoryPaths::Misc };
 	return Categories;
+}
+
+EAssetCommandResult UAssetDefinition::GetSourceFiles(const FAssetData& InAsset, TFunctionRef<void(const FAssetImportInfo& AssetImportData)> SourceFileFunc) const
+{
+	FString SourceFileTagData;
+	if (InAsset.GetTagValue(UObject::SourceFileTagName(), SourceFileTagData))
+	{
+		TOptional<FAssetImportInfo> ImportInfo = FAssetImportInfo::FromJson(SourceFileTagData);
+		if (ImportInfo.IsSet())
+		{
+			SourceFileFunc(ImportInfo.GetValue());
+			
+			return EAssetCommandResult::Handled;
+		}
+	}
+    
+	return EAssetCommandResult::Unhandled;
 }
 
 bool UAssetDefinition::CanRegisterStatically() const

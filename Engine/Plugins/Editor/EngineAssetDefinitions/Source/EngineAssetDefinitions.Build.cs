@@ -44,7 +44,9 @@ public class EngineAssetDefinitions : ModuleRules
 				"TextureEditor",
 				"MaterialEditor",
 				"PhysicsAssetEditor",
-				"FontEditor"
+				"FontEditor",
+				"DataTableEditor",
+				"CurveTableEditor",
 			}
 		);
 
@@ -56,7 +58,9 @@ public class EngineAssetDefinitions : ModuleRules
 				"TextureEditor",
 				"MaterialEditor",
 				"PhysicsAssetEditor",
-				"FontEditor"
+				"FontEditor",
+				"DataTableEditor",
+				"CurveTableEditor",
 			}
 		);
 	}

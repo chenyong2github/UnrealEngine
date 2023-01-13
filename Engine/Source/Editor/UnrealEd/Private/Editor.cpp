@@ -59,6 +59,8 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
 
+#include "EditorFramework/AssetImportData.h"
+
 // AIMdule
 
 #include "AssetDefinition.h"
@@ -838,9 +840,11 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 			FAssetData AssetData(Obj);
 			const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(AssetData);
 
-			TArray<FAssetSourceFile> OutSourceAssets;
-			FAssetSourceFileArgs SourceFileArgs({ AssetData });
-			AssetDefinition->GetSourceFiles(SourceFileArgs, OutSourceAssets);
+			TArray<FAssetImportInfo::FSourceFile> OutSourceAssets;
+			AssetDefinition->GetSourceFiles(AssetData, [&OutSourceAssets](const FAssetImportInfo& ImportInfo)
+			{
+				OutSourceAssets.Append(ImportInfo.SourceFiles);
+			});
 			
 			if (OutSourceAssets.IsValidIndex(SourceFileIndex))
 			{

@@ -35,6 +35,7 @@
 
 #include "ObjectTools.h"
 #include "Editor.h"
+#include "EditorFramework/AssetImportData.h"
 
 #include "PropertyEditorModule.h"
 #include "ConsolidateWindow.h"
@@ -1218,15 +1219,15 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 
 	if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(SelectedAssets[0]))
 	{
-		TArray<FAssetSourceFile> OutSourceAssets;
-		FAssetSourceFileArgs SourceFileArgs(SelectedAssets);
-		if (AssetDefinition->GetSourceFiles(SourceFileArgs, OutSourceAssets) == EAssetCommandResult::Handled)
+		FAssetData SelectedAsset = SelectedAssets[0];
+		
+		AssetDefinition->GetSourceFiles(SelectedAsset, [&](const FAssetImportInfo& AssetImportInfo)
 		{
 			int32 SourceFileIndexToReplace = SourceFileIndex;
 			//Check if the data is valid
 			if (SourceFileIndex == INDEX_NONE)
 			{
-				if (OutSourceAssets.Num() > 1)
+				if (AssetImportInfo.SourceFiles.Num() > 1)
 				{
 					//Ask for a new file for the index 0
 					SourceFileIndexToReplace = 0;
@@ -1234,12 +1235,12 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 			}
 			else
 			{
-				check(OutSourceAssets.IsValidIndex(SourceFileIndex));
+				check(AssetImportInfo.SourceFiles.IsValidIndex(SourceFileIndex));
 			}
-			
-			TArray<UObject*> LoadedAssets = SourceFileArgs.LoadObjects<UObject>();
+
+			TArray<UObject*> LoadedAssets = { SelectedAsset.GetAsset() };
 			FReimportManager::Instance()->ValidateAllSourceFileAndReimport(LoadedAssets, true, SourceFileIndexToReplace, true);
-		}
+		});
 	}
 }
 
@@ -1287,16 +1288,17 @@ void FAssetFileContextMenu::GetSelectedAssetSourceFilePaths(TArray<FString>& Out
 	{
 		if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForClass(AssetsByClassPair.Key))
 		{
-			TArray<FAssetSourceFile> OutSourceAssets;
-			FAssetSourceFileArgs SourceFileArgs(SelectedAssets);
-			if (AssetDefinition->GetSourceFiles(SourceFileArgs, OutSourceAssets) == EAssetCommandResult::Handled)
+			for (const FAssetData& Asset : AssetsByClassPair.Value)
 			{
-				OutValidSelectedAssetCount += AssetsByClassPair.Value.Num();
-				for (const FAssetSourceFile& SourceFile : OutSourceAssets)
+				AssetDefinition->GetSourceFiles(Asset, [&](const FAssetImportInfo& AssetImportInfo)
 				{
-					OutFilePaths.Add(SourceFile.RelativeFilename);
-					OutUniqueSourceFileLabels.AddUnique(SourceFile.DisplayLabelName);
-				}
+					OutValidSelectedAssetCount++;
+					for (const auto& SourceFile : AssetImportInfo.SourceFiles)
+					{
+						OutFilePaths.Add(SourceFile.RelativeFilename);
+						OutUniqueSourceFileLabels.AddUnique(SourceFile.DisplayLabelName);
+					}
+				});
 			}
 		}
 	}

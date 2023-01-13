@@ -109,11 +109,6 @@ struct FAssetActivateArgs : public FAssetArgs
 	EAssetActivationMethod ActivationMethod;
 };
 
-struct FAssetSourceFileArgs : public FAssetArgs
-{
-	FAssetSourceFileArgs(TConstArrayView<FAssetData> InAssets) : FAssetArgs(InAssets) { }
-};
-
 struct FAssetSourceFile
 {
 	FString DisplayLabelName;
@@ -278,8 +273,8 @@ public:
 	TOptional<EToolkitMode::Type> RequiredToolkitMode;
 };
 
-
 class UAssetDefinitionRegistry;
+struct FAssetImportInfo;
 
 enum class EIncludeClassInFilter : uint8
 {
@@ -385,10 +380,7 @@ public:
 	}
 
 	// Source Files
-	virtual EAssetCommandResult GetSourceFiles(const FAssetSourceFileArgs& SourceFileArgs, TArray<FAssetSourceFile>& OutSourceAssets) const
-	{
-		return EAssetCommandResult::Unhandled;
-	}
+	virtual EAssetCommandResult GetSourceFiles(const FAssetData& InAsset, TFunctionRef<void(const FAssetImportInfo& AssetImportData)> SourceFileFunc) const;
 
 	// Diffing Assets
 	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const
