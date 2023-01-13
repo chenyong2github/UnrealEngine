@@ -6,12 +6,12 @@ all :
 ifdef MAKEDIR: # gmake=false condition, nmake=two unused targets
 !ifdef MAKEDIR # gmake=skipped,			nmake=true condition
 
-!include build/nmake.makefile
+!include scripts/nmake.makefile
 
 !else
 else
 
-include build/gmake.makefile
+include scripts/gmake.makefile
 
 endif 
 !endif :
