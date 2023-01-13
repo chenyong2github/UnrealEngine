@@ -222,7 +222,7 @@ FRDGTextureRef FVariableRateShadingImageManager::CombineShadingRateImages(FRDGBu
 	}
 	else
 	{
-		FIntPoint ViewSize = ViewInfo.UnscaledViewRect.Scale(ViewInfo.Family->SecondaryViewFraction).Size();
+		FIntPoint ViewSize = ViewInfo.Family->RenderTarget->GetSizeXY();
 		const FIntPoint TileSize = GetSRITileSize();
 
 		// Create texture to hold shading rate image
