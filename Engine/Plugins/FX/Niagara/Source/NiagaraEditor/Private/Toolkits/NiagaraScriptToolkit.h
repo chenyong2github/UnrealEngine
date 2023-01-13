@@ -152,7 +152,7 @@ private:
 
 	void OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction);
 
-	void MarkDirtyWithPendingChanges();
+	void PromptVersioningWarning();
 
 	/** Navigates to element in graph (node, pin, etc.) 
 	* @Param ElementToFocus Defines the graph element to navigate to and select.
@@ -196,8 +196,7 @@ private:
 	TSharedPtr<class SWidget> VersionsWidget;
 
 	FDelegateHandle OnEditedScriptGraphChangedHandle;
-
-	bool bEditedScriptHasPendingChanges = false;
+	
 	bool bChangesDiscarded = false;
 	bool bRefreshSelected = false;
 	bool bShowedEditingVersionWarning = false;
