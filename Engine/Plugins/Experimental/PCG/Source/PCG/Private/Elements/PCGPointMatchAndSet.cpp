@@ -4,6 +4,7 @@
 
 #include "PCGContext.h"
 #include "PCGHelpers.h"
+#include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "MatchAndSet/PCGMatchAndSetWeighted.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
