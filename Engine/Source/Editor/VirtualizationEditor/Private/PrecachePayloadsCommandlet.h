@@ -5,7 +5,7 @@
 #include "Commandlets/Commandlet.h"
 #include "UObject/ObjectMacros.h"
 
-#include "PrecachePayloads.generated.h"
+#include "PrecachePayloadsCommandlet.generated.h"
 
 UCLASS()
 class UPrecachePayloadsCommandlet

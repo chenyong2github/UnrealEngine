@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GeneratePayloadManifest.h"
+#include "GeneratePayloadManifestCommandlet.h"
 
 #include "CommandletUtils.h"
 #include "HAL/FileManager.h"

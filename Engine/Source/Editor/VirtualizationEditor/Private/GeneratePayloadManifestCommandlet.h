@@ -5,7 +5,7 @@
 #include "Commandlets/Commandlet.h"
 #include "UObject/ObjectMacros.h"
 
-#include "GeneratePayloadManifest.generated.h"
+#include "GeneratePayloadManifestCommandlet.generated.h"
 
 /**
  * Creates a csv file containing info about all of the payloads in a set of packages.
