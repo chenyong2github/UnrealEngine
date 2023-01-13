@@ -432,6 +432,15 @@ public:
 	FPackageTrailer& operator=(FPackageTrailer&& Other) = default;
 
 	/** 
+	 * Returns true if the trailer contains actual data from a package file and false if it just contains the defaults of an unloaded
+	 * trailer.
+	 */
+	[[nodiscard]] bool IsValid() const
+	{
+		return Header.Tag == FHeader::HeaderTag;
+	}
+
+	/** 
 	 * Serializes the trailer from the given archive assuming that the seek position of the archive is already at the correct position
 	 * for the trailer.
 	 * 
