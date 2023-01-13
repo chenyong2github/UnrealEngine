@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	VirtualShadowMap.h:
-=============================================================================*/
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapClipmap.h"
 #include "RendererModule.h"
@@ -184,7 +181,7 @@ void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap()
 	CurrentRenderedFrameNumber = -1;
 }
 
-void FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInitializer& InCacheKey, bool bIsDistantLight)
+bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInitializer& InCacheKey, bool bIsDistantLight, bool bAllowInvalidation)
 {
 	bPrevIsDistantLight = bCurrentIsDistantLight;
 	PrevRenderedFrameNumber = FMath::Max(PrevRenderedFrameNumber, CurrentRenderedFrameNumber);
@@ -195,7 +192,7 @@ void FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInit
 	{
 		// If it is a distant light, we want to let the time-share perform the invalidation.
 		// TODO: track invalidation state somehow for later.
-		if (!bIsDistantLight)
+		if (bAllowInvalidation)
 		{
 			PrevRenderedFrameNumber = -1;
 		}
@@ -206,6 +203,8 @@ void FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInit
 	bCurrentIsDistantLight = bIsDistantLight;
 	CurrentRenderedFrameNumber = -1;
 	CurrenScheduledFrameNumber = -1;
+
+	return PrevRenderedFrameNumber >= 0;
 }
 
 void FVirtualShadowMapPerLightCacheEntry::Invalidate()

@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	VirtualShadowMapArray.h:
-=============================================================================*/
 #pragma once
 
 #include "CoreMinimal.h"
@@ -78,11 +75,14 @@ public:
 	/**
 	 * The (local) VSM is fully cached if the previous frame if was distant and is distant this frame also.
 	 */
-	inline bool IsFullyCached() const { return bCurrentIsDistantLight && bPrevIsDistantLight; }
+	inline bool IsFullyCached() const { return bCurrentIsDistantLight && bPrevIsDistantLight && PrevRenderedFrameNumber >= 0; }
 	void MarkRendered(int32 FrameIndex) { CurrentRenderedFrameNumber = FrameIndex; }
 	int32 GetLastScheduledFrameNumber() const { return PrevScheduledFrameNumber; }
 	void UpdateClipmap();
-	void UpdateLocal(const FProjectedShadowInitializer &InCacheKey, bool bIsDistantLight = false);
+	/**
+	 * Returns true if the cache entry is valid (has previous state).
+	 */
+	bool UpdateLocal(const FProjectedShadowInitializer &InCacheKey, bool bIsDistantLight, bool bAllowInvalidation);
 
 	/**
 	 * Mark as invalid, i.e., needing rendering.
