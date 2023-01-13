@@ -472,7 +472,7 @@ class ENGINE_API UBlueprint : public UBlueprintCore, public IBlueprintPropertyGu
 	 * one such case can be created by creating a blueprint (A) based on another blueprint (B), shutting down the editor, and
 	 * deleting the parent blueprint. Exported as Alphabetical in GetAssetRegistryTags
 	 */
-	UPROPERTY()
+	UPROPERTY(meta=(NoResetToDefault))
 	TSubclassOf<UObject> ParentClass;
 
 	/** The type of this blueprint */
