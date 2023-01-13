@@ -2329,6 +2329,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 				LandscapeInfo->FixupProxiesTransform();
 			}
 		}
+	}
 #endif // WITH_EDITOR
 }
 
