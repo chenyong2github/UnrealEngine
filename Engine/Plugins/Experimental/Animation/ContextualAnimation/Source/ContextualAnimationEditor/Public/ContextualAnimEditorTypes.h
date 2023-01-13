@@ -75,6 +75,11 @@ struct FContextualAnimNewAnimSetData
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRequiresFlyingMode = false;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bOptional = false;
+
+	//@TODO: Refactor this to use FContextualAnimTrack directly with a details customization to hide the properties that are not editable when adding a new set
 };
 
 /** Struct used to construct the widget for adding a new set */

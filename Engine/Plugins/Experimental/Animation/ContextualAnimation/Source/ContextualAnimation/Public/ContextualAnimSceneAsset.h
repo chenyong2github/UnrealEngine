@@ -52,6 +52,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimSet
 	/** Used by the selection mechanism to 'break the tie' when multiple Sets can be selected */
 	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0", ClampMax = "1", UIMax = "1"))
 	float RandomWeight = 1.f;
+
+	int32 GetNumMandatoryRoles() const;
 };
 
 /** Named container with one or more ContextualAnimSet */
@@ -213,6 +215,8 @@ public:
 
 	int32 GetNumRoles() const { return RolesAsset ? RolesAsset->GetNumRoles() : 0; }
 
+	int32 GetNumMandatoryRoles(int32 SectionIdx, int32 AnimSetIdx) const;
+
 	const FTransform& GetMeshToComponentForRole(const FName& Role) const;
 
 	TArray<FName> GetSectionNames() const;
@@ -224,6 +228,8 @@ public:
 	const FContextualAnimSceneSection* GetSection(int32 SectionIdx) const;
 
 	const FContextualAnimSceneSection* GetSection(const FName& SectionName) const;
+
+	const FContextualAnimSet* GetAnimSet(int32 SectionIdx, int32 AnimSetIdx) const;
 
 	int32 GetSectionIndex(const FName& SectionName) const;
 	

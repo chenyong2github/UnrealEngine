@@ -53,6 +53,22 @@ static void ExtractPoseIgnoringForceRootLock(UAnimSequenceBase* AnimSequenceBase
 	}
 }
 
+// FContextualAnimSet
+//==============================================================================================
+
+int32 FContextualAnimSet::GetNumMandatoryRoles() const
+{
+	int32 Result = 0;
+	for (const FContextualAnimTrack& AnimTrack : Tracks)
+	{
+		if (!AnimTrack.bOptional)
+		{
+			Result++;
+		}
+	}
+	return Result;
+}
+
 // FContextualAnimSceneSection
 //==============================================================================================
 
@@ -541,6 +557,12 @@ const FContextualAnimSceneSection* UContextualAnimSceneAsset::GetSection(const F
 	return Sections.FindByPredicate([&SectionName](const FContextualAnimSceneSection& Section) { return Section.Name == SectionName; });
 }
 
+const FContextualAnimSet* UContextualAnimSceneAsset::GetAnimSet(int32 SectionIdx, int32 AnimSetIdx) const
+{
+	const FContextualAnimSceneSection* Section = GetSection(SectionIdx);
+	return Section ? Section->GetAnimSet(AnimSetIdx) : nullptr;
+}
+
 int32 UContextualAnimSceneAsset::GetSectionIndex(const FName& SectionName) const
 {
 	return Sections.IndexOfByPredicate([&SectionName](const FContextualAnimSceneSection& Section) { return Section.Name == SectionName; });
@@ -586,6 +608,12 @@ TArray<FName> UContextualAnimSceneAsset::GetRoles() const
 	}
 
  	return Result;
+}
+
+int32 UContextualAnimSceneAsset::GetNumMandatoryRoles(int32 SectionIdx, int32 AnimSetIdx) const
+{
+	const FContextualAnimSet* AnimSet = GetAnimSet(SectionIdx, AnimSetIdx);
+	return AnimSet ? AnimSet->GetNumMandatoryRoles() : 0;
 }
 
 const FTransform& UContextualAnimSceneAsset::GetMeshToComponentForRole(const FName& Role) const
