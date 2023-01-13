@@ -8,6 +8,7 @@
 #include "SceneView.h"
 #include "UnrealClient.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneTexturesConfig.h"
 
 /* CVar values used to control generator behavior */
 
@@ -153,7 +154,7 @@ void FFixedFoveationImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, con
 	FixedFoveationCenterX = FMath::Lerp(kFixedFoveationCenterX[0], kFixedFoveationCenterX[VRSMaxLevel], VRSAmount);
 	FixedFoveationCenterY = FMath::Lerp(kFixedFoveationCenterY[0], kFixedFoveationCenterY[VRSMaxLevel], VRSAmount);
 
-	FIntPoint Size = ViewFamily.RenderTarget->GetSizeXY();
+	FIntPoint Size = FSceneTexturesConfig::Get().Extent;
 	bool bStereoRendering = IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0]) && GEngine->XRSystem.IsValid();
 
 	// Sanity check VRS tile size.

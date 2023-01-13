@@ -379,9 +379,20 @@ private:
 	static FRDGTextureDesc CreateSRIDesc(const FSceneViewFamily& ViewFamily, bool bIsForDynResScaled)
 	{
 		FIntPoint TileSize = FVariableRateShadingImageManager::GetSRITileSize();
-		FIntPoint ViewTargetExtents = (bIsForDynResScaled)
-			? FSceneTexturesConfig::Get().Extent
-			: ViewFamily.RenderTarget->GetSizeXY();
+
+		FIntPoint ViewTargetExtents = FIntPoint::ZeroValue;
+		if (bIsForDynResScaled)
+		{
+			ViewTargetExtents = FSceneTexturesConfig::Get().Extent;
+		}
+		else
+		{
+			// Get initial size based on luminance texture from previous frame
+			check(ViewFamily.Views[0]->bIsViewInfo);
+			const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(ViewFamily.Views[0]);
+			ViewTargetExtents = ViewInfo->PrevViewInfo.LuminanceHistory->GetDesc().Extent;
+		}
+
 		FIntPoint SRIDimensions = FMath::DivideAndRoundUp(ViewTargetExtents, TileSize);
 		return FRDGTextureDesc::Create2D(
 			SRIDimensions,
