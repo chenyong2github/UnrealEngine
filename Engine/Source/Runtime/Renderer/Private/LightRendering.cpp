@@ -1889,7 +1889,11 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							}
 						};
 
-						ClearShadowMask(ScreenShadowMaskTexture);
+						// Skip clearing if it doesn't exist (due to being elided by VSM projection)
+						if (ScreenShadowMaskTexture)
+						{
+							ClearShadowMask(ScreenShadowMaskTexture);
+						}
 						if (ScreenShadowMaskSubPixelTexture)
 						{
 							ClearShadowMask(ScreenShadowMaskSubPixelTexture);
