@@ -37,5 +37,6 @@ public:
 	virtual FTextureRHIRef OpenSharedCrossGpuTextureByGuid(const FGuid& Guid, FSharedMemoryMediaTextureDescription& OutTextureDescription) override;
 	//~ End FSharedMemoryMediaPlatform interface
 
+	FSharedMemoryMediaPlatformWindowsD3D12();
 	virtual ~FSharedMemoryMediaPlatformWindowsD3D12();
 };
