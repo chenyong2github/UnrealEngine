@@ -12,7 +12,6 @@
 
 class UAIPerceptionComponent;
 class UBlackboardComponent;
-class UPawnActionsComponent;
 class UBrainComponent;
 class UMockAI;
 
@@ -48,9 +47,6 @@ class UMockAI : public UObject
 	UPROPERTY()
 	TObjectPtr<UAIPerceptionComponent> PerceptionComp = nullptr;
 
-	UPROPERTY()
-	TObjectPtr<UPawnActionsComponent> PawnActionComp = nullptr;
-	
 	template<typename TBrainClass>
 	void UseBrainComponent()
 	{
@@ -59,7 +55,6 @@ class UMockAI : public UObject
 
 	void UseBlackboardComponent();
 	void UsePerceptionComponent();
-	void UsePawnActionsComponent();
 
 	void SetEnableTicking(bool bShouldTick);
 

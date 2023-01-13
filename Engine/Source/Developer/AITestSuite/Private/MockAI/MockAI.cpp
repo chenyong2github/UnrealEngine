@@ -76,11 +76,6 @@ void UMockAI::UsePerceptionComponent()
 	PerceptionComp = NewObject<UAIPerceptionComponent>(Actor);
 }
 
-void UMockAI::UsePawnActionsComponent()
-{
-	PawnActionComp = NewObject<UPawnActionsComponent>(Actor);
-}
-
 void UMockAI::TickMe(float DeltaTime)
 {
 	if (BBComp)
@@ -96,11 +91,6 @@ void UMockAI::TickMe(float DeltaTime)
 	if (BrainComp)
 	{
 		BrainComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
-	}
-	
-	if (PawnActionComp)
-	{
-		PawnActionComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
 	}
 }
 

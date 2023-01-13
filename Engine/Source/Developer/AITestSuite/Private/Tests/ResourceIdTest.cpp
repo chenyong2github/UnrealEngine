@@ -3,11 +3,9 @@
 #include "CoreMinimal.h"
 #include "AITypes.h"
 #include "AITestsCommon.h"
-#include "Actions/TestPawnAction_Log.h"
-#include "Actions/PawnActionsComponent.h"
 
 //----------------------------------------------------------------------//
-// 
+// FAITest_ResourceIDBasic
 //----------------------------------------------------------------------//
 struct FAITest_ResourceIDBasic : public FAITestBase
 {
@@ -24,7 +22,7 @@ struct FAITest_ResourceIDBasic : public FAITestBase
 IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceIDBasic, "System.AI.Resource ID.Basic operations")
 
 //----------------------------------------------------------------------//
-// 
+// FAITest_ResourceLock
 //----------------------------------------------------------------------//
 struct FAITest_ResourceLock : public FAITestBase
 {
@@ -74,7 +72,7 @@ struct FAITest_ResourceLock : public FAITestBase
 IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceLock, "System.AI.Resource ID.Resource locking")
 
 //----------------------------------------------------------------------//
-// 
+// FAITest_ResourceSet
 //----------------------------------------------------------------------//
 struct FAITest_ResourceSet : public FAITestBase
 {
@@ -131,66 +129,3 @@ struct FAITest_ResourceSet : public FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FAITest_ResourceSet, "System.AI.Resource ID.Resource locking")
-
-//----------------------------------------------------------------------//
-// 
-//----------------------------------------------------------------------//
-struct FAITest_PawnActions_PausingActionsOfSameResource : public FAITest_SimpleComponentBasedTest<UPawnActionsComponent>
-{
-	virtual bool InstantTest() override
-	{
-		/*Logger.ExpectedValues.Add(ETestPawnActionMessage::Started);
-		Logger.ExpectedValues.Add(ETestPawnActionMessage::Paused);
-		Logger.ExpectedValues.Add(ETestPawnActionMessage::Started);*/
-
-		UWorld& World = GetWorld();
-		UTestPawnAction_Log* MoveAction = UTestPawnAction_Log::CreateAction(World, Logger);
-		MoveAction->GetRequiredResourcesSet() = FAIResourcesSet(FAIResources::Movement);
-		Component->PushAction(*MoveAction, EAIRequestPriority::Logic);
-
-		Component->TickComponent(FAITestHelpers::TickInterval, ELevelTick::LEVELTICK_All, nullptr);
-
-		UTestPawnAction_Log* AnotherMoveAction = UTestPawnAction_Log::CreateAction(World, Logger);
-		AnotherMoveAction->GetRequiredResourcesSet() = FAIResourcesSet(FAIResources::Movement);
-		Component->PushAction(*AnotherMoveAction, EAIRequestPriority::Logic);
-
-		Component->TickComponent(FAITestHelpers::TickInterval, ELevelTick::LEVELTICK_All, nullptr);
-
-		AITEST_TRUE("First MoveAction should get paused", MoveAction->IsPaused() == true);
-
-		return true;
-	}
-};
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_PausingActionsOfSameResource, "System.AI.Pawn Actions.Pausing actions of same resource")
-
-//----------------------------------------------------------------------//
-// 
-//----------------------------------------------------------------------//
-struct FAITest_PawnActions_NotPausingActionsOfDifferentResources : public FAITest_SimpleComponentBasedTest<UPawnActionsComponent>
-{
-	virtual bool InstantTest() override
-	{
-		/*Logger.ExpectedValues.Add(ETestPawnActionMessage::Started);
-		Logger.ExpectedValues.Add(ETestPawnActionMessage::Paused);
-		Logger.ExpectedValues.Add(ETestPawnActionMessage::Started);*/
-
-		UWorld& World = GetWorld();
-		UTestPawnAction_Log* MoveAction = UTestPawnAction_Log::CreateAction(World, Logger);
-		MoveAction->SetRequiredResourcesSet(FAIResourcesSet(FAIResources::Movement));
-		Component->PushAction(*MoveAction, EAIRequestPriority::Logic);
-
-		Component->TickComponent(FAITestHelpers::TickInterval, ELevelTick::LEVELTICK_All, nullptr);
-
-		UTestPawnAction_Log* PerceptionAction = UTestPawnAction_Log::CreateAction(World, Logger);
-		PerceptionAction->SetRequiredResourcesSet(FAIResourcesSet(FAIResources::Perception));
-		Component->PushAction(*PerceptionAction, EAIRequestPriority::Logic);
-
-		Component->TickComponent(FAITestHelpers::TickInterval, ELevelTick::LEVELTICK_All, nullptr);
-
-		// @todo test temporarily disabled
-		//AITEST_TRUE("First MoveAction should get paused", MoveAction->IsPaused() == false && PerceptionAction->IsPaused() == false);
-
-		return true;
-	}
-};
-IMPLEMENT_AI_INSTANT_TEST(FAITest_PawnActions_NotPausingActionsOfDifferentResources, "System.AI.Pawn Actions.Not pausing actions of different resources")
