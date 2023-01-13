@@ -1870,6 +1870,12 @@ bool FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(FMemberProp
 		OutMemberProperty.ChangeMaskBits = 1U + FIrisFastArraySerializer::IrisFastArrayChangeMaskBits;
 	}
 
+	// Structs with custom serializers may have a default custom replication fragment.
+	if (!OutMemberProperty.CreateAndRegisterReplicationFragmentFunction)
+	{
+		OutMemberProperty.CreateAndRegisterReplicationFragmentFunction = NetSerializerInfo->GetCreateAndRegisterReplicationFragmentFunction();
+	}
+
 	return true;
 }
 
@@ -1899,6 +1905,7 @@ bool FPropertyReplicationStateDescriptorBuilder::IsSupportedStructWithCustomSeri
 	OutMemberProperty.ExternalSizeAndAlignment = { (SIZE_T)InStruct->GetStructureSize(), (SIZE_T)InStruct->GetMinAlignment() };
 	OutMemberProperty.ReplicationCondition = ELifetimeCondition::COND_None;
 	OutMemberProperty.PropertyRepNotifyFunction = nullptr;
+	OutMemberProperty.CreateAndRegisterReplicationFragmentFunction = NetSerializerInfo->GetCreateAndRegisterReplicationFragmentFunction();
 	
 	// Init traits
 	OutMemberProperty.Traits = EMemberPropertyTraits::None;

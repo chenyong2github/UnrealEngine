@@ -13,7 +13,11 @@
 namespace UE::Net
 {
 
+class FFragmentRegistrationContext;
+class FReplicationFragment;
+struct FReplicationStateDescriptor;
 enum class EReplicationStateTraits : uint32;
+typedef FReplicationFragment* (*CreateAndRegisterReplicationFragmentFunc)(UObject*, const FReplicationStateDescriptor*, FFragmentRegistrationContext&);
 
 }
 
@@ -32,6 +36,8 @@ struct FPropertyNetSerializerInfo
 	virtual const FNetSerializer* GetNetSerializer(const FProperty* Property) const { return nullptr; }
 	virtual bool CanUseDefaultConfig(const FProperty* Property) const { return true; }
 	virtual const FNetSerializerConfig* BuildNetSerializerConfig(void* NetSerializerConfigBuffer, const FProperty* Property) const { return nullptr; }
+	/** Custom replication fragments are currently only supported by structs with a custom NetSerializer. See UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_WITH_CUSTOM_FRAGMENT_INFO. */
+	virtual CreateAndRegisterReplicationFragmentFunc GetCreateAndRegisterReplicationFragmentFunction() const { return nullptr; }
 };
 
 /**
@@ -102,6 +108,19 @@ struct FNamedStructPropertyNetSerializerInfo : public TSimplePropertyNetSerializ
 		const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property);
 		return StructProp->Struct->GetFName() == PropertyFName;
 	};
+
+	virtual CreateAndRegisterReplicationFragmentFunc GetCreateAndRegisterReplicationFragmentFunction() const
+	{
+		return CreateAndRegisterReplicationFragmentFunction;
+	}
+
+	void SetCreateAndRegisterReplicationFragmentFunction(CreateAndRegisterReplicationFragmentFunc InCreateAndRegisterReplicationFragmentFunction)
+	{
+		CreateAndRegisterReplicationFragmentFunction = InCreateAndRegisterReplicationFragmentFunction;
+	}
+
+private:
+	CreateAndRegisterReplicationFragmentFunc CreateAndRegisterReplicationFragmentFunction = nullptr;
 };
 
 struct FLastResortPropertyNetSerializerInfo : public FPropertyNetSerializerInfo
@@ -147,6 +166,14 @@ const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##Proper
 // Implement simple FPropertyNetSerializerInfo for struct types with custom serializers
 #define UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(Name, SerializerName) \
 const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##Name() { static UE::Net::FNamedStructPropertyNetSerializerInfo StaticInstance(Name, UE_NET_GET_SERIALIZER(SerializerName)); return StaticInstance; };
+
+#define UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_WITH_CUSTOM_FRAGMENT_INFO(Name, SerializerName, CreateAndRegisterReplicationFragmentFunction) \
+const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##Name() \
+{ \
+	static UE::Net::FNamedStructPropertyNetSerializerInfo StaticInstance(Name, UE_NET_GET_SERIALIZER(SerializerName)); \
+	StaticInstance.SetCreateAndRegisterReplicationFragmentFunction(CreateAndRegisterReplicationFragmentFunction); \
+	return StaticInstance; \
+};
 
 // Implement FPropertyNetSerializerInfo for cases where LastResortPropertyNetSerializer is needed for struct with custom serialization.
 #define UE_NET_IMPLEMENT_NAMED_STRUCT_LASTRESORT_NETSERIALIZER_INFO(StructName) \
