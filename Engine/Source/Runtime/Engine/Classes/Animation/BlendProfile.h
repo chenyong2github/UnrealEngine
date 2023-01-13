@@ -95,6 +95,9 @@ public:
 	/** Ensures the bone names match the skeleton indices by using the bone name as our lookup key. */
 	void RefreshBoneEntriesFromName();
 
+	/** Removes entries with bone references to invalid bones */
+	void CleanupBoneEntries();
+
 	/**
 	 * Get the bone entry by entry index.
 	 * @param[in] InEntryIdx The index to the bone entry in range [0, GetNumBlendEntries()-1].

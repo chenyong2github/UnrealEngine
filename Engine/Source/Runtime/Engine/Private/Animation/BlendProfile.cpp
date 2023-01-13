@@ -74,6 +74,14 @@ void UBlendProfile::RefreshBoneEntriesFromName()
 	}
 }
 
+void UBlendProfile::CleanupBoneEntries()
+{
+	ProfileEntries.RemoveAll([](const FBlendProfileBoneEntry& Entry)
+		{
+			return !Entry.BoneReference.HasValidSetup();
+		});
+}
+
 const FBlendProfileBoneEntry& UBlendProfile::GetEntry(const int32 InEntryIdx) const
 {
 	return ProfileEntries[InEntryIdx];
