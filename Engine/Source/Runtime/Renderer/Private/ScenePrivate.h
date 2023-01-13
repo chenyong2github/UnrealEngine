@@ -87,6 +87,23 @@ class FSparseVolumeTextureViewerSceneProxy;
 class FLandscapeRayTracingStateList;
 class FExponentialHeightFogSceneInfo;
 class FStaticMeshBatch;
+class FSceneLightInfoUpdates;
+/**
+ * Describes all light modifications to the scene by recording the light scene IDs.
+ * TODO: If needed, we could add a reference to the FLightUpdates (which contains the commands) since this would enable systems to consume out the delta updates as they come in.
+ *       If this is useful we must ensure FLightUpdates are kept alive as long as any async tasks might require.
+ */
+struct FLightSceneChangeSet
+{
+	// IDs of all lights before they were removed, IDs in this array may not be valid at all times when the change-set is used (depends on whether the callback site is before or after the given lights are removed from the scene).
+	TConstArrayView<int32> RemovedLightIds;
+	// IDs of all lights added to the scene, only available after all lights are added to the scene, may contain the same ID's as removed, as they may be reused.
+	TConstArrayView<int32> AddedLightIds;
+	// IDs of updated lights, does not contain any from the above, since 'add' implies the update of all aspects and 'remove' implies cancellation of all updates. 
+	// The updated arrays are not disjoint as a light may have both types of update applied.
+	TConstArrayView<int32> TransformUpdatedLightIds;
+	TConstArrayView<int32> ColorUpdatedLightIds;
+};
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -3409,6 +3426,23 @@ public:
 	void LumenInvalidateSurfaceCacheForPrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void LumenRemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
+	/**
+	 * Light scene change delegates, may be used to hook in subsystems that need to respond to light scene changes.
+	 * Note, all the light scene changes are applied _before_ all the primitive scene infos are updated.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneLightSceneInfoUpdateDelegate, const FLightSceneChangeSet&);
+	/**
+	 * This delegate is invoked during the scene update phase _before_ the scene has had any light changes applied.
+	 * Thus, AddedLightIds is not valid in the change set as the added lights do not have assigned IDs yet.
+	 * IF using this to drive an async task, care must be taken as the (light) scene will be modified directly after.
+	 */
+	FSceneLightSceneInfoUpdateDelegate OnPreLigtSceneInfoUpdate;
+	/**
+	 * This delegate is invoked during the scene update phase _after_ all light changes are applied.
+	 * Thus, RemovedLightIds may contain ID's that are no longer valid or are now referencing newly added lights.
+	 * IF using this to drive an async task, the core light scene info may be used, but primitive scene updates will still be ongoing (e.g., light/primitive interactions may change).
+	 */
+	FSceneLightSceneInfoUpdateDelegate OnPostLigtSceneInfoUpdate;
 protected:
 
 private:
@@ -3469,7 +3503,7 @@ private:
 	 */
 	void RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo);
 
-	void UpdateLightTransform_RenderThread(FLightSceneInfo* LightSceneInfo, const struct FUpdateLightTransformParameters& Parameters);
+	void UpdateLightTransform_RenderThread(int32 LightId, FLightSceneInfo* LightSceneInfo, const struct FUpdateLightTransformParameters& Parameters);
 
 	/** 
 	* Updates the contents of the given reflection capture by rendering the scene. 
@@ -3517,6 +3551,11 @@ private:
 	void ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo);
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
 
+	/**
+	 * Process all scene updates for lights, returns the change-set, which references arrays allocated with a RDG builder life-time.
+	 */
+	FLightSceneChangeSet UpdateAllLightSceneInfos(FRDGBuilder& GraphBuilder);
+
 private:
 #if RHI_RAYTRACING
 	void UpdateRayTracingGroupBounds_AddPrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
@@ -3551,6 +3590,8 @@ private:
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
+
+	FSceneLightInfoUpdates *SceneLightInfoUpdates;
 
 	/** 
 	 * The number of visible lights in the scene
