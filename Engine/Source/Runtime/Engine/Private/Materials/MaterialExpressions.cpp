@@ -12813,7 +12813,8 @@ int32 UMaterialExpressionDeriveNormalZ::Compile(class FMaterialCompiler* Compile
 	int32 InputVector = Compiler->ForceCast(InXY.Compile(Compiler), MCT_Float2);
 	int32 DotResult = Compiler->Dot(InputVector, InputVector);
 	int32 InnerResult = Compiler->Sub(Compiler->Constant(1), DotResult);
-	int32 DerivedZ = Compiler->SquareRoot(InnerResult);
+	int32 SaturatedInnerResult = Compiler->Saturate(InnerResult);
+	int32 DerivedZ = Compiler->SquareRoot(SaturatedInnerResult);
 	int32 AppendedResult = Compiler->ForceCast(Compiler->AppendVector(InputVector, DerivedZ), MCT_Float3);
 
 	return AppendedResult;
