@@ -3,7 +3,7 @@
 #include "PrecachePayloads.h"
 
 #include "Async/ParallelFor.h"
-#include "PackageHelperFunctions.h"
+#include "CommandletUtils.h"
 #include "Tasks/Task.h"
 #include "UObject/PackageTrailer.h"
 #include "Virtualization/VirtualizationSystem.h"
@@ -88,60 +88,6 @@ bool WaitOnTasks(const TArray<UE::Tasks::FTask>& Tasks, FTimespan InTimeout)
 	return CompletionEvent->Wait((uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32));
 }
 
-/** Parse all of the active mount points and find all .uasset/.umaps */
-TArray<FString> FindPackages()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FindPackages);
-
-	TArray<FString> PackageNames;
-
-	// TODO: In theory we could check the VA settings and skip engine content if they are 
-	// excluded from virtualization. Not convinced it saves enough time to be worth the 
-	// effort.
-	EPackageNormalizationFlags PackageFilter = NORMALIZE_DefaultFlags;
-
-	const FString AssetSearch = TEXT("*") + FPackageName::GetAssetPackageExtension();
-	const FString MapSearch = TEXT("*") + FPackageName::GetMapPackageExtension();
-	
-	TArray<FString> Unused;
-	bool bAnyFound = NormalizePackageNames(Unused, PackageNames, AssetSearch, PackageFilter);
-	bAnyFound |= NormalizePackageNames(Unused, PackageNames, MapSearch, PackageFilter);
-
-	return PackageNames;
-}
-
-/** Returns a combined list of unique virtualized payload ids from the given list of packages */
-TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackageNames)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FindVirtualizedPayloads);
-
-	// Each task will write out to its own TSet so we don't have to lock anything, we
-	// will combine the sets at the end.
-	TArray<TSet<FIoHash>> PayloadsPerTask;
-
-	ParallelForWithTaskContext(PayloadsPerTask, PackageNames.Num(), 
-		[&PackageNames](TSet<FIoHash>& Context, int32 Index)
-		{
-			const FString& PackageName = PackageNames[Index];
-
-			UE::FPackageTrailer Trailer;
-			if (UE::FPackageTrailer::TryLoadFromFile(PackageName, Trailer))
-			{
-				TArray<FIoHash> VirtualizedPayloads = Trailer.GetPayloads(UE::EPayloadStorageType::Virtualized);
-				Context.Append(VirtualizedPayloads);
-			}
-		});
-
-	// Combine the results into a final set
-	TSet<FIoHash> AllPayloads;
-	for (const TSet<FIoHash>& T : PayloadsPerTask)
-	{
-		AllPayloads.Append(T);
-	}
-
-	return AllPayloads.Array();
-}
-
 /** Utility to turn an array of FIoHash into an array of FPullRequest */
 TArray<UE::Virtualization::FPullRequest> ToRequestArray(TConstArrayView<FIoHash> IdentifierArray)
 {
@@ -168,11 +114,11 @@ int32 UPrecachePayloadsCommandlet::Main(const FString& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPrecachePayloadsCommandlet);
 
-	TArray<FString> PackageNames = FindPackages();
+	TArray<FString> PackageNames = UE::Virtualization::FindAllPackages();
 
 	UE_LOG(LogVirtualization, Display, TEXT("Found %d packages"), PackageNames.Num());
 
-	TArray<FIoHash> PayloadIds = FindVirtualizedPayloads(PackageNames);
+	TArray<FIoHash> PayloadIds = UE::Virtualization::FindVirtualizedPayloads(PackageNames);
 
 	if (PayloadIds.IsEmpty())
 	{

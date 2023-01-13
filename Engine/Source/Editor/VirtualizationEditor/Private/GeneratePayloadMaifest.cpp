@@ -2,54 +2,12 @@
 
 #include "GeneratePayloadManifest.h"
 
+#include "CommandletUtils.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
 #include "Misc/Paths.h"
-#include "PackageHelperFunctions.h"
 #include "UObject/PackageTrailer.h"
-
-namespace
-{
-TArray<FString> DiscoverPackages(const FString& Params)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(DiscoverPackages);
-	
-	FString PackageDir;
-	if (FParse::Value(*Params, TEXT("PackageDir="), PackageDir) || FParse::Value(*Params, TEXT("PackageFolder="), PackageDir))
-	{
-		TArray<FString> FilesInPackageFolder;
-		FPackageName::FindPackagesInDirectory(FilesInPackageFolder, PackageDir);
-
-		TArray<FString> PackageNames;
-		for (const FString& BasePath : FilesInPackageFolder)
-		{
-			PackageNames.Add(FPaths::CreateStandardFilename(BasePath));
-		}
-
-		return PackageNames;
-	}
-	else
-	{
-		TArray<FString> PackageNames;
-
-		// TODO: In theory we could check the VA settings and skip engine content if they are 
-		// excluded from virtualization. Not convinced it saves enough time to be worth the 
-		// effort.
-		EPackageNormalizationFlags PackageFilter = NORMALIZE_DefaultFlags;
-
-		const FString AssetSearch = TEXT("*") + FPackageName::GetAssetPackageExtension();
-		const FString MapSearch = TEXT("*") + FPackageName::GetMapPackageExtension();
-
-		TArray<FString> Unused;
-		bool bAnyFound = NormalizePackageNames(Unused, PackageNames, AssetSearch, PackageFilter);
-		bAnyFound |= NormalizePackageNames(Unused, PackageNames, MapSearch, PackageFilter);
-
-		return PackageNames;
-	}
-}
-
-} //namespace
 
 UGeneratePayloadManifestCommandlet::UGeneratePayloadManifestCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -60,7 +18,7 @@ int32 UGeneratePayloadManifestCommandlet::Main(const FString& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UGeneratePayloadManifestCommandlet);
 
-	TArray<FString> PackageNames = DiscoverPackages(Params);
+	TArray<FString> PackageNames = UE::Virtualization::DiscoverPackages(Params);
 
 	UE_LOG(LogVirtualization, Display, TEXT("Found %d files to look in"), PackageNames.Num());
 
