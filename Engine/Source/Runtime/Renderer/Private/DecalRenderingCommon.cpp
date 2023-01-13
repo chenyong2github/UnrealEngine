@@ -8,14 +8,14 @@
 
 namespace DecalRendering
 {
-	inline bool IsOpaqueBlendMode(const FDecalBlendDesc& In)			{ return IsOpaqueBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsOpaqueOrMaskedBlendMode(const FDecalBlendDesc& In)	{ return IsOpaqueOrMaskedBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsMaskedBlendMode(const FDecalBlendDesc& In)			{ return IsMaskedBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsTranslucentOnlyBlendMode(const FDecalBlendDesc& In)	{ return IsTranslucentOnlyBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsTranslucentBlendMode(const FDecalBlendDesc& In)		{ return IsTranslucentBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsAlphaHoldoutBlendMode(const FDecalBlendDesc& In)		{ return IsAlphaHoldoutBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsModulateBlendMode(const FDecalBlendDesc& In)			{ return IsModulateBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
-	inline bool IsAlphaCompositeBlendMode(const FDecalBlendDesc& In)	{ return IsAlphaCompositeBlendMode((EBlendMode)In.BlendMode, (EStrataBlendMode)In.StrataBlendMode); }
+	inline bool IsOpaqueBlendMode(const FDecalBlendDesc& In)			{ return IsOpaqueBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsOpaqueOrMaskedBlendMode(const FDecalBlendDesc& In)	{ return IsOpaqueOrMaskedBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsMaskedBlendMode(const FDecalBlendDesc& In)			{ return IsMaskedBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsTranslucentOnlyBlendMode(const FDecalBlendDesc& In)	{ return IsTranslucentOnlyBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsTranslucentBlendMode(const FDecalBlendDesc& In)		{ return IsTranslucentBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsAlphaHoldoutBlendMode(const FDecalBlendDesc& In)		{ return IsAlphaHoldoutBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsModulateBlendMode(const FDecalBlendDesc& In)			{ return IsModulateBlendMode((EBlendMode)In.BlendMode); }
+	inline bool IsAlphaCompositeBlendMode(const FDecalBlendDesc& In)	{ return IsAlphaCompositeBlendMode((EBlendMode)In.BlendMode); }
 
 	/** Finalize the initialization of FDecalBlendDesc after BlendMode and bWrite flags have all been set. */
 	void FinalizeBlendDesc(EShaderPlatform Platform, FDecalBlendDesc& Desc)
@@ -32,12 +32,10 @@ namespace DecalRendering
 		if (!IsTranslucentOnlyBlendMode(Desc) && !IsAlphaCompositeBlendMode(Desc) && !IsModulateBlendMode(Desc))
 		{
 			Desc.BlendMode = BLEND_Translucent;
-			Desc.StrataBlendMode = SBM_TranslucentGreyTransmittance;
 		}
 		if (bIsDBufferPlatform && IsModulateBlendMode(Desc))
 		{
 			Desc.BlendMode = BLEND_Translucent;
-			Desc.StrataBlendMode = SBM_TranslucentGreyTransmittance;
 		}
 
 		// Enforce platform output limitations.
@@ -98,7 +96,6 @@ namespace DecalRendering
 				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_SpecularColor);	// This is used for Strata Slab using (DiffuseAlbedo | F0) parameterization
 
 			Desc.BlendMode = Material.GetBlendMode();
-			Desc.StrataBlendMode = Material.GetStrataBlendMode();
 			Desc.bWriteBaseColor = Material.HasMaterialPropertyConnected(EMaterialProperty::MP_BaseColor) || bUseDiffuseAlbedoAndF0;
 			Desc.bWriteNormal = Material.HasMaterialPropertyConnected(EMaterialProperty::MP_Normal);
 			Desc.bWriteRoughnessSpecularMetallic =
@@ -114,7 +111,6 @@ namespace DecalRendering
 		else
 		{
 			Desc.BlendMode = Material.GetBlendMode();
-			Desc.StrataBlendMode = Material.GetStrataBlendMode();
 			Desc.bWriteBaseColor = Material.HasBaseColorConnected();
 			Desc.bWriteNormal = Material.HasNormalConnected();
 			Desc.bWriteRoughnessSpecularMetallic = Material.HasRoughnessConnected() || Material.HasSpecularConnected() || Material.HasMetallicConnected();
@@ -135,7 +131,6 @@ namespace DecalRendering
 				MaterialShaderParameters.bHasF0Connected;
 			
 			Desc.BlendMode = MaterialShaderParameters.BlendMode;
-			Desc.StrataBlendMode = MaterialShaderParameters.StrataBlendMode;
 			Desc.bWriteBaseColor = MaterialShaderParameters.bHasBaseColorConnected || bUseDiffuseAlbedoAndF0;
 			Desc.bWriteNormal = MaterialShaderParameters.bHasNormalConnected;
 			Desc.bWriteRoughnessSpecularMetallic = 
@@ -149,7 +144,6 @@ namespace DecalRendering
 		else
 		{
 			Desc.BlendMode = MaterialShaderParameters.BlendMode;
-			Desc.StrataBlendMode = MaterialShaderParameters.StrataBlendMode;
 			Desc.bWriteBaseColor = MaterialShaderParameters.bHasBaseColorConnected;
 			Desc.bWriteNormal = MaterialShaderParameters.bHasNormalConnected;
 			Desc.bWriteRoughnessSpecularMetallic = MaterialShaderParameters.bHasRoughnessConnected || MaterialShaderParameters.bHasSpecularConnected || MaterialShaderParameters.bHasMetallicConnected;

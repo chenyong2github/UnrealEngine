@@ -1827,7 +1827,6 @@ public:
 	virtual bool IsDitherMasked() const { return false; }
 	virtual bool AllowNegativeEmissiveColor() const { return false; }
 	virtual enum EBlendMode GetBlendMode() const = 0;
-	virtual enum EStrataBlendMode GetStrataBlendMode() const = 0;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const;
 	virtual bool GetRootNodeOverridesDefaultRefraction() const = 0;
 	virtual FMaterialShadingModelField GetShadingModels() const = 0;
@@ -1960,11 +1959,10 @@ public:
 	inline bool ShouldCastDynamicShadows() const
 	{
 		const EBlendMode BlendMode = GetBlendMode();
-		const EStrataBlendMode StrataBlendMode = GetStrataBlendMode();
 		return !GetShadingModels().HasOnlyShadingModel(MSM_SingleLayerWater) &&
-				(IsOpaqueBlendMode(BlendMode, StrataBlendMode)
- 				 || IsMaskedBlendMode(BlendMode, StrataBlendMode)
-  				 || (IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode) && GetCastDynamicShadowAsMasked()));
+				(IsOpaqueBlendMode(BlendMode)
+ 				 || IsMaskedBlendMode(BlendMode)
+  				 || (IsTranslucentOnlyBlendMode(BlendMode) && GetCastDynamicShadowAsMasked()));
 	}
 
 
@@ -2564,7 +2562,6 @@ public:
 	ENGINE_API virtual bool UseLmDirectionality() const override;
 	ENGINE_API virtual bool IsMobileHighQualityBRDFEnabled() const override;
 	ENGINE_API virtual enum EBlendMode GetBlendMode() const override;
-	ENGINE_API virtual enum EStrataBlendMode GetStrataBlendMode() const override;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const override;
 	ENGINE_API virtual bool GetRootNodeOverridesDefaultRefraction() const override;
 	ENGINE_API virtual uint32 GetMaterialDecalResponse() const override;
@@ -2905,7 +2902,6 @@ struct FMaterialShaderParameters
 	EMaterialDomain MaterialDomain;
 	FMaterialShadingModelField ShadingModels;
 	EBlendMode BlendMode;
-	EStrataBlendMode StrataBlendMode;
 	ERHIFeatureLevel::Type FeatureLevel;
 	EMaterialQualityLevel::Type QualityLevel;
 	int32 BlendableLocation;

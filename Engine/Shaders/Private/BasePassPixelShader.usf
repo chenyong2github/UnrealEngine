@@ -95,7 +95,7 @@
 #define GetEffectiveSkySHDiffuse GetSkySHDiffuse
 #endif
 
-#if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+#if MATERIALBLENDING_ANY_TRANSLUCENT
 #define LumenGIVolumeStruct TranslucentBasePass
 #define FrontLayerTranslucencyReflectionsStruct TranslucentBasePass
 // Reroute for LumenRadianceCacheInterpolation.ush

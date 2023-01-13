@@ -5,6 +5,14 @@
 
 namespace Lightmass
 {
+	// The logic of these function needs to match StrataMaterial.cpp
+	bool IsOpaqueOrMaskedBlendMode(EBlendMode BlendMode)	{ return BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked; }
+	bool IsTranslucentOnlyBlendMode(EBlendMode BlendMode)	{ return BlendMode == BLEND_Translucent || BlendMode == BLEND_TranslucentColoredTransmittance || BlendMode == BLEND_TranslucentGreyTransmittance; }
+	bool IsAlphaHoldoutBlendMode(EBlendMode BlendMode)		{ return BlendMode == BLEND_AlphaHoldout; }
+	bool IsModulateBlendMode(EBlendMode BlendMode)			{ return BlendMode == BLEND_Modulate || BlendMode == BLEND_ColoredTransmittanceOnly; }
+	bool IsAdditiveBlendMode(EBlendMode BlendMode)			{ return BlendMode == BLEND_Additive; }
+	bool IsAlphaCompositeBlendMode(EBlendMode BlendMode)	{ return BlendMode == BLEND_AlphaComposite; }
+
 	//----------------------------------------------------------------------------
 	//	Material base class
 	//----------------------------------------------------------------------------
@@ -43,7 +51,7 @@ namespace Lightmass
 		else
 		{
 			// Opaque materials should always import diffuse
-			check(BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked);
+			check(!IsOpaqueOrMaskedBlendMode(BlendMode));
 		}
 
 		// Transmission
@@ -55,16 +63,9 @@ namespace Lightmass
 		}
 		else
 		{
-			if (StrataBlendMode != SBM_MAX)
-			{
-				// Strata is enabled: only opaque materials do not have Transmission data.
-				check(StrataBlendMode == SBM_Opaque);
-			}
-			else
-			{
-				// Materials with a translucent blend mode should always import transmission
-				check(BlendMode != BLEND_Translucent && BlendMode != BLEND_Additive && BlendMode != BLEND_Modulate && BlendMode != BLEND_AlphaComposite && BlendMode != BLEND_AlphaHoldout);
-			}
+			// Materials with a translucent blend mode should always import transmission
+			check(!IsTranslucentOnlyBlendMode(BlendMode) && !IsAdditiveBlendMode(BlendMode) && !IsModulateBlendMode(BlendMode) && !IsAlphaCompositeBlendMode(BlendMode) && !IsAlphaHoldoutBlendMode(BlendMode))
+
 		}
 
 		// Normal

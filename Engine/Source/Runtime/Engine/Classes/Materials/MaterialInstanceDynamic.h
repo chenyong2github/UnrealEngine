@@ -196,7 +196,6 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	virtual FMaterialShadingModelField GetShadingModels() const override;
 	virtual bool IsShadingModelFromMaterialExpression() const override;
 	virtual EBlendMode GetBlendMode() const override;
-	virtual EStrataBlendMode GetStrataBlendMode() const override;
 	virtual bool IsTwoSided() const override;
 	virtual bool IsThinSurface() const override;
 	virtual bool IsTranslucencyWritingVelocity() const override;

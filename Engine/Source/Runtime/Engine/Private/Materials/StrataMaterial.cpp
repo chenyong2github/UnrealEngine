@@ -56,20 +56,24 @@ inline bool IsStrataEnabled()
 	return bStrataEnabled;
 }
 
-#define IsGenericBlendMode(Name, LegacyCondition, StrataCondition) \
+#define IsGenericBlendMode_Conversion0(Name, LegacyCondition) \
 	bool Is##Name##BlendMode(EBlendMode BlendMode)											{ return LegacyCondition; } \
-	bool Is##Name##BlendMode(EStrataBlendMode BlendMode)									{ return StrataCondition; } \
-	bool Is##Name##BlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)	{ return IsStrataEnabled() ? Is##Name##BlendMode(StrataBlendMode) : Is##Name##BlendMode(LegacyBlendMode); } \
-	bool Is##Name##BlendMode(const FMaterial& In)											{ return IsStrataEnabled() ? Is##Name##BlendMode(In.GetStrataBlendMode()) : Is##Name##BlendMode(In.GetBlendMode()); } \
-	bool Is##Name##BlendMode(const UMaterialInterface& In)									{ return IsStrataEnabled() ? Is##Name##BlendMode(In.GetStrataBlendMode()) : Is##Name##BlendMode(In.GetBlendMode()); } \
-	bool Is##Name##BlendMode(const FMaterialShaderParameters& In)							{ return IsStrataEnabled() ? Is##Name##BlendMode(In.StrataBlendMode) : Is##Name##BlendMode(In.BlendMode); }
+	bool Is##Name##BlendMode(const FMaterial& In)											{ return Is##Name##BlendMode(In.GetBlendMode()); } \
+	bool Is##Name##BlendMode(const UMaterialInterface& In)									{ return Is##Name##BlendMode(In.GetBlendMode()); } \
+	bool Is##Name##BlendMode(const FMaterialShaderParameters& In)							{ return Is##Name##BlendMode(In.BlendMode); }
 
-IsGenericBlendMode(Opaque,			BlendMode == BLEND_Opaque,								BlendMode == SBM_Opaque)																			// Opaque blend mode
-IsGenericBlendMode(Masked,			BlendMode == BLEND_Masked,								BlendMode == SBM_Masked)																			// Masked blend mode
-IsGenericBlendMode(OpaqueOrMasked,	BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked, BlendMode == SBM_Opaque || BlendMode == SBM_Masked)													// Opaque or Masked blend mode
-IsGenericBlendMode(Translucent,		BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked, BlendMode != SBM_Opaque && BlendMode != SBM_Masked)													// General translucency (i.e., blend mode is something else than Opaque/Masked)
-IsGenericBlendMode(TranslucentOnly, BlendMode == BLEND_Translucent,							BlendMode == SBM_TranslucentColoredTransmittance || BlendMode == SBM_TranslucentGreyTransmittance) 	// Explicit translucency blend mode
-IsGenericBlendMode(AlphaHoldout,	BlendMode == BLEND_AlphaHoldout,						BlendMode == SBM_AlphaHoldout)																		// AlphaHoldout blend mode
-IsGenericBlendMode(Modulate,		BlendMode == BLEND_Modulate,							BlendMode == SBM_ColoredTransmittanceOnly)															// Modulate blend mode
-IsGenericBlendMode(Additive,		BlendMode == BLEND_Additive,							BlendMode == SBM_TranslucentGreyTransmittance)														// Additive blend mode
-IsGenericBlendMode(AlphaComposite,	BlendMode == BLEND_AlphaComposite,						BlendMode == SBM_TranslucentGreyTransmittance)														// AlphaComposite blend mode
+#define IsGenericBlendMode_Conversion1(Name, LegacyCondition, StrataCondition) \
+	bool Is##Name##BlendMode(EBlendMode BlendMode)											{ return IsStrataEnabled() ? (StrataCondition) : (LegacyCondition); } \
+	bool Is##Name##BlendMode(const FMaterial& In)											{ return Is##Name##BlendMode(In.GetBlendMode()); } \
+	bool Is##Name##BlendMode(const UMaterialInterface& In)									{ return Is##Name##BlendMode(In.GetBlendMode()); } \
+	bool Is##Name##BlendMode(const FMaterialShaderParameters& In)							{ return Is##Name##BlendMode(In.BlendMode); }
+
+IsGenericBlendMode_Conversion0(Opaque,			BlendMode == BLEND_Opaque)																												// Opaque blend mode
+IsGenericBlendMode_Conversion0(Masked,			BlendMode == BLEND_Masked)																												// Masked blend mode
+IsGenericBlendMode_Conversion0(OpaqueOrMasked,	BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)																					// Opaque or Masked blend mode
+IsGenericBlendMode_Conversion0(Translucent,		BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked)																					// General translucency (i.e., blend mode is something else than Opaque/Masked)
+IsGenericBlendMode_Conversion1(TranslucentOnly, BlendMode == BLEND_Translucent, BlendMode == BLEND_TranslucentColoredTransmittance || BlendMode == BLEND_TranslucentGreyTransmittance) 	// Explicit translucency blend mode
+IsGenericBlendMode_Conversion0(AlphaHoldout,	BlendMode == BLEND_AlphaHoldout)																										// AlphaHoldout blend mode
+IsGenericBlendMode_Conversion1(Modulate,		BlendMode == BLEND_Modulate, BlendMode == BLEND_ColoredTransmittanceOnly)																// Modulate blend mode
+IsGenericBlendMode_Conversion0(Additive,		BlendMode == BLEND_Additive)																											// Additive blend mode
+IsGenericBlendMode_Conversion0(AlphaComposite,	BlendMode == BLEND_AlphaComposite)																										// AlphaComposite blend mode

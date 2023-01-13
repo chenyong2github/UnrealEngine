@@ -327,8 +327,6 @@ public:
 		return UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	}
 
-	virtual enum EStrataBlendMode GetStrataBlendMode() const override { return EStrataBlendMode::SBM_Opaque; }
-
 	virtual enum ERefractionMode GetRefractionMode() const override { return Material ? (ERefractionMode)Material->RefractionMethod : RM_None; }
 	virtual bool GetRootNodeOverridesDefaultRefraction()const override { return Material ? Material->bRootNodeOverridesDefaultDistortion : false; }
 
@@ -512,7 +510,7 @@ public:
 		}
 		return false;
 	}
-	virtual bool IsMasked() const override { return ProxyBlendMode == BLEND_Masked; } // STRATA_TODO_BLENDMODE
+	virtual bool IsMasked() const override { return ProxyBlendMode == BLEND_Masked; }
 	virtual enum EBlendMode GetBlendMode() const override { return ProxyBlendMode; }
 	virtual FMaterialShadingModelField GetShadingModels() const override { return ProxyBlendMode == BLEND_Opaque ? MSM_DefaultLit : MSM_Unlit; }
 	virtual bool IsShadingModelFromMaterialExpression() const override { return false; }

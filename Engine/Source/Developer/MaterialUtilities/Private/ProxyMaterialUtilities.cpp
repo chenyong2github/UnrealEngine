@@ -289,7 +289,7 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateFlattenMaterialInstance(UPa
 	OutMaterial->BasePropertyOverrides.DitheredLODTransition = FlattenMaterial.bDitheredLODTransition;
 	OutMaterial->BasePropertyOverrides.bOverride_DitheredLODTransition = FlattenMaterial.bDitheredLODTransition != false;
 
-	if (InMaterialProxySettings.BlendMode != BLEND_Opaque) // STRATA_TODO_BLENDMODE
+	if (InMaterialProxySettings.BlendMode != BLEND_Opaque)
 	{
 		OutMaterial->BasePropertyOverrides.bOverride_BlendMode = true;
 		OutMaterial->BasePropertyOverrides.BlendMode = InMaterialProxySettings.BlendMode;

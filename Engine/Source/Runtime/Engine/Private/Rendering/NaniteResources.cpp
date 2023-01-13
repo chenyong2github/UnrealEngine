@@ -2149,20 +2149,20 @@ void FixupMaterials(FMaterialAudit& Audit)
 	}
 }
 
-inline bool IsSupportedBlendMode(const EBlendMode& BlendMode, const EStrataBlendMode& StrataBlendMode)
+inline bool IsSupportedBlendMode(const EBlendMode& BlendMode)
 {
 	if (GNaniteErrorOnMaskedBlendMode != 0)
 	{
-		return IsOpaqueBlendMode(BlendMode, StrataBlendMode);
+		return IsOpaqueBlendMode(BlendMode);
 	}
 	else
 	{
-		return IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode);
+		return IsOpaqueOrMaskedBlendMode(BlendMode);
 	}
 }
-bool IsSupportedBlendMode(const FMaterialShaderParameters& In)	{ return IsSupportedBlendMode(In.BlendMode, In.StrataBlendMode); }
-bool IsSupportedBlendMode(const FMaterial& In)					{ return IsSupportedBlendMode(In.GetBlendMode(), In.GetStrataBlendMode()); }
-bool IsSupportedBlendMode(const UMaterialInterface& In)			{ return IsSupportedBlendMode(In.GetBlendMode(), In.GetStrataBlendMode()); }
+bool IsSupportedBlendMode(const FMaterialShaderParameters& In)	{ return IsSupportedBlendMode(In.BlendMode); }
+bool IsSupportedBlendMode(const FMaterial& In)					{ return IsSupportedBlendMode(In.GetBlendMode()); }
+bool IsSupportedBlendMode(const UMaterialInterface& In)			{ return IsSupportedBlendMode(In.GetBlendMode()); }
 
 bool IsSupportedMaterialDomain(EMaterialDomain Domain)
 {

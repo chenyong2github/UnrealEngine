@@ -44,32 +44,23 @@ struct FBaseMaterialData
  */
 enum EBlendMode
 {
-    BLEND_Opaque            =0,
-    BLEND_Masked            =1,
-    BLEND_Translucent       =2,
-    BLEND_Additive          =3,
-    BLEND_Modulate          =4,
-	BLEND_AlphaComposite    =5,
-	BLEND_AlphaHoldout      =6,
-	BLEND_MAX               =7,
-};
-enum EStrataBlendMode
-{
-	SBM_Opaque								= 0,
-	SBM_Masked								= 1,
-	SBM_TranslucentGreyTransmittance		= 2,
-	SBM_TranslucentColoredTransmittance		= 3,
-	SBM_ColoredTransmittanceOnly			= 4,
-	SBM_AlphaHoldout						= 5,
-	SBM_MAX									= 6,
+    BLEND_Opaque                          =0,
+    BLEND_Masked                          =1,
+    BLEND_Translucent                     =2,
+    BLEND_Additive                        =3,
+    BLEND_Modulate                        =4,
+	BLEND_AlphaComposite                  =5,
+	BLEND_AlphaHoldout                    =6,
+	BLEND_TranslucentColoredTransmittance =7, /*Strata only */
+	BLEND_MAX                             =8,
+	BLEND_TranslucentGreyTransmittance    = BLEND_Translucent, /*Strata only */
+	BLEND_ColoredTransmittanceOnly        = BLEND_Modulate, /*Strata only */
 };
 
 struct FMaterialData
 {
 	/** The BLEND mode of the material */
 	EBlendMode BlendMode;
-	/** The Strata BLEND mode of the material */
-	EStrataBlendMode StrataBlendMode;
 	/** Whether the material is two-sided or not */
 	uint32 bTwoSided:1;
 	/** Whether the material is thin-surface or not */
@@ -93,8 +84,7 @@ struct FMaterialData
 	int32 NormalSize;
 
 	FMaterialData() :
-		  StrataBlendMode(SBM_MAX)
-		, EmissiveBoost(1.0f)
+		  EmissiveBoost(1.0f)
 		, DiffuseBoost(1.0f)
 		, EmissiveSize(0)
 		, DiffuseSize(0)

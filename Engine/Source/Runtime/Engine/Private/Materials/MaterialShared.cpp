@@ -1648,8 +1648,7 @@ bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const
 	bool bMaterialRequestsDualSourceBlending = Material->ShadingModel == MSM_ThinTranslucent;
 	if (IsStrataMaterial())
 	{
-		EStrataBlendMode StrataBlendMode = GetStrataBlendMode();
-		bMaterialRequestsDualSourceBlending = StrataBlendMode == EStrataBlendMode::SBM_TranslucentColoredTransmittance;
+		bMaterialRequestsDualSourceBlending = GetBlendMode() == EBlendMode::BLEND_TranslucentColoredTransmittance;
 	}
 	const bool bIsPlatformSupported = RHISupportsDualSourceBlending(Platform);
 	return bMaterialRequestsDualSourceBlending && bIsPlatformSupported;
@@ -1745,11 +1744,6 @@ EBlendMode FMaterialResource::GetBlendMode() const
 	return MaterialInstance ? MaterialInstance->GetBlendMode() : Material->GetBlendMode();
 }
 
-EStrataBlendMode FMaterialResource::GetStrataBlendMode() const
-{
-	return MaterialInstance ? MaterialInstance->GetStrataBlendMode() : Material->GetStrataBlendMode();
-}
-
 ERefractionMode FMaterialResource::GetRefractionMode() const
 {
 	return Material->RefractionMethod;
@@ -1793,7 +1787,7 @@ bool FMaterialResource::IsDitheredLODTransition() const
 bool FMaterialResource::IsTranslucencyWritingCustomDepth() const
 {
 	// We cannot call UMaterial::IsTranslucencyWritingCustomDepth because we need to check the instance potentially overriden blend mode.
-	return  Material->AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode());
+	return  Material->AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool FMaterialResource::IsTranslucencyWritingVelocity() const
@@ -1816,7 +1810,7 @@ bool FMaterialResource::AllowNegativeEmissiveColor() const
 	return Material->bAllowNegativeEmissiveColor;
 }
 
-bool FMaterialResource::IsDistorted() const { return Material->bUsesDistortion && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode()); }
+bool FMaterialResource::IsDistorted() const { return Material->bUsesDistortion && IsTranslucentBlendMode(GetBlendMode()); }
 float FMaterialResource::GetTranslucencyDirectionalLightingIntensity() const { return Material->TranslucencyDirectionalLightingIntensity; }
 float FMaterialResource::GetTranslucentShadowDensityScale() const { return Material->TranslucentShadowDensityScale; }
 float FMaterialResource::GetTranslucentSelfShadowDensityScale() const { return Material->TranslucentSelfShadowDensityScale; }
@@ -2260,10 +2254,12 @@ void FMaterial::SetupMaterialEnvironment(
 		OutEnvironment.CompilerFlags.Add(CFLAG_UsesExternalTexture);
 	}
 
-	switch(GetBlendMode())
+	if (!Engine_IsStrataEnabled())
 	{
-	case BLEND_Opaque:
-	case BLEND_Masked:
+		switch(GetBlendMode())
+		{
+		case BLEND_Opaque:
+		case BLEND_Masked:
 		{
 			// Only set MATERIALBLENDING_MASKED if the material is truly masked
 			//@todo - this may cause mismatches with what the shader compiles and what the renderer thinks the shader needs
@@ -2278,52 +2274,95 @@ void FMaterial::SetupMaterialEnvironment(
 			}
 			break;
 		}
-	case BLEND_AlphaComposite:
-	{
-		// Blend mode will reuse MATERIALBLENDING_TRANSLUCENT
-		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), TEXT("1"));
-		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
-		break;
-	}
-	case BLEND_AlphaHoldout:
-	{
-		// Blend mode will reuse MATERIALBLENDING_TRANSLUCENT
-		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHAHOLDOUT"), TEXT("1"));
-		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
-		break;
-	}
-	case BLEND_Translucent: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"),TEXT("1")); break;
-	case BLEND_Additive: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ADDITIVE"),TEXT("1")); break;
-	case BLEND_Modulate: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_MODULATE"),TEXT("1")); break;
-	default: 
-		UE_LOG(LogMaterial, Warning, TEXT("Unknown material blend mode: %u  Setting to BLEND_Opaque"),(int32)GetBlendMode());
-		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_SOLID"),TEXT("1"));
-	}
-
-	if (Engine_IsStrataEnabled())
-	{
-		switch (GetStrataBlendMode())
+		case BLEND_AlphaComposite:
 		{
-		case SBM_Opaque:
+			// Blend mode will reuse MATERIALBLENDING_TRANSLUCENT
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
+			break;
+		}
+		case BLEND_AlphaHoldout:
+		{
+			// Blend mode will reuse MATERIALBLENDING_TRANSLUCENT
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHAHOLDOUT"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
+			break;
+		}
+		case BLEND_Translucent: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"),TEXT("1")); break;
+		case BLEND_Additive: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ADDITIVE"),TEXT("1")); break;
+		case BLEND_Modulate: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_MODULATE"),TEXT("1")); break;
+		default: 
+			UE_LOG(LogMaterial, Warning, TEXT("Unknown material blend mode: %u  Setting to BLEND_Opaque"),(int32)GetBlendMode());
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_SOLID"),TEXT("1"));
+		}
+	}
+	else
+	{
+		switch (GetBlendMode())
+		{
+		case BLEND_Opaque:
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_SOLID"), TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_OPAQUE"), TEXT("1"));
 			break;
-		case SBM_Masked:
+		}
+		case BLEND_Masked:
+		{
+			// Only set MATERIALBLENDING_MASKED if the material is truly masked
+			//@todo - this may cause mismatches with what the shader compiles and what the renderer thinks the shader needs
+			// For example IsTranslucentBlendMode doesn't check IsMasked
+			if(!WritesEveryPixel())
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_MASKED"),TEXT("1"));
+			}
+			else
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_SOLID"),TEXT("1"));
+			}
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_MASKED"), TEXT("1"));
 			break;
-		case SBM_TranslucentGreyTransmittance:
+		}
+		case BLEND_Additive: // STRATA_TODO_BLENDMODE_ADDITIVE
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ADDITIVE"),TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_GREYTRANSMITTANCE"), TEXT("1"));
 			break;
-		case SBM_TranslucentColoredTransmittance:
+		}
+		case BLEND_AlphaComposite:
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_GREYTRANSMITTANCE"), TEXT("1"));
+			break;
+		}
+		case BLEND_TranslucentGreyTransmittance:
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_GREYTRANSMITTANCE"), TEXT("1"));
+			break;
+		}
+		case BLEND_TranslucentColoredTransmittance:
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE"), TEXT("1"));
 			break;
-		case SBM_ColoredTransmittanceOnly:
+		}
+		case BLEND_ColoredTransmittanceOnly:
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_MODULATE"), TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_COLOREDTRANSMITTANCEONLY"), TEXT("1"));
 			break;
-		case SBM_AlphaHoldout:
+		}
+		case BLEND_AlphaHoldout:
+		{
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHAHOLDOUT"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_ALPHAHOLDOUT"), TEXT("1"));
 			break;
+		}
 		default:
-			UE_LOG(LogMaterial, Error, TEXT("%s: unkown strata material blend mode could not be converted to Starta. (Asset: %s)"), *GetFriendlyName(), *GetAssetName());
+			UE_LOG(LogMaterial, Error, TEXT("%s: Unkown Strata material blend mode could not be converted to Starta. (Asset: %s) Setting to BLEND_Opaque"), *GetFriendlyName(), *GetAssetName());
+			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_SOLID"), TEXT("1"));
 		}
 	}
 
@@ -2374,8 +2413,8 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_PLANAR_FORWARD_REFLECTIONS"), IsUsingPlanarForwardReflections());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_NONMETAL"), IsNonmetal());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_LM_DIRECTIONALITY"), UseLmDirectionality());
-	OutEnvironment.SetDefine(TEXT("MATERIAL_SSR"), ShouldDoSSR() && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode()));
-	OutEnvironment.SetDefine(TEXT("MATERIAL_CONTACT_SHADOWS"), ShouldDoContactShadows() && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode()));
+	OutEnvironment.SetDefine(TEXT("MATERIAL_SSR"), ShouldDoSSR() && IsTranslucentBlendMode(GetBlendMode()));
+	OutEnvironment.SetDefine(TEXT("MATERIAL_CONTACT_SHADOWS"), ShouldDoContactShadows() && IsTranslucentBlendMode(GetBlendMode()));
 	OutEnvironment.SetDefine(TEXT("MATERIAL_DITHER_OPACITY_MASK"), IsDitherMasked());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_NORMAL_CURVATURE_TO_ROUGHNESS"), UseNormalCurvatureToRoughness() ? TEXT("1") : TEXT("0"));
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ALLOW_NEGATIVE_EMISSIVECOLOR"), AllowNegativeEmissiveColor());
@@ -2410,7 +2449,7 @@ void FMaterial::SetupMaterialEnvironment(
 			OutEnvironment.SetDefine(TEXT("MATERIAL_DOMAIN_SURFACE"),TEXT("1"));
 	};
 
-	if (IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode()))
+	if (IsTranslucentBlendMode(GetBlendMode()))
 	{
 		switch(GetTranslucencyLightingMode())
 		{
@@ -5089,7 +5128,6 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	MaterialDomain = InMaterial->GetMaterialDomain();
 	ShadingModels = InMaterial->GetShadingModels();
 	BlendMode = InMaterial->GetBlendMode();
-	StrataBlendMode = InMaterial->GetStrataBlendMode();
 	FeatureLevel = InMaterial->GetFeatureLevel();
 	QualityLevel = InMaterial->GetQualityLevel();
 	BlendableLocation = InMaterial->GetBlendableLocation();

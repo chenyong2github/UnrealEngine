@@ -131,6 +131,7 @@ static FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 		TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI(),
 		TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI(),
 		TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI(),
+		TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI(),
 	};
 	static_assert(EBlendMode::BLEND_MAX == UE_ARRAY_COUNT(BlendStates), "Ensure that all EBlendMode values are accounted for.");
 
@@ -138,17 +139,19 @@ static FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 
 	if (Strata::IsStrataEnabled())
 	{
-		switch (Material->GetStrataBlendMode())
+		switch (Material->GetBlendMode())
 		{
-		case EStrataBlendMode::SBM_Opaque:
-		case EStrataBlendMode::SBM_Masked:
+		case EBlendMode::BLEND_Opaque:
+		case EBlendMode::BLEND_Masked:
 			return TStaticBlendState<>::GetRHI();
-		case EStrataBlendMode::SBM_TranslucentColoredTransmittance: // A platform may not support dual source blending so we always only use grey scale transmittance
-		case EStrataBlendMode::SBM_TranslucentGreyTransmittance:
+		case EBlendMode::BLEND_Additive: 						// STRATA_TODO_BLENDMODE_ADDITIVE
+		case EBlendMode::BLEND_AlphaComposite:
+		case EBlendMode::BLEND_TranslucentColoredTransmittance: // A platform may not support dual source blending so we always only use grey scale transmittance
+		case EBlendMode::BLEND_TranslucentGreyTransmittance:
 			return TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
-		case EStrataBlendMode::SBM_ColoredTransmittanceOnly:
+		case EBlendMode::BLEND_ColoredTransmittanceOnly:
 			return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI();
-		case EStrataBlendMode::SBM_AlphaHoldout:
+		case EBlendMode::BLEND_AlphaHoldout:
 			return TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
 		default:
 			check(false);

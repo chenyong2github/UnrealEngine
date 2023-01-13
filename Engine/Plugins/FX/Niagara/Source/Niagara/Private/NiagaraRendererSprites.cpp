@@ -232,7 +232,6 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 	// Do we have anything to render?
 	const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 	ParticleSpriteRenderData.BlendMode = Material.GetBlendMode();
-	ParticleSpriteRenderData.StrataBlendMode = Material.GetStrataBlendMode();
 	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(Material);
 
 	// If these conditions change please update the DebugHUD display also to reflect it
@@ -578,12 +577,12 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 			PerViewUniformParameters.PixelCoverageEnabled = ParticleSpriteRenderData.bHasTranslucentMaterials;
 			if (PerViewUniformParameters.PixelCoverageEnabled)
 			{
-				if (IsTranslucentOnlyBlendMode(ParticleSpriteRenderData.BlendMode, ParticleSpriteRenderData.StrataBlendMode))
+				if (IsTranslucentOnlyBlendMode(ParticleSpriteRenderData.BlendMode))
 				{
 					ParticleSpriteRenderData.bHasTranslucentMaterials = true;
 					PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, 0.0f);
 				}
-				else if (IsAdditiveBlendMode(ParticleSpriteRenderData.BlendMode, ParticleSpriteRenderData.StrataBlendMode))
+				else if (IsAdditiveBlendMode(ParticleSpriteRenderData.BlendMode))
 				{
 					ParticleSpriteRenderData.bHasTranslucentMaterials = true;
 					PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend);

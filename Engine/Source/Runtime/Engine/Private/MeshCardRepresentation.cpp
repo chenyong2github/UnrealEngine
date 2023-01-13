@@ -195,7 +195,6 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 			if (MaterialInterface)
 			{
 				MaterialData.BlendMode = MaterialInterface->GetBlendMode();
-				MaterialData.StrataBlendMode = MaterialInterface->GetStrataBlendMode();
 				MaterialData.bTwoSided = MaterialInterface->IsTwoSided();
 			}
 		}

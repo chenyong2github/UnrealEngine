@@ -1623,11 +1623,6 @@ EBlendMode UMaterialInstanceDynamic::GetBlendMode() const
 	return Parent ? Parent->GetBlendMode() : BLEND_Opaque;
 }
 
-EStrataBlendMode UMaterialInstanceDynamic::GetStrataBlendMode() const
-{
-	return Parent ? Parent->GetStrataBlendMode() : SBM_Opaque;
-}
-
 bool UMaterialInstanceDynamic::IsTwoSided() const
 {
 	return Parent ? Parent->IsTwoSided() : false;
@@ -2000,7 +1995,16 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
-EStrataBlendMode ConvertLegacyToStrataBlendMode(EBlendMode InBlendMode, FMaterialShadingModelField InShadingModels, const UMaterialInterface* InMaterial);
+bool Engine_IsStrataEnabled();
+EBlendMode ConvertLegacyBlendMode(EBlendMode InBlendMode, FMaterialShadingModelField InShadingModels);
+
+static void SanitizeBlendMode(TEnumAsByte<EBlendMode>& InBlendMode)
+{
+	if (InBlendMode == BLEND_TranslucentColoredTransmittance)
+	{
+		InBlendMode = BLEND_Translucent;
+	}
+}
 
 void UMaterialInstance::UpdateOverridableBaseProperties()
 {
@@ -2051,16 +2055,6 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		BasePropertyOverrides.bOutputTranslucentVelocity = bOutputTranslucentVelocity;
 	}
 
-	if (BasePropertyOverrides.bOverride_BlendMode)
-	{
-		BlendMode = BasePropertyOverrides.BlendMode;
-	}
-	else
-	{
-		BlendMode = Parent->GetBlendMode();
-		BasePropertyOverrides.BlendMode = BlendMode;
-	}
-
 	if (BasePropertyOverrides.bOverride_ShadingModel)
 	{
 		if (BasePropertyOverrides.ShadingModel == MSM_FromMaterialExpression)
@@ -2090,6 +2084,28 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 			ensure(ShadingModels.CountShadingModels() == 1);
 			BasePropertyOverrides.ShadingModel = ShadingModels.GetFirstShadingModel(); 
 		}
+	}
+
+	const bool bIsStratEnabled = Engine_IsStrataEnabled();
+	if (bIsStratEnabled)
+	{
+		BasePropertyOverrides.BlendMode = ConvertLegacyBlendMode(BasePropertyOverrides.BlendMode, ShadingModels);
+		BlendMode = ConvertLegacyBlendMode(Parent->GetBlendMode(), ShadingModels);
+	}
+	else
+	{
+		SanitizeBlendMode(BlendMode);
+		SanitizeBlendMode(BasePropertyOverrides.BlendMode);
+	}
+
+	if (BasePropertyOverrides.bOverride_BlendMode)
+	{
+		BlendMode = BasePropertyOverrides.BlendMode;
+	}
+	else
+	{
+		BlendMode = Parent->GetBlendMode();
+		BasePropertyOverrides.BlendMode = BlendMode;
 	}
 
 	if (!GIsEditor)
@@ -3795,6 +3811,13 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		FGlobalComponentRecreateRenderStateContext RecreateComponentsRenderState;
 	}
 
+	// If BLEND_TranslucentColoredTransmittance is selected while Strata is not enabled, force BLEND_Translucent blend mode
+	if (!Engine_IsStrataEnabled())
+	{
+		SanitizeBlendMode(BlendMode);
+		SanitizeBlendMode(BasePropertyOverrides.BlendMode);
+	}
+
 	PropagateDataToMaterialProxy();
 
 	InitResources();
@@ -4248,11 +4271,6 @@ EBlendMode UMaterialInstance::GetBlendMode() const
 	return BlendMode;
 }
 
-EStrataBlendMode UMaterialInstance::GetStrataBlendMode() const
-{
-	return ConvertLegacyToStrataBlendMode(BlendMode, ShadingModels, this);
-}
-
 FMaterialShadingModelField UMaterialInstance::GetShadingModels() const
 {
 	return ShadingModels;
@@ -4275,7 +4293,7 @@ bool UMaterialInstance::IsThinSurface() const
 
 bool UMaterialInstance::IsTranslucencyWritingVelocity() const
 {
-	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode());
+	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool UMaterialInstance::IsDitheredLODTransition() const
@@ -4285,7 +4303,7 @@ bool UMaterialInstance::IsDitheredLODTransition() const
 
 bool UMaterialInstance::IsMasked() const
 {
-	return IsMaskedBlendMode(GetBlendMode(), GetStrataBlendMode()) || (IsTranslucentOnlyBlendMode(GetBlendMode(), GetStrataBlendMode()) && GetCastDynamicShadowAsMasked());
+	return IsMaskedBlendMode(GetBlendMode()) || (IsTranslucentOnlyBlendMode(GetBlendMode()) && GetCastDynamicShadowAsMasked());
 }
 
 USubsurfaceProfile* UMaterialInstance::GetSubsurfaceProfile_Internal() const

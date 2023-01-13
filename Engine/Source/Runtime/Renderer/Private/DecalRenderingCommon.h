@@ -20,7 +20,6 @@ union FDecalBlendDesc
 	struct
 	{
 		uint32 BlendMode : 8;
-		uint32 StrataBlendMode : 8;
 		uint32 RenderStageMask : 8;
 		uint32 bWriteBaseColor : 1;
 		uint32 bWriteNormal : 1;

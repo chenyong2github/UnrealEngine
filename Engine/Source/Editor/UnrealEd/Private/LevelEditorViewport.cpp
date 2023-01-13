@@ -392,7 +392,6 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind 
 	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
 	
 	UnrealMaterial->BlendMode = bTextureHasAlpha ? EBlendMode::BLEND_Masked : EBlendMode::BLEND_Opaque;
-	UnrealMaterial->StrataBlendMode = bTextureHasAlpha ? EStrataBlendMode::SBM_Masked : EStrataBlendMode::SBM_Opaque;
 
 	// Create a new texture sample expression, this is our texture input node into the material output.
 	UMaterialExpressionTextureSample* UnrealTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);

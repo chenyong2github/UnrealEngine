@@ -25,6 +25,7 @@
 #include "SceneTexturesConfig.h"
 #include "ShaderCodeLibrary.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "Materials/Material.h"
 
 int32 GMaterialExcludeNonPipelinedShaders = 1;
 static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
@@ -166,19 +167,7 @@ FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels)
 /** Converts an EBlendMode to a string description. */
 FString GetBlendModeString(EBlendMode BlendMode)
 {
-	FString BlendModeName;
-	switch(BlendMode)
-	{
-		case BLEND_Opaque: BlendModeName = TEXT("BLEND_Opaque"); break;
-		case BLEND_Masked: BlendModeName = TEXT("BLEND_Masked"); break;
-		case BLEND_Translucent: BlendModeName = TEXT("BLEND_Translucent"); break;
-		case BLEND_Additive: BlendModeName = TEXT("BLEND_Additive"); break;
-		case BLEND_Modulate: BlendModeName = TEXT("BLEND_Modulate"); break;
-		case BLEND_AlphaComposite: BlendModeName = TEXT("BLEND_AlphaComposite"); break;
-		case BLEND_AlphaHoldout: BlendModeName = TEXT("BLEND_AlphaHoldout"); break;
-		default: BlendModeName = TEXT("Unknown"); break;
-	}
-	return BlendModeName;
+	return FString(UMaterial::GetBlendModeString(BlendMode));
 }
 
 #if WITH_EDITOR

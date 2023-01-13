@@ -254,78 +254,49 @@ enum EBlendMode : int
 	BLEND_Modulate UMETA(DisplayName="Modulate"),
 	BLEND_AlphaComposite UMETA(DisplayName = "AlphaComposite (Premultiplied Alpha)"),
 	BLEND_AlphaHoldout UMETA(DisplayName = "AlphaHoldout"),
-	BLEND_MAX,
-};
-
-/**
- * The blending mode for Strata materials
- */
-UENUM(BlueprintType)
-enum EStrataBlendMode : int
-{
-	SBM_Opaque UMETA(DisplayName = "Opaque"),
-	SBM_Masked UMETA(DisplayName = "Masked"),
-	SBM_TranslucentGreyTransmittance UMETA(DisplayName = "Translucent - Grey Transmittance"),
-	SBM_TranslucentColoredTransmittance UMETA(DisplayName = "Translucent - Colored Transmittance"),
-	SBM_ColoredTransmittanceOnly UMETA(DisplayName = "Colored Transmittance Only"),
-	SBM_AlphaHoldout UMETA(DisplayName = "Alpha Holdout"),
-	SBM_MAX,
+	BLEND_TranslucentColoredTransmittance UMETA(DisplayName = "STRATA_ONLY - Translucent - Colored Transmittance"), /*Strata only */
+	BLEND_MAX UMETA(Hidden),
+	// Renamed blend modes. These blend modes are remapped onto legacy ones and kept hidden for not confusing users in legacy mode, while allowing to use the new blend mode names into code.
+	BLEND_TranslucentGreyTransmittance = BLEND_Translucent UMETA(Hidden, DisplayName = "Translucent - Grey Transmittance"), /*Strata only */
+	BLEND_ColoredTransmittanceOnly = BLEND_Modulate UMETA(Hidden, DisplayName = "Colored Transmittance Only"), /*Strata only */
 };
 
 class FMaterial;
 class UMaterialInterface;
 
-ENGINE_API bool IsOpaqueBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsOpaqueBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsOpaqueBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsOpaqueBlendMode(const FMaterial& In);
 ENGINE_API bool IsOpaqueBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsOpaqueOrMaskedBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsOpaqueOrMaskedBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsOpaqueOrMaskedBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterial& In);
 ENGINE_API bool IsOpaqueOrMaskedBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsMaskedBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsMaskedBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsMaskedBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsMaskedBlendMode(const FMaterial& In);
 ENGINE_API bool IsMaskedBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsTranslucentOnlyBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsTranslucentOnlyBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsTranslucentOnlyBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterial& In);
 ENGINE_API bool IsTranslucentOnlyBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsTranslucentBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsTranslucentBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsTranslucentBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsTranslucentBlendMode(const FMaterial& In);
 ENGINE_API bool IsTranslucentBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsAlphaHoldoutBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsAlphaHoldoutBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsAlphaHoldoutBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsAlphaHoldoutBlendMode(const FMaterial& In);
 ENGINE_API bool IsAlphaHoldoutBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsModulateBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsModulateBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsModulateBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsModulateBlendMode(const FMaterial& In);
 ENGINE_API bool IsModulateBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsAdditiveBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsAdditiveBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsAdditiveBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsAdditiveBlendMode(const FMaterial& In);
 ENGINE_API bool IsAdditiveBlendMode(const UMaterialInterface& In);
 
-ENGINE_API bool IsAlphaCompositeBlendMode(EStrataBlendMode BlendMode);
 ENGINE_API bool IsAlphaCompositeBlendMode(EBlendMode BlendMode);
-ENGINE_API bool IsAlphaCompositeBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
 ENGINE_API bool IsAlphaCompositeBlendMode(const FMaterial& In);
 ENGINE_API bool IsAlphaCompositeBlendMode(const UMaterialInterface& In);
 

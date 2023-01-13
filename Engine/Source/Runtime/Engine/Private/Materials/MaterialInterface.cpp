@@ -404,8 +404,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialResource->MaterialUsesAnisotropy_GameThread();
 
 		const EBlendMode BlendMode = (EBlendMode)GetBlendMode();
-		const EStrataBlendMode StrataBlendMode = (EStrataBlendMode)GetStrataBlendMode();
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode) || IsSinglePassWaterTranslucent || bIsMobilePixelProjectedTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile. And we also have to render the meshes used for mobile pixel projection reflection in translucent pass.
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode) || IsSinglePassWaterTranslucent || bIsMobilePixelProjectedTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile. And we also have to render the meshes used for mobile pixel projection reflection in translucent pass.
 
 		EMaterialDomain Domain = (EMaterialDomain)MaterialResource->GetMaterialDomain();
 		bool bDecal = (Domain == MD_DeferredDecal);
@@ -437,7 +436,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 
 		// If dual blending is supported, and we are rendering post-DOF translucency, then we also need to render a second pass to the modulation buffer.
 		// The modulation buffer can also be used for regular modulation shaders after DoF.
-		const bool bMaterialSeparateModulation = MaterialResource->IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]) || BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly;
+		const bool bMaterialSeparateModulation = MaterialResource->IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]) || IsModulateBlendMode(BlendMode);
 
 		// Encode Strata BSDF into a mask where each bit correspond to a number of BSDF (1-8)
 		const uint8 StrataBSDFCount = FMath::Max(MaterialResource->MaterialGetStrataBSDFCount_GameThread(), uint8(1u));
@@ -1163,11 +1162,6 @@ float UMaterialInterface::GetOpacityMaskClipValue() const
 EBlendMode UMaterialInterface::GetBlendMode() const
 {
 	return BLEND_Opaque;
-}
-
-EStrataBlendMode UMaterialInterface::GetStrataBlendMode() const
-{
-	return SBM_Opaque;
 }
 
 bool UMaterialInterface::IsTwoSided() const

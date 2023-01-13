@@ -877,7 +877,6 @@ bool FHLSLMaterialTranslator::Translate()
 		const EShaderFrequency NormalShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(MP_Normal);
 		const EMaterialDomain Domain = Material->GetMaterialDomain();
 		const EBlendMode BlendMode = Material->GetBlendMode();
-		const EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
 
 		// Gather the implementation for any custom output expressions
 		TArray<UMaterialExpressionCustomOutput*> CustomOutputExpressions;
@@ -962,7 +961,7 @@ bool FHLSLMaterialTranslator::Translate()
 			Chunk[MP_CustomData1] = Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1, this);
 			Chunk[MP_AmbientOcclusion] = Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion, this);
 
-			if (IsTranslucentBlendMode(BlendMode, StrataBlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
+			if (IsTranslucentBlendMode(BlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 			{
 				// Cast to exact match is needed for float parameter to be correctly cast to float2.
 				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float2, MFCF_ExactMatch);
@@ -1121,21 +1120,21 @@ bool FHLSLMaterialTranslator::Translate()
 						((MaterialShadingModels.HasShadingModel(MSM_SubsurfaceProfile) && IsMaterialPropertyUsed(MP_CustomData0, Chunk[MP_CustomData0], FLinearColor(1, 0, 0, 0), 1))
 						|| (MaterialShadingModels.HasShadingModel(MSM_Eye) && IsMaterialPropertyUsed(MP_Opacity, Chunk[MP_Opacity], FLinearColor(1, 0, 0, 0), 1)));
 
-		if (!bStrataEnabled && IsModulateBlendMode(BlendMode, StrataBlendMode) && MaterialShadingModels.IsLit() && !Material->IsDeferredDecal())
+		if (!bStrataEnabled && IsModulateBlendMode(BlendMode) && MaterialShadingModels.IsLit() && !Material->IsDeferredDecal())
 		{
 			Errorf(TEXT("Dynamically lit translucency is not supported for BLEND_Modulate materials."));
 		}
 
 		if (Domain == MD_Surface)
 		{
-			if (IsModulateBlendMode(BlendMode, StrataBlendMode) && Material->IsTranslucencyAfterDOFEnabled() && !RHISupportsDualSourceBlending(Platform))
+			if (IsModulateBlendMode(BlendMode) && Material->IsTranslucencyAfterDOFEnabled() && !RHISupportsDualSourceBlending(Platform))
 			{
 				Errorf(TEXT("Translucency after DOF with BLEND_Modulate is only allowed on platforms that support dual-blending. Consider using BLEND_Translucent with black emissive"));
 			}
 		}
 
 		// Don't allow opaque and masked materials to scene depth as the results are undefined
-		if (bUsesSceneDepth && Domain != MD_PostProcess && !IsTranslucentBlendMode(BlendMode, StrataBlendMode))
+		if (bUsesSceneDepth && Domain != MD_PostProcess && !IsTranslucentBlendMode(BlendMode))
 		{
 			Errorf(TEXT("Only transparent or postprocess materials can read from scene depth."));
 		}
@@ -1153,13 +1152,13 @@ bool FHLSLMaterialTranslator::Translate()
 			{
 				Errorf(TEXT("Only 'surface' material domain can use the scene color node."));
 			}
-			else if (!IsTranslucentBlendMode(BlendMode, StrataBlendMode))
+			else if (!IsTranslucentBlendMode(BlendMode))
 			{
 				Errorf(TEXT("Only translucent materials can use the scene color node."));
 			}
 		}
 
-		if (IsAlphaHoldoutBlendMode(BlendMode, StrataBlendMode) && !MaterialShadingModels.IsUnlit())
+		if (IsAlphaHoldoutBlendMode(BlendMode) && !MaterialShadingModels.IsUnlit())
 		{
 			Errorf(TEXT("Alpha Holdout blend mode must use unlit shading model."));
 		}
@@ -1173,7 +1172,7 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Volume materials are not compatible with skinned meshes: they are voxelised as boxes anyway. Please disable UsedWithSkeletalMesh on the material."));
 		}
 
-		if (Material->IsLightFunction() && !IsOpaqueBlendMode(BlendMode, StrataBlendMode))
+		if (Material->IsLightFunction() && !IsOpaqueBlendMode(BlendMode))
 		{
 			Errorf(TEXT("Light function materials must be opaque."));
 		}
@@ -1193,14 +1192,14 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Only unlit materials can output negative emissive color."));
 		}
 
-		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || !(IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode))))
+		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || !(IsOpaqueOrMaskedBlendMode(BlendMode))))
 		{
 			Errorf(TEXT("Sky materials must be opaque or masked, and unlit. They are expected to completely replace the background."));
 		}
 
 		if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 		{
-			if (!IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode))
+			if (!IsOpaqueOrMaskedBlendMode(BlendMode))
 			{
 				Errorf(TEXT("SingleLayerWater materials must be opaque or masked."));
 			}
@@ -1258,7 +1257,7 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (Domain == MD_DeferredDecal && !(IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode) || BlendMode == BLEND_AlphaComposite || IsModulateBlendMode(BlendMode, StrataBlendMode)))
+		if (Domain == MD_DeferredDecal && !(IsTranslucentOnlyBlendMode(BlendMode) || BlendMode == BLEND_AlphaComposite || IsModulateBlendMode(BlendMode)))
 		{
 			// We could make the change for the user but it would be confusing when going to DeferredDecal and back
 			// or we would have to pay a performance cost to make the change more transparently.
@@ -1270,7 +1269,7 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			if (Domain != MD_DeferredDecal && Domain != MD_PostProcess)
 			{
-				if (!MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater) && IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode))
+				if (!MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater) && IsOpaqueOrMaskedBlendMode(BlendMode))
 				{
 					// In opaque pass, none of the textures are available
 					Errorf(TEXT("SceneTexture expressions cannot be used in opaque materials except if used with the Single Layer Water shading model."));
@@ -1282,7 +1281,7 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (IsModulateBlendMode(BlendMode, StrataBlendMode) && Material->IsTranslucencyAfterMotionBlurEnabled())
+		if (IsModulateBlendMode(BlendMode) && Material->IsTranslucencyAfterMotionBlurEnabled())
 		{
 			// We don't currently have a separate translucency modulation pass for After Motion Blur
 			Errorf(TEXT("Blend Mode \"Modulate\" materials are not currently supported in the \"After Motion Blur\" translucency pass."));
@@ -2004,8 +2003,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"), bMaterialIsStrata ? TEXT("1") : TEXT("0"));
 
-	// Strata requests dual source blending only for SBM_TranslucentColoredTransmittance
-	bMaterialRequestsDualSourceBlending |= bMaterialIsStrata && Material->GetStrataBlendMode() == EStrataBlendMode::SBM_TranslucentColoredTransmittance;
+	// Strata requests dual source blending only for BLEND_TranslucentColoredTransmittance
+	bMaterialRequestsDualSourceBlending |= bMaterialIsStrata && Material->GetBlendMode() == EBlendMode::BLEND_TranslucentColoredTransmittance;
 
 	// if duals source blending (colored transmittance) is not supported on a platform, it will fall back to standard alpha blending (grey scale transmittance)
 	OutEnvironment.SetDefine(TEXT("DUAL_SOURCE_COLOR_BLENDING_ENABLED"), bMaterialRequestsDualSourceBlending && Material->IsDualBlendingEnabled(Platform) ? TEXT("1") : TEXT("0"));
@@ -10360,8 +10359,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 			WalkOperators(*StrataMaterialRootOperator, false);
 
-			const EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
-			const bool bIsOpaqueOrMasked = StrataBlendMode == EStrataBlendMode::SBM_Opaque || StrataBlendMode == EStrataBlendMode::SBM_Masked;
+			const bool bIsOpaqueOrMasked = IsOpaqueOrMaskedBlendMode(*Material);
 			bStrataOutputsOpaqueRoughRefractions = bStrataUsesVerticalLayering && bIsOpaqueOrMasked;
 			bStrataMaterialIsUnlitNode = bHasUnlit;
 
@@ -11478,7 +11476,7 @@ int32 FHLSLMaterialTranslator::StrataCompilePreview(int32 StrataDataCodeChunk)
 
 bool FHLSLMaterialTranslator::StrataSkipsOpacityEvaluation()
 {
-	return !IsTranslucentBlendMode(Material->GetStrataBlendMode())
+	return !IsTranslucentBlendMode(Material)
 		&& Material->GetShadingModels().CountShadingModels() == 1
 		&& !Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater)
 		&& !Material->GetShadingModels().HasShadingModel(MSM_Subsurface)

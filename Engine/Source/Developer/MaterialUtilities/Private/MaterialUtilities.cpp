@@ -704,7 +704,6 @@ public:
 	}
 	virtual bool IsMasked() const override									{ return false; }
 	virtual enum EBlendMode GetBlendMode() const override					{ return BLEND_Opaque; }
-	virtual enum EStrataBlendMode GetStrataBlendMode() const override		{ return EStrataBlendMode::SBM_Opaque; }
 	virtual enum ERefractionMode GetRefractionMode() const override			{ return Material ? (ERefractionMode)Material->RefractionMethod : RM_None; }
 	virtual bool GetRootNodeOverridesDefaultRefraction()const override		{ return Material ? Material->bRootNodeOverridesDefaultDistortion : false; }
 	virtual FMaterialShadingModelField GetShadingModels() const override	{ return MSM_Unlit; }

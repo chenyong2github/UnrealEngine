@@ -405,12 +405,12 @@ void MobileBasePass::SetTranslucentRenderState(FMeshPassProcessorRenderState& Dr
 		}
 		else
 		{
-			if (Material.GetStrataBlendMode() == SBM_ColoredTransmittanceOnly)
+			if (Material.GetBlendMode() == BLEND_ColoredTransmittanceOnly)
 			{
 				// Modulate with the existing scene color, preserve destination alpha.
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI());
 			}
-			else if (Material.GetStrataBlendMode() == SBM_AlphaHoldout)
+			else if (Material.GetBlendMode() == BLEND_AlphaHoldout)
 			{
 				// Blend by holding out the matte shape of the source alpha
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI());

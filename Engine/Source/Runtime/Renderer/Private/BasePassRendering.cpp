@@ -244,18 +244,19 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 		}
 		else
 		{
-			if (Material.GetStrataBlendMode() == SBM_ColoredTransmittanceOnly)
+			if (Material.GetBlendMode() == BLEND_ColoredTransmittanceOnly)
 			{
 				// Modulate with the existing scene color, preserve destination alpha.
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI());
 			}
-			else if (Material.GetStrataBlendMode() == SBM_AlphaHoldout)
+			else if (Material.GetBlendMode() == BLEND_AlphaHoldout)
 			{
 				// Blend by holding out the matte shape of the source alpha
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI());
 			}
 			else
 			{
+				// STRATA_TODO_BLENDMODE_ADDITIVE
 				// We always use premultipled alpha for translucent rendering.
 				// If a material was requesting dual source blending, the shader will use static platofm knowledge to convert colored transmittance to a grey scale transmittance.
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI());
@@ -1851,8 +1852,7 @@ bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 {
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
-	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 	
 	bool bShouldDraw = false;
 	if (bTranslucentBasePass)
@@ -1865,23 +1865,23 @@ bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 				bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled();
 				if (AutoBeforeDOFTranslucencyBoundary > 0.0f)
 				{
-					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly);
-					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode)));
+					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && BlendMode != BLEND_ColoredTransmittanceOnly);
+					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode)));
 				}
 				break;
 
 			case ETranslucencyPass::TPT_TranslucencyStandardModulate:
 				bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() 
-					&& (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode));
+					&& (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode));
 				break;
 
 			case ETranslucencyPass::TPT_TranslucencyAfterDOF:
-				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly;
+				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && BlendMode != BLEND_ColoredTransmittanceOnly;
 				break;
 
 				// only dual blended or modulate surfaces need background modulation
 			case ETranslucencyPass::TPT_TranslucencyAfterDOFModulate:
-				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode));
+				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode));
 				break;
 
 			case ETranslucencyPass::TPT_TranslucencyAfterMotionBlur:
@@ -1906,10 +1906,9 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 {
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
-	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-	const bool bIsMasked = IsMaskedBlendMode(BlendMode, StrataBlendMode);
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
+	const bool bIsMasked = IsMaskedBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
@@ -1931,8 +1930,8 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 		bool bIsInDOFBackground = Distance > AutoBeforeDOFTranslucencyBoundary;
 
 		bool bIsStandardTranslucency = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled();
-		bool bIsAfterDOF = Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly;
-		bool bIsAfterDOFModulate = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode));
+		bool bIsAfterDOF = Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() && BlendMode != BLEND_ColoredTransmittanceOnly;
+		bool bIsAfterDOFModulate = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode));
 
 		// When AutoBeforeDOFTranslucencyBoundary is valid, we automatically move After DOF translucent meshes (never blurred by DOF)
 		// before DOF if those elements are behind the focus distance.

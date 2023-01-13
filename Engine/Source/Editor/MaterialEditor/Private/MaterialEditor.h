@@ -129,7 +129,6 @@ public:
 	virtual bool IsWireframe() const override { return false; }
 	virtual bool IsMasked() const override { return false; }
 	virtual enum EBlendMode GetBlendMode() const override { return BLEND_Translucent; }
-	virtual enum EStrataBlendMode GetStrataBlendMode() const override { return EStrataBlendMode::SBM_TranslucentGreyTransmittance; }
 	virtual bool GetRootNodeOverridesDefaultRefraction()const override { return false; } // refraction unused for material preview
 	virtual FMaterialShadingModelField GetShadingModels() const override { return MSM_Unlit; }
 	virtual bool IsShadingModelFromMaterialExpression() const override { return false; }
