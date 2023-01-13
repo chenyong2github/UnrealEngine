@@ -98,6 +98,7 @@
 #include "Materials/MaterialExpressionEyeAdaptation.h"
 #include "Materials/MaterialExpressionEyeAdaptationInverse.h"
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
+#include "Materials/MaterialExpressionDataDrivenShaderPlatformInfoSwitch.h"
 #include "Materials/MaterialExpressionFloor.h"	
 #include "Materials/MaterialExpressionFmod.h"
 #include "Materials/MaterialExpressionFontSample.h"
@@ -9652,6 +9653,222 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 		Inputs[ERHIFeatureLevel::SM4_REMOVED] = UMaterialExpressionFeatureLevelSwitch::Default;
 	}
 }
+
+//
+//	UMaterialExpressionDataDrivenShaderPlatformInfoSwitch
+//
+
+UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::UMaterialExpressionDataDrivenShaderPlatformInfoSwitch(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	bCollapsed = false;
+	bContainsInvalidProperty = false;
+#endif // WITH_EDITORONLY_DATA
+}
+
+TArray<FString> UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetNameOptions() const
+{
+	TArray<FString> Output;
+#if WITH_EDITOR
+	for (const auto& DDSPINames : FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap)
+	{
+		Output.Add(DDSPINames.Key);
+	}
+#endif
+	return Output;
+}
+
+#if WITH_EDITOR
+bool IsDataDrivenShaderPlatformInfoSwitchValid(TArray<FDataDrivenShaderPlatformInfoInput>& DDSPIPropertyNames, const UMaterial* Material)
+{
+	for (const FDataDrivenShaderPlatformInfoInput& DDSPIInput : DDSPIPropertyNames)
+	{
+		if (DDSPIInput.InputName == NAME_None)
+		{
+			continue;
+		}
+
+		bool PropertyExists = FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap.Find(DDSPIInput.InputName.ToString()) != nullptr;
+		if (!PropertyExists)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif
+
+void UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::PostLoad()
+{
+	Super::PostLoad();
+#if WITH_EDITOR
+	bContainsInvalidProperty = IsDataDrivenShaderPlatformInfoSwitchValid(DDSPIPropertyNames, Material);
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (bContainsInvalidProperty || DDSPIPropertyNames.IsEmpty())
+	{
+		return CompilerError(Compiler, *FString::Printf(TEXT("%s is using a DataDrivenShaderPlatformInfoSwitch whose condition is invalid. Default material will be used until this is fixed"), Material ? *(Material->GetName()) : TEXT("Unknown")));
+	}
+
+	const EShaderPlatform ShaderPlatform = Compiler->GetShaderPlatform();
+	check(FDataDrivenShaderPlatformInfo::IsValid(ShaderPlatform));
+
+	bool bAllNamesAreNone = true;
+	bool bCheck = true;
+	for (const FDataDrivenShaderPlatformInfoInput& DDSPIInput : DDSPIPropertyNames)
+	{
+		if (DDSPIInput.InputName == NAME_None)
+		{
+			continue;
+		}
+
+		bAllNamesAreNone = false;
+		bool bCheckProperty = FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap[DDSPIInput.InputName.ToString()](ShaderPlatform);
+		if (DDSPIInput.PropertyCondition == EDataDrivenShaderPlatformInfoCondition::COND_True)
+		{
+			bCheck = bCheck && bCheckProperty;
+		}
+		else
+		{
+			bCheck = bCheck && !bCheckProperty;
+		}
+	}
+
+	if (bAllNamesAreNone)
+	{
+		return CompilerError(Compiler, *FString::Printf(TEXT("%s is using a DataDrivenShaderPlatformInfoSwitch whose condition is empty. Default material will be used until this is fixed"), Material ? *(Material->GetName()) : TEXT("Unknown")));
+	}
+	else if (bCheck)
+	{
+		return InputTrue.Compile(Compiler);
+	}
+	else
+	{
+		return InputFalse.Compile(Compiler);
+	}
+}
+
+void UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("DataDrivenShaderPlatformInfo Switch")));
+}
+
+bool UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::IsInputConnectionRequired(int32 InputIndex) const
+{
+	return true;
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&InputTrue);
+	Result.Add(&InputFalse);
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &InputTrue;
+	}
+	else if (InputIndex == 1)
+	{
+		return &InputFalse;
+	}
+	return nullptr;
+}
+
+FName UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInputName(int32 InputIndex) const
+{
+	TStringBuilder<128> Condition;
+	bool bIsFirst = true;
+	for (const FDataDrivenShaderPlatformInfoInput& DDSPIInput : DDSPIPropertyNames)
+	{
+		if (DDSPIInput.InputName == NAME_None)
+		{
+			continue;
+		}
+
+		if (!bIsFirst)
+		{
+			Condition.Append(TEXT(" && "));
+		}
+
+		if (DDSPIInput.PropertyCondition == EDataDrivenShaderPlatformInfoCondition::COND_False)
+		{
+			Condition.Append(TEXT("!"));
+		}
+
+		Condition.Append(DDSPIInput.InputName.ToString());
+		bIsFirst = false;
+	}
+
+	const FString ConditionString = Condition.ToString();
+	FString NegateConditionString = TEXT("!(") + ConditionString + TEXT(")");
+
+	if (InputIndex == 0)
+	{
+		return *ConditionString;
+	}
+	else if (InputIndex == 1)
+	{
+		return *NegateConditionString;
+	}
+	return NAME_None;
+}
+
+bool UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	check(OutputIndex == 0);
+	TArray<FExpressionInput*> ExpressionInputs = GetInputs();
+
+	for (FExpressionInput* ExpressionInput : ExpressionInputs)
+	{
+		// If there is a loop anywhere in this expression's inputs then we can't risk checking them
+		if (ExpressionInput->Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.MemberProperty && GraphNode)
+	{
+		const FName PropertyName = PropertyChangedEvent.MemberProperty->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionDataDrivenShaderPlatformInfoSwitch, DDSPIPropertyNames))
+		{
+			bContainsInvalidProperty = IsDataDrivenShaderPlatformInfoSwitchValid(DDSPIPropertyNames, Material);
+			GraphNode->ReconstructNode();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // WITH_EDITOR
 
 //
 //	UMaterialExpressionShadingPathSwitch

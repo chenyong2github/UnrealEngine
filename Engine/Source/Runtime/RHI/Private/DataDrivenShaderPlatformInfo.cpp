@@ -14,6 +14,9 @@ const FName LANGUAGE_Nintendo("Nintendo");
 
 FGenericDataDrivenShaderPlatformInfo FGenericDataDrivenShaderPlatformInfo::Infos[SP_NumPlatforms];
 
+#if WITH_EDITOR
+TMap < FString, TFunction<bool(const FStaticShaderPlatform Platform)>> FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap;
+#endif
 TMap<FName, EShaderPlatform> PlatformNameToShaderPlatformMap;
 
 EShaderPlatform ParseShaderPlatform(const TCHAR* String)
@@ -147,8 +150,16 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	ShaderPropertiesString += TEXT(#SettingName); \
 	ShaderPropertiesString += FString::Printf(TEXT("_%d"), SettingValue);
 
+#if WITH_EDITOR
+	#define ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName) \
+		FGenericDataDrivenShaderPlatformInfo::PropertyToShaderPlatformFunctionMap.FindOrAdd(#SettingName) = [](const FStaticShaderPlatform Platform)->bool{ return Infos[Platform].SettingName;};
+#else
+	#define ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName)
+#endif
+
 #define GET_SECTION_BOOL_HELPER(SettingName)	\
 	Info.SettingName = GetSectionBool(Section, #SettingName, Info.SettingName);	\
+	ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP(SettingName)	\
 	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
 
 #define GET_SECTION_INT_HELPER(SettingName)	\
@@ -255,6 +266,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 #undef GET_SECTION_INT_HELPER
 #undef GET_SECTION_SUPPORT_HELPER
 #undef ADD_TO_PROPERTIES_STRING
+#undef ADD_PROPERTY_TO_SHADERPLATFORM_FUNCTIONMAP
 
 	Info.ShaderPropertiesHash = GetTypeHash(ShaderPropertiesString);
 #if WITH_EDITOR

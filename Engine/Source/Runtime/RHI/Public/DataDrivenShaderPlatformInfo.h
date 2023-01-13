@@ -750,6 +750,11 @@ private:
 	static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
 
 public:
+
+#if WITH_EDITOR
+	static TMap < FString, TFunction<bool(const FStaticShaderPlatform Platform)>> PropertyToShaderPlatformFunctionMap;
+#endif
+
 	static bool IsValid(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bContainsValidPlatformInfo;
