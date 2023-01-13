@@ -660,6 +660,19 @@ FRect GetRect(
 	return Rect;
 }
 
+// Get the Rect of the light with respect to the translated world position.
+FRect GetRect(FLightShaderParameters In, float3 TranslatedWorldPosition)
+{
+	return GetRect(In.TranslatedWorldPosition - TranslatedWorldPosition,
+		In.Direction,
+		In.Tangent,
+		In.SourceRadius,
+		In.SourceLength,
+		In.RectLightBarnCosAngle,
+		In.RectLightBarnLength,
+		true);
+}
+
 bool IsRectVisible(FRect Rect)
 {
 	// No-visible rect light due to barn door occlusion
