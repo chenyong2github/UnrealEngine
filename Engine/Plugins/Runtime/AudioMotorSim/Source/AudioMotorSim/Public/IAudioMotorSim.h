@@ -23,7 +23,7 @@ public:
 	virtual void Reset() {};
 };
 
-UCLASS(Blueprintable, Category = "AudioMotorSim", meta=(BlueprintSpawnableComponent))
+UCLASS(Abstract, Blueprintable, Category = "AudioMotorSim", meta=(BlueprintSpawnableComponent))
 class AUDIOMOTORSIM_API UAudioMotorSimComponent : public UActorComponent, public IAudioMotorSim
 {
 	GENERATED_BODY()
@@ -31,7 +31,17 @@ class AUDIOMOTORSIM_API UAudioMotorSimComponent : public UActorComponent, public
 public:
 	UAudioMotorSimComponent(const FObjectInitializer& ObjectInitializer);
 	
-	virtual void Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo) override {};
+	virtual void Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo) override;
+	
+	virtual void Reset() override;
+
+	// Called every tick that this component is being updated. Use "Set Members in Struct" to update values for future components in the chain
+	UFUNCTION(BlueprintImplementableEvent, Category = "AudioMotorSim", DisplayName = "Update")
+	void BP_Update(UPARAM(ref) FAudioMotorSimInputContext& Input, UPARAM(ref) FAudioMotorSimRuntimeContext& RuntimeInfo);
+	
+	// Use to reset any state that might be desired. Will be called automatically if the entire MotorSim is Reset, or call it manually
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category="AudioMotorSim", DisplayName = "Reset")
+	void BP_Reset();
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

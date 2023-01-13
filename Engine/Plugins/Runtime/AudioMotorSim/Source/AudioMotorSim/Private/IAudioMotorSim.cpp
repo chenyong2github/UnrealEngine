@@ -14,3 +14,13 @@ UAudioMotorSimComponent::UAudioMotorSimComponent(const FObjectInitializer& Objec
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
+
+void UAudioMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
+{
+	BP_Update(Input, RuntimeInfo);
+}
+
+void UAudioMotorSimComponent::Reset()
+{
+	BP_Reset();
+}
