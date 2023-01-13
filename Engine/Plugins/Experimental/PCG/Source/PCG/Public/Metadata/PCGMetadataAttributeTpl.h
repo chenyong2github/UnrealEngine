@@ -615,15 +615,15 @@ namespace PCGMetadataAttribute
 #undef AllocatePCGMetadataAttributeOnType
 	}
 
-	template <typename Func>
-	inline decltype(auto) CallbackWithRightType(uint16 TypeId, Func Callback)
+	template <typename Func, typename... Args>
+	inline decltype(auto) CallbackWithRightType(uint16 TypeId, Func Callback, Args&& ...InArgs)
 	{
-		using ReturnType = decltype(Callback(double{}));
+		using ReturnType = decltype(Callback(double{}, std::forward<Args>(InArgs)...));
 
 		switch (TypeId)
 		{
 
-#define PCG_CALLBACKWITHRIGHTTYPE_DECL(T) case (uint16)(PCG::Private::MetadataTypes<T>::Id): return Callback(T{});
+#define PCG_CALLBACKWITHRIGHTTYPE_DECL(T) case (uint16)(PCG::Private::MetadataTypes<T>::Id): return Callback(T{}, std::forward<Args>(InArgs)...);
 		PCG_FOREACH_SUPPORTEDTYPES(PCG_CALLBACKWITHRIGHTTYPE_DECL)
 #undef PCG_CALLBACKWITHRIGHTTYPE_DECL
 

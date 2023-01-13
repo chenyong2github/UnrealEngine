@@ -191,7 +191,7 @@ TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConst
 
 	if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty)
 	{
-		if (const UPCGPointData* PointData = Cast<const UPCGPointData>(InData))
+		if(!InData || Cast<const UPCGPointData>(InData))
 		{
 			if (const FProperty* Property = FPCGPoint::StaticStruct()->FindPropertyByName(Name))
 			{
@@ -262,7 +262,7 @@ TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateAccessor(UP
 
 	if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty)
 	{
-		if (const UPCGPointData* PointData = Cast<const UPCGPointData>(InData))
+		if (!InData || Cast<const UPCGPointData>(InData))
 		{
 			if (const FProperty* Property = FPCGPoint::StaticStruct()->FindPropertyByName(Name))
 			{

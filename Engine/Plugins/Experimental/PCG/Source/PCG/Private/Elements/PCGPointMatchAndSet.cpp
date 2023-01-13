@@ -1,0 +1,187 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Elements/PCGPointMatchAndSet.h"
+
+#include "PCGHelpers.h"
+#include "Data/PCGPointData.h"
+#include "MatchAndSet/PCGMatchAndSetWeighted.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointMatchAndSet)
+
+#define LOCTEXT_NAMESPACE "PCGPointMatchAndSetElement"
+
+UPCGPointMatchAndSetSettings::UPCGPointMatchAndSetSettings(const FObjectInitializer& ObjectInitializer)
+{
+	MatchAndSetType = UPCGMatchAndSetWeighted::StaticClass();
+	MatchAndSetInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMatchAndSetWeighted>(this, TEXT("DefaultMatchAndSetInstance"));
+	bUseSeed = MatchAndSetInstance && MatchAndSetInstance->UsesRandomProcess();
+}
+
+#if WITH_EDITOR
+FText UPCGPointMatchAndSetSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("PointMatchAndSetNodeTooltip", "For all points, if a match is found (e.g. some attribute is equal to some value), sets a value on the point (e.g. another attribute).");
+}
+#endif // WITH_EDITOR
+
+TArray<FPCGPinProperties> UPCGPointMatchAndSetSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
+	// TODO Add param support?
+
+	return PinProperties;
+}
+
+TArray<FPCGPinProperties> UPCGPointMatchAndSetSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point);
+
+	return PinProperties;
+}
+
+FPCGElementPtr UPCGPointMatchAndSetSettings::CreateElement() const
+{
+	return MakeShared<FPCGPointMatchAndSetElement>();
+}
+
+#if WITH_EDITOR
+
+void UPCGPointMatchAndSetSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property)
+	{
+		const FName& PropertyName = PropertyChangedEvent.Property->GetFName();
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGPointMatchAndSetSettings, MatchAndSetType))
+		{
+			RefreshMatchAndSet();
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGPointMatchAndSetSettings, SetTarget))
+		{
+			bSetTargetIsAttribute = (SetTarget.Selection == EPCGAttributePropertySelection::Attribute);
+
+			// If not targetting an attribute, but a property, assign the new type to the OutputType accordingly
+			if (!bSetTargetIsAttribute)
+			{
+				TUniquePtr<const IPCGAttributeAccessor> SetTargetAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(nullptr, SetTarget);
+				if (SetTargetAccessor)
+				{
+					SetTargetType = static_cast<EPCGMetadataTypes>(SetTargetAccessor->GetUnderlyingType());
+
+					if (MatchAndSetInstance)
+					{
+						MatchAndSetInstance->SetType(SetTargetType, SetTargetStringMode);
+					}
+				}
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGPointMatchAndSetSettings, SetTargetType) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UPCGPointMatchAndSetSettings, SetTargetStringMode))
+		{
+			if (MatchAndSetInstance)
+			{
+				MatchAndSetInstance->SetType(SetTargetType, SetTargetStringMode);
+			}
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+#endif // WITH_EDITOR
+
+void UPCGPointMatchAndSetSettings::SetMatchAndSetType(TSubclassOf<UPCGMatchAndSetBase> InMatchAndSetType)
+{
+	if (!MatchAndSetInstance || InMatchAndSetType != MatchAndSetType)
+	{
+		MatchAndSetType = InMatchAndSetType;
+		RefreshMatchAndSet();
+	}
+}
+
+void UPCGPointMatchAndSetSettings::RefreshMatchAndSet()
+{
+	if (MatchAndSetType)
+	{
+		MatchAndSetInstance = NewObject<UPCGMatchAndSetBase>(this, MatchAndSetType);
+		check(MatchAndSetInstance);
+		MatchAndSetInstance->SetType(SetTargetType, SetTargetStringMode);
+	}
+	else
+	{
+		MatchAndSetInstance = nullptr;
+	}
+
+	bUseSeed = MatchAndSetInstance && MatchAndSetInstance->UsesRandomProcess();
+}
+
+bool FPCGPointMatchAndSetElement::ExecuteInternal(FPCGContext* Context) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointMatchAndSetElement::Execute);
+
+	const UPCGPointMatchAndSetSettings* Settings = Context->GetInputSettings<UPCGPointMatchAndSetSettings>();
+	check(Settings);
+
+	const UPCGMatchAndSetBase* MatchAndSet = Settings->MatchAndSetInstance;
+
+	if (!MatchAndSet)
+	{
+		PCGE_LOG(Error, "Invalid MatchAndSet instance");
+		return true;
+	}
+
+	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+
+	// Forward any non-input data
+	Outputs.Append(Context->InputData.GetAllSettings());
+
+	for (const FPCGTaggedData& Input : Inputs)
+	{
+		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
+
+		const UPCGPointData* InPointData = Cast<UPCGPointData>(Input.Data);
+		if (!InPointData)
+		{
+			PCGE_LOG(Error, "Invalid input data type");
+			continue;
+		}
+
+		// Perform validation - the MatchAndSet is responsible to validate if the input
+		// conforms to what is expected (esp. on the metadata side)
+		if (!MatchAndSet->ValidatePreconditions(InPointData))
+		{
+			PCGE_LOG(Error, "MatchAndSet failed to validate preconditions on input data");
+			continue;
+		}
+
+		UPCGPointData* OutPointData = NewObject<UPCGPointData>();
+		Output.Data = OutPointData;
+
+		OutPointData->InitializeFromData(InPointData);
+		// Copy all points
+		OutPointData->GetMutablePoints() = InPointData->GetPoints();
+
+		// Apply MatchAndSet
+		MatchAndSet->MatchAndSet(*Context, Settings, InPointData, OutPointData);
+
+		if (MatchAndSet->ShouldMutateSeed())
+		{
+			TArray<FPCGPoint>& OutPoints = OutPointData->GetMutablePoints();
+			for (int32 PointIndex = 0; PointIndex < OutPoints.Num(); ++PointIndex)
+			{
+				FPCGPoint& Point = OutPoints[PointIndex];
+				Point.Seed = PCGHelpers::ComputeSeed(Point.Seed, PointIndex);
+			}
+		}
+	}
+
+	return true;
+}
+
+#undef LOCTEXT_NAMESPACE
