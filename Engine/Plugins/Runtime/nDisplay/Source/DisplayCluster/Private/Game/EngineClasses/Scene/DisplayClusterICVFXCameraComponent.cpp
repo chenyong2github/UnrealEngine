@@ -3,10 +3,15 @@
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "Components/DrawFrustumComponent.h"
 
+#include "Cluster/IPDisplayClusterClusterManager.h"
+
 #include "Render/Viewport/Containers/DisplayClusterViewport_CameraMotionBlur.h"
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_CustomFrustum.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "DisplayClusterRootActor.h"
+
+#include "Misc/DisplayClusterGlobals.h"
+#include "DisplayClusterEnums.h"
 
 
 void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& DesiredView)
@@ -28,6 +33,25 @@ UCameraComponent* UDisplayClusterICVFXCameraComponent::GetCameraComponent()
 FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
 {
 	return GetFName().ToString();
+}
+
+bool UDisplayClusterICVFXCameraComponent::IsICVFXEnabled() const
+{
+	// In runtime, we also need to check if this camera is allowed to render on a specific node
+	static const bool bIsRunningCluster = (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
+
+	if (bIsRunningCluster)
+	{
+		static const FString NodeId = GDisplayCluster->GetPrivateClusterMgr()->GetNodeId();
+		const bool bCameraIsAllowedOnThisNode = !CameraSettings.HiddenICVFXNodes.ItemNames.ContainsByPredicate([](const FString& Item)
+			{
+				return Item.Equals(NodeId, ESearchCase::IgnoreCase);
+			});
+
+		return CameraSettings.bEnable && bCameraIsAllowedOnThisNode;
+	}
+
+	return CameraSettings.bEnable;
 }
 
 #if WITH_EDITOR

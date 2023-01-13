@@ -527,22 +527,22 @@ void FDisplayClusterViewportConfigurationICVFX::ImplFinishReallocateViewports(FD
 
 void FDisplayClusterViewportConfigurationICVFX::ImplGetCameras()
 {
-	for (UActorComponent* ActorComponentIt : RootActor.GetComponents())
+	// Get all ICVFX camera components
+	TArray<UDisplayClusterICVFXCameraComponent*> ICVFXCameraComponents;
+	RootActor.GetComponents(ICVFXCameraComponents);
+
+	// Filter active cameras only
+	for (UDisplayClusterICVFXCameraComponent* ICVFXCameraComponent : ICVFXCameraComponents)
 	{
-		// Try to create ICVFX camera from component:
-		if (ActorComponentIt)
+		if (ICVFXCameraComponent && ICVFXCameraComponent->IsICVFXEnabled())
 		{
-			UDisplayClusterICVFXCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFXCameraComponent>(ActorComponentIt);
-			if (CineCameraComponent && CineCameraComponent->IsICVFXEnabled())
+			const FString InnerFrustumID = ICVFXCameraComponent->GetCameraUniqueId();
+			if (RootActor.IsInnerFrustumEnabled(InnerFrustumID))
 			{
-				const FString InnerFrustumID = CineCameraComponent->GetCameraUniqueId();
-				if (RootActor.IsInnerFrustumEnabled(InnerFrustumID))
+				FDisplayClusterViewportConfigurationCameraICVFX NewCamera(RootActor, *ICVFXCameraComponent);
+				if (NewCamera.Initialize())
 				{
-					FDisplayClusterViewportConfigurationCameraICVFX NewCamera(RootActor, *CineCameraComponent);
-					if (NewCamera.Initialize())
-					{
-						StageCameras.Add(NewCamera);
-					}
+					StageCameras.Add(NewCamera);
 				}
 			}
 		}

@@ -13,6 +13,7 @@
 
 #include "DisplayClusterConfigurationTypes_Media.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /*
  * Media settings for viewports and backbuffer
@@ -35,10 +36,16 @@ public:
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media")
 	TObjectPtr<UMediaOutput> MediaOutput;
 
+#if WITH_EDITORONLY_DATA
+
 	UE_DEPRECATED(5.2, "This property has been deprecated")
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated."))
+	UPROPERTY()
 	FString MediaSharingNode_DEPRECATED;
+
+#endif // WITH_EDITORONLY_DATA
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 /*
