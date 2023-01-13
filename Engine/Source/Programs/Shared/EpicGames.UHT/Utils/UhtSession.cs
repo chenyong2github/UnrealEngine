@@ -1990,7 +1990,7 @@ namespace EpicGames.UHT.Utils
 
 		private void StepBindSuperAndBases()
 		{
-			StepForAllHeaders(headerFile => headerFile.BindSuperAndBases());
+			StepForAllHeaders(headerFile => BindSuperAndBases(headerFile));
 		}
 
 		private void StepResolveBases()
@@ -2038,6 +2038,18 @@ namespace EpicGames.UHT.Utils
 			try
 			{
 				headerFile.Resolve(resolvePhase);
+			}
+			catch (Exception e)
+			{
+				HandleException(headerFile.MessageSource, e);
+			}
+		}
+
+		private void BindSuperAndBases(UhtHeaderFile headerFile)
+		{
+			try
+			{
+				headerFile.BindSuperAndBases();
 			}
 			catch (Exception e)
 			{
