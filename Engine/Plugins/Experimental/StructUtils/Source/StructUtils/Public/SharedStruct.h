@@ -280,7 +280,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 	}
 
 	/** Returns a mutable pointer to struct memory. This const_cast here is safe as a ClassName can only be setup from mutable non const memory. */
-	uint8* GetMutableMemory() const
+	uint8* GetMutableMemory()
 	{
 		const uint8* Memory = GetMemory();
 		return const_cast<uint8*>(Memory);
@@ -288,7 +288,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 
 	/** Returns mutable reference to the struct, this getter assumes that all data is valid. */
 	template<typename T>
-	T& GetMutable() const
+	T& GetMutable()
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();
@@ -300,7 +300,7 @@ struct STRUCTUTILS_API FSharedStruct : public FConstSharedStruct
 
 	/** Returns mutable pointer to the struct, or nullptr if cast is not valid. */
 	template<typename T>
-	T* GetMutablePtr() const
+	T* GetMutablePtr()
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();

@@ -53,7 +53,7 @@ FInstancedStruct::FInstancedStruct(const FConstStructView InOther)
 
 FInstancedStruct& FInstancedStruct::operator=(const FConstStructView InOther)
 {
-	if(*this != InOther)
+	if (FConstStructView(*this) != InOther)
 	{
 		InitializeAs(InOther.GetScriptStruct(), InOther.GetMemory());
 	}
@@ -104,7 +104,11 @@ void FInstancedStruct::Reset()
 {
 	if (uint8* Memory = GetMutableMemory())
 	{
-		DestroyScriptStruct();
+		check(StructMemory != nullptr);
+		if (ScriptStruct != nullptr)
+		{
+			ScriptStruct->DestroyStruct(GetMutableMemory());
+		}
 		FMemory::Free(Memory);
 	}
 	ResetStructData();
@@ -267,6 +271,8 @@ bool FInstancedStruct::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UOb
 	}
 	else
 	{
+		// Make sure the struct is actually loaded before trying to import the text (this boils down to FindObject if the struct is already loaded).
+		// This is needed for user defined structs, BP pin values, config, copy/paste, where there's no guarantee that the referenced struct has actually been loaded yet.
 		UScriptStruct* StructTypePtr = LoadObject<UScriptStruct>(nullptr, StructPathName.ToString());
 		if (!StructTypePtr)
 		{

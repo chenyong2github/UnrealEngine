@@ -160,11 +160,11 @@ public:
 		: FConstStructView(InScriptStruct, InStructMemory)
 	{}
 
-	FStructView(const FInstancedStruct& InstancedStruct)
+	FStructView(FInstancedStruct& InstancedStruct)
 		: FConstStructView(InstancedStruct.GetScriptStruct(), InstancedStruct.GetMutableMemory())
 	{}
 
-	FStructView(const FSharedStruct& SharedStruct)
+	FStructView(FSharedStruct& SharedStruct)
 		: FConstStructView(SharedStruct.GetScriptStruct(), SharedStruct.GetMutableMemory())
 	{}
 
@@ -185,7 +185,7 @@ public:
 	}
 
 	/** Returns a mutable pointer to struct memory. This const_cast here is safe as a ClassName can only be setup from mutable non const memory. */
-	uint8* GetMutableMemory() const
+	uint8* GetMutableMemory()
 	{
 		const uint8* Memory = GetMemory();
 		return const_cast<uint8*>(Memory);
@@ -193,7 +193,7 @@ public:
 
 	/** Returns mutable reference to the struct, this getter assumes that all data is valid. */
 	template<typename T>
-	T& GetMutable() const
+	T& GetMutable()
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();
@@ -205,7 +205,7 @@ public:
 
 	/** Returns mutable pointer to the struct, or nullptr if cast is not valid. */
 	template<typename T>
-	T* GetMutablePtr() const
+	T* GetMutablePtr()
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();

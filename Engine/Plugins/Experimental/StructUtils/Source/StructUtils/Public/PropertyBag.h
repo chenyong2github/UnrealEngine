@@ -240,7 +240,7 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 * The properties are matched between the bags based on the property ID.
 	 * @param Other Reference to the bag to copy the values from
 	 */
-	void CopyMatchingValuesByID(const FInstancedPropertyBag& NewDescs) const;
+	void CopyMatchingValuesByID(const FInstancedPropertyBag& NewDescs);
 
 	/** Returns number of the Properties in this Property Bag */
 	int32 GetNumPropertiesInBag() const;
@@ -313,7 +313,7 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	FConstStructView GetValue() const { return Value; };
 
 	/** @return const view to the struct that holds the values. NOTE: The returned value/view cannot be serialized, use this to access the struct only temporarily. */
-	FStructView GetMutableValue() const { return Value; };
+	FStructView GetMutableValue() { return Value; };
 	
 	/**
 	 * Getters
@@ -390,23 +390,23 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 * Value Setters. A property must exists in that bag before it can be set.  
 	 * Numeric types (bool, int32, int64, float, double) support type conversion.
 	 */
-	EPropertyBagResult SetValueBool(const FName Name, const bool bInValue) const;
-	EPropertyBagResult SetValueByte(const FName Name, const uint8 InValue) const;
-	EPropertyBagResult SetValueInt32(const FName Name, const int32 InValue) const;
-	EPropertyBagResult SetValueInt64(const FName Name, const int64 InValue) const;
-	EPropertyBagResult SetValueFloat(const FName Name, const float InValue) const;
-	EPropertyBagResult SetValueDouble(const FName Name, const double InValue) const;
-	EPropertyBagResult SetValueName(const FName Name, const FName InValue) const;
-	EPropertyBagResult SetValueString(const FName Name, const FString& InValue) const;
-	EPropertyBagResult SetValueText(const FName Name, const FText& InValue) const;
-	EPropertyBagResult SetValueEnum(const FName Name, const uint8 InValue, const UEnum* Enum) const;
-	EPropertyBagResult SetValueStruct(const FName Name, FConstStructView InValue) const;
-	EPropertyBagResult SetValueObject(const FName Name, UObject* InValue) const;
-	EPropertyBagResult SetValueClass(const FName Name, UClass* InValue) const;
+	EPropertyBagResult SetValueBool(const FName Name, const bool bInValue);
+	EPropertyBagResult SetValueByte(const FName Name, const uint8 InValue);
+	EPropertyBagResult SetValueInt32(const FName Name, const int32 InValue);
+	EPropertyBagResult SetValueInt64(const FName Name, const int64 InValue);
+	EPropertyBagResult SetValueFloat(const FName Name, const float InValue);
+	EPropertyBagResult SetValueDouble(const FName Name, const double InValue);
+	EPropertyBagResult SetValueName(const FName Name, const FName InValue);
+	EPropertyBagResult SetValueString(const FName Name, const FString& InValue);
+	EPropertyBagResult SetValueText(const FName Name, const FText& InValue);
+	EPropertyBagResult SetValueEnum(const FName Name, const uint8 InValue, const UEnum* Enum);
+	EPropertyBagResult SetValueStruct(const FName Name, FConstStructView InValue);
+	EPropertyBagResult SetValueObject(const FName Name, UObject* InValue);
+	EPropertyBagResult SetValueClass(const FName Name, UClass* InValue);
 
 	/** Sets enum value specified type. */
 	template <typename T>
-	EPropertyBagResult SetValueEnum(const FName Name, const T InValue) const
+	EPropertyBagResult SetValueEnum(const FName Name, const T InValue)
 	{
 		static_assert(TIsEnum<T>::Value, "Should only call this with enum types");
 		return SetValueEnum(Name, (uint8)InValue, StaticEnum<T>());
@@ -414,14 +414,14 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 
 	/** Sets struct value specified type. */
 	template <typename T>
-	EPropertyBagResult SetValueStruct(const FName Name, const T& InValue) const
+	EPropertyBagResult SetValueStruct(const FName Name, const T& InValue)
 	{
 		return SetValueStruct(Name, FConstStructView::Make(InValue));
 	}
 
 	/** Sets object pointer value specified type. */
 	template <typename T>
-	EPropertyBagResult SetValueObject(const FName Name, T* InValue) const
+	EPropertyBagResult SetValueObject(const FName Name, T* InValue)
 	{
 		static_assert(TIsDerivedFrom<T, UObject>::Value, "Should only call this with object types");
 		return SetValueObject(Name, (UObject*)InValue);
@@ -431,19 +431,27 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 * Sets property value from given source property and source container address
 	 * A property must exists in that bag before it can be set. 
 	 */
-	EPropertyBagResult SetValue(const FName Name, const FProperty* InSourceProperty, const void* InSourceContainerAddress) const;
+	EPropertyBagResult SetValue(const FName Name, const FProperty* InSourceProperty, const void* InSourceContainerAddress);
 
 	/**
 	 * Returns helper class to modify and access an array property.
 	 * Note: Note: The array reference is not valid after the layout of the referenced property bag has changed!
 	 * @returns helper class to modify and access arrays
 	*/
-	TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> GetArrayRef(const FName Name) const;
+	TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> GetMutableArrayRef(const FName Name);
+
+	/**
+	 * Returns helper class to modify and access an array property.
+	 * Note: Note: The array reference is not valid after the layout of the referenced property bag has changed!
+	 * @returns helper class to modify and access arrays
+	*/
+	TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> GetArrayRef(const FName Name) const;
 
 	bool Serialize(FArchive& Ar);
 
 protected:
-	void* GetValueAddress(const FPropertyBagPropertyDesc* Desc) const;
+	const void* GetValueAddress(const FPropertyBagPropertyDesc* Desc) const;
+	void* GetMutableValueAddress(const FPropertyBagPropertyDesc* Desc);
 	
 	UPROPERTY(EditAnywhere, Category="")
 	FInstancedStruct Value;
@@ -591,23 +599,23 @@ public:
 	 * Value Setters. A property must exists in that bag before it can be set.  
 	 * Numeric types (bool, int32, int64, float, double) support type conversion.
 	 */
-	EPropertyBagResult SetValueBool(const int32 Index, const bool bInValue) const;
-	EPropertyBagResult SetValueByte(const int32 Index, const uint8 InValue) const;
-	EPropertyBagResult SetValueInt32(const int32 Index, const int32 InValue) const;
-	EPropertyBagResult SetValueInt64(const int32 Index, const int64 InValue) const;
-	EPropertyBagResult SetValueFloat(const int32 Index, const float InValue) const;
-	EPropertyBagResult SetValueDouble(const int32 Index, const double InValue) const;
-	EPropertyBagResult SetValueName(const int32 Index, const FName InValue) const;
-	EPropertyBagResult SetValueString(const int32 Index, const FString& InValue) const;
-	EPropertyBagResult SetValueText(const int32 Index, const FText& InValue) const;
-	EPropertyBagResult SetValueEnum(const int32 Index, const uint8 InValue, const UEnum* Enum) const;
-	EPropertyBagResult SetValueStruct(const int32 Index, FConstStructView InValue) const;
-	EPropertyBagResult SetValueObject(const int32 Index, UObject* InValue) const;
-	EPropertyBagResult SetValueClass(const int32 Index, UClass* InValue) const;
+	EPropertyBagResult SetValueBool(const int32 Index, const bool bInValue);
+	EPropertyBagResult SetValueByte(const int32 Index, const uint8 InValue);
+	EPropertyBagResult SetValueInt32(const int32 Index, const int32 InValue);
+	EPropertyBagResult SetValueInt64(const int32 Index, const int64 InValue);
+	EPropertyBagResult SetValueFloat(const int32 Index, const float InValue);
+	EPropertyBagResult SetValueDouble(const int32 Index, const double InValue);
+	EPropertyBagResult SetValueName(const int32 Index, const FName InValue);
+	EPropertyBagResult SetValueString(const int32 Index, const FString& InValue);
+	EPropertyBagResult SetValueText(const int32 Index, const FText& InValue);
+	EPropertyBagResult SetValueEnum(const int32 Index, const uint8 InValue, const UEnum* Enum);
+	EPropertyBagResult SetValueStruct(const int32 Index, FConstStructView InValue);
+	EPropertyBagResult SetValueObject(const int32 Index, UObject* InValue);
+	EPropertyBagResult SetValueClass(const int32 Index, UClass* InValue);
 
 	/** Sets enum value specified type. */
 	template <typename T>
-	EPropertyBagResult SetValueEnum(const int32 Index, const T InValue) const
+	EPropertyBagResult SetValueEnum(const int32 Index, const T InValue)
 	{
 		static_assert(TIsEnum<T>::Value, "Should only call this with enum types");
 		return SetValueEnum(Index, (uint8)InValue, StaticEnum<T>());
@@ -615,14 +623,14 @@ public:
 
 	/** Sets struct value specified type. */
 	template <typename T>
-	EPropertyBagResult SetValueStruct(const int32 Index, const T& InValue) const
+	EPropertyBagResult SetValueStruct(const int32 Index, const T& InValue)
 	{
 		return SetValueStruct(Index, FConstStructView::Make(InValue));
 	}
 
 	/** Sets object pointer value specified type. */
 	template <typename T>
-	EPropertyBagResult SetValueObject(const int32 Index, T* InValue) const
+	EPropertyBagResult SetValueObject(const int32 Index, T* InValue)
 	{
 		static_assert(TIsDerivedFrom<T, UObject>::Value, "Should only call this with object types");
 		return SetValueObject(Index, (UObject*)InValue);

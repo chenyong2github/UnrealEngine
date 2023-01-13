@@ -29,7 +29,11 @@ public:
 
 	explicit FInstancedStruct(const UScriptStruct* InScriptStruct);
 
-	FInstancedStruct(const FConstStructView InOther);
+	/**
+	 * This constructor is explicit to avoid accidentally converting struct views to instanced structs (which would result in costly copy of the struct to be made).
+	 * Implicit conversion could happen e.g. when comparing FInstancedStruct to FConstStructView.
+	 */
+	explicit FInstancedStruct(const FConstStructView InOther);
 
 	FInstancedStruct(const FInstancedStruct& InOther)
 	{
@@ -188,14 +192,14 @@ public:
 	}
 
 	/** Returns a mutable pointer to struct memory. */
-	uint8* GetMutableMemory() const
+	uint8* GetMutableMemory()
 	{
 		return StructMemory;
 	}
 
 	/** Returns mutable reference to the struct, this getter assumes that all data is valid. */
 	template<typename T>
-	T& GetMutable() const
+	T& GetMutable()
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();
@@ -207,7 +211,7 @@ public:
 
 	/** Returns mutable pointer to the struct, or nullptr if cast is not valid. */
 	template<typename T>
-	T* GetMutablePtr() const
+	T* GetMutablePtr()
 	{
 		uint8* Memory = GetMutableMemory();
 		const UScriptStruct* Struct = GetScriptStruct();
@@ -235,33 +239,7 @@ public:
 		return !Identical(&Other, PPF_None);
 	}
 
-	/** Comparison operators. Note: it does not compare the internal structure itself*/
-	template <typename OtherType>
-	bool operator==(const OtherType& Other) const
-	{
-		if ((GetScriptStruct() != Other.GetScriptStruct()) || (GetMemory() != Other.GetMemory()))
-		{
-			return false;
-		}
-		return true;
-	}
-
-	template <typename OtherType>
-	bool operator!=(const OtherType& Other) const
-	{
-		return !operator==(Other);
-	}
-
 protected:
-
-	void DestroyScriptStruct() const
-	{
-		check(StructMemory != nullptr);
-		if (ScriptStruct != nullptr)
-		{
-			ScriptStruct->DestroyStruct(GetMutableMemory());
-		}
-	}
 
 	FInstancedStruct(const UScriptStruct* InScriptStruct, uint8* InStructMemory)
 		: ScriptStruct(InScriptStruct)

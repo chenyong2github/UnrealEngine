@@ -305,7 +305,7 @@ struct FTest_Arrays : FAITestBase
 			{ FloatArrayName, EPropertyBagContainerType::Array, EPropertyBagPropertyType::Float },
 		});
 
-		TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> FloatArrayRes = Bag.GetArrayRef(FloatArrayName);
+		TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> FloatArrayRes = Bag.GetArrayRef(FloatArrayName);
 		AITEST_TRUE(TEXT("Get float array should succeed"), FloatArrayRes.IsValid());
 
 		FPropertyBagArrayRef FloatArray = FloatArrayRes.GetValue();
