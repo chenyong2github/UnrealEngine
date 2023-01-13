@@ -15,7 +15,7 @@ class FDisplayClusterMediaInputBase;
 class FDisplayClusterMediaInputICVFX;
 class FDisplayClusterMediaInputNode;
 class FDisplayClusterMediaInputViewport;
-
+class IMediaPlayerFactory;
 
 /**
  * Media module
@@ -63,4 +63,7 @@ private:
 
 	// Latency queue
 	FDisplayClusterFrameQueue FrameQueue;
+
+	// Media player factories
+	TArray<TUniquePtr<IMediaPlayerFactory>> PlayerFactories;
 };

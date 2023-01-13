@@ -46,6 +46,23 @@ protected:
 	virtual FIntPoint GetCaptureSize() const = 0;
 
 private:
+
+	// Trivial version of FIntPoint so that it can be std::atomic
+	struct FIntSize
+	{
+		int32 X = 0;
+		int32 Y = 0;
+
+		FIntSize(int32 InX, int32 InY) : X(InX), Y(InY) {}
+		FIntSize(const FIntPoint& IntPoint) : X(IntPoint.X), Y(IntPoint.Y) {}
+
+		FIntPoint ToIntPoint()
+		{
+			return FIntPoint(X, Y);
+		}
+	};
+
+private:
 	//~ Begin GC by AddReferencedObjects
 	UMediaOutput*           MediaOutput  = nullptr;
 	UMediaCapture*          MediaCapture = nullptr;
@@ -56,4 +73,7 @@ private:
 
 	// Used to control the rate at which we try to restart the capture
 	double LastRestartTimestamp = 0;
+
+	// Last region size of the texture being exported. Used to restart the capture when in error.
+	std::atomic<FIntSize> LastSrcRegionSize { FIntSize(0,0) };
 };

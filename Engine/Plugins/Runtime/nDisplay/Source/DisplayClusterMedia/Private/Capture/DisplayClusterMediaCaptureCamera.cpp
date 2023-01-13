@@ -30,7 +30,16 @@ FDisplayClusterMediaCaptureCamera::FDisplayClusterMediaCaptureCamera(const FStri
 			{
 				if (ICVFXCamera->GetName() == CameraId)
 				{
-					CameraResolution = ICVFXCamera->GetCameraSettingsICVFX().CustomFrustum.InnerFrustumResolution;
+					const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = ICVFXCamera->GetCameraSettingsICVFX();
+
+					if (CameraSettings.CustomFrustum.bEnable)
+					{
+						CameraResolution = CameraSettings.CustomFrustum.EstimatedOverscanResolution;
+					}
+					else
+					{
+						CameraResolution = CameraSettings.CustomFrustum.InnerFrustumResolution;
+					}
 				}
 			}
 		}

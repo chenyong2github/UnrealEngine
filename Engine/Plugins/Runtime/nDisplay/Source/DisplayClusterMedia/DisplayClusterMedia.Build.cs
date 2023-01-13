@@ -17,6 +17,13 @@ public class DisplayClusterMedia : ModuleRules
 				"DisplayClusterShaders",
 			});
 
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Media",
+				"MediaAssets",
+				"MediaIOCore",
+			});
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -24,8 +31,6 @@ public class DisplayClusterMedia : ModuleRules
 				"DisplayCluster",
 				"DisplayClusterConfiguration",
 				"Engine",
-				"MediaAssets",
-				"MediaIOCore",
 				"Renderer",
 				"RenderCore",
 				"RHI",
@@ -34,6 +39,12 @@ public class DisplayClusterMedia : ModuleRules
 		if (Target.bBuildEditor == true)
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
+
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+			PrivateDependencyModuleNames.Add("D3D12RHI");
 		}
 	}
 }

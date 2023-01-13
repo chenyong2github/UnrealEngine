@@ -72,7 +72,7 @@ void FDisplayClusterMediaCaptureBase::ExportMediaData(FRDGBuilder& GraphBuilder,
 	{
 		MediaCapture->SetValidSourceGPUMask(GraphBuilder.RHICmdList.GetGPUMask());
 
-		const FIntPoint SrcRegionSize = TextureInfo.Region.Size();
+		LastSrcRegionSize = FIntSize(TextureInfo.Region.Size());
 		MediaCapture->CaptureImmediate_RenderThread(GraphBuilder, SrcTexture);
 	}
 }
@@ -99,7 +99,15 @@ void FDisplayClusterMediaCaptureBase::OnPostClusterTick()
 bool FDisplayClusterMediaCaptureBase::StartMediaCapture()
 {
 	FRHICaptureResourceDescription Descriptor;
-	Descriptor.ResourceSize = GetCaptureSize();
+
+	if (LastSrcRegionSize.load().ToIntPoint() == FIntPoint::ZeroValue)
+	{
+		Descriptor.ResourceSize = GetCaptureSize();
+	}
+	else
+	{
+		Descriptor.ResourceSize = LastSrcRegionSize.load().ToIntPoint();
+	}
 	
 	FMediaCaptureOptions MediaCaptureOptions;
 	MediaCaptureOptions.NumberOfFramesToCapture = -1;

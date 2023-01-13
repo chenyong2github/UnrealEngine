@@ -153,6 +153,15 @@
 			]
 		},
 		{
+			"Name": "DisplayClusterMediaEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
 			"Name": "DisplayClusterMultiUser",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostEngineInit",

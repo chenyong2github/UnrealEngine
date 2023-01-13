@@ -29,6 +29,7 @@ FDisplayClusterMediaInputBase::FDisplayClusterMediaInputBase(const FString& InMe
 		if (MediaTexture)
 		{
 			MediaTexture->NewStyleOutput = true;
+			MediaTexture->SetRenderMode(UMediaTexture::ERenderMode::JustInTime);
 			MediaTexture->SetMediaPlayer(MediaPlayer);
 			MediaTexture->UpdateResource();
 		}
@@ -70,7 +71,9 @@ void FDisplayClusterMediaInputBase::Stop()
 
 void FDisplayClusterMediaInputBase::ImportMediaData(FRHICommandListImmediate& RHICmdList, const FMediaTextureInfo& TextureInfo)
 {
-	FRHITexture* const SrcTexture = MediaTexture->GetResource()->GetTextureRHI();
+	MediaTexture->JustInTimeRender();
+
+	FRHITexture* const SrcTexture = MediaTexture->GetResource() ? MediaTexture->GetResource()->GetTextureRHI() : nullptr;
 	FRHITexture* const DstTexture = TextureInfo.Texture;
 
 	if (SrcTexture && DstTexture)
