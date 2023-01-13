@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GPUProfiler.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Misc/WildcardString.h"
 
 #if !UE_BUILD_SHIPPING

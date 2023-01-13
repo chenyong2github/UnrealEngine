@@ -6,15 +6,18 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 
 #include "PipelineStateCache.h"
 #include "Async/AsyncWork.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "PipelineFileCache.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "Misc/ScopeRWLock.h"
-#include "Misc/ScopeLock.h"
-#include "CoreGlobals.h"
+#include "Misc/App.h"
 #include "Misc/TimeGuard.h"
 #include "Containers/DiscardableKeyValueCache.h"
-#include "Async/Async.h"
-#include "HAL/PlatformMisc.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "RHIFwd.h"
+#include "RHIImmutableSamplerState.h"
+#include "Stats/StatsTrace.h"
 
 // perform cache eviction each frame, used to stress the system and flush out bugs
 #define PSO_DO_CACHE_EVICT_EACH_FRAME 0

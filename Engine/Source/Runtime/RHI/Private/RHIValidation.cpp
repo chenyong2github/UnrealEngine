@@ -5,10 +5,13 @@
 =============================================================================*/
 
 #include "RHIValidation.h"
-#include "RHIValidationContext.h"
+#include "HAL/IConsoleManager.h"
 #include "RHIValidationTransientResourceAllocator.h"
 #include "HAL/PlatformStackWalk.h"
+#include "Misc/CommandLine.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "RHIContext.h"
+#include "RHIStrings.h"
 
 #if ENABLE_RHI_VALIDATION
 

@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "MultiGPU.h"
-#include "RHI.h"
 
 #if WITH_SLI || WITH_MGPU
 uint32 GNumAlternateFrameRenderingGroups = 1;

@@ -2,11 +2,10 @@
 
 #include "TextureProfiler.h"
 
+#include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "RHI.h"
+#include "RHIDefinitions.h"
 #include "RHIResources.h"
-#include "UObject/NameTypes.h"
-#include "Containers/StringConv.h"
 
 #if TEXTURE_PROFILER_ENABLED
 

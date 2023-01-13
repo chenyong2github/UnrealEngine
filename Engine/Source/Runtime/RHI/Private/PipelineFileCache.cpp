@@ -5,14 +5,14 @@ PipelineFileCache.cpp: Pipeline state cache implementation.
 =============================================================================*/
 
 #include "PipelineFileCache.h"
+#include "Containers/List.h"
 #include "PipelineStateCache.h"
-#include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/EngineVersion.h"
-#include "Serialization/Archive.h"
+#include "HAL/PlatformFile.h"
 #include "Serialization/MemoryReader.h"
+#include "Misc/CommandLine.h"
 #include "Serialization/MemoryWriter.h"
-#include "RHI.h"
-#include "RHIResources.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/Paths.h"
@@ -20,10 +20,10 @@ PipelineFileCache.cpp: Pipeline state cache implementation.
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "RHIStrings.h"
 #include "String/LexFromString.h"
 #include "String/ParseTokens.h"
 #include "Misc/ScopeExit.h"
-#include <Misc/ConfigCacheIni.h>
 #include <Algo/ForEach.h>
 
 static FString JOURNAL_FILE_EXTENSION(TEXT(".jnl"));

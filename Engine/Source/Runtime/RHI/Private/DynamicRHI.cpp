@@ -4,18 +4,22 @@
 	DynamicRHI.cpp: Dynamically bound Render Hardware Interface implementation.
 =============================================================================*/
 
-#include "CoreMinimal.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "Misc/MessageDialog.h"
+#include "Experimental/Containers/HazardPointer.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
-#include "RHI.h"
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
+#include "RHIFwd.h"
 #include "TextureProfiler.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIImmutableSamplerState.h"
+#include "RHIStrings.h"
+#include "Serialization/MemoryImage.h"
 
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);

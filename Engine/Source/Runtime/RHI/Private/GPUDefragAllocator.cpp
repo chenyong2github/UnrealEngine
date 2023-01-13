@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GPUDefragAllocator.h"
-#include "HAL/FileManager.h"
-#include "Misc/ScopeLock.h"
-#include "Math/RandomStream.h"
+#include "HAL/IConsoleManager.h"
 #include "Stats/StatsMisc.h"
 #include "RHI.h"
-#include "ProfilingDebugging/ScopedTimers.h"
+#include "Stats/Stats.h"
 
 DECLARE_STATS_GROUP(TEXT("TexturePool"), STATGROUP_TexturePool, STATCAT_ADVANCED);
 

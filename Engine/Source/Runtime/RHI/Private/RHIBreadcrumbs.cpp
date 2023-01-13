@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHIBreadcrumbs.h"
+#include "Misc/MemStack.h"
 #include "RHI.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Trace/Trace.inl"
 
 #if RHI_WANT_BREADCRUMB_EVENTS
 

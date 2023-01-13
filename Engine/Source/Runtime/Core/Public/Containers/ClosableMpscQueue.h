@@ -6,6 +6,7 @@
 
 #include "CoreTypes.h"
 #include "Templates/TypeCompatibleBytes.h"
+#include "Templates/UnrealTemplate.h"
 #include <atomic>
 
 /** 

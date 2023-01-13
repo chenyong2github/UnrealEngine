@@ -4,15 +4,18 @@
 RHIUtilities.cpp:
 =============================================================================*/
 
-#include "CoreMinimal.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "HAL/PlatformStackWalk.h"
-#include "HAL/IConsoleManager.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "RHI.h"
+#include "GenericPlatform/GenericPlatformFramePacer.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "Misc/ScopeLock.h"
 #include "HAL/PlatformFramePacer.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIAccess.h"
+#include "RHIFwd.h"
+#include "RHIStrings.h"
 
 #define USE_FRAME_OFFSET_THREAD 1
 

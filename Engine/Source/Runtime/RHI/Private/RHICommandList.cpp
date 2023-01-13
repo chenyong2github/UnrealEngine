@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "CoreMinimal.h"
-#include "Misc/CommandLine.h"
-#include "Stats/Stats.h"
-#include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "RHI.h"
-#include "Misc/ScopeLock.h"
-#include "Misc/ScopeExit.h"
-#include "PipelineStateCache.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Trace/Trace.inl"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "RHIBreadcrumbs.h"
 #include "RHIResourceUpdates.h"
+#include "RHIContext.h"
+#include "RHIFwd.h"
+#include "RHITextureReference.h"
+#include "RHITransition.h"
+#include "Stats/StatsTrace.h"
 
 CSV_DEFINE_CATEGORY_MODULE(RHI_API, RHITStalls, false);
 CSV_DEFINE_CATEGORY_MODULE(RHI_API, RHITFlushes, false);

@@ -2,12 +2,10 @@
 
 #include "GpuProfilerTrace.h"
 #include "GPUProfiler.h"
-#include "HAL/PlatformMisc.h"
-#include "HAL/PlatformTime.h"
-#include "Misc/CString.h"
-#include "ProfilingDebugging/MiscTrace.h"
+#include "HAL/IConsoleManager.h"
 #include "Trace/Trace.inl"
-#include "UObject/NameTypes.h"
+#include "Trace/Detail/Field.h"
+#include "Trace/Detail/Important/ImportantLogScope.h"
 
 #if GPUPROFILERTRACE_ENABLED
 

@@ -3,8 +3,9 @@
 #include "RHIStrings.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RHI.h"
+#include "RHIAccess.h"
 #include "RHIShaderFormatDefinitions.inl"
-#include "UObject/NameTypes.h"
+#include "RHIPipeline.h"
 
 static FName NAME_PLATFORM_WINDOWS(TEXT("Windows"));
 static FName NAME_PLATFORM_ANDROID(TEXT("Android"));
