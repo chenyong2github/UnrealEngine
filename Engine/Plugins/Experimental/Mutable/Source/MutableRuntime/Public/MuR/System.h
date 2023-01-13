@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
 #include "HAL/Platform.h"
 #include "MuR/Image.h"
 #include "MuR/Instance.h"
@@ -10,6 +11,7 @@
 #include "MuR/RefCounted.h"
 #include "MuR/Settings.h"
 #include "MuR/Types.h"
+#include "Templates/Tuple.h"
 
 // This define will use the newer task graph interface to manage mutable concurrency. 
 // This is currently broken in Switch and maybe other consoles, for some unknown reason.
