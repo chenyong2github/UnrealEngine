@@ -40,6 +40,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "EditorAssetLibrary.h"
 #include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GraphEditorActions.h"
@@ -447,6 +448,15 @@ void FPCGEditor::OnForceGraphRegeneration_Clicked()
 {
 	if (PCGGraphBeingEdited)
 	{
+		FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
+		if (ModifierKeys.IsControlDown())
+		{
+			if (UPCGSubsystem* Subsystem = GetSubsystem())
+			{
+				Subsystem->FlushCache();
+			}
+		}
+
 		PCGGraphBeingEdited->ForceNotificationForEditor();
 	}
 }
@@ -2029,7 +2039,7 @@ bool FPCGEditor::IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent
 
 UPCGSubsystem* FPCGEditor::GetSubsystem()
 {
-	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	UWorld* World = (GEditor ? (GEditor->PlayWorld ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World()) : nullptr);
 	return World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
 }
 

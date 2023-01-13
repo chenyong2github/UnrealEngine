@@ -1623,4 +1623,12 @@ void UPCGSubsystem::FlushCache()
 	{
 		GraphExecutor->GetCache().ClearCache();
 	}
+
+#if WITH_EDITOR
+	// Garbage collection is very seldom run in the editor, but we currently can consume a lot of memory in the cache.
+	if (!PCGHelpers::IsRuntimeOrPIE())
+	{
+		CollectGarbage(RF_NoFlags, true);
+	}	
+#endif
 }
