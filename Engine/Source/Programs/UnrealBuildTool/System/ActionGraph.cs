@@ -87,11 +87,16 @@ namespace UnrealBuildTool
 			Dictionary<FileItem, IExternalAction> ItemToProducingAction = new Dictionary<FileItem, IExternalAction>();
 			foreach (IExternalAction Action in Actions)
 			{
+				HashSet<IExternalAction> Conflicted = new HashSet<IExternalAction>();
 				foreach (FileItem ProducedItem in Action.ProducedItems)
 				{
 					if (ItemToProducingAction.TryGetValue(ProducedItem, out IExternalAction? ExistingAction))
 					{
-						bResult &= CheckForConflicts(ExistingAction, Action, Logger);
+						if (!Conflicted.Contains(ExistingAction))
+						{
+							bResult &= CheckForConflicts(ExistingAction, Action, Logger);
+							Conflicted.Add(ExistingAction);
+						}
 					}
 					else
 					{
