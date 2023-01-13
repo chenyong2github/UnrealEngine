@@ -41,6 +41,12 @@ namespace Chaos
 	class FPerShapeData;
 	struct FMTDInfo;
 
+	struct CHAOS_API FOverlapInfo
+	{
+		FMTDInfo* MTD = nullptr;
+		FBox* AxisOverlap = nullptr;
+	};
+
 	/**
 	 * FReadPhysicsObjectInterface will assume that these operations are safe to call (i.e. the relevant scenes have been read locked on the game thread).
 	 */
@@ -59,7 +65,7 @@ namespace Chaos
 		FSpatialAccelerationIdx GetSpatialIndex(FPhysicsObjectHandle Object);
 
 		TArray<FPerShapeData*> GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FMTDInfo* OutMTD);
+		bool GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
 
 		bool AreAllValid(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllKinematic(TArrayView<FPhysicsObjectHandle> InObjects);
