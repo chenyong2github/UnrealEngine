@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Subsystems/WorldSubsystem.h"
+#include "EditorSubsystem.h"
 #include "UObject/ObjectMacros.h"
 
 #include "TypedElementSubsystems.generated.h"
@@ -16,7 +16,7 @@ class ITypedElementDataStorageCompatibilityInterface;
  * the Data Storage from the Typed Elements Registry is not recommended, such as for MASS.
  */
 UCLASS()
-class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageSubsystem : public UWorldSubsystem
+class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
@@ -27,8 +27,6 @@ public:
 	const ITypedElementDataStorageInterface* Get() const;
 
 protected:
-	bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-
 	mutable ITypedElementDataStorageInterface* DataStorage{ nullptr };
 };
 
@@ -37,7 +35,7 @@ protected:
  * accessing the UI from the Typed Elements Registry is not recommended, such as for MASS.
  */
 UCLASS()
-class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageUiSubsystem : public UWorldSubsystem
+class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageUiSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
@@ -48,8 +46,6 @@ public:
 	const ITypedElementDataStorageUiInterface* Get() const;
 
 protected:
-	bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-
 	mutable ITypedElementDataStorageUiInterface* DataStorageUi{ nullptr };
 };
 
@@ -58,7 +54,7 @@ protected:
  * accessing the Compatiblity extension from the Typed Elements Registry is not recommended, such as for MASS.
  */
 UCLASS()
-class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageCompatibilitySubsystem : public UWorldSubsystem
+class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageCompatibilitySubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
@@ -69,7 +65,5 @@ public:
 	const ITypedElementDataStorageCompatibilityInterface* Get() const;
 
 protected:
-	bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-
 	mutable ITypedElementDataStorageCompatibilityInterface* DataStorageCompatibility{ nullptr };
 };

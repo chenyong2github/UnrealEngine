@@ -24,7 +24,9 @@ public class TypedElementsDataStorageUI : ModuleRules
 					"SlateCore",
 					"ToolMenus",
 					"TypedElementFramework",
-					"TypedElementsDataStorage"
+					"TypedElementsDataStorage",
+					"EditorSubsystem",
+					"UnrealEd",
 				});
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

@@ -4,31 +4,18 @@
 
 #include "Editor.h"
 #include "Engine/World.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityEditorSubsystem.h"
 #include "Stats/Stats2.h"
 #include "TickTaskManagerInterface.h"
+#include "MassSubsystemAccess.h"
 
 void UTypedElementDatabase::Initialize()
 {
-	constexpr bool bInformEngineOfWorld = false;
-	constexpr bool bAddToRoot = false;
-	// Initialize the world as minimal as possible as it's only used to store data and tick a few subsystems that require updates to 
-	// keep data consistent.
-	UWorld::InitializationValues InitializationValues;
-	InitializationValues
-		.InitializeScenes(false)
-		.AllowAudioPlayback(false)
-		.CreatePhysicsScene(false)
-		.CreateNavigation(false)
-		.CreateAISystem(false)
-		.ShouldSimulatePhysics(false)
-		.CreateFXSystem(false);
-	ActiveEditorWorld = TObjectPtr<UWorld>(UWorld::CreateWorld(EWorldType::EditorStorage, bInformEngineOfWorld,
-		FName(TEXT("Typed Elements Data Storage World")), GetTransientPackage(), bAddToRoot, ERHIFeatureLevel::Num, &InitializationValues));
-	ActiveEditorWorld->SetShouldTick(false); // Ticks will be done explicitly.
+	check(GEditor);
+	UMassEntityEditorSubsystem* Mass = GEditor->GetEditorSubsystem<UMassEntityEditorSubsystem>();
+	check(Mass);
+	Mass->GetOnPreTickDelegate().AddUObject(this, &UTypedElementDatabase::OnPreMassTick);
 
-	UMassEntitySubsystem* Mass = ActiveEditorWorld->GetSubsystem<UMassEntitySubsystem>();
-	checkf(Mass, TEXT("New editor data world created, but an MASS entity subsystem wasn't created within it."));
 	ActiveEditorEntityManager = Mass->GetMutableEntityManager().AsShared();
 }
 
@@ -37,44 +24,10 @@ void UTypedElementDatabase::Deinitialize()
 	Reset();
 }
 
-ETickableTickType UTypedElementDatabase::GetTickableTickType() const
-{ 
-	return ETickableTickType::Always;
-}
-
-bool UTypedElementDatabase::IsTickableWhenPaused() const
-{
-	return true;
-}
-
-bool UTypedElementDatabase::IsTickableInEditor() const
-{
-	return true;
-}
-
-bool UTypedElementDatabase::IsAllowedToTick() const
-{
-	return !HasAllFlags(RF_ClassDefaultObject) && IsAvailable();
-}
-
-TStatId UTypedElementDatabase::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UTypedElementDatabase, STATGROUP_Tickables);
-}
-
-void UTypedElementDatabase::Tick(float DeltaTime)
+void UTypedElementDatabase::OnPreMassTick(float DeltaTime)
 {
 	checkf(IsAvailable(), TEXT("Typed Element Database was ticked while it's not ready."));
 	OnUpdateDelegate.Broadcast();
-
-	FTickTaskManagerInterface& TaskManager = FTickTaskManagerInterface::Get();
-	TaskManager.StartFrame(ActiveEditorWorld, DeltaTime, LEVELTICK_TimeOnly, ActiveEditorWorld->GetLevels());
-	for (int Group = 0; Group < TG_MAX; ++Group)
-	{
-		constexpr static bool bBlockTillComplete = true;
-		TaskManager.RunTickGroup(static_cast<ETickingGroup>(Group), bBlockTillComplete);
-	}
-	TaskManager.EndFrame();
 }
 
 TSharedPtr<FMassEntityManager> UTypedElementDatabase::GetActiveMutableEditorEntityManager()
@@ -450,20 +403,21 @@ FTypedElementOnDataStorageUpdate& UTypedElementDatabase::OnUpdate()
 
 bool UTypedElementDatabase::IsAvailable() const
 {
-	return ActiveEditorWorld && ActiveEditorEntityManager;
+	return bool(ActiveEditorEntityManager);
 }
 
 void* UTypedElementDatabase::GetExternalSystemAddress(UClass* Target)
 {
-	return ActiveEditorWorld ? ActiveEditorWorld->GetSubsystemBase(Target) : nullptr;
+	if (Target && Target->IsChildOf<USubsystem>())
+	{
+		return FMassSubsystemAccess::FetchSubsystemInstance(/*World=*/nullptr, Target);
+	}
+	return nullptr;
 }
 
 void UTypedElementDatabase::Reset()
 {
 	Tables.Reset();
 	TableNameLookup.Reset();
-
-	ActiveEditorWorld->CleanupWorld();
-	ActiveEditorWorld = nullptr;
 	ActiveEditorEntityManager.Reset();
 }

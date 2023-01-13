@@ -29,11 +29,6 @@ const ITypedElementDataStorageInterface* UTypedElementDataStorageSubsystem::Get(
 	return const_cast<UTypedElementDataStorageSubsystem*>(this)->Get();
 }
 
-bool UTypedElementDataStorageSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
-}
-
 
 //
 // UTypedElementDataStorageUiSubsystem
@@ -58,11 +53,6 @@ ITypedElementDataStorageUiInterface* UTypedElementDataStorageUiSubsystem::Get()
 const ITypedElementDataStorageUiInterface* UTypedElementDataStorageUiSubsystem::Get() const
 {
 	return const_cast<UTypedElementDataStorageUiSubsystem*>(this)->Get();
-}
-
-bool UTypedElementDataStorageUiSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
 }
 
 
@@ -90,9 +80,4 @@ ITypedElementDataStorageCompatibilityInterface* UTypedElementDataStorageCompatib
 const ITypedElementDataStorageCompatibilityInterface* UTypedElementDataStorageCompatibilitySubsystem::Get() const
 {
 	return const_cast<UTypedElementDataStorageCompatibilitySubsystem*>(this)->Get();
-}
-
-bool UTypedElementDataStorageCompatibilitySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
 }

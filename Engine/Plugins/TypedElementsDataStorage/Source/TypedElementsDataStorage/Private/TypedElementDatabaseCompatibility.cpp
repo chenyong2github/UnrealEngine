@@ -3,6 +3,7 @@
 #include "TypedElementDatabaseCompatibility.h"
 
 #include "Editor.h"
+#include "MassActorEditorSubsystem.h"
 #include "MassActorSubsystem.h"
 
 void UTypedElementDatabaseCompatibility::Initialize(ITypedElementDataStorageInterface* StorageInterface)
@@ -55,7 +56,9 @@ void UTypedElementDatabaseCompatibility::RemoveCompatibleObject(AActor* Actor)
 
 void UTypedElementDatabaseCompatibility::Prepare()
 {
-	ActorSubsystem = Storage->GetExternalSystem<UMassActorSubsystem>();
+	UMassActorEditorSubsystem* MassActorEditorSubsystem = Storage->GetExternalSystem<UMassActorEditorSubsystem>();
+	check(MassActorEditorSubsystem);
+	ActorSubsystem = MassActorEditorSubsystem->GetMutableActorManager().AsShared();
 
 	CreateStandardArchetypes();
 }

@@ -12,7 +12,7 @@
 
 class AActor;
 class ITypedElementDataStorageInterface;
-class UMassActorSubsystem;
+struct FMassActorManager;
 
 UCLASS()
 class TYPEDELEMENTSDATASTORAGE_API UTypedElementDatabaseCompatibility
@@ -40,5 +40,5 @@ private:
 	
 	TypedElementTableHandle StandardActorTable{ TypedElementInvalidTableHandle };
 	ITypedElementDataStorageInterface* Storage{ nullptr };
-	UMassActorSubsystem* ActorSubsystem{ nullptr };
+	TSharedPtr<FMassActorManager> ActorSubsystem;
 };

@@ -17,7 +17,6 @@ class UWorld;
 UCLASS()
 class TYPEDELEMENTSDATASTORAGE_API UTypedElementDatabase 
 	: public UObject
-	, public FTickableGameObject
 	, public ITypedElementDataStorageInterface
 {
 	GENERATED_BODY()
@@ -27,12 +26,8 @@ public:
 	void Initialize();
 	void Deinitialize();
 
-	ETickableTickType GetTickableTickType() const override;
-	bool IsTickableWhenPaused() const override;
-	bool IsTickableInEditor() const override;
-	bool IsAllowedToTick() const override;
-	TStatId GetStatId() const override;
-	void Tick(float DeltaTime) override;
+	/** Triggered just before underlying Mass processing gets ticked */
+	void OnPreMassTick(float DeltaTime);
 
 	TSharedPtr<FMassEntityManager> GetActiveMutableEditorEntityManager();
 	TSharedPtr<const FMassEntityManager> GetActiveEditorEntityManager() const;
@@ -86,6 +81,4 @@ private:
 	FTypedElementOnDataStorageUpdate OnUpdateDelegate;
 
 	TSharedPtr<FMassEntityManager> ActiveEditorEntityManager;
-	UPROPERTY(Transient)
-	TObjectPtr<UWorld> ActiveEditorWorld{ nullptr };
 };

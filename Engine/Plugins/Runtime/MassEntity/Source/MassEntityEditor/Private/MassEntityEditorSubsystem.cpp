@@ -128,6 +128,8 @@ void UMassEntityEditorSubsystem::Tick(float DeltaTime)
 		CompletionEvent->Wait();
 	}
 
+	OnPreTickDelegate.Broadcast(DeltaTime);
+
 	for (int PhaseIndex = 0; PhaseIndex < (int)EMassProcessingPhase::MAX; ++PhaseIndex)
 	{
 		const FGraphEventArray Prerequisites = { CompletionEvent };

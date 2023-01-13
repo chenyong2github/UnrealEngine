@@ -19,10 +19,14 @@ class MASSENTITYEDITOR_API UMassEntityEditorSubsystem : public UEditorSubsystem
 	GENERATED_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreTick, float /*DeltaTime*/);
+
 	UMassEntityEditorSubsystem();
 	~UMassEntityEditorSubsystem();
 
 	FMassEntityManager& GetMutableEntityManager() { return EntityManager.Get(); }
+
+	FOnPreTick& GetOnPreTickDelegate() { return OnPreTickDelegate; }
 
 protected:
 	// USubsystem interface begin
@@ -42,4 +46,7 @@ protected:
 	FGraphEventRef CompletionEvent;
 
 	FMassProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EMassProcessingPhase::MAX];
+
+	/** Gets broadcast right before issuing FMassProcessingPhaseManager's phases execution */
+	FOnPreTick OnPreTickDelegate;
 };
