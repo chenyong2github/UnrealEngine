@@ -6,6 +6,8 @@
 #include "PoseSearchDebuggerView.h"
 #include "PoseSearchDebuggerViewModel.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
+#include "PoseSearch/PoseSearchFeatureChannel.h"
+#include "PoseSearch/PoseSearchSchema.h"
 #include "Trace/PoseSearchTraceProvider.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBar.h"

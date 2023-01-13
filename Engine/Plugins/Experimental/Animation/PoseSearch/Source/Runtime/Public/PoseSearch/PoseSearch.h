@@ -2,13 +2,16 @@
 
 #pragma once
 
+//#include "PoseSearchFeatureChannel.h"
+//#include "PoseSearchSchema.h"
+
+
 #include "Async/ParallelFor.h"
 #include "BonePose.h"
 #include "CoreMinimal.h"
 #include "Containers/RingBuffer.h"
 #include "Engine/DataAsset.h"
 #include "InstancedStruct.h"
-#include "IO/IoHash.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/EnumClassFlags.h"
 #include "UObject/Object.h"
@@ -23,7 +26,6 @@
 #include "AlphaBlend.h"
 #include "BoneIndices.h"
 #include "GameplayTagContainer.h"
-#include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "PoseSearch/KDTree.h"
 #include "ObjectTrace.h"
 #include "PoseSearch.generated.h"
@@ -81,17 +83,6 @@ enum class EPoseSearchMode : int32
 	PCAKDTree,
 	PCAKDTree_Validate,	// runs PCAKDTree and performs validation tests
 	PCAKDTree_Compare,	// compares BruteForce vs PCAKDTree
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
-};
-
-UENUM()
-enum class EPoseSearchDataPreprocessor : int32
-{
-	None,
-	Normalize,
-	NormalizeOnlyByDeviation,
 
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -361,37 +352,6 @@ private:
 	TArrayView<float> FeatureVectorTable;
 };
 
-#if WITH_EDITOR
-// data structure collecting the internal layout representation of UPoseSearchFeatureChannel,
-// so we can aggregate data from different FPoseSearchIndex and calculate mean deviation with a homogeneous data set (ComputeChannelsDeviations
-struct FFeatureChannelLayoutSet
-{
-	// data structure holding DataOffset and Cardinality to find the data of the DebugName (channel breakdown / layout) in the related SearchIndexBases[SchemaIndex]
-	struct FEntry
-	{
-		FString DebugName; // for easier debugging
-		int32 SchemaIndex = -1; // index of the associated Schemas / SearchIndexBases used as input of the algorithm
-		int32 DataOffset = -1; // data offset from the base of SearchIndexBases[SchemaIndex].Values.GetData() from where the data associated to this Item starts
-		int32 Cardinality = -1; // data cardinality
-	};
-
-	// FIoHash is the hash associated to the channel data breakdown (e.g.: it could be a single SampledBones at a specific SampleTimes for a UPoseSearchFeatureChannel_Pose)
-	TMap<FIoHash, TArray<FEntry>> EntriesMap;
-	int32 CurrentSchemaIndex = -1;
-	TWeakObjectPtr<const UPoseSearchSchema> CurrentSchema;
-
-	void Add(FString DebugName, FIoHash Id, int32 DataOffset, int32 Cardinality)
-	{
-		check(DataOffset >= 0 && Cardinality >= 0 && CurrentSchemaIndex >= 0);
-		TArray<FEntry>& Entries = EntriesMap.FindOrAdd(Id);
-
-		// making sure all the FEntry associated with the same Id have the same Cardinality
-		check(Entries.IsEmpty() || Entries[0].Cardinality == Cardinality);
-		Entries.Add({ DebugName, CurrentSchemaIndex, DataOffset, Cardinality });
-	}
-};
-#endif // WITH_EDITOR
-
 class POSESEARCH_API IAssetIndexer
 {
 public:
@@ -415,207 +375,7 @@ public:
 	virtual FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) = 0;
 };
 
-class POSESEARCH_API ICostBreakDownData
-{
-public:
-	virtual ~ICostBreakDownData() {}
-
-	// returns the size of the dataset
-	virtual int32 Num() const = 0;
-
-	// returns true if Index-th cost data vector is associated with Schema
-	virtual bool IsCostVectorFromSchema(int32 Index, const UPoseSearchSchema* Schema) const = 0;
-
-	// returns the Index-th cost data vector
-	virtual TConstArrayView<float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const = 0;
-
-	// every breakdown section start by calling BeginBreakDownSection...
-	virtual void BeginBreakDownSection(const FText& Label) = 0;
-
-	// ...then add as many SetCostBreakDown into the section...
-	virtual void SetCostBreakDown(float CostBreakDown, int32 Index, const UPoseSearchSchema* Schema) = 0;
-
-	// ...to finally wrap the section up by calling EndBreakDownSection
-	virtual void EndBreakDownSection(const FText& Label) = 0;
-
-	// true if want the channel to be verbose and generate the cost breakdown labels
-	virtual bool IsVerbose() const { return true; }
-
-	// most common case implementation
-	void AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality);
-};
-
 } // namespace UE::PoseSearch
-
-class POSESEARCH_API IPoseFilter
-{
-public:
-	virtual ~IPoseFilter() {}
-
-	// if true this filter will be evaluated
-	virtual bool IsPoseFilterActive() const { return false; }
-	
-	// if it returns false the pose candidate will be discarded
-	virtual bool IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const { return true; }
-};
-
-//////////////////////////////////////////////////////////////////////////
-// Feature channels interface
-UCLASS(Abstract, BlueprintType, EditInlineNew)
-class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneReferenceSkeletonProvider, public IPoseFilter
-{
-	GENERATED_BODY()
-
-public:
-	int32 GetChannelCardinality() const { checkSlow(ChannelCardinality >= 0); return ChannelCardinality; }
-	int32 GetChannelDataOffset() const { checkSlow(ChannelDataOffset >= 0); return ChannelDataOffset; }
-
-	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
-	virtual void InitializeSchema(UPoseSearchSchema* Schema) PURE_VIRTUAL(UPoseSearchFeatureChannel::InitializeSchema, );
-	
-	// Called at database build time to collect feature weights.
-	// Weights is sized to the cardinality of the schema and the feature channel should write
-	// its weights at the channel's data offset. Channels should provide a weight for each dimension.
-	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
-
-	// Called at database build time to populate pose vectors with this channel's data
-	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
-
-	// Called at runtime to add this channel's data to the query pose vector
-	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
-
-	// Draw this channel's data for the given pose vector
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
-
-#if WITH_EDITOR
-	virtual void PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const;
-	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const;
-#endif
-
-private:
-	// IBoneReferenceSkeletonProvider interface
-	// Note this function is exclusively for FBoneReference details customization
-	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
-
-protected:
-	friend class ::UPoseSearchSchema;
-
-	UPROPERTY(meta = (ExcludeFromHash))
-	int32 ChannelDataOffset = INDEX_NONE;
-
-	UPROPERTY(meta = (ExcludeFromHash))
-	int32 ChannelCardinality = INDEX_NONE;
-};
-
-USTRUCT()
-struct FPoseSearchSchemaColorPreset
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Colors", meta = (ExcludeFromHash))
-	FLinearColor Query = FLinearColor::Blue;
-
-	UPROPERTY(EditAnywhere, Category = "Colors", meta = (ExcludeFromHash))
-	FLinearColor Result = FLinearColor::Yellow;
-};
-
-/**
-* Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
-*/
-UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Motion Database Config"), CollapseCategories)
-class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenceSkeletonProvider
-{
-	GENERATED_BODY()
-
-public:
-	// @todo: used only for indexing: cache it somewhere else
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	TObjectPtr<USkeleton> Skeleton;
-
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Schema")
-	int32 SampleRate = 30;
-
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
-	TArray<TObjectPtr<UPoseSearchFeatureChannel>> Channels;
-
-	// If set, this schema will support mirroring pose search databases
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	TObjectPtr<UMirrorDataTable> MirrorDataTable;
-
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
-
-	UPROPERTY(meta = (ExcludeFromHash))
-	int32 SchemaCardinality = 0;
-
-	// @todo: used only for indexing: cache it somewhere else
-	UPROPERTY(meta = (ExcludeFromHash))
-	TArray<FBoneReference> BoneReferences;
-
-	UPROPERTY(Transient)
-	TArray<uint16> BoneIndices;
-
-	UPROPERTY(Transient)
-	TArray<uint16> BoneIndicesWithParents;
-
-	// cost added to the continuing pose from databases that uses this schema
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	float ContinuingPoseCostBias = 0.f;
-
-	// base cost added to all poses from databases that uses this schema. it can be overridden by UAnimNotifyState_PoseSearchModifyCost
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	float BaseCostBias = 0.f;
-
-	// If there's a mirroring mismatch between the currently playing asset and a search candidate, this cost will be 
-	// added to the candidate, making it less likely to be selected
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	float MirrorMismatchCostBias = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Schema", meta = (ExcludeFromHash))
-	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
-	
-	bool IsValid () const;
-
-	int32 GetNumBones () const { return BoneIndices.Num(); }
-
-	float GetSamplingInterval() const { return 1.0f / SampleRate; }
-
-	template<typename ChannelType>
-	const ChannelType* FindFirstChannelOfType() const
-	{
-		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
-		{
-			if (const ChannelType* Channel = Cast<const ChannelType>(ChannelPtr.Get()))
-			{
-				return Channel;
-			}
-		}
-		return nullptr;
-	}
-
-
-	// UObject
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-	virtual void PostLoad() override;
-
-	// IBoneReferenceSkeletonProvider
-	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override { bInvalidSkeletonIsError = false; return Skeleton; }
-
-#if WITH_EDITOR
-	void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const;
-
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
-	int32 AddBoneReference(const FBoneReference& BoneReference) { return BoneReferences.AddUnique(BoneReference); }
-
-private:
-	void Finalize(bool bRemoveEmptyChannels = true);
-	void ResolveBoneReferences();
-
-public:
-	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
-};
 
 //////////////////////////////////////////////////////////////////////////
 // Search index

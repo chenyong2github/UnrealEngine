@@ -5,6 +5,8 @@
 #include "PoseSearch/PoseSearchAnimNotifies.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchDerivedDataKey.h"
+#include "PoseSearch/PoseSearchFeatureChannel.h"
+#include "PoseSearch/PoseSearchSchema.h"
 #include "PoseSearchEigenHelper.h"
 
 #include "Algo/BinarySearch.h"
@@ -55,17 +57,6 @@ namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
 // Constants and utilities
-
-static inline float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
-{
-	float Sum = 0.f;
-	const int32 EndIndex = StartIndex + Offset;
-	for (int i = StartIndex; i < EndIndex; ++i)
-	{
-		Sum += View[i];
-	}
-	return Sum;
-}
 
 static inline float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt)
 {
@@ -349,21 +340,6 @@ private:
 
 } // namespace UE::PoseSearch
 
-
-//////////////////////////////////////////////////////////////////////////
-// UPoseSearchFeatureChannel
-#if WITH_EDITOR
-void UPoseSearchFeatureChannel::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
-{
-	FeatureChannelLayoutSet.Add(GetName(), UE::PoseSearch::FKeyBuilder(this).Finalize(), ChannelDataOffset, ChannelCardinality);
-}
-
-void UPoseSearchFeatureChannel::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
-{
-	CostBreakDownData.AddEntireBreakDownSection(FText::FromString(GetName()), Schema, ChannelDataOffset, ChannelCardinality);
-}
-#endif // WITH_EDITOR
-
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
 void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
@@ -422,68 +398,6 @@ void UPoseSearchSchema::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData
 	}
 }
 #endif
-
-bool UPoseSearchSchema::IsValid() const
-{
-	bool bValid = Skeleton != nullptr;
-
-	for (const FBoneReference& BoneRef : BoneReferences)
-	{
-		bValid &= BoneRef.HasValidSetup();
-	}
-
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel: Channels)
-	{
-		bValid &= Channel != nullptr;
-	}
-
-	bValid &= (BoneReferences.Num() == BoneIndices.Num());
-
-	return bValid;
-}
-
-void UPoseSearchSchema::ResolveBoneReferences()
-{
-	// Initialize references to obtain bone indices
-	for (FBoneReference& BoneRef : BoneReferences)
-	{
-		BoneRef.Initialize(Skeleton);
-	}
-
-	// Fill out bone index array
-	BoneIndices.SetNum(BoneReferences.Num());
-	for (int32 BoneRefIdx = 0; BoneRefIdx != BoneReferences.Num(); ++BoneRefIdx)
-	{
-		BoneIndices[BoneRefIdx] = BoneReferences[BoneRefIdx].BoneIndex;
-	}
-
-	// Build separate index array with parent indices guaranteed to be present. Sort for EnsureParentsPresent.
-	BoneIndicesWithParents = BoneIndices;
-	BoneIndicesWithParents.Sort();
-
-	if (Skeleton)
-	{
-		FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, Skeleton->GetReferenceSkeleton());
-	}
-
-	// BoneIndicesWithParents should at least contain the root to support mirroring root motion
-	if (BoneIndicesWithParents.Num() == 0)
-	{
-		BoneIndicesWithParents.Add(0);
-	}
-}
-
-void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
-
-	InOutQuery.Init(this);
-
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
-	{
-		Channel->BuildQuery(SearchContext, InOutQuery);
-	}
-}
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchBaseIndex
@@ -2146,26 +2060,6 @@ FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform)
 	Q *= FAnimationRuntime::MirrorQuat(ReferenceRotation, MirrorAxis).Inverse() * ReferenceRotation;
 	FTransform Result = FTransform(Q, T, InTransform.GetScale3D());
 	return Result;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// class ICostBreakDownData
-
-void ICostBreakDownData::AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality)
-{
-	BeginBreakDownSection(Label);
-
-	const int32 Count = Num();
-	for (int32 i = 0; i < Count; ++i)
-	{
-		if (IsCostVectorFromSchema(i, Schema))
-		{
-			const float CostBreakdown = ArraySum(GetCostVector(i, Schema), DataOffset, Cardinality);
-			SetCostBreakDown(CostBreakdown, i, Schema);
-		}
-	}
-
-	EndBreakDownSection(Label);
 }
 
 //////////////////////////////////////////////////////////////////////////

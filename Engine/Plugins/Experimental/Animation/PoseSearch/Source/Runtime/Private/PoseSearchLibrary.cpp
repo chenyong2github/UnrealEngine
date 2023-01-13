@@ -9,8 +9,9 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "Animation/BlendSpace.h"
 #include "PoseSearch/AnimNode_MotionMatching.h"
+#include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchFeatureChannel_Trajectory.h"
 #include "Trace/PoseSearchTraceLogger.h"
-#include "PoseSearch/PoseSearchFeatureChannels.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PoseSearchLibrary)
 

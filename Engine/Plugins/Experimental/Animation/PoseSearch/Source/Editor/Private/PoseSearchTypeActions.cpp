@@ -3,6 +3,7 @@
 #include "PoseSearchTypeActions.h"
 #include "PoseSearchDatabaseEditor.h"
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchSchema.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchTypeActions"
 

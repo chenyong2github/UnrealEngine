@@ -8,6 +8,7 @@
 #include "PoseSearchDebuggerDatabaseView.h"
 #include "PoseSearchDebuggerReflection.h"
 #include "PoseSearchDebuggerViewModel.h"
+#include "PoseSearch/PoseSearchSchema.h"
 #include "PropertyEditorModule.h"
 #include "Trace/PoseSearchTraceProvider.h"
 #include "Widgets/Input/SButton.h"

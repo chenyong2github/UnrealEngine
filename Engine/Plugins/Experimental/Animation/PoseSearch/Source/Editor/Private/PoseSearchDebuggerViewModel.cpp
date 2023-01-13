@@ -7,6 +7,7 @@
 #include "IGameplayProvider.h"
 #include "IRewindDebugger.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
+#include "PoseSearch/PoseSearchSchema.h"
 #include "Trace/PoseSearchTraceProvider.h"
 
 namespace UE::PoseSearch

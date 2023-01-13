@@ -4,6 +4,7 @@
 #include "PoseSearchDatabaseAssetTree.h"
 #include "PoseSearchDatabaseAssetTreeNode.h"
 #include "PoseSearchDatabaseViewModel.h"
+#include "PoseSearch/PoseSearchSchema.h"
 
 #define LOCTEXT_NAMESPACE "UPoseSearchDatabaseReflection"
 

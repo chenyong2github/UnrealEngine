@@ -5,6 +5,7 @@
 #include "PoseSearchDatabaseAssetTreeNode.h"
 #include "PoseSearchEditor.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
+#include "PoseSearch/PoseSearchSchema.h"
 #include "Modules/ModuleManager.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/AnimComposite.h"
