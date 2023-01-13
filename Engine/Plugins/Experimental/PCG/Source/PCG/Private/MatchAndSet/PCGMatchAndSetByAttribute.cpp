@@ -2,6 +2,7 @@
 
 #include "MatchAndSet/PCGMatchAndSetByAttribute.h"
 
+#include "PCGContext.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGPointMatchAndSet.h"
 #include "Metadata/PCGMetadata.h"
