@@ -537,7 +537,7 @@ void FD3D12CommandContext::HandleTransientAliasing(const FD3D12TransitionData* T
 			TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, FinalState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 			
 			// Remove from caches
-			ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
+			ClearShaderResources(BaseShaderResource);
 		}
 	}
 }
@@ -914,34 +914,17 @@ void FD3D12CommandContext::RHISetShaderTexture(FRHIComputeShader* ComputeShaderR
 void FD3D12CommandContext::RHISetUAVParameter(FRHIPixelShader* PixelShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI)
 {
 	FD3D12UnorderedAccessView* UAV = RetrieveObject<FD3D12UnorderedAccessView>(UAVRHI);
-
-	if (UAV)
-	{
-		ConditionalClearShaderResource(UAV->GetResourceLocation());
-	}
-
-	uint32 InitialCount = -1;
-
-	// Actually set the UAV
-	StateCache.SetUAVs(SF_Pixel, UAVIndex, 1, &UAV, &InitialCount);
+	ClearShaderResources(UAV);
+	StateCache.SetUAV(SF_Pixel, UAVIndex, UAV);
 }
-
 
 void FD3D12CommandContext::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI)
 {
 	//ValidateBoundShader(StateCache, ComputeShaderRHI);
 
 	FD3D12UnorderedAccessView* UAV = RetrieveObject<FD3D12UnorderedAccessView>(UAVRHI);
-
-	if (UAV)
-	{
-		ConditionalClearShaderResource(UAV->GetResourceLocation());
-	}
-
-	uint32 InitialCount = -1;
-
-	// Actually set the UAV
-	StateCache.SetUAVs(SF_Compute, UAVIndex, 1, &UAV, &InitialCount);
+	ClearShaderResources(UAV);
+	StateCache.SetUAV(SF_Compute, UAVIndex, UAV);
 }
 
 void FD3D12CommandContext::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI, uint32 InitialCount)
@@ -949,13 +932,8 @@ void FD3D12CommandContext::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRH
 	//ValidateBoundShader(StateCache, ComputeShaderRHI);
 
 	FD3D12UnorderedAccessView* UAV = RetrieveObject<FD3D12UnorderedAccessView>(UAVRHI);
-
-	if (UAV)
-	{
-		ConditionalClearShaderResource(UAV->GetResourceLocation());
-	}
-
-	StateCache.SetUAVs(SF_Compute, UAVIndex, 1, &UAV, &InitialCount);
+	ClearShaderResources(UAV);
+	StateCache.SetUAV(SF_Compute, UAVIndex, UAV, InitialCount);
 }
 
 void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
@@ -965,10 +943,7 @@ void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader*
 	if (IsValidGraphicsFrequency(ShaderFrequency))
 	{
 		ValidateBoundShader(StateCache, ShaderRHI);
-
-		FD3D12ShaderResourceView* SRV = RetrieveObject<FD3D12ShaderResourceView>(SRVRHI);
-
-		StateCache.SetShaderResourceView(ShaderFrequency, SRV, TextureIndex);
+		StateCache.SetShaderResourceView(ShaderFrequency, RetrieveObject<FD3D12ShaderResourceView>(SRVRHI), TextureIndex);
 	}
 	else
 	{
@@ -979,8 +954,7 @@ void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader*
 void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIComputeShader* ComputeShaderRHI, uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	//ValidateBoundShader(StateCache, ComputeShaderRHI);
-	FD3D12ShaderResourceView* const SRV = RetrieveObject<FD3D12ShaderResourceView>(SRVRHI);
-	StateCache.SetShaderResourceView(SF_Compute, SRV, TextureIndex);
+	StateCache.SetShaderResourceView(SF_Compute, RetrieveObject<FD3D12ShaderResourceView>(SRVRHI), TextureIndex);
 }
 
 void FD3D12CommandContext::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
@@ -1032,6 +1006,45 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeS
 	BindUniformBuffer(*this, ComputeShader, SF_Compute, BufferIndex, RetrieveObject<FD3D12UniformBuffer>(BufferRHI));
 }
 
+struct FD3D12ResourceBinder
+{
+	FD3D12CommandContext& Context;
+	const uint32 GpuIndex;
+	const EShaderFrequency Frequency;
+
+	FD3D12ResourceBinder(FD3D12CommandContext& InContext, EShaderFrequency InFrequency)
+		: Context(InContext)
+		, GpuIndex(InContext.GetGPUIndex())
+		, Frequency(InFrequency)
+	{
+	}
+
+	void SetUAV(FRHIUnorderedAccessView* UAV, uint8 Index, bool bClearResources = false)
+	{
+		FD3D12UnorderedAccessView* D3D12UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(UAV, GpuIndex);
+		if (bClearResources)
+		{
+			Context.ClearShaderResources(D3D12UAV);
+		}
+		Context.StateCache.SetUAV(Frequency, Index, D3D12UAV);
+	}
+
+	void SetSRV(FRHIShaderResourceView* SRV, uint8 Index)
+	{
+		Context.StateCache.SetShaderResourceView(Frequency, FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(SRV, GpuIndex), Index);
+	}
+
+	void SetTexture(FRHITexture* TextureRHI, uint8 Index)
+	{
+		Context.StateCache.SetShaderResourceView(Frequency, GetShaderResourceViewFromTexture(TextureRHI, GpuIndex), Index);
+	}
+
+	void SetSampler(FRHISamplerState* Sampler, uint8 Index)
+	{
+		Context.StateCache.SetSamplerState(Frequency, FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Sampler, GpuIndex), Index);
+	}
+};
+
 static void SetShaderParametersOnContext(
 	FD3D12CommandContext& Context
 	, FRHIShader* Shader
@@ -1076,10 +1089,7 @@ static void SetShaderParametersOnContext(
 			{
 				Handle = static_cast<FRHIUnorderedAccessView*>(Resource)->GetBindlessHandle();
 				FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(Parameter.Resource, GpuIndex);
-				if (UAV)
-				{
-					Context.ConditionalClearShaderResource(UAV->GetResourceLocation());
-				}
+				Context.ClearShaderResources(UAV);
 				StateCache.QueueBindlessUAV(ShaderFrequency, UAV);
 			}
 			break;
@@ -1099,18 +1109,15 @@ static void SetShaderParametersOnContext(
 	}
 #endif
 
+	FD3D12ResourceBinder Binder(Context, ShaderFrequency);
+
 	for (const FRHIShaderParameterResource& Parameter : InResourceParameters)
 	{
 		if (Parameter.Type == FRHIShaderParameterResource::EType::UnorderedAccessView)
 		{
 			if (ShaderFrequency == SF_Pixel || ShaderFrequency == SF_Compute)
 			{
-				FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(Parameter.Resource, GpuIndex);
-				if (UAV)
-				{
-					Context.ConditionalClearShaderResource(UAV->GetResourceLocation());
-				}
-				StateCache.SetUAV(ShaderFrequency, Parameter.Index, UAV);
+				Binder.SetUAV(static_cast<FRHIUnorderedAccessView*>(Parameter.Resource), Parameter.Index, true);
 			}
 			else
 			{
@@ -1124,15 +1131,15 @@ static void SetShaderParametersOnContext(
 		switch (Parameter.Type)
 		{
 		case FRHIShaderParameterResource::EType::Texture:
-			StateCache.SetShaderResourceView(ShaderFrequency, GetShaderResourceViewFromTexture(Parameter.Resource, GpuIndex), Parameter.Index);
+			Binder.SetTexture(static_cast<FRHITexture*>(Parameter.Resource), Parameter.Index);
 			break;
 		case FRHIShaderParameterResource::EType::ResourceView:
-			StateCache.SetShaderResourceView(ShaderFrequency, FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(Parameter.Resource, GpuIndex), Parameter.Index);
+			Binder.SetSRV(static_cast<FRHIShaderResourceView*>(Parameter.Resource), Parameter.Index);
 			break;
 		case FRHIShaderParameterResource::EType::UnorderedAccessView:
 			break;
 		case FRHIShaderParameterResource::EType::Sampler:
-			StateCache.SetSamplerState(ShaderFrequency, FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Parameter.Resource, GpuIndex), Parameter.Index);
+			Binder.SetSampler(static_cast<FRHISamplerState*>(Parameter.Resource), Parameter.Index);
 			break;
 		case FRHIShaderParameterResource::EType::UniformBuffer:
 			BindUniformBuffer(Context, Shader, ShaderFrequency, Parameter.Index, FD3D12CommandContext::RetrieveObject<FD3D12UniformBuffer>(Parameter.Resource, GpuIndex));
@@ -1291,7 +1298,7 @@ void FD3D12CommandContext::SetRenderTargets(
 		DepthStencilView = NewDepthStencilTarget->GetDepthStencilView(NewDepthStencilTargetRHI->GetDepthStencilAccess());
 
 		// Unbind any shader views of the depth stencil target that are bound.
-		ConditionalClearShaderResource(&NewDepthStencilTarget->ResourceLocation);
+		ClearShaderResources(NewDepthStencilTarget);
 	}
 
 	// Gather the render target views for the new render targets.
@@ -1309,7 +1316,7 @@ void FD3D12CommandContext::SetRenderTargets(
 			ensureMsgf(RenderTargetView, TEXT("Texture being set as render target has no RTV"));
 
 			// Unbind any shader views of the render target that are bound.
-			ConditionalClearShaderResource(&NewRenderTarget->ResourceLocation);
+			ClearShaderResources(NewRenderTarget);
 		}
 
 		NewRenderTargetViews[RenderTargetIndex] = RenderTargetView;
@@ -1482,44 +1489,15 @@ void FD3D12CommandContext::CommitComputeShaderConstants()
 }
 
 template <class ShaderType>
-void FD3D12CommandContext::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
+void FD3D12CommandContext::SetResourcesFromTables(const ShaderType* Shader)
 {
 	checkSlow(Shader);
 
 	static constexpr EShaderFrequency Frequency = static_cast<EShaderFrequency>(ShaderType::StaticFrequency);
 
-	struct FUniformResourceBinder
-	{
-		FD3D12CommandContext& Context;
-
-		void SetUAV(FRHIUnorderedAccessView* UAV, uint8 Index)
-		{
-			// Actually set the UAV
-			uint32 InitialCount = -1;
-			FD3D12UnorderedAccessView* D3D12UAV = Context.RetrieveObject<FD3D12UnorderedAccessView>(UAV);
-
-			Context.StateCache.SetUAVs(SF_Pixel, Index, 1, &D3D12UAV, &InitialCount);
-		}
-
-		void SetSRV(FRHIShaderResourceView* SRV, uint8 Index)
-		{
-			Context.StateCache.SetShaderResourceView(Frequency, Context.RetrieveObject<FD3D12ShaderResourceView>(SRV), Index);
-		}
-
-		void SetTexture(FRHITexture* TextureRHI, uint8 Index)
-		{
-			FD3D12ShaderResourceView* SRV = Context.RetrieveTexture(TextureRHI)->GetShaderResourceView();
-			Context.StateCache.SetShaderResourceView(Frequency, SRV, Index);
-		}
-
-		void SetSampler(FRHISamplerState* Sampler, uint8 Index)
-		{
-			Context.StateCache.SetSamplerState(Frequency, Context.RetrieveObject<FD3D12SamplerState>(Sampler), Index);
-		}
-	};
-
+	FD3D12ResourceBinder Binder(*this, Frequency);
 	UE::RHICore::SetResourcesFromTables(
-		  FUniformResourceBinder { *this }
+		  Binder
 		, *Shader
 		, Shader->ShaderResourceTable
 		, DirtyUniformBuffers[Frequency]
@@ -1537,10 +1515,9 @@ void FD3D12CommandContext::CommitGraphicsResourceTables()
 	const FD3D12GraphicsPipelineState* const RESTRICT GraphicPSO = StateCache.GetGraphicsPipelineState();
 	check(GraphicPSO);
 
-	FD3D12PixelShader* PixelShader = GraphicPSO->GetPixelShader();
-	if (PixelShader)
+	if (FD3D12PixelShader* Shader = GraphicPSO->GetPixelShader())
 	{
-		SetResourcesFromTables(PixelShader);
+		SetResourcesFromTables(Shader);
 	}
 
 	if (FD3D12VertexShader* Shader = GraphicPSO->GetVertexShader())

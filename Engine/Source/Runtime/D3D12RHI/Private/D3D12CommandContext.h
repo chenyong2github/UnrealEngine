@@ -439,6 +439,8 @@ public:
 
 	virtual void ClearState(EClearStateMode ClearStateMode = EClearStateMode::All) override final;
 	void ConditionalClearShaderResource(FD3D12ResourceLocation* Resource);
+	void ClearShaderResources(FD3D12UnorderedAccessView* UAV);
+	void ClearShaderResources(FD3D12BaseShaderResource* Resource);
 	void ClearAllShaderResources();
 
 	FD3D12FastConstantAllocator ConstantsAllocator;

@@ -639,6 +639,22 @@ void FD3D12CommandContext::ConditionalClearShaderResource(FD3D12ResourceLocation
 	}
 }
 
+void FD3D12CommandContext::ClearShaderResources(FD3D12UnorderedAccessView* UAV)
+{
+	if (UAV)
+	{
+		ConditionalClearShaderResource(UAV->GetResourceLocation());
+	}
+}
+
+void FD3D12CommandContext::ClearShaderResources(FD3D12BaseShaderResource* Resource)
+{
+	if (Resource)
+	{
+		ConditionalClearShaderResource(&Resource->ResourceLocation);
+	}
+}
+
 void FD3D12CommandContext::ClearAllShaderResources()
 {
 	StateCache.ClearSRVs();

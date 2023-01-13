@@ -695,6 +695,7 @@ void FD3D12DescriptorCache::RestoreAfterExternalHeapsSet()
 	if (bHeapsOverridden)
 	{
 		SetDescriptorHeaps();
+		bHeapsOverridden = false;
 	}
 }
 

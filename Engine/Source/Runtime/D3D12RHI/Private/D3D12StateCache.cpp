@@ -414,6 +414,11 @@ void FD3D12StateCache::ApplyState(ED3D12PipelineType PipelineType)
 	{
 		PSOCommonData = GetGraphicsPipelineState();
 	}
+	else
+	{
+		checkf(false, TEXT("Unexpected pipeline type: %d"), (uint32)PipelineType);
+		return;
+	}
 
 	const bool bRootSignatureChanged = InternalSetRootSignature(PipelineType, PSOCommonData->RootSignature);
 
@@ -1135,62 +1140,56 @@ void FD3D12StateCache::ClearUAVs(EShaderFrequency ShaderStage)
 	}
 }
 
-void FD3D12StateCache::SetUAVs(EShaderFrequency ShaderStage, uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray)
+void FD3D12StateCache::SetUAV(EShaderFrequency ShaderStage, uint32 SlotIndex, FD3D12UnorderedAccessView* UAV, uint32 InitialCount)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12SetUnorderedAccessViewTime);
-	check(NumSimultaneousUAVs > 0);
 
 	FD3D12UnorderedAccessViewCache& Cache = PipelineState.Common.UAVCache;
 
 	// When setting UAV's for Graphics, it wipes out all existing bound resources.
 	const bool bIsCompute = ShaderStage == SF_Compute;
-	Cache.StartSlot[ShaderStage] = bIsCompute ? FMath::Min(UAVStartSlot, Cache.StartSlot[ShaderStage]) : 0;
+	Cache.StartSlot[ShaderStage] = bIsCompute ? FMath::Min(SlotIndex, Cache.StartSlot[ShaderStage]) : 0;
 
-	for (uint32 i = 0; i < NumSimultaneousUAVs; ++i)
+	Cache.Views[ShaderStage][SlotIndex] = UAV;
+	FD3D12UnorderedAccessViewCache::DirtySlot(Cache.DirtySlotMask[ShaderStage], SlotIndex);
+
+	if (UAV)
 	{
-		FD3D12UnorderedAccessView* UAV = UAVArray[i];
+		Cache.ResidencyHandles[ShaderStage][SlotIndex] = &UAV->GetResidencyHandle();
 
-		Cache.Views[ShaderStage][UAVStartSlot + i] = UAV;
-		FD3D12UnorderedAccessViewCache::DirtySlot(Cache.DirtySlotMask[ShaderStage], UAVStartSlot + i);
-
-		if (UAV)
+		FD3D12Resource* CounterResource = UAV->GetCounterResource();
+		if (CounterResource && (!UAV->IsCounterResourceInitialized() || InitialCount != -1))
 		{
-			Cache.ResidencyHandles[ShaderStage][UAVStartSlot + i] = &UAV->GetResidencyHandle();
+			FD3D12Device* Device = CounterResource->GetParentDevice();
+			FD3D12ResourceLocation UploadBufferLocation(Device);
 
-			FD3D12Resource* CounterResource = UAV->GetCounterResource();
-			if (CounterResource && (!UAV->IsCounterResourceInitialized() || UAVInitialCountArray[i] != -1))
-			{
-				FD3D12Device* Device = CounterResource->GetParentDevice();
-				FD3D12ResourceLocation UploadBufferLocation(Device);
+			uint32* CounterUploadHeapData = static_cast<uint32*>(CmdContext.ConstantsAllocator.Allocate(sizeof(uint32), UploadBufferLocation, nullptr));
 
-				uint32* CounterUploadHeapData = static_cast<uint32*>(CmdContext.ConstantsAllocator.Allocate(sizeof(uint32), UploadBufferLocation, nullptr));
+			// Initialize the counter to 0 if it's not been previously initialized and the UAVInitialCount is -1, if not use the value that was passed.
+			*CounterUploadHeapData = (!UAV->IsCounterResourceInitialized() && InitialCount == -1) ? 0 : InitialCount;
 
-				// Initialize the counter to 0 if it's not been previously initialized and the UAVInitialCount is -1, if not use the value that was passed.
-				*CounterUploadHeapData = (!UAV->IsCounterResourceInitialized() && UAVInitialCountArray[i] == -1) ? 0 : UAVInitialCountArray[i];
+			// Transition to copy dest
+			CmdContext.TransitionResource(CounterResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+			CmdContext.FlushResourceBarriers();
 
-				// Transition to copy dest
-				CmdContext.TransitionResource(CounterResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_DEST, 0);
-				CmdContext.FlushResourceBarriers();
+			CmdContext.GraphicsCommandList()->CopyBufferRegion(
+				CounterResource->GetResource(),
+				0,
+				UploadBufferLocation.GetResource()->GetResource(),
+				UploadBufferLocation.GetOffsetFromBaseOfResource(),
+				4);
 
-				CmdContext.GraphicsCommandList()->CopyBufferRegion(
-					CounterResource->GetResource(),
-					0,
-					UploadBufferLocation.GetResource()->GetResource(),
-					UploadBufferLocation.GetOffsetFromBaseOfResource(),
-					4);
+			// Restore UAV state
+			CmdContext.TransitionResource(CounterResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0);
 
-				// Restore UAV state
-				CmdContext.TransitionResource(CounterResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0);
+			CmdContext.UpdateResidency(CounterResource);
 
-				CmdContext.UpdateResidency(CounterResource);
-
-				UAV->MarkCounterResourceInitialized();
-			}
+			UAV->MarkCounterResourceInitialized();
 		}
-		else
-		{
-			Cache.ResidencyHandles[ShaderStage][UAVStartSlot + i] = nullptr;
-		}
+	}
+	else
+	{
+		Cache.ResidencyHandles[ShaderStage][SlotIndex] = nullptr;
 	}
 }
 
