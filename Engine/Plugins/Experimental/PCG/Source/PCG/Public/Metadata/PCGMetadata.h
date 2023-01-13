@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGMetadataCommon.h" // IWYU pragma: keep
 #include "PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
