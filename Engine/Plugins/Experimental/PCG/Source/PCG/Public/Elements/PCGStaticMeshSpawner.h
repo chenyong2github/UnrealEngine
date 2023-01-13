@@ -104,6 +104,8 @@ struct FPCGStaticMeshSpawnerContext : public FPCGContext
 
 	struct FPackedInstanceListData
 	{
+		FPackedInstanceListData();
+		~FPackedInstanceListData();
 		const UPCGSpatialData* SpatialData;
 		TArray<FPCGMeshInstanceList> MeshInstances;
 		TArray<FPCGPackedCustomData> PackedCustomData;

@@ -339,3 +339,5 @@ void UPCGStaticMeshSpawnerSettings::RefreshInstancePacker()
 	}
 }
 
+FPCGStaticMeshSpawnerContext::FPackedInstanceListData::FPackedInstanceListData() = default;
+FPCGStaticMeshSpawnerContext::FPackedInstanceListData::~FPackedInstanceListData() = default;

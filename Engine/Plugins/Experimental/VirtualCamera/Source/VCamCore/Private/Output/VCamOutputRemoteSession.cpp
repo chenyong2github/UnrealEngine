@@ -22,6 +22,7 @@
 #include "SceneView.h"
 #else
 #include "RemoteSession.h"
+#include "UObject/Package.h"
 #endif
 
 namespace UE::VCamOutputRemoteSession::Private
