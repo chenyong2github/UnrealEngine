@@ -32,6 +32,7 @@ struct FBlueprintActionContext;
 struct FCustomExpanderData;
 struct FEdGraphSchemaAction;
 struct FGraphActionListBuilderBase;
+struct FBlueprintActionMenuBuilder;
 
 /*******************************************************************************
 * SBlueprintActionMenu
@@ -63,6 +64,10 @@ public:
 
 	TSharedRef<SEditableTextBox> GetFilterTextBox();
 
+	// SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	// End of SWidget interface
+
 protected:
 	/** UI Callback functions */
 	EVisibility GetTypeImageVisibility() const;
@@ -76,7 +81,7 @@ protected:
 	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
 
 	/** Callback used to populate all actions list in SGraphActionMenu */
-	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
+	TSharedRef<FGraphActionListBuilderBase> OnGetActionList();
 
 	/**  */
 	void ConstructActionContext(FBlueprintActionContext& ContextDescOut);
@@ -102,6 +107,7 @@ private:
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
 	TWeakPtr<FBlueprintEditor> EditorPtr;
 	TSharedPtr<SBlueprintContextTargetMenu> ContextTargetSubMenu;
+	TSharedPtr<FBlueprintActionMenuBuilder> ContextMenuBuilder;
 
 	bool bActionExecuted;
 };

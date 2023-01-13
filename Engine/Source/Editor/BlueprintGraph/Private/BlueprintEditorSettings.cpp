@@ -54,6 +54,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bEnableNamespaceEditorFeatures(true)
 	// Experimental
 	, bFavorPureCastNodes(false)
+	, bEnableContextMenuTimeSlicing(false)
 	// Compiler Settings
 	, SaveOnCompile(SoC_Never)
 	, bJumpToNodeErrors(false)

@@ -57,6 +57,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SNullWidget.h"
@@ -416,10 +417,30 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 					SAssignNew(GraphActionMenu, SGraphActionMenu)
 						.OnActionSelected(this, &SBlueprintActionMenu::OnActionSelected)
 						.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(this, &SBlueprintActionMenu::OnCreateWidgetForAction))
-						.OnCollectAllActions(this, &SBlueprintActionMenu::CollectAllActions)
+						.OnGetActionList(this, &SBlueprintActionMenu::OnGetActionList)
 						.OnCreateCustomRowExpander_Static(&CreateCustomBlueprintActionExpander)
 						.DraggedFromPins(DraggedFromPins)
 						.GraphObj(GraphObj)
+				]
+
+				// PROGRESS BAR
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBox)
+					.HeightOverride(2)
+					.Visibility_Lambda([this]()
+					{
+						return ContextMenuBuilder.IsValid() && ContextMenuBuilder->GetNumPendingActions() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+					})
+					[
+						SNew(SProgressBar)
+						.BorderPadding(FVector2D(0, 0))
+						.Percent_Lambda([this]()
+						{
+							return ContextMenuBuilder.IsValid() ? ContextMenuBuilder->GetPendingActionsProgress() : 0.0f;
+						})
+					]
 				]
 			]
 		]
@@ -506,7 +527,7 @@ ECheckBoxState SBlueprintActionMenu::ContextToggleIsChecked() const
 	return EditorPtr.Pin()->GetIsContextSensitive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void SBlueprintActionMenu::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
+TSharedRef<FGraphActionListBuilderBase> SBlueprintActionMenu::OnGetActionList()
 {	
 	check(EditorPtr.IsValid());
 	TSharedPtr<FBlueprintEditor> BlueprintEditor = EditorPtr.Pin();
@@ -520,23 +541,31 @@ void SBlueprintActionMenu::CollectAllActions(FGraphActionListBuilderBase& OutAll
 
 	FBlueprintActionContext FilterContext;
 	ConstructActionContext(FilterContext);
-	
-	FBlueprintActionMenuBuilder MenuBuilder;
-	// NOTE: cannot call GetGraphContextActions() during serialization and GC due to its use of FindObject()
-	if(!GIsSavingPackage && !IsGarbageCollecting() && FilterContext.Blueprints.Num() > 0)
+
+	FBlueprintActionMenuBuilder::EConfigFlags ConfigFlags = FBlueprintActionMenuBuilder::DefaultConfig;
+	if (GetDefault<UBlueprintEditorSettings>()->bEnableContextMenuTimeSlicing)
 	{
-		FBlueprintActionMenuUtils::MakeContextMenu(FilterContext, bIsContextSensitive, ContextTargetMask, MenuBuilder);
+		ConfigFlags |= FBlueprintActionMenuBuilder::UseTimeSlicing;
 	}
-	// copy the added options back to the main list
-	OutAllActions.Append(MenuBuilder); // @TODO: Avoid this copy
+
+	ContextMenuBuilder = MakeShared<FBlueprintActionMenuBuilder>(ConfigFlags);
+
+	// NOTE: cannot call GetGraphContextActions() during serialization and GC due to its use of FindObject()
+	if (!GIsSavingPackage && !IsGarbageCollecting() && FilterContext.Blueprints.Num() > 0)
+	{
+		FBlueprintActionMenuUtils::MakeContextMenu(FilterContext, bIsContextSensitive, ContextTargetMask, *ContextMenuBuilder);
+	}
+	
 	// also try adding promote to variable if we can do so.
-	TryInsertPromoteToVariable(FilterContext, OutAllActions);
+	TryInsertPromoteToVariable(FilterContext, *ContextMenuBuilder);
 
 	// give the schema the opportunity to add another action
-	if(const UEdGraphSchema* Schema = Cast<const UEdGraphSchema>(GraphObj->GetSchema()))
+	if (const UEdGraphSchema* Schema = Cast<const UEdGraphSchema>(GraphObj->GetSchema()))
 	{
-		Schema->InsertAdditionalActions(FilterContext.Blueprints, FilterContext.Graphs, FilterContext.Pins, OutAllActions);
+		Schema->InsertAdditionalActions(FilterContext.Blueprints, FilterContext.Graphs, FilterContext.Pins, *ContextMenuBuilder);
 	}
+
+	return ContextMenuBuilder.ToSharedRef();
 }
 
 void SBlueprintActionMenu::ConstructActionContext(FBlueprintActionContext& ContextDescOut)
@@ -699,6 +728,16 @@ void SBlueprintActionMenu::OnNamespaceSelectedForImport(const FString& InNamespa
 
 		// Auto-import the namespace into the current editor context. This may load additional type assets.
 		BlueprintEditorPtr->ImportNamespaceEx(Params);
+	}
+}
+
+void SBlueprintActionMenu::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SBorder::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (ContextMenuBuilder.IsValid() && ContextMenuBuilder->ProcessPendingActions())
+	{
+		GraphActionMenu->GenerateFilteredItems(true);
 	}
 }
 

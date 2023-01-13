@@ -2245,7 +2245,7 @@ FBlueprintActionFilter::FBlueprintActionFilter(const EFlags InFlags /*= BPFILTER
 //------------------------------------------------------------------------------
 void FBlueprintActionFilter::AddUnique(TArray<FTargetClassFilterData>& ToArray, UClass* TargetClass)
 {
-	for (auto ClassData : ToArray)
+	for (const FTargetClassFilterData& ClassData : ToArray)
 	{
 		if (ClassData.TargetClass == TargetClass)
 		{
@@ -2261,7 +2261,7 @@ void FBlueprintActionFilter::Add(TArray<FTargetClassFilterData>& ToArray, UClass
 	TArray<FString> ClassHideCategories;
 	FEditorCategoryUtils::GetClassHideCategories(TargetClass, ClassHideCategories);
 	FTargetClassFilterData Data = { TargetClass, MoveTemp(ClassHideCategories) };
-	ToArray.Add(Data);
+	ToArray.Add(MoveTemp(Data));
 }
 
 //------------------------------------------------------------------------------

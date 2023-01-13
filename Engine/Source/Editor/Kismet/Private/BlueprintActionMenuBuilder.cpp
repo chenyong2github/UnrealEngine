@@ -268,6 +268,8 @@ namespace FBlueprintActionMenuBuilderImpl
 
 		/** Sets the grouping for menu items belonging to this section. */
 		void SetSectionSortOrder(int32 const MenuGrouping);
+		/** Gets the grouping for menu items belonging to this section. */
+		int32 GetSectionSortOrder() const;
 		
 		/**
 		 * Filters the supplied action and if it passes, spawns a new 
@@ -300,6 +302,60 @@ namespace FBlueprintActionMenuBuilderImpl
 		/** Tracks the properties that we've already consolidated and passed (when using the ConsolidatePropertyActions flag)*/
 		TMap<FProperty const*, TSharedPtr<FBlueprintDragDropMenuItem>> ConsolidatedProperties;
 	};
+
+	/** A utility for building the menu item list based on a set of action descriptors */
+	struct FMenuItemListAddHelper
+	{
+		/** Reset for a new menu build */
+		void Reset(int32 NewSize)
+		{
+			NextIndex = 0;
+			PendingActionList.Reset(NewSize);
+		}
+
+		/** Add a new pending action */
+		void AddPendingAction(FBlueprintActionInfo&& Action)
+		{
+			PendingActionList.Add(Forward<FBlueprintActionInfo>(Action));
+		}
+
+		/** @return the next pending action and advance */
+		FBlueprintActionInfo* GetNextAction()
+		{
+			return PendingActionList.IsValidIndex(NextIndex) ? &PendingActionList[NextIndex++] : nullptr;
+		}
+
+		/** @return the allocated size of the pending action list */
+		SIZE_T GetAllocatedSize() const
+		{
+			return PendingActionList.GetAllocatedSize();
+		}
+
+		/** @return the total number of actions that are still pending */
+		int32 GetNumPendingActions() const
+		{
+			return PendingActionList.IsValidIndex(NextIndex) ? PendingActionList.Num() - NextIndex : 0;
+		}
+
+		/** @return the total number of actions that were added to the pending list */
+		int32 GetNumTotalAddedActions() const
+		{
+			return PendingActionList.Num();
+		}
+
+	private:
+		/** Keeps track of the next action list item to process */
+		int32 NextIndex = 0;
+
+		/** All actions pending menu items for the current context */
+		TArray<FBlueprintActionInfo> PendingActionList;
+	};
+
+	static TAutoConsoleVariable<float> CVarBPContextMenuTimeSlicingThreshold(
+		TEXT("BP.ContextMenuTimeSlicingThreshold"),
+		0.025f,
+		TEXT("The amount of time (in seconds) allowed per frame for time slicing.")
+	);
 
 #if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 	static TAutoConsoleVariable<bool> CVarBPEnableActionMenuDumpToFile(
@@ -334,6 +390,12 @@ FText const& FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::GetSection
 void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::SetSectionSortOrder(int32 const MenuGrouping)
 {
 	ItemFactory.MenuGrouping = MenuGrouping;
+}
+
+//------------------------------------------------------------------------------
+int32 FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::GetSectionSortOrder() const
+{
+	return ItemFactory.MenuGrouping;
 }
 // 
 //------------------------------------------------------------------------------
@@ -474,6 +536,13 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::Empty()
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
+FBlueprintActionMenuBuilder::FBlueprintActionMenuBuilder(EConfigFlags ConfigFlags)
+{
+	bUsePendingActionList = !!(ConfigFlags & EConfigFlags::UseTimeSlicing);
+	MenuItemListAddHelper = MakeShared<FBlueprintActionMenuBuilderImpl::FMenuItemListAddHelper>();
+}
+
+//------------------------------------------------------------------------------
 // @todo_deprecated - Remove this definition along w/ its declaration in a future release.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FBlueprintActionMenuBuilder::FBlueprintActionMenuBuilder(TWeakPtr<FBlueprintEditor> InBlueprintEditorPtr)
@@ -521,7 +590,12 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 #if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 	int32 TotalActionCount = 0;
 #endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	
+
+	if (bUsePendingActionList)
+	{
+		MenuItemListAddHelper->Reset(ActionRegistry.Num());
+	}
+
 	for (auto Iterator(ActionRegistry.CreateConstIterator()); Iterator; ++Iterator)
 	{
 		const FObjectKey& ObjKey = Iterator->Key;
@@ -537,12 +611,13 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 				++TotalActionCount;
 #endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 
-				for (TSharedRef<FMenuSectionDefinition> const& MenuSection : MenuSections)
+				if (bUsePendingActionList)
 				{
-					for (TSharedPtr<FEdGraphSchemaAction> MenuEntry : MenuSection->MakeMenuItems(BlueprintAction))
-					{
-						AddAction(MenuEntry);
-					}
+					MenuItemListAddHelper->AddPendingAction(MoveTemp(BlueprintAction));
+				}
+				else
+				{
+					MakeMenuItems(BlueprintAction);
 				}
 			}
 		}
@@ -557,12 +632,16 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 	if (FBlueprintActionFilter::IsFilterTestStatsLoggingEnabled())
 	{
 		UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("=== UNFILTERED ACTIONS: %d"), TotalActionCount);
+		if (MenuItemListAddHelper->GetNumPendingActions() > 0)
+		{
+			UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("==  PENDING ACTION LIST MEMSIZE: %0.02f MB"), MenuItemListAddHelper->GetAllocatedSize() / 1024.0f / 1024.0f);
+		}
 
 		// Dump detailed stats information about each filter test that was involved with building each menu section.
 		for (int32 SectionIdx = 0; SectionIdx < MenuSections.Num(); ++SectionIdx)
 		{
 			const TSharedRef<FMenuSectionDefinition>& MenuSection = MenuSections[SectionIdx];
-			FString DisplayName = FString::Printf(TEXT("MenuSection[%d]"), SectionIdx);
+			FString DisplayName = FString::Printf(TEXT("MenuSection[%d:%d]"), SectionIdx, MenuSection->GetSectionSortOrder());
 			const FText& SectionHeading = MenuSection->GetSectionHeading();
 			if (!SectionHeading.IsEmptyOrWhitespace())
 			{
@@ -577,6 +656,80 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 			}
 		}
 	}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+	if (MenuItemListAddHelper->GetNumPendingActions() == 0)
+	{
+		BuildCompleted();
+	}
+}
+
+void FBlueprintActionMenuBuilder::MakeMenuItems(FBlueprintActionInfo& InAction)
+{
+	using namespace FBlueprintActionMenuBuilderImpl;
+
+	for (TSharedRef<FMenuSectionDefinition> const& MenuSection : MenuSections)
+	{
+		for (TSharedPtr<FEdGraphSchemaAction> MenuEntry : MenuSection->MakeMenuItems(InAction))
+		{
+			AddAction(MenuEntry);
+		}
+	}
+}
+
+int32 FBlueprintActionMenuBuilder::GetNumPendingActions() const
+{
+	return MenuItemListAddHelper->GetNumPendingActions();
+}
+
+float FBlueprintActionMenuBuilder::GetPendingActionsProgress() const
+{
+	const float NumPendingActions = static_cast<float>(MenuItemListAddHelper->GetNumPendingActions());
+	const float NumTotalAddedActions = static_cast<float>(MenuItemListAddHelper->GetNumTotalAddedActions());
+
+	check(NumTotalAddedActions > 0.0f);
+	return 1.0f - (NumPendingActions / NumTotalAddedActions);
+}
+
+bool FBlueprintActionMenuBuilder::ProcessPendingActions()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuBuilder::ProcessPendingActions);
+
+	using namespace FBlueprintActionMenuBuilderImpl;
+
+	bool bProcessedActions = false;
+	double StartTime = FPlatformTime::Seconds();
+
+	FBlueprintActionInfo* CurrentAction = MenuItemListAddHelper->GetNextAction();
+	while (CurrentAction)
+	{
+		bProcessedActions = true;
+
+		MakeMenuItems(*CurrentAction);
+
+		const float MaxTimeThresholdSeconds = CVarBPContextMenuTimeSlicingThreshold.GetValueOnGameThread();
+		if ((FPlatformTime::Seconds() - StartTime) < MaxTimeThresholdSeconds)
+		{
+			CurrentAction = MenuItemListAddHelper->GetNextAction();
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if (bProcessedActions && !CurrentAction)
+	{
+		BuildCompleted();
+	}
+
+	return bProcessedActions;
+}
+
+void FBlueprintActionMenuBuilder::BuildCompleted()
+{
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	using namespace FBlueprintActionMenuBuilderImpl;
 
 	if (CVarBPEnableActionMenuDumpToFile.GetValueOnGameThread())
 	{

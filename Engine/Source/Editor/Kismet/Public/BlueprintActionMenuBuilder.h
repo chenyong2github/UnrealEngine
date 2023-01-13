@@ -14,12 +14,14 @@ class FBlueprintEditor;
 
 namespace FBlueprintActionMenuBuilderImpl
 {
-	// internal type, forward declared to hide implementation details
+	// internal types, forward declared to hide implementation details
 	struct FMenuSectionDefinition;
+	struct FMenuItemListAddHelper;
 };
 class  FBlueprintActionFilter;
 class  FBlueprintEditor;
 struct FBlueprintActionContext;
+struct FBlueprintActionInfo;
 
 /**
  * Responsible for constructing a list of viable blueprint actions. Runs the 
@@ -30,6 +32,18 @@ struct FBlueprintActionContext;
 struct KISMET_API FBlueprintActionMenuBuilder : public FGraphActionListBuilderBase
 {
 public:
+	/** Flags used to configure the builder. */
+	enum EConfigFlags
+	{
+		// If set, the builder will be configured to process the registered
+		// action set over time, rather than process the entire set in a
+		// single blocking frame.
+		UseTimeSlicing		= (1<<0),
+
+		// The default configuration for this builder type.
+		DefaultConfig		= 0,
+	};
+
 	/** Flags used to customize specific sections of the menu. */
 	enum ESectionFlag
 	{
@@ -46,7 +60,12 @@ public:
 	};
 	
 public:
-	FBlueprintActionMenuBuilder() = default;
+	/**
+	 * Default constructor.
+	 * 
+	 * @param Flags	- Optional configuration flags.
+	 */
+	FBlueprintActionMenuBuilder(EConfigFlags Flags = EConfigFlags::DefaultConfig);
 
 	UE_DEPRECATED(5.2, "The action filter now stores a reference to the authoritative editor context. Please use the default constructor instead.")
 	FBlueprintActionMenuBuilder(TWeakPtr<FBlueprintEditor> BlueprintEditorPtr);
@@ -76,6 +95,22 @@ public:
 	 */
 	void RebuildActionList();
 
+	/** Returns the current number of actions that are still pending */
+	int32 GetNumPendingActions() const;
+
+	/** Processes any actions that may be added asynchronously or across multiple frames. Returns true if one or more actions were added into the list. */
+	bool ProcessPendingActions();
+
+	/** Returns the normalized completion state when processing pending actions (e.g. for a status indicator) */
+	float GetPendingActionsProgress() const;
+
+protected:
+	// Adds menu items for the given database action.
+	void MakeMenuItems(FBlueprintActionInfo& InAction);
+
+	// Called when all menu items have been constructed.
+	void BuildCompleted();
+
 private:
 	/** 
 	 * Defines all the separate sections of the menu (filter, sort order, etc.).
@@ -83,4 +118,15 @@ private:
 	 * this API clean).
 	 */
 	TArray< TSharedRef<FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition> > MenuSections;
+
+	/**
+	 * Defines a utility that assists with building the list of action menu items
+	 * for each menu section based on a set of Blueprint action descriptor records.
+	 */
+	TSharedPtr<FBlueprintActionMenuBuilderImpl::FMenuItemListAddHelper> MenuItemListAddHelper;
+
+	/** If enabled, actions will be added to the pending list rather than processed immediately. */
+	bool bUsePendingActionList;
 };
+
+ENUM_CLASS_FLAGS(FBlueprintActionMenuBuilder::EConfigFlags);
