@@ -2320,15 +2320,9 @@ void ALandscapeProxy::PostRegisterAllComponents()
 		}
 	}
 #if WITH_EDITOR
-	if (LandscapeInfo != nullptr)
+	if ((LandscapeInfo != nullptr) && !IsPendingKillPending() && LandscapeGuid.IsValid())
 	{
-		if (!IsPendingKillPending())
-		{
-			if (LandscapeGuid.IsValid())
-			{
-				LandscapeInfo->FixupProxiesTransform();
-			}
-		}
+		LandscapeInfo->FixupProxiesTransform();
 	}
 #endif // WITH_EDITOR
 }
