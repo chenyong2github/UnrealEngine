@@ -268,10 +268,11 @@ void USharedMemoryMediaCapture::AddCopyToSharedGpuTexturePass(FRDGBuilder& Graph
 			RunningTasksCount++;
 			UE::Tasks::Launch(UE_SOURCE_LOCATION, [FrameNumber = GFrameCounterRenderThread, SharedTextureIdx, this]()
 			{
-				FRunWhenGoingOutOfScope DecrementRunningTasksCount([this]()
-					{
-						RunningTasksCount--;
-					});
+				// Decrement RunningTasksCount when the task exits
+				ON_SCOPE_EXIT
+				{
+					RunningTasksCount--;
+				};
 
 				const FString CopyThreadName = FString::Printf(TEXT("SharedMemMediaOutputGpuTextureInTransitForFrame_%d"), FrameNumber);
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*CopyThreadName);

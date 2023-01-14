@@ -3,10 +3,5 @@
 #include "Modules/ModuleManager.h"
 
 
-class FDisplayClusterMediaEditorModule : public IModuleInterface
-{
 
-};
-
-
-IMPLEMENT_MODULE(FDisplayClusterMediaEditorModule, DisplayClusterMediaEditor);
+IMPLEMENT_MODULE(FDefaultModuleImpl, DisplayClusterMediaEditor);

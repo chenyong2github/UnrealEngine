@@ -40,22 +40,6 @@ namespace UE::SharedMemoryMedia
 	// Convenience ZeroGuid value.
 	static const FGuid ZeroGuid = FGuid(0, 0, 0, 0);
 
-	/** Use this to call a lambda when the variable gets destroyed. */
-	template <typename LAMBDA>
-	struct FRunWhenGoingOutOfScope
-	{
-		FRunWhenGoingOutOfScope(LAMBDA&& InLambda) : Lambda(InLambda) { }
-
-		~FRunWhenGoingOutOfScope()
-		{
-			Lambda();
-		}
-
-	private:
-
-		// Holds the lambda to execute in the destructor of this object
-		LAMBDA Lambda;
-	};
 }
 
 struct FSharedMemoryMediaTextureDescription
