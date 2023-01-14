@@ -124,7 +124,6 @@ enum class ELocalQueueType
 {
 	EBackground,
 	EForeground,
-	EBusyWait,
 };
 
 /********************************************************************************************************************************************
@@ -138,6 +137,14 @@ enum class ELocalQueueType
 template<uint32 NumLocalItems = 1024>
 class TLocalQueueRegistry
 {
+	static uint32 Rand()
+	{
+		uint32 State = FPlatformTime::Cycles();
+		State = State * 747796405u + 2891336453u;
+		State = ((State >> ((State >> 28u) + 4u)) ^ State) * 277803737u;
+		return (State >> 22u) ^ State;
+	}
+
 public:
 	class TLocalQueue;
 
@@ -209,27 +216,6 @@ private:
 	using FOverflowQueueType = FAAArrayQueue<FTask>;
 	using DequeueHazard		 = typename FOverflowQueueType::DequeueHazard;
 
-private:
-	// FLocalQueueCollection is a read only collection of LocalQueues registerd with this Registry
-	struct FLocalQueueCollection
-	{
-		TArray<TLocalQueue*, TInlineAllocator<32>> LocalQueues;
-		TLocalQueue* RemovedQueue = nullptr;
-
-		FLocalQueueCollection() = default;
-
-		~FLocalQueueCollection()
-		{
-			//if the registry also request deletion of a queue (removal case)
-			if (RemovedQueue)
-			{
-				RemovedQueue->~TLocalQueue();
-				FMemory::Free(RemovedQueue);
-			}
-		}
-	};
-	using FStealHazard = THazardPointer<FLocalQueueCollection, true>;
-
 public:
 	class TLocalQueue
 	{
@@ -237,11 +223,9 @@ public:
 		friend class TLocalQueueRegistry;
 
 	public:
-		TLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType, FSleepEvent* InSleepEvent) : Registry(&InRegistry), SleepEvent(InSleepEvent)
+		TLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType InQueueType, FSleepEvent* InSleepEvent) : Registry(&InRegistry), SleepEvent(InSleepEvent), QueueType(InQueueType)
 		{
-			checkSlow(Registry);
-			StealHazard = FStealHazard(Registry->QueueCollection, Registry->HazardsCollection);
-			AffinityIndex = Registry->AddLocalQueue(StealHazard, this, QueueType);
+			AffinityIndex = Registry->AddLocalQueue(this, QueueType);
 			for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 			{
 				DequeueHazards[PriorityIndex] = Registry->OverflowQueues[PriorityIndex].getHeadHazard();
@@ -249,33 +233,21 @@ public:
 			AffinityHazard = AffinityQueue.getHeadHazard();
 		}
 
-		static TLocalQueue* AllocateLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType, FSleepEvent* InSleepEvent = nullptr)
+		~TLocalQueue()
 		{
-			void* Memory = FMemory::Malloc(sizeof(TLocalQueue), 128u);
-			return new (Memory) TLocalQueue(InRegistry, QueueType, InSleepEvent);
-		}
-
-		//delete a queue
-		//WorkeOwned means that the queue will not be automatically deleted when removal succeded.
-		//It is a special case where the memory for the local queues is alloated linearly by the Scheduler for improved stealing performance.
-		static void DeleteLocalQueue(TLocalQueue* Queue, ELocalQueueType QueueType, bool WorkerOwned = false)
-		{
-			TLocalQueueRegistry* Registry = Queue->Registry;
-			Queue->Registry = nullptr;
-
 			for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 			{
 				while (true)
 				{
 					FTask* Item;
-					if (!Queue->LocalQueues[PriorityIndex].Get(Item))
+					if (!LocalQueues[PriorityIndex].Get(Item))
 					{
 						break;
 					}
 					Registry->OverflowQueues[PriorityIndex].enqueue(Item);
 				}
 			}
-			Registry->DeleteLocalQueue(Queue->StealHazard, Queue, QueueType, WorkerOwned);
+			Registry->DeleteLocalQueue(this, QueueType);
 		}
 
 		//add an item to the local queue and overflow into the global queue if full
@@ -310,7 +282,7 @@ public:
 
 		inline FTask* DequeueGlobal(bool GetBackGroundTasks, bool bDisableThrottleStealing)
 		{
-			if (bDisableThrottleStealing || (Registry->NumActiveWorkers[GetBackGroundTasks].load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Random.GetUnsignedInt() % 4) == 0))
+			if (bDisableThrottleStealing || (Registry->NumActiveWorkers[GetBackGroundTasks] >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Rand() % 4) == 0))
 			{
 				int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::ForegroundCount);
 				for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
@@ -327,14 +299,14 @@ public:
 
 		inline FTask* DequeueSteal(bool GetBackGroundTasks, bool bDisableThrottleStealing)
 		{
-			if (bDisableThrottleStealing || (Registry->NumActiveWorkers[GetBackGroundTasks].load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Random.GetUnsignedInt() % 4) == 0))
+			if (bDisableThrottleStealing || (Registry->NumActiveWorkers[GetBackGroundTasks] >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Rand() % 4) == 0))
 			{
 				if (CachedRandomIndex == InvalidIndex)
 				{
-					CachedRandomIndex = Random.GetUnsignedInt();
+					CachedRandomIndex = Rand();
 				}
 
-				FTask* Result = Registry->StealItem(StealHazard, CachedRandomIndex, CachedPriorityIndex, GetBackGroundTasks);
+				FTask* Result = Registry->StealItem(CachedRandomIndex, CachedPriorityIndex, GetBackGroundTasks);
 				if (Result)
 				{
 					return Result;
@@ -376,91 +348,47 @@ public:
 		DequeueHazard			DequeueHazards[uint32(ETaskPriority::Count)];
 		FOverflowQueueType		AffinityQueue;
 		DequeueHazard			AffinityHazard;
-		FStealHazard			StealHazard;
 		TLocalQueueRegistry*	Registry;
 		FSleepEvent*			SleepEvent;
-		FRandomStream			Random;
 		uint32					CachedRandomIndex = InvalidIndex;
 		uint32					CachedPriorityIndex = 0;
 		uint32					AffinityIndex = ~0;
+		ELocalQueueType			QueueType;
 	};
 
-	TLocalQueueRegistry()
-	{
-		QueueCollection.store(new FLocalQueueCollection(), std::memory_order_relaxed);
-	}
+	TLocalQueueRegistry() = default;
 
 private:
 	// add a queue to the Registry
-	uint32 AddLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToAdd, ELocalQueueType QueueType)
+	uint32 AddLocalQueue(TLocalQueue* QueueToAdd, ELocalQueueType QueueType)
 	{
-		if (QueueType != ELocalQueueType::EBusyWait)
-		{
-			NumActiveWorkers[QueueType == ELocalQueueType::EBackground].fetch_add(1, std::memory_order_relaxed);
-		}
-
-		FLocalQueueCollection* Copy = new FLocalQueueCollection();
-		while(true)
-		{
-			FLocalQueueCollection* Previous = Hazard.Get();
-			Copy->LocalQueues = Previous->LocalQueues;	
-			Copy->LocalQueues.Add(QueueToAdd);
-			if (!QueueCollection.compare_exchange_strong(Previous, Copy, std::memory_order_acq_rel, std::memory_order_relaxed))
-			{
-				continue;
-			}
-			HazardsCollection.Delete(Previous);
-			Hazard.Retire();
-			return Previous->LocalQueues.Num();
-		}
+		NumActiveWorkers[QueueType == ELocalQueueType::EBackground]++;
+		LocalQueues.Add(QueueToAdd);
+		return LocalQueues.Num() - 1;
 	}
 
 	// remove a queue from the Registry
-	void DeleteLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToRemove, ELocalQueueType QueueType, bool WorkerOwned)
+	void DeleteLocalQueue(TLocalQueue* QueueToRemove, ELocalQueueType QueueType)
 	{
-		if (QueueType != ELocalQueueType::EBusyWait)
-		{
-			NumActiveWorkers[QueueType == ELocalQueueType::EBackground].fetch_sub(1, std::memory_order_relaxed);
-		}
-
-		FLocalQueueCollection* Copy = new FLocalQueueCollection();
-		while(true)
-		{
-			FLocalQueueCollection* Previous = Hazard.Get();
-			Copy->LocalQueues = Previous->LocalQueues;	
-			verifySlow(Copy->LocalQueues.Remove(QueueToRemove) == 1);
-			if (!QueueCollection.compare_exchange_strong(Previous, Copy, std::memory_order_acq_rel, std::memory_order_relaxed))
-			{
-				continue;
-			}
-			if (!WorkerOwned)
-			{
-				checkSlow(Previous->RemovedQueue == nullptr);
-				Previous->RemovedQueue = QueueToRemove;
-			}		
-			HazardsCollection.Delete(Previous);
-			Hazard.Retire();
-			return;
-		}
+		NumActiveWorkers[QueueType == ELocalQueueType::EBackground]--;
+		verify(LocalQueues.Remove(QueueToRemove) == 1);
 	}
 
 	// StealItem tries to steal an Item from a Registered LocalQueue
-	FTask* StealItem(FStealHazard& Hazard, uint32& CachedRandomIndex, uint32& CachedPriorityIndex, bool GetBackGroundTasks)
+	FTask* StealItem(uint32& CachedRandomIndex, uint32& CachedPriorityIndex, bool GetBackGroundTasks)
 	{
-		FLocalQueueCollection* Queues = Hazard.Get();
-		uint32 NumQueues = Queues->LocalQueues.Num();
+		uint32 NumQueues = LocalQueues.Num();
 		uint32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::ForegroundCount);
 		CachedRandomIndex = CachedRandomIndex % NumQueues;
 
 		for(uint32 i = 0; i < NumQueues; i++)
 		{
-			TLocalQueue* LocalQueue = Queues->LocalQueues[CachedRandomIndex];
+			TLocalQueue* LocalQueue = LocalQueues[CachedRandomIndex];
 			for(uint32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
 			{	
 				FTask* Item;
 				if (LocalQueue->LocalQueues[CachedPriorityIndex].Steal(Item))
 				{
-					Hazard.Retire();
 					return Item;
 				}
 				CachedPriorityIndex = ++CachedPriorityIndex < MaxPriority ? CachedPriorityIndex : 0;
@@ -469,7 +397,6 @@ private:
 		}
 		CachedPriorityIndex = 0;
 		CachedRandomIndex = TLocalQueue::InvalidIndex;
-		Hazard.Retire();
 		return nullptr;
 	}
 
@@ -489,23 +416,39 @@ public:
 
 	inline bool EnqueueAffinity(FTask* Item, uint32 AffinityIndex)
 	{
-		FStealHazard Hazard(QueueCollection, HazardsCollection);
-		FLocalQueueCollection* Queues = Hazard.Get();
-
-		if (AffinityIndex < uint32(Queues->LocalQueues.Num()) && Queues->LocalQueues[AffinityIndex]->SleepEvent)
+		if (AffinityIndex < uint32(LocalQueues.Num()) && LocalQueues[AffinityIndex]->SleepEvent)
 		{
-			Queues->LocalQueues[AffinityIndex]->EnqueueAffinity(Item);
+			LocalQueues[AffinityIndex]->EnqueueAffinity(Item);
 			return true;
 		}
 		return false;
 	}
 
 	// grab an Item directy from the Global OverflowQueue
-	FTask* Dequeue()
+	FTask* DequeueGlobal(bool GetBackGroundTasks = true, bool bDisableThrottleStealing = true)
 	{
-		for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
+		if (bDisableThrottleStealing || (NumActiveWorkers[GetBackGroundTasks] >= (2 * NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Rand() % 4) == 0))
 		{
-			FTask* Result = OverflowQueues[PriorityIndex].dequeue();
+			int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::ForegroundCount);
+			for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
+			{
+				FTask* Item = OverflowQueues[PriorityIndex].dequeue();
+				if (Item)
+				{
+					return Item;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	inline FTask* DequeueSteal(bool GetBackGroundTasks = true, bool bDisableThrottleStealing = true)
+	{
+		if (bDisableThrottleStealing || (NumActiveWorkers[GetBackGroundTasks] >= (2 * NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Rand() % 4) == 0))
+		{
+			uint32 CachedRandomIndex = Rand();
+			uint32 CachedPriorityIndex = 0;
+			FTask* Result = StealItem(CachedRandomIndex, CachedPriorityIndex, GetBackGroundTasks);
 			if (Result)
 			{
 				return Result;
@@ -524,19 +467,18 @@ private:
 	{
 		if (bBackgroundTask)
 		{
-			return NumWorkersLookingForWork[true].load(std::memory_order_acquire) * 2 <= NumActiveWorkers[true].load(std::memory_order_acquire);
+			return NumWorkersLookingForWork[true].load(std::memory_order_acquire) * 2 <= NumActiveWorkers[true];
 		}
 		else
 		{
-			return (NumWorkersLookingForWork[false].load(std::memory_order_acquire) + NumWorkersLookingForWork[true].load(std::memory_order_acquire)) * 2 <= (NumActiveWorkers[false].load(std::memory_order_acquire) + NumActiveWorkers[true].load(std::memory_order_acquire));
+			return (NumWorkersLookingForWork[false].load(std::memory_order_acquire) + NumWorkersLookingForWork[true].load(std::memory_order_acquire)) * 2 <= (NumActiveWorkers[false] + NumActiveWorkers[true]);
 		}
 	}
 
-	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];
-	FHazardPointerCollection		  HazardsCollection;
-	std::atomic<FLocalQueueCollection*>	QueueCollection;
-	std::atomic_int NumWorkersLookingForWork[2] = { {0}, {0} };
-	std::atomic_int NumActiveWorkers[2] = { {0}, {0} };
+	FOverflowQueueType		OverflowQueues[uint32(ETaskPriority::Count)];
+	TArray<TLocalQueue*>	LocalQueues;
+	std::atomic_int			NumWorkersLookingForWork[2] = { {0}, {0} };
+	int						NumActiveWorkers[2] = { 0, 0 };
 };
 
 }
