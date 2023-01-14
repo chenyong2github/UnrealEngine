@@ -294,7 +294,7 @@ public:
 	TArray<FNiagaraMeshMICOverride> MICOverrideMaterials;
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
-	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (EditCondition = "bSubImageBlend", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "SubUV")
 	FVector2D SubImageSize;
 
 	/** Determines how the mesh orients itself relative to the camera. */
