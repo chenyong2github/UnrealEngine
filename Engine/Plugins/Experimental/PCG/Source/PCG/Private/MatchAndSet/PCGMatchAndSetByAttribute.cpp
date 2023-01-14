@@ -115,7 +115,7 @@ void UPCGMatchAndSetByAttribute::MatchAndSet_Implementation(
 	//TODO: implement async loop?
 	FPCGAttributePropertySelector InputSource;
 	InputSource.Selection = EPCGAttributePropertySelection::Attribute;
-	InputSource.AttributeName = (MatchSourceAttribute == NAME_None ? InPointData->Metadata->GetLatestAttributeNameOrNone() : MatchSourceAttribute);
+	InputSource.AttributeName = ((MatchSourceAttribute == NAME_None) ? InPointData->Metadata->GetLatestAttributeNameOrNone() : MatchSourceAttribute);
 
 	TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(InPointData, InputSource);
 	TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(InPointData, InputSource);
@@ -199,7 +199,7 @@ bool UPCGMatchAndSetByAttribute::ValidatePreconditions_Implementation(const UPCG
 	}
 
 	// Check if source attribute exists
-	FName AttributeName = (MatchSourceAttribute == NAME_None ? InPointData->Metadata->GetLatestAttributeNameOrNone() : MatchSourceAttribute);
+	FName AttributeName = ((MatchSourceAttribute == NAME_None) ? InPointData->Metadata->GetLatestAttributeNameOrNone() : MatchSourceAttribute);
 
 	if (!InPointData->Metadata->HasAttribute(AttributeName))
 	{

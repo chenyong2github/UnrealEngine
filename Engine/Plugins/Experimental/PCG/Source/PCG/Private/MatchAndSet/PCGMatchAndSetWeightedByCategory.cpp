@@ -168,7 +168,7 @@ void UPCGMatchAndSetWeightedByCategory::MatchAndSet_Implementation(
 
 	FPCGAttributePropertySelector InputSource;
 	InputSource.Selection = EPCGAttributePropertySelection::Attribute;
-	InputSource.AttributeName = (CategoryAttribute == NAME_None ? InPointData->Metadata->GetLatestAttributeNameOrNone() : CategoryAttribute);
+	InputSource.AttributeName = ((CategoryAttribute == NAME_None) ? InPointData->Metadata->GetLatestAttributeNameOrNone() : CategoryAttribute);
 
 	TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(InPointData, InputSource);
 	TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(InPointData, InputSource);
@@ -284,7 +284,7 @@ bool UPCGMatchAndSetWeightedByCategory::ValidatePreconditions_Implementation(con
 		return false;
 	}
 
-	FName AttributeName = (CategoryAttribute == NAME_None ? InPointData->Metadata->GetLatestAttributeNameOrNone() : CategoryAttribute);
+	FName AttributeName = ((CategoryAttribute == NAME_None) ? InPointData->Metadata->GetLatestAttributeNameOrNone() : CategoryAttribute);
 	
 	if (!InPointData->Metadata->HasAttribute(AttributeName))
 	{
