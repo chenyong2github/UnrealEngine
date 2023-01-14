@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h" // IWYU pragma: keep
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
