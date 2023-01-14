@@ -22,6 +22,7 @@ namespace Chaos
 	namespace CVars
 	{
 		extern int32 Chaos_Collision_UseShockPropagation;
+		extern bool bChaos_PBDCollisionSolver_UseJacobiPairSolver;
 
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
@@ -223,6 +224,66 @@ namespace Chaos
 				}
 			}
 		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		void FPBDCollisionSolverHelper::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
+		{
+			if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
+			{
+				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+				{
+					CollisionSolver.SolvePositionNoFriction(Dt, MaxPushOut);
+				}
+			}
+			else
+			{
+				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+				{
+					CollisionSolver.SolvePositionNoFrictionJacobi(Dt, MaxPushOut);
+				}
+			}
+		}
+
+		void FPBDCollisionSolverHelper::SolvePositionWithFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
+		{
+			if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
+			{
+				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+				{
+					CollisionSolver.SolvePositionWithFriction(Dt, MaxPushOut);
+				}
+			}
+			else
+			{
+				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+				{
+					CollisionSolver.SolvePositionWithFrictionJacobi(Dt, MaxPushOut);
+				}
+			}
+		}
+
+		void FPBDCollisionSolverHelper::SolveVelocity(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction)
+		{
+			if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
+			{
+				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+				{
+					CollisionSolver.SolveVelocity(Dt, bApplyDynamicFriction);
+				}
+			}
+			else
+			{
+				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+				{
+					CollisionSolver.SolveVelocityJacobi(Dt, bApplyDynamicFriction);
+				}
+			}
+		}
+
 
 	}	// namespace Private
 }	// namespace Chaos

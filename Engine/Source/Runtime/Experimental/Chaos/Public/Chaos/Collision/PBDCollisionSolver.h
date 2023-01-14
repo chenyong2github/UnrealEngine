@@ -100,16 +100,8 @@ namespace Chaos
 			*/
 			bool ShouldSolveVelocity() const;
 
+			// World-space contact data
 			FWorldContactPoint WorldContact;
-
-			// World-space body-relative contact points
-			//FSolverVec3 RelativeContactPosition0;
-			//FSolverVec3 RelativeContactPosition1;
-
-			// World-space contact axes (normal and 2 tangents)
-			//FSolverVec3 WorldContactNormal;
-			//FSolverVec3 WorldContactTangentU;
-			//FSolverVec3 WorldContactTangentV;
 
 			// I^-1.(R x A) for each body where A is each axis (Normal, TangentU, TangentV)
 			FSolverVec3 WorldContactNormalAngular0;
@@ -124,14 +116,6 @@ namespace Chaos
 			FSolverReal ContactMassTangentU;
 			FSolverReal ContactMassTangentV;
 
-			// Initial world-space contact separation that we are trying to correct
-			//FSolverReal WorldContactDeltaNormal;
-			//FSolverReal WorldContactDeltaTangentU;
-			//FSolverReal WorldContactDeltaTangentV;
-
-			// Desired final normal velocity, taking Restitution into account
-			//FSolverReal WorldContactVelocityTargetNormal;
-
 			// Solver outputs
 			FSolverReal NetPushOutNormal;
 			FSolverReal NetPushOutTangentU;
@@ -144,10 +128,6 @@ namespace Chaos
 			// Equal to (NormalPushOut / TangentialPushOut) before clamping to the friction cone.
 			// Used to move the static friction anchors to the edge of the cone in Scatter.
 			FSolverReal StaticFrictionRatio;
-
-			// Whether this point is enabled
-			// @todo(chaos): consider decoupling the solver manifold points array size from the constraint manifold points array
-			//uint8 bEnabled : 1;
 		};
 
 		/**
@@ -1360,6 +1340,18 @@ namespace Chaos
 			// @todo(chaos): support early-out in velocity solve if necessary
 			return true;
 		}
-	}
-}
+
+		/**
+		 * A helper for solving arrays of constraints
+		 */
+		class FPBDCollisionSolverHelper
+		{
+		public:
+			static void SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut);
+			static void SolvePositionWithFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut);
+			static void SolveVelocity(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction);
+		};
+
+	}	// namespace Private
+}	// namespace Chaos
 

@@ -514,8 +514,7 @@ namespace Chaos
 		}
 	}
 
-	// @todo(chaos): parallel version of SolvePosition
-	bool FPBDCollisionContainerSolver::SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	bool FPBDCollisionContainerSolver::SolvePositionImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 		if (!bChaos_PBDCollisionSolver_Position_SolveEnabled)
@@ -523,13 +522,12 @@ namespace Chaos
 			return false;
 		}
 
-		UpdatePositionShockPropagation(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
+		if (EndIndex <= BeginIndex)
+		{
+			return false;
+		}
 
-		// Only apply friction for the last few (tunable) iterations
-		const bool bApplyStaticFriction = (It >= (NumIts - SolverSettings.NumPositionFrictionIterations));
-
-		// Adjust max pushout to attempt to make it iteration count independent
-		const FReal MaxPushOut = (SolverSettings.MaxPushOutVelocity > 0) ? (SolverSettings.MaxPushOutVelocity * Dt) / FReal(NumIts) : 0;
+		UpdatePositionShockPropagation(InDt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
 
 		// We run collision detection here under two conditions (normally it is run after Integration and before the constraint solver phase):
 		// 1) When deferring collision detection until the solver phase for better joint-collision behaviour (RBAN). In this case, we only do this on the first iteration.
@@ -537,71 +535,23 @@ namespace Chaos
 		const bool bRunDeferredCollisionDetection = (It == 0) && ConstraintContainer.GetDetectorSettings().bDeferNarrowPhase;
 		if (bRunDeferredCollisionDetection || bPerIterationCollisionDetection)
 		{
-			UpdateCollisions(Dt, BeginIndex, EndIndex);
+			UpdateCollisions(InDt, BeginIndex, EndIndex);
 		}
+
+		// Only apply friction for the last few (tunable) iterations
+		// Adjust max pushout to attempt to make it iteration count independent
+		const FSolverReal Dt = FSolverReal(InDt);
+		const bool bApplyStaticFriction = (It >= (NumIts - SolverSettings.NumPositionFrictionIterations));
+		const FSolverReal MaxPushOut = (SolverSettings.MaxPushOutVelocity > 0) ? (FSolverReal(SolverSettings.MaxPushOutVelocity) * Dt) / FSolverReal(NumIts) : FSolverReal(0);
 
 		// Apply the position correction
 		if (bApplyStaticFriction)
 		{
-			return SolvePositionWithFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
+			Private::FPBDCollisionSolverHelper::SolvePositionWithFriction(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, MaxPushOut);
 		}
 		else
 		{
-			return SolvePositionNoFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
-		}
-	}
-
-	// Solve position with friction (last few iterations each tick)
-	bool FPBDCollisionContainerSolver::SolvePositionWithFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
-	{
-		if (EndIndex == BeginIndex)
-		{
-			return false;
-		}
-		const FSolverReal Dt = FSolverReal(InDt);
-		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
-
-		if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
-		{
-			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].SolvePositionWithFriction(Dt, MaxPushOut);
-			}
-		}
-		else
-		{
-			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].SolvePositionWithFrictionJacobi(Dt, MaxPushOut);
-			}
-		}
-
-		return true;
-	}
-
-	// Solve position without friction (first few iterations each tick)
-	bool FPBDCollisionContainerSolver::SolvePositionNoFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
-	{
-		if (EndIndex == BeginIndex)
-		{
-			return false;
-		}
-		const FSolverReal Dt = FSolverReal(InDt);
-		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
-
-		if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
-		{
-			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].SolvePositionNoFriction(Dt, MaxPushOut);
-			}
-		}
-		else
-		{
-			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].SolvePositionNoFrictionJacobi(Dt, MaxPushOut);
-			}
+			Private::FPBDCollisionSolverHelper::SolvePositionNoFriction(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, MaxPushOut);
 		}
 
 		return true;
@@ -614,31 +564,20 @@ namespace Chaos
 		{
 			return false;
 		}
+
+		if (EndIndex <= BeginIndex)
+		{
+			return false;
+		}
+
+		UpdateVelocityShockPropagation(InDt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
+
 		const FSolverReal Dt = FSolverReal(InDt);
-
-		UpdateVelocityShockPropagation(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
-
 		const bool bApplyDynamicFriction = (It >= NumIts - SolverSettings.NumVelocityFrictionIterations);
 
-		// Apply the velocity correction
-		// @todo(chaos): parallel version of SolveVelocity
-		bool bNeedsAnotherIteration = false;
-		if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
-		{
-			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			{
-				bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].SolveVelocity(Dt, bApplyDynamicFriction);
-			}
-		}
-		else
-		{
-			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
-			{
-				bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].SolveVelocityJacobi(Dt, bApplyDynamicFriction);
-			}
-		}
+		Private::FPBDCollisionSolverHelper::SolveVelocity(MakeArrayView(&CollisionSolvers[BeginIndex], EndIndex - BeginIndex), Dt, bApplyDynamicFriction);
 
-		return bNeedsAnotherIteration;
+		return true;
 	}
 
 	void FPBDCollisionContainerSolver::UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
