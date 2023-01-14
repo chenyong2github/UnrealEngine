@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 
 #include "Dataflow/DataflowNodeFactory.h"
-#include "Dataflow/ChaosFleshEngineAssetNodes.h"
+#include "Dataflow/ChaosFleshBindingsNodes.h"
 #include "Dataflow/ChaosFleshCoreNodes.h"
+#include "Dataflow/ChaosFleshEngineAssetNodes.h"
 #include "Dataflow/ChaosFleshFiberDirectionInitializationNodes.h"
 #include "Dataflow/ChaosFleshKinematicInitializationNodes.h"
 #include "Dataflow/ChaosFleshRenderInitializationNodes.h"
@@ -24,6 +25,7 @@ void IChaosFleshNodesPlugin::StartupModule()
 	Dataflow::ChaosFleshRenderInitializationNodes();
 	Dataflow::RegisterChaosFleshKinematicInitializationNodes();
 	Dataflow::ChaosFleshTetrahedralNodes();
+	Dataflow::ChaosFleshBindingsNodes();
 }
 
 void IChaosFleshNodesPlugin::ShutdownModule()

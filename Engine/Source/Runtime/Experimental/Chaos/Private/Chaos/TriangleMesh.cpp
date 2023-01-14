@@ -3,8 +3,8 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/Defines.h"
-#include "Chaos/Math/Poisson.h"
 #include "Chaos/Plane.h"
+#include "Chaos/SmoothProject.h"
 #include "Chaos/Triangle.h"
 #include "Chaos/TriangleCollisionPoint.h"
 #include "HAL/IConsoleManager.h"
@@ -346,14 +346,14 @@ TArray<TVec3<T>> FTriangleMesh::GetFaceNormals(const TConstArrayView<TVec3<T>>& 
 template CHAOS_API TArray<TVec3<FRealSingle>> FTriangleMesh::GetFaceNormals<FRealSingle>(const TConstArrayView<TVec3<FRealSingle>>&, const bool) const;
 template CHAOS_API TArray<TVec3<FRealDouble>> FTriangleMesh::GetFaceNormals<FRealDouble>(const TConstArrayView<TVec3<FRealDouble>>&, const bool) const;
 
-TArray<FVec3> FTriangleMesh::GetPointNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError)
+TArray<FVec3> FTriangleMesh::GetPointNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError, const bool bUseGlobalArray)
 {
 	TArray<FVec3> PointNormals;
 	const TArray<FVec3> FaceNormals = GetFaceNormals(Points, ReturnEmptyOnError);
 	if (FaceNormals.Num())
 	{
-		PointNormals.SetNumUninitialized(MNumIndices);
-		GetPointNormals(PointNormals, FaceNormals, /*bUseGlobalArray =*/ false);
+		PointNormals.SetNumUninitialized(bUseGlobalArray ? MNumIndices+MStartIdx : MNumIndices);
+		GetPointNormals(PointNormals, FaceNormals, bUseGlobalArray);
 	}
 	return PointNormals;
 }
@@ -1497,8 +1497,8 @@ void FTriangleMesh::BuildBVH(const TConstArrayView<TVec3<T>>& Points, TBVHType<T
 	}
 	BVH.Reinitialize(BVEntries);
 }
-template void FTriangleMesh::BuildBVH<FRealSingle>(const TConstArrayView<TVec3<FRealSingle>>& Points, TBVHType<FRealSingle>& BVH) const;
-template void FTriangleMesh::BuildBVH<FRealDouble>(const TConstArrayView<TVec3<FRealDouble>>& Points, TBVHType<FRealDouble>& BVH) const;
+template CHAOS_API void FTriangleMesh::BuildBVH<FRealSingle>(const TConstArrayView<TVec3<FRealSingle>>& Points, TBVHType<FRealSingle>& BVH) const;
+template CHAOS_API void FTriangleMesh::BuildBVH<FRealDouble>(const TConstArrayView<TVec3<FRealDouble>>& Points, TBVHType<FRealDouble>& BVH) const;
 
 template<typename T>
 bool FTriangleMesh::PointProximityQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 PointIndex, const TVec3<T>& PointPosition, const T PointThickness, const T ThisThickness, 
@@ -1597,168 +1597,7 @@ template bool FTriangleMesh::EdgeIntersectionQuery<FRealSingle>(const TBVHType<F
 template bool FTriangleMesh::EdgeIntersectionQuery<FRealDouble>(const TBVHType<FRealDouble>& BVH, const TConstArrayView<TVec3<FRealDouble>>& Points, const int32 EdgeIndex, const TVec3<FRealDouble>& EdgePosition1, const TVec3<FRealDouble>& EdgePosition2,
 	TFunctionRef<bool(const int32 EdgeIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<FRealDouble>>& Result) const;
 
-template <class T>
-bool SmoothProject(
-	const TConstArrayView<FVec3>& Points,
-	const TArray<TVec3<int32>>& Tris,
-	const TArray<FVec3>& PointNormals,
-	const FVec3& Pos,
-	const int32 TriIdx,
-	FVec3& Weights,
-	TArray<TArray<FVec3>>& TangentBases,
-	T* B,
-	T* C,
-	TVec3<T>& C0,
-	TVec3<T>& C1,
-	TVec3<T>& C2,
-	TVec3<T>& W0,
-	TVec3<T>& W1,
-	TVec3<T>& W2)
-{
-	// Construct orthogonal tangents from point normal
-	for (int32 i = 0; i < 3; i++)
-	{
-		const int32 PtIdx = Tris[TriIdx][i];
-		const FVec3& PointNormal = PointNormals[PtIdx];
-		TangentBases[i][0] = PointNormal.GetOrthogonalVector().GetSafeNormal();
-		TangentBases[i][1] = FVec3::CrossProduct(TangentBases[i][0], PointNormal);
-	}
-	// Solve
-	for (int32 i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			const int32 PtIdx = Tris[TriIdx][i];
-			const FVec3& Pt = Points[PtIdx];
-			const FVec3& TangentBase0 = TangentBases[i][0];
-			const FVec3& TangentBase1 = TangentBases[i][1];
-			FReal B0j = FVec3::DotProduct(TangentBase0, Pt);
-			FReal B1j = FVec3::DotProduct(TangentBase1, Pt);
-			RowMaj3x3Set(B, j, 0, static_cast<T>(B0j));
-			RowMaj3x3Set(B, j, 1, static_cast<T>(B1j));
-			RowMaj3x3Set(B, j, 2, static_cast<T>(1.0));
-		}
-		RowMaj3x3Inverse(B, B); // Sets B
-		FVec3 PV(
-			FVec3::DotProduct(TangentBases[i][0], Pos),
-			FVec3::DotProduct(TangentBases[i][1], Pos),
-			static_cast<T>(1.0));
-		RowMaj3x3SetRow(C, i, RowMaj3x3Multiply(B, PV));
-	}
 
-	RowMaj3x3Get(C, 0, 0) -= static_cast<T>(1.0);
-	RowMaj3x3Get(C, 1, 1) -= static_cast<T>(1.0);
-	RowMaj3x3Get(C, 2, 2) -= static_cast<T>(1.0);
-
-	RowMaj3x3GetRow(C, 0, C0);
-	RowMaj3x3GetRow(C, 1, C1);
-	RowMaj3x3GetRow(C, 2, C2);
-
-	W0 = FVec3::CrossProduct(C0, C1);
-	W1 = FVec3::CrossProduct(C0, C2);
-	W2 = FVec3::CrossProduct(C1, C2);
-
-	if (W0[0] >= 0.0 && W0[1] >= 0.0 && W0[2] >= 0.0)
-	{
-		Weights = W0;
-		Swap(Weights[0], Weights[2]);
-	}
-	else if (W1[0] >= 0.0 && W1[1] >= 0.0 && W1[2] >= 0.0)
-	{
-		Weights = W1;
-	}
-	else if (W2[0] >= 0.0 && W2[1] >= 0.0 && W2[2] >= 0.0)
-	{
-		Weights = W2;
-		Swap(Weights[0], Weights[2]);
-	}
-	else
-	{
-		// We're outside of the cone implied by the normals,
-		// so the projection doesn't exist.
-		return false;
-	}
-
-	FReal WeightsSum = Weights[0] + Weights[1] + Weights[2];
-	if (fabs(WeightsSum) < 1.0e-6)
-	{
-		// The point is at the vertex of the normal cone, so the
-		// projection isn't unique.  Any face location will do.
-		static const T OneThird = static_cast<T>(1.0 / 3);
-		Weights = FVec3(OneThird, OneThird, OneThird);
-		return true;
-	}
-	Weights /= WeightsSum;
-	return true;
-}
-
-template <class T>
-bool SmoothProject(
-	const TConstArrayView<FVec3>& Points,
-	const TArray<TVec3<int32>>& Tris,
-	const TArray<FVec3>& PointNormals,
-	const FVec3& Pos,
-	const int32 TriIdx,
-	FVec3& Weights)
-{
-	TArray<TArray<FVec3>> TangentBases;
-	TangentBases.SetNum(3);
-	for (int32 i = 0; i < 3; i++)
-	{
-		TangentBases[i].SetNum(2);
-	}
-	T B[9];
-	T C[9];
-	TVec3<T> C0;
-	TVec3<T> C1;
-	TVec3<T> C2;
-	TVec3<T> W0;
-	TVec3<T> W1;
-	TVec3<T> W2;
-
-	return SmoothProject(Points, Tris, PointNormals, Pos, TriIdx, Weights,
-		TangentBases, &B[0], &C[0], C0, C1, C2, W0, W1, W2);
-}
-
-template <class T>
-TArray<bool> SmoothProject(
-	const TConstArrayView<FVec3>& Points,
-	const TArray<TVec3<int32>>& Tris,
-	const TArray<FVec3>& PointNormals,
-	const FVec3& Pos,
-	const TArray<int32>& TriIdx,
-	TArray<FVec3>& Weights,
-	const bool UseFirstFound=false)
-{
-	TArray<TArray<FVec3>> TangentBases;
-	TangentBases.SetNum(3);
-	for (int32 i = 0; i < 3; i++)
-	{
-		TangentBases[i].SetNum(2);
-	}
-	T B[9];
-	T C[9];
-	TVec3<T> C0;
-	TVec3<T> C1;
-	TVec3<T> C2;
-	TVec3<T> W0;
-	TVec3<T> W1;
-	TVec3<T> W2;
-
-	TArray<bool> RetVal;
-	RetVal.SetNumZeroed(TriIdx.Num());
-	Weights.SetNum(TriIdx.Num());
-	for (int i = 0; i < TriIdx.Num(); i++)
-	{
-		RetVal[i] = SmoothProject(Points, Tris, PointNormals, Pos, TriIdx[i], Weights[i],
-			TangentBases, &B[0], &C[0], C0, C1, C2, W0, W1, W2);
-		if (UseFirstFound && RetVal[i])
-		{
-			return RetVal;
-		}
-	}
-	return RetVal;
-}
 
 template<typename T>
 bool FTriangleMesh::SmoothProject(
@@ -1770,33 +1609,47 @@ bool FTriangleMesh::SmoothProject(
 	FVec3& Weights, 
 	const int32 MaxIters) const
 {
-	TArray<int32> CandidateTris;
+	TSet<int32> SkipTris;
 	int32 Iter = 0;
 	do {
-		FAABB3 Box(Pos-FVec3(.5*Iter), Pos+FVec3(.5*Iter));
-		CandidateTris = BVH.FindAllIntersections(Box);
-	} while (!CandidateTris.Num() && ++Iter < MaxIters);
-
-	if (!CandidateTris.Num())
-	{
-		return false;
-	}
-
-	TArray<FVec3> CandidateWeights;
-	TArray<bool> Success = Chaos::SmoothProject<T>(Points, MElements, PointNormals, Pos, CandidateTris, CandidateWeights, true);
-	for (int32 i = 0; i < Success.Num(); i++)
-	{
-		if (Success[i])
+		TArray<int32> CandidateTris;
+		do {
+			FAABB3 Box(Pos - FVec3(.5 * Iter), Pos + FVec3(.5 * Iter));
+			CandidateTris = BVH.FindAllIntersections(Box);
+			// Remove candidates we've already considered
+			for (int32 i = CandidateTris.Num() - 1; i >= 0; i--)
+			{
+				if (SkipTris.Contains(CandidateTris[i]))
+				{
+					CandidateTris.RemoveAt(i);
+				}
+			}
+			++Iter;
+		} while (!CandidateTris.Num() && Iter < MaxIters);
+		if (!CandidateTris.Num())
 		{
-			TriangleIndex = CandidateTris[i];
-			Weights = CandidateWeights[i];
-			return true;
+			// If we exited the BVH loop with no candidates, then we've exceeded MaxIters.
+			return false;
 		}
-	}
+		// Test candidates
+		TArray<FVec3> CandidateWeights;
+		TArray<bool> Success = Chaos::SmoothProject<T>(Points, MElements, PointNormals, Pos, CandidateTris, CandidateWeights, true);
+		for (int32 i = 0; i < Success.Num(); i++)
+		{
+			if (Success[i])
+			{
+				TriangleIndex = CandidateTris[i];
+				Weights = CandidateWeights[i];
+				return true;
+			}
+		}
+		// No hits. Add candidates to skip list, and go searching for more.
+		SkipTris.Append(CandidateTris);
+	} while (Iter < MaxIters);
 	return false;
 }
-template bool FTriangleMesh::SmoothProject<FRealSingle>(const TBVHType<FRealSingle>& BVH, const TConstArrayView<FVec3>& Points, const TArray<FVec3>& PointNormals, const FVec3& Point, int32& TriangleIndex, FVec3& Weights, const int32 MaxIters) const;
-template bool FTriangleMesh::SmoothProject<FRealDouble>(const TBVHType<FRealDouble>& BVH, const TConstArrayView<FVec3>& Points, const TArray<FVec3>& PointNormals, const FVec3& Point, int32& TriangleIndex, FVec3& Weights, const int32 MaxIters) const;
+template CHAOS_API bool FTriangleMesh::SmoothProject<FRealSingle>(const TBVHType<FRealSingle>& BVH, const TConstArrayView<FVec3>& Points, const TArray<FVec3>& PointNormals, const FVec3& Point, int32& TriangleIndex, FVec3& Weights, const int32 MaxIters) const;
+template CHAOS_API bool FTriangleMesh::SmoothProject<FRealDouble>(const TBVHType<FRealDouble>& BVH, const TConstArrayView<FVec3>& Points, const TArray<FVec3>& PointNormals, const FVec3& Point, int32& TriangleIndex, FVec3& Weights, const int32 MaxIters) const;
 
 template<typename T>
 void FTriangleMesh::BuildSpatialHash(const TConstArrayView<TVec3<T>>& Points, TSpatialHashType<T>& SpatialHash) const

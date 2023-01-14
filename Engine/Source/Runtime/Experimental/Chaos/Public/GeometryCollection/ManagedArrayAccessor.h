@@ -39,6 +39,15 @@ public:
 		, ConstAttributeArray(InCollection.FindAttributeTyped<T>(InAttributeName, InAttributeGroup))
 	{}
 
+	const FManagedArrayCollection& GetConstCollection() const { return ConstCollection; }
+	FManagedArrayCollection* GetCollection() { check(!IsConst()); return Collection; }
+
+	FName GetName() const { return Name; }
+
+	FName GetGroup() const { return Group; }
+
+	FName GetGroupDependency() const { return GroupDependency; }
+
 	bool IsConst() const { return Collection == nullptr; }
 
 	bool IsValid() const { return ConstAttributeArray != nullptr; }

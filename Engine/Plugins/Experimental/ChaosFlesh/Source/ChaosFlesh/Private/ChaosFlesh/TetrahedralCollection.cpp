@@ -8,9 +8,12 @@ DEFINE_LOG_CATEGORY_STATIC(FTetrahedralCollectionLogging, Log, All);
 
 // Groups
 const FName FTetrahedralCollection::TetrahedralGroup = "Tetrahedral";
+const FName FTetrahedralCollection::BindingsGroup = "Bindings";
 
 // Attributes
 const FName FTetrahedralCollection::TetrahedronAttribute("Tetrahedron");
+const FName FTetrahedralCollection::TetrahedronStartAttribute("TetrahedronStart");
+const FName FTetrahedralCollection::TetrahedronCountAttribute("TetrahedronCount");
 const FName FTetrahedralCollection::IncidentElementsAttribute("IncidentElements");
 const FName FTetrahedralCollection::IncidentElementsLocalIndexAttribute("IncidentElementsLocalIndex");
 
@@ -34,8 +37,8 @@ void FTetrahedralCollection::Construct()
 	AddExternalAttribute<TArray<int32>>(FTetrahedralCollection::IncidentElementsLocalIndexAttribute, FGeometryCollection::VerticesGroup, IncidentElementsLocalIndex);
 
 	// Geometry Group
-	AddExternalAttribute<int32>("TetrahedronStart", FGeometryCollection::GeometryGroup, TetrahedronStart);
-	AddExternalAttribute<int32>("TetrahedronCount", FGeometryCollection::GeometryGroup, TetrahedronCount);
+	AddExternalAttribute<int32>(FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup, TetrahedronStart, TetrahedronDependency);
+	AddExternalAttribute<int32>(FTetrahedralCollection::TetrahedronCountAttribute, FGeometryCollection::GeometryGroup, TetrahedronCount, TetrahedronDependency);
 }
 
 
@@ -52,13 +55,22 @@ void FTetrahedralCollection::SetDefaults(FName Group, uint32 StartSize, uint32 N
 	}
 }
 
-FTetrahedralCollection* FTetrahedralCollection::NewTetrahedralCollection(const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
+FTetrahedralCollection* FTetrahedralCollection::NewTetrahedralCollection(
+	const TArray<FVector>& Vertices, 
+	const TArray<FIntVector3>& SurfaceElements, 
+	const TArray<FIntVector4>& Elements, 
+	bool bReverseVertexOrder)
 {
 	FTetrahedralCollection* Collection = new FTetrahedralCollection();
 	FTetrahedralCollection::Init(Collection, Vertices, SurfaceElements, Elements, bReverseVertexOrder);
 	return Collection;
 }
-void FTetrahedralCollection::Init(FTetrahedralCollection* Collection, const TArray<FVector>& Vertices, const TArray<FIntVector3>& SurfaceElements, const TArray<FIntVector4>& Elements, bool bReverseVertexOrder)
+void FTetrahedralCollection::Init(
+	FTetrahedralCollection* Collection, 
+	const TArray<FVector>& Vertices, 
+	const TArray<FIntVector3>& SurfaceElements, 
+	const TArray<FIntVector4>& Elements, 
+	bool bReverseVertexOrder)
 {
 	if (Collection)
 	{
@@ -81,6 +93,8 @@ void FTetrahedralCollection::Init(FTetrahedralCollection* Collection, const TArr
 
 		Super::Init(Collection, RawVertexArray, RawIndicesArray, bReverseVertexOrder);
 
+		Collection->TetrahedronStart[0] = Collection->Tetrahedron.Num();
+		Collection->TetrahedronCount[0] = Elements.Num();
 		Collection->AddElements(Elements.Num(), FTetrahedralCollection::TetrahedralGroup);
 		for (int i = 0; i < Elements.Num(); i++)
 		{
@@ -99,6 +113,7 @@ int32 FTetrahedralCollection::AppendGeometry(
 	const FTransform& TransformRoot)
 {
 	const int32 VerticesIndex = NumElements(FGeometryCollection::VerticesGroup);
+	const int32 NumGeometry = NumElements(FGeometryCollection::GeometryGroup);
 
 	const int32 ID = 
 		Super::AppendGeometry(
@@ -115,6 +130,15 @@ int32 FTetrahedralCollection::AppendGeometry(
 	for (int32 Idx = 0; Idx < NumOtherTets; Idx++)
 	{
 		Tetrahedron[TetsIndex + Idx] = FIntVector4(VerticesIndex, VerticesIndex, VerticesIndex, VerticesIndex) + Other.Tetrahedron[Idx];
+	}
+
+	// --- GEOMETRY GROUP --
+
+	check(TetrahedronStart.Num() == NumGeometry + Other.TetrahedronStart.Num());
+	for (int32 Idx = 0; Idx < Other.TetrahedronStart.Num(); Idx++)
+	{
+		TetrahedronStart[NumGeometry + Idx] = NumTets + Other.TetrahedronStart[Idx];
+		TetrahedronCount[NumGeometry + Idx] = Other.TetrahedronCount[Idx];
 	}
 
 	return ID;

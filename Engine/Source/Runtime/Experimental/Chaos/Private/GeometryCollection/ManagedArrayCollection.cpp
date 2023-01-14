@@ -27,6 +27,19 @@ void FManagedArrayCollection::AddGroup(FName Group)
 	GroupInfo.Add(Group, info);
 }
 
+int32 FManagedArrayCollection::NumAttributes(FName Group) const
+{
+	int32 Num=0;
+	for (const TTuple<FKeyType, FValueType>& Entry : Map)
+	{
+		if (Entry.Key.Get<1>() == Group)
+		{
+			Num++;
+		}
+	}
+	return Num;
+}
+
 void FManagedArrayCollection::RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList, FProcessingParameters Params)
 {
 	if (SortedDeletionList.Num())

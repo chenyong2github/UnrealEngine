@@ -223,6 +223,10 @@ public:
 	*/
 	void AddGroup(FName Group);
 
+	/**
+	* Returns the number of attributes in a group.
+	*/
+	int32 NumAttributes(FName Group) const;
 
 	/**
 	* List all the attributes in a group names.
@@ -394,7 +398,6 @@ public:
 	* @param Group - The group that manages the attribute
 	*/
 	void RemoveGroup(FName Group);
-
 
 	/**
 	* List all the group names.

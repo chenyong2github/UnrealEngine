@@ -54,9 +54,10 @@ public:
 	void ReorderTetrahedralElements(const TArray<int32>& NewOrder);
 
 	/*
-	*  Attribute Groupes
+	*  Attribute Groups
 	*/
 	static const FName TetrahedralGroup;
+	static const FName BindingsGroup;
 
 	/*
 	*  Tetrahedron Attribute
@@ -65,7 +66,9 @@ public:
 	static const FName TetrahedronAttribute;
 	TManagedArray<FIntVector4> Tetrahedron;
 
+	static const FName TetrahedronStartAttribute;
 	TManagedArray<int32> TetrahedronStart;
+	static const FName TetrahedronCountAttribute;
 	TManagedArray<int32> TetrahedronCount;
 
 	/**
