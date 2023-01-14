@@ -5,7 +5,7 @@
 #include "Containers/StaticArray.h"
 #include "MultiGPU.h"
 #include "RHIDefinitions.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 
 struct FTextureMemoryStats
 {

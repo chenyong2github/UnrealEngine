@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include "GpuProfilerTrace.h" // TODO Move defines into RHIDefinitions
 #include "Serialization/MemoryLayout.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h" // TODO Move defines into RHIDefinitions
 
 #ifndef USE_STATIC_SHADER_PLATFORM_ENUMS
 #define USE_STATIC_SHADER_PLATFORM_ENUMS 0
