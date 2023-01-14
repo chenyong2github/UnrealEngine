@@ -442,7 +442,7 @@ struct FCachedSystemScalabilityCVars
 
 	FCachedSystemScalabilityCVars();
 
-	bool operator==(const FCachedSystemScalabilityCVars& Other);
+	bool operator==(const FCachedSystemScalabilityCVars& Other) const;
 
 protected:
 	// This isn't public as it's only used to detect the change. Use ComputeAnisotropyRT()

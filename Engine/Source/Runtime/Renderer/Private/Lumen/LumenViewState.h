@@ -25,7 +25,7 @@ public:
 	int32 VoxelTracingMode;
 	int32 DirectLighting;
 
-	inline bool operator==(const FLumenGatherCvarState& Rhs)
+	inline bool operator==(const FLumenGatherCvarState& Rhs) const
 	{
 		return TraceMeshSDFs == Rhs.TraceMeshSDFs &&
 			MeshSDFTraceDistance == Rhs.MeshSDFTraceDistance &&

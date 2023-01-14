@@ -676,7 +676,7 @@ FCachedSystemScalabilityCVars::FCachedSystemScalabilityCVars()
 
 }
 
-bool FCachedSystemScalabilityCVars::operator==(const FCachedSystemScalabilityCVars& Other)
+bool FCachedSystemScalabilityCVars::operator==(const FCachedSystemScalabilityCVars& Other) const
 {
 	return DetailMode == Other.DetailMode &&
 		MaterialQualityLevel == Other.MaterialQualityLevel &&

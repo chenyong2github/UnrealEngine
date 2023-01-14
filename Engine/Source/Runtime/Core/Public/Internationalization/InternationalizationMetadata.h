@@ -52,8 +52,8 @@ public:
 
 	virtual ELocMetadataType GetType() const = 0;
 
-	bool operator==( const FLocMetadataValue& Other ) { return ( (GetType() == Other.GetType()) && EqualTo( Other ) ); }
-	bool operator<( const FLocMetadataValue& Other ) { return (GetType() == Other.GetType()) ? LessThan( Other ) : (GetType() < Other.GetType()); }
+	bool operator==( const FLocMetadataValue& Other ) const { return ( (GetType() == Other.GetType()) && EqualTo( Other ) ); }
+	bool operator<( const FLocMetadataValue& Other ) const { return (GetType() == Other.GetType()) ? LessThan( Other ) : (GetType() < Other.GetType()); }
 
 protected:
 	FLocMetadataValue() {}
