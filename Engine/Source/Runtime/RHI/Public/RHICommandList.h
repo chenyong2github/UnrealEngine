@@ -4,11 +4,7 @@
 	RHICommandList.h: RHI Command List definitions for queueing up & executing later.
 =============================================================================*/
 
-// IWYU pragma: private, include "RHI.h"
-
 #pragma once
-
-// HEADER_UNIT_SKIP - Should always be included through RHI.h (this code needs cleanup.. this file is included by RHIUtilities.h which is included in the middle of RHI.h)
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
@@ -26,14 +22,18 @@
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "Misc/MemStack.h"
 #include "Misc/App.h"
-#include "Stats/Stats.h"
+#include "RHIStats.h"
 #include "HAL/IConsoleManager.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "RHIBreadcrumbs.h"
 #include "RHITextureReference.h"
 #include "Trace/Trace.h"
+
+#include "DynamicRHI.h"
+#include "RHITypes.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITStalls);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
@@ -163,6 +163,72 @@ bool FORCEINLINE IsRunningRHIInTaskThread()
 extern RHI_API bool GEnableAsyncCompute;
 extern RHI_API TAutoConsoleVariable<int32> CVarRHICmdWidth;
 extern RHI_API TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasks;
+
+
+struct FRHICopyTextureInfo
+{
+	FIntRect GetSourceRect() const
+	{
+		return FIntRect(SourcePosition.X, SourcePosition.Y, SourcePosition.X + Size.X, SourcePosition.Y + Size.Y);
+	}
+
+	FIntRect GetDestRect() const
+	{
+		return FIntRect(DestPosition.X, DestPosition.Y, DestPosition.X + Size.X, DestPosition.Y + Size.Y);
+	}
+
+	// Number of texels to copy. By default it will copy the whole resource if no size is specified.
+	FIntVector Size = FIntVector::ZeroValue;
+
+	// Position of the copy from the source texture/to destination texture
+	FIntVector SourcePosition = FIntVector::ZeroValue;
+	FIntVector DestPosition = FIntVector::ZeroValue;
+
+	uint32 SourceSliceIndex = 0;
+	uint32 DestSliceIndex = 0;
+	uint32 NumSlices = 1;
+
+	// Mips to copy and destination mips
+	uint32 SourceMipIndex = 0;
+	uint32 DestMipIndex = 0;
+	uint32 NumMips = 1;
+};
+
+struct FRHIBufferRange
+{
+	class FRHIBuffer* Buffer{ nullptr };
+	uint64 Offset{ 0 };
+	uint64 Size{ 0 };
+};
+
+/** Struct to hold common data between begin/end updatetexture3d */
+struct FUpdateTexture3DData
+{
+	FUpdateTexture3DData(FRHITexture* InTexture, uint32 InMipIndex, const struct FUpdateTextureRegion3D& InUpdateRegion, uint32 InSourceRowPitch, uint32 InSourceDepthPitch, uint8* InSourceData, uint32 InDataSizeBytes, uint32 InFrameNumber)
+		: Texture(InTexture)
+		, MipIndex(InMipIndex)
+		, UpdateRegion(InUpdateRegion)
+		, RowPitch(InSourceRowPitch)
+		, DepthPitch(InSourceDepthPitch)
+		, Data(InSourceData)
+		, DataSizeBytes(InDataSizeBytes)
+		, FrameNumber(InFrameNumber)
+	{
+	}
+
+	FRHITexture* Texture;
+	uint32 MipIndex;
+	FUpdateTextureRegion3D UpdateRegion;
+	uint32 RowPitch;
+	uint32 DepthPitch;
+	uint8* Data;
+	uint32 DataSizeBytes;
+	uint32 FrameNumber;
+	uint8 PlatformData[64];
+
+private:
+	FUpdateTexture3DData();
+};
 
 #if RHI_RAYTRACING
 struct FRayTracingShaderBindings
@@ -3598,11 +3664,6 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void DrawIndexedPrimitive(FRHIBuffer* IndexBuffer, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 	{
-		if (!IndexBuffer)
-		{
-			UE_LOG(LogRHI, Fatal, TEXT("Tried to call DrawIndexedPrimitive with null IndexBuffer!"));
-		}
-
 		//check(IsOutsideRenderPass());
 		PreDraw();
 		if (Bypass())
@@ -4054,7 +4115,6 @@ public:
 	 */
 	FORCEINLINE_DEBUGGABLE void RayTraceDispatchIndirect(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRHIRayTracingScene* Scene, const FRayTracingShaderBindings& GlobalResourceBindings, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
 	{
-		checkf(GRHISupportsRayTracingDispatchIndirect, TEXT("Indirect ray tracing is not supported on this machine."));
 		if (Bypass())
 		{
 			GetContext().RHIRayTraceDispatchIndirect(GetRHIRayTracingPipelineState(Pipeline), RayGenShader, Scene, GlobalResourceBindings, ArgumentBuffer, ArgumentOffset);

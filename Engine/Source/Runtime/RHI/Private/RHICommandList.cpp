@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
+#include "RHICommandList.h"
 #include "Misc/App.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "RHI.h"
@@ -2042,15 +2042,4 @@ void FRHICommandListImmediate::CleanupGraphEvents()
 	{
 		GraphEvent.SafeRelease();
 	}
-}
-
-RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext* InContext, FRHIComputeShader* InShader)
-{
-	TRefCountPtr<FRHIComputePipelineState> ComputePipelineState = RHICreateComputePipelineState(InShader);
-	InContext->RHISetComputePipelineState(ComputePipelineState);
-}
-
-void IRHIComputeContext::RHISetComputeShader(FRHIComputeShader* ComputeShader)
-{
-	RHISetComputeShaderBackwardsCompatible(this, ComputeShader);
 }

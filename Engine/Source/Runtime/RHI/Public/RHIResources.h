@@ -1,12 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// IWYU pragma: private, include "RHI.h"
-
 #pragma once
-
-// HEADER_UNIT_SKIP - Should always be included through RHI.h (this code needs cleanup.. this file is included in the middle of RHI.h)
-
-#include <atomic>
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
@@ -33,6 +27,8 @@
 #include "RHIImmutableSamplerState.h"
 #include "RHITransition.h"
 #include "MultiGPU.h"
+
+#include <atomic>
 
 class FRHIComputeCommandList;
 class FRHICommandListImmediate;

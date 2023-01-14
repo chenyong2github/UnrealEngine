@@ -6,8 +6,6 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - Should always be included after RHI.h (this code needs cleanup.. this file is included in the middle of RHI.h)
-
 #include "Misc/AssertionMacros.h"
 #include "Math/Color.h"
 #include "Math/IntPoint.h"
@@ -34,6 +32,12 @@ struct FRayTracingSceneBuildParams;
 struct FRayTracingLocalShaderBindings;
 enum class ERayTracingBindingType : uint8;
 enum class EAsyncComputeBudget;
+
+struct FRHIBufferRange;
+struct FRHIPerCategoryDrawStats;
+struct FRHIDrawStats;
+struct FRHICopyTextureInfo;
+
 
 #define VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
@@ -469,13 +473,10 @@ public:
 	virtual void RHIPostExternalCommandsReset() { }
 
 protected:
-	FRHIDrawStats::FPerCategoryStats* Stats = nullptr;
+	FRHIPerCategoryDrawStats* Stats = nullptr;
 
 public:
-	void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID, uint32 InGPUIndex)
-	{
-		Stats = &InStats->GetGPU(InGPUIndex).GetCategory(InCategoryID);
-	}
+	RHI_API void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID, uint32 InGPUIndex);
 
 #if WITH_MGPU || ENABLE_RHI_VALIDATION
 	virtual
@@ -890,23 +891,5 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 private:
-	void SetGraphicsPipelineStateFromInitializer(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState)
-	{
-		RHISetBoundShaderState(
-			RHICreateBoundShaderState(
-				PsoInit.BoundShaderState.VertexDeclarationRHI,
-				PsoInit.BoundShaderState.VertexShaderRHI,
-				PsoInit.BoundShaderState.PixelShaderRHI,
-				PsoInit.BoundShaderState.GetGeometryShader()
-			).GetReference()
-		);
-
-		RHISetDepthStencilState(PsoInit.DepthStencilState, StencilRef);
-		RHISetRasterizerState(PsoInit.RasterizerState);
-		RHISetBlendState(PsoInit.BlendState, FLinearColor(1.0f, 1.0f, 1.0f));
-		if (GSupportsDepthBoundsTest)
-		{
-			RHIEnableDepthBoundsTest(PsoInit.bDepthBounds);
-		}
-	}
+	RHI_API void SetGraphicsPipelineStateFromInitializer(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState);
 };

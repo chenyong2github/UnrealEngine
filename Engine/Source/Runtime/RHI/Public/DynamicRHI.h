@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// IWYU pragma: private, include "RHI.h"
-
 /*=============================================================================
 DynamicRHI.h: Dynamically bound Render Hardware Interface definitions.
 =============================================================================*/
 
 #pragma once
 
-// HEADER_UNIT_SKIP - Should always be included through RHI.h (this code needs cleanup.. this file is included in the middle of RHI.h)
-
 #include "CoreTypes.h"
 #include "RHIContext.h"
+#include "RHIFeatureLevel.h"
 #include "MultiGPU.h"
 #include "Serialization/MemoryLayout.h"
 #include "Containers/ArrayView.h"
@@ -34,36 +31,9 @@ struct FRHIUniformBufferLayout;
 struct FSamplerStateInitializerRHI;
 struct FTextureMemoryStats;
 struct FRHIGPUMask;
+struct FUpdateTexture3DData;
 
-
-/** Struct to hold common data between begin/end updatetexture3d */
-struct FUpdateTexture3DData
-{
-	FUpdateTexture3DData(FRHITexture3D* InTexture, uint32 InMipIndex, const struct FUpdateTextureRegion3D& InUpdateRegion, uint32 InSourceRowPitch, uint32 InSourceDepthPitch, uint8* InSourceData, uint32 InDataSizeBytes, uint32 InFrameNumber )
-		: Texture(InTexture)
-		, MipIndex(InMipIndex)
-		, UpdateRegion(InUpdateRegion)
-		, RowPitch(InSourceRowPitch)
-		, DepthPitch(InSourceDepthPitch)
-		, Data(InSourceData)
-		, DataSizeBytes(InDataSizeBytes)
-		, FrameNumber(InFrameNumber)
-	{
-	}
-
-	FRHITexture3D* Texture;
-	uint32 MipIndex;
-	FUpdateTextureRegion3D UpdateRegion;
-	uint32 RowPitch;
-	uint32 DepthPitch;
-	uint8* Data;
-	uint32 DataSizeBytes;
-	uint32 FrameNumber;
-	uint8 PlatformData[64];
-
-private:
-	FUpdateTexture3DData();
-};
+typedef TArray<FScreenResolutionRHI> FScreenResolutionArray;
 
 /** Struct to provide details of swap chain flips */
 struct FRHIFlipDetails
@@ -738,16 +708,7 @@ public:
 	virtual void RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags) = 0;
 
 	// Default fallback; will not work for non-8-bit surfaces and it's extremely slow.
-	virtual void RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
-	{
-		TArray<FColor> TempData;
-		RHIReadSurfaceData(Texture, Rect, TempData, InFlags);
-		OutData.SetNumUninitialized(TempData.Num());
-		for (int32 Index = 0; Index < TempData.Num(); ++Index)
-		{
-			OutData[Index] = TempData[Index].ReinterpretAsLinear();
-		}
-	}
+	virtual void RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags);
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)

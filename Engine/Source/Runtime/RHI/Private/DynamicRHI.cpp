@@ -4,6 +4,7 @@
 	DynamicRHI.cpp: Dynamically bound Render Hardware Interface implementation.
 =============================================================================*/
 
+#include "DynamicRHI.h"
 #include "Containers/ClosableMpscQueue.h"
 #include "Misc/MessageDialog.h"
 #include "Experimental/Containers/HazardPointer.h"
@@ -456,6 +457,18 @@ static FAutoConsoleCommandWithWorldAndArgs GBaseRHISetGPUCaptureOptions(
 	TEXT("Platform RHI's may implement more feature toggles."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&BaseRHISetGPUCaptureOptions)
 	);
+
+// Default fallback; will not work for non-8-bit surfaces and it's extremely slow.
+void FDynamicRHI::RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
+{
+	TArray<FColor> TempData;
+	RHIReadSurfaceData(Texture, Rect, TempData, InFlags);
+	OutData.SetNumUninitialized(TempData.Num());
+	for (int32 Index = 0; Index < TempData.Num(); ++Index)
+	{
+		OutData[Index] = TempData[Index].ReinterpretAsLinear();
+	}
+}
 
 void FDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, FReadSurfaceDataFlags InFlags)
 {

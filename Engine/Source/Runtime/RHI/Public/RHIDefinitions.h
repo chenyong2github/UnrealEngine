@@ -37,6 +37,10 @@ static_assert(sizeof(void*) <= SHADER_PARAMETER_POINTER_ALIGNMENT, "The alignmen
 #define RHI_RAYTRACING 0
 #endif
 
+#ifndef HAS_GPU_STATS
+#define HAS_GPU_STATS ((STATS || CSV_PROFILER || GPUPROFILERTRACE_ENABLED) && (!UE_BUILD_SHIPPING))
+#endif
+
 enum class ERHIInterfaceType
 {
 	Hidden,
@@ -1320,6 +1324,14 @@ inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
 #else
 	#define GEOMETRY_SHADER(GeometryShader)	nullptr
 #endif
+
+/** Screen Resolution */
+struct FScreenResolutionRHI
+{
+	uint32	Width;
+	uint32	Height;
+	uint32	RefreshRate;
+};
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"

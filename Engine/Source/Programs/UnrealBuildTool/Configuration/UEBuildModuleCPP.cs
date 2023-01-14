@@ -1528,13 +1528,6 @@ namespace UnrealBuildTool
 
 		private bool IgnoreMismatchedHeader(string ExpectedName)
 		{
-			switch(ExpectedName)
-			{
-				case "DynamicRHI":
-				case "RHICommandList":
-				case "RHIUtilities":
-					return true;
-			}
 			switch(Name)
 			{
 				case "D3D11RHI":

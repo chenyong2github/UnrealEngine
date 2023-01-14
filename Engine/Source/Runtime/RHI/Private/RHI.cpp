@@ -38,27 +38,6 @@ CSV_DEFINE_CATEGORY(DrawCall, false);
 CSV_DEFINE_CATEGORY(DrawCall, true);
 #endif
 
-// Define counter stats.
-#if HAS_GPU_STATS
-	DEFINE_STAT(STAT_RHIDrawPrimitiveCalls);
-	DEFINE_STAT(STAT_RHITriangles);
-	DEFINE_STAT(STAT_RHILines);
-#endif
-
-// Define memory stats.
-DEFINE_STAT(STAT_RenderTargetMemory2D);
-DEFINE_STAT(STAT_RenderTargetMemory3D);
-DEFINE_STAT(STAT_RenderTargetMemoryCube);
-DEFINE_STAT(STAT_TextureMemory2D);
-DEFINE_STAT(STAT_TextureMemory3D);
-DEFINE_STAT(STAT_TextureMemoryCube);
-DEFINE_STAT(STAT_UniformBufferMemory);
-DEFINE_STAT(STAT_IndexBufferMemory);
-DEFINE_STAT(STAT_VertexBufferMemory);
-DEFINE_STAT(STAT_RTAccelerationStructureMemory);
-DEFINE_STAT(STAT_StructuredBufferMemory);
-DEFINE_STAT(STAT_PixelBufferMemory);
-
 IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayoutInitializer);
 IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferResource);
 
@@ -86,6 +65,7 @@ static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 #if STATS
+#include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "Stats/StatsData.h"
 static void DumpRHIMemory(FOutputDevice& OutputDevice)
 {
@@ -1416,12 +1396,6 @@ RHI_API int32 GPoolSizeVRAMPercentage = 0;
 RHI_API uint64 GDemotedLocalMemorySize = 0;
 
 RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = {SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms};
-
-// simple stats about draw calls. GNum is the previous frame and 
-// GCurrent is the current frame.
-
-RHI_API int32 GNumDrawCallsRHI      [MAX_NUM_GPUS] = {};
-RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
 
 // By default, read only states and UAV states are allowed to participate in state merging.
 ERHIAccess GRHIMergeableAccessMask = ERHIAccess::ReadOnlyMask | ERHIAccess::UAVMask;

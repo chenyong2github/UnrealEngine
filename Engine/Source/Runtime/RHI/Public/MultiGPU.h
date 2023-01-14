@@ -6,7 +6,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
 
 /** When greater than one, indicates that SLI rendering is enabled */
 #if PLATFORM_DESKTOP
