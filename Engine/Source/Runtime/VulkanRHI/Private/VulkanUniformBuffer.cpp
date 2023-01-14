@@ -8,6 +8,7 @@
 #include "VulkanContext.h"
 #include "VulkanLLM.h"
 #include "ShaderParameterStruct.h"
+#include "RHIUniformBufferDataShared.h"
 
 static int32 GVulkanAllowUniformUpload = 1;
 static FAutoConsoleVariableRef CVarVulkanAllowUniformUpload(
@@ -29,61 +30,10 @@ enum
 -----------------------------------------------------------------------------*/
 
 
-
-// Utility class for reading shader parameters out of the data blob passed in.
-struct FUniformDataReader
-{
-	FUniformDataReader() = delete;
-	FUniformDataReader(const void* InData) : Data(reinterpret_cast<const uint8*>(InData)) { }
-
-	template<typename TResourceOut>
-	const TResourceOut& Read(const FRHIUniformBufferResource& InResource) const
-	{
-		return *reinterpret_cast<const TResourceOut*>(Data + InResource.MemberOffset);
-	}
-
-	const uint8* Data;
-};
-
 static void UpdateUniformBufferConstants(FVulkanDevice* Device, void* DestinationData, const void* SourceData, const FRHIUniformBufferLayout* Layout)
 {
-	check(DestinationData != nullptr);
-	check(SourceData != nullptr);
-
-	// First copy wholesale
-	FMemory::Memcpy(DestinationData, SourceData, Layout->ConstantBufferSize);
-
-	// Then copy indices over
-	if (Device->SupportsBindless())
-	{
-		FUniformDataReader Reader(SourceData);
-
-		for (const FRHIUniformBufferResource& Resource : Layout->Resources)
-		{
-			FRHIDescriptorHandle Handle;
-
-			if (Resource.MemberType == UBMT_SAMPLER)
-			{
-				FRHISamplerState* SamplerState = Reader.Read<FRHISamplerState*>(Resource);
-				if (SamplerState)
-				{
-					Handle = SamplerState->GetBindlessHandle();
-				}
-			}
-			else
-			{
-				// todo-jn: bindless resources : handle other types
-			}
-
-			if (Handle.IsValid())
-			{
-				const uint32 BindlessIndex = Handle.GetIndex();
-				FMemory::Memcpy(reinterpret_cast<uint8*>(DestinationData) + Resource.MemberOffset, &BindlessIndex, sizeof(BindlessIndex));
-			}
-		}
-	}
+	UE::RHICore::UpdateUniformBufferConstants(DestinationData, SourceData, *Layout, Device->SupportsBindless());
 }
-
 
 static inline EBufferUsageFlags UniformBufferToBufferUsage(EUniformBufferUsage Usage)
 {
