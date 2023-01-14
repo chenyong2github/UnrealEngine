@@ -59,7 +59,7 @@ FFilterConfiguratorNode& FFilterConfiguratorNode::operator=(const FFilterConfigu
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FFilterConfiguratorNode::operator==(const FFilterConfiguratorNode& Other)
+bool FFilterConfiguratorNode::operator==(const FFilterConfiguratorNode& Other) const
 {
 	bool bIsEqual = true;
 	bIsEqual &= AvailableFilters.Get() == Other.AvailableFilters.Get();

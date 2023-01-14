@@ -16,7 +16,7 @@ struct FFolderKey
 		, RootObjectKey(InRootObject)
 	{}
 
-	FORCEINLINE bool operator == (const FFolderKey& InOther)
+	FORCEINLINE bool operator == (const FFolderKey& InOther) const
 	{
 		return (Path == InOther.Path) && (RootObjectKey == InOther.RootObjectKey);
 	}
@@ -122,13 +122,13 @@ public:
 		}
 	}
 
-	friend bool operator==(const FSceneOutlinerTreeItemID& One, const FSceneOutlinerTreeItemID& Other)
+	bool operator==(const FSceneOutlinerTreeItemID& Other) const
 	{
-		return One.Type == Other.Type && One.CachedHash == Other.CachedHash && One.Compare(Other);
+		return Type == Other.Type && CachedHash == Other.CachedHash && Compare(Other);
 	}
-	friend bool operator!=(const FSceneOutlinerTreeItemID& One, const FSceneOutlinerTreeItemID& Other)
+	bool operator!=(const FSceneOutlinerTreeItemID& Other) const
 	{
-		return One.Type != Other.Type || One.CachedHash != Other.CachedHash || !One.Compare(Other);
+		return Type != Other.Type || CachedHash != Other.CachedHash || !Compare(Other);
 	}
 
 	uint32 CalculateTypeHash() const

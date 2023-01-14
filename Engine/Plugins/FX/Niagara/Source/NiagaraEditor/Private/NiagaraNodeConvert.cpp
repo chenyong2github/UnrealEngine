@@ -877,9 +877,9 @@ void UNiagaraNodeConvert::AddExpandedRecord(const FNiagaraConvertPinRecord& InRe
 	}
 }
 
-bool operator ==(const FNiagaraConvertPinRecord & A, const FNiagaraConvertPinRecord & B)
+bool FNiagaraConvertPinRecord::operator ==(const FNiagaraConvertPinRecord & B) const
 {
-	return (A.PinId == B.PinId && A.Path == B.Path);
+	return (PinId == B.PinId && Path == B.Path);
 }
 
 #undef LOCTEXT_NAMESPACE

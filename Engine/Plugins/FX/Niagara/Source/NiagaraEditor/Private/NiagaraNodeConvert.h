@@ -40,9 +40,9 @@ struct FNiagaraConvertPinRecord
 		}
 		return Record;
 	}
-};
 
-bool operator ==(const FNiagaraConvertPinRecord &, const FNiagaraConvertPinRecord &);
+	bool operator ==(const FNiagaraConvertPinRecord &) const;
+};
 
 /** Helper struct that stores a connection between two sockets.*/
 USTRUCT()
@@ -83,7 +83,7 @@ struct FNiagaraConvertConnection
 	{
 	}
 
-	bool operator ==(const FNiagaraConvertConnection& B) { return SourcePinId == B.SourcePinId && DestinationPinId == B.DestinationPinId && DestinationPath == B.DestinationPath && SourcePath == B.SourcePath; }
+	bool operator ==(const FNiagaraConvertConnection& B) const { return SourcePinId == B.SourcePinId && DestinationPinId == B.DestinationPinId && DestinationPath == B.DestinationPath && SourcePath == B.SourcePath; }
 
 	FString ToString() const;
 };

@@ -405,7 +405,7 @@ struct AIMODULE_API FAIResourceLock
 		Locks |= Other.Locks;		
 	}
 
-	bool operator==(const FAIResourceLock& Other)
+	bool operator==(const FAIResourceLock& Other) const
 	{
 		return Locks == Other.Locks;
 	}

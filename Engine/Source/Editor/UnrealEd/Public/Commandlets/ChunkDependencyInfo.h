@@ -28,7 +28,7 @@ struct FChunkDependency
 	UPROPERTY(EditAnywhere, Category = ChunkInfo)
 	int32 ParentChunkID = 0;
 
-	bool operator== (const FChunkDependency& RHS) 
+	bool operator== (const FChunkDependency& RHS) const
 	{
 		return ChunkID == RHS.ChunkID;
 	}

@@ -53,7 +53,7 @@ public:
 
 	FFilterConfiguratorNode(const FFilterConfiguratorNode& Other);
 
-	bool operator==(const FFilterConfiguratorNode& Other);
+	bool operator==(const FFilterConfiguratorNode& Other) const;
 
 	virtual ~FFilterConfiguratorNode() {}
 
