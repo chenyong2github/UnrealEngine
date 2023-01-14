@@ -3,10 +3,7 @@
 #pragma once
 
 #include "UObject/NameTypes.h"
-
-#ifndef USE_STATIC_SHADER_PLATFORM_ENUMS
-#define USE_STATIC_SHADER_PLATFORM_ENUMS 0
-#endif
+#include "RHIDefinitions.h"
 
 /** @warning: update *LegacyShaderPlatform* when the below changes */
 enum EShaderPlatform : uint16

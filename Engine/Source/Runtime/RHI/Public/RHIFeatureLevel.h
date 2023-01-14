@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/EnumAsByte.h"
+#include "RHIDefinitions.h"
 #include "Serialization/MemoryLayout.h"
 
 #ifndef USE_STATIC_FEATURE_LEVEL_ENUMS

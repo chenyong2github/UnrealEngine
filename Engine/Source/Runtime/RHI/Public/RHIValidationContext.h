@@ -6,12 +6,14 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - Should always be included through RHIValidation.h
-
 #include "RHIValidationCommon.h"
 #include "RHIValidationUtils.h"
 
 #if ENABLE_RHI_VALIDATION
+
+#include "RHI.h"
+#include "RHIUtilities.h"
+
 class FValidationRHI;
 
 inline void ValidateShaderParameters(RHIValidation::FTracker* Tracker, RHIValidation::FStaticUniformBuffers& StaticUniformBuffers, TConstArrayView<FRHIShaderParameterResource> InParameters, ERHIAccess InRequiredAccess, RHIValidation::EUAVMode InRequiredUAVMode)

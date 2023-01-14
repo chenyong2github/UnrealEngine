@@ -2,11 +2,12 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - Included through others
-
 #include "Misc/Build.h"
 
 #if ENABLE_RHI_VALIDATION
+
+#include "RHIResources.h"
+#include "RHICommandList.h"
 
 class FValidationRHIUtils
 {

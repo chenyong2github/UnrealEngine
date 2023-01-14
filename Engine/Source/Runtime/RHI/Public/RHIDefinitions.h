@@ -9,6 +9,10 @@
 
 #include "Serialization/MemoryLayout.h"
 
+#ifndef USE_STATIC_SHADER_PLATFORM_ENUMS
+#define USE_STATIC_SHADER_PLATFORM_ENUMS 0
+#endif
+
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
 #define SHADER_PARAMETER_STRUCT_ALIGNMENT 16
 
