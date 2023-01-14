@@ -2,8 +2,6 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - Bad include. Some headers are in Chaos while this is in ChaosCore
-
 #include "Chaos/Real.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"

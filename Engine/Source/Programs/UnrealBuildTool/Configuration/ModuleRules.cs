@@ -1397,6 +1397,7 @@ namespace UnrealBuildTool
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"PhysicsCore",
+					"ChaosCore",
 					"Chaos",
 					}
 				);

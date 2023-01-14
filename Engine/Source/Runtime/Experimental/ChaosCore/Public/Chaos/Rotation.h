@@ -156,12 +156,12 @@ namespace Chaos
 		/**
 		 * Return the complex conjugate of the rotation
 		 */
-		CHAOS_API static TRotation<FRealSingle, 3> Conjugate(const ::Chaos::TRotation<FRealSingle, 3>& InR);
+		CHAOSCORE_API static TRotation<FRealSingle, 3> Conjugate(const ::Chaos::TRotation<FRealSingle, 3>& InR);
 
 		/**
 		 * Negate all values of the quaternion (note: not the inverse rotation. See Conjugate)
 		 */
-		CHAOS_API static TRotation<FRealSingle, 3> Negate(const ::Chaos::TRotation<FRealSingle, 3>& InR);
+		CHAOSCORE_API static TRotation<FRealSingle, 3> Negate(const ::Chaos::TRotation<FRealSingle, 3>& InR);
 
 		/**
 		 * Create an identity rotation
@@ -199,12 +199,12 @@ namespace Chaos
 		/**
 		 * Create a rotation about an axis V/|V| by angle |V| in radians
 		 */
-		CHAOS_API static TRotation<FRealSingle, 3> FromVector(const ::Chaos::TVector<FRealSingle, 3>& V);
+		CHAOSCORE_API static TRotation<FRealSingle, 3> FromVector(const ::Chaos::TVector<FRealSingle, 3>& V);
 
 		/**
 		 * Generate a Rotation that would rotate vector InitialVector to FinalVector
 		 */
-		CHAOS_API static TRotation<FRealSingle, 3> FromRotatedVector(
+		CHAOSCORE_API static TRotation<FRealSingle, 3> FromRotatedVector(
 			const ::Chaos::TVector<FRealSingle, 3>& InitialVector,
 			const ::Chaos::TVector<FRealSingle, 3>& FinalVector);
 
@@ -213,14 +213,14 @@ namespace Chaos
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
 		 */
-		CHAOS_API static TVector<FRealSingle, 3> CalculateAngularVelocity1(const TRotation<FRealSingle, 3>& R0, const TRotation<FRealSingle, 3>& InR1, const FRealSingle InDt);
+		CHAOSCORE_API static TVector<FRealSingle, 3> CalculateAngularVelocity1(const TRotation<FRealSingle, 3>& R0, const TRotation<FRealSingle, 3>& InR1, const FRealSingle InDt);
 
 		/**
 		 * Calculate the angular velocity required to take an object with orientation R0 to orientation R1 in time Dt.
 		 *
 		 * Uses the Quaternion to Axis/Angle method.
 		 */
-		CHAOS_API static TVector<FRealSingle, 3> CalculateAngularVelocity2(const TRotation<FRealSingle, 3>& R0, const TRotation<FRealSingle, 3>& InR1, const FRealSingle InDt);
+		CHAOSCORE_API static TVector<FRealSingle, 3> CalculateAngularVelocity2(const TRotation<FRealSingle, 3>& R0, const TRotation<FRealSingle, 3>& InR1, const FRealSingle InDt);
 
 		/**
 		 * Calculate the angular velocity required to take an object with orientation R0 to orientation R1 in time Dt.
@@ -247,7 +247,7 @@ namespace Chaos
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
 		 */
-		CHAOS_API static TRotation<FRealSingle, 3> IntegrateRotationWithAngularVelocity(const TRotation<FRealSingle, 3>& InR0, const TVector<FRealSingle, 3>& InW, const FRealSingle InDt);
+		CHAOSCORE_API static TRotation<FRealSingle, 3> IntegrateRotationWithAngularVelocity(const TRotation<FRealSingle, 3>& InR0, const TVector<FRealSingle, 3>& InW, const FRealSingle InDt);
 
 		/**
 		 * Check that two rotations are approximately equal. Assumes the quaternions are normalized and in the same hemisphere.
@@ -375,12 +375,12 @@ namespace Chaos
 		/**
 		 * Return the complex conjugate of the rotation
 		 */
-		CHAOS_API static TRotation<FRealDouble, 3> Conjugate(const ::Chaos::TRotation<FRealDouble, 3>& InR);
+		CHAOSCORE_API static TRotation<FRealDouble, 3> Conjugate(const ::Chaos::TRotation<FRealDouble, 3>& InR);
 
 		/**
 		 * Negate all values of the quaternion (note: not the inverse rotation. See Conjugate)
 		 */
-		CHAOS_API static TRotation<FRealDouble, 3> Negate(const ::Chaos::TRotation<FRealDouble, 3>& InR);
+		CHAOSCORE_API static TRotation<FRealDouble, 3> Negate(const ::Chaos::TRotation<FRealDouble, 3>& InR);
 
 		/**
 		 * Create an identity rotation
@@ -418,12 +418,12 @@ namespace Chaos
 		/**
 		 * Create a rotation about an axis V/|V| by angle |V| in radians
 		 */
-		CHAOS_API static TRotation<FRealDouble, 3> FromVector(const ::Chaos::TVector<FRealDouble, 3>& V);
+		CHAOSCORE_API static TRotation<FRealDouble, 3> FromVector(const ::Chaos::TVector<FRealDouble, 3>& V);
 
 		/**
 		 * Generate a Rotation that would rotate vector InitialVector to FinalVector
 		 */
-		CHAOS_API static TRotation<FRealDouble, 3> FromRotatedVector(
+		CHAOSCORE_API static TRotation<FRealDouble, 3> FromRotatedVector(
 			const ::Chaos::TVector<FRealDouble, 3>& InitialVector,
 			const ::Chaos::TVector<FRealDouble, 3>& FinalVector);
 
@@ -432,14 +432,14 @@ namespace Chaos
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
 		 */
-		CHAOS_API static TVector<FRealDouble, 3> CalculateAngularVelocity1(const TRotation<FRealDouble, 3>& R0, const TRotation<FRealDouble, 3>& InR1, const FRealDouble InDt);
+		CHAOSCORE_API static TVector<FRealDouble, 3> CalculateAngularVelocity1(const TRotation<FRealDouble, 3>& R0, const TRotation<FRealDouble, 3>& InR1, const FRealDouble InDt);
 
 		/**
 		 * Calculate the angular velocity required to take an object with orientation R0 to orientation R1 in time Dt.
 		 *
 		 * Uses the Quaternion to Axis/Angle method.
 		 */
-		CHAOS_API static TVector<FRealDouble, 3> CalculateAngularVelocity2(const TRotation<FRealDouble, 3>& R0, const TRotation<FRealDouble, 3>& InR1, const FRealDouble InDt);
+		CHAOSCORE_API static TVector<FRealDouble, 3> CalculateAngularVelocity2(const TRotation<FRealDouble, 3>& R0, const TRotation<FRealDouble, 3>& InR1, const FRealDouble InDt);
 
 		/**
 		 * Calculate the angular velocity required to take an object with orientation R0 to orientation R1 in time Dt.
@@ -466,7 +466,7 @@ namespace Chaos
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
 		 */
-		CHAOS_API static TRotation<FRealDouble, 3> IntegrateRotationWithAngularVelocity(const TRotation<FRealDouble, 3>& InR0, const TVector<FRealDouble, 3>& InW, const FRealDouble InDt);
+		CHAOSCORE_API static TRotation<FRealDouble, 3> IntegrateRotationWithAngularVelocity(const TRotation<FRealDouble, 3>& InR0, const TVector<FRealDouble, 3>& InW, const FRealDouble InDt);
 
 		/**
 		 * Check that two rotations are approximately equal. Assumes the quaternions are normalized and in the same hemisphere.
