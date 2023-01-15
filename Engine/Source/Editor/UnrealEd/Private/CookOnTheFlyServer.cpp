@@ -4547,6 +4547,182 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory()
 	}
 }
 
+void UCookOnTheFlyServer::PreGarbageCollect()
+{
+	if (!IsInSession())
+	{
+		return;
+	}
+
+	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
+	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
+	TArray<UPackage*> GCKeepPackages;
+	TArray<UE::Cook::FPackageData*> GCKeepPackageDatas;
+	PreGarbageCollectImpl(GCKeepPackages, GCKeepPackageDatas, GCKeepObjects);
+}
+
+void UCookOnTheFlyServer::PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackages,
+	TArray<UE::Cook::FPackageData*>& GCKeepPackageDatas, TArray<UObject*>& LocalGCKeepObjects)
+{
+	using namespace UE::Cook;
+
+#if COOK_CHECKSLOW_PACKAGEDATA
+	// Verify that only packages in the save state have pointers to objects
+	for (const FPackageData* PackageData : *PackageDatas.Get())
+	{
+		check(PackageData->GetState() == EPackageState::Save || !PackageData->HasReferencedObjects());
+	}
+#endif
+	if (SavingPackageData)
+	{
+		check(SavingPackageData->GetPackage());
+		LocalGCKeepObjects.Add(SavingPackageData->GetPackage());
+	}
+
+
+	// Demote any Generated/Generator packages we called PreSave on so they call their PostSave before the GC
+	// or prevent them from being garbage collected if the splitter wants to keep them referenced
+	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
+	{
+		FGeneratorPackage* Generator = PackageData->GetGeneratorPackage();
+		if (!Generator)
+		{
+			Generator = PackageData->GetGeneratedOwner();
+		}
+		FCookGenerationInfo* Info = Generator ? Generator->FindInfo(*PackageData) : nullptr;
+		if (Info)
+		{
+			bool bShouldDemote;
+			Generator->PreGarbageCollect(*Info, LocalGCKeepObjects, GCKeepPackages, GCKeepPackageDatas, bShouldDemote);
+			if (bShouldDemote)
+			{
+				ReleaseCookedPlatformData(*PackageData, UE::Cook::EReleaseSaveReason::Demoted);
+			}
+		}
+	}
+	
+	// Find the packages that are waiting on async jobs to finish cooking data
+	// and make sure that they are not garbage collected until the jobs have
+	// completed.
+	{
+		TMap<FPackageData*, UPackage*> UniquePendingPackages;
+		for (FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
+		{
+			if (UObject* Object = PendingData.Object.Get())
+			{	
+				if (UPackage* Package = Object->GetPackage())
+				{
+					UniquePendingPackages.Add(&PendingData.PackageData, Package);
+				}	
+			}
+		}
+
+		GCKeepPackages.Reserve(GCKeepPackages.Num() + UniquePendingPackages.Num());
+		for (const TPair<FPackageData*,UPackage*>& Pair : UniquePendingPackages)
+		{
+			GCKeepPackages.Add(Pair.Value);
+			GCKeepPackageDatas.Add(Pair.Key);
+		}
+	}
+
+	// Prevent GC of any objects on which we are still waiting for IsCachedCookedPlatformData
+	for (UE::Cook::FPendingCookedPlatformData& Pending : PackageDatas->GetPendingCookedPlatformDatas())
+	{
+		if (!Pending.PollIsComplete())
+		{
+			UObject* Object = Pending.Object.Get();
+			check(Object); // Otherwise PollIsComplete would have returned true
+			LocalGCKeepObjects.Add(Object);
+		}
+	}
+
+	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
+	if (bPartialGC)
+	{
+		LocalGCKeepObjects.Empty(1000);
+
+		// Keep all inprogress packages (including packages that have only made it to the request list) that have been partially loaded
+		// Additionally, keep all partially loaded packages that are transitively dependended on by any inprogress packages
+		// Keep all UObjects that have been loaded so far under these packages
+		TMap<const FPackageData*, int32> DependenciesCount;
+
+		TSet<FName> KeepPackages;
+		for (FPackageData* PackageData : *PackageDatas)
+		{
+			if (!PackageData->IsInProgress())
+			{
+				continue;
+			}
+			const TArray<FName>& NeededPackages = GetFullPackageDependencies(PackageData->GetPackageName());
+			DependenciesCount.Add(PackageData, NeededPackages.Num());
+			KeepPackages.Append(NeededPackages);
+			GCKeepPackageDatas.Add(PackageData);
+		}
+
+		TSet<FName> LoadedPackages;
+		PackageTracker->ForEachLoadedPackage(
+			[&KeepPackages, &LoadedPackages, &GCKeepPackages](UPackage* Package)
+			{
+				const FName& PackageName = Package->GetFName();
+				if (KeepPackages.Contains(PackageName))
+				{
+					LoadedPackages.Add(PackageName);
+					GCKeepPackages.Add(Package);
+				}
+			}
+		);
+
+		FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
+		TArray<FPackageData*> Requests;
+		Requests.Reserve(RequestQueue.ReadyRequestsNum());
+		while (!RequestQueue.IsReadyRequestsEmpty())
+		{
+			Requests.Add(RequestQueue.PopReadyRequest());
+		}
+		// We are not looking at UnclusteredRequests or RequestClusters from the RequestQueue. These are supposed to 
+		// be quickly processed and should usually be empty, so failing to account for them will only rarely cause
+		// a performance issue (and will not cause a behavior issue)
+		
+		// Sort the cook requests by the packages which are loaded first
+		// then sort by the number of dependencies which are referenced by the package
+		// we want to process the packages with the highest dependencies so that they can
+		// be evicted from memory and are likely to be able to be released on next GC pass
+		Algo::Sort(Requests, [&DependenciesCount, &LoadedPackages](const FPackageData* A, const FPackageData* B)
+			{
+				int32 ADependencies = DependenciesCount.FindChecked(A);
+				int32 BDependencies = DependenciesCount.FindChecked(B);
+				bool ALoaded = LoadedPackages.Contains(A->GetPackageName());
+				bool BLoaded = LoadedPackages.Contains(B->GetPackageName());
+				return (ALoaded == BLoaded) ? (ADependencies > BDependencies) : ALoaded > BLoaded;
+			}
+		);
+		for (FPackageData* Request : Requests)
+		{
+			RequestQueue.AddRequest(Request); // Urgent requests will still be moved to the front of the RequestQueue by AddRequest
+		}
+	}
+
+	// Add packages and all RF_Public objects outered to them to LocalGCKeepObjects
+	TArray<UObject*> ObjectsWithOuter;
+	for (UPackage* Package : GCKeepPackages)
+	{
+		LocalGCKeepObjects.Add(Package);
+		ObjectsWithOuter.Reset();
+		GetObjectsWithOuter(Package, ObjectsWithOuter);
+		for (UObject* Obj : ObjectsWithOuter)
+		{
+			if (Obj->HasAnyFlags(RF_Public))
+			{
+				LocalGCKeepObjects.Add(Obj);
+			}
+		}
+	}
+	for (FPackageData* PackageData : GCKeepPackageDatas)
+	{
+		PackageData->SetKeepReferencedDuringGC(true);
+	}
+}
+
 void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
 	int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
 	const FGenericMemoryStats& AllocatorStatsBeforeGC,
@@ -5045,182 +5221,6 @@ const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName
 	}
 
 	return *PackageDependencies;
-}
-
-void UCookOnTheFlyServer::PreGarbageCollect()
-{
-	if (!IsInSession())
-	{
-		return;
-	}
-
-	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
-	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
-	TArray<UPackage*> GCKeepPackages;
-	TArray<UE::Cook::FPackageData*> GCKeepPackageDatas;
-	PreGarbageCollectImpl(GCKeepPackages, GCKeepPackageDatas, GCKeepObjects);
-}
-
-void UCookOnTheFlyServer::PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackages,
-	TArray<UE::Cook::FPackageData*>& GCKeepPackageDatas, TArray<UObject*>& LocalGCKeepObjects)
-{
-	using namespace UE::Cook;
-
-#if COOK_CHECKSLOW_PACKAGEDATA
-	// Verify that only packages in the save state have pointers to objects
-	for (const FPackageData* PackageData : *PackageDatas.Get())
-	{
-		check(PackageData->GetState() == EPackageState::Save || !PackageData->HasReferencedObjects());
-	}
-#endif
-	if (SavingPackageData)
-	{
-		check(SavingPackageData->GetPackage());
-		LocalGCKeepObjects.Add(SavingPackageData->GetPackage());
-	}
-
-
-	// Demote any Generated/Generator packages we called PreSave on so they call their PostSave before the GC
-	// or prevent them from being garbage collected if the splitter wants to keep them referenced
-	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
-	{
-		FGeneratorPackage* Generator = PackageData->GetGeneratorPackage();
-		if (!Generator)
-		{
-			Generator = PackageData->GetGeneratedOwner();
-		}
-		FCookGenerationInfo* Info = Generator ? Generator->FindInfo(*PackageData) : nullptr;
-		if (Info)
-		{
-			bool bShouldDemote;
-			Generator->PreGarbageCollect(*Info, LocalGCKeepObjects, GCKeepPackages, GCKeepPackageDatas, bShouldDemote);
-			if (bShouldDemote)
-			{
-				ReleaseCookedPlatformData(*PackageData, UE::Cook::EReleaseSaveReason::Demoted);
-			}
-		}
-	}
-	
-	// Find the packages that are waiting on async jobs to finish cooking data
-	// and make sure that they are not garbage collected until the jobs have
-	// completed.
-	{
-		TMap<FPackageData*, UPackage*> UniquePendingPackages;
-		for (FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
-		{
-			if (UObject* Object = PendingData.Object.Get())
-			{	
-				if (UPackage* Package = Object->GetPackage())
-				{
-					UniquePendingPackages.Add(&PendingData.PackageData, Package);
-				}	
-			}
-		}
-
-		GCKeepPackages.Reserve(GCKeepPackages.Num() + UniquePendingPackages.Num());
-		for (const TPair<FPackageData*,UPackage*>& Pair : UniquePendingPackages)
-		{
-			GCKeepPackages.Add(Pair.Value);
-			GCKeepPackageDatas.Add(Pair.Key);
-		}
-	}
-
-	// Prevent GC of any objects on which we are still waiting for IsCachedCookedPlatformData
-	for (UE::Cook::FPendingCookedPlatformData& Pending : PackageDatas->GetPendingCookedPlatformDatas())
-	{
-		if (!Pending.PollIsComplete())
-		{
-			UObject* Object = Pending.Object.Get();
-			check(Object); // Otherwise PollIsComplete would have returned true
-			LocalGCKeepObjects.Add(Object);
-		}
-	}
-
-	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
-	if (bPartialGC)
-	{
-		LocalGCKeepObjects.Empty(1000);
-
-		// Keep all inprogress packages (including packages that have only made it to the request list) that have been partially loaded
-		// Additionally, keep all partially loaded packages that are transitively dependended on by any inprogress packages
-		// Keep all UObjects that have been loaded so far under these packages
-		TMap<const FPackageData*, int32> DependenciesCount;
-
-		TSet<FName> KeepPackages;
-		for (FPackageData* PackageData : *PackageDatas)
-		{
-			if (!PackageData->IsInProgress())
-			{
-				continue;
-			}
-			const TArray<FName>& NeededPackages = GetFullPackageDependencies(PackageData->GetPackageName());
-			DependenciesCount.Add(PackageData, NeededPackages.Num());
-			KeepPackages.Append(NeededPackages);
-			GCKeepPackageDatas.Add(PackageData);
-		}
-
-		TSet<FName> LoadedPackages;
-		PackageTracker->ForEachLoadedPackage(
-			[&KeepPackages, &LoadedPackages, &GCKeepPackages](UPackage* Package)
-			{
-				const FName& PackageName = Package->GetFName();
-				if (KeepPackages.Contains(PackageName))
-				{
-					LoadedPackages.Add(PackageName);
-					GCKeepPackages.Add(Package);
-				}
-			}
-		);
-
-		FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-		TArray<FPackageData*> Requests;
-		Requests.Reserve(RequestQueue.ReadyRequestsNum());
-		while (!RequestQueue.IsReadyRequestsEmpty())
-		{
-			Requests.Add(RequestQueue.PopReadyRequest());
-		}
-		// We are not looking at UnclusteredRequests or RequestClusters from the RequestQueue. These are supposed to 
-		// be quickly processed and should usually be empty, so failing to account for them will only rarely cause
-		// a performance issue (and will not cause a behavior issue)
-		
-		// Sort the cook requests by the packages which are loaded first
-		// then sort by the number of dependencies which are referenced by the package
-		// we want to process the packages with the highest dependencies so that they can
-		// be evicted from memory and are likely to be able to be released on next GC pass
-		Algo::Sort(Requests, [&DependenciesCount, &LoadedPackages](const FPackageData* A, const FPackageData* B)
-			{
-				int32 ADependencies = DependenciesCount.FindChecked(A);
-				int32 BDependencies = DependenciesCount.FindChecked(B);
-				bool ALoaded = LoadedPackages.Contains(A->GetPackageName());
-				bool BLoaded = LoadedPackages.Contains(B->GetPackageName());
-				return (ALoaded == BLoaded) ? (ADependencies > BDependencies) : ALoaded > BLoaded;
-			}
-		);
-		for (FPackageData* Request : Requests)
-		{
-			RequestQueue.AddRequest(Request); // Urgent requests will still be moved to the front of the RequestQueue by AddRequest
-		}
-	}
-
-	// Add packages and all RF_Public objects outered to them to LocalGCKeepObjects
-	TArray<UObject*> ObjectsWithOuter;
-	for (UPackage* Package : GCKeepPackages)
-	{
-		LocalGCKeepObjects.Add(Package);
-		ObjectsWithOuter.Reset();
-		GetObjectsWithOuter(Package, ObjectsWithOuter);
-		for (UObject* Obj : ObjectsWithOuter)
-		{
-			if (Obj->HasAnyFlags(RF_Public))
-			{
-				LocalGCKeepObjects.Add(Obj);
-			}
-		}
-	}
-	for (FPackageData* PackageData : GCKeepPackageDatas)
-	{
-		PackageData->SetKeepReferencedDuringGC(true);
-	}
 }
 
 void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
