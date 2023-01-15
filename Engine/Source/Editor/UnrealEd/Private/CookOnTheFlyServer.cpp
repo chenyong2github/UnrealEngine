@@ -4723,6 +4723,65 @@ void UCookOnTheFlyServer::PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackage
 	}
 }
 
+void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
+{
+	using namespace UE::Cook;
+
+	// GCKeepObjects are the objects that we want to keep loaded but we only have a WeakPtr to
+	Collector.AddReferencedObjects(GCKeepObjects);
+}
+
+void UCookOnTheFlyServer::PostGarbageCollect()
+{
+	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
+	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
+	PostGarbageCollectImpl(GCKeepObjects);
+}
+
+void UCookOnTheFlyServer::PostGarbageCollectImpl(TArray<UObject*>& LocalGCKeepObjects)
+{
+	using namespace UE::Cook;
+
+	// If any PackageDatas with ObjectPointers had any of their object pointers deleted out from under them, demote them back to request
+	TArray<FPackageData*> Demotes;
+	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
+	{
+		bool bOutDemote;
+		PackageData->UpdateSaveAfterGarbageCollect(bOutDemote);
+		if (bOutDemote)
+		{
+			Demotes.Add(PackageData);
+		}
+	}
+	for (FPackageData* PackageData : Demotes)
+	{
+		PackageData->SendToState(EPackageState::Request, ESendFlags::QueueRemove);
+		PackageDatas->GetRequestQueue().AddRequest(PackageData, /* bForceUrgent */ true);
+	}
+
+	// If there was a GarbageCollect while we are saving a package, some of the WeakObjectPtr in SavingPackageData->CachedObjectPointers may have been deleted and set to null
+	// We need to handle nulls in that array at any point after calling SavePackage. We do not want to declare them as references and prevent their GC, in case there is 
+	// the expectation by some licensee code that removing references to an object will cause it to not be saved
+	// However, if garbage collection deleted the package WHILE WE WERE SAVING IT, then we have problems.
+	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
+
+	LocalGCKeepObjects.Empty();
+
+	for (FPackageData* PackageData : *PackageDatas.Get())
+	{
+		if (FGeneratorPackage* GeneratorPackage = PackageData->GetGeneratorPackage())
+		{
+			GeneratorPackage->PostGarbageCollect();
+		}
+	}
+	for (FPackageData* PackageData : *PackageDatas.Get())
+	{
+		PackageData->SetKeepReferencedDuringGC(false);
+	}
+
+	CookedPackageCountSinceLastGC = 0;
+}
+
 void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
 	int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
 	const FGenericMemoryStats& AllocatorStatsBeforeGC,
@@ -5221,65 +5280,6 @@ const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName
 	}
 
 	return *PackageDependencies;
-}
-
-void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
-{
-	using namespace UE::Cook;
-
-	// GCKeepObjects are the objects that we want to keep loaded but we only have a WeakPtr to
-	Collector.AddReferencedObjects(GCKeepObjects);
-}
-
-void UCookOnTheFlyServer::PostGarbageCollect()
-{
-	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
-	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
-	PostGarbageCollectImpl(GCKeepObjects);
-}
-
-void UCookOnTheFlyServer::PostGarbageCollectImpl(TArray<UObject*>& LocalGCKeepObjects)
-{
-	using namespace UE::Cook;
-
-	// If any PackageDatas with ObjectPointers had any of their object pointers deleted out from under them, demote them back to request
-	TArray<FPackageData*> Demotes;
-	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
-	{
-		bool bOutDemote;
-		PackageData->UpdateSaveAfterGarbageCollect(bOutDemote);
-		if (bOutDemote)
-		{
-			Demotes.Add(PackageData);
-		}
-	}
-	for (FPackageData* PackageData : Demotes)
-	{
-		PackageData->SendToState(EPackageState::Request, ESendFlags::QueueRemove);
-		PackageDatas->GetRequestQueue().AddRequest(PackageData, /* bForceUrgent */ true);
-	}
-
-	// If there was a GarbageCollect while we are saving a package, some of the WeakObjectPtr in SavingPackageData->CachedObjectPointers may have been deleted and set to null
-	// We need to handle nulls in that array at any point after calling SavePackage. We do not want to declare them as references and prevent their GC, in case there is 
-	// the expectation by some licensee code that removing references to an object will cause it to not be saved
-	// However, if garbage collection deleted the package WHILE WE WERE SAVING IT, then we have problems.
-	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
-
-	LocalGCKeepObjects.Empty();
-
-	for (FPackageData* PackageData : *PackageDatas.Get())
-	{
-		if (FGeneratorPackage* GeneratorPackage = PackageData->GetGeneratorPackage())
-		{
-			GeneratorPackage->PostGarbageCollect();
-		}
-	}
-	for (FPackageData* PackageData : *PackageDatas.Get())
-	{
-		PackageData->SetKeepReferencedDuringGC(false);
-	}
-
-	CookedPackageCountSinceLastGC = 0;
 }
 
 void UCookOnTheFlyServer::BeginDestroy()
