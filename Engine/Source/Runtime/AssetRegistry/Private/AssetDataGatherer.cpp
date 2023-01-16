@@ -3187,6 +3187,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 			}
 		}
 
+		DependencyResults.Reserve(FilesToSearch->GetNumAvailable() + DependencyResults.Num());
 		FilesToSearch->PopFront(LocalFilesToSearch, NumToProcess);
 
 		// If no work is available mark idle and exit
