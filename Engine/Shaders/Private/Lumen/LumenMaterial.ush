@@ -21,9 +21,10 @@
 uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint InBSDFIndex, inout bool bIsValid)
 {
 	// First tile is always valid. 
-	// * BSDFIndex is 0-based
-	// * TileIndex is 1-based. This is why there is a -1.
-	bIsValid = InBSDFIndex == 0 || InBSDFIndex < (InTile0.Count + 1); 
+	// * InBSDFIndex is 0-based
+	// * Tile.Index is 1-based. This is why there is a -1.
+	// * Tile.Count is the actual number of BSDF
+	bIsValid = InBSDFIndex == 0 || InBSDFIndex < (InTile0.Count);
 
 	uint2 Out = InTile0Coord;
 	if (InBSDFIndex > 0)
@@ -163,7 +164,7 @@ FLumenMaterialCoord GetLumenMaterialCoord(in uint2 SvPositionInPrimarySpace, uin
 		Out.TileBSDFIndex = InBSDFIndex;
 		Out.TileBSDFCount = BSDF0Tile.Count;
 		Out.SvPosition = SvPositionInPrimarySpace;
-		Out.SvPositionFlatten = GetTilePositionFlatten(BSDF0Tile, Tile0Coord, InBSDFIndex, bIsValid) * STRATA_TILE_SIZE;
+		Out.SvPositionFlatten = GetTilePositionFlatten(BSDF0Tile, Tile0Coord, InBSDFIndex, bIsValid) * STRATA_TILE_SIZE + LocalCoord;
 	}
 #endif
 	return Out;

@@ -1092,7 +1092,7 @@ void ReflectionBilateralFilterCS(
 				float TotalWeight = 1.0f;
 				float GuassianNormalize = 2.0f / (KernelRadius * KernelRadius);
 				float InvSpecularLobeAngleThreshold = 1.0f / (lerp(.0001f * PI, PI, Material.Roughness * Material.Roughness) * BilateralFilterNormalAngleThresholdScale);
-				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, SCREEN_TEMPORAL_INDEX)).xy;
+				uint2 RandomSeed = Rand3DPCG16(int3(Coord.SvPosition, SCREEN_TEMPORAL_INDEX)).xy;
 
 				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 				float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
