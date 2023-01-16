@@ -30,9 +30,11 @@ struct FActiveGameplayEffect;
 struct FGameplayEffectModCallbackData;
 struct FGameplayEffectSpec;
 struct FHitResult;
+struct FMinimalReplicationTagCountMapForNetSerializer;
 namespace UE::Net
 {
 	struct FGameplayEffectContextHandleAccessorForNetSerializer;
+	class FMinimalReplicationTagCountMapReplicationFragment;
 }
 
 /** Wrappers to convert enum to string. These are fairly slow */
@@ -1635,6 +1637,8 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 	void RemoveAllTags();
 
 private:
+	friend FMinimalReplicationTagCountMapForNetSerializer;
+	friend UE::Net::FMinimalReplicationTagCountMapReplicationFragment;
 
 	bool bRequireNonOwningNetConnection = false;
 	void UpdateOwnerTagMap();

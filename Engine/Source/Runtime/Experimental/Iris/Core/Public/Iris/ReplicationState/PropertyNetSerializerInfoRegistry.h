@@ -167,6 +167,11 @@ const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##Proper
 #define UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(Name, SerializerName) \
 const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##Name() { static UE::Net::FNamedStructPropertyNetSerializerInfo StaticInstance(Name, UE_NET_GET_SERIALIZER(SerializerName)); return StaticInstance; };
 
+/**
+ * Force a struct to use a custom serializer and custom fragment. Use of custom fragments is highly discouraged as serialization order is modified, ending up after normal class properties.
+ * It probably requires additional memory allocations to create the fragment as well. Only use a last resort when all other options have been exhausted.
+ * It should never be required to use custom fragments except for very rare backward compatibility purposes. Ask the experts first to try to find a better solution.
+ */
 #define UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_WITH_CUSTOM_FRAGMENT_INFO(Name, SerializerName, CreateAndRegisterReplicationFragmentFunction) \
 const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##Name() \
 { \
