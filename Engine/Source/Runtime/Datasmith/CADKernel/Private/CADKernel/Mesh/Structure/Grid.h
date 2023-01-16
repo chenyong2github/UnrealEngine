@@ -363,7 +363,7 @@ public:
 	/**
 	 * @return true if the bits EPointMarker::IsInside and EPointMarker::IsInsideButTooCloseToLoop are booth equal to 0 and EPointMarker::IsCloseToLoop  is equal to 1
 	 */
-	const bool IsNodeCloseToButOusideFace(int32 Index) const
+	const bool IsNodeOusideFaceButClose(int32 Index) const
 	{
 		constexpr ENodeMarker IsInsideAndClose = ENodeMarker::IsInside | ENodeMarker::IsInsideButTooCloseToLoop | ENodeMarker::IsCloseToLoop;
 		return (NodeMarkers[Index] & IsInsideAndClose) == ENodeMarker::IsCloseToLoop;

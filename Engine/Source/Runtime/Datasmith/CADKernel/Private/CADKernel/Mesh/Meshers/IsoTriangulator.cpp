@@ -519,18 +519,7 @@ void FIsoTriangulator::BuildInnerSegments()
 
 	TFunction<void(const int32, const int32, const ESegmentType)> BuildSegmentIfValid = [&](const int32 IndexNode1, const int32 IndexNode2, const ESegmentType InType)
 	{
-		if (Grid.IsNodeOutsideFace(IndexNode1) && Grid.IsNodeOutsideFace(IndexNode2))
-		{
-#ifdef DEBUG_BUILDINNERSEGMENTS
-			if (bDisplay)
-			{
-				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::RedCurve);
-			}
-#endif
-			return;
-		}
-
-		if (Grid.IsNodeCloseToButOusideFace(IndexNode1) && Grid.IsNodeCloseToButOusideFace(IndexNode2))
+		if (Grid.IsNodeOusideFaceButClose(IndexNode1) && Grid.IsNodeOusideFaceButClose(IndexNode2))
 		{
 #ifdef DEBUG_BUILDINNERSEGMENTS
 			if (bDisplay)
@@ -539,6 +528,18 @@ void FIsoTriangulator::BuildInnerSegments()
 			}
 #endif
 			AddToInnerToOuterSegmentsIntersectionTool(IndexNode1, IndexNode2, InType);
+			return;
+		}
+
+		if (Grid.IsNodeOutsideFace(IndexNode1) && Grid.IsNodeOutsideFace(IndexNode2))
+		{
+#ifdef DEBUG_BUILDINNERSEGMENTS
+			if (bDisplay)
+			{
+				F3DDebugSession _(bDisplay, TEXT("Segment"));
+				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::RedCurve);
+			}
+#endif
 			return;
 		}
 
