@@ -63,7 +63,7 @@ struct FLwsSendBuffer
 	bool bHasError;
 };
 
-/** Buffer for one incoming binary packet fragment */
+/** Buffer for one incoming binary packet */
 struct FLwsReceiveBufferBinary
 {
 	/**
@@ -81,6 +81,25 @@ struct FLwsReceiveBufferBinary
 };
 
 typedef TUniquePtr<FLwsReceiveBufferBinary> FLwsReceiveBufferBinaryPtr;
+
+/** Buffer for one incoming binary packet fragment */
+struct FLwsReceiveBufferBinaryFragment
+{
+	/**
+	 * Constructor
+	 * @param Data pointer to data to fill our buffer with
+	 * @param Size size of Data
+	 * @param bInIsLastFragment Whether or not this is the last fragment
+	 */
+	FLwsReceiveBufferBinaryFragment(const uint8* Data, const int32 Size, const bool bInIsLastFragment);
+
+	/** Payload received */
+	TArray<uint8> Payload;
+	/** Whether or not this is the last fragment */
+	const bool bIsLastFragment;
+};
+
+typedef TUniquePtr<FLwsReceiveBufferBinaryFragment> FLwsReceiveBufferBinaryFragmentPtr;
 
 /** Buffer for one incoming text packet, fully received */
 struct FLwsReceiveBufferText
@@ -119,6 +138,7 @@ public:
 
 	virtual void Send(const FString& Data);
 	virtual void Send(const void* Data, SIZE_T Size, bool bIsBinary) override;
+	virtual void SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) override;
 
 	/** Delegate called when a web socket connection has been established */
 	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketConnectedEvent, FWebSocketConnectedEvent);
@@ -141,19 +161,27 @@ public:
 		return ClosedEvent;
 	}
 
-	/** Delegate called when a web socket message has been received */
+	/** Delegate called when a web socket text message has been received */
 	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketMessageEvent, FWebSocketMessageEvent);
 	virtual FWebSocketMessageEvent& OnMessage() override
 	{
 		return MessageEvent;
 	}
 
-	/** Delegate called when a raw web socket message has been received */
+	/** Delegate called when a web socket binary message has been received */
+	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketBinaryMessageEvent, FWebSocketBinaryMessageEvent);
+	virtual FWebSocketBinaryMessageEvent& OnBinaryMessage() override
+	{
+		return BinaryMessageEvent;
+	}
+
+	/** Delegate called when a any web socket message has been received */
 	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketRawMessageEvent, FWebSocketRawMessageEvent);
 	virtual FWebSocketRawMessageEvent& OnRawMessage() override
 	{
 		return RawMessageEvent;
 	}
+
 
 	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketMessageSentEvent, FWebSocketMessageSentEvent);
 	virtual FWebSocketMessageSentEvent& OnMessageSent() override
@@ -194,7 +222,7 @@ private:
 
 public:
 	/** Constructor */
-	FLwsWebSocket(FPrivateToken, const FString& Url, const TArray<FString>& Protocols, const FString& UpgradeHeader);
+	FLwsWebSocket(FPrivateToken, const FString& Url, const TArray<FString>& Protocols, const FString& UpgradeHeader, uint64 TextMessageMemoryLimit);
 
 private:
 	/**
@@ -283,6 +311,7 @@ private:
 	FWebSocketConnectionErrorEvent ConnectionErrorEvent;
 	FWebSocketClosedEvent ClosedEvent;
 	FWebSocketMessageEvent MessageEvent;
+	FWebSocketBinaryMessageEvent BinaryMessageEvent;
 	FWebSocketRawMessageEvent RawMessageEvent;
 	FWebSocketMessageSentEvent OnMessageSentEvent;
 
@@ -305,15 +334,25 @@ private:
 	 * For performance reasons if nothing was bound at Connect() time, we will never trigger OnRawMessage
 	 */
 	bool bWantsRawMessageEvents;
+	/**
+	 * Whether or not OnBinaryMessage was bound to when Connect() was called.
+	 * For performance reasons if nothing was bound at Connect() time, we will never trigger OnBinaryMessage
+	 */
+	bool bWantsBinaryMessageEvents;
+
 
 	/** Buffer of an incomplete packet received */
 	FString ReceiveBuffer;
-	/** Received binary fragments, waiting for delegates to be triggered on the game thread */
+	/** Received binary packets, waiting for delegates to be triggered on the game thread */
 	TQueue<FLwsReceiveBufferBinaryPtr, EQueueMode::Spsc> ReceiveBinaryQueue;
+	/** Received fragments of binary packets, waiting for delegates to be triggered on the game thread */
+	TQueue<FLwsReceiveBufferBinaryFragmentPtr, EQueueMode::Spsc> ReceiveBinaryFragmentQueue;
 	/** Received text packets, waiting for delegates to be triggered on the game thread */
 	TQueue<FLwsReceiveBufferTextPtr, EQueueMode::Spsc> ReceiveTextQueue;
 	/** Pending outgoing packets, populated by the game thread and processed on the libwebsockets thread */
 	TQueue<FLwsSendBuffer*, EQueueMode::Spsc> SendQueue;
+
+	uint64 MaxTextMessageBufferSize;
 
 	// Unique identifier for logging
 	/** Incrementing identifier to give each web socket a unique identifier */

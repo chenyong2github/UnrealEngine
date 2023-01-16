@@ -43,6 +43,13 @@ public:
 	virtual void Send(const void* Data, SIZE_T Size, bool bIsBinary = false) = 0;
 
 	/**
+	 * Optionally change memory limit for receiving UTF-8 text on this socket. 
+	 * Default from config TextMessageMemoryLimit under [WebSockets] or 1MB.
+	 * @param TextMessageMemoryLimit new buffer size upper limit in bytes.
+	 */
+	virtual void SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) = 0;
+
+	/**
 	 * Delegate called when a web socket connection has been established successfully.
 	 *
 	 */
@@ -70,12 +77,19 @@ public:
 	 */
 	DECLARE_EVENT_OneParam(IWebSocket, FWebSocketMessageEvent, const FString& /* MessageString */);
 	virtual FWebSocketMessageEvent& OnMessage() = 0;
-
-	/**
-	 * Delegate called when a web socket data has been received.
+	
+      /**
+	 * Delegate called when web socket binary data has been received.
+	 * bIsLastFragment will be true if it is the last fragment of the current packet.
+	 */
+	DECLARE_EVENT_ThreeParams(IWebSocket, FWebSocketBinaryMessageEvent, const void* /* Data */, SIZE_T /* Size */, bool /* bIsLastFragment */);
+	virtual FWebSocketBinaryMessageEvent& OnBinaryMessage() = 0;
+	
+      /**
+	 * Delegate called when any web socket data has been received.
 	 * May be called multiple times for a message if the message was split into multiple frames. 
-	 * The last parameter will be 0 on the last frame in the packet.
-	 *
+	 * This is called for every web socket fragment.
+	 * BytesRemaining is the number of bytes left in the current fragment.
 	 */
 	DECLARE_EVENT_ThreeParams(IWebSocket, FWebSocketRawMessageEvent, const void* /* Data */, SIZE_T /* Size */, SIZE_T /* BytesRemaining */);
 	virtual FWebSocketRawMessageEvent& OnRawMessage() = 0;

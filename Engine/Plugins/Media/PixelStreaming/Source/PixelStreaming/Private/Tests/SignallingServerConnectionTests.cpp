@@ -88,10 +88,12 @@ namespace
 		virtual bool IsConnected() override { return bConnected; }
 		virtual void Send(const FString& Data) override { OnMockResponseEvent.Broadcast(Data); }
 		virtual void Send(const void* Data, SIZE_T Size, bool bIsBinary = false) override {}
+		virtual void SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) override {}
 		virtual FWebSocketConnectedEvent& OnConnected() override { return OnConnectedEvent; }
 		virtual FWebSocketConnectionErrorEvent& OnConnectionError() override { return OnErrorEvent; }
 		virtual FWebSocketClosedEvent& OnClosed() override { return OnClosedEvent; }
 		virtual FWebSocketMessageEvent& OnMessage() override { return OnMessageEvent; }
+		virtual FWebSocketBinaryMessageEvent& OnBinaryMessage() override { return OnBinaryMessageEvent; }
 		virtual FWebSocketRawMessageEvent& OnRawMessage() override { return OnRawMessageEvent; }
 		virtual FWebSocketMessageSentEvent& OnMessageSent() override { return OnMessageSentEvent; }
 
@@ -106,6 +108,7 @@ namespace
 		FWebSocketConnectionErrorEvent OnErrorEvent;
 		FWebSocketClosedEvent OnClosedEvent;
 		FWebSocketMessageEvent OnMessageEvent;
+		FWebSocketBinaryMessageEvent OnBinaryMessageEvent;
 		FWebSocketRawMessageEvent OnRawMessageEvent;
 		FWebSocketMessageSentEvent OnMessageSentEvent;
 

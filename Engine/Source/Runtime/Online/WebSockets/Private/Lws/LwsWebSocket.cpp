@@ -45,6 +45,15 @@ FLwsReceiveBufferBinary::FLwsReceiveBufferBinary(const uint8* Data, const int32 
 	Payload.Append(Data, Size);
 }
 
+// FLwsReceiveBufferBinaryFragment
+FLwsReceiveBufferBinaryFragment::FLwsReceiveBufferBinaryFragment(const uint8* Data, const int32 Size, const bool bInIsLastFragment)
+	: bIsLastFragment(bInIsLastFragment)
+{
+	check(Data);
+	check(Size >= 0);
+	Payload.Append(Data, Size);
+}
+
 // FLwsReceiveBufferText
 FLwsReceiveBufferText::FLwsReceiveBufferText(FString&& InText)
 	: Text(MoveTemp(InText))
@@ -72,7 +81,7 @@ const TCHAR* FLwsWebSocket::ToString(const EState InState)
 	return TEXT("Unknown");
 }
 
-FLwsWebSocket::FLwsWebSocket(FPrivateToken, const FString& InUrl, const TArray<FString>& InProtocols, const FString& InUpgradeHeader)
+FLwsWebSocket::FLwsWebSocket(FPrivateToken, const FString& InUrl, const TArray<FString>& InProtocols, const FString& InUpgradeHeader, uint64 TextMessageMemoryLimit)
 	: State(EState::None)
 	, LastGameThreadState(EState::None)
 	, bWasSendQueueEmpty(true)
@@ -80,6 +89,7 @@ FLwsWebSocket::FLwsWebSocket(FPrivateToken, const FString& InUrl, const TArray<F
 	, Url(InUrl)
 	, Protocols(InProtocols)
 	, UpgradeHeader(InUpgradeHeader)
+	, MaxTextMessageBufferSize(TextMessageMemoryLimit)
 	, Identifier(++IncrementingIdentifier)
 {
 	UE_LOG(LogWebSockets, VeryVerbose, TEXT("FLwsWebSocket[%d]: Constructed url=%s protocols=%s"), Identifier, *InUrl, *FString::Join(Protocols, TEXT(",")));
@@ -122,6 +132,7 @@ void FLwsWebSocket::Connect()
 
 	bWantsMessageEvents = OnMessage().IsBound();
 	bWantsRawMessageEvents = OnRawMessage().IsBound();
+	bWantsBinaryMessageEvents = OnBinaryMessage().IsBound();
 	
 	UE_LOG(LogWebSockets, Verbose, TEXT("FLwsWebSocket[%d]::Connect: setting State=%s url=%s bWantsMessageEvents=%d bWantsRawMessageEvents=%d"), Identifier, ToString(State), *Url, (int32)bWantsMessageEvents, (int32)bWantsRawMessageEvents);
 
@@ -167,6 +178,12 @@ void FLwsWebSocket::Send(const FString& Data)
 	OnMessageSent().Broadcast(Data);
 }
 
+
+void FLwsWebSocket::SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit)
+{
+	MaxTextMessageBufferSize = TextMessageMemoryLimit;
+}
+
 void FLwsWebSocket::SendFromQueue()
 {
 	check(LwsConnection);
@@ -210,6 +227,7 @@ void FLwsWebSocket::ClearData()
 {
 	check(State != EState::Connected);
 	ReceiveBinaryQueue.Empty();
+	ReceiveBinaryFragmentQueue.Empty();
 	ReceiveTextQueue.Empty();
 	FLwsSendBuffer* SendBuffer;
 	while (SendQueue.Dequeue(SendBuffer))
@@ -281,24 +299,44 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 	case LWS_CALLBACK_CLIENT_RECEIVE:
 	{
 		const SIZE_T BytesLeft = lws_remaining_packet_payload(Instance);
-		UE_LOG(LogWebSockets, VeryVerbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_CLIENT_RECEIVE Length=%d BytesLeft=%d"), Identifier, Length, BytesLeft);
+		bool bIsFinalFragment = (bool)lws_is_final_fragment(Instance);
+		bool bIsBinary = (bool)lws_frame_is_binary(Instance);
+		UE_LOG(LogWebSockets, VeryVerbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_CLIENT_RECEIVE Length=%d BytesLeftInFragment=%d IsFinalFragment=%s"), Identifier, Length, BytesLeft, bIsFinalFragment ? "true" : "false");
 		bool bWakeGameThread = false;
-		if (bWantsMessageEvents)
+		if (bWantsMessageEvents && !bIsBinary)
 		{
 			FUTF8ToTCHAR Convert((const ANSICHAR*)Data, Length);
-			ReceiveBuffer.Append(Convert.Get(), Convert.Length());
-			if (BytesLeft == 0)
+
+			if (ReceiveBuffer.Len() + Length > MaxTextMessageBufferSize)
 			{
-				bWakeGameThread = true;
-				ReceiveTextQueue.Enqueue(MakeUnique<FLwsReceiveBufferText>(MoveTemp(ReceiveBuffer)));
-				ReceiveBuffer.Empty();
+				FString ReasonString = FString::Printf(TEXT("Received text message exceeded memory limit of %lu bytes"), MaxTextMessageBufferSize);
+				Close(LWS_CLOSE_STATUS_MESSAGE_TOO_LARGE, ReasonString);
+
+				UE_LOG(LogWebSockets, Verbose, TEXT("Received text message too large - use SetTextMessageMemoryLimit() to increase buffer size. Current Size=%lu"), MaxTextMessageBufferSize);
 			}
+			else
+			{
+				ReceiveBuffer.Append(Convert.Get(), Convert.Length());
+				if (BytesLeft == 0 && bIsFinalFragment)
+				{
+					bWakeGameThread = true;
+					ReceiveTextQueue.Enqueue(MakeUnique<FLwsReceiveBufferText>(MoveTemp(ReceiveBuffer)));
+					ReceiveBuffer.Empty();
+				}
+			}
+		}
+		if (bWantsBinaryMessageEvents && bIsBinary)
+		{
+			bWakeGameThread = true;
+			bool bIsLast = (bool)bIsFinalFragment && BytesLeft == 0;
+			ReceiveBinaryFragmentQueue.Enqueue(MakeUnique<FLwsReceiveBufferBinaryFragment>(static_cast<const uint8*>(Data), Length, bIsLast));
 		}
 		if (bWantsRawMessageEvents)
 		{
 			bWakeGameThread = true;
 			ReceiveBinaryQueue.Enqueue(MakeUnique<FLwsReceiveBufferBinary>(static_cast<const uint8*>(Data), Length, BytesLeft));
 		}
+
 		if (bWakeGameThread)
 		{
 			FEmbeddedCommunication::WakeGameThread();
@@ -375,12 +413,26 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 				FEmbeddedCommunication::WakeGameThread();
 			}
 			else if (State == EState::ClosingByRequest)
-			{
+			{		
+				FString ClosedReasonString;
+				int32 ClosedStatus;
+
+				if (CloseRequest.Code == LWS_CLOSE_STATUS_MESSAGE_TOO_LARGE)
+				{
+					ClosedReasonString = TEXT("Received text message exceeded memory limit");
+					ClosedStatus = LWS_CLOSE_STATUS_MESSAGE_TOO_LARGE;
+				}
+				else
+				{
+					ClosedReasonString = TEXT("Successfully closed connection to our peer");
+					ClosedStatus = LWS_CLOSE_STATUS_NORMAL;
+				}
+
 				{
 					FScopeLock ScopeLock(&StateLock);
 					State = EState::Closed;
-					ClosedReason.Reason = TEXT("Successfully closed connection to our peer");
-					ClosedReason.CloseStatus = LWS_CLOSE_STATUS_NORMAL;
+					ClosedReason.Reason = MoveTemp(ClosedReasonString);
+					ClosedReason.CloseStatus = ClosedStatus;
 					ClosedReason.bWasClean = true;
 				}
 				FEmbeddedCommunication::WakeGameThread();
@@ -555,6 +607,12 @@ void FLwsWebSocket::GameThreadTick()
 		while (ReceiveBinaryQueue.Dequeue(BufferBinary))
 		{
 			OnRawMessage().Broadcast(BufferBinary->Payload.GetData(), BufferBinary->Payload.Num(), BufferBinary->BytesRemaining);
+		}
+
+		FLwsReceiveBufferBinaryFragmentPtr BufferBinaryFragment;
+		while (ReceiveBinaryFragmentQueue.Dequeue(BufferBinaryFragment))
+		{
+			OnBinaryMessage().Broadcast(BufferBinaryFragment->Payload.GetData(), BufferBinaryFragment->Payload.Num(), BufferBinaryFragment->bIsLastFragment);
 		}
 	}
 }
