@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using static DatasmithSolidworks.FConfigurationTree;
 
 namespace DatasmithSolidworks
 {
@@ -179,7 +180,7 @@ namespace DatasmithSolidworks
 	public class FDatasmithExporter
 	{
 		private Dictionary<FActorName, Tuple<EActorType, FDatasmithFacadeActor>> ExportedActorsMap = new Dictionary<FActorName, Tuple<EActorType, FDatasmithFacadeActor>>();
-		private ConcurrentDictionary<string, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>> ExportedMeshesMap = new ConcurrentDictionary<string, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>>();
+		private ConcurrentDictionary<string, FDatasmithFacadeMeshElement> ExportedMeshesMap = new ConcurrentDictionary<string, FDatasmithFacadeMeshElement>();
 		private ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance>();
 		private ConcurrentDictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new ConcurrentDictionary<string, FDatasmithFacadeTexture>();
 		private Dictionary<string, FDatasmithFacadeActorBinding> ExportedActorBindingsMap = new Dictionary<string, FDatasmithFacadeActorBinding>();
@@ -264,12 +265,12 @@ namespace DatasmithSolidworks
 			return Actor;
 		}
 
-		public string AddMesh(Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh)
+		public string AddMesh(FDatasmithFacadeMeshElement NewMesh)
 		{
-			string Name = NewMesh.Item1.GetName();
+			string Name = NewMesh.GetName();
 			RemoveMesh(Name);
 			ExportedMeshesMap.TryAdd(Name, NewMesh);
-			DatasmithScene.AddMesh(NewMesh.Item1);
+			DatasmithScene.AddMesh(NewMesh);
 			return Name;
 		}
 
@@ -279,9 +280,9 @@ namespace DatasmithSolidworks
             {
                 return;
             }
-			if (ExportedMeshesMap.TryRemove(MeshName, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OldMesh))
+			if (ExportedMeshesMap.TryRemove(MeshName, out FDatasmithFacadeMeshElement OldMesh))
 			{
-				DatasmithScene.RemoveMesh(OldMesh.Item1);
+				DatasmithScene.RemoveMesh(OldMesh);
 			}
 		}
 
@@ -356,13 +357,13 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public bool ExportMesh(string InMeshName, FMeshData InData, FActorName InUpdateMeshActor, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OutMeshPair)
+		public bool ExportMesh(string InMeshName, FMeshData InData, FActorName InUpdateMeshActor, out FDatasmithFacadeMeshElement OutMeshElement)
 		{
 			Addin.Instance.LogDebug($"ExportMesh(MeshName: {InMeshName}, MeshActor: {InUpdateMeshActor.GetString()})");
 
 			InMeshName = SanitizeName(InMeshName);  //Compute mesh name early(it might be needed to remove old mesh)
 
-			OutMeshPair = null;
+			OutMeshElement = null;
 
 			if (InData.Vertices == null || InData.Normals == null || InData.TexCoords == null || InData.Triangles == null)
 			{
@@ -448,7 +449,7 @@ namespace DatasmithSolidworks
 				Addin.Instance.LogDebug($"  assigned materials: {string.Join(", ", MeshAddedMaterials)})");
 			}
 
-			OutMeshPair = new Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>(MeshElement, Mesh);
+			OutMeshElement = MeshElement;
 
 			DatasmithScene.ExportDatasmithMesh(MeshElement, Mesh);
 

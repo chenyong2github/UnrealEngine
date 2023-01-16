@@ -14,7 +14,8 @@ namespace DatasmithSolidworks
 		// Component state for a single configuration
 		public class FComponentConfig
 		{
-			public string ConfigName = null;
+			public readonly string ConfigName;
+			public readonly bool bIsMainActive;  // if this Configuration is the active config
 
 			public bool bVisible = true;
 			public bool bSuppressed = false;
@@ -28,6 +29,12 @@ namespace DatasmithSolidworks
 
 			public List<Body2> Bodies = null;
 
+			public FComponentConfig(string InConfigName, bool bInIsMainActive)
+			{
+				ConfigName = InConfigName;
+				bIsMainActive = bInIsMainActive;
+			}
+
 			public void CopyFrom(FComponentConfig InOther)
 			{
 				bVisible = InOther.bVisible;
@@ -37,6 +44,7 @@ namespace DatasmithSolidworks
 				RelativeTransform = InOther.RelativeTransform;
 				Bodies = InOther.Bodies;
 			}
+
 		};
 
 		// A node contains all the configuration data for a single component
@@ -62,7 +70,7 @@ namespace DatasmithSolidworks
 			public string PartPath => ComponentInfo.PartPath;
 
 			// Common configuration data
-			public FComponentConfig CommonConfig = new FComponentConfig();
+			public FComponentConfig CommonConfig = new FComponentConfig(null, true);
 
 			// Per-configuration data
 			public List<FComponentConfig> Configurations = null;
@@ -95,7 +103,7 @@ namespace DatasmithSolidworks
 				Component = InComponent;
 			}
 
-			public FComponentConfig AddConfiguration(string InConfigurationName, bool bIsDisplayState)
+			public FComponentConfig AddConfiguration(string InConfigurationName, bool bIsDisplayState, bool bIsActiveConfiguration)
 			{
 				List<FComponentConfig> TargetList = null;
 
@@ -115,8 +123,7 @@ namespace DatasmithSolidworks
 					}
 					TargetList = Configurations;
 				}
-				FComponentConfig Result = new FComponentConfig();
-				Result.ConfigName = InConfigurationName;
+				FComponentConfig Result = new FComponentConfig(InConfigurationName, bIsActiveConfiguration);
 				TargetList.Add(Result);
 
 				return Result;
@@ -163,7 +170,8 @@ namespace DatasmithSolidworks
 			}
 		};
 
-		static public void Merge(FComponentTreeNode OutCombined, FComponentTreeNode InTree, string InConfigurationName)
+		static public void Merge(FComponentTreeNode OutCombined, FComponentTreeNode InTree, string InConfigurationName,
+			bool bIsActiveConfiguration)
 		{
 			foreach (FComponentTreeNode Child in InTree.EnumChildren())
 			{
@@ -202,11 +210,11 @@ namespace DatasmithSolidworks
 				}
 
 				// Make a NodeConfig and copy parameter values from 'tree' node
-				FComponentConfig NodeConfig = CombinedChild.AddConfiguration(InConfigurationName, false);
+				FComponentConfig NodeConfig = CombinedChild.AddConfiguration(InConfigurationName, false, bIsActiveConfiguration);
 				NodeConfig.CopyFrom(Child.CommonConfig);
 
 				// Recurse to children
-				Merge(CombinedChild, Child, InConfigurationName);
+				Merge(CombinedChild, Child, InConfigurationName, bIsActiveConfiguration);
 			}
 		}
 
@@ -293,7 +301,7 @@ namespace DatasmithSolidworks
 						bSuppressionSame = false;
 					}
 
-					if (!ConfigurationExporter.IsSameMesh(InNode.ComponentName, InNode.Configurations[0].ConfigName, InNode.Configurations[Idx].ConfigName))
+					if (ConfigurationExporter.DoesComponentHaveVisibleButDifferentMeshesInConfigs(InNode.ComponentName, InNode.Configurations[0].ConfigName, InNode.Configurations[Idx].ConfigName))
 					{
 						bGeometrySame = false;
 					}
@@ -306,8 +314,7 @@ namespace DatasmithSolidworks
 
 					foreach (FComponentConfig ComponentConfig in InNode.Configurations)
 					{
-						InNode.Meshes.Add(ConfigurationExporter.GetMeshActorName(InNode.ComponentName,
-							ComponentConfig.ConfigName));
+						InNode.Meshes.Add(ConfigurationExporter.GetMeshActorName(ComponentConfig.ConfigName, InNode.ComponentName));
 					}
 				}
 
@@ -390,7 +397,7 @@ namespace DatasmithSolidworks
 				{
 					OutData.ComponentGeometry.Add(InNode.ComponentName, new FConfigurationData.FComponentGeometryVariant
 						{
-							VisibleActor = ConfigurationExporter.GetMeshActorName(InNode.ComponentName, InConfigurationName),
+							VisibleActor = ConfigurationExporter.GetMeshActorName(InConfigurationName, InNode.ComponentName),
 							All = InNode.Meshes.ToList()
 						}
 					);

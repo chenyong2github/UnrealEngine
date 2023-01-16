@@ -6,23 +6,28 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace DatasmithSolidworks
 {
-	public class FPartDocument : FDocument
+	public class FPartDocumentTracker : FDocumentTracker
 	{
 		public PartDoc SwPartDoc { get; private set; } = null;
-		private FAssemblyDocument AsmDoc = null;
+		private FAssemblyDocumentTracker AsmDoc = null;
 		private FComponentName ComponentName;
 		private string MeshName = null;
+		public readonly FPartDocument PartDocument;
 
 		public FObjectMaterials ExportedPartMaterials { get; set; }
 
 		public string PathName { get; private set; }
 
-		public FPartDocument(int InDocId, PartDoc InPartDoc, FDatasmithExporter InExporter, FAssemblyDocument InAsmDoc, FComponentName InComponentName) 
-			: base(InDocId, InPartDoc as ModelDoc2, InExporter)
+		public FPartDocumentTracker(FPartDocument InDoc, PartDoc InPartDoc, FDatasmithExporter InExporter,
+			FAssemblyDocumentTracker InAsmDoc, FComponentName InComponentName)
+			: base(InDoc, InExporter)
 		{
+			PartDocument = InDoc;
 			SwPartDoc = InPartDoc;
 			AsmDoc = InAsmDoc;
 			ComponentName = InComponentName;
@@ -47,8 +52,11 @@ namespace DatasmithSolidworks
 					string Name = InBody.Name;
 					Path = Title + "\\\\" + Name;
 				}
-				catch { }
+				catch
+				{
+				}
 			}
+
 			return Path;
 		}
 
@@ -64,19 +72,22 @@ namespace DatasmithSolidworks
 					string Name = InFeature.Name;
 					Path = Title + "\\\\" + Name;
 				}
-				catch { }
+				catch
+				{
+				}
 			}
+
 			return Path;
 		}
 
-		protected override void SetDirty(bool bInDirty)
+		public override void SetDirty(bool bInDirty)
 		{
 			base.SetDirty(bInDirty);
 
 			if (bInDirty && AsmDoc != null && ComponentName.IsValid())
 			{
 				// Notify owner assembly that a component needs re-export
-				AsmDoc.SetComponentDirty(ComponentName, FAssemblyDocument.EComponentDirtyState.Geometry);
+				AsmDoc.SetComponentDirty(ComponentName, FAssemblyDocumentTracker.EComponentDirtyState.Geometry);
 			}
 		}
 
@@ -85,39 +96,8 @@ namespace DatasmithSolidworks
 			if (!bConfigurations)
 			{
 				// Not exporting configurations - just load materials here
-				ExportedPartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
-				return;
-			}
-
-			// Load mesh data for each configuration - need to have information about meshes to understand what to export for configurations.
-			// (Also load materials - mesh processing later needs them)
-			ConfigurationManager ConfigManager = (SwPartDoc as ModelDoc2).ConfigurationManager;
-			IConfiguration OriginalConfiguration = ConfigManager.ActiveConfiguration;
-
-			foreach (string ConfigurationName in SwDoc.GetConfigurationNames())
-			{
-				SwDoc.ShowConfiguration2(ConfigurationName);
-
-				// Load materials for each configuration
-				ExportedPartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
-
-				// todo: Solidworks api docs says that GetRootComponent3 is null for Part but our current 
-				//   parsing code relies on it's existence(and it exists in all cases). Probably better to refactor this without Component use for parts
-				//   This is possible, we don't need Component, just code would be be less 'generic'   
-				Component2 Component = ConfigManager.ActiveConfiguration.GetRootComponent3(true);
-
-				ConcurrentBag<FBody> Bodies = FBody.FetchBodies(SwPartDoc);
-				FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ExportedPartMaterials);
-
-				if (MeshData != null)
-				{
-					Meshes.GetMeshesConfiguration(ConfigManager.ActiveConfiguration.Name).AddMesh(Component, MeshData);
-				}
-			}
-
-			if (OriginalConfiguration != null)
-			{
-				SwDoc.ShowConfiguration2(OriginalConfiguration.Name);
+				ExportedPartMaterials =
+					FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
 			}
 		}
 
@@ -140,22 +120,26 @@ namespace DatasmithSolidworks
 			{
 				ConfigurationManager ConfigManager = (SwPartDoc as ModelDoc2).ConfigurationManager;
 				string ActiveConfigurationName = ConfigManager.ActiveConfiguration.Name;
+				FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, null, ActiveConfigurationName);
 
 				foreach (string ConfigurationName in SwDoc.GetConfigurationNames())
 				{
 
 					// todo: might want to not use GetRootComponent3 for Part - docs says that it's null for Part
-					FComponentName RootComponentName = new FComponentName(ConfigManager.ActiveConfiguration.GetRootComponent3(true));
+					FComponentName RootComponentName =
+						new FComponentName(ConfigManager.ActiveConfiguration.GetRootComponent3(true));
 					FMeshData MeshData = Meshes.GetMeshData(ConfigurationName, RootComponentName);
 					if (MeshData == null)
 					{
 						continue;
 					}
+
 					// todo: not make extra copy - use existing(i.e. instead of bHasConfigurations) 
-					FActorName ActorName = new FConfigurationExporter(Meshes, null).GetMeshActorName(RootComponentName, ConfigurationName);
+					FActorName ActorName =
+						ConfigurationExporter.GetMeshActorName(ConfigurationName, RootComponentName);
 
 					bool bHasMesh = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName,
-						out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh);
+						out FDatasmithFacadeMeshElement NewMesh);
 
 					string MeshNameForConfiguration = null; // todo: Sync not supported for variants, 
 					if (bHasMesh)
@@ -175,8 +159,8 @@ namespace DatasmithSolidworks
 			else
 			{
 				FActorName ActorName = FActorName.FromString(PartName);
-				ConcurrentBag<FBody> Bodies = FBody.FetchBodies(SwPartDoc);
-				FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ExportedPartMaterials);
+				
+				FMeshData MeshData = ExtractPartMeshData();
 
 				Exporter.RemoveMesh(MeshName);
 				MeshName = null;
@@ -185,7 +169,7 @@ namespace DatasmithSolidworks
 				if (MeshData != null)
 				{
 					bHasMesh = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName,
-						out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh);
+						out FDatasmithFacadeMeshElement NewMesh);
 
 					if (bHasMesh)
 					{
@@ -205,13 +189,14 @@ namespace DatasmithSolidworks
 
 		public override bool HasMaterialUpdates()
 		{
-			FObjectMaterials CurrentMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+			FObjectMaterials CurrentMaterials =
+				FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
 			if (CurrentMaterials == null && ExportedPartMaterials == null)
 			{
 				return false;
 			}
 			else if ((CurrentMaterials != null && ExportedPartMaterials == null) ||
-					 (CurrentMaterials == null && ExportedPartMaterials != null))
+			         (CurrentMaterials == null && ExportedPartMaterials != null))
 			{
 				return true;
 			}
@@ -219,9 +204,47 @@ namespace DatasmithSolidworks
 			return !CurrentMaterials.EqualMaterials(ExportedPartMaterials);
 		}
 
-		public override void Init()
+		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
 		{
-			base.Init();
+			return null;
+		}
+
+		public override void AddMeshForComponent(FComponentName ComponentName, string MeshName)
+		{
+		}
+
+		public override FMeshData ExtractComponentMeshData(Component2 Comp)
+		{
+			return ExtractPartMeshData();  // Part document has single component
+		}
+
+		// Extract mesh data for current active configuration. MeshData is ready for export to DatasmithMesh 
+		public FMeshData ExtractPartMeshData()
+		{
+			FObjectMaterials PartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+			ConcurrentBag<FBody> Bodies = FBody.FetchBodies(SwPartDoc);
+			return FStripGeometry.CreateMeshData(Bodies, PartMaterials);
+		}
+
+		public override void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials)
+		{
+		}
+
+		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet)
+		{
+			return null;
+		}
+	}
+
+	public class FPartDocumentEvents
+	{
+		private readonly FPartDocumentTracker DocumentTracker;
+		private PartDoc SwPartDoc => DocumentTracker.PartDocument.SwPartDoc;
+		private int DocId => DocumentTracker.PartDocument.DocId;
+
+		public FPartDocumentEvents(FPartDocumentTracker InDocumentTracker)
+		{
+			DocumentTracker = InDocumentTracker;
 
 			SwPartDoc.UndoPostNotify += new DPartDocEvents_UndoPostNotifyEventHandler(OnPartUndoPostNotify);
 			SwPartDoc.SuppressionStateChangeNotify += new DPartDocEvents_SuppressionStateChangeNotifyEventHandler(OnPartSuppressionStateChangeNotify);
@@ -247,10 +270,8 @@ namespace DatasmithSolidworks
 			SwPartDoc.FileSavePostNotify += new DPartDocEvents_FileSavePostNotifyEventHandler(OnPartFileSavePostNotify);
 		}
 
-		public override void Destroy()
+		public void Destroy()
 		{
-			base.Destroy();
-
 			SwPartDoc.UndoPostNotify -= new DPartDocEvents_UndoPostNotifyEventHandler(OnPartUndoPostNotify);
 			SwPartDoc.SuppressionStateChangeNotify -= new DPartDocEvents_SuppressionStateChangeNotifyEventHandler(OnPartSuppressionStateChangeNotify);
 			SwPartDoc.DestroyNotify2 -= new DPartDocEvents_DestroyNotify2EventHandler(OnPartDocumentDestroyNotify2);
@@ -275,23 +296,6 @@ namespace DatasmithSolidworks
 			SwPartDoc.FileSavePostNotify -= new DPartDocEvents_FileSavePostNotifyEventHandler(OnPartFileSavePostNotify);
 		}
 
-		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
-		{
-			return null;
-		}
-
-		public override void AddMeshForComponent(FComponentName ComponentName, string MeshName)
-		{
-		}
-
-		public override void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials)
-		{
-		}
-
-		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet)
-		{
-			return null;
-		}
 
 		int OnPartDocumentDestroyNotify2(int DestroyType)
 		{
@@ -301,14 +305,14 @@ namespace DatasmithSolidworks
 
 		int OnPartUndoPostNotify()
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
 		// part has become resolved or lightweight or suppressed
 		int OnPartSuppressionStateChangeNotify(Feature Feature, int NewSuppressionState, int PreviousSuppressionState, int ConfigurationOption, ref object ConfigurationNames)
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
@@ -319,7 +323,7 @@ namespace DatasmithSolidworks
 
 		int OnPartConfigurationChangeNotify(string ConfigurationName, object Object, int ObjectType, int changeType)
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
@@ -330,7 +334,7 @@ namespace DatasmithSolidworks
 
 		int OnPartDragStateChangeNotify(Boolean State)
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
@@ -346,13 +350,13 @@ namespace DatasmithSolidworks
 
 		int OnPartRedoPostNotify()
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
 		int OnPartAddItemNotify(int InEntityType, string InItemName)
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
@@ -393,7 +397,7 @@ namespace DatasmithSolidworks
 
 		int OnPartRegenPostNotify2(object stopFeature)
 		{
-			SetDirty(true);
+			DocumentTracker.SetDirty(true);
 			return 0;
 		}
 
@@ -410,6 +414,134 @@ namespace DatasmithSolidworks
 		int OnPartFileSavePostNotify(int saveType, string FileName)
 		{
 			return 0;
+		}
+	}
+
+	public class FPartDocumentNotifications
+	{
+		private readonly FPartDocumentTracker DocumentTracker;
+		private readonly FPartDocumentEvents Events;
+		private FMaterialUpdateChecker MaterialUpdateChecker;
+
+		public FPartDocumentNotifications(int InDocId, PartDoc InPartDoc, FPartDocumentTracker InDocumentTracker)
+		{
+			DocumentTracker = InDocumentTracker;
+			Events = new FPartDocumentEvents(InDocumentTracker);
+		}
+
+		public void Destroy()
+		{
+			MaterialUpdateChecker?.Destroy();
+			Events.Destroy();
+		}
+
+		public void Start()
+		{
+			if (MaterialUpdateChecker == null)
+			{
+				MaterialUpdateChecker = new FMaterialUpdateChecker(DocumentTracker);
+			}
+		}
+
+		public void Resume()
+		{
+			MaterialUpdateChecker?.Resume();
+		}
+
+		public void Pause()
+		{
+			MaterialUpdateChecker?.Pause();
+		}
+	}
+	
+	public class FPartDocumentSyncer: IDocumentSyncer
+	{
+		public readonly FPartDocumentNotifications Notifications;
+		public readonly FPartDocumentTracker DocumentTracker;
+
+		public FPartDocumentSyncer(int InDocId, FPartDocument InDoc, PartDoc InPartDoc, FDatasmithExporter InExporter, FAssemblyDocumentTracker InAsmDoc, FComponentName InComponentName)
+		{
+			DocumentTracker = new FPartDocumentTracker(InDoc, InPartDoc, InExporter, InAsmDoc, InComponentName);
+			Notifications = new FPartDocumentNotifications(InDocId, InPartDoc, DocumentTracker);
+		}
+
+		public void Destroy()
+		{
+			Notifications.Destroy();
+			DocumentTracker.Destroy();
+		}
+
+		public void Start()
+		{
+			Notifications.Start();
+		}
+
+		public void Resume()
+		{
+			Notifications.Resume();
+		}
+
+		public void Pause()  
+		{
+			Notifications.Pause();
+		}
+
+		public bool GetDirty()  // i.e. in autosync
+		{
+			return DocumentTracker.GetDirty();
+		}
+
+		public void SetDirty(bool bInDirty)
+		{
+			DocumentTracker.SetDirty(bInDirty);
+		}
+
+		public void Sync(string InOutputPath)
+		{
+			DocumentTracker.Sync(InOutputPath);
+		}
+
+		public FDatasmithFacadeScene GetDatasmithScene()
+		{
+			return DocumentTracker.DatasmithScene;
+		}
+	}
+
+	public class FPartDocument: FDocument
+	{
+		public PartDoc SwPartDoc { get; private set; } = null;
+
+		private readonly FPartDocumentEvents Events;
+
+		public FPartDocument(int InDocId, PartDoc InPartDoc, FDatasmithExporter InExporter, FAssemblyDocumentTracker InAsmDoc, FComponentName InComponentName) 
+				: base(InDocId, InPartDoc as ModelDoc2)
+		{
+			SwPartDoc = InPartDoc;
+
+			if (InAsmDoc == null)  
+			{
+				// This is the top document and should track/sync its DatasmithScene
+				DocumentSyncer = new FPartDocumentSyncer(InDocId, this, InPartDoc, InExporter, InAsmDoc, InComponentName);
+			}
+			else
+			{
+				// Assembly Document passed when this Part Document is within an assembly and only needs to propagate events to that assembly
+				// todo: might split this from FPartDocument?
+				Events = new FPartDocumentEvents(new FPartDocumentTracker(this, InPartDoc, InExporter, InAsmDoc, InComponentName));
+			}
+		}
+
+		public override void Export(string InFilePath)
+		{
+			FPartDocumentTracker Tracker = new FPartDocumentTracker(this, SwPartDoc, null, null, new FComponentName());
+			Tracker.DatasmithFileExportPath = InFilePath;
+			Tracker.Export();
+		}
+
+		public override void Destroy()
+		{
+			Events?.Destroy();
+			base.Destroy();
 		}
 	}
 }

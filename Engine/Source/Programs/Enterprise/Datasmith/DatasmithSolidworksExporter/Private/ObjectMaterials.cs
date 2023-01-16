@@ -17,7 +17,7 @@ namespace DatasmithSolidworks
 		// for example, when loading component materials, owner will be the document 
 		// that component resides in, while part doc will be the document that component references!
 		public PartDoc PartDocument {  get; private set; }
-		public FDocument OwnerDoc {  get; private set; }
+		public FDocumentTracker OwnerDoc {  get; private set; }
 
 		public int ComponentMaterialID { get; private set; } = -1;
 		public int PartMaterialID { get; private set; } = -1;
@@ -28,7 +28,7 @@ namespace DatasmithSolidworks
 
 		public ConcurrentDictionary<int, FMaterial> GlobalMaterialsMap { get; private set; } = null;
 
-		public FObjectMaterials(FDocument InOwnerDoc, PartDoc InPartDocument, ref ConcurrentDictionary<int, FMaterial> InOutMaterialsMap)
+		public FObjectMaterials(FDocumentTracker InOwnerDoc, PartDoc InPartDocument, ref ConcurrentDictionary<int, FMaterial> InOutMaterialsMap)
 		{
 			GlobalMaterialsMap = InOutMaterialsMap;
 			OwnerDoc = InOwnerDoc;
@@ -89,7 +89,7 @@ namespace DatasmithSolidworks
 			}
 
 			uint FaceId = unchecked((uint)(InFace?.GetFaceId() ?? 0));
-			if (FDocument.IsValidFaceId(FaceId) && FaceMaterialsMap.ContainsKey(FaceId.ToString()))
+			if (FDocumentTracker.IsValidFaceId(FaceId) && FaceMaterialsMap.ContainsKey(FaceId.ToString()))
 			{
 				int MatId = FaceMaterialsMap[FaceId.ToString()];
 				return GetMaterial(MatId);
@@ -101,7 +101,7 @@ namespace DatasmithSolidworks
 
 			if (Feat != null)
 			{
-				string FeatId = FPartDocument.GetFeaturePath(PartDocument, Feat);
+				string FeatId = FPartDocumentTracker.GetFeaturePath(PartDocument, Feat);
 				if (FeatureMaterialsMap.ContainsKey(FeatId))
 				{
 					return GetMaterial(FeatureMaterialsMap[FeatId]);
@@ -110,7 +110,7 @@ namespace DatasmithSolidworks
 
 			if (Body != null)
 			{
-				string BodyId = FPartDocument.GetBodyPath(PartDocument, Body);
+				string BodyId = FPartDocumentTracker.GetBodyPath(PartDocument, Body);
 				if (BodyMaterialsMap.ContainsKey(BodyId))
 				{
 					return GetMaterial(BodyMaterialsMap[BodyId]);
@@ -170,7 +170,7 @@ namespace DatasmithSolidworks
 			return InDict1.OrderBy(KVP => KVP.Key).SequenceEqual(InDict2.OrderBy(KVP => KVP.Key));
 		}
 
-		public static FObjectMaterials LoadPartMaterials(FDocument InOwnerDoc, PartDoc InPartDoc, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
+		public static FObjectMaterials LoadPartMaterials(FDocumentTracker InOwnerDoc, PartDoc InPartDoc, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
 			ModelDoc2 Doc = InPartDoc as ModelDoc2;
 			if (Doc == null)
@@ -210,7 +210,7 @@ namespace DatasmithSolidworks
 
 					if (ObjUser is IBody2 Body)
 					{
-						string BodyId = FPartDocument.GetBodyPath(InPartDoc as PartDoc, Body);
+						string BodyId = FPartDocumentTracker.GetBodyPath(InPartDoc as PartDoc, Body);
 						PartMaterials.RegisterMaterial(PartMaterials.BodyMaterialsMap, Doc, RenderMat, BodyId);
 						continue;
 					}
@@ -224,7 +224,7 @@ namespace DatasmithSolidworks
 
 					if (ObjUser is IFeature Feat)
 					{
-						string FeatureId = FPartDocument.GetFeaturePath(InPartDoc as PartDoc, Feat);
+						string FeatureId = FPartDocumentTracker.GetFeaturePath(InPartDoc as PartDoc, Feat);
 						PartMaterials.RegisterMaterial(PartMaterials.FeatureMaterialsMap, Doc, RenderMat, FeatureId);
 						continue;
 					}
@@ -234,7 +234,7 @@ namespace DatasmithSolidworks
 			return PartMaterials;
 		}
 
-		public static FObjectMaterials LoadComponentMaterials(FDocument InComponentOwner, Component2 InComponent, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
+		public static FObjectMaterials LoadComponentMaterials(FDocumentTracker InComponentOwner, Component2 InComponent, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
 			Addin.Instance.LogDebug($"LoadComponentMaterials: {InComponentOwner.GetPathName()}, {InDisplayState}, {InDisplayStateNames}");
 
@@ -272,7 +272,7 @@ namespace DatasmithSolidworks
 				{
 					if (ObjUser is IBody2 Body)
 					{
-						string BodyId = FPartDocument.GetBodyPath(ComponentDoc as PartDoc, Body);
+						string BodyId = FPartDocumentTracker.GetBodyPath(ComponentDoc as PartDoc, Body);
 						ComponentMaterials.RegisterMaterial(ComponentMaterials.BodyMaterialsMap, InComponentOwner.SwDoc, RenderMat, BodyId);
 						continue;
 					}
@@ -286,7 +286,7 @@ namespace DatasmithSolidworks
 
 					if (ObjUser is IFeature Feat)
 					{
-						string FeatureId = FPartDocument.GetFeaturePath(ComponentDoc as PartDoc, Feat);
+						string FeatureId = FPartDocumentTracker.GetFeaturePath(ComponentDoc as PartDoc, Feat);
 						ComponentMaterials.RegisterMaterial(ComponentMaterials.FeatureMaterialsMap, InComponentOwner.SwDoc, RenderMat, FeatureId);
 						continue;
 					}
@@ -300,7 +300,7 @@ namespace DatasmithSolidworks
 			return ComponentMaterials;
 		}
 
-		public static ConcurrentDictionary<FComponentName, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocument InAsmDoc, HashSet<FComponentName> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
+		public static ConcurrentDictionary<FComponentName, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocumentTracker InAsmDoc, HashSet<FComponentName> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
 			Addin.Instance.LogDebug($"LoadAssemblyMaterials: {InAsmDoc.GetPathName()}, {InDisplayState}, {InDisplayStateNames}");
 			Addin.Instance.LogDebug($"  for components: {string.Join(", ", InComponentsSet)}");

@@ -309,8 +309,6 @@ namespace DatasmithSolidworks
 					default: throw new Exception("Unsupported document type");
 				}
 
-				CurrentDocument.Init();
-
 				OpenDocuments.Add(DocId, CurrentDocument);
 			}
 
@@ -333,13 +331,7 @@ namespace DatasmithSolidworks
 		{
 			if (CurrentDocument != null)
 			{
-				CurrentDocument.bDirectLinkAutoSync = !CurrentDocument.bDirectLinkAutoSync;
-
-				if (CurrentDocument.bDirectLinkAutoSync && CurrentDocument.DirectLinkSyncCount == 0)
-				{
-					// Run first sync
-					CurrentDocument.OnDirectLinkSync();
-				}
+				CurrentDocument.ToggleDirectLinkAutoSync();
 			}
 		}
 
