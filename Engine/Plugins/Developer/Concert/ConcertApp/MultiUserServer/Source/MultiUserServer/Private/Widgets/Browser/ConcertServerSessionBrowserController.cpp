@@ -4,16 +4,16 @@
 
 #include "ConcertServerEvents.h"
 #include "ConcertServerStyle.h"
+#include "IConcertModule.h"
 #include "IConcertServer.h"
+#include "IConcertSession.h"
 #include "IConcertSyncServer.h"
 #include "SConcertServerSessionBrowser.h"
 #include "Session/Browser/Items/ConcertSessionTreeItem.h"
 
-#include "Framework/Docking/TabManager.h"
 #include "Misc/AsyncTaskNotification.h"
-#include "Textures/SlateIcon.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SConcertTabViewBase.h"
 #include "Window/ConcertServerTabs.h"
 #include "Window/ConcertServerWindowController.h"
 

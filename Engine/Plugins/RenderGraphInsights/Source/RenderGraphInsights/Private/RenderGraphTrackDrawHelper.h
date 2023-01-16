@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Math/Color.h"
 
-#include "Insights/ViewModels/ITimingEvent.h"
-#include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Insights/ViewModels/TimingViewLayout.h"
+
+class ITimingViewDrawHelper;
 
 struct FSlateBrush;
 struct FDrawContext;

@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "Engine/EngineCustomTimeStep.h"
-#include "Styling/SlateColor.h"
+
+enum class ECustomTimeStepSynchronizationState;
 
 class STimedDataMonitorPanel;
 enum class ECheckBoxState : uint8;

@@ -4,13 +4,10 @@
 
 #include "Misc/FrameRate.h"
 
-#include "Brushes/SlateColorBrush.h"
 #include "Fonts/SlateFontInfo.h"
 #include "UObject/StrongObjectPtr.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/SWidget.h"
 
 class UTimecodeSynchronizer;
 class FSlateFontMeasure;

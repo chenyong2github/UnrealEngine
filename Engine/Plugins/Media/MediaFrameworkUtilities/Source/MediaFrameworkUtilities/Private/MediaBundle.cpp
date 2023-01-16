@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaBundle.h"
+#include "IAnalyticsProviderET.h"
 #include "Materials/Material.h"
 
 #if WITH_EDITOR
@@ -9,9 +10,7 @@
 #include "EngineAnalytics.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "HAL/PlatformTime.h"
 #include "IAssetTools.h"
-#include "Modules/ModuleManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif

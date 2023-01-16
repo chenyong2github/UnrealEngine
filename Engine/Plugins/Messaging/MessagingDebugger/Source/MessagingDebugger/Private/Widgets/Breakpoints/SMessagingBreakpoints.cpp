@@ -2,13 +2,12 @@
 
 #include "Widgets/Breakpoints/SMessagingBreakpoints.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "IMessageTracer.h"
 #include "IMessageTracerBreakpoint.h"
-#include "Styling/ISlateStyle.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 
 #include "Widgets/Breakpoints/SMessagingBreakpointsTableRow.h"
+#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SMessagingBreakpoints"

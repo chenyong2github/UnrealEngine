@@ -4,12 +4,11 @@
 #include "AutomationDriverSpecSuiteViewModel.h"
 #include "Framework/MetaData/DriverMetaData.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Views/STileView.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/SOverlay.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 

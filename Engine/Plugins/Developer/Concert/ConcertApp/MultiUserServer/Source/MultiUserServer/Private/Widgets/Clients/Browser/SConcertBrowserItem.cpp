@@ -3,23 +3,19 @@
 #include "SConcertBrowserItem.h"
 
 #include "ConcertServerStyle.h"
-#include "INetworkMessagingExtension.h"
 #include "SClientNetworkStats.h"
 #include "Graph/SClientNetworkGraphs.h"
 #include "Models/IClientNetworkStatisticsModel.h"
-#include "Models/Transfer/ClientTransferStatisticsModel.h"
 #include "Table/SClientOutboundTransferStatTable.h"
 #include "Table/SClientInboundTransferStatTable.h"
 #include "Widgets/Clients/Browser/Item/IConcertBrowserItem.h"
 
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/LayerManager/STooltipPresenter.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientBrowserItem"
 

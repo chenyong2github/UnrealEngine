@@ -1,10 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIServiceViewModel.h"
 
 #include "ScopedTransaction.h"
 #include "WebAPIOperationViewModel.h"
-#include "WebAPIViewModel.inl"
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIService.h"
 

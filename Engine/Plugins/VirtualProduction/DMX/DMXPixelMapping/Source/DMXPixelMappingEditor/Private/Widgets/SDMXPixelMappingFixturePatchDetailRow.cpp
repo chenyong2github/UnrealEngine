@@ -4,9 +4,8 @@
 
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "Styling/AppStyle.h"
-#include "PropertyHandle.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
 

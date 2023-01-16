@@ -4,8 +4,6 @@
 
 #include "SchemaActions/IDataprepMenuActionCollector.h"
 
-#include "CoreMinimal.h"
-#include "Internationalization/Text.h"
 
 struct FDataprepSchemaAction;
 

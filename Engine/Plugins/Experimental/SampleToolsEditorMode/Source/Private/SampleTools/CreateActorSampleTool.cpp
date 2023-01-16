@@ -2,9 +2,8 @@
 
 #include "CreateActorSampleTool.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
-#include "CollisionQueryParams.h"
 #include "Engine/World.h"
+#include "ToolContextInterfaces.h"
 
 // localization namespace
 #define LOCTEXT_NAMESPACE "UCreateActorSampleTool"

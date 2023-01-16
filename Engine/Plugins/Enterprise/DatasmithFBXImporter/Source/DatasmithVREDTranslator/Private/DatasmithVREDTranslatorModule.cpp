@@ -3,11 +3,10 @@
 #include "DatasmithVREDTranslatorModule.h"
 
 #include "DatasmithVREDImporterMaterialSelector.h"
+#include "DatasmithVREDImportOptions.h" // IWYU pragma: keep
 #include "DatasmithVREDTranslator.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
 
-#include "CoreMinimal.h"
-#include "DatasmithTranslator.h"
 
 class FVREDTranslatorModule : public IDatasmithVREDTranslatorModule
 {

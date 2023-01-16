@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCodeProjectEditor.h"
-#include "Widgets/SOverlay.h"
 #include "CodeEditorStyle.h"
 #include "CodeProject.h"
 #include "CodeProjectEditor.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SProjectViewItem.h"
 #include "DirectoryScanner.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Widgets/Views/STreeView.h"
 
 
 #define LOCTEXT_NAMESPACE "CodeProjectEditor"

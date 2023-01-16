@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Insights/ITimingViewExtender.h"
-#include "RenderGraphTimingViewSession.h"
+#include "RenderGraphTimingViewSession.h" // IWYU pragma: keep
 
 namespace Insights { class ITimingViewSession; }
 namespace TraceServices { class IAnalysisSession; }

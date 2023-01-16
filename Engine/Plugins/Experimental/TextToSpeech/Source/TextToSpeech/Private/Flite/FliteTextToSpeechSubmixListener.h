@@ -2,13 +2,12 @@
 
 #pragma once
 #if USING_FLITE
-#include "CoreMinimal.h"
 #include "Containers/CircularBuffer.h"
-#include "Flite/FliteSynthesizedSpeechData.h"
-#include "AudioMixerDevice.h"
 #include "AudioResampler.h"
 #include "GenericPlatform/TextToSpeechBase.h"
-#include <atomic>
+#include "ISubmixBufferListener.h"
+
+struct FFliteSynthesizedSpeechData;
 
 
 /** Handles storing TTS audio data to be played. Expects audio data as floats  */

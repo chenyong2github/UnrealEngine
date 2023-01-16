@@ -1,10 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIEditorStyle.h"
 
+#include "Brushes/SlateBoxBrush.h"
 #include "Interfaces/IPluginManager.h"
-#include "Slate/SlateGameResources.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/StyleColors.h"
 

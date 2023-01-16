@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"
 #include "HistoryEdition/HistoryAnalysis.h"
 #include "Session/History/SSessionHistory.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 
 class FAbstractSessionHistoryController;
 template<typename T> class SMultiColumnTableRow;

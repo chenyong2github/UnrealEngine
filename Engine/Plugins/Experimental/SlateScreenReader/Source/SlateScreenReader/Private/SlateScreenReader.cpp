@@ -2,8 +2,7 @@
 
 #include "SlateScreenReader.h"
 #include "GenericPlatform/GenericApplication.h"
-#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
-#include "Announcement/ScreenReaderAnnouncementChannel.h"
+#include "GenericPlatform/ScreenReaderReply.h"
 #include "GenericPlatform/ScreenReaderUser.h"
 #include "SlateScreenReaderLog.h"
 

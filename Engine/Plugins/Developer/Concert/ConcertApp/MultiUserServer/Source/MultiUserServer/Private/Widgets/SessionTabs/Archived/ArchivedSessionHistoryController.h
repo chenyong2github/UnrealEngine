@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ServerSessionHistoryControllerBase.h"
 
 /** Manages SSessionHistory by using IConcertSyncServer::GetArchivedSessionDatabase for retrieving the session database. */

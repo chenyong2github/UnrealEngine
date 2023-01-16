@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SteamUtilities.h"
+#include "OnlineSubsystemTypes.h"
+#include <steam/steamtypes.h>
 
 /**
  * Takes a Steam EResult value, and converts it into a string (with extra debug info)

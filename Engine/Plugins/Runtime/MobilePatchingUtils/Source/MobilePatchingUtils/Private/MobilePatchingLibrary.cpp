@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MobilePatchingLibrary.h"
+#include "BuildPatchState.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
+#include "Interfaces/IHttpRequest.h"
 #include "Modules/ModuleManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 
 #include "Interfaces/IBuildPatchServicesModule.h"
-#include "BuildPatchSettings.h"
-#include "BuildPatchServicesSingleton.h"
 #include "Interfaces/IHttpResponse.h"
 #include "HttpModule.h"
 #include "IPlatformFilePak.h"

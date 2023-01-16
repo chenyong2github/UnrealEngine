@@ -2,9 +2,9 @@
 
 #include "OpenXRHandTrackingLiveLinkRemapAsset.h"
 #include "OpenXRHandTracking.h"
-#include "HeadMountedDisplayTypes.h"
 
 #include "BonePose.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 
 #define LOCTEXT_NAMESPACE "OpenXRHandTrackingLiveLinkRemapAsset"
 

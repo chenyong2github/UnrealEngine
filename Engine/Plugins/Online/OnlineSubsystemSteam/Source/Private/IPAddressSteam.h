@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IPAddress.h"
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
-#include "OnlineSubsystemSteamPackage.h"
 
 /**
  * Represents an internet ip address, using the relatively standard SOCKADDR_IN structure. All data is in network byte order
@@ -167,6 +164,11 @@ public:
 	{
 		FInternetAddrSteam& SteamOther = (FInternetAddrSteam&)Other;
 		return *SteamId == *SteamOther.SteamId && SteamChannel == SteamOther.SteamChannel;
+	}
+
+	bool operator==(const FInternetAddrSteam& Other) const
+	{
+		return *SteamId == *Other.SteamId && SteamChannel == Other.SteamChannel;
 	}
 
 	bool operator!=(const FInternetAddrSteam& Other) const

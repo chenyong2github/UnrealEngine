@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
-#include "Styling/ISlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+class ISlateStyle;
 
 class FDMXPixelMappingEditorStyle
 {

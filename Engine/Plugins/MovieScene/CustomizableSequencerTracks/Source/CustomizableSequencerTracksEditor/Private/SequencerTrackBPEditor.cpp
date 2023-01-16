@@ -1,26 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTrackBPEditor.h"
+#include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "SequencerTrackBP.h"
-#include "SequencerSectionBP.h"
+#include "ISequencerSection.h"
 #include "SequencerSectionPainter.h"
+#include "Misc/PackageName.h"
 #include "SequencerUtilities.h"
 #include "CustomizableSequencerTracksStyle.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/AssetDataTagMap.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Engine/Blueprint.h"
-#include "Styling/AppStyle.h"
-#include "EntitySystem/IMovieSceneEntityProvider.h"
-#include "Misc/PathViews.h"
 
+#include "ScopedTransaction.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SequencerTrackBPEditor"
 

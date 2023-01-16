@@ -2,25 +2,17 @@
 
 #include "SlateFrameGraphTrack.h"
 
-#include "Modules/ModuleManager.h"
 #include "SlateProvider.h"
 #include "SlateTimingViewSession.h"
 #include "SlateInsightsStyle.h"
 
-#include "Application/SlateApplicationBase.h"
-#include "Fonts/FontMeasure.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "Insights/Common/PaintUtils.h"
-#include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
-#include "Insights/ViewModels/TimingEvent.h"
-#include "Insights/ViewModels/TimingEventSearch.h"
-#include "Insights/ViewModels/TooltipDrawState.h"
 
-#include "TraceServices/Model/Frames.h"
 
 #define LOCTEXT_NAMESPACE "SlateFrameGraphTrack"
 

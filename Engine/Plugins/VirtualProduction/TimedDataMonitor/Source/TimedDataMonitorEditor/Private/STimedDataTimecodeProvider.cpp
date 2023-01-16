@@ -2,30 +2,16 @@
 
 #include "STimedDataTimecodeProvider.h"
 
-#include "Editor.h"
-#include "Engine/Engine.h"
+#include "Engine/TimecodeProvider.h"
 #include "ISettingsModule.h"
-#include "HAL/PlatformTime.h"
 #include "Misc/App.h"
-#include "Misc/DateTime.h"
-#include "Misc/FrameRate.h"
-#include "Misc/Timespan.h"
-#include "Misc/Timecode.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectEditorUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
-#include "EditorFontGlyphs.h"
-#include "ScopedTransaction.h"
-#include "Styling/CoreStyle.h"
 
 #include "STimedDataMonitorPanel.h"
 #include "STimedDataNumericEntryBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SSpinBox.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "STimedDataTimecodeProvider"

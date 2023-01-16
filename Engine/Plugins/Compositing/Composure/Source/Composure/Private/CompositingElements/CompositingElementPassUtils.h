@@ -2,12 +2,10 @@
 
 #pragma once 
 
-#include "Engine/TextureRenderTarget2D.h" // for ETextureRenderTargetFormat
-#include "PixelFormat.h"
-#include "UObject/ObjectMacros.h" // for EObjectFlags
-#include "UObject/UObjectBaseUtility.h" // for GetMaskedFlags()/HasAnyFlags()
-#include "UObject/UObjectGlobals.h" // for NewObject()
-#include "UObject/Class.h"
+#include "UObject/Object.h"
+
+enum EPixelFormat : uint8;
+enum ETextureRenderTargetFormat : int;
 
 class UMaterialInterface;
 class UMaterialInstanceDynamic;

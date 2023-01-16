@@ -2,23 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "DataprepGraph/DataprepGraph.h"
 
 #include "DataprepAsset.h"
 
-#include "Editor/GraphEditor/Private/DragNode.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/Commands/UICommandList.h"
-#include "GraphEditor.h"
-#include "GraphEditorActions.h"
-#include "Layout/SlateRect.h"
 #include "SGraphNode.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Layout/SConstraintCanvas.h"
-#include "Widgets/SWidget.h"
+
+class UDataprepGraphRecipeNode;
 
 class FGraphNodeFactory;
 class SDataprepGraphBaseActionNode;

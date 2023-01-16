@@ -6,12 +6,9 @@
 #include "DataprepEditorLogCategory.h"
 #include "DataprepMenuActionCollectorUtils.h"
 #include "SchemaActions/DataprepSchemaAction.h"
-#include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
 
 // Engine includes
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
 #include "DataprepActionAsset.h"
 
 const  FText FDataprepFilterMenuActionCollector::FilterCategory = NSLOCTEXT("DataprepSelectors", "Selectors Category", "Select by");

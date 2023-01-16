@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Profile/MediaProfileSettingsCustomization.h"
+
+class IDetailCustomization;
 
 
 /**

@@ -3,18 +3,14 @@
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 
 // Dataprep includes
-#include "DataprepActionAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditor.h"
-#include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
 #include "DataprepOperation.h"
 #include "SchemaActions/DataprepDragDropOp.h"
-#include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
-#include "Widgets/DataprepGraph/SDataprepActionSteps.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
@@ -23,18 +19,8 @@
 
 // Engine Includes
 #include "DragAndDrop/AssetDragDropOp.h"
-#include "Editor.h"
-#include "Framework/Application/SlateApplication.h"
 #include "SGraphPanel.h"
-#include "SLevelOfDetailBranchNode.h"
-#include "SPinTypeSelector.h"
-#include "Widgets/Colors/SColorBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 

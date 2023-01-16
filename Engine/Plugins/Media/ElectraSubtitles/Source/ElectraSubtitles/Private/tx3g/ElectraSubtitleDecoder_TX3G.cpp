@@ -4,8 +4,6 @@
 #include "ElectraSubtitleDecoderFactory.h"
 #include "ElectraSubtitleModule.h"
 #include "MediaDecoderOutput.h"
-#include "ParameterDictionary.h"
-#include "PlayerTime.h"
 
 namespace ElectraSubtitleDecoderTX3GUtils
 {

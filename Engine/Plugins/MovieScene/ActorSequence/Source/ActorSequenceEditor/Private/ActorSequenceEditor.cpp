@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorSequence.h"
-#include "ActorSequenceComponent.h"
 #include "BlueprintEditorModule.h"
 #include "BlueprintEditorTabs.h"
 #include "ActorSequenceComponentCustomization.h"
@@ -12,7 +10,6 @@
 #include "LevelEditor.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "PropertyEditorModule.h"
-#include "Styling/SlateStyle.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Docking/SDockTab.h"

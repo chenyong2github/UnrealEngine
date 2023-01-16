@@ -8,16 +8,12 @@
 #include "MaterialCollection.h"
 #include "MaterialDistiller.h"
 #include "MdlSdkDefines.h"
-#include "Utility.h"
-#include "common/Logging.h"
 
-#include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
 
 MDLSDK_INCLUDES_START
 #include "mi/neuraylib/factory.h"
 #include "mi/neuraylib/idatabase.h"
-#include "mi/neuraylib/ifactory.h"
 #include "mi/neuraylib/imaterial_definition.h"
 #include "mi/neuraylib/imdl_compiler.h"
 #include "mi/neuraylib/imdl_configuration.h"
@@ -25,11 +21,20 @@ MDLSDK_INCLUDES_START
 #include "mi/neuraylib/imdl_impexp_api.h"
 #include "mi/neuraylib/imodule.h"
 #include "mi/neuraylib/ineuray.h"
+#include <mi/base/config.h>
 #include <mi/neuraylib/iplugin_configuration.h>
 #include "mi/neuraylib/iscope.h"
 #include "mi/neuraylib/iversion.h"
+#include <mi/base/enums.h>
 #include <mi/base/ilogger.h>
+#include <mi/base/iinterface.h>
 #include <mi/base/interface_implement.h>
+#include <mi/base/interface_declare.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
+#include <mi/neuraylib/iexpression.h>
+#include <mi/neuraylib/itransaction.h>
+#include <mi/neuraylib/version.h>
 MDLSDK_INCLUDES_END
 
 namespace Mdl

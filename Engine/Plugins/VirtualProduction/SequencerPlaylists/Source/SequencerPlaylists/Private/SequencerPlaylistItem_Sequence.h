@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ISequencerPlaylistsModule.h"
 #include "SequencerPlaylistItem.h"
 #include "SequencerPlaylistItem_Sequence.generated.h"

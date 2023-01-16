@@ -1,11 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_WebAPIOperation.h"
 
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "BlueprintEditor.h"
-#include "BlueprintTypePromotion.h"
-#include "EdGraphSchema_K2.h"
+#include "BlueprintFunctionNodeSpawner.h"
 #include "K2Node_AddDelegate.h"
 #include "K2Node_AssignmentStatement.h"
 #include "K2Node_CallFunction.h"
@@ -15,15 +13,13 @@
 #include "K2Node_Self.h"
 #include "K2Node_TemporaryVariable.h"
 #include "KismetCompiler.h"
-#include "PropertyPath.h"
 #include "ScopedTransaction.h"
 #include "ToolMenu.h"
+#include "ToolMenuSection.h"
 #include "WebAPIBlueprintGraphLog.h"
 #include "WebAPIBlueprintGraphUtilities.h"
 #include "WebAPIOperationObject.h"
 #include "Algo/AllOf.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"

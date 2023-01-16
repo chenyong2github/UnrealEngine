@@ -3,7 +3,6 @@
 #include "MassCrowdRepresentationSubsystem.h"
 #include "MassCrowdSpawnerSubsystem.h"
 #include "Engine/World.h"
-#include "Subsystems/SubsystemCollection.h"
 
 void UMassCrowdRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

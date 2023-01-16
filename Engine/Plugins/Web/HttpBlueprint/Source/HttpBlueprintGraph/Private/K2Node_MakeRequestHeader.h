@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node.h"
 #include "K2Node_AddPinInterface.h"
 
 #include "K2Node_MakeRequestHeader.generated.h"
+
+class FCompilerResultsLog;
+class UGraphNodeContextMenuContext;
+class UToolMenu;
+namespace ENodeTitleType { enum Type : int; }
 
 USTRUCT()
 struct FOptionalPin

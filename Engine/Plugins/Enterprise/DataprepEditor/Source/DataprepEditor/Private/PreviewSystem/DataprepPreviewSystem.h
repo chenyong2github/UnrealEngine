@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "DataprepParameterizableObject.h"
+#include "Misc/TVariantMeta.h"
 #include "SelectionSystem/DataprepSelectionSystemStructs.h"
 
-#include "CoreMinimal.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Internationalization/Text.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "UObject/GCObject.h"
+
+class UDataprepParameterizableObject;
 
 class FReferenceCollector;
 class UDataprepActionAsset;

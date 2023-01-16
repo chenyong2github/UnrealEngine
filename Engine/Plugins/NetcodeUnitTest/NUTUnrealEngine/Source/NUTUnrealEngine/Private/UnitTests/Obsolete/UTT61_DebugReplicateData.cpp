@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnitTests/Obsolete/UTT61_DebugReplicateData.h"
-#include "UObject/Package.h"
 
 
 #include "NUTActor.h"
-#include "MinimalClient.h"
-#include "Net/NUTUtilNet.h"
 #include "UnitTestEnvironment.h"
 
 

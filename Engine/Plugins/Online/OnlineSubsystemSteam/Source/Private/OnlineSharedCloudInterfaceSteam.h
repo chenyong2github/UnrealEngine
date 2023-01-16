@@ -2,13 +2,8 @@
  
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
-#include "OnlineSubsystemSteamTypes.h"
-#include "OnlineAsyncTaskManagerSteam.h"
 #include "OnlineUserCloudInterfaceSteam.h"
 #include "Interfaces/OnlineSharedCloudInterface.h"
-#include "OnlineSubsystemSteamPackage.h"
 
 /** 
  *  Async task for reading/downloading a single publicly shared cloud file

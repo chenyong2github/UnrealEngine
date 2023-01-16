@@ -6,12 +6,12 @@
 #include "MassAIBehaviorTypes.h"
 #include "MassCrowdSubsystem.h"
 #include "MassCrowdFragments.h"
+#include "MassEntityManager.h"
 #include "MassMovementFragments.h"
 #include "MassCrowdSettings.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "MassZoneGraphNavigationFragments.h"
 #include "Annotations/ZoneGraphDisturbanceAnnotation.h"
-#include "VisualLogger/VisualLogger.h"
 #include "MassSimulationLOD.h"
 #include "MassSignalSubsystem.h"
 

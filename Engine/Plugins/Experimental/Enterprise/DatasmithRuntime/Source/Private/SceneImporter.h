@@ -2,25 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "DatasmithRuntime.h"
-#include "DirectLinkCommon.h"
-#include "DirectLinkEndpoint.h"
 
-#include "Async/AsyncWork.h"
-#include "Async/Future.h"
-#include "Containers/Queue.h"
-#include "HAL/ThreadSafeBool.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "MeshDescription.h"
 #include "PixelFormat.h"
-#include "RHI.h"
-#include "Templates/Casts.h"
 #include "Tickable.h"
-#include "UObject/GCObject.h"
-#include "UObject/StrongObjectPtr.h"
-#include "UObject/WeakObjectPtr.h"
+#include "RHITypes.h"
+
+struct FMeshDescription;
 
 class IDatasmithActorElement;
 class IDatasmithElement;

@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnitTests/NetBitsTest.h"
-#include "Serialization/BitReader.h"
-#include "Serialization/BitWriter.h"
 #include "Engine/NetConnection.h"
+#include "NetcodeUnitTest.h"
 
 
 

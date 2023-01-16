@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
+
+struct FAnalyticsEventAttribute;
 
 class Error;
 

@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "StageMessages.h"
 #include "StageMonitoringSettings.h"
 
-#include "Templates/UniquePtr.h"
 
 #include "FramePerformanceProvider.generated.h"
 

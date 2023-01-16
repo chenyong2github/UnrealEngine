@@ -8,7 +8,6 @@
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineModule.h"
-#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "ImageUtils.h"
 #include "LegacyScreenPercentageDriver.h"

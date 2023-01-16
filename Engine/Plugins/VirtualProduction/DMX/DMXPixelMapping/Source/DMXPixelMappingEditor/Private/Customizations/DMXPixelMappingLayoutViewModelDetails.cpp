@@ -2,15 +2,11 @@
 
 #include "Customizations/DMXPixelMappingLayoutViewModelDetails.h"
 
-#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "ViewModels/DMXPixelMappingLayoutViewModel.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
-#include "PropertyHandle.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Text/STextBlock.h"
 
 

@@ -3,10 +3,7 @@
 #include "Widgets/Toolbar/SMessagingDebuggerToolbar.h"
 
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/ISlateStyle.h"
-#include "Widgets/SWidget.h"
 
 #include "Models/MessagingDebuggerCommands.h"
 

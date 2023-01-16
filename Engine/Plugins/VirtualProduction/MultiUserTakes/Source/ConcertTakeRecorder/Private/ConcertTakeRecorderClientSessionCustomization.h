@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "ConcertMessages.h"
-#include "IConcertSession.h"
+#include "Delegates/Delegate.h"
 #include "IDetailCustomization.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
-#include "ConcertTakeRecorderMessages.h"
-#include "IPropertyTypeCustomization.h"
 
-#include "Templates/SharedPointer.h"
-#include "Widgets/Views/SListView.h"
+
+enum class EConcertClientStatus : uint8;
+struct FConcertClientRecordSetting;
+template <typename ItemType> class SListView;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertRecordSettingChanged, const FConcertClientRecordSetting&);
 

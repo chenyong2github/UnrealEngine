@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertWorkspaceData.h"
 
 namespace UE::MultiUserServer

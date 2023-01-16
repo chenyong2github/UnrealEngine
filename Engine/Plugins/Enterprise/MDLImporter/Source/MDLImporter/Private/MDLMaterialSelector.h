@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "material/MaterialFactory.h"
 
-#include "Containers/Array.h"
-#include "Materials/Material.h"
 #include "Templates/SharedPointer.h"
+
+namespace Mat { class IMaterialFactory; }
 
 namespace Mdl
 {

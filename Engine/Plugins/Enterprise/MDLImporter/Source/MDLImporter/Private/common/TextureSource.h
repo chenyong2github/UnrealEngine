@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Engine/Texture.h"
-#include "Math/NumericLimits.h"
+#include "ImageCore.h"
 #include "common/Utility.h"
 
 /**

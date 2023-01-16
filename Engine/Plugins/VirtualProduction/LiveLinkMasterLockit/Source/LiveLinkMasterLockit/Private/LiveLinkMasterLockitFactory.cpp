@@ -3,7 +3,6 @@
 #include "LiveLinkMasterLockitFactory.h"
 
 #include "LiveLinkMasterLockitSource.h"
-#include "LiveLinkMasterLockitConnectionSettings.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkMasterLockitSourceFactory"
 

@@ -3,9 +3,7 @@
 #include "DatasmithDeltaGenSceneProcessor.h"
 
 #include "DatasmithDeltaGenImportData.h"
-#include "DatasmithDeltaGenImportOptions.h"
 #include "DatasmithDeltaGenLog.h"
-#include "DatasmithFBXScene.h"
 #include "DatasmithUtils.h"
 
 #include "Factories/TextureFactory.h"

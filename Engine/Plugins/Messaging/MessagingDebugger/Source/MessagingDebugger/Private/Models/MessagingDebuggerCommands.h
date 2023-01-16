@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "InputCoreTypes.h"
-#include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
-#include "Templates/SharedPointer.h"
 
 
 #define LOCTEXT_NAMESPACE "FMessagingDebuggerCommands"

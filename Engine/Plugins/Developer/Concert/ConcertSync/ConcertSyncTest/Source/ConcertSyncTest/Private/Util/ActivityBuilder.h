@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertMessageData.h"
 #include "ScopedSessionDatabase.h"
 
 namespace UE::ConcertSyncTests

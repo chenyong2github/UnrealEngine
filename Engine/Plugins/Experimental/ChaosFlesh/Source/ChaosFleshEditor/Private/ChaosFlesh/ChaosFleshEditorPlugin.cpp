@@ -2,27 +2,13 @@
 
 
 #include "ChaosFlesh/ChaosFleshEditorPlugin.h"
+#include "ChaosFlesh/FleshAsset.h"
 #include "Editor/FleshEditorStyle.h"
 
-#include "AssetToolsModule.h"
-#include "ChaosFlesh/FleshComponent.h"
-#include "ChaosFlesh/Cmd/FleshAssetConversion.h"
 #include "ChaosFlesh/Cmd/ChaosFleshCommands.h"
 #include "ChaosFlesh/Asset/AssetTypeActions_FleshAsset.h"
 #include "ChaosFlesh/Asset/AssetTypeActions_ChaosDeformableSolverAsset.h"
 #include "ChaosFlesh/Asset/FleshAssetThumbnailRenderer.h"
-#include "CoreMinimal.h"
-#include "Dataflow/DataflowEditorToolkit.h"
-#include "Features/IModularFeatures.h"
-#include "HAL/ConsoleManager.h"
-#include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
-#include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Styling/CoreStyle.h"
-#include "ToolMenus.h"
-#include "Templates/SharedPointer.h"
 
 #define LOCTEXT_NAMESPACE "FleshEditor"
 

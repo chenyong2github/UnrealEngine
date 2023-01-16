@@ -2,14 +2,11 @@
 
 #include "IMrcFrameworkModule.h"
 #include "Modules/ModuleManager.h" // for IMPLEMENT_MODULE()
-#include "Engine/Engine.h"
-#include "MrcCalibrationData.h" // for SaveSlotName/UserIndex
 #include "Kismet/GameplayStatics.h" // for DoesSaveGameExist()
 #include "MixedRealityCaptureActor.h"
 #include "MixedRealityCaptureComponent.h"
 #include "UObject/UObjectIterator.h"
 #include "MotionDelayBuffer.h" // for SetEnabled()
-#include "UObject/UObjectGlobals.h" // for FCoreUObjectDelegates::PostLoadMapWithWorld
 
 #if WITH_EDITOR
 #include "Editor.h" // for FEditorDelegates::PostPIEStarted

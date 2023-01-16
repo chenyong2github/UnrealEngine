@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "TraceServices/ModuleService.h"
 
 class IAnimationProvider;

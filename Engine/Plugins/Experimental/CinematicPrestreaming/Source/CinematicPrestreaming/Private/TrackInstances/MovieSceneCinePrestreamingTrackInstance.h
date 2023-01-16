@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
 #include "MovieSceneCinePrestreamingTrackInstance.generated.h"
 

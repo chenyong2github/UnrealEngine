@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "INetworkMessagingExtension.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FInboundTransferStatistics;
 
 class ITableRow;
 template<typename T> class SListView;

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Async/Future.h"
 #include "IConcertSyncServer.h"
 #include "Session/History/AbstractSessionHistoryController.h"
+#include "Session/History/SSessionHistory.h"
 
 struct FConcertSyncActivity;
 class FConcertSyncSessionDatabase;

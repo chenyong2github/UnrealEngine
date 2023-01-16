@@ -3,7 +3,9 @@
 #include "ConcertServerWindowController.h"
 
 #include "ConcertServerEvents.h"
+#include "IConcertModule.h"
 #include "IConcertServer.h"
+#include "IConcertSession.h"
 #include "IConcertSyncServer.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Widgets/Clients/ConcertClientsTabController.h"
@@ -11,14 +13,11 @@
 #include "Widgets/SessionTabs/Live/LiveConcertSessionTab.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/ConfigCacheIni.h"
-#include "OutputLogModule.h"
 
-#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FConcertServerWindowController"
 

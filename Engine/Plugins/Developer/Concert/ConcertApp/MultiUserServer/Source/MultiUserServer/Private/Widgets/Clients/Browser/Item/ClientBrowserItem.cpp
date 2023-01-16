@@ -4,6 +4,7 @@
 
 #include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Browser/Models/Transfer/ClientTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/Transfer/TransferStatisticsModel.h"
 #include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FClientBrowserItem"

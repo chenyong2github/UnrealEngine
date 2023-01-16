@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGraphNodeSnapContainer.h"
-#include "EdGraph/EdGraph.h"
+#include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/SToolTip.h"
-#include "Styling/CoreStyle.h"
 #include "GraphEditorSettings.h"
 #include "SCommentBubble.h"
-#include "K2Node_Composite.h"
 #include "SGraphPreviewer.h"
 #include "IDocumentationPage.h"
 #include "IDocumentation.h"
@@ -19,7 +18,7 @@
 #include "SGraphSnapContainerRow.h"
 #include "K2Node_SnapContainer.h"
 
-#include "Styling/AppStyle.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintSnapNodes"
 

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertTakeRecorderStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
-#include "SlateOptMacros.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyle.h"
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FConcertTakeRecorderStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)

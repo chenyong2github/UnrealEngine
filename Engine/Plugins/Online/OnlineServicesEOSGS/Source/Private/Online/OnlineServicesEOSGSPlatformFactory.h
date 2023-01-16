@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle>;
 class FLazySingleton;

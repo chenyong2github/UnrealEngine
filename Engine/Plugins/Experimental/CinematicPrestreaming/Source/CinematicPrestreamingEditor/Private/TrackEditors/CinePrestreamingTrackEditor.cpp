@@ -2,9 +2,8 @@
 
 #include "TrackEditors/CinePrestreamingTrackEditor.h"
 
-#include "CinePrestreamingData.h"
+#include "ScopedTransaction.h"
 #include "Styles/CinePrestreamingEditorStyle.h"
-#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencerSection.h"
 #include "LevelSequence.h"
@@ -14,10 +13,8 @@
 #include "SequencerUtilities.h"
 #include "Styling/StyleColors.h"
 #include "Tracks/MovieSceneCinePrestreamingTrack.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Misc/Timespan.h"
 
 #define LOCTEXT_NAMESPACE "CinePrestreamingTrackEditor"
 

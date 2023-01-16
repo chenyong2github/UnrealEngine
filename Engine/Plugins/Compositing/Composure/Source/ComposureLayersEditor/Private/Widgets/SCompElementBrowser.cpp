@@ -5,9 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Editor.h"
-#include "SceneOutlinerModule.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "SceneOutlinerPublicTypes.h"
 
 #define LOCTEXT_NAMESPACE "CompElementBrowser"
 

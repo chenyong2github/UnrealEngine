@@ -2,8 +2,8 @@
 
 #include "UICommandsScriptingSubsystem.h"
 
-#include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/InputBindingManager.h"
+#include "Framework/Commands/UICommandList.h"
 
 DEFINE_LOG_CATEGORY(LogCommandsScripting)
 

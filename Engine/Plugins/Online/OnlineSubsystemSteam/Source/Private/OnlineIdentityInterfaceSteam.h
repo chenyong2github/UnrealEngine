@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystemSteamPackage.h"
+
+struct FPlatformUserId;
 
 class FOnlineSubsystemSteam;
 

@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingPeerComponent.h"
+#include "PixelStreamingMediaTexture.h"
 #include "PixelStreamingPlayerPrivate.h"
-#include "Async/Async.h"
+#include "PixelStreamingPeerConnection.h"
 #include "Utils.h"
 
 UPixelStreamingPeerComponent::UPixelStreamingPeerComponent(const FObjectInitializer& ObjectInitializer)

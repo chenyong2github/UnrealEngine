@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ISequencerSection.h"
-#include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
+
+struct FBuildEditWidgetParams;
 
 class UMovieSceneReplaySection;
 class UMovieSceneReplayTrack;

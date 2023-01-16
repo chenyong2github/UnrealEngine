@@ -2,15 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILiveLinkSource.h"
 
 #include "LiveLinkMasterLockitSourceSettings.h"
 #include "LiveLinkMasterLockitConnectionSettings.h"
 
-#include "MasterLockitMessageThread.h"
 
-#include <atomic>
+
+class FMasterLockitMessageThread;
+class FSocket;
+class ULiveLinkSourceSettings;
+struct FLensPacket;
 
 static constexpr int MasterLockitPortNumber = 42000; // From the MasterLockit API
 

@@ -5,14 +5,8 @@
 #include "DatasmithFBXHashUtils.h"
 #include "DatasmithFBXImporterLog.h"
 #include "Misc/Paths.h"
-#include "Utility/DatasmithMeshHelper.h"
 
-#include "FbxImporter.h"
-#include "FileHelpers.h"
-#include "MeshUtilities.h"
 #include "Misc/FileHelper.h"
-#include "Modules/ModuleManager.h"
-#include "StaticMeshAttributes.h"
 
 #define ANIMNODE_SUFFIX						TEXT("_AnimNode")
 #define LIGHT_SUFFIX						TEXT("_Light")

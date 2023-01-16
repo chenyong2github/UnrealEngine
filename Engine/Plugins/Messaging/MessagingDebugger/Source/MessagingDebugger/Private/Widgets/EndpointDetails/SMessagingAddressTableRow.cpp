@@ -6,6 +6,7 @@
 #include "SlateOptMacros.h"
 
 #include "Models/MessagingDebuggerModel.h"
+#include "Widgets/Views/SListView.h"
 
 
 namespace MessagingAddressTableRow

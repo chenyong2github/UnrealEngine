@@ -2,18 +2,13 @@
 
 #include "StageMessageTypeDetailCustomization.h"
 
-#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
 #include "StageMessages.h"
 #include "StageMonitoringSettings.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "StageMessageTypeDetailCustomization"

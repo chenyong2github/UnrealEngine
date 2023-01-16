@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Modules/ModuleInterface.h"
 
-#include "ConcertSyncSettings.h"
 #include "IConcertClientTransactionBridge.h"
 #include "IConcertSyncClientModule.h"
 
+#include "UObject/Package.h"
 #include "USDLog.h"
 #include "USDStageActor.h"
 #include "USDTransactor.h"

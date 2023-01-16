@@ -1,9 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/Dom/WebAPICodeGenStruct.h"
 
-#include "CodeGen/Dom/WebAPICodeGenFunction.h"
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "Dom/WebAPIModel.h"
+#include "CodeGen/Dom/WebAPICodeGenProperty.h"
 #include "Dom/WebAPIType.h"
 
 const TSharedPtr<FWebAPICodeGenProperty>& FWebAPICodeGenStruct::FindOrAddProperty(const FWebAPINameVariant& InName)

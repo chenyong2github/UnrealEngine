@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VoiceEngineSteam.h"
-#include "OnlineSubsystemSteam.h"
-#include "OnlineSubsystemUtils.h"
-#include "VoiceModule.h"
-#include "SteamUtilities.h"
+#include "OnlineSubsystemSteamPrivate.h" // IWYU pragma: keep
 
 FVoiceEngineSteam::FVoiceEngineSteam(IOnlineSubsystem* InSubsystem) :
 	FVoiceEngineImpl(InSubsystem),

@@ -3,6 +3,7 @@
 #include "WebAPILiquidJSModule.h"
 
 #include "IWebAPIEditorModule.h"
+#include "Misc/AsyncTaskNotification.h"
 #include "WebAPILiquidJSCodeGenerator.h"
 #include "WebAPILiquidJSProcess.h"
 #include "Misc/CoreDelegates.h"

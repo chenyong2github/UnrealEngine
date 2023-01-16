@@ -3,6 +3,7 @@
 #include "DataprepFilterLibrary.h"
 
 #include "Engine/StaticMesh.h"
+#include "GameFramework/Actor.h"
 
 namespace DataprepFilterLibraryImpl
 {

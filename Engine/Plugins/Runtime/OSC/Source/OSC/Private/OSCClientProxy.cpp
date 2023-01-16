@@ -2,13 +2,12 @@
 #include "OSCClientProxy.h"
 
 #include "Common/UdpSocketBuilder.h"
-#include "Sockets.h"
-#include "SocketTypes.h"
 
-#include "OSCBundlePacket.h"
+#include "OSCBundle.h"
 #include "OSCLog.h"
-#include "OSCClient.h"
+#include "OSCMessage.h"
 #include "OSCMessagePacket.h"
+#include "OSCStream.h"
 
 namespace
 {

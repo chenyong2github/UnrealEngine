@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebBrowserWidgetModule.h"
-#include "Modules/ModuleManager.h"
 #include "WebBrowserAssetManager.h"
 #include "WebBrowserModule.h"
 #include "IWebBrowserSingleton.h"

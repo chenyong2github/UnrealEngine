@@ -1,12 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPICodeView.h"
 
+#include "Details/ViewModels/WebAPIViewModel.h"
 #include "SlateOptMacros.h"
 #include "Details/WebAPIDefinitionDetailsCustomization.h"
 #include "Details/ViewModels/WebAPICodeViewModel.h"
+#include "WebAPIDefinition.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION

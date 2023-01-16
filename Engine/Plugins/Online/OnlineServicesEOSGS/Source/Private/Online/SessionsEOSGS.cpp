@@ -2,10 +2,10 @@
 
 #include "Online/SessionsEOSGS.h"
 
+#include "EOSShared.h"
 #include "Online/AuthEOSGS.h"
-#include "Online/OnlineIdEOSGS.h"
+#include "Online/LobbiesCommonTypes.h"
 #include "Online/OnlineServicesEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
 #include "Online/NboSerializerEOSGSSvc.h"
 #include "Online/OnlineErrorEOSGS.h"
 #include "Online/SessionsEOSGSTypes.h"

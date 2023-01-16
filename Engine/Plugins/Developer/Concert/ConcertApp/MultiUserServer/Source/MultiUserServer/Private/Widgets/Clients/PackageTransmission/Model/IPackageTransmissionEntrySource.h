@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PackageTransmissionEntry.h"
-#include "Templates/NonNullPointer.h"
 
 namespace UE::MultiUserServer
 {

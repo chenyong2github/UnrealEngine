@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Insights/ViewModels/TimingEvent.h"
+#include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "RenderGraphProvider.h"
-#include "RenderGraphTrackDrawHelper.h"
+
+namespace UE::RenderGraphInsights { class FRenderGraphTrackDrawStateBuilder; }
+struct FTimingViewLayout;
 
 class FMenuBuilder;
 class ITimingTrackDrawContext;

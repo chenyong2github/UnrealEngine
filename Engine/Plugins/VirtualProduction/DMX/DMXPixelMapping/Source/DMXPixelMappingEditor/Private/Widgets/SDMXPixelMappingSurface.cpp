@@ -2,11 +2,9 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
-#include "Components/DMXPixelMappingRendererComponent.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "Rendering/DrawElements.h"
 #include "Settings/LevelEditorViewportSettings.h"
 
 

@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HistoryEdition/ActivityDependencyGraph.h"
 #include "HistoryEdition/ActivityGraphIDs.h"
-#include "HistoryEdition/ActivityNode.h"
 #include "Misc/AutomationTest.h"
 
 namespace UE::ConcertSyncTests

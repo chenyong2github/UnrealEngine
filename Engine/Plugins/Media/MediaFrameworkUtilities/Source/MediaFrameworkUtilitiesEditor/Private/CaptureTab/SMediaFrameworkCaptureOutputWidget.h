@@ -2,22 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Engine/EngineTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "Camera/CameraActor.h"
 #include "EditorViewportClient.h"
-#include "Engine/TextureRenderTarget2D.h"
-#include "Materials/Material.h"
 #include "MediaCapture.h"
-#include "MediaOutput.h"
-#include "ShowFlags.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/StrongObjectPtr.h"
+
+class UMediaOutput;
 
 
 class FLevelEditorViewportClient;

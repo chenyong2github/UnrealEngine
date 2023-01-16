@@ -4,11 +4,7 @@
 
 #include "common/TextureProperty.h"
 #include "common/Utility.h"
-#include "mdl/Common.h"
 
-#include "Containers/UnrealString.h"
-#include "Math/Vector.h"
-#include "Templates/Function.h"
 
 class UMaterialExpression;
 struct FImage;

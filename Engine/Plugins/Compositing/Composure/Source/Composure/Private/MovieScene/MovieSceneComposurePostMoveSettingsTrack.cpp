@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene/MovieSceneComposurePostMoveSettingsTrack.h"
+#include "Channels/MovieSceneChannelData.h"
 #include "MovieScene/MovieSceneComposurePostMoveSettingsSection.h"
 #include "MovieSceneComposurePostMoveSettingsSectionTemplate.h"
-#include "Evaluation/MovieSceneEvalTemplate.h"
 
 UMovieSceneComposurePostMoveSettingsTrack::UMovieSceneComposurePostMoveSettingsTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
+#include "Misc/CoreDelegates.h"
 #include "ToolMenus.h"
-#include "Framework/Docking/TabManager.h"
-#include "Toolkits/IToolkitHost.h"
 #include "CodeEditorStyle.h"
 #include "CodeProject.h"
 #include "CodeProjectEditor.h"
-#include "LevelEditor.h"
+#include "ToolMenu.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuSection.h"
 
 static const FName CodeEditorTabName( TEXT( "CodeEditor" ) );
 

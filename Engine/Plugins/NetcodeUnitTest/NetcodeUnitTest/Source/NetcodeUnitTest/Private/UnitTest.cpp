@@ -4,11 +4,11 @@
 
 #include "HAL/FileManager.h"
 #include "Containers/ArrayBuilder.h"
+#include "Misc/OutputDeviceFile.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/FeedbackContext.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
 
+#include "Misc/Paths.h"
 #include "UnitTestEnvironment.h"
 #include "UnitTestManager.h"
 #include "NUTUtil.h"

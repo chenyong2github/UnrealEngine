@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tasks/MassCrowdClaimWaitSlotTask.h"
-#include "StateTreeExecutionContext.h"
 #include "MassCrowdSubsystem.h"
 #include "MassZoneGraphNavigationFragments.h"
 #include "MassNavigationFragments.h"

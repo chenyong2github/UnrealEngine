@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Widgets/Layout/SBox.h"
-#include "Input/Reply.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Framework/Docking/TabManager.h"
+
+class FReply;
+class FTabManager;
+class SBox;
 
 class IDetailsView;
 class UActorSequence;

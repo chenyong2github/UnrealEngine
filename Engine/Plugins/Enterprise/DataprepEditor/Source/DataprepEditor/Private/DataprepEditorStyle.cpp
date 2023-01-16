@@ -2,14 +2,13 @@
 
 #include "DataprepEditorStyle.h"
 
+#include "Brushes/SlateBoxBrush.h"
 #include "DataprepEditorModule.h"
 
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
-#include "Styling/CoreStyle.h"
-#include "Styling/SlateStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
 #include "Styling/ToolBarStyle.h"
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FDataprepEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )

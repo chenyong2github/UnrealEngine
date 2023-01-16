@@ -1,13 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include <atomic>
-#include "Containers/UnrealString.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
-#include "Misc/AsyncTaskNotification.h"
+#include "Templates/UniquePtr.h"
+
+class FAsyncTaskNotification;
+class FRunnableThread;
+struct FScriptContainerElement;
 
 class FWebAPILiquidJSProcess : private FRunnable
 {

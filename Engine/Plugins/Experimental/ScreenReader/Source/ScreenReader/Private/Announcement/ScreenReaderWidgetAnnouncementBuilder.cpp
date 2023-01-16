@@ -2,7 +2,6 @@
 
 #include "Announcement/ScreenReaderWidgetAnnouncementBuilder.h"
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
-#include "Misc/StringBuilder.h"
 
 #define LOCTEXT_NAMESPACE "ScreenReaderWidgetAnnouncementBuilkder"
 const TMap<EAccessibleWidgetType, FText> FScreenReaderWidgetAnnouncementBuilder::WidgetTypeToAccessibleRoleMap

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCStream.h"
 
+#include "CoreGlobals.h"
 #include "OSCLog.h"
+#include "Math/Color.h"
 
 
 namespace OSC

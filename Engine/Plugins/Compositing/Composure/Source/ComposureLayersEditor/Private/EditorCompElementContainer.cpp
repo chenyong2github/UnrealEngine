@@ -4,7 +4,6 @@
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
 #include "CompositingElement.h"
-#include "Engine/Level.h"
 #include "LevelUtils.h"
 
 UEditorCompElementContainer::UEditorCompElementContainer()

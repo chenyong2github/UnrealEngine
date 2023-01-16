@@ -2,14 +2,13 @@
 
 #include "DataprepAssetProducers.h"
 
+#include "DataprepAssetInterface.h"
 #include "DataprepContentProducer.h"
 #include "DataprepCoreLogCategory.h"
 #include "Shared/DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
 
-#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAssetProducers"
 

@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTrackBP.h"
-#include "SequencerSectionBP.h"
 
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
-#include "EntitySystem/MovieSceneInstanceRegistry.h"
 
 
 UMovieSceneSection* USequencerTrackBP::CreateNewSection()

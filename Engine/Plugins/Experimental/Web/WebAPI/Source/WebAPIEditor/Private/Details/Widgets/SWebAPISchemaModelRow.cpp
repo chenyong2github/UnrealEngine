@@ -1,12 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaModelRow.h"
 
 #include "WebAPIEditorStyle.h"
 #include "Details/ViewModels/WebAPIModelViewModel.h"
-#include "Widgets/Colors/SColorBlock.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Layout/SBox.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.inl"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "WebAPISchemaModelRow"
 

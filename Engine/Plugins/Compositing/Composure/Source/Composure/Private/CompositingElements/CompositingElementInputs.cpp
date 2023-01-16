@@ -10,7 +10,7 @@
 #include "CompositingElements/CompositingElementPassUtils.h"
 #include "ComposureConfigSettings.h" // for StaticVideoPlateDebugImage
 #include "ComposureInternals.h" // for COMPOSURE_GET_MATERIAL()
-#include "CompositingElements/CompositingElementTransforms.h"
+#include "UObject/ConstructorHelpers.h"
 
 namespace CompositingMediaInput_Impl
 {

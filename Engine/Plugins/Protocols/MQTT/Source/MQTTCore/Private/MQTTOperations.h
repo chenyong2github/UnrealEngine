@@ -1,10 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MQTTProtocol.h"
+#include "MQTTShared.h"
 #include "MQTTSharedInternal.h"
+#include "Serialization/BufferArchive.h" // IWYU pragma: keep
 
 #pragma region Packets
 

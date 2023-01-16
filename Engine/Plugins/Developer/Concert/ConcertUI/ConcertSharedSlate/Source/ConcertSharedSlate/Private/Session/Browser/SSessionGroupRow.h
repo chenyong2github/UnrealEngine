@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Styling/SlateBrush.h"
-#include "Widgets/Views/STreeView.h"
+
+class STableViewBase;
 
 class FConcertArchivedGroupTreeItem;
 class FConcertSessionTreeItem;

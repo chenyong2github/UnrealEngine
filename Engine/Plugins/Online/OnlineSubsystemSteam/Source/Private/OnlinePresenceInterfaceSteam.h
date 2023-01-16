@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemSteamTypes.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "OnlineSubsystemSteamPackage.h"
+
+class FUniqueNetIdSteam;
 
 class FOnlineUserPresenceSteam : public FOnlineUserPresence
 {

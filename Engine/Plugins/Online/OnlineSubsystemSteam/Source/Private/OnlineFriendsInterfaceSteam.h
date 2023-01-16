@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
-#include "OnlineSubsystemSteamPrivate.h"
 #include "OnlineAsyncTaskManager.h"
 #include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "OnlineSubsystemSteamPackage.h"
-
+#include "OnlineSubsystemSteamPrivate.h" // IWYU pragma: keep
 class FOnlineSubsystemSteam;
 
 /**

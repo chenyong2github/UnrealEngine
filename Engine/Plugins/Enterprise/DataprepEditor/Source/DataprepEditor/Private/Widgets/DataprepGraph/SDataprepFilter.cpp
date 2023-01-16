@@ -2,10 +2,8 @@
 
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
 
-#include "DataprepCoreUtils.h"
 #include "DataprepEditorStyle.h"
 #include "SelectionSystem/DataprepBoolFilter.h"
-#include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
 #include "SelectionSystem/DataprepIntegerFilter.h"
 #include "SelectionSystem/DataprepStringFilter.h"
@@ -18,12 +16,9 @@
 #include "Widgets/DataprepGraph/SDataprepObjectSelectionFilter.h"
 #include "Widgets/DataprepWidgets.h"
 
-#include "Styling/AppStyle.h"
-#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SDataprepFilter"
 

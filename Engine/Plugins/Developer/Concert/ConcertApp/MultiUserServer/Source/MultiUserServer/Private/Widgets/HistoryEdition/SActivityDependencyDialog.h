@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Dialog/SCustomDialog.h"
 
-#include "ConcertMessageData.h"
 #include "SActivityDependencyView.h"
-#include "Session/Activity/ActivityColumn.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FArchivedSessionHistoryController;
 class IConcertSyncServer;

@@ -5,9 +5,11 @@
 #if WITH_WEBM_LIBS
 
 #include "MoviePlayer.h"
-#include "WebMAudioBackend.h"
+
 #include COMPILED_PLATFORM_HEADER(WebMAudioBackendDefines.h)
-#include "WebMMediaFrame.h"
+class FSlateTexture2DRHIRef;
+struct FWebMFrame;
+
 #include "Containers/Queue.h"
 #include "WebMSamplesSink.h"
 

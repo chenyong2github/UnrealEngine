@@ -9,7 +9,6 @@
 
 #include "Misc/Base64.h"
 #include "Misc/ConfigContext.h"
-#include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
 #include "IPlatformFilePak.h"
 #include "HAL/PlatformFileManager.h"

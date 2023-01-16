@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
 #include "Recorder/TakeRecorderParameters.h"
 #include "IdentifierTable/ConcertIdentifierTableData.h"
 

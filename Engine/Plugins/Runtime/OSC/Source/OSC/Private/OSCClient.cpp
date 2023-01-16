@@ -1,15 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCClient.h"
 
-#include "Common/UdpSocketBuilder.h"
-#include "Sockets.h"
 
-#include "OSCBundle.h"
 #include "OSCClientProxy.h"
-#include "OSCLog.h"
-#include "OSCMessage.h"
-#include "OSCPacket.h"
-#include "OSCStream.h"
 
 
 UOSCClient::UOSCClient(const FObjectInitializer& ObjectInitializer)

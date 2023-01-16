@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MrcLatencyViewExtension.h"
-#include "MotionDelayBuffer.h"
 #include "MixedRealityCaptureComponent.h"
-#include "HAL/IConsoleManager.h" // for TAutoConsoleVariable<>
 #include "RenderingThread.h" // for ENQUEUE_RENDER_COMMAND
 #include "MotionControllerComponent.h"
 

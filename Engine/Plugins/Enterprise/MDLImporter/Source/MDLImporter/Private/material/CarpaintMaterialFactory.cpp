@@ -2,13 +2,19 @@
 
 #include "CarpaintMaterialFactory.h"
 
+#include "Materials/MaterialExpressionAdd.h"
 #include "generator/FunctionLoader.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "generator/MaterialExpressions.h"
-#include "material/BakedMaterialFactory.h"
+#include "Materials/MaterialExpressionConstant3Vector.h"
 #include "mdl/Material.h"
 
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialExpressionSaturate.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionTextureObjectParameter.h"
+#include "Materials/MaterialExpressionVectorParameter.h"
 
 namespace Mat
 {

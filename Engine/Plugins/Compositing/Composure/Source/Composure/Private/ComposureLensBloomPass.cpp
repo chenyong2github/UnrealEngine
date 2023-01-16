@@ -9,6 +9,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ComposureInternals.h"
 #include "ComposureUtils.h"
+#include "UObject/ConstructorHelpers.h"
 
 /* ComposureLensBloomPass_Impl
  *****************************************************************************/

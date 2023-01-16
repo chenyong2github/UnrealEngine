@@ -4,20 +4,13 @@
 
 #include "ChaosFlesh/Asset/FleshAssetFactory.h"
 #include "ChaosFlesh/FleshAsset.h"
-#include "ChaosFlesh/FleshActor.h"
-#include "ChaosFlesh/FleshComponent.h"
+#include "ChaosFlesh/FleshCollection.h"
 #include "ChaosFlesh/FleshCollectionUtility.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Editor.h"
-#include "EditorSupportDelegates.h"
-#include "Engine/Selection.h"
-#include "Engine/World.h"
-#include "EngineUtils.h"
-#include "Internationalization/Regex.h"
-#include "Logging/LogMacros.h"
+#include "GeometryCollection/TransformCollection.h"
 #include "Misc/Paths.h"
-#include "SceneOutlinerDelegates.h"
+#include "UObject/Package.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UChaosFleshCommandsLogging, NoLogging, All);

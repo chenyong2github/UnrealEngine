@@ -3,7 +3,6 @@
 #include "Annotations/ZoneGraphDisturbanceAnnotationBPLibrary.h"
 #include "Annotations/ZoneGraphDisturbanceAnnotation.h"
 #include "ZoneGraphAnnotationSubsystem.h"
-#include "ZoneGraphTypes.h"
 
 void UZoneGraphDisturbanceAnnotationBPLibrary::TriggerDanger(UObject* WorldContextObject, const AActor* Instigator, const FVector Position, const float Radius, const float Duration)
 {

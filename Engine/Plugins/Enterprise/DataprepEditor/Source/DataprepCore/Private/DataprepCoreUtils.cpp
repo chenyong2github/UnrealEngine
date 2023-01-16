@@ -1,45 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataprepCoreUtils.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Engine/Texture.h"
 
 #ifdef NEW_DATASMITHSCENE_WORKFLOW
 #include "DataprepAssetUserData.h"
 #endif
 
-#include "DataprepActionAsset.h"
 #include "DataprepAsset.h"
-#include "DataprepAssetInterface.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
 #include "DataprepCoreLogCategory.h"
+#include "EngineLogs.h"
 #include "Shared/DataprepCorePrivateUtils.h"
 #include "DataprepOperation.h"
-#include "DataprepParameterizableObject.h"
-#include "IDataprepProgressReporter.h"
-#include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "Materials/MaterialInterface.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
 #include "GameFramework/WorldSettings.h"
 #include "HAL/FileManager.h"
 #include "LevelSequence.h"
-#include "MaterialGraph/MaterialGraph.h"
-#include "MaterialShared.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialFunction.h"
-#include "Materials/MaterialInstance.h"
-#include "Materials/MaterialInstanceConstant.h"
+#include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
-#include "Templates/SubclassOf.h"
 #include "UObject/StrongObjectPtr.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR

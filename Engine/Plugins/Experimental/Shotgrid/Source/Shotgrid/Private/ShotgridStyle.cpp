@@ -2,8 +2,11 @@
 
 #include "ShotgridStyle.h"
 
+#include "Brushes/SlateImageBrush.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyle.h"
+#include "Rendering/SlateRenderer.h"
 #include "Styling/SlateStyleRegistry.h"
 
 TUniquePtr< FSlateStyleSet > FShotgridStyle::ShotgridStyleInstance = nullptr;

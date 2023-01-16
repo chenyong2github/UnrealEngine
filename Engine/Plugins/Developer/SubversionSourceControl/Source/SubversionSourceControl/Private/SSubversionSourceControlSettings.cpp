@@ -2,9 +2,9 @@
 
 #include "SSubversionSourceControlSettings.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
 #include "SubversionSourceControlModule.h"
 
 TWeakPtr<SEditableTextBox> SSubversionSourceControlSettings::PasswordTextBox;

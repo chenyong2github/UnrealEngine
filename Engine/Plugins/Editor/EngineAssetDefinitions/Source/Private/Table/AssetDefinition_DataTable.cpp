@@ -3,11 +3,14 @@
 #include "AssetDefinition_DataTable.h"
 
 #include "AssetDefinitionRegistry.h"
+#include "IAssetTools.h"
 #include "ToolMenus.h"
+#include "IDesktopPlatform.h"
 #include "Misc/FileHelper.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/MessageDialog.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Misc/Paths.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 
 #include "DataTableEditorModule.h"

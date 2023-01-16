@@ -3,8 +3,6 @@
 #include "LocationServicesAndroidEditor.h"
 #include "LocationServicesAndroidSettings.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/Class.h"
-#include "UObject/WeakObjectPtr.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"

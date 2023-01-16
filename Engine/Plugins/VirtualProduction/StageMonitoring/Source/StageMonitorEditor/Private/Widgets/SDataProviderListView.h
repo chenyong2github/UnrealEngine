@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 struct FDataProviderTableRowData;
 class IStageMonitorSession;

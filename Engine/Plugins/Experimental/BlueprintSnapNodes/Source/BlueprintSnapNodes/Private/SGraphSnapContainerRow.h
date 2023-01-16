@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "KismetNodes/SGraphNodeK2Base.h"
+
+class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
 
 class SGraphPin;
 class UK2Node;

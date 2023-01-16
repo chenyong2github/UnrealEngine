@@ -2,16 +2,17 @@
 
 #include "ConcertLogGlobal.h"
 
-#include "ConcertSyncSessionDatabase.h"
+#include "HistoryEdition/ActivityDependencyEdge.h"
 #include "HistoryEdition/DebugDependencyGraph.h"
+#include "HistoryEdition/ActivityDependencyGraph.h"
 #include "HistoryEdition/DependencyGraphBuilder.h"
+#include "HistoryEdition/ActivityGraphIDs.h"
 #include "HistoryEdition/HistoryAnalysis.h"
+#include "HistoryEdition/ActivityNode.h"
 #include "RenameEditAndDeleteMapsFlow.h"
 #include "Util/ScopedSessionDatabase.h"
 
 #include "Algo/AllOf.h"
-#include "Containers/TestUtils.h"
-#include "Misc/AutomationTest.h"
 
 namespace UE::ConcertSyncTests
 {

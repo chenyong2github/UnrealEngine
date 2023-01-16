@@ -2,15 +2,15 @@
 
 #include "ClientBrowserModel.h"
 
+#include "ConcertMessages.h"
 #include "ConcertServerEvents.h"
 #include "IConcertServer.h"
+#include "IConcertSession.h"
 #include "Widgets/Clients/Browser/Item/ClientBrowserItem.h"
-#include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
-#include "Algo/AnyOf.h"
-#include "Algo/Transform.h"
 #include "Features/IModularFeatures.h"
 #include "INetworkMessagingExtension.h"
+#include "Widgets/Clients/Browser/Item/IConcertBrowserItem.h"
 
 UE::MultiUserServer::FClientBrowserModel::FClientBrowserModel(TSharedRef<IConcertServer> InServer, TSharedRef<FEndpointToUserNameCache> ClientInfoCache, TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel)
 	: Server(MoveTemp(InServer))

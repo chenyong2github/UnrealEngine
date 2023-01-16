@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateScriptingCommandsModule.h"
+#include "Modules/ModuleManager.h"
 
 void FSlateScriptingCommandsModule::StartupModule()
 {

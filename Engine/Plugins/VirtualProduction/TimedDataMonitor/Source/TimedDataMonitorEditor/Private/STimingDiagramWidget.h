@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "ITimedDataInput.h"
-#include "TimedDataMonitorSubsystem.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "TimedDataMonitorTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SlateOptMacros.h"
+
+enum class ETimedDataInputEvaluationType : uint8;
+struct FTimedDataChannelSampleTime;
 
 class STimingDiagramWidgetGraphic;
 

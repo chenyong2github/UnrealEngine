@@ -3,7 +3,6 @@
 #include "LiveLinkDebugCurveNodeBase.h"
 
 #include "LiveLinkDebuggerSettings.h"
-#include "Styling/SlateColor.h"
 
 	FLiveLinkDebugCurveNodeBase::FLiveLinkDebugCurveNodeBase(FName InCurveName, float InCurveValue)
 		: CurveName(InCurveName)

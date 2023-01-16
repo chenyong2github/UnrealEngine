@@ -3,21 +3,12 @@
 #define BINKRHIFUNCTIONS
 #define BINKTEXTURESCLEANUP
 #include "egttypes.h"
+#include "RHIDefinitions.h"
 #include "binktiny.h"
+#include "RHIFwd.h"
 #include "binktextures.h"
 #include "binkplugin.h"
 
-#include "CoreMinimal.h"
-#include "MaterialShader.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
-#include "RHI.h"
-#include "RHIStaticStates.h"
-#include "RenderGraphResources.h"
-#include "RenderResource.h"
-#include "ShaderParameterUtils.h"
-#include "UObject/ConstructorHelpers.h"
 
 static BINKSHADERS * shaders;
 

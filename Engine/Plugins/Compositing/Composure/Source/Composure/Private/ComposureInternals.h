@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "UObject/ConstructorHelpers.h"
+#include "Logging/LogMacros.h"
 
 
 // Macro to create a composure material and set it to <DestMemberName>.

@@ -9,8 +9,7 @@
 #include "ChaosFlesh/FleshCollection.h"
 #include "ChaosFlesh/FleshCollectionUtility.h"
 #include "ChaosLog.h"
-#include "CompGeom/ExactPredicates.h"
-#include "CoreMinimal.h"
+#include "Dataflow/DataflowInputOutput.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Engine/StaticMesh.h"
@@ -19,6 +18,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Spatial/FastWinding.h"
+#include "Spatial/MeshAABBTree3.h"
 
 namespace Dataflow
 {

@@ -2,8 +2,6 @@
 
 #include "NDisplaySlaveVirtualSubject.h"
 
-#include "LiveLinkOverNDisplayPrivate.h"
-#include "LiveLinkSubjectSettings.h"
 
 
 

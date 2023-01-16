@@ -2,19 +2,11 @@
 
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 
-#include "DMXPixelMappingComponentWidget.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "DragDrop/DMXPixelMappingGroupChildDragDropHelper.h"
-#include "Templates/DMXPixelMappingComponentTemplate.h"
-#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixCellComponent.h"
 
 #include "Editor.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Layout/WidgetPath.h"
-#include "Widgets/Notifications/SNotificationList.h"
 
 
 #define LOCTEXT_NAMESPACE "FDMXPixelMappingDragDropOp"

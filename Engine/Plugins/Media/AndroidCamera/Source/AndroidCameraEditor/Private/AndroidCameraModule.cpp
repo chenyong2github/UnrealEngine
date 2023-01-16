@@ -3,6 +3,7 @@
 #include "AndroidCameraEditor.h"
 #include "ISettingsModule.h"
 #include "AndroidCameraRuntimeSettings.h"
+#include "Modules/ModuleManager.h"
 
 /**
  * Implements the AndroidCameraEditor module.

@@ -4,10 +4,7 @@
 
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 #include "ChaosFlesh/ChaosDeformableSolverAsset.h"
-#include "Misc/FileHelper.h"
 #include "AssetRegistry/AssetData.h"
-#include "Editor.h"
-#include "EditorFramework/AssetImportData.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactoryDeformableSolver"
 

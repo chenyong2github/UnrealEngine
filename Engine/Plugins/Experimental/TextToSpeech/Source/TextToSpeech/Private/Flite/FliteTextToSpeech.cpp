@@ -3,8 +3,8 @@
 #if USING_FLITE
 #include "Flite/FliteTextToSpeech.h"
 #include "Flite/FliteAdapter.h"
+#include "Flite/FliteSynthesizedSpeechData.h"
 #include "Flite/FliteTextToSpeechSubmixListener.h"
-#include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 #include "TextToSpeechLog.h"
 

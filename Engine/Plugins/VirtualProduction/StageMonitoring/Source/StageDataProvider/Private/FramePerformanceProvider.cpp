@@ -2,22 +2,14 @@
 
 #include "FramePerformanceProvider.h"
 
-#include "CoreGlobals.h"
 #include "EngineGlobals.h"
-#include "Features/IModularFeatures.h"
 #include "IStageDataProvider.h"
 #include "Misc/App.h"
-#include "Misc/CoreDelegates.h"
-#include "RHIDefinitions.h"
-#include "RenderCore.h"
 #include "StageDataProviderModule.h"
-#include "StageMessages.h"
-#include "StageMonitoringSettings.h"
 #include "StageMonitorUtils.h"
 #include "Stats/StatsData.h"
 #include "UObject/Package.h"
 #include "UObject/PackageReload.h"
-#include "VPSettings.h"
 
 #include "ShaderCompiler.h"
 

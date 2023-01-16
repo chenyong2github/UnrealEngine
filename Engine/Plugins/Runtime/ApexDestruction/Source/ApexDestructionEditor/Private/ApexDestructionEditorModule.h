@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 //#include "Toolkits/IToolkitHost.h"
 //#include "Toolkits/AssetEditorToolkit.h"
 //#include "AssetData.h"

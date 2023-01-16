@@ -2,15 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 #pragma once
 
-#include "binkplugin.h"
-
-#include "HAL/PlatformFileManager.h"
-#include "Modules/ModuleManager.h"
-#include "Rendering/RenderingCommon.h"
-#include "TickableObjectRenderThread.h"
-#include "RHI.h"
-#include "RHIUtilities.h"
-#include "RHIDefinitions.h"
+#include "Rendering/SlateRenderer.h"
+#include "AudioMixerDevice.h"
 
 #if PLATFORM_ANDROID
 #include <android/log.h>
@@ -20,14 +13,10 @@
 #include "Android/AndroidApplication.h"
 #endif
 
-#include "BinkMovieStreamer.h"
-#include "BinkMoviePlayerSettings.h"
 
-#include "binkplugin_ue4.h"
 
-#include "AudioDeviceManager.h"
-#include "AudioMixer.h"
-#include "AudioMixerDevice.h"
+
+enum EPixelFormat : uint8;
 
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api_hdr;

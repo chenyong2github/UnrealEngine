@@ -3,11 +3,11 @@
 #include "Profile/MediaProfileCustomization.h"
 
 #include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
 #include "MediaAssets/ProxyMediaOutput.h"
 #include "MediaAssets/ProxyMediaSource.h"
 #include "Profile/IMediaProfileManager.h"
 #include "Profile/MediaProfile.h"
+#include "PropertyHandle.h"
 
 
 #define LOCTEXT_NAMESPACE "MediaProfileCustomization"

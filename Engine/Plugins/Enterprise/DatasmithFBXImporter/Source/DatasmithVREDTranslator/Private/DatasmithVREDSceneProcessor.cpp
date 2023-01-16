@@ -3,7 +3,6 @@
 
 #include "DatasmithVREDSceneProcessor.h"
 #include "DatasmithVREDLog.h"
-#include "DatasmithFBXScene.h"
 
 FDatasmithVREDSceneProcessor::FDatasmithVREDSceneProcessor(FDatasmithFBXScene* InScene)
 	: FDatasmithFBXSceneProcessor(InScene)

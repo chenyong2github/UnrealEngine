@@ -2,7 +2,6 @@
 
 #include "ZoneGraphAnnotationTestingActor.h"
 #include "ZoneGraphAnnotationComponent.h"
-#include "ZoneGraphAnnotationSubsystem.h"
 #include "Debug/DebugDrawService.h"
 
 /////////////////////////////////////////////////////

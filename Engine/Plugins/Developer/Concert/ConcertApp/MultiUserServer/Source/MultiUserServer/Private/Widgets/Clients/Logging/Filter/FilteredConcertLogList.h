@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/IFilter.h"
 #include "Widgets/Clients/Logging/Source/IConcertLogSource.h"
+
+template <typename OptionalType> struct TOptional;
 
 struct FConcertLog;
 

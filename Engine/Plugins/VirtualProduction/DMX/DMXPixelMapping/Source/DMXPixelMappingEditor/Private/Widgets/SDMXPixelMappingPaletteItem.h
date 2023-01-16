@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DMXPixelMappingEditorCommon.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class STableViewBase;
 class FDMXPixelMappingPaletteWidgetViewModel;

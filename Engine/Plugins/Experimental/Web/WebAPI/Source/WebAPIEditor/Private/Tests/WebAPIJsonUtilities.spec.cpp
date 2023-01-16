@@ -1,13 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
 
 #if WITH_AUTOMATION_TESTS
 
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "WebAPIJsonTestData.h"
-#include "WebAPIJsonUtilities.h"
+#include "Tests/WebAPIJsonTestData.h"
 
 BEGIN_DEFINE_SPEC(FWebAPIEditorJsonSpec,
 	TEXT("Plugin.WebAPI.Editor.Json"),

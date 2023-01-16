@@ -2,7 +2,6 @@
 
 #include "SDMXPixelMappingComponentLabel.h"
 
-#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"

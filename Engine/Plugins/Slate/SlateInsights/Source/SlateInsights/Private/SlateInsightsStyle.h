@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/CoreStyle.h"
+#include "Math/ColorList.h"
 #include "Styling/SlateStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateStyleMacros.h"

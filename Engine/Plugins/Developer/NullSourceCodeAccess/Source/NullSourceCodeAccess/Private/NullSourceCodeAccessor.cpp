@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NullSourceCodeAccessor.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformProcess.h"
-#include "Misc/App.h"
 
 #define LOCTEXT_NAMESPACE "NullSourceCodeAccessor"
 bool FNullSourceCodeAccessor::CanAccessSourceCode() const

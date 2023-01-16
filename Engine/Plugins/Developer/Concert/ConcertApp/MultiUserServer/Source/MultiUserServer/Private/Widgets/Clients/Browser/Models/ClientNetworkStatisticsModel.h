@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IClientNetworkStatisticsModel.h"
+#include "Misc/Optional.h"
 
 namespace UE::MultiUserServer
 {

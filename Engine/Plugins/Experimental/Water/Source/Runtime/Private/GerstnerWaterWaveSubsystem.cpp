@@ -2,7 +2,6 @@
 
 #include "GerstnerWaterWaveSubsystem.h"
 #include "GerstnerWaterWaveViewExtension.h"
-#include "Misc/CoreDelegates.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GerstnerWaterWaveSubsystem)
 

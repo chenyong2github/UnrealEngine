@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubversionSourceControlSettings.h"
-#include "Misc/ScopeLock.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SourceControlHelpers.h"
 

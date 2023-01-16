@@ -4,7 +4,8 @@
 
 #include "IWebAPIEditorModule.h"
 
-#include "CoreMinimal.h"
+
+class FExtensibilityManager;
 
 class IWebAPIProviderInterface;
 class FWebAPIDefinitionAssetEditorToolkit;

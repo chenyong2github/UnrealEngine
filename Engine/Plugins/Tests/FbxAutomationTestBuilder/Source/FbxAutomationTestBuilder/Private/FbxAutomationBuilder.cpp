@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FbxAutomationBuilder.h"
+#include "DetailsViewArgs.h"
 #include "Misc/MessageDialog.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Styling/AppStyle.h"
 #include "Factories/FbxImportUI.h"
 #include "Editor.h"
 

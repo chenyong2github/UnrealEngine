@@ -12,29 +12,28 @@
 #include "MaterialCollection.h"
 #include "SemanticParser.h"
 #include "Utility.h"
+#include <mi/base/uuid.h>
+#include <mi/math/color.h>
+#include <mi/math/vector.h>
+#include <mi/neuraylib/ienum.h>
+#include <mi/neuraylib/type_traits.h>
+#include <mi/neuraylib/vector_typedefs.h>
 #if MDL_DEBUG_PRINT_MATERIAL != 0
 #include "MaterialPrinter.h"
 #endif
 #include "MdlSdkDefines.h"
-#include "common/Logging.h"
-#include "common/Utility.h"
 
-#include "Containers/UnrealString.h"
 #include "Misc/Paths.h"
 
 MDLSDK_INCLUDES_START
+#include "mdl/MapDistilHandler.h"
 #include "mi/neuraylib/icanvas.h"
 #include "mi/neuraylib/icolor.h"
 #include "mi/neuraylib/icompiled_material.h"
 #include "mi/neuraylib/idata.h"
 #include "mi/neuraylib/idatabase.h"
-#include "mi/neuraylib/iexpression.h"
-#include "mi/neuraylib/ifunction_call.h"
-#include "mi/neuraylib/ifunction_definition.h"
 #include "mi/neuraylib/iimage_api.h"
 #include "mi/neuraylib/imaterial_definition.h"
-#include "mi/neuraylib/imaterial_instance.h"
-#include "mi/neuraylib/imdl_compiler.h"
 #include "mi/neuraylib/imdl_distiller_api.h"
 #include "mi/neuraylib/ineuray.h"
 #include "mi/neuraylib/inumber.h"

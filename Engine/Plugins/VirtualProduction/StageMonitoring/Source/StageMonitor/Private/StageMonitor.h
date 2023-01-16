@@ -4,14 +4,11 @@
 
 #include "IStageMonitor.h"
 
-#include "CoreMinimal.h"
-#include "IMessageContext.h"
-#include "Misc/Timecode.h"
-#include "StageCriticalEventHandler.h"
-#include "UObject/ObjectMacros.h"
 #include "Containers/Ticker.h"
 
-#include "Templates/Tuple.h"
+#include "StageMessages.h"
+
+class IStageMonitorSession;
 
 class FMessageEndpoint;
 struct FStageDataBaseMessage;

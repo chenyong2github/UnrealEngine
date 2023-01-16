@@ -4,10 +4,8 @@
 
 #include "ConcertFrontendStyle.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/Items/ConcertArchivedGroupTreeItem.h"
 
-#include "Widgets/SNullWidget.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser.SSessionGroupRow"
 

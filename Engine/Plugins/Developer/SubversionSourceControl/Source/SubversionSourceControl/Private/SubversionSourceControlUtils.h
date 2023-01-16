@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SubversionSourceControlRevision.h"
-#include "SubversionSourceControlState.h"
+#include "Templates/SharedPointer.h"
+
+class FSubversionSourceControlState;
+struct FDateTime;
 
 class FSubversionSourceControlCommand;
 class FXmlFile;

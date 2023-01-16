@@ -3,21 +3,17 @@
 #include "DMXPixelMappingEditorUtils.h"
 
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingComponentReference.h"
 #include "DMXPixelMappingEditorCommon.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Layout/WidgetPath.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
-#include "ScopedTransaction.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Input/DragAndDrop.h"
-#include "Layout/ArrangedWidget.h"
-#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "FDMXPixelMappingEditorUtils"
 

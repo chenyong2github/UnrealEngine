@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTSubsystem.h"
 
 #include "JsonObjectWrapper.h"
+#include "MQTTClientMessage.h"
 #include "MQTTClientObject.h"
 #include "MQTTClientSettings.h"
 #include "Engine/Engine.h"

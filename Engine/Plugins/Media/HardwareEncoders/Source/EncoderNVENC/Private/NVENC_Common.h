@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include <CoreMinimal.h>
-#include <HAL/Thread.h>
+#include "Logging/LogMacros.h"
 
 THIRD_PARTY_INCLUDES_START
 

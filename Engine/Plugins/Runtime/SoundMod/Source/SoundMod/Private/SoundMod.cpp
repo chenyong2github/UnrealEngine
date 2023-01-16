@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundMod.h"
-#include "EngineDefines.h"
 #include "SoundModWave.h"
 #include "ActiveSound.h"
 

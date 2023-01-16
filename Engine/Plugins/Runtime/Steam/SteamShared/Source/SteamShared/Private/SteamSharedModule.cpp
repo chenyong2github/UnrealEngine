@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SteamSharedModule.h"
-#include "CoreMinimal.h"
-#include "Misc/Paths.h"
 #include "Misc/CommandLine.h"
-#include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SocketSubsystem.h"
-#include "IPAddress.h"
+#include <steam/isteamgameserver.h>
+#include <steam/steamtypes.h>
 
 #ifndef STEAM_SDK_INSTALLED
 #error Steam SDK not located! Expected to be found in Engine/Source/ThirdParty/Steamworks/{SteamVersion}

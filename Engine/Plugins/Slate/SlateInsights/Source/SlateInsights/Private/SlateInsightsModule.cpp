@@ -3,19 +3,12 @@
 #include "SlateInsightsModule.h"
 
 #include "Features/IModularFeatures.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "Insights/ITimingViewExtender.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Modules/ModuleManager.h"
 #include "SlateInsightsStyle.h"
-#include "TraceServices/ITraceServicesModule.h"
 
-#include "Framework/Docking/LayoutExtender.h"
-#include "Framework/Docking/TabManager.h"
 #include "SSlateFrameSchematicView.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "SlateInsightsModule"
 

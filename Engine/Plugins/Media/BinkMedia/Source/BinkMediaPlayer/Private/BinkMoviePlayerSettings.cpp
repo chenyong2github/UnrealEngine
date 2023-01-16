@@ -2,7 +2,7 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMoviePlayerSettings.h"
-#include "BinkMediaPlayerPrivate.h"
+#include "PixelFormat.h"
 
 UBinkMoviePlayerSettings::UBinkMoviePlayerSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

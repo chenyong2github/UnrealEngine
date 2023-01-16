@@ -4,7 +4,6 @@
 
 #include "Layout/ArrangedChildren.h"
 #include "SlateSettings.h"
-#include "Types/PaintArgs.h"
 void SDMXPixelMappingDesignerCanvas::Construct(const FArguments& InArgs)
 {
 	SConstraintCanvas::Construct(SConstraintCanvas::FArguments());

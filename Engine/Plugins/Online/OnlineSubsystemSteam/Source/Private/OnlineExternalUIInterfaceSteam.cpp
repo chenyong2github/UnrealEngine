@@ -3,6 +3,7 @@
 #include "OnlineExternalUIInterfaceSteam.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSessionSettings.h"
+#include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 
 // Other external UI possibilities in Steam

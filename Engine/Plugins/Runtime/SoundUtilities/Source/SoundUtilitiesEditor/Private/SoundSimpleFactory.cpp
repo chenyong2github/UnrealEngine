@@ -2,6 +2,7 @@
 
 #include "SoundSimpleFactory.h"
 #include "AudioAnalytics.h"
+#include "Sound/SoundWave.h"
 #include "SoundSimple.h"
 
 USoundSimpleFactory::USoundSimpleFactory(const FObjectInitializer& ObjectInitializer)

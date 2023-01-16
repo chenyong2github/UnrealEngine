@@ -2,10 +2,13 @@
 
 #include "StageMonitorEditorStyle.h"
 
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Interfaces/IPluginManager.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/CoreStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 
 

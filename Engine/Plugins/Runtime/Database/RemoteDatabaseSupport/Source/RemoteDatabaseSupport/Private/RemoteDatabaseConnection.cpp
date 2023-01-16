@@ -2,7 +2,6 @@
 
 #include "RemoteDatabaseConnection.h"
 
-#include "IPAddress.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "Misc/ByteSwap.h"

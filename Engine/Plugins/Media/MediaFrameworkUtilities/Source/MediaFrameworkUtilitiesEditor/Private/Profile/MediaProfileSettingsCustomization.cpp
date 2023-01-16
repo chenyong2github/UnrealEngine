@@ -2,9 +2,10 @@
 
 #include "Profile/MediaProfileSettingsCustomization.h"
 
+#include "IAssetTools.h"
 #include "Profile/IMediaProfileManager.h"
+#include "Misc/PackageName.h"
 #include "Profile/MediaProfileSettings.h"
-#include "Profile/MediaProfileSettingsCustomizationOptions.h"
 #include "Profile/SMediaProfileSettingsOptionsWindow.h"
 
 #include "MediaAssets/ProxyMediaOutput.h"
@@ -12,19 +13,15 @@
 #include "MediaBundle.h"
 
 #include "AssetToolsModule.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Styling/AppStyle.h"
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
-#include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SWindow.h"
 

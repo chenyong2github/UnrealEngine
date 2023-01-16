@@ -7,7 +7,7 @@
 #include "Filter/PackageTransmissionFilter_FrontendRoot.h"
 #include "Model/FilteredPackageTransmissionModel.h"
 
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/Clients/PackageTransmission/Model/IPackageTransmissionEntrySource.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SPackageTransmissionView"
 

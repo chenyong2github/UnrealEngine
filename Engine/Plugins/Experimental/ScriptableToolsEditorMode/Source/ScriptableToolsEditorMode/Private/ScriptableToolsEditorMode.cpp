@@ -1,28 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScriptableToolsEditorMode.h"
-#include "Toolkits/ToolkitManager.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "Modules/ModuleManager.h"
+#include "ILevelEditor.h"
 #include "LevelEditor.h"
-#include "IAssetViewport.h"
+#include "InteractiveTool.h"
 #include "SLevelViewport.h"
-#include "EditorViewportClient.h"
-#include "EditorModeManager.h"
-#include "UnrealWidget.h"
-#include "Framework/Commands/UICommandList.h"
 #include "Application/ThrottleManager.h"
 
+#include "InteractiveToolManager.h"
 #include "ScriptableToolsEditorModeToolkit.h"
 #include "ScriptableToolsEditorModeManagerCommands.h"
 
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Snapping/ModelingSceneSnappingManager.h"
 
-#include "ScriptableInteractiveTool.h"
 #include "ScriptableToolBuilder.h"
 #include "ScriptableToolSet.h"
 
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolExclusiveToolAPI
+#include "ToolContextInterfaces.h"
 
 
 #define LOCTEXT_NAMESPACE "UScriptableToolsEditorMode"

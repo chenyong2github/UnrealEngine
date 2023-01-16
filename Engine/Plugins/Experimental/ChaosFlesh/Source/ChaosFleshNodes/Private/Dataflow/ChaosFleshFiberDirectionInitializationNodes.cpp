@@ -2,7 +2,8 @@
 
 #include "Dataflow/ChaosFleshFiberDirectionInitializationNodes.h"
 
-#include "GeometryCollection/ManagedArrayCollection.h"
+#include "Dataflow/DataflowInputOutput.h"
+#include "Dataflow/DataflowNodeFactory.h"
 
 namespace Dataflow
 {

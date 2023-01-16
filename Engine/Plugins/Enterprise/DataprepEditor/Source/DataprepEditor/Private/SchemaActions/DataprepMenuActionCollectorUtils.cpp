@@ -2,11 +2,12 @@
 
 #include "SchemaActions/DataprepMenuActionCollectorUtils.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
+#include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectHash.h"
+#include "SchemaActions/DataprepSchemaAction.h"
 
 TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::GatherMenuActionForDataprepClass(UClass& Class, FOnCreateMenuAction OnValidClassFound, bool bIncludeBaseClass)
 {

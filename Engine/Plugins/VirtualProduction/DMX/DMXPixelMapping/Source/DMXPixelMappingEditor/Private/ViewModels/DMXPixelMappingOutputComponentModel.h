@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
+#include "Math/Vector2D.h"
 #include "UObject/WeakObjectPtr.h"
 
 enum class EDMXPixelMappingDistribution : uint8;

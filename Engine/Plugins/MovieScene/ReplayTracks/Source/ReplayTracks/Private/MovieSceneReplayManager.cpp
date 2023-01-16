@@ -3,10 +3,7 @@
 #include "MovieSceneReplayManager.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/WorldSettings.h"
-#include "Templates/UniquePtr.h"
-#include "Tickable.h"
 
 /**
  * Utility actor that lets FMovieSceneDefaultReplayBroker keep the time dilation to the

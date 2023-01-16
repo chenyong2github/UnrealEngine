@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/AsyncTaskNotification.h"
 #include "Session/Browser/IConcertSessionBrowserController.h"
 #include "Window/IConcertComponent.h"
+
+class FAsyncTaskNotification;
+struct FAsyncTaskNotificationConfig;
+struct FConcertServerInfo;
+struct FConcertSessionFilter;
+struct FConcertSessionInfo;
 
 class IConcertServerSession;
 class IConcertServer;

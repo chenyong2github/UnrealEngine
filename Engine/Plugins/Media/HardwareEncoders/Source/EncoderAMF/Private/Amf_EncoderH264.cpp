@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Amf_EncoderH264.h"
-#include "HAL/Platform.h"
-#include "VideoEncoderCommon.h"
+#include "Amf_Common.h"
 #include "CodecPacket.h"
-#include "AVEncoderDebug.h"
-#include "VideoEncoderInput.h"
+#include "Misc/CommandLine.h"
 #include "RHI.h"
-#include <stdio.h>
-#include "Misc/ScopedEvent.h"
 #include "Async/Async.h"
+#include "VideoEncoderFactory.h"
+#include "VideoEncoderInputImpl.h"
+#include <components/ComponentCaps.h>
+#include <components/VideoEncoderVCE.h>
+#include <core/Buffer.h>
+#include <core/Data.h>
+#include <core/PropertyStorage.h>
 
 #define MAX_GPU_INDEXES 50
 #define DEFAULT_BITRATE 1000000u

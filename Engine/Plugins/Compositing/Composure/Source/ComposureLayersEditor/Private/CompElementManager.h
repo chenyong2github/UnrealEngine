@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ICompElementManager.h"
 #include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtr.h"

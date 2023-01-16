@@ -10,26 +10,24 @@
 #include "Misc/Paths.h"
 
 MDLSDK_INCLUDES_START
-#include "mi/neuraylib/iarray.h"
 #include "mi/neuraylib/icanvas.h"
 #include "mi/neuraylib/icompiled_material.h"
-#include "mi/neuraylib/ifunction_call.h"
 #include "mi/neuraylib/ifunction_definition.h"
 #include "mi/neuraylib/iimage.h"
 #include "mi/neuraylib/iimage_api.h"
 #include "mi/neuraylib/imaterial_definition.h"
 #include "mi/neuraylib/imaterial_instance.h"
-#include "mi/neuraylib/imdl_compiler.h"
 #include "mi/neuraylib/imdl_factory.h"
-#include "mi/neuraylib/imdl_impexp_api.h"
-#include "mi/neuraylib/imodule.h"
 #include "mi/neuraylib/ineuray.h"
-#include "mi/neuraylib/istring.h"
 #include "mi/neuraylib/itexture.h"
 #include "mi/neuraylib/itile.h"
 #include "mi/neuraylib/itransaction.h"
-#include "mi/neuraylib/ivalue.h"
 #include "mi/neuraylib/imdl_execution_context.h"
+#include <mi/base/handle.h>
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
+#include <mi/neuraylib/iexpression.h>
 MDLSDK_INCLUDES_END
 
 namespace Mdl

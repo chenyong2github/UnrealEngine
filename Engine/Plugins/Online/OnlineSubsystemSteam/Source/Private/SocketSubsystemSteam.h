@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "SocketSubsystem.h"
-#include "IPAddress.h"
 #include "IPAddressSteam.h"
-#include "OnlineSubsystemSteamTypes.h"
-#include "Containers/Ticker.h"
-#include "OnlineSubsystemSteamPackage.h"
+
+class FSocketSteam;
+class FUniqueNetIdSteam;
+class ISteamNetworking;
+struct P2PSessionState_t;
 
 class Error;
 

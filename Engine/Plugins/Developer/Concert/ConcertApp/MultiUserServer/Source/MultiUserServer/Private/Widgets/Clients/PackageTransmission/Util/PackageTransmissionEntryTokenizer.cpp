@@ -2,7 +2,6 @@
 
 #include "PackageTransmissionEntryTokenizer.h"
 
-#include "ConcertFrontendUtils.h"
 #include "Math/UnitConversion.h"
 #include "Widgets/Clients/PackageTransmission/Model/PackageTransmissionEntry.h"
 #include "Settings/MultiUserServerPackageTransmissionSettings.h"

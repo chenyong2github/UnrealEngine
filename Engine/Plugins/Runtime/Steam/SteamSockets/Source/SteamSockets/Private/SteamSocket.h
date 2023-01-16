@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SteamSocketsPackage.h"
-#include "SteamSocketsPrivate.h"
 #include "IPAddressSteamSockets.h"
 #include "Sockets.h"
-#include "SocketTypes.h"
+
+struct FTimespan;
 
 class FSteamSocket : public FSocket
 {

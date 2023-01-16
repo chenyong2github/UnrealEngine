@@ -2,9 +2,10 @@
 
 #include "SteamSocketsPing.h"
 #include "EngineLogs.h"
-#include "SteamSocketsPrivate.h"
 #include "SteamSocketsSubsystem.h"
-#include "Misc/CoreMisc.h"
+#include <steam/isteamnetworkingutils.h>
+#include <steam/steamnetworkingtypes.h>
+#include <steam/steamtypes.h>
 
 bool FSteamSocketsPing::IsUsingP2PRelays() const
 {

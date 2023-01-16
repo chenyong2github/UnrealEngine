@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Interfaces/IBuildInstaller.h"
 #include "Interfaces/IBuildManifest.h"

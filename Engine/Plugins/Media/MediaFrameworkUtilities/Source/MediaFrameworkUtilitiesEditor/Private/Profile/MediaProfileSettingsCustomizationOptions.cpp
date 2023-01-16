@@ -2,7 +2,6 @@
 
 #include "Profile/MediaProfileSettingsCustomizationOptions.h"
 
-#include "Misc/Paths.h"
 
 FMediaProfileSettingsCustomizationOptions::FMediaProfileSettingsCustomizationOptions()
 {

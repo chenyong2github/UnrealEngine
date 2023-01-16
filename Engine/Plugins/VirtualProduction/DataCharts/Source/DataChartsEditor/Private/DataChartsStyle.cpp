@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataChartsStyle.h"
-#include "Styling/SlateStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
 #include "Interfaces/IPluginManager.h"
-#include "Styling/SlateStyleMacros.h"
+#include "Misc/Paths.h"
 
 TSharedPtr<FSlateStyleSet> FDataChartsStyle::StyleSet;
 

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include "Modules/ModuleInterface.h"
 #include "ConcertTakeRecorderManager.h"
 #include "ConcertTakeRecorderStyle.h"
 

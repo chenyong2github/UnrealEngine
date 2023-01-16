@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
+
+struct FTimespan;
 
 class FWebMAudioBackendNull
 {

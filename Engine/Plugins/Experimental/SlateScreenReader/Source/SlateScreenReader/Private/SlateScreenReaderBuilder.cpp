@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateScreenReaderBuilder.h"
-#include "GenericPlatform/ScreenReaderBase.h"
 #include "SlateScreenReader.h"
-#include "GenericPlatform/GenericApplication.h"
 
 TSharedRef<FScreenReaderBase> FSlateScreenReaderBuilder::Create(const IScreenReaderBuilder::FArgs& InArgs)
 {

@@ -2,10 +2,9 @@
 
 #pragma once
 
+#include "UObject/ObjectMacros.h"
 #include "common/Logging.h"
 
-#include "Containers/Map.h"
-#include "Engine/DataTable.h"
 
 class UMaterialInterface;
 class UMDLImporterOptions;

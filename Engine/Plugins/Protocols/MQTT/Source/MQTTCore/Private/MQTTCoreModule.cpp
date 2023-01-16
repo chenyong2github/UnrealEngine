@@ -1,21 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTCoreModule.h"
 
 #include "GameDelegates.h"
-#include "IMQTTClient.h"
 #include "MQTTClient.h"
 #include "MQTTClientSettings.h"
 #include "MQTTCoreLog.h"
-#include "MQTTShared.h"
 #include "Algo/Count.h"
 
 #include "HAL/IConsoleManager.h"
-#include "Interfaces/IPluginManager.h"
-#include "Misc/OutputDeviceMemory.h"
-#include "Misc/Paths.h"
-#include "Serialization/BufferWriter.h"
-#include "Templates/SharedPointer.h"
 
 void FMQTTCoreModule::StartupModule()
 {

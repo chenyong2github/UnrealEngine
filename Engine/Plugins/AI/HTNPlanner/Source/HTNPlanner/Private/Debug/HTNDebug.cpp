@@ -3,7 +3,6 @@
 #include "Debug/HTNDebug.h"
 #include "HTNBuilder.h"
 #include "UObject/Class.h"
-#include "UObject/Package.h"
 
 namespace FHTNDebug
 {

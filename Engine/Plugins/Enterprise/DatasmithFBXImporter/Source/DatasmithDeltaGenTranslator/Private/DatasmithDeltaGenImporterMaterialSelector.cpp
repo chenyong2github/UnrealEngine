@@ -3,8 +3,6 @@
 #include "DatasmithDeltaGenImporterMaterialSelector.h"
 #include "IDatasmithSceneElements.h"
 
-#include "Materials/Material.h"
-#include "Templates/Casts.h"
 #include "UObject/SoftObjectPath.h"
 
 FDatasmithDeltaGenImporterMaterialSelector::FDatasmithDeltaGenImporterMaterialSelector()

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundScape.h"
+#include "SoundScapePalette.h"
+#include "SoundscapeColor.h"
 
 bool USoundscapeBPFunctionLibrary::SpawnSoundscapeColor(UObject* WorldContextObject, class USoundscapeColor* SoundscapeColorIn, UActiveSoundscapeColor*& ActiveSoundscapeColor)
 {

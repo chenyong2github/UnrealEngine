@@ -4,10 +4,10 @@
 
 #include "SchemaActions/DataprepSchemaAction.h"
 
-#include "CoreMinimal.h"
-#include "Editor/GraphEditor/Private/DragNode.h"
 #include "GraphEditorDragDropAction.h"
-#include "Misc/Optional.h"
+
+class FReply;
+class UDataprepActionStep;
 
 struct FDataprepSchemaActionContext;
 class SDataprepGraphActionStepNode;

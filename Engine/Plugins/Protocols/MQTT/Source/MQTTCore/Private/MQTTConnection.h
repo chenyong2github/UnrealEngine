@@ -1,19 +1,30 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MQTTCoreLog.h"
-#include "MQTTOperations.h"
-#include "MQTTShared.h"
-#include "MQTTSharedInternal.h"
-#include "Sockets.h"
+#include "Async/Future.h"
 #include "Containers/Queue.h"
 #include "Containers/StaticArray.h"
-#include "Containers/StaticBitArray.h"
+#include "Delegates/Delegate.h"
 #include "HAL/Runnable.h"
 #include "Misc/SingleThreadRunnable.h"
-#include "Serialization/ArrayReader.h"
+
+#if UE_BUILD_DEBUG
+#include "MQTTCoreLog.h"
+#include "MQTTSharedInternal.h"
+#endif
+
+class FArrayReader;
+class FInternetAddr;
+class FSocket;
+class IMQTTOperation;
+enum class EMQTTPacketType : uint8;
+enum class EMQTTSocketState : uint8;
+enum class EMQTTState : uint8;
+struct FMQTTConnectAckPacket;
+struct FMQTTConnectPacket;
+struct FMQTTPublishPacket;
+template <typename RequestType, typename ResponseType> class TMQTTOperation;
 
 /** A wrapped unique (per client) id generator. */
 class FMQTTPacketIdGenerator

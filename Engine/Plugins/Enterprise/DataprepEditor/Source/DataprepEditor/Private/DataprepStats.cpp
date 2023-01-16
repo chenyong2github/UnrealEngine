@@ -3,21 +3,21 @@
 #include "DataprepStats.h"
 
 #include "Components/LightComponent.h"
-#include "Components/ModelComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/Level.h"
-#include "Engine/MapBuildDataRegistry.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/TextureCube.h"
 #include "Model.h"
 #include "LandscapeComponent.h"
 #include "LandscapeProxy.h"
+#include "Materials/MaterialInterface.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "ReferencedAssetsUtils.h"
+#include "UObject/UObjectIterator.h"
 
 const FName FDataprepStats::StatNameTriangles(TEXT("Triangles"));
 const FName FDataprepStats::StatNameVertices(TEXT("Vertices"));

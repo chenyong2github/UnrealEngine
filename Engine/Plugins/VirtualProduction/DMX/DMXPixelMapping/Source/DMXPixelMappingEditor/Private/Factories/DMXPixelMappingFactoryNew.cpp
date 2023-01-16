@@ -6,8 +6,6 @@
 #include "AssetsTools/AssetTypeActions_DMXPixelMapping.h"
 #include "DMXPixelMappingEditorUtils.h"
 
-#include "IAssetTypeActions.h"
-#include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFactoryNew"
 

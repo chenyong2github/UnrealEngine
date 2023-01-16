@@ -1,8 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZoneGraphAnnotationSubsystem.h"
+#include "Subsystems/Subsystem.h"
 #include "ZoneGraphAnnotationComponent.h"
-#include "ZoneGraphData.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphDelegates.h"
 #include "ZoneGraphSettings.h"

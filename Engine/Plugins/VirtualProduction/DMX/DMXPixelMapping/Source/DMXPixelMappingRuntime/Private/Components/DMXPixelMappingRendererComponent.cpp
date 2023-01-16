@@ -4,28 +4,22 @@
 
 #include "DMXPixelMappingRuntimeObjectVersion.h"
 #include "DMXPixelMappingTypes.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "IDMXPixelMappingRendererModule.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
-#include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
-#include "Library/DMXEntityFixtureType.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Engine/Engine.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Engine/World.h"
-#include "Modules/ModuleManager.h"
+#include "Modulators/DMXModulator.h"
 #include "TextureResource.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
 
 #include "LevelEditor.h"
 #endif

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosFlesh/Asset/FleshAssetThumbnailRenderer.h"
-#include "Misc/App.h"
-#include "ShowFlags.h"
 #include "SceneView.h"
 #include "ChaosFlesh/Asset/FleshAssetThumbnailScene.h"
 #include "ChaosFlesh/FleshAsset.h"

@@ -5,8 +5,7 @@
 #include "DataprepAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorUtils.h"
-#include "Parameterization/DataprepParameterizationUtils.h"
-#include "SchemaActions/DataprepSchemaAction.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SelectionSystem/DataprepStringFilter.h"
 #include "SelectionSystem/DataprepStringsArrayFilter.h"
 #include "Widgets/DataprepGraph/DataprepActionWidgetsUtils.h"
@@ -15,17 +14,10 @@
 
 #include "GraphEditorSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Internationalization/Text.h"
-#include "Misc/AssertionMacros.h"
 #include "ScopedTransaction.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepStringFilter"
 

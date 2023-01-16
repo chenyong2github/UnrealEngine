@@ -1,14 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerPlaylistsStyle.h"
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
-#include "Slate/SlateGameResources.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Misc/Paths.h"
 #include "Styling/StyleColors.h"
+#include "Misc/ScopeExit.h"
 #include "Styling/ToolBarStyle.h"
+#include "Rendering/SlateRenderer.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateStyle.h"
 
 
 #define RootToContentDir Style->RootToContentDir

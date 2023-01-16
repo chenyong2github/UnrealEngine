@@ -4,7 +4,6 @@
 
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ChaosFlesh/ChaosDeformableSolverAsset.h"
-#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

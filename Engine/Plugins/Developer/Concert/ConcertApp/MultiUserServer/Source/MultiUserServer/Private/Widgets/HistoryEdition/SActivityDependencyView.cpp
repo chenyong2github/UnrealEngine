@@ -2,15 +2,16 @@
 
 #include "SActivityDependencyView.h"
 
-#include "ConcertMessageData.h"
 #include "ConcertServerStyle.h"
-#include "SPrimaryButton.h"
 #include "Algo/AllOf.h"
-#include "HistoryEdition/HistoryAnalysis.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Session/History/AbstractSessionHistoryController.h"
 
+#include "HistoryEdition/ActivityDependencyEdge.h"
 #include "Widgets/Input/SButton.h"
+#include "HistoryEdition/ActivityGraphIDs.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "HistoryEdition/ActivityNode.h"
 #include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SActivityDependencyView"

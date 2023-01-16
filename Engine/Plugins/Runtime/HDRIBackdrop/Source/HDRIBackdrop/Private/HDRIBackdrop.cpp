@@ -3,6 +3,7 @@
 #include "HDRIBackdrop.h"
 #include "HDRIBackdropPlacement.h"
 #include "HDRIBackdropStyle.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FHDRIBackdropModule"
 

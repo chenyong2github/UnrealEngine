@@ -2,8 +2,6 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h" // for SLATE_BEGIN_ARGS(), SLATE_ARGUMENT()
 
 class FCompElementCollectionViewModel;
 

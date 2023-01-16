@@ -4,9 +4,9 @@
 
 #include "IDetailCustomization.h"
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+
+struct EVisibility;
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;

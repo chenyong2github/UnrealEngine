@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPISwaggerConverter.h"
-#include "WebAPISwaggerConverter.inl"
 
+#include "Dom/WebAPIType.h"
 #include "IWebAPIEditorModule.h"
-#include "WebAPIDefinition.h"
-#include "WebAPIMessageLog.h"
+#include "V2/WebAPISwaggerConverter.inl"
+#include "V2/WebAPISwaggerProvider.h"
 #include "WebAPIOpenAPILog.h"
-#include "WebAPISwaggerFactory.h"
 #include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIParameter.h"
-#include "Dom/WebAPISchema.h"
 #include "Dom/WebAPIService.h"
 #include "Dom/WebAPITypeRegistry.h"
 #include "V2/WebAPISwaggerSchema.h"

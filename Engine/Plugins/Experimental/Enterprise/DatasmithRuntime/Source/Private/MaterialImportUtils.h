@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "SceneImporter.h"
+#include "Templates/SharedPointer.h"
+
+namespace DatasmithRuntime { class FSceneImporter; }
 
 class IDatasmithMaterialInstanceElement;
 class IDatasmithUEPbrMaterialElement;

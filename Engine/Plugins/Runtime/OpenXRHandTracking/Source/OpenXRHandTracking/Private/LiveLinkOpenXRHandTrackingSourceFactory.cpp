@@ -2,9 +2,7 @@
 
 #include "LiveLinkOpenXRHandTrackingSourceFactory.h"
 #include "IOpenXRHandTrackingModule.h"
-#include "OpenXRHandTracking.h"
 
-#include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
 
 #define LOCTEXT_NAMESPACE "OpenXRHandTracking"

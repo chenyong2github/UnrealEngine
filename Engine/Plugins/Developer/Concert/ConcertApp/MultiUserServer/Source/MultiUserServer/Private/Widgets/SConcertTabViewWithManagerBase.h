@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SConcertTabViewBase.h"
 
 class FMenuBarBuilder;

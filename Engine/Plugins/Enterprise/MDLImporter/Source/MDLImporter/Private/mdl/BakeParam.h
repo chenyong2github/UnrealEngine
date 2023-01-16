@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "common/Logging.h"
+#include "mdl/Common.h"
 #include "mdl/Material.h"
 
-#include "Containers/UnrealString.h"
-#include "Math/Color.h"
-#include "Templates/Function.h"
+
+namespace Common { struct FTextureProperty; }
 
 struct FImage;
 namespace mi

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ARPassthroughManager.h"
+#include "ARActor.h"
 #include "PassthroughMaterialUpdateComponent.h"
 #include "ARLifeCycleComponent.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "MRMeshComponent.h"
 
 

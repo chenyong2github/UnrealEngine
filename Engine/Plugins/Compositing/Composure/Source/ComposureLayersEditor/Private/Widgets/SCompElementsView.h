@@ -1,24 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "CompElementEditorCommands.h"
-#include "Widgets/Views/SHeaderRow.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
 #include "CompElementCollectionViewModel.h"
+#include "CompElementViewModel.h"
 #include "Widgets/SCompElementViewRow.h"
 #include "CompElementDragDropOp.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Views/STreeView.h"
 #include "CompositingElement.h"
+#include "Framework/Views/TableViewMetadata.h"
+
+enum class ECompElementEdActions;
 
 #define LOCTEXT_NAMESPACE "CompElementsView"
 

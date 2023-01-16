@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
 
+#include "CudaModule.h"
 #include "IVulkanDynamicRHI.h"
 
+#include "Misc/App.h"
 #include "NVENC_Common.h"
 #include "NVENC_EncoderH264.h"
 #include "VideoEncoderFactory.h"
 
-#include "Misc/CoreDelegates.h"
+#include <vulkan_core.h>
 
 class FNVENCEncoderModule : public IModuleInterface
 {

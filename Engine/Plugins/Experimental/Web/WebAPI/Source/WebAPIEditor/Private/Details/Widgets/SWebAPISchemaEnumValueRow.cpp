@@ -2,10 +2,9 @@
 
 #include "SWebAPISchemaEnumValueRow.h"
 
-#include "Styling/AppStyle.h"
 #include "Details/ViewModels/WebAPIEnumViewModel.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.inl"
+#include "Widgets/Views/SListView.h"
 
 void SWebAPISchemaEnumValueRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIEnumValueViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {

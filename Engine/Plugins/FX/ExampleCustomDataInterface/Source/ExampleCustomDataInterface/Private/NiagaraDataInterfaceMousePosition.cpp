@@ -3,17 +3,14 @@
 #include "NiagaraDataInterfaceMousePosition.h"
 
 #if WITH_EDITORONLY_DATA
-#include "Editor.h"
 #include "LevelEditorViewport.h"
+#else
+#include "Engine/World.h"
 #endif
 
-#include "NiagaraTypes.h"
-#include "ShaderParameterUtils.h"
-#include "Internationalization/Internationalization.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraWorldManager.h"
-#include "ShaderCompilerCore.h"
 #include "GameFramework/PlayerController.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceMousePosition"

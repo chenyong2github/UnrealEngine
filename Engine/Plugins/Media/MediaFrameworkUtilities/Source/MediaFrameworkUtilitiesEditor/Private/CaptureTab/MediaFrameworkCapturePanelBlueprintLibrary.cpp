@@ -2,8 +2,7 @@
 
 #include "CaptureTab/MediaFrameworkCapturePanelBlueprintLibrary.h"
 #include "CaptureTab/SMediaFrameworkCapture.h"
-#include "MediaFrameworkWorldSettingsAssetUserData.h"
-
+#include "GameFramework/Actor.h" // IWYU pragma: keep
 #include "MediaFrameworkUtilitiesEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "MediaFrameworkUtilities"

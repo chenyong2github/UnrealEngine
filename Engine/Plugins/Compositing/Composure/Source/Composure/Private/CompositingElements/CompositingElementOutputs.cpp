@@ -73,8 +73,6 @@ void UColorConverterOutputPass::InternalReset()
 
 #include "CompositingElements/CompositingElementPassUtils.h" // for NewInstancedSubObj(), GetTargetFormatFromPixelFormat(), CopyToTarget()
 #include "ComposureInternals.h"
-#include "RHI.h" // for GetMax2DTextureDimension()
-#include "MediaOutput.h"
 #include "MediaCapture.h"
 #include "CompositingElements/CompositingElementTransforms.h" // for UCompositingTonemapPass
 #include "UObject/UObjectIterator.h"
@@ -321,7 +319,6 @@ void URenderTargetCompositingOutput::RelayOutput_Implementation(UTexture* FinalR
  *****************************************************************************/
 
 #include "ImageWriteBlueprintLibrary.h"
-#include "Misc/App.h"
 
 UEXRFileCompositingOutput::UEXRFileCompositingOutput()
 	: FilenameFormat(TEXT("{frame}"))

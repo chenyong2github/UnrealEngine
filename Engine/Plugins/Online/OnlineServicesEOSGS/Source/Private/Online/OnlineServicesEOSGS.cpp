@@ -7,17 +7,16 @@
 #include "Online/LeaderboardsEOSGS.h"
 #include "Online/LobbiesEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
 #include "Online/OnlineServicesEOSGSPlatformFactory.h"
 #include "Online/StatsEOSGS.h"
 #include "Online/SessionsEOSGS.h"
 #include "Online/TitleFileEOSGS.h"
 #include "Online/UserFileEOSGS.h"
-#include "IEOSSDKManager.h"
 
 #if WITH_ENGINE
 #include "InternetAddrEOS.h"
 #include "NetDriverEOSBase.h"
+#include "SocketSubsystemEOS.h"
 #include "SocketSubsystemEOSUtils_OnlineServicesEOSGS.h"
 #endif
 

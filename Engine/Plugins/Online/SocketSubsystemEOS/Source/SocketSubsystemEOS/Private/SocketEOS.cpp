@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocketEOS.h"
-#include "SocketTypes.h"
 #include "SocketSubsystemEOS.h"
 #include "EOSShared.h"
 

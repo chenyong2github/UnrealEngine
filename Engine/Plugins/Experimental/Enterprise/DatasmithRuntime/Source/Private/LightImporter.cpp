@@ -1,35 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SceneImporter.h"
 
 #include "DatasmithRuntimeUtils.h"
 
 #include "DatasmithAreaLightActor.h"
-#include "DatasmithSceneFactory.h"
-#include "DatasmithUtils.h"
+#include "Engine/Scene.h"
 #include "IDatasmithSceneElements.h"
 
-#include "Components/ChildActorComponent.h"
 #include "Components/DirectionalLightComponent.h"
-#include "Components/LightComponent.h"
 #include "Components/LightmassPortalComponent.h"
-#include "Components/PointLightComponent.h"
-#include "Components/SkyLightComponent.h"
 #include "Components/SpotLightComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Components/SceneComponent.h"
 #include "Engine/Blueprint.h"
 #include "Engine/DirectionalLight.h"
-#include "Engine/Light.h"
 #include "Engine/PointLight.h"
-#include "Engine/SkyLight.h"
 #include "Engine/SpotLight.h"
 #include "Engine/TextureLightProfile.h"
 
 #include "Lightmass/LightmassPortal.h"
-#include "Math/Quat.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 
 namespace DatasmithRuntime
 {

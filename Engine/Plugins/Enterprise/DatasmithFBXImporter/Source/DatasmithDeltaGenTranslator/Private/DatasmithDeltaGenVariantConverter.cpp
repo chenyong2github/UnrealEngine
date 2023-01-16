@@ -2,7 +2,6 @@
 
 #include "DatasmithDeltaGenVariantConverter.h"
 
-#include "DatasmithDefinitions.h"
 #include "DatasmithDeltaGenImportData.h"
 #include "DatasmithDeltaGenLog.h"
 #include "DatasmithSceneFactory.h"

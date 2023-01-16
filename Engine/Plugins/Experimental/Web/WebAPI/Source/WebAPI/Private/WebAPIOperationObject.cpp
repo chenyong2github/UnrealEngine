@@ -1,14 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIOperationObject.h"
 
+#include "Async/Future.h"
 #include "HttpModule.h"
 #include "WebAPIDeveloperSettings.h"
 #include "WebAPILog.h"
 #include "WebAPISubsystem.h"
-#include "Async/Async.h"
 #include "Engine/Engine.h"
-#include "Interfaces/IHttpResponse.h"
 
 UWebAPIOperationObject::~UWebAPIOperationObject()
 {

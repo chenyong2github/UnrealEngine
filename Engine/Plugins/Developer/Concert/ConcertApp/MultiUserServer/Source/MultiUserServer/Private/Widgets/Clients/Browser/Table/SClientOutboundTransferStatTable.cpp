@@ -2,12 +2,9 @@
 
 #include "SClientOutboundTransferStatTable.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "INetworkMessagingExtension.h"
 #include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SClientTransferStatTable"

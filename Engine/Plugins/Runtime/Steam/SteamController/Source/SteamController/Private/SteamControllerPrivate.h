@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ISteamControllerPlugin.h"
 
 #if WITH_STEAM_CONTROLLER == 1
@@ -20,7 +19,6 @@
 #endif	// USING_CODE_ANALYSIS
 
 THIRD_PARTY_INCLUDES_START
-#include "steam/steam_api.h"
 THIRD_PARTY_INCLUDES_END
 
 #if USING_CODE_ANALYSIS

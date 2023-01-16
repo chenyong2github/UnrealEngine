@@ -6,7 +6,6 @@
 #include "ElectraSubtitleModule.h"
 #include "ttml/TTMLSubtitleHandler.h"
 #include "MediaDecoderOutput.h"
-#include "ParameterDictionary.h"
 
 
 class FElectraSubtitleDecoderFactoryTTML : public IElectraSubtitleDecoderFactory

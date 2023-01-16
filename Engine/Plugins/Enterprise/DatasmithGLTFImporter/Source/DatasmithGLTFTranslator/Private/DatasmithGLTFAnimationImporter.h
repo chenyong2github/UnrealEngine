@@ -5,7 +5,9 @@
 #include "GLTFAnimation.h"
 #include "GLTFLogger.h"
 
-#include "Misc/FrameRate.h"
+#include "Templates/SharedPointer.h"
+
+struct FFrameRate;
 
 class IDatasmithScene;
 class IDatasmithTransformAnimationElement;

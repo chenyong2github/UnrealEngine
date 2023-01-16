@@ -2,14 +2,13 @@
 
 #include "Online/TitleFileEOSGS.h"
 
+#include "EOSShared.h"
 #include "Online/AuthEOSGS.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
-#include "EOSSharedTypes.h"
 
 #include "eos_titlestorage.h"
-#include "eos_titlestorage_types.h"
 
 
 namespace UE::Online {

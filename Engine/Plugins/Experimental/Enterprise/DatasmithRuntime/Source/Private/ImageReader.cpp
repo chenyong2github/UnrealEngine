@@ -1,22 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SceneImporter.h"
 
+#include "DatasmithDefinitions.h"
 #include "DatasmithRuntimeUtils.h"
-#include "LogCategory.h"
 
 // Borrowed from Engine/Plugins/Enterprise/DatasmithImporter/Source/DatasmithImporter/Private/Utility/DatasmithTextureResize.cpp
 
 #if WITH_FREEIMAGE_LIB
-#include "Engine/Texture.h"
-#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
-#include "HAL/PlatformProcess.h"
 #include "Math/Float16.h"
-#include "Math/UnrealMathUtility.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"

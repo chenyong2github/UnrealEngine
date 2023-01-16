@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithDeltaGenImportOptions.h"
-#include "DatasmithDeltaGenTranslatorModule.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
-#include "HAL/FileManager.h"
-#include "DatasmithAssetImportData.h"
 
-#include "CoreTypes.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithDeltaGenImporter"
 

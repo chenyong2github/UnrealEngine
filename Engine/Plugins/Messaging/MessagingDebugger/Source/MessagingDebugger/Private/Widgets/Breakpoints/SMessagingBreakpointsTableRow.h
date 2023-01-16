@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
 
 class IMessageTracerBreakpoint;

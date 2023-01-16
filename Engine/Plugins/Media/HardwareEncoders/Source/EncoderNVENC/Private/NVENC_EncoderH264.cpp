@@ -1,20 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NVENC_EncoderH264.h"
-#include "HAL/Platform.h"
-#include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
-#include "AVEncoderDebug.h"
+#include "Misc/CommandLine.h"
 #include "RHI.h"
-#include "HAL/Event.h"
-#include "HAL/PlatformTime.h"
-#include "Misc/Timespan.h"
-#include "HAL/PlatformProcess.h"
 #include "CudaModule.h"
-#include "Misc/ScopedEvent.h"
 #include "Async/Async.h"
-#include <stdio.h>
 #include "NVENCStats.h"
+#include "VideoEncoderFactory.h"
+#include "VideoEncoderInputImpl.h"
 
 #define MAX_GPU_INDEXES 50
 #define DEFAULT_BITRATE 1000000u

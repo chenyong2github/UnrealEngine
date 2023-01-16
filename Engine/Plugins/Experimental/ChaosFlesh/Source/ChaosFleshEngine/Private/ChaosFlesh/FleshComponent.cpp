@@ -4,14 +4,13 @@
 
 #include "Animation/SkeletalMeshActor.h"
 #include "Animation/Skeleton.h"
-#include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
-#include "ChaosFlesh/FleshCollectionUtility.h"
-#include "ChaosFlesh/ChaosDeformableSolverActor.h"
-#include "ChaosFlesh/ChaosDeformableSolverComponent.h"
+#include "ChaosFlesh/FleshCollection.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Dataflow/DataflowEngineUtil.h"
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCollection/Facades/CollectionTransformSourceFacade.h"
+#include "GeometryCollection/TransformCollection.h"
+#include "ProceduralMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshComponent)
 

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Session/History/SSessionHistory.h"
-#include "PackageViewer/SConcertSessionPackageViewer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertTabViewWithManagerBase.h"
+
+class SConcertSessionPackageViewer;
+class SSessionHistory;
 
 class FTabManager;
 class FSpawnTabArgs;

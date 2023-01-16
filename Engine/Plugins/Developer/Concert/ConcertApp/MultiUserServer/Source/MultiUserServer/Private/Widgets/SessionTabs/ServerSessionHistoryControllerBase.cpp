@@ -3,9 +3,9 @@
 #include "ServerSessionHistoryControllerBase.h"
 
 #include "ConcertSyncSessionDatabase.h"
-#include "IConcertSession.h"
-#include "IConcertSyncServer.h"
+#include "ConcertSyncSessionTypes.h"
 #include "ServerUndoHistoryReflectionDataProvider.h"
+#include "Templates/NonNullPointer.h"
 
 FServerSessionHistoryControllerBase::FServerSessionHistoryControllerBase(FGuid SessionId, SSessionHistory::FArguments Arguments)
 	: FAbstractSessionHistoryController(MoveTemp(Arguments.UndoHistoryReflectionProvider(MakeShared<UE::MultiUserServer::FServerUndoHistoryReflectionDataProvider>())))

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HttpHeader.h"
 #include "Interfaces/IHttpRequest.h"
 

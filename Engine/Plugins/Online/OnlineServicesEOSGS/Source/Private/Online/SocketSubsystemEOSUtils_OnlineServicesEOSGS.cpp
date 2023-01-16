@@ -3,11 +3,12 @@
 #if WITH_ENGINE
 #include "SocketSubsystemEOSUtils_OnlineServicesEOSGS.h"
 
-#include "Online/AuthEOSGS.h"
-#include "Online/LobbiesEOSGS.h"
+#include "Online/Auth.h"
 #include "Online/OnlineIdEOSGS.h"
+#include "Online/Lobbies.h"
 #include "Online/OnlineServicesEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
+#include "Online/OnlineServicesLog.h"
+#include "Online/OnlineUtils.h"
 
 namespace UE::Online {
 

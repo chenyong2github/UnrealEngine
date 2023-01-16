@@ -2,17 +2,12 @@
 
 #include "Online/ExternalUIEOS.h"
 
-#include "Online/AuthEOS.h"
+#include "EOSShared.h"
 #include "Online/OnlineIdEOS.h"
 #include "Online/OnlineServicesEOS.h"
-#include "Online/OnlineServicesEOSTypes.h"
-#include "Online/OnlineErrorDefinitions.h"
 
+#include "Online/OnlineServicesEOSGSTypes.h"
 #include "eos_ui.h"
-#include "eos_types.h"
-#include "eos_init.h"
-#include "eos_sdk.h"
-#include "eos_logging.h"
 
 namespace UE::Online {
 

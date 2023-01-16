@@ -2,10 +2,9 @@
 
 #include "OnlineIdEOS.h"
 
-#include "Online/OnlineAsyncOp.h"
+#include "EOSShared.h"
 #include "String/HexToBytes.h"
 #include "String/BytesToHex.h"
-#include "Online/OnlineServicesEOSTypes.h"
 
 namespace UE::Online {
 

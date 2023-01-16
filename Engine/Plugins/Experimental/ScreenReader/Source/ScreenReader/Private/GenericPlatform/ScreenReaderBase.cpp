@@ -4,7 +4,6 @@
 #include "GenericPlatform/ScreenReaderApplicationMessageHandlerBase.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "GenericPlatform/ScreenReaderUser.h"
-#include "Announcement/ScreenReaderAnnouncementChannel.h"
 #include "ScreenReaderLog.h"
 
 

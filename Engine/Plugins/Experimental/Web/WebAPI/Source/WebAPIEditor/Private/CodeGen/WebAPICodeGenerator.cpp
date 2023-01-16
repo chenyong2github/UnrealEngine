@@ -1,25 +1,27 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/WebAPICodeGenerator.h"
 
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "IWebAPIEditorModule.h"
-#include "Algo/Accumulate.h"
 #include "Algo/Copy.h"
 #include "Algo/ForEach.h"
 #include "Algo/Unique.h"
 #include "Async/Async.h"
+#include "CodeGen/Dom/WebAPICodeGenClass.h"
 #include "CodeGen/Dom/WebAPICodeGenEnum.h"
 #include "CodeGen/Dom/WebAPICodeGenFile.h"
 #include "CodeGen/Dom/WebAPICodeGenOperation.h"
 #include "CodeGen/Dom/WebAPICodeGenSettings.h"
 #include "CodeGen/Dom/WebAPICodeGenStruct.h"
 #include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
+#include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIParameter.h"
 #include "Dom/WebAPIService.h"
-#include "Dom/WebAPITypeRegistry.h"
+#include "Dom/WebAPIType.h"
 #include "Misc/Paths.h"
 #include "UObject/StrongObjectPtr.h"
+#include "WebAPIDefinition.h"
 
 #define LOCTEXT_NAMESPACE "WebAPICodeGeneratorBase"
 

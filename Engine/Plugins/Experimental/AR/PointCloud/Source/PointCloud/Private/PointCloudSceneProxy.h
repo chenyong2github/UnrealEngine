@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PrimitiveViewRelevance.h"
+#include "Materials/MaterialRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/MaterialInterface.h"
-#include "MaterialShared.h"
-#include "MeshBatch.h"
 #include "PrimitiveSceneProxy.h"
 #include "PointCloudVertexFactory.h"
 #include "PointCloudBuffers.h"
+
+class FMeshElementCollector;
 
 class UPointCloudComponent;
 

@@ -2,26 +2,23 @@
 
 #include "Shared/DataprepCorePrivateUtils.h"
 
-#include "DataprepAsset.h"
+#include "DataprepActionAsset.h"
 #include "DataprepAssetInstance.h"
 #include "DataprepCoreUtils.h"
-#include "IDataprepProgressReporter.h"
 
-#include "ActorEditorUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/Blueprint.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/World.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "EngineAnalytics.h"
-#include "GameFramework/WorldSettings.h"
+#include "EngineLogs.h"
 #include "IMessageLogListing.h"
-#include "Interfaces/IAnalyticsProvider.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "MeshDescription.h"
+#include "IAnalyticsProviderET.h"
 #include "MessageLogModule.h"
-#include "Modules/ModuleManager.h"
+#include "MaterialShared.h"
 #include "StaticMeshAttributes.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "StaticMeshResources.h"
+#include "Misc/EngineVersion.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAsset"
 

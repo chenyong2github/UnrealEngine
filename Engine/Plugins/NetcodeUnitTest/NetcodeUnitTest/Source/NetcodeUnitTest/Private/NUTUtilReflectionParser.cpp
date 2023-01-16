@@ -4,8 +4,10 @@
 
 #include "Misc/AutomationTest.h"
 #include "Engine/Engine.h"
+#include "Misc/ExpressionParser.h"
 #include "UObject/UObjectIterator.h"
 
+#include "Misc/TVariantMeta.h"
 #include "NUTUtilReflection.h"
 
 

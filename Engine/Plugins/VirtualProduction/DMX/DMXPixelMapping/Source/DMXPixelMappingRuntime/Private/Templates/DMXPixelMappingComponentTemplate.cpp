@@ -2,7 +2,6 @@
 
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 
-#include "Components/DMXPixelMappingBaseComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"

@@ -2,7 +2,6 @@
 
 #include "MassCrowdVisualizationTrait.h"
 #include "MassCrowdRepresentationSubsystem.h"
-#include "MassCrowdVisualizationProcessor.h"
 #include "MassCrowdRepresentationActorManagement.h"
 #include "MassCrowdFragments.h"
 #include "MassEntityTemplateRegistry.h"

@@ -3,10 +3,11 @@
 #include "UI/TimecodeSynchronizerEditorCommand.h"
 
 #include "AssetEditor/TimecodeSynchronizerEditorToolkit.h"
+#include "Framework/Commands/UICommandList.h"
 #include "TimecodeSynchronizerProjectSettings.h"
+#include "TimecodeSynchronizer.h"
 #include "UI/TimecodeSynchronizerEditorStyle.h"
 
-#include "Framework/Docking/TabManager.h"
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
 

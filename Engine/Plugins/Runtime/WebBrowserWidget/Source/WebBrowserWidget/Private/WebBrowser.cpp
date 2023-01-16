@@ -4,18 +4,8 @@
 #include "SWebBrowser.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "UObject/ConstructorHelpers.h"
 
 #if WITH_EDITOR
-#include "Materials/MaterialInterface.h"
-#include "Materials/MaterialExpressionMaterialFunctionCall.h"
-#include "Materials/MaterialExpressionTextureSample.h"
-#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
-#include "Materials/MaterialFunction.h"
-#include "Factories/MaterialFactoryNew.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "PackageHelperFunctions.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WebBrowser"

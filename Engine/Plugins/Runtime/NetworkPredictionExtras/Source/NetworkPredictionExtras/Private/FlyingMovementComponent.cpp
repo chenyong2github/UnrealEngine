@@ -7,7 +7,13 @@
 #include "NetworkPredictionProxyWrite.h"
 
 #include "GameFramework/CharacterMovementComponent.h" // To facilitate A/B testing by disabling CMC if present
-#include "DrawDebugHelpers.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFlyingMovement, Log, All);
 

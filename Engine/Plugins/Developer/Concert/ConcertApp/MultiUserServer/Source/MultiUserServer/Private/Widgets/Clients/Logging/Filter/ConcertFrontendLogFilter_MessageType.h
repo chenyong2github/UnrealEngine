@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertFrontendLogFilter_BaseSetSelection.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Logging/Util/MessageTypeUtils.h"
-#include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
 namespace UE::MultiUserServer
 {

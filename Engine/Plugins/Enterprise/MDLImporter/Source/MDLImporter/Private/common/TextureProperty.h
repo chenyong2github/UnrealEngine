@@ -4,6 +4,8 @@
 
 #include <Engine/Texture.h>
 
+struct FImage;
+
 namespace Common
 {
 	enum class ETextureMode

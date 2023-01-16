@@ -3,10 +3,6 @@
 #include "AssetTypeActions_DestructibleMesh.h"
 #include "DestructibleMesh.h"
 //#include "ApexDestructionEditorModule.h"
-#include "Engine/StaticMesh.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

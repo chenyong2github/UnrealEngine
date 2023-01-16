@@ -2,10 +2,10 @@
 
 #include "NUTUtilReflection.h"
 #include "Containers/ArrayBuilder.h"
-#include "UObject/StructOnScope.h"
+#include "Misc/TVariantMeta.h"
 #include "UObject/EnumProperty.h"
+#include "Templates/ValueOrError.h"
 #include "UObject/TextProperty.h"
-#include "UObject/PropertyPortFlags.h"
 #include "NetcodeUnitTest.h"
 
 

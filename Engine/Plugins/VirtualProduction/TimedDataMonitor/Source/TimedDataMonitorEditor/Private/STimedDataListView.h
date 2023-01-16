@@ -2,18 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "SlateFwd.h"
-#include "SlateOptMacros.h"
-#include "TimedDataMonitorTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 
 #include "Widgets/Views/STreeView.h"
-#include "Widgets/Views/STableRow.h"
 
 #include "STimedDataListView.generated.h"
+
+struct FTimedDataMonitorInputIdentifier;
 
 enum class ETimedDataInputEvaluationType : uint8;
 struct FTimedDataInputTableRowData;

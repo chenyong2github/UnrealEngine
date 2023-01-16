@@ -4,7 +4,6 @@
 
 
 #include "ILiveLinkOverNDisplayModule.h"
-#include "LiveLinkVirtualSubject.h"
 
 
 class FNDisplayLiveLinkSubjectReplicator;

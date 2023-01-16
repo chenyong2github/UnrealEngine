@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Curves/CurveVector.h"
 #include "Engine/DataTable.h"
 
 enum class EObjectSetDataType : uint8

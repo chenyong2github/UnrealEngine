@@ -4,9 +4,10 @@
 
 #include "ConcertServerStyle.h"
 #include "ConcertSyncSessionDatabase.h"
+#include "ConcertSyncSessionTypes.h"
 #include "IConcertSyncServer.h"
-#include "HistoryEdition/HistoryAnalysis.h"
-#include "Session/Activity/PredefinedActivityColumns.h"
+#include "Templates/NonNullPointer.h"
+#include "Widgets/HistoryEdition/SActivityDependencyDialog.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SMuteActivityDependenciesDialog"
 

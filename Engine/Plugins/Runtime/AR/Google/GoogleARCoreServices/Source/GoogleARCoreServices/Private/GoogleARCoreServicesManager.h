@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ARSystem.h"
 
+#include "Engine/EngineBaseTypes.h"
 #include "GoogleARCoreServicesTypes.h"
-#include "GoogleARCoreCloudARPinManager.h"
+
+class FGoogleARCoreCloudARPinManager;
+class UARPin;
 
 class FGoogleARCoreServicesManager
 {

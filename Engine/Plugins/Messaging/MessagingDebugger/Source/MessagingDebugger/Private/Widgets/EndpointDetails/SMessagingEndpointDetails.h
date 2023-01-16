@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+class ITableRow;
+template <typename ItemType> class SListView;
 
 class FMessagingDebuggerModel;
 class ISlateStyle;

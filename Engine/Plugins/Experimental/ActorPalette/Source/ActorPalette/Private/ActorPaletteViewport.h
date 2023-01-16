@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EditorViewportClient.h"
 #include "SCommonEditorViewportToolbarBase.h"
 #include "SEditorViewport.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FActorPaletteViewportClient;
 class SActorPaletteViewportToolbar;

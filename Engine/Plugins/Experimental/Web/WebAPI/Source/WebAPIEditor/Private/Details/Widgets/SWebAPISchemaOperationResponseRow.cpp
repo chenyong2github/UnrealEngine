@@ -1,12 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPISchemaOperationResponseRow.h"
 
-#include "WebAPIEditorStyle.h"
-#include "Details/ViewModels/WebAPIEnumViewModel.h"
-#include "Widgets/Colors/SColorBlock.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Layout/SBox.h"
+#include "Details/ViewModels/WebAPIOperationResponseViewModel.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.inl"
+#include "Widgets/Views/SListView.h"
 
 void SWebAPISchemaOperationResponseRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIOperationResponseViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {

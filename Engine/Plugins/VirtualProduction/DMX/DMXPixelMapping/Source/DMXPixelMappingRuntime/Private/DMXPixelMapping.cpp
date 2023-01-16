@@ -3,7 +3,6 @@
 #include "DMXPixelMapping.h"
 
 #include "Components/DMXPixelMappingRootComponent.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"

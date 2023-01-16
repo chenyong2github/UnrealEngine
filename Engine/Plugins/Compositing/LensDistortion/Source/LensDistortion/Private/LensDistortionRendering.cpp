@@ -7,14 +7,14 @@
 #include "Engine/World.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "RHIStaticStates.h"
-#include "SceneUtils.h"
 #include "SceneInterface.h"
 #include "ShaderParameterUtils.h"
 #include "Logging/MessageLog.h"
-#include "Internationalization/Internationalization.h"
 #include "TextureResource.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RenderingThread.h"
 
 
 static const uint32 kGridSubdivisionX = 32;

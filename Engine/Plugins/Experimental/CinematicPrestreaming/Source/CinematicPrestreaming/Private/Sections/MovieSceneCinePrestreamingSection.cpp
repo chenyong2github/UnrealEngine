@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneCinePrestreamingSection.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
 #include "TrackInstances/MovieSceneCinePrestreamingTrackInstance.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
 
 UMovieSceneCinePrestreamingSection::UMovieSceneCinePrestreamingSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

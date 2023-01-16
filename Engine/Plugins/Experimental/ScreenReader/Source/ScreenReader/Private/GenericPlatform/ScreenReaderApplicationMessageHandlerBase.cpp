@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/ScreenReaderApplicationMessageHandlerBase.h"
-#include "GenericPlatform/ScreenReaderBase.h"
 
 FScreenReaderApplicationMessageHandlerBase::FScreenReaderApplicationMessageHandlerBase(const TSharedRef<FGenericApplicationMessageHandler>& InTargetMessageHandler, FScreenReaderBase& InOwningScreenReader)
 	: OwningScreenReader(InOwningScreenReader)

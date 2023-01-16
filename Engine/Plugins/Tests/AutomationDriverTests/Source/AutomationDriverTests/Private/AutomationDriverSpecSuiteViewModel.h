@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Types/SlateEnums.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
+#include "Internationalization/Text.h"
+
+class FReply;
+namespace ETextCommit { enum Type : int; }
+struct EVisibility;
 
 enum class EPianoKey : uint8
 {

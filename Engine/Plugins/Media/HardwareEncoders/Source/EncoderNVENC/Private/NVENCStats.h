@@ -3,8 +3,6 @@
 #pragma once
 
 #include "NVENC_Common.h"
-#include "Tickable.h"
-#include "Stats/Stats.h"
 #include "Engine/Engine.h"
 
 // Stats about NVENC that can displayed either in the in-application HUD or in the log.

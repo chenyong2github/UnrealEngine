@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PackageViewerColumns.h"
 
 #include "Session/Activity/SConcertSessionActivities.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SSearchBox;
+struct FColumnVisibilitySnapshot;
 
 class FConcertSessionActivitiesOptions;
 

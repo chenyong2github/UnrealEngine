@@ -2,19 +2,12 @@
 
 #include "SSessionRow.h"
 
-#include "ConcertFrontendUtils.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
-#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 

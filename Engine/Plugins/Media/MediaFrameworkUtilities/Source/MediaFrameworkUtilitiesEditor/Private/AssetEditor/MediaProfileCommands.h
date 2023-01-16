@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 

@@ -2,14 +2,10 @@
 #include "OSCServerProxy.h"
 
 #include "Common/UdpSocketBuilder.h"
-#include "CoreGlobals.h"
-#include "Sockets.h"
-#include "Stats/Stats.h"
-#include "Tickable.h"
 
 #include "OSCLog.h"
+#include "OSCPacket.h"
 #include "OSCStream.h"
-#include "OSCServer.h"
 
 
 FOSCServerProxy::FOSCServerProxy(UOSCServer& InServer)

@@ -4,7 +4,6 @@
 
 #include "Common.h"
 
-#include "common/Logging.h"
 
 namespace Mdl
 {

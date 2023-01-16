@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "ISequencerPlaylistsModule.h"
-#include "SequencerPlaylistItem.h"
 
 
 class FAssetTypeActions_SequencerPlaylist;

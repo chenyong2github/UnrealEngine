@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Factories/Factory.h"
-#include "Profile/MediaProfile.h"
 #include "Toolkits/SimpleAssetEditor.h"
+
+class UMediaProfile;
 
 class FExtender;
 

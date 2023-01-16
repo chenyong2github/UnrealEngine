@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/Guid.h"
 #include "Misc/IFilter.h"
-#include "Widgets/Clients/Logging/ConcertLogEntry.h"
+
+struct FConcertLogEntry;
 
 class FEndpointToUserNameCache;
 

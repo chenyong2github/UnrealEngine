@@ -4,12 +4,10 @@
 #include "SequencerSectionBP.h"
 #include "SequencerTrackBP.h"
 
-#include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 
-#include "EntitySystem/TrackInstance/MovieSceneTrackInstanceSystem.h"
+#include "SequencerTrackInstanceBP.h"
 
 USequencerSectionBP::USequencerSectionBP(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

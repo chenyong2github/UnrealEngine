@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Filters/FilterBase.h"
 

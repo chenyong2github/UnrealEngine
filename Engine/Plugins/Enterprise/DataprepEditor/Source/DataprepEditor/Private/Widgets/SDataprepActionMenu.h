@@ -4,13 +4,11 @@
 
 #include "SchemaActions/DataprepSchemaAction.h"
 
-#include "CoreMinimal.h"
 #include "GraphEditor.h"
-#include "Internationalization/Text.h"
-#include "Misc/Attribute.h"
 #include "SchemaActions/DataprepSchemaAction.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+
+namespace ESelectInfo { enum Type : int; }
+struct FEdGraphSchemaAction;
 
 class IDataprepMenuActionCollector;
 class SExpanderArrow;

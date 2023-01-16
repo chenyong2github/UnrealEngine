@@ -3,8 +3,9 @@
 #include "SPackageDetails.h"
 
 #include "ConcertWorkspaceData.h"
-#include "Widgets/Layout/SBox.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SlateOptMacros.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SPackageDetails"
 

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GenericPlatform/ScreenReaderBase.h"
-#include "GenericPlatform/GenericApplicationMessageHandler.h"
 
 class iAccessibleWidget;
 struct FAccessibleEventArgs;

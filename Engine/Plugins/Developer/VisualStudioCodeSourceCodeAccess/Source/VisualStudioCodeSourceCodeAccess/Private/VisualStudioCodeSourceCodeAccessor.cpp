@@ -2,18 +2,15 @@
 
 #include "VisualStudioCodeSourceCodeAccessor.h"
 #include "VisualStudioCodeSourceCodeAccessModule.h"
-#include "ISourceCodeAccessModule.h"
 #include "Modules/ModuleManager.h"
-#include "DesktopPlatformModule.h"
 #include "Misc/Paths.h"
-#include "Misc/ScopeLock.h"
 #include "Misc/UProjectInfo.h"
 #include "Misc/App.h"
 
 #if PLATFORM_WINDOWS
+#include "Internationalization/Regex.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
-#include "Internationalization/Regex.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogVSCodeAccessor, Log, All);
 

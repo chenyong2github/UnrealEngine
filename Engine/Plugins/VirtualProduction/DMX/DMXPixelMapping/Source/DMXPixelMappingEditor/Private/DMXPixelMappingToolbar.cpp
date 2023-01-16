@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXPixelMappingToolbar.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "DMXPixelMappingEditorCommands.h"
-#include "DMXPixelMappingEditorCommon.h"
 #include "DMXPixelMappingEditorStyle.h"
-#include "DMXPixelMappingEditorCommon.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 

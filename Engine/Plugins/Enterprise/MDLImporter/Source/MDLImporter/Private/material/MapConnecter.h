@@ -3,6 +3,7 @@
 #pragma once
 
 #include "generator/FunctionLoader.h"
+#include "generator/MaterialExpressionConnection.h"
 #include "generator/MaterialExpressions.h"
 #include "material/MaterialFactory.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"

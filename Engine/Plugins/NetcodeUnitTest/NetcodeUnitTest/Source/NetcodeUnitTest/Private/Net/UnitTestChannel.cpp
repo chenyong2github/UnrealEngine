@@ -3,10 +3,8 @@
 
 #include "Net/UnitTestChannel.h"
 
-#include "Engine/NetConnection.h"
 
 #include "MinimalClient.h"
-#include "NetcodeUnitTest.h"
 
 
 /**

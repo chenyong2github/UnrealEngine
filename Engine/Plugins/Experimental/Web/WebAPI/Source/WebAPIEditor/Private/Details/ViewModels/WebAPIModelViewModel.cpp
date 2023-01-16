@@ -2,10 +2,17 @@
 
 #include "WebAPIModelViewModel.h"
 
+#include "Details/ViewModels/WebAPIEnumViewModel.h"
+#include "Dom/WebAPIOperation.h"
+#include "Dom/WebAPIParameter.h"
 #include "WebAPIViewModel.inl"
-#include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
+#include "Details/ViewModels/WebAPIOperationViewModel.h"
 #include "Dom/WebAPIType.h"
+#include "Details/ViewModels/WebAPIParameterViewModel.h"
+#include "Details/ViewModels/WebAPIServiceViewModel.h"
+#include "Dom/WebAPIOperation.h"
+#include "Dom/WebAPIParameter.h"
+#include "Dom/WebAPIService.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIModelViewModel"
 

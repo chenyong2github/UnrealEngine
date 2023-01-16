@@ -4,16 +4,13 @@
 
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Notifications/NotificationManager.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Misc/App.h"
 #include "STimingDiagramWidget.h"
 #include "TimedDataMonitorEditorSettings.h"
 #include "TimedDataMonitorSubsystem.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "TimedDataBufferVisualizer"
 

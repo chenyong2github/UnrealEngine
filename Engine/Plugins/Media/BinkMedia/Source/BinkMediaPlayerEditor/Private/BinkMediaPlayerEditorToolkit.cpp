@@ -3,11 +3,12 @@
 
 #include "BinkMediaPlayerEditorToolkit.h"
 
-#include "BinkMediaPlayerEditorPrivate.h"
-#include "Factories.h"
+#include "BinkMediaPlayerEditorCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SBinkWidgets.h"
 
 #define LOCTEXT_NAMESPACE "FBinkMediaPlayerEditorToolkit"
 

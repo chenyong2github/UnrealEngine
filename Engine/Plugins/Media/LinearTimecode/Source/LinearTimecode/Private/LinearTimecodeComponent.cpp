@@ -3,13 +3,12 @@
 #include "LinearTimecodeComponent.h"
 #include "LinearTimecodeDecoder.h"
 
-#include "IMediaAudioSample.h"
-#include "IMediaPlayer.h"
 
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
 
 #include "MediaAudioSampleReader.h"
+#include "MediaSampleQueue.h"
 
 void ULinearTimecodeComponent::ProcessAudio(TSharedPtr<FMediaAudioSampleQueue, ESPMode::ThreadSafe> InSampleQueue)
 {

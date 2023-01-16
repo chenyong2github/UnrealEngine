@@ -2,8 +2,6 @@
 
 #include "RenderGraphTimingViewExtender.h"
 #include "Insights/ITimingViewSession.h"
-#include "UObject/WeakObjectPtr.h"
-#include "RenderGraphTimingViewSession.h"
 
 #define LOCTEXT_NAMESPACE "RenderGraphTimingViewExtender"
 

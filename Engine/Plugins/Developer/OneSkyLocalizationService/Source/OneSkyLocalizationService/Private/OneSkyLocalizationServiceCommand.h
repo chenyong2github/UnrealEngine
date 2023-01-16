@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "ILocalizationServiceState.h"
 #include "ILocalizationServiceProvider.h"
 #include "OneSkyConnectionInfo.h"
 #include "Misc/IQueuedWork.h"

@@ -1,11 +1,15 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIParameterViewModel.h"
 
+#include "Details/ViewModels/WebAPIOperationViewModel.h"
 #include "WebAPIEnumViewModel.h"
+#include "Details/ViewModels/WebAPIServiceViewModel.h"
 #include "WebAPIModelViewModel.h"
+#include "Dom/WebAPIParameter.h"
 #include "WebAPIViewModel.inl"
 #include "Dom/WebAPIOperation.h"
+#include "Dom/WebAPIService.h"
 #include "Dom/WebAPIType.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIParameterViewModel"

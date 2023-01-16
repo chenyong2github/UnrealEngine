@@ -5,19 +5,19 @@
 
 #define USE_UE
 #ifdef USE_UE
-#include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "Containers/UnrealString.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "GenericPlatform/GenericPlatformMath.h"
 #include "HAL/PlatformFileManager.h"
 #else
+#include <algorithm>
 #include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <memory>
+#include <stdexcept>
 #include <stdexcept>
 #include <string>
 #endif
@@ -27,7 +27,11 @@
 
 THIRD_PARTY_INCLUDES_START
 #include "zlib.h"
+#include <zconf.h>
+
 THIRD_PARTY_INCLUDES_END
+class IFileHandle;
+
 
 struct ZIP_FILE_HEADER
 {

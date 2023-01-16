@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingHierarchyItem.h"
+#include "Components/DMXPixelMappingOutputComponent.h"
 #include "ViewModels/DMXPixelMappingHierarchyViewModel.h"
 
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Views/STableRow.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Views/SDMXPixelMappingHierarchyView.h"
 #include "ScopedTransaction.h"
-#include "Styling/AppStyle.h"
+#include "Widgets/Views/SListView.h"
 
 void SDMXPixelMappingHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedPtr<FDMXPixelMappingHierarchyItemWidgetModel> InModel, TSharedPtr<SDMXPixelMappingHierarchyView> InHierarchyView)
 {

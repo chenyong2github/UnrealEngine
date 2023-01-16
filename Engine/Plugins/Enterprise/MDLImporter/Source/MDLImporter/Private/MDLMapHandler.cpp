@@ -4,19 +4,21 @@
 
 #include "MDLMapHandler.h"
 
+#include "Materials/MaterialExpressionSquareRoot.h"
 #include "generator/FunctionLoader.h"
-#include "generator/MaterialExpressionConnection.h"
 #include "generator/MaterialExpressions.h"
 #include "generator/MaterialTextureFactory.h"
 #include "mdl/BakeParam.h"
-#include "mdl/MdlSdkDefines.h"
 #include "mdl/Utility.h"
 
-#include "Materials/Material.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 MDLSDK_INCLUDES_START
 #include "mi/neuraylib/imaterial_definition.h"
+#include <mi/base/handle.h>
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/neuraylib/iexpression.h>
 MDLSDK_INCLUDES_END
 
 FMDLMapHandler::FMDLMapHandler(const Mdl::FApiContext& MdlContext)

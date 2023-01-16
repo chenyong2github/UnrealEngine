@@ -2,15 +2,16 @@
 
 
 #include "RoundPlanetPawn.h"
+#include "Engine/World.h"
 #include "GeoReferencingSystem.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/PlayerInput.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/WorldSettings.h"
 #include "GameFramework/Controller.h"
 #include "Components/InputComponent.h"
 #include "Curves/CurveFloat.h"
+#include "GeoReferencingModule.h"
+#include "GeographicCoordinates.h"
+#include "Math/RotationMatrix.h"
 
 
 ARoundPlanetPawn::ARoundPlanetPawn() : ADefaultPawn()

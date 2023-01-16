@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Engine/EngineTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "DisasterRecoverySettings.generated.h"
 
 UCLASS(config=Engine)

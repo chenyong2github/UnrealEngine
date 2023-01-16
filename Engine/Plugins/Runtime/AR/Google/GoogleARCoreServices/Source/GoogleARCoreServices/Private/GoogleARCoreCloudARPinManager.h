@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ARSupportInterface.h"
 #include "GoogleARCoreServicesTypes.h"
 #include "GoogleARCoreUtils.h"
 
-#include "ARSystem.h"
 
 
 class FGoogleARCoreCloudARPinManager : public FGCObject

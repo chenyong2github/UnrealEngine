@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithDeltaGenTranslatorModule.h"
+#include "DatasmithDeltaGenImportOptions.h" // IWYU pragma: keep
 #include "DatasmithDeltaGenTranslator.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
 #include "DatasmithDeltaGenImporterMaterialSelector.h"
 
-#include "CoreMinimal.h"
-#include "DatasmithTranslator.h"
 
 class FDeltaGenTranslatorModule : public IDatasmithDeltaGenTranslatorModule
 {

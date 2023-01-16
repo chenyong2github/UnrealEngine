@@ -2,7 +2,9 @@
 
 #pragma once
 #if USING_FLITE
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+
+struct FScriptContainerElement;
 
 struct FFliteSynthesizedSpeechData
 {

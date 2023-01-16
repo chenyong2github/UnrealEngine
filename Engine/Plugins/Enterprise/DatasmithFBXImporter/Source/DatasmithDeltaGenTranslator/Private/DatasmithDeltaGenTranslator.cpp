@@ -2,14 +2,12 @@
 
 #include "DatasmithDeltaGenTranslator.h"
 
-#include "DatasmithDeltaGenTranslatorModule.h"
-#include "DatasmithSceneSource.h"
+#include "DatasmithDeltaGenImportOptions.h"
 #include "IDatasmithSceneElements.h"
 #include "DatasmithDeltaGenImporter.h"
 #include "DatasmithDeltaGenLog.h"
+#include "DatasmithPayload.h"
 #include "HAL/FileManager.h"
-#include "FbxImporter.h"
-#include "MeshDescription.h"
 
 void FDatasmithDeltaGenTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {

@@ -1,9 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIEditorSubsystem.h"
 
 #include "IWebAPIEditorModule.h"
+#include "WebAPIDefinition.h"
 #include "WebAPIEditorLog.h"
+#include "WebAPIProvider.h"
 
 UWebAPIEditorSubsystem::UWebAPIEditorSubsystem()
 {

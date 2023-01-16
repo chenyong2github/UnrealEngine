@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/Dom/WebAPICodeGenFile.h"
 
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "Misc/Paths.h"
 
 void FWebAPICodeGenFile::AddItem(const TSharedPtr<FWebAPICodeGenBase>& InItem)

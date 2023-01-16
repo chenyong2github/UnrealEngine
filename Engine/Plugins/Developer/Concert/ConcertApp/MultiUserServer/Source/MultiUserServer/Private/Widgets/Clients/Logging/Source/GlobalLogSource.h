@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IConcertLogSource.h"
 #include "Containers/CircularBuffer.h"
+
+struct FConcertLog;
 
 class IConcertServer;
 

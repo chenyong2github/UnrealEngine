@@ -1,14 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIViewModel.h"
 
+#include "Dom/WebAPIParameter.h"
+#include "WebAPIDefinition.h"
 #include "WebAPIViewModel.inl"
 #include "WebAPIEnumViewModel.h"
 #include "WebAPIModelViewModel.h"
 #include "WebAPIParameterViewModel.h"
 #include "WebAPIServiceViewModel.h"
-#include "Dom/WebAPIModel.h"
-#include "Dom/WebAPIParameter.h"
 #include "Dom/WebAPIService.h"
 #include "Dom/WebAPIType.h"
 

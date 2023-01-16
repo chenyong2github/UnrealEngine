@@ -2,21 +2,20 @@
 
 
 #include "ScriptableInteractiveTool.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "InteractiveToolManager.h"
-#include "UObject/Class.h"
-#include "Engine/World.h"
-#include "Misc/EnumClassFlags.h"
 
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 
+#include "Engine/Font.h"
 #include "ToolDataVisualizer.h"
 #include "CanvasTypes.h"
-#include "CanvasItem.h"
 #include "Engine/Engine.h"  // for GEngine->GetSmallFont()
+#include "InteractiveGizmoManager.h"
 #include "SceneView.h"
 
-#include "Serialization/MemoryHasher.h"
+#include "UObject/EnumProperty.h"
 
 #define LOCTEXT_NAMESPACE "UScriptableInteractiveTool"
 

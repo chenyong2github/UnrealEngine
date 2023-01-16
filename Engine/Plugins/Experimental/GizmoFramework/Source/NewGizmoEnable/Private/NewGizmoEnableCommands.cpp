@@ -2,7 +2,6 @@
 
 #include "NewGizmoEnableCommands.h"
 
-#include "Framework/Commands/InputChord.h"
 
 #define LOCTEXT_NAMESPACE "FNewGizmoEnableModule"
 

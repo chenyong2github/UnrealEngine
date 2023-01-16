@@ -2,18 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "GenericPlatform/IInputInterface.h"
 #include "HeadMountedDisplayTypes.h"
 #include "XRMotionControllerBase.h"
-#include "InputCoreTypes.h"
 #include "ILiveLinkSource.h"
 #include "IInputDevice.h"
 #include "IHandTracker.h"
-#include "Roles/LiveLinkAnimationTypes.h"
 
 #include "IOpenXRExtensionPlugin.h"
-#include "OpenXRCore.h"
+
+enum class ETrackingStatus : uint8;
+struct FMotionControllerSource;
 
 /**
   * OpenXR HandTracking

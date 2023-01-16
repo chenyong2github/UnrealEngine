@@ -2,16 +2,17 @@
 
 #include "LiveLinkXRSource.h"
 
+#include "Async/Async.h"
 #include "Engine/Engine.h"
 #include "HAL/RunnableThread.h"
 #include "ILiveLinkClient.h"
+#include "IXRTrackingSystem.h"
 #include "LiveLinkSubjectSettings.h"
 #include "LiveLinkXR.h"
 #include "LiveLinkXROpenXRExt.h"
 #include "LiveLinkXROpenXRExtModule.h"
-#include "LiveLinkXRSourceSettings.h"
-#include "Misc/CoreDelegates.h"
-#include "Misc/ScopeLock.h"
+#include "LiveLinkXRConnectionSettings.h"
+#include "Misc/App.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 

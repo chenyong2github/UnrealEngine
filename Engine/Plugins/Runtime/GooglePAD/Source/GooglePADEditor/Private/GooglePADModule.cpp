@@ -3,6 +3,7 @@
 #include "GooglePADEditor.h"
 #include "ISettingsModule.h"
 #include "GooglePADRuntimeSettings.h"
+#include "Modules/ModuleManager.h"
 
 /**
  * Implements the GooglePADEditor module.

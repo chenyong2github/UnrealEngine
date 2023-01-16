@@ -6,6 +6,8 @@
 #include "IDetailCustomization.h"
 #include "PropertyHandle.h"
 
+struct EVisibility;
+
 enum class EMediaPlaybackDirections;
 
 struct FBinkMediaPlayerCustomization : public IDetailCustomization 

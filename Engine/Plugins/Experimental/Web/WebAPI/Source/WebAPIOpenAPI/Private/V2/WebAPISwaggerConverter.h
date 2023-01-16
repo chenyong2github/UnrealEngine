@@ -1,17 +1,29 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "WebAPIDefinition.h"
-#include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
-#include "Dom/WebAPIOperation.h"
-#include "Dom/WebAPISchema.h"
-#include "Dom/WebAPIService.h"
-#include "Dom/WebAPITypeRegistry.h"
 #include "UObject/StrongObjectPtr.h"
-#include "V2/WebAPISwaggerSchema.h"
+#include "WebAPIProviderSettings.h"
+
+class FWebAPIMessageLog;
+class UWebAPIEnum;
+class UWebAPIModel;
+class UWebAPIOperation;
+class UWebAPIOperationParameter;
+class UWebAPIOperationRequest;
+class UWebAPIOperationResponse;
+class UWebAPIParameter;
+class UWebAPIProperty;
+class UWebAPISchema;
+class UWebAPITypeInfo;
+namespace UE::Json { template <class ObjectType> class TJsonReference; }
+namespace UE::WebAPI::OpenAPI::V2 { class FOperation; }
+namespace UE::WebAPI::OpenAPI::V2 { class FParameter; }
+namespace UE::WebAPI::OpenAPI::V2 { class FPath; }
+namespace UE::WebAPI::OpenAPI::V2 { class FResponse; }
+namespace UE::WebAPI::OpenAPI::V2 { class FSchema; }
+namespace UE::WebAPI::OpenAPI::V2 { class FSwagger; }
+namespace UE::WebAPI::OpenAPI::V2 { class FTag; }
 
 namespace UE::WebAPI::Swagger
 {

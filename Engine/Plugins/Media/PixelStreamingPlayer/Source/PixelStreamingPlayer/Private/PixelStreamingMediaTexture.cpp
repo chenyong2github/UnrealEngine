@@ -3,7 +3,10 @@
 #include "PixelStreamingMediaTexture.h"
 #include "PixelStreamingMediaTextureResource.h"
 #include "Async/Async.h"
-#include "WebRTCIncludes.h"
+#include "RenderTargetPool.h"
+#include "RenderingThread.h"
+#include <api/video/video_frame.h>
+#include <common_video/libyuv/include/webrtc_libyuv.h>
 
 constexpr int32 DEFAULT_WIDTH = 1920;
 constexpr int32 DEFAULT_HEIGHT = 1080;

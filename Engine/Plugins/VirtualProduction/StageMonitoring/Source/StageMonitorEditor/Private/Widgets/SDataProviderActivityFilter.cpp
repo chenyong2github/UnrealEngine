@@ -2,19 +2,14 @@
 
 #include "SDataProviderActivityFilter.h"
 
-#include "CoreGlobals.h"
-#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IStageMonitorSession.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
-#include "StageMessages.h"
-#include "Styling/SlateTypes.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SDataProviderActivityFilter"
 

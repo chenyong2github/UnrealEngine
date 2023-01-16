@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STreeView.h"
-#include "DisasterRecoverySessionInfo.h"
+
+class ITableRow;
+class SDockTab;
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+struct FDisasterRecoverySession;
+template <typename ItemType> class STreeView;
 
 class FConcertActivityStream;
 class FDisasterRecoverySessionManager;

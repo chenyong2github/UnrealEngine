@@ -3,7 +3,7 @@
 #include "CustomizableSequencerTracksStyle.h"
 #include "SequencerTrackBP.h"
 
-#include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleRegistry.h"
 
 FName FCustomizableSequencerTracksStyle::StyleName("CustomizableSequencerTracksStyle");
 

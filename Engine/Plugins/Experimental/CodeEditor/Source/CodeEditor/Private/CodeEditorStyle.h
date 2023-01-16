@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+class ISlateStyle;
 
 class FCodeEditorStyle
 {

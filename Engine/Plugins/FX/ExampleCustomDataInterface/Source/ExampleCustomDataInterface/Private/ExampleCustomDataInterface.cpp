@@ -2,6 +2,7 @@
 
 #include "ExampleCustomDataInterface.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 #include "ShaderCore.h"
 #include "Interfaces/IPluginManager.h"
 

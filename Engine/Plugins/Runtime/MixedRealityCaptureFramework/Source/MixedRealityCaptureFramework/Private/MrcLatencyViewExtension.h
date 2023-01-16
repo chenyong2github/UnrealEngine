@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MotionDelayBuffer.h"
-#include "UObject/WeakObjectPtr.h"
+
+class FAutoRegister;
 
 
 class UMixedRealityCaptureComponent;

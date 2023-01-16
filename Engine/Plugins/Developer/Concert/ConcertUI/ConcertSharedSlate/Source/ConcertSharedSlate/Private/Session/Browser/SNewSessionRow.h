@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertHeaderRowUtils.h"
-#include "ConcertMessageData.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Styling/SlateBrush.h"
+
+class STableViewBase;
+struct FConcertServerInfo;
+template <typename OptionType> class SComboBox;
 
 class FConcertSessionTreeItem;
 class SEditableTextBox;

@@ -1,10 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenameEditAndDeleteMapsFlow.h"
 
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSessionDatabase.h"
-#include "Util/ScopedSessionDatabase.h"
+#include "ConcertSyncSessionTypes.h"
 
 namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 {

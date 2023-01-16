@@ -3,7 +3,7 @@
 #include "OnlinePresenceInterfaceSteam.h"
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSessionInterfaceSteam.h"
-#include "OnlineSubsystemSteamTypes.h"
+#include <steam/isteamutils.h>
 
 /** The default key that will contain the launch parameters for joining the game */
 const FString DefaultSteamConnectionKey = TEXT("connect");

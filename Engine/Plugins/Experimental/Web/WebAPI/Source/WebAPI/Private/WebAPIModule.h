@@ -4,7 +4,6 @@
 
 #include "IWebAPIModule.h"
 
-#include "CoreMinimal.h"
 
 class FWebAPIModule final
     : public IWebAPIModuleInterface

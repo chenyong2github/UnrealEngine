@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "SceneViewExtension.h"
 #include "UObject/GCObject.h"
-#include "CoreMinimal.h"
-#include "Engine/TextureRenderTarget2D.h" // for ETextureRenderTargetFormat
+#include "UObject/WeakObjectPtr.h"
+
+enum ETextureRenderTargetFormat : int;
 
 #if WITH_EDITOR
 #include "TickableEditorObject.h"

@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "mdl/Common.h"
 #include "mdl/MaterialTraverser.h"
 
 #include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/UnrealString.h"
-#include "Templates/UniquePtr.h"
 
 namespace mi
 {

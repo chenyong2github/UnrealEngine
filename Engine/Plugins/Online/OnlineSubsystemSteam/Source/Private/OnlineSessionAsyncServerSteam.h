@@ -2,16 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/IndirectArray.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemSteamTypes.h"
-#include "OnlineSessionSettings.h"
 #include "OnlineSessionInterfaceSteam.h"
-#include "OnlineAsyncTaskManager.h"
 #include "OnlineAsyncTaskManagerSteam.h"
-#include "OnlineSubsystemSteam.h"
-#include "OnlineSubsystemSteamPackage.h"
+
+class FInternetAddr;
+class FOnlineSubsystemSteam;
 
 /** Well defined keys for use with Steam game servers */
 #define SEARCH_STEAM_HOSTIP TEXT("SteamHostIp")

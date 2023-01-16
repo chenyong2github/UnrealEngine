@@ -3,31 +3,28 @@
 #include "DatasmithDeltaGenImporter.h"
 
 #include "Async/AsyncWork.h"
+#include "DatasmithAnimationElements.h"
 #include "DatasmithDeltaGenAnimationInterpolator.h"
 #include "DatasmithDeltaGenImportData.h"
 #include "DatasmithDeltaGenImportOptions.h"
 #include "DatasmithDeltaGenImporterAuxFiles.h"
 #include "DatasmithDeltaGenLog.h"
 #include "DatasmithDeltaGenSceneProcessor.h"
-#include "DatasmithDeltaGenTranslatorModule.h"
 #include "DatasmithDeltaGenVariantConverter.h"
 #include "DatasmithFBXFileImporter.h"
-#include "DatasmithFBXImportOptions.h"
-#include "DatasmithFBXImporter.h"
-#include "DatasmithFBXScene.h"
-#include "DatasmithScene.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithTypes.h"
 #include "DatasmithUtils.h"
-#include "IDatasmithSceneElements.h"
 
+#include "DatasmithVariantElements.h"
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFileManager.h"
-#include "LevelSequence.h"
-#include "MeshAttributes.h"
 #include "Misc/Paths.h"
-#include "Serialization/Archive.h"
 #include "StaticMeshAttributes.h"
+#include <core/fbxproperty.h>
+#include <scene/fbxdocumentinfo.h>
+#include <scene/fbxscene.h>
+#include <utils/fbxrenamingstrategyutilities.h>
 
 DEFINE_LOG_CATEGORY(LogDatasmithDeltaGenImport);
 

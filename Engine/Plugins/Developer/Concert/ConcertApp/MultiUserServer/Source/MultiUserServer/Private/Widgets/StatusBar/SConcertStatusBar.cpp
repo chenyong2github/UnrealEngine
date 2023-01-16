@@ -7,8 +7,9 @@
 #include "Framework/Application/SlateApplication.h"
 #include "OutputLogModule.h"
 #include "SWidgetDrawer.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "WidgetDrawerConfig.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

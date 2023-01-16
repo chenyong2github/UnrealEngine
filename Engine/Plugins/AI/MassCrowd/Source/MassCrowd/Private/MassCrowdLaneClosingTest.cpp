@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCrowdLaneClosingTest.h"
+#include "Engine/World.h"
 #include "MassCrowdSubsystem.h"
 #include "ZoneGraphRenderingUtilities.h"
 

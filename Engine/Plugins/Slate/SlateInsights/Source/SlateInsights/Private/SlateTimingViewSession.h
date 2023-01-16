@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Insights/ViewModels/TimingEventsTrack.h"
-#include "TraceServices/Model/Frames.h"
+#include "Templates/SharedPointer.h"
 
 namespace TraceServices { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }

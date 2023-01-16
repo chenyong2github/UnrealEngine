@@ -2,11 +2,7 @@
 
 #include "AudioCapture.h"
 
-#include "AudioCaptureCore.h"
-#include "CoreMinimal.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogAudioCapture);

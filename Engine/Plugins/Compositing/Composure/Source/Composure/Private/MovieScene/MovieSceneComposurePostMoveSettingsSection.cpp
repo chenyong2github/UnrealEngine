@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene/MovieSceneComposurePostMoveSettingsSection.h"
+#include "MovieSceneCommonHelpers.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "ComposurePostMoves.h"

@@ -4,21 +4,16 @@
 
 #include "DMXPixelMappingTypes.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "DetailsViewArgs.h"
 #include "Modulators/DMXModulator.h"
 
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailChildrenBuilder.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "IPropertyUtilities.h"
-#include "PropertyEditorModule.h"
-#include "Layout/Visibility.h"
+#include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "FixtureGroupItem"
 

@@ -3,9 +3,9 @@
 #include "MassCrowdLaneDataRenderingComponent.h"
 
 #include "Engine/Engine.h"
-#include "PrimitiveSceneProxy.h"
 #include "MassCrowdSettings.h"
 #include "MassCrowdSubsystem.h"
+#include "PrimitiveViewRelevance.h"
 #include "ZoneGraphQuery.h"
 #include "ZoneGraphRenderingComponent.h"
 #include "ZoneGraphSubsystem.h"

@@ -1,20 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SFacialAnimationBulkImporter.h"
+#include "DetailsViewArgs.h"
 #include "FacialAnimationImportItem.h"
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Widgets/SBoxPanel.h"
 #include "Misc/Paths.h"
-#include "Dialogs/DlgPickPath.h"
 #include "FacialAnimationBulkImporterSettings.h"
-#include "Logging/MessageLog.h"
 #include "IDetailsView.h"
-#include "Styling/AppStyle.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PackageName.h"
 

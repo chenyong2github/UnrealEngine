@@ -5,7 +5,6 @@
 #include "common/Logging.h"
 #include "common/TextureProperty.h"
 
-#include "Logging/LogMacros.h"
 
 class UTextureFactory;
 class UObject;

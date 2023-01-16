@@ -4,6 +4,8 @@
 #include "MassCommonFragments.h"
 #include "MassExecutionContext.h"
 #include "MassCrowdFragments.h"
+#include "MassEntityManager.h"
+#include "MassRepresentationFragments.h"
 
 namespace UE::MassCrowd
 {

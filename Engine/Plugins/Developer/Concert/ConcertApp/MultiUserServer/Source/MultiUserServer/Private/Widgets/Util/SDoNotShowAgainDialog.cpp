@@ -3,7 +3,6 @@
 #include "SDoNotShowAgainDialog.h"
 
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SDoNotShowAgainDialog"

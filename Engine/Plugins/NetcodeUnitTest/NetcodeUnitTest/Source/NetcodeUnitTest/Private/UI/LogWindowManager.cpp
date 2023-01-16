@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/LogWindowManager.h"
-#include "GenericPlatform/GenericApplication.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
 
 
+#include "NetcodeUnitTest.h"
 #include "UnitTestManager.h"
 
 #include "UI/SLogWindow.h"

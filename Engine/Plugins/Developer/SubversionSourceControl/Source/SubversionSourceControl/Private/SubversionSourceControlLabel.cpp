@@ -2,6 +2,7 @@
 
 #include "SubversionSourceControlLabel.h"
 #include "Modules/ModuleManager.h"
+#include "SubversionSourceControlRevision.h"
 #include "SubversionSourceControlState.h"
 #include "SubversionSourceControlModule.h"
 #include "XmlFile.h"

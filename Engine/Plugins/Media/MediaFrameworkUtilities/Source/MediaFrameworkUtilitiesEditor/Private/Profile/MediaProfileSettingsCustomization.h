@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
-#include "Styling/SlateColor.h"
+
+class FReply;
+struct FSlateColor;
 
 
 struct FMediaProfileSettingsCustomizationOptions;

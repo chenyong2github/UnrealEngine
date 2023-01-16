@@ -2,7 +2,9 @@
 
 #include "UI/TimecodeSynchronizerEditorLevelToolbar.h"
 
+#include "IAssetTools.h"
 #include "TimecodeSynchronizerFactory.h"
+#include "TimecodeSynchronizer.h"
 #include "TimecodeSynchronizerProjectSettings.h"
 #include "UI/TimecodeSynchronizerEditorCommand.h"
 #include "UI/TimecodeSynchronizerEditorStyle.h"
@@ -10,14 +12,10 @@
 #include "AssetToolsModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "LevelEditor.h"
 #include "Misc/FeedbackContext.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
 
-#include "Toolkits/AssetEditorToolkit.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
 #include "MrcFrameworkSettings.generated.h"
 
 UCLASS(config=Engine)

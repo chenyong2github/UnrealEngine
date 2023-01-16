@@ -3,7 +3,6 @@
 #include "Customizations/DMXPixelMappingVerticalAlignmentCustomization.h"
 
 #include "DetailWidgetRow.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Input/SSegmentedControl.h"
 
 

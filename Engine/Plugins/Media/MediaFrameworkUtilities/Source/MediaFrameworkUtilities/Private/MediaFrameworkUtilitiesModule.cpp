@@ -5,7 +5,6 @@
 #include "Engine/Engine.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Profile/MediaProfile.h"
 #include "Profile/MediaProfileManager.h"
@@ -13,7 +12,6 @@
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #endif //WITH_EDITOR
 
 

@@ -3,7 +3,6 @@
 #include "SSlateTraceFlags.h"
 
 #include "SlateInsightsStyle.h"
-#include "Templates/UnrealTemplate.h"
 
 
 #define LOCTEXT_NAMESPACE "SSlateTraceFlags"

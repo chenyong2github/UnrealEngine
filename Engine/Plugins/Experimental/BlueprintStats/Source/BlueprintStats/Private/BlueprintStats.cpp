@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintStats.h"
-#include "UObject/Class.h"
-#include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_MacroInstance.h"

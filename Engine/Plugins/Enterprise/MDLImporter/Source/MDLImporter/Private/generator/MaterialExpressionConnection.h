@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "CoreTypes.h"
 #include "Materials/MaterialExpression.h"
 
 class UTexture;

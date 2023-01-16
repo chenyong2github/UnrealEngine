@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
+
+struct FBuildEditWidgetParams;
 
 class FMenuBuilder;
 class UMovieSceneCinePrestreamingSection;

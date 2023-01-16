@@ -4,11 +4,12 @@
 
 #include "DMXPixelMappingEditorCommon.h"
 
-#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
-#include "Misc/TextFilter.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class UDMXPixelMappingBaseComponent;
+namespace ESelectInfo { enum Type : int; }
+template <typename ItemType> class TTextFilter;
 
 class FDMXPixelMappingToolkit;
 class UDMXPixelMapping;

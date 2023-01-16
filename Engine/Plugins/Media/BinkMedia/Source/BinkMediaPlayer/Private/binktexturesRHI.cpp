@@ -7,19 +7,10 @@
 #include "../../BinkMediaPlayerSDK/include/binktextures.h"
 
 #include "BinkShaders.h"
-#include "CoreMinimal.h"
-#include "MaterialShader.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
 #include "PipelineStateCache.h"
-#include "RHI.h"
 #include "RHIStaticStates.h"
 #include "RenderGraphBuilder.h"
-#include "RenderGraphResources.h"
-#include "RenderResource.h"
-#include "ShaderParameterUtils.h"
-#include "UObject/ConstructorHelpers.h"
+#include "RenderingThread.h"
 
 
 extern FRHITexture2D *BinkRHIRenderTarget;

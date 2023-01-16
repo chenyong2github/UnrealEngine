@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemSteamPrivate.h"
+#include "OnlineSubsystemSteamPrivate.h" // IWYU pragma: keep
 #include "OnlineAsyncTaskManager.h"
 #include "OnlineSubsystemSteamPackage.h"
 

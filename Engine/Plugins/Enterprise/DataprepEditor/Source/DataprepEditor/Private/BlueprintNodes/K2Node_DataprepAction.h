@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "K2Node.h"
-#include "Math/Color.h"
 
 #include "Blueprint/K2Node_DataprepActionCore.h"
 
 #include "K2Node_DataprepAction.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 
 class FBlueprintActionDatabaseRegistrar;

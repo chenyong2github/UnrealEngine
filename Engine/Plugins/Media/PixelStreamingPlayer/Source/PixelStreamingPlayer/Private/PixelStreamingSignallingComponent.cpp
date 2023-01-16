@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingSignallingComponent.h"
+#include "PixelStreamingSignallingConnection.h"
 #include "WebSocketsModule.h"
-#include "PixelStreamingPeerComponent.h"
 #include "PixelStreamingPlayerPrivate.h"
+#include "StreamMediaSource.h"
+#include <media/base/media_config.h>
+#include <vector>
 
 UPixelStreamingSignallingComponent::UPixelStreamingSignallingComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

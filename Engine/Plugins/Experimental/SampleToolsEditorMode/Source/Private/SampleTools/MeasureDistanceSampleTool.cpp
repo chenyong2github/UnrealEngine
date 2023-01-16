@@ -2,14 +2,13 @@
 
 #include "MeasureDistanceSampleTool.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 
 // for raycast into World
-#include "CollisionQueryParams.h"
 #include "Engine/World.h"
 
 #include "SceneManagement.h"
+#include "ToolContextInterfaces.h"
 
 // localization namespace
 #define LOCTEXT_NAMESPACE "UMeasureDistanceSampleTool"

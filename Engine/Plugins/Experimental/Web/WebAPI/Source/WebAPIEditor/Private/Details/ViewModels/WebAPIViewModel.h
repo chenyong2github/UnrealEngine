@@ -1,10 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Dom/WebAPISchema.h"
-#include "WebAPIDefinition.h"
+#include "UObject/WeakObjectPtr.h"
+
+class UWebAPIDefinition;
+class UWebAPISchema;
 
 class FWebAPIModelViewModel;
 class FWebAPIDefinitionViewModel;

@@ -1,11 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DTLSCertificate.h"
+#include "CoreGlobals.h"
 #include "Misc/ScopeExit.h"
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
+#include <openssl/asn1.h>
 #include <openssl/x509.h>
+#include <openssl/bn.h>
+#include <openssl/evp.h>
+#include <openssl/ossl_typ.h>
+#include <openssl/rsa.h>
 THIRD_PARTY_INCLUDES_END
 #undef UI
 

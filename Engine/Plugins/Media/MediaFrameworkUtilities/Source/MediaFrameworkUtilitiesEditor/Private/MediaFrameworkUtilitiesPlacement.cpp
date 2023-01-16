@@ -2,24 +2,15 @@
 
 #include "MediaFrameworkUtilitiesPlacement.h"
 
-#include "Application/SlateApplicationBase.h"
 #include "AssetThumbnail.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SlateOptMacros.h"
-#include "Styling/SlateIconFinder.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 
-#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "IPlacementModeModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
-#include "LevelEditor.h"
 
 #include "MediaBundle.h"
 #include "MediaSource.h"

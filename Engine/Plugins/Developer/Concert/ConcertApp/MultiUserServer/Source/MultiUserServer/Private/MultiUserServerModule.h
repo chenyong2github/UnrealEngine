@@ -1,13 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "ConcertSyncServerLoopInitArgs.h"
 #include "IMultiUserServerModule.h"
 
-#include "Modules/ModuleManager.h"
+
+class IConcertSyncServer;
+class IModuleInterface;
 
 namespace UE::MultiUserServer
 {

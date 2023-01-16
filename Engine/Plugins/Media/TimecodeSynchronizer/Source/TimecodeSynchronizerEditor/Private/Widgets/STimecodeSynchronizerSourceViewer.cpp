@@ -3,9 +3,7 @@
 #include "Widgets/STimecodeSynchronizerSourceViewer.h"
 
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Modules/ModuleManager.h"
+#include "TimecodeSynchronizer.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"

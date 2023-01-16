@@ -1,18 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveAssetActionExtender.h"
+#include "AssetToolsModule.h"
 #include "ToolMenus.h"
-#include "AssetTypeActions_Base.h"
+#include "IAssetTools.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
-#include "ObjectEditorUtils.h"
-#include "Styling/AppStyle.h"
-#include "Sound/SoundWave.h"
+#include "Misc/PackageName.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "SoundSimple.h"
 #include "SoundSimpleFactory.h"
 #include "Algo/AnyOf.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

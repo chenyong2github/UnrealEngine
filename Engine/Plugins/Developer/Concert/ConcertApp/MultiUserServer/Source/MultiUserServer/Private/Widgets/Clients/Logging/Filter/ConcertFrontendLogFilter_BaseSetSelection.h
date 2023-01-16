@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/IFilter.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+class FFilterCategory;
 
 struct FConcertLogEntry;
 

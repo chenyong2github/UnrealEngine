@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OneSkyConnection.h"
-#include "Modules/ModuleManager.h"
 #include "ILocalizationServiceModule.h"
 #include "OneSkyLocalizationServiceModule.h"
 #include "OneSkyLocalizationServiceCommand.h"

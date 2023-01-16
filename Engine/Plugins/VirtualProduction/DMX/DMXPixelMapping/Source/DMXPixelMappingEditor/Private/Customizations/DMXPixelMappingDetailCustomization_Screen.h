@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "UObject/WeakObjectPtr.h"
 
 class FDMXPixelMappingToolkit;
 class IPropertyHandle;

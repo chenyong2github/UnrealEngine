@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Editor.h"
-#include "Engine/Engine.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
-#include "Serialization/Archive.h"
-#include "Serialization/ArchiveUObject.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "UObject/Object.h"
+#include "UObject/PropertyPortFlags.h"
 
 class FDataprepParameterizationWriter : public FMemoryWriter
 {

@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node.h"
-#include "UObject/ObjectMacros.h"
 
-#include "DataprepAsset.h"
 
 #include "K2Node_DataprepProducer.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 UCLASS()
 class UK2Node_DataprepProducer : public UK2Node

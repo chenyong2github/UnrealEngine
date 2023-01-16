@@ -4,7 +4,6 @@
 
 #include "PropertyTrackEditor.h"
 #include "MovieScene/MovieSceneComposurePostMoveSettingsTrack.h"
-#include "MovieScene/MovieSceneComposurePostMoveSettingsSection.h"
 
 /** A property track editor for FComposurePostMoveSettings properties. */
 class FComposurePostMoveSettingsPropertyTrackEditor

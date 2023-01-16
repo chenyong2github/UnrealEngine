@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Engine/CompositeCurveTable.h"
-#include "AssetDefinition_CurveTable.h"
 
+#include "Table/AssetDefinition_CurveTable.h"
 #include "AssetDefinition_CompositeCurveTable.generated.h"
 
 UCLASS()

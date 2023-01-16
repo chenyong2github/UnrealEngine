@@ -2,8 +2,7 @@
 
 #include "OnlineEncryptedAppTicketInterfaceSteam.h"
 #include "OnlineAsyncTaskManagerSteam.h"
-#include "OnlineSubsystem.h"
-#include "OnlineSubsystemSteamTypes.h"
+#include "OnlineSubsystemSteam.h"
 #include "SteamUtilities.h"
 
 enum class ESteamEncryptedAppTicketState

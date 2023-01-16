@@ -2,7 +2,6 @@
 
 
 #include "TextToSpeechModule.h"
-#include "Modules/ModuleManager.h"
 #include "TextToSpeechLog.h"
 #include COMPILED_PLATFORM_HEADER(TextToSpeechFactory.h)
 

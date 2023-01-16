@@ -4,17 +4,18 @@
 
 #include "DatasmithRuntime.h"
 #include "DatasmithRuntimeBlueprintLibrary.h"
-#include "LogCategory.h"
 
 #include "DatasmithCore.h"
-#include "DatasmithTranslatorModule.h"
-#include "DirectLinkCommon.h"
-#include "DirectLinkConnectionRequestHandler.h"
 #include "DirectLinkLog.h"
 
-#include "HAL/CriticalSection.h"
-#include "Misc/SecureHash.h"
+#include "Misc/ScopeRWLock.h"
 #include "Serialization/MemoryWriter.h"
+#include "Tickable.h"
+#include "UObject/StrongObjectPtr.h"
+
+#if !WITH_EDITOR
+#include "Modules/ModuleManager.h"
+#endif
 
 const TCHAR* EndPointName = TEXT("DatasmithRuntime");
 

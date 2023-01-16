@@ -4,10 +4,7 @@
 
 #include "IDatasmithSceneElements.h"
 
-#include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "Templates/Casts.h"
-#include "UObject/SoftObjectPath.h"
 
 #define DEFAULT_MATERIAL_NAME TEXT("UPlasticMaterial")
 

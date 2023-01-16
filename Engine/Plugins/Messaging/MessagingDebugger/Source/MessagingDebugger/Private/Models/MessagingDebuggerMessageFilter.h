@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "IMessageTracer.h"
-#include "Templates/SharedPointer.h"
+#include "Delegates/Delegate.h"
+
+struct FMessageTracerMessageInfo;
 
 
 /**

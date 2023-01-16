@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositingViewportClient.h"
-#include "AssetEditorModeManager.h"
 #include "DummyViewport.h"
 #include "CompositingElement.h"
+#include "Editor/UnrealEdTypes.h"
 #include "EditorCompElementContainer.h"
 #include "LevelEditorViewport.h" // for GetIsCameraCut()
-#include "HAL/IConsoleManager.h"
-#include "Logging/LogMacros.h"
 
 static TAutoConsoleVariable<int32> CVarDecoupleEditorCompRendering(
 	TEXT("r.Composure.CompositingElements.Editor.DecoupleRenderingFromLevelViewport"),

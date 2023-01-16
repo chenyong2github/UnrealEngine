@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "PackageTransmissionFrontendFilter_TextSearch.h"
 #include "Widgets/Util/Filter/ConcertRootFrontendFilter.h"
+#include "Widgets/Util/Filter/SConcertFilterBar.h"
 
 class FEndpointToUserNameCache;
 class SWidget;

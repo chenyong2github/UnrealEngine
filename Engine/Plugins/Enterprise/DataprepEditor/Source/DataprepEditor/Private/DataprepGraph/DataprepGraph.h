@@ -2,14 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/StrongObjectPtr.h"
 
+#include "UObject/Package.h"
 #include "DataprepGraph.generated.h"
 
 class SGraphEditor;

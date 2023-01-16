@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveFunctionCollapseModel.h"
+#include "Engine/StaticMesh.h"
 
 const FWaveFunctionCollapseOption FWaveFunctionCollapseOption::EmptyOption(FString(TEXT("/WaveFunctionCollapse/Core/SpecialOptions/Option_Empty.Option_Empty")));
 const FWaveFunctionCollapseOption FWaveFunctionCollapseOption::BorderOption(FString(TEXT("/WaveFunctionCollapse/Core/SpecialOptions/Option_Border.Option_Border")));

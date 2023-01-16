@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "Parameterization/DataprepParameterizationUtils.h"
 
-#include "CoreMinimal.h"
-#include "Types/SlateEnums.h"
-#include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+template <typename ItemType> class SListView;
 
 class UDataprepAsset;
 class UDataprepParameterizableObject;

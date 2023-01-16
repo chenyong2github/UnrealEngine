@@ -2,7 +2,6 @@
 
 #include "DMXPixelMappingUtils.h"
 #include "DMXPixelMappingTypes.h"
-#include "Interfaces/IDMXProtocol.h"
 
 uint32 FDMXPixelMappingUtils::GetNumChannelsPerCell(EDMXCellFormat InCellFormat)
 {

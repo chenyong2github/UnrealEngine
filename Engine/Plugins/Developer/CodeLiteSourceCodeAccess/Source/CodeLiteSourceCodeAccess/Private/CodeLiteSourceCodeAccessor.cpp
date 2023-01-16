@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeLiteSourceCodeAccessor.h"
-#include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
-#include "DesktopPlatformModule.h"
 #include "Misc/UProjectInfo.h"
 #include "Misc/App.h"
+#include "Trace/Trace.inl"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCodeLiteAccessor, Log, All);
 

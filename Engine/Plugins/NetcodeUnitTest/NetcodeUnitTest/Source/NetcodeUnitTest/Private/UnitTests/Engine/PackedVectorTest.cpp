@@ -2,8 +2,9 @@
 
 #include "UnitTests/Engine/PackedVectorTest.h"
 #include "Engine/NetSerialization.h"
-#include "UnitTestEnvironment.h"
-#include <limits>
+#include "NetcodeUnitTest.h"
+#include "Serialization/BitReader.h"
+#include "Serialization/BitWriter.h"
 
 namespace PackedVectorTest
 {

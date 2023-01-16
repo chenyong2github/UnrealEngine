@@ -4,7 +4,6 @@
 
 #include "common/Logging.h"
 
-#include "Containers/Map.h"
 #include "UObject/ObjectMacros.h"
 
 class UMaterialInterface;

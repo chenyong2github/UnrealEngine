@@ -4,7 +4,12 @@
 
 #include "IStageMonitorSession.h"
 
-#include "StageCriticalEventHandler.h"
+
+class FStageCriticalEventHandler;
+enum class EStageDataProviderState : uint8;
+struct FMessageAddress;
+struct FStageInstanceDescriptor;
+struct FStageProviderMessage;
 
 
 

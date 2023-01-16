@@ -3,10 +3,12 @@
 #include "ConcertSessionPackageViewerController.h"
 
 #include "ConcertSyncSessionDatabase.h"
+#include "ConcertSyncSessionTypes.h"
 #include "IConcertSyncServer.h"
 #include "IConcertSession.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
 #include "SConcertSessionPackageViewer.h"
+#include "Templates/NonNullPointer.h"
 
 FConcertSessionPackageViewerController::FConcertSessionPackageViewerController(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer)
 	: InspectedSession(MoveTemp(InspectedSession))

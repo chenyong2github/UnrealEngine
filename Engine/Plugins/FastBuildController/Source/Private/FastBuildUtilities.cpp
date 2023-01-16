@@ -3,7 +3,6 @@
 #include "FastBuildUtilities.h"
 #include "FastBuildControllerModule.h"
 
-#include "HAL/IConsoleManager.h"
 #include "ShaderCore.h"
 #include "HAL/PlatformFileManager.h"
 #include "Interfaces/ITargetPlatform.h"

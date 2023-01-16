@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Styling/ISlateStyle.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/StrongObjectPtr.h"
 

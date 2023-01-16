@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Misc/NotifyHook.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+enum class ECheckBoxState : uint8;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
 
 class IDetailsView;
+class SComboButton;
 class UFbxTestPlan;
 struct FPropertyChangedEvent;
 
@@ -70,7 +70,7 @@ namespace FbxAutomationBuilder
 		TArray<TSharedRef<FString>> ComboBoxExistingFbx;
 		FString CurrentFbx;
 
-		TSharedPtr<class SComboButton> FbxFilesCombo;
+		TSharedPtr<SComboButton> FbxFilesCombo;
 
 		TSharedRef<ITableRow> OnGenerateFbxRow(TSharedRef<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 

@@ -2,12 +2,11 @@
 
 #include "ActorSequence.h"
 #include "Engine/Level.h"
+#include "IMovieScenePlayer.h"
 #include "MovieScene.h"
-#include "MovieSceneCommonHelpers.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Blueprint.h"
-#include "GameFramework/Actor.h"
 #include "ActorSequenceComponent.h"
 #include "Engine/LevelScriptActor.h"
 #include "Tracks/MovieSceneAudioTrack.h"

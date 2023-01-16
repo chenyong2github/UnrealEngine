@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 
 class FDragDropEvent;

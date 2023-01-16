@@ -2,23 +2,18 @@
 
 #include "SConcertTransportLog.h"
 
-#include "ConcertHeaderRowUtils.h"
 #include "Filter/ConcertLogFilter_FrontendRoot.h"
 #include "Filter/ConcertFrontendLogFilter_TextSearch.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Util/ConcertLogTokenizer.h"
 #include "SConcertTransportLogFooter.h"
 #include "SConcertTransportLogRow.h"
 #include "Settings/ConcertTransportLogSettings.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
+#include "Widgets/Clients/Logging/Filter/FilteredConcertLogList.h"
 #include "Widgets/Clients/SPromptConcertLoggingEnabled.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
 #include "Widgets/Clients/Util/EndpointToUserNameCache.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTransportLog"

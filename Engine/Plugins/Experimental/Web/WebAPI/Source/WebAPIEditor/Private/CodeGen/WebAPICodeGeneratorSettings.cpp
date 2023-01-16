@@ -1,10 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/WebAPICodeGeneratorSettings.h"
 
+#include "CodeGen/WebAPICodeGenerator.h"
 #include "GeneralProjectSettings.h"
 #include "WebAPIEditorSettings.h"
-#include "CodeGen/Dom/WebAPICodeGenSettings.h"
 
 FWebAPICodeGeneratorSettings::FWebAPICodeGeneratorSettings()
 {

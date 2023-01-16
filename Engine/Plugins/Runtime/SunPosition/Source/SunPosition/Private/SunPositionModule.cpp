@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SunPositionModule.h"
+#include "Modules/ModuleManager.h"
 #include "SunPositionPlacement.h"
 #include "SunPositionStyle.h"
 

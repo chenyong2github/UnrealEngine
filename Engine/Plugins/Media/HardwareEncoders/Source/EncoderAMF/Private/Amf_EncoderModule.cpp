@@ -6,9 +6,11 @@
 
 #include "Amf_Common.h"
 #include "Amf_EncoderH264.h"
+#include "Misc/App.h"
 #include "VideoEncoderFactory.h"
 
 #include "Misc/CoreDelegates.h"
+#include "RHIDefinitions.h"
 
 class FAMFEncoderModule : public IModuleInterface
 {

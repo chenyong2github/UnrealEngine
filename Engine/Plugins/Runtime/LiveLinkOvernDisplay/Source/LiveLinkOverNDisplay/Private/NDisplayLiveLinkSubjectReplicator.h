@@ -5,8 +5,10 @@
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
 #include "UObject/GCObject.h"
 
-#include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
+
+class ULiveLinkRole;
+template <typename T> class TSubclassOf;
 
 
 class ILiveLinkClient;

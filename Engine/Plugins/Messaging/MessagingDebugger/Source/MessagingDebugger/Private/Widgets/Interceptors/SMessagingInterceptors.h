@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/ISlateStyle.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IMessageTracer.h"
-#include "Models/MessagingDebuggerModel.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+
+class FMessagingDebuggerModel;
+class IMessageTracer;
+class ISlateStyle;
+class ITableRow;
+class STableViewBase;
+struct FMessageTracerInterceptorInfo;
+template <typename ItemType> class SListView;
 
 /**
  * Implements the message interceptors panel.

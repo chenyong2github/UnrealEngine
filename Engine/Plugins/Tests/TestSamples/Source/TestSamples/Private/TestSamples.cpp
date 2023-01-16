@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestSamples.h"
+#include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FTestSamplesModule"

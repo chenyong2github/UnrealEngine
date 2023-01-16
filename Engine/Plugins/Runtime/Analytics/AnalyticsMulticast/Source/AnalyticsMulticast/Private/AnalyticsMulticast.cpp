@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnalyticsMulticast.h"
-#include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 
 #include "Analytics.h"

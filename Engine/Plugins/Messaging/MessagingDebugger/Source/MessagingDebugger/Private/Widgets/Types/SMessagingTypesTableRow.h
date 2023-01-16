@@ -2,17 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Internationalization/Text.h"
-#include "Misc/Attribute.h"
-#include "SlateOptMacros.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
+
+class STableViewBase;
 
 class FMessagingDebuggerModel;
 

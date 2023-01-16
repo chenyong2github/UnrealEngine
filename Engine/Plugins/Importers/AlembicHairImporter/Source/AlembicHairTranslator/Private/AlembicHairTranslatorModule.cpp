@@ -4,7 +4,6 @@
 
 #include "AlembicHairTranslator.h"
 #include "HairStrandsEditor.h"
-#include "HAL/LowLevelMemTracker.h"
 
 LLM_DECLARE_TAG_API(GroomEditor, HAIRSTRANDSEDITOR_API);
 

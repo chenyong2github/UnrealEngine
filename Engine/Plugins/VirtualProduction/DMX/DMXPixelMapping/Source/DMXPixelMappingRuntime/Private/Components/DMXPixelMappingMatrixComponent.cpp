@@ -3,30 +3,21 @@
 #include "Components/DMXPixelMappingMatrixComponent.h"
 
 #include "DMXPixelMapping.h"
-#include "DMXPixelMappingRuntimeCommon.h"
 #include "DMXPixelMappingRuntimeObjectVersion.h"
 #include "DMXPixelMappingRuntimeUtils.h"
 #include "DMXPixelMappingTypes.h"
-#include "DMXSubsystem.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
-#include "Components/DMXPixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingRootComponent.h"
 #include "IO/DMXOutputPort.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
+#include "Modulators/DMXModulator.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 
 #if WITH_EDITOR
 #include "DMXPixelMappingComponentWidget.h"
 #endif // WITH_EDITOR
 
-#include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixComponent"

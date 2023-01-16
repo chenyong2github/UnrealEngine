@@ -2,11 +2,10 @@
 
 #include "UFSProjSupport.h"
 
+#include "GeoReferencingModule.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
-#include "Templates/UniquePtr.h"
 
-#include "GeoReferencingSystem.h"
 
 struct PROJ_FILE_HANDLE
 {

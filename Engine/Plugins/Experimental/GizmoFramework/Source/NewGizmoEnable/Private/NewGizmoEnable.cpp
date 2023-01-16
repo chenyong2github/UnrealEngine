@@ -1,21 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NewGizmoEnable.h"
-#include "Editor.h"
 #include "EditorModeManager.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "HAL/IConsoleManager.h"
 #include "LevelEditor.h"
-#include "Serialization/MemoryLayout.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "NewGizmoEnableCommands.h"
-#include "UnrealEdGlobals.h"
 #include "GizmoEdMode.h"
+#include "ToolMenuSection.h"
 
 static const FName NewGizmoEnableTabName("NewGizmoEnable");
 static FAutoConsoleCommand ShowGizmoOptions(TEXT("Editor.ShowGizmoOptions"), TEXT("Shows the new gizmo mode in menus"), FConsoleCommandDelegate::CreateStatic(&FNewGizmoEnableModule::ShowGizmoOptions));

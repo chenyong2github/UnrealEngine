@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
 #include "Materials/MaterialFunction.h"
 #include "UObject/GCObject.h"
 

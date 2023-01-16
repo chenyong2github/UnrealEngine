@@ -3,14 +3,9 @@
 #include "Widgets/SDMXPixelMappingPaletteItem.h"
 
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
-#include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "ViewModels/DMXPixelMappingPaletteViewModel.h"
 
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Styling/AppStyle.h"
+#include "Widgets/Views/SListView.h"
 
 
 namespace UE::DMX::Private::SDMXPixelMappingPaletteItem

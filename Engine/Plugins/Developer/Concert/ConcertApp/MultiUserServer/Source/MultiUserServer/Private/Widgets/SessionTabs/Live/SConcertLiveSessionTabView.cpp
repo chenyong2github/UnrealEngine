@@ -3,12 +3,10 @@
 #include "SConcertLiveSessionTabView.h"
 
 #include "ConcertServerStyle.h"
-#include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Session/History/SSessionHistory.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/SessionTabs/Live/PackageViewer/SConcertSessionPackageViewer.h"
 
 #define LOCTEXT_NAMESPACE "MultiUserServerUI.SConcertSessionInspector"
 

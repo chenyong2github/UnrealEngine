@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILauncherProfileManager.h"
 
 class FAndroidProfileWizard : public ILauncherProfileWizard

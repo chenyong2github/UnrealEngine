@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_PixelMappingRendererComponent.h"
-#include "DMXPixelMapping.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Blueprint/DMXPixelMappingSubsystem.h"
 
-#include "KismetCompiler.h"
-#include "BlueprintActionDatabaseRegistrar.h"
-#include "K2Node_CallFunction.h"
+#include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "UK2Node_PixelMappingRendererComponent"
 

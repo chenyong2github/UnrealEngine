@@ -6,7 +6,6 @@
 #include "DatasmithFBXImporterLog.h"
 #include "Utility/DatasmithMeshHelper.h"
 
-#include "Misc/EnumClassFlags.h"
 #include "StaticMeshAttributes.h"
 
 int32 FDatasmithFBXSceneNode::NodeCounter = 1;

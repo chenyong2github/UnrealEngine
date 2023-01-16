@@ -5,11 +5,9 @@
 
 #include "Engine/Engine.h"
 #include "FixedFrameRateCustomTimeStep.h"
-#include "ITimeManagementModule.h"
 #include "Misc/App.h"
 
 #if WITH_EDITOR
-#include "Editor.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif //WITH_EDITOR

@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCodeView.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SourceCodeNavigation.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "SCodeView"
 

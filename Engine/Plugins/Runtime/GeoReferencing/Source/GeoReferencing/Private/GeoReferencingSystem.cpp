@@ -2,23 +2,22 @@
 
 #include "GeoReferencingSystem.h"
 
-#include "DrawDebugHelpers.h"
+#include "CartesianCoordinates.h"
 #include "Interfaces/IPluginManager.h"
+#include "Ellipsoid.h"
 #include "Kismet/GameplayStatics.h"
+#include "GeoReferencingModule.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
+#include "GeographicCoordinates.h"
 #include "MathUtil.h"
  
-#include "HAL/PlatformFileManager.h"
-#include "IPlatformFilePak.h"
 
+#include "Misc/Paths.h"
 #include "UFSProjSupport.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "sqlite3.h"
-#include "proj.h"
 THIRD_PARTY_INCLUDES_END
 
 #define ECEF_EPSG_FSTRING FString(TEXT("EPSG:4978"))

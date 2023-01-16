@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "CodeProjectItem.h"
-#include "Widgets/Views/STreeView.h"
+
+template <typename ItemType> class STreeView;
 
 class SCodeProjectEditor : public SCompoundWidget
 {

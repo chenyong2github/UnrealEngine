@@ -2,12 +2,9 @@
 
 #if USING_FLITE
 #include "Flite/FliteTextToSpeechSubmixListener.h"
-#include "GenericPlatform/TextToSpeechBase.h"
-#include "AudioDeviceManager.h"
 #include "AudioDevice.h"
+#include "Flite/FliteSynthesizedSpeechData.h"
 #include "TextToSpeechLog.h"
-#include "GenericPlatform/TextToSpeechBase.h"
-#include <atomic>
 
 /** Defined in FTextToSpeechBase.cpp */
 extern TMap<TextToSpeechId, TWeakPtr<FTextToSpeechBase>> ActiveTextToSpeechMap;

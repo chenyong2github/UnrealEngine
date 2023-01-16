@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Components/MaterialBillboardComponent.h"
-#include "GameFramework/Actor.h"
 #include "MrcProjectionBillboard.generated.h"
 
 class APawn;

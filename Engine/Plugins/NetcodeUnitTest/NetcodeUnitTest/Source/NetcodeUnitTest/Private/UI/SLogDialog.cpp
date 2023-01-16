@@ -1,18 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SLogDialog.h"
-#include "Misc/Attribute.h"
-#include "InputCoreTypes.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/CoreStyle.h"
 #include "Widgets/SWindow.h"
 #include "SlateOptMacros.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"

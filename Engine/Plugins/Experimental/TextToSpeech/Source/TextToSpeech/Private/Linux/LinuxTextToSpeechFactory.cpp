@@ -2,8 +2,6 @@
 
 #if PLATFORM_LINUX
 #include "Linux/LinuxTextToSpeechFactory.h"
-#include "GenericPlatform/ITextToSpeechFactory.h"
-#include "GenericPlatform/TextToSpeechBase.h"
 #include "Flite/FliteTextToSpeech.h"
 
 TSharedRef<FTextToSpeechBase> FLinuxTextToSpeechFactory::Create()

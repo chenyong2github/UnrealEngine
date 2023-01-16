@@ -1,19 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Layout/Visibility.h"
-#include "Styling/SlateColor.h"
-#include "Layout/Geometry.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Input/SButton.h"
 #include "Misc/TextFilter.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "Widgets/SCompElementsView.h"
 #include "Widgets/SCompElementEdCommandsMenu.h"
 

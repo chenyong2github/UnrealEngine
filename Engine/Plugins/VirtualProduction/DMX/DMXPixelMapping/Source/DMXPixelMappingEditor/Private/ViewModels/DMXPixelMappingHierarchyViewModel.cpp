@@ -4,7 +4,6 @@
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "DMXPixelMapping.h"
 #include "Components/DMXPixelMappingRootComponent.h"
-#include "DMXPixelMappingComponentReference.h"
 #include "DMXPixelMappingEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingHierarchyItemWidgetModel"

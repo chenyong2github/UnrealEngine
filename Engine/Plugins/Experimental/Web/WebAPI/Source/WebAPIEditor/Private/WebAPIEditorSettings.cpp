@@ -1,8 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIEditorSettings.h"
 
-#include "IWebAPIEditorModule.h"
+#include "CodeGen/WebAPICodeGenerator.h"
 
 TScriptInterface<IWebAPICodeGeneratorInterface> UWebAPIEditorSettings::GetGeneratorClass() const
 {

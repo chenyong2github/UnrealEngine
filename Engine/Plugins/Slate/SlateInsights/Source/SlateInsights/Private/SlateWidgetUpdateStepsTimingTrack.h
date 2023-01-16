@@ -4,6 +4,8 @@
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+class ITimingTrackUpdateContext;
+
 namespace UE
 {
 namespace SlateInsights

@@ -4,7 +4,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "DataprepCorePrivateUtils.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/StaticMeshActor.h"
 #include "Engine/Texture.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"

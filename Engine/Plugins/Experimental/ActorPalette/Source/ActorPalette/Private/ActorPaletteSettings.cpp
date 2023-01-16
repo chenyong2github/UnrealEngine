@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorPaletteSettings.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
 
 FAssetData FActorPaletteMapEntry::GetAsAssetData() const
 {

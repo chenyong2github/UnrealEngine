@@ -2,15 +2,10 @@
 
 #include "Session/History/SSessionHistory.h"
 
-#include "ConcertMessageData.h"
-#include "IConcertSession.h"
 
-#include "Algo/Transform.h"
 
-#include "Session/Activity/PredefinedActivityColumns.h"
-#include "Session/Activity/SConcertSessionActivities.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Styling/ToolBarStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"

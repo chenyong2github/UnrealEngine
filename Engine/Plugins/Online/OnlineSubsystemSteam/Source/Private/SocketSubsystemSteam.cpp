@@ -3,11 +3,11 @@
 #include "SocketSubsystemSteam.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SocketsSteam.h"
-#include "IPAddressSteam.h"
-#include "OnlineSubsystemSteam.h"
 #include "OnlineSessionInterfaceSteam.h"
 #include "SocketSubsystemModule.h"
 #include "SteamNetConnection.h"
+#include <steam/isteamgameserver.h>
+#include <steam/isteamuser.h>
 
 FSocketSubsystemSteam* FSocketSubsystemSteam::SocketSingleton = nullptr;
 

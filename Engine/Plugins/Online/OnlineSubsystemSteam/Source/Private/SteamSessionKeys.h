@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "OnlineSubsystemSteamPrivate.h"
+#include "OnlineSubsystemSteamPrivate.h" // IWYU pragma: keep
 #include "OnlineSessionSettings.h"
 
 /** Internal Steam session keys for advertising */

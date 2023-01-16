@@ -4,6 +4,7 @@
 
 #include "LiveLinkMasterLockitFactory.h"
 #include "LiveLinkMasterLockitSourcePanel.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkMasterLockitEditorModule"
 

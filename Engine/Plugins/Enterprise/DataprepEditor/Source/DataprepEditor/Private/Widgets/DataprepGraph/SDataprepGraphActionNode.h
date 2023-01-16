@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SGraphNodeResizable.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SDataprepGraphTrackNode;
 class SDataprepGraphActionProxyNode;

@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockRootMotionComponent.h"
-#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
 #include "NetworkPredictionProxyInit.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimMontage.h"
 #include "NetworkPredictionProxyWrite.h"
-#include "Curves/CurveVector.h"
 #include "Animation/AnimInstance.h"
-#include "Templates/UniquePtr.h"
 #include "NetworkPredictionReplicatedManager.h"
 #include "MockRootMotionSourceObject.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockRootMotionComponent, Log, All);
 

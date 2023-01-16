@@ -4,10 +4,7 @@
 
 #include "DatasmithSceneFactory.h"
 
-#include "Materials/Material.h"
-#include "Materials/MaterialInstanceConstant.h"
 #include "UObject/SoftObjectPath.h"
-#include "Templates/Casts.h"
 
 FDatasmithRuntimeMaterialSelector::FDatasmithRuntimeMaterialSelector()
 {

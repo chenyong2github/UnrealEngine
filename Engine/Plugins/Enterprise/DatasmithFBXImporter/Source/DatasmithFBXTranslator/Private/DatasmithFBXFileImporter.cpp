@@ -1,20 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithFBXFileImporter.h"
+#include "DatasmithDefinitions.h"
 #include "DatasmithFBXImporterLog.h"
 #include "DatasmithFBXImportOptions.h"
 #include "DatasmithFBXScene.h"
-#include "DatasmithImportOptions.h"
 #include "DatasmithUtils.h"
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "Async/Async.h"
-#include "Curves/RichCurve.h"
 #include "FbxImporter.h"
 #include "StaticMeshAttributes.h"
 #include "Misc/Paths.h"
-#include "RenderUtils.h"
 #include "RenderMath.h"
+#include <core/base/fbxtime.h>
+#include <core/fbxclassid.h>
+#include <core/fbxdatatypes.h>
+#include <core/fbxobject.h>
+#include <core/fbxproperty.h>
+#include <core/fbxpropertydef.h>
+#include <core/fbxquery.h>
+#include <core/math/fbxquaternion.h>
+#include <core/math/fbxvector2.h>
+#include <exception>
+#include <fileio/fbxglobalsettings.h>
+#include <scene/animation/fbxanimcurve.h>
+#include <scene/animation/fbxanimcurvenode.h>
+#include <scene/animation/fbxanimevaluator.h>
+#include <scene/animation/fbxanimlayer.h>
+#include <scene/animation/fbxanimstack.h>
+#include <scene/fbxscene.h>
+#include <scene/geometry/fbxcamera.h>
+#include <scene/geometry/fbxlayer.h>
+#include <scene/geometry/fbxlight.h>
+#include <scene/geometry/fbxmesh.h>
+#include <scene/shading/fbxtexture.h>
+#include <stdexcept>
+#include <utils/fbxgeometryconverter.h>
+#include <utils/fbxrenamingstrategyutilities.h>
+#include <utils/fbxrootnodeutility.h>
 
 #define ROOT_NODE_NAME TEXT("RootNode")
 #define INCH_TO_MM(value) (value * 25.4)

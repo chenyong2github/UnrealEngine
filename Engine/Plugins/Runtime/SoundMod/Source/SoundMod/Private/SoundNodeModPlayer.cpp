@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundNodeModPlayer.h"
-#include "Audio.h"
 #include "SoundMod.h"
 #include "ActiveSound.h"
 #include "UObject/FrameworkObjectVersion.h"

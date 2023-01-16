@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DatasmithDefinitions.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterial.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
-#include "Templates/SharedPointer.h"
+
+enum class EDatasmithReferenceMaterialType : uint8;
 
 class IDatasmithMaterialInstanceElement;
 

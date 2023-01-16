@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParametricMovement.h"
-#include "HAL/IConsoleManager.h"
-#include "Engine/LocalPlayer.h"
-#include "GameFramework/PlayerController.h"
 #include "NetworkPredictionProxyInit.h"
-#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
-#include "NetworkPredictionTrace.h"
-#include "NetworkPredictionTrace.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 DEFINE_LOG_CATEGORY_STATIC(LogParametricMovement, Log, All);
 

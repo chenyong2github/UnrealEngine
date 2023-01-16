@@ -4,13 +4,10 @@
 
 #include "FunctionGenerator.h"
 #include "common/Logging.h"
-#include "common/Utility.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Factories/MaterialFunctionFactoryNew.h"
 #include "MaterialEditingLibrary.h"
-#include "MaterialEditorUtilities.h"
-#include "Materials/MaterialExpressionFunctionOutput.h"
 #include "PackageTools.h"
 #include "UObject/Package.h"
 

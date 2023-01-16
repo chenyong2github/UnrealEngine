@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScriptableToolsEditorModeManagerCommands.h"
-#include "InputCoreTypes.h"
 #include "ScriptableToolsEditorModeStyle.h"
+#include "Styling/ISlateStyle.h"
 
 #define LOCTEXT_NAMESPACE "ScriptableToolsEditorModeManagerCommands"
 

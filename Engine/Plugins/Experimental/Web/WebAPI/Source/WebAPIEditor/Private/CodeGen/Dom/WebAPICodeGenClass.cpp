@@ -1,9 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/Dom/WebAPICodeGenClass.h"
 
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "CodeGen/Dom/WebAPICodeGenFunction.h"
-#include "Dom/WebAPIModel.h"
+#include "CodeGen/Dom/WebAPICodeGenStruct.h"
 
 FWebAPICodeGenClass::FWebAPICodeGenClass(const FWebAPICodeGenStruct& InStruct)
 	: Super::FWebAPICodeGenStruct(InStruct)

@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Session/Activity/ActivityColumn.h"
+#include "Delegates/Delegate.h"
 #include "Session/Activity/PredefinedActivityColumns.h"
+
+enum class EConcertPackageUpdateType : uint8;
+struct FConcertSessionActivity;
+template <typename OptionalType> struct TOptional;
 
 namespace UE::MultiUserServer::PackageViewerColumns
 {

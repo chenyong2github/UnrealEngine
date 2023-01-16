@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FbxAutomationBuilderModule.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Application/SlateWindowHelper.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Docking/TabManager.h"
 #include "FbxAutomationBuilder.h"
 #include "FbxAutomationBuilderStyle.h"
 #include "WorkspaceMenuStructure.h"

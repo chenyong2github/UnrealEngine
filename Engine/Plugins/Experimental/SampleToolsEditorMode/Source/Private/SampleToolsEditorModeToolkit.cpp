@@ -1,19 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SampleToolsEditorModeToolkit.h"
-#include "SampleToolsEditorMode.h"
-#include "Engine/Selection.h"
-
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
-#include "IDetailsView.h"
-
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
 
 
 
-#include "EditorModeManager.h"
+
+
 
 #define LOCTEXT_NAMESPACE "FSampleToolsEditorModeToolkit"
 

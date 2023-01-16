@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveFunctionCollapseBPLibrary.h"
+#include "Engine/StaticMesh.h"
 #include "WaveFunctionCollapseSubsystem.h"
-#include "Math/UnrealMathUtility.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/InstancedStaticMeshComponent.h"
 

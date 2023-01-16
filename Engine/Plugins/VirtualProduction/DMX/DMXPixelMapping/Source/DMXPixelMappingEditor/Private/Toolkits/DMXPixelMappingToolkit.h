@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "TickableEditorObject.h"
-#include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "DMXPixelMappingComponentReference.h"
+
+class FDMXPixelMappingComponentTemplate;
+class FSpawnTabArgs;
 
 class FDMXPixelMappingToolbar;
 class SDMXPixelMappingHierarchyView;

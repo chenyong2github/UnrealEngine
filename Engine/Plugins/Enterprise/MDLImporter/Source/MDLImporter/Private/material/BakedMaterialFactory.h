@@ -4,7 +4,6 @@
 
 #include "material/MaterialFactory.h"
 
-#include "Templates/Tuple.h"
 
 namespace Generator
 {

@@ -4,24 +4,20 @@
 
 #include "CalibrationPointComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/Texture2D.h"
 #include "LedWallArucoGenerationOptions.h"
 #include "LedWallCalibrationLog.h"
-#include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 
 
 #if WITH_OPENCV
-
+// IWYU pragma: begin_keep
 #include "OpenCVHelper.h"
-
 #include "PreOpenCVHeaders.h"
 #include "opencv2/aruco.hpp"
 #include "PostOpenCVHeaders.h"
-
+// IWYU pragma: end_keep
 #endif //WITH_OPENCV
 
 #define LOCTEXT_NAMESPACE "LedWallCalibration"

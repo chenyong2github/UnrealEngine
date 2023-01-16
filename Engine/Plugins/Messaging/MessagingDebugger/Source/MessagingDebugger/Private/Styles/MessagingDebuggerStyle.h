@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Brushes/SlateBorderBrush.h"
 #include "Brushes/SlateBoxBrush.h"
 #include "Brushes/SlateImageBrush.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Layout/Margin.h"
 #include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyle.h"

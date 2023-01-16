@@ -5,6 +5,9 @@
 #include "IMessageTracer.h"
 
 #include "Models/MessagingDebuggerModel.h"
+#include "SlateOptMacros.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SMessagingTypesTableRow"

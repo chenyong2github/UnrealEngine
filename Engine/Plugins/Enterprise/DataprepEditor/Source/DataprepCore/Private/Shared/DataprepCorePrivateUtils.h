@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Logging/TokenizedMessage.h"
-#include "MaterialShared.h"
-#include "Materials/MaterialInstanceConstant.h"
+#include "Internationalization/Text.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UMaterialInterface;
+namespace EMessageSeverity { enum Type : int; }
 
 class AActor;
 class IDataprepProgressReporter;

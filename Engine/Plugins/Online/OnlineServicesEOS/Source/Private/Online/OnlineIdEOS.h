@@ -4,6 +4,9 @@
 
 #include "Online/OnlineIdEOSGS.h"
 
+struct EOS_EpicAccountIdDetails;
+struct EOS_ProductUserIdDetails;
+
 class FAccountIdReplicationTest;
 
 namespace UE::Online {

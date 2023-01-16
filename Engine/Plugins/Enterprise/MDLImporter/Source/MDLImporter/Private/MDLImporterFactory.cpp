@@ -2,34 +2,29 @@
 
 #include "MDLImporterFactory.h"
 
-#include "MDLImporter.h"
+#include "IAnalyticsProviderET.h"
 #include "MDLImporterModule.h"
 #include "MDLImporterOptions.h"
+#include "Misc/App.h"
 #include "UI/MDLOptionsWindow.h"
 #include "MdlFileImporter.h"
 
-#include "common/Logging.h"
-#include "mdl/MaterialCollection.h"
 
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EngineAnalytics.h"
-#include "Factories/TextureFactory.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IMessageLogListing.h"
-#include "Interfaces/IAnalyticsProvider.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "Logging/LogMacros.h"
-#include "Logging/TokenizedMessage.h"
 #include "Materials/Material.h"
 #include "MessageLogModule.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
-#include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Modules/ModuleManager.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "MDL Importer"
 

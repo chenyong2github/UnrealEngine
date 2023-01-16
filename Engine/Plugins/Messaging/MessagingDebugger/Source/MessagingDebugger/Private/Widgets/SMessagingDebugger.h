@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Input/Reply.h"
-#include "Styling/ISlateStyle.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class ISlateStyle;
+class SDockTab;
 
 class FMenuBuilder;
 class FMessagingDebuggerModel;

@@ -3,11 +3,9 @@
 #include "UnitTests/FTextCrash.h"
 
 
-#include "MinimalClient.h"
 #include "NUTActor.h"
 
 #include "UnitTestEnvironment.h"
-#include "Net/NUTUtilNet.h"
 
 
 /**

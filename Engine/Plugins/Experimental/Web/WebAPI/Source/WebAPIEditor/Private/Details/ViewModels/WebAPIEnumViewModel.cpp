@@ -2,8 +2,6 @@
 
 #include "WebAPIEnumViewModel.h"
 
-#include "WebAPIViewModel.inl"
-#include "Dom/WebAPIEnum.h"
 #include "Dom/WebAPIType.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIEnumViewModel"

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "InteractiveToolBuilder.h"
-#include "BaseTools/ClickDragTool.h"
+#include "InteractiveTool.h"
 #include "MeasureDistanceSampleTool.generated.h"
 
 

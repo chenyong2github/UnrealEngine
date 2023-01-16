@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MrcVideoCaptureDevice.h"
+#include "Math/Range.h"
 #include "MediaPlayer.h"
 #include "MediaCaptureSupport.h" // for EnumerateVideoCaptureDevices()
 #include "IMediaCaptureSupport.h" // for FMediaCaptureDeviceInfo

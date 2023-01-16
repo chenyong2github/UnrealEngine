@@ -2,15 +2,14 @@
 
 #include "Views/SDMXPixelMappingPaletteView.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Misc/TextFilter.h"
 #include "ViewModels/DMXPixelMappingPaletteViewModel.h"
 
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Framework/Views/TreeFilterHandler.h"
-#include "Misc/IFilter.h"
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingPaletteView"
 

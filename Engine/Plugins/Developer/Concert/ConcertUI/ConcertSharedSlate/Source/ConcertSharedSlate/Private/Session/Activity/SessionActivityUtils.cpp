@@ -3,7 +3,6 @@
 #include "SessionActivityUtils.h"
 
 #include "ConcertSyncSessionTypes.h"
-#include "ConcertWorkspaceData.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionActivities"
 

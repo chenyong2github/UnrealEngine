@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "HTNBuilder.h"
-#include "HTNPlanner.h"
-#include "AI/HTNBrainComponent.h"
 #include "MockHTN.h"
 #include "AITestsCommon.h"
-#include "Misc/App.h"
 #include "Debug/HTNDebug.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_HTNTest"

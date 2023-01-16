@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OSCModulationMixing.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FOSCModulationMixingModule"
 

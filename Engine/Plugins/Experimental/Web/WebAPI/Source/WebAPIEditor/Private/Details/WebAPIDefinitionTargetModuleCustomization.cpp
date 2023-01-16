@@ -1,14 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIDefinitionTargetModuleCustomization.h"
 
-#include "IDetailChildrenBuilder.h"
-#include "IPropertyUtilities.h"
+#include "CodeGen/WebAPICodeGeneratorSettings.h"
 #include "PropertyCustomizationHelpers.h"
-#include "PropertyHandle.h"
 #include "WebAPIEditorModule.h"
-#include "WebAPIEditorSubsystem.h"
-#include "Async/Async.h"
 #include "Widgets/SWebAPIModulePicker.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIDefinitionTargetModuleCustomization"

@@ -3,11 +3,9 @@
 #pragma once
 
 #include "DatasmithFBXImporter.h"
-#include "DatasmithVREDImportData.h"
 
-#include "Logging/LogMacros.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/StrongObjectPtr.h"
+
+struct FVREDCppVariant;
 
 class IDatasmithActorElement;
 class IDatasmithBaseMaterialElement;

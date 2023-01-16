@@ -1,28 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemSteam.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/RunnableThread.h"
-#include "Misc/ScopeLock.h"
 #include "Serialization/BufferArchive.h"
 #include "Interfaces/IPluginManager.h"
-#include "SocketSubsystem.h"
-#include "Stats/Stats.h"
 
-#include "IPAddress.h"
-#include "OnlineSubsystemSteamPrivate.h"
-#include "OnlineSubsystemSteamTypes.h"
 #include "SocketSubsystemSteam.h"
 
-#include "OnlineAsyncTaskManagerSteam.h"
 #include "OnlineSessionInterfaceSteam.h"
 #include "OnlineIdentityInterfaceSteam.h"
 #include "OnlinePresenceInterfaceSteam.h"
 #include "OnlineFriendsInterfaceSteam.h"
-#include "OnlineUserCloudInterfaceSteam.h"
 #include "OnlineSharedCloudInterfaceSteam.h"
 #include "OnlineLeaderboardInterfaceSteam.h"
 #include "VoiceInterfaceSteam.h"
@@ -34,6 +24,8 @@
 #include "VoiceInterfaceSteam.h"
 
 #include "SteamSharedModule.h"
+#include <steam/isteamapps.h>
+#include <steam/isteamgameserverstats.h>
 
 /* Specify this define in your Target.cs for your project
  *

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Animation/MirrorDataTable.h"
-#include "AssetDefinition_DataTable.h"
 
+#include "Table/AssetDefinition_DataTable.h"
 #include "AssetDefinition_MirrorDataTable.generated.h"
 
 UCLASS()

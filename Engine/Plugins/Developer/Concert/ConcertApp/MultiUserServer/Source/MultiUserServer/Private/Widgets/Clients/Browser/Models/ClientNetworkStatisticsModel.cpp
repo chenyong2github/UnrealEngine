@@ -2,7 +2,6 @@
 
 #include "ClientNetworkStatisticsModel.h"
 
-#include "Containers/Ticker.h"
 #include "Features/IModularFeatures.h"
 #include "INetworkMessagingExtension.h"
 #include "Misc/ScopeExit.h"

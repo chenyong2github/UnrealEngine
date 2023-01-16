@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "AppleVisionAvailability.h"
 #include "IAppleVisionPlugin.h"
 #include "AppleImageUtilsTypes.h"
 #include "UObject/GCObject.h"
-#include "Async/Async.h"
 #include "Engine/Texture.h"
 
 #if SUPPORTS_APPLE_VISION_1_0

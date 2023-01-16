@@ -2,29 +2,19 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 
-#include "DMXEditorStyle.h"
-#include "DMXPixelMapping.h"
-#include "DMXPixelMappingEditorUtils.h"
 #include "DMXPixelMappingTypes.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixCellComponent.h"
-#include "Components/DMXPixelMappingRootComponent.h"
-#include "Library/DMXEntityFixturePatch.h"
+#include "DetailsViewArgs.h"
 #include "Modules/ModuleManager.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
 
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "IPropertyUtilities.h"
-#include "PropertyEditorModule.h"
-#include "Layout/Visibility.h"
-#include "Misc/Attribute.h"
+#include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Modulators/DMXModulator.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Matrix"

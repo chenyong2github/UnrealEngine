@@ -4,7 +4,6 @@
 
 #include "SchemaActions/IDataprepMenuActionCollector.h"
 
-#include "CoreMinimal.h"
 
 class UDataprepFilter;
 class UDataprepFilterNoFetcher;

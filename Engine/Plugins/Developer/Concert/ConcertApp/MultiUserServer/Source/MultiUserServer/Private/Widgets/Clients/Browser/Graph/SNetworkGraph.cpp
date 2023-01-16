@@ -5,9 +5,9 @@
 #include "ConcertServerStyle.h"
 #include "Math/UnitConversion.h"
 
+#include "Widgets/Clients/Browser/Graph/SCurveTimelineView.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 

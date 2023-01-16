@@ -4,6 +4,7 @@
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "VisualStudioCodeSourceCodeAccessor.h"
 
 LLM_DEFINE_TAG(VisualStudioCodeSourceCodeAccess);
 

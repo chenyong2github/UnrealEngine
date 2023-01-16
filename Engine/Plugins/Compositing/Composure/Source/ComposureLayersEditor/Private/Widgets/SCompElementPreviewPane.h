@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "EditorSupport/CompEditorImagePreviewInterface.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "UObject/GCObject.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/SoftObjectPath.h"
-#include "EditorSupport/ICompositingEditor.h" // for ICompositingEditor::FGetPreviewTexture
 #include "EditorSupport/WeakUInterfacePtr.h"
 
 class ICompElementManager;

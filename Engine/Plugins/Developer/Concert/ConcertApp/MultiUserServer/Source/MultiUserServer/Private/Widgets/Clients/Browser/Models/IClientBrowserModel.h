@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertMessages.h"
+#include "Delegates/Delegate.h"
+
+template <typename OptionalType> struct TOptional;
 
 struct FConcertSessionClientInfo;
 struct FConcertSessionInfo;

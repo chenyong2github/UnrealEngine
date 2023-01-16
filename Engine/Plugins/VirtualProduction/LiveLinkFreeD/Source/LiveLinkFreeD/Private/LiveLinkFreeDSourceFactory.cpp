@@ -3,10 +3,7 @@
 #include "LiveLinkFreeDSourceFactory.h"
 #include "LiveLinkFreeDSource.h"
 #include "SLiveLinkFreeDSourceFactory.h"
-#include "LiveLinkFreeDSourceSettings.h"
 
-#include "ILiveLinkClient.h"
-#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkFreeDSourceFactory"
 

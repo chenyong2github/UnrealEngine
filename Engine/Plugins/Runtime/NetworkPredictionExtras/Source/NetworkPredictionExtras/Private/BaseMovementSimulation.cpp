@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseMovementSimulation.h"
-#include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Engine/CompositeDataTable.h"
-#include "AssetDefinition_DataTable.h"
 
+#include "Table/AssetDefinition_DataTable.h"
 #include "AssetDefinition_CompositeDataTable.generated.h"
 
 UCLASS()

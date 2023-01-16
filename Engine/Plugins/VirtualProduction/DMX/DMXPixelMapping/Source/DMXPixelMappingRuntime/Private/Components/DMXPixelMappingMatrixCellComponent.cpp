@@ -3,14 +3,10 @@
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 
 #include "DMXPixelMappingTypes.h"
-#include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingRootComponent.h"
-#include "Interfaces/IDMXProtocol.h"
-#include "Library/DMXEntityController.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityFixtureType.h"
 #include "TextureResource.h"
 
 #if WITH_EDITOR
@@ -20,7 +16,6 @@
 #endif // WITH_EDITOR
 
 #include "Engine/Texture.h"
-#include "Widgets/Layout/SBox.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Send Matrix Cell"), STAT_DMXPixelMaping_SendMatrixCell, STATGROUP_DMXPIXELMAPPING);

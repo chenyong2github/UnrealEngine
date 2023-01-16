@@ -1,6 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIUtilities.h"
+#include "WebAPIMessageResponse.h"
 
 const FText& UWebAPIUtilities::GetResponseMessage(const FWebAPIMessageResponse& MessageResponse)
 {

@@ -2,12 +2,8 @@
 
 #include "DatasmithVREDImportOptions.h"
 
-#include "DatasmithAssetImportData.h"
-#include "DatasmithVREDTranslatorModule.h"
 #include "Misc/Paths.h"
 
-#include "CoreTypes.h"
-#include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithVREDImporter"
 

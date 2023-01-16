@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
+
+namespace UE::MultiUserServer { enum class EConcertTransferStatistic; }
 
 namespace UE::MultiUserServer
 {

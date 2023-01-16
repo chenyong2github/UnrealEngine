@@ -5,9 +5,10 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "Engine/EngineBaseTypes.h"
-#include "MediaCapture.h"
 
 #include "MediaFrameworkCapturePanelBlueprintLibrary.generated.h"
+
+struct FMediaCaptureOptions;
 
 
 class AActor;

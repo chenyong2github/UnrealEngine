@@ -4,8 +4,6 @@
 
 #include "LiveLinkSourceSettings.h"
 
-#include "Roles/LiveLinkCameraTypes.h"
-#include "UObject/ObjectMacros.h"
 
 #include "LiveLinkPrestonMDRSourceSettings.generated.h"
 

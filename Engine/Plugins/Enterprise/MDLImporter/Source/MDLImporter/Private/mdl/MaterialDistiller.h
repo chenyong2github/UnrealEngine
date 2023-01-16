@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "mdl/MapDistilHandler.h"
 
-#include "Containers/UnrealString.h"
 #include "Math/IntPoint.h"
+
+namespace Mdl { class IMapDistilHandler; }
 
 #ifdef USE_MDLSDK
 

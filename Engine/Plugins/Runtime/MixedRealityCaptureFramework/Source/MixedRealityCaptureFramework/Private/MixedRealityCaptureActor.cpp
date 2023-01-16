@@ -7,8 +7,6 @@
 #include "GameFramework/PlayerController.h"
 #include "MrcUtilLibrary.h"
 #include "GameFramework/Pawn.h"
-#include "Tickable.h" // for FTickableGameObject
-#include "MrcProjectionBillboard.h"
 #include "ISpectatorScreenController.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "IXRTrackingSystem.h" // for GetHMDDevice()
@@ -18,7 +16,6 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/CollisionProfile.h" // for UCollisionProfile::NoCollision_ProfileName
 #include "Engine/StaticMesh.h"
-#include "Components/ArrowComponent.h"
 
 #define LOCTEXT_NAMESPACE "MRCaptureActor"
 

@@ -2,14 +2,12 @@
 
 #include "DatasmithVREDTranslator.h"
 
-#include "DatasmithSceneSource.h"
+#include "DatasmithPayload.h"
 #include "DatasmithVREDImporter.h"
+#include "DatasmithVREDImportOptions.h"
 #include "DatasmithVREDLog.h"
-#include "DatasmithVREDTranslatorModule.h"
 #include "IDatasmithSceneElements.h"
 #include "HAL/FileManager.h"
-#include "FbxImporter.h"
-#include "MeshDescription.h"
 
 void FDatasmithVREDTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {

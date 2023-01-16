@@ -7,20 +7,18 @@
 #include "CalibrationPointComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DetailWidgetRow.h"
+#include "DetailsViewArgs.h"
 #include "Dialog/SCustomDialog.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Texture2D.h"
+#include "IAssetTools.h"
 #include "IStructureDetailsView.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "LedWallArucoGenerationOptions.h"
 #include "LedWallCalibration.h"
-#include "LedWallCalibrationEditorLog.h"
-#include "Logging/LogMacros.h"
 #include "Misc/MessageDialog.h"
-#include "Modules/ModuleManager.h"
+#include "Misc/PackageName.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
 #if WITH_EDITOR
@@ -29,14 +27,14 @@
 
 
 #if WITH_OPENCV
-
+// IWYU pragma: begin_keep
 #include "OpenCVHelper.h"
 #include "PreOpenCVHeaders.h"
 
 #include "opencv2/imgproc.hpp"
 
 #include "PostOpenCVHeaders.h"
-
+// IWYU pragma: end_keep
 #endif //WITH_OPENCV
 
 

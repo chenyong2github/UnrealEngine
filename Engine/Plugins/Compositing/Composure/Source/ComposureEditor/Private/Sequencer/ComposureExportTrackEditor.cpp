@@ -1,22 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComposureExportTrackEditor.h"
-#include "ISequencerSection.h"
-#include "SequencerSectionPainter.h"
 #include "CompositingElement.h"
 #include "CompositingElements/CompositingElementPasses.h"
-#include "Algo/Find.h"
-#include "Styling/AppStyle.h"
 
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
 
+#include "DetailsViewArgs.h"
 #include "PropertyEditorModule.h"
+#include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
+#include "MovieScene/MovieSceneComposureExportTrack.h"
 
 #define LOCTEXT_NAMESPACE "ComposureExportTrackEditor"
 

@@ -5,7 +5,6 @@
 #include "Engine/Engine.h"
 
 #include "MinimalClient.h"
-#include "UnitTestEnvironment.h"
 
 // @todo #JohnB: Perhaps add detection for whether or not the Steam Client is running.
 

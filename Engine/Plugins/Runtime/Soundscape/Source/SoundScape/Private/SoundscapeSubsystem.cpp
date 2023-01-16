@@ -4,12 +4,11 @@
 #include "SoundscapeSubsystem.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
+#include "SoundscapeColorPoint.h"
 #include "SoundscapeSettings.h"
 #include "SoundScapePalette.h"
 #include "AudioDevice.h"
-#include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
-#include "UObject/UObjectIterator.h"
 
 static FAutoConsoleCommandWithWorld GResetSoundscape(
 	TEXT("soundscape.ResetSoundscape"),

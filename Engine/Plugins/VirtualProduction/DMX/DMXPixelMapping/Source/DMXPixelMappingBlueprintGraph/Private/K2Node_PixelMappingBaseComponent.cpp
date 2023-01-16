@@ -4,7 +4,6 @@
 #include "DMXPixelMapping.h"
 #include "Blueprint/DMXPixelMappingSubsystem.h"
 
-#include "Kismet2/CompilerResultsLog.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"

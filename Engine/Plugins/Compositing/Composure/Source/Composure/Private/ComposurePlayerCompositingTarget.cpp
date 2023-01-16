@@ -3,7 +3,7 @@
 #include "ComposurePlayerCompositingTarget.h"
 #include "ComposurePlayerCompositingCameraModifier.h"
 
-#include "Camera/PlayerCameraManager.h"
+#include "EditorSupport/WeakUInterfacePtr.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -14,6 +14,7 @@
 
 #include "ComposureUtils.h"
 #include "ComposureInternals.h"
+#include "UObject/ConstructorHelpers.h"
 
 UComposurePlayerCompositingCameraModifier::UComposurePlayerCompositingCameraModifier(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -126,8 +127,6 @@ void UComposurePlayerCompositingTarget::OverrideBlendableSettings(class FSceneVi
  *****************************************************************************/
 
 #if WITH_EDITOR
-#include "Camera/CameraTypes.h" // for FMinimalViewInfo
-#include "Engine/World.h"
 #include "EditorSupport/ICompositingEditor.h"
 #include "Engine/Blueprint.h"
 #endif

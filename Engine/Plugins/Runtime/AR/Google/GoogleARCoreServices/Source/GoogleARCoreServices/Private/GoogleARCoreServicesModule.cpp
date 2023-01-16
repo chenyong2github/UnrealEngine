@@ -4,6 +4,7 @@
 #include "GoogleARCoreServicesManager.h"
 #include "GoogleARCoreServicesEditorSettings.h"
 #include "ISettingsModule.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FGoogleARCoreServicesModule"
 

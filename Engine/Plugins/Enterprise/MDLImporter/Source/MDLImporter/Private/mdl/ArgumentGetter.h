@@ -4,10 +4,11 @@
 
 #include "mdl/Utility.h"
 
-#include "Containers/UnrealString.h"
 
 #include "mi/base/handle.h"
 #include "mi/neuraylib/iexpression.h"
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
 
 namespace Mdl
 {

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "ISequencerModule.h"
 #include "Camera/CameraModifier.h"
-#include "GameFramework/Actor.h"
 #include "Modules/ModuleInterface.h"
 #include "ReplayTracksEditorModule.generated.h"
 

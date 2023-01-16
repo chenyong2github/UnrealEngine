@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SharedPointer.h"
 #include "EditorCompElementContainer.generated.h"
 
 class ACompositingElement;

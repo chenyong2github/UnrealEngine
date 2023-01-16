@@ -10,15 +10,11 @@
 #include "ChaosFlesh/GEO.h"
 #include "ChaosFlesh/PB.h"
 
-#include "CoreMinimal.h"
-#include "Chaos/Real.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
 
+#include "GeometryCollection/TransformCollection.h"
 #include "Misc/Paths.h"
 
 #include <fstream>
-#include <string>
 
 // logging
 //#include "Logging\LogMacros.h"

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "ShotgridSettings.generated.h"
+
+struct FPropertyChangedEvent;
 
 UCLASS(config = Game)
 class UShotgridSettings : public UObject

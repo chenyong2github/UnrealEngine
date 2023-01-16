@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SMenuAnchor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Commands/UICommandList.h"
 #include "EditorSupport/CompEditorImagePreviewInterface.h"
 #include "EditorSupport/WeakUInterfacePtr.h"
+
+class FUICommandList;
 
 class SWindow;
 class ICompEditorImagePreviewInterface;

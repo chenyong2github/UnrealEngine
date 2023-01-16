@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
 
 class FAssetTypeActions_MediaProfile : public FAssetTypeActions_Base

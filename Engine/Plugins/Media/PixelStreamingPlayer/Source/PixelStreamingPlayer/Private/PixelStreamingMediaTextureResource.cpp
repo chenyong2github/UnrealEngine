@@ -3,6 +3,8 @@
 #include "PixelStreamingMediaTextureResource.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "PixelStreamingMediaTexture.h"
+#include "RenderUtils.h"
 
 FPixelStreamingMediaTextureResource::FPixelStreamingMediaTextureResource(UPixelStreamingMediaTexture* Owner)
 {

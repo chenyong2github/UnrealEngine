@@ -2,13 +2,10 @@
 
 #include "Widgets/MessageDetails/SMessagingMessageDetails.h"
 
-#include "IMessageTracer.h"
-#include "Styling/ISlateStyle.h"
+#include "Framework/Views/TableViewMetadata.h"
+#include "MessagingDebuggerModel.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableViewBase.h"
 
-#include "Models/MessagingDebuggerModel.h"
 #include "Widgets/MessageDetails/SMessagingDispatchStateTableRow.h"
 
 

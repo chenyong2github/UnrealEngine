@@ -4,11 +4,8 @@
 
 #include "Widgets/SCompoundWidget.h"
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Styling/SlateColor.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+enum class ECheckBoxState : uint8;
 
 
 class IStageMonitorSession;

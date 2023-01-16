@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "K2Node.h"
 
 #include "K2Node_HttpRequest.generated.h"
+
+namespace ENodeTitleType { enum Type : int; }
 
 UCLASS(MinimalAPI)
 class UK2Node_HttpRequest : public UK2Node

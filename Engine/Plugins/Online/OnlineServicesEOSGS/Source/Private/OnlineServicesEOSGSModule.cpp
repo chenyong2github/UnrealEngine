@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
@@ -8,7 +7,6 @@
 #include "Online/OnlineServicesEOSGSPlatformFactory.h"
 #include "Online/SessionsEOSGS.h"
 
-#include "CoreMinimal.h"
 
 namespace UE::Online
 {

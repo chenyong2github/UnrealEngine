@@ -3,6 +3,7 @@
 #include "WebBrowserAssetManager.h"
 
 #if WITH_EDITOR || PLATFORM_ANDROID || PLATFORM_IOS
+#include "Materials/Material.h"
 #include "WebBrowserTexture.h"
 #endif
 

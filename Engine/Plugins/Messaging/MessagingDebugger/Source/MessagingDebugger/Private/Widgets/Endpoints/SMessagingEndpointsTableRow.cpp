@@ -4,13 +4,10 @@
 
 #include "IMessageTracer.h"
 #include "SlateOptMacros.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableViewBase.h"
 
 #include "Models/MessagingDebuggerModel.h"
+#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SMessagingEndpointsTableRow"

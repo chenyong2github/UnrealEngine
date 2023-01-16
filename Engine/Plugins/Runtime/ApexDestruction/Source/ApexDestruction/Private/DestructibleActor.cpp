@@ -7,7 +7,7 @@
 
 #include "DestructibleActor.h"
 #include "DestructibleComponent.h"
-#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAsset.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ADestructibleActor::ADestructibleActor(const FObjectInitializer& ObjectInitializer)

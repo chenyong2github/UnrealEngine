@@ -4,8 +4,6 @@
 
 #include "material/MaterialFactory.h"
 
-#include "Containers/UnrealString.h"
-#include "Templates/UniquePtr.h"
 #include "UObject/ObjectMacros.h"
 
 class UMaterial;

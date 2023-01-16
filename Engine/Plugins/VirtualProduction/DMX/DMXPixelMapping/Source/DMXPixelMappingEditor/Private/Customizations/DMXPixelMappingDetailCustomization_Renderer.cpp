@@ -5,16 +5,11 @@
 #include "DMXPixelMappingTypes.h"
 
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "SWarningOrErrorBox.h"
 #include "Engine/Texture.h"
-#include "Layout/Visibility.h"
 #include "Materials/Material.h"
 #include "TextureResource.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Renderer"
 

@@ -1,9 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIEditorUtilities.h"
 
+#include "Misc/DateTime.h"
 #include "SourceCodeNavigation.h"
 #include "Internationalization/BreakIterator.h"
+#include "Templates/SubclassOf.h"
 
 namespace UE
 {

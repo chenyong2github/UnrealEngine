@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/Blueprint.h"
 #include "Engine/DeveloperSettings.h"
-#include "AssetRegistry/AssetData.h"
+#include "UObject/Package.h"
 #include "ActorPaletteSettings.generated.h"
 
 // Information about a single recent/favorite map

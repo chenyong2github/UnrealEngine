@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "INetworkMessagingExtension.h"
+#include "Delegates/Delegate.h"
+#include "Misc/DateTime.h"
+
+struct FInboundTransferStatistics;
+struct FOutboundTransferStatistics;
 
 struct FMessageAddress;
 

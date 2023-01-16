@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/SlateStyle.h"
+
+class ISlateStyle;
 
 /** Contains a collection of named properties (StyleSet) that guide the appearance of Datasmith related UI. */
 class FDataprepEditorStyle

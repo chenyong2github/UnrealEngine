@@ -6,7 +6,6 @@
 /** Filtering out this class entirely since its useless without it */
 #if WITH_EDITOR
 
-#include "CoreMinimal.h"
 
 #include "StageMessages.h"
 

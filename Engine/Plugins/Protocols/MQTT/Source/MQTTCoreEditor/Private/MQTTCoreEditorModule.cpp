@@ -4,6 +4,7 @@
 
 #include "ISettingsModule.h"
 #include "MQTTClientSettings.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "MQTTCoreEditor"
 

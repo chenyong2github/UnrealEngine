@@ -4,21 +4,16 @@
 #include "ShotgridEngine.h"
 #include "ShotgridStyle.h"
 
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Commands/Commands.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
 
-#include "AssetRegistry/AssetData.h"
 #include "ContentBrowserModule.h"
 #include "LevelEditor.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 
 #include "IPythonScriptPlugin.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "Shotgrid"
 

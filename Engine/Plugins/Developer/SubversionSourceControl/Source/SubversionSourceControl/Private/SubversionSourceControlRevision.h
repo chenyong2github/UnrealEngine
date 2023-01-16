@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
+#include "Misc/DateTime.h"
 
 class FSubversionSourceControlRevision : public ISourceControlRevision
 {

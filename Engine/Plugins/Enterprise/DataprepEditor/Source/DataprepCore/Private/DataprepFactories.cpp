@@ -9,8 +9,6 @@
 #include "Shared/DataprepCorePrivateUtils.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetTypeCategories.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
 UDataprepAssetFactory::UDataprepAssetFactory()

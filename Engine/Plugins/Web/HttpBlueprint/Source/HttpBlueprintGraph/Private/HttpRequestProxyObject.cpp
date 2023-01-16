@@ -2,7 +2,6 @@
 
 #include "HttpRequestProxyObject.h"
 
-#include "HttpBlueprintFunctionLibrary.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 

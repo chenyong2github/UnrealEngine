@@ -3,18 +3,20 @@
 #include "DataprepLibrariesModule.h"
 #include "DataprepEditorMenu.h"
 #include "DataprepOperations.h"
-#include "DataprepOperationsLibrary.h"
 #include "DataprepEditingOperations.h"
 
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
+#include "IAssetTools.h"
 #include "IContentBrowserSingleton.h"
 #include "Materials/MaterialInterface.h"
-#include "Modules/ModuleManager.h"
+#include "Misc/PackageName.h"
 #include "PropertyEditorModule.h"
+#include "ToolMenu.h"
 #include "ToolMenus.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "DataprepLibraries"
 

@@ -4,10 +4,12 @@
 
 #include "ConcertServerStyle.h"
 
+#include "ConcertSyncSessionTypes.h"
 #include "Math/UnitConversion.h"
 
+#include "Session/Activity/ActivityColumn.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

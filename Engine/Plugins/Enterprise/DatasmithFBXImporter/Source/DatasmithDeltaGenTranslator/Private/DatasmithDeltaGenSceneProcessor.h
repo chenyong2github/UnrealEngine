@@ -4,7 +4,6 @@
 
 #include "DatasmithFBXSceneProcessor.h"
 
-#include "CoreTypes.h"
 
 struct FDatasmithFBXScene;
 struct FDeltaGenTmlDataTimeline;

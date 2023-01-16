@@ -2,7 +2,8 @@
 
 #include "ScriptableToolBuilder.h"
 #include "InteractiveToolManager.h"
-#include "UObject/ObjectMacros.h"
+#include "ScriptableInteractiveTool.h"
+#include "ToolContextInterfaces.h"
 
 
 bool UBaseScriptableToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const

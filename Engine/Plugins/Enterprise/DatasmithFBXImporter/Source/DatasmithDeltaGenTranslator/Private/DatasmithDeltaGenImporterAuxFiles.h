@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DatasmithAssetImportData.h"
-#include "DatasmithDeltaGenImportData.h"
-#include "DatasmithDeltaGenLog.h"
+#include "Containers/Set.h"
+#include "UObject/NameTypes.h"
+
+struct FDeltaGenPosDataState;
+struct FDeltaGenTmlDataTimeline;
 
 struct FDeltaGenVarDataVariantSwitch;
 

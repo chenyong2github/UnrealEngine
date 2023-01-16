@@ -6,7 +6,6 @@
 #include "Dataflow/DataflowEditorPlugin.h"
 #include "Dataflow/DataflowEditorToolkit.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
-#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

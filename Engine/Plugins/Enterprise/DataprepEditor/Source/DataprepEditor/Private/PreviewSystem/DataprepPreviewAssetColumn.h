@@ -4,8 +4,6 @@
 
 #include "Widgets/SAssetsPreviewWidget.h"
 
-#include "CoreMinimal.h"
-#include "Widgets/Views/SHeaderRow.h"
 
 class FDataprepPreviewSystem;
 

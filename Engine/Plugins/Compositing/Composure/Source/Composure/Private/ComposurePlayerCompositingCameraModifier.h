@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Camera/CameraModifier.h"
+#include "Engine/BlendableInterface.h"
 #include "ComposurePlayerCompositingCameraModifier.generated.h"
+
+struct FMinimalViewInfo;
 
 class IComposurePlayerCompositingInterface;
 

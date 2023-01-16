@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositingElement.h"
-#include "ComposureCustomVersion.h"
 
 namespace CompositingElement_Impl
 {

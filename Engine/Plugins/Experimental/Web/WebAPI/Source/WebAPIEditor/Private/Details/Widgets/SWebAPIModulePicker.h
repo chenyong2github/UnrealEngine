@@ -1,13 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ModuleDescriptor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Input/SComboBox.h"
+
+namespace ESelectInfo { enum Type : int; }
+struct FModuleContextInfo;
+template <typename OptionType> class SComboBox;
 
 class IClassViewerFilter;
 class SClassViewer;

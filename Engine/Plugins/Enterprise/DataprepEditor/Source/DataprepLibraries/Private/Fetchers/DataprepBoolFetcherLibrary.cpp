@@ -2,7 +2,6 @@
 
 #include "Fetchers/DataprepBoolFetcherLibrary.h"
 
-#include "GameFramework/Actor.h"
 
 #define LOCTEXT_NAMESPACE "DataprepBoolFetcherLibrary"
 

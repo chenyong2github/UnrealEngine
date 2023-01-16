@@ -2,14 +2,16 @@
 
 #include "DatasmithVREDImporterAuxFiles.h"
 
+#include "DatasmithDefinitions.h"
 #include "DatasmithFBXScene.h"
 #include "DatasmithUtils.h"
+#include "DatasmithVREDImportData.h"
 #include "DatasmithVREDLog.h"
 
-#include "CoreMinimal.h"
-#include "Editor/UnrealEdEngine.h"
 #include "Misc/FileHelper.h"
-#include "XmlParser.h"
+#include "Misc/Paths.h"
+#include "XmlFile.h"
+#include "XmlNode.h"
 
 // Optimize this statement: for(const FXmlNode* Node = ParentNode->GetFirstChildNode();Node; Node = Node->GetNextNode())
 // into this: for(const FXmlNode* Node: FXmlNodeChildren(ParentNode))

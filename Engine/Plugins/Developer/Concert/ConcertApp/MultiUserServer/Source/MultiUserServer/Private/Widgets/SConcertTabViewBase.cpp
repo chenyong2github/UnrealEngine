@@ -6,7 +6,6 @@
 
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Styling/AppStyle.h"
 
 void SConcertTabViewBase::Construct(const FArguments& InArgs, FName InStatusBarId)
 {

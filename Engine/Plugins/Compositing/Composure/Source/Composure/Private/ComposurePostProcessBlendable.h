@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Engine/BlendableInterface.h"
 #include "ComposurePostProcessBlendable.generated.h"
 

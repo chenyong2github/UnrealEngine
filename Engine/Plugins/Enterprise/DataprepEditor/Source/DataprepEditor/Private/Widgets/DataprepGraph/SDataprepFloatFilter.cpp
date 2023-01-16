@@ -5,19 +5,15 @@
 #include "DataprepAsset.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorUtils.h"
-#include "SchemaActions/DataprepSchemaAction.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
 #include "Widgets/DataprepGraph/DataprepActionWidgetsUtils.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
-#include "Internationalization/Text.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepFloatFilter"
 

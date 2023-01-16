@@ -1,21 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionExtrasFlyingPawn.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/InputComponent.h"
-#include "FlyingMovementComponent.h"
-#include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "DrawDebugHelpers.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
-#include "Components/CapsuleComponent.h"
-#include "DrawDebugHelpers.h"
-#include "NetworkPredictionLog.h"
 
-#include "Misc/AssertionMacros.h"
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "MockAbilitySimulation.h"

@@ -2,13 +2,13 @@
 
 #include "LiveConcertSessionTab.h"
 
-#include "ConcertFrontendStyle.h"
 #include "IConcertSession.h"
 #include "LiveServerSessionHistoryController.h"
 #include "PackageViewer/ConcertSessionPackageViewerController.h"
 #include "SConcertLiveSessionTabView.h"
 
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SConcertTabViewBase.h"
 
 FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow, FShowConnectedClients OnConnectedClientsClicked)
 	: FConcertSessionTabBase(InspectedSession->GetSessionInfo().SessionId, SyncServer)

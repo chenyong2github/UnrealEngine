@@ -1,23 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompElementCollectionViewModel.h"
-#include "ICompElementManager.h"
+#include "Engine/Level.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "CompositingElement.h"
 #include "ClassViewerFilter.h"
 #include "EngineAnalytics.h"
+#include "IAnalyticsProviderET.h"
 #include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
 #include "ComposureEditorSettings.h"
-#include "Editor/EditorEngine.h"
 #include "Misc/FilterCollection.h"
 #include "ScopedTransaction.h"
 #include "CompElementViewModel.h"
 #include "CompElementEditorCommands.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Editor.h"
 #include "ScopedWorldLevelContext.h"
-#include "Framework/Commands/UICommandList.h"
 
 #define LOCTEXT_NAMESPACE "CompElementsView"
 

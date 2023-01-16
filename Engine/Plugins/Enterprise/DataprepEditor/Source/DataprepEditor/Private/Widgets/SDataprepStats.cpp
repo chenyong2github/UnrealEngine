@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDataprepStats.h"
-#include "Styling/AppStyle.h"
+#include "DataprepStats.h"
 #include "Widgets/Colors/SColorBlock.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
-#include "RHI.h"
+#include "Framework/Views/TableViewMetadata.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "DataprepStats"
 

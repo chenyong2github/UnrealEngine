@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateProvider.h"
-#include "HAL/PlatformStackWalk.h"
-#include "HAL/PlatformProcess.h"
-#include "Insights/ViewModels/TimingEventsTrack.h"
-#include "Trace/SlateTrace.h"
 
 #define LOCTEXT_NAMESPACE "SlateProvider"
 

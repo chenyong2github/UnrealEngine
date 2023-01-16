@@ -2,15 +2,13 @@
 
 #include "Online/UserFileEOSGS.h"
 
+#include "EOSShared.h"
 #include "Online/AuthEOSGS.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
-#include "EOSSharedTypes.h"
-#include "HAL/UnrealMemory.h"
 
 #include "eos_playerdatastorage.h"
-#include "eos_playerdatastorage_types.h"
 
 
 namespace UE::Online {

@@ -1,8 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 
 namespace UE::HttpBlueprint::HeaderPresets
 {

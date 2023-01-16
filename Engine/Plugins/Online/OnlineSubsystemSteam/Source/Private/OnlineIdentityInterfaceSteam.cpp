@@ -6,7 +6,7 @@
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineError.h"
-#include "OnlineEncryptedAppTicketInterfaceSteam.h"
+#include <steam/isteamuser.h>
 
 FOnlineIdentitySteam::FOnlineIdentitySteam(FOnlineSubsystemSteam* InSubsystem) :
 	SteamUserPtr(NULL),

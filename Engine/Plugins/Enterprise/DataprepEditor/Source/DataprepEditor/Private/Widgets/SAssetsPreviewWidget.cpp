@@ -5,15 +5,12 @@
 #include "DataprepContentConsumer.h"
 
 #include "AssetToolsModule.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "IAssetTypeActions.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
+#include "IAssetTools.h"
 #include "SAssetSearchBox.h"
-#include "Misc/PackageName.h"
 
-#include "Math/UnrealMathUtility.h"
-#include "UObject/UObjectBaseUtility.h"
+#include "Misc/Paths.h"
 
 #define LOCTEXT_NAMESPACE "AssetPreviewWidget"
 

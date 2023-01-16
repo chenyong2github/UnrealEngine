@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ApexDestructionEditorModule.h"
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
-#include "DestructibleMesh.h"
 #include "AssetTypeActions_DestructibleMesh.h"
 #include "DestructibleMeshThumbnailRenderer.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
 #include "DestructibleMeshComponentBroker.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

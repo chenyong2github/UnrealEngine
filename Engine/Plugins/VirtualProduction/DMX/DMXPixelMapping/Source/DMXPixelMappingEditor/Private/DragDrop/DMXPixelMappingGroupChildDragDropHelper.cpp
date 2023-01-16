@@ -2,13 +2,12 @@
 
 #include "DragDrop/DMXPixelMappingGroupChildDragDropHelper.h"
 
-#include "DMXPixelMappingComponentWidget.h"
-#include "DMXPixelMappingEditorUtils.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 
-#include "Layout/ArrangedWidget.h"
 
 
 TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildDragDropHelper::Create(TSharedRef<FDragDropOperation> InPixelMappingDragDropOp)

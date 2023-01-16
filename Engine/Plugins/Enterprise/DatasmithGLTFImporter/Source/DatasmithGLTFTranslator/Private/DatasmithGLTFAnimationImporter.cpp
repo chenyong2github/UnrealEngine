@@ -2,13 +2,17 @@
 
 #include "DatasmithGLTFAnimationImporter.h"
 
+#include "DatasmithAnimationElements.h"
 #include "GLTFAsset.h"
 
 #include "DatasmithSceneFactory.h"
-#include "IDatasmithSceneElements.h"
+#include "DatasmithTypes.h"
 #include "DatasmithUtils.h"
 
+#include "GLTFAccessor.h"
 #include "Math/InterpCurve.h"
+#include "GLTFNode.h"
+#include "Misc/FrameRate.h"
 
 namespace DatasmithGLTFImporterImpl
 {

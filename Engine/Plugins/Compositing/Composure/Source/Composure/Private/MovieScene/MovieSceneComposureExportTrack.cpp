@@ -2,8 +2,6 @@
 
 #include "MovieScene/MovieSceneComposureExportTrack.h"
 #include "MovieScene/MovieSceneComposureExportSectionTemplate.h"
-#include "Channels/MovieSceneChannelProxy.h"
-#include "Algo/Find.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneComposureExportTrack"
 

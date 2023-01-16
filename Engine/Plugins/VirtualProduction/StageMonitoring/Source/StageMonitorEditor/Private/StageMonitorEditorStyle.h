@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Styling/SlateStyle.h"
-#include "Styling/SlateStyleRegistry.h"
 
 /**
  * Slate style set that defines all the styles for the StageMonitor UI

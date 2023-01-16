@@ -1,14 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPISchema.h"
 
+#include "Dom/WebAPIType.h"
 #include "IWebAPIEditorModule.h"
-#include "JsonObjectConverter.h"
-#include "WebAPIMessageLog.h"
 #include "WebAPIDefinition.h"
-#include "Dom/JsonObject.h"
 #include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
 #include "Dom/WebAPIParameter.h"
 #include "Dom/WebAPIService.h"
 #include "Dom/WebAPITypeRegistry.h"

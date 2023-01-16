@@ -2,15 +2,13 @@
 
 #include "SWebAPISchemaOperationRow.h"
 
-#include "Styling/AppStyle.h"
 #include "WebAPIEditorStyle.h"
 #include "Details/ViewModels/WebAPIOperationViewModel.h"
 #include "Details/ViewModels/WebAPIServiceViewModel.h"
-#include "Widgets/Colors/SColorBlock.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.inl"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Views/SListView.h"
 
 void SWebAPISchemaOperationRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIOperationViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {

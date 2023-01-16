@@ -2,10 +2,11 @@
 
 #include "MobileFSRModule.h"
 
-#include "CoreMinimal.h"
 #include "ShaderCore.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
 #include "MobileFSRViewExtension.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "MobileFSR"
 

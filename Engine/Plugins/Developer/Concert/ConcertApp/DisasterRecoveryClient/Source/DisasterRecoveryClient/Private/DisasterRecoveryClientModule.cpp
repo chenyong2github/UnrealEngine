@@ -2,28 +2,19 @@
 
 #include "IDisasterRecoveryClientModule.h"
 
+#include "ConcertSyncSessionFlags.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IConcertSyncClientModule.h"
-#include "IConcertModule.h"
 #include "IConcertClient.h"
 #include "IConcertClientWorkspace.h"
-#include "IConcertSession.h"
 #include "IConcertSyncClient.h"
 #include "ConcertFrontendStyle.h"
-#include "ConcertUtil.h"
 #include "ConcertLocalFileSharingService.h"
 
 #include "Misc/Paths.h"
 #include "Misc/CoreDelegates.h"
-#include "HAL/FileManager.h"
-#include "Containers/Ticker.h"
 
-#include "StructSerializer.h"
-#include "StructDeserializer.h"
-#include "Backends/JsonStructSerializerBackend.h"
-#include "Backends/JsonStructDeserializerBackend.h"
 #include "DisasterRecoverySettings.h"
-#include "DisasterRecoverySessionInfo.h"
 #include "DisasterRecoverySessionManager.h"
 #include "DisasterRecoveryUtil.h"
 #include "UnrealEdGlobals.h"
@@ -36,7 +27,6 @@
 	#include "ISettingsSection.h"
 	#include "WorkspaceMenuStructure.h"
 	#include "WorkspaceMenuStructureModule.h"
-	#include "Framework/Docking/TabManager.h"
 	#include "Widgets/Docking/SDockTab.h"
 	#include "SDisasterRecoveryHub.h"
 #endif

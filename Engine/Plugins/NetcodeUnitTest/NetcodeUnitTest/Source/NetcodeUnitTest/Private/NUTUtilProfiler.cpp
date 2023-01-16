@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NUTUtilProfiler.h"
-#include "Stats/Stats.h"
 
 #if STATS
 #include "NetcodeUnitTest.h"

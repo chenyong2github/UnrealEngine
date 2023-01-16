@@ -4,7 +4,7 @@
 
 #include "DMXRuntimeUtils.h"
 
-#include "Engine/TextureRenderTarget2D.h"
+#include "Types/SlateEnums.h"
 
 
 #if WITH_EDITOR

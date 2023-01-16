@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLiveLinkCurveDebugUIListItem.h"
-#include "CoreMinimal.h"
 
 #include "Brushes/SlateColorBrush.h"
+#include "LiveLinkDebugCurveNodeBase.h"
 #include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/Views/SListView.h"
 
 
 FName SLiveLinkCurveDebugUIListItem::NAME_CurveName(TEXT("CurveName"));

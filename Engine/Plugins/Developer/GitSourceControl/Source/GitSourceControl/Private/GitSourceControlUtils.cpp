@@ -2,18 +2,16 @@
 
 #include "GitSourceControlUtils.h"
 #include "GitSourceControlCommand.h"
+#include "GitSourceControlState.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
-#include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "ISourceControlModule.h"
 #include "GitSourceControlModule.h"
-#include "GitSourceControlProvider.h"
 
 #if PLATFORM_LINUX
-#include <sys/ioctl.h>
 #endif
 
 

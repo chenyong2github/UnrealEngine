@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineAsyncTaskManagerSteam.h"
-#include "SocketSubsystem.h"
-#include "OnlineSubsystemSteam.h"
-#include "OnlineSubsystemSteamTypes.h"
-#include "OnlineSessionInterfaceSteam.h"
 #include "OnlinePresenceInterfaceSteam.h"
 #include "OnlineSessionAsyncLobbySteam.h"
 #include "OnlineSessionAsyncServerSteam.h"

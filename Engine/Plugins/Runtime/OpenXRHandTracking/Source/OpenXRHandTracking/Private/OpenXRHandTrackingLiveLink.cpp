@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OpenXRHandTracking.h"
-#include "IOpenXRHandTrackingModule.h"
-#include "CoreMinimal.h"
-#include "UObject/Package.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/Engine.h"
-#include "LiveLinkSourceFactory.h"
 #include "ILiveLinkClient.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"

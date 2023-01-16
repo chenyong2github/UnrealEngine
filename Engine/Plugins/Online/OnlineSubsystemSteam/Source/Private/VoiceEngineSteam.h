@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
-#include "OnlineSubsystemSteamTypes.h"
-#include "OnlineSubsystemUtilsPackage.h"
 #include "VoiceEngineImpl.h"
 
 class IOnlineSubsystem;

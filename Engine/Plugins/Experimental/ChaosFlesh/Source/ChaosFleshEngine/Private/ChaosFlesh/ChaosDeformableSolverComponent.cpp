@@ -2,13 +2,8 @@
 
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 
+#include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
-#include "ChaosFlesh/ChaosDeformableSolverThreading.h"
-#include "ChaosFlesh/FleshActor.h"
-#include "ChaosFlesh/FleshComponent.h"
-#include "Animation/SkeletalMeshActor.h"
-#include "ChaosFlesh/FleshComponent.h"
-#include "CoreMinimal.h"
 #include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeformableSolverComponentInternal, Log, All);

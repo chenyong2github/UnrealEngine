@@ -4,18 +4,12 @@
 
 #include "DataprepEditor.h"
 #include "DataprepGraph/DataprepGraphSchema.h"
-#include "DataprepGraph/DataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
-#include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 
 #include "DataprepAsset.h"
 
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/Commands/UICommandList.h"
-#include "GraphEditor.h"
-#include "GraphEditorActions.h"
-#include "SNodePanel.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 

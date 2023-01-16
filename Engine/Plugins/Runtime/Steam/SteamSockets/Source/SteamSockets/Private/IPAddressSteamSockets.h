@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPAddress.h"
-#include "SteamSocketsPrivate.h"
 #include "SteamSocketsPackage.h"
 #include "SteamSocketsTypes.h"
-#include "Engine/EngineBaseTypes.h"
+
+THIRD_PARTY_INCLUDES_START
+// IWYU pragma: begin_exports
+#include <steam/steamnetworkingtypes.h>
+#include <steam/steamtypes.h>
+// IWYU pragma: end_exports
+THIRD_PARTY_INCLUDES_END
 
 class FInternetAddrSteamSockets : public FInternetAddr
 {

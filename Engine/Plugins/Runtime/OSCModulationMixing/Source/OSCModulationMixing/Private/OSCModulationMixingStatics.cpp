@@ -2,16 +2,14 @@
 
 #include "OSCModulationMixingStatics.h"
 
+#include "OSCAddress.h"
 #include "OSCClient.h"
 #include "OSCManager.h"
-#include "OSCModulationMixing.h"
-#include "OSCServer.h"
 
 #include "AudioAnalytics.h"
-#include "HAL/IConsoleManager.h"
+#include "OSCMessage.h"
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 
 namespace OSCModulation

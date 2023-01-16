@@ -3,7 +3,6 @@
 
 #include "SoundscapeColorPoint.h"
 #include "SoundscapeSubsystem.h"
-#include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 

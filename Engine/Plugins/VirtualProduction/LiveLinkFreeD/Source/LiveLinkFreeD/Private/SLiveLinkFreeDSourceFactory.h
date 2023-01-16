@@ -4,13 +4,13 @@
 
 #include "LiveLinkFreeDConnectionSettings.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FStructOnScope;
+class IStructureDetailsView;
 
 #if WITH_EDITOR
-#include "IStructureDetailsView.h"
 #endif //WITH_EDITOR
 
-#include "Input/Reply.h"
 
 struct FLiveLinkFreeDConnectionSettings;
 

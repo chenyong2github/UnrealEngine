@@ -6,11 +6,9 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
 #include "SceneView.h"
 #include "ComposureInternals.h"
-#include "ComposureUtils.h"
+#include "UObject/ConstructorHelpers.h"
 
 
 UComposurePostProcessBlendable::UComposurePostProcessBlendable(const FObjectInitializer& ObjectInitializer)

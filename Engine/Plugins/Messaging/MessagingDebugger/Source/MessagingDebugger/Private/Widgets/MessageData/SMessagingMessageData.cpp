@@ -2,13 +2,11 @@
 
 #include "Widgets/MessageData/SMessagingMessageData.h"
 
-#include "Backends/JsonStructSerializerBackend.h"
+#include "DetailsViewArgs.h"
 #include "Modules/ModuleManager.h"
-#include "Serialization/BufferArchive.h"
-#include "StructSerializer.h"
+#include "IMessageTracer.h"
 #include "Styling/ISlateStyle.h"
 #include "UObject/StructOnScope.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 #if WITH_EDITOR
 	#include "IDetailsView.h"

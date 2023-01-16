@@ -1,11 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved..
+// Copyright Epic Games, Inc. All Rights Reserved..
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MQTTProtocol.h"
-#include "MQTTShared.h"
-#include "Serialization/BufferArchive.h"
+#include "SocketTypes.h"
+
+enum class EMQTTConnectReturnCode : uint8;
+enum class EMQTTPacketType : uint8;
+enum class EMQTTSubscribeReturnCode : uint8;
 
 #define REGISTER_MQTT_ARCHIVE(MQTTPacket)											\
 FArchive& operator<<(FArchive & Ar, MQTTPacket &Packet)								\

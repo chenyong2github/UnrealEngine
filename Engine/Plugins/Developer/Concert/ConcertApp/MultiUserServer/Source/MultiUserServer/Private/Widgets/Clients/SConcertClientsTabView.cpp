@@ -3,6 +3,7 @@
 #include "SConcertClientsTabView.h"
 
 #include "ConcertServerStyle.h"
+#include "IConcertModule.h"
 #include "IConcertSyncServer.h"
 #include "Logging/Filter/ConcertLogFilter_FrontendRoot.h"
 #include "Logging/Source/GlobalLogSource.h"
@@ -10,16 +11,13 @@
 #include "PackageTransmission/PackageTransmissionTabController.h"
 #include "PackageTransmission/Model/PackageTransmissionModel.h"
 #include "Util/EndpointToUserNameCache.h"
+#include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Browser/SConcertNetworkBrowser.h"
 #include "Widgets/Clients/Browser/Models/ClientBrowserModel.h"
 #include "Widgets/Clients/Browser/Models/ClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Logging/SConcertTransportLog.h"
 
-#include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientsTabView"
 

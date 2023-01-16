@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Guid.h"
+
+struct FGuid;
 
 // Custom serialization version for changes to Remote Control Protocol DMX Objects
 struct FRemoteControlProtocolDMXObjectVersion

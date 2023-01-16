@@ -3,17 +3,14 @@
 #include "RemoteControlProtocolDMX.h"
 
 #include "DMXConversions.h"
-#include "DMXProtocolSettings.h"
-#include "DMXProtocolTypes.h"
+#include "Library/DMXEntityFixtureType.h"
 #include "RemoteControlLogger.h"
 #include "RemoteControlProtocolDMXObjectVersion.h"
 #include "RemoteControlProtocolDMXSettings.h"
-#include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
 
 #if WITH_EDITOR
-#include "IRCProtocolBindingList.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
 #endif
 

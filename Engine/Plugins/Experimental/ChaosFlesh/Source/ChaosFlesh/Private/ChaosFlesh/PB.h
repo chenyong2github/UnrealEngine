@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/Vector.h"
-#include "Containers/Array.h"
 
 //DECLARE_LOG_CATEGORY_EXTERN(LogChaosFlesh, Verbose, All);
 

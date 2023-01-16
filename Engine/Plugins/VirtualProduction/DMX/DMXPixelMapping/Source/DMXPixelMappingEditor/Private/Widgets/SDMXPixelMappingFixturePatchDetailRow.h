@@ -2,11 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Events.h"
-#include "Input/Reply.h"
-#include "Layout/Geometry.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class UDMXEntityFixturePatch;

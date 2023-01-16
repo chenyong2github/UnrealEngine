@@ -2,13 +2,10 @@
 
 
 #include "SLiveLinkCurveDebugUITab.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SLiveLinkCurveDebugUI.h"
 
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "SLiveLinkCurveDebugUI"

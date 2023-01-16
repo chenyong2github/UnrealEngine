@@ -2,19 +2,13 @@
 
 #include "DatasmithGLTFTranslator.h"
 
-#include "DatasmithGLTFTranslatorModule.h"
-#include "DatasmithSceneFactory.h"
-#include "DatasmithSceneSource.h"
+#include "DatasmithGLTFImportOptions.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Algo/Count.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Logging/LogMacros.h"
-#include "Logging/TokenizedMessage.h"
-#include "Templates/TypeHash.h"
+#include "Modules/ModuleManager.h"
 #if WITH_EDITOR
+#include "DatasmithPayload.h"
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #endif //WITH_EDITOR

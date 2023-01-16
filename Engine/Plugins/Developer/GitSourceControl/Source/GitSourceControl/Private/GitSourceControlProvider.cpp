@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GitSourceControlProvider.h"
-#include "HAL/PlatformProcess.h"
+#include "GitSourceControlState.h"
 #include "Misc/Paths.h"
 #include "Misc/QueuedThreadPool.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "GitSourceControlCommand.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"

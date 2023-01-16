@@ -2,25 +2,15 @@
 
 #include "Net/NUTUtilNet.h"
 
-#include "Online/CoreOnline.h"
-#include "GameFramework/OnlineReplStructs.h"
-#include "Engine/Engine.h"
-#include "PacketHandlers/StatelessConnectHandlerComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "Net/DataBunch.h"
 #include "Engine/LocalPlayer.h"
 #include "EngineUtils.h"
-#include "Net/DataChannel.h"
 #include "Net/RepLayout.h"
 
 #include "NUTUtil.h"
 #include "NUTUtilReflection.h"
-#include "UnitTest.h"
 #include "ClientUnitTest.h"
 #include "MinimalClient.h"
-#include "UnitTestEnvironment.h"
-#include "Net/UnitTestPackageMap.h"
-#include "Net/UnitTestChannel.h"
 
 
 // Forward declarations

@@ -3,8 +3,6 @@
 #include "Annotations/ZoneGraphDisturbanceAnnotation.h"
 #include "Engine/Engine.h"
 #include "ZoneGraphAnnotationSubsystem.h"
-#include "ZoneGraphAnnotationTypes.h"
-#include "ZoneGraphAnnotationTestingActor.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphRenderingUtilities.h"
 #include "ZoneGraphQuery.h"

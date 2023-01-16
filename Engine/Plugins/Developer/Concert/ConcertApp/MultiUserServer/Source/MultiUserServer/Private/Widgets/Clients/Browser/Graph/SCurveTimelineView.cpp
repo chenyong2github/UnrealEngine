@@ -2,8 +2,9 @@
 
 #include "SCurveTimelineView.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Rendering/DrawElements.h"
+#include "Rendering/SlateRenderer.h"
 #include "SSimpleTimeSlider.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SCurveTimelineView"
 

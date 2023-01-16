@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHIDefinitions.h"
-#include "HAL/Thread.h"
-
-#include <string.h>
+#include "Logging/LogMacros.h"
 
 THIRD_PARTY_INCLUDES_START
 
@@ -17,10 +13,11 @@ THIRD_PARTY_INCLUDES_START
 #pragma warning(disable : 4005)
 #endif //PLATFORM_WINDOWS
 
-#include "core/Factory.h"
+#include <components/Component.h>
+#include <core/Context.h>
+#include <core/Platform.h>
 #include "core/Interface.h"
 #include "core/VulkanAMF.h"
-#include "components/VideoEncoderVCE.h"
 
 #if PLATFORM_WINDOWS
 #pragma warning(pop)
@@ -31,6 +28,9 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEncoderAMF, Log, All);
+
+enum class ERHIInterfaceType;
+namespace amf { class AMFFactory; }
 
 namespace amf {
 	struct AMFVulkanDevice;

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "GitSourceControlSettings.h"
 #include "GitSourceControlProvider.h"

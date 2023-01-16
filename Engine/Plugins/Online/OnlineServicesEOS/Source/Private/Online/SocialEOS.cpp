@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/SocialEOS.h"
-#include "Online/OnlineAsyncOp.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineServicesEOS.h"
-#include "Online/OnlineServicesEOSTypes.h"
 #include "Online/OnlineIdEOS.h"
 #include "Online/AuthEOS.h"
 

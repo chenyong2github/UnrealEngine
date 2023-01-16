@@ -1,23 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTypes.h"
-#include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
-#include "Framework/Docking/TabManager.h"
 #include "IMessageBus.h"
 #include "IMessagingModule.h"
 #include "Models/MessagingDebuggerCommands.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 #include "Styles/MessagingDebuggerStyle.h"
-#include "Templates/SharedPointer.h"
-#include "Textures/SlateIcon.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SMessagingDebugger.h"
 #include "Widgets/Text/STextBlock.h"
-#include "UObject/NameTypes.h"
-#include "Delegates/Delegate.h"
 
 #if WITH_EDITOR
 	#include "WorkspaceMenuStructure.h"

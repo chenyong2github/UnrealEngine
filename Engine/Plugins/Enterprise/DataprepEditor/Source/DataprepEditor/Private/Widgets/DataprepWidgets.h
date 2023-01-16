@@ -2,16 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Widgets/Views/SListView.h" // IWYU pragma: keep
 
-#include "Parameterization/DataprepParameterizationUtils.h"
-
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/SlateDelegates.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STreeView.h"
+class IPropertyHandle;
+class STableViewBase;
+struct FDataprepParameterizationContext;
+template <typename ItemType> class STreeView;
 
 class SEditableTextBox;
 class SGridPanel;

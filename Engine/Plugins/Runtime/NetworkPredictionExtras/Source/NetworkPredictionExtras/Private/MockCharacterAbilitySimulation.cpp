@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockCharacterAbilitySimulation.h"
-#include "CharacterMotionComponent.h"
-#include "CharacterMotionSimulation.h"
 #include "NetworkPredictionProxyInit.h"
 #include "NetworkPredictionModelDefRegistry.h"
-#include "NetworkPredictionProxyWrite.h"
 
-#include "DrawDebugHelpers.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCharacterAbilitySimulation, Log, All);
 

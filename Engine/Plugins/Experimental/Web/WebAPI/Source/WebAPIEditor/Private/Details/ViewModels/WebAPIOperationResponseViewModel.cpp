@@ -3,7 +3,6 @@
 #include "WebAPIOperationResponseViewModel.h"
 
 #include "WebAPIOperationViewModel.h"
-#include "WebAPIViewModel.inl"
 #include "Dom/WebAPIOperation.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIOperationResponseViewModel"

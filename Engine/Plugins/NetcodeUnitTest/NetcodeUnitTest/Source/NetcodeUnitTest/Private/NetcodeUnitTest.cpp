@@ -3,13 +3,10 @@
 #include "NetcodeUnitTest.h"
 
 #include "Misc/CommandLine.h"
-#include "Modules/ModuleManager.h"
-#include "Engine/World.h"
 
 #include "UI/LogWidgetCommands.h"
 
 #include "INetcodeUnitTest.h"
-#include "NUTUtil.h"
 #include "Net/NUTUtilNet.h"
 #include "NUTGlobals.h"
 #include "NUTUtilDebug.h"

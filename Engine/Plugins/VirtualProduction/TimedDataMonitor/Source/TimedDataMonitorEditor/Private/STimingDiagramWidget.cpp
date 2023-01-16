@@ -3,16 +3,15 @@
 #include "STimingDiagramWidget.h"
 
 #include "Engine/Engine.h"
-#include "Misc/App.h"
+#include "Styling/SlateTypes.h"
 #include "TimedDataMonitorEditorSettings.h"
 #include "TimedDataMonitorSubsystem.h"
 
 #include "EditorFontGlyphs.h"
-#include "TimedDataMonitorEditorStyle.h"
 
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SLeafWidget.h"
 #include "Widgets/SToolTip.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "STimingDiagramWidget"
 

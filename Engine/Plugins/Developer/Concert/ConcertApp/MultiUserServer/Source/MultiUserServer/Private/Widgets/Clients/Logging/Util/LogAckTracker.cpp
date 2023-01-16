@@ -2,10 +2,8 @@
 
 #include "LogAckTracker.h"
 
-#include "ConcertTransportEvents.h"
 #include "IConcertServer.h"
 
-#include "UObject/StructOnScope.h"
 #include "Widgets/Clients/Logging/Source/IConcertLogSource.h"
 
 FLogAckTracker::FLogAckTracker(TSharedRef<IConcertLogSource> LogSource, TSharedRef<IConcertServer> Server)

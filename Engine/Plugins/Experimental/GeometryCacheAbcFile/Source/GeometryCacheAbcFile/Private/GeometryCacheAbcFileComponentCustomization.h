@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
 #include "IDetailCustomization.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FReply;
 
 class IDetailLayoutBuilder;
 

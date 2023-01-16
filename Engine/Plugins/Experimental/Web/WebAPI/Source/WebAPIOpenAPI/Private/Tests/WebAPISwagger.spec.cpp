@@ -2,15 +2,14 @@
 
 #if WITH_EDITOR
 
-#include "WebAPIEditorSettings.h"
-#include "Dom/WebAPIParameter.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 #include "V2/WebAPISwaggerConverter.h"
-#include "V2/WebAPISwaggerConverter.inl"
 #include "V2/WebAPISwaggerSchema.h"
+#include "WebAPIDefinition.h"
+#include "WebAPIMessageLog.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

@@ -2,12 +2,13 @@
 
 #include "DMXPixelMappingEditorStyle.h"
 
+#include "Brushes/SlateImageBrush.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
-#include "Slate/SlateGameResources.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/CoreStyle.h"
 #include "Interfaces/IPluginManager.h"
+#include "Rendering/SlateRenderer.h"
+#include "Styling/SlateStyle.h"
 
 TSharedPtr< FSlateStyleSet > FDMXPixelMappingEditorStyle::DMXPixelMappingEditorStyleInstance = nullptr;
 

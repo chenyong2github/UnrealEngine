@@ -4,6 +4,7 @@
 
 #include "LiveLinkCameraController.h"
 #include "LiveLinkCameraControllerCustomization.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
 LLM_DEFINE_TAG(LiveLink_LiveLinkCameraEditor);

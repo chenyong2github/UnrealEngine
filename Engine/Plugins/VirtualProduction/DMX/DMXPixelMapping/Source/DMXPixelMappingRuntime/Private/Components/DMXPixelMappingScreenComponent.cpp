@@ -2,17 +2,19 @@
 
 #include "Components/DMXPixelMappingScreenComponent.h"
 
-#include "DMXPixelMappingRuntimeCommon.h"
-#include "DMXPixelMappingTypes.h"
 #include "DMXPixelMappingUtils.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "IO/DMXOutputPort.h"
+#include "IO/DMXOutputPortReference.h"
 #include "IO/DMXPortManager.h"
 #include "TextureResource.h"
 
 #if WITH_EDITOR
 #include "DMXPixelMappingComponentWidget.h"
 #include "SDMXPixelMappingScreenComponentBox.h"
+#else
+#include "DMXPixelMappingTypes.h"
 #endif // WITH_EDITOR
 
 #include "Engine/Texture.h"

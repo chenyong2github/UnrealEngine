@@ -2,6 +2,7 @@
 
 #include "SpatializationModule.h"
 #include "Features/IModularFeatures.h"
+#include "Modules/ModuleManager.h"
 
 
 void FSpatializationModule::StartupModule()

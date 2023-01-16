@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Insights/Common/SimpleRtti.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "Insights/ViewModels/TimingEvent.h"
-#include "Common/PagedArray.h"
 #include "Model/IntervalTimeline.h"
+#include "RHITransientResourceAllocator.h"
 #include "Trace/Analyzer.h"
-#include "RenderGraphPass.h"
+#include "RenderGraphResources.h"
+
+enum class ERHIPipeline : uint8;
 
 namespace TraceServices { class IAnalysisSession; }
 

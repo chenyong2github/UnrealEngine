@@ -1,6 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/Dom/WebAPICodeGenBase.h"
+#include "UObject/NameTypes.h"
 
 FWebAPICodeGenBase::FWebAPICodeGenBase()
 {

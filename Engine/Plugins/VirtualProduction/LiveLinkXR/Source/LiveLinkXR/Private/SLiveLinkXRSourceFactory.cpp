@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLiveLinkXRSourceFactory.h"
-#include "LiveLinkXR.h"
-#include "LiveLinkXRSourceSettings.h"
-
-#include "Widgets/Input/SButton.h"
-#include "Widgets/SBoxPanel.h"
 
 #if WITH_EDITOR
-#include "DetailLayoutBuilder.h"
+#include "DetailsViewArgs.h"
+#include "Widgets/Input/SButton.h"
+#include "IStructureDetailsView.h"
+#include "Widgets/SBoxPanel.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "UObject/StructOnScope.h"
 #endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "SLiveLinkXRSourceFactory"

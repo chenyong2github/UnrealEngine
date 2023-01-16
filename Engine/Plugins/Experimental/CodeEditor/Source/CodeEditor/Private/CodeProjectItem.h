@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "CodeProjectItem.generated.h"
 
 /** Types of project items. Note that the enum ordering determines the tree sorting */

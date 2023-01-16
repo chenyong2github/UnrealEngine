@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/Clients/PackageTransmission/Util/PackageTransmissionEntryTokenizer.h"
+#include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter_TextSearch.h"
 
 namespace UE::MultiUserServer

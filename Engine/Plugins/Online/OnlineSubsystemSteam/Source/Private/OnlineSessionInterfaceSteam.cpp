@@ -2,10 +2,11 @@
 
 #include "OnlineSessionInterfaceSteam.h"
 #include "Misc/CommandLine.h"
+#include "Online/OnlineBase.h"
 #include "UObject/CoreNet.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Online/OnlineSessionNames.h"
 #include "SocketSubsystem.h"
-#include "OnlineAsyncTaskManagerSteam.h"
 #include "OnlineSessionAsyncLobbySteam.h"
 #include "OnlineSessionAsyncServerSteam.h"
 #include "OnlineLeaderboardInterfaceSteam.h"
@@ -13,6 +14,7 @@
 #include "Online/LANBeacon.h"
 #include "NboSerializerSteam.h"
 #include "Interfaces/VoiceInterface.h"
+#include <steam/steamuniverse.h>
 
 
 /** Constructor for non-lobby sessions */

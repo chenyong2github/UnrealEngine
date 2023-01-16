@@ -2,15 +2,11 @@
 
 #include "SDMXPixelMappingEditorWidgets.h"
 
-#include "DMXPixelMappingTypes.h"
 #include "DMXPixelMappingUtils.h"
-#include "DMXProtocolConstants.h"
 #include "DMXRuntimeUtils.h"
 
-#include "Styling/AppStyle.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScaleBox.h"

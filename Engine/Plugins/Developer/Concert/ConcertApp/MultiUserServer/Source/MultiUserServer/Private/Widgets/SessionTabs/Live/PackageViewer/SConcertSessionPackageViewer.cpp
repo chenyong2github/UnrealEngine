@@ -2,12 +2,12 @@
 
 #include "SConcertSessionPackageViewer.h"
 
-#include "PackageViewerColumns.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Session/Activity/SConcertSessionActivities.h"
+#include "Session/Activity/ActivityColumn.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SessionTabs/Live/PackageViewer/PackageViewerColumns.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

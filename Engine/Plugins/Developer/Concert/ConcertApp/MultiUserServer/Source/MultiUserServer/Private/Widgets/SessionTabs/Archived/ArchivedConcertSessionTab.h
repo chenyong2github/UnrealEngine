@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Session/History/SEditableSessionHistory.h"
+#include "Misc/Attribute.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
+
+class SWindow;
+struct FCanPerformActionResult;
 
 struct FConcertSessionActivity;
 class FArchivedSessionHistoryController;

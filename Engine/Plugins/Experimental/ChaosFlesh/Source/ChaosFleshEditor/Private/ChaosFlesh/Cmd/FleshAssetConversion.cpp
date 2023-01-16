@@ -2,10 +2,6 @@
 
 #include "ChaosFlesh/Cmd/FleshAssetConversion.h"
 
-#include "ChaosFlesh/FleshAsset.h"
-#include "ChaosFlesh/FleshActor.h"
-#include "ChaosFlesh/Asset/FleshAssetFactory.h"
-#include "ChaosFlesh/FleshComponent.h"
 #include "Logging/LogMacros.h"
 
 

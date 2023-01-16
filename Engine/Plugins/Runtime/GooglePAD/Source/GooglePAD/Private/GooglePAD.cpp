@@ -2,6 +2,7 @@
 
 #include "GooglePAD.h"
 #include "GooglePADFunctionLibrary.h"
+#include "Modules/ModuleManager.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #endif

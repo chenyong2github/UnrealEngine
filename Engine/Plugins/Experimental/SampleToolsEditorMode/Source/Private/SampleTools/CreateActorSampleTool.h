@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleClickTool.h"
 #include "CreateActorSampleTool.generated.h"
 

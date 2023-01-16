@@ -4,7 +4,6 @@
 
 #include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
 
-#include "IMessageContext.h"
 #include "INetworkMessagingExtension.h"
 
 namespace UE::MultiUserServer

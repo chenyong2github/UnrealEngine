@@ -6,10 +6,6 @@
 #include "PreviewSystem/DataprepPreviewSystem.h"
 
 #include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
-#include "Internationalization/Text.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 

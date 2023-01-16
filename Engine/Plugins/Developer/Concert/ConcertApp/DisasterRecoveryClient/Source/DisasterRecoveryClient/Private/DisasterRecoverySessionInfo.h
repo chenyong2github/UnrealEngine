@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertMessages.h"
 #include "DisasterRecoverySessionInfo.generated.h"
 
 /** Flags describing the type of recovery sessions. */

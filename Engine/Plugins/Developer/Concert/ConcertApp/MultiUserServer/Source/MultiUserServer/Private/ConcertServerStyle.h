@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+class FSlateStyleSet;
+class ISlateStyle;
 
 /** Style data for Insights tools */
 class FConcertServerStyle

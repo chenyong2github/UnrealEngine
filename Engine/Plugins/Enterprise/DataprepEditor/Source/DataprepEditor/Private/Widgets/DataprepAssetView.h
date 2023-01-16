@@ -2,23 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "DataprepAssetInterface.h"
-#include "DataprepAssetProducers.h"
-#include "DataprepContentProducer.h"
-#include "DataprepEditor.h"
-#include "DataprepWidgets.h"
-#include "PropertyCustomizationHelpers.h"
 #include "SDataprepProducersWidget.h"
 
-#include "Delegates/IDelegateInstance.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
 #include "UObject/WeakFieldPtr.h"
+
+class SBorder;
+class SSplitter;
+class STableViewBase;
+class STextBlock;
+class UDataprepAssetInterface;
+enum class EDataprepCategory;
 
 class IDetailsView;
 class SDataprepAssetView;

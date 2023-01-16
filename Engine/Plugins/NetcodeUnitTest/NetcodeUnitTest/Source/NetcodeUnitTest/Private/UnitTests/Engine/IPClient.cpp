@@ -3,7 +3,6 @@
 #include "UnitTests/Engine/IPClient.h"
 
 #include "UnitTestEnvironment.h"
-#include "MinimalClient.h"
 #include "NUTActor.h"
 
 

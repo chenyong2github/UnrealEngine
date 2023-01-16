@@ -2,6 +2,7 @@
 
 #include "SoundSimple.h"
 #include "ActiveSound.h"
+#include "Sound/SoundWave.h"
 
 void USoundSimple::CacheValues()
 {

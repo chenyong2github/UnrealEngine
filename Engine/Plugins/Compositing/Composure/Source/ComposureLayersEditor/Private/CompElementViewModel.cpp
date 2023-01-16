@@ -4,9 +4,9 @@
 #include "CompositingElement.h"
 #include "CompElementEditorCommands.h"
 #include "CompositingElements/CompositingElementOutputs.h"
-#include "Editor/EditorEngine.h"
+#include "Framework/Commands/UICommandList.h"
 #include "ScopedTransaction.h"
-#include "Misc/DelegateFilter.h"
+#include "ICompElementManager.h"
 
 #define LOCTEXT_NAMESPACE "CompElement"
 

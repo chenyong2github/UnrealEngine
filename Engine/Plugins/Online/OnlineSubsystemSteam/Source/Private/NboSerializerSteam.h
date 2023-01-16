@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "NboSerializerOSS.h"
 

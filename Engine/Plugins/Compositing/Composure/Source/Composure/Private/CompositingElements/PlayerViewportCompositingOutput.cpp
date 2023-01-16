@@ -2,8 +2,6 @@
 
 #include "CompositingElements/PlayerViewportCompositingOutput.h"
 #include "GameFramework/PlayerController.h"
-#include "Camera/PlayerCameraManager.h"
-#include "ComposurePlayerCompositingCameraModifier.h"
 #include "Kismet/GameplayStatics.h" // for GetPlayerController()
 #include "Engine/LocalPlayer.h" // for ViewportClient
 #include "Engine/GameViewportClient.h" // for EngineShowFlags
@@ -16,6 +14,7 @@
 #include "CompositingElements/CompositingElementPassUtils.h" // for GetTargetFormatFromPixelFormat()
 #include "CompositingElements/CompositingElementTransforms.h" // for UCompositingTonemapPass
 #include "Engine/Texture2D.h"
+#include "UObject/ConstructorHelpers.h"
 
 /* FPlayerViewportOverrideStack
  *****************************************************************************/

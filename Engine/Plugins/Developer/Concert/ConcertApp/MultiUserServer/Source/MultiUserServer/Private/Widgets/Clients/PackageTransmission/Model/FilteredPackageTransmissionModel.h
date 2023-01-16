@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPackageTransmissionEntrySource.h"
 #include "Misc/IFilter.h"
+#include "Widgets/Clients/PackageTransmission/Model/PackageTransmissionEntry.h"
+
+template <typename OptionalType> struct TOptional;
 
 namespace UE::MultiUserServer
 {

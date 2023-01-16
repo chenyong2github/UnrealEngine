@@ -3,26 +3,17 @@
 #include "STimedDataGenlock.h"
 
 #include "Editor.h"
-#include "Engine/Engine.h"
-#include "Engine/EngineCustomTimeStep.h"
 #include "ISettingsModule.h"
-#include "Misc/App.h"
 #include "Modules/ModuleManager.h"
-#include "ObjectEditorUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "EditorFontGlyphs.h"
 #include "FixedFrameRateCustomTimeStep.h"
-#include "ScopedTransaction.h"
 #include "SFrameTime.h"
-#include "Styling/CoreStyle.h"
 
 #include "STimedDataMonitorPanel.h"
-#include "Styling/SlateTypes.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 

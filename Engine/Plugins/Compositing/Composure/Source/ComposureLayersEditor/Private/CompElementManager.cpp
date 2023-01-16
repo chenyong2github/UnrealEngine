@@ -2,22 +2,15 @@
 
 #include "CompElementManager.h"
 #include "CompositingElement.h"
-#include "Editor.h" // for FEditorDelegates
-#include "Engine/World.h" 
 #include "Engine/Level.h"
-#include "UObject/UObjectGlobals.h" // for FCoreUObjectDelegates::PostLoadMapWithWorld
-#include "Engine/Engine.h"
+#include "Selection.h"
 #include "UObject/UObjectIterator.h"
-#include "UnrealEdGlobals.h" // for GUnrealEd
-#include "Editor/UnrealEdEngine.h"
 #include "CompositingElements/CompositingElementOutputs.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "MediaOutput.h"
 #include "ScopedWorldLevelContext.h"
 #include "Misc/IFilter.h"
-#include "Engine/Selection.h"
-#include "Editor.h"
 #include "EditorCompElementContainer.h"
 #include "CompositingViewportClient.h"
 #include "Framework/Application/SlateApplication.h"

@@ -1,29 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SCompElementViewRow.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
+#include "CompElementViewModel.h"
 #include "Widgets/Input/SButton.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Layout/WidgetPath.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSlider.h"
+#include "Widgets/SWindow.h"
 #include "Widgets/Views/SListView.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/SCompElementPreviewDialog.h"
 #include "CompositingElement.h"
-#include "EditorSupport/CompEditorImagePreviewInterface.h"
-#include "ComposurePlayerCompositingTarget.h"
 #include "ComposureEditorStyle.h"
 #include "CompElementDragDropOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "Editor.h" // for GEditor
-#include "Editor/EditorEngine.h" // for RedrawAllViewports()
-#include "Framework/Application/SlateApplication.h"
 #include "CompElementEditorCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ClassIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "CompElementsView"
 

@@ -4,11 +4,6 @@
 
 #include "SelectionSystem/DataprepSelectionTransform.h"
 
-#include "CoreMinimal.h"
-#include "Delegates/DelegateCombinations.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/TextProperty.h"
 
 #include "DataprepSelectionTransforms.generated.h"
 

@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Security/WebAPIAuthentication.h"
 
+#include "Async/Future.h"
 #include "WebAPIDeveloperSettings.h"
 #include "WebAPILog.h"
 #include "WebAPISubsystem.h"

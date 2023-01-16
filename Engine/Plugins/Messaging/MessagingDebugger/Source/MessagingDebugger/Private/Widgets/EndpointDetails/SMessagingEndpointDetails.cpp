@@ -2,14 +2,13 @@
 
 #include "Widgets/EndpointDetails/SMessagingEndpointDetails.h"
 
+#include "Framework/Views/TableViewMetadata.h"
 #include "IMessageTracer.h"
-#include "Styling/ISlateStyle.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableViewBase.h"
 
 #include "Models/MessagingDebuggerModel.h"
 #include "Widgets/EndpointDetails/SMessagingAddressTableRow.h"
+#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SMessagingEndpointDetails"

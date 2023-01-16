@@ -2,7 +2,6 @@
 
 #include "ZoneGraphAnnotationComponent.h"
 #include "PrimitiveViewRelevance.h"
-#include "PrimitiveSceneProxy.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphDelegates.h"

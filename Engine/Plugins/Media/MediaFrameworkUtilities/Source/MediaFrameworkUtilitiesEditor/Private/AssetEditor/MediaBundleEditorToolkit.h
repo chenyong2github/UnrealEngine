@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Factories/Factory.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
-#include "MediaBundle.h"
+
+class FSpawnTabArgs;
+class UMediaBundle;
 
 
 

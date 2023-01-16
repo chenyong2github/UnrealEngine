@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Delegates/Delegate.h"
-#include "Delegates/DelegateCombinations.h" // for DECLARE_DELEGATE_OneParam
-#include "Templates/SharedPointer.h"
 #include "EditorSupport/CompImageColorPickerInterface.h"
 #include "EditorSupport/WeakUInterfacePtr.h"
 #include "Widgets/SWindow.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Commands/UICommandList.h"
 #include "EditorSupport/CompFreezeFrameController.h" // for FFreezeFrameControlHandle
+
+class FUICommandInfo;
+class FUICommandList;
 
 class ICompImageColorPickerInterface;
 class SWidget;

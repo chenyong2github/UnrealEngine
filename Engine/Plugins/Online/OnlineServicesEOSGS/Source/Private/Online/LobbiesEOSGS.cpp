@@ -2,15 +2,16 @@
 
 #include "Online/LobbiesEOSGS.h"
 
+#include "EOSShared.h"
 #include "Online/AuthEOSGS.h"
 #include "Online/LobbiesEOSGSTypes.h"
-#include "Online/OnlineAsyncOp.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
 
 #include "IEOSSDKManager.h"
 
+#include "Online/OnlineUtils.h"
 #include "eos_lobby.h"
 
 namespace UE::Online {

@@ -5,13 +5,9 @@
 #include "DatasmithGLTFMaterialElement.h"
 
 #include "DatasmithSceneFactory.h"
-#include "IDatasmithSceneElements.h"
 
-#include "GLTFMaterial.h"
 #include "GLTFTexture.h"
 
-#include "EditorFramework/AssetImportData.h"
-#include "Engine/Texture2D.h"
 
 namespace DatasmithGLTFImporterImpl
 {

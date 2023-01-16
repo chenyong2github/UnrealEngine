@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions/AssetTypeActions_SoundBase.h"
 
 class FAssetTypeActions_SoundSimple : public FAssetTypeActions_SoundBase

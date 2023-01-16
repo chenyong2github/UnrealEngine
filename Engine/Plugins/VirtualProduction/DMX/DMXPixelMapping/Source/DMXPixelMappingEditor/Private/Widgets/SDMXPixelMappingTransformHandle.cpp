@@ -2,16 +2,12 @@
 
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
 
-#include "DMXPixelMappingComponentReference.h"
-#include "DMXPixelMappingComponentWidget.h"
 #include "DMXPixelMappingLayoutSettings.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
 
 #include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 
 

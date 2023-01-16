@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MediaBundle.h"
-#include "MediaSource.h"
-#include "MediaTexture.h"
-#include "UObject/SoftObjectPtr.h"
 
 #include "MediaFrameworkVideoInputSettings.generated.h"
+
+class UMediaBundle;
+class UMediaSource;
+class UMediaTexture;
 
 USTRUCT()
 struct FMediaFrameworkVideoInputSourceSettings

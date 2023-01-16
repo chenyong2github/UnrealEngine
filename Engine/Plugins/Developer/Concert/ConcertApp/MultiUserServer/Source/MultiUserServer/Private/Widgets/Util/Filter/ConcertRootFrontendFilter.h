@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertFrontendFilter.h"
-#include "Misc/IFilter.h"
 #include "SConcertFilterBar.h"
 
 #include "Algo/AllOf.h"
-#include "Widgets/SBoxPanel.h"
+
+class FFilterCategory;
+template <typename FilterType> class FCustomTextFilter;
 
 namespace UE::MultiUserServer
 {

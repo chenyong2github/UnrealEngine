@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DMXPixelMappingEditorCommon.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Misc/TextFilter.h"
+
+template <typename ItemType> class TTextFilter;
 
 template<typename ItemType>
 class STreeView;

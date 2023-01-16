@@ -3,22 +3,16 @@
 #include "MinimalClient.h"
 
 #include "Misc/FeedbackContext.h"
-#include "Misc/NetworkVersion.h"
-#include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
-#include "Engine/ActorChannel.h"
 #include "Net/DataChannel.h"
 #include "PacketHandler.h"
 
 #include "UnitTest.h"
-#include "NetcodeUnitTest.h"
 #include "UnitTestEnvironment.h"
 #include "UnitTestManager.h"
 #include "NUTGlobals.h"
 #include "NUTUtilDebug.h"
 #include "NUTUtilReflection.h"
-#include "Net/NUTUtilNet.h"
-#include "Net/UnitTestPackageMap.h"
 #include "Net/UnitTestChannel.h"
 #include "Net/UnitTestActorChannel.h"
 

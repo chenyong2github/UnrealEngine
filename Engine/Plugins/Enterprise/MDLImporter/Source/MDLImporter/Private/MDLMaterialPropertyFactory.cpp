@@ -4,16 +4,19 @@
 
 #include "MDLMaterialProperty.h"
 
-#include "common/Logging.h"
-#include "common/TextureProperty.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "generator/MaterialExpressions.h"
+#include "Materials/MaterialExpressionConstant4Vector.h"
 #include "generator/MaterialTextureFactory.h"
-#include "material/MaterialFactory.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
 #include "mdl/Material.h"
 
-#include "Containers/Map.h"
 #include "Engine/Texture2D.h"
-#include "Materials/Material.h"
+#include "Materials/MaterialExpressionStaticBool.h"
+#include "Materials/MaterialExpressionStaticBoolParameter.h"
+#include "Materials/MaterialExpressionTextureObject.h"
+#include "Materials/MaterialExpressionTextureObjectParameter.h"
+#include "Materials/MaterialExpressionVectorParameter.h"
 
 namespace MDLImporterImpl
 {

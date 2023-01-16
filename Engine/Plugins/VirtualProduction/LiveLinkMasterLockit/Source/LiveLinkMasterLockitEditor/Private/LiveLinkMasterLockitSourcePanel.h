@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "LiveLinkMasterLockitFactory.h"
 #include "LiveLinkMasterLockitConnectionSettings.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "LiveLinkSourceFactory.h"
 #include "Widgets/SCompoundWidget.h"
+
+class ULiveLinkMasterLockitSourceFactory;
 
 class SLiveLinkMasterLockitSourcePanel : public SCompoundWidget
 {

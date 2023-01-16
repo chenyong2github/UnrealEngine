@@ -2,9 +2,7 @@
 
 #include "Dataflow/ChaosFleshNodesPlugin.h"
 
-#include "CoreMinimal.h"
 
-#include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/ChaosFleshBindingsNodes.h"
 #include "Dataflow/ChaosFleshCoreNodes.h"
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
@@ -12,6 +10,7 @@
 #include "Dataflow/ChaosFleshKinematicInitializationNodes.h"
 #include "Dataflow/ChaosFleshRenderInitializationNodes.h"
 #include "Dataflow/ChaosFleshTetrahedralNodes.h"
+#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "ChaosFleshNodes"

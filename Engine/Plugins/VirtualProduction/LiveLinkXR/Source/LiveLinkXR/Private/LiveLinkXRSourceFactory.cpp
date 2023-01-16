@@ -3,10 +3,7 @@
 #include "LiveLinkXRSourceFactory.h"
 #include "LiveLinkXRSource.h"
 #include "SLiveLinkXRSourceFactory.h"
-#include "LiveLinkXRSourceSettings.h"
 
-#include "ILiveLinkClient.h"
-#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkXRSourceFactory"
 

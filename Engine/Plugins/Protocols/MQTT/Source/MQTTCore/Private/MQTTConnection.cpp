@@ -1,22 +1,16 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTConnection.h"
 
-#include "IMQTTCoreModule.h"
-#include "MQTTClient.h"
 #include "MQTTClientSettings.h"
 #include "MQTTCoreLog.h"
 #include "MQTTCoreStats.h"
-#include "MQTTSharedInternal.h"
+#include "MQTTOperations.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
-#include "Async/Async.h"
-#include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "Math/UnitConversion.h"
 #include "Serialization/ArrayReader.h"
-#include "Serialization/BufferArchive.h"
-#include "Templates/Atomic.h"
+#include "Stats/StatsTrace.h"
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("MQTT Packets Sent Total"), STAT_MQTTPackagesSent, STATGROUP_MQTT);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("MQTT Packets Received Total"), STAT_MQTTPackagesReceived, STATGROUP_MQTT);

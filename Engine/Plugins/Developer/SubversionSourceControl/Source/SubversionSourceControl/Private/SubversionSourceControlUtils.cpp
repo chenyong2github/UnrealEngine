@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubversionSourceControlUtils.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformFileManager.h"
-#include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "ISourceControlModule.h"
 #include "SubversionSourceControlModule.h"
 #include "SubversionSourceControlCommand.h"
+#include "SubversionSourceControlRevision.h"
 #include "XmlFile.h"
+#include "SubversionSourceControlState.h"
+#include "XmlNode.h"
 
 namespace SubversionSourceControlConstants
 {

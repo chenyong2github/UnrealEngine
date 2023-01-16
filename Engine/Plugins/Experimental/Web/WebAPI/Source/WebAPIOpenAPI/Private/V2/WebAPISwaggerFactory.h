@@ -1,13 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Factories/WebAPIOpenAPIFactoryBase.h"
-#include "UObject/Object.h"
-#include "V2/WebAPISwaggerProvider.h"
 
 #include "WebAPISwaggerFactory.generated.h"
+
+class FWebAPISwaggerProvider;
 
 UCLASS()
 class WEBAPIOPENAPI_API UWebAPISwaggerAssetData : public UObject

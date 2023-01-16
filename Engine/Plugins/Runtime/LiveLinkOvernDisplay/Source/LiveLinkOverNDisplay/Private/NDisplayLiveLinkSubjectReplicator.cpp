@@ -4,9 +4,11 @@
 
 
 #include "Cluster/IDisplayClusterClusterManager.h"
+#include "DisplayClusterEnums.h"
 #include "Features/IModularFeatures.h"
 #include "IDisplayCluster.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkRole.h"
 #include "LiveLinkSubjectSettings.h"
 #include "Misc/CoreDelegates.h"
 #include "NDisplaySlaveVirtualSubject.h"

@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+
+struct FScriptContainerElement;
 
 /** Helper struct defining parameters we need to establish a connection */
 struct FOneSkyConnectionInfo

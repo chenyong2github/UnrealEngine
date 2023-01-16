@@ -2,11 +2,8 @@
 
 #include "ChaosFlesh/Asset/FleshAssetFactory.h"
 
-#include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshComponent.h"
 #include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "Engine/Selection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshAssetFactory)
 

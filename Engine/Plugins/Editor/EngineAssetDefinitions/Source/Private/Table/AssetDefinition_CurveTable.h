@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/CurveTable.h"
 #include "AssetDefinitionDefault.h"
 

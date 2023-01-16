@@ -5,7 +5,6 @@
 #include "ISourceControlModule.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "GitSourceControlModule.h"
 #include "GitSourceControlUtils.h"
 

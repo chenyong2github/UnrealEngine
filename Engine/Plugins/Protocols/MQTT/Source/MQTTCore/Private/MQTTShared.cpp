@@ -1,9 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTShared.h"
 
 #include "SocketSubsystem.h"
-#include "Algo/AllOf.h"
 
 #define LOCTEXT_NAMESPACE "MQTT"
 

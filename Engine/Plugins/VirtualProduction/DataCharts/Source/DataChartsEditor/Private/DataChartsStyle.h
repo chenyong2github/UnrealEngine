@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/SlateStyle.h"
+
+class ISlateStyle;
 
 class FDataChartsStyle
 {

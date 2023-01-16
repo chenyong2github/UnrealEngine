@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "UObject/GCObject.h"
-#include "Toolkits/IToolkitHost.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
 class FCodeProjectEditorToolbar;

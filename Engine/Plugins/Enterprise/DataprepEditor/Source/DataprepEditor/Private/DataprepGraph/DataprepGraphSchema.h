@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphSchema.h"
 
 #include "DataprepGraphSchema.generated.h"

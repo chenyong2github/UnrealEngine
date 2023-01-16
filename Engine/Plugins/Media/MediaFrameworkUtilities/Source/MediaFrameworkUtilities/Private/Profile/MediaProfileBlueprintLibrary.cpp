@@ -2,7 +2,6 @@
 
 #include "Profile/MediaProfileBlueprintLibrary.h"
 
-#include "Features/IModularFeatures.h"
 #include "Profile/IMediaProfileManager.h"
 
 

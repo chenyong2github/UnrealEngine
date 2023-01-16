@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
-#include "TimerManager.h"
 
+#include "Engine/TimerHandle.h"
 #include "DMXPixelMappingLayoutViewModel.generated.h"
 
 struct FDMXPixelMappingLayoutToken;

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "OSCServer.h"
-#include "UObject/Object.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include "RemoteControlProtocolOSCSettings.generated.h"
+
+struct FPropertyChangedEvent;
 
 /**
  * OSC Remote Control server settings

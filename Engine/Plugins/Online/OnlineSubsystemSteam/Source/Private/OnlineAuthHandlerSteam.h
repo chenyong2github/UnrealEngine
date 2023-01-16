@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "PacketHandler.h"
 #include "HandlerComponentFactory.h"
-#include "IPAddress.h"
 #include "OnlineAuthHandlerSteam.generated.h"
+
+struct FBitReader;
+struct FBitWriter;
+struct FOutPacketTraits;
 
 class FSteamAuthHandlerComponent : public HandlerComponent
 {

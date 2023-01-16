@@ -178,7 +178,6 @@ UTexture* UCompositingElementInput::GenerateInput_Implementation()
 /* UCompositingElementTransform
  *****************************************************************************/
 
-#include "CompositingElements/ICompositingTextureLookupTable.h"
 
 UTexture* UCompositingElementTransform::ApplyTransform(UTexture* Input, ICompositingTextureLookupTable* InPrePassLookupTable, UComposurePostProcessingPassProxy* PostProcessProxy, ACameraActor* TargetCamera, const FInheritedTargetPool& InheritedPool)
 {

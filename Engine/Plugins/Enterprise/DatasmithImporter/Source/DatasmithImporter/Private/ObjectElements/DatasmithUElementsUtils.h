@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
+#include "UObject/UObjectGlobals.h"
 
 class IDatasmithLevelVariantSetsElement;
 

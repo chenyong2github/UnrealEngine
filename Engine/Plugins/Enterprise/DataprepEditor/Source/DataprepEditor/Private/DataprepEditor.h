@@ -2,26 +2,19 @@
 
 #pragma once
 
-#include "DataprepActionAsset.h"
 #include "DataprepEditorUtils.h"
 #include "DataprepAssetInterface.h"
-#include "DataprepGraph/DataprepGraph.h"
-#include "DataprepStats.h"
-#include "Widgets/SDataprepStats.h"
-#include "PreviewSystem/DataprepPreviewSystem.h"
 
-#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
-#include "Engine/EngineBaseTypes.h"
-#include "GraphEditor.h"
 #include "Misc/NotifyHook.h"
 #include "SceneOutlinerFwd.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Toolkits/IToolkitHost.h"
-#include "UObject/GCObject.h"
-#include "UObject/SoftObjectPath.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBorder.h"
+
+class FDataprepPreviewSystem;
+class SDataprepStats;
+namespace ESelectInfo { enum Type : int; }
+struct FDataprepStats;
 
 class UDataprepParameterizableObject;
 

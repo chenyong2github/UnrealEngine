@@ -1,9 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIOperationParameterViewModel.h"
 
 #include "WebAPIOperationRequestViewModel.h"
-#include "WebAPIViewModel.inl"
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIType.h"
 

@@ -3,7 +3,6 @@
 #include "ModalWindowManager.h"
 
 #include "Dialog/SCustomDialog.h"
-#include "Widgets/SWindow.h"
 
 UE::MultiUserServer::FModalWindowManager::FModalWindowManager(const TSharedRef<SWindow>& MainWindow)
 {

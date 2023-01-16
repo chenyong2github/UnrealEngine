@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
 #include "Net/VoiceDataCommon.h"
 #include "OnlineSubsystemSteamPackage.h"
 

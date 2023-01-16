@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "Misc/Attribute.h"
-#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtr.h" // IWYU pragma: keep
 #include "Layout/Visibility.h"
 
 class FDMXPixelMappingToolkit;

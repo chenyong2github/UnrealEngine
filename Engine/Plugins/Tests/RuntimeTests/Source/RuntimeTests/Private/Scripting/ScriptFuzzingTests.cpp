@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Misc/AutomationTest.h"
 
+#include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
-#include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "Trace/Trace.inl"
 #include "UObject/Package.h"
-#include "HAL/ExceptionHandling.h"
 
 UObject* CreateFuzzingHostObject(UWorld* World, UClass* DesiredClass, TArray<UObject*>& CreatedHosts)
 {

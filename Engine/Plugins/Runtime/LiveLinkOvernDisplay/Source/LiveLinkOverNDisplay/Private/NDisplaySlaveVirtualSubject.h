@@ -4,9 +4,10 @@
 
 #include "LiveLinkVirtualSubject.h"
 
-#include "Cluster/IDisplayClusterClusterSyncObject.h"
 
 #include "NDisplaySlaveVirtualSubject.generated.h"
+
+class ULiveLinkFrameTranslator;
 
 
 /**

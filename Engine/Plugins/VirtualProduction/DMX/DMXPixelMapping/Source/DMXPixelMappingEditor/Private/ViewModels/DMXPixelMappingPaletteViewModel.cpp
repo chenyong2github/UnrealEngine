@@ -5,9 +5,9 @@
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "Widgets/SDMXPixelMappingPaletteItem.h"
-#include "DMXPixelMappingComponentReference.h"
 
 #include "UObject/UObjectIterator.h"
+#include "Widgets/Views/SListView.h"
 
 void FDMXPixelMappingPaletteViewModel::Update()
 {

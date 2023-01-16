@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "Types/SlateEnums.h"
+#include "Library/DMXEntityReference.h"
+
+struct FPropertyChangedEvent;
 
 struct FDMXEntityFixturePatchRef;
 class FDMXPixelMappingToolkit;

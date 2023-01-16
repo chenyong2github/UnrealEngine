@@ -2,25 +2,18 @@
 
 #pragma once
 
-#include "Delegates/Delegate.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "ConcertTakeRecorderMessages.h"
-#include "IPropertyTypeCustomization.h"
-#include "Misc/AssertionMacros.h"
-#include "Types/SlateEnums.h"
-#include "UObject/Script.h"
-#include "UObject/UObjectGlobals.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "DetailWidgetRow.h"
 
 #include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
+
+class IModuleInterface;
 
 #define LOCTEXT_NAMESPACE "ConcertTakeRecorderCustomization"
 

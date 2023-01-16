@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/IFilter.h"
 #include "ConcertFrontendFilter.h"
 #include "Filters/SFilterSearchBox.h"
 #include "Misc/TextFilter.h"
-#include "Widgets/Input/SSearchBox.h"
+
+class FFilterCategory;
 
 class FConcertLogTokenizer;
 

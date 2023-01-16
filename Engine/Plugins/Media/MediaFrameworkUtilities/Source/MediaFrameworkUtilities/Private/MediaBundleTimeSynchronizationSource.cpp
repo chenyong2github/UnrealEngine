@@ -4,6 +4,7 @@
 
 #include "IMediaCache.h"
 #include "IMediaPlayer.h"
+#include "Math/RangeSet.h"
 #include "MediaBundle.h"
 #include "MediaAssets/ProxyMediaSource.h"
 #include "MediaFrameworkUtilitiesModule.h"

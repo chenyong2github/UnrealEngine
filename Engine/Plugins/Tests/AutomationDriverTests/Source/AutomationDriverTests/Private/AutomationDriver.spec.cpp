@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
-#include "AutomationDriverCommon.h"
-#include "AutomationDriverTypeDefs.h"
+#include "DriverConfiguration.h"
 #include "SAutomationDriverSpecSuite.h"
 #include "AutomationDriverSpecSuiteViewModel.h"
-#include "Containers/Ticker.h"
-#include "Async/Async.h"
 #include "Framework/Application/SlateApplication.h"
+#include "IAutomationDriver.h"
+#include "IAutomationDriverModule.h"
+#include "IDriverElement.h"
+#include "IDriverSequence.h"
+#include "Layout/WidgetPath.h"
+#include "LocateBy.h"
+#include "Widgets/SWindow.h"
 
 #define TEST_TRUE(expression) \
 	EPIC_TEST_BOOLEAN_(TEXT(#expression), expression, true)

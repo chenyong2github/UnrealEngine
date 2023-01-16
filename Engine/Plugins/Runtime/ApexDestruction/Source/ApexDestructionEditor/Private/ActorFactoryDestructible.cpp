@@ -4,14 +4,7 @@
 #include "DestructibleActor.h"
 #include "DestructibleMesh.h"
 #include "DestructibleComponent.h"
-#include "Misc/FileHelper.h"
-#include "ActorFactories/ActorFactory.h"
 #include "AssetRegistry/AssetData.h"
-#include "PhysicsPublic.h"
-#include "PhysXIncludes.h"
-#include "Editor.h"
-#include "Misc/MessageDialog.h"
-#include "EditorFramework/AssetImportData.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactoryDestructible"
 

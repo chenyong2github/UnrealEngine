@@ -5,7 +5,6 @@
 #include "PreviewSystem/DataprepPreviewSystem.h"
 #include "Widgets/SDataprepPreviewRow.h"
 
-#include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "DataprepPreviewAssetColumn"
 

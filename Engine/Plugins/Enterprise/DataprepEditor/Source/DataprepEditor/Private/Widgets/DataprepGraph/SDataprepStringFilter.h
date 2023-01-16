@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Types/SlateEnums.h"
-#include "Styling/SlateTypes.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
 
 class FMenuBuilder;
 class SComboButton;

@@ -8,12 +8,7 @@
 #include "ActorTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ISceneOutliner.h"
-#include "UObject/Object.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/SWidget.h"
 #include "GameFramework/Actor.h"
-#include "Components/ActorComponent.h"
 
 #define LOCTEXT_NAMESPACE "DataprepPreviewOutlinerColumn"
 

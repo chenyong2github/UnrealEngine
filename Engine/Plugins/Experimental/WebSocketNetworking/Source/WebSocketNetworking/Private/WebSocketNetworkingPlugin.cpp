@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IWebSocketNetworkingModule.h"
-#include "WebSocketNetworkingPrivate.h"
 #include "WebSocketServer.h"
+#include "Modules/ModuleManager.h"
 #include "WebSocket.h"
 
 

@@ -2,11 +2,18 @@
 
 #include "ConcertServerStyle.h"
 
-#include "Framework/Application/SlateApplication.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Interfaces/IPluginManager.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/StyleColors.h"
+#include "Misc/Paths.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateTypes.h"
 
 TSharedPtr<FSlateStyleSet> FConcertServerStyle::StyleInstance = nullptr;
 

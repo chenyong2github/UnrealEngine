@@ -2,14 +2,15 @@
 
 #include "Views/SDMXPixelMappingHierarchyView.h"
 
-#include "DMXPixelMappingComponentReference.h"
 #include "DMXPixelMappingEditorUtils.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ViewModels/DMXPixelMappingHierarchyViewModel.h"
+#include "Misc/TextFilter.h"
 #include "Widgets/SDMXPixelMappingHierarchyItem.h"
 
-#include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Exporters/Exporter.h"
@@ -18,11 +19,10 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Views/TreeFilterHandler.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "Misc/IFilter.h"
 #include "ScopedTransaction.h"
 #include "UnrealExporter.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingHierarchyView"
 

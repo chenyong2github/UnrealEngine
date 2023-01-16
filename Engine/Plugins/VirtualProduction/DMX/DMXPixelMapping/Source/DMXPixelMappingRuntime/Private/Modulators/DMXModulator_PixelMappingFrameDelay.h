@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "DMXTypes.h"
 #include "Modulators/DMXModulator.h"
 
-#include "Templates/SharedPointer.h"
 
 #include "DMXModulator_PixelMappingFrameDelay.generated.h"
 

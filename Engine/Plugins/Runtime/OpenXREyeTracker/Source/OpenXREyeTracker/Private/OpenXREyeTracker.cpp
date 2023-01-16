@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OpenXREyeTracker.h"
+#include "EyeTrackerTypes.h"
 #include "IXRTrackingSystem.h"
+#include "GameFramework/HUD.h"
 #include "OpenXRCore.h"
-#include "UObject/UObjectIterator.h"
-#include "IOpenXRExtensionPlugin.h"
-#include "Modules/ModuleManager.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 
 #if WITH_EDITOR
-#include "Editor/EditorEngine.h"
-#include "Editor.h"
 #endif
 
 IMPLEMENT_MODULE(FOpenXREyeTrackerModule, OpenXREyeTracker);

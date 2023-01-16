@@ -1,19 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_SnapContainer.h"
-#include "UObject/UnrealType.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "Engine/MemberReference.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
-#include "EdGraphSchema_K2.h"
-#include "EdGraphSchema_K2_Actions.h"
-#include "K2Node_CallFunction.h"
-#include "K2Node_MacroInstance.h"
-#include "K2Node_VariableGet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/Kismet2NameValidators.h"
-#include "EdGraphUtilities.h"
 //#include "BasicTokenParser.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "DiffResults.h"
@@ -23,6 +11,7 @@
 
 
 #include "K2Node_ExecutionSequence.h"
+#include "Logging/TokenizedMessage.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintSnapNodes"
 

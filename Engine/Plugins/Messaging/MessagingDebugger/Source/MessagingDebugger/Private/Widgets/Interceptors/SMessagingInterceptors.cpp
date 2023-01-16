@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Interceptors/SMessagingInterceptors.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SlateOptMacros.h"
+#include "IMessageTracer.h"
 #include "Widgets/Views/SListView.h"
+#include "MessagingDebuggerModel.h"
 #include "Widgets/Interceptors/SMessagingInterceptorsTableRow.h"
 
 

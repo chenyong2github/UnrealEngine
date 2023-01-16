@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComposureConfigSettings.h"
-#include "HAL/IConsoleManager.h"
 #include "Engine/Texture.h"
 
 UComposureGameSettings::UComposureGameSettings(const FObjectInitializer& ObjectInitializer)

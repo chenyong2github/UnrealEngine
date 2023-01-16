@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveFunctionCollapse.h"
+#include "Modules/ModuleManager.h"
 #include "WaveFunctionCollapseEditorCommands.h"
 #include "LevelEditor.h"
-#include "EditorUtilityWidget.h"
-#include "WidgetBlueprint.h"
 #include "EditorUtilitySubsystem.h"
 #include "EditorUtilityWidgetBlueprint.h"
-#include "UObject/UObjectGlobals.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "FWaveFunctionCollapseModule"

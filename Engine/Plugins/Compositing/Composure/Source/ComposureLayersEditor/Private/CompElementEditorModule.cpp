@@ -2,11 +2,8 @@
 
 #include "CompElementEditorModule.h"
 #include "CompElementManager.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Editor.h"
-#include "Modules/ModuleManager.h"
 #include "CompElementEditorCommands.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/SCompElementBrowser.h"
 #include "ComposureEditorStyle.h"
 #include "LevelEditor.h"

@@ -3,20 +3,14 @@
 #include "SNewSessionRow.h"
 
 #include "ConcertFrontendStyle.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/Items/ConcertSessionTreeItem.h"		
 
-#include "Styling/AppStyle.h"
 
-#include "Algo/ForEach.h"
 
-#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 

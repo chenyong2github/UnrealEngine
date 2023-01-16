@@ -2,6 +2,7 @@
 #include "OSCAddress.h"
 
 #include "Audio/AudioAddressPattern.h"
+#include "OSCLog.h"
 
 
 namespace OSC

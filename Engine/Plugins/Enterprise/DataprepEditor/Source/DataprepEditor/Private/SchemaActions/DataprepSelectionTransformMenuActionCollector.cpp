@@ -10,8 +10,6 @@
 #include "SchemaActions/DataprepSchemaAction.h"
 
 // Engine includes
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
 
 TArray<TSharedPtr<FDataprepSchemaAction>> FDataprepSelectionTransformMenuActionCollector::CollectActions()
 {

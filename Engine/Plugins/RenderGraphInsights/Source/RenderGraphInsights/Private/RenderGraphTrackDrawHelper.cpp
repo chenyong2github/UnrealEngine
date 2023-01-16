@@ -2,10 +2,8 @@
 
 #include "RenderGraphTrackDrawHelper.h"
 
-#include "Fonts/FontMeasure.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Rendering/DrawElements.h"
+#include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Styling/CoreStyle.h"
 
 #include "Insights/Common/PaintUtils.h"

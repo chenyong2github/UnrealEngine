@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintFileUtilsBPLibrary.h"
-#include "BlueprintFileUtils.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformProcess.h"
 
 UBlueprintFileUtilsBPLibrary::UBlueprintFileUtilsBPLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)

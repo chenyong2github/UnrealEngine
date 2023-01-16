@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "VisualStudioCodeSourceCodeAccessor.h"
+#include "Templates/SharedPointer.h"
+
+class FVisualStudioCodeSourceCodeAccessor;
 
 class FVisualStudioCodeSourceCodeAccessModule : public IModuleInterface
 {

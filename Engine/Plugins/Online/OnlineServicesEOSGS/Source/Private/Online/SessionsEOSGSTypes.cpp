@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/SessionsEOSGSTypes.h"
+#include "Online/Sessions.h"
 
 #include "EOSShared.h"
 

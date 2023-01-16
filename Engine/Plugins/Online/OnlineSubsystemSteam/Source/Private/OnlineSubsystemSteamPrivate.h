@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystem.h"
 
 
@@ -18,11 +17,11 @@
 #define ONLINE_LOG_PREFIX TEXT("STEAM: ")
 
 THIRD_PARTY_INCLUDES_START
-
+// IWYU pragma: begin_exports
 #include "steam/steam_api.h"
 #include "steam/steam_gameserver.h"
 #include "steam/isteamnetworkingsockets.h"
 #include "steam/steamnetworkingtypes.h"
-
+// IWYU pragma: end_exports
 THIRD_PARTY_INCLUDES_END
 

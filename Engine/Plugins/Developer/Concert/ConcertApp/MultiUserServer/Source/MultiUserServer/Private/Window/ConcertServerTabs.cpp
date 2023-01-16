@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertServerTabs.h"
+#include "UObject/NameTypes.h"
 
 FName ConcertServerTabs::GetSessionBrowserTabId()
 {

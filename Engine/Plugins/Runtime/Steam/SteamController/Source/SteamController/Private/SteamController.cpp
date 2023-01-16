@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "HAL/PlatformTime.h"
-#include "HAL/PlatformProcess.h"
-#include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
-#include "GenericPlatform/GenericApplicationMessageHandler.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
-#include "Modules/ModuleManager.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "IInputDevice.h"
-#include "IInputDeviceModule.h"
 #include "ISteamControllerPlugin.h"
-#include "SteamControllerPrivate.h"
 #include "SteamSharedModule.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "GameFramework/InputSettings.h"
+#include <steam/isteamcontroller.h>
+#include <steam/isteaminput.h>
+#include <steam/steam_api_common.h>
+#include <steam/steamtypes.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogSteamController, Log, All);
 

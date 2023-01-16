@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOpenCVHelperModule.h"
-#include "Containers/Set.h"
-#include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h" // for IMPLEMENT_MODULE()
 #include "Interfaces/IPluginManager.h"
-#include "HAL/PlatformProcess.h"
 
 #if WITH_OPENCV
+// IWYU pragma: begin_keep
 #include "OpenCVHelper.h"
-
 #include "PreOpenCVHeaders.h"
 #include "opencv2/unreal.hpp"
 #include "PostOpenCVHeaders.h"
-
+// IWYU pragma: end_keep
 #endif
 
 namespace OpenCVHelperModule

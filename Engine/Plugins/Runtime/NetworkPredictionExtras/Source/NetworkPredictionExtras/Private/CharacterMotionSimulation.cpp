@@ -3,6 +3,7 @@
 #include "CharacterMotionSimulation.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
+#include "NetworkPredictionTickState.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCharacterMotionSimulation, Log, All);
 

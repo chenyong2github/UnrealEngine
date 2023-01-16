@@ -2,19 +2,16 @@
 #include "ChaosFlesh/PB.h"
 #include "ChaosFlesh/FleshCollectionUtility.h" // for LogChaosFlesh
 #include "ChaosFlesh/IFileStream.h"
+#include "HAL/PlatformFile.h"
 
 #ifdef USE_ZLIB
 #include "ChaosFlesh/ZIP.h"
 #endif
 
-#include "Containers/StringConv.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "GenericPlatform/GenericPlatformMath.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-#include "HAL/PlatformFileManager.h"
 
+#include "Trace/Trace.inl"
 #include <fstream>
 #include <iostream>
 #include <limits>

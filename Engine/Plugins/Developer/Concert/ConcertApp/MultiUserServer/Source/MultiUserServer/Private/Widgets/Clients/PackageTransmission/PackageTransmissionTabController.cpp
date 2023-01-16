@@ -7,7 +7,6 @@
 #include "SPackageTransmissionView.h"
 #include "Util/PackageTransmissionEntryTokenizer.h"
 
-#include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FPackageTransmissionTabController"

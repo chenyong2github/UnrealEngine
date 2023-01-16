@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "StageMessages.h"
+#include "Containers/Map.h"
+#include "Math/Range.h"
+#include "Misc/Guid.h"
+
+struct FCriticalStateProviderMessage;
 
 
 /**

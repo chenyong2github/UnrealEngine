@@ -4,10 +4,6 @@
 
 #include "DatasmithFBXImportOptions.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Engine/EngineTypes.h"
 
 #include "DatasmithDeltaGenImportOptions.generated.h"
 

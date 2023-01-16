@@ -3,7 +3,6 @@
 #include "DMXPixelMappingEditorCommands.h"
 
 #include "Styling/AppStyle.h"
-#include "Framework/Commands/Commands.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingEditorCommands"
 

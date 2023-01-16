@@ -2,9 +2,7 @@
 
 #include "ChaosFlesh/Asset/ChaosAssetDeformableSolverFactory.h"
 
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "Engine/Selection.h"
+#include "ChaosFlesh/ChaosDeformableSolverAsset.h"
 
 #define LOCTEXT_NAMESPACE "ChaosDeformableSolver"
 

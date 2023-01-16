@@ -2,16 +2,14 @@
 
 //#include "OrionGame.h"
 #include "PerformanceMonitor.h"
-#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Containers/Ticker.h"
 
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "Engine/GameViewportClient.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/AutomationTest.h"
+#include "Stats/StatsData.h"
 #include "UnrealClient.h"
 
 #define SUPER_DETAILED_AUTOMATION_STATS 1

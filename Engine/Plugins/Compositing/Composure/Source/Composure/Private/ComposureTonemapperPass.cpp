@@ -4,7 +4,6 @@
 #include "ComposurePostProcessBlendable.h"
 
 #include "Components/SceneCaptureComponent2D.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "ComposureUtils.h"
 
 /* FComposureTonemapperUtils

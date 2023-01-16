@@ -2,8 +2,8 @@
 
 #include "Views/SDMXPixelMappingDetailsView.h"
 
+#include "DetailsViewArgs.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
-#include "DMXPixelMappingComponentReference.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
@@ -18,7 +18,7 @@
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
 
-#include "PropertyEditorDelegates.h"
+#include "IDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
 

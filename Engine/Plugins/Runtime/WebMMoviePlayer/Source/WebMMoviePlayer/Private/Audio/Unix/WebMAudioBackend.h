@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "SDL.h"
 #include "SDL_audio.h"
 THIRD_PARTY_INCLUDES_END
+
+class FString;
+struct FTimespan;
+
 
 class FWebMAudioBackendSDL
 {

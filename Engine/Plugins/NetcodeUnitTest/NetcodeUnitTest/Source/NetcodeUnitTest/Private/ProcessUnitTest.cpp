@@ -4,6 +4,7 @@
 #include "Containers/ArrayBuilder.h"
 #include "Misc/FeedbackContext.h"
 
+#include "Misc/OutputDeviceFile.h"
 #include "UnitTestManager.h"
 #include "UnitTestEnvironment.h"
 #include "NUTUtil.h"

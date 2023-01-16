@@ -2,10 +2,7 @@
 
 #include "RenderGraphAnalyzer.h"
 
-#include "HAL/LowLevelMemTracker.h"
 #include "RenderGraphProvider.h"
-#include "Trace/Analyzer.h"
-#include "TraceServices/Model/AnalysisSession.h"
 
 #define LOCTEXT_NAMESPACE "RenderGraphProvider"
 

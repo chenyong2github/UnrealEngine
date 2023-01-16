@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTypes.h"
 #include "Modules/ModuleManager.h"
 #include "ISequencerModule.h"
 #include "SequencerTrackBPEditor.h"

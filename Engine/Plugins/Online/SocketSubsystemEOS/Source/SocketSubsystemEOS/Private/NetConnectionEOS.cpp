@@ -2,7 +2,6 @@
 
 #include "NetConnectionEOS.h"
 #include "NetDriverEOSBase.h"
-#include "InternetAddrEOS.h"
 #include "SocketEOS.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetConnectionEOS)

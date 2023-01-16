@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionAsyncLobbySteam.h"
+#include "Online/OnlineSessionNames.h"
 #include "SocketSubsystem.h"
 #include "OnlineSessionInterfaceSteam.h"
-#include "OnlineSubsystemSteam.h"
-#include "OnlineSubsystemSteamTypes.h"
 #include "OnlinePingInterfaceSteam.h"
 #include "IPAddressSteam.h"
 #include "SteamSessionKeys.h"

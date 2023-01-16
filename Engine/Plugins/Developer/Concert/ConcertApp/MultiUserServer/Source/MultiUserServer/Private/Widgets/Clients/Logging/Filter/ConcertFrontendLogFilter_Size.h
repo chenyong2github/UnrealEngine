@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
 #include "Math/UnitConversion.h"
-#include "Widgets/Clients/Logging/ConcertLogEntry.h"
+
+struct FConcertLogEntry;
 
 namespace UE::MultiUserServer
 {

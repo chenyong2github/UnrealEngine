@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCrowdServerRepresentationTrait.h"
+#include "MassEntityManager.h"
 #include "MassEntityTemplateRegistry.h"
 #include "MassCrowdRepresentationSubsystem.h"
-#include "MassCommonFragments.h"
-#include "MassLODFragments.h"
-#include "MassRepresentationFragments.h"
-#include "Engine/World.h"
 #include "MassCrowdRepresentationActorManagement.h"
 #include "MassActorSubsystem.h"
 #include "MassEntityUtils.h"

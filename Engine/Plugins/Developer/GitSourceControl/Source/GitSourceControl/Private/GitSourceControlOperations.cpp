@@ -2,7 +2,6 @@
 
 #include "GitSourceControlOperations.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
 #include "GitSourceControlModule.h"

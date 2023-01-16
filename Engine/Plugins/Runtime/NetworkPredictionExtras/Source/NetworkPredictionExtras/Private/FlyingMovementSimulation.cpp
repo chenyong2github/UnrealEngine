@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FlyingMovementSimulation.h"
+#include "NetworkPredictionTickState.h"
 #include "NetworkPredictionTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFlyingPawnSimulation, Log, All);

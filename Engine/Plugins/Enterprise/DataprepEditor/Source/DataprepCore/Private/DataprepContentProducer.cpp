@@ -5,11 +5,11 @@
 #include "DataprepCoreUtils.h"
 
 #include "AssetToolsModule.h"
-#include "Engine/World.h"
 #include "EngineUtils.h"
-#include "GameFramework/Actor.h"
+#include "IAssetTools.h"
 #include "LevelSequence.h"
 #include "LevelVariantSets.h"
+#include "Misc/Paths.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataprepContentProducer)
 

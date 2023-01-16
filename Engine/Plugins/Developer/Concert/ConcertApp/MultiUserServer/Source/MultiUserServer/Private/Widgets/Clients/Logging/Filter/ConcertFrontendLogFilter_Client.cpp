@@ -2,7 +2,6 @@
 
 #include "ConcertFrontendLogFilter_Client.h"
 
-#include "ConcertTransportEvents.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 

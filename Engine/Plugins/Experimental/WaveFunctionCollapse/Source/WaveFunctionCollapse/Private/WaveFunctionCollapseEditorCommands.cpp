@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveFunctionCollapseEditorCommands.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "Framework/Commands/InputChord.h"
 
 #define LOCTEXT_NAMESPACE "FWaveFunctionCollapseModule"
 

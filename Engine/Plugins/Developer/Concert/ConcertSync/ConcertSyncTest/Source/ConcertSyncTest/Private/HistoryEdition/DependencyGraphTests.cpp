@@ -2,7 +2,10 @@
 
 #include "HistoryEdition/ActivityDependencyGraph.h"
 
+#include "HistoryEdition/ActivityDependencyEdge.h"
 #include "Misc/AutomationTest.h"
+#include "HistoryEdition/ActivityGraphIDs.h"
+#include "HistoryEdition/ActivityNode.h"
 
 namespace UE::ConcertSyncTests
 {

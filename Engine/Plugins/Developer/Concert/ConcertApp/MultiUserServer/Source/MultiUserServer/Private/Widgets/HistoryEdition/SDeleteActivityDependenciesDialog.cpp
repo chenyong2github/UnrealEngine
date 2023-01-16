@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDeleteActivityDependenciesDialog.h"
+#include "Widgets/HistoryEdition/SActivityDependencyDialog.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SDeleteActivityDependenciesDialog"
 

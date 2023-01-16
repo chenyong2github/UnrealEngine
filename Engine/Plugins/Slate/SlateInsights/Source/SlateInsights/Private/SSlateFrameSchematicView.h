@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
 
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STreeView.h"
+#include "Widgets/Views/SHeaderRow.h"
+
+template <typename ItemType> class SListView;
+template <typename ItemType> class STreeView;
 
 namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags; }

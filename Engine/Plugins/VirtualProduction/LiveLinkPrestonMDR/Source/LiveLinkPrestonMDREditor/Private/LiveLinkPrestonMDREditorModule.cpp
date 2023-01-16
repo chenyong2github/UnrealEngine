@@ -4,6 +4,7 @@
 
 #include "LiveLinkPrestonMDRFactory.h"
 #include "LiveLinkPrestonMDRSourcePanel.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkPrestonMDREditorModule"
 

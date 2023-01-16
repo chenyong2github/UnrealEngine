@@ -1,32 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OneSkyLocalizationServiceProvider.h"
+#include "Framework/Commands/UICommandList.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/FeedbackContext.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Commands/Commands.h"
+#include "OneSkyLocalizationServiceState.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
 #include "ILocalizationServiceModule.h"
-#include "OneSkyConnectionInfo.h"
 #include "OneSkyLocalizationServiceModule.h"
 #include "OneSkyLocalizationServiceCommand.h"
 #include "OneSkyLocalizationServiceOperations.h"
 #include "OneSkyConnection.h"
 #include "Logging/MessageLog.h"
+#include "Widgets/SWindow.h"
 #if LOCALIZATION_SERVICES_WITH_SLATE
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "HAL/PlatformProcess.h"
 #include "Misc/QueuedThreadPool.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
 
 #endif
 #include "LocalizationTargetTypes.h"

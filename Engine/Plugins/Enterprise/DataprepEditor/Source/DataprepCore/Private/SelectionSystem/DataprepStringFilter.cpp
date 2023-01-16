@@ -3,6 +3,7 @@
 #include "SelectionSystem/DataprepStringFilter.h"
 
 #include "DataprepCoreLogCategory.h"
+#include "Misc/TVariantMeta.h"
 #include "SelectionSystem/DataprepSelectionSystemUtils.h"
 #include "SelectionSystem/DataprepStringFetcher.h"
 

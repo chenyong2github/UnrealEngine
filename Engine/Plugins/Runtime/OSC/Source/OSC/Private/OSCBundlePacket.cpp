@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCBundlePacket.h"
 
-#include "OSCBundle.h"
+#include "OSCAddress.h"
 #include "OSCLog.h"
-#include "OSCMessage.h"
-#include "OSCTypes.h"
+#include "OSCStream.h"
 
 
 FOSCBundlePacket::FOSCBundlePacket()

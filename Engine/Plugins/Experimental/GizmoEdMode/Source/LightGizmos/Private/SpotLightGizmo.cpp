@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpotLightGizmo.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Components/SpotLightComponent.h"
 #include "ContextObjectStore.h"
 #include "Engine/SpotLight.h"

@@ -2,10 +2,9 @@
 
 #include "SWebAPISchemaPropertyRow.h"
 
-#include "Styling/AppStyle.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Details/ViewModels/WebAPIModelViewModel.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.inl"
+#include "Widgets/Views/SListView.h"
 
 void SWebAPISchemaPropertyRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIPropertyViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {

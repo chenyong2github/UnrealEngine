@@ -4,7 +4,6 @@
 #include "CanvasTypes.h"
 #include "DMXPixelMapping.h"
 #include "Engine/Texture.h"
-#include "SceneManagement.h"
 #include "TextureResource.h"
 
 bool UDMXPixelMappingThumbnailRendering::CanVisualizeAsset(UObject* Object)

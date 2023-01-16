@@ -6,13 +6,10 @@
 #include "Model/PackageTransmissionEntry.h"
 #include "Util/PackageTransmissionEntryTokenizer.h"
 
-#include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SPackageTransmissionTableRow"
 

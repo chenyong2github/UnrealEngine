@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StageCriticalEventHandler.h"
+#include "StageMessages.h"
 
 bool FStageCriticalEventHandler::IsTimingPartOfCriticalRange(double TimeInSeconds) const
 {

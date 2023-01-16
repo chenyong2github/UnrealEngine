@@ -2,20 +2,14 @@
 
 #include "SteamSocketsSubsystem.h"
 #include "Misc/CommandLine.h"
-#include "Misc/CoreMisc.h"
 #include "Misc/ConfigCacheIni.h"
-#include "IPAddressSteamSockets.h"
-#include "SteamSocketsPrivate.h"
 #include "SteamSocketsTaskManager.h"
 #include "SteamSocketsNetDriver.h"
 #include "SteamSharedModule.h"
 #include "SteamSocket.h"
 #include "SteamSocketsPing.h"
-#include "OnlineSubsystem.h"
 #include "OnlineSubsystemSteam.h"
-#include "OnlineSubsystemNames.h"
-#include "SteamSocketsTypes.h"
-#include "Stats/Stats.h"
+#include "SteamSocketsTypes.h" // IWYU pragma: keep
 
 // Log Category for The API Debugger
 DEFINE_LOG_CATEGORY_STATIC(LogSteamSocketsAPI, Log, All);

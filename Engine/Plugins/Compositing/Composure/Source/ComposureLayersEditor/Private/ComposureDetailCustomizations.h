@@ -1,13 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "PropertyCustomizationHelpers.h"
-#include "Widgets/Input/SComboBox.h"
-#include "ICompElementManager.h"
-#include "../../Composure/Classes/CompositingElement.h"
 #include "EditorUndoClient.h"
+#include "IPropertyTypeCustomization.h"
+
+class ACompositingElement;
+class FReply;
+class ICompElementManager;
+class SComboButton;
+class SToolTip;
+class SWidget;
+class UMaterialInterface;
+enum class EParamType : uint8;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+struct EVisibility;
+struct FCompositingMaterial;
+struct FMaterialParameterInfo;
+template <typename OptionalType> struct TOptional;
 
 /* FCompElementDetailsCustomization
  *****************************************************************************/

@@ -2,8 +2,6 @@
 #pragma once
 
 #include "EditorUndoClient.h"
-#include "CoreMinimal.h"
-#include "Misc/IFilter.h"
 #include "ICompElementManager.h" // for ICompElementManager::FOnElementsChanged
 #include "UObject/WeakObjectPtr.h"
 

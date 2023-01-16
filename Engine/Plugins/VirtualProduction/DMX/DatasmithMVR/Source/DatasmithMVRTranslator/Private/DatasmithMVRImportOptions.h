@@ -4,7 +4,6 @@
 
 #include "DatasmithImportOptions.h"
 
-#include "CoreMinimal.h"
 
 #include "DatasmithMVRImportOptions.generated.h"
 

@@ -2,12 +2,16 @@
 
 #include "AlembicHairTranslator.h"
 
+#include "GroomCacheData.h"
+#include "HairAttributes.h"
 #include "HairDescription.h"
-#include "GroomCache.h"
-#include "GroomImportOptions.h"
+#include "GroomSettings.h"
+#include "Math/RotationMatrix.h"
 #include "Misc/Paths.h"
+#include "Math/ScaleMatrix.h"
 
 #if PLATFORM_WINDOWS
+#include "HairAttributes.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif

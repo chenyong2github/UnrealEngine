@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertTransactionEvents.h"
 #include "Session/Activity/IConcertReflectionDataProvider.h"
 

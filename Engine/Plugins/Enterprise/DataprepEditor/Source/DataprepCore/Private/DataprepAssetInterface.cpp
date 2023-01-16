@@ -6,15 +6,12 @@
 #include "DataprepAssetProducers.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepCoreLogCategory.h"
+#include "IDataprepProgressReporter.h"
 #include "Shared/DataprepCorePrivateUtils.h"
-#include "DataprepCoreUtils.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 
-#include "Editor.h"
 
-#include "Kismet2/KismetEditorUtilities.h"
-#include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAssetInterface"

@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/AssetUserData.h"
-#include "Engine/EngineBaseTypes.h"
-#include "GameFramework/Actor.h"
 #include "MediaCapture.h"
-#include "UObject/LazyObjectPtr.h"
 
 #include "MediaFrameworkWorldSettingsAssetUserData.generated.h"
+
+enum EViewModeIndex : int;
 
 class UMediaFrameworkWorldSettingsAssetUserData;
 class UMediaOutput;

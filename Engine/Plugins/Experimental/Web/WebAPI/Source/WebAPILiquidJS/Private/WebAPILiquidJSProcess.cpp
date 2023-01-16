@@ -2,15 +2,12 @@
 
 #include "WebAPILiquidJSProcess.h"
 
-#include "INetworkingWebSocket.h"
-#include "IWebAPILiquidJSModule.h"
-#include "IWebSocketNetworkingModule.h"
+#include "Misc/AsyncTaskNotification.h"
 #include "SocketSubsystem.h"
 #include "WebAPILiquidJSLog.h"
 #include "WebAPILiquidJSSettings.h"
 #include "Async/Async.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
 #include "HAL/PlatformFileManager.h"
 #include "Interfaces/IPluginManager.h"
 
@@ -79,7 +76,6 @@ FWebAPILiquidJSProcess::EStatus FWebAPILiquidJSProcess::GetStatus() const
 
 void FWebAPILiquidJSProcess::SetExternalLoggerEnabled(bool bEnableExternalLog) const
 {
-	TSharedPtr<INetworkingWebSocket> WebSocketLoggerConnection;
 	if (bEnableExternalLog)
 	{
 		const UWebAPILiquidJSSettings* Settings = GetDefault<UWebAPILiquidJSSettings>();

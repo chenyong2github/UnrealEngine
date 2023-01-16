@@ -2,18 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "SceneImporter.h"
 
-#include "DatasmithDefinitions.h"
-#include "DirectLinkCommon.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "Engine/World.h"
-#include "Misc/SecureHash.h"
 
+#include "UObject/StrongObjectPtr.h"
 #include "DatasmithRuntimeUtils.generated.h"
+
+enum ECollisionTraceFlag : int;
+enum class EDatasmithTextureFormat : uint8;
 
 class IDatasmithBaseMaterialElement;
 class IDatasmithElement;

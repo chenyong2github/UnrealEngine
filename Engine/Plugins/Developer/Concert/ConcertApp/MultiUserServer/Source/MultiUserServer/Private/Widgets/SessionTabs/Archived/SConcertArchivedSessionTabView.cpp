@@ -2,8 +2,6 @@
 
 #include "SConcertArchivedSessionTabView.h"
 
-#include "Framework/Docking/TabManager.h"
-#include "Session/History/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "SConcertArchivedSessionInspector"

@@ -2,7 +2,7 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Modules/ModuleInterface.h"
 
 class FFacialAnimationEditorModule : public IModuleInterface

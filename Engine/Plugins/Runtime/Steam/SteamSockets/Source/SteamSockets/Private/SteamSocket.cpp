@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SteamSocket.h"
-#include "CoreMinimal.h"
-#include "SteamSocketsTypes.h"
 #include "SteamSocketsSubsystem.h"
 #include "SteamSocketsPrivate.h"
-#include "SocketTypes.h"
+#include <steam/steamclientpublic.h>
 
 FSteamSocket::FSteamSocket(ESocketType InSocketType, const FString& InSocketDescription, const FName& InSocketProtocol) :
 	FSocket(InSocketType, InSocketDescription, InSocketProtocol),

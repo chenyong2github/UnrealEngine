@@ -2,16 +2,12 @@
 
 #include "MediaBundleActorDetails.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Modules/ModuleManager.h"
-#include "Framework/SlateDelegates.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SNullWidget.h"
 
 #include "MediaBundleActorBase.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "MediaBundleActorDetails"
 

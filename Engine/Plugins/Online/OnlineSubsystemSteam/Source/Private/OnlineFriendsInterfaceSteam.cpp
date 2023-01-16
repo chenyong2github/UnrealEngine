@@ -4,6 +4,7 @@
 #include "OnlineSubsystemSteam.h"
 #include "OnlineError.h"
 #include "OnlineSubsystemSteamTypes.h"
+#include <steam/isteamuser.h>
 
 // FOnlineFriendSteam
 FOnlineFriendSteam::FOnlineFriendSteam(const CSteamID& InUserId)

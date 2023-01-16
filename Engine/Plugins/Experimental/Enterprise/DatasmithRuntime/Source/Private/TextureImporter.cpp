@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SceneImporter.h"
 
 #include "DatasmithRuntimeAuxiliaryData.h"
 
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
 
-#include "DatasmithMaterialElements.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Async/Async.h"
-#include "Engine/Texture2D.h"
 #include "Engine/TextureLightProfile.h"
 #include "IESConverter.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "RHI.h"
 
 #if WITH_EDITORONLY_DATA
 #include "EditorFramework/AssetImportData.h"

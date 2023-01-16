@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DatasmithVREDImportData.h"
+#include "Containers/Set.h"
+#include <cfloat>
+
+struct FScriptContainerElement;
 
 struct FDatasmithFBXSceneAnimClip;
 struct FDatasmithFBXSceneAnimNode;

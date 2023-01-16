@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetEditor/MediaProfileEditorToolkit.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Profile/MediaProfile.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 #include "MediaProfileCommands.h"
 #include "Misc/MessageDialog.h"
 #include "Profile/MediaProfileSettings.h"

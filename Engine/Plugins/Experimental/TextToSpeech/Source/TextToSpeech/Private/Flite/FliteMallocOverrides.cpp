@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #if USING_FLITE
-#include "CoreMinimal.h"
 #include "HAL/LowLevelMemTracker.h"
 THIRD_PARTY_INCLUDES_START
 extern "C"

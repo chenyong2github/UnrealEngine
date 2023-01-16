@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Field/FieldSystemFactory.h"
-#include "Field/FieldSystemCoreAlgo.h"
 
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "Engine/Selection.h"
+#include "Field/FieldSystemAsset.h"
 
 #define LOCTEXT_NAMESPACE "FieldSystem"
 

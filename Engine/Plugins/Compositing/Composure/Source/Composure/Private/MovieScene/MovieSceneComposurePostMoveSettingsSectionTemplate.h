@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Channels/MovieSceneChannelData.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
 #include "Evaluation/Blending/MovieSceneMultiChannelBlending.h"
 #include "ComposurePostMoves.h"

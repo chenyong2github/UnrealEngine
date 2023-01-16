@@ -3,22 +3,17 @@
 #include "OpenCVBlueprintFunctionLibrary.h"
 #include "OpenCVHelper.h"
 
-#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "TextureResource.h"
 
 #if WITH_OPENCV
-
-#include <vector>
-
+// IWYU pragma: begin_keep
 #include "PreOpenCVHeaders.h"
-
 #include "opencv2/aruco.hpp"
 #include "opencv2/calib3d.hpp"
 #include "opencv2/imgproc.hpp"
-
 #include "PostOpenCVHeaders.h"
-
+// IWYU pragma: end_keep
 #endif	// WITH_OPENCV
 
 DEFINE_LOG_CATEGORY(LogOpenCVBlueprintFunctionLibrary);

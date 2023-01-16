@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 
 #include "ActorFactories/ActorFactory.h"
 #include "Factories/Factory.h"
 
-#include "MediaBundleActorBase.h"
 
 #include "MediaBundleFactoryNew.generated.h"
 

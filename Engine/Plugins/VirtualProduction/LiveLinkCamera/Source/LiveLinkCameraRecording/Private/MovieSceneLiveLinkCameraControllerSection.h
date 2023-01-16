@@ -4,9 +4,11 @@
 
 #include "Sections/MovieSceneHookSection.h"
 
-#include "LensFile.h"
 
 #include "MovieSceneLiveLinkCameraControllerSection.generated.h"
+
+class ULensFile;
+namespace UE::MovieScene { struct FEvaluationHookParams; }
 
 class ULiveLinkControllerBase;
 

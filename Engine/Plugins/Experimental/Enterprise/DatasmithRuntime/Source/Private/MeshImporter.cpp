@@ -1,36 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SceneImporter.h"
 
 #include "DatasmithRuntimeUtils.h"
+#include "DatasmithTranslator.h"
 #include "LogCategory.h"
-#include "MaterialImportUtils.h"
 
-#include "DatasmithImportOptions.h"
-#include "DatasmithMeshUObject.h"
-#include "DatasmithNativeTranslator.h"
 #include "DatasmithPayload.h"
 #include "DatasmithUtils.h"
+#include "Engine/CollisionProfile.h"
 #include "IDatasmithSceneElements.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "StaticMeshResources.h"
+#include "Misc/Paths.h"
 #include "Utility/DatasmithMeshHelper.h"
 
-#include "Algo/Find.h"
-#include "Algo/Sort.h"
 #include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MeshDescription.h"
-#include "Misc/ScopeLock.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
-#include "UObject/GarbageCollection.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
-#include "Materials/Material.h"
 #endif
 
 namespace DatasmithRuntime

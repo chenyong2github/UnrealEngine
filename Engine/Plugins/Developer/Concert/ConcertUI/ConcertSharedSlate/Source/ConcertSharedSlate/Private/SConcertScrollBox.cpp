@@ -2,11 +2,9 @@
 
 #include "SConcertScrollBox.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SConcertScrollBox"
 

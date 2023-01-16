@@ -2,19 +2,12 @@
 
 #include "EditorDataprepAssetLibrary.h"
 
-#include "DataprepActionAsset.h"
 #include "DataprepAsset.h"
-#include "DataprepAssetInterface.h"
-#include "DataprepAssetProducers.h"
 #include "DataprepContentProducer.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorScriptingLog.h"
 
-#include "UObject/Class.h"
-#include "Engine/Blueprint.h"
-#include "DataprepEditorModule.h"
-#include "EdGraphSchema_K2.h"
-#include "SelectionSystem/DataprepFetcher.h"
+#include "Trace/Trace.inl"
 
 namespace EditorDataprepAssetLibraryUtils
 {

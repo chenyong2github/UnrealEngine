@@ -3,7 +3,7 @@
 #include "Widgets/SCompElementEdCommandsMenu.h"
 #include "CompElementCollectionViewModel.h"
 #include "CompElementEditorModule.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "CompElementEditorCommands.h"
 #include "Framework/Commands/GenericCommands.h"

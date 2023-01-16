@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Brushes/SlateColorBrush.h"
 #include "Styling/SlateStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateTypes.h"
+#include "Misc/Paths.h"
 
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)

@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockAbilitySimulation.h"
-#include "EngineUtils.h"
-#include "Chaos/ParticleHandle.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "NetworkPredictionCVars.h"
-#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
 #include "DrawDebugHelpers.h"
 #include "NetworkPredictionProxyInit.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 namespace MockAbilityCVars
 {

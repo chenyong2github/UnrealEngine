@@ -3,7 +3,8 @@
 #pragma once
 
 #include "TextureResource.h"
-#include "PixelStreamingMediaTexture.h"
+
+class UPixelStreamingMediaTexture;
 
 /**
  * The actual texture resource for a FPixelStreamingMediaTexture. Contains the RHI Texture and

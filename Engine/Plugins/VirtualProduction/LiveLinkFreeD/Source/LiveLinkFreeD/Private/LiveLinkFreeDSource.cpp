@@ -3,14 +3,14 @@
 #include "LiveLinkFreeDSource.h"
 #include "LiveLinkFreeD.h"
 #include "ILiveLinkClient.h"
-#include "Engine/Engine.h"
 #include "Async/Async.h"
-#include "LiveLinkFreeDSourceSettings.h"
+#include "LiveLinkFreeDConnectionSettings.h"
 #include "Misc/CoreDelegates.h"
+#include "LiveLinkFreeDPacketInfo.h"
 #include "Roles/LiveLinkCameraRole.h"
 
-#include "Misc/Timespan.h"
 #include "Common/UdpSocketBuilder.h"
+#include "Roles/LiveLinkCameraTypes.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkFreeDSourceFactory"
 

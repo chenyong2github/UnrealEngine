@@ -7,9 +7,11 @@
 #include "mdl/MdlSdkDefines.h"
 
 MDLSDK_INCLUDES_START
-#include "mi/neuraylib/ivalue.h"
-#include "mi/neuraylib/ivector.h"
+
 MDLSDK_INCLUDES_END
+namespace mi::base { template <class Interface> class Handle; }
+namespace mi::neuraylib { class IValue_vector; }
+
 
 namespace mi
 {

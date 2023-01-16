@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NiagaraCommon.h"
-#include "NiagaraShared.h"
-#include "VectorVM.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceMousePosition.generated.h"
+
+enum class ENiagaraSimTarget : uint8;
+struct FNiagaraDataInterfaceGeneratedFunction;
+struct FNiagaraFunctionSignature;
+struct FVMExternalFunctionBindingInfo;
 
 UCLASS(EditInlineNew, Category = "Mouse", meta = (DisplayName = "MousePosition Query"))
 class UNiagaraDataInterfaceMousePosition : public UNiagaraDataInterface

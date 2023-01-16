@@ -3,7 +3,7 @@
 #include "OnlineAuthHandlerSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
 #include "OnlineAuthInterfaceUtilsSteam.h"
-#include "OnlineSubsystemUtils.h"
+#include <steam/isteamuser.h>
 
 enum class ESteamAuthMsgType : uint8
 {

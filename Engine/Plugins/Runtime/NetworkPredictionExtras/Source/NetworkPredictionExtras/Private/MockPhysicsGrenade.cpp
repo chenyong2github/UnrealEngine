@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockPhysicsGrenade.h"
-#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
 #include "NetworkPredictionProxyInit.h"
-#include "Engine/World.h"
-#include "Engine/EngineTypes.h"
-#include "CollisionQueryParams.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "NetworkPredictionPhysics.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 /** NetworkedSimulation Model type */
 class FMockPhysicsGrenadeModelDef : public FNetworkPredictionModelDef

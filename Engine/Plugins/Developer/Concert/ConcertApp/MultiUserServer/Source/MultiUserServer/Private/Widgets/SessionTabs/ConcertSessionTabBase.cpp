@@ -2,12 +2,12 @@
 
 #include "ConcertSessionTabBase.h"
 
+#include "IConcertModule.h"
 #include "IConcertServer.h"
+#include "IConcertSession.h"
 #include "IConcertSyncServer.h"
 #include "Window/ConcertServerTabs.h"
 
-#include "Framework/Docking/TabManager.h"
-#include "Styling/SlateBrush.h"
 #include "Widgets/Docking/SDockTab.h"
 
 namespace UE::ConcertServerUI::Private

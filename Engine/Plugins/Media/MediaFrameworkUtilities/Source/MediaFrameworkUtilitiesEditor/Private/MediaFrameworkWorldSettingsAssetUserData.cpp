@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaFrameworkWorldSettingsAssetUserData.h"
+#include "GameFramework/Actor.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
 

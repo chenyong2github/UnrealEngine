@@ -2,6 +2,7 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 
+#include "Algo/Find.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingLayoutSettings.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
@@ -14,19 +15,12 @@
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Widgets/SDMXPixelMappingFixturePatchDetailRow.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Editor.h"
-#include "PropertyHandle.h"
 #include "IPropertyUtilities.h"
 #include "ScopedTransaction.h"
-#include "Layout/Visibility.h"
 #include "Misc/CoreDelegates.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_FixtureGroup"

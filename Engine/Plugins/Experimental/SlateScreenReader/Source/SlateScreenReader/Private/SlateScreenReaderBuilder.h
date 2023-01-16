@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "GenericPlatform/IScreenReaderBuilder.h"
 
 class FSlateScreenReaderBuilder : public IScreenReaderBuilder

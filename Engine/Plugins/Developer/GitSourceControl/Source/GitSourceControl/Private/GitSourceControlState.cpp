@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GitSourceControlState.h"
-#include "Styling/AppStyle.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
+#include "Textures/SlateIcon.h"
 
 #define LOCTEXT_NAMESPACE "GitSourceControl.State"
 

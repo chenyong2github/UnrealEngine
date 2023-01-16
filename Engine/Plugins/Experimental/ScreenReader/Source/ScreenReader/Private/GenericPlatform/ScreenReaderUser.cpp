@@ -2,9 +2,11 @@
 
 #include "GenericPlatform/ScreenReaderUser.h"
 #include "Announcement/ScreenReaderAnnouncementChannel.h"
+#include "GenericPlatform/ITextToSpeechFactory.h"
 #include "Navigation/ScreenReaderNavigationPolicy.h"
-#include "TextToSpeech.h"
+#include "GenericPlatform/ScreenReaderReply.h"
 #include "ScreenReaderLog.h"
+#include "TextToSpeechModule.h"
 
 FScreenReaderUser::FScreenReaderUser(FAccessibleUserIndex InUserIndex)
 	: FGenericAccessibleUser(InUserIndex)

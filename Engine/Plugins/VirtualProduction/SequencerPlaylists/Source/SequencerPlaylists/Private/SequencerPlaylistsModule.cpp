@@ -2,17 +2,18 @@
 
 #include "SequencerPlaylistsModule.h"
 #include "AssetTypeActions_SequencerPlaylist.h"
-#include "SequencerPlaylist.h"
+#include "Framework/Commands/UICommandList.h"
 #include "SequencerPlaylistItem_Sequence.h"
-#include "SequencerPlaylistPlayer.h"
 #include "SequencerPlaylistsLog.h"
 #include "SequencerPlaylistsCommands.h"
-#include "SequencerPlaylistsStyle.h"
 #include "SequencerPlaylistsSubsystem.h"
 #include "SequencerPlaylistsWidgets.h"
 
+#include "ToolMenu.h"
 #include "ToolMenus.h"
+#include "ToolMenuEntry.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "ToolMenuSection.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 

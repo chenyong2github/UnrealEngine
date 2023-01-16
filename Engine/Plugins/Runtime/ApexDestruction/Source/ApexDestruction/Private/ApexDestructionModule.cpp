@@ -3,15 +3,13 @@
 #include "ApexDestructionModule.h"
 #include "PhysicsCore.h"
 #include "Modules/ModuleManager.h"
-#include "ApexDestructionCustomPayload.h"
-#include "Engine/World.h"
-#include "DestructibleComponent.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "PhysicsInitialization.h"
+#include "PhysicsPublic.h"
 
 #ifndef APEX_STATICALLY_LINKED
 #define APEX_STATICALLY_LINKED	0
 #endif
+
+class UDestructibleComponent;
 
 namespace nvidia
 {

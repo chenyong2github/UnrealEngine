@@ -3,7 +3,6 @@
 #include "LiveLinkPrestonMDRFactory.h"
 
 #include "LiveLinkPrestonMDRSource.h"
-#include "LiveLinkPrestonMDRConnectionSettings.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkPrestonMDRSourceFactory"
 

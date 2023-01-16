@@ -7,7 +7,6 @@
 #include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 
 #include "Math/UnitConversion.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
 

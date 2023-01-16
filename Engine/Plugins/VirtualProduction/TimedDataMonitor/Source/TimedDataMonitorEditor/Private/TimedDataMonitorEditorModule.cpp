@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
-#include "Framework/Docking/WorkspaceItem.h"
 #include "ISettingsModule.h"
 #include "STimedDataMonitorPanel.h"
-#include "TimedDataMonitorEditorSettings.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
 

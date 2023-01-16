@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ISourceControlProvider.h"
 #include "Misc/IQueuedWork.h"
 

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Algo/Transform.h"
 #include "ConcertLogGlobal.h"
-#include "ConcertFrontendFilter.h"
 #include "Filters/SBasicFilterBar.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SConcertFilterBar.generated.h"
+
+class SFilterSearchBox;
+namespace UE::MultiUserServer { template <typename TFilterType> class TConcertFrontendFilter; }
+template <typename FilterType> class FFilterBase;
 
 UCLASS()
 class UConcertFilterBarContext : public UObject

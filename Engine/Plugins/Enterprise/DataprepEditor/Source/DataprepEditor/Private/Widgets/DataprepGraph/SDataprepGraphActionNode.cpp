@@ -3,10 +3,9 @@
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 
 // Dataprep includes
-#include "DataprepActionAsset.h"
-#include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
+#include "EdGraph/EdGraph.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
@@ -15,18 +14,13 @@
 // Engine Includes
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "EditorFontGlyphs.h"
-#include "GraphEditorSettings.h"
-#include "NodeFactory.h"
 #include "SGraphPanel.h"
 #include "Widgets/Colors/SColorBlock.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 

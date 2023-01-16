@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/SimpleAssetEditor.h"
 
-#include "TimecodeSynchronizer.h"
+#include "Toolkits/AssetEditorToolkit.h"
+
+class FSpawnTabArgs;
+class UTimecodeSynchronizer;
+enum class ETimecodeSynchronizationEvent;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 

@@ -8,7 +8,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ComposureInternals.h" // for COMPOSURE_GET_MATERIAL()
 #include "ComposureUtils.h" // for SetEngineShowFlagsForPostprocessingOnly()
-#include "Engine/TextureRenderTarget2D.h"
+#include "UObject/ConstructorHelpers.h"
 
 /* UComposurePostProcessingPassProxy
  *****************************************************************************/

@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
-#include "K2Node.h"
-#include "Math/Color.h"
 
 #include "DataprepGraphActionNode.generated.h"
 

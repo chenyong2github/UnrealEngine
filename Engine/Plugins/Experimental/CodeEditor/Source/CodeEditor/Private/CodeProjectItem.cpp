@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeProjectItem.h"
-#include "Misc/Paths.h"
-#include "UObject/WeakObjectPtr.h"
 #include "UObject/Package.h"
 #include "IDirectoryWatcher.h"
 #include "DirectoryScanner.h"

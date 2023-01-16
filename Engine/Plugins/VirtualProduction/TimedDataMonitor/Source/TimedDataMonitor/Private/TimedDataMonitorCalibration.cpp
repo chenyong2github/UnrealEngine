@@ -3,15 +3,9 @@
 #include "TimedDataMonitorCalibration.h"
 #include "TimedDataMonitorSubsystem.h"
 
-#include "Async/Async.h"
-#include "Containers/Ticker.h"
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/PlatformTime.h"
 #include "Misc/App.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "Stats/Stats.h"
 
 /** The algo for Calibration and TimeCorrection will use those data for their examples and comments. */
 // EvaluationTime == 50.

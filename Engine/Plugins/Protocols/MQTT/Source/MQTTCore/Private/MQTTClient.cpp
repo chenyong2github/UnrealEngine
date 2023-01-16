@@ -1,15 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTClient.h"
 
-#include "IMQTTCoreModule.h"
 #include "MQTTClientMessage.h"
-#include "MQTTShared.h"
+#include "MQTTConnection.h"
 #include "MQTTCoreLog.h"
+#include "MQTTOperations.h"
 #include "SocketSubsystem.h"
 #include "Algo/ForEach.h"
 #include "Async/Async.h"
-#include "Templates/SharedPointer.h"
 
 FMQTTClient::FMQTTClient(const FMQTTURL& InURL)
 	: ClientId(InURL.ToGuid())

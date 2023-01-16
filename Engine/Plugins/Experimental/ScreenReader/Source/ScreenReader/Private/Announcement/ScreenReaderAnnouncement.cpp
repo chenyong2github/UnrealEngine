@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Announcement/ScreenReaderAnnouncement.h"
-#include "Misc/StringBuilder.h"
 #include "ScreenReaderLog.h"
 
 FScreenReaderAnnouncementInfo::FScreenReaderAnnouncementInfo(bool bInShouldQueue, bool bInInterruptable, EScreenReaderAnnouncementPriority InPriority)

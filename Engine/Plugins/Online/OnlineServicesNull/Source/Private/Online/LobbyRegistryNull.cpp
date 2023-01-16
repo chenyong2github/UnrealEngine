@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Online/LobbyRegistryNull.h"
+#include "Misc/Guid.h"
 
 namespace UE::Online {
 

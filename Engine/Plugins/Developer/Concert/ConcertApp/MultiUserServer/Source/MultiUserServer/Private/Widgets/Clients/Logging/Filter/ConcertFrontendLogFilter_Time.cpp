@@ -2,15 +2,9 @@
 
 #include "ConcertFrontendLogFilter_Time.h"
 
-#include "ConcertTransportEvents.h"
-#include "SSimpleComboButton.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/StyleColors.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Util/Filter/ConcertFilterUtils.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FConcertFrontendLogFilter_Time"

@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateTypes.h"
 #include "CodeEditorStyle.h"
-#include "Framework/Text/SyntaxTokenizer.h"
 #include "Framework/Text/SyntaxHighlighterTextLayoutMarshaller.h"
 
 class FTextLayout;

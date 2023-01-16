@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
-#include "OnlineSubsystemSteamPrivate.h"
+#include "OnlineSubsystemNames.h"
+#include "OnlineSubsystemSteamPrivate.h" // IWYU pragma: keep
 #include "IPAddress.h"
 #include "OnlineSubsystemSteamPackage.h"
 

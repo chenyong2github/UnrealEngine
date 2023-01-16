@@ -2,8 +2,8 @@
 
 #if USING_FLITE
 #include "Flite/FliteAdapter.h"
+#include "Flite/FliteSynthesizedSpeechData.h"
 #include "TextToSpeechLog.h"
-#include <atomic>
 #include "Async/AsyncWork.h"
 // Change to 1 to have sine tone data be written for debug
 #define SINE_DEBUG 0

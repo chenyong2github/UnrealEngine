@@ -4,16 +4,15 @@
 #include "BinkMovieStreamer.h"
 
 #include "BinkMediaPlayerPrivate.h"
-#include "Rendering/RenderingCommon.h"
-#include "Slate/SlateTextures.h"
-#include "MoviePlayer.h"
-#include "MoviePlayerSettings.h"
-#include "RHIUtilities.h"
 #include "BinkMediaPlayer.h"
-#include "BinkFunctionLibrary.h"
+#include "BinkMoviePlayerSettings.h"
 #include "HDRHelper.h"
 
-#include "OneColorShader.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/Paths.h"
+#include "RenderingThread.h"
+#include "binkplugin_ue4.h"
+#include "egttypes.h"
 
 DEFINE_LOG_CATEGORY(LogBinkMoviePlayer);
 

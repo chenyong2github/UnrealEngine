@@ -2,9 +2,10 @@
 //   Licenced under the Unreal Engine EULA 
 #pragma once
 
-#include "Runtime/Launch/Resources/Version.h"
 #include "binkplugin.h"
 #include "MoviePlayer.h"
+
+class FSlateTexture2DRHIRef;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBinkMoviePlayer, Log, All);
 

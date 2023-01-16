@@ -2,21 +2,16 @@
 
 #include "LiveLinkOverNDisplayModule.h"
 
-#include "DisplayClusterGameEngine.h"
-#include "Engine/Engine.h"
-#include "Features/IModularFeatures.h"
+#include "DisplayClusterEnums.h"
 #include "IDisplayCluster.h"
-#include "ILiveLinkClient.h"
 #include "IDisplayClusterCallbacks.h"
 #include "LiveLinkOverNDisplayPrivate.h"
 #include "LiveLinkOverNDisplaySettings.h"
 #include "Misc/CoreDelegates.h"
-#include "Modules/ModuleManager.h"
 #include "NDisplayLiveLinkSubjectReplicator.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
-	#include "ISettingsSection.h"
 #endif 
 
 

@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Layout/Margin.h"
-#include "Input/CursorReply.h"
-#include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 enum class EDMXPixelMappingTransformDirection : uint8
 {

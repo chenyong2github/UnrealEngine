@@ -1,25 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubversionSourceControlProvider.h"
-#include "HAL/PlatformProcess.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/QueuedThreadPool.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ISourceControlModule.h"
 #include "SubversionSourceControlCommand.h"
 #include "SubversionSourceControlModule.h"
-#include "ISourceControlLabel.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
 #include "SubversionSourceControlLabel.h"
+#include "SubversionSourceControlState.h"
 #include "SubversionSourceControlUtils.h"
 #include "SSubversionSourceControlSettings.h"
 #include "Logging/MessageLog.h"
 #include "XmlFile.h"
 #include "ScopedSourceControlProgress.h"
+#include "XmlNode.h"
 
 #define LOCTEXT_NAMESPACE "SubversionSourceControl"
 

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "AssetTypeCategories.h"
 

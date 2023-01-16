@@ -1,14 +1,15 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIPluginWizardDefinition.h"
 
 #include "Editor.h"
-#include "IPluginBrowser.h"
+#include "Features/IPluginsEditorFeature.h"
 #include "WebAPIEditorSubsystem.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
+#include "PluginReferenceDescriptor.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIPluginWizardDefinition"
 

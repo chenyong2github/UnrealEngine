@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerPlaylistItem_Sequence.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
 #include "SequencerPlaylist.h"
-#include "SequencerPlaylistsLog.h"
 
-#include "ISequencer.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "LevelSequence.h"
 #include "MovieSceneFolder.h"
-#include "MovieSceneTimeHelpers.h"
-#include "Sections/MovieSceneSubSection.h"
 #include "TrackEditors/SubTrackEditorBase.h" // for FSubTrackEditorUtil::CanAddSubSequence
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Widgets/Notifications/SNotificationList.h"

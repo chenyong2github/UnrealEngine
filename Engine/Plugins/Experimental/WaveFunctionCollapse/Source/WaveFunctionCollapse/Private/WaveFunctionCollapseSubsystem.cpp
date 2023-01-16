@@ -2,16 +2,12 @@
 
 #include "WaveFunctionCollapseSubsystem.h"
 #include "Engine/Blueprint.h"
+#include "Engine/StaticMesh.h"
 #include "WaveFunctionCollapseBPLibrary.h"
-#include "Math/UnrealMathUtility.h"
-#include "Math/NumericLimits.h"
-#include "Math/Vector.h"
-#include "Engine/World.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Editor.h"
-#include "Editor/EditorEngine.h"
 
 DEFINE_LOG_CATEGORY(LogWFC);
 

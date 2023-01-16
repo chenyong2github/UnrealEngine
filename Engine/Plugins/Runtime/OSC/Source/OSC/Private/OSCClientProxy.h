@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Common/UdpSocketReceiver.h"
-#include "Interfaces/IPv4/IPv4Address.h"
-#include "UObject/Object.h"
 
 #include "OSCClient.h"
+
+class FInternetAddr;
+class FSocket;
+class IOSCPacket;
 
 
 class OSC_API FOSCClientProxy : public IOSCClientProxy

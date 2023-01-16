@@ -3,7 +3,6 @@
 #include "Fetchers/DataprepStringsArrayFetcherLibrary.h"
 
 #include "GameFramework/Actor.h"
-#include "UObject/Object.h"
 
 #define LOCTEXT_NAMESPACE "DataprepStringsArrayFetcherLibrary"
 

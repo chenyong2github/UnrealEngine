@@ -2,22 +2,19 @@
 
 #include "DataprepOperations.h"
 
-#include "DataprepOperationsLibrary.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Engine/Texture2D.h"
-#include "GenericPlatform/GenericPlatformTime.h"
+#include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"
 
+#include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
 
 // UI related section
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithMeshOperations"

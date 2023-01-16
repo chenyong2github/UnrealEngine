@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IGitSourceControlWorker.h"
 #include "GitSourceControlState.h"
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertDataStoreTests.h"
-#include "CoreMinimal.h"
+#include "ConcertMessages.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
@@ -10,7 +10,6 @@
 #include "ConcertClientLocalDataStore.h"
 #include "IConcertSession.h"
 #include "Scratchpad/ConcertScratchpad.h"
-#include "Internationalization/Internationalization.h"
 
 // Defines a namespace to test FText.
 #define LOCTEXT_NAMESPACE "ConcertDataStoreTests" 

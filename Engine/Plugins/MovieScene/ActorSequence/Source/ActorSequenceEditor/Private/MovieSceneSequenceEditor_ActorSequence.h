@@ -3,14 +3,10 @@
 #pragma once
 
 #include "ActorSequenceComponent.h"
+#include "GameFramework/Actor.h"
 #include "MovieSceneSequenceEditor.h"
 #include "ActorSequence.h"
-#include "Engine/Level.h"
 #include "Engine/LevelScriptBlueprint.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "Tracks/MovieSceneEventTrack.h"
-#include "K2Node_FunctionEntry.h"
-#include "EdGraphSchema_K2.h"
 
 struct FMovieSceneSequenceEditor_ActorSequence : FMovieSceneSequenceEditor
 {

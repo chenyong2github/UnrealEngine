@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "IMQTTCoreModule.h"
+#include "Misc/Guid.h"
 
 class FAutoConsoleCommand;
 

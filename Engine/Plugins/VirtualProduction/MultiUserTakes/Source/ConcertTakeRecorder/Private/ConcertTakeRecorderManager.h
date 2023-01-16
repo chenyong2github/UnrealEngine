@@ -2,16 +2,26 @@
 
 #pragma once
 
-#include "ConcertMessages.h"
-#include "ConcertTakeRecorderMessages.h"
-#include "Delegates/IDelegateInstance.h"
-#include "HAL/Platform.h"
-#include "IConcertClientTransactionBridge.h"
-#include "Misc/FrameNumber.h"
-#include "TakePreset.h"
-#include "UObject/StrongObjectPtr.h"
 
-#include "ConcertTakeRecorderClientSessionCustomization.h"
+#include "UObject/GCObject.h"
+
+class FConcertTakeRecorderClientSessionCustomization;
+class SWidget;
+class ULevelSequence;
+class UTakePreset;
+enum class EConcertClientStatus : uint8;
+enum class EConcertConnectionStatus : uint8;
+enum class ETransactionFilterResult : uint8;
+struct FConcertClientRecordSetting;
+struct FConcertMultiUserSyncChangeEvent;
+struct FConcertRecordSettingsChangeEvent;
+struct FConcertRecordingCancelledEvent;
+struct FConcertRecordingFinishedEvent;
+struct FConcertRecordingNamedLevelSequenceEvent;
+struct FConcertSessionClientInfo;
+struct FConcertTakeInitializedEvent;
+struct FFrameNumber;
+struct FTakeRecorderParameters;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogConcertTakeRecorder, Log, All);
 

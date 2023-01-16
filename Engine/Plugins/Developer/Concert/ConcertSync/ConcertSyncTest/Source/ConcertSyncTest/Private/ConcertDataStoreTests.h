@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "ConcertDataStoreTests.generated.h"
 
 /** A custom type for ConcertDatastore testing purpose. */

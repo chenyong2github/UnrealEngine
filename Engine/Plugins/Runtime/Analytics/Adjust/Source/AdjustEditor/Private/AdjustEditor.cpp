@@ -2,7 +2,6 @@
 
 #include "AdjustEditor.h"
 
-#include "AdjustEditorPrivatePCH.h"
 
 #include "AdjustSettings.h"
 #include "Analytics.h"

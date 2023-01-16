@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 // To make less changes to the Steam OSS, we'll define this here
 // This will allow us to easily snap into the Steam OSS code
@@ -11,6 +11,7 @@
 #endif
 
 THIRD_PARTY_INCLUDES_START
+// IWYU pragma: begin_keep
 
 // Main headers
 #include "steam/steam_api.h"
@@ -21,6 +22,7 @@ THIRD_PARTY_INCLUDES_START
 #include "steam/isteamnetworkingutils.h"
 #include "steam/steamnetworkingtypes.h"
 
+// IWYU pragma: end_keep
 THIRD_PARTY_INCLUDES_END
 
 /** Some flags in the Steam SDK share similar numeral values which could change in the future.

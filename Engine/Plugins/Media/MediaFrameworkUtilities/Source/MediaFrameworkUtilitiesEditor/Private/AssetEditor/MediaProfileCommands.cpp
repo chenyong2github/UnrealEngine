@@ -2,10 +2,6 @@
 
 #include "MediaProfileCommands.h"
 
-#include "Framework/Commands/UICommandInfo.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Profile/IMediaProfileManager.h"
-#include "Profile/MediaProfile.h"
 
 
 

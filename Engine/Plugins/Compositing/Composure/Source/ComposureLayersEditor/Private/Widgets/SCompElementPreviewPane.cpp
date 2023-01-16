@@ -1,23 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SCompElementPreviewPane.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Images/SImage.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBox.h"
+#include "MaterialInterface.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/UIAction.h"
 #include "SlateMaterialBrush.h"
 #include "Modules/ModuleManager.h"
 #include "CompElementEditorModule.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Texture.h"
+#include "UObject/Package.h"
 #include "Widgets/SCompPreviewImage.h"
-#include "LevelEditor.h"
-#include "Editor.h"
-#include "HAL/IConsoleManager.h"
 #include "ICompElementManager.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 
 static TAutoConsoleVariable<int32> CVarForceApplyGamma(
 	TEXT("r.Composure.CompositingElements.Editor.ForceApplyGammaToPreview"),

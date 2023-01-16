@@ -1,7 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
+#include "Dom/WebAPIEnum.h"
+#include "Dom/WebAPIType.h"
+#include "Dom/WebAPITypeRegistry.h"
 #include "IWebAPIEditorModule.h"
 #include "V2/WebAPISwaggerProvider.h"
 

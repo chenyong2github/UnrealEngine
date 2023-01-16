@@ -2,6 +2,7 @@
 
 #include "WebMAudioBackend.h"
 #include "WebMMovieCommon.h"
+#include <SDL.h>
 
 FWebMAudioBackendSDL::FWebMAudioBackendSDL()
 	: AudioDevice(0)

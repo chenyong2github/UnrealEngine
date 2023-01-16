@@ -5,16 +5,10 @@
 =============================================================================*/
 
 #include "DestructibleMesh.h"
-#include "RawIndexBuffer.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "DestructibleFractureSettings.h"
-#include "GPUSkinVertexFactory.h"
 #include "UObject/FrameworkObjectVersion.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
-#include "StaticMeshResources.h"
-#include "PhysXPublic.h"
 #include "Engine/StaticMesh.h"
-#include "Rendering/SkeletalMeshRenderData.h"
-#include "ApexDestructionModule.h"
 
 #if WITH_EDITOR
 #include "EditorFramework/AssetImportData.h"

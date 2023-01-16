@@ -7,9 +7,7 @@
 #include "DMXPixelMappingThumbnailRendering.h"
 #include "AssetsTools/AssetTypeActions_DMXPixelMapping.h"
 
-#include "AssetToolsModule.h"
 #include "Misc/CoreDelegates.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingEditorModule"
 

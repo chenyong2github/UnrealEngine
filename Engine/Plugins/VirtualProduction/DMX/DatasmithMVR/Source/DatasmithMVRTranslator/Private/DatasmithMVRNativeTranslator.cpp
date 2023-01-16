@@ -4,16 +4,14 @@
 
 #include "DatasmithMVRImportOptions.h"
 #include "Factories/DMXLibraryFromMVRFactory.h"
-#include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/DMXMVRGeneralSceneDescription.h"
 #include "MVR/Types/DMXMVRFixtureNode.h"
 
-#include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "DatasmithNativeTranslator.h"
 #include "DatasmithSceneFactory.h"
-#include "IDatasmithSceneElements.h"
-#include "Subsystems/ImportSubsystem.h"
+#include "Misc/Paths.h"
+#include "UObject/Package.h"
 
 
 DECLARE_LOG_CATEGORY_CLASS(LogDatasmithMVRNativeTranslator, Log, All);

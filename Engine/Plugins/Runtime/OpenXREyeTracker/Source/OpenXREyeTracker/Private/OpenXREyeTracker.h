@@ -2,13 +2,13 @@
 
 #pragma once
 #include "IOpenXREyeTrackerModule.h"
-#include "EyeTrackerTypes.h"
 #include "IEyeTracker.h"
-#include "Containers/Ticker.h"
 #include "IOpenXRExtensionPlugin.h"
-#include "GameFramework/HUD.h"
 
-#include "OpenXRCore.h"
+
+class AHUD;
+class FDebugDisplayInfo;
+class UCanvas;
 
 class FOpenXREyeTracker : public IEyeTracker, public IOpenXRExtensionPlugin
 {

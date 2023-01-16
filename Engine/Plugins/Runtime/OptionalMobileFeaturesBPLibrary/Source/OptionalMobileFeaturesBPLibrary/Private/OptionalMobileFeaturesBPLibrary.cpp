@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptionalMobileFeaturesBPLibrary.h"
-#include "HAL/PlatformMisc.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogOptionalMobileBPLib, Display, All);
 

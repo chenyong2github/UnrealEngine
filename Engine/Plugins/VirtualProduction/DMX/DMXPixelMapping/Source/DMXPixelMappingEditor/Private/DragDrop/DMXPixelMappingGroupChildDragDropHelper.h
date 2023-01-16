@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Components/DMXPixelMappingFixtureGroupComponent.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+#include "Math/Vector2D.h"
+#include "UObject/WeakObjectPtr.h"
+
+class UDMXPixelMappingFixtureGroupComponent;
+class UDMXPixelMappingOutputComponent;
 
 class FDMXPixelMappingDragDropOp;
 

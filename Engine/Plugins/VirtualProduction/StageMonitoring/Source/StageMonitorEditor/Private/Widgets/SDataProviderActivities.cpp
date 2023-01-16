@@ -2,18 +2,18 @@
 
 #include "SDataProviderActivities.h"
 
+#include "DetailsViewArgs.h"
 #include "IDetailsView.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "IStructureDetailsView.h"
 #include "IStageMonitorSession.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "Misc/Timecode.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "SDataProviderActivityFilter.h"
-#include "StageMessages.h"
 #include "StageMonitorEditorStyle.h"
 #include "Templates/Greater.h"
-#include "Widgets/Text/STextBlock.h"
+#include "UObject/StructOnScope.h"
+#include "Widgets/Views/SListView.h"
 
 
 static TAutoConsoleVariable<int32> CVarStageMonitorMinFramesBetweenRefresh(TEXT("StageMonitor.MinFramesBetweenRefresh"), 15, TEXT("The minimum number of frames between a UI refresh."));

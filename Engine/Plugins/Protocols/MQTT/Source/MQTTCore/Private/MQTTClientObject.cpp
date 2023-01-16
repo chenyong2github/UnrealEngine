@@ -2,8 +2,9 @@
 
 #include "MQTTClientObject.h"
 
+#include "IMQTTClient.h"
 #include "IMQTTCoreModule.h"
-#include "MQTTClient.h"
+#include "MQTTClientMessage.h"
 #include "MQTTCoreLog.h"
 
 //~ Begin UMQTTSubscriptionObject

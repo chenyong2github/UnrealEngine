@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 
 class IConcertSyncServer;
 class SDockTab;

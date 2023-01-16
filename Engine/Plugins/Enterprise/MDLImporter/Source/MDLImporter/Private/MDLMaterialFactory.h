@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Containers/Map.h"
 #include "UObject/ObjectMacros.h"
 
 class UMaterialInterface;

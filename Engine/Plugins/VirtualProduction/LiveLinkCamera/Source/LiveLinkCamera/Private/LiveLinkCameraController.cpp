@@ -2,15 +2,12 @@
 
 #include "LiveLinkCameraController.h"
 
-#include "Camera/CameraComponent.h"
-#include "CameraCalibrationSubsystem.h"
+#include "Camera/CameraTypes.h"
 #include "CineCameraComponent.h"
-#include "Controllers/LiveLinkTransformController.h"
 #include "GameFramework/Actor.h"
 #include "LensComponent.h"
-#include "LensFile.h"
+#include "LiveLinkComponentController.h"
 #include "LiveLinkLog.h"
-#include "Logging/LogMacros.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "UObject/EnterpriseObjectVersion.h"

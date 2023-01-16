@@ -3,8 +3,6 @@
 #include "SelectionSystem/DataprepSelectionTransform.h"
 
 #include "DataprepCoreLogCategory.h"
-#include "IDataprepLogger.h"
-#include "IDataprepProgressReporter.h"
 
 #define LOCTEXT_NAMESPACE "DataprepSelectionTransform"
 

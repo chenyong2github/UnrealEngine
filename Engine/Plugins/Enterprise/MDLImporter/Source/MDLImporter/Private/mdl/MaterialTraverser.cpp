@@ -12,6 +12,10 @@ MDLSDK_INCLUDES_START
 #include "mi/neuraylib/icompiled_material.h"
 #include "mi/neuraylib/iexpression.h"
 #include "mi/neuraylib/ivalue.h"
+#include <mi/base/handle.h>
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
 MDLSDK_INCLUDES_END
 
 namespace Mdl

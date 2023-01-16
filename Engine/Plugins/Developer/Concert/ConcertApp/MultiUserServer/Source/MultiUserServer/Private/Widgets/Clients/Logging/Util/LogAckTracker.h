@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertMessageContext.h"
-#include "Widgets/Clients/Logging/ConcertLogEntry.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+
+class IConcertMessage;
+struct FConcertEndpointContext;
+struct FConcertMessageContext;
 
 class FStructOnScope;
 class IConcertLogSource;

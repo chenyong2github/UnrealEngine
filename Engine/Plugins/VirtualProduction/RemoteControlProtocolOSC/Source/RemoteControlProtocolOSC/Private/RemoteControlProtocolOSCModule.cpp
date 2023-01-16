@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
 
 #include "IRemoteControlProtocolModule.h"
 #include "RemoteControlProtocolOSC.h"

@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DMXPixelMappingEditorCommon.h"
 #include "DMXPixelMappingComponentReference.h"
 
-#include "Types/SlateEnums.h"
-#include "Delegates/Delegate.h"
-#include "Types/SlateEnums.h"
+
+namespace ETextCommit { enum Type : int; }
 
 class FDMXPixelMappingHierarchyItemWidgetModel
 	: public TSharedFromThis<FDMXPixelMappingHierarchyItemWidgetModel>

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIOperationViewModel.h"
 
@@ -6,9 +6,7 @@
 #include "WebAPIOperationRequestViewModel.h"
 #include "WebAPIOperationResponseViewModel.h"
 #include "WebAPIServiceViewModel.h"
-#include "WebAPIViewModel.inl"
 #include "Dom/WebAPIOperation.h"
-#include "Misc/StringFormatter.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIOperationViewModel"
 

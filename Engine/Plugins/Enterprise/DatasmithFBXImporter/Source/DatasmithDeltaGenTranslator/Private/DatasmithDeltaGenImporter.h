@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "DatasmithDeltaGenImportData.h"
-#include "DatasmithDeltaGenLog.h"
 #include "DatasmithFBXImporter.h"
-#include "Logging/LogMacros.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/StrongObjectPtr.h"
+
+struct FDeltaGenPosDataState;
+struct FDeltaGenTmlDataTimeline;
+struct FDeltaGenVarDataVariantSwitch;
 
 class IDatasmithActorElement;
 class IDatasmithBaseMaterialElement;

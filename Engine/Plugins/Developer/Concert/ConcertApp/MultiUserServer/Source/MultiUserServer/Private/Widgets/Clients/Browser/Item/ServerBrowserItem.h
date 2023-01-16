@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IConcertBrowserItem.h"
-#include "IMessageContext.h"
+
+namespace UE::MultiUserServer { class IClientNetworkStatisticsModel; }
 
 class IConcertServer;
 

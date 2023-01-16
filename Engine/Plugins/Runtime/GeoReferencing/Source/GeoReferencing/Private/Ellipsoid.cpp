@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Ellipsoid.h"
+#include "GeographicCoordinates.h"
 #include "MathUtil.h"
 
 

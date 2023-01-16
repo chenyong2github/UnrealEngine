@@ -4,10 +4,10 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
-#include "DMXPixelMappingComponentReference.h"
 
 #include "EditorUndoClient.h"
-#include "Templates/SharedPointer.h"
+
+class UDMXPixelMapping;
 
 class FDMXPixelMappingComponentReference;
 class FDMXPixelMappingDragDropOp;

@@ -1,14 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SWebAPIModulePicker.h"
 
 #include "Editor.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "GameProjectUtils.h"
-#include "IDocumentation.h"
+#include "ModuleDescriptor.h"
 #include "WebAPIEditorSubsystem.h"
 #include "Misc/App.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIModulePicker"
 

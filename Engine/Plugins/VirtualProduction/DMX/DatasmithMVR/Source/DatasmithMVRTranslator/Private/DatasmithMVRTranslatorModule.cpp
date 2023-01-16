@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithMVRTranslatorModule.h"
-
+#include "DatasmithMVRImportOptions.h" // IWYU pragma: keep
 #include "DatasmithMVRNativeTranslator.h"
 
 

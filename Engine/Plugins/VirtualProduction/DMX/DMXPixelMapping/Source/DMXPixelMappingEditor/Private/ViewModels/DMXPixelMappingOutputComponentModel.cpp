@@ -2,15 +2,15 @@
 
 #include "ViewModels/DMXPixelMappingOutputComponentModel.h"
 
-#include "DMXPixelMappingComponentReference.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "DMXPixelMappingTypes.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/DMXMVRGeneralSceneDescription.h"
 #include "MVR/Types/DMXMVRFixtureNode.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 

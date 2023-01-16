@@ -2,7 +2,8 @@
 
 #include "DistanceCurveModifier.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimationPoseData.h"
+#include "AnimationBlueprintLibrary.h"
+#include "EngineLogs.h"
 
 // TODO: This logic works decently for simple clips but it should be reworked to be more robust:
 //  * It could detect pivot points by change in direction.

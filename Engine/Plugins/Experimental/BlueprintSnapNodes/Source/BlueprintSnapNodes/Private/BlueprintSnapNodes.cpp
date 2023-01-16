@@ -3,6 +3,7 @@
 #include "BlueprintSnapNodes.h"
 #include "EdGraphUtilities.h"
 #include "K2Node_SnapContainer.h"
+#include "Modules/ModuleManager.h"
 #include "SGraphNodeSnapContainer.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintSnapNodesModule"

@@ -3,7 +3,6 @@
 
 #include "IPropertyTypeCustomization.h"
 
-#include "CoreMinimal.h"
 
 class SDMXPortSelector;
 

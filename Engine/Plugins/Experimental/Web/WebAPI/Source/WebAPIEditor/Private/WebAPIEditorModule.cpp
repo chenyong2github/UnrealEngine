@@ -2,9 +2,11 @@
 
 #include "WebAPIEditorModule.h"
 
+#include "CodeGen/WebAPICodeGenerator.h"
 #include "IPluginBrowser.h"
 #include "PropertyEditorModule.h"
 #include "ToolMenus.h"
+#include "WebAPIDefinition.h"
 #include "WebAPIEditorCommands.h"
 #include "WebAPIEditorLog.h"
 #include "WebAPIEditorSettings.h"
@@ -14,6 +16,7 @@
 #include "Details/WebAPIDefinitionDetailsCustomization.h"
 #include "Details/WebAPIDefinitionTargetModuleCustomization.h"
 #include "Dom/WebAPITypeRegistry.h"
+#include "WebAPIProvider.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIEditor"
 

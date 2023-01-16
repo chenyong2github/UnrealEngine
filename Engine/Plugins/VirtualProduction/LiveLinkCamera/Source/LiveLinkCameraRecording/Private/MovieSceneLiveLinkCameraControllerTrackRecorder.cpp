@@ -2,7 +2,6 @@
 
 #include "MovieSceneLiveLinkCameraControllerTrackRecorder.h"
 
-#include "LiveLinkComponentController.h"
 #include "LiveLinkCameraController.h"
 #include "MovieSceneLiveLinkCameraControllerTrack.h"
 

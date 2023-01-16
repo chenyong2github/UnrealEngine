@@ -1,25 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataprepEditor.h"
 #include "DataprepEditorMenu.h"
 
-#include "ISceneOutliner.h"
 #include "ISceneOutlinerColumn.h"
 #include "SceneOutlinerModule.h"
 #include "DataprepEditorOutlinerMode.h"
-#include "ActorTreeItem.h"
-#include "ComponentTreeItem.h"
+#include "ToolMenuContext.h"
 #include "WorldTreeItem.h"
 #include "FolderTreeItem.h"
 
-#include "Modules/ModuleManager.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 #include "Widgets/SDataprepEditorViewport.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "DataprepEditor"
 

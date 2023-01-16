@@ -2,14 +2,12 @@
 
 #include "ReplayTracksEditorModule.h"
 #include "Camera/CameraComponent.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "ISequencerModule.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCommonHelpers.h"
 #include "TrackEditors/ReplayTrackEditor.h"
-#include "UObject/Class.h"
-#include "UObject/GCObject.h"
 
 #define LOCTEXT_NAMESPACE "ReplayTracksEditorModule"
 

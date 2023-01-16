@@ -6,14 +6,8 @@
 #include "DataprepAssetUserData.h"
 #include "DataprepCoreUtils.h"
 
-#include "EditorLevelUtils.h"
-#include "Engine/Level.h"
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
-#include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
-#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "DataprepContentConsumer"
 

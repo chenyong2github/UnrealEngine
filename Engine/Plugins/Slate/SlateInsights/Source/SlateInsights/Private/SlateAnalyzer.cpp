@@ -2,12 +2,8 @@
 
 #include "SlateAnalyzer.h"
 
-#include "FastUpdate/WidgetUpdateFlags.h"
-#include "Framework/Application/SlateApplication.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "SlateProvider.h"
-#include "Trace/Analyzer.h"
-#include "TraceServices/Model/AnalysisSession.h"
 
 namespace UE
 {

@@ -3,34 +3,29 @@
 #include "DatasmithVREDImporter.h"
 
 #include "Async/AsyncWork.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "DatasmithAnimationElements.h"
 #include "DatasmithFBXFileImporter.h"
-#include "DatasmithFBXImportOptions.h"
-#include "DatasmithFBXScene.h"
+#include "DatasmithTypes.h"
 #include "DatasmithVREDClipProcessor.h"
 #include "DatasmithVREDImportData.h"
 #include "DatasmithVREDImporterAuxFiles.h"
 #include "DatasmithVREDImportOptions.h"
 #include "DatasmithVREDLog.h"
 #include "DatasmithVREDSceneProcessor.h"
-#include "DatasmithVREDTranslatorModule.h"
 #include "DatasmithVREDVariantConverter.h"
 
-#include "DatasmithDefinitions.h" // For EDatasmithTextureAddress::Wrap
-#include "DatasmithScene.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
-#include "IDatasmithSceneElements.h"
 #include "DatasmithVariantElements.h"
 
-#include "Curves/CurveFloat.h"
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFileManager.h"
-#include "LevelSequence.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
-#include "Serialization/Archive.h"
+#include <core/fbxproperty.h>
+#include <scene/fbxdocumentinfo.h>
+#include <scene/fbxscene.h>
+#include <utils/fbxrenamingstrategyutilities.h>
 
 DEFINE_LOG_CATEGORY(LogDatasmithVREDImport);
 

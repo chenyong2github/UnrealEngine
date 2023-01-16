@@ -1,7 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Amf_Common.h"
-#include "RHI.h"
+#include "CoreGlobals.h"
+#include "HAL/PlatformProcess.h"
+#include "Misc/ScopeLock.h"
+#include "RHIDefinitions.h"
+#include "Trace/Trace.inl"
+#include <components/VideoEncoderVCE.h>
+#include <core/Factory.h>
+#include <core/Result.h>
+#include <core/Version.h>
+#include <vulkan_core.h>
 
 DEFINE_LOG_CATEGORY(LogEncoderAMF);
 

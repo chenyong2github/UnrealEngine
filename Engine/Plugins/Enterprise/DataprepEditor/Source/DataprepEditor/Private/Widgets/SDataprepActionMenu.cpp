@@ -2,22 +2,16 @@
 
 #include "Widgets/SDataprepActionMenu.h"
 
-#include "BlueprintNodes/K2Node_DataprepAction.h"
-#include "DataprepActionAsset.h"
 #include "DataprepAsset.h"
 #include "DataprepGraph/DataprepGraph.h"
 #include "SGraphActionMenu.h"
-#include "SchemaActions/DataprepSchemaAction.h"
-#include "SchemaActions/DataprepSchemaActionUtils.h"
 #include "SchemaActions/IDataprepMenuActionCollector.h"
 
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphPin.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Layout/SBox.h"
 
 void SDataprepActionMenu::Construct(const FArguments& InArgs, TUniquePtr<IDataprepMenuActionCollector> InMenuActionCollector)
 {

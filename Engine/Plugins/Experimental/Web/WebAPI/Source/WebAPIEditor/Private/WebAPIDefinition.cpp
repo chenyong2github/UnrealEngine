@@ -3,10 +3,9 @@
 #include "WebAPIDefinition.h"
 
 #include "GameProjectUtils.h"
+#include "ModuleDescriptor.h"
 #include "ScopedTransaction.h"
 #include "WebAPIEditorLog.h"
-#include "WebAPIMessageLog.h"
-#include "CodeGen/WebAPICodeGeneratorSettings.h"
 #include "Dom/WebAPISchema.h"
 #include "Dom/WebAPITypeRegistry.h"
 #include "Misc/Paths.h"

@@ -4,14 +4,13 @@
 
 #include "ILiveLinkClient.h"
 
-#include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
+#include "MasterLockitMessageThread.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkCameraTypes.h"
 
 #include "Sockets.h"
-#include "SocketSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkMasterLockitSource"
 

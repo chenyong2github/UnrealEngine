@@ -3,17 +3,13 @@
 #include "StageDataProviderModule.h"
 
 #include "Engine/Engine.h"
-#include "Features/IModularFeatures.h"
 #include "FramePerformanceProvider.h"
 #include "GenlockWatchdog.h"
-#include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "StageDataProvider.h"
-#include "StageMonitoringSettings.h"
 #include "TakeRecorderStateProvider.h"
 #include "TimecodeProviderWatchdog.h"
 #include "VPRolesSubsystem.h"
-#include "VPSettings.h"
 
 
 const FName IStageDataProviderModule::ModuleName = TEXT("StageDataProvider");

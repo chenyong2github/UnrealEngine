@@ -1,20 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FacialAnimationEditorModule.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SFacialAnimationBulkImporter.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Modules/ModuleManager.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "FacialAnimationBulkImporterSettings.h"
 #include "IPersonaPreviewScene.h"
 #include "PersonaModule.h"
-#include "Animation/CurveSourceInterface.h"
 #include "AudioCurveSourceComponent.h"
 #include "WorkspaceMenuStructure.h"
-#include "Styling/AppStyle.h"
 #include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "FacialAnimationEditor"

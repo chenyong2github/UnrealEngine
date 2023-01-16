@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "DMXPixelMappingRuntimeCommon.h"
 
-#include "Layout/ArrangedWidget.h"
+#include "Templates/SharedPointer.h"
+
+class FArrangedWidget;
+class UDMXPixelMappingRendererComponent;
 
 class FDMXPixelMappingToolkit;
 class UDMXPixelMappingBaseComponent;

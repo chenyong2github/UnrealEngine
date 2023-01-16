@@ -3,17 +3,12 @@
 
 #include "BinkFunctionLibrary.h"
 
-#include "BinkMediaPlayerPrivate.h"
+#include "BinkMovieStreamer.h"
 #include "Engine/GameViewportClient.h"
-#include "Misc/Paths.h"
-#include "Rendering/RenderingCommon.h"
+#include "Engine/Engine.h"
 #include "RenderingThread.h"
-#include "OneColorShader.h"
 
-#include "Slate/SlateTextures.h"
-#include "Slate/SceneViewport.h"
 
-#include "binkplugin.h"
 
 extern TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 

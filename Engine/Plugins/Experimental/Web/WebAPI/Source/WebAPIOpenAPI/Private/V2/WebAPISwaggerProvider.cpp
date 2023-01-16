@@ -1,14 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "V2/WebAPISwaggerProvider.h"
 
-#include "IWebAPIEditorModule.h"
+#include "Dom/WebAPITypeRegistry.h"
 #include "WebAPIDefinition.h"
-#include "WebAPIMessageLog.h"
 #include "WebAPIOpenAPILog.h"
 #include "WebAPISwaggerFactory.h"
 #include "Dom/WebAPISchema.h"
-#include "Internationalization/BreakIterator.h"
 #include "Serialization/JsonSerializer.h"
 #include "V2/WebAPISwaggerConverter.h"
 #include "V2/WebAPISwaggerSchema.h"

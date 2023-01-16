@@ -4,6 +4,9 @@
 
 #include "HairStrandsTranslator.h"
 
+struct FGroomAnimationInfo;
+struct FGroomConversionSettings;
+
 class FAlembicHairTranslator : public IGroomTranslator
 {
 public:

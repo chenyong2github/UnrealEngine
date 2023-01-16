@@ -6,9 +6,9 @@
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepOperation.h"
+#include "Layout/WidgetPath.h"
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
-#include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
@@ -18,7 +18,6 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Templates/SubclassOf.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"

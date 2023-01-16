@@ -1,9 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "IMQTTClient.h"
-#include "MQTTConnection.h"
+
+class FMQTTConnection;
+enum class EMQTTConnectReturnCode : uint8;
+struct FMQTTPublishPacket;
 
 class FMQTTClient final
 	: public IMQTTClient

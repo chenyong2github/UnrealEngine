@@ -2,20 +2,15 @@
 
 #include "TrackInstances/MovieSceneCinePrestreamingTrackInstance.h"
 
-#include "Algo/Sort.h"
-#include "CinePrestreamingData.h"
 #include "CinePrestreamingLog.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "EngineModule.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
-#include "IMovieScenePlayer.h"
 #include "MovieScene.h"
-#include "MovieSceneTimeHelpers.h"
 #include "RendererInterface.h"
+#include "RenderingThread.h"
 #include "Sections/MovieSceneCinePrestreamingSection.h"
-#include "Tracks/MovieSceneCinePrestreamingTrack.h"
 
 DECLARE_CYCLE_STAT(TEXT("Cinematic PrestreamingTrack Animate"), MovieSceneEval_CinePrestreamingTrack_Animate, STATGROUP_MovieSceneEval);
 

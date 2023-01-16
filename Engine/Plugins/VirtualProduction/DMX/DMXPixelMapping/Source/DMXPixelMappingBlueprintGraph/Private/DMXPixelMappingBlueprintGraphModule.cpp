@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-#include "CoreMinimal.h"
 
 #include "DMXPixelMappingPinFactory.h"
 

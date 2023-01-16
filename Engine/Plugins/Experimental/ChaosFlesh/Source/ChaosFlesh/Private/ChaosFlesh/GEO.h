@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "Containers/UnrealString.h"
 
 #include <string>
 

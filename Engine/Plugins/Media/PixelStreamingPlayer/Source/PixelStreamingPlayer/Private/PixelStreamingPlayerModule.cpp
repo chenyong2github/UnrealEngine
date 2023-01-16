@@ -3,7 +3,7 @@
 #include "PixelStreamingPlayerPrivate.h"
 #include "Modules/ModuleManager.h"
 #include "WebSocketsModule.h"
-#include "WebRTCIncludes.h"
+#include <rtc_base/ssl_adapter.h>
 
 DEFINE_LOG_CATEGORY(LogPixelStreamingPlayer);
 

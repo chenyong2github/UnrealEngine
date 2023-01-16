@@ -3,12 +3,8 @@
 #include "SteamSocketsModule.h"
 #include "SteamSocketsSubsystem.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
-#include "OnlineSubsystemNames.h"
-#include "OnlineSubsystem.h"
 #include "OnlineSubsystemSteam.h"
 #include "SteamSharedModule.h"
-#include "SteamSocketsTypes.h"
 #include "SocketSubsystemModule.h"
 
 IMPLEMENT_MODULE(FSteamSocketsModule, SteamSockets);

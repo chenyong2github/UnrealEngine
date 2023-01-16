@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "Runtime/Launch/Resources/Version.h"
-#include "PixelFormat.h"
 #include "BinkMoviePlayerSettings.generated.h"
+
+enum EPixelFormat : uint8;
 
 /**
  * Enumerates available bink buffering modes.

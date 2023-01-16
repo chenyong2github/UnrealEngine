@@ -3,7 +3,6 @@
 #include "DataprepOperation.h"
 
 #include "DataprepCoreLogCategory.h"
-#include "Engine/Texture2D.h"
 #include "IDataprepLogger.h"
 #include "IDataprepProgressReporter.h"
 

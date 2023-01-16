@@ -4,25 +4,18 @@
 
 #include "DatasmithRuntimeAuxiliaryData.h"
 
-#include "DatasmithMeshUObject.h"
 #include "DatasmithPayload.h"
 #include "IDatasmithSceneElements.h"
+#include "StaticMeshResources.h"
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "Algo/AnyOf.h"
 #include "Async/Async.h"
 #include "Engine/Polys.h"
-#include "HAL/FileManager.h"
-#include "Math/Plane.h"
-#include "MeshDescription.h"
 #include "MeshUtilitiesCommon.h"
-#include "Model.h"
 #include "OverlappingCorners.h"
-#include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "PhysicsPublicCore.h"
-#include "PhysXCookHelper.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 

@@ -1,14 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
 #include "UObject/WeakFieldPtr.h"
+
+template <typename T> class TSubclassOf;
 
 class UWebAPIOperationObject;
 

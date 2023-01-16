@@ -2,7 +2,8 @@
 
 #include "Dataflow/ChaosFleshRenderInitializationNodes.h"
 
-#include "GeometryCollection/ManagedArrayCollection.h"
+#include "Dataflow/DataflowInputOutput.h"
+#include "Dataflow/DataflowNodeFactory.h"
 
 
 

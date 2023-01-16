@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightWeightInstancesEditor.h"
+#include "Modules/ModuleManager.h"
 #if WITH_EDITOR
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditor.h"
-#include "ToolMenus.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Framework/Commands/UICommandList.h"
-#include "GameFramework/Actor.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #endif
 #include "GameFramework/LightWeightInstanceManager.h"

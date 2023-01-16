@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+
+template <typename OptionalType> struct TOptional;
 
 class IConcertSyncServer;
 class IConcertServerSession;

@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertLogEntry.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+struct FConcertLogEntry;
 
 
 namespace UE::MultiUserServer

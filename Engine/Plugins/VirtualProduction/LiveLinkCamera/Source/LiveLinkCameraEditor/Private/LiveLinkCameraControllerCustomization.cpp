@@ -2,19 +2,6 @@
 
 #include "LiveLinkCameraControllerCustomization.h"
 
-#include "DetailCategoryBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
-#include "LiveLinkCameraController.h"
-#include "LiveLinkComponentController.h"
-#include "Modules/ModuleManager.h"
-#include "Roles/LiveLinkCameraRole.h"
-#include "Styling/AppStyle.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "FFileMediaSourceCustomization"

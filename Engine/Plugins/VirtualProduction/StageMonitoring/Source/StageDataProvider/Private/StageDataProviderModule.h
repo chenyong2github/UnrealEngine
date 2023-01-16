@@ -4,8 +4,6 @@
 
 #include "IStageDataProviderModule.h"
 
-#include "Logging/LogMacros.h"
-#include "Templates/UniquePtr.h"
 
 class FAutoConsoleCommand;
 class FFramePerformanceProvider;

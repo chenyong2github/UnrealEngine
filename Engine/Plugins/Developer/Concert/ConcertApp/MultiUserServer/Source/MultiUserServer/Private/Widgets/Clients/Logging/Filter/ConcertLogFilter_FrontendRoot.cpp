@@ -6,9 +6,10 @@
 #include "ConcertFrontendLogFilter_Client.h"
 #include "ConcertFrontendLogFilter_MessageAction.h"
 #include "ConcertFrontendLogFilter_MessageType.h"
-#include "ConcertFrontendLogFilter_TextSearch.h"
 #include "ConcertFrontendLogFilter_Time.h"
 #include "ConcertFrontendLogFilter_Size.h"
+#include "Widgets/Clients/Logging/Filter/ConcertFrontendLogFilter_BaseSetSelection.h"
+#include "Widgets/Clients/Logging/Filter/ConcertFrontendLogFilter_TextSearch.h"
 
 
 namespace UE::MultiUserServer

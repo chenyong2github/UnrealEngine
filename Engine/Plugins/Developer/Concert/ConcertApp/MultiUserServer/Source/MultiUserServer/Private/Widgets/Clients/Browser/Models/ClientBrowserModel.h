@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IClientBrowserModel.h"
+#include "Misc/Guid.h"
+
+enum class EConcertClientStatus : uint8;
+struct FConcertSessionClientInfo;
 
 enum class EConcertRemoteEndpointConnection : uint8;
 struct FConcertEndpointContext;

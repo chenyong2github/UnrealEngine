@@ -1,13 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
-#include "WebAPIDefinition.h"
-#include "Framework/Docking/TabManager.h"
-#include "Templates/SharedPointer.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "UObject/StrongObjectPtr.h"
+
+class FSpawnTabArgs;
+class UWebAPIDefinition;
 
 class FWebAPIDefinitionAssetEditorToolkit
 	: public FAssetEditorToolkit

@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXPixelMappingPinFactory.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/SDMXPixelMappingComponentPin.h"
-#include "DMXPixelMapping.h"
 #include "K2Node_PixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingFixtureGroupComponent.h"
-#include "Components/DMXPixelMappingMatrixComponent.h"
 
 #include "EdGraphSchema_K2.h"
 

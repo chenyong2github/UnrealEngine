@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FileLogging.h"
-#include "AnalyticsEventAttribute.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "FileLoggingProvider.h"

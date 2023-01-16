@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
+
+class UFunction;
 
 class UBlueprint;
 class UEdGraph;

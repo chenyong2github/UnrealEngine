@@ -6,9 +6,11 @@
 
 #include "Library/DMXEntityFixtureType.h"
 
-#include "Types/SlateEnums.h"
 
 #include "DMXPixelMappingLayoutScript_GridLayout.generated.h"
+
+enum EHorizontalAlignment : int;
+enum EVerticalAlignment : int;
 
 
 /** Arranges the components in a grid */

@@ -1,9 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Dom/WebAPISchema.h"
 #include "Details/ViewModels/WebAPIViewModel.h"
 
 class UWebAPIService;

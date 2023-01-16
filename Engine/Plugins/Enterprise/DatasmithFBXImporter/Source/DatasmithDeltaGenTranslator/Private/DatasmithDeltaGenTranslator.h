@@ -3,9 +3,9 @@
 #pragma once
 
 #include "DatasmithTranslator.h"
-#include "DatasmithDeltaGenImporter.h"
-#include "DatasmithDeltaGenImportOptions.h"
-#include "CoreMinimal.h"
+
+class FDatasmithSceneSource;
+class UDatasmithDeltaGenImportOptions;
 
 class FDatasmithDeltaGenTranslator : public IDatasmithTranslator
 {

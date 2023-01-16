@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SQLiteDatabaseConnection.h"
+#include "SQLiteResultSet.h"
 
 bool FSQLiteDatabaseConnection::Execute(const TCHAR* CommandString, FSQLiteResultSet*& RecordSet)
 {

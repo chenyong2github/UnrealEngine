@@ -2,22 +2,16 @@
 
 #include "Online/AuthEOS.h"
 
+#include "EOSShared.h"
 #include "Online/OnlineIdEOS.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineServicesEOS.h"
-#include "Online/OnlineServicesEOSTypes.h"
 #include "Algo/Transform.h"
 #include "Online/AuthErrors.h"
-#include "Online/OnlineAsyncOp.h"
-#include "Online/OnlineErrorDefinitions.h"
-#include "Misc/CommandLine.h"
 
+#include "Online/OnlineUtils.h"
 #include "eos_auth.h"
-#include "eos_common.h"
 #include "eos_connect.h"
-#include "eos_types.h"
-#include "eos_init.h"
-#include "eos_sdk.h"
-#include "eos_logging.h"
 #include "eos_userinfo.h"
 
 namespace UE::Online {

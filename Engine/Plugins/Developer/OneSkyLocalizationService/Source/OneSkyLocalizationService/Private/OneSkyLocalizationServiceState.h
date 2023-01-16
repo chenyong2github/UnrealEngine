@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILocalizationServiceState.h"
-#include "ILocalizationServiceRevision.h"
+#include "Misc/DateTime.h"
 
 class FOneSkyLocalizationServiceRevision;
 

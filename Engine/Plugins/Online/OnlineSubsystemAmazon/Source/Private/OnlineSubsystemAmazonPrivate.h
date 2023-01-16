@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystem.h"
 
 /** pre-pended to all Amazon logging */

@@ -2,14 +2,12 @@
 
 #include "AssetRegistryExportCommandlet.h"
 
-#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryState.h"
-#include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/ArrayReader.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
 #include "SQLiteDatabase.h"
+#include "SQLitePreparedStatement.h"
 
 DEFINE_LOG_CATEGORY(LogAssetRegistryExport);
 

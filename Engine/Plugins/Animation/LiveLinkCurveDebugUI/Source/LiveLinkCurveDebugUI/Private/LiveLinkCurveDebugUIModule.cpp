@@ -5,17 +5,8 @@
 #include "LiveLinkCurveDebugPrivate.h"
 
 //Tab Manager Support
-#include "Framework/Docking/TabManager.h"
-#include "Framework/Docking/TabManager.h"
 
 //General Slate Widget Support
-#include "Textures/SlateIcon.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SWidget.h"
-#include "Styling/CoreStyle.h"
 
 //Actual Debugger Widgets
 #include "SLiveLinkCurveDebugUI.h"
@@ -25,9 +16,7 @@
 #include "LiveLinkDebuggerSettings.h"
 
 //Engine imports
-#include "Engine/GameEngine.h"
 #include "Engine/GameViewportClient.h"
-#include "Engine/World.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
@@ -36,6 +25,9 @@
 //Needed to register with Developer Tools Windows Menu
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#else
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FLiveLinkCurveDebugUIModule"

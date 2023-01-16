@@ -2,8 +2,6 @@
 
 #include "ActorSequenceObjectReference.h"
 #include "Engine/SCS_Node.h"
-#include "Engine/SimpleConstructionScript.h"
-#include "Engine/Blueprint.h"
 #include "UObject/Package.h"
 
 FActorSequenceObjectReference FActorSequenceObjectReference::CreateForComponent(UActorComponent* InComponent)

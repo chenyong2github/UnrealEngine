@@ -4,14 +4,12 @@
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/StaticMeshActor.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "IMrcFocalDriver.h"
 #include "Materials/Material.h"
 #include "MrcCalibrationData.h"
 #include "MrcFrameworkSettings.h"
-#include "MrcUtilLibrary.h"
 #include "UObject/ConstructorHelpers.h"
 
 /* UMrcGarbageMatteCaptureComponent

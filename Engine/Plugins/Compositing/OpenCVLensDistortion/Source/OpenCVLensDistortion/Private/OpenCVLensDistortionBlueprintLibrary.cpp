@@ -2,8 +2,6 @@
 
 #include "OpenCVLensDistortionBlueprintLibrary.h"
 
-#include "Engine/Texture2D.h"
-#include "Engine/TextureRenderTarget2D.h"
 
 UOpenCVLensDistortionBlueprintLibrary::UOpenCVLensDistortionBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

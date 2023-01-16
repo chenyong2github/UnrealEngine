@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosFlesh/TetrahedralCollection.h"
 
-#include "Chaos/ChaosArchive.h"
-#include "Containers/Set.h"
 
 DEFINE_LOG_CATEGORY_STATIC(FTetrahedralCollectionLogging, Log, All);
 

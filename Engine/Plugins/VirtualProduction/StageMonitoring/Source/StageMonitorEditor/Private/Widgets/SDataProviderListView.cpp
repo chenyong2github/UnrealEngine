@@ -3,11 +3,11 @@
 #include "SDataProviderListView.h"
 
 #include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
 #include "IStageMonitorSession.h"
 #include "Misc/App.h"
 #include "StageMonitorUtils.h"
 #include "StageMonitorEditorSettings.h"
+#include "UObject/StructOnScope.h"
 
 #define LOCTEXT_NAMESPACE "SDataProviderListView"
 

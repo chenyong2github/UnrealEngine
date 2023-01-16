@@ -2,20 +2,17 @@
 
 #include "MaterialImportUtils.h"
 
-#include "LogCategory.h"
 
 #include "DatasmithMaterialElements.h"
+#include "Engine/Texture.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterial.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
-#include "Engine/Texture2D.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-#include "HAL/FileManager.h"
-#include "Serialization/Archive.h"
+#include "SceneImporter.h"
 
 namespace DatasmithRuntime
 {

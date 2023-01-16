@@ -1,17 +1,19 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
+#include "WebAPIDefinition.h"
 
 #if WITH_EDITOR
 
-#include "WebAPIEditorSettings.h"
+#include "Dom/WebAPIEnum.h"
 #include "Dom/WebAPIParameter.h"
+#include "Dom/WebAPIOperation.h"
 #include "Misc/AutomationTest.h"
+#include "Dom/WebAPIService.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 #include "V3/WebAPIOpenAPIConverter.h"
-#include "V3/WebAPIOpenAPISchema.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

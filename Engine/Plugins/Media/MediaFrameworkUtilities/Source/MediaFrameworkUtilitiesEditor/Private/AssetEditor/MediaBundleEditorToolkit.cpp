@@ -2,19 +2,20 @@
 
 #include "AssetEditor/MediaBundleEditorToolkit.h"
 
+#include "DetailsViewArgs.h"
 #include "MediaBundle.h"
 
-#include "Editor.h"
+#include "Factories/Factory.h"
 #include "IDetailsView.h"
-#include "Modules/ModuleManager.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IMaterialEditor.h"
 #include "MaterialEditorModule.h"
 #include "Materials/MaterialInstance.h"
 #include "PropertyEditorModule.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
+#include "Toolkits/IToolkitHost.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Subsystems/AssetEditorSubsystem.h"
  
 
 #define LOCTEXT_NAMESPACE "MediaBundleEditor"

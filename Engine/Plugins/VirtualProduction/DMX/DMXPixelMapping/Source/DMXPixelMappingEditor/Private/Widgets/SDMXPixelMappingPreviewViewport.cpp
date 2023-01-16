@@ -9,7 +9,6 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Slate/SceneViewport.h"
 #include "Widgets/SViewport.h"
 #include "Widgets/Layout/SBox.h"
 

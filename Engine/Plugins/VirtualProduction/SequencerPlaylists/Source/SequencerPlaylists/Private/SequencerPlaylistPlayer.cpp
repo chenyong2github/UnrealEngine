@@ -2,10 +2,7 @@
 
 #include "SequencerPlaylistPlayer.h"
 #include "ISequencer.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "MovieSceneFwd.h"
 #include "SequencerPlaylist.h"
-#include "SequencerPlaylistItem.h"
 #include "SequencerPlaylistsLog.h"
 #include "SequencerPlaylistsModule.h"
 

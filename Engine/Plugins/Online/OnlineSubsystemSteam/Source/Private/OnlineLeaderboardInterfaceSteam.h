@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "OnlineSubsystemPackage.h"
 #include "OnlineSubsystemSteamTypes.h"
-#include "OnlineStats.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
-#include "OnlineSubsystemSteamPackage.h"
 
 class FOnlineSubsystemSteam;
 

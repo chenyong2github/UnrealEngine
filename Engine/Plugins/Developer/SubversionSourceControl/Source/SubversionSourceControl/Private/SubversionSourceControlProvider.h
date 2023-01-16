@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ISourceControlState.h"
-#include "SubversionSourceControlState.h"
-#include "ISourceControlOperation.h"
 #include "ISourceControlProvider.h"
 #include "ISubversionSourceControlWorker.h"
+
+class FSubversionSourceControlState;
 
 class FSubversionSourceControlCommand;
 

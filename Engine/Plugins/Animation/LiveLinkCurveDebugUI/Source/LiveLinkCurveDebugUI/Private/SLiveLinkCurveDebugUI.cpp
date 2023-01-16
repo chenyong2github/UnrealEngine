@@ -2,18 +2,19 @@
 
 
 #include "SLiveLinkCurveDebugUI.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "LiveLinkCurveDebugPrivate.h"
 
 #include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkDebugCurveNodeBase.h"
 #include "Roles/LiveLinkBasicRole.h"
-#include "Roles/LiveLinkBasicTypes.h"
 #include "SLiveLinkCurveDebugUIListItem.h"
 #include "Framework/Application/SlateApplication.h"
 
 #include "Widgets/Layout/SDPIScaler.h"
 #include "Widgets/Layout/SSafeZone.h"
-#include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SLiveLinkCurveDebugUI"

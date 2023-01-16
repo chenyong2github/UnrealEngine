@@ -2,6 +2,7 @@
 
 #pragma once
 
-#include "WebMAudioBackend.h"
+
+class FWebMAudioBackendSDL;
 
 using FWebMAudioBackend = FWebMAudioBackendSDL;

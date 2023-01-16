@@ -1,13 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SteamNetConnection.h"
-#include "OnlineSubsystemNames.h"
-#include "OnlineSubsystem.h"
-#include "SocketSubsystem.h"
-#include "OnlineSubsystemSteamPrivate.h"
-#include "IPAddressSteam.h"
 #include "SocketSubsystemSteam.h"
-#include "SocketsSteam.h"
 #include "SteamNetDriver.h"
 
 USteamNetConnection::USteamNetConnection(const FObjectInitializer& ObjectInitializer) :

@@ -5,7 +5,6 @@
 #include "Engine/AssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
 
-#include <atomic>
 
 #include "DatasmithRuntimeAuxiliaryData.generated.h"
 

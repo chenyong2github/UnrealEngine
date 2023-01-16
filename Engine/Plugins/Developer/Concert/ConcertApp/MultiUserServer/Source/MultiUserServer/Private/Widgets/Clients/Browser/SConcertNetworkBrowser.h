@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Item/ServerBrowserItem.h"
-#include "Misc/TextFilter.h"
 #include "Models/IClientBrowserModel.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class IConcertServer;
+namespace UE::MultiUserServer { class IConcertBrowserItem; }
+template <typename ItemType> class TTextFilter;
 
 class FMenuBuilder;
 class STableViewBase;

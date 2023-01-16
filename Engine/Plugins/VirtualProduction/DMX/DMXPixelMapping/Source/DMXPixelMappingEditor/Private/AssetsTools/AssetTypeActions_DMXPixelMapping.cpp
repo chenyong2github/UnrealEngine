@@ -6,7 +6,6 @@
 #include "DMXPixelMappingEditorModule.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
-#include "Toolkits/IToolkitHost.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_DMXPixelMapping"
 

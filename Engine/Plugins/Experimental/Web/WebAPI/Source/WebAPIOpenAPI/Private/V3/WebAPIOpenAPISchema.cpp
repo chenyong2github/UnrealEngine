@@ -1,9 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "V3/WebAPIOpenAPISchema.h"
 
-#include "WebAPIJsonUtilities.h"
-#include "Dom/JsonObject.h"
 
 namespace UE::WebAPI::OpenAPI::V3
 {

@@ -2,6 +2,7 @@
 
 #include "Channels/RemoteSessionImageChannel.h"
 #include "BackChannel/IBackChannelConnection.h"
+#include "RHITypes.h"
 #include "RemoteSession.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
 #include "Channels/RemoteSessionChannel.h"
@@ -12,7 +13,6 @@
 #include "Engine/Texture2D.h"
 #include "Modules/ModuleManager.h"
 #include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
-#include "RHI.h"
 #include "RemoteSessionUtils.h"
 #include "Stats/StatsTrace.h"
 

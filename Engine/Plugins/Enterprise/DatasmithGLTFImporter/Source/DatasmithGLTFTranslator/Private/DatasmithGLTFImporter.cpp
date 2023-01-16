@@ -7,23 +7,22 @@
 #include "DatasmithGLTFMaterialElement.h"
 #include "DatasmithGLTFTextureFactory.h"
 
+#include "DatasmithMaterialElements.h"
 #include "GLTFAsset.h"
-#include "GLTFMaterialFactory.h"
+#include "DatasmithVariantElements.h"
 #include "GLTFReader.h"
+#include "GLTFMaterial.h"
 #include "GLTFMesh.h"
 #include "GLTFMeshFactory.h"
 
-#include "DatasmithAssetImportData.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
-#include "IDatasmithSceneElements.h"
-#include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
+#include "GLTFNode.h"
 #include "Utility/DatasmithMeshHelper.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/StaticMesh.h"
+#include "GLTFTexture.h"
 #include "Misc/Paths.h"
-#include "Misc/SecureHash.h"
+#include "MeshDescription.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithGLTFImport);
 

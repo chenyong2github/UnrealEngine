@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FilteredPackageTransmissionModel.h"
+#include "Widgets/Clients/PackageTransmission/Model/IPackageTransmissionEntrySource.h"
 
 namespace UE::MultiUserServer
 {

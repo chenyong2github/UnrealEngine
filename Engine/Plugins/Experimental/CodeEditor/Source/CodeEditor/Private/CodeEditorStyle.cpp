@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeEditorStyle.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateTypes.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/CoreStyle.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyle.h"
 
 TSharedPtr< FSlateStyleSet > FCodeEditorStyle::StyleSet = nullptr;
 

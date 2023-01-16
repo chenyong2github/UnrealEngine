@@ -5,10 +5,7 @@
 #include "Parameterization/DataprepParameterization.h"
 
 #include "Misc/PackageName.h"
-#include "UObject/LazyObjectPtr.h"
-#include "UObject/SoftObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtr.h"
+#include "UObject/Package.h"
 
 //////////////////////////////////////////////////////////////
 /**

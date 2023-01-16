@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutomationDriverSpecSuiteViewModel.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Misc/DateTime.h"
 
 class FAutomationDriverSpecSuiteViewModel
 	: public IAutomationDriverSpecSuiteViewModel

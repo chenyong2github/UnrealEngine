@@ -3,6 +3,7 @@
 
 #include "Profile/MediaProfile.h"
 
+#include "IAnalyticsProviderET.h"
 #include "MediaFrameworkUtilitiesModule.h"
 
 #include "Engine/Engine.h"
@@ -10,13 +11,9 @@
 #include "Engine/TimecodeProvider.h"
 #include "MediaAssets/ProxyMediaOutput.h"
 #include "MediaAssets/ProxyMediaSource.h"
-#include "MediaOutput.h"
-#include "MediaSource.h"
 #include "Profile/IMediaProfileManager.h"
 
 #if WITH_EDITOR
-#include "Algo/Transform.h"
-#include "AnalyticsEventAttribute.h"
 #include "EngineAnalytics.h"
 #endif
 

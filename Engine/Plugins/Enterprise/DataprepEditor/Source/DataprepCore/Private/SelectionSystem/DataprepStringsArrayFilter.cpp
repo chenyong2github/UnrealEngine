@@ -4,6 +4,7 @@
 
 #include "DataprepCoreLogCategory.h"
 #include "SelectionSystem/DataprepSelectionSystemUtils.h"
+#include "SelectionSystem/DataprepStringFilter.h"
 #include "SelectionSystem/DataprepStringsArrayFetcher.h"
 
 bool UDataprepStringsArrayFilter::Filter(const TArray<FString>& StringArray) const

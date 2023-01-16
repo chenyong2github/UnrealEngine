@@ -2,13 +2,12 @@
 
 #include "STimecodeSynchronizerWidget.h"
 
-#include "Styling/AppStyle.h"
 
 #include "Fonts/FontMeasure.h"
 
+#include "Rendering/SlateRenderer.h"
 #include "TimecodeSynchronizer.h"
 
-#include "Styling/SlateBrush.h"
 
 #include "Widgets/Input/SSpinBox.h"
 

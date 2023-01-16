@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class ISlateStyle;

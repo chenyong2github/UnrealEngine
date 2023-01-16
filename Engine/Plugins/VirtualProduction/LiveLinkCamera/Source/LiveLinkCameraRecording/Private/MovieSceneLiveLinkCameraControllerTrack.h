@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "Tracks/MovieScenePropertyTrack.h"
 
+#include "MovieSceneNameableTrack.h"
+#include "MovieSceneSection.h"
 #include "MovieSceneLiveLinkCameraControllerTrack.generated.h"
 
 /** Movie Scene track for LiveLink Camera Controller properties */

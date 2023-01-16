@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "Containers/Array.h"
 #include "ICalibrationPointComponentDetailsRow.h"
-#include "Internationalization/Text.h"
 #include "LedWallArucoGenerationOptions.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 class UCalibrationPointComponent;
 

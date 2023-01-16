@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 struct FDataprepSchemaAction;
 struct FGraphActionListBuilderBase;

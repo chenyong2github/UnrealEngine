@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComposurePostMoves.h"
+#include "Math/PerspectiveMatrix.h"
 
 
 FMatrix FComposurePostMoveSettings::GetProjectionMatrix(float HorizontalFOVAngle, float AspectRatio) const

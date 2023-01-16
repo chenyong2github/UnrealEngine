@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseMovementComponent.h"
-#include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
-#include "Components/CapsuleComponent.h"
 
 // ----------------------------------------------------------------------------------------------------------
 //	UBaseMovementComponent setup/init

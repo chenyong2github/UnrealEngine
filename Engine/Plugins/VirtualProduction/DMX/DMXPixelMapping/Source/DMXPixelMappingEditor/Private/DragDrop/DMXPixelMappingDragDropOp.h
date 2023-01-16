@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "DMXPixelMappingComponentReference.h"
 
-#include "DragDrop/DMXPixelMappingGroupChildDragDropHelper.h"
 
-#include "CoreMinimal.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "Input/DragAndDrop.h"
+
+class FDMXPixelMappingGroupChildDragDropHelper;
 
 class FDMXPixelMappingComponentTemplate;
 class FDMXPixelMappingComponentReference;

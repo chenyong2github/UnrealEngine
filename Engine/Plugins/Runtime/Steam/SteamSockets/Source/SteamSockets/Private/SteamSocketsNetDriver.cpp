@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SteamSocketsNetDriver.h"
-#include "SteamSocketsPrivate.h"
-#include "SocketSubsystem.h"
-#include "SteamSocketsTypes.h"
 #include "SteamSocketsModule.h"
 #include "SteamSocket.h"
 #include "SteamSocketsNetConnection.h"
 #include "SteamSocketsSubsystem.h"
-#include "IPAddressSteamSockets.h"
-#include "Engine/NetworkDelegates.h"
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"
 #include "PacketHandler.h"
+#include <steam/isteamnetworkingsockets.h>
+#include <steam/steamclientpublic.h>
 
 void USteamSocketsNetDriver::PostInitProperties()
 {

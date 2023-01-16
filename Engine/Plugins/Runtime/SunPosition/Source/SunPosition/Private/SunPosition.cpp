@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SunPosition.h"
+#include "Misc/DateTime.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSunPosition, Log, All);
 DEFINE_LOG_CATEGORY(LogSunPosition);

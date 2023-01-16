@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MovieSceneObjectBindingID.h"
-#include "EntitySystem/BuiltInComponentTypes.h"
-#include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
-#include "Evaluation/MovieSceneEvaluationOperand.h"
-#include "GameFramework/GameMode.h"
-#include "GameFramework/PlayerController.h"
-#include "UObject/ObjectMacros.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "MovieSceneFwd.h"
 #include "MovieSceneReplaySystem.generated.h"
+
+class FDelegateHandle;
+class IConsoleVariable;
+class IMovieScenePlayer;
+struct FMovieSceneContext;
+struct FTimerHandle;
 
 class UMovieSceneReplaySection;
 

@@ -8,7 +8,6 @@
 #include "MinimalClient.h"
 #include "NUTActor.h"
 
-#include "Net/NUTUtilNet.h"
 
 
 

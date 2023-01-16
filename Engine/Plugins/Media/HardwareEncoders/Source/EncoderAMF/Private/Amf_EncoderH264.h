@@ -2,13 +2,23 @@
 
 #pragma once
 
-#include "Amf_Common.h"
 
-#include "HAL/Thread.h"
-#include "HAL/Event.h"
 
-#include "VideoEncoderFactory.h"
-#include "VideoEncoderInputImpl.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Misc/DateTime.h"
+#include "VideoEncoder.h"
+#include "VideoEncoderInput.h"
+#include <components/Component.h>
+#include <core/Interface.h>
+#include <core/Platform.h>
+#include <core/Result.h>
+#include <core/Surface.h>
+#include <core/Variant.h>
+
+namespace AVEncoder { class FAmfCommon; }
+namespace AVEncoder { class FVideoEncoderFactory; }
+namespace AVEncoder { class FVideoEncoderInputFrameImpl; }
+namespace AVEncoder { class FVideoEncoderInputImpl; }
 
 namespace AVEncoder
 {

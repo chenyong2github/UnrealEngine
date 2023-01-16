@@ -1,9 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Session/History/AbstractSessionHistoryController.h"
 
+#include "Async/Future.h"
 #include "Session/History/SSessionHistory.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "ConcertSyncSessionTypes.h"
 
 FAbstractSessionHistoryController::FAbstractSessionHistoryController(SSessionHistory::FArguments Arguments)
 	: SessionHistory(MakeSessionHistory(MoveTemp(Arguments)))

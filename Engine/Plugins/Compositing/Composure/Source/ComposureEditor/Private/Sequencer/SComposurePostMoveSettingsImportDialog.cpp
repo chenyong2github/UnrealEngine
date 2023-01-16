@@ -6,7 +6,6 @@
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SFrameRatePicker.h"
-#include "Styling/AppStyle.h"
 #include "EditorDirectories.h"
 
 #define LOCTEXT_NAMESPACE "PostMoveSettingsImportDialog"

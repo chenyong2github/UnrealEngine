@@ -2,7 +2,6 @@
 
 #include "ConcertLogTokenizer.h"
 
-#include "ConcertFrontendUtils.h"
 #include "ConcertTransportEvents.h"
 #include "MessageTypeUtils.h"
 #include "Math/UnitConversion.h"

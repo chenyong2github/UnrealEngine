@@ -3,18 +3,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Layout/Visibility.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Widgets/Input/SComboBox.h"
 #include "ActorDetailsDelegates.h"
+
+class ITableRow;
+class SSearchBox;
+class STableViewBase;
+namespace ESelectInfo { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
+template <typename ItemType> class STreeView;
+template <typename OptionType> class SComboBox;
 
 struct FTreeItem;
 

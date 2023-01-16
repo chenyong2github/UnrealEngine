@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DestructibleMeshThumbnailRenderer.h"
-#include "Misc/App.h"
-#include "ShowFlags.h"
 #include "SceneView.h"
-#include "ThumbnailHelpers.h"
 
 // FPreviewScene derived helpers for rendering
 #include "DestructibleMesh.h"

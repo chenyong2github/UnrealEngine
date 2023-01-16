@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IMessageContext.h"
 #include "TransferStatisticsModel.h"
-#include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 
 namespace UE::MultiUserServer
 {

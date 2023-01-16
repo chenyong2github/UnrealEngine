@@ -2,10 +2,6 @@
 
 #include "SoundScapePalette.h"
 #include "SoundscapeColor.h"
-#include "Engine/World.h"
-#include "AudioDevice.h"
-#include "DrawDebugHelpers.h"
-#include "Kismet/GameplayStatics.h"
 
 USoundscapePalette::USoundscapePalette()
 {

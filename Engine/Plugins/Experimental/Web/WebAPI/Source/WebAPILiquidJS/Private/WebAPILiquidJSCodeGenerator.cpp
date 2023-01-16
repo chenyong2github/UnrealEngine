@@ -1,23 +1,28 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPILiquidJSCodeGenerator.h"
 
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "HttpModule.h"
+#include "CodeGen/Dom/WebAPICodeGenClass.h"
 #include "WebAPILiquidJSModule.h"
+#include "CodeGen/Dom/WebAPICodeGenEnum.h"
 #include "WebAPILiquidJSSettings.h"
 #include "Algo/ForEach.h"
-#include "Algo/Transform.h"
 #include "Async/Async.h"
-#include "CodeGen/WebAPICodeGenerator.h"
 #include "CodeGen/Dom/WebAPICodeGenFile.h"
 #include "CodeGen/Dom/WebAPICodeGenFunction.h"
+#include "CodeGen/Dom/WebAPICodeGenOperation.h"
 #include "CodeGen/Dom/WebAPICodeGenSettings.h"
+#include "CodeGen/Dom/WebAPICodeGenStruct.h"
 #include "Dom/WebAPIType.h"
-#include "Interfaces/IHttpResponse.h"
+#include "Dom/WebAPIOperation.h"
 #include "Misc/FileHelper.h"
+#include "Interfaces/IHttpRequest.h"
 #include "Modules/ModuleManager.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
+#include "WebAPIDefinition.h"
 
 #define LOCTEXT_NAMESPACE "WebAPILiquidJSCodeGenerator"
 

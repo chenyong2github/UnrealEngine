@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WebSocket.h"
-#include "WebSocketNetworkingPrivate.h"
-#include "IPAddress.h"
+#include "WebSocketNetworkingPrivate.h" // IWYU pragma: keep
 
 #if USE_LIBWEBSOCKET
 

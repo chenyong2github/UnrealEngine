@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "DatasmithMVRImportOptions.h"
 
-#include "CoreMinimal.h"
 #include "DatasmithNativeTranslator.h"
+
+class UDatasmithMVRImportOptions;
 
 class UDMXLibrary;
 

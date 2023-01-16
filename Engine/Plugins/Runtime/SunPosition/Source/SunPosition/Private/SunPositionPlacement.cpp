@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SunPositionPlacement.h"
-#include "AssetRegistry/AssetData.h"
 #include "Engine/Blueprint.h"
 #if WITH_EDITOR
 #include "IPlacementModeModule.h"

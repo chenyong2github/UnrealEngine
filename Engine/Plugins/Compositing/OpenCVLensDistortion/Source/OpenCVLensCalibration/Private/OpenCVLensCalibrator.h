@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 
+// IWYU pragma: begin_keep
 #include "OpenCVLensDistortionParameters.h"
 
 #if WITH_OPENCV
@@ -12,6 +12,7 @@
 #include "opencv2/imgcodecs.hpp"
 #include "PostOpenCVHeaders.h"
 #endif
+// IWYU pragma: end_keep
 
 #include "OpenCVLensCalibrator.generated.h"
 

@@ -4,18 +4,16 @@
 
 #include "DataprepAsset.h"
 #include "DataprepAssetInstance.h"
-#include "DataprepAssetProducers.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorModule.h"
 #include "DataprepFactories.h"
 
-#include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
-#include "IAssetTools.h"
 #include "IContentBrowserSingleton.h"
 
 // UI
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_DataprepAssetInterface"
 

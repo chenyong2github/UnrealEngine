@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCManager.h"
 
-#include "IPAddress.h"
+#include "HAL/IConsoleManager.h"
 #include "OSCMessage.h"
 #include "OSCMessagePacket.h"
 #include "OSCBundle.h"
@@ -11,9 +11,9 @@
 #include "OSCClient.h"
 
 #include "Engine/World.h"
-#include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
+#include "Trace/Trace.inl"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 

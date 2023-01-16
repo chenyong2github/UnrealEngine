@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 
 namespace UE::MultiUserServer::ConsoleVariables

@@ -8,8 +8,6 @@
 #include "StageMonitorEditorSettings.h"
 #include "StageMonitoringSettings.h"
 #include "SStageMonitorPanel.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 

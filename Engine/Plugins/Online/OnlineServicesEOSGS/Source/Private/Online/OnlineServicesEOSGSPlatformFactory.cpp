@@ -8,11 +8,10 @@
 #include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
 
-#include "EOSShared.h"
-#include "EOSSharedTypes.h"
 #include "IEOSSDKManager.h"
 
-#include "CoreMinimal.h"
+#include "Online/OnlineServicesLog.h"
+#include <eos_base.h>
 
 struct FEOSPlatformConfig
 {

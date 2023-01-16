@@ -2,36 +2,9 @@
 
 #include "ChaosFlesh/FleshActor.h"
 
-#include "CoreMinimal.h"
-#include "Containers/StringConv.h"
-#include "Chaos/TriangleMesh.h"
 
-#include "Chaos/PBDBendingConstraints.h"
-#include "Chaos/PBDParticles.h"
-#include "Chaos/PBDSpringConstraints.h"
-#include "Chaos/PBDVolumeConstraint.h"
-#include "Chaos/PerParticleGravity.h"
-#include "Chaos/PBDSpringConstraints.h"
-#include "Chaos/PBDTriangleMeshCollisions.h"
-#include "Chaos/PBDCollisionSpringConstraints.h"
-#include "Chaos/XPBDCorotatedConstraints.h"
-#include "Chaos/XPBDVolumeConstraints.h"
-#include "Chaos/XPBDCorotatedFiberConstraints.h"
-#include "Chaos/PBDTetConstraints.h"
-#include "Chaos/PBDAltitudeSpringConstraints.h"
-#include "Chaos/Plane.h"
-#include "Chaos/Utilities.h"
-#include "Chaos/PBDEvolution.h"
-#include "Misc/FileHelper.h"
-#include "HAL/PlatformFileManager.h"
-#include "Misc/Paths.h"
 //#include "ChaosFlesh/PB.h"
 
-#include <fstream>
-#include <functional>
-#include <sstream>
-#include <unordered_map>
-#include <unordered_set>
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshActor)
 

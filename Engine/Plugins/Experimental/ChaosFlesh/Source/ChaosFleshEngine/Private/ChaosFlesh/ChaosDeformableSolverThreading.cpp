@@ -2,10 +2,8 @@
 
 #include "ChaosFlesh/ChaosDeformableSolverThreading.h"
 
-#include "ChaosFlesh/FleshComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
-#include "GameFramework/Actor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolverThreading, Log, All);
 

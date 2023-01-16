@@ -2,9 +2,7 @@
 
 #include "ConcertConsoleCommandExecutor.h"
 
-#include "CoreGlobals.h"
 #include "Framework/Commands/InputChord.h"
-#include "Misc/OutputDevice.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

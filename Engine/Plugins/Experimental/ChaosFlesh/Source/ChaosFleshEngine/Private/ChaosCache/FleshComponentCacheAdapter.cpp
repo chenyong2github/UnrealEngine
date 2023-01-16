@@ -2,16 +2,9 @@
 
 #include "ChaosCache/FleshComponentCacheAdapter.h"
 
-#include "Chaos/Deformable/ChaosDeformableSolver.h"
-#include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
-#include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
 
-#include "Chaos/Adapters/CacheAdapter.h"
 #include "Chaos/ChaosCache.h"
-#include "Chaos/CacheManagerActor.h"
-#include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDEvolution.h"
-#include "Chaos/PBDSoftsSolverParticles.h"
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 #include "ChaosFlesh/FleshComponent.h"
 

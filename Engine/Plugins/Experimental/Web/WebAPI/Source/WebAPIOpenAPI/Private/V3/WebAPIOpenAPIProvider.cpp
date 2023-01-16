@@ -1,15 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "V3/WebAPIOpenAPIProvider.h"
 
-#include "IWebAPIEditorModule.h"
-#include "WebAPIMessageLog.h"
+#include "Dom/WebAPITypeRegistry.h"
 #include "WebAPIOpenAPIFactory.h"
 #include "Dom/WebAPISchema.h"
-#include "Internationalization/BreakIterator.h"
 #include "Serialization/JsonSerializer.h"
 #include "V3/WebAPIOpenAPIConverter.h"
-#include "V3/WebAPIOpenAPISchema.h"
+#include "WebAPIDefinition.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIOpenAPIProvider"
 

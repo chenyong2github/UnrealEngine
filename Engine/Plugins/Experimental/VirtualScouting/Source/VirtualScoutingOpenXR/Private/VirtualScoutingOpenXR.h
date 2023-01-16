@@ -6,7 +6,9 @@
 
 #include "IOpenXRExtensionPlugin.h"
 #include "Async/Future.h"
-#include "OpenXRCore.h"
+#include <openxr/openxr_platform_defines.h>
+
+template <typename OptionalType> struct TOptional;
 
 
 class VIRTUALSCOUTINGOPENXR_API FVirtualScoutingOpenXRExtension

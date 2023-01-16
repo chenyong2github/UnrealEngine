@@ -5,11 +5,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
 #include "Camera/CameraComponent.h"
-#include "Components/SceneComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
-#include "Misc/ConfigCacheIni.h" // for GetFloat()
 #include "MixedRealityCaptureActor.h"
 #include "Modules/ModuleManager.h"
 

@@ -8,7 +8,6 @@
 
 #include "Components/StaticMeshComponent.h"
 #include "UObject/Package.h"
-#include "Math/PerspectiveMatrix.h"
 #include "WaterBodyComponent.h"
 
 #include "MeshDescription.h"

@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILiveLinkSource.h"
 
-#include "LiveLinkPrestonMDRSourceSettings.h"
 #include "LiveLinkPrestonMDRConnectionSettings.h"
 
 #include "PrestonMDRMessageThread.h"
 
-#include <atomic>
+
+class ULiveLinkSourceSettings;
 
 class ISocketSubsystem;
 

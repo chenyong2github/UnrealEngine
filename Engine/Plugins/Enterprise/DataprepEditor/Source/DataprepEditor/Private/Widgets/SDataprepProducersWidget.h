@@ -2,15 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "DataprepAssetProducers.h"
 
 #include "IDetailCustomization.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
 class FUICommandList;

@@ -2,7 +2,6 @@
 
 #include "WebMMovieStreamer.h"
 
-#include "MoviePlayer.h"
 #include "Modules/ModuleManager.h"
 
 #if WITH_WEBM_LIBS && !PLATFORM_WINDOWS && !PLATFORM_MAC

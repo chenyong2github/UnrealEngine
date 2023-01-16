@@ -2,18 +2,13 @@
 
 #include "Session/Activity/PredefinedActivityColumns.h"
 
-#include "ConcertFrontendStyle.h"
-#include "ConcertFrontendUtils.h"
 #include "ConcertSyncSessionTypes.h"
-#include "ConcertWorkspaceData.h"
+#include "Session/Activity/SConcertSessionActivities.h"
 #include "SessionActivityUtils.h"
 
 #include "Session/Activity/ActivityColumn.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/SUndoHistoryDetails.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionActivities"
 

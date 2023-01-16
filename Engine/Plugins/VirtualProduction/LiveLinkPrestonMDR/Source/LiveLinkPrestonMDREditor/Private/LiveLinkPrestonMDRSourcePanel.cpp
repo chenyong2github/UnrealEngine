@@ -2,11 +2,14 @@
 
 #include "LiveLinkPrestonMDRSourcePanel.h"
 
+#include "DetailsViewArgs.h"
 #include "IStructureDetailsView.h"
 
+#include "LiveLinkPrestonMDRFactory.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
+#include "UObject/StructOnScope.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 

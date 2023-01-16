@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyle.h"
+#include "Misc/Paths.h"
 #include "Styling/SlateStyleRegistry.h"
 
 

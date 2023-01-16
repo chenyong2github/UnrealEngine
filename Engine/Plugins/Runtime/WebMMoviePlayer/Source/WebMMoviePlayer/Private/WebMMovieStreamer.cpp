@@ -1,22 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebMMovieStreamer.h"
+#include "WebMAudioBackend.h"
 #include "WebMMovieCommon.h"
 
 #if WITH_WEBM_LIBS
-#include "MediaShaders.h"
 #include "MediaSamples.h"
 #include "Misc/Paths.h"
-#include "SceneUtils.h"
-#include "StaticBoundShaderState.h"
-#include "PipelineStateCache.h"
-#include "RHIStaticStates.h"
 #include "WebMVideoDecoder.h"
 #include "WebMAudioDecoder.h"
 #include "WebMContainer.h"
 #include "WebMMediaAudioSample.h"
 #include "WebMMediaTextureSample.h"
-#include "Misc/CoreDelegates.h"
 #endif // WITH_WEBM_LIBS
 
 DEFINE_LOG_CATEGORY(LogWebMMoviePlayer);

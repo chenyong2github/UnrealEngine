@@ -2,7 +2,6 @@
 
 #include "DatasmithVREDVariantConverter.h"
 
-#include "DatasmithDefinitions.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithVariantElements.h"
 #include "DatasmithVREDImportData.h"

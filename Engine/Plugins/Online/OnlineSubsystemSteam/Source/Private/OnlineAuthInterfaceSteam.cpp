@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineAuthInterfaceSteam.h"
-#include "OnlineSubsystemSteam.h"
+#include "OnlineAuthInterfaceUtilsSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineSubsystemUtils.h"
 
@@ -10,12 +10,12 @@
 #include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"
-#include "Engine/World.h"
-#include "Engine/Engine.h"
 
 // Determining if we need to be disabled or not
 #include "Misc/ConfigCacheIni.h"
 #include "PacketHandler.h"
+#include <steam/isteamgameserver.h>
+#include <steam/isteamuser.h>
 
 // Steam tells us this number in documentation, however there's no define within the SDK
 #define STEAM_AUTH_MAX_TICKET_LENGTH_IN_BYTES 1024

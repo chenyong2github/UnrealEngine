@@ -5,14 +5,11 @@
 #include "Widgets/SCompoundWidget.h"
 
 
-#include "CoreMinimal.h"
-#include "IStageMonitorSession.h"
-#include "SlateFwd.h"
-#include "StageMessages.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "SDataProviderActivityFilter.generated.h"
+
+namespace ETextCommit { enum Type : int; }
+struct FStageDataEntry;
 
 enum class ECheckBoxState : uint8;
 class FStructOnScope;

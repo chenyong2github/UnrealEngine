@@ -3,14 +3,10 @@
 #include "ShotgridEngine.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
 
 #include "GameFramework/Actor.h"
 #include "IPythonScriptPlugin.h"
-#include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
-#include "Templates/Casts.h"
-#include "UObject/UObjectHash.h"
 
 UShotgridEngine* UShotgridEngine::GetInstance()
 {

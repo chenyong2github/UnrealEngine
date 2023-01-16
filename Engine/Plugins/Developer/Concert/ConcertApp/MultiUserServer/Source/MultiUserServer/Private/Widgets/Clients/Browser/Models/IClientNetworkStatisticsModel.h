@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+
+class FString;
+template <typename OptionalType> struct TOptional;
 
 struct FConcertSessionClientInfo;
 struct FConcertSessionInfo;

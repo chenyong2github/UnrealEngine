@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertTransportEvents.h"
+#include "Containers/Set.h"
+
+enum class EConcertLogMessageAction : uint8;
 
 namespace UE::MultiUserServer::MessageActionUtils
 {

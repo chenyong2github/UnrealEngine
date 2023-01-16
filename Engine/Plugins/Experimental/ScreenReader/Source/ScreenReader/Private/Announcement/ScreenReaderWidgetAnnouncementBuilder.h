@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 class IAccessibleWidget;
 enum class EAccessibleWidgetType : uint8;

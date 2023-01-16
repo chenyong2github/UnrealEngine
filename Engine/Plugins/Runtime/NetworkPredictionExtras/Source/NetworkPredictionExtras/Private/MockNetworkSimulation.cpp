@@ -1,32 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockNetworkSimulation.h"
-#include "GameFramework/Actor.h"
-#include "Engine/World.h"
-#include "Components/PrimitiveComponent.h"
-#include "GameFramework/PlayerController.h"
-#include "Net/UnrealNetwork.h"
 #include "Engine/LocalPlayer.h"
-#include "Misc/CoreDelegates.h"
-#include "UObject/CoreNet.h"
-#include "Engine/NetDriver.h"
-#include "Engine/NetConnection.h"
+#include "GameFramework/Pawn.h"
 #include "UObject/UObjectIterator.h"
-#include "Components/CapsuleComponent.h"
-#include "VisualLogger/VisualLogger.h"
-#include "Math/Color.h"
 #include "DrawDebugHelpers.h"
-#include "Debug/DebugDrawService.h"
-#include "Engine/Canvas.h"
-#include "Engine/Engine.h"
-#include "Debug/ReporterGraph.h"
 #include "EngineUtils.h"
 #include "NetworkPredictionProxyInit.h"
 #include "NetworkPredictionProxyWrite.h"
-#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
 #include "Async/ParallelFor.h"
 #include "GameFramework/GameStateBase.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockNetworkSim, Log, All);
 
@@ -291,7 +282,6 @@ FAutoConsoleCommandWithWorldAndArgs MockNetworkSimulationSpawnCmd(TEXT("mns.Spaw
 #define NP_MOCK_SIM_PARALLELFOR 1
 #if NP_MOCK_SIM_PARALLELFOR
 
-#include "Services/NetworkPredictionServiceRegistry.h"
 
 template<>
 class TLocalTickService<FMockNetworkModelDef> : public TLocalTickServiceBase<FMockNetworkModelDef>

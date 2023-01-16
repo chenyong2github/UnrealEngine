@@ -2,17 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "DataprepOperation.h"
 
-#include "DataprepOperationsLibrary.h"
 #include "AssetRegistry/AssetData.h"
 
+#include "Engine/MeshMerging.h"
 #include "IDetailCustomization.h"
 
 //
 #include "DataprepEditingOperations.generated.h"
+
+class SWidget;
 
 class AStaticMeshActor;
 class IMeshBuilderModule;

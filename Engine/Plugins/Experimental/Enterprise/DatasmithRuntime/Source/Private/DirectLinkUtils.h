@@ -2,20 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "DatasmithRuntimeBlueprintLibrary.h"
 
 #include "DirectLink/DatasmithSceneReceiver.h"
 #include "DirectLinkEndpoint.h"
 #include "DirectLinkConnectionRequestHandler.h"
 
-#include "Misc/ScopeRWLock.h"
-#include "Tickable.h"
-
-#include <atomic>
-
 class ADatasmithRuntimeActor;
+class UDirectLinkProxy;
+struct FDatasmithRuntimeSourceInfo;
 
 namespace DatasmithRuntime
 {

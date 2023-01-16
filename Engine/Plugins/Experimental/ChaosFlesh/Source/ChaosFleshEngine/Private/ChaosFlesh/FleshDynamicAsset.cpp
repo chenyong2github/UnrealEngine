@@ -4,8 +4,7 @@
 	FleshAsset.cpp: UFleshAsset methods.
 =============================================================================*/
 #include "ChaosFlesh/FleshDynamicAsset.h"
-#include "ChaosFlesh/FleshCollection.h"
-#include "UObject/Package.h"
+#include "GeometryCollection/GeometryCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshDynamicAsset)
 

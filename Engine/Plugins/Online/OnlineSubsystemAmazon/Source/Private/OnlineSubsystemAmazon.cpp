@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemAmazon.h"
-#include "Misc/CommandLine.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Internationalization/Internationalization.h"
 #include "OnlineSubsystemAmazonModule.h"
 #include "OnlineIdentityAmazon.h"
 #include "Stats/Stats.h"

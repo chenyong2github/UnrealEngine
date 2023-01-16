@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_DataprepProducer.h"
-#include "DataprepContentProducer.h"
 
 #include "EdGraphSchema_K2.h"
 #include "SGraphNode.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 void UK2Node_DataprepProducer::AllocateDefaultPins()
 {

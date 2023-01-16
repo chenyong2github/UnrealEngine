@@ -4,7 +4,6 @@
 
 #include "common/TextureProperty.h"
 
-#include <Containers/UnrealString.h>
 
 struct FMDLMaterialProperty
 {

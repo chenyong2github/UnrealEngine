@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OneSkyLocalizationServiceState.h"
+#include "Internationalization/Internationalization.h"
 #include "OneSkyLocalizationServiceRevision.h"
 
 #define LOCTEXT_NAMESPACE "OneSkyLocalizationService.State"

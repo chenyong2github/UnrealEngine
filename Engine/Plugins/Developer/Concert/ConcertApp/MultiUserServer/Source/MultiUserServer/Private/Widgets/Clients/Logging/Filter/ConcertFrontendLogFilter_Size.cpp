@@ -2,12 +2,9 @@
 
 #include "ConcertFrontendLogFilter_Size.h"
 
-#include "ConcertTransportEvents.h"
-#include "SSimpleComboButton.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Util/Filter/ConcertFilterUtils.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FConcertLogFilter_Size"

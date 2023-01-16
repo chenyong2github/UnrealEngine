@@ -2,8 +2,6 @@
 
 #include "IPAddressSteamSockets.h"
 #include "SteamSocketsPrivate.h"
-#include "SteamSocketsTypes.h"
-#include "Algo/Reverse.h"
 
 TArray<uint8> FInternetAddrSteamSockets::GetRawIp() const
 {

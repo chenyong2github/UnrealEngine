@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorViewportClient.h"
-#include "UObject/WeakObjectPtr.h"
 #include "TickableEditorObject.h"
 
 class FCanvas;

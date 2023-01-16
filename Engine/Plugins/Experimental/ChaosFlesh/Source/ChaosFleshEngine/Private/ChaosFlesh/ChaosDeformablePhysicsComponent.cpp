@@ -2,10 +2,9 @@
 
 #include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
 
-#include "Animation/SkeletalMeshActor.h"
-#include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
+#include "ChaosFlesh/FleshComponent.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeformablePhysicsComponentInternal, Log, All);

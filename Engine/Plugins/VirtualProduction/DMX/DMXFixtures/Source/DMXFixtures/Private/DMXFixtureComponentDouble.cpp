@@ -2,8 +2,8 @@
 
 
 #include "DMXFixtureComponentDouble.h"
-#include "DMXFixtureActor.h"
 
+#include "DMXInterpolation.h"
 #include "DMXTypes.h"
 
 

@@ -3,14 +3,10 @@
 #include "Widgets/STimecodeSynchronizerSourceViewport.h"
 #include "TimecodeSynchronizer.h"
 
-#include "Styling/AppStyle.h"
-#include "Engine/Texture.h"
-#include "Materials/Material.h"
 #include "Misc/App.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 
 

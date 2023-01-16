@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MDLImporterOptions.h"
+
+#if PLATFORM_WINDOWS
 #include "Misc/Paths.h"
+#endif
 
 UMDLImporterOptions::UMDLImporterOptions(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)

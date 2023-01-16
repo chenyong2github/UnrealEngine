@@ -4,18 +4,28 @@
 
 #include "ConstantExpressionFactory.h"
 
+#include "Materials/MaterialExpressionConstant.h"
 #include "generator/MaterialExpressions.h"
+#include "Materials/MaterialExpressionConstant2Vector.h"
 #include "generator/MaterialTextureFactory.h"
-#include "mdl/MdlSdkDefines.h"
+#include "Materials/MaterialExpressionConstant3Vector.h"
 #include "mdl/Utility.h"
 
 #include "Engine/Texture2D.h"
 
 MDLSDK_INCLUDES_START
+#include "Materials/MaterialExpressionConstant4Vector.h"
 #include "mi/neuraylib/itexture.h"
+#include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "mi/neuraylib/itransaction.h"
+#include "Materials/MaterialExpressionStaticBool.h"
 #include "mi/neuraylib/ivalue.h"
-#include "mi/neuraylib/ivector.h"
+#include "Materials/MaterialExpressionTextureObject.h"
+#include <mi/base/handle.h>
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
+#include <mi/neuraylib/itype.h>
 MDLSDK_INCLUDES_END
 
 namespace Generator

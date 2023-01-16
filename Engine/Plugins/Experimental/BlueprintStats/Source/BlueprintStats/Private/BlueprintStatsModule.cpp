@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Templates/Greater.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Blueprint.h"
 #include "EdGraph/EdGraph.h"

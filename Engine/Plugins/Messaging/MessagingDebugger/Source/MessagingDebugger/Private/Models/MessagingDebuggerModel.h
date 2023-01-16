@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
 #include "Delegates/Delegate.h"
-#include "IMessageTracer.h"
-#include "Templates/SharedPointer.h"
 
 struct FMessageTracerEndpointInfo;
 struct FMessageTracerMessageInfo;

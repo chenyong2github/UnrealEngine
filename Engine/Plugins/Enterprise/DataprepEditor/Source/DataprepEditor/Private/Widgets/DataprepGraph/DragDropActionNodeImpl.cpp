@@ -2,27 +2,9 @@
 
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 
-#include "DataprepAsset.h"
-#include "DataprepEditorLogCategory.h"
-#include "DataprepEditorStyle.h"
-#include "DataprepGraph/DataprepGraph.h"
-#include "DataprepGraph/DataprepGraphActionNode.h"
 
-#include "ScopedTransaction.h"
 
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Application/SlateUser.h"
-#include "Layout/Children.h"
-#include "NodeFactory.h"
-#include "SGraphPanel.h"
-#include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
-#include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
-#include "Widgets/DataprepWidgets.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SConstraintCanvas.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 

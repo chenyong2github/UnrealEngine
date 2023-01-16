@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "BinkMediaTexture.h"
 #include "BinkMediaPlayer.h"
 #include "Widgets/Input/SSlider.h"
-#include "Widgets/Input/SButton.h"
+#include "Widgets/SCompoundWidget.h"
 
 struct FBinkMediaPlayerEditorViewport;
 

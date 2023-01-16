@@ -4,14 +4,18 @@
 #include "BinkMediaPlayerCustomization.h"
 
 #include "BinkMediaPlayer.h"
-#include "BinkMediaPlayerEditorPrivate.h"
 #include "DesktopPlatformModule.h"
+#include "DetailWidgetRow.h"
 #include "Framework/Application/SlateApplication.h"
+#include "IDesktopPlatform.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorDirectories.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
+#include "Misc/Paths.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SWindow.h"
+#include "binkplugin_ue4.h"
 
 #define LOCTEXT_NAMESPACE "FBinkMediaPlayerCustomization"
 

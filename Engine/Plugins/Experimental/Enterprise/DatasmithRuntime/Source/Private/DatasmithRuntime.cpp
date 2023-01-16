@@ -2,24 +2,19 @@
 
 #include "DatasmithRuntime.h"
 
-#include "DatasmithRuntimeModule.h"
+#include "DatasmithRuntimeBlueprintLibrary.h"
 #include "DirectLinkUtils.h"
+#include "DatasmithTranslatableSource.h"
 #include "LogCategory.h"
 #include "SceneImporter.h"
 
-#include "DirectLink/DatasmithDirectLinkTools.h"
 #include "DirectLinkSceneSnapshot.h"
 
-#include "DatasmithTranslatorModule.h"
-#include "IDatasmithSceneElements.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithTranslator.h"
 
 #include "Async/Async.h"
-#include "Math/BoxSphereBounds.h"
 #include "Misc/Paths.h"
-#include "ProfilingDebugging/MiscTrace.h"
-#include "UObject/Package.h"
 
 #include "Misc/Paths.h"
 

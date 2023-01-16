@@ -3,6 +3,7 @@
 #include "ArchivedSessionHistoryController.h"
 
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
+#include "Templates/NonNullPointer.h"
 
 FArchivedSessionHistoryController::FArchivedSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments)
 	: FServerSessionHistoryControllerBase(MoveTemp(SessionId), MoveTemp(Arguments))

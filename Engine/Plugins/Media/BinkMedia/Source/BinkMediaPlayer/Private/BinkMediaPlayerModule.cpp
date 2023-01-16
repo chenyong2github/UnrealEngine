@@ -3,13 +3,15 @@
 
 #include "BinkFunctionLibrary.h"
 #include "BinkMediaPlayerPrivate.h"
+#include "BinkMoviePlayerSettings.h"
 #include "Engine/GameViewportClient.h"
-#include "Internationalization/Internationalization.h"
+#include "BinkMovieStreamer.h"
 #include "Misc/Paths.h"
-#include "Interfaces/IPluginManager.h"
-#include "Misc/CoreDelegates.h"
 #include "RenderingThread.h"
+#include "HAL/PlatformFileManager.h"
 #include "UObject/UObjectIterator.h"
+#include "binkplugin_ue4.h"
+#include "egttypes.h"
 
 DEFINE_LOG_CATEGORY(LogBink);
 
@@ -19,19 +21,15 @@ TArray< FTexture2DRHIRef > BinkActiveTextureRefs;
 
 #if BINKPLUGIN_UE4_EDITOR
 class UFactory;
-#include "DesktopPlatformModule.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
 #include "EditorDirectories.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailCustomization.h"
-#include "IDetailPropertyRow.h"
 #include "ISettingsModule.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "PropertyCustomizationHelpers.h"
-#include "PropertyEditorModule.h"
 #include "SourceControlHelpers.h"
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Notifications/SNotificationList.h"

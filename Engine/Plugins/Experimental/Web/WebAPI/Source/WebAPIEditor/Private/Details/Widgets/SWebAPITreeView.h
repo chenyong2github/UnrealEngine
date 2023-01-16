@@ -1,21 +1,24 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Algo/Transform.h"
-#include "Details/ViewModels/WebAPIEnumViewModel.h"
-#include "Details/ViewModels/WebAPIModelViewModel.h"
-#include "Details/ViewModels/WebAPIOperationParameterViewModel.h"
-#include "Details/ViewModels/WebAPIOperationRequestViewModel.h"
-#include "Details/ViewModels/WebAPIOperationResponseViewModel.h"
-#include "Details/ViewModels/WebAPIParameterViewModel.h"
-#include "Details/ViewModels/WebAPIServiceViewModel.h"
-#include "Details/ViewModels/WebAPIViewModel.h"
-#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Framework/SlateDelegates.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/ITableRow.h"
-#include "Widgets/Views/STreeView.h"
+
+class FTextFilterExpressionEvaluator;
+class FWebAPIEnumValueViewModel;
+class FWebAPIEnumViewModel;
+class FWebAPIModelViewModel;
+class FWebAPIOperationParameterViewModel;
+class FWebAPIOperationRequestViewModel;
+class FWebAPIOperationResponseViewModel;
+class FWebAPIOperationViewModel;
+class FWebAPIParameterViewModel;
+class FWebAPIPropertyViewModel;
+class FWebAPIServiceViewModel;
+class IWebAPIViewModel;
+class STableViewBase;
+template <typename ItemType> class STreeView;
 
 class IDetailLayoutBuilder;
 

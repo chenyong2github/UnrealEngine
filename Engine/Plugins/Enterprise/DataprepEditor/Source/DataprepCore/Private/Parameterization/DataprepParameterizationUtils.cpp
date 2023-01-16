@@ -3,15 +3,9 @@
 #include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "DataprepAsset.h"
-#include "DataprepOperation.h"
-#include "DataprepParameterizableObject.h"
-#include "SelectionSystem/DataprepFetcher.h"
-#include "SelectionSystem/DataprepFilter.h"
 
 #include "PropertyHandle.h"
-#include "UObject/Class.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UnrealType.h"
+#include "UObject/TextProperty.h"
 
 namespace DataprepParameterizationUtils
 {

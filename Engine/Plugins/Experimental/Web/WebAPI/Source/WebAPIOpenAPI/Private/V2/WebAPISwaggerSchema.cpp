@@ -1,10 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "V2/WebAPISwaggerSchema.h"
 
-#include "WebAPIJsonUtilities.h"
 #include "Algo/ForEach.h"
-#include "Dom/JsonObject.h"
 
 namespace UE::WebAPI::OpenAPI::V2
 {

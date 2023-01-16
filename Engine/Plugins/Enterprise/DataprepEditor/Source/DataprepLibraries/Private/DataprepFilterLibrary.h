@@ -3,8 +3,9 @@
 #pragma once
 
 #include "EditorFilterLibrary.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 
+#include "GameFramework/Actor.h"
+#include "Templates/SubclassOf.h"
 #include "DataprepFilterLibrary.generated.h"
 
 UENUM()

@@ -1,24 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosFlesh/GEO.h"
 #include "ChaosFlesh/IFileStream.h"
+#include "HAL/PlatformFile.h"
 
 #ifdef USE_ZLIB
 #include "ChaosFlesh/ZIP.h"
 #endif
 
-#include "Containers/Array.h"
-#include "Containers/Map.h"
 #include "Containers/StringConv.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFileManager.h"
 
 #include <algorithm>
 #include <charconv>
 #include <fstream>
 #include <iostream>
-#include <string>
 #include <sstream>
-#include <type_traits>
 #include <memory>
 
 namespace ChaosFlesh {

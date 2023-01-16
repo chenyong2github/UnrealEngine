@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Logging/ConcertLogEntry.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertTabViewWithManagerBase.h"
 
 class FConcertClientsTabController;

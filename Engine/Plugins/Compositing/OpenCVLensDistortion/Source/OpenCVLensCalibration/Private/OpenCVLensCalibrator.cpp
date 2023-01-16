@@ -4,19 +4,14 @@
 
 #include "Engine/TextureRenderTarget2D.h"
 #include "IOpenCVLensCalibrationModule.h"
-#include "Logging/LogMacros.h"
-#include "PixelFormat.h"
 #include "TextureResource.h"
-//#include "UnrealClient.h"
 
 #if WITH_OPENCV
 
-#include "PreOpenCVHeaders.h"
 
 #include "opencv2/calib3d.hpp"
 #include "opencv2/imgproc.hpp"
 
-#include "PostOpenCVHeaders.h"
 
 #endif
 

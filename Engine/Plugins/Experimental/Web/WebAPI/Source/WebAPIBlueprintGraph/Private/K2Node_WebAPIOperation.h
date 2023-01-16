@@ -1,13 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraphNodeUtils.h"
 #include "K2Node.h"
 #include "UObject/WeakFieldPtr.h"
 
 #include "K2Node_WebAPIOperation.generated.h"
+
+class UK2Node_CustomEvent;
 
 class UK2Node_CallFunction;
 class UK2Node_TemporaryVariable;

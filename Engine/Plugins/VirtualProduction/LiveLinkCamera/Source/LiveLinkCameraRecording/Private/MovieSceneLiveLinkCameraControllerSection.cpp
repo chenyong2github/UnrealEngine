@@ -2,13 +2,10 @@
 
 #include "MovieSceneLiveLinkCameraControllerSection.h"
 
-#include "Evaluation/MovieScenePreAnimatedState.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
+#include "CineCameraComponent.h"
 #include "IMovieScenePlayer.h"
 #include "LiveLinkCameraController.h"
 #include "LiveLinkComponentController.h"
-#include "LiveLinkControllerBase.h"
-#include "MovieSceneExecutionToken.h"
 #include "Roles/LiveLinkCameraRole.h"
 
 void UMovieSceneLiveLinkCameraControllerSection::Initialize(ULiveLinkControllerBase* InLiveLinkController)

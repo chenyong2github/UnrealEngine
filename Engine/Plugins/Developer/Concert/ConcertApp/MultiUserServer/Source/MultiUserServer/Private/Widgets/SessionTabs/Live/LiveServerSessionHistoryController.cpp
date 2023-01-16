@@ -3,9 +3,10 @@
 #include "LiveServerSessionHistoryController.h"
 
 #include "ConcertSyncSessionDatabase.h"
+#include "ConcertSyncSessionTypes.h"
 #include "IConcertSession.h"
-#include "IConcertSyncServer.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
+#include "Templates/NonNullPointer.h"
 
 namespace UE::MultiUserServer::Private
 {

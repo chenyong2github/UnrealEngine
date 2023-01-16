@@ -1,18 +1,24 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "WebAPIDefinition.h"
-#include "WebAPIJsonUtilities.h"
-#include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
-#include "Dom/WebAPIOperation.h"
-#include "Dom/WebAPISchema.h"
-#include "Dom/WebAPIService.h"
-#include "Dom/WebAPITypeRegistry.h"
 #include "UObject/StrongObjectPtr.h"
-#include "V3/WebAPIOpenAPISchema.h"
+#include "V3/WebAPIOpenAPISchema.h" // IWYU pragma: keep
+#include "WebAPIProviderSettings.h"
+
+class FWebAPIMessageLog;
+class UWebAPIEnum;
+class UWebAPIModel;
+class UWebAPIOperation;
+class UWebAPIOperationParameter;
+class UWebAPIOperationRequest;
+class UWebAPIOperationResponse;
+class UWebAPIParameter;
+class UWebAPIProperty;
+class UWebAPISchema;
+class UWebAPITypeInfo;
+namespace UE::Json { template <class ObjectType> class TJsonReference; }
+template <typename OptionalType> struct TOptional;
 
 namespace UE::WebAPI::OpenAPI
 {

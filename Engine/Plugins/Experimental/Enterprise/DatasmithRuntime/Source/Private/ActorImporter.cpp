@@ -1,21 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SceneImporter.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "DatasmithRuntimeUtils.h"
-#include "LogCategory.h"
 
 #include "IDatasmithSceneElements.h"
 
 #include "Algo/AnyOf.h"
-#include "Camera/PlayerCameraManager.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
-#include "Components/SceneComponent.h"
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
-#include "ProfilingDebugging/MiscTrace.h"
 #include "RenderingThread.h"
 #include "UObject/Package.h"
 

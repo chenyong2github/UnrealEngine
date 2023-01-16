@@ -2,22 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
 #include "TimedDataMonitorEditorStyle.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "TimeDataNumericEntryBox"
 

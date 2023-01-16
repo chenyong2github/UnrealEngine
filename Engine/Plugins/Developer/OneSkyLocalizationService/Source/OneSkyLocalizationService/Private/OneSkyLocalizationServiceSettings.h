@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Misc/Guid.h"
 #include "OneSkyConnectionInfo.h"
 #include "OneSkyLocalizationServiceSettings.generated.h"
 

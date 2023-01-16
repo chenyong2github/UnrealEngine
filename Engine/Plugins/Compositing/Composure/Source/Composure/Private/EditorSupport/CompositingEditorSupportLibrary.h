@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "EditorSupport/CompImageColorPickerInterface.h"
-#include "UObject/TextProperty.h"
 #include "CompositingEditorSupportLibrary.generated.h"
 
 /* UCompositingPickerAsyncTask

@@ -2,20 +2,13 @@
 
 #include "RemoteControlProtocolDMXSettingsDetails.h"
 
-#include "IRemoteControlPropertyHandle.h"
 #include "RemoteControlProtocolDMXSettings.h"
-#include "RemoteControlPreset.h"
 
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Styling/AppStyle.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "IPropertyUtilities.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
-#include "Misc/MessageDialog.h"
 #include "Widgets/SDMXPortSelector.h"
 #include "Widgets/Text/STextBlock.h"
 

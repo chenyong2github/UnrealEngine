@@ -2,9 +2,9 @@
 
 #include "SoundModImporterFactory.h"
 #include "AudioAnalytics.h"
-#include "EngineGlobals.h"
 #include "Editor.h"
 #include "SoundMod.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "xmp.h"
 #include "Components/AudioComponent.h"
 

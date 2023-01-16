@@ -3,9 +3,18 @@
 #include "MovieSceneLiveLinkSubSectionLensRole.h"
 
 #include "CameraCalibrationSubsystem.h"
+#include "Channels/MovieSceneBoolChannel.h"
 #include "Engine/Engine.h"
+#include "Channels/MovieSceneByteChannel.h"
 #include "LiveLinkLensRole.h"
+#include "Channels/MovieSceneChannelProxy.h"
 #include "LiveLinkLensTypes.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
+#include "Models/LensModel.h"
+#include "MovieScene/IMovieSceneLiveLinkPropertyHandler.h"
+#include "MovieScene/MovieSceneLiveLinkStructProperties.h"
 
 void UMovieSceneLiveLinkSubSectionLensRole::Initialize(TSubclassOf<ULiveLinkRole> InSubjectRole, const TSharedPtr<FLiveLinkStaticDataStruct>& InStaticData)
 {

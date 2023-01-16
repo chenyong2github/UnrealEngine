@@ -2,6 +2,7 @@
 
 #include "RemoteControlProtocolOSC.h"
 
+#include "OSCAddress.h"
 #include "RemoteControlLogger.h"
 
 #if WITH_EDITOR

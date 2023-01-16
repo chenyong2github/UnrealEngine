@@ -1,11 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Details/ViewModels/WebAPIOperationViewModel.h"
-#include "SWebAPISchemaTreeTableRow.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.h"
 #include "SWebAPISchemaTreeTableRow.inl"
+#include "Widgets/Views/ITableRow.h"
+
+class FWebAPIOperationViewModel;
 
 class SWebAPISchemaOperationRow
 	: public SWebAPISchemaTreeTableRow<FWebAPIOperationViewModel>

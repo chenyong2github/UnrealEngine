@@ -2,12 +2,10 @@
 
 #include "SConcertSessionRecovery.h"
 
-#include "Styling/AppStyle.h"
-#include "Session/Activity/SConcertSessionActivities.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Widgets/SWindow.h"
+#include "Session/Activity/ActivityColumn.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "SNegativeActionButton.h"

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnitTests/VMReflection.h"
-#include "GameFramework/Actor.h"
 #include "GameFramework/DefaultPawn.h"
 
 
 #include "NUTUtilReflection.h"
+#include "NetcodeUnitTest.h"
 
 
 /**

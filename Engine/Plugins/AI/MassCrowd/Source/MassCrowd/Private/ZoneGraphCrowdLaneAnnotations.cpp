@@ -2,10 +2,10 @@
 
 #include "ZoneGraphCrowdLaneAnnotations.h"
 #include "Engine/Engine.h"
+#include "MassCrowdSubsystem.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "ZoneGraphRenderingUtilities.h"
 #include "ZoneGraphSubsystem.h"
-#include "ZoneGraphTypes.h"
 #include "ZoneGraphQuery.h"
 #include "ZoneGraphSettings.h"
 #include "MassNavigationTypes.h"

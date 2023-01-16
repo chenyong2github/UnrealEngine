@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SActorPaletteViewport;

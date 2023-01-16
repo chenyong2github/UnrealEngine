@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Logging/LogMacros.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UniquePtr.h"
-#include "MeshDescription.h"
 
 #include "GLTFLogger.h"
+#include "Math/Transform.h"
+
+struct FMeshDescription;
 
 class UStaticMesh;
 struct FDatasmithImportContext;

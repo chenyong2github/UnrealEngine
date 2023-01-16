@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeProjectEditorToolbar.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
 #include "CodeProjectEditorCommands.h"
 #include "LevelEditorActions.h"
 #include "SourceCodeNavigation.h"

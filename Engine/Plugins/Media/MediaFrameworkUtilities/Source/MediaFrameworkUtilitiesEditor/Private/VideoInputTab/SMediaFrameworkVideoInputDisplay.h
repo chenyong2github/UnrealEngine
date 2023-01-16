@@ -2,14 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Engine/EngineTypes.h"
-#include "Math/Color.h"
-#include "SlateFwd.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+#include "Engine/TimerHandle.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 #include "SMediaFrameworkVideoInputDisplay.generated.h"

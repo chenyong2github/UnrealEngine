@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HeadMountedDisplayBase.h"
-#include "XRTrackingSystemBase.h"
 #include "SceneViewExtension.h"
 
 class APlayerController;

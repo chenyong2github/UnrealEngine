@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertFrontendLogFilter_TextSearch.h"
 #include "Widgets/Util/Filter/ConcertRootFrontendFilter.h"
+#include "Widgets/Util/Filter/SConcertFilterBar.h"
+
+namespace UE::MultiUserServer { class FConcertLogTokenizer; }
 
 class FConcertLogTokenizer;
 class FEndpointToUserNameCache;

@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorUndoClient.h"
 #include "PropertyEditorDelegates.h"
 #include "SequencerPlaylistItem.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/ITableRow.h"
+#include "Widgets/Views/SListView.h" // IWYU pragma: keep
+#include "Widgets/Views/STableRow.h"
 
+class STableViewBase;
 
 struct FAssetData;
 class SDockTab;

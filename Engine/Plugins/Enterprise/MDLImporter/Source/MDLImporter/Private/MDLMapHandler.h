@@ -5,8 +5,6 @@
 #include "generator/MaterialExpressionFactory.h"
 #include "mdl/MapDistilHandler.h"
 
-#include "Containers/Map.h"
-#include "Templates/UniquePtr.h"
 
 class UTextureFactory;
 namespace Mdl

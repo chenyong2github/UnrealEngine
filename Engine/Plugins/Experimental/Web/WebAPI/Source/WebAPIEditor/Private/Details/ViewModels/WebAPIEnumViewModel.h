@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Details/ViewModels/WebAPIViewModel.h"
 #include "Dom/WebAPIEnum.h"
-#include "Templates/SharedPointer.h"
 
 class FWebAPIEnumViewModel;
 

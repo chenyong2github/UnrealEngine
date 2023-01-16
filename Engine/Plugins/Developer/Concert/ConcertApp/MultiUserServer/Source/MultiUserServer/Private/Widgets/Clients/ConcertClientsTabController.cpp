@@ -3,10 +3,12 @@
 #include "ConcertClientsTabController.h"
 
 #include "ConcertServerStyle.h"
+#include "IConcertModule.h"
 #include "IConcertSyncServer.h"
 #include "SConcertClientsTabView.h"
 #include "Logging/Source/GlobalLogSource.h"
 #include "Logging/Util/LogAckTracker.h"
+#include "Widgets/SConcertTabViewBase.h"
 #include "Window/ConcertServerTabs.h"
 #include "Window/ConcertServerWindowController.h"
 #include "Widgets/Docking/SDockTab.h"

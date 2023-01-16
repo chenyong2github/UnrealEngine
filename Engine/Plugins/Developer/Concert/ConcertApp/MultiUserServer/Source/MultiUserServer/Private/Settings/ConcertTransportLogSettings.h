@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertFrontendUtils.h"
-#include "UObject/Object.h"
 #include "ConcertTransportLogSettings.generated.h"
 
 /**

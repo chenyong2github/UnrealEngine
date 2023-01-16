@@ -2,8 +2,10 @@
 
 #pragma once
 #if USING_FLITE
-#include "CoreMinimal.h"
-#include "Flite/FliteSynthesizedSpeechData.h"
+#include "Delegates/Delegate.h"
+
+class FString;
+struct FFliteSynthesizedSpeechData;
 
 struct FliteSpeechStreaming
 {

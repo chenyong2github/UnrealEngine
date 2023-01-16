@@ -2,19 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-#include "FastUpdate/WidgetUpdateFlags.h"
 
-#include "Common/PagedArray.h"
-#include "Containers/ArrayView.h"
 #include "Model/IntervalTimeline.h"
 #include "Model/PointTimeline.h"
 #include "Model/IntervalTimeline.h"
-#include "Templates/EnableIf.h"
 #include "Trace/Analyzer.h"
-#include "Trace/SlateTrace.h"
+#include "Widgets/InvalidateWidgetReason.h"
+
+enum class ESlateTraceApplicationFlags : uint8;
+enum class EWidgetUpdateFlags : uint8;
 
 namespace TraceServices { class IAnalysisSession; }
 

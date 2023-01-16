@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "UObject/NameTypes.h"
 
 namespace DisasterRecoveryUtil
 {

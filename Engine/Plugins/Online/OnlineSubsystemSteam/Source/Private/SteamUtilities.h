@@ -2,8 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemSteamPrivate.h"
+#include "HAL/Platform.h"
+
+THIRD_PARTY_INCLUDES_START
+// IWYU pragma: begin_exports
+#include <steam/isteammatchmaking.h>
+#include <steam/isteamnetworking.h>
+#include <steam/matchmakingtypes.h>
+#include <steam/steamclientpublic.h>
+// IWYU pragma: end_exports
+THIRD_PARTY_INCLUDES_END
+
+
+class FString;
+namespace EOnlineServerConnectionStatus { enum Type : uint8; }
 
 /**
  * Takes a Steam EResult value, and converts it into a string (with extra debug info)

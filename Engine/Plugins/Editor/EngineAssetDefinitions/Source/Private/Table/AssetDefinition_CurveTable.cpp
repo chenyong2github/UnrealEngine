@@ -3,7 +3,9 @@
 #include "AssetDefinition_CurveTable.h"
 
 #include "AssetDefinitionRegistry.h"
+#include "IAssetTools.h"
 #include "ToolMenus.h"
+#include "IDesktopPlatform.h"
 #include "Misc/FileHelper.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Framework/Application/SlateApplication.h"
@@ -12,8 +14,10 @@
 #include "CurveTableEditorModule.h"
 #include "DesktopPlatformModule.h"
 #include "FindSourceFileInExplorer.h"
-#include "ToolMenuDelegates.h"
+#include "Misc/Paths.h"
 #include "Settings/EditorLoadingSavingSettings.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

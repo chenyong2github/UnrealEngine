@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Async/Future.h"
-#include "CoreMinimal.h"
 #include "Factories/WebAPIDefinitionFactory.h"
 
 #include "WebAPIOpenAPIFactoryBase.generated.h"

@@ -2,26 +2,14 @@
 
 #include "Profile/SMediaProfileSettingsOptionsWindow.h"
 
-#include "Profile/MediaProfileSettings.h"
 
-#include "DetailCategoryBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
-#include "Styling/AppStyle.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Interfaces/IMainFrameModule.h"
+#include "DetailsViewArgs.h"
 #include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
-#include "Misc/Paths.h"
 #include "PropertyEditorModule.h"
-#include "UObject/StrongObjectPtr.h"
 #include "UObject/StructOnScope.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWindow.h"
 
 

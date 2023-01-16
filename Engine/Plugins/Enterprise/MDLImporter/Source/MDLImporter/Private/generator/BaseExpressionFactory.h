@@ -4,7 +4,6 @@
 
 #include "common/Logging.h"
 
-#include "Containers/Array.h"
 
 class UMaterial;
 namespace mi

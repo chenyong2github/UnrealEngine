@@ -1,18 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualScoutingOpenXR.h"
+#include "Misc/CoreDelegates.h"
 #include "VirtualScoutingOpenXRModule.h"
 
-#include "Logging/LogMacros.h"
-#include "Modules/ModuleManager.h"
+#include "OpenXRCore.h"
 
 #if WITH_EDITOR
 
 #include "IVREditorModule.h"
-#include "ViewportWorldInteraction.h"
-#include "VREditorMode.h"
-#include "VREditorInteractor.h"
-#include "VRModeSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "VirtualScouting"

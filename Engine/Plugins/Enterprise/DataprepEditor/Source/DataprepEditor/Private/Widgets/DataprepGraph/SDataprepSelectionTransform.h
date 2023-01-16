@@ -4,10 +4,7 @@
 
 #include "Widgets/DataprepGraph/SDataprepActionBlock.h"
 
-#include "CoreMinimal.h"
 #include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 
 class UDataprepSelectionTransform;
 struct FDataprepSchemaActionContext;

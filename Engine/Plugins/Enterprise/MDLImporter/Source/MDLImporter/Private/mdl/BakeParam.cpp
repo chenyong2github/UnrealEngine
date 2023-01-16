@@ -12,9 +12,17 @@ MDLSDK_INCLUDES_START
 #include "mi/neuraylib/icanvas.h"
 #include "mi/neuraylib/idata.h"
 #include "mi/neuraylib/itile.h"
-#include "mi/neuraylib/ivalue.h"
 #include "mi/neuraylib/set_get.h"
 #include "mi/neuraylib/typedefs.h"
+#include <mi/base/handle.h>
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
+#include <mi/math/color.h>
+#include <mi/math/vector.h>
+#include <mi/neuraylib/icolor.h>
+#include <mi/neuraylib/ienum.h>
+#include <mi/neuraylib/inumber.h>
 MDLSDK_INCLUDES_END
 
 namespace

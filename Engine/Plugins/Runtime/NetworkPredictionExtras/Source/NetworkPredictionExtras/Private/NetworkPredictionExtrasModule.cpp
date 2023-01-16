@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionExtrasModule.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
-#include "Internationalization/Internationalization.h"
 #include "MockRootMotionSourceObject.h"
 
 #if WITH_EDITOR

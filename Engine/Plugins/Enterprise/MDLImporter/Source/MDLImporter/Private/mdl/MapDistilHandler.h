@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
+
+class FString;
 
 namespace mi
 {

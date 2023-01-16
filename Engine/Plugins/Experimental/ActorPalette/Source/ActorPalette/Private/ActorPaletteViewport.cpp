@@ -2,23 +2,19 @@
 
 #include "ActorPaletteViewport.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SViewport.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "SEditorViewportToolBarMenu.h"
-#include "EngineUtils.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 
-#include "ActorPaletteStyle.h"
 #include "ActorPaletteCommands.h"
 #include "ActorPaletteViewportClient.h"
 #include "ActorPaletteSettings.h"
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "ActorPalette"
 

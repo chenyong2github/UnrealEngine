@@ -3,8 +3,10 @@
 #include "ServerBrowserItem.h"
 
 #include "IConcertServer.h"
+#include "IConcertSession.h"
 #include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Browser/Models/Transfer/ServerTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/Transfer/TransferStatisticsModel.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FServerBrowserItem"
 

@@ -2,11 +2,7 @@
 
 #include "Components/DMXPixelMappingOutputComponent.h"
 
-#include "DMXPixelMappingRuntimeObjectVersion.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingRootComponent.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 #include "DMXPixelMappingComponentWidget.h"

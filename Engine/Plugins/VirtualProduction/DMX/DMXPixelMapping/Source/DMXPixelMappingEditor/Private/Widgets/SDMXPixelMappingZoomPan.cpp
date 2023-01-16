@@ -2,6 +2,7 @@
 
 #include "Widgets/SDMXPixelMappingZoomPan.h"
 
+#include "Layout/ArrangedChildren.h"
 #include "Layout/LayoutUtils.h"
 
 #include "RHI.h"

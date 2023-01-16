@@ -2,10 +2,7 @@
 
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 
-#include "ChaosFlesh/FleshActor.h"
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
-#include "ChaosFlesh/ChaosDeformableSolverThreading.h"
-#include "CoreMinimal.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolverActor, Log, All);
 

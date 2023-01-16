@@ -3,7 +3,6 @@
 #include "IOpenCVLensDistortionModule.h"
 
 #include "Interfaces/IPluginManager.h"
-#include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"

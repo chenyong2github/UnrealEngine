@@ -3,8 +3,8 @@
 
 #include "OSCAddress.h"
 #include "OSCPacket.h"
-#include "OSCStream.h"
-#include "OSCTypes.h"
+
+class FOSCType;
 
 
 class FOSCMessagePacket : public IOSCPacket

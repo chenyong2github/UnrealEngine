@@ -3,8 +3,8 @@
 #include "DrawCurveOnMeshSampleTool.h"
 #include "Engine/HitResult.h"
 #include "InteractiveToolManager.h"
-#include "ToolBuilderUtil.h"
 #include "SceneManagement.h"   // FPrimitiveDrawInterface
+#include "ToolContextInterfaces.h"
 
 // localization namespace
 #define LOCTEXT_NAMESPACE "UDrawCurveOnMeshSampleTool"

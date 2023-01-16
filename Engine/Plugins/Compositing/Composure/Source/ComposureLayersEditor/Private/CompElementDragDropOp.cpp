@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompElementDragDropOp.h"
-#include "Textures/SlateIcon.h"
 
 void FCompElementDragDropOp::Construct()
 {

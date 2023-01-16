@@ -3,13 +3,11 @@
 
 #include "DMXFixtureComponent.h"
 
-#include "DMXFixtureActor.h"
 #include "DMXFixtureActorMatrix.h"
 
+#include "DMXInterpolation.h"
 #include "RenderingThread.h"
-#include "RHICommandList.h"
 #include "Engine/Texture2D.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Rendering/Texture2DResource.h"
 
 

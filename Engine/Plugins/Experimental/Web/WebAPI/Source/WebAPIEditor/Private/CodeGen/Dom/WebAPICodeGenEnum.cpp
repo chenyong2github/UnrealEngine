@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/Dom/WebAPICodeGenEnum.h"
 
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "WebAPIDefinition.h"
 #include "WebAPIEditorUtilities.h"
 #include "Dom/WebAPIEnum.h"

@@ -3,13 +3,11 @@
 
 #include "BinkMediaTextureResource.h"
 
-#include "BinkMediaPlayerPrivate.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
-#include "Runtime/Launch/Resources/Version.h"
 #include "BinkMediaPlayer.h"
-#include "BinkMediaTexture.h"
 #include "RenderingThread.h"
+#include "Rendering/SlateRenderer.h"
 
 void FBinkMediaTextureResource::InitDynamicRHI() 
 {

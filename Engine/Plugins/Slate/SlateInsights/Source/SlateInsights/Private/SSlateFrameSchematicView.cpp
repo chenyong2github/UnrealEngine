@@ -1,27 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSlateFrameSchematicView.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "SlateProvider.h"
 #include "SSlateTraceFlags.h"
 
-#include "TraceServices/Model/AnalysisSession.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/ViewModels/ITimingEvent.h"
-#include "Widgets/InvalidateWidgetReason.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SHeader.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
-#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -31,6 +25,8 @@
 #include "SlateInsightsStyle.h"
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "SSlateFrameSchematicView"
 

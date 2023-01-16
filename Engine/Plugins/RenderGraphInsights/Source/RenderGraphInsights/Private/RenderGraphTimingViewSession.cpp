@@ -3,16 +3,10 @@
 #include "RenderGraphTimingViewSession.h"
 
 #include "Insights/ITimingViewSession.h"
-#include "Modules/ModuleManager.h"
-#include "TraceServices/Model/AnalysisSession.h"
 
 #include "RenderGraphTrack.h"
-#include "RenderGraphInsightsModule.h"
-#include "RenderGraphProvider.h"
-#include "RenderGraphTimingViewExtender.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "RenderGraphTimingViewSession"
 

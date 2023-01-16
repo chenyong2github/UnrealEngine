@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertFrontendStyle.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
-#include "SlateOptMacros.h"
+#include "Misc/Paths.h"
 #include "Styling/StarshipCoreStyle.h"
+#include "Styling/SlateStyle.h"
 
 LLM_DEFINE_TAG(Concert_ConcertFrontendStyle);
 

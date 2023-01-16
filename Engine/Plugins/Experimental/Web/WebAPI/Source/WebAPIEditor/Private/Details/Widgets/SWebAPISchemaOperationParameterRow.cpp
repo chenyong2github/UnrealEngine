@@ -2,11 +2,9 @@
 
 #include "SWebAPISchemaOperationParameterRow.h"
 
-#include "Styling/AppStyle.h"
 #include "Details/ViewModels/WebAPIOperationParameterViewModel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Details/Widgets/SWebAPISchemaTreeTableRow.inl"
+#include "Widgets/Views/SListView.h"
 
 void SWebAPISchemaOperationParameterRow::Construct(const FArguments& InArgs, const TSharedRef<FWebAPIOperationParameterViewModel>& InViewModel, const TSharedRef<STableViewBase>& InOwnerTableView)
 {

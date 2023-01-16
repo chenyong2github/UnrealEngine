@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpatializationEditorModule.h"
-#include "Features/IModularFeatures.h"
 #include "ITDSpatializationSourceSettingsFactory.h"
 
 

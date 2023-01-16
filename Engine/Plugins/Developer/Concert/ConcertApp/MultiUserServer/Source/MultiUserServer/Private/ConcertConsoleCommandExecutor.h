@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
+
+struct FInputChord;
 
 namespace UE::MultiUserServer
 {

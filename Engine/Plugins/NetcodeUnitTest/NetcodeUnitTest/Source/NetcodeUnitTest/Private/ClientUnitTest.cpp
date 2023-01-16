@@ -7,18 +7,19 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/PlayerController.h"
-#include "HAL/PlatformNamedPipe.h"
 #include "Engine/ActorChannel.h"
 
 
 #include "UnitTestManager.h"
 #include "MinimalClient.h"
 #include "NUTActor.h"
-#include "Net/UnitTestChannel.h"
 #include "UnitTestEnvironment.h"
 #include "NUTGlobals.h"
 #include "NUTUtilDebug.h"
-#include "NUTUtilReflection.h"
+
+#if PLATFORM_WINDOWS
+#include "HAL/PlatformNamedPipe.h"
+#endif
 
 // @todo #JohnB: Create a unit test for load-testing servers, using multiple instances of the minimal client,
 //					as a feature for engine testing and licensees in general (and to flesh-out support for multiple min clients,

@@ -4,9 +4,8 @@
 
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeSpawner.h"
-#include "HttpBlueprintFunctionLibrary.h"
 #include "HttpBlueprintTypes.h"
-#include "HttpRequestProxyObject.h"
+#include "HttpHeader.h"
 #include "JsonBlueprintFunctionLibrary.h"
 #include "K2Node_AsyncMakeRequestHeader.h"
 #include "K2Node_CallFunction.h"

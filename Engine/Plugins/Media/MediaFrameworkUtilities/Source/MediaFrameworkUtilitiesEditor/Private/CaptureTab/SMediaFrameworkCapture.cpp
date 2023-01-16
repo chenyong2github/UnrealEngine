@@ -2,27 +2,22 @@
 
 #include "CaptureTab/SMediaFrameworkCapture.h"
 
-#include "Styling/AppStyle.h"
+#include "DetailsViewArgs.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Framework/Docking/TabManager.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "IDetailsView.h"
 #include "LevelEditor.h"
-#include "LevelEditorViewport.h"
+#include "Materials/Material.h" // IWYU pragma: keep
+#include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
-#include "Slate/SceneViewport.h"
-#include "Textures/SlateIcon.h"
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 
 #include "CaptureTab/SMediaFrameworkCaptureOutputWidget.h"
-#include "Editor.h"
-#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "PropertyEditorModule.h"
 

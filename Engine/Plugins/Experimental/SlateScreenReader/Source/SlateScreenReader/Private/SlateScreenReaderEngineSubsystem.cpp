@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateScreenReaderEngineSubsystem.h"
+#include "Announcement/ScreenReaderAnnouncement.h"
 #include "GenericPlatform/ScreenReaderReply.h"
 #include "GenericPlatform/ScreenReaderBase.h"
 #include "GenericPlatform/ScreenReaderUser.h"
 #include "SlateScreenReaderLog.h"
-#include "Application/SlateApplicationBase.h"
 #include "GenericPlatform/IScreenReaderBuilder.h"
 #include "SlateScreenReaderModule.h"
 #include "Framework/Application/SlateApplication.h"

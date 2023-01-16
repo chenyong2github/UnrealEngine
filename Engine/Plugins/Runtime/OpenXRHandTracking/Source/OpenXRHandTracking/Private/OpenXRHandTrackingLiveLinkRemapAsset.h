@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/ObjectMacros.h"
 #include "LiveLinkRetargetAsset.h"
 #include "OpenXRHandTrackingLiveLinkRemapAsset.generated.h"
 

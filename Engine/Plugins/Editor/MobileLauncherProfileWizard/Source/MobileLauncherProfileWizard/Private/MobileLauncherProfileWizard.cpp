@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "ILauncherProfileManager.h"
 #include "ILauncherServicesModule.h"
 #include "IMobileLauncherProfileWizard.h"
 #include "AndroidProfileWizard.h"

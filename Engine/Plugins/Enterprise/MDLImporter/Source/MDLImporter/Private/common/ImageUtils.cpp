@@ -6,16 +6,7 @@ NOT the ImageUtils in Engine
 =============================================================================*/
 
 #include "ImageUtils.h"
-#include "Engine/Texture2D.h"
-#include "Misc/ObjectThumbnail.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "CubemapUnwrapUtils.h"
-#include "Logging/MessageLog.h"
-#include "IImageWrapper.h"
-#include "IImageWrapperModule.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "TextureResource.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageUtils, Log, All);

@@ -4,7 +4,6 @@
 
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeSpawner.h"
-#include "EdGraphUtilities.h"
 #include "HttpBlueprintFunctionLibrary.h"
 #include "HttpBlueprintGraphLog.h"
 #include "HttpBlueprintTypes.h"
@@ -13,9 +12,9 @@
 #include "K2Node_MakeMap.h"
 #include "KismetCompiler.h"
 #include "ScopedTransaction.h"
-#include "ToolMenus.h"
-#include "Framework/Commands/UIAction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_MakeRequestHeader"
 

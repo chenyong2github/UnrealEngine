@@ -1,29 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScriptableToolsEditorModeToolkit.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "ScriptableToolsEditorMode.h"
 #include "ScriptableToolsEditorModeManagerCommands.h"
 #include "ScriptableToolsEditorModeStyle.h"
-#include "Engine/Selection.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Modules/ModuleManager.h"
 #include "IDetailsView.h"
-#include "ISettingsModule.h"
-#include "EditorModeManager.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
 
 #include "InteractiveToolManager.h"
 
-#include "Widgets/Input/SButton.h"
-#include "SSimpleButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SExpandableArea.h"
 #include "SPrimaryButton.h"
-#include "Framework/MultiBox/SToolBarButtonBlock.h"
-#include "Internationalization/Text.h"
 
 #include "ScriptableInteractiveTool.h"
 #include "ScriptableToolSet.h"

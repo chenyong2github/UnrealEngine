@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneComposurePostMoveSettingsSectionTemplate.h"
-#include "MovieScene/MovieSceneComposurePostMoveSettingsTrack.h"
+#include "Evaluation/Blending/MovieSceneInitialValueStore.h"
 #include "MovieScene/MovieSceneComposurePostMoveSettingsSection.h"
-#include "ComposurePostMoves.h"
+#include "Evaluation/MovieSceneExecutionTokens.h"
+#include "Tracks/MovieScenePropertyTrack.h"
 
 template<>
 FMovieSceneAnimTypeID GetBlendingDataType<FComposurePostMoveSettings>()

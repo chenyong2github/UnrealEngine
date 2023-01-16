@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ISourceCodeAccessor.h"
 
 class FCodeLiteSourceCodeAccessor : public ISourceCodeAccessor

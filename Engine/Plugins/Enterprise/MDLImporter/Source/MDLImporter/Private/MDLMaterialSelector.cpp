@@ -2,16 +2,12 @@
 
 #include "MDLMaterialSelector.h"
 
-#include "common/Utility.h"
 #include "generator/FunctionLoader.h"
 #include "material/BakedMaterialFactory.h"
 #include "material/CarpaintMaterialFactory.h"
 #include "material/TranslucentMaterialFactory.h"
 #include "mdl/Material.h"
 
-#include "Materials/Material.h"
-#include "Templates/Casts.h"
-#include "UObject/SoftObjectPath.h"
 
 namespace MDLImporterImpl
 {

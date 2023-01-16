@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IpConnection.h"
 #include "NetConnectionEOS.generated.h"
 

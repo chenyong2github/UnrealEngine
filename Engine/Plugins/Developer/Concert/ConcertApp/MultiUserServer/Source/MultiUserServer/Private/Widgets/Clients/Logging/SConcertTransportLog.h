@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Filter/FilteredConcertLogList.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/SCompoundWidget.h"
+
+namespace UE::MultiUserServer { class FPagedFilteredConcertLogList; }
 
 class FEndpointToUserNameCache;
 class FMenuBuilder;

@@ -3,11 +3,10 @@
 #pragma once
 
 // #include "Tests/OrionAutomationHelper.h"
-#include "Stats/StatsData.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Ticker.h"
+
+struct FStatMessage;
 
 class FPerformanceMonitorModule : public IModuleInterface, public FSelfRegisteringExec
 {

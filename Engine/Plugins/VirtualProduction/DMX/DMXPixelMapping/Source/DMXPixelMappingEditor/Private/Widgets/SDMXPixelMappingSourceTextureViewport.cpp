@@ -3,7 +3,6 @@
 #include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
 #include "TextureResource.h"
 #include "Viewports/DMXPixelMappingSourceTextureViewportClient.h"
-#include "DMXPixelMapping.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Viewports/DMXPixelMappingSceneViewport.h"

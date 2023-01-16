@@ -2,7 +2,6 @@
 
 #include "AnalyticsMulticastEditor.h"
 
-#include "Modules/ModuleManager.h"
 #include "AnalyticsMulticastSettings.h"
 #include "Analytics.h"
 

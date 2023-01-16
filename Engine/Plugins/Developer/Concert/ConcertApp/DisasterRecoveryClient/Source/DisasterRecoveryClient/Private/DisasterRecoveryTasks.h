@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IConcertModule.h"
-#include "ConcertMessages.h"
 #include "Containers/Ticker.h"
+#include "Misc/Guid.h"
+
+enum class EConcertConnectionStatus : uint8;
+enum class EConcertResponseCode : uint8;
+struct FConcertAdmin_DropSessionRepositoriesResponse;
+struct FConcertAdmin_GetAllSessionsResponse;
+struct FConcertAdmin_MountSessionRepositoryResponse;
+template <typename ResultType> class TFuture;
 
 class IConcertSyncClient;
 class IConcertClientSession;

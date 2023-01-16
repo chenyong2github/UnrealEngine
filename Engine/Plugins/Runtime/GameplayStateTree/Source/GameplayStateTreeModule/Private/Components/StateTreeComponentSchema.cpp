@@ -4,8 +4,6 @@
 #include "StateTreeConditionBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
-#include "GameFramework/Actor.h"
-#include "Components/ActorComponent.h"
 #include "Subsystems/WorldSubsystem.h"
 
 

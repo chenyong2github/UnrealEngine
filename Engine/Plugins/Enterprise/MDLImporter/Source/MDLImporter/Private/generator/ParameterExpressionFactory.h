@@ -3,7 +3,8 @@
 #pragma once
 
 #include "generator/BaseExpressionFactory.h"
-#include "generator/MaterialExpressionConnection.h"
+
+namespace Generator { struct FMaterialExpressionConnectionList; }
 
 namespace mi
 {

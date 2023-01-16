@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScriptableToolsEditorModeModule.h"
+#include "Modules/ModuleManager.h"
 #include "ScriptableToolsEditorModeManagerCommands.h"
 #include "ScriptableToolsEditorModeStyle.h"
 #include "Misc/CoreDelegates.h"

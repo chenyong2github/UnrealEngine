@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPISubsystem.h"
 
+#include "Async/Future.h"
 #include "GameDelegates.h"
 #include "HttpModule.h"
 #include "WebAPIDeveloperSettings.h"

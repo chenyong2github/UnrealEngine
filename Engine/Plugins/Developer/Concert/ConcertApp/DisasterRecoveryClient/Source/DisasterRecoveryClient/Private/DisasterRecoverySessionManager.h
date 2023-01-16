@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IConcertSyncClient.h"
-#include "DisasterRecoverySessionInfo.h"
 #include "DisasterRecoveryTasks.h"
-#include "IDirectoryWatcher.h"
 #include "Misc/TVariant.h"
+
+struct FFileChangeData;
 
 /** Invoked when a new disaster recovery session is added to the list of sessions. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisasterRecoverySessionAdded, TSharedRef<FDisasterRecoverySession> /*Session*/);

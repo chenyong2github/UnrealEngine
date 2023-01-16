@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
 #include "ComposureConfigSettings.generated.h"
 
 class UTexture;

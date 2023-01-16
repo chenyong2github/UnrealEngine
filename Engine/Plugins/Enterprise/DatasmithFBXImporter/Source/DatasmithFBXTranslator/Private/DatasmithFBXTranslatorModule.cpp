@@ -2,7 +2,6 @@
 
 #include "DatasmithFBXTranslatorModule.h"
 
-#include "CoreMinimal.h"
 
 class FDatasmithFBXTranslatorModule : public IDatasmithFBXTranslatorModule
 {

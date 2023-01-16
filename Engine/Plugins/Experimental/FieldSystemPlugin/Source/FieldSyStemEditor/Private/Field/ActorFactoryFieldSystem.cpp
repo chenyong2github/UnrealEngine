@@ -2,14 +2,8 @@
 
 #include "Field/ActorFactoryFieldSystem.h"
 #include "Field/FieldSystemActor.h"
-#include "Field/FieldSystem.h"
 #include "Field/FieldSystemComponent.h"
-#include "Field/FieldSystemFactory.h"
-#include "Misc/FileHelper.h"
-#include "ActorFactories/ActorFactory.h"
 #include "AssetRegistry/AssetData.h"
-#include "Editor.h"
-#include "EditorFramework/AssetImportData.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactoryFieldSystem"
 

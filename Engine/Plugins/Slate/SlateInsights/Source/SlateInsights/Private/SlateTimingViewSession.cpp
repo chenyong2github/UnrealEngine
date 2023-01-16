@@ -4,19 +4,14 @@
 
 #include "Insights/ITimingViewSession.h"
 #include "Insights/IUnrealInsightsModule.h"
-#include "Insights/ViewModels/TimingEvent.h"
-#include "Modules/ModuleManager.h"
-#include "TraceServices/Model/AnalysisSession.h"
 
 #include "SlateFrameGraphTrack.h"
 #include "SlateWidgetUpdateStepsTimingTrack.h"
 #include "SlateInsightsModule.h"
 #include "SlateProvider.h"
-#include "SlateTimingViewExtender.h"
 #include "SSlateFrameSchematicView.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "SlateTimingViewSession"
 

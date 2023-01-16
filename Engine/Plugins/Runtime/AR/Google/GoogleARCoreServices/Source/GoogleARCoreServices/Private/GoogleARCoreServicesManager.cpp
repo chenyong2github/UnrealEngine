@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GoogleARCoreServicesManager.h"
-#include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "GoogleARCoreCloudARPinManager.h"
+#include "XRTrackingSystemBase.h"
 
 FGoogleARCoreServicesManager::FGoogleARCoreServicesManager()
 	: bHasValidARSystem(false)

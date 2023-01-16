@@ -2,8 +2,8 @@
 
 #include "DatasmithDeltaGenAnimationInterpolator.h"
 
-#include "Algo/BinarySearch.h"
 #include "Curves/CurveEvaluation.h"
+#include "Math/Vector.h"
 
 namespace DeltaGen
 {

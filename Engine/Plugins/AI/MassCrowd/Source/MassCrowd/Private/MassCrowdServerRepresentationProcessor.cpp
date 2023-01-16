@@ -2,7 +2,7 @@
 
 #include "MassCrowdServerRepresentationProcessor.h"
 #include "MassCrowdFragments.h"
-#include "MassActorSubsystem.h"
+#include "MassLODTypes.h"
 
 UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor()
 {

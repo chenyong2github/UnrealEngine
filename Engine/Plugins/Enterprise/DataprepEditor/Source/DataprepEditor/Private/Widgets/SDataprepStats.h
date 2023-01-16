@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "DataprepStats.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SListView.h"
+
+template <typename ItemType> class SListView;
 
 struct FDataprepStats;
 

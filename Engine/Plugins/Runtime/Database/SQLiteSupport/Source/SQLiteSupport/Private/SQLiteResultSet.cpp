@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SQLiteResultSet.h"
+#include "CoreGlobals.h"
+#include "SQLiteTypes.h"
 
 FSQLiteResultSet::FSQLiteResultSet(FSQLitePreparedStatement&& InPreparedStatement)
 	: PreparedStatement(MoveTemp(InPreparedStatement))

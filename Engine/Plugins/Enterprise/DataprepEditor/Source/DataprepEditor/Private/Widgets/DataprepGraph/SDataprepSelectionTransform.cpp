@@ -5,11 +5,7 @@
 #include "DataprepEditorStyle.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
 #include "Widgets/DataprepWidgets.h"
-#include "Widgets/SNullWidget.h"
 
-#include "IDetailsView.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 
 void SDataprepSelectionTransform::Construct(const FArguments& InArgs, UDataprepSelectionTransform* InTransform, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext)
 {

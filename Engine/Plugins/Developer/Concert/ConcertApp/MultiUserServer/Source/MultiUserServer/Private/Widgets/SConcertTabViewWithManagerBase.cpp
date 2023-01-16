@@ -2,12 +2,13 @@
 
 #include "SConcertTabViewWithManagerBase.h"
 
+#include "Framework/Commands/UICommandList.h"
 #include "Widgets/Util/SMultiUserIcons.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutService.h"
-#include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/SConcertTabViewBase.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTabViewWithManagerBase"
 

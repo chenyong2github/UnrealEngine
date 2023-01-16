@@ -4,7 +4,6 @@
 
 
 #include "SceneViewExtension.h"
-#include "UObject/WeakObjectPtr.h"
 
 class AComposurePipelineBaseActor;
 

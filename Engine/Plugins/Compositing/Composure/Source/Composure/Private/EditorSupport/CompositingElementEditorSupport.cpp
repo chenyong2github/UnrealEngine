@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositingElement.h"
-#include "HAL/IConsoleManager.h"
 #include "CompositingElements/CompElementRenderTargetPool.h"
+#include "CompositingElements/CompositingElementPasses.h"
 #include "ComposurePlayerCompositingTarget.h"
-#include "CompositingElements/CompositingElementInputs.h"
-#include "CompositingElements/CompositingElementTransforms.h"
-#include "CompositingElements/CompositingElementOutputs.h"
 #include "CompositingElements/CompositingElementPassUtils.h"
-#include "UObject/UObjectGlobals.h"
 #include "EditorSupport/ICompositingEditor.h"
 #include "Engine/Blueprint.h"
 

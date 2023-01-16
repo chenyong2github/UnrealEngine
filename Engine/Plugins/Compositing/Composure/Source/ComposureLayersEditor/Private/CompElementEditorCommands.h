@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 

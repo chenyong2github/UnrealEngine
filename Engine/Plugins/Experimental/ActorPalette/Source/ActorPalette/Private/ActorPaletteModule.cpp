@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorPaletteModule.h"
-#include "ActorPaletteStyle.h"
 #include "ActorPaletteCommands.h"
 
 #include "Widgets/Docking/SDockTab.h"

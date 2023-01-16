@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/AppStyle.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "SGraphPin.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SComboBox.h"
 
-#include "DMXPixelMapping.h"
+#include "DMXPixelMapping.h" // IWYU pragma: keep
 
 struct FComponentUserFriendlyNameTable;
 

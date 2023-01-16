@@ -1,21 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Viewports/DMXPixelMappingPreviewViewportClient.h"
-#include "Widgets/SDMXPixelMappingPreviewViewport.h"
 
 #include "Toolkits/DMXPixelMappingToolkit.h"
-#include "DMXPixelMapping.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
-#include "Components/DMXPixelMappingScreenComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "IDMXPixelMappingRenderer.h"
 
-#include "CanvasItem.h"
 #include "CanvasTypes.h"
-#include "Texture2DPreview.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Slate/SceneViewport.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "UnrealClient.h"
 
 FDMXPixelMappingPreviewViewportClient::FDMXPixelMappingPreviewViewportClient(const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit, TWeakPtr<SDMXPixelMappingPreviewViewport> InViewport)
 	: ToolkitWeakPtr(InToolkit)

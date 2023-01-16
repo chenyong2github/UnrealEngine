@@ -3,12 +3,8 @@
 #include "Widgets/Parameterization/SDataprepParameterizationLinkIcon.h"
 
 #include "DataprepAsset.h"
-#include "DataprepParameterizableObject.h"
-#include "Parameterization/DataprepParameterizationUtils.h"
 
 #include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
-#include "Internationalization/Text.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SDataprepParameterizationLinkIcon"

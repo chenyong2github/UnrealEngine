@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertMessageData.h"
-#include "IConcertEndpoint.h"
-#include "IMessageContext.h"
+
+enum class EConcertRemoteEndpointConnection : uint8;
+struct FConcertEndpointContext;
+struct FMessageAddress;
+template <typename OptionalType> struct TOptional;
 
 class IConcertServerSession;
 class IConcertServer;

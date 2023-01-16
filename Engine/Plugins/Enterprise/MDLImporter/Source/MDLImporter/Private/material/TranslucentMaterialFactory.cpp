@@ -2,10 +2,10 @@
 
 #include "TranslucentMaterialFactory.h"
 
-#include "generator/MaterialExpressions.h"
+#include "Materials/MaterialExpressionMultiply.h"
 #include "material/BakedMaterialFactory.h"
+#include "Materials/MaterialExpressionVectorParameter.h"
 #include "material/MapConnecter.h"
-#include "mdl/Material.h"
 
 namespace Mat
 {

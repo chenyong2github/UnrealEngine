@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "PlayerTime.h"
 
 struct FScriptContainerElement;

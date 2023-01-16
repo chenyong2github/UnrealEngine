@@ -2,19 +2,17 @@
 
 #include "ViewModels/DMXPixelMappingLayoutViewModel.h"
 
-#include "DMXPixelMapping.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXPixelMappingEditorCommon.h"
 #include "DMXPixelMappingLayoutSettings.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "LayoutScripts/DMXPixelMappingLayoutScript.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
-#include "Editor.h"
 #include "ScopedTransaction.h"
 
 

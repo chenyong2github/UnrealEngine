@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPITypeRegistry.h"
 
+#include "Dom/WebAPIType.h"
 #include "GraphEditorSettings.h"
 #include "WebAPIEditorLog.h"
 #include "Algo/Copy.h"

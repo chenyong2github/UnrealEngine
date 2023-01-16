@@ -4,8 +4,6 @@
 #include "NetConnectionEOS.h"
 #include "SocketEOS.h"
 #include "SocketSubsystemEOS.h"
-#include "Misc/EngineVersionComparison.h"
-#include "EOSSharedTypes.h"
 #include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetDriverEOSBase)

@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnitTestEnvironment.h"
-#include "Misc/CommandLine.h"
-#include "Misc/App.h"
 #include "UnitTest.h"
 
 #include "NUTUtil.h"

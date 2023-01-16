@@ -2,12 +2,10 @@
 
 #include "CompositingCaptureBase.h"
 
-#include "CameraCalibrationSubsystem.h"
+#include "Camera/CameraActor.h"
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
-#include "Engine/Engine.h"
 #include "LensComponent.h"
-#include "LensDistortionModelHandlerBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCompositingCaptureBase, Log, All);
 

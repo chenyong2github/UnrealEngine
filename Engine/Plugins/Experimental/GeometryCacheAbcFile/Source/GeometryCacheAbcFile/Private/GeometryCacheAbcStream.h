@@ -4,6 +4,8 @@
 
 #include "GeometryCacheStreamBase.h"
 
+struct FScriptContainerElement;
+
 class UGeometryCacheTrackAbcFile;
 
 class FGeometryCacheAbcStream : public FGeometryCacheStreamBase

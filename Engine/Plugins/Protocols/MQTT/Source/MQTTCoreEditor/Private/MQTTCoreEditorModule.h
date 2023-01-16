@@ -4,8 +4,6 @@
 
 #include "IMQTTCoreEditorModule.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 
 class FMQTTCoreEditorModule final
     : public IMQTTCoreEditorModuleInterface

@@ -2,9 +2,8 @@
 
 #include "TransferStatisticsModel.h"
 
-#include "INetworkMessagingExtension.h"
-#include "Containers/Ticker.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/ScopeExit.h"
 
 namespace UE::MultiUserServer
 {

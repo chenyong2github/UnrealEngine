@@ -2,10 +2,13 @@
 
 #include "DMXFixtureActor.h"
 
+#include "Components/ArrowComponent.h"
 #include "DMXStats.h"
-#include "Game/DMXComponent.h"
 
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "DMXFixtureComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("FixtureActor Push Normalized Values"), STAT_FixtureActorPushNormalizedValuesPerAttribute, STATGROUP_DMX);

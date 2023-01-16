@@ -1,23 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneComposureExportSectionTemplate.h"
-#include "MovieScene/MovieSceneComposureExportTrack.h"
+#include "Engine/Texture.h"
 #include "MovieSceneCaptureEnvironment.h"
-#include "MovieSceneCaptureProtocolBase.h"
+#include "Evaluation/MovieSceneExecutionTokens.h"
 #include "MovieScene/IMovieSceneComposureExportClient.h"
 
-#include "Materials/Material.h"
+#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
 #include "ImageWriteStream.h"
+#include "ImagePixelData.h"
 #include "SceneView.h"
+#include "Protocols/UserDefinedCaptureProtocol.h"
 #include "SceneViewExtension.h"
 #include "CompositingElement.h"
-#include "ComposurePostProcessingPassProxy.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "BufferVisualizationData.h"
 
 #include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Algo/Find.h"
 #include "Async/Async.h"
 
 

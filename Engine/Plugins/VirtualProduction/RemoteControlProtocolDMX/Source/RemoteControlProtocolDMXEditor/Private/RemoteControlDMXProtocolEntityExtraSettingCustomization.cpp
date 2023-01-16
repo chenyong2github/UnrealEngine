@@ -4,17 +4,12 @@
 
 #include "DMXConversions.h"
 #include "DetailWidgetRow.h"
-#include "DMXProtocolTypes.h"
 #include "IDetailChildrenBuilder.h"
-#include "PropertyHandle.h"
 #include "RemoteControlProtocolDMX.h"
 #include "RemoteControlProtocolDMXSettings.h"
-#include "Library/DMXEntityFixtureType.h"
 
-#include "Styling/AppStyle.h"
 #include "IPropertyUtilities.h"
 #include "IO/DMXInputPort.h"
-#include "IO/DMXPortManager.h"
 #include "Widgets/SDMXPortSelector.h"
 #include "Widgets/Text/STextBlock.h"
 

@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
+#include "Widgets/SCompoundWidget.h"
+#include "WorkflowOrientedApp/WorkflowTabFactory.h"
 
 
 class FBlueprintEditor;

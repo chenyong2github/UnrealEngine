@@ -2,18 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Delegates/IDelegateInstance.h"
-#include "Engine/EngineTypes.h"
+#include "Engine/TimerHandle.h"
 #include "MediaFrameworkWorldSettingsAssetUserData.h"
 #include "Misc/NotifyHook.h"
-#include "PropertyEditorDelegates.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 #include "SMediaFrameworkCapture.generated.h"
+
+struct FPropertyAndParent;
 
 class FWorkspaceItem;
 class IDetailsView;

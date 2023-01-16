@@ -4,7 +4,6 @@
 
 #include "MDLImporter.h"
 #include "MDLImporterModule.h"
-#include "MDLImporterOptions.h"
 
 #include "mdl/MaterialCollection.h"
 

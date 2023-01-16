@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "ILocalizationServiceOperation.h"
-#include "ILocalizationServiceState.h"
 #include "ILocalizationServiceProvider.h"
-#include "Framework/Commands/UICommandList.h"
 #include "Internationalization/Culture.h"
 #include "Containers/Queue.h"
 #include "IOneSkyLocalizationServiceWorker.h"
-#include "OneSkyLocalizationServiceState.h"
+#include "Misc/DateTime.h"
+
+class FOneSkyLocalizationServiceState;
+class FUICommandList;
 
 class FOneSkyLocalizationServiceCommand;
 class FToolBarBuilder;

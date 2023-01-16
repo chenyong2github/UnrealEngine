@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILocalizationServiceOperation.h"
 #include "IOneSkyLocalizationServiceWorker.h"
+#include "Misc/DateTime.h"
 #include "OneSkyLocalizationServiceResponseTypes.h"
 
 #define LOCTEXT_NAMESPACE "LocalizationService"

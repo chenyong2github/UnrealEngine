@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NVENC_Common.h"
+#include "CoreGlobals.h"
 #include "HAL/PlatformProcess.h"
-#include "RHI.h"
-#include "VideoEncoderCommon.h"
+#include "Misc/ScopeLock.h"
 
 DEFINE_LOG_CATEGORY(LogEncoderNVENC);
 

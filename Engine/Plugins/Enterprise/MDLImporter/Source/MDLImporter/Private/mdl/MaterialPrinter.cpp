@@ -15,6 +15,13 @@ MDLSDK_INCLUDES_START
 #include "mi/neuraylib/istring.h"
 #include "mi/neuraylib/itexture.h"
 #include "mi/neuraylib/itransaction.h"
+#include <mi/base/handle.h>
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
+#include <mi/neuraylib/iexpression.h>
+#include <mi/neuraylib/itype.h>
+#include <mi/neuraylib/ivalue.h>
 MDLSDK_INCLUDES_END
 
 namespace

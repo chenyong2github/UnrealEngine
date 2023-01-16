@@ -2,15 +2,14 @@
 
 #include "CLionSourceCodeAccessor.h"
 #include "HAL/PlatformProcess.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
-#include "DesktopPlatformModule.h"
-#include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
-#include "Serialization/JsonReader.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonSerializer.h"
 
 #if PLATFORM_WINDOWS
+#include "Internationalization/Regex.h"
+#include "Serialization/JsonSerializer.h"
+#include "Trace/Trace.inl"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 

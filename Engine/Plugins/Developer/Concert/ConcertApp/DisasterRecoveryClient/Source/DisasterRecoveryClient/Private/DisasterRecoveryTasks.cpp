@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisasterRecoveryTasks.h"
+#include "ConcertMessages.h"
 #include "IConcertClient.h"
-#include "IConcertSession.h"
+#include "ConcertSyncSessionTypes.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
 #include "IDisasterRecoveryClientModule.h"
-#include "Containers/Ticker.h"
-#include "Stats/Stats.h"
 #include "ConcertActivityStream.h"
 #include "DisasterRecoverySessionInfo.h"
 

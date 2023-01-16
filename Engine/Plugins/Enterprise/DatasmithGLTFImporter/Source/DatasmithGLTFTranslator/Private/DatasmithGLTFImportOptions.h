@@ -4,10 +4,6 @@
 
 #include "DatasmithImportOptions.h"
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 
 #include "DatasmithGLTFImportOptions.generated.h"
 

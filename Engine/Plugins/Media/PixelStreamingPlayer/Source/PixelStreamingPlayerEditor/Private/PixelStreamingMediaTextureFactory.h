@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include <CoreMinimal.h>
 #include <Factories/Factory.h>
-#include <UObject/Object.h>
 
 #include "PixelStreamingMediaTextureFactory.generated.h"
 

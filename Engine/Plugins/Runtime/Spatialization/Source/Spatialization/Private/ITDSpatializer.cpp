@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ITDSpatializer.h"
-#include "CoreMinimal.h"
-#include "DSP/Dsp.h"
+#include "DSP/Delay.h"
 #include "HAL/IConsoleManager.h"
 #include "ITDSpatializationSourceSettings.h"
 

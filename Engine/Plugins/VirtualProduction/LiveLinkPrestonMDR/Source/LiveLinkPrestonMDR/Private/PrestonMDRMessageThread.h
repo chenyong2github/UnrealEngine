@@ -3,13 +3,8 @@
 #pragma once
 
 #include "Containers/Queue.h"
-#include "CoreMinimal.h"
-#include "HAL/CriticalSection.h"
 #include "HAL/Runnable.h"
 #include "LiveLinkPrestonMDRSourceSettings.h"
-#include "Misc/FrameRate.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "UObject/ObjectMacros.h"
 
 class FRunnable;
 class FSocket;

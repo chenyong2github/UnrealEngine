@@ -2,14 +2,14 @@
 
 #include "Online/AchievementsEOSGS.h"
 
+#include "EOSShared.h"
 #include "Online/AchievementsErrors.h"
 #include "Online/AuthEOSGS.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
-#include "Online/OnlineServicesEOSGSTypes.h"
 
 #include "eos_achievements.h"
-#include "eos_achievements_types.h"
 
 namespace UE::Online {
 

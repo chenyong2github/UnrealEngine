@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Window/IConcertComponent.h"
+
+class FSpawnTabArgs;
 
 class FLogAckTracker;
 class FGlobalLogSource;

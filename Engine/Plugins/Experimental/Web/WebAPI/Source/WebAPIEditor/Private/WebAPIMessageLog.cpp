@@ -1,9 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIMessageLog.h"
 
 #include "IMessageLogListing.h"
+#include "Internationalization/Internationalization.h"
 #include "MessageLogModule.h"
+#include "Misc/DateTime.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIMessageLog"

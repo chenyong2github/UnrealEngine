@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "SGraphNode.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FDataprepEditor;
 class SDataprepActionBlock;

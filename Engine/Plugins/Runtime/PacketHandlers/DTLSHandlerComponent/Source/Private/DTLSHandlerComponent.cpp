@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DTLSHandlerComponent.h"
-#include "Engine/NetConnection.h"
-#include "Ssl.h"
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
+#include "DTLSCertificate.h"
 #include <openssl/ssl.h>
+#include "DTLSContext.h"
 #include <openssl/dtls1.h>
+#include "Interfaces/ISslManager.h"
 #include <openssl/err.h>
+#include "Modules/ModuleManager.h"
+#include "SslModule.h"
+#include "Stats/Stats.h"
+#include <openssl/bio.h>
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+#include <openssl/ossl_typ.h>
 THIRD_PARTY_INCLUDES_END
 #undef UI
 

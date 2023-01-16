@@ -4,21 +4,20 @@
 #include "BinkMediaPlayer.h"
 
 #include "BinkMediaPlayerPrivate.h"
-#include "binkplugin.h"
-#include "BinkMediaTexture.h"
-#include "BinkFunctionLibrary.h"
 
+#include "BinkMovieStreamer.h"
 #include "Engine/GameViewportClient.h"
+#include "Engine/Texture.h"
 #include "Misc/Paths.h"
 #include "RenderingThread.h"
 
-#include "Slate/SlateTextures.h"
-#include "Slate/SceneViewport.h"
 
-#include "Internationalization/Internationalization.h"
+#include "HAL/PlatformFileManager.h"
 #include "Internationalization/Culture.h"
 #include "SubtitleManager.h"
 #include "UObject/UObjectIterator.h"
+#include "binkplugin_ue4.h"
+#include "egttypes.h"
 
 //#include "Media/Public/IMediaEventSink.h" //For EMediaEvent
 

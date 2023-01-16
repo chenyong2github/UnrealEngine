@@ -2,12 +2,9 @@
 
 #pragma once
  
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
-#include "OnlineSubsystemTypes.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineJsonSerializer.h"
-#include "OnlineSubsystemAmazonPackage.h"
+#include "OnlineSubsystemNames.h"
 
 class FOnlineSubsystemAmazon;
 

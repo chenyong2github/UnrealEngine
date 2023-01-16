@@ -3,6 +3,7 @@
 #include "OnlineAchievementsInterfaceSteam.h"
 #include "OnlineSubsystemSteam.h"
 #include "OnlineLeaderboardInterfaceSteam.h"
+#include <steam/isteamuser.h>
 
 FOnlineAchievementsSteam::FOnlineAchievementsSteam( class FOnlineSubsystemSteam* InSubsystem )
 	:	SteamSubsystem(InSubsystem)

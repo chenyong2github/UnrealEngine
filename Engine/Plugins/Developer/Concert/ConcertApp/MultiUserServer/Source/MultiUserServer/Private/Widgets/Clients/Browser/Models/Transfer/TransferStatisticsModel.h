@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IMessageContext.h"
 #include "Containers/SpscQueue.h"
 #include "Containers/Ticker.h"
+#include "INetworkMessagingExtension.h"
 #include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 
 namespace UE::MultiUserServer

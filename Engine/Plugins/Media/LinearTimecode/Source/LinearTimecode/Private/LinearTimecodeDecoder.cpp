@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LinearTimecodeDecoder.h"
-#include "HAL/UnrealMemory.h"
+#include "DropTimecode.h"
 
 namespace FLinearTimecodeDecoderHelpers
 {

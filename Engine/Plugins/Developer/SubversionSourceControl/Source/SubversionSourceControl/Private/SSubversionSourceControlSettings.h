@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SEditableTextBox.h"
+
+namespace ETextCommit { enum Type : int; }
 
 class SSubversionSourceControlSettings : public SCompoundWidget
 {

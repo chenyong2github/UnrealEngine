@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/StateTreeComponent.h"
-#include "GameFramework/Actor.h"
 #include "GameplayTasksComponent.h"
+#include "StateTreeExecutionContext.h"
 #include "VisualLogger/VisualLogger.h"
-#include "StateTree.h"
-#include "StateTreeEvaluatorBase.h"
-#include "Conditions/StateTreeCommonConditions.h"
 #include "AIController.h"
 #include "Components/StateTreeComponentSchema.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Subsystems/WorldSubsystem.h"
 #include "Engine/World.h"
+#include "Tasks/AITask.h"
 
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG(GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG((Condition), GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)

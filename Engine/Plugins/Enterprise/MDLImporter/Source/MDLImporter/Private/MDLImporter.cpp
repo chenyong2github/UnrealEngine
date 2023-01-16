@@ -4,6 +4,7 @@
 
 #ifdef USE_MDLSDK
 
+#include "IAssetTools.h"
 #include "MDLImporterOptions.h"
 #include "MDLMapHandler.h"
 #include "MDLMaterialFactory.h"
@@ -19,13 +20,8 @@
 #include "Engine/Texture2D.h"
 #include "Engine/RendererSettings.h"
 #include "Factories/TextureFactory.h"
-#include "HAL/FileManager.h"
-#include "HAL/PlatformFileManager.h"
-#include "Logging/LogMacros.h"
 #include "Materials/Material.h"
 #include "Misc/Paths.h"
-#include "PackageTools.h"
-#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
 namespace MDLImporterImpl

@@ -2,18 +2,15 @@
 
 #include "SPackageTransmissionTable.h"
 
-#include "ConcertHeaderRowUtils.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Model/IPackageTransmissionEntrySource.h"
-#include "Model/PackageTransmissionEntry.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
 #include "SPackageTransmissionTableFooter.h"
 #include "SPackageTransmissionTableRow.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Settings/MultiUserServerPackageTransmissionSettings.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Clients/PackageTransmission/Model/PackageTransmissionEntry.h"
 #include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SPackageTransmissionTable"

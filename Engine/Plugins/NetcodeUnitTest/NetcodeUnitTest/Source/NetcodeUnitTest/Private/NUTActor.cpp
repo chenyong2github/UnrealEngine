@@ -2,15 +2,16 @@
 
 #include "NUTActor.h"
 #include "Misc/CommandLine.h"
-#include "UObject/Package.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/GameMode.h"
-#include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "Engine/LocalPlayer.h"
 #include "UnrealEngine.h"
+
+#if PLATFORM_WINDOWS
 #include "HAL/PlatformNamedPipe.h"
+#endif
 
 // @todo #JohnBDoc: Need to tidy up and fully document this class; not all of the code below is clear
 

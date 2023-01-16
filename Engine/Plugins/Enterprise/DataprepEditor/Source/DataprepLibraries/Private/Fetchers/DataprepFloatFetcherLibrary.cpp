@@ -2,11 +2,8 @@
 
 #include "Fetchers/DataprepFloatFetcherLibrary.h"
 
-#include "Components/StaticMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/StaticMesh.h"
-#include "GameFramework/Actor.h"
-#include "Misc/Optional.h"
-#include "UObject/Object.h"
 
 #define LOCTEXT_NAMESPACE "DataprepFloatFetcherLibrary"
 

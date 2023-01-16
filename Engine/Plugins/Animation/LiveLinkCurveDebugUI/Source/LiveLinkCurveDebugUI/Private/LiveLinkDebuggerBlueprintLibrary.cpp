@@ -4,7 +4,6 @@
 
 #include "Engine/Engine.h"
 
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 #include "ILiveLinkCurveDebugUIModule.h"

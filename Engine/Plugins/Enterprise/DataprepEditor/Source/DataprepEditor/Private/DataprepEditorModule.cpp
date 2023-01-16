@@ -3,33 +3,20 @@
 #include "DataprepEditorModule.h"
 
 #include "AssetTypeActions_DataprepAsset.h"
-#include "AssetTypeActions_DataprepAssetInterface.h"
-#include "DataprepAssetProducers.h"
-#include "DataprepEditor.h"
 #include "DataprepEditorUtils.h"
 #include "DataprepEditorStyle.h"
+#include "ToolMenu.h"
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/SDataprepEditorViewport.h"
 #include "Widgets/SDataprepProducersWidget.h"
 
-#include "AssetToolsModule.h"
-#include "IAssetTools.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Misc/PackageName.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ToolMenus.h"
-#include "UObject/StrongObjectPtr.h"
 
-#include "Widgets/SNullWidget.h"
 
 // Temporary include remove when the new graph is in place
-#include "BlueprintNodes/K2Node_DataprepAction.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
-#include "SchemaActions/DataprepSchemaActionUtils.h"
-#include "DataprepActionAsset.h"
 
 
 const FName DataprepEditorAppIdentifier = FName(TEXT("DataprepEditorApp"));

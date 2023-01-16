@@ -3,6 +3,7 @@
 #include "DataChartsEditor.h"
 #include "DataChartsPlacement.h"
 #include "DataChartsStyle.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FDataChartsEditorModule"
 

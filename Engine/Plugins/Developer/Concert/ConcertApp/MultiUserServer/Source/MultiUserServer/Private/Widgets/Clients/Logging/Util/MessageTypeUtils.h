@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Set.h"
 
 namespace UE::MultiUserServer::MessageTypeUtils
 {

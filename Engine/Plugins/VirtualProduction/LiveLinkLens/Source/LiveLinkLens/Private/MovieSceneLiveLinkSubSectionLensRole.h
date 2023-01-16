@@ -4,8 +4,6 @@
 
 #include "MovieScene/MovieSceneLiveLinkSubSection.h"
 
-#include "Models/LensModel.h"
-#include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
 
 #include "MovieSceneLiveLinkSubSectionLensRole.generated.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneReplaySection.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "Systems/MovieSceneReplaySystem.h"
 
 UMovieSceneReplaySection::UMovieSceneReplaySection(const FObjectInitializer& ObjInitializer)

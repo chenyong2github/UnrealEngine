@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Widgets/Images/SImage.h"
-#include "Rendering/RenderingCommon.h" // for ESlateDrawEffect
 
 class SCompPreviewImage : public SImage
 {

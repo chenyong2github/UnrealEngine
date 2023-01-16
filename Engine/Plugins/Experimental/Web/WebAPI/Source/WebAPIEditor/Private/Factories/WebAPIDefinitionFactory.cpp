@@ -2,14 +2,15 @@
 
 #include "Factories/WebAPIDefinitionFactory.h"
 
+#include "Dom/WebAPIType.h"
 #include "IWebAPIEditorModule.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "WebAPIDefinition.h"
 #include "WebAPIEditorLog.h"
 #include "WebAPIEditorUtilities.h"
 #include "Algo/AnyOf.h"
 #include "Algo/ForEach.h"
 #include "Algo/Partition.h"
-#include "Algo/Transform.h"
 #include "Async/Async.h"
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIService.h"

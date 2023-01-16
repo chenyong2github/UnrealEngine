@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Kismet2/CompilerResultsLog.h"
-#include "EdGraph/EdGraphNodeUtils.h"
 #include "K2Node_Composite.h"
 #include "K2Node_SnapContainer.generated.h"
 

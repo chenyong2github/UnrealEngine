@@ -1,6 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPICompositeModel.h"
+#include "Dom/WebAPISchema.h"
 #include "Dom/WebAPIType.h"
 
 namespace UE::WebAPI::WebAPIModelCompositionType

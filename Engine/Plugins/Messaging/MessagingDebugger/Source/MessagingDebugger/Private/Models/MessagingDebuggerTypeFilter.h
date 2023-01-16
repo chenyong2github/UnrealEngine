@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
 #include "IMessageTracer.h"
-#include "Templates/SharedPointer.h"
 
 
 /**

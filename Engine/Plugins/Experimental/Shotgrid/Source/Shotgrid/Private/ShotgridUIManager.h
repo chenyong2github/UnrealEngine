@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/UniquePtr.h"
 
 class FShotgridUIManagerImpl;
 

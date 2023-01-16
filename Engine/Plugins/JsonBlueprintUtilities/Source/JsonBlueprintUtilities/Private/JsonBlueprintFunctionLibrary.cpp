@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "JsonBlueprintFunctionLibrary.h"
 
 #include "JsonObjectConverter.h"
+#include "JsonObjectWrapper.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 

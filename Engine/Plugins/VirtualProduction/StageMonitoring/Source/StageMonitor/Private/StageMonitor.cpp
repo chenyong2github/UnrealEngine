@@ -2,14 +2,11 @@
 
 #include "StageMonitor.h"
 
-#include "Containers/Ticker.h"
 #include "IStageMonitorSession.h"
 #include "IStageMonitorSessionManager.h"
-#include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
-#include "StageMessages.h"
 #include "StageMonitoringSettings.h"
 #include "StageMonitorModule.h"
 #include "StageMonitorUtils.h"

@@ -4,10 +4,8 @@
 
 #include "DataprepCoreLogCategory.h"
 #include "SelectionSystem/DataprepBoolFetcher.h"
-#include "SelectionSystem/DataprepSelectionSystemStructs.h"
 #include "SelectionSystem/DataprepSelectionSystemUtils.h"
 
-#include "Containers/ArrayView.h"
 
 bool UDataprepBoolFilter::Filter(const bool bResult) const
 {

@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "LiveLinkPrestonMDRFactory.h"
 #include "LiveLinkPrestonMDRConnectionSettings.h"
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "LiveLinkSourceFactory.h"
 #include "Widgets/SCompoundWidget.h"
+
+class ULiveLinkPrestonMDRSourceFactory;
 
 class SLiveLinkPrestonMDRSourcePanel : public SCompoundWidget
 {

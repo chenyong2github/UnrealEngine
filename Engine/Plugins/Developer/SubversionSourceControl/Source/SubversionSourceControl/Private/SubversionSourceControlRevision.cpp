@@ -2,11 +2,10 @@
 
 #include "SubversionSourceControlRevision.h"
 
-#include "HAL/FileManager.h"
 #include "ISourceControlModule.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
 #include "SubversionSourceControlModule.h"
 #include "SubversionSourceControlUtils.h"
 #include "Logging/MessageLog.h"

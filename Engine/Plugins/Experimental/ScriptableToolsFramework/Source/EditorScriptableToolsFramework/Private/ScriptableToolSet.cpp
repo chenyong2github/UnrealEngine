@@ -5,16 +5,9 @@
 #include "ScriptableInteractiveTool.h"
 #include "ScriptableToolBuilder.h"
 
-#include "UObject/Class.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/SoftObjectPath.h"
-#include "Templates/SubclassOf.h"
-#include "Kismet2/KismetEditorUtilities.h"
 
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
 
 
 void UScriptableToolSet::ReinitializeScriptableTools()

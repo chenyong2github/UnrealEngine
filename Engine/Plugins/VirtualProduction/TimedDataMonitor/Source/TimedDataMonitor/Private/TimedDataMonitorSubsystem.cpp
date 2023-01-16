@@ -4,17 +4,14 @@
 
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
-#include "Engine/World.h"
 #include "IStageDataProvider.h"
 #include "ITimeManagementModule.h"
 #include "LatentActions.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "Stats/Stats2.h"
+#include "Misc/Paths.h"
 #include "TimedDataInputCollection.h"
 #include "TimedDataMonitorCalibration.h"
-#include "UObject/Stack.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Misc/FileHelper.h"

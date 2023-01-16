@@ -2,13 +2,14 @@
 
 #include "AssetEditor/TimecodeSynchronizerEditorToolkit.h"
 
+#include "DetailsViewArgs.h"
 #include "TimecodeSynchronizer.h"
-#include "UI/TimecodeSynchronizerEditorCommand.h"
+#include "Framework/Commands/UICommandList.h"
 #include "UI/TimecodeSynchronizerEditorStyle.h"
+#include "Subsystems/ImportSubsystem.h"
 #include "Widgets/STimecodeSynchronizerSourceViewer.h"
 #include "Widgets/STimecodeSynchronizerWidget.h"
 
-#include "Editor.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"

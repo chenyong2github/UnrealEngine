@@ -2,11 +2,8 @@
 
 #include "SClientNetworkStats.h"
 
-#include "INetworkMessagingExtension.h"
-#include "Math/UnitConversion.h"
-#include "Widgets/Clients/Browser/Models/ClientNetworkStatisticsModel.h"
 
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SClientNetworkStats"

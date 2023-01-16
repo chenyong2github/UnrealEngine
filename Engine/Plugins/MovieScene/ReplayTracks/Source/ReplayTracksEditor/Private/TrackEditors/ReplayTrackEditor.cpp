@@ -1,24 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/ReplayTrackEditor.h"
-#include "Editor.h"
-#include "Styling/AppStyle.h"
-#include "Engine/EngineTypes.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
-#include "MovieSceneCommonHelpers.h"
 #include "MovieSceneReplayManager.h"
 #include "ReplayTracksEditorModule.h"
+#include "ScopedTransaction.h"
 #include "Sections/MovieSceneReplaySection.h"
 #include "SequencerUtilities.h"
 #include "Tracks/MovieSceneReplayTrack.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ReplayTrackEditor"
 

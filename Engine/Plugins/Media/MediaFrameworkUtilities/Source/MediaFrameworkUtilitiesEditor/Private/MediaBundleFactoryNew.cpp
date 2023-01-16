@@ -2,9 +2,10 @@
 
 #include "MediaBundleFactoryNew.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetTypeCategories.h"
 #include "EngineAnalytics.h"
-#include "Engine/Blueprint.h"
+#include "IAnalyticsProviderET.h"
 #include "MediaBundle.h"
 
 #define LOCTEXT_NAMESPACE "MediaBundleFactoryNew"

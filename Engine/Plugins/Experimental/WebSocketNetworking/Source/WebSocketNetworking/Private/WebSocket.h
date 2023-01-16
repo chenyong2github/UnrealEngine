@@ -6,7 +6,7 @@
 #include "INetworkingWebSocket.h"
 #include "WebSocketNetworkingPrivate.h"
 #if USE_LIBWEBSOCKET
-#include "Runtime/Sockets/Private/BSDSockets/SocketSubsystemBSD.h"
+#include "Runtime/Sockets/Private/BSDSockets/SocketSubsystemBSD.h" // IWYU pragma: keep
 #else
 #include <netinet/in.h>
 #endif

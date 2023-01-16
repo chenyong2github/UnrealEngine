@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "SelectionSystem/DataprepFetcher.h"
-#include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionSystemStructs.h"
 
 #include "Async/ParallelFor.h"
-#include "Containers/ArrayView.h"
-#include "CoreMinimal.h"
-#include "Templates/UnrealTypeTraits.h"
-#include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
+
+class UDataprepFetcher;
+class UDataprepFilter;
 
 namespace DataprepSelectionSystemUtils
 {

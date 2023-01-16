@@ -4,7 +4,6 @@
 
 #include "common/Logging.h"
 
-#include "Misc/AssertionMacros.h"
 
 #if !defined(MDL_MSVC_EDITCONTINUE_WORKAROUND)
 	#define MDL_MSVC_EDITCONTINUE_WORKAROUND 0

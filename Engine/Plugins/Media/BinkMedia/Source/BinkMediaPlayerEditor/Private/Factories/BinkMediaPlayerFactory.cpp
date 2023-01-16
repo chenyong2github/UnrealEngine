@@ -3,7 +3,7 @@
 
 #include "BinkMediaPlayerFactory.h"
 
-#include "BinkMediaPlayerEditorPrivate.h"
+#include "BinkMediaPlayer.h"
 
 UBinkMediaPlayerFactory::UBinkMediaPlayerFactory( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

@@ -2,24 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "DataprepGraph/DataprepGraph.h"
 
-#include "DataprepAsset.h"
 
 #include "EdGraphUtilities.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
-#include "GraphEditorActions.h"
-#include "Layout/SlateRect.h"
 #include "NodeFactory.h"
-#include "SGraphNode.h"
-#include "SchemaActions/DataprepSchemaAction.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Layout/SConstraintCanvas.h"
-#include "Widgets/SWidget.h"
+
+class UDataprepActionAsset;
+enum class FDataprepAssetChangeType : uint8;
+struct FDataprepSchemaAction;
 
 class FDataprepEditor;
 class FUICommandList;

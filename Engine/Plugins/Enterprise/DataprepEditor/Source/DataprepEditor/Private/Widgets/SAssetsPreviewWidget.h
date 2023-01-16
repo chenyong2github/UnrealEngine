@@ -2,17 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "DataprepEditorUtils.h"
 
-#include "Templates/SharedPointer.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
+
+template <typename ItemType> class STableRow;
 
 class SHeaderRow;
 

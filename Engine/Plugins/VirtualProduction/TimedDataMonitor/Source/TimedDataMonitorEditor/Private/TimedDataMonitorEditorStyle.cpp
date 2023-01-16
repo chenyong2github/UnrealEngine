@@ -2,11 +2,16 @@
 
 #include "TimedDataMonitorEditorStyle.h"
 
-#include "Styling/AppStyle.h"
+#include "Brushes/SlateBoxBrush.h"
 #include "Interfaces/IPluginManager.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Styling/CoreStyle.h"
+#include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Brushes/SlateNoResource.h"
 #include "Styling/SlateTypes.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyleRegistry.h"
 
 const FName FTimedDataMonitorEditorStyle::NAME_TimecodeBrush = "Img.Timecode.Small";
 const FName FTimedDataMonitorEditorStyle::NAME_PlatformTimeBrush = "Img.PlatformTime.Small";

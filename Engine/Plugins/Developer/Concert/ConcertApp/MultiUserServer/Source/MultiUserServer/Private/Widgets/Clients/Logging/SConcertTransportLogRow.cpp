@@ -4,19 +4,16 @@
 
 #include "ConcertServerStyle.h"
 #include "SConcertTransportLog.h"
-#include "Session/Activity/PredefinedActivityColumns.h"
 #include "Util/ConcertLogTokenizer.h"
 
-#include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/SOverlay.h"
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTransportLogRow"
 

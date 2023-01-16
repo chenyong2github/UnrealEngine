@@ -1,22 +1,20 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIOpenAPIConverter.h"
+#include "Dom/WebAPIEnum.h"
+#include "Dom/WebAPIType.h"
+#include "Dom/WebAPITypeRegistry.h"
 #include "WebAPIOpenAPIConverter.inl"
 
 #include "IWebAPIEditorModule.h"
-#include "WebAPIDefinition.h"
 #include "WebAPITypes.h"
 #include "Algo/ForEach.h"
 #include "Dom/WebAPIEnum.h"
-#include "Dom/WebAPIModel.h"
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIParameter.h"
-#include "Dom/WebAPISchema.h"
 #include "Dom/WebAPIService.h"
 #include "Dom/WebAPITypeRegistry.h"
-#include "Internationalization/BreakIterator.h"
 #include "V3/WebAPIOpenAPIProvider.h"
-#include "V3/WebAPIOpenAPISchema.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIOpenAPIConverter"
 

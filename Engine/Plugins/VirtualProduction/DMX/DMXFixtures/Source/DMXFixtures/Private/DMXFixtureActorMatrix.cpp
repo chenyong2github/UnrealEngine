@@ -2,15 +2,21 @@
 
 #include "DMXFixtureActorMatrix.h"
 
-#include "DMXProtocolConstants.h"
+#include "Components/SpotLightComponent.h"
 #include "DMXStats.h"
+#include "DMXFixtureComponentColor.h"
 #include "Engine/World.h"
+#include "DMXFixtureComponentDouble.h"
 #include "Game/DMXComponent.h"
 
+#include "DMXFixtureComponentSingle.h"
 #include "Engine/Texture2D.h"
+#include "Library/DMXEntityFixturePatch.h"
 #include "Rendering/Texture2DResource.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "RenderingThread.h"
+#include "ProceduralMeshComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("Fixture Actor Matrix Push Fixture Matrix Cell Data"), STAT_FixtureActorMatrixPushFixtureMatrixCellData, STATGROUP_DMX);
 

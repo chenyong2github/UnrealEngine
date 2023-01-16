@@ -7,7 +7,6 @@
 
 #include "EditorSupport/ICompositingEditor.h"
 #include "EditorSupport/WeakUInterfacePtr.h"
-#include "UObject/Script.h" // for FEditorScriptExecutionGuard
 
 UCompositingPickerAsyncTask* UCompositingPickerAsyncTask::OpenCompositingPicker(UTextureRenderTarget2D* PickerTarget, UTexture* DisplayImage, FText WindowTitle, const bool bAverageColorOnDrag, const bool bUseImplicitGamma)
 {

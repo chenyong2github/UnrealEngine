@@ -2,7 +2,6 @@
 
 #pragma once
 #if USING_FLITE
-#include "CoreMinimal.h"
 #include "GenericPlatform/TextToSpeechBase.h"
 
 struct FFliteSynthesizedSpeechData;

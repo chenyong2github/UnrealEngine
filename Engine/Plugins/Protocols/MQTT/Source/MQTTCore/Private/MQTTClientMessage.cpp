@@ -1,8 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTClientMessage.h"
 
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
 bool FMQTTClientMessage::GetPayloadAsJson(TSharedPtr<FJsonObject>& OutJson) const

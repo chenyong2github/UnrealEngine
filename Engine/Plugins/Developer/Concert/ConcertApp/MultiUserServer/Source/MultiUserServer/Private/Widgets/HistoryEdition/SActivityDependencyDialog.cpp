@@ -2,19 +2,20 @@
 
 #include "SActivityDependencyDialog.h"
 
-#include "IConcertSyncServer.h"
+#include "HistoryEdition/ActivityDependencyEdge.h"
 #include "MultiUserServerConsoleVariables.h"
+#include "HistoryEdition/ActivityGraphIDs.h"
 #include "MultiUserServerModule.h"
-#include "SActivityDependencyView.h"
 
 #include "ConcertLogGlobal.h"
 #include "Dialog/SMessageDialog.h"
+#include "HistoryEdition/ActivityNode.h"
 #include "HistoryEdition/DebugDependencyGraph.h"
 #include "HistoryEdition/DependencyGraphBuilder.h"
+#include "Templates/NonNullPointer.h"
+#include "Widgets/HistoryEdition/SActivityDependencyView.h"
 #include "Window/ModalWindowManager.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/SessionTabs/Archived/ArchivedSessionHistoryController.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SActivityDependencyDialog"
 

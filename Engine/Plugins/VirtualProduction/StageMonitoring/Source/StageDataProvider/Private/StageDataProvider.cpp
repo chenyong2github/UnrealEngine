@@ -2,17 +2,13 @@
 
 #include "StageDataProvider.h"
 
-#include "Containers/Ticker.h"
 #include "Engine/Engine.h"
-#include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "Misc/App.h"
-#include "Misc/CoreDelegates.h"
 #include "StageDataProviderModule.h"
 #include "StageMonitorUtils.h"
 #include "StageMonitoringSettings.h"
 #include "VPRolesSubsystem.h"
-#include "VPSettings.h"
 
 
 namespace StageDataProviderUtils

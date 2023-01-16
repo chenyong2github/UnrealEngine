@@ -2,23 +2,24 @@
 
 #include "GeometryCacheTrackAbcFile.h"
 
+#include "AbcFile.h"
 #include "AbcImporter.h"
 #include "AbcImportLogger.h"
 #include "AbcImportSettings.h"
 #include "AbcUtilities.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "GeometryCache.h"
 #include "GeometryCacheAbcStream.h"
 #include "GeometryCacheHelpers.h"
 #include "GeometryCacheStreamerSettings.h"
 #include "IGeometryCacheStreamer.h"
-#include "Logging/LogCategory.h"
-#include "Logging/LogMacros.h"
+#include "Logging/TokenizedMessage.h"
 #include "Misc/ArchiveMD5.h"
 #include "Misc/Paths.h"
 #include "PackageTools.h"
 #include "UObject/Package.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include <Alembic/Abc/Base.h>
+#include <Alembic/Abc/ErrorHandler.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);
 

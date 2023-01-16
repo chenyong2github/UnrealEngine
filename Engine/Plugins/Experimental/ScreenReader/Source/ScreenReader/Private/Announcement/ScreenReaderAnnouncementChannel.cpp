@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Announcement/ScreenReaderAnnouncementChannel.h"
-#include "TextToSpeech.h"
+#include "GenericPlatform/ScreenReaderReply.h"
 #include "ScreenReaderLog.h"
 #include "Announcement/ScreenReaderWidgetAnnouncementBuilder.h"
+#include "GenericPlatform/TextToSpeechBase.h"
 
 namespace ScreenReaderAnnouncementChannel_Private
 {

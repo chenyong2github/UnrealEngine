@@ -2,7 +2,6 @@
 
 #include "SampleToolsEditorMode.h"
 #include "SampleToolsEditorModeToolkit.h"
-#include "EdModeInteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
 #include "SampleToolsEditorModeCommands.h"
 

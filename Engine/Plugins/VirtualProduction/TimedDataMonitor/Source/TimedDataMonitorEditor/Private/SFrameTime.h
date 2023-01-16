@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/Engine.h"
 #include "Misc/App.h"
-#include "Rendering/DrawElements.h"
-#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
 #include "TimedDataMonitorEditorSettings.h"

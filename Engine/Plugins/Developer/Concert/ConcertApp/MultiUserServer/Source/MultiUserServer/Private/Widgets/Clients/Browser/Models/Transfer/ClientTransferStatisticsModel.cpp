@@ -2,8 +2,9 @@
 
 #include "ClientTransferStatisticsModel.h"
 
-#include "INetworkMessagingExtension.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/ScopeExit.h"
+#include "Widgets/Clients/Browser/Models/Transfer/TransferStatisticsModel.h"
 
 namespace UE::MultiUserServer
 {

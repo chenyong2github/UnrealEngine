@@ -1,16 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCaptureBlueprintLibrary.h"
-#include "Engine/World.h"
-#include "AudioDevice.h"
-#include "AudioMixerDevice.h"
-#include "CoreMinimal.h"
-#include "DSP/ConstantQ.h"
-#include "DSP/SpectrumAnalyzer.h"
-#include "ContentStreaming.h"
-#include "AudioCompressionSettingsUtils.h"
-#include "Async/Async.h"
-#include "Sound/SoundEffectPreset.h"
+#include "AudioCaptureCore.h"
+#include "AudioThread.h"
 
 FAudioInputDeviceInfo::FAudioInputDeviceInfo(const Audio::FCaptureDeviceInfo& InDeviceInfo) :
 	DeviceName(InDeviceInfo.DeviceName),

@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Model/PackageTransmissionEntry.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Clients/Logging/LogScrollingDelegates.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
+
+class STableViewBase;
+namespace UE::MultiUserServer { struct FPackageTransmissionEntry; }
+struct FConcertLogEntry;
 
 class FConcertLogTokenizer;
 

@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPICodeViewModel.h"
 
-#include "WebAPIViewModel.inl"
+#include "Details/ViewModels/WebAPIViewModel.h"
+#include "WebAPIDefinition.h"
 
 #define LOCTEXT_NAMESPACE "WebAPICodeViewModel"
 

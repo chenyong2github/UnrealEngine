@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositingElements/CompositingMaterialPass.h"
+#include "CompositingElements/ICompositingTextureLookupTable.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 /* FCompositingMaterial
  *****************************************************************************/
 
 #include "CompositingElements/CompositingElementPassUtils.h" // for FillOutMID(), RenderMaterialToRenderTarget()
-#include "CompositingElements/CompositingTextureLookupTable.h"
-#include "HAL/IConsoleManager.h"
 #include "ComposureConfigSettings.h" // for GetFallbackCompositingTexture()
+#include "Engine/Texture.h"
 
 static TAutoConsoleVariable<int32> CVarUseBlackForDisabledPasses(
 	TEXT("r.Composure.CompositingElements.UseBlackForDisabledPasses"),

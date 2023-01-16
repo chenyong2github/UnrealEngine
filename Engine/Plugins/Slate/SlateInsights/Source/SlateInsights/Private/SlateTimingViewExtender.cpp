@@ -2,8 +2,6 @@
 
 #include "SlateTimingViewExtender.h"
 #include "Insights/ITimingViewSession.h"
-#include "UObject/WeakObjectPtr.h"
-#include "SlateTimingViewSession.h"
 
 #define LOCTEXT_NAMESPACE "SlateTimingViewExtender"
 

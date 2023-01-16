@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertMessageData.h"
 #include "IConcertBrowserItem.h"
 #include "IMessageContext.h"
+
+namespace UE::MultiUserServer { class IClientNetworkStatisticsModel; }
+struct FConcertClientInfo;
 
 class FEndpointToUserNameCache;
 

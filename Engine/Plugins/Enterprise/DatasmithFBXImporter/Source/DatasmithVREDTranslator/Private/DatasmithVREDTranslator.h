@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DatasmithVREDImporter.h"
-#include "DatasmithVREDImportOptions.h"
 #include "DatasmithTranslator.h"
+
+class FDatasmithSceneSource;
+class UDatasmithVREDImportOptions;
 
 class FDatasmithVREDTranslator : public IDatasmithTranslator
 {

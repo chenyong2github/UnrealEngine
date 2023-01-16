@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Common/UdpSocketReceiver.h"
-#include "HAL/ThreadSafeBool.h"
-#include "Interfaces/IPv4/IPv4Address.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Tickable.h"
-#include "UObject/Object.h"
 
 #include "OSCServer.h"
+
+struct FIPv4Endpoint;
 
 
 class OSC_API FOSCServerProxy : public IOSCServerProxy, public FTickableGameObject

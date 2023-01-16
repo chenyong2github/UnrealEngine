@@ -7,14 +7,14 @@
 #include "Engine/World.h"
 #include "GlobalShader.h"
 #include "IOpenCVLensDistortionModule.h"
-#include "Logging/LogMacros.h"
 #include "PipelineStateCache.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "RHIStaticStates.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "SceneUtils.h"
 #include "SceneInterface.h"
 #include "ShaderParameterUtils.h"
 #include "TextureResource.h"
+#include "RenderingThread.h"
 
 
 //Parameters for the grid we'll use to get the reciprocal of our undistortion map

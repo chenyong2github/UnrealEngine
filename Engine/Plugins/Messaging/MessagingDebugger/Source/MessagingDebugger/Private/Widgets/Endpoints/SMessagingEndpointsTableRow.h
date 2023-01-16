@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Internationalization/Text.h"
-#include "Misc/Attribute.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
 
 class FMessagingDebuggerModel;

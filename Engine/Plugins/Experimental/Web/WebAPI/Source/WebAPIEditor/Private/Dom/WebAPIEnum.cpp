@@ -1,8 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPIEnum.h"
 
-#include "Dom/JsonObject.h"
 #include "Dom/WebAPIType.h"
 
 TObjectPtr<UWebAPIEnumValue> UWebAPIEnum::AddValue()

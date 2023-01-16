@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheAbcFileSceneProxy.h"
+#include "AbcFile.h"
 #include "GeometryCacheAbcFileComponent.h"
 #include "GeometryCacheHelpers.h"
 #include "GeometryCacheTrackAbcFile.h"

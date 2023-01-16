@@ -4,7 +4,7 @@
 
 #if WITH_ENGINE
 
-#include "SocketSubsystemEOS.h"
+#include "SocketSubsystemEOSUtils.h"
 
 namespace UE::Online {
 

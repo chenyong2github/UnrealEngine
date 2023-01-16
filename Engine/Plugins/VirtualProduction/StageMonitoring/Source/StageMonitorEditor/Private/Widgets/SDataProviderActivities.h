@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
 
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
 #include "StageMessages.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class STableViewBase;
 
 class IStageMonitor;
 class SStageMonitorPanel;

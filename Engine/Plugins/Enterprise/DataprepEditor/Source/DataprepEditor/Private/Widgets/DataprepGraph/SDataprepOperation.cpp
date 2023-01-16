@@ -5,11 +5,7 @@
 #include "DataprepEditorStyle.h"
 #include "DataprepOperation.h"
 #include "Widgets/DataprepWidgets.h"
-#include "Widgets/SNullWidget.h"
 
-#include "IDetailsView.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 
 void SDataprepOperation::Construct(const FArguments& InArgs, UDataprepOperation* InOperation, const TSharedRef<FDataprepSchemaActionContext>& InDataprepActionContext)
 {

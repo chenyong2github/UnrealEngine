@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DMXPixelMappingEditorCommon.h"
+#include "Internationalization/Text.h"
 
 class ITableRow;
 class STableViewBase;

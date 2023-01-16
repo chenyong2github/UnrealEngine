@@ -4,6 +4,7 @@
 #include "GeometryCache.h"
 #include "GeometryCacheTrackAbcFile.h"
 #include "GeometryCacheAbcFileSceneProxy.h"
+#include "Misc/Paths.h"
 
 #define LOCTEXT_NAMESPACE "GeometryCacheAbcFileComponent"
 

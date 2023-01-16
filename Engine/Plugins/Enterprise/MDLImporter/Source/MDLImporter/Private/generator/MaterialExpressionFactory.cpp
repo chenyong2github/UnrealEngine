@@ -3,27 +3,65 @@
 #ifdef USE_MDLSDK
 
 #include "MaterialExpressionFactory.h"
+#include "Materials/MaterialExpressionAbs.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
+#include "Materials/MaterialExpressionAdd.h"
 #include "generator/FunctionLoader.h"
+#include "Materials/MaterialExpressionArccosine.h"
 #include "generator/MaterialExpressions.h"
+#include "Materials/MaterialExpressionArcsine.h"
 #include "generator/MaterialTextureFactory.h"
+#include "Materials/MaterialExpressionArctangent.h"
 #include "mdl/ApiContext.h"
-#include "mdl/MdlSdkDefines.h"
-#include "mdl/Utility.h"
 
 #include "Engine/Texture2D.h"
 
 MDLSDK_INCLUDES_START
+#include "Materials/MaterialExpressionArctangent2.h"
 #include "mi/neuraylib/icompiled_material.h"
+#include "Materials/MaterialExpressionBlackBody.h"
 #include "mi/neuraylib/iexpression.h"
-#include "mi/neuraylib/ifunction_call.h"
+#include "Materials/MaterialExpressionCeil.h"
 #include "mi/neuraylib/ifunction_definition.h"
-#include "mi/neuraylib/imaterial_definition.h"
+#include "Materials/MaterialExpressionClamp.h"
 #include "mi/neuraylib/imdl_factory.h"
+#include "Materials/MaterialExpressionComponentMask.h"
 #include "mi/neuraylib/itransaction.h"
-#include "mi/neuraylib/itexture.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "mi/neuraylib/istring.h"
+#include "Materials/MaterialExpressionCosine.h"
+#include "Materials/MaterialExpressionCrossProduct.h"
+#include "Materials/MaterialExpressionDistance.h"
+#include "Materials/MaterialExpressionDivide.h"
+#include "Materials/MaterialExpressionDotProduct.h"
+#include "Materials/MaterialExpressionFloor.h"
+#include "Materials/MaterialExpressionFmod.h"
+#include "Materials/MaterialExpressionFrac.h"
+#include "Materials/MaterialExpressionIf.h"
+#include "Materials/MaterialExpressionLinearInterpolate.h"
+#include "Materials/MaterialExpressionMakeMaterialAttributes.h"
+#include "Materials/MaterialExpressionMax.h"
+#include "Materials/MaterialExpressionMin.h"
+#include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionNormalize.h"
+#include "Materials/MaterialExpressionPower.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionSine.h"
+#include "Materials/MaterialExpressionSquareRoot.h"
+#include "Materials/MaterialExpressionStaticBool.h"
+#include "Materials/MaterialExpressionStaticBoolParameter.h"
+#include "Materials/MaterialExpressionStaticSwitch.h"
+#include "Materials/MaterialExpressionSubtract.h"
+#include "Materials/MaterialExpressionTangent.h"
+#include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "Materials/MaterialExpressionTextureProperty.h"
+#include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include <mi/base/iinterface.h>
+#include <mi/base/types.h>
+#include <mi/base/uuid.h>
+#include <mi/neuraylib/itype.h>
+#include <mi/neuraylib/ivalue.h>
 MDLSDK_INCLUDES_END
 
 namespace Generator

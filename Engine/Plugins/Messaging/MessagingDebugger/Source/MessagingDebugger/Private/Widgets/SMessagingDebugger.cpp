@@ -5,10 +5,6 @@
 #include "IMessageTracer.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Docking/WorkspaceItem.h"
-#include "Framework/Docking/TabManager.h"
-#include "Textures/SlateIcon.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #include "Models/MessagingDebuggerCommands.h"

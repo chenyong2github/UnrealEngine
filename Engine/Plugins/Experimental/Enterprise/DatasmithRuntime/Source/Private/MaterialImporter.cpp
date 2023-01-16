@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SceneImporter.h"
 
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
@@ -8,14 +7,9 @@
 
 #include "DatasmithMaterialElements.h"
 #include "DatasmithUtils.h"
-#include "IDatasmithSceneElements.h"
-#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
 #include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
-#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
-#include "Engine/Texture2D.h"
 #include "Engine/TextureLightProfile.h"
-#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MaterialShared.h"
 

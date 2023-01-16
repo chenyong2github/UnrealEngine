@@ -2,17 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SlateOptMacros.h"
 
 #include "Framework/Commands/UIAction.h"
-#include "Input/Reply.h"
 #include "Textures/SlateIcon.h"
 #include "TimedDataMonitorEditorSettings.h"
+
+enum class ETimedDataMonitorTimeCorrectionReturnCode : uint8;
 
 
 struct FSlateBrush;

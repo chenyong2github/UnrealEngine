@@ -2,8 +2,6 @@
 
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 
-#include "IDMXPixelMappingRenderer.h"
-#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Library/DMXLibrary.h"
@@ -12,11 +10,6 @@
 #include "DMXPixelMappingComponentWidget.h"
 #endif // WITH_EDITOR
 
-#include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupComponent"

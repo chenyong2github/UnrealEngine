@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ConcertTransportEvents.h"
-#include "Misc/TextFilter.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Logging/Util/ConcertLogTokenizer.h"
+#include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter_TextSearch.h"
 
 class FConcertLogTokenizer;

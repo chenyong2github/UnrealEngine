@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/ITableRow.h"
+#include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
 
 class FMessagingDebuggerModel;
 class ISlateStyle;

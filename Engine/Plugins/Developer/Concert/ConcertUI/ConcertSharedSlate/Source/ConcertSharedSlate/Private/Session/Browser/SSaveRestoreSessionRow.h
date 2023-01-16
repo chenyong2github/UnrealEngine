@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConcertHeaderRowUtils.h"
-#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
+
+class FConcertSessionTreeItem;
+class STableViewBase;
 
 class SWidget;
 class SEditableTextBox;

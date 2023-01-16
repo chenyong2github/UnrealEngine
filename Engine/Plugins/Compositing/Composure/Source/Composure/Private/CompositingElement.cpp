@@ -1,25 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositingElement.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "CompositingElements/CompElementRenderTargetPool.h"
 #include "ComposurePlayerCompositingTarget.h"
-#include "SceneViewExtension.h"
 #include "ComposurePostProcessingPassProxy.h"
 #include "ComposureInternals.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "CineCameraActor.h"
 #include "EngineUtils.h" // for TActorIterator<>
-#include "Components/ChildActorComponent.h"
-#include "CompositingElements/CompositingElementPasses.h"
 #include "ComposureCustomVersion.h"
 #include "CompositingElements/CompositingElementInputs.h" // for UCompositingMediaInput
 #include "CompositingElements/CompositingElementTransforms.h" // for UCompositingElementMaterialPass, & UAlphaTransformPass
 #include "CompositingElements/CompositingElementOutputs.h" // for UCompositingMediaCaptureOutput
 #include "CompositingElements/CompositingElementPassUtils.h" // for NewInstancedSubObj()
-#include "HAL/IConsoleManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 #if WITH_EDITOR
-#include "Editor/EditorEngine.h" // for FActorLabelUtilities
 #include "Editor.h" // for FEditorDelegates::PostPIEStarted
 #include "EditorSupport/ICompositingEditor.h"
 #endif 

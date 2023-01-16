@@ -2,33 +2,9 @@
 
 #include "DatasmithFBXImporter.h"
 #include "DatasmithFBXImporterLog.h"
-#include "DatasmithFBXImportOptions.h"
 #include "DatasmithFBXScene.h"
-#include "DatasmithFBXSceneProcessor.h"
-#include "DatasmithImportedSequencesActor.h"
-#include "DatasmithScene.h"
-#include "DatasmithSceneActor.h"
-#include "DatasmithSceneFactory.h"
-#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
-#include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "Utility/DatasmithMeshHelper.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Editor.h"
-#include "Engine/StaticMesh.h"
-#include "FbxImporter.h"
-#include "HAL/FileManager.h"
-#include "HAL/PlatformFileManager.h"
-#include "Materials/MaterialInterface.h"
-#include "MeshDescription.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Misc/ScopedSlowTask.h"
-#include "ObjectTools.h"
-#include "PackageTools.h"
-#include "Serialization/BufferArchive.h"
-#include "Serialization/MemoryReader.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithFBXImport);
 

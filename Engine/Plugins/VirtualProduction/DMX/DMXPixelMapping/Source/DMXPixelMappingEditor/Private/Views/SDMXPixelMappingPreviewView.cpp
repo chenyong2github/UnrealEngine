@@ -14,7 +14,6 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
-#include "Misc/IFilter.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingPreviewView"

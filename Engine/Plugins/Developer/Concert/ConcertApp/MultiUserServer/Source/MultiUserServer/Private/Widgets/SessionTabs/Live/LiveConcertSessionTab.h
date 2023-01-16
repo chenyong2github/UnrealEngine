@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
-#include "Types/SlateAttribute.h"
 
 class FConcertSessionPackageViewerController;
 class FLiveServerSessionHistoryController;

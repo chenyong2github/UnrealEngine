@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "NVENC_Common.h"
-#include "VideoEncoderFactory.h"
-#include "VideoEncoderInputImpl.h"
-#include "HAL/Event.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Misc/DateTime.h"
+#include "VideoCommon.h"
+#include "VideoEncoder.h"
+#include <nvEncodeAPI.h>
+
+namespace AVEncoder { class FNVENCCommon; }
+namespace AVEncoder { class FVideoEncoderFactory; }
+namespace AVEncoder { class FVideoEncoderInputFrameImpl; }
 
 namespace AVEncoder
 {

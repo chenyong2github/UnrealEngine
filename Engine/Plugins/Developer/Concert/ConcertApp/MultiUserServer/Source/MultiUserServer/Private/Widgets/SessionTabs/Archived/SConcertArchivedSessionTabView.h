@@ -1,13 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Session/History/SEditableSessionHistory.h"
-#include "Session/History/SSessionHistory.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Docking/TabManager.h"
 #include "Widgets/SConcertTabViewWithManagerBase.h"
 
 class SDockTab;

@@ -3,7 +3,6 @@
 #include "SequencerTrackInstanceBP.h"
 #include "SequencerSectionBP.h"
 
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 
 #include "Modules/ModuleManager.h"

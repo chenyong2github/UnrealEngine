@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Components/SceneComponent.h"
 #include "EditorFilterLibrary.h"
-#include "Engine/Blueprint.h"
 #include "Engine/DataTable.h"
-#include "Engine/EngineTypes.h"
-#include "EditorStaticMeshLibrary.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 
+#include "UObject/Package.h"
 #include "DataprepOperationsLibrary.generated.h"
+
+class UTexture2D;
+enum ECollisionTraceFlag : int;
+enum class EScriptCollisionShapeType : uint8;
+namespace EComponentMobility { enum Type : int; }
+struct FStaticMeshReductionOptions;
 
 class AActor;
 class IMeshBuilderModule;

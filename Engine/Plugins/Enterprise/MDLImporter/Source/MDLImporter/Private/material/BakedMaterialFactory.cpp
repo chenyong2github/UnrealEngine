@@ -2,12 +2,12 @@
 
 #include "BakedMaterialFactory.h"
 
-#include "generator/FunctionLoader.h"
-#include "generator/MaterialExpressions.h"
+#include "Materials/MaterialExpressionMultiply.h"
 #include "material/MapConnecter.h"
-#include "mdl/Material.h"
 
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionVectorParameter.h"
 
 
 namespace Mat

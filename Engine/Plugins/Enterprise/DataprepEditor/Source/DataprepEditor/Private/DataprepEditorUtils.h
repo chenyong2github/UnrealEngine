@@ -4,9 +4,12 @@
 
 #include "Parameterization/DataprepParameterizationUtils.h"
 
-#include "CoreMinimal.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Input/Reply.h"
+#include "UObject/GCObject.h"
+
+class FReply;
+struct FGeometry;
+struct FKeyEvent;
+struct FSlateFontInfo;
 
 class FMenuBuilder;
 class SWidget;

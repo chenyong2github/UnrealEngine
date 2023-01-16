@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+
+enum EVerticalAlignment : int;
 
 
 class FDMXPixelMappingVerticalAlignmentCustomization

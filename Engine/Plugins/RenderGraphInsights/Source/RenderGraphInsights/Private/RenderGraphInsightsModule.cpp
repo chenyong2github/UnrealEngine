@@ -4,8 +4,6 @@
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 
-#include "RenderGraphTraceModule.h"
-#include "RenderGraphTimingViewExtender.h"
 
 namespace UE
 {

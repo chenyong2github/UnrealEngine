@@ -4,6 +4,8 @@
 
 #include "DMXPixelMappingLayoutSettings.generated.h"
 
+struct FPropertyChangedEvent;
+
 
 /** Layout options for the Pixel Mapping editor */
 UCLASS(Config = DMXPixelMappingEditor, DefaultConfig, meta = (DisplayName = "DMXEditor"))

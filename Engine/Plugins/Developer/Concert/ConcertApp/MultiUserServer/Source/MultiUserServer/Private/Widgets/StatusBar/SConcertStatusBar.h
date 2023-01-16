@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SWidgetDrawer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class SWidgetDrawer;
 
 class SConcertStatusBar : public SCompoundWidget
 {

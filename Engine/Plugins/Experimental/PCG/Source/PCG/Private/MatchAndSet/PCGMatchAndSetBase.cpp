@@ -6,9 +6,6 @@
 #include "Data/PCGPointData.h"
 #include "Elements/PCGPointMatchAndSet.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
-#include "Metadata/PCGAttributePropertySelector.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMatchAndSetBase)
 

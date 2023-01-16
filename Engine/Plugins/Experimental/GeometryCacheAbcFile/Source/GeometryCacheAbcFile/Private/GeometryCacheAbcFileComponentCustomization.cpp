@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheAbcFileComponentCustomization.h"
-#include "AbcImportSettings.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "GeometryCacheAbcFileComponent.h"

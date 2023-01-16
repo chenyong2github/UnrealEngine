@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "ViewModels/WebAPIViewModel.h"
-#include "Widgets/SWebAPITreeView.h"
+
+class FWebAPIDefinitionViewModel;
+class IWebAPIViewModel;
+class SWebAPITreeView;
+namespace ESelectInfo { enum Type : int; }
 
 class UWebAPIDefinition;
 class IDetailLayoutBuilder;

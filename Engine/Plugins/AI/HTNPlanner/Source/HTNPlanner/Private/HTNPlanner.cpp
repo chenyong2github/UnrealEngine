@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HTNPlanner.h"
+#include "Stats/Stats.h"
 
 DECLARE_CYCLE_STAT(TEXT("HTN: Planning"), STAT_HTN_Planning, STATGROUP_AI);
 

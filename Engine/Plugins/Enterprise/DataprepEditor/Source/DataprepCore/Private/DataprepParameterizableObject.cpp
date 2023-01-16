@@ -2,12 +2,7 @@
 
 #include "DataprepParameterizableObject.h"
 
-#include "DataprepBindingCommandChange.h"
 
-#include "CoreGlobals.h"
-#include "Misc/ITransaction.h"
-#include "Templates/UnrealTemplate.h"
-#include "UObject/UnrealType.h"
 
 void UDataprepParameterizableObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {

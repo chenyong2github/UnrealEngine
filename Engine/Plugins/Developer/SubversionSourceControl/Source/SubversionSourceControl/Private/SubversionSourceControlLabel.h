@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ISourceControlRevision.h"
 #include "ISourceControlLabel.h"
+
+class ISourceControlRevision;
 
 /** 
  * Abstraction of a 'Subversion label'.

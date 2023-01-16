@@ -2,15 +2,9 @@
 
 
 #include "MediaFrameworkUtilitiesEditorModule.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 
-#include "Editor.h"
-#include "Editor/UnrealEdEngine.h"
 #include "LevelEditor.h"
-#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
-#include "UObject/UObjectBase.h"
 
 #include "AssetEditor/MediaProfileCommands.h"
 #include "AssetTypeActions/AssetTypeActions_MediaBundle.h"
@@ -24,9 +18,7 @@
 #include "Profile/MediaProfile.h"
 #include "Profile/MediaProfileBlueprintLibrary.h"
 #include "Profile/MediaProfileSettings.h"
-#include "Profile/MediaProfileSettingsCustomization.h"
 #include "VideoInputTab/SMediaFrameworkVideoInput.h"
-#include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 #include "UI/MediaProfileMenuEntry.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"

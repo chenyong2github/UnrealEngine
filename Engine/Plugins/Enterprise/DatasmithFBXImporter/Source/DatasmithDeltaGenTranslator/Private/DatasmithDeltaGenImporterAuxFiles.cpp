@@ -3,16 +3,14 @@
 #include "DatasmithDeltaGenImporterAuxFiles.h"
 
 #include "DatasmithDeltaGenImportData.h"
-#include "DatasmithDeltaGenImporter.h"
 #include "DatasmithDeltaGenLog.h"
-#include "DatasmithFBXScene.h"
 #include "DatasmithUtils.h"
 
-#include "CoreMinimal.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "ObjectTools.h"
-#include "XmlParser.h"
+#include "XmlFile.h"
+#include "XmlNode.h"
 
 namespace DeltaGenAuxFiles
 {

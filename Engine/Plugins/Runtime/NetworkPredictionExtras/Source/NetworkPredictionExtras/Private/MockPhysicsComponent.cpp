@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockPhysicsComponent.h"
-#include "MockPhysicsSimulation.h"
 
-#include "Components/PrimitiveComponent.h"
 
 #include "NetworkPredictionProxyInit.h"
 #include "NetworkPredictionModelDefRegistry.h"
-#include "NetworkPredictionProxyWrite.h"
-#include "NetworkPredictionCVars.h"
-#include "NetworkPredictionCheck.h"
 #include "NetworkPredictionPhysics.h"
-#include "DrawDebugHelpers.h"
+#include "Services/NetworkPredictionInstanceMap.h"
+#include "Services/NetworkPredictionService_Finalize.inl"
+#include "Services/NetworkPredictionService_Input.inl"
+#include "Services/NetworkPredictionService_Interpolate.inl"
+#include "Services/NetworkPredictionService_Physics.inl"
+#include "Services/NetworkPredictionService_Rollback.inl"
+#include "Services/NetworkPredictionService_ServerRPC.inl"
 
 namespace NetworkPredictionCVars
 {

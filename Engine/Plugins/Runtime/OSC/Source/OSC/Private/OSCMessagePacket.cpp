@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OSCMessagePacket.h"
 
-#include "OSCBundle.h"
 #include "OSCLog.h"
-#include "OSCMessage.h"
+#include "OSCStream.h"
+#include "OSCTypes.h"
 
 
 FOSCMessagePacket::FOSCMessagePacket()

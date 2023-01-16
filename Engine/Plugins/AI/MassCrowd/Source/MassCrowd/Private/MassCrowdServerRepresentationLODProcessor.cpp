@@ -2,8 +2,10 @@
 
 #include "MassCrowdServerRepresentationLODProcessor.h"
 #include "MassCommonFragments.h"
+#include "MassCrowdFragments.h"
 #include "MassExecutionContext.h"
 #include "MassRepresentationFragments.h"
+#include "MassEntityManager.h"
 
 namespace UE::MassCrowd
 {

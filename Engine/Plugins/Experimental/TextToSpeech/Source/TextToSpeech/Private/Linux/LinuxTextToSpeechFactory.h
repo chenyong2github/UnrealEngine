@@ -2,7 +2,6 @@
 
 #pragma once
 #if PLATFORM_LINUX
-#include "CoreMinimal.h"
 #include "GenericPlatform/ITextToSpeechFactory.h"
 
 class FTextToSpeechBase;

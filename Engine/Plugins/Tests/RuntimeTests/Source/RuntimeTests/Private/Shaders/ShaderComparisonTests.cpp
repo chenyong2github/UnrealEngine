@@ -4,16 +4,18 @@
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "ImageComparer.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
+#include "Tests/AutomationCommon.h"
 #include "UnrealClient.h"
 
-#include <fstream>
+#include <cfloat>
 #include <memory>
-#include <sstream>
+#include <exception>
+#include <stdexcept>
 
 DEFINE_LOG_CATEGORY_STATIC(ShaderComparisonTests, Log, Log);
 

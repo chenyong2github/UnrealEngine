@@ -3,9 +3,7 @@
 #include "Field/AssetTypeActions_FieldSystem.h"
 
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
-#include "Field/FieldSystem.h"
 #include "Field/FieldSystemAsset.h"
-#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

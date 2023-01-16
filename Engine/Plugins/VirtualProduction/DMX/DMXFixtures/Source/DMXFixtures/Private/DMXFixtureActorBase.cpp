@@ -3,14 +3,10 @@
 #include "DMXFixtureActorBase.h"
 
 #include "DMXFixtureComponent.h"
-#include "DMXFixtureComponentDouble.h"
-#include "DMXFixtureComponentSingle.h"
-#include "DMXFixtureComponentColor.h"
+#include "DMXInterpolation.h"
 #include "DMXStats.h"
-#include "DMXTypes.h"
 #include "Game/DMXComponent.h"
 
-#include "Components/StaticMeshComponent.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("BaseFixtureActor Push Normalized Values"), STAT_BaseFixtureActorPushNormalizedValuesPerAttribute, STATGROUP_DMX);

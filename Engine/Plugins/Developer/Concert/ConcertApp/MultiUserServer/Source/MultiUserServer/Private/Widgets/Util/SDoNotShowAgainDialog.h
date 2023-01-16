@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Dialog/SCustomDialog.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FArchivedSessionHistoryController;
 class IConcertSyncServer;

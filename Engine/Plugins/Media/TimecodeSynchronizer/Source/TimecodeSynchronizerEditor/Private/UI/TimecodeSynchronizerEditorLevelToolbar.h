@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/SharedPointer.h"
-#include "TimecodeSynchronizer.h"
 #include "UObject/WeakObjectPtr.h"
+
+class UTimecodeSynchronizer;
 
 struct FAssetData;
 class FExtender;

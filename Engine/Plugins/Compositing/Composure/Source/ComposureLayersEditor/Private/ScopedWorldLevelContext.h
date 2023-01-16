@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Engine/World.h"
-#include "GameFramework/Actor.h"
 
 class ULevel;
 

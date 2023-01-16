@@ -4,9 +4,6 @@
 
 #include "IStageMonitorModule.h"
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Templates/UniquePtr.h"
 
 class FAutoConsoleCommand;
 class FStageMonitor;

@@ -1,11 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CodeGen/Dom/WebAPICodeGenOperation.h"
 
+#include "CodeGen/Dom/WebAPICodeGenBase.h"
 #include "IWebAPIEditorModule.h"
 #include "CodeGen/Dom/WebAPICodeGenStruct.h"
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIService.h"
+#include "Dom/WebAPIType.h"
 #include "Dom/WebAPITypeRegistry.h"
 
 void FWebAPICodeGenOperationParameter::FromWebAPI(const UWebAPIOperationParameter* InSrcOperationParameter)

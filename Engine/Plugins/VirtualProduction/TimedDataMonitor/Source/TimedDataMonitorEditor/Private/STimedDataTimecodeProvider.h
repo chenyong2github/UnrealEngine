@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "Engine/TimecodeProvider.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "Styling/SlateColor.h"
+
+enum class ETimecodeProviderSynchronizationState;
+namespace ETextCommit { enum Type : int; }
 
 
 class STimedDataMonitorPanel;

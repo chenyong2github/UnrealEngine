@@ -2,10 +2,7 @@
 
 #include "ConcertFilterUtils.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 
 namespace UE::ConcertFilterUtils
 {

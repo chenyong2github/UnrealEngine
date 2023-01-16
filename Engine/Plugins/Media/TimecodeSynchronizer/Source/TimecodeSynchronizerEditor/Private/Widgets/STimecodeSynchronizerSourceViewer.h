@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Internationalization/Text.h"
-#include "TimecodeSynchronizer.h"
-#include "Styling/ISlateStyle.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/NameTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/StrongObjectPtr.h"
+
+class UTimecodeSynchronizer;
+enum class ETimecodeSynchronizationEvent;
+struct FTimecodeSynchronizerActiveTimecodedInputSource;
 
 class FMenuBuilder;
 class SEditableTextBox;

@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MrcProjectionBillboard.h"
-#include "Camera/CameraComponent.h"
-#include "GameFramework/Pawn.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/Material.h"
-#include "Engine/World.h"
-#include "MixedRealityCaptureComponent.h"
 #include "Engine/Engine.h"
-#include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
-#include "Materials/MaterialInstance.h"
 #include "IXRTrackingSystem.h"
 #include "HeadMountedDisplayFunctionLibrary.h" // for GetDeviceWorldPose()
 #include "IXRCamera.h"

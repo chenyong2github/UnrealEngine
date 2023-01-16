@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "SchemaActions/DataprepSchemaAction.h"
 
-#include "CoreMinimal.h"
-#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+
+struct FDataprepSchemaAction;
 
 namespace DataprepMenuActionCollectorUtils
 {

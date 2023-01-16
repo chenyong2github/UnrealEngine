@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisasterRecoverySessionManager.h"
+#include "ConcertSyncSessionTypes.h"
 #include "IConcertClient.h"
-#include "IConcertClientWorkspace.h"
+#include "DisasterRecoverySessionInfo.h"
 #include "IDisasterRecoveryClientModule.h"
 #include "ConcertActivityStream.h"
-#include "ConcertSettings.h"
 #include "DisasterRecoverySettings.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
 #include "Backends/JsonStructSerializerBackend.h"
 #include "Backends/JsonStructDeserializerBackend.h"
-#include "Dom/JsonObject.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Misc/CoreDelegates.h"
-#include "Serialization/JsonReader.h"
+#include "IConcertSyncClient.h"
 #include "Serialization/JsonSerializer.h"
+#include "Misc/TVariantMeta.h"
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
 

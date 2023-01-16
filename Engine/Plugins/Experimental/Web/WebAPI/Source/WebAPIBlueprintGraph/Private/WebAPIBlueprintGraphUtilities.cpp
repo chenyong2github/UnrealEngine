@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIBlueprintGraphUtilities.h"
 
@@ -6,8 +6,6 @@
 #include "K2Node.h"
 #include "WebAPIOperationObject.h"
 #include "Algo/AllOf.h"
-#include "Algo/Transform.h"
-#include "UObject/WeakFieldPtr.h"
 
 namespace UE::WebAPI
 {

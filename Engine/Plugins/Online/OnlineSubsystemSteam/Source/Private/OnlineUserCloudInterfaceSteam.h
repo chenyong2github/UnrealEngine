@@ -2,12 +2,9 @@
 
 #pragma once
  
-#include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
 #include "Interfaces/OnlineUserCloudInterface.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineAsyncTaskManagerSteam.h"
-#include "OnlineSubsystemSteamPackage.h"
 
 /** 
  *  Async task for enumerating all cloud files for a given user

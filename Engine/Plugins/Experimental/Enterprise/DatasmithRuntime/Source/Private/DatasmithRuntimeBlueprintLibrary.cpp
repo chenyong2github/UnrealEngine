@@ -15,13 +15,13 @@
 #include "HAL/FileManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Microsoft/COMPointer.h"
+#include "Misc/Paths.h"
 #include <commdlg.h>
 #include <shlobj.h>
 #include <Winver.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-#include "Misc/Paths.h"
 
 class UDirectLinkProxy;
 

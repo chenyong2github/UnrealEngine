@@ -2,12 +2,9 @@
 
 #include "Session/History/SEditableSessionHistory.h"
 
-#include "Algo/Transform.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
 #include "SNegativeActionButton.h"
-#include "Session/History/SSessionHistory.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SEditableSessionHistory"
 

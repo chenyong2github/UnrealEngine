@@ -2,6 +2,7 @@
 
 #include "EndpointToUserNameCache.h"
 
+#include "ConcertMessages.h"
 #include "ConcertServerEvents.h"
 #include "ConcertUtil.h"
 #include "IConcertServer.h"

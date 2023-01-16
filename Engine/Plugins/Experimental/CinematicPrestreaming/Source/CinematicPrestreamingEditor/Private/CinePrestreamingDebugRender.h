@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MoviePipelineDeferredPasses.h"
-#include "MovieRenderPipelineDataTypes.h"
 #include "CinePrestreamingDebugRender.generated.h"
 
 UCLASS(BlueprintType)

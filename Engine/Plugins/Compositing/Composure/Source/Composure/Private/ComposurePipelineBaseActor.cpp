@@ -2,13 +2,10 @@
 
 #include "ComposurePipelineBaseActor.h"
 #include "ComposureViewExtension.h"
-#include "Engine/World.h"
-#include "Engine/Level.h"
 #include "LevelUtils.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "HAL/IConsoleManager.h"
 
 static TAutoConsoleVariable<int32> CVarSuspendEditorInstancesWithPIE(
 	TEXT("r.Composure.PipelineActors.SuspendEditorInstancesWithPIE"),

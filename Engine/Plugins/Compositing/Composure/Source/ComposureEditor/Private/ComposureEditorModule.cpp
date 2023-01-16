@@ -3,6 +3,7 @@
 #include "ComposureEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "ISequencerModule.h"
+#include "MovieScene/MovieSceneComposureExportTrack.h"
 #include "Sequencer/ComposurePostMoveSettingsPropertyTrackEditor.h"
 #include "Sequencer/ComposureExportTrackEditor.h"
 

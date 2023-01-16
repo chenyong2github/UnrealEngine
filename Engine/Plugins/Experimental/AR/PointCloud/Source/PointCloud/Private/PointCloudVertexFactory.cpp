@@ -1,15 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PointCloudVertexFactory.h"
-#include "RHIStaticStates.h"
-#include "SceneManagement.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "Materials/Material.h"
 #include "MeshDrawShaderBindings.h"
-#include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "PipelineStateCache.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPointCloudVertexFactoryParameters, "PointCloudVF");
 

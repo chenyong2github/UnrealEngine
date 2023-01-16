@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-#include "Delegates/IDelegateInstance.h"
-#include "Engine/EngineTypes.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FPropertyChangedEvent;
 
 class FWorkspaceItem;
 class IDetailsView;

@@ -2,7 +2,6 @@
 
 #include "MobileFSRViewExtension.h"
 #include "MobileFSRUpscaler.h"
-#include "PostProcess/PostProcessUpscale.h"
 
 static TAutoConsoleVariable<int32> CVarEnableFSR(
 	TEXT("r.Mobile.FSR.Enabled"),

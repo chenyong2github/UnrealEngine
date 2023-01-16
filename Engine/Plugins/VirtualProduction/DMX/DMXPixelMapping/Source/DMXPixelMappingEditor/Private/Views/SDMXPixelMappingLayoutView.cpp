@@ -10,13 +10,9 @@
 #include "ViewModels/DMXPixelMappingLayoutViewModel.h"
 
 #include "DetailsViewArgs.h"
-#include "Editor.h"
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
-#include "TimerManager.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 

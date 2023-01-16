@@ -2,7 +2,6 @@
 
 
 #include "CalibrationPointArucosForWallDetailsRow.h"
-#include "CoreMinimal.h"
 #include "CameraCalibrationCoreEditorModule.h"
 #include "LedWallCalibrationEditorLog.h"
 #include "Misc/App.h"

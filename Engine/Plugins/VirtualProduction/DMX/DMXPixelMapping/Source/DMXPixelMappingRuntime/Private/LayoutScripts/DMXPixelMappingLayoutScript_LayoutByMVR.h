@@ -4,12 +4,13 @@
 
 #include "LayoutScripts/DMXPixelMappingLayoutScript.h"
 
-#include "Library/DMXEntityFixtureType.h"
 
 #include "Layout/Margin.h"
-#include "Types/SlateEnums.h"
 
 #include "DMXPixelMappingLayoutScript_LayoutByMVR.generated.h"
+
+class UDMXEntityFixturePatch;
+class UDMXLibrary;
 
 class UDMXMVRFixtureNode;
 

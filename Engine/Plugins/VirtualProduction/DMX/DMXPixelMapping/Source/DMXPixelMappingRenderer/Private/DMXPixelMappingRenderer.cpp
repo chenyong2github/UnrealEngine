@@ -1,24 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXPixelMappingRenderer.h"
-#include "DMXPixelMappingRendererCommon.h"
 
 #include "Blueprint/UserWidget.h"
 #include "ClearQuad.h"
-#include "GlobalShader.h"
+#include "CommonRenderResources.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/Material.h"
 #include "Modules/ModuleManager.h"
 #include "PixelShaderUtils.h"
-#include "RHIStaticStates.h"
 #include "ScreenRendering.h"
+#include "Rendering/SlateRenderer.h"
 #include "SlateMaterialBrush.h"
+#include "RenderingThread.h"
 #include "Slate/WidgetRenderer.h"
-#include "ShaderParameterStruct.h"
-#include "ShaderPermutation.h"
-#include "ShaderParameters.h"
 #include "TextureResource.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/SOverlay.h"
 
 namespace DMXPixelMappingRenderer
 {

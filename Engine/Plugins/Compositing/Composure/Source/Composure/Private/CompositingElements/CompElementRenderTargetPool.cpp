@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositingElements/CompElementRenderTargetPool.h"
-#include "Engine/TextureRenderTarget2D.h"
-#include "RHI.h" // for GetMax2DTextureDimension()
 #include "Kismet/KismetRenderingLibrary.h" // for ReleaseRenderTarget2D()
 #include "ComposureInternals.h" // for the 'Composure' log category
-#include "HAL/IConsoleManager.h"
 #include "UObject/Package.h"
 
 namespace ElementRenderTargetPool_Impl

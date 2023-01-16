@@ -3,8 +3,6 @@
 #include "ChaosFlesh/ChaosFleshEnginePlugin.h"
 
 #include "ChaosCache/FleshComponentCacheAdapter.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 
 
 

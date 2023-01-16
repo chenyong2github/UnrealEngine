@@ -8,6 +8,8 @@
 #include "EditorUndoClient.h"
 #include "EditorReimportHandler.h"
 
+class FSpawnTabArgs;
+
 struct FBinkMediaPlayerEditorToolkit : public FAssetEditorToolkit, public FEditorUndoClient, public FGCObject 
 {
 	FBinkMediaPlayerEditorToolkit( const TSharedRef<ISlateStyle>& InStyle )

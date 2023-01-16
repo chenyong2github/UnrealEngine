@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubversionSourceControlState.h"
-#include "Styling/AppStyle.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
+#include "SubversionSourceControlRevision.h"
+#include "Textures/SlateIcon.h"
 
 #define LOCTEXT_NAMESPACE "SubversionSourceControl.State"
 

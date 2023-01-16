@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SteamSocketsNetConnection.h"
-#include "SteamSocketsPrivate.h"
-#include "IPAddressSteamSockets.h"
 #include "SteamSocketsSubsystem.h"
 #include "SteamSocketsNetDriver.h"
 #include "SteamSocket.h"
 #include "Net/DataChannel.h"
-#include "CoreMinimal.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
-#include "Templates/SharedPointer.h"
 
 // Steam has the max value as 512 * 1024 (assumed bytes), which is unusable to us because UNetConnection asserts on any value greater than 1024
 // Because of this, we cannot pass the value we get from Valve.

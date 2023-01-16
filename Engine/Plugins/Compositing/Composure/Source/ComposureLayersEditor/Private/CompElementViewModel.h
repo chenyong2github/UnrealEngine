@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ICompElementManager.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Framework/Commands/UICommandList.h"
+
+class FUICommandList;
+class ICompElementManager;
 
 class ACompositingElement;
 

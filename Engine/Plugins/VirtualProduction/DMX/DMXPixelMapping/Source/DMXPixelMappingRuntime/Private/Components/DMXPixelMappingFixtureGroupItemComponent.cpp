@@ -2,14 +2,12 @@
 
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 
-#include "DMXConversions.h"
 #include "DMXPixelMappingRuntimeUtils.h"
 #include "DMXPixelMappingTypes.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingRootComponent.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
 #include "IO/DMXOutputPort.h"
 #include "Modulators/DMXModulator.h"

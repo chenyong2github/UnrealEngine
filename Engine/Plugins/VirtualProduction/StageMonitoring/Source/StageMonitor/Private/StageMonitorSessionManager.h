@@ -4,10 +4,12 @@
 
 #include "IStageMonitorSessionManager.h"
 
-#include "IStageMonitorSession.h"
 #include "StageMonitoringSettings.h"
 
 #include "StageMonitorSessionManager.generated.h"
+
+struct FStageDataEntry;
+struct FStageSessionProviderEntry;
 
 class FStageMonitorSession;
 

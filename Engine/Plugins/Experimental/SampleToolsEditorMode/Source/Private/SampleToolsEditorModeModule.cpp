@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SampleToolsEditorModeModule.h"
+#include "Modules/ModuleManager.h"
 #include "SampleToolsEditorModeCommands.h"
 
 #define LOCTEXT_NAMESPACE "FSampleToolsEditorModeModule"

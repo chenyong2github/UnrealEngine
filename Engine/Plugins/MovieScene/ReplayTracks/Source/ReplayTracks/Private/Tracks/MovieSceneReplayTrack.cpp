@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/MovieSceneReplayTrack.h"
-#include "IMovieSceneTracksModule.h"
 #include "Sections/MovieSceneReplaySection.h"
 #include "MovieScene.h"
 

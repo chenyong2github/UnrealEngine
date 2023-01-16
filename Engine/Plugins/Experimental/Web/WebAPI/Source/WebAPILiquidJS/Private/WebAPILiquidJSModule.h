@@ -4,7 +4,7 @@
 
 #include "IWebAPILiquidJSModule.h"
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 class FWebAPILiquidJSModule final
     : public IWebAPILiquidJSModuleInterface

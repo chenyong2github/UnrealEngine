@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "IPackageTransmissionEntrySource.h"
+#include "Widgets/Clients/PackageTransmission/Model/PackageTransmissionEntry.h"
 
 class IConcertSyncServer;
 

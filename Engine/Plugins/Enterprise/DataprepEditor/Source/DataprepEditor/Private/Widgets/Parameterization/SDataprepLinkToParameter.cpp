@@ -4,19 +4,13 @@
 
 #include "DataprepAsset.h"
 #include "DataprepEditorUtils.h"
-#include "DataprepParameterizableObject.h"
 
 #include "Async/ParallelFor.h"
-#include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
  
 #define LOCTEXT_NAMESPACE "SDataprepLinkToParameter"
 

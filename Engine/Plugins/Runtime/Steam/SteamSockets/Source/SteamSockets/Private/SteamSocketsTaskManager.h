@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SteamSocketsTaskManagerInterface.h"
-#include "SteamSocketsPrivate.h"
+#include "SteamSocketsPrivate.h" // IWYU pragma: keep
 #include "Containers/Queue.h"
+
+class FSteamSocketsSubsystem;
 
 // A glorified event manager for handling status updates about SteamSockets we hold.
 class FSteamSocketsTaskManager : public FSteamSocketsTaskManagerInterface

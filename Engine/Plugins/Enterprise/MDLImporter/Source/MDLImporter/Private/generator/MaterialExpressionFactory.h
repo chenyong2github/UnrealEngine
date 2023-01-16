@@ -3,10 +3,8 @@
 #pragma once
 
 #include "generator/ConstantExpressionFactory.h"
-#include "generator/MaterialExpressionConnection.h"
 #include "generator/ParameterExpressionFactory.h"
 
-#include "Containers/Array.h"
 
 class UMaterialFunction;
 class UMaterialExpression;

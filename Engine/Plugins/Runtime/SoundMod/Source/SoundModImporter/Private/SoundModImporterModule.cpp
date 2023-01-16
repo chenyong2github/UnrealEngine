@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 #include "SoundModImporterPrivate.h"
-#include "AssetToolsModule.h"
 #include "AssetTypeActions_SoundMod.h"
 
 //////////////////////////////////////////////////////////////////////////

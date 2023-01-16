@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+
+class ITableRow;
+namespace ESelectInfo { enum Type : int; }
+template <typename ItemType> class SListView;
 
 class FMessagingDebuggerMessageFilter;
 class FMessagingDebuggerModel;

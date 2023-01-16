@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Misc/Attribute.h"
-#include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "CompElementViewModel.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
+
+class FCompElementViewModel;
+class SInlineEditableTextBlock;
+class STableViewBase;
 
 class SButton;
 

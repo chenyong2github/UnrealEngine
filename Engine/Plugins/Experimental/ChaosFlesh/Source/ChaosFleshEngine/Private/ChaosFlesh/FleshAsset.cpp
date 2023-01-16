@@ -5,7 +5,7 @@
 =============================================================================*/
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshCollection.h"
-#include "UObject/Package.h"
+#include "GeometryCollection/TransformCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshAsset)
 

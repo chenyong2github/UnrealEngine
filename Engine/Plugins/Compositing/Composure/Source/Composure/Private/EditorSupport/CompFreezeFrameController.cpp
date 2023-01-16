@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorSupport/CompFreezeFrameController.h"
-#include "CompositingElement.h" // for ETargetUsageFlags
 
 namespace CompFreezeFrameController_Impl
 {

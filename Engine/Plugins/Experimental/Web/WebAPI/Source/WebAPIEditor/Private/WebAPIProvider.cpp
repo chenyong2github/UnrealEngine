@@ -1,6 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIProvider.h"
+#include "Async/Future.h"
 
 TFuture<EWebAPIConversionResult> IWebAPIProviderInterface::ConvertToWebAPISchema(
 	const TWeakObjectPtr<UWebAPIDefinition>& InDefinition)

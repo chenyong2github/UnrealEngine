@@ -2,8 +2,12 @@
 
 #include "LobbiesEOSGSTypes.h"
 
+#include "EOSShared.h"
 #include "Online/AuthEOSGS.h"
-#include "Online/LobbiesCommon.h"
+#include "Online/OnlineErrorEOSGS.h"
+#include "Online/OnlineIdEOSGS.h"
+#include "Online/OnlineUtils.h"
+#include <eos_lobby.h>
 
 namespace UE::Online {
 

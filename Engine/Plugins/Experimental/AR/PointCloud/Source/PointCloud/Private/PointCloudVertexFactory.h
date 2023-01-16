@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "UniformBuffer.h"
+#include "ShaderParameterMacros.h"
 #include "VertexFactory.h"
 
 /**

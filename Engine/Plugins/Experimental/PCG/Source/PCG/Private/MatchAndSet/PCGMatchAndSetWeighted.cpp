@@ -2,15 +2,13 @@
 
 #include "MatchAndSet/PCGMatchAndSetWeighted.h"
 
+#include "Math/RandomStream.h"
 #include "PCGContext.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGPointMatchAndSet.h"
 #include "Helpers/PCGBlueprintHelpers.h"
-#include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/IPCGAttributeAccessorTpl.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
-#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/Accessors/PCGCustomAccessor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMatchAndSetWeighted)

@@ -2,8 +2,6 @@
 
 #include "ChaosFlesh/Asset/FleshAssetThumbnailScene.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
-#include "ChaosFlesh/FleshAsset.h"
-#include "ChaosFlesh/FleshComponent.h"
 #include "ChaosFlesh/FleshActor.h"
 
 FFleshAssetThumbnailScene::FFleshAssetThumbnailScene()

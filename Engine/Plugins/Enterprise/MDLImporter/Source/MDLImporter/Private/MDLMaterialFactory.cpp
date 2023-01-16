@@ -5,18 +5,18 @@
 #include "MDLMaterialPropertyFactory.h"
 #include "MDLMaterialSelector.h"
 
+#include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "generator/MaterialExpressions.h"
+#include "common/Logging.h"
 #include "mdl/MaterialCollection.h"
+#include "generator/MaterialExpressionConnection.h"
 #include "mdl/Utility.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
-#include "Logging/LogMacros.h"
 #include "MaterialEditingLibrary.h"
-#include "MaterialEditorUtilities.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
-#include "UObject/Package.h"
 
 namespace MDLImporterImpl
 {

@@ -2,10 +2,8 @@
 
 #include "GeoReferencingEditorBPLibrary.h"
 
-#include <EditorViewportClient.h>
 #include <LevelEditorViewport.h>
 #include <PhysicsEngine/PhysicsSettings.h>
-#include <Engine/EngineTypes.h>
 
 void UGeoReferencingEditorBPLibrary::GetViewportCursorLocation(bool& Focused, FVector2D& Location)
 {

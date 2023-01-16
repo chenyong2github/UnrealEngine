@@ -3,9 +3,9 @@
 #include "StageMonitorSession.h"
 
 #include "Misc/App.h"
-#include "StageMessages.h"
 #include "StageCriticalEventHandler.h"
 #include "StageMonitorModule.h"
+#include "UObject/StructOnScope.h"
 
 
 FStageMonitorSession::FStageMonitorSession(const FString& InSessionName)

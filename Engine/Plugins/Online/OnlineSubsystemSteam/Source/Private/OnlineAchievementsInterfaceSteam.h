@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemSteamTypes.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
 #include "Misc/ConfigCacheIni.h"
+#include "OnlineSubsystemPackage.h"
+
+class FUniqueNetIdSteam;
 
 /**
  *	IOnlineAchievements - Interface class for acheivements

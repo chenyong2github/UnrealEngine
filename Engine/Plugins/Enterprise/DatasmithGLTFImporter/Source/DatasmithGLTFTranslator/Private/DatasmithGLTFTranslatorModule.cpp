@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithGLTFTranslatorModule.h"
+#include "DatasmithGLTFImportOptions.h" // IWYU pragma: keep
 #include "DatasmithGLTFTranslator.h"
 
-#include "CoreMinimal.h"
-#include "DatasmithTranslator.h"
-#include "DatasmithTranslatorModule.h"
 
 const TCHAR* IDatasmithGLTFTranslatorModule::ModuleName = TEXT("DatasmithGLTFTranslator");
 

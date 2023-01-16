@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemNames.h"
 #include "SocketSubsystem.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "Sockets.h"
-#include "OnlineSubsystemSteamPackage.h"
 
 class FSocketSubsystemSteam;
 

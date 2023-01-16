@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/Clients/Logging/LogScrollingDelegates.h"
 
 class FEndpointToUserNameCache;

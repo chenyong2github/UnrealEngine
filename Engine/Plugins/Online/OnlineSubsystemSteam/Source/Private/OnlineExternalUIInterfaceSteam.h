@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "OnlineSubsystemSteam.h"
 #include "OnlineAsyncTaskManager.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 #include "OnlineSubsystemSteamPackage.h"
+
+class FOnlineSubsystemSteam;
 
 /**
  *	Async event that notifies when the STEAM external UI has been activated

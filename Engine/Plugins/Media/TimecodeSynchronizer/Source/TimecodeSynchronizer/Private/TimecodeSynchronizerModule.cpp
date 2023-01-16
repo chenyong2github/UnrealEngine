@@ -5,9 +5,6 @@
 #include "TimecodeSynchronizer.h"
 #include "TimecodeSynchronizerProjectSettings.h"
 
-#include "Logging/LogMacros.h"
-#include "Misc/CoreMisc.h"
-#include "UObject/SoftObjectPtr.h"
 
 DEFINE_LOG_CATEGORY(LogTimecodeSynchronizer)
 

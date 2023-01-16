@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ServerSessionHistoryControllerBase.h"
+
+struct FColumnVisibilitySnapshot;
 
 class FConcertSyncSessionDatabase;
 class IConcertSyncServer;

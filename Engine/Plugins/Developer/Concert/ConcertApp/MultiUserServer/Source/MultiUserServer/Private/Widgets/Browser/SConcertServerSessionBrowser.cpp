@@ -3,10 +3,9 @@
 #include "SConcertServerSessionBrowser.h"
 
 #include "ConcertServerStyle.h"
+#include "Dialog/SCustomDialog.h"
 #include "MultiUserServerModule.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/Items/ConcertSessionTreeItem.h"
-#include "Session/Browser/SConcertSessionBrowser.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Window/ConcertServerTabs.h"

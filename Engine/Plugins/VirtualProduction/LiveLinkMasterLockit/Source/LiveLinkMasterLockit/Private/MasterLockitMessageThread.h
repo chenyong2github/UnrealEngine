@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "HAL/Runnable.h"
 
-#include "Misc/FrameRate.h"
-#include "Misc/Timecode.h"
 #include "Misc/QualifiedFrameTime.h"
 
 #include "Serialization/ArrayReader.h"

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystemSteam.h"
-#include "OnlineAuthInterfaceUtilsSteam.h"
-#include "OnlineSubsystemSteamTypes.h"
-#include "OnlineSubsystemSteamPackage.h"
+
+enum class ESteamAuthResponseCode : uint8;
 
 /** Steam Authentication Interface.
  *

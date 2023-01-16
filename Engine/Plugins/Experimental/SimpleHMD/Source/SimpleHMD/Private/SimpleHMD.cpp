@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SimpleHMD.h"
-#include "Misc/App.h"
-#include "Modules/ModuleManager.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "ISimpleHMDPlugin.h"
-#include "SceneRendering.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "GameFramework/WorldSettings.h"
 

@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved
 
 #include "MockRootMotionSourceObject.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Package.h"
-#include "UObject/UObjectHash.h"
-#include "Algo/Sort.h"
 #include "Engine/ObjectLibrary.h"
-#include "Engine/AssetManager.h"
 #include "NetworkPredictionReplicatedManager.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"

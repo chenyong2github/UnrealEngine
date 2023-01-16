@@ -3,10 +3,17 @@
 
 #include "SBinkWidgets.h"
 
-#include "BinkMediaPlayerEditorPrivate.h"
-#include "Widgets/Input/SNumericEntryBox.h"
+#include "BinkMediaPlayerEditorTexture.h"
 #include "Widgets/SViewport.h"
-#include "RenderingThread.h"
+#include "DetailsViewArgs.h"
+#include "IDetailsView.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SBinkMediaPlayerWidgets"
 

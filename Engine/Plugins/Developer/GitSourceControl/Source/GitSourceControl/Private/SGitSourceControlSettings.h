@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SlateFwd.h"
-#include "ISourceControlOperation.h"
 #include "ISourceControlProvider.h"
+
+class SNotificationItem;
+namespace ETextCommit { enum Type : int; }
 
 enum class ECheckBoxState : uint8;
 

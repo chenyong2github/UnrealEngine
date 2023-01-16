@@ -3,7 +3,8 @@
 
 #include "BinkMediaTextureFactoryNew.h"
 
-#include "BinkMediaPlayerEditorPrivate.h"
+#include "BinkMediaPlayer.h"
+#include "BinkMediaTexture.h"
 
 UBinkMediaTextureFactoryNew::UBinkMediaTextureFactoryNew( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

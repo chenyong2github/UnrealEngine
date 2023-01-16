@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MockRootMotionSimulation.h"
-#include "NetworkPredictionCheck.h"
-#include "GameFramework/Actor.h"
 #include "MockRootMotionSourceObject.h"
-#include "NetworkPredictionCues.h"
+#include "NetworkPredictionTickState.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockRootMotion, Log, All);
 

@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/CoreOnline.h"
+#include "Interfaces/OnlineSessionDelegates.h"
+#include "OnlineSubsystemPackage.h"
 #include "OnlineSubsystemSteamTypes.h"
-#include "Misc/ScopeLock.h"
-#include "OnlineKeyValuePair.h"
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "OnlineSubsystemSteamPackage.h"
 
 /** Async Task timeout value */
 #define ASYNC_TASK_TIMEOUT 15.0f

@@ -4,20 +4,14 @@
 
 #include "ConcertFrontendStyle.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 
-#include "Styling/AppStyle.h"
 
-#include "Algo/ForEach.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/Regex.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 

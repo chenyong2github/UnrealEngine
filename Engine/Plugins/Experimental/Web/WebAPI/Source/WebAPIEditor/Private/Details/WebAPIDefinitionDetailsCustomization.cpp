@@ -4,13 +4,14 @@
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Details/ViewModels/WebAPIServiceViewModel.h"
 #include "Editor.h"
 #include "WebAPIDefinition.h"
-#include "Algo/ForEach.h"
 #include "Subsystems/ImportSubsystem.h"
 #include "ViewModels/WebAPIViewModel.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SWebAPITreeView.h"
-#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSplitter.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIDefinitionAssetDetailsCustomization"
 

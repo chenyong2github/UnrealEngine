@@ -1,14 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocketSubsystemEOS.h"
-#include "InternetAddrEOS.h"
 #include "SocketEOS.h"
-#include "SocketTypes.h"
-#include "Containers/Ticker.h"
-#include "Misc/ConfigCacheIni.h"
 #include "SocketSubsystemModule.h"
-#include "Modules/ModuleManager.h"
-#include "Misc/OutputDeviceRedirector.h"
 #include "OnlineSubsystemUtils.h"
 #include "EOSShared.h"
 

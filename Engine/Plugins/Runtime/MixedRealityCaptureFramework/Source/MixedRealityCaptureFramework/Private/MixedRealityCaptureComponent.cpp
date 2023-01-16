@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MixedRealityCaptureComponent.h"
+#include "Camera/CameraTypes.h"
 #include "Engine/Texture2D.h"
+#include "IMediaCaptureSupport.h"
 #include "MotionControllerComponent.h"
 #include "MrcProjectionBillboard.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "MediaPlayer.h"
 #include "Materials/Material.h"
 #include "UObject/ConstructorHelpers.h"
-#include "GameFramework/Pawn.h" // for GetWorld() 
-#include "Engine/World.h" // for GetPlayerControllerIterator()
-#include "GameFramework/PlayerController.h" // for GetPawn()
 #include "MrcUtilLibrary.h"
 #include "Kismet/GameplayStatics.h"
-#include "MrcCalibrationData.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MediaCaptureSupport.h"
 #include "MrcGarbageMatteCaptureComponent.h"
@@ -21,16 +19,10 @@
 #include "MrcLatencyViewExtension.h"
 #include "Misc/ConfigCacheIni.h"
 #include "MrcFrameworkSettings.h"
-#include "Engine/Engine.h" // for UEngine::XRSystem, DisplayGamma, etc.
-#include "IXRTrackingSystem.h" // for GetTrackingOrigin()
 #include "UObject/Package.h"
 #include "XRTrackingSystemBase.h" // for OnXRTrackingOriginChanged
-#include "UObject/SoftObjectPath.h"
-#include "HAL/IConsoleManager.h"
-#include "UObject/UObjectIterator.h"
 #include "PlatformFeatures.h"
 #include "SaveGameSystem.h"
-#include "Serialization/MemoryReader.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #if WITH_EDITORONLY_DATA
