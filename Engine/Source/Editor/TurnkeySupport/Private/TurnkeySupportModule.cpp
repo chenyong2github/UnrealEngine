@@ -2524,7 +2524,7 @@ void FTurnkeySupportModule::ClearDeviceStatus(FName PlatformName)
 
 
 #if WITH_EDITOR
-bool FTurnkeySupportModule::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+bool FTurnkeySupportModule::Exec_Editor( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	if (FParse::Command( &Cmd, TEXT("Turnkey")) )
 	{

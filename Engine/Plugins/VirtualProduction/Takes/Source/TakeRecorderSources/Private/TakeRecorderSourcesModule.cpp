@@ -706,7 +706,7 @@ public:
 #endif
 	}
 
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 #if WITH_EDITOR
 		if (FParse::Command(&Cmd, TEXT("RecordTake")))

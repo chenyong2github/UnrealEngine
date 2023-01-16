@@ -236,9 +236,15 @@ public:
 	// End of UObject interface
 
 	// FExec interface
+public:
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
+#endif
+protected:
+	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	// End of FExec interface
 
+public:
 	/** 
 	 * Exec command handlers
 	 */

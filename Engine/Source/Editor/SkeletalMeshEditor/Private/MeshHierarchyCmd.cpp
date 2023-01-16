@@ -12,7 +12,7 @@
 
 static FMeshHierarchyCmd MeshHierarchyCmdExec;
 
-bool FMeshHierarchyCmd::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FMeshHierarchyCmd::Exec_Editor(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bResult = false;
 	if (FParse::Command(&Cmd, TEXT("TMH")))

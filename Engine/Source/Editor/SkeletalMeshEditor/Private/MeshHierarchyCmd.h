@@ -7,7 +7,7 @@
 
 class FMeshHierarchyCmd : private FSelfRegisteringExec
 {
-public:
+protected:
 	/** Console commands, see embeded usage statement **/
-	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Editor(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
 };

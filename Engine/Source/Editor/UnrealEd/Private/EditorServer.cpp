@@ -5689,7 +5689,7 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 
 COREUOBJECT_API void DumpClassSchemas(const TCHAR* Str, FOutputDevice& Ar);
 
-bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
+bool UEditorEngine::Exec_Editor( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
 {
 	TCHAR ErrorTemp[256]=TEXT("Setup: ");
 	bool bProcessed=false;
@@ -5954,7 +5954,7 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 		// The level handled it.
 		bProcessed = true;
 	}
-	else if( UEngine::Exec( InWorld, Stream, Ar ) )
+	else if( UEngine::Exec_Editor( InWorld, Stream, Ar ) )
 	{
 		// The engine handled it.
 		bProcessed = true;

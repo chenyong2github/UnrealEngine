@@ -1451,37 +1451,9 @@ bool ULocalPlayer::HandleToggleStreamingVolumesCommand( const TCHAR* Cmd, FOutpu
 	return true;
 }
 
+#if UE_ALLOW_EXEC_COMMANDS
 bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 {
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		// Override a few commands in PIE
-		if( FParse::Command(&Cmd,TEXT("DN")) )
-		{
-			return HandleDNCommand( Cmd, Ar );
-		}
-
-		if( FParse::Command(&Cmd,TEXT("Exit"))
-		||	FParse::Command(&Cmd,TEXT("Quit")))
-		{
-			return HandleExitCommand( Cmd, Ar );
-		}
-
-		if( FParse::Command(&Cmd,TEXT("FocusNextPIEWindow")))
-		{
-			GEngine->FocusNextPIEWorld(InWorld);
-			return true;
-		}
-		if( FParse::Command(&Cmd,TEXT("FocusLastPIEWindow")))
-		{
-			GEngine->FocusNextPIEWorld(InWorld, true);
-			return true;
-		}
-
-	}
-#endif // WITH_EDITOR
-
 // NOTE: all of these can probably be #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) out
 
 	if( FParse::Command(&Cmd,TEXT("LISTMOVEBODY")) )
@@ -1575,6 +1547,45 @@ bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 	{
 		return false;
 	}
+}
+#endif // UE_ALLOW_EXEC_COMMANDS
+
+bool ULocalPlayer::Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Override a few commands in PIE
+		if (FParse::Command(&Cmd, TEXT("DN")))
+		{
+			return HandleDNCommand(Cmd, Ar);
+		}
+
+		if( FParse::Command(&Cmd,TEXT("Exit"))
+		||	FParse::Command(&Cmd,TEXT("Quit")))
+		{
+			return HandleExitCommand( Cmd, Ar );
+		}
+
+		if (FParse::Command(&Cmd, TEXT("FocusNextPIEWindow")))
+		{
+			GEngine->FocusNextPIEWorld(InWorld);
+			return true;
+		}
+		if (FParse::Command(&Cmd, TEXT("FocusLastPIEWindow")))
+		{
+			GEngine->FocusNextPIEWorld(InWorld, true);
+			return true;
+		}
+
+		if (Super::Exec_Editor(InWorld, Cmd, Ar))
+		{
+			return true;
+		}
+	}
+#endif // WITH_EDITOR
+
+	return false;
 }
 
 void ULocalPlayer::ExecMacro( const TCHAR* Filename, FOutputDevice& Ar )

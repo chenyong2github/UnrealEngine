@@ -604,9 +604,6 @@ public:
 	ECookMode::Type GetCookMode() const { return CurrentCookMode; }
 	ECookInitializationFlags GetCookFlags() const { return CookFlags; }
 
-	// FExec interface used in the editor
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	// ICookInfo interface
 	virtual UE::Cook::FInstigator GetInstigator(FName PackageName) override;
 	virtual TArray<UE::Cook::FInstigator> GetInstigatorChain(FName PackageName) override;
@@ -868,6 +865,10 @@ public:
 
 	/** Print detailed stats from the cook. */
 	void PrintDetailedCookStats();
+
+protected:
+	// FExec interface used in the editor
+	virtual bool Exec_Editor(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 

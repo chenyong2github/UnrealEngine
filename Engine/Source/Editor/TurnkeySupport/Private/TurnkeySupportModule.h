@@ -58,7 +58,7 @@ private:
 
 #if WITH_EDITOR
 	// FSelfRegisteringExec interface
-	virtual bool Exec( class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+	virtual bool Exec_Editor( class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 #endif
 
 };

@@ -117,7 +117,7 @@ static FAutoConsoleCommand GFlushMaterialUniforms(
 #if WITH_EDITOR
 class FMaterialDumpDebugInfoExecHelper : public FSelfRegisteringExec
 {
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec_Editor(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		if (FParse::Command(&Cmd, TEXT("material dumpdebuginfo")))
 		{

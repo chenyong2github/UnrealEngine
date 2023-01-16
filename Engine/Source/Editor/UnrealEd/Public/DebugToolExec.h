@@ -22,11 +22,9 @@ protected:
 	 * @param bShouldShowNonEditable	whether to show properties that are normally not editable under "None"
 	 */
 	void EditObject(UObject* Object, bool bShouldShowNonEditable);
-
-public:
 	
 	//~ Begin Exec Interface
-	UNREALED_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+	virtual bool Exec_Editor( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 	//~ End Exec Interface
 
 };

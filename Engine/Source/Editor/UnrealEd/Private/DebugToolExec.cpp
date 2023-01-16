@@ -86,7 +86,7 @@ void FDebugToolExec::EditObject(UObject* Object, bool bShouldShowNonEditable)
  * @param Cmd	Command to parse
  * @param Ar	output device used for logging
  */
-bool FDebugToolExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+bool FDebugToolExec::Exec_Editor( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	// these commands are only allowed in standalone games
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST

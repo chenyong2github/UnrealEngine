@@ -3654,7 +3654,7 @@ TStatId FFindInBlueprintSearchManager::GetStatId() const
 
 class FFiBDumpIndexCacheToFileExecHelper : public FSelfRegisteringExec
 {
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec_Editor(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		if (FParse::Command(&Cmd, TEXT("DUMPFIBINDEXCACHE")))
 		{
