@@ -11,12 +11,41 @@
 #include "Blueprint/WidgetTree.h"
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
+#include "Blueprint/UserWidgetBlueprint.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FWidgetReferenceForBlueprintCustomization"
 
 namespace UE::VCamCoreEditor::Private
 {
+	static TWeakObjectPtr<UUserWidget> GetWidgetFromEditedObject(UObject* EditedObject)
+	{
+		if (!EditedObject)
+		{
+			return nullptr;
+		}
+		
+		if (UUserWidget* Result = Cast<UUserWidget>(EditedObject))
+		{
+			return Result;
+		}
+
+		// E.g. editing an instanced subobject, etc.
+		if (UUserWidget* OuterAsWidget = EditedObject->GetTypedOuter<UUserWidget>())
+		{
+			return OuterAsWidget;
+		}
+
+		// E.g. editing a Blueprint node
+		if (UUserWidgetBlueprint* OuterAsBlueprint = EditedObject->GetTypedOuter<UUserWidgetBlueprint>())
+		{
+			UObject* BlueprintDefaultObject = OuterAsBlueprint->GeneratedClass->GetDefaultObject();
+			return Cast<UUserWidget>(BlueprintDefaultObject);
+		}
+
+		return nullptr;
+	}
+	
 	TSharedRef<IPropertyTypeCustomization> FChildWidgetReferenceCustomization::MakeInstance()
 	{
 		return MakeShared<FChildWidgetReferenceCustomization>();
@@ -24,10 +53,10 @@ namespace UE::VCamCoreEditor::Private
 
 	void FChildWidgetReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 	{
-		const TSharedPtr<IPropertyHandle> TemplateProperty = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FChildWidgetReference, Template));
-		
 		const TArray<TWeakObjectPtr<UObject>>& EditedObjects = CustomizationUtils.GetPropertyUtilities()->GetSelectedObjects();
-		TWeakObjectPtr<UUserWidget> EditedWidget = EditedObjects.Num() == 1 ? Cast<UUserWidget>(EditedObjects[0]) : nullptr;
+		const TWeakObjectPtr<UObject> EditedObject = EditedObjects.Num() == 1 ? EditedObjects[0] : nullptr;
+		TWeakObjectPtr<UUserWidget> EditedWidget = GetWidgetFromEditedObject(EditedObject.Get());
+		
 		// Always only search on the template
 		if (EditedWidget.IsValid() && !EditedWidget->HasAnyFlags(RF_ClassDefaultObject))
 		{
@@ -35,6 +64,7 @@ namespace UE::VCamCoreEditor::Private
 			EditedWidget = Cast<UUserWidget>(DefaultObject);
 		}
 		
+		const TSharedPtr<IPropertyHandle> TemplateProperty = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FChildWidgetReference, Template));
 		if (!EditedWidget.IsValid() || !ensure(TemplateProperty))
 		{
 			const FText Text = LOCTEXT("NotEditable", "No editable in this context");

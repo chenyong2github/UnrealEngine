@@ -24,11 +24,24 @@ bool UVCamK2Node_SwitchOnWidgetConnections::SupportsBlueprintClass(UClass* Class
 TArray<FName> UVCamK2Node_SwitchOnWidgetConnections::GetPinsToCreate() const
 {
 	TArray<FName> Result;
-	AccessBlueprintCDO([&Result](UVCamWidget* Widget)
+	AccessBlueprintCDO([this, &Result](UVCamWidget* Widget)
 	{
-		Widget->Connections.GenerateKeyArray(Result);
+		const UVCamWidget* ResolvedWidget = TargetWidget.ResolveVCamWidget(*Widget);
+		const UVCamWidget* WidgetToUse = ResolvedWidget ? ResolvedWidget : Widget;
+		WidgetToUse->Connections.GenerateKeyArray(Result);
 	});
 	return Result;
+}
+
+void UVCamK2Node_SwitchOnWidgetConnections::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.MemberProperty != NULL) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamK2Node_SwitchOnWidgetConnections, TargetWidget))
+	{
+		ReconstructNode();
+	}
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void UVCamK2Node_SwitchOnWidgetConnections::AccessBlueprintCDO(TFunctionRef<void(UVCamWidget*)> Func) const

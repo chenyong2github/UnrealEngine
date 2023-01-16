@@ -25,6 +25,7 @@ UWidget* FChildWidgetReference::ResolveWidget(UUserWidget& OwnerWidget) const
 
 	const bool bCanFindWidget = WidgetTree != nullptr;;
 	UE_CLOG(!bCanFindWidget, LogVCamCore, Warning, TEXT("Failed to get tree for widget %s"), *OwnerWidget.GetPathName());
+	ensureMsgf(ResolvedTemplate->GetTypedOuter<UWidgetTree>() && ResolvedTemplate->GetTypedOuter<UWidgetTree>()->HasAnyFlags(RF_DefaultSubObject), TEXT("Template does not point to any template widget!"));
 
 	const FName WidgetName = ResolvedTemplate->GetFName();
 	return bCanFindWidget

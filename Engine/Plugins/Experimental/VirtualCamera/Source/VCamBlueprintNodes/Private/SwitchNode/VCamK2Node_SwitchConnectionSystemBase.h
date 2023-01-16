@@ -34,6 +34,7 @@ public:
 	virtual void ReconstructNode() override;
 	virtual bool CanEverInsertExecutionPin() const override { return false; }
 	virtual bool CanEverRemoveExecutionPin() const override { return false; }
+	virtual bool ShouldShowNodeProperties() const override { return true; }
 	//~ End UK2Node Interface
 
 	// UK2Node_Switch Interface
