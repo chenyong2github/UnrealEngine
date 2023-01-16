@@ -131,7 +131,7 @@ static FAutoConsoleVariableRef CVarPSOPrecaching(
 );
 
 int32 GPSOWaitForHighPriorityRequestsOnly = 0;
-static FAutoConsoleVariableRef CVarPSOPrecaching(
+static FAutoConsoleVariableRef CVarPSOWaitForHighPriorityRequestsOnly(
 	TEXT("r.PSOPrecaching.WaitForHighPriorityRequestsOnly"),
 	GPSOWaitForHighPriorityRequestsOnly,
 	TEXT("0 to wait for all pending PSO precache requests during loading (default)g\n")
