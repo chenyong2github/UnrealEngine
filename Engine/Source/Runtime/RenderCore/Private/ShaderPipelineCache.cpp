@@ -157,6 +157,13 @@ static TAutoConsoleVariable<float> CVarPSOFileCacheMaxPrecompileTime(
 																ECVF_Default | ECVF_RenderThreadSafe
 																);
 
+static TAutoConsoleVariable<int32> CVarPSOGlobalShadersOnlyWhenPSOPrecaching(
+                                                                TEXT("r.ShaderPipelineCache.GlobalShadersOnlyWhenPSOPrecaching"),
+                                                                (int32)0,
+                                                                TEXT("Only compile PSOs from the GlobalShader cache when runtime PSOPrecaching is enabled (default disabled)"),
+                                                                ECVF_Default | ECVF_RenderThreadSafe
+                                                                );
+
 static bool GetShaderPipelineCacheSaveBoundPSOLog()
 {
 	static bool bOnce = false;
@@ -2035,13 +2042,23 @@ void FShaderPipelineCacheTask::BeginPrecompilingPipelineCache()
 		// Iterate over all the tasks we haven't yet begun to read data for - these are the 'waiting' tasks
 		int64 EligibleTaskCount = LocalPreFetchedTasks.Num();
 
+		// Only interested in global shaders when PSO precaching is enabled
+		FString LibraryName(TEXT("Global"));
+
 		int32 MissingShaders = 0;
-		int32 NewSize = Algo::StableRemoveIf(LocalPreFetchedTasks, [&MissingShaders](FPipelineCachePSOHeader& Task)
+		int32 NewSize = Algo::StableRemoveIf(LocalPreFetchedTasks, [&MissingShaders, LibraryName](FPipelineCachePSOHeader& Task)
 		{
 			bool bHasShaders = true;
 			for (FSHAHash const& Hash : Task.Shaders)
 			{
-				bHasShaders &= FShaderCodeLibrary::ContainsShaderCode(Hash);
+				if (PipelineStateCache::IsPSOPrecachingEnabled() && CVarPSOGlobalShadersOnlyWhenPSOPrecaching.GetValueOnAnyThread() > 0)
+				{
+					bHasShaders &= FShaderCodeLibrary::ContainsShaderCode(Hash, LibraryName);
+				}
+				else
+				{
+					bHasShaders &= FShaderCodeLibrary::ContainsShaderCode(Hash);
+				}
 			}
 			if(!bHasShaders)
 			{

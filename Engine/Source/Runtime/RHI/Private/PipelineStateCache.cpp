@@ -130,6 +130,15 @@ static FAutoConsoleVariableRef CVarPSOPrecaching(
 	ECVF_Default
 );
 
+int32 GPSOWaitForHighPriorityRequestsOnly = 0;
+static FAutoConsoleVariableRef CVarPSOPrecaching(
+	TEXT("r.PSOPrecaching.WaitForHighPriorityRequestsOnly"),
+	GPSOWaitForHighPriorityRequestsOnly,
+	TEXT("0 to wait for all pending PSO precache requests during loading (default)g\n")
+	TEXT("1 to only wait for the high priority PSO precache requests during loading\n"),
+	ECVF_Default
+);
+
 extern void DumpPipelineCacheStats();
 
 static FAutoConsoleCommand DumpPipelineCmd(
@@ -1129,11 +1138,14 @@ public:
 	uint32 NumActivePrecacheRequests()
 	{
 		FRWScopeLock ReadLock(PrecachePSOsRWLock, SLT_ReadOnly);
-		return ActiveCompileCount;
-
-		// Ideally we only want to wait for high priority compile requests, but this is still giving too much popping right now
-		// Boost of required PSOs needs to be moved earlier for this to work
-		//return HighPriorityCompileCount;
+		if (GPSOWaitForHighPriorityRequestsOnly)
+		{
+			return HighPriorityCompileCount;
+		}
+		else
+		{
+			return ActiveCompileCount;
+		}		
 	}
 
 	void PrecacheFinished(const TPrecachedPSOInitializer& Initializer, bool bValid)
