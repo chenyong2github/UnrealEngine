@@ -36,7 +36,7 @@ public:
 #endif // WITH_EDITOR
 	//~ End UPrimitiveComponent Interface
 
-	virtual void PrecachePSOs() override;
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 
 	void Update();
 

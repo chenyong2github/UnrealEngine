@@ -2643,20 +2643,29 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 	return true;
 }
 
-FGraphEventArray FMaterialShaderMap::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FMaterial* Material, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams)
+FPSOPrecacheRequestResultArray FMaterialShaderMap::CollectPSOs(const FMaterialPSOPrecacheParams& PrecacheParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::CollectPSOs);
+
+	// Shouldn't get here if the type doesn't support precaching
+	check(PrecacheParams.VertexFactoryData.VertexFactoryType->SupportsPSOPrecaching());
+
+	// Has data for this VF type
+	const FMaterialShaderMapContent* LocalContent = GetContent();
+	if (!LocalContent->GetMeshShaderMap(PrecacheParams.VertexFactoryData.VertexFactoryType->GetHashedName()))
+	{
+		return FPSOPrecacheRequestResultArray();
+	}
 
 	// Only feature level is currently set as init settings - rest is default
 	// (multiview & alpha channel not taken into account here)
 	FSceneTexturesConfigInitSettings SceneTexturesConfigInitSettings;
-	SceneTexturesConfigInitSettings.FeatureLevel = InFeatureLevel;
+	SceneTexturesConfigInitSettings.FeatureLevel = PrecacheParams.FeatureLevel;
 
 	FSceneTexturesConfig SceneTexturesConfig;
 	SceneTexturesConfig.Init(SceneTexturesConfigInitSettings);
 
-	const FMaterialShaderMapContent* LocalContent = GetContent();
-	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(InFeatureLevel);
+	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(PrecacheParams.FeatureLevel);
 
 	TArray<FPSOPrecacheData> PSOInitializers;
 	PSOInitializers.Reserve(32);
@@ -2666,17 +2675,10 @@ FGraphEventArray FMaterialShaderMap::CollectPSOs(ERHIFeatureLevel::Type InFeatur
 		PSOCollectorCreateFunction CreateFunction = FPSOCollectorCreateManager::GetCreateFunction(ShadingPath, Index);
 		if (CreateFunction)
 		{
-			IPSOCollector* PSOCollector = CreateFunction(InFeatureLevel);
+			IPSOCollector* PSOCollector = CreateFunction(PrecacheParams.FeatureLevel);
 			if (PSOCollector != nullptr)
 			{
-				for (const FVertexFactoryType* VFType : VertexFactoryTypes)
-				{
-					if (VFType->SupportsPSOPrecaching() && LocalContent->GetMeshShaderMap(VFType->GetHashedName()))
-					{
-						PSOCollector->CollectPSOInitializers(SceneTexturesConfig, *Material, VFType, PreCacheParams, PSOInitializers);
-					}
-				}
-			
+				PSOCollector->CollectPSOInitializers(SceneTexturesConfig, *PrecacheParams.Material, PrecacheParams.VertexFactoryData, PrecacheParams.PrecachePSOParams, PSOInitializers);							
 				delete PSOCollector;
 			}
 		}

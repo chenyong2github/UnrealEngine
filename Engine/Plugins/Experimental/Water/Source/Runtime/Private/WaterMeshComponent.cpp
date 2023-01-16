@@ -71,29 +71,24 @@ void UWaterMeshComponent::PostLoad()
 	Super::PostLoad();
 }
 
-void UWaterMeshComponent::PrecachePSOs()
+void UWaterMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
 {
-	if (!FApp::CanEverRender())
+	const FVertexFactoryType* WaterVertexFactoryType = GetWaterVertexFactoryType(/*bWithWaterSelectionSupport = */ false);
+	if (FarDistanceMaterial)
 	{
-		return;
+		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+		ComponentParams.MaterialInterface = FarDistanceMaterial;
+		ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(WaterVertexFactoryType));
+		ComponentParams.PSOPrecacheParams = BasePrecachePSOParams;
 	}
-
-	if (IsComponentPSOPrecachingEnabled())
+	for (UMaterialInterface* MaterialInterface : UsedMaterials)
 	{
-		FPSOPrecacheParams PrecachePSOParams;
-		SetupPrecachePSOParams(PrecachePSOParams);
-
-		const FVertexFactoryType* WaterVertexFactoryType = GetWaterVertexFactoryType(/*bWithWaterSelectionSupport = */ false);
-		if (FarDistanceMaterial)
+		if (MaterialInterface)
 		{
-			FarDistanceMaterial->PrecachePSOs(WaterVertexFactoryType, PrecachePSOParams);
-		}
-		for (UMaterialInterface* MaterialInterface : UsedMaterials)
-		{
-			if (MaterialInterface)
-			{
-				MaterialInterface->PrecachePSOs(WaterVertexFactoryType, PrecachePSOParams);
-			}
+			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+			ComponentParams.MaterialInterface = MaterialInterface;
+			ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(WaterVertexFactoryType));
+			ComponentParams.PSOPrecacheParams = BasePrecachePSOParams;
 		}
 	}
 }

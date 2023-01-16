@@ -668,8 +668,8 @@ private:
 	/** Initializes the resources used by the static mesh component. */
 	void InitResources();
 
-	/** Precache all PSOs which can be used by the static mesh component */
-	virtual void PrecachePSOs() override;
+	/** Collect all the PSO precache data used by the static mesh component */
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 
 #if WITH_EDITOR
 	/** Update the vertex override colors */

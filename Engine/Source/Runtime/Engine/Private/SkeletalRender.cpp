@@ -254,6 +254,41 @@ FName FSkeletalMeshObject::GetAssetPathName(int32 LODIndex) const
 #endif
 }
 
+FSkinWeightVertexBuffer* FSkeletalMeshObject::GetSkinWeightVertexBuffer(FSkeletalMeshLODRenderData& LODData, FSkelMeshComponentLODInfo* CompLODInfo)
+{
+	// If we have a skin weight override buffer (and it's the right size) use it
+	if (CompLODInfo && CompLODInfo->OverrideSkinWeights &&
+		CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
+	{
+		check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideSkinWeights->GetMaxBoneInfluences());
+		return CompLODInfo->OverrideSkinWeights;
+	}
+	else if (CompLODInfo && CompLODInfo->OverrideProfileSkinWeights &&
+		CompLODInfo->OverrideProfileSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
+	{
+		check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideProfileSkinWeights->GetMaxBoneInfluences());
+		return CompLODInfo->OverrideProfileSkinWeights;
+	}
+	else
+	{
+		return LODData.GetSkinWeightVertexBuffer();
+	}
+}
+
+FColorVertexBuffer* FSkeletalMeshObject::GetColorVertexBuffer(FSkeletalMeshLODRenderData& LODData, FSkelMeshComponentLODInfo* CompLODInfo)
+{
+	// If we have a vertex color override buffer (and it's the right size) use it
+	if (CompLODInfo && CompLODInfo->OverrideVertexColors &&
+		CompLODInfo->OverrideVertexColors->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
+	{
+		return CompLODInfo->OverrideVertexColors;
+	}
+	else
+	{
+		return &LODData.StaticVertexBuffers.ColorVertexBuffer;
+	}
+}
+
 /*-----------------------------------------------------------------------------
 Global functions
 -----------------------------------------------------------------------------*/

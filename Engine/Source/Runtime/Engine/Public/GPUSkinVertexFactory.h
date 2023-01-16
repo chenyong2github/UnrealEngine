@@ -461,7 +461,9 @@ public:
 
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+
 	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);	
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, FGPUSkinDataType& GPUSkinData, FVertexDeclarationElementList& Elements);
 	
 	/** FGPUBaseSkinVertexFactory overrides */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) override;
@@ -480,6 +482,8 @@ protected:
 	* @param OutElements - vertex decl list to modify
 	*/
 	virtual void AddVertexElements(FVertexDeclarationElementList& OutElements) override;
+
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, FGPUSkinDataType& GPUSkinData, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams, int32& OutMorphDeltaStreamIndex);
 
 private:
 	int32 MorphDeltaStreamIndex = -1;

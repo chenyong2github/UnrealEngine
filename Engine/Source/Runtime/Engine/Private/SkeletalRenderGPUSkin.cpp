@@ -1320,26 +1320,8 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateSkinWeights(FSkel
 	// If we have a skin weight override buffer (and it's the right size) use it
 	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];	
 	if (CompLODInfo)
-	{
-		FSkinWeightVertexBuffer* NewMeshObjectWeightBuffer;
-
-		if (CompLODInfo->OverrideSkinWeights &&
-			CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideSkinWeights->GetMaxBoneInfluences());
-			NewMeshObjectWeightBuffer = CompLODInfo->OverrideSkinWeights;
-		}
-		else if (CompLODInfo->OverrideProfileSkinWeights &&
-			CompLODInfo->OverrideProfileSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideProfileSkinWeights->GetMaxBoneInfluences());
-			NewMeshObjectWeightBuffer = CompLODInfo->OverrideProfileSkinWeights;
-		}
-		else
-		{
-			NewMeshObjectWeightBuffer = LODData.GetSkinWeightVertexBuffer();
-		}
-
+	{		
+		FSkinWeightVertexBuffer* NewMeshObjectWeightBuffer = FSkeletalMeshObject::GetSkinWeightVertexBuffer(LODData, CompLODInfo);
 		if (MeshObjectWeightBuffer != NewMeshObjectWeightBuffer)
 		{
 			MeshObjectWeightBuffer = NewMeshObjectWeightBuffer;
@@ -1669,9 +1651,12 @@ void InitGPUSkinVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData, con
 	GPUSkinBoneInfluenceType BoneInfluenceType = WeightBuffer->GetBoneInfluenceType();
 	if (BoneInfluenceType == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence)
 	{
-		FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = VertexFactory->GetShaderData();
-		ShaderData.InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize() | (WeightBuffer->GetBoneWeightByteSize() << 8);
-		ShaderData.InputWeightStream = WeightBuffer->GetDataVertexBuffer()->GetSRV();
+		if (VertexFactory != nullptr)
+		{
+			FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = VertexFactory->GetShaderData();
+			ShaderData.InputWeightIndexSize = VertexBuffers.SkinWeightVertexBuffer->GetBoneIndexByteSize() | (VertexBuffers.SkinWeightVertexBuffer->GetBoneWeightByteSize() << 8);
+			ShaderData.InputWeightStream = VertexBuffers.SkinWeightVertexBuffer->GetDataVertexBuffer()->GetSRV();
+		}
 
 		const FSkinWeightLookupVertexBuffer* LookupVertexBuffer = WeightBuffer->GetLookupVertexBuffer();
 		VertexFactoryData->BlendOffsetCount = FVertexStreamComponent(LookupVertexBuffer, 0, LookupVertexBuffer->GetStride(), VET_UInt);
@@ -1716,19 +1701,19 @@ void InitGPUSkinVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData, con
  * @param VertexBuffers - vertex buffers which contains the data and also stride info
  * @param bUseInstancedVertexWeights - use instanced influence weights instead of default weights
  */
-void InitMorphVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData,
-										const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& VertexBuffers)
+void InitMorphVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData, FMorphVertexBufferPool* MorphVertexBufferPool)
 {
 	VertexFactoryData->bMorphTarget = true;
-	VertexFactoryData->MorphVertexBufferPool = VertexBuffers.MorphVertexBufferPool;
-	const FMorphVertexBuffer& MorphVB = VertexBuffers.MorphVertexBufferPool->GetMorphVertexBufferForReading(false);
+	VertexFactoryData->MorphVertexBufferPool = MorphVertexBufferPool;
+
+	const FMorphVertexBuffer* MorphVB = MorphVertexBufferPool ? &MorphVertexBufferPool->GetMorphVertexBufferForReading(false) : nullptr;
 
 	// delta positions
 	VertexFactoryData->DeltaPositionComponent = FVertexStreamComponent(
-		&MorphVB, STRUCT_OFFSET(FMorphGPUSkinVertex,DeltaPosition),sizeof(FMorphGPUSkinVertex),VET_Float3);
+		MorphVB, STRUCT_OFFSET(FMorphGPUSkinVertex,DeltaPosition),sizeof(FMorphGPUSkinVertex),VET_Float3);
 	// delta normals
 	VertexFactoryData->DeltaTangentZComponent = FVertexStreamComponent(
-		&MorphVB, STRUCT_OFFSET(FMorphGPUSkinVertex, DeltaTangentZ), sizeof(FMorphGPUSkinVertex), VET_Float3);
+		MorphVB, STRUCT_OFFSET(FMorphGPUSkinVertex, DeltaTangentZ), sizeof(FMorphGPUSkinVertex), VET_Float3);
 }
 
 /** 
@@ -1762,17 +1747,21 @@ public:
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers VertexBuffers;
 };
 
-static const FVertexFactoryType* GetVertexFactoryType(FSkeletalMeshLODRenderData& LODRenderData, ERHIFeatureLevel::Type FeatureLevel)
+static FPSOPrecacheVertexFactoryData GetVertexFactoryData(FSkeletalMeshLODRenderData& LODRenderData, FGPUSkinDataType& GPUSkinDataType, ERHIFeatureLevel::Type FeatureLevel)
 {
-	GPUSkinBoneInfluenceType BoneInfluenceType = LODRenderData.SkinWeightVertexBuffer.GetBoneInfluenceType();
-	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+	const FVertexFactoryType* VertexFactoryType;
+	FVertexDeclarationElementList VertexElements;
+	if (LODRenderData.SkinWeightVertexBuffer.GetBoneInfluenceType() == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
 	{
-		return &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType;
+		VertexFactoryType = &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType;
+		TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::GetVertexElements(FeatureLevel, EVertexInputStreamType::Default, GPUSkinDataType, VertexElements);
 	}
 	else
 	{
-		return &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>::StaticType;
+		VertexFactoryType = &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>::StaticType;
+		TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>::GetVertexElements(FeatureLevel, EVertexInputStreamType::Default, GPUSkinDataType, VertexElements);
 	}
+	return FPSOPrecacheVertexFactoryData(VertexFactoryType, VertexElements);
 }
 
 /**
@@ -1883,7 +1872,7 @@ static void CreateVertexFactoryMorph(TArray<TUniquePtr<FGPUBaseSkinVertexFactory
 		{
 			FGPUSkinDataType Data;
 			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-			InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
+			InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers.MorphVertexBufferPool);
 			VertexUpdateData.VertexFactory->SetData(&Data);
 			VertexUpdateData.VertexFactory->InitResource();
 		}
@@ -1908,7 +1897,7 @@ static void UpdateVertexFactoryMorph(TArray<TUniquePtr<FGPUBaseSkinVertexFactory
 			{
 				FGPUSkinDataType Data;
 				InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-				InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
+				InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers.MorphVertexBufferPool);
 				VertexUpdateData.VertexFactory->SetData(&Data);
 			});
 		}
@@ -1995,22 +1984,56 @@ static void UpdateVertexFactoryCloth(TArray<TUniquePtr<FGPUBaseSkinAPEXClothVert
 }
 
 
-void FSkeletalMeshObjectGPUSkin::GetUsedVertexFactories(FSkeletalMeshLODRenderData& LODRenderData, FSkelMeshRenderSection& RenderSection, ERHIFeatureLevel::Type InFeatureLevel, TArray<const FVertexFactoryType*, TInlineAllocator<2>>& VertexFactoryTypes)
+void FSkeletalMeshObjectGPUSkin::GetUsedVertexFactoryData(
+	FSkeletalMeshRenderData* SkelMeshRenderData, 
+	int32 LODIndex, 
+	USkinnedMeshComponent* SkinnedMeshComponent, 
+	FSkelMeshRenderSection& RenderSection, 
+	ERHIFeatureLevel::Type InFeatureLevel, 
+	bool bHasMorphTargets, 
+	FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList)
 {
+	FSkeletalMeshLODRenderData& LODRenderData = SkelMeshRenderData->LODRenderData[LODIndex];
+
+	FSkelMeshComponentLODInfo* CompLODInfo = nullptr;
+	if (SkinnedMeshComponent && SkinnedMeshComponent->LODInfo.IsValidIndex(LODIndex))
+	{
+		CompLODInfo = &SkinnedMeshComponent->LODInfo[LODIndex];
+	}
+
+	// Setup tmp MeshObjectLOD object to extract the vertex factory buffers
+	FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD SkeletalMeshObjectLOD(SkelMeshRenderData, LODIndex, InFeatureLevel);
+	SkeletalMeshObjectLOD.MeshObjectWeightBuffer = FSkeletalMeshObject::GetSkinWeightVertexBuffer(LODRenderData, CompLODInfo);
+	SkeletalMeshObjectLOD.MeshObjectColorBuffer = FSkeletalMeshObject::GetColorVertexBuffer(LODRenderData, CompLODInfo);
+
+	// Vertex buffers available for the LOD
+	FVertexFactoryBuffers VertexBuffers;
+	SkeletalMeshObjectLOD.GetVertexBuffers(VertexBuffers, LODRenderData);
+
+	// Setup the skin data type so the correct vertex element data can be collected
+	FGPUSkinDataType GPUSkinDataType;
+	InitGPUSkinVertexFactoryComponents(&GPUSkinDataType, VertexBuffers, nullptr /*FGPUBaseSkinVertexFactory*/);
+
 	// TODO: optimize types to add based on if SkinCache is used and allowed for given Mesh (UE-164762)
-	VertexFactoryTypes.AddUnique(&FGPUSkinPassthroughVertexFactory::StaticType);
+	VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(&FGPUSkinPassthroughVertexFactory::StaticType));
 
 	// Add GPU skin cloth vertex factory type is needed
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
 	const bool bClothEnabled = FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(ShaderPlatform);
 	if (bClothEnabled && RenderSection.HasClothingData())
 	{
-		VertexFactoryTypes.AddUnique(GetVertexFactoryTypeCloth(LODRenderData, InFeatureLevel));
+		VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(GetVertexFactoryTypeCloth(LODRenderData, InFeatureLevel)));
 	}
 	else
 	{
 		// Add GPU skin vertex factory type
-		VertexFactoryTypes.AddUnique(GetVertexFactoryType(LODRenderData, InFeatureLevel));
+		VertexFactoryDataList.AddUnique(GetVertexFactoryData(LODRenderData, GPUSkinDataType, InFeatureLevel));
+
+		if (bHasMorphTargets)
+		{
+			InitMorphVertexFactoryComponents(&GPUSkinDataType, nullptr);
+			VertexFactoryDataList.AddUnique(GetVertexFactoryData(LODRenderData, GPUSkinDataType, InFeatureLevel));
+		}
 	}
 }
 
@@ -2155,38 +2178,9 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::InitResources(const FSk
 	check(SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex));
 
 	// vertex buffer for each lod has already been created when skelmesh was loaded
-	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
-	
-	check(CompLODInfo);
-
-	// If we have a skin weight override buffer (and it's the right size) use it
-	if (CompLODInfo->OverrideSkinWeights &&
-		CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-	{
-		check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideSkinWeights->GetMaxBoneInfluences());
-		MeshObjectWeightBuffer = CompLODInfo->OverrideSkinWeights;
-	}
-	else if (CompLODInfo && CompLODInfo->OverrideProfileSkinWeights &&
-			CompLODInfo->OverrideProfileSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-	{
-		check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideProfileSkinWeights->GetMaxBoneInfluences());
-		MeshObjectWeightBuffer = CompLODInfo->OverrideProfileSkinWeights;
-	}
-	else
-	{
-		MeshObjectWeightBuffer = LODData.GetSkinWeightVertexBuffer();
-	}
-
-	// If we have a vertex color override buffer (and it's the right size) use it
-	if (CompLODInfo && CompLODInfo->OverrideVertexColors &&
-		CompLODInfo->OverrideVertexColors->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-	{
-		MeshObjectColorBuffer = CompLODInfo->OverrideVertexColors;
-	}
-	else
-	{
-		MeshObjectColorBuffer = &LODData.StaticVertexBuffers.ColorVertexBuffer;
-	}
+	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];	
+	MeshObjectWeightBuffer = FSkeletalMeshObject::GetSkinWeightVertexBuffer(LODData, CompLODInfo);
+	MeshObjectColorBuffer = FSkeletalMeshObject::GetColorVertexBuffer(LODData, CompLODInfo);
 
 	// Vertex buffers available for the LOD
 	FVertexFactoryBuffers VertexBuffers;

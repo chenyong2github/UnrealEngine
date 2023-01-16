@@ -1077,7 +1077,7 @@ public:
 	void SetForceWireframe(bool InForceWireframe);
 
 	/** Precache all PSOs which can be used by the component */
-	virtual void PrecachePSOs() override;
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 	
 #if WITH_EDITOR
 	/** Return value of SectionIndexPreview  */

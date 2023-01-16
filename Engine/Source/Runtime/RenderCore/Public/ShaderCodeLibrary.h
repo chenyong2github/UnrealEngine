@@ -221,7 +221,8 @@ struct RENDERCORE_API FShaderCodeLibrary
 	 */
 	static void CloseLibrary(FString const& Name);
 
-    static bool ContainsShaderCode(const FSHAHash& Hash);
+	static bool ContainsShaderCode(const FSHAHash& Hash);
+    static bool ContainsShaderCode(const FSHAHash& Hash, const FString& LogicalLibraryName);
 
 	static TRefCountPtr<FShaderMapResource> LoadResource(const FSHAHash& Hash, FArchive* Ar);
 

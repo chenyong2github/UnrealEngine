@@ -84,7 +84,15 @@ struct FD3D12VertexDeclarationKey
 		{
 			FORCEINLINE bool operator()(const D3D12_INPUT_ELEMENT_DESC& A, const D3D12_INPUT_ELEMENT_DESC &B) const
 			{
-				return ((int32)A.AlignedByteOffset + A.InputSlot * MAX_uint16) < ((int32)B.AlignedByteOffset + B.InputSlot * MAX_uint16);
+				if (A.InputSlot != B.InputSlot)
+				{
+					return A.InputSlot < B.InputSlot;
+				}
+				if (A.AlignedByteOffset != B.AlignedByteOffset)
+				{
+					return A.AlignedByteOffset < B.AlignedByteOffset;
+				}
+				return A.SemanticIndex < B.SemanticIndex;
 			}
 		};
 		Sort(VertexElements.GetData(), VertexElements.Num(), FCompareDesc());

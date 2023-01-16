@@ -85,7 +85,7 @@ void USkinnedAsset::PostLoad()
 		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 		int32 MinLODIndex = GetMinLodIdx();
 		
-		TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> VFsPerMaterials = GetVertexFactoryTypesPerMaterialIndex(MinLODIndex, bCPUSkin, FeatureLevel);
+		FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFsPerMaterials = GetVertexFactoryTypesPerMaterialIndex(nullptr, MinLODIndex, bCPUSkin, FeatureLevel);
 		bool bAnySectionCastsShadows = GetResourceForRendering()->AnyRenderSectionCastsShadows(MinLODIndex);
 
 		// Precache using default material & PSO precache params but mark movable
@@ -94,21 +94,22 @@ void USkinnedAsset::PostLoad()
 		PrecachePSOParams.SetMobility(EComponentMobility::Movable);
 		PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
 
+		TArray<FMaterialPSOPrecacheRequestID> MaterialPSOPrecacheRequestIDs;
 		for (auto VFsPerMaterial : VFsPerMaterials)
 		{
 			UMaterialInterface* MaterialInterface = Materials[VFsPerMaterial.MaterialIndex].MaterialInterface;
 			if (MaterialInterface)
 			{
-				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryDataList, PrecachePSOParams, EPSOPrecachePriority::Medium, MaterialPSOPrecacheRequestIDs);
 			}
 		}
 	}
 }
 
-TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> USkinnedAsset::GetVertexFactoryTypesPerMaterialIndex(
-	int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel)
+FPSOPrecacheVertexFactoryDataPerMaterialIndexList USkinnedAsset::GetVertexFactoryTypesPerMaterialIndex(
+	USkinnedMeshComponent* SkinnedMeshComponent, int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel)
 {
-	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> VFTypesPerMaterialIndex;
+	FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFTypesPerMaterialIndex;
 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	for (int32 LODIndex = MinLODIndex; LODIndex < SkelMeshRenderData->LODRenderData.Num(); LODIndex++)
@@ -131,8 +132,8 @@ TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> USki
 				MaterialIndex = FMath::Clamp(MaterialIndex, 0, GetNumMaterials());
 			}
 
-			FSkinnedAssetVertexFactoryTypesPerMaterialData* VFsPerMaterial = VFTypesPerMaterialIndex.FindByPredicate(
-				[MaterialIndex](const FSkinnedAssetVertexFactoryTypesPerMaterialData& Other) { return Other.MaterialIndex == MaterialIndex; });
+			FPSOPrecacheVertexFactoryDataPerMaterialIndex* VFsPerMaterial = VFTypesPerMaterialIndex.FindByPredicate(
+				[MaterialIndex](const FPSOPrecacheVertexFactoryDataPerMaterialIndex& Other) { return Other.MaterialIndex == MaterialIndex; });
 			if (VFsPerMaterial == nullptr)
 			{
 				VFsPerMaterial = &VFTypesPerMaterialIndex.AddDefaulted_GetRef();
@@ -143,12 +144,13 @@ TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> USki
 			if (bCPUSkin)
 			{
 				// Force static from GPU point of view
-				VFsPerMaterial->VertexFactoryTypes.AddUnique(&FLocalVertexFactory::StaticType);
+				VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(&FLocalVertexFactory::StaticType));
 			}
 			else if (!SkelMeshRenderData->RequiresCPUSkinning(FeatureLevel, LODIndex))
 			{
 				// Add all the vertex factories which can be used for gpu skinning
-				FSkeletalMeshObjectGPUSkin::GetUsedVertexFactories(LODRenderData, RenderSection, FeatureLevel, VFsPerMaterial->VertexFactoryTypes);
+				bool bHasMorphTargets = GetMorphTargets().Num() > 0;
+				FSkeletalMeshObjectGPUSkin::GetUsedVertexFactoryData(SkelMeshRenderData, LODIndex, SkinnedMeshComponent, RenderSection, FeatureLevel, bHasMorphTargets, VFsPerMaterial->VertexFactoryDataList);
 			}
 		}
 	}

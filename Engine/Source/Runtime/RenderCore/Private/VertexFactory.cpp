@@ -311,31 +311,20 @@ bool FVertexFactory::AddPrimitiveIdStreamElement(EVertexInputStreamType InputStr
 	return false;
 }
 
-FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex)
+FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex, EVertexInputStreamType InputStreamType)
 {
-	FVertexStream VertexStream;
-	VertexStream.VertexBuffer = Component.VertexBuffer;
-	VertexStream.Stride = Component.Stride;
-	VertexStream.Offset = Component.StreamOffset;
-	VertexStream.VertexStreamUsage = Component.VertexStreamUsage;
-
-	return FVertexElement((uint8)Streams.AddUnique(VertexStream),Component.Offset,Component.Type,AttributeIndex,VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
-}
-
-FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex, EVertexInputStreamType InputStreamType)
-{
-	FVertexStream VertexStream;
-	VertexStream.VertexBuffer = Component.VertexBuffer;
-	VertexStream.Stride = Component.Stride;
-	VertexStream.Offset = Component.StreamOffset;
-	VertexStream.VertexStreamUsage = Component.VertexStreamUsage;
-
 	if (InputStreamType == EVertexInputStreamType::PositionOnly)
-		return FVertexElement((uint8)PositionStream.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	{
+		return AccessStreamComponent(Component, AttributeIndex, PositionStream);
+	}
 	else if (InputStreamType == EVertexInputStreamType::PositionAndNormalOnly)
-		return FVertexElement((uint8)PositionAndNormalStream.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	{
+		return AccessStreamComponent(Component, AttributeIndex, PositionAndNormalStream);
+	}
 	else /* (InputStreamType == EVertexInputStreamType::Default) */
-		return FVertexElement((uint8)Streams.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	{
+		return AccessStreamComponent(Component, AttributeIndex, Streams);
+	}
 }
 
 void FVertexFactory::InitDeclaration(const FVertexDeclarationElementList& Elements, EVertexInputStreamType StreamType)

@@ -2358,7 +2358,7 @@ void UMaterialInstance::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 	InitStaticPermutation(CompileMode);
 }
 
-FGraphEventArray UMaterialInstance::PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& InPreCacheParams)
+FGraphEventArray UMaterialInstance::PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& InPreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
 {
 	FGraphEventArray GraphEvents;
 	if (FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled() && Parent)
@@ -2373,13 +2373,13 @@ FGraphEventArray UMaterialInstance::PrecachePSOs(const TConstArrayView<const FVe
 				FMaterialResource* StaticPermutationResource = FindMaterialResource(StaticPermutationMaterialResources, FeatureLevel, ActiveQualityLevel, true/*bAllowDefaultMaterial*/);
 				if (StaticPermutationResource)
 				{
-					GraphEvents.Append(StaticPermutationResource->CollectPSOs(FeatureLevel, VertexFactoryTypes, InPreCacheParams));
+					GraphEvents.Append(StaticPermutationResource->CollectPSOs(FeatureLevel, VertexFactoryDataList, InPreCacheParams, Priority, OutMaterialPSORequestIDs));
 				}
 			}
 		}
 		else
 		{
-			GraphEvents = Parent->PrecachePSOs(VertexFactoryTypes, InPreCacheParams);
+			GraphEvents = Parent->PrecachePSOs(VertexFactoryDataList, InPreCacheParams, Priority, OutMaterialPSORequestIDs);
 		}
 	}
 	return GraphEvents;

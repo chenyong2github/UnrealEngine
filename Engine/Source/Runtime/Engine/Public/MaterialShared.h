@@ -1206,7 +1206,7 @@ public:
 	/**
 	 * Collect all possible PSO's  which can be used with this material shader map for given parameters - PSOs will be async precached
 	 */
-	FGraphEventArray CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FMaterial* Material, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams);
+	FPSOPrecacheRequestResultArray CollectPSOs(const FMaterialPSOPrecacheParams& PrecacheParams);
 
 #if WITH_EDITOR
 	/** Attempts to load missing shaders from memory. */
@@ -1728,12 +1728,7 @@ public:
 	/**
 	 * Collect all possible PSO's  which can be used with this material for given parameters - PSOs will be async precached
 	 */
-	ENGINE_API FGraphEventArray CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams);
-
-	/**
-	 * Helper function used by background thread when PSO collection for given vertex factory type and params are done - it also passes the currently compiling PSO graph events to keep track of
-	 */
-	void AddPrecachedPSOVertexFactoryType(const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, const FGraphEventArray& PSOCompileEvents);
+	ENGINE_API FGraphEventArray CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs);
 
 	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
@@ -2364,43 +2359,8 @@ private:
 	uint32 bOwnerBeginDestroyed : 1;
 #endif // UE_CHECK_FMATERIAL_LIFETIME
 
-	/**
-	 * Keep track which VertexFactory/Precache params have already been requested for this material
-	 */
-	struct FPrecacheVertexTypeWithParams
-	{
-		const FVertexFactoryType* VertexFactoryType;
-		FPSOPrecacheParams PrecachePSOParams;
-
-		bool operator==(const FPrecacheVertexTypeWithParams& Other) const
-		{
-			return VertexFactoryType == Other.VertexFactoryType &&
-				PrecachePSOParams == Other.PrecachePSOParams;
-		}
-
-		bool operator!=(const FPrecacheVertexTypeWithParams& rhs) const
-		{
-			return !(*this == rhs);
-		}
-
-		friend uint32 GetTypeHash(const FPrecacheVertexTypeWithParams& Params)
-		{
-			return HashCombine(GetTypeHash(Params.PrecachePSOParams), GetTypeHash(Params.VertexFactoryType));
-		}
-	};
-
-	/**
-	 * Struct used to keep track of all precached vertex factories with pso params and the currently still compiling graph events 
-	 * No map is used reduce the memory footprint for storage (mostly for platforms where PSO precaching is not enabled)
-	 */
-	struct FPSOPrecacheEntry
-	{
-		FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
-		FGraphEventArray CompilingGraphEvents;
-	};
-
-	FRWLock PrecachePSOVFLock;
-	TArray<FPSOPrecacheEntry> PrecachedPSOVertexFactories;
+	/** MaterialPSO request IDs currently active for this material */
+	TArray<FMaterialPSOPrecacheRequestID> PrecachedPSORequestIDs;
 
 #if WITH_EDITOR
 	/**

@@ -320,6 +320,12 @@ public:
 	 */
 	float GetScreenSize(int32 LODIndex) const;
 
+	/** Get the weight buffer either from the component LOD info or the skeletal mesh LOD render data */
+	static FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer(FSkeletalMeshLODRenderData& LODData, FSkelMeshComponentLODInfo* CompLODInfo);
+
+	/** Get the color buffer either from the component LOD info or the skeletal mesh LOD render data */
+	static FColorVertexBuffer* GetColorVertexBuffer(FSkeletalMeshLODRenderData& LODData, FSkelMeshComponentLODInfo* CompLODInfo);
+
 protected:
 	/** The skeletal mesh resource with which to render. */
 	FSkeletalMeshRenderData* SkeletalMeshRenderData;

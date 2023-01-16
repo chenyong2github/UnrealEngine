@@ -28,6 +28,7 @@
 #include "MaterialRecursionGuard.h"
 #include "MaterialShaderPrecompileMode.h"
 #include "RHIFeatureLevel.h"
+#include "PSOPrecache.h"
 #include "StaticParameterSet.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
@@ -550,11 +551,26 @@ public:
 	/**
 	 * Precache PSOs which can be used for this material for the given vertex factory type and material paramaters
 	 */
-	virtual FGraphEventArray PrecachePSOs(const FVertexFactoryType* VertexFactoryType, const struct FPSOPrecacheParams& PreCacheParams)
+	FGraphEventArray PrecachePSOs(const FVertexFactoryType* VertexFactoryType, const struct FPSOPrecacheParams& PreCacheParams)
 	{
 		return PrecachePSOs(MakeArrayView(&VertexFactoryType, 1), PreCacheParams);
 	}
-	virtual FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams) { return FGraphEventArray(); }
+	FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams)
+	{
+		TArray<FMaterialPSOPrecacheRequestID> MaterialPSOPrecacheRequestIDs;
+		return PrecachePSOs(VertexFactoryTypes, PreCacheParams, MaterialPSOPrecacheRequestIDs);
+	}
+	FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) 
+	{ 
+		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
+		VertexFactoryDataList.SetNum(VertexFactoryTypes.Num());
+		for (int i = 0; i < VertexFactoryTypes.Num(); ++i)
+		{
+			VertexFactoryDataList[i].VertexFactoryType = VertexFactoryTypes[i];
+		}
+		return PrecachePSOs(VertexFactoryDataList, PreCacheParams, EPSOPrecachePriority::Medium, OutMaterialPSORequestIDs);
+	}
+	virtual FGraphEventArray PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const struct FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) { return FGraphEventArray(); }
 
 #if WITH_EDITORONLY_DATA
 	/**

@@ -70,12 +70,11 @@ public:
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 
 	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FVertexDeclarationElementList& Elements);
 
 	/** 
 	 * Does the platform support GPUSkinPassthrough permutations.
@@ -174,6 +173,15 @@ protected:
 	friend class FSkeletalMeshSceneProxy;
 
 	const FDataType& GetData() const { return Data; }
+	
+	static void GetVertexElements(
+		ERHIFeatureLevel::Type FeatureLevel, 
+		EVertexInputStreamType InputStreamType, 
+		bool bSupportsManualVertexFetch,
+		FDataType& Data, 
+		FVertexDeclarationElementList& Elements, 
+		FVertexStreamList& InOutStreams, 
+		int32& OutColorStreamIndex);
 
 	FDataType Data;
 	TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> UniformBuffer;

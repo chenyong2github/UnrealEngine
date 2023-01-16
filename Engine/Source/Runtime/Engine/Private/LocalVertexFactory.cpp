@@ -358,6 +358,18 @@ void FLocalVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamTy
 	}
 }
 
+void FLocalVertexFactory::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FVertexDeclarationElementList& Elements)
+{
+	FVertexStreamList VertexStreams;
+	int32 ColorStreamIndex;
+	GetVertexElements(FeatureLevel, InputStreamType, bSupportsManualVertexFetch, Data, Elements, VertexStreams, ColorStreamIndex);
+
+	// For ES3.1 attribute ID needs to be done differently
+	check(FeatureLevel > ERHIFeatureLevel::ES3_1);
+	Elements.Add(FVertexElement(VertexStreams.Num(), 0, VET_UInt, 13, 0, true));
+}
+
+
 void FLocalVertexFactory::SetData(const FDataType& InData)
 {
 	check(IsInRenderingThread());
@@ -434,19 +446,51 @@ void FLocalVertexFactory::InitRHI()
 	}
 
 	FVertexDeclarationElementList Elements;
-	if (Data.PositionComponent.VertexBuffer != nullptr)
+	GetVertexElements(GetFeatureLevel(), EVertexInputStreamType::Default, bUseManualVertexFetch, Data, Elements, Streams, ColorStreamIndex);
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 8);
+	check(Streams.Num() > 0);
+
+	InitDeclaration(Elements);
+	check(IsValidRef(GetDeclaration()));
+
+	const int32 DefaultBaseVertexIndex = 0;
+	const int32 DefaultPreSkinBaseVertexIndex = 0;
+
+	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || bCanUseGPUScene)
 	{
-		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
+		SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI_CreateLocalVFUniformBuffer);
+		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
 	}
 
-	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 8);
+	FLocalVertexFactoryLooseParameters LooseParameters;
+	LooseParameters.GPUSkinPassThroughPreviousPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
+	LooseParametersUniformBuffer = TUniformBufferRef<FLocalVertexFactoryLooseParameters>::CreateUniformBufferImmediate(LooseParameters, UniformBuffer_MultiFrame);
+
+	check(IsValidRef(GetDeclaration()));
+}
+
+void FLocalVertexFactory::GetVertexElements(
+	ERHIFeatureLevel::Type FeatureLevel, 
+	EVertexInputStreamType InputStreamType,
+	bool bSupportsManualVertexFetch,
+	FDataType& Data, 
+	FVertexDeclarationElementList& Elements, 
+	FVertexStreamList& InOutStreams, 
+	int32& OutColorStreamIndex)
+{
+	check(InputStreamType == EVertexInputStreamType::Default);
+	
+	if (Data.PositionComponent.VertexBuffer != nullptr)
+	{
+		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0, InOutStreams));
+	}
 
 #if !WITH_EDITOR
 	// Can't rely on manual vertex fetch in the editor to not add the unused elements because vertex factories created
 	// with manual vertex fetch support can somehow still be used when booting up in for example ES3.1 preview mode
 	// The vertex factories are then used during mobile rendering and will cause PSO creation failure.
 	// First need to fix invalid usage of these vertex factories before this can be enabled again. (UE-165187)
-	if (!bUseManualVertexFetch)
+	if (!bSupportsManualVertexFetch)
 #endif // WITH_EDITOR
 	{
 		// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
@@ -455,7 +499,7 @@ void FLocalVertexFactory::InitRHI()
 		{
 			if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != nullptr)
 			{
-				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex]));
+				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex], InOutStreams));
 			}
 		}
 
@@ -465,20 +509,18 @@ void FLocalVertexFactory::InitRHI()
 			Data.ColorIndexMask = 0;
 		}
 
-		ColorStreamIndex = -1;
 		if (Data.ColorComponent.VertexBuffer)
 		{
-			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3));
-			ColorStreamIndex = Elements.Last().StreamIndex;
+			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3, InOutStreams));
 		}
 		else
 		{
 			// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
 			// This wastes 4 bytes per vertex, but prevents having to compile out twice the number of vertex factories.
 			FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-			Elements.Add(AccessStreamComponent(NullColorComponent, 3));
-			ColorStreamIndex = Elements.Last().StreamIndex;
+			Elements.Add(AccessStreamComponent(NullColorComponent, 3, InOutStreams));
 		}
+		OutColorStreamIndex = Elements.Last().StreamIndex;
 
 		if (Data.TextureCoordinates.Num())
 		{
@@ -487,7 +529,8 @@ void FLocalVertexFactory::InitRHI()
 			{
 				Elements.Add(AccessStreamComponent(
 					Data.TextureCoordinates[CoordinateIndex],
-					BaseTexCoordAttribute + CoordinateIndex
+					BaseTexCoordAttribute + CoordinateIndex,
+					InOutStreams
 				));
 			}
 
@@ -495,22 +538,23 @@ void FLocalVertexFactory::InitRHI()
 			{
 				Elements.Add(AccessStreamComponent(
 					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
-					BaseTexCoordAttribute + CoordinateIndex
+					BaseTexCoordAttribute + CoordinateIndex,
+					InOutStreams
 				));
 			}
 		}
 
 		// Fill PreSkinPosition slot for GPUSkinPassThrough vertex factory, or else use a dummy buffer.
 		FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
-		Elements.Add(AccessStreamComponent(Data.PreSkinPositionComponent.VertexBuffer ? Data.PreSkinPositionComponent : NullComponent, 14));
+		Elements.Add(AccessStreamComponent(Data.PreSkinPositionComponent.VertexBuffer ? Data.PreSkinPositionComponent : NullComponent, 14, InOutStreams));
 
 		if (Data.LightMapCoordinateComponent.VertexBuffer)
 		{
-			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15));
+			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15, InOutStreams));
 		}
 		else if (Data.TextureCoordinates.Num())
 		{
-			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15));
+			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15, InOutStreams));
 		}
 	}
 
@@ -529,8 +573,6 @@ void FLocalVertexFactory::InitRHI()
 	}
 
 	FLocalVertexFactoryLooseParameters LooseParameters;
-	LooseParameters.FrameNumber = -1;
-	LooseParameters.GPUSkinPassThroughPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
 	LooseParameters.GPUSkinPassThroughPreviousPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
 	LooseParametersUniformBuffer = TUniformBufferRef<FLocalVertexFactoryLooseParameters>::CreateUniformBufferImmediate(LooseParameters, UniformBuffer_MultiFrame);
 

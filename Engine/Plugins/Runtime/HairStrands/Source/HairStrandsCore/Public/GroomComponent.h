@@ -149,11 +149,11 @@ public:
 
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin UMeshComponent Interface.
 	virtual void PostLoad() override;
-	virtual void PrecachePSOs() override;
 	//~ End UMeshComponent Interface.
 
 	/** Return the guide hairs rest resources*/

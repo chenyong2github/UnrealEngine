@@ -16,6 +16,7 @@ struct FSceneTexturesConfig;
 class FMaterial;
 class FVertexFactoryType;
 class FGraphicsPipelineStateInitializer;
+enum class EVertexInputStreamType : uint8;
 
 #define PSO_PRECACHING_VALIDATE (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
@@ -111,6 +112,58 @@ struct FPSOPrecacheParams
 	};
 };
 
+// Unique ID to find the FVertexDeclarationElementList - these can be shared
+using FVertexDeclarationElementListID = uint16;
+
+/**
+ * PSO Precache request priority
+ */
+enum class EPSOPrecachePriority : uint8
+{
+	Medium,
+	High
+};
+
+/**
+ * Wraps vertex factory data used during PSO precaching - optional element list ID can be used if manual vertex fetch is not possible for the given vertex factory type
+ */
+struct FPSOPrecacheVertexFactoryData 
+{
+	FPSOPrecacheVertexFactoryData() = default;
+	FPSOPrecacheVertexFactoryData(const FVertexFactoryType* InVertexFactoryType) : VertexFactoryType(InVertexFactoryType), CustomDefaultVertexDeclaration(nullptr) {}
+	FPSOPrecacheVertexFactoryData(const FVertexFactoryType* InVertexFactoryType, const FVertexDeclarationElementList& ElementList);
+
+	const FVertexFactoryType* VertexFactoryType = nullptr;
+
+	// Custom vertex declaration used for EVertexInputStreamType::Default if provided - the others are directly retrieved from the type if needed
+	FRHIVertexDeclaration* CustomDefaultVertexDeclaration = nullptr;
+
+	bool operator==(const FPSOPrecacheVertexFactoryData& Other) const
+	{
+		return VertexFactoryType == Other.VertexFactoryType && CustomDefaultVertexDeclaration == Other.CustomDefaultVertexDeclaration;
+	}
+
+	bool operator!=(const FPSOPrecacheVertexFactoryData& rhs) const
+	{
+		return !(*this == rhs);
+	}
+
+	friend uint32 GetTypeHash(const FPSOPrecacheVertexFactoryData& Params)
+	{
+		return HashCombine(PointerHash(Params.VertexFactoryType), PointerHash(Params.CustomDefaultVertexDeclaration));
+	}
+};
+
+typedef TArray<FPSOPrecacheVertexFactoryData, TInlineAllocator<2> > FPSOPrecacheVertexFactoryDataList;
+
+struct FPSOPrecacheVertexFactoryDataPerMaterialIndex
+{
+	int16 MaterialIndex;
+	FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
+};
+
+typedef TArray<FPSOPrecacheVertexFactoryDataPerMaterialIndex, TInlineAllocator<4> > FPSOPrecacheVertexFactoryDataPerMaterialIndexList;
+
 /**
  * Wrapper class around the initializer to collect some extra validation data during PSO collection on the different collectors
  */
@@ -147,7 +200,9 @@ struct FPSOPrecacheData
 #endif // PSO_PRECACHING_VALIDATE
 };
 
-/** 
+typedef TArray<FPSOPrecacheRequestResult, TInlineAllocator<4> > FPSOPrecacheRequestResultArray;
+
+/**
  * Interface class implemented by the mesh pass processor to collect all possible PSOs
  */
 class IPSOCollector
@@ -155,8 +210,16 @@ class IPSOCollector
 public:
 	virtual ~IPSOCollector() {}
 	
+	UE_DEPRECATED(5.2, "Call CollectPSOInitializers with FPSOPrecacheVertexFactoryData instead.")
+	void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+	{
+		FPSOPrecacheVertexFactoryData VertexFactoryData;
+		VertexFactoryData.VertexFactoryType = VertexFactoryType;
+		return CollectPSOInitializers(SceneTexturesConfig, Material, VertexFactoryData, PreCacheParams, PSOInitializers);
+	}
+
 	// Collect all PSO for given material, vertex factory & params
-	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) = 0;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) = 0;
 };
 
 /**
@@ -177,7 +240,7 @@ extern ENGINE_API bool ProxyCreationWhenPSOReady();
 /**
  * Try and create PSOs for all the given initializers and return an optional array of graph events of async compiling PSOs
  */
-extern FGraphEventArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOInitializers);
+extern FPSOPrecacheRequestResultArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOInitializers);
 
 /**
  * Predeclared IPSOCollector create function
@@ -233,6 +296,52 @@ private:
 	uint32 Index;
 };
 
+// Unique request ID of MaterialPSOPrecache which can be used to boost the priority of a PSO precache requests if it's needed for rendering
+using FMaterialPSOPrecacheRequestID = uint32;
+
+struct FMaterialPSOPrecacheParams
+{
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+	const FMaterial* Material = nullptr;
+	FPSOPrecacheVertexFactoryData VertexFactoryData;
+	FPSOPrecacheParams PrecachePSOParams;
+
+	bool operator==(const FMaterialPSOPrecacheParams& Other) const
+	{
+		return FeatureLevel == Other.FeatureLevel && 
+			Material == Other.Material &&
+			VertexFactoryData == Other.VertexFactoryData &&
+			PrecachePSOParams == Other.PrecachePSOParams;
+	}
+
+	bool operator!=(const FMaterialPSOPrecacheParams& rhs) const
+	{
+		return !(*this == rhs);
+	}
+
+	friend uint32 GetTypeHash(const FMaterialPSOPrecacheParams& Params)
+	{
+		return HashCombine(GetTypeHash(Params.FeatureLevel), HashCombine(PointerHash(Params.Material),
+			HashCombine(GetTypeHash(Params.VertexFactoryData), GetTypeHash(Params.PrecachePSOParams))));
+	}
+};
+
+/**
+ * Precache all PSOs for given material and parameters
+ */
+extern ENGINE_API FMaterialPSOPrecacheRequestID PrecacheMaterialPSOs(const FMaterialPSOPrecacheParams& MaterialPSOPrecacheParams, EPSOPrecachePriority Priority, FGraphEventArray& GraphEvents);
+
+/**
+ * Release PSO material request data
+ */
+extern ENGINE_API void ReleasePSOPrecacheData(const TArray<FMaterialPSOPrecacheRequestID>& MaterialPSORequestIDs);
+
+/**
+ * Boost priority for all the PSOs still compiling for the request material request IDs
+ */
+extern ENGINE_API void BoostPSOPriority(const TArray<FMaterialPSOPrecacheRequestID>& MaterialPSORequestIDs);
+
+
 #if PSO_PRECACHING_VALIDATE
 
 /**
@@ -254,9 +363,16 @@ namespace PSOCollectorStats
 	 */
 	struct FPrecacheUsageData
 	{
+		FPrecacheUsageData()
+		{
+			Empty();
+		}
+
 		void Empty()
 		{
+			Count = 0;
 			FMemory::Memzero(PerMeshPassCount, FPSOCollectorCreateManager::MaxPSOCollectorCount * sizeof(uint32));
+			PerVertexFactoryCount.Empty();
 		}
 
 		void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType)
@@ -296,6 +412,7 @@ namespace PSOCollectorStats
 			UsageData.Empty();
 			HitData.Empty();
 			MissData.Empty();
+			TooLateData.Empty();
 			UntrackedData.Empty();
 		}
 
@@ -303,6 +420,7 @@ namespace PSOCollectorStats
 		FPrecacheUsageData UsageData;			//< PSOs which are used during rendering 
 		FPrecacheUsageData HitData;				//< PSOs which are used during rendering and have been successfully precached
 		FPrecacheUsageData MissData;			//< PSOs which are used during rendering and have not been precached (but should have been)
+		FPrecacheUsageData TooLateData;			//< PSOs which are used during rendering and are still precaching (will cause hitch - component could wait for it to be done)
 		FPrecacheUsageData UntrackedData;		//< PSOs which are used during rendering but are currently not precached because for example the MeshPassProcessor or VertexFactory type don't support PSO precaching yet
 	};
 

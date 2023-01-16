@@ -2255,14 +2255,6 @@ void PSOCollectorStats::AddMinimalPipelineStateToCache(const FGraphicsMinimalPip
 
 	check(VertexFactoryType == nullptr || VertexFactoryType->SupportsPSOPrecaching());
 
-	static bool bFirstTime = true;
-	if (bFirstTime)
-	{
-		PSOShadersPrecacheStats.Empty();
-		MinimalPSOPrecacheStats.Empty();
-		bFirstTime = false;
-	}
-
 	// Update the Shader only stats ignoring all state 
 	{
 		FScopeLock Lock(&PSOShadersPrecacheLock);
@@ -2281,7 +2273,6 @@ void PSOCollectorStats::AddMinimalPipelineStateToCache(const FGraphicsMinimalPip
 		FShaderStateUsage& Value = PSOShadersPrecacheMap.GetByElementId(TableId).Value;
 		if (!Value.bPrecached)
 		{
-			check(!Value.bUsed);
 			PSOShadersPrecacheStats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
 			Value.bPrecached = true;
 		}
@@ -2303,7 +2294,6 @@ void PSOCollectorStats::AddMinimalPipelineStateToCache(const FGraphicsMinimalPip
 		FShaderStateUsage& Value = MinimalPSOPrecacheMap.GetByElementId(TableId).Value;
 		if (!Value.bPrecached)
 		{
-			check(!Value.bUsed);
 			MinimalPSOPrecacheStats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
 			Value.bPrecached = true;
 		}

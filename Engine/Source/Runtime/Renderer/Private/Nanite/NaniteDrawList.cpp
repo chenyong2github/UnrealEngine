@@ -450,13 +450,13 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 void FNaniteMeshProcessor::CollectPSOInitializers(
 	const FSceneTexturesConfig& SceneTexturesConfig,
 	const FMaterial& Material,
-	const FVertexFactoryType* VertexFactoryType,
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 	const FPSOPrecacheParams& PreCacheParams,
 	TArray<FPSOPrecacheData>& PSOInitializers
 )
 {
 	// Only support for the nanite vertex factory type
-	if (VertexFactoryType != &Nanite::FVertexFactory::StaticType)
+	if (VertexFactoryData.VertexFactoryType != &Nanite::FVertexFactory::StaticType)
 	{
 		return;
 	}
@@ -472,10 +472,10 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 	{
 		// generate for both skylight enabled/disabled? Or can this be known already at this point?
 		bool bRenderSkyLight = true;
-		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, bRenderSkyLight, PSOInitializers);
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
 		
 		bRenderSkyLight = false;
-		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, bRenderSkyLight, PSOInitializers);
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryData, Material, bRenderSkyLight, PSOInitializers);
 	}
 
 	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
@@ -484,7 +484,7 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 
 void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(
 	const FSceneTexturesConfig& SceneTexturesConfig,
-	const FVertexFactoryType* VertexFactoryType,
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 	const FMaterial& RESTRICT Material,
 	const bool bRenderSkylight,
 	TArray<FPSOPrecacheData>& PSOInitializers
@@ -501,7 +501,7 @@ void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(
 		bool b128BitRequirement = false;
 		bool bShadersValid = GetBasePassShaders<FUniformLightMapPolicy>(
 			Material,
-			VertexFactoryType,
+			VertexFactoryData.VertexFactoryType,
 			FUniformLightMapPolicy(UniformLightMapPolicyType),
 			FeatureLevel,
 			bRenderSkylight,
@@ -530,7 +530,7 @@ void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(
 		SetupGBufferRenderTargetInfo(SceneTexturesConfig, RenderTargetsInfo, true /*bSetupDepthStencil*/);
 
 		AddGraphicsPipelineStateInitializer(
-			VertexFactoryType,
+			VertexFactoryData,
 			Material,
 			PassDrawRenderState,
 			RenderTargetsInfo,

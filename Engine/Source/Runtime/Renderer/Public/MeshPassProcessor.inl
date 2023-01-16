@@ -192,7 +192,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 
 template<typename PassShadersType>
 void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
-	const FVertexFactoryType* RESTRICT VertexFactoryType,
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 	const FMaterial& RESTRICT MaterialResource,
 	const FMeshPassProcessorRenderState& RESTRICT DrawRenderState,
 	const FGraphicsPipelineRenderTargetsInfo& RESTRICT RenderTargetsInfo,
@@ -215,9 +215,18 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	if ((MeshPassFeatures & EMeshPassFeatures::PositionOnly) != EMeshPassFeatures::Default)				InputStreamType = EVertexInputStreamType::PositionOnly;
 	if ((MeshPassFeatures & EMeshPassFeatures::PositionAndNormalOnly) != EMeshPassFeatures::Default)	InputStreamType = EVertexInputStreamType::PositionAndNormalOnly;
 
-	FVertexDeclarationElementList Elements;
-	VertexFactoryType->GetShaderPSOPrecacheVertexFetchElements(InputStreamType, Elements);
-	FRHIVertexDeclaration* VertexDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	FRHIVertexDeclaration* VertexDeclaration = nullptr;
+	if (InputStreamType == EVertexInputStreamType::Default && VertexFactoryData.CustomDefaultVertexDeclaration)
+	{
+		VertexDeclaration = VertexFactoryData.CustomDefaultVertexDeclaration;
+	}
+	else
+	{
+		FVertexDeclarationElementList Elements;
+		VertexFactoryData.VertexFactoryType->GetShaderPSOPrecacheVertexFetchElements(InputStreamType, Elements);
+		VertexDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	}
+	check(VertexDeclaration);
 	
 	FMeshProcessorShaders MeshProcessorShaders = PassShaders.GetUntypedShaders();
 	MinimalPipelineStateInitializer.SetupBoundShaderState(VertexDeclaration, MeshProcessorShaders);
@@ -233,7 +242,7 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 
 	MinimalPipelineStateInitializer.ComputePrecachePSOHash();
 #if PSO_PRECACHING_VALIDATE
-	PSOCollectorStats::AddMinimalPipelineStateToCache(MinimalPipelineStateInitializer, (uint32)MeshPassType, VertexFactoryType);
+	PSOCollectorStats::AddMinimalPipelineStateToCache(MinimalPipelineStateInitializer, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
 #endif // PSO_PRECACHING_VALIDATE
 
 	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
@@ -245,7 +254,7 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	PSOPrecacheData.GraphicsPSOInitializer = PipelineStateInitializer;
 #if PSO_PRECACHING_VALIDATE
 	PSOPrecacheData.MeshPassType = (uint32)MeshPassType;
-	PSOPrecacheData.VertexFactoryType = VertexFactoryType;
+	PSOPrecacheData.VertexFactoryType = VertexFactoryData.VertexFactoryType;
 #endif // PSO_PRECACHING_VALIDATE
 	PSOInitializers.Add(PSOPrecacheData);
 }

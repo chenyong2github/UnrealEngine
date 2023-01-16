@@ -132,7 +132,7 @@ public:
 	virtual void CollectPSOInitializers(
 		const FSceneTexturesConfig& SceneTexturesConfig, 
 		const FMaterial& Material, 
-		const FVertexFactoryType* VertexFactoryType, 
+		const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 		const FPSOPrecacheParams& PreCacheParams, 
 		TArray<FPSOPrecacheData>& PSOInitializers
 	) override final;
@@ -149,7 +149,7 @@ private:
 
 	void CollectPSOInitializersForSkyLight(
 		const FSceneTexturesConfig& SceneTexturesConfig,
-		const FVertexFactoryType* VertexFactoryType,
+		const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 		const FMaterial& RESTRICT Material,
 		const bool bRenderSkylight,
 		TArray<FPSOPrecacheData>& PSOInitializers

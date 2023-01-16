@@ -29,6 +29,7 @@
 #include "HLOD/HLODBatchingPolicy.h"
 #include "HLOD/HLODLevelExclusion.h"
 #include "Stats/Stats2.h"
+#include "PSOPrecache.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/OverlapInfo.h"
 #endif
@@ -664,6 +665,20 @@ protected:
 		ToolTip = "When false, the underlying physics body will contain all sim data (mass, inertia tensor, etc) even if mobility is not set to Moveable"))
 	uint8 bStaticWhenNotMoveable:1;
 
+	/** Helper flag to check if PSOs have been precached already */
+	uint8 bPSOPrecacheCalled : 1;
+
+	/** Have the PSO requests already been priority boosted? */
+	uint8 bPSOPrecacheRequestBoosted : 1;
+
+	/** Cached array of material PSO requests which can be used to boost the priority */
+	TArray<FMaterialPSOPrecacheRequestID> MaterialPSOPrecacheRequestIDs;
+
+	/** Graph event used to track all the PSO precache events */
+	FGraphEventRef PSOPrecacheCompileEvent;
+
+protected:
+
 #if WITH_EDITOR
 	uint8 bIgnoreBoundsForEditorFocus : 1;
 
@@ -918,6 +933,27 @@ public:
 	 * Precaching uses certain component attributes to derive the shader or state used to render the component such as static lighting, cast shadows, ...
 	 */
 	virtual void SetupPrecachePSOParams(FPSOPrecacheParams& Params);
+
+	/**
+	 * Collect all the data required for PSO precaching 
+	 */
+	struct FComponentPSOPrecacheParams
+	{
+		UMaterialInterface* MaterialInterface;
+		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
+		FPSOPrecacheParams PSOPrecacheParams;
+	};
+	typedef TArray<FComponentPSOPrecacheParams, TInlineAllocator<2> > FComponentPSOPrecacheParamsList;
+	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) {}
+
+	/** Precache all PSOs which can be used by the primitive component */
+	virtual void PrecachePSOs();
+
+	/** Schedule task to mark render state dirty when the PSO precaching tasks are done */
+	void RequestRecreateRenderStateWhenPSOPrecacheFinished(const FGraphEventArray& PSOPrecacheCompileEvents);
+
+	/** Check if PSOs are still precaching and boost priority if not done yet */
+	bool IsPSOPrecaching();
 
 	/**
 	 * Set of actors to ignore during component sweeps in MoveComponent().

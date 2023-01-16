@@ -30,6 +30,7 @@
 #include "Animation/SkinWeightProfileManager.h"
 #include "GPUSkinCache.h"
 #include "PSOPrecache.h"
+#include "MaterialDomain.h"
 #include "SkeletalRender.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
@@ -555,10 +556,9 @@ void USkinnedMeshComponent::PostLoad()
 	PrecachePSOs();
 }
 
-void USkinnedMeshComponent::PrecachePSOs()
+void USkinnedMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
 {
-	if (!IsComponentPSOPrecachingEnabled() ||
-		GetSkinnedAsset() == nullptr ||
+	if (GetSkinnedAsset() == nullptr ||
 		GetSkinnedAsset()->GetResourceForRendering() == nullptr)
 	{
 		return;
@@ -568,24 +568,25 @@ void USkinnedMeshComponent::PrecachePSOs()
 	int32 MinLODIndex = ComputeMinLOD();
 	bool bCPUSkin = bRenderStatic || ShouldCPUSkin();
 
-	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> VFsPerMaterials = GetSkinnedAsset()->GetVertexFactoryTypesPerMaterialIndex(MinLODIndex, bCPUSkin, FeatureLevel);
+	FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFsPerMaterials = GetSkinnedAsset()->GetVertexFactoryTypesPerMaterialIndex(this, MinLODIndex, bCPUSkin, FeatureLevel);
 	bool bAnySectionCastsShadows = GetSkinnedAsset()->GetResourceForRendering()->AnyRenderSectionCastsShadows(MinLODIndex);
 
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
+	FPSOPrecacheParams PrecachePSOParams = BasePrecachePSOParams;
 	PrecachePSOParams.bCastShadow = PrecachePSOParams.bCastShadow && bAnySectionCastsShadows;
 
-	FGraphEventArray PSOPrecacheCompileEvents;
-	for (FSkinnedAssetVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	for (FPSOPrecacheVertexFactoryDataPerMaterialIndex& VFsPerMaterial : VFsPerMaterials)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(VFsPerMaterial.MaterialIndex);
-		if (MaterialInterface)
+		if (MaterialInterface == nullptr)
 		{
-			PSOPrecacheCompileEvents.Append(MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams));
+			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
-	}
 
-	RequestRecreateRenderStateWhenPSOPrecacheFinished(PSOPrecacheCompileEvents);
+		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+		ComponentParams.MaterialInterface = MaterialInterface;
+		ComponentParams.VertexFactoryDataList = VFsPerMaterial.VertexFactoryDataList;
+		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
+	}
 }
 
 void USkinnedMeshComponent::OnRegister()

@@ -41,12 +41,6 @@ enum class ESkinnedAssetAsyncPropertyLockType
 };
 ENUM_CLASS_FLAGS(ESkinnedAssetAsyncPropertyLockType);
 
-struct FSkinnedAssetVertexFactoryTypesPerMaterialData
-{
-	int16 MaterialIndex;
-	TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
-};
-
 UCLASS(hidecategories = Object, config = Engine, editinlinenew, abstract)
 class ENGINE_API USkinnedAsset : public UStreamableRenderAsset, public IInterface_AsyncCompilation
 {
@@ -237,7 +231,7 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 		
-	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> GetVertexFactoryTypesPerMaterialIndex(int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel);
+	FPSOPrecacheVertexFactoryDataPerMaterialIndexList GetVertexFactoryTypesPerMaterialIndex(USkinnedMeshComponent* SkinnedMeshComponent, int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel);
 
 	/** Helper function for resource tracking, construct a string using the skinned asset's path name and LOD index . */
 	static FString GetLODPathName(const USkinnedAsset* Mesh, int32 LODIndex);

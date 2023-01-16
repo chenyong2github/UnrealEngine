@@ -2800,6 +2800,13 @@ public:
 		FShaderLibraryInstance* LibraryInstance = FindShaderLibraryForShader(Hash, ShaderIndex);
 		return LibraryInstance != nullptr;
 	}
+	
+	bool ContainsShaderCode(const FSHAHash& Hash, const FString& LogicalLibraryName)
+	{
+		int32 ShaderIndex = INDEX_NONE;
+		FShaderLibraryInstance* LibraryInstance = FindShaderLibraryForShader(Hash, ShaderIndex);
+		return LibraryInstance != nullptr && LibraryInstance->Library->GetName() == LogicalLibraryName;
+	}
 
 #if WITH_EDITOR
 	void CleanDirectories(TArray<FName> const& ShaderFormats)
@@ -3342,6 +3349,15 @@ bool FShaderCodeLibrary::ContainsShaderCode(const FSHAHash& Hash)
 	if (FShaderLibrariesCollection::Impl)
 	{
 		return FShaderLibrariesCollection::Impl->ContainsShaderCode(Hash);
+	}
+	return false;
+}
+
+bool FShaderCodeLibrary::ContainsShaderCode(const FSHAHash& Hash, const FString& LogicalLibraryName)
+{
+	if (FShaderLibrariesCollection::Impl)
+	{
+		return FShaderLibrariesCollection::Impl->ContainsShaderCode(Hash, LogicalLibraryName);
 	}
 	return false;
 }

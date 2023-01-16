@@ -337,35 +337,8 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 
 	// If we have a skin weight override buffer (and it's the right size) use it
 	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
-	if (CompLODInfo)
-	{
-		if (CompLODInfo->OverrideSkinWeights &&
-			CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideSkinWeights->GetMaxBoneInfluences());
-			MeshObjectWeightBuffer = CompLODInfo->OverrideSkinWeights;
-		}
-		else if (CompLODInfo->OverrideProfileSkinWeights &&
-			CompLODInfo->OverrideProfileSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideProfileSkinWeights->GetMaxBoneInfluences());
-			MeshObjectWeightBuffer = CompLODInfo->OverrideProfileSkinWeights;
-		}
-		else
-		{
-			MeshObjectWeightBuffer = LODData.GetSkinWeightVertexBuffer();
-		}
-
-		if (CompLODInfo->OverrideVertexColors &&
-			CompLODInfo->OverrideVertexColors->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			MeshObjectColorBuffer = CompLODInfo->OverrideVertexColors;
-		}
-		else
-		{
-			MeshObjectColorBuffer = &LODData.StaticVertexBuffers.ColorVertexBuffer;
-		}
-	}
+	MeshObjectWeightBuffer = FSkeletalMeshObject::GetSkinWeightVertexBuffer(LODData, CompLODInfo);
+	MeshObjectColorBuffer = FSkeletalMeshObject::GetColorVertexBuffer(LODData, CompLODInfo);
 
 	const FStaticMeshVertexBuffer& SrcVertexBuf = LODData.StaticVertexBuffers.StaticMeshVertexBuffer;
 	PositionVertexBuffer.Init(LODData.StaticVertexBuffers.PositionVertexBuffer);
@@ -471,31 +444,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::UpdateSkinWeights(FSkel
 
 	// If we have a skin weight override buffer (and it's the right size) use it
 	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
-	FSkinWeightVertexBuffer* NewMeshObjectWeightBuffer = nullptr;
-	if (CompLODInfo)
-	{
-		if (CompLODInfo->OverrideSkinWeights &&
-			CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideSkinWeights->GetMaxBoneInfluences());
-			NewMeshObjectWeightBuffer = CompLODInfo->OverrideSkinWeights;
-		}
-		else if (CompLODInfo->OverrideProfileSkinWeights &&
-			CompLODInfo->OverrideProfileSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
-		{
-			check(LODData.SkinWeightVertexBuffer.GetMaxBoneInfluences() == CompLODInfo->OverrideProfileSkinWeights->GetMaxBoneInfluences());
-			NewMeshObjectWeightBuffer = CompLODInfo->OverrideProfileSkinWeights;
-		}
-		else
-		{
-			NewMeshObjectWeightBuffer = LODData.GetSkinWeightVertexBuffer();
-		}
-
-		if (MeshObjectWeightBuffer != NewMeshObjectWeightBuffer)
-		{
-			MeshObjectWeightBuffer = NewMeshObjectWeightBuffer;
-		}
-	}	
+	MeshObjectWeightBuffer = FSkeletalMeshObject::GetSkinWeightVertexBuffer(LODData, CompLODInfo);
 }
 
 /** 

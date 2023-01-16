@@ -158,7 +158,7 @@ bool FSkyPassMeshProcessor::Process(
 	return true;
 }
 
-void FSkyPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+void FSkyPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	// Early out if not sky
 	if (!Material.IsSky())
@@ -186,7 +186,7 @@ void FSkyPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& S
 	const bool bRenderSkylight = false;
 	if (!GetBasePassShaders<LightMapPolicyType>(
 		Material,
-		VertexFactoryType,
+		VertexFactoryData.VertexFactoryType,
 		NoLightmapPolicy,
 		FeatureLevel,
 		bRenderSkylight,
@@ -203,7 +203,7 @@ void FSkyPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& S
 	SetupGBufferRenderTargetInfo(SceneTexturesConfig, RenderTargetsInfo, true /*bSetupDepthStencil*/);
 
 	AddGraphicsPipelineStateInitializer(
-		VertexFactoryType,
+		VertexFactoryData,
 		Material,
 		PassDrawRenderState,
 		RenderTargetsInfo,

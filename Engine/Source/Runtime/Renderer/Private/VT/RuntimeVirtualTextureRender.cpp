@@ -834,7 +834,7 @@ namespace RuntimeVirtualTexture
 
 		template<class MaterialPolicy>
 		void CollectPSOInitializers(
-			const FVertexFactoryType* VertexFactoryType,
+			const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 			const FMaterial& RESTRICT MaterialResource,
 			const ERasterizerFillMode& MeshFillMode,
 			const ERasterizerCullMode& MeshCullMode,
@@ -846,7 +846,7 @@ namespace RuntimeVirtualTexture
 			ShaderTypes.AddShaderType<FShader_VirtualTextureMaterialDraw_VS< MaterialPolicy>>();
 			ShaderTypes.AddShaderType<FShader_VirtualTextureMaterialDraw_PS< MaterialPolicy>>();
 			FMaterialShaders Shaders;
-			if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+			if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactoryData.VertexFactoryType, Shaders))
 			{
 				return;
 			}
@@ -865,7 +865,7 @@ namespace RuntimeVirtualTexture
 			RenderTargetsInfo.NumSamples = 1;
 			FRenderGraphSetup::SetupRenderTargetsInfo(MaterialType, FeatureLevel, bLQQuality, RenderTargetsInfo);
 			AddGraphicsPipelineStateInitializer(
-				VertexFactoryType,
+				VertexFactoryData,
 				MaterialResource,
 				PSODrawRenderState,
 				RenderTargetsInfo,
@@ -902,7 +902,7 @@ namespace RuntimeVirtualTexture
 		virtual void CollectPSOInitializers(
 			const FSceneTexturesConfig& SceneTexturesConfig, 
 			const FMaterial& Material, 
-			const FVertexFactoryType* VertexFactoryType, 
+			const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 			const FPSOPrecacheParams& PreCacheParams, 
 			TArray<FPSOPrecacheData>& PSOInitializers) override final
 		{
@@ -915,10 +915,10 @@ namespace RuntimeVirtualTexture
 				const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
 				// TODO: collect from component data & store in PreCacheParams to reduce PSO precache count
-				CollectPSOInitializers<FMaterialPolicy_BaseColor>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor, PSOInitializers);
-				CollectPSOInitializers<FMaterialPolicy_BaseColorNormalRoughness>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness, PSOInitializers);
-				CollectPSOInitializers<FMaterialPolicy_BaseColorNormalSpecular>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular, PSOInitializers);
-				CollectPSOInitializers<FMaterialPolicy_WorldHeight>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::WorldHeight, PSOInitializers);
+				CollectPSOInitializers<FMaterialPolicy_BaseColor>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor, PSOInitializers);
+				CollectPSOInitializers<FMaterialPolicy_BaseColorNormalRoughness>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness, PSOInitializers);
+				CollectPSOInitializers<FMaterialPolicy_BaseColorNormalSpecular>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular, PSOInitializers);
+				CollectPSOInitializers<FMaterialPolicy_WorldHeight>(VertexFactoryData, Material, MeshFillMode, MeshCullMode, OutputAttributeMask, ERuntimeVirtualTextureMaterialType::WorldHeight, PSOInitializers);
 			}
 		}
 

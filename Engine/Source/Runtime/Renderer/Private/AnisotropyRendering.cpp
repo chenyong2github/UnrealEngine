@@ -238,7 +238,7 @@ bool FAnisotropyMeshProcessor::Process(
 	return true;
 }
 
-void FAnisotropyMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+void FAnisotropyMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	if (ShouldDraw(Material, Material.MaterialUsesAnisotropy_GameThread()) && 
 		SupportsAnisotropicMaterials(FeatureLevel, GShaderPlatformForFeatureLevel[FeatureLevel]))
@@ -253,7 +253,7 @@ void FAnisotropyMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 
 		if (!GetAnisotropyPassShaders(
 			Material,
-			VertexFactoryType,
+			VertexFactoryData.VertexFactoryType,
 			FeatureLevel,
 			AnisotropyPassShaders.VertexShader,
 			AnisotropyPassShaders.PixelShader))
@@ -263,7 +263,7 @@ void FAnisotropyMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 
 		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
 		AddGraphicsPipelineStateInitializer(
-			VertexFactoryType,
+			VertexFactoryData,
 			Material,
 			PassDrawRenderState,
 			RenderTargetsInfo,

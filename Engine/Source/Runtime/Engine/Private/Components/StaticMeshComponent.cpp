@@ -1519,9 +1519,9 @@ void UStaticMeshComponent::InitResources()
 	}
 }
 
-void UStaticMeshComponent::PrecachePSOs()
+void UStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
 {
-	if (!IsComponentPSOPrecachingEnabled() || StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr)
+	if (StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr)
 	{
 		return;
 	}
@@ -1542,15 +1542,13 @@ void UStaticMeshComponent::PrecachePSOs()
 
 	bool bIsLocalToWorldDeterminantNegative = GetRenderMatrix().Determinant() < 0;
 
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
+	FPSOPrecacheParams PrecachePSOParams = BasePrecachePSOParams;
 	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
 	PrecachePSOParams.bReverseCulling = bReverseCulling != bIsLocalToWorldDeterminantNegative;
 	PrecachePSOParams.bForceLODModel = ForcedLodModel > 0;
 
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType :  &FLocalVertexFactory::StaticType;
 
-	FGraphEventArray PSOPrecacheCompileEvents;
 	for (uint16 MaterialIndex : UsedMaterialIndices)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
@@ -1559,12 +1557,12 @@ void UStaticMeshComponent::PrecachePSOs()
 			PrecachePSOParams.bHasWorldPositionOffsetVelocity = SupportsWorldPositionOffsetVelocity()
 				&& MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset;
 
-			PSOPrecacheCompileEvents.Append(MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams));
+			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+			ComponentParams.MaterialInterface = MaterialInterface;
+			ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType));
+			ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 		}
 	}
-
-	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
-	RequestRecreateRenderStateWhenPSOPrecacheFinished(PSOPrecacheCompileEvents);
 }
 
 #if WITH_EDITOR

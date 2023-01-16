@@ -573,21 +573,25 @@ void UMaterialInterface::InitDefaultMaterials()
 		// PSO precaching can request default materials so they have to marked as initialized to avoid endless recursion
 		if (PipelineStateCache::IsPSOPrecachingEnabled())
 		{
+			TArray<FMaterialPSOPrecacheRequestID> MaterialPrecacheRequestIDs;
+
 			FPSOPrecacheParams PrecachePSOParams;
-			TArray<const FVertexFactoryType*> AllVertexFactoryTypes;
+			FPSOPrecacheVertexFactoryDataList AllVertexFactoryTypes;
 			for (TLinkedList<FVertexFactoryType*>::TIterator It(FVertexFactoryType::GetTypeList()); It; It.Next())
 			{
-				AllVertexFactoryTypes.Add(*It);
+				FPSOPrecacheVertexFactoryData VFData;
+				VFData.VertexFactoryType = *It;
+				AllVertexFactoryTypes.Add(VFData);
 			}
 			for (int32 Domain = 0; Domain < MD_MAX; ++Domain)
 			{
 				if (GDefaultMaterials[Domain])
 				{
 					PrecachePSOParams.Mobility = EComponentMobility::Static;
-					GDefaultMaterials[Domain]->PrecachePSOs(AllVertexFactoryTypes, PrecachePSOParams);
+					GDefaultMaterials[Domain]->PrecachePSOs(AllVertexFactoryTypes, PrecachePSOParams, EPSOPrecachePriority::High, MaterialPrecacheRequestIDs);
 
 					PrecachePSOParams.Mobility = EComponentMobility::Movable;
-					GDefaultMaterials[Domain]->PrecachePSOs(AllVertexFactoryTypes, PrecachePSOParams);
+					GDefaultMaterials[Domain]->PrecachePSOs(AllVertexFactoryTypes, PrecachePSOParams, EPSOPrecachePriority::High, MaterialPrecacheRequestIDs);
 				}
 			}
 		}
@@ -2568,7 +2572,7 @@ bool UMaterial::IsComplete() const
 	return bComplete;
 }
 
-FGraphEventArray UMaterial::PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& InPreCacheParams)
+FGraphEventArray UMaterial::PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& InPreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
 {
 	FGraphEventArray GraphEvents;
 	if (FApp::CanEverRender() && MaterialResources.Num() > 0 && PipelineStateCache::IsPSOPrecachingEnabled())
@@ -2581,7 +2585,7 @@ FGraphEventArray UMaterial::PrecachePSOs(const TConstArrayView<const FVertexFact
 			FMaterialResource* MaterialResource = FindMaterialResource(MaterialResources, FeatureLevel, ActiveQualityLevel, true/*bAllowDefaultMaterial*/);
 			if (MaterialResource)
 			{
-				GraphEvents.Append(MaterialResource->CollectPSOs(FeatureLevel, VertexFactoryTypes, InPreCacheParams));
+				GraphEvents.Append(MaterialResource->CollectPSOs(FeatureLevel, VertexFactoryDataList, InPreCacheParams, Priority, OutMaterialPSORequestIDs));
 			}
 		}
 	}

@@ -356,6 +356,9 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bIgnoreStreamingManagerUpdate = false;
 	bAttachedToCoarseMeshStreamingManager = false;
 	LastCheckedAllCollideableDescendantsTime = 0.f;
+
+	bPSOPrecacheCalled = false;
+	bPSOPrecacheRequestBoosted = false;
 	
 	bApplyImpulseOnDamage = true;
 	bReplicatePhysicsToAutonomousProxy = true;
@@ -4162,10 +4165,97 @@ void UPrimitiveComponent::SetupPrecachePSOParams(FPSOPrecacheParams& Params)
 	Params.bStaticLighting = HasStaticLighting();
 	Params.bAffectDynamicIndirectLighting = bAffectDynamicIndirectLighting;
 	Params.bCastShadow = CastShadow;
-	Params.bRenderCustomDepth = bRenderCustomDepth;
+	// Custom depth can be toggled at runtime with PSO precache call so assume it might be needed when depth pass is needed
+	Params.bRenderCustomDepth = bRenderInDepthPass;
 	Params.bCastShadowAsTwoSided = bCastShadowAsTwoSided;
 	Params.SetMobility(Mobility);	
 	Params.SetStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(CustomDepthStencilWriteMask));
+}
+
+class FMarkRenderStateDirtyTask
+{
+public:
+	explicit FMarkRenderStateDirtyTask(UPrimitiveComponent* InPrimitiveComponent)
+		: PrimitiveComponent(InPrimitiveComponent)
+	{
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (PrimitiveComponent.IsValid())
+		{
+			PrimitiveComponent->MarkRenderStateDirty();
+			PrimitiveComponent = nullptr;
+		}
+	}
+
+public:
+
+	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
+
+	static ESubsequentsMode::Type	GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+	ENamedThreads::Type				GetDesiredThread() { return ENamedThreads::GameThread; }
+	FORCEINLINE TStatId				GetStatId() const { return TStatId(); }
+};
+
+void UPrimitiveComponent::PrecachePSOs()
+{
+	if (!FApp::CanEverRender() || !IsComponentPSOPrecachingEnabled())
+	{
+		return;
+	}
+
+	check(IsInGameThread());
+
+	// clear the current request data
+	MaterialPSOPrecacheRequestIDs.Empty();
+	PSOPrecacheCompileEvent = nullptr;
+	bPSOPrecacheRequestBoosted = false;
+
+	// Collect the data from the derived classes
+	FPSOPrecacheParams PSOPrecacheParams;
+	SetupPrecachePSOParams(PSOPrecacheParams);
+	FComponentPSOPrecacheParamsList PSOPrecacheDataArray;
+	CollectPSOPrecacheData(PSOPrecacheParams, PSOPrecacheDataArray);
+
+	FGraphEventArray GraphEvents;
+	for (FComponentPSOPrecacheParams& ComponentPSOPrecacheData : PSOPrecacheDataArray)
+	{
+		GraphEvents.Append(ComponentPSOPrecacheData.MaterialInterface->PrecachePSOs(ComponentPSOPrecacheData.VertexFactoryDataList, ComponentPSOPrecacheData.PSOPrecacheParams, EPSOPrecachePriority::Medium, MaterialPSOPrecacheRequestIDs));
+	}	
+
+	RequestRecreateRenderStateWhenPSOPrecacheFinished(GraphEvents);
+}
+
+void UPrimitiveComponent::RequestRecreateRenderStateWhenPSOPrecacheFinished(const FGraphEventArray& PSOPrecacheCompileEvents)
+{
+	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
+	if (ProxyCreationWhenPSOReady() && !PSOPrecacheCompileEvents.IsEmpty())
+	{
+		PSOPrecacheCompileEvent = TGraphTask<FMarkRenderStateDirtyTask>::CreateTask(&PSOPrecacheCompileEvents).ConstructAndDispatchWhenReady(this);
+	}
+
+	bPSOPrecacheCalled = true;
+}
+
+bool UPrimitiveComponent::IsPSOPrecaching()
+{
+	ensure(!IsComponentPSOPrecachingEnabled() || bPSOPrecacheCalled);
+
+	if (PSOPrecacheCompileEvent && !PSOPrecacheCompileEvent->IsComplete())
+	{
+		if (!bPSOPrecacheRequestBoosted)
+		{
+			BoostPSOPriority(MaterialPSOPrecacheRequestIDs);
+			bPSOPrecacheRequestBoosted = true;
+		}
+	}
+	else
+	{
+		PSOPrecacheCompileEvent = nullptr;
+	}
+
+	return PSOPrecacheCompileEvent != nullptr;
 }
 
 #if WITH_EDITOR

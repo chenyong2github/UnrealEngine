@@ -45,8 +45,56 @@ enum class EPSOPrecacheResult
 	Active,				//< PSO is currently precaching
 	Complete,			//< PSO has been precached successfully
 	Missed,				//< PSO precache miss, needs to be compiled at draw time
+	TooLate,			//< PSO precache request still compiling when needed
 	NotSupported,		//< PSO precache not supported (VertexFactory or MeshPassProcessor doesn't support/implement precaching)
 	Untracked,			//< PSO is not tracked at all (Compute or not coming from MeshDrawCommands)
+};
+
+// Unique request ID of PSOPrecache which can be used to boost the priority of a PSO precache requests if it's needed for rendering
+struct FPSOPrecacheRequestID
+{
+	enum class EType
+	{
+		Invalid = 0,
+		Graphics,
+		Compute
+	};
+
+	FPSOPrecacheRequestID() : Type((uint32)EType::Invalid), RequestID(0) { }
+
+	EType GetType() const { return (EType)Type; }
+	bool IsValid() const 
+	{ 		
+		return Type != (uint32)EType::Invalid; 
+	}
+	bool operator==(const FPSOPrecacheRequestID& Other) const
+	{
+		return Type == Other.Type && RequestID == Other.RequestID;
+	}
+	bool operator!=(const FPSOPrecacheRequestID& rhs) const
+	{
+		return !(*this == rhs);
+	}
+
+	uint32 Type : 2;			//< PSO request type
+	uint32 RequestID : 30;		//< Unique request ID
+};
+
+// Result data of a precache pipeline state request
+struct FPSOPrecacheRequestResult
+{
+	bool IsValid() const { return RequestID.IsValid(); }
+	bool operator==(const FPSOPrecacheRequestResult& Other) const
+	{
+		return RequestID == Other.RequestID && AsyncCompileEvent == Other.AsyncCompileEvent;
+	}
+	bool operator!=(const FPSOPrecacheRequestResult& rhs) const
+	{
+		return !(*this == rhs);
+	}
+
+	FPSOPrecacheRequestID RequestID;
+	FGraphEventRef AsyncCompileEvent;
 };
 
 extern RHI_API void SetComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader);
@@ -97,17 +145,20 @@ namespace PipelineStateCache
 	/* Is precaching currently enabled - can help to skip certain time critical code when precaching is disabled */
 	extern RHI_API bool						IsPSOPrecachingEnabled();
 
-	/* Precache the compute shader and return an optional graph event if precached async */
-	extern RHI_API FGraphEventRef			PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache = false);
+	/* Precache the compute shader and return a request ID if precached async */
+	extern RHI_API FPSOPrecacheRequestResult PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache = false);
 
 	/* Precache the graphic PSO and return an optional graph event if precached async */
-	extern RHI_API FGraphEventRef			PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
+	extern RHI_API FPSOPrecacheRequestResult PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
 
 	/* Retrieve the current PSO precache result state (slightly slower than IsPrecaching) */
 	extern RHI_API EPSOPrecacheResult		CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
 
 	/* Retrieve the current PSO precache result state (slightly slower than IsPrecaching) */
 	extern RHI_API EPSOPrecacheResult		CheckPipelineStateInCache(FRHIComputeShader* ComputeShader);
+
+	/* Is the given PSO still precaching? */
+	extern RHI_API bool						IsPrecaching(const FPSOPrecacheRequestID& PSOPrecacheRequestID);
 
 	/* Is the given PSO initializer still precaching? */
 	extern RHI_API bool						IsPrecaching(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
@@ -117,6 +168,9 @@ namespace PipelineStateCache
 
 	/* Any async precaching operations still busy */
 	extern RHI_API bool						IsPrecaching();
+
+	/* Boost the priority of the given PSO request ID */
+	extern RHI_API void						BoostPrecachePriority(const FPSOPrecacheRequestID& PSOPrecacheRequestID);
 
 	/* Return number of active or pending PSO precache requests */
 	extern RHI_API uint32					NumActivePrecacheRequests();

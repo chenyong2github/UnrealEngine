@@ -795,7 +795,7 @@ bool FDepthPassMeshProcessor::Process(
 template<bool bPositionOnly>
 void FDepthPassMeshProcessor::CollectPSOInitializersInternal(
 	const FSceneTexturesConfig& SceneTexturesConfig,
-	const FVertexFactoryType* VertexFactoryType,
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 	const FMaterial& RESTRICT MaterialResource,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
@@ -811,7 +811,7 @@ void FDepthPassMeshProcessor::CollectPSOInitializersInternal(
 
 	if (!GetDepthPassShaders<bPositionOnly>(
 		MaterialResource,
-		VertexFactoryType,
+		VertexFactoryData.VertexFactoryType,
 		FeatureLevel,
 		MaterialResource.MaterialUsesPixelDepthOffset_GameThread(),
 		DepthPassShaders.VertexShader,
@@ -837,7 +837,7 @@ void FDepthPassMeshProcessor::CollectPSOInitializersInternal(
 		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite, RenderTargetsInfo);
 
 	AddGraphicsPipelineStateInitializer(
-		VertexFactoryType,
+		VertexFactoryData,
 		MaterialResource,
 		DrawRenderState,
 		RenderTargetsInfo,
@@ -1001,12 +1001,12 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 	}
 }
 
-void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
 {		
 	// Are we currently collecting PSO's for the default material
 	if (Material.IsDefaultMaterial())
 	{
-		CollectDefaultMaterialPSOInitializers(SceneTexturesConfig, Material, VertexFactoryType, PSOInitializers);
+		CollectDefaultMaterialPSOInitializers(SceneTexturesConfig, Material, VertexFactoryData, PSOInitializers);
 		return;
 	}
 
@@ -1022,10 +1022,19 @@ void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 	}
 
 	// assume we can always do this when collecting PSO's for now (vertex factory instance might actually not support it)
-	bool bSupportPositionOnlyStream = VertexFactoryType->SupportsPositionOnly();  
+	bool bSupportPositionOnlyStream = VertexFactoryData.VertexFactoryType->SupportsPositionOnly();  
 
 	bool bPositionOnly = false;
 	bool bUseDefaultMaterial = UseDefaultMaterial(Material, Material.MaterialModifiesMeshPosition_GameThread(), bSupportPositionOnlyStream, bPositionOnly);
+
+	const FMaterial* EffectiveMaterial = &Material;
+	if (bUseDefaultMaterial && !bSupportPositionOnlyStream && VertexFactoryData.CustomDefaultVertexDeclaration)
+	{
+		EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+		EffectiveMaterial = UMaterial::GetDefaultMaterial(MD_Surface)->GetMaterialResource(FeatureLevel, ActiveQualityLevel);
+		bUseDefaultMaterial = false;
+	}
+
 	if (!bUseDefaultMaterial)
 	{
 		check(!bPositionOnly);
@@ -1038,11 +1047,11 @@ void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 		const bool bAllowDitheredLODTransition = !bIsMoveable && Material.IsDitheredLODTransition();
 
 		bool bDitheredLODTransition = false;
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, (EPrimitiveType)PreCacheParams.PrimitiveType, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, *EffectiveMaterial, MeshFillMode, MeshCullMode, bDitheredLODTransition, (EPrimitiveType)PreCacheParams.PrimitiveType, PSOInitializers);
 		if (bAllowDitheredLODTransition)
 		{
 			bDitheredLODTransition = true;
-			CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, (EPrimitiveType)PreCacheParams.PrimitiveType, PSOInitializers);
+			CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, *EffectiveMaterial, MeshFillMode, MeshCullMode, bDitheredLODTransition, (EPrimitiveType)PreCacheParams.PrimitiveType, PSOInitializers);
 		}
 	}
 }
@@ -1050,7 +1059,7 @@ void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 void FDepthPassMeshProcessor::CollectDefaultMaterialPSOInitializers(
 	const FSceneTexturesConfig& SceneTexturesConfig,
 	const FMaterial& Material,
-	const FVertexFactoryType* VertexFactoryType,
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	const ERasterizerFillMode MeshFillMode = FM_Solid;
@@ -1060,34 +1069,34 @@ void FDepthPassMeshProcessor::CollectDefaultMaterialPSOInitializers(
 		ERasterizerCullMode MeshCullMode = CM_None;
 		bool bDitheredLODTransition = false;
 
-		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
 
 		bDitheredLODTransition = true;
-		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
 	}
 	{
 		ERasterizerCullMode MeshCullMode = CM_CW;
 		bool bDitheredLODTransition = false;
 
-		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
 
 		bDitheredLODTransition = true;
-		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
 	}
 	{
 		ERasterizerCullMode MeshCullMode = CM_CCW;
 		bool bDitheredLODTransition = false;
 
-		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
 
 		bDitheredLODTransition = true;
-		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
-		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryData, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PT_TriangleList, PSOInitializers);
 	}
 }
 

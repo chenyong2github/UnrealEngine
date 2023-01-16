@@ -3297,10 +3297,10 @@ FGraphEventArray FVersionedNiagaraEmitterData::PrecacheComputePSOs(const UNiagar
 		for (int32 i = 0; i < ShaderScript->GetNumPermutations(); ++i)
 		{
 			FRHIComputeShader* ComputeShader = ShaderScript->GetShaderGameThread(i).GetComputeShader();
-			FGraphEventRef TaskRef = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
-			if (TaskRef.IsValid())
+			FPSOPrecacheRequestResult PSOPrecacheRequestResult = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
+			if (PSOPrecacheRequestResult.AsyncCompileEvent.IsValid())
 			{
-				PSOPrecacheEvents.Add(TaskRef);
+				PSOPrecacheEvents.Add(PSOPrecacheRequestResult.AsyncCompileEvent);
 				continue;
 			}
 
@@ -3377,10 +3377,10 @@ FGraphEventArray FVersionedNiagaraEmitterData::PrecacheComputePSOs(const UNiagar
 		for (int32 i=0; i < ShaderScript->GetNumPermutations(); ++i)
 		{
 			FRHIComputeShader* ComputeShader = ShaderScript->GetShaderGameThread(i).GetComputeShader();
-			FGraphEventRef PSOPrecacheEvent = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
-			if (PSOPrecacheEvent != nullptr && bAddToPSOReadyGraphTasks)
+			FPSOPrecacheRequestResult PSOPrecacheRequestResult = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
+			if (PSOPrecacheRequestResult.AsyncCompileEvent != nullptr && bAddToPSOReadyGraphTasks)
 			{
-				PSOReadyGraphTasks.Add(PSOPrecacheEvent);
+				PSOReadyGraphTasks.Add(PSOPrecacheRequestResult.AsyncCompileEvent);
 			}
 		}
 	}

@@ -4571,9 +4571,9 @@ void UInstancedStaticMeshComponent::PostLoad()
 	OnPostLoadPerInstanceData();
 }
 
-void UInstancedStaticMeshComponent::PrecachePSOs()
+void UInstancedStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
 {	
-	if (!IsComponentPSOPrecachingEnabled() || GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
+	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
 	{
 		return;
 	}
@@ -4589,25 +4589,23 @@ void UInstancedStaticMeshComponent::PrecachePSOs()
 		}
 	}
 
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
+	FPSOPrecacheParams PrecachePSOParams = BasePrecachePSOParams;
 	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
 	PrecachePSOParams.bReverseCulling = bReverseCulling;
 	
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType : &FInstancedStaticMeshVertexFactory::StaticType;
 
-	FGraphEventArray PSOPrecacheCompileEvents;
 	for (uint16 MaterialIndex : UsedMaterialIndices)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
 		if (MaterialInterface)
 		{
-			PSOPrecacheCompileEvents.Append(MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams));
+			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+			ComponentParams.MaterialInterface = MaterialInterface;
+			ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType));
+			ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 		}
 	}
-
-	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
-	RequestRecreateRenderStateWhenPSOPrecacheFinished(PSOPrecacheCompileEvents);
 }
 
 void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()

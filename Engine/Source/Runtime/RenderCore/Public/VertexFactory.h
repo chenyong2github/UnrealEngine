@@ -682,7 +682,10 @@ protected:
 	 * @param AttributeIndex - The attribute index to which the stream component is bound.
 	 * @return The vertex element which corresponds to Component.
 	 */
-	FVertexElement AccessStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex);
+	FVertexElement AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex)
+	{
+		return AccessStreamComponent(Component, AttributeIndex, Streams);
+	}
 
 	/**
 	 * Creates a vertex element for a vertex stream component.  Adds a unique position stream index for the vertex buffer used by the component.
@@ -692,6 +695,25 @@ protected:
 	 * @return The vertex element which corresponds to Component.
 	 */
 	FVertexElement AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex, EVertexInputStreamType InputStreamType);
+	
+	/**
+	 * Creates a vertex element for a vertex stream components.  Adds a unique stream index for the vertex buffer used by the component.
+	 * @param Component - The vertex stream component.
+	 * @param AttributeIndex - The attribute index to which the stream component is bound.
+	 * @param AttributeIndex - Stream array where to add the new streams.
+	 * @return The vertex element which corresponds to Component.
+	 */
+	template<typename VertexStreamListType>
+	static FVertexElement AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex, VertexStreamListType& InOutStreams)
+	{
+		FVertexStream VertexStream;
+		VertexStream.VertexBuffer = Component.VertexBuffer;
+		VertexStream.Stride = Component.Stride;
+		VertexStream.Offset = Component.StreamOffset;
+		VertexStream.VertexStreamUsage = Component.VertexStreamUsage;
+		return FVertexElement((uint8)InOutStreams.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	}
+
 
 	/**
 	 * Initializes the vertex declaration.
@@ -720,8 +742,10 @@ protected:
 		}
 	};
 
+	typedef TArray<FVertexStream, TInlineAllocator<8> > FVertexStreamList;
+		
 	/** The vertex streams used to render the factory. */
-	TArray<FVertexStream,TInlineAllocator<8> > Streams;
+	FVertexStreamList Streams;
 
 	/* VF can explicitly set this to false to avoid errors without decls; this is for VFs that fetch from buffers directly (e.g. Niagara) */
 	bool bNeedsDeclaration = true;
@@ -748,7 +772,7 @@ private:
 	int8 PrimitiveIdStreamIndex[(int32)EVertexInputStreamType::Count];
 #endif
 
-	inline int32 TranslatePrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType) const
+	static int32 TranslatePrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType)
 	{
 	#if WITH_EDITOR
 		return static_cast<int32>(InputStreamType) + (InFeatureLevel <= ERHIFeatureLevel::ES3_1 ? static_cast<int32>(EVertexInputStreamType::Count) : 0); 

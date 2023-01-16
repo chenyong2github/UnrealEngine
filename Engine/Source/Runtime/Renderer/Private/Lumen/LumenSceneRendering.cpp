@@ -621,7 +621,7 @@ public:
 	FLumenCardMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
-	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
@@ -723,7 +723,7 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 	}
 }
 
-void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -750,7 +750,7 @@ void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 
 		if (!GetLumenCardShaders(
 			Material,
-			VertexFactoryType,
+			VertexFactoryData.VertexFactoryType,
 			PassShaders.VertexShader,
 			PassShaders.PixelShader))
 		{
@@ -761,7 +761,7 @@ void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 		SetupCardCaptureRenderTargetsInfo(RenderTargetsInfo);
 
 		AddGraphicsPipelineStateInitializer(
-			VertexFactoryType,
+			VertexFactoryData,
 			Material,
 			PassDrawRenderState,
 			RenderTargetsInfo,
@@ -802,7 +802,7 @@ public:
 	FLumenCardNaniteMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
-	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 
@@ -913,12 +913,12 @@ bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
 void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 	const FSceneTexturesConfig& SceneTexturesConfig,
 	const FMaterial& Material, 
-	const FVertexFactoryType* VertexFactoryType, 
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
 	const FPSOPrecacheParams& PreCacheParams,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	// Make sure nanite rendering is supported
-	if (!SupportsNaniteRendering(VertexFactoryType, Material, FeatureLevel))
+	if (!SupportsNaniteRendering(VertexFactoryData.VertexFactoryType, Material, FeatureLevel))
 	{
 		return;
 	}
@@ -942,7 +942,7 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 	ShaderTypes.AddShaderType<FLumenCardPS<bMultiViewCapture>>();
 
 	FMaterialShaders Shaders;
-	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryData.VertexFactoryType, Shaders))
 	{
 		return;
 	}
@@ -953,7 +953,7 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 	SetupCardCaptureRenderTargetsInfo(RenderTargetsInfo);
 
 	AddGraphicsPipelineStateInitializer(
-		VertexFactoryType,
+		VertexFactoryData,
 		Material,
 		PassDrawRenderState,
 		RenderTargetsInfo,

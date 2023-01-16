@@ -938,14 +938,14 @@ void ULandscapeComponent::PostLoad()
 		FPSOPrecacheParams PrecachePSOParams;
 		SetupPrecachePSOParams(PrecachePSOParams);
 
-		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
 		if (!XYOffsetmapTexture)
 		{
-			VertexFactoryTypes.Add(&FLandscapeVertexFactory::StaticType);
+			VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(&FLandscapeVertexFactory::StaticType));
 		}
 		else
 		{
-			VertexFactoryTypes.Add(&FLandscapeXYOffsetVertexFactory::StaticType);
+			VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(&FLandscapeXYOffsetVertexFactory::StaticType));
 		}
 
 		// we need the fixed grid vertex factory for both virtual texturing and grass
@@ -953,15 +953,16 @@ void ULandscapeComponent::PostLoad()
 		bool bNeedsFixedGridVertexFactory = UseVirtualTexturing(FeatureLevel);
 		if (bNeedsFixedGridVertexFactory)
 		{
-			VertexFactoryTypes.Add(&FLandscapeFixedGridVertexFactory::StaticType);
+			VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(&FLandscapeFixedGridVertexFactory::StaticType));
 		}
 
+		TArray<FMaterialPSOPrecacheRequestID> MaterialPrecacheRequestIDs;
 		for (UMaterialInterface* MaterialInterface : Materials)
 		{
 			if (MaterialInterface)
 			{
 				MaterialInterface->ConditionalPostLoad();
-				MaterialInterface->PrecachePSOs(VertexFactoryTypes, PrecachePSOParams);
+				MaterialInterface->PrecachePSOs(VertexFactoryDataList, PrecachePSOParams, EPSOPrecachePriority::High, MaterialPrecacheRequestIDs);
 			}
 		}
 	}

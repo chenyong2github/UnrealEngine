@@ -2146,6 +2146,9 @@ bool FMaterial::PrepareDestroy_GameThread()
 {
 	check(IsInGameThread());
 
+	ReleasePSOPrecacheData(PrecachedPSORequestIDs);
+	PrecachedPSORequestIDs.Empty();
+
 #if WITH_EDITOR
 	const bool bReleasedCompilingId = ReleaseGameThreadCompilingShaderMap();
 
@@ -2804,235 +2807,36 @@ FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform, const FMaterialS
 }
 #endif // WITH_EDITOR
 
-/**
- * Helper task used to release the strong object reference to the material interface on the game thread
- * The release has to happen on the gamethread and the material interface can't be GCd while the PSO
- * collection is happening because it touches the material resources
- */
-class FMaterialInterfaceReleaseTask
-{
-public:
-	explicit FMaterialInterfaceReleaseTask(TStrongObjectPtr<UMaterialInterface>* InMaterialInterface)
-		: MaterialInterface(InMaterialInterface)
-	{
-	}
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		check(IsInGameThread());
-		delete MaterialInterface;
-	}
-
-public:
-
-	TStrongObjectPtr<UMaterialInterface>* MaterialInterface;
-
-	static ESubsequentsMode::Type	GetSubsequentsMode() { return ESubsequentsMode::FireAndForget; }
-	ENamedThreads::Type				GetDesiredThread() { return ENamedThreads::GameThread; }
-	FORCEINLINE TStatId				GetStatId() const { return TStatId(); }
-};
-
-/**
- * Helper task used to offload the PSO collection from the GameThread. The shader decompression
- * takes too long to run this on the GameThread and it isn't blocking anything crucial.
- * The graph event used to create this task is extended with the PSO compilation tasks itself so the user can optionally
- * wait or known when all PSOs are ready for rendering
- */
-class FMaterialPSOPrecacheCollectionTask
-{
-public:
-	explicit FMaterialPSOPrecacheCollectionTask(
-		TStrongObjectPtr<UMaterialInterface>* InMaterialInterface,
-		FMaterialShaderMap* InMaterialShaderMap,
-		ERHIFeatureLevel::Type InFeatureLevel,
-		FMaterial* InMaterial,
-		const TConstArrayView<const FVertexFactoryType*>& InVertexFactoryTypes,
-		const FPSOPrecacheParams& InPreCacheParams)
-		: MaterialInterface(InMaterialInterface)
-		, MaterialShaderMap(InMaterialShaderMap)
-		, FeatureLevel(InFeatureLevel)
-		, Material(InMaterial)
-		, VertexFactoryTypes(InVertexFactoryTypes)
-		, PreCacheParams(InPreCacheParams)
-	{
-	}
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		FTaskTagScope ParallelGTScope(ETaskTag::EParallelGameThread);
-
-		FGraphEventArray PSOCompileGraphEvents = MaterialShaderMap->CollectPSOs(FeatureLevel, Material, VertexFactoryTypes, PreCacheParams);
-		
-		// Won't touch the material interface anymore - PSO compile jobs take refs to all RHI resources while creating the task
-		TGraphTask<FMaterialInterfaceReleaseTask>::CreateTask().ConstructAndDispatchWhenReady(MaterialInterface);
-
-		// Mark this vertex factory with precache params as processed with current compile events
-		for (const FVertexFactoryType* VFType : VertexFactoryTypes)
-		{
-			Material->AddPrecachedPSOVertexFactoryType(VFType, PreCacheParams, PSOCompileGraphEvents);
-		}
-
-		// Extend MyCompletionGraphEvent to wait for all the async compile events
-		for (FGraphEventRef& GraphEvent : PSOCompileGraphEvents)
-		{
-			MyCompletionGraphEvent->DontCompleteUntil(GraphEvent);
-		}
-	}
-
-public:
-
-	TStrongObjectPtr<UMaterialInterface>* MaterialInterface;
-	FMaterialShaderMap* MaterialShaderMap;
-	ERHIFeatureLevel::Type FeatureLevel;
-	FMaterial* Material;
-	TArray<const FVertexFactoryType*, TInlineAllocator<4>> VertexFactoryTypes;
-	const FPSOPrecacheParams PreCacheParams;
-
-	static ESubsequentsMode::Type	GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-	ENamedThreads::Type				GetDesiredThread() { return ENamedThreads::AnyBackgroundThreadNormalTask; }
-	FORCEINLINE TStatId				GetStatId() const { return TStatId(); }
-};
-
-FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams)
+FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CollectPSOs);
 	
+	check(IsInGameThread());
+
 	FGraphEventArray GraphEvents;
-
-	// Only care about inline shaders for now
-	if (!bContainsInlineShaders || GameThreadShaderMap == nullptr)
+	for (const FPSOPrecacheVertexFactoryData& VFData : VertexFactoryDataList)
 	{
-		return GraphEvents;
-	}
-
-	auto FindPrecacheEntry = [this](const FPrecacheVertexTypeWithParams& Other) -> FPSOPrecacheEntry*
-	{
-		for (FPSOPrecacheEntry& Entry : PrecachedPSOVertexFactories)
+		if (!VFData.VertexFactoryType->SupportsPSOPrecaching())
 		{
-			if (Entry.PrecacheVertexTypeWithParams == Other)
-			{
-				return &Entry;
-			}
+			continue;
 		}
-		return nullptr;
-	};
 
-	TArray<const FVertexFactoryType*, TInlineAllocator<4>> MissingVFs;
+		FMaterialPSOPrecacheParams Params;
+		Params.FeatureLevel = FeatureLevel;
+		Params.Material = this;
+		Params.VertexFactoryData = VFData;
+		Params.PrecachePSOParams = PreCacheParams;
 
-	// Try and find missing entries which still need to be precached
-	{
-		FRWScopeLock ReadLock(PrecachePSOVFLock, SLT_ReadOnly);
-		for (const FVertexFactoryType* VFType : VertexFactoryTypes)
+		FMaterialPSOPrecacheRequestID RequestID = PrecacheMaterialPSOs(Params, Priority, GraphEvents);
+		if (RequestID != INDEX_NONE)
 		{
-			FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
-			PrecacheVertexTypeWithParams.VertexFactoryType = VFType;
-			PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
+			OutMaterialPSORequestIDs.AddUnique(RequestID);
 
-			FPSOPrecacheEntry* CurrentEntry = FindPrecacheEntry(PrecacheVertexTypeWithParams);			
-			if (CurrentEntry == nullptr || !CurrentEntry->CompilingGraphEvents.IsEmpty())
-			{
-				MissingVFs.Add(VFType);
-			}
+			// Verified in game thread above
+			PrecachedPSORequestIDs.AddUnique(RequestID);
 		}
 	}
-
-	if (MissingVFs.Num() > 0)
-	{
-		// Build array again with writing lock because we probably have missing entries
-		TArray<const FVertexFactoryType*, TInlineAllocator<4>> ActualMissingVFs;
-
-		{
-			// We possibly need to add
-			FRWScopeLock WriteLock(PrecachePSOVFLock, SLT_Write);
-
-			for (const FVertexFactoryType* VFType : MissingVFs)
-			{
-				FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
-				PrecacheVertexTypeWithParams.VertexFactoryType = VFType;
-				PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
-
-				FPSOPrecacheEntry* CurrentEntry = FindPrecacheEntry(PrecacheVertexTypeWithParams);
-				if (CurrentEntry == nullptr)
-				{
-					ActualMissingVFs.Add(VFType);
-				}
-				else if (!CurrentEntry->CompilingGraphEvents.IsEmpty())
-				{
-					// trim the current list of open compile events
-					for (int32 Index = 0; Index < CurrentEntry->CompilingGraphEvents.Num(); ++Index)
-					{
-						if (CurrentEntry->CompilingGraphEvents[Index]->IsComplete())
-						{
-							CurrentEntry->CompilingGraphEvents.RemoveAtSwap(Index);
-							Index--;
-						}
-					}
-
-					// add the current active compile events
-					GraphEvents.Append(CurrentEntry->CompilingGraphEvents);
-				}
-			}
-		}
-
-		if (ActualMissingVFs.Num() > 0)
-		{
-			// Offload to background job task graph if threading is enabled
-			// Don't use background thread in editor because shader maps and material resources could be destroyed while the task is running
-			// If it's a perf problem at some point then OutPSOCollectionGraphEvent has to be used at material level in the correct places to wait for
-			bool bUseBackgroundTask = FApp::ShouldUseThreadingForPerformance() && !GIsEditor;
-#if PSO_PRECACHING_VALIDATE
-			// when validation is enabled then we want to make sure that the precache stats are updated before the mesh draw commands can be build
-			bUseBackgroundTask = bUseBackgroundTask && !PSOCollectorStats::IsPrecachingValidationEnabled();
-#endif // PSO_PRECACHING_VALIDATE
-			if (bUseBackgroundTask)
-			{
-				// Make sure the material instance isn't garbage collected or destroyed yet (create TStrongObjectPtr which will be destroyed on the GT when the collection is done)
-				TStrongObjectPtr<UMaterialInterface>* MaterialInterface = new TStrongObjectPtr<UMaterialInterface>(GetMaterialInterface());
-
-				// Create and kick the collection task
-				FGraphEventRef GraphEvent = TGraphTask<FMaterialPSOPrecacheCollectionTask>::CreateTask().ConstructAndDispatchWhenReady(
-					MaterialInterface, GameThreadShaderMap, InFeatureLevel, this, ActualMissingVFs, PreCacheParams);
-				GraphEvents.Add(GraphEvent);
-			}
-			else
-			{				
-				GraphEvents = GameThreadShaderMap->CollectPSOs(InFeatureLevel, this, ActualMissingVFs, PreCacheParams);
-				for (const FVertexFactoryType* VFType : ActualMissingVFs)
-				{
-					AddPrecachedPSOVertexFactoryType(VFType, PreCacheParams, GraphEvents);
-				}
-			}
-		}
-	}
-
 	return GraphEvents;
-}
-
-void FMaterial::AddPrecachedPSOVertexFactoryType(const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, const FGraphEventArray& PSOCompileEvents)
-{
-	FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
-	PrecacheVertexTypeWithParams.VertexFactoryType = VertexFactoryType;
-	PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
-
-	FRWScopeLock WriteLock(PrecachePSOVFLock, SLT_Write);
-
-	for (FPSOPrecacheEntry& Entry : PrecachedPSOVertexFactories)
-	{
-		if (Entry.PrecacheVertexTypeWithParams == PrecacheVertexTypeWithParams)
-		{
-			// Already found, then merge the outstanding compile events
-			for (FGraphEventRef CompileEvent : PSOCompileEvents)
-			{
-				Entry.CompilingGraphEvents.AddUnique(CompileEvent);
-			}
-
-			return;
-		}
-	}
-
-	FPSOPrecacheEntry& NewEntry = PrecachedPSOVertexFactories[PrecachedPSOVertexFactories.AddDefaulted(1)];
-	NewEntry.PrecacheVertexTypeWithParams = PrecacheVertexTypeWithParams;
-	NewEntry.CompilingGraphEvents = PSOCompileEvents;
 }
 
 #if WITH_EDITOR

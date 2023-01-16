@@ -956,7 +956,7 @@ static bool ShouldDraw(const FMaterial& Material)
 		&& Material.IsDistorted());
 }
 
-void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	if (!ShouldDraw(Material))
 	{
@@ -968,7 +968,7 @@ void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 		FDistortionMeshPS> DistortionPassShaders;
 	if (!GetDistortionPassShaders(
 		Material,
-		VertexFactoryType,
+		VertexFactoryData.VertexFactoryType,
 		FeatureLevel,
 		DistortionPassShaders.VertexShader,
 		DistortionPassShaders.PixelShader))
@@ -992,7 +992,7 @@ void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig
 		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite, RenderTargetsInfo);
 
 	AddGraphicsPipelineStateInitializer(
-		VertexFactoryType,
+		VertexFactoryData,
 		Material,
 		PassDrawRenderState,
 		RenderTargetsInfo,

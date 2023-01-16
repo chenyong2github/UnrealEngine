@@ -650,6 +650,106 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::GetPSOPrecacheVertexFetchElements
 	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 10, 0, false));
 }
 
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinVertexFactory<BoneInfluenceType>::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, FGPUSkinDataType& GPUSkinData, FVertexDeclarationElementList& OutElements, FVertexStreamList& InOutStreams, int32& OutMorphDeltaStreamIndex)
+{
+	check(InputStreamType == EVertexInputStreamType::Default);
+
+	// Position
+	OutElements.Add(AccessStreamComponent(GPUSkinData.PositionComponent, 0, InOutStreams));
+
+	// Tangent basis vector
+	OutElements.Add(AccessStreamComponent(GPUSkinData.TangentBasisComponents[0], 1, InOutStreams));
+	OutElements.Add(AccessStreamComponent(GPUSkinData.TangentBasisComponents[1], 2, InOutStreams));
+
+	// Texture coordinates
+	if (GPUSkinData.TextureCoordinates.Num())
+	{
+		const uint8 BaseTexCoordAttribute = 5;
+		for (int32 CoordinateIndex = 0; CoordinateIndex < GPUSkinData.TextureCoordinates.Num(); ++CoordinateIndex)
+		{
+			OutElements.Add(AccessStreamComponent(
+				GPUSkinData.TextureCoordinates[CoordinateIndex],
+				BaseTexCoordAttribute + CoordinateIndex, InOutStreams
+			));
+		}
+
+		for (int32 CoordinateIndex = GPUSkinData.TextureCoordinates.Num(); CoordinateIndex < MAX_TEXCOORDS; ++CoordinateIndex)
+		{
+			OutElements.Add(AccessStreamComponent(
+				GPUSkinData.TextureCoordinates[GPUSkinData.TextureCoordinates.Num() - 1],
+				BaseTexCoordAttribute + CoordinateIndex, InOutStreams
+			));
+		}
+	}
+
+	if (GPUSkinData.ColorComponentsSRV == nullptr)
+	{
+		GPUSkinData.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+		GPUSkinData.ColorIndexMask = 0;
+	}
+
+	// Vertex color - account for the possibility that the mesh has no vertex colors
+	if (GPUSkinData.ColorComponent.VertexBuffer)
+	{
+		OutElements.Add(AccessStreamComponent(GPUSkinData.ColorComponent, 13, InOutStreams));
+	}
+	else
+	{
+		// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+		// This wastes 4 bytes of memory per vertex, but prevents having to compile out twice the number of vertex factories.
+		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
+		OutElements.Add(AccessStreamComponent(NullColorComponent, 13, InOutStreams));
+	}
+
+	if (BoneInfluenceType == UnlimitedBoneInfluence)
+	{
+		// Blend offset count
+		OutElements.Add(AccessStreamComponent(GPUSkinData.BlendOffsetCount, 3, InOutStreams));
+	}
+	else
+	{
+		// Bone indices
+		OutElements.Add(AccessStreamComponent(GPUSkinData.BoneIndices, 3, InOutStreams));
+
+		// Bone weights
+		OutElements.Add(AccessStreamComponent(GPUSkinData.BoneWeights, 4, InOutStreams));
+
+		// Extra bone indices & weights
+		if (GPUSkinData.NumBoneInfluences > MAX_INFLUENCES_PER_STREAM)
+		{
+			OutElements.Add(AccessStreamComponent(GPUSkinData.ExtraBoneIndices, 14, InOutStreams));
+			OutElements.Add(AccessStreamComponent(GPUSkinData.ExtraBoneWeights, 15, InOutStreams));
+		}
+		else
+		{
+			OutElements.Add(AccessStreamComponent(GPUSkinData.BoneIndices, 14, InOutStreams));
+			OutElements.Add(AccessStreamComponent(GPUSkinData.BoneWeights, 15, InOutStreams));
+		}
+	}
+
+	// If the mesh is not a morph target, bind null component to morph delta stream.
+	FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
+	FVertexElement DeltaPositionElement = AccessStreamComponent(GPUSkinData.bMorphTarget ? GPUSkinData.DeltaPositionComponent : NullComponent, 9, InOutStreams);
+	OutElements.Add(DeltaPositionElement);
+	OutElements.Add(FVertexFactory::AccessStreamComponent(GPUSkinData.bMorphTarget ? GPUSkinData.DeltaTangentZComponent : NullComponent, 10, InOutStreams));
+
+	// Cache delta stream index (position & tangentZ share the same stream)
+	OutMorphDeltaStreamIndex = DeltaPositionElement.StreamIndex;
+}
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinVertexFactory<BoneInfluenceType>::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, FGPUSkinDataType& GPUSkinData, FVertexDeclarationElementList& OutElements)
+{
+	FVertexStreamList VertexStreams;
+	int32 MorphDeltaStreamIndex;
+	GetVertexElements(FeatureLevel, InputStreamType, GPUSkinData, OutElements, VertexStreams, MorphDeltaStreamIndex);
+
+	// For ES3.1 attribute ID needs to be done differently
+	check(FeatureLevel > ERHIFeatureLevel::ES3_1);
+	OutElements.Add(FVertexElement(VertexStreams.Num(), 0, VET_UInt, 16, 0, true));
+}
+
 /**
 * Add the vertex declaration elements for the streams.
 * @param InData - Type with stream components.
@@ -659,90 +759,9 @@ template <GPUSkinBoneInfluenceType BoneInfluenceType>
 void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FVertexDeclarationElementList& OutElements)
 {
 	check(Data.IsValid());
+	GetVertexElements(GetFeatureLevel(), EVertexInputStreamType::Default, *Data, OutElements, Streams, MorphDeltaStreamIndex);
 
-	// Position
-	OutElements.Add(AccessStreamComponent(Data->PositionComponent, 0));
-
-	// Tangent basis vector
-	OutElements.Add(AccessStreamComponent(Data->TangentBasisComponents[0], 1));
-	OutElements.Add(AccessStreamComponent(Data->TangentBasisComponents[1], 2));
-
-	// Texture coordinates
-	if (Data->TextureCoordinates.Num())
-	{
-		const uint8 BaseTexCoordAttribute = 5;
-		for (int32 CoordinateIndex = 0; CoordinateIndex < Data->TextureCoordinates.Num(); ++CoordinateIndex)
-		{
-			OutElements.Add(AccessStreamComponent(
-				Data->TextureCoordinates[CoordinateIndex],
-				BaseTexCoordAttribute + CoordinateIndex
-			));
-		}
-
-		for (int32 CoordinateIndex = Data->TextureCoordinates.Num(); CoordinateIndex < MAX_TEXCOORDS; ++CoordinateIndex)
-		{
-			OutElements.Add(AccessStreamComponent(
-				Data->TextureCoordinates[Data->TextureCoordinates.Num() - 1],
-				BaseTexCoordAttribute + CoordinateIndex
-			));
-		}
-	}
-
-	if (Data->ColorComponentsSRV == nullptr)
-	{
-		Data->ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
-		Data->ColorIndexMask = 0;
-	}
-
-	// Vertex color - account for the possibility that the mesh has no vertex colors
-	if (Data->ColorComponent.VertexBuffer)
-	{
-		OutElements.Add(AccessStreamComponent(Data->ColorComponent, 13));
-	}
-	else
-	{
-		// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
-		// This wastes 4 bytes of memory per vertex, but prevents having to compile out twice the number of vertex factories.
-		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-		OutElements.Add(AccessStreamComponent(NullColorComponent, 13));
-	}
-
-	if (BoneInfluenceType == UnlimitedBoneInfluence)
-	{
-		// Blend offset count
-		OutElements.Add(AccessStreamComponent(Data->BlendOffsetCount, 3));
-	}
-	else
-	{
-		// Bone indices
-		OutElements.Add(AccessStreamComponent(Data->BoneIndices, 3));
-
-		// Bone weights
-		OutElements.Add(AccessStreamComponent(Data->BoneWeights, 4));
-
-		// Extra bone indices & weights
-		if (GetNumBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
-		{
-			OutElements.Add(AccessStreamComponent(Data->ExtraBoneIndices, 14));
-			OutElements.Add(AccessStreamComponent(Data->ExtraBoneWeights, 15));
-		}
-		else
-		{
-			OutElements.Add(AccessStreamComponent(Data->BoneIndices, 14));
-			OutElements.Add(AccessStreamComponent(Data->BoneWeights, 15));
-		}
-	}
-
-	// Primitive Id
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, OutElements, 16, 0xff);
-
-	// If the mesh is not a morph target, bind null component to morph delta stream.
-	FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
-	FVertexElement DeltaPositionElement = AccessStreamComponent(Data->bMorphTarget ? Data->DeltaPositionComponent : NullComponent, 9);
-	// Cache delta stream index (position & tangentZ share the same stream)
-	MorphDeltaStreamIndex = DeltaPositionElement.StreamIndex;
-	OutElements.Add(DeltaPositionElement);
-	OutElements.Add(FVertexFactory::AccessStreamComponent(Data->bMorphTarget ? Data->DeltaTangentZComponent : NullComponent, 10));
 }
 
 /**
