@@ -5,6 +5,7 @@
 #include "Containers/ContainersFwd.h"
 #include "HAL/Platform.h"
 #include "Math/MathFwd.h"
+#include "Misc/EnumClassFlags.h"
 #include "RenderGraphFwd.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
@@ -71,6 +72,20 @@ enum EBasePassDrawListType
 	EBasePass_MAX
 };
 
+enum class EUpdateAllPrimitiveSceneInfosAsyncOps
+{
+	None = 0,
+	
+	// Cached mesh draw commands are cached asynchronously.
+	CacheMeshDrawCommands = 1 << 0,
+	
+	// Light primitive interactions are created asynchronously.
+	CreateLightPrimitiveInteractions = 1 << 1,
+
+	All = CacheMeshDrawCommands | CreateLightPrimitiveInteractions
+};
+ENUM_CLASS_FLAGS(EUpdateAllPrimitiveSceneInfosAsyncOps);
+
 /**
  * An interface to the private scene manager implementation of a scene.  Use GetRendererModule().AllocateScene to create.
  * The scene
@@ -99,8 +114,8 @@ public:
 	/**
 	* Updates all primitive scene info additions, remobals and translation changes
 	*/
-	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs = false) = 0;
-	ENGINE_API virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false);
+	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None) = 0;
+	ENGINE_API void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList);
 
 	/** 
 	 * Updates the transform of a primitive which has already been added to the scene. 

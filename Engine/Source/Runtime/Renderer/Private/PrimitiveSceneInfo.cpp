@@ -199,6 +199,8 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent, FScen
 	bRegisteredWithVelocityData(false),
 	bCacheShadowAsStatic(InComponent->Mobility != EComponentMobility::Movable),
 	bNaniteRasterBinsRenderCustomDepth(false),
+	bPendingAddToScene(false),
+	bPendingFlushVirtualTexture(false),
 	LevelUpdateNotificationIndex(INDEX_NONE),
 	InstanceSceneDataOffset(INDEX_NONE),
 	NumInstanceSceneDataEntries(0),
@@ -292,12 +294,9 @@ FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance
 }
 #endif
 
-void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
-{
-	//@todo - only need material uniform buffers to be created since we are going to cache pointers to them
-	// Any updates (after initial creation) don't need to be forced here
-	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
+void FPrimitiveSceneInfo::CacheMeshDrawCommands(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos)
+{
 	SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheMeshDrawCommands, FColor::Emerald);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FPrimitiveSceneInfo_CacheMeshDrawCommands);
 
@@ -449,7 +448,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 			NumBatches, 
 			[&DrawListContexts, &DoWorkLambda](int32 Index)
 			{
-				FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+				FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 				DoWorkLambda(DrawListContexts[Index], Index);
 			},
 			EParallelForFlags::PumpRenderingThread | EParallelForFlags::Unbalanced
@@ -554,15 +553,13 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 	StaticMeshCommandInfos.Empty();
 }
 
-static void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext);
+static void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext);
 
-void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
 	SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheNaniteDrawCommands, FColor::Emerald);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FPrimitiveSceneInfo_CacheNaniteDrawCommands);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CacheNaniteDrawCommands);
-
-	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 	if (bNaniteEnabled)
@@ -574,10 +571,10 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 			ParallelForWithTaskContext(
 				DrawListContexts,
 				SceneInfos.Num(),
-				[&RHICmdList, Scene, &SceneInfos](FNaniteDrawListContext& Context, int32 Index)
+				[Scene, &SceneInfos](FNaniteDrawListContext& Context, int32 Index)
 				{
 					FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-					BuildNaniteDrawCommands(RHICmdList, Scene, SceneInfos[Index], Context);
+					BuildNaniteDrawCommands(Scene, SceneInfos[Index], Context);
 				}
 			);
 		}
@@ -586,7 +583,7 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 			FNaniteDrawListContext& DrawListContext = DrawListContexts.AddDefaulted_GetRef();
 			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfos)
 			{
-				BuildNaniteDrawCommands(RHICmdList, Scene, PrimitiveSceneInfo, DrawListContext);
+				BuildNaniteDrawCommands(Scene, PrimitiveSceneInfo, DrawListContext);
 			}
 		}
 
@@ -601,7 +598,7 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 	}
 }
 
-void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext)
+void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext)
 {
 	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterial"));
 	static const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnAnyThread() != 0);
@@ -1101,7 +1098,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceWorldBounds(const FMatri
 }
 #endif
 
-void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bAddToStaticDrawLists)
+void FPrimitiveSceneInfo::AddStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, bool bCacheMeshDrawCommands)
 {
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
@@ -1151,10 +1148,10 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 		}
 	}
 
-	if (bAddToStaticDrawLists)
+	if (bCacheMeshDrawCommands)
 	{
-		CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
-		CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
+		CacheMeshDrawCommands(Scene, SceneInfos);
+		CacheNaniteDrawCommands(Scene, SceneInfos);
 	#if RHI_RAYTRACING
 		CacheRayTracingPrimitives(Scene, SceneInfos);
 	#endif
@@ -1349,7 +1346,7 @@ void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 	}
 }
 
-void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists, bool bAsyncCreateLPIs)
+void FPrimitiveSceneInfo::AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EPrimitiveAddToSceneOps Ops)
 {
 	check(IsInRenderingThread());
 
@@ -1379,6 +1376,8 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 					SceneInfo->IndirectLightingCacheUniformBuffer = TUniformBufferRef<FIndirectLightingCacheUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 				}
 			}
+
+			SceneInfo->bPendingAddToScene = false;
 		}
 	}
 
@@ -1442,9 +1441,9 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_AddStaticMeshes, FColor::Magenta);
-		if (bUpdateStaticDrawLists)
+		if (EnumHasAnyFlags(Ops, EPrimitiveAddToSceneOps::AddStaticMeshes))
 		{
-			AddStaticMeshes(RHICmdList, Scene, SceneInfos, bAddToStaticDrawLists);
+			AddStaticMeshes(Scene, SceneInfos, EnumHasAnyFlags(Ops, EPrimitiveAddToSceneOps::CacheMeshDrawCommands));
 		}
 	}
 
@@ -1538,6 +1537,8 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 				Scene->PrimitiveRayTracingGroupIds[PackedIndex] = Scene->PrimitiveRayTracingGroups.FindId(RayTracingGroupId);
 			}
 #endif
+
+			INC_MEMORY_STAT_BY(STAT_PrimitiveInfoMemory, sizeof(*SceneInfo) + SceneInfo->StaticMeshes.GetAllocatedSize() + SceneInfo->StaticMeshRelevances.GetAllocatedSize() + Proxy->GetMemoryFootprint());
 		}
 	}
 
@@ -1567,12 +1568,12 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 	}
 
 	// Find lights that affect the primitive in the light octree.
-	for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+	if (EnumHasAnyFlags(Ops, EPrimitiveAddToSceneOps::CreateLightPrimitiveInteractions))
 	{
-		Scene->CreateLightPrimitiveInteractionsForPrimitive(SceneInfo, bAsyncCreateLPIs);
-
-		FPrimitiveSceneProxy* Proxy = SceneInfo->Proxy;
-		INC_MEMORY_STAT_BY(STAT_PrimitiveInfoMemory, sizeof(*SceneInfo) + SceneInfo->StaticMeshes.GetAllocatedSize() + SceneInfo->StaticMeshRelevances.GetAllocatedSize() + Proxy->GetMemoryFootprint());
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+		{
+			Scene->CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
+		}
 	}
 
 	{
@@ -1733,7 +1734,7 @@ bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
 	return Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex];
 }
 
-void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists)
+void FPrimitiveSceneInfo::UpdateStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneInfo_UpdateStaticMeshes);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPrimitiveSceneInfo_UpdateStaticMeshes);
@@ -1779,8 +1780,8 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 	{
 		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RasterCommands))
 		{
-			CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
-			CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
+			CacheMeshDrawCommands(Scene, SceneInfos);
+			CacheNaniteDrawCommands(Scene, SceneInfos);
 		}
 
 	#if RHI_RAYTRACING

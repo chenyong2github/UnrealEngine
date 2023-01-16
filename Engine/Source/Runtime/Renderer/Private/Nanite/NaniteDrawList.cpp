@@ -203,7 +203,7 @@ void FNaniteDrawListContext::FinalizeCommand(
 
 void FNaniteDrawListContext::Apply(FScene& Scene)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 
 	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterial"));
 	const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnRenderThread() != 0);

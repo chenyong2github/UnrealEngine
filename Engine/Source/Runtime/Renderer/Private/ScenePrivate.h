@@ -3040,7 +3040,7 @@ public:
 	virtual void AddPrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override;
-	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs = false) override;
+	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None) override;
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override;
 	virtual void UpdatePrimitiveInstances(UInstancedStaticMeshComponent* Primitive) override;
 	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) override;
@@ -3355,12 +3355,9 @@ public:
 		++SceneFrameNumber;
 	}
 
-	/** Debug function to abtest lazy static mesh drawlists. */
-	void UpdateDoLazyStaticMeshUpdate(FRHICommandListImmediate& CmdList);
-
 	void DumpMeshDrawCommandMemoryStats();
 
-	void CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo, bool bAsyncCreateLPIs);
+	void CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo);
 
 	FORCEINLINE TArray<FCachedShadowMapData>* GetCachedShadowMapDatas(int32 LightID)
 	{
@@ -3419,6 +3416,16 @@ public:
 	FLumenSceneDataIterator GetLumenSceneDataIterator() const
 	{
 		return FLumenSceneDataIterator(this);
+	}
+
+	void WaitForCreateLightPrimitiveInteractionsTask()
+	{
+		CreateLightPrimitiveInteractionsTask.Wait();
+	}
+
+	void WaitForCacheMeshDrawCommandsTask()
+	{
+		CacheMeshDrawCommandsTask.Wait();
 	}
 
 	void LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive);
@@ -3590,6 +3597,9 @@ private:
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
 	Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
+
+	UE::Tasks::FTask CreateLightPrimitiveInteractionsTask;
+	UE::Tasks::FTask CacheMeshDrawCommandsTask;
 
 	FSceneLightInfoUpdates *SceneLightInfoUpdates;
 

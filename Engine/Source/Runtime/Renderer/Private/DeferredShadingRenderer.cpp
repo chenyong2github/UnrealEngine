@@ -234,6 +234,20 @@ static FAutoConsoleVariableRef CRayTracingParallelMeshBatchSize(
 	TEXT("Batch size for ray tracing materials parallel jobs."),
 	ECVF_RenderThreadSafe);
 
+static int32 GAsyncCreateLightPrimitiveInteractions = 1;
+static FAutoConsoleVariableRef CVarAsyncCreateLightPrimitiveInteractions(
+	TEXT("r.AsyncCreateLightPrimitiveInteractions"),
+	GAsyncCreateLightPrimitiveInteractions,
+	TEXT("Light primitive interactions are created off the render thread in an async task."),
+	ECVF_RenderThreadSafe);
+
+static int32 GAsyncCacheMeshDrawCommands = 1;
+static FAutoConsoleVariableRef CVarAsyncMeshDrawCommands(
+	TEXT("r.AsyncCacheMeshDrawCommands"),
+	GAsyncCacheMeshDrawCommands,
+	TEXT("Mesh draw command caching is offloaded to an async task."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance(
 	TEXT("r.RayTracing.DynamicGeometryLastRenderTimeUpdateDistance"),
 	5000.0f,
@@ -2422,8 +2436,22 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
-	
-	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
+
+	{
+		EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None;
+
+		if (GAsyncCreateLightPrimitiveInteractions > 0)
+		{
+			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions;
+		}
+
+		if (GAsyncCacheMeshDrawCommands > 0)
+		{
+			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands;
+		}
+
+		Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, AsyncOps);
+	}
 
 #if RHI_RAYTRACING
 	// Initialize ray tracing flags, in case they weren't initialized in the CreateSceneRenderers code path
@@ -2447,6 +2475,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged || bNaniteRayTracingModeChanged || bHasRayTracingEnableChanged)
 		{
+			Scene->WaitForCacheMeshDrawCommandsTask();
+
 			// In some situations, we need to refresh the cached ray tracing mesh commands because they contain data about the currently bound shader. 
 			// This operation is a bit expensive but only happens once as we transition between modes which should be rare.
 			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
@@ -2456,6 +2486,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (bRefreshRayTracingInstances)
 		{
+			Scene->WaitForCacheMeshDrawCommandsTask();
+
 			// In some situations, we need to refresh the cached ray tracing instance.
 			// eg: Need to update PrimitiveRayTracingFlags
 			// This operation is a bit expensive but only happens once as we transition between modes which should be rare.

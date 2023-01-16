@@ -1523,7 +1523,7 @@ namespace RuntimeVirtualTexture
 		// This is required to collect dynamic primitives from the views (not used here, but we must provide one).
 		FGPUSceneDynamicContext GPUSceneDynamicContext(InDesc.Scene->GPUScene);
 
-		InDesc.Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
+		InDesc.Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
 		// Call to let GPU-Scene determine if it is active and record scene primitive count
 		FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(InDesc.Scene->GPUScene, GPUSceneDynamicContext, InDesc.Scene);

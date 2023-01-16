@@ -269,6 +269,16 @@ struct FPersistentPrimitiveIndex
 	int32 Index;
 };
 
+enum class EPrimitiveAddToSceneOps
+{
+	None = 0,
+	AddStaticMeshes = 1 << 0,
+	CacheMeshDrawCommands = 1 << 1,
+	CreateLightPrimitiveInteractions = 1 << 2,
+	All = AddStaticMeshes | CacheMeshDrawCommands | CreateLightPrimitiveInteractions
+};
+ENUM_CLASS_FLAGS(EPrimitiveAddToSceneOps);
+
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
  */
@@ -428,7 +438,7 @@ public:
 	~FPrimitiveSceneInfo();
 
 	/** Adds the primitive to the scene. */
-	static void AddToScene(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists = true, bool bAsyncCreateLPIs = false);
+	static void AddToScene(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EPrimitiveAddToSceneOps Ops = EPrimitiveAddToSceneOps::All);
 
 	/** Removes the primitive from the scene. */
 	void RemoveFromScene(bool bUpdateStaticDrawLists);
@@ -457,7 +467,7 @@ public:
 	}
 
 	/** Updates the primitive's static meshes in the scene. */
-	static void UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists = true);
+	static void UpdateStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists = true);
 
 	/** Updates the primitive's uniform buffer. */
 	void UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList);
@@ -478,7 +488,7 @@ public:
 	void BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
 
 	/** Adds the primitive's static meshes to the scene. */
-	static void AddStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bUpdateStaticDrawLists = true);
+	static void AddStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, bool bCacheMeshDrawCommands = true);
 
 	/** Removes the primitive's static meshes from the scene. */
 	void RemoveStaticMeshes();
@@ -677,6 +687,12 @@ private:
 	/** True if the Nanite raster bins were registered with custom depth enabled */
 	bool bNaniteRasterBinsRenderCustomDepth : 1;
 
+	/** True if the primitive is queued for add. */
+	bool bPendingAddToScene : 1;
+	
+	/** True if the primitive is queued to have its virtual texture flushed. */
+	bool bPendingFlushVirtualTexture : 1;
+
 	/** Index into the scene's PrimitivesNeedingLevelUpdateNotification array for this primitive scene info level. */
 	int32 LevelUpdateNotificationIndex;
 
@@ -706,7 +722,7 @@ private:
 		class FVolumetricLightmapSceneData* VolumetricLightmapSceneData);
 
 	/** Creates cached mesh draw commands for all meshes. */
-	static void CacheMeshDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+	static void CacheMeshDrawCommands(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos);
 
 	/** Removes cached mesh draw commands for all meshes. */
 	void RemoveCachedMeshDrawCommands();
@@ -715,7 +731,7 @@ private:
 	FPrimitiveVirtualTextureFlags RuntimeVirtualTextureFlags;
 
 	/** Creates or add ref's cached draw commands for each unique material instance found within the scene. */
-	static void CacheNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+	static void CacheNaniteDrawCommands(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 
 	/** Removes or remove ref's cached draw commands */
 	void RemoveCachedNaniteDrawCommands();

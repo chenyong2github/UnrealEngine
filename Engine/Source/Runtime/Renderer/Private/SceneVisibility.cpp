@@ -3598,36 +3598,6 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 	// Notify the RHI we are beginning to render a scene.
 	RHICmdList.BeginScene();
 
-	{
-		static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DoLazyStaticMeshUpdate"));
-		const bool DoLazyStaticMeshUpdate = (CVar->GetInt() && !GIsEditor);
-
-		if (DoLazyStaticMeshUpdate)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_PreVisibilityFrameSetup_EvictionForLazyStaticMeshUpdate);
-			static int32 RollingRemoveIndex = 0;
-			static int32 RollingPassShrinkIndex = 0;
-			if (RollingRemoveIndex >= Scene->Primitives.Num())
-			{
-				RollingRemoveIndex = 0;
-				RollingPassShrinkIndex++;
-				if (RollingPassShrinkIndex >= UE_ARRAY_COUNT(Scene->CachedDrawLists))
-				{
-					RollingPassShrinkIndex = 0;
-				}
-				// Periodically shrink the SparseArray containing cached mesh draw commands which we are causing to be regenerated with UpdateStaticMeshes
-				Scene->CachedDrawLists[RollingPassShrinkIndex].MeshDrawCommands.Shrink();
-			}
-			const int32 NumRemovedPerFrame = 10;
-			TArray<FPrimitiveSceneInfo*, TInlineAllocator<10>> SceneInfos;
-			for (int32 NumRemoved = 0; NumRemoved < NumRemovedPerFrame && RollingRemoveIndex < Scene->Primitives.Num(); NumRemoved++, RollingRemoveIndex++)
-			{
-				SceneInfos.Add(Scene->Primitives[RollingRemoveIndex]);
-			}
-			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, SceneInfos, EUpdateStaticMeshFlags::AllCommands, false);
-		}
-	}
-
 	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views, AllFamilyViews);
@@ -4665,28 +4635,6 @@ void FSceneRenderer::ComputeViewVisibility(
 
 	UpdateReflectionSceneData(Scene);
 
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshesWithoutVisibilityCheck);
-		SCOPED_NAMED_EVENT(FSceneRenderer_ConditionalUpdateStaticMeshes, FColor::Red);
-
-		Scene->ConditionalMarkStaticMeshElementsForUpdate();
-
-		TArray<FPrimitiveSceneInfo*> UpdatedSceneInfos;
-		for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck); It; ++It)
-		{
-			FPrimitiveSceneInfo* Primitive = *It;
-			if (Primitive->NeedsUpdateStaticMeshes())
-			{
-				UpdatedSceneInfos.Add(Primitive);
-			}
-		}
-		if (UpdatedSceneInfos.Num() > 0)
-		{
-			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos, EUpdateStaticMeshFlags::AllCommands);
-		}
-		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
-	}
-
 	uint8 ViewBit = 0x1;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_Views);
@@ -4854,17 +4802,36 @@ void FSceneRenderer::ComputeViewVisibility(
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshes);
 				SCOPED_NAMED_EVENT(FSceneRenderer_UpdateStaticMeshes, FColor::Red);
 
+				Scene->WaitForCacheMeshDrawCommandsTask();
+				Scene->ConditionalMarkStaticMeshElementsForUpdate();
+
 				TArray<FPrimitiveSceneInfo*> AddedSceneInfos;
+				for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck); It; ++It)
+				{
+					FPrimitiveSceneInfo* Primitive = *It;
+					if (Primitive->NeedsUpdateStaticMeshes())
+					{
+						AddedSceneInfos.Add(Primitive);
+					}
+				}
+
 				for (TConstDualSetBitIterator<SceneRenderingBitArrayAllocator, FDefaultBitArrayAllocator> BitIt(View.PrimitiveVisibilityMap, Scene->PrimitivesNeedingStaticMeshUpdate); BitIt; ++BitIt)
 				{
 					int32 PrimitiveIndex = BitIt.GetIndex();
-					AddedSceneInfos.Add(Scene->Primitives[PrimitiveIndex]);
+					FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
+
+					if (!Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Contains(SceneInfo))
+					{
+						AddedSceneInfos.Add(Scene->Primitives[PrimitiveIndex]);
+					}
 				}
 
 				if (AddedSceneInfos.Num() > 0)
 				{
-					FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, AddedSceneInfos, EUpdateStaticMeshFlags::AllCommands);
+					FPrimitiveSceneInfo::UpdateStaticMeshes(Scene, AddedSceneInfos, EUpdateStaticMeshFlags::AllCommands);
 				}
+
+				Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
 			}
 
 			// Single-pass stereo views can't compute relevance until all views are visibility culled
@@ -5277,6 +5244,8 @@ void FDeferredShadingSceneRenderer::BeginInitViews(FRDGBuilder& GraphBuilder, co
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
+
+	Scene->WaitForCreateLightPrimitiveInteractionsTask();
 
 	PostVisibilityFrameSetup(ILCTaskData);
 

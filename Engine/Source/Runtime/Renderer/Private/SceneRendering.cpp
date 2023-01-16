@@ -4866,7 +4866,7 @@ public:
 		GPUScene(Scene.GPUScene),
 		GPUSceneDynamicContext(GPUScene)
 	{
-		Scene.UpdateAllPrimitiveSceneInfos(GraphBuilder, false);
+		Scene.UpdateAllPrimitiveSceneInfos(GraphBuilder);
 		GPUScene.BeginRender(&Scene, GPUSceneDynamicContext);
 
 		FRDGExternalAccessQueue ExternalAccessQueue;
