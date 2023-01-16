@@ -28,7 +28,8 @@ public class NNXRuntimeCPU : ModuleRules
 			(
 			new string[] {
 				//"ORTDefault",
-                "NNXUtils",
+				"CoreUObject",
+				"NNXUtils",
 				"NNX_ONNXRuntime"	// Select this for open-source-based ONNX Runtime
 			}
 		);

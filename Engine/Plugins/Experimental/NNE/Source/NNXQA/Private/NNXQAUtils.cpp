@@ -3,10 +3,14 @@
 #include "NNXQAUtils.h"
 #include "HAL/UnrealMemory.h"
 #include "Kismet/GameplayStatics.h"
+#include "NNECore.h"
 #include "NNECoreAttributeMap.h"
+#include "NNECoreRuntime.h"
+#include "NNECoreRuntimeCPU.h"
 #include "NNXCore.h"
 #include "NNXInferenceModel.h"
 #include "NNXModelOptimizerInterface.h"
+#include "UObject/WeakInterfacePtr.h"
 
 namespace NNX 
 {
@@ -106,6 +110,46 @@ namespace Test
 		}
 
 		return Buffer;
+	}
+
+	static void FillInputTensorBindingsCPU(TConstArrayView<UE::NNECore::Internal::FTensor> Tensors, TConstArrayView<FTests::FTensorData> TensorsData,
+		TArray<TArray<char>>& OutMemBuffers, TArray<UE::NNECore::FTensorBindingCPU>& OutBindings)
+	{
+		OutBindings.Empty();
+		OutMemBuffers.Empty();
+		check(TensorsData.Num() == 0 || Tensors.Num() == TensorsData.Num());
+
+		for (int Index = 0; Index < Tensors.Num(); ++Index)
+		{
+			const UE::NNECore::Internal::FTensor& Tensor = Tensors[Index];
+			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
+			if (TensorsData.Num() == 0 || TensorsData[Index].Num() == 0)
+			{
+				ElementWiseCosTensorInitializer Initializer(Tensor.GetDataType(), Index);
+				MemBuffer = GenerateTensorDataForTest(Tensor, Initializer);
+			}
+			else
+			{
+				MemBuffer = TensorsData[Index];
+			}
+			check(MemBuffer.Num() == Tensor.GetDataSize());
+			
+			OutBindings.Emplace(UE::NNECore::FTensorBindingCPU{(void*)MemBuffer.GetData(),(uint64)MemBuffer.Num()} );
+		}
+	}
+
+	static void FillOutputTensorBindingsCPU(TConstArrayView<UE::NNECore::Internal::FTensor> Tensors, TArray<TArray<char>>& OutMemBuffers, TArray<UE::NNECore::FTensorBindingCPU>& OutBindings)
+	{
+		OutBindings.Empty();
+		OutMemBuffers.Empty();
+		for (int Index = 0; Index < Tensors.Num(); ++Index)
+		{
+			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
+			MemBuffer.SetNumUninitialized(Tensors[Index].GetDataSize());
+			char constexpr MagicNumber = 0x5b;
+			FMemory::Memset(MemBuffer.GetData(), MagicNumber, MemBuffer.Num());
+			OutBindings.Emplace(UE::NNECore::FTensorBindingCPU{ (void*)MemBuffer.GetData(),(uint64)MemBuffer.Num() });
+		}
 	}
 
 	static void FillInputTensorBindings(TConstArrayView<UE::NNECore::Internal::FTensor> Tensors, TConstArrayView<FTests::FTensorData> TensorsData,
@@ -369,6 +413,109 @@ namespace Test
 		return true;
 	}
 
+	TUniquePtr<UE::NNECore::IModelCPU> GetInferenceModel(const FNNIModelRaw& ONNXModelData, const FString& RuntimeName)
+	{
+		TWeakInterfacePtr<INNERuntime>    RuntimeForModelData      = UE::NNECore::GetRuntime<INNERuntime>(RuntimeName);
+		TWeakInterfacePtr<INNERuntimeCPU> RuntimeForInferenceModel = UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName);
+		if (!RuntimeForModelData.IsValid() || !RuntimeForInferenceModel.IsValid())
+		{
+			UE_LOG(LogNNE, Error, TEXT("Can't get %s runtime."), *RuntimeName);
+			return TUniquePtr<UE::NNECore::IModelCPU>();
+		}
+
+		TArray<uint8> Data = RuntimeForModelData->CreateModelData(FString("onnx"), ONNXModelData.Data);
+		TUniquePtr<UE::NNECore::IModelCPU> InferenceModel = RuntimeForInferenceModel->CreateModelCPU(Data);
+		
+		return InferenceModel;
+	}
+	
+	bool RunTestInferenceCPU(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup,
+		const FString& RuntimeName, TArray<UE::NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
+	{
+		OutOutputMemBuffers.Empty();
+
+		TUniquePtr<UE::NNECore::IModelCPU> InferenceModel = GetInferenceModel(ONNXModelData, RuntimeName);
+
+		if (!InferenceModel.IsValid())
+		{
+			UE_LOG(LogNNX, Error, TEXT("Could not create Inference model."));
+			return false;
+		}
+
+		// If test does not ask for specific input/output, fill with model default converting variable dim to 1 if any.
+		TArray<UE::NNECore::Internal::FTensor> InputTensors;
+
+		FillTensors(TestSetup.Inputs, InferenceModel->GetInputTensorDescs(), InputTensors);
+		FillTensors(TestSetup.Outputs, InferenceModel->GetOutputTensorDescs(), OutOutputTensors);
+
+		// bind tensors to memory (CPU) and initialize
+		TArray<UE::NNECore::FTensorBindingCPU> InputBindings;
+		TArray<UE::NNECore::FTensorBindingCPU> OutputBindings;
+		TArray<TArray<char>> InputMemBuffers;
+
+		FillInputTensorBindingsCPU(InputTensors, TestSetup.InputsData, InputMemBuffers, InputBindings);
+		FillOutputTensorBindingsCPU(OutOutputTensors, OutOutputMemBuffers, OutputBindings);
+
+		// To help for debugging sessions.
+#ifdef UE_BUILD_DEBUG
+		const constexpr int32 NumTensorPtrForDebug = 3;
+		float* InputsAsFloat[NumTensorPtrForDebug];
+		float* OutputsAsFloat[NumTensorPtrForDebug];
+		FMemory::Memzero(InputsAsFloat, NumTensorPtrForDebug * sizeof(float*));
+		FMemory::Memzero(OutputsAsFloat, NumTensorPtrForDebug * sizeof(float*));
+		for (int32 i = 0; i < NumTensorPtrForDebug && i < InputMemBuffers.Num(); ++i)
+		{
+			InputsAsFloat[i] = (float*)InputMemBuffers[i].GetData();
+		}
+		for (int32 i = 0; i < NumTensorPtrForDebug && i < OutOutputMemBuffers.Num(); ++i)
+		{
+			OutputsAsFloat[i] = (float*)OutOutputMemBuffers[i].GetData();
+		}
+#endif //UE_BUILD_DEBUG
+
+		TArray<UE::NNECore::FTensorShape> InputShapes;
+		for (const UE::NNECore::Internal::FTensor& Tensor : InputTensors)
+		{
+			InputShapes.Emplace(Tensor.GetShape());
+		}
+
+		// Setup inputs
+		if (0 != InferenceModel->SetInputTensorShapes(InputShapes))
+		{
+			UE_LOG(LogNNX, Error, TEXT("Failed to set input tensor shapes."));
+			return false;
+		}
+
+		// Run inference
+		if (0 != InferenceModel->RunSync(InputBindings, OutputBindings))
+		{
+			UE_LOG(LogNNX, Error, TEXT("Failed to run the model."));
+			return false;
+		}
+
+		// Verify output shapes are as expected
+		TConstArrayView<UE::NNECore::FTensorShape> OutputShapes = InferenceModel->GetOutputTensorShapes();
+		if (OutputShapes.Num() != OutOutputTensors.Num())
+		{
+			UE_LOG(LogNNX, Error, TEXT("Expected %d output tensors, got %d."), OutOutputTensors.Num(), OutputShapes.Num());
+			return false;
+		}
+		for (int i = 0; i < OutOutputTensors.Num(); ++i)
+		{
+			const UE::NNECore::FTensorShape& RefTensorShape = OutOutputTensors[i].GetShape();
+			const UE::NNECore::FTensorShape& OtherTensorShape = OutputShapes[i];
+			if (RefTensorShape != OtherTensorShape)
+			{
+				TArrayView<const uint32> RefShape(RefTensorShape.GetData());
+				TArrayView<const uint32> OtherShape(OtherTensorShape.GetData());
+				UE_LOG(LogNNX, Error, TEXT("Output shape do not match at index %d.\nExpected: %s\nGot:      %s"), i, *ShapeToString(RefShape), *ShapeToString(OtherShape));
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	static bool RunTestInference(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup, 
 		IRuntime* Runtime, TArray<UE::NNECore::Internal::FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
@@ -502,20 +649,14 @@ namespace Test
 		UE_LOG(LogNNX, Display, TEXT("Starting tests of '%s'"), *TestSetup.TargetName);
 
 		// Reference runtime
-		IRuntime* RefRuntime = NNX::GetRuntime(TEXT("NNXRuntimeCPU"));
-		if (!RefRuntime)
-		{
-			UE_LOG(LogNNX, Error, TEXT("Can't load NNXRuntimeCPU runtime. Tests ABORTED!"));
-			return false;
-		}
-		const FString& RefName = RefRuntime->GetRuntimeName();
+		const FString& RefName = TEXT("NNERuntimeCPU");
 		const float AbsoluteTolerance = TestSetup.GetAbsoluteToleranceForRuntime(RefName);
 		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RefName);
 		TArray<TArray<char>> RefOutputMemBuffers;
 		TArray<UE::NNECore::Internal::FTensor> RefOutputTensors;
 		bool bAllTestsSucceeded = true;
 
-		if (!RunTestInference(ONNXModel, TestSetup, RefRuntime, RefOutputTensors, RefOutputMemBuffers))
+		if (!RunTestInferenceCPU(ONNXModel, TestSetup, RefName, RefOutputTensors, RefOutputMemBuffers))
 		{
 			UE_LOG(LogNNX, Error, TEXT("Error running reference inference with engine %s."), *RefName);
 			return false;
