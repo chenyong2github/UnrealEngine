@@ -9,6 +9,9 @@
 #include "SceneInterface.h"
 #include "PipelineStateCache.h"
 #include "VertexFactory.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Materials/MaterialInterface.h"
+#include "MaterialShared.h"
 
 static TAutoConsoleVariable<int32> CVarPrecacheGlobalComputeShaders(
 	TEXT("r.PSOPrecache.GlobalComputeShaders"),

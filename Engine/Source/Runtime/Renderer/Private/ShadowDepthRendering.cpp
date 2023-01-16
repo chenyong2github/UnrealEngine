@@ -49,6 +49,7 @@
 #include "Shadows/ShadowSceneRenderer.h"
 #include "RenderCore.h"
 #include "ShaderPlatformCachedIniValue.h"
+#include "UnrealEngine.h"
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowDepths);
 

@@ -21,6 +21,7 @@
 #include "SceneInterface.h"
 #include "UObject/UnrealType.h"
 #include "MaterialDomain.h"
+#include "Materials/Material.h"
 
 #if WITH_EDITOR
 #include "IHierarchicalLODUtilities.h"

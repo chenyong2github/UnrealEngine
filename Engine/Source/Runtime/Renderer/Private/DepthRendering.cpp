@@ -35,6 +35,7 @@
 #include "DebugProbeRendering.h"
 #include "RenderCore.h"
 #include "SimpleMeshDrawCommandPass.h"
+#include "UnrealEngine.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),

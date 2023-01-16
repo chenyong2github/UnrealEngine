@@ -9,6 +9,7 @@
 #include "ScenePrivate.h"
 #include "Materials/Material.h"
 #include "MeshPassProcessor.inl"
+#include "UnrealEngine.h"
 
 static TAutoConsoleVariable<int32> CVarCustomDepth(
 	TEXT("r.CustomDepth"),

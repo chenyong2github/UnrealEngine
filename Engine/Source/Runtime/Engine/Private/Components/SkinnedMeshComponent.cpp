@@ -31,10 +31,14 @@
 #include "GPUSkinCache.h"
 #include "PSOPrecache.h"
 #include "MaterialDomain.h"
+#include "Materials/Material.h"
 #include "SkeletalRender.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UnrealType.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
+#include "UObject/Package.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
 
@@ -969,7 +973,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
  	{
 		MeshDeformerInstance->AllocateResources();
 		
-		// Enqueue immediate execution of work here to ensure that we have some deformer outputs written for the next frame.
+			// Enqueue immediate execution of work here to ensure that we have some deformer outputs written for the next frame.
 		UMeshDeformerInstance::FEnqueueWorkDesc Desc;
 		Desc.Scene = GetScene();
 		Desc.ExecutionGroup = UMeshDeformerInstance::ExecutionGroup_Immediate;
@@ -1070,7 +1074,7 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 			{
 				ActiveMorphTargets.Empty();
 			}
-			
+
 			MeshObject->Update(
 				UseLOD,
 				this,
