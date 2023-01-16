@@ -25,7 +25,7 @@ public class UnrealVirtualizationToolTarget : TargetRules
 		bCompileAgainstEngine = false;
 		bUsesSlate = false;
 
-		// UnrealHeaderTool is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
+		// This app is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
 		bIsBuildingConsoleApplication = true;
 
 		// Enable Developer plugins

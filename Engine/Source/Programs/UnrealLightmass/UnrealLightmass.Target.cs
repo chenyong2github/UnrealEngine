@@ -36,7 +36,7 @@ public class UnrealLightmassTarget : TargetRules
 			bBuildDeveloperTools = true;
 		}
 
-		// UnrealHeaderTool is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
+		// This app is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
 		bIsBuildingConsoleApplication = true;
 
 		// Disable logging, lightmass will create its own unique logging file
