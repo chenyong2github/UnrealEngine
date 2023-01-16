@@ -24,7 +24,7 @@ namespace EPawnActionMoveMode
 }
 
 UCLASS()
-class AIMODULE_API UPawnAction_Move : public UPawnAction
+class AIMODULE_API UDEPRECATED_UPawnAction_Move : public UDEPRECATED_UPawnAction
 {
 	GENERATED_UCLASS_BODY()
 protected:
@@ -71,8 +71,8 @@ protected:
 public:
 	virtual void BeginDestroy() override;
 
-	static UPawnAction_Move* CreateAction(UWorld& World, AActor* GoalActor, EPawnActionMoveMode::Type Mode);
-	static UPawnAction_Move* CreateAction(UWorld& World, const FVector& GoalLocation, EPawnActionMoveMode::Type Mode);
+	static UDEPRECATED_UPawnAction_Move* CreateAction(UWorld& World, AActor* GoalActor, EPawnActionMoveMode::Type Mode);
+	static UDEPRECATED_UPawnAction_Move* CreateAction(UWorld& World, const FVector& GoalLocation, EPawnActionMoveMode::Type Mode);
 
 	static bool CheckAlreadyAtGoal(AAIController& Controller, const FVector& TestLocation, float Radius);
 	static bool CheckAlreadyAtGoal(AAIController& Controller, const AActor& TestGoal, float Radius);
@@ -108,7 +108,7 @@ protected:
 
 	void ClearPath();
 	virtual bool Start() override;
-	virtual bool Pause(const UPawnAction* PausedBy) override;
+	virtual bool Pause(const UDEPRECATED_UPawnAction* PausedBy) override;
 	virtual bool Resume() override;
 	virtual void OnFinished(EPawnActionResult::Type WithResult) override;
 	virtual EPawnActionAbortState::Type PerformAbort(EAIForceParam::Type ShouldForce) override;

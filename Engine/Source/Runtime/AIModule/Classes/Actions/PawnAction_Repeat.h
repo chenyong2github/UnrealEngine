@@ -8,7 +8,7 @@
 #include "PawnAction_Repeat.generated.h"
 
 UCLASS()
-class AIMODULE_API UPawnAction_Repeat : public UPawnAction
+class AIMODULE_API UDEPRECATED_UPawnAction_Repeat : public UDEPRECATED_UPawnAction
 {
 	GENERATED_UCLASS_BODY()
 
@@ -19,10 +19,10 @@ class AIMODULE_API UPawnAction_Repeat : public UPawnAction
 
 	/** Action to repeat. This instance won't really be run, it's a source for copying actions to be actually performed */
 	UPROPERTY()
-	TObjectPtr<UPawnAction> ActionToRepeat;
+	TObjectPtr<UDEPRECATED_UPawnAction> ActionToRepeat_DEPRECATED;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UPawnAction> RecentActionCopy;
+	TObjectPtr<UDEPRECATED_UPawnAction> RecentActionCopy_DEPRECATED;
 
 	UPROPERTY(Category = PawnAction, EditAnywhere, BlueprintReadOnly)
 	TEnumAsByte<EPawnActionFailHandling::Type> ChildFailureHandlingMode;
@@ -31,13 +31,13 @@ class AIMODULE_API UPawnAction_Repeat : public UPawnAction
 
 	EPawnSubActionTriggeringPolicy::Type SubActionTriggeringPolicy;
 
-	/** @param NumberOfRepeats number of times to repeat action. UPawnAction_Repeat::LoopForever loops forever */
-	static UPawnAction_Repeat* CreateAction(UWorld& World, UPawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy = EPawnSubActionTriggeringPolicy::CopyBeforeTriggering);
+	/** @param NumberOfRepeats number of times to repeat action. UDEPRECATED_UPawnAction_Repeat::LoopForever loops forever */
+	static UDEPRECATED_UPawnAction_Repeat* CreateAction(UWorld& World, UDEPRECATED_UPawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy = EPawnSubActionTriggeringPolicy::CopyBeforeTriggering);
 
 protected:
 	virtual bool Start() override;
 	virtual bool Resume() override;
-	virtual void OnChildFinished(UPawnAction& Action, EPawnActionResult::Type WithResult) override;
+	virtual void OnChildFinished(UDEPRECATED_UPawnAction& Action, EPawnActionResult::Type WithResult) override;
 
 	bool PushSubAction();
 };

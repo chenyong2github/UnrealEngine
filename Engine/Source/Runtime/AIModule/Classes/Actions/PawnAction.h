@@ -12,8 +12,8 @@
 
 class AController;
 class APawn;
-class UPawnAction;
-class UPawnActionsComponent;
+class UDEPRECATED_UPawnAction;
+class UDEPRECATED_UPawnActionsComponent;
 struct FPawnActionStack;
 
 UENUM()
@@ -27,7 +27,7 @@ namespace EPawnSubActionTriggeringPolicy
 }
 
 AIMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogPawnAction, Warning, All);
-DECLARE_DELEGATE_TwoParams(FPawnActionEventDelegate, UPawnAction&, EPawnActionEventType::Type);
+DECLARE_DELEGATE_TwoParams(FPawnActionEventDelegate, UDEPRECATED_UPawnAction&, EPawnActionEventType::Type);
 
 UENUM()
 namespace EPawnActionFailHandling
@@ -43,25 +43,25 @@ namespace EPawnActionFailHandling
  *	Things to remember:
  *	* Actions are created paused
  */
-UCLASS(abstract, EditInlineNew)
-class AIMODULE_API UPawnAction : public UObject
+UCLASS(abstract, EditInlineNew, deprecated, meta = (DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
+class AIMODULE_API UDEPRECATED_UPawnAction : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	friend UPawnActionsComponent;
+	friend UDEPRECATED_UPawnActionsComponent;
 	friend FPawnActionStack;
 
 private:
 	/** Current child node executing on top of this Action */
 	UPROPERTY(Transient)
-	TObjectPtr<UPawnAction> ChildAction;
+	TObjectPtr<UDEPRECATED_UPawnAction> ChildAction_DEPRECATED;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UPawnAction> ParentAction;
+	TObjectPtr<UDEPRECATED_UPawnAction> ParentAction_DEPRECATED;
 
 	/** Extra reference to the component this action is being governed by */
 	UPROPERTY(Transient)
-	TObjectPtr<UPawnActionsComponent> OwnerComponent;
+	TObjectPtr<UDEPRECATED_UPawnActionsComponent> OwnerComponent_DEPRECATED;
 	
 	/** indicates an object that caused this action. Used for mass removal of actions 
 	 *	by specific object */
@@ -137,9 +137,9 @@ public:
 	virtual UWorld* GetWorld() const override;
 	// End UObject
 
-	FORCEINLINE const UPawnAction* GetParentAction() const { return ParentAction; }
-	FORCEINLINE const UPawnAction* GetChildAction() const { return ChildAction; }
-	FORCEINLINE UPawnAction* GetChildAction() { return ChildAction; }
+	FORCEINLINE const UDEPRECATED_UPawnAction* GetParentAction() const { return ParentAction_DEPRECATED; }
+	FORCEINLINE const UDEPRECATED_UPawnAction* GetChildAction() const { return ChildAction_DEPRECATED; }
+	FORCEINLINE UDEPRECATED_UPawnAction* GetChildAction() { return ChildAction_DEPRECATED; }
 	FORCEINLINE bool IsPaused() const { return !!bPaused; }
 	FORCEINLINE bool IsActive() const { return FinishResult == EPawnActionResult::InProgress && IsPaused() == false && AbortState == EPawnActionAbortState::NotBeingAborted; }
 	FORCEINLINE bool IsBeingAborted() const { return AbortState != EPawnActionAbortState::NotBeingAborted; }
@@ -152,9 +152,9 @@ protected:
 	FORCEINLINE void TickAction(float DeltaTime)
 	{ 
 		// tick ChildAction 
-		if (ChildAction != NULL)
+		if (ChildAction_DEPRECATED != NULL)
 		{
-			ChildAction->Tick(DeltaTime);
+			ChildAction_DEPRECATED->Tick(DeltaTime);
 		}
 		// or self if not paused
 		else if (!!bWantsTick && IsPaused() == false)
@@ -169,12 +169,12 @@ protected:
 	 *	@NOTE do not make this virtual! Contains some essential logic. */
 	EPawnActionAbortState::Type Abort(EAIForceParam::Type ShouldForce = EAIForceParam::DoNotForce);
 	
-	FORCEINLINE UPawnActionsComponent* GetOwnerComponent() { return OwnerComponent; }
+	FORCEINLINE UDEPRECATED_UPawnActionsComponent* GetOwnerComponent() { return OwnerComponent_DEPRECATED; }
 public:
 	FORCEINLINE EAIRequestPriority::Type GetPriority() const { return ExecutionPriority; }
 	FORCEINLINE EPawnActionResult::Type GetResult() const { return FinishResult; }
 	FORCEINLINE EPawnActionAbortState::Type GetAbortState() const { return AbortState; }
-	FORCEINLINE UPawnActionsComponent* GetOwnerComponent() const { return OwnerComponent; }
+	FORCEINLINE UDEPRECATED_UPawnActionsComponent* GetOwnerComponent() const { return OwnerComponent_DEPRECATED; }
 	FORCEINLINE UObject* GetInstigator() const { return Instigator; }
 	APawn* GetPawn() const;
 	AController* GetController() const;
@@ -182,7 +182,7 @@ public:
 	template<class TActionClass>
 	static TActionClass* CreateActionInstance(UWorld& World)
 	{
-		TSubclassOf<UPawnAction> ActionClass = TActionClass::StaticClass();
+		TSubclassOf<UDEPRECATED_UPawnAction> ActionClass = TActionClass::StaticClass();
 		return NewObject<TActionClass>(&World, ActionClass);
 	}
 
@@ -202,8 +202,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AI|PawnActions")
 	TEnumAsByte<EAIRequestPriority::Type> GetActionPriority();
 
-	UFUNCTION(BlueprintCallable, Category = "AI|PawnActions", meta = (WorldContext="WorldContextObject"))
-	static UPawnAction* CreateActionInstance(UObject* WorldContextObject, TSubclassOf<UPawnAction> ActionClass);
+	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
+	UFUNCTION(BlueprintCallable, Category = "AI|PawnActions", meta = (WorldContext="WorldContextObject", DeprecatedFunction, DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
+	static UDEPRECATED_UPawnAction* CreateActionInstance(UObject* WorldContextObject, TSubclassOf<UDEPRECATED_UPawnAction> ActionClass);
 
 	//----------------------------------------------------------------------//
 	// debug
@@ -225,7 +226,7 @@ protected:
 
 	void StopWaitingForMessages();
 
-	void SetOwnerComponent(UPawnActionsComponent* Component);
+	void SetOwnerComponent(UDEPRECATED_UPawnActionsComponent* Component);
 
 	void SetInstigator(UObject* const InInstigator);
 
@@ -236,7 +237,7 @@ protected:
 	 *	@NOTE if action fails to start no finishing or aborting mechanics will be triggered */
 	virtual bool Start();
 	/** called to pause action when higher priority or child action kicks in */
-	virtual bool Pause(const UPawnAction* PausedBy);
+	virtual bool Pause(const UDEPRECATED_UPawnAction* PausedBy);
 	/** called to resume action after being paused */
 	virtual bool Resume();
 	/** called when this action is being removed from action stacks */
@@ -245,10 +246,10 @@ protected:
 	 *	@NOTE gets called _AFTER_ child's OnFinished to give child action chance 
 	 *		to prepare "finishing data" for parent to read. 
 	 *	@NOTE clears parent-child binding */
-	virtual void OnChildFinished(UPawnAction& Action, EPawnActionResult::Type WithResult);
+	virtual void OnChildFinished(UDEPRECATED_UPawnAction& Action, EPawnActionResult::Type WithResult);
 
 	/** apart from doing regular push request copies additional values from Parent, like Priority and Instigator */
-	bool PushChildAction(UPawnAction& Action);
+	bool PushChildAction(UDEPRECATED_UPawnAction& Action);
 	
 	/** performs actual work on aborting Action. Should be called exclusively by Abort function
 	 *	@return only valid return values here are LatendAbortInProgress and AbortDone */
@@ -272,7 +273,7 @@ private:
 //----------------------------------------------------------------------//
 // Blueprint inlines
 //----------------------------------------------------------------------//
-FORCEINLINE TEnumAsByte<EAIRequestPriority::Type> UPawnAction::GetActionPriority()
+FORCEINLINE TEnumAsByte<EAIRequestPriority::Type> UDEPRECATED_UPawnAction::GetActionPriority()
 {
 	return ExecutionPriority;
 }

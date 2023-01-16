@@ -47,7 +47,7 @@ AAIController::AAIController(const FObjectInitializer& ObjectInitializer)
 		PathFollowingComponent->OnRequestFinished.AddUObject(this, &AAIController::OnMoveCompleted);
 	}
 
-	ActionsComp = CreateOptionalDefaultSubobject<UPawnActionsComponent>(TEXT("ActionsComp"));
+	ActionsComp_DEPRECATED = CreateOptionalDefaultSubobject<UDEPRECATED_UPawnActionsComponent>(TEXT("ActionsComp"));
 
 	bSkipExtraLOSChecks = true;
 	bWantsPlayerState = false;
@@ -1082,9 +1082,11 @@ bool AAIController::SuggestTossVelocity(FVector& OutTossVelocity, FVector Start,
 
 	return UGameplayStatics::SuggestProjectileVelocity(this, OutTossVelocity, Start, End, TossSpeed, bPreferHighArc, CollisionRadius, GravityOverride, TraceOption);
 }
-bool AAIController::PerformAction(UPawnAction& Action, EAIRequestPriority::Type Priority, UObject* const InInstigator /*= NULL*/)
+bool AAIController::PerformAction(UDEPRECATED_UPawnAction& Action, EAIRequestPriority::Type Priority, UObject* const InInstigator /*= NULL*/)
 {
-	return ActionsComp != NULL && ActionsComp->PushAction(Action, Priority, InInstigator);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return ActionsComp_DEPRECATED != NULL && ActionsComp_DEPRECATED->PushAction(Action, Priority, InInstigator);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FString AAIController::GetDebugIcon() const

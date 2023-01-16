@@ -7,24 +7,26 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PawnAction_Repeat)
 
-UPawnAction_Repeat::UPawnAction_Repeat(const FObjectInitializer& ObjectInitializer)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+UDEPRECATED_UPawnAction_Repeat::UDEPRECATED_UPawnAction_Repeat(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, SubActionTriggeringPolicy(EPawnSubActionTriggeringPolicy::CopyBeforeTriggering)
 {
 	ChildFailureHandlingMode = EPawnActionFailHandling::IgnoreFailure;
 }
 
-UPawnAction_Repeat* UPawnAction_Repeat::CreateAction(UWorld& World, UPawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy)
+UDEPRECATED_UPawnAction_Repeat* UDEPRECATED_UPawnAction_Repeat::CreateAction(UWorld& World, UDEPRECATED_UPawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy)
 {
-	if (ActionToRepeat == NULL || !(NumberOfRepeats > 0 || NumberOfRepeats == UPawnAction_Repeat::LoopForever))
+	if (ActionToRepeat == NULL || !(NumberOfRepeats > 0 || NumberOfRepeats == UDEPRECATED_UPawnAction_Repeat::LoopForever))
 	{
 		return NULL;
 	}
 
-	UPawnAction_Repeat* Action = UPawnAction::CreateActionInstance<UPawnAction_Repeat>(World);
+	UDEPRECATED_UPawnAction_Repeat* Action = UDEPRECATED_UPawnAction::CreateActionInstance<UDEPRECATED_UPawnAction_Repeat>(World);
 	if (Action)
 	{
-		Action->ActionToRepeat = ActionToRepeat;
+		Action->ActionToRepeat_DEPRECATED = ActionToRepeat;
 		Action->RepeatsLeft = NumberOfRepeats;
 		Action->SubActionTriggeringPolicy = InSubActionTriggeringPolicy;
 
@@ -34,21 +36,21 @@ UPawnAction_Repeat* UPawnAction_Repeat::CreateAction(UWorld& World, UPawnAction*
 	return Action;
 }
 
-bool UPawnAction_Repeat::Start()
+bool UDEPRECATED_UPawnAction_Repeat::Start()
 {
 	bool bResult = Super::Start();
 	
 	if (bResult)
 	{
 		UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("Starting repeating action: %s. Requested repeats: %d")
-			, *GetNameSafe(ActionToRepeat), RepeatsLeft);
+			, *GetNameSafe(ActionToRepeat_DEPRECATED), RepeatsLeft);
 		bResult = PushSubAction();
 	}
 
 	return bResult;
 }
 
-bool UPawnAction_Repeat::Resume()
+bool UDEPRECATED_UPawnAction_Repeat::Resume()
 {
 	bool bResult = Super::Resume();
 
@@ -60,9 +62,9 @@ bool UPawnAction_Repeat::Resume()
 	return bResult;
 }
 
-void UPawnAction_Repeat::OnChildFinished(UPawnAction& Action, EPawnActionResult::Type WithResult)
+void UDEPRECATED_UPawnAction_Repeat::OnChildFinished(UDEPRECATED_UPawnAction& Action, EPawnActionResult::Type WithResult)
 {
-	if (RecentActionCopy == &Action)
+	if (RecentActionCopy_DEPRECATED == &Action)
 	{
 		if (WithResult == EPawnActionResult::Success || (WithResult == EPawnActionResult::Failed && ChildFailureHandlingMode == EPawnActionFailHandling::IgnoreFailure))
 		{
@@ -77,9 +79,9 @@ void UPawnAction_Repeat::OnChildFinished(UPawnAction& Action, EPawnActionResult:
 	Super::OnChildFinished(Action, WithResult);
 }
 
-bool UPawnAction_Repeat::PushSubAction()
+bool UDEPRECATED_UPawnAction_Repeat::PushSubAction()
 {
-	if (ActionToRepeat == NULL)
+	if (ActionToRepeat_DEPRECATED == NULL)
 	{
 		Finish(EPawnActionResult::Failed);
 		return false;
@@ -95,15 +97,16 @@ bool UPawnAction_Repeat::PushSubAction()
 		--RepeatsLeft;
 	}
 
-	UPawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering 
-		? Cast<UPawnAction>(StaticDuplicateObject(ActionToRepeat, this))
-		: ToRawPtr(ActionToRepeat);
+	UDEPRECATED_UPawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering 
+		? Cast<UDEPRECATED_UPawnAction>(StaticDuplicateObject(ActionToRepeat_DEPRECATED, this))
+		: ToRawPtr(ActionToRepeat_DEPRECATED);
 
 	UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("%s> pushing repeted action %s %s, repeats left: %d")
 		, *GetName(), SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering ? TEXT("copy") : TEXT("instance")
 		, *GetNameSafe(ActionCopy), RepeatsLeft);
 	check(ActionCopy);
-	RecentActionCopy = ActionCopy;
+	RecentActionCopy_DEPRECATED = ActionCopy;
 	return PushChildAction(*ActionCopy); 
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

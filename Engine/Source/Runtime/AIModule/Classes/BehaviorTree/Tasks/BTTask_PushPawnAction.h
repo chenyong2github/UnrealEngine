@@ -7,7 +7,7 @@
 #include "BehaviorTree/Tasks/BTTask_PawnActionBase.h"
 #include "BTTask_PushPawnAction.generated.h"
 
-class UPawnAction;
+class UDEPRECATED_UPawnAction;
 
 /**
  * Action task node.
@@ -19,8 +19,8 @@ class AIMODULE_API UBTTask_PushPawnAction : public UBTTask_PawnActionBase
 	GENERATED_UCLASS_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, Instanced, Category = Action)
-	TObjectPtr<UPawnAction> Action;
+	UPROPERTY(Instanced)
+	TObjectPtr<UDEPRECATED_UPawnAction> Action_DEPRECATED;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual FString GetStaticDescription() const override;

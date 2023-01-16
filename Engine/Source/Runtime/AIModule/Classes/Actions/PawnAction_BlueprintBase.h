@@ -10,7 +10,7 @@
 class APawn;
 
 UCLASS(abstract, Blueprintable)
-class AIMODULE_API UPawnAction_BlueprintBase : public UPawnAction
+class AIMODULE_API UDEPRECATED_UPawnAction_BlueprintBase : public UDEPRECATED_UPawnAction
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,7 +34,7 @@ public:
 protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool Start() override;
-	virtual bool Pause(const UPawnAction* PausedBy) override;
+	virtual bool Pause(const UDEPRECATED_UPawnAction* PausedBy) override;
 	virtual bool Resume() override;
 	virtual void OnFinished(EPawnActionResult::Type WithResult) override;
 };
