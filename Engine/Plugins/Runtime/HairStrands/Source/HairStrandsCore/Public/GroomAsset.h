@@ -406,7 +406,7 @@ struct FHairVertexFactoryTypesPerMaterialData
 {
 	int16 MaterialIndex;
 	EHairGeometryType HairGeometryType;
-	TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+	FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
 };
 
 /**

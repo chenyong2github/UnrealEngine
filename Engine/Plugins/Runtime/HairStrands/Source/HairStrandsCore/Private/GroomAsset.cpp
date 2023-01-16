@@ -814,7 +814,7 @@ TArray<FHairVertexFactoryTypesPerMaterialData> UGroomAsset::CollectVertexFactory
 			VFsPerMaterial->MaterialIndex = InMaterialIndex;
 			VFsPerMaterial->HairGeometryType = InHairGeometryType;
 		}
-		VFsPerMaterial->VertexFactoryTypes.AddUnique(InVFType);
+		VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(InVFType));
 	};
 
 	const int32 GroupCount = GetNumHairGroups();
@@ -1292,13 +1292,14 @@ void UGroomAsset::PostLoad()
 
 		TArray<FHairVertexFactoryTypesPerMaterialData> VFsPerMaterials = CollectVertexFactoryTypesPerMaterialData(ShaderPlatform);
 
+		TArray<FMaterialPSOPrecacheRequestID> RequestIDs;
 		FPSOPrecacheParams PrecachePSOParams;
 		for (FHairVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 		{
 			UMaterialInterface* MaterialInterface = HairGroupsMaterials[VFsPerMaterial.MaterialIndex].Material;
 			if (MaterialInterface)
 			{
-				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryDataList, PrecachePSOParams, EPSOPrecachePriority::Medium, RequestIDs);
 			}
 		}
 	}

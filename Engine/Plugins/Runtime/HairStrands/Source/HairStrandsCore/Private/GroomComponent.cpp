@@ -3106,24 +3106,26 @@ void UGroomComponent::PostLoad()
 #endif
 }
 
-void UGroomComponent::PrecachePSOs()
+void UGroomComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) 
 {
-	if (!IsComponentPSOPrecachingEnabled() || GroomAsset == nullptr)
+	if (GroomAsset == nullptr)
 	{
 		return;
 	}
 
 	TArray<FHairVertexFactoryTypesPerMaterialData> VFsPerMaterials = GroomAsset->CollectVertexFactoryTypesPerMaterialData(GMaxRHIShaderPlatform);
 
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
+	FPSOPrecacheParams PrecachePSOParams = BasePrecachePSOParams;
 
 	for (FHairVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(GetMaterialIndexWithFallback(VFsPerMaterial.MaterialIndex), VFsPerMaterial.HairGeometryType, true);
 		if (MaterialInterface)
 		{
-			MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+			ComponentParams.MaterialInterface = MaterialInterface;
+			ComponentParams.VertexFactoryDataList = VFsPerMaterial.VertexFactoryDataList;
+			ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 		}
 	}
 
