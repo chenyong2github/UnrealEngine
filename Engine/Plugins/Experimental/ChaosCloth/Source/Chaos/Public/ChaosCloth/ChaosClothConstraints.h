@@ -73,7 +73,10 @@ namespace Chaos
 		void SetAreaProperties(const Softs::FSolverVec2& AreaStiffness);
 		void SetThinShellVolumeProperties(Softs::FSolverReal VolumeStiffness);
 		void SetVolumeProperties(Softs::FSolverReal VolumeStiffness);
-		void SetLongRangeAttachmentProperties(const Softs::FSolverVec2& TetherStiffness, const Softs::FSolverVec2& TetherScale);
+		void SetLongRangeAttachmentProperties(
+			const Softs::FSolverVec2& TetherStiffness,
+			const Softs::FSolverVec2& TetherScale,
+			Softs::FSolverReal MeshScale = (Softs::FSolverReal)1.);
 		void SetMaximumDistanceProperties(Softs::FSolverReal MaxDistancesMultiplier);
 		void SetAnimDriveProperties(const Softs::FSolverVec2& AnimDriveStiffness, const Softs::FSolverVec2& AnimDriveDamping);
 		void SetSelfCollisionProperties(Softs::FSolverReal SelfCollisionThickness, Softs::FSolverReal SelfCollisionFriction = Softs::FPBDCollisionSpringConstraintsBase::BackCompatFrictionCoefficient, 

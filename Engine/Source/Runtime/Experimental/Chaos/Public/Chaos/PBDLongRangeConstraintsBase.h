@@ -50,10 +50,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FSolverVec2 GetStiffness() const { return Stiffness.GetWeightedValue(); }
 
 	// Set the stiffness and scale values used by the constraint
-	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InScale)
+	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InTetherScale, FSolverReal MeshScale = (FSolverReal)1.)
 	{
 		Stiffness.SetWeightedValue(InStiffness);
-		TetherScale.SetWeightedValue(InScale.ClampAxes(MinTetherScale, MaxTetherScale));
+		TetherScale.SetWeightedValue(InTetherScale.ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale);
 	}
 
 	// Set the stiffness input values used by the constraint

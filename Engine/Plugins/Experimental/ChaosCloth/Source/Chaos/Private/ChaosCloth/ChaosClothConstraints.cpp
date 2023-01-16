@@ -719,11 +719,14 @@ void FClothConstraints::SetVolumeProperties(Softs::FSolverReal VolumeStiffness)
 	}
 }
 
-void FClothConstraints::SetLongRangeAttachmentProperties(const Softs::FSolverVec2& TetherStiffness, const Softs::FSolverVec2& TetherScale)
+void FClothConstraints::SetLongRangeAttachmentProperties(
+	const Softs::FSolverVec2& TetherStiffness,
+	const Softs::FSolverVec2& TetherScale,
+	Softs::FSolverReal MeshScale)
 {
 	if (LongRangeConstraints)
 	{
-		LongRangeConstraints->SetProperties(TetherStiffness, TetherScale);
+		LongRangeConstraints->SetProperties(TetherStiffness, TetherScale, MeshScale);
 	}
 }
 
