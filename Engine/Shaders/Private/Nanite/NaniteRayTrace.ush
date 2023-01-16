@@ -120,7 +120,7 @@ bool NaniteClustersIntersection(
 
 		for (int TriIndex = 0; TriIndex < Cluster.NumTris; ++TriIndex)
 		{
-			const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+			const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
 
 			float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
 			float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);

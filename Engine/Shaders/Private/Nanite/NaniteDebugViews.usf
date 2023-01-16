@@ -186,7 +186,7 @@ void ExportDebugViewPS(
 			#if SOBEL_WIREFRAME_FILTER
 				OutColor = float4(ApplyWireframeFilter(PixelPos, DepthInt, WireColor), 1.0f);
 			#else
-				const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+				const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
 
 				const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
 				const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);

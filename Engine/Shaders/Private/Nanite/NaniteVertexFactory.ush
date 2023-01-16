@@ -623,7 +623,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 		if (bCalcTriIndices)
 		{
-			TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+			TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
 		}
 
 		const float3 PointLocalNoWPO[3] = 
@@ -739,7 +739,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 	FCluster Cluster = GetCluster(PageIndex, ClusterIndex);
 
-	const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+	const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
 
 	const float3 PointLocalNoWPO[3] =
 	{

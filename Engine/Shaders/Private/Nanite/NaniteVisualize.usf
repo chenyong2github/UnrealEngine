@@ -165,7 +165,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+		const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex, false);
 
 		const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
 		const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);

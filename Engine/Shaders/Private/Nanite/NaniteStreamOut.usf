@@ -261,7 +261,7 @@ void WriteTriangles(FCluster Cluster, FCandidateCluster CandidateCluster, uint S
 {
 	for (uint TriIndex = 0; TriIndex < NumTriangles; ++TriIndex)
 	{
-		const uint3 TriIndices = ReadTriangleIndices(Cluster, StartTriangle + TriIndex);
+		const uint3 TriIndices = DecodeTriangleIndices(Cluster, StartTriangle + TriIndex, false);
 		IndexBuffer[IndexBufferOffset + TriIndex * 3 + 0] = BaseIndex + TriIndices.x;
 		IndexBuffer[IndexBufferOffset + TriIndex * 3 + 1] = BaseIndex + TriIndices.y;
 		IndexBuffer[IndexBufferOffset + TriIndex * 3 + 2] = BaseIndex + TriIndices.z;

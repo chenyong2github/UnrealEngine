@@ -521,7 +521,7 @@ FHierarchyNodeSlice GetHierarchyNodeSlice(uint NodeIndex, uint ChildIndex)
 }
 
 // Decode triangle that is represented by one base index and two 5-bit offsets.
-uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
+uint3 DecodeTriangleIndices(FCluster Cluster, uint TriIndex, bool bSwapI1I2)
 {
 	const uint BitsPerTriangle = Cluster.BitsPerIndex + 2 * 5;
 
@@ -531,7 +531,12 @@ uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 	uint Delta0 = BitStreamReader_Read_RO(ClusterPageData, BitStreamReader, 5, 5);
 	uint Delta1 = BitStreamReader_Read_RO(ClusterPageData, BitStreamReader, 5, 5);
 
-	return BaseIndex + uint3(0, Delta0, Delta1);
+	uint3 Indices = BaseIndex + uint3(0, Delta0, Delta1);
+	if (bSwapI1I2)
+	{
+		Indices.yz = Indices.zy;
+	}
+	return Indices;
 }
 
 uint PackMaterialResolve(
