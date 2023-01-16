@@ -14,6 +14,13 @@
 	#pragma pop_macro("catch")
 #endif
 
+// Boost needed _DEBUG defined when /RTCs build flag is enabled (Run Time Checks)
+#if PLATFORM_WINDOWS && UE_BUILD_DEBUG
+	#ifdef _DEBUG
+		#undef _DEBUG
+	#endif
+#endif
+
 THIRD_PARTY_INCLUDES_END
 
 #endif // #if USE_USD_SDK
