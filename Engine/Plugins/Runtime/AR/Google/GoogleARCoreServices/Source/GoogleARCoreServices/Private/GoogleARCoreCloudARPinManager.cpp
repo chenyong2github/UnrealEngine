@@ -7,6 +7,10 @@
 #include "arcore_ios_c_api.h"
 #endif
 
+#if ARCORE_SERVICE_SUPPORTED_PLATFORM
+#include "IXRTrackingSystem.h"
+#endif
+
 namespace {
 #if ARCORE_SERVICE_SUPPORTED_PLATFORM
 	EARPinCloudTaskResult ToCloudTaskResult(ArStatus Status)
