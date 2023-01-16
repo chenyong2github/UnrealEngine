@@ -9,6 +9,18 @@
 namespace UE::CADKernel
 {
 
+/**
+ * In some cases as a huge plan, the MaxSizeCriteria can generate a lot of triangles e.g. a 100m side plan with a MaxSizeCriteria of 3cm will need 3e3 elements by side so 2e7 triangles.
+ * This kind of case is most of the time a forgotten sketch body than a real wanted body. This mesh could make the process extremely long or simply crash all the system.
+ * The idea is to not cancel the mesh of the body in the case it will really expected but to avoid the generation of a huge mesh with unwanted hundreds of millions of triangles.
+ * So if MaxSizeCriteria will generate a huge mesh, this criteria is abandoned.
+ * The chosen limit value is 3000 elements by side
+ */
+constexpr int32 GetMaxElementCountPerSide()
+{
+	return 3000;
+}
+
 void FMinSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
 {
 	double NumericPrecision = Edge.GetTolerance3D();
@@ -31,6 +43,12 @@ void FMaxSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArr
 {
 	double NumericPrecision = Edge.GetTolerance3D();
 	if (Edge.Length() <= NumericPrecision)
+	{
+		return;
+	}
+
+	const double ElementCount = Edge.Length() / Size;
+	if (ElementCount > GetMaxElementCountPerSide())
 	{
 		return;
 	}
@@ -75,6 +93,12 @@ void FMinSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDia
 void FMaxSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
 {
 	if (ChordLength < DOUBLE_KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const double ElementCount = ChordLength / Size;
+	if (ElementCount > GetMaxElementCountPerSide())
 	{
 		return;
 	}
