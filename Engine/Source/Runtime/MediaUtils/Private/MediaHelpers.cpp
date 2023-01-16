@@ -23,6 +23,7 @@ namespace MediaUtils
 		case EMediaEvent::PlaybackSuspended: return TEXT("PlaybackSuspended");
 		case EMediaEvent::SeekCompleted: return TEXT("SeekCompleted");
 		case EMediaEvent::TracksChanged: return TEXT("TracksChanged");
+		case EMediaEvent::MetadataChanged: return TEXT("MetadataChanged");
 
 		case EMediaEvent::Internal_PurgeVideoSamplesHint: return TEXT("Internal: PurgeVideoSamplesHint");
 		case EMediaEvent::Internal_ResetForDiscontinuity: return TEXT("Internal: ResetForDiscontinuity");

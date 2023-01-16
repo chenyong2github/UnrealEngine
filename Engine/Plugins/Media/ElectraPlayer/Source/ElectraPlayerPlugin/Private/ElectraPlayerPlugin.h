@@ -106,11 +106,14 @@ public:
 		return false;
 	}
 
+	TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const override;
+
 	bool GetPlayerFeatureFlag(EFeatureFlag flag) const override;
 
 	bool SetAsyncResourceReleaseNotification(IAsyncResourceReleaseNotificationRef AsyncResourceReleaseNotification) override;
 	uint32 GetNewResourcesOnOpen() const override;
 
+	void SetMetadataChanged();
 private:
 	friend class FElectraPlayerPluginModule;
 	friend class FElectraPlayerResourceDelegate;
@@ -194,6 +197,11 @@ private:
 
 	/** The actual player */
 	TSharedPtr<IElectraPlayerInterface, ESPMode::ThreadSafe> Player;
+
+	/** Current player stream metadata */
+	mutable bool bMetadataChanged = false;
+	mutable TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>>, ESPMode::ThreadSafe> CurrentMetadata;
+
 
 	/** Output sample pools */
 	TSharedPtr<FElectraTextureSamplePool, ESPMode::ThreadSafe> OutputTexturePool;

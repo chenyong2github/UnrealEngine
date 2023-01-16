@@ -7,6 +7,7 @@
 
 #include "ElectraPlayerMisc.h"
 #include "ElectraPlayerResourceDelegate.h"
+#include "MediaStreamMetadata.h"
 
 class FVideoDecoderOutput;
 using FVideoDecoderOutputPtr = TSharedPtr<FVideoDecoderOutput, ESPMode::ThreadSafe>;
@@ -63,6 +64,7 @@ public:
 		PlaybackSuspended,
 		SeekCompleted,
 		TracksChanged,
+		MetadataChanged,
 
 		Internal_Start,
 		Internal_PurgeVideoSamplesHint = Internal_Start,
@@ -248,6 +250,8 @@ public:
 	virtual int32 GetNumVideoStreams(int32 TrackIndex) const = 0;
 	virtual bool GetVideoStreamFormat(FVideoStreamFormat& OutFormat, int32 InTrackIndex, int32 InStreamIndex) const = 0;
 	virtual bool GetActiveVideoStreamFormat(FVideoStreamFormat& OutFormat) const = 0;
+
+	virtual TSharedPtr<TMap<FString, TArray<TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> GetMediaMetadata() const = 0;
 
 	virtual void NotifyOfOptionChange() = 0;
 

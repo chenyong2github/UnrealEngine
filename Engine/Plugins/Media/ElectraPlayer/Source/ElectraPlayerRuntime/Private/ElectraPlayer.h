@@ -12,6 +12,7 @@
 #include "IElectraPlayerInterface.h"
 
 #include "Player/AdaptiveStreamingPlayer.h"
+#include "MediaStreamMetadata.h"
 #include "PlayerRuntimeGlobal.h"
 
 class FVideoDecoderOutput;
@@ -134,6 +135,7 @@ public:
 	int32 GetNumVideoStreams(int32 TrackIndex) const override;
 	bool GetVideoStreamFormat(FVideoStreamFormat& OutFormat, int32 InTrackIndex, int32 InStreamIndex) const override;
 	bool GetActiveVideoStreamFormat(FVideoStreamFormat& OutFormat) const override;
+	TSharedPtr<TMap<FString, TArray<TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> GetMediaMetadata() const override;
 
 	void NotifyOfOptionChange() override;
 
@@ -285,8 +287,8 @@ private:
 	};
 	struct FPlayerMetricEvent_MediaMetadataChange : public FPlayerMetricEventBase
 	{
-		FPlayerMetricEvent_MediaMetadataChange(const TSharedPtrTS<Electra::UtilsMP4::FMetadataParser>& InMetadata) : FPlayerMetricEventBase(EType::MediaMetadataChanged), NewMetadata(InMetadata->GetAsJSON()) {}
-		FString NewMetadata;
+		FPlayerMetricEvent_MediaMetadataChange(const TSharedPtrTS<Electra::UtilsMP4::FMetadataParser>& InMetadata) : FPlayerMetricEventBase(EType::MediaMetadataChanged), NewMetadata(InMetadata) {}
+		TSharedPtrTS<Electra::UtilsMP4::FMetadataParser> NewMetadata;
 	};
 	struct FPlayerMetricEvent_Error : public FPlayerMetricEventBase
 	{
@@ -409,6 +411,8 @@ private:
 	FPlaybackRange									CurrentPlaybackRange;
 	TOptional<bool>									bFrameAccurateSeeking;
 	TOptional<bool>									bEnableLooping;
+
+	TSharedPtr<TMap<FString, TArray<TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> CurrentStreamMetadata;
 
 	TOptional<FVideoStreamFormat>					CurrentlyActiveVideoStreamFormat;
 
@@ -803,7 +807,7 @@ private:
 	void HandlePlayerEventJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason);
 	void HandlePlayerEventPlaybackStopped();
 	void HandlePlayerEventSeekCompleted();
-	void HandlePlayerMediaMetadataChanged(const FString& InMetadata);
+	void HandlePlayerMediaMetadataChanged(const TSharedPtrTS<Electra::UtilsMP4::FMetadataParser>& InMetadata);
 	void HandlePlayerEventError(const FString& ErrorReason);
 	void HandlePlayerEventLogMessage(IInfoLog::ELevel InLogLevel, const FString& InLogMessage, int64 InPlayerWallclockMilliseconds);
 	void HandlePlayerEventDroppedVideoFrame();

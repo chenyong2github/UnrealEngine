@@ -208,6 +208,7 @@ void FElectraPlayer::ClearToDefaultState()
 	bInitialSeekPerformed = false;
 	bDiscardOutputUntilCleanStart = false;
 	LastPresentedFrameDimension = FIntPoint::ZeroValue;
+	CurrentStreamMetadata.Reset();
 	CurrentlyActiveVideoStreamFormat.Reset();
 	DeferredPlayerEvents.Empty();
 	MediaUrl.Empty();
@@ -666,7 +667,7 @@ void FElectraPlayer::Tick(FTimespan DeltaTime, FTimespan Timecode)
 	if (PinnedAdapterDelegate.IsValid())
 	{
 		IElectraPlayerAdapterDelegate::EPlayerEvent Event;
-		while (DeferredEvents.Dequeue(Event))
+		while(DeferredEvents.Dequeue(Event))
 		{
 			PinnedAdapterDelegate->SendMediaEvent(Event);
 		}
@@ -1264,6 +1265,11 @@ void FElectraPlayer::GetPlaybackRange(FPlaybackRange& OutPlaybackRange) const
 			OutPlaybackRange.End.Reset();
 		}
 	}
+}
+
+TSharedPtr<TMap<FString, TArray<TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> FElectraPlayer::GetMediaMetadata() const
+{
+	return CurrentStreamMetadata;
 }
 
 
@@ -2592,14 +2598,21 @@ void FElectraPlayer::HandlePlayerEventSeekCompleted()
 	MediaStateOnSeekFinished();
 }
 
-void FElectraPlayer::HandlePlayerMediaMetadataChanged(const FString& InMetadata)
+void FElectraPlayer::HandlePlayerMediaMetadataChanged(const TSharedPtrTS<Electra::UtilsMP4::FMetadataParser>& InMetadata)
 {
-	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
-	if (PinnedAdapterDelegate.IsValid())
+	if (InMetadata.IsValid())
 	{
-		// Send out the metadata through the option query interface since we have no other means
-		// to deliver it through Media Framework at the moment.
-		/*FVariantValue Result =*/ PinnedAdapterDelegate->QueryOptions(IElectraPlayerAdapterDelegate::EOptionType::MediaMetadataUpdate, FVariantValue(InMetadata));
+		TSharedPtr<TMap<FString, TArray<TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> NewMeta = InMetadata->GetMediaStreamMetadata();
+		CurrentStreamMetadata = MoveTemp(NewMeta);		
+		DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::MetadataChanged);
+
+		TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
+		if (PinnedAdapterDelegate.IsValid())
+		{
+			// Send out the metadata through the option query interface for the time being.
+			// This should be removed in the near future.
+			/*FVariantValue Result =*/ PinnedAdapterDelegate->QueryOptions(IElectraPlayerAdapterDelegate::EOptionType::MediaMetadataUpdate, FVariantValue(InMetadata->GetAsJSON()));
+		}
 	}
 }
 

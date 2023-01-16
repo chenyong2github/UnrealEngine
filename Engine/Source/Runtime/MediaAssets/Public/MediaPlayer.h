@@ -953,6 +953,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnTracksChanged;
 
+	/**
+	 * A delegate that is invoked when the media metadata changed.
+	 *
+	 * @see OnMediaOpened
+	 */
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
+	FOnMediaPlayerMediaEvent OnMetadataChanged;
 public:
 
 	/**

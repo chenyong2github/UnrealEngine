@@ -38,6 +38,9 @@ enum class EMediaEvent
 	/** Media tracks have changed. */
 	TracksChanged,
 
+	/** Media metadata has changed. */
+	MetadataChanged,
+
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 
 	/** Start of internal events not sent out to user code. */

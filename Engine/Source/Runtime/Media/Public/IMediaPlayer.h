@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Internationalization/Text.h"
 #include "Math/Interval.h"
 #include "Math/IntPoint.h"
@@ -192,6 +194,52 @@ public:
 	virtual FVariant GetMediaInfo(FName InfoName) const
 	{
 		return FVariant();
+	}
+
+	/**
+	 * This structure describes a metadata item.
+	 */
+	class IMetadataItem
+	{
+	public:
+		virtual ~IMetadataItem() = default;
+
+		/*
+		  Language this item is described in.
+		  This should a three letter ISO 639-2 code. If no language is specified this item is intended
+		  to be used when no other item exists in the user's preferred language.
+		*/
+		virtual const FString& GetLanguageCode() const = 0;
+		
+		/*
+		  Optional mime type of the item described by Value.
+		  This should be set when Value is of type EVariantTypes::ByteArray
+		  For example, if this item is a binary JPEG image the mime type should be set as "image/jpeg"
+		  to identify the type of the payload.
+		*/
+		virtual const FString& GetMimeType() const = 0;
+
+		/*
+		  The value of the metadata item.
+		*/
+		virtual const FVariant& GetValue() const = 0;
+	};
+
+	/**
+	 * Gets the current metadata of the media source.
+	 * 
+	 * Metadata is optional and if present is typically a collection of key/value items without a
+	 * well defined meaning. It may contain information on copyright, album name, artist and such,
+	 * but the availability of any item is not mandatory and the representation will vary with the
+	 * type of media.
+	 * Interpretation therefor requires the application to be aware of the type of media being loaded
+	 * and the possible metadata it may carry.
+	 * 
+	 * Metadata may change over time. Its presence or change is reported by a MetadataChanged event.
+	 */
+	virtual TSharedPtr<TMap<FString, TArray<TUniquePtr<IMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const
+	{
+		return nullptr;
 	}
 
 	/**

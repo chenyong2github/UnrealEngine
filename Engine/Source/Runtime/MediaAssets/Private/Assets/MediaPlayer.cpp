@@ -1016,6 +1016,10 @@ void UMediaPlayer::HandlePlayerMediaEvent(EMediaEvent Event)
 	case EMediaEvent::TracksChanged:
 		OnTracksChanged.Broadcast();
 		break;
+
+	case EMediaEvent::MetadataChanged:
+		OnMetadataChanged.Broadcast();
+		break;
 	}
 }
 

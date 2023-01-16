@@ -4,6 +4,7 @@
 
 #include <CoreMinimal.h>
 #include <Misc/Variant.h>
+#include "MediaStreamMetadata.h"
 
 namespace Electra
 {
@@ -115,24 +116,33 @@ public:
 		EResult Parse(uint32 InHandler, uint32 InHandlerReserved0, const TArray<FBoxInfo>& InBoxes);
 		bool IsDifferentFrom(const FMetadataParser& Other);
 		FString GetAsJSON() const;
+		TSharedPtr<TMap<FString, TArray<TSharedPtr<IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> GetMediaStreamMetadata() const;
 	private:
 		FString PrintableBoxAtom(const uint32 InAtom);
 		void Parse(const FBoxInfo& InBox);
 		void ParseBoxDataList(const FString& AsCategory, const uint8* InBoxData, uint32 InBoxSize);
 		void ParseBoxDataiTunes(const uint8* InBoxData, uint32 InBoxSize);
 
-		struct FItem
+		class FItem : public IMediaStreamMetadata::IItem
 		{
-			char Language[3] { 0 };			// ISO 639-2; if not set (all zero) the default entry for all languages
+		public:
+			~FItem() {}
+			const FString& GetLanguageCode() const override
+			{ return Language; }
+			const FString& GetMimeType() const override
+			{ return MimeType; }
+			const FVariant& GetValue() const override
+			{ return Value; }
+
+			FString Language;				// ISO 639-2; if not set (all zero) the default entry for all languages
+			FString MimeType;
 			int32 Type = 0;					// Well-known data type (see Quicktime reference)
 			FVariant Value;
 			FString ToJSONValue() const;
 			static TArray<TCHAR> CharsToEscapeInJSON;
 			bool operator != (const FItem& Other) const
 			{
-				return Type != Other.Type ||
-						FMemory::Memcmp(Language, Other.Language, sizeof(Language)) != 0 ||
-						Value != Other.Value;
+				return Type != Other.Type || Language != Other.Language || Value != Other.Value;
 			}
 			bool operator == (const FItem& Other) const
 			{
@@ -141,7 +151,7 @@ public:
 		};
 
 		TMap<uint32, FString> WellKnownItems;
-		TMap<FString, TArray<FItem>> Items;
+		TMap<FString, TArray<TSharedPtr<FItem, ESPMode::ThreadSafe>>> Items;
 		uint32 NumTotalItems = 0;
 	};
 

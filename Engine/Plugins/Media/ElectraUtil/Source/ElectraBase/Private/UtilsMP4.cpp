@@ -373,7 +373,7 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 		RETURN_IF_READERROR(dr.Read(LanguageIndicator));
 		int32 NumRemainingDataBytes = BoxSize - 8 - (dr.GetCurrentOffset() - CurrentOffset);
 
-		FItem Item;
+		TSharedPtr<FItem, ESPMode::ThreadSafe> Item = MakeShared<FItem, ESPMode::ThreadSafe>();
 
 		// We do not handle the country indicator at the moment.
 		// Likewise, the language indicator must be a directly specified language code since we do not handle
@@ -385,9 +385,11 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 		}
 		if (LanguageIndicator)
 		{
-			Item.Language[0] = (char)(0x60 + ((LanguageIndicator & 0x7c00) >> 10));
-			Item.Language[1] = (char)(0x60 + ((LanguageIndicator & 0x03e0) >> 5));
-			Item.Language[2] = (char)(0x60 + (LanguageIndicator & 0x001f));
+			char Lang[3];
+			Lang[0] = (char)(0x60 + ((LanguageIndicator & 0x7c00) >> 10));
+			Lang[1] = (char)(0x60 + ((LanguageIndicator & 0x03e0) >> 5));
+			Lang[2] = (char)(0x60 + (LanguageIndicator & 0x001f));
+			Item->Language = FString(3, Lang);
 		}
 
 		bool bSet = true;
@@ -400,8 +402,8 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 				FString String;
 				if ((bSet = dr.ReadStringUTF8(String, NumRemainingDataBytes)) == true)
 				{
-					Item.Value = String;
-					Item.Type = 1;
+					Item->Value = String;
+					Item->Type = 1;
 				}
 				break;
 			}
@@ -412,8 +414,8 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 				FString String;
 				if ((bSet = dr.ReadStringUTF16(String, NumRemainingDataBytes)) == true)
 				{
-					Item.Value = String;
-					Item.Type = 1;
+					Item->Value = String;
+					Item->Type = 1;
 				}
 				break;
 			}
@@ -423,8 +425,20 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 			case 27:	// BMP image
 			{
 				TArray<uint8> Image(dr.GetCurrentDataPointer(), NumRemainingDataBytes);
-				Item.Value = MoveTemp(Image);
-				Item.Type = WKT;
+				Item->Value = MoveTemp(Image);
+				Item->Type = WKT;
+				if (WKT == 13)
+				{
+					Item->MimeType = TEXT("image/jpeg");
+				}
+				else if (WKT == 14)
+				{
+					Item->MimeType = TEXT("image/png");
+				}
+				else if (WKT == 27)
+				{
+					Item->MimeType = TEXT("image/bmp");
+				}
 				break;
 			}
 
@@ -435,8 +449,8 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 				if ((bSet = dr.ReadAsNumber(Flt)) == true)
 				{
 					// Set as double!
-					Item.Value = (double)Flt;
-					Item.Type = 24;
+					Item->Value = (double)Flt;
+					Item->Type = 24;
 				}
 				break;
 			}
@@ -446,8 +460,8 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 				double Dbl;
 				if ((bSet = dr.ReadAsNumber(Dbl)) == true)
 				{
-					Item.Value = Dbl;
-					Item.Type = 24;
+					Item->Value = Dbl;
+					Item->Type = 24;
 				}
 				break;
 			}
@@ -461,8 +475,8 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 				int64 Number;
 				if ((bSet = dr.ReadAsNumber(Number, WKT==65?1:WKT==66?2:WKT==67?4:WKT==74?8:NumRemainingDataBytes)) == true)
 				{
-					Item.Value = Number;
-					Item.Type = 74;
+					Item->Value = Number;
+					Item->Type = 74;
 				}
 				break;
 			}
@@ -476,8 +490,8 @@ void UtilsMP4::FMetadataParser::ParseBoxDataList(const FString& AsCategory, cons
 				uint64 Number;
 				if ((bSet = dr.ReadAsNumber(Number, WKT==75?1:WKT==76?2:WKT==77?4:WKT==78?8:NumRemainingDataBytes)) == true)
 				{
-					Item.Value = Number;
-					Item.Type = 78;
+					Item->Value = Number;
+					Item->Type = 78;
 				}
 				break;
 			}
@@ -559,7 +573,7 @@ bool UtilsMP4::FMetadataParser::IsDifferentFrom(const UtilsMP4::FMetadataParser&
 	// Check if the maps keys or items are different.
 	for(auto& Key : Items)
 	{
-		const TArray<FItem>* OtherKeyItems = Other.Items.Find(Key.Key);
+		const TArray<TSharedPtr<FItem, ESPMode::ThreadSafe>>* OtherKeyItems = Other.Items.Find(Key.Key);
 		if (!OtherKeyItems || Key.Value.Num() != OtherKeyItems->Num())
 		{
 			return true;
@@ -567,13 +581,36 @@ bool UtilsMP4::FMetadataParser::IsDifferentFrom(const UtilsMP4::FMetadataParser&
 		// Expensive item by item test :-(
 		for(auto& Item : Key.Value)
 		{
-			if (!OtherKeyItems->Contains(Item))
+			if (!OtherKeyItems->ContainsByPredicate([Item](const TSharedPtr<FItem, ESPMode::ThreadSafe>& CompItem)
+			{
+				return *Item == *CompItem;
+			}))
 			{
 				return true;
 			}
 		}
 	}
 	return false;
+}
+
+
+TSharedPtr<TMap<FString, TArray<TSharedPtr<IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> UtilsMP4::FMetadataParser::GetMediaStreamMetadata() const
+{
+	TSharedPtr<TMap<FString, TArray<TSharedPtr<IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> NewMeta(new TMap<FString, TArray<TSharedPtr<IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>);
+	for(auto& Item : Items)
+	{
+		const TArray<TSharedPtr<FItem, ESPMode::ThreadSafe>>& SrcList = Item.Value;
+		if (SrcList.Num())
+		{
+			TArray<TSharedPtr<IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>> DstList;
+			for(int32 i=0; i<SrcList.Num(); ++i)
+			{
+				DstList.Emplace(SrcList[i]);
+			}
+			NewMeta->Emplace(Item.Key, MoveTemp(DstList));
+		}
+	}
+	return NewMeta;
 }
 
 
@@ -584,12 +621,12 @@ FString UtilsMP4::FMetadataParser::GetAsJSON() const
 	for(auto& Item : Items)
 	{
 		bool bFirstItemValue = true;
-		const TArray<FItem>& List=Item.Value;
+		const TArray<TSharedPtr<FItem, ESPMode::ThreadSafe>>& List=Item.Value;
 		FString ItemJSON;
 		for(int32 i=0; i<List.Num(); ++i)
 		{
-			const FItem& it = List[i];
-			FString ItemValue = it.ToJSONValue();
+			const TSharedPtr<FItem, ESPMode::ThreadSafe>& it = List[i];
+			FString ItemValue = it->ToJSONValue();
 			if (ItemValue.Len())
 			{
 				if (!bFirstItemValue)
@@ -597,8 +634,7 @@ FString UtilsMP4::FMetadataParser::GetAsJSON() const
 					ItemJSON.AppendChar(TCHAR(','));
 				}
 				bFirstItemValue = false;
-				FString Lang(3, it.Language);
-				ItemJSON.Append(FString::Printf(TEXT("\"%s\":"), *Lang));
+				ItemJSON.Append(FString::Printf(TEXT("\"%s\":"), *(it->Language)));
 				ItemJSON.Append(MoveTemp(ItemValue));
 			}
 		}
