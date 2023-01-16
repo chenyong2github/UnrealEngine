@@ -380,11 +380,17 @@ void FVulkanPendingComputeState::PrepareForDispatch(FVulkanCmdBuffer* InCmdBuffe
 
 	check(CurrentState);
 
-	const bool bHasDescriptorSets = CurrentState->UpdateDescriptorSets(&Context, InCmdBuffer);
-
 	VkCommandBuffer CmdBuffer = InCmdBuffer->GetHandle();
 
+	if (Device->SupportsBindless())
 	{
+		CurrentState->UpdateBindlessDescriptors(&Context, InCmdBuffer);
+		CurrentPipeline->Bind(CmdBuffer);
+	}
+	else
+	{
+		const bool bHasDescriptorSets = CurrentState->UpdateDescriptorSets(&Context, InCmdBuffer);
+
 		//#todo-rco: Move this to SetComputePipeline()
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 		SCOPE_CYCLE_COUNTER(STAT_VulkanPipelineBind);
@@ -416,20 +422,29 @@ void FVulkanPendingGfxState::PrepareForDraw(FVulkanCmdBuffer* CmdBuffer)
 
 	check(CmdBuffer->bHasPipeline);
 
-	// TODO: Add 'dirty' flag? Need to rebind only on PSO change
-	if (CurrentPipeline->bHasInputAttachments)
+	if (Device->SupportsBindless())
 	{
-		FVulkanFramebuffer* CurrentFramebuffer = Context.GetCurrentFramebuffer();
-		UpdateInputAttachments(CurrentFramebuffer);
+		check(!CurrentPipeline->bHasInputAttachments); // todo-jn: bindless + InputAttachments
+		UpdateDynamicStates(CmdBuffer);
+		CurrentState->UpdateBindlessDescriptors(&Context, CmdBuffer);
 	}
-	
-	bool bHasDescriptorSets = CurrentState->UpdateDescriptorSets(&Context, CmdBuffer);
-
-	UpdateDynamicStates(CmdBuffer);
-
-	if (bHasDescriptorSets)
+	else
 	{
-		CurrentState->BindDescriptorSets(CmdBuffer->GetHandle());
+		// TODO: Add 'dirty' flag? Need to rebind only on PSO change
+		if (CurrentPipeline->bHasInputAttachments)
+		{
+			FVulkanFramebuffer* CurrentFramebuffer = Context.GetCurrentFramebuffer();
+			UpdateInputAttachments(CurrentFramebuffer);
+		}
+
+		const bool bHasDescriptorSets = CurrentState->UpdateDescriptorSets(&Context, CmdBuffer);
+
+		UpdateDynamicStates(CmdBuffer);
+
+		if (bHasDescriptorSets)
+		{
+			CurrentState->BindDescriptorSets(CmdBuffer->GetHandle());
+		}
 	}
 
 	if (bDirtyVertexStreams)

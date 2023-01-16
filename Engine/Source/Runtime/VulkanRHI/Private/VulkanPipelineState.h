@@ -231,6 +231,8 @@ public:
 		}
 	}
 
+	void UpdateBindlessDescriptors(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer);
+
 	inline void BindDescriptorSets(VkCommandBuffer CmdBuffer)
 	{
 		Bind(CmdBuffer, ComputePipeline->GetLayout().GetPipelineLayout(), VK_PIPELINE_BIND_POINT_COMPUTE);
@@ -291,6 +293,8 @@ public:
 			return InternalUpdateDescriptorSets<false>(CmdListContext, CmdBuffer);
 		}
 	}
+
+	void UpdateBindlessDescriptors(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer);
 
 	inline void BindDescriptorSets(VkCommandBuffer CmdBuffer)
 	{

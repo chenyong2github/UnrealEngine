@@ -216,6 +216,54 @@ bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSets(FVulkan
 	return true;
 }
 
+void FVulkanComputePipelineDescriptorState::UpdateBindlessDescriptors(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer)
+{
+	check(Device->SupportsBindless());
+
+	// We should only have uniform buffers at this point
+	check(DSWriteContainer.DescriptorBufferInfo.Num() == DSWriteContainer.DescriptorWrites.Num());
+	check(DSWriteContainer.DescriptorImageInfo.Num() == 0);
+
+	FVulkanUniformBufferUploader* UniformBufferUploader = CmdListContext->GetUniformBufferUploader();
+	uint8* CPURingBufferBase = (uint8*)UniformBufferUploader->GetCPUMappedPointer();
+	const VkDeviceSize UBOffsetAlignment = Device->GetLimits().minUniformBufferOffsetAlignment;
+
+	if (PackedUniformBuffersDirty != 0)
+	{
+#if VULKAN_ENABLE_AGGRESSIVE_STATS
+		SCOPE_CYCLE_COUNTER(STAT_VulkanApplyPackedUniformBuffers);
+#endif
+		uint64 RemainingPackedUniformsMask = PackedUniformBuffersDirty;
+		int32 PackedUBIndex = 0;
+		while (RemainingPackedUniformsMask)
+		{
+			if (RemainingPackedUniformsMask & 1)
+			{
+				const FPackedUniformBuffers::FPackedBuffer& StagedUniformBuffer = PackedUniformBuffers.GetBuffer(PackedUBIndex);
+				const int32 BindingIndex = PipelineDescriptorInfo->RemappingInfo->StageInfos[0].PackedUBBindingIndices[PackedUBIndex];
+				VkDescriptorBufferInfo& BufferInfo = *const_cast<VkDescriptorBufferInfo*>(DSWriter[0].WriteDescriptors[BindingIndex].pBufferInfo);
+				BufferInfo.buffer = UniformBufferUploader->GetCPUBufferHandle();
+				BufferInfo.range = StagedUniformBuffer.Num();
+				check((BufferInfo.range & 0xF) == 0);   // :todo-jn: nv driver issue
+
+				const uint64 RingBufferOffset = UniformBufferUploader->AllocateMemory(BufferInfo.range, UBOffsetAlignment, CmdBuffer);
+				BufferInfo.offset = UniformBufferUploader->GetCPUBufferOffset() + RingBufferOffset;
+
+				// get location in the ring buffer to use
+				FMemory::Memcpy(CPURingBufferBase + RingBufferOffset, StagedUniformBuffer.GetData(), BufferInfo.range);
+			}
+			RemainingPackedUniformsMask = RemainingPackedUniformsMask >> 1;
+			++PackedUBIndex;
+		}
+
+		PackedUniformBuffersDirty = 0;
+	}
+
+	if (DSWriteContainer.DescriptorBufferInfo.Num())
+	{
+		Device->GetBindlessDescriptorManager()->RegisterUniformBuffers(CmdBuffer->GetHandle(), VK_PIPELINE_BIND_POINT_COMPUTE, ShaderStage::EStage::Compute, DSWriter[0]);
+	}
+}
 
 FVulkanGraphicsPipelineDescriptorState::FVulkanGraphicsPipelineDescriptorState(FVulkanDevice* InDevice, FVulkanRHIGraphicsPipelineState* InGfxPipeline)
 	: FVulkanCommonPipelineDescriptorState(InDevice)
@@ -350,6 +398,66 @@ bool FVulkanGraphicsPipelineDescriptorState::InternalUpdateDescriptorSets(FVulka
 
 	return true;
 }
+
+void FVulkanGraphicsPipelineDescriptorState::UpdateBindlessDescriptors(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer)
+{
+	check(Device->SupportsBindless());
+
+	// We should only have uniform buffers at this point
+	check(DSWriteContainer.DescriptorBufferInfo.Num() == DSWriteContainer.DescriptorWrites.Num());
+	check(DSWriteContainer.DescriptorImageInfo.Num() == 0);
+
+	FVulkanUniformBufferUploader* UniformBufferUploader = CmdListContext->GetUniformBufferUploader();
+	uint8* CPURingBufferBase = (uint8*)UniformBufferUploader->GetCPUMappedPointer();
+	const VkDeviceSize UBOffsetAlignment = Device->GetLimits().minUniformBufferOffsetAlignment;
+
+	const FDescriptorSetRemappingInfo* RESTRICT RemappingInfo = PipelineDescriptorInfo->RemappingInfo;
+
+	// Process updates
+	{
+#if VULKAN_ENABLE_AGGRESSIVE_STATS
+		SCOPE_CYCLE_COUNTER(STAT_VulkanApplyPackedUniformBuffers);
+#endif
+		int32 DSWriterIndex = 0;
+		for (int32 Stage = 0; Stage < ShaderStage::NumStages; ++Stage)
+		{
+			if (PackedUniformBuffersDirty[Stage] != 0)
+			{
+				const uint32 DescriptorSet = RemappingInfo->StageInfos[Stage].PackedUBDescriptorSet;
+				uint64 RemainingPackedUniformsMask = PackedUniformBuffersDirty[Stage];
+				int32 PackedUBIndex = 0;
+				while (RemainingPackedUniformsMask)
+				{
+					if (RemainingPackedUniformsMask & 1)
+					{
+						const FPackedUniformBuffers::FPackedBuffer& StagedUniformBuffer = PackedUniformBuffers[Stage].GetBuffer(PackedUBIndex);
+						const int32 BindingIndex = RemappingInfo->StageInfos[Stage].PackedUBBindingIndices[PackedUBIndex];
+						VkDescriptorBufferInfo& BufferInfo = *const_cast<VkDescriptorBufferInfo*>(DSWriter[DescriptorSet].WriteDescriptors[BindingIndex].pBufferInfo);
+						BufferInfo.buffer = UniformBufferUploader->GetCPUBufferHandle();
+						BufferInfo.range = StagedUniformBuffer.Num();
+						check((BufferInfo.range & 0xF) == 0);   // :todo-jn: nv driver issue
+
+						const uint64 RingBufferOffset = UniformBufferUploader->AllocateMemory(BufferInfo.range, UBOffsetAlignment, CmdBuffer);
+						BufferInfo.offset = UniformBufferUploader->GetCPUBufferOffset() + RingBufferOffset;
+
+						// get location in the ring buffer to use
+						FMemory::Memcpy(CPURingBufferBase + RingBufferOffset, StagedUniformBuffer.GetData(), BufferInfo.range);
+					}
+					RemainingPackedUniformsMask = RemainingPackedUniformsMask >> 1;
+					++PackedUBIndex;
+				}
+
+				PackedUniformBuffersDirty[Stage] = 0;
+			}
+
+			if ((RemappingInfo->StageInfos[Stage].PackedUBDescriptorSet != UINT16_MAX) || RemappingInfo->StageInfos[Stage].UniformBuffers.Num())
+			{
+				Device->GetBindlessDescriptorManager()->RegisterUniformBuffers(CmdBuffer->GetHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, (ShaderStage::EStage)Stage, DSWriter[DSWriterIndex++]);
+			}
+		}
+	}
+}
+
 
 template <typename TRHIShader>
 void FVulkanCommandListContext::ApplyStaticUniformBuffers(TRHIShader* Shader)
