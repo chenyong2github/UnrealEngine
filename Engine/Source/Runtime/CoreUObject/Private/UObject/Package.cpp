@@ -59,7 +59,7 @@ FSavePackageResultStruct::FSavePackageResultStruct(ESavePackageResult InResult, 
 FSavePackageResultStruct::FSavePackageResultStruct(FSavePackageResultStruct&& Other) = default;
 FSavePackageResultStruct& FSavePackageResultStruct::operator=(FSavePackageResultStruct&& Other) = default;
 FSavePackageResultStruct::~FSavePackageResultStruct() = default;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 void UPackage::PostInitProperties()
 {
