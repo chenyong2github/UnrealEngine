@@ -2540,9 +2540,8 @@ void UCookOnTheFlyServer::PumpLoads(UE::Cook::FTickStackData& StackData, uint32 
 		OutNumPushed += NumPushed;
 		ProcessUnsolicitedPackages(); // May add new packages into the LoadQueue
 
-		if (HasExceededMaxMemory())
+		if (PumpHasExceededMaxMemory(StackData.ResultFlags))
 		{
-			StackData.ResultFlags |= COSR_RequiresGC | COSR_RequiresGC_OOM | COSR_YieldTick;
 			return;
 		}
 	}
@@ -4009,10 +4008,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 	check(IsInGameThread());
 	ON_SCOPE_EXIT
 	{
-		if (HasExceededMaxMemory())
-		{
-			StackData.ResultFlags |= COSR_RequiresGC | COSR_RequiresGC_OOM | COSR_YieldTick;
-		}
+		PumpHasExceededMaxMemory(StackData.ResultFlags);
 	};
 
 	// save as many packages as we can during our time slice
@@ -4407,18 +4403,8 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 
 }
 
-bool UCookOnTheFlyServer::HasExceededMaxMemory()
+bool UCookOnTheFlyServer::PumpHasExceededMaxMemory(uint32& OutResultFlags)
 {
-	// If we are in a cooldown period, return false.
-	if (ExceededMaxMemoryCooldownEndTimeSeconds > 0)
-	{
-		if (ExceededMaxMemoryCooldownEndTimeSeconds > FPlatformTime::Seconds())
-		{
-			return false;
-		}
-		ExceededMaxMemoryCooldownEndTimeSeconds = 0.; // Return to 0 to avoid needing to call FPlatformTime::Seconds() on every call
-	}
-
 #if UE_GC_TRACK_OBJ_AVAILABLE
 	if (GUObjectArray.GetObjectArrayEstimatedAvailable() < MinFreeUObjectIndicesBeforeGC)
 	{
@@ -4430,6 +4416,7 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory()
 			GEngine->Exec(nullptr, TEXT("OBJ LIST -COUNTSORT -SKIPMEMORYSIZE"));
 			bPerformedObjListWhenNearMaxObjects = true;
 		}
+		OutResultFlags |= COSR_RequiresGC | COSR_RequiresGC_OOM | COSR_YieldTick;
 		return true;
 	}
 #endif // UE_GC_TRACK_OBJ_AVAILABLE
@@ -4536,15 +4523,85 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory()
 		bTriggerGC = true;
 	}
 
-	if (bTriggerGC)
+	// If a normal GC was not triggered, check the SoftGC trigger conditions
+	double CurrentTime = 0.;
+	bool bIsSoftGC = false;
+	if (!bTriggerGC && bUseSoftGC && IsDirectorCookByTheBook() && !IsCookingInEditor())
 	{
-		UE_LOG(LogCook, Display, TEXT("Garbage collection triggered by conditions:%s"), TriggerMessages.ToString());
-		return true;
+		if (SoftGCNextAvailablePhysicalTarget == -1) // Uninitialized
+		{
+			int32 StartNumerator = FMath::Max(SoftGCStartNumerator, 1);
+			int32 Denominator = FMath::Max(SoftGCDenominator, 1);
+			// e.g. Start the target at 5/10, and decrease it by 1/10 each time the target is reached
+			SoftGCNextAvailablePhysicalTarget = (static_cast<int64>(MemStats.TotalPhysical)*StartNumerator)
+				/Denominator;
+		}
+
+		if (SoftGCNextAvailablePhysicalTarget < -1)
+		{
+			// No further targets, no further SoftGC
+		}
+		else if (static_cast<int64>(MemStats.AvailablePhysical) <= SoftGCNextAvailablePhysicalTarget)
+		{
+			constexpr float SoftGCInstigateCooldown = 5 * 60.f;
+			CurrentTime = FPlatformTime::Seconds();
+			if (LastSoftGCTime + SoftGCInstigateCooldown <= CurrentTime)
+			{
+				TriggerMessages.Appendf(TEXT("\n  CookSettings.bUseSoftGC: Available physical memory %dMiB is less than the current target for SoftGC %dMiB."),
+					static_cast<uint32>(MemStats.AvailablePhysical / 1024 / 1024), static_cast<uint32>(SoftGCNextAvailablePhysicalTarget / 1024 / 1024));
+				bTriggerGC = true;
+				bIsSoftGC = true;
+			}
+		}
 	}
-	else
+
+	if (!bTriggerGC)
 	{
 		return false;
 	}
+
+	if (CurrentTime == 0.)
+	{
+		CurrentTime = FPlatformTime::Seconds();
+	}
+
+	// Don't allow a second GC (soft or normal) within the GC cooldown period after a full GC
+	constexpr float GCCooldown = 60.f;
+	if (LastFullGCTime + GCCooldown > CurrentTime)
+	{
+		if (!bIsSoftGC && !bWarnedExceededMaxMemoryWithinGCCooldown)
+		{
+			bWarnedExceededMaxMemoryWithinGCCooldown = true;
+			// If we are in a cooldown period, return false.
+			UE_LOG(LogCook, Display, TEXT("Garbage collection triggers ignored: Out of memory condition has been detected, but is only %.0fs after the last GC. ")
+				TEXT("It will be prevented until %.0f seconds have passed and we may run out of memory.\n")
+				TEXT("Garbage collection triggered by conditions: %s"),
+				static_cast<float>(CurrentTime - LastFullGCTime), GCCooldown, TriggerMessages.ToString());
+		}
+		return false;
+	}
+
+	const TCHAR* TypeMessage = bIsSoftGC ? TEXT("Soft") : (IsCookFlagSet(ECookInitializationFlags::EnablePartialGC) ? TEXT("Partial") : TEXT("Full"));
+
+	UE_LOG(LogCook, Display, TEXT("Garbage collection triggered (%s). Triggered by conditions:%s"),
+		TypeMessage, TriggerMessages.ToString());
+	OutResultFlags |= COSR_RequiresGC | COSR_YieldTick;
+	OutResultFlags |= COSR_RequiresGC_OOM;
+	if (bIsSoftGC)
+	{
+		OutResultFlags |= COSR_RequiresGC_Soft_OOM;
+	}
+	return true;
+}
+
+void UCookOnTheFlyServer::SetGarbageCollectType(uint32 ResultFlagsFromTick)
+{
+	bGarbageCollectTypeSoft = (ResultFlagsFromTick & COSR_RequiresGC_Soft_OOM);
+}
+
+void UCookOnTheFlyServer::ClearGarbageCollectType()
+{
+	bGarbageCollectTypeSoft = false;
 }
 
 void UCookOnTheFlyServer::PreGarbageCollect()
@@ -4637,69 +4694,87 @@ void UCookOnTheFlyServer::PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackage
 	}
 
 	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
-	if (bPartialGC)
+	if (bGarbageCollectTypeSoft || bPartialGC)
 	{
-		LocalGCKeepObjects.Empty(1000);
-
-		// Keep all inprogress packages (including packages that have only made it to the request list) that have been partially loaded
-		// Additionally, keep all partially loaded packages that are transitively dependended on by any inprogress packages
-		// Keep all UObjects that have been loaded so far under these packages
-		TMap<const FPackageData*, int32> DependenciesCount;
-
-		TSet<FName> KeepPackages;
-		for (FPackageData* PackageData : *PackageDatas)
+		// Keep referenced all packages in requestqueue, loadqueue, and savequeue, and any packages they depend on
+		TArray<FName> Queue;
+		TSet<FName> Visited;
+		auto AddPackageName = [&Visited, &Queue](FName PackageName)
 		{
-			if (!PackageData->IsInProgress())
+			bool bAlreadyExists;
+			Visited.Add(PackageName, &bAlreadyExists);
+			if (!bAlreadyExists)
 			{
-				continue;
+				Queue.Add(PackageName);
 			}
-			const TArray<FName>& NeededPackages = GetFullPackageDependencies(PackageData->GetPackageName());
-			DependenciesCount.Add(PackageData, NeededPackages.Num());
-			KeepPackages.Append(NeededPackages);
-			GCKeepPackageDatas.Add(PackageData);
+		};
+		for (FPackageData* PackageData : PackageDatas->GetRequestQueue().GetReadyRequestsUrgent())
+		{
+			AddPackageName(PackageData->GetPackageName());
+		}
+		for (FPackageData* PackageData : PackageDatas->GetRequestQueue().GetReadyRequestsNormal())
+		{
+			AddPackageName(PackageData->GetPackageName());
+		}
+		for (FPackageData* PackageData : PackageDatas->GetLoadPrepareQueue().EntryQueue)
+		{
+			AddPackageName(PackageData->GetPackageName());
+		}
+		for (FPackageData* PackageData : PackageDatas->GetLoadPrepareQueue().PreloadingQueue)
+		{
+			AddPackageName(PackageData->GetPackageName());
+		}
+		for (FPackageData* PackageData : PackageDatas->GetLoadReadyQueue())
+		{
+			AddPackageName(PackageData->GetPackageName());
+		}
+		for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
+		{
+			AddPackageName(PackageData->GetPackageName());
 		}
 
-		TSet<FName> LoadedPackages;
-		PackageTracker->ForEachLoadedPackage(
-			[&KeepPackages, &LoadedPackages, &GCKeepPackages](UPackage* Package)
+		TArray<FName> Dependencies;
+		while (!Queue.IsEmpty())
+		{
+			FName PackageName = Queue.Pop();
+			Dependencies.Reset();
+			AssetRegistry->GetDependencies(PackageName, Dependencies, UE::AssetRegistry::EDependencyCategory::Package,
+				UE::AssetRegistry::EDependencyQuery::Hard);
+			for (FName DependencyName : Dependencies)
 			{
-				const FName& PackageName = Package->GetFName();
-				if (KeepPackages.Contains(PackageName))
+				AddPackageName(DependencyName);
+			};
+		}
+
+		TSet<UPackage*> GCKeepPackagesSet;
+		GCKeepPackagesSet.Append(GCKeepPackages);
+		for (FName PackageName : Visited)
+		{
+			UPackage* Package = FindPackage(nullptr, *WriteToString<256>(PackageName));
+			if (Package)
+			{
+				bool bAlreadyInSet;
+				GCKeepPackagesSet.Add(Package, &bAlreadyInSet);
+				if (!bAlreadyInSet)
 				{
-					LoadedPackages.Add(PackageName);
 					GCKeepPackages.Add(Package);
+					FPackageData* PackageData = PackageDatas->FindPackageDataByPackageName(Package->GetFName());
+					if (PackageData)
+					{
+						GCKeepPackageDatas.Add(PackageData);
+					}
 				}
 			}
-		);
-
-		FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-		TArray<FPackageData*> Requests;
-		Requests.Reserve(RequestQueue.ReadyRequestsNum());
-		while (!RequestQueue.IsReadyRequestsEmpty())
-		{
-			Requests.Add(RequestQueue.PopReadyRequest());
 		}
-		// We are not looking at UnclusteredRequests or RequestClusters from the RequestQueue. These are supposed to 
-		// be quickly processed and should usually be empty, so failing to account for them will only rarely cause
-		// a performance issue (and will not cause a behavior issue)
-		
-		// Sort the cook requests by the packages which are loaded first
-		// then sort by the number of dependencies which are referenced by the package
-		// we want to process the packages with the highest dependencies so that they can
-		// be evicted from memory and are likely to be able to be released on next GC pass
-		Algo::Sort(Requests, [&DependenciesCount, &LoadedPackages](const FPackageData* A, const FPackageData* B)
+		ExpectedFreedPackageNames.Reset();
+		PackageTracker->ForEachLoadedPackage(
+			[this, &GCKeepPackagesSet](UPackage* Package)
 			{
-				int32 ADependencies = DependenciesCount.FindChecked(A);
-				int32 BDependencies = DependenciesCount.FindChecked(B);
-				bool ALoaded = LoadedPackages.Contains(A->GetPackageName());
-				bool BLoaded = LoadedPackages.Contains(B->GetPackageName());
-				return (ALoaded == BLoaded) ? (ADependencies > BDependencies) : ALoaded > BLoaded;
-			}
-		);
-		for (FPackageData* Request : Requests)
-		{
-			RequestQueue.AddRequest(Request); // Urgent requests will still be moved to the front of the RequestQueue by AddRequest
-		}
+				if (!GCKeepPackagesSet.Contains(Package))
+				{
+					ExpectedFreedPackageNames.Add(Package->GetFName());
+				}
+			});
 	}
 
 	// Add packages and all RF_Public objects outered to them to LocalGCKeepObjects
@@ -4711,7 +4786,7 @@ void UCookOnTheFlyServer::PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackage
 		GetObjectsWithOuter(Package, ObjectsWithOuter);
 		for (UObject* Obj : ObjectsWithOuter)
 		{
-			if (Obj->HasAnyFlags(RF_Public))
+			if (IsValidChecked(Obj) && Obj->HasAnyFlags(RF_Public))
 			{
 				LocalGCKeepObjects.Add(Obj);
 			}
@@ -4782,13 +4857,42 @@ void UCookOnTheFlyServer::PostGarbageCollectImpl(TArray<UObject*>& LocalGCKeepOb
 	CookedPackageCountSinceLastGC = 0;
 }
 
-void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
+void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC, uint32 ResultFlags,
 	int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
 	const FGenericMemoryStats& AllocatorStatsBeforeGC,
 	int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC,
 	const FGenericMemoryStats& AllocatorStatsAfterGC)
 {
 	using namespace UE::Cook;
+
+	bWarnedExceededMaxMemoryWithinGCCooldown = false;
+	LastGCTime = FPlatformTime::Seconds();
+	bool bWasSoftGC = ResultFlags & COSR_RequiresGC_Soft_OOM;
+	if (bWasSoftGC)
+	{
+		LastSoftGCTime = LastGCTime;
+		int32 StartNumerator = FMath::Max(SoftGCStartNumerator, 1);
+		int32 Denominator = FMath::Max(SoftGCDenominator, 1);
+		// Calculate the new SoftGCNextAvailablePhysicalTarget. Use the floor of NewAvailableMemory/Denominator,
+		// unless we are already 50% of the way through that level, in which case use the next value below that
+		int64 PhysicalMemoryQuantum = static_cast<int64>(MemStatsAfterGC.TotalPhysical) / Denominator;
+		int32 NextTarget =
+			static_cast<int64>(MemStatsAfterGC.AvailablePhysical - PhysicalMemoryQuantum/2) / PhysicalMemoryQuantum;
+		NextTarget = FMath::Max(NextTarget, StartNumerator);
+		if (NextTarget <= 0)
+		{
+			SoftGCNextAvailablePhysicalTarget = -2; // disabled, no further targets
+		}
+		else
+		{
+			SoftGCNextAvailablePhysicalTarget = static_cast<int64>((MemStatsAfterGC.TotalPhysical) * NextTarget)
+				/ Denominator;
+		}
+	}
+	else
+	{
+		LastFullGCTime = LastGCTime;
+	}
 
 	if (IsCookingInEditor())
 	{
@@ -4820,13 +4924,8 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bo
 #else
 	const bool bAlwaysShowAnalysis = bCookMemoryAnalysis;
 #endif		
-
-	bool bWasImpactful =
-		(NumObjectsFreed >= ExpectedObjectsFreed || NumObjectsBeforeGC - NumObjectsMin < ExpectedObjectsFreed) &&
-		(VirtualMemFreed >= ExpectedMemFreed || VirtualMemBeforeGC - VirtualMemMin <= ExpectedMemFreed);
-
 	constexpr int32 BytesPerMeg = 1000000;
-	if ((!bWasDueToOOM || bWasImpactful) && !bAlwaysShowAnalysis)
+	auto DisplaySimpleSummary = [&]()
 	{
 		UE_LOG(LogCook, Display, TEXT("GarbageCollection Results:\n")
 			TEXT("\tType: %s\n")
@@ -4839,113 +4938,131 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bo
 			TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
 			TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
 			TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB\n"),
-			(bWasPartialGC ? TEXT("Partial") : TEXT("Full")),
+			(bWasSoftGC ? TEXT("Soft") : (bWasPartialGC ? TEXT("Partial") : TEXT("Full"))),
 			NumObjectsCapacity, (int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed,
 			VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg
 		);
-		return;
-	}
-
-	// When the garbage collection is not impactful, we add a cooldown. In some cases it really was impactful and we just could not tell
-	// that it was impactful, because e.g. GMalloc is holding on to unused memory but allowing the operating system to page that unused
-	// memory out. In the case where it really was not impactful, it is better to crash on out of memory or to run slowly due to many page
-	// faults than it is to continuously collect garbage for no purpose.
-	constexpr float ExceededMaxMemoryCooldownEndTimeDuration = 60.0f;
-	FString CooldownMessage;
-	if (bWasDueToOOM && !bWasImpactful)
-	{
-		ExceededMaxMemoryCooldownEndTimeSeconds = FPlatformTime::Seconds() + ExceededMaxMemoryCooldownEndTimeDuration;
-		UE_LOG(LogCook, Display, TEXT("GarbageCollection Results: Garbage Collection was not very impactful."));
-		CooldownMessage = FString::Printf(
-			TEXT("\t\tCooldown: Further OOM GarbageCollection will be prevented for %.0f seconds and we may run out of memory.\n"),
-			ExceededMaxMemoryCooldownEndTimeDuration);
-	}
-	else
-	{
-		UE_LOG(LogCook, Display, TEXT("GarbageCollection Results:"));
-	}
-	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: General:\n")
-		TEXT("%s")
-		TEXT("\t\tType: %s"),
-		*CooldownMessage,
-		(bWasPartialGC ? TEXT("Partial") : TEXT("Full")));
-	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: NumObjects:\n")
-		TEXT("\t\tCapacity:         %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Min:      %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Max:      %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Spread:   %10" INT64_FMT "\n")
-		TEXT("\t\tBefore GC:        %10" INT64_FMT "\n")
-		TEXT("\t\tAfter GC:         %10" INT64_FMT "\n")
-		TEXT("\t\tFreed by GC:      %10" INT64_FMT ""),
-		NumObjectsCapacity, NumObjectsMin, NumObjectsMax, NumObjectsSpread,
-		(int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed);
-	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Virtual Memory:\n")
-		TEXT("\t\tProcess Min:      %10" INT64_FMT " MB\n")
-		TEXT("\t\tProcess Max:      %10" INT64_FMT " MB\n")
-		TEXT("\t\tProcess Spread:   %10" INT64_FMT " MB\n")
-		TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
-		TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
-		TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB"),
-		VirtualMemMin / BytesPerMeg, VirtualMemMax / BytesPerMeg, VirtualMemSpread / BytesPerMeg,
-		VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg);
-	auto AllocatorStatsToString = [](const FGenericMemoryStats& AllocatorStats)
-	{
-		TStringBuilder<256> Writer;
-		for (const TPair<FString, SIZE_T>& Item : AllocatorStats.Data)
-		{
-			Writer << TEXT("\n\t\tItem ") << Item.Key << TEXT(" ") << (uint64)Item.Value;
-		}
-		return FString(*Writer);
 	};
-	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Allocator Stats Before:%s"),
-		*AllocatorStatsToString(AllocatorStatsBeforeGC));
-	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Allocator Stats After:%s"),
-		*AllocatorStatsToString(AllocatorStatsAfterGC));
 
-	TArray<UPackage*> GCKeepPackages;
-	TArray<FPackageData*> GCKeepPackageDatas;
-	TArray<UObject*> LocalGCKeepObjects;
-	PreGarbageCollectImpl(GCKeepPackages, GCKeepPackageDatas, LocalGCKeepObjects);
-	PostGarbageCollectImpl(LocalGCKeepObjects);
-
-	TSet<UPackage*> DirectPackages(GCKeepPackages);
-	DirectPackages.Append(GCKeepPackages);
-	// Some Objects can be in KeepObjects without their Package being added, because they are PollPendingCookedPlatformDatas
-	// Add their packages, since we do the transitive search based on package dependencies
-	for (UObject* Object : LocalGCKeepObjects)
+	if (!bWasSoftGC)
 	{
-		DirectPackages.Add(Object->GetPackage());
-	}
+		bool bWasImpactful =
+			(NumObjectsFreed >= ExpectedObjectsFreed || NumObjectsBeforeGC - NumObjectsMin < ExpectedObjectsFreed) &&
+			(VirtualMemFreed >= ExpectedMemFreed || VirtualMemBeforeGC - VirtualMemMin <= ExpectedMemFreed);
 
-	FResourceSizeEx DirectResourceSize;
-	FResourceSizeEx TransitiveResourceSize;
-	int64 NumDirectPackages;
-	int64 NumTransitivePackages;
-	GetDirectAndTransitiveResourceSize(DirectResourceSize, TransitiveResourceSize,
-		NumDirectPackages, NumTransitivePackages, MoveTemp(DirectPackages));
-	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Cooker References:\n")
-		TEXT("\t\tCooker direct packages:         %10" INT64_FMT "\n")
-		TEXT("\t\tCooker transitive packages:     %10" INT64_FMT "\n")
-		TEXT("\t\tCooker direct package size:     %10" INT64_FMT " MB\n")
-		TEXT("\t\tCooker transitive package size: %10" INT64_FMT " MB\n"),
-		NumDirectPackages, NumTransitivePackages,
-		DirectResourceSize.GetTotalMemoryBytes() / BytesPerMeg,
-		TransitiveResourceSize.GetTotalMemoryBytes() / BytesPerMeg);
+		if ((!bWasDueToOOM || bWasImpactful) && !bAlwaysShowAnalysis)
+		{
+			DisplaySimpleSummary();
+			return;
+		}
 
-	UE_LOG(LogCook, Display, TEXT("See log for memory use information for UObject classes and LLM tags."));
-	UE::Cook::DumpObjClassList(CookByTheBookOptions->SessionStartupObjects);
-	GLog->Logf(TEXT("Memory Analysis: LLM Tags:"));
+		if (bWasDueToOOM && !bWasImpactful)
+		{
+			UE_LOG(LogCook, Display, TEXT("GarbageCollection Results: Garbage Collection was not very impactful."));
+		}
+		else
+		{
+			UE_LOG(LogCook, Display, TEXT("GarbageCollection Results:"));
+		}
+		UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: General:\n")
+			TEXT("\t\tType: %s"),
+			(bWasSoftGC ? TEXT("Soft") : (bWasPartialGC ? TEXT("Partial") : TEXT("Full"))));
+		UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: NumObjects:\n")
+			TEXT("\t\tCapacity:         %10" INT64_FMT "\n")
+			TEXT("\t\tProcess Min:      %10" INT64_FMT "\n")
+			TEXT("\t\tProcess Max:      %10" INT64_FMT "\n")
+			TEXT("\t\tProcess Spread:   %10" INT64_FMT "\n")
+			TEXT("\t\tBefore GC:        %10" INT64_FMT "\n")
+			TEXT("\t\tAfter GC:         %10" INT64_FMT "\n")
+			TEXT("\t\tFreed by GC:      %10" INT64_FMT ""),
+			NumObjectsCapacity, NumObjectsMin, NumObjectsMax, NumObjectsSpread,
+			(int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed);
+		UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Virtual Memory:\n")
+			TEXT("\t\tProcess Min:      %10" INT64_FMT " MB\n")
+			TEXT("\t\tProcess Max:      %10" INT64_FMT " MB\n")
+			TEXT("\t\tProcess Spread:   %10" INT64_FMT " MB\n")
+			TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
+			TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
+			TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB"),
+			VirtualMemMin / BytesPerMeg, VirtualMemMax / BytesPerMeg, VirtualMemSpread / BytesPerMeg,
+			VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg);
+		auto AllocatorStatsToString = [](const FGenericMemoryStats& AllocatorStats)
+		{
+			TStringBuilder<256> Writer;
+			for (const TPair<FString, SIZE_T>& Item : AllocatorStats.Data)
+			{
+				Writer << TEXT("\n\t\tItem ") << Item.Key << TEXT(" ") << (uint64)Item.Value;
+			}
+			return FString(*Writer);
+		};
+		UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Allocator Stats Before:%s"),
+			*AllocatorStatsToString(AllocatorStatsBeforeGC));
+		UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Allocator Stats After:%s"),
+			*AllocatorStatsToString(AllocatorStatsAfterGC));
+
+
+		UE_LOG(LogCook, Display, TEXT("See log for memory use information for UObject classes and LLM tags."));
+		UE::Cook::DumpObjClassList(CookByTheBookOptions->SessionStartupObjects);
+		GLog->Logf(TEXT("Memory Analysis: LLM Tags:"));
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-	if (FLowLevelMemTracker::Get().IsEnabled())
-	{
-		FLowLevelMemTracker::Get().DumpToLog();
+		if (FLowLevelMemTracker::Get().IsEnabled())
+		{
+			FLowLevelMemTracker::Get().DumpToLog();
+		}
+		else
+#endif
+		{
+			GLog->Logf(TEXT("LLM Tags are not displayed because llm is disabled. Run with -llm or -trace=memtag to see llm tags."));
+		}
+		GLog->Flush();
 	}
 	else
-#endif
 	{
-		GLog->Logf(TEXT("LLM Tags are not displayed because llm is disabled. Run with -llm or -trace=memtag to see llm tags."));
+		DisplaySimpleSummary();
+
+		// Mark the packages we freed so we can give a warning to diagnose why they are still referenced if they
+		// get loaded again.
+		PackageTracker->AddExpectedNeverLoadPackages(ExpectedFreedPackageNames);
+
+		// If some packages we expected to be freed were not freed, show the reference chains for why
+		// they were not freed.
+		TArray<UPackage*> PackagesReferencedOutsideOfCooker;
+		for (FWeakObjectPtr& WeakPtr : CookByTheBookOptions->SessionStartupObjects)
+		{
+			UObject* Object = WeakPtr.Get();
+			if (!Object)
+			{
+				continue;
+			}
+			UPackage* Package = Object->GetPackage();
+			ExpectedFreedPackageNames.Remove(Package->GetFName());
+		}
+		PackageTracker->ForEachLoadedPackage(
+			[this, &PackagesReferencedOutsideOfCooker](UPackage* Package)
+			{
+				if (ExpectedFreedPackageNames.Contains(Package->GetFName()))
+				{
+					PackagesReferencedOutsideOfCooker.Add(Package);
+				}
+			});
+		if (PackagesReferencedOutsideOfCooker.Num() > 0)
+		{
+			// Only show diagnostics if LLM is on. We could add a separate setting for this, but it's more convenient to combine it with the LLM enabled setting
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+			bool bShowDiagnostics = FLowLevelMemTracker::Get().IsEnabled();
+#else
+			constexpr bool bShowDiagnostics = false;
+#endif
+			if (bShowDiagnostics)
+			{
+				UE::Cook::DumpPackageReferencers(PackagesReferencedOutsideOfCooker);
+			}
+			else
+			{
+				GLog->Logf(TEXT("Soft Garbage Collect diagnostics are not displayed because llm is disabled. Run with -llm or -trace=memtag to see diagnostics."));
+			}
+		}
 	}
-	GLog->Flush();
 }
 
 void UCookOnTheFlyServer::GetDirectAndTransitiveResourceSize(FResourceSizeEx& OutDirectSize,
@@ -5957,6 +6074,10 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 	MemoryMaxUsedPhysical = 0;
 	MemoryMinFreeVirtual = 0;
 	MemoryMinFreePhysical = 0;
+	bUseSoftGC = false;
+	SoftGCStartNumerator = 5;
+	SoftGCDenominator = 10;
+
 	ReadMemorySetting(TEXT("MemoryMaxUsedVirtual"), MemoryMaxUsedVirtual);
 	ReadMemorySetting(TEXT("MemoryMaxUsedPhysical"), MemoryMaxUsedPhysical);
 	ReadMemorySetting(TEXT("MemoryMinFreeVirtual"), MemoryMinFreeVirtual);
@@ -5968,6 +6089,9 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 		UE_LOG(LogCook, Error, TEXT("Unrecognized value \"%s\" for MemoryTriggerGCAtPressureLevel. Expected None or Critical."),
 			*ConfigText);
 	}
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("bUseSoftGC"), bUseSoftGC, GEditorIni);
+	GConfig->GetInt(TEXT("CookSettings"), TEXT("SoftGCStartNumerator"), SoftGCStartNumerator, GEditorIni);
+	GConfig->GetInt(TEXT("CookSettings"), TEXT("SoftGCDenominator"), SoftGCDenominator, GEditorIni);
 
 	MemoryExpectedFreedToSpreadRatio = 0.10f;
 	GConfig->GetFloat(TEXT("CookSettings"), TEXT("MemoryExpectedFreedToSpreadRatio"),
@@ -5982,10 +6106,17 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 	
 	GConfig->GetArray(TEXT("CookSettings"), TEXT("CookOnTheFlyConfigSettingDenyList"), ConfigSettingDenyList, GEditorIni);
 
-	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, ")
-		TEXT("MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB, MemoryTriggerGCAtPressureLevel %s"),
+	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory:")
+		TEXT("\n\tMemoryMaxUsedVirtual %dMiB")
+		TEXT("\n\tMemoryMaxUsedPhysical %dMiB")
+		TEXT("\n\tMemoryMinFreeVirtual %dMiB")
+		TEXT("\n\tMemoryMinFreePhysical %dMiB")
+		TEXT("\n\tMemoryTriggerGCAtPressureLevel %s")
+		TEXT("\n\tUseSoftGC %s%s"),
 		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024,
-		*LexToString(MemoryTriggerGCAtPressureLevel));
+		*LexToString(MemoryTriggerGCAtPressureLevel),
+		bUseSoftGC ? TEXT("true") : TEXT("false"),
+		bUseSoftGC ? *FString::Printf(TEXT(" (%d/%d)"), SoftGCStartNumerator, SoftGCDenominator) : TEXT(""));
 
 	const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
 	if (CacheSettings)

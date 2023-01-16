@@ -266,6 +266,8 @@ enum class EObjectReferencerType : uint8
 	Referenced,
 };
 
+struct FObjectGraphProfileData;
+
 /**
  * Data for how an object is referenced in the DumpObjClassList graph search,
  * including the type of reference and the vertex of the referencer.
@@ -303,53 +305,92 @@ struct FObjectReferencer
 		VertexArgument = InVertexArgument;
 		LinkType = InLinkType;
 	}
-	void ToString(FStringBuilderBase& Builder, TConstArrayView<UObject*> VertexToObject)
-	{
-		switch (GetLinkType())
-		{
-		case EObjectReferencerType::Unknown:
-			Builder << TEXT("<Unknown>");
-			break;
-		case EObjectReferencerType::Rooted:
-			Builder << TEXT("<Rooted>");
-			break;
-		case EObjectReferencerType::GCObjectRef:
-		{
-			check(VertexArgument != Algo::Graph::InvalidVertex);
-			UObject* Object = VertexToObject[VertexArgument];
-			FString ReferencerName;
-			if (!Object || !FGCObject::GGCObjectReferencer->GetReferencerName(Object, ReferencerName))
-			{
-				ReferencerName = TEXT("<Unknown>");
-			}
-			Builder << TEXT("FGCObject ") << ReferencerName;
-			break;
-		}
-		case EObjectReferencerType::Referenced:
-		{
-			check(VertexArgument != Algo::Graph::InvalidVertex);
-			UObject* Object = VertexToObject[VertexArgument];
-			if (Object)
-			{
-				Object->GetPathName(nullptr, Builder);
-			}
-			else
-			{
-				Builder << TEXT("<UnknownObject>");
-			}
-			break;
-		}
-		default:
-			checkNoEntry();
-			break;
-		}
-	}
+	void ToString(FStringBuilderBase& Builder, FObjectGraphProfileData& ProfileData);
 
 private:
 	Algo::Graph::FVertex VertexArgument = Algo::Graph::InvalidVertex;
 	EObjectReferencerType LinkType = EObjectReferencerType::Unknown;
 };
 
+struct FObjectGraphProfileData
+{
+	/** The list of UObjects found from a TObectIterator */
+	TArray<UObject*> AllObjects;
+	/** We assign FVertex N <-> AllObjects[N]; this field records the reverse map. */
+	TMap<UObject*, Algo::Graph::FVertex> VertexOfObject;
+	/** Element N records whether AllObjects[N] is not one of InitialObjects */
+	TBitArray<> IsNew;
+	/** The first reason found that AllObjects[n] is still referenced. */
+	TArray<FObjectReferencer> AliveReason;
+	/** The first rooted vertex found that has a reference chain to AllObjects[n]. */
+	TArray<Algo::Graph::FVertex> RootOfVertex;
+	/** The referencenames reported by FGCObject::GGCObjectReferencer for why it refers to objects. */
+	TArray<FString> AllGCObjectNames;
+	/** We assign (FVertex NumObjects+N) <-> AllGCObjectNames[N]; this field records the reverse map. */
+	TMap<FString, Algo::Graph::FVertex> GCObjectNameToVertex;
+	/** Buffer of edges used for ObjectGraph */
+	TArray64<Algo::Graph::FVertex> ObjectGraphBuffer;
+	/** ObjectGraph constructed from the edges between vertices defined by serialization references between objects. */
+	TArray<TConstArrayView<Algo::Graph::FVertex>> ObjectGraph;
+	/** Total number of vertices, both Objects and GCObjectNames */
+	int32 NumVertices;
+	/** Number of object vertices. The first GCObjectName vertex starts after this number. */
+	int32 NumObjectVertices;
+	/** Number of GCObjectName vertices. */
+	int32 NumGCObjectNameVertices;
+	/** The vertex that is assigned to FGCObject::GGCObjectReferencer. */
+	Algo::Graph::FVertex GCObjectReferencerVertex;
+
+	void AppendVertexName(Algo::Graph::FVertex Vertex, FStringBuilderBase& Builder)
+	{
+		if (Vertex < 0)
+		{
+			Builder << TEXT("InvalidVertex");
+		}
+		else if (Vertex < NumObjectVertices)
+		{
+			AllObjects[Vertex]->GetPathName(nullptr, Builder);
+		}
+		else if (Vertex - NumObjectVertices < NumGCObjectNameVertices)
+		{
+			Builder << TEXT("FGCObject ") << AllGCObjectNames[Vertex - NumObjectVertices];
+		}
+		else
+		{
+			Builder << TEXT("InvalidVertex");
+		}
+	}
+};
+
+void FObjectReferencer::ToString(FStringBuilderBase& Builder, FObjectGraphProfileData& ProfileData)
+{
+	switch (GetLinkType())
+	{
+	case EObjectReferencerType::Unknown:
+		Builder << TEXT("<Unknown>");
+		break;
+	case EObjectReferencerType::Rooted:
+		Builder << TEXT("<Rooted>");
+		break;
+	case EObjectReferencerType::GCObjectRef:
+	{
+		check(VertexArgument != Algo::Graph::InvalidVertex);
+		check(ProfileData.NumObjectVertices <= VertexArgument && VertexArgument < ProfileData.NumObjectVertices + ProfileData.NumGCObjectNameVertices);
+		ProfileData.AppendVertexName(VertexArgument, Builder);
+		break;
+	}
+	case EObjectReferencerType::Referenced:
+	{
+		check(VertexArgument != Algo::Graph::InvalidVertex);
+		check(VertexArgument < ProfileData.NumObjectVertices);
+		ProfileData.AppendVertexName(VertexArgument, Builder);
+		break;
+	}
+	default:
+		checkNoEntry();
+		break;
+	}
+}
 /** An ObjectReferenceCollector to pass to Object->Serialize to collect references into an array. */
 class FArchiveGetReferences : public FArchiveUObject
 {
@@ -377,6 +418,49 @@ private:
 };
 
 /**
+ *  A ReferenceFinder used only when serializing FGCObject::GGCObjectReferencer.
+ * It captures the referencerName from GGCObjectReferencer for each UObject passed to it.
+ */
+class FGCObjectReferencerFinder : public FReferenceFinder
+{
+public:
+
+	FGCObjectReferencerFinder(TArray<UObject*>& InObjectArray, TMap<UObject*, FString>& InObjectReferencerNames)
+		: FReferenceFinder(InObjectArray)
+		, ObjectReferencerNames(InObjectReferencerNames)
+	{
+	}
+
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
+	{
+		// Avoid duplicate entries.
+		if (InObject != NULL)
+		{
+			// Many places that use FReferenceFinder expect the object to not be const.
+			UObject* Object = const_cast<UObject*>(InObject);
+			// do not add or recursively serialize objects that have already been added
+			bool bAlreadyExists;
+			ObjectSet.Add(Object, &bAlreadyExists);
+			if (!bAlreadyExists)
+			{
+				check(Object->IsValidLowLevel());
+				ObjectArray.Add(Object);
+				FString ReferencerName;
+				FGCObject::GGCObjectReferencer->GetReferencerName(Object, ReferencerName, true /* bOnlyIfAddingReferenced */);
+				if (!ReferencerName.IsEmpty())
+				{
+					ObjectReferencerNames.Add(Object, MoveTemp(ReferencerName));
+				}
+			}
+		}
+	}
+
+private:
+	TMap<UObject*, FString>& ObjectReferencerNames;
+	FGCObject* CurrentlySerializingObject;
+};
+
+/**
  * Given the list of AllObjects from e.g. a TObjectIterator, use serialization and other methods from Garbage Collection
  * to find all the dependencies of each Object.
  * Return the dependencies as a normalized graph in the style of GraphConvert.h, with the vertex of each object defined
@@ -384,7 +468,7 @@ private:
  */
 void ConstructObjectGraph(TConstArrayView<UObject*> AllObjects,
 	const TMap<UObject*, Algo::Graph::FVertex>& ObjectToVertex, TArray64<Algo::Graph::FVertex>& OutGraphBuffer,
-	TArray<TConstArrayView<Algo::Graph::FVertex>>& OutGraph)
+	TArray<TConstArrayView<Algo::Graph::FVertex>>& OutGraph, TMap<UObject*, FString>& OutGCObjectReferencerNames)
 {
 	using namespace Algo::Graph;
 
@@ -393,19 +477,21 @@ void ConstructObjectGraph(TConstArrayView<UObject*> AllObjects,
 	LooseEdges.SetNum(NumVertices);
 	TArray<UObject*> TargetObjects;
 	int32 NumEdges = 0;
+	OutGCObjectReferencerNames.Reset();
 
 	for (FVertex SourceVertex = 0; SourceVertex < NumVertices; ++SourceVertex)
 	{
 		UObject* SourceObject = AllObjects[SourceVertex];
 		TargetObjects.Reset();
 		{
-			FReferenceFinder Collector(TargetObjects);
 			if (SourceObject == FGCObject::GGCObjectReferencer)
 			{
+				FGCObjectReferencerFinder Collector(TargetObjects, OutGCObjectReferencerNames);
 				UGCObjectReferencer::AddReferencedObjects(FGCObject::GGCObjectReferencer, Collector);
 			}
 			else
 			{
+				FReferenceFinder Collector(TargetObjects);
 				FArchiveGetReferences Ar(SourceObject, TargetObjects);
 				if (SourceObject->GetClass())
 				{
@@ -420,6 +506,7 @@ void ConstructObjectGraph(TConstArrayView<UObject*> AllObjects,
 				}
 			}
 		}
+
 		if (TargetObjects.Num())
 		{
 			Algo::Sort(TargetObjects);
@@ -448,14 +535,11 @@ void ConstructObjectGraph(TConstArrayView<UObject*> AllObjects,
 	}
 }
 
-void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
+void ConstructObjectGraphProfileData(TConstArrayView<FWeakObjectPtr> InitialObjects, FObjectGraphProfileData& OutProfileData)
 {
 	using namespace Algo::Graph;
-
-	FOutputDevice& LogAr = *(GLog);
-
 	// Get the list of Objects
-	TArray<UObject*> AllObjects;
+	OutProfileData.AllObjects.Reset();
 	for (FThreadSafeObjectIterator Iter; Iter; ++Iter)
 	{
 		UObject* Object = *Iter;
@@ -463,98 +547,133 @@ void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
 		{
 			continue;
 		}
-		AllObjects.Add(Object);
+		OutProfileData.AllObjects.Add(Object);
 	}
 
 	// Convert Objects to Algo::Graph::FVertex to reduce graph search memory
-	int32 NumVertices = AllObjects.Num();
-	TMap<UObject*, FVertex> VertexOfObject;
-	for (FVertex Vertex = 0; Vertex < NumVertices; ++Vertex)
+	OutProfileData.NumObjectVertices = OutProfileData.AllObjects.Num();
+	OutProfileData.NumVertices = OutProfileData.NumObjectVertices;
+	OutProfileData.VertexOfObject.Reset();
+	for (FVertex Vertex = 0; Vertex < OutProfileData.NumObjectVertices; ++Vertex)
 	{
-		VertexOfObject.Add(AllObjects[Vertex], Vertex);
+		OutProfileData.VertexOfObject.Add(OutProfileData.AllObjects[Vertex], Vertex);
 	}
 
 	// Store for each vertex whether the vertex is new - not in InitialObjects
-	TBitArray<> IsNew(true, NumVertices);
+	OutProfileData.IsNew.Init(true, OutProfileData.NumObjectVertices);
 	for (const FWeakObjectPtr& InitialObjectWeak : InitialObjects)
 	{
 		UObject* InitialObject = InitialObjectWeak.Get();
 		if (InitialObject)
 		{
-			FVertex* Vertex = VertexOfObject.Find(InitialObject);
+			FVertex* Vertex = OutProfileData.VertexOfObject.Find(InitialObject);
 			if (Vertex)
 			{
-				IsNew[*Vertex] = false;
+				OutProfileData.IsNew[*Vertex] = false;
 			}
 		}
 	}
 
 	// Serialize objects to get dependencies and use them to create the ObjectGraph
-	TArray64<FVertex> ObjectGraphBuffer;
-	TArray<TConstArrayView<FVertex>> ObjectGraph;
-	ConstructObjectGraph(AllObjects, VertexOfObject, ObjectGraphBuffer, ObjectGraph);
+	TMap<UObject*, FString> GCObjectReferencerNames;
+	ConstructObjectGraph(OutProfileData.AllObjects, OutProfileData.VertexOfObject,
+		OutProfileData.ObjectGraphBuffer, OutProfileData.ObjectGraph,
+		GCObjectReferencerNames);
 
-	// Mark the objects that are rooted by IsRooted, and find any special vertices
-	FVertex GCObjectReferencerVertex = InvalidVertex;
-	TArray<FObjectReferencer> AliveReason;
-	AliveReason.SetNum(NumVertices);
-	for (FVertex Vertex = 0; Vertex < NumVertices; ++Vertex)
-	{
-		UObject* Object = AllObjects[Vertex];
-		if (Object->IsRooted())
-		{
-			AliveReason[Vertex].Set(EObjectReferencerType::Rooted);
-		}
-		if (Object == FGCObject::GGCObjectReferencer)
-		{
-			GCObjectReferencerVertex = Vertex;
-		}
-	}
-
-	// Mark the objects that are rooted by GCObjectReferencerVertex
-	for (FVertex Vertex : ObjectGraph[GCObjectReferencerVertex])
-	{
-		if (AliveReason[Vertex].GetLinkType() == EObjectReferencerType::Unknown)
-		{
-			AliveReason[Vertex].Set(EObjectReferencerType::GCObjectRef, Vertex);
-		}
-	}
-	check(GCObjectReferencerVertex != InvalidVertex);
-
-	// Do a DFS to mark the referencer and root of all non-rooted objects
-	TArray<FVertex> RootOfVertex;
-	RootOfVertex.SetNumUninitialized(NumVertices);
-	for (FVertex& Root : RootOfVertex)
+	OutProfileData.GCObjectReferencerVertex = InvalidVertex;
+	OutProfileData.AliveReason.SetNum(OutProfileData.NumObjectVertices);
+	OutProfileData.RootOfVertex.SetNumUninitialized(OutProfileData.NumObjectVertices);
+	for (FVertex& Root : OutProfileData.RootOfVertex)
 	{
 		Root = InvalidVertex;
 	}
 
-	TArray<FVertex> Stack;
-	for (FVertex RootedVertex = 0; RootedVertex < NumVertices; ++RootedVertex)
+	// Mark the objects that are rooted by IsRooted, and find the special GCObjectReferencerVertex
+	for (FVertex Vertex = 0; Vertex < OutProfileData.NumObjectVertices; ++Vertex)
 	{
-		if (AliveReason[RootedVertex].GetLinkType() == EObjectReferencerType::Unknown ||
-			RootedVertex == GCObjectReferencerVertex)
+		UObject* Object = OutProfileData.AllObjects[Vertex];
+		if (Object->IsRooted())
+		{
+			OutProfileData.AliveReason[Vertex].Set(EObjectReferencerType::Rooted);
+			OutProfileData.RootOfVertex[Vertex] = Vertex;
+		}
+		if (Object == FGCObject::GGCObjectReferencer)
+		{
+			OutProfileData.GCObjectReferencerVertex = Vertex;
+		}
+	}
+	check(OutProfileData.GCObjectReferencerVertex != InvalidVertex);
+
+	// Mark the objects that are rooted by GCObjectReferencerVertex, and construct a synthetic vertex
+	// for each of the referencer names reported by GCObjectReferencerVertex.
+	OutProfileData.GCObjectNameToVertex.Reset();
+	OutProfileData.AllGCObjectNames.Reset();
+	FString UnknownReferencer(TEXT("<Unknown>"));
+	for (FVertex Vertex : OutProfileData.ObjectGraph[OutProfileData.GCObjectReferencerVertex])
+	{
+		if (OutProfileData.AliveReason[Vertex].GetLinkType() == EObjectReferencerType::Unknown)
+		{
+			UObject* Object = OutProfileData.AllObjects[Vertex];
+			FString* ReferencerName = &UnknownReferencer;
+			if (Object)
+			{
+				ReferencerName = GCObjectReferencerNames.Find(Object);
+				if (!ReferencerName)
+				{
+					ReferencerName = &UnknownReferencer;
+				}
+			}
+			FVertex& ReferencerVertex = OutProfileData.GCObjectNameToVertex.FindOrAdd(*ReferencerName);
+			if (ReferencerVertex == (FVertex)0) // Having value 0 means it was newly added by FindOrAdd
+			{
+				ReferencerVertex = OutProfileData.NumVertices++;
+				OutProfileData.AllGCObjectNames.Add(*ReferencerName);
+				check(OutProfileData.NumVertices == OutProfileData.AllObjects.Num() + OutProfileData.AllGCObjectNames.Num());
+			}
+			OutProfileData.AliveReason[Vertex].Set(EObjectReferencerType::GCObjectRef, ReferencerVertex);
+			OutProfileData.RootOfVertex[Vertex] = ReferencerVertex;
+		}
+	}
+	OutProfileData.NumObjectVertices = OutProfileData.AllObjects.Num();
+	OutProfileData.NumGCObjectNameVertices = OutProfileData.AllGCObjectNames.Num();
+
+	// Do a DFS to mark the referencer and root of all non-rooted objects
+	TArray<FVertex> Stack;
+	for (FVertex PotentialRoot = 0; PotentialRoot < OutProfileData.NumObjectVertices; ++PotentialRoot)
+	{
+		if (PotentialRoot == OutProfileData.GCObjectReferencerVertex ||
+			(OutProfileData.AliveReason[PotentialRoot].GetLinkType() != EObjectReferencerType::Rooted &&
+				OutProfileData.AliveReason[PotentialRoot].GetLinkType() != EObjectReferencerType::GCObjectRef))
 		{
 			continue;
 		}
+		FVertex RootVertex = OutProfileData.RootOfVertex[PotentialRoot];
 
-		RootOfVertex[RootedVertex] = RootedVertex;
 		Stack.Reset();
-		Stack.Add(RootedVertex);
+		Stack.Add(PotentialRoot);
 		while (!Stack.IsEmpty())
 		{
 			FVertex SourceVertex = Stack.Pop(false /* bAllowShrinking */);
-			for (FVertex TargetVertex : ObjectGraph[SourceVertex])
+			for (FVertex TargetVertex : OutProfileData.ObjectGraph[SourceVertex])
 			{
-				if (AliveReason[TargetVertex].GetLinkType() == EObjectReferencerType::Unknown)
+				if (OutProfileData.AliveReason[TargetVertex].GetLinkType() == EObjectReferencerType::Unknown)
 				{
-					AliveReason[TargetVertex].Set(EObjectReferencerType::Referenced, SourceVertex);
-					RootOfVertex[TargetVertex] = RootedVertex;
+					OutProfileData.AliveReason[TargetVertex].Set(EObjectReferencerType::Referenced, SourceVertex);
+					OutProfileData.RootOfVertex[TargetVertex] = RootVertex;
 					Stack.Add(TargetVertex);
 				}
 			}
 		}
 	}
+}
+
+void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
+{
+	using namespace Algo::Graph;
+
+	FOutputDevice& LogAr = *(GLog);
+	FObjectGraphProfileData ProfileData;
+	ConstructObjectGraphProfileData(InitialObjects, ProfileData);
 
 	// Count how many new objects of each class there are, and store all root objects that keep them in memory
 	struct FClassInfo
@@ -564,14 +683,14 @@ void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
 		UClass* Class = nullptr;
 	};
 	TMap<UClass*, FClassInfo> ClassInfos;
-	for (FVertex Vertex = 0; Vertex < NumVertices; ++Vertex)
+	for (FVertex Vertex = 0; Vertex < ProfileData.NumObjectVertices; ++Vertex)
 	{
 		// Ignore non-new objects
-		if (!IsNew[Vertex] || Vertex == GCObjectReferencerVertex)
+		if (!ProfileData.IsNew[Vertex] || Vertex == ProfileData.GCObjectReferencerVertex)
 		{
 			continue;
 		}
-		FObjectReferencer Link = AliveReason[Vertex];
+		FObjectReferencer Link = ProfileData.AliveReason[Vertex];
 		EObjectReferencerType LinkType = Link.GetLinkType();
 		// Ignore objects that have AliveReason unknown. This can occur if the objects were rooted during garbage
 		// collection but then asynchronous work RemovedThemFromRoot in between GC finishing and our call to IsRooted.
@@ -579,14 +698,14 @@ void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
 		{
 			continue;
 		}
-		UClass* Class = AllObjects[Vertex]->GetClass();
+		UClass* Class = ProfileData.AllObjects[Vertex]->GetClass();
 		if (!Class || !Class->IsNative())
 		{
 			continue;
 		}
 		FClassInfo& ClassInfo = ClassInfos.FindOrAdd(Class);
 		ClassInfo.Class = Class;
-		ClassInfo.Roots.FindOrAdd(RootOfVertex[Vertex], 0)++;
+		ClassInfo.Roots.FindOrAdd(ProfileData.RootOfVertex[Vertex], 0)++;
 		ClassInfo.Count++;
 	}
 
@@ -631,17 +750,102 @@ void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
 		{
 			RootObjectString.Reset();
 			RootObjectString.Appendf(TEXT("\t\t%6d: "), RootPair.Value);
-			AllObjects[RootPair.Key]->GetFullName(RootObjectString);
-			FObjectReferencer Link = AliveReason[RootPair.Key];
-			RootObjectString << TEXT(" <- ");
-			Link.ToString(RootObjectString, AllObjects);
-			while (Link.GetLinkType() == EObjectReferencerType::Referenced)
+			ProfileData.AppendVertexName(RootPair.Key, RootObjectString);
+			if (RootPair.Key < ProfileData.NumObjectVertices)
 			{
-				Link = AliveReason[Link.GetVertexArgument()];
+				FObjectReferencer Link = ProfileData.AliveReason[RootPair.Key];
+				while (Link.GetLinkType() == EObjectReferencerType::Referenced)
+				{
+					RootObjectString << TEXT(" <- ");
+					Link.ToString(RootObjectString, ProfileData);
+					Link = ProfileData.AliveReason[Link.GetVertexArgument()];
+				}
 				RootObjectString << TEXT(" <- ");
-				Link.ToString(RootObjectString, AllObjects);
+				Link.ToString(RootObjectString, ProfileData);
 			}
 			LogAr.Logf(TEXT("%s"), *RootObjectString);
+		}
+	}
+}
+
+void DumpPackageReferencers(TConstArrayView<UPackage*> Packages)
+{
+	using namespace Algo::Graph;
+
+	FOutputDevice& LogAr = *(GLog);
+	FObjectGraphProfileData ProfileData;
+	ConstructObjectGraphProfileData(TConstArrayView<FWeakObjectPtr>(), ProfileData);
+
+	// List all roots that cause any of the Packages to remain alive, and count how many packages each one causes
+	TMap<FVertex, int32> Roots;
+	TMap<FVertex, FVertex> RootExamples;
+	int32 Unexpected = 0;
+	for (UPackage* Package : Packages)
+	{
+		FVertex* FoundVertex = ProfileData.VertexOfObject.Find(Package);
+		if (!FoundVertex)
+		{
+			++Unexpected;
+			continue;
+		}
+		FVertex PackageVertex = *FoundVertex;
+		FVertex RootOfThisVertex = ProfileData.RootOfVertex[PackageVertex];
+		if (RootOfThisVertex == InvalidVertex)
+		{
+			++Unexpected;
+			continue;
+		}
+		int32& RootCount = Roots.FindOrAdd(RootOfThisVertex);
+		if (RootCount == 0)
+		{
+			RootExamples.Add(RootOfThisVertex, PackageVertex);
+		}
+		++RootCount;
+	}
+
+	LogAr.Logf(TEXT("Memory Analysis: Referencers of SoftGCPackages:"));
+	Roots.ValueSort([](int32 A, int32 B) { return A > B; });
+	for (TPair<FVertex, int32>& Pair : Roots)
+	{
+		TStringBuilder<256> ReferencerName;
+		ProfileData.AppendVertexName(Pair.Key, ReferencerName);
+		LogAr.Logf(TEXT("\t%5d: %s"), Pair.Value, *ReferencerName);
+		FVertex* ExampleVertexPtr = RootExamples.Find(Pair.Key);
+		if (ExampleVertexPtr)
+		{
+			TStringBuilder<256> Chain;
+			FObjectReferencer Link = ProfileData.AliveReason[*ExampleVertexPtr];
+			ProfileData.AllObjects[*ExampleVertexPtr]->GetFullName(Chain);
+			while (Link.GetLinkType() == EObjectReferencerType::Referenced)
+			{
+				Chain << TEXT(" <- ");
+				Link.ToString(Chain, ProfileData);
+				Link = ProfileData.AliveReason[Link.GetVertexArgument()];
+			}
+			Chain << TEXT(" <- ");
+			Link.ToString(Chain, ProfileData);
+			LogAr.Logf(TEXT("\t\t     Ex: %s"), *Chain);
+		}
+	}
+
+	if (Unexpected > 0)
+	{
+		LogAr.Logf(TEXT("Memory Analysis: Unknown referenced SoftGCPackages:"));
+		for (UPackage* Package : Packages)
+		{
+			FVertex* FoundVertex = ProfileData.VertexOfObject.Find(Package);
+			if (!FoundVertex)
+			{
+				LogAr.Logf(TEXT("%s: unknown, we did not create a vertex for the package"), *Package->GetName());
+				continue;
+			}
+			FVertex PackageVertex = *FoundVertex;
+
+			if (ProfileData.AliveReason[PackageVertex].GetLinkType() == EObjectReferencerType::Unknown)
+			{
+				LogAr.Logf(TEXT("%s: no reference found"), *Package->GetName());
+				continue;
+			}
 		}
 	}
 }

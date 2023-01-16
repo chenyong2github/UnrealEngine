@@ -298,9 +298,12 @@ namespace UE::Cook
 		FGenericPlatformMemoryStats::EMemoryPressureStatus MemoryTriggerGCAtPressureLevel;
 		int32 MinFreeUObjectIndicesBeforeGC;
 		int32 MaxNumPackagesBeforePartialGC;
+		int32 SoftGCStartNumerator;
+		int32 SoftGCDenominator;
 		TArray<FString> ConfigSettingDenyList;
 		TMap<FName, int32> MaxAsyncCacheForType; // max number of objects of a specific type which are allowed to async cache at once
 		bool bHybridIterativeDebug = false;
+		bool bUseSoftGC = false;
 
 		friend FCbWriter& ::operator<<(FCbWriter& Writer, const UE::Cook::FInitializeConfigSettings& Value);
 		friend bool ::LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FInitializeConfigSettings& Value);

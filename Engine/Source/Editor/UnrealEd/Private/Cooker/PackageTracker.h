@@ -215,12 +215,23 @@ public:
 			Function(Package);
 		}
 	}
+	void AddExpectedNeverLoadPackages(TArrayView<FName> PackageNames)
+	{
+		FWriteScopeLock ScopeLock(Lock);
+		ExpectedNeverLoadPackages.Append(PackageNames);
+	}
+	void ClearExpectedNeverLoadPackages()
+	{
+		FWriteScopeLock ScopeLock(Lock);
+		ExpectedNeverLoadPackages.Empty();
+	}
 private:
 	// Protects data for thread-safety
 	FRWLock Lock;
 
 	// This is a complete list of currently loaded UPackages
 	TFastPointerSet<UPackage*> LoadedPackages;
+	TSet<FName> ExpectedNeverLoadPackages;
 
 	// This list contains the UPackages loaded since last call to GetNewPackages
 	TMap<UPackage*, FInstigator> NewPackages;

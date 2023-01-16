@@ -17,6 +17,7 @@
 #include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "PackageTracker.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "ShaderCompiler.h"
@@ -920,19 +921,26 @@ void FCookDirector::ActivateMachineResourceReduction()
 	}
 	bHasReducedMachineResources = true;
 
-	// When running a multiprocess cook, we remove the Memory triggers and trigger GC based solely on PressureLevel
+	// When running a multiprocess cook, we remove the Memory triggers and trigger GC based solely on PressureLevel. But keep the Soft GC settings
 	COTFS.MemoryMaxUsedPhysical = 0;
 	COTFS.MemoryMaxUsedVirtual = 0;
 	COTFS.MemoryMinFreeVirtual = 0;
 	COTFS.MemoryMinFreePhysical = 0;
 	COTFS.MemoryTriggerGCAtPressureLevel = FGenericPlatformMemoryStats::EMemoryPressureStatus::Critical;
 
-	UE_LOG(LogCook, Display, TEXT("CookMultiprocess changed CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB,")
-		TEXT("MemoryMinFreeVirtual % dMiB, MemoryMinFreePhysical % dMiB, MemoryTriggerGCAtPressureLevel %s"),
+	UE_LOG(LogCook, Display, TEXT("CookMultiprocess changed CookSettings for Memory:")
+		TEXT("\n\tMemoryMaxUsedVirtual %dMiB")
+		TEXT("\n\tMemoryMaxUsedPhysical %dMiB")
+		TEXT("\n\tMemoryMinFreeVirtual %dMiB")
+		TEXT("\n\tMemoryMinFreePhysical %dMiB")
+		TEXT("\n\tMemoryTriggerGCAtPressureLevel %s")
+		TEXT("\n\tUseSoftGC %s%s"),
 		COTFS.MemoryMaxUsedVirtual / 1024 / 1024, COTFS.MemoryMaxUsedPhysical / 1024 / 1024,
 		COTFS.MemoryMinFreeVirtual / 1024 / 1024, COTFS.MemoryMinFreePhysical / 1024 / 1024,
-		*LexToString(COTFS.MemoryTriggerGCAtPressureLevel)
-		);
+		*LexToString(COTFS.MemoryTriggerGCAtPressureLevel),
+		COTFS.bUseSoftGC ? TEXT("true") : TEXT("false"),
+		COTFS.bUseSoftGC ? *FString::Printf(TEXT(" (%d/%d)"), COTFS.SoftGCStartNumerator, COTFS.SoftGCDenominator) : TEXT("")
+	);
 
 	// Set CoreLimit for updating workerthreads in this process and passing to the commandline for workers
 	int32 NumProcesses = RequestedCookWorkerCount + 1;
@@ -1549,6 +1557,7 @@ void FCookDirector::FRetractionHandler::ReassignPackages(const FWorkerId& FromWo
 	TArray<FWorkerId> Assignments;
 	Director.AssignRequests(MoveTemp(WorkersToSplitOver), LocalRemoteWorkers, AssignmentPackages, Assignments, MoveTemp(RequestGraph));
 	FRequestQueue& RequestQueue = Director.COTFS.PackageDatas->GetRequestQueue();
+	bool bAssignedToLocal = false;
 	for (int32 Index = 0; Index < AssignmentPackages.Num(); ++Index)
 	{
 		FPackageData* PackageData = AssignmentPackages[Index];
@@ -1560,6 +1569,7 @@ void FCookDirector::FRetractionHandler::ReassignPackages(const FWorkerId& FromWo
 		else if (Assignment.IsLocal())
 		{
 			RequestQueue.AddReadyRequest(PackageData);
+			bAssignedToLocal = true;
 		}
 		else
 		{
@@ -1568,6 +1578,12 @@ void FCookDirector::FRetractionHandler::ReassignPackages(const FWorkerId& FromWo
 		}
 	}
 	Director.DisplayRemainingPackages();
+	if (bAssignedToLocal)
+	{
+		// Clear the SoftGC diagnostic ExpectedNeverLoadPackages because we have new assigned packages
+		// that we didn't consider during SoftGC
+		Director.COTFS.PackageTracker->ClearExpectedNeverLoadPackages();
+	}
 }
 
 TArray<FWorkerId> FCookDirector::FRetractionHandler::CalculateWorkersToSplitOver(int32 NumPackages, const FWorkerId& FromWorker,

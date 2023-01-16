@@ -562,9 +562,15 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 	}
 
 	FString GCReason;
+	FString GCType = bPartialGC ? TEXT(" partial gc") : TEXT("");
 	if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_PackageCount) != 0)
 	{
 		GCReason = TEXT("Exceeded packages per GC");
+	}
+	else if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_Soft_OOM) != 0)
+	{
+		GCType = TEXT("");
+		GCReason = TEXT("Soft GC");
 	}
 	else if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM) != 0)
 	{
@@ -632,10 +638,12 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
 #endif
+	COTFS.SetGarbageCollectType(TickResults);
 
-	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
+	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), *GCType, *GCReason);
 	CollectGarbage(RF_NoFlags);
 
+	COTFS.ClearGarbageCollectType();
 	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats();
 	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 	FGenericMemoryStats AllocatorStatsAfterGC;
@@ -645,7 +653,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 #endif
 
 	bool bWasDueToOOM = (TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM) != 0;
-	COTFS.EvaluateGarbageCollectionResults(bWasDueToOOM, bPartialGC,
+	COTFS.EvaluateGarbageCollectionResults(bWasDueToOOM, bPartialGC, TickResults,
 		NumObjectsBeforeGC, MemStatsBeforeGC, AllocatorStatsBeforeGC,
 		NumObjectsAfterGC, MemStatsAfterGC, AllocatorStatsAfterGC);
 }

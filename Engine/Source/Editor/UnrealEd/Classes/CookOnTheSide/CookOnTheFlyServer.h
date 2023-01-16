@@ -317,8 +317,16 @@ private:
 	int32 MaxConcurrentShaderJobs;
 	/** Min number of free UObject indices before the cooker should partial gc */
 	int32 MinFreeUObjectIndicesBeforeGC;
-	/** Next time at which we are allowed to declare out of memory and trigger a garbage collect. */
-	double ExceededMaxMemoryCooldownEndTimeSeconds = 0;
+	double LastGCTime = 0.;
+	double LastFullGCTime = 0.;
+	double LastSoftGCTime = 0.;
+	int64 SoftGCNextAvailablePhysicalTarget = -1;
+	int32 SoftGCStartNumerator = 5;
+	int32 SoftGCDenominator = 10;
+	bool bUseSoftGC = false;
+	bool bWarnedExceededMaxMemoryWithinGCCooldown = false;
+	bool bGarbageCollectTypeSoft = false;
+
 	/**
 	 * The maximum number of packages that should be preloaded at once. Once this is full, packages in LoadPrepare will
 	 * remain unpreloaded in LoadPrepare until the existing preloaded packages exit {LoadPrepare,LoadReady} state.
@@ -557,6 +565,7 @@ public:
 		COSR_RequiresGC_PackageCount= 0x00000100,
 		COSR_RequiresGC_IdleTimer	= 0x00000200,
 		COSR_YieldTick				= 0x00000400,
+		COSR_RequiresGC_Soft_OOM	= 0x00000800,
 	};
 
 	struct FCookByTheBookStartupOptions
@@ -797,8 +806,12 @@ public:
 	/** Returns the configured amount of idle time before forcing a GC */
 	double GetIdleTimeToGC() const;
 
-	bool HasExceededMaxMemory();
-	void EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
+	UE_DEPRECATED(5.2, "UCookOnTheFLyServer now uses a more complicated private GC scheme; HasExceededMaxMemory is no longer used and returns false")
+	bool HasExceededMaxMemory() { return false; }
+	void SetGarbageCollectType(uint32 ResultFlagsFromTick);
+	void ClearGarbageCollectType();
+
+	void EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC, uint32 ResultFlags,
 		int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
 		const FGenericMemoryStats& AllocatorStatsBeforeGC,
 		int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC,
@@ -871,6 +884,8 @@ protected:
 	virtual bool Exec_Editor(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
+
+	bool PumpHasExceededMaxMemory(uint32& OutResultFlags);
 
 	/**
 	 * Is the local CookOnTheFlyServer initialized to run in CookOnTheFly AND using the legacy scheduling method
@@ -1385,6 +1400,9 @@ private:
 	 * as referenced in CookerAddReferencedObjects.
 	 */
 	TArray<UObject*> GCKeepObjects;
+	/** Packages that were expected to be freed by the last Soft GC and we expect not to load again. */
+	TArray<FName> ExpectedFreedPackageNames;
+
 	UE::Cook::FPackageData* SavingPackageData = nullptr;
 	/** Helper struct for running cooking in diagnostic modes */
 	TUniquePtr<FDiffModeCookServerUtils> DiffModeHelper;

@@ -956,6 +956,8 @@ public:
 
 	FPackageDataSet& GetUnclusteredRequests() { return UnclusteredRequests; }
 	TRingBuffer<FRequestCluster>& GetRequestClusters() { return RequestClusters; }
+	FPackageDataSet& GetReadyRequestsUrgent() { return UrgentRequests; }
+	FPackageDataSet& GetReadyRequestsNormal() { return NormalRequests; }
 private:
 	FPackageDataSet UnclusteredRequests;
 	TRingBuffer<FRequestCluster> RequestClusters;

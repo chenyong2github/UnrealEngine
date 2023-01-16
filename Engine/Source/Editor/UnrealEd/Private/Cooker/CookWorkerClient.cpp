@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "HAL/PlatformTime.h"
 #include "PackageResultsMessage.h"
+#include "PackageTracker.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "WorkerRequestsRemote.h"
@@ -604,6 +605,13 @@ void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 		PackageData.SetRequestData(OrderedSessionPlatforms , false /* bInIsUrgent */, FCompletionCallback(),
 			FInstigator(AssignData.Instigator));
 		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+	}
+
+	if (!Message.PackageDatas.IsEmpty())
+	{
+		// Clear the SoftGC diagnostic ExpectedNeverLoadPackages because we have new assigned packages
+		// that we didn't consider during SoftGC
+		COTFS.PackageTracker->ClearExpectedNeverLoadPackages();
 	}
 }
 

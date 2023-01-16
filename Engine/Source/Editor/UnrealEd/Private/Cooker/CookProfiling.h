@@ -192,4 +192,8 @@ namespace UE::Cook
  */
 void DumpObjClassList(TConstArrayView<FWeakObjectPtr> SessionStartupObjects);
 
+/** Used for profiling after a soft garbage collect. Find the referencers keeping each package in memory. */
+void DumpPackageReferencers(TConstArrayView<UPackage*> Packages);
+
+
 }
