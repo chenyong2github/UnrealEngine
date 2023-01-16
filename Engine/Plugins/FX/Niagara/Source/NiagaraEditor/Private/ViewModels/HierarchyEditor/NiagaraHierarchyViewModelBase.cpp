@@ -83,6 +83,16 @@ bool UNiagaraHierarchyItemBase::Modify(bool bAlwaysMarkDirty)
 	return bSavedToTransactionBuffer;
 }
 
+void UNiagaraHierarchyItemBase::PostLoad()
+{
+	if(Guid_DEPRECATED.IsValid())
+	{
+		SetIdentity(FNiagaraHierarchyIdentity({Guid_DEPRECATED}, {}));
+	}
+
+	Super::PostLoad();
+}
+
 void UNiagaraHierarchyRoot::RefreshDataInternal()
 {
 	// in addition, we update our sections

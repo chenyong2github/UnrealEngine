@@ -21,13 +21,13 @@
 void UNiagaraHierarchyUserParameter::Initialize(UNiagaraScriptVariable& InUserParameterScriptVariable, UNiagaraSystem& InSystem)
 {
 	UserParameterScriptVariable = &InUserParameterScriptVariable;
-	SetGuid(InUserParameterScriptVariable.Metadata.GetVariableGuid());
+	SetIdentity(FNiagaraHierarchyIdentity({InUserParameterScriptVariable.Metadata.GetVariableGuid()}, {}));
 	System = &InSystem;
 }
 
 void UNiagaraHierarchyUserParameter::RefreshDataInternal()
 {	
-	if(System == nullptr || FNiagaraEditorUtilities::FindScriptVariableForUserParameter(GetPersistentIdentity(), *System) == nullptr)
+	if(System == nullptr || FNiagaraEditorUtilities::FindScriptVariableForUserParameter(GetPersistentIdentity().Guids[0], *System) == nullptr)
 	{
 		Finalize();
 	}
@@ -115,7 +115,7 @@ void UNiagaraUserParametersHierarchyViewModel::PrepareSourceItems()
 		
 		if(UNiagaraHierarchyItemBase** ExistingChild = OldChildren.FindByPredicate([ScriptVariable](UNiagaraHierarchyItemBase* ItemBase)
 		{
-			return ItemBase->GetPersistentIdentity() == ScriptVariable->Metadata.GetVariableGuid();
+			return ItemBase->GetPersistentIdentity().Guids[0] == ScriptVariable->Metadata.GetVariableGuid();
 		}))
 		{
 			SourceRoot->GetChildrenMutable().Add(*ExistingChild);
