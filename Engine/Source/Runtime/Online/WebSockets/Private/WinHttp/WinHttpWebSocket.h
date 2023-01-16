@@ -43,6 +43,7 @@ public:
 	virtual bool IsConnected() override final;
 	virtual void Send(const FString& Data) override final;
 	virtual void Send(const void* Data, SIZE_T Size, bool bIsBinary) override final;
+	virtual void SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) override final;
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketConnectedEvent, FWebSocketConnectedEvent);
 	virtual FWebSocketConnectedEvent& OnConnected() override final;
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketConnectionErrorEvent, FWebSocketConnectionErrorEvent);
@@ -52,6 +53,8 @@ public:
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketMessageEvent, FWebSocketMessageEvent);
 	virtual FWebSocketMessageEvent& OnMessage() override final;
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketRawMessageEvent, FWebSocketRawMessageEvent);
+	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketBinaryMessageEvent, FWebSocketBinaryMessageEvent);
+	virtual FWebSocketBinaryMessageEvent& OnBinaryMessage() override final;
 	virtual FWebSocketRawMessageEvent& OnRawMessage() override final;
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketMessageSentEvent, FWebSocketMessageSentEvent);
 	virtual FWebSocketMessageSentEvent& OnMessageSent() override final;
@@ -86,6 +89,7 @@ protected:
 	FWebSocketConnectionErrorEvent OnErrorHandler;
 	FWebSocketClosedEvent OnClosedHandler;
 	FWebSocketMessageEvent OnMessageHandler;
+	FWebSocketBinaryMessageEvent BinaryMessageHandler;
 	FWebSocketRawMessageEvent OnRawMessageHandler;
 	FWebSocketMessageSentEvent OnMessageSentHandler;
 
