@@ -1383,7 +1383,7 @@ int32 ComputeLODBias(const FMutableGraphGenerationContext& GenerationContext, co
 		UE_LOG(LogMutable, Verbose, TEXT("Compiling texture without reference will have LOD Bias %d."), LODBias);
 	}
 
-	return LODBias;
+	return FMath::Min(6, LODBias);
 }
 
 
