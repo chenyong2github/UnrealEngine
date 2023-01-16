@@ -199,6 +199,7 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 bool FControlRigParameterTrackEditor::bAutoGenerateControlRigTrack = true;
+FCriticalSection FControlRigParameterTrackEditor::ControlUndoTransactionMutex;
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
 	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer)
@@ -3070,6 +3071,7 @@ void FControlRigParameterTrackEditor::HandleControlUndoBracket(UControlRig* Subj
 {
 	if(bOpenUndoBracket && ControlUndoBracket == 0)
 	{
+		FScopeLock ScopeLock(&ControlUndoTransactionMutex);
 		ControlUndoTransaction = MakeShareable(new FScopedTransaction(LOCTEXT("KeyMultipleControls", "Auto-Key multiple controls")));
 	}
 
@@ -3077,6 +3079,7 @@ void FControlRigParameterTrackEditor::HandleControlUndoBracket(UControlRig* Subj
 	
 	if(!bOpenUndoBracket && ControlUndoBracket == 0)
 	{
+		FScopeLock ScopeLock(&ControlUndoTransactionMutex);
 		ControlUndoTransaction.Reset();
 	}
 }

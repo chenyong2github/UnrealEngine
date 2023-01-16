@@ -272,6 +272,9 @@ private:
 	/** An index counter for the opened undo brackets */
 	int32 ControlUndoBracket;
 
+	/** Lock to avoid registering multiple transactions from different tracks at the same time */
+	static FCriticalSection ControlUndoTransactionMutex;
+
 	/** A transaction used to group multiple key events */
 	TSharedPtr<FScopedTransaction> ControlUndoTransaction;
 
