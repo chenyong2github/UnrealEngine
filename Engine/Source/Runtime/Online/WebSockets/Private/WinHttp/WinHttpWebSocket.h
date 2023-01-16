@@ -53,7 +53,7 @@ public:
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketMessageEvent, FWebSocketMessageEvent);
 	virtual FWebSocketMessageEvent& OnMessage() override final;
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketRawMessageEvent, FWebSocketRawMessageEvent);
-	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketBinaryMessageEvent, FWebSocketBinaryMessageEvent);
+	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketBinaryMessageEvent, FWebSocketBinaryMessageEvent);
 	virtual FWebSocketBinaryMessageEvent& OnBinaryMessage() override final;
 	virtual FWebSocketRawMessageEvent& OnRawMessage() override final;
 	DECLARE_DERIVED_EVENT(FWinHttpWebSocket, IWebSocket::FWebSocketMessageSentEvent, FWebSocketMessageSentEvent);

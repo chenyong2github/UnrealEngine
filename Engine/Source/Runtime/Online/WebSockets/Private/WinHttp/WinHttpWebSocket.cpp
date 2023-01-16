@@ -212,7 +212,7 @@ FWinHttpWebSocket::FWebSocketMessageEvent& FWinHttpWebSocket::OnMessage()
 	return OnMessageHandler;
 }
 
-FWebSocketBinaryMessageEvent& FWinHttpWebSocket::OnBinaryMessage() 
+FWinHttpWebSocket::FWebSocketBinaryMessageEvent& FWinHttpWebSocket::OnBinaryMessage()
 { 
 	return BinaryMessageHandler; 
 }
