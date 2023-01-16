@@ -2799,6 +2799,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE_DEBUGGABLE void ClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 	{
+		PreDispatch();
 		if (Bypass())
 		{
 			GetComputeContext().RHIClearUAVFloat(UnorderedAccessViewRHI, Values);
@@ -2809,6 +2810,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE_DEBUGGABLE void ClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
 	{
+		PreDispatch();
 		if (Bypass())
 		{
 			GetComputeContext().RHIClearUAVUint(UnorderedAccessViewRHI, Values);
