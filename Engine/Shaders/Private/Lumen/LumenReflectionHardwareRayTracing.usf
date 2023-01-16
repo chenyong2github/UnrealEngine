@@ -101,24 +101,30 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		uint RayId = RayIndex;
 #endif // DIM_LIGHTING_MODE
 
-		uint2 TraceCoord;
 		float TraceHitDistance = 0;
 		float MaxTraceDistance;
-		DecodeTraceTexel(TraceTexelDataPacked[RayId], TraceCoord, TraceHitDistance, MaxTraceDistance);
+		FReflectionTracingCoord ReflectionTracingCoord;
+		{
+			uint2 TraceCoord;
+			DecodeTraceTexel(TraceTexelDataPacked[RayId], TraceCoord, TraceHitDistance, MaxTraceDistance);
+			ReflectionTracingCoord = GetReflectionTracingCoord(TraceCoord);
+		}
+
 
 		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
-		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
+		float DitheredMaxTraceDistance = CalcDitheredDistance(ReflectionTracingCoord.Coord, DitheredStartDistance, MaxTraceDistance);
 
-		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(TraceCoord);
+		
+		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
 		float2 ScreenCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
 		uint LinearCoord = ScreenCoord.y * View.BufferSizeAndInvSize.x + ScreenCoord.x;
 
-		float SceneDepth = DownsampledDepth.Load(int3(TraceCoord, 0)).x;
+		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.CoordFlatten, 0)).x;
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
 		const float3 WorldNormal = ReadMaterialData(uint2(ScreenCoord)).WorldNormal;
 
-		FRayData RayData = GetRayData(TraceCoord);
+		FRayData RayData = GetRayData(ReflectionTracingCoord.CoordFlatten);
 
 		FRayDesc Ray;
 		Ray.Origin = TranslatedWorldPosition;
@@ -137,7 +143,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		const bool bHiResSurface = UseHighResSurface ? 1 : 0;
 		const uint CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ReflectionTracingCoord.Coord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;
@@ -195,7 +201,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			float HairHitT;
 
 			TraceHairVoxels(
-				TraceCoord,
+				ReflectionTracingCoord.Coord,
 				SceneDepth,
 				// Use (Translated)WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
 				// the voxel structure does not cause any self shadowing issue
@@ -219,7 +225,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		if (Result.bIsHit && SampleSceneColor > 0)
 		{
 			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * TraceResult.OpaqueHitDistance;
-			SampleSceneColorAtHit(HitTranslatedWorldPosition, TraceCoord, RelativeDepthThickness, TraceResult.Lighting);
+			SampleSceneColorAtHit(HitTranslatedWorldPosition, ReflectionTracingCoord.Coord, RelativeDepthThickness, TraceResult.Lighting);
 		}
 #endif
 
@@ -228,7 +234,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		if (!Result.bIsHit && RayData.bUseRadianceCache)
 		{
 			float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
-			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, RayData.Direction, InterleavedGradientNoise(TraceCoord, View.StateFrameIndexMod8));
+			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, RayData.Direction, InterleavedGradientNoise(ReflectionTracingCoord.Coord, View.StateFrameIndexMod8));
 			SampleRadianceCacheAndApply(Coverage, WorldPosition, RayData.Direction, RayData.ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
 			Result.bIsHit = true;
 		}
@@ -263,8 +269,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			TraceResult.Lighting *= MaxRayIntensity / MaxLighting;
 		}
 
-		RWTraceRadiance[TraceCoord] = TraceResult.Lighting;
-		RWTraceHit[TraceCoord] = EncodeRayDistance(TraceResult.OpaqueHitDistance, Result.bIsHit);
+		RWTraceRadiance[ReflectionTracingCoord.CoordFlatten] = TraceResult.Lighting;
+		RWTraceHit[ReflectionTracingCoord.CoordFlatten] = EncodeRayDistance(TraceResult.OpaqueHitDistance, Result.bIsHit);
 
 		#define DEBUG_SUPPORT_VISUALIZE_TRACE_COHERENCY 0
 		#if DEBUG_SUPPORT_VISUALIZE_TRACE_COHERENCY
