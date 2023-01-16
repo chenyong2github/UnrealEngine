@@ -607,6 +607,15 @@ bool FPythonScriptPlugin::ExecPythonCommandEx(FPythonCommandEx& InOutPythonComma
 #endif	// WITH_PYTHON
 }
 
+FString FPythonScriptPlugin::GetInterpreterExecutablePath() const
+{
+#if WITH_PYTHON
+	return PyUtil::GetInterpreterExecutablePath();
+#else	// WITH_PYTHON
+	return FString();
+#endif	// WITH_PYTHON
+}
+
 FSimpleMulticastDelegate& FPythonScriptPlugin::OnPythonInitialized()
 {
 	return OnPythonInitializedDelegate;

@@ -36,6 +36,11 @@ public:
 	virtual bool ExecPythonCommandEx(FPythonCommandEx& InOutPythonCommand) = 0;
 	
 	/**
+	 * Get the path to the Python interpreter executable of the Python SDK this plugin was compiled against.
+	 */
+	virtual FString GetInterpreterExecutablePath() const = 0;
+
+	/**
 	 * Delegate called after Python has been initialized.
 	 */
 	virtual FSimpleMulticastDelegate& OnPythonInitialized() = 0;

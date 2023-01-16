@@ -108,6 +108,7 @@ public:
 	virtual bool IsPythonAvailable() const override;
 	virtual bool ExecPythonCommand(const TCHAR* InPythonCommand) override;
 	virtual bool ExecPythonCommandEx(FPythonCommandEx& InOutPythonCommand) override;
+	virtual FString GetInterpreterExecutablePath() const override;
 	virtual FSimpleMulticastDelegate& OnPythonInitialized() override;
 	virtual FSimpleMulticastDelegate& OnPythonShutdown() override;
 
