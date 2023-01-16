@@ -42,8 +42,5 @@ void FContextualAnimPreviewScene::Tick(float InDeltaTime)
 		PreviewWorld->bBegunPlay = true;
 	}
 
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
-	}
+	GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 }

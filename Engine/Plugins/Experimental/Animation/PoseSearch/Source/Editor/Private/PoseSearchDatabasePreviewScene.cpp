@@ -53,10 +53,7 @@ namespace UE::PoseSearch
 			PreviewWorld->bBegunPlay = true;
 		}
 
-		if (!GIntraFrameDebuggingGameThread)
-		{
-			GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
-		}
+		GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 
 		FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
 		const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();

@@ -156,17 +156,14 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 	CalcEditorWidgetTransform(CachedEditorWidgetWorldTransform);
 
 	// Tick the preview scene world.
-	if (!GIntraFrameDebuggingGameThread)
+	// Allow full tick only if preview simulation is enabled and we're not currently in an active SIE or PIE session
+	if (GEditor->PlayWorld == nullptr && !GEditor->bIsSimulatingInEditor)
 	{
-		// Allow full tick only if preview simulation is enabled and we're not currently in an active SIE or PIE session
-		if (GEditor->PlayWorld == nullptr && !GEditor->bIsSimulatingInEditor)
-		{
-			PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaSeconds);
-		}
-		else
-		{
-			PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly, DeltaSeconds);
-		}
+		PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaSeconds);
+	}
+	else
+	{
+		PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly, DeltaSeconds);
 	}
 
 	if (RootActorProxy.IsValid() && RootActorLevelInstance.IsValid())

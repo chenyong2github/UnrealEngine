@@ -646,10 +646,7 @@ void FSpriteEditorViewportClient::Tick(float DeltaSeconds)
 
 	FPaperEditorViewportClient::Tick(DeltaSeconds);
 
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		OwnedPreviewScene.GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
-	}
+	OwnedPreviewScene.GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
 }
 
 void FSpriteEditorViewportClient::ToggleShowSourceTexture()

@@ -917,17 +917,14 @@ void FWidgetBlueprintEditor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	// Tick the preview scene world.
-	if ( !GIntraFrameDebuggingGameThread )
+	// Allow full tick only if preview simulation is enabled and we're not currently in an active SIE or PIE session
+	if (bIsSimulateEnabled && GEditor->PlayWorld == nullptr && !GEditor->bIsSimulatingInEditor)
 	{
-		// Allow full tick only if preview simulation is enabled and we're not currently in an active SIE or PIE session
-		if ( bIsSimulateEnabled && GEditor->PlayWorld == nullptr && !GEditor->bIsSimulatingInEditor )
-		{
-			PreviewScene.GetWorld()->Tick(bIsRealTime ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaTime);
-		}
-		else
-		{
-			PreviewScene.GetWorld()->Tick(bIsRealTime ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly, DeltaTime);
-		}
+		PreviewScene.GetWorld()->Tick(bIsRealTime ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaTime);
+	}
+	else
+	{
+		PreviewScene.GetWorld()->Tick(bIsRealTime ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly, DeltaTime);
 	}
 
 	// Whenever animations change the generated class animations need to be updated since they are copied on compile.  This

@@ -101,9 +101,6 @@ void FWaterWavesEditorViewportClient::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	// Tick the preview scene world.
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaSeconds);
-	}
+	PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaSeconds);
 }
 

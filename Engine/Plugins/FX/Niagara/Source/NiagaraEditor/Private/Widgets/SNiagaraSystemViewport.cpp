@@ -109,10 +109,7 @@ void FNiagaraSystemViewportClient::Tick(float DeltaSeconds)
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	// Tick the preview scene world.
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
-	}
+	PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
 }
 
 void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
@@ -907,10 +904,7 @@ void FNiagaraBaselineViewportClient::Tick(float DeltaSeconds)
 		}
 
 		// Tick the preview scene world.
-		if (!GIntraFrameDebuggingGameThread)
-		{
-			World->Tick(LEVELTICK_All, DeltaSeconds);
-		}
+		World->Tick(LEVELTICK_All, DeltaSeconds);
 	}
 }
 

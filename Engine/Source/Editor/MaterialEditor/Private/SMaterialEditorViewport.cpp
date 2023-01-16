@@ -111,10 +111,7 @@ void FMaterialEditorViewportClient::Tick(float DeltaSeconds)
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	// Tick the preview scene world.
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
-	}
+	PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
 }
 
 

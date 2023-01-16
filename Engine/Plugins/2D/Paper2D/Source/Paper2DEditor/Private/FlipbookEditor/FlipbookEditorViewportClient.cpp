@@ -102,10 +102,7 @@ void FFlipbookEditorViewportClient::Tick(float DeltaSeconds)
 
 	FPaperEditorViewportClient::Tick(DeltaSeconds);
 
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		OwnedPreviewScene.GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
-	}
+	OwnedPreviewScene.GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
 }
 
 bool FFlipbookEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)

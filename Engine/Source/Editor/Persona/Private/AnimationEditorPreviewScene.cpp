@@ -1201,10 +1201,7 @@ void FAnimationEditorPreviewScene::Tick(float InDeltaTime)
 
 	IPersonaPreviewScene::Tick(InDeltaTime);
 
-	if (!GIntraFrameDebuggingGameThread)
-	{
-		GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
-	}
+	GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 
 	if (SkeletalMeshComponent)
 	{
