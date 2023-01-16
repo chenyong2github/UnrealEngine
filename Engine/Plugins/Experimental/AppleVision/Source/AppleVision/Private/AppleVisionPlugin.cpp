@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AppleVisionAvailability.h"
 #include "IAppleVisionPlugin.h"
 #include "AppleImageUtilsTypes.h"
 #include "UObject/GCObject.h"

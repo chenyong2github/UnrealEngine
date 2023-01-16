@@ -7,16 +7,15 @@
 #include "MoviePlayer.h"
 
 #include COMPILED_PLATFORM_HEADER(WebMAudioBackendDefines.h)
-class FSlateTexture2DRHIRef;
-struct FWebMFrame;
-
 #include "Containers/Queue.h"
 #include "WebMSamplesSink.h"
 
+class FSlateTexture2DRHIRef;
 class FWebMVideoDecoder;
 class FWebMAudioDecoder;
 class FMediaSamples;
 class FWebMContainer;
+struct FWebMFrame;
 
 class FWebMMovieStreamer : public IMovieStreamer, public IWebMSamplesSink
 {

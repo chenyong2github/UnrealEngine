@@ -2,10 +2,6 @@
 
 #pragma once
 
-
-class FAdvancedPreviewScene;
-class SViewportToolBar;
-
 #ifdef VIEWPORT_EXPERIMENTAL
 #include "ViewportExperimental.h"
 #endif
@@ -18,10 +14,12 @@ class SViewportToolBar;
 #include "SDataprepEditorViewport.generated.h"
 
 class AActor;
+class FAdvancedPreviewScene;
 class FDataprepEditor;
 class SDataprepEditorViewport;
 class SVerticalBox;
 class STextBlock;
+class SViewportToolBar;
 class UMaterialInterface;
 class UMaterialInstanceConstant;
 class UStaticMesh;

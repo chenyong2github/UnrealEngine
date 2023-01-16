@@ -10,14 +10,13 @@
 
 #include "IDetailCustomization.h"
 
-class SWidget;
-class UMaterialInterface;
-class UDataTable;
-
 #include "StaticMeshEditorSubsystemHelpers.h"
 #include "DataprepOperations.generated.h"
 
 class IPropertyHandle;
+class SWidget;
+class UMaterialInterface;
+class UDataTable;
 namespace ESelectInfo { enum Type : int; }
 namespace ETextCommit { enum Type : int; }
 struct FPropertyChangedEvent;

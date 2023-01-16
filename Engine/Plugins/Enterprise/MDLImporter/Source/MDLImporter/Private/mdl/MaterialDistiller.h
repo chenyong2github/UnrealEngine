@@ -5,8 +5,6 @@
 
 #include "Math/IntPoint.h"
 
-namespace Mdl { class IMapDistilHandler; }
-
 #ifdef USE_MDLSDK
 
 #include "mdl/Common.h"
@@ -18,6 +16,7 @@ namespace Mdl
 {
 	class FApiContext;
 	class FMaterialCollection;
+	class IMapDistilHandler;
 	struct FBakeParam;
 	struct FMaterial;
 

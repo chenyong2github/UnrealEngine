@@ -5,14 +5,13 @@
 #include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtr.h"
 
-enum ETextureRenderTargetFormat : int;
-
 #if WITH_EDITOR
 #include "TickableEditorObject.h"
 #endif
 
 class UTextureRenderTarget2D;
 class UObject;
+enum ETextureRenderTargetFormat : int;
 
 /* FCompElementRenderTargetPool
  *****************************************************************************/
