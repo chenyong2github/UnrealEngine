@@ -82,6 +82,12 @@ struct FStreamingPageInfo
 	uint32		RefCount;
 };
 
+struct FPrioritizedStreamingPage
+{
+	FStreamingPageInfo* Page;
+	uint32 Priority;
+};
+
 struct FRootPageInfo
 {
 	uint32	RuntimeResourceID;
@@ -188,12 +194,12 @@ private:
 
 	struct FHeapBuffer
 	{
-		int32					TotalUpload = 0;
+		int32							TotalUpload = 0;
 
-		FGrowOnlySpanAllocator	Allocator;
+		FGrowOnlySpanAllocator			Allocator;
 
-		FRDGScatterUploadBuffer	UploadBuffer;
-		TRefCountPtr<FRDGPooledBuffer>			DataBuffer;
+		FRDGScatterUploadBuffer			UploadBuffer;
+		TRefCountPtr<FRDGPooledBuffer>	DataBuffer;
 
 		void Release()
 		{
@@ -209,9 +215,9 @@ private:
 	};
 
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
-	FRDGScatterUploadBuffer ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				ImposterData;
+	FRDGScatterUploadBuffer ClusterFixupUploadBuffer;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
 
 	uint32					StreamingRequestsBufferVersion;
@@ -231,7 +237,9 @@ private:
 
 	uint32					StatNumRootPages;
 	uint32					StatPeakRootPages;
-	uint32					StatPeakAllocatedRootPages;
+	uint32					StatVisibleSetSize;
+	uint32					StatPrevUpdateTime;
+	uint32					StatNumAllocatedRootPages;
 
 	TArray<FRootPageInfo>	RootPageInfos;
 
@@ -246,7 +254,6 @@ private:
 	TMultiMap< uint32, FResources* >		PersistentHashResourceMap;			// TODO: MultiMap to handle potential collisions and issues with there temporarily being two meshes with the same hash because of unordered add/remove.
 	TMap< FPageKey, FStreamingPageInfo* >	RegisteredStreamingPagesMap;		// This is updated immediately.
 	TMap< FPageKey, FStreamingPageInfo* >	CommittedStreamingPageMap;			// This update is deferred to the point where the page has been loaded and committed to memory.
-	TArray< FStreamingRequest >				PrioritizedRequestsHeap;
 	FStreamingPageInfo						StreamingPageLRU;
 
 	TSet<uint32>							ModifiedResources;
@@ -259,7 +266,6 @@ private:
 #if !WITH_EDITOR
 	TArray< uint8 >							PendingPageStagingMemory;
 #endif
-	TArray< uint32 >						GPUPageDependencies;
 
 	FRequestsHashTable*						RequestsHashTable = nullptr;
 	FStreamingPageUploader*					PageUploader = nullptr;
@@ -276,11 +282,19 @@ private:
 	TArray<uint32>							PendingExplicitRequests;
 	TArray<FResourcePrefetch>				PendingResourcePrefetches;
 
+	// Transient	 lifetime, but persisted to reduce allocations
+	TArray<FStreamingRequest>				PrioritizedRequestsHeap;
+	TArray<uint32>							GPUPageDependencies;
+	TArray<FPageKey>						SelectedPages;
+	TArray<FPrioritizedStreamingPage>		UpdatedPages;
+
+
+	void AddPendingGPURequests();
 	void AddPendingExplicitRequests();
 	void AddPendingResourcePrefetchRequests();
+	void AddParentRequests();
 
-	void CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key );
-	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 MaxSelectedPages );
+	void SelectHighestPriorityPagesAndUpdateLRU(uint32 MaxSelectedPages);
 
 	void RegisterStreamingPage( FStreamingPageInfo* Page, const FPageKey& Key );
 	void UnregisterPage( const FPageKey& Key );
