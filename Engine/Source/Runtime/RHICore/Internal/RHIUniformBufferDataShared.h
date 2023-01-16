@@ -65,6 +65,7 @@ namespace UE::RHICore
 			FRHIUnorderedAccessView* UnorderedAccessView = Reader.Read<FRHIUnorderedAccessView*>(Resource);
 			return UnorderedAccessView ? UnorderedAccessView->GetBindlessHandle() : FRHIDescriptorHandle();
 		}
+		break;
 		case UBMT_RDG_TEXTURE_UAV:
 		case UBMT_RDG_BUFFER_UAV:
 		{
