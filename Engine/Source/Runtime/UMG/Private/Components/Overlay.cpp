@@ -56,6 +56,18 @@ void UOverlay::OnSlotRemoved(UPanelSlot* InSlot)
 	}
 }
 
+bool UOverlay::ReplaceOverlayChildAt(int32 Index, UWidget* Content)
+{
+	if (!Slots.IsValidIndex(Index) || Content == nullptr)
+	{
+		return false;
+	}
+
+	UOverlaySlot* OverlaySlot = CastChecked<UOverlaySlot>(Slots[Index]);
+	OverlaySlot->ReplaceContent(Content);
+	return true;
+}
+
 TSharedRef<SWidget> UOverlay::RebuildWidget()
 {
 	MyOverlay = SNew(SOverlay);

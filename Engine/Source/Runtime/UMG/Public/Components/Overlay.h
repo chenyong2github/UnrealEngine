@@ -25,6 +25,10 @@ class UMG_API UOverlay : public UPanelWidget
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	UOverlaySlot* AddChildToOverlay(UWidget* Content);
 
+	/** Replace the widget at the given index it with a different widget. */
+	UFUNCTION(BlueprintCallable, Category = "Panel")
+	bool ReplaceOverlayChildAt(int32 Index, UWidget* Content);
+
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 #endif

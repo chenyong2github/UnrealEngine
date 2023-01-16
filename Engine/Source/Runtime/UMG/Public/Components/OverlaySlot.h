@@ -73,5 +73,8 @@ public:
 	/** Builds the underlying FSlot for the Slate layout panel. */
 	virtual void BuildSlot(TSharedRef<SOverlay> InOverlay);
 
+	/** Replace the slot content. */
+	void ReplaceContent(UWidget* Content);
+
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 };

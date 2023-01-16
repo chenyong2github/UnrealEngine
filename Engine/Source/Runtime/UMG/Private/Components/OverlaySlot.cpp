@@ -36,6 +36,36 @@ void UOverlaySlot::BuildSlot(TSharedRef<SOverlay> Overlay)
 		];
 }
 
+void UOverlaySlot::ReplaceContent(UWidget* NewContent)
+{
+	if (Content != NewContent)
+	{
+		if (NewContent)
+		{
+			NewContent->RemoveFromParent();
+		}
+
+		if (UWidget* PreviousWidget = Content)
+		{
+			// Setting Slot=null before RemoveFromParent to prevent destroying this slot
+			PreviousWidget->Slot = nullptr;
+			PreviousWidget->RemoveFromParent();
+		}
+
+		Content = NewContent;
+
+		if (Content)
+		{
+			Content->Slot = this;
+		}
+
+		if (Slot)
+		{
+			Slot->AttachWidget(Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget());
+		}
+	}
+}
+
 void UOverlaySlot::SetPadding(FMargin InPadding)
 {
 	Padding = InPadding;
