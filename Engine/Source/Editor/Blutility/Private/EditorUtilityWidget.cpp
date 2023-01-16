@@ -10,11 +10,6 @@
 /////////////////////////////////////////////////////
 #define LOCTEXT_NAMESPACE "EditorUtility"
 
-UEditorUtilityWidget::UEditorUtilityWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 void UEditorUtilityWidget::ExecuteDefaultAction()
 {
 	check(bAutoRunDefaultAction);

@@ -23,7 +23,7 @@ class UObject;
 UCLASS(Abstract, meta = (ShowWorldContextPin), config = Editor)
 class BLUTILITY_API UEditorUtilityWidget : public UUserWidget
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
 	// The default action called when the widget is invoked if bAutoRunDefaultAction=true (it is never called otherwise)
@@ -56,5 +56,4 @@ protected:
 	// Should this blueprint automatically run OnDefaultActionClicked, or should it open up a details panel to edit properties and/or offer multiple buttons
 	UPROPERTY(Category = Settings, EditDefaultsOnly, BlueprintReadOnly)
 	bool bAutoRunDefaultAction;
-
 };

@@ -36,7 +36,7 @@ enum class EMapChangeType : uint8;
 UCLASS()
 class BLUTILITY_API UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
 	virtual void BeginDestroy() override;
@@ -71,9 +71,19 @@ public:
 		return RegistrationName;
 	}
 
+private:
+	bool IsWidgetEnabled() const;
 	void ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType);
 
 private:
+	// Should the widget be enabled when running PIE
+	UPROPERTY(Category = Settings, EditDefaultsOnly)
+	bool bIsEnabledInPIE = false;
+
+	// Should the widget be enabled when debugging BP
+	UPROPERTY(Category = Settings, EditDefaultsOnly)
+	bool bIsEnabledInDebugging = false;
+
 	FName RegistrationName;
 
 	TWeakPtr<SDockTab> CreatedTab;
