@@ -471,6 +471,11 @@ void RegisterConsoleAutoCompleteEntries(TArray<FAutoCompleteCommand>& AutoComple
 	}
 }
 
+IMemoryUsageInfoProvider* GetCurrentMemoryUsageInfoProvider()
+{
+	return CurrentMemoryUsageInfoProvider;
+}
+
 bool GetMemoryUsage(const IMemoryUsageInfoProvider* MemoryUsageInfoProvider, const FString& PackageName, uint64& OutExclusiveSize, uint64& OutInclusiveSize, FOutputDevice* ErrorOutput /* = GLog */)
 {
 	FName LongPackageName;

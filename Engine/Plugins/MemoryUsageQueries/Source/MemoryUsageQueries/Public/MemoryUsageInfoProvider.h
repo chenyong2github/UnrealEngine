@@ -8,7 +8,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 
 
-class IMemoryUsageInfoProvider
+class MEMORYUSAGEQUERIES_API IMemoryUsageInfoProvider
 {
 public:
 	virtual uint64 GetAssetMemoryUsage(FName Asset, FOutputDevice* ErrorOutput) const = 0;
@@ -16,7 +16,7 @@ public:
 	virtual void GetAllAssetsWithSize(TMap<FName, uint64>& OutAssets, FOutputDevice* ErrorOutput) const = 0;
 };
 
-class FMemoryUsageInfoProviderLLM : public IMemoryUsageInfoProvider
+class MEMORYUSAGEQUERIES_API FMemoryUsageInfoProviderLLM : public IMemoryUsageInfoProvider
 {
 public:
 	virtual uint64 GetAssetMemoryUsage(FName Asset, FOutputDevice* ErrorOutput = GLog) const override;
