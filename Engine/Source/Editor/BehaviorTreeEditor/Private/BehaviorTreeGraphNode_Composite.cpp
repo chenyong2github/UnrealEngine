@@ -51,6 +51,19 @@ FText UBehaviorTreeGraphNode_Composite::GetTooltipText() const
 	return Super::GetTooltipText();
 }
 
+void UBehaviorTreeGraphNode_Composite::PostPasteNode()
+{
+	Super::PostPasteNode();
+	
+	// Clear our references to other nodes since this will be set when creating/updating the BT from the graph nodes
+	UBTCompositeNode* CompositeNode = Cast<UBTCompositeNode>(NodeInstance);
+	if (CompositeNode)
+	{
+		CompositeNode->Children.Reset();
+		CompositeNode->Services.Reset();
+	}
+}
+
 void UBehaviorTreeGraphNode_Composite::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	AddContextMenuActionsDecorators(Menu, "BehaviorTreeGraphNode", Context);

@@ -112,6 +112,14 @@ void UBehaviorTreeGraphNode_CompositeDecorator::PostCopyNode()
 	}
 }
 
+void UBehaviorTreeGraphNode_CompositeDecorator::PostPasteNode()
+{
+	Super::PostPasteNode();
+
+	// Clear reference to the parent since it will be set when creating/updating the BT from the graph nodes
+	ParentNodeInstance = nullptr;
+}
+
 void UBehaviorTreeGraphNode_CompositeDecorator::ResetNodeOwner()
 {
 	Super::ResetNodeOwner();
