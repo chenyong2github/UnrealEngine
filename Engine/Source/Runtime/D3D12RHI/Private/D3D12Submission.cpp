@@ -3,6 +3,7 @@
 #include "D3D12RHIPrivate.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "IRenderCaptureProvider.h"
 
 #ifndef D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES
 #define D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES 1
@@ -118,6 +119,9 @@ void FD3D12DynamicRHI::InitializeSubmissionPipe()
 	case 1: bUseSubmissionThread = FRHIGPUMask::All().HasSingleIndex(); break;
 	case 2: bUseSubmissionThread = true; break;
 	}
+
+	// Currently RenderDoc can't make programmatic captures when we use a submission thread.
+	bUseSubmissionThread &= !IRenderCaptureProvider::IsAvailable() || IRenderCaptureProvider::Get().CanSupportSubmissionThread();
 
 	if (bUseSubmissionThread)
 	{

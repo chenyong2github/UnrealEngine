@@ -16,6 +16,7 @@ class FRenderDocPluginModule : public IRenderDocPlugin
 
 public:
 	// Begin IRenderCaptureProvider interface.
+	virtual bool CanSupportSubmissionThread() const { return false; }
 	virtual void CaptureFrame(FViewport* InViewport, uint32 InFlags, FString const& InDestFileName) override;
 	virtual void BeginCapture(FRHICommandListImmediate* InRHICommandList, uint32 InFlags, FString const& InDestFileName) override;
 	virtual void EndCapture(FRHICommandListImmediate* InRHICommandList) override;

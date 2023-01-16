@@ -46,6 +46,9 @@ public:
 		return IModularFeatures::Get().GetModularFeature<IRenderCaptureProvider>(GetModularFeatureName());
 	}
 
+	/** Derived classes return false if they cannot support an RHI submission thread. */
+	virtual bool CanSupportSubmissionThread() const { return true; }
+
 	/**
 	 * Flags to pass to capture API.
 	 */
