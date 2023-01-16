@@ -1783,9 +1783,10 @@ bool UUserWidget::IsFocusable() const
 	return bIsFocusable;
 }
 
-void UUserWidget::InitIsFocusable(bool InIsFocusable)
+void UUserWidget::SetIsFocusable(bool InIsFocusable)
 {
 	bIsFocusable = InIsFocusable;
+	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

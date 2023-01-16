@@ -335,7 +335,7 @@ UCommonButtonBase::UCommonButtonBase(const FObjectInitializer& ObjectInitializer
 	, bButtonEnabled(true)
 	, bInteractionEnabled(true)
 {
-	InitIsFocusable(true);
+	SetIsFocusable(true);
 }
 
 void UCommonButtonBase::OnWidgetRebuilt()
@@ -1540,7 +1540,7 @@ void UCommonButtonBase::DisableButton()
 
 void UCommonButtonBase::SetIsFocusable(bool bInIsFocusable)
 {
-	InitIsFocusable(bInIsFocusable);
+	UUserWidget::SetIsFocusable(bInIsFocusable);
 
 	if (RootButton.IsValid())
 	{

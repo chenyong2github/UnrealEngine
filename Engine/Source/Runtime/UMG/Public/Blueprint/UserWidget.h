@@ -930,7 +930,7 @@ public:
 
 	UE_DEPRECATED(5.2, "Direct access to bIsFocusable is deprecated. Please use the getter. Note that this property is only set at construction and is not modifiable at runtime.")
 	/** Setting this flag to true, allows this widget to accept focus when clicked, or when navigated to. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsFocusable", Category = "Interaction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsFocusable", Setter = "SetIsFocusable", Category = "Interaction")
 	uint8 bIsFocusable : 1;
 	 
 	UE_DEPRECATED(5.2, "Direct access to bStopAction is deprecated. Please use the getter or setter.")
@@ -989,9 +989,11 @@ public:
 	bool IsInputActionBlocking() const;
 
 	/**
-	 * Returns whether this widget to accept focus when clicked, or when navigated to.
+	 * Sets whether this widget to accept focus when clicked, or when navigated to.
 	 */
 	bool IsFocusable() const;
+
+	void SetIsFocusable(bool InIsFocusable);
 
 	/**
 	 * Plays an animation in this widget a specified number of times
@@ -1458,9 +1460,6 @@ protected:
 	void OnInputAction( FOnInputAction Callback );
 
 	virtual void InitializeInputComponent();
-
-	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
-	void InitIsFocusable(bool InIsFocusable);
 
 private:
 	FVector2D MinimumDesiredSize;
