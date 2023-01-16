@@ -195,11 +195,39 @@ namespace mu
 								[IssuedTask]() { IssuedTask->DoWork(); },
 								UE::Tasks::ETaskPriority::Inherit );
 #else
+
+							ENamedThreads::Type Priority;
+							switch (CoreRunnerTaskPriority)
+							{
+							default:
+							case 0:
+								Priority = ENamedThreads::AnyThread;
+								break;
+							case 1:
+								Priority = ENamedThreads::AnyHiPriThreadHiPriTask;
+								break;
+							case 2:
+								Priority = ENamedThreads::AnyHiPriThreadNormalTask;
+								break;
+							case 3:
+								Priority = ENamedThreads::AnyNormalThreadHiPriTask;
+								break;
+							case 4:
+								Priority = ENamedThreads::AnyNormalThreadNormalTask;
+								break;
+							case 5:
+								Priority = ENamedThreads::AnyBackgroundHiPriTask;
+								break;
+							case 6:
+								Priority = ENamedThreads::AnyBackgroundThreadNormalTask;
+								break;								
+							}
+							
 							IssuedTask->Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
 								[IssuedTask]() { IssuedTask->DoWork(); },
 								TStatId{},
 								nullptr,
-								ENamedThreads::AnyThread);
+								Priority);
 #endif
 						}
 					}

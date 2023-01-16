@@ -28,6 +28,18 @@
 #else
 #endif
 
+static int32 CoreRunnerTaskPriority =
+#ifdef PLATFORM_SWITCH // Required due to low end platforms hitches. Mutable is occupying all threads with long tasks preventing Niagara from executing its time sensitive tasks.
+	5;
+#else
+	0;
+#endif
+
+static FAutoConsoleVariableRef CVarCoreRunnerTaskPriority(
+	TEXT("mutable.CoreRunnerTaskPriority"),
+	CoreRunnerTaskPriority,
+	TEXT("0 AnyThread. 1 to 6, from hight to low priority."),
+	ECVF_Default);
 
 namespace  mu
 {
