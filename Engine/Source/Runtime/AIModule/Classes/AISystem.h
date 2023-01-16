@@ -90,6 +90,10 @@ public:
 
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Behavior Tree")
 	bool bClearBBEntryOnBTEQSFail = true;
+	
+	/** If enabled, blackboard based decorators will set key to 'Invalid' on creation or when selected key no longer exists (instead of using the first key of the blackboard). */
+	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Behavior Tree")
+	bool bBlackboardKeyDecoratorAllowsNoneAsValue = false;
 
 	/** Which collision channel to use for sight checks by default */
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "PerceptionSystem")

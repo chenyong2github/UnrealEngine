@@ -238,8 +238,9 @@ void FBlackboardSelectorDetails::InitKeyFromProperty()
 			}
 			else
 			{
-				MyKeyClassProperty->SetValue((UObject*)NULL);
+				// Set ID first so callbacks can properly test against InvalidKey
 				MyKeyIDProperty->SetValue((int32)FBlackboard::InvalidKey);
+				MyKeyClassProperty->SetValue((UObject*)nullptr);				
 				MyKeyNameProperty->SetValue(TEXT("None"));
 			}
 		}
