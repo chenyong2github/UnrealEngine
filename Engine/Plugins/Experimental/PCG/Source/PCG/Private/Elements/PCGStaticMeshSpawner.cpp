@@ -20,7 +20,13 @@ UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitia
 	bUseSeed = true;
 
 	MeshSelectorType = UPCGMeshSelectorWeighted::StaticClass();
-	MeshSelectorInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMeshSelectorWeighted>(this, TEXT("DefaultSelectorInstance"));
+	// Implementation note: this should not have been done here (it should have been null), as it causes issues with copy & paste
+	// when the thing to paste does not have that class for its instance.
+	// However, removing it makes it that any object actually using the instance created by default would be lost.
+	if (!this->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		MeshSelectorInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMeshSelectorWeighted>(this, TEXT("DefaultSelectorInstance"));
+	}
 }
 
 FPCGElementPtr UPCGStaticMeshSpawnerSettings::CreateElement() const

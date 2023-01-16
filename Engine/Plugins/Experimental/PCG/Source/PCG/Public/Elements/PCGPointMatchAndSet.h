@@ -35,6 +35,8 @@ protected:
 
 public:
 	// ~Begin UObject interface
+	void PostLoad();
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

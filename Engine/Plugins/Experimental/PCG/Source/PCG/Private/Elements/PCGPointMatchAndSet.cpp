@@ -17,7 +17,6 @@
 UPCGPointMatchAndSetSettings::UPCGPointMatchAndSetSettings(const FObjectInitializer& ObjectInitializer)
 {
 	MatchAndSetType = UPCGMatchAndSetWeighted::StaticClass();
-	MatchAndSetInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMatchAndSetWeighted>(this, TEXT("DefaultMatchAndSetInstance"));
 	bUseSeed = MatchAndSetInstance && MatchAndSetInstance->UsesRandomProcess();
 }
 
@@ -49,6 +48,16 @@ TArray<FPCGPinProperties> UPCGPointMatchAndSetSettings::OutputPinProperties() co
 FPCGElementPtr UPCGPointMatchAndSetSettings::CreateElement() const
 {
 	return MakeShared<FPCGPointMatchAndSetElement>();
+}
+
+void UPCGPointMatchAndSetSettings::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!MatchAndSetInstance)
+	{
+		RefreshMatchAndSet();
+	}	
 }
 
 #if WITH_EDITOR
