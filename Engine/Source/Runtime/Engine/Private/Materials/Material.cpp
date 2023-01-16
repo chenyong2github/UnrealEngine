@@ -6219,9 +6219,8 @@ bool UMaterial::CheckInValidStateForCompilation(class FMaterialCompiler* Compile
 	{
 		for (const TPair<TObjectPtr<UMaterialExpression>, FName>& Error : CachedExpressionData->DuplicateParameterErrors)
 		{
-			// Although this is an error, log it as a warning for now (it should instead be an error logged to the compiler).
-			// We need to first solve this error for all existing materials before we can turn it into a compilation blocking error.
-			UE_LOG(LogMaterial, Warning, TEXT("Parameter '%s' is set multiple times to different values. Make sure each parameter is set once or always to the same value (e.g. same texture)."), *Error.Get<1>().ToString());
+			FString ErrorMsg = FString::Format(TEXT("Parameter '{0}' is set multiple times to different values. Make sure each parameter is set once or always to the same value (e.g. same texture)."), { *Error.Get<1>().ToString() });
+			Compiler->AppendExpressionError(Error.Get<0>(), *ErrorMsg);
 		}
 
 		bSuccess = false;

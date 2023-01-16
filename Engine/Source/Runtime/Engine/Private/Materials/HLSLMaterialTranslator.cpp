@@ -110,6 +110,12 @@ static FAutoConsoleVariableRef CVarLWCEnabled(
 	TEXT("Enable generation of LWC values in materials. If disabled, materials will perform all operations at float-precision")
 );
 
+static bool GPedanticErrorChecksEnabled = false;
+static FAutoConsoleVariableRef CVarPedanticErrorChecksEnabled(
+	TEXT("r.Material.PedanticErrorChecksEnabled"),
+	GPedanticErrorChecksEnabled,
+	TEXT("Enables material compilation pedantic error checking"));
+
 static inline bool IsAnalyticDerivEnabled()
 {
 	return GAnalyticDerivEnabled != 0;
@@ -773,6 +779,12 @@ bool FHLSLMaterialTranslator::Translate()
 
 		Material->CompileErrors.Empty();
 		Material->ErrorExpressions.Empty();
+
+		// If pedantic error checking is enabled, log out the pre-compilation errors
+		if (GPedanticErrorChecksEnabled)
+		{
+			bSuccess = Material->CheckInValidStateForCompilation(this);
+		}
 
 		bEnableExecutionFlow = Material->IsUsingControlFlow();
 		bCompileForComputeShader = Material->IsLightFunction();
