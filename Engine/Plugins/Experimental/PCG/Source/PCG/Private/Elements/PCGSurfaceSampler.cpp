@@ -396,17 +396,6 @@ void UPCGSurfaceSamplerSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOu
 			InputPins[0]->Properties.Label = PCGSurfaceSamplerConstants::BoundingShapeLabel;
 		}
 
-		// If no pins or only 1 pin, then we will be doing rewiring later, so ask for advanced pins on graph input node
-		UPCGNode* GraphInputNode = InOutNode->GetGraph() ? InOutNode->GetGraph()->GetInputNode() : nullptr;
-		if (GraphInputNode && (InputPins.IsEmpty() || (InputPins.Num() == 1 && PCGSurfaceSampler::IsPinOnlyConnectedToInputNode(InputPins[0], GraphInputNode))))
-		{
-			// Ask for advanced params to be visible, as it will be useful later for wiring up the Surface input to the advanced Landscape pin
-			if (UPCGGraphInputOutputSettings* InputOutputSettings = Cast<UPCGGraphInputOutputSettings>(GraphInputNode->GetSettings()))
-			{
-				InputOutputSettings->SetShowAdvancedPins(true);
-			}
-		}
-
 		// A new params pin was added, migrate the first param connection there if any
 		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
 	}

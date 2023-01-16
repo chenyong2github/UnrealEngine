@@ -3,14 +3,14 @@
 #pragma once
 
 #include "PCGData.h"
-#include "PCGElement.h"
 #include "PCGDebug.h"
+#include "PCGElement.h"
+#include "PCGPin.h"
 #include "Tests/Determinism/PCGDeterminismSettings.h"
 
 #include "PCGSettings.generated.h"
 
 class UPCGPin;
-struct FPCGPinProperties;
 struct FPropertyChangedEvent;
 
 class UPCGGraph;
@@ -110,6 +110,11 @@ public:
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const;
+
+	// Internal functions, should not be used by any user.
+	// Return a different subset for for input/output pin properties, in case of a default object.
+	virtual TArray<FPCGPinProperties> DefaultInputPinProperties() const { return InputPinProperties(); }
+	virtual TArray<FPCGPinProperties> DefaultOutputPinProperties() const { return OutputPinProperties(); }
 
 	bool operator==(const UPCGSettings& Other) const;
 	uint32 GetCrc32() const;

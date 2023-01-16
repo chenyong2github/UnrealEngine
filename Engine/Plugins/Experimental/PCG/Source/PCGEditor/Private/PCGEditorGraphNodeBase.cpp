@@ -572,4 +572,32 @@ void UPCGEditorGraphNodeBase::UpdatePosition()
 	}
 }
 
+void UPCGEditorGraphNodeBase::CreatePins(const TArray<UPCGPin*>& InInputPins, const TArray<UPCGPin*>& InOutputPins)
+{
+	bool bHasAdvancedPin = false;
+
+	for (const UPCGPin* InputPin : InInputPins)
+	{
+		UEdGraphPin* Pin = CreatePin(EEdGraphPinDirection::EGPD_Input, GetPinType(InputPin), InputPin->Properties.Label);
+		Pin->bAdvancedView = InputPin->Properties.bAdvancedPin;
+		bHasAdvancedPin |= Pin->bAdvancedView;
+	}
+
+	for (const UPCGPin* OutputPin : InOutputPins)
+	{
+		UEdGraphPin* Pin = CreatePin(EEdGraphPinDirection::EGPD_Output, GetPinType(OutputPin), OutputPin->Properties.Label);
+		Pin->bAdvancedView = OutputPin->Properties.bAdvancedPin;
+		bHasAdvancedPin |= Pin->bAdvancedView;
+	}
+
+	if (bHasAdvancedPin && AdvancedPinDisplay == ENodeAdvancedPins::NoPins)
+	{
+		AdvancedPinDisplay = ENodeAdvancedPins::Hidden;
+	}
+	else if (!bHasAdvancedPin)
+	{
+		AdvancedPinDisplay = ENodeAdvancedPins::NoPins;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

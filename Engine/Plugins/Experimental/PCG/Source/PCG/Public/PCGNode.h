@@ -165,6 +165,14 @@ protected:
 	EPCGChangeType UpdatePins();
 	EPCGChangeType UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
 
+	// When we create a new graph, we initialize the input/output nodes as default, with default pins.
+	// Those default pins are not serialized, therefore if we change the default pins, combined with the use
+	// of recycling objects in Unreal, can lead to pins that are garbage or even worse: valid pins but not the right
+	// one, potentially making the edges connecting wrong pins together!
+	// That is why we have a specific function to create default pins, and we have to make sure that those
+	// default pins are always created the same way.
+	void CreateDefaultPins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType);
