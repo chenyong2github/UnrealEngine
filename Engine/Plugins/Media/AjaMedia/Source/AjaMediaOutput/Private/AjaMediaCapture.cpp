@@ -6,6 +6,7 @@
 #include "AjaDeviceProvider.h"
 #include "AjaMediaOutput.h"
 #include "AjaMediaOutputModule.h"
+#include "GPUTextureTransferModule.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/Engine.h"
 #include "HAL/Event.h"
@@ -224,7 +225,8 @@ UAjaMediaCapture::UAjaMediaCapture()
 	, FrameRate(30, 1)
 	, WakeUpEvent(nullptr)
 {
-	bGPUTextureTransferAvailable = ((FAjaMediaOutputModule*)&IAjaMediaOutputModule::Get())->IsGPUTextureTransferAvailable();
+	bGPUTextureTransferAvailable = FGPUTextureTransferModule::Get().IsAvailable();
+	TextureTransfer = FGPUTextureTransferModule::Get().GetTextureTransfer();
 
 #if WITH_EDITOR
 	if (GEditor)
@@ -301,7 +303,7 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 	{
 		{
 			// Prevent the rendering thread from copying while we are stopping the capture.
-			FScopeLock ScopeLock(&RenderThreadCriticalSection);
+			FScopeLock ScopeLock(&CopyingCriticalSection);
 
 			ENQUEUE_RENDER_COMMAND(AjaMediaCaptureInitialize)(
 			[this](FRHICommandListImmediate& RHICmdList) mutable
@@ -311,7 +313,7 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 				{
 					for (FTextureRHIRef& Texture : TexturesToRelease)
 					{
-						AJA::UnregisterDMATexture(Texture->GetTexture2D());
+						TextureTransfer->UnregisterTexture(Texture->GetTexture2D());
 					}
 
 					TexturesToRelease.Reset();
@@ -513,86 +515,18 @@ void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& I
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread);
 
-	// Prevent the rendering thread from copying while we are stopping the capture.
-	FScopeLock ScopeLock(&RenderThreadCriticalSection);
-	if (OutputChannel)
-	{
-		const AJA::FTimecode Timecode = AjaMediaCaptureDevice::ConvertToAJATimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
-		const AjaMediaCaptureDevice::FAjaMediaEncodeOptions EncodeOptions(Width, Height, PixelFormat, UseKey);
-		
-		if (bEncodeTimecodeInTexel)
-		{
-			const FMediaIOCoreEncodeTime EncodeTime(EncodeOptions.EncodePixelFormat, InBuffer, EncodeOptions.Stride, EncodeOptions.TimeEncodeWidth, Height);
-			EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
-		}
+	FMediaCaptureResourceData InResourceData;
+	InResourceData.Buffer = InBuffer;
+	InResourceData.Width = Width;
+	InResourceData.Height = Height;
+	InResourceData.BytesPerRow = BytesPerRow;
 
-		AJA::AJAOutputFrameBufferData FrameBuffer;
-		FrameBuffer.Timecode = Timecode;
-		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumber;
-		FrameBuffer.bEvenFrame = GFrameCounterRenderThread % 2 == 0;
-
-		bool bSetVideoResult = false;
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetVideo);
-			bSetVideoResult = OutputChannel->SetVideoFrameData(FrameBuffer, reinterpret_cast<uint8_t*>(InBuffer), EncodeOptions.Stride * Height);
-		}
-
-		// If the set video call fails, that means we probably didn't find an available frame to write to,
-		// so don't pop from the audio buffer since we would lose these samples in the SetAudioFrameData call.
-		if (bSetVideoResult)
-		{
-			OutputAudio_RenderingThread(FrameBuffer);
-		}
-
-		if (bAjaWriteInputRawDataCmdEnable)
-		{
-			MediaIOCoreFileWriter::WriteRawFile(EncodeOptions.OutputFilename, reinterpret_cast<uint8*>(InBuffer), EncodeOptions.Stride * Height);
-			bAjaWriteInputRawDataCmdEnable = false;
-		}
-
-		WaitForSync_RenderingThread();
-		
-	}
-	else if (GetState() != EMediaCaptureState::Stopped)
-	{
-		SetState(EMediaCaptureState::Error);
-	}
+	OnFrameCapturedInternal_AnyThread(InBaseData, InUserData, MoveTemp(InResourceData));
 }
 
 void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread);
-	
-	// Prevent the rendering thread from copying while we are stopping the capture.
-	FScopeLock ScopeLock(&RenderThreadCriticalSection);
-	if (OutputChannel)
-	{
-		const AJA::FTimecode Timecode = AjaMediaCaptureDevice::ConvertToAJATimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
-		
-		AJA::AJAOutputFrameBufferData FrameBuffer;
-		FrameBuffer.Timecode = Timecode;
-		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumber;
-
-		bool bSetVideoResult = false;
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetVideo_GPUDirect);
-			bSetVideoResult = OutputChannel->SetVideoFrameData(FrameBuffer, InTexture->GetTexture2D());
-		}
-
-		// If the set video call fails, that means we probably didn't find an available frame to write to,
-		// so don't pop from the audio buffer since we would lose these samples in the SetAudioFrameData call.
-		if (bSetVideoResult)
-		{
-			OutputAudio_RenderingThread(FrameBuffer);
-		}
-		
-		WaitForSync_RenderingThread();
-		
-	}
-	else if (GetState() != EMediaCaptureState::Stopped)
-	{
-		SetState(EMediaCaptureState::Error);
-	}
+	OnRHIResourceCaptured_AnyThread(InBaseData, InUserData, InTexture);
 }
 
 void UAjaMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
@@ -604,37 +538,61 @@ void UAjaMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
 			TexturesToRelease.Add(InTexture);
 
 			FRHITexture2D* Texture = InTexture->GetTexture2D();
-			AJA::FRegisterDMATextureArgs Args;
+			UE::GPUTextureTransfer::FRegisterDMATextureArgs Args;
 			Args.RHITexture = Texture;
-			//Args.InRHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
-
-			AJA::RegisterDMATexture(Args);
+			
+			Args.RHIResourceMemory = nullptr; // = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
+			Args.Width = Texture->GetDesc().GetSize().X;
+			Args.Height = Texture->GetDesc().GetSize().Y;
+			
+			if (Args.RHITexture->GetFormat() == EPixelFormat::PF_B8G8R8A8)
+			{
+				Args.PixelFormat = UE::GPUTextureTransfer::EPixelFormat::PF_8Bit;
+				Args.Stride = Args.Width * 4;
+			}
+			else if (Args.RHITexture->GetFormat() == EPixelFormat::PF_R32G32B32A32_UINT)
+			{
+				Args.PixelFormat = UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
+				Args.Stride = Args.Width * 16;
+			}
+			else
+			{
+				checkf(false, TEXT("Format not supported"));
+			}
+			
+			TextureTransfer->RegisterTexture(Args);
 		}
 	}
 
-	AJA::LockDMATexture(InTexture->GetTexture2D());
+	TextureTransfer->LockTexture(InTexture->GetTexture2D());
 }
 
 void UAjaMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
-	AJA::UnlockDMATexture(InTexture->GetTexture2D());
+	TextureTransfer->UnlockTexture(InTexture->GetTexture2D());
 }
 
-void UAjaMediaCapture::WaitForSync_RenderingThread() const
+void UAjaMediaCapture::OnFrameCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_AnyThread);
+	OnFrameCapturedInternal_AnyThread(InBaseData, InUserData, InResourceData);
+}
+
+void UAjaMediaCapture::WaitForSync_AnyThread() const
 {
 	if (bWaitForSyncEvent)
 	{
-		if (WakeUpEvent && GetState() != EMediaCaptureState::Error) // In render thread, could be shutdown in a middle of a frame
+		if (WakeUpEvent && GetState() != EMediaCaptureState::Error) // Could be shutdown in a middle of a frame 
 		{
 			WakeUpEvent->Wait();
 		}
 	}
 }
 
-void UAjaMediaCapture::OutputAudio_RenderingThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const
+void UAjaMediaCapture::OutputAudio_AnyThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const
 {
-	if (bOutputAudio)
+	if (bOutputAudio && AudioOutput)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetAudio);
 
@@ -718,4 +676,89 @@ bool UAjaMediaCapture::FAjaOutputCallback::OnInputFrameReceived(const AJA::AJAIn
 {
 	check(false);
 	return false;
+}
+
+void UAjaMediaCapture::OnRHIResourceCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_AnyThread);
+	
+	// Prevent the rendering thread from copying while we are stopping the capture.
+	FScopeLock ScopeLock(&CopyingCriticalSection);
+	if (OutputChannel)
+	{
+		const AJA::FTimecode Timecode = AjaMediaCaptureDevice::ConvertToAJATimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
+		
+		AJA::AJAOutputFrameBufferData FrameBuffer;
+		FrameBuffer.Timecode = Timecode;
+		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumber;
+
+		bool bSetVideoResult = false;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetVideo_GPUDirect);
+			bSetVideoResult = OutputChannel->SetVideoFrameData(FrameBuffer, InTexture->GetTexture2D());
+		}
+
+		// If the set video call fails, that means we probably didn't find an available frame to write to,
+		// so don't pop from the audio buffer since we would lose these samples in the SetAudioFrameData call.
+		if (bSetVideoResult)
+		{
+			OutputAudio_AnyThread(FrameBuffer);
+		}
+		
+		WaitForSync_AnyThread();
+		
+	}
+	else if (GetState() != EMediaCaptureState::Stopped)
+	{
+		SetState(EMediaCaptureState::Error);
+	}
+}
+
+void UAjaMediaCapture::OnFrameCapturedInternal_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData)
+{
+	// Prevent this thread from copying while we are stopping the capture.
+	FScopeLock ScopeLock(&CopyingCriticalSection);
+	if (OutputChannel)
+	{
+		const AJA::FTimecode Timecode = AjaMediaCaptureDevice::ConvertToAJATimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
+		const AjaMediaCaptureDevice::FAjaMediaEncodeOptions EncodeOptions(InResourceData.Width, InResourceData.Height, PixelFormat, UseKey);
+
+		if (bEncodeTimecodeInTexel)
+		{
+			const FMediaIOCoreEncodeTime EncodeTime(EncodeOptions.EncodePixelFormat, InResourceData.Buffer, EncodeOptions.Stride, EncodeOptions.TimeEncodeWidth, InResourceData.Height);
+			EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
+		}
+
+		AJA::AJAOutputFrameBufferData FrameBuffer;
+		FrameBuffer.Timecode = Timecode;
+		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumber;
+
+		// This will most likely be wrong when using the AnyThread callback 
+		FrameBuffer.bEvenFrame = GFrameCounterRenderThread % 2 == 0;
+
+		bool bSetVideoResult = false;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured::SetVideo);
+			bSetVideoResult = OutputChannel->SetVideoFrameData(FrameBuffer, reinterpret_cast<uint8_t*>(InResourceData.Buffer), EncodeOptions.Stride * InResourceData.Height);
+		}
+
+		// If the set video call fails, that means we probably didn't find an available frame to write to,
+		// so don't pop from the audio buffer since we would lose these samples in the SetAudioFrameData call.
+		if (bSetVideoResult)
+		{
+			OutputAudio_AnyThread(FrameBuffer);
+		}
+
+		if (bAjaWriteInputRawDataCmdEnable)
+		{
+			MediaIOCoreFileWriter::WriteRawFile(EncodeOptions.OutputFilename, reinterpret_cast<uint8*>(InResourceData.Buffer), EncodeOptions.Stride * InResourceData.Height);
+			bAjaWriteInputRawDataCmdEnable = false;
+		}
+
+		WaitForSync_AnyThread();
+	}
+	else if (GetState() != EMediaCaptureState::Stopped)
+	{
+		SetState(EMediaCaptureState::Error);
+	}
 }

@@ -10,9 +10,4 @@ class FAjaMediaOutputModule : public IAjaMediaOutputModule
 public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-
-	bool IsGPUTextureTransferAvailable() const;
-
-private:
-	bool bIsGPUTextureTransferAvailable = false;
 };

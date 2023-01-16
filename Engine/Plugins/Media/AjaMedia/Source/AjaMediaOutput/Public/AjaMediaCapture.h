@@ -20,6 +20,11 @@ namespace AJA
 	struct AJAOutputFrameBufferData;
 }
 
+namespace UE::GPUTextureTransfer
+{
+	class ITextureTransfer;
+}
+
 /**
  * Output Media for AJA streams.
  * The output format could be any of EAjaMediaOutputPixelFormat.
@@ -46,8 +51,11 @@ protected:
 	
 	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow) override;
 	virtual void OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) override;
+	virtual void OnRHIResourceCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) override;
 	virtual void LockDMATexture_RenderThread(FTextureRHIRef InTexture) override;
 	virtual void UnlockDMATexture_RenderThread(FTextureRHIRef InTexture) override;
+	virtual void OnFrameCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData) override;
+
 
 private:
 	struct FAjaOutputCallback;
@@ -56,12 +64,13 @@ private:
 
 private:
 	bool InitAJA(UAjaMediaOutput* InMediaOutput);
-	void WaitForSync_RenderingThread() const;
-	void OutputAudio_RenderingThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const;
+	void WaitForSync_AnyThread() const;
+	void OutputAudio_AnyThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const;
 	void ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
 	void RestoreViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
 	bool CleanupPreEditorExit();
 	void OnEnginePreExit();
+	void OnFrameCapturedInternal_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData);
 
 	struct FAudioBuffer
 	{
@@ -92,7 +101,7 @@ private:
 	FFrameRate FrameRate;
 
 	/** Critical section for synchronizing access to the OutputChannel */
-	FCriticalSection RenderThreadCriticalSection;
+	FCriticalSection CopyingCriticalSection;
 
 	/** Event to wakeup When waiting for sync */
 	FEvent* WakeUpEvent;
@@ -112,4 +121,6 @@ private:
 	FDelegateHandle CanCloseEditorDelegateHandle;
 
 	mutable int32 AudioSamplesSentLastFrame = 0;
+
+	TSharedPtr<UE::GPUTextureTransfer::ITextureTransfer> TextureTransfer;
 };

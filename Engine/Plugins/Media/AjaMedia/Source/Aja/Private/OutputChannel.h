@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ChannelBase.h"
+#include "GPUTextureTransferModule.h"
 
 #include <vector>
 
@@ -137,6 +138,8 @@ namespace AJA
 			ULWord CurrentAudioWriteOffset = 0;
 			int32_t NumSamplesPerFrame = 0;
 			ULWord AudioPlayheadLastPosition = 0;
+
+			UE::GPUTextureTransfer::TextureTransferPtr TextureTransfer = nullptr;
 		};
 	}
 }

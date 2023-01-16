@@ -8,6 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public MediaIOCore(ReadOnlyTargetRules Target) : base(Target)
 		{
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -29,11 +30,12 @@ namespace UnrealBuildTool.Rules
 				});
 
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					//required for FScreenPassVS and AddDrawScreenPass
-					Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private")
-				});
+				//required for FScreenPassVS, AddDrawScreenPass, and for scene view extensions related headers
+				Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private")
+			});
 
 			PrivateDependencyModuleNames.AddRange(
                 new string[]

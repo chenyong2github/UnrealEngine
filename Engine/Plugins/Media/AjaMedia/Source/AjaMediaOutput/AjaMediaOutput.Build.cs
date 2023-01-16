@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"GPUTextureTransfer",
 					"MovieSceneCapture",
 					"RenderCore",
 					"RHI",

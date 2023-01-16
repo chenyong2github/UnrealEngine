@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
 #include <atomic>
@@ -12,11 +11,12 @@
 #include "MediaOutput.h"
 #include "Misc/Timecode.h"
 #include "PixelFormat.h"
-#include "RendererInterface.h"
 #include "RenderGraphResources.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "Tasks/Task.h"
 #include "Templates/PimplPtr.h"
+
 
 #include "MediaCapture.generated.h"
 
@@ -27,12 +27,19 @@ class FRHICommandListImmediate;
 class FRHIGPUTextureReadback;
 class FRHIGPUBufferReadback;
 class FRDGBuilder;
+class UMediaCapture;
 
 namespace UE::MediaCaptureData
 {
 	class FFrameManager;
 	class FCaptureFrame;
 	class FMediaCaptureHelper;
+	struct FCaptureFrameArgs;
+}
+
+namespace UE::MediaCapture::Private
+{
+	class FCaptureSource;
 }
 
 /**
@@ -75,7 +82,6 @@ enum class EMediaCaptureResourceType : uint8
  */
 class FMediaCaptureUserData
 {
-
 };
 
 /**
@@ -112,6 +118,16 @@ enum class EMediaCaptureOverrunAction : uint8
 struct MEDIAIOCORE_API FRHICaptureResourceDescription
 {
 	FIntPoint ResourceSize = FIntPoint::ZeroValue;
+};
+
+UENUM(BlueprintType)
+enum class EMediaCapturePhase : uint8
+{
+	BeforePostProcessing,
+	AfterToneMap,
+	AfterFXAA,
+	AfterMotionBlur,
+	EndFrame
 };
 
 /**
@@ -185,13 +201,15 @@ public:
 	/** The number of images to capture*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture", meta=(editcondition="bAutostopOnCapture"))
 	int32 NumberOfFramesToCapture;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
+	EMediaCapturePhase CapturePhase = EMediaCapturePhase::EndFrame;
 };
 
 
 /** Delegate signatures */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMediaCaptureStateChangedSignature);
 DECLARE_MULTICAST_DELEGATE(FMediaCaptureStateChangedSignatureNative);
-
 
 /**
  * Abstract base class for media capture.
@@ -202,9 +220,10 @@ DECLARE_MULTICAST_DELEGATE(FMediaCaptureStateChangedSignatureNative);
 UCLASS(Abstract, editinlinenew, BlueprintType, hidecategories = (Object))
 class MEDIAIOCORE_API UMediaCapture : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
+	UMediaCapture();
 
 	/** Default constructor / destructor to use forward declared uniqueptr */
 	virtual ~UMediaCapture();
@@ -266,6 +285,8 @@ public:
 	
 	/** Captures a resource immediately from the render thread. Used in RHI_RESOURCE capture mode */
 	void CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRHITexture* InSourceTexture);
+	
+	void CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRDGTextureRef InSourceTextureRef);
 
 	/**
 	 * Stop the previous requested capture.
@@ -306,6 +327,23 @@ public:
 	 */
 	FMediaCaptureStateChangedSignatureNative OnStateChangedNative;
 
+	void SetFixedViewportSize(TSharedPtr<FSceneViewport> InSceneViewport, FIntPoint InSize);
+	void ResetFixedViewportSize(TSharedPtr<FSceneViewport> InViewport, bool bInFlushRenderingCommands);
+
+	/** Called after initialize for viewport capture type */
+	virtual bool PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport) { return true; }
+
+	/** Called after initialize for render target capture type */
+	virtual bool PostInitializeCaptureRenderTarget(UTextureRenderTarget2D* InRenderTarget) { return true; }
+
+	/** Called after initialize for rhi resource capture type */
+	virtual bool PostInitializeCaptureRHIResource(const FRHICaptureResourceDescription& InResourceDescription) { return true; }
+	
+	virtual bool UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) { return true; }
+	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) { return true; }
+
+	static const TSet<EPixelFormat>& GetSupportedRgbaSwizzleFormats();
+
 public:
 	//~ UObject interface
 	virtual void BeginDestroy() override;
@@ -324,17 +362,6 @@ protected:
 	/** Initialization method to prepare implementation for capture */
 	virtual bool InitializeCapture() PURE_VIRTUAL(UMediaCapture::InitializeCapture, return false; );
 	
-	/** Called after initialize for viewport capture type */
-	virtual bool PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport) { return true; }
-
-	/** Called after initialize for render target capture type */
-	virtual bool PostInitializeCaptureRenderTarget(UTextureRenderTarget2D* InRenderTarget) { return true; }
-
-	/** Called after initialize for rhi resource capture type */
-	virtual bool PostInitializeCaptureRHIResource(const FRHICaptureResourceDescription& InResourceDescription) { return true; }
-
-	virtual bool UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) { return true; }
-	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) { return true; }
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) { }
 
 	//~ DMA Functions implemented in child classes, Temporary until AJA and BM middleman are migrated to a module.
@@ -345,12 +372,10 @@ protected:
 	friend class UE::MediaCaptureData::FMediaCaptureHelper;
 	struct FCaptureBaseData
 	{
-		FCaptureBaseData();
-
 		FTimecode SourceFrameTimecode;
 		FFrameRate SourceFrameTimecodeFramerate;
-		uint32 SourceFrameNumberRenderThread;
-		uint32 SourceFrameNumber;
+		uint32 SourceFrameNumberRenderThread = 0;
+		uint32 SourceFrameNumber = 0;
 	};
 
 	/**
@@ -378,6 +403,23 @@ protected:
 	 */
 	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow) { }
 
+	/**
+	 * Args passed to OnFrameCaptured
+	 **/
+	struct FMediaCaptureResourceData
+	{
+		void* Buffer = nullptr;
+		int32 Width = 0;
+		int32 Height = 0;
+		int32 BytesPerRow = 0;
+	};
+
+	/**
+	 * Callback when the buffer was successfully copied to CPU ram.
+	 * The buffer is only valid for the duration of the callback.
+	 */
+	virtual void OnFrameCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, const FMediaCaptureResourceData& InResourceData) { }
+
 	UE_DEPRECATED(5.1, "OnRHITextureCaptured_RenderingThread has been deprecated to support texture and buffer output resource. Please use OnRHIResourceCaptured_RenderingThread instead.")
 	virtual void OnRHITextureCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) { }
 
@@ -388,6 +430,10 @@ protected:
 	 */
 	virtual void OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) { }
 	virtual void OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FBufferRHIRef InBuffer) { }
+	
+	virtual void OnRHIResourceCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) { }
+	virtual void OnRHIResourceCaptured_AnyThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FBufferRHIRef InBuffer) { }
+	
 
 	UE_DEPRECATED(5.1, "OnCustomCapture_RenderingThread has been deprecated while moving to a RDG based pipeline. Please use the RDG version instead.")
 	virtual void OnCustomCapture_RenderingThread(FRHICommandListImmediate& RHICmdList, const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InSourceTexture, FTextureRHIRef TargetableTexture, FResolveParams& ResolveParams, FVector2D CropU, FVector2D CropV)
@@ -443,10 +489,10 @@ protected:
 
 
 protected:
-	UTextureRenderTarget2D* GetTextureRenderTarget() { return CapturingRenderTarget; }
-	TSharedPtr<FSceneViewport> GetCapturingSceneViewport() { return CapturingSceneViewport.Pin(); }
+	UTextureRenderTarget2D* GetTextureRenderTarget() const;
+	TSharedPtr<FSceneViewport> GetCapturingSceneViewport() const;
 	EMediaCaptureConversionOperation GetConversionOperation() const { return ConversionOperation; }
-	const FString& GetCaptureSourceType() const;
+	FString GetCaptureSourceType() const;
 	void SetState(EMediaCaptureState InNewState);
 
 
@@ -463,13 +509,32 @@ private:
 	EMediaCaptureResourceType GetOutputResourceType(const EMediaCaptureConversionOperation & InConversionOperation) const;
 	FRDGBufferDesc GetOutputBufferDescription(EMediaCaptureConversionOperation InConversionOperation) const;
 	void BroadcastStateChanged();
-	void SetFixedViewportSize(TSharedPtr<FSceneViewport> InSceneViewport);
-	void ResetFixedViewportSize(TSharedPtr<FSceneViewport> InViewport, bool bInFlushRenderingCommands);
+	void WaitForPendingTasks();
+	
+	void WaitForSingleExperimentalSchedulingTaskToComplete();
+	void WaitForAllExperimentalSchedulingTasksToComplete();
+	void CleanupCompletedExperimentalSchedulingTasks();
+	
+	void CaptureImmediate_RenderThread(const UE::MediaCaptureData::FCaptureFrameArgs& Args);
 
-	bool ProcessCapture_RenderThread(FRDGBuilder& GraphBuilder, UMediaCapture* InMediaCapture, UE::MediaCaptureData::FCaptureFrame* CapturingFrame, FTexture2DRHIRef InResourceToCapture, FIntPoint InDesiredSize);
-	bool ProcessReadyFrame_RenderThread(FRHICommandListImmediate& RHICmdList, UMediaCapture* InMediaCapture, UE::MediaCaptureData::FCaptureFrame* ReadyFrame);
+
+	// Capture pipeline stuff
+	void ProcessCapture_GameThread();
+	void PrepareAndDispatchCapture_GameThread(const TSharedPtr<UE::MediaCaptureData::FCaptureFrame>& CapturingFrame);
+	
+	bool ProcessCapture_RenderThread(const TSharedPtr<UE::MediaCaptureData::FCaptureFrame>& CapturingFrame, const UE::MediaCaptureData::FCaptureFrameArgs& Args);
+	bool ProcessReadyFrame_RenderThread(FRHICommandListImmediate& RHICmdList, UMediaCapture* InMediaCapture, const TSharedPtr<UE::MediaCaptureData::FCaptureFrame>& ReadyFrame);
+	
+	void InitializeSyncHandlers_RenderThread();
+	void InitializeCaptureFrame(const TSharedPtr<UE::MediaCaptureData::FCaptureFrame>& CaptureFrame);
+
+	struct FMediaCaptureSyncData;
+	TSharedPtr<FMediaCaptureSyncData> GetAvailableSyncHandler() const;
 
 	void PrintFrameState();
+
+	bool StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InSource);
+	bool UpdateSource(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InCaptureSource);
 
 protected:
 
@@ -486,17 +551,12 @@ protected:
 	/** Type of capture currently being done. i.e Viewport, RT, RHI Resource */
 	EMediaCaptureSourceType CaptureSourceType = EMediaCaptureSourceType::SCENE_VIEWPORT;
 
-private:
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextureRenderTarget2D> CapturingRenderTarget;
-	
+private:	
 	TPimplPtr<UE::MediaCaptureData::FFrameManager> FrameManager;
 	int32 NumberOfCaptureFrame = 2;
 	int32 CaptureRequestCount = 0;
 	EMediaCaptureState MediaState = EMediaCaptureState::Stopped;
 
-	TWeakPtr<FSceneViewport> CapturingSceneViewport;
 	FCriticalSection AccessingCapturingSource;
 
 	FIntPoint DesiredSize = FIntPoint(1920, 1080);
@@ -511,8 +571,10 @@ private:
 
 	bool bViewportHasFixedViewportSize = false;
 	std::atomic<bool> bOutputResourcesInitialized;
+	std::atomic<bool> bSyncHandlersInitialized;
 	std::atomic<bool> bShouldCaptureRHIResource;
 	std::atomic<int32> WaitingForRenderCommandExecutionCounter;
+	TArray<TFuture<void>> PendingCommands;
 	std::atomic<int32> PendingFrameCount;
 
 	struct FQueuedCaptureData
@@ -521,4 +583,35 @@ private:
 		TSharedPtr<FMediaCaptureUserData> UserData;
 	};
 	TSpscQueue<FQueuedCaptureData> CaptureDataQueue;
+
+	/** Structure holding data used for synchronization of buffer output */
+	struct FMediaCaptureSyncData
+	{
+		/**
+		 * We use a RHIFence to write to in a pass following the buffer conversion one.
+		 * We spawn a task that will poll for the fence to be over (Waiting is not exposed)
+		 * and then we will push the captured buffer to the capture callback
+		 */
+		FGPUFenceRHIRef RHIFence;
+
+		/** Whether fence is currently waiting to be cleared */
+		std::atomic<bool> bIsBusy = false;
+	};
+
+	/** Array of sync handlers (fence) to sync when captured buffer is completed */
+	TArray<TSharedPtr<FMediaCaptureSyncData>> SyncHandlers;
+
+	/** Whether capture is active. Used to be queried by sync task */
+	std::atomic<bool> bIsActive;
+
+	FCriticalSection PendingReadbackTasksCriticalSection;
+
+	/** List of pending readback tasks, when CVarMediaIOEnableExperimentalScheduling and CVarMediaIOScheduleOnAnyThread are set to true. */
+	TArray<UE::Tasks::FTask> PendingReadbackTasks;
+
+	TSharedPtr<UE::MediaCapture::Private::FCaptureSource> CaptureSource;
+
+	/** Holds a view extension that callbacks  */
+	TSharedPtr<class FMediaCaptureSceneViewExtension> ViewExtension; 
 };
+ 

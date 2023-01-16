@@ -29,8 +29,10 @@ namespace BlackmagicDesign
 UCLASS(BlueprintType)
 class BLACKMAGICMEDIAOUTPUT_API UBlackmagicMediaCapture : public UMediaCapture
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
+public:
+	UBlackmagicMediaCapture();
 	//~ UMediaCapture interface
 public:
 	virtual bool HasFinishedProcessing() const override;

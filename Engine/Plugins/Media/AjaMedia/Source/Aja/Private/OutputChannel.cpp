@@ -182,6 +182,8 @@ namespace AJA
 			, bInterlacedTest_ExpectFirstLineToBeWhite(false)
 			, InterlacedTest_FrameCounter(0)
 		{
+			TextureTransfer = FGPUTextureTransferModule::Get().GetTextureTransfer();
+
 			if (InOptions.OutputNumberOfBuffers > 0)
 			{
 				AllFrames.reserve(InOptions.OutputNumberOfBuffers);

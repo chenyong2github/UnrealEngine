@@ -320,9 +320,8 @@ namespace BlackmagicMediaCaptureAnalytics
 
 ///* UBlackmagicMediaCapture implementation
 //*****************************************************************************/
-UBlackmagicMediaCapture::UBlackmagicMediaCapture(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, bWaitForSyncEvent(false)
+UBlackmagicMediaCapture::UBlackmagicMediaCapture()
+	: bWaitForSyncEvent(false)
 	, bEncodeTimecodeInTexel(false)
 	, bLogDropFrame(false)
 	, BlackmagicMediaOutputPixelFormat(EBlackmagicMediaOutputPixelFormat::PF_8BIT_YUV)

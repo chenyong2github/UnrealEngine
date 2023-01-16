@@ -23,6 +23,7 @@ enum class EMediaCaptureConversionOperation : int8
 	CUSTOM, //~ If Custom used, OnCustomCapture_RenderingThread, GetCustomOutputSize and GetCustomOutputPixelFormat on the MediaCapture need to be implemented
 };
 
+UENUM()
 enum class EMediaCaptureSourceType : int8
 {
 	RENDER_TARGET,

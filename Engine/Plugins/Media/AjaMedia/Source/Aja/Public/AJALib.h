@@ -18,8 +18,6 @@ namespace UE::GPUTextureTransfer
 
 namespace AJA
 {
-	extern UE::GPUTextureTransfer::ITextureTransfer* TextureTransfer;
-
 	/* Types provided from the interface
 	*****************************************************************************/
 	typedef void* FDeviceScanner;
@@ -535,49 +533,4 @@ namespace AJA
 	private:
 		Private::AutoDetectChannel* AutoChannel;
 	};
-
-	enum class ERHI : uint8_t
-	{
-		Invalid,
-		D3D11,
-		D3D12,
-		Vulkan
-	};
-
-	struct AJACORE_API FInitializeDMAArgs
-	{
-		ERHI RHI = ERHI::Invalid;
-		void* RHIDevice = nullptr;
-		void* RHICommandQueue = nullptr;
-
-		// Begin Vulkan Only
-		void* VulkanInstance = nullptr;
-		uint8_t RHIDeviceUUID[16] = { 0 };
-		// End Vulkan Only
-	};
-
-	struct AJACORE_API FRegisterDMABufferArgs
-	{
-		void* Buffer = nullptr;
-		uint32_t Stride = 0;
-		uint32_t Height = 0;
-		uint32_t Width = 0;
-		uint8_t BytesPerPixel = 0;
-	};
-
-	struct AJACORE_API FRegisterDMATextureArgs
-	{
-		FRHITexture* RHITexture = nullptr;
-		void* RHIResourceMemory = nullptr; // Vulkan only
-		uint32_t Stride = 0;
-	};
-
-	AJACORE_API bool InitializeDMA(const FInitializeDMAArgs& Args);
-	AJACORE_API void UninitializeDMA();
-	AJACORE_API bool RegisterDMATexture(const FRegisterDMATextureArgs& Args);
-	AJACORE_API bool UnregisterDMATexture(FRHITexture* RHITexture);
-	AJACORE_API bool RegisterDMABuffer(const FRegisterDMABufferArgs& InArgs);
-	AJACORE_API bool UnregisterDMABuffer(void* InBuffer);
-	AJACORE_API bool LockDMATexture(FRHITexture* RHITexture);
-	AJACORE_API bool UnlockDMATexture(FRHITexture* RHITexture);
 }
