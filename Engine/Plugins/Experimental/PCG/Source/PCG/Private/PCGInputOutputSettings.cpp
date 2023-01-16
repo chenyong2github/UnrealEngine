@@ -115,16 +115,99 @@ TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::DefaultOutputPinProperti
 	return DefaultInputPinProperties();
 }
 
-void UPCGGraphInputOutputSettings::AddCustomPin(const FPCGPinProperties& NewCustomPinProperties)
+const FPCGPinProperties& UPCGGraphInputOutputSettings::AddCustomPin(const FPCGPinProperties& NewCustomPinProperties)
 {
 	Modify();
-	CustomPins.Add(NewCustomPinProperties);
+	int32 Index = CustomPins.Add(NewCustomPinProperties);
+	FixCustomPinProperties();
+	return CustomPins[Index];
 }
 
 bool UPCGGraphInputOutputSettings::IsCustomPin(const UPCGPin* InPin) const
 {
 	check(InPin);
 	return CustomPins.Contains(InPin->Properties);
+}
+
+#if WITH_EDITOR
+void UPCGGraphInputOutputSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property)
+	{
+		// Label has changed if we have modified "CustomPins" array
+		bool bLabelChanged = PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInputOutputSettings, CustomPins);
+
+		if (!bLabelChanged)
+		{
+			// Or might has changed if an element of the array "CustomPin" was modified.
+			bLabelChanged = PropertyChangedEvent.MemberProperty &&
+				PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInputOutputSettings, CustomPins) &&
+				PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FPCGPinProperties, Label);
+		}
+
+		if (bLabelChanged)
+		{
+			FixCustomPinProperties();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // WITH_EDITOR
+
+void UPCGGraphInputOutputSettings::FixCustomPinProperties()
+{
+	// No need to fix if we have no custom pins
+	if (CustomPins.IsEmpty())
+	{
+		return;
+	}
+
+	TSet<FName> AllLabels;
+
+	// First gather all our static labels
+	for (FLabelAndTooltip LabelAndTooltip : StaticLabels())
+	{
+		AllLabels.Emplace(LabelAndTooltip.Label);
+	}
+
+	for (FLabelAndTooltip LabelAndTooltip : StaticAdvancedLabels())
+	{
+		AllLabels.Emplace(LabelAndTooltip.Label);
+	}
+
+	bool bWasModified = false;
+
+	for (FPCGPinProperties& CustomPinProperties : CustomPins)
+	{
+		// Avoid "None" pin label
+		if (CustomPinProperties.Label == NAME_None)
+		{
+			if (!bWasModified)
+			{
+				bWasModified = true;
+				Modify();
+			}
+
+			CustomPinProperties.Label = PCGInputOutputConstants::DefaultNewCustomPinName;
+		}
+
+		uint32 Count = 1;
+		FString OriginalLabel = CustomPinProperties.Label.ToString();
+
+		while (AllLabels.Contains(CustomPinProperties.Label))
+		{
+			if (!bWasModified)
+			{
+				bWasModified = true;
+				Modify();
+			}
+
+			CustomPinProperties.Label = FName(FString::Printf(TEXT("%s%d"), *OriginalLabel, Count++));
+		}
+
+		AllLabels.Emplace(CustomPinProperties.Label);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -14,6 +14,7 @@ namespace PCGInputOutputConstants
 	const FName DefaultLandscapeLabel = TEXT("Landscape");
 	const FName DefaultLandscapeHeightLabel = TEXT("Landscape Height");
 	const FName DefaultExcludedActorsLabel = TEXT("ExcludedActors");
+	const FName DefaultNewCustomPinName = TEXT("NewPin");
 }
 
 class PCG_API FPCGInputOutputElement : public FSimplePCGElement
@@ -39,6 +40,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return bIsInput ? FName(TEXT("InputNode")) : FName(TEXT("OutputNode")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::InputOutput; }
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 
 	TArray<FPCGPinProperties> InputPinProperties() const override;
@@ -51,7 +53,10 @@ public:
 
 	bool IsCustomPin(const UPCGPin* InPin) const;
 
-	void AddCustomPin(const FPCGPinProperties& NewCustomPinProperties);
+	// Add a new custom pin
+	// Note that you should use the return value of this function, since it can be different from
+	// the one passed as argument. It will change if its label collides with existing pins.
+	const FPCGPinProperties& AddCustomPin(const FPCGPinProperties& NewCustomPinProperties);
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override { return MakeShared<FPCGInputOutputElement>(); }
@@ -72,6 +77,8 @@ protected:
 	const TArray<FLabelAndTooltip>& StaticAdvancedLabels() const { return bIsInput ? StaticAdvancedInLabels : StaticAdvancedOutLabels; }
 
 	TArray<FPCGPinProperties> GetPinProperties() const;
+
+	void FixCustomPinProperties();
 
 protected:
 	UPROPERTY()

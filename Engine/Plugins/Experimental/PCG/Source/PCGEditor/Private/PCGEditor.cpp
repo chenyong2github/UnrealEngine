@@ -834,7 +834,7 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 
 		FPCGPinProperties NewProperties = Pin->Properties;
 		NewProperties.Label = FName(NewName);
-		NewInputOutputSettings->AddCustomPin(NewProperties);
+		NewProperties = NewInputOutputSettings->AddCustomPin(NewProperties);
 		NewInputOutputNode->UpdateAfterSettingsChangeDuringCreation();
 		return NewProperties.Label;
 	};
