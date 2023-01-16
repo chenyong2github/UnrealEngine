@@ -2157,9 +2157,17 @@ public:
 	void ParseCommandline();
 
 	//~ Begin FExec Interface
+public:
+#if UE_ALLOW_EXEC_COMMANDS
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out=*GLog ) override;
+#endif
+
+protected:
+	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out=*GLog ) override;
+	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out = *GLog) override;
 	//~ End FExec Interface
 
+public:
 	/** 
 	 * Exec command handlers
 	 */
