@@ -635,6 +635,10 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	/** Draw the tile boundaries */
 	UPROPERTY(EditAnywhere, Category=Display)
 	uint32 bDrawTileBounds:1;
+
+	/** Draw the tile resolutions */
+	UPROPERTY(EditAnywhere, Category=Display)
+	uint32 bDrawTileResolutions:1;
 	
 	/** Draw input geometry passed to the navmesh generator.  Recommend disabling other geometry rendering via viewport showflags in editor. */
 	UPROPERTY(EditAnywhere, Category=Display)
@@ -1072,6 +1076,9 @@ public:
 
 	/** Retrieves XY coordinates of tile specified by position */
 	bool GetNavMeshTileXY(const FVector& Point, int32& OutX, int32& OutY) const;
+
+	/** Retrieves the tile resolution */
+	bool GetNavmeshTileResolution(int32 TileIndex, ENavigationDataResolution& OutResolution) const;
 
 	/** Checks the supplied Points tile indicies can fit in the range of an int32 */
 	bool CheckTileIndicesInValidRange(const FVector& Point, bool& bOutInRange) const;

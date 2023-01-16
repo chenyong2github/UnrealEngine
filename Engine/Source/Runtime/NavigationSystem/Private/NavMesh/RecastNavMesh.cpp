@@ -1162,6 +1162,26 @@ bool ARecastNavMesh::GetNavMeshTileXY(const FVector& Point, int32& OutX, int32& 
 	return RecastNavMeshImpl && RecastNavMeshImpl->GetNavMeshTileXY(Point, OutX, OutY);
 }
 
+bool ARecastNavMesh::GetNavmeshTileResolution(int32 TileIndex, ENavigationDataResolution& OutResolution) const
+{
+	if (RecastNavMeshImpl)
+	{
+		if (const dtNavMesh* const RecastNavMesh = RecastNavMeshImpl->DetourNavMesh)
+		{
+			if (const dtMeshTile* const Tile = RecastNavMesh->getTile(TileIndex))
+			{
+				if (const dtMeshHeader* const Header = Tile->header)
+				{
+					OutResolution = ENavigationDataResolution(Header->resolution);
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 bool ARecastNavMesh::CheckTileIndicesInValidRange(const FVector& Point, bool& bOutInRange) const
 {
 	const dtNavMesh* const DetourNavMesh = RecastNavMeshImpl ? RecastNavMeshImpl->DetourNavMesh : nullptr;

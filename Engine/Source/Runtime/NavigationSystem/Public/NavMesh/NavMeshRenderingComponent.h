@@ -44,7 +44,8 @@ enum class ENavMeshDetailFlags : uint8
 	NavOctreeDetails,
 	MarkForbiddenPolys,
 	TileBuildTimes,
-	TileBuildTimesHeatMap
+	TileBuildTimesHeatMap,
+	TileResolutions
 };
 
 // exported to API for GameplayDebugger module
