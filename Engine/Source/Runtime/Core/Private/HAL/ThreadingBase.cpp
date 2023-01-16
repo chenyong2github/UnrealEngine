@@ -121,7 +121,7 @@ FTaskTagScope::FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag) : Tag(InTag),
 	{
 		ActiveTaskTag = Tag;
 	}
-	else if (TagOnlyIfNone)
+	else if (TagOnlyIfNone && ActiveTaskTag != Tag)
 	{
 		if (EnumHasAllFlags(Tag, ETaskTag::EParallelRenderingThread))
 		{
