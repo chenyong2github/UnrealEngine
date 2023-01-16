@@ -288,6 +288,9 @@ namespace Chaos
 		, ConstraintContainer(InConstraintContainer)
 		, bPerIterationCollisionDetection(false)
 	{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && INTEL_ISPC
+		Private::FPBDCollisionSolverHelper::CheckISPC();
+#endif
 	}
 
 	FPBDCollisionContainerSolver::~FPBDCollisionContainerSolver()

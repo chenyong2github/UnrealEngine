@@ -13,6 +13,10 @@
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/Utilities.h"
 
+#if INTEL_ISPC
+#include "PBDCollisionSolver.ispc.generated.h"
+#endif
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 DEFINE_LOG_CATEGORY(LogChaosCollision);
@@ -23,6 +27,10 @@ namespace Chaos
 	{
 		extern int32 Chaos_Collision_UseShockPropagation;
 		extern bool bChaos_PBDCollisionSolver_UseJacobiPairSolver;
+
+		// NOTE: WORK IN PROGRESS. Not ready to be enabled.
+		bool bChaos_PBDCollisionSolver_ISPC = false;
+		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_ISPC(TEXT("p.Chaos.PBDCollisionSolver.ISPC"), bChaos_PBDCollisionSolver_ISPC, TEXT(""));
 
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
@@ -232,6 +240,14 @@ namespace Chaos
 
 		void FPBDCollisionSolverHelper::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
 		{
+#if INTEL_ISPC
+			if (CVars::bChaos_PBDCollisionSolver_ISPC)
+			{
+				ispc::SolvePositionNoFriction((ispc::FPBDCollisionSolver*)CollisionSolvers.GetData(), CollisionSolvers.Num(), Dt, MaxPushOut);
+				return;
+			}
+#endif
+
 			if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
 			{
 				for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
@@ -284,6 +300,16 @@ namespace Chaos
 			}
 		}
 
+		void FPBDCollisionSolverHelper::CheckISPC()
+		{
+#if INTEL_ISPC
+			check(sizeof(ispc::FPBDCollisionSolver) == sizeof(Private::FPBDCollisionSolver));
+			check(sizeof(ispc::FPBDCollisionSolverManifoldPoint) == sizeof(Private::FPBDCollisionSolverManifoldPoint));
+			check(sizeof(ispc::FWorldContactPoint) == sizeof(FWorldContactPoint));
+			check(sizeof(ispc::FConstraintSolverBody) == sizeof(FConstraintSolverBody));
+			check(sizeof(ispc::FSolverBody) == sizeof(FSolverBody));
+#endif
+		}
 
 	}	// namespace Private
 }	// namespace Chaos

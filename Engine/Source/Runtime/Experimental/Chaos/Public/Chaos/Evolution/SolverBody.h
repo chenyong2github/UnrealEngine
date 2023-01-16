@@ -433,33 +433,54 @@ namespace Chaos
 
 			void Init()
 			{
+				InvI = FSolverMatrix33(0);
+				RoM = FRotation3::FromIdentity();
+				R = FRotation3::FromIdentity();
+				Q = FRotation3::FromIdentity();
+				CoM = FVec3(0);
+				X = FVec3(0);
+				P = FVec3(0);
 				InvILocal = FSolverVec3(0);
 				InvM = 0;
-				InvI = FSolverMatrix33(0);
 				DP = FSolverVec3(0);
 				DQ = FSolverVec3(0);
 				CP = FSolverVec3(0);
 				CQ = FSolverVec3(0);
-				Level = 0;
-				X = FVec3(0);
-				R = FRotation3::FromIdentity();
-				P = FVec3(0);
-				Q = FRotation3::FromIdentity();
 				V = FSolverVec3(0);
 				W = FSolverVec3(0);
-				CoM = FVec3(0);
-				RoM = FRotation3::FromIdentity();
+				Level = 0;
 			}
+
+			// World-space inverse inertia
+			// NOTE: Matrix and Rotation are alignas(16) so beware of padding
+			// @todo(chaos): do we need this, or should we force all systems to use the FConstraintSolverBody decorator?
+			FSolverMatrix33 InvI;
+
+			// Actor-space center of mass rotation
+			FRotation3 RoM;
+
+			// World-space rotation of mass at start of sub step
+			FRotation3 R;
+
+			// Predicted world-space center of mass rotation (post-integration, pre-constraint-solve)
+			FRotation3 Q;
+
+			// Actor-space center of mass location
+			FVec3 CoM;
+
+			// World-space center of mass state at start of sub step
+			FVec3 X;
+
+			// Predicted world-space center of mass position (post-integration, pre-constraint-solve)
+			FVec3 P;
+
+
 
 			// Local-space inverse inertia (diagonal, so only 3 elements)
 			FSolverVec3 InvILocal;
 
 			// Inverse mass
 			FSolverReal InvM;
-
-			// World-space inverse inertia
-			// @todo(chaos): do we need this, or should we force all systems to use the FConstraintSolverBody decorator?
-			FSolverMatrix33 InvI;
 
 			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
 			FSolverVec3 DP;
@@ -475,32 +496,14 @@ namespace Chaos
 			// Will rotate the body without introducing angular velocity
 			FSolverVec3 CQ;
 
-			// Distance to a kinematic body (through the contact graph). Used by collision shock propagation
-			int32 Level;
-
-			// World-space center of mass state at start of sub step
-			FVec3 X;
-
-			// World-space rotation of mass at start of sub step
-			FRotation3 R;
-
-			// Predicted world-space center of mass position (post-integration, pre-constraint-solve)
-			FVec3 P;
-
-			// Predicted world-space center of mass rotation (post-integration, pre-constraint-solve)
-			FRotation3 Q;
-
 			// World-space center of mass velocity
 			FSolverVec3 V;
 
 			// World-space center of mass angular velocity
 			FSolverVec3 W;
 
-			// Actor-space center of mass location
-			FVec3 CoM;
-
-			// Actor-space center of mass rotation
-			FRotation3 RoM;
+			// Distance to a kinematic body (through the contact graph). Used by collision shock propagation
+			int32 Level;
 		};
 
 		FState State;
