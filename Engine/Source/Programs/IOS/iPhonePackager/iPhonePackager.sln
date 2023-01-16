@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.31205.134
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPhonePackager", "IPhonePackager.csproj", "{DAEDEC3D-6FE8-4A24-92BF-FA08BB892E49}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MobileDeviceInterface", "..\MobileDeviceInterface\MobileDeviceInterface.csproj", "{A5CA2153-90B2-42E4-9547-341C28A7726A}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
