@@ -1,31 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseAssetTree.h"
-#include "PoseSearchDatabaseViewModel.h"
-
-#include "PoseSearch/PoseSearch.h"
-
-#include "Animation/AnimSequence.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
-
-#include "Misc/TransactionObjectEvent.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "Misc/FeedbackContext.h"
 #include "AssetSelection.h"
 #include "ClassIconFinder.h"
 #include "DetailColumnSizeData.h"
-
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/TransactionObjectEvent.h"
+#include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearchDatabaseViewModel.h"
+#include "SPositiveActionButton.h"
+#include "Styling/AppStyle.h"
+#include "ScopedTransaction.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "SPositiveActionButton.h"
-#include "Styling/AppStyle.h"
-
-#include "ScopedTransaction.h"
-#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SDatabaseAssetTree"
 

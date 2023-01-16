@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchContext.h"
+#include "PoseSearch/PoseSearchIndex.h"
+#include "Templates/SharedPointer.h"
 
 namespace UE::PoseSearch
 {

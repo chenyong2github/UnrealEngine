@@ -3,6 +3,7 @@
 #include "PoseSearchMeshComponent.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/MirrorDataTable.h"
 #include "Engine/SkinnedAsset.h"

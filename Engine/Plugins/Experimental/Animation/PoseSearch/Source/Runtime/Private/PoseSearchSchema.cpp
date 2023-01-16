@@ -2,8 +2,9 @@
 
 #include "PoseSearch/PoseSearchSchema.h"
 #include "AnimationRuntime.h"
-#include "PoseSearch/PoseSearch.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
+#include "PoseSearch/PoseSearchResult.h"
+#include "UObject/ObjectSaveContext.h"
 
 bool UPoseSearchSchema::IsValid() const
 {
@@ -66,3 +67,60 @@ void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 		Channel->BuildQuery(SearchContext, InOutQuery);
 	}
 }
+
+void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
+{
+	using namespace UE::PoseSearch;
+
+	if (bRemoveEmptyChannels)
+	{
+		Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return !Channel; });
+	}
+
+	BoneReferences.Reset();
+
+	int32 CurrentChannelDataOffset = 0;
+
+	SchemaCardinality = 0;
+	for (int32 ChannelIdx = 0; ChannelIdx != Channels.Num(); ++ChannelIdx)
+	{
+		if (UPoseSearchFeatureChannel* Channel = Channels[ChannelIdx].Get())
+		{
+			Channel->InitializeSchema(this);
+		}
+	}
+
+	ResolveBoneReferences();
+}
+
+void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Finalize();
+
+	Super::PreSave(ObjectSaveContext);
+}
+
+void UPoseSearchSchema::PostLoad()
+{
+	Super::PostLoad();
+	ResolveBoneReferences();
+}
+
+#if WITH_EDITOR
+void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Finalize(false);
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UPoseSearchSchema::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const
+{
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
+	{
+		if (Channel)
+		{
+			Channel->ComputeCostBreakdowns(CostBreakDownData, this);
+		}
+	}
+}
+#endif

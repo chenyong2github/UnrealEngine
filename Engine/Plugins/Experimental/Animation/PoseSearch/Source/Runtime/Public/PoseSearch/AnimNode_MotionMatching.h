@@ -4,11 +4,12 @@
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/MotionTrajectoryTypes.h"
+#include "GameplayTagContainer.h"
 #include "PoseSearch/AnimNode_BlendStack.h"
-#include "PoseSearch/PoseSearch.h"
 #include "PoseSearch/PoseSearchLibrary.h"
-
 #include "AnimNode_MotionMatching.generated.h"
+
+class UPoseSearchSearchableAsset;
 
 USTRUCT(BlueprintInternalUseOnly)
 struct POSESEARCH_API FAnimNode_MotionMatching : public FAnimNode_AssetPlayerBase

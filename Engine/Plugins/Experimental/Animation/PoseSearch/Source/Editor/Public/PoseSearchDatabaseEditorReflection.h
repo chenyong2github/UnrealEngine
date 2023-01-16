@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "PoseSearch/PoseSearch.h"
-
+#include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearchDatabaseEditorReflection.generated.h"
 
 

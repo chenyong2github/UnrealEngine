@@ -8,7 +8,10 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+struct FInstancedStruct;
 class IRewindDebugger;
+class UPoseSearchDatabase;
+class UPoseSearchSearchableAsset;
 
 namespace UE::PoseSearch
 {

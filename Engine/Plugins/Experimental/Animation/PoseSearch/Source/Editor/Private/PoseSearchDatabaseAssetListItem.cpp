@@ -3,8 +3,6 @@
 #include "PoseSearchDatabaseAssetListItem.h"
 #include "PoseSearchDatabaseViewModel.h"
 
-#include "PoseSearch/PoseSearch.h"
-
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/BlendSpace.h"
@@ -15,6 +13,7 @@
 #include "AssetSelection.h"
 #include "ClassIconFinder.h"
 #include "DetailColumnSizeData.h"
+#include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearchDatabaseAssetTree.h"
 
 #include "Widgets/Text/SRichTextBlock.h"

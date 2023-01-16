@@ -3,9 +3,11 @@
 #pragma once
 
 #if WITH_EDITOR
-#include "PoseSearch/PoseSearch.h"
 #include "TickableEditorObject.h"
+#include "UObject/GCObject.h"
 #include "UObject/ObjectSaveContext.h"
+
+class UPoseSearchDatabase;
 
 namespace UE::PoseSearch
 {

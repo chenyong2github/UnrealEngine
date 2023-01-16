@@ -2,9 +2,13 @@
 
 #include "PoseSearchDebuggerDatabaseView.h"
 #include "Algo/AllOf.h"
+#include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
+#include "InstancedStruct.h"
 #include "PoseSearchDebuggerDatabaseRow.h"
 #include "PoseSearchDebuggerView.h"
 #include "PoseSearchDebuggerViewModel.h"
+#include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchSchema.h"

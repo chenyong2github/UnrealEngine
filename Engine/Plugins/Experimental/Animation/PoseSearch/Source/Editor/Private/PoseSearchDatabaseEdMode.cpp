@@ -4,7 +4,6 @@
 #include "PoseSearchDatabaseViewportClient.h"
 #include "PoseSearchDatabaseEditor.h"
 #include "PoseSearchDatabaseViewModel.h"
-#include "PoseSearch/PoseSearch.h"
 
 #include "EngineUtils.h"
 

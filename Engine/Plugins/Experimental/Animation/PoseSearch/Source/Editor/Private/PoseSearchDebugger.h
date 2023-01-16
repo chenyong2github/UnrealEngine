@@ -3,12 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-//#include "CustomBoneIndexArray.h"
 #include "IRewindDebuggerExtension.h"
-//#include "IRewindDebuggerView.h"
 #include "IRewindDebuggerViewCreator.h"
-//#include "PoseSearch/PoseSearch.h"
-//#include "PoseSearchMeshComponent.h"
 
 namespace TraceServices { class IAnalysisSession; }
 

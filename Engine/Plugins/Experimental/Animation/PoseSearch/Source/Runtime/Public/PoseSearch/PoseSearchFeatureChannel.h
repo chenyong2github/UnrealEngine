@@ -29,10 +29,40 @@ enum class EInputQueryPose : uint8
 namespace UE::PoseSearch
 {
 
-struct FAssetIndexingOutput;
 struct FDebugDrawParams;
 struct FSearchContext;
 class IAssetIndexer;
+
+/** Helper class for extracting and encoding features into a float buffer */
+class POSESEARCH_API FFeatureVectorHelper
+{
+public:
+	enum { EncodeQuatCardinality = 6 };
+	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat);
+	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static FQuat DecodeQuat(TConstArrayView<float> Values, int32& DataOffset);
+
+	enum { EncodeVectorCardinality = 3 };
+	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector);
+	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize = false);
+	static FVector DecodeVector(TConstArrayView<float> Values, int32& DataOffset);
+
+	enum { EncodeVector2DCardinality = 2 };
+	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D);
+	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static FVector2D DecodeVector2D(TConstArrayView<float> Values, int32& DataOffset);
+
+	enum { EncodeFloatCardinality = 1 };
+	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, const float Value);
+	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static float DecodeFloat(TConstArrayView<float> Values, int32& DataOffset);
+
+private:
+	static FQuat DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static FVector DecodeVectorInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static FVector2D DecodeVector2DInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static float DecodeFloatInternal(TConstArrayView<float> Values, int32 DataOffset);
+};
 
 #if WITH_EDITOR
 // data structure collecting the internal layout representation of UPoseSearchFeatureChannel,
@@ -129,7 +159,7 @@ public:
 	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
 
 	// Called at database build time to populate pose vectors with this channel's data
-	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
+	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, TArrayView<float> FeatureVectorTable) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
 	// Called at runtime to add this channel's data to the query pose vector
 	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );

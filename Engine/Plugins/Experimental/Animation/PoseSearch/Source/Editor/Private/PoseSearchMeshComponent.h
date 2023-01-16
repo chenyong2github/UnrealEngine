@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "BonePose.h"
 #include "Components/PoseableMeshComponent.h"
-#include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearchMeshComponent.generated.h"
+
+class UBlendSpace;
 
 UCLASS()
 class UPoseSearchMeshComponent : public UPoseableMeshComponent

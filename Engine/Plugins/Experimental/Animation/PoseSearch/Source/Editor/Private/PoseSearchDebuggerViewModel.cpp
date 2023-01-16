@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDebuggerViewModel.h"
+#include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 #include "Animation/MirrorDataTable.h"
 #include "Engine/SkeletalMesh.h"
 #include "IAnimationProvider.h"
 #include "IGameplayProvider.h"
+#include "InstancedStruct.h"
 #include "IRewindDebugger.h"
+#include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchSchema.h"
 #include "Trace/PoseSearchTraceProvider.h"

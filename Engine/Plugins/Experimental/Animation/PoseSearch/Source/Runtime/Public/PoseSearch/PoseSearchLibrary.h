@@ -2,16 +2,26 @@
 
 #pragma once
 
+#include "AlphaBlend.h"
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "Animation/AnimExecutionContext.h"
 #include "Animation/AnimNodeReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchHistory.h"
+#include "PoseSearch/PoseSearchResult.h"
 #include "SequenceEvaluatorLibrary.h"
 #include "SequencePlayerLibrary.h"
-
 #include "PoseSearchLibrary.generated.h"
+
+namespace UE::PoseSearch
+{
+	struct FSearchContext;
+} // namespace UE::PoseSearch
+
+struct FGameplayTagContainer;
+struct FTrajectorySampleRange;
+class UPoseSearchSearchableAsset;
 
 UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class EMotionMatchingFlags : uint8

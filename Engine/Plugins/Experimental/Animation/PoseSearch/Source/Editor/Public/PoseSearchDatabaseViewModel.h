@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 #include "MovieSceneFwd.h"
-
+#include "PoseSearch/PoseSearchAssetSampler.h"
+#include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearchDatabasePreviewScene.h"
-#include "PoseSearch/PoseSearch.h"
 
 class UWorld;
 class UPoseSearchDatabase;

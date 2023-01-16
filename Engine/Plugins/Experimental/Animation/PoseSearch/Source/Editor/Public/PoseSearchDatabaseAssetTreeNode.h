@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PoseSearch/PoseSearch.h"
 
+enum class EPoseSearchMirrorOption;
+enum class ESearchIndexAssetType;
 class FUICommandList;
 class ITableRow;
 class STableViewBase;

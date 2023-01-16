@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearch.h"
 #include "Animation/AnimNodeBase.h"
+#include "PoseSearch/PoseSearchHistory.h"
 #include "AnimNode_PoseSearchHistoryCollector.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)

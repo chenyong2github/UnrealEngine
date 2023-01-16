@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchContext.h"
 
 UE_TRACE_CHANNEL_EXTERN(PoseSearchChannel, POSESEARCH_API);
 

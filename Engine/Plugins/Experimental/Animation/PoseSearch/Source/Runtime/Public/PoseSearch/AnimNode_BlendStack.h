@@ -7,8 +7,7 @@
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
 #include "AnimNodes/AnimNode_Mirror.h"
 #include "Containers/Deque.h"
-#include "PoseSearch/PoseSearch.h"
-
+#include "PoseSearch/PoseSearchIndex.h"
 #include "AnimNode_BlendStack.generated.h"
 
 USTRUCT()

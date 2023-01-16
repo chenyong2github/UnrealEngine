@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchCustomization.h"
-#include "PoseSearch/PoseSearch.h"
 #include "Engine/GameViewportClient.h"
 #include "AssetRegistry/AssetData.h"
 #include "EditorClassUtils.h"
@@ -25,6 +24,7 @@
 #include "IDetailsView.h"
 #include "ObjectEditorUtils.h"
 #include "Animation/AnimSequence.h"
+#include "PoseSearch/PoseSearchDatabase.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchCustomization"
 
