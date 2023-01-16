@@ -1292,7 +1292,7 @@ void UObjectReplicationBridge::LoadConfig()
 	// Reset PathNameCache
 	ConfigClassPathNameCache.Empty();
 
-	const UObjectReplicationBridgeConfig* BridgeConfig = GetDefault<UObjectReplicationBridgeConfig>();
+	const UObjectReplicationBridgeConfig* BridgeConfig = UObjectReplicationBridgeConfig::GetConfig();
 
 	// Load poll configs
 	

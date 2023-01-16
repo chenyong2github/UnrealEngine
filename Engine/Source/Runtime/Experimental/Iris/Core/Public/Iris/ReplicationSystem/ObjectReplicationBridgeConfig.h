@@ -80,11 +80,15 @@ class UObjectReplicationBridgeConfig : public UObject
 	GENERATED_BODY()
 
 public:
+
+	IRISCORE_API static const UObjectReplicationBridgeConfig* GetConfig();
+
 	IRISCORE_API TConstArrayView<FObjectReplicationBridgePollConfig> GetPollConfigs() const;
 	IRISCORE_API TConstArrayView<FObjectReplicationBridgeFilterConfig> GetFilterConfigs() const;
 	IRISCORE_API TConstArrayView<FObjectReplicationBridgePrioritizerConfig> GetPrioritizerConfigs() const;
 	IRISCORE_API TConstArrayView<FObjectReplicationBridgeDeltaCompressionConfig> GetDeltaCompressionConfigs() const;
 	FName GetDefaultSpatialFilterName() const;
+	FName GetRequiredNetDriverChannelClassName() const;
 
 protected:
 	UObjectReplicationBridgeConfig();
@@ -123,9 +127,20 @@ private:
 	 */
 	UPROPERTY(Config)
 	FName DefaultSpatialFilterName;
+
+	/**
+	 * The name of the channel class required for object replication to work.
+	 */
+	UPROPERTY(Config)
+	FName RequiredNetDriverChannelClassName;
 };
 
 inline FName UObjectReplicationBridgeConfig::GetDefaultSpatialFilterName() const
 {
 	return DefaultSpatialFilterName;
+}
+
+inline FName UObjectReplicationBridgeConfig::GetRequiredNetDriverChannelClassName() const
+{
+	return RequiredNetDriverChannelClassName;
 }

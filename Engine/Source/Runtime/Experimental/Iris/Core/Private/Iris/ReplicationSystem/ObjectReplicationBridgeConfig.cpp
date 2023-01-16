@@ -8,6 +8,11 @@ UObjectReplicationBridgeConfig::UObjectReplicationBridgeConfig()
 {
 }
 
+const UObjectReplicationBridgeConfig* UObjectReplicationBridgeConfig::GetConfig()
+{
+	return GetDefault<UObjectReplicationBridgeConfig>();
+}
+
 TConstArrayView<FObjectReplicationBridgePollConfig> UObjectReplicationBridgeConfig::GetPollConfigs() const
 {
 	return MakeArrayView(PollConfigs);

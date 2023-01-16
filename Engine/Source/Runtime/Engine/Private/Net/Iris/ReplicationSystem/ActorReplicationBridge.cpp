@@ -12,6 +12,7 @@
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/NetObjectReference.h"
 #include "Iris/ReplicationSystem/NetToken.h"
+#include "Iris/ReplicationSystem/ObjectReplicationBridgeConfig.h"
 #include "Iris/ReplicationSystem/StringTokenStore.h"
 #include "Iris/ReplicationSystem/ReplicationOperations.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
@@ -847,6 +848,18 @@ void UActorReplicationBridge::SetNetDriver(UNetDriver* const InNetDriver)
 	if (InNetDriver != nullptr)
 	{
 		MaxPollFrequency = static_cast<float>(FPlatformMath::Max(InNetDriver->NetServerMaxTickRate, 0));
+
+		const FName RequiredChannelName = UObjectReplicationBridgeConfig::GetConfig()->GetRequiredNetDriverChannelClassName();
+		
+		if (!RequiredChannelName.IsNone())
+		{
+			const bool bRequiredChannelIsConfigured = InNetDriver->ChannelDefinitions.FindByPredicate([RequiredChannelName](const FChannelDefinition& rhs)
+				{
+					return rhs.ClassName == RequiredChannelName;
+				}) != nullptr;
+
+			checkf(bRequiredChannelIsConfigured, TEXT("ObjectReplication needs the netdriver channel %s to work. Add this channel to the netdriver channel definitions config"), *RequiredChannelName.ToString());
+		}
 	}
 }
 
