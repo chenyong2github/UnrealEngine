@@ -5,6 +5,7 @@
 #include "NetcodeUnitTest.h"
 #include "Serialization/BitReader.h"
 #include "Serialization/BitWriter.h"
+#include <limits>
 
 namespace PackedVectorTest
 {
