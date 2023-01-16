@@ -62,7 +62,7 @@ bool AreControlledChangelistsEnabled()
 /** Returns true if Uncontrolled changelists are enabled. */
 bool AreUncontrolledChangelistsEnabled()
 {
-	return FUncontrolledChangelistsModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().UsesUncontrolledChangelists();
+	return FUncontrolledChangelistsModule::Get().IsEnabled();
 };
 
 /** Returns true if there are changelists to display. */

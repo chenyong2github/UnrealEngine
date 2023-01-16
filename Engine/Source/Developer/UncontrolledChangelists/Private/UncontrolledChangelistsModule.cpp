@@ -105,7 +105,7 @@ void FUncontrolledChangelistsModule::ShutdownModule()
 
 bool FUncontrolledChangelistsModule::IsEnabled() const
 {
-	return bIsEnabled;
+	return bIsEnabled && ISourceControlModule::Get().GetProvider().UsesUncontrolledChangelists();
 }
 
 TArray<FUncontrolledChangelistStateRef> FUncontrolledChangelistsModule::GetChangelistStates() const
