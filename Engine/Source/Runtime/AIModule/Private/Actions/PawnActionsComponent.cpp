@@ -33,7 +33,7 @@ namespace
 		return Enum->GetNameStringByValue(Value);
 	}
 
-	FString GetActionSignature(UDEPRECATED_UPawnAction* Action)
+	FString GetActionSignature(UDEPRECATED_PawnAction* Action)
 	{
 		if (Action == NULL)
 		{
@@ -62,7 +62,7 @@ namespace
 	};
 }
 
-FPawnActionEvent::FPawnActionEvent(UDEPRECATED_UPawnAction& InAction, EPawnActionEventType::Type InEventType, uint32 InIndex)
+FPawnActionEvent::FPawnActionEvent(UDEPRECATED_PawnAction& InAction, EPawnActionEventType::Type InEventType, uint32 InIndex)
 	: Action(&InAction), EventType(InEventType), Index(InIndex)
 {
 	Priority = InAction.GetPriority();
@@ -88,7 +88,7 @@ void FPawnActionStack::Resume()
 	}
 }
 
-void FPawnActionStack::PushAction(UDEPRECATED_UPawnAction& NewTopAction)
+void FPawnActionStack::PushAction(UDEPRECATED_PawnAction& NewTopAction)
 {
 	if (TopAction != NULL)
 	{
@@ -105,10 +105,10 @@ void FPawnActionStack::PushAction(UDEPRECATED_UPawnAction& NewTopAction)
 	NewTopAction.OnPushed();
 }
 
-void FPawnActionStack::PopAction(UDEPRECATED_UPawnAction& ActionToPop)
+void FPawnActionStack::PopAction(UDEPRECATED_PawnAction& ActionToPop)
 {
 	// first check if it's there
-	UDEPRECATED_UPawnAction* CutPoint = TopAction;
+	UDEPRECATED_PawnAction* CutPoint = TopAction;
 	while (CutPoint != NULL && CutPoint != &ActionToPop)
 	{
 		CutPoint = CutPoint->ParentAction_DEPRECATED;
@@ -116,14 +116,14 @@ void FPawnActionStack::PopAction(UDEPRECATED_UPawnAction& ActionToPop)
 
 	if (CutPoint == &ActionToPop)
 	{
-		UDEPRECATED_UPawnAction* ActionBeingRemoved = TopAction;
+		UDEPRECATED_PawnAction* ActionBeingRemoved = TopAction;
 		// note StopAction can be null
-		UDEPRECATED_UPawnAction* StopAction = ActionToPop.ParentAction_DEPRECATED;
+		UDEPRECATED_PawnAction* StopAction = ActionToPop.ParentAction_DEPRECATED;
 
 		while (ActionBeingRemoved != StopAction && ActionBeingRemoved != nullptr)
 		{
 			checkSlow(ActionBeingRemoved);
-			UDEPRECATED_UPawnAction* NextAction = ActionBeingRemoved->ParentAction_DEPRECATED;
+			UDEPRECATED_PawnAction* NextAction = ActionBeingRemoved->ParentAction_DEPRECATED;
 
 			if (ActionBeingRemoved->IsBeingAborted() == false && ActionBeingRemoved->IsFinished() == false)
 			{
@@ -145,7 +145,7 @@ void FPawnActionStack::PopAction(UDEPRECATED_UPawnAction& ActionToPop)
 int32 FPawnActionStack::GetStackSize() const
 {
 	int32 Size = 0;
-	const UDEPRECATED_UPawnAction* TempAction = TopAction;
+	const UDEPRECATED_PawnAction* TempAction = TopAction;
 	while (TempAction != nullptr)
 	{
 		TempAction = TempAction->GetParentAction();
@@ -155,10 +155,10 @@ int32 FPawnActionStack::GetStackSize() const
 }
 
 //----------------------------------------------------------------------//
-// UDEPRECATED_UPawnActionsComponent
+// UDEPRECATED_PawnActionsComponent
 //----------------------------------------------------------------------//
 
-UDEPRECATED_UPawnActionsComponent::UDEPRECATED_UPawnActionsComponent(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_PawnActionsComponent::UDEPRECATED_PawnActionsComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -172,14 +172,14 @@ UDEPRECATED_UPawnActionsComponent::UDEPRECATED_UPawnActionsComponent(const FObje
 	ActionStacks.AddZeroed(EAIRequestPriority::MAX);
 }
 
-void UDEPRECATED_UPawnActionsComponent::OnUnregister()
+void UDEPRECATED_PawnActionsComponent::OnUnregister()
 {
 	if ((ControlledPawn != nullptr) && !ControlledPawn->IsPendingKillPending())
 	{
 		// call for every regular priority 
 		for (int32 PriorityIndex = 0; PriorityIndex < EAIRequestPriority::MAX; ++PriorityIndex)
 		{
-			UDEPRECATED_UPawnAction* Action = ActionStacks[PriorityIndex].GetTop();
+			UDEPRECATED_PawnAction* Action = ActionStacks[PriorityIndex].GetTop();
 			while (Action)
 			{
 				Action->Abort(EAIForceParam::Force);
@@ -191,7 +191,7 @@ void UDEPRECATED_UPawnActionsComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
-void UDEPRECATED_UPawnActionsComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UDEPRECATED_PawnActionsComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -258,14 +258,14 @@ void UDEPRECATED_UPawnActionsComponent::TickComponent(float DeltaTime, enum ELev
 	}
 }
 
-bool UDEPRECATED_UPawnActionsComponent::HasActiveActionOfType(EAIRequestPriority::Type Priority, TSubclassOf<UDEPRECATED_UPawnAction> PawnActionClass) const
+bool UDEPRECATED_PawnActionsComponent::HasActiveActionOfType(EAIRequestPriority::Type Priority, TSubclassOf<UDEPRECATED_PawnAction> PawnActionClass) const
 {
-	TArray<UDEPRECATED_UPawnAction*> ActionsToTest;
+	TArray<UDEPRECATED_PawnAction*> ActionsToTest;
 	ActionsToTest.Add(GetActiveAction(Priority));
 
 	while (ActionsToTest.Num() > 0)
 	{
-		UDEPRECATED_UPawnAction* ActiveActionIter = ActionsToTest[0];
+		UDEPRECATED_PawnAction* ActiveActionIter = ActionsToTest[0];
 
 		if (ActiveActionIter)
 		{
@@ -275,7 +275,7 @@ bool UDEPRECATED_UPawnActionsComponent::HasActiveActionOfType(EAIRequestPriority
 			}	
 			else
 			{
-				UDEPRECATED_UPawnAction_Sequence* PawnActionSequence = Cast<UDEPRECATED_UPawnAction_Sequence>(ActiveActionIter);
+				UDEPRECATED_PawnAction_Sequence* PawnActionSequence = Cast<UDEPRECATED_PawnAction_Sequence>(ActiveActionIter);
 
 				if (PawnActionSequence)
 				{
@@ -294,13 +294,13 @@ bool UDEPRECATED_UPawnActionsComponent::HasActiveActionOfType(EAIRequestPriority
 	return false;
 }
 
-void UDEPRECATED_UPawnActionsComponent::UpdateCurrentAction()
+void UDEPRECATED_PawnActionsComponent::UpdateCurrentAction()
 {
 	UE_VLOG(ControlledPawn, LogPawnAction, Log, TEXT("Picking new current actions. Old CurrentAction_DEPRECATED %s")
 		, *GetActionSignature(CurrentAction_DEPRECATED));
 
 	// find the highest priority action available
-	UDEPRECATED_UPawnAction* NewCurrentAction = NULL;
+	UDEPRECATED_PawnAction* NewCurrentAction = NULL;
 	int32 Priority = EAIRequestPriority::MAX - 1;
 	do 
 	{
@@ -356,7 +356,7 @@ void UDEPRECATED_UPawnActionsComponent::UpdateCurrentAction()
 	}
 }
 
-void UDEPRECATED_UPawnActionsComponent::UpdateAILogicLock()
+void UDEPRECATED_PawnActionsComponent::UpdateAILogicLock()
 {
 	if (ControlledPawn && ControlledPawn->GetController())
 	{
@@ -390,7 +390,7 @@ void UDEPRECATED_UPawnActionsComponent::UpdateAILogicLock()
 	}
 }
 
-EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::K2_AbortAction(UDEPRECATED_UPawnAction* ActionToAbort)
+EPawnActionAbortState::Type UDEPRECATED_PawnActionsComponent::K2_AbortAction(UDEPRECATED_PawnAction* ActionToAbort)
 {
 	if (ActionToAbort != NULL)
 	{
@@ -399,7 +399,7 @@ EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::K2_AbortAction(UD
 	return EPawnActionAbortState::NeverStarted;
 }
 
-EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::AbortAction(UDEPRECATED_UPawnAction& ActionToAbort)
+EPawnActionAbortState::Type UDEPRECATED_PawnActionsComponent::AbortAction(UDEPRECATED_PawnAction& ActionToAbort)
 {
 	const EPawnActionAbortState::Type AbortState = ActionToAbort.Abort(EAIForceParam::DoNotForce);
 	if (AbortState == EPawnActionAbortState::NeverStarted)
@@ -413,7 +413,7 @@ EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::AbortAction(UDEPR
 	return AbortState;
 }
 
-void UDEPRECATED_UPawnActionsComponent::RemoveEventsForAction(UDEPRECATED_UPawnAction& PawnAction)
+void UDEPRECATED_PawnActionsComponent::RemoveEventsForAction(UDEPRECATED_PawnAction& PawnAction)
 {
 	for (int32 ActionIndex = ActionEvents.Num() - 1; ActionIndex >= 0; --ActionIndex)
 	{
@@ -424,7 +424,7 @@ void UDEPRECATED_UPawnActionsComponent::RemoveEventsForAction(UDEPRECATED_UPawnA
 	}
 }
 
-EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::K2_ForceAbortAction(UDEPRECATED_UPawnAction* ActionToAbort)
+EPawnActionAbortState::Type UDEPRECATED_PawnActionsComponent::K2_ForceAbortAction(UDEPRECATED_PawnAction* ActionToAbort)
 {
 	if (ActionToAbort)
 	{
@@ -433,12 +433,12 @@ EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::K2_ForceAbortActi
 	return EPawnActionAbortState::NeverStarted;
 }
 
-EPawnActionAbortState::Type UDEPRECATED_UPawnActionsComponent::ForceAbortAction(UDEPRECATED_UPawnAction& ActionToAbort)
+EPawnActionAbortState::Type UDEPRECATED_PawnActionsComponent::ForceAbortAction(UDEPRECATED_PawnAction& ActionToAbort)
 {
 	return ActionToAbort.Abort(EAIForceParam::Force);
 }
 
-uint32 UDEPRECATED_UPawnActionsComponent::AbortActionsInstigatedBy(UObject* const Instigator, EAIRequestPriority::Type Priority)
+uint32 UDEPRECATED_PawnActionsComponent::AbortActionsInstigatedBy(UObject* const Instigator, EAIRequestPriority::Type Priority)
 {
 	uint32 AbortedActionsCount = 0;
 
@@ -452,7 +452,7 @@ uint32 UDEPRECATED_UPawnActionsComponent::AbortActionsInstigatedBy(UObject* cons
 	}
 	else
 	{
-		UDEPRECATED_UPawnAction* Action = ActionStacks[Priority].GetTop();
+		UDEPRECATED_PawnAction* Action = ActionStacks[Priority].GetTop();
 		while (Action)
 		{
 			if (Action->GetInstigator() == Instigator)
@@ -479,7 +479,7 @@ uint32 UDEPRECATED_UPawnActionsComponent::AbortActionsInstigatedBy(UObject* cons
 	return AbortedActionsCount;
 }
 
-bool UDEPRECATED_UPawnActionsComponent::K2_PushAction(UDEPRECATED_UPawnAction* NewAction, EAIRequestPriority::Type Priority, UObject* Instigator)
+bool UDEPRECATED_PawnActionsComponent::K2_PushAction(UDEPRECATED_PawnAction* NewAction, EAIRequestPriority::Type Priority, UObject* Instigator)
 {
 	if (NewAction)
 	{
@@ -488,7 +488,7 @@ bool UDEPRECATED_UPawnActionsComponent::K2_PushAction(UDEPRECATED_UPawnAction* N
 	return false;
 }
 
-bool UDEPRECATED_UPawnActionsComponent::PushAction(UDEPRECATED_UPawnAction& NewAction, EAIRequestPriority::Type Priority, UObject* Instigator)
+bool UDEPRECATED_PawnActionsComponent::PushAction(UDEPRECATED_PawnAction& NewAction, EAIRequestPriority::Type Priority, UObject* Instigator)
 {
 	if (NewAction.HasBeenStarted() == false || NewAction.IsFinished() == true)
 	{
@@ -501,7 +501,7 @@ bool UDEPRECATED_UPawnActionsComponent::PushAction(UDEPRECATED_UPawnAction& NewA
 	return false;
 }
 
-bool UDEPRECATED_UPawnActionsComponent::OnEvent(UDEPRECATED_UPawnAction& Action, EPawnActionEventType::Type Event)
+bool UDEPRECATED_PawnActionsComponent::OnEvent(UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type Event)
 {
 	bool bResult = false;
 	const FPawnActionEvent ActionEvent(Action, Event, ActionEventIndex++);
@@ -533,7 +533,7 @@ bool UDEPRECATED_UPawnActionsComponent::OnEvent(UDEPRECATED_UPawnAction& Action,
 	return bResult;
 }
 
-void UDEPRECATED_UPawnActionsComponent::SetControlledPawn(APawn* NewPawn)
+void UDEPRECATED_PawnActionsComponent::SetControlledPawn(APawn* NewPawn)
 {
 	if (ControlledPawn != NULL && ControlledPawn != NewPawn)
 	{
@@ -545,7 +545,7 @@ void UDEPRECATED_UPawnActionsComponent::SetControlledPawn(APawn* NewPawn)
 	}
 }
 
-APawn* UDEPRECATED_UPawnActionsComponent::CacheControlledPawn()
+APawn* UDEPRECATED_PawnActionsComponent::CacheControlledPawn()
 {
 	if (ControlledPawn == NULL)
 	{
@@ -571,7 +571,7 @@ APawn* UDEPRECATED_UPawnActionsComponent::CacheControlledPawn()
 //----------------------------------------------------------------------//
 // blueprint interface
 //----------------------------------------------------------------------//
-bool UDEPRECATED_UPawnActionsComponent::K2_PerformAction(APawn* Pawn, UDEPRECATED_UPawnAction* Action, TEnumAsByte<EAIRequestPriority::Type> Priority)
+bool UDEPRECATED_PawnActionsComponent::K2_PerformAction(APawn* Pawn, UDEPRECATED_PawnAction* Action, TEnumAsByte<EAIRequestPriority::Type> Priority)
 {
 	if (Pawn && Action)
 	{
@@ -580,7 +580,7 @@ bool UDEPRECATED_UPawnActionsComponent::K2_PerformAction(APawn* Pawn, UDEPRECATE
 	return false;
 }
 
-bool UDEPRECATED_UPawnActionsComponent::PerformAction(APawn& Pawn, UDEPRECATED_UPawnAction& Action, TEnumAsByte<EAIRequestPriority::Type> Priority)
+bool UDEPRECATED_PawnActionsComponent::PerformAction(APawn& Pawn, UDEPRECATED_PawnAction& Action, TEnumAsByte<EAIRequestPriority::Type> Priority)
 {
 	bool bSuccess = false;
 
@@ -588,7 +588,7 @@ bool UDEPRECATED_UPawnActionsComponent::PerformAction(APawn& Pawn, UDEPRECATED_U
 
 	if (Pawn.GetController())
 	{
-		UDEPRECATED_UPawnActionsComponent* ActionComp = Pawn.GetController()->FindComponentByClass<UDEPRECATED_UPawnActionsComponent>();
+		UDEPRECATED_PawnActionsComponent* ActionComp = Pawn.GetController()->FindComponentByClass<UDEPRECATED_PawnActionsComponent>();
 		if (ActionComp)
 		{
 			ActionComp->PushAction(Action, Priority);
@@ -603,7 +603,7 @@ bool UDEPRECATED_UPawnActionsComponent::PerformAction(APawn& Pawn, UDEPRECATED_U
 // debug
 //----------------------------------------------------------------------//
 #if ENABLE_VISUAL_LOG
-void UDEPRECATED_UPawnActionsComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
+void UDEPRECATED_PawnActionsComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 {
 	static const FString Category = TEXT("PawnActions");
 
@@ -614,7 +614,7 @@ void UDEPRECATED_UPawnActionsComponent::DescribeSelfToVisLog(FVisualLogEntry* Sn
 
 	for (int32 PriorityIndex = 0; PriorityIndex < ActionStacks.Num(); ++PriorityIndex)
 	{
-		const UDEPRECATED_UPawnAction* Action = ActionStacks[PriorityIndex].GetTop();
+		const UDEPRECATED_PawnAction* Action = ActionStacks[PriorityIndex].GetTop();
 		if (Action == NULL)
 		{
 			continue;
@@ -641,7 +641,7 @@ void UDEPRECATED_UPawnActionsComponent::DescribeSelfToVisLog(FVisualLogEntry* Sn
 }
 #endif // ENABLE_VISUAL_LOG
 
-FString UDEPRECATED_UPawnActionsComponent::DescribeEventType(EPawnActionEventType::Type EventType)
+FString UDEPRECATED_PawnActionsComponent::DescribeEventType(EPawnActionEventType::Type EventType)
 {
 	return GetEventName(EventType);
 }

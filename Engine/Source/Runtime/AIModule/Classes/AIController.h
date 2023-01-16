@@ -31,8 +31,8 @@ class UCanvas;
 class UGameplayTaskResource;
 class UGameplayTasksComponent;
 class UPathFollowingComponent;
-class UDEPRECATED_UPawnAction;
-class UDEPRECATED_UPawnActionsComponent;
+class UDEPRECATED_PawnAction;
+class UDEPRECATED_PawnActionsComponent;
 
 namespace EPathFollowingRequestResult {	enum Type : int; }
 namespace EPathFollowingResult { enum Type : int; }
@@ -146,7 +146,7 @@ public:
 
 private:
 	UPROPERTY(Category = AI, BlueprintGetter = GetDeprecatedActionsComponent)
-	TObjectPtr<UDEPRECATED_UPawnActionsComponent> ActionsComp_DEPRECATED;
+	TObjectPtr<UDEPRECATED_PawnActionsComponent> ActionsComp_DEPRECATED;
 
 protected:
 	/** blackboard */
@@ -456,13 +456,13 @@ public:
 	// DEPRECATED
 	//----------------------------------------------------------------------//
 	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
-	UDEPRECATED_UPawnActionsComponent* GetActionsComp() const { return ActionsComp_DEPRECATED; }
+	UDEPRECATED_PawnActionsComponent* GetActionsComp() const { return ActionsComp_DEPRECATED; }
 	
 	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
-	bool PerformAction(UDEPRECATED_UPawnAction& Action, EAIRequestPriority::Type Priority, UObject* const Instigator = NULL);
+	bool PerformAction(UDEPRECATED_PawnAction& Action, EAIRequestPriority::Type Priority, UObject* const Instigator = NULL);
 
 	UFUNCTION(BlueprintGetter, meta = (DeprecatedFunction, DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
-	UDEPRECATED_UPawnActionsComponent* GetDeprecatedActionsComponent() const { return ActionsComp_DEPRECATED; }
+	UDEPRECATED_PawnActionsComponent* GetDeprecatedActionsComponent() const { return ActionsComp_DEPRECATED; }
 };
 
 //----------------------------------------------------------------------//

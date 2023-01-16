@@ -9,13 +9,13 @@
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-UDEPRECATED_UPawnAction_Sequence::UDEPRECATED_UPawnAction_Sequence(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_PawnAction_Sequence::UDEPRECATED_PawnAction_Sequence(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, SubActionTriggeringPolicy(EPawnSubActionTriggeringPolicy::CopyBeforeTriggering)
 {
 }
 
-UDEPRECATED_UPawnAction_Sequence* UDEPRECATED_UPawnAction_Sequence::CreateAction(UWorld& World, TArray<UDEPRECATED_UPawnAction*>& ActionSequence, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy)
+UDEPRECATED_PawnAction_Sequence* UDEPRECATED_PawnAction_Sequence::CreateAction(UWorld& World, TArray<UDEPRECATED_PawnAction*>& ActionSequence, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy)
 {
 	ActionSequence.Remove(NULL);
 	if (ActionSequence.Num() <= 0)
@@ -23,12 +23,12 @@ UDEPRECATED_UPawnAction_Sequence* UDEPRECATED_UPawnAction_Sequence::CreateAction
 		return NULL;
 	}
 
-	UDEPRECATED_UPawnAction_Sequence* Action = UDEPRECATED_UPawnAction::CreateActionInstance<UDEPRECATED_UPawnAction_Sequence>(World);
+	UDEPRECATED_PawnAction_Sequence* Action = UDEPRECATED_PawnAction::CreateActionInstance<UDEPRECATED_PawnAction_Sequence>(World);
 	if (Action)
 	{
 		Action->ActionSequence_DEPRECATED = ActionSequence;
 
-		for (const UDEPRECATED_UPawnAction* SubAction : ActionSequence)
+		for (const UDEPRECATED_PawnAction* SubAction : ActionSequence)
 		{
 			if (SubAction && SubAction->ShouldPauseMovement())
 			{
@@ -43,7 +43,7 @@ UDEPRECATED_UPawnAction_Sequence* UDEPRECATED_UPawnAction_Sequence::CreateAction
 	return Action;
 }
 
-bool UDEPRECATED_UPawnAction_Sequence::Start()
+bool UDEPRECATED_PawnAction_Sequence::Start()
 {
 	bool bResult = Super::Start();
 
@@ -61,7 +61,7 @@ bool UDEPRECATED_UPawnAction_Sequence::Start()
 	return bResult;
 }
 
-bool UDEPRECATED_UPawnAction_Sequence::Resume()
+bool UDEPRECATED_PawnAction_Sequence::Resume()
 {
 	bool bResult = Super::Resume();
 
@@ -73,7 +73,7 @@ bool UDEPRECATED_UPawnAction_Sequence::Resume()
 	return bResult;
 }
 
-void UDEPRECATED_UPawnAction_Sequence::OnChildFinished(UDEPRECATED_UPawnAction& Action, EPawnActionResult::Type WithResult)
+void UDEPRECATED_PawnAction_Sequence::OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult)
 {
 	if (RecentActionCopy_DEPRECATED == &Action)
 	{
@@ -93,7 +93,7 @@ void UDEPRECATED_UPawnAction_Sequence::OnChildFinished(UDEPRECATED_UPawnAction& 
 	Super::OnChildFinished(Action, WithResult);
 }
 
-bool UDEPRECATED_UPawnAction_Sequence::PushNextActionCopy()
+bool UDEPRECATED_PawnAction_Sequence::PushNextActionCopy()
 {
 	if (CurrentActionIndex >= uint32(ActionSequence_DEPRECATED.Num()))
 	{
@@ -101,8 +101,8 @@ bool UDEPRECATED_UPawnAction_Sequence::PushNextActionCopy()
 		return true;
 	}
 
-	UDEPRECATED_UPawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering
-		? Cast<UDEPRECATED_UPawnAction>(StaticDuplicateObject(ActionSequence_DEPRECATED[CurrentActionIndex], this))
+	UDEPRECATED_PawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering
+		? Cast<UDEPRECATED_PawnAction>(StaticDuplicateObject(ActionSequence_DEPRECATED[CurrentActionIndex], this))
 		: ToRawPtr(ActionSequence_DEPRECATED[CurrentActionIndex]);
 
 	UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("%s> pushing action %s")

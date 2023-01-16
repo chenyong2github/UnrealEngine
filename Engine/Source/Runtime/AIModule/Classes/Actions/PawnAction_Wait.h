@@ -10,7 +10,7 @@
 
 /** uses system timers rather then ticking */
 UCLASS()
-class AIMODULE_API UDEPRECATED_UPawnAction_Wait : public UDEPRECATED_UPawnAction
+class AIMODULE_API UDEPRECATED_PawnAction_Wait : public UDEPRECATED_PawnAction
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -22,10 +22,10 @@ class AIMODULE_API UDEPRECATED_UPawnAction_Wait : public UDEPRECATED_UPawnAction
 	FTimerHandle TimerHandle;
 
 	/** InTimeToWait < 0 (or just FAISystem::InfiniteInterval) will result in waiting forever */
-	static UDEPRECATED_UPawnAction_Wait* CreateAction(UWorld& World, float InTimeToWait = FAISystem::InfiniteInterval);
+	static UDEPRECATED_PawnAction_Wait* CreateAction(UWorld& World, float InTimeToWait = FAISystem::InfiniteInterval);
 
 	virtual bool Start() override;
-	virtual bool Pause(const UDEPRECATED_UPawnAction* PausedBy) override;
+	virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
 	virtual bool Resume() override;
 	virtual EPawnActionAbortState::Type PerformAbort(EAIForceParam::Type ShouldForce) override;
 

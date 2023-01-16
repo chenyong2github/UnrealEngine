@@ -22,7 +22,7 @@ struct AIMODULE_API FPawnActionEvent
 	static const int32 FakeActionIndex = INDEX_NONE;
 
 	UPROPERTY()
-	TObjectPtr<UDEPRECATED_UPawnAction> Action;
+	TObjectPtr<UDEPRECATED_PawnAction> Action;
 
 	EPawnActionEventType::Type EventType;
 
@@ -34,7 +34,7 @@ struct AIMODULE_API FPawnActionEvent
 	FPawnActionEvent() : Action(NULL), EventType(EPawnActionEventType::Invalid), Priority(EAIRequestPriority::MAX), Index(uint32(-1))
 	{}
 
-	FPawnActionEvent(UDEPRECATED_UPawnAction& Action, EPawnActionEventType::Type EventType, uint32 Index);
+	FPawnActionEvent(UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type EventType, uint32 Index);
 
 	bool operator==(const FPawnActionEvent& Other) const { return (Action == Other.Action) && (EventType == Other.EventType) && (Priority == Other.Priority); }
 };
@@ -50,7 +50,7 @@ struct AIMODULE_API FPawnActionStack
 
 private:
 	UPROPERTY()
-	TObjectPtr<UDEPRECATED_UPawnAction> TopAction;
+	TObjectPtr<UDEPRECATED_PawnAction> TopAction;
 
 public:
 	void Pause();
@@ -58,13 +58,13 @@ public:
 
 	/** All it does is tie actions into a double-linked list making NewTopAction
 	 *	new stack's top */
-	void PushAction(UDEPRECATED_UPawnAction& NewTopAction);
+	void PushAction(UDEPRECATED_PawnAction& NewTopAction);
 
 	/** Looks through the double-linked action list looking for specified action
 	 *	and if found action will be popped along with all it's siblings */
-	void PopAction(UDEPRECATED_UPawnAction& ActionToPop);
+	void PopAction(UDEPRECATED_PawnAction& ActionToPop);
 	
-	FORCEINLINE UDEPRECATED_UPawnAction* GetTop() const { return TopAction; }
+	FORCEINLINE UDEPRECATED_PawnAction* GetTop() const { return TopAction; }
 
 	FORCEINLINE bool IsEmpty() const { return TopAction == NULL; }
 
@@ -75,7 +75,7 @@ public:
 };
 
 UCLASS(deprecated, meta = (DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
-class AIMODULE_API UDEPRECATED_UPawnActionsComponent : public UActorComponent
+class AIMODULE_API UDEPRECATED_PawnActionsComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -90,7 +90,7 @@ protected:
 	TArray<FPawnActionEvent> ActionEvents;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UDEPRECATED_UPawnAction> CurrentAction_DEPRECATED;
+	TObjectPtr<UDEPRECATED_PawnAction> CurrentAction_DEPRECATED;
 
 	/** set when logic was locked by hi priority stack */
 	uint32 bLockedAILogic : 1;
@@ -109,10 +109,10 @@ public:
 	//----------------------------------------------------------------------//
 
 	UFUNCTION(BlueprintCallable, Category = "AI|PawnActions", meta = (DisplayName = "PerformAction_DEPRECATED", ScriptName = "PerformAction", DeprecatedFunction, DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
-	static bool K2_PerformAction(APawn* Pawn, UDEPRECATED_UPawnAction* Action, TEnumAsByte<EAIRequestPriority::Type> Priority = EAIRequestPriority::HardScript);
+	static bool K2_PerformAction(APawn* Pawn, UDEPRECATED_PawnAction* Action, TEnumAsByte<EAIRequestPriority::Type> Priority = EAIRequestPriority::HardScript);
 
 	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
-	static bool PerformAction(APawn& Pawn, UDEPRECATED_UPawnAction& Action, TEnumAsByte<EAIRequestPriority::Type> Priority = EAIRequestPriority::HardScript);
+	static bool PerformAction(APawn& Pawn, UDEPRECATED_PawnAction& Action, TEnumAsByte<EAIRequestPriority::Type> Priority = EAIRequestPriority::HardScript);
 
 	//----------------------------------------------------------------------//
 	// 
@@ -124,29 +124,29 @@ public:
 	FORCEINLINE APawn* GetControlledPawn() { return ControlledPawn; }
 	FORCEINLINE const APawn* GetControlledPawn() const { return ControlledPawn; }
 	FORCEINLINE AController* GetController() { return ControlledPawn ? ControlledPawn->GetController() : NULL; }
-	FORCEINLINE UDEPRECATED_UPawnAction* GetCurrentAction() { return CurrentAction_DEPRECATED; }
+	FORCEINLINE UDEPRECATED_PawnAction* GetCurrentAction() { return CurrentAction_DEPRECATED; }
 
-	bool OnEvent(UDEPRECATED_UPawnAction& Action, EPawnActionEventType::Type Event);
+	bool OnEvent(UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type Event);
 
 	UFUNCTION(BlueprintCallable, Category = PawnAction, meta = (DisplayName = "PushAction_DEPRECATED", ScriptName = "PushAction", DeprecatedFunction, DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
-	bool K2_PushAction(UDEPRECATED_UPawnAction* NewAction, EAIRequestPriority::Type Priority, UObject* Instigator = NULL);
+	bool K2_PushAction(UDEPRECATED_PawnAction* NewAction, EAIRequestPriority::Type Priority, UObject* Instigator = NULL);
 
 	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
-	bool PushAction(UDEPRECATED_UPawnAction& NewAction, EAIRequestPriority::Type Priority, UObject* Instigator = NULL);	
+	bool PushAction(UDEPRECATED_PawnAction& NewAction, EAIRequestPriority::Type Priority, UObject* Instigator = NULL);	
 
 	/** Aborts given action instance */
 	UFUNCTION(BlueprintCallable, Category = PawnAction, meta = (DisplayName = "AbortAction_DEPRECATED", ScriptName = "AbortAction", DeprecatedFunction, DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
-	EPawnActionAbortState::Type K2_AbortAction(UDEPRECATED_UPawnAction* ActionToAbort);
+	EPawnActionAbortState::Type K2_AbortAction(UDEPRECATED_PawnAction* ActionToAbort);
 
 	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
-	EPawnActionAbortState::Type AbortAction(UDEPRECATED_UPawnAction& ActionToAbort);
+	EPawnActionAbortState::Type AbortAction(UDEPRECATED_PawnAction& ActionToAbort);
 
 	/** Aborts given action instance */
 	UFUNCTION(BlueprintCallable, Category = PawnAction, meta = (DisplayName = "ForceAbortAction_DEPRECATED", ScriptName = "ForceAbortAction", DeprecatedFunction, DeprecationMessage = "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead."))
-	EPawnActionAbortState::Type K2_ForceAbortAction(UDEPRECATED_UPawnAction* ActionToAbort);
+	EPawnActionAbortState::Type K2_ForceAbortAction(UDEPRECATED_PawnAction* ActionToAbort);
 
 	UE_DEPRECATED(5.2, "PawnActions have been deprecated and are no longer being supported. It will get removed in following UE5 releases. Use GameplayTasks or AITasks instead.")
-	EPawnActionAbortState::Type ForceAbortAction(UDEPRECATED_UPawnAction& ActionToAbort);
+	EPawnActionAbortState::Type ForceAbortAction(UDEPRECATED_PawnAction& ActionToAbort);
 
 	/** removes all actions instigated with Priority by Instigator
 	 *	@param Priority if equal to EAIRequestPriority::MAX then all priority queues will be searched. 
@@ -156,8 +156,8 @@ public:
 	
 	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
-	FORCEINLINE UDEPRECATED_UPawnAction* GetActiveAction(EAIRequestPriority::Type Priority) const { return ActionStacks[Priority].GetTop(); }
-	bool HasActiveActionOfType(EAIRequestPriority::Type Priority, TSubclassOf<UDEPRECATED_UPawnAction> PawnActionClass) const;
+	FORCEINLINE UDEPRECATED_PawnAction* GetActiveAction(EAIRequestPriority::Type Priority) const { return ActionStacks[Priority].GetTop(); }
+	bool HasActiveActionOfType(EAIRequestPriority::Type Priority, TSubclassOf<UDEPRECATED_PawnAction> PawnActionClass) const;
 
 #if ENABLE_VISUAL_LOG
 	void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
@@ -182,5 +182,5 @@ protected:
 
 private:
 	/** Removed all pending action events associated with PawnAction. Private to make sure it's called only in special cases */
-	void RemoveEventsForAction(UDEPRECATED_UPawnAction& PawnAction);
+	void RemoveEventsForAction(UDEPRECATED_PawnAction& PawnAction);
 };

@@ -11,7 +11,7 @@
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-UDEPRECATED_UPawnAction_Move::UDEPRECATED_UPawnAction_Move(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_PawnAction_Move::UDEPRECATED_PawnAction_Move(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, GoalLocation(FAISystem::InvalidLocation)
 	, AcceptableRadius(30.f)
@@ -28,7 +28,7 @@ UDEPRECATED_UPawnAction_Move::UDEPRECATED_UPawnAction_Move(const FObjectInitiali
 	bAlwaysNotifyOnFinished = true;
 }
 
-void UDEPRECATED_UPawnAction_Move::BeginDestroy()
+void UDEPRECATED_PawnAction_Move::BeginDestroy()
 {
 	ClearTimers();
 	ClearPath();
@@ -36,14 +36,14 @@ void UDEPRECATED_UPawnAction_Move::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-UDEPRECATED_UPawnAction_Move* UDEPRECATED_UPawnAction_Move::CreateAction(UWorld& World, AActor* GoalActor, EPawnActionMoveMode::Type Mode)
+UDEPRECATED_PawnAction_Move* UDEPRECATED_PawnAction_Move::CreateAction(UWorld& World, AActor* GoalActor, EPawnActionMoveMode::Type Mode)
 {
 	if (GoalActor == NULL)
 	{
 		return NULL;
 	}
 
-	UDEPRECATED_UPawnAction_Move* Action = UDEPRECATED_UPawnAction::CreateActionInstance<UDEPRECATED_UPawnAction_Move>(World);
+	UDEPRECATED_PawnAction_Move* Action = UDEPRECATED_PawnAction::CreateActionInstance<UDEPRECATED_PawnAction_Move>(World);
 	if (Action)
 	{
 		Action->GoalActor = GoalActor;
@@ -53,14 +53,14 @@ UDEPRECATED_UPawnAction_Move* UDEPRECATED_UPawnAction_Move::CreateAction(UWorld&
 	return Action;
 }
 
-UDEPRECATED_UPawnAction_Move* UDEPRECATED_UPawnAction_Move::CreateAction(UWorld& World, const FVector& GoalLocation, EPawnActionMoveMode::Type Mode)
+UDEPRECATED_PawnAction_Move* UDEPRECATED_PawnAction_Move::CreateAction(UWorld& World, const FVector& GoalLocation, EPawnActionMoveMode::Type Mode)
 {
 	if (FAISystem::IsValidLocation(GoalLocation) == false)
 	{
 		return NULL;
 	}
 
-	UDEPRECATED_UPawnAction_Move* Action = UDEPRECATED_UPawnAction::CreateActionInstance<UDEPRECATED_UPawnAction_Move>(World);
+	UDEPRECATED_PawnAction_Move* Action = UDEPRECATED_PawnAction::CreateActionInstance<UDEPRECATED_PawnAction_Move>(World);
 	if (Action)
 	{
 		Action->GoalLocation = GoalLocation;
@@ -70,7 +70,7 @@ UDEPRECATED_UPawnAction_Move* UDEPRECATED_UPawnAction_Move::CreateAction(UWorld&
 	return Action;
 }
 
-bool UDEPRECATED_UPawnAction_Move::Start()
+bool UDEPRECATED_PawnAction_Move::Start()
 {
 	bool bResult = Super::Start();
 	if (bResult)
@@ -81,7 +81,7 @@ bool UDEPRECATED_UPawnAction_Move::Start()
 	return bResult;
 }
 
-EPathFollowingRequestResult::Type UDEPRECATED_UPawnAction_Move::RequestMove(AAIController& Controller)
+EPathFollowingRequestResult::Type UDEPRECATED_PawnAction_Move::RequestMove(AAIController& Controller)
 {
 	EPathFollowingRequestResult::Type RequestResult = EPathFollowingRequestResult::Failed;
 	
@@ -117,13 +117,13 @@ EPathFollowingRequestResult::Type UDEPRECATED_UPawnAction_Move::RequestMove(AAIC
 	}
 	else
 	{
-		UE_VLOG(&Controller, LogPawnAction, Warning, TEXT("UDEPRECATED_UPawnAction_Move::Start: no valid move goal set"));
+		UE_VLOG(&Controller, LogPawnAction, Warning, TEXT("UDEPRECATED_PawnAction_Move::Start: no valid move goal set"));
 	}
 
 	return RequestResult;
 }
 
-bool UDEPRECATED_UPawnAction_Move::PerformMoveAction()
+bool UDEPRECATED_PawnAction_Move::PerformMoveAction()
 {
 	AAIController* MyController = Cast<AAIController>(GetController());
 	if (MyController == NULL)
@@ -134,7 +134,7 @@ bool UDEPRECATED_UPawnAction_Move::PerformMoveAction()
 	if (bUsePathfinding && MyController->ShouldPostponePathUpdates())
 	{
 		UE_VLOG(MyController, LogPawnAction, Log, TEXT("Can't path right now, waiting..."));
-		MyController->GetWorldTimerManager().SetTimer(TimerHandle_DeferredPerformMoveAction, this, &UDEPRECATED_UPawnAction_Move::DeferredPerformMoveAction, 0.1f);
+		MyController->GetWorldTimerManager().SetTimer(TimerHandle_DeferredPerformMoveAction, this, &UDEPRECATED_PawnAction_Move::DeferredPerformMoveAction, 0.1f);
 		return true;
 	}
 
@@ -161,7 +161,7 @@ bool UDEPRECATED_UPawnAction_Move::PerformMoveAction()
 	return bResult;
 }
 
-void UDEPRECATED_UPawnAction_Move::DeferredPerformMoveAction()
+void UDEPRECATED_PawnAction_Move::DeferredPerformMoveAction()
 {
 	const bool bResult = PerformMoveAction();
 	if (!bResult)
@@ -170,7 +170,7 @@ void UDEPRECATED_UPawnAction_Move::DeferredPerformMoveAction()
 	}
 }
 
-bool UDEPRECATED_UPawnAction_Move::Pause(const UDEPRECATED_UPawnAction* PausedBy)
+bool UDEPRECATED_PawnAction_Move::Pause(const UDEPRECATED_PawnAction* PausedBy)
 {
 	bool bResult = Super::Pause(PausedBy);
 	if (bResult)
@@ -184,7 +184,7 @@ bool UDEPRECATED_UPawnAction_Move::Pause(const UDEPRECATED_UPawnAction* PausedBy
 	return bResult;
 }
 
-bool UDEPRECATED_UPawnAction_Move::Resume()
+bool UDEPRECATED_PawnAction_Move::Resume()
 {
 	if (GoalActor != NULL && GoalActor->IsPendingKillPending())
 	{
@@ -215,7 +215,7 @@ bool UDEPRECATED_UPawnAction_Move::Resume()
 	return bResult;
 }
 
-EPawnActionAbortState::Type UDEPRECATED_UPawnAction_Move::PerformAbort(EAIForceParam::Type ShouldForce)
+EPawnActionAbortState::Type UDEPRECATED_PawnAction_Move::PerformAbort(EAIForceParam::Type ShouldForce)
 {
 	ClearTimers();
 	ClearPath();
@@ -230,7 +230,7 @@ EPawnActionAbortState::Type UDEPRECATED_UPawnAction_Move::PerformAbort(EAIForceP
 	return Super::PerformAbort(ShouldForce);
 }
 
-void UDEPRECATED_UPawnAction_Move::HandleAIMessage(UBrainComponent*, const FAIMessage& Message)
+void UDEPRECATED_PawnAction_Move::HandleAIMessage(UBrainComponent*, const FAIMessage& Message)
 {
 	if (Message.MessageName == UBrainComponent::AIMessage_MoveFinished && Message.HasFlag(FPathFollowingResultFlags::NewRequest))
 	{
@@ -244,7 +244,7 @@ void UDEPRECATED_UPawnAction_Move::HandleAIMessage(UBrainComponent*, const FAIMe
 	Finish(bFail ? EPawnActionResult::Failed : EPawnActionResult::Success);
 }
 
-void UDEPRECATED_UPawnAction_Move::OnFinished(EPawnActionResult::Type WithResult)
+void UDEPRECATED_PawnAction_Move::OnFinished(EPawnActionResult::Type WithResult)
 {
 	ClearTimers();
 	ClearPath();
@@ -252,7 +252,7 @@ void UDEPRECATED_UPawnAction_Move::OnFinished(EPawnActionResult::Type WithResult
 	Super::OnFinished(WithResult);
 }
 
-void UDEPRECATED_UPawnAction_Move::ClearPath()
+void UDEPRECATED_PawnAction_Move::ClearPath()
 {
 	ClearPendingRepath();
 	if (Path.IsValid())
@@ -262,20 +262,20 @@ void UDEPRECATED_UPawnAction_Move::ClearPath()
 	}
 }
 
-void UDEPRECATED_UPawnAction_Move::SetPath(FNavPathSharedRef InPath)
+void UDEPRECATED_PawnAction_Move::SetPath(FNavPathSharedRef InPath)
 {
 	if (InPath != Path)
 	{
 		ClearPath();
 		Path = InPath;
-		PathObserverDelegateHandle = Path->AddObserver(FNavigationPath::FPathObserverDelegate::FDelegate::CreateUObject(this, &UDEPRECATED_UPawnAction_Move::OnPathUpdated));
+		PathObserverDelegateHandle = Path->AddObserver(FNavigationPath::FPathObserverDelegate::FDelegate::CreateUObject(this, &UDEPRECATED_PawnAction_Move::OnPathUpdated));
 
 		// skip auto updates, it will be handled manually to include controller's ShouldPostponePathUpdates()
 		Path->EnableRecalculationOnInvalidation(false);
 	}
 }
 
-void UDEPRECATED_UPawnAction_Move::OnPathUpdated(FNavigationPath* UpdatedPath, ENavPathEvent::Type Event)
+void UDEPRECATED_PawnAction_Move::OnPathUpdated(FNavigationPath* UpdatedPath, ENavPathEvent::Type Event)
 {
 	const AController* MyOwner = GetController();
 	if (MyOwner == NULL)
@@ -323,7 +323,7 @@ void UDEPRECATED_UPawnAction_Move::OnPathUpdated(FNavigationPath* UpdatedPath, E
 	}
 }
 
-void UDEPRECATED_UPawnAction_Move::TryToRepath()
+void UDEPRECATED_PawnAction_Move::TryToRepath()
 {
 	if (Path.IsValid())
 	{
@@ -338,12 +338,12 @@ void UDEPRECATED_UPawnAction_Move::TryToRepath()
 		}
 		else if (GetWorld())
 		{
-			GetWorld()->GetTimerManager().SetTimer(TimerHandle_TryToRepath, this, &UDEPRECATED_UPawnAction_Move::TryToRepath, 0.25f);
+			GetWorld()->GetTimerManager().SetTimer(TimerHandle_TryToRepath, this, &UDEPRECATED_PawnAction_Move::TryToRepath, 0.25f);
 		}
 	}
 }
 
-void UDEPRECATED_UPawnAction_Move::ClearPendingRepath()
+void UDEPRECATED_PawnAction_Move::ClearPendingRepath()
 {
 	if (TimerHandle_TryToRepath.IsValid())
 	{
@@ -356,7 +356,7 @@ void UDEPRECATED_UPawnAction_Move::ClearPendingRepath()
 	}
 }
 
-void UDEPRECATED_UPawnAction_Move::ClearTimers()
+void UDEPRECATED_PawnAction_Move::ClearTimers()
 {
 	UWorld* World = GetWorld();
 	if (World)
@@ -369,7 +369,7 @@ void UDEPRECATED_UPawnAction_Move::ClearTimers()
 	}
 }
 
-bool UDEPRECATED_UPawnAction_Move::CheckAlreadyAtGoal(AAIController& Controller, const FVector& TestLocation, float Radius)
+bool UDEPRECATED_PawnAction_Move::CheckAlreadyAtGoal(AAIController& Controller, const FVector& TestLocation, float Radius)
 {
 	const bool bAlreadyAtGoal = Controller.GetPathFollowingComponent()->HasReached(TestLocation, EPathFollowingReachMode::OverlapAgentAndGoal, Radius);
 	if (bAlreadyAtGoal)
@@ -381,7 +381,7 @@ bool UDEPRECATED_UPawnAction_Move::CheckAlreadyAtGoal(AAIController& Controller,
 	return bAlreadyAtGoal;
 }
 
-bool UDEPRECATED_UPawnAction_Move::CheckAlreadyAtGoal(AAIController& Controller, const AActor& TestGoal, float Radius)
+bool UDEPRECATED_PawnAction_Move::CheckAlreadyAtGoal(AAIController& Controller, const AActor& TestGoal, float Radius)
 {
 	const bool bAlreadyAtGoal = Controller.GetPathFollowingComponent()->HasReached(TestGoal, EPathFollowingReachMode::OverlapAgentAndGoal, Radius);
 	if (bAlreadyAtGoal)
@@ -393,7 +393,7 @@ bool UDEPRECATED_UPawnAction_Move::CheckAlreadyAtGoal(AAIController& Controller,
 	return bAlreadyAtGoal;
 }
 
-bool UDEPRECATED_UPawnAction_Move::IsPartialPathAllowed() const
+bool UDEPRECATED_PawnAction_Move::IsPartialPathAllowed() const
 {
 	return bAllowPartialPath;
 }

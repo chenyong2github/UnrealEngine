@@ -14,7 +14,7 @@ UBTTask_PushPawnAction::UBTTask_PushPawnAction(const FObjectInitializer& ObjectI
 
 EBTNodeResult::Type UBTTask_PushPawnAction::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	UDEPRECATED_UPawnAction* ActionCopy = Action_DEPRECATED ? DuplicateObject<UDEPRECATED_UPawnAction>(Action_DEPRECATED, &OwnerComp) : nullptr;
+	UDEPRECATED_PawnAction* ActionCopy = Action_DEPRECATED ? DuplicateObject<UDEPRECATED_PawnAction>(Action_DEPRECATED, &OwnerComp) : nullptr;
 	if (ActionCopy == nullptr)
 	{
 		return EBTNodeResult::Failed;

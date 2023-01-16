@@ -24,7 +24,7 @@ namespace
 	}
 }
 
-UDEPRECATED_UPawnAction::UDEPRECATED_UPawnAction(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_PawnAction::UDEPRECATED_PawnAction(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, RequiredResources(FAIResourcesSet::AllResources)
 	, AbortState(EPawnActionAbortState::NeverStarted)
@@ -36,16 +36,16 @@ UDEPRECATED_UPawnAction::UDEPRECATED_UPawnAction(const FObjectInitializer& Objec
 	IndexOnStack = INDEX_NONE;
 }
 
-UWorld* UDEPRECATED_UPawnAction::GetWorld() const
+UWorld* UDEPRECATED_PawnAction::GetWorld() const
 {
 	return OwnerComponent_DEPRECATED ? OwnerComponent_DEPRECATED->GetWorld() : Cast<UWorld>(GetOuter());
 }
 
-void UDEPRECATED_UPawnAction::Tick(float DeltaTime)
+void UDEPRECATED_PawnAction::Tick(float DeltaTime)
 {
 }
 
-EPawnActionAbortState::Type UDEPRECATED_UPawnAction::Abort(EAIForceParam::Type ShouldForce)
+EPawnActionAbortState::Type UDEPRECATED_PawnAction::Abort(EAIForceParam::Type ShouldForce)
 {
 	// if already aborting, and this request is not Forced, just skip it
 	if (AbortState != EPawnActionAbortState::NotBeingAborted && ShouldForce != EAIForceParam::Force)
@@ -122,17 +122,17 @@ EPawnActionAbortState::Type UDEPRECATED_UPawnAction::Abort(EAIForceParam::Type S
 	return Result;
 }
 
-APawn* UDEPRECATED_UPawnAction::GetPawn() const
+APawn* UDEPRECATED_PawnAction::GetPawn() const
 {
 	return OwnerComponent_DEPRECATED ? OwnerComponent_DEPRECATED->GetControlledPawn() : NULL;
 }
 
-AController* UDEPRECATED_UPawnAction::GetController() const
+AController* UDEPRECATED_PawnAction::GetController() const
 {
 	return OwnerComponent_DEPRECATED ? OwnerComponent_DEPRECATED->GetController() : NULL;
 }
 
-void UDEPRECATED_UPawnAction::SetAbortState(EPawnActionAbortState::Type NewAbortState)
+void UDEPRECATED_PawnAction::SetAbortState(EPawnActionAbortState::Type NewAbortState)
 {
 	// allowing only progression
 	if (NewAbortState <= AbortState)
@@ -147,7 +147,7 @@ void UDEPRECATED_UPawnAction::SetAbortState(EPawnActionAbortState::Type NewAbort
 	}
 }
 
-void UDEPRECATED_UPawnAction::SendEvent(EPawnActionEventType::Type Event)
+void UDEPRECATED_PawnAction::SendEvent(EPawnActionEventType::Type Event)
 {
 	if (IsValid(OwnerComponent_DEPRECATED))
 	{
@@ -158,17 +158,17 @@ void UDEPRECATED_UPawnAction::SendEvent(EPawnActionEventType::Type Event)
 	ActionObserver.ExecuteIfBound(*this, Event);
 }
 
-void UDEPRECATED_UPawnAction::StopWaitingForMessages()
+void UDEPRECATED_PawnAction::StopWaitingForMessages()
 {
 	MessageHandlers.Reset();
 }
 
-void UDEPRECATED_UPawnAction::SetFinishResult(EPawnActionResult::Type Result)
+void UDEPRECATED_PawnAction::SetFinishResult(EPawnActionResult::Type Result)
 {
 	// once return value had been set it's no longer possible to back to InProgress
 	if (Result <= EPawnActionResult::InProgress)
 	{
-		UE_VLOG(GetPawn(), LogPawnAction, Warning, TEXT("%s> UDEPRECATED_UPawnAction::SetFinishResult setting FinishResult as EPawnActionResult::InProgress or EPawnActionResult::NotStarted - should not be happening"), *GetName());
+		UE_VLOG(GetPawn(), LogPawnAction, Warning, TEXT("%s> UDEPRECATED_PawnAction::SetFinishResult setting FinishResult as EPawnActionResult::InProgress or EPawnActionResult::NotStarted - should not be happening"), *GetName());
 		return;
 	}
 
@@ -178,11 +178,11 @@ void UDEPRECATED_UPawnAction::SetFinishResult(EPawnActionResult::Type Result)
 	}
 }
 
-void UDEPRECATED_UPawnAction::SetOwnerComponent(UDEPRECATED_UPawnActionsComponent* Component)
+void UDEPRECATED_PawnAction::SetOwnerComponent(UDEPRECATED_PawnActionsComponent* Component)
 {
 	if (OwnerComponent_DEPRECATED != NULL && OwnerComponent_DEPRECATED != Component)
 	{
-		UE_VLOG(GetPawn(), LogPawnAction, Warning, TEXT("%s> UDEPRECATED_UPawnAction::SetOwnerComponent called to change already set valid owner component"), *GetName());
+		UE_VLOG(GetPawn(), LogPawnAction, Warning, TEXT("%s> UDEPRECATED_PawnAction::SetOwnerComponent called to change already set valid owner component"), *GetName());
 	}
 
 	OwnerComponent_DEPRECATED = Component;
@@ -196,7 +196,7 @@ void UDEPRECATED_UPawnAction::SetOwnerComponent(UDEPRECATED_UPawnActionsComponen
 	}
 }
 
-void UDEPRECATED_UPawnAction::SetInstigator(UObject* const InInstigator)
+void UDEPRECATED_PawnAction::SetInstigator(UObject* const InInstigator)
 { 
 	if (Instigator && Instigator != InInstigator)
 	{
@@ -206,7 +206,7 @@ void UDEPRECATED_UPawnAction::SetInstigator(UObject* const InInstigator)
 	Instigator = InInstigator; 
 }
 
-void UDEPRECATED_UPawnAction::Finish(TEnumAsByte<EPawnActionResult::Type> WithResult)
+void UDEPRECATED_PawnAction::Finish(TEnumAsByte<EPawnActionResult::Type> WithResult)
 {
 	UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("%s> finishing with result %s")
 		, *GetName(), *GetActionResultName(WithResult));
@@ -218,7 +218,7 @@ void UDEPRECATED_UPawnAction::Finish(TEnumAsByte<EPawnActionResult::Type> WithRe
 	SendEvent(EPawnActionEventType::FinishedExecution);
 }
 
-bool UDEPRECATED_UPawnAction::Activate()
+bool UDEPRECATED_PawnAction::Activate()
 {
 	bool bResult = false; 
 
@@ -256,7 +256,7 @@ bool UDEPRECATED_UPawnAction::Activate()
 	return bResult;
 }
 
-void UDEPRECATED_UPawnAction::OnPopped()
+void UDEPRECATED_PawnAction::OnPopped()
 {
 	// not calling OnFinish if action haven't actually started
 	if (!bFailedToStart || bAlwaysNotifyOnFinished)
@@ -265,7 +265,7 @@ void UDEPRECATED_UPawnAction::OnPopped()
 	}
 }
 
-bool UDEPRECATED_UPawnAction::Start()
+bool UDEPRECATED_PawnAction::Start()
 {
 	AbortState = EPawnActionAbortState::NotBeingAborted;
 	FinishResult = EPawnActionResult::InProgress;
@@ -274,7 +274,7 @@ bool UDEPRECATED_UPawnAction::Start()
 }
 
 
-bool UDEPRECATED_UPawnAction::Pause(const UDEPRECATED_UPawnAction* PausedBy)
+bool UDEPRECATED_PawnAction::Pause(const UDEPRECATED_PawnAction* PausedBy)
 {
 	// parent should be paused anyway
 	ensure(ParentAction_DEPRECATED == NULL || ParentAction_DEPRECATED->IsPaused() == true);
@@ -300,7 +300,7 @@ bool UDEPRECATED_UPawnAction::Pause(const UDEPRECATED_UPawnAction* PausedBy)
 	return bPaused;
 }
 
-bool UDEPRECATED_UPawnAction::Resume()
+bool UDEPRECATED_PawnAction::Resume()
 {
 	// parent should be paused anyway
 	ensure(ParentAction_DEPRECATED == NULL || ParentAction_DEPRECATED->IsPaused() == true);
@@ -327,11 +327,11 @@ bool UDEPRECATED_UPawnAction::Resume()
 	return !bPaused;
 }
 
-void UDEPRECATED_UPawnAction::OnFinished(EPawnActionResult::Type WithResult)
+void UDEPRECATED_PawnAction::OnFinished(EPawnActionResult::Type WithResult)
 {
 }
 
-void UDEPRECATED_UPawnAction::OnChildFinished(UDEPRECATED_UPawnAction& Action, EPawnActionResult::Type WithResult)
+void UDEPRECATED_PawnAction::OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult)
 {
 	UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("%s> Child \'%s\' finished with result %s")
 		, *GetName(), *Action.GetName(), *GetActionResultName(WithResult));
@@ -342,10 +342,10 @@ void UDEPRECATED_UPawnAction::OnChildFinished(UDEPRECATED_UPawnAction& Action, E
 	ChildAction_DEPRECATED = NULL;
 }
 
-void UDEPRECATED_UPawnAction::OnPushed()
+void UDEPRECATED_PawnAction::OnPushed()
 {
 	IndexOnStack = 0;
-	UDEPRECATED_UPawnAction* PrevAction = ParentAction_DEPRECATED;
+	UDEPRECATED_PawnAction* PrevAction = ParentAction_DEPRECATED;
 	while (PrevAction)
 	{
 		++IndexOnStack;
@@ -356,7 +356,7 @@ void UDEPRECATED_UPawnAction::OnPushed()
 		, *GetName(), *GetPriorityName(), IndexOnStack, *GetNameSafe(Instigator));
 }
 
-bool UDEPRECATED_UPawnAction::PushChildAction(UDEPRECATED_UPawnAction& Action)
+bool UDEPRECATED_PawnAction::PushChildAction(UDEPRECATED_PawnAction& Action)
 {
 	bool bResult = false;
 	
@@ -382,21 +382,21 @@ bool UDEPRECATED_UPawnAction::PushChildAction(UDEPRECATED_UPawnAction& Action)
 // messaging
 //----------------------------------------------------------------------//
 
-void UDEPRECATED_UPawnAction::WaitForMessage(FName MessageType, FAIRequestID InRequestID)
+void UDEPRECATED_PawnAction::WaitForMessage(FName MessageType, FAIRequestID InRequestID)
 {
-	MessageHandlers.Add(FAIMessageObserver::Create(BrainComp, MessageType, InRequestID.GetID(), FOnAIMessage::CreateUObject(this, &UDEPRECATED_UPawnAction::HandleAIMessage)));
+	MessageHandlers.Add(FAIMessageObserver::Create(BrainComp, MessageType, InRequestID.GetID(), FOnAIMessage::CreateUObject(this, &UDEPRECATED_PawnAction::HandleAIMessage)));
 }
 
 //----------------------------------------------------------------------//
 // blueprint interface
 //----------------------------------------------------------------------//
 
-UDEPRECATED_UPawnAction* UDEPRECATED_UPawnAction::CreateActionInstance(UObject* WorldContextObject, TSubclassOf<UDEPRECATED_UPawnAction> ActionClass)
+UDEPRECATED_PawnAction* UDEPRECATED_PawnAction::CreateActionInstance(UObject* WorldContextObject, TSubclassOf<UDEPRECATED_PawnAction> ActionClass)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (World && ActionClass)
 	{
-		return NewObject<UDEPRECATED_UPawnAction>(World, ActionClass);
+		return NewObject<UDEPRECATED_PawnAction>(World, ActionClass);
 	}
 	return NULL;
 }
@@ -405,7 +405,7 @@ UDEPRECATED_UPawnAction* UDEPRECATED_UPawnAction::CreateActionInstance(UObject* 
 // debug
 //----------------------------------------------------------------------//
 
-FString UDEPRECATED_UPawnAction::GetStateDescription() const
+FString UDEPRECATED_PawnAction::GetStateDescription() const
 {
 	static const UEnum* AbortStateEnum = StaticEnum<EPawnActionAbortState::Type>(); 
 		
@@ -416,14 +416,14 @@ FString UDEPRECATED_UPawnAction::GetStateDescription() const
 	return IsPaused() ? TEXT("Paused") : TEXT("Active");
 }
 
-FString UDEPRECATED_UPawnAction::GetPriorityName() const
+FString UDEPRECATED_PawnAction::GetPriorityName() const
 {
 	static const UEnum* Enum = StaticEnum<EAIRequestPriority::Type>();
 	check(Enum);
 	return Enum->GetNameStringByValue(GetPriority());
 }
 
-FString UDEPRECATED_UPawnAction::GetDisplayName() const
+FString UDEPRECATED_PawnAction::GetDisplayName() const
 {
 	return GetClass()->GetName();
 }

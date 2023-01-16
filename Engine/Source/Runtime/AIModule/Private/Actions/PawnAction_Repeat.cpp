@@ -9,21 +9,21 @@
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-UDEPRECATED_UPawnAction_Repeat::UDEPRECATED_UPawnAction_Repeat(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_PawnAction_Repeat::UDEPRECATED_PawnAction_Repeat(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, SubActionTriggeringPolicy(EPawnSubActionTriggeringPolicy::CopyBeforeTriggering)
 {
 	ChildFailureHandlingMode = EPawnActionFailHandling::IgnoreFailure;
 }
 
-UDEPRECATED_UPawnAction_Repeat* UDEPRECATED_UPawnAction_Repeat::CreateAction(UWorld& World, UDEPRECATED_UPawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy)
+UDEPRECATED_PawnAction_Repeat* UDEPRECATED_PawnAction_Repeat::CreateAction(UWorld& World, UDEPRECATED_PawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy)
 {
-	if (ActionToRepeat == NULL || !(NumberOfRepeats > 0 || NumberOfRepeats == UDEPRECATED_UPawnAction_Repeat::LoopForever))
+	if (ActionToRepeat == NULL || !(NumberOfRepeats > 0 || NumberOfRepeats == UDEPRECATED_PawnAction_Repeat::LoopForever))
 	{
 		return NULL;
 	}
 
-	UDEPRECATED_UPawnAction_Repeat* Action = UDEPRECATED_UPawnAction::CreateActionInstance<UDEPRECATED_UPawnAction_Repeat>(World);
+	UDEPRECATED_PawnAction_Repeat* Action = UDEPRECATED_PawnAction::CreateActionInstance<UDEPRECATED_PawnAction_Repeat>(World);
 	if (Action)
 	{
 		Action->ActionToRepeat_DEPRECATED = ActionToRepeat;
@@ -36,7 +36,7 @@ UDEPRECATED_UPawnAction_Repeat* UDEPRECATED_UPawnAction_Repeat::CreateAction(UWo
 	return Action;
 }
 
-bool UDEPRECATED_UPawnAction_Repeat::Start()
+bool UDEPRECATED_PawnAction_Repeat::Start()
 {
 	bool bResult = Super::Start();
 	
@@ -50,7 +50,7 @@ bool UDEPRECATED_UPawnAction_Repeat::Start()
 	return bResult;
 }
 
-bool UDEPRECATED_UPawnAction_Repeat::Resume()
+bool UDEPRECATED_PawnAction_Repeat::Resume()
 {
 	bool bResult = Super::Resume();
 
@@ -62,7 +62,7 @@ bool UDEPRECATED_UPawnAction_Repeat::Resume()
 	return bResult;
 }
 
-void UDEPRECATED_UPawnAction_Repeat::OnChildFinished(UDEPRECATED_UPawnAction& Action, EPawnActionResult::Type WithResult)
+void UDEPRECATED_PawnAction_Repeat::OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult)
 {
 	if (RecentActionCopy_DEPRECATED == &Action)
 	{
@@ -79,7 +79,7 @@ void UDEPRECATED_UPawnAction_Repeat::OnChildFinished(UDEPRECATED_UPawnAction& Ac
 	Super::OnChildFinished(Action, WithResult);
 }
 
-bool UDEPRECATED_UPawnAction_Repeat::PushSubAction()
+bool UDEPRECATED_PawnAction_Repeat::PushSubAction()
 {
 	if (ActionToRepeat_DEPRECATED == NULL)
 	{
@@ -97,8 +97,8 @@ bool UDEPRECATED_UPawnAction_Repeat::PushSubAction()
 		--RepeatsLeft;
 	}
 
-	UDEPRECATED_UPawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering 
-		? Cast<UDEPRECATED_UPawnAction>(StaticDuplicateObject(ActionToRepeat_DEPRECATED, this))
+	UDEPRECATED_PawnAction* ActionCopy = SubActionTriggeringPolicy == EPawnSubActionTriggeringPolicy::CopyBeforeTriggering 
+		? Cast<UDEPRECATED_PawnAction>(StaticDuplicateObject(ActionToRepeat_DEPRECATED, this))
 		: ToRawPtr(ActionToRepeat_DEPRECATED);
 
 	UE_VLOG(GetPawn(), LogPawnAction, Log, TEXT("%s> pushing repeted action %s %s, repeats left: %d")
