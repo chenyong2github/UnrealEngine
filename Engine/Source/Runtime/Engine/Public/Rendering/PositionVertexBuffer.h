@@ -54,8 +54,9 @@ public:
 	 *
 	 * @param	Vertices	The vertex data to be appended.  Must not be nullptr.
 	 * @param	NumVerticesToAppend		How many vertices should be added
+	 * @return	true if append operation is successful
 	 */
-	ENGINE_API void AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend );
+	ENGINE_API bool AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend );
 
 	/**
 	* Serializer

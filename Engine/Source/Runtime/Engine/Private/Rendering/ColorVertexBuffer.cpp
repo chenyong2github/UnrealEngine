@@ -154,8 +154,14 @@ void FColorVertexBuffer::Init(const FColorVertexBuffer& InVertexBuffer, bool bNe
 	}
 }
 
-void FColorVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend )
+bool FColorVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend )
 {
+	const uint64 TotalNumVertices = (uint64)NumVertices + (uint64)NumVerticesToAppend;
+	if (!ensureMsgf(TotalNumVertices < INT32_MAX, TEXT("FColorVertexBuffer::AppendVertices adding %u to %u vertices exceeds INT32_MAX limit"), NumVerticesToAppend, NumVertices))
+	{
+		return false;
+	}
+
 	if (VertexData == nullptr && NumVerticesToAppend > 0)
 	{
 		check( NumVertices == 0 );
@@ -188,6 +194,8 @@ void FColorVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices,
 			}
 		}
 	}
+
+	return true;
 }
 
 /**

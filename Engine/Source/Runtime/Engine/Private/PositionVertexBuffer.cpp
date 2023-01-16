@@ -108,8 +108,14 @@ void FPositionVertexBuffer::Init(const TArray<FVector3f>& InPositions, bool bInN
 	}
 }
 
-void FPositionVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend )
+bool FPositionVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertices, const uint32 NumVerticesToAppend )
 {
+	const uint64 TotalNumVertices = (uint64)NumVertices + (uint64)NumVerticesToAppend;
+	if (!ensureMsgf(TotalNumVertices < INT32_MAX, TEXT("FPositionVertexBuffer::AppendVertices adding %u to %u vertices exceeds INT32_MAX limit"), NumVerticesToAppend, NumVertices))
+	{
+		return false;
+	}
+
 	if (VertexData == nullptr && NumVerticesToAppend > 0)
 	{
 		// Allocate the vertex data storage type if the buffer was never allocated before
@@ -138,6 +144,8 @@ void FPositionVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertic
 			}
 		}
 	}
+
+	return true;
 }
 
 /**
