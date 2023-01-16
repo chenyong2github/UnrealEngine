@@ -7,7 +7,6 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
-#include "EntitySystem/MovieSceneMasterInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneRootInstantiatorSystem.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "GameDelegates.h"
