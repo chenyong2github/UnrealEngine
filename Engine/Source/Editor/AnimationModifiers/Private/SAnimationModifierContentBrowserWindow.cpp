@@ -233,6 +233,8 @@ FReply SAnimationModifierContentBrowserWindow::OnApply()
 		AssetUserData.Add(UserData);
 	}
 
+	UE::Anim::FApplyModifiersScope Scope;
+
 	// For each added modifier create add a new instance to each of the user data entries, using the one(s) set up in the window as template(s)
 	for (UAnimationModifier* Modifier : Modifiers)
 	{

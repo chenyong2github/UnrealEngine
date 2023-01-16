@@ -148,32 +148,67 @@ namespace UE
 {
 	namespace Anim
 	{
-		struct FApplyModifiersScope
+		// RAII object to determine how Animation Modifier warning/errors are handled (ignore, user dialog, etc.)
+		struct ANIMATIONMODIFIERS_API FApplyModifiersScope
 		{
-			FApplyModifiersScope()
+			friend UAnimationModifier;
+
+			enum ESuppressionMode : uint8
 			{
-				if (ScopesOpened == 0)
-				{				
-					PerClassReturnTypeValues.Empty();
-				}
-				++ScopesOpened;
+				// Do not change the error handling mode on this scope
+				// Use the mode set by parent scope or default (ShowDialog)
+				NoChange,
+				// Suppress error dialogs
+				// Suppress warnings dialogs, always apply modifiers
+				// No user interaction required
+				SuppressWarningAndError,
+				// Show error dialogs
+				// Suppress warnings dialogs, always apply modifiers
+				SuppressWarning,
+				// Show warning and error dialogs for first encounter
+				// Error dialog for each modifier class will only be showed once
+				ShowDialog,
+				// Always show the error or warning dialog
+				// Default behavior when no scope was open
+				ForceDialog,
+				// Suppress error dialogs
+				// Suppress warnings dialogs, always revert modifiers
+				// No user interaction required
+				RevertAtWarning,
+			};
+
+			FApplyModifiersScope(const FApplyModifiersScope&) = delete;
+			explicit FApplyModifiersScope(ESuppressionMode Mode = NoChange)
+			{
+				Open(Mode);
 			}
 
 			~FApplyModifiersScope()
 			{
-				--ScopesOpened;
-				check(ScopesOpened >= 0);
-				if(ScopesOpened == 0)
-				{
-					PerClassReturnTypeValues.Empty();
-				}
+				Close();
 			}
 
-			static TOptional<EAppReturnType::Type> GetReturnType(const UAnimationModifier* InModifier);			
-			static void SetReturnType(const class UAnimationModifier* InModifier, EAppReturnType::Type InReturnType);
+protected:
+			/** Determine how to handle an Animation Modifier error, and execute accordingly */
+			static void HandleError(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle = nullptr);
 
-			static TMap<FObjectKey, TOptional<EAppReturnType::Type>> PerClassReturnTypeValues;
-			static int32 ScopesOpened;
+			/** Determine how to handle an Animation Modifier warning, and execute accordingly. Returns whether or not the warning was handled (true) or warrants reverting the applied Animation Modifier (false) */
+			static bool HandleWarning(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle = nullptr);
+
+private:
+			// Open a scope to control error handling when batch applying animation modifiers
+			static ESuppressionMode Open(ESuppressionMode Mode = NoChange);
+			// Close the most recent scope
+			static void Close();
+
+			static ESuppressionMode CurrentMode();
+
+			/** Errors already acknowledged */
+			static TSet<FObjectKey> ErrorResponse;
+			/** Warnings already ignored or treated as error */
+			static TMap<FObjectKey, EAppReturnType::Type> WarningResponse;
+			/** Error handle mode stack for scopes */
+			static TArray<ESuppressionMode, TInlineAllocator<4>> ScopeModeStack;
 		};
 	}
 }
