@@ -138,6 +138,8 @@ void UAnimGraphNode_RotationOffsetBlendSpace::ValidateAnimNodeDuringCompilation(
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
+	ValidateAnimNodeDuringCompilationHelper(ForSkeleton, MessageLog, Node.GetBlendSpace(), UBlendSpace::StaticClass(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, BlendSpace)), GET_MEMBER_NAME_CHECKED(FAnimNode_RotationOffsetBlendSpace, BlendSpace));
+
 	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
@@ -145,25 +147,12 @@ void UAnimGraphNode_RotationOffsetBlendSpace::ValidateAnimNodeDuringCompilation(
 		BlendSpaceToCheck = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
 	}
 
-	if (BlendSpaceToCheck == NULL)
+	if (BlendSpaceToCheck)
 	{
-		// we may have a connected node
-		if (BlendSpacePin == nullptr || BlendSpacePin->LinkedTo.Num() == 0)
+		if (Cast<UAimOffsetBlendSpace>(BlendSpaceToCheck) == NULL &&
+			Cast<UAimOffsetBlendSpace1D>(BlendSpaceToCheck) == NULL)
 		{
-			MessageLog.Error(TEXT("@@ references an unknown blend space"), this);
-		}
-	}
-	else if (Cast<UAimOffsetBlendSpace>(BlendSpaceToCheck) == NULL &&
-			 Cast<UAimOffsetBlendSpace1D>(BlendSpaceToCheck) == NULL)
-	{
-		MessageLog.Error(TEXT("@@ references an invalid blend space (one that is not an aim offset)"), this);
-	}
-	else if (ForSkeleton)
-	{
-		USkeleton* BlendSpaceSkeleton = BlendSpaceToCheck->GetSkeleton();
-		if (BlendSpaceSkeleton == nullptr)
-		{
-			MessageLog.Error(TEXT("@@ references blendspace that uses a missing skeleton @@"), this, BlendSpaceSkeleton);
+			MessageLog.Error(TEXT("@@ references an invalid blend space (one that is not an aim offset)"), this);
 		}
 	}
 
