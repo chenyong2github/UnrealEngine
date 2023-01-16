@@ -220,8 +220,9 @@ namespace Test
 	template<typename T> bool CompareTensorData(
 		const UE::NNECore::Internal::FTensor& RefTensorDesc,   const TArray<char>& RefRawBuffer,
 		const UE::NNECore::Internal::FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
-		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
+		float AbsoluteTolerance, float RelativeTolerance)
 	{
+
 		const T* RefBuffer = (T*)RefRawBuffer.GetData();
 		const T* OtherBuffer = (T*)OtherRawBuffer.GetData();
 		
@@ -279,37 +280,47 @@ namespace Test
 			{
 				continue;
 			}
-
 			const float AbsoluteError = FMath::Abs<float>(Result - Reference);
-			const float RelativeError = 100.0f * (AbsoluteError / FMath::Abs<float>(Reference));
-			if (AbsoluteError > AbsoluteErrorEpsilon || RelativeError > RelativeErrorPercent)
+			const float AbsoluteRef = FMath::Abs<float>(Reference);
+			const float AbsoluteThreshold = AbsoluteTolerance + RelativeTolerance * AbsoluteRef;
+			/* from https://numpy.org/doc/stable/reference/generated/numpy.isclose.html */
+			if(AbsoluteError > AbsoluteThreshold)
 			{
 				bTensorMemMatch = false;
-				if (AbsoluteError > WorstAbsoluteError)
+				// Depending on dominating term, contribute to different statistics
+				if(AbsoluteError > RelativeTolerance * AbsoluteRef)
+				{
+					WorstRelativeError = AbsoluteError / AbsoluteRef;
+					WorstRelativeErrorIndex = i;
+					WorstRelativeErrorRef = Reference;
+					WorstRelativeErrorOther = Result;
+				}
+				else
 				{
 					WorstAbsoluteError = AbsoluteError;
 					WorstAbsoluteErrorIndex = i;
 					WorstAbsoluteErrorRef = Reference;
 					WorstAbsoluteErrorOther = Result;
 				}
-				if (RelativeError > WorstRelativeError)
-				{
-					WorstRelativeError = RelativeError;
-					WorstRelativeErrorIndex = i;
-					WorstRelativeErrorRef = Reference;
-					WorstRelativeErrorOther = Result;
-				}
 			}
 		}
 
 		if (!bTensorMemMatch)
 		{
+			FString AbsoluteErrorMessage = WorstAbsoluteErrorIndex == -1 ? FString() : FString::Printf(
+				TEXT("LogNNX: Worst absolute tolerance violation %.3e (tol %.3e) at position %d, got %.3e expected %.3e\n"),
+				WorstAbsoluteError, AbsoluteTolerance, WorstAbsoluteErrorIndex, WorstAbsoluteErrorOther, WorstAbsoluteErrorRef
+			);
+			FString RelativeErrorMessage = WorstRelativeErrorIndex == -1 ? FString() : FString::Printf(
+				TEXT("LogNNX: Worst relative tolerance violation %.3e (tol %.3e) at position %d, got %.3e expected %.3e\n"), 
+				WorstRelativeError, RelativeTolerance, WorstRelativeErrorIndex, WorstRelativeErrorOther, WorstRelativeErrorRef
+			); 
 			UE_LOG(LogNNX, Error, TEXT("Tensor data do not match.\n"
-				"LogNNX: Worst absolute error %f (epsilon %f) at position %d, got %f expected %f\n"
-				"LogNNX: Worst relative error % f % %(epsilon % f%%) at position % d, got % f expected % f\n"
+				"%s"
+				"%s"
 				"LogNNX: Num unexpected NaNs %d (First at index %d), Num missing NaNs %d (first at index %d)"),
-				WorstAbsoluteError, AbsoluteErrorEpsilon, WorstAbsoluteErrorIndex, WorstAbsoluteErrorOther, WorstAbsoluteErrorRef,
-				WorstRelativeError, RelativeErrorPercent, WorstRelativeErrorIndex, WorstRelativeErrorOther, WorstRelativeErrorRef,
+				*AbsoluteErrorMessage,
+				*RelativeErrorMessage,
 				NumExtraNaNsInResults, FirstExtraNaNIndex, NumMissingNaNsInResults, FirstMissingNaNIndex);
 			UE_LOG(LogNNX, Error, TEXT("   Expected : %s"), *TensorToString(RefTensorDesc, RefRawBuffer));
 			UE_LOG(LogNNX, Error, TEXT("   But got  : %s"), *TensorToString(OtherTensorDesc, OtherRawBuffer));
@@ -322,7 +333,7 @@ namespace Test
 	bool VerifyTensorResult(
 		const UE::NNECore::Internal::FTensor& RefTensor, const TArray<char>& RefRawBuffer,
 		const UE::NNECore::Internal::FTensor& OtherTensor, const TArray<char>& OtherRawBuffer,
-		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
+		float AbsoluteTolerance, float RelativeTolerance)
 	{
 		if (RefTensor.GetShape() != OtherTensor.GetShape())
 		{
@@ -334,20 +345,20 @@ namespace Test
 
 		if (RefTensor.GetDataType() == ENNETensorDataType::Float)
 		{
-			return CompareTensorData<float>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
+			return CompareTensorData<float>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
 		}
 		else if (RefTensor.GetDataType() == ENNETensorDataType::Boolean)
 		{
 			check(RefTensor.GetElemByteSize() == 1);
-			return CompareTensorData<bool>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
+			return CompareTensorData<bool>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
 		}
 		else if (RefTensor.GetDataType() == ENNETensorDataType::Int32)
 		{
-			return CompareTensorData<int32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
+			return CompareTensorData<int32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
 		}
 		else if (RefTensor.GetDataType() == ENNETensorDataType::UInt32)
 		{
-			return CompareTensorData<uint32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
+			return CompareTensorData<uint32>(RefTensor, RefRawBuffer, OtherTensor, OtherRawBuffer, AbsoluteTolerance, RelativeTolerance);
 		}
 		else
 		{
@@ -452,8 +463,8 @@ namespace Test
 		TArray<UE::NNECore::Internal::FTensor> OutputTensors;
 
 		const FString& RuntimeName = Runtime->GetRuntimeName();
-		const float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
-		const float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);
+		const float AbsoluteTolerance = TestSetup.GetAbsoluteToleranceForRuntime(RuntimeName);
+		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RuntimeName);
 		bool bTestSuceeded = true;
 	
 		if (!RunTestInference(ONNXModel, TestSetup, Runtime, OutputTensors, OutputMemBuffers))
@@ -469,7 +480,7 @@ namespace Test
 				bTestSuceeded &= VerifyTensorResult(
 					RefOutputTensors[i], RefOutputMemBuffers[i],
 					OutputTensors[i], OutputMemBuffers[i],
-					AbsoluteErrorEpsilon, RelativeErrorPercent);
+					AbsoluteTolerance, RelativeTolerance);
 			}
 		}
 		else
@@ -498,8 +509,8 @@ namespace Test
 			return false;
 		}
 		const FString& RefName = RefRuntime->GetRuntimeName();
-		const float AbsoluteRefErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RefName);
-		const float RelativeRefErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RefName);
+		const float AbsoluteTolerance = TestSetup.GetAbsoluteToleranceForRuntime(RefName);
+		const float RelativeTolerance = TestSetup.GetRelativeToleranceForRuntime(RefName);
 		TArray<TArray<char>> RefOutputMemBuffers;
 		TArray<UE::NNECore::Internal::FTensor> RefOutputTensors;
 		bool bAllTestsSucceeded = true;
@@ -518,7 +529,7 @@ namespace Test
 				bAllTestsSucceeded &= VerifyTensorResult(
 					TestSetup.Outputs[i], TestSetup.OutputsData[i],
 					RefOutputTensors[i], RefOutputMemBuffers[i],
-					AbsoluteRefErrorEpsilon, RelativeRefErrorPercent);
+					AbsoluteTolerance, RelativeTolerance);
 			}
 		}
 		if (!bAllTestsSucceeded)

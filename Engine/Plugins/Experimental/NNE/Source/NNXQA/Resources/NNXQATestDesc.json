@@ -9,22 +9,22 @@
 					"target": "resnet50-v2-7",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "relative_error": 1.0 },
+						{ "name": "NNXRuntimeORTDml" },
 						{ "name": "NNXRuntimeHlsl",  "skip": true, "comment": "Missing BatchNormalisation operator." },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
-					]
+					],
+					"absolute_tolerance": 1e-5
 				},
 				{
 					"target": "Mosaic-9",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error": 5e-2, "relative_error": 50.0,
-							"comment": "Worst relative error 43.367836 % (epsilon 0.001000 %) at position 112558, got -0.003391 expected -0.002365. TODO we need an automatic balance between relative error and absolute error"
-						},
-						{ "name": "NNXRuntimeORTCpu", "absolute_error": 1e-3, "relative_error": 3.0 },
-						{ "name": "NNXRuntimeHlsl", "absolute_error": 0.03, "relative_error": 55.0, "comment": "TODO check, errors are very high." },
+						{ "name": "NNXRuntimeORTDml" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeHlsl" },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
-					]
+					],
+					"absolute_tolerance": 5.0e-2
 				}
 			]
 		},
@@ -36,10 +36,11 @@
 					"target": "NeuralMorphModel_global",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "relative_error": 0.025 },
-						{ "name": "NNXRuntimeHlsl", "relative_error": 0.025 },
-						{ "name": "NNXRuntimeDml", "relative_error": 0.025 }
-					]
+						{ "name": "NNXRuntimeORTDml" },
+						{ "name": "NNXRuntimeHlsl" },
+						{ "name": "NNXRuntimeDml" }
+					],
+					"absolute_tolerance": 1e-5
 				},
 				{
 					"target": "NeuralMorphModel_global_Dax",
@@ -54,7 +55,7 @@
 					"target": "NeuralMorphModel_Local",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "relative_error": 0.04 },
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance": 1e-6 },
 						{ "name": "NNXRuntimeHlsl",  "skip": true, "comment": "Missing Reshape operator." },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
@@ -62,8 +63,8 @@
 				{
 					"target": "VertexDeltaModel",
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error": 1e-4, "relative_error": 10.0, "comment": "TODO check, relative error is very high."	},
-						{ "name": "NNXRuntimeHlsl", "absolute_error": 1e-4, "relative_error": 3.0 },
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance": 1e-4 },
+						{ "name": "NNXRuntimeHlsl", "absolute_tolerance": 1e-4 },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model not supported yet." }
 					]
 				}
@@ -124,25 +125,25 @@
 			"targets": [
 				{	"target": "Abs", "additional_datasets": [ "Elementwise.Slow.OneInput" ]},
 				{	"target": "Acos", "tags": [ "SmokeTest" ], "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  2e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  2e-4}
 					]},
 				{	"target": "Acosh" },
 				{	"target": "Asin", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 2.5},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 2.5},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  2e-4, "relative_error": 2.5}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  2e-4}
 					]},
 				{	"target": "Asinh", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  2e-4}
 					]},
 				{	"target": "Atan", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1.5e-3, "relative_error": 0.3}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  1.5e-3}
 					]},
 				{	"target": "Atanh" },
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
@@ -155,14 +156,14 @@
 				{	"target": "Cos" },
 				{	"target": "Cosh" },
 				{	"target": "Elu", "comment": "TODO test with not-default attribute", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Erf", "tags": [ "SmokeTest" ], "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  5e-4, "relative_error": 0.05, "comment": "NNXRuntimeHLSL Erf implementation is less precise than the DML one"}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  5e-4, "comment": "NNXRuntimeHLSL Erf implementation is less precise than the DML one"}
 					]},
 				{	"target": "Exp" },
 				{	"target": "Floor" },
@@ -172,10 +173,10 @@
 				{	"target": "HardSwish", "runtimes": [ { "name": "NNXRuntimeDml", "skip": true, "comment": "Not implemented atm on NNXRuntimeDML."} ]},
 				{	"target": "LeakyRelu", "additional_datasets": [ "Elementwise.LeakyRelu.AttributeTest" ] },
 				{	"target": "Log", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "relative_error": 0.15},
-						{ "name": "NNXRuntimeDml",    "relative_error": 0.15},
-						{ "name": "NNXRuntimeHlsl",   "relative_error": 0.15}
-					]},
+						{ "name": "NNXRuntimeORTDml"},
+						{ "name": "NNXRuntimeDml"},
+						{ "name": "NNXRuntimeHlsl"}
+					], "absolute_tolerance": 1e-6 },
 				{	"target": "Neg" },
 				{	"target": "Not", "input_type": "boolean", "output_type": "boolean", "runtimes": [
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
@@ -185,30 +186,30 @@
 				{	"target": "Relu", "tags": [ "SmokeTest" ] },
 				{	"target": "Round", "tags": [ "SmokeTest" ] },
 				{	"target": "Selu", "comment": "TODO test with not-default attribute", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Sigmoid", "tags": [ "SmokeTest" ] },
 				{	"target": "Sign" },
 				{	"target": "Sin", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Sinh" },
 				{	"target": "Softplus", "tags": [ "SmokeTest" ] },
 				{	"target": "Softsign", "tags": [ "SmokeTest" ] },
 				{	"target": "Sqrt", "tags": [ "SmokeTest" ] },
 				{	"target": "Tan", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Tanh", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeDml",    "absolute_tolerance":  1e-4},
+						{ "name": "NNXRuntimeHlsl",   "absolute_tolerance":  1e-4}
 					]}
 			]
 		},
@@ -251,7 +252,7 @@
 						"Elementwise.Binary.BidirectionalBroadcast", 
 						"Elementwise.Binary.LHSToRHSBroadcast" ], 
 					"comment": "Prelu does not support bidirectional broadcast. It only support slope(RHS) to input0(LHS)"},
-				{	"target": "Pow", "absolute_error": 1e-4},
+				{	"target": "Pow", "absolute_tolerance": 1e-4},
 				{	"target": "Sub"},
 				{	"target": "Xor", "input_type": "boolean", "output_type": "boolean", "runtimes": [
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
@@ -280,22 +281,22 @@
 			"category": "Convolution",
 			"runtimes": [
 				{ "name": "NNXRuntimeDml", "skip": true	},
-				{ "name": "NNXRuntimeORTDml", "relative_error": 3.5e-2 },
-				{ "name": "NNXRuntimeHlsl",   "relative_error": 3.5e-2 }
+				{ "name": "NNXRuntimeORTDml" },
+				{ "name": "NNXRuntimeHlsl" }
 			],
 			"targets": [
-				{ "target": "Conv" }
+				{ "target": "Conv", "absolute_tolerance": 1e-6 }
 			]
 		},
 		{
 			"category": "ConvTranspose",
 			"runtimes": [
 				{ "name": "NNXRuntimeDml", "skip": true	},
-				{ "name": "NNXRuntimeORTDml", "relative_error": 3.5e-2 },
-				{ "name": "NNXRuntimeHlsl",   "relative_error": 3.5e-2 }
+				{ "name": "NNXRuntimeORTDml" },
+				{ "name": "NNXRuntimeHlsl" }
 			],
 			"targets": [
-				{ "target": "ConvTranspose" }
+				{ "target": "ConvTranspose", "absolute_tolerance": 1e-6 }
 			]
 		},
 		{
@@ -320,7 +321,7 @@
 				{ "name": "NNXRuntimeDml", "skip": true }
 			],
 			"targets": [
-				{ "target": "InstanceNormalization" }
+				{ "target": "InstanceNormalization", "absolute_tolerance": 1e-5 }
 			]
 		},
 		{
@@ -586,7 +587,7 @@
 			"name": "MatMul.Rank5",
 			"runtimes": [	
 				{ "name": "NNXRuntimeORTDml", "skip": true, "comment": "DML metacommand only support 2 to 4 for inputs rank" },
-				{ "name": "NNXRuntimeHlsl", "relative_error": 0.01}
+				{ "name": "NNXRuntimeHlsl"}
 			],
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 2, 3, 5, 4 ] }, { "shape": [ 2, 1, 3, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 2, 3, 5, 3 ] } ]},
@@ -663,65 +664,65 @@
 				{
 					"inputs": [ { "shape": [ 2, 2, 4, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 1, 3 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 3.5e-3 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 3.5e-3 },
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
 						{ "name": "NNXRuntimeORTDml", "skip": true, "comment": "Not supported" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 4, 4 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 4 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 3.5e-3 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 3.5e-3 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 3.5e-3 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 8, 8 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 128, 8, 8 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 2, 128, 8, 8 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 128, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 128, 2, 8, 8 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 64, 64, 8, 8 ] }, { "shape": [ 64 ] }, { "shape": [ 64 ] } ], "outputs": [ { "shape": [ 64, 64, 8, 8 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 2, 2, 45, 45 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 45, 45 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 5 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 5 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 5 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					]
 				},
 				{
 					"inputs": [ { "shape": [ 1, 128, 56, 56 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 1, 128, 56, 56 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 10.5 },
-						{ "name": "NNXRuntimeORTCpu", "relative_error": 9 },
-						{ "name": "NNXRuntimeORTDml", "relative_error": 9 }
+						{ "name": "NNXRuntimeHLSL" },
+						{ "name": "NNXRuntimeORTCpu" },
+						{ "name": "NNXRuntimeORTDml" }
 					],
 					"comment": "from 'mosaic-9-sim.onnx'"
 				}

@@ -70,14 +70,14 @@ namespace Test
 		
 		static void ApplyEpsilons(FTests::FTestSetup& TestSetup, const Json::FTestConfigTarget& TestTarget)
 		{
-			if (TestTarget.AbsoluteError != 0.0f)
+			if (TestTarget.AbsoluteTolerance != Json::JSON_TOLERANCE_NOTSET)
 			{
-				TestSetup.AbsoluteErrorEpsilon = TestTarget.AbsoluteError;
+				TestSetup.AbsoluteTolerance = TestTarget.AbsoluteTolerance;
 			}
 			
-			if (TestTarget.RelativeError != 0.0f)
+			if (TestTarget.RelativeTolerance != Json::JSON_TOLERANCE_NOTSET)
 			{
-				TestSetup.RelativeErrorPercent = TestTarget.RelativeError;
+				TestSetup.RelativeTolerance = TestTarget.RelativeTolerance;
 			}
 		}
 
@@ -91,13 +91,13 @@ namespace Test
 				}
 				else
 				{
-					if (Runtime.AbsoluteError != 0.0f)
+					if (Runtime.AbsoluteTolerance != Json::JSON_TOLERANCE_NOTSET)
 					{
-						TestSetup.AbsoluteErrorEpsilonForRuntime.Emplace(Runtime.Name, Runtime.AbsoluteError);
+						TestSetup.AbsoluteToleranceForRuntime.Emplace(Runtime.Name, Runtime.AbsoluteTolerance);
 					}
-					if (Runtime.RelativeError != 0.0f)
+					if (Runtime.RelativeTolerance != Json::JSON_TOLERANCE_NOTSET)
 					{
-						TestSetup.RelativeErrorPercentForRuntime.Emplace(Runtime.Name, Runtime.RelativeError);
+						TestSetup.RelativeToleranceForRuntime.Emplace(Runtime.Name, Runtime.RelativeTolerance);
 					}
 				}
 			}
@@ -106,14 +106,7 @@ namespace Test
 		static void ApplyTargetConfig(FTests::FTestSetup& TestSetup, const Json::FTestConfigTarget& TestTarget)
 		{
 			//Epsilons
-			if (TestTarget.AbsoluteError != 0.0f)
-			{
-				TestSetup.AbsoluteErrorEpsilon = TestTarget.AbsoluteError;
-			}
-			if (TestTarget.RelativeError != 0.0f)
-			{
-				TestSetup.RelativeErrorPercent = TestTarget.RelativeError;
-			}
+			ApplyEpsilons(TestSetup, TestTarget);
 
 			ApplyRuntimesConfig(TestSetup, TestTarget.Runtimes);
 

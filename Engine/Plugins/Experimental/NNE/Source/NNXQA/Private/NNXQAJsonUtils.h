@@ -14,6 +14,8 @@ namespace Test
 {
 namespace Json
 {
+	constexpr float JSON_TOLERANCE_NOTSET = -1.0f; 
+
 	struct FTestConfigTensor : FJsonSerializable
 	{
 		TArray<int32> Shape;
@@ -42,14 +44,14 @@ namespace Json
 	{
 		FString Name;
 		bool Skip;
-		float AbsoluteError;
-		float RelativeError;
+		float AbsoluteTolerance = JSON_TOLERANCE_NOTSET;
+		float RelativeTolerance = JSON_TOLERANCE_NOTSET;
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE("name", Name);
 			JSON_SERIALIZE("skip", Skip);
-			JSON_SERIALIZE("absolute_error", AbsoluteError);
-			JSON_SERIALIZE("relative_error", RelativeError);
+			JSON_SERIALIZE("absolute_tolerance", AbsoluteTolerance);
+			JSON_SERIALIZE("relative_tolerance", RelativeTolerance);
 		END_JSON_SERIALIZER
 	};
 
@@ -139,8 +141,8 @@ namespace Json
 		TArray<FString> AdditionalDatasets;
 		TArray<FString> RemovedDatasets;
 		bool Skip;
-		float AbsoluteError;
-		float RelativeError;
+		float AbsoluteTolerance = JSON_TOLERANCE_NOTSET;
+		float RelativeTolerance = JSON_TOLERANCE_NOTSET;
 		FString InputType;
 		FString OutputType;
 		TArray<FTestConfigRuntime> Runtimes;
@@ -148,8 +150,8 @@ namespace Json
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE("target", Target);
 			JSON_SERIALIZE("skip", Skip);
-			JSON_SERIALIZE("absolute_error", AbsoluteError);
-			JSON_SERIALIZE("relative_error", RelativeError);
+			JSON_SERIALIZE("absolute_tolerance", AbsoluteTolerance);
+			JSON_SERIALIZE("relative_tolerance", RelativeTolerance);
 			JSON_SERIALIZE("input_type", InputType);
 			JSON_SERIALIZE("output_type", OutputType);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);

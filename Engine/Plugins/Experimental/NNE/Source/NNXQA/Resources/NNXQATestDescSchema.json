@@ -65,16 +65,16 @@
 					"type": "boolean",
 					"description": "true to skip the test for this runtime, false by default"
 				},
-				"absolute_error": {
+				"absolute_tolerance": {
 					"type": "number",
 					"minimum": 0,
-					"description": "max absolute error, 0 to keep engine default (1e-5)"
+					"description": "absolute tolerance of numerical tensor comparison routine"
 				},
-				"relative_error": {
+				"relative_tolerance": {
 					"type": "number",
 					"minimum": 0,
-					"maximum": 100,
-					"description": "max relative error in percent, 0 to keep engine default (1e-4 in %)"
+					"maximum": 1,
+					"description": "relative tolerance of numerical tensor comparison routine"
 				},
 				"comment": {
 					"type": "string",
@@ -176,16 +176,16 @@
 					"type": "boolean",
 					"description": "true to skip this operator or model test entirely, false by default"
 				},
-				"absolute_error": {
+				"absolute_tolerance": {
 					"type": "number",
 					"minimum": 0,
-					"description": "max absolute error, 0 to keep engine default (1e-5)"
+					"description": "absolute tolerance (equality check)"
 				},
-				"relative_error": {
+				"relative_tolerance": {
 					"type": "number",
 					"minimum": 0,
-					"maximum": 100,
-					"description": "max relative error in percent, 0 to keep engine default (1e-4 in %)"
+					"maximum": 1,
+					"description": "relative tolerance (equality check)"
 				},
 				"input_type": {
 					"type": "string",

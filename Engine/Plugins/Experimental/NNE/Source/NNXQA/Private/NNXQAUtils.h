@@ -22,24 +22,25 @@ namespace Test
 		
 		struct FTestSetup
 		{
-			static constexpr float DefaultAbsoluteErrorEpsilon = 1e-5f;
-			static constexpr float DefaultRelativeErrorPercent = 1e-3f;
+			/* defaults from https://numpy.org/doc/stable/reference/generated/numpy.isclose.html */
+			static constexpr float DefaultAbsoluteTolerance = 1e-8f;
+			static constexpr float DefaultRelativeTolerance = 1e-5f;
 
 			FTestSetup(const FString& InTestCategory, const FString& InModelOrOperatorName, const FString& InTestSuffix) :
 				TestName(InTestCategory + InModelOrOperatorName + InTestSuffix),
 				TargetName(InModelOrOperatorName),
-				AbsoluteErrorEpsilon(DefaultAbsoluteErrorEpsilon),
-				RelativeErrorPercent(DefaultRelativeErrorPercent),
+				AbsoluteTolerance(DefaultAbsoluteTolerance),
+				RelativeTolerance(DefaultRelativeTolerance),
 				IsModelTest(false)
 			{}
 			
 			const FString TestName;
 			const FString TargetName;
-			float AbsoluteErrorEpsilon;
-			float RelativeErrorPercent;
+			float AbsoluteTolerance;
+			float RelativeTolerance;
 			bool IsModelTest;
-			TMap<FString, float> AbsoluteErrorEpsilonForRuntime;
-			TMap<FString, float> RelativeErrorPercentForRuntime;
+			TMap<FString, float> AbsoluteToleranceForRuntime;
+			TMap<FString, float> RelativeToleranceForRuntime;
 			TArray<UE::NNECore::Internal::FTensor> Inputs;
 			TArray<UE::NNECore::Internal::FTensor> Weights;
 			TArray<UE::NNECore::Internal::FTensor> Outputs;
@@ -52,16 +53,16 @@ namespace Test
 			TArray<FString> AutomationExcludedPlatform;
 			TArray<TPair<FString, FString>> AutomationExcludedPlatformRuntimeCombination;
 
-			float GetAbsoluteErrorEpsilonForRuntime(const FString& RuntimeName) const
+			float GetAbsoluteToleranceForRuntime(const FString& RuntimeName) const
 			{
-				const float* SpecializedValue = AbsoluteErrorEpsilonForRuntime.Find(RuntimeName);
-				return (SpecializedValue != nullptr) ? *SpecializedValue : AbsoluteErrorEpsilon;
+				const float* SpecializedValue = AbsoluteToleranceForRuntime.Find(RuntimeName);
+				return (SpecializedValue != nullptr) ? *SpecializedValue : AbsoluteTolerance;
 
 			}
-			float GetRelativeErrorPercentForRuntime(const FString& RuntimeName) const
+			float GetRelativeToleranceForRuntime(const FString& RuntimeName) const
 			{
-				const float* SpecializedValue = RelativeErrorPercentForRuntime.Find(RuntimeName);
-				return (SpecializedValue != nullptr) ? *SpecializedValue : RelativeErrorPercent;
+				const float* SpecializedValue = RelativeToleranceForRuntime.Find(RuntimeName);
+				return (SpecializedValue != nullptr) ? *SpecializedValue : RelativeTolerance;
 			}
 		};
 
