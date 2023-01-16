@@ -207,10 +207,18 @@ namespace Jupiter.Implementation
                     pendingCompactBinaryAttachments.Remove(finishedTask);
                 }
 
+                bool hasWaited = false;
                 // if there are pending resolves left, wait for one of them to finish to avoid busy waiting
                 if (pendingCompactBinaryAttachments.Any())
                 {
+                    hasWaited = true;
                     await Task.WhenAny(pendingCompactBinaryAttachments);
+                }
+
+                // if we did not waiting for compact binary attachment resolves we consider waiting for content id resolves if there are any
+                if (!hasWaited && pendingContentIdResolves.Any())
+                {
+                    await Task.WhenAny(pendingContentIdResolves);
                 }
 
                 foreach (Attachment attachment in attachments)
