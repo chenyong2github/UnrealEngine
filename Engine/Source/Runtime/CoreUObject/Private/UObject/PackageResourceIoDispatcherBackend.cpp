@@ -237,7 +237,7 @@ bool FPackageResourceIoBackend::Resolve(FIoRequestImpl* Request)
 
 				Request->SetResult(Buffer);
 			}
-			else if (bWasCancelled == false)
+			else
 			{
 				Request->SetFailed();
 			}
