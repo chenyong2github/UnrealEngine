@@ -160,12 +160,10 @@ bool TryCheckoutFiles(const TArray<FString>& FilesToCheckState, TArray<FText>& O
 
 	ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
 
+	// Early out if revision control is disabled
 	if (!SCCProvider.IsEnabled())
 	{
-		FText Message = LOCTEXT("VA_RevDisabled", "Cannot check out packages as revision control is disabled");
-		OutErrors.Add(MoveTemp(Message));
-
-		return false;
+		return true;
 	}
 
 	ECommandResult::Type UpdateResult = SCCProvider.GetState(FilesToCheckState, PathStates, EStateCacheUsage::ForceUpdate);
