@@ -585,26 +585,35 @@ class FUObjectAnnotationChunked : public FUObjectArray::FUObjectDeleteListener
 		const int32 ChunkIndex = Index / NumAnnotationsPerChunk;
 		const int32 WithinChunkIndex = Index % NumAnnotationsPerChunk;
 
-		TAnnotationChunk& Chunk = Chunks[ChunkIndex];
-		if (Chunk.Items != nullptr)
+		if (ChunkIndex >= Chunks.Num())
 		{
-			if (!Chunk.Items[WithinChunkIndex].IsDefault())
-			{
-				Chunk.Items[WithinChunkIndex] = TAnnotation();
-				Chunk.Num--;
-				check(Chunk.Num >= 0);
-				if (Chunk.Num == 0)
-				{
-					delete[] Chunk.Items;
-					Chunk.Items = nullptr;
-					const uint32 ChunkMemory = NumAnnotationsPerChunk * sizeof(TAnnotation);
-					check(CurrentAllocatedMemory >= ChunkMemory);
-					CurrentAllocatedMemory -= ChunkMemory;
-				}
-				NumAnnotations--;
-			}
-			check(NumAnnotations >= 0);
+			return;
 		}
+
+		TAnnotationChunk& Chunk = Chunks[ChunkIndex];
+		if (!Chunk.Items)
+		{
+			return;
+		}
+
+		if (Chunk.Items[WithinChunkIndex].IsDefault())
+		{
+			return;
+		}
+
+		Chunk.Items[WithinChunkIndex] = TAnnotation();
+		Chunk.Num--;
+		check(Chunk.Num >= 0);
+		if (Chunk.Num == 0)
+		{
+			delete[] Chunk.Items;
+			Chunk.Items = nullptr;
+			const uint32 ChunkMemory = NumAnnotationsPerChunk * sizeof(TAnnotation);
+			check(CurrentAllocatedMemory >= ChunkMemory);
+			CurrentAllocatedMemory -= ChunkMemory;
+		}
+		NumAnnotations--;
+		check(NumAnnotations >= 0);
 	}
 
 	/**
