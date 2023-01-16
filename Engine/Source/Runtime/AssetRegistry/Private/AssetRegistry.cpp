@@ -3667,16 +3667,64 @@ void UAssetRegistryImpl::AssetRenamed(const UObject* RenamedAsset, const FString
 
 void UAssetRegistryImpl::AssetSaved(const UObject& SavedAsset)
 {
-#if WITH_EDITOR
-	if (!ensure(SavedAsset.IsAsset()))
-	{
-		return;
-	}
-	LLM_SCOPE(ELLMTag::AssetRegistry);
+	AssetFullyUpdateTags(const_cast<UObject*>(&SavedAsset));
+}
 
-	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
-	GuardedData.AddLoadedAssetToProcess(SavedAsset);
+void UAssetRegistryImpl::AssetsSaved(TArray<FAssetData>&& Assets)
+{
+#if WITH_EDITOR
+	UE::AssetRegistry::Impl::FEventContext EventContext;
+	{
+		FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+		GuardedData.AssetsSaved(EventContext, MoveTemp(Assets));
+	}
+	Broadcast(EventContext);
 #endif
+}
+
+void UAssetRegistryImpl::AssetFullyUpdateTags(UObject* Object)
+{
+#if WITH_EDITOR
+	FAssetData AssetData(Object);
+	TArray<FAssetData> Assets;
+	Assets.Add(MoveTemp(AssetData));
+
+	UE::AssetRegistry::Impl::FEventContext EventContext;
+	{
+		FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+		GuardedData.AssetsSaved(EventContext, MoveTemp(Assets));
+	}
+	Broadcast(EventContext);
+#endif
+}
+
+namespace UE::AssetRegistry
+{
+
+#if WITH_EDITOR
+void FAssetRegistryImpl::AssetsSaved(UE::AssetRegistry::Impl::FEventContext& EventContext, TArray<FAssetData>&& Assets)
+{
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+	for (FAssetData& NewAssetData : Assets)
+	{
+		FCachedAssetKey Key(NewAssetData);
+		FAssetData** DataFromGather = State.CachedAssets.Find(Key);
+
+		AssetDataObjectPathsUpdatedOnLoad.Add(NewAssetData.GetSoftObjectPath());
+
+		if (!DataFromGather)
+		{
+			FAssetData* ClonedAssetData = new FAssetData(MoveTemp(NewAssetData));
+			AddAssetData(EventContext, ClonedAssetData);
+		}
+		else
+		{
+			UpdateAssetData(EventContext, *DataFromGather, MoveTemp(NewAssetData), false /* bKeepDeletedTags */);
+		}
+	}
+}
+#endif
+
 }
 
 void UAssetRegistryImpl::AssetTagsFinalized(const UObject& FinalizedAsset)
@@ -4710,7 +4758,7 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 					PostLoadAssetRegistryTags(BackgroundResult.Get());
 #endif
 					// The asset exists in the cache from disk and has not yet been loaded into memory, update it with the new background data
-					UpdateAssetData(EventContext, ExistingAssetData, MoveTemp(*BackgroundResult));
+					UpdateAssetData(EventContext, ExistingAssetData, MoveTemp(*BackgroundResult), false /* bKeepDeletedTags */);
 				}
 			}
 		}
@@ -5046,7 +5094,8 @@ void FAssetRegistryImpl::AddAssetData(Impl::FEventContext& EventContext, FAssetD
 	}
 }
 
-void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, FAssetData&& NewAssetData)
+void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData,
+	FAssetData&& NewAssetData, bool bKeepDeletedTags)
 {
 	// Update the class map if updating a blueprint
 	if (ClassGeneratorNames.Contains(AssetData->AssetClassPath))
@@ -5085,6 +5134,33 @@ void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAss
 				// Invalidate caching because CachedBPInheritanceMap got modified
 				TempCachedInheritanceBuffer.bDirty = true;
 			}
+		}
+	}
+
+	if (bKeepDeletedTags)
+	{
+		TOptional<FAssetDataTagMap> UpdatedTags;
+		AssetData->TagsAndValues.ForEach([&NewAssetData, &UpdatedTags](const TPair<FName, FAssetTagValueRef>& TagPair)
+			{
+				if (UpdatedTags)
+				{
+					if (!UpdatedTags->Contains(TagPair.Key))
+					{
+						UpdatedTags->Add(TagPair.Key, TagPair.Value.GetStorageString());
+					}
+				}
+				else
+				{
+					if (!NewAssetData.TagsAndValues.Contains(TagPair.Key))
+					{
+						UpdatedTags.Emplace(NewAssetData.TagsAndValues.CopyMap());
+						UpdatedTags->Add(TagPair.Key, TagPair.Value.GetStorageString());
+					}
+				}
+			});
+		if (UpdatedTags)
+		{
+			NewAssetData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(*UpdatedTags));
 		}
 	}
 
@@ -5515,9 +5591,6 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Imp
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::AssetRegistry);
-
-
 	constexpr int32 BatchSize = 16;
 	TArray<const UObject*> BatchObjects;
 	TArray<FAssetData, TInlineAllocator<BatchSize>> BatchAssetDatas;
@@ -5641,7 +5714,14 @@ void FAssetRegistryImpl::PushProcessLoadedAssetsBatch(Impl::FEventContext& Event
 		}
 		else
 		{
-			UpdateAssetData(EventContext, *DataFromGather, MoveTemp(NewAssetData));
+			// When updating disk-based AssetData with the AssetData from a loaded UObject, we keep
+			// existing tags from disk even if they no are no longer returned from the GetAssetRegistryTags
+			// function on the loaded UObject. We do this because they might come from GetAssetRegistryTagsExtended,
+			// which is only called during Save.
+			// Modified tag values on the other hand do overwrite the old values from disk.
+			// This means that the only way to delete no-longer present tags from an AssetData
+			// is to resave the package, or to manually call AssetFullyUpdateTags from c++.
+			UpdateAssetData(EventContext, *DataFromGather, MoveTemp(NewAssetData), true /* bKeepDeletedTags */);
 		}
 	}
 
@@ -6534,7 +6614,7 @@ bool FAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(Impl::FEventContext& Eve
 
 	FAssetData NewAssetData(*AssetData);
 	NewAssetData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(TagsAndValues));
-	UpdateAssetData(EventContext, AssetData, MoveTemp(NewAssetData));
+	UpdateAssetData(EventContext, AssetData, MoveTemp(NewAssetData), false /* bKeepDeletedTags */);
 
 	return true;
 }

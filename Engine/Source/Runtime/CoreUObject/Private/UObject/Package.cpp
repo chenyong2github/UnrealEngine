@@ -37,6 +37,30 @@ UPackage::FOnPackageDirtyStateChanged UPackage::PackageDirtyStateChangedEvent;
  */
 UPackage::FOnPackageMarkedDirty UPackage::PackageMarkedDirtyEvent;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Silence deprecation warnings for deprecated CookedHash member
+FSavePackageResultStruct::FSavePackageResultStruct()
+	: Result(ESavePackageResult::Error), TotalFileSize(0), SerializedPackageFlags(0)
+{
+}
+FSavePackageResultStruct::FSavePackageResultStruct(ESavePackageResult InResult)
+	: Result(InResult), TotalFileSize(0), SerializedPackageFlags(0)
+{
+}
+FSavePackageResultStruct::FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize)
+	: Result(InResult), TotalFileSize(InTotalFileSize), SerializedPackageFlags(0)
+{
+}
+FSavePackageResultStruct::FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize,
+	uint32 InSerializedPackageFlags, TPimplPtr<FLinkerSave> Linker)
+	: Result(InResult), TotalFileSize(InTotalFileSize), SerializedPackageFlags(InSerializedPackageFlags),
+	LinkerSave(MoveTemp(Linker))
+{
+}
+FSavePackageResultStruct::FSavePackageResultStruct(FSavePackageResultStruct&& Other) = default;
+FSavePackageResultStruct& FSavePackageResultStruct::operator=(FSavePackageResultStruct&& Other) = default;
+FSavePackageResultStruct::~FSavePackageResultStruct() = default;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+
 void UPackage::PostInitProperties()
 {
 	Super::PostInitProperties();

@@ -4,6 +4,7 @@
 
 #include "Algo/Sort.h"
 #include "Algo/Unique.h"
+#include "AssetRegistry/AssetData.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -2021,7 +2022,9 @@ namespace UE
 namespace AssetRegistry
 {
 	// See the corresponding ReadPackageDataMain and ReadPackageDataDependencies defined in PackageReader.cpp in AssetRegistry module
-	void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package, FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame, const ITargetPlatform* TargetPlatform)
+	void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package,
+		FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame,
+		const ITargetPlatform* TargetPlatform, TArray<FAssetData>* OutAssetDatas)
 	{
 		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
 		bool bPreDependencyFormat = bIsCooking;
@@ -2061,6 +2064,12 @@ namespace AssetRegistry
 		}
 		int32 ObjectCount = AssetObjects.Num();
 		FStructuredArchive::FArray AssetArray = AssetRegistryRecord.EnterArray(TEXT("TagMap"), ObjectCount);
+		if (OutAssetDatas)
+		{
+			OutAssetDatas->Reset();
+		}
+		FString PackageName = Package->GetName();
+
 		for (int32 ObjectIdx = 0; ObjectIdx < AssetObjects.Num(); ++ObjectIdx)
 		{
 			const UObject* Object = AssetObjects[ObjectIdx];
@@ -2102,6 +2111,20 @@ namespace AssetRegistry
 				FString Value = TagIter->Value;
 
 				TagMap.EnterElement(Key) << Value;
+			}
+
+			if (OutAssetDatas)
+			{
+				FAssetDataTagMap TagsAndValues;
+				for (UObject::FAssetRegistryTag& Tag : Tags)
+				{
+					if (!Tag.Name.IsNone() && !Tag.Value.IsEmpty())
+					{
+						TagsAndValues.Add(Tag.Name, MoveTemp(Tag.Value));
+					}
+				}
+				OutAssetDatas->Emplace(PackageName, ObjectPath, FTopLevelAssetPath(ObjectClassName),
+					MoveTemp(TagsAndValues), Package->GetChunkIDs(), Package->GetPackageFlags());
 			}
 		}
 		if (bPreDependencyFormat)

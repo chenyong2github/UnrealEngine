@@ -4690,14 +4690,7 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 	{
 		// Notify the asset registry
 		IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
-		ForEachObjectWithPackage(InOuter, [&AssetRegistry](UObject* Object)
-			{
-				if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
-				{
-					AssetRegistry.AssetSaved(*Object);
-				}
-				return true;
-			}, false /*bIncludeNestedObjects*/);
+		AssetRegistry.AssetsSaved(MoveTemp(Result.SavedAssets));
 	}
 
 	return Result;

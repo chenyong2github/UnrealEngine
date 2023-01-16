@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/AssetRegistryInterface.h"
@@ -966,8 +967,10 @@ public:
 		}
 
 		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : ESavePackageResult::Success;
-		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed,
+		FSavePackageResultStruct FinalResultStruct(FinalResult, TotalPackageSizeUncompressed,
 			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(GetHarvestedRealm().Linker) : nullptr);
+		FinalResultStruct.SavedAssets = MoveTemp(SavedAssets);
+		return FinalResultStruct;
 	}
 
 	FObjectSaveContextData& GetObjectSaveContext()
@@ -992,6 +995,11 @@ public:
 	FHarvestedRealm& GetHarvestedRealm(ESaveRealm Realm = ESaveRealm::None)
 	{
 		return HarvestedRealms[(uint32)(Realm == ESaveRealm::None ? CurrentHarvestingRealm : Realm)];
+	}
+
+	TArray<FAssetData>& GetSavedAssets()
+	{
+		return SavedAssets;
 	}
 
 public:
@@ -1059,6 +1067,10 @@ private:
 
 	// Set of harvested prestream packages, should be deprecated
 	TSet<UPackage*> PrestreamPackages;
+
+	// Set of AssetDatas created for the Assets saved into the package
+	TArray<FAssetData> SavedAssets;
+
 };
 
 const TCHAR* LexToString(FSaveContext::ESaveableStatus Status);

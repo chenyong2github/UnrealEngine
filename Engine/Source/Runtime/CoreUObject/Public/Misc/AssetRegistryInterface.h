@@ -21,6 +21,7 @@ class FStructuredArchiveRecord;
 class ITargetPlatform;
 class UObject;
 class UPackage;
+struct FAssetData;
 
 namespace EAssetRegistryDependencyType
 {
@@ -193,7 +194,10 @@ namespace UE::AssetRegistry
 	};
 
 	// Functions to read and write the data used by the AssetRegistry in each package; the format of this data is separate from the format of the data in the asset registry
-	COREUOBJECT_API void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package, FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame, const ITargetPlatform* TargetPlatform);
+	COREUOBJECT_API void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking,
+		const UPackage* Package, FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame,
+		const TSet<FName>& SoftPackagesUsedInGame, const ITargetPlatform* TargetPlatform,
+		TArray<FAssetData>* OutAssetDatas);
 	// ReadPackageDataMain and ReadPackageDataDependencies are declared in IAssetRegistry.h, in the AssetRegistry module, because they depend upon some structures defined in the AssetRegistry module
 
 	namespace Private

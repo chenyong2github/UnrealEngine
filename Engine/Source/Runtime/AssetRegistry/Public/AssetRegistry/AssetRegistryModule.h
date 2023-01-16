@@ -77,9 +77,17 @@ public:
 		IAssetRegistry::GetChecked().AssetRenamed(RenamedAsset, OldObjectPath);
 	}
 
+	UE_DEPRECATED(5.2, "Use the new AssetsSaved function that takes FAssetData.")
 	static void AssetSaved(const UObject& SavedAsset)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 		IAssetRegistry::GetChecked().AssetSaved(SavedAsset);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	}
+
+	static void AssetsSaved(TArray<FAssetData>&& SavedAssets)
+	{
+		IAssetRegistry::GetChecked().AssetsSaved(MoveTemp(SavedAssets));
 	}
 
 	static void PackageDeleted(UPackage* DeletedPackage)

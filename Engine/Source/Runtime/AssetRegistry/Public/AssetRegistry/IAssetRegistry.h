@@ -576,7 +576,21 @@ public:
 	virtual void AssetRenamed(const UObject* RenamedAsset, const FString& OldObjectPath) = 0;
 
 	/** Informs the asset registry that an in-memory asset has been saved */
+	UE_DEPRECATED(5.2, "Use the new AssetsSaved function that takes FAssetData.")
 	virtual void AssetSaved(const UObject& SavedAsset) = 0;
+
+	/** Called during SavePackage to update the AssetRegistry's copy of the AssetDatas in the package to match the newly saved values. */
+	virtual void AssetsSaved(TArray<FAssetData>&& Assets) = 0;
+
+	/**
+	 * Called on demand from systems that need to fully update an AssetData's tags. When an Asset is loaded its tags
+	 * are updated by calling UObject::GetAssetRegistryTags, but GetAssetRegistryTagsExtended is not called, and tags
+	 * that exist in the Old AssetData but not in the results from GetAssetRegistryTags are kept because they might be
+	 * extended tags. When an asset is saved, GetAssetRegistryTagsExtended is called and all old tags are deleted in
+	 * favor of the new list. AssetFullyUpdated allows a manual trigger of the on-SavePackage behavior:
+	 * GetAssetRegistryTagsExtended is called and all old tags are deleted in favor of the new list.
+	 */
+	virtual void AssetFullyUpdateTags(UObject* Object) = 0;
 
 	/** Informs the asset registry that an in-memory package has been deleted, and all associated assets should be removed */
 	virtual void PackageDeleted (UPackage* DeletedPackage) = 0;
