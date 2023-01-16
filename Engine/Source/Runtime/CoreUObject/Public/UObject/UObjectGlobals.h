@@ -2682,8 +2682,8 @@ protected:
 
 	/** Stored reference to array of objects we add object references to. */
 	TArray<UObject*>&		ObjectArray;
-	/** List of objects that have been recursively serialized. */
-	TSet<const UObject*>	SerializedObjects;
+	/** Set that duplicates ObjectArray. Keeps ObjectArray unique and avoids duplicate recursive serializing. */
+	TSet<const UObject*>	ObjectSet;
 	/** Only objects within this outer will be considered, nullptr value indicates that outers are disregarded. */
 	UObject*		LimitOuter;
 	/** Property that is referencing the current object */

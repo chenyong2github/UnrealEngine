@@ -2869,6 +2869,7 @@ FReferenceFinder::FReferenceFinder(TArray<UObject*>& InObjectArray, UObject* InO
 	, bSerializeRecursively(false)
 	, bShouldIgnoreTransient(bInShouldIgnoreTransient)
 {
+	ObjectSet.Append(MakeArrayView(const_cast<const UObject**>(ObjectArray.GetData()), ObjectArray.Num()));
 	bSerializeRecursively = bInSerializeRecursively && LimitOuter != NULL;
 	if (InOuter)
 	{
@@ -2901,18 +2902,19 @@ void FReferenceFinder::HandleObjectReference( UObject*& InObject, const UObject*
 		{
 			// Many places that use FReferenceFinder expect the object to not be const.
 			UObject* Object = const_cast<UObject*>(InObject);
-			// do not attempt to serialize objects that have already been 
-			if ( ObjectArray.Contains( Object ) == false )
+			// do not add or recursively serialize objects that have already been added
+			bool bAlreadyExists;
+			ObjectSet.Add(Object, &bAlreadyExists);
+			if (!bAlreadyExists)
 			{
-				check( Object->IsValidLowLevel() );
-				ObjectArray.Add( Object );
-			}
+				check(Object->IsValidLowLevel());
+				ObjectArray.Add(Object);
 
-			// check this object for any potential object references
-			if ( bSerializeRecursively == true && !SerializedObjects.Find(Object) )
-			{
-				SerializedObjects.Add(Object);
-				FindReferences(Object, const_cast<UObject*>(InReferencingObject), const_cast<FProperty*>(InReferencingProperty));
+				// check this object for any potential object references
+				if (bSerializeRecursively)
+				{
+					FindReferences(Object, const_cast<UObject*>(InReferencingObject), const_cast<FProperty*>(InReferencingProperty));
+				}
 			}
 		}
 	}
