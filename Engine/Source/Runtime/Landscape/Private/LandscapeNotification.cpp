@@ -91,7 +91,7 @@ void FLandscapeNotificationManager::Tick()
 
 		FText Text = FText::Format(LOCTEXT("NotificationFooter", "{0} for {1}"),
 			LocalActiveNotification->NotificationText,
-			(NumIdenticalNotifications > 1) ? LOCTEXT("MultipleLandscapes", "multiple landscapes") : FText::FromString(LocalActiveNotification->GetLandscape()->GetActorLabel()));
+			(NumIdenticalNotifications > 1) ? LOCTEXT("MultipleLandscapes", "multiple landscapes") : FText::Format(LOCTEXT("NotificationLandscapeName", "landscape named: {0}"), FText::FromString(LocalActiveNotification->GetLandscape()->GetActorLabel())));
 
 		ShowNotificationItem(Text);
 	}
