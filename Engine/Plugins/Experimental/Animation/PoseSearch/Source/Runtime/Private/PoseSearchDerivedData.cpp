@@ -538,6 +538,7 @@ struct FPoseSearchDatabaseAsyncCacheTask
 	void Cancel(FCriticalSection& OuterMutex);
 	bool Poll(FCriticalSection& OuterMutex) const;
 	bool ContainsDatabase(const UPoseSearchDatabase* OtherDatabase, FCriticalSection& OuterMutex) const;
+	bool IsValid(FCriticalSection& OuterMutex) const;
 
 	~FPoseSearchDatabaseAsyncCacheTask();
 	EState GetState() const { return EState(ThreadSafeState.GetValue()); }
@@ -699,6 +700,12 @@ bool FPoseSearchDatabaseAsyncCacheTask::ContainsDatabase(const UPoseSearchDataba
 {
 	FScopeLock Lock(&OuterMutex);
 	return Database.Get() == OtherDatabase;
+}
+
+bool FPoseSearchDatabaseAsyncCacheTask::IsValid(FCriticalSection& OuterMutex) const
+{
+	FScopeLock Lock(&OuterMutex);
+	return Database.IsValid();
 }
 
 // called once the task is done:
@@ -956,7 +963,14 @@ void FAsyncPoseSearchDatabasesManagement::Tick(float DeltaTime)
 	// iterating backwards because of the possible RemoveAtSwap 
 	for (int32 TaskIndex = Tasks.Num() - 1; TaskIndex >= 0; --TaskIndex)
 	{
-		Tasks[TaskIndex]->Update(Mutex);
+		if (!Tasks[TaskIndex]->IsValid(Mutex))
+		{
+			Tasks.RemoveAtSwap(TaskIndex, 1, false);
+		}
+		else
+		{
+			Tasks[TaskIndex]->Update(Mutex);
+		}
 			
 		// @todo: check key validity every few ticks, or perhaps delete unused for a long time Tasks
 	}
