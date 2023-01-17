@@ -860,7 +860,7 @@ namespace EpicGames.UHT.Types
 
 			ValidateProperties();
 
-			return options |= UhtValidationOptions.Shadowing;
+			return options |= UhtValidationOptions.Shadowing | UhtValidationOptions.Deprecated;
 		}
 
 		void ValidateProperties()
