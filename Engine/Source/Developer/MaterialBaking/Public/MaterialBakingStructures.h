@@ -31,6 +31,12 @@ struct FMaterialData
 
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal = false;
+
+	/** Blend mode to use when baking, allowing for example detection of overlapping UVs */
+	EBlendMode BlendMode = BLEND_Opaque;
+
+	/** Background color used to initially fill the output texture and used for border smear */
+	FColor BackgroundColor = FColor::Magenta;
 };
 
 /** Structure containing extended information about the material and properties which is being baked out */
@@ -50,6 +56,12 @@ struct FMaterialDataEx
 
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal = false;
+
+	/** Blend mode to use when baking, allowing for example detection of overlapping UVs */
+	EBlendMode BlendMode = BLEND_Opaque;
+
+	/** Background color used to initially fill the output texture and used for border smear */
+	FColor BackgroundColor = FColor::Magenta;
 };
 
 /** Structure containing primitive information (regarding a mesh or mesh component) that is accessible through material expressions */

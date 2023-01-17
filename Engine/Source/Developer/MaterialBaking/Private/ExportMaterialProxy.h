@@ -206,7 +206,7 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, bool bTangentSpaceNormal = false)
+	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, bool bTangentSpaceNormal = false, EBlendMode ProxyBlendMode = BLEND_Opaque)
 		: FMaterial()
 		, FMaterialRenderProxy(GetPathNameSafe(InMaterialInterface->GetMaterial()))
 		, MaterialInterface(InMaterialInterface)
@@ -214,6 +214,7 @@ public:
 		, CustomOutputToCompile(InCustomOutputToCompile)
 		, bSynchronousCompilation(bInSynchronousCompilation)
 		, bTangentSpaceNormal(bTangentSpaceNormal)
+		, ProxyBlendMode(ProxyBlendMode)
 	{
 		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 		Material = InMaterialInterface->GetMaterial();
@@ -494,8 +495,8 @@ public:
 		}
 		return false;
 	}
-	virtual bool IsMasked() const override { return false; }
-	virtual enum EBlendMode GetBlendMode() const override { return BLEND_Opaque; }
+	virtual bool IsMasked() const override { return ProxyBlendMode == BLEND_Masked; }
+	virtual enum EBlendMode GetBlendMode() const override { return ProxyBlendMode; }
 	virtual enum ERefractionMode GetRefractionMode() const override { return Material ? (ERefractionMode)Material->RefractionMethod : RM_None; }
 	virtual bool GetRootNodeOverridesDefaultRefraction()const override { return Material ? Material->bRootNodeOverridesDefaultDistortion : false; }
 	virtual FMaterialShadingModelField GetShadingModels() const override { return MSM_DefaultLit; }
@@ -627,4 +628,6 @@ private:
 public:
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal;
+	/** The blend mode used when baking the proxy material */
+	EBlendMode ProxyBlendMode;
 };
