@@ -815,7 +815,7 @@ private:
 
 public:
 
-	const TArray<ULevelStreaming*>& GetStreamingLevels() const { return StreamingLevels; }
+	const TArray<TObjectPtr<ULevelStreaming>>& GetStreamingLevels() const { return StreamingLevels; }
 
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
