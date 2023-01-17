@@ -906,7 +906,7 @@ public:
 
 	/** Changes whether or not this component will get future break notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyCrumblings(bool bNewNotifyCrumblings);
+	void SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren = false);
 	
 	/** Overrideable native notification */
 	virtual void NotifyBreak(const FChaosBreakEvent& Event) {};

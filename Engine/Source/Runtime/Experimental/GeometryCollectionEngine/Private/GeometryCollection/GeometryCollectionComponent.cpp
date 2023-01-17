@@ -746,12 +746,13 @@ void UGeometryCollectionComponent::SetNotifyRemovals(bool bNewNotifyRemovals)
 	}
 }
 
-void UGeometryCollectionComponent::SetNotifyCrumblings(bool bNewNotifyCrumblings)
+void UGeometryCollectionComponent::SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren)
 {
 	if (bNotifyCrumblings != bNewNotifyCrumblings)
 	{
 		bNotifyCrumblings = bNewNotifyCrumblings;
-		UpdateBreakEventRegistration();
+		bCrumblingEventIncludesChildren = bNewCrumblingEventIncludesChildren;
+		UpdateCrumblingEventRegistration();
 	}
 }
 
