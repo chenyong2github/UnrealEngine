@@ -65,7 +65,7 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 	}
 }
 
-UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* WorldContextObject, int32 Width, int32 Height, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps)
+UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* WorldContextObject, int32 Width, int32 Height, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps, bool bSupportUAVs)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
@@ -76,6 +76,7 @@ UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* W
 		NewRenderTarget2D->RenderTargetFormat = Format;
 		NewRenderTarget2D->ClearColor = ClearColor;
 		NewRenderTarget2D->bAutoGenerateMips = bAutoGenerateMipMaps;
+		NewRenderTarget2D->bCanCreateUAV = bSupportUAVs;
 		NewRenderTarget2D->InitAutoFormat(Width, Height);	
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
@@ -85,7 +86,7 @@ UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* W
 	return nullptr;
 }
 
-UTextureRenderTarget2DArray* UKismetRenderingLibrary::CreateRenderTarget2DArray(UObject* WorldContextObject, int32 Width, int32 Height, int32 Slices, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps)
+UTextureRenderTarget2DArray* UKismetRenderingLibrary::CreateRenderTarget2DArray(UObject* WorldContextObject, int32 Width, int32 Height, int32 Slices, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps, bool bSupportUAVs)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
@@ -94,6 +95,7 @@ UTextureRenderTarget2DArray* UKismetRenderingLibrary::CreateRenderTarget2DArray(
 		UTextureRenderTarget2DArray* NewRenderTarget = NewObject<UTextureRenderTarget2DArray>(WorldContextObject);
 		check(NewRenderTarget);
 		NewRenderTarget->ClearColor = ClearColor;
+		NewRenderTarget->bCanCreateUAV = bSupportUAVs;
 		NewRenderTarget->Init(Width, Height, Slices, GetPixelFormatFromRenderTargetFormat(Format));
 		NewRenderTarget->UpdateResourceImmediate(true);
 		return NewRenderTarget;
@@ -102,7 +104,7 @@ UTextureRenderTarget2DArray* UKismetRenderingLibrary::CreateRenderTarget2DArray(
 	return nullptr;
 }
 
-UTextureRenderTargetVolume* UKismetRenderingLibrary::CreateRenderTargetVolume(UObject* WorldContextObject, int32 Width, int32 Height, int32 Depth, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps)
+UTextureRenderTargetVolume* UKismetRenderingLibrary::CreateRenderTargetVolume(UObject* WorldContextObject, int32 Width, int32 Height, int32 Depth, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps, bool bSupportUAVs)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
@@ -111,6 +113,7 @@ UTextureRenderTargetVolume* UKismetRenderingLibrary::CreateRenderTargetVolume(UO
 		UTextureRenderTargetVolume* NewRenderTarget = NewObject<UTextureRenderTargetVolume>(WorldContextObject);
 		check(NewRenderTarget);
 		NewRenderTarget->ClearColor = ClearColor;
+		NewRenderTarget->bCanCreateUAV = bSupportUAVs;
 		NewRenderTarget->Init(Width, Height, Depth, GetPixelFormatFromRenderTargetFormat(Format));
 		NewRenderTarget->UpdateResourceImmediate(true);
 		return NewRenderTarget;

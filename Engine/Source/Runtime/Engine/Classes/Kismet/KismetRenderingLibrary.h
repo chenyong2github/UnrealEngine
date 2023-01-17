@@ -46,19 +46,19 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	 * Creates a new render target and initializes it to the specified dimensions
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering", meta=(WorldContext="WorldContextObject"))
-	static ENGINE_API UTextureRenderTarget2D* CreateRenderTarget2D(UObject* WorldContextObject, int32 Width = 256, int32 Height = 256, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false);
+	static ENGINE_API UTextureRenderTarget2D* CreateRenderTarget2D(UObject* WorldContextObject, int32 Width = 256, int32 Height = 256, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false, bool bSupportUAVs = false);
 
 	/**
 	 * Creates a new render target array and initializes it to the specified dimensions
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (WorldContext = "WorldContextObject"))
-	static ENGINE_API UTextureRenderTarget2DArray* CreateRenderTarget2DArray(UObject* WorldContextObject, int32 Width = 256, int32 Height = 256, int32 Slices = 1, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false);
+	static ENGINE_API UTextureRenderTarget2DArray* CreateRenderTarget2DArray(UObject* WorldContextObject, int32 Width = 256, int32 Height = 256, int32 Slices = 1, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false, bool bSupportUAVs = false);
 
 	/**
 	 * Creates a new volume render target and initializes it to the specified dimensions
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (WorldContext = "WorldContextObject"))
-	static ENGINE_API UTextureRenderTargetVolume* CreateRenderTargetVolume(UObject* WorldContextObject, int32 Width = 16, int32 Height = 16, int32 Depth = 16, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false);
+	static ENGINE_API UTextureRenderTargetVolume* CreateRenderTargetVolume(UObject* WorldContextObject, int32 Width = 16, int32 Height = 16, int32 Depth = 16, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false, bool bSupportUAVs = false);
 
 	/**
 	 * Manually releases GPU resources of a render target. This is useful for blueprint creating a lot of render target that would
