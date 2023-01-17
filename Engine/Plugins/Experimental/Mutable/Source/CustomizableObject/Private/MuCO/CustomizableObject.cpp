@@ -1361,14 +1361,12 @@ FString UCustomizableObject::FindIntParameterValueName(int32 ParamIndex, int32 P
 	{
 		const TArray<FMutableModelParameterValue> & PossibleValues = ParameterProperties[ParamIndex].PossibleValues;
 
-		if (ParamValue >= 0 && ParamValue < PossibleValues.Num())
+		const int32 MinValueIndex = !PossibleValues.IsEmpty() ? PossibleValues[0].Value : 0;
+		ParamValue = ParamValue - MinValueIndex;
+
+		if (PossibleValues.IsValidIndex(ParamValue))
 		{
-			int32 MinValueIndex = PossibleValues[0].Value;
-			int32 ActualIndex = ParamValue - MinValueIndex;
-
-			check(ActualIndex >= 0 && ActualIndex < PossibleValues.Num());
-
-			return PossibleValues[ActualIndex].Name;
+			return PossibleValues[ParamValue].Name;
 		}
 	}
 	else
