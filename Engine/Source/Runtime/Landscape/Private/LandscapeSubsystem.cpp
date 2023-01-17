@@ -47,6 +47,12 @@ DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick,
 
 ULandscapeSubsystem::ULandscapeSubsystem()
 	: bIsGrassCreationPrioritized(false)
+#if WITH_EDITOR
+	, GrassMapsBuilder(nullptr)
+	, GIBakedTextureBuilder(nullptr)
+	, PhysicalMaterialBuilder(nullptr)
+	, NotificationManager(nullptr)
+#endif
 {
 }
 
@@ -72,7 +78,11 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 	GIBakedTextureBuilder = new FLandscapeGIBakedTextureBuilder(GetWorld());
 	PhysicalMaterialBuilder = new FLandscapePhysicalMaterialBuilder(GetWorld());
-	NotificationManager = new FLandscapeNotificationManager();
+
+	if (!IsRunningCommandlet())
+	{
+		NotificationManager = new FLandscapeNotificationManager();
+	}
 #endif
 }
 
@@ -258,7 +268,11 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 	if (GIsEditor && !World->IsPlayInEditor())
 	{
 		LandscapePhysicalMaterial::GarbageCollectTasks();
-		NotificationManager->Tick();
+
+		if (NotificationManager)
+		{
+			NotificationManager->Tick();
+		}
 	}
 #endif
 }

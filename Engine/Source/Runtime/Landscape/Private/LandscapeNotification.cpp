@@ -19,7 +19,9 @@ FLandscapeNotification::FLandscapeNotification(const TWeakObjectPtr<ALandscape>&
 	, NotificationType(InNotificationType)
 	, ConditionCallback(InConditionCallback)
 	, UpdateTextCallback(InUpdateTextCallback)
-{}
+{
+	check(!IsRunningCommandlet());
+}
 
 bool FLandscapeNotification::operator == (const FLandscapeNotification& Other) const
 {
