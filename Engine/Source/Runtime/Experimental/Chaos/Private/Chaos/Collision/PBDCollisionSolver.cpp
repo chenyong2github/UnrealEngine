@@ -21,6 +21,9 @@
 
 DEFINE_LOG_CATEGORY(LogChaosCollision);
 
+// TEMP: to be removed
+DECLARE_CYCLE_STAT(TEXT("SolvePositionNoFriction"), STAT_SolvePositionNoFriction, STATGROUP_ChaosConstraintSolver);
+
 namespace Chaos
 {
 	namespace CVars
@@ -28,9 +31,18 @@ namespace Chaos
 		extern int32 Chaos_Collision_UseShockPropagation;
 		extern bool bChaos_PBDCollisionSolver_UseJacobiPairSolver;
 
-		// NOTE: WORK IN PROGRESS. Not ready to be enabled.
-		bool bChaos_PBDCollisionSolver_ISPC = false;
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_ISPC(TEXT("p.Chaos.PBDCollisionSolver.ISPC"), bChaos_PBDCollisionSolver_ISPC, TEXT(""));
+		//
+		// Solver Settings
+		//
+
+		bool bChaos_PBDCollisionSolver_ISPC = false;	// NOTE: WORK IN PROGRESS. Not ready to be enabled.
+		bool bChaos_PBDCollisionSolver_UseJacobiPairSolver = false;
+		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_ISPC(TEXT("p.Chaos.PBDCollisionSolver.ISPC"), bChaos_PBDCollisionSolver_ISPC, TEXT("Use ISPC collision solver (WIP)"));
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverUseJacobiPairSolver(TEXT("p.Chaos.PBDCollisionSolver.UseJacobi"), bChaos_PBDCollisionSolver_UseJacobiPairSolver, TEXT("Whether to use the Jacobi collision pair solver"));
+
+		//
+		// Position Solver Settings
+		//
 
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
@@ -44,8 +56,12 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_PositionSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.PositionTolerance"), Chaos_PBDCollisionSolver_Position_PositionSolverTolerance, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_RotationSolverTolerance(TEXT("p.Chaos.PBDCollisionSolver.Position.RotationTolerance"), Chaos_PBDCollisionSolver_Position_RotationSolverTolerance, TEXT(""));
 
+		//
+		// Velocity Solver Settings
+		//
+
 		bool bChaos_PBDCollisionSolver_Velocity_SolveEnabled = true;
-		// If this is the same as Chaos_PBDCollisionSolver_Position_MinInvMassScale and all velocity iterations have shockpropagation, we avoid recalculating constraiunt-space mass
+		// If Chaos_PBDCollisionSolver_Velocity_MinInvMassScale is the same as Chaos_PBDCollisionSolver_Position_MinInvMassScale and all velocity iterations have shockpropagation, we avoid recalculating constraint-space mass
 		float Chaos_PBDCollisionSolver_Velocity_MinInvMassScale = Chaos_PBDCollisionSolver_Position_MinInvMassScale;
 		bool bChaos_PBDCollisionSolver_Velocity_FrictionEnabled = true;
 		bool bChaos_PBDCollisionSolver_Velocity_AveragePointEnabled = true;
@@ -240,10 +256,28 @@ namespace Chaos
 
 		void FPBDCollisionSolverHelper::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_SolvePositionNoFriction);
+
 #if INTEL_ISPC
 			if (CVars::bChaos_PBDCollisionSolver_ISPC)
 			{
-				ispc::SolvePositionNoFriction((ispc::FPBDCollisionSolver*)CollisionSolvers.GetData(), CollisionSolvers.Num(), Dt, MaxPushOut);
+				if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
+				{
+					ispc::SolvePositionNoFriction(
+						(ispc::FPBDCollisionSolver*)CollisionSolvers.GetData(), 
+						CollisionSolvers.Num(), 
+						Dt, 
+						MaxPushOut);
+				}
+				else
+				{
+					ispc::SolvePositionNoFrictionJacobi(
+						(ispc::FPBDCollisionSolver*)CollisionSolvers.GetData(), 
+						CollisionSolvers.Num(), 
+						Dt, 
+						MaxPushOut, 
+						CVars::Chaos_PBDCollisionSolver_JacobiStiffness);
+				}
 				return;
 			}
 #endif

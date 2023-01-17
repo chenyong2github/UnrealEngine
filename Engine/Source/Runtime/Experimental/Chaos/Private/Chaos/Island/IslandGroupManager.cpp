@@ -8,13 +8,13 @@
 #include "ChaosStats.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
-DECLARE_CYCLE_STAT(TEXT("Chaos::SolveConstraints"), STAT_SolveConstraints, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos::SolveConstraints"), STAT_SolveConstraints, STATGROUP_ChaosConstraintSolver);
 
-DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Gather"), STAT_Evolution_Gather, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Scatter"), STAT_Evolution_Scatter, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase1"), STAT_Evolution_ApplyConstraintsPhase1, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase2"), STAT_Evolution_ApplyConstraintsPhase2, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase3"), STAT_Evolution_ApplyConstraintsPhase3, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Gather"), STAT_Evolution_Gather, STATGROUP_ChaosConstraintSolver);
+DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Scatter"), STAT_Evolution_Scatter, STATGROUP_ChaosConstraintSolver);
+DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase1"), STAT_Evolution_ApplyConstraintsPhase1, STATGROUP_ChaosConstraintSolver);
+DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase2"), STAT_Evolution_ApplyConstraintsPhase2, STATGROUP_ChaosConstraintSolver);
+DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraintsPhase3"), STAT_Evolution_ApplyConstraintsPhase3, STATGROUP_ChaosConstraintSolver);
 
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Gather::Prepare"), STAT_Evolution_Gather_Prepare, STATGROUP_ChaosConstraintDetails);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Gather::Bodies"), STAT_Evolution_Gather_Bodies, STATGROUP_ChaosConstraintDetails);

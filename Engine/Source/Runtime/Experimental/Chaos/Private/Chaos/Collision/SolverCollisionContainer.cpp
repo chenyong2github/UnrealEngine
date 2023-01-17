@@ -34,10 +34,6 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverAutoStiffnessMassRatio1(TEXT("p.Chaos.PBDCollisionSolver.AutoStiffness.MassRatio1"), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1, TEXT(""));
 		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverAutoStiffnessMassRatio2(TEXT("p.Chaos.PBDCollisionSolver.AutoStiffness.MassRatio2"), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2, TEXT(""));
 
-		// Whether to use the Jacobi collision pair solver
-		bool bChaos_PBDCollisionSolver_UseJacobiPairSolver = false;
-		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverUseJacobiPairSolver(TEXT("p.Chaos.PBDCollisionSolver.UseJacobi"), bChaos_PBDCollisionSolver_UseJacobiPairSolver, TEXT(""));
-
 		// Jacobi solver stiffness
 		// @todo(chaos): to be tuned
 		FRealSingle Chaos_PBDCollisionSolver_JacobiStiffness = 0.5f;
