@@ -67,7 +67,10 @@ public:
 		: Min(InMin)
 		, Max(InMax)
 		, IsValid(1)
-	{ }
+	{
+		// Intended to catch TBox<float>(TVector<double>(), TVector<double>())
+		static_assert(sizeof(FArg) <= sizeof(T), "Losing precision when constructing a box of floats from vectors of doubles");
+	}
 
 	TBox(const TVector4<T>& InMin, const TVector4<T>& InMax)
 		: Min(InMin)
