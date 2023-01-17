@@ -8,6 +8,7 @@
 #include "IMediaClockSink.h"
 #include "IMediaModule.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "MediaComponent.h"
 #include "MediaPlateModule.h"
 #include "MediaPlate.h"
@@ -22,6 +23,17 @@
 
 #define LOCTEXT_NAMESPACE "MediaPlate"
 
+
+namespace UE::MediaPlateComponent
+{
+	enum class ESetUpTexturesFlags
+	{
+		None,
+		AllowSetPlayer = 0x1,
+		ForceUpdateResource = 0x2,
+	};
+	ENUM_CLASS_FLAGS(ESetUpTexturesFlags);
+};
 
 /**
  * Media clock sink for media textures.
@@ -83,10 +95,9 @@ void UMediaPlateComponent::OnRegister()
 	Super::OnRegister();
 
 	// Create media texture if we don't have one.
-	if (MediaTexture == nullptr)
+	if (MediaTextures.Num() == 0)
 	{
-		MediaTexture = NewObject<UMediaTexture>(this);
-		MediaTexture->NewStyleOutput = true;
+		SetNumberOfTextures(1);
 	}
 
 	// Create media player if we don't have one.
@@ -100,36 +111,7 @@ void UMediaPlateComponent::OnRegister()
 	MediaPlayer->OnEndReached.AddUniqueDynamic(this, &UMediaPlateComponent::OnMediaEnd);
 
 	// Set up media texture.
-	if (MediaTexture != nullptr)
-	{
-		// Prevent media texture blackouts by only updating resource and material uniforms on relevant changes.
-		bool bApplyTextureMaterialUpdate = false;
-
-		if (FMath::IsNearlyEqual(MediaTexture->GetMipMapBias(), MipMapBias) == false)
-		{
-			MediaTexture->SetMipMapBias(MipMapBias);
-			bApplyTextureMaterialUpdate = true;
-		}
-
-		if (MediaTexture->GetMediaPlayer() != MediaPlayer.Get())
-		{
-			MediaTexture->SetMediaPlayer(MediaPlayer);
-			bApplyTextureMaterialUpdate = true;
-		}
-
-		if (bApplyTextureMaterialUpdate)
-		{
-			MediaTexture->UpdateResource();
-
-			if (AMediaPlate* MediaPlate = GetOwner<AMediaPlate>())
-			{
-				if (UMaterialInterface* Material = MediaPlate->GetCurrentMaterial())
-				{
-					Material->RecacheUniformExpressions(false);
-				}
-			}
-		}
-	}
+	SetUpTextures(UE::MediaPlateComponent::ESetUpTexturesFlags::AllowSetPlayer);
 
 	// Set up sound component if we have one.
 	if (SoundComponent != nullptr)
@@ -211,8 +193,17 @@ UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
 	return MediaPlayer;
 }
 
-UMediaTexture* UMediaPlateComponent::GetMediaTexture()
+UMediaTexture* UMediaPlateComponent::GetMediaTexture(int32 Index)
 {
+	UMediaTexture* MediaTexture = nullptr;
+	if ((Index >= 0) && (Index < MediaTextures.Num()))
+	{
+		MediaTexture = MediaTextures[Index];
+	}
+	else
+	{
+		UE_LOG(LogMediaPlate, Warning, TEXT("Texture index %d not available."), Index);
+	}
 	return MediaTexture;
 }
 
@@ -411,11 +402,14 @@ void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 	MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
 	MediaTextureTrackerObject->MeshRange = MeshRange;
 
-	// Add our texture.
-	if (MediaTexture != nullptr)
+	// Add our textures.
+	FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
+	for (UMediaTexture* MediaTexture : MediaTextures)
 	{
-		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
-		MediaTextureTracker.RegisterTexture(MediaTextureTrackerObject, MediaTexture);
+		if (MediaTexture != nullptr)
+		{
+			MediaTextureTracker.RegisterTexture(MediaTextureTrackerObject, MediaTexture);
+		}
 	}
 }
 
@@ -425,7 +419,10 @@ void UMediaPlateComponent::UnregisterWithMediaTextureTracker()
 	if (MediaTextureTrackerObject != nullptr)
 	{
 		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
-		MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
+		for (UMediaTexture* MediaTexture : MediaTextures)
+		{
+			MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
+		}
 	}
 }
 
@@ -539,6 +536,36 @@ void UMediaPlateComponent::SetLetterboxAspectRatio(float AspectRatio)
 	UpdateLetterboxes();
 }
 
+void UMediaPlateComponent::SetNumberOfTextures(int32 NumTextures)
+{
+	if (MediaTextures.Num() != NumTextures)
+	{
+		if (IsRegistered())
+		{
+			UnregisterWithMediaTextureTracker();
+		}
+		if (MediaTextures.Num() > NumTextures)
+		{
+			MediaTextures.RemoveAt(NumTextures, MediaTextures.Num() - NumTextures);
+		}
+		else
+		{
+			while (MediaTextures.Num() < NumTextures)
+			{
+				UMediaTexture* MediaTexture = NewObject<UMediaTexture>(this);
+				MediaTexture->NewStyleOutput = true;
+				MediaTextures.Add(MediaTexture);
+			}
+		}
+
+		SetUpTextures(UE::MediaPlateComponent::ESetUpTexturesFlags::ForceUpdateResource);
+		if (IsRegistered())
+		{
+			RegisterWithMediaTextureTracker();
+		}
+	}
+}
+
 void UMediaPlateComponent::TickOutput()
 {
 	if (MediaPlayer != nullptr)
@@ -606,8 +633,7 @@ void UMediaPlateComponent::ProxyClose()
 
 UMediaTexture* UMediaPlateComponent::ProxyGetMediaTexture(int32 TextureIndex)
 {
-	UMediaTexture* OutTexture = MediaTexture;
-	return OutTexture;
+	return GetMediaTexture(TextureIndex);
 }
 
 bool UMediaPlateComponent::ProxyIsPlaylistIndexPlaying(int32 Index) const
@@ -618,6 +644,24 @@ bool UMediaPlateComponent::ProxyIsPlaylistIndexPlaying(int32 Index) const
 void UMediaPlateComponent::ProxySetPlayOnOpen(bool bInPlayOnOpen)
 {
 	bPlayOnOpen = bInPlayOnOpen;
+}
+
+void UMediaPlateComponent::ProxySetTextureBlend(int32 TextureIndex, float Blend)
+{
+	if (AMediaPlate* MediaPlate = GetOwner<AMediaPlate>())
+	{
+		if (UMaterialInterface* Material = MediaPlate->GetCurrentMaterial())
+		{
+			UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
+			if (MID != nullptr)
+			{
+				static const FString BaseBlendName = TEXT("Blend");
+				FString BlendName = BaseBlendName;
+				BlendName.AppendInt(TextureIndex);
+				MID->SetScalarParameterValue(FName(*BlendName), Blend);
+			}
+		}
+	}
 }
 
 void UMediaPlateComponent::RestartPlayer()
@@ -832,6 +876,49 @@ void UMediaPlateComponent::OnMediaEnd()
 	Next();
 }
 
+void UMediaPlateComponent::SetUpTextures(UE::MediaPlateComponent::ESetUpTexturesFlags Flags)
+{
+	// Prevent media texture blackouts by only updating resource and material uniforms on relevant changes.
+	bool bApplyMaterialUpdate = false;
+	for (UMediaTexture* MediaTexture : MediaTextures)
+	{
+		if (MediaTexture != nullptr)
+		{
+			bool bApplyTextureUpdate = false;
+
+			if (FMath::IsNearlyEqual(MediaTexture->GetMipMapBias(), MipMapBias) == false)
+			{
+				MediaTexture->SetMipMapBias(MipMapBias);
+				bApplyTextureUpdate = true;
+				bApplyMaterialUpdate = true;
+			}
+
+			if ((EnumHasAllFlags(Flags, UE::MediaPlateComponent::ESetUpTexturesFlags::AllowSetPlayer)) &&
+				(MediaTexture->GetMediaPlayer() != MediaPlayer.Get()))
+			{
+				MediaTexture->SetMediaPlayer(MediaPlayer);
+				bApplyTextureUpdate = true;
+			}
+
+			if (bApplyTextureUpdate ||
+				(EnumHasAllFlags(Flags, UE::MediaPlateComponent::ESetUpTexturesFlags::ForceUpdateResource)))
+			{
+				MediaTexture->UpdateResource();
+			}
+		}
+	}
+
+	if (bApplyMaterialUpdate)
+	{
+		if (AMediaPlate* MediaPlate = GetOwner<AMediaPlate>())
+		{
+			if (UMaterialInterface* Material = MediaPlate->GetCurrentMaterial())
+			{
+				Material->RecacheUniformExpressions(false);
+			}
+		}
+	}
+}
 #if WITH_EDITOR
 
 void UMediaPlateComponent::SetVisibleMipsTilesCalculations(EMediaTextureVisibleMipsTiles InVisibleMipsTilesCalculations)

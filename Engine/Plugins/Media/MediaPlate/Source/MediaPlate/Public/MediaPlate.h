@@ -8,6 +8,7 @@
 #include "MediaPlate.generated.h"
 
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
 class UMediaPlateComponent;
 
 /**
@@ -44,6 +45,11 @@ public:
 	 */
 	void ApplyCurrentMaterial();
 	void ApplyMaterial(UMaterialInterface* InMaterial);
+
+	/**
+	 * Sets up parameters (like the texture) that we use in the material.
+	 */
+	void SetMIDParameters(UMaterialInstanceDynamic* InMaterial);
 	
 	/** Get the last material assigned to the static mesh, at index 0. */
 	UMaterialInterface* GetLastMaterial() const { return LastMaterial; }

@@ -79,6 +79,11 @@ public:
 	virtual void ProxyOpenPlaylistIndex(int32 Index) = 0;
 
 	/**
+	 * Set the blend value for a texture that was retrieved from ProxyGetMediaTexture.
+	 */
+	virtual void ProxySetTextureBlend(int32 TextureIndex, float Blend) = 0;
+
+	/**
 	 * Set the player to play on open.
 	 */
 	virtual void ProxySetPlayOnOpen(bool bInPlayOnOpen) = 0;

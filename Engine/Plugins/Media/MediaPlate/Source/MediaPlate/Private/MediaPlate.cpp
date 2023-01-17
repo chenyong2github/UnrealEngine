@@ -141,8 +141,7 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 		if (GEditor == nullptr)
 		{
 			UMaterialInstanceDynamic* MaterialDynamic = StaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
-			MaterialDynamic->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
-
+			SetMIDParameters(MaterialDynamic);
 			LastMaterial = MaterialDynamic;
 		}
 		else
@@ -160,16 +159,18 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 
 			if (bCanModify == false)
 			{
+				MediaPlateComponent->SetNumberOfTextures(1);
 				LastMaterial = Material;
 			}
 			else if (MID != nullptr)
 			{
-				MID->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
-
+				SetMIDParameters(MID);
 				Result = MID;
 			}
 			else
 			{
+				MediaPlateComponent->SetNumberOfTextures(1);
+
 				// Change M_ to MI_ in material name and then generate a unique one.
 				FString MaterialName = Material->GetName();
 				if (MaterialName.StartsWith(TEXT("M_")))
@@ -204,6 +205,35 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 				LastMaterial = Result;
 			}
 		}
+	}
+}
+
+void AMediaPlate::SetMIDParameters(UMaterialInstanceDynamic* InMaterial)
+{
+	InMaterial->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
+	
+	int32 NumTextures = 0;
+	FString MediaTextureString = MediaTextureName.Resolve().ToString();
+	for (const struct FTextureParameterValue& Param : InMaterial->TextureParameterValues)
+	{
+		FString Name = Param.ParameterInfo.Name.ToString();
+		if (Name.StartsWith(MediaTextureString))
+		{
+			NumTextures++;
+		}
+	}
+	MediaPlateComponent->SetNumberOfTextures(NumTextures);
+
+	for (int32 Index = 0; Index < NumTextures; Index++)
+	{
+		FString NameString = MediaTextureString;
+		if (Index != 0)
+		{
+			NameString.AppendInt(Index);
+		}
+		FName TextureParameterName = FName(*NameString);
+		InMaterial->SetTextureParameterValue(TextureParameterName,
+			MediaPlateComponent->GetMediaTexture(Index));
 	}
 }
 

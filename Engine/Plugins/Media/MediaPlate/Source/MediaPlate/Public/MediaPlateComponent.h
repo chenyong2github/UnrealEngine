@@ -8,6 +8,7 @@
 #include "MediaPlayerProxyInterface.h"
 #include "MediaSource.h"
 #include "MediaTextureTracker.h"
+#include "Misc/EnumClassFlags.h"
 
 #include "MediaPlateComponent.generated.h"
 
@@ -19,6 +20,10 @@ class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
 
+namespace UE::MediaPlateComponent
+{
+	enum class ESetUpTexturesFlags;
+}
 
 /**
  * This is a component for AMediaPlate that can play and show media in the world.
@@ -51,7 +56,7 @@ public:
 	 * Call this get our media texture.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
-	UMediaTexture* GetMediaTexture();
+	UMediaTexture* GetMediaTexture(int32 Index = 0);
 
 	/**
 	 * Call this to open the media.
@@ -220,6 +225,11 @@ public:
 	 */
 	bool GetWantsToPlayWhenVisible() const { return bWantsToPlayWhenVisible; }
 
+	/**
+	 * Called from AMediaPlate to set how many media textures the material needs.
+	 */
+	void SetNumberOfTextures(int32 NumTextures);
+
 #if WITH_EDITOR
 	/**
 	 * Call this to get the mip tile calculations mesh mode.
@@ -247,6 +257,7 @@ public:
 	virtual bool ProxyIsPlaylistIndexPlaying(int32 Index) const override;
 	virtual void ProxyOpenPlaylistIndex(int32 Index) override;
 	virtual void ProxySetPlayOnOpen(bool bInPlayOnOpen) override;
+	virtual void ProxySetTextureBlend(int32 TextureIndex, float Blend) override;
 
 private:
 	/**
@@ -309,9 +320,9 @@ private:
 	/** Name for our playlist. */
 	static FLazyName MediaPlaylistName;
 
-	/** Holds the media player. */
+	/** Holds the media textures. */
 	UPROPERTY(Instanced)
-	TObjectPtr<UMediaTexture> MediaTexture;
+	TArray<TObjectPtr<UMediaTexture>> MediaTextures;
 
 	/** This component's media player */
 	UPROPERTY(Instanced)
@@ -395,4 +406,8 @@ private:
 	UFUNCTION()
 	void OnMediaEnd();
 
+	/**
+	 * Sets up the textures we have.
+	 */
+	void SetUpTextures(UE::MediaPlateComponent::ESetUpTexturesFlags Flags);
 };
