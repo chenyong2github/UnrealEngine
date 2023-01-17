@@ -54,13 +54,6 @@ public:
 
 	void GetLODModelData(FLODModelData& OutLODModelData) const override
 	{
-		// This should never happen, but for safety
-		if (!ensure(WeakStaticMesh.IsValid()))
-		{
-			OutLODModelData.LODIndex = INDEX_NONE;
-			return;
-		}
-
 		OutLODModelData.LODIndex = RenderData->GetCurrentFirstLODIdx(MinLOD);
 		if (!RenderData->LODResources.IsValidIndex(OutLODModelData.LODIndex))
 		{
