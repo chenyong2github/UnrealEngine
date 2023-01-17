@@ -140,18 +140,16 @@ bool ReverseWindingOrder(FNaniteView NaniteView, FPrimitiveSceneData PrimitiveDa
 {
 	// Negative determinant sign for non uniform scale means that an odd number of components are negative, so
 	// we need to reverse the triangle winding order.
-	//
-	// TODO: We should eventually use the instance's determinant sign here. Temporarily using the primitive's
-	// determinant sign to fix bugs where Nanite behavior doesn't match non-Nanite ISMs and so that fallback meshes
-	// will render consistently on platforms that do not support Nanite (fallbacks cannot change cull mode per-instance).
-	//float DeterminantSign = InstanceData.DeterminantSign;
-	float DeterminantSign = GetPrimitive_DeterminantSign_FromFlags(PrimitiveData.Flags);
+	float DeterminantSign = InstanceData.DeterminantSign;
 	bool bReverseInstanceCull = (DeterminantSign < 0.0f);
-	if (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING)
-	{
-		// reverse culling if the primitive has elected to do so
-		bReverseInstanceCull = !bReverseInstanceCull;
-	}
+
+	// TODO: Support the reverse culling flag in Nanite. This has been temporarily disabled because it caused some issues
+	// with facing direction of packed level actors, which use this flag to flip non-Nanite back outward.
+	//if (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING)
+	//{
+	//	// reverse culling if the primitive has elected to do so
+	//	bReverseInstanceCull = !bReverseInstanceCull;
+	//}
 
 	bool bViewReverseCull = (NaniteView.Flags & NANITE_VIEW_FLAG_REVERSE_CULLING);
 	
