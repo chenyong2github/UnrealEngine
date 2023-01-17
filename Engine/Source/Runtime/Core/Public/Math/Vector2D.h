@@ -700,7 +700,7 @@ public:
 	
 	
 	// Conversion from other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TVector2(const TVector2<FArg>& From) : TVector2<T>((T)From.X, (T)From.Y) {}
 };
 

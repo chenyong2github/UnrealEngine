@@ -27,7 +27,7 @@ public:
 	TRotationTranslationMatrix(const TRotator<T>& Rot, const TVector<T>& Origin);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TRotationTranslationMatrix(const TRotationTranslationMatrix<FArg>& From) : TMatrix<T>(From) {}
 	
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */

@@ -203,7 +203,7 @@ public:
 	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TRay(const TRay<FArg>& From) : TRay<T>(TVector<T>(From.Origin), TVector<T>(From.Direction), true) {}
 };
 

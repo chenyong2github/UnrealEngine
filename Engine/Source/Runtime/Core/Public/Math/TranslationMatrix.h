@@ -20,7 +20,7 @@ public:
 	TTranslationMatrix(const TVector<T>& Delta);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TTranslationMatrix(const TTranslationMatrix<FArg>& From) : TMatrix<T>(From) {}
 	
 	/** Matrix factory. Return an FMatrix so we don't have type conversion issues in expressions. */

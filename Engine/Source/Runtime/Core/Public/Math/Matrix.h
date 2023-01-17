@@ -427,7 +427,7 @@ public:
 	}
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TMatrix(const TMatrix<FArg>& From)
 	{
 		// TODO: SIMD this?
@@ -516,7 +516,7 @@ struct TBasisVectorMatrix : public TMatrix<T>
 	TBasisVectorMatrix(const TVector<T>& XAxis,const TVector<T>& YAxis,const TVector<T>& ZAxis,const TVector<T>& Origin);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TBasisVectorMatrix(const TBasisVectorMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
@@ -535,7 +535,7 @@ struct TLookFromMatrix : public TMatrix<T>
 	TLookFromMatrix(const TVector<T>& EyePosition, const TVector<T>& LookDirection, const TVector<T>& UpVector);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TLookFromMatrix(const TLookFromMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
@@ -554,7 +554,7 @@ struct TLookAtMatrix : public TLookFromMatrix<T>
 	TLookAtMatrix(const TVector<T>& EyePosition, const TVector<T>& LookAtPosition, const TVector<T>& UpVector);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TLookAtMatrix(const TLookAtMatrix<FArg>& From) : TLookFromMatrix<T>(From) {}
 };
 

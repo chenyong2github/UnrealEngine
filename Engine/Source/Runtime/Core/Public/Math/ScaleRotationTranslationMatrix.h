@@ -28,7 +28,7 @@ public:
 	TScaleRotationTranslationMatrix(const TVector<T>& Scale, const TRotator<T>& Rot, const TVector<T>& Origin);
 	
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TScaleRotationTranslationMatrix(const TScaleRotationTranslationMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 

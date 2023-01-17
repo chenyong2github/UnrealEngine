@@ -1475,11 +1475,11 @@ public:
 
 	// Conversion to other type.
 	friend struct TTransform<double>;
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value && TIsSame<T, float>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg> && std::is_same_v<T, float>)>
 	explicit TTransform(const TTransform<FArg>& From) : TTransform(MakeVectorRegisterFloatFromDouble(From.Rotation), MakeVectorRegisterFloatFromDouble(From.Translation), MakeVectorRegisterFloatFromDouble(From.Scale3D)) {}
 
 	friend struct TTransform<float>;
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value && TIsSame<T, double>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg> && std::is_same_v<T, double>)>
 	explicit TTransform(const TTransform<FArg>& From) : TTransform(MakeVectorRegisterDouble(From.Rotation), MakeVectorRegisterDouble(From.Translation), MakeVectorRegisterDouble(From.Scale3D)) {}
 };
 

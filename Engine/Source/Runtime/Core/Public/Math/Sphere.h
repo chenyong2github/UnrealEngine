@@ -89,7 +89,7 @@ public:
 	CORE_API TSphere(const TSphere<T>* Spheres, int32 Count);
 
 	// Conversion from other variant type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TSphere(const TSphere<FArg>& From) : TSphere<T>(TVector<T>(From.Center), T(From.W)) {}
 
 	/**

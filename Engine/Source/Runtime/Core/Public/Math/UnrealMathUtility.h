@@ -741,7 +741,7 @@ public:
 		*ScalarCos = FMath::Cos(Value);
 	}
 
-	template<typename T, typename U, TEMPLATE_REQUIRES(!TIsSame<T, U>::Value)>
+	template<typename T, typename U, TEMPLATE_REQUIRES(!std::is_same_v<T, U>)>
 	static FORCEINLINE void SinCos(T* ScalarSin, T* ScalarCos, U Value)
 	{
 		SinCos(ScalarSin, ScalarCos, T(Value));
@@ -1061,10 +1061,7 @@ public:
 	}
 
 	/** Performs a linear interpolation between two values, Alpha ranges from 0-1 */
-	template< class T, class U, TEMPLATE_REQUIRES(TAnd<
-													TNot<TCustomLerp<T>>,
-													TOr<TIsFloatingPoint<U>, TIsSame<T, U>>
-													>::Value)>
+	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T Lerp( const T& A, const T& B, const U& Alpha )
 	{
 		return (T)(A + Alpha * (B-A));
@@ -1078,11 +1075,7 @@ public:
 	}
 
 	// Allow passing of differing A/B types.
-	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TAnd<
-																		TNot<TIsSame<T1, T2>>,
-																		TNot<TCustomLerp<T1>>,
-																		TNot<TCustomLerp<T2>>
-																		>::Value)>
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(!std::is_same_v<T1, T2> && !TCustomLerp<T1>::Value && !TCustomLerp<T2>::Value)>
 	UE_NODISCARD static auto Lerp( const T1& A, const T2& B, const T3& Alpha ) -> decltype(A * B)
 	{
 		using ABType = decltype(A * B);
@@ -1104,7 +1097,7 @@ public:
 	}
 
 	// Allow passing of differing A/B types.
-	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(!TIsSame<T1, T2>::Value)>
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(!std::is_same_v<T1, T2>)>
 	UE_NODISCARD static auto LerpStable( const T1& A, const T2& B, const T3& Alpha ) -> decltype(A * B)
 	{
 		using ABType = decltype(A * B);
@@ -1112,10 +1105,7 @@ public:
 	}
 	
 	/** Performs a 2D linear interpolation between four values values, FracX, FracY ranges from 0-1 */
-	template< class T, class U, TEMPLATE_REQUIRES(TAnd<
-													TNot<TCustomLerp<T>>,
-													TOr<TIsFloatingPoint<U>, TIsSame<T, U>>
-													>::Value)>
+	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00,const T& P10,const T& P01,const T& P11, const U& FracX, const U& FracY)
 	{
 		return Lerp(
@@ -1141,10 +1131,7 @@ public:
 	 *
 	 * @return  Interpolated value
 	 */
-	template< class T, class U, TEMPLATE_REQUIRES(TAnd<
-													TNot<TCustomLerp<T>>,
-													TOr<TIsFloatingPoint<U>, TIsSame<T, U>>
-													>::Value)>
+	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::Value && (std::is_floating_point_v<U> || std::is_same_v<T, U>))>
 	UE_NODISCARD static constexpr FORCEINLINE_DEBUGGABLE T CubicInterp( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
 		const U A2 = A * A;
@@ -2427,22 +2414,6 @@ public:
 		}
 		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
 	}
-
-	// Temporary support for ambiguities to simplify UE4 -> UE5 upgrades - falls back to float variant.
-	// A call is considered ambiguous if it passes no float types, any long double, or multiple mismatched float/double types.
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	UE_NODISCARD static FORCEINLINE float Log2(T&& Value) { return Log2((float)Value); }
-	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE void PolarToCartesian(const T1 Rad, const T2 Ang, T3& OutX, T3& OutY) { float OX, OY; PolarToCartesian((float)Rad, (float)Ang, OX, OY); OutX = OX; OutY = OY; }
-	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE void CartesianToPolar(const T1 X, const T2 Y, T3& OutRad, T3& OutAng) { float ORad, OAng; CartesianToPolar((float)X, (float)Y, ORad, OAng); OutRad = ORad; OutAng = OAng; }
-
-	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	UE_NODISCARD static FORCEINLINE float SmoothStep(T1&& A, T2&& B, T3&& C) { return SmoothStep((float)A, (float)B, (float)C); }
-	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	UE_NODISCARD static FORCEINLINE float WeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& Weight) { return WeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)Weight); }
-	template<typename T1, typename T2, typename T3, typename T4, typename T5, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3, T4, T5>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	UE_NODISCARD static FORCEINLINE float DynamicWeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& MaxDistance, T4&& MinWeight, T5&& MaxWeight) { return DynamicWeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)MaxDistance, (float)MinWeight, (float)MaxWeight); }
 };
 
 // LWC Conversion helpers

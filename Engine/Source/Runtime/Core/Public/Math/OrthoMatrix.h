@@ -27,7 +27,7 @@ public:
 	TOrthoMatrix(T Width,T Height,T ZScale,T ZOffset);
 	
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TOrthoMatrix(const TOrthoMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
@@ -40,7 +40,7 @@ public:
 	TReversedZOrthoMatrix(T Left, T Right, T Bottom, T Top, T ZScale, T ZOffset);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TReversedZOrthoMatrix(const TReversedZOrthoMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 

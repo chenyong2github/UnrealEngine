@@ -3246,13 +3246,13 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		D = FMath::Min(D1, I1);
 
 		// Test compilation mixing int32/int64 types
-		static_assert(TIsSame< decltype(FMath::Max(Big1, I1)), decltype(Big1) >::Value);
-		static_assert(TIsSame< decltype(FMath::Min(I1, Big1)), decltype(Big1) >::Value);
+		static_assert(std::is_same_v< decltype(FMath::Max(Big1, I1)), decltype(Big1) >);
+		static_assert(std::is_same_v< decltype(FMath::Min(I1, Big1)), decltype(Big1) >);
 		Big3 = FMath::Max(Big1, I1);
 		Big3 = FMath::Min(Big1, I1);
 
-		static_assert(TIsSame< decltype(FMath::Max(I1, Big2)), decltype(Big1) >::Value);
-		static_assert(TIsSame< decltype(FMath::Min(Big2, I1)), decltype(Big1) >::Value);
+		static_assert(std::is_same_v< decltype(FMath::Max(I1, Big2)), decltype(Big1) >);
+		static_assert(std::is_same_v< decltype(FMath::Min(Big2, I1)), decltype(Big1) >);
 		Big3 = FMath::Max(I1, Big2);
 		Big3 = FMath::Min(I1, Big2);
 

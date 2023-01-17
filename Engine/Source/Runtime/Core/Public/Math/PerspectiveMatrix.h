@@ -55,7 +55,7 @@ public:
 	TPerspectiveMatrix(T HalfFOV, T Width, T Height, T MinZ);
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TPerspectiveMatrix(const TPerspectiveMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 
@@ -69,7 +69,7 @@ public:
 	TReversedZPerspectiveMatrix(T HalfFOV, T Width, T Height, T MinZ);
 	
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TReversedZPerspectiveMatrix(const TReversedZPerspectiveMatrix<FArg>& From) : TMatrix<T>(From) {}
 };
 

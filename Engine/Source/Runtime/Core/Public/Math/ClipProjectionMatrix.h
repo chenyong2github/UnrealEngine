@@ -29,7 +29,7 @@ public:
 	TClipProjectionMatrix( const TMatrix<T>& SrcProjMat, const TPlane<T>& Plane );
 
 	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
 	explicit TClipProjectionMatrix(const TClipProjectionMatrix<FArg>& From) : TMatrix<T>(From) {}
 	
 private:

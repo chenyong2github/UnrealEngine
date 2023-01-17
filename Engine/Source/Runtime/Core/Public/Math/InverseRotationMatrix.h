@@ -24,7 +24,7 @@ public:
 	TInverseRotationMatrix(const TRotator<T>& Rot);
 	
 	// Conversion to other type.
-    template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+    template<typename FArg, TEMPLATE_REQUIRES(!std::is_same_v<T, FArg>)>
     explicit TInverseRotationMatrix(const TInverseRotationMatrix<FArg>& From) : TMatrix<T>(From) {}	
 };
 

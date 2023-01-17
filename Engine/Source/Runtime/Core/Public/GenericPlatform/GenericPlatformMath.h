@@ -1039,17 +1039,6 @@ struct FGenericPlatformMath
 	static void AutoTest();
 #endif
 
-
-	// Temporary support for ambiguities to simplify UE4 -> UE5 upgrades - falls back to float variant.
-	// A call is considered ambiguous if it passes no float types, any long double, or multiple mismatched float/double types.
-
-	template<typename T1, typename T2>
-	struct TIsSameOrNotFP { static constexpr bool Value = TIsSame<T1, T2>::Value || !TIsFloatingPoint<T2>::Value; };
-	template<typename... Ts>
-	static constexpr bool TIsAmbiguous =	!TOr<TIsFloatingPoint<typename TDecay<Ts>::Type>...>::Value ||
-											TOr<TIsSame<long double, typename TDecay<Ts>::Type>...>::Value ||
-											(TOr<TIsSame<float, typename TDecay<Ts>::Type>...>::Value && !TAnd<TIsSameOrNotFP<float, typename TDecay<Ts>::Type>...>::Value);
-
 private:
 
 	/** Error reporting for Fmod. Not inlined to avoid compilation issues and avoid all the checks and error reporting at all callsites. */

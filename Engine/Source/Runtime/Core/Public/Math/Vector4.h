@@ -515,11 +515,11 @@ public:
 	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 	
 	// Conversion from other type: double->float
-	template<typename FArg, TEMPLATE_REQUIRES(TAnd<TIsSame<FArg, double>, TIsSame<T, float>>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_same_v<FArg, double> && std::is_same_v<T, float>)>
 	explicit TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
 
 	// Conversion from other type: float->double
-	template<typename FArg, TEMPLATE_REQUIRES(TAnd<TIsSame<FArg, float>, TIsSame<T, double>>::Value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_same_v<FArg, float> && std::is_same_v<T, double>)>
 	explicit TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
 
 	/**
