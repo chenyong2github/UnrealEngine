@@ -18,7 +18,7 @@ class SWindow;
 //////////////////////////////////////////////////////////////////////////
 // FWidgetBlueprintEditorUtils
 
-class FWidgetBlueprintEditorUtils
+class UMGEDITOR_API FWidgetBlueprintEditorUtils
 {
 
 public:
