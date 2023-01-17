@@ -1170,6 +1170,17 @@ public:
 		return NormalizedFileName;
 	}
 
+
+	virtual bool IsSymlink(const TCHAR* Filename) override
+	{
+		const uint32 Result = GetFileAttributesW(Filename);
+		if (Result != 0xFFFFFFFF && (Result & FILE_ATTRIBUTE_REPARSE_POINT))
+		{
+			return true;
+		}
+		return false;
+	}
+
 #define USE_WINDOWS_ASYNC_IMPL 0
 #if USE_WINDOWS_ASYNC_IMPL
 	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override

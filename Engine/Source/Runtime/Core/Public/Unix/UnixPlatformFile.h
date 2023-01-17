@@ -42,6 +42,8 @@ public:
 	virtual FDateTime GetAccessTimeStamp(const TCHAR* Filename) override;
 	virtual FString GetFilenameOnDisk(const TCHAR* Filename) override;
 
+	virtual bool IsSymlink(const TCHAR* Filename) override;
+
 	virtual IFileHandle* OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
 	virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override;
 	virtual IMappedFileHandle* OpenMapped(const TCHAR* Filename) override;

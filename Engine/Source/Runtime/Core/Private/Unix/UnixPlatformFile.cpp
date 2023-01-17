@@ -1037,6 +1037,28 @@ FString FUnixPlatformFile::GetFilenameOnDisk(const TCHAR* Filename)
 */
 }
 
+bool FUnixPlatformFile::IsSymlink(const TCHAR* Filename)
+{
+	FString CaseSensitiveFilename;
+	FString NormalizedFilename = NormalizeFilename(Filename, false);
+#if !UNIX_PLATFORM_FILE_SPEEDUP_FILE_OPERATIONS
+	if (!GCaseInsensMapper.MapCaseInsensitiveFile(NormalizedFilename, CaseSensitiveFilename))
+	{
+		// could not find the file
+		return false;
+	}
+#else
+	CaseSensitiveFilename = NormalizedFilename;
+#endif
+
+	struct stat FileInfo;
+	if(stat(TCHAR_TO_UTF8(*CaseSensitiveFilename), &FileInfo) != -1)
+	{
+		return S_ISLNK(FileInfo.st_mode);
+	}
+	return false;
+}
+
 IFileHandle* FUnixPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 {
 	// let the file registry manage read files

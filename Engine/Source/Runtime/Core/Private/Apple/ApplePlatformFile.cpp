@@ -561,6 +561,16 @@ FString FApplePlatformFile::GetFilenameOnDisk(const TCHAR* Filename)
 	return Filename;
 }
 
+bool FApplePlatformFile::IsSymlink(const TCHAR* Filename)
+{
+	struct stat FileInfo;
+	if (Stat(Filename, &FileInfo) != -1)
+	{
+		return S_ISLNK(FileInfo.st_mode);
+	}
+	return false;
+}
+
 IFileHandle* FApplePlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 {
 	TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);

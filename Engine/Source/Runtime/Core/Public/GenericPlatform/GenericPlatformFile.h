@@ -318,6 +318,9 @@ public:
 	/** For case insensitive filesystems, returns the full path of the file with the same case as in the filesystem */
 	virtual FString GetFilenameOnDisk(const TCHAR* Filename) = 0;
 
+	/** Return true if the file is a symbolic link */
+	virtual bool		IsSymlink(const TCHAR* Filename) { unimplemented(); return false; };
+
 	/** Attempt to open a file for reading.
 	 *
 	 * @param Filename file to be opened
