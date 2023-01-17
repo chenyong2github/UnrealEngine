@@ -160,6 +160,18 @@ TArray<FPCGPinProperties> UPCGSettings::OutputPinProperties() const
 	return PinProperties;
 }
 
+TArray<FPCGPinProperties>
+UPCGSettings::DefaultInputPinProperties() const
+{
+	return InputPinProperties();
+}
+
+TArray<FPCGPinProperties>
+UPCGSettings::DefaultOutputPinProperties() const
+{
+	return OutputPinProperties();
+}
+
 FPCGElementPtr UPCGSettings::GetElement() const
 {
 	if (!CachedElement)
