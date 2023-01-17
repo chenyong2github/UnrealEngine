@@ -74,13 +74,12 @@ BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) BXDF_ENERGY_SUFFIX(ComputeGGXSpecEnergyTerm
 	return BXDF_ENERGY_SUFFIX(ComputeGGXSpecEnergyTerms)(Roughness, NoV, F0, F90);
 }
 
-BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) BXDF_ENERGY_SUFFIX(ComputeClothEnergyTerms)(float Roughness, float NoV, float3 F0)
+BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) BXDF_ENERGY_SUFFIX(ComputeClothEnergyTerms)(float Roughness, float NoV, float3 F0, float3 F90)
 {
 	BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) Out;
 #if USE_ENERGY_CONSERVATION > 0
 	{
-		Out.W = 1.f;
-		Out.E = BXDF_ENERGY_SUFFIX(GetF0F90)(F0) * ClothEnergyLookup(Roughness, NoV).x;
+		Out = BXDF_ENERGY_SUFFIX(ComputeFresnelEnergyTerms)(ClothEnergyLookup(Roughness, NoV), F0, F90);
 	}
 #else
 	{
@@ -89,6 +88,12 @@ BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) BXDF_ENERGY_SUFFIX(ComputeClothEnergyTerms)
 	}
 #endif
 	return Out;
+}
+
+BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) BXDF_ENERGY_SUFFIX(ComputeClothEnergyTerms)(float Roughness, float NoV, float3 F0)
+{
+	const float F90 = saturate(50.0 * F0.g); // See F_Schlick implementation
+	return BXDF_ENERGY_SUFFIX(ComputeClothEnergyTerms)(Roughness, NoV, F0, F90);
 }
 
 BXDF_ENERGY_SUFFIX(FBxDFEnergyTerms) BXDF_ENERGY_SUFFIX(ComputeDiffuseEnergyTerms)(float Roughness, float NoV)
