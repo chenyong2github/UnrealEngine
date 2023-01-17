@@ -195,6 +195,9 @@ public:
 
 		// disable undesired warnings
 		ExtraArguments.Add(TEXT("-Wno-parentheses-equality"));
+
+		// @lh-todo: This fixes a loop unrolling issue that showed up in DOFGatherKernel with cs_6_6 with the latest DXC revision
+		ExtraArguments.Add(TEXT("-disable-lifetime-markers"));
 	}
 
 	inline FString GetDumpDebugInfoPath() const
