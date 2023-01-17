@@ -797,6 +797,7 @@ namespace EMaterialShaderMapUsage
 		MaterialExportClearCoatRoughness,
 		MaterialExportCustomOutput,
 		MaterialExportShadingModel,
+		MaterialExportRefraction,
 	};
 }
 

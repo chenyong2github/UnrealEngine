@@ -283,6 +283,7 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyFormat.Add(MP_Specular, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_Roughness, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_Anisotropy, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_Refraction, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_Normal, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_Tangent, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_AmbientOcclusion, PF_B8G8R8A8);
@@ -846,6 +847,7 @@ void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 	{
 		DefaultColorSpace = EPropertyColorSpace::sRGB;
 		PerPropertyColorSpace.Add(MP_Normal, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(MP_Refraction, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_Opacity, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_OpacityMask, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_ShadingModel, EPropertyColorSpace::Linear);
