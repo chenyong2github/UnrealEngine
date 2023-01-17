@@ -629,7 +629,7 @@ bool UUnrealEdEngine::HandleDisasmScriptCommand(const TCHAR* Str, FOutputDevice&
 	return true;
 }
 
-bool UUnrealEdEngine::Exec_Editor( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
+bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& Ar )
 {
 	const TCHAR* Str = Stream;
 	// disallow set commands in the editor as that modifies the default object, affecting object serialization
@@ -658,7 +658,7 @@ bool UUnrealEdEngine::Exec_Editor( UWorld* InWorld, const TCHAR* Stream, FOutput
 		GStatProcessingViewportClient = GLastKeyLevelEditingViewportClient ? GLastKeyLevelEditingViewportClient : GCurrentLevelEditingViewportClient;
 	}
 
-	bool bExecSucceeded = UEditorEngine::Exec_Editor( InWorld, Stream, Ar );
+	bool bExecSucceeded = UEditorEngine::Exec( InWorld, Stream, Ar );
 
 	GStatProcessingViewportClient = NULL;
 

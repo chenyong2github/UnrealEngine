@@ -198,11 +198,9 @@ public:
 	//~ End UEditorEngine Interface 
 	
 	//~ Begin FExec Interface
-protected:
-	virtual bool Exec_Editor( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
+	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
 	//~ End FExec Interface
 
-public:
 
 	//~ Begin UEngine Interface.
 	virtual void Init(IEngineLoop* InEngineLoop) override;
