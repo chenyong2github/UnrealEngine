@@ -17,8 +17,6 @@ namespace UE::GPUTextureTransfer
 
 namespace BlackmagicDesign
 {
-	extern UE::GPUTextureTransfer::ITextureTransfer* TextureTransfer;
-
 	using LoggingCallbackPtr = void(*)(const TCHAR* Format, ...);
 	using FBlackmagicVideoFormat = int32_t; //BMDDisplayMode
 
@@ -347,32 +345,6 @@ namespace BlackmagicDesign
 		uint32_t FrameIdentifier = 0;
 	};
 
-	struct BLACKMAGICCORE_API FInitializeDMAArgs
-	{
-		ERHI RHI = ERHI::Invalid;
-		void* RHIDevice = nullptr;
-		void* RHICommandQueue = nullptr;
-
-		// Begin Vulkan Only
-		void* VulkanInstance = nullptr;
-		uint8_t RHIDeviceUUID[16] = { 0 };
-		// End Vulkan Only
-	};
-
-	struct BLACKMAGICCORE_API FRegisterDMABufferArgs
-	{
-		void* Buffer = nullptr;
-		uint32_t Stride = 0;
-		uint32_t Height = 0;
-		uint32_t Width = 0;
-	};
-
-	struct BLACKMAGICCORE_API FRegisterDMATextureArgs
-	{
-		FRHITexture* RHITexture = nullptr;
-		void* RHIResourceMemory = nullptr; // Vulkan only
-	};
-
 	/* BlackmagicDeviceScanner definition
 	*****************************************************************************/
 	class BLACKMAGICCORE_API BlackmagicDeviceScanner
@@ -474,13 +446,4 @@ namespace BlackmagicDesign
 	BLACKMAGICCORE_API bool SendVideoFrameData(const FChannelInfo& InChannelInfo, const FFrameDescriptor& InFrame);
 	BLACKMAGICCORE_API bool SendVideoFrameData(const FChannelInfo& InChannelInfo, FFrameDescriptor_GPUDMA& InFrame);
 	BLACKMAGICCORE_API bool SendAudioSamples(const FChannelInfo& InChannelInfo, const FAudioSamplesDescriptor& InSamples);
-
-	BLACKMAGICCORE_API bool InitializeDMA(const FInitializeDMAArgs& Args);
-	BLACKMAGICCORE_API void UninitializeDMA();
-	BLACKMAGICCORE_API bool RegisterDMATexture(const FRegisterDMATextureArgs& Args);
-	BLACKMAGICCORE_API bool UnregisterDMATexture(FRHITexture* InRHITexture);
-	BLACKMAGICCORE_API bool RegisterDMABuffer(const FRegisterDMABufferArgs& InArgs);
-	BLACKMAGICCORE_API bool UnregisterDMABuffer(void* InBuffer);
-	BLACKMAGICCORE_API bool LockDMATexture(FRHITexture* InRHITexture);
-	BLACKMAGICCORE_API bool UnlockDMATexture(FRHITexture* InRHITexture);
 };

@@ -270,6 +270,8 @@ namespace BlackmagicDesign
 				return false;
 			}
 
+			TextureTransfer = FGPUTextureTransferModule::Get().GetTextureTransfer();
+
 			if (ChannelOptions.bOutputAudio)
 			{
 				if (!InitializeAudio())
@@ -666,7 +668,7 @@ namespace BlackmagicDesign
 					if (OutputFrameToSchedule)
 					{
 #if PLATFORM_WINDOWS
-						if (ChannelOptions.bUseGPUDMA)
+						if (ChannelOptions.bUseGPUDMA && TextureTransfer)
 						{
 							void* DestinationBuffer;
 							OutputFrameToSchedule->BlackmagicFrame->GetBytes(&DestinationBuffer);
@@ -1338,7 +1340,7 @@ namespace BlackmagicDesign
 				for (FOutputFrame* Frame : AllFrames)
 				{
 					void* Buffer = nullptr;
-					if (SUCCEEDED(Frame->BlackmagicFrame->GetBytes(&Buffer)))
+					if (SUCCEEDED(Frame->BlackmagicFrame->GetBytes(&Buffer)) && TextureTransfer)
 					{
 						UE::GPUTextureTransfer::FRegisterDMABufferArgs Args;
 						Args.Height = VideoHeight;
@@ -1353,12 +1355,15 @@ namespace BlackmagicDesign
 				bRegisteredDMABuffers = true;
 			}
 
-			UE::GPUTextureTransfer::ETransferDirection Direction = UE::GPUTextureTransfer::ETransferDirection::GPU_TO_CPU;
-
-			TextureTransfer->TransferTexture(DestinationBuffer, InFrame.RHITexture, Direction);
-			AvailableWritingFrame->bVideoLineFilled = true;
-			AvailableWritingFrame->bVideoF2LineFilled = true;
-			AvailableWritingFrame->CopiedVideoBufferSize = VideoBufferSize;
+			if (TextureTransfer)
+			{
+				UE::GPUTextureTransfer::ETransferDirection Direction = UE::GPUTextureTransfer::ETransferDirection::GPU_TO_CPU;
+				
+				TextureTransfer->TransferTexture(DestinationBuffer, InFrame.RHITexture, Direction);
+				AvailableWritingFrame->bVideoLineFilled = true;
+				AvailableWritingFrame->bVideoF2LineFilled = true;
+				AvailableWritingFrame->CopiedVideoBufferSize = VideoBufferSize;
+			}
 			PushWhenFrameReady(AvailableWritingFrame);
 
 			return true;
@@ -1575,7 +1580,7 @@ namespace BlackmagicDesign
 					else
 					{
 	#if PLATFORM_WINDOWS
-						if (ChannelOptions.bUseGPUDMA)
+						if (ChannelOptions.bUseGPUDMA && TextureTransfer)
 						{
 
 							void* DestinationBuffer;

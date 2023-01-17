@@ -22,6 +22,11 @@ namespace BlackmagicDesign
 	struct FTimecode;
 }
 
+namespace UE::GPUTextureTransfer
+{
+	class ITextureTransfer;
+}
+
 /**
  * Output Media for Blackmagic streams.
  * The output format could be any of EBlackmagicMediaOutputPixelFormat.
@@ -108,4 +113,6 @@ private:
 
 	/** The last time OutputAudio was called. Used to adjust the number of audio samples to grab on each frame depending on the frame time. */
 	double OutputAudioTimestamp;
+
+	TSharedPtr<UE::GPUTextureTransfer::ITextureTransfer> TextureTransfer;
 };

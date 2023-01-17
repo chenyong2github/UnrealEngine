@@ -5,6 +5,8 @@
 #include "BlackmagicLib.h"
 #include "BlackmagicMediaOutput.h"
 #include "BlackmagicMediaOutputModule.h"
+#include "GPUTextureTransfer.h"
+#include "GPUTextureTransferModule.h"
 #include "Engine/Engine.h"
 #include "HAL/Event.h"
 #include "HAL/IConsoleManager.h"
@@ -331,7 +333,11 @@ UBlackmagicMediaCapture::UBlackmagicMediaCapture()
 	, WakeUpEvent(nullptr)
 	, LastFrameDropCount_BlackmagicThread(0)
 {
-	bGPUTextureTransferAvailable = FBlackmagicMediaOutputModule::Get().IsGPUTextureTransferAvailable();
+	bGPUTextureTransferAvailable = FGPUTextureTransferModule::Get().IsAvailable();
+	if (bGPUTextureTransferAvailable)
+	{
+		TextureTransfer = FGPUTextureTransferModule::Get().GetTextureTransfer();
+	}
 }
 
 bool UBlackmagicMediaCapture::ValidateMediaOutput() const
@@ -392,7 +398,7 @@ void UBlackmagicMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess
 				{
 					for (FTextureRHIRef& Texture : TexturesToRelease)
 					{
-						BlackmagicDesign::UnregisterDMATexture(Texture->GetTexture2D());
+						TextureTransfer->UnregisterTexture(Texture->GetTexture2D());
 					}
 
 					TexturesToRelease.Reset();
@@ -571,30 +577,54 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 
 void UBlackmagicMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
 {
-	if (ShouldCaptureRHIResource())
+	if (ShouldCaptureRHIResource() && TextureTransfer)
 	{
 		if (!TexturesToRelease.Contains(InTexture))
 		{
 			TexturesToRelease.Add(InTexture);
 
-			BlackmagicDesign::FRegisterDMATextureArgs Args;
-			Args.RHITexture = InTexture->GetTexture2D();
+			FRHITexture2D* Texture = InTexture->GetTexture2D();
+			UE::GPUTextureTransfer::FRegisterDMATextureArgs Args;
+			Args.RHITexture = Texture;
+
+			Args.RHIResourceMemory = nullptr; // = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
+			Args.Width = Texture->GetDesc().GetSize().X;
+			Args.Height = Texture->GetDesc().GetSize().Y;
+
+			if (Args.RHITexture->GetFormat() == EPixelFormat::PF_B8G8R8A8)
+			{
+				Args.PixelFormat = UE::GPUTextureTransfer::EPixelFormat::PF_8Bit;
+				Args.Stride = Args.Width * 4;
+			}
+			else if (Args.RHITexture->GetFormat() == EPixelFormat::PF_R32G32B32A32_UINT)
+			{
+				Args.PixelFormat = UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
+				Args.Stride = Args.Width * 16;
+			}
+			else
+			{
+				checkf(false, TEXT("Format not supported"));
+			}
 			//Args.RHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
-			BlackmagicDesign::RegisterDMATexture(Args);
+
+			TextureTransfer->RegisterTexture(Args);
 
 		}
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::LockDMATexture);
-			BlackmagicDesign::LockDMATexture(InTexture->GetTexture2D());
+			TextureTransfer->LockTexture(InTexture->GetTexture2D());
 		}
 	}
 }
 
 void UBlackmagicMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::UnlockDMATexture);
-	BlackmagicDesign::UnlockDMATexture(InTexture->GetTexture2D());
+	if (TextureTransfer)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::UnlockDMATexture);
+		TextureTransfer->UnlockTexture(InTexture->GetTexture2D());
+	}
 }
 
 void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)

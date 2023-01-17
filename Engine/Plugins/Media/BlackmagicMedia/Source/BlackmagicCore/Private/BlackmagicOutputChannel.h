@@ -6,6 +6,8 @@
 #include "ThreadSafeObjectPool.h"
 #include <atomic>
 
+#include "GPUTextureTransferModule.h"
+
 class CustomAllocator : public IDeckLinkMemoryAllocator
 {
 public:
@@ -284,6 +286,8 @@ namespace BlackmagicDesign
 			Blackmagic::Private::ThreadSafeQueue<FOutputFrame*> VideoFramesToSchedule;
 			Blackmagic::Private::ThreadSafeQueue<FAudioPacket*> AudioPacketsToSchedule;
 			Blackmagic::Private::ThreadSafeObjectPool<FAudioPacket> AudioPacketPool;
+
+			UE::GPUTextureTransfer::TextureTransferPtr TextureTransfer;
 
 			bool bIsSSE2Available;
 			bool bIsFieldAEven;
