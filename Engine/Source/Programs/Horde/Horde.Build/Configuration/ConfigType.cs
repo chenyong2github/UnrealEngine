@@ -248,8 +248,6 @@ namespace Horde.Build.Configuration
 				resource.Path = uri.AbsoluteUri;
 				resource.Data = await file.ReadAsync(cancellationToken);
 				PropertyInfo.SetValue(target, resource);
-
-				context.Resources.Add(resource);
 			}
 		}
 
