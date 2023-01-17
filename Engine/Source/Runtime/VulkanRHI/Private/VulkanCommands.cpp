@@ -257,8 +257,40 @@ void FVulkanCommandListContext::RHISetShaderParameter(FRHIComputeShader* Compute
 	PendingComputeState->SetPackedGlobalShaderParameter(BufferIndex, BaseIndex, NumBytes, NewValue);
 }
 
+static void UpdateBindlessHandles(TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
+{
+	for (const FRHIShaderParameterResource& Parameter : InBindlessParameters)
+	{
+		if (FRHIResource* Resource = Parameter.Resource)
+		{
+			switch (Parameter.Type)
+			{
+			case FRHIShaderParameterResource::EType::ResourceView:
+			{
+				FRHIShaderResourceView* ShaderResourceView = static_cast<FRHIShaderResourceView*>(Resource);
+				FVulkanShaderResourceView* VKShaderResourceView = ResourceCast(ShaderResourceView);
+				VKShaderResourceView->UpdateView();
+				checkSlow(VKShaderResourceView->GetBindlessHandle().IsValid());
+			}
+			break;
+			case FRHIShaderParameterResource::EType::UnorderedAccessView:
+			{
+				FRHIUnorderedAccessView* UnorderedAccessView = static_cast<FRHIUnorderedAccessView*>(Resource);
+				FVulkanUnorderedAccessView* VKUnorderedAccessView = ResourceCast(UnorderedAccessView);
+				VKUnorderedAccessView->UpdateView();
+				checkSlow(VKUnorderedAccessView->GetBindlessHandle().IsValid());
+			}
+			default:
+				break;
+			}
+		}
+	}
+}
+
 void FVulkanCommandListContext::RHISetShaderParameters(FRHIGraphicsShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
 {
+	UpdateBindlessHandles(InBindlessParameters);
+
 	UE::RHICore::RHISetShaderParametersShared(
 		*this
 		, Shader
@@ -271,6 +303,8 @@ void FVulkanCommandListContext::RHISetShaderParameters(FRHIGraphicsShader* Shade
 
 void FVulkanCommandListContext::RHISetShaderParameters(FRHIComputeShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
 {
+	UpdateBindlessHandles(InBindlessParameters);
+
 	UE::RHICore::RHISetShaderParametersShared(
 		*this
 		, Shader
