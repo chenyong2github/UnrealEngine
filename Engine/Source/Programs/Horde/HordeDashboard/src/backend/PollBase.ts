@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 
 // base class for polling behavior
 export abstract class PollBase {
 
     constructor(pollTime = 5000) {
-
+        makeObservable(this);
         this.pollTime = pollTime;
     }
 

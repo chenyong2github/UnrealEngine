@@ -451,7 +451,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
 
    function onRenderItemColumnInner(item: JobItem, index?: number, column?: IColumn) {
 
-      const fieldContent = item[column!.fieldName as keyof JobItem];
+      const fieldContent = item[column!.fieldName as keyof JobItem] as string;
 
       const jobColumn = item.jobTab?.columns?.find(c => c.heading === column!.key);
 

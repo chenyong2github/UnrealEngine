@@ -84,5 +84,6 @@ class GraphDatabase extends LocalCache<GetGraphResponse> {
 }
 
 const graphDatabase = new GraphDatabase();
+const graphCache = new GraphCache();
 
-export default new GraphCache();
+export default graphCache;

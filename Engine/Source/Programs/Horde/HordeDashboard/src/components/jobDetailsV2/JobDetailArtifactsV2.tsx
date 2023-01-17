@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import { ArtifactData, GetArtifactResponse, GetArtifactZipRequest } from '../../backend/Api';
 import { hordeClasses } from '../../styles/Styles';
 import { observer } from 'mobx-react-lite';
-import { observable, action } from 'mobx';
+import { observable, action, makeObservable } from 'mobx';
 import backend from '../../backend';
 import { JobDataView, JobDetailsV2 } from './JobDetailsViewCommon';
 import { ISideRailLink } from '../../base/components/SideRail';
@@ -39,6 +39,11 @@ const classNames = mergeStyleSets({
 });
 
 class ArtifactState {
+
+   constructor() {
+      makeObservable(this);
+   }
+
    @observable selectedItemCount = 0;
    @observable isDownloading = false;
    jobDetails: JobDetailsV2 | null = null;
@@ -188,7 +193,7 @@ class ArtifactsDataView extends JobDataView {
    }
 
    detailsUpdated() {
-      
+
       if (!this.details?.jobData) {
          return;
       }

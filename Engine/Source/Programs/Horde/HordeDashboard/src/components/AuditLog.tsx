@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { ComboBox, DefaultButton, Dropdown, FocusZone, FocusZoneDirection, IDropdownOption, List, mergeStyleSets, SearchBox, Selection, SelectionMode, SelectionZone, Spinner, SpinnerSize, Stack, Text } from "@fluentui/react";
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from "mobx-react-lite";
 import moment from "moment";
 import { useEffect, useState } from "react";
@@ -35,7 +35,7 @@ export const auditStyleNormal = mergeStyleSets(logStyleNormal, {
 class AuditLogHandler {
 
    constructor() {
-
+      makeObservable(this);
       this.clear();
    }
 

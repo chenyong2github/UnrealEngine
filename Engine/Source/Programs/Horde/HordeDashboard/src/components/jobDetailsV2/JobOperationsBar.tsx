@@ -3,7 +3,7 @@
 import { CommandBar, CommandBarButton, ICommandBarItemProps, IContextualMenuItem, Stack } from '@fluentui/react';
 import { observer } from 'mobx-react-lite';
 import React, { useState } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { JobState, StepData } from '../../backend/Api';
 import dashboard from '../../backend/Dashboard';
 import { hordeClasses } from '../../styles/Styles';
@@ -25,7 +25,7 @@ enum ParameterState {
 export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ jobDetails }) => {
 
    const query = useQuery();
-   const history = useHistory();
+   const navigate = useNavigate();
    const [abortShown, setAbortShown] = useState(false);
    const [editShown, setEditShown] = useState(false);
    const [parametersState, setParametersState] = useState(query.get("newbuild") ? ParameterState.Clone : ParameterState.Hidden);
@@ -124,10 +124,10 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
          onClose={(newJobId) => {
             setParametersState(ParameterState.Hidden);
             if (newJobId) {
-               history.push(`/job/${newJobId}`);
+               navigate(`/job/${newJobId}`);
             } else {
                if (query.get("newbuild")) {
-                  history.replace(`/job/${jobId}`)
+                  navigate(`/job/${jobId}`, { replace: true });
                }
             }
          }} />

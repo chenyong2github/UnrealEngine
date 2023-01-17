@@ -3,13 +3,21 @@
 // this import must come first as it loads theme!
 import './styles/Styles';
 
-import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 import * as serviceWorker from './serviceWorker';
+import { configure } from 'mobx';
 
-ReactDOM.render(<App />, document.getElementById('root'));
+// configure mobx
+configure({
+   reactionRequiresObservable: true,
+   enforceActions: "observed"
+});
+
+
+const root = createRoot(document.getElementById('root')!);
+root.render(<App />);
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

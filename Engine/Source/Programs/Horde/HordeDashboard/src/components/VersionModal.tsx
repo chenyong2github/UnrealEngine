@@ -49,7 +49,14 @@ export const VersionModal: React.FC<{ show: boolean, onClose: () => void }> = ({
       { key: 'column2', name: 'Value', fieldName: 'value', minWidth: 100, maxWidth: 200 },
    ];
 
-   const dashboardVersion: string | undefined = process?.env?.REACT_APP_VERSION_INFO;
+   let dashboardVersion: string | undefined;
+
+   try {
+      dashboardVersion = process?.env?.REACT_APP_VERSION_INFO;
+   } catch {
+      
+   }
+   
    if (dashboardVersion) {
       versionItems.push({ name: "Dashboard", value: dashboardVersion });
    }

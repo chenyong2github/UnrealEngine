@@ -1,11 +1,21 @@
-import { ITheme, IStyleFunctionOrObject, IStyle, ILinkStyleProps, IImageStyleProps } from '@fluentui/react';
-import { IMarkdownHeaderStyleProps } from './MarkdownHeader';
-import { IMarkdownParagraphStyleProps } from './MarkdownParagraph';
-import { IMarkdownTableStyleProps } from '../MarkdownTable/index';
+import type { ITheme, IStyleFunctionOrObject, IStyle, ILinkStyleProps, IImageStyleProps } from '@fluentui/react';
+import type { IMarkdownHeaderStyleProps } from './MarkdownHeader';
+import type { IMarkdownParagraphStyleProps } from './MarkdownParagraph';
+import type { IMarkdownTableStyleProps } from '../MarkdownTable/index';
+import type { MarkdownToJSX } from 'markdown-to-jsx';
 
 export interface IMarkdownProps {
+  /** CSS class to apply to the component root */
   className?: string;
-  children?: React.ReactNode;
+
+  /**
+   * If true, using a code block with language name `renderhtml` will render the contents as HTML.
+   * This is to work around markdown-to-jsx's limited support for nested HTML elements.
+   */
+  enableRenderHtmlBlock?: boolean;
+
+  /** Additional component overrides for markdown rendering */
+  overrides?: MarkdownToJSX.Overrides;
 
   /** Theme provided by higher-order component. */
   theme?: ITheme;
@@ -23,7 +33,7 @@ export interface IMarkdownStyles {
 
 export interface IMarkdownSubComponentStyles {
   // TODO: remove anys
-  // tslint:disable:no-any
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   header: IStyleFunctionOrObject<IMarkdownHeaderStyleProps, any>;
   paragraph: IStyleFunctionOrObject<IMarkdownParagraphStyleProps, any>;  
   link: IStyleFunctionOrObject<ILinkStyleProps, any>;

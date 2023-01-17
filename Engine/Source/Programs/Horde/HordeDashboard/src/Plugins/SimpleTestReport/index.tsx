@@ -20,4 +20,5 @@ class SimpleTestReportPlugin implements Plugin {
     ];
 }
 
-export default new SimpleTestReportPlugin();
+const simpleTestReportPlugin = new SimpleTestReportPlugin();
+export default simpleTestReportPlugin; 

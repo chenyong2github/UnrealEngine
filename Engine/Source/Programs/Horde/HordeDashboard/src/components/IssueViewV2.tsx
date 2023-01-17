@@ -1,9 +1,9 @@
 import { Checkbox, CommandBar, CommandBarButton, DefaultButton, getFocusStyle, ICommandBarItemProps, Icon, IconButton, IContextualMenuItem, IContextualMenuItemProps, IContextualMenuProps, IGroup, Label, List, mergeStyleSets, MessageBar, MessageBarType, Modal, Persona, PersonaSize, Pivot, PivotItem, PrimaryButton, Spinner, SpinnerSize, Stack, TagPicker, Text, TextField } from "@fluentui/react";
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from "mobx-react-lite";
 import moment from "moment";
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useHistory, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import backend from "../backend";
 import { CreateExternalIssueResponse, CreateJobRequest, EventSeverity, GetChangeSummaryResponse, GetExternalIssueProjectResponse, GetExternalIssueResponse, GetIssueResponse, GetIssueSpanResponse, GetIssueStepResponse, GetIssueStreamResponse, GetLogEventResponse, GetTemplateRefResponse, GetThinUserInfoResponse, GetUserResponse, IssueSeverity, UpdateIssueRequest } from "../backend/Api";
 import dashboard, { StatusColor } from "../backend/Dashboard";
@@ -55,6 +55,10 @@ type ChangeItem = {
 type ChangeGroup = IGroup & ChangeItem;
 
 class IssueDetails {
+
+   constructor() {
+      makeObservable(this);
+   }
 
    async set(issueId: number) {
 
@@ -1797,7 +1801,7 @@ const IssueCommandBar: React.FC = () => {
 
 export const IssueModalV2: React.FC<{ popHistoryOnClose: boolean, issueId?: string | null, streamId?: string, onCloseExternal?: () => void }> = observer(({ popHistoryOnClose, issueId, onCloseExternal, streamId }) => {
 
-   const history = useHistory();
+   const navigate = useNavigate();
    const query = useQuery();
    const location = useLocation();
    const [editShown, setEditShown] = useState(false);
@@ -1820,13 +1824,13 @@ export const IssueModalV2: React.FC<{ popHistoryOnClose: boolean, issueId?: stri
 
    const onClose = () => {
       if (queryId) {
-         if (popHistoryOnClose) {
-            history.goBack();
+         if (popHistoryOnClose) {            
+            navigate(-1);
          } else {
             let search = new URLSearchParams(location.search);
             search = new URLSearchParams(Array.from(search.entries()).filter(e => e[0] !== 'issue'));
             location.search = search.toString();
-            history.replace(location);
+            navigate(location, {replace: true});
          }
       }
    }
@@ -3026,7 +3030,7 @@ export const IssueForceCloseModal: React.FC<{ onClose: () => void }> = ({ onClos
 
 const TestFixModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
-   const history = useHistory();
+   const navigate = useNavigate();
    const [state, setState] = useState<{ loadingTemplates?: boolean, templates?: Map<string, GetTemplateRefResponse[]>, error?: string, submitting?: boolean, shelvedCL?: string, baseCL?: string, streamId?: string, templateId?: string, target?: string, updateIssues?: boolean }>({ updateIssues: true });
 
    const issue = details.issue!;
@@ -3185,7 +3189,7 @@ const TestFixModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                }
 
                redirected = true;
-               history.push(`/job/${data.id}`);
+               navigate(`/job/${data.id}`);
 
             }).catch(reason => {
                // "Not Found" is generally a permissions error

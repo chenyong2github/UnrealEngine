@@ -3,7 +3,7 @@
 import { CommandBar, CommandBarButton, ContextualMenu, ContextualMenuItem, ContextualMenuItemType, DefaultButton, Dialog, DialogFooter, DialogType, IButton, IButtonProps, ICommandBarItemProps, IContextualMenuItem, IContextualMenuItemProps, IContextualMenuItemStyles, IContextualMenuStyles, Persona, PersonaSize, PrimaryButton, Stack, Text } from '@fluentui/react';
 import { observer } from 'mobx-react-lite';
 import React, { useRef, useState } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import backend, { useBackend } from '../backend';
 import { ProjectData } from "../backend/Api";
 import dashboard from '../backend/Dashboard';
@@ -45,7 +45,7 @@ type ButtonData = {
 // Top level project button component
 const ProjectButton: React.FunctionComponent<IButtonProps> = (props) => {
 
-   const history = useHistory();
+   const navigate = useNavigate();
    const { project } = props.data as ButtonData;
 
    const buttonRef = React.createRef<IButton>();
@@ -67,7 +67,7 @@ const ProjectButton: React.FunctionComponent<IButtonProps> = (props) => {
                if (ev?.metaKey || ev?.ctrlKey) {
                   window.open(`/project/${project?.id}`);
                } else {
-                  history.push(`/project/${project?.id}`);
+                  navigate(`/project/${project?.id}`);
                }
 
             }}
@@ -110,7 +110,7 @@ const ProjectMenuItem: React.FunctionComponent<IContextualMenuItemProps> = props
    return <Link to={item.link} onClick={(ev: any) => { ev.stopPropagation(); return true; }}> <ContextualMenuItem onClick={(ev: any) => { ev.preventDefault(); return true; }} {...props} /></Link>;
 };
 
-const generateProjectMenu = (history: any, store: ProjectStore) => {
+const generateProjectMenu = (store: ProjectStore) => {
 
    const projects = store.projects;
 
@@ -231,7 +231,7 @@ const generateProjectMenu = (history: any, store: ProjectStore) => {
 // Top level admin button component
 const AdminButton: React.FunctionComponent<IButtonProps> = (props) => {
 
-   const history = useHistory();
+   const navigate = useNavigate();
 
    const buttonRef = React.createRef<IButton>();
    return (
@@ -257,7 +257,7 @@ const AdminButton: React.FunctionComponent<IButtonProps> = (props) => {
                if (ev?.metaKey || ev?.ctrlKey) {
                   window.open(`/agents`);
                } else {
-                  history.push(`/agents`);
+                  navigate(`/agents`);
                }
             }}
             {...props}
@@ -338,7 +338,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
 
    const [showMenu, setShowMenu] = useState(false);
    const [showVersion, setShowVersion] = useState(false);
-   const history = useHistory();
+   const navigate = useNavigate();
    const { projectStore } = useBackend();
 
    const divRef = useRef(null);
@@ -346,7 +346,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
    // subscribe
    if (dashboard.updated) { }
 
-   const generateAdminMenu = (history: any) => {
+   const generateAdminMenu = () => {
 
 
       const cbProps: ICommandBarItemProps[] = [];
@@ -489,7 +489,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
                   key: 'settingsItem',
                   text: 'Preferences',
                   onClick: () => {
-                     history.push("/dashboard");
+                     navigate("/dashboard");
                   }
                }],
             bottomDivider: true
@@ -542,7 +542,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
                   <CommandBar styles={{ root: { paddingTop: 17, backgroundColor: modeColors.header } }}
                      buttonAs={ProjectButton}
                      onReduceData={() => undefined}
-                     items={generateProjectMenu(history, projectStore)}
+                     items={generateProjectMenu(projectStore)}
                   />
                </Stack>
 
@@ -552,7 +552,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
                      {showServer && <CommandBar styles={{ root: { paddingTop: 17, paddingLeft: 0, paddingRight: 32, backgroundColor: modeColors.header } }}
                         buttonAs={AdminButton}
                         onReduceData={() => undefined}
-                        items={generateAdminMenu(history)}
+                        items={generateAdminMenu()}
                      />}
                   </Stack>
 
@@ -561,7 +561,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
                      <div ref={divRef}>
                         <a href="/" onClick={(ev) => { ev.preventDefault(); setShowMenu(true); }}>
                            <Persona styles={{ root: { selectors: { ".ms-Persona-initials": { fontWeight: "unset", fontFamily: "Horde Open Sans SemiBold" } } } }} imageShouldFadeIn={false} imageInitials={initials} imageUrl={dashboard.userImage32} size={PersonaSize.size32}
-                              onClick={() => { history.push("/index") }} />
+                              onClick={() => { navigate("/index") }} />
                         </a>
                      </div>
                      <ContextualMenu

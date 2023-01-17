@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { getTheme, mergeStyles, mergeStyleSets } from '@fluentui/react/lib/Styling';
 import backend from '.';
 import { getBatchInitElapsed, getNiceTime, getStepElapsed, getStepETA, getStepFinishTime, getStepTimingDelta } from '../base/utilities/timeUtils';
@@ -25,6 +25,8 @@ const defaultUpdateMS = 5000;
 export class JobDetails {
 
     constructor(id?: string, logId?: string, stepId?: string, isLogView?: boolean) {
+
+        makeObservable(this);
 
         if (id) {
             this.set(id, logId, stepId, undefined);

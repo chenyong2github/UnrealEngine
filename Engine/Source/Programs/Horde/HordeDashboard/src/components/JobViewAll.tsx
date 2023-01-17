@@ -69,7 +69,7 @@ const JobFilterPanel: React.FC = () => {
     const { streamId } = useParams<{ streamId: string }>();
 
     return <Stack>
-        <JobFilterBar streamId={streamId} />
+        <JobFilterBar streamId={streamId!} />
     </Stack>
 }
 

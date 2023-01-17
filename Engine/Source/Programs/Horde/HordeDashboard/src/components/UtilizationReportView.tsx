@@ -5,7 +5,7 @@ import { IVerticalStackedChartProps, IVSChartDataPoint, VerticalStackedBarChart 
 import { observer } from 'mobx-react-lite';
 import moment from 'moment-timezone';
 import React, { useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import backend from '../backend';
 import { GetUtilizationTelemetryResponse } from '../backend/Api';
 import { useWindowSize } from '../base/utilities/hooks';
@@ -158,7 +158,7 @@ let currentSliderValue: number = 1;
 export const UtilizationReportView: React.FC = observer(() => {
 	const windowSize = useWindowSize();
 	const query = useQuery();
-	const history = useHistory();
+	const navigate = useNavigate();
 
 	const [optionsState, setOptionsState] = useState<ChartOptionsState>({
 		chartData: null,
@@ -593,7 +593,7 @@ export const UtilizationReportView: React.FC = observer(() => {
 		setOptionsState(newState);
 
 		let dateParamString = `${newState.selectedDate.getFullYear()}-${newState.selectedDate.getMonth() + 1}-${newState.selectedDate.getDate()}`;
-		history.push(`/reports/utilization?date=${dateParamString}&range=${newState.selectedRange}&interval=${newState.selectedFormat}&pools=${newState.selectedPoolKeys.join(';')}`);
+		navigate(`/reports/utilization?date=${dateParamString}&range=${newState.selectedRange}&interval=${newState.selectedFormat}&pools=${newState.selectedPoolKeys.join(';')}`);
 	};
 
 	const beginUpdateState = (options: UpdateStateOptions): void => {

@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import backend from '.';
 import { GetChangeSummaryResponse } from "./Api";
 
 export class CommitCache {
+
+    constructor() {
+        makeObservable(this);
+    }
 
     @action
     setUpdated() {

@@ -1,6 +1,6 @@
 import { DetailsList, DetailsListLayoutMode, Dropdown, IColumn, IconButton, IDropdownOption, mergeStyleSets, Modal, SelectionMode, Spinner, SpinnerSize, Stack, Text, TextField } from "@fluentui/react";
 import * as d3 from "d3";
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import React, { useState } from "react";
 import backend from "../backend";
@@ -49,6 +49,7 @@ class SuiteHandler {
 
    constructor(suite: GetTestSuiteResponse, suiteRefs: GetTestDataRefResponse[], metaData: GetTestMetaResponse) {
 
+      makeObservable(this);
 
       this.suite = suite;
 

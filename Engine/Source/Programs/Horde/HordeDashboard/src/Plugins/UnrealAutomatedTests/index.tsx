@@ -14,5 +14,6 @@ class UnrealAutomatedTestsPlugin implements Plugin {
 
 }
 
-export default new UnrealAutomatedTestsPlugin();
+const unrealAutomatedTestsPlugin = new UnrealAutomatedTestsPlugin();
+export default unrealAutomatedTestsPlugin;
 

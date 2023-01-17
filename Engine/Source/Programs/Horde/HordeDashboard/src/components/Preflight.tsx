@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import React, { useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import backend, { useBackend } from '../backend';
 import { useQuery } from './JobDetailCommon';
 
@@ -9,90 +9,85 @@ import { useQuery } from './JobDetailCommon';
 export const PreflightRedirector: React.FC = () => {
 
 
-    const [state, setState] = useState({ preflightQueried: false })
+   const [state, setState] = useState({ preflightQueried: false })
 
-    const history = useHistory();
-    const query = useQuery();
-    const { projectStore } = useBackend();
+   const navigate = useNavigate();
+   const query = useQuery();
+   const { projectStore } = useBackend();
 
-    const streamName = !query.get("stream") ? "" : query.get("stream")!;
-    const change = !query.get("change") ? "" : query.get("change")!;
+   const streamName = !query.get("stream") ? "" : query.get("stream")!;
+   const change = !query.get("change") ? "" : query.get("change")!;
 
-    // whether to autosubmit
-    const autosubmit = !query.get("submit") ? "" : query.get("submit")!;
+   // whether to autosubmit
+   const autosubmit = !query.get("submit") ? "" : query.get("submit")!;
 
-    if (!change) {
-        console.error("No preflight change specified");
-        history.replace("/");
-        return null;
-    }
+   if (!change) {
+      console.error("No preflight change specified");
+      return <Navigate to="/" replace={true} />;
+   }
 
-    const cl = parseInt(change);
+   const cl = parseInt(change);
 
-    if (isNaN(cl)) {
-        console.error(`Bad change in preflight ${change}`);
-        history.replace("/");
-        return null;
-    }
+   if (isNaN(cl)) {
+      console.error(`Bad change in preflight ${change}`);
+      return <Navigate to="/" replace={true} />;
+   }
 
-    if (!streamName) {
-        console.error("No stream in query");
-        history.replace("/");
-        return null;
-    }
+   if (!streamName) {
+      console.error("No stream in query");
+      return <Navigate to="/" replace={true} />;
+   }
 
-    let stream = projectStore.streamByFullname(streamName);
+   let stream = projectStore.streamByFullname(streamName);
 
 
-    if (!stream) {
-        console.error(`Unable to resolve stream with name ${streamName}`);
-        history.replace("/");
-        return null;
-    }
+   if (!stream) {
+      console.error(`Unable to resolve stream with name ${streamName}`);
+      return <Navigate to="/" replace={true} />;      
+   }
 
-    const project = stream?.project;
+   const project = stream?.project;
 
-    if (!stream || !project) {
-        console.error("Bad stream or project id in StreamView");
-        history.replace("/");
-        return null;
-    }
+   if (!stream || !project) {
+      console.error("Bad stream or project id in StreamView");
+      return <Navigate to="/" replace={true} />;      
+   }
 
-    if (!state.preflightQueried) {
+   if (!state.preflightQueried) {
 
-        backend.getJobs({ filter: "id", count: 1, preflightChange: cl }).then(result => {
+      backend.getJobs({ filter: "id", count: 1, preflightChange: cl }).then(result => {
 
-            if (result && result.length === 1) {
+         if (result && result.length === 1) {
 
-                let url = `/job/${result[0].id}?newbuild=true&allowtemplatechange=true&shelvedchange=${change}&p4v=true`;
-
-                if (autosubmit === "true") {
-                    url += "&autosubmit=true";
-                }
-
-                history.replace(url);
-                return;
-            }
-
-            let url = `/stream/${stream!.id}?tab=summary&newbuild=true&shelvedchange=${change}&p4v=true`;
+            let url = `/job/${result[0].id}?newbuild=true&allowtemplatechange=true&shelvedchange=${change}&p4v=true`;
 
             if (autosubmit === "true") {
-                url += "&autosubmit=true";
+               url += "&autosubmit=true";
             }
 
-            history.replace(url);
+            navigate(url, { replace: true });
+            return;
+         }
+
+         let url = `/stream/${stream!.id}?tab=summary&newbuild=true&shelvedchange=${change}&p4v=true`;
+
+         if (autosubmit === "true") {
+            url += "&autosubmit=true";
+         }
+
+         navigate(url, { replace: true });
 
 
-        }).catch(reason => {
-            console.error(`Error getting job for preflight: `, reason);
-            history.replace("/");
-        })
+      }).catch(reason => {
+         console.error(`Error getting job for preflight: `, reason);
+         navigate("/", { replace: true });
+      })
 
-        setState({ preflightQueried: true })
+      setState({ preflightQueried: true })
 
-        return null;
+      return null;
 
-    }
+   }
 
-    return null;
+   return null;
 }

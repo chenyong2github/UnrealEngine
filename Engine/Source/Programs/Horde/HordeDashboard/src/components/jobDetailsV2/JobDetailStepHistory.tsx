@@ -4,7 +4,7 @@ import { DetailsList, DetailsListLayoutMode, DetailsRow, IColumn, IDetailsListPr
 import { observer } from "mobx-react-lite";
 import moment from "moment";
 import { useEffect } from "react";
-import { Link, useHistory, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import backend from "../../backend";
 import { GetJobStepRefResponse } from "../../backend/Api";
 import dashboard from "../../backend/Dashboard";
@@ -75,7 +75,7 @@ JobDetailsV2.registerDataView("StepHistoryDataView", (details: JobDetailsV2) => 
 
 export const StepHistoryPanel: React.FC<{ jobDetails: JobDetailsV2; stepId: string }> = observer(({ jobDetails, stepId }) => {
 
-   const history = useHistory();
+   const navigate = useNavigate();
    const location = useLocation();
 
    const dataView = jobDetails.getDataView<StepHistoryDataView>("StepHistoryDataView");
@@ -144,7 +144,7 @@ export const StepHistoryPanel: React.FC<{ jobDetails: JobDetailsV2; stepId: stri
 
          const url = `${location.pathname}${location.search}&agentId=${agentId}`;
 
-         return <a href={url} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); history.replace(url); }}><Stack horizontal horizontalAlign={"end"} verticalFill={true} tokens={{ childrenGap: 0, padding: 0 }}><Text>{agentId}</Text></Stack></a>;
+         return <a href={url} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); navigate(url, { replace: true } ); }}><Stack horizontal horizontalAlign={"end"} verticalFill={true} tokens={{ childrenGap: 0, padding: 0 }}><Text>{agentId}</Text></Stack></a>;
       }
 
       if (column.name === "Started") {

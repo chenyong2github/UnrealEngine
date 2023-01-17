@@ -1,7 +1,7 @@
 import { mergeStyleSets, Pivot, PivotItem, ScrollablePane, ScrollbarVisibility, Stack } from "@fluentui/react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
-import { useHistory, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { GetJobsTabResponse } from "../../backend/Api";
 import { useWindowSize } from "../../base/utilities/hooks";
 import { hordeClasses, modeColors } from "../../styles/Styles";
@@ -134,7 +134,7 @@ let crender = 0;
 
 const JobPanelPivot: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ jobDetails }) => {
    useQuery();
-   const history = useHistory();
+   const navigate = useNavigate();
    const [state, setState] = useState<{ iobserver?: IntersectionObserver }>({});
    const [, setRender] = useState(0);
 
@@ -153,7 +153,7 @@ const JobPanelPivot: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ jobDet
    // install intersection observer
    if (supported && rootArea && !state.iobserver) {
       if (window.location.hash) {
-         history.replace(window.location.pathname + window.location.search);
+         navigate(window.location.pathname + window.location.search, { replace: true });
       }
       setState({
          iobserver: new IntersectionObserver((entries: IntersectionObserverEntry[]) => {

@@ -1,6 +1,6 @@
 
 import { FontIcon, Image, Label, ScrollablePane, ScrollbarVisibility, Spinner, SpinnerSize, Stack, Text } from "@fluentui/react";
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
@@ -38,6 +38,9 @@ type TestEvent = {
 class SuiteTestHandler {
 
    constructor(suite: GetTestSuiteResponse, test: GetTestResponse, details: GetTestDataDetailsResponse, testRef: GetTestDataRefResponse, metaData: GetTestMetaResponse) {
+
+      makeObservable(this);
+
       this.suite = suite;
       this.test = test;
 
@@ -254,7 +257,7 @@ const TestInfoBox: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler
 
    const infoItems: JSX.Element[] = [];
    if (handler.jobId && handler.stepId) {
-      infoItems.push(infoItem("Horde", "Job Step", `job/${handler.jobId}/?step=${handler.stepId}`));
+      infoItems.push(infoItem("Horde", "Job Step", `/job/${handler.jobId}/?step=${handler.stepId}`));
    }
 
    const timestamp = handler.testRef.id.substring(0, 8)

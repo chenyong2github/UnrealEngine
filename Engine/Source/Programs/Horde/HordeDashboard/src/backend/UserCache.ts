@@ -1,10 +1,14 @@
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import backend from '.';
 import { GetUserResponse } from './Api';
 
 
 class UserCache {
+
+    constructor() {
+        makeObservable(this);
+    }
 
     @action
     setUpdated() {
@@ -52,4 +56,5 @@ class UserCache {
 
 }
 
-export default new UserCache();
+const userCache = new UserCache()
+export default userCache;

@@ -17,4 +17,5 @@ class ExamplePlugin implements Plugin {
 
 }
 
-export default new ExamplePlugin();
+const examplePlugin = new ExamplePlugin();
+export default examplePlugin;

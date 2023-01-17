@@ -3,7 +3,7 @@
 import { Stack } from "@fluentui/react";
 import { observer } from "mobx-react-lite";
 import { useState } from "react";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { hordeClasses } from "../../styles/Styles";
 import { HistoryModal } from "../HistoryModal";
 import { useQuery } from "../JobDetailCommon";
@@ -40,7 +40,7 @@ JobDetailsV2.registerDataView("StepDetailDataView", (details: JobDetailsV2) => n
 const StepDetailViewInner: React.FC<{ jobDetails: JobDetailsV2, stepId: string }> = observer(({ jobDetails, stepId }) => {
 
    let [historyAgentId, setHistoryAgentId] = useState<string | undefined>(undefined);
-   const history = useHistory();
+   const navigate = useNavigate();
    const query = useQuery();
 
    const dataView = jobDetails.getDataView<StepDetailDataView>("StepDetailDataView");
@@ -62,7 +62,7 @@ const StepDetailViewInner: React.FC<{ jobDetails: JobDetailsV2, stepId: string }
    const step = jobDetails.stepById(stepId);
 
    return <Stack>
-      <HistoryModal agentId={historyAgentId} onDismiss={() => { history.replace(`/job/${jobData.id}?step=${stepId}`); setHistoryAgentId(undefined); }} />
+      <HistoryModal agentId={historyAgentId} onDismiss={() => { navigate(`/job/${jobData.id}?step=${stepId}`, { replace: true }); setHistoryAgentId(undefined); }} />
 
       <Stack>
          <StepSummaryPanel jobDetails={jobDetails} stepId={stepId} />

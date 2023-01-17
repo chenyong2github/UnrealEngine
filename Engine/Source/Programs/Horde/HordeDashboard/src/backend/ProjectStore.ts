@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { ProjectData, StreamData } from './Api';
 import backend from '.';
 
 export class ProjectStore {
+
+    constructor() {
+        makeObservable(this);
+    }
 
     @observable.ref
     projects: ProjectData[] = [];

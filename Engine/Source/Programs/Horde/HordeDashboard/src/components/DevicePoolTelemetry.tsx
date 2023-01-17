@@ -1,6 +1,6 @@
 import { DefaultButton, DetailsList, DetailsListLayoutMode, Dropdown, FocusZone, FocusZoneDirection, IColumn, IconButton, IDropdownOption, Modal, ScrollablePane, ScrollbarVisibility, SelectionMode, Spinner, SpinnerSize, Stack, Text } from "@fluentui/react";
 import * as d3 from "d3";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react-lite";
 import moment from "moment";
 import { useState } from "react";
@@ -74,6 +74,7 @@ type DeviceProblem = { deviceId: string, deviceName: string, problems: number, p
 class PoolTelemetryHandler {
 
    constructor() {
+      makeObservable(this);
       this.set();
    }
 

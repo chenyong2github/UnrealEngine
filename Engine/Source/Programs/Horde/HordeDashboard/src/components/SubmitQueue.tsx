@@ -2,7 +2,7 @@
 
 import { CollapseAllVisibility, ConstrainMode, DetailsHeader, DetailsList, DetailsListLayoutMode, DetailsRow, Text, FocusZone, FocusZoneDirection, IColumn, IDetailsListProps, ScrollablePane, ScrollbarVisibility, SelectionMode, Stack, Sticky, StickyPositionType, Modal, IconButton, PrimaryButton, DefaultButton, TextField } from '@fluentui/react';
 import React from 'react';
-import { useParams, useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { detailClasses } from '../styles/Styles';
 
 export const SubmitQueue: React.FC = () => {
@@ -87,8 +87,7 @@ export const SubmitQueue: React.FC = () => {
 };
 
 export const SubmitQueueChangeDialog: React.FC<{ show: boolean; streamId: string; onClose: () => void }> = ({ show, streamId, onClose }) => {
-
-	const history = useHistory();
+	
 	const headerText = "Add Change";
 
 	const close = () => {

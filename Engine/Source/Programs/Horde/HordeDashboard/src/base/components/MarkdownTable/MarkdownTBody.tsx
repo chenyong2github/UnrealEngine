@@ -2,15 +2,16 @@ import * as React from 'react';
 import { classNamesFunction, styled } from '@fluentui/react';
 import { IMarkdownTableProps, IMarkdownTableStyleProps, IMarkdownTableStyles } from './MarkdownTable.types';
 import { getStyles } from './MarkdownTable.styles';
+import { PropsWithChildren } from 'react';
 
 const getClassNames = classNamesFunction<IMarkdownTableStyleProps, IMarkdownTableStyles>();
 
-export class MarkdownTBodyBase extends React.PureComponent<IMarkdownTableProps> {
+export class MarkdownTBodyBase extends React.PureComponent<PropsWithChildren<IMarkdownTableProps>> {
   public render(): JSX.Element {
     const { children, styles, theme } = this.props;
 
     const classNames = getClassNames(styles, {
-      theme: theme!
+      theme: theme!,
     });
 
     return (
@@ -25,5 +26,5 @@ export const MarkdownTBody = styled<IMarkdownTableProps, IMarkdownTableStyleProp
   MarkdownTBodyBase,
   getStyles,
   undefined,
-  { scope: 'MarkdownTable' }
+  { scope: 'MarkdownTable' },
 );

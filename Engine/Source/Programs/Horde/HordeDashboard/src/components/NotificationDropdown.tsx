@@ -6,7 +6,7 @@ import React, { useEffect } from "react";
 import backend from "../backend";
 import { CreateSubscriptionRequest, GetNotificationResponse, GetSubscriptionResponse, JobState, JobStepState, LabelCompleteEventRecord, LabelState, StepCompleteEventRecord, SubscriptonNotificationType, UpdateNotificationsRequest } from "../backend/Api";
 import { hordeClasses } from "../styles/Styles";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { JobDetailsV2 } from './jobDetailsV2/JobDetailsViewCommon';
 import { useQuery } from "./JobDetailCommon";
 
@@ -14,6 +14,10 @@ type NotificationType = "Job" | "Step" | "Label";
 type NotificationOutcome = "Warnings" | "Success" | "Failure";
 
 class SubscriptionHandler  {
+
+   constructor() {
+      makeObservable(this);
+   }
 
    @observable
    private updated = 0

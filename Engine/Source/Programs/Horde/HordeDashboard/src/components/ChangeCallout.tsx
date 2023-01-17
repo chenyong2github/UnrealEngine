@@ -3,68 +3,71 @@ import { Callout, DirectionalHint, FontWeights, getTheme, mergeStyleSets, Stack,
 import React, { useState } from 'react';
 import backend from '../backend';
 import { JobData, ChangeSummaryData } from '../backend/Api';
-import { observable, action } from 'mobx';
+import { observable, action, makeObservable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import { Link } from 'react-router-dom';
 
 const theme = getTheme();
 const styles = mergeStyleSets({
-    container: {
-        overflow: 'auto',
-        maxHeight: 600
-    },
-    callout: {
-        maxWidth: 600
-    },
-    header: {
-        padding: '18px 14px 12px'
-    },
-    title: [
-        theme.fonts.mediumPlus,
-        {
-            margin: 0,
-            fontWeight: FontWeights.regular
-        }
-    ],
-    inner: {
-        height: '100%',
-        padding: '0 14px 10px'
+   container: {
+      overflow: 'auto',
+      maxHeight: 600
+   },
+   callout: {
+      maxWidth: 600
+   },
+   header: {
+      padding: '18px 14px 12px'
+   },
+   title: [
+      theme.fonts.mediumPlus,
+      {
+         margin: 0,
+         fontWeight: FontWeights.regular
+      }
+   ],
+   inner: {
+      height: '100%',
+      padding: '0 14px 10px'
 
-    },
-    actions: {
-        position: 'relative',
-        marginTop: 20,
-        width: '100%',
-        whiteSpace: 'nowrap'
-    },
-    subtext: [
-        theme.fonts.medium,
-        {
-            margin: 0,
-            fontWeight: FontWeights.light
-        }
-    ]
+   },
+   actions: {
+      position: 'relative',
+      marginTop: 20,
+      width: '100%',
+      whiteSpace: 'nowrap'
+   },
+   subtext: [
+      theme.fonts.medium,
+      {
+         margin: 0,
+         fontWeight: FontWeights.light
+      }
+   ]
 });
 
 class CommitCache {
 
-    constructor(change: number, streamId: string) {
-        this.change = change;
+   constructor(change: number, streamId: string) {
 
-        backend.getCommit(streamId, change).then((value) => {
-            this.setData(value!);
-        });
-    }
+      makeObservable(this);
 
-    @action
-    setData(commitData: ChangeSummaryData) {
-        this.commitData = commitData;
-    }
+      this.change = change;
 
-    @observable.ref
-    commitData?: ChangeSummaryData;
+      backend.getCommit(streamId, change).then((value) => {
+         this.setData(value!);
+      });
+   }
 
-    change: number;
+   @action
+   setData(commitData: ChangeSummaryData) {
+      this.commitData = commitData;
+   }
+
+   @observable.ref
+   commitData?: ChangeSummaryData;
+
+   change: number;
 
 }
 
@@ -72,64 +75,64 @@ const commits = new Map<number, CommitCache>();
 
 export const ChangeCallout: React.FC<{ job: JobData }> = observer(({ job }) => {
 
-    const [visible, setVisible] = useState(false);
-    const [searchRef] = useState(React.createRef<HTMLDivElement>());
+   const [visible, setVisible] = useState(false);
+   const [searchRef] = useState(React.createRef<HTMLDivElement>());
 
-    if (!job.change) {
-        return <div style={{paddingTop:3}}>Latest</div>;
-    }
+   if (!job.change) {
+      return <div style={{ paddingTop: 3 }}>Latest</div>;
+   }
 
-    const change = job.change;
+   const change = job.change;
 
-    let cache = commits.get(change);
-    if (!cache) {
-        cache = new CommitCache(change, job.streamId);
-        commits.set(change, cache);
-    }
+   let cache = commits.get(change);
+   if (!cache) {
+      cache = new CommitCache(change, job.streamId);
+      commits.set(change, cache);
+   }
 
-    const commit = cache.commitData;
+   const commit = cache.commitData;
 
 
-    let key = 0;
-    const commitLines = commit?.description.split(/\r\n|\n|\r/);
+   let key = 0;
+   const commitLines = commit?.description.split(/\r\n|\n|\r/);
 
-    if (!commit) {
-        return <div style={{paddingTop:3}}>{change}</div>;
-    }
-    return (
-        <Stack>
-            <Link to="" className="cl-callout-link" onClick={(ev) => {ev.preventDefault(); setVisible(!visible);}} >
-            <div ref={searchRef} style={{paddingTop:3}} >
-                {change}
+   if (!commit) {
+      return <div style={{ paddingTop: 3 }}>{change}</div>;
+   }
+   return (
+      <Stack>
+         <Link to="" className="cl-callout-link" onClick={(ev) => { ev.preventDefault(); setVisible(!visible); }} >
+            <div ref={searchRef} style={{ paddingTop: 3 }} >
+               {change}
             </div>
             <div className={styles.container} data-is-scrollable={true}>
-                <Callout isBeakVisible={false}
-                    onDismiss={(ev) => setVisible(false)}
-                    hidden={!visible}
-                    target={searchRef?.current}
-                    className={styles.callout}
-                    role="alertdialog"
-                    gapSpace={0}
-                    setInitialFocus={true}
-                    directionalHint={DirectionalHint.bottomLeftEdge}>
-                    <div className={styles.inner}>
-                        <div className={styles.header}>
-                            <p className={styles.title}>
-                                {`Change ${commit.number} committed by ${commit.authorInfo?.name}`}
-                            </p>
-                        </div>
-                        <div className={styles.inner}>
-                            <p className={styles.subtext}>
-                                {commitLines?.map(line => <Text key={`commitline_${job.id}_${key++}`} block>{line}</Text>)}
-                            </p>
-                        </div>
-                    </div>
+               <Callout isBeakVisible={false}
+                  onDismiss={(ev) => setVisible(false)}
+                  hidden={!visible}
+                  target={searchRef?.current}
+                  className={styles.callout}
+                  role="alertdialog"
+                  gapSpace={0}
+                  setInitialFocus={true}
+                  directionalHint={DirectionalHint.bottomLeftEdge}>
+                  <div className={styles.inner}>
+                     <div className={styles.header}>
+                        <p className={styles.title}>
+                           {`Change ${commit.number} committed by ${commit.authorInfo?.name}`}
+                        </p>
+                     </div>
+                     <div className={styles.inner}>
+                        <p className={styles.subtext}>
+                           {commitLines?.map(line => <Text key={`commitline_${job.id}_${key++}`} block>{line}</Text>)}
+                        </p>
+                     </div>
+                  </div>
 
-                </Callout>
+               </Callout>
             </div>
-            </Link>
-        </Stack>
-    );
+         </Link>
+      </Stack>
+   );
 });
 
 

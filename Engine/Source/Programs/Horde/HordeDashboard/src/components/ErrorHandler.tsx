@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import { Checkbox, Dialog, DialogType, PrimaryButton, Stack, Text } from '@fluentui/react';
 import React from 'react';
@@ -42,13 +42,17 @@ export type ErrorInfo = {
 
 }
 
-export class ErrorHandler {
+class ErrorHandlerClass {
+
+   constructor() {
+      makeObservable(this);
+   }
 
    @observable
-   static error?: ErrorInfo;
+   error?: ErrorInfo;
 
    @action
-   static set(infoIn: ErrorInfo, update?: boolean): void {
+   set(infoIn: ErrorInfo, update?: boolean): void {
 
       this.print(infoIn);
 
@@ -78,7 +82,7 @@ export class ErrorHandler {
       this.error = info;
    }
 
-   static get message(): string {
+   get message(): string {
 
       const error = this.error;
 
@@ -106,7 +110,7 @@ export class ErrorHandler {
 
    }
 
-   static unauthorized(infoIn?: ErrorInfo): boolean {
+   unauthorized(infoIn?: ErrorInfo): boolean {
 
       let error = infoIn;
 
@@ -130,13 +134,13 @@ export class ErrorHandler {
 
    }
 
-   static get reject(): string {
+   get reject(): string {
 
       return this.message;
 
    }
 
-   static hash(error: ErrorInfo): string {
+   hash(error: ErrorInfo): string {
 
       const url = error.url ?? error?.response?.url;
 
@@ -153,7 +157,7 @@ export class ErrorHandler {
       return "";
    }
 
-   static print(info: ErrorInfo) {
+   print(info: ErrorInfo) {
 
       // this will also go out to datadog if configured
       const message = `${info.response ? JSON.stringify(info.response) : ""} ${info.reason ? info.reason : ""}`;
@@ -165,7 +169,7 @@ export class ErrorHandler {
    }
 
    @action
-   static clear(): void {
+   clear(): void {
 
       if (!this.error) {
          return;
@@ -184,11 +188,13 @@ export class ErrorHandler {
    }
 
 
-   static filter = new Set<string>();
+   filter = new Set<string>();
 
-   static filterError = false;
+   filterError = false;
 
 }
+
+export const ErrorHandler = new ErrorHandlerClass();
 
 export const ErrorDialog: React.FC = observer(() => {
 
@@ -250,3 +256,5 @@ export const ErrorDialog: React.FC = observer(() => {
       </Dialog>
    );
 });
+
+export default ErrorHandler;

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { ConstrainMode, ContextualMenu, DefaultButton, DetailsHeader, DetailsList, DetailsListLayoutMode, DetailsRow, Dialog, DialogFooter, DialogType, GroupedList, GroupHeader, IColumn, IContextualMenuItem, IContextualMenuProps, IDetailsHeaderProps, IDetailsHeaderStyles, IDetailsListProps, IGroup, ITooltipHostStyles, mergeStyleSets, Modal, Pivot, PivotItem, PrimaryButton, ScrollablePane, ScrollbarVisibility, Selection, SelectionMode, Spinner, SpinnerSize, Stack, Sticky, StickyPositionType, Text } from "@fluentui/react";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react-lite";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
@@ -44,6 +44,10 @@ const historyStyles = mergeStyleSets({
 });
 
 class HistoryModalState {
+   constructor() {
+      makeObservable(this);
+   }
+   
    @observable.ref selectedAgent: AgentData | undefined = undefined;
    @observable.shallow currentData: any = [];
    @observable.shallow infoItems: InfoPanelItem[] = [];
@@ -688,7 +692,7 @@ export const HistoryModal: React.FC<{ agentId: string | undefined, onDismiss: (.
                   return <Stack styles={{ root: { height: '100%', } }} horizontal><Stack.Item align={"center"}><Text styles={{ root: { fontSize: 12 } }} key={"leaseText_" + lease.id}>{lease.name}</Text></Stack.Item></Stack>;
                }
             default:
-               return <span>{lease[column!.fieldName as keyof LeaseData]}</span>;
+               return <span>{lease[column!.fieldName as keyof LeaseData] as string}</span>;
          }
       }
       else if (state.mode === "sessions") {
@@ -701,7 +705,7 @@ export const HistoryModal: React.FC<{ agentId: string | undefined, onDismiss: (.
             case 'endTime':
                return <Stack styles={{ root: { height: '100%', } }} horizontal horizontalAlign={'center'}><Stack.Item align={"center"}>{session.finishTime?.toString().substring(0, 24) || ""}</Stack.Item></Stack>
             default:
-               return <span>{session[column!.fieldName as keyof SessionData]}</span>;
+               return <span>{session[column!.fieldName as keyof SessionData] as string}</span>;
          }
       }
    }

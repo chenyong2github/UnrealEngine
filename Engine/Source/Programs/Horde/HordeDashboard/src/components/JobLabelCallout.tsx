@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import { Callout, DirectionalHint, List, Stack, Text } from "@fluentui/react";
 import React from "react";
@@ -20,6 +20,10 @@ export type CalloutState = {
 }
 
 export class CalloutController {
+
+   constructor() {
+      makeObservable(this);
+   }
 
 	setState(state: CalloutState | undefined, now: boolean = false) {
 

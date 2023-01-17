@@ -1,9 +1,9 @@
 import { Dropdown, FontIcon, IDropdownOption, IPickerItemProps, ISuggestionItemProps, ITag, PrimaryButton, Stack, TagPicker, Text, ValidationState } from "@fluentui/react";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react-lite";
 import moment from "moment";
 import React, { useState } from "react";
-import { useHistory, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import backend from "../../backend";
 import { BatchData, GetJobTimingResponse, GetLabelResponse, GetTemplateRefResponse, GroupData, JobData, JobState, LabelState, NodeData, ReportPlacement, StepData, StreamData } from "../../backend/Api";
 import { JobLabel } from "../../backend/JobDetails";
@@ -16,8 +16,9 @@ import { useQuery } from "../JobDetailCommon";
 import { LabelStatusIcon, StepStatusIcon } from "../StatusIcon";
 
 export abstract class JobDataView {
-
+   
    constructor(details: JobDetailsV2) {
+      makeObservable(this);
       this.details = details;
    }
 
@@ -121,8 +122,9 @@ export abstract class JobDataView {
 const defaultUpdateMS = 5000;
 export class JobDetailsV2 extends PollBase {
 
-   constructor(jobId: string) {
+   constructor(jobId: string) {      
       super(defaultUpdateMS)
+      makeObservable(this);
       this.jobId = jobId;
       this.filter = new JobDetailFilters(this);
       this.start();
@@ -768,6 +770,7 @@ type FilterPickerItem = ITag & {
 export class JobDetailFilters {
 
    constructor(details: JobDetailsV2) {
+      makeObservable(this);
       this.details = details;
    }
 
@@ -1008,7 +1011,7 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
    const location = useLocation();
    const query = useQuery();
    const filterPicker = React.useRef(null);
-   const history = useHistory();
+   const navigate = useNavigate();
    const [state, setState] = useState<{}>({});
 
    const jobFilter = jobDetails.filter;
@@ -1170,7 +1173,7 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
                      style={{ padding: 2, paddingLeft: 8, paddingRight: 8, fontFamily: "Horde Open Sans SemiBold", fontSize: 12, height: "unset" }}
                      text={props.item.name}
                      onClick={() => {
-                        history.push(location.pathname);
+                        navigate(location.pathname);
                         jobFilter.setSelected(undefined, undefined, undefined)
                      }} />
                </Stack>;
@@ -1248,7 +1251,7 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
 
                const step = (item as FilterPickerItem).step;
                if (step) {
-                  history.push(location.pathname + `?step=${step.id}`);
+                  navigate(location.pathname + `?step=${step.id}`);
                   return null;
                }
 
@@ -1256,9 +1259,9 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
                if (label) {
                   const idx = jobDetails.labelIndex(label.name, label.category);
                   if (idx >= 0) {
-                     history.push(location.pathname + `?label=${idx}`);
+                     navigate(location.pathname + `?label=${idx}`);
                   } else {
-                     history.replace(location.pathname);
+                     navigate(location.pathname, {replace: true});
                   }
                }
 

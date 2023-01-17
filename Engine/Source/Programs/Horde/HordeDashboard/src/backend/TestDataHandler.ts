@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { observable, action, when } from "mobx";
+import { observable, action, when, makeObservable } from "mobx";
 import backend from '../backend';
 import { JobData, ArtifactData, TestData } from './Api';
 
@@ -13,7 +13,7 @@ export type DataWrapper = {
 const updateObject = (target: any, version: any, skipKeys?: string[]) => {
     const properties = Object.getOwnPropertyDescriptors(version);
     Object.getOwnPropertyNames(version).forEach((key) => {
-        if(!properties[key].value || skipKeys?.includes(key)) {
+        if (!properties[key].value || skipKeys?.includes(key)) {
             delete properties[key];
         }
     });
@@ -45,13 +45,13 @@ export class TestDataWrapper implements TestData {
     }
 
     setDataHandler(handler: DataWrapper) {
-        if(this.data) {
+        if (this.data) {
             this._datahandler = handler;
         }
     }
 
     getDataHandler(): DataWrapper | undefined {
-        return this._datahandler ;
+        return this._datahandler;
     }
 
     getTestDataProperty<T>(key: string): T {
@@ -78,7 +78,7 @@ export class TestDataWrapper implements TestData {
             while (tailKey.indexOf('.') > 0) {
                 [headKey, tailKey] = tailKey.split('.', 2);
                 const nextProp = Object.getOwnPropertyDescriptor(obj, headKey);
-                if(!nextProp) {
+                if (!nextProp) {
                     return false;
                 }
                 obj = nextProp?.value;
@@ -103,7 +103,7 @@ export class TestDataWrapper implements TestData {
 
         const jobArtifacts = await this.getArtifacts();
 
-        artifactName = artifactName.replace(/\\/g,  '/');
+        artifactName = artifactName.replace(/\\/g, '/');
 
         if (!this.artifactMap) {
             this.artifactMap = new Map();
@@ -120,10 +120,10 @@ export class TestDataWrapper implements TestData {
     }
 
     async getJobStepName() {
-        if(this.stepName) {
+        if (this.stepName) {
             return this.stepName;
         }
-        if(!this.jobdata) {
+        if (!this.jobdata) {
             this.jobdata = await backend.getJob(this.jobId);
         }
 
@@ -144,7 +144,7 @@ export class TestDataWrapper implements TestData {
     }
 
     async getJobName() {
-        if(!this.jobdata) {
+        if (!this.jobdata) {
             this.jobdata = await backend.getJob(this.jobId);
         }
 
@@ -156,7 +156,7 @@ export class TestDataWrapper implements TestData {
     }
 
     async preflighChange() {
-        if(!this.jobdata) {
+        if (!this.jobdata) {
             this.jobdata = await backend.getJob(this.jobId);
         }
 
@@ -164,7 +164,7 @@ export class TestDataWrapper implements TestData {
     }
 
     async getChangeName() {
-        if(!this.jobdata) {
+        if (!this.jobdata) {
             this.jobdata = await backend.getJob(this.jobId);
         }
 
@@ -178,15 +178,19 @@ export class TestDataWrapper implements TestData {
         } else {
             changeName = `${data.change ? "CL " + data.change : "Latest CL"}`;
         }
-        
+
         return changeName;
     }
 }
 
-export type OnFetchTestData = (newChunk: (TestDataWrapper|undefined)[]) => void;
+export type OnFetchTestData = (newChunk: (TestDataWrapper | undefined)[]) => void;
 export type SelectorTestData = (item: TestDataWrapper) => boolean;
 
 export class TestDataCollection {
+
+    constructor() {
+        makeObservable(this);
+    }
 
     activated = false;
     setActive(activated: boolean) {
@@ -228,14 +232,14 @@ export class TestDataCollection {
     }
 
     findById(id: string) {
-        if(!this.items) {
+        if (!this.items) {
             return undefined;
         }
         return this.items.get(id);
     }
 
     forEach(func: (item: TestDataWrapper) => void) {
-        if(!this.items) {
+        if (!this.items) {
             return;
         }
         this.items.forEach(func);
@@ -243,10 +247,10 @@ export class TestDataCollection {
 
     *iterItems() {
         const items = this.items;
-        if(items) {
+        if (items) {
             const iterator = items.values();
             let result = iterator.next();
-            while(!result.done) {
+            while (!result.done) {
                 yield result.value;
                 result = iterator.next();
             }
@@ -254,7 +258,7 @@ export class TestDataCollection {
     }
 
     *iterItemsByChange() {
-        if(this.itemsByChange) {
+        if (this.itemsByChange) {
             const changes = this.getChanges();
             for (const change of changes) {
                 const items = this.itemsByChange.get(change);
@@ -266,24 +270,24 @@ export class TestDataCollection {
     }
 
     getChanges() {
-        if(this.itemsByChange) {
+        if (this.itemsByChange) {
             const changes = Array.from(this.itemsByChange.keys());
-            changes.sort((a, b) => a > b? -1 : (a < b? 1 : 0)); // in reversed order
+            changes.sort((a, b) => a > b ? -1 : (a < b ? 1 : 0)); // in reversed order
             return changes;
         }
         return [];
     }
 
-    async setFromStream(streamId: string, key: string, onFetch?: OnFetchTestData, filter?: string, maxCount? : number) {
+    async setFromStream(streamId: string, key: string, onFetch?: OnFetchTestData, filter?: string, maxCount?: number) {
         this.setActive(true);
 
         if (key === this.key && streamId === this.streamId && !this.cursor) {
             // reprocessed what was loaded already, and then continue loading if max count was not reached
-            if(this.items) {
-                if(onFetch) {
+            if (this.items) {
+                if (onFetch) {
                     onFetch(Array.from(this.items.values()));
                 }
-                if(this.items.size%this.fetchCount !== 0 || this.items.size >= this.fetchMaxCount) {
+                if (this.items.size % this.fetchCount !== 0 || this.items.size >= this.fetchMaxCount) {
                     return;
                 }
             }
@@ -301,10 +305,10 @@ export class TestDataCollection {
 
         if (this.items) {
             const item = this.items.get(id);
-            if(item) {
+            if (item) {
                 const handler = item.getDataHandler();
                 if (handler) {
-                    if(!handler.isAllPropertiesLoaded()){
+                    if (!handler.isAllPropertiesLoaded()) {
                         const missing = handler.getMissingProperties();
                         const filter = missing.map((item) => `data.${item}`).join(',');
                         const count = await this.fetchUpdateItem(id, undefined, filter);
@@ -320,10 +324,10 @@ export class TestDataCollection {
 
         // pre fetch minimal data to get the context and see if we need to clean the cache
         const item = await backend.getTestData(id, "nodata");
-        if(!item) {
+        if (!item) {
             return undefined;
         }
-        if(item.key !== this.key || item.streamId !== this.streamId) {
+        if (item.key !== this.key || item.streamId !== this.streamId) {
             this.cleanCache();
             this.key = item.key;
             this.streamId = item.streamId;
@@ -346,7 +350,7 @@ export class TestDataCollection {
 
         await this.fetchCursorHistory(onFetch, filter, maxCount, selector);
 
-        const mapper = selector? (items: TestDataWrapper[]) => items.find(selector) as TestDataWrapper : (items: TestDataWrapper[]) => items[0];
+        const mapper = selector ? (items: TestDataWrapper[]) => items.find(selector) as TestDataWrapper : (items: TestDataWrapper[]) => items[0];
 
         return Array.from(this.iterItemsByChange()).map(mapper);
     }
@@ -358,24 +362,24 @@ export class TestDataCollection {
 
         if (!this.itemsByChange || this.itemsByChange.size === 1) {
             const key = `cursorHistory-${this.key}`;
-            if(this.isLoading(key)) {
+            if (this.isLoading(key)) {
                 await when(() => !this.loadingNotice.has(key));
                 return;
             }
             this.acquireLoadingNotice(key);
-            await this.queueFetchItems(onFetch, filter, maxCount??this.fetchCount);
+            await this.queueFetchItems(onFetch, filter, maxCount ?? this.fetchCount);
             this.releaseLoadingNotice(key);
         }
     }
 
-    async queueFetchItems(onFetch?: OnFetchTestData, filter?: string, maxCount? : number) {
+    async queueFetchItems(onFetch?: OnFetchTestData, filter?: string, maxCount?: number) {
         if (maxCount) {
             this.fetchMaxCount = maxCount;
         }
 
         let totalCount = await this.fetchItems(onFetch, filter);
         let count = totalCount;
-        while (this.activated && count > 0 && count%this.fetchCount === 0 && this.items && this.items.size < this.fetchMaxCount) {
+        while (this.activated && count > 0 && count % this.fetchCount === 0 && this.items && this.items.size < this.fetchMaxCount) {
             count = await this.fetchItems(onFetch, filter);
             totalCount += count;
         }
@@ -395,7 +399,7 @@ export class TestDataCollection {
     }
 
     private initiateCache() {
-        if(!this.items) {
+        if (!this.items) {
             this.items = new Map();
             this.itemsByChange = new Map();
         }
@@ -407,7 +411,7 @@ export class TestDataCollection {
         }
         const change = item.change;
         const changeCollection = this.itemsByChange.get(change);
-        if(changeCollection) {
+        if (changeCollection) {
             changeCollection.push(item);
         } else {
             this.itemsByChange.set(change, [item])
@@ -423,15 +427,15 @@ export class TestDataCollection {
         let count = 0;
         try {
             const pageData = await backend.getTestDataHistory(streamId, key, undefined, this.fetchCount, this.nextIndex, filter);
-            this.nextIndex += this.fetchCount; 
+            this.nextIndex += this.fetchCount;
 
             // Are we still fetching for the same collection?
-            if(key === this.key && streamId === this.streamId) {
+            if (key === this.key && streamId === this.streamId) {
 
                 this.initiateCache();
 
                 const wrappedData = pageData.map((item) => {
-                    if(!this.items?.has(item.id)) {
+                    if (!this.items?.has(item.id)) {
                         const itemWrapped = new TestDataWrapper(item);
                         this.items?.set(item.id, itemWrapped);
                         this.updateItemsByChange(itemWrapped);
@@ -448,7 +452,7 @@ export class TestDataCollection {
                 count = pageData.length;
             }
 
-        } catch(reason) {
+        } catch (reason) {
             console.error(`Failed to fetch TestData history from ${streamId} on key '${key}' !`);
             console.error(reason);
         }
@@ -474,9 +478,9 @@ export class TestDataCollection {
         if (!this.key || !this.streamId) {
             return 0;
         }
-        if(this.loadingNotice.has(id)) {
+        if (this.loadingNotice.has(id)) {
             await when(() => !this.loadingNotice.has(id));
-            return this.activated? 1 : 0;
+            return this.activated ? 1 : 0;
         }
         const key = this.key;
         const streamId = this.streamId;
@@ -486,12 +490,12 @@ export class TestDataCollection {
             const update = await backend.getTestData(id, filter);
 
             // Are we still fetching for the same collection?
-            if(key === this.key && streamId === this.streamId) {
+            if (key === this.key && streamId === this.streamId) {
 
                 this.initiateCache();
 
                 let item = this.items?.get(id);
-                if(item) {
+                if (item) {
                     item.updateProperties(update);
                 } else {
                     item = new TestDataWrapper(update);
@@ -506,7 +510,7 @@ export class TestDataCollection {
 
                 count = 1;
             }
-        } catch(reason) {
+        } catch (reason) {
             console.error(`Failed to fetch updated TestData item ${id} from ${streamId} on key '${key}' !`);
         } finally { this.releaseLoadingNotice(id) }
 
@@ -517,18 +521,18 @@ export class TestDataCollection {
         if (!this.key || !this.streamId) {
             return [];
         }
-        if(this.loadingNotice.has(altKey)) {
+        if (this.loadingNotice.has(altKey)) {
             await when(() => !this.loadingNotice.has(altKey));
             return []; // We have no way to know what is the results... :/
         }
 
         const streamId = this.streamId;
-        let results: TestData[]= [];
+        let results: TestData[] = [];
 
         this.acquireLoadingNotice(altKey);
         try {
-                results = await backend.getTestDataHistory(streamId, altKey, maxChange, count, page, filter);
-        } catch(reason) {
+            results = await backend.getTestDataHistory(streamId, altKey, maxChange, count, page, filter);
+        } catch (reason) {
             console.error(`Failed to fetch Test Data for ${altKey} from ${streamId} !`);
         } finally { this.releaseLoadingNotice(altKey) }
 

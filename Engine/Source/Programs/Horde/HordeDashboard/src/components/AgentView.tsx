@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.  
-import { Checkbox, CommandButton, ConstrainMode, ContextualMenu, DefaultButton, DetailsHeader, DetailsList, DetailsListLayoutMode, Dialog, DialogType, DirectionalHint, Dropdown, FontSizes, FontWeights, getTheme, IBasePickerProps, IColumn, Icon, IconButton, IContextualMenuItem, IContextualMenuProps, IDetailsHeaderProps, IDetailsHeaderStyles, IDetailsListProps, ITag, ITagItemStyles, ITooltipHostStyles, Link as ReactLink, mergeStyles, mergeStyleSets, PrimaryButton, ProgressIndicator, ScrollablePane, ScrollbarVisibility, SearchBox, Selection, SelectionMode, Slider, Spinner, SpinnerSize, Stack, Sticky, StickyPositionType, TagItem, Text, TextField } from '@fluentui/react';
-import { action, observable } from 'mobx';
+import { Checkbox, CommandButton, ConstrainMode, ContextualMenu, TagPicker, DefaultButton, DetailsHeader, DetailsList, DetailsListLayoutMode, Dialog, DialogType, DirectionalHint, Dropdown, FontSizes, FontWeights, getTheme, IBasePickerProps, IColumn, Icon, IconButton, IContextualMenuItem, IContextualMenuProps, IDetailsHeaderProps, IDetailsHeaderStyles, IDetailsListProps, ITag, ITagItemStyles, ITooltipHostStyles, Link as ReactLink, mergeStyles, mergeStyleSets, PrimaryButton, ProgressIndicator, ScrollablePane, ScrollbarVisibility, SearchBox, Selection, SelectionMode, Slider, Spinner, SpinnerSize, Stack, Sticky, StickyPositionType, TagItem, Text, TextField } from '@fluentui/react';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import moment from 'moment-timezone';
 import React, { createRef, useEffect, useState } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Marquee from 'react-text-marquee';
 import backend from '../backend';
 import { agentStore } from '../backend/AgentStore';
 import { AgentData, BatchUpdatePoolRequest, GetAgentResponse, LeaseState, PoolData } from '../backend/Api';
-import { HTagPicker } from '../base/components/HordeFluentComponents/HTagPicker/HTagPicker';
 import { copyToClipboard } from '../base/utilities/clipboard';
 import { useWindowSize } from '../base/utilities/hooks';
 import { hexToRGB, hordeClasses, linearInterpolate } from '../styles/Styles';
@@ -192,6 +191,7 @@ function getTaskTime(agent: GetAgentResponse): number {
 
 
 class LocalState {
+
    // agent update function params
    editingPools = false;  // if editing pools dialog is open
 
@@ -496,6 +496,7 @@ class LocalState {
    }
 
    constructor() {
+      makeObservable(this);
       this.columnsState = [
          {
             key: 'name',
@@ -622,6 +623,9 @@ type PoolEditorItem = {
 
 // state class for the edit pools modal
 class EditPoolsModalState {
+   constructor() {
+      makeObservable(this);
+   }
    // pool editor observables
    newIdSuffix = 0;
    @observable isOpen = false;
@@ -840,6 +844,11 @@ type AgentDataSlim = {
 
 // state class for the select pools modal
 class SelectPoolsModalState {
+
+   constructor() {
+      makeObservable(this);
+   }
+
    @observable isOpen = false;
    @observable.shallow availablePools: SelectPoolItem[] = [];
    @observable.shallow selectedPools: SelectPoolItem[] = [];
@@ -1553,7 +1562,7 @@ export const PoolSelectionModal: React.FC = observer(() => {
             }
          }}
       >
-         <HTagPicker
+         <TagPicker
             onResolveSuggestions={onResolveSuggestions}
             onEmptyResolveSuggestions={() => { return selectPoolsModalState.availablePools; }}
             onItemSelected={(selectedItem: ITag | undefined) => { return selectPoolsModalState.transitionPool(selectedItem as SelectPoolItem); }}
@@ -1591,7 +1600,7 @@ export const PoolSelectionModal: React.FC = observer(() => {
 
 export const AgentView: React.FC = observer(() => {
    const { agentId } = useParams<{ agentId: string }>();
-   const history = useHistory();
+   const navigate = useNavigate();
    const [initAgentUpdater, setInitAgentUpdater] = useState(false);
 
    // adjust automatically to viewport changes
@@ -1887,7 +1896,7 @@ export const AgentView: React.FC = observer(() => {
    }
 
    function onHistoryModalDismiss() {
-      history.push('/agents');
+      navigate('/agents');
    }
 
    let agentItems = agentStore.agents.filter(filterAgents, localState.agentFilter).sort(sortAgents);
@@ -2122,7 +2131,7 @@ export const AgentView: React.FC = observer(() => {
                      {getAgentStatusIcon(agent)}
                   </Stack.Item>
                   <Stack.Item align={"center"}>
-                     <ReactLink styles={{ root: { paddingTop: '1px' } }} title="Lease and Session History" onClick={() => { history.push(`/agents/${agent.id}`); }}>{agent.name}</ReactLink>
+                     <ReactLink styles={{ root: { paddingTop: '1px' } }} title="Lease and Session History" onClick={() => { navigate(`/agents/${agent.id}`); }}>{agent.name}</ReactLink>
                   </Stack.Item>
                </Stack>
             );
@@ -2391,7 +2400,7 @@ export const AgentView: React.FC = observer(() => {
          case 'systemInfoRAM':
             return getPropFromDevice(agent, "RAM");
          default:
-            return <span>{agent[column!.fieldName as keyof AgentData]}</span>;
+            return <span>{agent[column!.fieldName as keyof AgentData] as string}</span>;
       }
    }
 });

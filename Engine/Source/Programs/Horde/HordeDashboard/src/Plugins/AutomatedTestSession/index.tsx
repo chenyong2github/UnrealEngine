@@ -25,5 +25,6 @@ class AutomatedTestSessionPlugin implements Plugin {
     ];
 }
 
-export default new AutomatedTestSessionPlugin();
+const automatedTestSessionPlugin = new AutomatedTestSessionPlugin();
+export default automatedTestSessionPlugin;
 

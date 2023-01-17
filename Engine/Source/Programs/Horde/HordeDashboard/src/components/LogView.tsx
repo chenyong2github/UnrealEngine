@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { DefaultButton, DetailsList, DetailsListLayoutMode, DetailsRow, DirectionalHint, Dropdown, FocusZone, FocusZoneDirection, IColumn, Icon, IconButton, IContextualMenuProps, IDetailsListProps, ITextField, List, Modal, ProgressIndicator, ScrollToMode, Selection, SelectionMode, SelectionZone, Separator, Spinner, SpinnerSize, Stack, Text, TextField } from '@fluentui/react';
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import moment from 'moment-timezone';
 import React, { useEffect, useState } from 'react';
-import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import backend from '../backend';
 import { ArtifactData, EventSeverity, GetChangeSummaryResponse, GetJobStepRefResponse, GetLogEventResponse, LogLevel } from '../backend/Api';
 import { CommitCache } from '../backend/CommitCache';
@@ -31,6 +31,7 @@ import { TopNav } from './TopNav';
 class LogHandler {
 
    constructor() {
+      makeObservable(this);
       LogHandler.instance = this;
    }
 
@@ -187,7 +188,7 @@ const commitCache = new CommitCache();
 
 const StepHistoryModal: React.FC<{ jobDetails: JobDetails, stepId: string | undefined, onClose: () => void }> = observer(({ jobDetails, stepId, onClose }) => {
 
-   const history = useHistory();
+   const navigate = useNavigate();
    const location = useLocation();
    const [commitState, setCommitState] = useState<{ target?: ChangeContextMenuTarget, commit?: GetChangeSummaryResponse, rangeCL?: number }>({});
 
@@ -274,7 +275,7 @@ const StepHistoryModal: React.FC<{ jobDetails: JobDetails, stepId: string | unde
          const url = `${location.pathname}?agentId=${agentId}`;
 
          return <Stack verticalAlign="center" horizontalAlign="center" tokens={{ childrenGap: 0, padding: 0 }} style={{ width: "100%", height: "100%" }}>
-            <a href={url} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); history.replace(url); }}><Stack horizontal horizontalAlign={"end"} verticalFill={true} tokens={{ childrenGap: 0, padding: 0 }}><Text>{agentId}</Text></Stack></a>
+            <a href={url} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); navigate(url, {replace: true}); }}><Stack horizontal horizontalAlign={"end"} verticalFill={true} tokens={{ childrenGap: 0, padding: 0 }}><Text>{agentId}</Text></Stack></a>
          </Stack>
       }
 
@@ -414,7 +415,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
    const windowSize = useWindowSize();
    const query = useQuery();
    const location = useLocation();
-   const history = useHistory();
+   const navigate = useNavigate();
    const [tsFormat, setTSFormat] = useState('relative');
    const [handler, setHandler] = useState<LogHandler | undefined>(undefined);
    const [searchState, setSearchState] = useState<{ search?: string, results?: number[], curRequest?: any }>({});
@@ -617,7 +618,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
                      ev.stopPropagation();
                      location.search = `?issue=${issueId}`;
                      setIssueHistory(true);
-                     history.push(location);
+                     navigate(location);
                   }}><Text variant="small" style={{ ...fontStyle }}>Issue</Text><div style={{ ...fontStyle }}>&nbsp;</div><Text variant="small" style={{ ...fontStyle }}>{`${issueId}`}</Text></DefaultButton>
             </Stack>
          }
@@ -649,7 +650,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
          }
       
          return (
-            <Stack key={`key_log_line_${item.lineNumber}`} style={{ width: "max-content", height: handler.lineHeight }} onClick={() => {history.replace(location.pathname + `?lineindex=${item.lineNumber - 1}`)} }>
+            <Stack key={`key_log_line_${item.lineNumber}`} style={{ width: "max-content", height: handler.lineHeight }} onClick={() => {navigate(location.pathname + `?lineindex=${item.lineNumber - 1}`, {replace: true})} }>
                <div style={{ position: "relative" }}>
                   <Stack className={styles.logLine} tokens={{ childrenGap: 8 }} horizontal disableShrink={true}>
                      <Stack styles={{ root: { color: "#c0c0c0", width: 80, textAlign: "right", userSelect: "none", fontSize: handler.fontSize } }}>{prefix + item.lineNumber}</Stack>
@@ -923,7 +924,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
       {!!fixme && <IssueModalV2 issueId={query.get("issue")} popHistoryOnClose={issueHistory} />}
       {!!fixme && logHistory && <StepHistoryModal jobDetails={fixme!} stepId={fixme!.stepByLogId(logId)?.id} onClose={() => setLogHistory(false)} />}
       {!!fixme && logArtifacts && <StepArtifactsModal jobDetails={fixme!} stepId={fixme!.stepByLogId(logId)?.id} onClose={() => setLogArtifacts(false)} />}
-      {!!historyAgentId && <HistoryModal agentId={historyAgentId} onDismiss={() => { history.replace(baseUrl); setHistoryAgentId(undefined) }} />}
+      {!!historyAgentId && <HistoryModal agentId={historyAgentId} onDismiss={() => { navigate(baseUrl, {replace: true}); setHistoryAgentId(undefined) }} />}
       <Breadcrumbs items={logSource?.crumbs ?? []} title={logSource?.crumbTitle} />
       <Stack tokens={{ childrenGap: 0 }} style={{ backgroundColor: "#FFFFFF", paddingTop: 12 }}>
          <Stack horizontal >

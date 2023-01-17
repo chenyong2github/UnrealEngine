@@ -68,4 +68,6 @@ export class Plugins {
 
 }
 
-export default new Plugins();
+const plugins = new Plugins();
+
+export default plugins;

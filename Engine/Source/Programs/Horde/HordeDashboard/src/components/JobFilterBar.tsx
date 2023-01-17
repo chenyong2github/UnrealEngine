@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { Dropdown, IDropdownOption, Stack } from "@fluentui/react";
 import React, { useEffect, useState } from "react";
 import { useBackend } from "../backend";
@@ -37,6 +37,10 @@ const dropDownStyle: any = () => {
 
 
 export class JobFilter {
+
+   constructor() {
+      makeObservable(this);
+   }
 
     @action
     setUpdated() {

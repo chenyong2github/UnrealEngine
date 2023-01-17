@@ -3,7 +3,7 @@
 import { Image, Spinner, SpinnerSize, Stack, Text } from '@fluentui/react';
 import React, { useState } from 'react';
 import { useDarkreader } from 'react-darkreader';
-import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import backend from './backend';
 import { DashboardPreference } from './backend/Api';
 import { getSiteConfig } from './backend/Config';
@@ -54,7 +54,7 @@ const Main: React.FC = () => {
 
             let local = localStorage.getItem("horde_darktheme");
 
-            if (!local) {               
+            if (!local) {
 
                console.log("Setting local theme to ", darktheme);
 
@@ -67,13 +67,13 @@ const Main: React.FC = () => {
                   setInit(true);
                   return null;
                }
-            
+
             } else if (local !== darktheme) {
 
                console.log(`Setting local theme to ${darktheme} and reloading for change`);
                localStorage.setItem("horde_darktheme", darktheme);
                window.location.reload();
-               
+
             } else {
                setInit(true);
                return null;
@@ -116,34 +116,33 @@ const Main: React.FC = () => {
    }
 
    return (
-      <Switch>
-         <Route path="/index" component={UserHomeView} />
-         <Route path="/project/:projectId" component={ProjectHome} />
-         <Route path="/pool/:poolId" component={PoolView} />
-         <Route path="/job/:jobId" component={JobDetailViewV2} />         
-         <Route path="/log/:logId" component={LogView} />
-         <Route path="/testreport/:testdataId" component={TestReportView} />
-         <Route path="/stream/:streamId" component={StreamView} />
-         <Route path="/agents/:agentId?" component={AgentView} />
-         <Route path="/admin/token" component={AdminToken} />
-         <Route path="/reports/utilization" component={UtilizationReportView} />
-         <Route path="/preflight" component={PreflightRedirector} />
-         <Route path="/dashboard" component={DashboardView} />
-         <Route path="/perforce/servers" component={PerforceServerView} />
-         <Route path="/notices" component={NoticeView} />
-         <Route path="/devices" component={DeviceView} />
-         <Route path="/server/settings" component={ServerSettingsView} />
-         <Route path="/audit/agent/:agentId" component={AuditLogView} />
-         <Route path="/audit/issue/:issueId" component={AuditLogView} />
-         <Route path="/automation" component={AutomationView} />
-         <Route path={["/debug/lease/:leaseId"]} component={DebugView} />
+      <Routes>
+         <Route path="/index" element={<UserHomeView />} />
+         <Route path="/project/:projectId" element={<ProjectHome />} />
+         <Route path="/pool/:poolId" element={<PoolView />} />
+         <Route path="/job/:jobId" element={<JobDetailViewV2 />} />
+         <Route path="/log/:logId" element={<LogView />} />
+         <Route path="/testreport/:testdataId" element={<TestReportView />} />
+         <Route path="/stream/:streamId" element={<StreamView />} />
+         <Route path="/agents/:agentId?" element={<AgentView />} />
+         <Route path="/admin/token" element={<AdminToken />} />
+         <Route path="/reports/utilization" element={<UtilizationReportView />} />
+         <Route path="/preflight" element={<PreflightRedirector />} />
+         <Route path="/dashboard" element={<DashboardView />} />
+         <Route path="/perforce/servers" element={<PerforceServerView />} />
+         <Route path="/notices" element={<NoticeView />} />
+         <Route path="/devices" element={<DeviceView />} />
+         <Route path="/server/settings" element={<ServerSettingsView />} />
+         <Route path="/audit/agent/:agentId" element={<AuditLogView />} />
+         <Route path="/audit/issue/:issueId" element={<AuditLogView />} />
+         <Route path="/automation" element={<AutomationView />} />
+         <Route path="/debug/lease/:leaseId" element={<DebugView />} />
          {hordePlugins.routes.map((route, index) => {
-            return <Route key={`key_plugin_route_${index}`} path={route.path} component={route.component} />;
+            return <Route key={`key_plugin_route_${index}`} path={route.path} element={<route.component />} />;
          })}
-         <Redirect from='/' to='/index' />
-      </Switch>
+         <Route path='*' element={<Navigate to='/index' replace={true} />} />
+      </Routes>
    );
-
 };
 
 const Darkmode: React.FC = () => {
@@ -155,7 +154,7 @@ const Darkmode: React.FC = () => {
    `;
 
    // NOTE: if an Stack child isn't respecting className="horde-no-darktheme", check that you are using style: {} instead of styles:{root:{}}!
-   /*const [isDark, { toggle }] = */useDarkreader(dashboard.darktheme, { brightness: 100, contrast: 100, sepia: 0, grayscale: 0, darkSchemeTextColor: "#FFFFFFFF" }, { invert: [], ignoreInlineStyle: ['.horde-no-darktheme *'], css: additionalCSS, ignoreImageAnalysis: [] });
+   /*const [isDark, { toggle }] = */useDarkreader(dashboard.darktheme, { brightness: 100, contrast: 100, sepia: 0, grayscale: 0, darkSchemeTextColor: "#FFFFFFFF" }, { disableStyleSheetsProxy: false, invert: [], ignoreInlineStyle: ['.horde-no-darktheme *'], css: additionalCSS, ignoreImageAnalysis: [] });
 
    return null;
 };

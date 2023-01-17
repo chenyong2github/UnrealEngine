@@ -2,15 +2,16 @@ import * as React from 'react';
 import { classNamesFunction, styled } from '@fluentui/react';
 import { IMarkdownTableCellProps, IMarkdownTableStyleProps, IMarkdownTableStyles } from './MarkdownTable.types';
 import { getStyles } from './MarkdownTable.styles';
+import { PropsWithChildren } from 'react';
 
 const getClassNames = classNamesFunction<IMarkdownTableStyleProps, IMarkdownTableStyles>();
 
-export class MarkdownCellBase extends React.PureComponent<IMarkdownTableCellProps> {
+export class MarkdownCellBase extends React.PureComponent<PropsWithChildren<IMarkdownTableCellProps>> {
   public render(): JSX.Element {
     const { as = 'td', children, styles, theme } = this.props;
 
     const classNames = getClassNames(styles, {
-      theme: theme!
+      theme: theme!,
     });
 
     const Tag = as;
@@ -28,5 +29,5 @@ export const MarkdownCell = styled<IMarkdownTableCellProps, IMarkdownTableStyleP
   MarkdownCellBase,
   getStyles,
   undefined,
-  { scope: 'MarkdownTable' }
+  { scope: 'MarkdownTable' },
 );

@@ -5,7 +5,8 @@ import { Backend } from './Backend';
 import { projectStore } from './ProjectStore';
 import { issueStore } from './IssueStore';
 
-export default new Backend();
+const backend = new Backend();
+export default backend;
 
 const backendContext = React.createContext({
   projectStore: projectStore,

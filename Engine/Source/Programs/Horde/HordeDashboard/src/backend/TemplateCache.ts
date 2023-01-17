@@ -16,4 +16,5 @@ export class TemplateCache {
 	}
 }
 
-export default new TemplateCache();
+const templateCache = new TemplateCache();
+export default templateCache;

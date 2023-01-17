@@ -1,6 +1,6 @@
 import { ConstrainMode, DefaultButton, DetailsList, DetailsListLayoutMode, IColumn, SelectionMode, Stack, Text } from "@fluentui/react";
 import { observer } from "mobx-react-lite";
-import { useHistory, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { LabelOutcome, LabelState } from "../../backend/Api";
 import { JobLabel } from "../../backend/JobDetails";
 import { getLabelColor } from "../../styles/colors";
@@ -12,7 +12,7 @@ import { JobDataView, JobDetailsV2 } from "./JobDetailsViewCommon";
 export const LabelsPanelV2: React.FC<{ jobDetails: JobDetailsV2, dataView: JobDataView }> = observer(({ jobDetails, dataView }) => {
 
    const query = useQuery();
-   const history = useHistory();
+   const navigate = useNavigate();
    const location = useLocation();
 
    dataView.subscribe();
@@ -159,14 +159,14 @@ export const LabelsPanelV2: React.FC<{ jobDetails: JobDetailsV2, dataView: JobDa
                      <DefaultButton
                         onClick={() => {
                            if (qlabel?.category === label.category && qlabel?.name === label.name) {
-                              history.push(location.pathname)
+                              navigate(location.pathname)
                            } else {
 
                               const idx = jobDetails.labelIndex(label.name, label.category);
                               if (idx >= 0) {
-                                 history.push(location.pathname + `?label=${idx}`)
+                                 navigate(location.pathname + `?label=${idx}`)
                               } else {
-                                 history.replace(location.pathname)
+                                 navigate(location.pathname, {replace: true})
                               }                              
                            }
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { CollapseAllVisibility, DefaultButton, DetailsHeader, DetailsList, DetailsListLayoutMode, DetailsRow, FocusZone, FocusZoneDirection, FontIcon, IColumn, IconButton, IDetailsListProps, mergeStyleSets, PrimaryButton, ScrollablePane, ScrollbarVisibility, SelectionMode, Spinner, SpinnerSize, Stack, Text } from '@fluentui/react';
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import moment from "moment-timezone";
 import { default as React, useEffect, useState } from 'react';
@@ -117,6 +117,10 @@ const ProjectsPanel: React.FC = observer(() => {
 /// Health ========================================================================================
 
 class HealthHandler {
+
+   constructor() {
+      makeObservable(this);      
+   }
 
    startPolling() {
 
@@ -344,6 +348,10 @@ const HealthPanel: React.FC = observer(() => {
 
 const jobsRefreshTime = 3000;
 class UserJobsHandler {
+
+   constructor() {
+      makeObservable(this);
+   }
 
    set(jobIds: string[]): boolean {
 

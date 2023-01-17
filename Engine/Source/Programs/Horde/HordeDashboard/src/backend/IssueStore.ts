@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { IssueData } from './Api';
 import backend from '.';
 
@@ -8,6 +8,10 @@ const updateMS = 5000;
 
 // This class is intended for high level, cross job stream issue views, for job specific issues see JobDetails
 export class IssueStore {
+
+    constructor() {
+        makeObservable(this);
+    }
 
     @observable.ref
     issues: IssueData[] = [];

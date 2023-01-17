@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import React from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import backend from '../backend';
 
 export const DebugView: React.FC = () => {
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const params = useParams<{ leaseId?: string }>();
 
     if (params.leaseId) {
@@ -17,7 +17,7 @@ export const DebugView: React.FC = () => {
 
                 if (lease) {
 
-                    history.replace(`/log/${lease.logId}?leaseId=${lease.id}`);
+                  navigate(`/log/${lease.logId}?leaseId=${lease.id}`, {replace: true});
 
                 } else {
                     console.error("Unable to get lease ", params.leaseId);

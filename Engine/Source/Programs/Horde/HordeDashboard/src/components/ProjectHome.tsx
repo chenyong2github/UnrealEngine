@@ -7,7 +7,7 @@ import { Stack, SearchBox, Text, FocusZoneDirection, ScrollbarVisibility, FocusZ
 import { detailClasses, hordeClasses } from '../styles/Styles';
 import { Breadcrumbs, BreadcrumbItem } from './Breadcrumbs';
 import { TopNav } from './TopNav';
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import backend, { useBackend } from '../backend';
 import { ProjectData, StreamData } from '../backend/Api';
 import dashboard from '../backend/Dashboard';
@@ -20,6 +20,9 @@ type FilteredCategory = {
 };
 
 class LocalState {
+   constructor() {
+      makeObservable(this);
+   }
     filterString = "";
     activeProject: ProjectData | undefined = undefined;
     @observable.shallow filteredCategories: FilteredCategory[] = [];

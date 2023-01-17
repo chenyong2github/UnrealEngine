@@ -3,11 +3,11 @@
 import { isNumber } from '@datadog/browser-core';
 import { Checkbox, DefaultButton, Dropdown, FocusZone, FocusZoneDirection, FontIcon, IContextualMenuItem, IContextualMenuProps, IDropdownOption, Label, PrimaryButton, ScrollablePane, ScrollbarVisibility, Spinner, SpinnerSize, Stack, Text } from '@fluentui/react';
 import * as d3 from "d3";
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import moment from 'moment';
 import React, { useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import backend from '../backend';
 import { GetTestDataRefResponse, GetTestMetaResponse, GetTestResponse, GetTestStreamResponse, GetTestSuiteResponse, TestOutcome } from '../backend/Api';
 import dashboard, { StatusColor } from '../backend/Dashboard';
@@ -59,6 +59,7 @@ type FilterState = "Success" | "Failed" | "Consecutive Failures" | "Skipped";
 class TestDataHandler {
 
    constructor(search: URLSearchParams) {
+      makeObservable(this);
       this.state = this.stateFromSearch(search);
       this.load();
    }
@@ -1734,7 +1735,7 @@ export const AutomationView: React.FC = observer(() => {
 
    const [state, setState] = useState<{ handler?: TestDataHandler, search?: string }>({});
    const location = useLocation();
-   const history = useHistory();
+   const navigate = useNavigate();
 
    let handler = state.handler;
 
@@ -1752,7 +1753,7 @@ export const AutomationView: React.FC = observer(() => {
 
    if (state.search !== csearch) {
       location.search = csearch;
-      history.replace(location);
+      navigate(location, {replace: true});
       setState({ ...state, search: csearch });
       return null;
    }

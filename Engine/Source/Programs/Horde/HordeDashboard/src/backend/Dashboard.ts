@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { getTheme } from "@fluentui/react";
-import { action, observable } from 'mobx';
+import { action, makeObservable, observable } from 'mobx';
 import backend from '.';
 import { DashboardPreference, GetDashboardConfigResponse, GetUserResponse, UserClaim } from './Api';
 
@@ -26,6 +26,10 @@ export enum WebBrowser {
 }
 
 export class Dashboard {
+
+    constructor() {
+        makeObservable(this);
+    }
 
     startPolling() {
         this.polling = true;

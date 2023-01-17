@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { datadogLogs, StatusType, Datacenter } from '@datadog/browser-logs';
+import { datadogLogs, StatusType } from '@datadog/browser-logs';
 import { getSiteConfig } from '../backend/Config';
 
 export const initDatadog = () => {
@@ -13,7 +13,7 @@ export const initDatadog = () => {
 
 	datadogLogs.init({
 		clientToken: siteConfig.datadogClient,
-		datacenter: Datacenter.US,
+		//datacenter: Datacenter.US,
 		env: siteConfig.environment === "production" ? "prod" : "dev",
 		forwardErrorsToLogs: true,
 		sampleRate: 100
