@@ -1228,6 +1228,12 @@ namespace UnrealBuildTool
 		public bool bCompileFreeType = true;
 
 		/// <summary>
+		/// Whether to turn allow exec commands for shipping builds.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseExecCommandsInShipping = true;
+
+		/// <summary>
 		/// True if we want to favor optimizing size over speed.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -3108,6 +3114,11 @@ namespace UnrealBuildTool
 		public bool bCompileFreeType
 		{
 			get { return Inner.bCompileFreeType; }
+		}
+
+		public bool bUseExecCommandsInShipping
+		{
+			get { return Inner.bUseExecCommandsInShipping; }
 		}
 
 		[Obsolete("Deprecated in UE5.1 - Please use OptimizationLevel instead.")]

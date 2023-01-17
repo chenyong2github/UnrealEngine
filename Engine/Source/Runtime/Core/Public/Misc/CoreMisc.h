@@ -45,12 +45,48 @@ public:
 	FStaticSelfRegisteringExec(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd,FOutputDevice& Ar));
 
 	//~ Begin Exec Interface
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
+#if UE_ALLOW_EXEC_COMMANDS
+	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+#endif
 	//~ End Exec Interface
 
 private:
 
 	bool (*StaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd,FOutputDevice& Ar);
+};
+
+/** Registers a static Exec_Dev function using FSelfRegisteringExec. */
+class CORE_API FStaticSelfRegisteringExec_Dev: public FSelfRegisteringExec
+{
+public:
+
+	/** Initialization constructor. */
+	explicit FStaticSelfRegisteringExec_Dev(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar));
+
+	//~ Begin Exec Interface
+	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ End Exec Interface
+
+private:
+
+	bool (*StaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd,FOutputDevice& Ar);
+};
+
+/** Registers a static Exec_Editor function using FSelfRegisteringExec. */
+class CORE_API FStaticSelfRegisteringExec_Editor: public FSelfRegisteringExec
+{
+public:
+
+	/** Initialization constructor. */
+	explicit FStaticSelfRegisteringExec_Editor(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar));
+
+	//~ Begin Exec Interface
+	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ End Exec Interface
+
+private:
+
+	bool (*StaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar);
 };
 
 // Interface for returning a context string.

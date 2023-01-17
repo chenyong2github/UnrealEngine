@@ -4180,6 +4180,15 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=0");
 			}
 
+			if (Rules.bUseExecCommandsInShipping)
+			{
+				GlobalCompileEnvironment.Definitions.Add("UE_ALLOW_EXEC_COMMANDS_IN_SHIPPING=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("UE_ALLOW_EXEC_COMMANDS_IN_SHIPPING=0");
+			}
+
 			if ((Rules.bCompileAgainstEditor && (Rules.Type == TargetType.Editor || Rules.Type == TargetType.Program)))
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_EDITOR=1");
