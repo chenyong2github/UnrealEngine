@@ -107,7 +107,7 @@ FInputActionValue UEnhancedInputComponent::GetBoundActionValue(const UInputActio
 			return Binding.GetValue();
 		}
 	}
-	return FInputActionValue(Action->ValueType, FVector::ZeroVector);
+	return FInputActionValue(Action ? Action->ValueType : EInputActionValueType::Axis3D, FVector::ZeroVector);
 }
 
 // Must be in C++ to avoid duplicate statics across execution units

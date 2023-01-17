@@ -8,6 +8,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/Actor.h"
+#include "EnhancedInputModule.h"	// For LogEnhancedInput
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputLibrary)
 
