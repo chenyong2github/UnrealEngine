@@ -142,6 +142,9 @@ public:
 	/** Returns true if the target is not null and matches the binding type */ 
 	bool HasValidTarget() const;
 
+	/** Helper function to return the asset path name, optionally joined with the LOD index if LODIndex > -1. */
+	FName GetAssetPathName(int32 LODIndex = -1);
+
 #if WITH_EDITOR
 	FOnGroomBindingAssetChanged& GetOnGroomBindingAssetChanged() { return OnGroomBindingAssetChanged; }
 

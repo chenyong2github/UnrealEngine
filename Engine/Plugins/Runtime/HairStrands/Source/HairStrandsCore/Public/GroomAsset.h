@@ -582,6 +582,9 @@ public:
 	/** Used for PSO precaching of used materials and vertex factories */
 	TArray<FHairVertexFactoryTypesPerMaterialData> CollectVertexFactoryTypesPerMaterialData(EShaderPlatform ShaderPlatform);
 
+	/** Helper function to return the asset path name, optionally joined with the LOD index if LODIndex > -1. */
+	FName GetAssetPathName(int32 LODIndex = -1);
+
 //private :
 #if WITH_EDITOR
 	FOnGroomAssetChanged OnGroomAssetChanged;

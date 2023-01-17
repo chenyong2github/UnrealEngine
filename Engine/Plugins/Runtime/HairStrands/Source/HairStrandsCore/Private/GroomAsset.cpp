@@ -950,7 +950,7 @@ void UGroomAsset::UpdateResource()
 					HairGroupsInfo,
 					HairGroupsData);
 
-				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, FHairResourceName(GetFName(), GroupIndex));
+				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
 			}
 			else
 			{
@@ -2757,8 +2757,9 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			if (bInitResources)
 			{
 				FHairResourceName ResourceName(GetFName(), GroupIndex, LODIt);
+				const FName OwnerName = GetAssetPathName(LODIt);
 
-				LOD.RestResource = new FHairCardsRestResource(LOD.BulkData, ResourceName);
+				LOD.RestResource = new FHairCardsRestResource(LOD.BulkData, ResourceName, OwnerName);
 				BeginInitResource(LOD.RestResource); // Immediate allocation, as needed for the vertex factory, input stream building
 
 				// 2.1 Load atlas textures
@@ -2771,7 +2772,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural;
 				
 				// 2.2 Load interoplatino resources
-				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationBulkData, ResourceName);
+				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationBulkData, ResourceName, OwnerName);
 
 				// Create own interpolation settings for cards.
 				// Force closest guides as this is the most relevant matching metric for cards, due to their coarse geometry
@@ -2815,9 +2816,9 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 					GroupData.Guides.BulkData  = LOD.Guides.BulkData;
 				}
 
-				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards, ResourceName);
+				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards, ResourceName, OwnerName);
 
-				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationBulkData, ResourceName);
+				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationBulkData, ResourceName, OwnerName);
 
 				// Update card stats to display
 				Desc->CardsInfo.NumCardVertices = LOD.BulkData.GetNumVertices();
@@ -3029,7 +3030,7 @@ FHairStrandsRestResource* UGroomAsset::AllocateGuidesResources(uint32 GroupIndex
 		{
 			if (GroupData.Guides.RestResource == nullptr)
 			{
-				GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.BulkData, EHairStrandsResourcesType::Guides, FHairResourceName(GetFName(), GroupIndex));
+				GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.BulkData, EHairStrandsResourcesType::Guides, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
 			}
 			return GroupData.Guides.RestResource;
 		}
@@ -3045,7 +3046,7 @@ FHairStrandsInterpolationResource* UGroomAsset::AllocateInterpolationResources(u
 		check(GroupData.Guides.IsValid());
 		if (GroupData.Strands.InterpolationResource == nullptr)
 		{
-			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationBulkData, FHairResourceName(GetFName(), GroupIndex));
+			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationBulkData, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
 		}
 		return GroupData.Strands.InterpolationResource;
 	}
@@ -3063,7 +3064,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(ui
 
 		if (LOD.RaytracingResource == nullptr)
 		{
-			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIndex));
+			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIndex), GetAssetPathName(LODIndex));
 		}
 		return LOD.RaytracingResource;
 	}
@@ -3080,7 +3081,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(u
 
 		if (LOD.RaytracingResource == nullptr)
 		{
-			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIndex));
+			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIndex), GetAssetPathName(LODIndex));
 		}
 		return LOD.RaytracingResource;
 	}
@@ -3096,7 +3097,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(
 
 		if (GroupData.Strands.RaytracingResource == nullptr)
 		{
-			GroupData.Strands.RaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData, FHairResourceName(GetFName(), GroupIndex));
+			GroupData.Strands.RaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
 		}
 		return GroupData.Strands.RaytracingResource;
 	}
@@ -3118,6 +3119,8 @@ void UGroomAsset::InitStrandsResources()
 		return;
 	}
 
+	const FName OwnerName = GetAssetPathName();
+
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
@@ -3125,8 +3128,7 @@ void UGroomAsset::InitStrandsResources()
 		if (GroupData.Strands.HasValidData())
 		{
 			FHairResourceName ResourceName(GetFName(), GroupIndex);
-
-			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands, ResourceName);
+			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 
 			if (GroupData.Strands.ClusterCullingBulkData.IsValid())
 			{
@@ -3147,7 +3149,7 @@ void UGroomAsset::InitStrandsResources()
 					}
 				}
 
-				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, ResourceName);
+				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, ResourceName, OwnerName);
 			}
 
 			// Interpolation are lazy allocated, as these resources are only used when RBF/simulation is enabled by a groom component
@@ -3232,15 +3234,16 @@ void UGroomAsset::InitCardsResources()
 				LOD.HasValidData())
 			{
 				FHairResourceName ResourceName(GetFName(), GroupIndex, LODIt);
+				const FName OwnerName = GetAssetPathName(LODIt);
 
-				LOD.RestResource = new FHairCardsRestResource(LOD.BulkData, ResourceName);
+				LOD.RestResource = new FHairCardsRestResource(LOD.BulkData, ResourceName, OwnerName);
 				BeginInitResource(LOD.RestResource); // Immediate allocation, as needed for the vertex factory, input stream building
 
-				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationBulkData, ResourceName);
+				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationBulkData, ResourceName, OwnerName);
 
-				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards, ResourceName);
+				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards, ResourceName, OwnerName);
 
-				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationBulkData, ResourceName);
+				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationBulkData, ResourceName, OwnerName);
 
 				if (Desc)
 				{
@@ -3291,7 +3294,7 @@ void UGroomAsset::InitMeshesResources()
 
 			if (LOD.HasValidData())
 			{
-				LOD.RestResource = new FHairMeshesRestResource(LOD.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIt));
+				LOD.RestResource = new FHairMeshesRestResource(LOD.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIt), GetAssetPathName(LODIt));
 				BeginInitResource(LOD.RestResource); // Immediate allocation, as needed for the vertex factory, input stream building
 
 
@@ -3719,10 +3722,11 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		Q.Textures = &Desc->Textures;
 	}
 
+	const FName OwnerName = GetAssetPathName(LODIndex);
 	// 3. Create resources and enqueue texture generation (GPU, kicked by the render thread) 
-	Q.Resources = new FHairCardsRestResource(Q.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIndex));
+	Q.Resources = new FHairCardsRestResource(Q.BulkData, FHairResourceName(GetFName(), GroupIndex, LODIndex), OwnerName);
 	BeginInitResource(Q.Resources); // Immediate allocation, as needed for the vertex factory, input stream building
-	Q.ProceduralResources = new FHairCardsProceduralResource(Q.ProceduralData.RenderData, Q.ProceduralData.Atlas.Resolution, Q.ProceduralData.Voxels);
+	Q.ProceduralResources = new FHairCardsProceduralResource(Q.ProceduralData.RenderData, Q.ProceduralData.Atlas.Resolution, Q.ProceduralData.Voxels, OwnerName);
 	BeginInitResource(Q.ProceduralResources); // Immediate allocation, as needed for the vertex factory, input stream building
 
 	FHairCardsBuilder::BuildTextureAtlas(&Q.ProceduralData, Q.Resources, Q.ProceduralResources, Q.Textures);
@@ -3878,6 +3882,22 @@ void UGroomAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GroupData.Cards.GetDataSize());
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GroupData.Meshes.GetDataSize());
 	}
+}
+
+FName UGroomAsset::GetAssetPathName(int32 LODIndex)
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	if (LODIndex > -1)
+	{
+		return FName(FString::Printf(TEXT("%s [LOD%d]"), *GetPathName(), LODIndex));
+	}
+	else
+	{
+		return FName(GetPathName());
+	}
+#else
+	return NAME_None;
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

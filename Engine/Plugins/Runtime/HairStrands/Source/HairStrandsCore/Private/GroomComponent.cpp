@@ -2586,10 +2586,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 		const EHairInterpolationType HairInterpolationType = ToHairInterpolationType(GroomAsset->HairInterpolationType);
 
+		const FName OwnerName = GroomAsset->GetAssetPathName();
+
 		// Initialize LOD screen size & visibility
 		bool bNeedStrandsData = false;
 		{
-			HairGroupInstance->HairGroupPublicData = new FHairGroupPublicData(GroupIt);
+			HairGroupInstance->HairGroupPublicData = new FHairGroupPublicData(GroupIt, OwnerName);
 			HairGroupInstance->HairGroupPublicData->Instance = HairGroupInstance;
 			HairGroupInstance->HairGroupPublicData->bDebugDrawLODInfo = bPreviewMode;
 			HairGroupInstance->HairGroupPublicData->DebugScreenSize = 0.f;
@@ -2657,7 +2659,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				}
 
 				HairGroupInstance->Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].SimRootResources;
-				HairGroupInstance->Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Guides.RestRootResource, EHairStrandsResourcesType::Guides, ResourceName);
+				HairGroupInstance->Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Guides.RestRootResource, EHairStrandsResourcesType::Guides, ResourceName, OwnerName);
 			}
 
 			// Lazy allocation of the guide resources
@@ -2665,7 +2667,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			check(GroupData.Guides.RestResource);
 
 			// If guides are allocated, deformed resources are always needs since they are either used with simulation, or RBF deformation. Both are dynamics, and require deformed positions
-			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.BulkData, EHairStrandsResourcesType::Guides, ResourceName);
+			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.BulkData, EHairStrandsResourcesType::Guides, ResourceName, OwnerName);
 
 			// Initialize the simulation and the global deformation to its default behavior by setting it with LODIndex = -1
 			const int32 LODIndex = -1;
@@ -2747,7 +2749,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				if (bNeedDynamicResources)
 				{
 					// Allocate dynamic raytracing resources (owned by the groom component/instance)
-					HairGroupInstance->Strands.RenRaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData, ResourceName);
+					HairGroupInstance->Strands.RenRaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData, ResourceName, OwnerName);
 					HairGroupInstance->Strands.RenRaytracingResourceOwned = true;
 				}
 				else
@@ -2771,13 +2773,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				}
 
 				HairGroupInstance->Strands.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].RenRootResources;
-				HairGroupInstance->Strands.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Strands.RestRootResource, EHairStrandsResourcesType::Strands, ResourceName);
+				HairGroupInstance->Strands.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Strands.RestRootResource, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 			}
 
 			HairGroupInstance->Strands.RestResource = GroupData.Strands.RestResource;
 			if (bNeedDynamicResources)
 			{
-				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands, ResourceName);
+				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 			} 
 
 			// An empty groom doesn't have a ClusterCullingResource
@@ -2817,6 +2819,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			if (LOD.IsValid())
 			{
 				FHairResourceName LODResourceName(GetFName(), GroupIt, CardsLODIndex);
+				const FName LODOwnerName = GroomAsset->GetAssetPathName(CardsLODIndex);
 
 				const EHairBindingType BindingType	= HairGroupInstance->HairGroupPublicData->GetBindingType(CardsLODIndex);
 				const bool bHasSimulation			= HairGroupInstance->HairGroupPublicData->IsSimulationEnable(CardsLODIndex);
@@ -2837,7 +2840,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 				if (bNeedDeformedPositions)
 				{
-					InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.BulkData, false, LODResourceName);
+					InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.BulkData, false, LODResourceName, LODOwnerName);
 				}
 
 				#if RHI_RAYTRACING
@@ -2846,7 +2849,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					if (bNeedDeformedPositions)
 					{
 						// Allocate dynamic raytracing resources (owned by the groom component/instance)
-						InstanceLOD.RaytracingResource = new FHairStrandsRaytracingResource(*InstanceLOD.Data, LODResourceName);
+						InstanceLOD.RaytracingResource = new FHairStrandsRaytracingResource(*InstanceLOD.Data, LODResourceName, LODOwnerName);
 						InstanceLOD.RaytracingResourceOwned = true;
 					}
 					else
@@ -2875,12 +2878,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 						}
 
 						InstanceLOD.Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex];
-						InstanceLOD.Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(InstanceLOD.Guides.RestRootResource, EHairStrandsResourcesType::Cards, LODResourceName);
+						InstanceLOD.Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(InstanceLOD.Guides.RestRootResource, EHairStrandsResourcesType::Cards, LODResourceName, LODOwnerName);
 					}
 
 					InstanceLOD.Guides.RestResource = LOD.Guides.RestResource;
 					{
-						InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards, LODResourceName);
+						InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards, LODResourceName, LODOwnerName);
 					}
 
 					InstanceLOD.Guides.HairInterpolationType = HairInterpolationType;
@@ -2896,6 +2899,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			if (LOD.IsValid())
 			{
 				FHairResourceName LODResourceName(GetFName(), GroupIt, MeshLODIndex);
+				const FName LODOwnerName = GroomAsset->GetAssetPathName(MeshLODIndex);
 
 				const EHairBindingType BindingType = HairGroupInstance->HairGroupPublicData->GetBindingType(MeshLODIndex);
 				const bool bHasGlobalDeformation   = HairGroupInstance->HairGroupPublicData->IsGlobalInterpolationEnable(MeshLODIndex);
@@ -2905,7 +2909,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				InstanceLOD.RestResource = LOD.RestResource;
 				if (bNeedDeformedPositions)
 				{
-					InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.BulkData, true, LODResourceName);
+					InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.BulkData, true, LODResourceName, LODOwnerName);
 				}
 
 				#if RHI_RAYTRACING
@@ -2914,7 +2918,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					if (bNeedDeformedPositions)
 					{
 						// Allocate dynamic raytracing resources (owned by the groom component/instance)
-						InstanceLOD.RaytracingResource = new FHairStrandsRaytracingResource(*InstanceLOD.Data, LODResourceName);
+						InstanceLOD.RaytracingResource = new FHairStrandsRaytracingResource(*InstanceLOD.Data, LODResourceName, LODOwnerName);
 						InstanceLOD.RaytracingResourceOwned = true;
 					}
 					else

@@ -111,12 +111,13 @@ void UGroomBindingAsset::InitResource()
 		FHairGroupResource& Resource = HairGroupResources.AddDefaulted_GetRef();
 
 		FHairResourceName ResourceName(GetFName(), GroupIndex);
+		const FName OwnerName = GetAssetPathName();
 
 		// Guides
 		Resource.SimRootResources = nullptr;
 		if (BulkData.SimRootBulkData.IsValid())
 		{
-			Resource.SimRootResources = new FHairStrandsRestRootResource(BulkData.SimRootBulkData, EHairStrandsResourcesType::Guides, ResourceName);
+			Resource.SimRootResources = new FHairStrandsRestRootResource(BulkData.SimRootBulkData, EHairStrandsResourcesType::Guides, ResourceName, OwnerName);
 			BeginInitResource(Resource.SimRootResources);
 		}
 
@@ -124,7 +125,7 @@ void UGroomBindingAsset::InitResource()
 		Resource.RenRootResources = nullptr;
 		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && BulkData.RenRootBulkData.IsValid())
 		{
-			Resource.RenRootResources = new FHairStrandsRestRootResource(BulkData.RenRootBulkData, EHairStrandsResourcesType::Strands, ResourceName);
+			Resource.RenRootResources = new FHairStrandsRestRootResource(BulkData.RenRootBulkData, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 			BeginInitResource(Resource.RenRootResources);
 		}
 
@@ -138,7 +139,7 @@ void UGroomBindingAsset::InitResource()
 				Resource.CardsRootResources[CardsLODIt] = nullptr;
 				if (BulkData.CardsRootBulkData[CardsLODIt].IsValid())
 				{
-					Resource.CardsRootResources[CardsLODIt] = new FHairStrandsRestRootResource(BulkData.CardsRootBulkData[CardsLODIt], EHairStrandsResourcesType::Cards, FHairResourceName(GetFName(), GroupIndex, CardsLODIt));
+					Resource.CardsRootResources[CardsLODIt] = new FHairStrandsRestRootResource(BulkData.CardsRootBulkData[CardsLODIt], EHairStrandsResourcesType::Cards, FHairResourceName(GetFName(), GroupIndex, CardsLODIt), GetAssetPathName(CardsLODIt));
 					BeginInitResource(Resource.CardsRootResources[CardsLODIt]);
 				}
 			}
@@ -818,3 +819,18 @@ void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSi
 	}
 }
 
+FName UGroomBindingAsset::GetAssetPathName(int32 LODIndex)
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	if (LODIndex > -1)
+	{
+		return FName(FString::Printf(TEXT("%s [LOD%d]"), *GetPathName(), LODIndex));
+	}
+	else
+	{
+		return FName(GetPathName());
+	}
+#else
+	return NAME_None;
+#endif
+}

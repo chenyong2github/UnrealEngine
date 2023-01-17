@@ -3546,6 +3546,13 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buff
 
 		SetRHI(Buffer, GRenderGraphResourcePool.FindFreeBuffer(Buffer->Desc, Buffer->Name, Alignment), PassHandle);
 	}
+
+#if RHI_ENABLE_RESOURCE_INFO
+	if (Buffer->HasRHI())
+	{
+		Buffer->ResourceRHI->SetOwnerName(Buffer->OwnerName);
+	}
+#endif
 }
 
 void FRDGBuilder::InitRHI(FRDGBufferSRVRef SRV)

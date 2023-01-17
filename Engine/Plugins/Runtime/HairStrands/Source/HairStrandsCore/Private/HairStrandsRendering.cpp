@@ -1442,6 +1442,7 @@ static void BuildHairAccelerationStructure_Strands(
 	FBufferRHIRef& IndexBuffer,
 	FRayTracingGeometry* OutRayTracingGeometry,
 	const FString& AssetDebugName,
+	const FString& MeshComponentName,
 	uint32 LODIndex,
 	bool bProceduralPrimitive,
 	int ProceduralSplits)
@@ -1455,7 +1456,10 @@ static void BuildHairAccelerationStructure_Strands(
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
 #endif
-
+#if RHI_ENABLE_RESOURCE_INFO
+	const FName OwnerName(FString::Printf(TEXT("%s [LOD%d]"), *MeshComponentName, LODIndex));
+	Initializer.OwnerName = OwnerName;
+#endif
 	if (bProceduralPrimitive)
 	{
 		Initializer.GeometryType = RTGT_Procedural;
@@ -1498,6 +1502,7 @@ static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList,
 	FHairCardsDeformedResource* DeformedResource,
 	FRayTracingGeometry* OutRayTracingGeometry,
 	const FString& AssetDebugName,
+	const FString& MeshComponentName,
 	uint32 LODIndex)
 {
 	FRayTracingGeometryInitializer Initializer;
@@ -1508,6 +1513,10 @@ static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList,
 	static const FName DebugName("AS_HairCards");
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
+#endif
+#if RHI_ENABLE_RESOURCE_INFO
+	const FName OwnerName(FString::Printf(TEXT("%s [LOD%d]"), *MeshComponentName, LODIndex));
+	Initializer.OwnerName = OwnerName;
 #endif
 	Initializer.IndexBuffer = RestResource->RestIndexBuffer.IndexBufferRHI;
 	Initializer.IndexBufferOffset = 0;
@@ -1738,7 +1747,7 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(cons
 	return InternalComputeHairStrandsVertexInputData(nullptr, Instance, ViewMode);
 }
 
-void CreateHairStrandsDebugAttributeBuffer(FRDGBuilder& GraphBuilder, FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
+void CreateHairStrandsDebugAttributeBuffer(FRDGBuilder& GraphBuilder, FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount, const FName& OwnerName);
 
 void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
@@ -2063,7 +2072,7 @@ void ComputeHairStrandsInterpolation(
 				// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
 				if (Instance->Strands.DebugAttributeBuffer.Buffer == nullptr)
 				{
-					CreateHairStrandsDebugAttributeBuffer(GraphBuilder, &Instance->Strands.DebugAttributeBuffer, Instance->Strands.Data->Attributes.GetBulkDataSize());
+					CreateHairStrandsDebugAttributeBuffer(GraphBuilder, &Instance->Strands.DebugAttributeBuffer, Instance->Strands.Data->Attributes.GetBulkDataSize(), FName(Instance->Debug.MeshComponentName));
 				}
 				FRDGImportedBuffer OutRenAttributeBuffer = Register(GraphBuilder, Instance->Strands.DebugAttributeBuffer, ERDGImportedBufferFlags::CreateUAV);
 
@@ -2198,6 +2207,7 @@ void ComputeHairStrandsInterpolation(
 								IndexBuffer,
 								&Instance->Strands.RenRaytracingResource->RayTracingGeometry,
 								Instance->Debug.GroomAssetName,
+								Instance->Debug.MeshComponentName,
 								HairLODIndex,
 								bProceduralPrimitive,
 								ProceduralSplits
@@ -2340,7 +2350,7 @@ void ComputeHairStrandsInterpolation(
 						const bool bLocalNeedBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
 						if (bLocalNeedBuild)
 						{
-							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource, &LocalLOD.RaytracingResource->RayTracingGeometry, Instance->Debug.GroomAssetName, HairLODIndex);
+							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource, &LocalLOD.RaytracingResource->RayTracingGeometry, Instance->Debug.GroomAssetName, Instance->Debug.MeshComponentName, HairLODIndex);
 							LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
 						}
 						else if (bNeedUpdate)

@@ -136,6 +136,13 @@ public:
 		return ResourceRHI;
 	}
 
+	void SetOwnerName(const FName& InOwnerName)
+	{
+#if RHI_ENABLE_RESOURCE_INFO
+		OwnerName = InOwnerName;
+#endif
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 
 protected:
@@ -163,6 +170,10 @@ private:
 #if RDG_ENABLE_DEBUG
 	struct FRDGResourceDebugData* DebugData = nullptr;
 	FRDGResourceDebugData& GetDebugData() const;
+#endif
+
+#if RHI_ENABLE_RESOURCE_INFO
+	FName OwnerName;	// For RHI resource tracking
 #endif
 
 	friend FRDGBuilder;

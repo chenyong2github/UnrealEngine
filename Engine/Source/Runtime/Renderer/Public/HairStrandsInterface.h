@@ -107,7 +107,7 @@ typedef TArray<FHairStrandsInstance*> FHairStrandsInstances;
 class RENDERER_API FHairGroupPublicData : public FRenderResource
 {
 public:
-	FHairGroupPublicData(uint32 InGroupIndex);
+	FHairGroupPublicData(uint32 InGroupIndex, const FName& OwnerName);
 	void SetClusters(uint32 InClusterCount, uint32 InVertexCount);
 	
 	virtual void InitRHI() override;

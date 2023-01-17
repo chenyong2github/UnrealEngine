@@ -578,9 +578,15 @@ static void AllocateRaytracingResources(FHairGroupInstance* Instance)
 	{
 		check(Instance->Strands.Data);
 
+#if RHI_ENABLE_RESOURCE_INFO
+		FName OwnerName(FString::Printf(TEXT("%s [LOD%d]"), *Instance->Debug.MeshComponentName, Instance->Debug.MeshLODIndex));
+#else
+		FName OwnerName = NAME_None;
+#endif
+
 		// Allocate dynamic raytracing resources (owned by the groom component/instance)
 		FHairResourceName ResourceName(FName(Instance->Debug.GroomAssetName), Instance->Debug.GroupIndex);
-		Instance->Strands.RenRaytracingResource		 = new FHairStrandsRaytracingResource(*Instance->Strands.Data, ResourceName);
+		Instance->Strands.RenRaytracingResource		 = new FHairStrandsRaytracingResource(*Instance->Strands.Data, ResourceName, OwnerName);
 		Instance->Strands.RenRaytracingResourceOwned = true;
 	}
 	Instance->Strands.ViewRayTracingMask |= EHairViewRayTracingMask::PathTracing;
