@@ -30,27 +30,102 @@ void USmartObjectBlueprintFunctionLibrary::SetValueAsSOClaimHandle(UBlackboardCo
 	BlackboardComponent->SetValue<UBlackboardKeyType_SOClaimHandle>(KeyID, Value);
 }
 
-bool USmartObjectBlueprintFunctionLibrary::K2_SetSmartObjectEnabled(AActor* SmartObject, const bool bEnabled)
+bool USmartObjectBlueprintFunctionLibrary::AddOrRemoveSmartObject(AActor* SmartObjectActor, const bool bAdd)
 {
-	if (SmartObject == nullptr)
+	return AddOrRemoveMultipleSmartObjects({SmartObjectActor}, bAdd);
+}
+
+bool USmartObjectBlueprintFunctionLibrary::AddSmartObject(AActor* SmartObjectActor)
+{
+	return AddOrRemoveMultipleSmartObjects({SmartObjectActor}, /*bAdd*/true);
+}
+
+bool USmartObjectBlueprintFunctionLibrary::AddMultipleSmartObjects(const TArray<AActor*>& SmartObjectActors)
+{
+	return AddOrRemoveMultipleSmartObjects(SmartObjectActors, /*bAdd*/true);
+}
+
+bool USmartObjectBlueprintFunctionLibrary::RemoveSmartObject(AActor* SmartObjectActor)
+{
+	return AddOrRemoveMultipleSmartObjects({SmartObjectActor}, /*bAdd*/false);
+}
+
+bool USmartObjectBlueprintFunctionLibrary::RemoveMultipleSmartObjects(const TArray<AActor*>& SmartObjectActors)
+{
+	return AddOrRemoveMultipleSmartObjects(SmartObjectActors, /*bAdd*/false);
+}
+
+bool USmartObjectBlueprintFunctionLibrary::AddOrRemoveMultipleSmartObjects(const TArray<AActor*>& SmartObjectActors, const bool bAdd)
+{
+	bool bSuccess = true;
+	if (SmartObjectActors.IsEmpty())
 	{
-		return false;
+		return bSuccess;
 	}
 
-	UWorld* World = SmartObject->GetWorld();
-	if (World == nullptr)
+	USmartObjectSubsystem* Subsystem = nullptr;
+	for (const AActor* SmartObjectActor : SmartObjectActors)
 	{
-		return false;
+		if (SmartObjectActor == nullptr)
+		{
+			UE_LOG(LogSmartObject, Warning, TEXT("Null actor found and skipped"))
+			bSuccess = false;
+			continue;
+		}
+
+		if (Subsystem == nullptr)
+		{
+			Subsystem = USmartObjectSubsystem::GetCurrent(SmartObjectActor->GetWorld());
+			if (Subsystem == nullptr)
+			{
+				UE_LOG(LogSmartObject, Warning, TEXT("Unable to find SmartObjectSubsystem for the provided actors."))
+				return false;
+			}
+		}
+
+		bSuccess = bAdd ? Subsystem->RegisterSmartObjectActor(*SmartObjectActor) : Subsystem->RemoveSmartObjectActor(*SmartObjectActor) && bSuccess;
 	}
 
-	USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World);
-	if (Subsystem == nullptr)
+	return bSuccess;
+}
+
+bool USmartObjectBlueprintFunctionLibrary::SetSmartObjectEnabled(AActor* SmartObjectActor, const bool bEnabled)
+{
+	return SetMultipleSmartObjectsEnabled({SmartObjectActor}, bEnabled);
+}
+
+bool USmartObjectBlueprintFunctionLibrary::SetMultipleSmartObjectsEnabled(const TArray<AActor*>& SmartObjectActors, const bool bEnabled)
+{
+	bool bSuccess = true;
+	if (SmartObjectActors.IsEmpty())
 	{
-		return false;
+		return bSuccess;
 	}
 
-	return bEnabled ? Subsystem->RegisterSmartObjectActor(*SmartObject)
-		: Subsystem->RemoveSmartObjectActor(*SmartObject);
+	USmartObjectSubsystem* Subsystem = nullptr;
+	for (const AActor* SmartObjectActor : SmartObjectActors)
+	{
+		if (SmartObjectActor == nullptr)
+		{
+			UE_LOG(LogSmartObject, Warning, TEXT("Null actor found and skipped"))
+			bSuccess = false;
+			continue;
+		}
+
+		if (Subsystem == nullptr)
+		{
+			Subsystem = USmartObjectSubsystem::GetCurrent(SmartObjectActor->GetWorld());
+			if (Subsystem == nullptr)
+			{
+				UE_LOG(LogSmartObject, Warning, TEXT("Unable to find SmartObjectSubsystem for the provided actors."))
+				return false;
+			}
+		}
+
+		bSuccess = Subsystem->SetSmartObjectActorEnabled(*SmartObjectActor, bEnabled) && bSuccess;
+	}
+
+	return bSuccess;
 }
 
 void USmartObjectBlueprintFunctionLibrary::SetBlackboardValueAsSOClaimHandle(UBTNode* NodeOwner, const FBlackboardKeySelector& Key, const FSmartObjectClaimHandle& Value)
