@@ -1663,7 +1663,8 @@ FGraphEventRef UNiagaraScript::HandleByteCodeOptimization(bool bShouldForceNow)
 	OptimizedByteCodeResults->ExternalFunctionRegisterCounts.Reserve(CachedScriptVM.CalledVMExternalFunctions.Num());
 	for (const FVMExternalFunctionBindingInfo& FunctionBindingInfo : CachedScriptVM.CalledVMExternalFunctions)
 	{
-		const uint8 RegisterCount = FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs();
+		ensure(FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs() <= TNumericLimits<uint8>::Max());
+		const uint8 RegisterCount = uint8(FunctionBindingInfo.GetNumInputs() + FunctionBindingInfo.GetNumOutputs());
 		OptimizedByteCodeResults->ExternalFunctionRegisterCounts.Add(RegisterCount);
 	}
 	

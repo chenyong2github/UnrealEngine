@@ -766,14 +766,14 @@ struct NIAGARA_API FNiagaraTypeDefinition
 		UT_Enum
 	};
 
-	enum FTypeFlags
+	enum FTypeFlags : uint8
 	{
-		TF_None			= 0x0000,
-		TF_Static		= 0x0001,
+		TF_None			= 0x00,
+		TF_Static		= 0x01,
 
 		/// indicates that the ClassStructOrEnum property has been serialized as the LWC struct (see FNiagaraTypeHelper)
 		/// instead of the Transient SWC version of the struct
-		TF_SerializedAsLWC	= 0x0002,
+		TF_SerializedAsLWC	= 0x02,
 	};
 
 public:
@@ -970,7 +970,9 @@ public:
 			}
 			else
 			{
-				Size = CastChecked<UScriptStruct>(GetStruct())->GetStructureSize();
+				const int32 StructSize = CastChecked<UScriptStruct>(GetStruct())->GetStructureSize();
+				ensure(StructSize <= TNumericLimits<int16>::Max());
+				Size = int16(StructSize);
 			}
 		}
 		return Size;
@@ -987,7 +989,9 @@ public:
 			}
 			else
 			{
-				Alignment = CastChecked<UScriptStruct>(GetStruct())->GetMinAlignment();
+				const int32 StructAlignment = CastChecked<UScriptStruct>(GetStruct())->GetMinAlignment();
+				ensure(StructAlignment <= TNumericLimits<int16>::Max());
+				Alignment = int16(StructAlignment);
 			}
 		}
 		return Alignment;

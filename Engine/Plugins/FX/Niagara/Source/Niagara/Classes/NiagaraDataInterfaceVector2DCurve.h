@@ -72,7 +72,7 @@ protected:
 
 private:
 	template<typename UseLUT>
-	FORCEINLINE_DEBUGGABLE FVector2D SampleCurveInternal(float X);
+	FORCEINLINE_DEBUGGABLE FVector2f SampleCurveInternal(float X);
 
 	static const FName SampleCurveName;
 };

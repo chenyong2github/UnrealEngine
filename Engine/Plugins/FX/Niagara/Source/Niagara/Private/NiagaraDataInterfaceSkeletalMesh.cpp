@@ -1871,7 +1871,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				else
 				{
 					ensure(Bone <= TNumericLimits<uint16>::Max());
-					FilteredAndUnfilteredBones.Add(Bone);
+					FilteredAndUnfilteredBones.Add(uint16(Bone));
 					++NumFilteredBones;
 				}
 			}
@@ -1896,7 +1896,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				}
 				if (!bExists)
 				{
-					FilteredAndUnfilteredBones.Add(i);
+					FilteredAndUnfilteredBones.Add(uint16(i));
 					++NumUnfilteredBones;
 				}
 			}

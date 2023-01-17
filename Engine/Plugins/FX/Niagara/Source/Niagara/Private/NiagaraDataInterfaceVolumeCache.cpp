@@ -65,7 +65,9 @@ struct FNiagaraDataInterfaceVolumeCacheProxy : public FNiagaraDataInterfaceProxy
 		{
 			InstanceData->CurrFrame = FromGameThread->CurrFrame;
 			InstanceData->ReadFile = FromGameThread->ReadFile;
-			InstanceData->TextureSize = FVector3f(FromGameThread->NumCells.X, FromGameThread->NumCells.Y, FromGameThread->NumCells.Z);		
+			InstanceData->TextureSize.X = float(FromGameThread->NumCells.X);
+			InstanceData->TextureSize.Y = float(FromGameThread->NumCells.Y);
+			InstanceData->TextureSize.Z = float(FromGameThread->NumCells.Z);
 
 			FromGameThread->~FVolumeCacheInstanceData_GameThread();
 		}
@@ -176,21 +178,18 @@ void FNiagaraDataInterfaceVolumeCacheProxy::PreStage(const FNDIGpuComputePreStag
 	
 	if (Context.IsInputStage() && InstanceData && InstanceData->ReadFile && InstanceData->VolumeCacheData != nullptr)
 	{
-	
-		FIntVector Size = FIntVector(InstanceData->TextureSize.X, InstanceData->TextureSize.Y, InstanceData->TextureSize.Z);
-
 		if (!InstanceData->ResolvedTextureRHI.IsValid())
 		{
+			const FIntVector IntTextureSize = FIntVector(int32(InstanceData->TextureSize.X), int32(InstanceData->TextureSize.Y), int32(InstanceData->TextureSize.Z));
 
 			// #todo(dmp): this should be in instance data
 			EPixelFormat Format = PF_FloatRGBA;
 
 			const FRHITextureCreateDesc Desc =
-				FRHITextureCreateDesc::Create3D(TEXT("stuff"), Size.X, Size.Y, Size.Z, Format)
+				FRHITextureCreateDesc::Create3D(TEXT("NiagaraVolumeCache"), IntTextureSize.X, IntTextureSize.Y, IntTextureSize.Z, Format)
 				.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoTiling);
 
 			InstanceData->ResolvedTextureRHI = RHICreateTexture(Desc);
-			InstanceData->TextureSize = FVector3f(Size.X, Size.Y, Size.Z);
 			InstanceData->SamplerStateRHI = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		}
 		// must make sure readfile, curr frame, size are in the instance data - must sync in provide instance data for render thread

@@ -920,7 +920,7 @@ float FNiagaraEmitterInstance::GetTotalCPUTimeMS()
 int64 FNiagaraEmitterInstance::GetTotalBytesUsed()
 {
 	check(ParticleDataSet);
-	int32 BytesUsed = ParticleDataSet->GetSizeBytes();
+	int64 BytesUsed = ParticleDataSet->GetSizeBytes();
 	/*
 	for (FNiagaraDataSet& Set : DataSets)
 	{

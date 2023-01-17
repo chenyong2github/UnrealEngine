@@ -465,7 +465,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 
 	/** Overview display location. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Text Location", EditCondition = "bOverviewEnabled"))
-	FVector2D OverviewLocation = FIntPoint(30.0f, 150.0f);
+	FVector2D OverviewLocation = FVector2D(30.0f, 150.0f);
 
 	/** Overview display font to use. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (EditCondition = "bOverviewEnabled && OverviewMode == ENiagaraDebugHUDOverviewMode::Overview"))

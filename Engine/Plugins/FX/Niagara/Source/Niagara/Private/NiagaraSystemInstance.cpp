@@ -1712,7 +1712,7 @@ float FNiagaraSystemInstance::GetLODDistance()
 			const FVector::FReal DistanceToEffectSqr = FVector(ViewInfo.ViewToWorld.GetOrigin() - EffectLocation).SizeSquared();
 			LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 		}
-		LODDistance = FMath::Sqrt(LODDistanceSqr);
+		LODDistance = float(FMath::Sqrt(LODDistanceSqr));
 	}
 	else
 	{
@@ -1746,7 +1746,7 @@ float FNiagaraSystemInstance::GetLODDistance()
 				const FVector::FReal DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
 				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 			}
-			LODDistance = FMath::Sqrt(LODDistanceSqr);
+			LODDistance = float(FMath::Sqrt(LODDistanceSqr));
 		}
 	}
 
@@ -1872,8 +1872,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 
 	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
 	check(World);
-	GatheredInstanceParameters.TimeSeconds = World->TimeSeconds;
-	GatheredInstanceParameters.RealTimeSeconds = World->RealTimeSeconds;
+	GatheredInstanceParameters.TimeSeconds = float(World->TimeSeconds);				//LWC: Precision Loss
+	GatheredInstanceParameters.RealTimeSeconds = float(World->RealTimeSeconds);		//LWC: Precision Loss
 
 	// flip our buffered parameters
 	FlipParameterBuffers();
@@ -1950,7 +1950,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		CurrentOwnerParameters.EngineZAxis = CurrentOwnerParameters.EngineRotation.GetAxisZ();
 		CurrentOwnerParameters.EngineScale = (FVector3f)GatheredInstanceParameters.ComponentTrans.GetScale3D();
 		CurrentOwnerParameters.EngineLWCTile = LWCTile;
-		CurrentOwnerParameters.EngineLWCTile.W = FLargeWorldRenderScalar::GetTileSize();
+		CurrentOwnerParameters.EngineLWCTile.W = float(FLargeWorldRenderScalar::GetTileSize());
 	}
 
 	CurrentSystemParameters.EngineEmitterCount = GatheredInstanceParameters.EmitterCount;

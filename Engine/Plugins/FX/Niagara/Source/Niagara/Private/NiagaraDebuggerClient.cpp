@@ -356,8 +356,8 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 				if (World)
 				{
 					WorldData.bHasBegunPlay = World->HasBegunPlay();
-					WorldData.WorldType = World->WorldType;
-					WorldData.NetMode = World->GetNetMode();
+					WorldData.WorldType = uint8(World->WorldType);
+					WorldData.NetMode = uint8(World->GetNetMode());
 
 					#if WITH_PARTICLE_PERF_STATS
 					if(StatsListener)

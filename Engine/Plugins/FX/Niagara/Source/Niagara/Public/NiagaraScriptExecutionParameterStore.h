@@ -12,7 +12,14 @@ struct FNiagaraScriptExecutionPaddingInfo
 	GENERATED_USTRUCT_BODY()
 public:
 	FNiagaraScriptExecutionPaddingInfo() : SrcOffset(0), DestOffset(0), SrcSize(0), DestSize(0) {}
-	FNiagaraScriptExecutionPaddingInfo(uint32 InSrcOffset, uint32 InDestOffset, uint32 InSrcSize, uint32 InDestSize) : SrcOffset(InSrcOffset), DestOffset(InDestOffset), SrcSize(InSrcSize), DestSize(InDestSize) {}
+	FNiagaraScriptExecutionPaddingInfo(uint32 InSrcOffset, uint32 InDestOffset, uint32 InSrcSize, uint32 InDestSize)
+		: SrcOffset(uint16(InSrcOffset)), DestOffset(uint16(InDestOffset)), SrcSize(uint16(InSrcSize)), DestSize(uint16(InDestSize))
+	{
+		ensure(InSrcOffset <= TNumericLimits<uint16>::Max());
+		ensure(InDestOffset <= TNumericLimits<uint16>::Max());
+		ensure(InSrcSize <= TNumericLimits<uint16>::Max());
+		ensure(InDestSize <= TNumericLimits<uint16>::Max());
+	}
 
 	UPROPERTY()
 	uint16 SrcOffset;

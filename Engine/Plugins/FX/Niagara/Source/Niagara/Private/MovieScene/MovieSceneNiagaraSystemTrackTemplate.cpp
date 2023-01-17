@@ -230,7 +230,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 
 			if (SystemInstanceController.IsValid() && SystemInstanceController->IsValid() && SystemInstanceController->IsComplete() == false)
 			{
-				float DesiredAge = Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame);
+				const float DesiredAge = float(Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame));
 				if (DesiredAge >= 0)
 				{
 					// Add a quarter of a frame offset here to push the desired age into the middle of the frame since it will be automatically rounded

@@ -266,7 +266,7 @@ bool UNiagaraDataInterfaceVirtualTexture::PerInstanceTick(void* PerInstanceData,
 					InstanceData.UVUniforms[2] = RT_Texture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2);
 
 					const FVector4 WorldHeightUnpack = RT_Texture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack);
-					InstanceData.WorldHeightUnpack = FVector2f(WorldHeightUnpack.X, WorldHeightUnpack.Y);
+					InstanceData.WorldHeightUnpack = FVector2f(float(WorldHeightUnpack.X), float(WorldHeightUnpack.Y));		//LWC Precision Loss
 
 					for ( int32 iLayer=0; iLayer < MaxRVTLayers; ++iLayer)
 					{

@@ -1011,14 +1011,14 @@ struct FVectorKernelFastMatrixToQuaternion
 		for ( int32 iInstance=0; iInstance < Context.GetNumInstances(); ++iInstance)
 		{
 			// Read Matrix
-			FMatrix Mat;
+			FMatrix44f Mat;
 			for ( int32 j=0; j < 16; ++j )
 			{
 				Mat.M[j >> 2][j & 3] = InMatrix[j].GetAndAdvance();
 			}
 
 			// Generate Quat (without checking for consistency with the GPU)
-			FQuat Quat;
+			FQuat4f Quat;
 			{
 				// Check diagonal (trace)
 				const float tr = Mat.M[0][0] + Mat.M[1][1] + Mat.M[2][2];
@@ -1484,12 +1484,12 @@ struct FVectorKernel_SolveVelocitiesAndForces
 		for (int i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			// Gather values
-			FVector PhysicsForce(InPhysicsForceX.GetAndAdvance(), InPhysicsForceY.GetAndAdvance(), InPhysicsForceZ.GetAndAdvance());
+			FVector3f PhysicsForce(InPhysicsForceX.GetAndAdvance(), InPhysicsForceY.GetAndAdvance(), InPhysicsForceZ.GetAndAdvance());
 			float PhysicsDrag = InPhysicsDrag.GetAndAdvance();
 
 			float ParticleMass = InParticlesMass.GetAndAdvance();
-			FVector ParticlePosition(InParticlesPositionX.GetAndAdvance(), InParticlesPositionY.GetAndAdvance(), InParticlesPositionZ.GetAndAdvance());
-			FVector ParticleVelocity(InParticlesVelocityX.GetAndAdvance(), InParticlesVelocityY.GetAndAdvance(), InParticlesVelocityZ.GetAndAdvance());
+			FVector3f ParticlePosition(InParticlesPositionX.GetAndAdvance(), InParticlesPositionY.GetAndAdvance(), InParticlesPositionZ.GetAndAdvance());
+			FVector3f ParticleVelocity(InParticlesVelocityX.GetAndAdvance(), InParticlesVelocityY.GetAndAdvance(), InParticlesVelocityZ.GetAndAdvance());
 
 			*OutParticlesPreviousVelocityX.GetDestAndAdvance() = ParticleVelocity.X;
 			*OutParticlesPreviousVelocityY.GetDestAndAdvance() = ParticleVelocity.Y;

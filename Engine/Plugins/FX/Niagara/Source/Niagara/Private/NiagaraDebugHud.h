@@ -238,11 +238,11 @@ private:
 
 	void Draw(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class APlayerController* PC);
 	void DrawOverview(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas);
-	void DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
-	void DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
-	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
+	void DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation);
+	void DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation);
+	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation);
 	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas);
-	void DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
+	void DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation);
 	void DrawDebugGeomerty(class FNiagaraWorldManager* WorldManager, class UCanvas* DrawCanvas);
 
 private:
@@ -314,7 +314,7 @@ private:
 	TMap<FName, FGpuUsagePerEvent> GpuUsagePerEvent;
 #endif
 
-	float LastDrawTime = 0.0f;
+	double LastDrawTime = 0.0f;
 	float DeltaSeconds = 0.0f;
 
 	/** Generic messages that the debugger or other parts of Niagara can post to the HUD. */
@@ -323,8 +323,8 @@ private:
 	//Additional debug geometry helpers
 	struct FDebugLine2D
 	{
-		FVector2D Start;
-		FVector2D End;
+		FVector2f Start;
+		FVector2f End;
 		FLinearColor Color;
 		float Thickness;
 		float Lifetime;
@@ -332,9 +332,9 @@ private:
 	TArray<FDebugLine2D> Lines2D;
 	struct FDebugCircle2D
 	{
-		FVector2D Pos;
+		FVector2f Pos;
 		float Rad;
-		float Segments;
+		int32 Segments;
 		FLinearColor Color;
 		float Thickness;
 		float Lifetime;
@@ -342,8 +342,8 @@ private:
 	TArray<FDebugCircle2D> Circles2D;
 	struct FDebugBox2D
 	{
-		FVector2D Pos;
-		FVector2D Extents;
+		FVector2f Pos;
+		FVector2f Extents;
 		FLinearColor Color;
 		float Thickness;
 		float Lifetime;
@@ -352,9 +352,9 @@ private:
 
 public:
 	/** Add a 2D line to the debug renering. Positions are in normalized screen space. (0,0) in top left, (1,1) bottom right.*/
-	void AddLine2D(FVector2D Start, FVector2D End, FLinearColor Color, float Thickness, float Lifetime);
-	void AddCircle2D(FVector2D Pos, float Rad, float Segments, FLinearColor Color, float Thickness, float Lifetime);
-	void AddBox2D(FVector2D Pos, FVector2D Extents, FLinearColor Color, float Thickness, float Lifetime);
+	void AddLine2D(FVector2f Start, FVector2f End, FLinearColor Color, float Thickness, float Lifetime);
+	void AddCircle2D(FVector2f Pos, float Rad, int32 Segments, FLinearColor Color, float Thickness, float Lifetime);
+	void AddBox2D(FVector2f Pos, FVector2f Extents, FLinearColor Color, float Thickness, float Lifetime);
 	//Additional debug geometry helpers END
 };
 

@@ -400,7 +400,7 @@ bool UNiagaraSimCache::Read(float TimeSeconds, FNiagaraSystemInstance* SystemIns
 	}
 
 	const float FrameTime		= DurationSeconds > 0.0f ? (RelativeTime / DurationSeconds) * float(CacheFrames.Num() - 1) : 0.0f;
-	const float FrameIndex		= FMath::Floor(FrameTime);
+	const int32 FrameIndex		= FMath::FloorToInt(FrameTime);
 	const float FrameFraction	= FrameTime - float(FrameIndex);
 
 	return ReadFrame(FrameIndex, FrameFraction, SystemInstance);

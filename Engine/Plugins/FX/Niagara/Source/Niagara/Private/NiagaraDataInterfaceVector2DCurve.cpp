@@ -99,10 +99,9 @@ TArray<float> UNiagaraDataInterfaceVector2DCurve::BuildLUT(int32 NumEntries) con
 	OutputLUT.Reserve(NumEntries * 2);
 	for (int32 i = 0; i < NumEntries; i++)
 	{
-		float X = UnnormalizeTime(i * InvEntryCountFactor);
-		FVector2D C(XCurve.Eval(X), YCurve.Eval(X));
-		OutputLUT.Add(C.X);
-		OutputLUT.Add(C.Y);
+		const float X = UnnormalizeTime(i * InvEntryCountFactor);
+		OutputLUT.Add(XCurve.Eval(X));
+		OutputLUT.Add(YCurve.Eval(X));
 	}
 	return OutputLUT;
 }
@@ -186,24 +185,24 @@ void UNiagaraDataInterfaceVector2DCurve::GetVMExternalFunction(const FVMExternal
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE FVector2D UNiagaraDataInterfaceVector2DCurve::SampleCurveInternal<TIntegralConstant<bool, true>>(float X)
+FORCEINLINE_DEBUGGABLE FVector2f UNiagaraDataInterfaceVector2DCurve::SampleCurveInternal<TIntegralConstant<bool, true>>(float X)
 {
-	float RemappedX = FMath::Clamp(NormalizeTime(X) * LUTNumSamplesMinusOne, 0.0f, LUTNumSamplesMinusOne);
-	float PrevEntry = FMath::TruncToFloat(RemappedX);
-	float NextEntry = PrevEntry < LUTNumSamplesMinusOne ? PrevEntry + 1.0f : PrevEntry;
-	float Interp = RemappedX - PrevEntry;
+	const float RemappedX = FMath::Clamp(NormalizeTime(X) * LUTNumSamplesMinusOne, 0.0f, LUTNumSamplesMinusOne);
+	const float PrevEntry = FMath::TruncToFloat(RemappedX);
+	const float NextEntry = PrevEntry < LUTNumSamplesMinusOne ? PrevEntry + 1.0f : PrevEntry;
+	const float Interp = RemappedX - PrevEntry;
 
-	int32 AIndex = (int32)(PrevEntry * (float)CurveLUTNumElems);
-	int32 BIndex = (int32)(NextEntry * (float)CurveLUTNumElems);
-	FVector2D A = FVector2D(ShaderLUT[AIndex], ShaderLUT[AIndex + 1]);
-	FVector2D B = FVector2D(ShaderLUT[BIndex], ShaderLUT[BIndex + 1]);
+	const int32 AIndex = (int32)(PrevEntry * (float)CurveLUTNumElems);
+	const int32 BIndex = (int32)(NextEntry * (float)CurveLUTNumElems);
+	const FVector2f A = FVector2f(ShaderLUT[AIndex], ShaderLUT[AIndex + 1]);
+	const FVector2f B = FVector2f(ShaderLUT[BIndex], ShaderLUT[BIndex + 1]);
 	return FMath::Lerp(A, B, Interp);
 }
 
 template<>
-FORCEINLINE_DEBUGGABLE FVector2D UNiagaraDataInterfaceVector2DCurve::SampleCurveInternal<TIntegralConstant<bool, false>>(float X)
+FORCEINLINE_DEBUGGABLE FVector2f UNiagaraDataInterfaceVector2DCurve::SampleCurveInternal<TIntegralConstant<bool, false>>(float X)
 {
-	return FVector2D(XCurve.Eval(X), YCurve.Eval(X));
+	return FVector2f(XCurve.Eval(X), YCurve.Eval(X));
 }
 
 template<typename UseLUT>
@@ -216,8 +215,8 @@ void UNiagaraDataInterfaceVector2DCurve::SampleCurve(FVectorVMExternalFunctionCo
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		float X = XParam.GetAndAdvance();
-		FVector2D V = SampleCurveInternal<UseLUT>(X);
+		const float X = XParam.GetAndAdvance();
+		const FVector2f V = SampleCurveInternal<UseLUT>(X);
 		*OutSampleX.GetDestAndAdvance() = V.X;
 		*OutSampleY.GetDestAndAdvance() = V.Y;
 	}

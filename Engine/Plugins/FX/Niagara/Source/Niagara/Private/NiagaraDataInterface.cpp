@@ -373,7 +373,8 @@ uint16 FNiagaraDataInterfaceSetShaderParametersContext::GetParameterIncludedStru
 	{
 		if (StructIncludeInfo.StructMetadata == StructMetadata)
 		{
-			return StructIncludeInfo.ParamterOffset;
+			ensure(StructIncludeInfo.ParamterOffset <= TNumericLimits<uint16>::Max());
+			return uint16(StructIncludeInfo.ParamterOffset);
 		}
 	}
 

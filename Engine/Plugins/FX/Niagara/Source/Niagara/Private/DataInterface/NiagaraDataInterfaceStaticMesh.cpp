@@ -1453,7 +1453,7 @@ namespace NDIStaticMeshLocal
 		FORCEINLINE int32 RandomUniformTriangle(const TRandomHelper& RandHelper, int32 InstanceIndex, const TConstArrayView<FNDISectionInfo>& SectionInfos, TConstArrayView<int32>& SectionRemap) const
 		{
 			int32 Triangle = 0;
-			int32 SectionIndex = RandHelper.Rand(InstanceIndex) * SectionInfos.Num();
+			int32 SectionIndex = int32(RandHelper.Rand(InstanceIndex) * float(SectionInfos.Num()));
 			SectionIndex = RandHelper.Rand(InstanceIndex) < SectionInfos[SectionIndex].Prob ? SectionIndex : SectionInfos[SectionIndex].Alias;
 			const int32 Section = SectionRemap[SectionIndex];
 			if ( LODResource->AreaWeightedSectionSamplers.IsValidIndex(Section) && LODResource->AreaWeightedSectionSamplers[Section].GetNumEntries() )
@@ -1467,8 +1467,8 @@ namespace NDIStaticMeshLocal
 		template<typename TRandomHelper>
 		FORCEINLINE int32 RandomTriangle(const TRandomHelper& RandHelper, int32 InstanceIndex, const TConstArrayView<FNDISectionInfo>& SectionInfos) const
 		{
-			const int32 Section = RandHelper.Rand(InstanceIndex) * SectionInfos.Num();
-			const int32 Triangle = SectionInfos[Section].FirstTriangle + (RandHelper.Rand(InstanceIndex) * SectionInfos[Section].NumTriangles);
+			const int32 Section = int32(RandHelper.Rand(InstanceIndex) * float(SectionInfos.Num()));
+			const int32 Triangle = SectionInfos[Section].FirstTriangle + int32(RandHelper.Rand(InstanceIndex) * float(SectionInfos[Section].NumTriangles));
 			return Triangle;
 		}
 
@@ -1501,7 +1501,7 @@ namespace NDIStaticMeshLocal
 		template<typename TRandomHelper>
 		FORCEINLINE int32 RandomSectionTriangle(const TRandomHelper& RandHelper, int32 InstanceIndex, int32 Section) const
 		{
-			const int32 Triangle = (LODResource->Sections[Section].FirstIndex / 3) + (RandHelper.Rand(InstanceIndex) * LODResource->Sections[Section].NumTriangles);
+			const int32 Triangle = (LODResource->Sections[Section].FirstIndex / 3) + int32(RandHelper.Rand(InstanceIndex) * float(LODResource->Sections[Section].NumTriangles));
 			return Triangle;
 		}
 
@@ -1709,7 +1709,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 				}
 				for (int Section : InstanceData->GetFilteredSections())
 				{
-					GpuInitializeData->FilteredAndUnfilteredSections.Add(Section);
+					GpuInitializeData->FilteredAndUnfilteredSections.Add(uint16(Section));
 				}
 
 				GpuInitializeData->NumUnfilteredSections = InstanceData->NumUnfilteredSections;
@@ -1719,7 +1719,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 				}
 				for (int Section : InstanceData->GetUnfilteredSections())
 				{
-					GpuInitializeData->FilteredAndUnfilteredSections.Add(Section);
+					GpuInitializeData->FilteredAndUnfilteredSections.Add(uint16(Section));
 				}
 			}
 		}

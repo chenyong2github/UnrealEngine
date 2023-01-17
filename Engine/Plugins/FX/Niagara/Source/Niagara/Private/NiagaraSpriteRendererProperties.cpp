@@ -451,8 +451,8 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
 
-	SubImageSize.X = FMath::Max<float>(SubImageSize.X, 1.f);
-	SubImageSize.Y = FMath::Max<float>(SubImageSize.Y, 1.f);
+	SubImageSize.X = FMath::Max(SubImageSize.X, 1.0);
+	SubImageSize.Y = FMath::Max(SubImageSize.Y, 1.0);
 
 	// DerivedData.BoundingGeometry in case we cleared the CutoutTexture
 	if (bUseMaterialCutoutTexture || CutoutTexture || DerivedData.BoundingGeometry.Num())

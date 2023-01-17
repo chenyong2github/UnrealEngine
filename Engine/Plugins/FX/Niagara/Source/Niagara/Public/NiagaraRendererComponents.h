@@ -52,7 +52,7 @@ private:
 	struct FComponentPoolEntry
 	{
 		TWeakObjectPtr<USceneComponent> Component;
-		float LastActiveTime = 0.0f;
+		double LastActiveTime = 0.0;
 		TMap<FName, FComponentPropertyAddress> PropertyAddressMapping;
 		int32 LastAssignedToParticleID = -1;
 	};

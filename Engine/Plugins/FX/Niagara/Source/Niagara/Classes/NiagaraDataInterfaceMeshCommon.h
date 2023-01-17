@@ -37,7 +37,7 @@ FORCEINLINE FVector3f RandomBarycentricCoord(FRandomStream& RandStream)
 	float r0 = RandStream.GetFraction();
 	float r1 = RandStream.GetFraction();
 	float sqrt0 = FMath::Sqrt(r0);
-	return FVector3f(1.0f - sqrt0, sqrt0 * (1.0 - r1), r1 * sqrt0);
+	return FVector3f(1.0f - sqrt0, sqrt0 * (1.0f - r1), r1 * sqrt0);
 }
 
 template<typename T>

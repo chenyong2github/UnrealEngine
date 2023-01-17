@@ -101,15 +101,15 @@ struct FNiagaraSimCacheHelper
 
 			CacheVariable.Variable = CompiledData.Variables[iDataSetVariable];
 			CacheVariable.FloatOffset = DataSetVariableLayout.GetNumFloatComponents() > 0 ? CacheLayout.FloatCount : INDEX_NONE;
-			CacheVariable.FloatCount = DataSetVariableLayout.GetNumFloatComponents();
+			CacheVariable.FloatCount = uint16(DataSetVariableLayout.GetNumFloatComponents());
 			CacheVariable.HalfOffset = DataSetVariableLayout.GetNumHalfComponents() > 0 ? CacheLayout.HalfCount : INDEX_NONE;
-			CacheVariable.HalfCount = DataSetVariableLayout.GetNumHalfComponents();
+			CacheVariable.HalfCount = uint16(DataSetVariableLayout.GetNumHalfComponents());
 			CacheVariable.Int32Offset = DataSetVariableLayout.GetNumInt32Components() > 0 ? CacheLayout.Int32Count : INDEX_NONE;
-			CacheVariable.Int32Count = DataSetVariableLayout.GetNumInt32Components();
+			CacheVariable.Int32Count = uint16(DataSetVariableLayout.GetNumInt32Components());
 
-			CacheLayout.FloatCount += DataSetVariableLayout.GetNumFloatComponents();
-			CacheLayout.HalfCount += DataSetVariableLayout.GetNumHalfComponents();
-			CacheLayout.Int32Count += DataSetVariableLayout.GetNumInt32Components();
+			CacheLayout.FloatCount += uint16(DataSetVariableLayout.GetNumFloatComponents());
+			CacheLayout.HalfCount += uint16(DataSetVariableLayout.GetNumHalfComponents());
+			CacheLayout.Int32Count += uint16(DataSetVariableLayout.GetNumInt32Components());
 		}
 
 		// Build write mappings we will build read mappings in a separate path
@@ -124,19 +124,19 @@ struct FNiagaraSimCacheHelper
 
 			for (int32 iComponent=0; iComponent < CacheVariable.FloatCount; ++iComponent)
 			{
-				CacheLayout.ComponentMappingsFromDataBuffer[FloatOffset] = DataSetVariableLayout.FloatComponentStart + iComponent;
+				CacheLayout.ComponentMappingsFromDataBuffer[FloatOffset] = uint16(DataSetVariableLayout.FloatComponentStart + iComponent);
 				++FloatOffset;
 			}
 
 			for (int32 iComponent=0; iComponent < CacheVariable.HalfCount; ++iComponent)
 			{
-				CacheLayout.ComponentMappingsFromDataBuffer[HalfOffset] = DataSetVariableLayout.HalfComponentStart + iComponent;
+				CacheLayout.ComponentMappingsFromDataBuffer[HalfOffset] = uint16(DataSetVariableLayout.HalfComponentStart + iComponent);
 				++HalfOffset;
 			}
 
 			for (int32 iComponent=0; iComponent < CacheVariable.Int32Count; ++iComponent)
 			{
-				CacheLayout.ComponentMappingsFromDataBuffer[Int32Offset] = DataSetVariableLayout.Int32ComponentStart + iComponent;
+				CacheLayout.ComponentMappingsFromDataBuffer[Int32Offset] = uint16(DataSetVariableLayout.Int32ComponentStart + iComponent);
 				++Int32Offset;
 			}
 		}
@@ -353,17 +353,17 @@ struct FNiagaraSimCacheHelper
 
 			for (int32 i = 0; i < SourceVariable.FloatCount; ++i)
 			{
-				CacheLayout.ComponentMappingsToDataBuffer[FloatOffset++] = DestVariableLayout ? DestVariableLayout->FloatComponentStart + i : INDEX_NONE;
+				CacheLayout.ComponentMappingsToDataBuffer[FloatOffset++] = uint16(DestVariableLayout ? DestVariableLayout->FloatComponentStart + i : INDEX_NONE);
 			}
 
 			for (int32 i = 0; i < SourceVariable.HalfCount; ++i)
 			{
-				CacheLayout.ComponentMappingsToDataBuffer[HalfOffset++] = DestVariableLayout ? DestVariableLayout->HalfComponentStart + i : INDEX_NONE;
+				CacheLayout.ComponentMappingsToDataBuffer[HalfOffset++] = uint16(DestVariableLayout ? DestVariableLayout->HalfComponentStart + i : INDEX_NONE);
 			}
 
 			for (int32 i = 0; i < SourceVariable.Int32Count; ++i)
 			{
-				CacheLayout.ComponentMappingsToDataBuffer[Int32Offset++] = DestVariableLayout ? DestVariableLayout->Int32ComponentStart + i : INDEX_NONE;
+				CacheLayout.ComponentMappingsToDataBuffer[Int32Offset++] = uint16(DestVariableLayout ? DestVariableLayout->Int32ComponentStart + i : INDEX_NONE);
 			}
 		}
 
@@ -661,9 +661,9 @@ struct FNiagaraSimCacheHelper
 				SrcFloats[i + (SrcStride * 2)]
 			);
 			const FVector RebasedPosition = RebaseTransform.TransformPosition(CachePosition);
-			DstFloats[i + (DstStride * 0)] = RebasedPosition.X;
-			DstFloats[i + (DstStride * 1)] = RebasedPosition.Y;
-			DstFloats[i + (DstStride * 2)] = RebasedPosition.Z;
+			DstFloats[i + (DstStride * 0)] = float(RebasedPosition.X);
+			DstFloats[i + (DstStride * 1)] = float(RebasedPosition.Y);
+			DstFloats[i + (DstStride * 2)] = float(RebasedPosition.Z);
 		}
 	}
 

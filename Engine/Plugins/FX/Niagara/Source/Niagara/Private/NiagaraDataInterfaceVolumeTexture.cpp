@@ -213,7 +213,9 @@ bool UNiagaraDataInterfaceVolumeTexture::PerInstanceTick(void* PerInstanceData, 
 					{
 						InstanceData.TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
 						InstanceData.SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI.GetReference() : TStaticSamplerState<SF_Point>::GetRHI();
-						InstanceData.TextureSize = FVector3f(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
+						InstanceData.TextureSize.X = float(RT_TextureSize.X);
+						InstanceData.TextureSize.Y = float(RT_TextureSize.Y);
+						InstanceData.TextureSize.Z = float(RT_TextureSize.Z);
 					}
 					else
 					{
@@ -235,7 +237,7 @@ void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMExternalF
 	FNDIOutputParam<float> OutHeight(Context);
 	FNDIOutputParam<float> OutDepth(Context);
 
-	FVector3f FloatTextureSize(InstData->CurrentTextureSize.X, InstData->CurrentTextureSize.Y, InstData->CurrentTextureSize.Z);
+	const FVector3f FloatTextureSize(float(InstData->CurrentTextureSize.X), float(InstData->CurrentTextureSize.Y), float(InstData->CurrentTextureSize.Z));
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutWidth.SetAndAdvance(FloatTextureSize.X);

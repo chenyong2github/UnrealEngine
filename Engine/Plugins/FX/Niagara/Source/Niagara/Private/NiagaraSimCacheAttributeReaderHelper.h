@@ -155,7 +155,7 @@ struct FNiagaraSimCacheAttributeReaderHelper
 		FMemory::Memcpy(OutBuffer, &DataBuffers->Int32Data[(Variable->Int32Offset + Component) * DataBuffers->NumInstances * sizeof(int32)], sizeof(int32) * DataBuffers->NumInstances);
 	}
 
-	float ReadInt(int32 Instance) const
+	int32 ReadInt(int32 Instance) const
 	{
 		check(IsValid());
 		check(Variable->Int32Offset != INDEX_NONE && Variable->Int32Count == 1);

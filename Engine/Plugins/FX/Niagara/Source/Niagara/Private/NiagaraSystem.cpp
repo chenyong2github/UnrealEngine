@@ -790,7 +790,7 @@ void UNiagaraSystem::ResolveWarmupTickCount()
 	}
 	else
 	{
-		WarmupTickCount = WarmupTime / WarmupTickDelta;
+		WarmupTickCount = FMath::FloorToInt(WarmupTime / WarmupTickDelta);
 		WarmupTime = WarmupTickDelta * WarmupTickCount;
 	}
 }
@@ -1241,7 +1241,7 @@ void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 #if WITH_EDITOR
 	OutTags.Add(FAssetRegistryTag("HasGPUEmitter", HasAnyGPUEmitters() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
 
-	const float BoundsSize = FixedBounds.GetSize().GetMax();
+	const float BoundsSize = float(FixedBounds.GetSize().GetMax());
 	OutTags.Add(FAssetRegistryTag("FixedBoundsSize", bFixedBounds ? FString::Printf(TEXT("%.2f"), BoundsSize) : FString(TEXT("None")), FAssetRegistryTag::TT_Numerical));
 
 	OutTags.Add(FAssetRegistryTag("NumEmitters", LexToString(EmitterHandles.Num()), FAssetRegistryTag::TT_Numerical));
@@ -2277,7 +2277,7 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 	}
 	
 	const int32 TotalCompiles = ActiveCompilations.Num() + GPUScripts.Num();
-	FScopedSlowTask Progress(TotalCompiles, LOCTEXT("WaitingForCompile", "Waiting for compilation to complete"));
+	FScopedSlowTask Progress(float(TotalCompiles), LOCTEXT("WaitingForCompile", "Waiting for compilation to complete"));
 	if (bShowProgress && TotalCompiles > 0)
 	{
 		Progress.MakeDialog();

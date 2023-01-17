@@ -234,7 +234,7 @@ public:
 	uint32 TotalTests = 0;
 
 	/** We store the current target world time so we can give an indication of the time range for poor tests in the report. */
-	float CurrentWorldTime = 0.0f;
+	double CurrentWorldTime = 0.0;
 	uint32 CurrentFrameNumber = 0;
 	FString TestNameString;
 
@@ -242,8 +242,8 @@ public:
 	struct FStatTestInfo
 	{
 		uint32 TestIndex = 0;
-		float StartTime = 0.0f;
-		float EndTime = 0.0f;
+		double StartTime = 0.0;
+		double EndTime = 0.0;
 		FAccumulatedParticlePerfStats AccumulatedStats;
 	};
 
@@ -296,7 +296,7 @@ private:
 	};
 	TArray<TWeakObjectPtr<UNiagaraEffectType>> BaselinesToGenerate;
 	EBaselineGenState BaselineGenerationState = EBaselineGenState::Complete;
-	float WorldTimeToGenerate = 0.0f;
+	double WorldTimeToGenerate = 0.0;
 	TWeakObjectPtr<UWorld> BaselineGenWorld;
 };
 

@@ -28,27 +28,27 @@ struct ENGINE_API FAccumulatedParticlePerfStats_GT
 	void Tick(FParticlePerfStats& Stats);
 
 	/** Returns the total cycles used by all GameThread stats. */
-	FORCEINLINE uint64 GetTotalCycles()const { return AccumulatedStats.GetTotalCycles(); }
+	FORCEINLINE uint64 GetTotalCycles() const { return AccumulatedStats.GetTotalCycles(); }
 
 	/** Returns the average cycles per frame by all GameThread stats. */
-	FORCEINLINE uint64 GetPerFrameAvgCycles()const { return NumFrames > 0 ? AccumulatedStats.GetTotalCycles() / NumFrames : 0; }
+	FORCEINLINE uint64 GetPerFrameAvgCycles() const { return NumFrames > 0 ? AccumulatedStats.GetTotalCycles() / NumFrames : 0; }
 	/** Returns the max cycles per frame by all GameThread stats. */
-	FORCEINLINE uint64 GetPerFrameMaxCycles(int32 Index = 0)const { return MaxPerFrameTotalCycles[Index]; }
+	FORCEINLINE uint64 GetPerFrameMaxCycles(int32 Index = 0) const { return MaxPerFrameTotalCycles[Index]; }
 
 	/** Returns the average time in µs per frame by all GameThread stats. */
-	FORCEINLINE double GetPerFrameAvg()const { return FPlatformTime::ToMilliseconds64(GetPerFrameAvgCycles()) * 1000.0; }
+	FORCEINLINE float GetPerFrameAvg() const { return float(FPlatformTime::ToMilliseconds64(GetPerFrameAvgCycles()) * 1000.0); }
 	/** Returns the max time in µs per frame by all GameThread stats. */
-	FORCEINLINE double GetPerFrameMax(int32 Index = 0)const { return FPlatformTime::ToMilliseconds64(GetPerFrameMaxCycles(Index)) * 1000.0; }
+	FORCEINLINE float GetPerFrameMax(int32 Index = 0) const { return float(FPlatformTime::ToMilliseconds64(GetPerFrameMaxCycles(Index)) * 1000.0); }
 
 	/** Returns the average cycles per instance by all GameThread stats. */
-	FORCEINLINE uint64 GetPerInstanceAvgCycles()const { return AccumulatedStats.GetPerInstanceAvgCycles(); }
+	FORCEINLINE uint64 GetPerInstanceAvgCycles() const { return AccumulatedStats.GetPerInstanceAvgCycles(); }
 	/** Returns the max cycles per instance by all GameThread stats. */
-	FORCEINLINE uint64 GetPerInstanceMaxCycles(int32 Index = 0)const { return MaxPerInstanceCycles[Index]; }
+	FORCEINLINE uint64 GetPerInstanceMaxCycles(int32 Index = 0) const { return MaxPerInstanceCycles[Index]; }
 
 	/** Returns the average time in µs per instance by all GameThread stats. */
-	FORCEINLINE double GetPerInstanceAvg()const { return FPlatformTime::ToMilliseconds64(GetPerInstanceAvgCycles()) * 1000.0; }
+	FORCEINLINE float GetPerInstanceAvg() const { return float(FPlatformTime::ToMilliseconds64(GetPerInstanceAvgCycles()) * 1000.0); }
 	/** Returns the max time in µs per instance by all GameThread stats. */
-	FORCEINLINE double GetPerInstanceMax(int32 Index = 0)const { return FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0; }
+	FORCEINLINE float GetPerInstanceMax(int32 Index = 0) const { return float(FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0); }
 };
 
 struct ENGINE_API FAccumulatedParticlePerfStats_RT
@@ -64,27 +64,27 @@ struct ENGINE_API FAccumulatedParticlePerfStats_RT
 	void Tick(FParticlePerfStats& Stats);
 
 	/** Returns the total cycles used by all RenderThread stats. */
-	FORCEINLINE uint64 GetTotalCycles()const { return AccumulatedStats.GetTotalCycles(); }
+	FORCEINLINE uint64 GetTotalCycles() const { return AccumulatedStats.GetTotalCycles(); }
 
 	/** Returns the average cycles per frame by all RenderThread stats. */
-	FORCEINLINE uint64 GetPerFrameAvgCycles()const { return NumFrames > 0 ? AccumulatedStats.GetTotalCycles() / NumFrames : 0; }
+	FORCEINLINE uint64 GetPerFrameAvgCycles() const { return NumFrames > 0 ? AccumulatedStats.GetTotalCycles() / NumFrames : 0; }
 	/** Returns the max cycles per frame by all RenderThread stats. */
-	FORCEINLINE uint64 GetPerFrameMaxCycles(int32 Index = 0)const { return MaxPerFrameTotalCycles[Index]; }
+	FORCEINLINE uint64 GetPerFrameMaxCycles(int32 Index = 0) const { return MaxPerFrameTotalCycles[Index]; }
 
 	/** Returns the average time in µs per frame by all RenderThread stats. */
-	FORCEINLINE double GetPerFrameAvg()const { return FPlatformTime::ToMilliseconds64(GetPerFrameAvgCycles()) * 1000.0; }
+	FORCEINLINE float GetPerFrameAvg() const { return float(FPlatformTime::ToMilliseconds64(GetPerFrameAvgCycles()) * 1000.0); }
 	/** Returns the max time in µs per frame by all RenderThread stats. */
-	FORCEINLINE double GetPerFrameMax(int32 Index = 0)const { return FPlatformTime::ToMilliseconds64(GetPerFrameMaxCycles(Index)) * 1000.0; }
+	FORCEINLINE float GetPerFrameMax(int32 Index = 0) const { return float(FPlatformTime::ToMilliseconds64(GetPerFrameMaxCycles(Index)) * 1000.0); }
 
 	/** Returns the average cycles per instance by all RenderThread stats. */
-	FORCEINLINE uint64 GetPerInstanceAvgCycles()const { return AccumulatedStats.GetPerInstanceAvgCycles(); }
+	FORCEINLINE uint64 GetPerInstanceAvgCycles() const { return AccumulatedStats.GetPerInstanceAvgCycles(); }
 	/** Returns the max cycles per instance by all RenderThread stats. */
-	FORCEINLINE uint64 GetPerInstanceMaxCycles(int32 Index = 0)const { return MaxPerInstanceCycles[Index];  }
+	FORCEINLINE uint64 GetPerInstanceMaxCycles(int32 Index = 0) const { return MaxPerInstanceCycles[Index];  }
 
 	/** Returns the average time in µs per instance by all RenderThread stats. */
-	FORCEINLINE double GetPerInstanceAvg()const { return FPlatformTime::ToMilliseconds64(GetPerInstanceAvgCycles()) * 1000.0; }
+	FORCEINLINE float GetPerInstanceAvg() const { return float(FPlatformTime::ToMilliseconds64(GetPerInstanceAvgCycles()) * 1000.0); }
 	/** Returns the max time in µs per instance by all RenderThread stats. */
-	FORCEINLINE double GetPerInstanceMax(int32 Index = 0)const { return FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0; }
+	FORCEINLINE float GetPerInstanceMax(int32 Index = 0) const { return float(FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0); }
 };
 
 struct ENGINE_API FAccumulatedParticlePerfStats_GPU
@@ -105,7 +105,7 @@ struct ENGINE_API FAccumulatedParticlePerfStats_GPU
 	FORCEINLINE uint64 GetPerFrameAvgMicroseconds() const { return NumFrames > 0 ? AccumulatedStats.GetTotalMicroseconds() / NumFrames : 0; }
 	FORCEINLINE uint64 GetPerFrameMaxMicroseconds(int32 Index = 0) const { return MaxPerFrameTotalMicroseconds[Index]; }
 
-	FORCEINLINE uint64 GetPerInstanceAvgMicroseconds()const { return AccumulatedStats.GetPerInstanceAvgMicroseconds(); }
+	FORCEINLINE uint64 GetPerInstanceAvgMicroseconds() const { return AccumulatedStats.GetPerInstanceAvgMicroseconds(); }
 	FORCEINLINE uint64 GetPerInstanceMaxMicroseconds(int32 Index = 0) const { return MaxPerInstanceMicroseconds[Index]; }
 };
 
@@ -196,16 +196,16 @@ public:
 	virtual void OnRemoveComponent(const TWeakObjectPtr<const UFXSystemComponent>& Component) {}
 
 
-	virtual bool NeedsWorldStats()const = 0;
-	virtual bool NeedsSystemStats()const = 0;
-	virtual bool NeedsComponentStats()const = 0;
+	virtual bool NeedsWorldStats() const = 0;
+	virtual bool NeedsSystemStats() const = 0;
+	virtual bool NeedsComponentStats() const = 0;
 
 	/** 
 	Controls whether this listener should be stooped and cleaned up when it's orphaned, i.e. the manager is the only one with a reference.
 	In some cases we want to signal that a listener should stop by clearing an external reference.
 	In other cases we want to have fire and forget listeners that can signal their own termination via their tick function.
 	*/
-	virtual bool AllowOrphaned()const { return false; }
+	virtual bool AllowOrphaned() const { return false; }
 };
 
 typedef TSharedPtr<FParticlePerfStatsListener, ESPMode::ThreadSafe> FParticlePerfStatsListenerPtr;
@@ -329,9 +329,9 @@ public:
 	virtual void OnRemoveComponent(const TWeakObjectPtr<const UFXSystemComponent>& Component)override;
 	#endif
 
-	virtual bool NeedsWorldStats()const override { return bGatherWorldStats; }
-	virtual bool NeedsSystemStats()const override { return bGatherSystemStats; }
-	virtual bool NeedsComponentStats()const override { return bGatherComponentStats; }
+	virtual bool NeedsWorldStats() const override { return bGatherWorldStats; }
+	virtual bool NeedsSystemStats() const override { return bGatherSystemStats; }
+	virtual bool NeedsComponentStats() const override { return bGatherComponentStats; }
 
 	void DumpStatsToDevice(FOutputDevice& Ar);
 	void DumpStatsToFile();
@@ -382,7 +382,7 @@ public:
 	virtual void End()override;
 	virtual bool Tick()override;
 
-	virtual bool AllowOrphaned()const { return true; }
+	virtual bool AllowOrphaned() const { return true; }
 
 private:
 	int32 FramesRemaining;

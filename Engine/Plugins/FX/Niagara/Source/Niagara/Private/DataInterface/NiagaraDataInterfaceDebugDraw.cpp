@@ -274,9 +274,9 @@ struct FNDIDebugDrawInstanceData_GameThread
 	{
 		const FVector3f HeightVector = FVector3f::ZAxisVector * Height;
 		const FVector3f HalfHeightOffset = bCenterVertically ? HeightVector * 0.5f : FVector3f::ZeroVector;
-		const FVector3f AxisStep = FVector3f::ZAxisVector * Height / NumHeightSegments;
+		const FVector3f AxisStep = FVector3f::ZAxisVector * Height / float(NumHeightSegments);
 
-		const float HeightSegmentStepAlpha = 1.0 / NumHeightSegments;
+		const float HeightSegmentStepAlpha = 1.0f / float(NumHeightSegments);
 
 		float CurrentRotation = 0.0f;
 		FVector3f LastPointNormal = (FVector3f::YAxisVector * FMath::Cos(CurrentRotation)) + (FVector3f::XAxisVector * FMath::Sin(CurrentRotation));
@@ -1012,8 +1012,8 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TOptional<FQuat4f> Rotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
 			TOptional<FVector2f> Extents = GetTag<FVector2f>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 6);
-			TOptional<float> NumCellsX = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 7);
-			TOptional<float> NumCellsY = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 8);
+			TOptional<int32> NumCellsX = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 7);
+			TOptional<int32> NumCellsY = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 8);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 9);
 
 
@@ -1049,9 +1049,9 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TOptional<FQuat4f> Rotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
 			TOptional<FVector3f> Extents = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
-			TOptional<float> NumCellsX = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 7);
-			TOptional<float> NumCellsY = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 8);
-			TOptional<float> NumCellsZ = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 9);
+			TOptional<int32> NumCellsX = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 7);
+			TOptional<int32> NumCellsY = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 8);
+			TOptional<int32> NumCellsZ = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 9);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 10);
 
 

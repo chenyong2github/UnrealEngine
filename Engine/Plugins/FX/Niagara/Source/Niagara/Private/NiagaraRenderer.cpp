@@ -651,14 +651,14 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 			{
 				for (uint32 i = 0; i < NumInstances; ++i)
 				{
-					ParticleOrder[i].SetAsUint<true, false>(i, FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection));
+					ParticleOrder[i].SetAsUint<true, false>(i, float(FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection)));
 				}
 			}
 			else
 			{
 				for (uint32 i = 0; i < NumInstances; ++i)
 				{
-					ParticleOrder[i].SetAsUint<true, false>(i, (GetPos(i) - SortInfo.ViewOrigin).SizeSquared());
+					ParticleOrder[i].SetAsUint<true, false>(i, float((GetPos(i) - SortInfo.ViewOrigin).SizeSquared()));
 				}
 			}
 		}
@@ -677,14 +677,14 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 			{
 				for (uint32 i = 0; i < NumInstances; ++i)
 				{
-					ParticleOrder[i].SetAsUint<true, false>(i, FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection));
+					ParticleOrder[i].SetAsUint<true, false>(i, float(FVector::DotProduct(GetPos(i) - SortInfo.ViewOrigin, SortInfo.ViewDirection)));
 				}
 			}
 			else
 			{
 				for (uint32 i = 0; i < NumInstances; ++i)
 				{
-					ParticleOrder[i].SetAsUint<true, false>(i, (GetPos(i) - SortInfo.ViewOrigin).SizeSquared());
+					ParticleOrder[i].SetAsUint<true, false>(i, float((GetPos(i) - SortInfo.ViewOrigin).SizeSquared()));
 				}
 			}
 		}
@@ -792,7 +792,7 @@ private:
 		{
 			if (IsVisibile(i))
 			{
-				ParticleOrder[OutInstances++].SetAsUint<bStrictlyPositive, bAscending>(i, GetSortKey(i));
+				ParticleOrder[OutInstances++].SetAsUint<bStrictlyPositive, bAscending>(i, float(GetSortKey(i)));
 			}
 		}
 		return OutInstances;

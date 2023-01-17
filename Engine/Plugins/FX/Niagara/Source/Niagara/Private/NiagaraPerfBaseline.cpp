@@ -95,11 +95,11 @@ FNiagaraPerfBaselineStats::FNiagaraPerfBaselineStats(FAccumulatedParticlePerfSta
 		RTMaxIndex = Stats.GetRenderThreadStats().NumFrames / 2;
 	}
 
-	PerInstanceAvg_GT = FPlatformTime::ToMilliseconds64(Stats.GetGameThreadStats().GetPerInstanceAvgCycles()) * 1000.0;
-	PerInstanceMax_GT = FPlatformTime::ToMilliseconds64(Stats.GetGameThreadStats().GetPerInstanceMaxCycles(GTMaxIndex)) * 1000.0;
+	PerInstanceAvg_GT = float(FPlatformTime::ToMilliseconds64(Stats.GetGameThreadStats().GetPerInstanceAvgCycles()) * 1000.0);
+	PerInstanceMax_GT = float(FPlatformTime::ToMilliseconds64(Stats.GetGameThreadStats().GetPerInstanceMaxCycles(GTMaxIndex)) * 1000.0);
 
-	PerInstanceAvg_RT = FPlatformTime::ToMilliseconds64(Stats.GetRenderThreadStats().GetPerInstanceAvgCycles()) * 1000.0;
-	PerInstanceMax_RT = FPlatformTime::ToMilliseconds64(Stats.GetRenderThreadStats().GetPerInstanceMaxCycles(RTMaxIndex)) * 1000.0;
+	PerInstanceAvg_RT = float(FPlatformTime::ToMilliseconds64(Stats.GetRenderThreadStats().GetPerInstanceAvgCycles()) * 1000.0);
+	PerInstanceMax_RT = float(FPlatformTime::ToMilliseconds64(Stats.GetRenderThreadStats().GetPerInstanceMaxCycles(RTMaxIndex)) * 1000.0);
 }
 
 FNiagaraPerfBaselineStats::EComparisonResult FNiagaraPerfBaselineStats::Compare(float SystemStats, float Baseline, float& OutRatio)
@@ -477,10 +477,10 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 					GTMaxIndex = GT.NumFrames / 2;
 				}
 
-				uint32 TickGameThreadTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.TickGameThreadCycles) * 1000.0;
-				uint32 TickConcurrentTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.TickConcurrentCycles) * 1000.0;
-				uint32 FinalizeTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.FinalizeCycles) * 1000.0;
-				uint32 EndOfFrameTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.EndOfFrameCycles) * 1000.0;
+				const uint32 TickGameThreadTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.TickGameThreadCycles) * 1000.0);
+				const uint32 TickConcurrentTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.TickConcurrentCycles) * 1000.0);
+				const uint32 FinalizeTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.FinalizeCycles) * 1000.0);
+				const uint32 EndOfFrameTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.EndOfFrameCycles) * 1000.0);
 				
 				UE_LOG(LogNiagara, Log, TEXT("| Game Thread | Num: %4u | Avg: %6u | Max: %6u | AvgRatio: %g | Max Ratio: %g |"), GT.AccumulatedStats.NumInstances, (uint32)GT.GetPerInstanceAvg(), (uint32)GT.GetPerInstanceMax(GTMaxIndex), Ratio.PerInstanceAvg_GT, Ratio.PerInstanceMax_GT);
 				UE_LOG(LogNiagara, Log, TEXT("| | Tick            | Total: %5u | Avg: %5u |"), TickGameThreadTime, TickGameThreadTime / GT.AccumulatedStats.NumInstances);
@@ -499,10 +499,10 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 				{
 					RTMaxIndex = RT.NumFrames / 2;
 				}
-				uint32 RTAvg = RT.GetPerInstanceAvg();
-				uint32 RTMax = RT.GetPerInstanceMax(RTMaxIndex);
-				uint32 RenderUpdateTime = FPlatformTime::ToMilliseconds(RT.AccumulatedStats.RenderUpdateCycles) * 1000.0;
-				uint32 GDMETime = FPlatformTime::ToMilliseconds(RT.AccumulatedStats.GetDynamicMeshElementsCycles) * 1000.0;
+				const uint32 RTAvg = uint32(RT.GetPerInstanceAvg());
+				const uint32 RTMax = uint32(RT.GetPerInstanceMax(RTMaxIndex));
+				const uint32 RenderUpdateTime = uint32(FPlatformTime::ToMilliseconds64(RT.AccumulatedStats.RenderUpdateCycles) * 1000.0);
+				const uint32 GDMETime = uint32(FPlatformTime::ToMilliseconds64(RT.AccumulatedStats.GetDynamicMeshElementsCycles) * 1000.0);
 				UE_LOG(LogNiagara, Log, TEXT("| Render Thread | Num: %4u | Avg: %6u | Max: %6u | AvgRatio: %g | Max Ratio: %g |"), RT.AccumulatedStats.NumInstances, RTAvg, RTMax, Ratio.PerInstanceAvg_RT, Ratio.PerInstanceMax_RT);
 				UE_LOG(LogNiagara, Log, TEXT("| | Update | Total: %5u | Avg: %5u |"), RenderUpdateTime, RenderUpdateTime / RT.AccumulatedStats.NumInstances);
 				UE_LOG(LogNiagara, Log, TEXT("| | GDME   | Total: %5u | Avg: %5u |"), GDMETime, GDMETime / RT.AccumulatedStats.NumInstances);
@@ -637,8 +637,8 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::HandleTestResults()
 	};
 	TArray<FTestReport> TestReports;
 
-	float TestStartTime = CurrentWorldTime;
-	int32 TestStartFrame = CurrentFrameNumber;
+	const double TestStartTime = CurrentWorldTime;
+	const int32 TestStartFrame = CurrentFrameNumber;
 	CurrentWorldTime = World->GetTimeSeconds();
 	CurrentFrameNumber = GFrameNumber;
 
@@ -732,10 +732,10 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::HandleTestResults()
 						GTMaxIndex = GT.NumFrames / 2;
 					}
 
-					uint32 TickGameThreadTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.TickGameThreadCycles) * 1000.0;
-					uint32 TickConcurrentTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.TickConcurrentCycles) * 1000.0;
-					uint32 FinalizeTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.FinalizeCycles) * 1000.0;
-					uint32 EndOfFrameTime = FPlatformTime::ToMilliseconds(GT.AccumulatedStats.EndOfFrameCycles) * 1000.0;
+					const uint32 TickGameThreadTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.TickGameThreadCycles) * 1000.0);
+					const uint32 TickConcurrentTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.TickConcurrentCycles) * 1000.0);
+					const uint32 FinalizeTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.FinalizeCycles) * 1000.0);
+					const uint32 EndOfFrameTime = uint32(FPlatformTime::ToMilliseconds64(GT.AccumulatedStats.EndOfFrameCycles) * 1000.0);
 
 					Ar.Logf(TEXT("| Game Thread | Num: %4u | Avg: %6u | Max: %6u | AvgRatio: %g | Max Ratio: %g |"), GT.AccumulatedStats.NumInstances, (uint32)GT.GetPerInstanceAvg(), (uint32)GT.GetPerInstanceMax(GTMaxIndex), Report.Ratio.PerInstanceAvg_GT, Report.Ratio.PerInstanceMax_GT);
 					Ar.Logf(TEXT("| | Tick            | Total: %5u | Avg: %5u |"), TickGameThreadTime, TickGameThreadTime / GT.AccumulatedStats.NumInstances);
@@ -754,10 +754,10 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::HandleTestResults()
 					{
 						RTMaxIndex = RT.NumFrames / 2;
 					}
-					uint32 RTAvg = RT.GetPerInstanceAvg();
-					uint32 RTMax = RT.GetPerInstanceMax(RTMaxIndex);
-					uint32 RenderUpdateTime = FPlatformTime::ToMilliseconds(RT.AccumulatedStats.RenderUpdateCycles) * 1000.0;
-					uint32 GDMETime = FPlatformTime::ToMilliseconds(RT.AccumulatedStats.GetDynamicMeshElementsCycles) * 1000.0;
+					const uint32 RTAvg = uint32(RT.GetPerInstanceAvg());
+					const uint32 RTMax = uint32(RT.GetPerInstanceMax(RTMaxIndex));
+					const uint32 RenderUpdateTime = uint32(FPlatformTime::ToMilliseconds64(RT.AccumulatedStats.RenderUpdateCycles) * 1000.0);
+					const uint32 GDMETime = uint32(FPlatformTime::ToMilliseconds64(RT.AccumulatedStats.GetDynamicMeshElementsCycles) * 1000.0);
 					Ar.Logf(TEXT("| Render Thread | Num: %4u | Avg: %6u | Max: %6u | AvgRatio: %g | Max Ratio: %g |"), RT.AccumulatedStats.NumInstances, RTAvg, RTMax, Report.Ratio.PerInstanceAvg_RT, Report.Ratio.PerInstanceMax_RT);
 					Ar.Logf(TEXT("| | Update | Total: %5u | Avg: %5u |"), RenderUpdateTime, RenderUpdateTime / RT.AccumulatedStats.NumInstances);
 					Ar.Logf(TEXT("| | GDME   | Total: %5u | Avg: %5u |"), GDMETime, GDMETime / RT.AccumulatedStats.NumInstances);
@@ -1008,11 +1008,11 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 	float CharWidth = 0.0f;
 	float CharHeight = 0.0f;
 	Font->GetCharSize('W', CharWidth, CharHeight);
-	const float NameWidth = 32 * CharWidth;
-	const float ColumnWidth = 6 * CharWidth;
-	const int32 FontHeight = Font->GetMaxCharHeight() + 2.0f;
+	const int32 NameWidth = FMath::RoundToInt(32.0f * CharWidth);
+	const int32 ColumnWidth = FMath::RoundToInt(6.0f * CharWidth);
+	const int32 FontHeight = FMath::TruncToInt(Font->GetMaxCharHeight() + 2.0f);
 
-	const float BaseX = 50;
+	const int32 BaseX = 50;
 	int32 X = BaseX + NameWidth;
 
 	// Draw background

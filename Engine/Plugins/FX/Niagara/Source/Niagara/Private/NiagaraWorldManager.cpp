@@ -938,8 +938,8 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 			//Record custom events marking split times at set intervals. Allows us to generate summary tables for averages over shorter bursts.
 			if (GNiagaraCSVSplitTime > 0.0f)
 			{
-				float WorldTime = World->GetTimeSeconds();
-				float PrevWorldTime = WorldTime - DeltaSeconds;
+				const double WorldTime = World->GetTimeSeconds();
+				const double PrevWorldTime = WorldTime - DeltaSeconds;
 
 				int32 CurrentSplitIdx = (int32)(WorldTime / GNiagaraCSVSplitTime);
 				int32 PrevSplitIdx = (int32)(PrevWorldTime / GNiagaraCSVSplitTime);
@@ -1391,7 +1391,7 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	{
 		FBoxSphereBounds Bounds = Component->CalcBounds(Component->GetComponentToWorld());		
 
-		float TimeSinceRendered = FMath::Max(0.0f, GetWorld()->LastRenderTime - Component->GetLastRenderTime() - World->GetDeltaSeconds() - GLastRenderTimeSafetyBias);		
+		const float TimeSinceRendered = float(FMath::Max(0.0f, GetWorld()->LastRenderTime - Component->GetLastRenderTime() - World->GetDeltaSeconds() - GLastRenderTimeSafetyBias));
 
 		if(bIsPreCull)
 		{
@@ -1457,14 +1457,14 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 
 			if (ScalabilitySettings.bCullMaxInstanceCount && ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse)
 			{
-				float Scale = ScalabilitySettings.BudgetScaling.MaxInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
-				EffectTypeInstanceMax *= Scale;
+				const float Scale = ScalabilitySettings.BudgetScaling.MaxInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+				EffectTypeInstanceMax = int32(float(EffectTypeInstanceMax) * Scale);
 				bCull = EffectTypeInstCount >= EffectTypeInstanceMax;
 			}
 			if (ScalabilitySettings.bCullPerSystemMaxInstanceCount && ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse)
 			{
-				float Scale = ScalabilitySettings.BudgetScaling.MaxSystemInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
-				SystemInstanceMax *= Scale;
+				const float Scale = ScalabilitySettings.BudgetScaling.MaxSystemInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+				SystemInstanceMax = int32(float(SystemInstanceMax) * Scale);
 				bCull |= SystemInstCount >= SystemInstanceMax;
 			}
 
@@ -1588,13 +1588,13 @@ void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNi
 
 		if (ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse)
 		{
-			float Scale = ScalabilitySettings.BudgetScaling.MaxInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
-			EffectTypeInstanceMax *= Scale;
+			const float Scale = ScalabilitySettings.BudgetScaling.MaxInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+			EffectTypeInstanceMax = int32(float(EffectTypeInstanceMax) * Scale);
 		}
 		if (ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse)
 		{
-			float Scale = ScalabilitySettings.BudgetScaling.MaxSystemInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
-			SystemInstanceMax *= Scale;
+			const float Scale = ScalabilitySettings.BudgetScaling.MaxSystemInstanceCountScaleByGlobalBudgetUse.Evaluate(Usage);
+			SystemInstanceMax = int32(float(SystemInstanceMax) * Scale);
 		}
 		bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances >= EffectTypeInstanceMax;
 		bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && System->GetActiveInstancesCount() >= SystemInstanceMax;

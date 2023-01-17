@@ -299,7 +299,7 @@ const FVector3f& FNiagaraSceneProxy::GetLWCRenderTile() const
 TUniformBuffer<FPrimitiveUniformShaderParameters>* FNiagaraSceneProxy::GetCustomUniformBufferResource(bool bHasVelocity, const FBox& InstanceBounds) const
 {
 	// Use a hash to determine if we can re-use any uniform buffer
-	uint64 KeyHash = HashCombine(bHasVelocity, InstanceBounds.IsValid);
+	uint32 KeyHash = HashCombine(bHasVelocity, InstanceBounds.IsValid);
 
 	bool bHasPrecomputedVolumetricLightmap;
 	FMatrix PreviousLocalToWorld;
@@ -384,7 +384,7 @@ uint32 FNiagaraSceneProxy::GetMemoryFootprint() const
 
 uint32 FNiagaraSceneProxy::GetAllocatedSize() const
 { 
-	uint32 Size = FPrimitiveSceneProxy::GetAllocatedSize();
+	uint32 Size = uint32(FPrimitiveSceneProxy::GetAllocatedSize());
 	if (RenderData)
 	{
 		Size += RenderData->GetDynamicDataSize();
@@ -899,7 +899,7 @@ void UNiagaraComponent::AdvanceSimulationByTime(float SimulateTime, float TickDe
 {
 	if (SystemInstanceController.IsValid() && TickDeltaSeconds > SMALL_NUMBER)
 	{
-		int32 TickCount = SimulateTime / TickDeltaSeconds;
+		const int32 TickCount = FMath::FloorToInt(SimulateTime / TickDeltaSeconds);
 		SystemInstanceController->AdvanceSimulation(TickCount, TickDeltaSeconds);
 	}
 }

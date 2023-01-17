@@ -60,7 +60,7 @@ struct FNiagaraScalabilityManager
 	TMap<UNiagaraSystem*, int32> SystemDataIndexMap;
 	TArray<FNiagaraScalabilitySystemData> SystemData;
 
-	float LastUpdateTime;
+	double LastUpdateTime;
 
 	bool bRefreshOwnerAllowsScalability = false;
 

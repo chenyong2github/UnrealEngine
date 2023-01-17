@@ -59,16 +59,16 @@ public:
 		float MaxSize = KINDA_SMALL_NUMBER;
 		if (bUsedWithMeshes)
 		{
-			FVector MaxScale(1.0f, 1.0f, 1.0f);
+			FVector3f MaxScale(1.0f, 1.0f, 1.0f);
 			if (ScaleAccessor.IsValid())
 			{
-				MaxScale = (FVector)ScaleAccessor.GetReader(DataSet).GetMax();
+				MaxScale = ScaleAccessor.GetReader(DataSet).GetMax();
 			}
 
 			// NOTE: Since we're not taking particle rotation into account we have to treat the extents like a sphere,
 			// which is a little bit more conservative, but saves us having to rotate the extents per particle
-			const FVector ScaledExtents = MeshExtents * MaxScale;
-			MaxSize = FMath::Max(MaxSize, ScaledExtents.Size());
+			const FVector ScaledExtents = MeshExtents * FVector(MaxScale);
+			MaxSize = FMath::Max(MaxSize, float(ScaledExtents.Size()));
 			
 			FVector MaxTransformedOffset;
 			if (bLocalSpace)

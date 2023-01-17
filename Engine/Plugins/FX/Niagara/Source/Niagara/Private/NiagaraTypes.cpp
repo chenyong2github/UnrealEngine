@@ -165,7 +165,7 @@ void FNiagaraStructConversionStep::CopyToSim(uint8* DestinationData, const uint8
 	if (ConversionType == ENiagaraStructConversionType::DoubleToFloat)
 	{
 		checkf(SourceBytes == 8 && SimulationBytes == 4, TEXT("Wrong bytesizes for double->float conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		*static_cast<float*>(Dest) = *static_cast<const double*>(Src);
+		*static_cast<float*>(Dest) = float(*static_cast<const double*>(Src));
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Vector2)
 	{
@@ -189,7 +189,7 @@ void FNiagaraStructConversionStep::CopyToSim(uint8* DestinationData, const uint8
 	{
 		checkf(SourceBytes == 32 && SimulationBytes == 16, TEXT("Wrong bytesizes for Quat d->f conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
 		FQuat4d SrcQuat = *static_cast<const FQuat4d*>(Src);
-		FQuat4f TargetQuat(SrcQuat.X, SrcQuat.Y, SrcQuat.Z, SrcQuat.W);
+		FQuat4f TargetQuat(SrcQuat);
 		FMemory::Memcpy(Dest, &TargetQuat, SimulationBytes);
 	}
 	else

@@ -67,7 +67,7 @@ public:
 		, LastFrameSetup(MAX_uint32)
 		, LastViewFamily(nullptr)
 		, LastView(nullptr)
-		, LastFrameRealTime(-1.0f)
+		, LastFrameRealTime(-1.0)
 		, ParticleFactoryType(Type)
 		, bInUse(false)
 	{
@@ -123,7 +123,7 @@ private:
 	mutable uint32 LastFrameSetup;
 	mutable const FSceneViewFamily *LastViewFamily;
 	mutable const FSceneView *LastView;
-	mutable float LastFrameRealTime;
+	mutable double LastFrameRealTime;
 
 	/** The type of the vertex factory. */
 	ENiagaraVertexFactoryType ParticleFactoryType;

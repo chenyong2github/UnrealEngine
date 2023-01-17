@@ -372,7 +372,7 @@ void FNiagaraAsyncCompileTask::ProcessResult()
 	// convert results to be saved in the ddc
 	ScriptPair.CompileResults = ExeData;
 	ScriptPair.bResultsReady = true;
-	ScriptPair.CompileTime = FPlatformTime::Seconds() - StartCompileTime;
+	ScriptPair.CompileTime = float(FPlatformTime::Seconds() - StartCompileTime);
 	ScriptPair.CompiledScript->ExecToBinaryData(ScriptPair.CompiledScript, DDCOutData, *ExeData);
 	UE_LOG(LogNiagara, Verbose, TEXT("Got %i bytes in ddc data for %s"), DDCOutData.Num(), *AssetPath);
 }

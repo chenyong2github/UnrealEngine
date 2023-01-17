@@ -277,12 +277,14 @@ bool UNiagaraDataInterfaceTexture::PerInstanceTick(void* PerInstanceData, FNiaga
 	int32 CurrentTextureMipLevels = 0;
 	if (UTexture2D* CurrentTexture2D = Cast<UTexture2D>(CurrentTexture) )
 	{
-		CurrentTextureSize = FIntPoint(CurrentTexture->GetSurfaceWidth(), CurrentTexture->GetSurfaceHeight());
+		CurrentTextureSize.X = int32(CurrentTexture->GetSurfaceWidth());
+		CurrentTextureSize.Y = int32(CurrentTexture->GetSurfaceHeight());
 		CurrentTextureMipLevels = CurrentTexture2D->GetNumMips();
 	}
 	else if (UTextureRenderTarget2D* CurrentTexture2DRT = Cast<UTextureRenderTarget2D>(CurrentTexture))
 	{
-		CurrentTextureSize = FIntPoint(CurrentTexture->GetSurfaceWidth(), CurrentTexture->GetSurfaceHeight());
+		CurrentTextureSize.X = int32(CurrentTexture->GetSurfaceWidth());
+		CurrentTextureSize.Y = int32(CurrentTexture->GetSurfaceHeight());
 		CurrentTextureMipLevels = CurrentTexture2DRT->GetNumMips();
 	}
 
@@ -361,8 +363,8 @@ void UNiagaraDataInterfaceTexture::VMGetTextureDimensions(FVectorVMExternalFunct
 	{
 		const int32 MipLevel = InMipLevel.GetAndAdvance();
 		const FVector2f TextureSize(
-			FMath::Max(InstData->CurrentTextureSize.X >> MipLevel, 1),
-			FMath::Max(InstData->CurrentTextureSize.Y >> MipLevel, 1)
+			float(FMath::Max(InstData->CurrentTextureSize.X >> MipLevel, 1)),
+			float(FMath::Max(InstData->CurrentTextureSize.Y >> MipLevel, 1))
 		);
 		OutSize.SetAndAdvance(TextureSize);
 	}

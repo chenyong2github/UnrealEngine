@@ -972,7 +972,7 @@ struct TNDIRandomHelper : public TRandomPolicy
 		//Can probably handle lower quality randoms / uniformity for a decent speed win.
 		FVector2f r = FVector2f(TRandomPolicy::Rand2(InstanceIndex));
 		float sqrt0 = FMath::Sqrt(r.X);
-		return FVector3f(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
+		return FVector3f(1.0f - sqrt0, sqrt0 * (1.0f - r.Y), r.Y * sqrt0);
 	}
 };
 

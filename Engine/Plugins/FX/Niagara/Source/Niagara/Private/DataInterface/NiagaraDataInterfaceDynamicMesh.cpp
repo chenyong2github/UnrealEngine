@@ -191,8 +191,8 @@ namespace NDIDynamicMeshLocal
 			check(Vertex >= 0 && Vertex < NumVertices && TangentBasisOffset != INDEX_NONE);
 			const uint32* TangentData = reinterpret_cast<const uint32*>(VertexData.GetData() + (Vertex * sizeof(FPackedNormal) * 2) + TangentBasisOffset);
 
-			OutTangentX = FVector3f((TangentData[0] >> 0) & 0xff, (TangentData[0] >> 8) & 0xff, (TangentData[0] >> 16) & 0xff);
-			OutTangentZ = FVector3f((TangentData[1] >> 0) & 0xff, (TangentData[1] >> 8) & 0xff, (TangentData[1] >> 16) & 0xff);
+			OutTangentX = FVector3f(float((TangentData[0] >> 0) & 0xff), float((TangentData[0] >> 8) & 0xff), float((TangentData[0] >> 16) & 0xff));
+			OutTangentZ = FVector3f(float((TangentData[1] >> 0) & 0xff), float((TangentData[1] >> 8) & 0xff), float((TangentData[1] >> 16) & 0xff));
 			OutTangentX = (OutTangentX / 127.5f) - 1.0f;
 			OutTangentZ = (OutTangentX / 127.5f) - 1.0f;
 

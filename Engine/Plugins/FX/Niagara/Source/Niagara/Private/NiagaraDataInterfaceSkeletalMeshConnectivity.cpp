@@ -272,7 +272,7 @@ static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData
 	FMemory::Memset(Buffer.GetData(), 0xFF, Buffer.Num());
 	TriangleIndexType* AdjacencyBuffer = reinterpret_cast<TriangleIndexType*>(Buffer.GetData());
 
-	TMap<FVector, int32 /*UniqueVertexIndex*/> UniqueIndexMap;
+	TMap<FVector3f, int32 /*UniqueVertexIndex*/> UniqueIndexMap;
 
 	TArray<uint32> RedirectionArray;
 	TArray<float> TriangleSizes;
@@ -292,11 +292,11 @@ static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData
 			IndexBuffer->Get(TriangleIt * 3 + 2)
 		};
 
-		const FVector P[3] =
+		const FVector3f P[3] =
 		{
-			(FVector)VertexBuffer.VertexPosition(V[0]),
-			(FVector)VertexBuffer.VertexPosition(V[1]),
-			(FVector)VertexBuffer.VertexPosition(V[2])
+			VertexBuffer.VertexPosition(V[0]),
+			VertexBuffer.VertexPosition(V[1]),
+			VertexBuffer.VertexPosition(V[2])
 		};
 
 		if (SortBySize)

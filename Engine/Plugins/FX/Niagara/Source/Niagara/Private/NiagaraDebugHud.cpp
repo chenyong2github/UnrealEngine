@@ -106,11 +106,11 @@ namespace NiagaraDebugLocal
 		return OutValue;
 	}
 
-	static FVector2D StringToVector2D(const FString& Arg, const FVector2D& DefaultValue)
+	static FVector2f StringToVector2f(const FString& Arg, const FVector2f& DefaultValue)
 	{
 		TArray<FString> Values;
 		Arg.ParseIntoArray(Values, TEXT(","));
-		FVector2D OutValue;
+		FVector2f OutValue;
 		OutValue.X = Values.Num() > 0 ? FCString::Atof(*Values[0]) : DefaultValue.X;
 		OutValue.Y = Values.Num() > 1 ? FCString::Atof(*Values[1]) : DefaultValue.Y;
 		return OutValue;
@@ -134,7 +134,7 @@ namespace NiagaraDebugLocal
 		MakeTuple(TEXT("OverviewEnabled="), TEXT("Enable or disable the main overview display"), [](FString Arg) {Settings.bOverviewEnabled = FCString::Atoi(*Arg) != 0; }),
 		MakeTuple(TEXT("OverviewMode="), TEXT("Change the mode of the debug overivew"), [](FString Arg) {Settings.OverviewMode = (ENiagaraDebugHUDOverviewMode)FCString::Atoi(*Arg); }),
 
-		MakeTuple(TEXT("OverviewLocation="), TEXT("Set the overview location"), [](FString Arg) { Settings.OverviewLocation = StringToVector2D(Arg, Settings.OverviewLocation); }),
+		MakeTuple(TEXT("OverviewLocation="), TEXT("Set the overview location"), [](FString Arg) { Settings.OverviewLocation = FVector2D(StringToVector2f(Arg, FVector2f(Settings.OverviewLocation))); }),
 		MakeTuple(TEXT("SystemFilter="), TEXT("Set the system filter"), [](FString Arg) {Settings.SystemFilter = Arg; Settings.bSystemFilterEnabled = !Arg.IsEmpty(); }),
 		MakeTuple(TEXT("EmitterFilter="), TEXT("Set the emitter filter"), [](FString Arg) {Settings.EmitterFilter = Arg; Settings.bEmitterFilterEnabled = !Arg.IsEmpty(); GCachedSystemVariables.Empty(); }),
 		MakeTuple(TEXT("ActorFilter="), TEXT("Set the actor filter"), [](FString Arg) {Settings.ActorFilter = Arg; Settings.bActorFilterEnabled = !Arg.IsEmpty(); }),
@@ -516,10 +516,10 @@ namespace NiagaraDebugLocal
 		}
 	};
 
-	FVector2D GetStringSize(UFont* Font, const TCHAR* Text)
+	FVector2f GetStringSize(UFont* Font, const TCHAR* Text)
 	{
-		FVector2D MaxSize = FVector2D::ZeroVector;
-		FVector2D CurrSize = FVector2D::ZeroVector;
+		FVector2f MaxSize = FVector2f::ZeroVector;
+		FVector2f CurrSize = FVector2f::ZeroVector;
 
 		const float fAdvanceHeight = Font->GetMaxCharHeight();
 		const TCHAR* PrevChar = nullptr;
@@ -553,10 +553,10 @@ namespace NiagaraDebugLocal
 		return MaxSize;
 	}
 
-	TPair<FVector2D, FVector2D> GetTextLocation(UFont* Font, const TCHAR* Text, const FNiagaraDebugHudTextOptions& TextOptions, const FVector2D ScreenLocation)
+	TPair<FVector2f, FVector2f> GetTextLocation(UFont* Font, const TCHAR* Text, const FNiagaraDebugHudTextOptions& TextOptions, const FVector2f ScreenLocation)
 	{
-		FVector2D StringSize = GetStringSize(Font, Text);
-		FVector2D OutLocation = ScreenLocation + TextOptions.ScreenOffset;
+		FVector2f StringSize = GetStringSize(Font, Text);
+		FVector2f OutLocation = ScreenLocation + FVector2f(TextOptions.ScreenOffset);
 		if (TextOptions.HorizontalAlignment == ENiagaraDebugHudHAlign::Center )
 		{
 			OutLocation.X -= StringSize.X * 0.5f;
@@ -573,7 +573,7 @@ namespace NiagaraDebugLocal
 		{
 			OutLocation.Y -= StringSize.Y;
 		}
-		return TPair<FVector2D, FVector2D>(StringSize, OutLocation);
+		return TPair<FVector2f, FVector2f>(StringSize, OutLocation);
 	}
 
 	void DrawBox(UWorld* World, const FVector& Location, const FVector& Extents, const FLinearColor& Color, float SolidAlpha = 0.0f, float Thickness = 3.0f)
@@ -584,7 +584,7 @@ namespace NiagaraDebugLocal
 			{
 				const FBox BoundsBox(-Extents, Extents);
 				FColor BoxColor = Color.ToFColor(false);
-				BoxColor.A = FMath::Clamp(int(SolidAlpha * 255.0f), 0, 255);
+				BoxColor.A = uint8(FMath::Clamp(int32(SolidAlpha * 255.0f), 0, 255));
 				LineBatcher->DrawSolidBox(BoundsBox, FTransform(FQuat::Identity, Location), BoxColor, 0, 0.0f);
 			}
 			else
@@ -1154,9 +1154,9 @@ void FNiagaraDebugHud::GatherSystemInfo()
 
 		//Generate a unique-ish random color for use in graphs and the world to help visually ID this system.
 		FRandomStream Rands(GetTypeHash(NiagaraComponent->GetAsset()->GetName()) + Settings.SystemColorSeed);
-		uint8 RandomHue = (uint8)Rands.RandRange(Settings.SystemColorHSVMin.X, Settings.SystemColorHSVMax.X);
-		uint8 RandomSat = (uint8)Rands.RandRange(Settings.SystemColorHSVMin.Y, Settings.SystemColorHSVMax.Y);
-		uint8 RandomValue = (uint8)Rands.RandRange(Settings.SystemColorHSVMin.Z, Settings.SystemColorHSVMax.Z);
+		uint8 RandomHue = (uint8)Rands.RandRange(int32(Settings.SystemColorHSVMin.X), int32(Settings.SystemColorHSVMax.X));
+		uint8 RandomSat = (uint8)Rands.RandRange(int32(Settings.SystemColorHSVMin.Y), int32(Settings.SystemColorHSVMax.Y));
+		uint8 RandomValue = (uint8)Rands.RandRange(int32(Settings.SystemColorHSVMin.Z), int32(Settings.SystemColorHSVMax.Z));
 		SystemDebugInfo.UniqueColor = FLinearColor::MakeFromHSV8(RandomHue, RandomSat, RandomValue);
 
 
@@ -1275,8 +1275,8 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 {
 	using namespace NiagaraDebugLocal;
 
-	float CurrTime = WorldManager->GetWorld()->GetRealTimeSeconds();
-	DeltaSeconds = CurrTime - LastDrawTime;
+	const double CurrTime = WorldManager->GetWorld()->GetRealTimeSeconds();
+	DeltaSeconds = float(CurrTime - LastDrawTime);
 
 	// We may want to use the HUD to pause / step but not actually display anything on screen
 	if (Settings.bHudRenderingEnabled)
@@ -1317,7 +1317,7 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	LastDrawTime = CurrTime;
 }
 
-void FNiagaraDebugHud::AddLine2D(FVector2D Start, FVector2D End, FLinearColor Color, float Thickness, float Lifetime)
+void FNiagaraDebugHud::AddLine2D(FVector2f Start, FVector2f End, FLinearColor Color, float Thickness, float Lifetime)
 {
 	if (NiagaraDebugLocal::Settings.IsEnabled())
 	{
@@ -1331,7 +1331,7 @@ void FNiagaraDebugHud::AddLine2D(FVector2D Start, FVector2D End, FLinearColor Co
 	}
 }
 
-void FNiagaraDebugHud::AddCircle2D(FVector2D Pos, float Rad, float Segments, FLinearColor Color, float Thickness, float Lifetime)
+void FNiagaraDebugHud::AddCircle2D(FVector2f Pos, float Rad, int32 Segments, FLinearColor Color, float Thickness, float Lifetime)
 {
 	if (NiagaraDebugLocal::Settings.IsEnabled())
 	{
@@ -1346,7 +1346,7 @@ void FNiagaraDebugHud::AddCircle2D(FVector2D Pos, float Rad, float Segments, FLi
 	}
 }
 
-void FNiagaraDebugHud::AddBox2D(FVector2D Pos, FVector2D Extents, FLinearColor Color, float Thickness, float Lifetime)
+void FNiagaraDebugHud::AddBox2D(FVector2f Pos, FVector2f Extents, FLinearColor Color, float Thickness, float Lifetime)
 {
 	if (NiagaraDebugLocal::Settings.IsEnabled())
 	{
@@ -1371,12 +1371,12 @@ void FNiagaraDebugHud::DrawDebugGeomerty(class FNiagaraWorldManager* WorldManage
 
 	FCanvas* DrawCanvas = Canvas->Canvas;
 
-	FVector2D Size(Canvas->ClipX, Canvas->ClipY);
+	FVector2f Size(Canvas->ClipX, Canvas->ClipY);
 	
 	for (auto it = Lines2D.CreateIterator(); it; ++it)
 	{
 		FDebugLine2D& Line = *it;
-		DrawDebugCanvas2DLine(Canvas, Line.Start * Size, Line.End* Size, Line.Color, Line.Thickness);
+		DrawDebugCanvas2DLine(Canvas, FVector2D(Line.Start * Size), FVector2D(Line.End * Size), Line.Color, Line.Thickness);
 
 		Line.Lifetime -= DeltaSeconds;
 		if (Line.Lifetime <= 0.0f)
@@ -1387,7 +1387,7 @@ void FNiagaraDebugHud::DrawDebugGeomerty(class FNiagaraWorldManager* WorldManage
 	for (auto it = Circles2D.CreateIterator(); it; ++it)
 	{
 		FDebugCircle2D& Circle = *it;
-		DrawDebugCanvas2DCircle(Canvas, Circle.Pos * Size, Circle.Rad * Size.X, Circle.Segments, Circle.Color, Circle.Thickness);
+		DrawDebugCanvas2DCircle(Canvas, FVector2D(Circle.Pos * Size), Circle.Rad * Size.X, Circle.Segments, Circle.Color, Circle.Thickness);
 
 		Circle.Lifetime -= DeltaSeconds;
 		if (Circle.Lifetime <= 0.0f)
@@ -1400,8 +1400,8 @@ void FNiagaraDebugHud::DrawDebugGeomerty(class FNiagaraWorldManager* WorldManage
 		FDebugBox2D& Box = *it;
 
 		FBox2D Box2D;
-		Box2D.Min = (Box.Pos - Box.Extents) * Size;
-		Box2D.Max = (Box.Pos + Box.Extents) * Size;
+		Box2D.Min = FVector2D((Box.Pos - Box.Extents) * Size);
+		Box2D.Max = FVector2D((Box.Pos + Box.Extents) * Size);
 		DrawDebugCanvas2DBox(Canvas, Box2D, Box.Color, Box.Thickness);
 
 		Box.Lifetime -= DeltaSeconds;
@@ -1418,17 +1418,17 @@ struct FGraph
 	FCanvas* Canvas;
 	UFont* Font;
 
-	FVector2D Location;
-	FVector2D Size;
+	FVector2f Location;
+	FVector2f Size;
 
-	FVector2D MaxValues;
+	FVector2f MaxValues;
 
 	FString XLabel;
 	FString YLabel;
 
 	float EstYAxisLabelWidth = 35.0f;
 
-	FGraph(FCanvas* InCanvas, UFont* InFont, FVector2D InLocation, FVector2D InSize, FVector2D InMaxValues, FString InXLabel, FString InYLabel)
+	FGraph(FCanvas* InCanvas, UFont* InFont, FVector2f InLocation, FVector2f InSize, FVector2f InMaxValues, FString InXLabel, FString InYLabel)
 		: Canvas(InCanvas)
 		, Font(InFont)
 		, Location(InLocation)
@@ -1497,7 +1497,7 @@ struct FGraph
 		{
 			float LineTime = (MaxValues.Y / NumGridLines) * i;
 			FString LineTimeString = LexToSanitizedString(LineTime);
-			FVector2D LabelSize = FVector2D(Font->GetStringSize(*LineTimeString), Font->GetMaxCharHeight());
+			FVector2f LabelSize = FVector2f(float(Font->GetStringSize(*LineTimeString)), Font->GetMaxCharHeight());
 			float LineX = Left;
 			float LineY = FMath::Lerp(Bottom, Top, (float)i / NumGridLines);
 			BatchedElements->AddLine(FVector(Left, LineY, 0.0f), FVector(LineX + Size.X, LineY, 0.0f), GraphAxesColor * 0.5f, HitProxyId, 1.0f);
@@ -1521,7 +1521,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	const FLinearColor DetailHighlightColor = Settings.OverviewDetailHighlightColor;
 	const FLinearColor BackgroundColor = Settings.DefaultBackgroundColor;
 
-	FVector2D TextLocation = Settings.OverviewLocation;
+	FVector2f TextLocation = FVector2f(Settings.OverviewLocation);
 
 	struct FOverviewColumn
 	{
@@ -1540,16 +1540,16 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 		typedef TFunction<void(FCanvas*, UFont*, float, float, FOverviewColumn&, const FSystemDebugInfo&)>  FSystemDrawFunc;
 		FSystemDrawFunc SystemDrawFunc;
 
-		FOverviewColumn(FString InGlobalHeader, FString InGlobalData, FString InSystemHeader, int32& InOffset, UFont* Font, FString ExampleSystemString, FSystemDrawFunc InSystemDrawFunc)
+		FOverviewColumn(FString InGlobalHeader, FString InGlobalData, FString InSystemHeader, float& InOffset, UFont* Font, FString ExampleSystemString, FSystemDrawFunc InSystemDrawFunc)
 			: GlobalHeader(InGlobalHeader)
 			, GlobalData(InGlobalData)
 			, SystemHeader(InSystemHeader)
 			, Offset(InOffset)
 			, SystemDrawFunc(InSystemDrawFunc)
 		{
-			HeaderWidth = GetStringSize(Font, *GlobalHeader).X;
-			SystemWidth = FMath::Max(GetStringSize(Font, *SystemHeader).X, GetStringSize(Font, *ExampleSystemString).X);
-			MaxWidth = FMath::Max(HeaderWidth + GlobalDataSeparator + GetStringSize(Font, *GlobalData).X, SystemWidth) + ColumnSeparator;
+			HeaderWidth = float(GetStringSize(Font, *GlobalHeader).X);
+			SystemWidth = float(FMath::Max(GetStringSize(Font, *SystemHeader).X, GetStringSize(Font, *ExampleSystemString).X));
+			MaxWidth = float(FMath::Max(HeaderWidth + GlobalDataSeparator + GetStringSize(Font, *GlobalData).X, SystemWidth)) + ColumnSeparator;
 
 			InOffset += MaxWidth;
 		}
@@ -1572,7 +1572,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	};
 
 	float TotalOverviewWidth = 750.0f;
-	int32 ColumnOffset = 0;
+	float ColumnOffset = 0.0f;
 	TArray<FOverviewColumn, TInlineAllocator<16>> OverviewColumns;
 
 	if (Settings.bOverviewEnabled)
@@ -1808,7 +1808,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 					{
 						Canvas->DrawTile(X, Y, Col.MaxWidth - 6.0f, fAdvanceHeight - 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, SystemInfo.UniqueColor);
 						FString SysCountString = LexToSanitizedString(SystemInfo.TotalActive);
-						float StringWidth = Font->GetStringSize(*SysCountString);
+						float StringWidth = float(Font->GetStringSize(*SysCountString));
 						Canvas->DrawShadowedString((X + (Col.MaxWidth * 0.5f)) - StringWidth * 0.5f, Y, *SysCountString, Font, FLinearColor::Black);
 					});
 			}
@@ -1890,8 +1890,8 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 		if (Settings.bOverviewEnabled || OverviewString.Len() > 0)
 		{
 			const int32 NumLines = 2 + (Settings.bOverviewEnabled ? 1 : 0);
-			const FVector2D OverviewStringSize = GetStringSize(Font, OverviewString.ToString());
-			const FVector2D ActualSize(FMath::Max(OverviewStringSize.X, TotalOverviewWidth), (NumLines*fAdvanceHeight) + OverviewStringSize.Y);
+			const FVector2f OverviewStringSize = GetStringSize(Font, OverviewString.ToString());
+			const FVector2f ActualSize(FMath::Max(OverviewStringSize.X, TotalOverviewWidth), (NumLines*fAdvanceHeight) + OverviewStringSize.Y);
 
 			// Draw background
 			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, ActualSize.X + 2.0f, ActualSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
@@ -1985,14 +1985,14 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 
 				TextLocation.Y += fAdvanceHeight;
 
-				FVector2D GraphLocation(TextLocation.X, SystemDataY + fAdvanceHeight);
+				FVector2f GraphLocation(TextLocation.X, SystemDataY + fAdvanceHeight);
 
 				if (OverviewColumns.Num())
 				{
 					GraphLocation.X += OverviewColumns.Last().Offset + OverviewColumns.Last().MaxWidth + 50.0f;
 				}
 
-				FGraph<double> Graph(DrawCanvas, Font, GraphLocation, Settings.PerfGraphSize, FVector2D(Settings.PerfHistoryFrames, Settings.PerfGraphTimeRange), TEXT("Frame"), TEXT("Time(us)"));
+				FGraph<double> Graph(DrawCanvas, Font, GraphLocation, FVector2f(Settings.PerfGraphSize), FVector2f(float(Settings.PerfHistoryFrames), Settings.PerfGraphTimeRange), TEXT("Frame"), TEXT("Time(us)"));
 
 				Graph.Draw(Settings.PerfGraphAxisColor, BackgroundColor);
 
@@ -2054,7 +2054,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	DrawMessages(WorldManager, DrawCanvas, TextLocation);
 }
 
-void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation)
 {
 #if WITH_NIAGARA_GPU_PROFILER
 	using namespace NiagaraDebugLocal;
@@ -2074,7 +2074,7 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 		static const FString EnableCVarWarning(TEXT("GPU Profiling is disabled, enable 'fx.Niagara.GpuProfiling.Enabled'"));
 		static const FString NoDataWarning(TEXT("No GPU data is ready"));
 
-		const FVector2D StringSize = GetStringSize(Font, *EnableCVarWarning);
+		const FVector2f StringSize = GetStringSize(Font, *EnableCVarWarning);
 		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, StringSize.X + 1.0f, 2.0f + StringSize.Y, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
 		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *(ProfilingEnabledCVar && ProfilingEnabledCVar->GetBool() ? NoDataWarning : EnableCVarWarning), Font, HeadingColor);
 		TextLocation.Y += StringSize.Y;
@@ -2087,7 +2087,7 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 		struct FColumn
 		{
 			float				DefaultWidth = 150.0f;
-			FVector2D			MeasuredSize = FVector2D::ZeroVector;
+			FVector2f			MeasuredSize = FVector2f::ZeroVector;
 			float				DrawOffset = 0.0f;
 			TStringBuilder<128>	AllRowsText;
 		};
@@ -2114,9 +2114,9 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 			}
 		}
 
-		void Draw(UFont* Font, FCanvas* DrawCanvas, FVector2D& Location, FLinearColor TextColor, FLinearColor BackgroundColor)
+		void Draw(UFont* Font, FCanvas* DrawCanvas, FVector2f& Location, FLinearColor TextColor, FLinearColor BackgroundColor)
 		{
-			FVector2D TotalSize = FVector2D::ZeroVector;
+			FVector2f TotalSize = FVector2f::ZeroVector;
 			for ( FColumn& Column : Columns)
 			{
 				Column.MeasuredSize	= GetStringSize(Font, Column.AllRowsText.ToString());
@@ -2306,7 +2306,7 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 #endif //WITH_NIAGARA_GPU_PROFILER
 }
 
-void FNiagaraDebugHud::DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+void FNiagaraDebugHud::DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -2400,7 +2400,7 @@ void FNiagaraDebugHud::DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldMan
 	}
 }
 
-void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -2561,7 +2561,7 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 			UFont* Font = GetFont(Settings.OverviewFont);
 			const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
 
-			const FVector2D ErrorStringSize = GetStringSize(Font, ErrorString.ToString());
+			const FVector2f ErrorStringSize = GetStringSize(Font, ErrorString.ToString());
 
 			TextLocation.Y += fAdvanceHeight;
 			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, ErrorStringSize.X + 2.0f, ErrorStringSize.Y + fAdvanceHeight + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, Settings.DefaultBackgroundColor);
@@ -2663,8 +2663,8 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				const bool bParticlesLocalSpace = EmitterInstance->GetCachedEmitterData()->bLocalSpace;
 				//const float ClipRadius = Settings.bUseParticleDisplayRadius ? 1.0f : 0.0f;
 				const float ParticleDisplayCenterRadiusSq = Settings.bUseParticleDisplayCenterRadius ? (Settings.ParticleDisplayCenterRadius * Settings.ParticleDisplayCenterRadius) : 0.0f;
-				const float ParticleDisplayClipNearPlane = Settings.bUseParticleDisplayClip ? FMath::Max(Settings.ParticleDisplayClip.X, 0.0f) : 0.0f;
-				const float ParticleDisplayClipFarPlane = Settings.bUseParticleDisplayClip ? FMath::Max(Settings.ParticleDisplayClip.Y, ParticleDisplayClipNearPlane) : FLT_MAX;
+				const float ParticleDisplayClipNearPlane = Settings.bUseParticleDisplayClip ? float(FMath::Max(Settings.ParticleDisplayClip.X, 0.0)) : 0.0f;
+				const float ParticleDisplayClipFarPlane = Settings.bUseParticleDisplayClip ? float(FMath::Max(Settings.ParticleDisplayClip.Y, ParticleDisplayClipNearPlane)) : FLT_MAX;
 				const uint32 MaxDisplayParticles = Settings.bUseMaxParticlesToDisplay ? Settings.MaxParticlesToDisplay : 0xFFFFFFFF;
 				uint32 NumDisplayedParticles = 0;
 
@@ -2702,7 +2702,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					}
 
 					const TCHAR* FinalString = StringBuilder.ToString();
-					const TPair<FVector2D, FVector2D> SizeAndLocation = GetTextLocation(ParticleFont, FinalString, Settings.ParticleTextOptions, FVector2D(ParticleScreenLocation));
+					const TPair<FVector2f, FVector2f> SizeAndLocation = GetTextLocation(ParticleFont, FinalString, Settings.ParticleTextOptions, FVector2f(float(ParticleScreenLocation.X), float(ParticleScreenLocation.Y)));
 					DrawCanvas->DrawTile(SizeAndLocation.Value.X - 1.0f, SizeAndLocation.Value.Y - 1.0f, SizeAndLocation.Key.X + 2.0f, SizeAndLocation.Key.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, Settings.DefaultBackgroundColor);
 					DrawCanvas->DrawShadowedString(SizeAndLocation.Value.X, SizeAndLocation.Value.Y, FinalString, ParticleFont, TextColor);
 
@@ -3021,7 +3021,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				}
 
 				const TCHAR* FinalString = StringBuilder.ToString();
-				const TPair<FVector2D, FVector2D> SizeAndLocation = GetTextLocation(SystemFont, FinalString, Settings.SystemTextOptions, FVector2D(ScreenLocation));
+				const TPair<FVector2f, FVector2f> SizeAndLocation = GetTextLocation(SystemFont, FinalString, Settings.SystemTextOptions, FVector2f(float(ScreenLocation.X), float(ScreenLocation.Y)));
 				DrawCanvas->DrawTile(SizeAndLocation.Value.X - 1.0f, SizeAndLocation.Value.Y - 1.0f, SizeAndLocation.Key.X + 2.0f, SizeAndLocation.Key.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, Settings.DefaultBackgroundColor);
 				DrawCanvas->DrawShadowedString(SizeAndLocation.Value.X, SizeAndLocation.Value.Y, FinalString, SystemFont, TextColor);
 			}
@@ -3029,7 +3029,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 	}
 }
 
-void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2f& TextLocation)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -3038,7 +3038,7 @@ void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, cl
 	UFont* Font = GetFont(Settings.OverviewFont);
 	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
 
-	FVector2D BackgroundSize(MinWidth, 0.0f);
+	FVector2f BackgroundSize(MinWidth, 0.0f);
 	TArray<FName, TInlineAllocator<8>> ToRemove;
 	for (TPair<FName, FNiagaraDebugMessage>& Pair : Messages)
 	{
@@ -3048,7 +3048,7 @@ void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, cl
 		Message.Lifetime -= DeltaSeconds;
 		if (Message.Lifetime > 0.0f)
 		{
-			BackgroundSize = FVector2D::Max(BackgroundSize, GetStringSize(Font, *Message.Message));
+			BackgroundSize = FVector2f::Max(BackgroundSize, GetStringSize(Font, *Message.Message));
 		}
 		else
 		{
@@ -3347,23 +3347,23 @@ void FNiagaraDebugHUDStatsListener::TickRT()
 
 		if (FAccumulatedParticlePerfStats* Stats = GetStats(System))
 		{
-			double RTSysAvg;
-			double RTSysMax;
-			double GPUSysAvg;
-			double GPUSysMax;
+			float RTSysAvg;
+			float RTSysMax;
+			float GPUSysAvg;
+			float GPUSysMax;
 			if (Settings.PerfSampleMode == ENiagaraDebugHUDPerfSampleMode::FrameTotal)
 			{
 				RTSysAvg = Stats->GetRenderThreadStats().GetPerFrameAvg();
 				RTSysMax = Stats->GetRenderThreadStats().GetPerFrameAvg();
-				GPUSysAvg = Stats->GetGPUStats().GetPerFrameAvgMicroseconds();
-				GPUSysMax = Stats->GetGPUStats().GetPerFrameAvgMicroseconds();
+				GPUSysAvg = float(Stats->GetGPUStats().GetPerFrameAvgMicroseconds());
+				GPUSysMax = float(Stats->GetGPUStats().GetPerFrameAvgMicroseconds());
 			}
 			else
 			{
 				RTSysAvg = Stats->GetRenderThreadStats().GetPerInstanceAvg();
 				RTSysMax = Stats->GetRenderThreadStats().GetPerInstanceMax();
-				GPUSysAvg = Stats->GetGPUStats().GetPerInstanceAvgMicroseconds();
-				GPUSysMax = Stats->GetGPUStats().GetPerInstanceMaxMicroseconds();
+				GPUSysAvg = float(Stats->GetGPUStats().GetPerInstanceAvgMicroseconds());
+				GPUSysMax = float(Stats->GetGPUStats().GetPerInstanceMaxMicroseconds());
 			}
 
 			HUDStats->History.AddFrame_RT(RTSysAvg);
