@@ -1067,9 +1067,10 @@ void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 	Initializer.ProjectionMatrix = ProjectionMatrix;
 	Initializer.ConstrainedViewRect = MainView.SceneViewInitOptions.GetConstrainedViewRect();
 	Initializer.StereoPass = MainView.SceneViewInitOptions.StereoPass;
-#if WITH_EDITOR
-	Initializer.bUseFauxOrthoViewPos = MainView.SceneViewInitOptions.bUseFauxOrthoViewPos;
-#endif
+
+	// We do not want FauxOrtho projection moving the camera origin far away from the card since we have just setup the correct projection.
+	// That can result in low accuracy when using world position even with LWC.
+	Initializer.bUseFauxOrthoViewPos = false;
 
 	ViewMatrices = FViewMatrices(Initializer);
 }
