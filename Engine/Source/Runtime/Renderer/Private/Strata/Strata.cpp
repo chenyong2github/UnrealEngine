@@ -99,8 +99,8 @@ static TAutoConsoleVariable<int32> CVarStrataAsyncClassification(
 static TAutoConsoleVariable<int32> CVarStrataDBufferPass(
 	TEXT("r.Strata.DBufferPass"),
 	0,
-	TEXT("Apply DBuffer after the base-pass as a separate pass."),
-	ECVF_RenderThreadSafe);
+	TEXT("Apply DBuffer after the base-pass as a separate pass. Read only because when this is changed, it will require the recompilation of all shaders."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarStrataDBufferPassDedicatedTiles(
 	TEXT("r.Strata.DBufferPass.DedicatedTiles"),

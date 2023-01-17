@@ -1942,6 +1942,15 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		if (bStrataEnabled)
 		{
+			static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
+			const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
+
+			// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
+			// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
+			// and this is an unknown when compiling shaders at this stage.
+			// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
+			const bool bDBufferPassSupported = StrataNormalQuality == 0 || (StrataNormalQuality > 0 && IsConsolePlatform(Platform));
+
 			static FShaderPlatformCachedIniValue<int32> CVarDBufferPass(TEXT("r.Strata.DBufferPass"));
 			const int32 StrataDBufferPass = CVarDBufferPass.Get(Platform);
 			if (StrataDBufferPass>0)

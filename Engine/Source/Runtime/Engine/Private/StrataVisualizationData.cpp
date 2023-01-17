@@ -13,8 +13,17 @@ bool Engine_IsStrataEnabled();
 
 static bool Engine_IsStrataDBufferPassEnabled()
 {
+	static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat")); 
+	const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
+
+	// DBuffer pass is only available if high quality normal is disabled, or if we are on a console.
+	// That is because in high quality normals requires a uint2 UAV which is only supported on some graphic cards on PC 
+	// and this is an unknown when compiling shaders at this stage.
+	// !!! If this is changed, please update all sites reading r.Strata.DBufferPass !!!
+	const bool bDBufferPassSupported = StrataNormalQuality == 0;	// We do not have access to platform to check if we are on console here. Visualize is likely used on PC editor so we can only visualize DBuffer if NormalQuality is 0.
+
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.DBufferPass"));
-	return CVar && CVar->GetValueOnAnyThread() > 0;
+	return CVar && CVar->GetValueOnAnyThread() > 0 && bDBufferPassSupported;
 }
 
 static bool Engine_IsStrataRoughRefractionEnabled()
