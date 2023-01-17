@@ -22,6 +22,8 @@ FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClie
 
 	// Don't automatically switch to wireframe rendering in ortho mode
 	SetViewModes(EViewModeIndex::VMI_Lit, EViewModeIndex::VMI_Lit);
+
+	EngineShowFlags.SetSelectionOutline(true);
 }
 
 void FChaosClothEditorRestSpaceViewportClient::Set2DMode(bool In2DMode)
@@ -76,6 +78,9 @@ void FChaosClothEditorRestSpaceViewportClient::ProcessClick(FSceneView& View, HH
 	USelection* SelectedComponents = ModeTools->GetSelectedComponents();
 	SelectedComponents->Modify();
 	SelectedComponents->BeginBatchSelectOperation();
+
+	TArray<UDynamicMeshComponent*> PreviouslySelectedComponents;
+	SelectedComponents->GetSelectedObjects<UDynamicMeshComponent>(PreviouslySelectedComponents);
 	SelectedComponents->DeselectAll(UDynamicMeshComponent::StaticClass());
 
 	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
@@ -90,12 +95,18 @@ void FChaosClothEditorRestSpaceViewportClient::ProcessClick(FSceneView& View, HH
 				if (UDynamicMeshComponent* DynamicMeshComp = Cast<UDynamicMeshComponent>(Component))
 				{
 					SelectedComponents->Select(DynamicMeshComp);
+					DynamicMeshComp->PushSelectionToProxy();
 				}
 			}
 		}
 	}
 
 	SelectedComponents->EndBatchSelectOperation();
+
+	for (UDynamicMeshComponent* Component : PreviouslySelectedComponents)
+	{
+		Component->PushSelectionToProxy();
+	}
 
 }
 

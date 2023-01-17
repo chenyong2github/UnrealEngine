@@ -147,6 +147,8 @@ private:
 	// TODO: Expose this to the user
 	bool bCombineAllPatterns = false;
 
+	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
+
 	// Create dynamic mesh components from the cloth component's rest space info
 	void ReinitializeDynamicMeshComponents();
 

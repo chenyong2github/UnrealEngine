@@ -51,6 +51,7 @@
 #include "BoneWeights.h"
 #include "ToolSetupUtil.h"
 #include "Dataflow/DataflowComponent.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -254,6 +255,12 @@ void UChaosClothAssetEditorMode::Exit()
 	USelection::SelectionChangedEvent.Remove(SelectionModifiedEventHandle);
 	UActorComponent::MarkRenderStateDirtyEvent.RemoveAll(this);
 
+	for (TObjectPtr<UDynamicMeshComponent> DynamicMeshComp : DynamicMeshComponents)
+	{
+		DynamicMeshComp->UnregisterComponent();
+		DynamicMeshComp->SelectionOverrideDelegate.Unbind();
+	}
+
 	for (TObjectPtr<UMeshElementsVisualizer> WireframeDisplay : WireframesToTick)
 	{
 		WireframeDisplay->Disconnect();
@@ -363,6 +370,24 @@ void UChaosClothAssetEditorMode::CreateToolTargets(const TArray<TObjectPtr<UObje
 }
 
 
+bool UChaosClothAssetEditorMode::IsComponentSelected(const UPrimitiveComponent* InComponent)
+{
+	if (const FEditorModeTools* const ModeManager = GetModeManager())
+	{
+		if (const UTypedElementSelectionSet* const TypedElementSelectionSet = ModeManager->GetEditorSelectionSet())
+		{
+			if (const FTypedElementHandle ComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(InComponent))
+			{
+				const bool bElementSelected = TypedElementSelectionSet->IsElementSelected(ComponentElement, FTypedElementIsSelectedOptions());
+				return bElementSelected;
+			}
+		}
+	}
+
+	return false;
+}
+
+
 void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 {
 	// Clean up any existing DynamicMeshComponents
@@ -377,6 +402,7 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 		TObjectPtr<UDynamicMeshComponent> DynamicMeshComp = DynamicMeshComponents[DynamicMeshComponentIndex];
 		DynamicMeshComp->UnregisterComponent();
+		DynamicMeshComp->SelectionOverrideDelegate.Unbind();
 
 		if (SelectedComponents->IsSelected(DynamicMeshComp))
 		{
@@ -439,6 +465,8 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 				TObjectPtr<UDynamicMeshComponent> PatternMeshComponent = NewObject<UDynamicMeshComponent>(ParentActor);
 				PatternMeshComponent->SetMesh(MoveTemp(PatternMesh));
+
+				PatternMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
 
 				UMaterialInterface* Material = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
 				UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, GetToolManager());

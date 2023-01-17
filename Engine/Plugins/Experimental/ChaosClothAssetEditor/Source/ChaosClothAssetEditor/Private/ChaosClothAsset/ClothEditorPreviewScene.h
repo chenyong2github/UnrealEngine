@@ -13,6 +13,7 @@ class FChaosClothPreviewScene;
 class UPhysicsAsset;
 class UAnimSequence;
 class ASkeletalMeshActor;
+class FAssetEditorModeManager;
 
 ///
 /// The UChaosClothPreviewSceneDescription is a description of the Preview scene contents, intended to be editable in an FAdvancedPreviewSettingsWidget
@@ -72,13 +73,19 @@ public:
 	// Skeletal Mesh
 	TObjectPtr<ASkeletalMeshActor> SkeletalMeshActor;
 
+	void SetModeManager(TSharedPtr<FAssetEditorModeManager> InClothPreviewEditorModeManager);
+
 private:
 
 	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 
 	void CreateSkeletalMeshActor();
 
+	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
+
 	TObjectPtr<UChaosClothPreviewSceneDescription> PreviewSceneDescription;
+
+	TSharedPtr<FAssetEditorModeManager> ClothPreviewEditorModeManager;
 };
 
 

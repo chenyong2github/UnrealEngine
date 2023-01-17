@@ -15,6 +15,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
+#include "Animation/SkeletalMeshActor.h"
 
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, 
@@ -26,6 +27,8 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 
 	// Call this once with the default value to get everything in a consistent state
 	EnableRenderMeshWireframe(bRenderMeshWireframe);
+
+	EngineShowFlags.SetSelectionOutline(true);
 
 	// Set up Gizmo and TransformProxy
 
@@ -200,6 +203,10 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 	const bool bIsCtrlKeyDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 
 	USelection* SelectedComponents = ModeTools->GetSelectedComponents();
+
+	TArray<UPrimitiveComponent*> PreviouslySelectedComponents;
+	SelectedComponents->GetSelectedObjects<UPrimitiveComponent>(PreviouslySelectedComponents);
+
 	SelectedComponents->Modify();
 
 	if (!bIsShiftKeyDown && !bIsCtrlKeyDown)
@@ -240,8 +247,18 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 				{
 					SelectedComponents->Select(RootComponent);
 				}
+
+				if (UPrimitiveComponent* const PrimitiveComponent = Cast<UPrimitiveComponent>(RootComponent))
+				{
+					PrimitiveComponent->PushSelectionToProxy();
+				}
 			}
 		}
+	}
+
+	for (UPrimitiveComponent* const Component : PreviouslySelectedComponents)
+	{
+		Component->PushSelectionToProxy();
 	}
 
 	// Update TransformProxy

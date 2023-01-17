@@ -4,6 +4,8 @@
 #include "ChaosClothAsset/ClothComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/SkeletalMeshActor.h"
+#include "AssetEditorModeManager.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 
 #define LOCTEXT_NAMESPACE "UChaosClothEditorPreviewScene"
 
@@ -41,6 +43,7 @@ FChaosClothPreviewScene::~FChaosClothPreviewScene()
 		if (SkeletalMeshActor->GetSkeletalMeshComponent())
 		{
 			SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.RemoveAll(this);
+			SkeletalMeshActor->GetSkeletalMeshComponent()->SelectionOverrideDelegate.Unbind();
 		}
 
 		SkeletalMeshActor->UnregisterAllComponents();
@@ -48,6 +51,7 @@ FChaosClothPreviewScene::~FChaosClothPreviewScene()
 
 	if (ClothComponent)
 	{
+		ClothComponent->SelectionOverrideDelegate.Unbind();
 		ClothComponent->UnregisterComponent();
 	}
 }
@@ -81,6 +85,10 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyCh
 	}
 }
 
+void FChaosClothPreviewScene::SetModeManager(TSharedPtr<FAssetEditorModeManager> InClothPreviewEditorModeManager)
+{
+	ClothPreviewEditorModeManager = InClothPreviewEditorModeManager;
+}
 
 void FChaosClothPreviewScene::SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
@@ -96,6 +104,7 @@ void FChaosClothPreviewScene::CreateSkeletalMeshActor()
 		if (SkeletalMeshActor->GetSkeletalMeshComponent())
 		{
 			SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.RemoveAll(this);
+			SkeletalMeshActor->GetSkeletalMeshComponent()->SelectionOverrideDelegate.Unbind();
 		}
 
 		SkeletalMeshActor->UnregisterAllComponents();
@@ -112,11 +121,30 @@ void FChaosClothPreviewScene::CreateSkeletalMeshActor()
 	SkeletalMeshActor->RegisterAllComponents();
 
 	SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.AddRaw(this, &FChaosClothPreviewScene::SkeletalMeshTransformChanged);
+	SkeletalMeshActor->GetSkeletalMeshComponent()->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
 }
 
+bool FChaosClothPreviewScene::IsComponentSelected(const UPrimitiveComponent* InComponent)
+{
+	if (const UTypedElementSelectionSet* const TypedElementSelectionSet = ClothPreviewEditorModeManager->GetEditorSelectionSet())
+	{
+		if (const FTypedElementHandle ComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(InComponent))
+		{
+			const bool bElementSelected = TypedElementSelectionSet->IsElementSelected(ComponentElement, FTypedElementIsSelectedOptions());
+			return bElementSelected;
+		}
+	}
+
+	return false;
+}
 
 void FChaosClothPreviewScene::CreateClothActor(UChaosClothAsset* Asset)
 {
+	if (ClothComponent)
+	{
+		ClothComponent->SelectionOverrideDelegate.Unbind();
+	}
+
 	if (ClothActor)
 	{
 		ClothActor->UnregisterAllComponents();
@@ -128,6 +156,8 @@ void FChaosClothPreviewScene::CreateClothActor(UChaosClothAsset* Asset)
 
 	ClothComponent = NewObject<UChaosClothComponent>(ClothActor);
 	ClothComponent->SetClothAsset(Asset);
+
+	ClothComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
 
 	ClothActor->SetRootComponent(ClothComponent);
 	ClothActor->RegisterAllComponents();

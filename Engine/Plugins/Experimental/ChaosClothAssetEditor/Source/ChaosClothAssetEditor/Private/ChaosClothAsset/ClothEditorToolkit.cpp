@@ -171,6 +171,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 	ClothPreviewScene->SetFloorVisibility(false, true);
 	ClothPreviewEditorModeManager = MakeShared<FAssetEditorModeManager>();
 	ClothPreviewEditorModeManager->SetPreviewScene(ClothPreviewScene.Get());
+	ClothPreviewScene->SetModeManager(ClothPreviewEditorModeManager);
 
 	//ClothPreviewInputRouter = ClothPreviewEditorModeManager->GetInteractiveToolsContext()->InputRouter;
 	ClothPreviewTabContent = MakeShareable(new FEditorViewportTabContent());
