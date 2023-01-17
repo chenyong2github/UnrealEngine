@@ -7,7 +7,7 @@
 #include "IConcertEndpoint.h"
 #include "ConcertMessageData.h"
 #include "IConcertTransportLogger.h"
-
+#include "ConcertUtil.h"
 struct FConcertLog;
 struct FConcertMessageContext;
 
@@ -15,8 +15,6 @@ class FConcertLogger : public IConcertTransportLogger
 {
 public:
 
-	using FLogListener = TFunction<void(const FConcertLog&)>;
-	
 	/** Factory function for use with FConcertTransportLoggerFactory */
 	static IConcertTransportLoggerRef CreateLogger(const FConcertEndpointContext& InOwnerContext, FLogListener LogListenerFunc);
 

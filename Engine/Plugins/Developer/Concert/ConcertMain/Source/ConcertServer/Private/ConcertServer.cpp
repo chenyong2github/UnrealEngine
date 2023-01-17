@@ -3,8 +3,8 @@
 #include "ConcertServer.h"
 
 #include "ConcertUtil.h"
-#include "ConcertLogger.h"
-#include "ConcertSettings.h"
+#include "ConcertServerUtil.h"
+#include "ConcertServerSettings.h"
 #include "ConcertServerSession.h"
 #include "ConcertServerSessionRepositories.h"
 #include "ConcertLogGlobal.h"
@@ -191,7 +191,7 @@ void FConcertServer::Startup()
 		// Create the server administration endpoint
 		ServerAdminEndpoint = EndpointProvider->CreateLocalEndpoint(TEXT("Admin"), Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
 		{
-			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			return ConcertUtil::CreateLogger(Context, [this](const FConcertLog& Log)
 			{
 				ConcertTransportEvents::OnConcertServerLogEvent().Broadcast(*this, Log);
 			});
@@ -1556,7 +1556,7 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 	
 	TSharedPtr<IConcertLocalEndpoint> SessionEndpoint = EndpointProvider->CreateLocalEndpoint(LiveSessionInfo.SessionName, Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
 		{
-			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			return ConcertUtil::CreateLogger(Context, [this](const FConcertLog& Log)
 			{
 				ConcertTransportEvents::OnConcertServerLogEvent().Broadcast(*this, Log);
 			});

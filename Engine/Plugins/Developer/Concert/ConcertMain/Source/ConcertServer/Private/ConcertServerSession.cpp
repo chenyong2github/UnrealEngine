@@ -5,6 +5,7 @@
 #include "ConcertMessages.h"
 #include "IConcertEndpoint.h"
 #include "Scratchpad/ConcertScratchpad.h"
+#include "ConcertServerSettings.h"
 
 #include "Containers/Ticker.h"
 #include "Stats/Stats.h"

@@ -8,6 +8,7 @@
 #include "IConcertClient.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSyncClient.h"
+#include "ConcertClientSettings.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertLocalFileSharingService.h"
 

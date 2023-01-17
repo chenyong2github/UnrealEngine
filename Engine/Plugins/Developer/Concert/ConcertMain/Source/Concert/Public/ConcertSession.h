@@ -11,7 +11,7 @@
  * @note	This doesn't inherit from any session interface, but does implement some of their API with a "Common" prefix on the function names.
  *			Interface implementations can also inherit from this common impl and then call the "Common" functions from the interface overrides.
  */
-class FConcertSessionCommonImpl
+class CONCERT_API FConcertSessionCommonImpl
 {
 public:
 	explicit FConcertSessionCommonImpl(const FConcertSessionInfo& InSessionInfo);

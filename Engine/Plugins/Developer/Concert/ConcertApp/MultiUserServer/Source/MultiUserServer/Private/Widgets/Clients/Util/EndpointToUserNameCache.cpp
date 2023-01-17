@@ -5,6 +5,7 @@
 #include "ConcertMessages.h"
 #include "ConcertServerEvents.h"
 #include "ConcertUtil.h"
+#include "ConcertServerUtil.h"
 #include "IConcertServer.h"
 #include "IConcertSession.h"
 #include "INetworkMessagingExtension.h"

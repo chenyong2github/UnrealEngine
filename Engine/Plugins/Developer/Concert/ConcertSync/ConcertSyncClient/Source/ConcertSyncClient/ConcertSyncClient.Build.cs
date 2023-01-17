@@ -13,7 +13,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"Concert",
-					"ConcertSyncCore",
+					"ConcertClient",
+					"ConcertSyncCore"
 				}
 			);
 

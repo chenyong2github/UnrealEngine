@@ -7,6 +7,7 @@
 #include "ConcertFrontendUtils.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertSettings.h"
+#include "ConcertClientSettings.h"
 #include "IMultiUserClientModule.h"
 #include "IConcertClient.h"
 #include "IConcertClientWorkspace.h"

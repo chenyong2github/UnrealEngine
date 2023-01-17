@@ -3,6 +3,7 @@
 #include "IConcertSyncServerModule.h"
 #include "ConcertSyncServer.h"
 #include "ConcertSettings.h"
+#include "ConcertServerSettings.h"
 #include "Logging/LogVerbosity.h"
 #include "Misc/EngineVersion.h"
 #include "ConcertLogGlobal.h"

@@ -4,6 +4,7 @@
 
 #include "ConcertSyncServerLoop.h"
 #include "ConcertSettings.h"
+#include "ConcertServerSettings.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
 #include "IConcertSyncServerModule.h"

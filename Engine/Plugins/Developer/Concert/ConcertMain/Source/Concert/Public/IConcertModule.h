@@ -6,17 +6,6 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-class IConcertServer;
-class IConcertClient;
-class IConcertServerEventSink;
-
-struct FConcertSessionFilter;
-
-typedef TSharedPtr<IConcertServer, ESPMode::ThreadSafe> IConcertServerPtr;
-typedef TSharedRef<IConcertServer, ESPMode::ThreadSafe> IConcertServerRef;
-typedef TSharedPtr<IConcertClient, ESPMode::ThreadSafe> IConcertClientPtr;
-typedef TSharedRef<IConcertClient, ESPMode::ThreadSafe> IConcertClientRef;
-
 /**
  * Interface for the Main Concert module.
  */
@@ -45,20 +34,4 @@ public:
 		static const FName ModuleName = "Concert";
 		return FModuleManager::Get().IsModuleLoaded(ModuleName);
 	}
-
-	/**
-	 * Create a server that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)
-	 * @param InRole The role to create
-	 * @param InAutoArchiveSessionFilter The session filter to apply when auto-archiving sessions
-	 * @param InEventSink Sink functions for events that the server can emit
-	 * @return The server
-	 */
-	virtual IConcertServerRef CreateServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink) = 0;
-
-	/**
-	 * Create a client that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)
-	 * @param InRole The role to create
-	 * @return The client
-	 */
-	virtual IConcertClientRef CreateClient(const FString& InRole) = 0;
 };

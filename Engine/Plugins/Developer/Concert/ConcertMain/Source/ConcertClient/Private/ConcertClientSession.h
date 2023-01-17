@@ -6,6 +6,7 @@
 #include "ConcertSession.h"
 #include "ConcertMessages.h"
 #include "Containers/Ticker.h"
+#include "GameplayTags/Classes/GameplayTagContainer.h"
 
 class IConcertLocalEndpoint;
 struct FConcertClientSettings;
@@ -159,6 +160,9 @@ private:
 
 	/** */
 	void UpdateSessionClients(const TArray<FConcertSessionClientInfo>& InSessionClients);
+
+	/** Gets the default send receive state from the project settings. */
+	EConcertSendReceiveState GetDefaultSendReceiveState();
 
 	/** Information about this Client */
 	FConcertClientInfo ClientInfo;

@@ -101,6 +101,9 @@ private:
 	/** Generate the SWidget for the given item. */
 	TSharedRef<SWidget> GenerateSendReceiveComboItem(TSharedPtr<FSendReceiveComboItem> InItem);
 
+	/** Return the initially selected combo item. */
+	int32 GetInitialSendReceiveComboIndex();
+
 	/** Handle a send receiver state change from the combo box. */
 	void HandleSendReceiveChanged(TSharedPtr<FSendReceiveComboItem> Item, ESelectInfo::Type SelectInfo);
 

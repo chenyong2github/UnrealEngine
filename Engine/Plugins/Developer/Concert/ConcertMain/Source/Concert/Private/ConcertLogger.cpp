@@ -227,6 +227,7 @@ struct FActiveLoggers
 			UE_LOG(LogConcert, Log, TEXT("Usage: Concert.SetLoggingLevel VerbosityLevel"));
 			return;
 		}
+#if !NO_LOGGING
 		if ( Args[0] == TEXT("VeryVerbose") )
 		{
 			LogConcert.SetVerbosity(ELogVerbosity::VeryVerbose);
@@ -242,6 +243,7 @@ struct FActiveLoggers
 			LogConcert.SetVerbosity(ELogVerbosity::Log);
 			LogConcertDebug.SetVerbosity(ELogVerbosity::Log);
 		}
+#endif
 	}
 
 	/** Console command to turn on logger. */

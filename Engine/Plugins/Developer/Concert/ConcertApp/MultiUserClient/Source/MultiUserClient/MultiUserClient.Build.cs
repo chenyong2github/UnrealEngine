@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"ApplicationCore",
 					"Concert",
+					"ConcertClient",
 					"ConcertClientSharedSlate",
 					"ConcertSharedSlate",
 					"ConcertSyncClient",

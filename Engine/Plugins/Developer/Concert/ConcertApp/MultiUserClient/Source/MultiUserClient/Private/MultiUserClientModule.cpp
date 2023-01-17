@@ -5,6 +5,7 @@
 #include "IConcertSyncClientModule.h"
 #include "IConcertModule.h"
 #include "IConcertClient.h"
+#include "ConcertClientSettings.h"
 #include "IConcertSession.h"
 #include "IConcertSyncClient.h"
 #include "ConcertLogGlobal.h"

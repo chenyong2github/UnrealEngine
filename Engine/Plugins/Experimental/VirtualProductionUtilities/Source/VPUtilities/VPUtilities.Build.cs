@@ -32,6 +32,8 @@ public class VPUtilities : ModuleRules
 				"RHI",
 				"Slate",
 				"SlateCore",
+				"ConcertClient",
+				"VPRoles"
 			}
 		);
 

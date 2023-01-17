@@ -10,6 +10,7 @@
 #include "IConcertSession.h"
 #include "IConcertClientPresenceManager.h"
 #include "ConcertSettings.h"
+#include "ConcertClientSettings.h"
 #include "ConcertMessageData.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "IConcertClientWorkspace.h"

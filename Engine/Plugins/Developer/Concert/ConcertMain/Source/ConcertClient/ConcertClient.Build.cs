@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class Concert : ModuleRules
+	public class ConcertClient : ModuleRules
 	{
-		public Concert(ReadOnlyTargetRules Target) : base(Target)
+		public ConcertClient(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -12,7 +12,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",  // FH: Can we do without at some point?
 					"ConcertTransport",
-					"Serialization"
+					"Serialization",
+					"Concert"
 				}
 			);
 
@@ -20,6 +21,13 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"ConcertTransport"
+				}
+			);
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"GameplayTags",
+					"Engine"
 				}
 			);
 		}

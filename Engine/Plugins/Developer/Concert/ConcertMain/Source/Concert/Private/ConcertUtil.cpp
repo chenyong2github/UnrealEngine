@@ -5,8 +5,7 @@
 #include "HAL/FileManager.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertLogger.h"
-#include "ConcertServerSession.h"
-#include "IConcertServer.h"
+#include "IConcertSession.h"
 
 bool ConcertUtil::DeleteDirectoryTree(const TCHAR* InDirectoryToDelete, const TCHAR* InMoveToDirBeforeDelete)
 {
@@ -60,47 +59,7 @@ void ConcertUtil::SetVerboseLogging(bool bInState)
 	FConcertLogger::SetVerboseLogging(bInState);
 }
 
-TArray<FConcertSessionClientInfo> ConcertUtil::GetSessionClients(IConcertServer& Server, const FGuid& SessionId)
+IConcertTransportLoggerRef ConcertUtil::CreateLogger(const FConcertEndpointContext& InOwnerContext, FLogListener LogListenerFunc)
 {
-	TSharedPtr<IConcertServerSession> ServerSession = Server.GetLiveSession(SessionId);
-	if (ServerSession)
-	{
-		return ServerSession->GetSessionClients();
-	}
-	return TArray<FConcertSessionClientInfo>();
-}
-
-namespace ConcertUtil::Private
-{
-	static TOptional<TPair<FConcertSessionClientInfo, TSharedPtr<IConcertServerSession>>> FindByClient(IConcertServer& Server, const FGuid& ClientEndpointId)
-	{
-		for (const TSharedPtr<IConcertServerSession>& ServerSession : Server.GetLiveSessions())
-		{
-			for (const FConcertSessionClientInfo& ClientInfo : ServerSession->GetSessionClients())
-			{
-				if (ClientEndpointId == ClientInfo.ClientEndpointId)
-				{
-					return {{ ClientInfo, ServerSession }};
-				}
-			}
-		}
-
-		return {};
-	}
-}
-
-TOptional<FConcertSessionClientInfo> ConcertUtil::GetConnectedClientInfo(IConcertServer& Server, const FGuid& ClientEndpointId)
-{
-	const TOptional<TPair<FConcertSessionClientInfo, TSharedPtr<IConcertServerSession>>> Result = Private::FindByClient(Server, ClientEndpointId);
-	return Result
-		? Result->Key
-		: TOptional<FConcertSessionClientInfo>();
-}
-
-TSharedPtr<IConcertServerSession> ConcertUtil::GetLiveSessionClientConnectedTo(IConcertServer& Server, const FGuid& ClientEndpointId)
-{
-	const TOptional<TPair<FConcertSessionClientInfo, TSharedPtr<IConcertServerSession>>> Result = Private::FindByClient(Server, ClientEndpointId);
-	return Result
-		? Result->Value
-		: TSharedPtr<IConcertServerSession>();
+	return FConcertLogger::CreateLogger(InOwnerContext, MoveTemp(LogListenerFunc));
 }

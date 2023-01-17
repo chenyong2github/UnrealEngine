@@ -56,17 +56,5 @@ FText ValidateSessionName(const FString& Name)
 
 } // ConcertSettingsUtils
 
-
-UConcertServerConfig::UConcertServerConfig()
-	: bCleanWorkingDir(false)
-	, NumSessionsToKeep(-1)
-{
-	DefaultVersionInfo.Initialize(false /* bSupportMixedBuildTypes */);
-}
-
-UConcertClientConfig::UConcertClientConfig()
-{
-}
-
 #undef LOCTEXT_NAMESPACE
 

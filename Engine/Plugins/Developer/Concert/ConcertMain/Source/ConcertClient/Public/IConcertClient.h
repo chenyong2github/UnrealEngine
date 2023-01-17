@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Concert/Public/IConcertSession.h"
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 #include "IConcertSession.h"
@@ -12,10 +13,16 @@ class UConcertClientConfig;
 
 class IConcertClient;
 class IConcertClientConnectionTask;
+struct FGameplayTagContainer;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientSessionStartupOrShutdown, TSharedRef<IConcertClientSession>);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientSessionGetPreConnectionTasks, const IConcertClient&, TArray<TUniquePtr<IConcertClientConnectionTask>>&);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnConcertEvaluateHasRole, const FGameplayTagContainer&);
 
+namespace UE::ConcertClient
+{
+CONCERTCLIENT_API FOnConcertEvaluateHasRole& VPRoleEvaluator();
+}
 /**
  * Enum to indicate if any action were taken for the connection task
  */

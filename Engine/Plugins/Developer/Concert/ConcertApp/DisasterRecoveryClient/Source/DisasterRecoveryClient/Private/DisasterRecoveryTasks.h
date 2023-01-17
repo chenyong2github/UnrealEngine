@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IConcertModule.h"
+#include "IConcertClientModule.h"
 #include "Containers/Ticker.h"
 #include "Misc/Guid.h"
 

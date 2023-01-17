@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IConcertModule.h"
+#include "IConcertServerModule.h"
 #include "ConcertSyncSessionFlags.h"
 #include "Templates/NonNullPointer.h"
 

@@ -4,6 +4,7 @@
 #include "IConcertClient.h"
 #include "ConcertSyncClient.h"
 #include "ConcertSettings.h"
+#include "ConcertClientSettings.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertClientPackageBridge.h"
 #include "ConcertClientTransactionBridge.h"

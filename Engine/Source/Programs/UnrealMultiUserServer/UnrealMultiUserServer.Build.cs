@@ -12,6 +12,7 @@ public class UnrealMultiUserServer : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Concert",
+				"ConcertServer",
 				"TraceInsights",
 				"ApplicationCore",					// for LaunchEngineLoop.cpp dependency
 				"Projects",							// for LaunchEngineLoop.cpp dependency

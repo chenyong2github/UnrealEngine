@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientSession.h"
+#include "ConcertClientSettings.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertMessages.h"
+#include "IConcertClient.h"
 #include "IConcertEndpoint.h"
+
 #include "Scratchpad/ConcertScratchpad.h"
 
 #include "Containers/Ticker.h"
@@ -22,6 +25,7 @@ FConcertClientSession::FConcertClientSession(const FConcertSessionInfo& InSessio
 	, SessionTickFrequency(0, 0, InSettings.SessionTickFrequencySeconds)
 	, SessionDirectory(InSessionDirectory)
 {
+	SendReceiveState = GetDefaultSendReceiveState();
 }
 
 FConcertClientSession::~FConcertClientSession()
@@ -118,6 +122,30 @@ void FConcertClientSession::Disconnect()
 
 		UE_LOG(LogConcert, Display, TEXT("Disconnected from Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
 	}
+}
+
+EConcertSendReceiveState FConcertClientSession::GetDefaultSendReceiveState()
+{
+	FOnConcertEvaluateHasRole& OnEvaluateRole = UE::ConcertClient::VPRoleEvaluator();
+	if (!OnEvaluateRole.IsBound())
+	{
+		return EConcertSendReceiveState::Default;
+	}
+
+	const UConcertClientConfig* ClientConfig = GetDefault<UConcertClientConfig>();
+	const bool bIsReadOnly = OnEvaluateRole.Execute(ClientConfig->ReadOnlyAssignment);
+	const bool bIsSendOnly = OnEvaluateRole.Execute(ClientConfig->SendOnlyAssignment);
+
+
+	if (bIsSendOnly && !bIsReadOnly)
+	{
+		return EConcertSendReceiveState::SendOnly;
+	}
+	if (bIsReadOnly && !bIsSendOnly)
+	{
+		return EConcertSendReceiveState::ReceiveOnly;
+	}
+	return EConcertSendReceiveState::Default;
 }
 
 EConcertSendReceiveState FConcertClientSession::GetSendReceiveState() const

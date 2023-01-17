@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "ConcertMessageData.h"
-#include "IConcertClient.h"
 #include "ConcertTransportEvents.generated.h"
 
 class IConcertClient;

@@ -6,6 +6,7 @@
 #include "DisasterRecoverySessionInfo.h"
 #include "IDisasterRecoveryClientModule.h"
 #include "ConcertActivityStream.h"
+#include "ConcertClientSettings.h"
 #include "DisasterRecoverySettings.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 

@@ -13,6 +13,7 @@
 #include "IConcertSyncClient.h"
 #include "IConcertSession.h"
 #include "ConcertSettings.h"
+#include "ConcertClientSettings.h"
 
 #include "ConcertClientWorkspace.h"
 

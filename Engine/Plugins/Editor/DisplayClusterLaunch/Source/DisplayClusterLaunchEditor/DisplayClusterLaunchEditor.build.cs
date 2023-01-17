@@ -24,6 +24,7 @@ public class DisplayClusterLaunchEditor : ModuleRules
 				"AssetRegistry",
 				"AssetTools",
 				"Concert",
+				"ConcertClient",
 				"ConcertTransport",
 				"CoreUObject",
 				"ConcertSyncClient",

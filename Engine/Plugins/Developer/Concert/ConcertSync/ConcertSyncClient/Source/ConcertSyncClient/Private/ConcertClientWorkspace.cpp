@@ -16,6 +16,7 @@
 #include "ConcertSyncClientLiveSession.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "ConcertSyncSettings.h"
+#include "ConcertClientSettings.h"
 #include "ConcertSyncClientUtil.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertWorkspaceData.h"

@@ -5,6 +5,7 @@
 #include "IConcertModule.h"
 #include "IConcertClient.h"
 #include "IConcertSession.h"
+#include "ConcertClientSettings.h"
 #include "ConcertSyncClientLiveSession.h"
 #include "ConcertClientWorkspace.h"
 #include "ConcertClientSequencerManager.h"
@@ -15,7 +16,7 @@ LLM_DECLARE_TAG(Concert_ConcertSyncClient);
 #define LOCTEXT_NAMESPACE "ConcertSyncClient"
 
 FConcertSyncClient::FConcertSyncClient(const FString& InRole, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge)
-	: ConcertClient(IConcertModule::Get().CreateClient(InRole))
+	: ConcertClient(IConcertClientModule::Get().CreateClient(InRole))
 	, SessionFlags(EConcertSyncSessionFlags::None)
 	, PackageBridge(InPackageBridge)
 	, TransactionBridge(InTransactionBridge)

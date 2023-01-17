@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Concert",
+					"ConcertServer",
 					"ConcertSharedSlate",
 					"ConcertSyncCore",
 					"ConcertTransport",

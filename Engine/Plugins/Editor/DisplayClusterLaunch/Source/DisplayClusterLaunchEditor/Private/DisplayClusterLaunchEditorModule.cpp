@@ -12,6 +12,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "ConcertSettings.h"
+#include "ConcertClientSettings.h"
 #include "IConcertClient.h"
 #include "IConcertSyncClient.h"
 #include "IConcertSyncClientModule.h"

@@ -5,6 +5,7 @@
 #include "IConcertClientWorkspace.h"
 #include "IConcertClient.h"
 #include "IConcertModule.h"
+#include "IConcertClientModule.h"
 
 #define LOCTEXT_NAMESPACE "ConcertActivityStream"
 

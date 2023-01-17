@@ -5,10 +5,9 @@
 #include "ConcertClientSession.h"
 #include "ConcertMessages.h"
 #include "ConcertUtil.h"
-#include "ConcertLogger.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertTransportEvents.h"
-
+#include "ConcertClientSettings.h"
 #include "Algo/Transform.h"
 
 #include "Containers/Ticker.h"
@@ -720,7 +719,7 @@ void FConcertClient::Startup()
 		// Create the client administration endpoint
 		ClientAdminEndpoint = EndpointProvider->CreateLocalEndpoint(TEXT("Admin"), Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
 		{
-			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			return ConcertUtil::CreateLogger(Context, [this](const FConcertLog& Log)
 			{
 				ConcertTransportEvents::OnConcertClientLogEvent().Broadcast(*this, Log);
 			});
@@ -1082,7 +1081,7 @@ EConcertSendReceiveState FConcertClient::GetSendReceiveState() const
 {
 	if (ClientSession.IsValid())
 	{
-		ClientSession->GetSendReceiveState();
+		return ClientSession->GetSendReceiveState();
 	}
 	return EConcertSendReceiveState::Default;
 }
@@ -1409,7 +1408,7 @@ TFuture<EConcertResponseCode> FConcertClient::CreateClientSession(const FConcert
 		Settings->ClientSettings, 
 		EndpointProvider->CreateLocalEndpoint(SessionInfo.SessionName, Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
 		{
-			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			return ConcertUtil::CreateLogger(Context, [this](const FConcertLog& Log)
 			{
 				ConcertTransportEvents::OnConcertClientLogEvent().Broadcast(*this, Log);
 			});
@@ -1424,6 +1423,7 @@ TFuture<EConcertResponseCode> FConcertClient::CreateClientSession(const FConcert
 	// Promise the caller to tell it once the client connection state is known (connected or not).
 	check(!ConnectionPromise.IsValid()); // InternalDisconnect() triggers a disconnnect and this will release of the promise.
 	ConnectionPromise = MakeUnique<TPromise<EConcertResponseCode>>();
+	
 	return ConnectionPromise->GetFuture();
 }
 
@@ -1447,6 +1447,15 @@ void FConcertClient::HandleSessionConnectionChanged(IConcertClientSession& InSes
 	}
 
 	OnSessionConnectionChangedDelegate.Broadcast(InSession, Status);
+}
+
+namespace UE::ConcertClient
+{
+FOnConcertEvaluateHasRole& VPRoleEvaluator()
+{
+	static FOnConcertEvaluateHasRole RoleEvaluator;
+	return RoleEvaluator;
+}
 }
 
 #undef LOCTEXT_NAMESPACE

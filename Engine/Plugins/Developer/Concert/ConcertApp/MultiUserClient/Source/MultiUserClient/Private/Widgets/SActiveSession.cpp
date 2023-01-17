@@ -333,6 +333,27 @@ private:
 	TWeakPtr<FConcertSessionClientInfo> SessionClientInfo;
 };
 
+int32 SActiveSession::GetInitialSendReceiveComboIndex()
+{
+	if (!WeakSessionPtr.IsValid())
+	{
+		return 0;
+	}
+
+	TSharedPtr<IConcertClientSession> Session = WeakSessionPtr.Pin();
+	switch(Session->GetSendReceiveState())
+	{
+	case EConcertSendReceiveState::Default:
+		return 0;
+	case EConcertSendReceiveState::SendOnly:
+		return 1;
+	case EConcertSendReceiveState::ReceiveOnly:
+		return 2;
+	}
+
+	return 0;
+}
+
 TArray< TSharedPtr< SActiveSession::FSendReceiveComboItem > > ConstructSendReceiveComboList()
 {
 	TArray< TSharedPtr< SActiveSession::FSendReceiveComboItem > > ComboList;
@@ -377,8 +398,9 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 	}
 
 	SendReceiveComboList = ConstructSendReceiveComboList();
+	int32 InitialIndex = GetInitialSendReceiveComboIndex();
 
-	TSharedRef<SHorizontalBox> StatusBar = 
+	TSharedRef<SHorizontalBox> StatusBar =
 		SNew(SHorizontalBox)
 
 		// Status Icon
@@ -418,7 +440,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 			[
 				SAssignNew(SendReceiveComboBox, SComboBox< TSharedPtr<FSendReceiveComboItem> >)
 				.OptionsSource(&SendReceiveComboList)
-				.InitiallySelectedItem(SendReceiveComboList[0])
+				.InitiallySelectedItem(SendReceiveComboList[InitialIndex])
 				.ContentPadding(FMargin(4.0f,1.0f))
 				.OnGenerateWidget(this, &SActiveSession::GenerateSendReceiveComboItem)
 				.OnSelectionChanged(this, &SActiveSession::HandleSendReceiveChanged)

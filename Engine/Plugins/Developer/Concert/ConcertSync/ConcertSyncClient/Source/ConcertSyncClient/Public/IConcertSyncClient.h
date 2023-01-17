@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IConcertClientTransactionBridge.h"
 #include "IConcertModule.h"
+#include "IConcertClientModule.h"
 #include "ConcertActionDefinition.h"
 #include "ConcertSyncSessionFlags.h"
 

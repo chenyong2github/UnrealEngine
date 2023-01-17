@@ -24,6 +24,18 @@
 			"ProgramAllowList": [ "UnrealMultiUserServer", "UnrealMultiUserSlateServer", "UnrealRecoverySvc", "CrashReportClientEditor" ]
 		},
 		{
+			"Name": "ConcertClient",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault",
+			"ProgramDenyList": [ "UnrealMultiUserServer", "UnrealMultiUserSlateServer", "UnrealRecoverySvc", "CrashReportClientEditor" ]
+		},
+		{
+			"Name": "ConcertServer",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault",
+			"ProgramAllowList": [ "UnrealMultiUserServer", "UnrealMultiUserSlateServer", "UnrealRecoverySvc", "CrashReportClientEditor" ]
+		},
+		{
 			"Name": "ConcertTransport",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault",
