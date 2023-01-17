@@ -207,11 +207,6 @@ FText SKeySelector::GetKeyDescription() const
 
 FText SKeySelector::GetKeyDescriptionToolTip() const
 {
-	if(!bEnabledFromKeyStructCustomization)
-    {
-    	return LOCTEXT("KeySelectorDisabledToolTipText", "This Key cannot be part of the combo trigger so Key selection has been disabled.");
-    }
-    
 	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();
 	if (CurrentKeyValue.IsSet())
 	{
@@ -239,7 +234,7 @@ FText SKeySelector::GetKeyTooltip() const
 {
 	if(!bEnabledFromKeyStructCustomization)
 	{
-		return LOCTEXT("KeySelectorDisabledToolTipText", "This Key cannot be part of the combo trigger so Key selection has been disabled.");
+		return DisabledSelectorToolTip;
 	}
 	
 	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();

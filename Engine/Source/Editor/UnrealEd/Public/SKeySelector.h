@@ -87,6 +87,18 @@ public:
 		return bEnabledFromKeyStructCustomization;
 	}
 	
+	/** Sets tooltip on the KeySelector when it is disabled */
+	void SetDisabledKeySelectorToolTip(const FText& InToolTip)
+	{
+		DisabledSelectorToolTip = InToolTip;
+	}
+	
+	/** Gets tooltip on the KeySelector when it is disabled */
+	FText GetDisabledKeySelectorToolTip() const
+	{
+		return DisabledSelectorToolTip;
+	}
+	
 protected:
 	/** Gets the icon for the key being manipulated */
 	const FSlateBrush* GetKeyIconImage() const;
@@ -99,6 +111,9 @@ protected:
 	FText GetKeyDescriptionToolTip() const;
 	/** Gets a tooltip for the selected key */
 	FText GetKeyTooltip() const;
+	
+	/** Tooltip to display on the selector when the selector is disabled*/
+	FText DisabledSelectorToolTip = FText::FromString(TEXT("Key Selector Disabled"));
 
 	/** Treeview support functions */
 	virtual TSharedRef<ITableRow> GenerateKeyTreeRow(FKeyTreeItem InItem, const TSharedRef<STableViewBase>& OwnerTree);

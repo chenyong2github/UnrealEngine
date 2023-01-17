@@ -68,7 +68,7 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 		static const UEnum* EventEnum = StaticEnum<ETriggerEvent>();
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
-		NewPin->PinToolTip = EventEnum->GetToolTipTextByIndex((int32)Event).ToString();
+		NewPin->PinToolTip = EventEnum->GetToolTipTextByIndex(EventEnum->GetIndexByValue(static_cast<uint8>(Event))).ToString();
 
 		// Add a special tooltip and display name for pins that are unsupported
 		if (UE::Input::bShouldWarnOnUnsupportedInputPin && !UInputTrigger::IsSupportedTriggerEvent(SupportedTriggerEvents, Event))

@@ -28,29 +28,30 @@ enum class ETriggerState : uint8
 /**
 * Trigger events are the Action's interpretation of all Trigger State transitions that occurred for the action in the last tick
 */
-UENUM(BlueprintType)
+UENUM(BlueprintType, meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class ETriggerEvent : uint8
 {
 	// No significant trigger state changes occurred and there are no active device inputs
-	None = 0				UMETA(Hidden),
+	None		= (0x0)		UMETA(Hidden),
 
 	// Triggering occurred after one or more processing ticks
-	Triggered,				// ETriggerState (None -> Triggered, Ongoing -> Triggered, Triggered -> Triggered)
+	Triggered	= (1 << 0),	// ETriggerState (None -> Triggered, Ongoing -> Triggered, Triggered -> Triggered)
 	
 	// An event has occurred that has begun Trigger evaluation. Note: Triggered may also occur this frame.
-	Started,				// ETriggerState (None -> Ongoing, None -> Triggered)
+	Started		= (1 << 1),	// ETriggerState (None -> Ongoing, None -> Triggered)
 
 	// Triggering is still being processed
-	Ongoing,				// ETriggerState (Ongoing -> Ongoing)
+	Ongoing		= (1 << 2),	// ETriggerState (Ongoing -> Ongoing)
 
 	// Triggering has been canceled
-	Canceled,				// ETriggerState (Ongoing -> None)
+	Canceled	= (1 << 3),	// ETriggerState (Ongoing -> None)
 
 	// The trigger state has transitioned from Triggered to None this frame, i.e. Triggering has finished.
 	// NOTE: Using this event restricts you to one set of triggers for Started/Completed events. You may prefer two actions, each with its own trigger rules.
 	// TODO: Completed will not fire if any trigger reports Ongoing on the same frame, but both should fire. e.g. Tick 2 of Hold (= Ongoing) + Pressed (= None) combo will raise Ongoing event only.
-	Completed,				// ETriggerState (Triggered -> None)
+	Completed	= (1 << 4),	// ETriggerState (Triggered -> None)
 };
+ENUM_CLASS_FLAGS(ETriggerEvent)
 
 /**
 * Trigger type determine how the trigger contributes to an action's overall trigger event the behavior of the trigger
@@ -417,20 +418,43 @@ struct FInputComboStepData
 {
 	GENERATED_BODY()
 
-	// The action that must be triggering to progress the combo
+	// The action that must be completed (according to Combo Step Completion States) to progress the combo
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
 	TObjectPtr<const UInputAction> ComboStepAction = nullptr;
 
-	// Time to press the key and for it to count towards the combo
+	// Trigger events that will complete this step - what events from this action should progress the combo
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", config, meta = (Bitmask, BitmaskEnum="/Script/EnhancedInput.ETriggerEvent"))
+	uint8 ComboStepCompletionStates = static_cast<uint8>(ETriggerEvent::Triggered);
+	
+	/**
+	 * Time to press the key before combo is cancelled - starts once the previous step in the combo is completed
+	 * Note: This can be safely ignored for the first action in the combo
+	 */
 	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
 	float TimeToPressKey = 0.5f;
 };
 
+USTRUCT(BlueprintType)
+struct FInputCancelAction
+{
+	GENERATED_BODY()
+
+	// The action that must be completed (according to Cancellation States) to cancel the combo
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
+	TObjectPtr<const UInputAction> CancelAction = nullptr;
+
+	// Trigger events for this action that will cancel the combo - what events from this action should cancel the combo
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", config, meta = (Bitmask, BitmaskEnum="/Script/EnhancedInput.ETriggerEvent"))
+	uint8 CancellationStates = static_cast<uint8>(ETriggerEvent::Triggered);
+};
+
 /**
  * UInputTriggerCombo
- * All actions in the combo array must be pressed within a timeframe to trigger
-*/
-UCLASS(NotBlueprintable, meta = (DisplayName = "Combo", NotInputConfigurable = "true"))
+ * All actions in the combo array must be completed (based on combo completion event specified - triggered, completed, etc.) to trigger the action this trigger is on.
+ * Actions must also be completed in the order specified by the combo actions array (starting at index 0).
+ * Note: This will only trigger for one frame before resetting the combo trigger's progress 
+ */
+UCLASS(NotBlueprintable, meta = (DisplayName = "Combo (Beta)", NotInputConfigurable = "true"))
 class ENHANCEDINPUT_API UInputTriggerCombo : public UInputTrigger
 {
 	GENERATED_BODY()
@@ -456,17 +480,25 @@ public:
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 #endif
+
+#if  WITH_EDITORONLY_DATA
+	// Actions that will cancel the combo if they are triggered.
+	UE_DEPRECATED(5.2, "CancelActions has been deprecated as of 5.2. Please use InputCancelActions instead.")
+	TArray<TObjectPtr<const UInputAction>> CancelActions;
+#endif
+
+	virtual void PostLoad() override;
 	
 	/**
-	 * List of input actions that need to be completed to trigger this action.
-	 * Input actions must be triggered in order (starting at index 0) to count towards the completion of the combo.
+	 * List of input actions that need to be completed (according to Combo Step Completion States) to trigger this action.
+	 * Input actions must be triggered in order (starting at index 0) to count towards the triggering of the combo.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false", TitleProperty = "ComboStepAction"))
 	TArray<FInputComboStepData> ComboActions;
 
-	// Actions that will cancel the combo if they are triggered
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
-    TArray<TObjectPtr<const UInputAction>> CancelActions;
+	// Actions that will cancel the combo if they are completed (according to Cancellation States)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false", DisplayName = "Cancel Actions"))
+	TArray<FInputCancelAction> InputCancelActions;
 
 	/** Determines what kind of trigger events can happen from the behavior of this trigger. */
 	virtual ETriggerEventsSupported GetSupportedTriggerEvents() const override { return ETriggerEventsSupported::All; }

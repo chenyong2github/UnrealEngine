@@ -65,7 +65,7 @@ void FEnhancedActionMappingCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	TSharedPtr<IPropertyHandle> TriggersHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Triggers));
 
 	TriggersHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FEnhancedActionMappingCustomization::OnTriggersChanged));
-
+	TriggersHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FEnhancedActionMappingCustomization::OnTriggersChanged));
 	TSharedRef<SWidget> RemoveButton = PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateSP(this, &FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick),
 		LOCTEXT("RemoveMappingToolTip", "Remove Mapping"));
 
@@ -74,10 +74,11 @@ void FEnhancedActionMappingCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 
 	// TODO: Use FDetailArrayBuilder?
 
+	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
 	// Pass our header row into the key struct customizeheader method so it populates our row with the key struct header
 	KeyStructCustomization = StaticCastSharedPtr<FKeyStructCustomization>(KeyStructInstance);
-	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
-	KeyStructCustomization->SetDisplayIcon(bContainsComboTrigger);
+	KeyStructCustomization->SetDefaultKeyName("ComboKey");
+	KeyStructCustomization->SetDisabledKeySelectorToolTip(LOCTEXT("DisabledSelectorComboToolTip", "A Combo Trigger isn't triggered through a key so Key Selection has been disabled."));
 	KeyStructCustomization->SetEnableKeySelector(!bContainsComboTrigger);
 	KeyStructCustomization->CustomizeHeaderOnlyWithButton(KeyHandle.ToSharedRef(), HeaderRow, CustomizationUtils, RemoveButton);
 }
@@ -167,8 +168,17 @@ void FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick() const
 void FEnhancedActionMappingCustomization::OnTriggersChanged() const
 {
 	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
-	KeyStructCustomization->SetDisplayIcon(bContainsComboTrigger);
+	
+	// if it is currently disabled and doesn't contain a combo now we should set the key to something other than ComboKey
+	if (!KeyStructCustomization->GetEnableKeySelector() && !bContainsComboTrigger)
+	{
+		// setting KeySelector to none key
+		KeyStructCustomization->SetKey(TEXT("None"));
+	}
+	
     KeyStructCustomization->SetEnableKeySelector(!bContainsComboTrigger);
+	// updating the default key when the KeySelector is disabled
+	KeyStructCustomization->SetDefaultKeyName(bContainsComboTrigger ? TEXT("ComboKey") : TEXT("None"));
 }
 
 void FEnhancedActionMappingCustomization::OnInputActionTriggersChanged() const
@@ -213,29 +223,24 @@ void FEnhancedActionMappingCustomization::OnInputActionModifiersChanged() const
 
 bool FEnhancedActionMappingCustomization::DoesTriggerArrayContainCombo() const
 {
-	if (MappingPropertyHandle)
+	if (const FEnhancedActionKeyMapping* ActionKeyMapping = GetActionKeyMapping(MappingPropertyHandle))
 	{
-		if (TSharedPtr<IPropertyHandle> TriggersHandle = MappingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Triggers)))
+		// checking context triggers for combo triggers
+		for (TObjectPtr<UInputTrigger> Trigger : ActionKeyMapping->Triggers)
 		{
-			// getting data for the trigger array
-			void* Data = nullptr;
-			TriggersHandle->GetValueData(Data);
-			if (Data)
+			if (Trigger.IsA(UInputTriggerCombo::StaticClass()))
 			{
-				FProperty* TriggersProperty = TriggersHandle->GetProperty();
-				FArrayProperty* TriggersArrayProperty = CastField<FArrayProperty>(TriggersProperty);
-				FScriptArrayHelper ArrayHelper(TriggersArrayProperty, Data);
-	
-				for (int32 i = 0; i < ArrayHelper.Num(); i++)
+				return true;
+			}
+		}
+		// checking input action triggers for combo triggers
+		if (ActionKeyMapping->Action)
+		{
+			for (TObjectPtr<UInputTrigger> Trigger : ActionKeyMapping->Action->Triggers)
+			{
+				if (Trigger.IsA(UInputTriggerCombo::StaticClass()))
 				{
-					// Make sure we can cast this to a input trigger and if it's a combo we can return true
-					if (UInputTrigger** InputComboTrigger = reinterpret_cast<UInputTrigger**>(ArrayHelper.GetRawPtr(i)))
-					{
-						if ((*InputComboTrigger) && (*InputComboTrigger)->IsA(UInputTriggerCombo::StaticClass()))
-						{
-							return true;
-						}
-					}
+					return true;
 				}
 			}
 		}

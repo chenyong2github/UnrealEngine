@@ -35,6 +35,11 @@ void FKeyStructCustomization::SetEnableKeySelector(bool bKeySelectorEnabled)
 	}
 }
 
+void FKeyStructCustomization::SetKey(const FString& KeyName)
+{
+	PropertyHandle->SetValueFromFormattedString(KeyName);
+}
+
 TSharedRef<IPropertyTypeCustomization> FKeyStructCustomization::MakeInstance( )
 {
 	return MakeShareable(new FKeyStructCustomization);
@@ -81,6 +86,7 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 	    });
 	
 	KeySelector->SetEnabledFromKeyStructCustomization(bEnableKeySelector);
+	KeySelector->SetDisabledKeySelectorToolTip(DisabledKeySelectorToolTip);
 	
 	// create struct header
 	HeaderRow.NameContent()
@@ -102,20 +108,6 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 		[
 			Button
 		]
-		+ SHorizontalBox::Slot()
-		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(SImage)
-			.Visibility_Lambda([this]() {
-				return bDisplayIcon ? EVisibility::Visible : EVisibility::Hidden;
-			})
-			.Image(FAppStyle::GetBrush("Icons.Info"))
-			.ToolTipText(LOCTEXT("ComboTriggerKeyWarningText", "This Key is NOT part of the Combo. This action will be triggered when the actions in the Combo Actions array are completed."))
-			.ColorAndOpacity(FSlateColor::UseForeground())
-        ]
 	];
 }
 
@@ -123,7 +115,7 @@ TOptional<FKey> FKeyStructCustomization::GetCurrentKey() const
 {
 	if (!bEnableKeySelector)
 	{
-		PropertyHandle->SetValueFromFormattedString(TEXT("None"));
+		PropertyHandle->SetValueFromFormattedString(DefaultKeyName);
 	}
 	
 	TArray<void*> StructPtrs;
