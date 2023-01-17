@@ -872,6 +872,18 @@ void FVulkanTexture::SetInitialImageState(FVulkanCommandListContext& Context, Vk
 	CmdBuffer->GetLayoutManager().SetFullLayout(*this, InitialLayout);
 }
 
+void FVulkanTexture::CopyBindlessHandle(FVulkanCommandListContext& Context, FRHIDescriptorHandle DestHandle)
+{
+	FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetActiveCmdBuffer();
+
+	// Copy the our descriptor in the old texture's slot
+	checkSlow(DefaultBindlessHandle.IsValid());
+	checkSlow(DestHandle.IsValid());
+	Device->GetBindlessDescriptorManager()->CopyDescriptor(CmdBuffer->GetHandle(), DestHandle, DefaultBindlessHandle);
+}
+
+
+
 /*-----------------------------------------------------------------------------
 	Texture allocator support.
 -----------------------------------------------------------------------------*/
@@ -908,6 +920,21 @@ uint32 FVulkanDynamicRHI::RHIComputeMemorySize(FRHITexture* TextureRHI)
 	}
 
 	return FVulkanTexture::Cast(TextureRHI)->GetMemorySize();
+}
+
+void FVulkanDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
+{
+	if (Device->SupportsBindless())
+	{
+		if (TextureRef->GetReferencedTexture() && NewTexture)
+		{
+			// Continue using the old slot for the new texture, this way indexes stored in buffers are still valid
+			FVulkanTexture* NextTexture = ResourceCast(NewTexture);
+			NextTexture->CopyBindlessHandle(Device->GetImmediateContext(), TextureRef->GetDefaultBindlessHandle());
+		}
+	}
+
+	FDynamicRHI::RHIUpdateTextureReference(TextureRef, NewTexture);
 }
 
 /*-----------------------------------------------------------------------------

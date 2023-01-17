@@ -419,6 +419,8 @@ public:
 		return DefaultBindlessHandle;
 	}
 
+	void CopyBindlessHandle(FVulkanCommandListContext& Context, FRHIDescriptorHandle DestHandle);
+
 	inline static FVulkanTexture* Cast(FRHITexture* Texture)
 	{
 		check(Texture);
