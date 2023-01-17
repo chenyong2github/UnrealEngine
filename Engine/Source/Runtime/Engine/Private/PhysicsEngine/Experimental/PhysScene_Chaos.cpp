@@ -1769,16 +1769,24 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 		auto GeometryCollectionLambda = [this](FGeometryCollectionPhysicsProxy* Proxy)
 		{
-			// Use don't pass in anything here so we don't end up locking anything because we can assume the scene is already locked.
+			// Don't pass in anything here so we don't end up locking anything because we can assume the scene is already locked.
 			FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite({});
-			TArray<Chaos::FPhysicsObjectHandle> Handles = Proxy->GetAllPhysicsObjects().FilterByPredicate(
+
+			TArray<Chaos::FPhysicsObjectHandle> ActiveHandles = Proxy->GetAllPhysicsObjects().FilterByPredicate(
 				[&Interface](Chaos::FPhysicsObjectHandle Handle)
 				{
 					return !Interface->AreAllDisabled({ &Handle, 1 });
 				}
 			);
 
-			Interface->AddToSpatialAcceleration(Handles, GetSpacialAcceleration());
+			TArray<Chaos::FPhysicsObjectHandle> DisabledHandles = Proxy->GetAllPhysicsObjects().FilterByPredicate(
+				[&Interface](Chaos::FPhysicsObjectHandle Handle)
+				{
+					return Interface->AreAllDisabled({ &Handle, 1 });
+				}
+			);
+			Interface->AddToSpatialAcceleration(ActiveHandles, GetSpacialAcceleration());
+			Interface->RemoveFromSpatialAcceleration(DisabledHandles, GetSpacialAcceleration());
 		};
 
 		Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda, GeometryCollectionLambda);

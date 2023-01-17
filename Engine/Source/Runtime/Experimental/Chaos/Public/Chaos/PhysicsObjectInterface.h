@@ -115,6 +115,21 @@ namespace Chaos
 			}
 		}
 
+		template<typename TPayloadType, typename T, int d>
+		void RemoveFromSpatialAcceleration(TArrayView<FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
+		{
+			if (!SpatialAcceleration)
+			{
+				return;
+			}
+
+			for (FPhysicsObjectHandle Handle : InObjects)
+			{
+				FAccelerationStructureHandle AccelerationHandle = this->CreateAccelerationStructureHandle(Handle);
+				SpatialAcceleration->RemoveElementFrom(AccelerationHandle, this->GetSpatialIndex(Handle));
+			}
+		}
+
 		friend class FPhysicsObjectInterface;
 	protected:
 		FWritePhysicsObjectInterface() = default;
