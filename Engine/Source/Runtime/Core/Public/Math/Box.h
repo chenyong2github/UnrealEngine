@@ -56,7 +56,12 @@ public:
 	{
 	}
 
-	// double box taking float params
+	/**
+	 * Creates and initializes a new box from the specified extents.
+	 *
+	 * @param InMin The box's minimum point.
+	 * @param InMax The box's maximum point.
+	 */
 	template<typename FArg>
 	TBox(const TVector<FArg>& InMin, const TVector<FArg>& InMax)
 		: Min(InMin)
