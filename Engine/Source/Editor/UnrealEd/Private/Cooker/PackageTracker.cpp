@@ -123,11 +123,11 @@ void FPackageTracker::NotifyUObjectCreated(const class UObjectBase* Object, int3
 				COOK_STAT(++Stats::NumInlineLoads);
 			}
 
+			FWriteScopeLock ScopeLock(Lock);
 			if (ExpectedNeverLoadPackages.Contains(Package->GetFName()))
 			{
 				UE_LOG(LogCook, Verbose, TEXT("SoftGC PoorPerformance: Reloaded package %s."), *WriteToString<256>(Package->GetFName()));
 			}
-			FWriteScopeLock ScopeLock(Lock);
 			LoadedPackages.Add(Package);
 			NewPackages.Add(Package,
 					FInstigator(EInstigator::Unsolicited,
