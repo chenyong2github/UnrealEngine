@@ -1387,7 +1387,7 @@ void FOptimusSourceDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 
 FText FOptimusSourceDetailsCustomization::GetText() const
 {
-	return FText::FromString(OptimusSource->GetSource());
+	return FText::FromString(OptimusSource->GetShaderText());
 }
 
 void FOptimusSourceDetailsCustomization::OnTextChanged(const FText& InValue)
