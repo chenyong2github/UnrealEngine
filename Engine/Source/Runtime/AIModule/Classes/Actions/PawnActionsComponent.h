@@ -22,7 +22,7 @@ struct AIMODULE_API FPawnActionEvent
 	static const int32 FakeActionIndex = INDEX_NONE;
 
 	UPROPERTY()
-	TObjectPtr<UDEPRECATED_PawnAction> Action;
+	TObjectPtr<UDEPRECATED_PawnAction> Action_DEPRECATED;
 
 	EPawnActionEventType::Type EventType;
 
@@ -31,12 +31,12 @@ struct AIMODULE_API FPawnActionEvent
 	// used to maintain order of equally-important messages
 	uint32 Index;
 
-	FPawnActionEvent() : Action(NULL), EventType(EPawnActionEventType::Invalid), Priority(EAIRequestPriority::MAX), Index(uint32(-1))
+	FPawnActionEvent() : Action_DEPRECATED(NULL), EventType(EPawnActionEventType::Invalid), Priority(EAIRequestPriority::MAX), Index(uint32(-1))
 	{}
 
 	FPawnActionEvent(UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type EventType, uint32 Index);
 
-	bool operator==(const FPawnActionEvent& Other) const { return (Action == Other.Action) && (EventType == Other.EventType) && (Priority == Other.Priority); }
+	bool operator==(const FPawnActionEvent& Other) const { return (Action_DEPRECATED == Other.Action_DEPRECATED) && (EventType == Other.EventType) && (Priority == Other.Priority); }
 };
 
 USTRUCT()
@@ -45,12 +45,12 @@ struct AIMODULE_API FPawnActionStack
 	GENERATED_USTRUCT_BODY()
 
 	FPawnActionStack()
-		: TopAction(nullptr)
+		: TopAction_DEPRECATED(nullptr)
 	{}
 
 private:
 	UPROPERTY()
-	TObjectPtr<UDEPRECATED_PawnAction> TopAction;
+	TObjectPtr<UDEPRECATED_PawnAction> TopAction_DEPRECATED;
 
 public:
 	void Pause();
@@ -64,9 +64,9 @@ public:
 	 *	and if found action will be popped along with all it's siblings */
 	void PopAction(UDEPRECATED_PawnAction& ActionToPop);
 	
-	FORCEINLINE UDEPRECATED_PawnAction* GetTop() const { return TopAction; }
+	FORCEINLINE UDEPRECATED_PawnAction* GetTop() const { return TopAction_DEPRECATED; }
 
-	FORCEINLINE bool IsEmpty() const { return TopAction == NULL; }
+	FORCEINLINE bool IsEmpty() const { return TopAction_DEPRECATED == NULL; }
 
 	//----------------------------------------------------------------------//
 	// Debugging-testing purposes 
