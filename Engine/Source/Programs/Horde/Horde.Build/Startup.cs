@@ -107,7 +107,7 @@ namespace Horde.Build
 	{
 		static Startup()
 		{
-			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IProject>)].SetSurrogate(typeof(StringIdProto<IProject>));
+			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<ProjectConfig>)].SetSurrogate(typeof(StringIdProto<ProjectConfig>));
 			ProtoBuf.Meta.RuntimeTypeModel.Default[typeof(StringId<IStream>)].SetSurrogate(typeof(StringIdProto<IStream>));
 		}
 
@@ -350,7 +350,6 @@ namespace Horde.Build
 			services.AddSingleton<ILogFileCollection, LogFileCollection>();
 			services.AddSingleton<INotificationTriggerCollection, NotificationTriggerCollection>();
 			services.AddSingleton<IPoolCollection, PoolCollection>();
-			services.AddSingleton<IProjectCollection, ProjectCollection>();
 			services.AddSingleton<ISessionCollection, SessionCollection>();
 			services.AddSingleton<IServiceAccountCollection, ServiceAccountCollection>();
 			services.AddSingleton<ISubscriptionCollection, SubscriptionCollection>();

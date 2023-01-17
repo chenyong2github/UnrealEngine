@@ -28,7 +28,7 @@ namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using StreamId = StringId<IStream>;
 	using TemplateId = StringId<ITemplateRef>;
 

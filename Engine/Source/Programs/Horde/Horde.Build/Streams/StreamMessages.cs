@@ -20,7 +20,7 @@ namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>

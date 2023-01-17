@@ -27,7 +27,7 @@ using Microsoft.Extensions.Options;
 namespace Horde.Build.Server
 {
 	using UserId = ObjectId<IUser>;
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using StreamId = StringId<IStream>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using ToolId = StringId<ITool>;

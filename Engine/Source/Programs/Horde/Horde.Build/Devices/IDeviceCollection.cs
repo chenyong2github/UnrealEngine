@@ -13,7 +13,7 @@ namespace Horde.Build.Devices
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>

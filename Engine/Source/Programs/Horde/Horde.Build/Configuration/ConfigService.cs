@@ -329,7 +329,10 @@ namespace Horde.Build.Configuration
 				ConfigSnapshot snapshot = new ConfigSnapshot();
 				snapshot.ServerVersion = Program.Version.ToString();
 
+				// Read the new config in
 				GlobalConfig globalConfig = await ConfigType.ReadAsync<GlobalConfig>(globalConfigUri, context, cancellationToken);
+
+				// Serialize it back out to a byte array
 				snapshot.Data = JsonSerializer.SerializeToUtf8Bytes(globalConfig, context.JsonOptions);
 
 				// Save all the dependencies

@@ -6,19 +6,15 @@ using Horde.Build.Devices;
 using Horde.Build.Jobs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Horde.Build.Projects;
 using Horde.Build.Utilities;
 using Horde.Build.Users;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Horde.Build.Server;
-using System.Linq;
 using System;
 
 namespace Horde.Build.Tests
 {
-
-	using ProjectId = StringId<IProject>;
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 

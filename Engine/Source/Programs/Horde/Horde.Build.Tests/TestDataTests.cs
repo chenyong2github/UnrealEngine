@@ -23,7 +23,7 @@ using Horde.Build.Server;
 
 namespace Horde.Build.Tests
 {
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using StreamId = StringId<IStream>;
 	using TemplateId = StringId<ITemplateRef>;
 	using JobId = ObjectId<IJob>;

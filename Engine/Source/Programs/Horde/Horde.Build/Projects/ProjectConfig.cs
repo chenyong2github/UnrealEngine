@@ -16,7 +16,7 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Projects
 {
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 
 	/// <summary>
 	/// Stores configuration for a project
@@ -62,7 +62,7 @@ namespace Horde.Build.Projects
 		/// <summary>
 		/// Path to the project logo
 		/// </summary>
-		public string? Logo { get; set; }
+		public ConfigResource? Logo { get; set; }
 
 		/// <summary>
 		/// List of pools for this project

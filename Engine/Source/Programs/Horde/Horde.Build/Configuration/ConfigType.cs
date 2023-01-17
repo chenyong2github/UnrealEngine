@@ -4,7 +4,6 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -228,6 +227,29 @@ namespace Horde.Build.Configuration
 				await targetType.MergeObjectAsync(targetObject, includedJsonObject, context, cancellationToken);
 
 				context.IncludeStack.Pop();
+			}
+		}
+
+		class ResourceProperty : ScalarProperty
+		{
+			public ResourceProperty(string name, PropertyInfo propertyInfo)
+				: base(name, propertyInfo)
+			{
+			}
+
+			public override async Task MergeAsync(object target, JsonNode? node, ConfigContext context, CancellationToken cancellationToken)
+			{
+				context.AddProperty(Name);
+
+				Uri uri = CombinePaths(context.CurrentFile, JsonSerializer.Deserialize<string>(node, context.JsonOptions) ?? String.Empty);
+				IConfigFile file = await ReadFileAsync(uri, context, cancellationToken);
+
+				ConfigResource resource = new ConfigResource();
+				resource.Path = uri.AbsoluteUri;
+				resource.Data = await file.ReadAsync(cancellationToken);
+				PropertyInfo.SetValue(target, resource);
+
+				context.Resources.Add(resource);
 			}
 		}
 
@@ -455,6 +477,10 @@ namespace Horde.Build.Configuration
 			if (!propertyType.IsClass || propertyType == typeof(string))
 			{
 				return new ScalarProperty(name, propertyInfo);
+			}
+			else if (propertyType.IsAssignableTo(typeof(ConfigResource)))
+			{
+				return new ResourceProperty(name, propertyInfo);
 			}
 			else if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(List<>))
 			{

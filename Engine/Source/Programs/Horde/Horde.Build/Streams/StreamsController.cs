@@ -21,7 +21,7 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Streams
 {
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using StreamId = StringId<IStream>;
 	using TemplateId = StringId<ITemplateRef>;
 

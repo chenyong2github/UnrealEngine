@@ -4,16 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
+using Horde.Build.Configuration;
 using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Projects
 {
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 
 	/// <summary>
 	/// Controller for the /api/v1/projects endpoint
@@ -23,15 +25,15 @@ namespace Horde.Build.Projects
 	[Route("[controller]")]
 	public class ProjectsController : HordeControllerBase
 	{
-		private readonly IProjectCollection _projectCollection;
 		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
+
+		private static readonly FileExtensionContentTypeProvider s_contentTypeProvider = new FileExtensionContentTypeProvider();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ProjectsController(IProjectCollection projectCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public ProjectsController(IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_projectCollection = projectCollection;
 			_globalConfig = globalConfig;
 		}
 
@@ -105,7 +107,7 @@ namespace Horde.Build.Projects
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/projects/{projectId}/logo")]
-		public async Task<ActionResult<object>> GetProjectLogoAsync(ProjectId projectId)
+		public ActionResult<object> GetProjectLogo(ProjectId projectId)
 		{
 			ProjectConfig? projectConfig;
 			if (!_globalConfig.Value.TryGetProject(projectId, out projectConfig))
@@ -117,13 +119,19 @@ namespace Horde.Build.Projects
 				return Forbid(AclAction.ViewProject, projectId);
 			}
 
-			IProjectLogo? projectLogo = await _projectCollection.GetLogoAsync(projectId);
-			if (projectLogo == null)
+			ConfigResource? logoResource = projectConfig.Logo;
+			if (logoResource == null || logoResource.Path == null || logoResource.Data.Length == 0)
 			{
-				return NotFound();
+				return NotFound("Missing logo resource data");
 			}
 
-			return new FileContentResult(projectLogo.Data, projectLogo.MimeType);
+			string? contentType;
+			if (!s_contentTypeProvider.TryGetContentType(logoResource.Path, out contentType))
+			{
+				contentType = "application/octet-stream";
+			}
+
+			return new FileContentResult(logoResource.Data.ToArray(), contentType);
 		}
 	}
 }

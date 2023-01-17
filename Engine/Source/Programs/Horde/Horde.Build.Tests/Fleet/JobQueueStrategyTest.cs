@@ -18,7 +18,7 @@ using Horde.Build.Agents;
 namespace Horde.Build.Tests.Fleet
 {
 	using PoolId = StringId<IPool>;
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using StreamId = StringId<IStream>;
 
 	[TestClass]

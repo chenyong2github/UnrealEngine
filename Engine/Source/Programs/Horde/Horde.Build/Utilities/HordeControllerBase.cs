@@ -17,7 +17,7 @@ namespace Horde.Build.Utilities
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
-	using ProjectId = StringId<IProject>;
+	using ProjectId = StringId<ProjectConfig>;
 	using StreamId = StringId<IStream>;
 	using ToolId = StringId<ITool>;
 	using ToolDeploymentId = ObjectId<IToolDeployment>;
