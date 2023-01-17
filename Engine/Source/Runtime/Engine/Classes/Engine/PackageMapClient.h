@@ -267,12 +267,31 @@ private:
 	struct FPendingAsyncLoadRequest
 	{
 		FPendingAsyncLoadRequest(const FNetworkGUID InNetGUID, const double InRequestStartTime):
-			NetGUID(InNetGUID),
 			RequestStartTime(InRequestStartTime)
 		{
+			NetGUIDs.Add(InNetGUID);
 		}
 
-		FNetworkGUID NetGUID;
+		void Merge(const FPendingAsyncLoadRequest& Other)
+		{
+			for (FNetworkGUID OtherGUID : Other.NetGUIDs)
+			{
+				NetGUIDs.AddUnique(OtherGUID);
+			}
+
+#if CSV_PROFILER
+			bWasRequestedByOwnerOrPawn |= Other.bWasRequestedByOwnerOrPawn;
+#endif
+		}
+
+		void Merge(FNetworkGUID InNetGUID)
+		{
+			NetGUIDs.AddUnique(InNetGUID);
+		}
+
+		// Net GUIDs that requested loading for the same UPackage
+		TArray<FNetworkGUID, TInlineAllocator<2>> NetGUIDs;
+
 		double RequestStartTime;
 
 #if CSV_PROFILER
