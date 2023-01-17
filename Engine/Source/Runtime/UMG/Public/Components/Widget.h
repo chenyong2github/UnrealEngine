@@ -168,7 +168,8 @@ enum class EWidgetDesignFlags : uint8
 	None				= 0,
 	Designing			= 1 << 0,
 	ShowOutline			= 1 << 1,
-	ExecutePreConstruct	= 1 << 2
+	ExecutePreConstruct	= 1 << 2,
+	Previewing			= 1 << 3
 };
 
 ENUM_CLASS_FLAGS(EWidgetDesignFlags);
@@ -918,6 +919,11 @@ public:
 	{
 		return EnumHasAnyFlags(GetDesignerFlags(), FlagsToCheck);
 	}
+	
+	FORCEINLINE bool IsPreviewTime() const 
+	{
+		return HasAnyDesignerFlags(EWidgetDesignFlags::Previewing);
+	}
 
 	/** Returns the friendly name of the widget to display in the editor */
 	const FString& GetDisplayLabel() const
@@ -945,6 +951,7 @@ public:
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #else
 	FORCEINLINE bool IsDesignTime() const { return false; }
+	FORCEINLINE bool IsPreviewTime() const { return false; }
 #endif
 	
 	/**

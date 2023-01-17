@@ -38,6 +38,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "WidgetBlueprintEditorUtils.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
+#include "BlueprintModes/WidgetDebugApplicationMode.h"
 #include "BlueprintModes/WidgetDesignerApplicationMode.h"
 #include "BlueprintModes/WidgetGraphApplicationMode.h"
 #include "WidgetModeManager.h"
@@ -547,8 +548,13 @@ void FWidgetBlueprintEditor::RegisterApplicationModes(const TArray<UBlueprint*>&
 
 		// Create the modes and activate one (which will populate with a real layout)
 		TArray< TSharedRef<FApplicationMode> > TempModeList;
-		TempModeList.Add(MakeShareable(new FWidgetDesignerApplicationMode(ThisPtr)));
-		TempModeList.Add(MakeShareable(new FWidgetGraphApplicationMode(ThisPtr)));
+		TempModeList.Add(MakeShared<FWidgetDesignerApplicationMode>(ThisPtr));
+		TempModeList.Add(MakeShared<FWidgetGraphApplicationMode>(ThisPtr));
+
+		if (FWidgetBlueprintApplicationModes::IsDebugModeEnabled())
+		{
+			TempModeList.Add(MakeShared<FWidgetDebugApplicationMode>(ThisPtr));
+		}
 
 		for ( TSharedRef<FApplicationMode>& AppMode : TempModeList )
 		{
