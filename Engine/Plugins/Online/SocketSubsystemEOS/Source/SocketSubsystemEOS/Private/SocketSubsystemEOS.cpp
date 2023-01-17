@@ -9,6 +9,7 @@
 #if WITH_EOS_SDK
 	#include "eos_sdk.h"
 	#include "eos_p2p.h"
+	#include "Misc/ConfigCacheIni.h"
 #endif
 
 namespace
