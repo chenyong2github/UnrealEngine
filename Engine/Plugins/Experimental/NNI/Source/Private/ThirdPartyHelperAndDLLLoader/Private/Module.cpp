@@ -12,7 +12,7 @@ void FThirdPartyHelperAndDLLLoaderModule::StartupModule()
 {
 #ifdef PLATFORM_WIN64
 	TSharedPtr<IPlugin> NNEPlugin = IPluginManager::Get().FindPlugin(TEXT("NNE"));
-	if (NNEPlugin.IsValid())
+	if (NNEPlugin.IsValid() && NNEPlugin->IsEnabled())
 	{
 		return;
 	}
