@@ -2,7 +2,6 @@
 
 #include "InputTriggers.h"
 #include "EnhancedPlayerInput.h"
-#include "UObject/Object.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputTriggers)
 
@@ -330,6 +329,7 @@ EDataValidationResult UInputTriggerCombo::IsDataValid(TArray<FText>& ValidationE
 
 	return Result;
 }
+#endif // WITH_EDITOR
 
 void UInputTriggerCombo::PostLoad()
 {
@@ -354,7 +354,5 @@ void UInputTriggerCombo::PostLoad()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
 }
-
-#endif
 
 #undef LOCTEXT_NAMESPACE
