@@ -7,6 +7,20 @@
 
 #include "SharedMemoryMediaSource.generated.h"
 
+/** 
+ * Mode of operation when receiving data.
+ * Framelocked - Matches source and local frame numbers. Always use this mode in nDisplay.
+ * Genlocked - It doesn't match frame numbers, but it also doesn't skip frames, so will hold back the sender if it is faster than the receiver.
+ * Freerun - It always grabs the latest frame. It may skip frames if they arrive too fast.
+ */
+UENUM(BlueprintType)
+enum class ESharedMemoryMediaSourceMode : uint8
+{
+	Framelocked = 0, // Matches source and local frame numbers. Always use this mode in nDisplay.
+	Genlocked,       // It doesn't match frame numbers, but it also doesn't skip frames, so will hold back the sender if it is faster than the receiver.
+	Freerun,         // It always grabs the latest frame. It may skip frames if they arrive too fast.
+};
+
 /**
  * Media source for SharedMemory streams.
  */
@@ -21,8 +35,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	FString UniqueName = TEXT("UniqueName");
 
-	/** Zero latency option to wait for the cross gpu texture rendered on the same frame. May adversely affect fps */
+	/**
+	 * Mode of operation when receiving data.
+	 * Framelocked - Matches source and local frame numbers. Always use this mode in nDisplay.
+	 * Genlocked - It doesn't match frame numbers, but it also doesn't skip frames, so will hold back the sender if it is faster than the receiver.
+	 * Freerun - It always grabs the latest frame. It may skip frames if they arrive too fast.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	ESharedMemoryMediaSourceMode Mode;
+
+	/** Zero latency option to wait for the cross gpu texture rendered on the same frame. May adversely affect fps. Only applicable in Framelocked mode. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input", meta = (EditCondition = "bUseFrameNumbers"))
 	bool bZeroLatency = true;
 
 public:

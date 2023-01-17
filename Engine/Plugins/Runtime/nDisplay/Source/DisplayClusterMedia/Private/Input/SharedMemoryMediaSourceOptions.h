@@ -8,5 +8,6 @@
 namespace SharedMemoryMediaOption
 {
 	static const FName UniqueName("UniqueName");
+	static const FName Mode("Mode");
 	static const FName ZeroLatency("ZeroLatency");
 }

@@ -86,6 +86,11 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 		bZeroLatency = Options->GetMediaOption(SharedMemoryMediaOption::ZeroLatency, true);
 	}
 
+	// Grab Mode of operation
+	{
+		Mode = ESharedMemoryMediaSourceMode(Options->GetMediaOption(SharedMemoryMediaOption::Mode, int64(ESharedMemoryMediaSourceMode::Framelocked)));
+	}
+
 	// Initialize gpu fences
 	for (int32 BufferIdx = 0; BufferIdx < NUMSHAREDMEM; BufferIdx++)
 	{
@@ -150,6 +155,9 @@ void FSharedMemoryMediaPlayer::Close()
 
 	// Free platform specific resources
 	PlatformData.Reset();
+
+	// Reset our state variables
+	ModeState.Reset();
 }
 
 FGuid FSharedMemoryMediaPlayer::GetPlayerPluginGUID() const
@@ -171,6 +179,12 @@ FTimespan FSharedMemoryMediaPlayer::GetTime() const
 void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 {
 	Super::TickFetch(DeltaTime, Timecode);
+
+	// Make sure we have platform data
+	if (!PlatformData.IsValid())
+	{
+		return;
+	}
 
 	// Make sure the sender's shared memory metadata is available. If not, don't bother creating a media sample.
 	//
@@ -424,6 +438,221 @@ IMediaView& FSharedMemoryMediaPlayer::GetView()
 	return *this;
 }
 
+
+bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameFramelockMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx)
+{
+	// When framelocked, the next source frame is determined by the current local frame number.
+	OutExpectedFrameNumber = InputTextureFrameNumberForFrameNumber(FrameNumber);
+	OutSharedMemoryIdx = OutExpectedFrameNumber % NUMSHAREDMEM;
+
+	return true;
+}
+
+bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameGenlockMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx)
+{
+	// Look for the closest thing to the next consecutive frame.
+
+	FSharedMemoryMediaFrameMetadata* SharedMemoryData[NUMSHAREDMEM] = { 0 };
+	FSharedMemoryMediaFrameMetadata::FSender SenderMetadata[NUMSHAREDMEM];
+
+	uint32 NextFrameNumber = ~0;
+	int32 NextFrameNumberIdx = -1;
+
+	bool bAtLeastOneFrameValid = false;
+	bool bAlreadyPickedFrameFound = false;
+
+	for (int32 MemIdx = 0; MemIdx < NUMSHAREDMEM; ++MemIdx)
+	{
+		SharedMemoryData[MemIdx] = static_cast<FSharedMemoryMediaFrameMetadata*>(SharedMemory[MemIdx]->GetAddress());
+		check(SharedMemoryData[MemIdx]);
+
+		FMemory::Memcpy(&SenderMetadata[MemIdx], SharedMemoryData[MemIdx], sizeof(FSharedMemoryMediaFrameMetadata::FSender));
+
+		// Data needs to be valid
+		if (SenderMetadata[MemIdx].Magic != FSharedMemoryMediaFrameMetadata::MAGIC)
+		{
+			continue;
+		}
+
+		bAtLeastOneFrameValid = true;
+
+		if (SenderMetadata[MemIdx].FrameNumber == ModeState.Genlock.LastSourceFrameNumberPicked)
+		{
+			bAlreadyPickedFrameFound = true;
+		}
+
+		// Detect if this one is closer to being consecutive.
+		if (SenderMetadata[MemIdx].FrameNumber > ModeState.Genlock.LastSourceFrameNumberPicked)
+		{
+			const uint32 ThisDistance = SenderMetadata[MemIdx].FrameNumber - ModeState.Genlock.LastSourceFrameNumberPicked;
+			const uint32 NextDistance = NextFrameNumber - ModeState.Genlock.LastSourceFrameNumberPicked;
+
+			if (ThisDistance < NextDistance)
+			{
+				NextFrameNumber = SenderMetadata[MemIdx].FrameNumber;
+				NextFrameNumberIdx = MemIdx;
+			}
+		}
+	}
+
+	// If none were valid, return. We will not wait any time for them to arrive at this point.
+	if (!bAtLeastOneFrameValid)
+	{
+		return false;
+	}
+
+	// If none were equal greater than our last frame then no need to render. 
+	if (NextFrameNumberIdx < 0)
+	{
+		// If the previous frame wasn't found though, we should reset our state, as the source may have just(re)connected.
+		if (!bAlreadyPickedFrameFound)
+		{
+			UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In genlock mode, the sender's frame count seems to have reset to earlier than %u"),
+				ModeState.Genlock.LastSourceFrameNumberPicked);
+
+			ModeState.Genlock.Reset();
+		}
+
+		return false;
+	}
+
+	// No point in rendering the same frame
+	if (ModeState.Freerun.LastSourceFrameNumberPicked == NextFrameNumber)
+	{
+		return false;
+	}
+
+	OutExpectedFrameNumber = NextFrameNumber;
+	OutSharedMemoryIdx = NextFrameNumberIdx;
+
+	ModeState.Genlock.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
+
+	return true;
+}
+
+bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameFreerunMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx)
+{
+	// Use the latest frame, ack the others (if they haven't already been acked).
+
+	// See what is on all the reception buffers
+
+	FSharedMemoryMediaFrameMetadata* SharedMemoryData[NUMSHAREDMEM];
+	FSharedMemoryMediaFrameMetadata::FSender SenderMetadata[NUMSHAREDMEM];
+
+	int32 HighestFrameNumberIdx = -1;
+	uint32 HighestFrameNumber = 0;
+
+	int32 LowestFrameNumberIdx = -1;
+	uint32 LowestFrameNumber = ~0;
+
+	for (int32 MemIdx = 0; MemIdx < NUMSHAREDMEM; ++MemIdx)
+	{
+		SharedMemoryData[MemIdx] = static_cast<FSharedMemoryMediaFrameMetadata*>(SharedMemory[MemIdx]->GetAddress());
+		check(SharedMemoryData[MemIdx]);
+
+		FMemory::Memcpy(&SenderMetadata[MemIdx], SharedMemoryData[MemIdx], sizeof(FSharedMemoryMediaFrameMetadata::FSender));
+
+		// Data needs to be valid
+		if (SenderMetadata[MemIdx].Magic != FSharedMemoryMediaFrameMetadata::MAGIC)
+		{
+			continue;
+		}
+
+		if (HighestFrameNumber < SenderMetadata[MemIdx].FrameNumber)
+		{
+			HighestFrameNumber = SenderMetadata[MemIdx].FrameNumber;
+			HighestFrameNumberIdx = MemIdx;
+		}
+
+		if (LowestFrameNumber > SenderMetadata[MemIdx].FrameNumber)
+		{
+			LowestFrameNumber = SenderMetadata[MemIdx].FrameNumber;
+			LowestFrameNumberIdx = MemIdx;
+		}
+	}
+
+	// If none were valid, return. We will not wait any time for them to arrive at this point.
+	if (HighestFrameNumberIdx < 0)
+	{
+		return false;
+	}
+
+	check(LowestFrameNumberIdx >= 0);
+
+	// No point in rendering the same frame
+	if (ModeState.Freerun.LastSourceFrameNumberPicked == HighestFrameNumber)
+	{
+		return false;
+	}
+	else if (ModeState.Freerun.LastSourceFrameNumberPicked > HighestFrameNumber)
+	{
+		// We have picked in the past a frame number higher than the highest in the buffers.
+		// This is unexpected, something may have happened to our source.
+		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In freerun mode, the sender's frame count seems to have reset from %u to %u."),
+			ModeState.Freerun.LastSourceFrameNumberPicked, HighestFrameNumber);
+
+		OutExpectedFrameNumber = LowestFrameNumber;
+		OutSharedMemoryIdx = LowestFrameNumberIdx;
+
+		ModeState.Freerun.Reset();
+		ModeState.Freerun.LastSourceFrameNumberConsideredAtIdx[OutSharedMemoryIdx] = OutExpectedFrameNumber;
+		ModeState.Freerun.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
+
+		return true;
+	}
+
+	check(ModeState.Freerun.LastSourceFrameNumberPicked < HighestFrameNumber);
+
+	// ack the ones we're skipping in favor of the latest one
+	for (int32 MemIdx = 0; MemIdx < NUMSHAREDMEM; ++MemIdx)
+	{
+		const uint32 LastSourceFrameNumberConsideredAtThisIdx = ModeState.Freerun.LastSourceFrameNumberConsideredAtIdx[MemIdx];
+
+		ModeState.Freerun.LastSourceFrameNumberConsideredAtIdx[MemIdx] = SenderMetadata[MemIdx].FrameNumber;
+
+		// Don't ack the latest one just yet (we'll ack it once we're done with it)
+		if (HighestFrameNumberIdx == MemIdx)
+		{
+			continue;
+		}
+
+		// Ack the skipped frames (that haven't been considered and therefore acked before)
+		if (LastSourceFrameNumberConsideredAtThisIdx < SenderMetadata[MemIdx].FrameNumber)
+		{
+			SharedMemoryData[MemIdx]->Receiver.FrameNumberAcked = SenderMetadata[MemIdx].FrameNumber;
+		}
+	}
+
+	OutExpectedFrameNumber = HighestFrameNumber;
+	OutSharedMemoryIdx = HighestFrameNumberIdx;
+
+	ModeState.Freerun.LastSourceFrameNumberPicked = OutExpectedFrameNumber;
+
+	return true;
+
+}
+
+bool FSharedMemoryMediaPlayer::DetermineNextSourceFrame(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx)
+{
+	switch (Mode)
+	{
+	case ESharedMemoryMediaSourceMode::Framelocked:
+		return DetermineNextSourceFrameFramelockMode(FrameNumber, OutExpectedFrameNumber, OutSharedMemoryIdx);
+
+	case ESharedMemoryMediaSourceMode::Freerun:
+		return DetermineNextSourceFrameFreerunMode(FrameNumber, OutExpectedFrameNumber, OutSharedMemoryIdx);
+
+	case ESharedMemoryMediaSourceMode::Genlocked:
+		return DetermineNextSourceFrameGenlockMode(FrameNumber, OutExpectedFrameNumber, OutSharedMemoryIdx);
+
+	default:
+		unimplemented();
+		break;
+	}
+
+	return false;
+}
+
 void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -453,8 +682,15 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 		}
 	}
 
-	const uint32 ExpectedFrameNumber = InputTextureFrameNumberForFrameNumber(GFrameCounterRenderThread);
-	const uint32 SharedMemoryIdx = ExpectedFrameNumber % NUMSHAREDMEM;
+	uint32 ExpectedFrameNumber;
+	uint32 SharedMemoryIdx;
+
+	if (!DetermineNextSourceFrame(GFrameCounterRenderThread, ExpectedFrameNumber, SharedMemoryIdx))
+	{
+		return;
+	}
+
+	check(SharedMemoryIdx < NUMSHAREDMEM);
 
 	FSharedMemoryMediaFrameMetadata* SharedMemoryData = static_cast<FSharedMemoryMediaFrameMetadata*>(SharedMemory[SharedMemoryIdx]->GetAddress());
 	check(SharedMemoryData);

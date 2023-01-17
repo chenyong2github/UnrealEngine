@@ -210,12 +210,29 @@ protected:
 	/** Enqueues a last minute wait and copy of the expected texture data for the renderer to use */
 	virtual void JustInTimeSampleRender();
 
-private:
-
 	/** Offsets the frame number by the specified latency. Used to associate resources with frame numbers being evaluated */
 	uint32 InputTextureFrameNumberForFrameNumber(uint32 FrameNumber) const;
 
-private:
+	/** 
+	 * Determine that the next source frame number and buffer index is. This depends on the player settings.
+	 * 
+	 * @param OutExpectedFrameNumber Will contain the expected next source frame number
+	 * @param OutSharedMemoryIdx Will contain the memory idx where we should be looking for the frame
+	 * 
+	 * @return true only if the output values are valid.
+	 */
+	bool DetermineNextSourceFrame(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx);
+
+	/** DetermineNextSourceFrame implementration for Framelock Mode */
+	bool DetermineNextSourceFrameFramelockMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx);
+
+	/** DetermineNextSourceFrame implementration for Genlock Mode */
+	bool DetermineNextSourceFrameGenlockMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx);
+
+	/** DetermineNextSourceFrame implementration for Freerun Mode */
+	bool DetermineNextSourceFrameFreerunMode(uint64 FrameNumber, uint32& OutExpectedFrameNumber, uint32& OutSharedMemoryIdx);
+
+protected:
 
 	/** Number of resources used for pipelining the data flow */
 	static constexpr int32 NUMSHAREDMEM = UE::SharedMemoryMedia::SenderNumBuffers;
@@ -253,6 +270,53 @@ private:
 	/** Unique Name that must match the corresponding MediaOutput setting. It is used to find allocated shared memory by name */
 	FString UniqueName;
 
-	/** Zero latency option to wait for the cross gpu texture rendered on the same frame. May adversely affect fps */
+	/** Reception mode. See ESharedMemoryMediaSourceMode for more details. */
+	ESharedMemoryMediaSourceMode Mode = ESharedMemoryMediaSourceMode::Framelocked;
+
+	/** Zero latency option to wait for the cross gpu texture rendered on the same frame. May adversely affect fps. Only applicable when bUseFrameNumbers is true */
 	bool bZeroLatency = true;
+
+	/** State of each Mode */
+	struct FModeState
+	{
+		/** Freerun mode state */
+		struct FFreerunModeState
+		{
+			/** Keep track of the last source frame that was picked. Used to avoid picking the same frame and detect unexpected source frame changes. */
+			uint32 LastSourceFrameNumberPicked = 0;
+
+			/** Keep track of the last frame considered at each buffer index. Used to manage acks. */
+			uint32 LastSourceFrameNumberConsideredAtIdx[NUMSHAREDMEM]{ 0 };
+
+			/** Reset the state, as if the stream were started again. */
+			void Reset()
+			{
+				LastSourceFrameNumberPicked = 0;
+
+				FMemory::Memset(LastSourceFrameNumberConsideredAtIdx, 0, sizeof(LastSourceFrameNumberConsideredAtIdx));
+			}
+		} Freerun;
+
+		/** Genlock mode state */
+		struct FGenlockModeState
+		{
+			/** Keep track of last picked frame. Used to aim for consecutiveness. */
+			uint32 LastSourceFrameNumberPicked = 0;
+
+			/** Reset the state, as if the stream were started again. */
+			void Reset()
+			{
+				LastSourceFrameNumberPicked = 0;
+			}
+		} Genlock;
+
+		/** Resets the state for all modes */
+		void Reset()
+		{
+			Freerun.Reset();
+			Genlock.Reset();
+		}
+
+	} ModeState;
+
 };

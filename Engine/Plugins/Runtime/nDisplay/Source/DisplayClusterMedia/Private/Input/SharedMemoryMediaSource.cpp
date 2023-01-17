@@ -18,6 +18,11 @@ bool USharedMemoryMediaSource::GetMediaOption(const FName& Key, bool DefaultValu
 
 int64 USharedMemoryMediaSource::GetMediaOption(const FName& Key, int64 DefaultValue) const
 {
+	if (Key == SharedMemoryMediaOption::Mode)
+	{
+		return int64(Mode);
+	}
+
 	return Super::GetMediaOption(Key, DefaultValue);
 }
 
@@ -39,6 +44,11 @@ bool USharedMemoryMediaSource::HasMediaOption(const FName& Key) const
 	}
 
 	if (Key == SharedMemoryMediaOption::ZeroLatency)
+	{
+		return true;
+	}
+
+	if (Key == SharedMemoryMediaOption::Mode)
 	{
 		return true;
 	}
