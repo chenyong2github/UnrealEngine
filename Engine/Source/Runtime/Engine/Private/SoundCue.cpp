@@ -828,14 +828,10 @@ bool FSoundCueParameterTransmitter::SetParameters(TArray<FAudioParameter>&& InPa
 	TArray<FAudioParameter> TempParams = InParameters;
 	FAudioParameter::Merge(MoveTemp(TempParams), ParamsToSet);
 
-	// todo: filter trigger types from being saved in the arrray of persistent params. triggers are not detectable at this point
-	// currently, triggers will be set on sounds as they start if they had been executed at any point in the past
-	// solvable if triggers were their own enum type, but are currently just bool types
-	//
-	// InParameters.FilterByPredicate([](const FAudioParameter& Param)
-	// {
-	// 	return Param.ParamType != EAudioParameterType::Trigger;
-	// });
+	InParameters.FilterByPredicate([](const FAudioParameter& Param)
+	{
+		return Param.ParamType != EAudioParameterType::Trigger;
+	});
 		
 	return Audio::FParameterTransmitterBase::SetParameters(MoveTemp(InParameters));
 }

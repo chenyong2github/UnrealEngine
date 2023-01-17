@@ -25,6 +25,7 @@ namespace Metasound
 		{
 			switch (InValue.ParamType)
 			{
+				case EAudioParameterType::Trigger:
 				case EAudioParameterType::Boolean:
 				{
 					return FLiteral(InValue.BoolParam);
@@ -94,7 +95,7 @@ namespace Metasound
 
 				default:
 				{
-					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing switch case coverage");
+					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 13, "Possible missing switch case coverage");
 					checkNoEntry();
 				}
 			}
@@ -106,6 +107,7 @@ namespace Metasound
 		{
 			switch (InValue.ParamType)
 			{
+				case EAudioParameterType::Trigger:
 				case EAudioParameterType::Boolean:
 				{
 					return FLiteral(InValue.BoolParam);
@@ -175,7 +177,7 @@ namespace Metasound
 
 				default:
 				{
-					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing switch case coverage");
+					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 13, "Possible missing switch case coverage");
 					checkNoEntry();
 				}
 			}
@@ -187,6 +189,7 @@ namespace Metasound
 		{
 			switch (InParameterType)
 			{
+				case EAudioParameterType::Trigger:
 				case EAudioParameterType::Boolean:
 					return GetMetasoundDataTypeName<bool>();
 				case EAudioParameterType::BooleanArray:
@@ -212,7 +215,7 @@ namespace Metasound
 				case EAudioParameterType::NoneArray:
 				default:
 					ensureAlwaysMsgf(false, TEXT("Failed to convert AudioParameterType to POD MetaSound DataType"));
-					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing case coverage");
+					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 13, "Possible missing case coverage");
 					return FName();
 			}
 		}

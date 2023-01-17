@@ -83,6 +83,7 @@ FMetasoundFrontendLiteral::FMetasoundFrontendLiteral(const FAudioParameter& InPa
 {
 	switch (InParameter.ParamType)
 	{
+		case EAudioParameterType::Trigger:
 		case EAudioParameterType::Boolean:
 		{
 			Set(InParameter.BoolParam);
@@ -157,7 +158,7 @@ FMetasoundFrontendLiteral::FMetasoundFrontendLiteral(const FAudioParameter& InPa
 
 		default:
 		{
-			static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing switch case coverage");
+			static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 13, "Possible missing switch case coverage");
 			checkNoEntry();
 		}
 	}
@@ -511,7 +512,6 @@ void FMetasoundFrontendLiteral::SetType(EMetasoundFrontendLiteralType InType)
 			Set(0.f);
 		}
 		break;
-
 	
 		case EMetasoundFrontendLiteralType::String:
 		{

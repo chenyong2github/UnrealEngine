@@ -46,7 +46,8 @@ void ISoundParameterControllerInterface::SetTriggerParameter(FName InName)
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
-			FAudioParameter ParamToSet = FAudioParameter(InName, true);
+			FAudioParameter ParamToSet = FAudioParameter(InName, EAudioParameterType::Trigger);
+			
 			if (USoundBase* Sound = GetSound())
 			{
 				TArray<FAudioParameter> Params = { MoveTemp(ParamToSet) };

@@ -81,6 +81,9 @@ enum class EAudioParameterType : uint8
 	// Array of object values (not supported by legacy SoundCue system)
 	ObjectArray UMETA(DisplayName = "Object (Array)"),
 
+	// Trigger value
+	Trigger,
+
 	COUNT UMETA(Hidden)
 };
 
@@ -200,6 +203,16 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 		, ArrayStringParam(MoveTemp(InValue))
 		, ParamType(EAudioParameterType::StringArray)
 	{
+	}
+
+	FAudioParameter(FName InName, EAudioParameterType Type)
+		: ParamName(InName)
+		, ParamType(Type)
+	{
+		if (Type == EAudioParameterType::Trigger)
+		{
+			BoolParam = true;
+		}
 	}
 
 	// Static function to avoid int32 constructor collision

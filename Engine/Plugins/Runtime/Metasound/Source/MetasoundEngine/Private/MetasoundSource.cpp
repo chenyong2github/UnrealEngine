@@ -407,6 +407,12 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 
 		switch (Parameter.ParamType)
 		{
+			case EAudioParameterType::Trigger:
+			{
+				Parameter = FAudioParameter(Parameter.ParamName, EAudioParameterType::Trigger);
+			}
+			break;
+			
 			case EAudioParameterType::Boolean:
 			{
 				Parameter = FAudioParameter(Parameter.ParamName, Parameter.BoolParam);
@@ -677,7 +683,16 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 		{
 			case EMetasoundFrontendLiteralType::Boolean:
 			{
-				Params.ParamType = EAudioParameterType::Boolean;
+				static const FName TriggerName = "Trigger";
+				if (Params.TypeName == TriggerName)
+				{
+					Params.ParamType = EAudioParameterType::Trigger;
+				}
+				else
+				{
+					Params.ParamType = EAudioParameterType::Boolean;
+				}
+					
 				ensure(Input.DefaultLiteral.TryGet(Params.BoolParam));
 			}
 			break;
@@ -789,6 +804,7 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 	bool bIsValid = false;
 	switch (InParameter.ParamType)
 	{
+		case EAudioParameterType::Trigger:
 		case EAudioParameterType::Boolean:
 		{
 			FDataTypeRegistryInfo DataTypeInfo;
