@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Vulkan only shaders
-// GUID = 1084d248-f5cb-41ba-8ff7-3ee0752a4295
+// GUID = d8d5a9ec-19c5-417c-b1ca-876d31a6809a
 
 #pragma once
 
@@ -42,8 +42,11 @@ void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongTy
 	COMPILER_DEFINE VULKAN_SAMPLER_HEAP(Type) VULKAN_HEAP_NAME(VULKAN_BINDLESS_SAMPLER_ARRAY_PREFIX,Type)
 	COMPILER_DEFINE VULKAN_RESOURCE_HEAP(Type) VULKAN_HEAP_NAME(VULKAN_BINDLESS_RESOURCE_ARRAY_PREFIX,Type)
 
-	// todo-jn: bindless resource heaps
-	COMPILER_DEFINE GetResourceFromHeap(Type, Index) VULKAN_RESOURCE_HEAP(Type)[Index]
+	// Bindless resource heaps are filled in by the shader compiler
+	COMPILER_DEFINE GetResourceFromHeap(Type, Index)  /* filled by compiler */
+
+	// Override the UB_RESOURCE_MEMBER_RESOURCE to use the Vulkan resource heaps
+	#define UB_RESOURCE_MEMBER_RESOURCE(Type, Name) typedef Type SafeType##Name; SafeType##Name VULKAN_RESOURCE_HEAP(SafeType##Name)[]; static const Type Name = VULKAN_RESOURCE_HEAP(SafeType##Name)[BindlessResource_##Name]
 
 	// bindless sampler heaps (specify a register so AUTO_BINDLESS macros aren't applied on them)
 	SamplerState VULKAN_SAMPLER_HEAP(SamplerState)[] : register(s0, space1000);

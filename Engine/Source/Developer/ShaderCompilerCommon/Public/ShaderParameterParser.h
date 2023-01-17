@@ -47,7 +47,6 @@ public:
 			return Member != nullptr;
 		}
 
-	private:
 		int32 ParsedPragmaLineoffset = 0;
 		int32 ParsedLineOffset = 0;
 
@@ -141,7 +140,7 @@ public:
 		return ExtractFileAndLine(ParsedParameter.ParsedPragmaLineoffset, ParsedParameter.ParsedLineOffset, OutFile, OutLine);
 	}
 
-private:
+protected:
 	/** Parses the preprocessed shader code */
 	bool ParseParameters(
 		const FShaderCompilerInput& CompilerInput,

@@ -116,10 +116,19 @@ namespace VulkanBindless
 	enum EDescriptorSets
 	{
 		BindlessSamplerSet = 0,
-		BindlessResourceSet = 1,
 
-		NumBindlessSets = 2,
-		MaxNumSets = ShaderStage::EStage::MaxNumSets + NumBindlessSets
+		BindlessStorageBufferSet,
+
+		BindlessStorageImageSet,
+		BindlessSampledImageSet,
+
+		BindlessStorageTexelBufferSet,
+		BindlessUniformTexelBufferSet,
+
+		BindlessAccelerationStructureSet,
+
+		NumBindlessSets,
+		MaxNumSets = ShaderStage::EStage::NumStages + NumBindlessSets
 	};
 
 	// Prefix used to declare arrays of samplers/resources for bindless

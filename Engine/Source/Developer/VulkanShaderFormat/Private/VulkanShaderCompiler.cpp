@@ -1428,7 +1428,21 @@ static void GatherSpirvReflectionBindings(
 		// Remove sampler heaps from binding arrays
 		MoveBindlessHeaps(OutBindings.Samplers, VulkanBindless::kBindlessSamplerArrayPrefix, VulkanBindless::BindlessSamplerSet);
 
-		// todo-jn: Remove resource heaps from binding arrays
+		// Remove resource heaps from binding arrays
+		MoveBindlessHeaps(OutBindings.SBufferUAVs, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessStorageBufferSet);
+		MoveBindlessHeaps(OutBindings.TextureSRVs, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessSampledImageSet);
+		MoveBindlessHeaps(OutBindings.TextureUAVs, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessStorageImageSet);
+		MoveBindlessHeaps(OutBindings.TBufferSRVs, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessUniformTexelBufferSet);
+		MoveBindlessHeaps(OutBindings.TBufferUAVs, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessStorageTexelBufferSet);
+		MoveBindlessHeaps(OutBindings.AccelerationStructures, VulkanBindless::kBindlessResourceArrayPrefix, VulkanBindless::BindlessSamplerSet);
+
+		// Move uniform buffers to the correct set
+		const uint32 BinldessDescSetNo = VulkanBindless::NumBindlessSets + ShaderStage::GetStageForFrequency(ShaderFrequency);
+		for (int32 Index = OutBindings.UniformBuffers.Num() - 1; Index >= 0; --Index)
+		{
+			const SpvReflectDescriptorBinding* pBinding = OutBindings.UniformBuffers[Index];
+			Reflection.ChangeDescriptorBindingNumbers(pBinding, pBinding->binding, BinldessDescSetNo);
+		}
 	}
 }
 
@@ -1671,9 +1685,11 @@ static bool BuildShaderOutputFromSpirv(
 		if (ResourceName == UBOGlobalsNameSpv)
 		{
 			// Register binding for uniform buffer
-			int32 BindingIndex = MapDescriptorBindingToIndex(Binding);
+			const int32 BindingIndex = MapDescriptorBindingToIndex(Binding);
+			const uint32 BindlessDescSetNumber = VulkanBindless::NumBindlessSets + ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency));
+			const uint32_t DescSetNumber = bSupportsBindless ? BindlessDescSetNumber : SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
 
-			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);// , GlobalSetId);
+			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex, DescSetNumber);
 			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 			Spirv.ReflectionInfo.Add(FVulkanSpirv::FEntry(UBOGlobalsNameSpv, BindingIndex));
@@ -2254,7 +2270,6 @@ static bool CompileWithShaderConductor(
 	const FShaderCompilerInput& Input = CompilerInfo.Input;
 
 	const bool bIsRayTracingShader = Input.IsRayTracingShader();
-	const bool bHasBindless = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
 	const bool bRewriteHlslSource = !bIsRayTracingShader;
 	const bool bDebugDump = Input.DumpDebugInfoEnabled();
 
@@ -2388,6 +2403,56 @@ static bool CompileWithShaderConductor(
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 
+// Overload parameter declaration from the default FShaderParameterParser in order to take into account Vulkan particularities for resources
+class FVulkanShaderParameterParser : public FShaderParameterParser
+{
+public:
+	FVulkanShaderParameterParser(bool bHasBindlessResources)
+		: bEnabled(bHasBindlessResources)
+	{}
+
+protected:
+	FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const override
+	{
+		if (bEnabled && (ParsedParameter.BindlessConversionType == EBindlessConversionType::Resource))
+		{
+			const TCHAR* StorageClass = ParsedParameter.bGloballyCoherent ? TEXT("globallycoherent ") : TEXT("");
+
+			const FStringView Name = ParsedParameter.ParsedName;
+			const FStringView Type = ParsedParameter.ParsedType;
+
+			const FString RewriteType = FString::Printf(TEXT("SafeType%.*s"), Name.Len(), Name.GetData());
+
+			TStringBuilder<512> Result;
+
+			// If we weren't going to be added to a root constant buffer, that means we need to declare our index before we declare our getter.
+			if (ParsedParameter.ConstantBufferParameterType == EShaderParameterType::Num)
+			{
+				// e.g. `uint BindlessResource_##Name;`
+				Result << TEXT("uint BindlessResource_") << Name << TEXT("; ");
+			}
+
+			// Add the typedef
+			Result << TEXT("typedef ") << Type << TEXT(" ") << RewriteType << TEXT("; ");
+
+			// Declare a heap for the RewriteType
+			// e.g. `SafeType##Name ResourceDescriptorHeap_SafeType##Name[];`
+			Result << RewriteType << TEXT(" ") << VulkanBindless::kBindlessResourceArrayPrefix << RewriteType << TEXT("[]; ");
+			// :todo-jn: specify the descripor set and binding directly in source instead of patching SPIRV
+
+			// e.g. `static const Type Name = GetBindlessResource##Name()`
+			Result << TEXT("static const ") << StorageClass << RewriteType << TEXT(" ") << Name << TEXT(" = ") << VulkanBindless::kBindlessResourceArrayPrefix << RewriteType << TEXT("[BindlessResource_") << Name << TEXT("];");
+
+			return Result.ToString();
+		}
+		return FShaderParameterParser::GenerateBindlessParameterDeclaration(ParsedParameter);
+	}
+
+private:
+	const bool bEnabled;
+};
+
+
 void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const class FString& WorkingDirectory, EVulkanShaderVersion Version)
 {
 	check(IsVulkanShaderFormat(Input.ShaderFormat));
@@ -2497,7 +2562,8 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		}
 	}
 
-	FShaderParameterParser ShaderParameterParser;
+	const bool bHasBindlessResources = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
+	FVulkanShaderParameterParser ShaderParameterParser(bHasBindlessResources);
 	if (!ShaderParameterParser.ParseAndModify(Input, Output, PreprocessedShaderSource))
 	{
 		// The FShaderParameterParser will add any relevant errors.

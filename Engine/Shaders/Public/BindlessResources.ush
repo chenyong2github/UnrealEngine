@@ -37,7 +37,9 @@
 	#define AUTO_BINDLESS_RESOURCE_INDEX(Name)          uint BindlessResource_##Name
 	#define AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name) Type GetBindlessResource##Name() { return GetResourceFromHeap(Type, BindlessResource_##Name); }; static const Type Name = GetBindlessResource##Name()
 
-	#define UB_RESOURCE_MEMBER_RESOURCE(Type, Name) AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name)
+	#ifndef UB_RESOURCE_MEMBER_RESOURCE  // allow platforms to override ub member resource decl
+		#define UB_RESOURCE_MEMBER_RESOURCE(Type, Name) AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name)
+	#endif
 #else
 	#define DEFINE_RESOURCE_VARIABLE(Type, Name)  Type Name
 	#define DEFINE_RESOURCE(Type, Name)           Type Name
