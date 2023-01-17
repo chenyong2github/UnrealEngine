@@ -489,6 +489,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f, EffectiveResolution)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
+		SHADER_PARAMETER(uint32, bIsStrataTileHistoryValid)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
@@ -810,6 +811,8 @@ void UpdateHistoryReflections(
 	FRDGTextureDesc NumHistoryFramesAccumulatedDesc = FRDGTextureDesc::Create2D(EffectiveResolution, PF_G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef NewNumHistoryFramesAccumulated = GraphBuilder.CreateTexture(NumHistoryFramesAccumulatedDesc, TEXT("Lumen.Reflections.NumHistoryFramesAccumulated"));
 
+	const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == View.ViewState->Lumen.ReflectionState.StrataMaxBSDFCount : true;
+
 	if (GLumenReflectionTemporalFilter
 		&& View.ViewState
 		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT
@@ -847,6 +850,7 @@ void UpdateHistoryReflections(
 			PassParameters->HistoryDistanceThreshold = GLumenReflectionHistoryDistanceThreshold;
 			PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			PassParameters->HistoryScreenPositionScaleBias = *HistoryScreenPositionScaleBias;
+			PassParameters->bIsStrataTileHistoryValid = bOverflowTileHistoryValid ? 1u : 0u;
 
 			// Effective resolution containing the primarty & overflow space (if any)
 			PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.f / EffectiveResolution.X, 1.f / EffectiveResolution.Y);
@@ -915,6 +919,7 @@ void UpdateHistoryReflections(
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		ReflectionTemporalState.HistoryViewRect = View.ViewRect;
 		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
+		ReflectionTemporalState.StrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
 
 		// Queue updating the view state's render target reference with the new values
 		GraphBuilder.QueueTextureExtraction(FinalSpecularIndirect, &ReflectionTemporalState.SpecularIndirectHistoryRT);

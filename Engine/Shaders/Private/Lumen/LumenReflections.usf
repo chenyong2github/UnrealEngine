@@ -715,6 +715,7 @@ Texture2D VelocityTexture;
 SamplerState VelocityTextureSampler;
 
 float PrevInvPreExposure;
+uint bIsStrataTileHistoryValid;
 
 // Return the 'flatten' SvPosition/ScreenCoord of particular BSDF layer
 uint2 GetNeighborFlattenCoord(uint2 InScreenCoord, uint InBSDFIndex)
@@ -1006,6 +1007,9 @@ void ReflectionTemporalReprojectionCS(
 	NewNumFramesAccumulated = bHistoryWasOnscreen ? NewNumFramesAccumulated : 0;
 
 	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
+#if STRATA_ENABLED
+	if (bIsStrataTileHistoryValid == 0 && Coord.TileBSDFIndex > 0) { Alpha = 1.0f; }
+#endif
 	float3 OutReflections = lerp(HistorySpecularIndirect, NewSpecular, Alpha);
 
 	OutReflections = MakeFinite(OutReflections);

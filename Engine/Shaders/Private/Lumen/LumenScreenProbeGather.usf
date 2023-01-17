@@ -1595,6 +1595,7 @@ float InvFractionOfLightingMovingForFastUpdateMode;
 float MaxFastUpdateModeAmount;
 float MaxFramesAccumulated;
 float HistoryNormalCosThreshold;
+uint  bIsStrataTileHistoryValid;
 
 // Return the 'flatten' SvPosition/ScreenCoord of particular BSDF layer
 uint2 GetNeighborFlattenCoord(uint2 InScreenCoord, uint InBSDFIndex)
@@ -1937,6 +1938,9 @@ void ScreenProbeTemporalReprojectionCS(
 #endif
 
 	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
+#if STRATA_ENABLED
+	if (bIsStrataTileHistoryValid == 0 && Coord.TileBSDFIndex > 0) { Alpha = 1.0f; }
+#endif
 	float3 OutDiffuseIndirect = lerp(HistoryDiffuseIndirect, NewDiffuseLighting.xyz, Alpha);
 	float3 OutRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, NewRoughSpecularLighting, Alpha);
 

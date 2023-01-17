@@ -959,6 +959,7 @@ class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)
 		SHADER_PARAMETER(FVector4f, EffectiveResolution)
+		SHADER_PARAMETER(uint32, bIsStrataTileHistoryValid)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BackfaceDiffuseIndirect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RoughSpecularIndirect)
@@ -1382,6 +1383,7 @@ void UpdateHistoryScreenProbeGather(
 		const bool bRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0 && NormalHistoryState
 			&& !Strata::IsStrataEnabled(); // STRATA_TODO provide Lumen with a valid normal
 		const bool bSupportBackfaceDiffuse = BackfaceDiffuseIndirect != nullptr;
+		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ScreenProbeGatherState.StrataMaxBSDFCount : true;
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
 
@@ -1462,6 +1464,7 @@ void UpdateHistoryScreenProbeGather(
 						PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 						PassParameters->InvFractionOfLightingMovingForFastUpdateMode = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode, .001f);
 						PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
+						PassParameters->bIsStrataTileHistoryValid = bOverflowTileHistoryValid ? 1u : 0u;
 
 						const float MaxFramesAccumulatedScale = 1.0f / FMath::Sqrt(FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 8.0f));
 						const float EditingScale = View.Family->bCurrentlyBeingEdited ? .5f : 1.0f;
@@ -1569,6 +1572,11 @@ void UpdateHistoryScreenProbeGather(
 					ScreenProbeGatherState.BackfaceDiffuseIndirectHistoryRT = nullptr;
 				}
 				
+				if (Strata::IsStrataEnabled())
+				{
+					GraphBuilder.QueueTextureExtraction(View.StrataViewData.BSDFTileTexture, &ScreenProbeGatherState.BSDFTileHistoryRT);
+				}
+
 				GraphBuilder.QueueTextureExtraction(RoughSpecularIndirect, RoughSpecularIndirectHistoryState);
 				*HistoryNumFramesAccumulated = GSystemTextures.BlackDummy;
 				*FastUpdateModeHistoryState = GSystemTextures.BlackDummy;
@@ -1580,6 +1588,7 @@ void UpdateHistoryScreenProbeGather(
 			*DiffuseIndirectHistoryViewRect = NewHistoryViewRect;
 			*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 			ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
+			ScreenProbeGatherState.StrataMaxBSDFCount = View.StrataViewData.MaxBSDFCount;
 
 			if (bRejectBasedOnNormal)
 			{
