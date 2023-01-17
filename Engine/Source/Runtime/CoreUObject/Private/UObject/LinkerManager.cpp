@@ -26,7 +26,7 @@ FLinkerManager::~FLinkerManager()
 {
 }
 
-bool FLinkerManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FLinkerManager::Exec_Dev(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd, TEXT("LinkerLoadList")))

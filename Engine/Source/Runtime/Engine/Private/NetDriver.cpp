@@ -3133,8 +3133,7 @@ void HandleNetFlushAllDormancy(UNetDriver* InNetDriver, UWorld* InWorld)
 }
 #endif
 
-
-bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+bool UNetDriver::Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 #if !UE_BUILD_SHIPPING
 	int32 PacketLossBurstMilliseconds = 0;

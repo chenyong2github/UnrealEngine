@@ -11,14 +11,15 @@ struct FGameplayAbilitiesExec : public FSelfRegisteringExec
 	{
 	}
 
+protected:
 	// Begin FExec Interface
-	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Dev(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	// End FExec Interface
 };
 
 FGameplayAbilitiesExec GameplayAbilitiesExecInstance;
 
-bool FGameplayAbilitiesExec::Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FGameplayAbilitiesExec::Exec_Dev(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (Inworld == NULL)
 	{

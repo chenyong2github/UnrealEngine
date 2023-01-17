@@ -733,7 +733,7 @@ bool FSocketSubsystemSteam::Tick(float DeltaTime)
 	return true;
 }
 
-bool FSocketSubsystemSteam::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FSocketSubsystemSteam::Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd, TEXT("dumpsteamsessions")))

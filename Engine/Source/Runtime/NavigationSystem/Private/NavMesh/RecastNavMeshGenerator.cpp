@@ -7194,9 +7194,9 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 
 static class FNavigationGeomExec : private FSelfRegisteringExec
 {
-public:
+protected:
 	/** Console commands, see embeded usage statement **/
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
+	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 		bool bExported = false;
 #if ALLOW_DEBUG_FILES && ENABLE_VISUAL_LOG

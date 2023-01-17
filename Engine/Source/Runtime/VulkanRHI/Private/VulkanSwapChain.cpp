@@ -84,7 +84,7 @@ bool GSimulateSuboptimalSurfaceInNextTick = false;
 // A self registering exec helper to check for the VULKAN_* commands.
 class FVulkanCommandsHelper : public FSelfRegisteringExec
 {
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec_Dev(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		if (FParse::Command(&Cmd, TEXT("VULKAN_SIMULATE_LOST_SURFACE")))
 		{

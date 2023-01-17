@@ -1084,7 +1084,7 @@ void UEnvQueryManager::SetAllowTimeSlicing(bool bAllowTimeSlicing)
 #endif
 }
 
-bool UEnvQueryManager::Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool UEnvQueryManager::Exec_Dev(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if USE_EQS_DEBUGGER
 	if (FParse::Command(&Cmd, TEXT("DumpEnvQueryStats")))

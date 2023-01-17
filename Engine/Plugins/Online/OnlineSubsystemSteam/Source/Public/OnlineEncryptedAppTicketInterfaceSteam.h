@@ -66,11 +66,12 @@ public:
 	 */
 	bool GetEncryptedAppTicket(TArray<uint8>& OutEncryptedData);
 
-	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	/* Attach to this delegate to get notified about the encrypted application ticket results. */
 	FOnEncryptedAppTicketResponse OnEncryptedAppTicketResultDelegate;
+
+protected:
+	// FSelfRegisteringExec
+	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 

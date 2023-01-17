@@ -1132,9 +1132,9 @@ FCustomVersionRegistration GVisualLoggerVersion(EVisualLoggerVersion::GUID, EVis
 
 class FLogVisualizerExec : private FSelfRegisteringExec
 {
-public:
+protected:
 	/** Console commands, see embedded usage statement **/
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		if (FParse::Command(&Cmd, TEXT("VISLOG")))
 		{

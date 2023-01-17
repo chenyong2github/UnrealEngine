@@ -1251,7 +1251,7 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin FExec Interface
-
+protected:
 	/**
 	 * Handle exec commands
 	 *
@@ -1261,11 +1261,12 @@ public:
 	 *
 	 * @return true if the handler consumed the input, false to continue searching handlers
 	 */
-	ENGINE_API virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog) override;
+	ENGINE_API virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog) override;
+//~ End FExec Interface.
+
+public:
 
 	ENGINE_API ENetMode	GetNetMode() const;
-
-	//~ End FExec Interface.
 
 	/** 
 	 * Returns true if this net driver is valid for the current configuration.

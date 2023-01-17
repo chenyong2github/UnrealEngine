@@ -23,19 +23,6 @@ class FWebAuthModule :
 
 public:
 
-	// FSelfRegisteringExec
-
-	/**
-	 * Handle exec commands starting with "WebAuth"
-	 *
-	 * @param InWorld	the world context
-	 * @param Cmd		the exec command being executed
-	 * @param Ar		the archive to log results to
-	 *
-	 * @return true if the handler consumed the input, false to continue searching handlers
-	 */
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	/**
 	 * Exec command handlers
 	 */
@@ -72,6 +59,20 @@ public:
 	{
 		return WebAuth != nullptr;
 	}
+
+protected:
+	// FSelfRegisteringExec
+
+	/**
+	 * Handle exec commands starting with "WebAuth"
+	 *
+	 * @param InWorld	the world context
+	 * @param Cmd		the exec command being executed
+	 * @param Ar		the archive to log results to
+	 *
+	 * @return true if the handler consumed the input, false to continue searching handlers
+	 */
+	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 	// IModuleInterface

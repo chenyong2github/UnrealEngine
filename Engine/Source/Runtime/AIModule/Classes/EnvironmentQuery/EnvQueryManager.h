@@ -282,14 +282,14 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 
 	static void SetAllowTimeSlicing(bool bAllowTimeSlicing);
 
-	//~ Begin FExec Interface
-	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-	//~ End FExec Interface
-
 	/** Configure config variables during runtime */
 	void Configure(const FEnvQueryManagerConfig& NewConfig);
 
 protected:
+	//~ Begin FExec Interface
+	virtual bool Exec_Dev(UWorld* Inworld,const TCHAR* Cmd,FOutputDevice& Ar) override;
+	//~ End FExec Interface
+
 	friend UEnvQueryInstanceBlueprintWrapper;
 	TSharedPtr<FEnvQueryInstance> FindQueryInstance(const int32 QueryID);
 

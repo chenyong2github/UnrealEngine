@@ -506,11 +506,9 @@ public:
 		return IsPackageLoaded;
 	}
 
-
+protected:
 	// FSelfRegisteringExec interface.
-
-	virtual bool Exec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
-
+	virtual bool Exec_Dev( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 
 private:
 	friend TOptional<FModuleManager>& UE::Core::Private::GetModuleManagerSingleton();

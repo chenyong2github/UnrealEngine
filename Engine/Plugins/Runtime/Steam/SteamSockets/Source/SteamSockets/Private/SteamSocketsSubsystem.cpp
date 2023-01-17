@@ -507,7 +507,7 @@ bool FSteamSocketsSubsystem::Tick(float DeltaTime)
 	return true;
 }
 
-bool FSteamSocketsSubsystem::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FSteamSocketsSubsystem::Exec_Dev(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bIsHandled = false;
 

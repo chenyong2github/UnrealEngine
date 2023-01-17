@@ -882,7 +882,7 @@ IModuleInterface* FModuleManager::GetModule( const FName InModuleName )
 	return nullptr;
 }
 
-bool FModuleManager::Exec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar )
+bool FModuleManager::Exec_Dev( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 #if !UE_BUILD_SHIPPING
 	if ( FParse::Command( &Cmd, TEXT( "Module" ) ) )

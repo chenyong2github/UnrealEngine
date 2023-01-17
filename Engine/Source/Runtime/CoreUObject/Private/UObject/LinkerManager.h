@@ -107,9 +107,6 @@ public:
 	}
 #endif
 
-	// FSelfRegisteringExec interface
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-
 	/** Reset only the linker exports associated with this package. */
 	void ResetLinkerExports(UPackage* InPackage);
 
@@ -136,6 +133,10 @@ public:
 
 	/** Adds a linker to deferred cleanup list */
 	void RemoveLinker(FLinkerLoad* Linker);
+
+protected:
+	// FSelfRegisteringExec interface
+	virtual bool Exec_Dev(class UWorld* InWorld,const TCHAR* Cmd,FOutputDevice& Ar) override;
 
 private:
 

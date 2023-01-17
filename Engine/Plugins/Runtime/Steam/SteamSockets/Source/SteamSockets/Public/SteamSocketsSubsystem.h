@@ -72,10 +72,6 @@ public:
 	virtual bool Tick(float DeltaTime) override;
 	//~ End FTickerObject Interface
 
-	//~ Begin FSelfRegisteringExec Interface
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-	//~ End FSelfRegisteringExec Interface
-
 	/** Returns if the application is using the SteamSocket relays */
 	bool IsUsingRelayNetwork() const { return bUseRelays; }
 
@@ -164,6 +160,10 @@ PACKAGE_SCOPE:
 	bool bShouldTestPeek;
 
 protected:
+	//~ Begin FSelfRegisteringExec Interface
+	virtual bool Exec_Dev(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ End FSelfRegisteringExec Interface
+
 	void CleanSocketInformation(bool bForceClean);
 	void DumpSocketInformationMap() const;
 

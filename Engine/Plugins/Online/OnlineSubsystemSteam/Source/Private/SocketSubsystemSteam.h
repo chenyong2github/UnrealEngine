@@ -397,8 +397,9 @@ public:
 	 */
 	virtual bool IsSocketWaitSupported() const override { return false; }
 
+protected:
 	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 };
 
 /**

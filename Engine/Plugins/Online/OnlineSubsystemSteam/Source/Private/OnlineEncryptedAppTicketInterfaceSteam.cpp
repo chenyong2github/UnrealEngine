@@ -231,7 +231,7 @@ bool FOnlineEncryptedAppTicketSteam::GetEncryptedAppTicket(TArray<uint8>& OutEnc
 	return false;
 }
 
-bool FOnlineEncryptedAppTicketSteam::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FOnlineEncryptedAppTicketSteam::Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd, TEXT("RequestEncryptedAppTicket")))

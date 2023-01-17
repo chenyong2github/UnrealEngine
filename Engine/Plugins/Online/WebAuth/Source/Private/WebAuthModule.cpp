@@ -75,7 +75,7 @@ bool FWebAuthModule::HandleWebAuthCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	return true;
 }
 
-bool FWebAuthModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FWebAuthModule::Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	// Ignore any execs that don't start with WebAuth
 	if (FParse::Command(&Cmd, TEXT("WebAuth")))

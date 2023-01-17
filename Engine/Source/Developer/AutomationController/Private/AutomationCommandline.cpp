@@ -478,8 +478,9 @@ public:
 		return false;
 	}
 	
+protected:
 	/** Console commands, see embeded usage statement **/
-	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override
+	virtual bool Exec_Dev(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		bool bHandled = false;
 		// Track whether we have a flag we care about passing through.

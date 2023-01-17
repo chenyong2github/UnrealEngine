@@ -2211,7 +2211,7 @@ void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
 	DebugState = InDebugState;
 }
 
-bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool FAudioDevice::Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !UE_BUILD_SHIPPING
 	auto ParseAudioExecCmd = [](const TCHAR** InCmd, const TCHAR* InMatch)

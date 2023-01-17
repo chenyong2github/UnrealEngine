@@ -645,7 +645,7 @@ void UAvoidanceManager::HandleToggleAvoidance( const TCHAR* Cmd, FOutputDevice& 
 
 #endif
 
-bool UAvoidanceManager::Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
+bool UAvoidanceManager::Exec_Dev(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (FParse::Command(&Cmd, TEXT("AvoidanceDisplayAll")))

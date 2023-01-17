@@ -516,9 +516,9 @@ bool UWorld::ComponentSweepMultiByChannel(TArray<struct FHitResult>& OutHits, cl
 
 static class FCollisionExec : private FSelfRegisteringExec
 {
-public:
+protected:
 	/** Console commands, see embeded usage statement **/
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
+	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
 	{
 #if ENABLE_COLLISION_ANALYZER
 		if (FParse::Command(&Cmd, TEXT("CANALYZER")))
