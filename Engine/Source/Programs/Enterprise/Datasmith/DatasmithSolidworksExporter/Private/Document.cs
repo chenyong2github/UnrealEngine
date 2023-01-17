@@ -6,8 +6,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FAssemblyDocumentTracker;
 
 namespace DatasmithSolidworks
@@ -264,7 +266,7 @@ namespace DatasmithSolidworks
 		public abstract void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials);
 		public abstract FObjectMaterials GetComponentMaterials(Component2 Comp);
 
-		public abstract void AddMeshForComponent(FComponentName ComponentName, string MeshName);
+		public abstract void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName);
 
 		public virtual void Destroy()
 		{
@@ -277,32 +279,37 @@ namespace DatasmithSolidworks
 		// Datasmith actor assignment doesn't need threading(and not supposed to be thread-safe?) and Solidworks multithreading is supposed to be slower(SW does all the work in main thread)
 		public void ProcessConfigurationMeshes(FMeshes.FConfiguration MeshesConfiguration, string MeshSuffix)
 		{
-			ConcurrentDictionary<Component2, FDatasmithFacadeMeshElement> CreatedMeshes =
-				new ConcurrentDictionary<Component2, FDatasmithFacadeMeshElement>();
+			
+			List<FDatasmithExporter.FMeshExportInfo> MeshExportInfos = new List<FDatasmithExporter.FMeshExportInfo>();
 
-			Parallel.ForEach(MeshesConfiguration.EnumerateComponentAndActorNames(), KVP =>
+			// Extract meshes data and prepare for parallel datasmith export
+			foreach (Component2 Comp in MeshesConfiguration.EnumerateComponents())
 			{
-				Component2 Comp = KVP.Key;
-
 				FMeshData MeshData = ExtractComponentMeshData(Comp);
-
 				MeshesConfiguration.AddMesh(Comp, MeshData);
 
 				if (MeshData != null)
 				{
-					string MeshName = MeshSuffix == null ? $"{KVP.Value}_Mesh" : $"{KVP.Value}_{MeshSuffix}_Mesh";
 
-					if (Exporter.ExportMesh(MeshName, MeshData, KVP.Value, out FDatasmithFacadeMeshElement NewMesh))
+					FActorName ComponentActorName = Exporter.GetComponentActorName(Comp);
+					FComponentName ComponentName = new FComponentName(Comp);
+					MeshExportInfos.Add(new FDatasmithExporter.FMeshExportInfo()
 					{
-						CreatedMeshes[Comp] = NewMesh;
-					}
+						ComponentName = ComponentName,
+						MeshName = FMeshName.FromString(MeshSuffix == null
+							? $"{ComponentName}_Mesh"
+							: $"{ComponentName}_{MeshSuffix}_Mesh"),
+						ActorName = ComponentActorName,
+						MeshData = MeshData
+					});
 				}
-			});
+			}
 
-			foreach (var KVP in CreatedMeshes)
+			Exporter.ExportMeshes(MeshExportInfos, out List<FDatasmithExporter.FMeshExportInfo> CreatedMeshes);
+
+			foreach (FDatasmithExporter.FMeshExportInfo Info in CreatedMeshes)
 			{
-				string MeshName = Exporter.AddMesh(KVP.Value);
-				AddMeshForComponent(new FComponentName(KVP.Key), MeshName);  // Register that this mesh was used for the component
+				AddMeshForComponent(Info.ComponentName, Info.MeshName);  // Register that this mesh was used for the component
 			}
 		}
 	};

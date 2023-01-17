@@ -7,6 +7,7 @@ using SolidWorks.Interop.swconst;
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using DatasmithSolidworks.Names;
 
 namespace DatasmithSolidworks
 {

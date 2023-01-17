@@ -14,6 +14,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
+using DatasmithSolidworks.Names;
 using Environment = System.Environment;
 
 namespace DatasmithSolidworks

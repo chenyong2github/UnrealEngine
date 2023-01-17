@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using DatasmithSolidworks.Names;
 
 namespace DatasmithSolidworks
 {
@@ -47,8 +48,8 @@ namespace DatasmithSolidworks
 				new Dictionary<FComponentName, Component2>();
 
 			/** Stores which mesh was exported for each component*/
-			public Dictionary<FComponentName, string> ComponentNameToMeshNameMap =
-				new Dictionary<FComponentName, string>();
+			public Dictionary<FComponentName, FMeshName> ComponentNameToMeshNameMap =
+				new Dictionary<FComponentName, FMeshName>();
 		}
 
 		public AssemblyDoc SwAsmDoc { get; private set; } = null;
@@ -111,11 +112,11 @@ namespace DatasmithSolidworks
 		{
 			foreach (FComponentName CompName in SyncState.ComponentsToDelete)
 			{
-				FActorName ActorName = CompName.GetActorName();
+				FActorName ActorName = Exporter.GetComponentActorName(CompName);
 				SyncState.ComponentToPartMap.Remove(CompName);
 				SyncState.ExportedComponentsMap.Remove(CompName);
 
-				if (SyncState.ComponentNameToMeshNameMap.TryGetValue(CompName, out string MeshName))
+				if (SyncState.ComponentNameToMeshNameMap.TryGetValue(CompName, out FMeshName MeshName))
 				{
 					SyncState.ComponentNameToMeshNameMap.Remove(CompName);
 					Exporter.RemoveMesh(MeshName);
@@ -142,7 +143,7 @@ namespace DatasmithSolidworks
 			SyncState.ComponentsMaterialsMap[ComponentName] = Materials;
 		}
 
-		public override void AddMeshForComponent(FComponentName ComponentName, string MeshName)
+		public override void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName)
 		{
 			SyncState.ComponentNameToMeshNameMap[ComponentName] = MeshName;
 		}
@@ -366,14 +367,14 @@ namespace DatasmithSolidworks
 
 				FDatasmithActorExportInfo ActorExportInfo = new FDatasmithActorExportInfo();
 
-				FActorName ActorName = ComponentName.GetActorName();
+				FActorName ActorName = Exporter.GetComponentActorName(ComponentName);
 
 				ActorExportInfo.Label = ComponentName.GetLabel();
 				ActorExportInfo.Name = ActorName;
 
 				if (InParent != null)
 				{
-					ActorExportInfo.ParentName = new FComponentName(InParent).GetActorName();
+					ActorExportInfo.ParentName = Exporter.GetComponentActorName(InParent);
 				}
 
 				ActorExportInfo.bVisible = true;
@@ -444,7 +445,7 @@ namespace DatasmithSolidworks
 				if (ActorExportInfo.Type == EActorType.MeshActor)
 				{
 					// todo: deduplicate mesh name calculation
-					ActorExportInfo.MeshName = FDatasmithExporter.SanitizeName($"{ActorExportInfo.Name}_Mesh");
+					ActorExportInfo.MeshName = new FMeshName(ComponentName);
 				}
 
 				Exporter.ExportOrUpdateActor(ActorExportInfo);
@@ -479,7 +480,7 @@ namespace DatasmithSolidworks
 
 			if (InNode.bGeometrySame)
 			{
-				FActorName ActorName = InNode.ActorName;
+				FActorName ActorName = Exporter.GetComponentActorName(InNode.ComponentName);
 
 				FDatasmithActorExportInfo ActorExportInfo = new FDatasmithActorExportInfo();
 
@@ -488,7 +489,7 @@ namespace DatasmithSolidworks
 
 				if (InParent != null)
 				{
-					ActorExportInfo.ParentName = InParent.GetActorName();
+					ActorExportInfo.ParentName = Exporter.GetComponentActorName(InParent.ComponentName);
 				}
 
 				ActorExportInfo.bVisible = true;
@@ -506,7 +507,8 @@ namespace DatasmithSolidworks
 				if (ActorExportInfo.Type == EActorType.MeshActor)
 				{
 					// todo: deduplicate mesh name calculation
-					ActorExportInfo.MeshName = FDatasmithExporter.SanitizeName(ConfigurationExporter.GetMeshName(InNode.ComponentName));
+					
+					ActorExportInfo.MeshName = ConfigurationExporter.GetMeshName(InNode.ComponentName);
 				}
 
 				Exporter.ExportOrUpdateActor(ActorExportInfo);
@@ -517,7 +519,7 @@ namespace DatasmithSolidworks
 
 				FActorName ParentName;
 				{
-					FActorName ActorName = InNode.ActorName;
+					FActorName ActorName = Exporter.GetComponentActorName(InNode.ComponentName);
 					ParentName = ActorName;
 
 					FDatasmithActorExportInfo ActorExportInfo = new FDatasmithActorExportInfo();
@@ -527,7 +529,7 @@ namespace DatasmithSolidworks
 
 					if (InParent != null)
 					{
-						ActorExportInfo.ParentName = InParent.GetActorName();
+						ActorExportInfo.ParentName = Exporter.GetComponentActorName(InParent.ComponentName);
 					}
 
 					ActorExportInfo.bVisible = true;
@@ -564,7 +566,7 @@ namespace DatasmithSolidworks
 
 					;
 					// todo: deduplicate mesh name calculation
-					ActorExportInfo.MeshName = FDatasmithExporter.SanitizeName(ConfigurationExporter.GetMeshName(ComponentConfig.ConfigName, InNode.ComponentName));
+					ActorExportInfo.MeshName = ConfigurationExporter.GetMeshName(ComponentConfig.ConfigName, InNode.ComponentName);
 
 					Exporter.ExportOrUpdateActor(ActorExportInfo);
 				}

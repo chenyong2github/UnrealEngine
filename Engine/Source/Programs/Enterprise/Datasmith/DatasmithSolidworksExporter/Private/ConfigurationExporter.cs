@@ -8,6 +8,7 @@ using SolidWorks.Interop.swconst;
 using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
 using System.Linq;
+using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FConfigurationTree;
 
 namespace DatasmithSolidworks
@@ -208,12 +209,9 @@ namespace DatasmithSolidworks
 				return MeshForComponent.Keys;
 			}
 
-			public IEnumerable<KeyValuePair<Component2, FActorName>> EnumerateComponentAndActorNames()
+			public IEnumerable<Component2> EnumerateComponents()
 			{
-				foreach (KeyValuePair<FComponentName, FComponentMesh> FVP in MeshForComponent)
-				{
-					yield return new KeyValuePair<Component2, FActorName>(FVP.Value.Component, FVP.Value.ActorName);
-				}
+				return MeshForComponent.Select(KVP => KVP.Value.Component);
 			}
 		}
 
@@ -578,16 +576,16 @@ namespace DatasmithSolidworks
 			return FActorName.FromString($"{ComponentName}_{ConfigName}");
 		}
 
-		public string GetMeshName(string ConfigName, FComponentName ComponentName)
+		public FMeshName GetMeshName(string ConfigName, FComponentName ComponentName)
 		{
-			return ConfigName == MainConfigurationName ? $"{ComponentName}_Mesh" : $"{ComponentName}_{ConfigName}_Mesh";
+			return FMeshName.FromString(ConfigName == MainConfigurationName ? $"{ComponentName}_Mesh" : $"{ComponentName}_{ConfigName}_Mesh");
 		}
 
 		// Get mesh for component which has only single mesh configuration
-		public string GetMeshName(FComponentName ComponentName)
+		public FMeshName GetMeshName(FComponentName ComponentName)
 		{
 			string ConfigName = Meshes.GetConfigurationNameForComponentMesh(ComponentName);
-			return ConfigName == MainConfigurationName ? $"{ComponentName}_Mesh" : $"{ComponentName}_{ConfigName}_Mesh";
+			return GetMeshName(ConfigName, ComponentName);
 		}
 	}
 }

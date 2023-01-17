@@ -2,6 +2,7 @@
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 //
 // General Information about an assembly is controlled through the following
@@ -60,3 +61,5 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyKeyName("")]
 [assembly: AssemblyFileVersion("1.0.0.21")]
 
+// todo: We don't need com visibility for every class. Only for the Addin and whatever we'd want to expose and automation API
+// [assembly: ComVisible(false)]

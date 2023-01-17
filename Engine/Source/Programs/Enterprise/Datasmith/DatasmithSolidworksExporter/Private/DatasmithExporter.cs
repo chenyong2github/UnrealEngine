@@ -9,10 +9,132 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FConfigurationTree;
+
 
 namespace DatasmithSolidworks
 {
+	// Wrapping Component Name, Actor Name and Mesh Name to distinguish one from the other in the code. This helps to
+	//  - make explicit which name where
+	//  - avoid using sanitized(Datasmith) name to check component's name and vice versa
+	namespace Names
+	{
+		[ComVisible(false)]
+		public struct FActorName : IEquatable<FActorName>
+		{
+			private string Value;
+
+			public FActorName(FComponentName ComponentName)
+			{
+				Value = FDatasmithExporter.SanitizeName(ComponentName.GetString());
+			}
+			private FActorName(string InValue) => Value = InValue;
+
+			public static FActorName FromString(string Value) => new FActorName(Value);
+
+			// Following is common between 'Names' but unfortunately C# has no way to generalize this for structs
+			public bool IsValid() => !string.IsNullOrEmpty(Value);
+			public string GetString() => Value;
+
+			public override string ToString() => Value;
+
+			public override bool Equals(object Obj) => Obj is FActorName Other && this == Other;
+			public bool Equals(FActorName Other) => Value == Other.Value;
+			public static bool operator ==(FActorName A, FActorName B) => A.Equals(B);
+			public static bool operator !=(FActorName A, FActorName B) => !(A == B);
+
+			public override int GetHashCode() => Value.GetHashCode();
+		}
+
+		[ComVisible(false)]
+		public struct FComponentName: IEquatable<FComponentName>
+		{
+			private string Value;
+
+			public FComponentName(Component2 Component)
+			{
+				Value = Component.Name2;
+			}
+
+			public FComponentName(IComponent2 Component)
+			{
+				Value = Component.Name2;
+			}
+
+			private FComponentName(string Name)
+			{
+				Value = Name;
+			}
+
+			/// Used to convert string to component name ONLY when received from Solidworks API
+			public static FComponentName FromApiString(string Name)
+			{
+				return new FComponentName(Name);
+			}
+
+			/// Used to convert from a custom string to represent something 'like' a Solidworks component
+			/// todo: may want to avoid trying to mix components and non-components into the same 'entity'?
+			public static FComponentName FromCustomString(string Value)
+			{
+				return new FComponentName(Value);
+			}
+
+			public FActorName GetActorName()
+			{
+				return new FActorName(this);
+			}
+
+			public string GetLabel()
+			{
+				return Value.Split('/').Last();
+			}
+
+			// Following is common between 'Names' but unfortunately C# has no way to generalize this for structs
+			public bool IsValid() => !string.IsNullOrEmpty(Value);
+			public string GetString() => Value;
+
+			public override string ToString() => Value;
+			public override bool Equals(object Obj) => Obj is FComponentName Other && this == Other;
+			public bool Equals(FComponentName Other) => Value == Other.Value;
+			public static bool operator ==(FComponentName A, FComponentName B) => A.Equals(B);
+			public static bool operator !=(FComponentName A, FComponentName B) => !(A == B);
+
+			public override int GetHashCode() => Value.GetHashCode();
+		}
+
+		[ComVisible(false)]
+		public struct FMeshName : IEquatable<FMeshName>
+		{
+			private string Value;
+
+			public FMeshName(FComponentName ComponentName) => Value = $"{ComponentName}_Mesh";
+			public FMeshName(FComponentName ComponentName, string CfgName) => Value = $"{ComponentName}_{CfgName}_Mesh";
+
+			private FMeshName(string InValue) => Value = InValue;
+
+			public static FMeshName FromString(string Value) => new FMeshName(Value);
+
+			// Following is common between 'Names' but unfortunately C# has no way to generalize this for structs
+			public bool IsValid() => !string.IsNullOrEmpty(Value);
+			public string GetString() => Value;
+
+			public override string ToString() => Value;
+
+			public override bool Equals(object Obj) => Obj is FMeshName Other && this == Other;
+			public bool Equals(FMeshName Other) => Value == Other.Value;
+			public static bool operator ==(FMeshName A, FMeshName B) => A.Equals(B);
+			public static bool operator !=(FMeshName A, FMeshName B) => !(A == B);
+
+			public override int GetHashCode() => Value.GetHashCode();
+		}
+
+	}
+}
+
+namespace DatasmithSolidworks
+{
+
 	public enum EActorType
 	{
 		SimpleActor,
@@ -22,149 +144,6 @@ namespace DatasmithSolidworks
 		DirLightActor
 	};
 
-	// Wrapping Component Name and Actor Name to distinguish one from the other in the code. This helps to
-	//  - make explicit which name where
-	//  - avoid using sanitized name to check component's name and vice versa
-
-	[ComVisible(false)]
-	public struct FActorName
-	{
-		private string Value;
-
-		public FActorName(FComponentName ComponentName)
-		{
-			Value = FDatasmithExporter.SanitizeName(ComponentName.GetString());
-		}
-
-		public static FActorName FromString(string Value)
-		{
-			return new FActorName(Value);
-		}
-
-		private FActorName(string InValue)
-		{
-			Value = InValue;
-		}
-
-		public bool IsValid()
-		{
-			return !string.IsNullOrEmpty(Value);
-		}
-
-		public string GetString()
-		{
-			return Value;
-		}
-
-		public override string ToString()
-		{
-			return Value;
-		}
-
-		public override bool Equals(object Obj)
-		{
-			if (Obj is FActorName Other)
-			{
-				return this == Other;
-			}			
-			return false;
-		}
-
-		public static bool operator ==(FActorName A, FActorName B)
-		{
-			return A.Value == B.Value;
-		}
-
-		public static bool operator !=(FActorName A, FActorName B)
-		{
-			return !(A == B);
-		}
-
-		public override int GetHashCode()
-		{
-			return Value.GetHashCode();
-		}
-	}
-
-	[ComVisible(false)]
-	public struct FComponentName
-	{
-		private string Value;
-
-		public FComponentName(Component2 Component)
-		{
-			Value = Component.Name2;
-		}
-
-		public FComponentName(IComponent2 Component)
-		{
-			Value = Component.Name2;
-		}
-
-		private FComponentName(string Name)
-		{
-			Value = Name;
-		}
-
-		/// Used to convert string to component name ONLY when received from Solidworks API
-		public static FComponentName FromApiString(string Name)
-		{
-			return new FComponentName(Name);
-		}
-
-		/// Used to convert from a custom string to represent something 'like' a Solidworks component
-		/// todo: may want to avoid trying to mix components and non-components into the same 'entity'?
-		public static FComponentName FromCustomString(string Value)
-		{
-			return new FComponentName(Value);
-		}
-
-		public bool IsValid() => !string.IsNullOrEmpty(Value);
-
-		public string GetString()
-		{
-			return Value;
-		}
-
-		public FActorName GetActorName()
-		{
-			return new FActorName(this);
-		}
-
-		public string GetLabel()
-		{
-			return Value.Split('/').Last();
-		}
-
-		public override string ToString()
-		{
-			return Value;
-		}
-
-		public override bool Equals(object Obj)
-		{
-			if (Obj is FComponentName Other)
-			{
-				return this == Other;
-			}			
-			return false;
-		}
-
-		public static bool operator ==(FComponentName A, FComponentName B)
-		{
-			return A.Value == B.Value;
-		}
-
-		public static bool operator !=(FComponentName A, FComponentName B)
-		{
-			return !(A == B);
-		}
-
-		public override int GetHashCode()
-		{
-			return Value.GetHashCode();
-		}
-	}
 
 	public class FDatasmithActorExportInfo
 	{
@@ -172,7 +151,7 @@ namespace DatasmithSolidworks
 		public string Label;
 		public FActorName Name;
 		public FActorName ParentName;
-		public string MeshName;
+		public FMeshName MeshName;
 		public float[] Transform;
 		public bool bVisible;
 	};
@@ -180,13 +159,24 @@ namespace DatasmithSolidworks
 	public class FDatasmithExporter
 	{
 		private Dictionary<FActorName, Tuple<EActorType, FDatasmithFacadeActor>> ExportedActorsMap = new Dictionary<FActorName, Tuple<EActorType, FDatasmithFacadeActor>>();
-		private ConcurrentDictionary<string, FDatasmithFacadeMeshElement> ExportedMeshesMap = new ConcurrentDictionary<string, FDatasmithFacadeMeshElement>();
+		private ConcurrentDictionary<FMeshName, FDatasmithFacadeMeshElement> ExportedMeshesMap = new ConcurrentDictionary<FMeshName, FDatasmithFacadeMeshElement>();
 		private ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance>();
 		private ConcurrentDictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new ConcurrentDictionary<string, FDatasmithFacadeTexture>();
 		private Dictionary<string, FDatasmithFacadeActorBinding> ExportedActorBindingsMap = new Dictionary<string, FDatasmithFacadeActorBinding>();
 		private Dictionary<string, FDatasmithFacadeVariant> ExportedVariantsMap = new Dictionary<string, FDatasmithFacadeVariant>();
 
 		private FDatasmithFacadeScene DatasmithScene = null;
+
+		[ComVisible(false)]
+		public struct FMeshExportInfo
+		{
+			public FComponentName ComponentName;
+			public FMeshName MeshName;
+			public FActorName ActorName;
+			public FMeshData MeshData;
+
+			public FDatasmithFacadeMeshElement MeshElement;
+		}
 
 		public FDatasmithExporter(FDatasmithFacadeScene InScene)
 		{
@@ -259,24 +249,27 @@ namespace DatasmithSolidworks
 			if (InExportInfo.Type == EActorType.MeshActor)
 			{
 				FDatasmithFacadeActorMesh MeshActor = Actor as FDatasmithFacadeActorMesh;
-				MeshActor.SetMesh(InExportInfo.MeshName);
+				if (InExportInfo.MeshName.IsValid())
+				{
+					MeshActor.SetMesh(GetDatasmithMeshName(InExportInfo.MeshName));
+				}
 			}
 
 			return Actor;
 		}
 
-		public string AddMesh(FDatasmithFacadeMeshElement NewMesh)
+		public void AddMesh(FMeshName MeshName, FDatasmithFacadeMeshElement NewMesh)
 		{
-			string Name = NewMesh.GetName();
-			RemoveMesh(Name);
-			ExportedMeshesMap.TryAdd(Name, NewMesh);
+			Debug.Assert(MeshName.IsValid());
+			Debug.Assert(NewMesh != null);
+			RemoveMesh(MeshName);
+			ExportedMeshesMap.TryAdd(MeshName, NewMesh);
 			DatasmithScene.AddMesh(NewMesh);
-			return Name;
 		}
 
-		public void RemoveMesh(string MeshName)
+		public void RemoveMesh(FMeshName MeshName)
 		{
-            if (MeshName == null)
+            if (!MeshName.IsValid())
             {
                 return;
             }
@@ -357,11 +350,9 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public bool ExportMesh(string InMeshName, FMeshData InData, FActorName InUpdateMeshActor, out FDatasmithFacadeMeshElement OutMeshElement)
+		public bool ExportMesh(FMeshName InMeshName, FMeshData InData, out FDatasmithFacadeMeshElement OutMeshElement)
 		{
-			Addin.Instance.LogDebug($"ExportMesh(MeshName: {InMeshName}, MeshActor: {InUpdateMeshActor.GetString()})");
-
-			InMeshName = SanitizeName(InMeshName);  //Compute mesh name early(it might be needed to remove old mesh)
+			string MeshNameInitial = InMeshName.GetString(); // Make Datasmith Mesh string to build Mesh/MeshElement from, Datasmith will modify it with FDatasmithUtils::SanitizeObjectName
 
 			OutMeshElement = null;
 
@@ -377,91 +368,83 @@ namespace DatasmithSolidworks
 				return false;
 			}
 
-			FDatasmithFacadeMesh Mesh = new FDatasmithFacadeMesh();
-			Mesh.SetName(InMeshName);
-
-			FDatasmithFacadeMeshElement MeshElement = new FDatasmithFacadeMeshElement(InMeshName);
-
-			Mesh.SetVerticesCount(InData.Vertices.Length);
-			Mesh.SetFacesCount(InData.Triangles.Length);
-
-			for (int i = 0; i < InData.Vertices.Length; i++)
+			using(FDatasmithFacadeMesh Mesh = new FDatasmithFacadeMesh())
 			{
-				Mesh.SetVertex(i, InData.Vertices[i].X, InData.Vertices[i].Y, InData.Vertices[i].Z);
-			}
-			for (int i = 0; i < InData.Normals.Length; i++)
-			{
-				Mesh.SetNormal(i, InData.Normals[i].X, InData.Normals[i].Y, InData.Normals[i].Z);
-			}
+				Mesh.SetName(MeshNameInitial);
 
-			if (InData.TexCoords != null)
-			{
-				Mesh.SetUVChannelsCount(1);
-				Mesh.SetUVCount(0, InData.TexCoords.Length);
-				for (int i = 0; i < InData.TexCoords.Length; i++)
+				FDatasmithFacadeMeshElement MeshElement = new FDatasmithFacadeMeshElement(MeshNameInitial);
+
+				Mesh.SetVerticesCount(InData.Vertices.Length);
+				Mesh.SetFacesCount(InData.Triangles.Length);
+
+				for (int i = 0; i < InData.Vertices.Length; i++)
 				{
-					Mesh.SetUV(0, i, InData.TexCoords[i].X, InData.TexCoords[i].Y);
+					Mesh.SetVertex(i, InData.Vertices[i].X, InData.Vertices[i].Y, InData.Vertices[i].Z);
 				}
 
-			}
-
-			HashSet<int> MeshAddedMaterials = new HashSet<int>();
-
-			HashSet<int> MeshMaterialIds = new HashSet<int>();
-
-			for (int TriIndex = 0; TriIndex < InData.Triangles.Length; TriIndex++)
-			{
-				FTriangle Triangle = InData.Triangles[TriIndex];
-				int MatID = 0;
-
-				MeshMaterialIds.Add(Triangle.MaterialID);
-				if (Triangle.MaterialID >= 1)
+				for (int i = 0; i < InData.Normals.Length; i++)
 				{
-					if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
+					Mesh.SetNormal(i, InData.Normals[i].X, InData.Normals[i].Y, InData.Normals[i].Z);
+				}
+
+				if (InData.TexCoords != null)
+				{
+					Mesh.SetUVChannelsCount(1);
+					Mesh.SetUVCount(0, InData.TexCoords.Length);
+					for (int i = 0; i < InData.TexCoords.Length; i++)
 					{
-						Addin.Instance.LogDebug($"  set material if it's exported: {Triangle.MaterialID}");
+						Mesh.SetUV(0, i, InData.TexCoords[i].X, InData.TexCoords[i].Y);
+					}
 
-						FDatasmithFacadeMaterialInstance Material = null;
-						ExportedMaterialsMap.TryGetValue(Triangle.MaterialID, out Material);
+				}
 
-						if (Material != null)
+				HashSet<int> MeshAddedMaterials = new HashSet<int>();
+
+				HashSet<int> MeshMaterialIds = new HashSet<int>();
+
+				for (int TriIndex = 0; TriIndex < InData.Triangles.Length; TriIndex++)
+				{
+					FTriangle Triangle = InData.Triangles[TriIndex];
+					int MatID = 0;
+
+					MeshMaterialIds.Add(Triangle.MaterialID);
+					if (Triangle.MaterialID >= 1)
+					{
+						if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
 						{
-							Addin.Instance.LogDebug($" SetMaterial({Material.GetName()}, SlotId: {Triangle.MaterialID})");
+							Addin.Instance.LogDebug($"  set material if it's exported: {Triangle.MaterialID}");
 
-							MeshAddedMaterials.Add(Triangle.MaterialID);
-							MeshElement.SetMaterial(Material.GetName(), Triangle.MaterialID);
+							FDatasmithFacadeMaterialInstance Material = null;
+							ExportedMaterialsMap.TryGetValue(Triangle.MaterialID, out Material);
+
+							if (Material != null)
+							{
+								Addin.Instance.LogDebug(
+									$" SetMaterial({Material.GetName()}, SlotId: {Triangle.MaterialID})");
+
+								MeshAddedMaterials.Add(Triangle.MaterialID);
+								MeshElement.SetMaterial(Material.GetName(), Triangle.MaterialID);
+								MatID = Triangle.MaterialID;
+							}
+						}
+						else
+						{
 							MatID = Triangle.MaterialID;
 						}
 					}
-					else
-					{
-						MatID = Triangle.MaterialID;
-					}
+
+					Mesh.SetFace(TriIndex, Triangle[0], Triangle[1], Triangle[2], MatID);
+					Mesh.SetFaceUV(TriIndex, 0, Triangle[0], Triangle[1], Triangle[2]);
 				}
 
-				Mesh.SetFace(TriIndex, Triangle[0], Triangle[1], Triangle[2], MatID);
-				Mesh.SetFaceUV(TriIndex, 0, Triangle[0], Triangle[1], Triangle[2]);
-			}
-
-			Addin.Instance.LogDebug($"  material ids assigned to faces: {string.Join(", ", MeshMaterialIds)})");
-			if (MeshAddedMaterials.Count > 0)
-			{
-				Addin.Instance.LogDebug($"  assigned materials: {string.Join(", ", MeshAddedMaterials)})");
-			}
-
-			OutMeshElement = MeshElement;
-
-			DatasmithScene.ExportDatasmithMesh(MeshElement, Mesh);
-
-			if (InUpdateMeshActor.IsValid())
-			{
-				Tuple<EActorType, FDatasmithFacadeActor> ExportedActorInfo = null;
-				if (ExportedActorsMap.TryGetValue(InUpdateMeshActor, out ExportedActorInfo) && ExportedActorInfo.Item1 == EActorType.MeshActor)
+				Addin.Instance.LogDebug($"  material ids assigned to faces: {string.Join(", ", MeshMaterialIds)})");
+				if (MeshAddedMaterials.Count > 0)
 				{
-					FDatasmithFacadeActorMesh MeshActor = ExportedActorInfo.Item2 as FDatasmithFacadeActorMesh;
-					Addin.Instance.LogDebug($"  SetMesh on MeshActor: {MeshActor.GetName()}: {MeshActor.GetLabel()}  )");
-					MeshActor.SetMesh(InMeshName);
+					Addin.Instance.LogDebug($"  assigned materials: {string.Join(", ", MeshAddedMaterials)})");
 				}
+
+				DatasmithScene.ExportDatasmithMesh(MeshElement, Mesh);
+				OutMeshElement = MeshElement;
 			}
 
 			return true;
@@ -506,7 +489,7 @@ namespace DatasmithSolidworks
 
 		FDatasmithFacadeActorBinding GetActorBinding(FComponentName InComponentName, FDatasmithFacadeVariant InVariant)
 		{
-			return GetActorBinding(InComponentName.GetActorName(), InVariant);
+			return GetActorBinding(GetComponentActorName(InComponentName), InVariant);
 		}
 
 		private FDatasmithFacadeActorBinding GetActorBinding(FActorName ActorName, FDatasmithFacadeVariant InVariant)
@@ -892,6 +875,17 @@ namespace DatasmithSolidworks
 			return true;
 		}
 
+		public FActorName GetComponentActorName(FComponentName ComponentName)
+		{
+			return ComponentName.GetActorName();
+		}
+
+		public FActorName GetComponentActorName(Component2 Component)
+		{
+			return GetComponentActorName(new FComponentName(Component));
+		}
+
+
 		public void ExportAnimation(FAnimation InAnim)
 		{
 			FDatasmithFacadeLevelSequence LevelSeq = new FDatasmithFacadeLevelSequence(InAnim.Name);
@@ -902,7 +896,8 @@ namespace DatasmithSolidworks
 			{
 				FAnimation.FChannel Chan = NodePair.Value;
 				Component2 Component = Chan.Target;
-				FDatasmithFacadeTransformAnimation Anim = new FDatasmithFacadeTransformAnimation(SanitizeName(Component.Name2));
+
+				FDatasmithFacadeTransformAnimation Anim = new FDatasmithFacadeTransformAnimation(GetComponentActorName(Component).GetString());
 
 				foreach (var Keyframe in Chan.Keyframes)
 				{
@@ -1045,6 +1040,57 @@ namespace DatasmithSolidworks
 				return Mat;
 			}
 			return RotMatrix;
+		}
+
+		// Get Datasmith Name for MeshName
+		// todo: Currently, name for the DatasmithMeshElement(as well as other elements) is computed within DatasmithCore's FDatasmithUtils::SanitizeObjectName
+		//   if we want to properly identify an element we need to construct it(or SetName) and then GetName from it.
+		//   The way to make element name ahead of constructing and element(e.g. to properly make unique names for every case) is to expose FDatasmithUtils::SanitizeObjectName
+		public string GetDatasmithMeshName(FMeshName MeshName)  
+		{
+			if (ExportedMeshesMap.TryGetValue(MeshName, out FDatasmithFacadeMeshElement MeshElement))
+			{
+				return MeshElement.GetName();
+			}
+
+			return null;
+		}
+
+		// Export meshes
+		public void ExportMeshes(List<FMeshExportInfo> MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes)
+		{
+			List<FMeshExportInfo> CreatedMeshes = new List<FMeshExportInfo>();
+
+			Parallel.ForEach(MeshExportInfos, Info =>
+			{
+				Addin.Instance.LogDebug($"ExportMesh(MeshName: {Info.MeshName}, MeshActor: {Info.ActorName})");
+
+				if (ExportMesh(Info.MeshName, Info.MeshData, out Info.MeshElement))
+				{
+					Addin.Instance.LogDebug($"  exported (DatasmithMeshName: {Info.MeshElement.GetName()})");
+					CreatedMeshes.Add(Info);
+				}
+			});
+
+			// Remember exported meshes and assign to actor
+			foreach (FMeshExportInfo Info in CreatedMeshes)
+			{
+				// Info.MeshElement should be valid here
+				AddMesh(Info.MeshName, Info.MeshElement);
+
+				if (Info.ActorName.IsValid())
+				{
+					Tuple<EActorType, FDatasmithFacadeActor> ExportedActorInfo = null;
+					if (ExportedActorsMap.TryGetValue(Info.ActorName, out ExportedActorInfo) && ExportedActorInfo.Item1 == EActorType.MeshActor)
+					{
+						FDatasmithFacadeActorMesh MeshActor = ExportedActorInfo.Item2 as FDatasmithFacadeActorMesh;
+						Addin.Instance.LogDebug($"  SetMesh on MeshActor: {MeshActor.GetName()}: {MeshActor.GetLabel()}  )");
+						MeshActor.SetMesh(Info.MeshElement.GetName());
+					}
+				}
+			}
+
+			OutCreatedMeshes = CreatedMeshes;
 		}
 	}
 }

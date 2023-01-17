@@ -7,7 +7,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using DatasmithSolidworks.Names;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using static DatasmithSolidworks.FDatasmithExporter;
 
 namespace DatasmithSolidworks
 {
@@ -16,7 +18,7 @@ namespace DatasmithSolidworks
 		public PartDoc SwPartDoc { get; private set; } = null;
 		private FAssemblyDocumentTracker AsmDoc = null;
 		private FComponentName ComponentName;
-		private string MeshName = null;
+		private FMeshName MeshName = new FMeshName();
 		public readonly FPartDocument PartDocument;
 
 		public FObjectMaterials ExportedPartMaterials { get; set; }
@@ -116,9 +118,9 @@ namespace DatasmithSolidworks
 
 			SetExportStatus($"{PartName} Meshes");
 
+			ConfigurationManager ConfigManager = (SwPartDoc as ModelDoc2).ConfigurationManager;
 			if (bHasConfigurations)
 			{
-				ConfigurationManager ConfigManager = (SwPartDoc as ModelDoc2).ConfigurationManager;
 				string ActiveConfigurationName = ConfigManager.ActiveConfiguration.Name;
 				FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, null, ActiveConfigurationName);
 
@@ -138,14 +140,21 @@ namespace DatasmithSolidworks
 					FActorName ActorName =
 						ConfigurationExporter.GetMeshActorName(ConfigurationName, RootComponentName);
 
-					bool bHasMesh = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName,
-						out FDatasmithFacadeMeshElement NewMesh);
+					FMeshName MeshNameForConfiguration = new FMeshName(RootComponentName, ConfigurationName);
 
-					string MeshNameForConfiguration = null; // todo: Sync not supported for variants, 
-					if (bHasMesh)
+					List<FMeshExportInfo> MeshExportInfos = new List<FMeshExportInfo>
 					{
-						MeshNameForConfiguration = Exporter.AddMesh(NewMesh);
-					}
+						new FMeshExportInfo
+						{
+							ComponentName = RootComponentName,
+							MeshName = MeshNameForConfiguration,
+							ActorName = ActorName,
+							MeshData = MeshData
+						}
+					};
+
+					Exporter.ExportMeshes(MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes);
+					bool bHasMesh = OutCreatedMeshes.Count > 0;
 
 					FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
 					ExportInfo.Name = ActorName;
@@ -158,23 +167,35 @@ namespace DatasmithSolidworks
 			}
 			else
 			{
+				FComponentName RootComponentName =
+					new FComponentName(ConfigManager.ActiveConfiguration.GetRootComponent3(true));
+
+
 				FActorName ActorName = FActorName.FromString(PartName);
 				
 				FMeshData MeshData = ExtractPartMeshData();
 
 				Exporter.RemoveMesh(MeshName);
-				MeshName = null;
+				MeshName = new FMeshName();
 				bool bHasMesh = false;
 
 				if (MeshData != null)
 				{
-					bHasMesh = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName,
-						out FDatasmithFacadeMeshElement NewMesh);
+					MeshName = new FMeshName(RootComponentName);
 
-					if (bHasMesh)
+					List<FMeshExportInfo> MeshExportInfos = new List<FMeshExportInfo>
 					{
-						MeshName = Exporter.AddMesh(NewMesh);
-					}
+						new FMeshExportInfo
+						{
+							ComponentName = RootComponentName,
+							MeshName = MeshName,
+							ActorName = ActorName,
+							MeshData = MeshData
+						}
+					};
+
+					Exporter.ExportMeshes(MeshExportInfos, out List<FMeshExportInfo> OutCreatedMeshes);
+					bHasMesh = OutCreatedMeshes.Count > 0;
 				}
 
 				FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
@@ -209,7 +230,7 @@ namespace DatasmithSolidworks
 			return null;
 		}
 
-		public override void AddMeshForComponent(FComponentName ComponentName, string MeshName)
+		public override void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName)
 		{
 		}
 
