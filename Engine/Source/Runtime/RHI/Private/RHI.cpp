@@ -1271,6 +1271,7 @@ bool GSupportsMobileMultiView = false;
 bool GSupportsImageExternal = false;
 bool GRHISupportsDrawIndirect = true;
 bool GRHISupportsMultithreading = false;
+bool GRHISupportsAsyncGetRenderQueryResult = false;
 bool GRHISupportsUpdateFromBufferTexture = false;
 bool GSupportsWideMRT = true;
 bool GRHINeedsExtraDeletionLatency = false;

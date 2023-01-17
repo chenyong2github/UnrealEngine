@@ -254,6 +254,14 @@ static TAutoConsoleVariable<int32> CVarParallelGatherShadowPrimitives(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GParallelPrepareDynamicShadows = 1;
+static FAutoConsoleVariableRef CVarParallelPrepareDynamicShadows(
+	TEXT("r.ParallelPrepareDynamicShadows"),
+	GParallelPrepareDynamicShadows,
+	TEXT("Toggles parallel prepare dynamic shadows. 0 = off; 1 = on"),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarParallelGatherNumPrimitivesPerPacket(
 	TEXT("r.ParallelGatherNumPrimitivesPerPacket"),
 	256,  
@@ -1185,6 +1193,7 @@ struct FDynamicShadowsTaskData : public FSceneRenderingAllocatorObject<FDynamicS
 	const bool bStaticSceneOnly;
 	const bool bRunningEarly;
 	const bool bMultithreaded;
+	const bool bMultithreadedPrepareAndFinalize;
 
 	// Generated from prepare task
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> PreShadows;
@@ -1214,8 +1223,9 @@ struct FDynamicShadowsTaskData : public FSceneRenderingAllocatorObject<FDynamicS
 		, bStaticSceneOnly(AreAnyViewsStaticSceneOnly(Views))
 		, bRunningEarly(bInRunningEarly)
 		, bMultithreaded((FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::IsForkedMultithreadInstance()) && CVarParallelGatherShadowPrimitives.GetValueOnRenderThread() > 0)
+		, bMultithreadedPrepareAndFinalize(bRunningEarly && bMultithreaded && GRHISupportsAsyncGetRenderQueryResult && GParallelPrepareDynamicShadows > 0)
 	{
-		if (bMultithreaded)
+		if (bMultithreadedPrepareAndFinalize)
 		{
 			PrepareTaskEvent = FGraphEvent::CreateGraphEvent();
 		}
@@ -4533,8 +4543,11 @@ struct FGatherShadowPrimitivesPrepareTask
 		SCOPED_NAMED_EVENT_TEXT("FGatherShadowPrimitivesPrepareTask", FColor::Green);
 		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 
-		TaskData.SceneRenderer->PrepareDynamicShadows(TaskData);
-		TaskData.PrepareTaskEvent->DispatchSubsequents();
+		if (TaskData.bMultithreadedPrepareAndFinalize)
+		{
+			TaskData.SceneRenderer->PrepareDynamicShadows(TaskData);
+			TaskData.PrepareTaskEvent->DispatchSubsequents();
+		}
 
 		AnyThreadTask();
 
@@ -4569,11 +4582,13 @@ struct FGatherShadowPrimitivesPrepareTask
 						TStatId(),
 						nullptr,
 						CPrio_GatherShadowPrimitives.Get()));
+
+					MyCompletionGraphEvent->DontCompleteUntil(Prereqs.Last());
 				}
 			}
 		}
 
-		if (Prereqs.Num() > 0)
+		if (TaskData.bMultithreadedPrepareAndFinalize && Prereqs.Num() > 0)
 		{
 			FGraphEventRef FinalizeTask = FFunctionGraphTask::CreateAndDispatchWhenReady([TaskData = &TaskData]()
 				{
@@ -4674,29 +4689,32 @@ void FSceneRenderer::BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskDa
 
 	check(TaskData);
 
-	if (!TaskData->bMultithreaded || !TaskData->bRunningEarly)
+	if (!TaskData->bMultithreadedPrepareAndFinalize)
 	{
 		PrepareDynamicShadows(*TaskData);
+	}
 
+	if (!TaskData->bMultithreaded || !TaskData->bRunningEarly)
+	{
 		if (TaskData->PreShadows.Num() || TaskData->ViewDependentWholeSceneShadows.Num())
 		{
 			FGatherShadowPrimitivesPrepareTask(*TaskData).AnyThreadTask();
 
-			if (!TaskData->bMultithreaded)
-			{
-				for (FGatherShadowPrimitivesPacket* Packet : TaskData->Packets)
-				{
-					Packet->AnyThreadTask(*TaskData);
-				}
-			}
-			else // !TaskData->bRunningEarly
+			if (!TaskData->bRunningEarly)
 			{
 				ParallelFor(TaskData->Packets.Num(),
 					[TaskData](int32 Index)
 					{
 						TaskData->Packets[Index]->AnyThreadTask(*TaskData);
 					},
-					!(FApp::ShouldUseThreadingForPerformance() && CVarParallelGatherShadowPrimitives.GetValueOnRenderThread() > 0));
+					!TaskData->bMultithreaded);
+			}
+			else
+			{
+				for (FGatherShadowPrimitivesPacket* Packet : TaskData->Packets)
+				{
+					Packet->AnyThreadTask(*TaskData);
+				}
 			}
 		}
 	}
@@ -4717,7 +4735,8 @@ void FSceneRenderer::FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskD
 	{
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskData->TaskEvent, ENamedThreads::GetRenderThread_Local());
 	}
-	else
+
+	if (!TaskData->bMultithreadedPrepareAndFinalize)
 	{
 		SCOPED_NAMED_EVENT_TEXT("FGatherShadowPrimitivesTask", FColor::Green);
 		for (FGatherShadowPrimitivesPacket* Packet : TaskData->Packets)

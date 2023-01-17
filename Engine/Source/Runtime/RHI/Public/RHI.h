@@ -75,6 +75,9 @@ extern RHI_API bool GRHISupportsDrawIndirect;
 /** Whether the RHI can send commands to the device context from multiple threads. Used in the GPU readback to avoid stalling the RHI threads. */
 extern RHI_API bool GRHISupportsMultithreading;
 
+/** Whether RHIGetRenderQueryResult can be safely called off the render thread. */
+extern RHI_API bool GRHISupportsAsyncGetRenderQueryResult;
+
 /** 
  * only set if RHI has the information (after init of the RHI and only if RHI has that information, never changes after that)
  * e.g. "NVIDIA GeForce GTX 670"
