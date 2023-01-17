@@ -237,6 +237,30 @@ void SMutableObjectViewer::GenerateMutableGraphPressed()
 
 void SMutableObjectViewer::CompileMutableCodePressed()
 {
+	if (CompileOptions.bForceLargeLODBias)
+	{
+		// Debug compile with many different biasses
+		const int32 MaxBias = 15;
+		for (int32 Bias = 0; Bias < MaxBias; ++Bias)
+		{
+			CompileOptions.DebugBias = Bias;
+				
+			mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions);
+			if (!RootNode)
+			{
+				// TODO: Show errors
+				return;
+			}
+
+			// Do the compilation to Mutable Code synchronously.
+			TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode, false));
+			CompileTask->Options = CompileOptions;
+			CompileTask->Init();
+			CompileTask->Run();
+		}
+
+	}
+
 	// Convert from Unreal graph to Mutable graph.
 	mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions);
 	if (!RootNode)

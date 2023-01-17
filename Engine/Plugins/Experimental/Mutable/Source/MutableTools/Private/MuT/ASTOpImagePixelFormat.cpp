@@ -16,6 +16,7 @@
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImageLayer.h"
 #include "MuT/ASTOpImageLayerColor.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/StreamsPrivate.h"
 
@@ -144,13 +145,13 @@ namespace mu
 			// This op doesn't support compressed formats
 			if (!bIsCompressedFormat
 				&&
-				dynamic_cast<const ASTOpFixed*>(sourceAt.get())->op.args.ImageRasterMesh.image)
+				dynamic_cast<const ASTOpImageRasterMesh*>(sourceAt.get())->image)
 			{
-				auto newOp = mu::Clone<ASTOpFixed>(sourceAt);
+				Ptr<ASTOpImageRasterMesh> newOp = mu::Clone<ASTOpImageRasterMesh>(sourceAt);
 
 				mu::Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(this);
-				fop->Source = newOp->children[newOp->op.args.ImageRasterMesh.image].child();
-				newOp->SetChild(newOp->op.args.ImageRasterMesh.image, fop);
+				fop->Source = newOp->image.child();
+				newOp->image = fop;
 
 				at = newOp;
 			}

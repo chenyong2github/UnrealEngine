@@ -749,19 +749,22 @@ namespace mu
         struct ImageRasterMeshArgs
         {
             ADDRESS mesh;
-            uint16 sizeX, sizeY;
-            int32 blockIndex;
 
-            // These are used in case of projected mesh raster.
-            ADDRESS image;
-            ADDRESS angleFadeProperties;
+			//! These are used in case of projected mesh raster.
+			ADDRESS image;
+			ADDRESS angleFadeProperties;
 
-            //! Mask selecting the pixels in the destination image that may receive projection.
-            ADDRESS mask;
+			//! Mask selecting the pixels in the destination image that may receive projection.
+			ADDRESS mask;
 
-            //! A projector may be needed for some kind of per-pixel raster operations
-            //! like cylindrical projections.
-            ADDRESS projector;
+			//! A projector may be needed for some kind of per-pixel raster operations
+			//! like cylindrical projections.
+			ADDRESS projector;
+			
+			int32 blockIndex;
+			uint16 sizeX, sizeY;
+			uint8 bIsRGBFadingEnabled : 1;
+			uint8 bIsAlphaFadingEnabled : 1;
         };
 
         struct ImageMakeGrowMapArgs
@@ -1106,7 +1109,7 @@ namespace mu
             ImagePlainColourArgs ImagePlainColour;
             ImageGPUArgs ImageGPU;
             ImageCropArgs ImageCrop;
-            ImageRasterMeshArgs ImageRasterMesh;
+//            ImageRasterMeshArgs ImageRasterMesh;
             ImageDisplaceArgs ImageDisplace;
 			ImageInvertArgs ImageInvert;
 

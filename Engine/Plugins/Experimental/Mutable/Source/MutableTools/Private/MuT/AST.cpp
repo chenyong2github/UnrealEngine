@@ -1213,12 +1213,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         res.m_format = EImageFormat::IF_L_UBYTE;
         break;
 
-    case OP_TYPE::IM_RASTERMESH:
-        res = GetImageDesc( op.args.ImageRasterMesh.image, returnBestOption, context );
-        res.m_size[0]=op.args.ImageRasterMesh.sizeX;
-        res.m_size[1]=op.args.ImageRasterMesh.sizeY;
-        break;
-
     case OP_TYPE::IM_DISPLACE:
         res = GetImageDesc( op.args.ImageDisplace.source, returnBestOption, context );
         break;
@@ -1719,12 +1713,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
 		{
 			pRes = children[op.args.ImageInvert.base].child()->GetImageSizeExpression();
 		}
-		break;
-
-	case OP_TYPE::IM_RASTERMESH:
-		pRes->type = ImageSizeExpression::ISET_CONSTANT;
-		pRes->size[0] = op.args.ImageRasterMesh.sizeX ? op.args.ImageRasterMesh.sizeX : 256;
-		pRes->size[1] = op.args.ImageRasterMesh.sizeY ? op.args.ImageRasterMesh.sizeY : 256;
 		break;
     	
     case OP_TYPE::IM_CROP:

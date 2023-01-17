@@ -28,6 +28,12 @@ public:
 	// Layout to use for the generated images.
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	int32 Layout = 0;
+	
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	bool bEnableAngleFadeOutForRGB = true;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	bool bEnableAngleFadeOutForAlpha = true;
 
 	/** Set the width of the Texture. If the reference texture is not null, it overrdies the Size X property */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)

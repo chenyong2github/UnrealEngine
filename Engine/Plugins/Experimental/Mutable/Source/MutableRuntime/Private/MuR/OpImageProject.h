@@ -17,24 +17,12 @@ namespace mu
 		TArray<uint8> culledVertex;
     };
 
-
-//    extern void ImageProject( const Mesh* pMesh,
-//                              Image* pTargetImage,
-//                              const Image* pSource,
-//                              const Image* pMask,
-//                              const FProjector& projector,
-//                              float fadeStart,
-//                              float fadeEnd,
-//                              int layout,
-//                              int block,
-//                              SCRATCH_IMAGE_PROJECT* scratch );
-
     extern void ImageRasterProjectedPlanar( const Mesh* pMesh,
                                             Image* pTargetImage,
                                             const Image* pSource,
                                             const Image* pMask,
-                                            float fadeStart,
-                                            float fadeEnd,
+											bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+											float fadeStart, float fadeEnd,
                                             int layout,
                                             int block,
                                             SCRATCH_IMAGE_PROJECT* scratch );
@@ -43,8 +31,8 @@ namespace mu
                                       Image* pTargetImage,
                                       const Image* pSource,
                                       const Image* pMask,
-                                      float fadeStart,
-                                      float fadeEnd,
+									  bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+									  float fadeStart, float fadeEnd,
                                       int layout,
                                       float projectionAngle,
                                       SCRATCH_IMAGE_PROJECT* scratch );
@@ -53,9 +41,9 @@ namespace mu
                                       Image* pTargetImage,
                                       const Image* pSource,
                                       const Image* pMask,
-                                      float fadeStart,
-                                      float fadeEnd,
-                                      int layout,
+									  bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+									  float fadeStart, float fadeEnd,
+									  int layout,
                                       int block,
                                       SCRATCH_IMAGE_PROJECT* scratch );
 

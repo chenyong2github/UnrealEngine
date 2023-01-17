@@ -58,8 +58,6 @@ namespace mu
 		// Node Interface
 		//-----------------------------------------------------------------------------------------
 
-        
-
         const NODE_TYPE* GetType() const override;
 		static const NODE_TYPE* GetStaticType();
 
@@ -83,12 +81,16 @@ namespace mu
 		NodeImagePtr GetTargetMask() const;
 		void SetTargetMask( NodeImagePtr );
 
-        //! Get the node generating the threshold angle of the projection. In degrees.
-		NodeScalarPtr GetAngleFadeStart() const;
+		//! Set the angle-based fading behaviour for this projector. It must be set separately for 
+		//! RGB and Alpha channels of the images to project. By default it is enabled for all channels.
+		//! Disabling the angle fade will still use the AngleFadeEnd below to clamp the projection,
+		//! but it will ignore the start angle, so it will not apply a fading gradient.
+		void SetAngleFadeChannels( bool bFadeRGB, bool bFadeA );
+
+        //! Set the node generating the fading start angle. Only relevant if fading is enabled with 
 		void SetAngleFadeStart( NodeScalarPtr );
 
-        //! Get the node generating the threshold angle of the projection. In degrees.
-		NodeScalarPtr GetAngleFadeEnd() const;
+		//! Set the node generating the fading end angle
 		void SetAngleFadeEnd( NodeScalarPtr );
 
         //! Get the node generating the image to project.

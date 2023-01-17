@@ -4,6 +4,7 @@
 
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/ASTOpImageSwizzle.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 #include "Containers/Map.h"
 #include "HAL/PlatformMath.h"
 #include "MuR/ModelPrivate.h"
@@ -14,7 +15,6 @@
 
 namespace mu
 {
-
 
 	ASTOpImageLayerColor::ASTOpImageLayerColor()
 		: base(this)
@@ -396,12 +396,12 @@ namespace mu
 				break;
 			}
 
-			Ptr<ASTOpFixed> NewRaster = mu::Clone<ASTOpFixed>(baseAt);
+			Ptr<ASTOpImageRasterMesh> NewRaster = mu::Clone<ASTOpImageRasterMesh>(baseAt);
 
-			Ptr<ASTOp> sourceOp = NewRaster->children[NewRaster->op.args.ImageRasterMesh.image].child();
+			Ptr<ASTOp> sourceOp = NewRaster->image.child();
 			Ptr<ASTOpImageLayerColor> NewSource = mu::Clone<ASTOpImageLayerColor>(this);
 			NewSource->base = sourceOp;
-			NewRaster->SetChild(NewRaster->op.args.ImageRasterMesh.image, NewSource);
+			NewRaster->image = NewSource;
 
 			at = NewRaster;
 			break;

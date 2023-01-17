@@ -142,23 +142,17 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	NodeScalarPtr NodeImageProject::GetAngleFadeStart() const
+	void NodeImageProject::SetAngleFadeChannels(bool bFadeRGB, bool bFadeA)
 	{
-		return m_pD->m_pAngleFadeStart.get();
+		m_pD->bIsRGBFadingEnabled = bFadeRGB;
+		m_pD->bIsAlphaFadingEnabled = bFadeA;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageProject::SetAngleFadeStart( NodeScalarPtr pNode )
+	void NodeImageProject::SetAngleFadeStart(NodeScalarPtr pNode)
 	{
 		m_pD->m_pAngleFadeStart = pNode;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	NodeScalarPtr NodeImageProject::GetAngleFadeEnd() const
-	{
-		return m_pD->m_pAngleFadeEnd.get();
 	}
 
 

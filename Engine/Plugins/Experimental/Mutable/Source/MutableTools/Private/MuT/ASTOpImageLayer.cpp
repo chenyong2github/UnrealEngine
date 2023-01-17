@@ -6,6 +6,7 @@
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImageLayerColor.h"
 #include "MuT/ASTOpImageSwizzle.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/RefCounted.h"
@@ -304,23 +305,23 @@ namespace mu
 
 				case OP_TYPE::IM_RASTERMESH:
 				{
-					const ASTOpFixed* MaskRaster = dynamic_cast<const ASTOpFixed*>(CurrentMask.get());
-					const ASTOpFixed* BlendRaster = dynamic_cast<const ASTOpFixed*>(CurrentBlend.get());
+					const ASTOpImageRasterMesh* MaskRaster = dynamic_cast<const ASTOpImageRasterMesh*>(CurrentMask.get());
+					const ASTOpImageRasterMesh* BlendRaster = dynamic_cast<const ASTOpImageRasterMesh*>(CurrentBlend.get());
 					if (MaskRaster && BlendRaster
 						&&
-						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.mesh].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.mesh].child()
+						MaskRaster->mesh.child() == BlendRaster->mesh.child()
 						&&
-						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.projector].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.projector].child()
+						MaskRaster->projector.child() == BlendRaster->projector.child()
 						&&
-						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.mask].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.mask].child()
+						MaskRaster->mask.child() == BlendRaster->mask.child()
 						&&
-						MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.angleFadeProperties].child() == BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.angleFadeProperties].child()
+						MaskRaster->angleFadeProperties.child() == BlendRaster->angleFadeProperties.child()
 						&&
-						MaskRaster->op.args.ImageRasterMesh.blockIndex == BlendRaster->op.args.ImageRasterMesh.blockIndex
+						MaskRaster->blockIndex == BlendRaster->blockIndex
 						)
 					{
-						CurrentMask = MaskRaster->children[MaskRaster->op.args.ImageRasterMesh.image].child();
-						CurrentBlend = BlendRaster->children[BlendRaster->op.args.ImageRasterMesh.image].child();
+						CurrentMask = MaskRaster->image.child();
+						CurrentBlend = BlendRaster->image.child();
 						bMatchingAlphaExpression = true;
 					}
 					break;

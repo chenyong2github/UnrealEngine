@@ -325,14 +325,6 @@ namespace mu
             f(&op.args.ImageCrop.source );
             break;
 
-        case OP_TYPE::IM_RASTERMESH:
-            f(&op.args.ImageRasterMesh.mesh );
-            f(&op.args.ImageRasterMesh.image );
-            f(&op.args.ImageRasterMesh.mask );
-            f(&op.args.ImageRasterMesh.angleFadeProperties );
-            f(&op.args.ImageRasterMesh.projector );
-            break;
-
         case OP_TYPE::IM_DISPLACE:
             f(&op.args.ImageDisplace.source );
             f(&op.args.ImageDisplace.displacementMap );

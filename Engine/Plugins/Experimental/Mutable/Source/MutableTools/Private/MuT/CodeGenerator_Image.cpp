@@ -29,6 +29,7 @@
 #include "MuT/ASTOpImageTransform.h"
 #include "MuT/ASTOpImageMakeGrowMap.h"
 #include "MuT/ASTOpImageSwizzle.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 #include "MuT/ASTOpMeshExtractLayoutBlocks.h"
 #include "MuT/ASTOpMeshFormat.h"
 #include "MuT/ASTOpParameter.h"
@@ -1526,10 +1527,9 @@ namespace mu
 
         // Image raster operation
         //------------------------------
-        Ptr<ASTOpFixed> op = new ASTOpFixed();
-        op->op.type = OP_TYPE::IM_RASTERMESH;
-        op->SetChild( op->op.args.ImageRasterMesh.mesh, lastMeshOp);
-        op->SetChild( op->op.args.ImageRasterMesh.projector, projectorResult.op);
+        Ptr<ASTOpImageRasterMesh> op = new ASTOpImageRasterMesh();
+        op->mesh = lastMeshOp;
+        op->projector = projectorResult.op;
 
         // Image
         if ( node.m_pImage )
@@ -1547,7 +1547,7 @@ namespace mu
             m_imageState.Add( newState );
 
             // Generate
-            op->SetChild( op->op.args.ImageRasterMesh.image, Generate( node.m_pImage.get() ) );
+            op->image = Generate( node.m_pImage.get() );
 
             // Restore rect
             m_imageState.Pop();
@@ -1556,55 +1556,54 @@ namespace mu
         else
         {
             // This argument is required
-            op->SetChild( op->op.args.ImageRasterMesh.image,
-                    GenerateMissingImageCode( "Projector image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext ) );
+            op->image = GenerateMissingImageCode( "Projector image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
         }
 
         // Image size, from the current block being generated
-        op->op.args.ImageRasterMesh.sizeX = (uint16)m_imageState.Last().m_imageRect.size[0];
-        op->op.args.ImageRasterMesh.sizeY = (uint16)m_imageState.Last().m_imageRect.size[1];
+        op->sizeX = (uint16)m_imageState.Last().m_imageRect.size[0];
+        op->sizeY = (uint16)m_imageState.Last().m_imageRect.size[1];
 		// \TODO: Review naming of arg
-        op->op.args.ImageRasterMesh.blockIndex = GeneratedLayoutBlockId;
+        op->blockIndex = GeneratedLayoutBlockId;
 
-        // Fading properties are optional, and stored in a colour
-        if (node.m_pAngleFadeStart||node.m_pAngleFadeEnd)
-        {
-            NodeScalarConstantPtr pDefaultFade = new NodeScalarConstant();
-            pDefaultFade->SetValue( 180.0f );
+		op->bIsRGBFadingEnabled = node.bIsRGBFadingEnabled;
+		op->bIsAlphaFadingEnabled = node.bIsAlphaFadingEnabled;
 
-            NodeColourFromScalarsPtr pPropsNode = new NodeColourFromScalars();
+		// Fading angles are optional, and stored in a colour. If one exists, we generate both.
+		if (node.m_pAngleFadeStart || node.m_pAngleFadeEnd)
+		{
+			NodeScalarConstantPtr pDefaultFade = new NodeScalarConstant();
+			pDefaultFade->SetValue(180.0f);
 
-            if (node.m_pAngleFadeStart) pPropsNode->SetX(node.m_pAngleFadeStart);
-            else pPropsNode->SetX(pDefaultFade);
+			NodeColourFromScalarsPtr pPropsNode = new NodeColourFromScalars();
 
-            if (node.m_pAngleFadeEnd) pPropsNode->SetY(node.m_pAngleFadeEnd);
-            else pPropsNode->SetY(pDefaultFade);
+			if (node.m_pAngleFadeStart) pPropsNode->SetX(node.m_pAngleFadeStart);
+			else pPropsNode->SetX(pDefaultFade);
 
-            op->SetChild( op->op.args.ImageRasterMesh.angleFadeProperties, Generate( pPropsNode ) );
-        }
+			if (node.m_pAngleFadeEnd) pPropsNode->SetY(node.m_pAngleFadeEnd);
+			else pPropsNode->SetY(pDefaultFade);
+
+			op->angleFadeProperties = Generate(pPropsNode);
+		}
 
         // Target mask
         if ( node.m_pMask )
         {
             auto mask = Generate( node.m_pMask.get() );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
-            op->SetChild( op->op.args.ImageRasterMesh.mask, GenerateImageSize
-                    ( mask,
+            op->mask = GenerateImageSize( mask,
                       FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
-                                  (uint16)m_imageState.Last().m_imageRect.size[1]) )
-                              );
+                                  (uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
 
         // Seam correction operations
         //------------------------------
-        Ptr<ASTOpFixed> rasterop = new ASTOpFixed();
-        rasterop->op.type = OP_TYPE::IM_RASTERMESH;
-        rasterop->SetChild( rasterop->op.args.ImageRasterMesh.mesh, op->children[op->op.args.ImageRasterMesh.mesh].child() );
-        rasterop->op.args.ImageRasterMesh.image = 0;
-        rasterop->op.args.ImageRasterMesh.mask = 0;
-        rasterop->op.args.ImageRasterMesh.blockIndex = op->op.args.ImageRasterMesh.blockIndex;
-        rasterop->op.args.ImageRasterMesh.sizeX = op->op.args.ImageRasterMesh.sizeX;
-        rasterop->op.args.ImageRasterMesh.sizeY = op->op.args.ImageRasterMesh.sizeY;
+        Ptr<ASTOpImageRasterMesh> rasterop = new ASTOpImageRasterMesh();
+        rasterop->mesh = op->mesh.child();
+        rasterop->image = 0;
+        rasterop->mask = 0;
+        rasterop->blockIndex = op->blockIndex;
+        rasterop->sizeX = op->sizeX;
+        rasterop->sizeY = op->sizeY;
 
         Ptr<ASTOpImageMakeGrowMap> MakeGrowMapOp = new ASTOpImageMakeGrowMap();
 		MakeGrowMapOp->Mask = rasterop;

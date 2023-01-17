@@ -31,386 +31,391 @@ namespace mu
 namespace
 {
 
-	class RaycastPixelProcessor
-	{
-	public:
-
-		RaycastPixelProcessor( const FProjector& projector,
-							   const Image* pSource,
-                               const uint8* pTargetData,
-                               const uint8* pMaskData,
-							   float fadeStart,
-							   float fadeEnd )
-		{
-			projector.GetDirectionSideUp( m_direction, m_side, m_up );
-
-			m_position[0] = projector.position[0];
-			m_position[1] = projector.position[1];
-			m_position[2] = projector.position[2];
-
-			m_scale[0] = projector.scale[0];
-            m_scale[1] = projector.scale[1];
-            m_scale[2] = projector.scale[2];
-
-			m_pSource = pSource;
-
-            m_fadeStartCos = cosf(fadeStart);
-            m_fadeEndCos = cosf(fadeEnd);
-
-			m_pTargetData = pTargetData;
-			m_pMaskData = pMaskData;
-
-			EImageFormat format = m_pSource->GetFormat();
-			m_pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
-
-		}
-
-
-		//-----------------------------------------------------------------------------------------
-        inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
-		{
-			float factor = 1;
-
-            // depth clamp
-            if (varying[2]<0.0f || varying[2]>1.0f)
-            {
-                factor = 0;
-            }
-
-            if ( factor>0 && m_pMaskData )
-			{
-                uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
-				factor = float(maskFactor) / 255.0f;
-			}
-
-			if ( factor>0 )
-			{
-//				vec3<float> normal( varying[2], varying[3], varying[4] );
-//				normal = normalise_approx( normal );
-
-//				float angleCos = dot( normal, m_direction * -1.0f );
-                float angleCos = varying[3];
-
-                if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
-				{
-                    factor *= ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos );
-				}
-                else if ( angleCos<=m_fadeEndCos )
-				{
-					factor = 0;
-				}
-			}
-
-
-			if ( factor>0 )
-			{
-				// Transform the origin to the projected image texture coordinates
-				float u = varying[0];
-				float v = varying[1];
-
-				if ( u>=0 && u<1 && v>=0 && v<1 )
-				{
-
-                    const uint8* pPixel = m_pSource->GetData();
-					// TODO: clamp?
-					pPixel += ( m_pSource->GetSizeX() * int(m_pSource->GetSizeY() * v)
-								+ int( m_pSource->GetSizeX() * u ) )
-							* m_pixelSize;
-
-					// Write result
-					switch ( m_pSource->GetFormat() )
-					{
-					case EImageFormat::IF_L_UBYTE:
-                        pBufferPos[0] = uint8( pPixel[0] * factor );
-						break;
-
-					case EImageFormat::IF_RGB_UBYTE:
-                        pBufferPos[0] = uint8( pPixel[0] * factor );
-                        pBufferPos[1] = uint8( pPixel[1] * factor );
-                        pBufferPos[2] = uint8( pPixel[2] * factor );
-						break;
-
-                    case EImageFormat::IF_BGRA_UBYTE:
-                    case EImageFormat::IF_RGBA_UBYTE:
-                        pBufferPos[0] = uint8( pPixel[0] * factor );
-                        pBufferPos[1] = uint8( pPixel[1] * factor );
-                        pBufferPos[2] = uint8( pPixel[2] * factor );
-                        pBufferPos[3] = uint8( pPixel[3] * factor );
-						break;
-
-					default:
-						// Not implemented
-						check( false );
-						break;
-					}
-				}
-			}
-		}
-
-
-		const Image* m_pSource = nullptr;
-		FVector3f m_direction;
-		FVector3f m_up;
-		FVector3f m_side;
-		FVector3f m_position;
-		FVector3f m_scale;
-
-        //! Cosine of the fading angle range
-		float m_fadeStartCos = 0.0f, m_fadeEndCos = 0.0f;
-
-        const uint8* m_pTargetData = nullptr;
-        const uint8* m_pMaskData = nullptr;
-		int m_pixelSize = 0;
-
-	};
+//	class RaycastPixelProcessor
+//	{
+//	public:
+//
+//		RaycastPixelProcessor( const FProjector& projector,
+//							   const Image* pSource,
+//                               const uint8* pTargetData,
+//                               const uint8* pMaskData,
+//							   float fadeStart,
+//							   float fadeEnd )
+//		{
+//			projector.GetDirectionSideUp( m_direction, m_side, m_up );
+//
+//			m_position[0] = projector.position[0];
+//			m_position[1] = projector.position[1];
+//			m_position[2] = projector.position[2];
+//
+//			m_scale[0] = projector.scale[0];
+//            m_scale[1] = projector.scale[1];
+//            m_scale[2] = projector.scale[2];
+//
+//			m_pSource = pSource;
+//
+//            m_fadeStartCos = cosf(fadeStart);
+//            m_fadeEndCos = cosf(fadeEnd);
+//
+//			m_pTargetData = pTargetData;
+//			m_pMaskData = pMaskData;
+//
+//			EImageFormat format = m_pSource->GetFormat();
+//			m_pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
+//
+//		}
+//
+//
+//		//-----------------------------------------------------------------------------------------
+//        inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
+//		{
+//			float factor = 1;
+//
+//            // depth clamp
+//            if (varying[2]<0.0f || varying[2]>1.0f)
+//            {
+//                factor = 0;
+//            }
+//
+//            if ( factor>0 && m_pMaskData )
+//			{
+//                uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
+//				factor = float(maskFactor) / 255.0f;
+//			}
+//
+//			if ( factor>0 )
+//			{
+////				vec3<float> normal( varying[2], varying[3], varying[4] );
+////				normal = normalise_approx( normal );
+//
+////				float angleCos = dot( normal, m_direction * -1.0f );
+//                float angleCos = varying[3];
+//
+//                if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
+//				{
+//                    factor *= ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos );
+//				}
+//                else if ( angleCos<=m_fadeEndCos )
+//				{
+//					factor = 0;
+//				}
+//			}
+//
+//
+//			if ( factor>0 )
+//			{
+//				// Transform the origin to the projected image texture coordinates
+//				float u = varying[0];
+//				float v = varying[1];
+//
+//				if ( u>=0 && u<1 && v>=0 && v<1 )
+//				{
+//
+//                    const uint8* pPixel = m_pSource->GetData();
+//					// TODO: clamp?
+//					pPixel += ( m_pSource->GetSizeX() * int(m_pSource->GetSizeY() * v)
+//								+ int( m_pSource->GetSizeX() * u ) )
+//							* m_pixelSize;
+//
+//					// Write result
+//					switch ( m_pSource->GetFormat() )
+//					{
+//					case EImageFormat::IF_L_UBYTE:
+//                        pBufferPos[0] = uint8( pPixel[0] * factor );
+//						break;
+//
+//					case EImageFormat::IF_RGB_UBYTE:
+//                        pBufferPos[0] = uint8( pPixel[0] * factor );
+//                        pBufferPos[1] = uint8( pPixel[1] * factor );
+//                        pBufferPos[2] = uint8( pPixel[2] * factor );
+//						break;
+//
+//                    case EImageFormat::IF_BGRA_UBYTE:
+//                    case EImageFormat::IF_RGBA_UBYTE:
+//                        pBufferPos[0] = uint8( pPixel[0] * factor );
+//                        pBufferPos[1] = uint8( pPixel[1] * factor );
+//                        pBufferPos[2] = uint8( pPixel[2] * factor );
+//                        pBufferPos[3] = uint8( pPixel[3] * factor );
+//						break;
+//
+//					default:
+//						// Not implemented
+//						check( false );
+//						break;
+//					}
+//				}
+//			}
+//		}
+//
+//
+//		const Image* m_pSource = nullptr;
+//		FVector3f m_direction;
+//		FVector3f m_up;
+//		FVector3f m_side;
+//		FVector3f m_position;
+//		FVector3f m_scale;
+//
+//        //! Cosine of the fading angle range
+//		float m_fadeStartCos = 0.0f, m_fadeEndCos = 0.0f;
+//
+//        const uint8* m_pTargetData = nullptr;
+//        const uint8* m_pMaskData = nullptr;
+//		int m_pixelSize = 0;
+//
+//	};
 
 
 	//---------------------------------------------------------------------------------------------
-    template<int PIXEL_SIZE,bool HAS_MASK=true>
-	class RaycastPixelProcessor_UBYTE
-	{
-	public:
-
-		RaycastPixelProcessor_UBYTE( const FProjector& projector,
-									 const Image* pSource,
-                                     const uint8* pTargetData,
-                                     const uint8* pMaskData,
-									 float fadeStart,
-									 float fadeEnd )
-		{
-			projector.GetDirectionSideUp( m_direction, m_side, m_up );
-
-			m_position[0] = projector.position[0];
-			m_position[1] = projector.position[1];
-			m_position[2] = projector.position[2];
-
-			m_scale[0] = projector.scale[0];
-            m_scale[1] = projector.scale[1];
-            m_scale[2] = projector.scale[2];
-
-			m_pSourceData = pSource->GetData();
-			m_sourceSizeX = pSource->GetSizeX();
-			m_sourceSizeY = pSource->GetSizeY();
-
-            m_fadeStartCos = cosf(fadeStart);
-            m_fadeEndCos = cosf(fadeEnd);
-
-			m_pTargetData = pTargetData;
-			m_pMaskData = pMaskData;
-
-			check( GetImageFormatData( pSource->GetFormat() ).m_bytesPerBlock
-							==
-							PIXEL_SIZE );
-		}
-
-
-		//-----------------------------------------------------------------------------------------
-        inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
-		{
-            int32 factor_8 = 256;
-
-            // depth clamp
-            if (varying[2]<0.0f || varying[2]>1.0f)
-            {
-                factor_8 = 0;
-            }
-
-//				vec3<float> normal( varying[2], varying[3], varying[4] );
-//				normal = normalise_approx( normal );
-
-//				float angleCos = dot( normal, m_direction * -1.0f );
-            float angleCos = varying[3];
-
-            if (HAS_MASK)
-            {
-                if ( factor_8>0 && m_pMaskData )
-                {
-                    uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
-                    factor_8 = maskFactor;
-                }
-
-                if ( factor_8>0 )
-                {
-                    if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
-                    {
-                        factor_8 = ( factor_8
-                                     *
-                                     int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
-                                     ) >> 8;
-                    }
-                    else if ( angleCos<=m_fadeEndCos )
-                    {
-                        factor_8 = 0;
-                    }
-                }
-            }
-            else
-            {
-                if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
-                {
-                    factor_8 = int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
-                }
-                else if ( angleCos<=m_fadeEndCos )
-                {
-                    factor_8 = 0;
-                }
-            }
-
-
-			if ( factor_8>0 )
-			{
-				float u = varying[0];
-				float v = varying[1];
-
-				if ( u>=0 && u<1 && v>=0 && v<1 )
-				{
-
-                    const uint8* pPixel = m_pSourceData;
-					// TODO: clamp?
-					pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v)
-								+ int( m_sourceSizeX * u ) )
-							* PIXEL_SIZE;
-
-					// Write result
-					for ( int i=0; i<PIXEL_SIZE; ++i )
-					{
-						pBufferPos[i] = uint8( ( pPixel[i] * factor_8 ) >> 8 );
-					}
-				}
-			}
-		}
-
-
-        const uint8* m_pSourceData;
-		int m_sourceSizeX, m_sourceSizeY;
-
-		FVector3f m_direction;
-		FVector3f m_up;
-		FVector3f m_side;
-		FVector3f m_position;
-		FVector3f m_scale;
-
-        //! Cosine of the fading angle range
-        float m_fadeStartCos, m_fadeEndCos;
-
-        const uint8* m_pTargetData;
-        const uint8* m_pMaskData;
-	};
-
-
-
-    class RasterProjectedPixelProcessor
-    {
-    public:
-
-        RasterProjectedPixelProcessor( const Image* pSource,
-                               const uint8* pTargetData,
-                               const uint8* pMaskData,
-                               float fadeStart,
-                               float fadeEnd )
-        {
-            m_pSource = pSource;
-
-            m_fadeStartCos = cosf(fadeStart);
-            m_fadeEndCos = cosf(fadeEnd);
-
-            m_pTargetData = pTargetData;
-            m_pMaskData = pMaskData;
-
-			EImageFormat format = m_pSource->GetFormat();
-            m_pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
-
-        }
+//    template<int PIXEL_SIZE,bool HAS_MASK=true>
+//	class RaycastPixelProcessor_UBYTE
+//	{
+//	public:
+//
+//		RaycastPixelProcessor_UBYTE( const FProjector& projector,
+//									 const Image* pSource,
+//                                     const uint8* pTargetData,
+//                                     const uint8* pMaskData,
+//									 float fadeStart,
+//									 float fadeEnd )
+//		{
+//			projector.GetDirectionSideUp( m_direction, m_side, m_up );
+//
+//			m_position[0] = projector.position[0];
+//			m_position[1] = projector.position[1];
+//			m_position[2] = projector.position[2];
+//
+//			m_scale[0] = projector.scale[0];
+//            m_scale[1] = projector.scale[1];
+//            m_scale[2] = projector.scale[2];
+//
+//			m_pSourceData = pSource->GetData();
+//			m_sourceSizeX = pSource->GetSizeX();
+//			m_sourceSizeY = pSource->GetSizeY();
+//
+//            m_fadeStartCos = cosf(fadeStart);
+//            m_fadeEndCos = cosf(fadeEnd);
+//
+//			m_pTargetData = pTargetData;
+//			m_pMaskData = pMaskData;
+//
+//			check( GetImageFormatData( pSource->GetFormat() ).m_bytesPerBlock
+//							==
+//							PIXEL_SIZE );
+//		}
+//
+//
+//		//-----------------------------------------------------------------------------------------
+//        inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
+//		{
+//            int32 factor_8 = 256;
+//
+//            // depth clamp
+//            if (varying[2]<0.0f || varying[2]>1.0f)
+//            {
+//                factor_8 = 0;
+//            }
+//
+////				vec3<float> normal( varying[2], varying[3], varying[4] );
+////				normal = normalise_approx( normal );
+//
+////				float angleCos = dot( normal, m_direction * -1.0f );
+//            float angleCos = varying[3];
+//
+//            if (HAS_MASK)
+//            {
+//                if ( factor_8>0 && m_pMaskData )
+//                {
+//                    uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
+//                    factor_8 = maskFactor;
+//                }
+//
+//                if ( factor_8>0 )
+//                {
+//                    if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
+//                    {
+//                        factor_8 = ( factor_8
+//                                     *
+//                                     int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
+//                                     ) >> 8;
+//                    }
+//                    else if ( angleCos<=m_fadeEndCos )
+//                    {
+//                        factor_8 = 0;
+//                    }
+//                }
+//            }
+//            else
+//            {
+//                if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
+//                {
+//                    factor_8 = int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
+//                }
+//                else if ( angleCos<=m_fadeEndCos )
+//                {
+//                    factor_8 = 0;
+//                }
+//            }
+//
+//
+//			if ( factor_8>0 )
+//			{
+//				float u = varying[0];
+//				float v = varying[1];
+//
+//				if ( u>=0 && u<1 && v>=0 && v<1 )
+//				{
+//
+//                    const uint8* pPixel = m_pSourceData;
+//					// TODO: clamp?
+//					pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v)
+//								+ int( m_sourceSizeX * u ) )
+//							* PIXEL_SIZE;
+//
+//					// Write result
+//					for ( int i=0; i<PIXEL_SIZE; ++i )
+//					{
+//						pBufferPos[i] = uint8( ( pPixel[i] * factor_8 ) >> 8 );
+//					}
+//				}
+//			}
+//		}
+//
+//
+//        const uint8* m_pSourceData;
+//		int m_sourceSizeX, m_sourceSizeY;
+//
+//		FVector3f m_direction;
+//		FVector3f m_up;
+//		FVector3f m_side;
+//		FVector3f m_position;
+//		FVector3f m_scale;
+//
+//        //! Cosine of the fading angle range
+//        float m_fadeStartCos, m_fadeEndCos;
+//
+//        const uint8* m_pTargetData;
+//        const uint8* m_pMaskData;
+//	};
 
 
-        //-----------------------------------------------------------------------------------------
-        inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
-        {
-            float factor = 1;
 
-            // depth clamp
-            if (varying[2]<0.0f || varying[2]>1.0f)
-            {
-                factor = 0;
-            }
+  //  class RasterProjectedPixelProcessor
+  //  {
+  //  public:
 
-            if ( factor>0 && m_pMaskData )
-            {
-                uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
-                factor = float(maskFactor) / 255.0f;
-            }
+  //      RasterProjectedPixelProcessor( const Image* pSource,
+		//	const uint8* pTargetData,
+		//	const uint8* pMaskData,
+		//	bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+		//	float fadeStart, float fadeEnd )
+  //      {
+  //          m_pSource = pSource;
 
-            if ( factor>0 )
-            {
-                float angleCos = varying[3];
+		//	// \TODO: to template parameters?
+		//	m_bIsRGBFadingEnabled = bIsRGBFadingEnabled;
+		//	m_bIsAlphaFadingEnabled = bIsAlphaFadingEnabled;
 
-                if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
-                {
-                    factor *= ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos );
-                }
-                else if ( angleCos<=m_fadeEndCos )
-                {
-                    factor = 0;
-                }
-            }
+  //          m_fadeStartCos = cosf(fadeStart);
+  //          m_fadeEndCos = cosf(fadeEnd);
+
+  //          m_pTargetData = pTargetData;
+  //          m_pMaskData = pMaskData;
+
+		//	EImageFormat format = m_pSource->GetFormat();
+  //          m_pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
+
+  //      }
 
 
-            if ( factor>0 )
-            {
-                // Transform the origin to the projected image texture coordinates
-                float u = varying[0];
-                float v = varying[1];
+  //      //-----------------------------------------------------------------------------------------
+  //      inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
+  //      {
+  //          float factor = 1;
 
-                if ( u>=0 && u<1 && v>=0 && v<1 )
-                {
+  //          // depth clamp
+  //          if (varying[2]<0.0f || varying[2]>1.0f)
+  //          {
+  //              factor = 0;
+  //          }
 
-                    const uint8* pPixel = m_pSource->GetData();
-                    // TODO: clamp?
-                    pPixel += ( m_pSource->GetSizeX() * int(m_pSource->GetSizeY() * v)
-                                + int( m_pSource->GetSizeX() * u ) )
-                            * m_pixelSize;
+  //          if ( factor>0 && m_pMaskData )
+  //          {
+  //              uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
+  //              factor = float(maskFactor) / 255.0f;
+  //          }
 
-                    // Write result
-                    switch ( m_pSource->GetFormat() )
-                    {
-                    case EImageFormat::IF_L_UBYTE:
-                        pBufferPos[0] = uint8( pPixel[0] * factor );
-                        break;
+  //          if ( factor>0 )
+  //          {
+  //              float angleCos = varying[3];
 
-                    case EImageFormat::IF_RGB_UBYTE:
-                        pBufferPos[0] = uint8( pPixel[0] * factor );
-                        pBufferPos[1] = uint8( pPixel[1] * factor );
-                        pBufferPos[2] = uint8( pPixel[2] * factor );
-                        break;
-
-                    case EImageFormat::IF_BGRA_UBYTE:
-                    case EImageFormat::IF_RGBA_UBYTE:
-                        pBufferPos[0] = uint8( pPixel[0] * factor );
-                        pBufferPos[1] = uint8( pPixel[1] * factor );
-                        pBufferPos[2] = uint8( pPixel[2] * factor );
-                        pBufferPos[3] = uint8( pPixel[3] * factor );
-                        break;
-
-                    default:
-                        // Not implemented
-                        check( false );
-                        break;
-                    }
-                }
-            }
-        }
+  //              if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
+  //              {
+  //                  factor *= ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos );
+  //              }
+  //              else if ( angleCos<=m_fadeEndCos )
+  //              {
+  //                  factor = 0;
+  //              }
+  //          }
 
 
-        const Image* m_pSource;
+  //          if ( factor>0 )
+  //          {
+  //              // Transform the origin to the projected image texture coordinates
+  //              float u = varying[0];
+  //              float v = varying[1];
 
-        //! Cosine of the fading angle range
-        float m_fadeStartCos, m_fadeEndCos;
+  //              if ( u>=0 && u<1 && v>=0 && v<1 )
+  //              {
 
-        const uint8* m_pTargetData;
-        const uint8* m_pMaskData;
-        int m_pixelSize;
+  //                  const uint8* pPixel = m_pSource->GetData();
+  //                  // TODO: clamp?
+  //                  pPixel += ( m_pSource->GetSizeX() * int(m_pSource->GetSizeY() * v)
+  //                              + int( m_pSource->GetSizeX() * u ) )
+  //                          * m_pixelSize;
 
-    };
+  //                  // Write result
+  //                  switch ( m_pSource->GetFormat() )
+  //                  {
+  //                  case EImageFormat::IF_L_UBYTE:
+  //                      pBufferPos[0] = uint8( pPixel[0] * factor );
+  //                      break;
+
+  //                  case EImageFormat::IF_RGB_UBYTE:
+  //                      pBufferPos[0] = uint8( pPixel[0] * factor );
+  //                      pBufferPos[1] = uint8( pPixel[1] * factor );
+  //                      pBufferPos[2] = uint8( pPixel[2] * factor );
+  //                      break;
+
+  //                  case EImageFormat::IF_BGRA_UBYTE:
+  //                  case EImageFormat::IF_RGBA_UBYTE:
+  //                      pBufferPos[0] = uint8( pPixel[0] * factor );
+  //                      pBufferPos[1] = uint8( pPixel[1] * factor );
+  //                      pBufferPos[2] = uint8( pPixel[2] * factor );
+  //                      pBufferPos[3] = uint8( pPixel[3] * factor );
+  //                      break;
+
+  //                  default:
+  //                      // Not implemented
+  //                      check( false );
+  //                      break;
+  //                  }
+  //              }
+  //          }
+  //      }
+
+
+  //      const Image* m_pSource;
+
+  //      //! Cosine of the fading angle range
+  //      float m_fadeStartCos, m_fadeEndCos;
+		//bool m_bIsRGBFadingEnabled, m_bIsAlphaFadingEnabled;
+
+  //      const uint8* m_pTargetData;
+  //      const uint8* m_pMaskData;
+  //      int m_pixelSize;
+
+  //  };
 
 
     //---------------------------------------------------------------------------------------------
@@ -420,14 +425,18 @@ namespace
     public:
 
         RasterProjectedPixelProcessor_UBYTE( const Image* pSource,
-                                     const uint8* pTargetData,
-                                     const uint8* pMaskData,
-                                     float fadeStart,
-                                     float fadeEnd )
+			const uint8* pTargetData,
+			const uint8* pMaskData,
+			bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+			float fadeStart, float fadeEnd )
         {
             m_pSourceData = pSource->GetData();
             m_sourceSizeX = pSource->GetSizeX();
             m_sourceSizeY = pSource->GetSizeY();
+
+			// \TODO: to template parameters?
+			m_bIsRGBFadingEnabled = bIsRGBFadingEnabled;
+			m_bIsAlphaFadingEnabled = bIsAlphaFadingEnabled;
 
             m_fadeStartCos = cosf(fadeStart);
             m_fadeEndCos = cosf(fadeEnd);
@@ -444,15 +453,19 @@ namespace
         //-----------------------------------------------------------------------------------------
         inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
         {
+			// \TODO: This is very bad for the CPU. Please optimize.
+
 			if (!m_pSourceData) return;
 
-            int32 factor_8 = 256;
+			int32 factor_8 = 256;
 
             // depth clamp
             if (varying[2]<0.0f || varying[2]>1.0f)
             {
                 factor_8 = 0;
             }
+
+			int32 factor_unfaded_8 = factor_8;
 
             float angleCos = varying[3];
 
@@ -463,6 +476,8 @@ namespace
                     uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
                     factor_8 = maskFactor;
                 }
+
+				factor_unfaded_8 = factor_8;
 
                 if ( factor_8>0 )
                 {
@@ -476,6 +491,7 @@ namespace
                     else if ( angleCos<=m_fadeEndCos )
                     {
                         factor_8 = 0;
+						factor_unfaded_8 = 0;
                     }
                 }
             }
@@ -488,6 +504,7 @@ namespace
                 else if ( angleCos<=m_fadeEndCos )
                 {
                     factor_8 = 0;
+					factor_unfaded_8 = 0;
                 }
             }
 
@@ -502,15 +519,52 @@ namespace
 
                     const uint8* pPixel = m_pSourceData;
                     // TODO: clamp?
-                    pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v)
-                                + int( m_sourceSizeX * u ) )
-                            * PIXEL_SIZE;
+                    pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v) + int( m_sourceSizeX * u ) ) * PIXEL_SIZE;
 
                     // Write result
-                    for ( int i=0; i<PIXEL_SIZE; ++i )
-                    {
-                        pBufferPos[i] = uint8( ( pPixel[i] * factor_8 ) >> 8 );
-                    }
+					if (!m_bIsRGBFadingEnabled && !m_bIsAlphaFadingEnabled)
+					{
+						for (int i = 0; i < PIXEL_SIZE; ++i)
+						{
+							pBufferPos[i] = uint8((pPixel[i] * factor_unfaded_8) >> 8);
+						}
+					}
+					else if (m_bIsRGBFadingEnabled && m_bIsAlphaFadingEnabled)
+					{
+						for (int i = 0; i < PIXEL_SIZE; ++i)
+						{
+							pBufferPos[i] = uint8((pPixel[i] * factor_8) >> 8);
+						}
+					}
+					else
+					{
+						if (m_bIsRGBFadingEnabled)
+						{
+							for (int i = 0; i < PIXEL_SIZE && i < 3; ++i)
+							{
+								pBufferPos[i] = uint8((pPixel[i] * factor_8) >> 8);
+							}
+						}
+						else
+						{
+							for (int i = 0; i < PIXEL_SIZE && i < 3; ++i)
+							{
+								pBufferPos[i] = uint8((pPixel[i] * factor_unfaded_8) >> 8);
+							}
+						}
+
+						if (PIXEL_SIZE >= 3)
+						{
+							if (m_bIsAlphaFadingEnabled)
+							{
+								pBufferPos[3] = uint8((pPixel[3] * factor_8) >> 8);
+							}
+							else
+							{
+								pBufferPos[3] = uint8((pPixel[3] * factor_unfaded_8) >> 8);
+							}
+						}
+					}
                 }
             }
         }
@@ -521,6 +575,7 @@ namespace
 
         //! Cosine of the fading angle range
         float m_fadeStartCos, m_fadeEndCos;
+		bool m_bIsRGBFadingEnabled, m_bIsAlphaFadingEnabled;
 
         const uint8* m_pTargetData;
         const uint8* m_pMaskData;
@@ -655,161 +710,161 @@ namespace
 
 
 //-------------------------------------------------------------------------------------------------
-void ImageRasterProjected_Generic( const Mesh* pMesh,
-                           Image* pImage,
-                           const Image* pSource,
-                           const Image* pMask,
-                           float fadeStart,
-                           float fadeEnd,
-                           int layout,
-                           int block )
-{
-	MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_Generic);
-
-	EImageFormat format = pImage->GetFormat();
-    int pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
-
-    int sizeX = pImage->GetSizeX();
-    int sizeY = pImage->GetSizeY();
-
-    RasterProjectedPixelProcessor pixelProc( pSource,
-                                     pImage->GetData(),
-                                     pMask ? pMask->GetData() : 0,
-                                     fadeStart, fadeEnd );
-
-    // Get the vertices
-    int vertexCount = pMesh->GetVertexCount();
-	TArray< RasterVertex<4> > vertices;
-	vertices.SetNum(vertexCount);
-
-    UntypedMeshBufferIteratorConst texIt( pMesh->GetVertexBuffers(), MBS_TEXCOORDS, layout );
-    UntypedMeshBufferIteratorConst posIt( pMesh->GetVertexBuffers(), MBS_POSITION, 0 );
-    UntypedMeshBufferIteratorConst norIt( pMesh->GetVertexBuffers(), MBS_NORMAL, 0 );
-    for ( int v=0; v<vertexCount; ++v )
-    {
-        float uv[2]={0.0f,0.0f};
-        ConvertData( 0, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
-        ConvertData( 1, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
-
-        vertices[v].x = uv[0] * sizeX;
-        vertices[v].y = uv[1] * sizeY;
-
-        FVector3f pos={0.0f,0.0f,0.0f};
-        ConvertData( 0, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
-        ConvertData( 1, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
-        ConvertData( 2, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
-        vertices[v].interpolators[0] = pos[0];
-        vertices[v].interpolators[1] = pos[1];
-        vertices[v].interpolators[2] = pos[2];
-
-        float nor=0.0f;
-        ConvertData( 0, &nor, MBF_FLOAT32, norIt.ptr(), norIt.GetFormat() );
-        vertices[v].interpolators[3] = nor;
-
-        ++texIt;
-        ++posIt;
-        ++norIt;
-    }
-
-    // Get the indices
-    int faceCount = pMesh->GetFaceCount();
-	TArray<int> indices;
-	indices.SetNum(faceCount * 3);
-
-    UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
-    for ( int i=0; i<faceCount*3; ++i )
-    {
-        uint32 index=0;
-        ConvertData( 0, &index, MBF_UINT32, indIt.ptr(), indIt.GetFormat() );
-
-        indices[i] = index;
-        ++indIt;
-    }
-
-    // Get the block per face
-	TArray<int> blocks;
-	blocks.SetNum(vertexCount);
-
-    UntypedMeshBufferIteratorConst bloIt( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, layout );
-    if (bloIt.ptr())
-    {
-        for ( int i=0; i<vertexCount; ++i )
-        {
-            uint16 index=0;
-            ConvertData( 0, &index, MBF_UINT16, bloIt.ptr(), bloIt.GetFormat() );
-
-            blocks[i] = index;
-            ++bloIt;
-        }
-    }
-
-    if ( block<0 )
-    {
-        // We are rastering the entire layout in an image, so we need to apply the block->layout
-        // transform to the UVs
-        const Layout* pLayout = layout<pMesh->GetLayoutCount() ? pMesh->GetLayout( layout ) : nullptr;
-        if (pLayout && bloIt.ptr())
-        {
-			TArray< box< vec2<float> > > transforms;
-			transforms.SetNum(pLayout->GetBlockCount());
-            for ( int b=0; b<pLayout->GetBlockCount(); ++b )
-            {
-                FIntPoint grid = pLayout->GetGridSize();
-
-                box< vec2<int> > blockRect;
-                pLayout->GetBlock( b, &blockRect.min[0], &blockRect.min[1], &blockRect.size[0], &blockRect.size[1] );
-
-                box< vec2<float> > rect;
-                rect.min[0] = ( (float)blockRect.min[0] ) / (float) grid[0];
-                rect.min[1] = ( (float)blockRect.min[1] ) / (float) grid[1];
-                rect.size[0] = ( (float)blockRect.size[0] ) / (float) grid[0];
-                rect.size[1] = ( (float)blockRect.size[1] ) / (float) grid[1];
-                transforms[b] = rect;
-            }
-
-            for ( int i=0; i<vertexCount; ++i )
-            {
-                int relBlock = pLayout->FindBlock( blocks[i] );
-                vertices[i].x = vertices[i].x * transforms[ relBlock ].size[0]
-                        + transforms[ relBlock ].min[0] * sizeX;
-                vertices[i].y = vertices[i].y * transforms[ relBlock ].size[1]
-                        + transforms[ relBlock ].min[1] * sizeY;
-            }
-        }
-
-        // Raster all the faces
-        for ( int f=0; f<faceCount; ++f )
-        {
-            Triangle( pImage->GetData(),
-                      sizeX, sizeY,
-                      pixelSize,
-                      vertices[indices[f*3+0]],
-                      vertices[indices[f*3+1]],
-                      vertices[indices[f*3+2]],
-                      pixelProc,
-                      false );
-        }
-    }
-    else
-    {
-        // Raster only the faces in the selected block
-        for ( int f=0; f<faceCount; ++f )
-        {
-            if ( blocks[ indices[f*3+0] ]==block )
-            {
-                Triangle( pImage->GetData(),
-                          sizeX, sizeY,
-                          pixelSize,
-                          vertices[indices[f*3+0]],
-                          vertices[indices[f*3+1]],
-                          vertices[indices[f*3+2]],
-                          pixelProc,
-                          false );
-            }
-        }
-    }
-}
-
+//void ImageRasterProjected_Generic( const Mesh* pMesh,
+//                           Image* pImage,
+//                           const Image* pSource,
+//                           const Image* pMask,
+//                           float fadeStart,
+//                           float fadeEnd,
+//                           int layout,
+//                           int block )
+//{
+//	MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_Generic);
+//
+//	EImageFormat format = pImage->GetFormat();
+//    int pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
+//
+//    int sizeX = pImage->GetSizeX();
+//    int sizeY = pImage->GetSizeY();
+//
+//    RasterProjectedPixelProcessor pixelProc( pSource,
+//                                     pImage->GetData(),
+//                                     pMask ? pMask->GetData() : 0,
+//                                     fadeStart, fadeEnd );
+//
+//    // Get the vertices
+//    int vertexCount = pMesh->GetVertexCount();
+//	TArray< RasterVertex<4> > vertices;
+//	vertices.SetNum(vertexCount);
+//
+//    UntypedMeshBufferIteratorConst texIt( pMesh->GetVertexBuffers(), MBS_TEXCOORDS, layout );
+//    UntypedMeshBufferIteratorConst posIt( pMesh->GetVertexBuffers(), MBS_POSITION, 0 );
+//    UntypedMeshBufferIteratorConst norIt( pMesh->GetVertexBuffers(), MBS_NORMAL, 0 );
+//    for ( int v=0; v<vertexCount; ++v )
+//    {
+//        float uv[2]={0.0f,0.0f};
+//        ConvertData( 0, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
+//        ConvertData( 1, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
+//
+//        vertices[v].x = uv[0] * sizeX;
+//        vertices[v].y = uv[1] * sizeY;
+//
+//        FVector3f pos={0.0f,0.0f,0.0f};
+//        ConvertData( 0, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
+//        ConvertData( 1, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
+//        ConvertData( 2, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
+//        vertices[v].interpolators[0] = pos[0];
+//        vertices[v].interpolators[1] = pos[1];
+//        vertices[v].interpolators[2] = pos[2];
+//
+//        float nor=0.0f;
+//        ConvertData( 0, &nor, MBF_FLOAT32, norIt.ptr(), norIt.GetFormat() );
+//        vertices[v].interpolators[3] = nor;
+//
+//        ++texIt;
+//        ++posIt;
+//        ++norIt;
+//    }
+//
+//    // Get the indices
+//    int faceCount = pMesh->GetFaceCount();
+//	TArray<int> indices;
+//	indices.SetNum(faceCount * 3);
+//
+//    UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
+//    for ( int i=0; i<faceCount*3; ++i )
+//    {
+//        uint32 index=0;
+//        ConvertData( 0, &index, MBF_UINT32, indIt.ptr(), indIt.GetFormat() );
+//
+//        indices[i] = index;
+//        ++indIt;
+//    }
+//
+//    // Get the block per face
+//	TArray<int> blocks;
+//	blocks.SetNum(vertexCount);
+//
+//    UntypedMeshBufferIteratorConst bloIt( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, layout );
+//    if (bloIt.ptr())
+//    {
+//        for ( int i=0; i<vertexCount; ++i )
+//        {
+//            uint16 index=0;
+//            ConvertData( 0, &index, MBF_UINT16, bloIt.ptr(), bloIt.GetFormat() );
+//
+//            blocks[i] = index;
+//            ++bloIt;
+//        }
+//    }
+//
+//    if ( block<0 )
+//    {
+//        // We are rastering the entire layout in an image, so we need to apply the block->layout
+//        // transform to the UVs
+//        const Layout* pLayout = layout<pMesh->GetLayoutCount() ? pMesh->GetLayout( layout ) : nullptr;
+//        if (pLayout && bloIt.ptr())
+//        {
+//			TArray< box< vec2<float> > > transforms;
+//			transforms.SetNum(pLayout->GetBlockCount());
+//            for ( int b=0; b<pLayout->GetBlockCount(); ++b )
+//            {
+//                FIntPoint grid = pLayout->GetGridSize();
+//
+//                box< vec2<int> > blockRect;
+//                pLayout->GetBlock( b, &blockRect.min[0], &blockRect.min[1], &blockRect.size[0], &blockRect.size[1] );
+//
+//                box< vec2<float> > rect;
+//                rect.min[0] = ( (float)blockRect.min[0] ) / (float) grid[0];
+//                rect.min[1] = ( (float)blockRect.min[1] ) / (float) grid[1];
+//                rect.size[0] = ( (float)blockRect.size[0] ) / (float) grid[0];
+//                rect.size[1] = ( (float)blockRect.size[1] ) / (float) grid[1];
+//                transforms[b] = rect;
+//            }
+//
+//            for ( int i=0; i<vertexCount; ++i )
+//            {
+//                int relBlock = pLayout->FindBlock( blocks[i] );
+//                vertices[i].x = vertices[i].x * transforms[ relBlock ].size[0]
+//                        + transforms[ relBlock ].min[0] * sizeX;
+//                vertices[i].y = vertices[i].y * transforms[ relBlock ].size[1]
+//                        + transforms[ relBlock ].min[1] * sizeY;
+//            }
+//        }
+//
+//        // Raster all the faces
+//        for ( int f=0; f<faceCount; ++f )
+//        {
+//            Triangle( pImage->GetData(),
+//                      sizeX, sizeY,
+//                      pixelSize,
+//                      vertices[indices[f*3+0]],
+//                      vertices[indices[f*3+1]],
+//                      vertices[indices[f*3+2]],
+//                      pixelProc,
+//                      false );
+//        }
+//    }
+//    else
+//    {
+//        // Raster only the faces in the selected block
+//        for ( int f=0; f<faceCount; ++f )
+//        {
+//            if ( blocks[ indices[f*3+0] ]==block )
+//            {
+//                Triangle( pImage->GetData(),
+//                          sizeX, sizeY,
+//                          pixelSize,
+//                          vertices[indices[f*3+0]],
+//                          vertices[indices[f*3+1]],
+//                          vertices[indices[f*3+2]],
+//                          pixelProc,
+//                          false );
+//            }
+//        }
+//    }
+//}
+//
 
 //-------------------------------------------------------------------------------------------------
 //! This format is the one we assumee the meshes optimised for planar and cylindrical projection
@@ -1003,14 +1058,13 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
 
 //-------------------------------------------------------------------------------------------------
 void ImageRasterProjectedPlanar( const Mesh* pMesh,
-                                     Image* pImage,
-                                     const Image* pSource,
-                                     const Image* pMask,
-                                     float fadeStart,
-                                     float fadeEnd,
-                                     int layout,
-                                     int block,
-                                     SCRATCH_IMAGE_PROJECT* scratch )
+	Image* pImage,
+	const Image* pSource,
+	const Image* pMask,
+	bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+	float fadeStart, float fadeEnd,
+	int layout, int block,
+	SCRATCH_IMAGE_PROJECT* scratch )
 {
     check( !pMask || pMask->GetSizeX() == pImage->GetSizeX() );
     check( !pMask || pMask->GetSizeY() == pImage->GetSizeY() );
@@ -1023,10 +1077,12 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
         // Mesh-optimised version
         if ( pSource->GetFormat() == EImageFormat::IF_RGB_UBYTE )
         {
-            RasterProjectedPixelProcessor_UBYTE<3> pixelProc(  pSource,
-                                                       pImage->GetData(),
-                                                       pMask ? pMask->GetData() : 0,
-                                                       fadeStart, fadeEnd );
+            RasterProjectedPixelProcessor_UBYTE<3> pixelProc( 
+				pSource,
+				pImage->GetData(),
+				pMask ? pMask->GetData() : 0,
+				bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+				fadeStart, fadeEnd );
 
             ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
         }
@@ -1037,17 +1093,19 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
             if (pMask!=nullptr)
             {
                 RasterProjectedPixelProcessor_UBYTE<4,true> pixelProc( pSource,
-                                                           pImage->GetData(),
-                                                           pMask->GetData(),
-                                                           fadeStart, fadeEnd );
+                    pImage->GetData(),
+                    pMask->GetData(),
+					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+					fadeStart, fadeEnd );
                 ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
             }
             else
             {
                 RasterProjectedPixelProcessor_UBYTE<4,false> pixelProc( pSource,
-                                                           pImage->GetData(),
-                                                           nullptr,
-                                                           fadeStart, fadeEnd );
+                    pImage->GetData(),
+                    nullptr,
+					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+					fadeStart, fadeEnd );
                 ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
             }
 
@@ -1056,21 +1114,24 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
         else if ( pSource->GetFormat() == EImageFormat::IF_L_UBYTE )
         {
             RasterProjectedPixelProcessor_UBYTE<1> pixelProc( pSource,
-                                                     pImage->GetData(),
-                                                     pMask ? pMask->GetData() : 0,
-                                                     fadeStart, fadeEnd );
+				pImage->GetData(),
+				pMask ? pMask->GetData() : 0,
+				bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+				fadeStart, fadeEnd );
 
             ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
         }
 
         else
         {
-            RasterProjectedPixelProcessor pixelProc( pSource,
-                                             pImage->GetData(),
-                                             pMask ? pMask->GetData() : 0,
-                                             fadeStart, fadeEnd );
+			check(false);
+    //        RasterProjectedPixelProcessor pixelProc( pSource,
+    //                                         pImage->GetData(),
+    //                                         pMask ? pMask->GetData() : 0, 
+				//bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+    //                                         fadeStart, fadeEnd );
 
-            ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
+    //        ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
         }
     }
 
@@ -1078,10 +1139,9 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
     {
         check(false);
         // Generic version
-        // TODO: It will allocate temp memory.
-        ImageRasterProjected_Generic( pMesh, pImage, pSource, pMask,
-                              fadeStart, fadeEnd,
-                              layout, block );
+        //ImageRasterProjected_Generic( pMesh, pImage, pSource, pMask,
+        //                      fadeStart, fadeEnd,
+        //                      layout, block );
     }
 
 }
@@ -1092,8 +1152,8 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
                                        Image* pImage,
                                        const Image* pSource,
                                        const Image* pMask,
-                                       float fadeStart,
-                                       float fadeEnd,
+									   bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+                                       float fadeStart, float fadeEnd,
                                        int layout,
                                        int block,
                                        SCRATCH_IMAGE_PROJECT* scratch )
@@ -1111,9 +1171,10 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
         if ( pSource->GetFormat() == EImageFormat::IF_RGB_UBYTE )
         {
             RasterProjectedPixelProcessor_UBYTE<3> pixelProc(  pSource,
-                                                       pImage->GetData(),
-                                                       pMask ? pMask->GetData() : 0,
-                                                       fadeStart, fadeEnd );
+				pImage->GetData(),
+				pMask ? pMask->GetData() : 0,
+				bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+				fadeStart, fadeEnd );
 
             ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
         }
@@ -1124,17 +1185,19 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
             if (pMask!=nullptr)
             {
                 RasterProjectedPixelProcessor_UBYTE<4,true> pixelProc( pSource,
-                                                           pImage->GetData(),
-                                                           pMask->GetData(),
-                                                           fadeStart, fadeEnd );
+					pImage->GetData(),
+					pMask->GetData(),
+					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+					fadeStart, fadeEnd );
                 ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
             }
             else
             {
                 RasterProjectedPixelProcessor_UBYTE<4,false> pixelProc( pSource,
-                                                           pImage->GetData(),
-                                                           nullptr,
-                                                           fadeStart, fadeEnd );
+					pImage->GetData(),
+					nullptr,
+					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+					fadeStart, fadeEnd );
                 ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
             }
 
@@ -1143,21 +1206,24 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
         else if ( pSource->GetFormat() == EImageFormat::IF_L_UBYTE )
         {
             RasterProjectedPixelProcessor_UBYTE<1> pixelProc( pSource,
-                                                     pImage->GetData(),
-                                                     pMask ? pMask->GetData() : 0,
-                                                     fadeStart, fadeEnd );
+				pImage->GetData(),
+				pMask ? pMask->GetData() : 0,
+				bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+				fadeStart, fadeEnd );
 
             ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
         }
 
         else
         {
-            RasterProjectedPixelProcessor pixelProc( pSource,
-                                             pImage->GetData(),
-                                             pMask ? pMask->GetData() : 0,
-                                             fadeStart, fadeEnd );
+			check(false);
+    //        RasterProjectedPixelProcessor pixelProc( pSource,
+				//pImage->GetData(),
+				//pMask ? pMask->GetData() : 0,
+				//bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
+				//fadeStart, fadeEnd );
 
-            ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
+    //        ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
         }
     }
 
@@ -1165,10 +1231,9 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
     {
         check(false);
         // Generic version
-        // TODO: It will allocate temp memory.
-        ImageRasterProjected_Generic( pMesh, pImage, pSource, pMask,
-                              fadeStart, fadeEnd,
-                              layout, block );
+        //ImageRasterProjected_Generic( pMesh, pImage, pSource, pMask,
+        //                      fadeStart, fadeEnd,
+        //                      layout, block );
     }
 
 }
@@ -1176,14 +1241,14 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 
 //-------------------------------------------------------------------------------------------------
 void ImageRasterProjectedCylindrical( const Mesh* pMesh,
-                                          Image* pImage,
-                                          const Image* pSource,
-                                          const Image* pMask,
-                                          float fadeStart,
-                                          float fadeEnd,
-                                          int /*layout*/,
-                                          float projectionAngle,
-                                          SCRATCH_IMAGE_PROJECT* scratch )
+                                        Image* pImage,
+                                        const Image* pSource,
+                                        const Image* pMask,
+										bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+                                        float fadeStart, float fadeEnd,
+                                        int /*layout*/,
+                                        float projectionAngle,
+                                        SCRATCH_IMAGE_PROJECT* scratch )
 {
     check( !pMask || pMask->GetSizeX() == pImage->GetSizeX() );
     check( !pMask || pMask->GetSizeY() == pImage->GetSizeY() );

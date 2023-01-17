@@ -18,6 +18,7 @@
 #include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpImageLayer.h"
 #include "MuT/ASTOpImageLayerColor.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/StreamsPrivate.h"
 
@@ -349,10 +350,10 @@ namespace mu
 
 			case OP_TYPE::IM_RASTERMESH:
 			{
-				Ptr<ASTOpFixed> NewRaster = mu::Clone<ASTOpFixed>(channelSourceAt);
+				Ptr<ASTOpImageRasterMesh> NewRaster = mu::Clone<ASTOpImageRasterMesh>(channelSourceAt);
 				Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(NewSwizzle, NewRaster->children[NewRaster->op.args.ImageRasterMesh.image].child());
-				NewRaster->SetChild(NewRaster->op.args.ImageRasterMesh.image, NewSwizzle);
+				ReplaceAllSources(NewSwizzle, NewRaster->image.child());
+				NewRaster->image = NewSwizzle;
 				at = NewRaster;
 				break;
 			}
@@ -622,7 +623,7 @@ namespace mu
 			// Swizzle down compatible raster meshes.
 			if (!at && sourceType == OP_TYPE::IM_RASTERMESH)
 			{
-				const ASTOpFixed* FirstRasterMesh = dynamic_cast<const ASTOpFixed*>(Sources[0].child().get());
+				const ASTOpImageRasterMesh* FirstRasterMesh = dynamic_cast<const ASTOpImageRasterMesh*>(Sources[0].child().get());
 				check(FirstRasterMesh);
 
 				bool bAreAllRasterMeshesCompatible = true;
@@ -630,13 +631,20 @@ namespace mu
 				{
 					if (Sources[c])
 					{
-						const ASTOpFixed* Typed = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+						const ASTOpImageRasterMesh* Typed = dynamic_cast<const ASTOpImageRasterMesh*>(Sources[c].child().get());
 						check(Typed);
-						// Compare all args but the source image
-						OP::ImageRasterMeshArgs ArgCopy = FirstRasterMesh->op.args.ImageRasterMesh;
-						ArgCopy.image = Typed->op.args.ImageRasterMesh.image;
 
-						if (FMemory::Memcmp(&ArgCopy, &Typed->op.args.ImageRasterMesh, sizeof(OP::ImageRasterMeshArgs)) != 0)
+						// Compare all args but the source image
+						if (Typed->mesh.child() != FirstRasterMesh->mesh.child()
+							|| Typed->angleFadeProperties.child() != FirstRasterMesh->angleFadeProperties.child()
+							|| Typed->mask.child() != FirstRasterMesh->mask.child()
+							|| Typed->projector.child() != FirstRasterMesh->projector.child()
+							|| Typed->blockIndex != FirstRasterMesh->blockIndex
+							|| Typed->sizeX != FirstRasterMesh->sizeX
+							|| Typed->sizeY != FirstRasterMesh->sizeY
+							|| Typed->bIsRGBFadingEnabled != FirstRasterMesh->bIsRGBFadingEnabled
+							|| Typed->bIsAlphaFadingEnabled != FirstRasterMesh->bIsAlphaFadingEnabled
+							)
 						{
 							bAreAllRasterMeshesCompatible = false;
 							break;
@@ -647,19 +655,19 @@ namespace mu
 				if (bAreAllRasterMeshesCompatible)
 				{
 					// Move the swizzle down all the paths
-					Ptr<ASTOpFixed> NewRaster = mu::Clone<ASTOpFixed>(FirstRasterMesh);
+					Ptr<ASTOpImageRasterMesh> NewRaster = mu::Clone<ASTOpImageRasterMesh>(FirstRasterMesh);
 
 					Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
 					for (int c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
 					{
-						const ASTOpFixed* ChannelRaster = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+						const ASTOpImageRasterMesh* ChannelRaster = dynamic_cast<const ASTOpImageRasterMesh*>(Sources[c].child().get());
 						if (ChannelRaster)
 						{
-							NewSwizzle->Sources[c] = ChannelRaster->children[ChannelRaster->op.args.ImageRasterMesh.image].child();
+							NewSwizzle->Sources[c] = ChannelRaster->image.child();
 						}
 					}
 
-					NewRaster->SetChild(NewRaster->op.args.ImageRasterMesh.image, NewSwizzle);
+					NewRaster->image = NewSwizzle;
 
 					at = NewRaster;
 				}

@@ -19,6 +19,7 @@
 #include "MuT/ASTOpMeshBindShape.h"
 #include "MuT/ASTOpMeshClipMorphPlane.h"
 #include "MuT/ASTOpMeshApplyPose.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 
 #include <unordered_set>
 
@@ -702,8 +703,8 @@ namespace mu
 	//                else
 					if (n->GetOpType()==OP_TYPE::IM_RASTERMESH)
 				{
-					const auto& args = dynamic_cast<const ASTOpFixed*>(n.get())->op.args.ImageRasterMesh;
-					if ( !args.image )
+					const ASTOpImageRasterMesh* Raster = dynamic_cast<const ASTOpImageRasterMesh*>(n.get());
+					if ( !Raster->image )
 					{
 						specialCase = true;
 					}

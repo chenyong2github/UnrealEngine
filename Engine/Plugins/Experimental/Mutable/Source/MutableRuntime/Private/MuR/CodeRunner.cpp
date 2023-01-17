@@ -3926,19 +3926,17 @@ namespace mu
                     // moving the right layout channel to the 0.
                     int layout = 0;
 
-                    float projectionAngle = 0;
                     if ( args.projector && pSource && pSource->GetSizeX()>0 && pSource->GetSizeY()>0 )
                     {
                         Ptr<const Projector> pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
                         if (pProjector)
                         {
-                            projectionAngle = pProjector->m_value.projectionAngle;
-
                             switch (pProjector->m_value.type)
                             {
                             case PROJECTOR_TYPE::PLANAR:
                                 ImageRasterProjectedPlanar( pMesh.get(), pNew.get(),
                                                             pSource.get(), pMask.get(),
+															args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
                                                             fadeStart, fadeEnd,
                                                             layout, args.blockIndex,
                                                             &scratch );
@@ -3947,7 +3945,8 @@ namespace mu
                             case PROJECTOR_TYPE::WRAPPING:
                                 ImageRasterProjectedWrapping( pMesh.get(), pNew.get(),
                                                               pSource.get(), pMask.get(),
-                                                              fadeStart, fadeEnd,
+															  args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+															  fadeStart, fadeEnd,
                                                               layout, args.blockIndex,
                                                               &scratch );
                                 break;
@@ -3955,9 +3954,10 @@ namespace mu
                             case PROJECTOR_TYPE::CYLINDRICAL:
                                 ImageRasterProjectedCylindrical( pMesh.get(), pNew.get(),
                                                                  pSource.get(), pMask.get(),
-                                                                 fadeStart, fadeEnd,
+																 args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+																 fadeStart, fadeEnd,
                                                                  layout,
-                                                                 projectionAngle,
+																 pProjector->m_value.projectionAngle,
                                                                  &scratch );
                                 break;
 

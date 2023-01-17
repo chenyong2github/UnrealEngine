@@ -23,6 +23,7 @@
 #include "MuT/ASTOpImageMakeGrowMap.h"
 #include "MuT/ASTOpImageSwizzle.h"
 #include "MuT/ASTOpImageTransform.h"
+#include "MuT/ASTOpImageRasterMesh.h"
 #include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeOptimiser.h"
@@ -716,172 +717,10 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 		case OP_TYPE::IM_SWIZZLE:
 		case OP_TYPE::LA_REMOVEBLOCKS:
-        {
+		case OP_TYPE::IM_RASTERMESH:
+		{
 			// Moved to their own operation class
 			check(false);
-            break;
-        }
-
-
-        //-----------------------------------------------------------------------------------------
-        //-----------------------------------------------------------------------------------------
-        //-----------------------------------------------------------------------------------------
-        case OP_TYPE::IM_RASTERMESH:
-        {
-			Ptr<ASTOp> OriginalAt = at;
-			Ptr<ASTOp> sourceAt = children[op.args.ImageRasterMesh.mesh].child();
-			Ptr<ASTOp> imageAt = children[op.args.ImageRasterMesh.image].child();
-
-            OP_TYPE sourceType = sourceAt->GetOpType();
-            switch ( sourceType )
-            {
-
-            case OP_TYPE::ME_PROJECT:
-            {
-                // If we are rastering just the UV layout (to create a mask) we don't care about
-                // mesh project operations, which modify only the positions.
-                // This optimisation helps with states removing fake dependencies on projector
-                // parameters that may be runtime.
-                if (!imageAt)
-                {
-                    // We remove the project from the raster children
-                    // \todo: maybe this clone is not necessary
-					const ASTOpFixed* typedSource = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
-                    Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(this);
-                    nop->SetChild( nop->op.args.ImageRasterMesh.mesh,
-                                   typedSource->children[typedSource->op.args.MeshProject.mesh]);
-                    at = nop;
-                }
-                break;
-            }
-
-            case OP_TYPE::ME_INTERPOLATE:
-            {
-                auto typedSource = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
-				Ptr<ASTOpFixed> rasterOp = mu::Clone<ASTOpFixed>(this);
-                rasterOp->SetChild( rasterOp->op.args.ImageRasterMesh.mesh,
-                        typedSource->children[typedSource->op.args.MeshInterpolate.base] );
-                at = rasterOp;
-                break;
-            }
-
-            case OP_TYPE::ME_MORPH2:
-            {
-				const ASTOpMeshMorph* typedSource = dynamic_cast<const ASTOpMeshMorph*>(sourceAt.get());
-				Ptr<ASTOpFixed> rasterOp = mu::Clone<ASTOpFixed>(this);
-                rasterOp->SetChild( rasterOp->op.args.ImageRasterMesh.mesh, typedSource->Base );
-                at = rasterOp;
-                break;
-            }
-
-            case OP_TYPE::ME_CONDITIONAL:
-            {
-                auto nop = mu::Clone<ASTOpConditional>(sourceAt.get());
-                nop->type = OP_TYPE::IM_CONDITIONAL;
-
-				Ptr<ASTOpFixed> aOp = mu::Clone<ASTOpFixed>(this);
-                aOp->SetChild( aOp->op.args.ImageRasterMesh.mesh, nop->yes );
-                nop->yes = aOp;
-
-				Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
-                bOp->SetChild( bOp->op.args.ImageRasterMesh.mesh, nop->no );
-                nop->no = bOp;
-
-                at = nop;
-                break;
-            }
-
-            case OP_TYPE::ME_SWITCH:
-            {
-                // Make an image for every path
-                auto nop = mu::Clone<ASTOpSwitch>(sourceAt.get());
-                nop->type = OP_TYPE::IM_SWITCH;
-
-                if (nop->def)
-                {
-					Ptr<ASTOpFixed> defOp = mu::Clone<ASTOpFixed>(this);
-                    defOp->SetChild( defOp->op.args.ImageRasterMesh.mesh, nop->def );
-                    nop->def = defOp;
-                }
-
-                // We need to copy the options because we change them
-                for ( size_t o=0; o<nop->cases.Num(); ++o )
-                {
-                    if ( nop->cases[o].branch )
-                    {
-						Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
-                        bOp->SetChild( bOp->op.args.ImageRasterMesh.mesh, nop->cases[o].branch );
-                        nop->cases[o].branch = bOp;
-                    }
-                }
-
-                at = nop;
-                break;
-            }
-
-            default:
-                break;
-            }
-
-			// If we didn't optimize the mesh child, try to optimize the image child.
-			if (OriginalAt == at && imageAt)
-			{
-				OP_TYPE imageType = imageAt->GetOpType();
-				switch (imageType)
-				{
-
-				// TODO: Implement for image conditionals.
-				//case OP_TYPE::ME_CONDITIONAL:
-				//{
-				//	auto nop = mu::Clone<ASTOpConditional>(sourceAt.get());
-				//	nop->type = OP_TYPE::IM_CONDITIONAL;
-
-				//	Ptr<ASTOpFixed> aOp = mu::Clone<ASTOpFixed>(this);
-				//	aOp->SetChild(aOp->op.args.ImageRasterMesh.mesh, nop->yes);
-				//	nop->yes = aOp;
-
-				//	Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
-				//	bOp->SetChild(bOp->op.args.ImageRasterMesh.mesh, nop->no);
-				//	nop->no = bOp;
-
-				//	at = nop;
-				//	break;
-				//}
-
-				case OP_TYPE::IM_SWITCH:
-				{
-					// TODO: Do this only if the projector is constant?
-					
-					// Make a project for every path
-					auto nop = mu::Clone<ASTOpSwitch>(imageAt.get());
-
-					if (nop->def)
-					{
-						Ptr<ASTOpFixed> defOp = mu::Clone<ASTOpFixed>(this);
-						defOp->SetChild(defOp->op.args.ImageRasterMesh.image, nop->def);
-						nop->def = defOp;
-					}
-
-					// We need to copy the options because we change them
-					for (size_t o = 0; o < nop->cases.Num(); ++o)
-					{
-						if (nop->cases[o].branch)
-						{
-							Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
-							bOp->SetChild(bOp->op.args.ImageRasterMesh.image, nop->cases[o].branch);
-							nop->cases[o].branch = bOp;
-						}
-					}
-
-					at = nop;
-					break;
-				}
-
-				default:
-					break;
-				}
-			}
-
             break;
         }
 
@@ -1358,18 +1197,18 @@ namespace mu
 
 			case OP_TYPE::IM_RASTERMESH:
 			{
-				Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(at);
-				Ptr<ASTOp> maskOp = nop->children[nop->op.args.ImageRasterMesh.mask].child();
-				nop->SetChild(nop->op.args.ImageRasterMesh.mask, Visit(maskOp, currentSinkingOp));
+				Ptr<ASTOpImageRasterMesh> nop = mu::Clone<ASTOpImageRasterMesh>(at);
+				Ptr<ASTOp> maskOp = nop->mask.child();
+				nop->mask = Visit(maskOp, currentSinkingOp);
 
 				// Resize the image to project as well, assuming that since the target has a different resolution
 				// it make sense for the source image to have a similar resize.
 				// Actually, don't do it because the LODBias will be applied separetely at graph generation time.
-				//auto imageOp = nop->children[nop->op.args.ImageRasterMesh.image].child();
-				//nop->SetChild(nop->op.args.ImageRasterMesh.image, Visit(imageOp, currentSinkingOp));
+				//auto imageOp = nop->image.child();
+				//nop->image = Visit(imageOp, currentSinkingOp);
 
-				nop->op.args.ImageRasterMesh.sizeX = uint16(nop->op.args.ImageRasterMesh.sizeX * scaleX + 0.5f);
-				nop->op.args.ImageRasterMesh.sizeY = uint16(nop->op.args.ImageRasterMesh.sizeY * scaleY + 0.5f);
+				nop->sizeX = uint16(nop->sizeX * scaleX + 0.5f);
+				nop->sizeY = uint16(nop->sizeY * scaleY + 0.5f);
 				newAt = nop;
 				break;
 			}
@@ -1504,20 +1343,20 @@ namespace mu
 
             case OP_TYPE::IM_RASTERMESH:
             {
-                Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
+                Ptr<ASTOpImageRasterMesh> newOp = mu::Clone<ASTOpImageRasterMesh>(sourceAt);
 
                 //if ( newOp->op.args.ImageRasterMesh.sizeX != op.args.ImageResize.size[0]
                 //     ||
                 //     newOp->op.args.ImageRasterMesh.sizeY != op.args.ImageResize.size[1] )
                 {
-                    newOp->op.args.ImageRasterMesh.sizeX = op.args.ImageResize.size[0];
-                    newOp->op.args.ImageRasterMesh.sizeY = op.args.ImageResize.size[1];
+                    newOp->sizeX = op.args.ImageResize.size[0];
+                    newOp->sizeY = op.args.ImageResize.size[1];
 
-					if (newOp->op.args.ImageRasterMesh.mask)
+					if (newOp->mask)
 					{
 						Ptr<ASTOpFixed> mop = mu::Clone<ASTOpFixed>(this);
-						mop->SetChild(mop->op.args.ImageResize.source, newOp->children[newOp->op.args.ImageRasterMesh.mask].child());
-						newOp->SetChild(newOp->op.args.ImageRasterMesh.mask, mop);
+						mop->SetChild(mop->op.args.ImageResize.source, newOp->mask.child());
+						newOp->mask = mop;
 					}
 
 					// Don't apply absolute resizes to the image to raster: it could even enlarge it.

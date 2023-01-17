@@ -14,7 +14,6 @@
 namespace mu
 {
 
-
 	class NodeImageProject::Private : public NodeImage::Private
 	{
 	public:
@@ -31,13 +30,15 @@ namespace mu
 		NodeScalarPtr m_pAngleFadeEnd;
 		NodeImagePtr m_pImage;
 		NodeImagePtr m_pMask;
-        uint8_t m_layout = 0;
 		FUintVector2 m_imageSize;
+		uint8 m_layout = 0;
+		bool bIsRGBFadingEnabled = true;
+		bool bIsAlphaFadingEnabled = true;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 2;
+            uint32 ver = 3;
 			arch << ver;
 
 			arch << m_pProjector;
@@ -48,14 +49,16 @@ namespace mu
             arch << m_pMask;
             arch << m_layout;
 			arch << m_imageSize;
-        }
+			arch << bIsRGBFadingEnabled;
+			arch << bIsAlphaFadingEnabled;
+		}
 
 		//!
 		void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
-            check(ver==2);
+            check(ver>=2 && ver<=3);
 
 			arch >> m_pProjector;
 			arch >> m_pMesh;
@@ -65,6 +68,11 @@ namespace mu
 			arch >> m_pMask;
             arch >> m_layout;
 			arch >> m_imageSize;
+			if (ver >= 3)
+			{
+				arch >> bIsRGBFadingEnabled;
+				arch >> bIsAlphaFadingEnabled;
+			}
 		}
 	};
 
