@@ -2,7 +2,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Build.Compute;
+using Horde.Build.Compute.V1;
 using Horde.Build.Server;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

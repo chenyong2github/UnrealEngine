@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build.Compute
+namespace Horde.Build.Compute.V1
 {
 	/// <summary>
 	/// Controller for the /api/v1/compute endpoint

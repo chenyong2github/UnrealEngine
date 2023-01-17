@@ -28,7 +28,7 @@ using OpenTracing;
 using OpenTracing.Util;
 using StackExchange.Redis;
 
-namespace Horde.Build.Compute
+namespace Horde.Build.Compute.V1
 {
 	using LeaseId = ObjectId<ILease>;
 

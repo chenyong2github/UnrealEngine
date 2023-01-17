@@ -9,7 +9,7 @@ using Amazon.CloudWatch;
 using Amazon.CloudWatch.Model;
 using EpicGames.Horde.Compute;
 using Horde.Build.Agents.Pools;
-using Horde.Build.Compute;
+using Horde.Build.Compute.V1;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;

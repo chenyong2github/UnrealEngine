@@ -8,7 +8,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Build.Agents.Pools;
 
-namespace Horde.Build.Compute;
+namespace Horde.Build.Compute.V1;
 
 /// <summary>
 /// Interface for running and scheduling compute tasks (primarily for remote execution)

@@ -31,7 +31,6 @@ using Horde.Build.Agents.Pools;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Agents.Software;
 using Horde.Build.Agents.Telemetry;
-using Horde.Build.Compute;
 using Horde.Build.Configuration;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
@@ -676,16 +675,16 @@ namespace Horde.Build
 			services.AddHostedService<JobTaskSource>(provider => provider.GetRequiredService<JobTaskSource>());
 			services.AddSingleton<ConformTaskSource>();
 			services.AddHostedService<ConformTaskSource>(provider => provider.GetRequiredService<ConformTaskSource>());
-			services.AddSingleton<ComputeService>();
-			services.AddSingleton<IComputeService, ComputeService>();
-			services.AddHostedService(provider => provider.GetRequiredService<ComputeService>());
+			services.AddSingleton<Compute.V1.ComputeService>();
+			services.AddSingleton<Compute.V1.IComputeService, Compute.V1.ComputeService>();
+			services.AddHostedService(provider => provider.GetRequiredService<Compute.V1.ComputeService>());
 
 			services.AddSingleton<ITaskSource, UpgradeTaskSource>();
 			services.AddSingleton<ITaskSource, ShutdownTaskSource>();
 			services.AddSingleton<ITaskSource, RestartTaskSource>();
 			services.AddSingleton<ITaskSource, ConformTaskSource>(provider => provider.GetRequiredService<ConformTaskSource>());
 			services.AddSingleton<ITaskSource, JobTaskSource>(provider => provider.GetRequiredService<JobTaskSource>());
-			services.AddSingleton<ITaskSource, ComputeService>();
+			services.AddSingleton<ITaskSource, Compute.V1.ComputeService>();
 
 			services.AddHostedService(provider => provider.GetRequiredService<ConformTaskSource>());
 
