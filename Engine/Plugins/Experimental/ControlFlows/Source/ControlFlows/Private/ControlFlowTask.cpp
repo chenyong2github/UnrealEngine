@@ -176,14 +176,14 @@ void FControlFlowSimpleSubTask::CancelledSubTask()
 //FControlFlowLoop
 //////////////////////////////////
 
-FControlFlowTask_Loop::FControlFlowTask_Loop(FControlFlowLoopComplete& TaskCompleteDelegate, const FString& TaskName, TSharedRef<FControlFlow> FlowOwner)
+FControlFlowTask_LoopDeprecated::FControlFlowTask_LoopDeprecated(FControlFlowLoopComplete& TaskCompleteDelegate, const FString& TaskName, TSharedRef<FControlFlow> FlowOwner)
 	: FControlFlowSimpleSubTask(TaskName, FlowOwner)
 	, TaskCompleteDecider(TaskCompleteDelegate)
 {
 
 }
 
-void FControlFlowTask_Loop::Execute()
+void FControlFlowTask_LoopDeprecated::Execute()
 {
 	if (GetTaskPopulator().IsBound() && TaskCompleteDecider.IsBound() && GetTaskFlow().IsValid())
 	{
@@ -193,9 +193,9 @@ void FControlFlowTask_Loop::Execute()
 		}
 		else
 		{
-			GetTaskFlow()->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_Loop::CompletedLoop);
-			GetTaskFlow()->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_Loop::CompletedLoop);
-			GetTaskFlow()->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_Loop::CancelledLoop);
+			GetTaskFlow()->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CompletedLoop);
+			GetTaskFlow()->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CompletedLoop);
+			GetTaskFlow()->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_LoopDeprecated::CancelledLoop);
 
 			GetTaskPopulator().Execute(GetTaskFlow().ToSharedRef());
 
@@ -210,7 +210,7 @@ void FControlFlowTask_Loop::Execute()
 	}
 }
 
-void FControlFlowTask_Loop::Cancel()
+void FControlFlowTask_LoopDeprecated::Cancel()
 {
 	if (GetTaskFlow().IsValid() && GetTaskFlow()->IsRunning())
 	{
@@ -222,7 +222,7 @@ void FControlFlowTask_Loop::Cancel()
 	}
 }
 
-void FControlFlowTask_Loop::CompletedLoop()
+void FControlFlowTask_LoopDeprecated::CompletedLoop()
 {
 	if (TaskCompleteDecider.IsBound() && !TaskCompleteDecider.Execute())
 	{
@@ -234,7 +234,7 @@ void FControlFlowTask_Loop::CompletedLoop()
 	}
 }
 
-void FControlFlowTask_Loop::CancelledLoop()
+void FControlFlowTask_LoopDeprecated::CancelledLoop()
 {
 	OnCancelled().ExecuteIfBound();
 }

@@ -59,11 +59,11 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-class FControlFlowTask_Loop : public FControlFlowSimpleSubTask
+class FControlFlowTask_LoopDeprecated : public FControlFlowSimpleSubTask
 {
 public:
 
-	FControlFlowTask_Loop(FControlFlowLoopComplete& TaskCompleteDelegate, const FString& TaskName, TSharedRef<FControlFlow> FlowOwner);
+	FControlFlowTask_LoopDeprecated(FControlFlowLoopComplete& TaskCompleteDelegate, const FString& TaskName, TSharedRef<FControlFlow> FlowOwner);
 
 protected:
 

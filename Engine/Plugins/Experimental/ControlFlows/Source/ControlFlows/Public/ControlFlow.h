@@ -223,7 +223,7 @@ private:
 	friend class FControlFlowNode_RequiresCallback;
 	friend class FControlFlowNode_SelfCompleting;
 	friend class FControlFlowSimpleSubTask;
-	friend class FControlFlowTask_Loop;
+	friend class FControlFlowTask_LoopDeprecated;
 	friend class FControlFlowTask_BranchLegacy;
 	friend class FControlFlowTask_Branch;
 	friend class FControlFlowStatics;

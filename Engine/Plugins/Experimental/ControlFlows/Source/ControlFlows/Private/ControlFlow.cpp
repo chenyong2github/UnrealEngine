@@ -336,7 +336,7 @@ TSharedRef<FControlFlowTask_BranchLegacy> FControlFlow::QueueBranch(FControlFlow
 
 FControlFlowPopulator& FControlFlow::QueueLoop(FControlFlowLoopComplete& LoopCompleteDelgate, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
-	TSharedRef<FControlFlowTask_Loop> NewTask = MakeShared<FControlFlowTask_Loop>(LoopCompleteDelgate, TaskName, MakeShared<FControlFlow>(TaskName));
+	TSharedRef<FControlFlowTask_LoopDeprecated> NewTask = MakeShared<FControlFlowTask_LoopDeprecated>(LoopCompleteDelgate, TaskName, MakeShared<FControlFlow>(TaskName));
 	TSharedRef<FControlFlowNode_Task> NewNode = MakeShared<FControlFlowNode_Task>(SharedThis(this), NewTask, FormatOrGetNewNodeDebugName(FlowNodeDebugName));
 	NewTask->GetTaskFlow()->Activity = Activity;
 	NewNode->OnExecute().BindSP(SharedThis(this), &FControlFlow::HandleTaskNodeExecuted);
