@@ -260,10 +260,10 @@ FORCEINLINE To* Cast(const TObjectPtr<From>& InSrc)
 	}
 	else if constexpr (TIsIInterface<To>::Value)
 	{
-		UObject* SrcObj = ResolveObjectHandleNoRead(Src.GetHandleRef());
+		UObject* SrcObj = UE::CoreUObject::Private::ResolveObjectHandleNoRead(Src.GetHandleRef());
 		if (SrcObj)
 		{
-			ObjectHandle_Private::OnHandleRead(SrcObj);
+			UE::CoreUObject::Private::OnHandleRead(SrcObj);
 			return (To*)Src.Get()->GetInterfaceAddress(To::UClassType::StaticClass());
 		}
 	}
@@ -283,10 +283,10 @@ FORCEINLINE To* ExactCast(const TObjectPtr<From>& Src)
 {
 	static_assert(sizeof(To) > 0, "Attempting to cast to an incomplete type");
 
-	UObject* SrcObj = ResolveObjectHandleNoRead(((const FObjectPtr&)Src).GetHandleRef());
+	UObject* SrcObj = UE::CoreUObject::Private::ResolveObjectHandleNoRead(((const FObjectPtr&)Src).GetHandleRef());
 	if (SrcObj && (SrcObj->GetClass() == To::StaticClass()))
 	{
-		ObjectHandle_Private::OnHandleRead(SrcObj);
+		UE::CoreUObject::Private::OnHandleRead(SrcObj);
 		return (To*)SrcObj;
 	}
 	return nullptr;
@@ -322,8 +322,8 @@ FORCEINLINE To* CastChecked(const TObjectPtr<From>& Src, ECastCheckedType::Type 
 	}
 	else if constexpr (TIsIInterface<To>::Value)
 	{
-		UObject* SrcObj = ResolveObjectHandleNoRead(((const FObjectPtr&)Src).GetHandleRef());
-		ObjectHandle_Private::OnHandleRead(SrcObj);
+		UObject* SrcObj = UE::CoreUObject::Private::ResolveObjectHandleNoRead(((const FObjectPtr&)Src).GetHandleRef());
+		UE::CoreUObject::Private::OnHandleRead(SrcObj);
 		return (To*)((const FObjectPtr&)Src).Get()->GetInterfaceAddress(To::UClassType::StaticClass());
 	}
 	else

@@ -5258,7 +5258,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			//this is to have a reverse map of UObject to FPackedObjectRef
 			if (UE::LinkerLoad::IsImportLazyLoadEnabled())
 			{
-				MakePackedObjectRef(Export.Object);
+				UE::CoreUObject::Private::MakePackedObjectRef(Export.Object);
 			}
 #endif
 		}

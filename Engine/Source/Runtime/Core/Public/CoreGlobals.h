@@ -758,17 +758,16 @@ class FChunkedFixedUObjectArray;
 
 extern CORE_API FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers;
 
-/** Array to help visualize object paths in the debugger */
-namespace UE::ObjectPath::Private
+namespace UE::CoreUObject::Private
 {
+	/** Array to help visualize object paths in the debugger */
 	struct FStoredObjectPath;
+	
+	/** Array to help visualize object handles in the debugger */
+	struct FObjectHandlePackageDebugData;
 }
-extern CORE_API UE::ObjectPath::Private::FStoredObjectPath* GCoreComplexObjectPathDebug;
-
-/** Array to help visualize object handles in the debugger */
-struct FObjectHandlePackageDebugData;
-
-extern CORE_API FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug;
+extern CORE_API UE::CoreUObject::Private::FStoredObjectPath* GCoreComplexObjectPathDebug;
+extern CORE_API UE::CoreUObject::Private::FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug;
 
 /** @return True if running cook-on-the-fly. */
 bool CORE_API IsRunningCookOnTheFly();

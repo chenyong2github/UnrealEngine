@@ -10,14 +10,14 @@
 #include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/Interface.h"
 #include "UObject/MetaData.h"
+#include "UObject/ObjectPathId.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/SoftObjectPath.h"
 #include "Misc/ScopeExit.h"
 #include <type_traits>
 
-
-namespace ObjectPtrTest
+namespace UE::CoreObject::Private::Tests
 {
 using FMutableObjectPtr = TObjectPtr<UObject>;
 using FMutableInterfacePtr = TObjectPtr<UInterface>;
@@ -169,6 +169,7 @@ TEST_CASE("CoreUObject::TObjectPtr::Null", "[CoreUObject][ObjectPtr]")
 	TEST_TRUE(TEXT("Negation of a null object pointer should evaluate to true"), !NullObjectPtr);
 }
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
 TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Default Serialize", "[CoreUObject][ObjectPtr]")
 {
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
@@ -178,27 +179,34 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Default Serialize
 	TestPackage->AddToRoot();
 	UObject* TestSoftObject = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("DefaultSerializeObject"));
 
-	FObjectPtr DefaultSerializeObjectPtr(FObjectRef {FName("/Engine/Test/ObjectPtrDefaultSerialize/Transient"), NAME_None, NAME_None, FObjectPathId("DefaultSerializeObject")});
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	FObjectPtr DefaultSerializeObjectPtr(MakeUnresolvedHandle(TestSoftObject));
+#else
+	FObjectPtr DefaultSerializeObjectPtr(TestSoftObject);
+#endif
 
-	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
+	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"), 0);
 
 	FArchiveUObject Writer;
 	Writer << DefaultSerializeObjectPtr;
 
-	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr should force it to resolve"), 1);
+	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr should force it to resolve"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 1 : 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after serializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"), 1);
 
 	Writer << DefaultSerializeObjectPtr;
 
-	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr twice should only require it to resolve once"), 1);
+	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr twice should only require it to resolve once"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 1 : 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after serializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"), 2);
 
 	TestPackage->RemoveFromRoot();
 }
+#endif
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
 
 TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Soft Object Path", "[CoreUObject][ObjectPtr]")
 {
@@ -209,20 +217,25 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Soft Object Path"
 	TestPackage->AddToRoot();
 	UObject* TestSoftObject = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("TestSoftObject"));
 
-	FObjectPtr DefaultSoftObjPtr(FObjectRef {FName("/Engine/Test/ObjectPtrSoftObjectPath/Transient"), NAME_None, NAME_None, FObjectPathId("TestSoftObject")});
-
-	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	FObjectPtr DefaultSoftObjPtr(MakeUnresolvedHandle(TestSoftObject));
+#else
+	FObjectPtr DefaultSoftObjPtr(TestSoftObject);
+#endif
+	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"), 0);
 
 	// Initializing a soft object path from a TObjectPtr that's unresolved should stay unresolved.
 	FSoftObjectPath DefaultSoftObjPath(DefaultSoftObjPtr);
 	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FSoftObjectPath from an FObjectPtr"), 0);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should have changed when initializing a FSoftObjectPath"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
 
 	TEST_EQUAL_STR(TEXT("Soft object path constructed from an FObjectPtr does not have the expected path value"), TEXT("/Engine/Test/ObjectPtrSoftObjectPath/Transient.TestSoftObject"), *DefaultSoftObjPath.ToString());
 
 	TestPackage->RemoveFromRoot();
 }
+#endif
 
 TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Forward Declared", "[CoreUObject][ObjectPtr]")
 {
@@ -230,6 +243,8 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Forward Declared"
 	TObjectPtr<UForwardDeclaredObjDerived> ObjPtrFwd(MakeObjectPtrUnsafe<UForwardDeclaredObjDerived>(reinterpret_cast<UObject*>(PtrFwd)));
 	TEST_TRUE(TEXT("Null forward declared pointer used to construct a TObjectPtr should result in a null TObjectPtr"), !ObjPtrFwd);
 }
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
 TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Hash Consistency", "[CoreUObject][ObjectPtr]")
 {
@@ -242,16 +257,19 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Hash Consistency"
 	UObject* TestOuter4 = NewObject<UObjectPtrTestClass>(TestPackage1, TEXT("TestOuter4"));
 
 	UObject* TestPublicObject = NewObject<UObjectPtrTestClass>(TestOuter1, TEXT("TestPublicObject"), RF_Public);
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	MakePackedObjectRef(TestPublicObject); //construct a packed object ref the exported object. replicates linker load
-#endif
+
+	UE::CoreUObject::Private::MakePackedObjectRef(TestPublicObject); //construct a packed object ref the exported object. replicates linker load
 	// Perform hash consistency checks on public object reference
 	{
 		// Check that unresolved/resolved pointers produce the same hash
 		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
 
-		FObjectPtr TestPublicWrappedObjectPtr(FObjectRef{TestPackage1Name, TestPublicObject->GetClass()->GetOutermost()->GetFName(), TestPublicObject->GetClass()->GetFName(), FObjectPathId("TestOuter1.TestPublicObject")});
-		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		FObjectPtr TestPublicWrappedObjectPtr(MakeUnresolvedHandle(TestPublicObject));
+#else
+		FObjectPtr TestPublicWrappedObjectPtr(TestPublicObject);
+#endif
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), 0);
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
 
 		uint32 HashWrapped = GetTypeHash(TestPublicWrappedObjectPtr);
@@ -280,8 +298,9 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Hash Consistency"
 
 	TestPackage1->RemoveFromRoot();
 }
+#endif
 
-
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[CoreUObject][ObjectPtr]")
 {
 	const FName TestPackage1Name(TEXT("/Engine/Test/FObjectPtrTestLongPath/Transient"));
@@ -297,8 +316,8 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[Cor
 	UObject* TestObject3 = NewObject<UObjectPtrTestClass>(TestObject2, TEXT("TestObject3"));
 	UObject* TestObject4 = NewObject<UObjectPtrTestClass>(TestObject3, TEXT("TestObject4"));
 
-	FObjectPathId LongPath(TestObject4);
-	FObjectPathId::ResolvedNameContainerType ResolvedNames;
+	UE::CoreUObject::Private::FObjectPathId LongPath(TestObject4);
+	UE::CoreUObject::Private::FObjectPathId::ResolvedNameContainerType ResolvedNames;
 	LongPath.Resolve(ResolvedNames);
 
 	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have 4 elements"), ResolvedNames.Num(), 4);
@@ -307,6 +326,7 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[Cor
 	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have TestObject3 at element 2"), ResolvedNames[2], TestObject3->GetFName());
 	TEST_EQUAL(TEXT("Resolved path from FObjectPathId should have TestObject4 at element 3"), ResolvedNames[3], TestObject4->GetFName());
 }
+#endif
 
 TEST_CASE("CoreUObject::TObjectPtr::GetPathName", "[CoreUObject][ObjectPtr]")
 {
@@ -343,14 +363,14 @@ TEST_CASE("CoreUObject::TObjectPtr::GetPathName", "[CoreUObject][ObjectPtr]")
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	{
-		FObjectPtr ObjPtr(MakePackedObjectRef(TestObject1));
+		FObjectPtr ObjPtr(MakeUnresolvedHandle(TestObject1));
 		Ptr = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr);
 		REQUIRE(!Ptr.IsResolved());
 		CHECK(TestObject1->GetPathName() == Ptr.GetPathName());
 		CHECK(TestObject1->GetClass() == Ptr.GetClass());
 	}
 	{
-		FObjectPtr ObjPtr(MakePackedObjectRef(TestPackage1));
+		FObjectPtr ObjPtr(MakeUnresolvedHandle(TestPackage1));
 		Ptr = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr);
 		REQUIRE(!Ptr.IsResolved());
 		CHECK(TestPackage1->GetPathName() == Ptr.GetPathName());
@@ -371,7 +391,7 @@ TEST_CASE("CoreUObject::TObjectPtr::PackageRename")
 	TestPackage->AddToRoot();
 
 	//register package with the object handle registry
-	MakePackedObjectRef(TestPackage);
+	UE::CoreUObject::Private::MakePackedObjectRef(TestPackage);
 
 	UObject* Obj1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj1"));
 	UObject* Inner1 = NewObject<UObjectPtrTestClass>(Obj1, TEXT("Inner1"));
@@ -380,8 +400,8 @@ TEST_CASE("CoreUObject::TObjectPtr::PackageRename")
 
 	Class->GetOutermost()->GetMetaData()->SetValue(Class, TEXT("LoadBehavior"), TEXT("LazyOnDemand"));
 
-	FObjectPtr ObjPtr(MakePackedObjectRef(Obj1));
-	FObjectPtr InnerPtr(MakePackedObjectRef(Inner1));
+	FObjectPtr ObjPtr(MakeUnresolvedHandle(Obj1));
+	FObjectPtr InnerPtr(MakeUnresolvedHandle(Inner1));
 
 	TObjectPtr<UObject> BeforeRename = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr);
 	TObjectPtr<UObject> BeforeRenameInner = *reinterpret_cast<TObjectPtr<UObject>*>(&InnerPtr);
@@ -400,8 +420,8 @@ TEST_CASE("CoreUObject::TObjectPtr::PackageRename")
 	CHECK(BeforeRename == AfterRenameResolved);
 	CHECK(BeforeRenameInner == AfterRenameInnerResolved);
 
-	FObjectPtr ObjPtr2(MakePackedObjectRef(Obj1));
-	FObjectPtr InnerPtr2(MakePackedObjectRef(Inner1));
+	FObjectPtr ObjPtr2(MakeUnresolvedHandle(Obj1));
+	FObjectPtr InnerPtr2(MakeUnresolvedHandle(Inner1));
 	TObjectPtr<UObject> AfterRenameUnresolved = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr2);
 	TObjectPtr<UObject> AfterRenameInnerUnresolved = *reinterpret_cast<TObjectPtr<UObject>*>(&InnerPtr2);
 
@@ -426,11 +446,11 @@ TEST_CASE("CoreUObject::TObjectPtr::InnerRename")
 	UObject* Obj2 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj2"));
 	UObject* Inner2 = NewObject<UObjectPtrTestClass>(Obj2, TEXT("Inner2"));
 
-	FObjectPtr ObjPtr1(MakePackedObjectRef(Obj1));
-	FObjectPtr InnerPtr1(MakePackedObjectRef(Inner1));
+	FObjectPtr ObjPtr1(MakeUnresolvedHandle(Obj1));
+	FObjectPtr InnerPtr1(MakeUnresolvedHandle(Inner1));
 
-	FObjectPtr ObjPtr2(MakePackedObjectRef(Obj2));
-	FObjectPtr InnerPtr2(MakePackedObjectRef(Inner2));
+	FObjectPtr ObjPtr2(MakeUnresolvedHandle(Obj2));
+	FObjectPtr InnerPtr2(MakeUnresolvedHandle(Inner2));
 
 	TObjectPtr<UObject> BeforeRename1 = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjPtr1);
 	TObjectPtr<UObject> BeforeRenameInner1 = *reinterpret_cast<TObjectPtr<UObject>*>(&InnerPtr1);
@@ -450,8 +470,8 @@ TEST_CASE("CoreUObject::TObjectPtr::InnerRename")
 
 	Obj1->Rename(TEXT("RenamedObj"), nullptr);
 
-	FObjectPtr AfterRenameObjPtr1(MakePackedObjectRef(Obj1));
-	FObjectPtr AfterRenameInnerPtr1(MakePackedObjectRef(Inner1));
+	FObjectPtr AfterRenameObjPtr1(MakeUnresolvedHandle(Obj1));
+	FObjectPtr AfterRenameInnerPtr1(MakeUnresolvedHandle(Inner1));
 
 	TObjectPtr<UObject> AfterRenameUnresolved1 = *reinterpret_cast<TObjectPtr<UObject>*>(&AfterRenameObjPtr1);
 	TObjectPtr<UObject> AfterRenameInnerUnresolved1 = *reinterpret_cast<TObjectPtr<UObject>*>(&AfterRenameInnerPtr1);
@@ -490,8 +510,8 @@ TEST_CASE("CoreUObject::TObjectPtr::Move")
 	UPackage* TestPackageB = NewObject<UPackage>(nullptr, TEXT("/Engine/PackageB"), RF_Transient);
 	TestPackageB->AddToRoot();
 
-	FObjectPtr FObjPtr(MakePackedObjectRef(Obj1));
-	FObjectPtr FInnerPtr(MakePackedObjectRef(Inner1));
+	FObjectPtr FObjPtr(MakeUnresolvedHandle(Obj1));
+	FObjectPtr FInnerPtr(MakeUnresolvedHandle(Inner1));
 
 	TObjectPtr<UObject> BeforeRename = *reinterpret_cast<TObjectPtr<UObject>*>(&FObjPtr);
 	TObjectPtr<UObject> BeforeRenameInner = *reinterpret_cast<TObjectPtr<UObject>*>(&FInnerPtr);
@@ -540,9 +560,9 @@ TEST_CASE("CoreUObject::TObjectPtr::GetTypeHash")
 	TObjectPtr<UObject> Obj1 = NewObject<UObjectPtrTestClass>(TestPackageA, TEXT("Obj1"));
 	TObjectPtr<UObject> Inner1 = NewObject<UObjectPtrTestClass>(Obj1, TEXT("Inner1"));
 
-	MakePackedObjectRef(TestPackageA);
-	MakePackedObjectRef(Obj1.Get());
-	MakePackedObjectRef(Inner1.Get());
+	UE::CoreUObject::Private::MakePackedObjectRef(TestPackageA);
+	UE::CoreUObject::Private::MakePackedObjectRef(Obj1.Get());
+	UE::CoreUObject::Private::MakePackedObjectRef(Inner1.Get());
 
 	TMap<TObjectPtr<UObject>, int> TestMap;
 
@@ -571,9 +591,9 @@ TEST_CASE("CoreUObject::TObjectPtr::GetTypeHash")
 	CHECK(TestMap[NotLazy] == NotLazyValue);
 
 
-	FObjectPtr FPackagePtr(MakePackedObjectRef(TestPackageA));
-	FObjectPtr FObjPtr(MakePackedObjectRef(Obj1));
-	FObjectPtr FInnerPtr(MakePackedObjectRef(Inner1));
+	FObjectPtr FPackagePtr(MakeUnresolvedHandle(TestPackageA));
+	FObjectPtr FObjPtr(MakeUnresolvedHandle(Obj1));
+	FObjectPtr FInnerPtr(MakeUnresolvedHandle(Inner1));
 
 	TObjectPtr<UObject> BeforeRename = *reinterpret_cast<TObjectPtr<UObject>*>(&FObjPtr);
 	TObjectPtr<UObject> BeforeRenameInner = *reinterpret_cast<TObjectPtr<UObject>*>(&FInnerPtr);
@@ -783,4 +803,4 @@ TEST_CASE("CoreUObject::TObjectPtr::TestEquals")
 	CHECK(BasePtr == ObjPtr);
 }
 
-#endif 
+#endif

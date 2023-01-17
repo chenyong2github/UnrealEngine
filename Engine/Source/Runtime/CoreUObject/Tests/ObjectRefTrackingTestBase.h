@@ -10,6 +10,14 @@
 #include "UObject/ObjectHandle.h"
 #include "Misc/ScopeLock.h"
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+inline FObjectHandle MakeUnresolvedHandle(const UObject* Obj)
+{
+	UE::CoreUObject::Private::FPackedObjectRef PackedObjectRef = UE::CoreUObject::Private::MakePackedObjectRef(Obj);
+	return { PackedObjectRef.EncodedRef };
+}
+
+#endif
 
 class FObjectRefTrackingTestBase
 {
@@ -50,8 +58,8 @@ public:
 			bool bValue = false;
 			if (bAllowAdditionalReads)
 			{
-				bValue = Test.GetNumReads() >= OriginalNumReads + ExpectedDelta;
-				TEST_TRUE(What, bValue);
+				INFO(What);
+				CHECK(Test.GetNumReads() >= OriginalNumReads + ExpectedDelta);
 			}
 			else
 			{
@@ -72,7 +80,7 @@ private:
 	static void OnRefResolved(const FObjectRef& ObjectRef, UPackage* Pkg, UObject* Obj)
 	{
 		NumResolves++;
-		if (!IsObjectRefNull(ObjectRef) && !Obj)
+		if (!ObjectRef.IsNull() && !Obj)
 		{
 			NumFailedResolves++;
 		}

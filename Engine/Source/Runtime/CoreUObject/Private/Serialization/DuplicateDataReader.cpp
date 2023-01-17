@@ -83,7 +83,7 @@ FArchive& FDuplicateDataReader::operator<<(FObjectPtr& ObjectPtr)
 
 	if (!IsObjectHandleNull(Handle) && IsObjectHandleResolved(Handle))
 	{
-		UObject* SourceObject = ReadObjectHandlePointerNoCheck(Handle);
+		UObject* SourceObject = UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(Handle);
 		FDuplicatedObject ObjectInfo = DuplicatedObjectAnnotation.GetAnnotation(SourceObject);
 		if (!ObjectInfo.IsDefault())
 		{

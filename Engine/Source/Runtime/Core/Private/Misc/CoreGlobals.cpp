@@ -242,13 +242,18 @@ bool					GExitPurge						= false;
 
 FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers = nullptr;
 
-UE::ObjectPath::Private::FStoredObjectPath* GCoreComplexObjectPathDebug = nullptr;
-FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug = nullptr;
+namespace UE::CoreUObject::Private
+{
+	struct FStoredObjectPath;
+	struct FObjectHandlePackageDebugData;
+}
+UE::CoreUObject::Private::FStoredObjectPath* GCoreComplexObjectPathDebug = nullptr;
+UE::CoreUObject::Private::FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug = nullptr;
 #if PLATFORM_UNIX
 uint8** CORE_API GNameBlocksDebug = FNameDebugVisualizer::GetBlocks();
 FChunkedFixedUObjectArray*& CORE_API GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
-UE::ObjectPath::Private::FStoredObjectPath*& GComplexObjectPathDebug = GCoreComplexObjectPathDebug;
-FObjectHandlePackageDebugData*& CORE_API GObjectHandlePackageDebug = GCoreObjectHandlePackageDebug;
+UE::CoreUObject::Private::FStoredObjectPath*& GComplexObjectPathDebug = GCoreComplexObjectPathDebug;
+UE::CoreUObject::Private::FObjectHandlePackageDebugData*& CORE_API GObjectHandlePackageDebug = GCoreObjectHandlePackageDebug;
 #endif
 
 /** Game name, used for base game directory and ini among other things										*/

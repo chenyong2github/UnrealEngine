@@ -6,41 +6,42 @@
 
 FString FObjectPtr::GetPathName() const
 {
-	if (IsResolved() && !IsObjectHandleNull(Handle))
+	FObjectHandle LocalHandle = Handle;
+	if (IsObjectHandleResolved(LocalHandle) && !IsObjectHandleNull(LocalHandle))
 	{
 		return Get()->GetPathName();
 	}
 	else
 	{
-		FObjectRef ObjectRef = MakeObjectRef(Handle);
+		FObjectRef ObjectRef = UE::CoreUObject::Private::MakeObjectRef(UE::CoreUObject::Private::ReadObjectHandlePackedObjectRefNoCheck(LocalHandle));
 		return ObjectRef.GetPathName();
 	}
 }
 
 FName FObjectPtr::GetFName() const
 {
-	if (IsResolved())
+	FObjectHandle LocalHandle = Handle;
+	if (IsObjectHandleResolved(LocalHandle) && !IsObjectHandleNull(LocalHandle))
 	{
-		UObject* ResolvedObject = Get();
-		return ResolvedObject ? ResolvedObject->GetFName() : NAME_None;
+		return Get()->GetFName();
 	}
 	else
 	{
-		FObjectRef ObjectRef = MakeObjectRef(Handle);
+		FObjectRef ObjectRef = UE::CoreUObject::Private::MakeObjectRef(UE::CoreUObject::Private::ReadObjectHandlePackedObjectRefNoCheck(LocalHandle));
 		return ObjectRef.GetFName();
 	}
 }
 
 FString FObjectPtr::GetFullName(EObjectFullNameFlags Flags) const
 {
-	if (IsResolved())
+	FObjectHandle LocalHandle = Handle;
+	if (IsObjectHandleResolved(LocalHandle) && !IsObjectHandleNull(LocalHandle))
 	{
-		// UObjectBaseUtility::GetFullName is safe to call on null objects.
 		return Get()->GetFullName(nullptr, Flags);
 	}
 	else
 	{
-		FObjectRef ObjectRef = MakeObjectRef(Handle);
+		FObjectRef ObjectRef = UE::CoreUObject::Private::MakeObjectRef(UE::CoreUObject::Private::ReadObjectHandlePackedObjectRefNoCheck(LocalHandle));
 		return ObjectRef.GetFullName(Flags);
 	}
 }

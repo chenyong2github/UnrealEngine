@@ -2375,7 +2375,7 @@ public:
 	template<class UObjectType>
 	void AddReferencedObject(TObjectPtr<UObjectType>& Object, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		if (IsObjectHandleResolved(Object.GetHandle()))
+		if (Object.IsResolved())
 		{
 			HandleObjectReference(*reinterpret_cast<UObject**>(&Object), ReferencingObject, ReferencingProperty);
 		}
@@ -2393,7 +2393,7 @@ public:
 	{
 		static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObject: Element must be a pointer to a type derived from UObject");
-		if (IsObjectHandleResolved(Object.GetHandle()))
+		if (Object.IsResolved())
 		{
 			HandleObjectReference(*reinterpret_cast<UObject**>(&Object), ReferencingObject, ReferencingProperty);
 		}
@@ -2447,7 +2447,7 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
 		for (auto& Object : ObjectSet)
 		{
-			if (IsObjectHandleResolved(Object.GetHandle()))
+			if (Object.IsResolved())
 			{
 				HandleObjectReference(*reinterpret_cast<UObject**>(&Object), ReferencingObject, ReferencingProperty);
 			}
@@ -2468,7 +2468,7 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
 		for (auto& It : Map)
 		{
-			if (IsObjectHandleResolved(It.Key.GetHandle()))
+			if (It.Key.IsResolved())
 			{
 				HandleObjectReference(*reinterpret_cast<UObject**>(&It.Key), ReferencingObject, ReferencingProperty);
 			}
@@ -2481,7 +2481,7 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
 		for (auto& It : Map)
 		{
-			if (IsObjectHandleResolved(It.Value.GetHandle()))
+			if (It.Value.IsResolved())
 			{
 				HandleObjectReference(*reinterpret_cast<UObject**>(&It.Value), ReferencingObject, ReferencingProperty);
 			}
@@ -2496,11 +2496,11 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
 		for (auto& It : Map)
 		{
-			if (IsObjectHandleResolved(It.Key.GetHandle()))
+			if (It.Key.IsResolved())
 			{
 				HandleObjectReference(*reinterpret_cast<UObject**>(&It.Key), ReferencingObject, ReferencingProperty);
 			}
-			if (IsObjectHandleResolved(It.Value.GetHandle()))
+			if (It.Value.IsResolved())
 			{
 				HandleObjectReference(*reinterpret_cast<UObject**>(&It.Value), ReferencingObject, ReferencingProperty);
 			}

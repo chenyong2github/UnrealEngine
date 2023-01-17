@@ -1015,7 +1015,7 @@ UPackage* CreatePackage(const TCHAR* PackageName )
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 				if (Result->GetClass()->GetFName() != NAME_None)
 				{
-					MakePackedObjectRef(Result);
+					UE::CoreUObject::Private::MakePackedObjectRef(Result);
 				}
 #endif
 #if WITH_EDITOR

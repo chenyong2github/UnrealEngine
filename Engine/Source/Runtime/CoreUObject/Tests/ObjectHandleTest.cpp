@@ -12,6 +12,8 @@
 #include "ObjectRefTrackingTestBase.h"
 #include "IO/IoDispatcher.h"
 #include "TestHarness.h"
+#include "UObject/ObjectRef.h"
+#include "UObject/ObjectPathId.h"
 
 static_assert(sizeof(FObjectHandle) == sizeof(void*), "FObjectHandle type must always compile to something equivalent to a pointer size.");
 
@@ -20,122 +22,57 @@ class FObjectHandleTestBase : public FObjectRefTrackingTestBase
 public:
 	
 protected:
-	
-	UObject* ResolveHandle(FObjectHandle& TargetHandle)
-	{
-	#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-		// Late resolved handles cannot be null or resolved at this point
-		bool bValue = IsObjectHandleNull(TargetHandle);
-		TEST_FALSE(TEXT("Handle to target is null"), bValue);
-		if (bValue)
-		{
-			return nullptr;
-		}
-		bValue = IsObjectHandleResolved(TargetHandle);
-		TEST_FALSE(TEXT("Handle to target is resolved"), bValue);
-		if (bValue)
-		{
-			return nullptr;
-		}
-	#else
-		bool bValue = IsObjectHandleResolved(TargetHandle);
-		// Immediately resolved handles may be null (if the target is invalid) and must be resolved at this point
-		TEST_TRUE(TEXT("Handle to target is not resolved"), bValue);
-		if (!bValue)
-		{
-			return nullptr;
-		}
-	#endif
-
-		return ResolveObjectHandle(TargetHandle);
-	}
-
-	UObject* ConstructAndResolveHandle(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr)
-	{
-		FObjectRef TargetRef{FName(PackageName), FName(ClassPackageName), FName(ClassName), FObjectPathId(ObjectName)};
-		bool bValue = IsObjectRefNull(TargetRef);
-		TEST_FALSE(TEXT("Reference to target is null"), bValue);
-		if (bValue)
-		{
-			return nullptr;
-		}
-
-		FObjectHandle TargetHandle = MakeObjectHandle(TargetRef);
-		return ResolveHandle(TargetHandle);
-	}
-
-	UObject* ConstructAndResolveHandle(const FPackedObjectRef& PackedTargetRef)
-	{
-		bool bValue = PackedTargetRef.EncodedRef == 0;
-		TEST_FALSE(TEXT("Reference to target is null"), bValue);
-		if (bValue)
-		{
-			return nullptr;
-		}
-
-		FObjectHandle TargetHandle = MakeObjectHandle(PackedTargetRef);
-		return ResolveHandle(TargetHandle);
-	}
-
-	bool TestResolvableNonNull(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr, bool bExpectSubRefReads = false)
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	void TestResolveFailure(UE::CoreUObject::Private::FPackedObjectRef PackedRef)
 	{
 		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
-		UObject* ResolvedObject = ConstructAndResolveHandle(PackageName, ObjectName, ClassPackageName, ClassName);
+		FObjectHandle TargetHandle = { PackedRef.EncodedRef };
+		UObject* ResolvedObject = FObjectPtr(TargetHandle).Get();
+		ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should be incremented by one after a resolve attempt"), 1);
+		ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt"), 1);
+
+		CHECK(ResolvedObject == nullptr);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
+	}
+#endif
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+	void TestResolvableNonNull(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, bool bExpectSubRefReads)
+	{
+
+		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
+		FObjectRef TargetRef(FName(PackageName), NAME_None, NAME_None, UE::CoreUObject::Private::FObjectPathId(ObjectName));
+		UObject* ResolvedObject = TargetRef.Resolve();
+		FObjectPtr Ptr(ResolvedObject);
+		Ptr.Get();
+		TEST_TRUE(TEXT("expected not null"), ResolvedObject != nullptr);
 		ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should be incremented by one after a resolve attempt"), 1);
 		ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt"), 1, bExpectSubRefReads /*bAllowAdditionalReads*/);
-
-		if (!ResolvedObject)
-		{
-			FAIL_CHECK(FString::Printf(TEXT("Expected '%s.%s' to resolve to non null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)));
-			return false;
-		}
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should not change after a successful resolve attempt"), 0);
-
-		return true;
 	}
 
-	bool TestResolveFailure(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr)
+	void TestResolveFailure(const ANSICHAR* PackageName, const ANSICHAR* ObjectName)
 	{
 		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
-		UObject* ResolvedObject = ConstructAndResolveHandle(PackageName, ObjectName, ClassPackageName, ClassName);
+		FObjectRef TargetRef(FName(PackageName), NAME_None, NAME_None, UE::CoreUObject::Private::FObjectPathId(ObjectName));
+		const UObject* ResolvedObject = TargetRef.Resolve();
 		ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should be incremented by one after a resolve attempt"), 1);
 		ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt"), 1);
-
-		if (ResolvedObject)
-		{
-			FAIL_CHECK(FString::Printf(TEXT("Expected '%s.%s' to resolve to null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)));
-			return false;
-		}
+		CHECK(ResolvedObject == nullptr);
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
-		return true;
 	}
-
-	bool TestResolveFailure(FPackedObjectRef PackedRef)
-	{
-		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
-		UObject* ResolvedObject = ConstructAndResolveHandle(PackedRef);
-		ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should be incremented by one after a resolve attempt"), 1);
-		ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt"), 1);
-
-		if (ResolvedObject)
-		{
-			FAIL_CHECK(FString::Printf(TEXT("Expected PACKEDREF(%" UPTRINT_X_FMT ") to resolve to null."), PackedRef.EncodedRef));
-			return false;
-		}
-		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
-		return true;
-	}
+#endif
 };
 
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Null Behavior", "[CoreUObject][ObjectHandle]")
 {
-	FObjectHandle TargetHandle = MakeObjectHandle(nullptr);
+	FObjectHandle TargetHandle = UE::CoreUObject::Private::MakeObjectHandle(nullptr);
 
 	TEST_TRUE(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle));
 	TEST_TRUE(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle));
 
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
-	UObject* ResolvedObject = ResolveObjectHandle(TargetHandle);
+	UObject* ResolvedObject = UE::CoreUObject::Private::ResolveObjectHandle(TargetHandle);
 
 	TEST_EQUAL(TEXT("Resolved object is equal to original object"), (UObject*)nullptr, ResolvedObject);
 
@@ -146,13 +83,13 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Null Behavi
 
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Pointer Behavior", "[CoreUObject][ObjectHandle]")
 {
-	FObjectHandle TargetHandle = MakeObjectHandle((UObject*)0x0042);
+	FObjectHandle TargetHandle = UE::CoreUObject::Private::MakeObjectHandle((UObject*)0x0042);
 
 	TEST_FALSE(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle));
 	TEST_TRUE(TEXT("Handle to target is resolved"), IsObjectHandleResolved(TargetHandle));
 
 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
-	UObject* ResolvedObject = ResolveObjectHandle(TargetHandle);
+	UObject* ResolvedObject = UE::CoreUObject::Private::ResolveObjectHandle(TargetHandle);
 
 	TEST_EQUAL(TEXT("Resolved object is equal to original object"), (UObject*)0x0042, ResolvedObject);
 
@@ -161,6 +98,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Pointer Beh
 	ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt on a pointer handle"),1);
 }
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Engine Content Target", "[CoreUObject][ObjectHandle]")
 {
 	const FName TestPackageName(TEXT("/Engine/Test/ObjectPtrDefaultSerialize/Transient"));
@@ -172,11 +110,10 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Eng
 		TestPackage->RemoveFromRoot();
 	};
 
-	// Confirm we successfully resolve a correct reference to a subobject
-	TestResolvableNonNull("/Engine/Test/ObjectPtrDefaultSerialize/Transient", "DefaultSerializeObject.SubObject", nullptr, nullptr, true);
-
-	TestResolvableNonNull("/Engine/Test/ObjectPtrDefaultSerialize/Transient", "DefaultSerializeObject");
+	TestResolvableNonNull("/Engine/Test/ObjectPtrDefaultSerialize/Transient", "DefaultSerializeObject.SubObject", true);
+	TestResolvableNonNull("/Engine/Test/ObjectPtrDefaultSerialize/Transient", "DefaultSerializeObject", false);
 }
+
 
 // TODO: Disabled until warnings and errors related to loading a non-existent package have been fixed.
 DISABLED_TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Non Existent Target", "[CoreUObject][ObjectHandle]")
@@ -198,8 +135,10 @@ DISABLED_TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Re
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Script Target", "[CoreUObject][ObjectHandle]")
 {
 	// Confirm we successfully resolve a correct reference to engine content
-	TestResolvableNonNull("/Script/CoreUObject", "MetaData");
+	TestResolvableNonNull("/Script/CoreUObject", "MetaData", true);
 }
+
+#endif
 
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetClass", "[CoreUObject][ObjectHandle]")
 {
@@ -218,8 +157,8 @@ TEST_CASE("CoreUObject::FObjectHandle::Names")
 		TestPackage->RemoveFromRoot();
 	};
 
-	FObjectPtr PackagePtr(MakePackedObjectRef(TestPackage));
-	FObjectPtr Obj1Ptr(MakePackedObjectRef(Obj1));
+	FObjectPtr PackagePtr(MakeUnresolvedHandle(TestPackage));
+	FObjectPtr Obj1Ptr(MakeUnresolvedHandle(Obj1));
 
 	CHECK(!PackagePtr.IsResolved());
 	CHECK(TestPackage->GetPathName() == PackagePtr.GetPathName());
@@ -237,6 +176,8 @@ TEST_CASE("CoreUObject::FObjectHandle::Names")
 }
 #endif
 
+#if UE_WITH_OBJECT_HANDLE_TRACKING || UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+
 TEST_CASE("CoreUObject::ObjectRef")
 {
 	const FName TestPackageName(TEXT("/Engine/Test/ObjectRef/Transient"));
@@ -250,7 +191,7 @@ TEST_CASE("CoreUObject::ObjectRef")
 
 	{
 		FObjectImport ObjectImport(Obj1);
-		FObjectRef ObjectRef = MakeObjectRef(Obj1);
+		FObjectRef ObjectRef(Obj1);
 
 		CHECK(ObjectImport.ClassPackage == ObjectRef.ClassPackageName);
 		CHECK(ObjectImport.ClassName == ObjectRef.ClassName);
@@ -259,14 +200,17 @@ TEST_CASE("CoreUObject::ObjectRef")
 
 	{
 		FObjectImport ObjectImport(Inner1);
-		FObjectRef ObjectRef = MakeObjectRef(Inner1);
+		FObjectRef ObjectRef(Inner1);
 
 		CHECK(ObjectImport.ClassPackage == ObjectRef.ClassPackageName);
 		CHECK(ObjectImport.ClassName == ObjectRef.ClassName);
 		CHECK(TestPackage->GetFName() == ObjectRef.PackageName);
 	}
 }
-#if UE_WITH_OBJECT_HANDLE_TRACKING
+
+#endif
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior", "[CoreUObject][ObjectHandle]")
 {
@@ -303,8 +247,9 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 	CHECK_FALSE(Ptr != TestObject); CHECK(ResolveCount == 0u);
 	CHECK_FALSE(TestObject != Ptr); CHECK(ResolveCount == 0u);
 
-	FObjectRef TargetRef{ FName("SomePackage"), FName("ClassPackageName"), FName("ClassName"), FObjectPathId("ObjectName") };
-	FObjectPtr ObjectPtr(TargetRef);
+	FObjectRef TargetRef(FName("SomePackage"), FName("ClassPackageName"), FName("ClassName"), UE::CoreUObject::Private::FObjectPathId("ObjectName"));
+	UE::CoreUObject::Private::FPackedObjectRef PackedObjectRef = UE::CoreUObject::Private::MakePackedObjectRef(TargetRef);
+	FObjectPtr ObjectPtr({ PackedObjectRef.EncodedRef });
 	REQUIRE(!ObjectPtr.IsResolved()); //make sure not resolved
 
 	//an unresolved pointers compared against nullptr should still not resolve
@@ -350,7 +295,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 	CHECK_FALSE(ResolvedPtr == Ptr);  CHECK(ResolveCount == 0u);
 
 	//compare unresolved against nullptr
-	FObjectPtr FPtr(MakePackedObjectRef(TestObject));
+	FObjectPtr FPtr(MakeUnresolvedHandle(TestObject));
 	TObjectPtr<UObject> UnResolvedPtr = *reinterpret_cast<TObjectPtr<UObject>*>(&FPtr);
 	CHECK(!UnResolvedPtr.IsResolved());
 	CHECK_FALSE(Ptr == UnResolvedPtr); CHECK(ResolveCount == 0u);
@@ -400,8 +345,8 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Malformed Handle", "[CoreUObject][ObjectHandle]")
 {
-	TestResolveFailure(FPackedObjectRef { 0xFFFF'FFFF'FFFF'FFFFull });
-	TestResolveFailure(FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });
+	TestResolveFailure(UE::CoreUObject::Private::FPackedObjectRef { 0xFFFF'FFFF'FFFF'FFFFull });
+	TestResolveFailure(UE::CoreUObject::Private::FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });
 }
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 

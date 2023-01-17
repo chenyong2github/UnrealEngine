@@ -54,7 +54,7 @@ struct FObjectPtr
 {
 public:
 	FObjectPtr()
-		: Handle(MakeObjectHandle(nullptr))
+		: Handle(UE::CoreUObject::Private::MakeObjectHandle(nullptr))
 	{
 	}
 
@@ -63,39 +63,37 @@ public:
 	}
 
 	FORCEINLINE FObjectPtr(TYPE_OF_NULLPTR)
-		: Handle(MakeObjectHandle(nullptr))
+		: Handle(UE::CoreUObject::Private::MakeObjectHandle(nullptr))
 	{
 	}
 
 	explicit FORCEINLINE FObjectPtr(UObject* Object)
-		: Handle(MakeObjectHandle(Object))
+		: Handle(UE::CoreUObject::Private::MakeObjectHandle(Object))
 	{
 	}
 
 	UE_OBJPTR_DEPRECATED(5.0, "Construction with incomplete type pointer is deprecated.  Please update this code to use MakeObjectPtrUnsafe.")
 	explicit FORCEINLINE FObjectPtr(void* IncompleteObject)
-		: Handle(MakeObjectHandle(reinterpret_cast<UObject*>(IncompleteObject)))
+		: Handle(UE::CoreUObject::Private::MakeObjectHandle(reinterpret_cast<UObject*>(IncompleteObject)))
 	{
 	}
 
-	explicit FORCEINLINE FObjectPtr(const FObjectRef& ObjectRef)
-		: Handle(MakeObjectHandle(ObjectRef))
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	explicit FORCEINLINE FObjectPtr(FObjectHandle Handle)
+		: Handle(Handle)
 	{
 	}
-
-	explicit FORCEINLINE FObjectPtr(const FPackedObjectRef& PackedObjectRef)
-		: Handle(MakeObjectHandle(PackedObjectRef))
-	{
-	}
+#endif
+	
 
 	FORCEINLINE UObject* Get() const
 	{
-		return ResolveObjectHandle(Handle);
+		return UE::CoreUObject::Private::ResolveObjectHandle(Handle);
 	}
 
 	FORCEINLINE UClass* GetClass() const
 	{
-		return ResolveObjectHandleClass(Handle);
+		return UE::CoreUObject::Private::ResolveObjectHandleClass(Handle);
 	}
 
 	FObjectPtr(FObjectPtr&&) = default;
@@ -105,20 +103,20 @@ public:
 
 	FObjectPtr& operator=(UObject* Other)
 	{
-		Handle = MakeObjectHandle(Other);
+		Handle = UE::CoreUObject::Private::MakeObjectHandle(Other);
 		return *this;
 	}
 
 	UE_OBJPTR_DEPRECATED(5.0, "Assignment with incomplete type pointer is deprecated.  Please update this code to use MakeObjectPtrUnsafe.")
 	FObjectPtr& operator=(void* IncompleteOther)
 	{
-		Handle = MakeObjectHandle(reinterpret_cast<UObject*>(IncompleteOther));
+		Handle = UE::CoreUObject::Private::MakeObjectHandle(reinterpret_cast<UObject*>(IncompleteOther));
 		return *this;
 	}
 
 	FObjectPtr& operator=(TYPE_OF_NULLPTR)
 	{
-		Handle = MakeObjectHandle(nullptr);
+		Handle = UE::CoreUObject::Private::MakeObjectHandle(nullptr);
 		return *this;
 	}
 
@@ -134,7 +132,7 @@ public:
 	FORCEINLINE UObject& operator*() const { return *Get(); }
 
 	UE_DEPRECATED(5.1, "IsNull is deprecated, please use operator bool instead.")
-	FORCEINLINE bool IsNull() const { return ResolveObjectHandleNoRead(Handle) == nullptr; }
+	FORCEINLINE bool IsNull() const { return UE::CoreUObject::Private::ResolveObjectHandleNoRead(Handle) == nullptr; }
 	
 	UE_DEPRECATED(5.1, "IsNullNoResolve is deprecated, please use operator bool instead.")
 	FORCEINLINE bool IsNullNoResolve() const { return IsObjectHandleNull(Handle); }
@@ -546,8 +544,8 @@ public:
 	template <typename U, typename V> friend bool ObjectPtr_Private::IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<U>& Ptr, const V* Other);
 
 private:
-	FORCEINLINE T* GetNoReadNoCheck() const { return (T*)(ResolveObjectHandleNoReadNoCheck(ObjectPtr.GetHandleRef())); }
-	FORCEINLINE T* GetNoResolveNoCheck() const { return (T*)(ReadObjectHandlePointerNoCheck(ObjectPtr.GetHandleRef())); }
+	FORCEINLINE T* GetNoReadNoCheck() const { return (T*)(UE::CoreUObject::Private::ResolveObjectHandleNoReadNoCheck(ObjectPtr.GetHandleRef())); }
+	FORCEINLINE T* GetNoResolveNoCheck() const { return (T*)(UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(ObjectPtr.GetHandleRef())); }
 
 	// @TODO: OBJPTR: There is a risk of a gap in access tracking here.  The caller may get a mutable pointer, write to it, then
 	//			read from it.  That last read would happen without an access being recorded.  Not sure if there is a good way
