@@ -58,6 +58,6 @@ class NNXCORE_API INNERuntimeRDG
 	GENERATED_BODY()
 
 public:
-	virtual bool CanCreateModelRDG(TConstArrayView<uint8> Data) const = 0;
-	virtual TUniquePtr<UE::NNECore::IModelRDG> CreateModelRDG(TConstArrayView<uint8> Data) = 0;
+	virtual bool CanCreateModelRDG(TObjectPtr<UNNEModelData> ModelData) const = 0;
+	virtual TUniquePtr<UE::NNECore::IModelRDG> CreateModelRDG(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

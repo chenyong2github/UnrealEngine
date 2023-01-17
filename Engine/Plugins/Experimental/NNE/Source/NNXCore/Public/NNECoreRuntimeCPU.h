@@ -59,6 +59,6 @@ class NNXCORE_API INNERuntimeCPU
 	GENERATED_BODY()
 	
 public:
-	virtual bool CanCreateModelCPU(TConstArrayView<uint8> Data) const = 0;
-	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TConstArrayView<uint8> Data) = 0;
+	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const = 0;
+	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

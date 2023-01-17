@@ -49,10 +49,13 @@ TArray<uint8> UNNERuntimeCPUImpl::CreateModelData(FString FileType, TConstArrayV
 	return Result;
 }
 
-bool UNNERuntimeCPUImpl::CanCreateModelCPU(TConstArrayView<uint8> Data) const
+bool UNNERuntimeCPUImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const
 {
+	check(ModelData != nullptr);
+	
 	int32 GuidSize = sizeof(UNNERuntimeCPUImpl::GUID);
 	int32 VersionSize = sizeof(UNNERuntimeCPUImpl::Version);
+	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
 	
 	if (Data.Num() <= GuidSize + VersionSize)
 	{
@@ -64,15 +67,18 @@ bool UNNERuntimeCPUImpl::CanCreateModelCPU(TConstArrayView<uint8> Data) const
 	return bResult;
 }
 
-TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeCPUImpl::CreateModelCPU(TConstArrayView<uint8> Data)
+TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeCPUImpl::CreateModelCPU(TObjectPtr<UNNEModelData> ModelData)
 {
-	if (!CanCreateModelCPU(Data))
+	check(ModelData != nullptr);
+	
+	if (!CanCreateModelCPU(ModelData))
 	{
 		return TUniquePtr<UE::NNECore::IModelCPU>();
 	}
 
 	const UE::NNERuntimeCPU::Private::FRuntimeConf InConf;
 	UE::NNERuntimeCPU::Private::FModelCPU* Model = new UE::NNERuntimeCPU::Private::FModelCPU(&NNEEnvironmentCPU, InConf);
+	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
 	
 	if (!Model->Init(Data))
 	{

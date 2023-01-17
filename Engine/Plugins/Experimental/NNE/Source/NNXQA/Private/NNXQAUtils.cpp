@@ -5,11 +5,13 @@
 #include "Kismet/GameplayStatics.h"
 #include "NNECore.h"
 #include "NNECoreAttributeMap.h"
+#include "NNECoreModelData.h"
 #include "NNECoreRuntime.h"
 #include "NNECoreRuntimeCPU.h"
 #include "NNXCore.h"
 #include "NNXInferenceModel.h"
 #include "NNXModelOptimizerInterface.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/WeakInterfacePtr.h"
 
 namespace NNX 
@@ -423,9 +425,9 @@ namespace Test
 			return TUniquePtr<UE::NNECore::IModelCPU>();
 		}
 
-		TArray<uint8> Data = RuntimeForModelData->CreateModelData(FString("onnx"), ONNXModelData.Data);
-		TUniquePtr<UE::NNECore::IModelCPU> InferenceModel = RuntimeForInferenceModel->CreateModelCPU(Data);
-		
+		TObjectPtr<UNNEModelData> ModelData = NewObject<UNNEModelData>();
+		ModelData->Init(FString("onnx"), ONNXModelData.Data);
+		TUniquePtr<UE::NNECore::IModelCPU> InferenceModel = RuntimeForInferenceModel->CreateModelCPU(ModelData);
 		return InferenceModel;
 	}
 	

@@ -20,7 +20,8 @@ UObject* UNNEModelDataFactory::FactoryCreateBinary(UClass* Class, UObject* InPar
 	}
 
 	UNNEModelData* Result = NewObject<UNNEModelData>(InParent, Class, Name, Flags);
-	Result->Init(Type, Buffer, BufferEnd);
+	TConstArrayView<uint8> BufferView = MakeArrayView(Buffer, BufferEnd-Buffer);
+	Result->Init(Type, BufferView);
 
 	return Result;
 }

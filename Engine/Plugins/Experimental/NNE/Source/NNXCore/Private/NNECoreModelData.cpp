@@ -2,11 +2,13 @@
 
 #include "NNECoreModelData.h"
 
+#include "NNECore.h"
 #include "NNXCore.h"
 #include "NNXRuntimeFormat.h"
 #include "NNXModelOptimizerInterface.h"
 #include "NNECoreAttributeMap.h"
 #include "Serialization/CustomVersion.h"
+#include "UObject/WeakInterfacePtr.h"
 
 #if WITH_EDITOR
 #include "Misc/Guid.h"
@@ -59,33 +61,33 @@ inline void PutIntoDDC(const FGuid& FileDataId, const FString& RuntimeName, FSha
 
 inline TArray<uint8> Create(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData)
 {
-	using namespace NNX;
+	NNX::IRuntime* NNXRuntime = NNX::GetRuntime(RuntimeName);
+	if (NNXRuntime)
+	{
+		return NNXRuntime->CreateModelData(FileType, FileData);
+	}
 
-	// Try to optimize the model
-	IRuntime* Runtime = GetRuntime(RuntimeName);
-	if (!Runtime)
+	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNECore::GetRuntime<INNERuntime>(RuntimeName);
+	if (NNERuntime.IsValid())
+	{
+		return NNERuntime->CreateModelData(FileType, FileData);
+	}
+	else
 	{
 		UE_LOG(LogNNX, Error, TEXT("UNNEModelData: No runtime '%s' found. Valid runtimes are: "), *RuntimeName);
-		TArray<NNX::IRuntime*> Runtimes = GetAllRuntimes();
+		TArrayView<TWeakInterfacePtr<INNERuntime>> Runtimes = UE::NNECore::GetAllRuntimes();
 		for (int i = 0; i < Runtimes.Num(); i++)
 		{
 			UE_LOG(LogNNX, Error, TEXT("- %s"), *Runtimes[i]->GetRuntimeName());
 		}
 		return {};
 	}
-
-	return Runtime->CreateModelData(FileType, FileData);
 }
 
-void UNNEModelData::Init(const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd)
+void UNNEModelData::Init(const FString& Type, TConstArrayView<uint8> Buffer)
 {
-	check(Type)
-	check(Buffer)
-	check(BufferEnd)
-	check(BufferEnd - Buffer > 0)
-
-	FileType = FString(Type);
-	FileData = TArray<uint8>(Buffer, BufferEnd - Buffer);
+	FileType = Type;
+	FileData = Buffer;
 	FPlatformMisc::CreateGuid(FileDataId);
 	ModelData.Empty();
 }

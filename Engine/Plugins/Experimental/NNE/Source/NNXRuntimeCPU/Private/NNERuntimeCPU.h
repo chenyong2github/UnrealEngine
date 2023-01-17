@@ -37,6 +37,6 @@ public:
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const override;
 	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override;
 
-	virtual bool CanCreateModelCPU(TConstArrayView<uint8> Data) const override;
-	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TConstArrayView<uint8> Data) override;
+	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const override;
+	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) override;
 };

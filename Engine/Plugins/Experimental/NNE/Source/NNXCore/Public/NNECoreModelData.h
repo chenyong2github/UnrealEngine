@@ -14,11 +14,11 @@ class NNXCORE_API UNNEModelData : public UObject
 public:
 
 	/**
-	 * Function to initialize the data.
+	 * Function to initialize the data (will do a copy).
 	 * Called by the NNEModelDataFactory.
 	 * Type corresponds to the file extension.
 	 */
-	void Init(const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd);
+	void Init(const FString& Type, TConstArrayView<uint8> Buffer);
 
 	/**
 	 * The function returns the cached (editor) or cooked (game) optimized model data for a given runtime.
@@ -30,8 +30,6 @@ public:
 public:
 
 	virtual void Serialize(FArchive& Ar) override;
-
-public:
 
 	/**
 	 * A GUID used for versioning.
@@ -56,8 +54,6 @@ private:
 	 * This is used to cache optimized models in the editor.
 	 */
 	FGuid FileDataId;
-
-private:
 
 	/**
 	 * The processed / optimized model data for the different runtimes.
